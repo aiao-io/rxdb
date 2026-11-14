@@ -1,0 +1,754 @@
+完整串行门禁结果摘要；原始日志 SHA-256 见同目录 JSON。
+
+> nx run utils:build  [local cache]
+> nx run wujie:build  [local cache]
+> nx run code-editor:build  [local cache]
+> nx run utils:test  [local cache]
+ Test Files  121 passed (121)
+      Tests  1048 passed (1048)
+> nx run utils:lint  [existing outputs match the cache, left as is]
+> nx run rxdb:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-history:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-client-generator:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-tree:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-sync:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-test:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-encrypted:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-querycache:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-working-tree:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-sqlite-core:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-wa-sqlite:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-pglite:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-graph:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-electron:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-devtools:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-i18n:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-sqlite-wasm:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-sqliteai:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-sqlite:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-model:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-search:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-bom:lint  [existing outputs match the cache, left as is]
+> nx run wujie:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  97 passed (97)
+> nx run wujie:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-i18n-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-model-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-storage:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-board:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-react:lint  [existing outputs match the cache, left as is]
+> nx run code-editor:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  107 passed (107)
+> nx run code-editor:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin:lint  [existing outputs match the cache, left as is]
+> nx run angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-i18n-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-model-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-miniprogram:lint  [existing outputs match the cache, left as is]
+> nx run angular-todo:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-workspace:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-i18n-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-search-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-model-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-devtools-panel:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-replay:lint  [existing outputs match the cache, left as is]
+> nx run bom-workspace:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-supabase:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-board-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-search-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-search-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-react:lint  [existing outputs match the cache, left as is]
+> nx run code-editor-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-http:lint  [existing outputs match the cache, left as is]
+> nx run e2e-parity:lint  [existing outputs match the cache, left as is]
+> nx run recipes-domain:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-board-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-board-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-p2p:lint  [existing outputs match the cache, left as is]
+> nx run code-editor-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-devtools-extension:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-bom-vue:lint  [existing outputs match the cache, left as is]
+> nx run code-editor-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-react-e2e:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-taro:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-tauri:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-replay-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-working-tree-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-working-tree-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-working-tree-vue:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-bom-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-bom-react:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-react:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-angular:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-vue:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-p2p:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-tauri:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-electron:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-supabase:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-vue:lint  [existing outputs match the cache, left as is]
+> nx run aiao-bom-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-http:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-angular:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-alipay-probe:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-http-server:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-board:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-alipay-probe:build  [local cache]
+> nx run @aiao/source:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-react-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-vue-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-angular-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-p2p-e2e:lint  [existing outputs match the cache, left as is]
+> nx run website:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-replay-vue:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-douyin-spike:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-electron-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-http-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-tauri-e2e:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-tree-vue:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-board-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-supabase-e2e:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-devtools-extension-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-alipay-probe-e2e:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-tree-angular:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-replay-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-tree-react:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-angular-e2e:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-vue-e2e:lint  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-miniprogram-douyin-spike:build  [local cache]
+> nx run utils:typecheck  [local cache]
+> nx run wujie:typecheck  [local cache]
+> nx run code-editor-react:build  [local cache]
+> nx run code-editor-angular:build:production  [local cache]
+> nx run code-editor:typecheck  [local cache]
+> nx run code-editor-vue:build  [local cache]
+> nx run rxdb:test  [local cache]
+ Test Files  183 passed (183)
+      Tests  2987 passed | 1 skipped (2988)
+> nx run code-editor-react:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  47 passed (47)
+> nx run code-editor-angular:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  81 passed (81)
+> nx run code-editor-vue:test  [local cache]
+ Test Files  8 passed (8)
+      Tests  68 passed (68)
+> nx run code-editor-angular:typecheck  [local cache]
+> nx run code-editor-react:typecheck  [local cache]
+> nx run code-editor-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb:generate-skill
+> nx run rxdb:build  [local cache]
+> nx run rxdb-plugin-history:build  [local cache]
+> nx run rxdb-client-generator:build  [local cache]
+> nx run angular:build:production  [local cache]
+> nx run rxdb-adapter-encrypted:build  [local cache]
+> nx run recipes-domain:build  [local cache]
+> nx run rxdb-plugin-p2p:build  [local cache]
+> nx run rxdb-plugin-history:test  [local cache]
+ Test Files  32 passed (32)
+      Tests  455 passed (455)
+> nx run rxdb-client-generator:test  [local cache]
+ Test Files  43 passed (43)
+      Tests  434 passed (434)
+> nx run rxdb-adapter-encrypted:test  [local cache]
+ Test Files  16 passed (16)
+      Tests  325 passed (325)
+> nx run angular:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+> nx run recipes-domain:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  14 passed (14)
+> nx run rxdb-plugin-p2p:test  [local cache]
+ Test Files  15 passed (15)
+      Tests  154 passed (154)
+> nx run rxdb-plugin-working-tree:build  [local cache]
+> nx run rxdb-plugin-tree:build  [local cache]
+> nx run rxdb-plugin-sync:build  [local cache]
+> nx run rxdb-plugin-tree:coverage  [local cache]
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+> nx run rxdb-plugin-tree:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  7 passed (7)
+> nx run rxdb-plugin-sync:test  [local cache]
+ Test Files  36 passed (36)
+      Tests  558 passed (558)
+> nx run rxdb-plugin-working-tree:test  [local cache]
+ Test Files  82 passed (82)
+      Tests  1289 passed (1289)
+> nx run rxdb-devtools:test  [local cache]
+ Test Files  47 passed (47)
+      Tests  1031 passed (1031)
+> nx run rxdb-test:build  [local cache]
+> nx run rxdb-plugin-querycache:build  [local cache]
+> nx run rxdb-plugin-tree:test-browser  [local cache]
+ Test Files  17 passed (17)
+      Tests  295 passed (295)
+> nx run rxdb-test:test  [local cache]
+ Test Files  26 passed (26)
+      Tests  256 passed (256)
+> nx run rxdb-plugin-querycache:test  [local cache]
+ Test Files  15 passed (15)
+      Tests  219 passed (219)
+> nx run rxdb-adapter-sqlite-core:build  [local cache]
+> nx run rxdb-adapter-pglite:build  [local cache]
+> nx run rxdb-adapter-http:build  [local cache]
+> nx run rxdb-adapter-pglite:test-node  [existing outputs match the cache, left as is]
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+> nx run rxdb-adapter-sqlite-core:test  [local cache]
+ Test Files  78 passed (78)
+      Tests  1663 passed | 21 skipped (1684)
+> nx run rxdb-adapter-http:test  [local cache]
+ Test Files  13 passed (13)
+      Tests  531 passed (531)
+> nx run rxdb-adapter-sqlite-wasm:build  [local cache]
+> nx run rxdb-adapter-electron:build  [local cache]
+> nx run rxdb-adapter-sqliteai:build  [local cache]
+> nx run rxdb-adapter-sqlite:build  [local cache]
+> nx run rxdb-plugin-replay:build  [local cache]
+> nx run rxdb-plugin-replay:coverage  [local cache]
+ Test Files  13 passed | 1 skipped (14)
+      Tests  149 passed | 1 skipped (150)
+> nx run rxdb-adapter-wa-sqlite:test  [local cache]
+ Test Files  30 passed (30)
+      Tests  1048 passed | 14 skipped (1062)
+> nx run rxdb-adapter-electron:test  [local cache]
+ Test Files  40 passed (40)
+      Tests  1401 passed | 8 skipped (1409)
+> nx run rxdb-adapter-sqliteai:test  [local cache]
+ Test Files  13 passed (13)
+      Tests  854 passed | 10 skipped (864)
+> nx run rxdb-adapter-sqlite:test  [local cache]
+ Test Files  16 passed (16)
+      Tests  845 passed | 13 skipped (858)
+> nx run rxdb-adapter-sqlite-wasm:test  [local cache]
+ Test Files  34 passed (34)
+      Tests  1028 passed | 13 skipped (1041)
+> nx run rxdb-plugin-replay:test  [local cache]
+ Test Files  13 passed | 1 skipped (14)
+      Tests  149 passed | 1 skipped (150)
+> nx run rxdb-i18n:build  [local cache]
+> nx run rxdb-plugin-replay-angular:build:production  [local cache]
+> nx run rxdb-plugin-replay-vue:build  [local cache]
+> nx run rxdb-plugin-replay-react:build  [local cache]
+> nx run rxdb-i18n:test  [local cache]
+ Test Files  8 passed (8)
+      Tests  33 passed (33)
+> nx run rxdb-i18n:test-browser  [local cache]
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+> nx run rxdb-plugin-replay:test-browser  [local cache]
+ Test Files  3 passed (3)
+      Tests  24 passed (24)
+> nx run rxdb-plugin-replay-angular:test  [local cache]
+ Test Files  3 passed (3)
+      Tests  32 passed (32)
+> nx run rxdb-plugin-replay-react:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+> nx run rxdb-plugin-replay-vue:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+> nx run rxdb-model:build  [local cache]
+> nx run rxdb-admin:build  [local cache]
+> nx run rxdb-i18n-angular:build:production  [local cache]
+> nx run rxdb-i18n-react:build  [local cache]
+> nx run rxdb-i18n-vue:build  [local cache]
+> nx run rxdb-model:test  [local cache]
+ Test Files  65 passed (65)
+      Tests  1223 passed (1223)
+> nx run rxdb-i18n-angular:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+> nx run rxdb-admin:test  [local cache]
+ Test Files  19 passed (19)
+      Tests  427 passed (427)
+> nx run rxdb-i18n-react:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+> nx run rxdb-i18n-vue:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+> nx run dev-rxdb-http-server:test  [local cache]
+ Test Files  12 passed (12)
+      Tests  91 passed (91)
+> nx run rxdb-admin-angular:build:production  [local cache]
+> nx run rxdb-admin-react:build  [local cache]
+> nx run rxdb-admin-vue:build  [local cache]
+> nx run rxdb-admin-react:test  [local cache]
+ Test Files  5 passed (5)
+      Tests  120 passed (120)
+> nx run rxdb-admin-angular:test  [local cache]
+ Test Files  5 passed (5)
+      Tests  132 passed (132)
+> nx run rxdb-admin-vue:test  [local cache]
+ Test Files  8 passed (8)
+      Tests  144 passed (144)
+> nx run rxdb:typecheck
+> nx run rxdb-adapter-wa-sqlite:build
+> nx run rxdb-plugin-search:build  [local cache]
+> nx run rxdb-plugin-graph:build  [local cache]
+> nx run rxdb-adapter-miniprogram:build  [local cache]
+> nx run rxdb-plugin-workspace:build  [local cache]
+> nx run rxdb-adapter-supabase:build  [local cache]
+> nx run rxdb-plugin-search:coverage  [local cache]
+ Test Files  34 passed (34)
+      Tests  306 passed (306)
+> nx run rxdb-plugin-graph:test  [local cache]
+ Test Files  20 passed (20)
+      Tests  203 passed (203)
+> nx run rxdb-plugin-search:test  [local cache]
+ Test Files  34 passed (34)
+      Tests  306 passed (306)
+> nx run rxdb-plugin-bom:test  [local cache]
+ Test Files  91 passed (91)
+      Tests  1565 passed | 1 skipped (1566)
+> nx run rxdb-adapter-miniprogram:test  [local cache]
+ Test Files  30 passed (30)
+      Tests  359 passed (359)
+> nx run rxdb-plugin-workspace:test  [local cache]
+ Test Files  3 passed (3)
+      Tests  117 passed (117)
+> nx run rxdb-plugin-workspace:test-browser  [local cache]
+ Test Files  1 passed (1)
+      Tests  25 passed (25)
+> nx run website:test  [existing outputs match the cache, left as is]
+> nx run rxdb-angular:build:production  [local cache]
+> nx run rxdb-plugin-board:build  [local cache]
+> nx run rxdb-react:build  [local cache]
+> nx run rxdb-vue:build  [local cache]
+> nx run rxdb-plugin-search-angular:build:production  [local cache]
+> nx run rxdb-taro:build  [local cache]
+> nx run rxdb-plugin-search-react:build  [local cache]
+> nx run rxdb-plugin-search-vue:build  [local cache]
+> nx run rxdb-plugin-board:coverage  [local cache]
+ Test Files  22 passed (22)
+      Tests  167 passed (167)
+> nx run rxdb-plugin-search:test-browser  [local cache]
+ Test Files  6 passed (6)
+      Tests  67 passed (67)
+> nx run rxdb-angular:test  [local cache]
+ Test Files  13 passed (13)
+      Tests  271 passed (271)
+> nx run rxdb-plugin-board:test  [local cache]
+ Test Files  22 passed (22)
+      Tests  167 passed (167)
+> nx run rxdb-react:test  [local cache]
+ Test Files  17 passed (17)
+      Tests  247 passed (247)
+> nx run rxdb-react:test-browser  [local cache]
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+> nx run rxdb-vue:test  [local cache]
+ Test Files  15 passed (15)
+      Tests  243 passed (243)
+> nx run rxdb-plugin-search-react:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  43 passed (43)
+> nx run rxdb-plugin-search-angular:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  41 passed (41)
+> nx run rxdb-plugin-search-vue:test  [local cache]
+ Test Files  7 passed (7)
+      Tests  41 passed (41)
+> nx run rxdb-taro:test  [local cache]
+ Test Files  9 passed (9)
+      Tests  96 passed (96)
+> nx run dev-rxdb-miniprogram-alipay-probe:test  [local cache]
+ Test Files  11 passed (11)
+      Tests  92 passed (92)
+> nx run dev-rxdb-miniprogram-douyin-spike:test  [local cache]
+ Test Files  8 passed (8)
+      Tests  57 passed (57)
+> nx run angular-todo:build:production  [local cache]
+> nx run rxdb-model-angular:build:production  [local cache]
+> nx run rxdb-model-react:build  [local cache]
+> nx run rxdb-model-vue:build  [local cache]
+> nx run rxdb-plugin-board-angular:build:production  [local cache]
+> nx run rxdb-plugin-working-tree-angular:build:production  [local cache]
+> nx run rxdb-plugin-board-vue:build  [local cache]
+> nx run rxdb-plugin-board-react:build  [local cache]
+> nx run rxdb-plugin-working-tree-react:build  [local cache]
+> nx run rxdb-plugin-working-tree-vue:build  [local cache]
+> nx run rxdb-plugin-tree-angular:build:production  [local cache]
+> nx run rxdb-plugin-tree-vue:build  [local cache]
+> nx run rxdb-plugin-tree-react:build  [local cache]
+> nx run rxdb-model-angular:test  [local cache]
+ Test Files  18 passed (18)
+      Tests  383 passed (383)
+> nx run rxdb-plugin-board:test-browser  [local cache]
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+> nx run rxdb-model-react:test  [local cache]
+ Test Files  18 passed (18)
+      Tests  384 passed (384)
+> nx run angular-todo:test  [local cache]
+ Test Files  3 passed (3)
+      Tests  23 passed (23)
+> nx run rxdb-model-vue:test  [local cache]
+ Test Files  19 passed (19)
+      Tests  398 passed (398)
+> nx run rxdb-plugin-board-angular:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  68 passed (68)
+> nx run rxdb-plugin-board-react:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  85 passed (85)
+> nx run rxdb-plugin-board-vue:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  81 passed (81)
+> nx run rxdb-plugin-working-tree-angular:test  [local cache]
+ Test Files  5 passed (5)
+      Tests  77 passed (77)
+> nx run rxdb-plugin-working-tree-react:test  [local cache]
+ Test Files  5 passed (5)
+      Tests  71 passed (71)
+> nx run rxdb-plugin-working-tree-vue:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  68 passed (68)
+> nx run dev-rxdb-miniprogram:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  43 passed (43)
+> nx run rxdb-plugin-tree-angular:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  15 passed (15)
+> nx run rxdb-plugin-tree-react:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  16 passed (16)
+> nx run rxdb-plugin-tree-vue:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  35 passed (35)
+> nx run rxdb-devtools:build
+> nx run rxdb-plugin-storage:build  [local cache]
+> nx run rxdb-devtools-panel:build:production  [local cache]
+> nx run rxdb-admin-template-vue:build  [local cache]
+> nx run rxdb-plugin-storage:coverage  [local cache]
+ Test Files  16 passed (16)
+      Tests  289 passed (289)
+> nx run rxdb-admin-template-react:build  [local cache]
+> nx run dev-rxdb-supabase:build:production  [local cache]
+> nx run dev-rxdb-http:build:production  [local cache]
+> nx run dev-rxdb-board:build:production  [local cache]
+> nx run rxdb-plugin-storage:test  [local cache]
+ Test Files  16 passed (16)
+      Tests  289 passed (289)
+> nx run rxdb-devtools-panel:test  [local cache]
+ Test Files  28 passed (28)
+      Tests  209 passed (209)
+> nx run dev-rxdb-supabase:test  [local cache]
+ Test Files  11 passed (11)
+      Tests  50 passed (50)
+> nx run dev-rxdb-p2p:test  [local cache]
+ Test Files  45 passed (45)
+      Tests  554 passed (554)
+> nx run dev-rxdb-p2p:build:production  [local cache]
+> nx run rxdb-admin-template-angular:test  [existing outputs match the cache, left as is]
+ Test Files  9 passed (9)
+      Tests  49 passed (49)
+> nx run dev-rxdb-http:test  [local cache]
+ Test Files  6 passed (6)
+      Tests  58 passed (58)
+> nx run rxdb-admin-template-vue:test  [existing outputs match the cache, left as is]
+ Test Files  9 passed (9)
+      Tests  49 passed (49)
+> nx run rxdb-adapter-tauri:build  [local cache]
+> nx run rxdb-devtools-extension:build  [local cache]
+> nx run rxdb-plugin-storage:test-browser  [local cache]
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+> nx run rxdb-devtools-extension:test  [local cache]
+ Test Files  7 passed (7)
+      Tests  176 passed (176)
+> nx run rxdb-adapter-tauri:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  44 passed (44)
+> nx run dev-rxdb-electron:test  [local cache]
+ Test Files  23 passed (23)
+      Tests  363 passed (363)
+> nx run dev-rxdb-tauri:build-devtools  [local cache]
+> nx run dev-rxdb-tauri:test  [local cache]
+ Test Files  32 passed (32)
+      Tests  353 passed (353)
+> nx run dev-rxdb-tauri:build:production  [local cache]
+> nx run rxdb-plugin-history:typecheck
+> nx run rxdb-plugin-bom:build
+> nx run bom-workspace:build  [local cache]
+> nx run rxdb-plugin-bom-angular:build:production  [local cache]
+> nx run rxdb-plugin-bom-vue:build  [local cache]
+> nx run rxdb-plugin-bom-react:build  [local cache]
+> nx run bom-workspace:test  [local cache]
+ Test Files  32 passed (32)
+      Tests  437 passed (437)
+> nx run e2e-parity:test  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-bom-angular:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  33 passed (33)
+> nx run rxdb-plugin-bom-react:test  [local cache]
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+> nx run rxdb-plugin-bom-vue:test  [local cache]
+ Test Files  4 passed (4)
+      Tests  42 passed (42)
+> nx run aiao-bom:build:production  [local cache]
+> nx run dev-rxdb-vue:build  [local cache]
+> nx run dev-rxdb-angular:build:production  [local cache]
+> nx run dev-rxdb-react:build  [local cache]
+> nx run dev-rxdb-react:test  [local cache]
+ Test Files  64 passed (64)
+      Tests  401 passed (401)
+> nx run dev-rxdb-vue:test  [local cache]
+ Test Files  54 passed (54)
+      Tests  338 passed (338)
+> nx run rxdb-plugin-working-tree:typecheck
+> nx run rxdb-plugin-sync:typecheck
+> nx run rxdb-plugin-querycache:typecheck
+> nx run rxdb-client-generator:typecheck
+> nx run rxdb-plugin-tree:typecheck
+> nx run rxdb-test:typecheck
+> nx run rxdb-angular:typecheck
+> nx run angular:typecheck
+> nx run rxdb-adapter-encrypted:typecheck
+> nx run rxdb-devtools:typecheck
+> nx run rxdb-adapter-sqlite-core:typecheck
+> nx run rxdb-adapter-wa-sqlite:typecheck
+> nx run rxdb-adapter-pglite:typecheck
+> nx run rxdb-plugin-bom:typecheck
+> nx run rxdb-plugin-bom-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-graph:typecheck
+> nx run rxdb-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-working-tree-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-tree-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-sqlite-wasm:typecheck
+> nx run rxdb-react:typecheck
+> nx run rxdb-plugin-replay:typecheck
+> nx run rxdb-plugin-replay-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-electron:typecheck
+> nx run rxdb-i18n:typecheck
+> nx run rxdb-i18n-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-model:typecheck
+> nx run rxdb-model-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-storage:typecheck
+> nx run rxdb-admin:typecheck
+> nx run rxdb-admin-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-i18n-angular:typecheck
+> nx run angular-todo:typecheck
+> nx run rxdb-plugin-workspace:typecheck
+> nx run rxdb-adapter-sqliteai:typecheck
+> nx run rxdb-adapter-sqlite:typecheck
+> nx run rxdb-plugin-search:typecheck
+> nx run rxdb-plugin-search-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-admin-template-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-plugin-board:typecheck
+> nx run rxdb-plugin-board-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run dev-rxdb-vue:typecheck  [existing outputs match the cache, left as is]
+> nx run rxdb-model-angular:typecheck
+> nx run rxdb-i18n-react:typecheck
+> nx run rxdb-adapter-miniprogram:typecheck
+> nx run dev-rxdb-miniprogram-alipay-probe:typecheck  [local cache]
+> nx run dev-rxdb-miniprogram-douyin-spike:typecheck  [local cache]
+> nx run bom-workspace:typecheck
+> nx run rxdb-plugin-board-angular:typecheck
+> nx run rxdb-model-react:typecheck
+> nx run rxdb-plugin-search-react:typecheck
+> nx run rxdb-devtools-panel:typecheck
+> nx run rxdb-plugin-search-angular:typecheck
+> nx run rxdb-adapter-supabase:typecheck
+> nx run rxdb-adapter-http:typecheck
+> nx run recipes-domain:typecheck
+> nx run rxdb-plugin-bom-angular:typecheck
+> nx run rxdb-plugin-p2p:typecheck
+> nx run rxdb-plugin-replay-angular:typecheck
+> nx run rxdb-plugin-working-tree-angular:typecheck
+> nx run rxdb-devtools-extension:typecheck
+> nx run aiao-bom:typecheck
+> nx run dev-rxdb-electron:build
+  Run duration:      725ms
+  Cache:             1/1 hit (100%)
+  Critical path:     690ms (1 task)
+  Recoverable time:  <1ms
+> nx run rxdb-admin-react:typecheck
+> nx run rxdb-admin-template-react:typecheck
+> nx run rxdb-admin-template-react-e2e:typecheck
+> nx run rxdb-admin-template-react:requirements-test
+> nx run rxdb-admin-template-react:requirements-check
+> nx run rxdb-admin-template-react:test  [local cache]
+ Test Files  10 passed (10)
+      Tests  52 passed (52)
+> nx run rxdb-devtools-extension:build-desktop-dev
+> nx run rxdb-plugin-bom-react:typecheck
+> nx run rxdb-plugin-board-react:typecheck
+> nx run rxdb-plugin-working-tree-react:typecheck
+> nx run aiao-bom:requirements-test:coverage
+> nx run aiao-bom:spec-typecheck
+> nx run aiao-bom:test  [local cache]
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+> nx run aiao-bom:requirements-check
+> nx run aiao-bom:lint  [existing outputs match the cache, left as is]
+> nx run rxdb-adapter-tauri:typecheck
+> nx run aiao-bom-2:build:production
+> nx run dev-rxdb-react:typecheck
+> nx run dev-rxdb-electron:electron-package-dir
+> nx run dev-rxdb-angular:typecheck
+> nx run dev-rxdb-angular:spec-typecheck
+> nx run dev-rxdb-angular:test  [local cache]
+ Test Files  68 passed (68)
+      Tests  540 passed (540)
+> nx run dev-rxdb-tauri:typecheck
+> nx run aiao-bom-2:typecheck
+> nx run dev-rxdb-electron:typecheck
+> nx run dev-rxdb-p2p:typecheck
+> nx run dev-rxdb-supabase:typecheck
+> nx run dev-rxdb-miniprogram:typecheck
+> nx run dev-rxdb-http-server:typecheck
+> nx run dev-rxdb-http:typecheck
+> nx run rxdb-admin-template-angular:typecheck
+> nx run aiao-bom-e2e:typecheck
+> nx run rxdb-admin-template-angular:prepare-html
+> nx run rxdb-admin-template-angular:build:production  [local cache]
+> nx run rxdb-devtools-extension-e2e:prepare
+> nx run rxdb-admin-angular:typecheck
+> nx run rxdb-taro:typecheck
+> nx run aiao-bom-2:test
+ Test Files  19 passed (19)
+      Tests  100 passed (100)
+> nx run aiao-bom-2:lint
+> nx run dev-rxdb-board:typecheck
+> nx run dev-rxdb-electron:audit-lazy-backend
+> nx run dev-rxdb-tauri:audit-lazy-backend
+> nx run rxdb-admin-template-angular-e2e:e2e
+  91 passed (1.3m)
+> nx run rxdb-admin-template-vue-e2e:e2e
+  91 passed (1.2m)
+> nx run benchmarks:build
+> nx run benchmarks:typecheck
+> nx run aiao-bom-2-e2e:typecheck
+> nx run website:typecheck
+> nx run benchmarks:test
+ Test Files  16 passed (16)
+      Tests  153 passed (153)
+> nx run dev-rxdb-react-e2e:typecheck
+> nx run dev-rxdb-p2p-e2e:typecheck
+> nx run dev-rxdb-vue-e2e:typecheck
+> nx run rxdb-plugin-tree-react:typecheck
+> nx run rxdb-plugin-replay-react:typecheck
+> nx run benchmarks:lint
+> nx run aiao-bom-2-e2e:lint
+> nx run dev-rxdb-angular-e2e:typecheck
+> nx run rxdb-plugin-tree-angular:typecheck
+> nx run dev-rxdb-http-e2e:typecheck
+> nx run rxdb-devtools-extension-e2e:typecheck
+> nx run dev-rxdb-supabase-e2e:typecheck
+> nx run dev-rxdb-miniprogram-e2e:typecheck
+> nx run dev-rxdb-tauri-e2e:typecheck
+> nx run rxdb-admin-template-angular-e2e:typecheck
+> nx run dev-rxdb-miniprogram-alipay-probe-e2e:typecheck
+> nx run rxdb-admin-template-vue-e2e:typecheck
+> nx run dev-rxdb-electron-e2e:typecheck
+> nx run aiao-bom-2-e2e:e2e
+  59 passed (5.3m)
+> nx run aiao-bom-e2e:e2e  [local cache]
+  40 passed (2.2m)
+> nx run dev-rxdb-angular-e2e:e2e  [local cache]
+  247 passed (13.1m)
+> nx run dev-rxdb-electron-e2e:e2e  [local cache]
+  4 skipped
+  58 passed (5.0m)
+> nx run dev-rxdb-react-e2e:e2e  [local cache]
+  242 passed (10.7m)
+> nx run dev-rxdb-vue-e2e:e2e  [local cache]
+  225 passed (9.3m)
+> nx run website:build  [local cache]
+  Run duration:      1.2s
+  Cache:             69/70 hit (99%)
+  Critical path:     1.0s (10 tasks)
+  Recoverable time:  57ms (5% of the run)
+  Run duration:      40.4s
+  Cache:             40/42 hit (95%)
+  Critical path:     40.2s (11 tasks)
+  Recoverable time:  44ms (0% of the run)
+  Run duration:      12.0s
+  Cache:             20/22 hit (91%)
+  Critical path:     11.8s (9 tasks)
+  Recoverable time:  <1ms
+  Run duration:      2m 49s
+  Cache:             0/1 hit (0%)
+  Critical path:     2m 49s (1 task)
+  Recoverable time:  <1ms
+  Run duration:      3m 46s
+  Cache:             0/1 hit (0%)
+  Critical path:     3m 46s (1 task)
+  Recoverable time:  <1ms
+> nx run rxdb-adapter-electron:test-memory  [existing outputs match the cache, left as is]
+ Test Files  2 passed (2)
+      Tests  2 passed (2)
+> nx run dev-rxdb-http-e2e:e2e
+  26 passed (1.4m)
+> nx run rxdb-admin-template-react-e2e:e2e
+  91 passed (51.5s)
+> nx run rxdb-devtools-extension-e2e:e2e
+  2 passed (3.5s)
+> nx run rxdb-adapter-pglite:test
+ Test Files  197 passed (197)
+      Tests  1683 passed (1683)
+> nx run dev-rxdb-board-e2e:e2e
+  23 passed (41.3s)
+> nx run dev-rxdb-supabase-e2e:e2e
+  4 passed (7.5s)
+> nx run dev-rxdb-p2p-e2e:e2e
+  14 passed (15.1s)
+> nx run dev-rxdb-miniprogram:build-weapp
+> nx run dev-rxdb-miniprogram:build-tt
+> nx run dev-rxdb-miniprogram:build-alipay
+> nx run dev-rxdb-miniprogram:verify-dist
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+> nx run rxdb-adapter-supabase:test-env
+> nx run rxdb-adapter-supabase:test
+ Test Files  46 passed (46)
+      Tests  664 passed (664)
+ NX   Successfully ran targets lint, typecheck, test, test-memory, test-browser, build, audit-lazy-backend, e2e for 114 projects and 24 tasks they depend on
+  Run duration:      21m 3s
+  Cache:             330/463 hit (71%)
+  Critical path:     5m 38s (11 tasks)
+  Recoverable time:  15m 25s (73% of the run)
+
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 96.84% ( 1135/1172 )
+Branches     : 89.96% ( 753/837 )
+Functions    : 98.29% ( 231/235 )
+Lines        : 97.82% ( 1035/1058 )
+================================================================================
+
+
+
+ NX   Successfully ran targets lint, typecheck, test, test-memory, test-browser, build, audit-lazy-backend, e2e for 114 projects and 24 tasks they depend on
+
+Nx read the output from the cache instead of running the command for 330 out of 463 tasks.
+
+
+ NX   Nx detected 3 flaky tasks
+
+  rxdb-client-generator:test
+  rxdb-adapter-sqlite:test
+  rxdb-adapter-electron:test-memory
+
+Flaky tasks can disrupt your CI pipeline. Automatically retry them with Nx Cloud. Learn more at https://nx.dev/ci/features/flaky-tasks
+
+  Run duration:      21m 3s
+  Cache:             330/463 hit (71%)
+  Critical path:     5m 38s (11 tasks)
+  Recoverable time:  15m 25s (73% of the run)

@@ -1,0 +1,191 @@
+{
+  "checkedAt": "2026-11-14T09:42:12.220459+00:00",
+  "sourceBase": "c7afac01778ff91175143b18d2460a60935419ad",
+  "scope": "Prettier formatting, byte-preserving generated/vendor asset exclusions, validation records",
+  "remoteBeforeFix": {
+    "runId": "43579315146",
+    "head": "c7afac01778ff91175143b18d2460a60935419ad",
+    "setup": "FAILURE",
+    "step": "Format check",
+    "mainMatrices": "SKIPPED",
+    "gate": "FAILURE"
+  },
+  "verification": {
+    "coreTasks": 41,
+    "legacyLintUnitTasks": 44,
+    "appTests": 100,
+    "sharedModuleTests": 437,
+    "oldEntryTests": 1,
+    "newE2E": 59,
+    "oldE2E": 40,
+    "scriptTests": 602,
+    "scriptFailures": 0,
+    "formatExitCode": 0,
+    "deployDryRunExitCode": 0
+  },
+  "astAudit": {
+    "files": 81,
+    "bodyDifferences": [
+      "modules/bom-workspace/src/app/components/app-shell.ts",
+      "modules/bom-workspace/src/index.ts",
+      "modules/bom-workspace/src/transfer-page.ts"
+    ],
+    "importModuleDifferences": []
+  },
+  "protectedAssetChanges": [],
+  "staticAudits": [
+    {
+      "name": "conditions",
+      "script": "scripts/audit/package-runtime-conditions.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 72
+    },
+    {
+      "name": "workspace-patches",
+      "script": "scripts/audit/workspace-patches.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 87
+    },
+    {
+      "name": "action-pins",
+      "script": "scripts/audit/workflow-action-pins.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 71
+    },
+    {
+      "name": "docs-plugins",
+      "script": "scripts/audit/docs-plugin-surface.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 474
+    },
+    {
+      "name": "table-name-resolver",
+      "script": "scripts/audit/table-name-resolver.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 262
+    },
+    {
+      "name": "e2e-spec-copies",
+      "script": "scripts/audit/e2e-spec-copies.mjs",
+      "exitCode": 0,
+      "signal": null,
+      "durationMs": 447
+    }
+  ],
+  "localEnvironmentRetry": {
+    "initial": "601 pass / 1 fail due NO_COLOR and FORCE_COLOR warning in CLI stderr",
+    "rerunCommand": "env -u NO_COLOR NX_NO_CLOUD=true pnpm nx run @aiao/source:test-scripts --skipRemoteCache --output-style=static",
+    "testsChanged": false
+  },
+  "priorFullGate": {
+    "head": "2c9a3347722d345a95b4af37efcecf6f0e57a1f9",
+    "projects": 114,
+    "tasks": 463,
+    "exitCode": 0,
+    "evidence": "completion-test-all-final-2026-11-14.json"
+  },
+  "publicPreview": {
+    "url": "https://aiao-bom-2.aiao.workers.dev",
+    "source": "2c9a3347722d345a95b4af37efcecf6f0e57a1f9",
+    "version": "ae3a514b-3463-400d-a731-b277e2bb5fb3",
+    "redeployed": false
+  },
+  "remoteAfterFix": "Pending push and GitHub Actions verification; this local record does not assert remote success",
+  "logs": [
+    {
+      "name": "core",
+      "exitCode": 0,
+      "log": "completion-ci-format-core-2026-11-14.txt",
+      "sha256": "0d96204ff08d58f4b0cfe8919a002c7493b3f6b63b1ca49fed730cb5820dfda8",
+      "rawSha256": "27a92f7ada56c4b6d2f419f33387f034428583d174ce2fa98d769646c55cf075",
+      "rawBytes": 49503
+    },
+    {
+      "name": "legacy-lint-unit",
+      "exitCode": 0,
+      "log": "completion-ci-format-legacy-lint-unit-2026-11-14.txt",
+      "sha256": "1d2695a2b89872e539ca4539fd33c8c39e472a642d2877e87f59f32d644bcd29",
+      "rawSha256": "eb7f411114a7e8510213bb1550a5bf5c714ebe60c3d28d5fee5e97b185ade363",
+      "rawBytes": 27343
+    },
+    {
+      "name": "new-e2e",
+      "exitCode": 0,
+      "log": "completion-ci-format-new-e2e-2026-11-14.txt",
+      "sha256": "fad5a02fea898a39b63b2660972f11c5599a9d11a89346a57752d7e02047883a",
+      "rawSha256": "62913622ff6f7be6f39bead97f8d15d86085bae40c2b5615e034cbc93d935e54",
+      "rawBytes": 52077
+    },
+    {
+      "name": "old-e2e",
+      "exitCode": 0,
+      "log": "completion-ci-format-old-e2e-2026-11-14.txt",
+      "sha256": "254bd5a3ca98b8ec95953d6c476913a309e876f9be85022287b8b47100623784",
+      "rawSha256": "5f4cab14ff0bbc1837acad861c9241e83b1036f49b85e26febaf0918b9507535",
+      "rawBytes": 35688
+    },
+    {
+      "name": "deploy-check",
+      "exitCode": 0,
+      "log": "completion-ci-format-deploy-check-2026-11-14.txt",
+      "sha256": "1fa7d6e453189bc9283a5f7c7edb6c71ed595da3f2e7e3dfce21201d333ac487",
+      "rawSha256": "a2bdb8798e912c3c3ce6c858a0f7c8982e0bf4c32f1f58840a4e3fb2e6b2ad05",
+      "rawBytes": 33295
+    },
+    {
+      "name": "setup-root-initial",
+      "exitCode": 1,
+      "log": "completion-ci-format-setup-root-initial-2026-11-14.txt",
+      "sha256": "133f7582d830a78f7cfde41790b06b7539b91e885d444cc690b1d09214cee858",
+      "rawSha256": "245edfee40133ae5ba7d44424419c17cbbd701b1b6fa1f6df948c1e69565d02b",
+      "rawBytes": 81522
+    },
+    {
+      "name": "setup-static",
+      "exitCode": 0,
+      "log": "completion-ci-format-setup-static-2026-11-14.txt",
+      "sha256": "a735fdf5f6868f2d3670522fa096f83d3500a6bc4a2436c3f9341d995f72a2b0",
+      "rawSha256": "a735fdf5f6868f2d3670522fa096f83d3500a6bc4a2436c3f9341d995f72a2b0",
+      "rawBytes": 499
+    },
+    {
+      "name": "setup-requirements",
+      "exitCode": 0,
+      "log": "completion-ci-format-setup-requirements-2026-11-14.txt",
+      "sha256": "9b8d165b2d527397c1771930e141fba13e52ac3b67c46a491cf15399809e73f0",
+      "rawSha256": "b9168b9c0c66b841ef3b9f2d57122be3def14eeaedd025f63af393f36b1422df",
+      "rawBytes": 3922
+    },
+    {
+      "name": "script-tests",
+      "exitCode": 0,
+      "log": "completion-ci-format-script-tests-2026-11-14.txt",
+      "sha256": "0e7601db0865ecbbec90ac1a8c474810815932a7a70f2fc392aa9394de295f02",
+      "rawSha256": "598515b949afb9efdcd6c22470a49038dcf3dc2b746c537519f27edb947cb429",
+      "rawBytes": 64039
+    },
+    {
+      "name": "format",
+      "exitCode": 0,
+      "log": "completion-ci-format-format-2026-11-14.txt",
+      "sha256": "f4f84cbf614861ea9cde0abbd0d3c87fe5107d9adfbd6ea2b22ebed2bad36b28",
+      "rawSha256": "f4f84cbf614861ea9cde0abbd0d3c87fe5107d9adfbd6ea2b22ebed2bad36b28",
+      "rawBytes": 18
+    },
+    {
+      "name": "parallel-test-all-interrupted",
+      "exitCode": 130,
+      "log": "completion-ci-format-interrupted-test-all-2026-11-14.txt.gz",
+      "sha256": "7275f69f7b29847e4e4596203dce02737a0b0bf3933c4ea8a5e4a4fa76bd6856",
+      "rawSha256": "b92789614e52ddd0f58201bc53ef7cebd3365a95f04403a77175cf2f6ffb4f07",
+      "rawBytes": 2373213,
+      "completed": false
+    }
+  ],
+  "logNormalization": "Readable logs remove ANSI sequences and trim trailing whitespace; raw SHA-256 records refer to original /tmp logs. Interrupted full-run archive preserves raw bytes."
+}

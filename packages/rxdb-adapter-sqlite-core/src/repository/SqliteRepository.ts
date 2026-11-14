@@ -89,25 +89,24 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
   }
 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
-    const mark = tryGetEntityStatus(entity)?.writeMark(patch);
-    const { sql, params } = await generate_entity_update_sql(this.metadata, this.adapter.tableSet, entity, patch, {
-      ...this.rxdb.context,
-      encryption: this.adapter.encryptionContext,
-      updatedAt: getMonotonicUpdatedAt(entity)
-    });
-    let result;
+    const pending = tryGetEntityStatus(entity)?.prepareUpdate(patch);
     try {
-      result = await this.adapter.writeQuery(sql, params);
-    } catch (error) {
-      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+      const { sql, params } = await generate_entity_update_sql(this.metadata, this.adapter.tableSet, entity, patch, {
+        ...this.rxdb.context,
+        encryption: this.adapter.encryptionContext,
+        updatedAt: getMonotonicUpdatedAt(entity)
+      });
+      let result;
+      try {
+        result = await this.adapter.writeQuery(sql, params);
+      } catch (error) {
+        throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+      }
+      await this.mergeQueryCache(result, pending?.apply);
+      return entity;
+    } finally {
+      pending?.release();
     }
-    // 等待写入期间用户可能继续编辑：按提交的 patch 收尾，新输入留作未保存改动
-    await this.addQueryCache(
-      result,
-      true,
-      mark === undefined ? undefined : new Map([[entity, { submitted: patch, mark }]])
-    );
-    return entity;
   }
 
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {

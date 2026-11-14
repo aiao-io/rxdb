@@ -1,0 +1,182 @@
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { App } from './app';
+import { BomGrid } from './components/bom-grid';
+import { ModelPanel } from './components/model-panel';
+import type { DialogKind } from './components/workspace-dialogs';
+import { DraftVersionStore } from './core/draft-version-store';
+import { WorkspaceRepository } from './core/storage';
+import { makeStressDataset } from './core/stress-data';
+import { BomWorkspace } from './core/workspace';
+
+let fixture: ComponentFixture<App>;
+let ws: BomWorkspace;
+const root = () => fixture.nativeElement as HTMLElement;
+function form(values: Record<string, string>): void {
+  const dialog = root().querySelector('dialog')!;
+  for (const [name, value] of Object.entries(values))
+    (dialog.querySelector(`[name=${name}]`) as HTMLInputElement).value = value;
+  dialog.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  fixture.detectChanges();
+}
+function open(kind: DialogKind): void {
+  fixture.componentInstance.dialogs().open(kind);
+  fixture.detectChanges();
+}
+beforeEach(async () => {
+  vi.spyOn(DraftVersionStore.prototype, 'save').mockResolvedValue();
+  vi.spyOn(DraftVersionStore.prototype, 'history').mockResolvedValue({ headCommitId: null, dirty: true, commits: [] });
+  vi.spyOn(DraftVersionStore.prototype, 'read').mockImplementation(async (_branch, draft) => draft);
+  vi.spyOn(DraftVersionStore.prototype, 'commit').mockImplementation(async (branch, _message, id) => ({
+    id,
+    parentId: branch.headCommitId,
+    createdAt: new Date().toISOString()
+  }));
+
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    clear: () => values.clear()
+  });
+  window.history.replaceState({}, '', '/');
+  vi.spyOn(WorkspaceRepository.prototype, 'read').mockResolvedValue(undefined);
+  vi.spyOn(WorkspaceRepository.prototype, 'readAll').mockResolvedValue([]);
+  vi.spyOn(WorkspaceRepository.prototype, 'write').mockResolvedValue();
+  vi.spyOn(WorkspaceRepository.prototype, 'writeMany').mockResolvedValue();
+  vi.spyOn(BomGrid.prototype, 'ngAfterViewInit').mockResolvedValue();
+  vi.spyOn(ModelPanel.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async () => new Response(JSON.stringify(makeStressDataset(12))))
+  );
+  fixture = TestBed.createComponent(App);
+  fixture.detectChanges();
+  ws = TestBed.inject(BomWorkspace);
+  await vi.waitFor(() => expect(ws.loading()).toBe(false));
+  fixture.detectChanges();
+});
+afterEach(async () => {
+  await new Promise(resolve => setTimeout(resolve, 0));
+  fixture?.destroy();
+  TestBed.resetTestingModule();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('工作台操作与可读状态', () => {
+  it('分支选项首次渲染时选中实际活动分支，选项顺序不改变当前分支', () => {
+    ws.fork('电池校核');
+    ws.fork('底盘校核');
+    fixture.detectChanges();
+    const select = root().querySelector<HTMLSelectElement>('[aria-label="当前工作分支"]')!;
+    expect(select.value).toBe(ws.activeBranchId());
+    expect(select.selectedOptions[0].textContent).toContain('底盘校核');
+  });
+  it('导航、展示模式、过滤、列配置、选择和使用处共享同一工作区', async () => {
+    expect(root().querySelector('h1')?.textContent).toContain('BOM 工作台');
+    const app = fixture.componentInstance;
+    app.mode('flat');
+    app.market('EU');
+    app.issue('all');
+    app.sort('partId');
+    app.structure('catalog');
+    expect(ws.query()).toMatchObject({ mode: 'flat', market: 'EU', sort: 'partId' });
+    const row = ws.result().rows[2];
+    ws.choose(row);
+    fixture.detectChanges();
+    expect(app.usages()).toHaveLength(1);
+    expect(root().querySelector('.selected-summary')?.textContent).toContain(row.partId);
+    app.checked({ key: row.key, checked: false });
+    expect(ws.selectedKeys().has(row.key)).toBe(false);
+    app.checked({ key: row.key, checked: true });
+    expect(ws.selectedKeys().has(row.key)).toBe(true);
+    app.toggleColumn('english');
+    expect(localStorage.getItem('bom2:columns')).toContain('english');
+    app.widths([{ field: 'name', width: 400 }]);
+    expect(JSON.parse(localStorage.getItem('bom2:columns')!)[0].width).toBe(400);
+    app.search('ST-000011');
+    await vi.waitFor(() => expect(ws.query().search).toBe('ST-000011'));
+    app.detailTab.set('usage');
+    fixture.detectChanges();
+    expect(root().querySelector('.usage-item')).not.toBeNull();
+    app.columnsOpen.set(true);
+    root().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(app.columnsOpen()).toBe(false);
+    const search = root().querySelector('#bom-search') as HTMLInputElement;
+    const focus = vi.spyOn(search, 'focus');
+    root().dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(focus).toHaveBeenCalled();
+  });
+  it('草稿表单完成确认、编辑、撤销、移动、增删与诊断', () => {
+    open('fork');
+    form({});
+    expect(ws.query().structure).toBe('draft');
+    ws.choose(ws.result().rows[1]);
+    fixture.detectChanges();
+    open('edit');
+    form({ quantity: '2.5', uom: '件', cost: '0.2' });
+    expect(ws.selected()?.quantity).toBe('2.5');
+    root().dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true }));
+    expect(ws.selected()?.quantity).toBe('1');
+    root().dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'z', metaKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    );
+    expect(ws.selected()?.quantity).toBe('2.5');
+    open('move');
+    form({ parent: '' });
+    expect(ws.selected()?.parentKey).toBeNull();
+    open('add');
+    form({ partId: 'NEW-001', quantity: '3', uom: '件', parent: '' });
+    expect(ws.draft()?.nodes.at(-1)?.partId).toBe('NEW-001');
+    ws.choose(ws.index()!.rows.get(ws.draft()!.nodes.at(-1)!.key)!);
+    fixture.detectChanges();
+    open('remove');
+    form({});
+    expect(ws.draft()?.nodes).toHaveLength(12);
+    open('validate');
+    expect(root().querySelector('dialog')?.textContent).toContain('全部校验通过');
+    fixture.componentInstance.dialogs().close();
+    open('analysis');
+    form({ planned: '10' });
+    expect(fixture.componentInstance.dialogs().analysis()?.complete).toBe(true);
+    fixture.componentInstance.dialogs().close();
+    ws.saveBaseline();
+    const key = ws.draft()!.nodes[1].key;
+    ws.edit([key], '9', '件', null);
+    fixture.detectChanges();
+    expect(ws.diffSummary().changed).toBeGreaterThan(0);
+    ws.toggleDiffMode();
+    fixture.detectChanges();
+    expect(ws.diffMode()).toBe(true);
+    expect(ws.result().rows.find(row => row.key === key)?.diffStatus).toBe('changed');
+  });
+  it('不再提供文件导入导出，草稿按分支和提交版本管理', async () => {
+    const dialogs = fixture.componentInstance.dialogs();
+    expect(root().querySelector('[aria-label="导入数据"]')).toBeNull();
+    expect(root().querySelector('[aria-label="导出数据"]')).toBeNull();
+    expect(root().textContent).not.toContain('导出当前数据');
+
+    open('fork');
+    form({ branchName: '底盘校核' });
+    expect(ws.query().structure).toBe('draft');
+    expect(ws.activeBranch()?.name).toBe('底盘校核');
+    ws.choose(ws.result().rows[1]);
+    fixture.detectChanges();
+    open('edit');
+    form({ quantity: '2.5', uom: '件', cost: '' });
+    open('commit');
+    form({ message: '确认底盘用量' });
+    await vi.waitFor(() => expect(ws.commits()).toHaveLength(1));
+    expect(ws.activeBranch()?.dirty).toBe(false);
+    expect(ws.versions.entries()).toHaveLength(1);
+    expect(ws.notice()).toContain('确认底盘用量');
+
+    expect(root().textContent).not.toContain('来源与口径');
+    expect(root().querySelector('[aria-label="数据来源"]')).toBeNull();
+    open('help');
+    expect(root().querySelector('dialog ol')?.textContent).toContain('工作草稿');
+    dialogs.locate(ws.draft()!.nodes[1].key);
+    expect(ws.selection()).toBe(ws.draft()!.nodes[1].key);
+  });
+});

@@ -1,0 +1,69 @@
+
+ NX   Running targets lint, typecheck, spec-typecheck for 5 projects:
+
+- bom-workspace
+- aiao-bom-2-e2e
+- aiao-bom-2
+- aiao-bom
+- aiao-bom-e2e
+
+
+
+> nx run bom-workspace:typecheck
+
+
+> nx run bom-workspace:lint
+
+bom-workspace: (node:38485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run bom-workspace:spec-typecheck
+
+
+> nx run aiao-bom:typecheck
+
+
+> nx run aiao-bom-2:typecheck
+
+
+> nx run aiao-bom-e2e:typecheck
+
+
+> nx run aiao-bom:spec-typecheck
+
+
+> nx run aiao-bom:lint
+
+aiao-bom: (node:38636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom: (Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-bom-2:lint
+
+aiao-bom-2: (node:38665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-bom-2:spec-typecheck
+
+
+> nx run aiao-bom-e2e:lint
+
+aiao-bom-e2e: (node:38720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-bom-2-e2e:typecheck
+
+
+> nx run aiao-bom-2-e2e:lint
+
+aiao-bom-2-e2e: (node:38789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran targets lint, typecheck, spec-typecheck for 5 projects
+
+
+  Run duration:      17.8s
+  Cache:             0/13 hit (0%)
+  Critical path:     11.9s (3 tasks)
+  Recoverable time:  5.9s (33% of the run)

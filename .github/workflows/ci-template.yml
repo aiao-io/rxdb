@@ -248,6 +248,9 @@ jobs:
       - name: Requirements consistency gate
         run: pnpm audit:requirements
 
+      - name: Aiao BOM requirements gate
+        run: pnpm nx run-many --projects=aiao-bom --targets=requirements-check,requirements-test --parallel=1 --skipRemoteCache --output-style=static
+
       # 校验 **PR 标题**而不是分支上的中间提交：本仓库走 squash merge，
       # 落到 main 的只有 GitHub 用 PR 标题生成的那一条（`main` 上的
       # `feat(...): ... (#7)` 就是这么来的）。理由详见 scripts/commit-lint.mjs 头注释。
@@ -837,6 +840,9 @@ jobs:
           free-disk: 'true'
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
+      - name: Install additional BOM browsers
+        if: matrix.project == 'aiao-bom-2-e2e'
+        run: timeout 600 pnpm exec nx run aiao-bom-2-e2e:install-browsers --output-style=stream
 
       # Electron 没有 headless 模式。`dev-rxdb-electron-e2e` 拉起的是 electron-builder
       # 的真实产物，主进程一定要连上一个 X server —— ubuntu-latest 上没有，于是

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-14T05:57:43.936Z",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+  "isolated": true,
+  "mapping": "具体模型位置 · 1 个几何节点",
+  "picked": "白车身零件\n5400301X9D01\n用量待补 件\n进入范围",
+  "url": "https://aiao-bom-2.aiao.workers.dev/?structure=cad&pn=5400301X9D01&view=tree&occurrence=cad%3A8591",
+  "resources": [
+    {
+      "url": "https://aiao-bom-2.aiao.workers.dev/models/eu-x9d13.glb",
+      "status": 200
+    },
+    {
+      "url": "https://aiao-bom-2.aiao.workers.dev/draco/draco_decoder.wasm",
+      "status": 200
+    }
+  ],
+  "errors": []
+}

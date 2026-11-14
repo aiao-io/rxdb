@@ -1,0 +1,65 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <p class="page-eyebrow">工程变更</p>
+      <h1>ECN 时间轴</h1>
+      <p class="panel-desc">按生效日查看变更计划，核对受影响的整机与明细，再决定是否发布或撤回变更。</p>
+    </div>
+  </section>
+
+  <div class="summary-grid" aria-label="变更单概况">
+    <div class="metric-card">
+      <span class="metric-label">全部变更单</span>
+      <strong class="metric-value">{{ entries().length }}</strong>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">已发布</span>
+      <strong class="metric-value">{{ releasedCount() }}</strong>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">草稿</span>
+      <strong class="metric-value">{{ draftCount() }}</strong>
+    </div>
+  </div>
+  <section class="panel">
+    <div class="panel-head">
+      <h2>变更日程</h2>
+      <p class="panel-desc">从早到晚排列；点击一张变更单，联动查看下方影响、差异与可执行操作。</p>
+    </div>
+    @if (entries().length === 0) {
+      <div class="empty-state">暂无变更单。先到概览装载示例数据，再查看这里的变更日程。</div>
+    } @else {
+      <div class="timeline">
+        @for (entry of entries(); track entry.id) {
+          <div class="timeline-item">
+            <span class="timeline-dot"></span>
+            <button
+              class="timeline-card"
+              [attr.aria-pressed]="panel()?.selectedEcnId() === entry.id"
+              [class.selected]="panel()?.selectedEcnId() === entry.id"
+              [disabled]="panel()?.busy()"
+              (click)="selectEcn(entry.id)"
+              data-testid="timeline-select"
+              type="button"
+            >
+              <div class="timeline-head">
+                <span class="timeline-no">{{ entry.ecnNo }}</span>
+                <span
+                  class="chip"
+                  [class.chip-cancelled]="entry.state === 'cancelled'"
+                  [class.chip-draft]="entry.state === 'draft'"
+                  [class.chip-released]="entry.state === 'released'"
+                >
+                  {{ stateLabel(entry.state) }}
+                </span>
+              </div>
+              <div class="timeline-meta">生效日 {{ entry.effectiveDate }}</div>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <bom-ecn-panel />
+</div>

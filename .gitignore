@@ -87,6 +87,7 @@ packages/rxdb-model-angular/styles.css
 
 # Binary WASM files (downloaded at build time)
 *.wasm
+!apps/aiao-bom-2/public/draco/draco_decoder.wasm
 !packages/rxdb-adapter-miniprogram/assets/wa-sqlite.wasm
 # 支付宝探针 Worker 里 MYWebAssembly 只认代码包内路径，这份 add 模块是实验输入，不是构建产物
 !apps/dev-rxdb-miniprogram-alipay-probe/static/wasm/*.wasm
@@ -137,6 +138,7 @@ benchmarks/reports/rxdb-plugin-search-*.md
 # Working-tree benchmark 的单次运行产物（benchmarks/node/working-tree/working-tree.bench.ts 每跑一次重写）。
 # 需要签入的是 working-tree-reference/ 下按比值画像分份的冻结基线，不是它。
 benchmarks/reports/working-tree-latest.json
+benchmarks/reports/bom-latest.json
 
 __screenshots__/
 
@@ -159,3 +161,4 @@ docker/.supabase-ci-state.*.env
 # CI test lane 的临时产物（ci-template.yml「Build test prerequisites」）
 .nx-test-task-graph.json
 .nx-test-prereqs.tsv
+.vitest

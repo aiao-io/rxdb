@@ -1,0 +1,46 @@
+{
+  "observedOn": "2026-11-13",
+  "sources": [
+    {
+      "url": "https://www.windrose.ai/assets/BOM-3D-data.json?v=20261009pn2",
+      "file": "BOM-3D-data.json",
+      "hashScope": "complete source response",
+      "sha256": "fd910068671d4ac67677ab5c90fd9de437b2e9fa72f9579b5de23f2736a9902c"
+    },
+    {
+      "url": "https://www.windrose.ai/assets/BOM-parts-detail.json?v=20261009pn2",
+      "file": "BOM-parts-detail.json",
+      "hashScope": "complete source response",
+      "sha256": "1108e748abc90426aa57acef0c4018b002d1147a4dd714b66c2d8c0a7941f697"
+    },
+    {
+      "url": "https://www.windrose.ai/assets/part-names.json?v=20260910c",
+      "file": "part-names.json",
+      "hashScope": "complete source response",
+      "sha256": "aee268f7a14a4b84e87aea9d752573a321363e5a824b3dc05d59cfe7a1cd0737"
+    },
+    {
+      "url": "https://www.windrose.ai/assets/spare-parts-data.js",
+      "file": "spare-parts-data.js",
+      "hashScope": "complete source response",
+      "sha256": "6fdd0d88ab3bd2b6f472e8584cd84a2f12ed3c391ed25726b30e71ad4197b5a0"
+    },
+    {
+      "url": "https://www.windrose.ai/assets/viewer-hierarchy-data.mjs",
+      "file": "viewer-hierarchy-data.mjs",
+      "hashScope": "complete source response",
+      "sha256": "b1d3ec8945bdf5b9049f94ec382d52aefe1db714aa5dbabc64665443a17fdeeb"
+    },
+    {
+      "url": "https://www.windrose.ai/bom?lang=zh",
+      "file": "BOM-inline-data.json",
+      "hashScope": "extracted inline DATA JSON",
+      "sha256": "d9893dd3d3a4d584e096a5ad1278219d70a53f481c0f89b66aa99dd626b3a247"
+    }
+  ],
+  "vehicleSha256": "00fec1b68e38fbcd80a4f7e45105767123ca5fe192b3b361ab44486cd60af383",
+  "baseRows": 1424,
+  "parts": 2321,
+  "cadNodes": 8791,
+  "purchaseNodes": 813
+}

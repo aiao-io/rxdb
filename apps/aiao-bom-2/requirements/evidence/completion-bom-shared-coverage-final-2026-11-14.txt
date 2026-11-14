@@ -1,0 +1,177 @@
+
+> nx run bom-workspace:test --coverage
+
+bom-workspace: (node:30164) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/modules/bom-workspace
+bom-workspace:       Coverage enabled with v8
+bom-workspace: (node:30363) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace: (node:30364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/req-tree.spec.ts (10 tests) 1171ms
+bom-workspace: (node:30438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/overview/overview.page.spec.ts (19 tests) 1360ms
+bom-workspace:      ✓ 已有41个物料时重开直接显示可用数据并回读统计，不触发重置  622ms
+bom-workspace: (node:30458) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/review/review.page.spec.ts (16 tests) 1060ms
+bom-workspace:      ✓ 窄屏选择用料变化后聚焦计算依据，返回时恢复所选行与生产条件  457ms
+bom-workspace: (node:30478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/explosion/explosion.page.spec.ts (9 tests) 816ms
+bom-workspace:      ✓ 修改计划量后保留旧结果并明确标记待更新，不能导出未核对的新结构  552ms
+bom-workspace: (node:30488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/bom-demo.service.spec.ts (158 tests) 887ms
+bom-workspace: (node:30497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/cost-panel.spec.ts (15 tests) 667ms
+bom-workspace:      ✓ 物料展示中文名称和编码，选择与成本行继续保留原编码  343ms
+bom-workspace: (node:30514) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/app-shell.spec.ts (5 tests) 845ms
+bom-workspace:      ✓ 取消重置时保留现有数据，确认文案明确说明清空范围  464ms
+bom-workspace: (node:30535) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/instances/instances-lifecycle.spec.ts (24 tests) 1011ms
+bom-workspace: (node:30553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/workspace-configuration.spec.ts (2 tests) 516ms
+bom-workspace:      ✓ 每个领域路由拥有自己的服务与状态，概览路径随应用变化  501ms
+bom-workspace: (node:30564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/mapping-lifecycle.spec.ts (20 tests) 612ms
+bom-workspace:      ✓ '展开' 失败后显示原因并可重试  370ms
+bom-workspace: (node:30576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/instances/instances.page.spec.ts (8 tests) 394ms
+bom-workspace:      ✓ 整机选项与装机物料显示中文名，实例值和物料编码保持可查询  303ms
+bom-workspace: (node:30593) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/mapping-panel.spec.ts (4 tests) 387ms
+bom-workspace:      ✓ 两张清单的描述是同一物料的中文名称与完整编码，并点明设计 / 制造清单  342ms
+bom-workspace: (node:30602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/pages/timeline/timeline.page.spec.ts (1 test) 242ms
+bom-workspace: (node:30611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/ecn-panel.spec.ts (8 tests) 359ms
+bom-workspace: (node:30628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/integration-panel.spec.ts (7 tests) 568ms
+bom-workspace:      ✓ 重新打开面板可以核对并发布数据库中已保存的草稿  409ms
+bom-workspace: (node:30641) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/ext-panel.spec.ts (4 tests) 258ms
+bom-workspace: (node:30653) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/step-panel.spec.ts (3 tests) 207ms
+bom-workspace: (node:30664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/where-used-panel.spec.ts (6 tests) 441ms
+bom-workspace: (node:30690) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/ecn-lifecycle.spec.ts (24 tests) 554ms
+bom-workspace: (node:30693) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/config-panel.spec.ts (1 test) 276ms
+bom-workspace: (node:30711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/transfer-page.spec.ts (7 tests) 189ms
+bom-workspace: (node:30720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/components/demo-checks.spec.ts (3 tests) 290ms
+bom-workspace:  ✓ |bom-workspace| src/app/bom-workspace-state.spec.ts (8 tests) 121ms
+bom-workspace: (node:30729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace: (node:30738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/transfer-service.spec.ts (8 tests) 79ms
+bom-workspace: (node:30758) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/config.spec.ts (2 tests) 28ms
+bom-workspace: (node:30759) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/where-used-tree.spec.ts (8 tests) 16ms
+bom-workspace: (node:30769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/change-review.spec.ts (8 tests) 10ms
+bom-workspace: (node:30778) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/requirement-basis.spec.ts (4 tests) 17ms
+bom-workspace: (node:30787) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/material-label.spec.ts (4 tests) 52ms
+bom-workspace: (node:30796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/decimal-format.spec.ts (33 tests) 17ms
+bom-workspace: (node:30805) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+bom-workspace: (Use `node --trace-warnings ...` to show where the warning was created)
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/requirement-tree.spec.ts (6 tests) 10ms
+bom-workspace:  ✓ |bom-workspace| src/app/presentation/export-snapshot.spec.ts (2 tests) 9ms
+bom-workspace:  Test Files  32 passed (32)
+bom-workspace:       Tests  437 passed (437)
+bom-workspace:    Start at  10:39:46
+bom-workspace:    Duration  49.50s (transform 11.49s, setup 16.10s, import 33.56s, tests 13.47s, environment 16.60s)
+bom-workspace:  % Coverage report from v8
+bom-workspace: -------------------|---------|----------|---------|---------|-------------------
+bom-workspace: File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+bom-workspace: -------------------|---------|----------|---------|---------|-------------------
+bom-workspace: All files          |   89.43 |    81.13 |   92.63 |   92.42 |                   
+bom-workspace:  src               |   98.83 |    94.44 |   94.73 |     100 |                   
+bom-workspace:   transfer-page.ts |   98.63 |    93.75 |   92.85 |     100 | 106               
+bom-workspace:  src/app           |   87.06 |     80.2 |   94.47 |   89.85 |                   
+bom-workspace:   ...mo.service.ts |    85.5 |    78.12 |   93.75 |   88.51 | ...1296,1303-1317 
+bom-workspace:   ...pace-state.ts |   93.96 |    86.13 |   95.23 |    96.7 | 42,114,116        
+bom-workspace:  ...app/components |   90.65 |    80.18 |      93 |   94.07 |                   
+bom-workspace:   app-shell.ts     |   81.92 |    51.51 |      80 |   86.11 | ...03,335,369-375 
+bom-workspace:   config-panel.ts  |   96.42 |       70 |     100 |     100 | 85-89             
+bom-workspace:   cost-panel.ts    |   90.83 |    73.97 |     100 |    93.2 | ...93-494,532,566 
+bom-workspace:   demo-checks.ts   |   91.66 |     87.5 |   83.33 |   96.55 | 129               
+bom-workspace:   ecn-panel.ts     |   99.34 |     99.1 |     100 |     100 | 244               
+bom-workspace:   ext-panel.ts     |   80.72 |     64.7 |     100 |   90.14 | 169-172,219-221   
+bom-workspace:   ...tion-panel.ts |   82.08 |    70.96 |   76.92 |   91.45 | ...10-313,349-352 
+bom-workspace:   mapping-panel.ts |    96.8 |    92.22 |   96.77 |   98.73 | 350,355           
+bom-workspace:   req-tree.ts      |   88.48 |    72.58 |   91.42 |   89.18 | ...33,438,443,448 
+bom-workspace:   step-panel.ts    |   83.87 |    76.08 |     100 |   88.88 | 263-265           
+bom-workspace:   ...used-panel.ts |   97.36 |       80 |     100 |   98.46 | 122               
+bom-workspace:   ...ow-journey.ts |      80 |      100 |       0 |      75 | 62                
+bom-workspace:  ...ages/explosion |      80 |    75.38 |   68.42 |   83.15 |                   
+bom-workspace:   ...osion.page.ts |      80 |    75.38 |   68.42 |   83.15 | ...95,210-220,231 
+bom-workspace:  ...ages/instances |   99.42 |    98.07 |     100 |     100 |                   
+bom-workspace:   ...ances.page.ts |   99.42 |    98.07 |     100 |     100 | 163,237           
+bom-workspace:  .../pages/mapping |      50 |      100 |     100 |   33.33 |                   
+bom-workspace:   mapping.page.ts  |      50 |      100 |     100 |   33.33 | 18-19             
+bom-workspace:  ...pages/overview |   87.36 |    83.72 |      85 |    90.9 |                   
+bom-workspace:   overview.page.ts |   87.36 |    83.72 |      85 |    90.9 | 109,140-156       
+bom-workspace:  ...p/pages/review |   83.52 |    70.98 |   88.33 |   88.83 |                   
+bom-workspace:   review.page.ts   |   83.52 |    70.98 |   88.33 |   88.83 | ...29-230,383-390 
+bom-workspace:  ...pages/timeline |   72.72 |     12.5 |   88.88 |   71.42 |                   
+bom-workspace:   timeline.page.ts |   72.72 |     12.5 |   88.88 |   71.42 | 32,45-47          
+bom-workspace:  ...ges/where-used |      50 |      100 |     100 |   33.33 |                   
+bom-workspace:   ...-used.page.ts |      50 |      100 |     100 |   33.33 | 18-19             
+bom-workspace:  ...p/presentation |   98.74 |    96.55 |     100 |     100 |                   
+bom-workspace:   ...ment-basis.ts |   94.11 |    86.95 |     100 |     100 | 41,91-104         
+bom-workspace: -------------------|---------|----------|---------|---------|-------------------
+bom-workspace: =============================== Coverage summary ===============================
+bom-workspace: Statements   : 89.43% ( 2506/2802 )
+bom-workspace: Branches     : 81.13% ( 1161/1431 )
+bom-workspace: Functions    : 92.63% ( 541/584 )
+bom-workspace: Lines        : 92.42% ( 2124/2298 )
+bom-workspace: ================================================================================
+
+
+
+ NX   Successfully ran target test for project bom-workspace
+
+
+  Run duration:      1m 8s
+  Cache:             0/1 hit (0%)
+  Critical path:     1m 8s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        bom-workspace:test    1m 8s

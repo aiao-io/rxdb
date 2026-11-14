@@ -1,0 +1,69 @@
+
+> nx run aiao-bom-2-e2e:e2e --args=--project=domain
+
+aiao-bom-2-e2e: (node:28544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:28553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:28562) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: Running 40 tests using 1 worker
+aiao-bom-2-e2e: (node:28573) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [1/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:92:3 › BOM 生产改版核对主线 › 从 10 台生产任务完成改版核对，下载条件、用量与真实成本一致的结论
+aiao-bom-2-e2e: [2/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:140:3 › BOM 生产改版核对主线 › 改为 20 台后旧结论失效，必须重算并重新确认；刷新只恢复条件
+aiao-bom-2-e2e: [3/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:166:3 › BOM 生产改版核对主线 › 375 像素宽度完成核对，不产生页面横向溢出
+aiao-bom-2-e2e: [4/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:183:3 › BOM 生产改版核对主线 › 已加载核对页断网后仍可改变批量并完成真实计算
+aiao-bom-2-e2e: [5/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:198:3 › BOM 生产改版核对主线 › 既有数据重开仍可开始核对，查询保留原来的记录统计
+aiao-bom-2-e2e: [6/40] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:216:1 › 首次窄屏从首页准备案例，查看用量依据并返回，完成核对和下载
+aiao-bom-2-e2e: [7/40] [domain] › ../aiao-bom-e2e/src/bom-coproduct.spec.ts:4:1 › 联产场景按需追加，展示220→132/88并显式选择下游成本来源
+aiao-bom-2-e2e: [8/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:74:3 › BOM demo（US-525 阶段 A） › AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量
+aiao-bom-2-e2e: [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:74:3 › BOM demo（US-525 阶段 A） › AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量
+aiao-bom-2-e2e: BOM 首屏测量：[{"name":"first-paint","startTime":109.02499999850988},{"name":"first-contentful-paint","startTime":375.6000000014901}]
+aiao-bom-2-e2e: [9/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:112:3 › BOM demo（US-525 阶段 A） › AC#2 同一 10kΩ 电阻三行独立可见，位号清单各自完整
+aiao-bom-2-e2e: [10/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:123:3 › BOM demo（US-525 阶段 A） › AC#3 位号 39/qty 100：草稿可存、发布拒绝且错误同时给两个数
+aiao-bom-2-e2e: [11/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:135:3 › BOM demo（US-525 阶段 A） › AC#4 WH-01 phantom 穿透：无需求行、面板显示换算与 COALESCE 判定来源
+aiao-bom-2-e2e: [12/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:149:3 › BOM demo（US-525 阶段 A） › AC#5 直连与表单两条路径报同一存储层环错误（路径一致）
+aiao-bom-2-e2e: [13/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:172:3 › BOM demo（US-525 阶段 A） › US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8
+aiao-bom-2-e2e: [14/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:193:3 › BOM demo（US-525 阶段 A） › US-525 AC#8 外壳下料：consume 需求 2、by_product 0.3、scrap_out 0.1 分列
+aiao-bom-2-e2e: [15/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:205:3 › BOM demo（US-525 阶段 A） › US-525 AC#9 工序损耗与分摊：PROCESS-01 需求 101.8，面板第 5 步显示累乘
+aiao-bom-2-e2e: [16/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:218:3 › BOM demo（US-525 阶段 A） › 既有库重开：不重置直接重载页面，插件新表与触发器在既有库上幂等安装
+aiao-bom-2-e2e: [17/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:228:3 › BOM demo（US-525 阶段 A） › AC#6 M3 螺钉 where-used：全部父件与路径，含经由虚拟件的那条
+aiao-bom-2-e2e: [18/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:260:3 › BOM demo（US-525 阶段 A） › US-525 AC#10 评估日切换：两段生效期行集不同且各自自洽（不读系统时钟）
+aiao-bom-2-e2e: [19/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:279:3 › BOM demo（US-525 阶段 A） › US-525 AC#11 ECN-2026-014 影响面与差异：整机、四类变更各自可见
+aiao-bom-2-e2e: [20/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:302:3 › BOM demo（US-525 阶段 A） › US-525 AC#12 现场 ECN 取消整体回退；已生效种子 ECN 取消拒绝
+aiao-bom-2-e2e: [21/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:332:3 › BOM demo（US-525 阶段 A） › US-525 AC#13 双图并排：EBOM 钣金外壳 / MBOM 板材 + 2 工序件；覆盖率报未覆盖
+aiao-bom-2-e2e: [22/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:354:3 › BOM demo（US-525 阶段 A） › US-525 AC#14 整机卷算逐项等于手工 golden：39.1204…、HOUSING 材料/加工/制费/抵减
+aiao-bom-2-e2e: [23/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:402:3 › BOM demo（US-525 阶段 A） › US-525 AC#15 缺成本子件：卷算报缺失项而非 0
+aiao-bom-2-e2e: [24/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:416:3 › BOM demo（US-525 阶段 A） › 阶段 D 既有库重开：D 层实体与映射重开后原样可用（幂等）
+aiao-bom-2-e2e: [25/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:443:3 › BOM demo（US-525 阶段 E） › US-525 AC#17 扩展属性拒绝非法值与缺必填，按声明类型过滤并排除缺字段与 null
+aiao-bom-2-e2e: [26/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:477:3 › BOM demo（US-525 阶段 E） › US-525 AC#18 同一整机序列 136 选旧件、137 选新件，清空保留正常行并列未解析候选
+aiao-bom-2-e2e: [27/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:508:3 › BOM demo（US-525 阶段 E） › US-525 AC#19 配置红入选、蓝落选，冲突与缺必填不保留部分结构
+aiao-bom-2-e2e: [28/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:528:3 › BOM demo（US-525 阶段 E） › US-525 AC#20 导出含 manifest 与十进制串，坏文件全回滚，修正重导并发布可见
+aiao-bom-2-e2e: [29/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:616:3 › BOM demo（US-525 阶段 F） › US-525 AC#21 两台 SC-100 的换件历史、序列批次追溯与固定实际修订
+aiao-bom-2-e2e: [30/40] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:696:3 › BOM demo（US-525 阶段 F） › US-525 AC#22 草稿来源直连删除被拒，点名发生项与一个实例引用且树不变
+aiao-bom-2-e2e: [31/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:52:3 › BOM 连续业务工作流 › 计划量从 10 改为 20 时旧结果待更新，重新展开后下载保留同一批量
+aiao-bom-2-e2e: [32/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:84:3 › BOM 连续业务工作流 › 搜索电池后快捷反查，回到结构及刷新均保留日期和计划量
+aiao-bom-2-e2e: [33/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:118:3 › BOM 连续业务工作流 › 10 台生产引导贯穿结构、成本与反查，退出后保留工作条件
+aiao-bom-2-e2e: [34/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:149:3 › BOM 连续业务工作流 › 375 像素导航进入当前链接，Tab 循环，Escape 返回打开按钮
+aiao-bom-2-e2e: [35/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:171:3 › BOM 连续业务工作流 › 导入草稿离页刷新后仍在待发布清单，恢复后需明确勾选再发布
+aiao-bom-2-e2e: [36/40] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:225:3 › BOM 连续业务工作流 › 重复 M3 发生项显示各自路径，窄屏看完计算后能返回结构
+aiao-bom-2-e2e: [37/40] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:12:1 › 已有数据重开后直接可用，取消重置不丢失数据，场景入口与筛选清晰
+aiao-bom-2-e2e: [38/40] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:37:1 › 成本按业务精度展示，原值可展开核对，构成不重复汇总子件
+aiao-bom-2-e2e: [39/40] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:56:1 › 窄屏导航可关闭，查询和成本结果不造成页面横向溢出
+aiao-bom-2-e2e: [40/40] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:76:1 › 物料反查按使用关系成树，分支支持鼠标键盘折叠与窄屏查看
+aiao-bom-2-e2e:   40 passed (3.5m)
+
+
+
+ NX   Successfully ran target e2e for project aiao-bom-2-e2e
+
+
+  Run duration:      3m 31s
+  Cache:             0/1 hit (0%)
+  Critical path:     3m 31s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2-e2e:e2e    3m 31s

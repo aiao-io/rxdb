@@ -1,0 +1,237 @@
+<dialog #dialog [class.revision-dialog]="kind() === 'revision'" aria-labelledby="dialog-title">
+  <header>
+    <div>
+      <span class="eyebrow">AIAO BOM / WORKSPACE</span>
+      <h2 id="dialog-title">{{ title() }}</h2>
+    </div>
+    <button class="icon-button" (click)="close()" aria-label="关闭对话框" type="button">
+      <bom2-icon name="close" />
+    </button>
+  </header>
+  <form #workspaceForm (submit)="submit($event)">
+    <div class="dialog-content">
+      @switch (kind()) {
+        @case ('fork') {
+          <p>将当前范围和筛选结果复制到独立草稿，保留来源记录与发生位置身份。</p>
+          <div class="info-box">
+            {{ ws.result().rows.length | number }} 个展示位置 · {{ ws.dataset()?.title }}
+            <br />
+            来源参考用量需要逐项确认后才能形成完整的需求计算。
+          </div>
+          @if (ws.draft()) {
+            <p class="warning">将创建新的工作分支，现有分支和版本历史会保留。</p>
+          }
+          <label>
+            分支名称
+            <input maxlength="80" name="branchName" placeholder="例如 底盘校核" required value="work" />
+          </label>
+        }
+        @case ('commit') {
+          <p>把当前工作树写入本地版本历史。后续编辑会再次标记为未提交。</p>
+          <div class="info-box">
+            <strong>{{ ws.activeBranch()?.name || '未选择分支' }}</strong>
+            <p>r{{ ws.draft()?.revision }} · {{ ws.draft()?.nodes?.length | number }} 个发生位置</p>
+          </div>
+          <label>
+            提交说明
+            <input maxlength="120" name="message" placeholder="例如 确认底盘用量" required />
+          </label>
+        }
+        @case ('edit') {
+          <p>修改 {{ ws.selectedKeys().size }} 个所选位置。此次编辑将确认用量。</p>
+          <label>
+            直接用量
+            <input
+              [value]="ws.selected()?.quantity ?? ''"
+              inputmode="decimal"
+              name="quantity"
+              placeholder="例如 2.5"
+              required
+            />
+          </label>
+          <label>
+            单位
+            <input [value]="ws.selected()?.uom || '件'" name="uom" required />
+          </label>
+          <label>
+            单位成本
+            <input
+              [value]="ws.selected()?.unitCost ?? ''"
+              inputmode="decimal"
+              name="cost"
+              placeholder="可留空，非负十进制"
+            />
+          </label>
+          <p class="muted">成本为用户输入的统一计价单位；备件 FOB 报价不会自动填入。</p>
+        }
+        @case ('add') {
+          <label>
+            父发生位置
+            <select name="parent">
+              <option value="">根位置</option>
+              @for (node of parents(); track node.key) {
+                <option [selected]="node.key === ws.selection()" [value]="node.key">
+                  {{ node.label || node.partId }} · {{ node.key }}
+                </option>
+              }
+            </select>
+          </label>
+          <label>
+            物料编码
+            <input name="partId" placeholder="已有或新建物料编码" required />
+          </label>
+          <div class="two-fields">
+            <label>
+              直接用量
+              <input inputmode="decimal" name="quantity" required value="1" />
+            </label>
+            <label>
+              单位
+              <input name="uom" required value="件" />
+            </label>
+          </div>
+        }
+        @case ('move') {
+          <p>移动「{{ ws.selected()?.name }}」及其全部子项。循环关系会被拒绝。</p>
+          <label>
+            目标父位置
+            <input list="parent-list" name="parent" placeholder="留空移到根；输入发生位置 key" />
+          </label>
+          <datalist id="parent-list">
+            @for (node of parents(); track node.key) {
+              <option [value]="node.key">{{ node.label || node.partId }}</option>
+            }
+          </datalist>
+          <p class="muted">位置身份可在详情面板的“来源”中复制。</p>
+        }
+        @case ('remove') {
+          <p class="warning">删除 {{ ws.selectedKeys().size }} 个所选位置及其子项。删除后可以撤销。</p>
+        }
+        @case ('validate') {
+          @if (!ws.draft()) {
+            <p>当前是来源快照。建立工作草稿后可校验数量、单位、位置身份和父子关系。</p>
+          } @else {
+            <div class="info-box">
+              {{ diagnostics().length ? diagnostics().length + ' 项需要处理' : '全部校验通过' }} ·
+              {{ ws.draft()?.nodes?.length | number }} 个发生位置
+            </div>
+            <div class="result-list">
+              @for (issue of diagnostics().slice(0, 250); track $index) {
+                <button (click)="locate(issue.key)" type="button">
+                  <code>{{ issue.key }}</code>
+                  <span>{{ issue.message }}</span>
+                  <bom2-icon name="arrow" />
+                </button>
+              }
+            </div>
+            @if (diagnostics().length > 250) {
+              <p>仅展示前 250 项，处理后重新校验。</p>
+            }
+          }
+        }
+        @case ('analysis') {
+          <p>按父链乘积展开已确认用量。缺失或参考用量会阻断相应分支的累计需求；成本只合计已有用户输入的行。</p>
+          <label>
+            计划根数量
+            <input inputmode="decimal" name="planned" required value="1" />
+          </label>
+          @if (analysis(); as result) {
+            <div class="analysis-metrics">
+              <div>
+                <small>已知行成本合计</small>
+                <strong>{{ result.knownCost }}</strong>
+              </div>
+              <div>
+                <small>成本未输入</small>
+                <strong>{{ result.missingCosts | number }} 项</strong>
+              </div>
+              <div>
+                <small>数量 / 关系问题</small>
+                <strong>{{ result.issues.length | number }} 项</strong>
+              </div>
+            </div>
+            <p class="warning">
+              {{
+                result.complete && !result.missingCosts ?
+                  '数量与成本输入完整。'
+                : '当前为部分结果，不代表完整制造需求或整车成本。'
+              }}
+              各层输入成本均作为独立行成本累计，避免同时输入已含子件成本的总成报价。
+            </p>
+            <div class="result-list analysis-lines">
+              @for (line of result.lines.slice(0, 200); track line.key) {
+                <div>
+                  <code>{{ line.partId }}</code>
+                  <span>累计 {{ line.cumulativeQuantity ?? '未确定' }}</span>
+                  <span>成本 {{ line.cost ?? '—' }}</span>
+                </div>
+              }
+            </div>
+            <p class="muted">展示前 200 条，完整草稿可导出 JSON。</p>
+          }
+        }
+        @case ('revision') {
+          <bom2-version-panel />
+        }
+        @case ('stress') {
+          <p>切换到独立合成数据集，验证数万位置的检索、树展开和平铺滚动。合成数据不含真实模型。</p>
+          <div class="two-fields">
+            <label>
+              发生位置数
+              <select name="count">
+                <option value="50000">50,000 · 验收规模</option>
+                <option value="100000">100,000 · 压力边界</option>
+              </select>
+            </label>
+            <label>
+              结构形状
+              <select name="shape">
+                <option value="balanced">均衡树</option>
+                <option value="wide">单父项宽树</option>
+                <option value="deep">深链（受深度预算保护）</option>
+              </select>
+            </label>
+          </div>
+          <div class="info-box">
+            每个发生位置拥有独立物料身份；数量为 1，单位成本为 0.1。此处生成测试数据，不代表公开来源 BOM。
+          </div>
+          <button (click)="realData()" type="button">返回 Windrose 真实数据</button>
+        }
+        @case ('help') {
+          <ol>
+            <li>选择结构来源，在左侧进入系统或双击装配缩小范围。</li>
+            <li>切换结构树、平铺和物料汇总。搜索会保留树上的祖先路径。</li>
+            <li>选择表格行查看属性与 3D，点击整车模型反向定位。</li>
+            <li>建立工作草稿，确认用量，新增 / 移动 / 删除发生项。⌘ / Ctrl + Z 撤销。</li>
+            <li>校验、需求展开、成本、基线比较和版本提交在草稿工具栏操作。</li>
+          </ol>
+          <p>
+            表格支持方向键移动。⌘ / Ctrl + F 聚焦搜索；Escape
+            关闭弹层。主表横向滚动查看更多列，列配置与工作树保存在此浏览器。
+          </p>
+          <p class="muted">原 aiao-bom 与本工作区使用独立存储；替换需完成迁移与业务回归。</p>
+        }
+      }
+      @if (error()) {
+        <p class="form-error" role="alert">{{ error() }}</p>
+      }
+    </div>
+    <footer>
+      <button (click)="close()" type="button">
+        {{ ['help', 'validate', 'revision'].includes(kind()) ? '关闭' : '取消' }}
+      </button>
+      @if (!['help', 'validate', 'revision'].includes(kind())) {
+        <button class="primary" [disabled]="busy()" type="submit">
+          {{
+            kind() === 'analysis' ? '计算'
+            : kind() === 'stress' ?
+              busy() ? '正在生成…'
+              : '加载测试数据'
+            : kind() === 'fork' ? '建立分支'
+            : '确认'
+          }}
+        </button>
+      }
+    </footer>
+  </form>
+</dialog>

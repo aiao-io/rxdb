@@ -29,8 +29,8 @@
 | `future/`        | 搜索 / 加密 / DevTools 等扩展能力（按编号段分拣，不按交付期） | US-700~999 |
 
 `domain/` 目录的硬约束：**每个领域解决方案必须有领域测试应用**——`apps/` 下建至少一个 demo 应用与
-对应 e2e 项目，领域语义的组合验收在该应用上以端到端用例关闭（先例：BOM 的 `apps/dev-rxdb-bom` +
-`apps/dev-rxdb-bom-e2e`，由 [US-525](stories/domain/US-525-bom-end-to-end-demo.md) 交付）。
+对应 e2e 项目，领域语义的组合验收在该应用上以端到端用例关闭（先例：BOM 的 `apps/aiao-bom` +
+`apps/aiao-bom-e2e`，由 [US-525](stories/domain/US-525-bom-end-to-end-demo.md) 交付）。
 组合缺陷（公式乘序、二次过滤、穿透后继承）只在贯穿应用上显形，单测与单点 AC 关不掉；
 没有贯穿应用的领域不视为可交付。
 

@@ -181,7 +181,10 @@ describe('status() 走常数时间摘要（SC-001）', () => {
 
     await statusOf(scene);
 
-    const entryQueries = scene.probe.finds.filter(call => call.entity === 'WorkingTreeEntry');
+    const entryQueries = [
+      ...scene.probe.finds.filter(call => call.entity === 'WorkingTreeEntry'),
+      ...scene.probe.statements.filter(sql => sql.includes('rxdb_working_tree_entry'))
+    ];
     // 扫表在单测里不会因为慢而变红，只会因为「多发了一条查询」而变红——
     // 所以这里断言的是查询形状本身。
     expect(entryQueries).toEqual([]);
@@ -199,6 +202,25 @@ describe('status() 走常数时间摘要（SC-001）', () => {
     expect(status.entryCount).toBe(41);
   });
 
+  it('来源统计只读一次，不用冗余总数补另一来源', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({ origin: 'local' });
+    scene.addEntry({ origin: 'remote_sync' });
+    scene.addEntry({ origin: 'remote_sync' });
+    scene.addEntry({ id: 'entry-other-branch', branchId: 'feature-x', origin: 'local' });
+    stateRowOf(scene).entryCount = 41;
+
+    const status = await statusOf(scene);
+
+    expect(status.entryCount).toBe(41);
+    expect(status.byOrigin).toEqual({ local: 1, remote_sync: 2 });
+    const entryReads = [
+      ...scene.probe.finds.filter(call => call.entity === 'WorkingTreeEntry'),
+      ...scene.probe.statements.filter(sql => sql.includes('rxdb_working_tree_entry'))
+    ];
+    expect(entryReads).toHaveLength(1);
+  });
+
   it('byOrigin 在干净分支上直接短路成两个 0，不发聚合查询', async () => {
     const scene = createWorkingTreeScene();
 
@@ -206,6 +228,7 @@ describe('status() 走常数时间摘要（SC-001）', () => {
 
     expect(status.byOrigin).toEqual({ local: 0, remote_sync: 0 });
     expect(scene.probe.finds.filter(call => call.entity === 'WorkingTreeEntry')).toEqual([]);
+    expect(scene.probe.statements.filter(sql => sql.includes('rxdb_working_tree_entry'))).toEqual([]);
   });
 
   it('byOrigin 在有条目时按来源分组——remote_sync 不豁免（硬裁决 6）', async () => {

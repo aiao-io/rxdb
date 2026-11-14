@@ -5,7 +5,7 @@
  * 与 sqlite-core 的同名模块同一顺序：建表 → 复制 → 对齐自增序列 → 叠增量 → 挂触发器，全在调用方那一笔事务里。
  * - 影子表集落在 `<命名空间>$<后缀>` 这些 schema 里，建表语句自带 `CREATE SCHEMA`。生成器会顺手按根分支挂上变更触发器，
  *   复制之前先摘掉：复制与增量都不是谁的写，不能记进变更日志。
- * - 列以影子表自己的列清单（`information_schema.columns`）为准：主表上可能多出别的插件加的列（如全文检索的 `_fts`），不复制。
+ * - 列以影子表自己的列清单（`information_schema.columns`，生成列除外）为准：主表上可能多出别的插件加的列（如全文检索的 `_fts`），不复制。
  * - 整数主键是 `serial`：显式插入完全不推进影子表的序列，不对齐的话检出位里第一次插入就撞主键。之后两套表各自递增，
  *   跨套可能分出相同的 id（已知限制，B2 处理）。
  * - 删除按目录找这套表的 schema（名字以 `$<后缀>` 结尾），整个 `DROP SCHEMA … CASCADE`：不逐行删，外键动作不触发，
@@ -72,12 +72,16 @@ const assertSeedWithinTableSet = (
 };
 
 /**
- * 一张表的列名，按定义顺序。
+ * 一张表的列名，按定义顺序；不含生成列。
  *
  * @param executor - 调用方的事务
  * @param metadata - 实体
  * @param tableSet - 表集
  * @returns 列名
+ *
+ * @remarks
+ * 生成列的值由数据库按定义算，PostgreSQL 不许往里插值（`cannot insert a non-DEFAULT value`）：带上它，
+ * 成员有生成列时复制主表那一步整笔失败。与 SQLite 侧的 `pragma_table_info` 同口径，序列对齐也用不到它们。
  */
 const columnsOf = async (
   executor: PGliteTransactionExecutor,
@@ -87,7 +91,7 @@ const columnsOf = async (
   (
     await executor.queryRaw<{ column_name: string }>(
       `SELECT column_name FROM information_schema.columns
-       WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
+       WHERE table_schema = $1 AND table_name = $2 AND is_generated = 'NEVER' ORDER BY ordinal_position`,
       [getSchemaName(metadata, tableSet), metadata.tableName]
     )
   ).rows.map(row => row.column_name);

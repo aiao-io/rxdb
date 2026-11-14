@@ -1,0 +1,408 @@
+<p class="intro">检查当前改动并提交，或按提交浏览历史。恢复旧版本会生成一组新改动，核对后再次提交即可。</p>
+<section class="worktree-history" aria-label="本地工作树">
+  <div class="worktree-heading">
+    <div>
+      <span class="section-label">本地工作树</span>
+      @if (activeBranch(); as branch) {
+        <h3>
+          {{ branch.name }}
+          <small>{{ branch.dirty ? '未提交' : '已提交' }}</small>
+        </h3>
+        <p>基于 {{ branch.baseVersion }} · {{ branchCommits().length }} 次提交</p>
+      } @else {
+        <h3>尚未建立工作分支</h3>
+        <p>建立工作草稿后，编辑内容会在本机工作树中保存。</p>
+      }
+    </div>
+    @if (headCommit(); as head) {
+      <div class="head-badge">
+        <span>HEAD</span>
+        <code>{{ shortId(head.id) }}</code>
+      </div>
+    }
+  </div>
+  @if (branches().length) {
+    <div class="branch-list" aria-label="本地分支">
+      @for (branch of branches(); track branch.id) {
+        <div class="branch-item" [class.active-branch]="branch.active">
+          <span class="branch-mark">{{ branch.active ? '●' : '○' }}</span>
+          <strong>{{ branch.name }}</strong>
+          <span>{{ branch.dirty ? '未提交' : '已提交' }}</span>
+          @if (branch.headCommitId) {
+            <code>{{ shortId(branch.headCommitId) }}</code>
+          } @else {
+            <code>尚无提交</code>
+          }
+        </div>
+      }
+    </div>
+  }
+  <nav class="history-tabs" aria-label="版本视图">
+    <button [attr.aria-pressed]="historyTab() === 'changes'" (click)="historyTab.set('changes')" type="button">
+      当前改动
+      <span>{{ currentChanges().length }}</span>
+    </button>
+    <button [attr.aria-pressed]="historyTab() === 'history'" (click)="historyTab.set('history')" type="button">
+      历史记录
+      <span>{{ branchCommits().length }}</span>
+    </button>
+  </nav>
+  @if (historyTab() === 'history') {
+    @if (branchCommits().length) {
+      <ol class="commit-list" aria-label="提交记录">
+        @for (commit of branchCommits(); track commit.id) {
+          <li [class.selected-commit]="commit.id === selectedCommit()?.id">
+            <span class="commit-line"></span>
+            <div class="commit-copy">
+              <strong>{{ commit.message }}</strong>
+              <small>
+                {{ commitDate(commit.createdAt) }} · r{{ commit.revision }} · {{ commit.nodeCount | number }} 个发生位置
+                @if (commit.snapshotId) {
+                  · 已关联快照
+                }
+              </small>
+            </div>
+            <div class="commit-actions">
+              <button
+                [attr.aria-pressed]="commit.id === selectedCommit()?.id"
+                (click)="chooseCommit(commit.id)"
+                type="button"
+              >
+                查看改动
+              </button>
+              <code>{{ commit.id === activeBranch()?.headCommitId ? 'HEAD · ' : '' }}{{ shortId(commit.id) }}</code>
+              <button
+                [disabled]="!canCompare(commit) || versions.loading()"
+                (click)="compareCommit(commit)"
+                type="button"
+              >
+                比较父版本
+              </button>
+              <button
+                [disabled]="activeBranch()?.dirty || ws.versionBusy() || commit.id === activeBranch()?.headCommitId"
+                (click)="restoreCommit(commit.id)"
+                type="button"
+              >
+                恢复到工作树
+              </button>
+            </div>
+          </li>
+        }
+      </ol>
+    } @else if (activeBranch()) {
+      <p class="hint">当前分支还没有提交。提交后会在这里形成可追踪的本地版本链。</p>
+    }
+    @if (selectedCommit(); as commit) {
+      <section class="commit-detail" aria-label="提交改动详情">
+        <h3>
+          {{ commit.message }}
+          <small>{{ selectedCommitChanges().length | number }} 项变化</small>
+        </h3>
+        <div class="working-change-list" aria-label="提交属性变化列表" role="region" tabindex="0">
+          @for (change of visibleCommitChanges(); track change.key) {
+            <div class="working-change" [class.removed-change]="change.kind === 'removed'">
+              <strong [class.added-count]="change.kind === 'added'" [class.changed-count]="change.kind === 'changed'">
+                {{ changeKind(change.kind) }}
+              </strong>
+              <code>{{ change.key }}</code>
+              <span>
+                {{ change.after?.label || change.before?.label || change.after?.partId || change.before?.partId }}
+              </span>
+              <small>{{ changeDetails(change) }}</small>
+            </div>
+          } @empty {
+            <p class="hint">该提交没有结构变化。</p>
+          }
+        </div>
+        @if (selectedCommitChanges().length > pageSize) {
+          <nav class="pagination" aria-label="提交改动分页">
+            <button [disabled]="historyOffset() === 0" (click)="historyOffset.set(historyOffset() - 1)" type="button">
+              上一页
+            </button>
+            <span>第 {{ historyOffset() + 1 }} 页</span>
+            <button
+              [disabled]="(historyOffset() + 1) * pageSize >= selectedCommitChanges().length"
+              (click)="historyOffset.set(historyOffset() + 1)"
+              type="button"
+            >
+              下一页
+            </button>
+          </nav>
+        }
+        <p class="hint">恢复会把该版本的完整结构放入当前工作树，保留已有提交记录。</p>
+      </section>
+    }
+  }
+  @if (activeBranch() && historyTab() === 'changes') {
+    <section class="working-changes" aria-label="当前改动">
+      <div class="working-changes-heading">
+        <div>
+          <span class="section-label">当前改动</span>
+          <h3>
+            {{
+              currentChanges().length ?
+                headCommit() ? '工作树相对最近提交的变化'
+                : '初始结构之后的变化'
+              : headCommit() ? '工作树干净'
+              : '初始结构待提交'
+            }}
+          </h3>
+        </div>
+        <div class="change-counts">
+          <span class="added-count">U {{ ws.diffSummary().added }}</span>
+          <span class="changed-count">M {{ ws.diffSummary().changed }}</span>
+          <span class="removed-count">删除 {{ ws.diffSummary().removed }}</span>
+        </div>
+      </div>
+      @if (currentChanges().length) {
+        <div class="working-change-list" aria-label="当前属性变化列表" role="region" tabindex="0">
+          @for (change of currentChanges().slice(0, 80); track change.key) {
+            <div class="working-change" [class.removed-change]="change.kind === 'removed'">
+              <strong [class.added-count]="change.kind === 'added'" [class.changed-count]="change.kind === 'changed'">
+                {{ changeKind(change.kind) }}
+              </strong>
+              <code>{{ change.key }}</code>
+              <span>
+                {{ change.after?.label || change.before?.label || change.after?.partId || change.before?.partId }}
+              </span>
+              @if (change.fields.length) {
+                <small>{{ changeDetails(change) }}</small>
+              }
+            </div>
+          }
+        </div>
+        @if (currentChanges().length > 80) {
+          <p class="muted">还有 {{ currentChanges().length - 80 | number }} 项改动，打开表格“差异”查看完整清单。</p>
+        }
+      } @else {
+        <p class="hint">
+          {{
+            headCommit() ?
+              '当前工作树和最近提交内容一致，可以继续编辑或切换历史版本。'
+            : '提交初始结构，建立第一个可恢复的版本。'
+          }}
+        </p>
+      }
+      <div class="commit-current">
+        <input
+          [value]="commitMessage.value"
+          (input)="commitMessage.setValue(value($event))"
+          aria-label="当前改动提交说明"
+          maxlength="120"
+          placeholder="提交说明，例如：确认底盘用量"
+        />
+        <button
+          class="primary"
+          [disabled]="!activeBranch()?.dirty || !commitMessage.value.trim() || ws.versionBusy()"
+          (click)="commitCurrent()"
+          type="button"
+        >
+          提交当前改动
+        </button>
+      </div>
+    </section>
+  }
+</section>
+<details
+  class="snapshot-tools"
+  #snapshotTools
+  [open]="snapshotToolsOpen()"
+  (toggle)="snapshotToolsOpen.set(snapshotTools.open)"
+>
+  <summary>版本快照与跨版本比较</summary>
+  <section class="capture" aria-label="保存版本快照">
+    <p>
+      当前：
+      <strong>{{ structureName() }}</strong>
+      · {{ ws.result().total | number }} 个完整结构位置。表格的搜索、筛选和范围不影响保存内容。
+    </p>
+    <div class="capture-fields" [formGroup]="form">
+      <label>
+        快照名称
+        <input (keydown.enter)="save($event)" formControlName="name" maxlength="120" placeholder="例如 设计核对 A" />
+      </label>
+      <label>
+        评估日期
+        <input (keydown.enter)="save($event)" formControlName="evaluationDate" type="date" />
+      </label>
+      <button
+        class="primary"
+        [disabled]="form.invalid || versions.saving() || ws.loading() || !versions.ready()"
+        (click)="save()"
+        type="button"
+      >
+        {{ versions.saving() ? '正在保存…' : '保存完整结构快照' }}
+      </button>
+    </div>
+  </section>
+  <section class="comparison" aria-label="版本比较">
+    <div class="version-selectors">
+      <label>
+        基准版本
+        <select [value]="versions.beforeId()" (change)="choose('before', value($event))" aria-label="基准版本">
+          <option value="">请选择</option>
+          @for (entry of versions.entries(); track entry.id) {
+            <option [selected]="entry.id === versions.beforeId()" [value]="entry.id">
+              {{ entry.name }} · {{ entry.evaluationDate }} · {{ name(entry.structure) }} ·
+              {{ entry.nodeCount | number }} 项
+            </option>
+          }
+        </select>
+      </label>
+      <label>
+        目标版本
+        <select [value]="versions.afterId()" (change)="choose('after', value($event))" aria-label="目标版本">
+          <option value="">请选择</option>
+          @for (entry of versions.entries(); track entry.id) {
+            <option [selected]="entry.id === versions.afterId()" [value]="entry.id">
+              {{ entry.name }} · {{ entry.evaluationDate }} · {{ name(entry.structure) }} ·
+              {{ entry.nodeCount | number }} 项
+            </option>
+          }
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button [disabled]="versions.saving()" (click)="versions.openDataset(ws.dataset()!.id)" type="button">
+        重新读取版本目录
+      </button>
+    </div>
+    @if (versions.error()) {
+      <p class="error" role="alert">{{ versions.error() }}</p>
+    }
+    @if (versions.loading()) {
+      <p role="status">正在读取两个版本并核对发生位置…</p>
+    }
+    @if (versions.result(); as diff) {
+      <div class="metrics" data-testid="revision-summary">
+        <span>
+          新增
+          <strong>{{ diff.summary.added | number }}</strong>
+        </span>
+        <span>
+          删除
+          <strong>{{ diff.summary.removed | number }}</strong>
+        </span>
+        <span>
+          改量
+          <strong>{{ diff.summary.quantityChanges | number }}</strong>
+        </span>
+        <span>
+          换件
+          <strong>{{ diff.summary.replacements | number }}</strong>
+        </span>
+        <span>
+          移动
+          <strong>{{ diff.summary.moved | number }}</strong>
+        </span>
+        <span>
+          其他
+          <strong>{{ diff.summary.otherChanges | number }}</strong>
+        </span>
+      </div>
+      <p class="meta">
+        {{ diff.before.name }}（{{ diff.before.evaluationDate }} / {{ diff.before.version }}） →
+        {{ diff.after.name }}（{{ diff.after.evaluationDate }} / {{ diff.after.version }}）
+      </p>
+      @if (diff.dateOrder !== 'before') {
+        <p class="hint">
+          两个版本的评估日期{{ diff.dateOrder === 'same' ? '相同' : '倒序' }}。比较方向以“基准 → 目标”为准。
+        </p>
+      }
+      @if (diff.unconfirmedQuantities.before || diff.unconfirmedQuantities.after) {
+        <p class="warning">
+          基准 {{ diff.unconfirmedQuantities.before | number }} 项、目标
+          {{ diff.unconfirmedQuantities.after | number }}
+          项用量待确认。缺量和歧义量保持原样；本差异文件不代表完整制造需求。
+        </p>
+      }
+      <div class="filters">
+        <label>
+          差异类型
+          <select [value]="filter()" (change)="setFilter(value($event))" aria-label="差异类型">
+            <option value="all">全部差异</option>
+            <option value="added">新增位置</option>
+            <option value="removed">删除位置</option>
+            <option value="quantity">数量变化</option>
+            <option value="quantityState">用量状态变化</option>
+            <option value="replacement">物料 / 变体变更</option>
+            <option value="parent">父项移动</option>
+            <option value="unitCost">成本变化</option>
+          </select>
+        </label>
+        <label>
+          搜索差异
+          <input
+            [value]="search()"
+            (input)="setSearch(value($event))"
+            aria-label="搜索差异"
+            placeholder="件号、名称、位置身份"
+          />
+        </label>
+      </div>
+      <div class="change-table">
+        <table>
+          <caption>版本发生位置差异</caption>
+          <thead>
+            <tr>
+              <th scope="col">发生位置</th>
+              <th scope="col">变化</th>
+              <th scope="col">基准</th>
+              <th scope="col">目标</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (change of visible(); track change.key) {
+              <tr>
+                <td>
+                  <code>{{ change.key }}</code>
+                  <small>
+                    {{ change.after?.label || change.before?.label || change.after?.partId || change.before?.partId }}
+                  </small>
+                </td>
+                <td>
+                  {{ kind(change) }}
+                  @if (change.fields.includes('quantity') && change.quantityDelta !== null) {
+                    <small>用量差 {{ change.quantityDelta }}</small>
+                  }
+                </td>
+                <td>
+                  <dl>
+                    @for (field of fields(change); track field) {
+                      <dt>{{ label(field) }}</dt>
+                      <dd>{{ fieldValue(change.before, field) }}</dd>
+                    }
+                  </dl>
+                </td>
+                <td>
+                  <dl>
+                    @for (field of fields(change); track field) {
+                      <dt>{{ label(field) }}</dt>
+                      <dd>{{ fieldValue(change.after, field) }}</dd>
+                    }
+                  </dl>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4">{{ diff.changes.length ? '当前条件没有匹配差异' : '两个版本没有结构差异' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <nav class="pagination" aria-label="差异分页">
+        <span>{{ changes().length | number }} 项匹配 · 第 {{ page() + 1 }} 页 · 每页 100 项</span>
+        <button [disabled]="page() === 0" (click)="offset.set(page() - 1)" type="button">上一页</button>
+        <button [disabled]="(page() + 1) * pageSize >= changes().length" (click)="offset.set(page() + 1)" type="button">
+          下一页
+        </button>
+      </nav>
+    } @else if (!versions.loading() && !versions.error()) {
+      <p class="hint">保存两个同一数据集、同一结构来源的版本后，选择基准和目标进行比较。</p>
+    }
+  </section>
+</details>
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}

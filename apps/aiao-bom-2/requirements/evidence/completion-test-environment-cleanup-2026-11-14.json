@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-11-14T06:07:07.321822+00:00",
+  "target": "rxdb-adapter-supabase:test-env-down",
+  "checkoutProject": "rxdb-supabase-598066ef1d",
+  "remainingContainers": [],
+  "stateFileRemoved": true,
+  "completed": true,
+  "cloudNotice": "Nx Cloud ENOTFOUND notice after successful local cleanup; not a task failure"
+}

@@ -1,0 +1,575 @@
+<div
+  class="workbench"
+  [class.inspector-hidden]="!ws.panelOpen()"
+  [class.model-large]="modelLarge()"
+  [class.sidebar-hidden]="!ws.sidebarOpen()"
+  [style.--inspector-width.px]="panelWidth()"
+>
+  <header class="app-header">
+    <a class="brand" aria-label="aiao BOM 2 首页" href="/">
+      <span class="brand-mark"><bom2-icon name="cube" /></span>
+      <strong>
+        aiao
+        <span>/</span>
+        BOM
+      </strong>
+      <span class="generation">2</span>
+    </a>
+    <span class="header-divider"></span>
+    <span class="workspace-label">工程工作空间</span>
+    <div class="header-right">
+      <a class="domain-link" href="/domain">领域工作区</a>
+      <span class="local-indicator">
+        <i></i>
+        本地优先
+      </span>
+      <button (click)="dialogs().open('help')">
+        <bom2-icon name="info" />
+        使用说明
+      </button>
+      <span class="avatar">AE</span>
+    </div>
+  </header>
+  <nav class="rail" aria-label="工作区功能">
+    <button class="active" (click)="ws.sidebarOpen.set(!ws.sidebarOpen())" aria-label="BOM 工作台" title="BOM 工作台">
+      <bom2-icon name="tree" />
+    </button>
+    <button (click)="dialogs().open('validate')" aria-label="数据校验" title="数据校验">
+      <bom2-icon name="check" />
+    </button>
+    <button (click)="dialogs().open('stress')" aria-label="规模测试" title="规模测试"><bom2-icon name="bolt" /></button>
+    <span class="rail-spacer"></span>
+  </nav>
+  <aside class="systems" aria-label="系统导航">
+    <div class="sidebar-title">
+      <span>产品结构</span>
+      <span class="tiny-tag">BOM</span>
+    </div>
+    <button class="product-card" (click)="ws.enter(null)">
+      <span class="product-icon"><bom2-icon name="cube" /></span>
+      <span>
+        <strong>{{ ws.dataset()?.title || 'Windrose 电动重卡' }}</strong>
+        <small>{{ ws.dataset()?.version || '准备数据…' }}</small>
+      </span>
+    </button>
+    <label class="nav-search">
+      <bom2-icon name="search" />
+      <input
+        [value]="navSearch()"
+        (input)="navSearch.set(value($event))"
+        aria-label="筛选系统导航"
+        placeholder="查找系统…"
+      />
+    </label>
+    <div class="nav-caption">
+      {{ structureNames[ws.query().structure] }}
+      <span>{{ navItems().length }}</span>
+    </div>
+    <div class="system-list">
+      <button class="system-item root" [class.selected]="!ws.query().scope" (click)="ws.enter(null)">
+        <bom2-icon name="grid" />
+        <span>全部{{ ws.query().structure === 'catalog' ? '系统' : '结构' }}</span>
+        <small>{{ ws.result().total | number }}</small>
+      </button>
+      @for (item of navItems(); track item.key) {
+        <button class="system-item" [class.selected]="ws.query().scope === item.key" (click)="ws.enter(item.key)">
+          <bom2-icon name="chevron" />
+          <span [title]="item.name">{{ item.name }}</span>
+          <small>{{ item.children || '·' }}</small>
+        </button>
+      }
+    </div>
+    <div class="sidebar-bottom">
+      <span class="status-dot"></span>
+      <span>{{ ws.saveStatus() }}</span>
+      <small>独立工作区 · v2</small>
+    </div>
+  </aside>
+  <main class="main-area">
+    <section class="project-heading">
+      <h1>BOM 工作台</h1>
+      <div class="project-actions">
+        <button (click)="dialogs().open('revision')">
+          <bom2-icon name="copy" />
+          版本历史
+        </button>
+        <button class="primary" [disabled]="ws.loading() || ws.versionBusy()" (click)="dialogs().open('fork')">
+          <bom2-icon name="branch" />
+          建立工作草稿
+        </button>
+      </div>
+    </section>
+    <div class="source-strip">
+      <span class="source-label">
+        <span class="status-dot"></span>
+        {{
+          ws.query().structure === 'draft' ? '工作草稿'
+          : ws.dataset()?.id?.startsWith('stress-') ? '合成规模测试数据'
+          : 'Windrose 公开参考数据'
+        }}
+      </span>
+      <span>{{ ws.stats().total | number }} 主清单物料</span>
+      <span>
+        <bom2-icon name="cube" />
+        {{ ws.stats().models | number }} 有模型参考
+      </span>
+      <button (click)="ws.updateQuery({ issue: ws.query().issue === 'quantity' ? 'all' : 'quantity' })">
+        <i class="amber-dot"></i>
+        {{ ws.stats().missing | number }} 用量待补
+      </button>
+    </div>
+    <div class="content-area">
+      <section class="table-panel" aria-label="BOM 结构表">
+        <div class="table-tabs">
+          <div class="structure-tabs" aria-label="结构来源" role="tablist">
+            @for (entry of structures; track entry) {
+              <button
+                [attr.aria-selected]="ws.query().structure === entry"
+                [class.active]="ws.query().structure === entry"
+                [disabled]="entry === 'draft' && !ws.draft()"
+                (click)="structure(entry)"
+                role="tab"
+              >
+                {{ structureNames[entry] }}
+                @if (entry === 'draft' && ws.draft()) {
+                  <span class="tab-dot"></span>
+                }
+              </button>
+            }
+          </div>
+          <button
+            class="icon-button"
+            [attr.aria-label]="ws.panelOpen() ? '收起详情面板' : '打开详情面板'"
+            (click)="ws.panelOpen.set(!ws.panelOpen())"
+          >
+            <bom2-icon name="panel" />
+          </button>
+        </div>
+        <div class="table-toolbar">
+          <label class="search-field">
+            <bom2-icon name="search" />
+            <input
+              id="bom-search"
+              [value]="ws.query().search"
+              (input)="search(value($event))"
+              aria-label="搜索 BOM"
+              placeholder="搜索名称、GID、件号…"
+            />
+            <kbd>⌘ F</kbd>
+          </label>
+          <select [value]="ws.query().market" (change)="market(value($event))" aria-label="适用市场">
+            <option value="">全部市场</option>
+            <option value="EU">EU · 欧洲</option>
+            <option value="CN">CN · 中国</option>
+            <option value="US">US · 美国</option>
+            <option value="AU">AU · 澳大利亚</option>
+          </select>
+          <select [value]="ws.query().issue" (change)="issue(value($event))" aria-label="数据问题筛选">
+            <option value="all">全部状态</option>
+            <option value="quantity">用量待完善</option>
+            <option value="conflict">来源冲突</option>
+            <option value="unmapped">无 3D 参考</option>
+          </select>
+          <button
+            class="filter-button"
+            [class.active]="ws.query().only3d"
+            (click)="ws.updateQuery({ only3d: !ws.query().only3d })"
+          >
+            <bom2-icon name="cube" />
+            有 3D
+          </button>
+        </div>
+        <div class="view-toolbar">
+          <div class="view-segments" aria-label="展示模式">
+            <button [class.active]="ws.query().mode === 'tree'" (click)="mode('tree')">
+              <bom2-icon name="tree" />
+              结构树
+            </button>
+            <button [class.active]="ws.query().mode === 'flat'" (click)="mode('flat')">
+              <bom2-icon name="list" />
+              平铺
+            </button>
+            <button [class.active]="ws.query().mode === 'summary'" (click)="mode('summary')">
+              <bom2-icon name="grid" />
+              汇总
+            </button>
+          </div>
+          <span class="toolbar-spacer"></span>
+          <select class="small-select" (change)="grid()?.expandTo(+value($event))" aria-label="展开层级">
+            <option value="0">折叠全部</option>
+            <option value="1">展开 1 层</option>
+            <option value="2">展开 2 层</option>
+            <option value="3">展开 3 层</option>
+          </select>
+          <button
+            class="icon-button"
+            (click)="ws.compact.set(!ws.compact())"
+            aria-label="切换行密度"
+            title="切换行密度"
+          >
+            <bom2-icon name="list" />
+          </button>
+          <div class="column-control">
+            <button [class.active]="columnsOpen()" (click)="columnsOpen.set(!columnsOpen())">
+              <bom2-icon name="columns" />
+              列配置
+            </button>
+            @if (columnsOpen()) {
+              <div class="column-menu">
+                <strong>显示字段</strong>
+                @for (column of columns(); track column.field) {
+                  <label>
+                    <input
+                      [checked]="column.visible"
+                      [disabled]="column.field === 'name'"
+                      (change)="toggleColumn(column.field)"
+                      type="checkbox"
+                    />
+                    {{ column.title }}
+                  </label>
+                }
+                <div class="column-options">
+                  <label>
+                    排序字段
+                    <select [value]="ws.query().sort" (change)="sort(value($event))" aria-label="排序字段">
+                      <option value="source">来源顺序</option>
+                      <option value="name">物料名称</option>
+                      <option value="partId">物料编码</option>
+                      <option value="quantity">直接用量</option>
+                    </select>
+                  </label>
+                  <label>
+                    排序方向
+                    <select
+                      [value]="ws.query().descending ? 'desc' : 'asc'"
+                      (change)="ws.updateQuery({ descending: value($event) === 'desc' })"
+                      aria-label="排序方向"
+                    >
+                      <option value="asc">升序</option>
+                      <option value="desc">降序</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+        <nav class="breadcrumbs" aria-label="当前范围">
+          <button (click)="ws.enter(null)">
+            <bom2-icon name="cube" />
+            {{ ws.dataset()?.title }}
+          </button>
+          @for (crumb of ws.breadcrumbs(); track crumb.key) {
+            <bom2-icon name="chevron" />
+            <button (click)="ws.enter(crumb.key)">{{ crumb.name }}</button>
+          }
+          <span>{{ ws.query().mode === 'summary' ? '按物料 / 变体汇总直接用量' : '直接用量 · 保留每个发生位置' }}</span>
+        </nav>
+        @if (ws.query().structure === 'draft') {
+          <div class="draft-toolbar">
+            <select
+              class="branch-select"
+              [disabled]="ws.versionBusy()"
+              (change)="ws.switchDraftBranch(value($event))"
+              aria-label="当前工作分支"
+            >
+              @for (branch of ws.branches(); track branch.id) {
+                <option [selected]="branch.id === ws.activeBranchId()" [value]="branch.id">
+                  {{ branch.name }}{{ branch.dirty ? ' · 未提交' : '' }}
+                </option>
+              }
+            </select>
+            <span>r{{ ws.draft()?.revision }} · 已选 {{ ws.selectedKeys().size }} 项</span>
+            <button
+              [disabled]="!ws.draft() || !ws.activeBranch()?.dirty || ws.versionBusy()"
+              (click)="dialogs().open('commit')"
+            >
+              <bom2-icon name="copy" />
+              提交版本
+            </button>
+            <button [disabled]="!ws.canUndo() || ws.versionBusy()" (click)="ws.undo()" aria-label="撤销">
+              <bom2-icon name="undo" />
+            </button>
+            <button [disabled]="!ws.canRedo() || ws.versionBusy()" (click)="ws.redo()" aria-label="重做">
+              <bom2-icon name="redo" />
+            </button>
+            <button
+              [disabled]="!ws.selectedKeys().size || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('edit')"
+            >
+              <bom2-icon name="edit" />
+              编辑用量
+            </button>
+            <button [disabled]="ws.versionBusy() || ws.diffMode()" (click)="dialogs().open('add')">
+              <bom2-icon name="plus" />
+              新增
+            </button>
+            <button
+              [disabled]="ws.selectedKeys().size !== 1 || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('move')"
+            >
+              移动
+            </button>
+            <button
+              [disabled]="!ws.selectedKeys().size || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('remove')"
+              aria-label="删除所选发生项"
+              title="删除所选发生项"
+            >
+              <bom2-icon name="trash" />
+            </button>
+            <span class="toolbar-spacer"></span>
+            <button (click)="dialogs().open('validate')">校验</button>
+            <button (click)="dialogs().open('analysis')">需求 / 成本</button>
+            <button
+              class="diff-button"
+              [attr.aria-label]="ws.diffMode() ? '退出差异' : '差异'"
+              [attr.aria-pressed]="ws.diffMode()"
+              [class.active]="ws.diffMode()"
+              [disabled]="ws.versionBusy()"
+              (click)="ws.toggleDiffMode()"
+              title="只显示当前工作树相对 HEAD 的新增、删除和修改"
+            >
+              {{ ws.diffMode() ? '退出差异' : '差异' }}
+              @if (ws.diffSummary().added + ws.diffSummary().removed + ws.diffSummary().changed) {
+                <span>{{ ws.diffSummary().added + ws.diffSummary().removed + ws.diffSummary().changed }}</span>
+              }
+            </button>
+          </div>
+        }
+        <div class="grid-area">
+          @if (ws.result().truncated) {
+            <div class="depth-warning" role="status">
+              树视图已到 128 层预算。双击边界行进入该范围继续浏览；平铺可查看全部节点。
+            </div>
+          }
+          @if (ws.loading()) {
+            <div class="empty-state">
+              <span class="spinner"></span>
+              <h3>正在准备 BOM 工作区</h3>
+              <p>建立结构索引和本地视图</p>
+            </div>
+          } @else if (ws.error()) {
+            <div class="empty-state" role="alert">
+              <bom2-icon name="info" />
+              <h3>数据读取失败</h3>
+              <p>{{ ws.error() }}</p>
+              <button (click)="ws.loadWindrose()">重新读取</button>
+            </div>
+          } @else if (!ws.result().rows.length) {
+            <div class="empty-state">
+              <bom2-icon name="search" />
+              <h3>{{ ws.diffMode() && !ws.diffChanges().length ? '当前没有未提交改动' : '当前范围没有匹配项' }}</h3>
+              <p>
+                {{
+                  ws.diffMode() && !ws.diffChanges().length ?
+                    '工作树已和比较版本一致，可以退出差异继续编辑。'
+                  : '尝试更换搜索条件或返回全部结构。'
+                }}
+              </p>
+              @if (ws.diffMode() && !ws.diffChanges().length) {
+                <button (click)="ws.toggleDiffMode()">返回完整表格</button>
+              } @else {
+                <button (click)="ws.updateQuery({ scope: null, search: '', issue: 'all', market: '', only3d: false })">
+                  清除筛选
+                </button>
+              }
+            </div>
+          } @else {
+            <bom2-grid
+              [checkedKeys]="ws.selectedKeys()"
+              [columns]="columns()"
+              [compact]="ws.compact()"
+              [editable]="
+                ws.query().structure === 'draft' && !ws.diffMode() && !ws.versionBusy() && ws.query().mode !== 'summary'
+              "
+              [expanded]="ws.expanded()"
+              [mode]="ws.query().mode"
+              [queryKey]="ws.query().search"
+              [result]="ws.result()"
+              [selection]="ws.selection()"
+              (cellChanged)="cellChanged($event)"
+              (checked)="checked($event)"
+              (columnWidths)="widths($event)"
+              (enter)="ws.enter($event)"
+              (expandedChange)="ws.setExpanded($event)"
+              (rowSelect)="ws.choose($event.row, $event.additive)"
+              (scrollMetrics)="gridMetrics($event)"
+            />
+          }
+        </div>
+        <div class="table-footer">
+          <span>
+            <strong data-testid="matched-count">{{ ws.result().matched | number }}</strong>
+            个匹配位置
+            <span class="footer-divider">/</span>
+            {{ ws.result().total | number }} 个结构节点
+          </span>
+          <span>
+            {{
+              ws.diffMode() ? 'U 新增 · M 修改 · 删除划线 · 黄色单元格为修改属性'
+              : ws.query().structure === 'draft' && ws.query().mode !== 'summary' ? '双击用量、单位或单位成本编辑'
+              : ws.query().mode === 'tree' ? '双击装配进入范围'
+              : '按物料汇总'
+            }}
+            <span class="footer-divider">·</span>
+            {{ ws.compact() ? '紧凑' : '舒适' }}
+          </span>
+        </div>
+        <div class="selected-summary" aria-live="polite" data-testid="selected-summary">
+          @if (ws.selected(); as row) {
+            <span class="status-dot"></span>
+            <strong>{{ row.name }}</strong>
+            <code>{{ row.compId || row.partId }}</code>
+            <span>{{ row.quantity ?? '用量待补' }} {{ row.uom }}</span>
+            <button [disabled]="!row.hasChildren || row.diffStatus === 'removed'" (click)="ws.enter(row.key)">
+              进入范围
+              <bom2-icon name="arrow" />
+            </button>
+          } @else {
+            <span>选择一行查看物料属性与 3D 参考</span>
+          }
+        </div>
+        <div
+          class="grid-scrollbar"
+          #gridScrollbar
+          [class.grid-scrollbar-hidden]="gridScrollWidth() <= gridViewportWidth()"
+          (scroll)="scrollGrid($event)"
+          aria-label="表格横向滚动"
+          role="region"
+        >
+          <div [style.width.px]="gridScrollWidth()"></div>
+        </div>
+      </section>
+      @if (ws.panelOpen()) {
+        <div
+          class="panel-resizer"
+          (keydown.ArrowLeft)="panelWidth.set(panelWidth() + 20)"
+          (keydown.ArrowRight)="panelWidth.set(panelWidth() - 20)"
+          (pointerdown)="resizePanel($event)"
+          aria-label="调整详情面板宽度"
+          aria-orientation="vertical"
+          role="separator"
+          tabindex="0"
+        ></div>
+        <aside class="inspector" aria-label="模型与物料详情">
+          @if (ws.dataset(); as dataset) {
+            <bom2-model-panel
+              [dataset]="dataset"
+              [market]="ws.query().market"
+              [part]="ws.part()"
+              [selected]="ws.selected()"
+              (closed)="ws.panelOpen.set(false)"
+              (maximize)="modelLarge.set(!modelLarge())"
+              (picked)="ws.fromModel($event.nodeIndex, $event.partId)"
+            />
+          }
+          <div class="detail-tabs">
+            <button [class.active]="detailTab() === 'properties'" (click)="detailTab.set('properties')">
+              物料属性
+            </button>
+            <button [class.active]="detailTab() === 'usage'" (click)="detailTab.set('usage')">
+              使用处
+              <span>{{ usages().length }}</span>
+            </button>
+          </div>
+          <div class="detail-body">
+            @if (ws.selected(); as row) {
+              <div class="part-title">
+                <span class="part-type">{{ row.kind === 'system' ? 'SYSTEM' : 'PART / OCCURRENCE' }}</span>
+                <h2>{{ row.name }}</h2>
+                <code>{{ row.compId || row.partId }}</code>
+              </div>
+              @if (detailTab() === 'properties') {
+                <dl class="property-list">
+                  <dt>物料编码</dt>
+                  <dd>{{ row.partId }}</dd>
+                  <dt>系统分类</dt>
+                  <dd>{{ row.familyName || '未归类' }}</dd>
+                  <dt>直接用量</dt>
+                  <dd [class.warning]="row.quantityState !== 'confirmed'">
+                    {{ row.quantity ?? '待补充' }} {{ row.uom }}
+                    <small>
+                      {{
+                        row.quantityState === 'reference' ? '来源参考'
+                        : row.quantityState === 'confirmed' ? '已确认'
+                        : '尚未确认'
+                      }}
+                    </small>
+                  </dd>
+                  <dt>适用市场</dt>
+                  <dd>{{ row.markets || '未声明' }}</dd>
+                  <dt>配置策略</dt>
+                  <dd>{{ row.policy || '未声明' }}</dd>
+                  <dt>3D 参考</dt>
+                  <dd>{{ row.has3d ? '有模型候选' : '暂无关联模型' }}</dd>
+                  @if (ws.part()?.rawQuantity) {
+                    <dt>来源用量原文</dt>
+                    <dd>{{ ws.part()?.rawQuantity }}</dd>
+                  }
+                  @for (spec of specs(); track spec[0]) {
+                    <dt>{{ spec[0] }}</dt>
+                    <dd>{{ spec[1] }}</dd>
+                  }
+                </dl>
+                @if (row.conflict) {
+                  <div class="detail-warning">
+                    <bom2-icon name="info" />
+                    <span>来源标记：{{ row.conflict }}。请核对后再用于正式制造。</span>
+                  </div>
+                }
+                <div class="path-card">
+                  <span>当前发生路径</span>
+                  <p>{{ row.path }}</p>
+                </div>
+              } @else if (detailTab() === 'usage') {
+                <p class="muted">同一物料的不同发生位置分别保留。</p>
+                @for (usage of usages(); track usage.key) {
+                  <button class="usage-item" (click)="ws.locate(usage.key)">
+                    <bom2-icon name="branch" />
+                    <span>{{ usage.path }}</span>
+                    <bom2-icon name="arrow" />
+                  </button>
+                }
+              }
+            } @else {
+              <div class="empty-detail">
+                <bom2-icon name="cube" />
+                <p>
+                  选择表格行或模型零件
+                  <br />
+                  查看对应物料信息
+                </p>
+              </div>
+            }
+          </div>
+        </aside>
+      }
+    </div>
+    @if (ws.notice()) {
+      <div class="notice" role="status">
+        <bom2-icon name="info" />
+        <span>{{ ws.notice() }}</span>
+        <button class="icon-button" (click)="ws.notice.set('')" aria-label="关闭提示">
+          <bom2-icon name="close" />
+        </button>
+      </div>
+    }
+  </main>
+  <footer class="app-footer">
+    <span>
+      <span class="status-dot"></span>
+      {{ ws.saveStatus() }}
+    </span>
+    <span>
+      aiao-bom-2
+      <span class="footer-divider">·</span>
+      工程数据工作台
+    </span>
+    <button (click)="dialogs().open('stress')">
+      <bom2-icon name="bolt" />
+      规模测试
+    </button>
+  </footer>
+</div>
+<bom2-workspace-dialogs />

@@ -1,0 +1,183 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "cli": {
+    "cache": {
+      "enabled": false
+    }
+  },
+  "name": "aiao-bom",
+  "prefix": "bom",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-bom/src",
+  "tags": ["angular-app", "type:app", "scope:bom"],
+  "targets": {
+    "spec-typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "^typecheck"],
+      "inputs": ["default", "^production"],
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "tsc --build tsconfig.spec.json --pretty false"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "eslint . --max-warnings=0"
+      },
+      "dependsOn": ["requirements-check"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "spec-typecheck", "requirements-test"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-bom"],
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "vitest"
+      }
+    },
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": [],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/aiao-bom/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          }
+        ],
+        "browser": "apps/aiao-bom/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/apps/aiao-bom",
+        "polyfills": [],
+        "styles": ["apps/aiao-bom/src/styles.scss"],
+        "tsConfig": "apps/aiao-bom/tsconfig.app.json",
+        "externalDependencies": []
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "3mb",
+              "maximumWarning": "2.4mb",
+              "type": "initial"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "options": {
+        "port": 4311
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "aiao-bom:build:development",
+          "host": "0.0.0.0",
+          "headers": {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp"
+          }
+        },
+        "production": {
+          "buildTarget": "aiao-bom:build:production"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "options": {
+        "buildTarget": "aiao-bom:build",
+        "port": 4311,
+        "spa": true,
+        "staticFilePath": "dist/apps/aiao-bom/browser"
+      }
+    },
+    "serve-e2e": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "readyWhen": {
+        "signal": true
+      },
+      "options": {
+        "port": 4311,
+        "spa": true,
+        "staticFilePath": "dist/apps/aiao-bom/browser",
+        "watch": false
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test apps/aiao-bom/scripts/check-requirements.spec.mjs"
+      },
+      "configurations": {
+        "coverage": {
+          "command": "node --test --experimental-test-coverage --test-coverage-include=apps/aiao-bom/scripts/check-requirements.mjs --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 apps/aiao-bom/scripts/check-requirements.spec.mjs"
+        }
+      },
+      "defaultConfiguration": "coverage"
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node apps/aiao-bom/scripts/check-requirements.mjs"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "pnpm exec wrangler dev --config wrangler.json --ip 127.0.0.1 --port 4312"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "pnpm exec wrangler deploy --config wrangler.json"
+      }
+    },
+    "deploy-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-bom",
+        "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
+      }
+    }
+  }
+}

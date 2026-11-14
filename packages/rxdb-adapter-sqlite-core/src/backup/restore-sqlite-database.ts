@@ -35,6 +35,7 @@ import {
   SQLITE_BACKUP_SCHEMA_ENTRY,
   SQLITE_BACKUP_SUMMARY_ENTRY,
   SQLITE_RESTORE_MARKER_TABLE,
+  type SqliteBackupObject,
   type SqliteBackupSchema,
   type SqliteBackupTable
 } from './sqlite-backup-sql.js';
@@ -373,9 +374,9 @@ const insertRows = async (
   }
 };
 
-/** 索引、视图与触发器在行之后建：触发器不能在灌入归档行时触发。 */
-const createObjects = async (client: SqliteClientLike, schema: SqliteBackupSchema): Promise<void> => {
-  for (const object of schema.objects) {
+/** 按指定批次恢复对象，唯一索引先于行，视图和触发器后于行。 */
+const createObjects = async (client: SqliteClientLike, objects: readonly SqliteBackupObject[]): Promise<void> => {
+  for (const object of objects) {
     assertSqliteSchemaSql(object.sql, object.type);
     await archiveSql(client, object.sql);
   }
@@ -535,9 +536,16 @@ const writeTarget = async (
   // 目标此刻恰好是引擎新建的空库；引擎自建的对象由归档里的那一份整体取代
   await dropUserObjects(client, [SQLITE_RESTORE_MARKER_TABLE]);
   await createTables(client, schema);
+  await createObjects(
+    client,
+    schema.objects.filter(object => object.type === 'index')
+  );
   const rows = schema.tables.map(() => 0);
   const summaryHeader = await insertRows(client, session, schema, rows);
-  await createObjects(client, schema);
+  await createObjects(
+    client,
+    schema.objects.filter(object => object.type !== 'index')
+  );
   await writeSequencesAndHeader(client, schema);
   const trailer = await readSummary(session, summaryHeader, schema, rows);
   await options.onStage?.('rows-written');

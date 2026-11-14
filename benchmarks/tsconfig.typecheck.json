@@ -16,5 +16,5 @@
     "types": ["node", "vite/client", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
   },
   "extends": "../tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx", "node/**/*.ts"]
+  "include": ["*.ts", "src/**/*.ts", "src/**/*.tsx", "node/**/*.ts"]
 }

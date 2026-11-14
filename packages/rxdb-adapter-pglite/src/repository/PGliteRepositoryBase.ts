@@ -2,8 +2,8 @@ import {
   EntityMetadata,
   EntityStaticType,
   EntityType,
-  getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   RepositoryBase
 } from '@aiao/rxdb';
 import { Results } from '@electric-sql/pglite';
@@ -20,7 +20,7 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     EntityType: T
   ) {
     super(adapter.rxdb, EntityType);
-    this.metadata = getEntityMetadata(EntityType);
+    this.metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   }
 
   /**
@@ -48,7 +48,9 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
   protected async addQueryCache(
     result: Results<Record<string, unknown>>,
     forcedUpdate = true,
-    submissions?: ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }>
+    submissions?:
+      | ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }>
+      | ((data: Partial<InstanceType<T>>) => void)
   ): Promise<InstanceType<T>[]> {
     return await Promise.all(
       result.rows.map(async row => {
@@ -83,8 +85,12 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     entity: InstanceType<T>,
     data: InstanceType<T>,
     forcedUpdate: boolean,
-    submissions: ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }> | undefined
+    submissions:
+      | ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }>
+      | ((data: Partial<InstanceType<T>>) => void)
+      | undefined
   ): void {
+    if (typeof submissions === 'function') return submissions(data);
     const submission = submissions?.get(entity);
     if (submission) return getEntityStatus(entity).applyWriteResult(data, submission.submitted, submission.mark);
     if (forcedUpdate) super.updateEntity(entity, data);

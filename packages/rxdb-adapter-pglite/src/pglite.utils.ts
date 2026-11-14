@@ -1,8 +1,12 @@
 import {
+  advancedIndexesOf,
+  compileAdvancedIndex,
+  compileGeneratedColumn,
   EntityMetadata,
   EntityPropertyMetadata,
   EntityRelationMetadata,
   EntityType,
+  generatedColumnsOf,
   getEntityMetadata,
   KeyValuePropertyMetadata,
   PropertyType,
@@ -36,9 +40,18 @@ export { normalizeCreateEntity, normalizeUpdateEntity } from '@aiao/rxdb';
  * 宿主用同一个判定决定要不要在 `createRuntime` 里装 `@electric-sql/pglite/contrib/btree_gist`。
  */
 export const pgliteServerExtensionRequirementsOf = (
-  entities: readonly EntityType[]
+  entities: readonly EntityType[],
+  resolveMetadata: (entity: EntityType) => EntityMetadata = getEntityMetadata
 ): PGliteServerExtensionRequirements => ({
-  btreeGist: entities.some(entity => getEntityMetadata(entity).exclusionMap.size > 0)
+  btreeGist: entities.some(entity => {
+    const metadata = resolveMetadata(entity);
+    return (
+      metadata.exclusionMap.size > 0 ||
+      advancedIndexesOf(metadata).some(
+        index => compileAdvancedIndex(metadata, index, 'postgres')?.requiredExtensions.includes('btree_gist') === true
+      )
+    );
+  })
 });
 
 /**
@@ -592,6 +605,20 @@ const requireEncryptedCellText = (value: unknown, tableName: string, columnName:
   });
 };
 
+const generatedResultColumns = new WeakMap<EntityMetadata, ReadonlySet<string>>();
+
+const isGeneratedResultColumn = (metadata: EntityMetadata, columnName: string): boolean => {
+  if (!columnName.startsWith('gc_')) return false;
+  let columns = generatedResultColumns.get(metadata);
+  if (columns === undefined) {
+    columns = new Set(
+      generatedColumnsOf(metadata).map(column => compileGeneratedColumn(metadata, column, 'postgres').columnName)
+    );
+    generatedResultColumns.set(metadata, columns);
+  }
+  return columns.has(columnName);
+};
+
 /**
  * 从 PGlite 结果行获取实体对象数据
  * PGlite 返回行作为对象，主要用于类型转换
@@ -629,6 +656,7 @@ export const getEntityObjectFromResult = async (
   };
 
   Object.keys(row).forEach(key => {
+    if (isGeneratedResultColumn(metadata, key)) return;
     const value = row[key];
 
     // 查找是否是外键列名

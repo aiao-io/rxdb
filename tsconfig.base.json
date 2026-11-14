@@ -117,6 +117,7 @@
       "@aiao/rxdb-test/encrypted": ["./packages/rxdb-test/src/encrypted/index.ts"],
       "@aiao/rxdb-vue": ["./packages/rxdb-vue/src/index.ts"],
       "@aiao/utils": ["./packages/utils/src/index.ts"],
+      "@modules/bom-workspace": ["./modules/bom-workspace/src/index.ts"],
       "@modules/angular": ["./modules/angular/src/index.ts"],
       "@modules/angular-todo": ["./modules/angular-todo/src/index.ts"],
       "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],
@@ -135,7 +136,12 @@
       "@aiao/rxdb-admin/testing": ["./packages/rxdb-admin/src/testing.ts"],
       "@aiao/rxdb-admin-angular": ["./packages/rxdb-admin-angular/src/index.ts"],
       "@aiao/rxdb-admin-react": ["./packages/rxdb-admin-react/src/index.ts"],
-      "@aiao/rxdb-admin-vue": ["./packages/rxdb-admin-vue/src/index.ts"]
+      "@aiao/rxdb-admin-vue": ["./packages/rxdb-admin-vue/src/index.ts"],
+      "@aiao/rxdb-plugin-bom": ["./packages/rxdb-plugin-bom/src/index.ts"],
+      "@aiao/rxdb-plugin-bom/testing": ["./packages/rxdb-plugin-bom/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-bom-angular": ["./packages/rxdb-plugin-bom-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-bom-react": ["./packages/rxdb-plugin-bom-react/src/index.ts"],
+      "@aiao/rxdb-plugin-bom-vue": ["./packages/rxdb-plugin-bom-vue/src/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

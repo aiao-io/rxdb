@@ -5,6 +5,7 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   RxDBChange
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
@@ -70,8 +71,9 @@ const settle_cached_entity = <T extends EntityType>(
   data: Partial<InstanceType<T>>,
   forcedUpdate: boolean,
   mergeExternalChanges: boolean,
-  submissions: SqliteWriteSubmissions<T> | undefined
+  submissions: SqliteWriteSubmissions<T> | ((data: Partial<InstanceType<T>>) => void) | undefined
 ): void => {
+  if (typeof submissions === 'function') return submissions(data);
   const state = getEntityStatus(entity);
   const submission = submissions?.get(entity);
   if (submission) return state.applyWriteResult(data, submission.submitted, submission.mark);
@@ -87,7 +89,7 @@ const settle_cached_entity = <T extends EntityType>(
  * @param forcedUpdate
  * @param skipCreate 跳过创建新实体（仅更新已有缓存）
  * @param mergeExternalChanges 合并数据库数据，同时保留未保存字段
- * @param submissions 本次写入的提交记录（按被写的实体索引）：命中的已缓存实体按
+ * @param submissions 写回合并句柄或本次写入的提交记录（按被写的实体索引）：命中的已缓存实体按
  *   `EntityStatus.applyWriteResult` 收尾，以返回行推进基线并保留提交之后的新编辑
  * @returns
  */
@@ -98,10 +100,10 @@ export const transaction_sqlite_result = async <T extends EntityType>(
   forcedUpdate = false,
   skipCreate = false,
   mergeExternalChanges = false,
-  submissions?: SqliteWriteSubmissions<T>
+  submissions?: SqliteWriteSubmissions<T> | ((data: Partial<InstanceType<T>>) => void)
 ): Promise<InstanceType<T>[]> => {
   const result: InstanceType<T>[] = [];
-  const metadata = getEntityMetadata(EntityType);
+  const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
   const isRxDBChange = metadata === getEntityMetadata(RxDBChange);
   const em = adapter.rxdb.entityManager;
   // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）
@@ -150,7 +152,8 @@ export const transaction_sqlite_result = async <T extends EntityType>(
       const state = getEntityStatus(entity);
       state.local = true;
       // 写入回执与外部合并都已按 patch 重算过 modified；只有整行覆盖才归零
-      if (!mergeExternalChanges && !submissions?.has(entity)) state.modified = false;
+      if (!mergeExternalChanges && typeof submissions !== 'function' && !submissions?.has(entity))
+        state.modified = false;
       // 能在结果集里查到这一行，说明该 id 此刻在数据库中确实存在（未被删除）——
       // 无论是否 forcedUpdate 都要清除 removed，否则撤销删除 / 分支切换复活的行会因为
       // 命中缓存里那个仍标着 removed=true 的旧引用，永远显示"已删除"（RXD-011）
