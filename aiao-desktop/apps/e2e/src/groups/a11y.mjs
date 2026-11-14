@@ -804,9 +804,14 @@ export const a11y = {
           if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'm') return;
           document.removeEventListener('keydown', hold);
           queueMicrotask(() => {
-            const animation = document.querySelector('.win[data-app="finder"]')?.getAnimations().find(item =>
-              item.effect instanceof KeyframeEffect && item.effect.getKeyframes().some(frame => String(frame.clipPath).includes('43%'))
-            );
+            const animation = document
+              .querySelector('.win[data-app="finder"]')
+              ?.getAnimations()
+              .find(
+                item =>
+                  item.effect instanceof KeyframeEffect &&
+                  item.effect.getKeyframes().some(frame => String(frame.clipPath).includes('43%'))
+              );
             window.__heldMinimize = Boolean(animation);
             if (!animation) return;
             animation.pause();

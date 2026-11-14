@@ -1,0 +1,39 @@
+{
+  "format": "aiao-desktop.verify-domains",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:07:03.414Z",
+  "source": "d95812da+workspace",
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "node": "v26.12.0",
+    "chromium": "158.0.8127.18",
+    "headless": true
+  },
+  "method": "真实 HTTPS 入口；同一空上下文、不同 Origin；屏蔽外网内容，允许两个真实站点的构建资源；不发布、不迁移数据。",
+  "entries": [
+    {
+      "requestedOrigin": "https://aiao-desktop.pages.dev",
+      "actualOrigin": "https://aiao-desktop.pages.dev",
+      "status": 200,
+      "indexSha256": "5476aaeea9fb952aba3a66916f6ac0789b7b7897bfa4fa6d7f7d610b3fe0f5e3"
+    }
+  ],
+  "checks": {},
+  "pageErrors": [],
+  "diagnostics": [
+    {
+      "phase": "failure",
+      "url": "https://aiao-desktop.pages.dev/?boot=0",
+      "windows": [
+        {
+          "app": "terminal",
+          "text": "Terminal — local shell\nLocal shell\n×\n+\nStarting local shell with Vivari…\nVivari shell — type commands, Enter to run.\n~$ echo 'ADESK-US-004 origin isolation 2026-11-14' > ~/Desktop/domain-check.txt\n~$  "
+        }
+      ],
+      "toast": "Could not load Alpine Lake"
+    }
+  ],
+  "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.win[data-app=\"textedit\"]:not(.closing)').locator('[data-te-doc]')\nExpected substring: \u001b[32m\"ADESK-US-004 origin isolation 2026-11-14\"\u001b[39m\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" locator('.win[data-app=\"textedit\"]:not(.closing)').locator('[data-te-doc]') with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('.win[data-app=\"textedit\"]:not(.closing)').locator('[data-te-doc]')\u001b[22m\n",
+  "passed": false
+}

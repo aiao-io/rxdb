@@ -75,7 +75,7 @@ try {
       measuredAt: new Date().toISOString(),
       source: {
         sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-        changes: execFileSync('git', ['status', '--short', '--', 'aiao-desktop'], { encoding: 'utf8' }).trim()
+        changes: execFileSync('git', ['status', '--short', '--', ':(top)aiao-desktop'], { encoding: 'utf8' }).trim()
       },
       environment: {
         os: platform(),

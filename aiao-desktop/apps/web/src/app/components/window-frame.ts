@@ -194,7 +194,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
 
   restore(): void {
     const win = this.win();
-    if (!win.minimized() || win.busy) return;
+    if (!win.minimized()) return;
     win.busy = true;
     win.minimized.set(false);
     win.hidden.set(false);
@@ -208,12 +208,13 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       this.finishRestore();
       return;
     }
+    animation.onfinish = null;
     /* 隐藏过的图层要重新光栅化：先在 Dock 里缩着等两帧，再倒放。 */
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         if (win.minimized() || this.genie !== animation) return;
-        animation.reverse();
         animation.onfinish = () => this.finishRestore();
+        animation.reverse();
       })
     );
   }

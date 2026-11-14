@@ -1,0 +1,116 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T00:57:49.019Z",
+  "source": {
+    "sha": "d95812da20d06f0f07beb25b139ae1f4b1721fb7",
+    "changes": ""
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "f8730eddd283701363ceeba41d69c98a020e1dad9f6764cc91368831dfc718ee"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "host-filesystem"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 28.542170875,
+  "outcomes": [
+    {
+      "group": "host-filesystem",
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 28.498400167
+    }
+  ],
+  "checks": {
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

@@ -512,6 +512,21 @@ export const hostFilesystem = {
       keyOpened.value.name === 'on-restraint.md' &&
       (await panelCloses());
 
+    await page.evaluate(() => {
+      window.__filePanelKeys = [];
+      const record = event => {
+        if (!['Enter', 'Escape', 'Tab'].includes(event.key)) return;
+        window.__filePanelKeys.push({
+          type: event.type,
+          key: event.key,
+          target: event.target.outerHTML.slice(0, 250),
+          replace: Boolean(document.querySelector('[data-fp-replace]')),
+          panel: Boolean(document.querySelector('[data-file-panel]'))
+        });
+      };
+      document.addEventListener('keydown', record, true);
+      document.addEventListener('keyup', record, true);
+    });
     const keySaveFirst = await begin('filesystem.save', { suggestedName: 'hostcap-kb.txt', text: 'k1' });
     await panelOpens();
     const nameFocused = (await panel.focused()) === 'name';
@@ -532,10 +547,26 @@ export const hostFilesystem = {
       (await panel.panel.count()) === 1 &&
       (await page.evaluate(id => window.__standinResults[id], keySaveSecond)) === undefined;
     hostFilesystem.escInsideReplaceReturnsToBrowse = replaceShown && backToSave;
-    await page.waitForFunction(() => {
-      const dialog = document.querySelector('[data-file-panel]');
-      return dialog && !dialog.querySelector('[data-fp-replace]') && dialog.querySelector('[data-fp-name]') === document.activeElement;
-    }, undefined, { timeout: 5_000 });
+    if (!backToSave) {
+      const state = await page.evaluate(() => ({
+        keys: window.__filePanelKeys,
+        focus: document.activeElement?.outerHTML,
+        panel: document.querySelector('[data-file-panel]')?.innerText
+      }));
+      throw new Error(`Esc 没有退回保存面板：${JSON.stringify(state)}`);
+    }
+    await page.waitForFunction(
+      () => {
+        const dialog = document.querySelector('[data-file-panel]');
+        return (
+          dialog &&
+          !dialog.querySelector('[data-fp-replace]') &&
+          dialog.querySelector('[data-fp-name]') === document.activeElement
+        );
+      },
+      undefined,
+      { timeout: 5_000 }
+    );
     await page.keyboard.press('Enter');
     await panel.replace.waitFor({ state: 'visible', timeout: 3_000 }).catch(async error => {
       const state = await page.evaluate(() => ({
