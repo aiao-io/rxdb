@@ -1,3 +1,12 @@
+.webapp-support {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--sep);
+  background: var(--win);
+  color: var(--txt);
+  font-size: 12px;
+  line-height: 1.4;
+}
 /* 集成应用的窗口内容：Orbit 容器铺满标题栏以下，加载 / 失败面板与激活层叠在它上面。 */
 .webapp {
   position: relative;

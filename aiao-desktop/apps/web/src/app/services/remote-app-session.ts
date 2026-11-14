@@ -10,7 +10,8 @@ import type { Subscription } from 'rxjs';
 import { failureReason } from '../apps/web-app/web-app-failure';
 import type { AppContextChrome, BindOptions, DesktopAppContext, DesktopNotice } from './app-context';
 import type { ApplicationRuntime } from './application-runtime';
-import { WebAppManifest, grantedCapabilities, orbitAllow } from './desktop-apps';
+import type { AppCapabilityRestriction } from './browser-app-support';
+import { WebAppManifest, orbitAllow } from './desktop-apps';
 import type { DesktopWindow } from './desktop-window';
 
 /** 窗口里的提示条停留多久（毫秒）。 */
@@ -65,6 +66,8 @@ export class RemoteAppSession {
   readonly dragRegions = signal<readonly OrbitDragRegion[]>([]);
   /** 窗口里的提示条：未声明能力、参数非法、超时。 */
   readonly notice = signal<DesktopNotice | null>(null);
+  /** 入口处持续显示的浏览器限制；应用重试仍按当前上下文重新取得。 */
+  readonly restrictions = signal<readonly AppCapabilityRestriction[]>([]);
   /** 桌面画标题栏：应用没隐藏它，或实例还没就绪（加载中与失败时始终画，能拖、能关）。 */
   readonly chrome: Signal<boolean>;
 
@@ -124,7 +127,8 @@ export class RemoteAppSession {
       refocus: () => this.refocus()
     });
     this.current = context;
-    const capabilities = grantedCapabilities(app);
+    const capabilities = context.capabilities;
+    this.restrictions.set(context.restrictions);
     const binding = createOrbitBinding(orbit, {
       appId: app.id,
       instanceId,
@@ -203,6 +207,7 @@ export class RemoteAppSession {
     for (const server of this.servers.splice(0)) server.dispose();
     this.current?.dispose();
     this.current = undefined;
+    this.restrictions.set([]);
     this.binding?.unmount();
     this.binding = undefined;
     if (!reset) return;

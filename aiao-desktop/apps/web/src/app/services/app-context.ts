@@ -31,8 +31,9 @@ import { mimeTypeOf } from '../disk/disk-kinds';
 import type { DiskPath } from '../disk/disk-path';
 import { AppContextFiles, FileStamp, appFilesOver, parseVersion, versionOf } from './app-files';
 import { AppNotifications, NotificationContent, NotificationPost, NotificationSource } from './app-notifications';
+import { AppCapabilityRestriction, appCapabilitySupport } from './browser-app-support';
 import { AppContextClipboard, browserClipboard } from './browser-clipboard';
-import { DESKTOP_APPS, DesktopAppId, DesktopAppRegistry, grantedCapabilities } from './desktop-apps';
+import { DESKTOP_APPS, DesktopAppId, DesktopAppRegistry } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { FilePanelRequest, FilePanelResult, FilePanelTicket, FilePanels } from './file-panels';
 import { FileSystem } from './file-system';
@@ -121,6 +122,8 @@ export interface AppContextOptions {
   readonly win: DesktopWindow;
   /** 清单授予这个应用的能力；没有列出的一律 `CAPABILITY_DENIED`。 */
   readonly capabilities: readonly DesktopCapability[];
+  /** 当前浏览器禁用的能力；远程应用入口持续显示其原因。 */
+  readonly restrictions?: readonly AppCapabilityRestriction[];
   /** 应用登记表，`app.open` 只接受其中登记的应用。 */
   readonly apps: DesktopAppRegistry;
   /** 窗口管理。 */
@@ -211,6 +214,10 @@ export class DesktopAppContext implements DesktopHost {
 
   /** 绑定的应用。 */
   readonly appId: DesktopAppId;
+  /** 实际授予的能力，握手公告与请求授权共用这一份。 */
+  readonly capabilities: readonly DesktopCapability[];
+  /** 浏览器的能力限制，独立于短时错误提示。 */
+  readonly restrictions: readonly AppCapabilityRestriction[];
   /** 当前窗口状态；读它的 effect 会随缩放、最小化、前台与标题栏显示变化而重算。 */
   readonly windowState: Signal<DesktopWindowState>;
   /** 当前系统外观；读它的 effect 会随主题、显示模式与强调色变化而重算。 */
@@ -280,7 +287,9 @@ export class DesktopAppContext implements DesktopHost {
     const { win, system, windows } = options;
     this.appId = win.appId;
     this.instanceId = win.instanceId;
-    this.granted = new Set(options.capabilities);
+    this.capabilities = options.capabilities;
+    this.restrictions = options.restrictions ?? [];
+    this.granted = new Set(this.capabilities);
     this.windowState = computed(() => ({
       platform: PLATFORM,
       frame: win.app.kind === 'web' ? (win.app.web.frame ?? 'standard') : 'standard',
@@ -686,7 +695,7 @@ export class DesktopAppContexts {
   bind(win: DesktopWindow, options: BindOptions = {}): DesktopAppContext {
     const context = new DesktopAppContext({
       win,
-      capabilities: grantedCapabilities(win.app),
+      ...appCapabilitySupport(win.app),
       apps: this.apps,
       windows: this.windows,
       system: this.system,

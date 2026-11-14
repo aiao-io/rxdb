@@ -6,6 +6,11 @@
     <div class="tbz"></div>
   </div>
 }
+@for (restriction of session.restrictions(); track restriction.capability) {
+  <div class="webapp-support" [attr.data-disabled-capability]="restriction.capability" data-webapp-restriction role="note">
+    {{ restriction.reason }}
+  </div>
+}
 <div class="webapp" [attr.data-webapp-state]="state()" [attr.data-webapp]="app.id">
   <div class="webapp-stage" #stage></div>
   @switch (state()) {

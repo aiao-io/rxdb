@@ -11,6 +11,7 @@ import { FakeOrbitRuntime } from '../testing/fake-orbit';
 import { fakeWindows } from '../testing/fake-windows';
 import { BindOptions, DesktopAppContext } from './app-context';
 import { ApplicationRuntime } from './application-runtime';
+import type { AppCapabilityRestriction } from './browser-app-support';
 import { WebAppManifest } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { RemoteAppSession } from './remote-app-session';
@@ -24,9 +25,11 @@ const CODE = ['window', 'clipboard:read', 'clipboard:write'] as const;
 interface Setup {
   readonly capabilities?: readonly DesktopCapability[];
   readonly frame?: 'standard' | 'transparent';
+  readonly effectiveCapabilities?: readonly DesktopCapability[];
+  readonly restrictions?: readonly AppCapabilityRestriction[];
 }
 
-function setup({ capabilities = CODE, frame = 'transparent' }: Setup = {}) {
+function setup({ capabilities = CODE, frame = 'transparent', effectiveCapabilities, restrictions }: Setup = {}) {
   const registry = testApps({
     notes: {
       kind: 'web',
@@ -57,7 +60,8 @@ function setup({ capabilities = CODE, frame = 'transparent' }: Setup = {}) {
       bound.push(options ?? {});
       return new DesktopAppContext({
         win: target,
-        capabilities: (target.app as WebAppManifest).capabilities ?? [],
+        capabilities: effectiveCapabilities ?? (target.app as WebAppManifest).capabilities ?? [],
+        restrictions,
         apps: registry,
         windows,
         system,
@@ -115,6 +119,27 @@ describe('RemoteAppSession：一次启动', () => {
     expect(options.props?.[WINDOW_PROP]).toMatchObject({ platform: 'macos', frame: 'transparent', decorations: true });
     expect(orbit.last.container).toBe(container);
     expect(session.instance).toBe(orbit.last);
+  });
+
+  it('浏览器禁用的能力不在握手公告与实际授权里，加载前就提供持续显示的原因', async () => {
+    const restrictions = [{ capability: 'clipboard:read' as const, reason: 'Clipboard reading is disabled in Safari.' }];
+    const { session, orbit, container, win, services } = setup({
+      effectiveCapabilities: ['window', 'clipboard:write'],
+      restrictions
+    });
+    const started = session.start(container);
+    expect(session.restrictions()).toEqual(restrictions);
+    expect(orbit.last.options.props?.['orbit.desktop']).toEqual({ capabilities: ['window', 'clipboard:write'] });
+    expect(
+      await call(orbit.last.handlers, 'desktop.clipboard.readText', { instanceId: win.instanceId, args: null })
+    ).toMatchObject({ ok: false, code: 'CAPABILITY_DENIED' });
+    expect(services.clipboard.readText).not.toHaveBeenCalled();
+    orbit.last.becomeReady();
+    await started;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(session.restrictions()).toEqual(restrictions);
+    session.dispose();
+    expect(session.restrictions()).toEqual([]);
   });
 
   it('应用报告就绪：窗口 ready；握手前就已经登记好桌面能力与窗口请求，应用的第一个请求就能被处理', async () => {
