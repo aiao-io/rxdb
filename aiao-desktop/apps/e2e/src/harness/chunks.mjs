@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 /** 一个脚本静态 import 的同级脚本（`import…from"./x.js"` 与 `import"./x.js"`；动态 `import("./x.js")` 不算）。 */
 export function staticImports(source) {
@@ -82,3 +84,23 @@ export const seedScripts = distRoot => declarations(distRoot, SEED_DOMAIN);
 /** 声明表里声明了 `name` 的脚本。 */
 export const scriptsDeclaring = (table, name) =>
   [...table].filter(([, names]) => names.includes(name)).map(([script]) => script);
+
+/** 首屏脚本闭包与样式的原始字节、逐文件 gzip 字节和摘要；不包含 HTML、工作线程和动态模块。 */
+export function initialFootprint(distRoot) {
+  const html = readFileSync(join(distRoot, 'index.html'), 'utf8');
+  const styles = [...html.matchAll(/<link\b[^>]*href="([^"/]+\.css)"/g)].map(match => match[1]);
+  const files = [...new Set([...initialScripts(distRoot), ...styles])].sort().map(name => {
+    const content = readFileSync(join(distRoot, name));
+    return {
+      name,
+      bytes: content.byteLength,
+      gzipBytes: gzipSync(content, { level: 9 }).byteLength,
+      sha256: createHash('sha256').update(content).digest('hex')
+    };
+  });
+  return {
+    files,
+    rawBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+    gzipBytes: files.reduce((sum, file) => sum + file.gzipBytes, 0)
+  };
+}

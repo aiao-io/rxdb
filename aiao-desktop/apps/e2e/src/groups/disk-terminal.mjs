@@ -73,10 +73,15 @@ export const diskTerminal = {
     await runInShell(
       'touch ~/Desktop/touched.txt && mv ~/Desktop/touched.txt ~/Desktop/moved.txt && cp ~/Desktop/moved.txt ~/Desktop/copied.txt'
     );
-    diskState.shellCommandsWork =
-      (await appears(desktopIcon('moved.txt'))) &&
-      (await appears(desktopIcon('copied.txt'))) &&
-      (await desktopIcon('touched.txt').count()) === 0;
+    diskState.shellCommandsWork = await page
+      .waitForFunction(() => {
+        const exists = name => document.querySelector(`.dicon[data-id="file:${name}"]`) !== null;
+        return exists('moved.txt') && exists('copied.txt') && !exists('touched.txt');
+      })
+      .then(
+        () => true,
+        () => false
+      );
     await runInShell('open ~/Desktop/terminal-note.txt');
     diskState.openCommandOpensTextEdit = await page
       .waitForFunction(

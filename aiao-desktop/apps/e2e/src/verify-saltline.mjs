@@ -7,10 +7,16 @@
  *   --dist=<目录>    托管另一份桌面产物（默认 dist/aiao-desktop/apps/web/browser）
  *   --headless       不显示窗口（默认显示：指针锁定与 GPU 加速在有窗口的 Chrome 里才可靠）
  *   --screenshot=<文件>  到标题画面后截一张整页图
+ *   --output=<文件>   保存完整 JSON 报告
+ * macOS 的 Chrome 会切到前台；后台窗口不能可靠请求指针锁定。
  *
  * 输出一份 JSON 报告：环境、各检查项、耗时与帧率。检查项不通过时退出码为 1。
  */
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { arch, cpus, platform, release } from 'node:os';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { outputRoot, startDesktopServer } from './desktop-server.mjs';
@@ -21,13 +27,15 @@ const { values } = parseArgs({
     channel: { type: 'string', default: 'chrome' },
     dist: { type: 'string' },
     headless: { type: 'boolean', default: false },
-    screenshot: { type: 'string' }
+    screenshot: { type: 'string' },
+    output: { type: 'string' }
   },
   strict: true
 });
 
 const BOOT_TIMEOUT = 180_000;
-const desktop = await startDesktopServer({ root: values.dist ? resolve(values.dist) : outputRoot });
+const distRoot = values.dist ? resolve(values.dist) : outputRoot;
+const desktop = await startDesktopServer({ root: distRoot });
 const browser = await launchEngine('chromium', {
   headless: values.headless,
   channel: values.channel === 'chromium' ? undefined : values.channel
@@ -41,7 +49,7 @@ const page = await context.newPage();
 const logs = [];
 page.on('console', message => {
   if (['error', 'warning'].includes(message.type()) && !/Failed to load resource/.test(message.text()))
-    logs.push(`[${message.type()}] ${message.text().slice(0, 240)}`);
+    logs.push(`[${message.type()}] ${message.text().slice(0, 2_000)}`);
 });
 page.on('pageerror', error => logs.push(`[pageerror] ${error.message}`));
 
@@ -49,7 +57,25 @@ const report = {
   format: 'aiao-desktop.verify-saltline',
   version: 1,
   measuredAt: new Date().toISOString(),
-  environment: { channel: values.channel, headless: values.headless, browser: browser.version() },
+  revision: `${execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim()}+workspace`,
+  environment: {
+    channel: values.channel,
+    headless: values.headless,
+    browser: browser.version(),
+    node: process.version,
+    os: platform(),
+    release: release(),
+    arch: arch(),
+    cpu: cpus()[0].model
+  },
+  artifacts: Object.fromEntries(
+    ['index.html', 'saltline.html'].map(file => [
+      file,
+      createHash('sha256')
+        .update(readFileSync(join(distRoot, file)))
+        .digest('hex')
+    ])
+  ),
   checks: {},
   timings: {},
   metrics: {},
@@ -58,6 +84,9 @@ const report = {
 
 try {
   await page.goto(`${desktop.origin}/?boot=0`, { waitUntil: 'load' });
+  await page.bringToFront();
+  if (!values.headless && platform() === 'darwin' && values.channel === 'chrome')
+    execFileSync('osascript', ['-e', 'tell application "Google Chrome" to activate']);
   await page.locator('.win[data-app="finder"]').waitFor();
   await page.locator('.win:not(.closing) .tl .c').first().dispatchEvent('click');
 
@@ -99,6 +128,8 @@ try {
     const info = gl?.getExtension('WEBGL_debug_renderer_info');
     return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : (gl?.getParameter(gl.RENDERER) ?? null);
   });
+  report.checks.hardwareRenderer =
+    typeof report.metrics.renderer === 'string' && !/SwiftShader|llvmpipe|software/i.test(report.metrics.renderer);
   if (values.screenshot) await page.screenshot({ path: values.screenshot });
 
   /* 游戏开着时桌面照常响应：从 Dock 打开计算器要多久。 */
@@ -114,6 +145,31 @@ try {
   const box = await gameWin.locator('[data-saltline-frame]').boundingBox();
   await page.mouse.click(box.x + 30, box.y + box.height - 30);
   await page.waitForTimeout(300);
+  await frame().evaluate(() => {
+    window.__pointerLockAttempts = [];
+    const original = Element.prototype.requestPointerLock;
+    Element.prototype.requestPointerLock = function (...args) {
+      const attempt = {
+        focused: document.hasFocus(),
+        connected: this.isConnected,
+        root: this.getRootNode().nodeName,
+        document: this.ownerDocument.URL,
+        target: this.tagName,
+        result: 'pending'
+      };
+      window.__pointerLockAttempts.push(attempt);
+      return Promise.resolve(original.apply(this, args)).then(
+        value => {
+          attempt.result = 'locked';
+          return value;
+        },
+        error => {
+          attempt.result = `${error.name}: ${error.message}`;
+          throw error;
+        }
+      );
+    };
+  });
   await frame().locator('button[data-act="deploy"]').click({ timeout: 20_000 });
   await page.waitForTimeout(1_500);
   await page.waitForTimeout(8_000);
@@ -122,6 +178,7 @@ try {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(800);
   const playing = await state();
+  report.metrics.pointerLockAttempts = await frame().evaluate(() => window.__pointerLockAttempts);
   report.checks.pointerLocked = playing.locked === true;
   report.checks.playing = playing.game === 'playing';
   report.metrics.fps = playing.fps;
@@ -149,6 +206,7 @@ try {
   desktop.close();
 }
 
+if (values.output) writeFileSync(resolve(values.output), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
 if (Object.values(report.checks).some(check => !check)) {
   console.error('几猫3A大作实测有检查项未通过');

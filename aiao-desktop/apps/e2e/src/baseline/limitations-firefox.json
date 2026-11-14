@@ -19,6 +19,12 @@
       "group": "window-layout",
       "tier": "有限支持",
       "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
+    },
+    {
+      "kind": "check",
+      "key": "hostFilesystem.focusReturnsToWindow",
+      "tier": "有限支持",
+      "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
     }
   ],
   "reviewedAt": "2026-11-14"

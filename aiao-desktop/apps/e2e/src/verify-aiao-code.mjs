@@ -7,10 +7,14 @@
  *                         即桌面与 Aiao Code 都是线上版本的真实组合；发布后用它做浏览器级验收。
  *   --vscode-dist=<目录>  vscode.aiao.io 的请求改由本地构建产物应答（Aiao Code 发布前验证），响应头照
  *                         apps/aiao-vscode/public/_headers 补齐；这时屏蔽 Service Worker，免得它缓存本地产物。
+ *   --output=<文件>       保存带环境、产物摘要与页面错误的 JSON 报告。
  *   --headed              显示浏览器窗口。
  *   --screenshot=<文件>   终端跑通后截一张整页图。
  */
-import { existsSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, statSync, writeFileSync } from 'node:fs';
+import { arch, cpus, platform, release } from 'node:os';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { expect as playwrightExpect } from 'playwright/test';
@@ -64,16 +68,31 @@ function serveLocalVscode(route) {
 const report = {
   format: 'aiao-desktop.verify-aiao-code',
   version: 1,
+  measuredAt: new Date().toISOString(),
+  source: {
+    sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    changes: execFileSync('git', ['status', '--short', '--', 'aiao-desktop'], { encoding: 'utf8' }).trim()
+  },
+  environment: {
+    os: platform(),
+    release: release(),
+    arch: arch(),
+    cpu: cpus()[0].model,
+    node: process.version,
+    headless: !process.argv.includes('--headed')
+  },
   target: vscodeDist ? `local:${vscodeDist}` : VSCODE,
   desktop: desktopUrl ?? 'local build',
   checks: {},
   timings: {},
   desktopErrors: [],
-  appConsoleErrors: []
+  appConsoleErrors: [],
+  appPageErrors: []
 };
 const desktop =
   desktopUrl ? { origin: new URL(desktopUrl).origin, close: () => undefined } : await startDesktopServer();
 const browser = await chromium.launch({ headless: !process.argv.includes('--headed') });
+report.environment.browser = browser.version();
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
   serviceWorkers: vscodeDist ? 'block' : 'allow'
@@ -82,7 +101,7 @@ if (vscodeDist) await context.route(`${VSCODE}/**`, serveLocalVscode);
 const page = await context.newPage();
 page.on('pageerror', error => {
   const fromApp = (error.stack ?? '').includes(VSCODE);
-  (fromApp ? report.appConsoleErrors : report.desktopErrors).push(error.message);
+  (fromApp ? report.appPageErrors : report.desktopErrors).push(error.message);
 });
 page.on('console', message => {
   if (message.type() !== 'error') return;
@@ -106,7 +125,13 @@ const openedWithin = async open => {
 const workbench = frame => frame.getByRole('region', { name: '浏览器开发工作台', exact: true });
 
 try {
-  await page.goto(`${desktop.origin}/?boot=0`);
+  const entry = await page.goto(`${desktop.origin}/?boot=0`);
+  report.artifact = {
+    entryUrl: entry.url(),
+    indexSha256: createHash('sha256')
+      .update(await entry.body())
+      .digest('hex')
+  };
   await page.locator('.win[data-app="finder"]').waitFor();
 
   /* #1 从 Dock 打开，工作台出现并报告就绪。 */
@@ -221,7 +246,11 @@ try {
 }
 
 const passed =
-  !report.error && Object.values(report.checks).length === 9 && Object.values(report.checks).every(Boolean);
+  !report.error &&
+  report.appPageErrors.length === 0 &&
+  Object.values(report.checks).length === 9 &&
+  Object.values(report.checks).every(Boolean);
 report.status = passed ? 'passed' : 'failed';
+if (argument('output')) writeFileSync(resolve(argument('output')), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
 if (!passed) process.exitCode = 1;

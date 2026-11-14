@@ -20,8 +20,8 @@ import { existsSync, readFileSync } from 'node:fs';
 const TIERS = new Set(['有限支持', '不支持']);
 
 /** 读某个引擎的限制清单；没有这个文件说明该引擎没有已知限制（chromium）。 */
-export function loadLimitations(engine, directory) {
-  const file = new URL(`${directory}/limitations-${engine}.json`, import.meta.url);
+export function loadLimitations(engine, directory = new URL('../baseline/', import.meta.url)) {
+  const file = new URL(`limitations-${engine}.json`, directory);
   if (!existsSync(file)) return [];
   const parsed = JSON.parse(readFileSync(file, 'utf8'));
   validateLimitations(parsed, engine);
@@ -85,4 +85,11 @@ export function judgeRun(outcomes, limitations) {
         `限制已经过期（这一项已经通过，请从清单里删掉）：${item.kind} ${item.key ?? item.group}${item.pattern ? ` /${item.pattern}/` : ''}`
     );
   return { unexpected, stale, known };
+}
+
+/** 定向运行只使用选中检查组的限制；没有运行的组不能判成过期。 */
+export function selectLimitations(limitations, groups) {
+  const names = new Set(groups.map(group => group.name));
+  const keys = new Set(groups.flatMap(group => group.keys));
+  return limitations.filter(item => (item.kind === 'check' ? keys.has(item.key) : names.has(item.group)));
 }

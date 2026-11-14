@@ -143,7 +143,7 @@ Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domai
 
 ## D-17：应用清单是唯一真相源，Applications 是系统投影
 
-**状态：已接受，尚未实现**（[ADESK-US-205](stories/application/ADESK-US-205-application-management.md)）。
+**状态：已实现，待完成故事验收与依赖关闭**（[ADESK-US-205](stories/application/ADESK-US-205-application-management.md)）。
 
 应用的身份、来源、运行类型、展示位置、Dock 默认固定状态和是否可移除，都登记在应用清单中。`/Applications` 里的 `.app` 是清单的系统投影：首次建库或清单升级时幂等生成包元数据，不能再维护一份独立的应用名称数组。包通过稳定的 `appId` / `bundleId` 回到清单，显示名只用于界面，不参与启动匹配。
 
@@ -170,7 +170,7 @@ Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投
 
 ## D-18：应用懒加载与宿主系统能力统一
 
-**状态：已接受，尚未实现**（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
+**状态：已实现，待完成故事验收与依赖关闭**（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
 
 桌面启动优先保证 shell 轻量：菜单栏、窗口管理、Dock、清单元数据、应用目录和系统服务急切加载，Finder 也按壳层处理——桌面启动后会自动打开一个 Finder 窗口，它的组件与磁盘服务随启动加载；其余任何应用实现、应用 seed、bundled HTML 入口和 remote-web iframe 都在真正打开时加载。预装描述的是安装与保护状态，不是加载策略。`registry.ts` 不再静态 import 所有内置组件，应用实现通过 dynamic import 拆成按应用加载的 chunk；应用数据初始化也按功能域延迟，触发点是该数据域第一次被读取，而不是第一次打开该应用：通知中心的小组件（日历、天气、股票、提醒事项）在壳层里读这些域，读取时触发对应域的种子。
 

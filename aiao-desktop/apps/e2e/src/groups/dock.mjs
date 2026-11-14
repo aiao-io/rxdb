@@ -318,7 +318,7 @@ export const dock = {
     for (const id of ['finder', 'launchpad', 'trash']) {
       const items = await dockPage.openMenu(icon(id));
       const remove = items.find(item => item.act === 'remove-from-dock');
-      await page.locator('#layer-menu .pop .mi[data-act="remove-from-dock"]').click();
+      await page.locator('#layer-menu .pop .mi[data-act="remove-from-dock"]').click({ force: true });
       await page.waitForTimeout(250);
       await dockPage.closeMenu();
       refusals.push(remove?.disabled === true && (await dockEntries(page)).includes(id));

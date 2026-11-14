@@ -85,7 +85,15 @@ export const hostFilesystem = {
       await vscodeWin.locator('.tl .c').click();
       await disappears(page.locator('.win[data-app="vscode"]'), 5_000);
     };
-    const panelOpens = () => appears(panel.panel, 10_000);
+    const panelOpens = async () => {
+      await panel.panel.waitFor({ state: 'visible', timeout: 10_000 });
+      await page.waitForFunction(() => {
+        const dialog = document.querySelector('[data-file-panel]');
+        const selector = dialog?.getAttribute('data-mode') === 'save' ? '[data-fp-name]' : '[data-fp-list]';
+        return dialog?.querySelector(selector) === document.activeElement;
+      });
+      return true;
+    };
     const panelCloses = () => disappears(panel.panel, 5_000);
     const toast = () => page.evaluate(() => document.querySelector('#toast.on')?.textContent?.trim() ?? '');
     const notice = () => vscodeWin.locator('[data-webapp-notice]').count();

@@ -11,14 +11,17 @@
  *
  * 输出：stdout 一行 JSON（全部检查项，键集合见 baseline/smoke-keys-*.json），stderr 是每组的耗时与问题。
  */
-import { globSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { globSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { arch, cpus, platform, release } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 
 import { outputRoot, startDesktopServer } from './desktop-server.mjs';
 import { launchEngine } from './fixtures/engines.mjs';
 import { GROUPS } from './groups/index.mjs';
 import { USAGE, parseArguments, selectGroups } from './harness/cli.mjs';
-import { judgeRun, loadLimitations } from './harness/limitations.mjs';
+import { judgeRun, loadLimitations, selectLimitations } from './harness/limitations.mjs';
 import { runGroups } from './harness/runner.mjs';
 
 const options = parseArguments(process.argv.slice(2));
@@ -56,7 +59,7 @@ try {
   console.error(`检查组 ${outcomes.length} 个，总耗时 ${seconds}s（引擎 ${options.engine}，并行 ${options.parallel}）`);
   console.log(JSON.stringify(checks));
   /* 非默认引擎上确实不能通过的项登记在 baseline/limitations-<引擎>.json：登记过的不算失败，过期的限制算失败。 */
-  const limitations = loadLimitations(options.engine, './baseline');
+  const limitations = selectLimitations(loadLimitations(options.engine), selected);
   const { unexpected, stale, known } = judgeRun(outcomes, limitations);
   if (known.length > 0)
     console.error(
@@ -65,6 +68,49 @@ try {
         .join('\n')}`
     );
   const failures = [...unexpected, ...stale];
+  if (options.report) {
+    const report = {
+      format: 'aiao-desktop.smoke',
+      version: 1,
+      measuredAt: new Date().toISOString(),
+      source: {
+        sha: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+        changes: execFileSync('git', ['status', '--short', '--', 'aiao-desktop'], { encoding: 'utf8' }).trim()
+      },
+      environment: {
+        os: platform(),
+        release: release(),
+        arch: arch(),
+        cpu: cpus()[0].model,
+        node: process.version,
+        browser: browser.version(),
+        engine: options.engine,
+        headless: !options.headed
+      },
+      artifact: {
+        root,
+        indexSha256: createHash('sha256')
+          .update(readFileSync(join(root, 'index.html')))
+          .digest('hex')
+      },
+      method: {
+        previousBuild: process.env.AIAO_DESKTOP_PREVIOUS_URL ?? process.env.AIAO_DESKTOP_PREVIOUS_DIST ?? null,
+        parallel: options.parallel,
+        groups: selected.map(group => group.name),
+        isolatedOrigins: true,
+        interceptedExternalRequests: true
+      },
+      seconds: (performance.now() - startedAt) / 1000,
+      outcomes,
+      checks,
+      limitations: { known, unexpected, stale },
+      passed: failures.length === 0,
+      clean: failures.length === 0 && known.length === 0
+    };
+    const file = resolve(options.report);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
+  }
   if (failures.length > 0) {
     console.error(`冒烟失败：\n${failures.map(problem => `  ${problem}`).join('\n')}`);
     process.exitCode = 1;

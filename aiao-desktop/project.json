@@ -172,6 +172,14 @@
         "cwd": "aiao-desktop",
         "command": "node --test scripts/deploy/*.spec.mjs"
       }
+    },
+    "inspect-live": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/deploy/inspect-live.mjs"
+      }
     }
   }
 }

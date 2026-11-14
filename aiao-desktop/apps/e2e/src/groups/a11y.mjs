@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 import {
   brief,
+  eventually,
   exposedSvgs,
   focusInfo,
   focusReaches,
@@ -215,6 +216,9 @@ export const a11y = {
     /* ==== AC#1 Tab 路径：菜单栏 → 窗口 → Dock → 桌面图标 ==== */
     await guarded('tabPath', tabPath, async () => {
       await reset();
+      await tabTo(info => info.role === 'option');
+      await until(page, () => document.activeElement?.getAttribute('aria-selected') === 'true');
+      await focusDocumentStart(page);
       const forward = await tabWalk(page);
       const stops = forward.stops;
       const bar = stops.filter(stop => stop.region === 'menubar');

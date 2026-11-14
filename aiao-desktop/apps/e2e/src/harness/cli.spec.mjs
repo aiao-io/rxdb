@@ -14,7 +14,8 @@ test('默认参数：全部默认检查组、chromium、并行 3', () => {
     engine: 'chromium',
     parallel: 3,
     dist: undefined,
-    headed: false
+    headed: false,
+    report: undefined
   });
   assert.deepEqual(
     selectGroups(groups, options.groups).map(group => group.name),
@@ -44,4 +45,8 @@ test('引擎、并行数与产物目录', () => {
   assert.equal(options.parallel, 3);
   assert.equal(options.dist, '/tmp/web');
   assert.equal(options.headed, true);
+});
+
+test('--report 指定完整运行证据的输出路径', () => {
+  assert.equal(parseArguments(['--report=/tmp/smoke-report.json']).report, '/tmp/smoke-report.json');
 });

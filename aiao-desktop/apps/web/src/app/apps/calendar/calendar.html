@@ -59,9 +59,13 @@
     <div class="cal-head" data-drag>
       <h3 data-mon>{{ heading() }}</h3>
       <div class="grow" style="flex: 1"></div>
-      <button class="tbtn" (click)="shift(-1)" data-nodrag data-p="-1"><svg appIcon="g-chev-l"></svg></button>
+      <button class="tbtn" (click)="shift(-1)" aria-label="Previous period" data-nodrag data-p="-1">
+        <svg appIcon="g-chev-l"></svg>
+      </button>
       <button class="btn" (click)="goToday()" data-nodrag data-today>Today</button>
-      <button class="tbtn" (click)="shift(1)" data-nodrag data-p="1"><svg appIcon="g-chev-r"></svg></button>
+      <button class="tbtn" (click)="shift(1)" aria-label="Next period" data-nodrag data-p="1">
+        <svg appIcon="g-chev-r"></svg>
+      </button>
       <div class="seg" data-nodrag style="margin-left: 6px">
         @for (item of views; track item.view) {
           <button

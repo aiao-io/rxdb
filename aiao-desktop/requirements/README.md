@@ -29,24 +29,27 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 - **集成应用**：独立部署的 B/S 应用经仓库里的 `@aiao/orbit` 隔离在窗口里，应用统一登记；第一个是 Aiao Code（vscode.aiao.io），支持应用自绘标题栏的透明窗口，见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)（US-201～204）。
 - **发布**：Cloudflare Pages 上的静态站点，一键发布并线上对账（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)、[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 
-### 已立项、尚未交付
+### 本轮收尾与验收保留
 
-- 应用清单投影到 Applications，预装应用受系统保护，Applications 中的应用可以拖到 Dock（[ADESK-US-205](stories/application/ADESK-US-205-application-management.md)）。
-- 应用在真正打开时才懒加载（现在 `registry.ts` 静态导入全部内置应用组件），并通过统一的宿主能力接口使用窗口、菜单、通知、剪贴板和文件（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
-- 窗口布局跨刷新保留（104）、多标签页实时互通（105）、旧库升级与降级保护（106）、外壳交互验收（107）、无障碍（108）、跨浏览器与窄屏（005）、冒烟套件化（008）、外网内容说明（007）、覆盖率门槛（006）、自定义域名（004）：状态见 [status-overview](status-overview.md)，顺序见 [roadmap](roadmap.md)。
+2026-11-14 对已立项故事逐项复验。当前工作区已实现 Applications 投影与保护、Dock 管理、应用懒加载与宿主能力、窗口恢复、多标签页同步、升级保护、外网说明和覆盖率门槛；不能再把它们记为“尚未实现”。验收结果、失败样本、真实环境与提交见[验收台账](verification-report.md)，关闭条件仍以各故事的 AC 与依赖为准。
 
-现在的登记方式见 [D-10](decisions.md#d-10应用分三类登记在同一张表里)，目标形态见 [D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)、[D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)（这两条标着「尚未实现」）。还没有立故事的候选方向见[后续方向](future-requirements.md)，其中「本地数据保障」建议最先立项。
+- [US-205](stories/application/ADESK-US-205-application-management.md) 的清单投影、Finder/终端保护、Dock 拖放和键盘等效入口已有实现与正式构建检查。
+- [US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 已使用动态组件入口、按读取触发的应用种子和统一 `DesktopAppContext`。体积的固定提交回溯比较与“实现前已记录基线”分开评审。
+- 104、105、106、107、108、005、008 的自动检查已有实现；真实物理键盘、VoiceOver 播报、浏览器自动化缺口及历史测量流程不能由构建或单测替代。
+- `desktop.aiao.io` 已在 Pages 项目绑定。两个线上入口的内容和隔离头已只读核对；同站项目、已有 GitHub 登录状态、换域名的实际数据隔离与发布对账仍由 [US-004](stories/platform/ADESK-US-004-custom-domain.md) 逐条验收。
+
+登记与运行边界见 [D-10](decisions.md#d-10应用分三类登记在同一张表里)、[D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)、[D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)。未立项方向仍在[后续方向](future-requirements.md)，本轮不把它们自动变成工作承诺。
 
 ### 已知限制
 
-- 只在桌面尺寸的 Chromium 上验收；Safari、Firefox、触屏与窄屏没有验收（005）。
-- 数据只在当前浏览器的这个站点（Origin）下：清除站点数据、换浏览器或换域名都看不到原来的数据；没有备份、导出和跨设备同步，也没有账号。保存失败、存储配额不足等失败路径没有验收；新建的 TextEdit 文档没有保存入口。
-- 窗口布局不跨刷新保留；多个标签页同时打开时，彼此的改动刷新后才看得到，同时写入同一个库的结果没有验收。
-- 集成应用不能弹窗，`showDirectoryPicker()` 这类文件句柄 API 在跨源 sandbox iframe 里被浏览器拒绝，所以 Aiao Code 在桌面里不能「导入文件夹」，也不能弹出 GitHub 登录窗口。
-- 开机、锁屏、睡眠流程，状态栏面板与控制中心，窗口拖动、缩放与全屏，真实键盘下的快捷键，读屏与纯键盘路径都没有进入验收（107、108）。
-- 外网内容（壁纸、地图、天气等）的显示效果不在验收范围，拿不到时页面不能报错（[D-04](decisions.md#d-04外网内容可缺失)）。
+- Chromium、Firefox、WebKit 的正式构建结果分别归档。Firefox 跨源替身 iframe 输入/刷新与 WebKit 剪贴板读取授权存在自动化验收缺口，不能宣称完整支持；Playwright WebKit 也不等于真机 Safari。390×844 与触屏仿真不代表 iOS 真机支持。
+- 数据按当前浏览器的 Origin 隔离；清除站点数据、换浏览器或换域名看不到原数据。没有备份、导出、账号或跨设备同步。配额不足等存储失败路径未完整验收；TextEdit 新建文档没有保存入口。
+- 窗口布局按标签页恢复；多页文件、设置与应用数据按提交顺序收敛，同一文件最后提交生效，不提供合并或冲突提示。删除、改名、抹掉后的旧编辑器保存必须失败，保留编辑内容。
+- 集成应用不能弹窗或调用受限的文件句柄 API。桌面内不能弹 GitHub OAuth 登录窗口；能否读到直接访问时已有的登录状态另行实测，不用同站规则推断。
+- 纯键盘与无障碍树已进自动冒烟；真实物理键盘截获与真实 VoiceOver 逐步播报独立记录。
+- 外网壁纸、地图、天气等的真实显示效果不在验收范围；请求失败时桌面不能报页面错误。来源与隐私说明已在 About 提供。
 
-完整清单见能力矩阵的「不支持声明」和验收台账的「尚未证明」。
+完整边界见[能力矩阵](capability-matrix.md)和[验收台账](verification-report.md#尚未证明)。
 
 ### 产品边界
 
@@ -90,12 +93,12 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 桌面               | `apps/web` 渲染的整个页面：菜单栏、桌面图标、窗口层、Dock 与各类浮层                                                                                                                                                                                                                                                                  |
 | 应用               | 应用清单里的一项；可由 Angular 组件、同源 bundled HTML 或远程 iframe 运行                                                                                                                                                                                                                                                             |
-| 应用目录           | 由应用清单投影出来的 `/Applications`，`.app` 是可见元数据与稳定 appId 的载体（目标形态，见 [D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)）                                                                                                                                                                     |
+| 应用目录           | 由应用清单投影出来的 `/Applications`，`.app` 是可见元数据与稳定 appId 的载体（见 [D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)）                                                                                                                                                                               |
 | 内置应用           | 随桌面构建发布的应用（登记类别 `builtin`），窗口内容是 Angular 组件，或同源的 bundled HTML（如几猫3A大作）；Angular 组件直接使用桌面的服务与本地库                                                                                                                                                                                    |
 | 集成应用           | 独立部署的 B/S 应用，经 Orbit 在窗口的 iframe 里运行，只经 Orbit 协议与桌面往来（[D-10](decisions.md#d-10应用分三类登记在同一张表里)）                                                                                                                                                                                                |
-| 宿主能力           | 应用经 `DesktopAppContext` 使用的窗口、菜单、应用启动、外观、通知、剪贴板和文件能力（目标形态，见 [D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)）                                                                                                                                                                             |
+| 宿主能力           | 应用经 `DesktopAppContext` 使用的窗口、菜单、应用启动、外观、通知、剪贴板和文件能力（见 [D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)）                                                                                                                                                                                       |
 | 登记类别与运行来源 | 登记表的 `kind`（system / builtin / web，[D-10](decisions.md#d-10应用分三类登记在同一张表里)）与目标形态的运行来源（builtin-component / bundled-html / remote-web，[D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)）是两个维度：builtin 包含 builtin-component 与 bundled-html，web 即 remote-web；对应表见 D-17 |
-| 预装               | 安装来源的一个取值 `preinstalled`：随构建发布；保护规则见 D-17（尚未交付）。Aiao Code 是预装的 remote-web 应用。目录安装与用户安装不在已立项范围                                                                                                                                                                                      |
+| 预装               | 安装来源的一个取值 `preinstalled`：随构建发布；保护规则见 D-17（实现与验收状态分别记录）。Aiao Code 是预装的 remote-web 应用。目录安装与用户安装不在已立项范围                                                                                                                                                                        |
 | 标签页 / 终端标签  | 「标签页」指浏览器标签页，每个标签页各有自己的内存索引与虚拟机（[ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md)）；「终端标签」指 Terminal 窗口里的标签                                                                                                                                                                |
 | 窗口               | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                                                                                                                                                                                                                                                                               |
 | 虚拟文件系统       | Finder 浏览的磁盘：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体在 OPFS（[D-08](decisions.md#d-08文件体由-storage-插件放在-opfs)）                                                                                                                                                                                        |

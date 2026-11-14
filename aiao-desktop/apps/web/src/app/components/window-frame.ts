@@ -152,6 +152,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     const hadFocus = this.holdsFocus();
     win.busy = true;
     win.minimized.set(true);
+    this.wm.handOffFocus(win, hadFocus);
     const rect = this.host.getBoundingClientRect();
     const target = this.dock.rectFor(win.appId);
     const tx = target.x - (rect.left + rect.width / 2);
@@ -187,7 +188,6 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       this.host.style.visibility = 'hidden';
       win.hidden.set(true);
       win.busy = false;
-      this.wm.handOffFocus(win, hadFocus);
     };
     this.genie = animation;
   }

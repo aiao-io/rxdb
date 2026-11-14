@@ -9,6 +9,7 @@ export const USAGE = `用法：node src/smoke.mjs [选项]
   --engine=<引擎>       chromium（默认）| firefox | webkit
   --parallel=<数>       同时跑几个检查组（每组各自的浏览器上下文），默认 3；独占的检查组（真游戏）总是单独跑
   --dist=<目录>         托管另一份 web 产物（默认 dist/aiao-desktop/apps/web/browser；也可用环境变量 AIAO_DESKTOP_DIST）
+  --report=<文件>       保存环境、产物摘要、逐项结果与已知限制的 JSON 报告
   --headed              显示浏览器窗口
   --help                显示本说明`;
 
@@ -26,6 +27,7 @@ export function parseArguments(argv) {
       engine: { type: 'string', default: 'chromium' },
       parallel: { type: 'string', default: '3' },
       dist: { type: 'string' },
+      report: { type: 'string' },
       headed: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false }
     },
@@ -44,7 +46,8 @@ export function parseArguments(argv) {
     engine: values.engine,
     parallel,
     dist: values.dist,
-    headed: values.headed
+    headed: values.headed,
+    report: values.report
   };
 }
 

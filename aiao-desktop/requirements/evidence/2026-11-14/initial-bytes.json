@@ -1,0 +1,210 @@
+{
+  "format": "aiao-desktop.compare-initial",
+  "version": 1,
+  "measuredAt": "2026-11-13T23:33:26.766Z",
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0"
+  },
+  "buildCommand": "pnpm nx run aiao-desktop-web:build --configuration=production",
+  "scope": "index.html 的脚本静态依赖闭包与样式；逐文件 gzip level 9；不含 HTML、字体、图片、Worker、动态模块与 HTTP 头",
+  "baseline": {
+    "sha": "90d14a18",
+    "files": [
+      {
+        "name": "main-CHGUAD37.js",
+        "bytes": 1657036,
+        "gzipBytes": 505243,
+        "sha256": "b2bff2e6e3ff6f61c6741bb1c6f0c1b4962e95d34767b2456f02e27cbef91806"
+      },
+      {
+        "name": "styles-2EVRTAXI.css",
+        "bytes": 99496,
+        "gzipBytes": 20228,
+        "sha256": "73c5a64465da05e28df9adbaf218ed348620e76a285de76373a2ff868c4a7333"
+      }
+    ],
+    "rawBytes": 1756532,
+    "gzipBytes": 525471
+  },
+  "current": {
+    "sha": "0dcdabca+workspace",
+    "files": [
+      {
+        "name": "chunk--HeEelVn.js",
+        "bytes": 435,
+        "gzipBytes": 263,
+        "sha256": "4fb56d9249120d031f28eedd07ae1d4f97eaeea60892a4349172a277554b0e88"
+      },
+      {
+        "name": "chunk-B20tWYnB.js",
+        "bytes": 478,
+        "gzipBytes": 254,
+        "sha256": "5c9cba60362a3398a50a3cfe11a0670404f8201007c9f17dec9a78a20901ce35"
+      },
+      {
+        "name": "chunk-BJZrfcQt.js",
+        "bytes": 792,
+        "gzipBytes": 513,
+        "sha256": "f4e1ca6b7073dda88877ad77da359262db09582e0766882dbd8983f195eff40c"
+      },
+      {
+        "name": "chunk-BQMpHz5N.js",
+        "bytes": 441,
+        "gzipBytes": 266,
+        "sha256": "c0c3570da662aee7eccaa0d2fa83ac1f260200b5e88e1b335ddfadbbb571e76f"
+      },
+      {
+        "name": "chunk-BSlEPBoq.js",
+        "bytes": 2458,
+        "gzipBytes": 1149,
+        "sha256": "6cd441bcd548531d8a8a67fa0749fba79e218225d5b95709e436141952c724c1"
+      },
+      {
+        "name": "chunk-BWqdPG_f.js",
+        "bytes": 393,
+        "gzipBytes": 268,
+        "sha256": "1f5b0cbb8df24c548c3ba9f89024631e17e349cf3e8ec69490e62508cbf3ae20"
+      },
+      {
+        "name": "chunk-B_g4XV0I.js",
+        "bytes": 1070,
+        "gzipBytes": 410,
+        "sha256": "465f1e8547ee019c1c2b2cdcb39bcba6b73b6345da5ba3986312f0e01dc0579f"
+      },
+      {
+        "name": "chunk-BaKCBU6a.js",
+        "bytes": 165663,
+        "gzipBytes": 55879,
+        "sha256": "9b669418d3f8894c78d93210ca8b12bfbe4efd7c9ec6a655b2ebf9e245004dc8"
+      },
+      {
+        "name": "chunk-BczKwMd8.js",
+        "bytes": 425,
+        "gzipBytes": 259,
+        "sha256": "5e2703b24fcdbed658464c2bf0762620149aaa67ab0daeba8f4b8d0b13f065fa"
+      },
+      {
+        "name": "chunk-Bvi7ES6g.js",
+        "bytes": 1439,
+        "gzipBytes": 726,
+        "sha256": "98709e01d5987609060a18099baf24287a093ddd40d33c50f8cf9443dcb2e1e8"
+      },
+      {
+        "name": "chunk-CNLmvVZT.js",
+        "bytes": 78813,
+        "gzipBytes": 24441,
+        "sha256": "a8ad5c5b481ca4c8ac6949bb21a3bfa94b3b5437af7a82914f37ad7500043362"
+      },
+      {
+        "name": "chunk-CWSTqUdz.js",
+        "bytes": 21631,
+        "gzipBytes": 7197,
+        "sha256": "35b7c701af8730dc614d0bcd2b7a34f213fb9a5dc2bb7d75433a9ae84036eb21"
+      },
+      {
+        "name": "chunk-CboCrceZ.js",
+        "bytes": 1008,
+        "gzipBytes": 395,
+        "sha256": "6ba054b3b6d8a10c7fc7bd0206bdde213341bcc3b1316fd95c6cfc90d21fb72a"
+      },
+      {
+        "name": "chunk-Cp8Vj_v6.js",
+        "bytes": 1199,
+        "gzipBytes": 384,
+        "sha256": "1175d70e23d51e7ad8a35448ee2fd8fe24a569497873d4c63c8050ae28904cf5"
+      },
+      {
+        "name": "chunk-CxF8MfYb.js",
+        "bytes": 765,
+        "gzipBytes": 432,
+        "sha256": "b275f1f50511deb2ad9060ac1a114d5625e992c6d72982a2650aa4f968749069"
+      },
+      {
+        "name": "chunk-DEDGFs9V.js",
+        "bytes": 207918,
+        "gzipBytes": 68011,
+        "sha256": "da518bbc8b13915b364ec73b88910ac087a6f07dc0c36c025f6823cef0a19495"
+      },
+      {
+        "name": "chunk-DJnIc4Pa.js",
+        "bytes": 818,
+        "gzipBytes": 357,
+        "sha256": "ec3da15e886969d90c540333f5da51385e9d275a4c877022f1eb4426eac07e8d"
+      },
+      {
+        "name": "chunk-DWz6tOxI.js",
+        "bytes": 930,
+        "gzipBytes": 397,
+        "sha256": "cb72b3a35943b65b1574feca61ec01a63dfa2024182b8d80936a07a8e918d2a5"
+      },
+      {
+        "name": "chunk-Djw8Oazx.js",
+        "bytes": 411,
+        "gzipBytes": 257,
+        "sha256": "431cc9bc3b18989b50e95fcd3e898a84a5a8e47f53f0f2c215f2253904b62a12"
+      },
+      {
+        "name": "chunk-EAlswSdt.js",
+        "bytes": 500,
+        "gzipBytes": 288,
+        "sha256": "f1c9b99a3dee51546e6459b11c508c990b96dcd09ee08fc4a14265c6bfb4b7cc"
+      },
+      {
+        "name": "chunk-HaDBy2eE.js",
+        "bytes": 930,
+        "gzipBytes": 359,
+        "sha256": "3faf0b618540a3a65f1794d0278c245c6fdd468c068f0692d398a9efdc301a85"
+      },
+      {
+        "name": "chunk-Ir1Njbrt.js",
+        "bytes": 434,
+        "gzipBytes": 260,
+        "sha256": "392c13722ad733a70fe8c1f640041c8a471555ac7342bb520c0cf402d6e4ab40"
+      },
+      {
+        "name": "chunk-JX-hJj98.js",
+        "bytes": 945,
+        "gzipBytes": 487,
+        "sha256": "1cf9953e5e9c40b02d26e1b9632d6d5794c712f5f41b1b0c62aa841f7bd66a18"
+      },
+      {
+        "name": "chunk-TERCBiGC.js",
+        "bytes": 413,
+        "gzipBytes": 260,
+        "sha256": "3bc038753a7122dfb398892ddf0e1f6721ed7e6f83a28bbd8bf455bd3020cb5b"
+      },
+      {
+        "name": "chunk-qIB_zOtr.js",
+        "bytes": 277435,
+        "gzipBytes": 92189,
+        "sha256": "94520cec4d6d33dfe480689454634324d482b22f41204a49bc6b414e715234f3"
+      },
+      {
+        "name": "main-VNBGXY62.js",
+        "bytes": 335698,
+        "gzipBytes": 108172,
+        "sha256": "9e4ba010c9f8e3444309e2e3b06e078733695d4cd5b7c73deff641a68d678ec6"
+      },
+      {
+        "name": "styles-LHIERZGJ.css",
+        "bytes": 100836,
+        "gzipBytes": 20493,
+        "sha256": "eea1881d74d1f5f6bc21c3f97566db6bc177f6bf7d88bd5b2c66fb228764dbd9"
+      }
+    ],
+    "rawBytes": 1204278,
+    "gzipBytes": 384366
+  },
+  "checks": {
+    "rawDoesNotGrow": true,
+    "gzipDoesNotGrow": true
+  },
+  "change": {
+    "rawBytes": -552254,
+    "gzipBytes": -141105
+  }
+}

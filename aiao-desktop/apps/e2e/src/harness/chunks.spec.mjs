@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   componentScripts,
+  initialFootprint,
   initialScripts,
   lazyScripts,
   scriptNameOf,
@@ -64,6 +65,39 @@ test('从产物里读出每个脚本声明的组件选择器和数据域种子',
     const seeds = seedScripts(root);
     assert.deepEqual(scriptsDeclaring(seeds, 'notes'), ['chunk-C.js']);
     assert.equal(seeds.has('chunk-D.js'), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('initial 体积包含静态脚本闭包与样式，逐文件 gzip，不计入按需模块与 HTML', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'initial-bytes-spec-'));
+  try {
+    await writeFile(
+      join(root, 'index.html'),
+      '<link rel="stylesheet" href="styles.css"><script src="main.js"></script>'
+    );
+    await writeFile(join(root, 'main.js'), 'import "./shared.js"; const open = () => import("./lazy.js");');
+    await writeFile(join(root, 'shared.js'), 'export const title = "桌面";');
+    await writeFile(join(root, 'styles.css'), 'body { color: red; }');
+    await writeFile(join(root, 'lazy.js'), 'x'.repeat(10_000));
+    const footprint = initialFootprint(root);
+    assert.deepEqual(
+      footprint.files.map(file => file.name),
+      ['main.js', 'shared.js', 'styles.css']
+    );
+    assert.equal(
+      footprint.rawBytes,
+      Buffer.byteLength(
+        'import "./shared.js"; const open = () => import("./lazy.js");export const title = "桌面";body { color: red; }'
+      )
+    );
+    assert.equal(
+      footprint.gzipBytes,
+      footprint.files.reduce((sum, file) => sum + file.gzipBytes, 0)
+    );
+    assert.ok(footprint.files.every(file => /^[a-f0-9]{64}$/.test(file.sha256)));
+    assert.ok(footprint.files.every(file => file.gzipBytes > 0));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

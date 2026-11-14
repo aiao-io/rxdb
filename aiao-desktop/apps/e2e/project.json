@@ -131,6 +131,29 @@
         "cwd": "aiao-desktop/apps/e2e",
         "command": "node src/verify-saltline.mjs"
       }
+    },
+    "compare-initial": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/compare-initial.mjs"
+      }
+    },
+    "benchmark-smoke": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/benchmark-smoke.mjs"
+      }
     }
   }
 }

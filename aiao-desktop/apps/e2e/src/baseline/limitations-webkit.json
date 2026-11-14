@@ -1,0 +1,25 @@
+{
+  "browser": "Playwright WebKit（playwright 1.65）",
+  "engine": "webkit",
+  "reviewedAt": "2026-11-14",
+  "limitations": [
+    {
+      "kind": "check",
+      "key": "hostCapabilities.clipboardHoldsWrittenText",
+      "tier": "有限支持",
+      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
+    },
+    {
+      "kind": "check",
+      "key": "hostCapabilities.clipboardReadAfterGrant",
+      "tier": "有限支持",
+      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
+    },
+    {
+      "kind": "check",
+      "key": "hostCapabilities.clipboardUnchangedAfterDenial",
+      "tier": "有限支持",
+      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
+    }
+  ]
+}

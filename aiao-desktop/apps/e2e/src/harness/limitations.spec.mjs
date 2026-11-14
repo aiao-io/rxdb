@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { judgeRun, validateLimitations } from './limitations.mjs';
+import { judgeRun, loadLimitations, selectLimitations, validateLimitations } from './limitations.mjs';
 
 const outcome = (group, overrides = {}) => ({
   group,
@@ -92,4 +92,22 @@ test('清单校验：引擎要对得上、档位与原因必填、不重复', ()
   assert.doesNotThrow(() =>
     validateLimitations({ engine: 'webkit', limitations: [check('a'), check('b', '不支持')] }, 'webkit')
   );
+});
+
+test('默认从入口旁的 baseline 目录读取限制清单，不依赖执行目录', () => {
+  assert.deepEqual(loadLimitations('chromium'), []);
+  assert.ok(loadLimitations('firefox').some(item => item.key === 'integratedApp.keyboardReachesApp'));
+});
+
+test('定向运行只检查选中组的限制，未运行的组不算过期', () => {
+  const limitations = [
+    check('a.first'),
+    check('b.second'),
+    { kind: 'group', group: 'b', tier: '有限支持', reason: 'x' },
+    { kind: 'pageError', group: 'a', pattern: 'error', tier: '有限支持', reason: 'x' }
+  ];
+  assert.deepEqual(selectLimitations(limitations, [{ name: 'a', keys: ['a.first'] }]), [
+    limitations[0],
+    limitations[3]
+  ]);
 });

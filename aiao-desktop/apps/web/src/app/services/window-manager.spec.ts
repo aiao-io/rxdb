@@ -353,6 +353,23 @@ describe('WindowManager 关闭窗口', () => {
     expect(wm.windows()).toEqual([]);
   });
 
+  it('关闭开始时立即交还焦点，避免关闭动画把仍有焦点的窗口设为 aria-hidden', () => {
+    const { wm } = setup();
+    const back = openFramed(wm, 'notes');
+    const top = openFramed(wm, 'calculator');
+    top.frame.holdsFocus.mockReturnValue(true);
+    back.frame.focusContent.mockClear();
+    wm.close(top.win.id);
+    expect(top.win.closing()).toBe(true);
+    expect(wm.focused()).toBe(back.win);
+    expect(back.frame.focusContent).toHaveBeenCalledTimes(1);
+    const fresh = openFramed(wm, 'finder');
+    fresh.frame.focusContent.mockClear();
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(fresh.win);
+    expect(fresh.frame.focusContent).not.toHaveBeenCalled();
+  });
+
   it('关闭最上层的窗口后，焦点和菜单栏回到下面的窗口', () => {
     const { wm } = setup();
     const { win: back } = openFramed(wm, 'notes');
@@ -787,14 +804,14 @@ describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
     expect(bottomFrame.focusContent).toHaveBeenCalledTimes(1);
   });
 
-  it('关闭窗口时键盘焦点在里面：窗口移除后焦点交给新的前台窗口', () => {
+  it('关闭窗口时键盘焦点在里面：动画开始时交给新的前台窗口，结束时不重复聚焦', () => {
     const { wm, dock } = setup();
     const { win: back, frame: backFrame } = openFramed(wm, 'notes');
     const { win: top, frame: topFrame } = openFramed(wm, 'calculator');
     topFrame.holdsFocus.mockReturnValue(true);
 
     wm.close(top.id);
-    expect(backFrame.focusContent).not.toHaveBeenCalled();
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(CLOSE_MS);
     expect(wm.focused()).toBe(back);
     expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
@@ -821,7 +838,7 @@ describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
     expect(dock.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
   });
 
-  it('最小化走完之后同样交接焦点：有别的窗口去那个窗口，没有就落到 Dock 图标；焦点在别处不动', () => {
+  it('最小化开始时同样交接焦点：有别的窗口去那个窗口，没有就落到 Dock 图标；焦点在别处不动', () => {
     const { wm, dock } = setup();
     const { win: back, frame: backFrame } = openFramed(wm, 'notes');
     const { win: top, frame: topFrame } = openFramed(wm, 'calculator');

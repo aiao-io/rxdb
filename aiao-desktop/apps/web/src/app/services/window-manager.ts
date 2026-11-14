@@ -202,7 +202,7 @@ export class WindowManager {
   }
 
   /**
-   * 窗口离开前台之后（关闭完成、最小化动画结束）：前台交给下一个窗口。`hadFocus` 为真（键盘焦点原本在这个窗口里）时
+   * 窗口开始关闭或最小化时，立即把前台与焦点交给下一个窗口，避免隐藏仍有焦点的内容。`hadFocus` 为真（键盘焦点原本在这个窗口里）时
    * 焦点跟着去，没有别的窗口就落在它的 Dock 图标上；焦点原本在别处就只改前台状态，不抢用户当前的位置。
    */
   handOffFocus(win: DesktopWindow, hadFocus: boolean): void {
@@ -217,13 +217,13 @@ export class WindowManager {
     /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
     const hadFocus = win.frame?.holdsFocus() ?? false;
     win.closing.set(true);
+    this.handOffFocus(win, hadFocus);
     this.runtime.closing(win);
     win.beforeClose.next();
     win.beforeClose.complete();
     setTimeout(() => {
       this.windowsState.update(list => list.filter(item => item !== win));
       this.runtime.closed(win);
-      this.handOffFocus(win, hadFocus);
     }, 200);
   }
 
