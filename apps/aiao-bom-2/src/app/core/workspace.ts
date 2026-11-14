@@ -4,6 +4,8 @@ import { createDraft, DraftHistory, parseImport } from './draft';
 import { IndexClient } from './index-client';
 import { WorkspaceRepository } from './storage';
 import { makeStressDataset } from './stress-data';
+import { createSnapshot } from './snapshot';
+import { SnapshotWorkspace } from './snapshot-workspace';
 import { DEFAULT_QUERY, type BomDataset, type BomRow, type DraftState, type QuerySpec, type Structure } from './types';
 @Injectable({ providedIn: 'root' })
 export class BomWorkspace {
@@ -20,6 +22,7 @@ export class BomWorkspace {
   readonly selectedKeys = signal(new Set<string>());
   readonly draft = signal<DraftState | null>(null);
   readonly baseline = signal<DraftState | null>(null);
+  readonly versions = new SnapshotWorkspace(this.repository);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly notice = signal('');
@@ -152,6 +155,20 @@ export class BomWorkspace {
   undo(): void { this.history?.undo(); this.publishDraft(); }
   redo(): void { this.history?.redo(); this.publishDraft(); }
   saveBaseline(): void { const draft = this.draft(); if (draft) { this.baseline.set(structuredClone(draft)); this.notice.set('已保存当前草稿作为比较基线。'); void this.repository.write(`baseline:${draft.datasetId}`, draft).catch(e => this.notice.set(`基线保存失败：${String(e)}`)); } }
+  async saveSnapshot(name: string, evaluationDate: string): Promise<void> {
+    const data = this.dataset();
+    if (!data) throw new Error('数据集尚未加载');
+    const structure = this.query().structure;
+    const nodes = structure === 'draft' ? this.draft()?.nodes ?? [] : [...(this.index()?.nodes.values() ?? [])];
+    const snapshot = createSnapshot({
+      id: crypto.randomUUID(), datasetId: data.id, name,
+      source: structure === 'draft' ? 'draft' : 'dataset', structure,
+      version: structure === 'draft' ? `r${this.draft()?.revision}` : data.version,
+      evaluationDate, observedOn: data.observedOn, savedAt: new Date().toISOString(), nodes
+    });
+    await this.versions.save(snapshot);
+    if (this.dataset() === data) this.notice.set(`已保存版本快照：${snapshot.name} · ${snapshot.evaluationDate} · ${nodes.length.toLocaleString()} 个位置`);
+  }
 
   private async install(data: BomDataset, sequence: number, prepared?: BomRow[]): Promise<void> {
     this.indexes.clear();
@@ -159,7 +176,7 @@ export class BomWorkspace {
     this.dataset.set(data); this.selection.set(null); this.selectedKeys.set(new Set());
     this.query.set({ ...DEFAULT_QUERY }); this.expanded.set([]); this.draft.set(null); this.baseline.set(null); this.history = null; this.canUndo.set(false); this.canRedo.set(false);
     try {
-      const [saved, view, baseline] = await Promise.all([this.repository.read<DraftState>(`draft:${data.id}`), this.repository.read<Partial<QuerySpec> & { expanded?: string[] }>(`view:${data.id}`), this.repository.read<DraftState>(`baseline:${data.id}`)]);
+      const [saved, view, baseline] = await Promise.all([this.repository.read<DraftState>(`draft:${data.id}`), this.repository.read<Partial<QuerySpec> & { expanded?: string[] }>(`view:${data.id}`), this.repository.read<DraftState>(`baseline:${data.id}`), this.versions.openDataset(data.id)]);
       if (sequence !== this.loadSequence) return;
       if (saved) this.setDraft(parseImport(JSON.stringify(saved)), false);
       this.baseline.set(baseline ? parseImport(JSON.stringify(baseline)) : null);

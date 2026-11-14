@@ -8,14 +8,24 @@ export class WorkspaceRepository {
       request.onerror = () => reject(request.error);
     });
   }
-  async write(key: string, value: unknown): Promise<void> {
+  async readAll<T>(prefix: string): Promise<T[]> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const request = db.transaction('documents').objectStore('documents').getAll(IDBKeyRange.bound(prefix, `${prefix}\uffff`));
+      request.onsuccess = () => resolve(request.result as T[]);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async write(key: string, value: unknown): Promise<void> { return this.writeMany([[key, value]]); }
+  async writeMany(entries: ReadonlyArray<readonly [string, unknown]>): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('documents', 'readwrite');
-      transaction.objectStore('documents').put(value, key);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error ?? new Error('保存事务已取消'));
+      try { for (const [key, value] of entries) transaction.objectStore('documents').put(value, key); }
+      catch (error) { transaction.abort(); reject(error); }
     });
   }
   async delete(key: string): Promise<void> {

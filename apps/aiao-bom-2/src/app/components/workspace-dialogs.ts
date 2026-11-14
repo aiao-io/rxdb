@@ -5,9 +5,10 @@ import { compareDrafts, exportCsv, validateDraft } from '../core/draft';
 import { analyzeDraft } from '../core/analysis';
 import type { DraftState } from '../core/types';
 import { Icon } from './icon';
-export type DialogKind = 'help' | 'sources' | 'fork' | 'import' | 'export' | 'edit' | 'add' | 'move' | 'remove' | 'validate' | 'analysis' | 'compare' | 'stress';
-const TITLES: Record<DialogKind, string> = { help: 'BOM 工作台使用说明', sources: '数据来源与使用口径', fork: '建立工作草稿', import: '导入 BOM 草稿', export: '导出当前数据', edit: '编辑所选发生项', add: '新增发生项', move: '移动发生项', remove: '删除所选发生项', validate: '草稿校验', analysis: '需求展开与成本', compare: '草稿差异比较', stress: '大规模 BOM 验收' };
-@Component({ selector: 'bom2-workspace-dialogs', imports: [Icon, DecimalPipe], templateUrl: './workspace-dialogs.html', styleUrl: './workspace-dialogs.scss' })
+import { VersionPanel } from './version-panel';
+export type DialogKind = 'help' | 'sources' | 'fork' | 'import' | 'export' | 'edit' | 'add' | 'move' | 'remove' | 'validate' | 'analysis' | 'compare' | 'revision' | 'stress';
+const TITLES: Record<DialogKind, string> = { help: 'BOM 工作台使用说明', sources: '数据来源与使用口径', fork: '建立工作草稿', import: '导入 BOM 草稿', export: '导出当前数据', edit: '编辑所选发生项', add: '新增发生项', move: '移动发生项', remove: '删除所选发生项', validate: '草稿校验', analysis: '需求展开与成本', compare: '草稿差异比较', revision: '版本快照与日期比较', stress: '大规模 BOM 验收' };
+@Component({ selector: 'bom2-workspace-dialogs', imports: [Icon, DecimalPipe, VersionPanel], templateUrl: './workspace-dialogs.html', styleUrl: './workspace-dialogs.scss' })
 export class WorkspaceDialogs {
   readonly ws = inject(BomWorkspace);
   readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
@@ -23,6 +24,7 @@ export class WorkspaceDialogs {
   open(kind: DialogKind): void {
     this.kind.set(kind); this.error.set(''); this.preview.set(null); this.analysis.set(null);
     this.dialog().nativeElement.showModal();
+    if (kind === 'revision' && this.ws.versions.entries().length) void this.ws.versions.compare();
   }
   close(): void { this.dialog().nativeElement.close(); }
   submit(event: Event): void {

@@ -39,3 +39,24 @@ describe('本地仓储提交语义与失败', () => {
     await Promise.resolve(); b.transaction.error = new Error('delete failure'); b.transaction.onerror!(); await failedDelete;
   });
 });
+
+describe('快照与目录原子保存', () => {
+  it('节点和元数据在一个事务写入，两者均提交后才成功', async () => {
+    const b = backend(); const repository = new WorkspaceRepository();
+    const saving = repository.writeMany([['snapshot:a', { nodes: [] }], ['snapshot-meta:a', { id: 'a' }]]);
+    b.opening.onsuccess!(); await Promise.resolve();
+    expect(b.db.transaction).toHaveBeenCalledTimes(1);
+    expect(b.store.put.mock.calls).toEqual([[{ nodes: [] }, 'snapshot:a'], [{ id: 'a' }, 'snapshot-meta:a']]);
+    b.transaction.oncomplete!(); await saving;
+  });
+
+  it('按前缀读取元数据，节点正文不会被一起载入', async () => {
+    const b = backend(); const getAll = vi.fn(() => b.read);
+    Object.assign(b.store, { getAll });
+    vi.stubGlobal('IDBKeyRange', { bound: vi.fn((lower: string, upper: string) => ({ lower, upper })) });
+    const task = new WorkspaceRepository().readAll('snapshot-meta:dataset:');
+    b.opening.onsuccess!(); await Promise.resolve();
+    expect(getAll).toHaveBeenCalledWith({ lower: 'snapshot-meta:dataset:', upper: 'snapshot-meta:dataset:\uffff' });
+    b.read.onsuccess!(); expect(await task).toEqual({ id: 'saved' });
+  });
+});

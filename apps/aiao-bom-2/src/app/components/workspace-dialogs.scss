@@ -33,3 +33,5 @@ dt { color: #839489; } dd { margin: 0; }
 ol { padding-left: 18px; line-height: 2.3; color: #607769; }
 .form-error { padding: 10px; color: #a43c32; background: #fff2ef; border-radius: 4px; margin-top: 14px; }
 @media (max-width: 600px) { header, .dialog-content, footer { padding-left: 16px; padding-right: 16px; } .analysis-metrics { grid-template-columns: 1fr; } }
+
+dialog.revision-dialog { width: min(1000px, calc(100vw - 28px)); }

@@ -8,6 +8,8 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/');
   vi.spyOn(WorkspaceRepository.prototype, 'read').mockResolvedValue(undefined);
   vi.spyOn(WorkspaceRepository.prototype, 'write').mockResolvedValue();
+  vi.spyOn(WorkspaceRepository.prototype, 'readAll').mockResolvedValue([]);
+  vi.spyOn(WorkspaceRepository.prototype, 'writeMany').mockResolvedValue();
 });
 afterEach(() => vi.restoreAllMocks());
 function respond(count = 20): void {
