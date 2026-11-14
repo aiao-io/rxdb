@@ -42,3 +42,13 @@ ESLint 保持零警告。Angular 构建仍输出现有 ModelPanel 可空类型�
 - 仓库通用 CI 只安装 Chromium，而新版还启用了 Firefox / WebKit。新增该 E2E 项目的浏览器安装步骤，通过现有 Nx target 安装两种浏览器及系统依赖；安装步骤仍有 600 秒上界，未改 40 分钟的 E2E job 预算。
 
 应用运行源码与来源数据均未改变。修复后应用 100 项单测、602 项根脚本、21 项静态与单测任务及完整 59 项 E2E 均通过；50k 首屏 p95 为 316.40ms，模型反向拾取 p95 为 61.89ms，仍满足原 1000ms / 150ms 门槛。修复后的单测、静态检查、完整浏览器回归、资源对象身份及原始失败见 [资源与 CI 复验摘要](evidence/completion-ci-runtime-2026-11-14.json)。后续远端结论只按包含本修复的提交判断，`ae1ab855` 的失败和通过记录均保留为历史事实。
+
+## 20 列采样准备与最终远端复验
+
+资源修复提交 `f3369d5c` 的主工作流 `43585221765` 最终 31 项通过，新版 E2E 与汇总门禁失败；独立桌面工作流 `43585221702` 的三系统 Electron / Tauri smoke、三系统交叉备份及 desktop-gate 全部通过。新版 E2E 已为 58 通过、1 失败，真实模型和 Firefox / WebKit 均通过。此前 `ae1ab855` 的 macOS 重试随后由新提交自动取消，该重试不计为通过。
+
+剩余失败为 50k 首屏用例刷新后读到 11 列而非 21 列。下载远端 artifact `14110543873` 后，trace 明确记录：点击列配置结束于 7795.448ms，紧接着 `queryCount` 返回 `0`，其间没有执行任何一次 checkbox check，随后关闭菜单并刷新。原始 trace 和 artifact 的 SHA-256、调用记录及完整 job 结论见 [远端 trace 摘要](evidence/completion-ci-columns-remote-trace-2026-11-14.json)与[主工作流结果](evidence/completion-ci-columns-remote-run-2026-11-14.json)。原因是自动化在 Angular 渲染菜单前调用不等待 DOM 的 `locator.all()`。列配置本身同步保存于 localStorage。
+
+三份规模验收改用同一个准备步骤：等待 19 个可编辑字段，再逐项勾选；断言 20 个字段已选中，localStorage 已记录 20 个可见字段，并等待 VTable 实际为 21 列（含复选列）。完成准备后执行原来的采样。50k / 20 列、20 次独立刷新、100k / 50 层、模型拾取预算、超时、重试次数及性能断言均保持原样。应用运行源码与已部署预览无需变更。
+
+本次补丁的本地检查、59 项完整浏览器回归和性能原始值见 [列配置复验摘要](evidence/completion-ci-columns-2026-11-14.json)。本记录在修复提交推送前生成；最终远端结果由 PR #129 最新 head 的 Checks 留证，不能把本地结果替代远端结论。原站、最终统一评审和用户真实 origin 的迁移切换继续按既有门槛执行。

@@ -1,0 +1,37 @@
+2026-11-14T10:48:38.8824161Z aiao-bom-2-e2e:   1) [chromium] › src/acceptance.spec.ts:22:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样 ─────────────────────
+2026-11-14T10:48:38.8825184Z aiao-bom-2-e2e:     Error: expect(received).toBe(expected) // Object.is equality
+2026-11-14T10:48:38.8825821Z aiao-bom-2-e2e:     Expected: 21
+2026-11-14T10:48:38.8826179Z aiao-bom-2-e2e:     Received: 11
+2026-11-14T10:48:38.8826589Z aiao-bom-2-e2e:       60 |       .first()
+2026-11-14T10:48:38.8827527Z aiao-bom-2-e2e:       61 |       .evaluate(canvas => (canvas as HTMLCanvasElement & { __vtable__: ListTable }).__vtable__.colCount);
+2026-11-14T10:48:38.8828466Z aiao-bom-2-e2e:     > 62 |     expect(columns).toBe(21);
+2026-11-14T10:48:38.8828980Z aiao-bom-2-e2e:          |                     ^
+2026-11-14T10:48:38.8830490Z aiao-bom-2-e2e:       63 |     durations.push(Number(await grid.getAttribute('data-first-interactive-ms')));
+2026-11-14T10:48:38.8831372Z aiao-bom-2-e2e:       64 |   }
+2026-11-14T10:48:38.8832002Z aiao-bom-2-e2e:       65 |   await evidence('first-interactive', {
+2026-11-14T10:48:38.8832667Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/acceptance.spec.ts:62:21
+2026-11-14T10:48:38.8833438Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:48:38.8836377Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/test-failed-1.png
+2026-11-14T10:48:38.8837694Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:48:38.8838951Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/error-context.md
+2026-11-14T10:48:38.8840382Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:48:38.8841481Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/trace.zip
+2026-11-14T10:48:38.8842054Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:48:38.8842720Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/trace.zip
+2026-11-14T10:48:38.8843518Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:48:38.8843947Z aiao-bom-2-e2e:   1 failed
+2026-11-14T10:48:38.8844739Z aiao-bom-2-e2e:     [chromium] › src/acceptance.spec.ts:22:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样 ──────────────────────
+2026-11-14T10:48:38.8845226Z aiao-bom-2-e2e:   58 passed (5.6m)
+2026-11-14T10:48:39.3267472Z
+2026-11-14T10:48:39.3268259Z
+2026-11-14T10:48:39.3268747Z
+2026-11-14T10:48:39.3269485Z  NX   Running target e2e for project aiao-bom-2-e2e and 19 tasks it depends on failed
+2026-11-14T10:48:39.3269864Z
+2026-11-14T10:48:39.3269949Z Failed tasks:
+2026-11-14T10:48:39.3270401Z
+2026-11-14T10:48:39.3270511Z - aiao-bom-2-e2e:e2e
+2026-11-14T10:48:39.3270877Z
+2026-11-14T10:48:39.3271076Z Hint: run the command with --verbose for more details.
+2026-11-14T10:48:39.3271238Z
+2026-11-14T10:48:39.3300910Z   Run duration:      6m 39s
+2026-11-14T10:48:39.3301150Z   Cache:             0/19 hit (0%)

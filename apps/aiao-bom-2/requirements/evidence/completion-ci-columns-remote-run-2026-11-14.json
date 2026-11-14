@@ -1,0 +1,4417 @@
+{
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "completedAt": "2026-11-14T10:29:17Z",
+      "conclusion": "success",
+      "databaseId": 132418146466,
+      "name": "ci / setup",
+      "startedAt": "2026-11-14T10:25:37Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:25:39Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:25:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:25:45Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:25:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:25:45Z",
+          "conclusion": "success",
+          "name": "Probe Nx Cloud",
+          "number": 3,
+          "startedAt": "2026-11-14T10:25:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:25:46Z",
+          "conclusion": "success",
+          "name": "Fetch PR base branch",
+          "number": 4,
+          "startedAt": "2026-11-14T10:25:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:26:17Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 5,
+          "startedAt": "2026-11-14T10:25:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:26:17Z",
+          "conclusion": "success",
+          "name": "Run nrwl/nx-set-shas@e602fada7ad5987b0f7b1905e7a99ea1c661514c",
+          "number": 6,
+          "startedAt": "2026-11-14T10:26:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:26:24Z",
+          "conclusion": "success",
+          "name": "Validate Nx project graph",
+          "number": 7,
+          "startedAt": "2026-11-14T10:26:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:26:47Z",
+          "conclusion": "success",
+          "name": "Format check",
+          "number": 8,
+          "startedAt": "2026-11-14T10:26:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:00Z",
+          "conclusion": "success",
+          "name": "API surface gate",
+          "number": 9,
+          "startedAt": "2026-11-14T10:26:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:10Z",
+          "conclusion": "success",
+          "name": "Package composition knowledge gate",
+          "number": 10,
+          "startedAt": "2026-11-14T10:28:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:10Z",
+          "conclusion": "success",
+          "name": "Package runtime conditions gate",
+          "number": 11,
+          "startedAt": "2026-11-14T10:28:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:11Z",
+          "conclusion": "success",
+          "name": "Workspace patch gate",
+          "number": 12,
+          "startedAt": "2026-11-14T10:28:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:11Z",
+          "conclusion": "success",
+          "name": "Third-party action pin gate",
+          "number": 13,
+          "startedAt": "2026-11-14T10:28:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:11Z",
+          "conclusion": "success",
+          "name": "Docs plugin surface gate",
+          "number": 14,
+          "startedAt": "2026-11-14T10:28:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:12Z",
+          "conclusion": "success",
+          "name": "Table name resolver gate",
+          "number": 15,
+          "startedAt": "2026-11-14T10:28:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:12Z",
+          "conclusion": "success",
+          "name": "E2E spec copies gate",
+          "number": 16,
+          "startedAt": "2026-11-14T10:28:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:13Z",
+          "conclusion": "success",
+          "name": "Requirements consistency gate",
+          "number": 17,
+          "startedAt": "2026-11-14T10:28:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:15Z",
+          "conclusion": "success",
+          "name": "Aiao BOM requirements gate",
+          "number": 18,
+          "startedAt": "2026-11-14T10:28:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:16Z",
+          "conclusion": "success",
+          "name": "Commit message convention (PR title)",
+          "number": 19,
+          "startedAt": "2026-11-14T10:28:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:42Z",
+          "conclusion": "success",
+          "name": "Script unit tests",
+          "number": 20,
+          "startedAt": "2026-11-14T10:28:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:28:42Z",
+          "conclusion": "success",
+          "name": "Migration release manifest gate",
+          "number": 21,
+          "startedAt": "2026-11-14T10:28:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:14Z",
+          "conclusion": "success",
+          "name": "Plan jobs",
+          "number": 22,
+          "startedAt": "2026-11-14T10:28:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:14Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 43,
+          "startedAt": "2026-11-14T10:29:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:14Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 44,
+          "startedAt": "2026-11-14T10:29:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:14Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 45,
+          "startedAt": "2026-11-14T10:29:14Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132418146466"
+    },
+    {
+      "completedAt": "2026-11-14T10:51:40Z",
+      "conclusion": "success",
+      "databaseId": 132419005000,
+      "name": "ci / benchmarks",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:21Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:27Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:59Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:21Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:27Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:40Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/build-task-prerequisites",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:34Z",
+          "conclusion": "success",
+          "name": "Run pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1",
+          "number": 7,
+          "startedAt": "2026-11-14T10:31:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:36Z",
+          "conclusion": "success",
+          "name": "Upload benchmark reports",
+          "number": 8,
+          "startedAt": "2026-11-14T10:51:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:36Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 14,
+          "startedAt": "2026-11-14T10:51:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:36Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 15,
+          "startedAt": "2026-11-14T10:51:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:37Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-14T10:51:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:51:37Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-14T10:51:37Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005000"
+    },
+    {
+      "completedAt": "2026-11-14T10:40:38Z",
+      "conclusion": "success",
+      "databaseId": 132419005002,
+      "name": "ci / lint + typecheck",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:53Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:10Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:35Z",
+          "conclusion": "success",
+          "name": "Lint and typecheck",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:36Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 9,
+          "startedAt": "2026-11-14T10:40:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:36Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "startedAt": "2026-11-14T10:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:36Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-14T10:40:36Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005002"
+    },
+    {
+      "completedAt": "2026-11-14T10:39:58Z",
+      "conclusion": "success",
+      "databaseId": 132419005007,
+      "name": "ci / extras",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:21Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:53Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:15Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:32:39Z",
+          "conclusion": "success",
+          "name": "Build packages for TypeDoc",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:54Z",
+          "conclusion": "success",
+          "name": "Docs and artifact gates",
+          "number": 6,
+          "startedAt": "2026-11-14T10:32:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 11,
+          "startedAt": "2026-11-14T10:39:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 12,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005007"
+    },
+    {
+      "completedAt": "2026-11-14T10:36:13Z",
+      "conclusion": "success",
+      "databaseId": 132419005008,
+      "name": "ci / coverage-acceptance (rxdb-adapter-sqlite-core)",
+      "startedAt": "2026-11-14T10:29:18Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:19Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:25Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:53Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:20Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:23Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:56Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/build-task-prerequisites",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:10Z",
+          "conclusion": "success",
+          "name": "Run coverage acceptance",
+          "number": 7,
+          "startedAt": "2026-11-14T10:30:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:10Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 8,
+          "startedAt": "2026-11-14T10:36:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:11Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 14,
+          "startedAt": "2026-11-14T10:36:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:11Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 15,
+          "startedAt": "2026-11-14T10:36:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-14T10:36:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:11Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-14T10:36:11Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005008"
+    },
+    {
+      "completedAt": "2026-11-14T10:36:34Z",
+      "conclusion": "success",
+      "databaseId": 132419005034,
+      "name": "ci / build",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:21Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:28Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:11Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:47Z",
+          "conclusion": "success",
+          "name": "Restore Nx cache",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "success",
+          "name": "Subpath build entries gate",
+          "number": 6,
+          "startedAt": "2026-11-14T10:36:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "skipped",
+          "name": "Save Nx cache",
+          "number": 7,
+          "startedAt": "2026-11-14T10:36:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 13,
+          "startedAt": "2026-11-14T10:36:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-14T10:36:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:30Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-14T10:36:30Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005034"
+    },
+    {
+      "completedAt": "2026-11-14T10:38:10Z",
+      "conclusion": "success",
+      "databaseId": 132419005036,
+      "name": "ci / test (browser)",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:51Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:10Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:13Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:30Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/build-task-prerequisites",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "success",
+          "name": "Run browser tests",
+          "number": 7,
+          "startedAt": "2026-11-14T10:31:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:08Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 8,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:08Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 14,
+          "startedAt": "2026-11-14T10:38:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:08Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 15,
+          "startedAt": "2026-11-14T10:38:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:09Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-14T10:38:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:09Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-14T10:38:09Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005036"
+    },
+    {
+      "completedAt": "2026-11-14T10:33:26Z",
+      "conclusion": "success",
+      "databaseId": 132419005046,
+      "name": "ci / coverage-acceptance (rxdb-test)",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:51Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:08Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:12Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:37Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/build-task-prerequisites",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:23Z",
+          "conclusion": "success",
+          "name": "Run coverage acceptance",
+          "number": 7,
+          "startedAt": "2026-11-14T10:30:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:24Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 8,
+          "startedAt": "2026-11-14T10:33:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:24Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 14,
+          "startedAt": "2026-11-14T10:33:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:24Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 15,
+          "startedAt": "2026-11-14T10:33:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:24Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-14T10:33:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:24Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-14T10:33:24Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005046"
+    },
+    {
+      "completedAt": "2026-11-14T10:37:15Z",
+      "conclusion": "success",
+      "databaseId": 132419005066,
+      "name": "ci / rust",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:27Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:03Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:34Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:34Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:26Z",
+          "conclusion": "success",
+          "name": "Install Tauri system dependencies",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:35Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c",
+          "number": 7,
+          "startedAt": "2026-11-14T10:31:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:32:12Z",
+          "conclusion": "success",
+          "name": "Restore cargo cache",
+          "number": 8,
+          "startedAt": "2026-11-14T10:31:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "success",
+          "name": "Rust gates",
+          "number": 9,
+          "startedAt": "2026-11-14T10:32:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "skipped",
+          "name": "Save cargo cache",
+          "number": 10,
+          "startedAt": "2026-11-14T10:37:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 19,
+          "startedAt": "2026-11-14T10:37:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-14T10:37:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-14T10:37:12Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005066"
+    },
+    {
+      "completedAt": "2026-11-14T10:53:44Z",
+      "conclusion": "success",
+      "databaseId": 132419005081,
+      "name": "ci / test (rxdb-adapter-electron +27)",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:01Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:31Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:37Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:37Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:37Z",
+          "conclusion": "skipped",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:30:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:32:36Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:30:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:39Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:32:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:40Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:53:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:40Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:53:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:41Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:53:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:41Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:53:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:41Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:53:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:53:41Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:53:41Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005081"
+    },
+    {
+      "completedAt": "2026-11-14T10:49:59Z",
+      "conclusion": "success",
+      "databaseId": 132419005089,
+      "name": "ci / test (dev-rxdb-angular +25)",
+      "startedAt": "2026-11-14T10:29:18Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:40Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:40Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:40Z",
+          "conclusion": "skipped",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:30:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:18Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:30:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:55Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:34:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:56Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:49:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:56Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:49:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:57Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:49:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:57Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:49:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:57Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:49:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:49:57Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:49:57Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005089"
+    },
+    {
+      "completedAt": "2026-11-14T10:33:19Z",
+      "conclusion": "success",
+      "databaseId": 132419005095,
+      "name": "ci / test (supabase)",
+      "startedAt": "2026-11-14T10:29:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:57Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:25Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:29:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:18Z",
+          "conclusion": "success",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:31:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:55Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:31:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:13Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:31:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:14Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:33:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:16Z",
+          "conclusion": "success",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:33:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:16Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:33:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:16Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:33:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:16Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:33:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:16Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:33:16Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005095"
+    },
+    {
+      "completedAt": "2026-11-14T10:58:17Z",
+      "conclusion": "success",
+      "databaseId": 132419005112,
+      "name": "ci / test (rxdb-plugin-bom +14)",
+      "startedAt": "2026-11-14T10:36:03Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:36:04Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:36:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:11Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:36:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:50Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:36:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:26Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:36:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:31Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:37:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:31Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:37:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:31Z",
+          "conclusion": "skipped",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:37:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:34Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:37:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:11Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:13Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:58:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:13Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:58:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:13Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:58:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:13Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:58:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:14Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:58:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:14Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:58:14Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005112"
+    },
+    {
+      "completedAt": "2026-11-14T10:56:20Z",
+      "conclusion": "success",
+      "databaseId": 132419005130,
+      "name": "ci / test (rxdb-adapter-pglite +23)",
+      "startedAt": "2026-11-14T10:29:18Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:20Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:29:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:02Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:39Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:30:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:39Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:30:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:39Z",
+          "conclusion": "skipped",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:30:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:32:13Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:30:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:16Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:32:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:18Z",
+          "conclusion": "success",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:56:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:18Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:56:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:18Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:56:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:18Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:56:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:18Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:56:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:56:19Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:56:18Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005130"
+    },
+    {
+      "completedAt": "2026-11-14T10:34:22Z",
+      "conclusion": "success",
+      "databaseId": 132419005143,
+      "name": "ci / e2e (http)",
+      "startedAt": "2026-11-14T10:29:54Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:29:56Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:29:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:00Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:29:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:30:45Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:30:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:20Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:30:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:26Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:31:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:26Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:31:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:26Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:31:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:27Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:31:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:27Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:31:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:27Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:31:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:31:27Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:31:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:18Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:31:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:19Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:34:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:19Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:34:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:19Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:34:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:20Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:34:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:34:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:20Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:34:20Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005143"
+    },
+    {
+      "completedAt": "2026-11-14T10:48:37Z",
+      "conclusion": "success",
+      "databaseId": 132419005171,
+      "name": "ci / e2e (angular)",
+      "startedAt": "2026-11-14T10:34:00Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:34:01Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:34:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:04Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:34:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:34:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:34:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:10Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:35:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:10Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:35:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:10Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:35:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:11Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:35:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:11Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:35:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:11Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:35:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:11Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:35:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:33Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:35:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:34Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:48:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:34Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:48:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:34Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:48:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:35Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:48:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:35Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:48:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:35Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:48:35Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005171"
+    },
+    {
+      "completedAt": "2026-11-14T10:50:44Z",
+      "conclusion": "success",
+      "databaseId": 132419005200,
+      "name": "ci / e2e (vue)",
+      "startedAt": "2026-11-14T10:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:16Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:53Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:23Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:38:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:29Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:39:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:39:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:30Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:39:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:30Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:30Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:30Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:39Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:40Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:50:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:40Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:50:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:40Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:50:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:40Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:50:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:41Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:50:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:50:41Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:50:41Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005200"
+    },
+    {
+      "completedAt": "2026-11-14T10:42:42Z",
+      "conclusion": "success",
+      "databaseId": 132419005201,
+      "name": "ci / e2e (aiao-bom)",
+      "startedAt": "2026-11-14T10:36:36Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:36:38Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:36:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:45Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:36:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:15Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:36:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:37:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:42Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:37:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:42Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:37:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:42Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:37:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:43Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:37:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:43Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:37:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:43Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:37:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:43Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:37:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:36Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:37:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:38Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:42:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:38Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:42:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:38Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:42:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:38Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:42:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:39Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:42:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:39Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:42:39Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005201"
+    },
+    {
+      "completedAt": "2026-11-14T10:48:43Z",
+      "conclusion": "failure",
+      "databaseId": 132419005206,
+      "name": "ci / e2e (aiao-bom-2)",
+      "startedAt": "2026-11-14T10:40:00Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:40:01Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:40:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:04Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:40:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:35Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:40:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:09Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:40:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:13Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:41:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:56Z",
+          "conclusion": "success",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:41:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:56Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:57Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:57Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:41:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:57Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:41:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:57Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:41:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:39Z",
+          "conclusion": "failure",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:41:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:48:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:48:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:48:41Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:48:41Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005206"
+    },
+    {
+      "completedAt": "2026-11-14T10:42:49Z",
+      "conclusion": "success",
+      "databaseId": 132419005212,
+      "name": "ci / e2e (rxdb-admin-template-angular)",
+      "startedAt": "2026-11-14T10:37:16Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:37:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:37:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:20Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:37:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:57Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:37:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:37:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:33Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:38:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:33Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:33Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:34Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:34Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:34Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:34Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:45Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:46Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:42:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:46Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:42:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:46Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:42:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:47Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:42:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:42:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:47Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:42:47Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005212"
+    },
+    {
+      "completedAt": "2026-11-14T10:39:58Z",
+      "conclusion": "success",
+      "databaseId": 132419005216,
+      "name": "ci / e2e (supabase)",
+      "startedAt": "2026-11-14T10:37:15Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:37:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:37:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:20Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:37:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:46Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:37:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:02Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:37:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:05Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:38:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:05Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:38:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:38:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:55Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:56Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:56Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:39:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:56Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:39:56Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005216"
+    },
+    {
+      "completedAt": "2026-11-14T10:43:51Z",
+      "conclusion": "success",
+      "databaseId": 132419005220,
+      "name": "ci / test (rxdb-adapter-electron (test-memory))",
+      "startedAt": "2026-11-14T10:40:00Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:40:02Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:40:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:40:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:38Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:03Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:41:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:06Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 6,
+          "startedAt": "2026-11-14T10:41:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:06Z",
+          "conclusion": "skipped",
+          "name": "Supabase SQL security regressions",
+          "number": 7,
+          "startedAt": "2026-11-14T10:41:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:45Z",
+          "conclusion": "success",
+          "name": "Build test prerequisites",
+          "number": 8,
+          "startedAt": "2026-11-14T10:41:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:49Z",
+          "conclusion": "success",
+          "name": "Test",
+          "number": 9,
+          "startedAt": "2026-11-14T10:41:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:49Z",
+          "conclusion": "skipped",
+          "name": "Upload coverage",
+          "number": 10,
+          "startedAt": "2026-11-14T10:43:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:49Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:43:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:49Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 20,
+          "startedAt": "2026-11-14T10:43:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:49Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 21,
+          "startedAt": "2026-11-14T10:43:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:50Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 22,
+          "startedAt": "2026-11-14T10:43:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:50Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 23,
+          "startedAt": "2026-11-14T10:43:50Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005220"
+    },
+    {
+      "completedAt": "2026-11-14T10:37:14Z",
+      "conclusion": "success",
+      "databaseId": 132419005221,
+      "name": "ci / e2e (supabase remote)",
+      "startedAt": "2026-11-14T10:33:20Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:33:22Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:33:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:25Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:33:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:58Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:33:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:27Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:33:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:31Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:34:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:31Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:34:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:31Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:34:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:32Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:34:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:32Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:34:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:32Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:34:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:10Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:34:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:08Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:35:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:09Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:37:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:11Z",
+          "conclusion": "success",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:37:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:11Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:11Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:37:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:12Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:37:11Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005221"
+    },
+    {
+      "completedAt": "2026-11-14T10:38:39Z",
+      "conclusion": "success",
+      "databaseId": 132419005224,
+      "name": "ci / e2e (p2p remote)",
+      "startedAt": "2026-11-14T10:33:28Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:33:29Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:33:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:33:36Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:33:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:12Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:33:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:45Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:34:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:49Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:34:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:49Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:34:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:49Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:34:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:50Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:34:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:50Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:34:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:50Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:34:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:34:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:32Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:35:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:33Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:36Z",
+          "conclusion": "success",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:36Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:38:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:36Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:38:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:37Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:38:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:37Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:38:37Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005224"
+    },
+    {
+      "completedAt": "2026-11-14T10:42:29Z",
+      "conclusion": "success",
+      "databaseId": 132419005225,
+      "name": "ci / e2e (rxdb-admin-template-vue)",
+      "startedAt": "2026-11-14T10:38:17Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:38:18Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:25Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:00Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:38:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:31Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:39:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:35Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:39:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:35Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:35Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:37Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:37Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:37Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:37Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:24Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:42:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:42:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:42:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:42:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:42:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:42:26Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:42:26Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005225"
+    },
+    {
+      "completedAt": "2026-11-14T10:54:45Z",
+      "conclusion": "success",
+      "databaseId": 132419005236,
+      "name": "ci / e2e (react)",
+      "startedAt": "2026-11-14T10:38:31Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:38:32Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:36Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:15Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:38:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:45Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:39:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:50Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:39:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:50Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:39:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:50Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:39:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:51Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:39:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:51Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:51Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:51Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:40Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:54:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:54:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:54:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:54:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:54:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:54:42Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:54:42Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005236"
+    },
+    {
+      "completedAt": "2026-11-14T10:46:45Z",
+      "conclusion": "success",
+      "databaseId": 132419005245,
+      "name": "ci / e2e (electron)",
+      "startedAt": "2026-11-14T10:36:47Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:36:49Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:36:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:56Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:36:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:29Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:36:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:02Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:37:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:38:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:06Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:06Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:07Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:50Z",
+          "conclusion": "success",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:38:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:50Z",
+          "conclusion": "success",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:40:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:50Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:40:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:39Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:40:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:46:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:46:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:46:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:46:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:46:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:46:42Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:46:42Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005245"
+    },
+    {
+      "completedAt": "2026-11-14T10:38:16Z",
+      "conclusion": "success",
+      "databaseId": 132419005260,
+      "name": "ci / e2e (p2p)",
+      "startedAt": "2026-11-14T10:36:15Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:36:16Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:36:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:23Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:36:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:02Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:36:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:34Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:37:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:39Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:37:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:39Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:37:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:40Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:37:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:41Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:37:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:41Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:37:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:41Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:37:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:37:41Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:37:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:11Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:37:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:12Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:38:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:12Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:12Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:13Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:13Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:13Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:38:13Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005260"
+    },
+    {
+      "completedAt": "2026-11-14T10:41:49Z",
+      "conclusion": "success",
+      "databaseId": 132419005263,
+      "name": "ci / e2e (board)",
+      "startedAt": "2026-11-14T10:39:01Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:39:02Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:39:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:09Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:39:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:38Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:07Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:39:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:11Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:40:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:11Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:11Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:12Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:12Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:40:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:12Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:40:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:40:12Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:40:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:45Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:40:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:41:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:41:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:41:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:41:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:41:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:41:47Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:41:47Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005263"
+    },
+    {
+      "completedAt": "2026-11-14T10:36:45Z",
+      "conclusion": "success",
+      "databaseId": 132419005266,
+      "name": "ci / e2e (rxdb-devtools-extension)",
+      "startedAt": "2026-11-14T10:34:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:34:25Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:34:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:34:31Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:34:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:02Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:34:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:32Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:35:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:35:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:36Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:35:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:36Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:35:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:37Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:35:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:37Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:35:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:37Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:35:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:35:37Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:35:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:41Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:35:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:42Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:36:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:42Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:36:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:36:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:36:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:43Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:36:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:36:43Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:36:43Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005266"
+    },
+    {
+      "completedAt": "2026-11-14T10:43:44Z",
+      "conclusion": "success",
+      "databaseId": 132419005285,
+      "name": "ci / e2e (rxdb-admin-template-react)",
+      "startedAt": "2026-11-14T10:38:41Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:38:42Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:38:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:38:49Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:38:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:21Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/setup-workspace",
+          "number": 3,
+          "startedAt": "2026-11-14T10:38:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:41Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/nx-cache-restore",
+          "number": 4,
+          "startedAt": "2026-11-14T10:39:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:46Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/playwright-chromium",
+          "number": 5,
+          "startedAt": "2026-11-14T10:39:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:46Z",
+          "conclusion": "skipped",
+          "name": "Install additional BOM browsers",
+          "number": 6,
+          "startedAt": "2026-11-14T10:39:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:46Z",
+          "conclusion": "success",
+          "name": "Run ./.github/actions/configure-apt",
+          "number": 7,
+          "startedAt": "2026-11-14T10:39:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:47Z",
+          "conclusion": "success",
+          "name": "Start Xvfb (Electron need X server)",
+          "number": 8,
+          "startedAt": "2026-11-14T10:39:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:47Z",
+          "conclusion": "skipped",
+          "name": "Build E2E dependencies (nothing may rewrite the artifact after the chmod)",
+          "number": 9,
+          "startedAt": "2026-11-14T10:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:47Z",
+          "conclusion": "skipped",
+          "name": "Configure Electron SUID sandbox",
+          "number": 10,
+          "startedAt": "2026-11-14T10:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:39:47Z",
+          "conclusion": "skipped",
+          "name": "Run ./.github/actions/supabase",
+          "number": 11,
+          "startedAt": "2026-11-14T10:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:40Z",
+          "conclusion": "success",
+          "name": "Run E2E",
+          "number": 12,
+          "startedAt": "2026-11-14T10:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:41Z",
+          "conclusion": "success",
+          "name": "Upload Playwright artifacts",
+          "number": 13,
+          "startedAt": "2026-11-14T10:43:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:41Z",
+          "conclusion": "skipped",
+          "name": "Stop Supabase",
+          "number": 14,
+          "startedAt": "2026-11-14T10:43:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:41Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/playwright-chromium",
+          "number": 26,
+          "startedAt": "2026-11-14T10:43:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:42Z",
+          "conclusion": "success",
+          "name": "Post Run ./.github/actions/setup-workspace",
+          "number": 27,
+          "startedAt": "2026-11-14T10:43:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:42Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-14T10:43:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:43:42Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-14T10:43:42Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132419005285"
+    },
+    {
+      "completedAt": "2026-11-14T10:58:50Z",
+      "conclusion": "success",
+      "databaseId": 132425824193,
+      "name": "ci / coverage",
+      "startedAt": "2026-11-14T10:58:19Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:58:22Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:58:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:29Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-14T10:58:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:34Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+          "number": 3,
+          "startedAt": "2026-11-14T10:58:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:35Z",
+          "conclusion": "success",
+          "name": "Download lane coverage",
+          "number": 4,
+          "startedAt": "2026-11-14T10:58:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:36Z",
+          "conclusion": "success",
+          "name": "Download browser coverage",
+          "number": 5,
+          "startedAt": "2026-11-14T10:58:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:37Z",
+          "conclusion": "success",
+          "name": "Download acceptance coverage",
+          "number": 6,
+          "startedAt": "2026-11-14T10:58:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:38Z",
+          "conclusion": "success",
+          "name": "Coverage gate",
+          "number": 7,
+          "startedAt": "2026-11-14T10:58:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:42Z",
+          "conclusion": "success",
+          "name": "Upload coverage to Codecov",
+          "number": 8,
+          "startedAt": "2026-11-14T10:58:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:47Z",
+          "conclusion": "success",
+          "name": "Upload test results to Codecov",
+          "number": 9,
+          "startedAt": "2026-11-14T10:58:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+          "number": 17,
+          "startedAt": "2026-11-14T10:58:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 18,
+          "startedAt": "2026-11-14T10:58:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:47Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-14T10:58:47Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132425824193"
+    },
+    {
+      "completedAt": "2026-11-14T10:58:55Z",
+      "conclusion": "failure",
+      "databaseId": 132425943651,
+      "name": "ci / gate",
+      "startedAt": "2026-11-14T10:58:52Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-14T10:58:53Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-14T10:58:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:53Z",
+          "conclusion": "failure",
+          "name": "Assert all jobs green",
+          "number": 2,
+          "startedAt": "2026-11-14T10:58:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-14T10:58:53Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 3,
+          "startedAt": "2026-11-14T10:58:53Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/aiao-io/rxdb/actions/runs/43585221765/job/132425943651"
+    }
+  ],
+  "status": "completed"
+}

@@ -4,6 +4,7 @@ import type { ListTable } from '@visactor/vtable';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { showAllColumns } from './helpers/columns';
 const p95 = (values: number[]) => [...values].sort((a, b) => a - b)[Math.ceil(values.length * 0.95) - 1];
 const evidence = async (name: string, result: unknown) => {
   await mkdir('test-output/evidence', { recursive: true });
@@ -42,12 +43,7 @@ test('50k 数据就绪到 20 列首屏可操作，20 次独立页面采样', asy
   await page.goto('/');
   await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByTestId('matched-count')).toHaveText('50,000');
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
-  for (const checkbox of await page
-    .locator('.column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled')
-    .all())
-    await checkbox.check();
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
+  await showAllColumns(page);
   const durations: number[] = [];
   for (let i = 0; i < 20; i++) {
     await page.reload();

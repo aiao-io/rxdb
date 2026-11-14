@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { showAllColumns } from './helpers/columns';
 
 const percentile = (values: number[], fraction: number) =>
   [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.ceil(values.length * fraction) - 1)];
@@ -45,12 +46,7 @@ test('50k 发生项、20 列与真实整车同时工作', async ({ page }, info)
   await page.goto('/');
   await expect(page.getByTestId('matched-count')).toHaveText('50,000');
   await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
-  for (const checkbox of await page
-    .locator('.column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled')
-    .all())
-    await checkbox.check();
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
+  await showAllColumns(page);
   const switches: number[] = [];
   const searches: number[] = [];
   const selections: number[] = [];

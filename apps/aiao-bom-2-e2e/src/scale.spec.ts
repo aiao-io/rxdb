@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { ListTable } from '@visactor/vtable';
 import os from 'node:os';
+import { showAllColumns } from './helpers/columns';
 const percentile = (values: number[], fraction: number) =>
   [...values].sort((a, b) => a - b)[Math.min(values.length - 1, Math.ceil(values.length * fraction) - 1)];
 
@@ -21,12 +22,7 @@ test('50k / 20 列与 100k 末项、宽树预算和性能证据', async ({ page 
   await page.locator('dialog').getByRole('button', { name: '加载测试数据' }).click();
   await expect(page.getByTestId('matched-count')).toHaveText('50,000');
   await expect(page.getByTestId('bom-grid').locator('canvas').first()).toBeVisible();
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
-  for (const checkbox of await page
-    .locator('.column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled')
-    .all())
-    await checkbox.check();
-  await page.getByRole('button', { name: '列配置', exact: true }).click();
+  await showAllColumns(page);
   const drawTimes: number[] = [];
   const switchTimes: number[] = [];
   const searchTimes: number[] = [];
