@@ -1,19 +1,11 @@
 {
-  "format": "aiao-desktop.release-curl-reconciliation",
-  "version": 1,
-  "startedAt": "2026-11-14T11:21:14.591Z",
-  "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
-  "baseUrl": "https://b093f8b2.aiao-desktop.pages.dev",
-  "method": {
-    "readOnly": true,
-    "uploaded": false,
-    "transport": "curl --compressed",
-    "concurrency": 4,
-    "requestTimeoutSeconds": 25,
-    "maxAttempts": 3
-  },
-  "expectedFiles": 95,
   "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "baseUrl": "https://b093f8b2.aiao-desktop.pages.dev",
+  "checked": 95,
+  "completedAt": "2026-11-14T11:22:45.708Z",
+  "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
+  "expectedFiles": 95,
+  "failures": [],
   "files": [
     {
       "path": "assets/debugger-DuXnK0sn.js",
@@ -2120,8 +2112,16 @@
       "passed": true
     }
   ],
-  "completedAt": "2026-11-14T11:22:45.708Z",
-  "checked": 95,
-  "failures": [],
-  "passed": true
+  "format": "aiao-desktop.release-curl-reconciliation",
+  "method": {
+    "readOnly": true,
+    "uploaded": false,
+    "transport": "curl --compressed",
+    "concurrency": 4,
+    "requestTimeoutSeconds": 25,
+    "maxAttempts": 3
+  },
+  "passed": true,
+  "startedAt": "2026-11-14T11:21:14.591Z",
+  "version": 1
 }

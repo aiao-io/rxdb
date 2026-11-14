@@ -1,11 +1,11 @@
 {
-  "format": "aiao-desktop.release-chrome-provenance",
-  "version": 1,
-  "startedAt": "2026-11-14T11:23:07.899Z",
   "command": "NX_NO_CLOUD=true pnpm nx exec --projects=aiao-desktop -- node /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/aiao-release-chrome-PP0iM8/verify.mjs",
+  "completedAt": "2026-11-14T11:24:42.446Z",
+  "exitCode": 1,
+  "format": "aiao-desktop.release-chrome-provenance",
+  "log": "release-chrome-provenance.txt",
   "readOnly": true,
   "source": "release-chrome-provenance-source.txt",
-  "log": "release-chrome-provenance.txt",
-  "exitCode": 1,
-  "completedAt": "2026-11-14T11:24:42.446Z"
+  "startedAt": "2026-11-14T11:23:07.899Z",
+  "version": 1
 }

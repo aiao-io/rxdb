@@ -1,7 +1,7 @@
 {
-  "format": "aiao-desktop.release-postchecks",
-  "version": 1,
   "completedAt": "2026-11-14T09:40:40.925Z",
+  "format": "aiao-desktop.release-postchecks",
+  "passed": true,
   "runs": [
     {
       "target": "aiao-desktop-e2e:verify-domains",
@@ -72,5 +72,5 @@
       "passCriterion": "The verify-aiao-code report declares status, while verify-domains declares passed. No product report fields were rewritten."
     }
   ],
-  "passed": true
+  "version": 1
 }

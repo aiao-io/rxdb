@@ -1,12 +1,4 @@
 {
-  "format": "aiao-desktop.chrome-entry-provenance",
-  "version": 1,
-  "measuredAt": "2026-11-14T11:25:07.608Z",
-  "method": "Fresh temporary headless Google Chrome; service workers blocked; raw response body",
-  "environment": {
-    "channel": "chrome",
-    "browser": "157.0.8103.52"
-  },
   "entries": [
     {
       "origin": "https://desktop.aiao.io",
@@ -71,6 +63,14 @@
       "crossOriginIsolated": true
     }
   ],
+  "environment": {
+    "channel": "chrome",
+    "browser": "157.0.8103.52"
+  },
+  "format": "aiao-desktop.chrome-entry-provenance",
+  "measuredAt": "2026-11-14T11:25:07.608Z",
+  "method": "Fresh temporary headless Google Chrome; service workers blocked; raw response body",
   "pageErrors": [],
-  "passed": true
+  "passed": true,
+  "version": 1
 }

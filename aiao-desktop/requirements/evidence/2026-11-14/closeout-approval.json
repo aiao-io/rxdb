@@ -1,13 +1,5 @@
 {
-  "format": "aiao-desktop.closeout-approval",
-  "version": 1,
-  "recordedAt": "2026-11-14T09:33:39.543Z",
-  "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
-  "decision": "D-20",
-  "prompt": "是否接受清单中的两项回溯基线例外，并批准执行已通过演练的正式发布？",
-  "riskDisclosed": "回溯测量无法满足实现前已记录的流程条款；正式发布包含数据库升级，升级后不能回滚到缺少保护的旧生产版本。",
-  "response": "继续",
-  "interpretation": "在明确列出两项例外与正式发布并说明数据库升级后回滚边界后，用户要求继续，记录为批准执行所列事项。",
+  "approvedCommand": "pnpm nx run aiao-desktop:deploy",
   "baselineExceptions": [
     {
       "story": "ADESK-US-008",
@@ -32,12 +24,20 @@
       "acceptedReport": "initial-comparison-browser-support.json"
     }
   ],
-  "productionDeployAuthorized": true,
-  "approvedCommand": "pnpm nx run aiao-desktop:deploy",
+  "decision": "D-20",
   "expectedArtifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
-  "schemaVersion": 2026111301,
+  "format": "aiao-desktop.closeout-approval",
+  "interpretation": "在明确列出两项例外与正式发布并说明数据库升级后回滚边界后，用户要求继续，记录为批准执行所列事项。",
   "minimumRollbackProtectionSource": "6859fe56",
   "physicalKeyboardAccepted": false,
-  "voiceOverAccepted": false,
-  "publishSuccessRecorded": false
+  "productionDeployAuthorized": true,
+  "prompt": "是否接受清单中的两项回溯基线例外，并批准执行已通过演练的正式发布？",
+  "publishSuccessRecorded": false,
+  "recordedAt": "2026-11-14T09:33:39.543Z",
+  "response": "继续",
+  "riskDisclosed": "回溯测量无法满足实现前已记录的流程条款；正式发布包含数据库升级，升级后不能回滚到缺少保护的旧生产版本。",
+  "schemaVersion": 2026111301,
+  "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+  "version": 1,
+  "voiceOverAccepted": false
 }

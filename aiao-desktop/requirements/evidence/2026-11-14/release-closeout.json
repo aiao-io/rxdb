@@ -1,8 +1,20 @@
 {
-  "format": "aiao-desktop.release-closeout",
-  "version": 1,
-  "recordedAt": "2026-11-14T11:26:49.353Z",
+  "allRequirementsComplete": false,
   "decision": "D-20",
+  "format": "aiao-desktop.release-closeout",
+  "pendingAcceptance": [
+    {
+      "id": "ADESK-US-107",
+      "ac": 8,
+      "requires": "human physical keyboard input in Chrome"
+    },
+    {
+      "id": "ADESK-US-108",
+      "ac": 6,
+      "requires": "actual VoiceOver announcements V01-V14"
+    }
+  ],
+  "pendingAcceptanceCount": 2,
   "productionRelease": {
     "decision": "D-20",
     "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
@@ -31,22 +43,10 @@
     },
     "acceptanceComplete": true
   },
+  "recordedAt": "2026-11-14T11:26:49.353Z",
   "storyCounts": {
     "Done": 20,
     "In Review": 2
   },
-  "pendingAcceptanceCount": 2,
-  "pendingAcceptance": [
-    {
-      "id": "ADESK-US-107",
-      "ac": 8,
-      "requires": "human physical keyboard input in Chrome"
-    },
-    {
-      "id": "ADESK-US-108",
-      "ac": 6,
-      "requires": "actual VoiceOver announcements V01-V14"
-    }
-  ],
-  "allRequirementsComplete": false
+  "version": 1
 }

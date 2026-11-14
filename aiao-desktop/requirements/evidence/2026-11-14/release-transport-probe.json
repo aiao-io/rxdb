@@ -1,8 +1,6 @@
 {
   "format": "aiao-desktop.release-transport-probe",
-  "version": 1,
   "measuredAt": "2026-11-14T11:17:17.297Z",
-  "url": "https://b093f8b2.aiao-desktop.pages.dev/saltline.html",
   "method": "Read-only curl compressed response body compared to local saltline.html; explicit IPv4 and IPv6",
   "results": [
     {
@@ -23,5 +21,7 @@
       "expectedSha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
       "contentMatches": true
     }
-  ]
+  ],
+  "url": "https://b093f8b2.aiao-desktop.pages.dev/saltline.html",
+  "version": 1
 }

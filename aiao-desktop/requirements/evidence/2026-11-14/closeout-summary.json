@@ -25,10 +25,7 @@
     "coverageReport": "coverage-summary-browser-support.json"
   },
   "browserVerification": {
-    "runManifests": [
-      "browser-support-runs.json",
-      "browser-support-webkit-followup-runs.json"
-    ],
+    "runManifests": ["browser-support-runs.json", "browser-support-webkit-followup-runs.json"],
     "implementationAndEvidence": "browser-support.md",
     "safariProductAcceptanceComplete": false,
     "summary": "browser-support-summary.json",
@@ -97,6 +94,12 @@
     "requiredBrowser": "chrome",
     "otherEngineRunsPurpose": "historical / optional diagnostics"
   },
+  "closeoutApproval": {
+    "decision": "D-20",
+    "evidence": "closeout-approval.json",
+    "baselineExceptionsAccepted": true,
+    "productionDeployAuthorized": true
+  },
   "format": "aiao-desktop.requirements-closeout",
   "measuredAt": "2026-11-14T11:26:49.347Z",
   "pendingAcceptanceCount": 2,
@@ -132,6 +135,34 @@
       "coverageReport": "coverage-summary-browser-support.json"
     }
   ],
+  "productionRelease": {
+    "decision": "D-20",
+    "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
+    "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+    "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+    "uploaded": true,
+    "initialCommandExitCode": 1,
+    "initialCommandLog": "release-production.txt",
+    "initialFailure": "Five deployed-file downloads timed out; both production entry checks passed.",
+    "reconciliation": {
+      "report": "release-curl-reconciliation.json",
+      "readOnly": true,
+      "uploadedAgain": false,
+      "checked": 95,
+      "passed": true
+    },
+    "entrypoints": "release-entrypoints.json",
+    "domainIsolation": "release-domain-storage.json",
+    "aiaoCode": "release-aiao-code.json",
+    "chromeEntryProvenance": "release-chrome-entry-provenance.json",
+    "browserHtmlInjection": {
+      "host": "static.cloudflareinsights.com",
+      "addedCharacters": 367,
+      "removedArtifactCharacters": 0,
+      "browserEntrySha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
+    },
+    "acceptanceComplete": true
+  },
   "stories": [
     {
       "id": "ADESK-US-201",
@@ -302,39 +333,5 @@
     "Done": 20,
     "In Review": 2
   },
-  "version": 1,
-  "closeoutApproval": {
-    "decision": "D-20",
-    "evidence": "closeout-approval.json",
-    "baselineExceptionsAccepted": true,
-    "productionDeployAuthorized": true
-  },
-  "productionRelease": {
-    "decision": "D-20",
-    "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
-    "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
-    "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
-    "uploaded": true,
-    "initialCommandExitCode": 1,
-    "initialCommandLog": "release-production.txt",
-    "initialFailure": "Five deployed-file downloads timed out; both production entry checks passed.",
-    "reconciliation": {
-      "report": "release-curl-reconciliation.json",
-      "readOnly": true,
-      "uploadedAgain": false,
-      "checked": 95,
-      "passed": true
-    },
-    "entrypoints": "release-entrypoints.json",
-    "domainIsolation": "release-domain-storage.json",
-    "aiaoCode": "release-aiao-code.json",
-    "chromeEntryProvenance": "release-chrome-entry-provenance.json",
-    "browserHtmlInjection": {
-      "host": "static.cloudflareinsights.com",
-      "addedCharacters": 367,
-      "removedArtifactCharacters": 0,
-      "browserEntrySha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
-    },
-    "acceptanceComplete": true
-  }
+  "version": 1
 }

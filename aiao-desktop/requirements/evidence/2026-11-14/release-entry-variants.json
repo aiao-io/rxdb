@@ -1,8 +1,4 @@
 {
-  "format": "aiao-desktop.release-entry-variants",
-  "version": 1,
-  "measuredAt": "2026-11-14T09:41:58.766Z",
-  "method": "Node fetch, IPv6-first, no-store; root and ?boot=0 compared byte-for-byte to local artifact",
   "entries": [
     {
       "name": "pages-root",
@@ -76,5 +72,9 @@
         "cross-origin-embedder-policy": "require-corp"
       }
     }
-  ]
+  ],
+  "format": "aiao-desktop.release-entry-variants",
+  "measuredAt": "2026-11-14T09:41:58.766Z",
+  "method": "Node fetch, IPv6-first, no-store; root and ?boot=0 compared byte-for-byte to local artifact",
+  "version": 1
 }

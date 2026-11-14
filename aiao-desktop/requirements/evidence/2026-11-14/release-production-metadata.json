@@ -1,12 +1,5 @@
 {
-  "format": "aiao-desktop.production-release",
-  "version": 1,
-  "decision": "D-20",
-  "startedAt": "2026-11-14T09:35:08.011Z",
-  "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
-  "sourceStatusAtStart": "M aiao-desktop/requirements/decisions.md\n M aiao-desktop/requirements/plans/acceptance-closeout.md\n?? aiao-desktop/requirements/evidence/2026-11-14/closeout-approval.json\n?? aiao-desktop/requirements/evidence/2026-11-14/release-approved-dry-run-metadata.json\n?? aiao-desktop/requirements/evidence/2026-11-14/release-approved-dry-run.txt",
-  "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:deploy --parallel=2 --output-style=static",
-  "log": "release-production.txt",
+  "actualIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
   "artifact": {
     "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
     "fileCount": 97,
@@ -499,10 +492,17 @@
       }
     ]
   },
-  "completedAt": "2026-11-14T09:45:14.188Z",
-  "exitCode": 1,
-  "actualIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
   "artifactUnchanged": true,
+  "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:deploy --parallel=2 --output-style=static",
+  "completedAt": "2026-11-14T09:45:14.188Z",
+  "decision": "D-20",
+  "exitCode": 1,
+  "format": "aiao-desktop.production-release",
+  "log": "release-production.txt",
+  "reportedComplete": false,
+  "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+  "sourceStatusAtStart": "M aiao-desktop/requirements/decisions.md\n M aiao-desktop/requirements/plans/acceptance-closeout.md\n?? aiao-desktop/requirements/evidence/2026-11-14/closeout-approval.json\n?? aiao-desktop/requirements/evidence/2026-11-14/release-approved-dry-run-metadata.json\n?? aiao-desktop/requirements/evidence/2026-11-14/release-approved-dry-run.txt",
+  "startedAt": "2026-11-14T09:35:08.011Z",
   "uploadObserved": true,
-  "reportedComplete": false
+  "version": 1
 }
