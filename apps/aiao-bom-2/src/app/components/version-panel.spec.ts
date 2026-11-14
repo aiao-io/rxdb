@@ -37,6 +37,8 @@ describe('版本快照操作面板', () => {
     await save('目标');
     expect(ws.versions.entries().map(entry => entry.nodeCount)).toEqual([4, 4]);
     expect(ws.versions.result()?.summary.quantityChanges).toBe(1);
+    expect(root().querySelector<HTMLSelectElement>('[aria-label="目标版本"]')?.value).toBe(ws.versions.afterId());
+    expect(root().querySelector<HTMLSelectElement>('[aria-label="基准版本"]')?.value).toBe(ws.versions.beforeId());
     expect(root().querySelector('table')?.textContent).toContain('2.5');
     expect(root().textContent).toContain('单位成本'); expect(root().textContent).toContain('1.5');
     expect(ws.versions.result()?.after.observedOn).toBe('2026-11-13');

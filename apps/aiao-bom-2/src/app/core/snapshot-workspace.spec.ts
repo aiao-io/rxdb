@@ -33,7 +33,7 @@ describe('版本快照工作区', () => {
     expect(repository.writeMany).toHaveBeenCalledWith([
       [`snapshot:${encodeURIComponent(data.id)}:first`, first],
       [`snapshot-meta:${encodeURIComponent(data.id)}:first`, snapshotListItem(first)]
-    ]);
+    ], 'add');
     await workspace.save(make('second', { nodes: first.nodes.map(node => ({ ...node, quantity: '2' })) }));
     expect(workspace.entries().map(entry => entry.id)).toEqual(['first', 'second']);
     expect(workspace.result()?.summary.quantityChanges).toBe(4);

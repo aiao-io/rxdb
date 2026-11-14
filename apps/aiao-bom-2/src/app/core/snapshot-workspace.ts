@@ -49,7 +49,7 @@ export class SnapshotWorkspace {
       await this.repository.writeMany([
         [this.documentKey(snapshot.id), snapshot],
         [`snapshot-meta:${encodeURIComponent(snapshot.datasetId)}:${encodeURIComponent(snapshot.id)}`, snapshotListItem(snapshot)]
-      ]);
+      ], 'add');
       if (generation !== this.generation) return;
       const previous = this.entries().findLast(entry => entry.structure === snapshot.structure);
       this.entries.update(entries => [...entries, snapshotListItem(snapshot)].sort(order));

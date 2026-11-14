@@ -17,14 +17,14 @@ export class WorkspaceRepository {
     });
   }
   async write(key: string, value: unknown): Promise<void> { return this.writeMany([[key, value]]); }
-  async writeMany(entries: ReadonlyArray<readonly [string, unknown]>): Promise<void> {
+  async writeMany(entries: ReadonlyArray<readonly [string, unknown]>, mode: 'put' | 'add' = 'put'): Promise<void> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('documents', 'readwrite');
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error ?? new Error('保存事务已取消'));
-      try { for (const [key, value] of entries) transaction.objectStore('documents').put(value, key); }
+      try { for (const [key, value] of entries) transaction.objectStore('documents')[mode](value, key); }
       catch (error) { transaction.abort(); reject(error); }
     });
   }

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceRepository } from './storage';
 function backend() {
   const read = { result: { id: 'saved' }, error: new Error('read failure'), onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-  const store = { get: vi.fn(() => read), put: vi.fn(), delete: vi.fn() };
-  const transaction = { objectStore: () => store, error: null as Error | null, oncomplete: null as (() => void) | null, onerror: null as (() => void) | null, onabort: null as (() => void) | null };
+  const store = { get: vi.fn(() => read), put: vi.fn(), add: vi.fn(), delete: vi.fn() };
+  const transaction = { objectStore: () => store, error: null as Error | null, oncomplete: null as (() => void) | null, onerror: null as (() => void) | null, onabort: null as (() => void) | null, abort: vi.fn() };
   const db = { createObjectStore: vi.fn(), transaction: vi.fn(() => transaction) };
   const opening = { result: db, error: new Error('open failure'), onupgradeneeded: null as (() => void) | null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null, onblocked: null as (() => void) | null };
   const open = vi.fn(() => opening); vi.stubGlobal('indexedDB', { open });
@@ -58,5 +58,23 @@ describe('快照与目录原子保存', () => {
     b.opening.onsuccess!(); await Promise.resolve();
     expect(getAll).toHaveBeenCalledWith({ lower: 'snapshot-meta:dataset:', upper: 'snapshot-meta:dataset:\uffff' });
     b.read.onsuccess!(); expect(await task).toEqual({ id: 'saved' });
+  });
+});
+
+
+describe('不可变快照的存储边界', () => {
+  it('追加模式使用 add，跨标签页同身份写入交给 IndexedDB 唯一性约束', async () => {
+    const b = backend();
+    const saving = new WorkspaceRepository().writeMany([['snapshot:a', {}]], 'add');
+    b.opening.onsuccess!(); await Promise.resolve();
+    expect(b.store.add).toHaveBeenCalledWith({}, 'snapshot:a'); expect(b.store.put).not.toHaveBeenCalled();
+    const failure = expect(saving).rejects.toThrow('duplicate');
+    b.transaction.error = new Error('duplicate'); b.transaction.onerror!(); await failure;
+  });
+  it('第二项同步失败时取消整个事务，第一项也不能单独提交', async () => {
+    const b = backend(); b.store.put.mockImplementationOnce(() => undefined).mockImplementationOnce(() => { throw new Error('clone failure'); });
+    const saving = new WorkspaceRepository().writeMany([['a', {}], ['b', {}]]);
+    const failure = expect(saving).rejects.toThrow('clone failure');
+    b.opening.onsuccess!(); await failure; expect(b.transaction.abort).toHaveBeenCalledOnce();
   });
 });

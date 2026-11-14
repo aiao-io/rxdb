@@ -1,0 +1,599 @@
+{
+  "schema": "aiao-bom-2/1",
+  "id": "snapshot-e2e-fixture",
+  "title": "版本流程验收数据",
+  "version": "fixture-A",
+  "observedOn": "2026-11-13",
+  "parts": [
+    {
+      "id": "ST-000000",
+      "name": "版本验收组件 0",
+      "english": "Component 0",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000000"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000001",
+      "name": "版本验收组件 1",
+      "english": "Component 1",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000001"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000002",
+      "name": "版本验收组件 2",
+      "english": "Component 2",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000002"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000003",
+      "name": "版本验收组件 3",
+      "english": "Component 3",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000003"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000004",
+      "name": "版本验收组件 4",
+      "english": "Component 4",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000004"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000005",
+      "name": "版本验收组件 5",
+      "english": "Component 5",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000005"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000006",
+      "name": "版本验收组件 6",
+      "english": "Component 6",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000006"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000007",
+      "name": "版本验收组件 7",
+      "english": "Component 7",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000007"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000008",
+      "name": "版本验收组件 8",
+      "english": "Component 8",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000008"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000009",
+      "name": "版本验收组件 9",
+      "english": "Component 9",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000009"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000010",
+      "name": "版本验收组件 10",
+      "english": "Component 10",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000010"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    },
+    {
+      "id": "ST-000011",
+      "name": "版本验收组件 11",
+      "english": "Component 11",
+      "family": "TEST",
+      "familyName": "版本验收",
+      "variants": [
+        "ST-000011"
+      ],
+      "markets": [
+        "CN"
+      ],
+      "marketParts": {},
+      "cb": {},
+      "mb": {},
+      "sb": {},
+      "rawQuantity": "1 件",
+      "quantity": "1",
+      "quantityState": "confirmed",
+      "uom": "件",
+      "conflict": "",
+      "policy": "",
+      "specs": {},
+      "dimensions": [],
+      "assets": [],
+      "sceneNodes": [],
+      "sceneVariants": [],
+      "inBom": true,
+      "photo": null,
+      "price": null,
+      "parentReference": null
+    }
+  ],
+  "structures": {
+    "catalog": [
+      {
+        "key": "stress:0",
+        "parentKey": null,
+        "partId": "ST-000000",
+        "compId": "ST-000000",
+        "kind": "assembly",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:0",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:1",
+        "parentKey": "stress:0",
+        "partId": "ST-000001",
+        "compId": "ST-000001",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:1",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:2",
+        "parentKey": "stress:0",
+        "partId": "ST-000002",
+        "compId": "ST-000002",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:2",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:3",
+        "parentKey": "stress:0",
+        "partId": "ST-000003",
+        "compId": "ST-000003",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:3",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:4",
+        "parentKey": "stress:0",
+        "partId": "ST-000004",
+        "compId": "ST-000004",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:4",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:5",
+        "parentKey": "stress:0",
+        "partId": "ST-000005",
+        "compId": "ST-000005",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:5",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:6",
+        "parentKey": "stress:0",
+        "partId": "ST-000006",
+        "compId": "ST-000006",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:6",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:7",
+        "parentKey": "stress:0",
+        "partId": "ST-000007",
+        "compId": "ST-000007",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:7",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:8",
+        "parentKey": "stress:0",
+        "partId": "ST-000008",
+        "compId": "ST-000008",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:8",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:9",
+        "parentKey": "stress:0",
+        "partId": "ST-000009",
+        "compId": "ST-000009",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:9",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:10",
+        "parentKey": "stress:0",
+        "partId": "ST-000010",
+        "compId": "ST-000010",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:10",
+        "unitCost": "0.1"
+      },
+      {
+        "key": "stress:11",
+        "parentKey": "stress:0",
+        "partId": "ST-000011",
+        "compId": "ST-000011",
+        "kind": "part",
+        "source": "catalog",
+        "markets": [
+          "CN"
+        ],
+        "quantity": "1",
+        "quantityState": "confirmed",
+        "uom": "件",
+        "sourceRef": "synthetic:11",
+        "unitCost": "0.1"
+      }
+    ],
+    "purchase": [],
+    "cad": [],
+    "draft": []
+  },
+  "vehicle": {
+    "url": "",
+    "bytes": 0,
+    "label": "合成数据无模型",
+    "units": "mm"
+  },
+  "sourceUrls": []
+}
