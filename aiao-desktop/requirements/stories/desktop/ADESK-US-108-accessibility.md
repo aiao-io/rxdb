@@ -1,11 +1,11 @@
 ---
 id: ADESK-US-108
 title: 无障碍：读屏与纯键盘路径
-status: Backlog
+status: In Review
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 tags: [desktop, a11y, e2e]
 dependsOn: [ADESK-US-101]
 capabilities: []
@@ -38,11 +38,11 @@ capabilities: []
 
 | #   | 前置条件     | 操作                                                    | 预期结果                                                                               | 状态 |
 | --- | ------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---- |
-| 1   | 正式构建     | 只按 Tab 从菜单栏走到 Dock、启动台与聚焦搜索            | 焦点按可见顺序移动，不卡死、不落到不可见元素；Enter/Space 能触发对应动作               | ⬜   |
-| 2   | 桌面已打开   | 纯键盘打开 Finder、打开「前往」菜单、切换目录、关闭窗口 | 完整流程只用键盘完成                                                                   | ⬜   |
-| 3   | 打开多个窗口 | 用键盘切换窗口与最小化/还原                             | 焦点与窗口状态同步变化，菜单栏显示前台应用                                             | ⬜   |
-| 4   | 无障碍树可读 | 读 Finder 窗口标题、Dock 图标、菜单项与启动台条目       | 每项有可读名称与正确角色；窗口开关时树正确更新                                         | ⬜   |
-| 5   | 冒烟运行     | 无障碍树断言接入 `aiao-desktop-e2e:e2e`                 | 检查项全过；外网拦截下没有页面错误                                                     | ⬜   |
+| 1   | 正式构建     | 只按 Tab 从菜单栏走到 Dock、启动台与聚焦搜索            | 焦点按可见顺序移动，不卡死、不落到不可见元素；Enter/Space 能触发对应动作               | ✅   |
+| 2   | 桌面已打开   | 纯键盘打开 Finder、打开「前往」菜单、切换目录、关闭窗口 | 完整流程只用键盘完成                                                                   | ✅   |
+| 3   | 打开多个窗口 | 用键盘切换窗口与最小化/还原                             | 焦点与窗口状态同步变化，菜单栏显示前台应用                                             | ✅   |
+| 4   | 无障碍树可读 | 读 Finder 窗口标题、Dock 图标、菜单项与启动台条目       | 每项有可读名称与正确角色；窗口开关时树正确更新                                         | ✅   |
+| 5   | 冒烟运行     | 无障碍树断言接入 `aiao-desktop-e2e:e2e`                 | 检查项全过；外网拦截下没有页面错误                                                     | ✅   |
 | 6   | 本机 macOS   | 用 VoiceOver（或等价读屏）跑一遍 AC#1～#3 的每条路径    | 每一步都播报焦点元素的名称与角色，没有播报为空或只报「组」的步骤；逐条结论写入验收台账 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -61,6 +61,14 @@ capabilities: []
 - `aiao-desktop/apps/web/src/app/components/` — 窗口框架、Dock、菜单栏、浮层的 role/aria 与焦点管理。
 - `aiao-desktop/apps/e2e/src/smoke.mjs` — `a11y` 检查组。
 - `aiao-desktop/requirements/verification-report.md` — 读屏实测结论。
+
+## 本轮验收（2026-11-14）
+
+纯键盘导航、Finder菜单路径、窗口切换/最小化/还原、role/name与ARIA树更新由 `a11y` 验收。本轮先固定最小化动画中途的红测试，再修复 busy 吞掉还原和旧完成回调隐藏窗口的问题；三组并发回归通过。
+
+原始记录：[animation-restore-red.json](../../evidence/2026-11-14/animation-restore-red.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[focus-red.txt](../../evidence/2026-11-14/focus-red.txt)、[focus-green.txt](../../evidence/2026-11-14/focus-green.txt)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+
+AC#6 仍缺真实VoiceOver逐条播报记录。已提供14步操作清单；2026-11-14检查时VoiceOver未运行，启动尝试没有形成实际播报证据。
 
 ## References
 

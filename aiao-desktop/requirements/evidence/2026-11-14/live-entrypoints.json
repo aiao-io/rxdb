@@ -1,8 +1,11 @@
 {
   "format": "aiao-desktop.inspect-live",
   "version": 1,
-  "measuredAt": "2026-11-14T00:15:26.910Z",
-  "source": "0dcdabcada22f71b48d3c1717b8a0fa7af86aeeb",
+  "measuredAt": "2026-11-14T01:09:24.729Z",
+  "source": {
+    "sha": "1260167809750a043ab32c369a0a2fd661abf393",
+    "changes": ""
+  },
   "environment": {
     "os": "darwin",
     "release": "27.2.0",

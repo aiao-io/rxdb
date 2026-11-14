@@ -44,7 +44,22 @@ pnpm nx dev aiao-desktop
 pnpm nx run aiao-desktop:verify
 ```
 
-它会跑需求门禁及其测试、密钥扫描及其测试、web 的 lint / typecheck / build，以及 e2e 的 lint 与冒烟。单独跑冒烟用 `pnpm nx run aiao-desktop-e2e:e2e`，首次运行前要装好 Playwright 的 Chromium。冒烟覆盖的行为见 [ADESK-US-101](requirements/stories/desktop/ADESK-US-101-desktop-shell-baseline.md)。
+它会跑需求门禁及其测试、密钥扫描及其测试、web 的 lint / typecheck / build / 逐文件覆盖率，以及 e2e 的 lint / 脚本测试 / 夹具自检 / Chromium 冒烟。单独跑冒烟用 `pnpm nx run aiao-desktop-e2e:e2e`，首次运行前要装好 Playwright 的 Chromium。冒烟覆盖的行为见 [ADESK-US-101](requirements/stories/desktop/ADESK-US-101-desktop-shell-baseline.md)。
+
+已立项需求的验收结果见[状态总览](requirements/status-overview.md)和[原始证据](requirements/evidence/2026-11-14/README.md)。当前源码已经包含应用目录与Dock管理、运行时懒加载、跨标签页同步、升级保护和布局恢复；真实键盘、VoiceOver、跨浏览器缺口及发布仍按故事保留，源码存在不代表已发布。
+
+本机专项验收入口：
+
+```bash
+pnpm nx run aiao-desktop-e2e:e2e-firefox
+pnpm nx run aiao-desktop-e2e:e2e-webkit
+pnpm nx run aiao-desktop-e2e:verify-saltline
+pnpm nx run aiao-desktop-e2e:verify-keyboard
+pnpm nx run aiao-desktop-e2e:verify-domains
+pnpm nx run aiao-desktop:inspect-live
+```
+
+键盘脚本需要操作者用手按键；读屏按[VoiceOver清单](apps/e2e/VOICEOVER.md)保留真实播报。`inspect-live`只读核对线上入口，不能代替`deploy`的本次发布对账。
 
 ## 接入集成应用
 
@@ -124,5 +139,5 @@ pnpm nx run aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop
 ```
 
 - **回滚**：在 Cloudflare 面板 Workers & Pages → aiao-desktop → Deployments 里选命令结尾打印的回滚点，Rollback to this deployment。回滚只换静态产物，不回滚浏览器里已升级的数据：数据升级过之后，先对照 [ADESK-US-106](requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md) 的「回滚目标」表，早于降级保护的部署不能再作为回滚目标（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
-- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页。建议用 aiao.io 下的域名（如 `desktop.aiao.io`）：与 Aiao Code 同站后，桌面里的 Aiao Code 与直接访问不再按站点分区存储。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
+- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页。`desktop.aiao.io` 已绑定；2026-11-14在真实Chrome配置中核对了同站项目与已有GitHub登录状态，记录见验收台账。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
 - **发布前**：命令不重跑浏览器冒烟，完整门禁用 `pnpm nx run aiao-desktop:verify`。

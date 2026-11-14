@@ -15,3 +15,5 @@
 ## 现有记录
 
 - [application-management-design.md](application-management-design.md)：[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 与 [ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的设计拆解，含当前代码到目标模块的映射和实施切片。
+
+- [2026-11-14 验收收尾评审](acceptance-closeout.md)：历史基线保留、生产发布、真实键盘/VoiceOver及跨浏览器补证。

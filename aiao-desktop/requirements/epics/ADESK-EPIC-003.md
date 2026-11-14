@@ -25,6 +25,8 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [ ] 应用清单是唯一真相源，Applications 是系统投影，预装应用受保护，Dock 布局可拖放并持久化（[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md)）。
 - [ ] 应用懒加载与统一宿主能力：shell-first 启动，窗口、菜单、通知、剪贴板与文件能力经统一接口授予（[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
 
+当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
+
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。

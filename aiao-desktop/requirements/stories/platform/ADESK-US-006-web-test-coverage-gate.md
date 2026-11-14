@@ -1,11 +1,11 @@
 ---
 id: ADESK-US-006
 title: web 单测覆盖率门槛
-status: Backlog
+status: Done
 priority: Medium
 epic: ADESK-EPIC-001
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 tags: [platform, test, coverage]
 dependsOn: [ADESK-US-102]
 capabilities: []
@@ -37,18 +37,18 @@ capabilities: []
 
 | #   | 前置条件                 | 操作                                                 | 预期结果                                           | 状态 |
 | --- | ------------------------ | ---------------------------------------------------- | -------------------------------------------------- | ---- |
-| 1   | 仓库根                   | 跑带覆盖率的 `aiao-desktop-web:test`                 | 生成覆盖率报告，统计范围内每个文件的行与语句 ≥ 80% | ⬜   |
-| 2   | CI 测试 lane             | 观察 web 的覆盖率任务                                | 低于门槛的改动在合并前失败，报出具体文件与差值     | ⬜   |
-| 3   | 人为去掉某核心文件的覆盖 | 跑门禁                                               | 失败信息指出文件与差值，不是整包静默               | ⬜   |
-| 4   | 门槛接入后               | 跑 `pnpm nx run aiao-desktop:verify --skip-nx-cache` | 覆盖率任务随聚合门禁通过，总时长可接受             | ⬜   |
+| 1   | 仓库根                   | 跑带覆盖率的 `aiao-desktop-web:test`                 | 生成覆盖率报告，统计范围内每个文件的行与语句 ≥ 80% | ✅   |
+| 2   | CI 测试 lane             | 观察 web 的覆盖率任务                                | 低于门槛的改动在合并前失败，报出具体文件与差值     | ✅   |
+| 3   | 人为去掉某核心文件的覆盖 | 跑门禁                                               | 失败信息指出文件与差值，不是整包静默               | ✅   |
+| 4   | 门槛接入后               | 跑 `pnpm nx run aiao-desktop:verify --skip-nx-cache` | 覆盖率任务随聚合门禁通过，总时长可接受             | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：第 1、3 条由 `pnpm nx run aiao-desktop-web:test` 的实跑覆盖（覆盖率与逐文件门槛默认开启，配置在 `aiao-desktop/apps/web/vitest.config.mts`）。第 1 条看整份运行的覆盖率表与退出码：统计范围内每个文件的行与语句均 ≥ 80%，排除项只有 `services/photo-encoder.ts` 与 `data/sqlite-wasm.worker.ts` 两个只能在浏览器里运行的胶水文件，理由逐条写在配置里。第 3 条在 `aiao-desktop/apps/web` 下跑 `pnpm exec vitest --exclude src/app/services/window-manager.spec.ts`（人为去掉窗口管理的单测）：退出码为 1，报 `ERROR: Coverage for lines (2.24%) does not meet global threshold (80%) for src/app/services/window-manager.ts`，实际值与门槛之差即缺口。单跑带文件过滤时加 `--coverage.enabled=false`，否则没跑到的文件按 0% 触发门槛。补测的 spec：窗口管理 `services/window-manager.spec.ts`、`services/desktop-window.spec.ts`；FileSystem 与磁盘层 `services/file-system.spec.ts`、`disk/rxdb-disk-store.spec.ts`、`disk/disk-store.spec.ts`、`disk/protected-store.spec.ts`、`disk/application-projection.spec.ts`；终端同步 `vm/disk-vm-sync.spec.ts`、`vm/virtual-machine.spec.ts`、`vm/coreutils.spec.ts`、`vm/vm-fs.spec.ts`；会话状态 `services/session.spec.ts`；数据层 `data/desktop-data.spec.ts`、`data/desktop-database.spec.ts`、`data/preferences.spec.ts`、`data/live-query.spec.ts`、`data/schema-inspector.spec.ts`、`data/seeds.spec.ts`；其余服务（主题、系统设置、菜单、浮层、日历、天气、壁纸、应用目录等）的 spec 与之同目录。Angular 服务在 Node 里经 TestBed 注入，脚手架与替身放在 `aiao-desktop/apps/web/src/app/testing/`。第 2 条由 CI 测试 lane（`nx run-many -t test --coverage`）的失败与通过各一轮覆盖；第 4 条由聚合门禁的实跑覆盖（`aiao-desktop:verify` 已依赖 `aiao-desktop-web:test`）。覆盖率数字记录进验收台账。
+验收证据：第 1、3 条由 `pnpm nx run aiao-desktop-web:test` 的实跑覆盖（覆盖率与逐文件门槛默认开启，配置在 `aiao-desktop/apps/web/vitest.config.mts`）。第 1 条看整份运行的覆盖率表与退出码：统计范围内每个文件的行与语句均 ≥ 80%，排除项只有 `services/photo-encoder.ts` 与 `data/sqlite-wasm.worker.ts` 两个只能在浏览器里运行的胶水文件，理由逐条写在配置里。第 3 条在仓库根跑 `pnpm nx run aiao-desktop-web:test --args='--exclude=src/app/services/window-manager.spec.ts'`（人为去掉窗口管理的单测）：退出码为 1，报 `ERROR: Coverage for statements (75.15%) does not meet global threshold (80%) for src/app/services/window-manager.ts`，实际值与门槛之差即缺口。单跑带文件过滤时加 `--coverage.enabled=false`，否则没跑到的文件按 0% 触发门槛。补测的 spec：窗口管理 `services/window-manager.spec.ts`、`services/desktop-window.spec.ts`；FileSystem 与磁盘层 `services/file-system.spec.ts`、`disk/rxdb-disk-store.spec.ts`、`disk/disk-store.spec.ts`、`disk/protected-store.spec.ts`、`disk/application-projection.spec.ts`；终端同步 `vm/disk-vm-sync.spec.ts`、`vm/virtual-machine.spec.ts`、`vm/coreutils.spec.ts`、`vm/vm-fs.spec.ts`；会话状态 `services/session.spec.ts`；数据层 `data/desktop-data.spec.ts`、`data/desktop-database.spec.ts`、`data/preferences.spec.ts`、`data/live-query.spec.ts`、`data/schema-inspector.spec.ts`、`data/seeds.spec.ts`；其余服务（主题、系统设置、菜单、浮层、日历、天气、壁纸、应用目录等）的 spec 与之同目录。Angular 服务在 Node 里经 TestBed 注入，脚手架与替身放在 `aiao-desktop/apps/web/src/app/testing/`。第 2 条由 CI 测试 lane（`nx run-many -t test --coverage`）的失败与通过各一轮覆盖；第 4 条由聚合门禁的实跑覆盖（`aiao-desktop:verify` 已依赖 `aiao-desktop-web:test`）。覆盖率数字记录进验收台账。
 
 ## 技术笔记
 
-- web 现有的单测集中在磁盘层（路径、目录树、种子、存储后端）、终端同步（内存磁盘加假虚拟机）与各应用的数据转换；窗口管理与界面组件目前只由冒烟覆盖，是本故事的补测重点。
+- web 现有的单测集中在磁盘层（路径、目录树、种子、存储后端）、终端同步（内存磁盘加假虚拟机）与各应用的数据转换；立项时窗口管理与界面组件只有冒烟覆盖；当前已补窗口管理服务单测，界面组件仍按范围由冒烟覆盖。
 - Node 环境下的 vitest 覆盖率沿用现有假实现（内存磁盘、假虚拟机），浏览器专有路径不进覆盖率统计。
 - 接入方式参考仓库 coverage-gate 的用法；`aiao-desktop` 的 `test`/`verify` 目标把覆盖率任务接入依赖。
 
@@ -57,6 +57,14 @@ capabilities: []
 - `aiao-desktop/apps/web/vitest.config.mts` — 覆盖率配置与阈值。
 - `aiao-desktop/project.json` — test / verify 目标接线。
 - `aiao-desktop/apps/web/src/app/services/` 各 spec — 补齐窗口管理等单测。
+
+## 本轮验收（2026-11-14）
+
+web:test 默认执行 V8 覆盖率并逐文件检查行与语句 ≥80%；聚合 verify 与 CI test target 已接线。人为排除窗口管理测试时，整包仍高于80%，逐文件门槛正确失败并指出文件和差值。
+
+原始记录：[coverage-negative.txt](../../evidence/2026-11-14/coverage-negative.txt)、[verify.txt](../../evidence/2026-11-14/verify.txt)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+
+CI 接线由仓库工作流与同一 Nx test target 的本地正反例验证；本轮没有触发远端流水线，也没有执行合并。
 
 ## References
 

@@ -1,11 +1,11 @@
 ---
 id: ADESK-US-104
 title: 窗口布局跨刷新保留
-status: Backlog
+status: In Review
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 tags: [desktop, window, persistence]
 dependsOn: [ADESK-US-008, ADESK-US-102, ADESK-US-206]
 capabilities: []
@@ -43,16 +43,16 @@ capabilities: []
 
 | #   | 前置条件                                                                    | 操作                           | 预期结果                                                                                                                         | 状态 |
 | --- | --------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 打开 Finder（停在 Documents）、Notes、Terminal，摆开窗口并把 Notes 最小化   | 刷新页面                       | 三个窗口恢复原位置与大小，Notes 仍最小化，Finder 停在原路径                                                                      | ⬜   |
-| 2   | 打开两个 Finder 窗口                                                        | 刷新                           | 两个窗口都恢复                                                                                                                   | ⬜   |
-| 3   | 打开 Aiao Code（集成应用）窗口                                              | 刷新                           | 窗口按原几何恢复并重新握手就绪；透明窗口恢复后由应用收起桌面标题栏                                                               | ⬜   |
-| 4   | 打开窗口后主动关闭其中一个                                                  | 刷新                           | 已关闭的不恢复，其余恢复                                                                                                         | ⬜   |
-| 5   | 保存的布局里有已下线的应用（清单移除）                                      | 刷新                           | 该窗口被跳过并有可见提示，桌面其余正常启动                                                                                       | ⬜   |
-| 6   | 把窗口拖到屏幕边缘后视口变小                                                | 刷新                           | 恢复的窗口拉回屏幕内（复用 keepOnScreen）                                                                                        | ⬜   |
-| 7   | 保存的布局里有终端与几猫3A大作的窗口                                        | 刷新页面                       | 窗口外框按原位置恢复，但启动阶段不拉起虚拟机、不请求 `saltline.html`；用户第一次点击窗口时才加载内容（哪怕它是恢复前的前台窗口） | ⬜   |
-| 8   | 同一浏览器上下文里两个页面 A、B：A 摆 Finder 与 Notes，B 摆 Calculator      | 先刷新 A，再刷新 B             | A 只恢复自己的两个窗口，B 只恢复自己的窗口，互不出现对方的窗口，也不互相覆盖已保存的布局                                         | ⬜   |
-| 9   | 保存的布局里有 Notes、Calculator 两个窗口（没有 Finder），Calculator 在前台 | 刷新页面                       | 不会多出一个默认的 Finder 窗口；Calculator 仍在前台，层叠顺序与刷新前一致                                                        | ⬜   |
-| 10  | 保存的布局里有一个最小化的 Notes 窗口                                       | 刷新页面，再从 Dock 还原 Notes | 刷新后窗口外框仍是最小化，启动阶段不请求 Notes 的内容载荷；从 Dock 第一次还原时才加载内容                                        | ⬜   |
+| 1   | 打开 Finder（停在 Documents）、Notes、Terminal，摆开窗口并把 Notes 最小化   | 刷新页面                       | 三个窗口恢复原位置与大小，Notes 仍最小化，Finder 停在原路径                                                                      | ✅   |
+| 2   | 打开两个 Finder 窗口                                                        | 刷新                           | 两个窗口都恢复                                                                                                                   | ✅   |
+| 3   | 打开 Aiao Code（集成应用）窗口                                              | 刷新                           | 窗口按原几何恢复并重新握手就绪；透明窗口恢复后由应用收起桌面标题栏                                                               | ✅   |
+| 4   | 打开窗口后主动关闭其中一个                                                  | 刷新                           | 已关闭的不恢复，其余恢复                                                                                                         | ✅   |
+| 5   | 保存的布局里有已下线的应用（清单移除）                                      | 刷新                           | 该窗口被跳过并有可见提示，桌面其余正常启动                                                                                       | ✅   |
+| 6   | 把窗口拖到屏幕边缘后视口变小                                                | 刷新                           | 恢复的窗口拉回屏幕内（复用 keepOnScreen）                                                                                        | ✅   |
+| 7   | 保存的布局里有终端与几猫3A大作的窗口                                        | 刷新页面                       | 窗口外框按原位置恢复，但启动阶段不拉起虚拟机、不请求 `saltline.html`；用户第一次点击窗口时才加载内容（哪怕它是恢复前的前台窗口） | ✅   |
+| 8   | 同一浏览器上下文里两个页面 A、B：A 摆 Finder 与 Notes，B 摆 Calculator      | 先刷新 A，再刷新 B             | A 只恢复自己的两个窗口，B 只恢复自己的窗口，互不出现对方的窗口，也不互相覆盖已保存的布局                                         | ✅   |
+| 9   | 保存的布局里有 Notes、Calculator 两个窗口（没有 Finder），Calculator 在前台 | 刷新页面                       | 不会多出一个默认的 Finder 窗口；Calculator 仍在前台，层叠顺序与刷新前一致                                                        | ✅   |
+| 10  | 保存的布局里有一个最小化的 Notes 窗口                                       | 刷新页面，再从 Dock 还原 Notes | 刷新后窗口外框仍是最小化，启动阶段不请求 Notes 的内容载荷；从 Dock 第一次还原时才加载内容                                        | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -70,6 +70,14 @@ capabilities: []
 - `aiao-desktop/apps/web/src/app/services/desktop-window.ts`、`components/window-frame.ts` — 几何事件与恢复参数。
 - `aiao-desktop/apps/web/src/app/data/preferences.ts` — 布局持久化。
 - `aiao-desktop/apps/e2e/src/smoke.mjs` — 窗口恢复检查项。
+
+## 本轮验收（2026-11-14）
+
+窗口几何、层叠、Finder 路径、多个同应用窗口、最小化与按需内容恢复、应用下线、视口变化及标签页隔离均由正式构建的 `window-layout` 组验收。
+
+原始记录：[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+
+本故事的 Chromium AC 已通过；关闭条件仍依赖 US-008 与 US-206 完成。Firefox 的跨源替身刷新缺口保留在跨浏览器故事中，不宣称跨浏览器完整支持。
 
 ## References
 

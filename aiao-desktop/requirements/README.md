@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[10/22 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[12/22 已交付]；10 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 

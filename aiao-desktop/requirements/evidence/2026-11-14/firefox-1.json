@@ -1,0 +1,1427 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:13:39.402Z",
+  "source": {
+    "sha": "1260167809750a043ab32c369a0a2fd661abf393",
+    "changes": "M ../../requirements/README.md\n M ../../requirements/epics/ADESK-EPIC-001.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/epics/ADESK-EPIC-003.md\n M ../../requirements/evidence/2026-11-14/domain-storage.json\n M ../../requirements/evidence/2026-11-14/initial-bytes.json\n M ../../requirements/evidence/2026-11-14/live-entrypoints.json\n M ../../requirements/status-overview.md\n M ../../requirements/stories/application/ADESK-US-205-application-management.md\n M ../../requirements/stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md\n M ../../requirements/stories/desktop/ADESK-US-104-window-layout-persistence.md\n M ../../requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/desktop/ADESK-US-107-shell-interaction-coverage.md\n M ../../requirements/stories/desktop/ADESK-US-108-accessibility.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/stories/platform/ADESK-US-005-cross-browser-smoke.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/stories/platform/ADESK-US-007-external-content-disclosure.md\n M ../../requirements/stories/platform/ADESK-US-008-smoke-suite.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "shell",
+      "shell-interaction",
+      "disk-terminal",
+      "integrated-app",
+      "transparent-window",
+      "game",
+      "apps",
+      "dock",
+      "persistence",
+      "multi-tab",
+      "multi-tab-startup",
+      "narrow-screen",
+      "applications",
+      "applications-protection",
+      "applications-upgrade",
+      "external-content",
+      "lazy-loading",
+      "app-lifecycle",
+      "host-capabilities",
+      "host-filesystem",
+      "window-layout",
+      "a11y",
+      "upgrade-legacy",
+      "upgrade-protection"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 346.23410375,
+  "outcomes": [
+    {
+      "group": "shell",
+      "result": {
+        "shell": {
+          "stage": true,
+          "menubar": true,
+          "dock": true,
+          "noRuntimeGlobals": true,
+          "noInlineScripts": true,
+          "noDevtools": true
+        },
+        "finderNavigates": true,
+        "calculatorWorks": true,
+        "appleMenu": true,
+        "appMenu": true,
+        "minimized": true,
+        "restored": true,
+        "launchpadOpens": true,
+        "launchpadCloses": true,
+        "spotlightFinds": true,
+        "notificationsOpen": true,
+        "notificationsClose": true,
+        "notesWorks": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 14.869508207999985
+    },
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "loginEntersDesktop": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 31.84879045900001
+    },
+    {
+      "group": "disk-terminal",
+      "result": {
+        "terminalState": {
+          "crossOriginIsolated": true,
+          "xterm": true,
+          "helperInput": true,
+          "vivariShell": true
+        },
+        "diskState": {
+          "sqliteInOpfs": true,
+          "fileBodiesInOpfs": true,
+          "desktopFromFolder": true,
+          "shellStartsAtHome": true,
+          "shellReadsFile": true,
+          "shellListsDesktop": true,
+          "shellWritesDisk": true,
+          "shellCommandsWork": true,
+          "openCommandOpensTextEdit": true,
+          "finderFolderOnDesktop": true,
+          "shellSeesFinderChange": true,
+          "textEditShowsFile": true,
+          "previewShowsImage": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 14.625665292000004
+    },
+    {
+      "group": "integrated-app",
+      "result": {
+        "integratedApp": {
+          "dockPinned": true,
+          "showsLoading": true,
+          "becomesReady": true,
+          "standardKeepsChrome": true,
+          "standinRendered": true,
+          "crossOriginIsolated": true,
+          "iframePolicy": true,
+          "minimizeHides": true,
+          "restoreShows": true,
+          "restoreKeepsDocument": true,
+          "shieldWhenBehind": true,
+          "clickActivates": true,
+          "keyboardReachesApp": false,
+          "appClickClosesMenu": true,
+          "resizeTracksPointer": true,
+          "closeRemovesFrame": true,
+          "reopensFresh": true,
+          "offlineShowsReason": true,
+          "desktopUnaffected": true,
+          "retryRecovers": true,
+          "appFailureShowsReason": true,
+          "launchpadOpens": true,
+          "spotlightLists": true,
+          "menubarName": true,
+          "appMenuItems": true,
+          "quitCloses": true
+        }
+      },
+      "problems": [
+        "检查项未通过：integratedApp.keyboardReachesApp = false"
+      ],
+      "failedKeys": [
+        "integratedApp.keyboardReachesApp"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 19.575528459000022
+    },
+    {
+      "group": "transparent-window",
+      "result": {},
+      "problems": [
+        "检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"calculator\"]:not(.closing)').locator('.tl .c')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"c\" tabindex=\"0\" type=\"button\" data-w=\"close\" aria-label=\"Close\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/transparent-window.mjs:89）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "transparentWindow.chromeWhileLoading",
+        "transparentWindow.chromeHiddenWhenReady",
+        "transparentWindow.appKnowsDecorations",
+        "transparentWindow.dragMovesWindow",
+        "transparentWindow.buttonsAreNotDragArea",
+        "transparentWindow.doubleClickZooms",
+        "transparentWindow.maximizeButtonToggles",
+        "transparentWindow.focusStateReachesApp",
+        "transparentWindow.minimizeButtonMinimizes",
+        "transparentWindow.closeButtonCloses"
+      ],
+      "extraKeys": [],
+      "crashed": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"calculator\"]:not(.closing)').locator('.tl .c')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"c\" tabindex=\"0\" type=\"button\" data-w=\"close\" aria-label=\"Close\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/transparent-window.mjs:89）",
+      "pageErrors": [],
+      "seconds": 40.54881304200002
+    },
+    {
+      "group": "game",
+      "result": {
+        "game": {
+          "launchpadOpens": true,
+          "titleBar": true,
+          "sameOriginFrame": true,
+          "fullscreenAllowed": true,
+          "keyboardOnOpen": true,
+          "shieldWhenBehind": true,
+          "clickActivates": true,
+          "inputReachesGame": true,
+          "resizeTracksPointer": true,
+          "closeRemovesFrame": true,
+          "reopensFresh": true,
+          "spotlightLists": true,
+          "realGameBoots": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 15.699081624999991
+    },
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": []
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 46.217548375000014
+    },
+    {
+      "group": "dock",
+      "result": {
+        "dock": {
+          "defaultOrder": [],
+          "defaultDivider": true,
+          "removableOffersRemove": true,
+          "removableUnpinned": true,
+          "removeKeepsApplication": true,
+          "systemItemsRefuseRemoval": true,
+          "addFromLaunchpadMenu": true,
+          "addNotDuplicated": true,
+          "menuChangesSurviveReload": true,
+          "runningShowsTemporaryIcon": true,
+          "runningIndicator": true,
+          "runningKeepsPinnedOrder": true,
+          "minimizedRestoresFromDock": true,
+          "quitRemovesTemporaryIcon": true,
+          "pinnedStaysAfterQuit": true,
+          "launchpadDragShowsInsertionGap": true,
+          "launchpadDragPinsAtSlot": true,
+          "dragAgainNoDuplicate": true,
+          "dockDragReorders": true,
+          "dragDoesNotLaunchApp": true,
+          "dragResultSurvivesReload": true,
+          "dragOutUnpins": true,
+          "dragOutKeepsApplication": true,
+          "dragOutProtectedStays": true,
+          "dragMatchesMenu": true,
+          "finderIconDragPins": true,
+          "finderListDragPins": true,
+          "finderColumnDragPins": true,
+          "finderDragAgainNoDuplicate": true,
+          "finderNonAppNotDraggable": true,
+          "keyboardFocusRing": true,
+          "keyboardRemoveFromDock": true,
+          "keyboardRemoveKeepsFocus": true,
+          "keyboardMenuEscapeRestoresFocus": true,
+          "keyboardAddToDock": true,
+          "keyboardAddMatchesDrag": true,
+          "keyboardAddFromTemporaryIcon": true,
+          "repairDropsUnknownAndDuplicates": true,
+          "repairKeepsUserOrder": true,
+          "repairRestoresProtected": true,
+          "repairWrittenBack": true,
+          "repairedLayoutSurvivesReload": true,
+          "unreadableLayoutGetsDefault": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 73.88744116699998
+    },
+    {
+      "group": "persistence",
+      "result": {
+        "persistence": {
+          "fileSurvivesReload": true,
+          "folderSurvivesReload": true,
+          "settingsSurviveReload": true,
+          "noteSurvivesReload": true,
+          "reminderSurvivesReload": true,
+          "eraseRestoresDisk": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 25.237054333000007
+    },
+    {
+      "group": "multi-tab",
+      "result": {
+        "multiTab": {
+          "folderAppearsInFinder": true,
+          "folderAppearsOnDesktop": true,
+          "threePagesConverge": true,
+          "appearanceSyncs": true,
+          "appearanceSurvivesReload": true,
+          "savedFileReadableInOtherTab": true,
+          "openWindowFollowsOtherTabSave": true,
+          "lastWriteWinsWithoutPrompt": true,
+          "sameFileConvergesWithoutReload": true,
+          "sameFileSavesStaySafe": true,
+          "sameFileConsistentAfterReload": true,
+          "bothTerminalsStart": true,
+          "terminalFileReachesOtherTab": true,
+          "terminalFileOpensInOtherTab": true,
+          "closingOneTerminalKeepsOther": true,
+          "terminalRestartsAfterReload": true,
+          "terminalFilesInDatabase": true,
+          "terminalsWriteSameFile": true,
+          "tabsConvergeAfterFailedSaves": true,
+          "saveFailsAfterTrash": true,
+          "saveFailsAfterRename": true,
+          "saveFailsAfterErase": true,
+          "failedSaveKeepsWindowContent": true,
+          "failedSaveCreatesNothing": true,
+          "databaseIntactAfterFailedSaves": true,
+          "noteAppearsInOtherTab": true,
+          "backgroundTabConverges": true,
+          "dockPinSyncs": true,
+          "dockRunStateStaysLocal": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 65.673652084
+    },
+    {
+      "group": "multi-tab-startup",
+      "result": {
+        "multiTabStartup": {
+          "freshLibraryBothStart": true,
+          "reloadBothStart": true,
+          "sameDomainSeededOnce": true,
+          "noPageErrors": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 36.920575916000004
+    },
+    {
+      "group": "narrow-screen",
+      "result": {
+        "narrowScreen": {
+          "noHorizontalScroll": true,
+          "menubarFits": true,
+          "menubarItemsDoNotOverlap": true,
+          "dockFits": true,
+          "dockTargetsTappable": true,
+          "tapOpensApp": true,
+          "tapOpensLaunchpad": true,
+          "launchpadTapLaunches": true,
+          "windowsStayOnScreen": true,
+          "touchResizeResizesWindow": true,
+          "touchDragMovesWindow": true,
+          "touchDragKeepsWindowOnScreen": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 9.449820040999999
+    },
+    {
+      "group": "applications",
+      "result": {
+        "applications": {
+          "matchesLaunchpad": true,
+          "hasSaltlineAndAiaoCodePackages": true,
+          "finderPackageOpensApp": true,
+          "spotlightOpensSameApp": true,
+          "launchpadOpensSameApp": true,
+          "dockOpensSameApp": true,
+          "saltlinePackageLoadsGame": true,
+          "aiaoCodePackageShowsFailure": true,
+          "aiaoCodeOnlyRequestsRegisteredOrigin": true,
+          "aiaoCodePackageRetries": true,
+          "reloadKeepsOnePackagePerApp": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 19.98624762499999
+    },
+    {
+      "group": "applications-protection",
+      "result": {
+        "applicationsProtection": {
+          "finderRefusesMoveToTrash": true,
+          "finderRefusalExplains": true,
+          "emptyTrashCannotRemovePackage": true,
+          "packagesCarryAppId": true,
+          "terminalDeleteIsReverted": true,
+          "terminalExplainsTheRevert": true,
+          "terminalMoveIsReverted": true,
+          "terminalSubItemEditIsReverted": true,
+          "terminalAncestorDeleteIsReverted": true,
+          "revertedPackageStillOpens": true,
+          "userFileInsidePackageIsNotProtected": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 43.972734167000006
+    },
+    {
+      "group": "applications-upgrade",
+      "result": {
+        "applicationsUpgrade": {
+          "legacyPackagesAreClaimed": true,
+          "deletedPackageIsRestored": true,
+          "userFileInsidePackageIsKept": true,
+          "sameNameFileKeptAsIs": true,
+          "finderExplainsTheConflict": true,
+          "conflictedAppStillOpens": true,
+          "sameNameFileIsNotProtected": true,
+          "packageReturnsOnceTheNameIsFree": true,
+          "reloadDoesNotRewrite": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 41.97385970799999
+    },
+    {
+      "group": "external-content",
+      "result": {
+        "externalContent": {
+          "pageListsEveryHost": true,
+          "safariHintShown": true,
+          "reachableOffline": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 4.696566667000006
+    },
+    {
+      "group": "lazy-loading",
+      "result": {
+        "lazyLoading": {
+          "everyAppIsItsOwnChunk": true,
+          "startupLoadsOnlyShellScripts": true,
+          "startupSkipsAppEntries": true,
+          "startupWritesNoAppSeeds": true,
+          "oneAppLoadsOnlyItsChunk": true,
+          "oneAppWritesNoSeeds": true,
+          "firstReadSeedsItsDomain": true,
+          "widgetsShowSeededData": true,
+          "widgetsOnExistingLibrary": true,
+          "widgetsLoadNoAppChunks": true,
+          "remoteEntryOnlyWhenOpened": true,
+          "remoteEntryNotReloadedByMinimize": true,
+          "bundledHtmlOnlyWhenOpened": true,
+          "bundledHtmlFreshOnReopen": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 28.525240916999987
+    },
+    {
+      "group": "app-lifecycle",
+      "result": {
+        "appLifecycle": {
+          "timeoutShowsReason": true,
+          "failureResetsInstanceState": true,
+          "otherWindowsUnaffected": true,
+          "retryCreatesNewInstance": true,
+          "oldInstanceUnreachable": true,
+          "retryStaysLoadingUntilReady": true,
+          "lateTitleLeavesNewInstanceAlone": true,
+          "retryBecomesReady": true,
+          "closeWhileLoadingStaysClosed": true,
+          "closedWindowKeepsDockIdle": true,
+          "declaredWindowCapabilityWorks": true,
+          "denialShowsReasonInWindow": true,
+          "noticeFadesOut": true,
+          "undeclaredCapabilitiesDenied": true,
+          "deniedCallsHaveNoEffect": true,
+          "invalidArgumentShowsReason": true,
+          "bypassAttemptsFail": true,
+          "deniedMenuKeepsStandardMenus": true,
+          "menubarFollowsForeground": true,
+          "minimizeRestoreThroughApi": true,
+          "maximizeReachesLegacyEvents": true,
+          "closeThroughApi": true,
+          "closeUnbindsInstance": true,
+          "incompatibleProtocolShowsReason": true,
+          "incompatibleNeverReady": true,
+          "incompatibleAppReceivesNotice": true,
+          "incompatibleLeavesNoFrame": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 32.784138416000005
+    },
+    {
+      "group": "host-capabilities",
+      "result": {
+        "hostCapabilities": {
+          "undeclaredNotificationDenied": true,
+          "denialShowsReasonInWindow": true,
+          "undeclaredFilesystemDenied": true,
+          "unauthorizedAppearanceWriteDenied": true,
+          "clipboardReadDeniedWithoutPermission": true,
+          "clipboardWriteWithGesture": true,
+          "clipboardHoldsWrittenText": true,
+          "clipboardReadAfterGrant": true,
+          "clipboardWriteWithoutGestureDenied": true,
+          "clipboardUnchangedAfterDenial": true,
+          "clipboardDenialIsForTheAppOnly": true,
+          "notificationAppearsInCentre": true,
+          "notificationAttributedToCaller": true,
+          "notificationSpoofRejected": true,
+          "notificationDedupeReplaces": true,
+          "notificationInvalidIconRejected": true,
+          "notificationSurvivesWindowClose": true,
+          "notificationKeyboardOperable": true,
+          "notificationClearAll": true,
+          "notificationRateLimited": true,
+          "notificationIconsShown": true,
+          "notificationNotKeptAcrossReload": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 34.702402875
+    },
+    {
+      "group": "host-filesystem",
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": false
+        }
+      },
+      "problems": [
+        "检查项未通过：hostFilesystem.focusReturnsToWindow = false"
+      ],
+      "failedKeys": [
+        "hostFilesystem.focusReturnsToWindow"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 66.013068042
+    },
+    {
+      "group": "window-layout",
+      "result": {},
+      "problems": [
+        "检查组异常：page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n（groups/window-layout.mjs:530）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "windowLayout.restoresPositionAndSize",
+        "windowLayout.restoresMinimizedState",
+        "windowLayout.finderKeepsPath",
+        "windowLayout.layoutRowShape",
+        "windowLayout.restoresTwoFinders",
+        "windowLayout.twoFindersKeepTheirPaths",
+        "windowLayout.zoomedWindowRestoresZoomed",
+        "windowLayout.zoomedWindowUnzoomsToSavedBox",
+        "windowLayout.integratedStandardRestoresGeometry",
+        "windowLayout.integratedStandardHandshakesAgain",
+        "windowLayout.integratedTransparentRestoresGeometry",
+        "windowLayout.integratedTransparentHandshakesAgain",
+        "windowLayout.integratedTransparentHidesDesktopChrome",
+        "windowLayout.closedWindowStaysClosed",
+        "windowLayout.otherWindowsRestoredAfterClose",
+        "windowLayout.retiredAppSkipped",
+        "windowLayout.retiredAppNotice",
+        "windowLayout.retiredAppOthersRestored",
+        "windowLayout.retiredWindowDroppedFromLayout",
+        "windowLayout.onlyRetiredOpensDefaultFinder",
+        "windowLayout.restoreRunsBehindBootScreen",
+        "windowLayout.noticeWaitsForUnlockedDesktop",
+        "windowLayout.farWindowWasSaved",
+        "windowLayout.restoredWindowPulledOnScreen",
+        "windowLayout.heavyWindowsRestoreAsFrames",
+        "windowLayout.heavyWindowsShowIdlePlaceholder",
+        "windowLayout.heavyFrontWindowStaysFront",
+        "windowLayout.startupBootsNoVirtualMachine",
+        "windowLayout.startupRequestsNoHeavyChunks",
+        "windowLayout.startupRequestsNoSaltlineEntry",
+        "windowLayout.firstClickStartsTerminal",
+        "windowLayout.firstClickStartsGame",
+        "windowLayout.idlePlaceholderIsFocusableButton",
+        "windowLayout.idlePlaceholderStartsFromKeyboard",
+        "windowLayout.tabAKeepsOnlyItsWindows",
+        "windowLayout.tabBKeepsOnlyItsWindows",
+        "windowLayout.layoutsStoredPerTab",
+        "windowLayout.reloadDoesNotOverwriteOtherTab",
+        "windowLayout.newTabStartsFromEmptyDesktop",
+        "windowLayout.noExtraDefaultFinder",
+        "windowLayout.frontWindowStaysFront",
+        "windowLayout.stackOrderPreserved",
+        "windowLayout.minimizedFrameOnlyAtStartup",
+        "windowLayout.minimizedPayloadNotRequestedAtStartup",
+        "windowLayout.dockRestoreShowsWindow",
+        "windowLayout.dockRestoreLoadsPayloadFirstTime",
+        "windowLayout.staleRowsPruned",
+        "windowLayout.recentRowsKept",
+        "windowLayout.blockedStorageNotice",
+        "windowLayout.blockedStorageStillOpensFinder",
+        "windowLayout.blockedStorageWritesNothing"
+      ],
+      "extraKeys": [],
+      "crashed": "page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n（groups/window-layout.mjs:530）",
+      "pageErrors": [],
+      "seconds": 74.321329625
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 49.210160167000005
+    },
+    {
+      "group": "upgrade-legacy",
+      "result": {
+        "upgradeLegacy": {
+          "freshDatabaseGetsRecord": true,
+          "legacyKeepsData": true,
+          "legacyGetsVersionRecord": true,
+          "seedsNotRewritten": true,
+          "newDomainSeededOnce": true,
+          "existingDomainsNotOverwritten": true,
+          "notReseededOnReload": true,
+          "upgradeIsRepeatable": true,
+          "interruptedStateIsWhole": true,
+          "interruptedUpgradeRecovers": true,
+          "noDuplicateSeedsAfterInterrupt": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 46.02345216700001
+    },
+    {
+      "group": "upgrade-protection",
+      "result": {
+        "upgradeProtection": {
+          "newerDataShowsUpdateNotice": true,
+          "newerDataOffersNoErase": true,
+          "newerDataNotWritten": true,
+          "dataIntactAfterReturning": true,
+          "staleTabRefusesWrite": true,
+          "staleTabAsksReload": true,
+          "staleWriteNotInDatabase": true,
+          "dataIntactAfterReload": true,
+          "brokenRecordShowsProblem": true,
+          "incompatibleShowsProblem": true,
+          "damagedShowsProblem": true,
+          "damagedOffersRecovery": true,
+          "damagedNotPatched": true,
+          "eraseRestartsFresh": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 33.48441116600001
+    }
+  ],
+  "checks": {
+    "shell": {
+      "stage": true,
+      "menubar": true,
+      "dock": true,
+      "noRuntimeGlobals": true,
+      "noInlineScripts": true,
+      "noDevtools": true
+    },
+    "finderNavigates": true,
+    "calculatorWorks": true,
+    "appleMenu": true,
+    "appMenu": true,
+    "minimized": true,
+    "restored": true,
+    "launchpadOpens": true,
+    "launchpadCloses": true,
+    "spotlightFinds": true,
+    "notificationsOpen": true,
+    "notificationsClose": true,
+    "notesWorks": true,
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "loginEntersDesktop": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    },
+    "terminalState": {
+      "crossOriginIsolated": true,
+      "xterm": true,
+      "helperInput": true,
+      "vivariShell": true
+    },
+    "diskState": {
+      "sqliteInOpfs": true,
+      "fileBodiesInOpfs": true,
+      "desktopFromFolder": true,
+      "shellStartsAtHome": true,
+      "shellReadsFile": true,
+      "shellListsDesktop": true,
+      "shellWritesDisk": true,
+      "shellCommandsWork": true,
+      "openCommandOpensTextEdit": true,
+      "finderFolderOnDesktop": true,
+      "shellSeesFinderChange": true,
+      "textEditShowsFile": true,
+      "previewShowsImage": true
+    },
+    "integratedApp": {
+      "dockPinned": true,
+      "showsLoading": true,
+      "becomesReady": true,
+      "standardKeepsChrome": true,
+      "standinRendered": true,
+      "crossOriginIsolated": true,
+      "iframePolicy": true,
+      "minimizeHides": true,
+      "restoreShows": true,
+      "restoreKeepsDocument": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "keyboardReachesApp": false,
+      "appClickClosesMenu": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "offlineShowsReason": true,
+      "desktopUnaffected": true,
+      "retryRecovers": true,
+      "appFailureShowsReason": true,
+      "launchpadOpens": true,
+      "spotlightLists": true,
+      "menubarName": true,
+      "appMenuItems": true,
+      "quitCloses": true
+    },
+    "game": {
+      "launchpadOpens": true,
+      "titleBar": true,
+      "sameOriginFrame": true,
+      "fullscreenAllowed": true,
+      "keyboardOnOpen": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "inputReachesGame": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "spotlightLists": true,
+      "realGameBoots": true
+    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "dock": {
+      "defaultOrder": [],
+      "defaultDivider": true,
+      "removableOffersRemove": true,
+      "removableUnpinned": true,
+      "removeKeepsApplication": true,
+      "systemItemsRefuseRemoval": true,
+      "addFromLaunchpadMenu": true,
+      "addNotDuplicated": true,
+      "menuChangesSurviveReload": true,
+      "runningShowsTemporaryIcon": true,
+      "runningIndicator": true,
+      "runningKeepsPinnedOrder": true,
+      "minimizedRestoresFromDock": true,
+      "quitRemovesTemporaryIcon": true,
+      "pinnedStaysAfterQuit": true,
+      "launchpadDragShowsInsertionGap": true,
+      "launchpadDragPinsAtSlot": true,
+      "dragAgainNoDuplicate": true,
+      "dockDragReorders": true,
+      "dragDoesNotLaunchApp": true,
+      "dragResultSurvivesReload": true,
+      "dragOutUnpins": true,
+      "dragOutKeepsApplication": true,
+      "dragOutProtectedStays": true,
+      "dragMatchesMenu": true,
+      "finderIconDragPins": true,
+      "finderListDragPins": true,
+      "finderColumnDragPins": true,
+      "finderDragAgainNoDuplicate": true,
+      "finderNonAppNotDraggable": true,
+      "keyboardFocusRing": true,
+      "keyboardRemoveFromDock": true,
+      "keyboardRemoveKeepsFocus": true,
+      "keyboardMenuEscapeRestoresFocus": true,
+      "keyboardAddToDock": true,
+      "keyboardAddMatchesDrag": true,
+      "keyboardAddFromTemporaryIcon": true,
+      "repairDropsUnknownAndDuplicates": true,
+      "repairKeepsUserOrder": true,
+      "repairRestoresProtected": true,
+      "repairWrittenBack": true,
+      "repairedLayoutSurvivesReload": true,
+      "unreadableLayoutGetsDefault": true
+    },
+    "persistence": {
+      "fileSurvivesReload": true,
+      "folderSurvivesReload": true,
+      "settingsSurviveReload": true,
+      "noteSurvivesReload": true,
+      "reminderSurvivesReload": true,
+      "eraseRestoresDisk": true
+    },
+    "multiTab": {
+      "folderAppearsInFinder": true,
+      "folderAppearsOnDesktop": true,
+      "threePagesConverge": true,
+      "appearanceSyncs": true,
+      "appearanceSurvivesReload": true,
+      "savedFileReadableInOtherTab": true,
+      "openWindowFollowsOtherTabSave": true,
+      "lastWriteWinsWithoutPrompt": true,
+      "sameFileConvergesWithoutReload": true,
+      "sameFileSavesStaySafe": true,
+      "sameFileConsistentAfterReload": true,
+      "bothTerminalsStart": true,
+      "terminalFileReachesOtherTab": true,
+      "terminalFileOpensInOtherTab": true,
+      "closingOneTerminalKeepsOther": true,
+      "terminalRestartsAfterReload": true,
+      "terminalFilesInDatabase": true,
+      "terminalsWriteSameFile": true,
+      "tabsConvergeAfterFailedSaves": true,
+      "saveFailsAfterTrash": true,
+      "saveFailsAfterRename": true,
+      "saveFailsAfterErase": true,
+      "failedSaveKeepsWindowContent": true,
+      "failedSaveCreatesNothing": true,
+      "databaseIntactAfterFailedSaves": true,
+      "noteAppearsInOtherTab": true,
+      "backgroundTabConverges": true,
+      "dockPinSyncs": true,
+      "dockRunStateStaysLocal": true
+    },
+    "multiTabStartup": {
+      "freshLibraryBothStart": true,
+      "reloadBothStart": true,
+      "sameDomainSeededOnce": true,
+      "noPageErrors": true
+    },
+    "narrowScreen": {
+      "noHorizontalScroll": true,
+      "menubarFits": true,
+      "menubarItemsDoNotOverlap": true,
+      "dockFits": true,
+      "dockTargetsTappable": true,
+      "tapOpensApp": true,
+      "tapOpensLaunchpad": true,
+      "launchpadTapLaunches": true,
+      "windowsStayOnScreen": true,
+      "touchResizeResizesWindow": true,
+      "touchDragMovesWindow": true,
+      "touchDragKeepsWindowOnScreen": true
+    },
+    "applications": {
+      "matchesLaunchpad": true,
+      "hasSaltlineAndAiaoCodePackages": true,
+      "finderPackageOpensApp": true,
+      "spotlightOpensSameApp": true,
+      "launchpadOpensSameApp": true,
+      "dockOpensSameApp": true,
+      "saltlinePackageLoadsGame": true,
+      "aiaoCodePackageShowsFailure": true,
+      "aiaoCodeOnlyRequestsRegisteredOrigin": true,
+      "aiaoCodePackageRetries": true,
+      "reloadKeepsOnePackagePerApp": true
+    },
+    "applicationsProtection": {
+      "finderRefusesMoveToTrash": true,
+      "finderRefusalExplains": true,
+      "emptyTrashCannotRemovePackage": true,
+      "packagesCarryAppId": true,
+      "terminalDeleteIsReverted": true,
+      "terminalExplainsTheRevert": true,
+      "terminalMoveIsReverted": true,
+      "terminalSubItemEditIsReverted": true,
+      "terminalAncestorDeleteIsReverted": true,
+      "revertedPackageStillOpens": true,
+      "userFileInsidePackageIsNotProtected": true
+    },
+    "applicationsUpgrade": {
+      "legacyPackagesAreClaimed": true,
+      "deletedPackageIsRestored": true,
+      "userFileInsidePackageIsKept": true,
+      "sameNameFileKeptAsIs": true,
+      "finderExplainsTheConflict": true,
+      "conflictedAppStillOpens": true,
+      "sameNameFileIsNotProtected": true,
+      "packageReturnsOnceTheNameIsFree": true,
+      "reloadDoesNotRewrite": true
+    },
+    "externalContent": {
+      "pageListsEveryHost": true,
+      "safariHintShown": true,
+      "reachableOffline": true
+    },
+    "lazyLoading": {
+      "everyAppIsItsOwnChunk": true,
+      "startupLoadsOnlyShellScripts": true,
+      "startupSkipsAppEntries": true,
+      "startupWritesNoAppSeeds": true,
+      "oneAppLoadsOnlyItsChunk": true,
+      "oneAppWritesNoSeeds": true,
+      "firstReadSeedsItsDomain": true,
+      "widgetsShowSeededData": true,
+      "widgetsOnExistingLibrary": true,
+      "widgetsLoadNoAppChunks": true,
+      "remoteEntryOnlyWhenOpened": true,
+      "remoteEntryNotReloadedByMinimize": true,
+      "bundledHtmlOnlyWhenOpened": true,
+      "bundledHtmlFreshOnReopen": true
+    },
+    "appLifecycle": {
+      "timeoutShowsReason": true,
+      "failureResetsInstanceState": true,
+      "otherWindowsUnaffected": true,
+      "retryCreatesNewInstance": true,
+      "oldInstanceUnreachable": true,
+      "retryStaysLoadingUntilReady": true,
+      "lateTitleLeavesNewInstanceAlone": true,
+      "retryBecomesReady": true,
+      "closeWhileLoadingStaysClosed": true,
+      "closedWindowKeepsDockIdle": true,
+      "declaredWindowCapabilityWorks": true,
+      "denialShowsReasonInWindow": true,
+      "noticeFadesOut": true,
+      "undeclaredCapabilitiesDenied": true,
+      "deniedCallsHaveNoEffect": true,
+      "invalidArgumentShowsReason": true,
+      "bypassAttemptsFail": true,
+      "deniedMenuKeepsStandardMenus": true,
+      "menubarFollowsForeground": true,
+      "minimizeRestoreThroughApi": true,
+      "maximizeReachesLegacyEvents": true,
+      "closeThroughApi": true,
+      "closeUnbindsInstance": true,
+      "incompatibleProtocolShowsReason": true,
+      "incompatibleNeverReady": true,
+      "incompatibleAppReceivesNotice": true,
+      "incompatibleLeavesNoFrame": true
+    },
+    "hostCapabilities": {
+      "undeclaredNotificationDenied": true,
+      "denialShowsReasonInWindow": true,
+      "undeclaredFilesystemDenied": true,
+      "unauthorizedAppearanceWriteDenied": true,
+      "clipboardReadDeniedWithoutPermission": true,
+      "clipboardWriteWithGesture": true,
+      "clipboardHoldsWrittenText": true,
+      "clipboardReadAfterGrant": true,
+      "clipboardWriteWithoutGestureDenied": true,
+      "clipboardUnchangedAfterDenial": true,
+      "clipboardDenialIsForTheAppOnly": true,
+      "notificationAppearsInCentre": true,
+      "notificationAttributedToCaller": true,
+      "notificationSpoofRejected": true,
+      "notificationDedupeReplaces": true,
+      "notificationInvalidIconRejected": true,
+      "notificationSurvivesWindowClose": true,
+      "notificationKeyboardOperable": true,
+      "notificationClearAll": true,
+      "notificationRateLimited": true,
+      "notificationIconsShown": true,
+      "notificationNotKeptAcrossReload": true
+    },
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": false
+    },
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      }
+    },
+    "upgradeLegacy": {
+      "freshDatabaseGetsRecord": true,
+      "legacyKeepsData": true,
+      "legacyGetsVersionRecord": true,
+      "seedsNotRewritten": true,
+      "newDomainSeededOnce": true,
+      "existingDomainsNotOverwritten": true,
+      "notReseededOnReload": true,
+      "upgradeIsRepeatable": true,
+      "interruptedStateIsWhole": true,
+      "interruptedUpgradeRecovers": true,
+      "noDuplicateSeedsAfterInterrupt": true
+    },
+    "upgradeProtection": {
+      "newerDataShowsUpdateNotice": true,
+      "newerDataOffersNoErase": true,
+      "newerDataNotWritten": true,
+      "dataIntactAfterReturning": true,
+      "staleTabRefusesWrite": true,
+      "staleTabAsksReload": true,
+      "staleWriteNotInDatabase": true,
+      "dataIntactAfterReload": true,
+      "brokenRecordShowsProblem": true,
+      "incompatibleShowsProblem": true,
+      "damagedShowsProblem": true,
+      "damagedOffersRecovery": true,
+      "damagedNotPatched": true,
+      "eraseRestartsFresh": true
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "integratedApp.keyboardReachesApp",
+        "tier": "有限支持",
+        "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
+      },
+      {
+        "kind": "group",
+        "group": "transparent-window",
+        "tier": "有限支持",
+        "reason": "透明窗口的检查要点击 iframe 里应用自绘的按钮、在 iframe 内拖动挖空区域，需要把真实输入送进跨源 iframe，Playwright 的 Firefox 做不到（同 integratedApp.keyboardReachesApp）；这一组在 Chromium 与 WebKit 上通过。"
+      },
+      {
+        "kind": "check",
+        "key": "hostFilesystem.focusReturnsToWindow",
+        "tier": "有限支持",
+        "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
+      },
+      {
+        "kind": "group",
+        "group": "window-layout",
+        "tier": "有限支持",
+        "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": false
+}
