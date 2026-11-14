@@ -393,7 +393,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/web",
-        "command": "eslint src ../../scripts/release/*self-hosted*.mjs --max-warnings=0"
+        "command": "eslint src ../../scripts/release/*self-hosted*.mjs ../../scripts/product/*storage*.mjs ../../scripts/supabase/storage-*.mjs --max-warnings=0"
       }
     },
     "requirements-check": {
@@ -515,6 +515,15 @@
       "options": {
         "command": "node ../../scripts/supabase/test-supabase-local.mjs",
         "cwd": "aiao-media/apps/web"
+      }
+    },
+    "image-storage-test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["api-contracts:build"],
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/product/test-image-storage-local.mjs"
       }
     },
     "image-lifecycle-test": {

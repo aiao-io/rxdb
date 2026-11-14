@@ -82,7 +82,9 @@ export function parsePublicBuild(manifestBytes, workerBytes, expectedSha256) {
 export function validatePublicAccountConfig(value) {
   if (value === null) return null;
   check(
-    value && typeof value === 'object' && JSON.stringify(Object.keys(value).sort()) === '["anonKey","url"]',
+    value &&
+      typeof value === 'object' &&
+      Object.keys(value).every(key => ['url', 'anonKey', 'storageUrl'].includes(key)),
     'SMOKE_ACCOUNT_CONFIG_INVALID'
   );
   try {

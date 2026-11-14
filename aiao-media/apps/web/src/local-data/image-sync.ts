@@ -43,6 +43,20 @@ const sha256 = async (bytes: ArrayBuffer): Promise<string> =>
 // fetch 是 Window 的方法：存成属性再以 this.request() 调用，浏览器会抛 Illegal invocation。
 const windowFetch: Request = (input, init) => fetch(input, init);
 
+async function existingStorageObject(response: Response): Promise<boolean> {
+  if (response.status === 409) return true;
+  if (response.status !== 400) return false;
+  const payload: unknown = await response.json().catch(() => null);
+  return (
+    payload !== null &&
+    typeof payload === 'object' &&
+    'statusCode' in payload &&
+    payload.statusCode === '409' &&
+    'error' in payload &&
+    payload.error === 'Duplicate'
+  );
+}
+
 class RemovedImageError extends Error {}
 
 class RecordRequestError extends ImageTransferError {
@@ -339,8 +353,8 @@ export class ImageSyncController {
         headers: { 'content-type': mimeType, 'x-upsert': 'false' },
         body: bytes.slice().buffer as ArrayBuffer
       });
-      // 409 只表示路径已占用，仍须读取对象核对原字节后才能确认关联。
-      if (!result.ok && result.status !== 409)
+      // Storage 的 HTTP 409 或 HTTP 400/Duplicate 仅表示路径已占用，仍须回读原字节。
+      if (!result.ok && !(await existingStorageObject(result)))
         throw new ImageTransferError(result.status, '远端图片上传失败；本机原图保留。');
       if (result.ok) progress(bytes.byteLength);
       return;

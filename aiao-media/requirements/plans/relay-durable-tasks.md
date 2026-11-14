@@ -72,6 +72,7 @@
 
 - [wrangler.json](../../apps/api/wrangler.json) 已增加 `RELAY_TASKS`（类 `RelayTask`，迁移标签 `media-relay-v1`，`new_sqlite_classes`）和 `RELAY_RESULTS`（bucket `aiao-media-relay-results`），沿用与 `media-platform-v1` 相同的 `migrations` 数组。
 - 首次发布前由账号所有者开通 R2 订阅，并创建私有 bucket 与 1 天生命周期规则：`pnpm --dir aiao-media/apps/web exec wrangler r2 bucket create aiao-media-relay-results`，再执行 `pnpm --dir aiao-media/apps/web exec wrangler r2 bucket lifecycle add aiao-media-relay-results relay-results-1d --expire-days 1`。bucket 不开放公开访问。
+- 2026-11-14 已只读核对：私有桶与上述 1 天规则均已存在，`r2.dev` 禁用且没有自定义域名，无需重复创建；真实任务与回收仍待验证。见[本轮证据](requirements-completion-20261114.md#cloudflare-只读复核)。
 - 新增 DO 类后，`wrangler rollback` 不能回到加类之前的版本。仓库规则不允许加 fallback，所以不设“关闭任务接口后改走无状态代理”的开关，改为分两次发布：第一次发布只带服务端（DO 类、R2 绑定与任务接口），前端仍是旧版；确认 `wrangler deployments status` 与任务接口可用后，第二次发布前端切换。前端出问题时回滚到第一次发布，两个版本之间没有类生命周期变化。
 - 发布不使用 `--durable-objects-code-update-mode immediate`：默认 300 秒的代码更新延迟覆盖 180 秒上游超时。
 - 已安装的旧版页面继续使用 `/api/relay`，接口保持不变，是否下线另行决定。

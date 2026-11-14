@@ -90,6 +90,11 @@ test('公开产物支持本机模式和有效平台配置，配置必须匹配�
     for (const config of [
       null,
       { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture' },
+      {
+        url: 'https://platform.supabase.co',
+        anonKey: 'sb_publishable_fixture',
+        storageUrl: 'https://storage.example.test'
+      },
       { url: 'http://127.0.0.1:54321', anonKey: `e30.${Buffer.from('{"role":"anon"}').toString('base64url')}.c2ln` }
     ]) {
       prepare(config);
@@ -100,7 +105,23 @@ test('公开产物支持本机模式和有效平台配置，配置必须匹配�
     for (const config of [
       {},
       { url: 'https://platform.supabase.co', anonKey: 'sb_secret_private' },
-      { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture', serviceRoleKey: 'private' }
+      { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture', serviceRoleKey: 'private' },
+      {
+        url: 'https://platform.supabase.co',
+        anonKey: 'sb_publishable_fixture',
+        storageUrl: 'http://storage.example.test'
+      },
+      {
+        url: 'https://platform.supabase.co',
+        anonKey: 'sb_publishable_fixture',
+        storageUrl: 'https://user:pass@storage.example.test'
+      },
+      {
+        url: 'https://platform.supabase.co',
+        anonKey: 'sb_publishable_fixture',
+        storageUrl: 'https://storage.example.test/private'
+      },
+      { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture', storageUrl: null }
     ]) {
       prepare(config);
       await assert.rejects(readPublicBuild(settings), /SMOKE_ACCOUNT_CONFIG_INVALID/);

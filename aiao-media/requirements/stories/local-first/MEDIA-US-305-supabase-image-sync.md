@@ -107,6 +107,8 @@ tags: [supabase, storage, image, sync, local-first]
 
 - 2026-11-14 首轮本地复验：真实模板补齐可见性重建，停止传输或删除完成后重新观察同一作品卡片。正式完整覆盖率 59 文件、988/988，四项 86.82%/81.37%/89.89%/90.44%；完整账号浏览器 11/11，包含 53 张作品分页、准备/提交回执丢失、旧删除设备不刷新核对并取回新版本。Auth、文件目录与 RLS 为真实本地服务，Storage 字节仍为 fixture；正式私有 Storage 与 Web/Tauri AC 保留未验。
 
+2026-11-14 补齐独立真实 Storage 传输层验收：`aiao-media:image-storage-test` 使用正式 Storage 镜像、Kong 配置、真实 Auth/PostgREST 与 Chrome，产品控制器完成 7,081,652 字节 PNG 分片应答丢失后的服务重启/页面刷新续传，PNG/JPEG 精确回读、文件关联应答丢失恢复及跨账号读写/删除隔离。修复浏览器无法读取 `Upload-Length` 和小图重复对象返回 HTTP 400/Duplicate 的真实问题。文件接口与日志位于隔离验收页，完整产品 UI、正式配额/撤权/过期、删除竞态和 Web/Tauri 联验继续未验；AC 不关闭。证据见[收口记录](../../plans/requirements-completion-20261114.md#真实私有-storage-传输层)。
+
 ## 实现文件
 
 以下为现有接入点，不代表本故事已实现；新增文件随技术方案确定。

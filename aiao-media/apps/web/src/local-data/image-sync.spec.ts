@@ -246,13 +246,16 @@ describe('平台 Supabase 图片同步', () => {
     ).rejects.toThrow('回执与原图');
     expect(calls).toHaveLength(1);
   });
-  it.each([200, 409])('对象写入返回 %s 后必须读取原字节，错误内容不得提交已上传', async status => {
+  it.each([200, 409, 400])('对象写入返回 %s 后必须读取原字节，错误内容不得提交已上传', async status => {
     const pending = await fileRecord();
     const changed = png.slice();
     changed[changed.length - 1] ^= 1;
     const { calls, request } = remote(call => {
       if (isRecords(call)) return Response.json([pending]);
-      if (call.method === 'POST') return new Response(null, { status });
+      if (call.method === 'POST')
+        return status === 400 ?
+            Response.json({ statusCode: '409', error: 'Duplicate' }, { status })
+          : new Response(null, { status });
       return new Response(changed);
     });
     await expect(
@@ -379,11 +382,14 @@ describe('平台 Supabase 图片同步', () => {
     expect(JSON.stringify(calls)).not.toContain('service_role');
   });
 
-  it('续用上次停在 needs_review 的记录：对象已存在时按它的修订提交，不新建记录', async () => {
+  it.each([409, 400])('续用 needs_review 记录：对象已存在（%s）时按原修订提交，不新建记录', async status => {
     const stalled = await fileRecord({ status: 'needs_review', revision: 3, baseRevision: 2 });
     const { calls, request } = remote(call => {
       if (call.url.includes('/object/authenticated/')) return new Response(new Blob([png]));
-      if (call.url.includes('/storage/v1/object/')) return new Response(null, { status: 409 });
+      if (call.url.includes('/storage/v1/object/'))
+        return status === 400 ?
+            Response.json({ statusCode: '409', error: 'Duplicate' }, { status })
+          : new Response(null, { status });
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json([stalled]);
       return Response.json([{ ...stalled, status: 'uploaded', revision: 4, baseRevision: 3 }]);
@@ -397,6 +403,29 @@ describe('平台 Supabase 图片同步', () => {
     expect(commits).toHaveLength(1);
     expect(commits[0].url).toContain('revision=eq.3');
     expect(commits[0].body).toMatchObject({ status: 'uploaded', revision: 4, baseRevision: 3 });
+  });
+
+  it.each([
+    { statusCode: '400', error: 'InvalidRequest' },
+    { statusCode: '409', error: 'AccessDenied' },
+    { statusCode: '403', error: 'Duplicate' },
+    null
+  ])('普通 HTTP 400 不视为对象已存在：%j', async payload => {
+    const pending = await fileRecord();
+    const { calls, request } = remote(call => {
+      if (isRecords(call)) return Response.json([pending]);
+      if (call.method === 'POST') return Response.json(payload, { status: 400 });
+      return new Response(png);
+    });
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toMatchObject({ status: 400 });
+    expect(calls.some(call => call.url.includes('/object/authenticated/'))).toBe(false);
+    expect(
+      calls
+        .filter(call => isRecords(call) && call.method === 'PATCH')
+        .every(call => (call.body as Partial<RemoteFileRecord>).status === 'needs_review')
+    ).toBe(true);
   });
 
   it('另一设备抢先建记录并提交同一版本时改用那一条，按远端现状确认而不覆盖', async () => {

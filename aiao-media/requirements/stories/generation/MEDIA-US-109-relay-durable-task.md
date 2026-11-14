@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-11-03
-updated: 2026-11-13
+updated: 2026-11-14
 dependsOn: [MEDIA-US-004]
 tags: [relay, durable-object, r2, generation]
 ---
@@ -68,10 +68,10 @@ tags: [relay, durable-object, r2, generation]
 
 | 阶段       | 内容                                                                                                        | 当前                                     | 关闭条件                                                          |
 | ---------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
-| A 技术验证 | 在真实账号验证：客户端断开后 DO 仍收到上游结果；4 MiB、24 MiB 结果加密的 CPU 时间；R2 bucket 与生命周期规则 | 未开始，需先开通 R2 订阅并部署到真实账号 | 结论写入[实施计划](../../plans/relay-durable-tasks.md)，不计入 AC |
+| A 技术验证 | 在真实账号验证：客户端断开后 DO 仍收到上游结果；4 MiB、24 MiB 结果加密的 CPU 时间；R2 bucket 与生命周期规则 | R2 私有桶与 1 天规则已核对；DO 断开续接及 CPU 仍待真实部署实测 | 结论写入[实施计划](../../plans/relay-durable-tasks.md)，不计入 AC |
 | B 服务端   | RelayTask 状态机、去重、放弃、看门狗、过期删除、令牌校验与加密；Worker 路由与开发替身                       | 已实现，本地测试通过                     | AC3–AC9 的服务端断言                                              |
 | C 前端续接 | 提交、刷新续接、放弃、解密保存、多标签页和提示文案；浏览器套件与验收工具                                    | D-19 前端已接线，本地浏览器验收通过   | AC1–AC11                                                          |
-| D 正式验收 | 开通 R2、分两次发布、真实供应商三画幅；更新部署文档里的正式环境证据                                         | 未开始                                   | AC12                                                              |
+| D 正式验收 | 核对既有 R2、分两次发布、真实供应商三画幅；更新部署文档里的正式环境证据                                         | 未开始                                   | AC12                                                              |
 
 ## 技术笔记
 
@@ -85,6 +85,8 @@ tags: [relay, durable-object, r2, generation]
 - 发布顺序与停用：仓库规则不允许加 fallback，所以没有“关闭任务接口后改走无状态代理”的运行时开关。新增 DO 类后无法回滚到加类之前的版本，因此先发布只含服务端的版本，再发布前端切换；前端出问题时回滚到第一次发布即可，步骤见[实施计划](../../plans/relay-durable-tasks.md#发布与回退)。
 
 2026-11-13 前后端平台积分接线已完成，本地 57 项浏览器验收与两种协议三画幅 fixture 通过，见[接线与验收记录](../../plans/platform-relay-credits-20261113.md)。正式 Cloudflare 断开续接、R2 生命周期与桌面安装版仍缺证，AC1、2、6、9、10、11 保持 ⚠️，AC12 保持待验。
+
+2026-11-14 只读复核：真实 R2 桶存在，1 天过期规则启用，`r2.dev` 禁用且无自定义域名；正式模型接口仍返回 404。此轮未部署或调用模型，AC9 继续等待真实任务与对象回收，其他 AC 不变。详见[需求收口复验](../../plans/requirements-completion-20261114.md#cloudflare-只读复核)。
 
 ## 实现文件
 
@@ -106,3 +108,4 @@ tags: [relay, durable-object, r2, generation]
 - [MEDIA-US-004 Cloudflare 静态部署与可选代理](../platform/MEDIA-US-004-cloudflare-edge-deployment.md)
 - [MEDIA-US-108 平台生图、额度与持久任务](MEDIA-US-108-platform-generation.md)
 - [需求约定](../../CONVENTIONS.md)
+

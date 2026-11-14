@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-001
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-14
 dependsOn: [MEDIA-US-301]
 tags: [product-completion]
 ---
@@ -44,6 +44,8 @@ tags: [product-completion]
 ## 技术笔记
 
 运行边界、预算与保留规则以[产品交付计划](../../plans/product-completion-20261030.md)为准。尚未验收的正式环境不计为已交付。
+
+2026-11-14 实机启动复现桌面 HTML 根节点与产品启动代码不匹配导致的空白，已显式共用产品 HTML 并重打包。真实原生工作台、既有工作区、取消/实际保存 PNG、ZIP 导出与退出重开均通过；原生源文件、导出 PNG 和 ZIP 内图片字节一致。见[收口记录](../../plans/requirements-completion-20261114.md#原生-macos-验收)。该环境已有工作区，干净系统、写入失败、Web 备份导入、签名公证与升级/重装仍未验，AC 保持原状态。
 
 ## 实现文件
 

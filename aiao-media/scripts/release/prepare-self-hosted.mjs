@@ -2,7 +2,8 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { appendFile, chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import { parse, stringify } from 'yaml';
+import { stringify } from 'yaml';
+import { storageKongConfiguration } from '../supabase/storage-kong.mjs';
 
 process.umask(0o077);
 const root = resolve(import.meta.dirname, '../..');
@@ -68,15 +69,10 @@ if (additions.length) {
 }
 if (env.MEDIA_API_UID !== apiUid || env.MEDIA_API_GID !== apiGid)
   throw new Error('Run prepare-self-hosted on the host that will run Docker.');
-const kong = parse(await readFile(resolve(root, 'infra/supabase/kong.template.yml'), 'utf8'));
-kong.plugins[0].config.origins = [origin.origin, 'tauri://localhost'];
-kong.plugins[0].config.headers.push('X-Upsert', 'Tus-Resumable', 'Upload-Length', 'Upload-Offset', 'Upload-Metadata');
-kong.plugins[0].config.exposed_headers.push('Location', 'Upload-Offset', 'Tus-Resumable');
-kong.services.push({
-  name: 'storage',
-  url: 'http://storage:5000/',
-  routes: [{ name: 'storage', paths: ['/storage/v1/'], strip_path: true }]
-});
+const kong = storageKongConfiguration(await readFile(resolve(root, 'infra/supabase/kong.template.yml'), 'utf8'), [
+  origin.origin,
+  'tauri://localhost'
+]);
 await writeFile(resolve(directory, 'kong.yml'), stringify(kong), { mode: 0o644 });
 await chmod(resolve(directory, 'kong.yml'), 0o644);
 await chmod(resolve(directory, '../data/relay'), 0o700);

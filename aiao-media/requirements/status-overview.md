@@ -49,16 +49,18 @@
 
 ## 未完成验收与关闭条件
 
-20 条故事共 140 条 AC，98 条已通过（✅）、15 条部分通过（⚠️）、27 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 按 D-19 完成前后端接线，AC1–5 本地通过，AC6–7 等正式环境；MEDIA-US-206 AC1–4 已通过本地验证，AC5 等待双部署发放与生成联验，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 4 条只缺真实环境证据；MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号验证、R2 生命周期配置与正式发布，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+20 条故事共 140 条 AC，98 条已通过（✅）、15 条部分通过（⚠️）、27 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 按 D-19 完成前后端接线，AC1–5 本地通过，AC6–7 等正式环境；MEDIA-US-206 AC1–4 已通过本地验证，AC5 等待双部署发放与生成联验，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 4 条只缺真实环境证据；MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号、真实任务及 R2 结果回收与正式发布（桶与 1 天规则已于 2026-11-14 只读核对），分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展                                                                                          | 关闭所需证据                                                                                          |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实系统输入法验收入口 `aiao-media-e2e:desktop-ime-acceptance` 已就绪、尚未实跑；本轮按 D-09 跳过 | 在真实系统中文输入法上完成正文/字段输入、粘贴、撤销重做，且不丢字、不抢焦点、无布局溢出               |
+| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实系统输入法验收入口已执行，但在输入场景前因 `IME_FOCUS_LOST` 中止；尚无通过证据 | 在真实系统中文输入法上完成正文/字段输入、粘贴、撤销重做，且不丢字、不抢焦点、无布局溢出               |
 | [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                               |
 | [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                          |
 | [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                         |
-| [MEDIA-US-108 AC6](stories/generation/MEDIA-US-108-platform-generation.md) | 前后端与平台三画幅 fixture 已通过，正式海外尚未验收                                                        | 正式域名真实平台账号+积分三画幅各一次：只调用一次上游，结果保存/回读/精确下载一致，积分扣减与流水一致 |
-| [MEDIA-US-108 AC7](stories/generation/MEDIA-US-108-platform-generation.md) | 本地契约与浏览器验收已通过，国内正式环境尚未升级                                              | 国内自建部署使用同一积分契约：后台发放可见、生成扣减一致、本机交付正常                                |
+| [MEDIA-US-108 AC6](stories/generation/MEDIA-US-108-platform-generation.md) | 前后端与平台三画幅 fixture 已通过，正式海外尚未验收                                               | 正式域名真实平台账号+积分三画幅各一次：只调用一次上游，结果保存/回读/精确下载一致，积分扣减与流水一致 |
+| [MEDIA-US-108 AC7](stories/generation/MEDIA-US-108-platform-generation.md) | 本地契约与浏览器验收已通过，国内正式环境尚未升级                                                  | 国内自建部署使用同一积分契约：后台发放可见、生成扣减一致、本机交付正常                                |
+
+2026-11-14 新增[收口复验](plans/requirements-completion-20261114.md)：真实私有 Storage 传输层已验证 7 MiB 原图的刷新/服务重启续传、两种应答丢失与读写隔离；实际原生启动、保存、ZIP 导出和重开通过。正式平台生图、Web/Tauri 联验及签名发行仍按上述关闭条件验收，故事状态不变。
 
 ## 合并状态
 

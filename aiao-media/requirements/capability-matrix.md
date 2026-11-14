@@ -6,7 +6,7 @@
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | 无登录本地工作区       | ✅ 固定本机 UUID、RxDB + wa-sqlite/IndexedDB、OPFS 文件；刷新/离线恢复已验；未登录保留草稿、灵感浏览与本机作品（D-19）                                                                      | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
 | 平台生图服务端入口     | ✅ 同源任务接口、允许列表、超时/流式限制、去重与加密暂存 R2；按请求 Key 的旧代理按 D-19 移除                                                                                                | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
-| 平台积分生图           | ⚠️ D-19 前后端已接线；登录/余额门禁、确认扣费、失败释放与流水通过本地验收；正式海外与国内待验                                                                                                            | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)      |
+| 平台积分生图           | ⚠️ D-19 前后端已接线；登录/余额门禁、确认扣费、失败释放与流水通过本地验收；正式海外与国内待验                                                                                               | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)      |
 | 原图格式               | ✅ PNG/JPEG 按原始字节识别、原样保存与下载；首次写入 JPEG 前将工作区兼容标记升为 2，旧版本拒绝访问                                                                                          | [MEDIA-US-102](stories/generation/MEDIA-US-102-image-generation.md)         |
 | 图片提示词灵感库       | ⚠️ 12 条模板、Tiptap 输入/字段/撤销隔离、资源失败恢复；真实系统中文 IME 未验，移动验收暂缓                                                                                                  | [MEDIA-US-106](stories/generation/MEDIA-US-106-prompt-gallery.md)           |
 | 离线与备份             | ✅ 四路由离线冷启动、无凭据 JSON 备份/隔离恢复；超限、坏摘要/重复 ID 拒绝及中断续导已验                                                                                                     | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
@@ -30,13 +30,13 @@ Tauri 与平台同步继续实施；充值计费仍按 D-17 暂缓。Tauri 正�
 
 | 能力                   | 当前边界                                                                                                                                                                 | 故事                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| Tauri 安装版           | ⚠️ 原生数据库/文件、指针与兼容守卫已接线，前端构建与两项 Rust 测试通过；实际安装、签名公证和升级待验                                                                     | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)          |
+| Tauri 安装版           | ⚠️ macOS Apple Silicon 原生构建、真实启动/保存/ZIP 导出与重开已验；干净系统、Web 备份导入、签名公证与升级/重装待验                                                       | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)          |
 | 国内自建部署           | ⚠️ 公网 Caddy IP HTTPS、自建 Supabase/Storage、Node 任务与整机重启已通过 11-09 发布验收；公众 SMTP、站外备份、模型压力与桌面联验待完成                                   | [MEDIA-US-006](stories/platform/MEDIA-US-006-self-hosted-deployment.md) |
 | 首次安装与后台初始化   | ⚠️ self-hosted/Cloudflare 双形态安装向导、管理员账号与安装状态持久化已实现并通过本地与隔离真实 GoTrue 验证；国内已随 11-09 发布真实部署，Cloudflare 生产部署待合入后执行 | [MEDIA-US-007](stories/platform/MEDIA-US-007-installation.md)           |
-| 后台积分管理           | ⚠️ 带原因增/减、流水、原子幂等与权限已通过真实本地 Supabase 和界面验收；正式双部署发放/生成待验                                                                                                   | [MEDIA-US-206](stories/account/MEDIA-US-206-credit-admin.md)            |
+| 后台积分管理           | ⚠️ 带原因增/减、流水、原子幂等与权限已通过真实本地 Supabase 和界面验收；正式双部署发放/生成待验                                                                          | [MEDIA-US-206](stories/account/MEDIA-US-206-credit-admin.md)            |
 | 平台支付与运维         | ⬜ D-17 暂缓；积分由后台发放，充值、退款与价格体系待未来收费需求明确后重新评审                                                                                           | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)        |
 | 平台账号同步           | ⚠️ 按 D-16 统一平台；平台注册入口与正式云登录、元数据同步、第二设备草稿恢复已验，生产 Tauri 跨设备与配额管理待验                                                         | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)        |
-| 平台 Supabase 原图同步 | ⚠️ 独立范围确认与私有 Storage 传输已接线，正式云 Web 原图上传/下载字节一致已验；持久队列、续传、删除冲突与 Tauri 跨设备待验                                              | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) |
+| 平台 Supabase 原图同步 | ⚠️ 正式云 Web 原字节上传/下载已验；独立真实 Storage 的 7 MiB 续传、回执恢复与隔离已验，正式配额/删除竞态及 Web/Tauri 跨设备待验                                          | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) |
 
 扩展实现的统一证据见[产品交付计划](plans/product-completion-20261030.md)。
 

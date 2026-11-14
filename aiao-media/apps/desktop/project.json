@@ -26,6 +26,7 @@
       "options": {
         "outputPath": "aiao-media/apps/desktop/desktop-dist",
         "browser": "aiao-media/apps/web/src/main.ts",
+        "index": "aiao-media/apps/web/src/index.html",
         "polyfills": [],
         "tsConfig": "aiao-media/apps/desktop/tsconfig.build.json",
         "assets": [
@@ -109,7 +110,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/desktop",
-        "command": "eslint src --max-warnings=0"
+        "command": "eslint src scripts --max-warnings=0"
       }
     },
     "desktop-check": {
