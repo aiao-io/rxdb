@@ -127,6 +127,17 @@ describe('工作树数据库检出位', () => {
     await expect(db.commit('确认用量', 'request-1')).rejects.toThrow('提交成功但历史记录不可读取');
   });
 
+  it('只有底层初始化记录时，仍等待首次用户提交', async () => {
+    storage.status.mockResolvedValueOnce({ branchId: 'a', clean: true });
+    storage.listCommits.mockResolvedValueOnce({
+      headCommitId: 'baseline',
+      entries: [{ kind: 'branch_baseline', commitId: 'baseline', firstParentId: null }]
+    });
+    const db = await openDraftDatabase('test');
+    await expect(db.history()).resolves.toEqual({ headCommitId: null, dirty: true, commits: [] });
+    expect(storage.commitChanges).not.toHaveBeenCalled();
+  });
+
   it('历史只显示用户提交，并取一次提交最后保存的完整草稿', async () => {
     const data = makeStressDataset(4);
     const draft = createDraft(data, data.structures.catalog);

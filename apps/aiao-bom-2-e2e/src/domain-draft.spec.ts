@@ -19,7 +19,8 @@ test('工作草稿通过本地分支提交管理，工作台取消文件交换�
   await commit.getByRole('button', { name: '确认', exact: true }).click();
   await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
   await page.getByRole('button', { name: '版本历史', exact: true }).click();
-  const history = page.getByRole('dialog', { name: '版本快照与日期比较' });
+  const history = page.getByRole('dialog', { name: '版本历史', exact: true });
+  await history.getByRole('button', { name: /^历史记录/ }).click();
   await expect(history).toContainText('领域核对');
   await expect(history).toContainText('建立领域核对基线');
   await expect(history).toContainText('HEAD');

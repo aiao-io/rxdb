@@ -198,6 +198,9 @@ export class DraftHistory {
     if (issues.length) throw new Error(issues[0].message);
     this.commit(nodes);
   }
+  restore(nodes: Occurrence[]): void {
+    this.commit(nodes);
+  }
   undo(): void {
     const previous = this.undoStack.pop();
     if (!previous) return;
@@ -240,6 +243,41 @@ export function exportCsv(
     'sourceRef'
   ] as const;
   return '\uFEFF' + [fields.join(','), ...nodes.map(n => fields.map(f => csvCell(n[f])).join(','))].join('\r\n');
+}
+export type DraftChangeField =
+  'quantity' | 'quantityState' | 'uom' | 'unitCost' | 'parentKey' | 'partId' | 'compId' | 'label' | 'markets';
+export interface DraftChange {
+  key: string;
+  kind: 'added' | 'removed' | 'changed';
+  fields: DraftChangeField[];
+  before: Occurrence | null;
+  after: Occurrence | null;
+}
+export function compareDraftsDetailed(before: DraftState, after: DraftState): DraftChange[] {
+  const changes: DraftChange[] = [];
+  const previous = new Map(before.nodes.map(node => [node.key, node]));
+  for (const node of after.nodes) {
+    const old = previous.get(node.key);
+    if (!old) {
+      changes.push({ key: node.key, kind: 'added', fields: [], before: null, after: node });
+      continue;
+    }
+    const fields: DraftChangeField[] = [];
+    if (old.quantity !== node.quantity) fields.push('quantity');
+    if (old.quantityState !== node.quantityState) fields.push('quantityState');
+    if (old.uom !== node.uom) fields.push('uom');
+    if ((old.unitCost ?? null) !== (node.unitCost ?? null)) fields.push('unitCost');
+    if (old.parentKey !== node.parentKey) fields.push('parentKey');
+    if (old.partId !== node.partId) fields.push('partId');
+    if (old.compId !== node.compId) fields.push('compId');
+    if ((old.label ?? '') !== (node.label ?? '')) fields.push('label');
+    if ([...old.markets].sort().join(',') !== [...node.markets].sort().join(',')) fields.push('markets');
+    if (fields.length) changes.push({ key: node.key, kind: 'changed', fields, before: old, after: node });
+    previous.delete(node.key);
+  }
+  for (const node of previous.values())
+    changes.push({ key: node.key, kind: 'removed', fields: [], before: node, after: null });
+  return changes;
 }
 export function compareDrafts(
   before: DraftState,

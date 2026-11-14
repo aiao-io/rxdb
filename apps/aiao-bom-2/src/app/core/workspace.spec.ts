@@ -320,3 +320,178 @@ describe('取消数据装载', () => {
     expect(location.href).toBe(originalUrl);
   });
 });
+
+describe('表格编辑与工作树差异', () => {
+  it('单元格独立编辑并可撤销，清空数量恢复缺失状态，非法值不污染草稿', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    ws.editCell('stress:1', 'quantityText', ' 2.5 ');
+    ws.editCell('stress:1', 'uom', '套');
+    ws.editCell('stress:1', 'unitCost', '0.8');
+    expect(ws.draft()?.nodes[1]).toMatchObject({
+      quantity: '2.5',
+      uom: '套',
+      unitCost: '0.8',
+      quantityState: 'confirmed'
+    });
+    ws.undo();
+    expect(ws.draft()?.nodes[1].unitCost).toBe('0.1');
+    ws.redo();
+    ws.editCell('stress:1', 'quantityText', '');
+    expect(ws.draft()?.nodes[1]).toMatchObject({ quantity: null, quantityState: 'missing' });
+    const valid = ws.draft();
+    expect(() => ws.editCell('stress:1', 'quantityText', '-1')).toThrow();
+    expect(() => ws.editCell('stress:1', 'unitCost', '1,2')).toThrow();
+    expect(() => ws.editCell('stress:1', 'uom', '')).toThrow();
+    expect(() => ws.editCell('missing', 'uom', '件')).toThrow('不存在');
+    expect(ws.draft()).toBe(valid);
+    expect(ws.dataset()?.structures.catalog[1].quantity).toBe('1');
+  });
+
+  it('差异包含删除行及上下文，切换回来恢复完整表格和展开状态', async () => {
+    respond(6);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    ws.setExpanded([]);
+    ws.editCell('stress:1', 'quantityText', '3');
+    ws.remove(['stress:5']);
+    ws.add(null, 'NEW', '1', '件');
+    ws.toggleDiffMode();
+    expect(ws.diffSummary()).toEqual({ added: 1, changed: 1, removed: 1 });
+    expect(ws.result().rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'stress:1', diffStatus: 'changed', diffFields: ['quantity'] }),
+        expect.objectContaining({ key: 'stress:5', diffStatus: 'removed' }),
+        expect.objectContaining({ partId: 'NEW', diffStatus: 'added' })
+      ])
+    );
+    expect(ws.expanded()).toContain('stress:0');
+    ws.toggleDiffMode();
+    expect(ws.expanded()).toEqual([]);
+    expect(ws.result().rows.every(row => !row.diffStatus)).toBe(true);
+    expect(ws.result().rows.some(row => row.key === 'stress:5')).toBe(false);
+  });
+
+  it('新位置范围与汇总模式都按发生位置比较，不访问不存在的基线范围', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    ws.add(null, 'NEW', '1', '件');
+    const key = ws.draft()!.nodes.at(-1)!.key;
+    ws.updateQuery({ scope: key, mode: 'summary' });
+    ws.toggleDiffMode();
+    expect(ws.result().rows).toHaveLength(1);
+    expect(ws.result().rows[0]).toMatchObject({ key, diffStatus: 'added' });
+    expect(ws.result().rows[0].members).toBeUndefined();
+  });
+
+  it('提交刷新 HEAD 比较基准，撤销回 HEAD 不再产生空提交', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    await ws.commitDraft('初始版本');
+    ws.editCell('stress:1', 'quantityText', '3');
+    ws.toggleDiffMode();
+    expect(ws.diffSummary().changed).toBe(1);
+    await ws.commitDraft('调整用量');
+    expect(ws.diffChanges()).toEqual([]);
+    expect(ws.result().rows).toEqual([]);
+    expect(ws.diffBase()).toBe(ws.commits()[0].draft);
+    ws.toggleDiffMode();
+    ws.editCell('stress:1', 'quantityText', '4');
+    ws.undo();
+    expect(ws.diffChanges()).toEqual([]);
+    expect(ws.activeBranch()?.dirty).toBe(false);
+    await expect(ws.commitDraft('空提交')).rejects.toThrow('没有未提交');
+  });
+
+  it('恢复旧提交保留版本链，并成为可以提交、撤销的新改动', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    await ws.commitDraft('初始版本');
+    const original = ws.commits()[0];
+    ws.editCell('stress:1', 'quantityText', '3');
+    await expect(ws.restoreCommit(original.id)).rejects.toThrow('请先提交');
+    await ws.commitDraft('调整用量');
+    const head = ws.commits()[0].id;
+    vi.spyOn(DraftVersionStore.prototype, 'restore').mockResolvedValue(structuredClone(original.draft));
+    await ws.restoreCommit(original.id);
+    expect(ws.activeBranch()).toMatchObject({ dirty: true, headCommitId: head });
+    expect(ws.diffSummary().changed).toBe(1);
+    ws.undo();
+    expect(ws.diffChanges()).toEqual([]);
+    expect(ws.activeBranch()?.dirty).toBe(false);
+    ws.redo();
+    await ws.commitDraft('恢复初始用量');
+    expect(ws.commits()).toHaveLength(3);
+    expect(ws.commits()[0].parentId).toBe(head);
+    expect(ws.diffChanges()).toEqual([]);
+  });
+});
+
+describe('版本基线隔离', () => {
+  it('切换尚无提交的分支时，差异仍相对各自建立时的结构', async () => {
+    const documents = new Map<string, unknown>();
+    vi.mocked(WorkspaceRepository.prototype.write).mockImplementation(async (key, value) => {
+      documents.set(key, value);
+    });
+    vi.mocked(WorkspaceRepository.prototype.writeMany).mockImplementation(async entries => {
+      for (const [key, value] of entries) documents.set(key, value);
+    });
+    vi.mocked(WorkspaceRepository.prototype.read).mockImplementation(async key => documents.get(key));
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork('完整结构');
+    const first = ws.activeBranchId()!;
+    ws.editCell('stress:1', 'quantityText', '2');
+    ws.changeStructure('catalog');
+    ws.updateQuery({ scope: 'stress:2' });
+    ws.fork('局部结构');
+    await ws.switchDraftBranch(first);
+    expect(ws.diffSummary()).toEqual({ added: 0, removed: 0, changed: 1 });
+  });
+
+  it('浏览来源结构时仍提交完整草稿快照', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    ws.editCell('stress:1', 'quantityText', '2');
+    ws.changeStructure('catalog');
+    await ws.commitDraft('草稿用量');
+    expect(ws.versions.entries()[0].structure).toBe('draft');
+    expect(ws.commits()[0].draft.nodes[1].quantity).toBe('2');
+  });
+});
+
+describe('差异视图筛选边界', () => {
+  it('按变化前的属性匹配时仍显示当前值，计数只包括当前范围', async () => {
+    respond(4);
+    const ws = new BomWorkspace();
+    await ws.initialize();
+    ws.fork();
+    ws.editCell('stress:1', 'quantityText', '');
+    await ws.commitDraft('待确认用量');
+    ws.editCell('stress:1', 'quantityText', '5');
+    ws.editCell('stress:2', 'quantityText', '2');
+    ws.updateQuery({ issue: 'quantity' });
+    ws.toggleDiffMode();
+    expect(ws.result().rows.find(row => row.key === 'stress:1')).toMatchObject({
+      quantity: '5',
+      diffStatus: 'changed'
+    });
+    expect(ws.result().matched).toBe(1);
+    ws.remove(['stress:0']);
+    ws.enter('stress:0');
+    expect(ws.query().scope).toBeNull();
+    expect(() => ws.result()).not.toThrow();
+  });
+});

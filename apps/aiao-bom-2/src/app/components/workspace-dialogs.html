@@ -23,7 +23,7 @@
           }
           <label>
             分支名称
-            <input name="branchName" maxlength="80" placeholder="例如 底盘校核" value="work" required />
+            <input maxlength="80" name="branchName" placeholder="例如 底盘校核" required value="work" />
           </label>
         }
         @case ('commit') {
@@ -34,7 +34,7 @@
           </div>
           <label>
             提交说明
-            <input name="message" maxlength="120" placeholder="例如 确认底盘用量" required />
+            <input maxlength="120" name="message" placeholder="例如 确认底盘用量" required />
           </label>
         }
         @case ('edit') {
@@ -170,25 +170,6 @@
             <p class="muted">展示前 200 条，完整草稿可导出 JSON。</p>
           }
         }
-        @case ('compare') {
-          <p>保存一个基线，再编辑工作草稿，可对比数量、单位、父项、物料和成本变化。</p>
-          <button [disabled]="!ws.draft()" (click)="ws.saveBaseline()" type="button">
-            <bom2-icon name="copy" />
-            将当前草稿保存为基线
-          </button>
-          @if (ws.baseline()) {
-            <p>基线修订 r{{ ws.baseline()?.revision }} · {{ differences().length | number }} 项变化</p>
-            <div class="result-list">
-              @for (change of differences().slice(0, 250); track $index) {
-                <div>
-                  <code>{{ change.key }}</code>
-                  <span>{{ change.field }}</span>
-                  <span>{{ change.before || '∅' }} → {{ change.after || '∅' }}</span>
-                </div>
-              }
-            </div>
-          }
-        }
         @case ('revision') {
           <bom2-version-panel />
         }
@@ -216,32 +197,6 @@
           </div>
           <button (click)="realData()" type="button">返回 Windrose 真实数据</button>
         }
-        @case ('sources') {
-          <div class="info-box">来源版本标签 2026-12 晚于采集日 2026-11-13，作为来源声明保存。</div>
-          <dl>
-            <dt>主 BOM</dt>
-            <dd>1,424 个 Group · 40 个 Family · 503 项缺量 · 2 项歧义用量</dd>
-            <dt>采购层级</dt>
-            <dd>813 个位置 · 607 个不同 Group · 无发生项用量</dd>
-            <dt>整车模型</dt>
-            <dd>EU X9D13C · 8,791 个场景节点 · 25,881,736 字节</dd>
-            <dt>模型覆盖</dt>
-            <dd>主清单 1,170 个 Group 有候选参考，非全市场变体匹配保证</dd>
-          </dl>
-          <div class="source-links">
-            <a href="https://www.windrose.ai/bom?lang=zh" rel="noreferrer" target="_blank">Windrose 主 BOM ↗</a>
-            <a href="https://www.windrose.ai/technology" rel="noreferrer" target="_blank">Windrose 技术与 3D ↗</a>
-            <a
-              href="https://www.workbuddy.link/p/PkiIx75v5kSuQdJMZG0SDq?pn=1300001X9D01"
-              rel="noreferrer"
-              target="_blank"
-            >
-              WorkBuddy 备件查看器 ↗
-            </a>
-            <a href="/data/provenance.json" target="_blank">下载来源及哈希记录 ↗</a>
-          </div>
-          <p>系统分类与 CAD 父子关系均不能直接视为制造 BOM。主清单参考数量、市场备货数量和 FOB 报价分别保留语义。</p>
-        }
         @case ('help') {
           <ol>
             <li>选择结构来源，在左侧进入系统或双击装配缩小范围。</li>
@@ -263,9 +218,9 @@
     </div>
     <footer>
       <button (click)="close()" type="button">
-        {{ ['help', 'sources', 'validate', 'compare', 'revision'].includes(kind()) ? '关闭' : '取消' }}
+        {{ ['help', 'validate', 'revision'].includes(kind()) ? '关闭' : '取消' }}
       </button>
-      @if (!['help', 'sources', 'validate', 'compare', 'revision'].includes(kind())) {
+      @if (!['help', 'validate', 'revision'].includes(kind())) {
         <button class="primary" [disabled]="busy()" type="submit">
           {{
             kind() === 'analysis' ? '计算'

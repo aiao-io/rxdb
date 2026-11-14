@@ -25,7 +25,7 @@ export class App implements OnInit, OnDestroy {
   readonly navSearch = signal('');
   readonly gridScrollWidth = signal(0);
   readonly gridViewportWidth = signal(0);
-  readonly detailTab = signal<'properties' | 'usage' | 'source'>('properties');
+  readonly detailTab = signal<'properties' | 'usage'>('properties');
   readonly modelLarge = signal(false);
   readonly panelWidth = signal(Number(localStorage.getItem('bom2:panel-width')) || 366);
   readonly navItems = computed(() =>
@@ -80,6 +80,13 @@ export class App implements OnInit, OnDestroy {
   }
   scrollGrid(event: Event): void {
     this.grid()?.setHorizontalScroll((event.target as HTMLElement).scrollLeft);
+  }
+  cellChanged(event: { key: string; field: 'quantityText' | 'uom' | 'unitCost'; value: string }): void {
+    try {
+      this.ws.editCell(event.key, event.field, event.value);
+    } catch (error) {
+      this.ws.notice.set(error instanceof Error ? error.message : String(error));
+    }
   }
   checked(event: { key: string; checked: boolean; members?: string[] }): void {
     this.ws.selectedKeys.update(keys => {

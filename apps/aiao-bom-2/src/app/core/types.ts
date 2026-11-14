@@ -3,6 +3,7 @@ export type Market = (typeof MARKETS)[number];
 export type Structure = 'catalog' | 'purchase' | 'cad' | 'draft';
 export type ViewMode = 'tree' | 'flat' | 'summary';
 export type QuantityState = 'missing' | 'ambiguous' | 'reference' | 'confirmed';
+export type DiffStatus = 'added' | 'changed' | 'removed';
 export interface ModelAsset {
   id: string;
   url: string;
@@ -104,6 +105,8 @@ export interface BomRow {
   cb: string;
   mb: string;
   sb: string;
+  diffStatus?: DiffStatus;
+  diffFields?: string[];
 }
 export interface QueryResult {
   roots: BomRow[];

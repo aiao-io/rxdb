@@ -51,9 +51,6 @@ test('草稿编辑、撤销重做、刷新恢复、差异与本地提交', async
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('1108100');
   await expect(page.getByTestId('matched-count')).toHaveText('1');
   await clickRow(page, 1);
-  await page.getByRole('button', { name: '差异', exact: true }).click();
-  await page.getByRole('button', { name: '将当前草稿保存为基线' }).click();
-  await page.locator('dialog').getByRole('button', { name: '关闭', exact: true }).click();
   const edit = await dialog(page, '编辑用量');
   await edit.getByRole('textbox', { name: '直接用量', exact: true }).fill('2.5');
   await edit.getByRole('textbox', { name: '单位成本', exact: true }).fill('0.1');
@@ -67,14 +64,15 @@ test('草稿编辑、撤销重做、刷新恢复、差异与本地提交', async
   await page.reload();
   await expect(page.getByTestId('selected-summary')).toContainText('2.5');
   await page.getByRole('button', { name: '差异', exact: true }).click();
-  await expect(page.locator('dialog')).toContainText('1 → 2.5');
-  await page.locator('dialog').getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('data-row-count', '2');
+  await page.getByRole('button', { name: /^退出差异/ }).click();
   await page.getByRole('button', { name: '提交版本', exact: true }).click();
   const commit = page.getByRole('dialog');
   await commit.getByRole('textbox', { name: '提交说明', exact: true }).fill('确认草稿用量');
   await commit.getByRole('button', { name: '确认', exact: true }).click();
   await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
   const history = await dialog(page, '版本历史');
+  await history.getByRole('button', { name: /^历史记录/ }).click();
   await expect(history).toContainText('确认草稿用量');
   await expect(history).toContainText('HEAD');
   await expect(history.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);

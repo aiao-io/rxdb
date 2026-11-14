@@ -1,27 +1,14 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { analyzeDraft } from '../core/analysis';
-import { compareDrafts, validateDraft } from '../core/draft';
+import { validateDraft } from '../core/draft';
 import { BomWorkspace } from '../core/workspace';
 import { Icon } from './icon';
 import { VersionPanel } from './version-panel';
 export type DialogKind =
-  | 'help'
-  | 'sources'
-  | 'fork'
-  | 'commit'
-  | 'edit'
-  | 'add'
-  | 'move'
-  | 'remove'
-  | 'validate'
-  | 'analysis'
-  | 'compare'
-  | 'revision'
-  | 'stress';
+  'help' | 'fork' | 'commit' | 'edit' | 'add' | 'move' | 'remove' | 'validate' | 'analysis' | 'revision' | 'stress';
 const TITLES: Record<DialogKind, string> = {
   help: 'BOM 工作台使用说明',
-  sources: '数据来源与使用口径',
   fork: '建立工作草稿',
   commit: '提交工作版本',
   edit: '编辑所选发生项',
@@ -30,8 +17,7 @@ const TITLES: Record<DialogKind, string> = {
   remove: '删除所选发生项',
   validate: '草稿校验',
   analysis: '需求展开与成本',
-  compare: '草稿差异比较',
-  revision: '版本快照与日期比较',
+  revision: '版本历史',
   stress: '大规模 BOM 验收'
 };
 @Component({
@@ -48,9 +34,6 @@ export class WorkspaceDialogs {
   readonly error = signal('');
   readonly analysis = signal<ReturnType<typeof analyzeDraft> | null>(null);
   readonly diagnostics = computed(() => (this.ws.draft() ? validateDraft(this.ws.draft()!) : []));
-  readonly differences = computed(() =>
-    this.ws.draft() && this.ws.baseline() ? compareDrafts(this.ws.baseline()!, this.ws.draft()!) : []
-  );
   readonly parents = computed(
     () =>
       this.ws

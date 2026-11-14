@@ -6,10 +6,12 @@ import {
   effect,
   input,
   output,
+  signal,
   untracked,
   viewChild
 } from '@angular/core';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
+import type { ITextStyleOption, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types/index.js';
 import { RowWindows } from '../core/row-window';
 import type { BomRow, QueryResult, ViewMode } from '../core/types';
 interface GridRecord extends BomRow {
@@ -60,13 +62,15 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private table: ListTable | null = null;
   private factory: typeof import('@visactor/vtable') | null = null;
   private released = false;
+  private readonly editorsReady = signal(false);
+  private editorRegistration: Promise<void> | null = null;
   private suppressSelection = false;
   private observer: ResizeObserver | null = null;
   private generation = 0;
   private additive = false;
   private expandedKeys = new Set<string>();
   private readonly pageLimits = new Map<string | null, number>();
-  private readonly positions = new Map<string, number>();
+  private readonly positions = new Map<string, number | number[]>();
   private windows: RowWindows<BomRow, GridRecord> | null = null;
   private previousResult: QueryResult | null = null;
   private renderedMode: ViewMode | null = null;
@@ -79,9 +83,11 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   readonly selection = input<string | null>(null);
   readonly expanded = input<string[]>([]);
   readonly checkedKeys = input<Set<string>>(new Set());
+  readonly editable = input(false);
   readonly rowSelect = output<{ row: BomRow; additive: boolean }>();
   readonly enter = output<string>();
   readonly checked = output<{ key: string; checked: boolean; members?: string[] }>();
+  readonly cellChanged = output<{ key: string; field: 'quantityText' | 'uom' | 'unitCost'; value: string }>();
   readonly expandedChange = output<string[]>();
   readonly columnWidths = output<{ field: string; width: number }[]>();
   readonly scrollMetrics = output<{ width: number; viewport: number; left: number }>();
@@ -92,8 +98,11 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       this.mode();
       this.compact();
       this.columns();
+      this.editable();
+      this.editorsReady();
       untracked(() => {
-        if (this.table) this.refresh();
+        if (this.editable()) void this.ensureEditors();
+        if (this.table) this.refresh(true);
       });
     });
     effect(() => {
@@ -117,6 +126,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   }
   async ngAfterViewInit(): Promise<void> {
     this.factory = await import('@visactor/vtable');
+    if (this.editable()) await this.ensureEditors();
     if (this.released) return;
     this.table = new this.factory.ListTable(this.host().nativeElement, this.options());
     this.bind();
@@ -151,28 +161,48 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private readonly capturePointer = (event: PointerEvent): void => {
     this.additive = event.ctrlKey || event.metaKey;
   };
+  private ensureEditors(): Promise<void> {
+    this.editorRegistration ??= Promise.all([import('@visactor/vtable'), import('@visactor/vtable-editors')]).then(
+      ([table, editors]) => {
+        table.register.editor('bom-input-editor', new editors.InputEditor());
+        if (!this.released) this.editorsReady.set(true);
+      }
+    );
+    return this.editorRegistration;
+  }
+  private canEdit(row: GridRecord | null | undefined): boolean {
+    return (
+      this.editable() &&
+      this.editorsReady() &&
+      this.mode() !== 'summary' &&
+      Boolean(row && row.pageParent === undefined && row.diffStatus !== 'removed' && !row.members)
+    );
+  }
   private options(): ListTableConstructorOptions {
     const tree = this.mode() === 'tree';
     const columns: ListTableConstructorOptions['columns'] = [
       { field: 'selected', title: '', width: 38, cellType: 'checkbox', headerType: 'text' },
       ...this.columns()
         .filter(c => c.visible)
-        .map(c => ({
-          field: c.field,
-          title: c.title,
-          width: c.width,
-          tree: c.field === 'name' && tree,
-          sort: false,
-          style: {
-            color: c.field === 'partId' || c.field === 'compId' ? '#687384' : '#344054',
-            fontFamily:
-              c.field === 'partId' || c.field === 'compId' ?
-                'ui-monospace, monospace'
-              : 'Inter, "PingFang SC", sans-serif',
-            fontSize: 12,
-            padding: [0, 12, 0, 12]
-          }
-        }))
+        .map(c => {
+          const column = {
+            field: c.field,
+            title: c.title,
+            width: c.width,
+            tree: c.field === 'name' && tree,
+            sort: false,
+            style: (args: StylePropertyFunctionArg) => this.cellStyle(c, args),
+            ...(this.isEditableField(c.field) ?
+              {
+                editor: (args: StylePropertyFunctionArg) =>
+                  this.canEdit(args.table.getCellOriginRecord(args.col, args.row) as GridRecord | undefined) ?
+                    'bom-input-editor'
+                  : ''
+              }
+            : {})
+          };
+          return column;
+        })
     ];
     return {
       records: [],
@@ -188,6 +218,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       enableCheckboxCascade: false,
       enableHeaderCheckboxCascade: false,
       keyboardOptions: { copySelected: true, moveFocusCellOnTab: true },
+      editCellTrigger: ['keydown', 'doubleclick'],
       tooltip: { renderMode: 'html', isShowOverflowTextTooltip: true },
       theme: {
         underlayBackgroundColor: '#fff',
@@ -231,12 +262,12 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       this.previousResult = this.result();
     }
     this.positions.clear();
-    this.result().roots.forEach((row, index) => this.positions.set(row.key, index));
     const options = this.options();
     if (this.mode() === 'tree') {
       this.windows = null;
       options.records = this.build(this.result().roots, null);
     } else {
+      this.result().roots.forEach((row, index) => this.positions.set(row.key, index));
       const windows = new RowWindows(this.result().roots, row => this.project(row));
       this.windows = windows;
       delete options.records;
@@ -264,20 +295,65 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private project(row: BomRow): GridRecord {
     return {
       ...row,
+      name: row.diffStatus ? `${{ added: 'U', changed: 'M', removed: 'D' }[row.diffStatus]}  ${row.name}` : row.name,
       selected: row.members ? row.members.every(key => this.checkedKeys().has(key)) : this.checkedKeys().has(row.key),
       quantityText: row.quantity ?? '—',
       modelText: row.has3d ? '◈ 可用' : '—',
       statusText:
-        row.conflict ? `冲突 ${row.conflict}`
+        row.diffStatus === 'added' ? 'U 新增'
+        : row.diffStatus === 'changed' ? 'M 修改'
+        : row.diffStatus === 'removed' ? '删除'
+        : row.conflict ? `冲突 ${row.conflict}`
         : row.quantityState === 'confirmed' ? '已确认'
         : row.quantityState === 'reference' ? '参考用量'
         : row.kind === 'system' ? '分类'
         : '用量待补'
     };
   }
+  private isEditableField(field: string): field is 'quantityText' | 'uom' | 'unitCost' {
+    return field === 'quantityText' || field === 'uom' || field === 'unitCost';
+  }
+  private changedField(field: string, fields: string[] | undefined): boolean {
+    if (!fields) return false;
+    if (field === 'quantityText') return fields.includes('quantity') || fields.includes('quantityState');
+    if (field === 'unitCost') return fields.includes('unitCost');
+    if (field === 'uom') return fields.includes('uom');
+    if (field === 'name') return fields.includes('label') || fields.includes('parentKey');
+    if (field === 'partId') return fields.includes('partId');
+    if (field === 'compId') return fields.includes('compId');
+    return fields.includes(field);
+  }
+  private cellStyle(column: GridColumn, args: StylePropertyFunctionArg): ITextStyleOption {
+    const base = {
+      color: column.field === 'partId' || column.field === 'compId' ? '#687384' : '#344054',
+      fontFamily:
+        column.field === 'partId' || column.field === 'compId' ?
+          'ui-monospace, monospace'
+        : 'Inter, "PingFang SC", sans-serif',
+      fontSize: 12,
+      padding: [0, 12, 0, 12]
+    };
+    const record = args.table.getRecordByCell(args.col, args.row) as GridRecord | undefined;
+    if (!record?.diffStatus) return base;
+    if (record.diffStatus === 'removed')
+      return { ...base, color: '#9a6c6c', bgColor: '#fff5f3', lineThrough: true, lineThroughColor: '#b96c6c' };
+    if (this.changedField(column.field, record.diffFields))
+      return {
+        ...base,
+        color: '#765d14',
+        bgColor: '#fff8d6',
+        marked: { bgColor: '#e8bd35', position: 'left-top', size: 4 }
+      };
+    if (record.diffStatus === 'added') return { ...base, color: '#277145', bgColor: '#edf9ef' };
+    if (record.diffStatus === 'changed' && (column.field === 'statusText' || column.field === 'name'))
+      return { ...base, color: '#765d14', fontWeight: 650 };
+    return base;
+  }
   private build(rows: BomRow[], parent: string | null): GridRecord[] {
     const limit = this.pageLimits.get(parent) ?? 500;
-    const records = rows.slice(0, limit).map(row => {
+    const position = parent === null ? [] : (this.positions.get(parent) as number[]);
+    const records = rows.slice(0, limit).map((row, index) => {
+      this.positions.set(row.key, [...position, index]);
       const record = this.project(row);
       const children = this.result().byParent.get(row.key);
       if (!children?.length) return record;
@@ -303,6 +379,19 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   }
   private bind(): void {
     if (!this.table) return;
+    this.table.on('change_cell_value', event => {
+      const row = this.raw(event.col, event.row);
+      const column = this.columns().filter(item => item.visible)[event.col - 1];
+      if (!row || !this.canEdit(row) || !column || !this.isEditableField(column.field)) return;
+      this.cellChanged.emit({
+        key: row.key,
+        field: column.field,
+        value: String(event.changedValue ?? '')
+      });
+      queueMicrotask(() => {
+        if (!this.released) this.refresh(true);
+      });
+    });
     this.table.on('click_cell', event => {
       if (event.row === 0) return;
       const record = this.raw(event.col, event.row);
@@ -318,7 +407,9 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     });
     this.table.on('dblclick_cell', event => {
       const row = this.raw(event.col, event.row);
-      if (row?.hasChildren && row.pageParent === undefined) this.enter.emit(row.key);
+      const column = this.columns().filter(item => item.visible)[event.col - 1];
+      if (column && this.isEditableField(column.field) && this.editable() && this.mode() !== 'summary') return;
+      if (row?.hasChildren && row.pageParent === undefined && row.diffStatus !== 'removed') this.enter.emit(row.key);
     });
     this.table.on('checkbox_state_change', event => {
       const row = this.raw(event.col, event.row);
@@ -345,16 +436,14 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       const row = this.raw(event.col, event.row);
       if (row && row.pageParent === undefined) this.rowSelect.emit({ row, additive: this.additive });
     });
-    this.table.on('resize_column_end', () =>
-      {
-        this.columnWidths.emit(
-          this.columns()
-            .filter(c => c.visible)
-            .map((c, i) => ({ field: c.field, width: this.table!.getColWidth(i + 1) }))
-        );
-        this.reportScrollMetrics();
-      }
-    );
+    this.table.on('resize_column_end', () => {
+      this.columnWidths.emit(
+        this.columns()
+          .filter(c => c.visible)
+          .map((c, i) => ({ field: c.field, width: this.table!.getColWidth(i + 1) }))
+      );
+      this.reportScrollMetrics();
+    });
     this.table.on('scroll', () => {
       this.reportWindows();
       this.reportScrollMetrics();
@@ -394,19 +483,13 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   }
   private address(key: string): { col: number; row: number } | null {
     if (!this.table) return null;
-    if (this.mode() !== 'tree') {
-      const index = this.positions.get(key);
-      return index === undefined ? null : { col: 1, row: index + 1 };
-    }
-    return this.table.getCellAddress(
-      (record: unknown) => Boolean(record && typeof record === 'object' && 'key' in record && record.key === key),
-      'name'
-    );
+    const index = this.positions.get(key);
+    return index === undefined ? null : this.table.getCellAddrByFieldRecord('name', index);
   }
   private locate(key: string): void {
     if (!this.table) return;
     const address = this.address(key);
-    if (!address || address.row < 1) return;
+    if (!address || !Number.isInteger(address.row) || address.row < 1) return;
     this.suppressSelection = true;
     try {
       this.table.selectCell(address.col, address.row, false, false, true);

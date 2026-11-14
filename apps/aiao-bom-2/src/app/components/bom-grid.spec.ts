@@ -12,6 +12,7 @@ type CellEvent = {
   row: number;
   event?: MouseEvent | KeyboardEvent;
   checked?: boolean;
+  changedValue?: string;
   hierarchyState?: 'expand' | 'collapse';
 };
 class FakeDataSource {
@@ -62,7 +63,18 @@ class FakeTable {
     return this.records()[row - 1];
   }
   getCellAddress(predicate: (record: unknown) => boolean): { col: number; row: number } {
-    return { col: 1, row: this.records().findIndex(predicate) + 1 };
+    const index = (this.options.records as RecordRow[]).findIndex(predicate);
+    return { col: 1, row: index < 0 ? Number.NaN : index + 1 };
+  }
+  getCellAddrByFieldRecord(_field: string, index: number | number[]): { col: number; row: number } {
+    if (typeof index === 'number') return { col: 1, row: index + 1 };
+    let record: RecordRow | undefined;
+    let records = this.options.records as RecordRow[];
+    for (const part of index) {
+      record = records[part];
+      records = Array.isArray(record?.children) ? record.children : [];
+    }
+    return { col: 1, row: this.records().indexOf(record!) + 1 };
   }
   getBodyVisibleCellRange() {
     return { rowStart: 1, rowEnd: Math.min(4, this.records().length) };
@@ -77,7 +89,12 @@ class FakeTable {
     this.getCellOriginRecord(col, row)!.children = children;
   }
 }
-vi.mock('@visactor/vtable', () => ({ ListTable: FakeTable, data: { DataSource: FakeDataSource } }));
+vi.mock('@visactor/vtable-editors', () => ({ InputEditor: class {} }));
+vi.mock('@visactor/vtable', () => ({
+  ListTable: FakeTable,
+  data: { DataSource: FakeDataSource },
+  register: { editor: vi.fn() }
+}));
 let fixture: ComponentFixture<BomGrid>;
 async function mount(count = 12, mode: ViewMode = 'tree', shape: 'balanced' | 'wide' = 'balanced'): Promise<BomIndex> {
   const index = new BomIndex(makeStressDataset(count, shape), 'catalog');
@@ -129,7 +146,7 @@ describe('Canvas 表格适配与发生位置身份', () => {
     fixture.componentRef.setInput('selection', 'stress:2');
     fixture.detectChanges();
     await Promise.resolve();
-    expect(table.selectCell).toHaveBeenCalled();
+    expect(table.selectCell).toHaveBeenLastCalledWith(1, 3, false, false, true);
     expect(selected).toHaveBeenCalledTimes(2);
     fixture.componentRef.setInput('checkedKeys', new Set(['stress:1']));
     fixture.detectChanges();
@@ -220,5 +237,42 @@ describe('Canvas 表格适配与发生位置身份', () => {
     fixture.detectChanges();
     await Promise.resolve();
     expect(FakeTable.current.options.defaultRowHeight).toBe(45);
+  });
+});
+
+describe('表格草稿编辑边界', () => {
+  it('只读表格切换为草稿后加载编辑器，仅真实发生位置的可编辑列发出修改', async () => {
+    await mount();
+    const table = await import('@visactor/vtable');
+    vi.mocked(table.register.editor).mockClear();
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(table.register.editor).toHaveBeenCalled());
+    const changed = vi.fn();
+    fixture.componentInstance.cellChanged.subscribe(changed);
+    FakeTable.current.fire('change_cell_value', { col: 4, row: 2, changedValue: '3' });
+    expect(changed).toHaveBeenLastCalledWith({ key: 'stress:1', field: 'quantityText', value: '3' });
+    changed.mockClear();
+    FakeTable.current.fire('change_cell_value', { col: 1, row: 2, changedValue: 'name' });
+    expect(changed).not.toHaveBeenCalled();
+    fixture.componentRef.setInput('mode', 'summary');
+    fixture.detectChanges();
+    FakeTable.current.fire('change_cell_value', { col: 4, row: 2, changedValue: '7' });
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('双击可编辑属性不会进入装配范围', async () => {
+    await mount();
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(FakeTable.current.options.columns?.length).toBeGreaterThan(1));
+    await Promise.resolve();
+    fixture.detectChanges();
+    const entered = vi.fn();
+    fixture.componentInstance.enter.subscribe(entered);
+    FakeTable.current.fire('dblclick_cell', { col: 4, row: 1 });
+    expect(entered).not.toHaveBeenCalled();
+    FakeTable.current.fire('dblclick_cell', { col: 1, row: 1 });
+    expect(entered).toHaveBeenCalledWith('stress:0');
   });
 });

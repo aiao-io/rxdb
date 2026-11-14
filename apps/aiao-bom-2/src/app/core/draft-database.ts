@@ -115,7 +115,8 @@ export async function openDraftDatabase(datasetId: string) {
           draft
         });
       }
-      return { headCommitId: log.headCommitId, dirty: !status.clean, commits };
+      const headCommitId = commits.find(commit => commit.id === log.headCommitId)?.id ?? null;
+      return { headCommitId, dirty: !headCommitId || !status.clean, commits };
     },
     async restore(commitId: string): Promise<DraftState> {
       const status = await db.workingTree.status();

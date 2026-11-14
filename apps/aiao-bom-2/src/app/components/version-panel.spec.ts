@@ -72,6 +72,7 @@ describe('版本快照操作面板', () => {
     await ws.commitDraft('建立底盘基线');
     ws.edit(['stress:1'], '2.5', '件', null);
     await ws.commitDraft('确认第一项用量');
+    panel.historyTab.set('history');
     fixture.detectChanges();
     expect(root().textContent).toContain('底盘校核');
     expect(root().textContent).toContain('确认第一项用量');
@@ -149,5 +150,26 @@ describe('版本快照操作面板', () => {
     expect(panel.fieldValue({ ...node, quantityState: 'ambiguous' }, 'quantityState')).toBe('歧义');
     expect(panel.value({ target: { value: 'x' } } as unknown as Event)).toBe('x');
     expect(panel.name('purchase')).toBe('采购层级');
+  });
+});
+
+describe('当前改动与历史浏览', () => {
+  it('默认展示具体属性的前后值并能提交，切到历史可以查看每次提交', async () => {
+    ws.fork('用量核对');
+    await ws.commitDraft('初始结构');
+    ws.editCell('stress:1', 'quantityText', '2.5');
+    fixture.detectChanges();
+    expect(root().querySelector('[aria-label="当前改动"]')?.textContent).toContain('直接用量');
+    expect(root().querySelector('[aria-label="当前改动"]')?.textContent).toContain('1 → 2.5');
+    panel.commitMessage.setValue('调整用量');
+    await panel.commitCurrent();
+    fixture.detectChanges();
+    expect(panel.currentChanges()).toEqual([]);
+    expect(root().textContent).toContain('工作树干净');
+    panel.historyTab.set('history');
+    panel.selectedCommitId.set(ws.commits()[0].id);
+    fixture.detectChanges();
+    expect(root().querySelector('[aria-label="提交改动详情"]')?.textContent).toContain('1 → 2.5');
+    expect(panel.selectedCommitChanges()).toHaveLength(1);
   });
 });

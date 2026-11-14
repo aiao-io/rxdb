@@ -39,9 +39,6 @@
     </button>
     <button (click)="dialogs().open('stress')" aria-label="规模测试" title="规模测试"><bom2-icon name="bolt" /></button>
     <span class="rail-spacer"></span>
-    <button (click)="dialogs().open('sources')" aria-label="数据来源" title="数据来源">
-      <bom2-icon name="link" />
-    </button>
   </nav>
   <aside class="systems" aria-label="系统导航">
     <div class="sidebar-title">
@@ -119,10 +116,6 @@
       <button (click)="ws.updateQuery({ issue: ws.query().issue === 'quantity' ? 'all' : 'quantity' })">
         <i class="amber-dot"></i>
         {{ ws.stats().missing | number }} 用量待补
-      </button>
-      <button class="strip-info" (click)="dialogs().open('sources')">
-        <bom2-icon name="info" />
-        来源与口径
       </button>
     </div>
     <div class="content-area">
@@ -277,12 +270,13 @@
             <select
               class="branch-select"
               [disabled]="ws.versionBusy()"
-              [value]="ws.activeBranchId() ?? ''"
               (change)="ws.switchDraftBranch(value($event))"
               aria-label="当前工作分支"
             >
               @for (branch of ws.branches(); track branch.id) {
-                <option [value]="branch.id">{{ branch.name }}{{ branch.dirty ? ' · 未提交' : '' }}</option>
+                <option [selected]="branch.id === ws.activeBranchId()" [value]="branch.id">
+                  {{ branch.name }}{{ branch.dirty ? ' · 未提交' : '' }}
+                </option>
               }
             </select>
             <span>r{{ ws.draft()?.revision }} · 已选 {{ ws.selectedKeys().size }} 项</span>
@@ -299,24 +293,48 @@
             <button [disabled]="!ws.canRedo() || ws.versionBusy()" (click)="ws.redo()" aria-label="重做">
               <bom2-icon name="redo" />
             </button>
-            <button [disabled]="!ws.selectedKeys().size || ws.versionBusy()" (click)="dialogs().open('edit')">
+            <button
+              [disabled]="!ws.selectedKeys().size || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('edit')"
+            >
               <bom2-icon name="edit" />
               编辑用量
             </button>
-            <button [disabled]="ws.versionBusy()" (click)="dialogs().open('add')">
+            <button [disabled]="ws.versionBusy() || ws.diffMode()" (click)="dialogs().open('add')">
               <bom2-icon name="plus" />
               新增
             </button>
-            <button [disabled]="ws.selectedKeys().size !== 1 || ws.versionBusy()" (click)="dialogs().open('move')">
+            <button
+              [disabled]="ws.selectedKeys().size !== 1 || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('move')"
+            >
               移动
             </button>
-            <button [disabled]="!ws.selectedKeys().size || ws.versionBusy()" (click)="dialogs().open('remove')">
+            <button
+              [disabled]="!ws.selectedKeys().size || ws.versionBusy() || ws.diffMode()"
+              (click)="dialogs().open('remove')"
+              aria-label="删除所选发生项"
+              title="删除所选发生项"
+            >
               <bom2-icon name="trash" />
             </button>
             <span class="toolbar-spacer"></span>
             <button (click)="dialogs().open('validate')">校验</button>
             <button (click)="dialogs().open('analysis')">需求 / 成本</button>
-            <button (click)="dialogs().open('compare')">差异</button>
+            <button
+              class="diff-button"
+              [attr.aria-label]="ws.diffMode() ? '退出差异' : '差异'"
+              [attr.aria-pressed]="ws.diffMode()"
+              [class.active]="ws.diffMode()"
+              [disabled]="ws.versionBusy()"
+              (click)="ws.toggleDiffMode()"
+              title="只显示当前工作树相对 HEAD 的新增、删除和修改"
+            >
+              {{ ws.diffMode() ? '退出差异' : '差异' }}
+              @if (ws.diffSummary().added + ws.diffSummary().removed + ws.diffSummary().changed) {
+                <span>{{ ws.diffSummary().added + ws.diffSummary().removed + ws.diffSummary().changed }}</span>
+              }
+            </button>
           </div>
         }
         <div class="grid-area">
@@ -341,22 +359,36 @@
           } @else if (!ws.result().rows.length) {
             <div class="empty-state">
               <bom2-icon name="search" />
-              <h3>当前范围没有匹配项</h3>
-              <p>尝试更换搜索条件或返回全部结构。</p>
-              <button (click)="ws.updateQuery({ scope: null, search: '', issue: 'all', market: '', only3d: false })">
-                清除筛选
-              </button>
+              <h3>{{ ws.diffMode() && !ws.diffChanges().length ? '当前没有未提交改动' : '当前范围没有匹配项' }}</h3>
+              <p>
+                {{
+                  ws.diffMode() && !ws.diffChanges().length ?
+                    '工作树已和比较版本一致，可以退出差异继续编辑。'
+                  : '尝试更换搜索条件或返回全部结构。'
+                }}
+              </p>
+              @if (ws.diffMode() && !ws.diffChanges().length) {
+                <button (click)="ws.toggleDiffMode()">返回完整表格</button>
+              } @else {
+                <button (click)="ws.updateQuery({ scope: null, search: '', issue: 'all', market: '', only3d: false })">
+                  清除筛选
+                </button>
+              }
             </div>
           } @else {
             <bom2-grid
               [checkedKeys]="ws.selectedKeys()"
               [columns]="columns()"
               [compact]="ws.compact()"
+              [editable]="
+                ws.query().structure === 'draft' && !ws.diffMode() && !ws.versionBusy() && ws.query().mode !== 'summary'
+              "
               [expanded]="ws.expanded()"
               [mode]="ws.query().mode"
               [queryKey]="ws.query().search"
               [result]="ws.result()"
               [selection]="ws.selection()"
+              (cellChanged)="cellChanged($event)"
               (checked)="checked($event)"
               (columnWidths)="widths($event)"
               (enter)="ws.enter($event)"
@@ -374,7 +406,12 @@
             {{ ws.result().total | number }} 个结构节点
           </span>
           <span>
-            {{ ws.query().mode === 'tree' ? '双击装配进入范围' : 'Canvas 虚拟表格' }}
+            {{
+              ws.diffMode() ? 'U 新增 · M 修改 · 删除划线 · 黄色单元格为修改属性'
+              : ws.query().structure === 'draft' && ws.query().mode !== 'summary' ? '双击用量、单位或单位成本编辑'
+              : ws.query().mode === 'tree' ? '双击装配进入范围'
+              : '按物料汇总'
+            }}
             <span class="footer-divider">·</span>
             {{ ws.compact() ? '紧凑' : '舒适' }}
           </span>
@@ -385,7 +422,7 @@
             <strong>{{ row.name }}</strong>
             <code>{{ row.compId || row.partId }}</code>
             <span>{{ row.quantity ?? '用量待补' }} {{ row.uom }}</span>
-            <button [disabled]="!row.hasChildren" (click)="ws.enter(row.key)">
+            <button [disabled]="!row.hasChildren || row.diffStatus === 'removed'" (click)="ws.enter(row.key)">
               进入范围
               <bom2-icon name="arrow" />
             </button>
@@ -435,7 +472,6 @@
               使用处
               <span>{{ usages().length }}</span>
             </button>
-            <button [class.active]="detailTab() === 'source'" (click)="detailTab.set('source')">来源</button>
           </div>
           <div class="detail-body">
             @if (ws.selected(); as row) {
@@ -495,26 +531,6 @@
                     <bom2-icon name="arrow" />
                   </button>
                 }
-              } @else {
-                <dl class="property-list">
-                  <dt>数据来源</dt>
-                  <dd>{{ structureNames[ws.query().structure] }}</dd>
-                  <dt>来源记录</dt>
-                  <dd class="mono">{{ row.sourceRef }}</dd>
-                  <dt>位置身份</dt>
-                  <dd class="mono">{{ row.key }}</dd>
-                  <dt>采集日期</dt>
-                  <dd>{{ ws.dataset()?.observedOn }}</dd>
-                  <dt>源父件线索</dt>
-                  <dd>{{ ws.part()?.parentReference || '未提供' }}</dd>
-                </dl>
-                <p class="source-note">
-                  采购层级、系统分类和 CAD 场景各自保留。独立模型与整车参考不代表所有市场变体已验证。
-                </p>
-                <button (click)="dialogs().open('sources')">
-                  查看完整来源记录
-                  <bom2-icon name="arrow" />
-                </button>
               }
             } @else {
               <div class="empty-detail">

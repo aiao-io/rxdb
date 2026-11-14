@@ -1,6 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { compareDraftsDetailed, type DraftChange, type DraftChangeField } from '../core/draft';
 import type { SnapshotChange, SnapshotChangeField } from '../core/snapshot';
 import type { DraftCommit, Occurrence, Structure } from '../core/types';
 import { BomWorkspace } from '../core/workspace';
@@ -36,6 +37,11 @@ export class VersionPanel implements OnInit {
     evaluationDate: new FormControl('', { nonNullable: true, validators: Validators.required })
   });
   readonly error = signal('');
+  readonly snapshotToolsOpen = signal(false);
+  readonly historyTab = signal<'changes' | 'history'>('changes');
+  readonly selectedCommitId = signal<string | null>(null);
+  readonly historyOffset = signal(0);
+  readonly commitMessage = new FormControl('', { nonNullable: true });
   readonly filter = signal('all');
   readonly search = signal('');
   readonly offset = signal(0);
@@ -54,6 +60,7 @@ export class VersionPanel implements OnInit {
     )
   );
   readonly activeBranch = computed(() => this.ws.activeBranch());
+  readonly currentChanges = computed(() => this.ws.diffChanges());
   readonly headCommit = computed(() => {
     const branch = this.activeBranch();
     return branch?.headCommitId ? this.ws.commits().find(commit => commit.id === branch.headCommitId) : undefined;
@@ -73,6 +80,32 @@ export class VersionPanel implements OnInit {
     return history;
   });
 
+  readonly selectedCommit = computed<DraftCommit | undefined>(
+    () => this.branchCommits().find(commit => commit.id === this.selectedCommitId()) ?? this.branchCommits()[0]
+  );
+  readonly selectedCommitChanges = computed(() => {
+    const commit = this.selectedCommit();
+    if (!commit) return [];
+    const previous = this.ws.commits().find(item => item.id === commit.parentId)?.draft;
+    return compareDraftsDetailed(previous ?? { ...commit.draft, nodes: [] }, commit.draft);
+  });
+  readonly visibleCommitChanges = computed(() =>
+    this.selectedCommitChanges().slice(this.historyOffset() * this.pageSize, (this.historyOffset() + 1) * this.pageSize)
+  );
+
+  chooseCommit(id: string): void {
+    this.selectedCommitId.set(id);
+    this.historyOffset.set(0);
+  }
+  changeDetails(change: DraftChange): string {
+    const fields = change.kind === 'changed' ? change.fields : (['quantity', 'uom'] as const);
+    return fields
+      .map(
+        field =>
+          `${this.changeFields([field])}：${this.draftValue(change.before, field)} → ${this.draftValue(change.after, field)}`
+      )
+      .join('；');
+  }
   ngOnInit(): void {
     this.form.controls.evaluationDate.setValue(this.ws.dataset()?.observedOn ?? '');
   }
@@ -96,11 +129,39 @@ export class VersionPanel implements OnInit {
     if (!parent?.snapshotId || !commit.snapshotId) return;
     await this.choose('before', parent.snapshotId);
     await this.choose('after', commit.snapshotId);
+    this.snapshotToolsOpen.set(true);
+  }
+  changeKind(kind: 'added' | 'removed' | 'changed'): string {
+    return { added: 'U 新增', removed: '删除', changed: 'M 修改' }[kind];
+  }
+  changeFields(fields: string[]): string {
+    const labels: Record<string, string> = {
+      quantity: '直接用量',
+      quantityState: '用量状态',
+      uom: '单位',
+      unitCost: '单位成本',
+      parentKey: '父位置',
+      partId: '物料编码',
+      compId: '变体件号',
+      label: '名称',
+      markets: '适用市场'
+    };
+    return fields.map(field => labels[field] ?? field).join('、');
+  }
+  async commitCurrent(): Promise<void> {
+    this.error.set('');
+    try {
+      await this.ws.commitDraft(this.commitMessage.value);
+      this.commitMessage.setValue('');
+    } catch (error) {
+      this.fail(error);
+    }
   }
   async restoreCommit(id: string): Promise<void> {
     this.error.set('');
     try {
       await this.ws.restoreCommit(id);
+      this.historyTab.set('changes');
     } catch (error) {
       this.fail(error);
     }
@@ -152,6 +213,13 @@ export class VersionPanel implements OnInit {
     } catch (error) {
       this.fail(error);
     }
+  }
+  private draftValue(node: Occurrence | null, field: DraftChangeField): string {
+    if (!node) return '∅';
+    if (field === 'parentKey') return node.parentKey ?? '根位置';
+    if (field === 'quantityState') return this.fieldValue(node, 'quantityState');
+    const value = node[field];
+    return Array.isArray(value) ? value.join(' / ') || '未声明' : String(value ?? '—');
   }
   private matches(change: SnapshotChange): boolean {
     const filter = this.filter();

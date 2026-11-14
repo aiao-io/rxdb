@@ -344,9 +344,6 @@ h1 {
 .source-strip .source-label {
   color: #58746a;
 }
-.source-strip .strip-info {
-  margin-left: auto;
-}
 .content-area {
   flex: 1;
   min-height: 0;
@@ -557,6 +554,7 @@ kbd {
 }
 .draft-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
@@ -564,15 +562,35 @@ kbd {
   border-top: 1px solid #dceee6;
 }
 .draft-toolbar > span {
+  white-space: nowrap;
   font-size: 10px;
   color: #5e796c;
   margin-right: 6px;
 }
 .draft-toolbar button {
+  flex: none;
   padding: 4px 6px;
   font-size: 10px;
   background: transparent;
   border: none;
+}
+.draft-toolbar .diff-button {
+  color: #765d14;
+}
+.draft-toolbar .diff-button span {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  margin-left: 3px;
+  border-radius: 9px;
+  background: #f2d56d;
+  color: #674d0c;
+  font-size: 9px;
+}
+.draft-toolbar .diff-button.active {
+  background: #fff3c5;
+  color: #674d0c;
 }
 .grid-area {
   flex: 1;
@@ -1020,9 +1038,6 @@ kbd {
   .notice {
     left: 12px;
     right: 12px;
-  }
-  .draft-toolbar {
-    flex-wrap: wrap;
   }
   .app-footer > span:nth-child(2) {
     display: none;

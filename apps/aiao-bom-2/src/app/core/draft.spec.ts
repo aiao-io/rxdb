@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DraftHistory, compareDrafts, createDraft, exportCsv, parseImport, validateDraft } from './draft';
+import {
+  DraftHistory,
+  compareDrafts,
+  compareDraftsDetailed,
+  createDraft,
+  exportCsv,
+  parseImport,
+  validateDraft
+} from './draft';
 import { makeStressDataset } from './stress-data';
 
 describe('BOM 草稿与导入导出', () => {
@@ -77,5 +85,35 @@ describe('身份和导入边界', () => {
     const raw = JSON.parse(JSON.stringify(draft)) as { nodes: Array<{ markets: unknown }> };
     raw.nodes[0].markets = ['UNKNOWN'];
     expect(() => parseImport(JSON.stringify(raw))).toThrow('市场');
+  });
+});
+
+describe('发生位置字段差异', () => {
+  it('精确区分新增、删除、移动和属性修改，忽略市场顺序及空值表示', () => {
+    const data = makeStressDataset(4);
+    const before = createDraft(data, data.structures.catalog);
+    before.nodes[1].markets = ['CN', 'EU'];
+    delete before.nodes[1].unitCost;
+    const after = structuredClone(before);
+    after.nodes[1].markets = ['EU', 'CN'];
+    after.nodes[1].unitCost = null;
+    after.nodes[1].label = '';
+    expect(compareDraftsDetailed(before, after)).toEqual([]);
+    after.nodes[1].quantity = '2.5';
+    after.nodes[1].uom = '套';
+    after.nodes[1].parentKey = null;
+    after.nodes[1].unitCost = '1.2';
+    const removed = after.nodes.pop()!;
+    const added = { ...removed, key: 'new:1' };
+    after.nodes.push(added);
+    expect(compareDraftsDetailed(before, after)).toEqual([
+      expect.objectContaining({
+        key: before.nodes[1].key,
+        kind: 'changed',
+        fields: ['quantity', 'uom', 'unitCost', 'parentKey']
+      }),
+      { key: added.key, kind: 'added', fields: [], before: null, after: added },
+      { key: removed.key, kind: 'removed', fields: [], before: removed, after: null }
+    ]);
   });
 });

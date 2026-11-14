@@ -65,6 +65,14 @@ afterEach(async () => {
 });
 
 describe('工作台操作与可读状态', () => {
+  it('分支选项首次渲染时选中实际活动分支，选项顺序不改变当前分支', () => {
+    ws.fork('电池校核');
+    ws.fork('底盘校核');
+    fixture.detectChanges();
+    const select = root().querySelector<HTMLSelectElement>('[aria-label="当前工作分支"]')!;
+    expect(select.value).toBe(ws.activeBranchId());
+    expect(select.selectedOptions[0].textContent).toContain('底盘校核');
+  });
   it('导航、展示模式、过滤、列配置、选择和使用处共享同一工作区', async () => {
     expect(root().querySelector('h1')?.textContent).toContain('BOM 工作台');
     const app = fixture.componentInstance;
@@ -92,9 +100,6 @@ describe('工作台操作与可读状态', () => {
     app.detailTab.set('usage');
     fixture.detectChanges();
     expect(root().querySelector('.usage-item')).not.toBeNull();
-    app.detailTab.set('source');
-    fixture.detectChanges();
-    expect(root().querySelector('.property-list')?.textContent).toContain('synthetic');
     app.columnsOpen.set(true);
     root().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(app.columnsOpen()).toBe(false);
@@ -136,12 +141,15 @@ describe('工作台操作与可读状态', () => {
     form({ planned: '10' });
     expect(fixture.componentInstance.dialogs().analysis()?.complete).toBe(true);
     fixture.componentInstance.dialogs().close();
-    open('compare');
     ws.saveBaseline();
     const key = ws.draft()!.nodes[1].key;
     ws.edit([key], '9', '件', null);
     fixture.detectChanges();
-    expect(fixture.componentInstance.dialogs().differences().length).toBeGreaterThan(0);
+    expect(ws.diffSummary().changed).toBeGreaterThan(0);
+    ws.toggleDiffMode();
+    fixture.detectChanges();
+    expect(ws.diffMode()).toBe(true);
+    expect(ws.result().rows.find(row => row.key === key)?.diffStatus).toBe('changed');
   });
   it('不再提供文件导入导出，草稿按分支和提交版本管理', async () => {
     const dialogs = fixture.componentInstance.dialogs();
@@ -164,9 +172,8 @@ describe('工作台操作与可读状态', () => {
     expect(ws.versions.entries()).toHaveLength(1);
     expect(ws.notice()).toContain('确认底盘用量');
 
-    open('sources');
-    expect(root().querySelectorAll('.source-links a')).toHaveLength(4);
-    dialogs.close();
+    expect(root().textContent).not.toContain('来源与口径');
+    expect(root().querySelector('[aria-label="数据来源"]')).toBeNull();
     open('help');
     expect(root().querySelector('dialog ol')?.textContent).toContain('工作草稿');
     dialogs.locate(ws.draft()!.nodes[1].key);

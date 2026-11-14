@@ -795,6 +795,9 @@ importers:
       '@visactor/vtable':
         specifier: 1.26.8
         version: 1.26.8
+      '@visactor/vtable-editors':
+        specifier: 1.26.8
+        version: 1.26.8
       three:
         specifier: 0.187.0
         version: 0.187.0

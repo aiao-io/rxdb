@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import type { ListTable } from '@visactor/vtable';
 import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 
@@ -14,7 +15,11 @@ async function open(page: Page): Promise<void> {
 }
 async function versions(page: Page) {
   await page.getByRole('button', { name: '版本历史', exact: true }).click();
-  return page.getByRole('dialog', { name: '版本快照与日期比较' });
+  const history = page.getByRole('dialog', { name: '版本历史', exact: true });
+  await history.getByRole('button', { name: /^历史记录/ }).click();
+  const tools = history.locator('details.snapshot-tools');
+  if ((await tools.getAttribute('open')) === null) await tools.locator('summary').click();
+  return history;
 }
 async function fork(page: Page, name = '版本校核'): Promise<void> {
   await page.getByRole('button', { name: '建立工作草稿', exact: true }).click();
@@ -103,7 +108,8 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
     .filter({ hasText: '设计基线' })
     .getByRole('button', { name: '恢复到工作树' })
     .click();
-  await expect(restored.getByRole('heading', { level: 3 })).toContainText('未提交');
+  await expect(restored.locator('.worktree-heading h3')).toContainText('未提交');
+  await restored.getByRole('button', { name: /^历史记录/ }).click();
   await expect(commits.getByRole('listitem')).toHaveCount(2);
   await restored.getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
@@ -184,4 +190,125 @@ test('分支保存不同用量，切换和刷新后数据与提交历史仍隔�
   const history = await versions(page);
   await expect(history.getByRole('list', { name: '提交记录' })).toContainText('底盘基线');
   await expect(history.getByRole('list', { name: '提交记录' })).not.toContainText('电池基线');
+});
+
+async function cellPosition(page: Page, field: string, key: string): Promise<{ x: number; y: number }> {
+  const grid = page.getByTestId('bom-grid');
+  await expect(grid).toHaveAttribute('aria-busy', 'false');
+  return grid
+    .locator('canvas')
+    .first()
+    .evaluate(
+      (canvas, target) => {
+        const table = (canvas as HTMLCanvasElement & { __vtable__: ListTable }).__vtable__;
+        const col = table.getTableIndexByField(target.field);
+        const row = Array.from({ length: table.rowCount - 1 }, (_, index) => index + 1).find(
+          row => (table.getCellOriginRecord(col, row) as { key: string }).key === target.key
+        );
+        if (row === undefined) throw new Error(`表格未显示发生位置：${target.key}`);
+        const { bounds } = table.getCellRelativeRect(col, row);
+        const box = canvas.getBoundingClientRect();
+        return { x: box.x + (bounds.x1 + bounds.x2) / 2, y: box.y + (bounds.y1 + bounds.y2) / 2 };
+      },
+      { field, key }
+    );
+}
+
+async function inlineQuantity(page: Page, value: string): Promise<void> {
+  const position = await cellPosition(page, 'quantityText', 'stress:1');
+  await page.mouse.dblclick(position.x, position.y);
+  await expect(page.locator('.vtable > input:visible').last()).toBeFocused();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type(value);
+  await page.keyboard.press('Enter');
+}
+
+test('单元格编辑、表内 U/M/D 与属性标记、当前改动提交和历史回退', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await open(page);
+  await expect(page.getByRole('button', { name: '来源与口径', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '数据来源', exact: true })).toHaveCount(0);
+  await fork(page);
+  await page.getByLabel('展开层级').selectOption('1');
+  await page.getByRole('button', { name: '版本历史', exact: true }).click();
+  const history = page.getByRole('dialog', { name: '版本历史', exact: true });
+  await history.getByRole('textbox', { name: '当前改动提交说明', exact: true }).fill('初始结构');
+  await history.getByRole('button', { name: '提交当前改动', exact: true }).click();
+  await expect(history).toContainText('工作树干净');
+  await history.getByRole('button', { name: '关闭', exact: true }).click();
+  await inlineQuantity(page, '2.5');
+  await expect(page.getByTestId('selected-summary')).toContainText('2.5 件');
+  await inlineQuantity(page, '-1');
+  await expect(page.locator('.notice')).toContainText('用量必须是非负规范十进制字符串');
+  await expect(page.getByTestId('selected-summary')).toContainText('2.5 件');
+  const deleted = await cellPosition(page, 'name', 'stress:2');
+  await page.mouse.click(deleted.x, deleted.y);
+  await page.getByRole('button', { name: '删除所选发生项', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '确认', exact: true }).click();
+  await page.getByRole('button', { name: '新增', exact: true }).click();
+  const add = page.getByRole('dialog');
+  await add.locator('[name=partId]').fill('NEW-001');
+  await add.getByRole('button', { name: '确认', exact: true }).click();
+  await page.getByRole('button', { name: '差异', exact: true }).click();
+  const grid = page.getByTestId('bom-grid');
+  await expect(grid).toHaveAttribute('aria-busy', 'false');
+  const diffRows = () =>
+    grid
+      .locator('canvas')
+      .first()
+      .evaluate(canvas => {
+        const table = (canvas as HTMLCanvasElement & { __vtable__: ListTable }).__vtable__;
+        return Array.from({ length: table.rowCount - 1 }, (_, index) => {
+          const row = index + 1;
+          const record = table.getCellOriginRecord(1, row) as {
+            key: string;
+            partId: string;
+            name: string;
+            diffStatus?: string;
+          };
+          const style = table.getCellStyle(4, row);
+          return {
+            key: record.key,
+            partId: record.partId,
+            name: record.name,
+            diffStatus: record.diffStatus,
+            quantityBackground: style.bgColor,
+            strikeThrough: table.getCellStyle(1, row).lineThrough
+          };
+        });
+      });
+  await expect.poll(diffRows).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        key: 'stress:1',
+        diffStatus: 'changed',
+        name: expect.stringMatching(/^M/),
+        quantityBackground: '#fff8d6'
+      }),
+      expect.objectContaining({ key: 'stress:2', diffStatus: 'removed', strikeThrough: true }),
+      expect.objectContaining({ partId: 'NEW-001', diffStatus: 'added', name: expect.stringMatching(/^U/) })
+    ])
+  );
+  await page.screenshot({ path: testInfo.outputPath('inline-diff.png') });
+  await page.getByRole('button', { name: /^退出差异/ }).click();
+  await expect(grid).toHaveAttribute('data-row-count', '12');
+  await page.getByRole('button', { name: '版本历史', exact: true }).click();
+  await expect(history.getByRole('region', { name: '当前改动', exact: true })).toContainText('1 → 2.5');
+  await history.getByRole('textbox', { name: '当前改动提交说明', exact: true }).fill('调整结构和用量');
+  await history.getByRole('button', { name: '提交当前改动', exact: true }).click();
+  await expect(history).toContainText('工作树干净');
+  await history.getByRole('button', { name: /^历史记录/ }).click();
+  await expect(history.getByRole('region', { name: '提交改动详情' })).toContainText('1 → 2.5');
+  await history
+    .getByRole('listitem')
+    .filter({ hasText: '初始结构' })
+    .getByRole('button', { name: '恢复到工作树' })
+    .click();
+  await expect(history.getByRole('region', { name: '当前改动', exact: true })).toContainText('2.5 → 1');
+  await history.getByRole('textbox', { name: '当前改动提交说明', exact: true }).fill('恢复初始结构');
+  await history.getByRole('button', { name: '提交当前改动', exact: true }).click();
+  await history.getByRole('button', { name: /^历史记录/ }).click();
+  await expect(history.getByRole('list', { name: '提交记录' }).getByRole('listitem')).toHaveCount(3);
+  expect(errors).toEqual([]);
 });
