@@ -1,20 +1,30 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["aiao-desktop-web", "orbit"],
+  "implicitDependencies": [
+    "aiao-desktop-web",
+    "orbit"
+  ],
   "name": "aiao-desktop-e2e",
   "projectType": "application",
   "sourceRoot": "aiao-desktop/apps/e2e/src",
-  "tags": ["scope:aiao-desktop", "type:e2e"],
+  "tags": [
+    "scope:aiao-desktop",
+    "type:e2e"
+  ],
   "targets": {
     "e2e": {
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         },
         {
-          "projects": ["orbit"],
+          "projects": [
+            "orbit"
+          ],
           "target": "build"
         }
       ],
@@ -27,11 +37,15 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         },
         {
-          "projects": ["orbit"],
+          "projects": [
+            "orbit"
+          ],
           "target": "build"
         }
       ],
@@ -44,11 +58,15 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         },
         {
-          "projects": ["orbit"],
+          "projects": [
+            "orbit"
+          ],
           "target": "build"
         }
       ],
@@ -61,11 +79,15 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         },
         {
-          "projects": ["orbit"],
+          "projects": [
+            "orbit"
+          ],
           "target": "build"
         }
       ],
@@ -95,7 +117,9 @@
       "cache": false,
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         }
       ],
@@ -109,7 +133,9 @@
       "cache": false,
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         }
       ],
@@ -123,7 +149,9 @@
       "cache": false,
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         }
       ],
@@ -137,7 +165,9 @@
       "cache": false,
       "dependsOn": [
         {
-          "projects": ["aiao-desktop-web"],
+          "projects": [
+            "aiao-desktop-web"
+          ],
           "target": "build"
         }
       ],
@@ -153,6 +183,15 @@
       "options": {
         "cwd": "aiao-desktop/apps/e2e",
         "command": "node src/benchmark-smoke.mjs"
+      }
+    },
+    "verify-domains": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-domains.mjs"
       }
     }
   }

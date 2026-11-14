@@ -798,7 +798,23 @@ export const a11y = {
         (await menubarFirstApp()) === 'Finder' ? [] : [`菜单栏应换成 Finder，实际 ${await menubarFirstApp()}`]
       );
 
-      /* ⌘M 最小化前台窗口：焦点与前台交给下一个窗口，被最小化的窗口对读屏隐藏。 */
+      /* 把最小化动画停在中途，确保 Dock 还原请求发生在动画结束前，不受机器负载影响。 */
+      await page.evaluate(() => {
+        const hold = event => {
+          if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'm') return;
+          document.removeEventListener('keydown', hold);
+          queueMicrotask(() => {
+            const animation = document.querySelector('.win[data-app="finder"]')?.getAnimations().find(item =>
+              item.effect instanceof KeyframeEffect && item.effect.getKeyframes().some(frame => String(frame.clipPath).includes('43%'))
+            );
+            window.__heldMinimize = Boolean(animation);
+            if (!animation) return;
+            animation.pause();
+            animation.currentTime = 100;
+          });
+        };
+        document.addEventListener('keydown', hold);
+      });
       await press('Meta+m');
       await until(
         page,
@@ -819,6 +835,7 @@ export const a11y = {
       );
       const afterMinimize = await visibleDialogs();
       windows.minimizeHandsFocusToNext = problems(
+        (await page.evaluate(() => window.__heldMinimize === true)) ? [] : ['未能固定最小化动画中的还原前置条件'],
         nextFocus ? [] : [`⌘M 之后焦点应交给下一个窗口，实际 ${brief(await active())}`],
         minimizedHidden ? [] : ['最小化的窗口没有对读屏隐藏'],
         afterMinimize.length === 1 && afterMinimize[0] !== 'prasenjit' ?

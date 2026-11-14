@@ -532,9 +532,20 @@ export const hostFilesystem = {
       (await panel.panel.count()) === 1 &&
       (await page.evaluate(id => window.__standinResults[id], keySaveSecond)) === undefined;
     hostFilesystem.escInsideReplaceReturnsToBrowse = replaceShown && backToSave;
-    await until(page, async () => (await panel.focused()) === 'name');
+    await page.waitForFunction(() => {
+      const dialog = document.querySelector('[data-file-panel]');
+      return dialog && !dialog.querySelector('[data-fp-replace]') && dialog.querySelector('[data-fp-name]') === document.activeElement;
+    }, undefined, { timeout: 5_000 });
     await page.keyboard.press('Enter');
-    await panel.replace.waitFor({ state: 'visible', timeout: 3_000 });
+    await panel.replace.waitFor({ state: 'visible', timeout: 3_000 }).catch(async error => {
+      const state = await page.evaluate(() => ({
+        focus: document.activeElement?.outerHTML,
+        panel: document.querySelector('[data-file-panel]')?.innerText,
+        name: document.querySelector('[data-fp-name]')?.value,
+        replace: Boolean(document.querySelector('[data-fp-replace]'))
+      }));
+      throw new Error(`${error.message}；覆盖确认状态：${JSON.stringify(state)}`);
+    });
     await until(page, async () => (await panel.focused()) === 'cancel');
     await page.keyboard.press('Tab');
     const onReplace = (await panel.focused()) === 'confirm';

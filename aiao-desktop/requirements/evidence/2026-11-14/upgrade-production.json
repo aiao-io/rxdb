@@ -1,0 +1,68 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T00:33:27.932Z",
+  "source": {
+    "sha": "bf820c367186c051bbc404de0a549226186d5308",
+    "changes": ""
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "f8730eddd283701363ceeba41d69c98a020e1dad9f6764cc91368831dfc718ee"
+  },
+  "method": {
+    "previousBuild": "https://d650c06f.aiao-desktop.pages.dev",
+    "parallel": 1,
+    "groups": [
+      "upgrade-previous"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 12.366325541,
+  "outcomes": [
+    {
+      "group": "upgrade-previous",
+      "result": {
+        "upgradePrevious": {
+          "previousBuildWritesNoRecord": true,
+          "originStaysTheSame": true,
+          "dataSurvivesUpgrade": true,
+          "versionRecordWritten": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 12.3335355
+    }
+  ],
+  "checks": {
+    "upgradePrevious": {
+      "previousBuildWritesNoRecord": true,
+      "originStaysTheSame": true,
+      "dataSurvivesUpgrade": true,
+      "versionRecordWritten": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}
