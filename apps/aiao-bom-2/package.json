@@ -9,6 +9,8 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-plugin-bom": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@visactor/vtable": "1.26.8",
     "three": "0.187.0"
   },

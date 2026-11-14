@@ -72,6 +72,7 @@ export class WorkspaceDialogs {
   }
   async submit(event: Event): Promise<void> {
     event.preventDefault();
+    if (this.busy()) return;
     this.error.set('');
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
@@ -83,8 +84,10 @@ export class WorkspaceDialogs {
           this.close();
           break;
         case 'commit':
+          this.busy.set(true);
           await this.ws.commitDraft(text('message'));
           this.close();
+          this.busy.set(false);
           break;
         case 'edit':
           this.ws.edit([...this.ws.selectedKeys()], text('quantity'), text('uom'), text('cost') || null);
@@ -113,6 +116,7 @@ export class WorkspaceDialogs {
           break;
       }
     } catch (error) {
+      this.busy.set(false);
       this.error.set(error instanceof Error ? error.message : String(error));
     }
   }

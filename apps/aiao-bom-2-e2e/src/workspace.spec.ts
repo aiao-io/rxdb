@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { ListTable } from '@visactor/vtable';
 import { mkdir } from 'node:fs/promises';
 
 async function open(page: Page, url = '/'): Promise<void> {
@@ -135,4 +136,39 @@ test('375px 窄屏搜索、面板开合与键盘路径可用', async ({ page }) 
   await hideModel(page);
   await expect(page.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
+});
+
+test('默认全部列、排序间距和少量结果的底部横向滚动', async ({ page }) => {
+  await open(page);
+  await hideModel(page);
+  await page.getByRole('button', { name: '列配置', exact: true }).click();
+  await expect(page.locator('.column-menu input[type=checkbox]:checked')).toHaveCount(20);
+  const sortField = await page.getByRole('combobox', { name: '排序字段', exact: true }).boundingBox();
+  const direction = await page.getByRole('combobox', { name: '排序方向', exact: true }).boundingBox();
+  if (!sortField || !direction) throw new Error('排序控件缺失');
+  expect(direction.y - sortField.y - sortField.height).toBeGreaterThanOrEqual(12);
+  await page.getByRole('button', { name: '列配置', exact: true }).click();
+  await expect(page.locator('.project-heading p, .project-heading small, .project-heading .eyebrow')).toHaveCount(0);
+  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('1108100');
+  await expect(page.getByTestId('matched-count')).toHaveText('1');
+  const scrollbar = page.getByRole('region', { name: '表格横向滚动', exact: true });
+  await expect(scrollbar).toBeVisible();
+  const position = await scrollbar.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { bottom: rect.bottom, panelBottom: element.parentElement!.getBoundingClientRect().bottom };
+  });
+  expect(Math.abs(position.bottom - position.panelBottom)).toBeLessThanOrEqual(1);
+  const canvas = page.getByTestId('bom-grid').locator('canvas').first();
+  await scrollbar.evaluate(element => {
+    element.scrollLeft = 400;
+  });
+  await expect
+    .poll(() =>
+      canvas.evaluate(element => (element as HTMLCanvasElement & { __vtable__: ListTable }).__vtable__.scrollLeft)
+    )
+    .toBeGreaterThanOrEqual(399);
+  await canvas.evaluate(element =>
+    (element as HTMLCanvasElement & { __vtable__: ListTable }).__vtable__.setScrollLeft(800)
+  );
+  await expect.poll(() => scrollbar.evaluate(element => element.scrollLeft)).toBeGreaterThanOrEqual(799);
 });

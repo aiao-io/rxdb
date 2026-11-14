@@ -410,6 +410,9 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      three:
+        specifier: 0.187.0
+        version: 0.187.0
       ts-morph:
         specifier: ^28.0.0
         version: 28.0.0
@@ -783,6 +786,12 @@ importers:
       '@aiao/rxdb-plugin-bom':
         specifier: workspace:*
         version: link:../../packages/rxdb-plugin-bom
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-working-tree
       '@visactor/vtable':
         specifier: 1.26.8
         version: 1.26.8

@@ -1049,3 +1049,19 @@ kbd {
   border-radius: 5px;
   white-space: nowrap;
 }
+
+.column-options {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #e3ebe6;
+}
+.column-options label {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+}
+.column-options select {
+  width: 100%;
+}

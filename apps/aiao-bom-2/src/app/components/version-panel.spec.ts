@@ -1,5 +1,6 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DraftVersionStore } from '../core/draft-version-store';
 import { compareSnapshots, createSnapshot } from '../core/snapshot';
 import { WorkspaceRepository } from '../core/storage';
 import { makeStressDataset } from '../core/stress-data';
@@ -11,6 +12,15 @@ let panel: VersionPanel;
 let ws: BomWorkspace;
 const documents = new Map<string, unknown>();
 beforeEach(async () => {
+  vi.spyOn(DraftVersionStore.prototype, 'save').mockResolvedValue();
+  vi.spyOn(DraftVersionStore.prototype, 'history').mockResolvedValue({ headCommitId: null, dirty: true, commits: [] });
+  vi.spyOn(DraftVersionStore.prototype, 'read').mockImplementation(async (_branch, draft) => draft);
+  vi.spyOn(DraftVersionStore.prototype, 'commit').mockImplementation(async (branch, _message, id) => ({
+    id,
+    parentId: branch.headCommitId,
+    createdAt: new Date().toISOString()
+  }));
+
   documents.clear();
   vi.spyOn(WorkspaceRepository.prototype, 'read').mockImplementation(async key => documents.get(key));
   vi.spyOn(WorkspaceRepository.prototype, 'readAll').mockResolvedValue([]);
@@ -26,7 +36,8 @@ beforeEach(async () => {
   panel = fixture.componentInstance;
   fixture.detectChanges();
 });
-afterEach(() => {
+afterEach(async () => {
+  await new Promise(resolve => setTimeout(resolve, 0));
   fixture.destroy();
   TestBed.resetTestingModule();
   vi.restoreAllMocks();

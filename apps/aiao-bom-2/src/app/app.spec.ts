@@ -4,6 +4,7 @@ import { App } from './app';
 import { BomGrid } from './components/bom-grid';
 import { ModelPanel } from './components/model-panel';
 import type { DialogKind } from './components/workspace-dialogs';
+import { DraftVersionStore } from './core/draft-version-store';
 import { WorkspaceRepository } from './core/storage';
 import { makeStressDataset } from './core/stress-data';
 import { BomWorkspace } from './core/workspace';
@@ -23,6 +24,15 @@ function open(kind: DialogKind): void {
   fixture.detectChanges();
 }
 beforeEach(async () => {
+  vi.spyOn(DraftVersionStore.prototype, 'save').mockResolvedValue();
+  vi.spyOn(DraftVersionStore.prototype, 'history').mockResolvedValue({ headCommitId: null, dirty: true, commits: [] });
+  vi.spyOn(DraftVersionStore.prototype, 'read').mockImplementation(async (_branch, draft) => draft);
+  vi.spyOn(DraftVersionStore.prototype, 'commit').mockImplementation(async (branch, _message, id) => ({
+    id,
+    parentId: branch.headCommitId,
+    createdAt: new Date().toISOString()
+  }));
+
   const values = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => values.get(key) ?? null,
@@ -46,7 +56,8 @@ beforeEach(async () => {
   await vi.waitFor(() => expect(ws.loading()).toBe(false));
   fixture.detectChanges();
 });
-afterEach(() => {
+afterEach(async () => {
+  await new Promise(resolve => setTimeout(resolve, 0));
   fixture?.destroy();
   TestBed.resetTestingModule();
   vi.restoreAllMocks();

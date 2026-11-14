@@ -96,7 +96,7 @@
           <bom2-icon name="copy" />
           版本历史
         </button>
-        <button class="primary" [disabled]="ws.loading()" (click)="dialogs().open('fork')">
+        <button class="primary" [disabled]="ws.loading() || ws.versionBusy()" (click)="dialogs().open('fork')">
           <bom2-icon name="branch" />
           建立工作草稿
         </button>
@@ -235,6 +235,28 @@
                     {{ column.title }}
                   </label>
                 }
+                <div class="column-options">
+                  <label>
+                    排序字段
+                    <select [value]="ws.query().sort" (change)="sort(value($event))" aria-label="排序字段">
+                      <option value="source">来源顺序</option>
+                      <option value="name">物料名称</option>
+                      <option value="partId">物料编码</option>
+                      <option value="quantity">直接用量</option>
+                    </select>
+                  </label>
+                  <label>
+                    排序方向
+                    <select
+                      [value]="ws.query().descending ? 'desc' : 'asc'"
+                      (change)="ws.updateQuery({ descending: value($event) === 'desc' })"
+                      aria-label="排序方向"
+                    >
+                      <option value="asc">升序</option>
+                      <option value="desc">降序</option>
+                    </select>
+                  </label>
+                </div>
               </div>
             }
           </div>
@@ -254,6 +276,7 @@
           <div class="draft-toolbar">
             <select
               class="branch-select"
+              [disabled]="ws.versionBusy()"
               [value]="ws.activeBranchId() ?? ''"
               (change)="ws.switchDraftBranch(value($event))"
               aria-label="当前工作分支"
@@ -263,22 +286,31 @@
               }
             </select>
             <span>r{{ ws.draft()?.revision }} · 已选 {{ ws.selectedKeys().size }} 项</span>
-            <button [disabled]="!ws.draft() || !ws.activeBranch()?.dirty" (click)="dialogs().open('commit')">
+            <button
+              [disabled]="!ws.draft() || !ws.activeBranch()?.dirty || ws.versionBusy()"
+              (click)="dialogs().open('commit')"
+            >
               <bom2-icon name="copy" />
               提交版本
             </button>
-            <button [disabled]="!ws.canUndo()" (click)="ws.undo()" aria-label="撤销"><bom2-icon name="undo" /></button>
-            <button [disabled]="!ws.canRedo()" (click)="ws.redo()" aria-label="重做"><bom2-icon name="redo" /></button>
-            <button [disabled]="!ws.selectedKeys().size" (click)="dialogs().open('edit')">
+            <button [disabled]="!ws.canUndo() || ws.versionBusy()" (click)="ws.undo()" aria-label="撤销">
+              <bom2-icon name="undo" />
+            </button>
+            <button [disabled]="!ws.canRedo() || ws.versionBusy()" (click)="ws.redo()" aria-label="重做">
+              <bom2-icon name="redo" />
+            </button>
+            <button [disabled]="!ws.selectedKeys().size || ws.versionBusy()" (click)="dialogs().open('edit')">
               <bom2-icon name="edit" />
               编辑用量
             </button>
-            <button (click)="dialogs().open('add')">
+            <button [disabled]="ws.versionBusy()" (click)="dialogs().open('add')">
               <bom2-icon name="plus" />
               新增
             </button>
-            <button [disabled]="ws.selectedKeys().size !== 1" (click)="dialogs().open('move')">移动</button>
-            <button [disabled]="!ws.selectedKeys().size" (click)="dialogs().open('remove')">
+            <button [disabled]="ws.selectedKeys().size !== 1 || ws.versionBusy()" (click)="dialogs().open('move')">
+              移动
+            </button>
+            <button [disabled]="!ws.selectedKeys().size || ws.versionBusy()" (click)="dialogs().open('remove')">
               <bom2-icon name="trash" />
             </button>
             <span class="toolbar-spacer"></span>
@@ -329,8 +361,8 @@
               (columnWidths)="widths($event)"
               (enter)="ws.enter($event)"
               (expandedChange)="ws.setExpanded($event)"
-              (scrollMetrics)="gridMetrics($event)"
               (rowSelect)="ws.choose($event.row, $event.additive)"
+              (scrollMetrics)="gridMetrics($event)"
             />
           }
         </div>
@@ -362,8 +394,8 @@
           }
         </div>
         <div
-          #gridScrollbar
           class="grid-scrollbar"
+          #gridScrollbar
           [class.grid-scrollbar-hidden]="gridScrollWidth() <= gridViewportWidth()"
           (scroll)="scrollGrid($event)"
           aria-label="表格横向滚动"

@@ -2,7 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { SnapshotChange, SnapshotChangeField } from '../core/snapshot';
-import type { Occurrence, Structure } from '../core/types';
+import type { DraftCommit, Occurrence, Structure } from '../core/types';
 import { BomWorkspace } from '../core/workspace';
 
 const STRUCTURES: Record<Structure, string> = {
@@ -49,7 +49,9 @@ export class VersionPanel implements OnInit {
   );
   readonly structureName = computed(() => STRUCTURES[this.ws.query().structure]);
   readonly branches = computed(() =>
-    [...this.ws.branches()].sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt.localeCompare(left.updatedAt))
+    [...this.ws.branches()].sort(
+      (left, right) => Number(right.active) - Number(left.active) || right.updatedAt.localeCompare(left.updatedAt)
+    )
   );
   readonly activeBranch = computed(() => this.ws.activeBranch());
   readonly headCommit = computed(() => {
@@ -57,8 +59,18 @@ export class VersionPanel implements OnInit {
     return branch?.headCommitId ? this.ws.commits().find(commit => commit.id === branch.headCommitId) : undefined;
   });
   readonly branchCommits = computed(() => {
-    const branch = this.activeBranch();
-    return branch ? this.ws.commits().filter(commit => commit.branchId === branch.id) : [];
+    const commits = new Map(this.ws.commits().map(commit => [commit.id, commit]));
+    const history: DraftCommit[] = [];
+    let id = this.activeBranch()?.headCommitId;
+    const seen = new Set<string>();
+    while (id && !seen.has(id)) {
+      seen.add(id);
+      const commit = commits.get(id);
+      if (!commit) break;
+      history.push(commit);
+      id = commit.parentId;
+    }
+    return history;
   });
 
   ngOnInit(): void {
@@ -75,6 +87,23 @@ export class VersionPanel implements OnInit {
   }
   commitDate(value: string): string {
     return value.slice(0, 16).replace('T', ' ');
+  }
+  canCompare(commit: DraftCommit): boolean {
+    return Boolean(commit.snapshotId && this.ws.commits().find(item => item.id === commit.parentId)?.snapshotId);
+  }
+  async compareCommit(commit: DraftCommit): Promise<void> {
+    const parent = this.ws.commits().find(item => item.id === commit.parentId);
+    if (!parent?.snapshotId || !commit.snapshotId) return;
+    await this.choose('before', parent.snapshotId);
+    await this.choose('after', commit.snapshotId);
+  }
+  async restoreCommit(id: string): Promise<void> {
+    this.error.set('');
+    try {
+      await this.ws.restoreCommit(id);
+    } catch (error) {
+      this.fail(error);
+    }
   }
   label(field: SnapshotChangeField): string {
     return LABELS[field];

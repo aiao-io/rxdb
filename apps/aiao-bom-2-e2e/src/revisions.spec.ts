@@ -39,6 +39,10 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
   page.on('pageerror', error => errors.push(error.message));
   await open(page);
   await fork(page, '底盘校核');
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  await page.getByRole('dialog').getByRole('textbox', { name: '提交说明', exact: true }).fill('设计基线');
+  await page.getByRole('dialog').getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
   await capture(page, '设计 A', '2026-11-13');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
@@ -85,7 +89,30 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
   await expect(page.getByTestId('bom-grid').locator('canvas').first()).toBeVisible();
   const restored = await versions(page);
   await expect(restored).toContainText('确认底盘用量');
+  await expect(restored.getByRole('combobox', { name: '目标版本' })).toContainText('设计 B');
+  const commits = restored.getByRole('list', { name: '提交记录' });
+  await expect(commits.getByRole('listitem')).toHaveCount(2);
+  await commits
+    .getByRole('listitem')
+    .filter({ hasText: '确认底盘用量' })
+    .getByRole('button', { name: '比较父版本' })
+    .click();
   await expect(restored.getByTestId('revision-summary')).toContainText('改量 1');
+  await commits
+    .getByRole('listitem')
+    .filter({ hasText: '设计基线' })
+    .getByRole('button', { name: '恢复到工作树' })
+    .click();
+  await expect(restored.getByRole('heading', { level: 3 })).toContainText('未提交');
+  await expect(commits.getByRole('listitem')).toHaveCount(2);
+  await restored.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
+  await expect(page.getByTestId('matched-count')).toHaveText('1');
+  const restoredBox = await grid.boundingBox();
+  if (!restoredBox) throw new Error('恢复后的表格未渲染');
+  await expect(grid).toHaveAttribute('aria-busy', 'false');
+  await page.mouse.click(restoredBox.x + 150, restoredBox.y + 40 + 35 + 17);
+  await expect(page.getByTestId('selected-summary')).toContainText('1 件');
   expect(errors).toEqual([]);
 });
 
@@ -110,24 +137,51 @@ test('窄屏版本对话框不溢出，跨结构选择显示错误且不损坏�
   await expect(page.getByTestId('bom-grid')).toBeVisible();
 });
 
-test('新建分支不会丢失既有提交，切换后历史仍可见', async ({ page }) => {
+async function selectFirstPart(page: Page): Promise<void> {
+  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
+  await expect(page.getByTestId('matched-count')).toHaveText('1');
+  const grid = page.getByTestId('bom-grid');
+  await expect(grid).toHaveAttribute('aria-busy', 'false');
+  const box = await grid.boundingBox();
+  if (!box) throw new Error('表格未渲染');
+  await page.mouse.click(box.x + 150, box.y + 40 + 35 + 17);
+  await expect(page.getByTestId('selected-summary')).toContainText('ST-000001');
+}
+async function editQuantity(page: Page, quantity: string): Promise<void> {
+  await selectFirstPart(page);
+  await page.getByRole('button', { name: '编辑用量', exact: true }).click();
+  await page.getByRole('textbox', { name: '直接用量', exact: true }).fill(quantity);
+  await page.getByRole('button', { name: '确认', exact: true }).click();
+}
+async function commitBranch(page: Page, message: string): Promise<void> {
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: '提交说明', exact: true }).fill(message);
+  await dialog.getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
+}
+
+test('分支保存不同用量，切换和刷新后数据与提交历史仍隔离', async ({ page }) => {
   await open(page);
   await fork(page, '底盘校核');
-  await page.getByRole('button', { name: '提交版本', exact: true }).click();
-  let dialog = page.getByRole('dialog');
-  await dialog.getByRole('textbox', { name: '提交说明', exact: true }).fill('底盘基线');
-  await dialog.getByRole('button', { name: '确认', exact: true }).click();
-  await expect(page.getByRole('combobox', { name: '当前工作分支', exact: true })).toContainText('底盘校核');
+  await editQuantity(page, '2.5');
+  await commitBranch(page, '底盘基线');
+  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).clear();
   await fork(page, '电池校核');
-  await page.getByRole('button', { name: '提交版本', exact: true }).click();
-  dialog = page.getByRole('dialog');
-  await dialog.getByRole('textbox', { name: '提交说明', exact: true }).fill('电池基线');
-  await dialog.getByRole('button', { name: '确认', exact: true }).click();
+  await editQuantity(page, '7');
+  await commitBranch(page, '电池基线');
   const branchSelect = page.getByRole('combobox', { name: '当前工作分支', exact: true });
   const oldBranch = branchSelect.locator('option').filter({ hasText: '底盘校核' });
   await branchSelect.selectOption((await oldBranch.getAttribute('value')) ?? '');
-  await expect(branchSelect).toContainText('底盘校核');
+  await expect(page.locator('.notice')).toContainText('已切换到 底盘校核');
+  await expect(branchSelect.locator('option:checked')).toContainText('底盘校核');
+  await selectFirstPart(page);
+  await expect(page.getByTestId('selected-summary')).toContainText('2.5 件');
+  await page.reload();
+  await expect(branchSelect.locator('option:checked')).toContainText('底盘校核');
+  await selectFirstPart(page);
+  await expect(page.getByTestId('selected-summary')).toContainText('2.5 件');
   const history = await versions(page);
-  await expect(history).toContainText('底盘基线');
-  await expect(history).not.toContainText('电池基线');
+  await expect(history.getByRole('list', { name: '提交记录' })).toContainText('底盘基线');
+  await expect(history.getByRole('list', { name: '提交记录' })).not.toContainText('电池基线');
 });

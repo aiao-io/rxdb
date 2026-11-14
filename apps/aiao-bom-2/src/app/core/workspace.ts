@@ -1,6 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { createDraft, DraftHistory, parseImport } from './draft';
-import { createDraftBranch, createDraftCommit, commitBranch, markBranchDirty } from './draft-worktree';
+import { DraftVersionStore } from './draft-version-store';
+import { commitBranch, createDraftBranch, createDraftCommit, markBranchDirty } from './draft-worktree';
 import { IndexClient } from './index-client';
 import { BomIndex } from './query';
 import { createSnapshot } from './snapshot';
@@ -21,6 +22,8 @@ import {
 export class BomWorkspace {
   private readonly worker = new IndexClient();
   private readonly repository = new WorkspaceRepository();
+  private readonly versionStore = new DraftVersionStore();
+  private pendingSave: Promise<void> = Promise.resolve();
   private readonly indexes = new Map<string, BomIndex>();
   private history: DraftHistory | null = null;
   private request: AbortController | null = null;
@@ -31,6 +34,7 @@ export class BomWorkspace {
   readonly selection = signal<string | null>(null);
   readonly selectedKeys = signal(new Set<string>());
   readonly draft = signal<DraftState | null>(null);
+  readonly versionBusy = signal(false);
   readonly branches = signal<DraftBranch[]>([]);
   readonly commits = signal<DraftCommit[]>([]);
   readonly baseline = signal<DraftState | null>(null);
@@ -47,7 +51,9 @@ export class BomWorkspace {
   readonly canRedo = signal(false);
   readonly activeBranch = computed(() => {
     const draft = this.draft();
-    return this.branches().find(branch => branch.id === this.activeBranchId()) ?? (draft ? this.branches()[0] : undefined);
+    return (
+      this.branches().find(branch => branch.id === this.activeBranchId()) ?? (draft ? this.branches()[0] : undefined)
+    );
   });
   readonly activeBranchId = signal<string | null>(null);
   readonly index = computed(() => {
@@ -55,7 +61,7 @@ export class BomWorkspace {
     if (!data) return null;
     const structure = this.query().structure;
     const draft = this.draft();
-    const cacheKey = `${data.id}:${structure}:${structure === 'draft' ? draft?.revision : ''}`;
+    const cacheKey = `${data.id}:${structure}:${structure === 'draft' ? `${this.activeBranchId()}:${draft?.revision}` : ''}`;
     let index = this.indexes.get(cacheKey);
     if (!index) {
       const input =
@@ -207,6 +213,7 @@ export class BomWorkspace {
     this.locate(`cad:${nodeIndex}`);
   }
   fork(name = ''): void {
+    if (this.versionBusy()) return;
     const index = this.index();
     const data = this.dataset();
     if (!index || !data) return;
@@ -227,78 +234,109 @@ export class BomWorkspace {
     this.changeStructure('draft');
     this.notice.set(`已建立 ${nodes.length.toLocaleString()} 个发生位置的草稿，来源快照已保留。`);
   }
-  importDraft(text: string): { nodes: number; name: string; draft: DraftState } {
-    const draft = parseImport(text);
-    return { nodes: draft.nodes.length, name: draft.name, draft };
-  }
-  acceptImport(draft: DraftState): void {
-    const data = this.dataset();
-    if (!data) throw new Error('数据集尚未加载');
-    this.setDraft({ ...draft, datasetId: data.id });
-    this.changeStructure('draft');
-  }
   async commitDraft(message: string): Promise<void> {
+    if (this.versionBusy()) throw new Error('版本操作正在进行');
     const draft = this.draft();
     const branch = this.activeBranch();
     if (!draft || !branch) throw new Error('请先建立工作分支');
-    const commit = createDraftCommit(branch, draft, message);
-    const snapshot = await this.saveSnapshot(`${branch.name} · ${commit.message}`, new Date().toLocaleDateString('en-CA'));
-    const committed = { ...commit, snapshotId: snapshot.id };
-    const nextBranch = commitBranch(branch, committed);
-    await this.repository.writeMany([
-      [`draft-commit:${draft.datasetId}:${branch.id}:${commit.id}`, committed],
-      [`draft-branch:${draft.datasetId}:${branch.id}`, nextBranch],
-      [`draft:${draft.datasetId}:${branch.id}`, draft],
-      [`draft:${draft.datasetId}`, draft]
-    ]);
-    this.branches.update(branches => branches.map(item => (item.id === branch.id ? nextBranch : item)));
-    this.commits.update(commits => [committed, ...commits]);
-    this.saveStatus.set('已提交到本地版本历史');
-    this.notice.set(`已提交 ${branch.name}：${commit.message}`);
+    if (!branch.dirty) throw new Error('没有未提交的改动');
+    const proposal = createDraftCommit(branch, draft, message);
+    this.versionBusy.set(true);
+    try {
+      await this.pendingSave;
+      const stored = await this.versionStore.commit(branch, proposal.message, proposal.id);
+      const snapshot = await this.saveSnapshot(
+        `${branch.name} · ${proposal.message}`,
+        new Date().toISOString().slice(0, 10)
+      );
+      const committed = { ...proposal, ...stored, snapshotId: snapshot.id };
+      const nextBranch = commitBranch(branch, committed);
+      await this.repository.writeMany([
+        [`draft-commit:${draft.datasetId}:${branch.id}:${committed.id}`, committed],
+        [`draft-branch:${draft.datasetId}:${branch.id}`, nextBranch]
+      ]);
+      this.branches.update(branches => branches.map(item => (item.id === branch.id ? nextBranch : item)));
+      this.commits.update(commits => [committed, ...commits]);
+      this.saveStatus.set('已提交到本地版本历史');
+      this.notice.set(`已提交 ${branch.name}：${committed.message}`);
+    } finally {
+      this.versionBusy.set(false);
+    }
   }
   async switchDraftBranch(branchId: string): Promise<void> {
     const branch = this.branches().find(item => item.id === branchId);
-    if (!branch || branch.id === this.activeBranchId()) return;
-    const saved = await this.repository.read<DraftState>(`draft:${branch.datasetId}:${branch.id}`);
-    const head = branch.headCommitId ? this.commits().find(commit => commit.id === branch.headCommitId) : undefined;
-    const next = saved ?? head?.draft;
-    if (!next) throw new Error(`分支没有可恢复的工作树：${branch.name}`);
-    this.activeBranchId.set(branch.id);
-    this.setDraft(parseImport(JSON.stringify(next)), false);
-    const activeBranches = this.branches().map(item => ({ ...item, active: item.id === branch.id }));
-    this.branches.set(activeBranches);
-    void this.repository.writeMany([
-      [`draft:${branch.datasetId}`, next],
-      ...activeBranches.map(item => [`draft-branch:${branch.datasetId}:${item.id}`, item] as const)
-    ]);
-    this.changeStructure('draft');
-    this.notice.set(`已切换到 ${branch.name}`);
+    if (!branch || branch.id === this.activeBranchId() || this.versionBusy()) return;
+    this.versionBusy.set(true);
+    try {
+      await this.pendingSave;
+      const saved = await this.repository.read<DraftState>(`draft:${branch.datasetId}:${branch.id}`);
+      if (!saved) throw new Error(`分支没有可恢复的工作树：${branch.name}`);
+      const next = await this.versionStore.read(branch, saved);
+      await this.refreshDraftHistory(branch);
+      const activeBranches = this.branches().map(item => ({ ...item, active: item.id === branch.id }));
+      await this.repository.writeMany([
+        [`draft:${branch.datasetId}`, next],
+        ...activeBranches.map(item => [`draft-branch:${branch.datasetId}:${item.id}`, item] as const)
+      ]);
+      this.activeBranchId.set(branch.id);
+      this.branches.set(activeBranches);
+      this.setDraft(next, false);
+      this.changeStructure('draft');
+      this.saveStatus.set(branch.dirty ? '已保存到本机' : '已提交到本地版本历史');
+      this.notice.set(`已切换到 ${branch.name}`);
+    } catch (error) {
+      this.notice.set(`分支切换失败：${String(error)}`);
+    } finally {
+      this.versionBusy.set(false);
+    }
+  }
+  async restoreCommit(commitId: string): Promise<void> {
+    const branch = this.activeBranch();
+    if (!branch || this.versionBusy()) throw new Error('请先选择工作分支');
+    if (branch.dirty) throw new Error('请先提交当前改动，再恢复历史版本');
+    this.versionBusy.set(true);
+    try {
+      await this.pendingSave;
+      const restored = await this.versionStore.restore(branch, commitId);
+      this.setDraft({ ...restored, revision: (this.draft()?.revision ?? 0) + 1 });
+      await this.pendingSave;
+      this.changeStructure('draft');
+      this.notice.set('历史版本已恢复到工作树，请核对后提交。');
+    } finally {
+      this.versionBusy.set(false);
+    }
   }
   edit(keys: string[], quantity: string, uom: string, unitCost: string | null): void {
+    if (this.versionBusy()) return;
     if (!this.history) throw new Error('请先建立草稿');
     this.history.patch(keys, { quantity, uom, unitCost, quantityState: 'confirmed' });
     this.publishDraft();
   }
   add(parentKey: string | null, partId: string, quantity: string, uom: string): void {
+    if (this.versionBusy()) return;
     if (!this.history) throw new Error('请先建立草稿');
     this.history.add(parentKey, partId, quantity, uom);
     this.publishDraft();
   }
   remove(keys: string[]): void {
+    if (this.versionBusy()) return;
     this.history?.remove(keys);
     this.publishDraft();
     this.selection.set(null);
     this.selectedKeys.set(new Set());
   }
   move(key: string, parentKey: string | null): void {
+    if (this.versionBusy()) return;
     this.history?.move(key, parentKey);
     this.publishDraft();
   }
   undo(): void {
+    if (this.versionBusy()) return;
     this.history?.undo();
     this.publishDraft();
   }
   redo(): void {
+    if (this.versionBusy()) return;
     this.history?.redo();
     this.publishDraft();
   }
@@ -368,13 +406,17 @@ export class BomWorkspace {
     this.expanded.set([]);
     this.draft.set(null);
     this.branches.set(savedBranches.filter(branch => branch.datasetId === data.id));
-    this.commits.set(savedCommits.filter(commit => commit.datasetId === data.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    this.commits.set(
+      savedCommits.filter(commit => commit.datasetId === data.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    );
     this.activeBranchId.set(
       this.branches().find(branch => branch.active)?.id ??
         [...this.branches()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]?.id ??
         null
     );
-    this.branches.update(branches => branches.map(branch => ({ ...branch, active: branch.id === this.activeBranchId() })));
+    this.branches.update(branches =>
+      branches.map(branch => ({ ...branch, active: branch.id === this.activeBranchId() }))
+    );
     this.baseline.set(null);
     this.history = null;
     this.canUndo.set(false);
@@ -386,7 +428,11 @@ export class BomWorkspace {
           this.branches.set([legacyBranch]);
           this.activeBranchId.set(legacyBranch.id);
         }
-        this.setDraft(parseImport(JSON.stringify(saved)), false);
+        const branch = this.activeBranch();
+        const restored = branch ? await this.versionStore.read(branch, saved) : saved;
+        if (branch) await this.refreshDraftHistory(branch);
+        if (sequence !== this.loadSequence) return;
+        this.setDraft(parseImport(JSON.stringify(restored)), false);
       }
       this.baseline.set(baseline ? parseImport(JSON.stringify(baseline)) : null);
       if (view) {
@@ -405,6 +451,7 @@ export class BomWorkspace {
     await this.versions.openDataset(data.id);
   }
   private setDraft(draft: DraftState, persist = true): void {
+    this.clearDraftIndexes();
     this.history = new DraftHistory(draft);
     this.draft.set(draft);
     this.canUndo.set(false);
@@ -413,38 +460,51 @@ export class BomWorkspace {
   }
   private publishDraft(): void {
     if (!this.history) return;
-    for (const key of this.indexes.keys()) if (key.includes(':draft:')) this.indexes.delete(key);
-    this.draft.set(this.history.current);
+    this.clearDraftIndexes();
+    const draft = this.history.current;
+    this.draft.set(draft);
     this.canUndo.set(this.history.canUndo);
     this.canRedo.set(this.history.canRedo);
     const branch = this.activeBranch();
     const sequence = ++this.saveSequence;
     this.saveStatus.set('正在保存…');
-    const branchDraft = branch ? `draft:${this.history.current.datasetId}:${branch.id}` : null;
-    const branchKey = branch ? `draft-branch:${this.history.current.datasetId}:${branch.id}` : null;
-    const dirty = branch ? markBranchDirty(branch) : null;
-    const branchStates = branch
-      ? this.branches().map(item => (item.id === branch.id ? dirty! : item))
-      : this.branches();
-    if (branch) this.branches.set(branchStates);
-    void this.repository
-      .write(`draft:${this.history.current.datasetId}`, this.history.current)
-      .then(() =>
-        this.repository.writeMany([
-          ...(branchDraft ? [[branchDraft, this.history!.current] as const] : []),
-          ...(branchKey && dirty ? [[branchKey, dirty] as const] : []),
-          ...branchStates.map(item => [`draft-branch:${this.history!.current.datasetId}:${item.id}`, item] as const)
-        ])
-      )
+    const dirty = branch ? markBranchDirty(branch) : undefined;
+    const branches = this.branches().map(item => (item.id === dirty?.id ? dirty : item));
+    this.branches.set(branches);
+    const saving = this.pendingSave
+      .catch(() => undefined)
+      .then(async () => {
+        if (dirty) await this.versionStore.save(dirty, draft);
+        await this.repository.writeMany([
+          [`draft:${draft.datasetId}`, draft],
+          ...(dirty ? [[`draft:${draft.datasetId}:${dirty.id}`, draft] as const] : []),
+          ...branches.map(item => [`draft-branch:${draft.datasetId}:${item.id}`, item] as const)
+        ]);
+      });
+    this.pendingSave = saving;
+    void saving
       .then(() => {
         if (sequence === this.saveSequence) this.saveStatus.set('已保存到本机');
       })
       .catch(error => {
-        if (sequence === this.saveSequence) {
-          this.saveStatus.set('保存失败');
-          this.notice.set(`草稿保存失败：${String(error)}`);
-        }
+        if (sequence !== this.saveSequence) return;
+        this.saveStatus.set('保存失败');
+        this.notice.set(`草稿保存失败：${String(error)}`);
       });
+  }
+  private async refreshDraftHistory(branch: DraftBranch): Promise<void> {
+    const history = await this.versionStore.history(branch);
+    const cached = new Map(this.commits().map(commit => [commit.id, commit]));
+    const actual = history.commits.map(commit => ({ ...cached.get(commit.id), ...commit }));
+    this.commits.set([...actual, ...this.commits().filter(commit => !actual.some(item => item.id === commit.id))]);
+    this.branches.update(branches =>
+      branches.map(item =>
+        item.id === branch.id ? { ...item, dirty: history.dirty, headCommitId: history.headCommitId } : item
+      )
+    );
+  }
+  private clearDraftIndexes(): void {
+    for (const key of this.indexes.keys()) if (key.includes(':draft:')) this.indexes.delete(key);
   }
   private async persistView(): Promise<void> {
     const data = this.dataset();
