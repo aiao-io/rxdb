@@ -1,0 +1,102 @@
+
+> nx run aiao-desktop-e2e:test
+
+> node --test "src/**/*.spec.mjs"
+
+(node:45367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:45368) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 托管产物并带跨源隔离响应头；不存在的路径是 404，目录穿越被拒 [90m(42.602416ms)[39m[39m
+[32m✔ switchTo 换一份产物而不换来源 [90m(17.611542ms)[39m[39m
+[32m✔ 可以沿用上一次的端口重启，来源因此不变 [90m(5.082542ms)[39m[39m
+(node:45369) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 升级起点必须唯一而且显式指定 [90m(0.585792ms)[39m[39m
+[32m✔ 支持固定本地产物与 HTTPS 生产部署 [90m(0.403583ms)[39m[39m
+(node:45370) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 检查组名唯一 [90m(0.412ms)[39m[39m
+[32m✔ 每个检查组都声明了检查项键，且同一个键只由一个检查组产出 [90m(0.258333ms)[39m[39m
+[32m✔ 默认检查组产出拆分前单体冒烟的全部检查项（ADESK-US-008 AC#1） [90m(0.329375ms)[39m[39m
+[32m✔ 夹具自检不随全量冒烟运行，也不占用拆分前的检查项键 [90m(0.072083ms)[39m[39m
+(node:45371) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 启动台条目与冒烟声明一致时没有差异 [90m(0.871417ms)[39m[39m
+[32m✔ 登记表新增了应用而冒烟没覆盖：指出应用 id [90m(0.275ms)[39m[39m
+[32m✔ 冒烟里多出登记表没有的应用：指出应用 id [90m(0.939125ms)[39m[39m
+[32m✔ 两种差异同时出现时都列出 [90m(0.18675ms)[39m[39m
+(node:45372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 只改 Aiao Code 清单里的那一个 capabilities 数组，其余字节原样保留；引号写法照原样 [90m(1.764209ms)[39m[39m
+[32m✔ 匹配不到就抛错，不静默通过 [90m(0.233084ms)[39m[39m
+[32m✔ 匹配到多处就抛错，并报出每一处在哪个文件 [90m(0.1205ms)[39m[39m
+[32m✔ 匹配到的不是 Aiao Code 当前的最小清单（清单已经被改过、或是别的应用的清单）就抛错 [90m(0.115666ms)[39m[39m
+(node:45373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 只认静态 import，动态 import 不算 [90m(1.673208ms)[39m[39m
+[32m✔ 首屏脚本是 index.html 的脚本与预加载加上静态 import 闭包；其余 chunk 是按需加载的 [90m(16.789792ms)[39m[39m
+[32m✔ 请求 URL 换算成产物根目录脚本名，别的来源与子目录不算 [90m(0.439084ms)[39m[39m
+[32m✔ 从产物里读出每个脚本声明的组件选择器和数据域种子 [90m(7.464ms)[39m[39m
+[32m✔ initial 体积包含静态脚本闭包与样式，逐文件 gzip，不计入按需模块与 HTML [90m(14.426ms)[39m[39m
+(node:45374) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 默认参数：全部默认检查组、chromium、并行 3 [90m(0.936417ms)[39m[39m
+[32m✔ --group 可以逗号分隔也可以重复给出，并能选中默认不跑的夹具自检 [90m(0.246166ms)[39m[39m
+[32m✔ 未知的检查组、引擎和非法的并行数直接报错 [90m(0.319708ms)[39m[39m
+[32m✔ 引擎、并行数与产物目录 [90m(0.112917ms)[39m[39m
+[32m✔ --report 指定完整运行证据的输出路径 [90m(0.076042ms)[39m[39m
+(node:45375) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 一批种子表计数复用一个连接，按输入顺序返回行数，零行不伪装成已种数据 [90m(14.677708ms)[39m[39m
+[32m✔ 表名仍由数据库夹具引用，不拼接未转义的标识符 [90m(3.18425ms)[39m[39m
+[32m✔ 读取失败原样抛出，仍断开唯一连接并关闭临时页面，不通过重试掩盖错误 [90m(3.526666ms)[39m[39m
+(node:45376) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 对象逐层展开成点分路径，数组与基本值是叶子 [90m(0.737208ms)[39m[39m
+[32m✔ 数组检查项必须为空才算通过，其余按真值 [90m(0.080833ms)[39m[39m
+[32m✔ 列出没通过的检查项 [90m(0.706833ms)[39m[39m
+[32m✔ 比较声明的键与实际输出的键 [90m(0.126458ms)[39m[39m
+(node:45377) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 全部通过、没有限制清单：没有任何问题 [90m(0.825125ms)[39m[39m
+[32m✔ 没登记的失败、缺项、异常和页面错误都是意外 [90m(0.11025ms)[39m[39m
+[32m✔ 多出未声明的检查项任何情况下都是意外，登记整个检查组也不豁免 [90m(0.092791ms)[39m[39m
+[32m✔ 登记过的检查项失败是已知的，不算失败 [90m(0.099916ms)[39m[39m
+[32m✔ 登记了却通过的检查项是过期限制，算失败 [90m(0.149792ms)[39m[39m
+[32m✔ 整个检查组登记为限制：它的异常、缺项与页面错误都是已知的；检查组没问题了就过期 [90m(0.091958ms)[39m[39m
+[32m✔ 登记的页面错误按正则匹配，别的页面错误仍然是意外 [90m(0.091ms)[39m[39m
+[32m✔ 检查组异常导致缺项，缺的键都登记过时不再重复报异常 [90m(0.083208ms)[39m[39m
+[32m✔ 清单校验：引擎要对得上、档位与原因必填、不重复 [90m(0.364667ms)[39m[39m
+[32m✔ 默认从入口旁的 baseline 目录读取限制清单，不依赖执行目录 [90m(0.332916ms)[39m[39m
+[32m✔ 定向运行只检查选中组的限制，未运行的组不算过期 [90m(0.103709ms)[39m[39m
+(node:45378) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ Chromium 的离线失败不动时钟：被拦截的 iframe 导航会触发 load，Orbit 3 秒后以 LOAD_ERROR 失败 [90m(0.711583ms)[39m[39m
+[32m✔ firefox 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 [90m(0.178125ms)[39m[39m
+[32m✔ webkit 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 [90m(0.071333ms)[39m[39m
+[32m✔ 同一个页面只装一次假时钟（重复装会报错） [90m(0.084709ms)[39m[39m
+(node:45379) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 清单覆盖能力矩阵「快捷键」表里的每个组合，且没有多出的 [90m(2.130708ms)[39m[39m
+[32m✔ 清单项的 id 唯一，每项都说明怎么按与期望的行为 [90m(0.138125ms)[39m[39m
+[32m✔ 结果分三类：没到达、到达且正确、到达但不对；只有后者算验收失败 [90m(0.140125ms)[39m[39m
+[32m✔ 报告是一张 Markdown 表，带环境与备注 [90m(0.138208ms)[39m[39m
+[34mℹ tests 53[39m
+[34mℹ suites 0[39m
+[34mℹ pass 53[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 300.97975[39m
+
+
+
+ NX   Successfully ran target test for project aiao-desktop-e2e
+
+
+  Run duration:      452ms
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     345ms (1 task)
+  Recoverable time:  <1ms

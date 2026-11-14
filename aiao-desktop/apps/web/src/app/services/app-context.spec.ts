@@ -576,9 +576,19 @@ describe('可见的失败原因（拒绝、参数非法、超时可见；用户�
 });
 
 describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变化推给应用', () => {
-  function bound(options: { capabilities?: readonly DesktopCapability[] } = {}) {
+  function bound(options: { capabilities?: readonly DesktopCapability[]; web?: boolean } = {}) {
     const registry = apps();
     Object.assign(registry.notes, { capabilities: options.capabilities ?? ALL });
+    if (options.web)
+      Object.assign(registry.notes, {
+        kind: 'web',
+        web: {
+          url: 'https://code.example/',
+          version: 'online',
+          allow: ['clipboard-read', 'clipboard-write'],
+          readyTimeout: 60_000
+        }
+      });
     const system = new SystemState();
     const { windows, focused } = fakeWindows();
     const theme = {
@@ -615,6 +625,22 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
     expect(win.title()).toBe('ok');
     expect(await codeOf(() => context.menu.set(sections))).toBe('CAPABILITY_DENIED');
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('“Notes” isn’t allowed to use menu (menu.set).');
+  });
+
+  it('真实上下文工厂在 WebKit 撤下集成应用读取能力，拒绝发生在访问系统剪贴板之前', async () => {
+    const readText = vi.fn();
+    vi.stubGlobal('navigator', {
+      userAgent: 'AppleWebKit/605.1.15 Version/27.2 Safari/605.1.15',
+      clipboard: { readText }
+    });
+    const { contexts, win } = bound({ capabilities: ['window', 'clipboard:read', 'clipboard:write'], web: true });
+    const context = contexts.bind(win);
+    expect(context.capabilities).toEqual(['window', 'clipboard:write']);
+    expect(context.restrictions).toEqual([
+      { capability: 'clipboard:read', reason: expect.stringMatching(/disabled.*Safari.*WebKit/) }
+    ]);
+    expect(await codeOf(() => context.clipboard.readText())).toBe('CAPABILITY_DENIED');
+    expect(readText).not.toHaveBeenCalled();
   });
 
   it('没有 capabilities 字段的应用什么能力也没有', async () => {

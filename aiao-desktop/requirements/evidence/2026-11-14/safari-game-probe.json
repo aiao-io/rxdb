@@ -1,0 +1,119 @@
+{
+  "format": "aiao-desktop.native-safari-game-probe",
+  "version": 1,
+  "recordedAt": "2026-11-14T09:10:56.120Z",
+  "sourceHead": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "workspaceDirty": true,
+  "previousEvidence": "safari-product-followup.json",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "shippedGameSha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+  "sourceAndShippedGameIdentical": true,
+  "method": {
+    "browser": "native Safari macOS application",
+    "browserVersion": "27.2",
+    "versionSource": "/Applications/Safari.app/Contents/Info.plist",
+    "driver": "CUA accessibility actions, native input and screenshots",
+    "window": "new independent normal window",
+    "origin": "http://127.0.0.1:51384",
+    "originReused": true,
+    "navigation": "/?boot=0",
+    "simulatedUserGestureEnabled": false,
+    "browserPermissionsAccepted": false,
+    "systemSettingsChanged": false,
+    "loggedIn": false,
+    "physicalKeyboardUsed": false
+  },
+  "checks": {
+    "launchpadOpensSameOriginGame": true,
+    "gameTitleControlsObserved": true,
+    "startActionRemovesTitleControls": true,
+    "rendered3dSceneObservedThisRun": false,
+    "pointerLockVerified": false,
+    "completeGameInputVerified": false,
+    "fullLifecycleErrorCaptureVerified": false,
+    "benchmarkMetricsObserved": false
+  },
+  "embedded": {
+    "document": "/saltline.html",
+    "titleControlsObserved": [
+      "开始行动",
+      "设置",
+      "项目介绍",
+      "操作说明"
+    ],
+    "startActionObserved": "Title controls disappeared after the Start action.",
+    "screenshotObservation": "Subsequent screenshots continued to show the boot overlay labelled 准备就绪, while the accessibility title controls had appeared and then disappeared.",
+    "inputAttempted": [
+      "native Escape",
+      "native p",
+      "coordinate canvas clicks"
+    ],
+    "visibleResponseToThoseInputsEstablished": false,
+    "inspector": {
+      "openedBeforeDesktopReloadAndGameLaunch": true,
+      "closedBeforeGameLaunchAndReopenedAfterLaunch": true,
+      "uninterruptedLifecycleCapture": false,
+      "selectedExecutionContextObserved": "saltline.html",
+      "bootLogsObservedMs": {
+        "level": 691,
+        "backdrop": 375,
+        "ground": 6509,
+        "fx": 589,
+        "audio": 457,
+        "weapon": 551,
+        "enemies": 366
+      },
+      "weaponLogObserved": "几猫九式突击步枪: 53136 tris, 13 meshes (flash only while firing)",
+      "rendererLogObserved": "[render] interior probe assigned to 16 material(s)",
+      "visibleErrorObservedAtInspection": false,
+      "readOnlyQueriesAttempted": [
+        "location.href",
+        "JSON.stringify({ready:window.__ready,fatal:window.__fatal,errors:window.__errors,pointerLock:!!document.pointerLockElement,stats:window.__stats?.()})",
+        "window"
+      ],
+      "queryReturnObserved": false,
+      "queryUsedAsAcceptanceEvidence": false,
+      "note": "Opening the Inspector before launch does not establish full-lifecycle error capture because it was closed and later reopened."
+    }
+  },
+  "standaloneDiagnostic": {
+    "document": "/saltline.html?bench=1",
+    "entry": "new tab in the dedicated acceptance window",
+    "builtInBenchmarkMode": true,
+    "screenshotObservation": "Boot overlay labelled 准备就绪 remained visible; no 3D scene, renderer identity, FPS, frame times or benchmark values were observed.",
+    "debuggerControlObserved": "暂停执行脚本",
+    "stepControlsObservedDisabled": true,
+    "debuggerPausedObserved": false,
+    "watchExpressionAttempted": "window.__ready",
+    "watchResultObserved": false,
+    "persistentWatchStateKnown": false,
+    "note": "The Sources watch entry was attempted in addition to the Console. Neither produced an observed result. No readiness, fatal, error, lock or performance value is inferred."
+  },
+  "interruption": {
+    "acceptanceWindowId": "SafariWindow?IsSecure=false&UUID=D3C912AF-A678-47EC-BDF4-F4C0B49F1544",
+    "windowObservedBeforeCleanup": "起始页",
+    "windowIdObservedBeforeCleanup": "SafariWindow?IsSecure=false&UUID=8954CFDE-C2CD-47E9-94D7-40BD8F7815E7",
+    "explicitUserChangeWarningReceived": false,
+    "causeEstablished": false,
+    "furtherGuiActionsStopped": true,
+    "acceptanceWindowOrTabsClosedByAgent": false
+  },
+  "cleanup": {
+    "acceptanceServerPid": 34974,
+    "acceptanceServerPort": 51384,
+    "acceptanceServerStopSignal": "SIGINT",
+    "acceptanceServerExitCode": 130,
+    "acceptancePortReleased": true,
+    "otherProcessesStopped": false,
+    "acceptanceOriginDataRetained": true
+  },
+  "conclusions": {
+    "previousTerminalAndGameObservationsRetained": true,
+    "browserWideLimitationEstablished": false,
+    "rootCauseEstablished": false,
+    "productCodeChanged": false,
+    "safariProductAcceptanceComplete": false,
+    "pendingAcceptanceCount": 6,
+    "note": "This is an incomplete and anomalous observation, not evidence that the Safari game always fails or that the prior rendered scene did not occur. No elapsed-time, renderer or failure-cause claim is made."
+  }
+}

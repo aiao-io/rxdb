@@ -1,0 +1,50 @@
+{
+  "format": "aiao-desktop.browser-support-runs",
+  "version": 1,
+  "startedAt": "2026-11-14T15:19:46.426651+08:00",
+  "sourceHeadAtStart": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "aggregateVerification": "verify-browser-support-3-metadata.json",
+  "status": "passed",
+  "runs": [
+    {
+      "engine": "webkit",
+      "round": 2,
+      "startedAt": "2026-11-14T15:19:46.445332+08:00",
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e-webkit --excludeTaskDependencies --skip-nx-cache --output-style=stream --args=--parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-support-final-2.json",
+      "report": "webkit-support-final-2.json",
+      "log": "webkit-support-final-2.txt",
+      "status": "passed",
+      "finishedAt": "2026-11-14T15:26:03.845534+08:00",
+      "exitCode": 0,
+      "wallSeconds": 377.398,
+      "seconds": 374.902106,
+      "passed": true,
+      "clean": false,
+      "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "groups": 24,
+      "checks": 479,
+      "passedChecks": 478
+    },
+    {
+      "engine": "webkit",
+      "round": 3,
+      "startedAt": "2026-11-14T15:26:03.849131+08:00",
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e-webkit --excludeTaskDependencies --skip-nx-cache --output-style=stream --args=--parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-support-final-3.json",
+      "report": "webkit-support-final-3.json",
+      "log": "webkit-support-final-3.txt",
+      "status": "passed",
+      "finishedAt": "2026-11-14T15:32:41.826827+08:00",
+      "exitCode": 0,
+      "wallSeconds": 397.972,
+      "seconds": 394.575968041,
+      "passed": true,
+      "clean": false,
+      "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "groups": 24,
+      "checks": 479,
+      "passedChecks": 478
+    }
+  ],
+  "finishedAt": "2026-11-14T15:32:41.828349+08:00"
+}

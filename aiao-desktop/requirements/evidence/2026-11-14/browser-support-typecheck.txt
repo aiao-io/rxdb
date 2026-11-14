@@ -1,0 +1,15 @@
+
+> nx run aiao-desktop-web:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+
+
+ NX   Successfully ran target typecheck for project aiao-desktop-web
+
+
+  Run duration:      7.2s
+  Cache:             0/1 hit (0%)
+  Critical path:     7.1s (1 task)
+  Recoverable time:  <1ms

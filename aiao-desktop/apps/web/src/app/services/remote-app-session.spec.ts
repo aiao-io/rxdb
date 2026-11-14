@@ -122,7 +122,9 @@ describe('RemoteAppSession：一次启动', () => {
   });
 
   it('浏览器禁用的能力不在握手公告与实际授权里，加载前就提供持续显示的原因', async () => {
-    const restrictions = [{ capability: 'clipboard:read' as const, reason: 'Clipboard reading is disabled in Safari.' }];
+    const restrictions = [
+      { capability: 'clipboard:read' as const, reason: 'Clipboard reading is disabled in Safari.' }
+    ];
     const { session, orbit, container, win, services } = setup({
       effectiveCapabilities: ['window', 'clipboard:write'],
       restrictions

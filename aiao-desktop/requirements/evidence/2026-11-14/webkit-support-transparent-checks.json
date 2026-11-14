@@ -1,0 +1,81 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T07:13:11.238Z",
+  "source": {
+    "sha": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+    "changes": "M ../../README.md\n M src/baseline/limitations-webkit.json\n M src/groups/host-capabilities.mjs\n M src/groups/lazy-loading.mjs\n M src/groups/transparent-window.mjs\n M src/groups/window-layout.mjs\n M src/harness/database.mjs\n M src/harness/standin.mjs\n M ../web/src/app/apps/web-app/web-app.html\n M ../web/src/app/services/app-context.spec.ts\n M ../web/src/app/services/app-context.ts\n M ../web/src/app/services/browser-app-support.spec.ts\n M ../web/src/app/services/browser-app-support.ts\n M ../web/src/app/services/remote-app-session.spec.ts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/browser-followup.md\n M ../../requirements/evidence/2026-11-14/closeout-summary.json\n M ../../requirements/evidence/2026-11-14/firefox-final-3.txt\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md\n M ../../requirements/stories/platform/ADESK-US-005-cross-browser-smoke.md\n M ../../requirements/verification-report.md\n?? src/harness/database.spec.mjs\n?? ../../requirements/evidence/2026-11-14/browser-support-build.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-requirements-interim.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-runs.json\n?? ../../requirements/evidence/2026-11-14/browser-support-typecheck.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red-detail.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/browser-support.md\n?? ../../requirements/evidence/2026-11-14/chromium-browser-support-failed.json\n?? ../../requirements/evidence/2026-11-14/chromium-browser-support-verify.json\n?? ../../requirements/evidence/2026-11-14/coverage-summary-browser-support.json\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-4.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-erase-complete.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-final-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-final-1.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-final-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-final-2.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-2.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-args-error.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-checks.txt\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.json\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-1.json\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-1.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-2.json\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-2.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-3.json\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-3.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-lint-green.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-lint.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/safari-product-entry.json\n?? ../../requirements/evidence/2026-11-14/safari-product-static-headers.txt\n?? ../../requirements/evidence/2026-11-14/safari-product-static-server.txt\n?? ../../requirements/evidence/2026-11-14/verification-browser-support-summary.json\n?? ../../requirements/evidence/2026-11-14/verify-browser-support-2-metadata.json\n?? ../../requirements/evidence/2026-11-14/verify-browser-support-2.txt\n?? ../../requirements/evidence/2026-11-14/verify-browser-support-metadata.json\n?? ../../requirements/evidence/2026-11-14/verify-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.txt\n?? ../../requirements/evidence/2026-11-14/webkit-support-final-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-support-final-1.txt\n?? ../../requirements/evidence/2026-11-14/webkit-support-transparent-checks.txt"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "27.2",
+    "engine": "webkit",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "transparent-window"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 9.394772458,
+  "outcomes": [
+    {
+      "group": "transparent-window",
+      "result": {
+        "transparentWindow": {
+          "chromeWhileLoading": true,
+          "chromeHiddenWhenReady": true,
+          "appKnowsDecorations": true,
+          "dragMovesWindow": true,
+          "buttonsAreNotDragArea": true,
+          "doubleClickZooms": true,
+          "maximizeButtonToggles": true,
+          "focusStateReachesApp": true,
+          "minimizeButtonMinimizes": true,
+          "closeButtonCloses": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 9.352207457999999
+    }
+  ],
+  "checks": {
+    "transparentWindow": {
+      "chromeWhileLoading": true,
+      "chromeHiddenWhenReady": true,
+      "appKnowsDecorations": true,
+      "dragMovesWindow": true,
+      "buttonsAreNotDragArea": true,
+      "doubleClickZooms": true,
+      "maximizeButtonToggles": true,
+      "focusStateReachesApp": true,
+      "minimizeButtonMinimizes": true,
+      "closeButtonCloses": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

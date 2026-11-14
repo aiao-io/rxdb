@@ -1,26 +1,125 @@
 {
-  "format": "aiao-desktop.requirements-closeout",
-  "version": 1,
-  "measuredAt": "2026-11-14T02:38:02.695560+00:00",
   "allRequirementsComplete": false,
-  "storyCounts": {
-    "Done": 12,
-    "In Review": 10
-  },
   "automatedVerification": {
     "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
     "exitCode": 0,
     "tasks": 56,
-    "seconds": 338.175,
-    "webTestFiles": 91,
-    "webTests": 1338,
-    "scriptTests": 50,
+    "seconds": 347.906,
+    "webTestFiles": 92,
+    "webTests": 1348,
+    "scriptTests": 53,
     "chromiumGroups": 24,
-    "chromiumChecks": 476,
-    "rawLog": "verify.txt",
-    "checksReport": "chromium-verify.json",
-    "coverageReport": "coverage-summary-final.json"
+    "chromiumChecks": 479,
+    "chromiumSeconds": 301.4,
+    "rawLog": "verify-browser-support-3.txt",
+    "metadata": "verify-browser-support-3-metadata.json",
+    "checksReport": "chromium-browser-support-verify.json",
+    "coverageReport": "coverage-summary-browser-support.json"
   },
+  "browserVerification": {
+    "runManifests": [
+      "browser-support-runs.json",
+      "browser-support-webkit-followup-runs.json"
+    ],
+    "implementationAndEvidence": "browser-support.md",
+    "safariProductAcceptanceComplete": false,
+    "summary": "browser-support-summary.json",
+    "allFourRunsPassed": true,
+    "runs": [
+      {
+        "engine": "firefox",
+        "round": 1,
+        "report": "firefox-support-final-1.json",
+        "checks": 479,
+        "passedChecks": 479,
+        "passed": true,
+        "clean": true
+      },
+      {
+        "engine": "firefox",
+        "round": 2,
+        "report": "firefox-support-final-2.json",
+        "checks": 479,
+        "passedChecks": 479,
+        "passed": true,
+        "clean": true
+      },
+      {
+        "engine": "webkit",
+        "round": 2,
+        "report": "webkit-support-final-2.json",
+        "checks": 479,
+        "passedChecks": 478,
+        "passed": true,
+        "clean": false
+      },
+      {
+        "engine": "webkit",
+        "round": 3,
+        "report": "webkit-support-final-3.json",
+        "checks": 479,
+        "passedChecks": 478,
+        "passed": true,
+        "clean": false
+      }
+    ],
+    "nativeSafari": {
+      "entryEvidence": "safari-product-entry.json",
+      "followupEvidence": "safari-product-followup.json",
+      "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "terminalDiskReadWriteAndReloadVerified": true,
+      "gameRenderingAndPauseResumeObserved": true,
+      "gamePointerLockVerified": false,
+      "completeGameInputVerified": false,
+      "fullLifecycleErrorCaptureVerified": false,
+      "userChangedApplicationState": true,
+      "safariProductAcceptanceComplete": false,
+      "gameProbeEvidence": "safari-game-probe.json",
+      "latestGameProbe": {
+        "bootOverlayRemainedVisible": true,
+        "standaloneBuiltInBenchmarkOutputObserved": false,
+        "rootCauseEstablished": false,
+        "readOnlyQueryResultObserved": false,
+        "stoppedAfterDifferentWindowObserved": true,
+        "acceptanceServerStopped": true
+      }
+    }
+  },
+  "format": "aiao-desktop.requirements-closeout",
+  "measuredAt": "2026-11-14T08:03:45+00:00",
+  "pendingAcceptanceCount": 6,
+  "previousAutomatedVerifications": [
+    {
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+      "exitCode": 0,
+      "tasks": 56,
+      "seconds": 338.175,
+      "webTestFiles": 91,
+      "webTests": 1338,
+      "scriptTests": 50,
+      "chromiumGroups": 24,
+      "chromiumChecks": 476,
+      "rawLog": "verify.txt",
+      "checksReport": "chromium-verify.json",
+      "coverageReport": "coverage-summary-final.json"
+    },
+    {
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+      "exitCode": 0,
+      "tasks": 56,
+      "seconds": 352.603,
+      "webTestFiles": 92,
+      "webTests": 1348,
+      "scriptTests": 53,
+      "chromiumGroups": 24,
+      "chromiumChecks": 479,
+      "chromiumSeconds": 297.1,
+      "rawLog": "verify-browser-support-2.txt",
+      "metadata": "verify-browser-support-2-metadata.json",
+      "checksReport": "chromium-browser-support-verify.json",
+      "coverageReport": "coverage-summary-browser-support.json"
+    }
+  ],
   "stories": [
     {
       "id": "ADESK-US-201",
@@ -224,15 +323,7 @@
       ],
       "pendingAcceptance": [
         {
-          "ac": 1,
-          "status": "⚠️"
-        },
-        {
           "ac": 4,
-          "status": "⚠️"
-        },
-        {
-          "ac": 5,
           "status": "⚠️"
         }
       ]
@@ -268,5 +359,10 @@
         }
       ]
     }
-  ]
+  ],
+  "storyCounts": {
+    "Done": 12,
+    "In Review": 10
+  },
+  "version": 1
 }

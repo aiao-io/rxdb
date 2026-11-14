@@ -15,7 +15,7 @@
 - [ADESK-US-105 多标签页互通](stories/desktop/ADESK-US-105-multi-tab-sync.md)：两阶段AC通过，待US-008关闭。
 - [ADESK-US-107 外壳交互](stories/desktop/ADESK-US-107-shell-interaction-coverage.md)：自动化路径通过，剩本机Chrome普通标签页的真实物理键盘逐项验收。
 - [ADESK-US-108 无障碍](stories/desktop/ADESK-US-108-accessibility.md)：ARIA树与纯键盘路径通过，剩真实VoiceOver播报记录。
-- [ADESK-US-005 跨浏览器](stories/platform/ADESK-US-005-cross-browser-smoke.md)：后续完整复测及原失败见[证据](evidence/2026-11-14/browser-followup.md)；Firefox同站不同源HTTPS组合的四项旧限制已关闭，WebKit经Orbit读取剪贴板仍未完成验收或有限支持交付。
+- [ADESK-US-005 跨浏览器](stories/platform/ADESK-US-005-cross-browser-smoke.md)：后续完整复测及原失败见[证据](evidence/2026-11-14/browser-followup.md)；Firefox同站不同源HTTPS组合的四项旧限制已关闭，WebKit经Orbit读取剪贴板的入口禁用和持续说明已实现，新产物完整连续复验已按支持分档关闭#1、#5；#4真机Safari产品验收仍待关闭，见[有限支持复验](evidence/2026-11-14/browser-support.md)。
 - [ADESK-US-004 自定义域名](stories/platform/ADESK-US-004-custom-domain.md)：域名绑定、同站项目及已有GitHub登录状态已实测；剩本次正式发布对账及双域名文件数据隔离的完整证据。旧生产构建写文件后的存储元数据失败已保留，需在发布当前已验证产物后复测。
 
 阶段AC通过不自动关闭故事；`dependsOn`和所有AC仍是Done的必要条件。本轮没有合并main或发布当前工作区。

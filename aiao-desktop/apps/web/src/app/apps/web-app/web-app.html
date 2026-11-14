@@ -7,7 +7,12 @@
   </div>
 }
 @for (restriction of session.restrictions(); track restriction.capability) {
-  <div class="webapp-support" [attr.data-disabled-capability]="restriction.capability" data-webapp-restriction role="note">
+  <div
+    class="webapp-support"
+    [attr.data-disabled-capability]="restriction.capability"
+    data-webapp-restriction
+    role="note"
+  >
     {{ restriction.reason }}
   </div>
 }

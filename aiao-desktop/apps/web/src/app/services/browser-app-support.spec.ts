@@ -9,12 +9,19 @@ const SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.
 const CHROMIUM = 'Mozilla/5.0 AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36';
 const FIREFOX = 'Mozilla/5.0 Gecko/20100101 Firefox/149.0';
 
-function remote(capabilities: readonly DesktopCapability[] = ['window', 'clipboard:read', 'clipboard:write']): DesktopAppManifest {
+function remote(
+  capabilities: readonly DesktopCapability[] = ['window', 'clipboard:read', 'clipboard:write']
+): DesktopAppManifest {
   return {
     ...testApps().notes,
     kind: 'web',
     capabilities,
-    web: { url: 'https://code.example/', version: 'online', allow: ['clipboard-read', 'clipboard-write'] }
+    web: {
+      url: 'https://code.example/',
+      version: 'online',
+      allow: ['clipboard-read', 'clipboard-write'],
+      readyTimeout: 60_000
+    }
   } as DesktopAppManifest;
 }
 
@@ -35,6 +42,11 @@ describe('appCapabilitySupport', () => {
       { capability: 'clipboard:read', reason: expect.stringMatching(/clipboard reading.*is disabled.*Safari.*WebKit/i) }
     ]);
     expect(app.kind === 'web' && app.capabilities).toEqual(['window', 'clipboard:read', 'clipboard:write']);
+  });
+
+  it('同样使用 WebKit 的 iOS 浏览器遵守同一个读取限制', () => {
+    const userAgent = 'Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 CriOS/149.0 Mobile/15E148 Safari/604.1';
+    expect(appCapabilitySupport(remote(), userAgent).capabilities).toEqual(['window', 'clipboard:write']);
   });
 
   it('不声明读取的应用没有无关的限制提示，空清单仍然默认拒绝', () => {

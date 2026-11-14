@@ -1,14 +1,18 @@
 # 2026-11-14 验收证据
 
-执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
+执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3`、`13d8a872` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
 
-## 最终本地门禁
+## 当前本地门禁
 
-[原始日志](verify.txt)来自 `NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static`：绕过缓存，56个任务、退出码0、338.175秒。91个web测试文件的1338个用例、50个e2e脚本用例、需求与开发/安全/发布脚本测试、lint、typecheck、build、夹具自检和92个产物文本文件的密钥扫描均通过。
+[本轮聚合日志](verify-browser-support-3.txt)来自 `NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static`：绕过缓存，含根目标在内 56 个任务、退出码 0，命令包装器实测 347.906 秒。92 个 web 测试文件的 1348 个用例、53 个 e2e 脚本用例、需求与开发/安全/发布脚本测试、lint、typecheck、build、16 项夹具自检和 92 个产物文本文件的密钥扫描均通过。开始与结束 SHA、真实工作区状态见[执行元数据](verify-browser-support-3-metadata.json)，不声明工作区干净。
 
-默认Chromium 24组/476项检查全部通过，296.6秒；[检查对象](chromium-verify.json)从本次日志中原样提取，保留原始JSON的摘要与日志路径，没有重建未输出的逐组outcomes。[最终覆盖率](coverage-summary-final.json)语句98.60%、行99.31%、函数98.82%、分支95.28%；[需求汇总](closeout-summary.json)从故事YAML派生，仍为12条Done、10条In Review、8项AC待关闭。
+默认 Chromium 24 组 / 479 项检查通过，301.4 秒；[检查对象](chromium-browser-support-verify.json)从本次日志中原样提取，没有重建未输出的逐组 outcomes。[本轮覆盖率](coverage-summary-browser-support.json)为语句 98.61%、行 99.31%、函数 98.82%、分支 95.35%。[需求汇总](closeout-summary.json)从故事 YAML 派生，目前为 12 条 Done、10 条 In Review、6 项 AC 待关闭；US-005 #1、#5已按支持分档验收，#4真机Safari仍保留。
 
-[最终发布演练](deploy-dry-run-final.txt)验证本轮门禁产物，退出码0，没有上传。历史失败与此前口径的证据全部保留，以下逐项记录。
+WebKit 的宿主剪贴板读取已在入口禁用并持续说明原因，握手公告与实际授权同时撤下读取能力。原成功读取检查仍保留为 false；新产物 Firefox 两轮均 479/479、clean=true，WebKit 两轮均 478/479、passed=true、clean=false，无缺项、清单外失败或页面错误；完整轮次与原生 Safari 边界见[有限支持实现与复验](browser-support.md)。
+
+[本轮发布演练](deploy-dry-run-browser-support.txt)退出码 0，没有上传。此前的[聚合日志](verify.txt)、[476 项检查对象](chromium-verify.json)、[覆盖率](coverage-summary-final.json)与[发布演练](deploy-dry-run-final.txt)保留各自原产物口径，不冒充本轮结果。
+
+本轮[首次聚合失败](verify-browser-support.txt)和[465 项输出、14 项缺失的检查对象](chromium-browser-support-failed.json)也保留；懒加载夹具改用一条连接计数后的单测红绿与连续三轮 14/14 结果见[完整记录](browser-support.md#当前源码的完整聚合门禁)。没有吞掉 OPFS 错误或放宽原断言。
 
 ## 固定提交的回溯测量
 
@@ -90,3 +94,13 @@ Firefox随后用本机有窗口模式[复验集成应用](firefox-headed-final.j
 ## 跨浏览器后续收敛
 
 [完整记录与逐轮表](browser-followup.md)保留Firefox第一轮和单组复现失败，记录同站不同源HTTPS来源模型、视口内拖动、统一错误收集及保存前显式切换标签页。Firefox原四项限制已撤除；新增夹具自检16项全过。WebKit已正确授予clipboard-read并验证宿主读取和内容核对，两轮仅余经Orbit的MessagePort读取未通过，未以清单标签冒充有限支持交付。
+
+## WebKit 入口有限支持
+
+[有限支持记录](browser-support.md)区分原生 Safari 最小实验、产品的入口禁用与持续原因说明、新产物完整聚合和跨浏览器完整轮次。旧产物的连续轮次仅用于历史追溯，不与新产物结果混用；Playwright WebKit 不等于真机 Safari 产品验收。
+
+[四轮汇总](browser-support-summary.json)逐份验证入口摘要、24组479键与限制集合。Firefox两轮全过；WebKit两轮有限支持交付的三项入口检查全过，原读取成功项为false。US-005 #1、#5按该分档验收，#4真机Safari未关闭；此前失败记录不删除。
+
+[原生 Safari 后续记录](safari-product-followup.json)使用同一产物，确认终端提示符、echo 写文件、cat 与 TextEdit 读回、浏览器刷新后的正文和窗口恢复。游戏标题、3D 场景、任务 HUD、暂停与继续均有观察；指针锁定、完整输入及全流程错误仍未证实。只读状态查询没有返回结果，不计作证据。用户改变 Safari 窗口后已停止 GUI 操作；本次 51384 服务已停止，既有 4411 服务与验收来源数据保留。US-005 #4和6项待关闭AC的计数不变。
+
+[再次原生游戏检查](safari-game-probe.json)保留本轮异常：内嵌页标题控件已出现且开始操作后消失，但截图仍显示“准备就绪”遮罩；独立打开游戏自带 bench 模式也未观察到 3D 画面或性能数据。Console 与 Sources 监视均未取得只读返回值；不由此判断指针锁定、渲染器、错误集合或根因。Inspector 曾在启动前打开，但中途关闭，不能算全流程错误采集。清理前观察到不同 UUID 的起始页窗口，立即停止 GUI；只停止本轮 51384 服务，保留原有证据及验收来源数据。故事和 AC 计数不变。

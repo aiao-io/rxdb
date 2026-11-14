@@ -6,7 +6,7 @@
       "kind": "check",
       "key": "hostCapabilities.clipboardReadAfterGrant",
       "tier": "有限支持",
-      "reason": "WebKit 27.2 支持 clipboard-read 授权，直接读取宿主系统剪贴板及写入/拒写后的内容核对均通过；Orbit 经 MessagePort 请求宿主读取时仍得到 NotAllowedError。同一浏览器的独立最小实验中，window.postMessage 路径可读、MessagePort 路径在父来源、双来源和上下文整体授权后均被拒绝。此项是尚未关闭的跨协议读取缺口，未完成入口禁用的产品降级，不把直接读取通过冒充 Orbit 读取成功。"
+      "reason": "Safari 与 WebKit 拒绝经 MessagePort 发起的宿主剪贴板读取；本机 Safari 27.2 的直接读取成功、MessagePort 读取被拒。产品在应用握手前撤下 clipboard:read，实际授权同步拒绝，并在窗口持续显示禁用原因。原成功读取检查保留为 false，不以宿主直接读取替代；新增入口、授权与持续说明检查验证有限支持交付。系统剪贴板写入、拒写后内容核对及其他集成能力继续验收。真实 Safari 的完整流程仍另验。"
     }
   ],
   "reviewedAt": "2026-11-14"

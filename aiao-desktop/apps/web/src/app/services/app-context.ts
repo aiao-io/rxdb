@@ -120,7 +120,7 @@ export interface AppContextPanels {
 export interface AppContextOptions {
   /** 绑定的窗口：上下文绑定它此刻的实例 ID，实例换了（重试）或窗口关闭，上下文就失效。 */
   readonly win: DesktopWindow;
-  /** 清单授予这个应用的能力；没有列出的一律 `CAPABILITY_DENIED`。 */
+  /** 清单与浏览器支持共同决定的实际能力；没有列出的一律 `CAPABILITY_DENIED`。 */
   readonly capabilities: readonly DesktopCapability[];
   /** 当前浏览器禁用的能力；远程应用入口持续显示其原因。 */
   readonly restrictions?: readonly AppCapabilityRestriction[];

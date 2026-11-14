@@ -1,5 +1,5 @@
 import { componentScripts, lazyScripts, scriptNameOf, scriptsDeclaring, seedScripts } from '../harness/chunks.mjs';
-import { surgery } from '../harness/database.mjs';
+import { surgery, tableCounts } from '../harness/database.mjs';
 import { passes } from '../harness/helpers.mjs';
 
 /** 壳层自己会读的数据域：桌面上的日历、天气、股票小组件，以及通知中心里的提醒事项小组件（D-18）。 */
@@ -117,7 +117,6 @@ export const lazyLoading = {
 
     const markers = () => surgery(session, db => db.markers());
     const markerKeys = async () => Object.keys(await markers()).sort();
-    const rowCount = table => surgery(session, db => db.count(table));
 
     const lazyLoading = {};
     lazyLoading.everyAppIsItsOwnChunk =
@@ -222,8 +221,9 @@ export const lazyLoading = {
       });
     const databaseHoldsSeeds = async () =>
       (
-        await Promise.all(
-          ['calendar_event', 'reminder', 'weather_city', 'watchlist_symbol'].map(table => rowCount(`desktop$${table}`))
+        await tableCounts(
+          session,
+          ['calendar_event', 'reminder', 'weather_city', 'watchlist_symbol'].map(table => `desktop$${table}`)
         )
       ).every(count => count > 0);
 

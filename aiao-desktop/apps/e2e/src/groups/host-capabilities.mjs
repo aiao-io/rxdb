@@ -18,7 +18,7 @@ const PNG =
  * 通知、剪贴板与未授权的写入（ADESK-US-206 阶段 D，AC#11）：用替身应用顶替 Aiao Code。
  *
  * - **没改写的构建**（Aiao Code 的最小清单：window 与剪贴板读写）：未声明的 notification、filesystem 与 appearance 写入被稳定拒绝，
- *   窗口里有一句可见原因；剪贴板的读取由浏览器权限决定（不授权时 `BROWSER_PERMISSION_DENIED`，Playwright 的 `grantPermissions`
+ *   窗口里有一句可见原因；WebKit 的宿主读取在入口禁用并持续说明原因，其余引擎的读取由浏览器权限决定（不授权时 `BROWSER_PERMISSION_DENIED`，Playwright 的 `grantPermissions`
  *   之后读到系统剪贴板的内容），写入要求用户手势：点一下应用的 iframe 之后写成功，空闲 5 秒以上（用户激活过期）再写被拒绝，宿主不替用户写。
  * - **改写清单的构建**（见 `harness/capabilities.mjs`）：通知出现在通知中心、归属调用方、同一应用的去重键覆盖旧条目、频率上限、
  *   不随窗口关闭撤回、单条与全部清除、键盘可操作、刷新后不保留（状态只在内存里）。
@@ -37,6 +37,9 @@ export const hostCapabilities = {
     'hostCapabilities.undeclaredFilesystemDenied',
     'hostCapabilities.unauthorizedAppearanceWriteDenied',
     'hostCapabilities.denialShowsReasonInWindow',
+    'hostCapabilities.clipboardReadCapabilityMatchesBrowser',
+    'hostCapabilities.clipboardReadRestrictionExplainedAtEntry',
+    'hostCapabilities.clipboardReadRestrictionPersists',
     'hostCapabilities.clipboardReadDeniedWithoutPermission',
     'hostCapabilities.clipboardWriteWithGesture',
     'hostCapabilities.clipboardHoldsWrittenText',
@@ -134,10 +137,21 @@ export const hostCapabilities = {
       denied(appearanceDenied) && denied(await call('appearance.get')) && (await theme()) === themeBefore;
     await page.waitForTimeout(4_800);
 
-    /* ───── 剪贴板：读取由浏览器的权限决定；写入要求用户手势 ───── */
+    /* ───── 剪贴板：WebKit 在握手前禁用宿主读取，其余引擎由浏览器权限决定 ───── */
+    const readRestricted = session.engine === 'webkit';
+    const readDenial = readRestricted ? 'CAPABILITY_DENIED' : 'BROWSER_PERMISSION_DENIED';
+    const advertised = await (await calls.frame()).evaluate(() => window.standin.capabilities);
+    const restriction = vscodeWin.locator('[data-webapp-restriction][data-disabled-capability="clipboard:read"]');
+    hostCapabilities.clipboardReadCapabilityMatchesBrowser =
+      advertised.includes('clipboard:read') === !readRestricted && advertised.includes('clipboard:write');
+    hostCapabilities.clipboardReadRestrictionExplainedAtEntry =
+      readRestricted ?
+        (await restriction.isVisible()) &&
+        /clipboard reading.*disabled.*Safari.*WebKit/i.test(await restriction.innerText())
+      : (await restriction.count()) === 0;
     const readWithoutPermission = await call('clipboard.readText');
     hostCapabilities.clipboardReadDeniedWithoutPermission =
-      readWithoutPermission.ok === false && readWithoutPermission.code === 'BROWSER_PERMISSION_DENIED';
+      readWithoutPermission.ok === false && readWithoutPermission.code === readDenial;
     /* WebKit 只支持读取授权，写入依赖用户手势；Firefox 使用自己的权限机制。 */
     const permissions = session.engine === 'webkit' ? ['clipboard-read'] : ['clipboard-read', 'clipboard-write'];
     const granted = await context.grantPermissions(permissions, { origin }).then(
@@ -167,10 +181,13 @@ export const hostCapabilities = {
     hostCapabilities.clipboardWriteWithoutGestureDenied =
       lateWrite?.ok === false && lateWrite.code === 'BROWSER_PERMISSION_DENIED';
     hostCapabilities.clipboardUnchangedAfterDenial = (await hostClipboard()) === 'hello from the stand-in';
+    hostCapabilities.clipboardReadRestrictionPersists =
+      readRestricted ?
+        (await restriction.isVisible()) && !advertised.includes('clipboard:read')
+      : (await restriction.count()) === 0;
     /* 浏览器层的拒绝只回给应用：窗口里不弹提示条，桌面不替应用说话。 */
     hostCapabilities.clipboardDenialIsForTheAppOnly =
-      (await vscodeWin.locator('[data-webapp-notice]').count()) === 0 &&
-      readWithoutPermission.code === 'BROWSER_PERMISSION_DENIED';
+      (await vscodeWin.locator('[data-webapp-notice]').count()) === 0 && lateWrite.code === 'BROWSER_PERMISSION_DENIED';
 
     /* ───── 改写清单的构建：通知 ───── */
     await grantCapabilities(session, CAPABILITIES);

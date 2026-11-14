@@ -1,0 +1,81 @@
+> vitest --coverage.enabled=false browser-app-support.spec.ts remote-app-session.spec.ts
+
+(node:76453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/web
+
+(node:76506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:76507) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |aiao-desktop-web| src/app/services/browser-app-support.spec.ts (0 test)
+ ❯ |aiao-desktop-web| src/app/services/remote-app-session.spec.ts (31 tests | 1 failed) 134ms
+     ✓ 创建会话就进入 loading（窗口组件已装载、应用实例还没就绪）：第一屏就是加载状态，不闪空白 5ms
+     ✓ 实例 ID 取窗口当前的实例 ID，入口、版本、浏览器权限与就绪时限来自清单，启动属性带窗口与能力信息 6ms
+     × 浏览器禁用的能力不在握手公告与实际授权里，加载前就提供持续显示的原因 7ms
+     ✓ 应用报告就绪：窗口 ready；握手前就已经登记好桌面能力与窗口请求，应用的第一个请求就能被处理 2ms
+     ✓ 桌面能力与旧版窗口请求落在同一个窗口上：新信封改标题、旧版逐方法协议也改标题 5ms
+     ✓ 没声明 window 能力的应用：启动属性里没有窗口信息，旧版窗口请求根本没登记；新信封的窗口请求被拒绝并给出可见原因 5ms
+     ✓ 提示条几秒后自己消失；新的提示替换旧的 3ms
+     ✓ 透明窗口：应用隐藏桌面标题栏后，就绪时桌面不再画标题栏；加载中与失败时始终画 2ms
+     ✓ 应用上报的拖动区交给窗口去画；应用实例失败后清空 1ms
+     ✓ 窗口状态变化经旧版事件推给应用（前台变化、缩放…） 5ms
+     ✓ 就绪超时：窗口 failed，带上原因；别的窗口不受影响；实例的能力上下文随之解绑，迟到的请求 WINDOW_CLOSED 5ms
+     ✓ 重试创建新实例：新的实例 ID、新的 Orbit 实例、新的能力上下文；旧实例已销毁，不复用旧 iframe 1ms
+     ✓ 每次重试的实例 ID 都不同 5ms
+     ✓ 旧实例迟到的 ready 按实例 ID 丢弃：不会让重试出来的新实例误判就绪（AC#14） 4ms
+     ✓ 重试时旧实例还没结束（卡在加载中）：旧实例被销毁，它迟到的结果不影响新实例 1ms
+     ✓ 旧实例迟到的 setTitle 按实例 ID 丢弃，新实例的窗口标题不变（AC#18） 1ms
+     ✓ 应用自报失败、协议不兼容各给出自己的原因 1ms
+     ✓ 运行中应用自己跳转或关闭连接：窗口 failed，原因是它离开了自己的页面 0ms
+     ✓ 重试时窗口已在关闭：什么都不创建 0ms
+     ✓ 加载中关闭窗口：能力上下文立刻解绑；旧实例迟到的 ready 被丢弃，已关闭的窗口不会重新出现 3ms
+     ✓ 销毁会话：Orbit 实例销毁、上下文解绑、定时器清掉；幂等；销毁后启动或重试什么都不做 3ms
+     ✓ 销毁会话不会把加载中的窗口标成失败（销毁产生的 DESTROYED 属于关窗口） 0ms
+     ✓ 打开：应答「已受理」，用户在桌面面板里选定之后，内容与凭证经完成事件到达应用（字节是 base64） 2ms
+     ✓ 用户在面板里停留很久也不超时：面板开着时过了宿主的处理时限（5 秒）与应用的兜底时限（7 秒），选定后仍然成功 10ms
+     ✓ 用户取消：完成事件里是 USER_CANCELLED，窗口里没有错误提示，磁盘没碰 1ms
+     ✓ 面板还开着时关闭窗口（AC#17）：面板随窗口关闭，请求以 WINDOW_CLOSED 结束（关闭动画里实例还活着，应用收得到），磁盘不变 4ms
+     ✓ 旧实例迟到的 filesystem.save 被丢弃（AC#17）：窗口关闭、实例销毁之后，带凭证与不带凭证的迟到保存都是 WINDOW_CLOSED，没有写盘 6ms
+     ✓ 重试出了新实例（AC#16④）：旧实例迟到的保存按实例 ID 丢弃；新实例用旧凭证是 HANDLE_INVALID，磁盘不变 33ms
+     ✓ 文件面板关闭后把键盘焦点还给应用的文档：实例就绪才还，已失败或已销毁的不动 7ms
+     ✓ 剪贴板：写入经应用的用户手势有效期；没有手势是 BROWSER_PERMISSION_DENIED，只回给应用，窗口里没有提示条 1ms
+     ✓ 未声明的文件、通知能力（Aiao Code 的最小清单）：稳定的 CAPABILITY_DENIED 与窗口里的可见原因，宿主服务一个也没被碰 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |aiao-desktop-web| src/app/services/browser-app-support.spec.ts [ src/app/services/browser-app-support.spec.ts ]
+Error: Cannot find module './browser-app-support' imported from /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/web/src/app/services/browser-app-support.spec.ts
+ ❯ src/app/services/browser-app-support.spec.ts:4:1
+      2|
+      3| import { testApps } from '../testing/desktop-apps';
+      4| import { appCapabilitySupport } from './browser-app-support';
+       | ^
+      5| import type { DesktopAppManifest } from './desktop-apps';
+      6|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |aiao-desktop-web| src/app/services/remote-app-session.spec.ts > RemoteAppSession：一次启动 > 浏览器禁用的能力不在握手公告与实际授权里，加载前就提供持续显示的原因
+TypeError: session.restrictions is not a function
+ ❯ src/app/services/remote-app-session.spec.ts:131:20
+    129|     });
+    130|     const started = session.start(container);
+    131|     expect(session.restrictions()).toEqual(restrictions);
+       |                    ^
+    132|     expect(orbit.last.options.props?.['orbit.desktop']).toEqual({ capa…
+    133|     expect(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  1 failed | 30 passed (31)
+   Start at  13:49:52
+   Duration  23.19s (transform 20.00s, setup 0ms, import 22.41s, tests 134ms, environment 0ms)
+
+Warning: command "vitest --coverage.enabled=false browser-app-support.spec.ts remote-app-session.spec.ts" exited with non-zero status code

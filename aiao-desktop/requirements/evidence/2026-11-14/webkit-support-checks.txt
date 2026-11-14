@@ -1,0 +1,50 @@
+
+> nx run aiao-desktop-e2e:e2e-webkit --args=--group=host-capabilities --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-support-checks.json
+
+aiao-desktop-e2e: (node:91000) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e:   [host-capabilities] undeclaredNotificationDenied = true
+aiao-desktop-e2e:   [host-capabilities] denialShowsReasonInWindow = true
+aiao-desktop-e2e:   [host-capabilities] undeclaredFilesystemDenied = true
+aiao-desktop-e2e:   [host-capabilities] unauthorizedAppearanceWriteDenied = true
+aiao-desktop-e2e:   [host-capabilities] clipboardReadCapabilityMatchesBrowser = true
+aiao-desktop-e2e:   [host-capabilities] clipboardReadRestrictionExplainedAtEntry = true
+aiao-desktop-e2e:   [host-capabilities] clipboardReadDeniedWithoutPermission = true
+aiao-desktop-e2e:   [host-capabilities] clipboardWriteWithGesture = true
+aiao-desktop-e2e:   [host-capabilities] clipboardHoldsWrittenText = true
+aiao-desktop-e2e: 剪贴板读取诊断 {"permissions":["clipboard-read"],"granted":true,"readBack":{"ok":false,"name":"DesktopError","code":"CAPABILITY_DENIED","message":"清单没有声明 clipboard:read 能力"}}
+aiao-desktop-e2e:   [host-capabilities] clipboardReadAfterGrant = false
+aiao-desktop-e2e:   [host-capabilities] clipboardWriteWithoutGestureDenied = true
+aiao-desktop-e2e:   [host-capabilities] clipboardUnchangedAfterDenial = true
+aiao-desktop-e2e:   [host-capabilities] clipboardReadRestrictionPersists = true
+aiao-desktop-e2e:   [host-capabilities] clipboardDenialIsForTheAppOnly = true
+aiao-desktop-e2e:   [host-capabilities] notificationAppearsInCentre = true
+aiao-desktop-e2e:   [host-capabilities] notificationAttributedToCaller = true
+aiao-desktop-e2e:   [host-capabilities] notificationSpoofRejected = true
+aiao-desktop-e2e:   [host-capabilities] notificationDedupeReplaces = true
+aiao-desktop-e2e:   [host-capabilities] notificationInvalidIconRejected = true
+aiao-desktop-e2e:   [host-capabilities] notificationSurvivesWindowClose = true
+aiao-desktop-e2e:   [host-capabilities] notificationKeyboardOperable = true
+aiao-desktop-e2e:   [host-capabilities] notificationClearAll = true
+aiao-desktop-e2e:   [host-capabilities] notificationRateLimited = true
+aiao-desktop-e2e:   [host-capabilities] notificationIconsShown = true
+aiao-desktop-e2e:   [host-capabilities] notificationNotKeptAcrossReload = true
+aiao-desktop-e2e: ✗ host-capabilities  31.8s
+aiao-desktop-e2e: 检查组 1 个，总耗时 31.8s（引擎 webkit，并行 1）
+aiao-desktop-e2e: {"hostCapabilities":{"undeclaredNotificationDenied":true,"denialShowsReasonInWindow":true,"undeclaredFilesystemDenied":true,"unauthorizedAppearanceWriteDenied":true,"clipboardReadCapabilityMatchesBrowser":true,"clipboardReadRestrictionExplainedAtEntry":true,"clipboardReadDeniedWithoutPermission":true,"clipboardWriteWithGesture":true,"clipboardHoldsWrittenText":true,"clipboardReadAfterGrant":false,"clipboardWriteWithoutGestureDenied":true,"clipboardUnchangedAfterDenial":true,"clipboardReadRestrictionPersists":true,"clipboardDenialIsForTheAppOnly":true,"notificationAppearsInCentre":true,"notificationAttributedToCaller":true,"notificationSpoofRejected":true,"notificationDedupeReplaces":true,"notificationInvalidIconRejected":true,"notificationSurvivesWindowClose":true,"notificationKeyboardOperable":true,"notificationClearAll":true,"notificationRateLimited":true,"notificationIconsShown":true,"notificationNotKeptAcrossReload":true}}
+aiao-desktop-e2e: 已知限制 1 项（webkit，见 baseline/limitations-webkit.json）：
+aiao-desktop-e2e:   [有限支持] hostCapabilities.clipboardReadAfterGrant：Safari 与 WebKit 拒绝经 MessagePort 发起的宿主剪贴板读取；本机 Safari 27.2 的直接读取成功、MessagePort 读取被拒。产品在应用握手前撤下 clipboard:read，实际授权同步拒绝，并在窗口持续显示禁用原因。原成功读取检查保留为 false，不以宿主直接读取替代；新增入口、授权与持续说明检查验证有限支持交付。系统剪贴板写入、拒写后内容核对及其他集成能力继续验收。真实 Safari 的完整流程仍另验。
+
+
+
+ NX   Successfully ran target e2e-webkit for project aiao-desktop-e2e
+
+
+  Run duration:      33.0s
+  Cache:             0/1 hit (0%)
+  Critical path:     32.9s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e-webkit    32.9s

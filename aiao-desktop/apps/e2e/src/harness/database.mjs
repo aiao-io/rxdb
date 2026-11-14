@@ -83,3 +83,18 @@ export async function surgery(session, work) {
     await shell.close();
   }
 }
+
+/**
+ * 一次检查多个表时复用一条连接，不为每个表同时启动、关闭一个 OPFS 工作线程。
+ *
+ * @param {Parameters<typeof surgery>[0]} session 桌面会话
+ * @param {readonly string[]} tables 需要计数的物理表名
+ * @returns {Promise<number[]>} 与输入顺序一致的行数
+ */
+export function tableCounts(session, tables) {
+  return surgery(session, async db => {
+    const counts = [];
+    for (const table of tables) counts.push(await db.count(table));
+    return counts;
+  });
+}

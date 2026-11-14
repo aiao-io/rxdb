@@ -1,0 +1,13 @@
+
+ NX   22 tasks: 21 succeeded, 20 cached, 1 failed
+
+
+✖ nx run aiao-desktop-web:test
+  full log: /Users/jimmy/.nx/068a93a62f4749d5/cache/terminalOutputs/5623136149261396699
+
+Re-run with --output-style=static to inline logs.
+
+  Run duration:      27.5s
+  Cache:             20/21 hit (95%)
+  Critical path:     27.0s (10 tasks)
+  Recoverable time:  <1ms

@@ -445,8 +445,13 @@ async function twoFindersAndZoom({ session, result }) {
   const titles = (await Promise.all([titleOf(win('finder').first()), titleOf(win('finder').last())])).map(text =>
     text?.trim()
   );
+  await page.keyboard.press('Meta+Backquote');
+  await page.waitForFunction(
+    id => document.getElementById(id)?.classList.contains('front'),
+    await first.getAttribute('id')
+  );
   const zoomedBefore = await boxOf(first);
-  await first.locator('.tl .f').dispatchEvent('click');
+  await first.locator('.tl .f').click();
   await page.waitForTimeout(700);
 
   const layout = await savedLayout(
@@ -475,13 +480,15 @@ async function twoFindersAndZoom({ session, result }) {
     zoomedBox !== null &&
     zoomedBox.x <= 1 &&
     near(zoomedBox.width, viewport.width, 2);
-  await zoomedWin.locator('.tl .f').dispatchEvent('click');
+  await zoomedWin.locator('.tl .f').click();
   await page.waitForTimeout(700);
   const unzoomed = zoomedId ? await boxOf(page.locator(`#${zoomedId}`)) : null;
   result.zoomedWindowUnzoomsToSavedBox =
     unzoomed !== null &&
     (await page.locator('.win[data-app="finder"].zoomed').count()) === 0 &&
     sameBox(unzoomed, zoomedBefore, 3);
+  if (!result.zoomedWindowUnzoomsToSavedBox)
+    console.error('窗口取消缩放几何诊断', JSON.stringify({ zoomedBefore, unzoomed, stack: await stackOf(page) }));
   await page.close();
 }
 

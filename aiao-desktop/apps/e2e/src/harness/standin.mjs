@@ -74,6 +74,7 @@ const mainScript = (mode, ordinal) => `
         instance: client.context.instanceId,
         visibility: [],
         window: [],
+        capabilities: desktop.capabilities,
         desktop: []
       };
       window.standin = state;

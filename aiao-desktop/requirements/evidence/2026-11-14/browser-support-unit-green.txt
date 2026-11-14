@@ -1,0 +1,35 @@
+
+> nx run aiao-desktop-web:test --coverage.enabled=false browser-app-support.spec.ts remote-app-session.spec.ts app-context.spec.ts
+
+> vitest --coverage.enabled=false browser-app-support.spec.ts remote-app-session.spec.ts app-context.spec.ts
+
+(node:80337) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/web
+
+(node:80347) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:80348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:80349) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/browser-app-support.spec.ts (7 tests) 4ms
+ ✓ |aiao-desktop-web| src/app/services/remote-app-session.spec.ts (31 tests) 43ms
+ ✓ |aiao-desktop-web| src/app/services/app-context.spec.ts (66 tests) 89ms
+
+ Test Files  3 passed (3)
+      Tests  104 passed (104)
+   Start at  13:52:40
+   Duration  8.27s (transform 14.38s, setup 0ms, import 16.51s, tests 135ms, environment 1ms)
+
+
+
+
+ NX   Successfully ran target test for project aiao-desktop-web
+
+
+  Run duration:      8.8s
+  Cache:             0/1 hit (0%)
+  Critical path:     8.6s (1 task)
+  Recoverable time:  <1ms

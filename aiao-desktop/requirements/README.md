@@ -42,7 +42,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ### 已知限制
 
-- Chromium、Firefox、WebKit 的正式构建结果分别归档。[后续跨浏览器复验](evidence/2026-11-14/browser-followup.md)已撤除Firefox四项旧限制；同站不同源HTTPS组合通过原生Frame验证。WebKit只保留经Orbit的MessagePort读取剪贴板，尚未完成有限支持交付；Playwright WebKit不等于真机Safari。390×844与触屏仿真不代表iOS真机支持。
+- Chromium、Firefox、WebKit 的正式构建结果分别归档。[后续跨浏览器复验](evidence/2026-11-14/browser-followup.md)已撤除Firefox四项旧限制；同站不同源HTTPS组合通过原生Frame验证。WebKit的Orbit剪贴板读取已在入口禁用并持续说明原因，公告与实际授权同步撤下读取能力；新产物Firefox两轮均479/479，WebKit两轮均478/479、仅保留已禁用的读取能力，无页面错误，见[有限支持复验](evidence/2026-11-14/browser-support.md)。原成功读取项仍为false，Playwright WebKit不等于真机Safari。390×844与触屏仿真不代表iOS真机支持。
 - 数据按当前浏览器的 Origin 隔离；清除站点数据、换浏览器或换域名看不到原数据。没有备份、导出、账号或跨设备同步。配额不足等存储失败路径未完整验收；TextEdit 新建文档没有保存入口。
 - 窗口布局按标签页恢复；多页文件、设置与应用数据按提交顺序收敛，同一文件最后提交生效，不提供合并或冲突提示。删除、改名、抹掉后的旧编辑器保存必须失败，保留编辑内容。
 - 集成应用不能弹窗或调用受限的文件句柄 API。桌面内不能弹 GitHub OAuth 登录窗口；能否读到直接访问时已有的登录状态另行实测，不用同站规则推断。

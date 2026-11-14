@@ -48,11 +48,11 @@ capabilities: []
 
 | #   | 前置条件                                          | 操作                                                            | 预期结果                                                                                                                               | 状态 |
 | --- | ------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 本机或 CI 有 WebKit 与 Firefox 的 Playwright 驱动 | 在两种浏览器上跑 `aiao-desktop-e2e:e2e`                         | 全部检查项通过，或每个失败项都已归入「有限支持」或「不支持」并在能力矩阵写明原因；归入有限支持的，入口处已禁用并说明原因；没有页面错误 | ⚠️   |
+| 1   | 本机或 CI 有 WebKit 与 Firefox 的 Playwright 驱动 | 在两种浏览器上跑 `aiao-desktop-e2e:e2e`                         | 全部检查项通过，或每个失败项都已归入「有限支持」或「不支持」并在能力矩阵写明原因；归入有限支持的，入口处已禁用并说明原因；没有页面错误 | ✅   |
 | 2   | 任意已验证浏览器                                  | 在 390×844 视口打开桌面                                         | 菜单栏与 Dock 不溢出且可操作，打开的窗口不跑出屏幕，没有横向滚动                                                                       | ✅   |
 | 3   | 触屏仿真                                          | 用触摸手势点 Dock、打开启动台、拖动窗口标题栏、拖右下角缩放窗口 | 核心流程可用；不可用的手势在能力矩阵明确列出                                                                                           | ✅   |
 | 4   | Safari 与 Firefox 的验收完成                      | 更新能力矩阵、README 与验收台账                                 | 每个浏览器的档位（完整 / 有限 / 不支持）写明，只有验收过的组合声明支持                                                                 | ⚠️   |
-| 5   | 两种浏览器各连跑两轮冒烟                          | 观察两次结果                                                    | 两轮都全部通过，没有出现不稳定的检查项；出现过的不稳定项已修复或记录在案。结论只写「两轮未出现 flake」，不写成不存在时序缺陷           | ⚠️   |
+| 5   | 两种浏览器各连跑两轮冒烟                          | 观察两次结果                                                    | 两轮都全部通过，没有出现不稳定的检查项；出现过的不稳定项已修复或记录在案。结论只写「两轮未出现 flake」，不写成不存在时序缺陷           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -60,7 +60,7 @@ capabilities: []
 
 ## 技术笔记
 
-- [smoke.mjs](../../../apps/e2e/src/smoke.mjs) 目前按 Chromium 无头假设编写（启动参数、等待策略、外网拦截）；跨浏览器需要按引擎参数化启动与等待，并核对两个引擎各自的 CDP 能力；参数化由 [ADESK-US-008](ADESK-US-008-smoke-suite.md) 提供。
+- [smoke.mjs](../../../apps/e2e/src/smoke.mjs) 已按 Chromium、Firefox、WebKit 参数化启动、授权与报告；[ADESK-US-008](ADESK-US-008-smoke-suite.md) 提供独立上下文、正式产物服务器与逐项缺失校验。Firefox 的集成夹具使用同站不同源 HTTPS，三个引擎均用原生 Frame。
 - Vivari 的浏览器支持决定终端在非 Chromium 上的可用档位；若 Vivari 不支持，终端的验收结论是「在该浏览器不可用」的明确降级，而不是删除检查项。
 - 修复成本高时以「明确降级」为先：能力矩阵写明差异，比静默跳过或放宽断言更符合产品约定。
 
@@ -74,12 +74,14 @@ capabilities: []
 
 Chromium、Firefox、WebKit 使用同一正式构建复测，窄屏与触屏仿真的核心路径由 `narrow-screen` 检查。报告将无意外失败的 `passed` 与没有任何保留项的 `clean` 分开。
 
-原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)、[firefox-1.json](../../evidence/2026-11-14/firefox-1.json)、[firefox-2.json](../../evidence/2026-11-14/firefox-2.json)、[webkit-1.json](../../evidence/2026-11-14/webkit-1.json)、[webkit-2.json](../../evidence/2026-11-14/webkit-2.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+早期记录：[Chromium聚合检查](../../evidence/2026-11-14/chromium-verify.json)、[firefox-1.json](../../evidence/2026-11-14/firefox-1.json)、[firefox-2.json](../../evidence/2026-11-14/firefox-2.json)、[webkit-1.json](../../evidence/2026-11-14/webkit-1.json)、[webkit-2.json](../../evidence/2026-11-14/webkit-2.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-后续复测已用同站不同源HTTPS夹具关闭Firefox的键盘、焦点、透明窗口与刷新旧限制，三个引擎都使用原生Frame。原整组豁免隐藏的视口外拖动、多页错误收集和保存前焦点前置条件也已修正，失败记录完整保留，见[后续复验](../../evidence/2026-11-14/browser-followup.md)。WebKit读取授权与系统内容核对已通过，两轮仍只有经Orbit的MessagePort读取失败；尚未完成真实Safari补证或入口禁用与原因说明，#1、#4、#5保持⚠️，不声明全部检查项通过。
+后续复测已用同站不同源HTTPS夹具关闭Firefox的键盘、焦点、透明窗口与刷新旧限制，三个引擎都使用原生Frame。原整组豁免隐藏的视口外拖动、多页错误收集和保存前焦点前置条件也已修正，失败记录完整保留，见[后续复验](../../evidence/2026-11-14/browser-followup.md)。WebKit读取授权与系统内容核对已通过，两轮仍只有经Orbit的MessagePort读取失败；当前源码已实现握手前撤下读取能力、授权同步拒绝和入口持续原因说明，见[有限支持实现与复验](../../evidence/2026-11-14/browser-support.md)。新产物Firefox两轮均479/479、clean=true；WebKit两轮均478/479、passed=true、clean=false，唯一原成功读取项继续保留为false，入口降级三项检查全部通过。按#1分档交付关闭#1和#5，本次两轮未出现flake，不声称不存在时序缺陷；真机Safari已补文本保存与刷新恢复；[后续原生验收](../../evidence/2026-11-14/safari-product-followup.json)补齐终端提示符、文件读写与刷新恢复，游戏渲染及暂停/继续已有观察。指针锁定、完整游戏输入和全流程错误采集仍未完成，用户改变Safari窗口后停止了GUI操作；#4保持⚠️，故事仍In Review。
 
 ## References
 
 - [ADESK-US-101 桌面外壳与内置应用基线](../desktop/ADESK-US-101-desktop-shell-baseline.md)
 - [ADESK-US-102 本地数据与真实磁盘](../desktop/ADESK-US-102-local-data-and-real-disk.md)
 - [能力矩阵](../../capability-matrix.md)
+
+[再次原生游戏检查](../../evidence/2026-11-14/safari-game-probe.json)中，内嵌标题控件虽已出现且开始操作后消失，截图仍显示“准备就绪”；独立 bench 页面同样未观察到画面或性能数据。Console 与 Sources 监视均无已观察返回值。不同 UUID 的起始页出现后停止 GUI，本轮服务已停止。保留此前真实画面及暂停/继续记录，也保留本轮异常；根因未建立，#4和故事状态不变。

@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done，10条In Review，功能实现已进入验收收尾。Firefox旧限制已撤除，WebKit保留项收敛为Orbit剪贴板读取，见[后续复验](evidence/2026-11-14/browser-followup.md)；故事状态未提前关闭。
+2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done，10条In Review，功能实现已进入验收收尾。Firefox旧限制已撤除；WebKit的Orbit剪贴板读取已在入口禁用并持续说明原因，见[有限支持实现与复验](evidence/2026-11-14/browser-support.md)。新产物Firefox连续两轮均479/479，WebKit两轮均478/479、仅保留已禁用的读取能力；US-005 #1、#5按支持分档关闭，#4真机Safari仍待验。当前尚有6项AC未关闭，故事状态未提前关闭。
 
 ## 状态汇总
 

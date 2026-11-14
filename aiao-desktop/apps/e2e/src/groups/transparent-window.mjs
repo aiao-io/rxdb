@@ -35,11 +35,25 @@ export const transparentWindow = {
     await page.locator('#dock .di[data-app="vscode"]').click();
     const transparentWindow = { chromeWhileLoading: await shows(vscodeWin.locator('.tb .tl')) };
     await appears(webappIn('ready'), 15_000);
+    const restriction = vscodeWin.locator('[data-webapp-restriction][data-disabled-capability="clipboard:read"]');
+    const restrictionBox = session.engine === 'webkit' ? await restriction.boundingBox() : null;
+    const windowBox = await vscodeWin.boundingBox();
+    const barBox = await (await standinFrame()).locator('[data-standin-bar]').boundingBox();
+    const supportHeight = restrictionBox?.height ?? 0;
+    const supportMatches =
+      session.engine === 'webkit' ?
+        restrictionBox !== null &&
+        restrictionBox.height > 0 &&
+        Math.abs(restrictionBox.y - windowBox.y) < 2 &&
+        /clipboard reading.*disabled.*Safari.*WebKit/i.test(await restriction.innerText())
+      : (await restriction.count()) === 0;
     transparentWindow.chromeHiddenWhenReady =
       (await disappears(vscodeWin.locator('.tb'), 3_000)) &&
       (await appears(vscodeWin.locator('[data-webapp-drag]'), 3_000)) &&
-      (await (await standinFrame()).locator('[data-standin-bar]').boundingBox()).y - (await vscodeWin.boundingBox()).y <
-        2;
+      supportMatches &&
+      Math.abs(barBox.y - windowBox.y - supportHeight) < 2;
+    if (!transparentWindow.chromeHiddenWhenReady)
+      console.error('透明窗口顶部几何诊断', JSON.stringify({ windowBox, barBox, restrictionBox, supportMatches }));
     transparentWindow.appKnowsDecorations = await waitInFrame(
       () => window.standin?.window.at(-1)?.decorations === false
     );

@@ -1,0 +1,102 @@
+{
+  "format": "aiao-desktop.native-safari-entry",
+  "version": 1,
+  "recordedAt": "2026-11-14T15:19:34.878058+08:00",
+  "sourceHead": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "method": {
+    "browser": "native Safari macOS application",
+    "browserVersionReference": "safari-native-clipboard.json",
+    "window": "new independent normal browser window",
+    "origin": "http://127.0.0.1:51384",
+    "navigation": "/?boot=0",
+    "driver": "CUA native accessibility actions and screenshot observation",
+    "pageJavaScriptEvaluation": false,
+    "clipboardProbe": false,
+    "acceptedPermissions": false,
+    "loggedIn": false
+  },
+  "checks": {
+    "desktopVisible": true,
+    "aiaoCodeLoadingEntryVisible": true,
+    "clipboardRestrictionVisibleBeforeReady": true,
+    "realAiaoCodeLoaded": true,
+    "clipboardRestrictionVisibleAfterReady": true,
+    "textEditOpensSeedFile": true,
+    "textEditShowsDirtyState": true,
+    "textEditSaveClearsDirtyState": true,
+    "textEditReopenKeepsSavedText": true,
+    "browserReloadRestoresTextEditWindow": true,
+    "browserReloadKeepsSavedText": true
+  },
+  "observations": [
+    {
+      "state": "loading",
+      "window": "Aiao Code",
+      "restriction": "Clipboard reading through Aiao Desktop is disabled: Safari and WebKit block these requests.",
+      "contentUrl": "about:blank",
+      "status": "Opening Aiao Code…"
+    },
+    {
+      "state": "ready",
+      "contentUrl": "https://vscode.aiao.io/",
+      "accessibleRoot": "浏览器开发工作台",
+      "restriction": "Clipboard reading through Aiao Desktop is disabled: Safari and WebKit block these requests.",
+      "screenshotObserved": true,
+      "accountState": "not logged in; no sign-in action"
+    },
+    {
+      "state": "file edit/save",
+      "origin": "http://127.0.0.1:51384",
+      "file": "~/Desktop/prasenx.txt",
+      "scope": "only the fresh acceptance origin, not pre-existing user data",
+      "requestedText": "ADESK-SAFARI-EDIT-20261114",
+      "observedText": "DESK-SAFARI-EDIT-20261114",
+      "inputNote": "CUA typeText initial A was not present; evidence preserves actual observed content, not requested content",
+      "dirtyTitle": "prasenx.txt — Edited",
+      "savedTitle": "prasenx.txt",
+      "reopenedText": "DESK-SAFARI-EDIT-20261114",
+      "afterBrowserReloadText": "DESK-SAFARI-EDIT-20261114",
+      "screenshotObserved": true
+    },
+    {
+      "state": "terminal incomplete",
+      "observedText": "Starting local shell with Vivari…",
+      "shellPromptObserved": false,
+      "fileCreationConfirmed": false,
+      "inputAttemptBeforeReady": true,
+      "afterReload": "restored as idle window frame; no shell readiness claim"
+    },
+    {
+      "state": "terminal second attempt",
+      "afterReload": true,
+      "ui": "activated restored idle terminal; later blank terminal with block cursor",
+      "attemptedProbe": "echo SAFARI_READY",
+      "observedEcho": false,
+      "shellPromptObserved": false,
+      "verifiedTerminal": false,
+      "inspector": "Opened native Safari Web Inspector through UI; Console showed no error at observation, one deprecation warning from Vivari fs-worker __wbg_init. No page JavaScript evaluated and no simulated user gesture enabled.",
+      "consoleWarning": "using deprecated parameters for the initialization function; pass a single object instead",
+      "networkPanel": "Pre-inspector entries have no response status/transfer measurements; not enough to diagnose the cause."
+    }
+  ],
+  "safariProductAcceptanceComplete": false,
+  "notProven": [
+    "terminal-created new file and virtual disk readback",
+    "terminal VM readiness",
+    "game input and rendering",
+    "all page errors",
+    "physical keyboard",
+    "VoiceOver"
+  ],
+  "cleanup": {
+    "recordedAt": "2026-11-14T15:20:42.580525+08:00",
+    "inspectorClosed": true,
+    "acceptanceWindowClosed": true,
+    "originalSafariStartPageWindowRestored": true,
+    "acceptanceServerPid": 68905,
+    "acceptanceServerStopSignal": "SIGTERM",
+    "testOriginDataRetained": true,
+    "systemSettingsChanged": false
+  }
+}
