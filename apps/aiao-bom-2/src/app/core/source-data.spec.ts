@@ -1,9 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BomIndex } from './query';
+import { compareSnapshots, createSnapshot } from './snapshot';
 import { DEFAULT_QUERY, type BomDataset } from './types';
 const data = JSON.parse(readFileSync('public/data/windrose.json', 'utf8')) as BomDataset;
 describe('固定来源快照的语义', () => {
+  it('完整系统分类、采购和 CAD 来源均可保存为版本快照，不要求缺量已确认', () => {
+    for (const structure of ['catalog', 'purchase', 'cad'] as const) {
+      const snapshot = createSnapshot({
+        id: structure, datasetId: data.id, name: structure, source: 'dataset', structure, version: data.version,
+        evaluationDate: data.observedOn, observedOn: data.observedOn, savedAt: '2026-11-14T00:00:00.000Z', nodes: data.structures[structure]
+      });
+      expect(snapshot.nodes).toHaveLength(data.structures[structure].length);
+      expect(compareSnapshots(snapshot, snapshot).changes).toHaveLength(0);
+    }
+  });
   it('完整主清单与独立采购 / CAD 身份不相互冒充', () => {
     const index = new BomIndex(data, 'catalog');
     const result = index.query(DEFAULT_QUERY);

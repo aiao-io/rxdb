@@ -1,0 +1,193 @@
+{
+  "date": "2026-11-14",
+  "timezone": "Asia/Shanghai",
+  "verifiedAt": "2026-11-14T01:32:28.922489+00:00",
+  "application": "aiao-bom-2",
+  "phase": "版本快照与日期比较",
+  "phaseStatus": "通过本地验收",
+  "replacementReady": false,
+  "sourceCommitAtVerification": "4921f1fd5848b49871aafe7af3aa8d80f45fcbe1",
+  "containsUncommittedChanges": true,
+  "database": "aiao-bom-2-workspace-v1",
+  "oldDatabaseTouched": false,
+  "oldApplicationReplaced": false,
+  "published": false,
+  "commands": [
+    {
+      "command": "NX_NO_CLOUD=true NX_DAEMON=false pnpm --config.verifyDepsBeforeRun=false nx run aiao-bom-2:test --excludeTaskDependencies --outputStyle=stream --coverage",
+      "result": "passed",
+      "testFiles": 18,
+      "tests": 89,
+      "coverage": {
+        "statements": {
+          "pct": 94.22,
+          "covered": 1974,
+          "total": 2095,
+          "thresholdPct": 80
+        },
+        "branches": {
+          "pct": 86.94,
+          "covered": 1139,
+          "total": 1310,
+          "thresholdPct": 80
+        },
+        "functions": {
+          "pct": 95.61,
+          "covered": 414,
+          "total": 433,
+          "thresholdPct": 80
+        },
+        "lines": {
+          "pct": 98.17,
+          "covered": 1240,
+          "total": 1263,
+          "thresholdPct": 80
+        }
+      },
+      "evidence": "revision-coverage-2026-11-14.txt"
+    },
+    {
+      "command": "NX_NO_CLOUD=true NX_DAEMON=false pnpm --config.verifyDepsBeforeRun=false nx run-many -p aiao-bom-2 aiao-bom-2-e2e -t lint spec-typecheck typecheck build --parallel=1 --excludeTaskDependencies --outputStyle=stream",
+      "result": "passed",
+      "executedTargets": [
+        "aiao-bom-2:typecheck",
+        "aiao-bom-2:build:production",
+        "aiao-bom-2:lint",
+        "aiao-bom-2:spec-typecheck",
+        "aiao-bom-2-e2e:typecheck",
+        "aiao-bom-2-e2e:lint"
+      ],
+      "eslintWarnings": 0,
+      "evidence": "revision-quality-2026-11-14.txt",
+      "initialBundleKBReported": 456.07
+    },
+    {
+      "command": "NX_NO_CLOUD=true NX_DAEMON=false pnpm --config.verifyDepsBeforeRun=false nx run aiao-bom-2-e2e:e2e --excludeTaskDependencies --outputStyle=stream",
+      "result": "passed",
+      "tests": 10,
+      "workers": 1,
+      "retries": 0,
+      "durationSeconds": 52.3,
+      "evidence": "revision-e2e-2026-11-14.txt"
+    },
+    {
+      "command": "NX_NO_CLOUD=true NX_DAEMON=false pnpm --config.verifyDepsBeforeRun=false nx run aiao-bom-2:deploy-check --excludeTaskDependencies --outputStyle=stream",
+      "result": "passed",
+      "mode": "dry-run",
+      "assetsRead": 61,
+      "uploaded": false,
+      "evidence": "revision-deploy-check-2026-11-14.txt"
+    }
+  ],
+  "testCoverage": [
+    "真实主清单、采购层级及 CAD 数据快照往返与自比较",
+    "保存完整结构、同位置改量/换件/移动、新增删除、十万节点深链与循环校验",
+    "参考量、缺量、歧义量、未填写单位、不同单位不计算数量差",
+    "版本刷新恢复、目标选中、快照与差异导出、预览导入、再次选择同文件与重复身份拒绝",
+    "正文及目录单事务追加、另一标签页过期目录不能覆盖已有快照",
+    "375px 窄屏、跨结构比较拒绝、Axe WCAG 2A/2AA/2.1AA 检查",
+    "既有草稿、撤销重做、错误可见、真实模型双向定位、50k 同屏与 100k 宽树末项"
+  ],
+  "tdd": {
+    "regression": "两边均未填写单位时不得计算数量差",
+    "red": "2 failed / 9 passed",
+    "redEvidence": "revision-missing-unit-red-2026-11-14.txt",
+    "green": "修复后全套 89 tests passed"
+  },
+  "performance": {
+    "method": "沿用原验收：生产构建、Chromium 单 worker、1280×720、每项 20 个样本；计时包含自动化输入与绘制等待；搜索扣除 180ms debounce；未修改阈值或计时实现",
+    "final": {
+      "tableModeSwitchP95Ms": 95.4990629999993,
+      "modelModeSwitchP95Ms": 111.25027799999953,
+      "tableSearchP95Ms": 125.36573399999907,
+      "modelSearchP95Ms": 137.2456719999991,
+      "tableToReadyModelP95Ms": 96.49169299999994,
+      "tableAverageFps": 60.00255010837959,
+      "modelScreenTableAverageFps": 60.00250010417097,
+      "heapDeltaMiB": 95.63792419433594,
+      "windowRecords": 1000,
+      "modelRequests": 1,
+      "evidence": [
+        "50k-performance-2026-11-14-final.json",
+        "50k-model-performance-2026-11-14-final.json"
+      ]
+    },
+    "previousFailuresRetained": [
+      {
+        "run": "first",
+        "failedMetric": "tableToReadyModelMs.p95",
+        "valueMs": 167.93232999999964,
+        "limitMs": 150,
+        "evidence": "50k-model-performance-2026-11-14-first-run.json"
+      },
+      {
+        "run": "second",
+        "failedMetric": "table.modeSwitchMs.p95",
+        "valueMs": 157.33565200000066,
+        "limitMs": 150,
+        "evidence": "50k-performance-2026-11-14-second-run.json"
+      },
+      {
+        "run": "second",
+        "failedMetric": "model.modeSwitchMs.p95",
+        "valueMs": 150.34190600000147,
+        "limitMs": 150,
+        "evidence": "50k-model-performance-2026-11-14-second-run.json"
+      }
+    ],
+    "environmentNote": "此前观察到另一工作区运行 Playwright；最终采样前其进程已结束，本工作区未并行运行构建或其他测试。样本说明机器负载会影响结果，不能单凭一次复测把全部超标归因于外部负载。",
+    "limits": "50k 是合成关系并复用 20 个真实 CAD 位置，不等于 50k 个不同几何资产；约 60 FPS 是表格滚动，不是整车旋转帧率；浏览器使用 SwiftShader。"
+  },
+  "preview": {
+    "url": "http://localhost:4313",
+    "httpChecks": [
+      {
+        "path": "/",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "coop": "same-origin",
+        "coep": "require-corp"
+      },
+      {
+        "path": "/?structure=cad&view=flat",
+        "status": 200,
+        "contentType": "text/html; charset=utf-8",
+        "coop": "same-origin",
+        "coep": "require-corp"
+      },
+      {
+        "path": "/data/windrose.json",
+        "status": 200,
+        "contentType": "application/json; charset=utf-8",
+        "coop": "same-origin",
+        "coep": "require-corp"
+      },
+      {
+        "path": "/models/eu-x9d13.glb",
+        "status": 200,
+        "contentType": "application/octet-stream",
+        "coop": "same-origin",
+        "coep": "require-corp"
+      },
+      {
+        "path": "/draco/draco_decoder.wasm",
+        "status": 200,
+        "contentType": "application/wasm",
+        "coop": "same-origin",
+        "coep": "require-corp"
+      }
+    ]
+  },
+  "artifacts": {
+    "build": "dist/apps/aiao-bom-2/browser",
+    "assetsManifest": "revision-build-assets-2026-11-14.json",
+    "screenshot": "versions-2026-11-14.png"
+  },
+  "remainingBeforeReplacement": [
+    "通过既有 RxDB 领域 API 接入 ECN 两时点、生效域、发布态、历史装载和完整领域导出重入",
+    "双图映射、实例事实与实例追溯迁入新工作台并完成回归",
+    "旧 dev-rxdb-bom 只读备份、迁移演练与可回退副本",
+    "数据库就绪到首屏、反向联动 p95、浏览器 GPU 释放与受支持浏览器验收",
+    "独立公开预览、候选领域范围评审、统一替换验收与路由切换"
+  ]
+}

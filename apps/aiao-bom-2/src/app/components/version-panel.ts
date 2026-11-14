@@ -61,8 +61,10 @@ export class VersionPanel implements OnInit {
     catch (error) { this.fail(error); }
   }
   async file(event: Event): Promise<void> {
-    const file = (event.target as HTMLInputElement).files?.[0];
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (!file) return;
+    input.value = '';
     const request = ++this.fileRequest;
     this.incoming.set(null); this.error.set('');
     try {

@@ -136,7 +136,7 @@ const changedFields = (before: Occurrence, after: Occurrence): SnapshotChangeFie
   return fields;
 };
 const quantityDelta = (before: Occurrence, after: Occurrence): string | null => {
-  if (before.quantity === null || after.quantity === null || before.quantityState !== 'confirmed' || after.quantityState !== 'confirmed' || before.uom !== after.uom) return null;
+  if (before.quantity === null || after.quantity === null || before.quantityState !== 'confirmed' || after.quantityState !== 'confirmed' || !before.uom.trim() || before.uom !== after.uom) return null;
   return decimalToCanonical(decimalSub(decimalFromCanonical(after.quantity), decimalFromCanonical(before.quantity)));
 };
 const changed = (before: Occurrence, after: Occurrence): SnapshotChange | null => {

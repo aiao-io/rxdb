@@ -1,7 +1,7 @@
 dialog { width: min(650px, calc(100vw - 28px)); max-height: 86dvh; padding: 0; border: 1px solid #d7e2dd; border-radius: 10px; color: #344653; box-shadow: 0 18px 100px #18382f35; }
 dialog::backdrop { background: #19332d65; backdrop-filter: blur(2px); }
 header { display: flex; align-items: center; justify-content: space-between; padding: 21px 24px 15px; border-bottom: 1px solid #e6edeb; }
-.eyebrow { font-size: 8px; color: #879c91; letter-spacing: 1px; }
+.eyebrow { font-size: 8px; color: #55695d; letter-spacing: 1px; }
 h2 { font-size: 19px; margin: 7px 0 0; font-weight: 600; }
 .dialog-content { max-height: calc(86dvh - 150px); overflow: auto; padding: 18px 24px; }
 p { line-height: 1.9; color: #74847d; margin: 0 0 16px; }

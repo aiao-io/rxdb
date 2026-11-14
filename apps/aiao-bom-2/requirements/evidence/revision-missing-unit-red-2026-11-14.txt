@@ -1,0 +1,54 @@
+
+> nx run aiao-bom-2:test src/app/core/snapshot.spec.ts
+
+aiao-bom-2: (node:81016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2
+aiao-bom-2: (node:81188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ❯ |aiao-bom-2| src/app/core/snapshot.spec.ts (11 tests | 2 failed) 859ms
+aiao-bom-2:      ✓ 按位置身份识别新增、删除、改量、换件和移动，同一物料的其他位置不合并 5ms
+aiao-bom-2:      ✓ 识别确认状态、成本、市场、名称与来源信息变化，成本保留 Decimal 字符串 1ms
+aiao-bom-2:      ✓ 缺量、歧义量与单位变化不虚构数量差，日期倒序仍保留明确比较方向 0ms
+aiao-bom-2:      × 两边均未声明单位 "" 时保留改量记录但不计算数量差 4ms
+aiao-bom-2:      × 两边均未声明单位 "   " 时保留改量记录但不计算数量差 1ms
+aiao-bom-2:      ✓ 市场顺序和未填写可选值不会制造差异，比较结果与快照保持引用隔离 1ms
+aiao-bom-2:      ✓ 拒绝跨数据集和跨结构比较，但允许空版本表达全部删除 1ms
+aiao-bom-2:      ✓ 拒绝重复身份、丢失父项及深链循环，保存时不依赖输入行序 1ms
+aiao-bom-2:      ✓ 严格校验规范十进制、日期、市场及可选字段，不默默丢弃损坏值 2ms
+aiao-bom-2:      ✓ 快照往返保留位置身份和空的来源字段，元数据不携带节点 1ms
+aiao-bom-2:      ✓ 十万节点深链校验与比较不递归、不逐行扫描全部节点  842ms
+aiao-bom-2: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+aiao-bom-2:  FAIL  |aiao-bom-2| src/app/core/snapshot.spec.ts > BOM 版本快照差异 > 两边均未声明单位 "" 时保留改量记录但不计算数量差
+aiao-bom-2:  FAIL  |aiao-bom-2| src/app/core/snapshot.spec.ts > BOM 版本快照差异 > 两边均未声明单位 "   " 时保留改量记录但不计算数量差
+aiao-bom-2: AssertionError: expected '1' to be null
+aiao-bom-2: - Expected:
+aiao-bom-2: null
+aiao-bom-2: + Received:
+aiao-bom-2: "1"
+aiao-bom-2:  ❯ src/app/core/snapshot.spec.ts:53:43
+aiao-bom-2:      51|     const diff = compareSnapshots(before, after);
+aiao-bom-2:      52|     expect(diff.changes[0].fields).toEqual(['quantity']);
+aiao-bom-2:      53|     expect(diff.changes[0].quantityDelta).toBeNull();
+aiao-bom-2:        |                                           ^
+aiao-bom-2:      54|     expect(diff.unconfirmedQuantities).toEqual({ before: 1, after: 1 }…
+aiao-bom-2:      55|   });
+aiao-bom-2: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+aiao-bom-2:  Test Files  1 failed (1)
+aiao-bom-2:       Tests  2 failed | 9 passed (11)
+aiao-bom-2:    Start at  09:28:30
+aiao-bom-2:    Duration  3.30s (transform 1.42s, setup 360ms, import 1.65s, tests 859ms, environment 272ms)
+
+
+
+ NX   Running target test for project aiao-bom-2 failed
+
+Failed tasks:
+
+- aiao-bom-2:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      11.4s
+  Critical path:     11.4s (1 task)
+  Recoverable time:  <1ms

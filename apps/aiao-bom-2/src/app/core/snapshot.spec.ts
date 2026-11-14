@@ -45,6 +45,15 @@ describe('BOM 版本快照差异', () => {
     expect(diff.unconfirmedQuantities).toEqual({ before: 1, after: 1 });
   });
 
+  it.each(['', '   '])('两边均未声明单位 %j 时保留改量记录但不计算数量差', uom => {
+    const before = snapshot('before', '2026-01-01', [node('a', { uom })]);
+    const after = snapshot('after', '2026-02-01', [node('a', { uom, quantity: '2' })]);
+    const diff = compareSnapshots(before, after);
+    expect(diff.changes[0].fields).toEqual(['quantity']);
+    expect(diff.changes[0].quantityDelta).toBeNull();
+    expect(diff.unconfirmedQuantities).toEqual({ before: 1, after: 1 });
+  });
+
   it('市场顺序和未填写可选值不会制造差异，比较结果与快照保持引用隔离', () => {
     const before = snapshot('before', '2026-01-01', [node('a', { markets: ['EU', 'CN'] })]);
     const after = snapshot('after', '2026-02-01', [node('a', { markets: ['CN', 'EU'], unitCost: null, label: '' })]);

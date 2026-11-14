@@ -1,0 +1,147 @@
+
+ NX   Running targets lint, spec-typecheck, typecheck, build for 2 projects:
+
+- aiao-bom-2
+- aiao-bom-2-e2e
+
+
+
+> nx run aiao-bom-2:typecheck
+
+
+> nx run aiao-bom-2:build:production
+
+aiao-bom-2: (node:81810) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2: Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// dependsOn).
+aiao-bom-2: Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// e2e-devtools).
+aiao-bom-2: Project 'dev-rxdb-miniprogram-alipay-probe' contains extension with invalid name (// build).
+aiao-bom-2: Project 'dev-rxdb-miniprogram-douyin-spike' contains extension with invalid name (// build).
+aiao-bom-2: Project 'rxdb-plugin-working-tree' contains extension with invalid name (// namedInputs).
+aiao-bom-2: Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// dependsOn).
+aiao-bom-2: Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// e2e-devtools).
+aiao-bom-2: Project 'rxdb-devtools-panel' contains extension with invalid name (//targets).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-alipay).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-tt).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-weapp).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// lint).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// serve).
+aiao-bom-2: Project 'dev-rxdb-miniprogram' contains extension with invalid name (// verify-dist).
+aiao-bom-2: Project 'e2e-parity' contains extension with invalid name (//).
+aiao-bom-2: Project '@aiao/source' contains extension with invalid name (// implicitDependencies).
+aiao-bom-2: ❯ Building...
+aiao-bom-2: (node:81810) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2: ✔ Building...
+aiao-bom-2: Initial chunk files      | Names           |  Raw size | Estimated transfer size
+aiao-bom-2: main-QTHPNZJL.js         | main            | 454.37 kB |               116.95 kB
+aiao-bom-2: styles-F3VZTGM2.css      | styles          |   1.70 kB |               683 bytes
+aiao-bom-2:                          | Initial total   | 456.07 kB |               117.63 kB
+aiao-bom-2: Lazy chunk files         | Names           |  Raw size | Estimated transfer size
+aiao-bom-2: chunk-BYHgRcy8.js        | index           |   2.40 MB |               447.78 kB
+aiao-bom-2: chunk-znjekK7s.js        | model-viewport  | 711.14 kB |               148.07 kB
+aiao-bom-2: worker-chunk-PQVXH24Z.js | bom-trigger-ddl |  89.94 kB |                14.70 kB
+aiao-bom-2: chunk-O7PAR5EL.js        | bom-trigger-ddl |  89.89 kB |                14.67 kB
+aiao-bom-2: worker-chunk-RISA643H.js | -               |  27.94 kB |                 6.42 kB
+aiao-bom-2: worker-chunk-HKAWDILN.js | cost            |  24.32 kB |                 7.20 kB
+aiao-bom-2: chunk-QP6ZNVHF.js        | cost            |  24.28 kB |                 7.18 kB
+aiao-bom-2: worker-chunk-IKU72LXI.js | -               |  21.95 kB |                 6.61 kB
+aiao-bom-2: chunk-R5YUBK4W.js        | -               |  21.52 kB |                 6.15 kB
+aiao-bom-2: worker-chunk-JDYUGDKY.js | -               |  21.52 kB |                 6.13 kB
+aiao-bom-2: worker-chunk-36VFX3DY.js | bom-map         |  16.11 kB |                 4.78 kB
+aiao-bom-2: chunk-CBYQLDX5.js        | bom-map         |  16.08 kB |                 4.81 kB
+aiao-bom-2: worker-chunk-I72KGJKF.js | integration     |  15.09 kB |                 4.98 kB
+aiao-bom-2: chunk-4O5YXM44.js        | integration     |  15.04 kB |                 4.98 kB
+aiao-bom-2: worker-chunk-ZM5ZMWET.js | -               |  14.08 kB |                 4.50 kB
+aiao-bom-2: ...and 33 more lazy chunks files. Use "--verbose" to show all the files.
+aiao-bom-2: Application bundle generation complete. [8.265 seconds] - 2026-11-14T01:29:30.233Z
+aiao-bom-2: ▲ [WARNING] NG8102: NG8102: The left side of this nullish coalescing operation does not include 'null' or 'undefined' in its type, therefore the '??' operator can be safely removed. Find more at https://v22.angular.dev/extended-diagnostics/NG8102 [plugin angular-compiler]
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:4:69:
+aiao-bom-2:       4 │ ...) { <select [value]="activeAsset()?.id ?? ''" aria-label="独立...
+aiao-bom-2:         ╵                         ~~~~~~~~~~~~~~~~~~~~~~~
+aiao-bom-2:   Warning occurs in the template of component ModelPanel.
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:5:73:
+aiao-bom-2:       5 │ ... [Icon], templateUrl: './model-panel.html', styleUrl: './model-p...
+aiao-bom-2:         ╵                          ~~~~~~~~~~~~~~~~~~~~
+aiao-bom-2: ▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:4:84:
+aiao-bom-2:       4 │ ...select [value]="activeAsset()?.id ?? ''" aria-label="独立模�...
+aiao-bom-2:         ╵                                   ~~
+aiao-bom-2:   Warning occurs in the template of component ModelPanel.
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:5:73:
+aiao-bom-2:       5 │ ... [Icon], templateUrl: './model-panel.html', styleUrl: './model-p...
+aiao-bom-2:         ╵                          ~~~~~~~~~~~~~~~~~~~~
+aiao-bom-2: ▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:8:147:
+aiao-bom-2:       8 │ ...��件 · ' + (activeAsset()?.variants?.join(' / ') || selected()...
+aiao-bom-2:         ╵                               ~~~~
+aiao-bom-2:   Warning occurs in the template of component ModelPanel.
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:5:73:
+aiao-bom-2:       5 │ ... [Icon], templateUrl: './model-panel.html', styleUrl: './model-p...
+aiao-bom-2:         ╵                          ~~~~~~~~~~~~~~~~~~~~
+aiao-bom-2: ▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:8:137:
+aiao-bom-2:       8 │ ...'独立零件 · ' + (activeAsset()?.variants?.join(' / ') || se...
+aiao-bom-2:         ╵                       ~~~~~~~~
+aiao-bom-2:   Warning occurs in the template of component ModelPanel.
+aiao-bom-2:     /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:5:73:
+aiao-bom-2:       5 │ ... [Icon], templateUrl: './model-panel.html', styleUrl: './model-p...
+aiao-bom-2:         ╵                          ~~~~~~~~~~~~~~~~~~~~
+aiao-bom-2: ▲ [WARNING] Module 'gifuct-js' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/scenegraph/graphic/icon.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'lodash/get' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/data/CachedDataSource.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'eventemitter3' used by 'node_modules/.pnpm/@visactor+vutils@1.0.28/node_modules/@visactor/vutils/es/index.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'lottie-web' used by 'node_modules/.pnpm/@visactor+vrender-kits@1.1.14/node_modules/@visactor/vrender-kits/es/graphic/Lottie.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'cssfontparser' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/scenegraph/utils/font.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'geojson-dissolve' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/transform/geo/dissolve.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'simplify-geojson' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/transform/geo/simplify.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'geobuf' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/parser/geo/geobuf.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'pbf' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/parser/geo/geobuf.js' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: ▲ [WARNING] Module 'ms' used by 'packages/utils/src/date/msTimeToMilliseconds.ts' is not ESM
+aiao-bom-2:   CommonJS or AMD dependencies can cause optimization bailouts.
+aiao-bom-2:   For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+aiao-bom-2: Output location: /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/dist/apps/aiao-bom-2
+
+> nx run aiao-bom-2:lint
+
+aiao-bom-2: (node:81913) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-bom-2:spec-typecheck
+
+
+> nx run aiao-bom-2-e2e:typecheck
+
+
+> nx run aiao-bom-2-e2e:lint
+
+aiao-bom-2-e2e: (node:82030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran targets lint, spec-typecheck, typecheck, build for 2 projects
+
+
+  Run duration:      26.7s
+  Cache:             0/6 hit (0%)
+  Critical path:     9.3s (1 task)
+  Recoverable time:  17.4s (65% of the run)

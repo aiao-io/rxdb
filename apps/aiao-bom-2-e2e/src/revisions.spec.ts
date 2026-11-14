@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { mkdir, readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
+
+test.use({ actionTimeout: 15000 });
 
 const dataset: unknown = JSON.parse(readFileSync('src/fixtures/revision-dataset.json', 'utf8'));
 async function open(page: Page): Promise<void> {
@@ -47,6 +50,8 @@ test('完整结构版本保存、改量差异、重开恢复、导出与独立�
   await dialog.getByLabel('差异类型', { exact: true }).selectOption('removed');
   await expect(dialog.getByRole('table')).toContainText('当前条件没有匹配差异');
   await dialog.getByLabel('差异类型', { exact: true }).selectOption('all');
+  const accessibility = await new AxeBuilder({ page }).include('dialog[open]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  expect(accessibility.violations).toEqual([]);
   await mkdir('../aiao-bom-2/requirements/evidence', { recursive: true });
   await page.screenshot({ path: '../aiao-bom-2/requirements/evidence/versions-2026-11-14.png' });
   const diffDownload = page.waitForEvent('download');

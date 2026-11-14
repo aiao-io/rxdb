@@ -1,0 +1,35 @@
+
+> nx run aiao-bom-2-e2e:e2e
+
+aiao-bom-2-e2e: (node:82236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:82244) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: Running 10 tests using 1 worker
+aiao-bom-2-e2e: (node:82245) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [1/10] [chromium] › src/revisions.spec.ts:29:1 › 完整结构版本保存、改量差异、重开恢复、导出与独立工作区重入
+aiao-bom-2-e2e: [2/10] [chromium] › src/revisions.spec.ts:85:1 › 窄屏版本对话框不溢出，跨结构选择显示错误且不损坏主表
+aiao-bom-2-e2e: [3/10] [chromium] › src/revisions.spec.ts:102:1 › 另一个标签页的过期目录不能覆盖同身份快照
+aiao-bom-2-e2e: [4/10] [chromium] › src/scale-model.spec.ts:9:1 › 50k 发生项、20 列与真实整车同时工作
+aiao-bom-2-e2e: [5/10] [chromium] › src/scale.spec.ts:6:1 › 50k / 20 列与 100k 末项、宽树预算和性能证据
+aiao-bom-2-e2e: [6/10] [chromium] › src/workspace.spec.ts:17:1 › 真实数据、范围导航、搜索祖先与三种视图
+aiao-bom-2-e2e: [7/10] [chromium] › src/workspace.spec.ts:36:1 › 草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入
+aiao-bom-2-e2e: [8/10] [chromium] › src/workspace.spec.ts:70:1 › 非法导入与模型失败可见，表格仍可操作
+aiao-bom-2-e2e: [9/10] [chromium] › src/workspace.spec.ts:81:1 › 真实整车模型完成解码，表格与模型双向定位
+aiao-bom-2-e2e: [10/10] [chromium] › src/workspace.spec.ts:101:1 › 375px 窄屏搜索、面板开合与键盘路径可用
+aiao-bom-2-e2e:   10 passed (52.3s)
+
+
+
+ NX   Successfully ran target e2e for project aiao-bom-2-e2e
+
+
+  Run duration:      53.2s
+  Cache:             0/1 hit (0%)
+  Critical path:     53.2s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2-e2e:e2e    53.2s
