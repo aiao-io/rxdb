@@ -1,4 +1,3 @@
-import { BOM_WORKSPACE_CONFIG } from '../../config';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -16,6 +15,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { BOM_WORKSPACE_CONFIG } from '../../config';
 import { BomDemoService } from '../bom-demo.service';
 import { BomWorkspaceState } from '../bom-workspace-state';
 import { materialLabel } from '../presentation/material-label';
@@ -45,13 +45,16 @@ interface NavItem {
         <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
       }
       <aside class="sidebar" id="bom-navigation" #navigation aria-label="演示场景导航">
-        <a class="brand" (click)="closeNavigation()" aria-label="BOM 演示中心首页" [routerLink]="config.overviewPath">
+        <a class="brand" [routerLink]="config.overviewPath" (click)="closeNavigation()" aria-label="BOM 演示中心首页">
           <span class="brand-mark" aria-hidden="true">
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
             </svg>
           </span>
-          <span><strong>{{ config.label }}</strong><small>物料与制造工作台</small></span>
+          <span
+            ><strong>{{ config.label }}</strong
+            ><small>物料与制造工作台</small></span
+          >
         </a>
         <div class="workspace-label"><span class="workspace-dot"></span>演示工作区</div>
         <nav class="nav" aria-label="主导航">
@@ -83,7 +86,9 @@ interface NavItem {
           }
           <div class="nav-section">
             <span class="nav-section-title">工作区</span>
-            @if (config.workbenchPath) { <a class="nav-item" (click)="closeNavigation()" [routerLink]="config.workbenchPath">返回结构工作台</a> }
+            @if (config.workbenchPath) {
+              <a class="nav-item" [routerLink]="config.workbenchPath" (click)="closeNavigation()">返回结构工作台</a>
+            }
             <a class="nav-item" (click)="closeNavigation()" routerLink="/transfer">备份与迁移</a>
           </div>
         </nav>
@@ -114,7 +119,8 @@ interface NavItem {
               </svg>
             </button>
             <div class="breadcrumb">
-              <a [routerLink]="config.overviewPath">演示中心</a><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
+              <a [routerLink]="config.overviewPath">演示中心</a><span aria-hidden="true">/</span
+              ><strong>{{ activeLabel() }}</strong>
             </div>
           </div>
           <div class="header-actions">

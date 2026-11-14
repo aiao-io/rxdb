@@ -127,6 +127,14 @@ export interface Diagnostic {
   message: string;
 }
 export const DEFAULT_QUERY: QuerySpec = {
-  structure: 'catalog', mode: 'tree', scope: null, search: '', market: '', issue: 'all',
-  only3d: false, includeCatalog: false, sort: 'source', descending: false
+  structure: 'catalog',
+  mode: 'tree',
+  scope: null,
+  search: '',
+  market: '',
+  issue: 'all',
+  only3d: false,
+  includeCatalog: false,
+  sort: 'source',
+  descending: false
 };

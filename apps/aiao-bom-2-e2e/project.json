@@ -1,20 +1,13 @@
 {
-  "name": "aiao-bom-2-e2e",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project aiao-bom-2-e2e --web",
+  "implicitDependencies": ["aiao-bom-2", "aiao-bom", "aiao-bom-e2e"],
+  "name": "aiao-bom-2-e2e",
   "projectType": "application",
   "sourceRoot": "apps/aiao-bom-2-e2e/src",
-  "implicitDependencies": [
-    "aiao-bom-2",
-    "aiao-bom",
-    "aiao-bom-e2e"
-  ],
-  "// targets": "to see all targets run: nx show project aiao-bom-2-e2e --web",
   "targets": {
     "e2e": {
-      "dependsOn": [
-        "aiao-bom-2:build",
-        "aiao-bom:build"
-      ],
+      "dependsOn": ["aiao-bom-2:build", "aiao-bom:build"],
       "parallelism": false
     },
     "install-browsers": {

@@ -1,19 +1,14 @@
 {
-  "name": "aiao-bom-2",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "projectType": "application",
+  "name": "aiao-bom-2",
   "prefix": "bom2",
+  "projectType": "application",
   "sourceRoot": "apps/aiao-bom-2/src",
-  "tags": [
-    "type:app",
-    "scope:bom"
-  ],
+  "tags": ["type:app", "scope:bom"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/apps/aiao-bom-2",
@@ -31,9 +26,7 @@
             "output": "./wa-sqlite/"
           }
         ],
-        "styles": [
-          "apps/aiao-bom-2/src/styles.scss"
-        ]
+        "styles": ["apps/aiao-bom-2/src/styles.scss"]
       },
       "configurations": {
         "production": {
@@ -84,9 +77,7 @@
     "serve-static": {
       "continuous": true,
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "node apps/aiao-bom-2/scripts/preview.mjs --root dist/apps/aiao-bom-2/browser --port 4313"
       }
@@ -114,9 +105,7 @@
     "preview": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "cwd": "apps/aiao-bom-2",
         "command": "pnpm exec wrangler dev --config wrangler.json --ip 127.0.0.1 --port 4315"
@@ -126,9 +115,7 @@
     "deploy-check": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "cwd": "apps/aiao-bom-2",
         "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
@@ -143,9 +130,7 @@
     },
     "deploy": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "pnpm exec wrangler deploy --config wrangler.json",
         "cwd": "apps/aiao-bom-2"

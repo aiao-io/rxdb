@@ -1,6 +1,6 @@
 import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, revealDetails } from './support';
+import { acceptDialog, overviewPath, revealDetails, SCOOTER_SEED_ROWS } from './support';
 
 interface ReviewDownload {
   kind: string;

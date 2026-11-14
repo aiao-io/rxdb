@@ -14,12 +14,12 @@ import {
 } from '@aiao/rxdb-plugin-bom/testing';
 import { Page, expect, test } from '@playwright/test';
 import {
-  overviewPath,
   SCOOTER_REQUIREMENT_ROWS,
   SCOOTER_SEED_ROWS,
   acceptDialog,
   instanceRootId,
   openDetails,
+  overviewPath,
   revealDetails
 } from './support';
 

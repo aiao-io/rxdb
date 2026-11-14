@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeDraft } from './analysis';
-import { makeStressDataset } from './stress-data';
 import { createDraft } from './draft';
+import { makeStressDataset } from './stress-data';
 describe('已确认草稿数量与成本', () => {
   it('累计用量沿路径相乘，金额使用领域十进制内核', () => {
     const data = makeStressDataset(3, 'deep');

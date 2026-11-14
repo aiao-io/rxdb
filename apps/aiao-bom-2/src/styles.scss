@@ -1,24 +1,132 @@
 @use 'sass:color';
-:root { color-scheme: light; font-family: Inter, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #263441; background: #f5f7f8; font-size: 12px; --accent: #087b69; --accent-light: #e6f3ef; --line: #e5e9ed; --muted: #687583; }
-* { box-sizing: border-box; }
-body { margin: 0; }
-button, input, select, textarea { font: inherit; }
-button, select { cursor: pointer; }
-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #dce2e6; background: white; color: #45525f; border-radius: 5px; padding: 7px 11px; white-space: nowrap; line-height: 1.4; }
-button:hover { background: #f1f5f5; border-color: #b9cac5; }
-button:disabled { opacity: .42; cursor: default; }
-button.active { color: #076653; background: #e7f4ef; }
-button.primary { color: #fff; background: #087b69; border-color: #087b69; }
-button.primary:hover { background: #096652; }
-button.icon-button { border-color: transparent; background: transparent; padding: 6px; }
-input:not([type='checkbox']):not([type='file']), textarea, select { border: 1px solid #dbe1e6; border-radius: 5px; background: white; color: #344453; padding: 8px 10px; min-width: 0; }
-input::placeholder, textarea::placeholder { color: #88929d; }
-input[type='checkbox'] { accent-color: #087b69; }
-:focus-visible { outline: 2px solid #087b69; outline-offset: 2px; }
-a { color: #087b69; text-decoration: none; }
-code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
-.status-dot, .amber-dot { display: inline-block; width: 6px; height: 6px; flex: none; border-radius: 50%; background: #078268; }
-.amber-dot { background: #b67912; }
-.spinner { width: 23px; height: 23px; border: 2px solid #cbded8; border-top-color: #087b69; border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+:root {
+  color-scheme: light;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  color: #263441;
+  background: #f5f7f8;
+  font-size: 12px;
+  --accent: #087b69;
+  --accent-light: #e6f3ef;
+  --line: #e5e9ed;
+  --muted: #687583;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+select {
+  cursor: pointer;
+}
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #dce2e6;
+  background: white;
+  color: #45525f;
+  border-radius: 5px;
+  padding: 7px 11px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+button:hover {
+  background: #f1f5f5;
+  border-color: #b9cac5;
+}
+button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+button.active {
+  color: #076653;
+  background: #e7f4ef;
+}
+button.primary {
+  color: #fff;
+  background: #087b69;
+  border-color: #087b69;
+}
+button.primary:hover {
+  background: #096652;
+}
+button.icon-button {
+  border-color: transparent;
+  background: transparent;
+  padding: 6px;
+}
+input:not([type='checkbox']):not([type='file']),
+textarea,
+select {
+  border: 1px solid #dbe1e6;
+  border-radius: 5px;
+  background: white;
+  color: #344453;
+  padding: 8px 10px;
+  min-width: 0;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #88929d;
+}
+input[type='checkbox'] {
+  accent-color: #087b69;
+}
+:focus-visible {
+  outline: 2px solid #087b69;
+  outline-offset: 2px;
+}
+a {
+  color: #087b69;
+  text-decoration: none;
+}
+code,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.status-dot,
+.amber-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: #078268;
+}
+.amber-dot {
+  background: #b67912;
+}
+.spinner {
+  width: 23px;
+  height: 23px;
+  border: 2px solid #cbded8;
+  border-top-color: #087b69;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

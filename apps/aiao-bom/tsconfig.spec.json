@@ -2,20 +2,12 @@
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
     "emitDeclarationOnly": false,
-    "types": [
-      "vitest/globals",
-      "vitest/importMeta",
-      "vite/client",
-      "node",
-      "vitest"
-    ],
+    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "module": "preserve",
     "moduleResolution": "bundler"
   },
   "extends": "../../tsconfig.base.json",
-  "files": [
-    "src/test-setup.ts"
-  ],
+  "files": ["src/test-setup.ts"],
   "include": [
     "vite.config.ts",
     "vite.config.mts",

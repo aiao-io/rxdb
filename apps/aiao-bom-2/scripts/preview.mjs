@@ -7,4 +7,8 @@ server.prependListener('request', (_request, response) => {
   response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
 });
 console.log(`aiao-bom-2 preview: http://localhost:${options.port}`);
-for (const event of ['SIGINT', 'SIGTERM']) process.on(event, () => { server.close(); server.closeAllConnections(); });
+for (const event of ['SIGINT', 'SIGTERM'])
+  process.on(event, () => {
+    server.close();
+    server.closeAllConnections();
+  });

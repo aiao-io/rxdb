@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DraftHistory, createDraft, validateDraft, parseImport, exportCsv, compareDrafts } from './draft';
+import { DraftHistory, compareDrafts, createDraft, exportCsv, parseImport, validateDraft } from './draft';
 import { makeStressDataset } from './stress-data';
 
 describe('BOM 草稿与导入导出', () => {
@@ -11,8 +11,10 @@ describe('BOM 草稿与导入导出', () => {
     history.patch([key], { quantity: '2.5', quantityState: 'confirmed' });
     expect(history.current.nodes[1].quantity).toBe('2.5');
     expect(data.structures.catalog[1].quantity).toBe('1');
-    history.undo(); expect(history.current.nodes[1].quantity).toBe('1');
-    history.redo(); expect(history.current.nodes[1].key).toBe(key);
+    history.undo();
+    expect(history.current.nodes[1].quantity).toBe('1');
+    history.redo();
+    expect(history.current.nodes[1].key).toBe(key);
   });
   it('拒绝循环、父项丢失、重复身份及不规范十进制', () => {
     const data = makeStressDataset(10);
@@ -41,7 +43,8 @@ describe('BOM 草稿与导入导出', () => {
     expect(() => history.move(root, history.current.nodes[1].key)).toThrow('循环');
     history.remove([history.current.nodes[1].key]);
     expect(history.current.nodes.length).toBeLessThan(20);
-    history.undo(); expect(history.current.nodes).toHaveLength(20);
+    history.undo();
+    expect(history.current.nodes).toHaveLength(20);
   });
   it('CSV 转义公式与引号，比较精确指出使用位置的字段变化', () => {
     const data = makeStressDataset(3);
@@ -51,7 +54,9 @@ describe('BOM 草稿与导入导出', () => {
     expect(csv).toContain("'=1+1");
     const changed = structuredClone(draft);
     changed.nodes[1].quantity = '3';
-    expect(compareDrafts(draft, changed)).toEqual(expect.arrayContaining([expect.objectContaining({ key: draft.nodes[1].key, field: 'quantity' })]));
+    expect(compareDrafts(draft, changed)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: draft.nodes[1].key, field: 'quantity' })])
+    );
   });
 });
 
@@ -59,7 +64,8 @@ describe('身份和导入边界', () => {
   it('JSON 往返保留 CAD 节点与修订，不能伪造不合法索引', () => {
     const data = makeStressDataset(3);
     const draft = createDraft(data, data.structures.catalog);
-    draft.revision = 8; draft.nodes[1].nodeIndex = 17;
+    draft.revision = 8;
+    draft.nodes[1].nodeIndex = 17;
     expect(parseImport(JSON.stringify(draft)).nodes[1].nodeIndex).toBe(17);
     expect(parseImport(JSON.stringify(draft)).revision).toBe(8);
     draft.nodes[1].nodeIndex = -1;

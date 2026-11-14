@@ -3,9 +3,7 @@
     "outDir": "./out-tsc/lib",
     "declaration": true,
     "declarationMap": true,
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "exclude": [
     "src/**/*.spec.ts",
@@ -23,9 +21,7 @@
     "src/test-setup.ts"
   ],
   "extends": "./tsconfig.json",
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"

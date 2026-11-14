@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog } from './support';
+import { acceptDialog, overviewPath, SCOOTER_SEED_ROWS } from './support';
 
 test('联产场景按需追加，展示220→132/88并显式选择下游成本来源', async ({ page }) => {
   await page.goto(overviewPath);

@@ -53,3 +53,11 @@ requirements/generated/
 packages/rxdb/skills/
 
 .angular
+
+# Windrose 原始快照与 BOM 生成证据按字节保存，不作为可读源码格式化。
+apps/aiao-bom-2/fixtures/windrose-2026-11-13/
+apps/aiao-bom-2-e2e/src/fixtures/
+apps/aiao-bom-2/public/data/
+apps/aiao-bom-2/requirements/evidence/
+apps/aiao-bom/requirements/plans/aiao-bom-2-data-audit-2026-11-13.json
+apps/aiao-bom-2/public/draco/

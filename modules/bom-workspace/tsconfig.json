@@ -1,17 +1,17 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "target": "es2022",
-    "moduleResolution": "bundler",
-    "noPropertyAccessFromIndexSignature": true,
-    "module": "preserve"
-  },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
   },
+  "compilerOptions": {
+    "target": "es2022",
+    "moduleResolution": "bundler",
+    "noPropertyAccessFromIndexSignature": true,
+    "module": "preserve"
+  },
+  "extends": "../../tsconfig.base.json",
   "files": [],
   "include": [],
   "references": [

@@ -20,7 +20,9 @@ describe('BOM 按发生位置查询', () => {
     const scope = data.structures.catalog[1].key;
     const scoped = index.query({ ...DEFAULT_QUERY, scope, mode: 'flat' });
     expect(scoped.rows.length).toBeLessThan(200);
-    expect(scoped.rows.every(row => index.ancestors(row.key).some(n => n.key === scope) || row.key === scope)).toBe(true);
+    expect(scoped.rows.every(row => index.ancestors(row.key).some(n => n.key === scope) || row.key === scope)).toBe(
+      true
+    );
     expect(index.query({ ...DEFAULT_QUERY, mode: 'flat' }).rows).toHaveLength(200);
   });
   it('树排序保持父子关系，按用量比较十进制数值', () => {
@@ -92,7 +94,9 @@ it('规范数量排序保留未知，汇总相同物料时做精确直接数量�
   const data = makeStressDataset(4, 'wide');
   data.structures.catalog[2].partId = data.structures.catalog[1].partId;
   data.structures.catalog[2].compId = data.structures.catalog[1].compId;
-  data.structures.catalog[1].quantity = '0.1'; data.structures.catalog[2].quantity = '0.2'; data.structures.catalog[3].quantity = null;
+  data.structures.catalog[1].quantity = '0.1';
+  data.structures.catalog[2].quantity = '0.2';
+  data.structures.catalog[3].quantity = null;
   const index = new BomIndex(data, 'catalog');
   const result = index.query({ ...DEFAULT_QUERY, mode: 'summary', sort: 'quantity', descending: true });
   expect(result.rows.find(r => r.count === 2)?.quantity).toBe('0.3');

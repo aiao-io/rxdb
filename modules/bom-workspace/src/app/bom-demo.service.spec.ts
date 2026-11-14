@@ -1005,7 +1005,12 @@ describe('BomDemoService', () => {
         })
     );
     let rejectDrop: ((error: Error) => void) | undefined;
-    const dropStorage = vi.fn(() => new Promise<void>((_resolve, reject) => { rejectDrop = reject; }));
+    const dropStorage = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectDrop = reject;
+        })
+    );
     Object.assign(service, { adapter: { dropStorage } });
     const deleteDatabase = vi.fn();
     vi.stubGlobal('indexedDB', { deleteDatabase });
@@ -1084,31 +1089,53 @@ describe('connectDevTools', () => {
 
 describe('领域入口连接状态与互斥边界', () => {
   const unavailable: [string, (service: BomDemoService) => Promise<unknown>][] = [
-    ['展开', s => s.explode('2026-11-14', '1')], ['备份', s => s.backup()],
-    ['属性读取', s => s.extRead('A')], ['属性写入', s => s.extWrite('A', {})], ['属性修补', s => s.extPatch('A', {})],
-    ['属性过滤', s => s.filterExt('eq', 'yes')], ['导出', s => s.exportBom('2026-11-14', 'A', '1')],
-    ['导入', s => s.importBom([])], ['草稿列表', s => s.refreshImportedDrafts()], ['发布', s => s.publishImported(['h'], '2026-11-14')],
-    ['实例树', s => s.instanceTree('root')], ['序列追溯', s => s.traceInstance('serial', 'SN')],
-    ['换件', s => s.replaceDemoInstance('2026-11-14')], ['实例状态', s => s.readDemoInstanceState()],
-    ['实际修订', s => s.reviseDemoInstanceMaster('2026-11-14')], ['实例保护', s => s.deleteDemoInstanceSource()],
-    ['双图', s => s.dualExplode('2026-11-14')], ['覆盖率', s => s.mapCoverage('2026-11-14')],
-    ['映射缺口', s => s.mapGaps('2026-11-14')], ['路径标签', s => s.mappingLabels()], ['确认映射', s => s.confirmMap('m', '2026-11-14')],
-    ['成本', s => s.rollup('A', '2026-11-14')], ['联产', s => s.loadCoproductDemo()],
-    ['替代组', s => s.demoSubstitutePublishRejection()], ['使用处', s => s.whereUsed('2026-11-14', 'a')],
-    ['演示发布', s => s.publishDemoHeader()], ['直连循环', s => s.rawCycleInsert()], ['表单循环', s => s.formCycleInsert()],
-    ['影响面', s => s.ecnImpact('e')], ['改版差异', s => s.ecnDiff('e')], ['改版核对', s => s.reviewChange('e', reviewContext)],
-    ['新变更', s => s.demoCreateAndReleaseEcn()], ['取消变更', s => s.cancelEcn('e')], ['已生效保护', s => s.demoCancelEffectiveEcn()],
+    ['展开', s => s.explode('2026-11-14', '1')],
+    ['备份', s => s.backup()],
+    ['属性读取', s => s.extRead('A')],
+    ['属性写入', s => s.extWrite('A', {})],
+    ['属性修补', s => s.extPatch('A', {})],
+    ['属性过滤', s => s.filterExt('eq', 'yes')],
+    ['导出', s => s.exportBom('2026-11-14', 'A', '1')],
+    ['导入', s => s.importBom([])],
+    ['草稿列表', s => s.refreshImportedDrafts()],
+    ['发布', s => s.publishImported(['h'], '2026-11-14')],
+    ['实例树', s => s.instanceTree('root')],
+    ['序列追溯', s => s.traceInstance('serial', 'SN')],
+    ['换件', s => s.replaceDemoInstance('2026-11-14')],
+    ['实例状态', s => s.readDemoInstanceState()],
+    ['实际修订', s => s.reviseDemoInstanceMaster('2026-11-14')],
+    ['实例保护', s => s.deleteDemoInstanceSource()],
+    ['双图', s => s.dualExplode('2026-11-14')],
+    ['覆盖率', s => s.mapCoverage('2026-11-14')],
+    ['映射缺口', s => s.mapGaps('2026-11-14')],
+    ['路径标签', s => s.mappingLabels()],
+    ['确认映射', s => s.confirmMap('m', '2026-11-14')],
+    ['成本', s => s.rollup('A', '2026-11-14')],
+    ['联产', s => s.loadCoproductDemo()],
+    ['替代组', s => s.demoSubstitutePublishRejection()],
+    ['使用处', s => s.whereUsed('2026-11-14', 'a')],
+    ['演示发布', s => s.publishDemoHeader()],
+    ['直连循环', s => s.rawCycleInsert()],
+    ['表单循环', s => s.formCycleInsert()],
+    ['影响面', s => s.ecnImpact('e')],
+    ['改版差异', s => s.ecnDiff('e')],
+    ['改版核对', s => s.reviewChange('e', reviewContext)],
+    ['新变更', s => s.demoCreateAndReleaseEcn()],
+    ['取消变更', s => s.cancelEcn('e')],
+    ['已生效保护', s => s.demoCancelEffectiveEcn()],
     ['计算依据', s => s.readCalculationBasis(reviewRequirement(null))]
   ];
   it.each(unavailable)('%s：未连接时明确拒绝，不能返回部分业务结果', async (_, execute) => {
     await expect(execute(TestBed.inject(BomDemoService))).rejects.toThrow(/未就绪|未连接/);
   });
   it.each(unavailable)('%s：迁移时阻止新业务请求', async (_, execute) => {
-    const service = TestBed.inject(BomDemoService); service.migrating.set(true);
+    const service = TestBed.inject(BomDemoService);
+    service.migrating.set(true);
     await expect(execute(service)).rejects.toThrow('正在迁移');
   });
   it.each(unavailable)('%s：重置时阻止新业务请求', async (_, execute) => {
-    const service = TestBed.inject(BomDemoService); service.resetting.set(true);
+    const service = TestBed.inject(BomDemoService);
+    service.resetting.set(true);
     await expect(execute(service)).rejects.toThrow('正在重置');
   });
   it('未连接的统计为空，避免读取旧工作区的残留行数', async () => {
@@ -1129,36 +1156,48 @@ describe('领域入口连接状态与互斥边界', () => {
   it('属性读取区分无行、NULL 与实际 JSON，不能丢弃真实值', async () => {
     const { service, adapter } = transactionHarness([], () => false);
     expect(await service.extRead('A')).toBe('{}');
-    adapter.rawQuery.mockResolvedValueOnce({ rows: [[null]] }); expect(await service.extRead('A')).toBe('{}');
-    adapter.rawQuery.mockResolvedValueOnce({ rows: [['{"rohs":"yes"}']] }); expect(await service.extRead('A')).toBe('{"rohs":"yes"}');
+    adapter.rawQuery.mockResolvedValueOnce({ rows: [[null]] });
+    expect(await service.extRead('A')).toBe('{}');
+    adapter.rawQuery.mockResolvedValueOnce({ rows: [['{"rohs":"yes"}']] });
+    expect(await service.extRead('A')).toBe('{"rohs":"yes"}');
   });
 });
 
 describe('领域查询委托与映射确认边界', () => {
   it('实例与追溯把当前时点和历史查询明确传给领域 API', async () => {
     const { service, rxdb } = transactionHarness([], () => false);
-    const expand = vi.fn().mockResolvedValue({ nodes: [] }); const trace = vi.fn().mockResolvedValue({ matches: [] });
+    const expand = vi.fn().mockResolvedValue({ nodes: [] });
+    const trace = vi.fn().mockResolvedValue({ matches: [] });
     Object.assign(rxdb.bom, { expandInstance: expand, whereUsedInstance: trace });
-    await service.instanceTree('r'); expect(expand).toHaveBeenLastCalledWith('r', {});
-    await service.instanceTree('r', '2026-11-14'); expect(expand).toHaveBeenLastCalledWith('r', { asOfDate: new Date('2026-11-14') });
-    await service.traceInstance('serial', 'SN'); expect(trace).toHaveBeenLastCalledWith({ serialNumber: 'SN' }, {});
-    await service.traceInstance('lot', 'LOT', '2026-11-14'); expect(trace).toHaveBeenLastCalledWith({ lotCode: 'LOT' }, { asOfDate: new Date('2026-11-14') });
+    await service.instanceTree('r');
+    expect(expand).toHaveBeenLastCalledWith('r', {});
+    await service.instanceTree('r', '2026-11-14');
+    expect(expand).toHaveBeenLastCalledWith('r', { asOfDate: new Date('2026-11-14') });
+    await service.traceInstance('serial', 'SN');
+    expect(trace).toHaveBeenLastCalledWith({ serialNumber: 'SN' }, {});
+    await service.traceInstance('lot', 'LOT', '2026-11-14');
+    expect(trace).toHaveBeenLastCalledWith({ lotCode: 'LOT' }, { asOfDate: new Date('2026-11-14') });
   });
   it('属性过滤、使用处与双图查询保留领域返回值', async () => {
     const { service, rxdb } = transactionHarness([], () => false);
-    const filter = vi.fn().mockResolvedValue([{ itemNo: 'A', ext: '{"rohs":"yes"}' }]); const used = vi.fn().mockResolvedValue({ matches: [] });
+    const filter = vi.fn().mockResolvedValue([{ itemNo: 'A', ext: '{"rohs":"yes"}' }]);
+    const used = vi.fn().mockResolvedValue({ matches: [] });
     Object.assign(rxdb.bom, { filterByAttr: filter, whereUsed: used });
     expect(await service.filterExt('ne', 'no')).toEqual([{ itemNo: 'A', ext: '{"rohs":"yes"}' }]);
     expect(filter).toHaveBeenCalledWith('item', [{ code: 'rohs', op: 'ne', value: 'no' }]);
     expect(await service.whereUsed('2026-11-14', 'child')).toEqual({ matches: [] });
     rxdb.bom.explodeBom.mockResolvedValue(reviewExplosion());
-    const result = await service.dualExplode('2026-11-14'); expect(result.ebom).toEqual(reviewExplosion()); expect(result.mbom).toEqual(reviewExplosion());
+    const result = await service.dualExplode('2026-11-14');
+    expect(result.ebom).toEqual(reviewExplosion());
+    expect(result.mbom).toEqual(reviewExplosion());
     expect(rxdb.bom.explodeBom.mock.calls.map(call => call[0].bomType)).toEqual(['ebom', 'mbom']);
   });
   it('统计支持 adapter 的 results 结果，原样读取全部实体行数', async () => {
     const { service, adapter } = transactionHarness([], () => false);
     adapter.rawQuery.mockResolvedValue({ results: [{ rows: [[7]] }] } as unknown as { rows: unknown[][] });
-    const counts = await service.dumpRowCounts(); expect(counts.split('\n')).toHaveLength(9); expect(counts).toContain('ecn=7');
+    const counts = await service.dumpRowCounts();
+    expect(counts.split('\n')).toHaveLength(9);
+    expect(counts).toContain('ecn=7');
   });
   it('持久换件状态保留日期，空库与空值不制造已换件事实', async () => {
     const { service, adapter } = transactionHarness([], () => false);
@@ -1167,22 +1206,40 @@ describe('领域查询委托与映射确认边界', () => {
     expect(await service.readDemoInstanceState()).toEqual({ replacementDate: '2026-11-01', masterRevised: true });
   });
   it('导出默认、序列条件与显式单位均不会转换 Decimal 为 number', async () => {
-    const { service, rxdb } = transactionHarness([], () => false); service.itemNos.set(new Map([['root', 'ROOT']]));
+    const { service, rxdb } = transactionHarness([], () => false);
+    service.itemNos.set(new Map([['root', 'ROOT']]));
     await service.exportBom('2026-11-14', 'ROOT', '0.123456789123456789');
-    expect(rxdb.bom.exportBom).toHaveBeenLastCalledWith(expect.objectContaining({ orgId: 'org-x' }), { parentItemId: 'root' }, { plannedQty: { value: '0.123456789123456789', uom: 'pcs' } });
+    expect(rxdb.bom.exportBom).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orgId: 'org-x' }),
+      { parentItemId: 'root' },
+      { plannedQty: { value: '0.123456789123456789', uom: 'pcs' } }
+    );
     await service.exportBom('2026-11-14', 'ROOT', '2', 137);
-    expect(rxdb.bom.exportBom).toHaveBeenLastCalledWith(expect.objectContaining({ unit: 137 }), expect.anything(), { plannedQty: { value: '2', uom: 'pcs' } });
+    expect(rxdb.bom.exportBom).toHaveBeenLastCalledWith(expect.objectContaining({ unit: 137 }), expect.anything(), {
+      plannedQty: { value: '2', uom: 'pcs' }
+    });
     await service.exportBom('2026-11-14', 'ROOT', '2', {});
     await expect(service.explode('2026-11-14', '1', 'UNKNOWN')).rejects.toThrow('物料不存在');
   });
-  it.each([{ rows: [] }, { rows: [['equivalent', null, null, 'org-x', 1]] }, { rows: [['equivalent', 'line', null, 'org-x', 1]] }])('缺少映射或目标时不能误确认', async ({ rows }) => {
-    const { service, adapter } = transactionHarness([], () => false); adapter.rawQuery.mockResolvedValueOnce({ rows });
+  it.each([
+    { rows: [] },
+    { rows: [['equivalent', null, null, 'org-x', 1]] },
+    { rows: [['equivalent', 'line', null, 'org-x', 1]] }
+  ])('缺少映射或目标时不能误确认', async ({ rows }) => {
+    const { service, adapter } = transactionHarness([], () => false);
+    adapter.rawQuery.mockResolvedValueOnce({ rows });
     await expect(service.confirmMap('map', '2026-11-14')).rejects.toThrow(/映射不存在|缺少制造目标/);
     expect(confirmMapping).not.toHaveBeenCalled();
   });
   it('移除型映射无需假目标，调用确认保留 null 目标身份', async () => {
     const { service, adapter } = transactionHarness([], () => false);
     adapter.rawQuery.mockResolvedValueOnce({ rows: [['removed', null, null, 'org-x', 1]] });
-    await service.confirmMap('removed-map', '2026-11-14'); expect(confirmMapping).toHaveBeenCalledWith(adapter, 'removed-map', null, expect.objectContaining({ orgId: 'org-x', bomType: 'ebom' }));
+    await service.confirmMap('removed-map', '2026-11-14');
+    expect(confirmMapping).toHaveBeenCalledWith(
+      adapter,
+      'removed-map',
+      null,
+      expect.objectContaining({ orgId: 'org-x', bomType: 'ebom' })
+    );
   });
 });

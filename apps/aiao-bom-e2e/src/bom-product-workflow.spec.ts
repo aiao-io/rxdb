@@ -1,5 +1,5 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, openDetails, revealDetails } from './support';
+import { acceptDialog, openDetails, overviewPath, revealDetails, SCOOTER_SEED_ROWS } from './support';
 
 const prepare = async (page: Page): Promise<void> => {
   await page.goto(overviewPath);

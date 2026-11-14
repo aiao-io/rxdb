@@ -1,14 +1,40 @@
 import { expect, test } from '@playwright/test';
 
 test('已确认的真实物料草稿可进入领域库、刷新重开并校验发布', async ({ page }) => {
-  await page.goto('/'); await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
+  await page.goto('/');
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
   const snapshot = await page.request.get('/data/windrose.json');
-  const data = await snapshot.json() as { id: string; parts: { id: string }[] };
-  const [parent, child] = data.parts; if (!parent || !child) throw new Error('真实物料样本缺失');
-  const occurrence = (key: string, parentKey: string | null, partId: string) => ({ key, parentKey, partId, compId: partId, kind: 'part', source: 'draft', markets: ['EU'], quantity: '1', quantityState: 'confirmed', uom: 'pcs', sourceRef: `user-verified:${key}` });
-  const draft = { schema: 'aiao-bom-2-draft/1', datasetId: data.id, name: '用户核对后的装配示例', revision: 2, savedAt: new Date().toISOString(), nodes: [occurrence('verified-root', null, parent.id), { ...occurrence('verified-child', 'verified-root', child.id), quantity: '0.123456789123456789' }] };
+  const data = (await snapshot.json()) as { id: string; parts: { id: string }[] };
+  const [parent, child] = data.parts;
+  if (!parent || !child) throw new Error('真实物料样本缺失');
+  const occurrence = (key: string, parentKey: string | null, partId: string) => ({
+    key,
+    parentKey,
+    partId,
+    compId: partId,
+    kind: 'part',
+    source: 'draft',
+    markets: ['EU'],
+    quantity: '1',
+    quantityState: 'confirmed',
+    uom: 'pcs',
+    sourceRef: `user-verified:${key}`
+  });
+  const draft = {
+    schema: 'aiao-bom-2-draft/1',
+    datasetId: data.id,
+    name: '用户核对后的装配示例',
+    revision: 2,
+    savedAt: new Date().toISOString(),
+    nodes: [
+      occurrence('verified-root', null, parent.id),
+      { ...occurrence('verified-child', 'verified-root', child.id), quantity: '0.123456789123456789' }
+    ]
+  };
   await page.getByRole('button', { name: '导入', exact: true }).first().click();
-  await page.locator('dialog input[type=file]').setInputFiles({ name: 'verified.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(draft)) });
+  await page
+    .locator('dialog input[type=file]')
+    .setInputFiles({ name: 'verified.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(draft)) });
   await page.locator('dialog').getByRole('button', { name: '确认导入', exact: true }).click();
   await expect(page.getByRole('tab', { name: '工作草稿' })).toHaveAttribute('aria-selected', 'true');
   await page.goto('/?structure=draft&occurrence=verified-root');
@@ -22,7 +48,10 @@ test('已确认的真实物料草稿可进入领域库、刷新重开并校验�
   await page.getByRole('button', { name: '校验并写入领域草稿', exact: true }).click();
   await expect(page.locator('bom-transfer-page [role=status]').filter({ hasText: '已写入领域草稿' })).toBeVisible();
   await page.getByRole('link', { name: '核对导入装配并发布', exact: true }).click();
-  await page.locator('summary').filter({ hasText: /^导入与导出$/ }).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^导入与导出$/ })
+    .click();
   const imported = page.locator('.draft-list li').filter({ hasText: parent.id });
   await expect(imported).toContainText('修订 W2');
   await imported.getByRole('checkbox').check();
@@ -32,9 +61,12 @@ test('已确认的真实物料草稿可进入领域库、刷新重开并校验�
   await page.getByTestId('as-of-date').fill('2026-11-14');
   await page.getByRole('button', { name: '展开整机', exact: true }).click();
   await expect(page.getByRole('tree', { name: '物料需求发生项树', exact: true })).toContainText(child.id);
-  const download = page.waitForEvent('download'); await page.getByTestId('export-bom').click();
-  const stream = await (await download).createReadStream(); if (!stream) throw new Error('领域导出为空');
-  const chunks: Buffer[] = []; for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const download = page.waitForEvent('download');
+  await page.getByTestId('export-bom').click();
+  const stream = await (await download).createReadStream();
+  if (!stream) throw new Error('领域导出为空');
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   expect(Buffer.concat(chunks).toString()).toContain('0.123456789123456789');
   await page.reload();
   await expect(page.getByTestId('workspace-data-status')).toContainText('数据已就绪');

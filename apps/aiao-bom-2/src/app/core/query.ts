@@ -10,7 +10,11 @@ export class BomIndex {
   readonly children = new Map<string | null, Occurrence[]>();
   readonly rows = new Map<string, BomRow>();
 
-  constructor(readonly dataset: BomDataset, readonly structure: Structure, prepared?: BomRow[]) {
+  constructor(
+    readonly dataset: BomDataset,
+    readonly structure: Structure,
+    prepared?: BomRow[]
+  ) {
     this.parts = new Map(dataset.parts.map(p => [p.id, p]));
     this.nodes = new Map(dataset.structures[structure].map(n => [n.key, n]));
     for (const node of this.nodes.values()) {
@@ -18,7 +22,11 @@ export class BomIndex {
       siblings.push(node);
       this.children.set(node.parentKey, siblings);
     }
-    if (prepared) for (const row of prepared) { this.rows.set(row.key, row); this.indexSearch(this.nodes.get(row.key)!, row.name); }
+    if (prepared)
+      for (const row of prepared) {
+        this.rows.set(row.key, row);
+        this.indexSearch(this.nodes.get(row.key)!, row.name);
+      }
     else for (const node of this.nodes.values()) this.rows.set(node.key, this.project(node));
   }
 
@@ -50,7 +58,8 @@ export class BomIndex {
   }
 
   query(spec: QuerySpec): QueryResult {
-    const cacheKey = JSON.stringify(spec); const cached = this.queryCache.get(cacheKey);
+    const cacheKey = JSON.stringify(spec);
+    const cached = this.queryCache.get(cacheKey);
     if (cached) return cached;
     if (spec.scope !== null && !this.nodes.has(spec.scope)) throw new Error('当前范围不存在');
     const scope = spec.scope ? this.descendants(spec.scope) : null;
@@ -72,7 +81,14 @@ export class BomIndex {
     if (spec.sort !== 'source') for (const children of byParent.values()) children.sort(compare);
     const projected = spec.mode === 'summary' ? this.summarize([...matches].map(key => this.rows.get(key)!)) : rows;
     if (spec.mode !== 'tree' && spec.sort !== 'source') projected.sort(compare);
-    const result = { roots: spec.mode === 'tree' ? byParent.get(null) ?? [] : projected, rows: projected, byParent, total: this.nodes.size, matched: matches.size, truncated };
+    const result = {
+      roots: spec.mode === 'tree' ? (byParent.get(null) ?? []) : projected,
+      rows: projected,
+      byParent,
+      total: this.nodes.size,
+      matched: matches.size,
+      truncated
+    };
     this.queryCache.set(cacheKey, result);
     if (this.queryCache.size > 6) this.queryCache.delete(this.queryCache.keys().next().value!);
     return result;
@@ -96,7 +112,8 @@ export class BomIndex {
     if (terms.some(t => !this.searchText.get(node.key)!.includes(t))) return false;
     if (spec.only3d && !row.has3d) return false;
     if (spec.issue === 'conflict') return Boolean(p?.conflict);
-    if (spec.issue === 'quantity') return node.kind !== 'system' && (node.quantity === null || node.quantityState === 'ambiguous');
+    if (spec.issue === 'quantity')
+      return node.kind !== 'system' && (node.quantity === null || node.quantityState === 'ambiguous');
     if (spec.issue === 'unmapped') return node.kind !== 'system' && !row.has3d;
     return true;
   }
@@ -121,7 +138,9 @@ export class BomIndex {
         if (b.quantity === null) return -1;
         return decimalCmp(decimalFromCanonical(a.quantity), decimalFromCanonical(b.quantity)) * direction;
       }
-      return collator.compare(spec.sort === 'name' ? a.name : a.partId, spec.sort === 'name' ? b.name : b.partId) * direction;
+      return (
+        collator.compare(spec.sort === 'name' ? a.name : a.partId, spec.sort === 'name' ? b.name : b.partId) * direction
+      );
     };
   }
 
@@ -130,12 +149,44 @@ export class BomIndex {
     const { depth, path } = this.describe(n);
     const label = n.label || p?.name || n.partId;
     this.indexSearch(n, label);
-    return { key: n.key, parentKey: n.parentKey, partId: n.partId, name: label, english: p?.english ?? '', compId: n.compId, family: p?.family ?? '', familyName: p?.familyName ?? '', quantity: n.quantity, quantityState: n.quantityState, uom: n.uom, kind: n.kind, hasChildren: this.children.has(n.key), depth, has3d: n.nodeIndex !== undefined || Boolean(p?.assets.length || p?.sceneNodes.length), conflict: p?.conflict ?? '', policy: p?.policy ?? '', markets: n.markets.join(' · '), path, nodeIndex: n.nodeIndex, unitCost: n.unitCost ?? null, sourceRef: n.sourceRef, count: 1, cb: this.marketMarks(p?.cb), mb: this.marketMarks(p?.mb), sb: this.marketMarks(p?.sb) };
+    return {
+      key: n.key,
+      parentKey: n.parentKey,
+      partId: n.partId,
+      name: label,
+      english: p?.english ?? '',
+      compId: n.compId,
+      family: p?.family ?? '',
+      familyName: p?.familyName ?? '',
+      quantity: n.quantity,
+      quantityState: n.quantityState,
+      uom: n.uom,
+      kind: n.kind,
+      hasChildren: this.children.has(n.key),
+      depth,
+      has3d: n.nodeIndex !== undefined || Boolean(p?.assets.length || p?.sceneNodes.length),
+      conflict: p?.conflict ?? '',
+      policy: p?.policy ?? '',
+      markets: n.markets.join(' · '),
+      path,
+      nodeIndex: n.nodeIndex,
+      unitCost: n.unitCost ?? null,
+      sourceRef: n.sourceRef,
+      count: 1,
+      cb: this.marketMarks(p?.cb),
+      mb: this.marketMarks(p?.mb),
+      sb: this.marketMarks(p?.sb)
+    };
   }
 
   private indexSearch(n: Occurrence, label: string): void {
     const p = this.parts.get(n.partId);
-    this.searchText.set(n.key, [n.key, n.partId, label, p?.english, n.compId, p?.variants.join(' '), p?.familyName, n.sourceRef].join(' ').toLocaleLowerCase());
+    this.searchText.set(
+      n.key,
+      [n.key, n.partId, label, p?.english, n.compId, p?.variants.join(' '), p?.familyName, n.sourceRef]
+        .join(' ')
+        .toLocaleLowerCase()
+    );
   }
 
   private describe(node: Occurrence): { depth: number; path: string } {
@@ -144,7 +195,8 @@ export class BomIndex {
     let current: Occurrence | undefined = node;
     while (current && !this.metadata.has(current.key)) {
       if (seen.has(current.key)) throw new Error(`循环结构：${node.key}`);
-      seen.add(current.key); chain.push(current);
+      seen.add(current.key);
+      chain.push(current);
       current = current.parentKey ? this.nodes.get(current.parentKey) : undefined;
     }
     for (const item of chain.reverse()) {
@@ -159,7 +211,10 @@ export class BomIndex {
   }
 
   private marketMarks(values: Part['cb'] | undefined): string {
-    return ['EU', 'CN', 'US', 'AU'].map(m => values?.[m as keyof Part['cb']] === '✓' ? m : '').filter(Boolean).join(' · ');
+    return ['EU', 'CN', 'US', 'AU']
+      .map(m => (values?.[m as keyof Part['cb']] === '✓' ? m : ''))
+      .filter(Boolean)
+      .join(' · ');
   }
 
   private summarize(rows: BomRow[]): BomRow[] {
@@ -167,10 +222,23 @@ export class BomIndex {
     for (const row of rows.filter(r => r.kind !== 'system')) {
       const key = JSON.stringify([row.partId, row.compId, row.uom, row.markets]);
       const previous = groups.get(key);
-      if (!previous) { groups.set(key, { ...row, key: `summary:${key}`, parentKey: null, hasChildren: false, count: 1, members: [row.key] }); continue; }
+      if (!previous) {
+        groups.set(key, {
+          ...row,
+          key: `summary:${key}`,
+          parentKey: null,
+          hasChildren: false,
+          count: 1,
+          members: [row.key]
+        });
+        continue;
+      }
       previous.count++;
       previous.members!.push(row.key);
-      previous.quantity = previous.quantity === null || row.quantity === null ? null : decimalToCanonical(decimalAdd(decimalFromCanonical(previous.quantity), decimalFromCanonical(row.quantity)));
+      previous.quantity =
+        previous.quantity === null || row.quantity === null ?
+          null
+        : decimalToCanonical(decimalAdd(decimalFromCanonical(previous.quantity), decimalFromCanonical(row.quantity)));
       if (previous.quantity === null) previous.quantityState = 'missing';
     }
     return [...groups.values()];

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, dismissDialog, revealDetails } from './support';
+import { acceptDialog, dismissDialog, overviewPath, revealDetails, SCOOTER_SEED_ROWS } from './support';
 
 const loadedItems = `已有 ${SCOOTER_SEED_ROWS.item} 项物料`;
 

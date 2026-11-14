@@ -13,15 +13,18 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'happy-dom',
-    pool: 'forks', maxWorkers: 2,
+    pool: 'forks',
+    maxWorkers: 2,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],
     coverage: {
       thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
-      include: ['src/**/*.ts'], exclude: ['src/test-setup.ts', 'src/index.ts'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/test-setup.ts', 'src/index.ts'],
       reportsDirectory: '../../coverage/modules/bom-workspace',
-      provider: 'v8' as const, reporter: ['text', 'json', 'json-summary']
+      provider: 'v8' as const,
+      reporter: ['text', 'json', 'json-summary']
     }
   }
 }));

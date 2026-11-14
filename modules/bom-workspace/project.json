@@ -1,14 +1,11 @@
 {
-  "name": "bom-workspace",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "modules/bom-workspace/src",
+  "// targets": "to see all targets run: nx show project bom-workspace --web",
+  "name": "bom-workspace",
   "prefix": "bom",
   "projectType": "library",
-  "tags": [
-    "type:ui",
-    "scope:bom"
-  ],
-  "// targets": "to see all targets run: nx show project bom-workspace --web",
+  "sourceRoot": "modules/bom-workspace/src",
+  "tags": ["type:ui", "scope:bom"],
   "targets": {
     "lint": {
       "executor": "nx:run-commands",
