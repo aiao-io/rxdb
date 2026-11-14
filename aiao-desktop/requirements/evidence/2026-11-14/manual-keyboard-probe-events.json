@@ -3,7 +3,7 @@
   "version": 1,
   "startedAt": "2026-11-14T14:54:05.920Z",
   "ready": true,
-  "phase": "cmd-backquote-menu-alternative",
+  "phase": "keyboard-recorded-before-voiceover",
   "browser": "157.0.8103.52",
   "channel": "chrome",
   "platform": "darwin",
@@ -4420,5 +4420,7 @@
       }
     ]
   },
-  "updatedAt": "2026-11-14T23:38:35.784Z"
+  "updatedAt": "2026-11-14T23:45:07.542Z",
+  "endedAt": "2026-11-14T23:45:07.828Z",
+  "endReason": "operator control completed"
 }

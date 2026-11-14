@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-15 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前21条Done、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC。
+2026-11-15 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前21条Done、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 ## 状态汇总
 
@@ -19,7 +19,7 @@
 
 ## 待评审（1 条）
 
-- [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)：剩VoiceOver V01～V14的实际播报验收。
+- [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)：VoiceOver V01～V14 实际播报验收按用户要求延期，AC#6 保持未验收。
 
 ## 按 Epic 索引
 

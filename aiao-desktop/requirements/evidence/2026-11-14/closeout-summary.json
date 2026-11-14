@@ -346,5 +346,21 @@
     "combinationCount": 9,
     "allTargetCombinationsUsable": false,
     "limitations": "Space and Backquote target combinations were not observed at the page; interception or remapping source not located. The cycle menu result is based on user feedback; no state transition history was captured."
-  }
+  },
+  "deferredAcceptance": [
+    {
+      "id": "ADESK-US-108",
+      "ac": 6,
+      "status": "deferred",
+      "date": "2026-11-15",
+      "timeZone": "Asia/Shanghai",
+      "source": "direct user instruction",
+      "userInstruction": "VoiceOver 跳过 未来再说",
+      "record": "../2026-11-15/voiceover-deferral.json",
+      "waived": false,
+      "passed": false,
+      "unexecutedSteps": "V01-V14"
+    }
+  ],
+  "acceptanceUpdatedAt": "2026-11-14T23:45:07.687Z"
 }

@@ -13,7 +13,7 @@
 - [生产入口](release-entrypoints.json)、[双域名数据隔离](release-domain-storage.json)、[线上Aiao Code](release-aiao-code.json)与[检查汇总](release-postchecks.json)：入口通过，后两项各9项通过；Aiao Code以其原始`status: passed`字段判断，未伪造`passed`字段。
 - [真实Google Chrome入口原始响应](release-chrome-entry-provenance.json)与[最终命令元数据](release-chrome-provenance-final-metadata.json)：Chrome 157；自定义域名浏览器响应额外插入367字符的`static.cloudflareinsights.com`模块脚本，原HTML字符与主模块保留。
 - [发布收尾](release-closeout.json)：截至 2026-11-15 为 21 条 Done、1 条 In Review，仅剩 VoiceOver。
-- [Chrome 人工验收](manual-chrome-acceptance.md)与[按键事件](manual-keyboard-probe-events.json)：2026-11-14～2026-11-15 由用户手按九组组合，目标未送达的边界与人工确认的界面替代入口分别记录，US-107 已关闭；VoiceOver 尚未开始。
+- [Chrome 人工验收](manual-chrome-acceptance.md)与[按键事件](manual-keyboard-probe-events.json)：2026-11-14～2026-11-15 由用户手按九组组合，目标未送达的边界与人工确认的界面替代入口分别记录，US-107 已关闭；VoiceOver 尚未开始，按用户 2026-11-15 指示[延期至后续验收](../2026-11-15/voiceover-deferral.json)。
 
 第一次只读Node复验超过预期运行时间后已中断，[日志](release-reverify.txt)与[元数据](release-reverify-metadata.json)保留；不能把中断当作完整测试结果。诊断过程中Nx exec默认包含依赖，部署列表与早期Chrome入口查询曾重复执行，均为只读，已停止；最终入口诊断显式排除依赖。旧的失败、重复与范围变更前的计数均保留为历史。
 

@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-15
 tags: [desktop, a11y, e2e]
 dependsOn: [ADESK-US-101]
 capabilities: []
@@ -69,6 +69,10 @@ capabilities: []
 原始记录：[animation-restore-red.json](../../evidence/2026-11-14/animation-restore-red.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[focus-red.txt](../../evidence/2026-11-14/focus-red.txt)、[focus-green.txt](../../evidence/2026-11-14/focus-green.txt)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 AC#6 仍缺真实VoiceOver逐条播报记录。已提供14步操作清单；2026-11-14检查时VoiceOver未运行，启动尝试没有形成实际播报证据。
+
+## 本轮延期（2026-11-15）
+
+用户明确要求「VoiceOver 跳过 未来再说」，本轮停止 AC#6 的真实读屏验收，V01～V14 未执行。故事保持 In Review，AC#6 保持未验收；该决定不豁免验收标准，也不构成读屏通过的证据。后续按 [VOICEOVER.md](../../../apps/e2e/VOICEOVER.md) 重新记录环境、初始设置与逐条实际播报，见[延期记录](../../evidence/2026-11-15/voiceover-deferral.json)。
 
 ## References
 

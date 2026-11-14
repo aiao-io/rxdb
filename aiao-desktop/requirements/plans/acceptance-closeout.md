@@ -22,11 +22,11 @@
 
 双域名用户文件隔离已用真实终端复制创建用户文件、读回正文并切换Origin，9项通过；旧生产覆盖种子文件及终端写入产生的Storage file meta not found失败仍保留。真实旧生产升级也已补上用户文件正文逐字比较，5项通过。发布后已重跑[双域名隔离](../evidence/2026-11-14/release-domain-storage.json)与[真实Aiao Code](../evidence/2026-11-14/release-aiao-code.json)，各9项通过。原[发布命令](../evidence/2026-11-14/release-production.txt)上传成功、两个入口核对通过，但5个文件下载超时而退出1；随后对同一部署[只读复验95个公开文件](../evidence/2026-11-14/release-curl-reconciliation.json)全部通过，原失败保留，没有再次上传。US-004已据本次线上结果关闭。
 
-## 本机输入与读屏（键盘已记录，读屏待执行）
+## 本机输入与读屏（键盘已记录，读屏已延期）
 
 [US-107 #8](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md) 已于 2026-11-14～2026-11-15 由用户实际按下九组组合，并逐项保留网页行为、系统或浏览器响应、目标事件未送达情况与可用界面入口。结果见[人工验收记录](../evidence/2026-11-14/manual-chrome-acceptance.md)和[原始按键事件](../evidence/2026-11-14/manual-keyboard-probe-events.json)，能力矩阵同步实际边界。探针没有代按；无关组合、准备操作或超时均不作为目标组合通过的证据。
 
-[US-108 #6](../stories/desktop/ADESK-US-108-accessibility.md) 仍按[VoiceOver 清单](../../apps/e2e/VOICEOVER.md)记录 V01～V14 实际播报。2026-11-14 的旧检查没有读屏结果；当前先确认初始开关与导航设置，再逐步操作，最后恢复。自动化 AX 树不能替代真实读屏输出。
+[US-108 #6](../stories/desktop/ADESK-US-108-accessibility.md) 仍按[VoiceOver 清单](../../apps/e2e/VOICEOVER.md)记录 V01～V14 实际播报。2026-11-14 的旧检查没有读屏结果；用户于 2026-11-15 明确要求「VoiceOver 跳过 未来再说」，本轮不再执行读屏验收，AC#6 保留未验收，详见[延期记录](../evidence/2026-11-15/voiceover-deferral.json)。后续恢复验收时先重新记录环境、初始开关与导航设置，再逐项听取实际播报并恢复设置。自动化 AX 树不能替代真实读屏输出。
 
 ## Chrome 范围（已按用户要求收敛）
 

@@ -18,7 +18,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
-浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，详见[验收台账](verification-report.md)。
+浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC（按用户要求延期），详见[验收台账](verification-report.md)。
 
 ### 已验收能力
 
