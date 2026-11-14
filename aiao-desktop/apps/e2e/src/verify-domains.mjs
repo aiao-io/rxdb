@@ -10,6 +10,7 @@ import { expect as playwrightExpect } from 'playwright/test';
 
 import { createHelpers } from './harness/helpers.mjs';
 import { NOTE_BODY, readUserData, userDataIntact, writeUserData } from './harness/user-data.mjs';
+import { copyUserFile } from './harness/user-file.mjs';
 
 const { values } = parseArgs({ options: { output: { type: 'string' } }, strict: true });
 const legacy = 'https://aiao-desktop.pages.dev';
@@ -80,18 +81,7 @@ const textFile = async (name = userFile) => {
 try {
   await open(legacy);
   await writeUserData(page, helpers);
-  await helpers.openTerminal();
-  const command = `cp ~/Desktop/prasenx.txt ~/Desktop/${userFile}`;
-  await helpers.runInShell(command);
-  await page.waitForFunction(input => {
-    const text = document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? '';
-    return text.includes(input) && /~\$\s*$/.test(text);
-  }, command);
-  await helpers.desktopIcon(userFile).waitFor();
-  await helpers.runInShell(`open ~/Desktop/${userFile}`);
-  const original = helpers.win('textedit').locator('[data-te-doc]');
-  await expect(original).toContainText('Scratchpad');
-  const originalBody = await original.innerText();
+  const originalBody = await copyUserFile(page, helpers, userFile);
   report.userFile = { name: userFile, sha256: createHash('sha256').update(originalBody).digest('hex') };
   await helpers.closeAll();
 
@@ -106,8 +96,7 @@ try {
     NOTE_BODY
   );
   const fresh = await textFile('prasenx.txt');
-  report.checks.customFileIsSeedContent =
-    (await fresh.innerText()).includes('Scratchpad');
+  report.checks.customFileIsSeedContent = (await fresh.innerText()).includes('Scratchpad');
   await helpers.closeAll();
 
   await open(legacy);

@@ -4,6 +4,7 @@ import { openSqliteShell } from '../fixtures/sqlite-shell.mjs';
 import { schemaVersionOf } from '../harness/database.mjs';
 import { createHelpers } from '../harness/helpers.mjs';
 import { readUserData, userDataIntact, writeUserData } from '../harness/user-data.mjs';
+import { copyUserFile, readUserFile } from '../harness/user-file.mjs';
 
 /**
  * 真实的上一版产物升级到当前构建（ADESK-US-106 AC#1）：同一个来源先托管「升级起点」的产物建库、写数据，
@@ -25,6 +26,7 @@ export const upgradePrevious = {
     'upgradePrevious.previousBuildWritesNoRecord',
     'upgradePrevious.originStaysTheSame',
     'upgradePrevious.dataSurvivesUpgrade',
+    'upgradePrevious.fileBodySurvivesUpgrade',
     'upgradePrevious.versionRecordWritten'
   ],
   async run(session) {
@@ -47,6 +49,7 @@ export const upgradePrevious = {
       let helpers = createHelpers(page);
       await helpers.win('finder').waitFor();
       await writeUserData(page, helpers);
+      const fileBody = await copyUserFile(page, helpers, 'upgrade-user.txt');
       await page.close();
       if (previous.url) {
         await context.route(
@@ -70,6 +73,7 @@ export const upgradePrevious = {
       helpers = createHelpers(page);
       await helpers.win('finder').waitFor();
       const kept = await readUserData(page, helpers);
+      const upgradedBody = await readUserFile(page, helpers, 'upgrade-user.txt');
       await page.close();
       const after = await openSqliteShell(context, { origin, distRoot: current });
       const recordAfter = await after.rows(
@@ -81,6 +85,7 @@ export const upgradePrevious = {
           previousBuildWritesNoRecord: recordBefore.length === 0,
           originStaysTheSame: new URL(page.url()).origin === origin,
           dataSurvivesUpgrade: userDataIntact(kept),
+          fileBodySurvivesUpgrade: upgradedBody === fileBody,
           versionRecordWritten:
             recordAfter.length === 1 && JSON.parse(recordAfter[0][0]).version === schemaVersionOf(current)
         }

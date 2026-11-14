@@ -1,10 +1,10 @@
 {
   "format": "aiao-desktop.smoke",
   "version": 1,
-  "measuredAt": "2026-11-14T01:35:32.103Z",
+  "measuredAt": "2026-11-14T01:53:33.849Z",
   "source": {
-    "sha": "0ccab7cf18d765066042138319c745a4f4bd9efb",
-    "changes": "M src/groups/shell-interaction.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/domain-same-site.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/aiao-code-current-final.json\n?? ../../requirements/evidence/2026-11-14/coverage-positive.txt\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run.txt\n?? ../../requirements/evidence/2026-11-14/firefox-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-1.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-3.json\n?? ../../requirements/evidence/2026-11-14/webkit-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-2.json"
+    "sha": "67bcbbc94f7d1cb666dc0fe401a3dd463c893645",
+    "changes": "M src/groups/upgrade-previous.mjs\n M src/verify-domains.mjs\n?? src/harness/user-file.mjs"
   },
   "environment": {
     "os": "darwin",
@@ -52,7 +52,7 @@
     "isolatedOrigins": true,
     "interceptedExternalRequests": true
   },
-  "seconds": 289.49535175,
+  "seconds": 295.15933591699996,
   "outcomes": [
     {
       "group": "shell",
@@ -84,7 +84,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 9.762792749999994
+      "seconds": 9.695398833999992
     },
     {
       "group": "shell-interaction",
@@ -141,7 +141,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 26.452485208
+      "seconds": 24.486912083000004
     },
     {
       "group": "disk-terminal",
@@ -174,7 +174,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 9.433542167000008
+      "seconds": 10.641504625000001
     },
     {
       "group": "integrated-app",
@@ -214,7 +214,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 19.904428625
+      "seconds": 19.885527791999994
     },
     {
       "group": "transparent-window",
@@ -238,7 +238,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 10.252239124999992
+      "seconds": 9.896546333000005
     },
     {
       "group": "game",
@@ -265,21 +265,29 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 47.71836083300001
+      "seconds": 50.19048070800002
     },
     {
       "group": "apps",
       "result": {
-        "everyAppOpens": true,
-        "unopened": []
+        "everyAppOpens": false,
+        "unopened": [
+          "facetime"
+        ]
       },
-      "problems": [],
-      "failedKeys": [],
+      "problems": [
+        "检查项未通过：everyAppOpens = false",
+        "检查项未通过：unopened = [\"facetime\"]"
+      ],
+      "failedKeys": [
+        "everyAppOpens",
+        "unopened"
+      ],
       "missingKeys": [],
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 30.699443207999984
+      "seconds": 35.935745957999984
     },
     {
       "group": "dock",
@@ -336,7 +344,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 52.585836958
+      "seconds": 53.93116066599998
     },
     {
       "group": "persistence",
@@ -356,7 +364,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 19.482114833999994
+      "seconds": 19.214047999999995
     },
     {
       "group": "multi-tab",
@@ -399,7 +407,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 53.814581542
+      "seconds": 53.93699404200001
     },
     {
       "group": "multi-tab-startup",
@@ -417,7 +425,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 17.152618625000002
+      "seconds": 16.478809208999998
     },
     {
       "group": "narrow-screen",
@@ -443,7 +451,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 11.192248459000025
+      "seconds": 12.091122291999985
     },
     {
       "group": "applications",
@@ -468,7 +476,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 16.927505707999998
+      "seconds": 16.700398958000005
     },
     {
       "group": "applications-protection",
@@ -493,7 +501,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 35.87094275
+      "seconds": 36.48877975
     },
     {
       "group": "applications-upgrade",
@@ -516,7 +524,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 23.42968225
+      "seconds": 23.156274625000005
     },
     {
       "group": "external-content",
@@ -533,7 +541,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 4.527672709000006
+      "seconds": 5.042780249999981
     },
     {
       "group": "lazy-loading",
@@ -561,7 +569,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 17.044270624999974
+      "seconds": 18.24499508299999
     },
     {
       "group": "app-lifecycle",
@@ -602,7 +610,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 20.233893916999993
+      "seconds": 15.845374916
     },
     {
       "group": "host-capabilities",
@@ -638,49 +646,50 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 30.595764791000008
+      "seconds": 31.158617375000002
     },
     {
       "group": "host-filesystem",
-      "result": {},
-      "problems": [
-        "检查组异常：Esc 没有退回保存面板：{\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:556）"
-      ],
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "staleListingNeverOverwrites": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": true
+        }
+      },
+      "problems": [],
       "failedKeys": [],
-      "missingKeys": [
-        "hostFilesystem.panelSemantics",
-        "hostFilesystem.panelIsModal",
-        "hostFilesystem.escCancels",
-        "hostFilesystem.openSelectReturnsContent",
-        "hostFilesystem.openGivesNothingElse",
-        "hostFilesystem.openCancelIsSilent",
-        "hostFilesystem.saveChoosesLocationAndName",
-        "hostFilesystem.saveCancelWritesNothing",
-        "hostFilesystem.overwriteNeedsConfirmation",
-        "hostFilesystem.overwriteCannotBeSkippedByApp",
-        "hostFilesystem.acceptIsDisplayFilterOnly",
-        "hostFilesystem.tooLargeFileIsDisabled",
-        "hostFilesystem.secondRequestIsBusy",
-        "hostFilesystem.panelTimeIsNotTimed",
-        "hostFilesystem.handleSaveWritesBack",
-        "hostFilesystem.saveWithoutHandleAsksUser",
-        "hostFilesystem.changedFileIsRejected",
-        "hostFilesystem.renamedFileIsRejectedAndNotRecreated",
-        "hostFilesystem.deletedFileIsRejectedAndNotRecreated",
-        "hostFilesystem.handleInvalidAfterWindowClosed",
-        "hostFilesystem.panelClosesWithWindow",
-        "hostFilesystem.requestEndsWithWindowClosed",
-        "hostFilesystem.lateSaveNeverWrites",
-        "hostFilesystem.keyboardOpen",
-        "hostFilesystem.keyboardSaveAndReplace",
-        "hostFilesystem.escInsideReplaceReturnsToBrowse",
-        "hostFilesystem.tabStaysInsidePanel",
-        "hostFilesystem.focusReturnsToWindow"
-      ],
+      "missingKeys": [],
       "extraKeys": [],
-      "crashed": "Esc 没有退回保存面板：{\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:556）",
+      "crashed": null,
       "pageErrors": [],
-      "seconds": 46.092185167
+      "seconds": 33.6882025
     },
     {
       "group": "window-layout",
@@ -745,7 +754,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 70.458738083
+      "seconds": 71.634881042
     },
     {
       "group": "a11y",
@@ -839,7 +848,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 32.226214875
+      "seconds": 30.04295475
     },
     {
       "group": "upgrade-legacy",
@@ -864,7 +873,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 27.209683208
+      "seconds": 26.87015883300001
     },
     {
       "group": "upgrade-protection",
@@ -892,7 +901,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 20.566478124999993
+      "seconds": 22.052004667000002
     }
   ],
   "checks": {
@@ -1037,8 +1046,10 @@
       "spotlightLists": true,
       "realGameBoots": true
     },
-    "everyAppOpens": true,
-    "unopened": [],
+    "everyAppOpens": false,
+    "unopened": [
+      "facetime"
+    ],
     "dock": {
       "defaultOrder": [],
       "defaultDivider": true,
@@ -1254,6 +1265,37 @@
       "notificationIconsShown": true,
       "notificationNotKeptAcrossReload": true
     },
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "staleListingNeverOverwrites": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": true
+    },
     "windowLayout": {
       "layoutRowShape": true,
       "restoresPositionAndSize": true,
@@ -1422,35 +1464,8 @@
   "limitations": {
     "known": [],
     "unexpected": [
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelSemantics",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelIsModal",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.escCancels",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openSelectReturnsContent",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openGivesNothingElse",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openCancelIsSilent",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveChoosesLocationAndName",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveCancelWritesNothing",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.overwriteNeedsConfirmation",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.overwriteCannotBeSkippedByApp",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.acceptIsDisplayFilterOnly",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.tooLargeFileIsDisabled",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.secondRequestIsBusy",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelTimeIsNotTimed",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.handleSaveWritesBack",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveWithoutHandleAsksUser",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.changedFileIsRejected",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.renamedFileIsRejectedAndNotRecreated",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.deletedFileIsRejectedAndNotRecreated",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.handleInvalidAfterWindowClosed",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelClosesWithWindow",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.requestEndsWithWindowClosed",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.lateSaveNeverWrites",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.keyboardOpen",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.keyboardSaveAndReplace",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.escInsideReplaceReturnsToBrowse",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.tabStaysInsidePanel",
-      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.focusReturnsToWindow",
-      "[host-filesystem] 检查组异常：Esc 没有退回保存面板：{\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:556）"
+      "[apps] 检查项未通过或缺失：everyAppOpens",
+      "[apps] 检查项未通过或缺失：unopened"
     ],
     "stale": []
   },
