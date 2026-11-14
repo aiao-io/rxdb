@@ -99,6 +99,10 @@ test('非法导入与模型失败可见，表格仍可操作', async ({ page }) 
 });
 
 test('真实整车模型完成解码，表格与模型双向定位', async ({ page }) => {
+  const decoder = await page.request.get('/draco/draco_decoder.wasm');
+  expect(decoder.status()).toBe(200);
+  expect(decoder.headers()['content-type']).toContain('application/wasm');
+  expect(Array.from((await decoder.body()).subarray(0, 8))).toEqual([0, 97, 115, 109, 1, 0, 0, 0]);
   let vehicleRequests = 0;
   page.on('request', request => {
     if (request.url().endsWith('/models/eu-x9d13.glb')) vehicleRequests++;

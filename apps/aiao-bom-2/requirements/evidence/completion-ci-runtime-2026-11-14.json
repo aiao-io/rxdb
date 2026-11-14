@@ -1,0 +1,145 @@
+{
+  "checkedAt": "2026-11-14T10:24:20.921474+00:00",
+  "sourceBase": "ae1ab8552937e76e289a6ab0ee56616c37433cd8",
+  "scope": "Track exact Draco WASM, install CI browser engines, remove supplemental-catalog side effect from 50k column selection",
+  "remoteBaseline": {
+    "runId": "43581926436",
+    "conclusion": "failure",
+    "passedJobs": 31,
+    "failedJobs": [
+      "ci / e2e (aiao-bom-2)",
+      "ci / gate"
+    ],
+    "newE2E": {
+      "passed": 49,
+      "failed": 10
+    }
+  },
+  "draco": {
+    "gitIndexBytes": 192420,
+    "gitObject": "469904ebcb7b83523db73913a19c349528105ff8",
+    "wasmHeader": [
+      0,
+      97,
+      115,
+      109,
+      1,
+      0,
+      0,
+      0
+    ],
+    "sha256": "a680d927bed9cb864ddbd63521868891af2bfbe755092761b4837487618df8ac",
+    "indexEqualsSource": true,
+    "indexEqualsBuild": true
+  },
+  "verification": {
+    "appUnitTests": 100,
+    "scriptTests": 602,
+    "qualityTasks": 21,
+    "newE2E": 59,
+    "newE2EExitCode": 0,
+    "firstInteractiveP95Ms": 316.40000000596046,
+    "modelToTableP95Ms": 61.89000000059605,
+    "deployDryRunExitCode": 0,
+    "formatExitCode": 0
+  },
+  "regression": {
+    "newInitialCountAssertion": "50,000 before changing columns; red reproduced 31,163",
+    "fixtureRepair": "Only inBom parts are reused in exactly 50,000 positions",
+    "columns": "Only display-field checkboxes; supplemental catalog stays unchanged",
+    "model": "HTTP 200, application/wasm and 8-byte WASM header before real model decode",
+    "thresholdsChanged": false,
+    "samplesChanged": false,
+    "timeoutsChanged": false
+  },
+  "desktop": {
+    "runId": "43581926447",
+    "attempt1": "macOS native probe empty; 42 passed / 1 failed",
+    "attempt2": "in_progress",
+    "sourceChanged": false
+  },
+  "remoteAfterFix": "Pending this patch push; source-level CI failures remain visible in the baseline run",
+  "logs": [
+    {
+      "name": "quality",
+      "exitCode": 0,
+      "log": "completion-ci-runtime-quality-2026-11-14.txt",
+      "sha256": "50c553f2380202e055389b2a8507bae94b94ac31d31858fa24e3ca72b3a536e7",
+      "rawSha256": "d2d848dc9375ac09698e1766a6577212a398d1946d4e91bad445a8cbd25aead2"
+    },
+    {
+      "name": "scripts",
+      "exitCode": 0,
+      "log": "completion-ci-runtime-scripts-2026-11-14.txt",
+      "sha256": "33d7339d0fc73122223b62ab06f2d183370cfdaa0e7547d6d05d7b2c57334aba",
+      "rawSha256": "ddb85da4ca32f01d1cd957dc72b2449d08977687a05f08e7325050461321b766"
+    },
+    {
+      "name": "50k-red",
+      "exitCode": 1,
+      "log": "completion-ci-runtime-50k-red-2026-11-14.txt",
+      "sha256": "4a4e59484e17db4d8ece271ac292529eb59bda312b88259086cdc00431ce0082",
+      "rawSha256": "32c88dd5826326371751ec9517cc6541eecafe59dd6979067ce0b82c1ec2d6f9"
+    },
+    {
+      "name": "e2e",
+      "exitCode": 0,
+      "log": "completion-ci-runtime-e2e-2026-11-14.txt",
+      "sha256": "c1fc142f2e96b20c4a8cd5f7a1187b69f532541a0d4d82a71589105e41933c0f",
+      "rawSha256": "a7b99253707086ecd9b8c616a5637efe4ad225b4ddc16aa8f9e188f0c540e64e"
+    },
+    {
+      "name": "remote-e2e-failure",
+      "log": "completion-ci-runtime-remote-e2e-failure-2026-11-14.txt",
+      "sha256": "95942de404df43c715d8bbc4f43f8df8ce0be0f1ae56f70276f949f2c00be624",
+      "excerpt": true,
+      "rawSha256": "5d2baee083af7dba6774b8cfb7e3a09c98c1cdd333cfe6c4af5770f4c6c12ff0"
+    },
+    {
+      "name": "macos-failure",
+      "log": "completion-ci-runtime-macos-failure-2026-11-14.txt",
+      "sha256": "4a392be3ddbeb1dc33154e6a9c69ee20e682615835c34a24cc019898aae3e17e",
+      "excerpt": true,
+      "rawSha256": "6e531ec9146e336a453603f18b1aaa125f153d70924c95b11318264fd559a16d"
+    },
+    {
+      "name": "deploy-check",
+      "exitCode": 0,
+      "log": "completion-ci-runtime-deploy-check-2026-11-14.txt",
+      "sha256": "b0b6d9386e517d125ea3ea5cc4bb130d13530e52f607799d950afac8ce6015b9",
+      "rawSha256": "2ee35146d27870e04dd3da4e33c2683f909bf5a5fb389f61dd01bc77926057cf"
+    },
+    {
+      "name": "format",
+      "exitCode": 0,
+      "log": "completion-ci-runtime-format-2026-11-14.txt",
+      "sha256": "f4f84cbf614861ea9cde0abbd0d3c87fe5107d9adfbd6ea2b22ebed2bad36b28"
+    }
+  ],
+  "performance": {
+    "first-interactive": {
+      "file": "completion-ci-runtime-first-interactive-2026-11-14.json",
+      "sha256": "b9b69d20a5fe5000cf5088e8488fdd9260c9ba7725bbb9e489d52d0f5526179a"
+    },
+    "model-to-table": {
+      "file": "completion-ci-runtime-model-to-table-2026-11-14.json",
+      "sha256": "cbbf458fcfd4609ec3a1fd2364352c802eae36140f13a88a5fc8f192a1268cd0"
+    },
+    "50k-performance": {
+      "file": "completion-ci-runtime-50k-performance-2026-11-14.json",
+      "sha256": "b436a40ad2efcab41ab555907ccdf647cbb976cf92c8962f9c833fd3db8c6748"
+    },
+    "50k-model-performance": {
+      "file": "completion-ci-runtime-50k-model-performance-2026-11-14.json",
+      "sha256": "d16d98a6cfd62b2086fa040ef61140487e0b540617dbb25f906b2629c011517d"
+    },
+    "gpu-lifecycle": {
+      "file": "completion-ci-runtime-gpu-lifecycle-2026-11-14.json",
+      "sha256": "0e5245fc8df8111ce712a0575ca454ab1f283b4c8a0bfe56d4f246c4aa007905"
+    },
+    "deep-100k": {
+      "file": "completion-ci-runtime-deep-100k-2026-11-14.json",
+      "sha256": "97dbdff82a2770d62d5a05fcec2288ed3047aa9a188017b1409859e4eb9d46aa"
+    }
+  }
+}

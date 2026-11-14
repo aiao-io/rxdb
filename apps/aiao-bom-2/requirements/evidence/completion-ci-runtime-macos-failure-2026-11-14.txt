@@ -1,0 +1,33 @@
+2026-11-14T10:00:37.7848870Z dev-rxdb-tauri-e2e: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+2026-11-14T10:00:37.7854470Z dev-rxdb-tauri-e2e:  FAIL   dev-rxdb-tauri-e2e-devtools  src/devtools-provider-gear.spec.ts > fake 档 expired 场景：首页交付后 idle 立即到期，旧 cursor 答 snapshot_expired > 首页成立，走查在第一次翻页就按 snapshot_expired 停住
+2026-11-14T10:00:37.7869420Z dev-rxdb-tauri-e2e: AssertionError: devtools={"panelFrameTypes":["PROTOCOL_HELLO","GET_BRANCHES","INSPECT_DB","HANDSHAKE_ACK"],"sessionIds":["23f01a78-b7bc-4c2d-b777-728d2b4d5cd4"],"handshakeCompleted":true,"relayRejected":0,"native":{"sessionSeen":false,"filesList":null,"filesEntryCount":null,"keptDirSeen":null,"databaseQuery":null,"launchRowCount":null,"settingsExport":null,"settingsClear":null,"forgedSession":null,"createDirectory":null,"deleteEntry":null,"uploadBytes":null,"uploadChunks":null,"downloadBytes":null,"bytesMatch":null,"emptyUpload":null,"escapedUpload":null,"cancelledUpload":null,"cancelledFile":null,"tempResidue":null,"descriptorKinds":null,"descriptorRuntimes":null,"snapshotFirstPage":null,"snapshotComplete":null,"snapshotRecords":null,"snapshotExpired":null,"snapshotInvalidPageSize":null,"queryLimitZero":null,"queryLimitHuge":null,"queryLimitFraction":null,"branchesList":null,"branchCount":null,"branchSwitch":null,"uploadHugeSize":null,"invalidChunk":null,"eventsSubscribe":null,"eventFrames":null,"databaseInspect":null,"downloadByteCount":null,"failure":null}}
+2026-11-14T10:00:37.7875260Z dev-rxdb-tauri-e2e: {"i18nRuntimeSmoke":{"interpolation":"Hello Ada","singular":"1 item","plural":"2 items","selected":"Administrator","otherSelection":"Guest","parentFallback":"Bonjour Ada","defaultFallback":"默认文案"}}
+2026-11-14T10:00:37.7876460Z dev-rxdb-tauri-e2e: stderr：
+2026-11-14T10:00:37.7877800Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":322,"emitted":null,"protocol":null,"sender":null,"stage":"setup-started","target":null,"type":null}
+2026-11-14T10:00:37.7882060Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":644,"emitted":null,"protocol":null,"sender":"main","stage":"page-load-started","target":null,"type":null}
+2026-11-14T10:00:37.7886090Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":644,"emitted":null,"protocol":null,"sender":"rxdb-devtools","stage":"page-load-started","target":null,"type":null}
+2026-11-14T10:00:37.7890310Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":678,"emitted":null,"protocol":null,"sender":"main","stage":"page-load-finished","target":null,"type":null}
+2026-11-14T10:00:37.7894460Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":700,"emitted":null,"protocol":null,"sender":"rxdb-devtools","stage":"page-load-finished","target":null,"type":null}
+2026-11-14T10:00:37.7898970Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":871,"emitted":null,"protocol":2,"sender":"rxdb-devtools","stage":"relay-received","target":null,"type":"PROTOCOL_HELLO"}
+2026-11-14T10:00:37.7909280Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":871,"emitted":true,"protocol":2,"sender":"rxdb-devtools","stage":"relay-emitted","target":"main","type":"PROTOCOL_HELLO"}
+2026-11-14T10:00:37.7911490Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":899,"emitted":null,"protocol":null,"sender":"main","stage":"relay-received","target":null,"type":"HANDSHAKE"}
+2026-11-14T10:00:37.7913820Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":899,"emitted":true,"protocol":null,"sender":"main","stage":"relay-emitted","target":"rxdb-devtools","type":"HANDSHAKE"}
+2026-11-14T10:00:37.7916330Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":907,"emitted":null,"protocol":2,"sender":"rxdb-devtools","stage":"relay-received","target":null,"type":"PROTOCOL_HELLO"}
+2026-11-14T10:00:37.7920180Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":910,"emitted":true,"protocol":2,"sender":"rxdb-devtools","stage":"relay-emitted","target":"main","type":"PROTOCOL_HELLO"}
+2026-11-14T10:00:37.7922330Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":915,"emitted":null,"protocol":null,"sender":"rxdb-devtools","stage":"relay-received","target":null,"type":"GET_BRANCHES"}
+2026-11-14T10:00:37.7924460Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":915,"emitted":true,"protocol":null,"sender":"rxdb-devtools","stage":"relay-emitted","target":"main","type":"GET_BRANCHES"}
+2026-11-14T10:00:37.7927400Z dev-rxdb-tauri-e2e: [rxdb-devtools-probe] {"elapsedMs":916,": expected null to be 'ok' // Object.is equality
+2026-11-14T10:00:37.7932890Z dev-rxdb-tauri-e2e: - Expected:
+2026-11-14T10:00:37.7937190Z dev-rxdb-tauri-e2e: "ok"
+2026-11-14T10:00:37.7942450Z dev-rxdb-tauri-e2e: + Received:
+2026-11-14T10:00:37.7943120Z dev-rxdb-tauri-e2e: null
+2026-11-14T10:00:37.7944930Z dev-rxdb-tauri-e2e:  ❯ src/devtools-provider-gear.spec.ts:274:51
+2026-11-14T10:00:37.7949420Z dev-rxdb-tauri-e2e:     272|     // ok 档读到 120 条、complete ok，两档在 wire 上可区分，这一档才算真的验到了东西。
+2026-11-14T10:00:37.7950950Z dev-rxdb-tauri-e2e:     273|     const native = nativeOf(run());
+2026-11-14T10:00:37.7952570Z dev-rxdb-tauri-e2e:     274|     expect(native.snapshotFirstPage, wire(run())).toBe('ok');
+2026-11-14T10:00:37.7953900Z dev-rxdb-tauri-e2e:        |                                                   ^
+2026-11-14T10:00:37.7955290Z dev-rxdb-tauri-e2e:     275|     expect(native.snapshotExpired).toBe('snapshot_expired');
+2026-11-14T10:00:37.7957120Z dev-rxdb-tauri-e2e:     276|     expect(native.snapshotComplete).toBe('snapshot_expired');
+2026-11-14T10:00:37.7958270Z dev-rxdb-tauri-e2e: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+2026-11-14T10:00:37.7959380Z dev-rxdb-tauri-e2e:  Test Files  1 failed | 1 passed (2)
+2026-11-14T10:00:37.7960610Z dev-rxdb-tauri-e2e:       Tests  1 failed | 42 passed (43)

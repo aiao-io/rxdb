@@ -13,7 +13,7 @@
     "install-browsers": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm exec playwright install firefox webkit",
+        "command": "pnpm exec playwright install --with-deps firefox webkit",
         "cwd": "apps/aiao-bom-2-e2e"
       }
     }

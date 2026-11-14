@@ -24,10 +24,11 @@ test('50k 数据就绪到 20 列首屏可操作，20 次独立页面采样', asy
   const data = await source();
   data.id = 'stress-first-50000';
   data.vehicle.url = '';
+  const mainParts = data.parts.filter(part => part.inBom);
   data.structures.catalog = Array.from({ length: 50000 }, (_, i) => ({
     key: `first:${i}`,
     parentKey: i ? `first:${Math.floor((i - 1) / 8)}` : null,
-    partId: data.parts[i % data.parts.length].id,
+    partId: mainParts[i % mainParts.length].id,
     compId: `ST-${i}`,
     kind: i ? 'part' : 'assembly',
     source: 'catalog',
@@ -40,8 +41,12 @@ test('50k 数据就绪到 20 列首屏可操作，20 次独立页面采样', asy
   await page.route('**/data/windrose.json', route => route.fulfill({ json: data }));
   await page.goto('/');
   await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByTestId('matched-count')).toHaveText('50,000');
   await page.getByRole('button', { name: '列配置', exact: true }).click();
-  for (const checkbox of await page.locator('.column-menu input[type=checkbox]:enabled').all()) await checkbox.check();
+  for (const checkbox of await page
+    .locator('.column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled')
+    .all())
+    await checkbox.check();
   await page.getByRole('button', { name: '列配置', exact: true }).click();
   const durations: number[] = [];
   for (let i = 0; i < 20; i++) {

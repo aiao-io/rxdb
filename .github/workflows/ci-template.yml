@@ -840,6 +840,9 @@ jobs:
           free-disk: 'true'
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
+      - name: Install additional BOM browsers
+        if: matrix.project == 'aiao-bom-2-e2e'
+        run: timeout 600 pnpm exec nx run aiao-bom-2-e2e:install-browsers --output-style=stream
 
       # Electron 没有 headless 模式。`dev-rxdb-electron-e2e` 拉起的是 electron-builder
       # 的真实产物，主进程一定要连上一个 X server —— ubuntu-latest 上没有，于是

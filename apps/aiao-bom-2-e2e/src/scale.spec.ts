@@ -22,7 +22,10 @@ test('50k / 20 列与 100k 末项、宽树预算和性能证据', async ({ page 
   await expect(page.getByTestId('matched-count')).toHaveText('50,000');
   await expect(page.getByTestId('bom-grid').locator('canvas').first()).toBeVisible();
   await page.getByRole('button', { name: '列配置', exact: true }).click();
-  for (const checkbox of await page.locator('.column-menu input[type=checkbox]:enabled').all()) await checkbox.check();
+  for (const checkbox of await page
+    .locator('.column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled')
+    .all())
+    await checkbox.check();
   await page.getByRole('button', { name: '列配置', exact: true }).click();
   const drawTimes: number[] = [];
   const switchTimes: number[] = [];
