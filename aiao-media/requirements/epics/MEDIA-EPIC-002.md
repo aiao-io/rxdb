@@ -19,6 +19,7 @@ owner: TBD
 - [ ] 图片生成与本机交付：提示词 → 单张 PNG/JPEG → 本地保存与下载（[MEDIA-US-102](../stories/generation/MEDIA-US-102-image-generation.md)）
 - [ ] 图片提示词灵感库与一键套用（[MEDIA-US-106](../stories/generation/MEDIA-US-106-prompt-gallery.md)）
 
+- [ ] PGMQ 生成任务队列 PoC（不改变当前 Durable Object 生产链路，[MEDIA-US-110](../stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)）
 - [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
 
 ## 故事
@@ -29,6 +30,7 @@ owner: TBD
 - [MEDIA-US-109 平台生图服务端任务与刷新续接](../stories/generation/MEDIA-US-109-relay-durable-task.md) (High)
 - [MEDIA-US-102 图片生成与本机交付](../stories/generation/MEDIA-US-102-image-generation.md) (High)
 - [MEDIA-US-106 图片提示词灵感库与一键套用](../stories/generation/MEDIA-US-106-prompt-gallery.md) (Medium)
+- [MEDIA-US-110 PGMQ 生成任务队列 PoC](../stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md) (Medium)
 - [MEDIA-US-107 移动设备能力验收](../stories/generation/MEDIA-US-107-mobile-verification.md) (Low，暂缓)
 
 ## 非目标

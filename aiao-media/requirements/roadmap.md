@@ -23,6 +23,10 @@
 | 国内自建部署（MEDIA-US-006）           | Caddy 公网 IP HTTPS、Node API、自建 Supabase 与真实 Storage 已部署并通过整机重启验收；随 D-19 接入同一积分契约 | D-18；[发布记录](plans/self-hosted-release-20261109.md)；公众 SMTP、站外备份、模型压力与桌面联验另行完成                                              |
 | 平台支付与计费（MEDIA-US-205）         | 暂缓；积分由后台发放，充值/退款与价格体系待未来收费需求明确后评审                                              | D-17；不阻断积分生图、平台任务与同步                                                                                                                  |
 | 同步数据回收                           | 不排期                                                                                                         | D-06 不设 TTL/自动 GC；回收须先有安全回收协议与离线设备恢复验收                                                                                       |
+| Supabase 后台权限边界（MEDIA-US-208） | 先统一 Admin Auth 和普通业务直连，再迁移 Auth Admin/封禁到 Edge Function；保留旧 Worker 兼容期 | 依赖 MEDIA-US-201/203；普通表/RPC 直连，service role 只在 Edge Function；RLS、审计和幂等必须先验收 |
+| 后台 RxDB 与 `rxdb-model`（MEDIA-US-306/307） | 定义共享实体，接入后台 RxDB 同步，再迁移配置列表/详情/表单 | 依赖 MEDIA-US-302/303/208；后台同步使用普通 JWT，不使用 service role |
+| 配置分支提交同步（MEDIA-US-308）      | 增加 commit projection 和原子 apply RPC，验证断网、重启、冲突与回滚 | 依赖 MEDIA-US-306/307；不直接同步 RxDB 内部系统表 |
+| PGMQ 任务队列 PoC（MEDIA-US-110）     | 与 Durable Object 并行验证入队事务、重复消费、长任务和双区域恢复 | 依赖 MEDIA-US-108/109；PoC 不通过不切生产，消息只放 taskId 和版本 |
 
 ## 后续产品方向
 

@@ -17,9 +17,11 @@ owner: jimmy
 - [x] 完成 Supabase Auth、工作区绑定及远程资源授权（[MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md)）
 - [x] 本地图片作品及任务历史持久化（[MEDIA-US-202](../stories/account/MEDIA-US-202-library.md)）
 - [x] 跨用户管理用户、模板、任务与用量（[MEDIA-US-203](../stories/account/MEDIA-US-203-business-admin.md)）
+- [ ] 后台管理员账户资料、身份菜单与安全退出（[MEDIA-US-207](../stories/account/MEDIA-US-207-admin-account-profile.md)）
 - [x] 本地作品检索、稳定分页与真实视口按需预览（[MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)）
 
 - [ ] 后台积分管理：增加/减少用户积分与流水（[MEDIA-US-206](../stories/account/MEDIA-US-206-credit-admin.md)）
+- [ ] Supabase 后台直连与特权 Edge Function 边界（[MEDIA-US-208](../stories/account/MEDIA-US-208-supabase-admin-boundary.md)）
 - [ ] 平台支付、退款与生产运维（D-17 暂缓，[MEDIA-US-205](../stories/account/MEDIA-US-205-platform-billing.md)）
 
 ## 故事
@@ -29,9 +31,11 @@ owner: jimmy
 - [MEDIA-US-201 Supabase 账号与资源授权](../stories/account/MEDIA-US-201-sessions.md) (High)
 - [MEDIA-US-202 本地图片作品与任务历史](../stories/account/MEDIA-US-202-library.md) (High)
 - [MEDIA-US-203 跨用户业务后台管理](../stories/account/MEDIA-US-203-business-admin.md) (High)
+- [MEDIA-US-207 后台管理员账户资料与身份菜单](../stories/account/MEDIA-US-207-admin-account-profile.md) (High)
 - [MEDIA-US-204 本地作品检索与按需预览](../stories/account/MEDIA-US-204-library-search.md) (High)
 
 - [MEDIA-US-206 后台积分管理](../stories/account/MEDIA-US-206-credit-admin.md) (High)
+- [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](../stories/account/MEDIA-US-208-supabase-admin-boundary.md) (High)
 - [MEDIA-US-205 平台支付、退款与生产运维](../stories/account/MEDIA-US-205-platform-billing.md) (High，D-17 暂缓)
 
 ## 非目标
