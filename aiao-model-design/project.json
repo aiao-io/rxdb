@@ -12,7 +12,8 @@
       "dependsOn": [
         { "projects": ["aiao-model-design-web"], "target": "dev", "waitFor": "ready" },
         "dev-agent",
-        "dev-supabase"
+        "dev-supabase",
+        "dev-trigger"
       ],
       "readyWhen": { "url": "http://127.0.0.1:8788/" },
       "options": {
@@ -31,7 +32,7 @@
     "dev-config": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["dev-ports", "supabase-up"],
+      "dependsOn": ["dev-ports", "supabase-up", "trigger-up"],
       "options": {
         "cwd": "aiao-model-design",
         "command": "node scripts/dev/prepare-dev.mjs"
@@ -62,7 +63,7 @@
       "cache": false,
       "options": {
         "cwd": "aiao-model-design",
-        "command": "node --test 'scripts/dev/*.spec.mjs' 'scripts/supabase/*.spec.mjs'"
+        "command": "node --test 'scripts/dev/*.spec.mjs' 'scripts/supabase/*.spec.mjs' 'scripts/trigger/*.spec.mjs'"
       }
     },
     "supabase-up": {
@@ -95,6 +96,48 @@
       "options": {
         "cwd": "aiao-model-design",
         "command": "node scripts/supabase/supabase-local.mjs logs"
+      }
+    },
+    "trigger-up": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/trigger/trigger-local.mjs up"
+      }
+    },
+    "trigger-down": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/trigger/trigger-local.mjs down"
+      }
+    },
+    "trigger-status": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/trigger/trigger-local.mjs status"
+      }
+    },
+    "trigger-logs": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/trigger/trigger-local.mjs logs"
+      }
+    },
+    "dev-trigger": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["trigger-up"],
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/trigger/trigger-local.mjs logs-follow"
       }
     },
     "requirements-check": {

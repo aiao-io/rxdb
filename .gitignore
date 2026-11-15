@@ -166,3 +166,7 @@ docker/.supabase-ci-state.*.env
 !aiao-media/apps/web/.env.example
 !aiao-media/infra/supabase/.env.example
 .vitest
+
+# aiao-model-design 本地 Trigger.dev 自托管状态
+aiao-model-design/infra/trigger/.env
+aiao-model-design/infra/trigger/registry/auth.htpasswd

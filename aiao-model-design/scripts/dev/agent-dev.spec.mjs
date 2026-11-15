@@ -13,7 +13,7 @@ const devAgent = {
   projectRef: 'proj_xjkrazglzqhfhhbwdllb'
 };
 
-test('开发环境密钥启动 trigger dev：连 Worker 用的同一个实例，跳过升级检查与安装向导', () => {
+test('开发环境密钥启动 trigger dev：连 Worker 用的同一个实例并跳过升级检查', () => {
   const plan = agentDevPlan(devAgent, '/cli/trigger.js', { PATH: '/usr/bin' });
   assert.equal(plan.command, process.execPath);
   assert.deepEqual(plan.args, [
@@ -26,9 +26,9 @@ test('开发环境密钥启动 trigger dev：连 Worker 用的同一个实例，
     'self-hosted',
     '--api-url',
     devAgent.apiUrl,
-    '--skip-update-check',
-    '--skip-mcp-install',
-    '--skip-rules-install'
+    '--project-ref',
+    devAgent.projectRef,
+    '--skip-update-check'
   ]);
   assert.equal(plan.cwd, agentDirectory);
   assert.deepEqual(plan.env, {
@@ -36,6 +36,11 @@ test('开发环境密钥启动 trigger dev：连 Worker 用的同一个实例，
     TRIGGER_API_URL: devAgent.apiUrl,
     TRIGGER_PROJECT_REF: devAgent.projectRef
   });
+});
+
+test('开发环境可通过 TRIGGER_PROFILE 选择已登录的 CLI profile', () => {
+  const plan = agentDevPlan(devAgent, '/cli/trigger.js', { TRIGGER_PROFILE: 'default' });
+  assert.equal(plan.args[plan.args.indexOf('--profile') + 1], 'default');
 });
 
 test('trigger CLI 按 agent 包自己的依赖解析到入口脚本', async () => {

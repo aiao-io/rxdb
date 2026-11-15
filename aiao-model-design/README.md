@@ -73,7 +73,7 @@ pnpm nx dev aiao-model-design
 | 开发环境密钥（`tr_dev_`）                            | 同时启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
 | 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                    |
 
-只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要下面三样，缺项目 ref 或 `.env.agent` 时也在启动前报错：
+只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要下面三样，缺项目 ref 或 `.env.agent` 时也在启动前报错。`nx dev` 会自动执行 `trigger dev start`；默认使用 `self-hosted` profile，若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它：
 
 ```bash
 # 1. 在自建实例上登录 CLI，--api-url 与 TRIGGER_API_URL 一致（也可以在环境里提供 TRIGGER_ACCESS_TOKEN）

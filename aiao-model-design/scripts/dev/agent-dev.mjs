@@ -20,11 +20,13 @@ export function triggerCli() {
 /**
  * 开发环境密钥时启动 `trigger dev` 的命令，其余模式返回 null。
  *
- * CLI 用 README 约定的 `self-hosted` 登录配置（环境里有 `TRIGGER_ACCESS_TOKEN` 时 CLI 优先用它），
- * 连 Worker 用的同一个实例；跳过升级检查与安装向导，免得在 Nx 的任务窗格里停下来等输入或改依赖。
+ * CLI 默认用 README 约定的 `self-hosted` 登录配置，也可用 `TRIGGER_PROFILE` 选择已登录 profile；
+ * 环境里有 `TRIGGER_ACCESS_TOKEN` 时 CLI 优先用它，
+ * 连 Worker 用的同一个实例；跳过升级检查，避免在 Nx 的任务窗格里等待。
  */
 export function agentDevPlan(agent, cli, env = process.env) {
   if (agent.mode !== 'dev') return null;
+  const profile = env.TRIGGER_PROFILE?.trim() || 'self-hosted';
   return {
     command: process.execPath,
     args: [
@@ -34,12 +36,12 @@ export function agentDevPlan(agent, cli, env = process.env) {
       '--env-file',
       '.env.agent',
       '--profile',
-      'self-hosted',
+      profile,
       '--api-url',
       agent.apiUrl,
-      '--skip-update-check',
-      '--skip-mcp-install',
-      '--skip-rules-install'
+      '--project-ref',
+      agent.projectRef,
+      '--skip-update-check'
     ],
     cwd: agentDirectory,
     env: { ...env, TRIGGER_API_URL: agent.apiUrl, TRIGGER_PROJECT_REF: agent.projectRef }

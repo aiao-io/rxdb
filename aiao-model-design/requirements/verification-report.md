@@ -78,3 +78,11 @@
 - `nx dev` 在交互终端默认的 Nx TUI 下的窗格显示与 Ctrl-C：本机验证用的是 `--output-style=stream`，TUI 需要人工看一遍。
 - 自建实例没有 checkpoint 时的空闲占用与续跑恢复耗时（`turnTimeout` 15 分钟）。
 - 迁入时前端覆盖率基线（语句 61.75%、行 63.64%）低于仓库 80% 门槛；本史诗新增与改动的代码都有测试，存量代码的覆盖率不在范围内。
+
+## 2026-11-15 复核
+
+- 执行 `pnpm nx run aiao-model-design:verify --output-style=stream` 通过：产品门禁及 66 个依赖任务全部通过，包含需求门禁、model-ops / agent / web / api 的 lint、typecheck、test、构建、Worker 运行时测试与 web 构建产物密钥扫描。
+- 通过 `pnpm nx dev aiao-model-design --output-style=stream` 启动本地环境；使用本地 GoTrue 中已确认邮箱的 `designer@aiao.test` 在真实 Chromium 页面登录，`POST /bff/auth/signin` 返回 200，随后设计器加载成功并完成 `GET /bff/auth/session` 与 `GET /api/agent/config`。
+- 后续已生成 `apps/agent/.env.agent` 并配置模型参数，但 `apps/api/.dev.vars` 仍是 `trigger.example.com` 与模板密钥；因此本次复核确认了真实本地账号登录链路和本地 worker 启动链路，但没有新增 MODEL-US-002 #10 的真实会话回复证据。该 AC 仍保持 ⚠️，故事和依赖它的故事不改为 `Done`。
+- 同日修复本地 Trigger 开发会话启动参数：移除当前 `trigger.dev` CLI 4.8.x 不支持的安装向导参数，并显式传入 `--project-ref`；`aiao-model-design:dev-test` 30/30 通过。真实 `trigger dev` 进程仍需 `.dev.vars` 中的有效 `tr_dev_*` 密钥和实例地址才能启动。
+- 使用临时合法格式的开发 key、已有 Trigger CLI profile 和项目 ref 做本地探测，`nx dev aiao-model-design` 同时达到 Trigger `Local worker ready`、Web `http://localhost:4400/` 与 Worker 开发导航 `http://127.0.0.1:8788/`；未发送 AI 消息，探测结束后恢复原 `.dev.vars`。
