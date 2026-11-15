@@ -1,5 +1,5 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
+import type { SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { getE2eDbName } from '@aiao/rxdb-test';
@@ -7,6 +7,7 @@ import { appConfig, type AppConfig } from '../app-config';
 
 import { ENTITIES } from '../entities/asset-entities';
 import { workbenchShell } from '../shell/workbench-shell';
+import { workbenchActivityIndex } from './workbench-activity-index';
 
 let rxdb: RxDB | undefined;
 
@@ -26,8 +27,10 @@ export function createWorkbenchDatabase(config: AppConfig = appConfig): RxDB {
   });
   database
     .use(rxDBPluginHistory)
+    .use(workbenchActivityIndex)
     .use(rxDBPluginSearch, { debounce: 300, pageSize: 20, snippetLength: 64 })
-    .adapter('sqlite-wasm', db => {
+    .adapter('sqlite-wasm', async db => {
+      const { RxDBAdapterSqlite } = await import('@aiao/rxdb-adapter-sqlite-wasm');
       const options: SqliteOptions = {
         // 主线程 + IndexedDB：同时满足两个硬约束——
         // US-527 备份/恢复矩阵里浏览器可备份的组合（OPFS 与 worker transport 都报

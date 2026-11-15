@@ -7,14 +7,20 @@ test.describe('资产工作台 Dashboard', () => {
   });
 
   test('首页保留安全入口，进入 Dashboard 后展示空库状态和快捷操作', async ({ page }) => {
+    const wasmRequests: string[] = [];
+    page.on('request', request => {
+      if (new URL(request.url()).pathname.endsWith('.wasm')) wasmRequests.push(request.url());
+    });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: '开始使用工作台', exact: true })).toBeVisible();
+    expect(wasmRequests).toEqual([]);
     await expect(page.getByTestId('dashboard-page')).toHaveCount(0);
 
     await page.goto('/dashboard');
     await expect(page.getByTestId('dashboard-connection-status')).toHaveText('数据库已连接');
     await expect(page.getByTestId('dashboard-empty')).toBeVisible();
     await expect(page.getByTestId('dashboard-recent-activity-empty')).toBeVisible();
+    expect(wasmRequests).toHaveLength(1);
     await expect(page.getByTestId('dashboard-metric-card')).toHaveCount(3);
     await expect(page.locator('[data-testid="dashboard-metric-card"][data-metric="categories"]')).toHaveAttribute(
       'href',

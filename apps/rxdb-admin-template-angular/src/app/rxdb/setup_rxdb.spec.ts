@@ -1,5 +1,4 @@
 import { RxDB } from '@aiao/rxdb';
-import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { firstValueFrom } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import setupRxdb, { createWorkbenchDatabase } from './setup_rxdb';
@@ -24,6 +23,7 @@ describe('工作台数据库启动', () => {
     const database = createWorkbenchDatabase();
     try {
       const adapter = await database.getAdapter('sqlite-wasm');
+      const { RxDBAdapterSqlite } = await import('@aiao/rxdb-adapter-sqlite-wasm');
       expect(adapter).toBeInstanceOf(RxDBAdapterSqlite);
       expect(adapter.name).toBe(database.config.sync.local?.adapter);
       expect(adapter.options.vfs).toBe('idb');

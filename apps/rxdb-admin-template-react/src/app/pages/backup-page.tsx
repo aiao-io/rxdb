@@ -1,5 +1,5 @@
 import { isRxDBBackupError } from '@aiao/rxdb';
-import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import type { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import type { I18n } from '@aiao/rxdb-i18n';
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';

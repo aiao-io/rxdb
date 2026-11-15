@@ -270,6 +270,8 @@ test.describe('工作台完整国际化', () => {
       await fresh.getByRole('group', { name: 'Category name' }).getByRole('textbox').fill('恢复后继续编辑');
       await fresh.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(fresh.getByRole('tab', { name: 'Basic information', exact: true })).toHaveCount(0);
+      await expect(fresh.getByTestId('save-toast')).toContainText('Saved');
+      await expectListHasRows(fresh, { name: '恢复后继续编辑' });
       await fresh.reload();
       await expectListHasRows(fresh, { name: '恢复后继续编辑' });
     } finally {
