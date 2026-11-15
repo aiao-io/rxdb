@@ -1,8 +1,8 @@
 import { startDevRelay } from '../api/scripts/dev-relay.mjs';
 
-// 旧静态开发入口仍使用同一 Worker；正式开发入口由 scripts/dev/proxy.conf.mjs 转发完整产品 API。
+// 独立开发入口将全部产品 API 转发给内嵌 Worker。
 const relay = await startDevRelay();
 
 export default {
-  '/api/relay': { target: relay.url }
+  '/api/**': { target: relay.url }
 };

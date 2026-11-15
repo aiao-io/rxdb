@@ -38,7 +38,7 @@ pnpm nx run aiao-media:serve
 打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会在创作页直接请你填写。也可以在设置页的「供应商」分区覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
 
 - 前端是 Angular 开发服务器，改源码自动刷新。首次运行会先构建依赖包和 wasm 资源，之后命中缓存。
-- 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker 代理，只提供 `/api/relay` 和 `/api/relay/tasks`（详见下文「本站代理」）；不启动 Supabase，也没有 `/api/admin`、`/api/templates`。
+- 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker，代理全部 `/api/**`，包括 `/api/models`、`/api/installation`、`/api/templates` 和任务接口；未配置的产品服务返回 JSON 错误，不会落到前端 HTML。此入口不启动 Supabase；需要本地账号、后台和完整平台服务时，使用 `pnpm nx run aiao-media:dev`。
 - 数据保存在浏览器的 OPFS / IndexedDB，不需要数据库或 `.env`。
 - 开发构建自动接入 RxDB DevTools 浏览器扩展，检查当前工作区的媒体数据库；切换工作区时连接随之切换。生产和桌面构建使用空实现，产物不包含 `@aiao/rxdb-devtools`。
 - 未配置 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 时不显示注册/登录入口。如果 `aiao-media/apps/web/.env` 里填过这两项，入口会出现；要纯本机模式就清空它们。

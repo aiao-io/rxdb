@@ -84,6 +84,6 @@ test('开发任务可刷新续接、取回密文和确认扣费，上游只收�
 });
 test('旧开发代理配置仍下线无状态入口，未配置模型服务明确报错', async () => {
   const { default: proxy } = await import('../../web/proxy.conf.mjs');
-  const response = await fetch(new URL('/api/relay', proxy['/api/relay'].target));
+  const response = await fetch(new URL('/api/relay', proxy['/api/**'].target));
   assert.equal(response.status, 404);
 });
