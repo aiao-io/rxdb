@@ -223,3 +223,22 @@ MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条 AC 通过并进入 In Revi
 传递依赖 `trigger.dev>zod` 已从 4.5.4 归并到仓库现有 4.6.7；新增精确 override 后 dependency review 转绿。后续提交 `c7734f0bd` 消除本 PR 的七条 CodeQL 告警：将 URL 尾斜杠处理改为线性扫描、测试 URL 改为精确比较、私有文件权限与内容通过同一打开句柄核对、越权覆盖测试改用内存生成的有效 PNG。百万斜杠回归先红后绿；API/agent 的 test/typecheck/lint、开发脚本 30/30、产品脚本与需求校验、真实 7 MiB Storage 续传/隔离复验通过。远端产品 verify、dependency review 和 CodeQL 聚合检查已通过，新增 CodeQL 告警为 0。主 CI 的 benchmark 新分配 `Intel Xeon 6975P-C`，因没有冻结画像以 `benchmark_environment_mismatch` 失败；按仓库既定流程先复跑一次，门禁与基线不改写。最终完整门禁与复跑结果按后续回执更新。
 
 同日补齐真实 Cloudflare 实例重置和 4/24 MiB 官方 CPU，MEDIA-US-109 AC6 通过、累计 9/12；原样 24 小时验收已启动，终验前继续保留 AC9 部分通过。详细指标、上游 fixture 边界与临时资源回收见[Cloudflare 实测](relay-cloudflare-verification-20261115.md)。
+
+## 2026-11-15 Supabase-first 后台与 RxDB 收口
+
+本轮 Spec Kit 特性 `001-supabase-rxdb-backend` 已完成代码实现和关键本地验收。权限边界固定为：普通业务表与 RPC 由 Admin/后台使用 Supabase 直连；Auth Admin API、封禁/解禁用户及所有 service role 操作只经 `admin-api` Edge Function。浏览器 bundle 安全扫描通过，未发现 service role、secret、静态 JWT 或旧 Admin 登录调用方。
+
+后台 Node 服务已经接入 RxDB 本地 PGlite、Supabase remote adapter、history、sync、working-tree 和生命周期管理。后台同步使用普通 JWT，拒绝 service role 作为同步身份，并固定 workspace/entity filter。真实本地 Supabase 集成验证了普通 JWT RLS、Pull/Push、重复批次、两个后台节点的 Realtime、Realtime 断线后的 REST 恢复、revision 冲突和删除 tombstone；冲突与断线日志是预期测试信号，测试最终通过。
+
+PGMQ 只作为隔离 PoC 实施：最小消息、事务入队、匿名/普通身份拒绝、service role metrics、失败回滚、visibility timeout、幂等结果、task revision CAS、provider 成功后 ack 前崩溃恢复、consumer restart/backlog/cleanup/dead-letter operational drill 均已通过。当前生产生成链路保持 Durable Object，未因为 PoC 改变生产路由。
+
+配置方向已实现 domain projection、fingerprint、补偿扫描、apply/rollback RPC 和 Admin 本地 working-tree projection。但 RxDB 内部 Commit/CommitChangeSet 没有直接作为 Supabase 公共同步契约；完整配置实体与 projection 接入 `sync/syncBranches`、完整 branch/working-tree/commit 集成、后台提交状态 UI、Playwright/WCAG 验收仍保留为后续任务。
+
+本轮验证结果：
+
+- `aiao-media:requirements-check`：17 tests passed。
+- `aiao-media-api:lint`、`typecheck`、`test`：通过；API Node tests 18 passed、1 skipped，Vitest 配置测试 4 passed，2 个本地集成测试按环境跳过。
+- `aiao-media:backend-rxdb-local-test`：PGMQ 本地集成 2 passed；后台 RxDB 本地 Supabase 集成 2 passed。
+- Admin lint、domain lint/typecheck/test、domain coverage gate 和 Admin bundle security scan：通过；domain coverage statements 84.52%、branches 98.03%、functions 93.33%、lines 83.78%。
+
+仍未关闭的范围：完整 Admin Entity List/Detail/Form/Table DOM 测试、断网刷新 Playwright、实际 axe/WCAG 2.1 AA 验证、完整 branch/working-tree/commit integration、配置 projection 的 Supabase 双向同步，以及正式双区域/生产切换验收。对应 Spec Kit 任务仍保持未勾选：T035、T036、T041、T044、T046、T051、T052。

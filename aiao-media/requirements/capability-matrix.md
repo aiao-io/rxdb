@@ -25,11 +25,11 @@ Tauri 与平台同步继续实施；充值计费仍按 D-17 暂缓。Tauri 正�
 | -------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | 跨用户业务后台 | ⚠️ 用户、模板、任务与来源明确的用量已通过真实本地服务/浏览器验收；生产启用属后续范围 | [MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md)         |
 | 移动设备验收   | ⬜ 暂缓，不阻断桌面、同步和后台工作                                                  | [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md) |
-| Supabase 后台权限边界 | ⬜ Admin 普通业务直连和 Auth Admin/封禁 Edge Function 尚未迁移；当前仍由 Worker 代理 | [MEDIA-US-208](stories/account/MEDIA-US-208-supabase-admin-boundary.md) |
-| 后台服务 RxDB 同步 | ⬜ 已有适配器、同步插件和分支同步基础，尚未形成后台生产同步节点 | [MEDIA-US-306](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md) |
-| `rxdb-model` 后台配置编辑 | ⬜ 公共组件已存在，Admin 仍为手写 signals、模板和远端状态 | [MEDIA-US-307](stories/local-first/MEDIA-US-307-admin-rxdb-model.md) |
-| 配置分支与提交投影 | ⬜ working-tree 和 commit 能力已有，领域 projection 和后台 apply RPC 尚未实现 | [MEDIA-US-308](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) |
-| PGMQ 生成任务队列 | ⬜ 仅完成架构研究，PoC 和与 Durable Object 对比尚未完成 | [MEDIA-US-110](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md) |
+| Supabase 后台权限边界 | ⚠️ Admin Auth、普通业务 PostgREST/RPC、配置 projection 和特权 Edge Function 已实现；真实本地 Supabase/RLS、普通 JWT 边界与 Admin bundle secret scan 已通过；生产切换和旧入口退出待完成 | [MEDIA-US-208](stories/account/MEDIA-US-208-supabase-admin-boundary.md) |
+| 后台服务 RxDB 同步 | ⚠️ Node 后台 RxDB 装配、普通 JWT、生命周期、workspace/RLS、Pull/Push、Realtime 恢复、revision 冲突和 tombstone 已通过真实本地 Supabase 集成；Playwright、双区域和生产验收待完成 | [MEDIA-US-306](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md) |
+| `rxdb-model` 后台配置编辑 | ⚠️ Admin 已接入共享配置实体、repository、本地 working-tree projection 与 `rxdb-model-angular` EntityList；完整 DOM/Playwright、无障碍状态和冲突 UI 验收待完成 | [MEDIA-US-307](stories/local-first/MEDIA-US-307-admin-rxdb-model.md) |
+| 配置分支与提交投影 | ⚠️ commit projection、fingerprint 校验、补偿扫描、apply/rollback RPC 和基础 working-tree projection 已实现；完整配置实体/projection 的 Supabase `sync/syncBranches`、分支合并和后台 UI 状态待完成 | [MEDIA-US-308](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) |
+| PGMQ 生成任务队列 | ⚠️ 隔离 PoC 已通过真实本地入队授权、失败回滚、幂等/重试、provider 成功后崩溃恢复、重启/积压/死信/指标演练；生产任务仍由 Durable Object 承担 | [MEDIA-US-110](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md) |
 
 ## 产品扩展实施
 

@@ -35,7 +35,12 @@ async function supabaseProject() {
     CREATE ROLE service_role BYPASSRLS;
     CREATE SCHEMA auth;
     CREATE TABLE auth.users (id uuid PRIMARY KEY);
-    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+      SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+    $$;
+    GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+    GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+    GRANT ALL ON auth.users TO service_role;
     CREATE SCHEMA storage;
     CREATE TABLE storage.buckets (id text PRIMARY KEY, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
     CREATE TABLE storage.objects (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), bucket_id text, name text, owner uuid, metadata jsonb);
@@ -61,7 +66,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 19);
+    assert.equal(first.sources.length, 24);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -265,7 +270,8 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
   for (const [name, fromVersion, toVersion] of [
     ['installation', 10, 11],
     ['credits', 11, 13],
-    ['image-lifecycle', 13, 16]
+    ['image-lifecycle', 13, 16],
+    ['supabase-first-admin-rxdb', 16, 21]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -344,6 +350,178 @@ test('已有 schema 10 可按顺序升级至 16，重放保留原图记录、工
     await assert.rejects(apply(db, sql), refusal(/schema version/));
     assert.equal(await schemaComment(db), 'aiao-media schema 16');
     assert.equal((await db.query('SELECT balance FROM public.media_credit_accounts')).rows[0].balance, 9);
+  } finally {
+    await db.close();
+  }
+});
+
+test('已有 schema 16 可执行 16 到 21 的 Supabase-first 增量并保证配置提交原子幂等', async () => {
+  const db = await historicalProject(16);
+  const actor = crypto.randomUUID();
+  const workspace = crypto.randomUUID();
+  const commit = crypto.randomUUID();
+  const operation = crypto.randomUUID();
+  const entity = crypto.randomUUID();
+  try {
+    await db.query('INSERT INTO auth.users VALUES ($1)', [actor]);
+    await db.query('INSERT INTO public.media_workspaces (id,owner_id,request_id) VALUES ($1,$2,$3)', [
+      workspace,
+      actor,
+      crypto.randomUUID()
+    ]);
+    await apply(db, (await productionUpgrade('supabase-first-admin-rxdb')).sql);
+    assert.equal(await schemaComment(db), 'aiao-media schema 21');
+    await db.query('INSERT INTO public.media_admin_memberships(user_id) VALUES ($1)', [actor]);
+    await db.exec('SET ROLE authenticated');
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [actor]);
+    assert.deepEqual((await db.query('SELECT auth.uid() AS uid, public.media_admin_authorized() AS authorized')).rows, [
+      { uid: actor, authorized: true }
+    ]);
+
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main','{}',$3,'首个配置提交',$4,$5,'synced')`,
+      [commit, workspace, actor, operation, 'a'.repeat(64)]
+    );
+    await db.query(
+      `INSERT INTO public.media_config_commit_changes
+        (id, commit_id, sequence, entity, entity_id, operation, patch, inverse_patch, expected_revision, content_fingerprint)
+       VALUES ($1,$2,1,'MediaPromptTemplate',$3,'insert',$4,$5,NULL,$6)`,
+      [
+        crypto.randomUUID(),
+        commit,
+        entity,
+        JSON.stringify({ value: { key: 'hero', title: '首页', prompt: '生成海报' } }),
+        JSON.stringify({ value: null }),
+        'b'.repeat(64)
+      ]
+    );
+    const first = (await db.query('SELECT public.apply_media_config_commit($1,$2) AS value', [commit, operation])).rows[0].value;
+    assert.equal(first.reused, false);
+    assert.equal(first.revisions[0].revision, 1);
+    assert.deepEqual(
+      (await db.query(
+        'SELECT revision,payload,deleted FROM public.media_config_records WHERE workspace_id=$1 AND entity_id=$2',
+        [workspace, entity]
+      )).rows,
+      [{ revision: 1, payload: { key: 'hero', title: '首页', prompt: '生成海报' }, deleted: false }]
+    );
+    const retry = (await db.query('SELECT public.apply_media_config_commit($1,$2) AS value', [commit, operation])).rows[0].value;
+    assert.equal(retry.reused, true);
+    const rollbackOperation = crypto.randomUUID();
+    const rollback = (await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollbackOperation])).rows[0].value;
+    assert.equal(rollback.status, 'rolled_back');
+    assert.equal(rollback.reused, false);
+    assert.deepEqual(
+      (await db.query(
+        'SELECT revision,payload,deleted FROM public.media_config_records WHERE workspace_id=$1 AND entity_id=$2',
+        [workspace, entity]
+      )).rows,
+      [{ revision: 2, payload: null, deleted: true }]
+    );
+    const rollbackRetry = (await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollbackOperation])).rows[0].value;
+    assert.equal(rollbackRetry.reused, true);
+    await db.exec('SET ROLE service_role');
+    assert.equal((await db.query("SELECT count(*)::int AS count FROM public.media_admin_audit WHERE action='config-commit-apply'")).rows[0].count, 1);
+    const other = crypto.randomUUID();
+    const otherWorkspace = crypto.randomUUID();
+    const foreignCommit = crypto.randomUUID();
+    const foreignOperation = crypto.randomUUID();
+    await db.query('INSERT INTO auth.users VALUES ($1)', [other]);
+    await db.query('INSERT INTO public.media_workspaces (id,owner_id,request_id) VALUES ($1,$2,$3)', [
+      otherWorkspace,
+      other,
+      crypto.randomUUID()
+    ]);
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main','{}',$3,'跨工作区提交',$4,$5,'synced')`,
+      [foreignCommit, otherWorkspace, actor, foreignOperation, '1'.repeat(64)]
+    );
+    await db.exec('SET ROLE authenticated');
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [actor]);
+    await assert.rejects(
+      db.query('SELECT public.apply_media_config_commit($1,$2)', [foreignCommit, foreignOperation]),
+      { code: '42501' }
+    );
+
+    const parentCommit = crypto.randomUUID();
+    const parentOperation = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main',$3,$4,'缺失父提交',$5,$6,'synced')`,
+      [parentCommit, workspace, [crypto.randomUUID()], actor, parentOperation, 'c'.repeat(64)]
+    );
+    await db.query(
+      `INSERT INTO public.media_config_commit_changes
+        (id, commit_id, sequence, entity, entity_id, operation, patch, expected_revision, content_fingerprint)
+       VALUES ($1,$2,1,'MediaPromptTemplate',$3,'update',$4,1,$5)`,
+      [crypto.randomUUID(), parentCommit, entity, JSON.stringify({ value: { key: 'hero', title: '不应应用' } }), 'd'.repeat(64)]
+    );
+    await assert.rejects(
+      db.query('SELECT public.apply_media_config_commit($1,$2)', [parentCommit, parentOperation]),
+      { code: '40001' }
+    );
+
+    const conflictCommit = crypto.randomUUID();
+    const conflictOperation = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main','{}',$3,'版本冲突',$4,$5,'synced')`,
+      [conflictCommit, workspace, actor, conflictOperation, 'e'.repeat(64)]
+    );
+    await db.query(
+      `INSERT INTO public.media_config_commit_changes
+        (id, commit_id, sequence, entity, entity_id, operation, patch, expected_revision, content_fingerprint)
+       VALUES ($1,$2,1,'MediaPromptTemplate',$3,'update',$4,0,$5)`,
+      [crypto.randomUUID(), conflictCommit, entity, JSON.stringify({ value: { key: 'hero', title: '版本冲突' } }), 'f'.repeat(64)]
+    );
+    await assert.rejects(
+      db.query('SELECT public.apply_media_config_commit($1,$2)', [conflictCommit, conflictOperation]),
+      { code: '40001' }
+    );
+    assert.deepEqual(
+      (await db.query('SELECT revision,payload FROM public.media_config_records WHERE workspace_id=$1 AND entity_id=$2', [workspace, entity])).rows,
+      [{ revision: 2, payload: null }]
+    );
+
+    const partialCommit = crypto.randomUUID();
+    const partialOperation = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main','{}',$3,'部分失败回滚',$4,$5,'synced')`,
+      [partialCommit, workspace, actor, partialOperation, '2'.repeat(64)]
+    );
+    await db.query(
+      `INSERT INTO public.media_config_commit_changes
+        (id, commit_id, sequence, entity, entity_id, operation, patch, expected_revision, content_fingerprint)
+       VALUES
+        ($1,$2,1,'MediaPromptTemplate',$3,'update',$4,1,$5),
+        ($6,$2,2,'MediaPromptTemplate',$3,'update',$7,1,$8)`,
+      [
+        crypto.randomUUID(),
+        partialCommit,
+        entity,
+        JSON.stringify({ value: { key: 'hero', title: '临时写入' } }),
+        '3'.repeat(64),
+        crypto.randomUUID(),
+        JSON.stringify({ value: { key: 'hero', title: '第二步冲突' } }),
+        '4'.repeat(64)
+      ]
+    );
+    await assert.rejects(
+      db.query('SELECT public.apply_media_config_commit($1,$2)', [partialCommit, partialOperation]),
+      { code: '40001' }
+    );
+    assert.deepEqual(
+      (await db.query('SELECT revision,payload FROM public.media_config_records WHERE workspace_id=$1 AND entity_id=$2', [workspace, entity])).rows,
+      [{ revision: 2, payload: null }]
+    );
   } finally {
     await db.close();
   }

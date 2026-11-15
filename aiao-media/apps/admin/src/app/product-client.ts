@@ -1,15 +1,34 @@
 import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
+import type { MediaConfigCommitEnvelope, MediaConfigCommitStatus } from '@aiao-media/domain';
+import type { AdminSupabaseClient } from './admin-auth';
+
 export interface ProductAuthorization {
   config: { url: string; anonKey: string };
   session: { access_token: string };
   userId: string;
+  supabase?: SupabaseFunctionClient;
 }
+
+export type SupabaseFunctionClient = Pick<AdminSupabaseClient, 'functions'>;
 
 export interface RemoteWorkspace {
   id: string;
   owner_id: string;
   request_id?: string;
   created?: boolean;
+}
+export interface RemoteConfigCommitStatus {
+  id: string;
+  workspaceId: string;
+  branchId: string;
+  parentIds: string[];
+  authorId: string;
+  operationId: string;
+  status: MediaConfigCommitStatus;
+  createdAt: string;
+  appliedAt: string | null;
+  releasedAt: string | null;
+  rejectionCode: string | null;
 }
 export type ProductAuthorizer = () => Promise<ProductAuthorization>;
 
@@ -20,6 +39,19 @@ export class ProductRequestError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+interface ReportRow {
+  payload?: TaskReport;
+}
+
+interface UsageBucket {
+  records: number;
+  requestCount: number | null;
+  providerUnits: number | null;
+  verifiedCost: number | null;
+  currencies: Record<string, number>;
+  unknown: { requestCount: number; providerUnits: number; verifiedCost: number };
 }
 
 /** 只携带经验证的当前会话，产品数据与管理调用使用各自固定入口。 */
@@ -64,14 +96,188 @@ export class ProductClient {
     return this.remote(access, `/rpc/${path}`, operation === 'delete' ? { p_request_id: requestId } : {});
   }
 
+  async pushConfigCommit(envelope: MediaConfigCommitEnvelope): Promise<void> {
+    const access = await this.authorize();
+    const commit = {
+      id: envelope.commit.id,
+      workspace_id: envelope.commit.workspaceId,
+      branch_id: envelope.commit.branchId,
+      parent_ids: envelope.commit.parentIds,
+      author_id: envelope.commit.authorId,
+      message: envelope.commit.message,
+      operation_id: envelope.commit.operationId,
+      content_fingerprint: envelope.commit.contentFingerprint,
+      status: envelope.commit.status
+    };
+    await this.remote(access, '/media_config_commits?on_conflict=workspace_id%2Coperation_id', commit, {
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }
+    });
+    await this.remote(access, '/media_config_commit_changes?on_conflict=commit_id%2Csequence', envelope.changes.map(change => ({
+      id: change.id,
+      commit_id: envelope.commit.id,
+      sequence: change.sequence,
+      entity: change.entity,
+      entity_id: change.entityId,
+      operation: change.operation,
+      patch: change.patch,
+      inverse_patch: change.inversePatch,
+      expected_revision: change.expectedRevision,
+      content_fingerprint: change.contentFingerprint
+    })), {
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }
+    });
+    await this.remote(
+      access,
+      `/media_config_commits?id=eq.${encodeURIComponent(envelope.commit.id)}&status=eq.prepared`,
+      { status: 'synced' },
+      { method: 'PATCH', headers: { Prefer: 'return=minimal' } }
+    );
+  }
+
+  async applyConfigCommit(commitId: string, operationId: string): Promise<unknown> {
+    const access = await this.authorize();
+    return this.remote(access, '/rpc/apply_media_config_commit', {
+      p_commit_id: commitId,
+      p_operation_id: operationId
+    });
+  }
+
+  async rollbackConfigCommit(commitId: string, operationId: string): Promise<unknown> {
+    const access = await this.authorize();
+    return this.remote(access, '/rpc/rollback_media_config_commit', {
+      p_commit_id: commitId,
+      p_operation_id: operationId
+    });
+  }
+
+  async latestConfigCommit(workspaceId: string): Promise<RemoteConfigCommitStatus | null> {
+    const access = await this.authorize();
+    const rows = await this.remote(
+      access,
+      `/media_config_commits?select=id,workspace_id,branch_id,parent_ids,author_id,operation_id,status,created_at,applied_at,released_at,rejection_code&workspace_id=eq.${encodeURIComponent(workspaceId)}&order=created_at.desc&limit=1`
+    );
+    if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交状态不可读。');
+    if (!rows.length) return null;
+    return parseConfigCommitStatus(rows[0]);
+  }
+
   async admin(path: string, method = 'GET', payload?: unknown): Promise<unknown> {
     if (!/^[a-z0-9/?=&,._%:-]+$/i.test(path) || path.startsWith('/')) throw new Error('管理请求路径无效。');
     const access = await this.authorize();
-    return this.request(`/api/admin/${path}`, {
-      method,
-      headers: { authorization: `Bearer ${access.session.access_token}`, 'content-type': 'application/json' },
-      ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
+    const direct = await this.directAdmin(access, path, method, payload);
+    if (direct !== undefined) return direct;
+    if (access.supabase) {
+      const result = await access.supabase.functions.invoke('admin-api', {
+        body: { path, method, ...(payload === undefined ? {} : { payload }) },
+        headers: { authorization: `Bearer ${access.session.access_token}` }
+      });
+      if (result.error) {
+        const status = result.error.context?.status ?? 502;
+        throw new ProductRequestError(status, this.errorMessage(status));
+      }
+      return result.data;
+    }
+    return this.request(`${access.config.url}/functions/v1/admin-api`, {
+      method: 'POST',
+      headers: {
+        apikey: access.config.anonKey,
+        authorization: `Bearer ${access.session.access_token}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ path, method, ...(payload === undefined ? {} : { payload }) })
     });
+  }
+
+  private async directAdmin(access: ProductAuthorization, path: string, method: string, payload: unknown): Promise<unknown | undefined> {
+    const url = new URL(`https://admin.local/${path}`);
+    const route = url.pathname.replace(/^\//, '');
+    if (route === 'session' && method === 'GET') {
+      const allowed = await this.remote(access, '/rpc/media_admin_authorized', {});
+      if (allowed !== true) throw new ProductRequestError(403, this.errorMessage(403));
+      return { actorId: access.userId };
+    }
+    if (route === 'content' && method === 'GET') {
+      const [drafts, published] = await Promise.all([
+        this.remote(access, '/media_content_drafts?select=kind,key,payload,revision,updated_at&order=kind,key&limit=200'),
+        this.remote(access, '/media_public_content?select=kind,key,revision&order=kind,key&limit=200')
+      ]);
+      return { drafts, published };
+    }
+    if (route.startsWith('content/')) return this.directContent(access, route, method, payload);
+    if (route === 'tasks' && method === 'GET') return this.directReports(access, path, false);
+    if (route === 'usage' && method === 'GET') return this.directReports(access, path, true);
+    return undefined;
+  }
+
+  private async directContent(access: ProductAuthorization, route: string, method: string, payload: unknown): Promise<unknown> {
+    const match = /^content\/(template|provider-policy)\/([a-z][a-z0-9-]{0,59})(?:\/(publish|withdraw))?$/.exec(route);
+    if (!match) throw new ProductRequestError(404, this.errorMessage(404));
+    const [, kind, key, operation] = match;
+    const action = operation ?? 'save';
+    if ((action === 'save' ? method : 'POST') !== method) throw new ProductRequestError(405, this.errorMessage(405));
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new ProductRequestError(400, '内容参数无效。');
+    const value = payload as Record<string, unknown>;
+    if (!Number.isSafeInteger(value['revision']) || typeof value['requestId'] !== 'string')
+      throw new ProductRequestError(400, '内容版本无效。');
+    const result = await this.remote(access, '/rpc/media_admin_content_self', {
+      p_kind: kind,
+      p_key: key,
+      p_action: action,
+      p_revision: value['revision'],
+      p_request_id: value['requestId'],
+      p_payload: action === 'save' ? value['payload'] : null
+    });
+    return { content: result, state: action === 'publish' ? 'active' : action === 'withdraw' ? 'withdrawn' : 'draft' };
+  }
+
+  private async directReports(access: ProductAuthorization, path: string, usage: boolean): Promise<unknown> {
+    const url = new URL(`https://admin.local/${path}`);
+    const query = new URLSearchParams({
+      select: 'id,owner_id,workspace_id,task_id,model,channel,status,started_at,payload,received_at',
+      order: 'started_at.desc,id',
+      limit: '100'
+    });
+    for (const [name, column] of Object.entries({ userId: 'owner_id', model: 'model', channel: 'channel', status: 'status' })) {
+      const value = url.searchParams.get(name);
+      if (value) query.set(column, `eq.${value}`);
+    }
+    const page = Number(url.searchParams.get('page') ?? 1);
+    if (!usage) query.set('offset', String((page - 1) * 100));
+    const rows = await this.remote(access, `/media_task_reports?${query}`);
+    if (!Array.isArray(rows)) throw new Error('任务报表不可读。');
+    if (!usage) return { reports: rows, limit: 100 };
+    return this.usage(rows as ReportRow[]);
+  }
+
+  private usage(rows: ReportRow[]): unknown {
+    const sources: Record<string, UsageBucket> = Object.fromEntries(
+      ['application', 'provider', 'verified'].map(source => [source, {
+        records: 0,
+        requestCount: null,
+        providerUnits: null,
+        verifiedCost: null,
+        currencies: {},
+        unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
+      }])
+    );
+    for (const row of rows) {
+      if (!row.payload || typeof row.payload.source !== 'string' || !sources[row.payload.source]) throw new Error('用量来源不可识别。');
+      const bucket = sources[row.payload.source];
+      bucket.records++;
+      for (const key of ['requestCount', 'providerUnits'] as const) {
+        const value = row.payload[key];
+        if (value === null) bucket.unknown[key]++;
+        else if (typeof value === 'number' && Number.isFinite(value)) bucket[key] = (bucket[key] ?? 0) + value;
+        else throw new Error('用量数据无效。');
+      }
+      if (row.payload.verifiedCost === null) bucket.unknown.verifiedCost++;
+      else if (typeof row.payload.verifiedCost === 'number' && Number.isFinite(row.payload.verifiedCost) && row.payload.currency) {
+        bucket.currencies[row.payload.currency] = (bucket.currencies[row.payload.currency] ?? 0) + row.payload.verifiedCost;
+      } else throw new Error('用量数据无效。');
+    }
+    for (const bucket of Object.values(sources))
+      if (Object.keys(bucket.currencies).length === 1) bucket.verifiedCost = Object.values(bucket.currencies)[0];
+    return { sources, partial: rows.length >= 100, receivedRecords: rows.length };
   }
 
   private workspace(value: unknown, userId: string): RemoteWorkspace {
@@ -86,13 +292,19 @@ export class ProductClient {
     };
   }
 
-  private remote(access: ProductAuthorization, path: string, payload?: unknown): Promise<unknown> {
+  private remote(
+    access: ProductAuthorization,
+    path: string,
+    payload?: unknown,
+    options: { method?: 'GET' | 'POST' | 'PATCH'; headers?: Record<string, string> } = {}
+  ): Promise<unknown> {
     return this.request(`${access.config.url}/rest/v1${path}`, {
-      method: payload === undefined ? 'GET' : 'POST',
+      method: options.method ?? (payload === undefined ? 'GET' : 'POST'),
       headers: {
         apikey: access.config.anonKey,
         authorization: `Bearer ${access.session.access_token}`,
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        ...options.headers
       },
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
     });
@@ -107,14 +319,44 @@ export class ProductClient {
       referrerPolicy: 'no-referrer',
       signal: AbortSignal.timeout(15000)
     });
-    if (!result.ok)
-      throw new ProductRequestError(
-        result.status,
-        result.status === 401 || result.status === 403 ? '账号或权限已失效，远程操作已暂停。'
-        : result.status === 402 ? '可用积分不足，请查看当前余额。'
-        : result.status === 409 ? '数据版本已变化，请重试。'
-        : '产品服务暂不可用，原数据保留。'
-      );
-    return result.json() as Promise<unknown>;
+    if (!result.ok) throw new ProductRequestError(result.status, this.errorMessage(result.status));
+    const body = await result.text();
+    return body ? JSON.parse(body) as unknown : null;
+
   }
+
+  private errorMessage(status: number): string {
+    return status === 401 || status === 403 ? '账号或权限已失效，远程操作已暂停。'
+      : status === 402 ? '可用积分不足，请查看当前余额。'
+      : status === 409 ? '数据版本已变化，请重试。'
+      : status === 405 ? '当前操作不被支持。'
+      : '产品服务暂不可用，原数据保留。';
+  }
+}
+
+function parseConfigCommitStatus(value: unknown): RemoteConfigCommitStatus {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('配置提交状态回执无效。');
+  const row = value as Record<string, unknown>;
+  const strings = ['id', 'workspace_id', 'branch_id', 'author_id', 'operation_id', 'created_at'] as const;
+  for (const key of strings) if (typeof row[key] !== 'string' || row[key].length === 0) throw new Error('配置提交状态回执无效。');
+  if (!Array.isArray(row['parent_ids']) || row['parent_ids'].some(parent => typeof parent !== 'string')) throw new Error('配置提交父提交无效。');
+  if (!['prepared', 'synced', 'validated', 'applied', 'released', 'rejected'].includes(String(row['status']))) throw new Error('配置提交状态无效。');
+  const nullableString = (key: 'applied_at' | 'released_at' | 'rejection_code'): string | null => {
+    const value = row[key];
+    if (value !== null && value !== undefined && typeof value !== 'string') throw new Error('配置提交状态回执无效。');
+    return value ?? null;
+  };
+  return {
+    id: row['id'] as string,
+    workspaceId: row['workspace_id'] as string,
+    branchId: row['branch_id'] as string,
+    parentIds: [...(row['parent_ids'] as string[])],
+    authorId: row['author_id'] as string,
+    operationId: row['operation_id'] as string,
+    status: row['status'] as MediaConfigCommitStatus,
+    createdAt: row['created_at'] as string,
+    appliedAt: nullableString('applied_at'),
+    releasedAt: nullableString('released_at'),
+    rejectionCode: nullableString('rejection_code')
+  };
 }

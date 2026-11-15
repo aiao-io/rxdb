@@ -1,7 +1,7 @@
 ---
 id: MEDIA-US-110
 title: PGMQ 生成任务队列 PoC
-status: Backlog
+status: In Progress
 priority: Medium
 epic: MEDIA-EPIC-002
 created: 2026-11-15
@@ -76,6 +76,8 @@ PoC 优先使用 Node consumer。Edge Function 只有在目标套餐和实际 pr
 - `aiao-media/apps/api/src/relay-task.ts` — 当前 Durable Object 任务状态和结果协议。
 - `aiao-media/infra/supabase/migrations/` — PGMQ、任务状态和事务入队目标迁移。
 - `aiao-media/apps/api/src/pgmq-consumer.ts` — 目标 Node consumer。
+- `aiao-media/apps/api/scripts/pgmq-poc-drill.mjs` — 重启、ack 中断、归档和结果清理演练。
+- `aiao-media/requirements/plans/pgmq-durable-object-comparison-20261115.md` — PGMQ 与 Durable Object 对比和回退门槛。
 
 ## References
 

@@ -3,15 +3,33 @@
     "outDir": "../../../dist/out-tsc",
     "types": []
   },
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/app/nx-welcome.ts"],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/app/nx-welcome.ts"
+  ],
   "extends": "./tsconfig.json",
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
+    {
+      "path": "../../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-model-angular/tsconfig.lib.json"
+    },
     {
       "path": "../../../packages/rxdb-i18n-angular/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-admin-angular/tsconfig.lib.json"
@@ -20,7 +38,16 @@
       "path": "../../../packages/rxdb-admin/tsconfig.lib.json"
     },
     {
+      "path": "../../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/api-contracts/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/domain/tsconfig.lib.json"
     }
   ]
 }

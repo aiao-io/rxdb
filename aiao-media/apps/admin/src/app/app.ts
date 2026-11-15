@@ -7,20 +7,16 @@ import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Rout
 import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/angular';
 import { filter, map } from 'rxjs';
 import { AdminConsole } from './admin-console';
+import { AdminConfigModelComponent } from './admin-config-model';
 import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
+import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
 import { ProductClient } from './product-client';
-
-interface Session {
-  accessToken: string;
-  expiresAt: number;
-  user: { id: string; email?: string };
-}
 
 export const ADMIN_SESSION_STORAGE_KEY = 'aiao-media-admin-session-v1';
 
-function isSession(value: unknown): value is Session {
+function isSession(value: unknown): value is AdminSession {
   if (!value || typeof value !== 'object') return false;
-  const session = value as Partial<Session>;
+  const session = value as Partial<AdminSession>;
   return (
     typeof session.accessToken === 'string' &&
     session.accessToken.length > 0 &&
@@ -30,11 +26,11 @@ function isSession(value: unknown): value is Session {
     session.user !== null &&
     typeof session.user.id === 'string' &&
     session.user.id.length > 0 &&
-    (session.user.email === undefined || typeof session.user.email === 'string')
+    (session.user.email === undefined || session.user.email === null || typeof session.user.email === 'string')
   );
 }
 
-function readStoredSession(): Session | null {
+function readStoredSession(): AdminSession | null {
   const raw = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
   if (!raw) return null;
   try {
@@ -51,17 +47,18 @@ function readStoredSession(): Session | null {
 }
 
 @Component({
-  imports: [AdminConsole, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
+  imports: [AdminConsole, AdminConfigModelComponent, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
   selector: 'aiao-media-admin-root',
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit {
   private readonly router = inject(Router);
+  private authClient: AdminSupabaseAuth | null = null;
   readonly installation = signal<InstallationStatus | null>(null);
   readonly busy = signal(false);
   readonly message = signal('');
-  readonly session = signal<Session | null>(null);
+  readonly session = signal<AdminSession | null>(null);
   readonly menu = ADMIN_MENU;
   readonly Clapperboard = Clapperboard;
   readonly url = toSignal(
@@ -95,17 +92,11 @@ export class App implements OnInit {
     serviceRoleKey: ''
   };
   readonly client = new ProductClient(async () => {
-    const session = this.session();
-    const config = this.installation()?.auth;
-    if (!session || !config || session.expiresAt <= Date.now()) {
+    if (!this.authClient || !this.session()) {
       this.logout();
       throw new Error('登录已过期，请重新登录。');
     }
-    return {
-      config,
-      session: { access_token: session.accessToken },
-      userId: session.user.id
-    };
+    return this.authClient.authorization();
   });
   ngOnInit(): void {
     bindAdminNavigator(url => void this.router.navigateByUrl(url));
@@ -115,8 +106,12 @@ export class App implements OnInit {
     await this.run(async () => {
       const installation = await this.request<InstallationStatus>('/api/installation');
       this.installation.set(installation);
-      if (installation.initialized) this.session.set(readStoredSession());
-      else this.logout();
+      if (!installation.initialized || !installation.auth) {
+        this.logout();
+        return;
+      }
+      this.authClient = new AdminSupabaseAuth(installation.auth);
+      this.session.set(await this.authClient.restore(readStoredSession()));
     });
   }
   async initialize(): Promise<void> {
@@ -139,11 +134,15 @@ export class App implements OnInit {
   }
   async login(): Promise<void> {
     await this.run(async () => {
-      const session = await this.request<Session>('/api/admin/login', {
-        email: this.form.email,
-        password: this.form.password
-      });
+      if (!this.authClient) throw new Error('账号服务尚未准备好，请重新检查安装状态。');
+      const session = await this.authClient.signIn(this.form.email, this.form.password);
       this.session.set(session);
+      try {
+        await this.client.admin('session');
+      } catch (error) {
+        this.logout();
+        throw error;
+      }
       localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
       this.form.password = '';
       await this.router.navigateByUrl('/users');
@@ -156,6 +155,7 @@ export class App implements OnInit {
     this.session.set(null);
     localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
     this.form.password = '';
+    void this.authClient?.signOut().catch(() => undefined);
   }
   private async run(operation: () => Promise<void>): Promise<void> {
     if (this.busy()) return;

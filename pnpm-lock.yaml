@@ -812,18 +812,39 @@ importers:
       '@aiao-media/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
+      '@aiao-media/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-sqlite-wasm
       '@aiao/rxdb-admin':
         specifier: workspace:*
         version: link:../../../packages/rxdb-admin
       '@aiao/rxdb-admin-angular':
         specifier: workspace:*
         version: link:../../../packages/rxdb-admin-angular
+      '@aiao/rxdb-angular':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-angular
       '@aiao/rxdb-i18n':
         specifier: workspace:*
         version: link:../../../packages/rxdb-i18n
       '@aiao/rxdb-i18n-angular':
         specifier: workspace:*
         version: link:../../../packages/rxdb-i18n-angular
+      '@aiao/rxdb-model-angular':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-model-angular
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-working-tree
       '@angular/common':
         specifier: 22.2.4
         version: 22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
@@ -845,6 +866,9 @@ importers:
       '@lucide/angular':
         specifier: 1.70.0
         version: 1.70.0(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))
+      '@supabase/supabase-js':
+        specifier: ^2.119.0
+        version: 2.119.0
       intl-messageformat:
         specifier: ^12.1.4
         version: 12.1.4
@@ -876,12 +900,33 @@ importers:
       '@aiao-media/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-pglite
+      '@aiao/rxdb-adapter-supabase':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-supabase
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-sync
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-working-tree
       '@hono/swagger-ui':
         specifier: ^0.6.2
         version: 0.6.2(hono@4.13.18)
       '@hono/zod-openapi':
         specifier: ^1.6.3
         version: 1.6.3(hono@4.13.18)(zod@4.6.7)
+      '@supabase/supabase-js':
+        specifier: ^2.119.0
+        version: 2.119.0
       hono:
         specifier: ^4.13.17
         version: 4.13.18
@@ -1035,7 +1080,11 @@ importers:
 
   aiao-media/packages/api-contracts: {}
 
-  aiao-media/packages/domain: {}
+  aiao-media/packages/domain:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb
 
   aiao-model-design/apps/agent:
     dependencies:

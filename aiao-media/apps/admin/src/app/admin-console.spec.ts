@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminConsole } from './admin-console';
-import { defaultAdminTemplate } from './admin-defaults';
 import { ProductClient, ProductRequestError } from './product-client';
 
 const user = {
@@ -12,22 +11,6 @@ const user = {
   disabled: false,
   revision: 2,
   authState: 'applied'
-};
-const templateRow = {
-  kind: 'template' as const,
-  key: defaultAdminTemplate.id,
-  revision: 3,
-  payload: defaultAdminTemplate
-};
-const policyRow = {
-  kind: 'provider-policy' as const,
-  key: 'runtime',
-  revision: 4,
-  payload: { version: 1 as const, providers: [] }
-};
-const content = {
-  drafts: [templateRow, policyRow],
-  published: [{ kind: policyRow.kind, key: policyRow.key, revision: 2 }]
 };
 const usage = { sources: {}, partial: true };
 
@@ -44,7 +27,6 @@ async function rig(status = 'signed-in', render = false) {
   const admin = vi.spyOn(client, 'admin').mockImplementation(async (path, method = 'GET') => {
     if (method !== 'GET') return { content: { revision: 5 }, account: { auth_state: 'applied' } };
     if (path.startsWith('users?')) return { users: [user] };
-    if (path === 'content') return content;
     if (path === 'audit') return { entries: [{ id: 1, action: 'publish' }] };
     if (path.startsWith('tasks?')) return { reports: [{ id: 'task-report' }] };
     if (path.startsWith('usage?')) return usage;
@@ -97,7 +79,6 @@ describe('administrative access and identity', () => {
     await component.load();
     expect(component.allowed()).toBe(false);
     expect(component.users()).toEqual([]);
-    expect(component.content().drafts).toEqual([]);
     expect(component.message()).toBe('权限已撤销');
     expect(component.busy()).toBe(false);
   });
@@ -167,79 +148,6 @@ describe('administrative content and state changes', () => {
     expect(component.metric(1, 2)).toBe('1（2条未知）');
     expect(component.metric(null, 1)).toBe('未知（1条未知）');
     expect(component.metric(null)).toBe('未知');
-  });
-
-  it('loads draft and published policy versions separately', async () => {
-    const { component } = await rig();
-    await component.selectTab('policies');
-    expect(component.policyRevision()).toBe(4);
-    expect(component.policyActiveRevision()).toBe(2);
-    expect(component.policyRow()).toEqual(policyRow);
-    expect(component.publishedRevision(policyRow)).toBe(2);
-    expect(component.publishedRevision(templateRow)).toBeNull();
-    component.addPolicyProvider();
-    const entry = component.policy().providers[0];
-    expect(entry).toMatchObject({ enabled: false, direct: false, proxy: false, sizes: ['1024x1024'] });
-    component.policyModels(entry, ' model-a, , model-b ');
-    expect(entry.models).toEqual(['model-a', 'model-b']);
-  });
-
-  it('saves a policy draft without claiming that the published version has changed', async () => {
-    const { component, admin } = await rig();
-    await component.selectTab('policies');
-    await component.savePolicy();
-    expect(admin).toHaveBeenCalledWith(
-      'content/provider-policy/runtime',
-      'PUT',
-      expect.objectContaining({ revision: 4, payload: policyRow.payload })
-    );
-    expect(component.policyRevision()).toBe(5);
-    expect(component.policyActiveRevision()).toBe(2);
-    expect(component.message()).toContain('运行版本尚未更改');
-  });
-
-  it('creates a template draft and clears structured fields when switching to plain text', async () => {
-    const { component, admin } = await rig();
-    await component.selectTab('templates');
-    component.setTemplateText('没有选择模板');
-    expect(component.template()).toBeNull();
-    component.editTemplate();
-    expect(component.template()?.id).toBe('new-template');
-    component.setTemplateText('新的图片描述');
-    expect(component.template()).toMatchObject({ prompt: '新的图片描述', fields: [] });
-    await component.saveTemplate();
-    expect(admin).toHaveBeenCalledWith(
-      'content/template/new-template',
-      'PUT',
-      expect.objectContaining({ revision: 0 })
-    );
-    expect(component.templateRevision()).toBe(5);
-    expect(component.message()).toContain('尚未发布');
-  });
-
-  it('edits a cloned published template and preserves its optimistic concurrency revision', async () => {
-    const { component } = await rig();
-    component.editTemplate(templateRow);
-    expect(component.template()).toEqual(templateRow.payload);
-    expect(component.template()).not.toBe(templateRow.payload);
-    expect(component.templateRevision()).toBe(3);
-    component.setTemplateText('修改后的文本');
-    expect(templateRow.payload.prompt).not.toBe('修改后的文本');
-  });
-
-  it.each([
-    [templateRow, false, '模板已发布'],
-    [policyRow, false, '下次代理请求'],
-    [templateRow, true, '已撤回']
-  ] as const)('publishes or withdraws only the selected content revision', async (row, withdraw, message) => {
-    const { component, admin } = await rig();
-    await component.publish(row, withdraw);
-    expect(admin).toHaveBeenCalledWith(
-      `content/${row.kind}/${row.key}/${withdraw ? 'withdraw' : 'publish'}`,
-      'POST',
-      expect.objectContaining({ revision: row.revision })
-    );
-    expect(component.message()).toContain(message);
   });
 
   it('encodes task filters and separates known usage from unknown totals', async () => {

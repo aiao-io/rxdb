@@ -29,7 +29,12 @@ export const productionSources = [
   'aiao-media/infra/supabase/migrations/013-relay-credit-abandonment.sql',
   'aiao-media/infra/supabase/migrations/014-image-lifecycle.sql',
   'aiao-media/infra/supabase/migrations/015-image-delete.sql',
-  'aiao-media/infra/supabase/migrations/016-image-reupload.sql'
+  'aiao-media/infra/supabase/migrations/016-image-reupload.sql',
+  'aiao-media/infra/supabase/migrations/017-admin-direct-boundary.sql',
+  'aiao-media/infra/supabase/migrations/018-config-commit-projection.sql',
+  'aiao-media/infra/supabase/migrations/019-pgmq-generation.sql',
+  'aiao-media/infra/supabase/migrations/020-admin-direct-config-apply.sql',
+  'aiao-media/infra/supabase/migrations/021-config-commit-rollback.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
@@ -143,6 +148,12 @@ export const productionUpgrades = [
     fromVersion: 13,
     toVersion: 16,
     required: ['public.media_credit_accounts', 'public.media_credit_reservations']
+  },
+  {
+    name: 'supabase-first-admin-rxdb',
+    fromVersion: 16,
+    toVersion: 21,
+    required: ['public.media_credit_accounts']
   }
 ];
 

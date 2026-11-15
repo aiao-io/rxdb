@@ -14,6 +14,27 @@
       (tabChange)="navigateToTab($event)"
       status="signed-in"
     />
+    @defer (when routeTab() === 'templates' || routeTab() === 'policies') {
+      @if (routeTab() === 'templates') {
+        <app-admin-config-model
+          [client]="client"
+          [identity]="account.user.id"
+          [name]="'MediaPromptTemplate'"
+          title="提示词模板"
+        />
+      } @else if (routeTab() === 'policies') {
+        <app-admin-config-model
+          [client]="client"
+          [identity]="account.user.id"
+          [name]="'MediaProviderPolicy'"
+          title="供应商策略"
+        />
+      }
+    } @placeholder {
+      @if (routeTab() === 'templates' || routeTab() === 'policies') {
+        <p role="status">正在加载配置编辑器…</p>
+      }
+    }
   </rxdb-admin-layout>
 } @else {
   <main class="access-shell">

@@ -7,9 +7,9 @@
 | 状态           |   数量 | 说明                                                               |
 | -------------- | -----: | ------------------------------------------------------------------ |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条   |
-| 🚧 In Progress |      4 | 桌面、同步与服务端任务剩余验收                                     |
+| 🚧 In Progress |      9 | 桌面、同步、Supabase 边界与 PGMQ PoC 剩余验收                     |
 | 👀 In Review   |      6 | 本机交付、灵感库、国内部署、首次安装、平台生图与积分管理待评审合入 |
-| ⬜ Backlog     |      8 | 既有移动/支付/管理员资料，加上 Supabase 后台边界、后台 RxDB、模型编辑、提交同步和 PGMQ PoC |
+| ⬜ Backlog     |      3 | 既有移动/支付/管理员资料与后续迁移评审                             |
 | 🚫 Blocked     |      0 | —                                                                  |
 | **合计**       | **26** | 不含模板和上游故事                                                 |
 
@@ -29,7 +29,7 @@
 - 🚧 [MEDIA-US-109 平台生图服务端任务与刷新续接](stories/generation/MEDIA-US-109-relay-durable-task.md)
 - 👀 [MEDIA-US-102 图片生成与本机交付](stories/generation/MEDIA-US-102-image-generation.md)
 - 👀 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
-- ⬜ [MEDIA-US-110 PGMQ 生成任务队列 PoC](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)
+- 🚧 [MEDIA-US-110 PGMQ 生成任务队列 PoC](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)
 - ⬜ [MEDIA-US-107 移动设备能力验收](stories/generation/MEDIA-US-107-mobile-verification.md)（暂缓）
 
 ### [账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
@@ -40,7 +40,7 @@
 - ✅ [MEDIA-US-204 本地作品检索与按需预览](stories/account/MEDIA-US-204-library-search.md)
 - 👀 [MEDIA-US-206 后台积分管理](stories/account/MEDIA-US-206-credit-admin.md)
 - ⬜ [MEDIA-US-207 后台管理员账户资料与身份菜单](stories/account/MEDIA-US-207-admin-account-profile.md)
-- ⬜ [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](stories/account/MEDIA-US-208-supabase-admin-boundary.md)
+- 🚧 [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](stories/account/MEDIA-US-208-supabase-admin-boundary.md)
 - ⬜ [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)（D-17 暂缓）
 
 ### [本地优先与跨设备同步](epics/MEDIA-EPIC-004.md)
@@ -49,9 +49,11 @@
 - ✅ [MEDIA-US-302 多端草稿同步与冲突处理](stories/local-first/MEDIA-US-302-draft-sync.md)
 - 🚧 [MEDIA-US-303 平台账号与同步管理](stories/local-first/MEDIA-US-303-sync-targets.md)
 - 🚧 [MEDIA-US-305 图片原文件同步到平台 Supabase](stories/local-first/MEDIA-US-305-supabase-image-sync.md)
-- ⬜ [MEDIA-US-306 后台服务 RxDB 双向同步](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)
-- ⬜ [MEDIA-US-307 `rxdb-model` 驱动后台配置编辑](stories/local-first/MEDIA-US-307-admin-rxdb-model.md)
-- ⬜ [MEDIA-US-308 配置分支提交与后台应用同步](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md)
+- 🚧 [MEDIA-US-306 后台服务 RxDB 双向同步](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)
+- 🚧 [MEDIA-US-307 `rxdb-model` 驱动后台配置编辑](stories/local-first/MEDIA-US-307-admin-rxdb-model.md)
+- 🚧 [MEDIA-US-308 配置分支提交与后台应用同步](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md)
+
+本轮实现已进入本地真实 Supabase 验证阶段：Admin Auth/普通 Supabase 直连、特权 Edge Function、后台 RxDB 装配、`rxdb-model-angular` 配置入口、commit projection、原子 apply/回滚 RPC 和 PGMQ PoC 均已有代码与证据。2026-11-15 已通过普通 JWT、workspace/RLS、Pull/Push、Realtime 恢复、revision 冲突、tombstone、PGMQ 真实入队授权和运维演练；Playwright、双区域、生产切换、完整配置 projection 双向同步和后台 UI 收口仍未关闭，因此相关故事保持 In Progress。详见[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first后台与rxdb收口)。
 
 ## 未完成验收与关闭条件
 

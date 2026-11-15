@@ -23,10 +23,10 @@
 | 国内自建部署（MEDIA-US-006）           | Caddy 公网 IP HTTPS、Node API、自建 Supabase 与真实 Storage 已部署并通过整机重启验收；随 D-19 接入同一积分契约 | D-18；[发布记录](plans/self-hosted-release-20261109.md)；公众 SMTP、站外备份、模型压力与桌面联验另行完成                                              |
 | 平台支付与计费（MEDIA-US-205）         | 暂缓；积分由后台发放，充值/退款与价格体系待未来收费需求明确后评审                                              | D-17；不阻断积分生图、平台任务与同步                                                                                                                  |
 | 同步数据回收                           | 不排期                                                                                                         | D-06 不设 TTL/自动 GC；回收须先有安全回收协议与离线设备恢复验收                                                                                       |
-| Supabase 后台权限边界（MEDIA-US-208） | 先统一 Admin Auth 和普通业务直连，再迁移 Auth Admin/封禁到 Edge Function；保留旧 Worker 兼容期 | 依赖 MEDIA-US-201/203；普通表/RPC 直连，service role 只在 Edge Function；RLS、审计和幂等必须先验收 |
-| 后台 RxDB 与 `rxdb-model`（MEDIA-US-306/307） | 定义共享实体，接入后台 RxDB 同步，再迁移配置列表/详情/表单 | 依赖 MEDIA-US-302/303/208；后台同步使用普通 JWT，不使用 service role |
-| 配置分支提交同步（MEDIA-US-308）      | 增加 commit projection 和原子 apply RPC，验证断网、重启、冲突与回滚 | 依赖 MEDIA-US-306/307；不直接同步 RxDB 内部系统表 |
-| PGMQ 任务队列 PoC（MEDIA-US-110）     | 与 Durable Object 并行验证入队事务、重复消费、长任务和双区域恢复 | 依赖 MEDIA-US-108/109；PoC 不通过不切生产，消息只放 taskId 和版本 |
+| Supabase 后台权限边界（MEDIA-US-208） | Admin Auth、普通业务直连和特权 Edge Function 已实现；本地真实 Supabase/RLS 与 bundle 安全检查已通过，保留旧 Worker 兼容期 | 依赖 MEDIA-US-201/203；普通表/RPC 直连，Auth Admin、封禁和 service role 只在 Edge Function；生产切换仍待验收；证据见 [架构评审](plans/supabase-first-architecture-review-20261115.md) 与[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first后台与rxdb收口) |
+| 后台 RxDB 与 `rxdb-model`（MEDIA-US-306/307） | 后台 RxDB 装配、普通 JWT 生命周期、workspace/RLS/Realtime 双向同步和 Admin `rxdb-model-angular` 配置入口已实现；完整组件、Playwright 和生产验收待完成 | 依赖 MEDIA-US-302/303/208；后台同步使用普通 JWT，不使用 service role；证据见 [MEDIA-US-306](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)、[MEDIA-US-307](stories/local-first/MEDIA-US-307-admin-rxdb-model.md) 和[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first后台与rxdb收口) |
+| 配置分支提交同步（MEDIA-US-308）      | commit projection、fingerprint/补偿扫描、原子 apply RPC、revision/CAS 回滚和基础 Admin 状态入口已实现；完整配置 projection 的 `sync/syncBranches`、分支合并、后台 UI 和发布验收待完成 | 依赖 MEDIA-US-306/307；不直接同步 RxDB 内部系统表；证据见 [MEDIA-US-308](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) 和[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first后台与rxdb收口) |
+| PGMQ 任务队列 PoC（MEDIA-US-110）     | 隔离 PoC 已通过真实本地入队授权、失败回滚、重复消费、provider 成功后崩溃恢复、重启/积压/死信/指标演练；生产仍使用 Durable Object | 依赖 MEDIA-US-108/109；消息只放 taskId、kind 和版本，切生产仍需双区域和正式容量评审 |
 
 ## 后续产品方向
 

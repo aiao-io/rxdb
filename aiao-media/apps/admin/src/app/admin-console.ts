@@ -1,13 +1,6 @@
-import type { CreditSnapshot, PromptTemplate } from '@aiao-media/api-contracts';
-import {
-  validatePublishedTemplate,
-  type ProviderPolicy,
-  type ProviderPolicyEntry,
-  type TaskReport
-} from '@aiao-media/api-contracts';
+import type { CreditSnapshot, TaskReport } from '@aiao-media/api-contracts';
 import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { defaultAdminTemplate } from './admin-defaults';
 import { ProductRequestError, type ProductClient } from './product-client';
 
 interface AdminUser {
@@ -18,16 +11,6 @@ interface AdminUser {
   disabled: boolean;
   revision: number;
   authState: string;
-}
-interface ContentRow {
-  kind: 'template' | 'provider-policy';
-  key: string;
-  revision: number;
-  payload: unknown;
-}
-interface ContentPage {
-  drafts: ContentRow[];
-  published: Pick<ContentRow, 'kind' | 'key' | 'revision'>[];
 }
 interface ReportRow {
   id: string;
@@ -79,18 +62,12 @@ export class AdminConsole {
   readonly message = signal('');
   readonly tab = signal<AdminTab>('users');
   readonly users = signal<AdminUser[]>([]);
-  readonly content = signal<ContentPage>({ drafts: [], published: [] });
   readonly taskRows = signal<ReportRow[]>([]);
   readonly usage = signal<AdminUsage | null>(null);
   readonly audit = signal<AuditEntry[]>([]);
   readonly page = signal(1);
   userSearch = '';
   readonly taskPage = signal(1);
-  readonly template = signal<PromptTemplate | null>(null);
-  readonly templateRevision = signal(0);
-  readonly policy = signal<ProviderPolicy>({ version: 1, providers: [] });
-  readonly policyRevision = signal(0);
-  readonly policyActiveRevision = signal<number | null>(null);
   readonly userDetail = signal<AdminUser | null>(null);
   readonly credits = signal<CreditSnapshot | null>(null);
   readonly creditForm = { delta: 0, reason: '' };
@@ -210,110 +187,6 @@ export class AdminConsole {
       };
     });
   }
-  editTemplate(row?: ContentRow): void {
-    this.template.set(
-      structuredClone(
-        row ?
-          validatePublishedTemplate(row.payload)
-        : {
-            ...defaultAdminTemplate,
-            id: 'new-template',
-            title: '新模板',
-            prompt: '描述你要创建的画面',
-            rights: 'aiao-original-text-and-svg',
-            image: '/prompt-art/coffee-launch.svg',
-            source: 'Aiao 原创',
-            author: 'Aiao',
-            fields: [],
-            templateDocument: undefined
-          }
-      )
-    );
-    this.templateRevision.set(row?.revision ?? 0);
-  }
-  setTemplateText(text: string): void {
-    this.template.update(value => (value ? { ...value, prompt: text, templateDocument: undefined, fields: [] } : null));
-  }
-  async saveTemplate(): Promise<void> {
-    const template = this.template();
-    if (!template) return;
-    await this.run(async () => {
-      const payload = validatePublishedTemplate(JSON.parse(JSON.stringify(template)));
-      const result = (await this.client().admin(`content/template/${template.id}`, 'PUT', {
-        revision: this.templateRevision(),
-        requestId: crypto.randomUUID(),
-        payload
-      })) as { content: ContentRow };
-      const data = await this.readTab();
-      return () => {
-        data();
-        this.templateRevision.set(result.content.revision);
-        this.message.set('模板草稿已保存，尚未发布。');
-      };
-    });
-  }
-  async publish(row: ContentRow, withdraw = false): Promise<void> {
-    await this.run(async () => {
-      await this.client().admin(`content/${row.kind}/${row.key}/${withdraw ? 'withdraw' : 'publish'}`, 'POST', {
-        revision: row.revision,
-        requestId: crypto.randomUUID()
-      });
-      const data = await this.readTab();
-      return () => {
-        data();
-        this.message.set(
-          withdraw ? '已撤回发布版。'
-          : row.kind === 'provider-policy' ? '运行策略已发布；下次代理请求按此版本校验。'
-          : '模板已发布。'
-        );
-      };
-    });
-  }
-  addPolicyProvider(): void {
-    this.policy.update(policy => ({
-      ...policy,
-      providers: [
-        ...policy.providers,
-        {
-          id: crypto.randomUUID(),
-          name: '新供应商',
-          baseUrl: '',
-          models: [],
-          sizes: ['1024x1024'],
-          enabled: false,
-          direct: false,
-          proxy: false
-        }
-      ]
-    }));
-  }
-  policyModels(provider: ProviderPolicyEntry, text: string): void {
-    provider.models = text
-      .split(',')
-      .map(model => model.trim())
-      .filter(Boolean);
-  }
-  async savePolicy(): Promise<void> {
-    await this.run(async () => {
-      const result = (await this.client().admin('content/provider-policy/runtime', 'PUT', {
-        revision: this.policyRevision(),
-        requestId: crypto.randomUUID(),
-        payload: this.policy()
-      })) as { content: ContentRow };
-      const data = await this.readTab();
-      return () => {
-        data();
-        this.policyRevision.set(result.content.revision);
-        this.message.set('策略草稿已保存，运行版本尚未更改。');
-      };
-    });
-  }
-  policyRow(): ContentRow | undefined {
-    return this.content().drafts.find(row => row.kind === 'provider-policy');
-  }
-  publishedRevision(row: ContentRow): number | null {
-    return this.content().published.find(item => item.kind === row.kind && item.key === row.key)?.revision ?? null;
-  }
   async searchTasks(): Promise<void> {
     this.taskPage.set(1);
     await this.load();
@@ -372,16 +245,7 @@ export class AdminConsole {
         this.credits.set(null);
       };
     }
-    if (['templates', 'policies'].includes(this.tab())) {
-      const data = (await this.client().admin('content')) as ContentPage;
-      return () => {
-        this.content.set(data);
-        const policy = data.drafts.find(row => row.kind === 'provider-policy');
-        this.policy.set(policy ? structuredClone(policy.payload as ProviderPolicy) : { version: 1, providers: [] });
-        this.policyRevision.set(policy?.revision ?? 0);
-        this.policyActiveRevision.set(data.published.find(row => row.kind === 'provider-policy')?.revision ?? null);
-      };
-    }
+    if (['templates', 'policies'].includes(this.tab())) return () => undefined;
     if (this.tab() === 'audit') {
       const data = (await this.client().admin('audit')) as { entries: AuditEntry[] };
       return () => this.audit.set(data.entries);
@@ -399,16 +263,11 @@ export class AdminConsole {
   }
   private clear(): void {
     this.users.set([]);
-    this.content.set({ drafts: [], published: [] });
     this.taskRows.set([]);
     this.usage.set(null);
     this.audit.set([]);
-    this.template.set(null);
     this.userDetail.set(null);
     this.credits.set(null);
     this.creditPending = null;
-    this.policy.set({ version: 1, providers: [] });
-    this.policyRevision.set(0);
-    this.policyActiveRevision.set(null);
   }
 }

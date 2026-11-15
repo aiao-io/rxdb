@@ -1,7 +1,7 @@
 ---
 id: MEDIA-US-208
 title: Supabase 后台直连与特权 Edge Function 边界
-status: Backlog
+status: In Progress
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-11-15
@@ -43,16 +43,18 @@ tags: [supabase, auth, admin, edge-function, rls]
 
 | # | 前置条件 | 操作 | 预期结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| 1 | Admin 使用有效 Supabase 账号 | 登录、刷新页面、退出并重新登录 | 全流程由 Supabase Auth 完成；不再调用 `/api/admin/login` 交换密码 | ⬜ |
-| 2 | 管理员已登录 | 查询模板、策略、任务、用量或积分业务表 | 请求直接访问 PostgREST/RPC；响应受 RLS 和管理员授权约束 | ⬜ |
-| 3 | 普通用户或匿名用户调用管理员 RPC | 伪造 `p_actor`、`userId` 或管理员字段 | RPC 使用 `auth.uid()` 和数据库权限判断，伪造字段不能提升权限 | ⬜ |
-| 4 | 有效管理员调用 Edge Function | 查询 Auth 用户或封禁/解禁用户 | Edge Function 验证 JWT 和管理员 membership 后执行；Auth Admin API 不暴露给浏览器 | ⬜ |
-| 5 | 匿名、普通用户、已撤权管理员调用特权 Function | 请求用户列表、封禁或 service role 操作 | 返回明确的 401/403；不执行任何特权写入 | ⬜ |
-| 6 | 管理员重复提交同一写操作 | 使用相同 `request_id` 重放请求 | 业务结果只生效一次，审计记录不重复 | ⬜ |
-| 7 | 构建 Admin 生产包 | 搜索浏览器 bundle 和网络请求 | 不包含 secret/service role；浏览器只使用 publishable/anon 兼容 key 和用户 JWT | ⬜ |
-| 8 | 迁移切换期间旧 Admin 仍在线 | 同时使用旧路径和新直连路径 | 旧路径可按兼容策略工作；新路径结果与旧路径一致，切换完成后旧路径可删除 | ⬜ |
+| 1 | Admin 使用有效 Supabase 账号 | 登录、刷新页面、退出并重新登录 | 全流程由 Supabase Auth 完成；不再调用 `/api/admin/login` 交换密码 | ✅ |
+| 2 | 管理员已登录 | 查询模板、策略、任务、用量或积分业务表 | 请求直接访问 PostgREST/RPC；响应受 RLS 和管理员授权约束 | ⚠️ |
+| 3 | 普通用户或匿名用户调用管理员 RPC | 伪造 `p_actor`、`userId` 或管理员字段 | RPC 使用 `auth.uid()` 和数据库权限判断，伪造字段不能提升权限 | ✅ |
+| 4 | 有效管理员调用 Edge Function | 查询 Auth 用户或封禁/解禁用户 | Edge Function 验证 JWT 和管理员 membership 后执行；Auth Admin API 不暴露给浏览器 | ✅ |
+| 5 | 匿名、普通用户、已撤权管理员调用特权 Function | 请求用户列表、封禁或 service role 操作 | 返回明确的 401/403；不执行任何特权写入 | ✅ |
+| 6 | 管理员重复提交同一写操作 | 使用相同 `request_id` 重放请求 | 业务结果只生效一次，审计记录不重复 | ✅ |
+| 7 | 构建 Admin 生产包 | 搜索浏览器 bundle 和网络请求 | 不包含 secret/service role；浏览器只使用 publishable/anon 兼容 key 和用户 JWT | ⚠️ |
+| 8 | 迁移切换期间旧 Admin 仍在线 | 同时使用旧路径和新直连路径 | 旧路径可按兼容策略工作；新路径结果与旧路径一致，切换完成后旧路径可删除 | ⚠️ |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
+
+验收证据：AC1 使用 `aiao-media-admin` 测试验证；AC2–AC6 使用 Admin、Edge Function 与 migration contract tests 验证；AC7 的生产 bundle 扫描、AC8 的旧路径切换和真实 Supabase 验收仍待完成。
 
 ## 交付阶段
 
@@ -64,7 +66,13 @@ tags: [supabase, auth, admin, edge-function, rls]
 
 ## 技术笔记
 
-当前 Web 已通过 [supabase-auth.ts](../../../apps/web/src/app/supabase-auth.ts) 直连 Supabase Auth；Admin 仍通过 [app.ts](../../../apps/admin/src/app/app.ts)、[product-client.ts](../../../apps/admin/src/app/product-client.ts) 和 [admin-api.ts](../../../apps/api/src/admin-api.ts) 走 Worker 代理。目标是拆分普通业务路径和 Edge Function 特权路径。普通 RPC 必须使用 `SECURITY INVOKER` 或等价的调用者身份检查；Edge Function 才能使用 secret/service role。
+Admin 已通过 [app.ts](../../../apps/admin/src/app/app.ts) 和 [admin-auth.ts](../../../apps/admin/src/app/admin-auth.ts) 直连 Supabase Auth；[product-client.ts](../../../apps/admin/src/app/product-client.ts) 将普通 PostgREST/RPC 与 `admin-api` Edge Function 分流。旧 Worker 入口仍保留兼容窗口。普通 RPC 必须使用 `auth.uid()`、RLS 或等价的调用者身份检查；Edge Function 才能使用 secret/service role。
+
+## 当前实现证据
+
+- Admin Auth、ProductClient、Edge Function 相关测试：`pnpm nx run aiao-media-admin:test`（74/74）与 `pnpm nx run aiao-media-supabase-functions:test`（8/8）。
+- 迁移与 RLS 契约：`pnpm nx run aiao-media:production-bundle-test`（15/15），覆盖 16 → 20 升级、幂等、parent、revision、部分回滚和跨 workspace 拒绝。
+- 真实 Supabase 项目登录、发布 bundle 扫描、旧路径切换和双区域验收仍是关闭本故事前的待办。
 
 ## 实现文件
 
@@ -72,7 +80,7 @@ tags: [supabase, auth, admin, edge-function, rls]
 - `aiao-media/apps/admin/src/app/product-client.ts` — 普通业务直连和 Edge Function 调用切换。
 - `aiao-media/apps/api/src/admin-api.ts` — 迁移期间旧 Worker 兼容入口。
 - `aiao-media/infra/supabase/migrations/` — RLS、管理员 membership、RPC 和审计迁移。
-- `aiao-media/supabase/functions/admin-api/` — 目标特权 Edge Function。
+- `aiao-media/infra/supabase/functions/admin-api/` — 目标特权 Edge Function。
 
 ## References
 
