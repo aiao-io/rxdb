@@ -13,3 +13,8 @@
 ## 国际化验收
 
 [完整客户端国际化本地验收](client-i18n-verification.md) 记录 ADMIN-US-003 的代码、构建与浏览器证据，尚未执行的检查保持待验。
+
+## Nexus 参考三端优化
+
+- [优化实施清单](nexus-template-optimization-tasks.md)：已完成两阶段、三项收尾与两项待排期建议，包含三端约束和验收条件。
+- [Dashboard 验收记录](nexus-dashboard-verification.md)：2026-11-16 核对的三端结果、测试入口、复验命令及证据边界。

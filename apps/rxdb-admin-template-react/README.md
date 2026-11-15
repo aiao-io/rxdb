@@ -8,6 +8,8 @@
 
 `/dashboard` 展示真实资产统计、最近 5 个操作单元和快捷入口。最近活动按事务合并，读取当前分支的资产日志，刷新后保留；操作、实体名称和日期随中英文切换。首页继续保留连接前恢复备份的入口。统计入口见 [dashboard-model.ts](src/app/pages/dashboard-model.ts)，活动查询见 [dashboard-activity-source.ts](src/app/pages/dashboard-activity-source.ts)；替换资产样例时须同步调整这两处。
 
+三端优化进度与剩余任务见 [实施清单](requirements/plans/nexus-template-optimization-tasks.md)，已执行结果见 [Dashboard 验收记录](requirements/plans/nexus-dashboard-verification.md)。
+
 ## 启动与验证
 
 在仓库根目录执行，环境要求沿用根 [package.json](../../package.json) 的 `engines` 与 `packageManager`。

@@ -15,6 +15,10 @@
 
 详细命令与证据见 [孵化基线本地验收](plans/incubation-verification.md)。ADMIN-US-001 / ADMIN-US-002 的实现随 [PR #199](https://github.com/aiao-io/rxdb/pull/199) 合入。
 
+## Dashboard 三端优化
+
+2026-11-16 的 [Dashboard 验收记录](plans/nexus-dashboard-verification.md) 汇总两阶段已执行结果：Angular / React / Vue 单测分别 60 / 63 / 60 条通过，完整 E2E 每端 97 条通过，静态检查与构建通过。完整国际化验收回填、自定义页面扩展和新业务替换的剩余工作见 [优化实施清单](plans/nexus-template-optimization-tasks.md)；这些本地结果不自动改变故事状态。
+
 ## 根需求审计
 
 根需求派生视图已补齐 63 个公开包计数、US-530～533 状态索引与路线图覆盖，根需求一致性门禁须与本应用结构门禁分别复验。文档同步不改变平台故事状态，也不作为应用已关闭的证据。
