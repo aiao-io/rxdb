@@ -74,6 +74,8 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private windows: RowWindows<BomRow, GridRecord> | null = null;
   private previousResult: QueryResult | null = null;
   private renderedMode: ViewMode | null = null;
+  private previousColumnsKey: string | null = null;
+  private previousCompact: boolean | null = null;
   private updating = false;
   readonly result = input.required<QueryResult>();
   readonly queryKey = input('');
@@ -262,6 +264,11 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       this.previousResult = this.result();
     }
     this.positions.clear();
+    const columnsKey = JSON.stringify(this.columns());
+    const clearColWidthCache = this.previousColumnsKey !== null && this.previousColumnsKey !== columnsKey;
+    const clearRowHeightCache = this.previousCompact !== null && this.previousCompact !== this.compact();
+    this.previousColumnsKey = columnsKey;
+    this.previousCompact = this.compact();
     const options = this.options();
     if (this.mode() === 'tree') {
       this.windows = null;
@@ -276,7 +283,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
         get: index => windows.get(index)
       });
     }
-    void this.table.updateOption(options).then(() => {
+    void this.table.updateOption(options, { clearColWidthCache, clearRowHeightCache }).then(() => {
       if (this.released || generation !== this.generation) return;
       const selected = this.selection();
       if (selected) this.locate(selected);
