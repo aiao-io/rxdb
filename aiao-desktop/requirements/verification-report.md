@@ -6,6 +6,8 @@
 
 `aiao-desktop:runtime-test:coverage` 通过，脚本行覆盖率 92.71%、分支 91.43%、函数 90%；`aiao-desktop:deploy-test` 通过。Chromium 全新上下文中，npm/npx、pnpm、Yarn、Corepack 的加载与版本查询、npm 安装固定 registry 依赖、Node 执行安装后模块均通过。Yarn 使用 `yarn versions --json`；`yarn --version` 的上游退出日志问题保留。测试 registry 由夹具拦截，不证明任意真实 registry 或第三方依赖都兼容。
 
+前端单测 92 个文件、1,348 条用例与完整浏览器冒烟 25 组通过。首轮 `verify` 唯一失败是旧开发配置断言未包含新增的 vendor 前置任务；同步断言后单独复跑 `dev-test` 通过，未重复运行已通过的完整浏览器套件。
+
 命令和正式构建浏览器报告见[本轮证据](evidence/2026-11-15/README.md)。本轮没有发布线上。
 
 ## 2026-11-15 当前结论
