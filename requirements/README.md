@@ -26,7 +26,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 ### 应用需求
 
-应用产品需求独立管理，不进入平台故事统计。应用管理规则见 [app-template/README.md](app-template/README.md)；BOM 工作台见 [Aiao BOM 应用需求](../apps/aiao-bom/requirements/README.md)。共享 BOM 插件与集成样本继续在本目录管理。
+应用产品需求独立管理，不进入平台故事统计。应用管理规则见 [app-template/README.md](app-template/README.md)；BOM 工作台见 [Aiao BOM 应用需求](../apps/aiao-bom-2/requirements/README.md)。共享 BOM 插件与集成样本继续在本目录管理。
 
 ## 大故事用「交付阶段」，不用子故事文件
 

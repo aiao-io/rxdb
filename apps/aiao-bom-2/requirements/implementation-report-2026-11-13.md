@@ -2,7 +2,7 @@
 
 > 后续领域接入、迁移和最终验收见 [2026-11-14 收尾记录](completion-verification-2026-11-14.md)。本文件保留初轮实现及测量，未完成事项以收尾记录为准。
 
-立项与采集日期：2026-11-13；最终本地验收：2026-11-14，Asia/Shanghai。状态：独立核心工作台已实现，替换旧版尚未放行。原 `aiao-bom`、数据库 `dev-rxdb-bom` 与发布地址保持原状。
+立项与采集日期：2026-11-13；最终本地验收：2026-11-14，Asia/Shanghai。状态：独立核心工作台已实现，替换旧版尚未放行。原 `aiao-bom-2`、数据库 `dev-rxdb-bom` 与发布地址保持原状。
 
 ## 本次实现范围
 
@@ -69,8 +69,8 @@ Wrangler 独立依赖固定为 `4.158.0`，本地运行时支持的兼容日期�
 NX_NO_CLOUD=true pnpm nx run-many --projects=aiao-bom-2,aiao-bom-2-e2e --targets=lint,typecheck,spec-typecheck --parallel=1
 NX_NO_CLOUD=true pnpm nx run aiao-bom-2:test --coverage --coverage.reporter=text --coverage.reporter=json-summary
 NX_NO_CLOUD=true pnpm nx run aiao-bom-2-e2e:e2e
-NX_NO_CLOUD=true pnpm nx run-many --projects=aiao-bom --targets=lint,typecheck,spec-typecheck,test,build --parallel=1
-NX_NO_CLOUD=true pnpm nx run aiao-bom-e2e:e2e
+NX_NO_CLOUD=true pnpm nx run-many --projects=aiao-bom-2 --targets=lint,typecheck,spec-typecheck,test,build --parallel=1
+NX_NO_CLOUD=true pnpm nx run aiao-bom-2-e2e:e2e
 NX_NO_CLOUD=true pnpm nx run aiao-bom-2:deploy-check
 NX_NO_CLOUD=true pnpm nx run aiao-bom-2:preview
 ```
@@ -84,4 +84,4 @@ NX_NO_CLOUD=true pnpm nx run aiao-bom-2:preview
 3. 补齐数据库就绪到首屏、模型反向选择 p95、浏览器 GPU 资源反复开关与受支持浏览器覆盖的验收；完整证据记录后才能宣称替换门槛全部通过。当前资源释放的 20 次切换是自动化单元契约验证。
 4. 完成独立公开预览、候选领域范围评审和统一验收。发布、路由切换及回滚单独执行；本轮没有上传或替换旧应用。
 
-[完整改善方案](../../aiao-bom/requirements/plans/aiao-bom-2-improvement-plan-2026-11-13.md)定义最终产品目标。本记录只对实际实现与验证负责。
+[完整改善方案](plans/aiao-bom-2-improvement-plan-2026-11-13.md)定义最终产品目标。本记录只对实际实现与验证负责。

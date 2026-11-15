@@ -50,7 +50,7 @@ BOM 的写入期有向无环约束属于领域规则，由 [US-509](../stories/d
 
 ## 应用需求边界
 
-[Aiao BOM](../../apps/aiao-bom/requirements/README.md) 独立管理产品范围、应用故事与验收。共享领域模型、三框架绑定和 US-525 的组合验收基线继续归本 Epic；应用状态不进入平台统计。
+[Aiao BOM](../../apps/aiao-bom-2/requirements/README.md) 独立管理产品范围、应用故事与验收。共享领域模型、三框架绑定和 US-525 的组合验收基线继续归本 Epic；应用状态不进入平台统计。
 
 ## 故事
 
@@ -86,7 +86,7 @@ Reach 维护与热字段消费分别见 [spec024](../../specs/024-bom-reach/spec
 [US-518 AC#12](../stories/domain/US-518-bom-unit-lot-effectivity.md) 的 API 与直连 SQL 空批次写入守卫已实现，
 双后端新增/更新、批量回滚及旧库升级兼容回归通过。旧 `[]` 保留永不匹配的读取语义，禁止自动改成表示全部批次的 NULL。
 19 条故事统一保持 In Review；本 Epic 保持 In Progress，待领域与公共包通过最终门禁、PR #129 评审及合并。
-当前代码和待验收项见[收尾任务](../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)。
+当前代码和待验收项见[收尾任务](../../apps/aiao-bom-2/requirements/plans/bom-completion-tasks.md)。
 
 既有功能证据见 [验收结果](../../specs/021-bom-closure/closure-map.md) 与源码测试；旧命令数字不替代最新分支门禁。
 `priority` 保持 Low，新增范围与剩余验收按 roadmap 排期；领域与公共包在同一 PR 中统一评审、验证并合并。
@@ -119,7 +119,7 @@ US-518 AC#12 的定向证据与旧库兼容规则见故事正文；完整范围�
   [microsoft/sql-server-samples@beaab06e](https://github.com/microsoft/sql-server-samples/tree/beaab06ef72831089ca80e5355d65e661fd19b26/samples/databases/adventure-works/oltp-install-script)
   的 `BillOfMaterials.csv` / `Product.csv` / `UnitMeasure.csv`（制表符分隔、无表头；SHA-256 前 12 位依次为
   `a27765426bd4` / `df0379a7cba8` / `6e4d07534b69`）。数据不进仓库；落成测试夹具时随实现 PR 定位置，并保留 MIT 声明。
-- **驱动者（已定，owner 2026-10-12 决定）**：完整功能的 BOM 演示应用——`apps/aiao-bom` 独立 app 展示全域能力
+- **驱动者（已定，owner 2026-10-12 决定）**：完整功能的 BOM 演示应用——`apps/aiao-bom-2` 独立 app 展示全域能力
   （US-525 阶段 A～F）。示例库仍只是形态样本，不代替驱动者；第 0 步复核的是演示范围与决策 1～8 对样本的成立性。
 
 | 形态       | 实测                                                                                                                                                                                                       | 对模型与默认决策的复核                                                                                                         |

@@ -1,8 +1,8 @@
 # aiao-bom-2
 
-以结构表为核心的 BOM 与 3D 工作台。主表使用 VTable Canvas，模型使用 Three.js，默认加载 Windrose 公开资料的固定快照。新应用独立于 `aiao-bom`，没有替换旧站或共用旧库。
+以结构表为核心的 BOM 与 3D 工作台。主表使用 VTable Canvas，模型使用 Three.js，默认加载 Windrose 公开资料的固定快照。应用处于开发阶段，领域页面与服务由 `modules/bom-workspace` 提供。
 
-独立公开预览：<https://aiao-bom-2.aiao.workers.dev>。2026-11-14 已完成公网 3D、SQLite、备份恢复、移动导航与发布文件校验；原站保留。完整证据见 [最终验收](requirements/completion-verification-2026-11-14.md#独立公开预览验收)。
+旧应用 `aiao-bom` 已退役；需求、结构门禁和业务回归统一在本应用维护，见[目录迁移记录](requirements/application-consolidation-2026-11-15.md)。
 
 ```bash
 pnpm nx serve aiao-bom-2
@@ -43,12 +43,22 @@ pnpm nx run aiao-bom-2:preview
 
 覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom-2`，Wrangler `4.158.0`，兼容日期固定为运行时支持的 `2026-11-11`。公开预览与最终门禁状态以最新验收记录为准。
 
-结构草稿、版本快照和视图保存在 IndexedDB `aiao-bom-2-workspace-v1`；领域库使用 `aiao-bom-2-domain-v1`，旧版使用 `dev-rxdb-bom`。共享领域实现位于 `modules/bom-workspace`，通过路由参数隔离库身份。恢复归档使用全新短名称库，成功后才切换活动库指针；不会覆盖旧库。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
+结构草稿、版本快照和视图保存在 IndexedDB `aiao-bom-2-workspace-v1`；领域库使用 `aiao-bom-2-domain-v1`。共享领域实现位于 `modules/bom-workspace`，通过路由参数隔离库身份。恢复归档使用全新短名称库，成功后才切换活动库指针；不会覆盖旧库。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
 
-[交付及验收记录](requirements/implementation-report-2026-11-13.md)列出了实测、限制和替换前必须完成的工作。原改善方案位于 [aiao-bom 的计划目录](../aiao-bom/requirements/plans/aiao-bom-2-improvement-plan-2026-11-13.md)。
+[交付及验收记录](requirements/implementation-report-2026-11-13.md)记录了初轮实测与限制；当前目录及验证入口以本 README 为准。原改善方案位于 [计划目录](requirements/plans/aiao-bom-2-improvement-plan-2026-11-13.md)。
 
 [版本快照说明与验收](requirements/version-snapshots-2026-11-14.md)说明了评估日期、比较身份、数量边界与存储约定；用户标记的快照日期不替代领域 ECN 生效解析。
 
-[领域迁移与回退运行说明](requirements/domain-migration-2026-11-14.md)说明归档范围、真实库迁移顺序、来源对应关系与演练边界。
+[领域归档与回退说明](requirements/domain-migration-2026-11-14.md)记录归档范围和历史演练。当前备份恢复回归直接验证新版领域工作区，不依赖旧应用。
 
 [2026-11-14 最终验收](requirements/completion-verification-2026-11-14.md)与[任务核对表](requirements/completion-tasks-2026-11-14.md)记录领域迁移、性能、跨浏览器和独立部署结果。
+
+需求与部署预览验证：
+
+```bash
+pnpm nx run aiao-bom-2:requirements-check
+pnpm nx run aiao-bom-2:requirements-test
+pnpm nx run aiao-bom-2-e2e:e2e-cloudflare
+```
+
+领域回归位于 `apps/aiao-bom-2-e2e/src/domain/`；备份恢复回归位于 `src/domain-transfer.spec.ts`。Cloudflare 套件默认在 `4315` 启动本地 Wrangler，设置 `BASE_URL` 可验证指定的开发预览地址。

@@ -310,12 +310,6 @@
       "path": "./packages/rxdb-plugin-bom"
     },
     {
-      "path": "./apps/aiao-bom-e2e"
-    },
-    {
-      "path": "./apps/aiao-bom"
-    },
-    {
       "path": "./packages/rxdb-plugin-bom-angular"
     },
     {

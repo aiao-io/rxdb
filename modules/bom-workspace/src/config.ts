@@ -17,7 +17,4 @@ export interface BomWorkspaceConfig {
   readPending?: () => Promise<DomainImportEnvelope | undefined>;
   completePending?: (envelope: DomainImportEnvelope) => Promise<void>;
 }
-export const BOM_WORKSPACE_CONFIG = new InjectionToken<BomWorkspaceConfig>('BOM_WORKSPACE_CONFIG', {
-  providedIn: 'root',
-  factory: () => ({ databaseName: 'dev-rxdb-bom', overviewPath: '/', workbenchPath: null, label: 'BOM 演示中心' })
-});
+export const BOM_WORKSPACE_CONFIG = new InjectionToken<BomWorkspaceConfig>('BOM_WORKSPACE_CONFIG');

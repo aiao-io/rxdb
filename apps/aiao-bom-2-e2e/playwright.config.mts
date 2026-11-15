@@ -1,7 +1,6 @@
 import { workspaceRoot } from '@nx/devkit';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { defineConfig, devices } from '@playwright/test';
-process.env['BOM_OVERVIEW_PATH'] = '/domain';
 export default defineConfig({
   ...nxE2EPreset(import.meta.dirname, { testDir: './src', openHtmlReport: 'never' }),
   fullyParallel: false,
@@ -22,17 +21,11 @@ export default defineConfig({
       url: 'http://localhost:4314',
       reuseExistingServer: false,
       cwd: workspaceRoot
-    },
-    {
-      command: 'node apps/aiao-bom-2/scripts/preview.mjs --root dist/apps/aiao-bom/browser --port 4316',
-      url: 'http://localhost:4316',
-      reuseExistingServer: false,
-      cwd: workspaceRoot
     }
   ],
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'domain', testDir: '../aiao-bom-e2e/src', use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium', testIgnore: '**/domain/**', use: { ...devices['Desktop Chrome'] } },
+    { name: 'domain', testDir: './src/domain', use: { ...devices['Desktop Chrome'] } },
     {
       name: 'firefox',
       testMatch: '**/compatibility.spec.ts',

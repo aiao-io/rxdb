@@ -135,6 +135,29 @@
         "command": "pnpm exec wrangler deploy --config wrangler.json",
         "cwd": "apps/aiao-bom-2"
       }
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node apps/aiao-bom-2/scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test apps/aiao-bom-2/scripts/check-requirements.spec.mjs"
+      },
+      "configurations": {
+        "coverage": {
+          "command": "node --test --experimental-test-coverage --test-coverage-include=apps/aiao-bom-2/scripts/check-requirements.mjs --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 apps/aiao-bom-2/scripts/check-requirements.spec.mjs"
+        }
+      },
+      "defaultConfiguration": "coverage"
+    },
+    "test": {
+      "dependsOn": ["^build", "spec-typecheck", "requirements-test"]
     }
   }
 }

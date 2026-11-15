@@ -766,15 +766,6 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
-  apps/aiao-bom:
-    devDependencies:
-      wrangler:
-        specifier: 4.158.0
-        version: 4.158.0(@types/node@26.6.6)
-      yaml:
-        specifier: 2.9.0
-        version: 2.9.0
-
   apps/aiao-bom-2:
     dependencies:
       '@aiao/rxdb':
@@ -808,10 +799,11 @@ importers:
       wrangler:
         specifier: 4.158.0
         version: 4.158.0(@types/node@26.6.6)
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
 
   apps/aiao-bom-2-e2e: {}
-
-  apps/aiao-bom-e2e: {}
 
   apps/dev-rxdb-angular-e2e: {}
 

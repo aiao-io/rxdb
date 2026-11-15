@@ -56,7 +56,7 @@ US-603 的共享 preflight 仍待受控 registry 替身验收。
 结构、解析、数量、联产、路线成本、ECN、映射、热字段、实例和三框架绑定已在本分支实现。
 US-518 AC#12 的 API/SQL 空批次写入守卫与旧库兼容已有双后端定向回归；旧空集合读取语义保持不变。
 以下 19 条领域故事及公共前置 US-030 保持 In Review，领域与公共包在 PR #129 中一起验证、评审、合并后再置 Done。
-最新收尾入口见[任务清单](../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)，
+最新收尾入口见[任务清单](../apps/aiao-bom-2/requirements/plans/bom-completion-tasks.md)，
 历史功能证据见 [epic-009](epics/epic-009-bom-domain-model.md)。
 
 | 故事                                                                                                          | 状态         | 关闭条件                                  |

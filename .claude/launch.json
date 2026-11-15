@@ -76,21 +76,21 @@
       "port": 4200
     },
     {
-      "name": "aiao-bom",
+      "name": "aiao-bom-2",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "pnpm nx serve aiao-bom --port=${PORT:-4311}"
+        "pnpm nx serve aiao-bom-2 --port=${PORT:-4313}"
       ],
       "autoPort": true
     },
     {
-      "name": "aiao-bom-static",
+      "name": "aiao-bom-2-static",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "scripts/e2e-static-server.mjs",
         "--root",
-        "dist/apps/aiao-bom/browser",
+        "dist/apps/aiao-bom-2/browser",
         "--port",
         "4322"
       ],
