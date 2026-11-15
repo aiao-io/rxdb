@@ -2,9 +2,13 @@
 
 日期：2026-11-14，Asia/Shanghai。对应 PR #129。本轮基于 `c7afac01778ff91175143b18d2460a60935419ad` 修复格式检查，公开预览仍对应 `2c9a3347722d345a95b4af37efcecf6f0e57a1f9`；本轮没有重新部署或替换原站。
 
-## 2026-11-15 远端复验
+## 2026-11-15 最新 head 最终远端复验
 
-修复提交 `32b5bd9426f59563f422ad5251362f96555132b9` 对应 GitHub Actions run `43685071816` 已完成：`ci / setup`、`ci / gate`、lint / typecheck、`rxdb-plugin-bom` 测试、BOM E2E、其余测试矩阵、覆盖率、基准、桌面 smoke、CodeQL、依赖审查和 deploy preview 全部通过。PR #129 仍为 Draft，`reviewDecision` 为空，`mergeStateStatus` 为 `BLOCKED`，所以远端 CI 收尾已完成，最终统一评审仍未完成。
+PR #129 最新 head `5be90ee4aba1f06782c5782afc781e93ca9e3d46` 对应 GitHub Actions run `43688036250` 已完成，`32 / 32` jobs 全部成功，失败数为 0。结果覆盖 `ci / setup`、`ci / gate`、lint / typecheck、`rxdb-plugin-bom` 测试、BOM E2E、其余测试矩阵、覆盖率、基准、桌面 smoke、CodeQL、依赖审查和 deploy preview；其中 BOM 相关的 `ci / test (rxdb-plugin-bom +14)`、`ci / e2e (aiao-bom-2)` 和 `ci / benchmarks` 均成功。
+
+PR 已具备进入人工评审的技术条件；需求检查仍为 `Done=0, In Progress=0, In Review=6, Backlog=1, Blocked=0`。PR 的最终统一评审与真实用户 origin 的备份、迁移和生产切换仍属于外部验收，不由 CI 自动完成。
+
+此前 `32b5bd9426f59563f422ad5251362f96555132b9` 对应 run `43685071816` 的结果保留为历史复验记录。
 
 ## 问题与修复
 
