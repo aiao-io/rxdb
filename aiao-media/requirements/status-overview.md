@@ -49,7 +49,7 @@
 
 ## 未完成验收与关闭条件
 
-20 条故事共 140 条 AC，107 条已通过（✅）、10 条部分通过（⚠️）、23 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 8 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，仍待真实实例重置、24 小时回收、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+20 条故事共 140 条 AC，108 条已通过（✅）、9 条部分通过（⚠️）、23 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 9 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，24 小时实测到期为北京时间 2026-11-16 08:04:32.684，仍待到期终验、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展     | 关闭所需证据                                                  |
 | -------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------- |
@@ -61,7 +61,7 @@
 
 ## 合并状态
 
-PR [#154](https://github.com/aiao-io/rxdb/pull/154) 为 OPEN/DRAFT、未合并；2026-11-14 对提交 `839db327f` 的只读核对为 MERGEABLE，当前不再以 main 冲突作为阻塞。该 head 的远程 CI 仍失败，已定位格式检查、API dry-run 早于 Web 构建和传递依赖 tar 6 的安全审查问题；本地修复与增量 SQL 保护见[收口复验](plans/requirements-completion-20261114.md)。修复仍须提交后取得最新 head 的远程 CI 通过，再评审合并。七条 Done 按 D-11 在当前分支结项，评审与合并单独跟踪。
+PR [#154](https://github.com/aiao-io/rxdb/pull/154) 为 OPEN/DRAFT、MERGEABLE、未合并；2026-11-15 已只读核对源码提交 `c7734f0bd`。该提交的远端产品 verify、dependency review 与 CodeQL 聚合检查均通过，新增 CodeQL 告警为 0；主 CI 其他任务成功，benchmark 因新分配的 Intel Xeon 6975P-C 尚无冻结画像失败，已按仓库流程发起一次复跑，仍等待最终 CI 结果。本地完整门禁和安全修复见[收口复验](plans/requirements-completion-20261114.md)。七条 Done 按 D-11 在当前分支结项，评审与合并单独跟踪。
 
 ## 范围说明
 
