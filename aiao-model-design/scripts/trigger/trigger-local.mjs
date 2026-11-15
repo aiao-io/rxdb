@@ -3,20 +3,34 @@
 import { spawn } from 'node:child_process';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
+import os from 'node:os';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
+import { initializeEnvironment as initializeSupabaseEnvironment } from '../supabase/supabase-local.mjs';
 
 export const productRoot = resolve(import.meta.dirname, '../..');
 export const triggerRoot = resolve(productRoot, 'infra/trigger');
 export const files = {
   envFile: resolve(triggerRoot, '.env'),
-  webappComposeFile: resolve(triggerRoot, 'webapp-compose.yml'),
-  workerComposeFile: resolve(triggerRoot, 'worker-compose.yml'),
+  composeFile: resolve(productRoot, 'infra/supabase/docker-compose.yml'),
   registryAuthFile: resolve(triggerRoot, 'registry/auth.htpasswd')
 };
 
 const TRIGGER_PORT = 8030;
+const TRIGGER_SERVICES = [
+  'postgres',
+  'redis',
+  'electric',
+  'clickhouse',
+  'registry',
+  'minio',
+  's2-init',
+  's2',
+  'docker-proxy',
+  'supervisor',
+  'webapp'
+];
 const REQUIRED = [
   'SESSION_SECRET',
   'MAGIC_LINK_SECRET',
@@ -35,8 +49,21 @@ function secret() {
   return randomBytes(16).toString('hex');
 }
 
+export function hostAddress(networkInterfaces = os.networkInterfaces()) {
+  const configured = process.env.TRIGGER_OBJECT_STORE_HOST?.trim();
+  if (configured) return configured;
+  const entries = Object.entries(networkInterfaces).flatMap(([name, addresses]) =>
+    (addresses ?? [])
+      .filter(address => address.family === 'IPv4' && !address.internal)
+      .map(address => ({ name, address: address.address }))
+  );
+  const preferred = entries.find(({ name }) => !/^(docker|br-|veth|bridge)/i.test(name));
+  return (preferred ?? entries[0])?.address ?? '127.0.0.1';
+}
+
 function generatedEnvironment() {
   const registryPassword = secret();
+  const objectStoreSecret = secret();
   return {
     SESSION_SECRET: secret(),
     MAGIC_LINK_SECRET: secret(),
@@ -47,7 +74,14 @@ function generatedEnvironment() {
     POSTGRES_PASSWORD: secret(),
     CLICKHOUSE_PASSWORD: secret(),
     OBJECT_STORE_ACCESS_KEY_ID: 'admin',
-    OBJECT_STORE_SECRET_ACCESS_KEY: secret(),
+    OBJECT_STORE_DEFAULT_PROTOCOL: 'minio',
+    OBJECT_STORE_MINIO_BASE_URL: `http://${hostAddress()}:9000`,
+    OBJECT_STORE_MINIO_BUCKET: 'packets',
+    OBJECT_STORE_MINIO_ACCESS_KEY_ID: 'admin',
+    OBJECT_STORE_MINIO_SECRET_ACCESS_KEY: objectStoreSecret,
+    OBJECT_STORE_MINIO_REGION: 'us-east-1',
+    OBJECT_STORE_MINIO_SERVICE: 's3',
+    OBJECT_STORE_SECRET_ACCESS_KEY: objectStoreSecret,
     DOCKER_REGISTRY_URL: 'localhost:5000',
     DOCKER_REGISTRY_USERNAME: 'registry-user',
     DOCKER_REGISTRY_PASSWORD: registryPassword,
@@ -62,7 +96,10 @@ function generatedEnvironment() {
     REDIS_PUBLISH_IP: '127.0.0.1',
     CLICKHOUSE_PUBLISH_IP: '127.0.0.1',
     REGISTRY_PUBLISH_IP: '127.0.0.1',
-    MINIO_PUBLISH_IP: '127.0.0.1',
+    MINIO_PUBLISH_IP: '0.0.0.0',
+    REALTIME_STREAMS_S2_ENDPOINT: `http://${hostAddress()}:8050/v1`,
+    S2_PUBLISH_IP: '0.0.0.0',
+    S2_PUBLISH_PORT: '8050',
     NODE_MAX_OLD_SPACE_SIZE: '2048',
     EVENT_REPOSITORY_DEFAULT_STORE: 'postgres'
   };
@@ -86,6 +123,40 @@ export async function initializeEnvironment(envFile = files.envFile) {
     if (error.code === 'EEXIST') return 'kept';
     throw error;
   }
+}
+
+export async function migrateLocalEndpoints(envFile = files.envFile) {
+  const source = await readFile(envFile, 'utf8');
+  const env = parseEnv(source);
+  const host = hostAddress();
+  const values = {};
+  const hasInternalObjectStoreEndpoint = [env.OBJECT_STORE_BASE_URL, env.OBJECT_STORE_MINIO_BASE_URL].includes('http://minio:9000');
+  const hasInternalS2Endpoint = !env.REALTIME_STREAMS_S2_ENDPOINT || env.REALTIME_STREAMS_S2_ENDPOINT === 'http://s2/v1';
+
+  if (hasInternalObjectStoreEndpoint) {
+    values.OBJECT_STORE_BASE_URL = `http://${host}:9000`;
+    values.OBJECT_STORE_MINIO_BASE_URL = `http://${host}:9000`;
+    values.MINIO_PUBLISH_IP = '0.0.0.0';
+  }
+  if (hasInternalS2Endpoint) values.REALTIME_STREAMS_S2_ENDPOINT = `http://${host}:8050/v1`;
+  if (!env.S2_PUBLISH_IP) values.S2_PUBLISH_IP = '0.0.0.0';
+  if (!env.S2_PUBLISH_PORT) values.S2_PUBLISH_PORT = '8050';
+  if (!Object.keys(values).length) return false;
+
+  const lines = source.split(/\r?\n/);
+  const updated = new Set();
+  const next = lines.map(line => {
+    const key = line.split('=', 1)[0];
+    if (!(key in values)) return line;
+    updated.add(key);
+    return `${key}=${values[key]}`;
+  });
+  for (const [key, value] of Object.entries(values)) {
+    if (!updated.has(key)) next.push(`${key}=${value}`);
+  }
+  await writeFile(envFile, next.join('\n'));
+  await chmod(envFile, 0o600);
+  return true;
 }
 
 export async function localEnvironment(envFile = files.envFile) {
@@ -155,11 +226,11 @@ export function composeArgs(args) {
     '--project-name',
     'aiao-model-design-trigger',
     '--env-file',
-    files.envFile,
+    resolve(productRoot, 'infra/supabase/.env'),
+    '--env-file',
+    resolve(productRoot, 'infra/supabase/ports.env'),
     '-f',
-    files.webappComposeFile,
-    '-f',
-    files.workerComposeFile,
+    files.composeFile,
     ...args
   ];
 }
@@ -186,11 +257,13 @@ async function waitForHealth() {
 }
 
 export async function up() {
+  await initializeSupabaseEnvironment();
   const state = await initializeEnvironment();
+  await migrateLocalEndpoints();
   const env = await localEnvironment();
   await registryAuth(env);
   console.log(state === 'created' ? '已生成本地 Trigger.dev 凭据：infra/trigger/.env' : '沿用已有的本地 Trigger.dev 凭据。');
-  await compose(['up', '-d', '--wait', '--wait-timeout', '300']);
+  await compose(['up', '-d', ...TRIGGER_SERVICES]);
   await waitForHealth();
   console.log(`本地 Trigger.dev 已就绪：${env.API_ORIGIN} · 健康检查 ${env.API_ORIGIN}/healthcheck`);
 }

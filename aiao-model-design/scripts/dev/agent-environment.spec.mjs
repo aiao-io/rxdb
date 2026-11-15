@@ -7,6 +7,7 @@ import { agentEnvironment, agentSummary } from './agent-environment.mjs';
 
 const PROD_KEY = 'tr_prod_0123456789abcdefghij';
 const DEV_KEY = 'tr_dev_0123456789abcdefghij';
+const DEV_SECRET_KEY = 'tr_dev_sk_0123456789abcdefghij';
 const PROJECT_REF = 'proj_xjkrazglzqhfhhbwdllb';
 
 /** 在临时目录里放 api 的 .dev.vars 与 agent 的 .env.agent；传 undefined 表示文件不存在。 */
@@ -44,6 +45,11 @@ test('生产、预发与预览环境的密钥使用实例上已部署的智能�
       secretKey
     });
   }
+});
+
+test('接受 Trigger.dev 新版带 sk 段的环境密钥', async t => {
+  const paths = await fixture(t, { devVars: trigger('https://trigger.example.com', DEV_SECRET_KEY), agentEnv: 'AGENT_MODEL=x' });
+  assert.equal((await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } })).secretKey, DEV_SECRET_KEY);
 });
 
 test('开发环境密钥要启动智能体开发会话，需要项目 ref 与 .env.agent', async t => {

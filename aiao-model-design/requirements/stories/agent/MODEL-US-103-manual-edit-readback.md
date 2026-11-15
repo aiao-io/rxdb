@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-103
 title: 手动修改回读
-status: In Progress
+status: Done
 priority: Medium
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-12
+updated: 2026-11-15
 tags: [agent, readback]
 dependsOn: [MODEL-US-102]
 capabilities: []

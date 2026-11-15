@@ -1,3 +1,9 @@
+# Docker Compose include keeps Supabase Auth and the local Trigger.dev stack in one product infra entrypoint.
+# supabase-local only starts db/auth/kong; trigger-local starts the included Trigger services with its own Compose project.
+include:
+  - path: ../trigger/webapp-compose.yml
+  - path: ../trigger/worker-compose.yml
+
 # 本地开发专用，由 scripts/supabase/supabase-local.mjs 驱动：pnpm nx run aiao-model-design:supabase-up。
 # 只起登录需要的三项：Postgres、GoTrue（Supabase Auth）与 Kong 网关；端口只绑 127.0.0.1。
 # 端口来自已提交的 ports.env，凭据来自首次运行时生成的私有 .env。

@@ -1,6 +1,6 @@
 # 模型设计器验收台账
 
-结构门禁只检查文档契约；Node 侧测试、应用单测、构建与真实环境分别验收。平台故事的完成状态不作为本应用 AC 的证据。下表的结论来自 2026-11-12 在本分支执行的命令（Node 26，命令见[实施清单](plans/agent-harness-tasks.md#验证命令)）。
+结构门禁只检查文档契约；Node 侧测试、应用单测、构建与真实环境分别验收。平台故事的完成状态不作为本应用 AC 的证据。下表的离线结论来自 2026-11-12 在本分支执行的命令（Node 26，命令见[实施清单](plans/agent-harness-tasks.md#验证命令)）。
 
 ## 离线与本地运行时
 
@@ -23,13 +23,13 @@
 | MODEL-US-003 #3、#4、#5    | 依赖图 / lint / affected             | `nx graph`：只有 web→model-ops、agent→model-ops 两条产品内依赖；在 model-ops 导入 `@angular/core` 被 `layer:domain` 约束拦下；改 model-ops 时 affected 列出 model-ops、web、agent，改 api 时只列 api                                            | 通过                                                                                                        |
 | MODEL-US-003 #6、#7        | 安全门禁 / 聚合门禁                  | [check-web-secrets.spec.mjs](../scripts/check-web-secrets.spec.mjs)；`aiao-model-design:security-check`（含本机 `.dev.vars` 取值比对）；`aiao-model-design:verify`                                                                              | 通过                                                                                                        |
 
-## 真实环境验收
+## 真实环境验收（2026-11-12 历史记录）
 
 2026-11-12 在本机执行。实例是按官方 Docker 文档搭的自建 Trigger.dev v4.8.3（webapp 与 worker 同机，端口只绑 127.0.0.1），智能体经 `aiao-model-design-agent:deploy` 部署（产品根目录拆分后从新位置重新部署为 `20261112.2`，下表场景在新结构下全部重跑），生产环境变量配 `AGENT_MODEL=deepseek:deepseek-flash` 与 `.dev.vars` 里的 DeepSeek 中转（新版走 `/chat/completions`，可用）。浏览器是 Chromium，打开验收用的 Worker：真实 Worker 代码、真实实例与模型，只有 Supabase 由模拟服务应答一个验收账号（经出站代理，与 `test-worker` 同一做法）。
 
 | AC                  | 场景                                                   | 当前结论                                                                                                                                                     |
 | ------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| MODEL-US-002 #10    | 真实浏览器登录后创建会话并收到回复                     | 会话签发 200，回复从实例的 `/realtime/v1/sessions/<chatId>/out` 到达；登录走模拟 Supabase 身份，真实账号登录待复核（⚠️）                                     |
+| MODEL-US-002 #10    | 真实浏览器登录后创建会话并收到回复                     | 会话签发 200，回复从实例的 `/realtime/v1/sessions/<chatId>/out` 到达；当日登录走模拟 Supabase 身份；真实本地账号复核见文末 2026-11-15 记录                                     |
 | MODEL-US-002 #11    | 按 README 部署智能体                                   | 通过；部署出 1 个任务，run 容器能加载配置并执行                                                                                                              |
 | MODEL-US-101 #11    | 真实 DeepSeek 建电商订单模型，关系成对、校验无问题     | 通过；26 s，工具 `add_entities` → `link_entities` → `add_index`×3 → `validate_model`，4 个实体、3 对关系，回放 ops 后独立检查成对与校验均无问题              |
 | MODEL-US-102 #3     | 生成中刷新页面，实例从保存的游标重放、ops 不重复不遗漏 | 通过；出流中刷新（已完成 2 个工具），重开后从游标续流补完其余工具；刷新后才到达的索引出现在合并后 main 的 SQL 里；实体不重复，再刷新一次也没有残留的 AI 分支 |
@@ -70,11 +70,10 @@
 2. web 开发服务器（包括原来的 `serve`）一打开设计器就报 `Failed to resolve import "@trigger.dev/sdk/chat"`：Vite 预打包从仓库根解析依赖，而这个包只装在 web 自己的 `node_modules` 里。改为关闭预打包，依赖由 Angular 的 esbuild 从源码位置解析，与生产构建一致。之前的验收用的是 Worker 托管的生产构建，所以没暴露。
 3. 停止时日志跟随任务被 SIGINT 结束，报出「docker compose 退出：130」。改为把信号结束与 130、143 退出码当作正常结束。
 
-本机这套实例的 `API_ORIGIN` 是 `http://host.docker.internal:8030`，宿主机解析不了，开发会话那一轮在环境里预加载了只改 DNS 解析的模块，与[真实环境验收](#真实环境验收)里部署时的绕法相同；实例有可直接访问的地址时不需要。
+本机这套实例的 `API_ORIGIN` 是 `http://host.docker.internal:8030`，宿主机解析不了，开发会话那一轮在环境里预加载了只改 DNS 解析的模块，与历史真实环境验收记录里的绕法相同；实例有可直接访问的地址时不需要。
 
 ## 尚未证明
 
-- 用真实 Supabase 账号登录后走完 MODEL-US-002 #10。
 - `nx dev` 在交互终端默认的 Nx TUI 下的窗格显示与 Ctrl-C：本机验证用的是 `--output-style=stream`，TUI 需要人工看一遍。
 - 自建实例没有 checkpoint 时的空闲占用与续跑恢复耗时（`turnTimeout` 15 分钟）。
 - 迁入时前端覆盖率基线（语句 61.75%、行 63.64%）低于仓库 80% 门槛；本史诗新增与改动的代码都有测试，存量代码的覆盖率不在范围内。
@@ -83,6 +82,16 @@
 
 - 执行 `pnpm nx run aiao-model-design:verify --output-style=stream` 通过：产品门禁及 66 个依赖任务全部通过，包含需求门禁、model-ops / agent / web / api 的 lint、typecheck、test、构建、Worker 运行时测试与 web 构建产物密钥扫描。
 - 通过 `pnpm nx dev aiao-model-design --output-style=stream` 启动本地环境；使用本地 GoTrue 中已确认邮箱的 `designer@aiao.test` 在真实 Chromium 页面登录，`POST /bff/auth/signin` 返回 200，随后设计器加载成功并完成 `GET /bff/auth/session` 与 `GET /api/agent/config`。
-- 后续已生成 `apps/agent/.env.agent` 并配置模型参数，但 `apps/api/.dev.vars` 仍是 `trigger.example.com` 与模板密钥；因此本次复核确认了真实本地账号登录链路和本地 worker 启动链路，但没有新增 MODEL-US-002 #10 的真实会话回复证据。该 AC 仍保持 ⚠️，故事和依赖它的故事不改为 `Done`。
+- 当时的复核使用了未接入本地自托管实例的 Worker 配置，因此只确认了真实本地账号登录链路和本地 worker 启动链路；该次记录不覆盖后续的本地自托管验收。
 - 同日修复本地 Trigger 开发会话启动参数：移除当前 `trigger.dev` CLI 4.8.x 不支持的安装向导参数，并显式传入 `--project-ref`；`aiao-model-design:dev-test` 30/30 通过。真实 `trigger dev` 进程仍需 `.dev.vars` 中的有效 `tr_dev_*` 密钥和实例地址才能启动。
 - 使用临时合法格式的开发 key、已有 Trigger CLI profile 和项目 ref 做本地探测，`nx dev aiao-model-design` 同时达到 Trigger `Local worker ready`、Web `http://localhost:4400/` 与 Worker 开发导航 `http://127.0.0.1:8788/`；未发送 AI 消息，探测结束后恢复原 `.dev.vars`。
+
+## 2026-11-15 本地自托管 Trigger 复核
+
+- `pnpm nx run aiao-model-design:trigger-up --output-style=stream` 已真实启动官方 Docker 自托管栈；`trigger-status` 显示 webapp、supervisor、Postgres、Redis、Electric、ClickHouse、MinIO、registry、s2-lite 与 Docker socket proxy 均运行，webapp 健康检查返回 HTTP 200。
+- 本地控制台已创建组织、`model-design` 项目和 Development API key；`aiao-model-design:dev-agent` 通过本地 `self-hosted` profile 启动，日志显示 `Local worker ready`，注册任务为 `model-designer`。
+- 本地 API 真实运行验证：`GET /api/agent/config` 返回 `enabled: true`、本地 API 地址与 `model-designer`；用本地 Supabase 的 `designer@aiao.test` 登录后，`POST /api/agent/session` 返回 200 和真实 `publicAccessToken`。这条验证经过真实 GoTrue、Worker 与本地 Trigger.dev `/api/v1/sessions`，不是模拟 fetch。
+- `s2-lite` 已发布到 `0.0.0.0:8050`，webapp 使用宿主机可达的 `REALTIME_STREAMS_S2_ENDPOINT`；宿主机和 webapp 容器访问该 endpoint 均得到 HTTP 404，证明网络连通。旧的 `http://s2/v1` 与 `http://minio:9000` 本地配置会在启动时迁移；用户自定义 S2 endpoint 会保留。
+- `pnpm nx run aiao-model-design:dev-test --output-style=stream` 通过，当前 **37/37**；覆盖 Trigger 凭据初始化、endpoint 迁移、自定义 endpoint 保留、新版 `tr_dev_sk_` 密钥格式和本地项目 ref 自动读取。
+- 使用真实本地账号在真实 Chromium 中发送“创建一个 Customer 实体，包含 email 属性，然后校验模型。”：Trigger 会话创建成功，回复经本地自托管实例的 S2 会话流到达；画布新增 `Customer`，包含 `email` 属性，AI 同时执行模型校验并报告原有 5 个占位实体的问题。对应 run 为 `run_cmwhgavcg00013go1hiuam3u3`，它在回复后继续等待下一轮会话消息，符合持久会话设计；日志中没有 S2 DNS、MinIO provider 或 snapshot 上传错误。
+- 上述真实浏览器证据补齐 MODEL-US-002 #10，并解除 MODEL-US-102、MODEL-US-103、MODEL-US-104 的硬依赖阻塞；四条 story 的所有 AC 均有证据，状态更新为 `Done`。未提交任何本地密钥。

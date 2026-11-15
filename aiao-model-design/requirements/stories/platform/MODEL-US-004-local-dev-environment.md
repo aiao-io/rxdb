@@ -34,7 +34,7 @@ capabilities: []
 
 - 自建 Trigger.dev 实例的拉起与初始化：实例按 README 的部署说明另行搭建，`nx dev` 只连接已有实例。
 - Supabase Studio、注册邮件、PostgREST 与 Realtime：设计器只用 Auth 登录，需要时再加。
-- 用本地 GoTrue 的登录代替 MODEL-US-002 #10 的真实账号复核。
+- 本地 GoTrue 仅用于开发验收账号；真实账号复核已在本地自托管 Trigger 栈上完成。
 
 ## 验收标准
 

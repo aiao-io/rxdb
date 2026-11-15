@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-102
 title: 设计器接入持久会话
-status: In Progress
+status: Done
 priority: High
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-12
+updated: 2026-11-15
 tags: [agent, designer, angular, branch]
 dependsOn: [MODEL-US-002, MODEL-US-101]
 capabilities: [rxdb:US-301]
@@ -52,7 +52,7 @@ capabilities: [rxdb:US-301]
 | 12  | 本地存储或实例调用出错           | 保存会话、写入工具输出、加载会话列表、停止或合并 | 面板显示失败原因，不留未处理的拒绝；本轮对话先于回读基线保存，读模型失败也不丢对话             | ✅   |
 | 13  | 一轮正在准备或进行               | 连按发送                                         | 只发出一条消息                                                                                 | ✅   |
 
-验收证据入口：`__tests__/services/agent-conversation.service.spec.ts`（假传输按脚本回放片段）、`__tests__/integration/agent-model-store.spec.ts` 与 `agent-branch-repository.spec.ts`（真实 SQLite）、`services/agent-messages.spec.ts`。#3、#10、#11 在本机自建实例 + 真实 DeepSeek 上用真实浏览器验收：中途刷新后从游标续流，刷新后才到达的索引写进了同一条 AI 分支并随合并进入 main；合并前后画布上的实体卡片与连线逐项一致。登录用验收 Worker 的模拟 Supabase 身份，见[验收台账](../../verification-report.md)。
+验收证据入口：`__tests__/services/agent-conversation.service.spec.ts`（假传输按脚本回放片段）、`__tests__/integration/agent-model-store.spec.ts` 与 `agent-branch-repository.spec.ts`（真实 SQLite）、`services/agent-messages.spec.ts`。#3、#10、#11 在本机自建实例 + 真实 DeepSeek 上用真实浏览器验收：中途刷新后从游标续流，刷新后才到达的索引写进了同一条 AI 分支并随合并进入 main；合并前后画布上的实体卡片与连线逐项一致。登录使用本地 Supabase 的真实账号，见[验收台账](../../verification-report.md)。
 
 ## 技术笔记
 

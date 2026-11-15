@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-002
 title: Trigger.dev 会话签发与自建部署
-status: In Progress
+status: Done
 priority: High
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-12
+updated: 2026-11-15
 tags: [worker, trigger-dev, deploy, auth]
 dependsOn: []
 capabilities: []
@@ -46,10 +46,10 @@ capabilities: []
 | 7   | 跨站页面                                      | 向 `/api/agent/session` 发写请求                   | 403，沿用同源检查                                                                                              | ✅   |
 | 8   | 旧客户端                                      | 请求 `/api/ai/model/generate` 或 `/chat`           | 404，Worker 环境不再声明模型密钥                                                                               | ✅   |
 | 9   | 本地                                          | 运行 Worker 的类型检查、测试（覆盖率 ≥ 80%）与打包 | 全部通过                                                                                                       | ✅   |
-| 10  | 自建实例已部署智能体                          | 真实浏览器登录后发送第一条消息                     | 会话创建成功，回复从实例的会话流到达（真实环境）                                                               | ⚠️   |
+| 10  | 自建实例已部署智能体                          | 真实浏览器登录后发送第一条消息                     | 会话创建成功，回复从实例的会话流到达（真实环境）                                                               | ✅   |
 | 11  | 自建实例                                      | 按 README 部署智能体                               | 部署成功；部署镜像里的索引与运行进程能加载 `trigger.config.ts`（项目 ref 由 CLI 覆盖占位值，配置不读环境变量） | ✅   |
 
-验收证据入口：`apps/api/src/agent-session.spec.ts`、`apps/api/src/edge/router.spec.ts`（模拟 fetch）、`apps/api/scripts/test-worker.mjs`（wrangler 本地运行时 + 出站代理 + Chromium）、`aiao-model-design-api:build`。#10 在本机自建实例上用真实浏览器验收了会话签发与从实例会话流到达的回复，登录走的是验收 Worker 的模拟 Supabase 身份；真实 Supabase 账号登录这一点待复核，所以保持 ⚠️。#11 由实例上的真实部署验收。汇总见[验收台账](../../verification-report.md)。
+验收证据入口：`apps/api/src/agent-session.spec.ts`、`apps/api/src/edge/router.spec.ts`（模拟 fetch）、`apps/api/scripts/test-worker.mjs`（wrangler 本地运行时 + 出站代理 + Chromium）、`aiao-model-design-api:build`。#10 已在本机自建实例上用真实 Chromium 和本地 Supabase 账号验收：会话签发成功，回复经实例 S2 会话流到达，并在画布写入 Customer。#11 由实例上的真实部署验收。汇总见[验收台账](../../verification-report.md)。
 
 ## 技术笔记
 

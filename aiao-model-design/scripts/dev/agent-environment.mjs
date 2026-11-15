@@ -5,9 +5,10 @@ import { productRoot } from '../supabase/supabase-local.mjs';
 
 const defaults = {
   devVarsFile: resolve(productRoot, 'apps/api/.dev.vars'),
-  agentEnvFile: resolve(productRoot, 'apps/agent/.env.agent')
+  agentEnvFile: resolve(productRoot, 'apps/agent/.env.agent'),
+  triggerEnvFile: resolve(productRoot, 'infra/trigger/.env')
 };
-const ENVIRONMENT_KEY = /^tr_(dev|prod|stg|preview)_[A-Za-z0-9]+$/;
+const ENVIRONMENT_KEY = /^tr_(dev|prod|stg|preview)_(?:sk_)?[A-Za-z0-9]+$/;
 const PROJECT_REF = /^proj_[a-z0-9]+$/;
 const ENVIRONMENT_NAMES = { prod: '生产环境', stg: '预发环境', preview: '预览环境' };
 
@@ -31,6 +32,13 @@ async function requireAgentEnvFile(file) {
   });
 }
 
+async function localProjectRef(file, apiUrl) {
+  if (!['http://127.0.0.1:8030', 'http://localhost:8030'].includes(apiUrl)) return '';
+  const source = await readOptional(file);
+  const match = /^TRIGGER_PROJECT_REF=(?:"([^"]+)"|([^\s#]+))/m.exec(source);
+  return match?.[1] ?? match?.[2] ?? '';
+}
+
 /**
  * 按 `apps/api/.dev.vars` 里的 Trigger.dev 配置决定本地开发怎么接智能体。
  *
@@ -43,7 +51,8 @@ async function requireAgentEnvFile(file) {
 export async function agentEnvironment({
   devVarsFile = defaults.devVarsFile,
   agentEnvFile = defaults.agentEnvFile,
-  env = process.env
+  env = process.env,
+  triggerEnvFile = defaults.triggerEnvFile
 } = {}) {
   const vars = parseEnv(await readOptional(devVarsFile));
   const apiUrl = vars.TRIGGER_API_URL?.trim();
@@ -54,7 +63,7 @@ export async function agentEnvironment({
   const environment = ENVIRONMENT_KEY.exec(secretKey)?.[1];
   if (!environment)
     throw new Error(
-      'apps/api/.dev.vars 的 TRIGGER_SECRET_KEY 不是 Trigger.dev 环境密钥：应以 tr_dev_、tr_prod_、tr_stg_ 或 tr_preview_ 开头。'
+      'apps/api/.dev.vars 的 TRIGGER_SECRET_KEY 不是 Trigger.dev 环境密钥：应以 tr_dev_、tr_prod_、tr_stg_ 或 tr_preview_ 开头（支持新版 tr_*_sk_ 密钥）。'
     );
   const agent = {
     mode: environment === 'dev' ? 'dev' : 'deployed',
@@ -63,10 +72,10 @@ export async function agentEnvironment({
     secretKey
   };
   if (agent.mode === 'deployed') return agent;
-  const projectRef = env.TRIGGER_PROJECT_REF?.trim() ?? '';
+  const projectRef = env.TRIGGER_PROJECT_REF?.trim() || (await localProjectRef(triggerEnvFile, agent.apiUrl));
   if (!PROJECT_REF.test(projectRef))
     throw new Error(
-      '开发环境密钥要启动智能体开发会话：先 export TRIGGER_PROJECT_REF=proj_…（实例控制台里的项目 ref）。'
+      '开发环境密钥要启动智能体开发会话：先在实例控制台创建项目，并配置 TRIGGER_PROJECT_REF=proj_…；本地栈会从 infra/trigger/.env 读取。'
     );
   await requireAgentEnvFile(agentEnvFile);
   return { ...agent, projectRef };

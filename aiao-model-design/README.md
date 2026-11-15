@@ -44,7 +44,7 @@ Worker 接口：
 pnpm nx dev aiao-model-design
 ```
 
-它依次检查固定端口，拉起只服务登录的本地 Supabase（Postgres、GoTrue 与 Kong 网关；首次运行在 `infra/supabase/.env` 生成随机凭据），准备测试账号与本地 Worker 配置，再启动 Worker 与支持热更新的 Web，并按 `apps/api/.dev.vars` 的配置接入智能体。全部就绪后自动打开[开发导航](http://127.0.0.1:8788/)：服务入口、测试账号、AI 接入状态与数据库连接都在这一页，可一键复制。不想自动打开浏览器时用 `AIAO_DEV_OPEN=false pnpm nx dev aiao-model-design`。
+它依次检查固定端口，拉起本地 Supabase（Postgres、GoTrue 与 Kong 网关）和本地自托管 Trigger.dev（官方 webapp、worker supervisor、Postgres、Redis、Electric、ClickHouse、MinIO、registry、s2-lite 与 Docker socket proxy；首次运行分别在 `infra/supabase/.env`、`infra/trigger/.env` 生成随机凭据），准备测试账号与本地 Worker 配置，再启动 Worker 与支持热更新的 Web，并按 `apps/api/.dev.vars` 的配置接入智能体。全部就绪后自动打开[开发导航](http://127.0.0.1:8788/)：服务入口、测试账号、AI 接入状态与数据库连接都在这一页，可一键复制。不想自动打开浏览器时用 `AIAO_DEV_OPEN=false pnpm nx dev aiao-model-design`。
 
 | 服务                     | 地址                                          |
 | ------------------------ | --------------------------------------------- |
@@ -53,6 +53,8 @@ pnpm nx dev aiao-model-design
 | 开发导航 / Worker        | <http://127.0.0.1:8788/>                      |
 | Supabase Auth（经 Kong） | <http://127.0.0.1:54421/auth/v1>              |
 | PostgreSQL               | `127.0.0.1:54422`，用户 `postgres`            |
+| Trigger.dev 自托管控制台 / API | <http://127.0.0.1:8030>，健康检查 `/healthcheck` |
+| Trigger.dev MinIO          | <http://127.0.0.1:9001>                       |
 
 | 测试账号             | 密码             | 用途                   |
 | -------------------- | ---------------- | ---------------------- |
@@ -70,21 +72,37 @@ pnpm nx dev aiao-model-design
 | `.dev.vars` 的配置                                   | 接入方式                                                    |
 | ---------------------------------------------------- | ----------------------------------------------------------- |
 | 两项都没填                                           | 不启用，设计器的 AI 入口禁用并说明原因                      |
-| 开发环境密钥（`tr_dev_`）                            | 同时启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
+| 开发环境密钥（`tr_dev_` / `tr_dev_sk_`）             | 先启动本地 Trigger.dev，再启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
 | 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                    |
 
-只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要下面三样，缺项目 ref 或 `.env.agent` 时也在启动前报错。`nx dev` 会自动执行 `trigger dev start`；默认使用 `self-hosted` profile，若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它：
+只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要项目 ref 与 `.env.agent`；本地 Trigger 栈已经有项目配置时，项目 ref 会从 `infra/trigger/.env` 自动读取。`nx dev` 会自动执行 `trigger-up` 和 `trigger dev start`；默认使用 `self-hosted` profile，若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它。
+
+首次在一台机器上初始化自托管实例：
 
 ```bash
-# 1. 在自建实例上登录 CLI，--api-url 与 TRIGGER_API_URL 一致（也可以在环境里提供 TRIGGER_ACCESS_TOKEN）
-pnpm --dir aiao-model-design/apps/agent exec trigger login --api-url https://trigger.example.com --profile self-hosted
-# 2. 项目 ref：在实例控制台里创建项目后获得
-export TRIGGER_PROJECT_REF=proj_xxx
-# 3. 模型密钥：复制后填写，由 trigger dev 注入开发会话
+# 1. 启动官方 Docker 自托管栈；凭据写入忽略的 infra/trigger/.env
+pnpm nx run aiao-model-design:trigger-up
+# 2. 打开 http://127.0.0.1:8030，使用 local@trigger.dev 登录；魔法链接在下面的日志里
+pnpm nx run aiao-model-design:trigger-logs
+# 3. 在控制台创建组织与 model-design 项目，进入 Development / API keys 创建一个后端 key
+# 4. 把项目 ref 与 Development key 写进忽略文件和 API 本地配置
+printf '\nTRIGGER_PROJECT_REF=proj_xxx\n' >> aiao-model-design/infra/trigger/.env
+# apps/api/.dev.vars：TRIGGER_API_URL=http://127.0.0.1:8030、TRIGGER_SECRET_KEY=tr_dev_sk_xxx
+# 5. 模型密钥只写智能体本地环境，不进 Worker
 cp aiao-model-design/apps/agent/.env.agent.example aiao-model-design/apps/agent/.env.agent
 ```
 
-项目 ref 由 CLI 从环境变量 `TRIGGER_PROJECT_REF` 读取，覆盖 `trigger.config.ts` 里的占位值；配置文件本身不读环境变量，因为部署镜像里的索引与运行进程也会加载它。只跑智能体开发会话时用 `pnpm nx run aiao-model-design-agent:dev -- --profile self-hosted`。
+之后直接执行 `pnpm nx dev aiao-model-design`；Trigger 控制台、worker supervisor 与本地 `trigger dev` 都会自动启动。单独管理栈：
+
+```bash
+pnpm nx run aiao-model-design:trigger-status
+pnpm nx run aiao-model-design:trigger-logs
+pnpm nx run aiao-model-design:trigger-down
+```
+
+项目 ref 由 CLI 参数覆盖 `trigger.config.ts` 里的占位值；本地栈的 `infra/trigger/.env` 只用于让产品编排无需每次手动 export。只跑智能体开发会话时用 `pnpm nx run aiao-model-design:dev-agent --output-style=stream`。
+
+本地 `trigger dev` 在宿主机运行，快照需要经宿主机地址访问 MinIO；`trigger-up` 首次初始化时会自动选择宿主机 IPv4 并写入对象存储地址。电脑有多个网卡时，可在首次初始化前设置 `TRIGGER_OBJECT_STORE_HOST` 指定地址。
 
 ### 停止与日志
 
@@ -114,7 +132,7 @@ pnpm nx run aiao-model-design-api:serve
 HTTPS_PROXY=http://127.0.0.1:7897 pnpm nx run aiao-model-design-api:serve
 ```
 
-登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。`.dev.vars`、`.env.agent`、`infra/supabase/.env`、`.wrangler/` 与 `.trigger/` 不提交。
+登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。`.dev.vars`、`.env.agent`、`infra/supabase/.env`、`infra/trigger/.env`、`infra/trigger/registry/auth.htpasswd`、`.wrangler/` 与 `.trigger/` 不提交。
 
 从旧版升级时，`.dev.vars` 里的 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL` 已不被 Worker 读取，可以删除：前两项原样移到 `.env.agent`（部署后配置到实例的环境变量），`DEEPSEEK_MODEL="x"` 改写为 `AGENT_MODEL="deepseek:x"`。旧版经 OpenAI 兼容的 Responses 接口（`<DEEPSEEK_BASE_URL>/responses`）调用模型，新版调用 Chat Completions 接口（`<DEEPSEEK_BASE_URL>/chat/completions`）；`DEEPSEEK_BASE_URL` 指向中转服务时，要确认它提供后者。旧目录 `apps/aiao-model-design/` 下的 `.dev.vars` 要移到 `aiao-model-design/apps/api/`。
 
