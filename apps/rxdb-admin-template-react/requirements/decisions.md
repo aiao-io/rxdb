@@ -4,7 +4,7 @@
 
 `rxdb-admin-template-react` 定位为 Admin 应用模板的孵化源，同时保留后台框架的领域贯穿测试职责。当前使用 Nx 工作区、workspace 包和明确框架的应用名 `rxdb-admin-template-react`；用户明确当前不考虑复制。未来可成为独立 Admin 启动项目模板，但本批次不实施独立工程、导出或发包。
 
-当前授权工作为应用需求管理、配置基线及完整客户端国际化；后续实体替换、自定义页面按 [roadmap](roadmap.md) 的前置和实际业务推进。
+当前工作覆盖应用需求管理、配置基线、三端完整客户端国际化与 Dashboard 页面扩展验收；实体替换仍按 [roadmap](roadmap.md) 的新业务前置推进。
 
 移除额外的消费示例应用及其 E2E，由本模板承接公开包消费与接入成本验证。对应平台 [US-528](../../../requirements/stories/domain/US-528-admin-consumer-example.md) 保留 Backlog，仓内回归不替代发布产物的独立消费验收。
 
@@ -12,7 +12,7 @@
 
 应用使用 `ADMIN-US-*` / `ADMIN-EPIC-*`。平台故事保留在根 requirements，使用 `capabilities` 引用，应用内依赖使用 `dependsOn`。平台完成不代表本应用已接线或验收。
 
-当前孵化应用使用 React。公共 `rxdb-admin` / `rxdb-model` 等包继续遵守 Angular / React / Vue 对称与同 PR 合并治理；不为应用孵化额外创建两份应用模板。
+React 是需求孵化源；仓库已提供 `rxdb-admin-template-angular` / `rxdb-admin-template-react` / `rxdb-admin-template-vue` 三个 Web 模板，使用同一套浏览器验收契约。公共 `rxdb-admin` / `rxdb-model` 等包与应用功能继续遵守 Angular / React / Vue 对称与同 PR 合并治理。三端均在仓库内孵化，独立导出尚未进入范围。
 
 ## D-03：数据兼容与宿主边界
 

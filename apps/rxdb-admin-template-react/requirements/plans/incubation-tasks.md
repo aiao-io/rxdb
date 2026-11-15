@@ -13,11 +13,11 @@
 
 ## 后续工作
 
-当前追加 [ADMIN-US-003 完整客户端国际化](../stories/platform/ADMIN-US-003-client-i18n.md)：
+本轮完成 [ADMIN-US-003 完整客户端国际化](../stories/platform/ADMIN-US-003-client-i18n.md)：
 
-- [ ] 统一运行时、外壳偏好与应用中英文目录。
-- [ ] 接线页面、导航、搜索、备份错误与实体显示名。
-- [ ] 验证刷新、跨 Tab、表单草稿及空库恢复路径。
-- [ ] 运行静态检查、单测、构建和原有浏览器回归，更新国际化验收记录。
+- [x] 统一运行时、外壳偏好与应用中英文目录。
+- [x] 接线页面、导航、搜索、备份错误与实体显示名。
+- [x] 验证刷新、跨 Tab、表单草稿及空库恢复路径。
+- [x] 运行静态检查、单测、构建和原有浏览器回归，更新国际化验收记录。
 
-ADMIN-US-101 / ADMIN-US-102 按 [roadmap](../roadmap.md) 的实际业务与前置推进。独立复制不在当前实施清单中。
+ADMIN-US-003 / ADMIN-US-102 已完成三端本地验收并进入 In Review，证据见 [国际化记录](client-i18n-verification.md) 与 [Dashboard 记录](nexus-dashboard-verification.md)。ADMIN-US-101 仍待真实新业务定义，按 [roadmap](../roadmap.md) 的前置推进。独立复制不在当前实施清单中。

@@ -274,7 +274,7 @@ test.describe('后台外壳：偏好抽屉', () => {
     await expect(reopened.getByTestId('pref-app.timezone')).toHaveValue('');
   });
 
-  test('拓展：应用注册的「搜索每页条数」出现在拓展页签，并驱动搜索页分页', async ({ page }) => {
+  test('拓展：搜索每页条数即时生效、按应用前缀持久化，刷新保留且可恢复默认', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     for (let i = 1; i <= 6; i++) {
       await createCategory(page, `扩展分页 ${i}`);
@@ -293,6 +293,26 @@ test.describe('后台外壳：偏好抽屉', () => {
     const results = page.getByTestId('search-result');
     await expect(results).toHaveCount(5);
     await page.getByRole('button', { name: '加载更多', exact: true }).click();
+    await expect(results).toHaveCount(6);
+
+    await page.reload();
+    await page.getByTestId('search-input').fill('扩展分页');
+    await expect(results).toHaveCount(5);
+    const reopened = await openPreferences(page);
+    await reopened.getByTestId('pref-tab-extension').click();
+    await expect(reopened.getByTestId('pref-extension.searchPageSize')).toHaveValue('5');
+    const preferenceKeys = await page.evaluate(() =>
+      Object.keys(localStorage).filter(key => key.endsWith('.preferences'))
+    );
+    expect(preferenceKeys).toEqual([preferencesStorageKey()]);
+    await reopened.getByTestId('pref-reset').click();
+    await expect(reopened.getByTestId('pref-extension.searchPageSize')).toHaveValue('20');
+    await expectStoredPreferences(page, null);
+    await page.keyboard.press('Escape');
+    await expect(results).toHaveCount(6);
+    await expect(page.getByRole('button', { name: '加载更多', exact: true })).toHaveCount(0);
+    await page.reload();
+    await page.getByTestId('search-input').fill('扩展分页');
     await expect(results).toHaveCount(6);
   });
 });

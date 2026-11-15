@@ -1,23 +1,24 @@
 # Admin 应用验收台账
 
-当前批次为 ADMIN-US-001 / ADMIN-US-002 / ADMIN-US-003。结构门禁只检查文档契约，应用单测、构建和浏览器行为分别验收；平台故事的完成状态不作为本应用新 AC 的证据。
+当前批次为 ADMIN-US-001 / ADMIN-US-002 / ADMIN-US-003 / ADMIN-US-102。结构门禁只检查文档契约，应用单测、构建和浏览器行为分别验收；平台故事的完成状态不作为本应用新 AC 的证据。
 
 ## 当前批次
 
-| 故事与 AC          | 验证层级                        | 入口                                                                                                                                                                                             | 当前结论                                                              |
-| ------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| ADMIN-US-001 #1    | 文档 / 源码复核                 | [README](README.md)、[CONVENTIONS](CONVENTIONS.md)、[应用级需求与项目治理办法](../../../requirements/application-governance.md)                                                                  | 目录、编号、四条故事与导航通过复核                                    |
-| ADMIN-US-001 #2    | 临时目录正负夹具                | `pnpm nx run rxdb-admin-template-react:requirements-test`                                                                                                                                        | 通过，含缺失 YAML、依赖环、Done AC 绕过与标题锚点负例                 |
-| ADMIN-US-001 #3    | 当前应用需求                    | `pnpm nx run rxdb-admin-template-react:requirements-check`                                                                                                                                       | 通过，平台能力引用与应用状态独立                                      |
-| ADMIN-US-002 #1～3 | 配置接线与 HTML 执行测试        | [app-config.spec.ts](../src/app/app-config.spec.ts)、[entity-registry.spec.ts](../src/app/entities/entity-registry.spec.ts)、[workbench-shell.spec.ts](../src/app/shell/workbench-shell.spec.ts) | 通过，默认配置、新标识隔离、命名空间和真实 Vite HTML 转换均有行为测试 |
-| ADMIN-US-002 #4    | 静态检查 / 构建 / 浏览器        | 应用 lint、typecheck、test、build；`pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2`                                                                                                   | 通过，覆盖首屏主题、旧键迁移、CRUD、搜索、刷新重开和备份恢复          |
-| ADMIN-US-003 #1～6 | 单测 / 静态检查 / 构建 / 浏览器 | [国际化本地验收](plans/client-i18n-verification.md)、[国际化浏览器测试](../../rxdb-admin-template-react-e2e/src/i18n.spec.ts)                                                                    | 接入中，待实际运行验证                                                |
+| 故事与 AC          | 验证层级                        | 入口                                                                                                                                                                                               | 当前结论                                                              |
+| ------------------ | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ADMIN-US-001 #1    | 文档 / 源码复核                 | [README](README.md)、[CONVENTIONS](CONVENTIONS.md)、[应用级需求与项目治理办法](../../../requirements/application-governance.md)                                                                    | 目录、编号、五条故事与导航通过复核                                    |
+| ADMIN-US-001 #2    | 临时目录正负夹具                | `pnpm nx run rxdb-admin-template-react:requirements-test`                                                                                                                                          | 通过，含缺失 YAML、依赖环、Done AC 绕过与标题锚点负例                 |
+| ADMIN-US-001 #3    | 当前应用需求                    | `pnpm nx run rxdb-admin-template-react:requirements-check`                                                                                                                                         | 通过，平台能力引用与应用状态独立                                      |
+| ADMIN-US-002 #1～3 | 配置接线与 HTML 执行测试        | [app-config.spec.ts](../src/app/app-config.spec.ts)、[entity-registry.spec.ts](../src/app/entities/entity-registry.spec.ts)、[workbench-shell.spec.ts](../src/app/shell/workbench-shell.spec.ts)   | 通过，默认配置、新标识隔离、命名空间和真实 Vite HTML 转换均有行为测试 |
+| ADMIN-US-002 #4    | 静态检查 / 构建 / 浏览器        | 应用 lint、typecheck、test、build；`pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2`                                                                                                     | 通过，覆盖首屏主题、旧键迁移、CRUD、搜索、刷新重开和备份恢复          |
+| ADMIN-US-003 #1～6 | 单测 / 静态检查 / 构建 / 浏览器 | [国际化本地验收](plans/client-i18n-verification.md)、[国际化浏览器测试](../../rxdb-admin-template-react-e2e/src/i18n.spec.ts)                                                                      | 三端六项 AC 本地通过，In Review；未合并                               |
+| ADMIN-US-102 #1～3 | 文档 / 配置单测 / 真实浏览器    | [扩展指南](plans/custom-pages-navigation.md)、[Dashboard 场景](../../rxdb-admin-template-react-e2e/src/dashboard.spec.ts)、[偏好场景](../../rxdb-admin-template-react-e2e/src/admin-shell.spec.ts) | 三端本地通过，In Review；未合并                                       |
 
 详细命令与证据见 [孵化基线本地验收](plans/incubation-verification.md)。ADMIN-US-001 / ADMIN-US-002 的实现随 [PR #199](https://github.com/aiao-io/rxdb/pull/199) 合入。
 
 ## Dashboard 三端优化
 
-2026-11-16 的 [Dashboard 验收记录](plans/nexus-dashboard-verification.md) 汇总两阶段已执行结果：Angular / React / Vue 单测分别 60 / 63 / 60 条通过，完整 E2E 每端 97 条通过，静态检查与构建通过。完整国际化验收回填、自定义页面扩展和新业务替换的剩余工作见 [优化实施清单](plans/nexus-template-optimization-tasks.md)；这些本地结果不自动改变故事状态。
+2026-11-16 的 [Dashboard 验收记录](plans/nexus-dashboard-verification.md) 汇总两阶段已执行结果：Angular / React / Vue 单测分别 60 / 63 / 60 条通过，完整 E2E 每端 97 条通过，静态检查与构建通过。本轮回填国际化与页面扩展证据，新增导航场景后完整 E2E 每端 99/99；新业务替换的前置与后续工作见 [优化实施清单](plans/nexus-template-optimization-tasks.md)；故事状态已按对应 AC 证据更新为 In Review，尚不计入 Done。
 
 ## 根需求审计
 

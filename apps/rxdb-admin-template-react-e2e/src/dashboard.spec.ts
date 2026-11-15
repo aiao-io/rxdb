@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCategory, expectActionIcon, fillField, resetE2eState } from './e2e-utils.js';
+import { createCategory, expectActionIcon, expectListHasRows, fillField, resetE2eState } from './e2e-utils.js';
 
 test.describe('资产工作台 Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,6 +25,67 @@ test.describe('资产工作台 Dashboard', () => {
     await page.getByTestId('dashboard-quick-actions').getByRole('link', { name: '搜索记录', exact: true }).click();
     await page.waitForURL('**/search');
     await expect(page.getByTestId('search-input')).toBeVisible();
+  });
+
+  test('桌面菜单、页签、面包屑和命令面板共用 Dashboard 路由', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '页面扩展保留分类');
+    await page.getByTestId('dashboard-nav-link').click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByRole('heading', { name: '资产工作台概览', exact: true })).toBeVisible();
+    await expect(page).toHaveTitle('Dashboard · 工作台');
+    const breadcrumb = page.getByTestId('admin-breadcrumb');
+    await expect(breadcrumb).toContainText('概览');
+    await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Dashboard');
+    const tabs = page.getByTestId('admin-tabbar');
+    const dashboardTab = tabs.getByRole('link', { name: 'Dashboard', exact: true });
+    await expect(dashboardTab).toHaveAttribute('aria-current', 'page');
+
+    await page.getByTestId('dashboard-quick-actions').getByRole('link', { name: '管理资产', exact: true }).click();
+    await expect(page).toHaveURL(/\/entities\/assets\/Asset$/);
+    await expect(page.getByRole('button', { name: '+ 新增', exact: true })).toBeVisible();
+    await dashboardTab.click();
+    await expect(page.getByTestId('dashboard-total')).toContainText('记录总数：1');
+    await page.getByTestId('dashboard-quick-actions').getByRole('link', { name: '备份 / 恢复', exact: true }).click();
+    await expect(page).toHaveURL(/\/backup$/);
+    await expect(page.getByTestId('backup-start')).toBeVisible();
+
+    await page.keyboard.press('ControlOrMeta+k');
+    await page.getByTestId('admin-palette-input').fill('Dashboard');
+    await page.getByTestId('admin-palette-option').filter({ hasText: 'Dashboard' }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByTestId('admin-palette')).toBeHidden();
+    await expect(dashboardTab).toHaveAttribute('aria-current', 'page');
+    await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('Dashboard');
+    await tabs.getByRole('link', { name: '资产分类', exact: true }).click();
+    await expectListHasRows(page, { name: '页面扩展保留分类' });
+  });
+
+  test('移动菜单进入 Dashboard 自动收起，深链刷新后仍可进入实体和备份页', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/backup');
+    const toggle = page.getByTestId('admin-menu-toggle');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await page.getByTestId('dashboard-nav-link').click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('dashboard-empty')).toBeVisible();
+    await page.reload();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByTestId('dashboard-connection-status')).toHaveText('数据库已连接');
+    await expect(
+      page.getByTestId('admin-tabbar').getByRole('link', { name: 'Dashboard', exact: true })
+    ).toHaveAttribute('aria-current', 'page');
+    await toggle.click();
+    await page.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
+    await expect(page).toHaveURL(/\/entities\/assets\/AssetCategory$/);
+    await expect(page.getByRole('button', { name: '+ 新增', exact: true })).toBeVisible();
+    await toggle.click();
+    await page.getByTestId('dashboard-nav-link').click();
+    await page.getByTestId('dashboard-quick-actions').getByRole('link', { name: '备份 / 恢复', exact: true }).click();
+    await expect(page.getByTestId('restore-input')).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   test('实体新增后 Dashboard 统计卡和总数自动更新', async ({ page }) => {
@@ -64,12 +125,16 @@ test.describe('资产工作台 Dashboard', () => {
     await expect(items.nth(0)).toContainText('删除资产分类');
     await expect(items.nth(1)).toContainText('更新资产分类');
     await expect(items.nth(2)).toContainText('创建资产分类');
-    const timestamps = await items.locator('time').evaluateAll(elements => elements.map(element => element.getAttribute('datetime')));
+    const timestamps = await items
+      .locator('time')
+      .evaluateAll(elements => elements.map(element => element.getAttribute('datetime')));
     await page.reload();
     await expect(items).toHaveCount(5);
     await expect(items.nth(0)).toHaveAttribute('data-activity-type', 'DELETE');
     await expect(items.nth(1)).toHaveAttribute('data-activity-type', 'UPDATE');
-    expect(await items.locator('time').evaluateAll(elements => elements.map(element => element.getAttribute('datetime')))).toEqual(timestamps);
+    expect(
+      await items.locator('time').evaluateAll(elements => elements.map(element => element.getAttribute('datetime')))
+    ).toEqual(timestamps);
   });
 
   test('语言切换同时更新活动、实体和时间，窄屏没有横向溢出', async ({ page }) => {
@@ -85,10 +150,14 @@ test.describe('资产工作台 Dashboard', () => {
     await expect(item).toContainText('Created Asset categories');
     await expect(item).not.toContainText('entity.assets');
     await expect(item).not.toContainText('资产分类');
-    const datetime = await item.locator('time').getAttribute('datetime');
-    if (!datetime) throw new Error('活动缺少语义时间');
-    const formatted = await page.evaluate(value =>
-      new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)), datetime);
+    await expect(item.locator('time')).toHaveAttribute('datetime', /^\d{4}-/);
+    const formatted = await item
+      .locator('time')
+      .evaluate(element =>
+        new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(
+          new Date((element as HTMLTimeElement).dateTime)
+        )
+      );
     await expect(item.locator('time')).toHaveText(formatted);
     await page.setViewportSize({ width: 375, height: 812 });
     await expect(item).toBeVisible();

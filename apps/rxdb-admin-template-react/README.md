@@ -30,6 +30,8 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 
 `serve` / `dev` 自动构建 HTML 配置使用的后台公共包，首次启动无需手工准备其产物。应用 `test` 同时执行需求结构门禁及门禁测试。
 
+Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面板与搜索分页偏好扩展步骤见 [三端页面扩展指南](requirements/plans/custom-pages-navigation.md)。
+
 ## 定制入口
 
 | 要改什么                                               | 入口                                                                                                        | 约束                                                                     |
@@ -42,7 +44,7 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 | 偏好扩展、主题与旧键迁移                               | [workbench-shell.ts](src/app/shell/workbench-shell.ts) 的 `workbenchShell` / `readLegacyPreferences`        | 主题列表与 [styles.css](src/styles.css) 中 daisyUI 主题保持一致          |
 | 本地数据库与插件                                       | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                                                                 | 当前使用 sqlite-wasm 主线程 + IndexedDB，搜索和备份依赖此组合            |
 
-实体替换与页面扩展尚待完整的新业务验收，分别见 [ADMIN-US-101](requirements/stories/domain/ADMIN-US-101-replace-sample-domain.md) 和 [ADMIN-US-102](requirements/stories/domain/ADMIN-US-102-custom-pages-navigation.md)。不能仅替换 `ENTITIES` 就宣称整个应用已经摆脱资产样例。
+实体替换的新业务前置和 Dashboard 页面扩展验收分别见 [ADMIN-US-101](requirements/stories/domain/ADMIN-US-101-replace-sample-domain.md) 和 [ADMIN-US-102](requirements/stories/domain/ADMIN-US-102-custom-pages-navigation.md)。不能仅替换 `ENTITIES` 就宣称整个应用已经摆脱资产样例。
 
 ## 国际化
 
@@ -58,6 +60,6 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 
 ## 能力边界
 
-这是单人、本地优先的 Web 应用。当前 `userId` 是应用上下文，锁屏属于本机交互；账号认证、服务端授权、多用户隔离和跨设备协作需要独立设计与验收。公共包继续遵守 Angular / React / Vue API 对称要求，本应用目前使用 React。
+这是单人、本地优先的 Web 应用。当前 `userId` 是应用上下文，锁屏属于本机交互；账号认证、服务端授权、多用户隔离和跨设备协作需要独立设计与验收。公共包继续遵守 Angular / React / Vue API 对称要求，本需求目录以 React 为孵化源，Angular / React / Vue 三端使用共享浏览器契约分别验收。
 
 平台后台能力由根 [epic-010](../../requirements/epics/epic-010-model-driven-admin-framework.md) 管理；应用产品范围、定制体验与验收在本应用独立管理。

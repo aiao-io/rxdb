@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCategory, expectStoredPreferences, openPreferences, resetE2eState } from './e2e-utils.js';
+import {
+  createCategory,
+  expectActionIcon,
+  expectListHasRows,
+  expectStoredPreferences,
+  openPreferences,
+  resetE2eState
+} from './e2e-utils.js';
 
 const DB_NAME_KEY = '__aiao_e2e_db_name__';
 
@@ -33,6 +40,39 @@ async function tableHeaders(page: Page): Promise<string[]> {
       }
       return (element as unknown as { __vtable__: TableLike }).__vtable__.columns.map(column => column.title ?? '');
     });
+}
+
+async function categorySnapshot(page: Page, locale: string) {
+  return page
+    .getByTestId('entity-shell')
+    .locator('canvas')
+    .first()
+    .evaluate((element, locale) => {
+      interface TableLike {
+        records: Array<Record<string, unknown>>;
+        colCount: number;
+        getHeaderField(col: number, row: number): unknown;
+        getCellValue(col: number, row: number): unknown;
+      }
+      const table = (element as unknown as { __vtable__: TableLike }).__vtable__;
+      const record = table.records[0];
+      const column = Array.from({ length: table.colCount }, (_, index) => index).find(
+        index => table.getHeaderField(index, 0) === 'createdAt'
+      );
+      if (!record || column === undefined) throw new Error('分类记录或创建时间列缺失');
+      return {
+        record: JSON.stringify(record),
+        displayed: String(table.getCellValue(column, 1)),
+        expected: new Intl.DateTimeFormat(locale, {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric'
+        }).format(new Date(record['createdAt'] as string))
+      };
+    }, locale);
 }
 
 async function downloadBackup(page: Page): Promise<string> {
@@ -86,6 +126,21 @@ test.describe('工作台完整国际化', () => {
     await expect
       .poll(() => tableHeaders(page))
       .toEqual(expect.arrayContaining(['Category name', 'Description', 'Actions']));
+    await expect
+      .poll(async () => {
+        const snapshot = await categorySnapshot(page, 'en');
+        return snapshot.displayed === snapshot.expected;
+      })
+      .toBe(true);
+    const originalRecord = (await categorySnapshot(page, 'en')).record;
+    await setLocale(page, 'zh-Hans');
+    await expect
+      .poll(async () => {
+        const snapshot = await categorySnapshot(page, 'zh-Hans');
+        return snapshot.displayed === snapshot.expected && snapshot.record === originalRecord;
+      })
+      .toBe(true);
+    await setLocale(page, 'en');
 
     await page.getByRole('button', { name: 'Filter', exact: true }).click();
     await page.getByRole('button', { name: 'Add the first condition', exact: true }).click();
@@ -149,24 +204,28 @@ test.describe('工作台完整国际化', () => {
     await expect(page.getByTestId('entity-load-failed')).toContainText('Entity assets/Unknown was not found.');
   });
 
-  test('跨标签切换更新已打开的表单和标签，保留输入内容', async ({ page, context }) => {
+  test('跨标签切换更新已打开的表单和标签，保留输入内容和关联选择', async ({ page, context }) => {
     await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '跨标签分类');
     await setLocale(page, 'en');
     const second = await context.newPage();
     await shareDatabase(page, second);
-    await second.goto('/entities/assets/AssetCategory');
+    await second.goto('/entities/assets/Asset');
     await expect(second.locator('html')).toHaveAttribute('lang', 'en');
     await second.getByRole('button', { name: '+ New', exact: true }).click();
-    await second.getByRole('group', { name: 'Category name' }).getByRole('textbox').fill('Untranslated user content');
+    await second.getByRole('group', { name: 'Name' }).getByRole('textbox').fill('Untranslated user content');
+    await second.getByRole('group', { name: 'Category' }).getByRole('combobox').selectOption({ label: '跨标签分类' });
 
     await setLocale(page, 'zh-Hans');
     await expect(second.locator('html')).toHaveAttribute('lang', 'zh-Hans');
     await expect(second.getByRole('button', { name: '保存', exact: true })).toBeVisible();
     await expect(second.getByRole('tab', { name: '基本信息', exact: true })).toBeVisible();
-    await expect(second.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue(
+    await expect(second.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue(
       'Untranslated user content'
     );
-    await expect(second.getByTestId('admin-tabbar')).toContainText('资产分类');
+    await expect(second.getByRole('group', { name: '分类' }).locator('option:checked')).toHaveText('跨标签分类');
+    await expect(second.getByRole('group', { name: '状态', exact: true }).getByRole('textbox')).toHaveValue('在用');
+    await expect(second.getByTestId('admin-tabbar')).toContainText('资产');
     await second.close();
   });
 
@@ -205,6 +264,14 @@ test.describe('工作台完整国际化', () => {
       await expect(fresh.getByRole('button', { name: '+ New', exact: true })).toBeVisible();
       await expect(fresh.getByTestId('entity-empty-state')).toHaveCount(0);
       await expect.poll(() => tableHeaders(fresh)).toEqual(expect.arrayContaining(['Category name', 'Actions']));
+      await expectListHasRows(fresh, { name: '恢复后保留的中文内容' });
+      const edit = await expectActionIcon(fresh, 'view-action');
+      await fresh.mouse.click(edit.x, edit.y);
+      await fresh.getByRole('group', { name: 'Category name' }).getByRole('textbox').fill('恢复后继续编辑');
+      await fresh.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(fresh.getByRole('tab', { name: 'Basic information', exact: true })).toHaveCount(0);
+      await fresh.reload();
+      await expectListHasRows(fresh, { name: '恢复后继续编辑' });
     } finally {
       await freshContext.close();
     }

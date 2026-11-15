@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-16
 tags: [admin, domain, customization]
 dependsOn: [ADMIN-US-002]
 capabilities: [rxdb:US-526, rxdb:US-702]
@@ -44,7 +44,9 @@ capabilities: [rxdb:US-526, rxdb:US-702]
 
 ## 技术笔记
 
-当前样例注册在 [ENTITIES](../../../src/app/entities/asset-entities.ts)，搜索页的 `ENTITY_DISPLAY_NAMES` 需要结合实际代码复核与替换；菜单图标映射位于 [workbench-menu.tsx](../../../src/app/shell/workbench-menu.tsx)。读取这些入口可复验替换实体并非仅改一个列表。
+当前样例注册在 [ENTITIES](../../../src/app/entities/asset-entities.ts)，搜索页与命令面板已通过 `entity-labels.ts` 读取实体和字段的显示元数据；菜单图标映射位于 [workbench-menu.tsx](../../../src/app/shell/workbench-menu.tsx)。Dashboard 的指标、实体路由和活动日志仍绑定 `assets`，替换实体必须同步调整 `dashboard-model.ts`、`dashboard-activity-source.ts` 与三端页面。
+
+2026-11-16 复核：尚未提供真实新业务的关联实体、字段、关系与非 `assets` 命名空间。本故事保留 Backlog，待这些输入确定后执行 [优化清单 T03](../../plans/nexus-template-optimization-tasks.md#t03--p1--验证真实新业务实体替换)；默认资产与 Dashboard 验收不替代本故事。
 
 ## 实现文件
 

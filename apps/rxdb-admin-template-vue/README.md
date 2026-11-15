@@ -20,6 +20,8 @@ pnpm nx run rxdb-admin-template-vue-e2e:e2e --workers=2
 
 开发地址为 `http://127.0.0.1:4208`。默认数据库为 `admin-workbench-vue`，偏好前缀为 `aiao.workbench.vue`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。
 
+Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面板与搜索分页偏好扩展步骤见 [三端页面扩展指南](../rxdb-admin-template-react/requirements/plans/custom-pages-navigation.md)。
+
 | 定制内容                                           | 入口                                                        |
 | -------------------------------------------------- | ----------------------------------------------------------- |
 | 品牌、中英文标题、数据库名、偏好前缀、可见命名空间 | [app.config.json](app.config.json)                          |

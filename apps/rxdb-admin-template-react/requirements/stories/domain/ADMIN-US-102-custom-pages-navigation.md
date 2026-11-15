@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-102
 title: 自定义页面与导航扩展路径
-status: Backlog
+status: In Review
 priority: Medium
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-16
 tags: [admin, routing, navigation, customization]
 dependsOn: [ADMIN-US-002]
 capabilities: [rxdb:US-531, rxdb:US-532]
@@ -29,18 +29,20 @@ capabilities: [rxdb:US-531, rxdb:US-532]
 
 ### Out of Scope
 
-- 为尚无实例的扩展设计插件系统、低代码页面编辑器或多框架模板。
+- 为尚无实例的扩展设计插件系统、低代码页面编辑器或独立模板导出。
 - 独立部署、账号菜单与远程权限。
 
 ## 验收标准
 
 | #   | 前置条件                   | 操作                           | 预期结果                                             | 状态 |
 | --- | -------------------------- | ------------------------------ | ---------------------------------------------------- | ---- |
-| 1   | 按文档添加自定义页面与菜单 | 从桌面、移动菜单进入并刷新深链 | 页面正常显示，实体与备份入口可继续使用               | ⬜   |
-| 2   | 页面有稳定路由与标题       | 使用页签、面包屑与命令面板切换 | 路由与外壳状态一致，返回实体页不丢失已有操作路径     | ⬜   |
-| 3   | 有一项应用自定义偏好       | 修改偏好、刷新并恢复默认       | 页面按偏好更新，存储遵守应用前缀，步骤有对应回归用例 | ⬜   |
+| 1   | 按文档添加自定义页面与菜单 | 从桌面、移动菜单进入并刷新深链 | 页面正常显示，实体与备份入口可继续使用               | ✅   |
+| 2   | 页面有稳定路由与标题       | 使用页签、面包屑与命令面板切换 | 路由与外壳状态一致，返回实体页不丢失已有操作路径     | ✅   |
+| 3   | 有一项应用自定义偏好       | 修改偏好、刷新并恢复默认       | 页面按偏好更新，存储遵守应用前缀，步骤有对应回归用例 | ✅   |
 
-验收证据要求：真实页面代码、可复现文档与浏览器测试；仅列出可编辑文件不代表通过。
+2026-11-16 三项 AC 的三端本地验证通过，状态为 In Review；证据覆盖真实页面代码、可复现文档与共享浏览器测试，待合并和 PR 引用。
+
+以真实 Dashboard 为验收实例。三端接线、可复现步骤与存储前缀见 [页面扩展指南](../../plans/custom-pages-navigation.md)，实际结果见 [Dashboard 三端验收](../../plans/nexus-dashboard-verification.md)。
 
 ## 技术笔记
 
@@ -51,7 +53,8 @@ capabilities: [rxdb:US-531, rxdb:US-532]
 - `apps/rxdb-admin-template-react/src/app/pages/` — 自定义页面。
 - `apps/rxdb-admin-template-react/src/app/router.tsx` — 懒加载路由。
 - `apps/rxdb-admin-template-react/src/app/shell/` — 菜单与偏好扩展。
-- `apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts` — 外壳交互验收入口。
+- `apps/rxdb-admin-template-react-e2e/src/dashboard.spec.ts` — 三端共享的 Dashboard 导航接线验收。
+- `apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts` — 搜索分页偏好与存储验收。
 
 ## References
 

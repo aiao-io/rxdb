@@ -7,19 +7,19 @@
 | 状态           | 数量 |
 | -------------- | ---- |
 | ✅ Done        | 2    |
-| 🚧 In Progress | 1    |
-| 👀 In Review   | 0    |
-| 📝 Backlog     | 2    |
+| 🚧 In Progress | 0    |
+| 👀 In Review   | 2    |
+| 📝 Backlog     | 1    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 5    |
 
-## 进行中（1 条）
-
-完整客户端国际化正在接入，覆盖外壳、页面、模型显示名及空库恢复边界。
-
-## 待评审（0 条）
+## 进行中（0 条）
 
 无。
+
+## 待评审（2 条）
+
+完整客户端国际化和 Dashboard 自定义页面扩展已通过三端本地验收，待统一评审、合并与 PR 引用。新业务实体替换保留 Backlog，等待业务实体与命名空间输入。
 
 ## 按 Epic 索引
 
@@ -27,6 +27,6 @@
 
 - ✅ [ADMIN-US-001 应用需求管理与结构门禁](stories/platform/ADMIN-US-001-application-requirements.md)
 - ✅ [ADMIN-US-002 应用标识与存储配置](stories/platform/ADMIN-US-002-application-configuration.md)
-- 🚧 [ADMIN-US-003 完整客户端国际化接入](stories/platform/ADMIN-US-003-client-i18n.md)
+- 👀 [ADMIN-US-003 完整客户端国际化接入](stories/platform/ADMIN-US-003-client-i18n.md)
 - ⬜ [ADMIN-US-101 示例实体替换与元数据贯通](stories/domain/ADMIN-US-101-replace-sample-domain.md)
-- ⬜ [ADMIN-US-102 自定义页面与导航扩展路径](stories/domain/ADMIN-US-102-custom-pages-navigation.md)
+- 👀 [ADMIN-US-102 自定义页面与导航扩展路径](stories/domain/ADMIN-US-102-custom-pages-navigation.md)
