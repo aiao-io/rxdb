@@ -11,7 +11,8 @@
       "inputs": [
         "production",
         "^production",
-        "{workspaceRoot}/aiao-desktop/scripts/vivari/**/*"
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/**/*",
+        "{workspaceRoot}/patches/@vivari__core@1.3.0.patch"
       ],
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
@@ -141,6 +142,7 @@
       "cache": true,
       "inputs": [
         "{workspaceRoot}/aiao-desktop/scripts/vivari/**/*",
+        "{workspaceRoot}/patches/@vivari__core@1.3.0.patch",
         "{workspaceRoot}/package.json",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],

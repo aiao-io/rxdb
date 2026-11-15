@@ -41,6 +41,8 @@ test('构建与开发都先准备包管理器资源，并将生成目录托管�
   assert.equal(asset.glob, '**/*');
   assert.deepEqual(asset.ignore, ['**/*.tmp']);
   assert.ok(targets['prepare-vendor'].inputs.includes('{workspaceRoot}/aiao-desktop/scripts/vivari/**/*'));
+  for (const target of ['build', 'prepare-vendor'])
+    assert.ok(targets[target].inputs.includes('{workspaceRoot}/patches/@vivari__core@1.3.0.patch'));
 
   assert.deepEqual(targets['prepare-vendor'].outputs, ['{workspaceRoot}/' + asset.input]);
 });

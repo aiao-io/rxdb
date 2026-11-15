@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import { VENDOR_DIRECTORY, withVendorArchive } from './prepare.mjs';
+import { fetchVendorBytes, VENDOR_DIRECTORY, withVendorArchive } from './prepare.mjs';
 import manifest from './runtimes.json' with { type: 'json' };
 
 export const RUNTIME_ASSETS = [...manifest.archives.flatMap(archive => archive.files), ...manifest.files];
@@ -47,9 +47,7 @@ async function prepareFile(outputDir, asset, fetchAsset) {
     await store(outputDir, asset, await readFile(new URL(asset.source, import.meta.url)));
     return;
   }
-  const response = await fetchAsset(asset.url, { signal: AbortSignal.timeout(60_000) });
-  if (!response.ok) throw new Error(`${asset.path} 下载失败：HTTP ${response.status}`);
-  await store(outputDir, asset, Buffer.from(await response.arrayBuffer()));
+  await store(outputDir, asset, await fetchVendorBytes(asset.url, asset.path, fetchAsset));
 }
 
 /** 托管固定版本的 Python、Ruff 和 SQLite；逐文件验散列，只在首次使用命令时由浏览器加载。 */
@@ -57,8 +55,8 @@ export async function prepareRuntimes({ outputDir = VENDOR_DIRECTORY, archives =
   for (const archive of archives) await prepareArchive(outputDir, archive, fetchAsset);
   for (let index = 0; index < files.length; index += 4) {
     const results = await Promise.allSettled(files.slice(index, index + 4).map(asset => prepareFile(outputDir, asset, fetchAsset)));
-    const failure = results.find(result => result.status === 'rejected');
-    if (failure) throw failure.reason;
+    const failures = results.filter(result => result.status === 'rejected').map(result => result.reason);
+    if (failures.length) throw new AggregateError(failures, failures.map(error => error.message).join('\n'));
   }
 }
 

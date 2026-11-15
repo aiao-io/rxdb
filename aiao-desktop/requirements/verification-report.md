@@ -1,5 +1,13 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-15：Python 与终端运行时补齐
+
+已接入 Python 3.14 / pip、72 个固定 Python wheel、Ruff、TypeScript 7 和 SQLite 的同源资源。`terminal-runtimes` 在全新浏览器上下文、外网阻断的正式构建上通过全部 22 项：脚本与桌面文件、pip 安装与跨进程导入、科学计算与常用库、质量工具、退出码、顶层 await、TypeScript 编译、Bun 和两个 SQLite 模块。结果见[运行时报告](evidence/2026-11-15/terminal-runtimes.json)。
+
+固定版本 SDK 补丁修复宿主资源路由、Ruff 模块导入、Pyodide 异步执行的 SystemExit 和 pip 的假成功；普通 VM 端口路由与 pip 失败路径有回归测试。资源脚本 16 条测试通过，行/函数覆盖率 100%、分支 96.39%；发布检查逐文件验证全部运行时资源。范围与边界见[终端资源说明](../scripts/vivari/README.md)，失败过程与最终门禁见[本轮证据](evidence/2026-11-15/README.md)。本轮没有发布线上。
+
+完整产品 `verify` 退出码为 0，58 个任务成功（24 个本地缓存命中），总耗时 7 分 48 秒；完整 Chromium 冒烟 26 组全部通过（412.2 秒），另有 1 组夹具自检通过。前端 92 个测试文件、1,348 条用例、类型检查、lint、构建与密钥扫描全部通过。见[最终校验日志](evidence/2026-11-15/verify-runtimes-green.txt)。
+
 ## 2026-11-15：终端包管理器资源补齐
 
 修复 Node 能启动、npm 因 `/vendor/npm-pack.bin` 漏部署而无法首次加载的问题。资源按 Vivari 1.3.0 上游固定版本与源包 SHA-512 生成，构建和开发共用前置任务；发布检查拒绝资源缺失、HTML、损坏包和错误版本。

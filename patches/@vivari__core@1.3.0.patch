@@ -1,0 +1,122 @@
+diff --git a/dist/assets/kernel-worker-B2lyfcKA.js b/dist/assets/kernel-worker-B2lyfcKA.js
+index 7046122bcbd194c06ca195073d50081f0735149c..34ebdc01f3bac72dd656443ae7727a350f076226 100644
+--- a/dist/assets/kernel-worker-B2lyfcKA.js
++++ b/dist/assets/kernel-worker-B2lyfcKA.js
+@@ -3750,7 +3750,7 @@ async function loadRuff(settings) {
+     throw done(1);
+   }
+   const bytes = fs.readFileSync(meta.path);
+-  const mod = await import(base + 'ruff_wasm.js');
++  const mod = await globalThis.__ocImportHost(base + 'ruff_wasm.js');
+   await mod.default({ module_or_path: bytes });
+   return { mod: mod, workspace: new mod.Workspace(settings) };
+ }
+@@ -9414,7 +9414,7 @@ async function boot() {
+ 	const spawnWorker = (info) => {
+ 		const worker = new Worker(new URL(
+ 			/* @vite-ignore */
+-			"/assets/process-worker-CEpIMzRj.js",
++			"/assets/process-worker-CEpIMzRj.js?aiao-runtime=3",
+ 			"" + import.meta.url
+ 		), {
+ 			type: "module",
+diff --git a/dist/assets/process-worker-CEpIMzRj.js b/dist/assets/process-worker-CEpIMzRj.js
+index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb3859029c0a20ca 100644
+--- a/dist/assets/process-worker-CEpIMzRj.js
++++ b/dist/assets/process-worker-CEpIMzRj.js
+@@ -81209,6 +81209,7 @@ const SKIP_DIRS = /* @__PURE__ */ new Set([
+ 	".cache"
+ ]);
+ const MAX_MIRROR_FILE = 8388608;
++const PYTHON_RUN_SOURCE = "import ast as __vv_ast\nimport inspect as __vv_inspect\nimport json as __vv_json\n\nasync def __vv_run():\n    try:\n        program = compile(__vv_source, __vv_filename, \"exec\", flags=__vv_ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)\n        pending = eval(program, __vv_namespace)\n        if __vv_inspect.isawaitable(pending):\n            await pending\n    except SystemExit as error:\n        value = error.code\n        if value is None:\n            return [True, 0, \"\"]\n        if isinstance(value, int):\n            return [True, int(value), \"\"]\n        return [True, 1, str(value)]\n    return [False, 0, \"\"]\n\n__vv_json.dumps(await __vv_run())\n";
+ function withTrailingSlash(u) {
+ 	const s = String(u || "");
+ 	return s.endsWith("/") ? s : s + "/";
+@@ -83107,11 +83108,21 @@ end() {
+ 		let code = 0;
+ 		const ns = moduleName ? pyodide.toPy({ __name__: moduleName }) : null;
+ 		try {
+-			await withInterrupts(() => pyodide.runPythonAsync(source, ns ? {
+-				filename,
+-				globals: ns
+-			} : { filename }));
+-			if (drive) code = await drive(pyodide, ns) | 0;
++			const execution = pyodide.toPy({
++				__vv_source: source,
++				__vv_filename: filename,
++				__vv_namespace: ns || pyodide.globals
++			});
++			let status;
++			try {
++				status = JSON.parse(await withInterrupts(() => pyodide.runPythonAsync(PYTHON_RUN_SOURCE, { globals: execution })));
++			} finally {
++				execution.destroy();
++			}
++			const [exited, exitCode, report] = status;
++			code = exitCode | 0;
++			if (report) process.stderr.write(report + "\n");
++			if (drive && !exited) code = await drive(pyodide, ns) | 0;
+ 			flushStreams(pyodide);
+ 		} catch (e) {
+ 			flushStreams(pyodide);
+@@ -83365,7 +83376,12 @@ json.dumps({
+ 		const baseline = walkPyodide(pyodide, env.sitePackages);
+ 		let how = "";
+ 		try {
+-			await pyodide.loadPackage(list, loaderToStdout);
++			const failures = [];
++			await pyodide.loadPackage(list, {
++				...loaderToStdout,
++				errorCallback: (message) => failures.push(String(message))
++			});
++			if (failures.length) throw new Error(failures.join("\n"));
+ 			how = "Installed";
+ 		} catch {
+ 			try {
+@@ -85250,6 +85266,16 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+ 		}
+ 		return input;
+ 	};
++function isHostVendorRequest(input, location) {
++  if (!location?.origin) return false;
++  try {
++    const value = typeof input === "string" ? input : input?.url ?? input?.href;
++    const url = new URL(value, location.href);
++    return url.origin === location.origin && url.pathname.startsWith("/vendor/");
++  } catch {
++    return false;
++  }
++}
+ 	const OPAQUE_FETCH_FAILURES = [
+ 		"Failed to fetch",
+ 		"NetworkError when attempting to fetch resource",
+@@ -85277,7 +85303,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+ 				const viaHost = (i, n) => hostFetch.call(this, rewriteHostAlias(i), n).catch((err) => {
+ 					throw explainFetchFailure(i, err);
+ 				});
+-				if (loopbackFetch.route(input)) return trackHost(loopbackFetch.fetch(input, init, viaHost));
++				if (!isHostVendorRequest(input, HOST_REALM.held.get("location")) && loopbackFetch.route(input)) return trackHost(loopbackFetch.fetch(input, init, viaHost));
+ 				return trackHost(viaHost(input, init));
+ 			};
+ 			wrappedFetch.__ocHostWrapped = true;
+@@ -85506,6 +85532,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+ 	try {
+ 		if (!Object.getOwnPropertyDescriptor(globalThis, "fs")) globalThis.fs = vvRootRequire("fs");
+ 	} catch {}
++	globalThis.__ocImportHost = (spec) => trackHost(import(spec));
+ 	globalThis.__ocImport = (spec) => Promise.resolve().then(() => {
+ 		const s = String(spec);
+ 		let m;
+diff --git a/dist/index.js b/dist/index.js
+index 534f751eb5faa029249fda8ed390c61fcdada196..7e23bc24bb5b819e6479de47ecbcf731a5ccbd6c 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -103,7 +103,7 @@ var KernelBridge = class {
+ 		this.documentIsolationPolicy = options.documentIsolationPolicy;
+ 		this.worker = new Worker(new URL(
+ 			/* @vite-ignore */
+-			"/assets/kernel-worker-B2lyfcKA.js",
++			"/assets/kernel-worker-B2lyfcKA.js?aiao-runtime=3",
+ 			"" + import.meta.url
+ 		), {
+ 			type: "module",

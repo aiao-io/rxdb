@@ -54,11 +54,20 @@ export async function packDirectory(directory, tool) {
   return bytes;
 }
 
+/** 下载固定资源，给大型 WASM / wheel 留出传输时间，并在失败时保留资源名。 */
+export async function fetchVendorBytes(url, label, fetchAsset) {
+  try {
+    const response = await fetchAsset(url, { signal: AbortSignal.timeout(180_000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error) {
+    throw new Error(`${label} 下载失败：${error.message}`, { cause: error });
+  }
+}
+
 /** 校验固定发布包的完整性，在临时目录中解包，使用完立即删除。 */
 export async function withVendorArchive(tool, fetchAsset, consume) {
-  const response = await fetchAsset(tool.tarball, { signal: AbortSignal.timeout(60_000) });
-  if (!response.ok) throw new Error(`${tool.name} 下载失败：HTTP ${response.status}`);
-  const archive = Buffer.from(await response.arrayBuffer());
+  const archive = await fetchVendorBytes(tool.tarball, tool.name, fetchAsset);
   const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`;
   if (integrity !== tool.integrity) throw new Error(`${tool.name} 下载内容校验失败`);
   const scratch = await mkdtemp(join(tmpdir(), 'aiao-vivari-vendor-'));

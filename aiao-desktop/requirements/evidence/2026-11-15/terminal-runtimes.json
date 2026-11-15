@@ -1,0 +1,105 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-15T12:21:09.917Z",
+  "source": {
+    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
+    "changes": "M src/groups/terminal-runtimes.mjs\n M ../web/project.json\n M ../../scripts/deploy/config.spec.mjs\n M ../../scripts/vivari/README.md\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs\n M ../../scripts/vivari/tools.json\n?? ../../requirements/evidence/2026-11-15/terminal-runtimes-first-failure.json\n?? ../../requirements/evidence/2026-11-15/terminal-runtimes-intermediate.json\n?? ../../requirements/evidence/2026-11-15/terminal-runtimes.json\n?? ../../scripts/vivari/sdk.spec.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "24.6.0",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz",
+    "node": "v26.13.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "91f00759dca5e92029394d386d15cb02a5dee633f3681879ab66af2b585b08ba"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "terminal-runtimes"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 59.67234123,
+  "outcomes": [
+    {
+      "group": "terminal-runtimes",
+      "result": {
+        "terminalRuntimes": {
+          "lazy": true,
+          "python": true,
+          "python3": true,
+          "pythonExit": true,
+          "pythonAsync": true,
+          "script": true,
+          "sharedDisk": true,
+          "pip": true,
+          "installedPackage": true,
+          "pipFreeze": true,
+          "numpyPandas": true,
+          "scipySklearn": true,
+          "pythonLibraries": true,
+          "pytest": true,
+          "black": true,
+          "mypy": true,
+          "ruff": true,
+          "tsc": true,
+          "tsgo": true,
+          "bun": true,
+          "nodeSqlite": true,
+          "bunSqlite": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 59.618764180999996
+    }
+  ],
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": true,
+      "python3": true,
+      "pythonExit": true,
+      "pythonAsync": true,
+      "script": true,
+      "sharedDisk": true,
+      "pip": true,
+      "installedPackage": true,
+      "pipFreeze": true,
+      "numpyPandas": true,
+      "scipySklearn": true,
+      "pythonLibraries": true,
+      "pytest": true,
+      "black": true,
+      "mypy": true,
+      "ruff": true,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "nodeSqlite": true,
+      "bunSqlite": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}
