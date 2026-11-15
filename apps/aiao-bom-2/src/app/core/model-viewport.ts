@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { partGroup, selectModelNodes, type ModelNodeIdentity } from './model-mapping';
+import { partGroup, type ModelNodeIdentity } from './model-mapping';
 import { SceneBatches } from './scene-batches';
 import { SelectionFrame } from './selection-frame';
 import type { BomRow } from './types';
@@ -24,6 +24,9 @@ export class ModelViewport {
   private readonly raycaster = new THREE.Raycaster();
   private readonly objects = new Map<number, THREE.Object3D>();
   private readonly identities: ModelNodeIdentity[] = [];
+  private readonly indicesByCompId = new Map<string, number[]>();
+  private readonly indicesByPartId = new Map<string, number[]>();
+  private readonly indicesBySystemId = new Map<string, number[]>();
   private readonly sourceHidden = new Set<THREE.Mesh>();
   private readonly originalLayers = new Map<THREE.Mesh, number>();
   private readonly originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
@@ -46,6 +49,7 @@ export class ModelViewport {
   private disposed = false;
   private isolated = false;
   private ghosted = false;
+  private visibilityNeedsReconcile = true;
   private pointerStart = new THREE.Vector2();
 
   constructor(
@@ -119,12 +123,16 @@ export class ModelViewport {
     });
     this.objects.forEach((object, index) => {
       const compId = String(object.userData['item_id'] ?? object.userData['gid'] ?? object.name);
-      this.identities.push({
+      const identity = {
         index,
         partId: partGroup(compId),
         compId,
         systemId: String(object.userData['system_id'] ?? '')
-      });
+      };
+      this.identities.push(identity);
+      this.addIndex(this.indicesByCompId, identity.compId, identity.index);
+      this.addIndex(this.indicesByPartId, identity.partId, identity.index);
+      this.addIndex(this.indicesBySystemId, identity.systemId, identity.index);
     });
     this.root.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -158,12 +166,18 @@ export class ModelViewport {
       this.render();
       return { count: 0, level: 'none' };
     }
-    const selected = selectModelNodes(this.identities, row);
+    const selected =
+      row.nodeIndex !== undefined ? { indices: [row.nodeIndex], level: 'occurrence' as const }
+      : this.indicesByCompId.has(row.compId) ?
+        { indices: this.indicesByCompId.get(row.compId)!, level: 'variant' as const }
+      : this.indicesByPartId.has(row.partId) ?
+        { indices: this.indicesByPartId.get(row.partId)!, level: 'group' as const }
+      : { indices: [], level: 'none' as const };
     const system =
       row.kind === 'system' ?
-        this.identities.filter(n => n.partId.startsWith(row.compId))
-      : this.identities.filter(n => n.systemId === row.compId);
-    const indices = system.length && !selected.indices.length ? system.map(n => n.index) : selected.indices;
+        this.identities.filter(n => n.partId.startsWith(row.compId)).map(n => n.index)
+      : (this.indicesBySystemId.get(row.compId) ?? []);
+    const indices = system.length && !selected.indices.length ? system : selected.indices;
     const meshes = new Set<THREE.Mesh>();
     for (const index of indices)
       this.objects.get(index)?.traverse(object => {
@@ -202,12 +216,14 @@ export class ModelViewport {
   }
   isolate(value: boolean): void {
     this.isolated = value;
+    this.visibilityNeedsReconcile = true;
     this.applyVisibility();
     this.render();
   }
   ghost(value: boolean): void {
     this.selectionFrame.invalidate();
     this.ghosted = value;
+    this.visibilityNeedsReconcile = true;
     const row = this.pendingSelection;
     this.resetSelection();
     if (row) this.select(row);
@@ -218,6 +234,7 @@ export class ModelViewport {
     this.selectionFrame.invalidate();
     this.isolated = false;
     this.ghosted = false;
+    this.visibilityNeedsReconcile = true;
     this.resetSelection();
     this.applyVisibility();
     this.fit();
@@ -347,13 +364,16 @@ export class ModelViewport {
     this.selectedMeshes.clear();
   }
   private applyVisibility(): void {
-    for (const mesh of this.meshes) {
-      const selected = this.selectedMeshes.has(mesh);
-      mesh.layers.mask = this.isolated && this.selectedMeshes.size && !selected ? 2 : this.originalLayers.get(mesh)!;
-      mesh.visible = !this.sourceHidden.has(mesh) && (!this.isolated || !this.selectedMeshes.size || selected);
-      if (this.ghosted && this.selectedMeshes.size && !selected) this.makeGhost(mesh);
+    if (this.visibilityNeedsReconcile || this.isolated || this.ghosted) {
+      for (const mesh of this.meshes) {
+        const selected = this.selectedMeshes.has(mesh);
+        mesh.layers.mask = this.isolated && this.selectedMeshes.size && !selected ? 2 : this.originalLayers.get(mesh)!;
+        mesh.visible = !this.sourceHidden.has(mesh) && (!this.isolated || !this.selectedMeshes.size || selected);
+        if (this.ghosted && this.selectedMeshes.size && !selected) this.makeGhost(mesh);
+      }
+      if (this.isolated && this.selectedMeshes.size) this.revealAncestors();
+      this.visibilityNeedsReconcile = false;
     }
-    if (this.isolated && this.selectedMeshes.size) this.revealAncestors();
     this.batches?.update(
       this.selectedMeshes,
       this.isolated,
@@ -405,6 +425,11 @@ export class ModelViewport {
       );
     }
   }
+  private addIndex(index: Map<string, number[]>, key: string, value: number): void {
+    const values = index.get(key) ?? [];
+    values.push(value);
+    index.set(key, values);
+  }
   private makeGhost(mesh: THREE.Mesh): void {
     mesh.material = this.ghostMaterial;
   }
@@ -423,9 +448,13 @@ export class ModelViewport {
     this.meshes = [];
     this.objects.clear();
     this.identities.length = 0;
+    this.indicesByCompId.clear();
+    this.indicesByPartId.clear();
+    this.indicesBySystemId.clear();
     this.originalMaterials.clear();
     this.originalLayers.clear();
     this.sourceHidden.clear();
+    this.visibilityNeedsReconcile = true;
   }
   private releaseRoot(root: THREE.Object3D): void {
     const geometries = new Set<THREE.BufferGeometry>();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDraft } from './draft';
-import { createDraftBranch, createDraftCommit, commitBranch, markBranchDirty } from './draft-worktree';
+import { commitBranch, createDraftBranch, createDraftCommit, markBranchDirty } from './draft-worktree';
 import { makeStressDataset } from './stress-data';
 
 describe('草稿工作树', () => {
