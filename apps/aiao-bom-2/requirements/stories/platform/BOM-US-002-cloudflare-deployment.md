@@ -41,7 +41,7 @@ Cloudflare Workers Static Assets、生产产物发布、SPA 深链接、SQLite/W
 - [Wrangler 配置](../../../wrangler.json)
 - [响应头](../../../public/_headers)
 - [Nx 发布目标](../../../project.json)
-- [部署浏览器配置](../../../../aiao-bom-2-e2e/playwright.cloudflare.config.ts)
+- [部署浏览器配置](../../../../aiao-bom-2-e2e/playwright.cloudflare.config.mts)
 - [部署验收用例](../../../../aiao-bom-2-e2e/cloudflare/deployment.spec.ts)
 
 ## 验收证据

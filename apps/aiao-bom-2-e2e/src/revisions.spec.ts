@@ -74,8 +74,8 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
   expect(accessibility.violations).toEqual([]);
-  await mkdir('../aiao-bom-2/requirements/evidence', { recursive: true });
-  await page.screenshot({ path: '../aiao-bom-2/requirements/evidence/versions-2026-11-14.png' });
+  await mkdir('test-output/evidence', { recursive: true });
+  await page.screenshot({ path: 'test-output/evidence/versions.png' });
   await dialog.getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('button', { name: '提交版本', exact: true }).click();
   const commit = page.getByRole('dialog');
