@@ -1,16 +1,25 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["rxdb", "rxdb-adapter-wa-sqlite", "rxdb-plugin-storage"],
+  "implicitDependencies": [
+    "rxdb",
+    "rxdb-adapter-wa-sqlite",
+    "rxdb-plugin-storage"
+  ],
   "name": "aiao-media",
   "prefix": "app",
   "projectType": "application",
   "sourceRoot": "aiao-media/apps/web/src",
-  "tags": ["product:media", "type:app"],
+  "tags": [
+    "product:media",
+    "type:app"
+  ],
   "targets": {
     "prepare-self-hosted": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["aiao-media-api:build-node"],
+      "dependsOn": [
+        "aiao-media-api:build-node"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node ../../scripts/release/prepare-self-hosted.mjs"
@@ -26,7 +35,9 @@
           "waitFor": "ready"
         },
         {
-          "projects": ["aiao-media-admin"],
+          "projects": [
+            "aiao-media-admin"
+          ],
           "target": "dev",
           "waitFor": "ready"
         },
@@ -51,7 +62,9 @@
         "dev-ports",
         "dev-config",
         {
-          "projects": ["aiao-media-api"],
+          "projects": [
+            "aiao-media-api"
+          ],
           "target": "dev",
           "waitFor": "ready"
         }
@@ -77,7 +90,9 @@
     "dev-config": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["dev-studio"],
+      "dependsOn": [
+        "dev-studio"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/dev/prepare-dev.mjs"
@@ -86,7 +101,9 @@
     "dev-studio": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/supabase/supabase-local.mjs studio"
@@ -96,7 +113,9 @@
       "executor": "nx:run-commands",
       "continuous": true,
       "cache": false,
-      "dependsOn": ["dev-studio"],
+      "dependsOn": [
+        "dev-studio"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/supabase/supabase-local.mjs logs-follow"
@@ -112,7 +131,9 @@
     },
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "aiao-media/apps/web/dist",
         "browser": "aiao-media/apps/web/src/main.ts",
@@ -124,8 +145,14 @@
             "input": "aiao-media/apps/web/public"
           }
         ],
-        "styles": ["aiao-media/apps/web/src/styles.css", "aiao-media/apps/web/src/image-mvp.css"],
-        "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
+        "styles": [
+          "aiao-media/apps/web/src/styles.css",
+          "aiao-media/apps/web/src/image-mvp.css"
+        ],
+        "allowedCommonJsDependencies": [
+          "@supabase/supabase-js",
+          "ms"
+        ]
       },
       "configurations": {
         "production": {
@@ -164,7 +191,12 @@
         }
       },
       "defaultConfiguration": "production",
-      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config"],
+      "dependsOn": [
+        "^build",
+        "prompt-assets",
+        "prepare-assets",
+        "auth-config"
+      ],
       "inputs": [
         "production",
         "^production",
@@ -181,7 +213,12 @@
       ]
     },
     "serve": {
-      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config"],
+      "dependsOn": [
+        "^build",
+        "prompt-assets",
+        "prepare-assets",
+        "auth-config"
+      ],
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "configurations": {
@@ -217,7 +254,9 @@
     },
     "offline-assets": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "outputs": [
         "{projectRoot}/dist/browser/offline-worker.js",
         "{projectRoot}/dist/browser/offline-shell.html",
@@ -236,11 +275,17 @@
         "port": 4300,
         "prebundle": false
       },
-      "dependsOn": ["prompt-assets", "auth-config"]
+      "dependsOn": [
+        "prompt-assets",
+        "auth-config"
+      ]
     },
     "smoke-production": {
       "executor": "nx:noop",
-      "dependsOn": ["aiao-media-e2e:local-first-e2e", "release-check"]
+      "dependsOn": [
+        "aiao-media-e2e:local-first-e2e",
+        "release-check"
+      ]
     },
     "prompt-assets": {
       "executor": "nx:run-commands",
@@ -261,7 +306,9 @@
           ]
         }
       ],
-      "outputs": ["{projectRoot}/public/prompt-runtime"],
+      "outputs": [
+        "{projectRoot}/public/prompt-runtime"
+      ],
       "options": {
         "command": "node scripts/build-prompt-assets.mjs",
         "cwd": "aiao-media/apps/web"
@@ -270,7 +317,9 @@
     "deploy": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["release-check"],
+      "dependsOn": [
+        "release-check"
+      ],
       "options": {
         "command": "node ../../scripts/release/deploy-local-first.mjs",
         "cwd": "aiao-media/apps/web"
@@ -294,7 +343,9 @@
     "deploy-check": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["release-check"],
+      "dependsOn": [
+        "release-check"
+      ],
       "options": {
         "command": "node ../../scripts/release/deploy-local-first.mjs --dry-run",
         "cwd": "aiao-media/apps/web"
@@ -303,7 +354,9 @@
     "release-check": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["package-admin"],
+      "dependsOn": [
+        "package-admin"
+      ],
       "options": {
         "command": "node ../../scripts/release/check-local-first-release.mjs",
         "cwd": "aiao-media/apps/web"
@@ -312,7 +365,11 @@
     "package-admin": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["offline-assets", "aiao-media-admin:build", "production-bundle"],
+      "dependsOn": [
+        "offline-assets",
+        "aiao-media-admin:build",
+        "production-bundle"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/release/package-admin.mjs"
@@ -321,7 +378,9 @@
     "installation-browser-test": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["package-admin"],
+      "dependsOn": [
+        "package-admin"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "eslint scripts/release/installation-browser.test.mjs scripts/release/package-admin.mjs scripts/release/check-local-first-release.mjs --max-warnings=0 && node --test scripts/release/installation-browser.test.mjs"
@@ -344,7 +403,9 @@
           "env": "AIAO_SUPABASE_STORAGE_URL"
         }
       ],
-      "outputs": ["{projectRoot}/public/app-config.js"],
+      "outputs": [
+        "{projectRoot}/public/app-config.js"
+      ],
       "options": {
         "command": "node --env-file-if-exists=.env scripts/build-supabase-config.mjs",
         "cwd": "aiao-media/apps/web"
@@ -360,13 +421,17 @@
     "prepare-assets": {
       "executor": "nx:run-commands",
       "cache": true,
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "inputs": [
         "{projectRoot}/scripts/prepare-rxdb-assets.mjs",
         "{workspaceRoot}/pnpm-lock.yaml",
         "{workspaceRoot}/packages/rxdb-adapter-wa-sqlite/**/*"
       ],
-      "outputs": ["{projectRoot}/public/wa-sqlite/wa-sqlite-async.wasm"],
+      "outputs": [
+        "{projectRoot}/public/wa-sqlite/wa-sqlite-async.wasm"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node scripts/prepare-rxdb-assets.mjs"
@@ -374,7 +439,10 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "aiao-media-api:typecheck"],
+      "dependsOn": [
+        "^build",
+        "aiao-media-api:typecheck"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
@@ -382,8 +450,14 @@
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "script-test", "requirements-check"],
-      "outputs": ["{workspaceRoot}/coverage/aiao-media/apps/web"],
+      "dependsOn": [
+        "^build",
+        "script-test",
+        "requirements-check"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/aiao-media/apps/web"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "vitest run --config vite.config.mts --project=aiao-media-ui --project=aiao-media-data"
@@ -410,12 +484,17 @@
         "cwd": "aiao-media/apps/web",
         "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/*.test.mjs ../../scripts/supabase/migration.test.mjs ../../scripts/supabase/supabase-local.test.mjs ../../scripts/release/self-hosted-config.test.mjs"
       },
-      "dependsOn": ["aiao-media-api:script-test", "dev-test"]
+      "dependsOn": [
+        "aiao-media-api:script-test",
+        "dev-test"
+      ]
     },
     "production-bundle": {
       "executor": "nx:run-commands",
       "cache": false,
-      "outputs": ["{projectRoot}/tmp/production-supabase-bundle.sql"],
+      "outputs": [
+        "{projectRoot}/tmp/production-supabase-bundle.sql"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node ../../scripts/supabase/build-production-supabase-bundle.mjs"
@@ -492,7 +571,9 @@
         "command": "node ../../scripts/supabase/supabase-local.mjs migrate",
         "cwd": "aiao-media/apps/web"
       },
-      "dependsOn": ["supabase-up"]
+      "dependsOn": [
+        "supabase-up"
+      ]
     },
     "supabase-serve": {
       "executor": "nx:run-commands",
@@ -501,25 +582,44 @@
         "command": "node ../../scripts/supabase/supabase-local.mjs serve",
         "cwd": "aiao-media/apps/web"
       },
-      "dependsOn": ["supabase-up"],
+      "dependsOn": [
+        "supabase-up"
+      ],
       "continuous": true
     },
     "supabase-e2e": {
       "executor": "nx:noop",
-      "dependsOn": ["aiao-media-e2e:supabase-e2e"]
+      "dependsOn": [
+        "aiao-media-e2e:supabase-e2e"
+      ]
     },
     "supabase-test": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "options": {
         "command": "node ../../scripts/supabase/test-supabase-local.mjs",
         "cwd": "aiao-media/apps/web"
       }
     },
+    "backend-rxdb-local-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        "supabase-migrate"
+      ],
+      "options": {
+        "command": "AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node --test src/pgmq-supabase.integration.test.ts && AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node ../../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/backend-rxdb/backend-rxdb.local.integration.spec.ts",
+        "cwd": "aiao-media/apps/api"
+      }
+    },
     "image-storage-test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["api-contracts:build"],
+      "dependsOn": [
+        "api-contracts:build"
+      ],
       "cache": false,
       "options": {
         "cwd": "aiao-media",
@@ -528,7 +628,9 @@
     },
     "image-lifecycle-test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "cache": false,
       "options": {
         "cwd": "aiao-media",
@@ -541,13 +643,17 @@
         "command": "node ../../scripts/product/test-product-local.mjs",
         "cwd": "aiao-media/apps/web"
       },
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "cache": false
     },
     "admin-membership": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "options": {
         "command": "node ../../scripts/supabase/admin-membership.mjs --local",
         "cwd": "aiao-media/apps/web"
@@ -555,7 +661,10 @@
     },
     "test-browser": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "prepare-assets"],
+      "dependsOn": [
+        "^build",
+        "prepare-assets"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "vitest run --config vite.config.mts --project=aiao-media-browser"
@@ -563,8 +672,15 @@
     },
     "coverage": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "prepare-assets", "script-test", "requirements-check"],
-      "outputs": ["{workspaceRoot}/coverage/aiao-media/apps/web"],
+      "dependsOn": [
+        "^build",
+        "prepare-assets",
+        "script-test",
+        "requirements-check"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/aiao-media/apps/web"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "vitest run --config vite.config.mts --coverage"
@@ -581,7 +697,9 @@
     "sync-management-test": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node ../../scripts/product/test-sync-management-local.mjs"
@@ -628,7 +746,9 @@
     "credits-local-test": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["supabase-migrate"],
+      "dependsOn": [
+        "supabase-migrate"
+      ],
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/product/test-credits-local.mjs"

@@ -169,9 +169,9 @@ async function setAccount(request: Request, client: BackendClient, actorId: stri
     }
   });
 }
-/** 验证管理员权限后执行产品管理接口。 */
-export function handleAdmin(request: Request, env: WorkerEnv) {
-  return endpoint(async () => {
+/** 旧管理路径只保留迁移兼容，不新增普通业务调用。 */
+export async function handleAdmin(request: Request, env: WorkerEnv) {
+  const result = await endpoint(async () => {
     if (new URL(request.url).pathname === '/api/admin/login' && request.method === 'POST') {
       sameOriginWrite(request);
       const value = fields<{ email: string; password: string }>(await body(request, 4096), ['email', 'password']);
@@ -232,4 +232,9 @@ export function handleAdmin(request: Request, env: WorkerEnv) {
       };
     return reject(404, '管理接口不存在。');
   });
+  result.headers.set('deprecation', 'true');
+  result.headers.set('x-aiao-admin-route', 'deprecated-use-supabase-auth-and-admin-api');
+  result.headers.set('link', '</functions/v1/admin-api>; rel="successor-version"');
+  console.warn('[deprecated-admin-route]', request.method, new URL(request.url).pathname);
+  return result;
 }

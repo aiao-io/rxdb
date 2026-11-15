@@ -19,6 +19,28 @@ export interface ProviderInstance {
   enabled: boolean;
 }
 
+export {
+  MediaConfigCommit,
+  MediaConfigCommitChange,
+  MediaPlatformModel,
+  MediaPromptTemplate,
+  MediaProviderPolicy,
+  MEDIA_CONFIG_COMMIT_OPERATIONS,
+  MEDIA_CONFIG_COMMIT_STATUSES,
+  assertValidMediaConfigCommit,
+  canTransitionMediaConfigCommit,
+  createMediaConfigChangeFingerprint,
+  createMediaConfigCommitEnvelope,
+  createMediaConfigCommitFingerprint,
+  type MediaConfigCommitChangeInput,
+  type MediaConfigCommitEnvelope,
+  type MediaConfigCommitInput,
+  type MediaConfigCommitOperation,
+  type MediaConfigCommitStatus
+} from './media-config.js';
+
+export { MediaSyncRecord, MEDIA_SYNC_RECORD_KINDS, type MediaSyncRecordKind } from './media-sync-record.js';
+
 export function domain(): string {
   return 'aiao-media';
 }

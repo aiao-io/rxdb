@@ -28,6 +28,24 @@
   ],
   "references": [
     {
+      "path": "../../../packages/rxdb-plugin-working-tree"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-sync"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-history"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-supabase"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-pglite"
+    },
+    {
+      "path": "../../../packages/rxdb"
+    },
+    {
       "path": "../../packages/domain"
     },
     {

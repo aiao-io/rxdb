@@ -22,5 +22,9 @@
   ],
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
 }

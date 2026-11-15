@@ -12,8 +12,18 @@ const ready = {
   initialized: true,
   auth: { url: 'https://project.supabase.co', anonKey: 'sb_publishable_fixture' }
 };
+const supabaseUser = { id: 'owner', email: 'owner@example.test', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-01-01T00:00:00Z' };
+const supabaseSession = {
+  access_token: 'fixture-session',
+  refresh_token: 'fixture-refresh-token',
+  expires_in: 3600,
+  expires_at: Math.floor(Date.now() / 1000) + 3600,
+  token_type: 'bearer',
+  user: supabaseUser
+};
 afterEach(() => {
   localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+  localStorage.removeItem('aiao-media-admin-supabase-session-v1:https%3A%2F%2Fproject.supabase.co');
   vi.unstubAllGlobals();
   TestBed.resetTestingModule();
 });
@@ -102,9 +112,16 @@ describe('App', () => {
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
     fixture.detectChanges();
     const app = fixture.componentInstance;
-    vi.mocked(fetch).mockResolvedValueOnce(
-      Response.json({ accessToken: 'fixture-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } })
-    );
+    Object.assign(app.form, { email: 'owner@example.test', password: 'password' });
+    Object.assign(fixture.componentInstance.form, { email: 'owner@example.test', password: 'password' });
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      if (url.includes('/auth/v1/token')) return Response.json(supabaseSession);
+      if (url.includes('/auth/v1/user')) return Response.json(supabaseUser);
+      if (url.includes('/rest/v1/rpc/media_admin_authorized')) return Response.json(true);
+      if (url.includes('/functions/v1/admin-api')) return Response.json({ actorId: 'owner' });
+      return Response.json({ actorId: 'owner' });
+    });
     await app.login();
     expect((await app.client.authorization()).session.access_token).toBe('fixture-session');
     app.logout();
@@ -119,13 +136,20 @@ describe('App', () => {
     await fixture.whenStable();
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
     const session = { accessToken: 'fixture-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } };
-    vi.mocked(fetch).mockImplementation(async input =>
-      String(input).endsWith('/api/admin/login') ? Response.json(session) : Response.json({ actorId: 'owner' })
-    );
+    Object.assign(fixture.componentInstance.form, { email: 'owner@example.test', password: 'password' });
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      if (url.includes('/auth/v1/token')) return Response.json({ ...supabaseSession, access_token: session.accessToken, user: { ...supabaseUser, id: session.user.id } });
+      if (url.includes('/auth/v1/user')) return Response.json({ ...supabaseUser, id: session.user.id });
+      if (url.includes('/rest/v1/rpc/media_admin_authorized')) return Response.json(true);
+      if (url.includes('/functions/v1/admin-api')) return Response.json({ actorId: session.user.id });
+      return Response.json({ actorId: session.user.id });
+    });
     await fixture.componentInstance.login();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!)).toEqual(session);
+    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!)).toMatchObject({ accessToken: session.accessToken, user: { id: session.user.id } });
+    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!).expiresAt).toBeGreaterThan(Date.now());
     expect(fixture.nativeElement.querySelector('.access-shell')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="admin-shell"]')).not.toBeNull();
   });
@@ -133,7 +157,11 @@ describe('App', () => {
   it('刷新后恢复未过期的管理员会话', async () => {
     const session = { accessToken: 'stored-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } };
     localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
-    vi.mocked(fetch).mockResolvedValueOnce(Response.json(ready));
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      if (url.includes('/auth/v1/user')) return Response.json({ ...supabaseUser, id: 'owner' });
+      return Response.json(ready);
+    });
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());

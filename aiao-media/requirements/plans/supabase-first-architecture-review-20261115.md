@@ -732,7 +732,7 @@ PoC 必须与当前 Durable Object 并行，不能先删除现有实现。至少
 - **第 7.1 点：直接采纳。** `rxdb-model` 作为 Admin 配置显示和编辑层，避免手写第二套状态系统。
 - **第 7.2 点：采纳领域级投影。** 使用 RxDB 分支、working-tree 和 commit 生成可同步的配置提交记录；完整内部 commit graph 另行设计，不直接暴露系统表。
 
-架构研究已经转成可验收用户故事，当前仍处于 Backlog，未改变业务代码或数据库：
+架构研究已经转成可验收用户故事，并在 2026-11-15 进入实施：普通业务直连、特权 Edge Function、后台 RxDB、`rxdb-model` 配置入口、领域级 commit projection、原子 apply/回滚 RPC 和 PGMQ PoC 已有代码与包级测试证据；真实 Supabase、Realtime、Playwright、双区域和生产切换仍待验收：
 
 - [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](../stories/account/MEDIA-US-208-supabase-admin-boundary.md)
 - [MEDIA-US-306 后台服务 RxDB 双向同步](../stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)

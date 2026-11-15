@@ -40,6 +40,24 @@ test('管理员 API 在服务端确认用户和实时角色前不调用管理接
     globalThis.fetch = previous;
   }
 });
+test('旧管理路径返回明确弃用标记，继续保留迁移兼容', async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async input => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/v1/user') return Response.json({ id: userId });
+    if (path === '/rest/v1/rpc/media_admin_authorized') return Response.json(false);
+    throw new Error('No privileged call expected');
+  };
+  try {
+    const response = await handleAdmin(request('session'), env);
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get('deprecation'), 'true');
+    assert.equal(response.headers.get('x-aiao-admin-route'), 'deprecated-use-supabase-auth-and-admin-api');
+    assert.match(response.headers.get('link') ?? '', /functions\/v1\/admin-api/);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
 test('用户列表只返回白名单字段，不返回凭据和任意 metadata', async () => {
   const previous = globalThis.fetch;
   globalThis.fetch = async input => {

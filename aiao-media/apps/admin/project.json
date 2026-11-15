@@ -13,7 +13,9 @@
       "dependsOn": [
         "aiao-media:dev-ports",
         {
-          "projects": ["aiao-media-api"],
+          "projects": [
+            "aiao-media-api"
+          ],
           "target": "dev",
           "waitFor": "ready"
         }
@@ -29,7 +31,9 @@
     },
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/aiao-media/apps/admin",
@@ -39,10 +43,20 @@
           {
             "glob": "**/*",
             "input": "aiao-media/apps/admin/public"
+          },
+          {
+            "glob": "*.wasm",
+            "input": "packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm/",
+            "followSymlinks": true
           }
         ],
-        "styles": ["aiao-media/apps/admin/src/styles.css"],
-        "allowedCommonJsDependencies": ["ms"]
+        "styles": [
+          "aiao-media/apps/admin/src/styles.css"
+        ],
+        "allowedCommonJsDependencies": [
+          "ms"
+        ]
       },
       "configurations": {
         "production": {
@@ -65,6 +79,16 @@
           "extractLicenses": false,
           "sourceMap": true
         }
+      }
+    },
+    "bundle-security": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "cwd": "aiao-media/apps/admin",
+        "command": "node --test ../../scripts/release/verify-admin-supabase-boundary.test.mjs && node ../../scripts/release/verify-admin-supabase-boundary.mjs"
       }
     },
     "serve": {
@@ -100,7 +124,9 @@
       "readyWhen": {
         "signal": true
       },
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-media-admin:build",
@@ -117,7 +143,9 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "aiao-media/apps/admin",
         "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"

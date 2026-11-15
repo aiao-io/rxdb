@@ -1,7 +1,7 @@
 ---
 id: MEDIA-US-306
 title: 后台服务 RxDB 双向同步
-status: Backlog
+status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-11-15
@@ -43,16 +43,23 @@ tags: [rxdb, sync, backend, supabase, realtime, rls]
 
 | # | 前置条件 | 操作 | 预期结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| 1 | 后台服务配置有效普通 JWT 和本地数据库 | 启动服务并连接 Supabase | 本地 RxDB、Supabase adapter、同步插件和 Realtime 正常初始化；RLS 检查通过 | ⬜ |
-| 2 | 前端已创建或修改共享业务实体 | 后台服务执行 pull/sync | 后台本地 RxDB 收到同一实体和 revision，字段不丢失 | ⬜ |
-| 3 | 后台修改允许写入的业务实体 | 执行 push/sync | Supabase 业务表和 `rxdb_change` 收到变更；前端后续可以拉取 | ⬜ |
-| 4 | 后台进程同步到一半退出或网络断开 | 重启服务并重新同步 | 游标和未确认变更可恢复，不重复应用已确认变更，不丢失本地变更 | ⬜ |
-| 5 | 两个客户端同时修改同一实体 | 同步并产生 revision 冲突 | 按实体冲突策略返回可观察结果；不能静默覆盖另一方数据 | ⬜ |
-| 6 | 后台使用错误 workspace、过期身份或普通用户身份 | 读取或写入不属于自己的数据 | RLS/RPC 拒绝请求，本地保留数据并暂停对应远程写入 | ⬜ |
-| 7 | 后台需要读取 Auth 用户或封禁账号 | 执行特权动作 | 服务调用 Edge Function；同步连接本身没有 service role 权限 | ⬜ |
-| 8 | Supabase 远端重建或 `rxdb_change` 被重置 | 后台再次连接 | 检测到 remote backend identity 不一致，停止危险同步并给出可恢复错误 | ⬜ |
+| 1 | 后台服务配置有效普通 JWT 和本地数据库 | 启动服务并连接 Supabase | 本地 RxDB、Supabase adapter、同步插件和 Realtime 正常初始化；RLS 检查通过 | ⚠️ |
+| 2 | 前端已创建或修改共享业务实体 | 后台服务执行 pull/sync | 后台本地 RxDB 收到同一实体和 revision，字段不丢失 | ⚠️ |
+| 3 | 后台修改允许写入的业务实体 | 执行 push/sync | Supabase 业务表和 `rxdb_change` 收到变更；前端后续可以拉取 | ⚠️ |
+| 4 | 后台进程同步到一半退出或网络断开 | 重启服务并重新同步 | 游标和未确认变更可恢复，不重复应用已确认变更，不丢失本地变更 | ⚠️ |
+| 5 | 两个客户端同时修改同一实体 | 同步并产生 revision 冲突 | 按实体冲突策略返回可观察结果；不能静默覆盖另一方数据 | ⚠️ |
+| 6 | 后台使用错误 workspace、过期身份或普通用户身份 | 读取或写入不属于自己的数据 | RLS/RPC 拒绝请求，本地保留数据并暂停对应远程写入 | ⚠️ |
+| 7 | 后台需要读取 Auth 用户或封禁账号 | 执行特权动作 | 服务调用 Edge Function；同步连接本身没有 service role 权限 | ⚠️ |
+| 8 | Supabase 远端重建或 `rxdb_change` 被重置 | 后台再次连接 | 检测到 remote backend identity 不一致，停止危险同步并给出可恢复错误 | ⚠️ |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
+
+## 当前实现证据
+
+- `aiao-media/apps/api/src/backend-rxdb/` 已装配 PGlite、本地 RxDB、Supabase adapter、history、working-tree、`syncManager.sync()` 和 `syncManager.syncBranches()`。
+- `backend-rxdb-auth.ts` 拒绝 `service_role`，并覆盖普通 JWT 过期刷新；`backend-rxdb-lifecycle.ts` 覆盖启动、重试、暂停、恢复、定时同步和关闭。
+- API Node 测试当前为 15/15，通过了普通 JWT 边界、生命周期、配置提交 envelope、PGMQ 消息和 consumer 幂等测试。
+- 尚未关闭的证据：真实本地 Supabase pull/push、Realtime 断线、游标恢复、tombstone、revision 冲突和远端 backend identity mismatch 集成测试。
 
 ## 交付阶段
 

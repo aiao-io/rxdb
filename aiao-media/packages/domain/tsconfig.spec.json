@@ -7,5 +7,5 @@
   "exclude": [],
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts", "src/**/*.mts", "src/**/*.mjs", "src/**/*.d.ts"],
-  "references": []
+  "references": [{ "path": "./tsconfig.lib.json" }]
 }

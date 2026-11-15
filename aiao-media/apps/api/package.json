@@ -6,8 +6,15 @@
   "dependencies": {
     "@aiao-media/api-contracts": "workspace:*",
     "@aiao-media/domain": "workspace:*",
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-adapter-supabase": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@hono/swagger-ui": "^0.6.2",
     "@hono/zod-openapi": "^1.6.3",
+    "@supabase/supabase-js": "^2.119.0",
     "hono": "^4.13.17",
     "zod": "^4.6.7"
   },
