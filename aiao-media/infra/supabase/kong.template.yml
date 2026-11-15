@@ -15,7 +15,12 @@ consumers:
 plugins:
   - name: cors
     config:
-      origins: ['http://localhost:4300', 'http://127.0.0.1:4300', 'http://127.0.0.1:4399']
+      origins:
+        - http://localhost:4300
+        - http://127.0.0.1:4300
+        - http://localhost:4302
+        - http://127.0.0.1:4302
+        - http://127.0.0.1:4399
       methods: [GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS]
       headers:
         [
@@ -62,6 +67,17 @@ services:
       - name: key-auth
         config:
           hide_credentials: false
+  - name: admin-api
+    url: http://functions:9000/
+    routes:
+      - name: admin-api
+        paths: ['/functions/v1/admin-api']
+        strip_path: true
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: false
+
   - name: realtime-ws
     url: http://realtime-dev.supabase-realtime:4000/socket
     routes:

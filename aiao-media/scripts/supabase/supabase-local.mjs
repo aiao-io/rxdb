@@ -155,7 +155,8 @@ async function main(action) {
       '180',
       'realtime',
       'auth',
-      'rest'
+      'rest',
+      'functions'
     ]);
     await compose(['run', '--rm', 'kong-config']);
     await compose(['up', '-d', '--no-deps', '--force-recreate', '--wait', '--wait-timeout', '60', 'kong']);

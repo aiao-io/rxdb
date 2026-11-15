@@ -7,11 +7,12 @@
 ## 本地启动
 
 ```bash
-cp .env.example .env
-supabase functions serve admin-api --env-file .env
+pnpm nx run aiao-media:supabase-up
 ```
 
-`.env` 只在本机使用，不提交。生产环境通过 Supabase Dashboard 或 CLI 配置同名 secrets：
+本地 Docker Compose 会启动 `admin-api` Edge Runtime，通过 Kong 的 `/functions/v1/admin-api` 路由访问。`aiao-media:dev` 也会启动该服务；本地凭据来自 `infra/supabase/.env`，只传给服务端容器，不提交。
+
+托管 Supabase 环境通过 Dashboard 或 CLI 配置同名 secrets：
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`

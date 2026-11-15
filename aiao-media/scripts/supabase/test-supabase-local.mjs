@@ -36,6 +36,21 @@ function ok(result, message) {
   return result.data;
 }
 
+async function assertBrowserCors(url, origin) {
+  for (const path of ['/auth/v1/token', '/rest/v1/rpc/media_admin_authorized', '/functions/v1/admin-api']) {
+    const preflight = await fetch(`${url}${path}`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'apikey,authorization,content-type,x-client-info,x-supabase-api-version'
+      }
+    });
+    assert.ok(preflight.ok, `Browser CORS preflight: ${origin}${path}`);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), origin, `Browser CORS origin: ${origin}${path}`);
+  }
+}
+
 export async function testLocalSupabase() {
   const { env, url, mailUrl } = await localEnvironment();
   const options = {
@@ -50,15 +65,14 @@ export async function testLocalSupabase() {
   const clients = [createClient(url, env.ANON_KEY, options), createClient(url, env.ANON_KEY, options)];
   const users = [];
   try {
-    const preflight = await fetch(`${url}/auth/v1/token`, {
-      method: 'OPTIONS',
-      headers: {
-        Origin: 'http://localhost:4300',
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'apikey,authorization,content-type,x-client-info,x-supabase-api-version'
-      }
-    });
-    assert.equal(preflight.headers.get('access-control-allow-origin'), 'http://localhost:4300', 'Browser CORS origin');
+    for (const origin of [
+      'http://localhost:4300',
+      'http://127.0.0.1:4300',
+      'http://localhost:4302',
+      'http://127.0.0.1:4302'
+    ]) {
+      await assertBrowserCors(url, origin);
+    }
     for (const client of clients) {
       const email = `aiao-check-${randomUUID()}@example.test`;
       const password = randomBytes(24).toString('hex');
@@ -76,6 +90,12 @@ export async function testLocalSupabase() {
       assert.equal(ok(await client.auth.getUser(), 'Server verifies session').user.id, signup.user.id);
     }
     console.log('PASS real signup, local email confirmation, login and server session verification');
+
+    const anonymousAdmin = await anonymous.functions.invoke('admin-api', { body: { path: 'users', method: 'GET' } });
+    assert.equal(anonymousAdmin.error?.context?.status, 401, 'Edge Function rejects anonymous access');
+    const ordinaryAdmin = await clients[0].functions.invoke('admin-api', { body: { path: 'users', method: 'GET' } });
+    assert.equal(ordinaryAdmin.error?.context?.status, 403, 'Edge Function rejects ordinary users');
+    console.log('PASS Web/Admin CORS and Edge Function administrator boundary');
 
     const [a, b] = clients;
     const [userA, userB] = users;

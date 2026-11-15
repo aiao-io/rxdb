@@ -135,6 +135,27 @@ services:
       retries: 15
       start_period: 20s
 
+  functions:
+    image: supabase/edge-runtime:v1.74.0
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    volumes:
+      - ./functions/admin-api:/home/deno/functions/admin-api:ro
+    command: ['start', '--main-service', '/home/deno/functions/admin-api']
+    healthcheck:
+      test: ['CMD-SHELL', "timeout 1 bash -c '</dev/tcp/127.0.0.1/9000'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   kong-config:
     image: alpine:3.22
     restart: 'no'
@@ -165,6 +186,8 @@ services:
         condition: service_healthy
       realtime:
         condition: service_started
+      functions:
+        condition: service_healthy
     ports:
       - '127.0.0.1:${API_PORT:-54321}:8000'
     environment:
