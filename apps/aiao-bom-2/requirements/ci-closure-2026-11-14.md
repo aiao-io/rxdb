@@ -2,6 +2,10 @@
 
 日期：2026-11-14，Asia/Shanghai。对应 PR #129。本轮基于 `c7afac01778ff91175143b18d2460a60935419ad` 修复格式检查，公开预览仍对应 `2c9a3347722d345a95b4af37efcecf6f0e57a1f9`；本轮没有重新部署或替换原站。
 
+## 2026-11-15 远端复验
+
+修复提交 `32b5bd9426f59563f422ad5251362f96555132b9` 对应 GitHub Actions run `43685071816` 已完成：`ci / setup`、`ci / gate`、lint / typecheck、`rxdb-plugin-bom` 测试、BOM E2E、其余测试矩阵、覆盖率、基准、桌面 smoke、CodeQL、依赖审查和 deploy preview 全部通过。PR #129 仍为 Draft，`reviewDecision` 为空，`mergeStateStatus` 为 `BLOCKED`，所以远端 CI 收尾已完成，最终统一评审仍未完成。
+
 ## 问题与修复
 
 远端 run `43579315146` 的 `ci / setup` 在 `pnpm check-format` 失败，后续主测试矩阵被跳过，`ci / gate` 随之失败。桌面三系统 smoke、跨系统备份、CodeQL 和依赖检查通过不能替代被跳过的主矩阵。
