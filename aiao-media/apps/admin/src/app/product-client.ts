@@ -162,7 +162,7 @@ export class ProductClient {
   }
 
   async admin(path: string, method = 'GET', payload?: unknown): Promise<unknown> {
-    if (!/^[a-z0-9/?=&,._%:-]+$/i.test(path) || path.startsWith('/')) throw new Error('管理请求路径无效。');
+    if (!/^[a-z0-9/?=&,._%:+-]+$/i.test(path) || path.startsWith('/')) throw new Error('管理请求路径无效。');
     const access = await this.authorize();
     const direct = await this.directAdmin(access, path, method, payload);
     if (direct !== undefined) return direct;
@@ -237,19 +237,49 @@ export class ProductClient {
       order: 'started_at.desc,id',
       limit: '100'
     });
-    for (const [name, column] of Object.entries({ userId: 'owner_id', model: 'model', channel: 'channel', status: 'status' })) {
+    for (const [name, column] of Object.entries({
+      userId: 'owner_id',
+      model: 'model',
+      channel: 'channel',
+      status: 'status'
+    })) {
       const value = url.searchParams.get(name);
       if (value) query.set(column, `eq.${value}`);
     }
+    const from = reportDate(url.searchParams.get('from'));
+    const to = reportDate(url.searchParams.get('to'));
+    if (from && to && from >= to) throw new ProductRequestError(400, '起始时间必须早于结束时间。');
+    if (from) query.append('started_at', `gte.${from}`);
+    if (to) query.append('started_at', `lt.${to}`);
     const page = Number(url.searchParams.get('page') ?? 1);
-    if (!usage) query.set('offset', String((page - 1) * 100));
-    const rows = await this.remote(access, `/media_task_reports?${query}`);
-    if (!Array.isArray(rows)) throw new Error('任务报表不可读。');
-    if (!usage) return { reports: rows, limit: 100 };
-    return this.usage(rows as ReportRow[]);
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger((page - 1) * 100))
+      throw new ProductRequestError(400, '任务页码无效。');
+    if (usage) return this.readUsage(access, query);
+    query.set('offset', String((page - 1) * 100));
+    return { reports: await this.reportRows(access, query), limit: 100 };
   }
 
-  private usage(rows: ReportRow[]): unknown {
+  private async reportRows(access: ProductAuthorization, query: URLSearchParams): Promise<ReportRow[]> {
+    const rows = await this.remote(access, `/media_task_reports?${query}`);
+    if (!Array.isArray(rows)) throw new Error('任务报表不可读。');
+    return rows as ReportRow[];
+  }
+
+  private async readUsage(access: ProductAuthorization, query: URLSearchParams): Promise<unknown> {
+    const rows: ReportRow[] = [];
+    while (rows.length < 10000) {
+      query.set('offset', String(rows.length));
+      const batch = await this.reportRows(access, query);
+      rows.push(...batch);
+      if (batch.length < 100) return this.usage(rows, false);
+    }
+    query.set('offset', '10000');
+    query.set('limit', '1');
+    const extra = await this.reportRows(access, query);
+    return this.usage(rows, extra.length > 0);
+  }
+
+  private usage(rows: ReportRow[], partial: boolean): unknown {
     const sources: Record<string, UsageBucket> = Object.fromEntries(
       ['application', 'provider', 'verified'].map(source => [source, {
         records: 0,
@@ -277,7 +307,7 @@ export class ProductClient {
     }
     for (const bucket of Object.values(sources))
       if (Object.keys(bucket.currencies).length === 1) bucket.verifiedCost = Object.values(bucket.currencies)[0];
-    return { sources, partial: rows.length >= 100, receivedRecords: rows.length };
+    return { sources, partial, receivedRecords: rows.length };
   }
 
   private workspace(value: unknown, userId: string): RemoteWorkspace {
@@ -359,4 +389,24 @@ function parseConfigCommitStatus(value: unknown): RemoteConfigCommitStatus {
     releasedAt: nullableString('released_at'),
     rejectionCode: nullableString('rejection_code')
   };
+}
+
+function reportDate(value: string | null): string | null {
+  if (!value) return null;
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-](?:0\d|1[0-4]):[0-5]\d)$/.exec(value);
+  if (!match) throw new ProductRequestError(400, '请选择有效的带时区时间。');
+  const [, year, month, day, hour, minute, second = '0'] = match;
+  const days = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
+  if (
+    Number(month) < 1 ||
+    Number(month) > 12 ||
+    Number(day) < 1 ||
+    Number(day) > days ||
+    Number(hour) > 23 ||
+    Number(minute) > 59 ||
+    Number(second) > 59
+  )
+    throw new ProductRequestError(400, '日期或时间无效。');
+  return new Date(value).toISOString();
 }

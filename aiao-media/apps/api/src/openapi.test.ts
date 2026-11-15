@@ -50,3 +50,46 @@ test('Swagger UI 可从 API 文档端点打开', async () => {
   assert.match(response.headers.get('content-type') ?? '', /text\/html/);
   assert.match(await response.text(), /swagger-ui/);
 });
+
+test('后台文档允许连接安装配置中的本地账号服务及对应 Realtime', async () => {
+  const response = await worker.fetch(new Request(`${origin}/admin/templates`), {
+    ...env,
+    MEDIA_SUPABASE_URL: 'http://127.0.0.1:54321'
+  });
+  const policy = response.headers.get('content-security-policy') ?? '';
+  assert.match(policy, /connect-src[^;]*http:\/\/127\.0\.0\.1:54321[^;]*ws:\/\/127\.0\.0\.1:54321;/);
+  assert.ok(!policy.includes('http:;'));
+  assert.match(policy, /script-src 'self' 'wasm-unsafe-eval';/);
+});
+
+test('后台 CSP 采用安装服务的公开账号地址，保持静态资源路径与密钥隔离', async () => {
+  const assets: string[] = [];
+  const installationRequests: string[] = [];
+  const configured: WorkerEnv = {
+    ...env,
+    ASSETS: {
+      fetch: async input => {
+        assets.push(new URL(String(input instanceof Request ? input.url : input)).pathname);
+        return new Response('admin');
+      }
+    },
+    MEDIA_SUPABASE_URL: 'http://127.0.0.1:11111',
+    MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'private-configuration-sentinel',
+    MEDIA_INSTALLATION: {
+      idFromName: () => 'installation',
+      get: () => ({
+        fetch: async input => {
+          installationRequests.push(new URL(String(input instanceof Request ? input.url : input)).pathname);
+          return Response.json({ initialized: true, auth: { url: 'http://localhost:54321' } });
+        }
+      })
+    }
+  };
+  const response = await worker.fetch(new Request(`${origin}/admin/tasks`), configured);
+  const policy = response.headers.get('content-security-policy') ?? '';
+  assert.match(policy, /connect-src[^;]*http:\/\/localhost:54321[^;]*ws:\/\/localhost:54321;/);
+  assert.ok(!policy.includes('11111'));
+  assert.ok(!policy.includes('private-configuration-sentinel'));
+  assert.deepEqual(assets, ['/admin/index.html']);
+  assert.deepEqual(installationRequests, ['/api/installation']);
+});

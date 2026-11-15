@@ -28,10 +28,30 @@ const adminContentSecurityPolicy =
   "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
 const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
 const adminNavigation = /^\/admin\/(?:users|templates|policies|tasks|audit)\/?$/;
+function allowAuthConnections(policy: string, authUrl: string | undefined): string {
+  if (!authUrl) return policy;
+  const auth = new URL(authUrl);
+  const realtime = `${auth.protocol === 'https:' ? 'wss:' : 'ws:'}//${auth.host}`;
+  return policy.replace(/connect-src ([^;]*);/, `connect-src $1 ${auth.origin} ${realtime};`);
+}
+
+async function adminPolicy(request: Request, env: WorkerEnv): Promise<string | null> {
+  const setup = installation(env);
+  const path = new URL(request.url).pathname;
+  if (!setup || request.method !== 'GET' || !(path === '/admin/' || adminNavigation.test(path)))
+    return allowAuthConnections(adminContentSecurityPolicy, env.MEDIA_SUPABASE_URL);
+  const result = await setup.fetch(new Request(new URL('/api/installation', request.url)));
+  if (!result.ok) return null;
+  const state = await result.json<{ auth: { url: string } | null }>();
+  return allowAuthConnections(adminContentSecurityPolicy, state.auth?.url);
+}
+
 async function fetchAsset(request: Request, env: WorkerEnv) {
   const pathname = new URL(request.url).pathname;
   if (request.method === 'GET' && pathname === '/admin') return Response.redirect(new URL('/admin/', request.url), 302);
   if (request.method === 'GET' && pathname.startsWith('/admin/')) {
+    const policy = await adminPolicy(request, env);
+    if (!policy) return jsonPayload({ error: 'Installation unavailable' }, 503);
     const asset =
       pathname === '/admin/' || adminNavigation.test(pathname) ?
         new Request(new URL('/admin/index.html', request.url), request)
@@ -39,7 +59,7 @@ async function fetchAsset(request: Request, env: WorkerEnv) {
     const result = await env.ASSETS!.fetch(asset);
     const headers = new Headers(result.headers);
     headers.set('cache-control', 'no-store');
-    headers.set('content-security-policy', adminContentSecurityPolicy);
+    headers.set('content-security-policy', policy);
     return new Response(result.body, { status: result.status, headers });
   }
   const setup = installation(env);
@@ -61,16 +81,8 @@ async function fetchAsset(request: Request, env: WorkerEnv) {
   ) {
     const headers = new Headers(response.headers);
     headers.set('cache-control', 'no-store');
-    if (authUrl) {
-      const auth = new URL(authUrl);
-      const realtime = `${auth.protocol === 'https:' ? 'wss:' : 'ws:'}//${auth.host}`;
-      const policy = headers.get('content-security-policy');
-      if (policy)
-        headers.set(
-          'content-security-policy',
-          policy.replace(/connect-src ([^;]*);/, `connect-src $1 ${auth.origin} ${realtime};`)
-        );
-    }
+    const policy = headers.get('content-security-policy');
+    if (policy) headers.set('content-security-policy', allowAuthConnections(policy, authUrl));
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

@@ -314,13 +314,17 @@ async function credits(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
   if (!uuidPattern.test(target)) throw new SupabaseCallError(404, 'user_not_found');
   const token = validKey(env.SUPABASE_SERVICE_ROLE_KEY);
   if (input.method === 'GET') {
+    const before = new URL(`https://admin.local/${input.path}`).searchParams.get('before');
+    if (before !== null && (!/^[1-9]\d*$/.test(before) || !Number.isSafeInteger(Number(before))))
+      throw new SupabaseCallError(400, 'invalid_credit_cursor');
+    const cursor = before === null ? '' : `&id=lt.${before}`;
     const [accounts, entries] = await Promise.all([
       call<Array<{ balance: number; reserved: number }>>(
         env,
         `/rest/v1/media_credit_accounts?select=balance,reserved&user_id=eq.${target}&limit=1`,
         { token }
       ),
-      call(env, `/rest/v1/media_credit_ledger?select=id,user_id,actor_id,delta,balance_after,reason,source,request_id,created_at&user_id=eq.${target}&order=id.desc&limit=50`, { token })
+      call(env, `/rest/v1/media_credit_ledger?select=id,user_id,actor_id,delta,balance_after,reason,source,request_id,created_at&user_id=eq.${target}&order=id.desc&limit=50${cursor}`, { token })
     ]);
     const account = accounts[0] ?? { balance: 0, reserved: 0 };
     return { account: { ...account, available: account.balance - account.reserved }, entries };

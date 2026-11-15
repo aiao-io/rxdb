@@ -300,3 +300,51 @@ it('管理员从用户列表打开积分表单、填写原因并看到更新余�
   expect(component.message()).toBe('积分调整已确认。');
   expect(element.textContent).toContain('余额 15');
 });
+
+it('时间选择器将浏览器时区转换为同一列表和汇总的查询范围', async () => {
+  const { fixture, component, admin } = await rig('signed-in', true);
+  admin.mockImplementation(async path => {
+    if (path.startsWith('tasks?')) return { reports: [] };
+    if (path.startsWith('usage?')) return { sources: {}, partial: false, receivedRecords: 0 };
+    return {};
+  });
+  await component.selectTab('tasks');
+  fixture.detectChanges();
+  await fixture.whenStable();
+  const element: HTMLElement = fixture.nativeElement;
+  const from = element.querySelector<HTMLInputElement>('input[name="from"]')!;
+  const to = element.querySelector<HTMLInputElement>('input[name="to"]')!;
+  expect(from.type).toBe('datetime-local');
+  from.value = '2026-11-15T08:00';
+  to.value = '2026-11-16T08:00';
+  from.dispatchEvent(new Event('input', { bubbles: true }));
+  to.dispatchEvent(new Event('input', { bubbles: true }));
+  await fixture.whenStable();
+  await component.searchTasks();
+  const requests = admin.mock.calls.map(([path]) => path).filter(path => path.includes('from='));
+  expect(requests).toHaveLength(2);
+  for (const path of requests) {
+    const query = new URL(`https://admin.test/${path}`).searchParams;
+    expect(query.get('from')).toBe(new Date('2026-11-15T08:00').toISOString());
+    expect(query.get('to')).toBe(new Date('2026-11-16T08:00').toISOString());
+  }
+});
+
+it('读取更早流水后能返回最新流水，空历史页也保留返回入口', async () => {
+  const { fixture, component, admin } = await rig('signed-in', true);
+  admin.mockImplementation(async path => ({
+    account: { balance: 12, reserved: 2, available: 10 },
+    entries: path.includes('before=') ? [] : [{ id: 51, source: 'admin' }]
+  }));
+  await component.openUser(user);
+  await component.olderCredits();
+  fixture.detectChanges();
+  const element: HTMLElement = fixture.nativeElement;
+  const latest = [...element.querySelectorAll('button')].find(button => button.textContent?.includes('返回最新流水'));
+  expect(latest).toBeDefined();
+  latest!.click();
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(component.credits()?.entries[0]?.id).toBe(51);
+  expect(element.textContent).not.toContain('返回最新流水');
+});

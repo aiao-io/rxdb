@@ -3,15 +3,9 @@
     "outDir": "../../../dist/out-tsc",
     "types": []
   },
-  "exclude": [
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/app/nx-welcome.ts"
-  ],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/app/nx-welcome.ts"],
   "extends": "./tsconfig.json",
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
@@ -21,6 +15,9 @@
     },
     {
       "path": "../../../packages/rxdb-model-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-model/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-i18n-angular/tsconfig.lib.json"
@@ -44,10 +41,10 @@
       "path": "../../../packages/rxdb/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/api-contracts/tsconfig.lib.json"
+      "path": "../../packages/domain/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/domain/tsconfig.lib.json"
+      "path": "../../packages/api-contracts/tsconfig.lib.json"
     }
   ]
 }

@@ -6,35 +6,38 @@
       <button class="btn btn-ghost btn-sm" (click)="logout()" type="button">退出登录</button>
       <a class="btn btn-ghost btn-sm" href="/">打开用户端</a>
     </span>
-    <app-admin-console
-      *rxdbAdminPage
-      [client]="client"
-      [identity]="account.user.id"
-      [routeTab]="routeTab()"
-      (tabChange)="navigateToTab($event)"
-      status="signed-in"
-    />
-    @defer (when routeTab() === 'templates' || routeTab() === 'policies') {
-      @if (routeTab() === 'templates') {
-        <app-admin-config-model
+    <ng-container *rxdbAdminPage>
+      @if (routeTab() !== 'templates' && routeTab() !== 'policies') {
+        <app-admin-console
           [client]="client"
           [identity]="account.user.id"
-          [name]="'MediaPromptTemplate'"
-          title="提示词模板"
-        />
-      } @else if (routeTab() === 'policies') {
-        <app-admin-config-model
-          [client]="client"
-          [identity]="account.user.id"
-          [name]="'MediaProviderPolicy'"
-          title="供应商策略"
+          [routeTab]="routeTab()"
+          (tabChange)="navigateToTab($event)"
+          status="signed-in"
         />
       }
-    } @placeholder {
-      @if (routeTab() === 'templates' || routeTab() === 'policies') {
-        <p role="status">正在加载配置编辑器…</p>
+      @defer (when routeTab() === 'templates' || routeTab() === 'policies') {
+        @if (routeTab() === 'templates') {
+          <app-admin-config-model
+            [client]="client"
+            [identity]="account.user.id"
+            [name]="'MediaPromptTemplate'"
+            title="提示词模板"
+          />
+        } @else if (routeTab() === 'policies') {
+          <app-admin-config-model
+            [client]="client"
+            [identity]="account.user.id"
+            [name]="'MediaProviderPolicy'"
+            title="供应商策略"
+          />
+        }
+      } @placeholder {
+        @if (routeTab() === 'templates' || routeTab() === 'policies') {
+          <p role="status">正在加载配置编辑器…</p>
+        }
       }
-    }
+    </ng-container>
   </rxdb-admin-layout>
 } @else {
   <main class="access-shell">

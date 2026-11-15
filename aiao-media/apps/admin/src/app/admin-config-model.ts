@@ -55,9 +55,9 @@ export function createAdminConfigWorkspaceQuery(workspaceId: string | null):
     <section class="model-config" [attr.data-testid]="'model-config-' + name()">
       <header class="model-config-header">
         <div>
-          <p class="section-kicker">RxDB Model</p>
+          <p class="section-kicker">内容管理</p>
           <h2>{{ title() }}</h2>
-          <p>本地实体负责显示、编辑、离线保留和工作树捕获；提交投影随后同步到 Supabase。</p>
+          <p>编辑内容保留在本地。配置应用后，请核对发布状态再确认对用户生效。</p>
         </div>
         @if (loading()) {
           <span role="status">正在恢复本地配置…</span>
@@ -104,24 +104,95 @@ export function createAdminConfigWorkspaceQuery(workspaceId: string | null):
       @if (message()) {
         <p class="state-error" role="alert">{{ message() }}</p>
       }
-      <div class="model-config-list">
-        <rxdb-entity-list [fixedQuery]="workspaceQuery()" [name]="name()" namespace="media" />
-      </div>
+      @if (workspaceId() && !permissionDenied()) {
+        <div class="model-config-list">
+          <rxdb-entity-list [fixedQuery]="workspaceQuery()" [name]="name()" namespace="media" />
+        </div>
+      }
     </section>
   `,
   styles: `
-    :host { display: block; margin: 1rem 0 1.5rem; }
-    .model-config { border: 1px solid #dcd4ca; border-radius: 12px; background: #fff; min-height: 28rem; padding: 1rem; }
-    .model-config-header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .75rem; }
-    .model-config-state, .commit-card { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin: .75rem 0; }
-    .model-config-state { color: #5f564d; font-size: .875rem; }
-    .state-warning { color: #9a6700; }
-    .state-error { color: #b42318; }
-    .commit-card { justify-content: space-between; border: 1px solid #e9dfd4; border-radius: 8px; padding: .75rem; }
-    .commit-card p, .commit-card small { display: block; margin: .25rem 0 0; }
-    .commit-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-    .commit-status { border-radius: 999px; background: #f1ede8; padding: .25rem .5rem; }
-    .model-config-list { min-height: 22rem; }
+    :host {
+      display: block;
+      min-width: 0;
+    }
+    .model-config {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: clamp(1.25rem, 3vw, 2.75rem);
+      color: var(--color-base-content);
+    }
+    h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1.35rem;
+      font-weight: 720;
+    }
+    p {
+      margin: 0.35rem 0 0;
+    }
+    .section-kicker {
+      color: var(--color-primary);
+      margin-bottom: 0.45rem;
+      font-size: 0.7rem;
+      font-weight: 750;
+    }
+    .model-config-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-start;
+      margin-bottom: 1.25rem;
+    }
+    .model-config-state,
+    .commit-card {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 1rem 0;
+    }
+    .model-config-state {
+      font-size: 0.875rem;
+    }
+    .state-warning {
+      color: var(--color-warning-content);
+      background: var(--color-warning);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    .state-error {
+      color: var(--color-error);
+    }
+    .commit-card {
+      justify-content: space-between;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.85rem;
+      padding: 1rem;
+      background: var(--color-base-100);
+    }
+    .commit-card small {
+      display: block;
+      margin: 0.25rem 0 0;
+      overflow-wrap: anywhere;
+    }
+    .commit-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .commit-status {
+      border-radius: 999px;
+      background: var(--color-base-200);
+      padding: 0.25rem 0.5rem;
+    }
+    .model-config-list {
+      height: clamp(24rem, 65dvh, 50rem);
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.85rem;
+      overflow: hidden;
+      background: var(--color-base-100);
+    }
   `
 })
 export class AdminConfigModelComponent {

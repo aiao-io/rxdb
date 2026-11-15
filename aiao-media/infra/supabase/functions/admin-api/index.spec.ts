@@ -93,3 +93,37 @@ describe('admin-api privileged executor', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('积分账本游标回归', () => {
+  it('更早流水使用稳定的 id 上界并仍返回最新余额', async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      response(url.includes('media_credit_accounts') ? [{ balance: 30, reserved: 5 }] : [{ id: 80 }])
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await createAdminApiExecutor(env)({
+      actorId: userId,
+      path: `users/${userId}/credits?before=81`,
+      method: 'GET',
+      requestId: operationId
+    });
+    expect(result).toEqual({ account: { balance: 30, reserved: 5, available: 25 }, entries: [{ id: 80 }] });
+    const ledger = new URL(fetchMock.mock.calls.find(([url]) => url.includes('media_credit_ledger'))![0]);
+    expect(ledger.searchParams.get('id')).toBe('lt.81');
+    expect(ledger.searchParams.get('order')).toBe('id.desc');
+    expect(ledger.searchParams.get('limit')).toBe('50');
+  });
+
+  it.each(['0', '-1', '1.5', '1e3', 'bad', '9007199254740992'])('拒绝非法流水游标 %s', async before => {
+    const fetchMock = vi.fn(async () => response([]));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      createAdminApiExecutor(env)({
+        actorId: userId,
+        path: `users/${userId}/credits?before=${before}`,
+        method: 'GET',
+        requestId: operationId
+      })
+    ).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

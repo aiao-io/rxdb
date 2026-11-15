@@ -9,6 +9,7 @@ import { storageObjectFixture } from './storage-object.fixture.mts';
 
 let admin: SupabaseClient;
 const ids = new Set<string>();
+const adminDrafts = new Set<string>();
 const storageFixtures = new Set<Awaited<ReturnType<typeof storageObjectFixture>>>();
 test.beforeAll(async () => {
   const local = await localEnvironment();
@@ -17,9 +18,16 @@ test.beforeAll(async () => {
   });
 });
 test.afterEach(async () => {
+  for (const key of adminDrafts) {
+    const result = await admin.from('media_content_drafts').delete().eq('kind', 'template').eq('key', key);
+    expect(result.error).toBeNull();
+  }
+  adminDrafts.clear();
   for (const fixture of storageFixtures) await fixture.close();
   storageFixtures.clear();
   for (const id of ids) {
+    const audit = await admin.from('media_admin_audit').delete().eq('actor_id', id);
+    expect(audit.error).toBeNull();
     const files = await admin.from('media_file_records').delete().eq('createdBy', id);
     expect(files.error).toBeNull();
     const result = await admin.auth.admin.deleteUser(id);
@@ -1074,4 +1082,100 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(aProfile);
   expect(relay.calls).toBe(1);
   await verifyImageDownload(page, page.locator('.library-card'), png);
+});
+
+async function signInAdmin(page: Page, path: string) {
+  const user = await account();
+  const membership = await admin.from('media_admin_memberships').insert({ user_id: user.id, enabled: true });
+  expect(membership.error).toBeNull();
+  await page.goto(`/admin/${path}`);
+  await page.getByLabel('邮箱', { exact: true }).fill(user.email);
+  await page.getByLabel('密码', { exact: true }).fill(user.password);
+  await page.getByRole('button', { name: '登录后台', exact: true }).click();
+  await page.waitForURL('**/admin/users');
+  if (path !== 'users') await page.goto(`/admin/${path}`);
+  return user;
+}
+
+test('后台 P0 回归：真实配置表格、中文弹窗及切页和窗口尺寸恢复', async ({ page }) => {
+  const key = `admin-review-${randomUUID()}`;
+  const seeded = await admin.from('media_content_drafts').insert({
+    kind: 'template',
+    key,
+    revision: 1,
+    payload: { title: '后台回归模板', prompt: '验证真实配置渲染', tags: [], enabled: true }
+  });
+  expect(seeded.error).toBeNull();
+  adminDrafts.add(key);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signInAdmin(page, 'templates');
+  const list = page.locator('app-admin-config-model rxdb-entity-list');
+  await expect(list).toBeVisible();
+  const canvas = list.locator('canvas').first();
+  await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(200);
+  await expect(page.getByTestId('admin-page')).toContainText('提示词模板');
+  await expect(page.getByTestId('admin-page')).not.toContainText(/text\.[a-f0-9]{10}|detail\.basic|common\.save/);
+  await list.getByRole('button', { name: '+ 新增', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('button', { name: '保存', exact: true })).toBeVisible();
+  await expect(dialog).not.toContainText(/text\.[a-f0-9]{10}|detail\.basic|common\.save/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(200);
+  await page.goto('/admin/users');
+  await expect(page.getByRole('heading', { name: '用户列表', exact: true })).toBeVisible();
+  await page.goto('/admin/templates');
+  await expect.poll(() => canvas.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThan(200);
+});
+
+test('后台 P0 回归：时间选择器同时约束任务列表与用量请求', async ({ page }) => {
+  await signInAdmin(page, 'tasks');
+  const form = page.locator('form.filter-card');
+  await expect(form.getByRole('button', { name: '应用筛选', exact: true })).toBeEnabled();
+  const requests: URL[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (url.pathname === '/rest/v1/media_task_reports' && url.searchParams.has('started_at')) requests.push(url);
+  });
+  await form.locator('input[name="from"]').fill('2026-11-15T08:00');
+  await form.locator('input[name="to"]').fill('2026-11-16T08:00');
+  const range = await page.evaluate(() => [
+    new Date('2026-11-15T08:00').toISOString(),
+    new Date('2026-11-16T08:00').toISOString()
+  ]);
+  await form.getByRole('button', { name: '应用筛选', exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  for (const url of requests)
+    expect(url.searchParams.getAll('started_at')).toEqual([`gte.${range[0]}`, `lt.${range[1]}`]);
+  await expect(page.getByRole('status').filter({ hasText: '当前筛选已汇总' })).toContainText(
+    '未上报的任务不在统计范围内'
+  );
+});
+
+test('后台 P0 回归：51 条真实积分流水连续分页并返回最新', async ({ page }) => {
+  const user = await signInAdmin(page, 'users');
+  for (let index = 1; index <= 51; index++) {
+    const adjustment = await admin.rpc('media_admin_adjust_credits', {
+      p_actor: user.id,
+      p_target: user.id,
+      p_delta: 1,
+      p_reason: `回归流水 ${index}`,
+      p_request_id: randomUUID()
+    });
+    expect(adjustment.error).toBeNull();
+  }
+  await page.locator('input[name="userSearch"]').fill(user.email);
+  await page.getByRole('button', { name: '查找用户', exact: true }).click();
+  await page.getByRole('button', { name: user.email, exact: true }).click();
+  const detail = page.locator('aside.detail-card');
+  await expect(detail.locator('tbody tr')).toHaveCount(50);
+  await expect(detail).toContainText('余额 51');
+  await expect(detail.locator('tbody tr').first()).toContainText('回归流水 51');
+  await detail.getByRole('button', { name: '更早的流水', exact: true }).click();
+  await expect(detail.locator('tbody tr')).toHaveCount(1);
+  await expect(detail.locator('tbody tr').first()).toContainText('回归流水 1');
+  await detail.getByRole('button', { name: '返回最新流水', exact: true }).click();
+  await expect(detail.locator('tbody tr')).toHaveCount(50);
+  await expect(detail.locator('tbody tr').first()).toContainText('回归流水 51');
 });

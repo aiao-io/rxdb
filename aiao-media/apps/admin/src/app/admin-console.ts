@@ -30,6 +30,7 @@ interface UsageBucket {
   unknown?: { requestCount: number; providerUnits: number; verifiedCost: number };
 }
 interface AdminUsage {
+  receivedRecords: number;
   sources: Record<string, UsageBucket>;
   partial: boolean;
 }
@@ -70,6 +71,8 @@ export class AdminConsole {
   readonly taskPage = signal(1);
   readonly userDetail = signal<AdminUser | null>(null);
   readonly credits = signal<CreditSnapshot | null>(null);
+  readonly creditHistory = signal(false);
+  readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   readonly creditForm = { delta: 0, reason: '' };
   readonly filter = { userId: '', model: '', channel: '', status: '', from: '', to: '' };
 
@@ -121,6 +124,7 @@ export class AdminConsole {
     if (this.busy()) return;
     this.userDetail.set(user);
     this.credits.set(null);
+    this.creditHistory.set(false);
     this.creditForm.delta = 0;
     this.creditForm.reason = '';
     await this.run(async () => {
@@ -136,7 +140,10 @@ export class AdminConsole {
       const value = (await this.client().admin(
         `users/${user.id}/credits?before=${entries[entries.length - 1].id}`
       )) as CreditSnapshot;
-      return () => this.credits.set(value);
+      return () => {
+        this.credits.set(value);
+        this.creditHistory.set(true);
+      };
     }, true);
   }
   async adjustCredits(): Promise<void> {
@@ -161,6 +168,7 @@ export class AdminConsole {
       const value = (await this.client().admin(`users/${user.id}/credits`)) as CreditSnapshot;
       return () => {
         this.credits.set(value);
+        this.creditHistory.set(false);
         this.creditPending = null;
         this.creditForm.delta = 0;
         this.creditForm.reason = '';
@@ -251,7 +259,11 @@ export class AdminConsole {
       return () => this.audit.set(data.entries);
     }
     const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(this.filter)) if (value) query.set(key, value);
+    for (const [key, value] of Object.entries(this.filter)) {
+      if (!value) continue;
+      const time = (key === 'from' || key === 'to') && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+      query.set(key, time ? new Date(value).toISOString() : value);
+    }
     const [tasks, usage] = await Promise.all([
       this.client().admin(`tasks?${query}&page=${this.taskPage()}`),
       this.client().admin(`usage?${query}`)
@@ -269,5 +281,6 @@ export class AdminConsole {
     this.userDetail.set(null);
     this.credits.set(null);
     this.creditPending = null;
+    this.creditHistory.set(false);
   }
 }

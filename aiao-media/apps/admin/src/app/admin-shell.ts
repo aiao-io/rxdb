@@ -1,5 +1,7 @@
-import { createAdminI18n, createAdminShell, pickThemes, type MenuNode } from '@aiao/rxdb-admin';
+import { adminMessages, createAdminShell, pickThemes, type MenuNode } from '@aiao/rxdb-admin';
 import type { AdminIcon } from '@aiao/rxdb-admin-angular';
+import { I18n } from '@aiao/rxdb-i18n';
+import { modelMessages } from '@aiao/rxdb-model';
 import {
   LucideClipboardList as ClipboardList,
   LucideFileText as FileText,
@@ -28,7 +30,12 @@ export const ADMIN_MENU: readonly MenuNode<AdminIcon>[] = [
 /** 管理后台使用模板外壳的默认主题与中文文案。 */
 export const adminShell = createAdminShell<AdminIcon>({
   brand: { title: 'Aiao Media' },
-  i18n: createAdminI18n('zh-Hans'),
+  i18n: new I18n({
+    defaultLocale: 'zh-Hans',
+    deviceLocale: 'zh-Hans',
+    locale: 'zh-Hans',
+    catalogs: [...adminMessages, ...modelMessages]
+  }),
   navigate: url => navigate(url),
   storagePrefix: 'aiao.media.admin',
   themes: pickThemes(['light', 'dark', 'corporate', 'business', 'dracula', 'nord', 'emerald']),

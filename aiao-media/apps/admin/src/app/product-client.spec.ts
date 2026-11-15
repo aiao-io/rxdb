@@ -326,3 +326,68 @@ it('直接调用 apply RPC，返回幂等回执', async () => {
     expect.objectContaining({ body: JSON.stringify({ p_commit_id: 'commit', p_operation_id: 'operation' }) })
   );
 });
+
+describe('后台任务筛选与用量范围回归', () => {
+  it('列表和汇总都携带同一带时区的起止范围', async () => {
+    vi.mocked(fetch).mockImplementation(async () => new Response('[]'));
+    const query = new URLSearchParams({ from: '2026-11-15T00:00:00+08:00', to: '2026-11-16T00:00:00+08:00' });
+    const client = new ProductClient(async () => access);
+    await client.admin(`tasks?${query}`);
+    await client.admin(`usage?${query}`);
+    for (const [url] of vi.mocked(fetch).mock.calls) {
+      const filters = new URL(String(url)).searchParams.getAll('started_at');
+      expect(filters).toEqual(['gte.2026-11-14T16:00:00.000Z', 'lt.2026-11-15T16:00:00.000Z']);
+    }
+  });
+
+  it.each([
+    'from=invalid',
+    'from=2026-11-15T00%3A00%3A00',
+    'from=2026-11-16T00%3A00%3A00Z&to=2026-11-15T00%3A00%3A00Z',
+    'from=2026-02-30T00%3A00%3A00Z',
+    'page=0',
+    'page=1.5'
+  ])('拒绝无效范围或页码 %s', async query => {
+    respond([]);
+    await expect(new ProductClient(async () => access).admin(`tasks?${query}`)).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('连续读取超过 100 条的汇总，保持来源和未知值分开', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify(Array.from({ length: 100 }, () => ({ payload: report })))))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ payload: { ...report, requestCount: 3 } }])));
+    const result = await new ProductClient(async () => access).admin('usage?status=completed');
+    expect(result).toMatchObject({
+      partial: false,
+      receivedRecords: 101,
+      sources: {
+        application: { records: 101, requestCount: 103, providerUnits: null, unknown: { providerUnits: 101 } }
+      }
+    });
+    const urls = vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url)));
+    expect(urls.map(url => url.searchParams.get('offset'))).toEqual(['0', '100']);
+    expect(urls.every(url => url.searchParams.get('status') === 'eq.completed')).toBe(true);
+  });
+
+  it.each([false, true])('10000 条边界只有额外存在记录时才标记截断：%s', async extra => {
+    vi.mocked(fetch).mockImplementation(async url => {
+      const offset = Number(new URL(String(url)).searchParams.get('offset'));
+      const count =
+        offset < 10000 ? 100
+        : extra ? 1
+        : 0;
+      return new Response(JSON.stringify(Array.from({ length: count }, () => ({ payload: report }))));
+    });
+    const result = await new ProductClient(async () => access).admin('usage');
+    expect(result).toMatchObject({ receivedRecords: 10000, partial: extra });
+    expect(fetch).toHaveBeenCalledTimes(101);
+  });
+});
+
+it('保留模型名称中的空格和加号而不拒绝合法查询', async () => {
+  respond([]);
+  await new ProductClient(async () => access).admin(`tasks?${new URLSearchParams({ model: 'model + one' })}`);
+  const url = new URL(String(vi.mocked(fetch).mock.calls[0][0]));
+  expect(url.searchParams.get('model')).toBe('eq.model + one');
+});

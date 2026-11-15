@@ -190,9 +190,17 @@
                     </tbody>
                   </table>
                 </div>
-                @if (snapshot.entries.length === 50) {
-                  <button class="btn btn-ghost btn-sm" (click)="olderCredits()" type="button">更早的流水</button>
-                }
+                <div class="pagination-bar">
+                  <span>按流水编号倒序，每页最多 50 条</span>
+                  <div class="pagination-actions">
+                    @if (creditHistory()) {
+                      <button class="btn btn-ghost btn-sm" (click)="openUser(user)" type="button">返回最新流水</button>
+                    }
+                    @if (snapshot.entries.length === 50) {
+                      <button class="btn btn-ghost btn-sm" (click)="olderCredits()" type="button">更早的流水</button>
+                    }
+                  </div>
+                </div>
               }
             </aside>
           }
@@ -214,7 +222,7 @@
             <div class="filter-card-header">
               <div>
                 <h3>筛选任务</h3>
-                <p>时间请填写带时区的 ISO 8601 值。</p>
+                <p>时间按 {{ timezone }} 解释，结束时间不包含边界。</p>
               </div>
               <button class="btn btn-primary btn-sm" type="submit">应用筛选</button>
             </div>
@@ -246,22 +254,12 @@
                 </select>
               </label>
               <label class="form-field">
-                <span>起始时间，含时区</span>
-                <input
-                  class="input input-bordered"
-                  [(ngModel)]="filter.from"
-                  name="from"
-                  placeholder="2026-10-24T00:00:00+08:00"
-                />
+                <span>起始时间</span>
+                <input class="input input-bordered" [(ngModel)]="filter.from" name="from" type="datetime-local" />
               </label>
               <label class="form-field">
                 <span>结束时间，不含边界</span>
-                <input
-                  class="input input-bordered"
-                  [(ngModel)]="filter.to"
-                  name="to"
-                  placeholder="2026-10-25T00:00:00+08:00"
-                />
+                <input class="input input-bordered" [(ngModel)]="filter.to" name="to" type="datetime-local" />
               </label>
             </div>
           </form>
@@ -353,8 +351,11 @@
                   }
                 }
               </div>
+              <p role="status">当前筛选已汇总 {{ summary.receivedRecords }} 条上报记录，未上报的任务不在统计范围内。</p>
               @if (summary.partial) {
-                <div class="alert alert-warning">当前汇总达到 10000 条上限，请缩小时间或用户范围。</div>
+                <div class="alert alert-warning">
+                  符合筛选的记录超过 {{ summary.receivedRecords }} 条，当前仅汇总这些记录，请缩小时间或用户范围。
+                </div>
               }
             </div>
           }

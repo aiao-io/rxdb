@@ -836,6 +836,9 @@ importers:
       '@aiao/rxdb-i18n-angular':
         specifier: workspace:*
         version: link:../../../packages/rxdb-i18n-angular
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-model
       '@aiao/rxdb-model-angular':
         specifier: workspace:*
         version: link:../../../packages/rxdb-model-angular
