@@ -2,6 +2,8 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
+import { VENDOR_TOOLS, validateVendorPack } from '../vivari/prepare.mjs';
+
 /**
  * 解析 Cloudflare Pages 的 `_headers`：不缩进的行是 URL 规则，缩进的 `名称: 值` 行属于它上面的规则。
  *
@@ -71,8 +73,25 @@ function headerProblems(rules, requiredHeaders) {
   return problems;
 }
 
+async function vendorProblems(distDir, names) {
+  const problems = [];
+  for (const tool of VENDOR_TOOLS) {
+    const file = `vendor/${tool.name}-pack.bin`;
+    if (!names.has(file)) {
+      problems.push(`产物里没有 ${file}，终端无法首次加载 ${tool.name}`);
+      continue;
+    }
+    try {
+      validateVendorPack(await readFile(path.join(distDir, file)), tool);
+    } catch (error) {
+      problems.push(`${file} 无效：${error.message}`);
+    }
+  }
+  return problems;
+}
+
 /**
- * 检查要上传的产物：有入口页、有 `_headers`，且跨源隔离响应头齐全。
+ * 检查要上传的产物：入口页、跨源隔离响应头与固定版本的包管理器资源齐全。
  *
  * @param options.distDir web 的构建产物目录
  * @param options.requiredHeaders 必需的响应头与取值
@@ -98,5 +117,6 @@ export async function checkDist({ distDir, requiredHeaders }) {
   } else {
     problems.push('产物里没有 _headers：它来自 apps/web/public/_headers，缺了它线上没有跨源隔离，终端无法启动');
   }
+  problems.push(...await vendorProblems(distDir, names));
   return { files, problems };
 }

@@ -1,5 +1,13 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-15：终端包管理器资源补齐
+
+修复 Node 能启动、npm 因 `/vendor/npm-pack.bin` 漏部署而无法首次加载的问题。资源按 Vivari 1.3.0 上游固定版本与源包 SHA-512 生成，构建和开发共用前置任务；发布检查拒绝资源缺失、HTML、损坏包和错误版本。
+
+`aiao-desktop:runtime-test:coverage` 通过，脚本行覆盖率 92.71%、分支 91.43%、函数 90%；`aiao-desktop:deploy-test` 通过。Chromium 全新上下文中，npm/npx、pnpm、Yarn、Corepack 的加载与版本查询、npm 安装固定 registry 依赖、Node 执行安装后模块均通过。Yarn 使用 `yarn versions --json`；`yarn --version` 的上游退出日志问题保留。测试 registry 由夹具拦截，不证明任意真实 registry 或第三方依赖都兼容。
+
+命令和正式构建浏览器报告见[本轮证据](evidence/2026-11-15/README.md)。本轮没有发布线上。
+
 ## 2026-11-15 当前结论
 
 本轮只验收桌面Chrome（[D-19](decisions.md#d-19只验收桌面-chrome)）。当前21条Done、1条In Review；两项回溯基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，正式发布及线上复验已完成，真实物理键盘已完成逐项记录，当前只剩 VoiceOver 一项 AC，用户于 2026-11-15 指示延期至后续验收，见[延期记录](evidence/2026-11-15/voiceover-deferral.json)。

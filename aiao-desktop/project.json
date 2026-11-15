@@ -52,6 +52,7 @@
         "security-test",
         "dev-test",
         "deploy-test",
+        "runtime-test",
         {
           "projects": ["aiao-desktop-e2e"],
           "target": "test"
@@ -67,6 +68,7 @@
         "security-test",
         "dev-test",
         "deploy-test",
+        "runtime-test",
         "audit-secrets",
         {
           "projects": ["aiao-desktop-web", "aiao-desktop-e2e"],
@@ -179,6 +181,19 @@
       "options": {
         "cwd": "aiao-desktop",
         "command": "node scripts/deploy/inspect-live.mjs"
+      }
+    },
+    "runtime-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/vivari/*.spec.mjs"
+      },
+      "configurations": {
+        "coverage": {
+          "command": "node --test --experimental-test-coverage --test-coverage-include=\"**/scripts/vivari/prepare.mjs\" --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 scripts/vivari/*.spec.mjs"
+        }
       }
     }
   }

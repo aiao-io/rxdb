@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 import { deployConfig } from './config.mjs';
-import { checkDist, parseHeadersFile } from './dist-check.mjs';
+import { parseHeadersFile } from './dist-check.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const webRoot = path.join(repoRoot, 'aiao-desktop/apps/web');
@@ -32,17 +32,12 @@ test('发布到哪个 Pages 项目与分支写在配置里，生产分支和 Pre
   assert.match(deployConfig.wranglerVersion, /^\d+\.\d+\.\d+$/);
 });
 
-test('_headers 拷进 dist 后通过发布前的产物检查', async () => {
-  const text = await readFile(path.join(webRoot, 'public/_headers'), 'utf8');
-  const { mkdtemp, rm, writeFile } = await import('node:fs/promises');
-  const { tmpdir } = await import('node:os');
-  const distDir = await mkdtemp(path.join(tmpdir(), 'aiao-desktop-config-'));
-  try {
-    await writeFile(path.join(distDir, 'index.html'), '<app-root></app-root>');
-    await writeFile(path.join(distDir, '_headers'), text);
-    const { problems } = await checkDist({ distDir, requiredHeaders: deployConfig.requiredHeaders });
-    assert.deepEqual(problems, []);
-  } finally {
-    await rm(distDir, { recursive: true, force: true });
-  }
+test('构建与开发都先准备包管理器资源，并将生成目录托管到 /vendor/', async () => {
+  const { targets } = JSON.parse(await readFile(path.join(webRoot, 'project.json'), 'utf8'));
+  assert.ok(targets.build.dependsOn.includes('prepare-vendor'));
+  assert.ok(targets.serve.dependsOn.includes('prepare-vendor'));
+  const asset = targets.build.options.assets.find(item => item.output === 'vendor');
+  assert.equal(asset.input, 'node_modules/.cache/aiao-desktop/vivari/vendor');
+  assert.equal(asset.glob, '*-pack.bin');
+  assert.deepEqual(targets['prepare-vendor'].outputs, ['{workspaceRoot}/' + asset.input]);
 });

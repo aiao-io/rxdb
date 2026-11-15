@@ -3,6 +3,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { gzipSync } from 'node:zlib';
+
+import { VENDOR_TOOLS } from '../vivari/prepare.mjs';
 import { checkDist, listDistFiles, parseHeadersFile } from './dist-check.mjs';
 
 const REQUIRED = {
@@ -11,10 +14,23 @@ const REQUIRED = {
 };
 const GOOD_HEADERS = '/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: require-corp\n';
 
-async function fixture(t, files) {
+function vendorPack(tool) {
+  const pkg = Buffer.from(JSON.stringify({ name: tool.name, version: tool.version }));
+  const cli = Buffer.from('console.log("fixture");');
+  const header = Buffer.from(JSON.stringify({ version: tool.version, files: [
+    { p: 'package.json', o: 0, l: pkg.length },
+    { p: tool.entry, o: pkg.length, l: cli.length }
+  ] }));
+  const length = Buffer.alloc(4);
+  length.writeUInt32LE(header.length);
+  return gzipSync(Buffer.concat([length, header, pkg, cli]));
+}
+
+async function fixture(t, files, { vendor = true } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'aiao-desktop-dist-check-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  for (const [relative, content] of Object.entries(files)) {
+  const assets = vendor ? Object.fromEntries(VENDOR_TOOLS.map(tool => [`vendor/${tool.name}-pack.bin`, vendorPack(tool)])) : {};
+  for (const [relative, content] of Object.entries({ ...assets, ...files })) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, content);
@@ -48,7 +64,7 @@ test('parseHeadersFile 遇到没有规则的响应头时报错，不悄悄丢弃
 });
 
 test('listDistFiles 返回排序后的相对路径与大小', async t => {
-  const root = await fixture(t, { 'index.html': 'abc', 'assets/b.js': 'bb', 'assets/a.js': 'a' });
+  const root = await fixture(t, { 'index.html': 'abc', 'assets/b.js': 'bb', 'assets/a.js': 'a' }, { vendor: false });
   assert.deepEqual(await listDistFiles(root), [
     { path: 'assets/a.js', size: 1 },
     { path: 'assets/b.js', size: 2 },
@@ -60,7 +76,7 @@ test('产物合格时没有问题', async t => {
   const distDir = await fixture(t, { 'index.html': '<app-root></app-root>', _headers: GOOD_HEADERS, 'main.js': 'x' });
   const { files, problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
   assert.deepEqual(problems, []);
-  assert.equal(files.length, 3);
+  assert.equal(files.length, 3 + VENDOR_TOOLS.length);
 });
 
 test('产物目录不存在时提示先构建', async t => {
@@ -112,4 +128,26 @@ test('响应头只写在 /* 以外的规则里，不算全站生效', async t =>
   const { problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
   assert.equal(problems.length, 2);
   assert.match(problems[0], /\/\*/);
+});
+
+test('漏发任何一个包管理器资源都阻止发布', async t => {
+  for (const tool of VENDOR_TOOLS) {
+    const distDir = await fixture(t, { 'index.html': 'x', _headers: GOOD_HEADERS });
+    await rm(path.join(distDir, `vendor/${tool.name}-pack.bin`));
+    const { problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], new RegExp(`${tool.name}-pack\\.bin`));
+  }
+});
+
+test('包管理器资源是 HTML、损坏的 gzip 或错误版本时阻止发布', async t => {
+  const tool = VENDOR_TOOLS[0];
+  for (const bytes of [Buffer.from('<html>fallback</html>'), Buffer.from([31, 139]), vendorPack({ ...tool, version: '0.0.0' })]) {
+    const distDir = await fixture(t, {
+      'index.html': 'x', _headers: GOOD_HEADERS, [`vendor/${tool.name}-pack.bin`]: bytes
+    });
+    const { problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /npm-pack\.bin/);
+  }
 });

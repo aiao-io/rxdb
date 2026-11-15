@@ -7,6 +7,13 @@
   "tags": ["scope:aiao-desktop", "type:app", "layer:ui", "angular-app"],
   "targets": {
     "build": {
+      "dependsOn": ["^build", "prepare-vendor"],
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/prepare.mjs",
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/tools.json"
+      ],
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
@@ -26,6 +33,11 @@
             "glob": "wa-sqlite*.wasm",
             "input": "node_modules/@subframe7536/sqlite-wasm/dist",
             "output": "sqlite-wasm"
+          },
+          {
+            "glob": "*-pack.bin",
+            "input": "node_modules/.cache/aiao-desktop/vivari/vendor",
+            "output": "vendor"
           }
         ],
         "browser": "aiao-desktop/apps/web/src/main.ts",
@@ -102,7 +114,8 @@
         {
           "projects": ["aiao-desktop"],
           "target": "dev-ports"
-        }
+        },
+        "prepare-vendor"
       ],
       "options": {
         "port": 4410
@@ -121,6 +134,22 @@
       },
       "readyWhen": {
         "url": "http://127.0.0.1:4411"
+      }
+    },
+    "prepare-vendor": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/prepare.mjs",
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/tools.json",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "outputs": [
+        "{workspaceRoot}/node_modules/.cache/aiao-desktop/vivari/vendor"
+      ],
+      "options": {
+        "command": "node aiao-desktop/scripts/vivari/prepare.mjs"
       }
     }
   }

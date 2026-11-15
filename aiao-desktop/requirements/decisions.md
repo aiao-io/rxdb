@@ -22,7 +22,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-05：终端依赖跨源隔离
 
-终端用 `@vivari/core` 在页面里运行 Node、npm 与 Python，要求页面处于 `crossOriginIsolated`：托管 web 产物的服务必须返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`。开发服务器的 development 配置、`serve-static` 与冒烟里的静态服务器都带这两个响应头；production 配置的开发服务器不带。Vivari 的 worker 与运行时资源由构建从 `node_modules/@vivari/core/dist/assets` 复制到产物的 `assets/`。
+终端用 `@vivari/core` 在页面里运行 Node、npm 与 Python，要求页面处于 `crossOriginIsolated`：托管 web 产物的服务必须返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`。开发服务器的 development 配置、`serve-static` 与冒烟里的静态服务器都带这两个响应头；production 配置的开发服务器不带。Vivari 的 worker 与运行时资源由构建从 `node_modules/@vivari/core/dist/assets` 复制到产物的 `assets/`。 npm/npx、pnpm、Yarn 与 Corepack 的延迟加载还依赖同源 `/vendor/*-pack.bin`；`aiao-desktop-web:prepare-vendor` 按 [固定清单](../scripts/vivari/tools.json)校验源发布包的 SHA-512 并生成资源，是构建与开发的前置任务。发布前校验资源版本与完整性，不能把 SPA 回退的 HTML 当作工具资源。
 
 ## D-06：本地开发用固定端口与开发导航
 
