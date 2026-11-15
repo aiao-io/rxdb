@@ -9,9 +9,9 @@
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条   |
 | 🚧 In Progress |      4 | 桌面、同步与服务端任务剩余验收                                     |
 | 👀 In Review   |      6 | 本机交付、灵感库、国内部署、首次安装、平台生图与积分管理待评审合入 |
-| ⬜ Backlog     |      3 | 移动真机、平台支付暂缓；后台管理员资料待实施                     |
+| ⬜ Backlog     |      8 | 既有移动/支付/管理员资料，加上 Supabase 后台边界、后台 RxDB、模型编辑、提交同步和 PGMQ PoC |
 | 🚫 Blocked     |      0 | —                                                                  |
-| **合计**       | **21** | 不含模板和上游故事                                                 |
+| **合计**       | **26** | 不含模板和上游故事                                                 |
 
 ## 按 Epic 索引
 
@@ -29,6 +29,7 @@
 - 🚧 [MEDIA-US-109 平台生图服务端任务与刷新续接](stories/generation/MEDIA-US-109-relay-durable-task.md)
 - 👀 [MEDIA-US-102 图片生成与本机交付](stories/generation/MEDIA-US-102-image-generation.md)
 - 👀 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
+- ⬜ [MEDIA-US-110 PGMQ 生成任务队列 PoC](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)
 - ⬜ [MEDIA-US-107 移动设备能力验收](stories/generation/MEDIA-US-107-mobile-verification.md)（暂缓）
 
 ### [账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
@@ -39,6 +40,7 @@
 - ✅ [MEDIA-US-204 本地作品检索与按需预览](stories/account/MEDIA-US-204-library-search.md)
 - 👀 [MEDIA-US-206 后台积分管理](stories/account/MEDIA-US-206-credit-admin.md)
 - ⬜ [MEDIA-US-207 后台管理员账户资料与身份菜单](stories/account/MEDIA-US-207-admin-account-profile.md)
+- ⬜ [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](stories/account/MEDIA-US-208-supabase-admin-boundary.md)
 - ⬜ [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)（D-17 暂缓）
 
 ### [本地优先与跨设备同步](epics/MEDIA-EPIC-004.md)
@@ -47,10 +49,13 @@
 - ✅ [MEDIA-US-302 多端草稿同步与冲突处理](stories/local-first/MEDIA-US-302-draft-sync.md)
 - 🚧 [MEDIA-US-303 平台账号与同步管理](stories/local-first/MEDIA-US-303-sync-targets.md)
 - 🚧 [MEDIA-US-305 图片原文件同步到平台 Supabase](stories/local-first/MEDIA-US-305-supabase-image-sync.md)
+- ⬜ [MEDIA-US-306 后台服务 RxDB 双向同步](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)
+- ⬜ [MEDIA-US-307 `rxdb-model` 驱动后台配置编辑](stories/local-first/MEDIA-US-307-admin-rxdb-model.md)
+- ⬜ [MEDIA-US-308 配置分支提交与后台应用同步](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md)
 
 ## 未完成验收与关闭条件
 
-20 条故事共 140 条 AC，108 条已通过（✅）、9 条部分通过（⚠️）、23 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 9 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，24 小时实测到期为北京时间 2026-11-16 08:04:32.684，仍待到期终验、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+26 条故事共 194 条 AC，108 条已通过（✅）、9 条部分通过（⚠️）、77 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 9 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，24 小时实测到期为北京时间 2026-11-16 08:04:32.684，仍待到期终验、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展     | 关闭所需证据                                                  |
 | -------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------- |

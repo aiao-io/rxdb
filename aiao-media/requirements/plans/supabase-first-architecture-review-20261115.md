@@ -732,7 +732,15 @@ PoC 必须与当前 Durable Object 并行，不能先删除现有实现。至少
 - **第 7.1 点：直接采纳。** `rxdb-model` 作为 Admin 配置显示和编辑层，避免手写第二套状态系统。
 - **第 7.2 点：采纳领域级投影。** 使用 RxDB 分支、working-tree 和 commit 生成可同步的配置提交记录；完整内部 commit graph 另行设计，不直接暴露系统表。
 
-当前不应直接改业务代码或迁移数据库。下一步应先把阶段一、阶段四和 PGMQ PoC 拆成可验收 story，随后再进入数据库 schema 和实现变更。
+架构研究已经转成可验收用户故事，当前仍处于 Backlog，未改变业务代码或数据库：
+
+- [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](../stories/account/MEDIA-US-208-supabase-admin-boundary.md)
+- [MEDIA-US-306 后台服务 RxDB 双向同步](../stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)
+- [MEDIA-US-307 `rxdb-model` 驱动后台配置编辑](../stories/local-first/MEDIA-US-307-admin-rxdb-model.md)
+- [MEDIA-US-308 配置分支提交与后台应用同步](../stories/local-first/MEDIA-US-308-config-branch-commit-sync.md)
+- [MEDIA-US-110 PGMQ 生成任务队列 PoC](../stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)
+
+这些故事已经补齐角色、范围边界、验收标准、交付阶段、依赖和实现入口；下一步按依赖顺序进入 schema、Edge Function、后台 RxDB 和 PGMQ PoC 设计。
 
 ## 研究依据
 

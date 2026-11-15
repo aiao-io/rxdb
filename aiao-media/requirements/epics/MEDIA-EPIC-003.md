@@ -21,6 +21,7 @@ owner: jimmy
 - [x] 本地作品检索、稳定分页与真实视口按需预览（[MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)）
 
 - [ ] 后台积分管理：增加/减少用户积分与流水（[MEDIA-US-206](../stories/account/MEDIA-US-206-credit-admin.md)）
+- [ ] Supabase 后台直连与特权 Edge Function 边界（[MEDIA-US-208](../stories/account/MEDIA-US-208-supabase-admin-boundary.md)）
 - [ ] 平台支付、退款与生产运维（D-17 暂缓，[MEDIA-US-205](../stories/account/MEDIA-US-205-platform-billing.md)）
 
 ## 故事
@@ -34,6 +35,7 @@ owner: jimmy
 - [MEDIA-US-204 本地作品检索与按需预览](../stories/account/MEDIA-US-204-library-search.md) (High)
 
 - [MEDIA-US-206 后台积分管理](../stories/account/MEDIA-US-206-credit-admin.md) (High)
+- [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](../stories/account/MEDIA-US-208-supabase-admin-boundary.md) (High)
 - [MEDIA-US-205 平台支付、退款与生产运维](../stories/account/MEDIA-US-205-platform-billing.md) (High，D-17 暂缓)
 
 ## 非目标

@@ -19,6 +19,9 @@ owner: TBD
 
 - [ ] 平台账号与同步管理（[MEDIA-US-303](../stories/local-first/MEDIA-US-303-sync-targets.md)）
 - [ ] 图片原文件上传、跨设备取回与失败/删除恢复（[MEDIA-US-305](../stories/local-first/MEDIA-US-305-supabase-image-sync.md)）
+- [ ] 后台服务 RxDB 双向同步（[MEDIA-US-306](../stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)）
+- [ ] `rxdb-model` 驱动后台配置编辑（[MEDIA-US-307](../stories/local-first/MEDIA-US-307-admin-rxdb-model.md)）
+- [ ] 配置分支提交与后台应用同步（[MEDIA-US-308](../stories/local-first/MEDIA-US-308-config-branch-commit-sync.md)）
 
 ## 故事
 
@@ -29,6 +32,9 @@ owner: TBD
 
 - [MEDIA-US-303 平台账号与同步管理](../stories/local-first/MEDIA-US-303-sync-targets.md) (High)
 - [MEDIA-US-305 图片原文件同步到平台 Supabase](../stories/local-first/MEDIA-US-305-supabase-image-sync.md) (High)
+- [MEDIA-US-306 后台服务 RxDB 双向同步](../stories/local-first/MEDIA-US-306-backend-rxdb-sync.md) (High)
+- [MEDIA-US-307 `rxdb-model` 驱动后台配置编辑](../stories/local-first/MEDIA-US-307-admin-rxdb-model.md) (High)
+- [MEDIA-US-308 配置分支提交与后台应用同步](../stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) (High)
 
 ## 非目标
 
