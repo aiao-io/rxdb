@@ -37,7 +37,6 @@ export class ModelViewport {
     opacity: 0.09,
     depthWrite: false
   });
-  private readonly highlightMaterials = new Set<THREE.Material>();
   private root: THREE.Group | null = null;
   private batches: SceneBatches | null = null;
   private meshes: THREE.Mesh[] = [];
@@ -348,19 +347,16 @@ export class ModelViewport {
         clone.emissiveIntensity = 0.25;
       }
       this.highlightCache.set(material, clone);
-      this.highlightMaterials.add(clone);
       return clone;
     });
     mesh.material = Array.isArray(mesh.material) ? clones : clones[0];
   }
   private resetSelection(): void {
-    this.originalMaterials.forEach((material, mesh) => {
-      mesh.material = material;
+    const meshes = this.visibilityNeedsReconcile || this.ghosted ? this.originalMaterials.keys() : this.selectedMeshes;
+    for (const mesh of meshes) {
+      mesh.material = this.originalMaterials.get(mesh)!;
       mesh.visible = !this.sourceHidden.has(mesh);
-    });
-    for (const material of this.highlightMaterials) material.dispose();
-    this.highlightMaterials.clear();
-    this.highlightCache.clear();
+    }
     this.selectedMeshes.clear();
   }
   private applyVisibility(): void {
@@ -437,7 +433,10 @@ export class ModelViewport {
     this.selectionFrame.invalidate();
     this.isolated = false;
     this.ghosted = false;
+    this.visibilityNeedsReconcile = true;
     this.resetSelection();
+    for (const material of this.highlightCache.values()) material.dispose();
+    this.highlightCache.clear();
     this.batches?.dispose();
     this.batches = null;
     if (this.root) {

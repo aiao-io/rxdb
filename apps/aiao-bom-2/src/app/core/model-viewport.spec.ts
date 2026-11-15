@@ -265,6 +265,38 @@ describe('拾取与重复加载资源边界', () => {
     viewport.dispose();
     mocks.rendererRender.mockReset();
   });
+  it('普通选择切换只恢复上一次选中材质，不重写无关和来源隐藏节点', async () => {
+    const asset = scene();
+    mocks.parse.mockResolvedValue(asset);
+    const viewport = new ModelViewport(document.createElement('div'), {
+      ready: vi.fn(),
+      progress: vi.fn(),
+      selected: vi.fn()
+    });
+    await viewport.load('/model.glb');
+    viewport.select(null);
+    const writeHiddenMaterial = vi.fn();
+    Object.defineProperty(asset.hidden, 'material', {
+      get: () => asset.material,
+      set: writeHiddenMaterial,
+      configurable: true
+    });
+    viewport.select(row());
+    const highlighted = asset.a.material as THREE.Material;
+    const releaseHighlight = vi.spyOn(highlighted, 'dispose');
+    expect(highlighted).not.toBe(asset.material);
+    expect(asset.b.material).toBe(asset.material);
+    viewport.select({ ...row(), nodeIndex: 1 });
+    expect(asset.a.material).toBe(asset.material);
+    expect(asset.b.material).toBe(highlighted);
+    viewport.select(null);
+    expect(asset.b.material).toBe(asset.material);
+    expect(asset.hidden.visible).toBe(false);
+    expect(writeHiddenMaterial).not.toHaveBeenCalled();
+    expect(releaseHighlight).not.toHaveBeenCalled();
+    viewport.dispose();
+    expect(releaseHighlight).toHaveBeenCalledTimes(1);
+  });
   it('隔离嵌套零件保留祖先可遍历，同时排除祖先自身几何与其他零件', async () => {
     const asset = scene();
     asset.a.add(asset.b);
