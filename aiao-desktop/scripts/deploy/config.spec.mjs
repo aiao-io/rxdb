@@ -38,6 +38,9 @@ test('构建与开发都先准备包管理器资源，并将生成目录托管�
   assert.ok(targets.serve.dependsOn.includes('prepare-vendor'));
   const asset = targets.build.options.assets.find(item => item.output === 'vendor');
   assert.equal(asset.input, 'node_modules/.cache/aiao-desktop/vivari/vendor');
-  assert.equal(asset.glob, '*-pack.bin');
+  assert.equal(asset.glob, '**/*');
+  assert.deepEqual(asset.ignore, ['**/*.tmp']);
+  assert.ok(targets['prepare-vendor'].inputs.includes('{workspaceRoot}/aiao-desktop/scripts/vivari/**/*'));
+
   assert.deepEqual(targets['prepare-vendor'].outputs, ['{workspaceRoot}/' + asset.input]);
 });

@@ -20,6 +20,7 @@ import { persistence } from './persistence.mjs';
 import { shellInteraction } from './shell-interaction.mjs';
 import { shell } from './shell.mjs';
 import { terminalPackages } from './terminal-packages.mjs';
+import { terminalRuntimes } from './terminal-runtimes.mjs';
 import { transparentWindow } from './transparent-window.mjs';
 import { upgradeLegacy } from './upgrade-legacy.mjs';
 import { upgradePrevious } from './upgrade-previous.mjs';
@@ -38,6 +39,7 @@ export const GROUPS = [
   { ...shellInteraction, weight: 40 },
   { ...diskTerminal, weight: 30 },
   { ...terminalPackages, weight: 30 },
+  { ...terminalRuntimes, weight: 90, exclusive: true },
   { ...integratedApp, weight: 25 },
   { ...transparentWindow, weight: 12 },
   { ...game, weight: 60, exclusive: true },

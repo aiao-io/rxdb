@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,7 +7,11 @@ import { test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 
 import { VENDOR_TOOLS } from '../vivari/prepare.mjs';
-import { checkDist, listDistFiles, parseHeadersFile } from './dist-check.mjs';
+import { checkDist as validateDist, listDistFiles, parseHeadersFile } from './dist-check.mjs';
+
+const runtimeBytes = Buffer.from('runtime fixture');
+const runtimeAssets = [{ path: 'pyodide/pyodide.asm.wasm', sha256: createHash('sha256').update(runtimeBytes).digest('hex') }];
+const checkDist = options => validateDist({ ...options, runtimeAssets });
 
 const REQUIRED = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -15,11 +20,11 @@ const REQUIRED = {
 const GOOD_HEADERS = '/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: require-corp\n';
 
 function vendorPack(tool) {
-  const pkg = Buffer.from(JSON.stringify({ name: tool.name, version: tool.version }));
+  const pkg = Buffer.from(JSON.stringify({ name: tool.packageName ?? tool.name, version: tool.version }));
   const cli = Buffer.from('console.log("fixture");');
   const header = Buffer.from(JSON.stringify({ version: tool.version, files: [
     { p: 'package.json', o: 0, l: pkg.length },
-    { p: tool.entry, o: pkg.length, l: cli.length }
+    ...[tool.entry, ...(tool.entries ?? [])].map(p => ({ p, o: pkg.length, l: cli.length }))
   ] }));
   const length = Buffer.alloc(4);
   length.writeUInt32LE(header.length);
@@ -29,8 +34,9 @@ function vendorPack(tool) {
 async function fixture(t, files, { vendor = true } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'aiao-desktop-dist-check-'));
   t.after(() => rm(root, { recursive: true, force: true }));
+  const runtimes = vendor ? { 'vendor/pyodide/pyodide.asm.wasm': runtimeBytes } : {};
   const assets = vendor ? Object.fromEntries(VENDOR_TOOLS.map(tool => [`vendor/${tool.name}-pack.bin`, vendorPack(tool)])) : {};
-  for (const [relative, content] of Object.entries({ ...assets, ...files })) {
+  for (const [relative, content] of Object.entries({ ...assets, ...runtimes, ...files })) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, content);
@@ -76,7 +82,7 @@ test('产物合格时没有问题', async t => {
   const distDir = await fixture(t, { 'index.html': '<app-root></app-root>', _headers: GOOD_HEADERS, 'main.js': 'x' });
   const { files, problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
   assert.deepEqual(problems, []);
-  assert.equal(files.length, 3 + VENDOR_TOOLS.length);
+  assert.equal(files.length, 4 + VENDOR_TOOLS.length);
 });
 
 test('产物目录不存在时提示先构建', async t => {
@@ -150,4 +156,13 @@ test('包管理器资源是 HTML、损坏的 gzip 或错误版本时阻止发布
     assert.equal(problems.length, 1);
     assert.match(problems[0], /npm-pack\.bin/);
   }
+});
+
+test('Python 同源资源缺失或被 HTML 替换时阻止发布', async t => {
+  const distDir = await fixture(t, { 'index.html': 'x', _headers: GOOD_HEADERS });
+  const file = path.join(distDir, 'vendor/pyodide/pyodide.asm.wasm');
+  await rm(file);
+  assert.match((await checkDist({ distDir, requiredHeaders: REQUIRED })).problems[0], /pyodide.*缺失/);
+  await writeFile(file, '<html>SPA</html>');
+  assert.match((await checkDist({ distDir, requiredHeaders: REQUIRED })).problems[0], /pyodide.*校验/);
 });

@@ -121,3 +121,30 @@ test('缓存索引越界或包名被替换时拒绝使用', async t => {
   assert.throws(() => validateVendorPack(corrupt, TOOL), /索引损坏/);
   assert.throws(() => validateVendorPack(bytes, { ...TOOL, name: 'wrong-name' }), /包信息/);
 });
+
+test('tsgo 发布包提取 Go 引擎供 Vivari 使用，缺少引擎结构时拒绝继续', async t => {
+  const { root, directory, outputDir } = await fixture(t);
+  const tool = { name: 'tsgo', packageName: 'tsgo-wasm', version: '7.0.2', entry: 'tsgo.wasm', entries: ['wasm_exec.cjs'], engine: 'tsgo-wasm', tarball: 'https://example.test/tsgo.tgz' };
+  await writeFile(join(directory, 'package.json'), JSON.stringify({ name: tool.packageName, version: tool.version }));
+  await writeFile(join(directory, tool.entry), Buffer.from([0, 97, 115, 109]));
+  const launcher = join(directory, tool.engine);
+  const tarball = join(root, 'tsgo.tgz');
+  for (const valid of [false, true]) {
+    await writeFile(launcher, valid ? 'import x from "node:fs";\nconst encoder = new TextEncoder();\nclass Go {}\nconst go = new Go();\nthrow new Error("不执行启动器");' : 'layout changed');
+    execFileSync('tar', ['-czf', tarball, '-C', root, 'package']);
+    const bytes = await readFile(tarball);
+    const options = { outputDir, tools: [{ ...tool, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }], fetchAsset: async () => new Response(bytes) };
+    if (!valid) {
+      await assert.rejects(prepareVendor(options), /Go.*结构/);
+      continue;
+    }
+    await prepareVendor(options);
+    const packed = await readFile(join(outputDir, 'tsgo-pack.bin'));
+    const engine = decode(packed).files.get('wasm_exec.cjs').toString();
+    assert.match(engine, /const fs = globalThis.fs/);
+    assert.match(engine, /module.exports = \{ Go \}/);
+    assert.doesNotMatch(engine, /import x|new Go\(\)|不执行启动器/);
+    validateVendorPack(packed, tool);
+    assert.throws(() => validateVendorPack(packed, { ...tool, entries: ['missing.cjs'] }), /missing.cjs/);
+  }
+});

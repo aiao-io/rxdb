@@ -1,10 +1,9 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { gzipSync, gunzipSync } from 'node:zlib';
 
@@ -27,9 +26,11 @@ export function validateVendorPack(bytes, tool) {
       throw new Error(`${tool.name} 资源索引损坏：${p}`);
     files.set(p, raw.subarray(start + o, start + o + l));
   }
-  if (!files.get(tool.entry)?.length) throw new Error(`${tool.name} 缺少命令入口：${tool.entry}`);
+  for (const entry of [tool.entry, ...(tool.entries ?? [])]) {
+    if (!files.get(entry)?.length) throw new Error(`${tool.name} 缺少命令入口：${entry}`);
+  }
   const pkg = JSON.parse(files.get('package.json')?.toString('utf8') ?? 'null');
-  if (pkg?.name !== tool.name || pkg.version !== tool.version)
+  if (pkg?.name !== (tool.packageName ?? tool.name) || pkg.version !== tool.version)
     throw new Error(`${tool.name} 包信息或版本不匹配`);
 }
 
@@ -53,7 +54,8 @@ export async function packDirectory(directory, tool) {
   return bytes;
 }
 
-async function buildTool(outputDir, tool, fetchAsset) {
+/** 校验固定发布包的完整性，在临时目录中解包，使用完立即删除。 */
+export async function withVendorArchive(tool, fetchAsset, consume) {
   const response = await fetchAsset(tool.tarball, { signal: AbortSignal.timeout(60_000) });
   if (!response.ok) throw new Error(`${tool.name} 下载失败：HTTP ${response.status}`);
   const archive = Buffer.from(await response.arrayBuffer());
@@ -64,13 +66,29 @@ async function buildTool(outputDir, tool, fetchAsset) {
     await writeFile(join(scratch, 'package.tgz'), archive);
     await mkdir(join(scratch, 'package'));
     await execute('tar', ['-xzf', join(scratch, 'package.tgz'), '-C', join(scratch, 'package'), '--strip-components=1']);
-    const bytes = await packDirectory(join(scratch, 'package'), tool);
-    const staged = join(outputDir, `${tool.name}-pack.${process.pid}.tmp`);
-    await writeFile(staged, bytes);
-    await rename(staged, join(outputDir, `${tool.name}-pack.bin`));
+    return await consume(join(scratch, 'package'));
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
+}
+
+async function buildTool(outputDir, tool, fetchAsset) {
+  await withVendorArchive(tool, fetchAsset, async directory => {
+    if (tool.engine) await prepareGoEngine(directory, tool.engine);
+    const bytes = await packDirectory(directory, tool);
+    const staged = join(outputDir, `${tool.name}-pack.${process.pid}.tmp`);
+    await writeFile(staged, bytes);
+    await rename(staged, join(outputDir, `${tool.name}-pack.bin`));
+  });
+}
+
+async function prepareGoEngine(directory, launcherPath) {
+  const launcher = await readFile(join(directory, launcherPath), 'utf8');
+  const start = launcher.indexOf('const encoder');
+  const end = launcher.indexOf('const go = new Go()');
+  if (start < 0 || end <= start) throw new Error('tsgo 的 Go 引擎结构已改变，需核对 Vivari 加载器');
+  const engine = `const fs = globalThis.fs;\n${launcher.slice(start, end).trim()}\nmodule.exports = { Go };\n`;
+  await writeFile(join(directory, 'wasm_exec.cjs'), engine);
 }
 
 /** 从固定版本与 SHA-512 校验过的 npm 发布包生成同源资源；已有合格资源时可以离线构建。 */
@@ -86,11 +104,3 @@ export async function prepareVendor({ outputDir = VENDOR_DIRECTORY, tools = VEND
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const require = createRequire(import.meta.url);
-  const { version } = require('@vivari/core/package.json');
-  if (version !== manifest.vivariVersion)
-    throw new Error(`Vivari 版本 ${version} 与 vendor 清单 ${manifest.vivariVersion} 不匹配，先核对上游格式与工具版本`);
-  await prepareVendor();
-  console.log(`Vivari ${version} 包管理器资源就绪：${VENDOR_TOOLS.map(tool => `${tool.name}@${tool.version}`).join('、')}`);
-}

@@ -192,7 +192,7 @@
       },
       "configurations": {
         "coverage": {
-          "command": "node --test --experimental-test-coverage --test-coverage-include=\"**/scripts/vivari/prepare.mjs\" --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 scripts/vivari/*.spec.mjs"
+          "command": "node --test --experimental-test-coverage --test-coverage-include=\"**/scripts/vivari/prepare.mjs\" --test-coverage-include=\"**/scripts/vivari/runtimes.mjs\" --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 scripts/vivari/*.spec.mjs"
         }
       }
     }

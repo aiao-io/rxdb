@@ -11,8 +11,7 @@
       "inputs": [
         "production",
         "^production",
-        "{workspaceRoot}/aiao-desktop/scripts/vivari/prepare.mjs",
-        "{workspaceRoot}/aiao-desktop/scripts/vivari/tools.json"
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/**/*"
       ],
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
@@ -35,9 +34,10 @@
             "output": "sqlite-wasm"
           },
           {
-            "glob": "*-pack.bin",
+            "glob": "**/*",
             "input": "node_modules/.cache/aiao-desktop/vivari/vendor",
-            "output": "vendor"
+            "output": "vendor",
+            "ignore": ["**/*.tmp"]
           }
         ],
         "browser": "aiao-desktop/apps/web/src/main.ts",
@@ -140,8 +140,7 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
-        "{workspaceRoot}/aiao-desktop/scripts/vivari/prepare.mjs",
-        "{workspaceRoot}/aiao-desktop/scripts/vivari/tools.json",
+        "{workspaceRoot}/aiao-desktop/scripts/vivari/**/*",
         "{workspaceRoot}/package.json",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],
@@ -149,7 +148,7 @@
         "{workspaceRoot}/node_modules/.cache/aiao-desktop/vivari/vendor"
       ],
       "options": {
-        "command": "node aiao-desktop/scripts/vivari/prepare.mjs"
+        "command": "node aiao-desktop/scripts/vivari/cli.mjs"
       }
     }
   }

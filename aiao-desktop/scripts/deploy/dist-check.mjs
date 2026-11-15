@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { VENDOR_TOOLS, validateVendorPack } from '../vivari/prepare.mjs';
+import { runtimeProblems } from '../vivari/runtimes.mjs';
 
 /**
  * 解析 Cloudflare Pages 的 `_headers`：不缩进的行是 URL 规则，缩进的 `名称: 值` 行属于它上面的规则。
@@ -91,13 +92,13 @@ async function vendorProblems(distDir, names) {
 }
 
 /**
- * 检查要上传的产物：入口页、跨源隔离响应头与固定版本的包管理器资源齐全。
+ * 检查要上传的产物：入口页、跨源隔离响应头与固定版本的终端工具与运行时资源齐全。
  *
  * @param options.distDir web 的构建产物目录
  * @param options.requiredHeaders 必需的响应头与取值
  * @returns 全部文件，以及问题清单（空表示可以发布）
  */
-export async function checkDist({ distDir, requiredHeaders }) {
+export async function checkDist({ distDir, requiredHeaders, runtimeAssets }) {
   let files;
   try {
     files = await listDistFiles(distDir);
@@ -118,5 +119,6 @@ export async function checkDist({ distDir, requiredHeaders }) {
     problems.push('产物里没有 _headers：它来自 apps/web/public/_headers，缺了它线上没有跨源隔离，终端无法启动');
   }
   problems.push(...await vendorProblems(distDir, names));
+  problems.push(...await runtimeProblems(path.join(distDir, 'vendor'), runtimeAssets));
   return { files, problems };
 }

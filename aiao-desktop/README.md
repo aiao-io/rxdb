@@ -36,7 +36,7 @@ pnpm nx dev aiao-desktop
 
 开发服务器与正式构建预览都返回跨源隔离所需的响应头，终端才能启动 Vivari；开发服务器的 production 配置不带这两个头。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
 
-终端包管理器资源随构建发布：构建和启动开发服务器会先运行 `aiao-desktop-web:prepare-vendor`，从固定版本的 npm 发布包生成 `/vendor/*-pack.bin`。首次准备需要 registry 网络和宿主 `tar`；后续校验并复用 `node_modules/.cache/aiao-desktop/vivari/vendor`。npm、npx、pnpm、Yarn 与 Corepack 仍在第一次执行命令时加载，不进入桌面首屏。Yarn 的 `--version` 存在 Vivari 上游退出日志问题，版本查询可用 `yarn versions --json`；任意第三方包的兼容性受 Vivari 限制。
+终端资源随构建发布：构建和启动开发服务器会先运行 `aiao-desktop-web:prepare-vendor`，准备 npm/npx、pnpm、Yarn、Corepack、TypeScript 7、Python 3.14 / pip、Ruff 与 SQLite。Python 常用库与传递依赖同源托管，首次命令或 import 时加载，不进入桌面首屏。首次准备需要 npm registry、Pyodide CDN、PyPI 文件服务网络和宿主 `tar`；后续校验并复用 `node_modules/.cache/aiao-desktop/vivari/vendor`。版本、资源格式与兼容边界见[终端资源说明](scripts/vivari/README.md)。Yarn 的 `--version` 存在 Vivari 上游退出日志问题，版本查询可用 `yarn versions --json`。
 
 
 本地开发自动连接 `@aiao/rxdb-devtools`，安装仓库的 [RxDB DevTools 浏览器扩展](../apps/rxdb-devtools-extension/README.md) 后即可检查桌面数据库与实体。仅 `development` 构建启用；正式构建与正式构建预览均不加载连接器，冒烟会检查生产 JavaScript 里没有 DevTools 代码、页面没有 DevTools 全局入口。

@@ -27,9 +27,12 @@ capabilities: []
 - 磁盘：目录树是 tree 插件的 `DesktopFile` 实体，文件体由 storage 插件放在 OPFS（[D-08](../../decisions.md#d-08文件体由-storage-插件放在-opfs)）；改写前虚拟文件系统里的全部条目都变成真文件，大小与日期是真实值；废纸篓是 `~/.Trash`，应用是带 `Contents/Info.plist` 的程序包。
 - Finder、桌面图标（来自 `~/Desktop`）、聚焦搜索、TextEdit（读写真实内容）、预览（显示文件本身）与 Dock 的废纸篓都读同一块磁盘；磁盘工具的「抹掉」恢复内置内容。
 - 包管理器：全新浏览器存储中可首次加载 npm/npx、pnpm、Yarn 与 Corepack；npm 能安装依赖并交给 Node 执行。
+- 运行时：Python / python3、pip、科学计算与质量工具、tsc / tsgo、Bun 和 SQLite 的同源资源随构建提供，按需加载。
 - 终端：打开时把磁盘复制进 Vivari，从 `~` 开始，终端与桌面两边的改动互相同步；补上 `touch`、`mv`、`cp`、`open`，shell 展开 `~` 与 `$NAME`（[D-09](../../decisions.md#d-09终端按需复制磁盘)）。
 
 ### Out of Scope
+
+- 任意 Python 原生扩展、原生 pip 的完整子命令、Web 服务预览与 TCP 中继；Python 包安装使用 Vivari 的项目内包存储。
 
 - 任意 npm 包的兼容保证、原生 Node 扩展与构建工具的完整兼容性；受 Vivari 支持范围限制。Yarn 1.22.22 的 `--version` 会额外打印 Vivari 的 `process.exit called` 异常；常规版本查询使用 `yarn versions --json`，此上游问题未修复。
 - `node_modules` 同步回磁盘、glob（`*`）展开、`ls -l` 等 Vivari shell 本身没有的能力。
@@ -59,9 +62,18 @@ capabilities: []
 | 15  | 全新浏览器存储，终端已启动 | 执行 npm/npx、pnpm、Corepack 的版本命令及 `yarn versions --json` | 各工具从同源 vendor 首次加载，输出固定版本，命令结束后 shell 继续可用 | ✅ |
 | 16  | npm 已加载，测试 registry 提供固定依赖 | `npm install` 后用 Node 加载安装的模块 | 下载、校验、解包与模块执行成功，测试不访问真实外网 registry | ✅ |
 
+| 17 | 全新浏览器存储，外网阻断 | 首次执行 Python / python3，运行脚本并写入桌面文件 | 真实 CPython 执行成功，桌面出现同一文件，打开终端时未提前加载运行时 | ⏳ |
+| 18 | 测试来源提供固定纯 Python wheel | pip 安装后在新 Python 进程 import，再执行 pip freeze | 项目内包存储恢复成功，版本和执行结果正确 | ⏳ |
+| 19 | 外网阻断 | import 科学计算库、Web 库与文件处理库 | NumPy、pandas、SciPy、scikit-learn、FastAPI、Flask、httpx、requests、SQLAlchemy、openpyxl、Rich 与时区数据可用 | ⏳ |
+| 20 | 外网阻断 | 执行 pytest、Black、mypy 与 Ruff | 真实测试通过，版本可查询，Ruff 检查与格式化可执行 | ⏳ |
+| 21 | 外网阻断 | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun | 编译结果、编译器版本与 Bun 表达式输出正确 | ⏳ |
+| 22 | 外网阻断 | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询 | SQLite WASM 真正执行 SQL，数据与预期一致 | ⏳ |
+
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。
 
 包管理器补验（2026-11-15）：#15 对应新增 `terminal-packages` 检查组的 `terminalPackages.vendorAssets`、`npm`、`npx`、`pnpm`、`yarn`、`corepack`，#16 对应 `installsDependency` 与 `runsDependency`。打包与下载校验由 `aiao-desktop:runtime-test:coverage` 验证，产物漏发与损坏由 `aiao-desktop:deploy-test` 验证；结果见[本轮证据](../../evidence/2026-11-15/README.md)。
+
+运行时补验：#17～#22 对应 `terminal-runtimes` 检查组，完整资源清单与兼容边界见[终端资源说明](../../../scripts/vivari/README.md)。浏览器报告与脚本门禁结果登记在[本轮证据](../../evidence/2026-11-15/README.md)。
 
 ## 技术笔记
 

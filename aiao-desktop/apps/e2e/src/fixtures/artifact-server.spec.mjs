@@ -10,6 +10,7 @@ async function site(body) {
   const root = await mkdtemp(join(tmpdir(), 'artifact-server-spec-'));
   await writeFile(join(root, 'index.html'), body);
   await writeFile(join(root, 'data.json'), '{"ok":true}');
+  await writeFile(join(root, 'pyodide.mjs'), 'export const ok = true;');
   return root;
 }
 
@@ -24,6 +25,7 @@ test('托管产物并带跨源隔离响应头；不存在的路径是 404，目�
     assert.equal(index.headers.get('cross-origin-embedder-policy'), 'require-corp');
     assert.match(index.headers.get('content-type') ?? '', /text\/html/);
     assert.match((await fetch(`${server.origin}/data.json`)).headers.get('content-type') ?? '', /application\/json/);
+    assert.match((await fetch(`${server.origin}/pyodide.mjs`)).headers.get('content-type') ?? '', /text\/javascript/);
     assert.equal((await fetch(`${server.origin}/missing.js`)).status, 404);
     const escape = await fetch(`${server.origin}/%2e%2e/%2e%2e/etc/hosts`);
     assert.equal(escape.status, 404);
