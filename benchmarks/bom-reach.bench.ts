@@ -638,11 +638,11 @@ const migrationCost = async () => {
     const createStarted = performance.now();
     await adapter.createTables([...legacySystem.entities]);
     const createTableMs = performance.now() - createStarted;
-    const migrations = legacySystem.createMigrations(db.entityManager);
-    assert(migrations.length === 1, '旧图fixture必须测真实Reach迁移');
+    const migration = legacySystem.createMigrations(db.entityManager).find(entry => entry.name === '0001-bom-reach');
+    assert(migration !== undefined, '旧图fixture必须测真实Reach迁移');
     collectGarbage();
     const migrationStarted = performance.now();
-    await adapter.transaction(executor => migrations[0].up(executor), false);
+    await adapter.transaction(executor => migration.up(executor), false);
     const migrationUpMs = performance.now() - migrationStarted;
     const totalReachRows = await reachRows(adapter);
     assert(totalReachRows > input.edges.length, '回填没有产生传递可达对');
@@ -654,7 +654,7 @@ const migrationCost = async () => {
       createTableMs,
       nativeIndexes,
       legacyFixture: '无Reach系统贡献的BOM业务表，经真实loadHistory装载，保留当前业务索引',
-      migration: migrations[0].name,
+      migration: migration.name,
       migrationUpMs,
       samples: 1,
       boundary:
