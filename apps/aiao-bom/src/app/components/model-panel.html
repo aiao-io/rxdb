@@ -21,7 +21,7 @@
   <div class="model-scope-note">当前筛选 {{ market() }}，整车仅提供 EU X9D13C 参考。</div>
 }
 @if (mode() === 'part' && part()?.assets?.length) {
-  <select [value]="activeAsset()?.id ?? ''" (change)="chooseAsset($event)" aria-label="独立模型资产">
+  <select [value]="activeAsset().id" (change)="chooseAsset($event)" aria-label="独立模型资产">
     @for (asset of part()!.assets; track asset.id) {
       <option [value]="asset.id">{{ asset.variants.join(' / ') || asset.id }}</option>
     }
@@ -49,7 +49,7 @@
       {{
         mode() === 'vehicle' ?
           dataset().vehicle.label
-        : '独立零件 · ' + (activeAsset()?.variants?.join(' / ') || selected()?.partId)
+        : '独立零件 · ' + (activeAsset().variants.join(' / ') || selected()?.partId)
       }}
     </div>
     <div class="view-presets">
