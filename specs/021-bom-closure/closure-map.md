@@ -1,6 +1,6 @@
 # BOM 最终验收结果
 
-> 历史验收记录：下文的任务数量、Done 状态与门禁数字属于当时切片基线，不是当前交付状态。2026-11-06 核对时 PR #129 尚未合并，19 条平台故事统一为 In Review；应用状态、真实样本试用及最终验证见[收尾任务](../../apps/aiao-bom-2/requirements/plans/bom-completion-tasks.md)与[应用验收台账](../../apps/aiao-bom-2/requirements/verification-report.md)。
+> 历史验收记录：下文的任务数量、Done 状态与门禁数字属于当时切片基线，不是当前交付状态。2026-11-06 核对时 PR #129 尚未合并，19 条平台故事统一为 In Review；应用状态、真实样本试用及最终验证见[收尾任务](../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)与[应用验收台账](../../apps/aiao-bom/requirements/verification-report.md)。
 
 BOM本轮已完成：spec011～024的256条任务全部勾选，19条BOM故事全部Done，跨域前置US-030也已Done。US-522 AC#1按三端共享51/51关闭。全仓YAML实际计数为95 Done、1 In Progress、1 In Review、3 Backlog，共100条；剩余故事均不属于BOM。
 
@@ -20,7 +20,7 @@ BOM共享合计51/51，独立BOM demo24/24（新增联产及原23条）通过。
 
 2026-10-19 补记：demo 此后另有产品体验回归 10 条，现共 34 条，入账与 CI 证据（run 39218306973 34 passed）见[验收留档](story-validation-history.md#us-525)。共享 runner 上首屏实测 1307～2707ms，CI 的三端共享性能用例改为 firstData<3600ms、输入 p95<100ms，1500ms 仍是本地预算，依据见 `modules/e2e-parity/bom-view-parity.mjs` 的阈值注释。当前六份performance/layout JSON保留实际原始样本；输入2次预热、20个测量样本，100个可见节点。首屏为本次导航的firstData耗时，不冒称首屏p95。
 
-2026-11-07 口径复核：上一条是 2026-10-19 的历史记录。自 2026-10-25 起，现行 `modules/e2e-parity/bom-view-parity.mjs` 对本地与 CI 均使用 `firstDataMs < 1500` 与输入至 DOM 更新 `p95 < 100ms`；前者从种子/数据就绪起计，排除数据库连接、WASM 和种子装载，不表示冷导航时间。当前故事仍为 In Review，最终交付以[收尾任务](../../apps/aiao-bom-2/requirements/plans/bom-completion-tasks.md)为准。
+2026-11-07 口径复核：上一条是 2026-10-19 的历史记录。自 2026-10-25 起，现行 `modules/e2e-parity/bom-view-parity.mjs` 对本地与 CI 均使用 `firstDataMs < 1500` 与输入至 DOM 更新 `p95 < 100ms`；前者从种子/数据就绪起计，排除数据库连接、WASM 和种子装载，不表示冷导航时间。当前故事仍为 In Review，最终交付以[收尾任务](../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)为准。
 
 ## 覆盖率与宿主
 

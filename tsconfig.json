@@ -319,10 +319,10 @@
       "path": "./packages/rxdb-plugin-bom-vue"
     },
     {
-      "path": "./apps/aiao-bom-2-e2e"
+      "path": "./apps/aiao-bom-e2e"
     },
     {
-      "path": "./apps/aiao-bom-2"
+      "path": "./apps/aiao-bom"
     },
     {
       "path": "./modules/bom-workspace"

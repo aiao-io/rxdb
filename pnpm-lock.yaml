@@ -766,7 +766,7 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
-  apps/aiao-bom-2:
+  apps/aiao-bom:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -803,7 +803,7 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
 
-  apps/aiao-bom-2-e2e: {}
+  apps/aiao-bom-e2e: {}
 
   apps/dev-rxdb-angular-e2e: {}
 

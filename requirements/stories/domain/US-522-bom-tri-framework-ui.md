@@ -108,7 +108,7 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 
 ## 历史验收
 
-以下为 2026-10 的切片记录；当前 YAML 状态仍为 In Review。2026-11-07 的最终集成收尾以[收尾任务](../../../apps/aiao-bom-2/requirements/plans/bom-completion-tasks.md)为准。
+以下为 2026-10 的切片记录；当前 YAML 状态仍为 In Review。2026-11-07 的最终集成收尾以[收尾任务](../../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)为准。
 
 三端绑定/组件Angular15、React17、Vue18全部通过，四项分别99.01/100/100/98.66、89.31/87.30/95.34/92.59、100/97.36/100/100%。React aria-selected、Angular/React叶子Space与disabled submit三处对称性差异经7条增强行为先红后绿后完成最小修复。
 

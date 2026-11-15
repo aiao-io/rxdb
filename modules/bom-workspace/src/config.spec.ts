@@ -14,9 +14,9 @@ describe('领域工作区配置隔离', () => {
   });
   it('只恢复属于当前配置的活动库指针', () => {
     window.localStorage.setItem('bom:active-database:unrelated-workspace', 'old-restored');
-    window.localStorage.setItem('bom:active-database:aiao-bom-2-domain-v1', 'new-restored');
+    window.localStorage.setItem('bom:active-database:aiao-bom-domain-v1', 'new-restored');
     TestBed.configureTestingModule({
-      providers: [{ provide: BOM_WORKSPACE_CONFIG, useValue: { databaseName: 'aiao-bom-2-domain-v1' } }]
+      providers: [{ provide: BOM_WORKSPACE_CONFIG, useValue: { databaseName: 'aiao-bom-domain-v1' } }]
     });
     expect(TestBed.inject(BomDemoService).databaseName()).toBe('new-restored');
   });
