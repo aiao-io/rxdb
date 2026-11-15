@@ -5,11 +5,16 @@ import { RouterLink } from '@angular/router';
 import { Asset, AssetCategory, AssetEvent } from '../entities/asset-entities';
 import {
   DASHBOARD_METRICS,
+  dashboardActivityEntityKey,
+  dashboardActivityMessageKey,
   dashboardTotal,
   isDashboardEmpty,
+  type DashboardActivity,
   type DashboardConnectionState,
   type DashboardCounts
 } from './dashboard-model';
+
+import { observeDashboardActivities } from './dashboard-activity-source';
 
 const COUNT_OPTIONS = { where: { combinator: 'and', rules: [] } } as const;
 
@@ -57,6 +62,54 @@ function errorMessage(cause: unknown): string {
         <p class="text-sm opacity-70">{{ t('dashboard.empty.description') }}</p>
       </section>
     }
+    <section class="flex flex-col gap-3" data-testid="dashboard-recent-activity" aria-labelledby="dashboard-recent-activity-title">
+      <div class="flex items-center justify-between gap-3">
+        <h2 id="dashboard-recent-activity-title" class="text-base font-semibold">{{ t('dashboard.activity.title') }}</h2>
+        <span class="text-xs opacity-60">{{ activities().length }}/5</span>
+      </div>
+      @if (activityLoading()) {
+        <p class="text-sm opacity-70" data-testid="dashboard-recent-activity-loading" aria-live="polite">
+          <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.activity.loading') }}
+        </p>
+      } @else if (activityError(); as message) {
+        <p class="text-error text-sm" data-testid="dashboard-recent-activity-failed" role="alert">
+          {{ t('dashboard.activity.failed', { message }) }}
+        </p>
+      } @else if (activities().length === 0) {
+        <p class="bg-base-200 rounded-box p-5 text-sm opacity-70" data-testid="dashboard-recent-activity-empty">
+          {{ t('dashboard.activity.empty') }}
+        </p>
+      } @else {
+        <ol class="divide-base-300 divide-y rounded-box border border-base-300" aria-label="{{ t('dashboard.activity.title') }}">
+          @for (activity of activities(); track activity.fingerprint) {
+            <li
+              class="flex flex-wrap items-start justify-between gap-3 p-4"
+              [attr.data-activity-type]="activity.type"
+              data-testid="dashboard-activity-item"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="font-medium" [class.line-through]="activity.redoInvalidated">
+                  {{ activityMessage(activity) }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span class="badge badge-sm badge-outline">{{ t(activityTypeKey(activity.type)) }}</span>
+                  <span class="badge badge-sm badge-ghost">{{ activityEntity(activity) }}</span>
+                  @if (activity.reverted) {
+                    <span class="badge badge-sm badge-warning">{{ t('dashboard.activity.reverted') }}</span>
+                  }
+                  @if (activity.redoInvalidated) {
+                    <span class="badge badge-sm badge-error">{{ t('dashboard.activity.invalidated') }}</span>
+                  }
+                </div>
+              </div>
+              <time class="text-xs opacity-60" [attr.datetime]="activity.createdAt.toISOString()">
+                {{ formatActivityTime(activity) }}
+              </time>
+            </li>
+          }
+        </ol>
+      }
+    </section>
     <section class="flex flex-col gap-3" data-testid="dashboard-quick-actions">
       <h2 class="text-base font-semibold">{{ t('dashboard.quick.title') }}</h2>
       <div class="flex flex-wrap gap-3">
@@ -68,11 +121,17 @@ function errorMessage(cause: unknown): string {
   `
 })
 class DashboardContent {
+  private readonly db = useRxDB();
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly i18n = useI18n();
   private readonly categoryCount = useCount(AssetCategory, COUNT_OPTIONS);
   private readonly assetCount = useCount(Asset, COUNT_OPTIONS);
   private readonly eventCount = useCount(AssetEvent, COUNT_OPTIONS);
-  readonly t = useI18n().t;
+  readonly t = this.i18n.t;
   readonly metrics = DASHBOARD_METRICS;
+  readonly activities = signal<readonly DashboardActivity[]>([]);
+  readonly activityLoading = signal(true);
+  readonly activityError = signal('');
   readonly counts = computed<DashboardCounts>(() => ({
     categories: this.categoryCount.value(),
     assets: this.assetCount.value(),
@@ -88,8 +147,36 @@ class DashboardContent {
   });
   readonly empty = computed(() => !this.loading() && !this.errorMessageValue() && isDashboardEmpty(this.counts()));
 
+  constructor() {
+    const subscription = observeDashboardActivities(this.db).subscribe(state => {
+      this.activities.set(state.activities);
+      this.activityLoading.set(state.loading);
+      this.activityError.set(state.error ?? '');
+    });
+    this.destroyRef.onDestroy(() => subscription.unsubscribe());
+  }
+
   countFor(key: (typeof DASHBOARD_METRICS)[number]['key']): number {
     return this.counts()[key];
+  }
+
+  activityTypeKey(type: DashboardActivity['type']): string {
+    return `dashboard.activity.type.${type.toLowerCase()}`;
+  }
+
+  activityMessage(activity: DashboardActivity): string {
+    return this.t(dashboardActivityMessageKey(activity.type), {
+      entity: this.t(dashboardActivityEntityKey(activity), {}, 'rxdb-model'),
+      count: activity.count
+    });
+  }
+
+  activityEntity(activity: DashboardActivity): string {
+    return this.t(dashboardActivityEntityKey(activity), {}, 'rxdb-model');
+  }
+
+  formatActivityTime(activity: DashboardActivity): string {
+    return this.i18n.formatDate(activity.createdAt, { dateStyle: 'medium', timeStyle: 'short' });
   }
 }
 

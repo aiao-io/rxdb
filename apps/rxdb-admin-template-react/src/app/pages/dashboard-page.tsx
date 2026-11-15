@@ -5,11 +5,16 @@ import { Link } from 'react-router-dom';
 import { Asset, AssetCategory, AssetEvent } from '../entities/asset-entities';
 import {
   DASHBOARD_METRICS,
+  dashboardActivityEntityKey,
+  dashboardActivityMessageKey,
   dashboardTotal,
   isDashboardEmpty,
+  type DashboardActivity,
   type DashboardConnectionState,
   type DashboardCounts
 } from './dashboard-model';
+
+import { observeDashboardActivities } from './dashboard-activity-source';
 
 const COUNT_OPTIONS = { where: { combinator: 'and', rules: [] } } as const;
 
@@ -17,11 +22,19 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
+function activityTypeKey(type: DashboardActivity['type']): string {
+  return `dashboard.activity.type.${type.toLowerCase()}`;
+}
+
 function DashboardContent() {
-  const { t } = useI18n();
+  const db = useRxDB();
+  const { t, formatDate } = useI18n();
   const categoryCount = useCount(AssetCategory, COUNT_OPTIONS);
   const assetCount = useCount(Asset, COUNT_OPTIONS);
   const eventCount = useCount(AssetEvent, COUNT_OPTIONS);
+  const [activities, setActivities] = useState<readonly DashboardActivity[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState('');
   const counts = useMemo<DashboardCounts>(
     () => ({
       categories: categoryCount.value,
@@ -33,6 +46,15 @@ function DashboardContent() {
   const total = dashboardTotal(counts);
   const loading = categoryCount.isLoading || assetCount.isLoading || eventCount.isLoading;
   const error = categoryCount.error ?? assetCount.error ?? eventCount.error;
+
+  useEffect(() => {
+    const subscription = observeDashboardActivities(db).subscribe(state => {
+      setActivities(state.activities);
+      setActivityLoading(state.loading);
+      setActivityError(state.error ?? '');
+    });
+    return () => subscription.unsubscribe();
+  }, [db]);
 
   return (
     <>
@@ -72,6 +94,62 @@ function DashboardContent() {
           <p className='text-sm opacity-70'>{t('dashboard.empty.description')}</p>
         </section>
       )}
+      <section className='flex flex-col gap-3' data-testid='dashboard-recent-activity' aria-labelledby='dashboard-recent-activity-title'>
+        <div className='flex items-center justify-between gap-3'>
+          <h2 id='dashboard-recent-activity-title' className='text-base font-semibold'>
+            {t('dashboard.activity.title')}
+          </h2>
+          <span className='text-xs opacity-60'>{activities.length}/5</span>
+        </div>
+        {activityLoading && (
+          <p className='text-sm opacity-70' data-testid='dashboard-recent-activity-loading' aria-live='polite'>
+            <span className='loading loading-spinner loading-sm'></span>
+            {t('dashboard.activity.loading')}
+          </p>
+        )}
+        {!activityLoading && activityError && (
+          <p className='text-error text-sm' data-testid='dashboard-recent-activity-failed' role='alert'>
+            {t('dashboard.activity.failed', { message: activityError })}
+          </p>
+        )}
+        {!activityLoading && !activityError && activities.length === 0 && (
+          <p className='bg-base-200 rounded-box p-5 text-sm opacity-70' data-testid='dashboard-recent-activity-empty'>
+            {t('dashboard.activity.empty')}
+          </p>
+        )}
+        {!activityLoading && !activityError && activities.length > 0 && (
+          <ol className='divide-base-300 divide-y rounded-box border border-base-300' aria-label={t('dashboard.activity.title')}>
+            {activities.map(activity => (
+              <li
+                className='flex flex-wrap items-start justify-between gap-3 p-4'
+                key={activity.fingerprint}
+                data-activity-type={activity.type}
+                data-testid='dashboard-activity-item'
+              >
+                <div className='min-w-0 flex-1'>
+                  <p className={`font-medium ${activity.redoInvalidated ? 'line-through' : ''}`}>
+                    {t(dashboardActivityMessageKey(activity.type), {
+                      entity: t(dashboardActivityEntityKey(activity), {}, 'rxdb-model'),
+                      count: activity.count
+                    })}
+                  </p>
+                  <div className='mt-2 flex flex-wrap gap-2'>
+                    <span className='badge badge-sm badge-outline'>{t(activityTypeKey(activity.type))}</span>
+                    <span className='badge badge-sm badge-ghost'>{t(dashboardActivityEntityKey(activity), {}, 'rxdb-model')}</span>
+                    {activity.reverted && <span className='badge badge-sm badge-warning'>{t('dashboard.activity.reverted')}</span>}
+                    {activity.redoInvalidated && (
+                      <span className='badge badge-sm badge-error'>{t('dashboard.activity.invalidated')}</span>
+                    )}
+                  </div>
+                </div>
+                <time className='text-xs opacity-60' dateTime={activity.createdAt.toISOString()}>
+                  {formatDate(activity.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}
+                </time>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
       <section className='flex flex-col gap-3' data-testid='dashboard-quick-actions'>
         <h2 className='text-base font-semibold'>{t('dashboard.quick.title')}</h2>
         <div className='flex flex-wrap gap-3'>

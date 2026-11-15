@@ -28,6 +28,16 @@ test.describe('工作台 a11y 走查', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('Dashboard 最近活动有数据时 axe 零违规', async ({ page }) => {
+    await page.goto('/entities/assets/AssetCategory');
+    await createCategory(page, '活动无障碍');
+    await page.getByTestId('dashboard-nav-link').click();
+    await expect(page.getByTestId('dashboard-activity-item')).toHaveCount(1);
+    await settleAnimations(page);
+    const results = await new AxeBuilder({ page }).include('#layout-container').analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   test('实体列表页 axe 零违规', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
