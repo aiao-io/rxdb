@@ -50,14 +50,7 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
   await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
   await capture(page, '设计 A', '2026-11-13');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
-  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
-  await expect(page.getByTestId('matched-count')).toHaveText('1');
-  const grid = page.getByTestId('bom-grid');
-  await expect(grid).toHaveAttribute('aria-busy', 'false');
-  const box = await grid.boundingBox();
-  if (!box) throw new Error('表格未渲染');
-  await page.mouse.click(box.x + 150, box.y + 40 + 35 + 17);
-  await expect(page.getByTestId('selected-summary')).toContainText('ST-000001');
+  await selectFirstPart(page);
   await page.getByRole('button', { name: '编辑用量', exact: true }).click();
   await page.getByRole('textbox', { name: '直接用量', exact: true }).fill('2.5');
   await page.getByRole('button', { name: '确认', exact: true }).click();
@@ -112,12 +105,7 @@ test('完整结构版本保存、改量差异、提交链和刷新恢复', async
   await restored.getByRole('button', { name: /^历史记录/ }).click();
   await expect(commits.getByRole('listitem')).toHaveCount(2);
   await restored.getByRole('button', { name: '关闭', exact: true }).click();
-  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
-  await expect(page.getByTestId('matched-count')).toHaveText('1');
-  const restoredBox = await grid.boundingBox();
-  if (!restoredBox) throw new Error('恢复后的表格未渲染');
-  await expect(grid).toHaveAttribute('aria-busy', 'false');
-  await page.mouse.click(restoredBox.x + 150, restoredBox.y + 40 + 35 + 17);
+  await selectFirstPart(page);
   await expect(page.getByTestId('selected-summary')).toContainText('1 件');
   expect(errors).toEqual([]);
 });
@@ -145,12 +133,12 @@ test('窄屏版本对话框不溢出，跨结构选择显示错误且不损坏�
 
 async function selectFirstPart(page: Page): Promise<void> {
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
-  await expect(page.getByTestId('matched-count')).toHaveText('1');
   const grid = page.getByTestId('bom-grid');
-  await expect(grid).toHaveAttribute('aria-busy', 'false');
-  const box = await grid.boundingBox();
-  if (!box) throw new Error('表格未渲染');
-  await page.mouse.click(box.x + 150, box.y + 40 + 35 + 17);
+  await expect(grid).toHaveAttribute('data-query', 'ST-000001');
+  await expect(grid).toHaveAttribute('data-rendered-query', 'ST-000001');
+  await expect(page.getByTestId('matched-count')).toHaveText('1');
+  const position = await cellPosition(page, 'name', 'stress:1');
+  await page.mouse.click(position.x, position.y);
   await expect(page.getByTestId('selected-summary')).toContainText('ST-000001');
 }
 async function editQuantity(page: Page, quantity: string): Promise<void> {
@@ -173,6 +161,9 @@ test('分支保存不同用量，切换和刷新后数据与提交历史仍隔�
   await editQuantity(page, '2.5');
   await commitBranch(page, '底盘基线');
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).clear();
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('data-query', '');
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('data-rendered-query', '');
+  await expect(page.getByTestId('matched-count')).toHaveText('12');
   await fork(page, '电池校核');
   await editQuantity(page, '7');
   await commitBranch(page, '电池基线');
