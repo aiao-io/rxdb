@@ -1,6 +1,7 @@
 import type { Routes } from '@angular/router';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', loadComponent: () => import('./pages/start-page') },
+  { path: 'dashboard', loadComponent: () => import('./pages/dashboard-page') },
   {
     path: 'entities',
     loadComponent: () => import('./pages/entity-shell'),

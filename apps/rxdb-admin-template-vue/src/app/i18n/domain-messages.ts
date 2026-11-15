@@ -1,4 +1,6 @@
 export const domainZhMessages = {
+  'nav.overview': '概览',
+  'nav.dashboard': 'Dashboard',
   'nav.entities': '实体',
   'nav.data': '数据',
   'nav.search': '搜索',
@@ -7,6 +9,8 @@ export const domainZhMessages = {
 };
 
 export const domainEnMessages: Record<keyof typeof domainZhMessages, string> = {
+  'nav.overview': 'Overview',
+  'nav.dashboard': 'Dashboard',
   'nav.entities': 'Entities',
   'nav.data': 'Data',
   'nav.search': 'Search',

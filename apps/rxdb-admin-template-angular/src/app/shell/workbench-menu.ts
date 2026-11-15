@@ -4,6 +4,7 @@ import type { AdminIcon } from '@aiao/rxdb-admin-angular';
 import type { I18n } from '@aiao/rxdb-i18n';
 import {
   LucideArchiveRestore as ArchiveRestore,
+  LucideLayoutDashboard as LayoutDashboard,
   LucideBoxes as Boxes,
   LucideSearch as Search,
   LucideTags as Tags,
@@ -24,7 +25,7 @@ const ENTITY_ICONS: Record<string, AdminIcon> = {
 export const ENTITY_MENU_PREFIX = 'entity:';
 
 /**
- * 工作台导航：实体分组（由实体注册表派生）+ 数据分组（搜索、备份 / 恢复）。
+ * 工作台导航：概览分组 + 实体分组（由实体注册表派生）+ 数据分组（搜索、备份 / 恢复）。
  * 实体可见性的唯一真相源仍是 entity-registry，不另建菜单配置表。
  * @param entities - RxDB 实例注册的实体。
  * @param translate - 当前应用的翻译函数。
@@ -33,6 +34,20 @@ export const ENTITY_MENU_PREFIX = 'entity:';
 export function buildWorkbenchMenu(entities: readonly EntityType[], translate?: I18n['t']): MenuNode<AdminIcon>[] {
   const label = (key: keyof typeof domainZhMessages): string => translate?.(key) ?? domainZhMessages[key];
   return [
+    {
+      id: 'overview',
+      label: label('nav.overview'),
+      expanded: true,
+      children: [
+        {
+          id: 'dashboard',
+          label: label('nav.dashboard'),
+          icon: LayoutDashboard,
+          route: '/dashboard',
+          testId: 'dashboard-nav-link'
+        }
+      ]
+    },
     {
       id: 'entities',
       label: label('nav.entities'),

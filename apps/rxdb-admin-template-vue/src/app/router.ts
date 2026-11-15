@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 export const navigating = ref(false);
 export const routes: RouteRecordRaw[] = [
   { path: '/', component: () => import('./pages/start-page.vue') },
+  { path: '/dashboard', component: () => import('./pages/dashboard-page.vue') },
   {
     path: '/entities',
     component: () => import('./pages/entity-shell.vue'),

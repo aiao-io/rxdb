@@ -20,6 +20,14 @@ test.describe('工作台 a11y 走查', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('Dashboard 页 axe 零违规', async ({ page }) => {
+    await page.goto('/dashboard');
+    await expect(page.getByTestId('dashboard-empty')).toBeVisible();
+    await settleAnimations(page);
+    const results = await new AxeBuilder({ page }).include('#layout-container').analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   test('实体列表页 axe 零违规', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');

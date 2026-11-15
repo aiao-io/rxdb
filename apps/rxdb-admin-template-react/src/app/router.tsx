@@ -32,6 +32,7 @@ export const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       { index: true, lazy: lazyRoute(() => import('./pages/start-page')) },
+      { path: 'dashboard', lazy: lazyRoute(() => import('./pages/dashboard-page')) },
       {
         path: 'entities',
         lazy: lazyRoute(() => import('./pages/entity-shell')),

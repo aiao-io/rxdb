@@ -23,16 +23,19 @@ describe('工作台导航国际化', () => {
       namespace: 'workbench'
     });
     const english = buildWorkbenchMenu(ENTITIES, runtime.t);
-    expect(english.map(group => group.label)).toEqual(['Entities', 'Data']);
-    expect(english[0]?.children?.map(entry => entry.label)).toEqual([
+    expect(english.map(group => group.label)).toEqual(['Overview', 'Entities', 'Data']);
+    expect(english[0]?.children?.map(entry => ({ id: entry.id, route: entry.route }))).toEqual([
+      { id: 'dashboard', route: '/dashboard' }
+    ]);
+    expect(english[1]?.children?.map(entry => entry.label)).toEqual([
       'Assets',
       'Asset categories',
       'Maintenance records'
     ]);
-    expect(english[1]?.children?.map(entry => entry.label)).toEqual(['Search', 'Backup / Restore']);
+    expect(english[2]?.children?.map(entry => entry.label)).toEqual(['Search', 'Backup / Restore']);
     await runtime.setLocale('zh-Hans');
     const chinese = buildWorkbenchMenu(ENTITIES, runtime.t);
-    expect(chinese[0]?.children?.map(entry => entry.label)).toEqual(['资产', '资产分类', '维护记录']);
+    expect(chinese[1]?.children?.map(entry => entry.label)).toEqual(['资产', '资产分类', '维护记录']);
     expect(chinese.map(group => group.children?.map(({ id, route }) => ({ id, route })))).toEqual(
       english.map(group => group.children?.map(({ id, route }) => ({ id, route })))
     );
