@@ -98,6 +98,7 @@
         }
       },
       "dependsOn": [
+        "^build",
         {
           "projects": ["aiao-desktop"],
           "target": "dev-ports"

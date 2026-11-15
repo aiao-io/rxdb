@@ -19,9 +19,9 @@ test('开发服务器、正式构建预览与开发导航的端口和固定入�
   assert.equal(root.targets.dev.readyWhen.url, dashboardUrl);
 });
 
-test('开发服务器启动前先检查固定端口', async () => {
+test('开发服务器启动前先检查固定端口并构建依赖包', async () => {
   const web = await project('apps/web');
-  assert.deepEqual(web.targets.serve.dependsOn, [{ projects: ['aiao-desktop'], target: 'dev-ports' }]);
+  assert.deepEqual(web.targets.serve.dependsOn, ['^build', { projects: ['aiao-desktop'], target: 'dev-ports' }]);
 });
 
 test('正式构建预览是常驻服务：就绪不等于任务结束', async () => {
