@@ -9,9 +9,9 @@
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条   |
 | 🚧 In Progress |      4 | 桌面、同步与服务端任务剩余验收                                     |
 | 👀 In Review   |      6 | 本机交付、灵感库、国内部署、首次安装、平台生图与积分管理待评审合入 |
-| ⬜ Backlog     |      2 | 移动真机按 D-04、平台支付按 D-17 暂缓                              |
+| ⬜ Backlog     |      3 | 移动真机、平台支付暂缓；后台管理员资料待实施                     |
 | 🚫 Blocked     |      0 | —                                                                  |
-| **合计**       | **20** | 不含模板和上游故事                                                 |
+| **合计**       | **21** | 不含模板和上游故事                                                 |
 
 ## 按 Epic 索引
 
@@ -38,6 +38,7 @@
 - ✅ [MEDIA-US-203 跨用户业务后台管理](stories/account/MEDIA-US-203-business-admin.md)
 - ✅ [MEDIA-US-204 本地作品检索与按需预览](stories/account/MEDIA-US-204-library-search.md)
 - 👀 [MEDIA-US-206 后台积分管理](stories/account/MEDIA-US-206-credit-admin.md)
+- ⬜ [MEDIA-US-207 后台管理员账户资料与身份菜单](stories/account/MEDIA-US-207-admin-account-profile.md)
 - ⬜ [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)（D-17 暂缓）
 
 ### [本地优先与跨设备同步](epics/MEDIA-EPIC-004.md)
