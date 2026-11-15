@@ -1,47 +1,205 @@
 {
-  "generatedAt": "2026-11-15T09:32:34.427Z",
   "api": "RxDB.bom.whereUsed",
   "backend": "pglite",
-  "isolatedInMemoryDatabases": true,
-  "materializationMeasured": false,
-  "defaultPruningEnabled": false,
-  "productionSchemaModified": false,
-  "environment": {
-    "node": "v26.12.0",
-    "execArgv": [
-      "--expose-gc",
-      "--experimental-strip-types"
-    ],
-    "platform": "darwin",
-    "arch": "arm64",
-    "cpu": [
-      "Apple M1 Max"
-    ],
-    "totalMemoryBytes": 34359738368,
-    "rssBytes": 1134788608
+  "budgets": {
+    "depth": 50,
+    "expansions": 100000,
+    "paths": 10000
   },
+  "comparisons": [
+    {
+      "scenario": "materials-100:used-leaf",
+      "baselineP95Ms": 12.339332999999897,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 10.721082999999908,
+      "p95GainPercent": 13.114566241141256,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 11.048416999999972,
+          "p95GainPercent": 10.461797246252576
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 10.721082999999908,
+          "p95GainPercent": 13.114566241141256
+        }
+      ]
+    },
+    {
+      "scenario": "materials-100:unused-root",
+      "baselineP95Ms": 2.2384579999998095,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 2.081749999999829,
+      "p95GainPercent": 7.000712097345309,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.1042499999998654,
+          "p95GainPercent": 5.9955558692615885
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.081749999999829,
+          "p95GainPercent": 7.000712097345309
+        }
+      ]
+    },
+    {
+      "scenario": "materials-1000:used-leaf",
+      "baselineP95Ms": 17.034582999998747,
+      "bestComparedPhase": "child-item",
+      "bestIndexP95Ms": 11.741750000001048,
+      "p95GainPercent": 31.071104000597426,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 11.741750000001048,
+          "p95GainPercent": 31.071104000597426
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 12.115083000000595,
+          "p95GainPercent": 28.879485925769437
+        }
+      ]
+    },
+    {
+      "scenario": "materials-1000:unused-root",
+      "baselineP95Ms": 3.31341699999939,
+      "bestComparedPhase": "child-item",
+      "bestIndexP95Ms": 2.4828749999996944,
+      "p95GainPercent": 25.066027004746118,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.4828749999996944,
+          "p95GainPercent": 25.066027004746118
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.4932499999995343,
+          "p95GainPercent": 24.75290613888945
+        }
+      ]
+    },
+    {
+      "scenario": "materials-10000:used-leaf",
+      "baselineP95Ms": 80.64095799997449,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 13.444041999988258,
+      "p95GainPercent": 83.32851898908181,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 14.352291999966837,
+          "p95GainPercent": 82.20223028603978
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 13.444041999988258,
+          "p95GainPercent": 83.32851898908181
+        }
+      ]
+    },
+    {
+      "scenario": "materials-10000:unused-root",
+      "baselineP95Ms": 11.666375000029802,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 2.5539170000120066,
+      "p95GainPercent": 78.10873557548526,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.6523750000051223,
+          "p95GainPercent": 77.26478876259037
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.5539170000120066,
+          "p95GainPercent": 78.10873557548526
+        }
+      ]
+    },
+    {
+      "scenario": "diamonds-20:budgeted-diamond",
+      "baselineP95Ms": 34.52758300001733,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 29.26429200003622,
+      "p95GainPercent": 15.243728470592533,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "本场景受路径输出预算约束；路径枚举成本不能证明物料闭包必然更快",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 32.103999999992084,
+          "p95GainPercent": 7.019266306662791
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 29.26429200003622,
+          "p95GainPercent": 15.243728470592533
+        }
+      ]
+    }
+  ],
   "context": {
     "bomType": "ebom",
     "orgId": "reach-org-0",
     "asOfDate": "2026-01-01T00:00:00.000Z",
     "alternativeNo": 1
   },
-  "budgets": {
-    "depth": 50,
-    "expansions": 100000,
-    "paths": 10000
+  "defaultPruningEnabled": false,
+  "environment": {
+    "node": "v26.12.0",
+    "execArgv": ["--expose-gc", "--experimental-strip-types"],
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": ["Apple M1 Max"],
+    "totalMemoryBytes": 34359738368,
+    "rssBytes": 1134788608
   },
-  "warmup": 5,
-  "samples": 20,
-  "sampling": {
-    "explicitExposeGc": true,
-    "gcAfterSeed": true,
-    "gcBeforeEachIteration": true,
-    "pairedInterleaving": false,
-    "reverseOrderEveryOtherRound": false,
-    "cpuIsolation": "调用方必须独占Nx/构建CPU；GC与正确性验证都不计入查询/保存计时"
-  },
-  "verification": "每轮对照独立发生项路径oracle、BFS顺序、作用域、候选、深度和截断；计时不包含验证与EXPLAIN",
+  "generatedAt": "2026-11-15T09:32:34.427Z",
   "graphs": [
     {
       "graph": "materials-100",
@@ -1461,26 +1619,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            10.698417000000063,
-            11.467791999999918,
-            11.444834000000355,
-            11.045791000000008,
-            11.128000000000156,
-            10.957375000000411,
-            11.537958000000344,
-            11.777292000000216,
-            11.456250000000182,
-            10.891708999999992,
-            11.236417000000074,
-            11.012374999999793,
-            10.455457999999908,
-            11.236582999999882,
-            12.020375000000058,
-            12.339332999999897,
-            12.427999999999884,
-            11.329000000000178,
-            10.738957999999911,
-            11.278374999999869
+            10.698417000000063, 11.467791999999918, 11.444834000000355, 11.045791000000008, 11.128000000000156,
+            10.957375000000411, 11.537958000000344, 11.777292000000216, 11.456250000000182, 10.891708999999992,
+            11.236417000000074, 11.012374999999793, 10.455457999999908, 11.236582999999882, 12.020375000000058,
+            12.339332999999897, 12.427999999999884, 11.329000000000178, 10.738957999999911, 11.278374999999869
           ],
           "p50Ms": 11.236582999999882,
           "p95Ms": 12.339332999999897,
@@ -1521,11 +1663,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -2014,9 +2152,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 1,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -2120,11 +2256,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -2611,9 +2743,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -2696,26 +2826,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.0105830000002243,
-            2.1055840000003627,
-            2.0827919999996993,
-            2.1533330000002024,
-            2.013249999999971,
-            2.212916999999834,
-            1.9292089999999007,
-            2.113665999999739,
-            2.05658399999993,
-            2.199000000000069,
-            2.1280830000000606,
-            2.1335410000001502,
-            1.990708999999697,
-            2.036207999999988,
-            2.07287499999984,
-            2.2384579999998095,
-            2.1054579999999987,
-            2.2699579999998605,
-            2.1445420000000013,
-            2.104917000000114
+            2.0105830000002243, 2.1055840000003627, 2.0827919999996993, 2.1533330000002024, 2.013249999999971,
+            2.212916999999834, 1.9292089999999007, 2.113665999999739, 2.05658399999993, 2.199000000000069,
+            2.1280830000000606, 2.1335410000001502, 1.990708999999697, 2.036207999999988, 2.07287499999984,
+            2.2384579999998095, 2.1054579999999987, 2.2699579999998605, 2.1445420000000013, 2.104917000000114
           ],
           "p50Ms": 2.1054579999999987,
           "p95Ms": 2.2384579999998095,
@@ -2756,11 +2870,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -3249,9 +3359,7 @@
                                 "Actual Rows": 0,
                                 "Actual Loops": 0,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Shared Hit Blocks": 0,
                                 "Shared Read Blocks": 0,
                                 "Shared Dirtied Blocks": 0,
@@ -3331,26 +3439,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            10.412082999999711,
-            10.689792000000125,
-            10.394333000000188,
-            9.849040999999943,
-            10.189582999999857,
-            10.159999999999854,
-            11.048416999999972,
-            10.131541000000198,
-            10.091875000000073,
-            10.450792000000092,
-            10.238582999999835,
-            10.020750000000135,
-            10.269917000000078,
-            9.768500000000131,
-            12.176500000000033,
-            10.465916000000107,
-            10.881999999999607,
-            10.466832999999951,
-            10.356416999999965,
-            10.610042000000249
+            10.412082999999711, 10.689792000000125, 10.394333000000188, 9.849040999999943, 10.189582999999857,
+            10.159999999999854, 11.048416999999972, 10.131541000000198, 10.091875000000073, 10.450792000000092,
+            10.238582999999835, 10.020750000000135, 10.269917000000078, 9.768500000000131, 12.176500000000033,
+            10.465916000000107, 10.881999999999607, 10.466832999999951, 10.356416999999965, 10.610042000000249
           ],
           "p50Ms": 10.356416999999965,
           "p95Ms": 11.048416999999972,
@@ -3391,11 +3483,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -3534,9 +3622,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -3926,9 +4012,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 1,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -4032,11 +4116,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -4175,9 +4255,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -4628,9 +4706,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -4713,26 +4789,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            1.9685410000001866,
-            1.9839160000001357,
-            1.970915999999761,
-            1.956416999999874,
-            2.05475000000024,
-            1.9566669999999249,
-            1.98700000000008,
-            2.001541999999972,
-            2.0183750000001055,
-            2.0034169999998994,
-            1.967290999999932,
-            2.0733329999998205,
-            2.0546659999999974,
-            1.9942080000000715,
-            2.1042499999998654,
-            2.137749999999869,
-            1.9533329999999296,
-            2.0445420000000922,
-            2.030999999999949,
-            2.0027090000003227
+            1.9685410000001866, 1.9839160000001357, 1.970915999999761, 1.956416999999874, 2.05475000000024,
+            1.9566669999999249, 1.98700000000008, 2.001541999999972, 2.0183750000001055, 2.0034169999998994,
+            1.967290999999932, 2.0733329999998205, 2.0546659999999974, 1.9942080000000715, 2.1042499999998654,
+            2.137749999999869, 1.9533329999999296, 2.0445420000000922, 2.030999999999949, 2.0027090000003227
           ],
           "p50Ms": 2.001541999999972,
           "p95Ms": 2.1042499999998654,
@@ -4773,11 +4833,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -4916,9 +4972,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -5308,9 +5362,7 @@
                                 "Actual Rows": 0,
                                 "Actual Loops": 0,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Shared Hit Blocks": 0,
                                 "Shared Read Blocks": 0,
                                 "Shared Dirtied Blocks": 0,
@@ -5390,26 +5442,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            10.247082999999748,
-            10.017624999999953,
-            10.043707999999697,
-            10.272042000000056,
-            10.090417000000343,
-            9.934042000000318,
-            10.934834000000137,
-            10.721082999999908,
-            10.22570799999994,
-            10.17391600000019,
-            10.028667000000041,
-            10.25866700000006,
-            9.985957999999755,
-            10.061958000000232,
-            10.060583999999835,
-            10.031416999999692,
-            10.035040999999637,
-            10.21374999999989,
-            10.691209000000072,
-            9.714833999999883
+            10.247082999999748, 10.017624999999953, 10.043707999999697, 10.272042000000056, 10.090417000000343,
+            9.934042000000318, 10.934834000000137, 10.721082999999908, 10.22570799999994, 10.17391600000019,
+            10.028667000000041, 10.25866700000006, 9.985957999999755, 10.061958000000232, 10.060583999999835,
+            10.031416999999692, 10.035040999999637, 10.21374999999989, 10.691209000000072, 9.714833999999883
           ],
           "p50Ms": 10.061958000000232,
           "p95Ms": 10.721082999999908,
@@ -5450,11 +5486,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -5593,9 +5625,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -5985,9 +6015,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 1,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -6091,11 +6119,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -6234,9 +6258,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -6687,9 +6709,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -6772,26 +6792,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.063416999999845,
-            2.089292000000114,
-            1.9539159999999356,
-            2.014666000000034,
-            1.9782089999998789,
-            1.909874999999829,
-            1.921708000000308,
-            2.081749999999829,
-            2.0173749999999018,
-            1.9245829999999842,
-            1.9548750000003565,
-            1.9001670000002377,
-            1.9638749999999163,
-            1.9985830000000533,
-            1.9268750000001091,
-            1.9394170000000486,
-            1.9834579999997004,
-            1.8969170000000304,
-            1.8946249999999054,
-            1.991541999999754
+            2.063416999999845, 2.089292000000114, 1.9539159999999356, 2.014666000000034, 1.9782089999998789,
+            1.909874999999829, 1.921708000000308, 2.081749999999829, 2.0173749999999018, 1.9245829999999842,
+            1.9548750000003565, 1.9001670000002377, 1.9638749999999163, 1.9985830000000533, 1.9268750000001091,
+            1.9394170000000486, 1.9834579999997004, 1.8969170000000304, 1.8946249999999054, 1.991541999999754
           ],
           "p50Ms": 1.9548750000003565,
           "p95Ms": 2.081749999999829,
@@ -6832,11 +6836,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -6975,9 +6975,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -7367,9 +7365,7 @@
                                 "Actual Rows": 0,
                                 "Actual Loops": 0,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Shared Hit Blocks": 0,
                                 "Shared Read Blocks": 0,
                                 "Shared Dirtied Blocks": 0,
@@ -8858,26 +8854,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            15.795499999998356,
-            15.792625000000044,
-            16.59820899999977,
-            16.13537499999984,
-            16.29108300000007,
-            15.759625000000597,
-            16.259083000000828,
-            16.811083000000508,
-            15.571250000000873,
-            16.42924999999923,
-            15.842749999999796,
-            17.370958000001337,
-            15.41399999999885,
-            16.691749999999956,
-            15.447374999999738,
-            16.343541000000187,
-            16.450708000000304,
-            15.818333000001076,
-            16.295000000000073,
-            17.034582999998747
+            15.795499999998356, 15.792625000000044, 16.59820899999977, 16.13537499999984, 16.29108300000007,
+            15.759625000000597, 16.259083000000828, 16.811083000000508, 15.571250000000873, 16.42924999999923,
+            15.842749999999796, 17.370958000001337, 15.41399999999885, 16.691749999999956, 15.447374999999738,
+            16.343541000000187, 16.450708000000304, 15.818333000001076, 16.295000000000073, 17.034582999998747
           ],
           "p50Ms": 16.259083000000828,
           "p95Ms": 17.034582999998747,
@@ -8918,11 +8898,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -9487,11 +9463,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -10033,26 +10005,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.9431249999997817,
-            3.0008749999997235,
-            3.180833000000348,
-            3.03125,
-            3.1287910000010015,
-            3.205540999999357,
-            3.135334000000512,
-            3.116249999999127,
-            3.0727499999993597,
-            3.268916999999419,
-            3.31341699999939,
-            3.0780000000013388,
-            3.3687910000007832,
-            2.980042000001049,
-            3.063417000001209,
-            2.9273750000011205,
-            3.026499999999942,
-            3.071582999999009,
-            3.1702920000006998,
-            2.9381670000002487
+            2.9431249999997817, 3.0008749999997235, 3.180833000000348, 3.03125, 3.1287910000010015, 3.205540999999357,
+            3.135334000000512, 3.116249999999127, 3.0727499999993597, 3.268916999999419, 3.31341699999939,
+            3.0780000000013388, 3.3687910000007832, 2.980042000001049, 3.063417000001209, 2.9273750000011205,
+            3.026499999999942, 3.071582999999009, 3.1702920000006998, 2.9381670000002487
           ],
           "p50Ms": 3.0727499999993597,
           "p95Ms": 3.31341699999939,
@@ -10093,11 +10049,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -10641,26 +10593,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            11.44695800000045,
-            11.03533299999981,
-            11.14166699999987,
-            11.467083999999886,
-            10.804667000000336,
-            11.360042000000249,
-            11.741750000001048,
-            10.76050000000032,
-            11.268749999999272,
-            11.401249999998981,
-            11.283416000000216,
-            11.53520799999933,
-            10.220290999999634,
-            10.202500000001237,
-            11.497167000001355,
-            11.465374999999767,
-            10.95733300000029,
-            10.586999999999534,
-            10.429334000000381,
-            13.105457999999999
+            11.44695800000045, 11.03533299999981, 11.14166699999987, 11.467083999999886, 10.804667000000336,
+            11.360042000000249, 11.741750000001048, 10.76050000000032, 11.268749999999272, 11.401249999998981,
+            11.283416000000216, 11.53520799999933, 10.220290999999634, 10.202500000001237, 11.497167000001355,
+            11.465374999999767, 10.95733300000029, 10.586999999999534, 10.429334000000381, 13.105457999999999
           ],
           "p50Ms": 11.268749999999272,
           "p95Ms": 11.741750000001048,
@@ -10701,11 +10637,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -10844,9 +10776,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -11312,11 +11242,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -11455,9 +11381,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -11963,26 +11887,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.406541999998808,
-            2.3745830000007118,
-            2.386333000000377,
-            2.475624999999127,
-            2.4828749999996944,
-            2.415917000000263,
-            2.4243330000008427,
-            2.321749999999156,
-            2.1803749999999127,
-            2.3268329999991693,
-            2.2368339999993623,
-            2.4331660000007105,
-            2.397833000000901,
-            2.521499999998923,
-            2.4613330000011047,
-            2.357332999999926,
-            2.431790999999066,
-            2.4802920000001905,
-            2.335000000000946,
-            2.3894170000003214
+            2.406541999998808, 2.3745830000007118, 2.386333000000377, 2.475624999999127, 2.4828749999996944,
+            2.415917000000263, 2.4243330000008427, 2.321749999999156, 2.1803749999999127, 2.3268329999991693,
+            2.2368339999993623, 2.4331660000007105, 2.397833000000901, 2.521499999998923, 2.4613330000011047,
+            2.357332999999926, 2.431790999999066, 2.4802920000001905, 2.335000000000946, 2.3894170000003214
           ],
           "p50Ms": 2.397833000000901,
           "p95Ms": 2.4828749999996944,
@@ -12023,11 +11931,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -12166,9 +12070,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -12613,26 +12515,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            11.594332999999097,
-            11.556291999999303,
-            11.701209000000745,
-            11.328083000000333,
-            11.092249999999694,
-            10.536208000001352,
-            11.663917000001675,
-            11.997332999999344,
-            11.20733299999847,
-            11.765292000000045,
-            12.052083000002312,
-            12.072000000000116,
-            12.384167000000161,
-            11.606999999999971,
-            11.205207999999402,
-            12.115083000000595,
-            10.575666000000638,
-            11.479666999999608,
-            11.283207999997103,
-            11.37804099999994
+            11.594332999999097, 11.556291999999303, 11.701209000000745, 11.328083000000333, 11.092249999999694,
+            10.536208000001352, 11.663917000001675, 11.997332999999344, 11.20733299999847, 11.765292000000045,
+            12.052083000002312, 12.072000000000116, 12.384167000000161, 11.606999999999971, 11.205207999999402,
+            12.115083000000595, 10.575666000000638, 11.479666999999608, 11.283207999997103, 11.37804099999994
           ],
           "p50Ms": 11.556291999999303,
           "p95Ms": 12.115083000000595,
@@ -12673,11 +12559,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -12816,9 +12698,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -13284,11 +13164,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -13427,9 +13303,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -13935,26 +13809,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.1583749999990687,
-            2.30304199999955,
-            2.396042000000307,
-            2.400999999998021,
-            2.507166999999754,
-            2.417208999999275,
-            2.3820830000004207,
-            2.3187919999982114,
-            2.3371660000011616,
-            2.493124999997235,
-            2.4488750000018626,
-            2.4187500000007276,
-            2.4754589999974996,
-            2.368749999997817,
-            2.448040999999648,
-            2.363375000000815,
-            2.28558300000077,
-            2.4347080000006827,
-            2.4932499999995343,
-            2.2341249999990396
+            2.1583749999990687, 2.30304199999955, 2.396042000000307, 2.400999999998021, 2.507166999999754,
+            2.417208999999275, 2.3820830000004207, 2.3187919999982114, 2.3371660000011616, 2.493124999997235,
+            2.4488750000018626, 2.4187500000007276, 2.4754589999974996, 2.368749999997817, 2.448040999999648,
+            2.363375000000815, 2.28558300000077, 2.4347080000006827, 2.4932499999995343, 2.2341249999990396
           ],
           "p50Ms": 2.396042000000307,
           "p95Ms": 2.4932499999995343,
@@ -13995,11 +13853,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -14138,9 +13992,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -15994,26 +15846,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            73.9446670000325,
-            76.71437500003958,
-            78.86408400000073,
-            85.64870899997186,
-            76.12216700002318,
-            79.49158299999544,
-            75.74412499996834,
-            78.38629100000253,
-            75.90029199997662,
-            76.77345799998147,
-            75.96737500000745,
-            77.1794579999987,
-            79.39762499998324,
-            77.6262089999509,
-            80.64095799997449,
-            76.33525000000373,
-            74.89204200002132,
-            77.87449999997625,
-            80.21029199997429,
-            78.46595799998613
+            73.9446670000325, 76.71437500003958, 78.86408400000073, 85.64870899997186, 76.12216700002318,
+            79.49158299999544, 75.74412499996834, 78.38629100000253, 75.90029199997662, 76.77345799998147,
+            75.96737500000745, 77.1794579999987, 79.39762499998324, 77.6262089999509, 80.64095799997449,
+            76.33525000000373, 74.89204200002132, 77.87449999997625, 80.21029199997429, 78.46595799998613
           ],
           "p50Ms": 77.1794579999987,
           "p95Ms": 80.64095799997449,
@@ -16054,11 +15890,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -16621,11 +16453,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -17167,26 +16995,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            11.362582999980077,
-            11.091542000009213,
-            11.243375000020023,
-            10.889792000001762,
-            11.165875000006054,
-            12.70308299997123,
-            11.253625000012107,
-            11.179875000030734,
-            11.18504099996062,
-            11.110500000009779,
-            10.269583000044804,
-            10.735166000027675,
-            11.213582999946084,
-            10.90862499998184,
-            11.098375000001397,
-            11.106832999968901,
-            11.666375000029802,
-            11.226957999984734,
-            10.98295799997868,
-            11.217208000016399
+            11.362582999980077, 11.091542000009213, 11.243375000020023, 10.889792000001762, 11.165875000006054,
+            12.70308299997123, 11.253625000012107, 11.179875000030734, 11.18504099996062, 11.110500000009779,
+            10.269583000044804, 10.735166000027675, 11.213582999946084, 10.90862499998184, 11.098375000001397,
+            11.106832999968901, 11.666375000029802, 11.226957999984734, 10.98295799997868, 11.217208000016399
           ],
           "p50Ms": 11.165875000006054,
           "p95Ms": 11.666375000029802,
@@ -17227,11 +17039,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -17773,26 +17581,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            12.61266699997941,
-            11.5971669999999,
-            12.277459000004455,
-            12.74354100000346,
-            13.239000000001397,
-            13.066665999998804,
-            12.251540999975987,
-            12.770583000034094,
-            12.92416699999012,
-            12.181207999994513,
-            13.16454100003466,
-            15.135666999965906,
-            12.581915999995545,
-            12.504749999963678,
-            14.352291999966837,
-            13.634124999982305,
-            11.537332999985665,
-            13.294791000022087,
-            13.247792000009213,
-            13.459499999997206
+            12.61266699997941, 11.5971669999999, 12.277459000004455, 12.74354100000346, 13.239000000001397,
+            13.066665999998804, 12.251540999975987, 12.770583000034094, 12.92416699999012, 12.181207999994513,
+            13.16454100003466, 15.135666999965906, 12.581915999995545, 12.504749999963678, 14.352291999966837,
+            13.634124999982305, 11.537332999985665, 13.294791000022087, 13.247792000009213, 13.459499999997206
           ],
           "p50Ms": 12.770583000034094,
           "p95Ms": 14.352291999966837,
@@ -17833,11 +17625,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -17976,9 +17764,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -18444,11 +18230,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -18587,9 +18369,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -19061,26 +18841,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.4227090000058524,
-            2.3496249999734573,
-            2.3555000000051223,
-            2.43891700002132,
-            2.355875000008382,
-            2.102375000016764,
-            2.6523750000051223,
-            2.4139999999897555,
-            2.4349159999983385,
-            2.4069170000148006,
-            2.4844579999917187,
-            2.61041700001806,
-            2.4643749999813735,
-            2.5573749999748543,
-            2.437249999959022,
-            2.528416999964975,
-            2.660916000022553,
-            2.5343330000177957,
-            2.455000000016298,
-            2.4682080000056885
+            2.4227090000058524, 2.3496249999734573, 2.3555000000051223, 2.43891700002132, 2.355875000008382,
+            2.102375000016764, 2.6523750000051223, 2.4139999999897555, 2.4349159999983385, 2.4069170000148006,
+            2.4844579999917187, 2.61041700001806, 2.4643749999813735, 2.5573749999748543, 2.437249999959022,
+            2.528416999964975, 2.660916000022553, 2.5343330000177957, 2.455000000016298, 2.4682080000056885
           ],
           "p50Ms": 2.43891700002132,
           "p95Ms": 2.6523750000051223,
@@ -19121,11 +18885,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -19264,9 +19024,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -19711,26 +19469,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            10.37195800000336,
-            13.31174999999348,
-            14.533750000002328,
-            13.295374999986961,
-            12.311334000027273,
-            12.244624999992084,
-            11.543209000024945,
-            12.789125000010245,
-            11.30808300001081,
-            12.89916600001743,
-            13.125625000044238,
-            12.284875000012107,
-            12.899875000002794,
-            11.337250000040513,
-            13.009666999976616,
-            13.330707999994047,
-            11.678042000043206,
-            12.851499999989755,
-            11.64233400003286,
-            13.444041999988258
+            10.37195800000336, 13.31174999999348, 14.533750000002328, 13.295374999986961, 12.311334000027273,
+            12.244624999992084, 11.543209000024945, 12.789125000010245, 11.30808300001081, 12.89916600001743,
+            13.125625000044238, 12.284875000012107, 12.899875000002794, 11.337250000040513, 13.009666999976616,
+            13.330707999994047, 11.678042000043206, 12.851499999989755, 11.64233400003286, 13.444041999988258
           ],
           "p50Ms": 12.789125000010245,
           "p95Ms": 13.444041999988258,
@@ -19771,11 +19513,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -19914,9 +19652,7 @@
                                         "Actual Rows": 1,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -20382,11 +20118,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -20525,9 +20257,7 @@
                                         "Actual Rows": 2,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -20999,26 +20729,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.408083999995142,
-            2.136499999964144,
-            2.4926659999764524,
-            2.4687080000294372,
-            2.313665999972727,
-            2.3688330000150017,
-            2.5539170000120066,
-            2.399083000025712,
-            2.4408330000005662,
-            2.4940829999977723,
-            2.1834589999634773,
-            2.6042080000042915,
-            2.424042000027839,
-            2.386999999987893,
-            2.4470410000067204,
-            2.4075420000008307,
-            2.3852499999920838,
-            2.217000000004191,
-            2.446124999958556,
-            2.4227090000058524
+            2.408083999995142, 2.136499999964144, 2.4926659999764524, 2.4687080000294372, 2.313665999972727,
+            2.3688330000150017, 2.5539170000120066, 2.399083000025712, 2.4408330000005662, 2.4940829999977723,
+            2.1834589999634773, 2.6042080000042915, 2.424042000027839, 2.386999999987893, 2.4470410000067204,
+            2.4075420000008307, 2.3852499999920838, 2.217000000004191, 2.446124999958556, 2.4227090000058524
           ],
           "p50Ms": 2.408083999995142,
           "p95Ms": 2.5539170000120066,
@@ -21059,11 +20773,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -21202,9 +20912,7 @@
                                         "Actual Rows": 0,
                                         "Actual Loops": 1,
                                         "Disabled": false,
-                                        "Group Key": [
-                                          "candidate.\"lineId\""
-                                        ],
+                                        "Group Key": ["candidate.\"lineId\""],
                                         "Planned Partitions": 0,
                                         "HashAgg Batches": 1,
                                         "Peak Memory Usage": 32,
@@ -23060,26 +22768,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            31.202333999972325,
-            29.81374999997206,
-            32.34920900000725,
-            31.664083000039682,
-            32.05679099995177,
-            28.385124999971595,
-            29.0625,
-            28.59912499994971,
-            30.223582999955397,
-            29.659958000003826,
-            34.90891600004397,
-            31.84387500002049,
-            33.103624999988824,
-            34.52758300001733,
-            32.415124999999534,
-            28.130707999982405,
-            30.285333000007086,
-            30.621666999999434,
-            29.56416700000409,
-            30.153209000010975
+            31.202333999972325, 29.81374999997206, 32.34920900000725, 31.664083000039682, 32.05679099995177,
+            28.385124999971595, 29.0625, 28.59912499994971, 30.223582999955397, 29.659958000003826, 34.90891600004397,
+            31.84387500002049, 33.103624999988824, 34.52758300001733, 32.415124999999534, 28.130707999982405,
+            30.285333000007086, 30.621666999999434, 29.56416700000409, 30.153209000010975
           ],
           "p50Ms": 30.285333000007086,
           "p95Ms": 34.52758300001733,
@@ -23120,11 +22812,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -23286,9 +22974,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -23708,9 +23394,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -23812,11 +23496,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -23978,9 +23658,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -24400,9 +24078,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -24487,26 +24163,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            28.486957999994047,
-            30.37487499997951,
-            29.239875000028405,
-            29.992124999989755,
-            29.6943339999998,
-            27.53833399998257,
-            29.61354200000642,
-            28.588874999957625,
-            29.20100000000093,
-            31.07091599999694,
-            32.239500000025146,
-            28.928834000020288,
-            31.50545900000725,
-            32.103999999992084,
-            30.119499999971595,
-            29.877875000005588,
-            30.038916999998037,
-            29.180707999970764,
-            28.443792000005487,
-            29.03112499997951
+            28.486957999994047, 30.37487499997951, 29.239875000028405, 29.992124999989755, 29.6943339999998,
+            27.53833399998257, 29.61354200000642, 28.588874999957625, 29.20100000000093, 31.07091599999694,
+            32.239500000025146, 28.928834000020288, 31.50545900000725, 32.103999999992084, 30.119499999971595,
+            29.877875000005588, 30.038916999998037, 29.180707999970764, 28.443792000005487, 29.03112499997951
           ],
           "p50Ms": 29.61354200000642,
           "p95Ms": 32.103999999992084,
@@ -24547,11 +24207,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -24713,9 +24369,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -25167,9 +24821,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -25271,11 +24923,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -25437,9 +25085,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -25891,9 +25537,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -25978,26 +25622,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            28.286584000044968,
-            28.684416999982204,
-            27.425165999971796,
-            28.459458000026643,
-            28.503458000021055,
-            29.19020799995633,
-            28.40474999998696,
-            28.182083999970928,
-            28.862000000022817,
-            28.411458000016864,
-            27.89891600003466,
-            28.086459000012837,
-            28.630999999993946,
-            28.953959000005852,
-            27.99720799998613,
-            27.917874999984633,
-            28.721833000017796,
-            28.20362500002375,
-            29.26429200003622,
-            30.617708000005223
+            28.286584000044968, 28.684416999982204, 27.425165999971796, 28.459458000026643, 28.503458000021055,
+            29.19020799995633, 28.40474999998696, 28.182083999970928, 28.862000000022817, 28.411458000016864,
+            27.89891600003466, 28.086459000012837, 28.630999999993946, 28.953959000005852, 27.99720799998613,
+            27.917874999984633, 28.721833000017796, 28.20362500002375, 29.26429200003622, 30.617708000005223
           ],
           "p50Ms": 28.411458000016864,
           "p95Ms": 29.26429200003622,
@@ -26038,11 +25666,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -26204,9 +25828,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -26658,9 +26280,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -26762,11 +26382,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -26928,9 +26544,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -27382,9 +26996,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -27459,181 +27071,18 @@
       ]
     }
   ],
-  "comparisons": [
-    {
-      "scenario": "materials-100:used-leaf",
-      "baselineP95Ms": 12.339332999999897,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 10.721082999999908,
-      "p95GainPercent": 13.114566241141256,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 11.048416999999972,
-          "p95GainPercent": 10.461797246252576
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 10.721082999999908,
-          "p95GainPercent": 13.114566241141256
-        }
-      ]
-    },
-    {
-      "scenario": "materials-100:unused-root",
-      "baselineP95Ms": 2.2384579999998095,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 2.081749999999829,
-      "p95GainPercent": 7.000712097345309,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.1042499999998654,
-          "p95GainPercent": 5.9955558692615885
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.081749999999829,
-          "p95GainPercent": 7.000712097345309
-        }
-      ]
-    },
-    {
-      "scenario": "materials-1000:used-leaf",
-      "baselineP95Ms": 17.034582999998747,
-      "bestComparedPhase": "child-item",
-      "bestIndexP95Ms": 11.741750000001048,
-      "p95GainPercent": 31.071104000597426,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 11.741750000001048,
-          "p95GainPercent": 31.071104000597426
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 12.115083000000595,
-          "p95GainPercent": 28.879485925769437
-        }
-      ]
-    },
-    {
-      "scenario": "materials-1000:unused-root",
-      "baselineP95Ms": 3.31341699999939,
-      "bestComparedPhase": "child-item",
-      "bestIndexP95Ms": 2.4828749999996944,
-      "p95GainPercent": 25.066027004746118,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.4828749999996944,
-          "p95GainPercent": 25.066027004746118
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.4932499999995343,
-          "p95GainPercent": 24.75290613888945
-        }
-      ]
-    },
-    {
-      "scenario": "materials-10000:used-leaf",
-      "baselineP95Ms": 80.64095799997449,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 13.444041999988258,
-      "p95GainPercent": 83.32851898908181,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 14.352291999966837,
-          "p95GainPercent": 82.20223028603978
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 13.444041999988258,
-          "p95GainPercent": 83.32851898908181
-        }
-      ]
-    },
-    {
-      "scenario": "materials-10000:unused-root",
-      "baselineP95Ms": 11.666375000029802,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 2.5539170000120066,
-      "p95GainPercent": 78.10873557548526,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.6523750000051223,
-          "p95GainPercent": 77.26478876259037
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.5539170000120066,
-          "p95GainPercent": 78.10873557548526
-        }
-      ]
-    },
-    {
-      "scenario": "diamonds-20:budgeted-diamond",
-      "baselineP95Ms": 34.52758300001733,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 29.26429200003622,
-      "p95GainPercent": 15.243728470592533,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "本场景受路径输出预算约束；路径枚举成本不能证明物料闭包必然更快",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 32.103999999992084,
-          "p95GainPercent": 7.019266306662791
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 29.26429200003622,
-          "p95GainPercent": 15.243728470592533
-        }
-      ]
-    }
-  ]
+  "isolatedInMemoryDatabases": true,
+  "materializationMeasured": false,
+  "productionSchemaModified": false,
+  "samples": 20,
+  "sampling": {
+    "explicitExposeGc": true,
+    "gcAfterSeed": true,
+    "gcBeforeEachIteration": true,
+    "pairedInterleaving": false,
+    "reverseOrderEveryOtherRound": false,
+    "cpuIsolation": "调用方必须独占Nx/构建CPU；GC与正确性验证都不计入查询/保存计时"
+  },
+  "verification": "每轮对照独立发生项路径oracle、BFS顺序、作用域、候选、深度和截断；计时不包含验证与EXPLAIN",
+  "warmup": 5
 }

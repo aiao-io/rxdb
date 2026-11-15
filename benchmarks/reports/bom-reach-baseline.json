@@ -1,47 +1,205 @@
 {
-  "generatedAt": "2026-11-15T09:32:34.427Z",
   "api": "RxDB.bom.whereUsed",
   "backend": "pglite",
-  "isolatedInMemoryDatabases": true,
-  "materializationMeasured": false,
-  "defaultPruningEnabled": false,
-  "productionSchemaModified": false,
-  "environment": {
-    "node": "v26.12.0",
-    "execArgv": [
-      "--expose-gc",
-      "--experimental-strip-types"
-    ],
-    "platform": "darwin",
-    "arch": "arm64",
-    "cpu": [
-      "Apple M1 Max"
-    ],
-    "totalMemoryBytes": 34359738368,
-    "rssBytes": 1134788608
+  "budgets": {
+    "depth": 50,
+    "expansions": 100000,
+    "paths": 10000
   },
+  "comparisons": [
+    {
+      "scenario": "materials-100:used-leaf",
+      "baselineP95Ms": 12.339332999999897,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 10.721082999999908,
+      "p95GainPercent": 13.114566241141256,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 11.048416999999972,
+          "p95GainPercent": 10.461797246252576
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 10.721082999999908,
+          "p95GainPercent": 13.114566241141256
+        }
+      ]
+    },
+    {
+      "scenario": "materials-100:unused-root",
+      "baselineP95Ms": 2.2384579999998095,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 2.081749999999829,
+      "p95GainPercent": 7.000712097345309,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.1042499999998654,
+          "p95GainPercent": 5.9955558692615885
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.081749999999829,
+          "p95GainPercent": 7.000712097345309
+        }
+      ]
+    },
+    {
+      "scenario": "materials-1000:used-leaf",
+      "baselineP95Ms": 17.034582999998747,
+      "bestComparedPhase": "child-item",
+      "bestIndexP95Ms": 11.741750000001048,
+      "p95GainPercent": 31.071104000597426,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 11.741750000001048,
+          "p95GainPercent": 31.071104000597426
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 12.115083000000595,
+          "p95GainPercent": 28.879485925769437
+        }
+      ]
+    },
+    {
+      "scenario": "materials-1000:unused-root",
+      "baselineP95Ms": 3.31341699999939,
+      "bestComparedPhase": "child-item",
+      "bestIndexP95Ms": 2.4828749999996944,
+      "p95GainPercent": 25.066027004746118,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.4828749999996944,
+          "p95GainPercent": 25.066027004746118
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.4932499999995343,
+          "p95GainPercent": 24.75290613888945
+        }
+      ]
+    },
+    {
+      "scenario": "materials-10000:used-leaf",
+      "baselineP95Ms": 80.64095799997449,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 13.444041999988258,
+      "p95GainPercent": 83.32851898908181,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 14.352291999966837,
+          "p95GainPercent": 82.20223028603978
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 13.444041999988258,
+          "p95GainPercent": 83.32851898908181
+        }
+      ]
+    },
+    {
+      "scenario": "materials-10000:unused-root",
+      "baselineP95Ms": 11.666375000029802,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 2.5539170000120066,
+      "p95GainPercent": 78.10873557548526,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": true,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 2.6523750000051223,
+          "p95GainPercent": 77.26478876259037
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 2.5539170000120066,
+          "p95GainPercent": 78.10873557548526
+        }
+      ]
+    },
+    {
+      "scenario": "diamonds-20:budgeted-diamond",
+      "baselineP95Ms": 34.52758300001733,
+      "bestComparedPhase": "child-item-and-scope",
+      "bestIndexP95Ms": 29.26429200003622,
+      "p95GainPercent": 15.243728470592533,
+      "regression": false,
+      "materializationMeasured": false,
+      "pruningApplicable": false,
+      "materializationGainProven": false,
+      "defaultPruningEnabled": false,
+      "trigger": "本场景受路径输出预算约束；路径枚举成本不能证明物料闭包必然更快",
+      "variants": [
+        {
+          "phase": "child-item",
+          "p95Ms": 32.103999999992084,
+          "p95GainPercent": 7.019266306662791
+        },
+        {
+          "phase": "child-item-and-scope",
+          "p95Ms": 29.26429200003622,
+          "p95GainPercent": 15.243728470592533
+        }
+      ]
+    }
+  ],
   "context": {
     "bomType": "ebom",
     "orgId": "reach-org-0",
     "asOfDate": "2026-01-01T00:00:00.000Z",
     "alternativeNo": 1
   },
-  "budgets": {
-    "depth": 50,
-    "expansions": 100000,
-    "paths": 10000
+  "defaultPruningEnabled": false,
+  "environment": {
+    "node": "v26.12.0",
+    "execArgv": ["--expose-gc", "--experimental-strip-types"],
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": ["Apple M1 Max"],
+    "totalMemoryBytes": 34359738368,
+    "rssBytes": 1134788608
   },
-  "warmup": 5,
-  "samples": 20,
-  "sampling": {
-    "explicitExposeGc": true,
-    "gcAfterSeed": true,
-    "gcBeforeEachIteration": true,
-    "pairedInterleaving": false,
-    "reverseOrderEveryOtherRound": false,
-    "cpuIsolation": "调用方必须独占Nx/构建CPU；GC与正确性验证都不计入查询/保存计时"
-  },
-  "verification": "每轮对照独立发生项路径oracle、BFS顺序、作用域、候选、深度和截断；计时不包含验证与EXPLAIN",
+  "generatedAt": "2026-11-15T09:32:34.427Z",
   "graphs": [
     {
       "graph": "materials-100",
@@ -1461,26 +1619,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            10.698417000000063,
-            11.467791999999918,
-            11.444834000000355,
-            11.045791000000008,
-            11.128000000000156,
-            10.957375000000411,
-            11.537958000000344,
-            11.777292000000216,
-            11.456250000000182,
-            10.891708999999992,
-            11.236417000000074,
-            11.012374999999793,
-            10.455457999999908,
-            11.236582999999882,
-            12.020375000000058,
-            12.339332999999897,
-            12.427999999999884,
-            11.329000000000178,
-            10.738957999999911,
-            11.278374999999869
+            10.698417000000063, 11.467791999999918, 11.444834000000355, 11.045791000000008, 11.128000000000156,
+            10.957375000000411, 11.537958000000344, 11.777292000000216, 11.456250000000182, 10.891708999999992,
+            11.236417000000074, 11.012374999999793, 10.455457999999908, 11.236582999999882, 12.020375000000058,
+            12.339332999999897, 12.427999999999884, 11.329000000000178, 10.738957999999911, 11.278374999999869
           ],
           "p50Ms": 11.236582999999882,
           "p95Ms": 12.339332999999897,
@@ -1521,11 +1663,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -2014,9 +2152,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 1,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -2120,11 +2256,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -2611,9 +2743,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -2696,26 +2826,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.0105830000002243,
-            2.1055840000003627,
-            2.0827919999996993,
-            2.1533330000002024,
-            2.013249999999971,
-            2.212916999999834,
-            1.9292089999999007,
-            2.113665999999739,
-            2.05658399999993,
-            2.199000000000069,
-            2.1280830000000606,
-            2.1335410000001502,
-            1.990708999999697,
-            2.036207999999988,
-            2.07287499999984,
-            2.2384579999998095,
-            2.1054579999999987,
-            2.2699579999998605,
-            2.1445420000000013,
-            2.104917000000114
+            2.0105830000002243, 2.1055840000003627, 2.0827919999996993, 2.1533330000002024, 2.013249999999971,
+            2.212916999999834, 1.9292089999999007, 2.113665999999739, 2.05658399999993, 2.199000000000069,
+            2.1280830000000606, 2.1335410000001502, 1.990708999999697, 2.036207999999988, 2.07287499999984,
+            2.2384579999998095, 2.1054579999999987, 2.2699579999998605, 2.1445420000000013, 2.104917000000114
           ],
           "p50Ms": 2.1054579999999987,
           "p95Ms": 2.2384579999998095,
@@ -2756,11 +2870,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -3249,9 +3359,7 @@
                                 "Actual Rows": 0,
                                 "Actual Loops": 0,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Shared Hit Blocks": 0,
                                 "Shared Read Blocks": 0,
                                 "Shared Dirtied Blocks": 0,
@@ -4740,26 +4848,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            15.795499999998356,
-            15.792625000000044,
-            16.59820899999977,
-            16.13537499999984,
-            16.29108300000007,
-            15.759625000000597,
-            16.259083000000828,
-            16.811083000000508,
-            15.571250000000873,
-            16.42924999999923,
-            15.842749999999796,
-            17.370958000001337,
-            15.41399999999885,
-            16.691749999999956,
-            15.447374999999738,
-            16.343541000000187,
-            16.450708000000304,
-            15.818333000001076,
-            16.295000000000073,
-            17.034582999998747
+            15.795499999998356, 15.792625000000044, 16.59820899999977, 16.13537499999984, 16.29108300000007,
+            15.759625000000597, 16.259083000000828, 16.811083000000508, 15.571250000000873, 16.42924999999923,
+            15.842749999999796, 17.370958000001337, 15.41399999999885, 16.691749999999956, 15.447374999999738,
+            16.343541000000187, 16.450708000000304, 15.818333000001076, 16.295000000000073, 17.034582999998747
           ],
           "p50Ms": 16.259083000000828,
           "p95Ms": 17.034582999998747,
@@ -4800,11 +4892,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -5369,11 +5457,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -5915,26 +5999,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            2.9431249999997817,
-            3.0008749999997235,
-            3.180833000000348,
-            3.03125,
-            3.1287910000010015,
-            3.205540999999357,
-            3.135334000000512,
-            3.116249999999127,
-            3.0727499999993597,
-            3.268916999999419,
-            3.31341699999939,
-            3.0780000000013388,
-            3.3687910000007832,
-            2.980042000001049,
-            3.063417000001209,
-            2.9273750000011205,
-            3.026499999999942,
-            3.071582999999009,
-            3.1702920000006998,
-            2.9381670000002487
+            2.9431249999997817, 3.0008749999997235, 3.180833000000348, 3.03125, 3.1287910000010015, 3.205540999999357,
+            3.135334000000512, 3.116249999999127, 3.0727499999993597, 3.268916999999419, 3.31341699999939,
+            3.0780000000013388, 3.3687910000007832, 2.980042000001049, 3.063417000001209, 2.9273750000011205,
+            3.026499999999942, 3.071582999999009, 3.1702920000006998, 2.9381670000002487
           ],
           "p50Ms": 3.0727499999993597,
           "p95Ms": 3.31341699999939,
@@ -5975,11 +6043,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -7932,26 +7996,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            73.9446670000325,
-            76.71437500003958,
-            78.86408400000073,
-            85.64870899997186,
-            76.12216700002318,
-            79.49158299999544,
-            75.74412499996834,
-            78.38629100000253,
-            75.90029199997662,
-            76.77345799998147,
-            75.96737500000745,
-            77.1794579999987,
-            79.39762499998324,
-            77.6262089999509,
-            80.64095799997449,
-            76.33525000000373,
-            74.89204200002132,
-            77.87449999997625,
-            80.21029199997429,
-            78.46595799998613
+            73.9446670000325, 76.71437500003958, 78.86408400000073, 85.64870899997186, 76.12216700002318,
+            79.49158299999544, 75.74412499996834, 78.38629100000253, 75.90029199997662, 76.77345799998147,
+            75.96737500000745, 77.1794579999987, 79.39762499998324, 77.6262089999509, 80.64095799997449,
+            76.33525000000373, 74.89204200002132, 77.87449999997625, 80.21029199997429, 78.46595799998613
           ],
           "p50Ms": 77.1794579999987,
           "p95Ms": 80.64095799997449,
@@ -7992,11 +8040,7 @@
                     "Actual Rows": 1,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -8559,11 +8603,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -9105,26 +9145,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            11.362582999980077,
-            11.091542000009213,
-            11.243375000020023,
-            10.889792000001762,
-            11.165875000006054,
-            12.70308299997123,
-            11.253625000012107,
-            11.179875000030734,
-            11.18504099996062,
-            11.110500000009779,
-            10.269583000044804,
-            10.735166000027675,
-            11.213582999946084,
-            10.90862499998184,
-            11.098375000001397,
-            11.106832999968901,
-            11.666375000029802,
-            11.226957999984734,
-            10.98295799997868,
-            11.217208000016399
+            11.362582999980077, 11.091542000009213, 11.243375000020023, 10.889792000001762, 11.165875000006054,
+            12.70308299997123, 11.253625000012107, 11.179875000030734, 11.18504099996062, 11.110500000009779,
+            10.269583000044804, 10.735166000027675, 11.213582999946084, 10.90862499998184, 11.098375000001397,
+            11.106832999968901, 11.666375000029802, 11.226957999984734, 10.98295799997868, 11.217208000016399
           ],
           "p50Ms": 11.165875000006054,
           "p95Ms": 11.666375000029802,
@@ -9165,11 +9189,7 @@
                     "Actual Rows": 0,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -11122,26 +11142,10 @@
           "warmup": 5,
           "samples": 20,
           "rawSamplesMs": [
-            31.202333999972325,
-            29.81374999997206,
-            32.34920900000725,
-            31.664083000039682,
-            32.05679099995177,
-            28.385124999971595,
-            29.0625,
-            28.59912499994971,
-            30.223582999955397,
-            29.659958000003826,
-            34.90891600004397,
-            31.84387500002049,
-            33.103624999988824,
-            34.52758300001733,
-            32.415124999999534,
-            28.130707999982405,
-            30.285333000007086,
-            30.621666999999434,
-            29.56416700000409,
-            30.153209000010975
+            31.202333999972325, 29.81374999997206, 32.34920900000725, 31.664083000039682, 32.05679099995177,
+            28.385124999971595, 29.0625, 28.59912499994971, 30.223582999955397, 29.659958000003826, 34.90891600004397,
+            31.84387500002049, 33.103624999988824, 34.52758300001733, 32.415124999999534, 28.130707999982405,
+            30.285333000007086, 30.621666999999434, 29.56416700000409, 30.153209000010975
           ],
           "p50Ms": 30.285333000007086,
           "p95Ms": 34.52758300001733,
@@ -11182,11 +11186,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -11348,9 +11348,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -11770,9 +11768,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -11874,11 +11870,7 @@
                     "Actual Rows": 2,
                     "Actual Loops": 1,
                     "Disabled": false,
-                    "Sort Key": [
-                      "l.\"lineNo\"",
-                      "occ.\"effectiveFrom\"",
-                      "occ.id"
-                    ],
+                    "Sort Key": ["l.\"lineNo\"", "occ.\"effectiveFrom\"", "occ.id"],
                     "Sort Method": "quicksort",
                     "Sort Space Used": 17,
                     "Sort Space Type": "Memory",
@@ -12040,9 +12032,7 @@
                                             "Actual Rows": 2,
                                             "Actual Loops": 1,
                                             "Disabled": false,
-                                            "Sort Key": [
-                                              "candidate.\"lineId\""
-                                            ],
+                                            "Sort Key": ["candidate.\"lineId\""],
                                             "Sort Method": "quicksort",
                                             "Sort Space Used": 17,
                                             "Sort Space Type": "Memory",
@@ -12462,9 +12452,7 @@
                                 "Actual Rows": 1,
                                 "Actual Loops": 2,
                                 "Disabled": false,
-                                "Sort Key": [
-                                  "r_1.\"effectiveFrom\" DESC"
-                                ],
+                                "Sort Key": ["r_1.\"effectiveFrom\" DESC"],
                                 "Sort Method": "quicksort",
                                 "Sort Space Used": 17,
                                 "Sort Space Type": "Memory",
@@ -12539,181 +12527,18 @@
       ]
     }
   ],
-  "comparisons": [
-    {
-      "scenario": "materials-100:used-leaf",
-      "baselineP95Ms": 12.339332999999897,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 10.721082999999908,
-      "p95GainPercent": 13.114566241141256,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 11.048416999999972,
-          "p95GainPercent": 10.461797246252576
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 10.721082999999908,
-          "p95GainPercent": 13.114566241141256
-        }
-      ]
-    },
-    {
-      "scenario": "materials-100:unused-root",
-      "baselineP95Ms": 2.2384579999998095,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 2.081749999999829,
-      "p95GainPercent": 7.000712097345309,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.1042499999998654,
-          "p95GainPercent": 5.9955558692615885
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.081749999999829,
-          "p95GainPercent": 7.000712097345309
-        }
-      ]
-    },
-    {
-      "scenario": "materials-1000:used-leaf",
-      "baselineP95Ms": 17.034582999998747,
-      "bestComparedPhase": "child-item",
-      "bestIndexP95Ms": 11.741750000001048,
-      "p95GainPercent": 31.071104000597426,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 11.741750000001048,
-          "p95GainPercent": 31.071104000597426
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 12.115083000000595,
-          "p95GainPercent": 28.879485925769437
-        }
-      ]
-    },
-    {
-      "scenario": "materials-1000:unused-root",
-      "baselineP95Ms": 3.31341699999939,
-      "bestComparedPhase": "child-item",
-      "bestIndexP95Ms": 2.4828749999996944,
-      "p95GainPercent": 25.066027004746118,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.4828749999996944,
-          "p95GainPercent": 25.066027004746118
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.4932499999995343,
-          "p95GainPercent": 24.75290613888945
-        }
-      ]
-    },
-    {
-      "scenario": "materials-10000:used-leaf",
-      "baselineP95Ms": 80.64095799997449,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 13.444041999988258,
-      "p95GainPercent": 83.32851898908181,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "已有热路径被最小索引方案解决；应先评估索引，物化必要性尚未证明",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 14.352291999966837,
-          "p95GainPercent": 82.20223028603978
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 13.444041999988258,
-          "p95GainPercent": 83.32851898908181
-        }
-      ]
-    },
-    {
-      "scenario": "materials-10000:unused-root",
-      "baselineP95Ms": 11.666375000029802,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 2.5539170000120066,
-      "p95GainPercent": 78.10873557548526,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": true,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "当前样本未证明主数据where-used超过16ms，不据此宣称需要物化",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 2.6523750000051223,
-          "p95GainPercent": 77.26478876259037
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 2.5539170000120066,
-          "p95GainPercent": 78.10873557548526
-        }
-      ]
-    },
-    {
-      "scenario": "diamonds-20:budgeted-diamond",
-      "baselineP95Ms": 34.52758300001733,
-      "bestComparedPhase": "child-item-and-scope",
-      "bestIndexP95Ms": 29.26429200003622,
-      "p95GainPercent": 15.243728470592533,
-      "regression": false,
-      "materializationMeasured": false,
-      "pruningApplicable": false,
-      "materializationGainProven": false,
-      "defaultPruningEnabled": false,
-      "trigger": "本场景受路径输出预算约束；路径枚举成本不能证明物料闭包必然更快",
-      "variants": [
-        {
-          "phase": "child-item",
-          "p95Ms": 32.103999999992084,
-          "p95GainPercent": 7.019266306662791
-        },
-        {
-          "phase": "child-item-and-scope",
-          "p95Ms": 29.26429200003622,
-          "p95GainPercent": 15.243728470592533
-        }
-      ]
-    }
-  ]
+  "isolatedInMemoryDatabases": true,
+  "materializationMeasured": false,
+  "productionSchemaModified": false,
+  "samples": 20,
+  "sampling": {
+    "explicitExposeGc": true,
+    "gcAfterSeed": true,
+    "gcBeforeEachIteration": true,
+    "pairedInterleaving": false,
+    "reverseOrderEveryOtherRound": false,
+    "cpuIsolation": "调用方必须独占Nx/构建CPU；GC与正确性验证都不计入查询/保存计时"
+  },
+  "verification": "每轮对照独立发生项路径oracle、BFS顺序、作用域、候选、深度和截断；计时不包含验证与EXPLAIN",
+  "warmup": 5
 }
