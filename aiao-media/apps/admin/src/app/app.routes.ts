@@ -11,5 +11,6 @@ export const appRoutes: Routes = [
   { path: 'policies', component: AdminRoutePlaceholder },
   { path: 'tasks', component: AdminRoutePlaceholder },
   { path: 'audit', component: AdminRoutePlaceholder },
+  { path: 'account', component: AdminRoutePlaceholder },
   { path: '**', redirectTo: 'users' }
 ];

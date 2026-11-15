@@ -1,6 +1,6 @@
 import type { InstallationStatus } from '@aiao-media/api-contracts';
 import { AdminLayoutComponent, AdminPageDirective } from '@aiao/rxdb-admin-angular';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router } from '@angular/router';
@@ -11,6 +11,9 @@ import { AdminConfigModelComponent } from './admin-config-model';
 import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
 import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
 import { ProductClient } from './product-client';
+import { AdminAccount } from './admin-account';
+import { AdminAccountMenu } from './admin-account-menu';
+import { AdminAccountState } from './admin-account-state';
 
 export const ADMIN_SESSION_STORAGE_KEY = 'aiao-media-admin-session-v1';
 
@@ -47,7 +50,7 @@ function readStoredSession(): AdminSession | null {
 }
 
 @Component({
-  imports: [AdminConsole, AdminConfigModelComponent, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
+  imports: [AdminAccount, AdminAccountMenu, AdminConsole, AdminConfigModelComponent, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
   selector: 'aiao-media-admin-root',
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -98,6 +101,17 @@ export class App implements OnInit {
     }
     return this.authClient.authorization();
   });
+  readonly account = new AdminAccountState(this.client);
+  readonly accountPage = computed(() => this.url().split(/[?#]/, 1)[0].replace(/\/$/, '') === '/account');
+
+  constructor() {
+    effect(() => {
+      const userId = this.session()?.user.id ?? null;
+      untracked(() => void this.account.connect(userId));
+    });
+    inject(DestroyRef).onDestroy(() => void this.account.connect(null));
+  }
+
   ngOnInit(): void {
     bindAdminNavigator(url => void this.router.navigateByUrl(url));
     void this.load();
@@ -153,6 +167,7 @@ export class App implements OnInit {
   }
   logout(): void {
     this.session.set(null);
+    void this.account.connect(null);
     localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
     this.form.password = '';
     void this.authClient?.signOut().catch(() => undefined);

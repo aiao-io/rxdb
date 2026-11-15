@@ -1,6 +1,7 @@
 import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
 import type { MediaConfigCommitEnvelope, MediaConfigCommitStatus } from '@aiao-media/domain';
 import type { AdminSupabaseClient } from './admin-auth';
+import { normalizeDisplayName, parseAccountIdentity, parseAdminProfile, type AdminAccountIdentity, type AdminProfile } from './admin-profile';
 
 export interface ProductAuthorization {
   config: { url: string; anonKey: string };
@@ -60,6 +61,31 @@ export class ProductClient {
 
   authorization(): Promise<ProductAuthorization> {
     return this.authorize();
+  }
+
+  /** 普通产品资料使用当前 JWT 调用受保护 RPC。 */
+  async adminProfile(): Promise<AdminProfile> {
+    const access = await this.authorize();
+    return parseAdminProfile(await this.remote(access, '/rpc/media_admin_profile', {}), access.userId);
+  }
+
+  /** 修改自己的名称，版本和请求标识由数据库原子校验。 */
+  async saveAdminProfile(name: string, revision: number, requestId: string): Promise<AdminProfile> {
+    const displayName = normalizeDisplayName(name);
+    const access = await this.authorize();
+    const value = await this.remote(access, '/rpc/media_admin_update_profile', {
+      p_display_name: displayName, p_expected_revision: revision, p_request_id: requestId
+    });
+    const confirmed = parseAdminProfile(value, access.userId);
+    if (confirmed.displayName !== displayName || confirmed.revision !== revision + 1)
+      throw new Error('账户资料保存回执不匹配。');
+    return confirmed;
+  }
+
+  /** Auth 系统字段只通过服务端白名单返回。 */
+  async adminAccountIdentity(): Promise<AdminAccountIdentity> {
+    const access = await this.authorize();
+    return parseAccountIdentity(await this.admin('account'), access.userId);
   }
 
   async ownWorkspace(access: ProductAuthorization): Promise<RemoteWorkspace | null> {

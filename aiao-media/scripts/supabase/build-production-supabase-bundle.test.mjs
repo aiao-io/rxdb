@@ -66,7 +66,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 24);
+    assert.equal(first.sources.length, 25);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -271,7 +271,8 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
     ['installation', 10, 11],
     ['credits', 11, 13],
     ['image-lifecycle', 13, 16],
-    ['supabase-first-admin-rxdb', 16, 21]
+    ['supabase-first-admin-rxdb', 16, 21],
+    ['admin-account-profile', 21, 22]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -565,6 +566,103 @@ test('版本标记匹配但缺少产品基础表时拒绝升级，不创建空�
     await assert.rejects(apply(db, sql), refusal(/required product tables/));
     assert.equal(await schemaComment(db), 'aiao-media schema 11');
     assert.equal((await db.query("SELECT to_regclass('public.media_credit_accounts') AS name")).rows[0].name, null);
+  } finally {
+    await db.close();
+  }
+});
+
+test('管理员资料支持旧账户、名称校验、CAS、幂等审计和实时权限', async t => {
+  const db = await supabaseProject();
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-admin-profile-'));
+  const owner = '10000000-0000-4000-8000-000000000001';
+  const other = '10000000-0000-4000-8000-000000000002';
+  const operation = '10000000-0000-4000-8000-000000000003';
+  const read = async () => (await db.query('SELECT public.media_admin_profile() AS profile')).rows[0].profile;
+  const save = async (name, revision, request = crypto.randomUUID()) => (await db.query(
+    'SELECT public.media_admin_update_profile($1, $2, $3) AS profile', [name, revision, request]
+  )).rows[0].profile;
+  const identity = async id => {
+    await db.exec('RESET ROLE');
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [id]);
+    await db.exec('SET ROLE authenticated');
+  };
+  try {
+    await apply(db, (await buildProductionBundle(join(directory, 'profile.sql'))).sql);
+    await db.query('INSERT INTO auth.users(id) VALUES ($1), ($2)', [owner, other]);
+    await db.query('INSERT INTO public.media_admin_memberships(user_id) VALUES ($1)', [owner]);
+    await identity(owner);
+    await t.test('无资料旧账号按 revision 0 读取', async () => {
+      assert.deepEqual(await read(), { userId: owner, displayName: null, revision: 0, updatedAt: null, adminEnabled: true, accessDisabled: false });
+    });
+    await t.test('前后名称修订与成功结果原子写入审计，相同请求重放只生效一次', async () => {
+      const result = await save('　小明 👩‍💻　', 0, operation);
+      assert.equal(result.displayName, '小明 👩‍💻');
+      assert.equal(result.revision, 1);
+      assert.deepEqual(await save('小明 👩‍💻', 0, operation), result);
+      await assert.rejects(save('另一个名称', 0, operation), { code: 'PT409' });
+      await db.exec('RESET ROLE');
+      const audit = (await db.query("SELECT * FROM public.media_admin_audit WHERE actor_id=$1 AND action='profile-update'", [owner])).rows;
+      assert.equal(audit.length, 1);
+      assert.equal(audit[0].target_id, owner);
+      assert.deepEqual(audit[0].before_data, { displayName: null, revision: 0 });
+      assert.equal(audit[0].after_data.displayName, result.displayName);
+      assert.equal(audit[0].after_data.revision, 1);
+      assert.equal(audit[0].after_data.result, 'saved');
+      await identity(owner);
+    });
+    await t.test('非法控制字符、空白和超长名称不会覆盖资料，Unicode 字符正确计数', async () => {
+      for (const name of ['', '　 ', 'a'.repeat(41), 'a\nb', 'a\u0085b', 'a\u202eb'])
+        await assert.rejects(save(name, 1), { code: '22023' });
+      assert.equal((await read()).revision, 1);
+      assert.equal((await save('😀'.repeat(40), 1)).revision, 2);
+      await assert.rejects(save('冲突', 1), { code: 'PT409' });
+      assert.equal((await read()).revision, 2);
+    });
+    await t.test('禁止浏览器直接改表或编辑别人的资料', async () => {
+      await assert.rejects(db.query('UPDATE public.media_profiles SET display_name=$1 WHERE user_id=$2', ['伪造', owner]), { code: '42501' });
+      await identity(other);
+      assert.deepEqual((await db.query('SELECT * FROM public.media_profiles')).rows, []);
+      await assert.rejects(read(), { code: '42501' });
+      await assert.rejects(save('提权', 0), { code: '42501' });
+    });
+    await t.test('撤销管理员或禁用产品账号后不能读取、保存或重放旧请求', async () => {
+      await db.exec('RESET ROLE');
+      await db.query('UPDATE public.media_admin_memberships SET enabled=false WHERE user_id=$1', [owner]);
+      await identity(owner);
+      await assert.rejects(read(), { code: '42501' });
+      await assert.rejects(save('小明 👩‍💻', 0, operation), { code: '42501' });
+      await db.exec('RESET ROLE');
+      await db.query('UPDATE public.media_admin_memberships SET enabled=true WHERE user_id=$1', [owner]);
+      await db.query('INSERT INTO public.media_accounts(user_id,disabled) VALUES ($1,true)', [owner]);
+      await identity(owner);
+      await assert.rejects(save('禁用账号', 2), { code: '42501' });
+      await identity('');
+      await assert.rejects(read(), { code: '42501' });
+      await db.exec('SET ROLE anon');
+      await assert.rejects(read(), { code: '42501' });
+    });
+  } finally {
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+
+test('已有 schema 21 可升级账户资料并安全重放，保留原管理员与资料', async () => {
+  const db = await historicalProject(21);
+  const userId = '10000000-0000-4000-8000-000000000001';
+  try {
+    await db.query('INSERT INTO auth.users VALUES ($1)', [userId]);
+    await db.query('INSERT INTO public.media_admin_memberships(user_id) VALUES ($1)', [userId]);
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [userId]);
+    const upgrade = await productionUpgrade('admin-account-profile');
+    await apply(db, upgrade.sql);
+    assert.equal((await db.query('SELECT count(*) FROM public.media_profiles')).rows[0].count, 1);
+    await db.query('SELECT public.media_admin_update_profile($1,0,$2)', ['保留名称', crypto.randomUUID()]);
+    await apply(db, upgrade.sql);
+    assert.equal(await schemaComment(db), 'aiao-media schema 22');
+    assert.equal((await db.query('SELECT public.media_admin_profile() AS profile')).rows[0].profile.displayName, '保留名称');
+    assert.equal((await db.query('SELECT count(*) FROM public.media_admin_audit')).rows[0].count, 1);
   } finally {
     await db.close();
   }

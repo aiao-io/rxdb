@@ -356,6 +356,12 @@ async function execute(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
   const url = new URL(`https://admin.local/${input.path}`);
   const route = url.pathname.replace(/^\//, '');
   if (input.method === 'GET' && route === 'session') return { actorId: input.actorId };
+  if (input.method === 'GET' && route === 'account') {
+    const user = await call<{ id: string; email?: string; created_at: string; last_sign_in_at?: string }>(
+      env, `/auth/v1/admin/users/${input.actorId}`, { token: validKey(env.SUPABASE_SERVICE_ROLE_KEY) }
+    );
+    return { userId: user.id, email: user.email ?? null, createdAt: user.created_at, lastSignInAt: user.last_sign_in_at ?? null };
+  }
   if (input.method === 'GET' && route === 'users') return users(env, input.path, input.actorId);
   if (route === 'content' && input.method === 'GET') {
     const token = validKey(env.SUPABASE_SERVICE_ROLE_KEY);

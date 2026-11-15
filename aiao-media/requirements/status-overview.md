@@ -8,8 +8,8 @@
 | -------------- | -----: | ------------------------------------------------------------------ |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条   |
 | 🚧 In Progress |      9 | 桌面、同步、Supabase 边界与 PGMQ PoC 剩余验收                     |
-| 👀 In Review   |      6 | 本机交付、灵感库、国内部署、首次安装、平台生图与积分管理待评审合入 |
-| ⬜ Backlog     |      3 | 既有移动/支付/管理员资料与后续迁移评审                             |
+| 👀 In Review   |      7 | 本机交付、灵感库、国内部署、首次安装、平台生图、积分与账户资料待评审合入 |
+| ⬜ Backlog     |      2 | 既有移动/支付与后续迁移评审                             |
 | 🚫 Blocked     |      0 | —                                                                  |
 | **合计**       | **26** | 不含模板和上游故事                                                 |
 
@@ -39,7 +39,7 @@
 - ✅ [MEDIA-US-203 跨用户业务后台管理](stories/account/MEDIA-US-203-business-admin.md)
 - ✅ [MEDIA-US-204 本地作品检索与按需预览](stories/account/MEDIA-US-204-library-search.md)
 - 👀 [MEDIA-US-206 后台积分管理](stories/account/MEDIA-US-206-credit-admin.md)
-- ⬜ [MEDIA-US-207 后台管理员账户资料与身份菜单](stories/account/MEDIA-US-207-admin-account-profile.md)
+- 👀 [MEDIA-US-207 后台管理员账户资料与身份菜单](stories/account/MEDIA-US-207-admin-account-profile.md)
 - 🚧 [MEDIA-US-208 Supabase 后台直连与特权 Edge Function 边界](stories/account/MEDIA-US-208-supabase-admin-boundary.md)
 - ⬜ [MEDIA-US-205 平台支付、退款与生产运维](stories/account/MEDIA-US-205-platform-billing.md)（D-17 暂缓）
 
@@ -55,9 +55,11 @@
 
 本轮实现已进入本地真实 Supabase 验证阶段：Admin Auth/普通 Supabase 直连、特权 Edge Function、后台 RxDB 装配、`rxdb-model-angular` 配置入口、commit projection、原子 apply/回滚 RPC 和 PGMQ PoC 均已有代码与证据。2026-11-15 已通过普通 JWT、workspace/RLS、Pull/Push、Realtime 恢复、revision 冲突、tombstone、PGMQ 真实入队授权和运维演练；Playwright、双区域、生产切换、完整配置 projection 双向同步和后台 UI 收口仍未关闭，因此相关故事保持 In Progress。详见[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first后台与rxdb收口)。
 
+2026-11-15 管理员账户资料（MEDIA-US-207）11 条 AC 已通过本地单元、SQL 权限/升级与真实浏览器验收，名称保存、身份菜单、CAS、审计和异常恢复已接线，进入 In Review，尚未合并或部署。
+
 ## 未完成验收与关闭条件
 
-26 条故事共 194 条 AC，108 条已通过（✅）、9 条部分通过（⚠️）、77 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 9 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，24 小时实测到期为北京时间 2026-11-16 08:04:32.684，仍待到期终验、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+26 条故事共 194 条 AC，119 条已通过（✅）、9 条部分通过（⚠️）、66 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 9 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，24 小时实测到期为北京时间 2026-11-16 08:04:32.684，仍待到期终验、双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展     | 关闭所需证据                                                  |
 | -------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------- |

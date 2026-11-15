@@ -391,3 +391,26 @@ it('保留模型名称中的空格和加号而不拒绝合法查询', async () =
   const url = new URL(String(vi.mocked(fetch).mock.calls[0][0]));
   expect(url.searchParams.get('model')).toBe('eq.model + one');
 });
+
+describe('管理员自己的资料', () => {
+  const profile = { userId, displayName: '管理员', revision: 1, updatedAt: '2026-11-15T00:00:00Z', adminEnabled: true, accessDisabled: false };
+  it('普通 JWT 通过受保护 RPC 读取和保存名称，携带 CAS 与幂等标识', async () => {
+    const client = new ProductClient(async () => access);
+    respond(profile);
+    expect(await client.adminProfile()).toEqual(profile);
+    expect(fetch).toHaveBeenLastCalledWith('https://account.example/rest/v1/rpc/media_admin_profile', expect.objectContaining({ method: 'POST', body: '{}' }));
+    respond(profile);
+    expect(await client.saveAdminProfile(' 管理员 ', 0, workspace.request_id)).toEqual(profile);
+    expect(fetch).toHaveBeenLastCalledWith('https://account.example/rest/v1/rpc/media_admin_update_profile', expect.objectContaining({
+      body: JSON.stringify({ p_display_name: '管理员', p_expected_revision: 0, p_request_id: workspace.request_id })
+    }));
+  });
+
+  it('拒绝串号保存回执及无效名称', async () => {
+    const client = new ProductClient(async () => access);
+    await expect(client.saveAdminProfile(' ', 0, 'operation')).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+    respond({ ...profile, userId: 'other' });
+    await expect(client.adminProfile()).rejects.toThrow();
+  });
+});

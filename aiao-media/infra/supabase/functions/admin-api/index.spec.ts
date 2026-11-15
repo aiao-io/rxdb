@@ -127,3 +127,16 @@ describe('积分账本游标回归', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('当前管理员 Auth 身份白名单', () => {
+  it('只读取当前操作者身份，不回传认证与权限 metadata', async () => {
+    const fetchMock = vi.fn(async () => response({
+      id: userId, email: 'admin@example.test', created_at: '2026-01-01T00:00:00Z', last_sign_in_at: null,
+      encrypted_password: 'sensitive-sentinel', user_metadata: { role: 'admin' }, app_metadata: { secret: 'hidden' }
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await createAdminApiExecutor(env)({ actorId: userId, path: 'account?userId=other', method: 'GET', requestId: operationId });
+    expect(result).toEqual({ userId, email: 'admin@example.test', createdAt: '2026-01-01T00:00:00Z', lastSignInAt: null });
+    expect(fetchMock.mock.calls[0][0]).toBe(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`);
+  });
+});

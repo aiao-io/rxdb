@@ -27,7 +27,7 @@ const jsonPayload = (payload: unknown, status = 200) =>
 const adminContentSecurityPolicy =
   "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
 const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
-const adminNavigation = /^\/admin\/(?:users|templates|policies|tasks|audit)\/?$/;
+const adminNavigation = /^\/admin\/(?:users|templates|policies|tasks|audit|account)\/?$/;
 function allowAuthConnections(policy: string, authUrl: string | undefined): string {
   if (!authUrl) return policy;
   const auth = new URL(authUrl);

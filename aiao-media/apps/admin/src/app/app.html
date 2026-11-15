@@ -1,33 +1,35 @@
-@if (session(); as account) {
+@if (session(); as signedIn) {
   <rxdb-admin-layout [menu]="menu" [navigating]="navigating()" [url]="url()">
     <svg [lucideIcon]="Clapperboard" [size]="18" aria-hidden="true" brandIcon></svg>
     <span class="admin-account" headerEnd>
-      <span>{{ account.user.email || account.user.id }}</span>
-      <button class="btn btn-ghost btn-sm" (click)="logout()" type="button">退出登录</button>
-      <a class="btn btn-ghost btn-sm" href="/">打开用户端</a>
+      <a class="btn btn-ghost btn-sm" href="/" aria-label="打开用户端"><span class="user-app-label">打开用户端</span><span class="user-app-icon" aria-hidden="true">↗</span></a>
+      <app-admin-account-menu [userId]="signedIn.user.id" [email]="signedIn.user.email"
+        [displayName]="account.profile()?.displayName" (logout)="logout()" />
     </span>
     <ng-container *rxdbAdminPage>
-      @if (routeTab() !== 'templates' && routeTab() !== 'policies') {
+      @if (accountPage()) {
+        <app-admin-account [client]="client" [user]="signedIn.user" [state]="account" />
+      } @else if (routeTab() !== 'templates' && routeTab() !== 'policies') {
         <app-admin-console
           [client]="client"
-          [identity]="account.user.id"
+          [identity]="signedIn.user.id"
           [routeTab]="routeTab()"
           (tabChange)="navigateToTab($event)"
           status="signed-in"
         />
       }
       @defer (when routeTab() === 'templates' || routeTab() === 'policies') {
-        @if (routeTab() === 'templates') {
+        @if (!accountPage() && routeTab() === 'templates') {
           <app-admin-config-model
             [client]="client"
-            [identity]="account.user.id"
+            [identity]="signedIn.user.id"
             [name]="'MediaPromptTemplate'"
             title="提示词模板"
           />
-        } @else if (routeTab() === 'policies') {
+        } @else if (!accountPage() && routeTab() === 'policies') {
           <app-admin-config-model
             [client]="client"
-            [identity]="account.user.id"
+            [identity]="signedIn.user.id"
             [name]="'MediaProviderPolicy'"
             title="供应商策略"
           />
@@ -81,8 +83,12 @@
                   <a download href="/admin/upgrade-installation.sql">初始化功能迁移（10 → 11）</a>
                   、
                   <a download href="/admin/upgrade-credits.sql">积分账本迁移（11 → 13）</a>
-                  和
+                  、
                   <a download href="/admin/upgrade-image-lifecycle.sql">图片同步与删除保护迁移（13 → 16）</a>
+                  、
+                  <a download href="/admin/upgrade-supabase-first-admin-rxdb.sql">后台直连与配置迁移（16 → 21）</a>
+                  和
+                  <a download href="/admin/upgrade-admin-account-profile.sql">账户资料迁移（21 → 22）</a>
                   。
                 </p>
                 <label>

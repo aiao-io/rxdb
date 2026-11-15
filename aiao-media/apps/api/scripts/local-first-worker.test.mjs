@@ -43,7 +43,7 @@ test('后台路径加载独立管理产物并禁止缓存', async () => {
 
 test('后台深链接和刷新仍加载后台入口，脚本与 SQL 保持原路径', async () => {
   const assets = { fetch: request => new Response(new URL(request.url).pathname) };
-  for (const route of ['users', 'templates', 'policies', 'tasks', 'audit']) {
+  for (const route of ['users', 'templates', 'policies', 'tasks', 'audit', 'account']) {
     const response = await worker.fetch(new Request(`${origin}/admin/${route}`), { ...env, ASSETS: assets });
     assert.equal(await response.text(), '/admin/index.html', route);
     assert.equal(response.headers.get('cache-control'), 'no-store');
