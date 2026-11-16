@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Asset, AssetCategory, AssetEvent } from '../entities/asset-entities';
 import {
+  DASHBOARD_ACTIVITY_LIMIT,
   DASHBOARD_METRICS,
   dashboardActivityEntityKey,
   dashboardActivityMessageKey,
@@ -94,12 +95,18 @@ function DashboardContent() {
           <p className='text-sm opacity-70'>{t('dashboard.empty.description')}</p>
         </section>
       )}
-      <section className='flex flex-col gap-3' data-testid='dashboard-recent-activity' aria-labelledby='dashboard-recent-activity-title'>
+      <section
+        className='flex flex-col gap-3'
+        data-testid='dashboard-recent-activity'
+        aria-labelledby='dashboard-recent-activity-title'
+      >
         <div className='flex items-center justify-between gap-3'>
           <h2 id='dashboard-recent-activity-title' className='text-base font-semibold'>
             {t('dashboard.activity.title')}
           </h2>
-          <span className='text-xs opacity-60'>{activities.length}/5</span>
+          <span className='text-xs opacity-60'>
+            {activities.length}/{DASHBOARD_ACTIVITY_LIMIT}
+          </span>
         </div>
         {activityLoading && (
           <p className='text-sm opacity-70' data-testid='dashboard-recent-activity-loading' aria-live='polite'>
@@ -118,7 +125,10 @@ function DashboardContent() {
           </p>
         )}
         {!activityLoading && !activityError && activities.length > 0 && (
-          <ol className='divide-base-300 divide-y rounded-box border border-base-300' aria-label={t('dashboard.activity.title')}>
+          <ol
+            className='divide-base-300 rounded-box border-base-300 divide-y border'
+            aria-label={t('dashboard.activity.title')}
+          >
             {activities.map(activity => (
               <li
                 className='flex flex-wrap items-start justify-between gap-3 p-4'
@@ -135,8 +145,12 @@ function DashboardContent() {
                   </p>
                   <div className='mt-2 flex flex-wrap gap-2'>
                     <span className='badge badge-sm badge-outline'>{t(activityTypeKey(activity.type))}</span>
-                    <span className='badge badge-sm badge-ghost'>{t(dashboardActivityEntityKey(activity), {}, 'rxdb-model')}</span>
-                    {activity.reverted && <span className='badge badge-sm badge-warning'>{t('dashboard.activity.reverted')}</span>}
+                    <span className='badge badge-sm badge-ghost'>
+                      {t(dashboardActivityEntityKey(activity), {}, 'rxdb-model')}
+                    </span>
+                    {activity.reverted && (
+                      <span className='badge badge-sm badge-warning'>{t('dashboard.activity.reverted')}</span>
+                    )}
                     {activity.redoInvalidated && (
                       <span className='badge badge-sm badge-error'>{t('dashboard.activity.invalidated')}</span>
                     )}
@@ -223,7 +237,11 @@ export default function DashboardPage() {
         </p>
       )}
       {connection === 'connecting' && (
-        <section className='bg-base-200 rounded-box flex items-center gap-3 p-5' data-testid='dashboard-connecting' aria-live='polite'>
+        <section
+          className='bg-base-200 rounded-box flex items-center gap-3 p-5'
+          data-testid='dashboard-connecting'
+          aria-live='polite'
+        >
           <span className='loading loading-spinner loading-sm'></span>
           {t('dashboard.status.connecting')}
         </section>

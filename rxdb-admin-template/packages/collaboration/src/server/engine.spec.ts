@@ -307,6 +307,38 @@ describe('governance, discussion and identity regressions', () => {
       act(state, { type: 'member', userId: 'admin', permissions: [], active: false, expectedGeneration: 1 })
     ).toThrow(/最后/);
   });
+  it('keeps invitee emails and invitation digests out of the audit trail that every reader receives', () => {
+    const state = create();
+    invite(state);
+    const pending = 'Pending.Person@Example.test';
+    act(state, {
+      type: 'invite',
+      id: 'pending',
+      email: pending,
+      permissions: ['read'],
+      tokenHash: 'digest-of-secret',
+      expiresAt: 5000,
+      expectedVersion: 0
+    });
+    const audit = snapshot(state, reviewer, 1000).audit;
+    const serialized = JSON.stringify(audit);
+    expect(serialized).not.toMatch(/@example\.test/i);
+    expect(serialized).not.toContain('digest-of-secret');
+    expect(audit.filter(event => event.action === 'invite')).toHaveLength(2);
+    for (const event of audit.filter(item => ['invite', 'accept_invite'].includes(item.action))) {
+      expect(event.details).not.toHaveProperty('email');
+      expect(event.details).not.toHaveProperty('tokenHash');
+    }
+    expect(audit.find(event => event.details['id'] === 'pending')?.details).toMatchObject({
+      permissions: ['read'],
+      expiresAt: 5000,
+      result: { invitationId: 'pending', version: 1 }
+    });
+    expect(snapshot(state, reviewer, 1000).invitations).toEqual([]);
+    expect(snapshot(state, admin, 1000).invitations).toContainEqual(
+      expect.objectContaining({ id: 'pending', email: pending.toLowerCase() })
+    );
+  });
   it('forking preserves the immutable local chain and leaves the original task and PR untouched', () => {
     const state = create();
     const candidate = ready(state);

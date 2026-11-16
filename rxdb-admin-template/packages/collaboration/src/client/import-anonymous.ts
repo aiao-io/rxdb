@@ -2,6 +2,7 @@ import { getEntityMetadata, type EntityType, type RxDB } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { demand, type DataRow, type Records, type Value } from '../model.js';
 import { assertRecords } from '../records.js';
+import { tx } from './translate.js';
 const fields: Record<DataRow['entity'], string[]> = {
   AssetCategory: ['name', 'description'],
   Asset: ['name', 'status', 'purchasePrice', 'purchaseDate', 'categoryId'],
@@ -34,7 +35,7 @@ export async function readAnonymousAssets(database: RxDB, entities: readonly Ent
 
 function serializeValue(field: string, value: unknown): Value {
   if (value instanceof Date) {
-    demand(!Number.isNaN(value.getTime()), 'invalid', `${field} 日期格式错误`);
+    demand(!Number.isNaN(value.getTime()), 'invalid', tx('{v0} 日期格式错误', { v0: field }));
     return value.toISOString().slice(0, 10);
   }
   demand(value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean', 'invalid', '字段值格式错误');

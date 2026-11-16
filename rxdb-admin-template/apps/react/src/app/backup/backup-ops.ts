@@ -50,7 +50,11 @@ export function downloadBlob(blob: Blob, name: string): void {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = name;
+  anchor.hidden = true;
+  // 部分浏览器只响应已挂进文档的锚点点击；点击后立即摘掉，不在页面里留下残余节点
+  document.body.append(anchor);
   anchor.click();
+  anchor.remove();
   // 点击触发的下载对 blob URL 的读取是异步的，立即回收会让部分浏览器中断下载
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -58,7 +62,16 @@ export function downloadBlob(blob: Blob, name: string): void {
 /** 已初始化的工作台需要换全新浏览器环境恢复，刷新不能清空目标存储。 */
 export const RESTORE_TARGET_INITIALIZED_MESSAGE = pageZhMessages['backup.error.target_busy'];
 
-/** 把引擎错误翻译成用户可读的失败原因（未知错误兜底为原文，不吞掉信息）。 */
+/**
+ * 把引擎错误翻译成用户可读的失败原因。
+ *
+ * @remarks
+ * 已知的备份错误码按 code 翻译；带 message 的普通 `Error` 把原文放进「操作失败」文案；
+ * 其余值（非 `Error`，或 message 为空）使用通用的未知原因文案，不展示其内容。
+ * @param error - 捕获到的错误。
+ * @param t - 当前应用的翻译函数。
+ * @returns 用户可读的失败原因。
+ */
 export function backupErrorMessage(error: unknown, t: I18n['t']): string {
   if (isRxDBBackupError(error)) {
     return t(`backup.error.${error.code}`);

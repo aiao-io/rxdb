@@ -1,4 +1,5 @@
 import { I18n } from '@aiao/rxdb-i18n';
+import { Users } from '@lucide/vue';
 import { describe, expect, it } from 'vitest';
 import { ENTITIES } from '../entities/asset-entities';
 import {
@@ -43,5 +44,11 @@ describe('工作台导航国际化', () => {
       english.map(group => group.children?.map(({ id, route }) => ({ id, route })))
     );
     runtime.destroy();
+  });
+
+  it('每个导航项都带图标，团队协作使用多人图标', () => {
+    const items = buildWorkbenchMenu(ENTITIES).flatMap(group => group.children ?? []);
+    expect(items.filter(item => item.icon === undefined).map(item => item.id)).toEqual([]);
+    expect(items.find(item => item.id === 'collaboration')?.icon).toBe(Users);
   });
 });

@@ -5,6 +5,7 @@ import { CollaborationController } from './controller.js';
 import { TaskEditor, readOnlyRecords } from './editor.js';
 import { button, element, input, row, section } from './elements.js';
 import { FormDrafts } from './form-drafts.js';
+import { carriesInvitation, parseInvitationLink } from './invitation-link.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
 import { tx, useTranslation, type Translate } from './translate.js';
@@ -179,10 +180,9 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     );
     if (!target) return;
     target.focus({ preventScroll: true });
-    if (selection !== null && ['text', 'search', 'email', 'password', 'tel', 'url'].includes(target.type)) {
-      if (['text', 'search', 'password', 'tel', 'url'].includes(target.type))
-        target.setSelectionRange(selection, selection);
-    }
+    // email、number 等类型的输入框不支持选区，调用 setSelectionRange 会抛错
+    if (selection !== null && ['text', 'search', 'password', 'tel', 'url'].includes(target.type))
+      target.setSelectionRange(selection, selection);
   }
   function loginView() {
     const view = section('邮箱验证码登录');
@@ -240,14 +240,12 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const view = element('details');
     view.dataset['disclosureKey'] = 'invitation';
     view.append(element('summary', '接受团队邀请'));
-    const link = input('邀请链接', new URL(location.href).searchParams.has('join') ? location.href : '');
+    const link = input('邀请链接', carriesInvitation(location.href) ? location.href : '');
     view.append(link.wrapper);
     view.append(
       button('接受邀请', () =>
         perform(async () => {
-          const value = new URL(link.control.value).searchParams.get('join');
-          if (!value) throw new Error('邀请链接格式错误');
-          const invite = JSON.parse(value) as { teamId: string; appId: string; id: string; token: string };
+          const invite = parseInvitationLink(link.control.value);
           await controller.acceptInvitation(invite.teamId, invite.appId, invite.id, invite.token);
           history.replaceState(null, '', location.pathname);
           controller.message = '邀请已接受';

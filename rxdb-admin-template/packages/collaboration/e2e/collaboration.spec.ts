@@ -51,6 +51,18 @@ async function state(page: Page, workspace: { teamId: string; appId: string }) {
   expect(response.status).toBe(200);
   return response.body as unknown as WorkspaceSnapshot;
 }
+/** 邀请令牌只放在 URL fragment（`#join=<转义后的 JSON>`），不进查询参数，避免落入代理日志与 Referer。 */
+function invitationLink(
+  baseURL: string | undefined,
+  fixture: Fixture,
+  id = fixture.invitation,
+  token = fixture.token
+) {
+  const link = new URL('/collaboration', baseURL);
+  const ticket = { teamId: fixture.teamId, appId: fixture.appId, id, token };
+  link.hash = `join=${encodeURIComponent(JSON.stringify(ticket))}`;
+  return link.toString();
+}
 async function accept(
   page: Page,
   fixture: Fixture,
@@ -58,10 +70,8 @@ async function accept(
   id = fixture.invitation,
   token = fixture.token
 ) {
-  const link = new URL('/collaboration', baseURL);
-  link.searchParams.set('join', JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id, token }));
   await page.getByText('接受团队邀请', { exact: true }).click();
-  await page.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  await page.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture, id, token));
   await page.getByRole('button', { name: '接受邀请', exact: true }).click();
 }
 test('真实身份、任务保存、离线同步、非作者审批和原子合并', async ({ page, request, browser, baseURL }) => {
@@ -109,12 +119,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   const reviewPage = await reviewContext.newPage();
   await login(reviewPage, fixture.reviewer);
   await reviewPage.getByText('接受团队邀请', { exact: true }).click();
-  const link = new URL('/collaboration', baseURL);
-  link.searchParams.set(
-    'join',
-    JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id: fixture.invitation, token: fixture.token })
-  );
-  await reviewPage.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  await reviewPage.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture));
   await reviewPage.getByRole('button', { name: '接受邀请', exact: true }).click();
   await reviewPage.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
   await expect(reviewPage.getByRole('button', { name: '批准当前候选', exact: true })).toBeDisabled();
@@ -322,19 +327,15 @@ test('错误账号不能消费邀请；验证码不可重复登录', async ({ pa
   const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByText('接受团队邀请', { exact: true }).click();
-  const link = new URL('/collaboration', baseURL);
-  link.searchParams.set(
-    'join',
-    JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id: fixture.invitation, token: fixture.token })
-  );
-  await page.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  const link = invitationLink(baseURL, fixture);
+  await page.getByLabel('邀请链接', { exact: true }).fill(link);
   await page.getByRole('button', { name: '接受邀请', exact: true }).click();
   await expect(page.getByText('邀请无效或登录邮箱不匹配，请切换账号', { exact: true })).toBeVisible();
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await other.getByText('接受团队邀请', { exact: true }).click();
-  await other.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  await other.getByLabel('邀请链接', { exact: true }).fill(link);
   await other.getByRole('button', { name: '接受邀请', exact: true }).click();
   await expect(other.getByText('邀请已接受', { exact: true })).toBeVisible();
   await other.getByRole('button', { name: '退出账号', exact: true }).click();
@@ -481,12 +482,7 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await other.getByText('接受团队邀请', { exact: true }).click();
-  const link = new URL('/collaboration', baseURL);
-  link.searchParams.set(
-    'join',
-    JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id: fixture.invitation, token: fixture.token })
-  );
-  await other.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  await other.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture));
   await other.getByRole('button', { name: '接受邀请', exact: true }).click();
   await other.getByRole('button', { name: '分级采购 · review', exact: true }).click();
   await other.getByLabel('审批阶段', { exact: true }).selectOption({ label: '财务复核' });

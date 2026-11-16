@@ -1,6 +1,7 @@
 import { permissions, type Permission, type Stage } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import { button, checkbox, element, input, row, section, type Perform } from './elements.js';
+import { createInvitationLink } from './invitation-link.js';
 import { tx } from './translate.js';
 export const permissionLabels: Record<Permission, string> = {
   read: '查看',
@@ -79,13 +80,14 @@ export function adminView(controller: CollaborationController, perform: Perform)
       expiresAt: Date.now() + 7 * 86400000,
       expectedVersion
     });
-    const url = new URL(location.href);
-    url.search = '';
-    url.hash = '';
-    url.searchParams.set('join', JSON.stringify({ teamId: data.teamId, appId: data.appId, id, token }));
     const dialog = element('dialog', '', 'modal');
     const content = element('div', '', 'modal-box space-y-4');
-    invitationLink.control.value = url.toString();
+    invitationLink.control.value = createInvitationLink(location.href, {
+      teamId: data.teamId,
+      appId: data.appId,
+      id,
+      token
+    });
     content.append(
       element('h2', '邀请已创建', 'font-semibold'),
       invitationLink.wrapper,

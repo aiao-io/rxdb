@@ -60,7 +60,8 @@ export function readLegacyPreferences(storage: StorageLike): DeepPartial<AdminPr
 let navigator: (url: string) => void = url => window.location.assign(url);
 
 /**
- * 绑定路由器的跳转函数。路由器在 `main.tsx` 里才创建，外壳先于它存在，因此跳转延迟绑定。
+ * 绑定路由器的跳转函数。路由器要等 `main.ts` 经 `provideRouter` 引导应用时才创建，外壳先于它存在，
+ * 因此跳转延迟绑定（由根组件在构造时调用）。
  * @param navigate - 路由器的跳转函数。
  */
 export function bindWorkbenchNavigator(navigate: (url: string) => void): void {

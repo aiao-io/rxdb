@@ -1,6 +1,6 @@
 # Admin 产品需求
 
-当前交付：[2/22 已交付]；另有 19/22 故事进入 In Review，1 条因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[2/23 已交付]；另有 19/23 故事进入 In Review，2 条保持 Backlog：1 条缺少真实业务输入，1 条协作服务部署运维待排期。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
@@ -25,6 +25,7 @@
 | [epics/ADMIN-EPIC-001.md](epics/ADMIN-EPIC-001.md)     | 应用模板孵化范围                   |
 | [epics/ADMIN-EPIC-002.md](epics/ADMIN-EPIC-002.md)     | 认证与团队工作区                   |
 | [epics/ADMIN-EPIC-003.md](epics/ADMIN-EPIC-003.md)     | 数据变更中心与合并治理             |
+| [epics/ADMIN-EPIC-004.md](epics/ADMIN-EPIC-004.md)     | 协作服务部署与运维                 |
 | [stories/story.template.md](stories/story.template.md) | 新故事模板                         |
 | [stories/collaboration/](stories/collaboration)        | 认证、团队和数据协作故事           |
 | [plans/README.md](plans/README.md)                     | 实施计划与验收记录                 |

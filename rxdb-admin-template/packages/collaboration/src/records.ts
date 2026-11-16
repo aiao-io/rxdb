@@ -45,7 +45,12 @@ function assertRow(value: unknown): asserts value is DataRow {
   }
 }
 
-/** 检查合并后的完整资产图，允许未完成的草稿同步，禁止无效结果进入共享数据。 */
+/**
+ * 检查合并后的完整资产图，允许未完成的草稿同步，禁止无效结果进入共享数据。
+ *
+ * 名称缺失、为 null 或只有空白时只报「必填文本不能为空」，不参与名称唯一性比较；
+ * 关联字段不是字符串时直接判定「关联记录不存在」，不会把值转成字符串后去查记录。
+ */
 export function checkRecords(records: Records): Check[] {
   assertRecords(records);
   const errors: Check[] = [];
@@ -56,12 +61,17 @@ export function checkRecords(records: Records): Check[] {
 function checkRow(id: string, row: DataRow, records: Records, names: Map<string, string>, errors: Check[]): void {
   const add = (field: string, message: string) => errors.push({ recordId: id, field, message });
   const label = row.entity === 'AssetEvent' ? 'summary' : 'name';
-  if (typeof row.fields[label] !== 'string' || !String(row.fields[label]).trim()) add(label, '必填文本不能为空');
-  const key = `${row.entity}:${row.fields.name}`;
-  if (row.entity !== 'AssetEvent' && names.has(key)) add('name', '名称必须唯一');
-  names.set(key, id);
+  const text = row.fields[label];
+  const filled = typeof text === 'string' && text.trim() !== '';
+  if (!filled) add(label, '必填文本不能为空');
+  if (filled && row.entity !== 'AssetEvent') {
+    const key = `${row.entity}:${text}`;
+    if (names.has(key)) add('name', '名称必须唯一');
+    names.set(key, id);
+  }
   const relation = row.entity === 'Asset' ? ['categoryId', 'AssetCategory'] : ['assetId', 'Asset'];
-  if (row.entity !== 'AssetCategory' && records[String(row.fields[relation[0]])]?.entity !== relation[1])
+  const reference = row.fields[relation[0]];
+  if (row.entity !== 'AssetCategory' && !(typeof reference === 'string' && records[reference]?.entity === relation[1]))
     add(relation[0], '关联记录不存在');
   for (const [field, value] of Object.entries(row.fields)) checkValue(field, value, add);
   if (row.entity === 'AssetEvent' && !row.fields.happenedAt) add('happenedAt', '日期不能为空');

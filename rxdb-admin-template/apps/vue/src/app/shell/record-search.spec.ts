@@ -2,7 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import type { PaletteItem, PaletteSource } from '@aiao/rxdb-admin';
 import { I18n } from '@aiao/rxdb-i18n';
 import type { SearchResult } from '@aiao/rxdb-plugin-search';
-import { BehaviorSubject, distinctUntilChanged, map, of } from 'rxjs';
+import { BehaviorSubject, distinctUntilChanged, map, of, Subject, type Observable } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITIES } from '../entities/asset-entities';
 import { domainModelEnMessages, domainModelZhMessages } from '../i18n/domain-messages';
@@ -21,10 +21,17 @@ const hit = (id: string, entity: string, snippet: string): SearchResult =>
 /**
  * 和真实搜索状态机同构的假句柄：`state$` / `results$` 派生自同一个 BehaviorSubject。
  * 结算时一次 emit 先后经过两条派生流——把两条流 `combineLatest` 会在状态已变、结果还是旧值的瞬间取到快照。
+ * `settle` 返回 `undefined` 表示这次查询一直在途，不会结算；
+ * `completeOnDestroy` 让销毁像真实句柄那样完成状态流，在途的结算等待随之以 EmptyError 收场。
  */
-function createHandle(settle: (query: string) => FakeSnapshot) {
+function createHandle(
+  settle: (query: string) => FakeSnapshot | undefined,
+  { completeOnDestroy = false }: { completeOnDestroy?: boolean } = {}
+) {
   const subject = new BehaviorSubject<FakeSnapshot>({ state: 'idle', results: [] });
-  const destroy = vi.fn();
+  const destroy = vi.fn(() => {
+    if (completeOnDestroy) subject.complete();
+  });
   return {
     destroy,
     handle: {
@@ -38,18 +45,24 @@ function createHandle(settle: (query: string) => FakeSnapshot) {
       ),
       setQuery(query: string): void {
         subject.next({ state: 'loading', results: subject.value.results });
-        queueMicrotask(() => subject.next(settle(query)));
+        queueMicrotask(() => {
+          const snapshot = settle(query);
+          if (snapshot) subject.next(snapshot);
+        });
       },
       destroy
     }
   };
 }
 
-function createRxdb(connected: boolean, handle: unknown): { rxdb: RxDB; search: ReturnType<typeof vi.fn> } {
+function createRxdb(
+  connected: boolean | Observable<boolean>,
+  handle: unknown
+): { rxdb: RxDB; search: ReturnType<typeof vi.fn> } {
   const search = vi.fn(() => handle);
   const rxdb = {
     config: { entities: ENTITIES },
-    adapterConnected$: () => of(connected),
+    adapterConnected$: () => (typeof connected === 'boolean' ? of(connected) : connected),
     search
   } as unknown as RxDB;
   return { rxdb, search };
@@ -144,16 +157,59 @@ describe('record-search', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('查询被取消时销毁句柄', async () => {
-    const { handle, destroy } = createHandle(() => ({ state: 'success', results: [] }));
+  it('等待连接期间被中止则不再创建搜索句柄', async () => {
+    const connection = new Subject<boolean>();
+    const { handle, destroy } = createHandle(() => ({ state: 'success', results: [hit('1', 'Asset', '笔记本')] }));
+    const { rxdb, search } = createRxdb(connection, handle);
     const abort = new AbortController();
     const pending = runSearch(
+      createRecordSearchSource(rxdb, () => undefined),
+      '笔记',
+      abort.signal
+    );
+    abort.abort();
+    connection.next(true);
+
+    expect(await pending).toEqual([]);
+    expect(search).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
+  });
+
+  it('查询在途时被中止，立即销毁句柄而不等结算', async () => {
+    const { handle, destroy } = createHandle(() => undefined, { completeOnDestroy: true });
+    const { rxdb, search } = createRxdb(true, handle);
+    const abort = new AbortController();
+    const pending = runSearch(
+      createRecordSearchSource(rxdb, () => undefined),
+      'x',
+      abort.signal
+    );
+    await vi.waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+    expect(destroy).not.toHaveBeenCalled();
+
+    abort.abort();
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    await expect(pending).rejects.toThrow();
+  });
+
+  it('中止监听只登记一次，查询结算后移除，之后再中止不会重复销毁', async () => {
+    const { handle, destroy } = createHandle(() => ({ state: 'success', results: [] }));
+    const abort = new AbortController();
+    const add = vi.spyOn(abort.signal, 'addEventListener');
+    const remove = vi.spyOn(abort.signal, 'removeEventListener');
+
+    await runSearch(
       createRecordSearchSource(createRxdb(true, handle).rxdb, () => undefined),
       'x',
       abort.signal
     );
+
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(add).toHaveBeenCalledWith('abort', expect.any(Function), { once: true });
+    expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]?.[1]);
+    expect(destroy).toHaveBeenCalledTimes(1);
     abort.abort();
-    await pending.catch(() => undefined);
-    expect(destroy).toHaveBeenCalled();
+    expect(destroy).toHaveBeenCalledTimes(1);
   });
 });

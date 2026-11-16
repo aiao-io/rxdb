@@ -44,6 +44,10 @@
 - [ADMIN-US-215](stories/collaboration/ADMIN-US-215-presence.md) 在线成员与当前查看状态
 - [ADMIN-US-216](stories/collaboration/ADMIN-US-216-multi-level-approval.md) 多级审批与可配置合并规则
 
+### 部署与运维闭环（Backlog）
+
+- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：迁移与发布流水线、staging / production、真实邮箱验证码证据、部署后三端协作验收、工作区状态保留策略、健康检查与回滚预案。以上协作故事的合入与真实环境验收依赖本故事，归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。
+
 ## 既有前置
 
 [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 等待一组真实的新业务关联实体、字段、关系与非 `assets` 命名空间；确定后验证新业务 CRUD、关联筛选、搜索、Dashboard、刷新重开和备份恢复，同时保留默认资产回归。Dashboard 已验证非 CRUD 页面路径，自定义页面不再依赖另找实例。

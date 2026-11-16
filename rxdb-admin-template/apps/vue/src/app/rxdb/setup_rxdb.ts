@@ -9,6 +9,16 @@ import { ENTITIES } from '../entities/asset-entities';
 import { workbenchShell } from '../shell/workbench-shell';
 import { workbenchActivityIndex } from './workbench-activity-index';
 
+/**
+ * 匿名本机上下文的用户标识，写入数据库 `context.userId`。
+ *
+ * @remarks
+ * 取值必须保持 `'userId'`：已有本机库里的审计字段（`createdBy` / `updatedBy`）及其进入的历史与活动记录
+ * 都以它归属，改值会让这些记录脱离当前身份。它只代表本机匿名身份；团队协作的云端身份来自协作包的
+ * 真实会话（ADMIN-US-201 AC#9），接入真实身份时不得复用此常量。
+ */
+export const ANONYMOUS_LOCAL_USER_ID = 'userId';
+
 let rxdb: RxDB | undefined;
 
 /** 按应用配置创建数据库，保留工作台的存储与插件组合。 */
@@ -16,7 +26,7 @@ export function createWorkbenchDatabase(config: AppConfig = appConfig): RxDB {
   const dbName = getE2eDbName(config.dbName);
   const database = new RxDB({
     dbName,
-    context: { userId: 'userId' },
+    context: { userId: ANONYMOUS_LOCAL_USER_ID },
     entities: [...ENTITIES],
     sync: {
       local: {

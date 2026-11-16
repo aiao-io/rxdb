@@ -11,9 +11,17 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim());
 });
+/** 只信任带字符串 url 的同源客户端；MessagePort、ServiceWorker 等来源没有 url，一律忽略。 */
+const fromOwnOrigin = source => {
+  if (!source || typeof source.url !== 'string') return false;
+  try {
+    return new URL(source.url).origin === self.location.origin;
+  } catch {
+    return false;
+  }
+};
 self.addEventListener('message', event => {
-  if (event.data?.type !== 'cache-shell' || !event.source || new URL(event.source.url).origin !== self.location.origin)
-    return;
+  if (event.data?.type !== 'cache-shell' || !fromOwnOrigin(event.source)) return;
   const urls =
     Array.isArray(event.data.urls) ?
       event.data.urls

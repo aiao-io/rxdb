@@ -9,9 +9,9 @@
 | ✅ Done        |    2 |
 | 🚧 In Progress |    0 |
 | 👀 In Review   |   19 |
-| 📝 Backlog     |    1 |
+| 📝 Backlog     |    2 |
 | 🚫 Blocked     |    0 |
-| **合计**       |   22 |
+| **合计**       |   23 |
 
 ## 进行中（0 条）
 
@@ -42,6 +42,10 @@
 ## 待输入（1 条）
 
 - [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 示例实体替换与元数据贯通：缺少真实业务实体、字段、关系和非 `assets` 命名空间，不能自行发明领域完成需求。
+
+## 待排期（1 条）
+
+- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：协作故事关闭所需的部署、真实邮箱与长期运行证据，尚未开始实施。
 
 ## 按 Epic 索引
 
@@ -75,3 +79,7 @@
 - 👀 [ADMIN-US-214 评论通知与增强讨论协作](stories/collaboration/ADMIN-US-214-comment-notifications.md)
 - 👀 [ADMIN-US-215 在线成员与当前查看状态](stories/collaboration/ADMIN-US-215-presence.md)
 - 👀 [ADMIN-US-216 多级审批与可配置合并规则](stories/collaboration/ADMIN-US-216-multi-level-approval.md)
+
+### ADMIN-EPIC-004 协作服务部署与运维
+
+- ⬜ [ADMIN-US-217 协作服务生产部署与运维闭环](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)

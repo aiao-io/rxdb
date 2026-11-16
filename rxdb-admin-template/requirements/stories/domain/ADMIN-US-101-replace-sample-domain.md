@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-16
+updated: 2026-11-17
 tags: [admin, domain, customization]
 dependsOn: [ADMIN-US-002]
 capabilities: [rxdb:US-526, rxdb:US-702]
@@ -45,6 +45,8 @@ capabilities: [rxdb:US-526, rxdb:US-702]
 ## 技术笔记
 
 当前样例注册在 [ENTITIES](../../../apps/react/src/app/entities/asset-entities.ts)，搜索页与命令面板已通过 `entity-labels.ts` 读取实体和字段的显示元数据；菜单图标映射位于 [workbench-menu.tsx](../../../apps/react/src/app/shell/workbench-menu.tsx)。Dashboard 的指标、实体路由和活动日志仍绑定 `assets`，替换实体必须同步调整 `dashboard-model.ts`、`dashboard-activity-source.ts` 与三端页面。
+
+若真实业务要求记录内容本身多语言（区别于实体、字段显示名的界面翻译），需先接入平台 [US-910](../../../../requirements/stories/future/US-910-data-i18n.md) 数据国际化能力（当前 Backlog）并在三端产品侧接线；界面显示名继续由 `domain-messages.ts` 维护。
 
 当前前置：尚未提供真实新业务的关联实体、字段、关系与非 `assets` 命名空间。本故事保留 Backlog，待这些输入确定后执行 [优化清单 T03](../../plans/nexus-template-optimization-tasks.md#t03--p1--验证真实新业务实体替换)；默认资产与 Dashboard 验收不替代本故事。
 

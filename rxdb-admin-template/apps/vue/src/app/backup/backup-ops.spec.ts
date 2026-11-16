@@ -1,11 +1,12 @@
 import { RxDBBackupError } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pageEnMessages, pageZhMessages } from '../i18n/page-messages';
 import {
   backupDownloadName,
   backupErrorMessage,
   collectBackup,
+  downloadBlob,
   RESTORE_TARGET_INITIALIZED_MESSAGE
 } from './backup-ops';
 
@@ -51,6 +52,43 @@ describe('backupDownloadName', () => {
   });
 });
 
+describe('downloadBlob', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('隐藏的锚点挂进文档后才点击，点击后立即移除', () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:workbench-backup');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clicks: { connected: boolean; hidden: boolean; href: string; download: string }[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicks.push({ connected: this.isConnected, hidden: this.hidden, href: this.href, download: this.download });
+    });
+
+    downloadBlob(new Blob(['x']), 'backup.rxdb-backup');
+
+    expect(clicks).toEqual([
+      { connected: true, hidden: true, href: 'blob:workbench-backup', download: 'backup.rxdb-backup' }
+    ]);
+    expect(document.querySelector('a[download]')).toBeNull();
+  });
+
+  it('blob 地址 1 秒后才回收，避免部分浏览器中断异步读取', () => {
+    vi.useFakeTimers();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:workbench-backup');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    downloadBlob(new Blob(['x']), 'backup.rxdb-backup');
+
+    vi.advanceTimersByTime(999);
+    expect(revoke).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(revoke).toHaveBeenCalledWith('blob:workbench-backup');
+  });
+});
+
 describe('backupErrorMessage', () => {
   it('备份错误按 code 给出可读原因', () => {
     expect(errorMessage(new RxDBBackupError('storage_full', 'no space'))).toBe('存储空间不足，无法完成备份');
@@ -66,7 +104,7 @@ describe('backupErrorMessage', () => {
     );
   });
 
-  it('未知错误兜底为原文或通用文案，不吞掉信息', () => {
+  it('带 message 的 Error 把原文放进失败文案，非 Error 值使用通用的未知原因文案', () => {
     expect(errorMessage(new Error('boom'))).toBe('操作失败：boom');
     expect(errorMessage('what')).toBe('操作失败，原因未知');
   });

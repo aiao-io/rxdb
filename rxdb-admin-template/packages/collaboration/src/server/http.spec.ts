@@ -1,4 +1,4 @@
-import type { Server } from 'node:http';
+import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bootstrap, snapshot } from './engine.js';
@@ -90,5 +90,51 @@ describe('HTTP identity boundary', () => {
     });
     expect(cors.status).toBe(204);
     expect(cors.headers.get('access-control-allow-origin')).toBe('https://product.example');
+  });
+});
+/** 不经 fetch 的原始请求：fetch 会规范化请求目标，发不出 `//` 这类连 URL 都构不成的目标。 */
+const rawGet = (path: string) =>
+  new Promise<{ status: number; body: string }>((resolve, reject) => {
+    const port = (server.address() as AddressInfo).port;
+    request({ host: '127.0.0.1', port, path, headers: { authorization: 'Bearer valid' } }, response => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('end', () =>
+        resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') })
+      );
+    })
+      .on('error', reject)
+      .end();
+  });
+describe('HTTP request hygiene', () => {
+  it('answers a malformed percent-encoding as an invalid request, not an internal error', async () => {
+    for (const path of ['/workspaces/%zz/assets', '/workspaces/team/%', '/collaboration-api/workspaces/%E0%A4%A']) {
+      const response = await fetch(`${url}${path}`, { headers: { authorization: 'Bearer valid' } });
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: 'invalid', message: '请求格式错误', details: {} });
+    }
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(repository.read).not.toHaveBeenCalled();
+    expect(repository.list).not.toHaveBeenCalled();
+  });
+  it('answers a request target that cannot form a URL as an invalid request, not an internal error', async () => {
+    const response = await rawGet('//');
+    expect(response.status).toBe(409);
+    expect(JSON.parse(response.body)).toEqual({ error: 'invalid', message: '请求格式错误', details: {} });
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+  it('keeps decoding valid percent-encoded path segments', async () => {
+    await fetch(`${url}/workspaces/team%2Done/assets`, { headers: { authorization: 'Bearer valid' } });
+    expect(repository.read).toHaveBeenCalledWith(user, 'team-one', 'assets');
+  });
+  it('bounds slow clients with explicit, tight and enabled request timeouts', () => {
+    const checking = (server as Server & { connectionsCheckingInterval: number }).connectionsCheckingInterval;
+    expect(server.headersTimeout).toBeGreaterThan(0);
+    expect(server.headersTimeout).toBeLessThanOrEqual(10_000);
+    expect(server.requestTimeout).toBeGreaterThan(0);
+    expect(server.requestTimeout).toBeLessThanOrEqual(60_000);
+    expect(server.headersTimeout).toBeLessThanOrEqual(server.requestTimeout);
+    expect(checking).toBeGreaterThan(0);
+    expect(checking).toBeLessThanOrEqual(5_000);
   });
 });

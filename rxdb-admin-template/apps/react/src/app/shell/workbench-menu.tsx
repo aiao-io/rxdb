@@ -1,7 +1,7 @@
 import type { EntityType } from '@aiao/rxdb';
 import type { MenuNode } from '@aiao/rxdb-admin';
 import type { I18n } from '@aiao/rxdb-i18n';
-import { ArchiveRestore, Boxes, LayoutDashboard, Search, Tags, Wrench } from 'lucide-react';
+import { ArchiveRestore, Boxes, LayoutDashboard, Search, Tags, Users, Wrench } from 'lucide-react';
 import type { JSX, ReactNode } from 'react';
 import { entityDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries, type WorkbenchEntityEntry } from '../entities/entity-registry';
@@ -68,6 +68,7 @@ export function buildWorkbenchMenu(entities: readonly EntityType[], translate?: 
         {
           id: 'collaboration',
           label: label('nav.collaboration'),
+          icon: <Users size={16} />,
           route: '/collaboration',
           testId: 'collaboration-nav-link'
         },

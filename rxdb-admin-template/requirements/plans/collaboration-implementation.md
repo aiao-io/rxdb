@@ -65,7 +65,7 @@ Playwright 通过 SIGTERM 关闭 fixture，清理当次用户、投影和临时�
 
 - 136 条协作 AC 中，134 条已有本地证据；`ADMIN-US-201 #2/#3` 保留 ⚠️：生产 SMTP 投递和验证码自然到期的真实邮箱场景尚未验收。错误验证码、重复使用和缓存会话过期已有测试。
 - `ADMIN-US-101` 保持 `Backlog`：缺少真实的新业务实体、字段、关系和命名空间输入，资产样例不能代替业务定义。
-- 生产 SMTP、正式 Supabase 项目、服务部署、正式迁移执行和 PR 合入证据尚未提供。
+- 生产 SMTP、正式 Supabase 项目、服务部署、正式迁移执行和 PR 合入证据尚未提供；部署、迁移、真实邮箱证据与长期运行护栏由 [ADMIN-US-217](../stories/collaboration/ADMIN-US-217-production-deployment-operations.md)（Backlog）承接。
 - `ADMIN-US-201～216` 均保持 `In Review`。✅ AC、本地通过和已合入/已部署是不同状态。
 
 ## 复验与运行入口

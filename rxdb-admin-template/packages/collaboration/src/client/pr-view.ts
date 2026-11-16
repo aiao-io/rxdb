@@ -3,6 +3,7 @@ import { canonical, mergeRecords } from '../records.js';
 import type { CollaborationController } from './controller.js';
 import { readOnlyRecords } from './editor.js';
 import { button, checkbox, element, input, row, section, select, valueText, type Perform } from './elements.js';
+import { readResolution } from './resolution-input.js';
 import { tx } from './translate.js';
 export class PullRequestView {
   selected: string | null = null;
@@ -173,7 +174,11 @@ export class PullRequestView {
     return view;
   }
   private run(command: Omit<Command, 'operationId'> | Record<string, unknown>) {
-    return this.perform(() => this.controller.run(command));
+    return this.runLazily(() => command);
+  }
+  /** 命令在 perform 内才构造，构造过程抛出的错误同样由 perform 统一报告。 */
+  private runLazily(command: () => Omit<Command, 'operationId'> | Record<string, unknown>) {
+    return this.perform(() => this.controller.run(command()));
   }
   private has(permission: string) {
     return (
@@ -230,24 +235,17 @@ export class PullRequestView {
       custom.control.dataset['formKey'] = `custom:${pr.id}:${task.head}:${data.head}:${conflict.key}`;
       choice.control.dataset['persistentDraft'] = 'true';
       custom.control.dataset['persistentDraft'] = 'true';
-      selections.push(() =>
-        choice.control.value ?
-          {
-            key: conflict.key,
-            choice: choice.control.value as Resolution['choice'],
-            ...(choice.control.value === 'custom' ? { value: JSON.parse(custom.control.value) } : {})
-          }
-        : null
-      );
+      selections.push(() => readResolution(conflict.key, choice.control.value, custom.control.value));
     }
     view.append(
       button('生成合并候选并检查', () =>
-        this.run({
+        // 选择在 perform 内才读取：非法的自定义值会走统一的报错路径，而不是在点击回调里静默抛出
+        this.runLazily(() => ({
           type: 'candidate',
           prId: pr.id,
           expectedRevision: pr.revision,
           resolutions: selections.map(read => read()).filter(value => value !== null)
-        })
+        }))
       )
     );
     return view;

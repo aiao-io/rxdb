@@ -77,26 +77,29 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect(after.audit).toEqual(before.audit);
       expect(after.presence).toEqual([expect.objectContaining({ userId: admin.id, sessionId })]);
 
-      const stored = await pool.query<{ state: { revision: number; audit: unknown[]; receipts: Record<string, unknown> } }>(
-        'SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2',
-        [seed.teamId, seed.appId]
-      );
+      const stored = await pool.query<{
+        state: { revision: number; audit: unknown[]; receipts: Record<string, unknown> };
+      }>('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [seed.teamId, seed.appId]);
       expect(stored.rows[0].state.revision).toBe(before.revision);
       expect(stored.rows[0].state.audit).toHaveLength(before.audit.length);
       expect(stored.rows[0].state.receipts[presence.operationId]).toBeUndefined();
       expect(
         Number(
-          (await pool.query(
-            'SELECT revision FROM public.admin_workspace_versions WHERE team_id = $1 AND app_id = $2',
-            [seed.teamId, seed.appId]
-          )).rows[0].revision
+          (
+            await pool.query(
+              'SELECT revision FROM public.admin_workspace_versions WHERE team_id = $1 AND app_id = $2',
+              [seed.teamId, seed.appId]
+            )
+          ).rows[0].revision
         )
       ).toBe(before.revision);
       expect(
-        (await pool.query('SELECT count(*)::int AS count FROM public.admin_audit WHERE team_id = $1 AND app_id = $2', [
-          seed.teamId,
-          seed.appId
-        ])).rows[0].count
+        (
+          await pool.query('SELECT count(*)::int AS count FROM public.admin_audit WHERE team_id = $1 AND app_id = $2', [
+            seed.teamId,
+            seed.appId
+          ])
+        ).rows[0].count
       ).toBe(before.audit.length);
 
       await pool.query(
@@ -168,6 +171,41 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         /permission denied/
       );
       await expect(client.query('DELETE FROM public.admin_audit')).rejects.toThrow(/permission denied/);
+      // ADMIN-US-203 验收 5：绕过 PR 直接插入共享数据、共享头、合并审计、变更日志、版本和在线状态同样被拒。
+      // 用不带 ON CONFLICT 的纯 INSERT：只要 INSERT 授权被放开，错误就不再是 permission denied（RLS 拒绝或主键冲突），用例随即变红。
+      const own = [input.teamId, input.appId];
+      const forgedInserts: [table: string, sql: string, params: string[]][] = [
+        [
+          'admin_shared',
+          `INSERT INTO public.admin_shared(team_id, app_id, head, records) VALUES ($1, $2, 'forged', '{}'::jsonb)`,
+          own
+        ],
+        [
+          'admin_audit',
+          `INSERT INTO public.admin_audit(team_id, app_id, id, actor_id, action, details, created_at)
+           VALUES ($1, $2, 'forged-merge', $3, 'merge', '{}'::jsonb, now())`,
+          [...own, admin.id]
+        ],
+        [
+          'admin_changes',
+          `INSERT INTO public.admin_changes(team_id, app_id, merge_id, record_id, before_data, after_data)
+           VALUES ($1, $2, 'forged-merge', 'record', NULL, '{}'::jsonb)`,
+          own
+        ],
+        [
+          'admin_workspace_versions',
+          `INSERT INTO public.admin_workspace_versions(team_id, app_id, revision) VALUES ($1, $2, 999)`,
+          own
+        ],
+        [
+          'admin_presence',
+          `INSERT INTO public.admin_presence(team_id, app_id, user_id, session_id, pr_id, record_id, expires_at)
+           VALUES ($1, $2, $3, 'forged-session', NULL, NULL, 9999999999999)`,
+          [...own, admin.id]
+        ]
+      ];
+      for (const [table, sql, params] of forgedInserts)
+        await expect(client.query(sql, params), `INSERT INTO ${table}`).rejects.toThrow(/permission denied/);
       await expect(client.query('SELECT * FROM admin_private.workspaces')).rejects.toThrow(/permission denied/);
       await client.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [randomUUID()]);
       expect((await client.query('SELECT * FROM public.admin_shared')).rows).toHaveLength(0);
@@ -264,66 +302,155 @@ describe('PostgreSQL transaction and RLS boundary', () => {
   });
   it('rolls back every bootstrap projection after a late initialization failure and retries cleanly', async () => {
     const seed = { ...input, teamId: randomUUID(), bootstrapKey: randomUUID() };
-    await pool.query(`CREATE FUNCTION admin_private.fail_bootstrap() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action = 'bootstrap' THEN RAISE EXCEPTION 'bootstrap failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_bootstrap BEFORE INSERT ON public.admin_audit FOR EACH ROW EXECUTE FUNCTION admin_private.fail_bootstrap();`);
+    await pool.query(
+      `CREATE FUNCTION admin_private.fail_bootstrap() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action = 'bootstrap' THEN RAISE EXCEPTION 'bootstrap failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_bootstrap BEFORE INSERT ON public.admin_audit FOR EACH ROW EXECUTE FUNCTION admin_private.fail_bootstrap();`
+    );
     try {
       await expect(repository.initialize(seed)).rejects.toThrow(/bootstrap failure/);
-      for (const table of ['admin_private.workspaces', 'admin_private.memberships', 'public.admin_shared', 'public.admin_audit', 'public.admin_workspace_versions'])
+      for (const table of [
+        'admin_private.workspaces',
+        'admin_private.memberships',
+        'public.admin_shared',
+        'public.admin_audit',
+        'public.admin_workspace_versions'
+      ])
         expect((await pool.query(`SELECT * FROM ${table} WHERE team_id = $1`, [seed.teamId])).rows).toEqual([]);
     } finally {
       await pool.query('DROP TRIGGER fail_bootstrap ON public.admin_audit');
     }
     await repository.initialize(seed);
     const state = await repository.read(admin, seed.teamId, seed.appId);
-    expect(state.head).toBeNull(); expect(state.records).toEqual({});
+    expect(state.head).toBeNull();
+    expect(state.records).toEqual({});
     expect(state.policy.stages).toMatchObject([{ minimum: 1 }]);
     expect(state.members).toMatchObject([{ id: admin.id, permissions: expect.arrayContaining(['manage']) }]);
   });
   it('serializes invitation acceptance against revocation and replacement without reviving membership', async () => {
     for (const replacement of [false, true]) {
-      const seed = { ...input, teamId: randomUUID(), bootstrapKey: randomUUID() }; await repository.initialize(seed);
+      const seed = { ...input, teamId: randomUUID(), bootstrapKey: randomUUID() };
+      await repository.initialize(seed);
       const user = { id: randomUUID(), email: 'invited@example.test', verified: true };
-      const op = (data: Record<string, unknown>, actor = admin) => repository.operation(actor, seed.teamId, seed.appId, command(data));
-      const invite = { type: 'invite', id: 'invite', email: user.email, permissions: ['read'], tokenHash: 'old', expiresAt: Date.now() + 60000, expectedVersion: 0 };
+      const op = (data: Record<string, unknown>, actor = admin) =>
+        repository.operation(actor, seed.teamId, seed.appId, command(data));
+      const invite = {
+        type: 'invite',
+        id: 'invite',
+        email: user.email,
+        permissions: ['read'],
+        tokenHash: 'old',
+        expiresAt: Date.now() + 60000,
+        expectedVersion: 0
+      };
       await op(invite);
       const results = await Promise.allSettled([
         op({ type: 'accept_invite', id: 'invite', tokenHash: 'old' }, user),
-        op(replacement ? { ...invite, tokenHash: 'new', expectedVersion: 1 } : { type: 'revoke_invite', id: 'invite', expectedVersion: 1 })
+        op(
+          replacement ?
+            { ...invite, tokenHash: 'new', expectedVersion: 1 }
+          : { type: 'revoke_invite', id: 'invite', expectedVersion: 1 }
+        )
       ]);
       expect(results.filter(value => value.status === 'fulfilled')).toHaveLength(1);
       const state = await repository.read(admin, seed.teamId, seed.appId);
-      expect(state.members.some(member => member.id === user.id && member.active)).toBe(results[0].status === 'fulfilled');
-      if (results[0].status === 'fulfilled') await op({ type: 'member', userId: user.id, active: false, permissions: [], expectedGeneration: 1 });
+      expect(state.members.some(member => member.id === user.id && member.active)).toBe(
+        results[0].status === 'fulfilled'
+      );
+      if (results[0].status === 'fulfilled')
+        await op({ type: 'member', userId: user.id, active: false, permissions: [], expectedGeneration: 1 });
       await expect(op({ type: 'accept_invite', id: 'invite', tokenHash: 'old' }, user)).rejects.toThrow();
     }
   });
   it('orders merge races with revocation, change requests, reopened threads, source edits and target merges', async () => {
     for (const race of ['revoke', 'review', 'thread', 'source', 'target']) {
-      const seed = { ...input, teamId: randomUUID(), bootstrapKey: randomUUID() }; await repository.initialize(seed);
+      const seed = { ...input, teamId: randomUUID(), bootstrapKey: randomUUID() };
+      await repository.initialize(seed);
       const user = { id: randomUUID(), email: 'reviewer@example.test', verified: true };
-      const op = (data: Record<string, unknown>, actor = admin) => repository.operation(actor, seed.teamId, seed.appId, command(data));
-      await op({ type: 'invite', id: 'invite', email: user.email, permissions: ['read', 'review', 'comment'], tokenHash: 'token', expiresAt: Date.now() + 60000, expectedVersion: 0 });
+      const op = (data: Record<string, unknown>, actor = admin) =>
+        repository.operation(actor, seed.teamId, seed.appId, command(data));
+      await op({
+        type: 'invite',
+        id: 'invite',
+        email: user.email,
+        permissions: ['read', 'review', 'comment'],
+        tokenHash: 'token',
+        expiresAt: Date.now() + 60000,
+        expectedVersion: 0
+      });
       await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, user);
       await op({ type: 'policy', stages: [], expectedVersion: 1 });
       const readyPr = async (suffix: string) => {
         await op({ type: 'task', id: suffix, name: suffix, expectedHead: null });
-        await op({ type: 'upload', taskId: suffix, expectedHead: null, commits: [{ id: `commit-${suffix}`, parent: null, authorId: admin.id, message: suffix, records: { category: { entity: 'AssetCategory', fields: { name: suffix } } } }] });
+        await op({
+          type: 'upload',
+          taskId: suffix,
+          expectedHead: null,
+          commits: [
+            {
+              id: `commit-${suffix}`,
+              parent: null,
+              authorId: admin.id,
+              message: suffix,
+              records: { category: { entity: 'AssetCategory', fields: { name: suffix } } }
+            }
+          ]
+        });
         await op({ type: 'pr', id: suffix, taskId: suffix, title: suffix, description: '', target: 'shared' });
         await op({ type: 'pr_state', prId: suffix, status: 'review', expectedRevision: 0 });
         const result = await op({ type: 'candidate', prId: suffix, expectedRevision: 1, resolutions: [] });
-        return { type: 'merge', prId: suffix, candidateId: result['candidateId'], expectedSource: `commit-${suffix}`, expectedTarget: null };
+        return {
+          type: 'merge',
+          prId: suffix,
+          candidateId: result['candidateId'],
+          expectedSource: `commit-${suffix}`,
+          expectedTarget: null
+        };
       };
       const merge = await readyPr('main');
-      await op({ type: 'thread', id: 'required', prId: 'main', candidateId: merge.candidateId, recordId: 'category', field: 'name', body: 'Check', required: true, mentions: [] }, user);
+      await op(
+        {
+          type: 'thread',
+          id: 'required',
+          prId: 'main',
+          candidateId: merge.candidateId,
+          recordId: 'category',
+          field: 'name',
+          body: 'Check',
+          required: true,
+          mentions: []
+        },
+        user
+      );
       await op({ type: 'resolve_thread', threadId: 'required', resolved: true, expectedRevision: 0 }, user);
       const target = await readyPr('target');
       const changes: Record<string, Record<string, unknown>> = {
-        revoke: { type: 'member', userId: admin.id, permissions: ['read', 'edit', 'review', 'comment', 'manage'], active: true, expectedGeneration: 1 },
-        review: { type: 'review', prId: 'main', candidateId: merge.candidateId, expectedSource: 'commit-main', stageId: 'review', decision: 'request_changes', reason: 'Hold', expectedRevision: 0 },
+        revoke: {
+          type: 'member',
+          userId: admin.id,
+          permissions: ['read', 'edit', 'review', 'comment', 'manage'],
+          active: true,
+          expectedGeneration: 1
+        },
+        review: {
+          type: 'review',
+          prId: 'main',
+          candidateId: merge.candidateId,
+          expectedSource: 'commit-main',
+          stageId: 'review',
+          decision: 'request_changes',
+          reason: 'Hold',
+          expectedRevision: 0
+        },
         thread: { type: 'resolve_thread', threadId: 'required', resolved: false, expectedRevision: 1 },
-        source: { type: 'upload', taskId: 'main', expectedHead: 'commit-main', commits: [{ id: 'updated', parent: 'commit-main', authorId: admin.id, message: 'Update', records: {} }] },
+        source: {
+          type: 'upload',
+          taskId: 'main',
+          expectedHead: 'commit-main',
+          commits: [{ id: 'updated', parent: 'commit-main', authorId: admin.id, message: 'Update', records: {} }]
+        },
         target
       };
-      const blocker = command(changes[race]); const merger = command(merge);
+      const blocker = command(changes[race]);
+      const merger = command(merge);
       const results = await Promise.allSettled([
         repository.operation(['review', 'thread'].includes(race) ? user : admin, seed.teamId, seed.appId, blocker),
         repository.operation(admin, seed.teamId, seed.appId, merger)
@@ -338,5 +465,4 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect(results.some(value => value.status === 'fulfilled')).toBe(true);
     }
   });
-
 });

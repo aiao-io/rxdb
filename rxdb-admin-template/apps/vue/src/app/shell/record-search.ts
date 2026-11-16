@@ -13,7 +13,7 @@ const MAX_RECORDS = 8;
  *
  * @remarks
  * 只在本地适配器已连接时搜索——查询会触发自动连接，而空库恢复流程（/backup 先恢复后连接）
- * 要求连接前不能有任何查询，面板不能破坏这个前置。
+ * 要求连接前不能有任何查询，面板不能破坏这个前置。等待连接期间查询已被中止时直接返回空结果，不再创建搜索句柄。
  * @param rxdb - 工作台的 RxDB 实例。
  * @param navigate - 路由跳转。
  * @param translate - 当前应用的翻译函数。
@@ -31,8 +31,10 @@ export function createRecordSearchSource(
     minQueryLength: 1,
     search: async (query, signal) => {
       if (!(await firstValueFrom(rxdb.adapterConnected$(ADAPTER)))) return [];
+      if (signal.aborted) return [];
       const handle = rxdb.search('', { debounce: 0, pageSize: MAX_RECORDS, snippetLength: 48 });
-      signal.addEventListener('abort', () => handle.destroy());
+      const abandon = (): void => handle.destroy();
+      signal.addEventListener('abort', abandon, { once: true });
       try {
         const settled = firstValueFrom(handle.state$.pipe(filter(state => state !== 'idle' && state !== 'loading')));
         handle.setQuery(query);
@@ -52,6 +54,7 @@ export function createRecordSearchSource(
           };
         });
       } finally {
+        signal.removeEventListener('abort', abandon);
         handle.destroy();
       }
     }

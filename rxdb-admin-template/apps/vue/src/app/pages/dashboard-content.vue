@@ -5,6 +5,7 @@ import { computed, onScopeDispose, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { Asset, AssetCategory, AssetEvent } from '../entities/asset-entities';
 import {
+  DASHBOARD_ACTIVITY_LIMIT,
   DASHBOARD_METRICS,
   dashboardActivityEntityKey,
   dashboardActivityMessageKey,
@@ -102,7 +103,7 @@ onScopeDispose(() => subscription.unsubscribe());
   >
     <div class="flex items-center justify-between gap-3">
       <h2 id="dashboard-recent-activity-title" class="text-base font-semibold">{{ t('dashboard.activity.title') }}</h2>
-      <span class="text-xs opacity-60">{{ activities.length }}/5</span>
+      <span class="text-xs opacity-60">{{ activities.length }}/{{ DASHBOARD_ACTIVITY_LIMIT }}</span>
     </div>
     <p
       v-if="activityLoading"

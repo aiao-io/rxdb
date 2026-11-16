@@ -8,6 +8,7 @@ import {
   LucideLayoutDashboard as LayoutDashboard,
   LucideSearch as Search,
   LucideTags as Tags,
+  LucideUsers as Users,
   LucideWrench as Wrench
 } from '@lucide/angular';
 import { entityDisplayName } from '../entities/entity-labels';
@@ -75,6 +76,7 @@ export function buildWorkbenchMenu(entities: readonly EntityType[], translate?: 
         {
           id: 'collaboration',
           label: label('nav.collaboration'),
+          icon: Users,
           route: '/collaboration',
           testId: 'collaboration-nav-link'
         },

@@ -1,130 +1,157 @@
 # rxdb-admin-template 代码评审报告
 
-> 生成日期：2026-11-17
-> 评审范围：产品根 `rxdb-admin-template/` 下全部代码 —— apps/{angular,react,vue} 三端应用与各自 e2e、packages/collaboration 共享协作包、supabase/migrations、scripts 需求门禁。
-> 方法：4 个并行只读评审 agent（Angular / React / Vue / collaboration+SQL 各一，未运行任何构建或测试）+ 主会话独立核实争议点。用户故事缺口分析见同目录 [USER-STORY-GAP-2026-11-17.md](USER-STORY-GAP-2026-11-17.md)。
+> 评审日期：2026-11-17
+> 评审分支：`admin-template`（`0e38c8c1b`）
+> 对比基线：`origin/main`（`b2e746fa1`）
+> 评审范围：当前分支相对 `origin/main` 的全部差异，覆盖 `rxdb-admin-template/` 下 Angular、React、Vue 三端应用及 E2E、`packages/collaboration` 协作包、Supabase migration、脚本和需求门禁。
+> 用户故事缺口分析见同目录 [USER-STORY-GAP-2026-11-17.md](USER-STORY-GAP-2026-11-17.md)。
 
 ## 1. 总体结论
 
-**🟢 整体质量显著高于平均水平，无 P0（数据丢失/安全漏洞级）问题。** 四个评审域共同确认：
+**🟢 当前没有 P0，也没有遗留的 P1。** 初始只读评审发现 1 条 P1 和约 20 条 P2；本轮已经修复离线会话恢复、编辑草稿保护、Dashboard 活动流恢复、邀请重试死锁、搜索分页参数校验和协作错误词条等关键问题，并完成定向测试和全量门禁复核。
 
-- TS strict 零逃逸（全仓无 `any`/`@ts-ignore`/`TODO`/`console` 残留）、ESLint 零警告、订阅管理干净（无裸 subscribe，四处评审独立扫描一致确认）
-- 测试分层扎实：单测用 node:sqlite 真库对拍 SQL/JS 归一化、迟到结果丢弃、竞态注入；集成测试用真实临时 PostgreSQL（RLS、并发、事务注入失败全回滚）；e2e 对三端 production 构建跑共享套件 + 真 Supabase Auth 真栈
-- 协作核心安全设计全部落实且有证据：服务端权威授权、RLS 只读投影、共享表直写禁令、行锁+单事务原子合并、幂等回执、不可变提交图、三方合并
-- i18n 三端应用层零硬编码、编译期 `satisfies` 门禁强制目录逐键对齐
+当前结论如下：
 
-发现 **1 条 P1**、**约 20 条 P2**、**约 20 条 P3**。P1 集中在协作包的离线会话刷新链路；P2 集中在三端重复实现的领域逻辑、个别竞态与测试深度不对称。
+- 协作链路的核心授权、RLS、幂等回执、原子合并和三方合并设计成立，没有发现可以绕过服务端规则写入共享数据的路径。
+- 三端对外功能仍保持对称；已经补齐的修复均覆盖 Angular、React、Vue 需要共享行为的入口。
+- 初始 P1 已清零；部分原始 P2 已修复，剩余主要是架构收敛、测试深度、边界护栏和运维证据，不构成当前已发现的数据损坏路径。
+- 全量门禁首次并行执行出现 1 个 browser flaky 任务失败；该任务串行复跑通过。因此不能把首次 `pnpm test-all --base=origin/main` 记为全绿，但当前没有复现出产品代码回归。
 
-## 2. 问题清单
+## 2. 本轮已完成的优化
 
-### 2.1 P1
+### 2.1 协作会话、草稿和重试
 
-**[P1][会话/数据丢失风险] packages/collaboration/src/client/controller.ts:67 — 离线冷启动后自动刷新永久失效，锁出时丢弃未保存编辑缓冲**
-`autoRefreshToken: navigator.onLine` 只在初始化时求值一次。页面离线打开（US-201 AC#5 支持的冷启动路径）后该值永久为 false，联网后既不刷新会话也不触发 TOKEN_REFRESHED；access_token 过期后首个请求 401 → `failure()` 强制 `lock()`（controller.ts:309-315）→ mount.ts:48 `editor.clear()` 丢弃未保存编辑缓冲，且 form-drafts.ts:13 明确排除 `data-record-id` 输入无法恢复。链路末端有用户输入丢失风险。
-建议：恒开 autoRefreshToken（supabase-js 离线会自动暂停），或在 online 回调里 refreshSession()；lock 前把编辑缓冲落盘。
+- `packages/collaboration/src/client/controller.ts`、`editor.ts`、`mount.ts`：`autoRefreshToken` 改为持续开启，在线/离线状态恢复时调用 `reconnect()`，重新获取 session 并刷新当前 workspace。
+- 增加锁定前 checkpoint 注册机制。锁定、退出和会话失败前，`TaskEditor.checkpoint()` 会将 dirty buffer 保存为本地草稿，避免 access token 过期后清理编辑器造成用户输入丢失。
+- 修复 `accept_invite` 的 pending 重试死锁：重试时直接向邀请 workspace 重发原 operation，成功后再刷新 workspace 列表并选择 workspace；不再先读取尚未加入的 workspace 快照。
+- `pending()` 遇到损坏的 `sessionStorage` JSON 会自动清理，避免坏数据永久阻塞后续 durable command。
+- `api.ts` 对非 JSON 命令响应标记为 `uncertain`，保留服务端可能已经接受的 pending operation；controller 在 refresh/fork 失败时也不再误删 pending 请求。
 
-### 2.2 P2（按域分组）
+### 2.2 Dashboard、搜索和表格行为
 
-#### 三端共享（同病）
+- Angular、React、Vue 三端 `dashboard-activity-source` 在查询失败后只发出错误状态，保留 RxDBChange 监听；后续数据库变更可以重新查询并恢复成功状态，流不会因为一次瞬时查询失败永久结束。
+- 三端 shell 增加 `normalizeSearchPageSize(value: unknown)`：非法值回退到 20，数值限制在 5–50，小数四舍五入，并兼容被手工篡改的数字字符串、`NaN`、越界值和空字符串。
+- 修复宽屏拖拽数据列后 actions 列被挤窄的问题；三端 fake VTable 补齐 `getHeaderField()`，相关表格和 E2E 用例已经覆盖。
+- 匿名数据导入统一处理运行时 `Date`、非法日期、非有限数字和非法日期字段，日期输出统一为 `YYYY-MM-DD`。
 
-1. **[跨三端][健壮性] dashboard-activity-source 查询失败后流永久完成** — Angular `apps/angular/src/app/pages/dashboard-activity-source.ts:82-85`、React `apps/react/src/app/pages/dashboard-activity-source.ts:82`、Vue 同构实现：`catchError` 发出错误状态后流完成，后续任何 RxDBChange 事件不再重查；三端 spec 都把 `subscription.closed === true` 固化为契约。本地库一次瞬时失败（连接竞争、SQLite busy）后最近活动区永久停更，只有刷新页面恢复。（Angular 评审曾报 P1；综合三端一致性、spec 有意识固化该行为、影响为停更而非数据损坏，定为 P2。）→ 错误后保留事件监听并事件驱动重查，或页面提供重试入口；至少注释声明是刻意决策。
-2. **[跨三端][i18n 门禁缺失] 协作 UI「中文为词条键」无编译期保障** — 机制本身正确：`packages/collaboration/src/client/elements.ts` 的 `element()` 内部统一走 `tx()`，320 个中文字面量经主会话脚本核对，英文目录（client/messages.ts，377 行）缺失仅 1 个用户可见键：`client/api.ts:45` 的 `'请求结果不确定，请确认或重试原请求'`（英文界面该错误显示中文）。真正的问题是没有「每个 tx() 词条必须在 collaborationEnglish 中存在」的测试/门禁，新词条会静默回退中文；e2e 只抽查少数文案（collaboration.spec.ts:382）。→ 补 api.ts:45 词条；仿照 React 端 `pageEnMessages` 的 satisfies 门禁给协作目录加逐键校验。（注：两份 agent 报告在此处结论相反——「约 30 处绕过 tx()」与「零缺失」均不准确，主会话逐键核实后定级如上。）
-3. **[跨三端][安全边界] 写死匿名身份 `context: { userId: 'userId' }`** — 三端 `apps/*/src/app/rxdb/setup_rxdb.ts:19`。US-201 AC#9 语义下是设计行为（协作包自建按用户隔离的库，导入走显式 readAnonymousAssets），当前无泄漏；但模板消费方接入真实身份后最易漏改此行为，审计归属全部失真，且 README「定制内容」表没有这一项。→ 提为命名常量（如 `ANONYMOUS_LOCAL_USER_ID`）并注释「仅限本地上下文」；在 README 定制表登记一行。
-4. **[跨三端][架构] 纯领域/控制器逻辑三端逐份复制** — dashboard-{model,activity-query,activity-source}、shell/record-search、shell/workbench-menu、backup/backup-controller 在 React/Angular/Vue 逐份复制（仅绑定 API 不同）。同产品根的 packages/collaboration 已示范「逻辑共享、三端薄壳」模式。→ 下沉到共享包（如 @rxdb-admin-template/workbench-domain），三端只留框架绑定；符合 AGENTS.md「真实复用出现后抽包」——此处复用已真实存在。
-5. **[跨三端][测试深度不对称]** — React 端有页面组件级单测（backup-page.spec.tsx、page-i18n.spec.tsx、dashboard-model 等 15 个 spec）；Angular 端 pages/ 只有纯逻辑 spec、Vue 端缺 page-i18n 级别页面单测，页面渲染分支全靠共享 e2e 兜底。另：React 的 dashboard-page.tsx 与 collaboration-page.tsx 也无组件级单测（StrictMode 下 db.connect() 双调用路径 dev 独有、完全无测试；collaboration 页接线 translate/subscribeLanguage/importAnonymous 零回归保护）。→ 三端各补页面级单测，与 React 对齐。
-6. **[跨三端][偏好读取] `extension[SEARCH_PAGE_SIZE_KEY] as number` 裸断言** — React search-page.tsx:18、Angular search-page.ts:60、Vue search-results.vue:16。手工导入的偏好 JSON 非法值会以 undefined/NaN 进入搜索逻辑，用户设置静默失效无信号。→ 用扩展注册声明的 min/max（5–50）与 defaultValue 规范化后再断言。
+### 2.3 协作数据和 i18n
 
-#### React 端
+- Presence 从业务 revision、audit 和 receipt 中独立出来，使用 `public.admin_presence` 表和 `expires_at bigint` TTL；通过 Supabase Realtime 增量同步，成员撤权时清理 Presence。
+- 补齐协作错误词条“请求结果不确定，请确认或重试原请求”的英文翻译，文件路径为 `packages/collaboration/src/messages.ts`，并增加 API 测试。
+- 保留原有三端 i18n 对齐机制；协作目录仍需要补充逐键门禁，避免未来新增 `tx()` 词条时静默回退中文。
 
-7. **[代码卫生] Playwright 失败产物被 git 跟踪** — apps/react-e2e/dot/.last-run.json 及 dot/list-view-…-chromium/trace.zip、error-context.md 入库（`git ls-files` 证实），污染仓库体积与 diff。→ dot/ 加入 .gitignore 并 `git rm --cached`。
-8. **[竞态] apps/react/src/app/shell/record-search.ts:33-37 — abort 监听注册晚于等待期** — abort 监听在 `firstValueFrom(adapterConnected$)` 返回、句柄创建后才注册；等待连接期间面板被中止则 `search()` 永不 settle，面板卡加载态；abort 路径与 finally 双调 `handle.destroy()`（依赖引擎幂等）。→ abort→destroy 绑定提前到等待期，等待连接用 abort 信号 race。
-9. **[可维护性] apps/react-e2e/src/e2e-utils.ts:42-99 — e2e 深度依赖 VTable 私有内部**（`__vtable__`、scenegraph、getHeaderField、records），rxdb-model 表格实现一重构全碎（三端共享同款工具）。→ 在 rxdb-model 提供稳定测试出口（data-* 属性或 window 命名空间）替代私有字段直读。
-10. **[质量] apps/react/src/app/pages/dashboard-page.tsx:102 — `{activities.length}/5` 硬编码**，与 dashboard-model.ts 的 DASHBOARD_ACTIVITY_LIMIT 重复；Angular 模板同病（dashboard-page.ts:68）。→ 改用常量。
-11. **[规范冲突] apps/react/src/app/entities/entity-labels.ts:10-12,21-22 — 目录缺 key 静默回退中文 displayName**，与「无 fallback 兜底」铁律冲突。模板立场可接受，但缺 key 时无任何提示，英文界面漏中文且查不到。→ 保留行为但 dev 下 console.warn，或 README 要求目录补齐作为 lint 门禁。
-12. **[健壮性] apps/react/src/app/backup/backup-ops.ts:48-56 — downloadBlob 的 anchor 未挂 DOM、setTimeout 1s revoke 是启发式**，个别浏览器对未挂载 anchor 的 .click() 行为不一致。→ append→click→remove；revoke 前注释说明依赖关系。
+## 3. 原始问题状态
 
-#### Angular 端
+### 3.1 已修复或已验证
 
-13. **[生命周期竞态] apps/angular/src/app/pages/collaboration-page.ts:12-22 — afterNextRender 与组件销毁竞态** — 组件在首次渲染回调执行前被销毁（同帧导航离开 /collaboration），`mountCollaboration` 仍执行（挂到已分离宿主），dispose 注册到已销毁的 DestroyRef 不保证执行：泄漏 document 捕获阶段 click 监听、beforeunload、online/offline、15s presence 心跳 interval 与 controller 订阅。React（useEffect cleanup）与 Vue（onUnmounted）无此竞态，三端不对称。→ 回调内先判断宿主是否仍挂载再 mount，或用 viewChild 生命周期钩子替代 afterNextRender。
-14. **[正确性] apps/angular/src/app/pages/dashboard-page.ts:244 — `Promise.resolve(this.db.connect(...))` 接不住同步抛错**（connect 在包装前求值），异常穿透构造函数，`.catch` 形同虚设。→ 改 `.then().catch()` 直连。
-15. **[正确性] 实体查找断言未判空** — Angular apps/angular/src/app/app.ts:47 与 Vue apps/vue/src/app/shell/count-value.vue:7 的 `findWorkbenchEntity(...) as EntityType`：注册表与 config.entities 脱节时 null 被断言成实体类喂给 useCount，运行时崩。→ 显式短路（与「无 fallback」铁律一致：显式拒绝而非吞错）。
-16. **[正确性] apps/angular/src/app/backup/backup-controller.ts:91 — `getAdapter(...) as RestoreAdapter` 能力断言**：消费方换不支持 cleanupIncompleteRestore 的适配器时 cleanup() 才运行时 TypeError（懒触发，假适配器恒有该方法测不出）。→ 构造时一次性能力检测显式报错。
-17. **[TOCTOU] apps/angular/src/app/backup/backup-controller.ts:97-101 — 判连接与 restore 之间的竞态窗**：另一标签页在窗口内完成连接则恢复写入已初始化库。引擎有 target_not_empty 兜底不丢数据，属防御层时序洞。→ 把「连接前恢复」校验收敛到引擎单一执行点。
-
-#### Vue 端
-
-18. **[HMR] apps/vue/src/main.ts:12-18 + rxdb/setup_rxdb.ts:12,47-49 — import.meta.hot.dispose 不销毁模块级 RxDB 单例**：编辑 setup_rxdb.ts 触发模块重估后在同一 dbName 上再建实例（sqlite-wasm idb 多实例冲突风险，dev-only）。→ setup_rxdb 内加 import.meta.hot.dispose 销毁实例。
-19. **[规范] apps/vue/eslint.config.mjs:44-48 — vue/attributes-order 被关闭**，注释自述 RV-035 之后「可按 rxdb-model-vue 的做法重新开启」但未跟进，模板属性语义顺序零门禁。→ 跟进重开。
-
-#### collaboration 包与服务端
-
-20. **[可扩展性] packages/collaboration/src/server/engine.ts:70-85 + repository.ts:57-66 — 工作区状态无界增长**：receipts/audit/notifications 永不修剪；每命令 structuredClone 全状态+整行 UPDATE；快照（engine.ts:124）返回用户全部通知+全量审计，无响应大小上限，长期运行每次操作成本线性上升。→ 回执按 TTL 修剪、审计/通知归档、快照分页。
-21. **[幂等/死锁] packages/collaboration/src/client/controller.ts:168-174 — accept_invite 超时后 pending 卡死**：retryPending 先 selectWorkspace，尚未成为成员的接受者读快照必 403 → lock，pending 永留 sessionStorage；executeCommand 的 pending 守卫（controller.ts:347-352）跨工作区阻塞该用户所有 durable 命令。→ retryPending 对 accept_invite 跳过 selectWorkspace 直接重发；提供「放弃上次请求」入口。
-22. **[DoS] packages/collaboration/src/server/http.ts:80-94 — 请求体流式读取无超时**（未设 server.requestTimeout/请求级 timeout），慢速客户端可长期占 socket。→ request.setTimeout + 连接上限。
-23. **[安全卫生] packages/collaboration/src/client/admin-view.ts:85 — 邀请 token 明文进 URL query（?join=）**，泄露浏览器历史/代理日志/Referer；有邮箱绑定+7 天过期兜底故 P2。→ token 放 fragment 或链接只带 id、token 另交付。
-24. **[铁律违反] packages/collaboration/src/model.ts（29 导出）、client/controller.ts、client/api.ts 公开面几乎无 TSDoc**，违反「新包/新导出必须补齐 TSDoc」铁律。→ 补全公开 API 与数据结构 TSDoc。
-
-### 2.3 P3（简表）
-
-| # | 位置 | 问题 → 建议 |
+| 原始问题 | 状态 | 结论 |
 | --- | --- | --- |
-| 1 | packages/collaboration/src/client/pr-view.ts:238 | 自定义冲突值 JSON.parse 抛错在 button 回调同步段，绕开 perform/failure，用户看到「点了没反应」→ selections 求值移入 perform 或先校验 |
-| 2 | packages/collaboration/src/server/engine.ts:98-103 | auditDetails 只删 tokenHash/commits，invite 命令的受邀邮箱随审计对所有 read 成员可见（invitations 列表本身 manage 专属）→ 审计详情对 email 脱敏 |
-| 3 | packages/collaboration/src/records.ts:61-62 | 名称唯一性键用 row.fields.name 拼接，缺 name 行全撞 `Asset:undefined`，多行无名称时产生虚假「名称必须唯一」→ 无 name 跳过唯一性检查 |
-| 4 | packages/collaboration/src/client/editor.ts:219-223 | Number(value) 可产生 NaN（输入 'e'），JSON 序列化后线上静默变 null，且 checkValue(null) 放行，空金额可过合并检查 → NaN 转 null 并提示，或补业务必填校验 |
-| 5 | packages/collaboration/src/server/http.ts:36-40 | decodeURIComponent 对非法百分号编码抛 URIError → 500 → 包 try 返回 400 |
-| 6 | supabase/migrations/202611160001_collaboration.sql:17-21 | admin_audit 无 created_at/actor_id 索引，按时间/操作人查询全表扫 → 加 (team_id, app_id, created_at) |
-| 7 | packages/collaboration/public/collaboration-sw.js:15 | event.source 为 MessagePort 时 .url undefined 抛未捕获异常；SW scope '/' 与三端应用自有 PWA SW 控制权竞争 → 先判 source 类型；scope 限制到 /collaboration |
-| 8 | packages/collaboration/tsconfig.server.json:6 | tsBuildInfoFile 指向 dist/server.tsbuildinfo，dist 清理后增量构建失效 → 挪出 dist |
-| 9 | packages/collaboration/src/server/repository.integration.spec.ts:157-179 | RLS 断言覆盖 UPDATE/DELETE/SELECT，未显式断言 INSERT 拒绝（US-203 AC#5 直接点名 insert）→ 补一条 |
-| 10 | packages/collaboration/src/client/mount.ts:181-184 | restoreFocus 同一 includes(target.type) 条件写两遍 → 合并 |
-| 11 | Angular workbench-shell.spec.ts:151-155 / React workbench-shell.spec.ts:161-166 | 模块级 navigator 被测试永久替换无还原，跨文件测试污染 → finally 里还原绑定 |
-| 12 | Angular dashboard-model.ts:64-114 | normalizeDashboardChanges/normalizeDashboardActivities 生产零调用（只在 spec 当 SQL oracle），死代码与漂移风险 → 移入 spec 目录或标注 @internal 测试契约 |
-| 13 | Angular entity-shell.ts:24 | 只匹配 /entities 无尾斜杠，深链 /entities/ 渲染空壳页 → URL 归一化比较 |
-| 14 | Angular backup-ops.ts:62-69 | 注释称「未知错误兜底为原文」，实际非 Error 值被丢弃（spec 断言了此行为），注释与行为不一致 |
-| 15 | Angular workbench-menu.ts:77 | collaboration 菜单项是唯一无 icon 的项，视觉不对称 |
-| 16 | Angular main.ts:27 | bootstrap 失败仅 console.error，页面空白无用户可见提示 |
-| 17 | packages/collaboration/src/client/controller.ts:57/446 | Supabase access_token 落 localStorage（XSS 面大于 memory/sessionStorage）。Supabase-js 默认行为，模板应在文档提示消费方知晓风险面 |
-| 18 | Vue workbench-shell.ts:52 | 注释「路由器在 main.tsx 里才创建」是 React 文件名残留 → 改文件名 |
+| 离线冷启动后 `autoRefreshToken` 永久关闭，锁定时丢失 dirty buffer | ✅ 已修复 | 恒开 token refresh、online/offline reconnect，并在锁定前 checkpoint。 |
+| Dashboard 活动查询失败后 RxDBChange 流永久结束 | ✅ 已修复 | 三端改为保留事件监听，失败后可由后续变更触发恢复。 |
+| 搜索 page size 直接裸断言 | ✅ 已修复 | 三端统一归一化非法值、范围、小数和字符串。 |
+| `accept_invite` pending 重试先读未加入 workspace 导致死锁 | ✅ 已修复 | 直接重发原 operation，成功后再选择 workspace。 |
+| 协作 uncertain response 英文界面显示中文 | ✅ 已修复 | 补齐 `packages/collaboration/src/messages.ts` 词条并增加测试。 |
+| 宽屏拖拽后 actions 列宽度异常 | ✅ 已修复 | 修正表格列宽计算并覆盖三端验证。 |
+| 匿名日期导入对运行时 `Date` 和非法日期处理不一致 | ✅ 已修复 | 统一日期归一化和非法输入拒绝。 |
 
-## 3. 三端对称性对比
+### 3.2 仍保留为 backlog 的 P2
 
-三端功能面逐项对齐（路由六页 /、/dashboard、/entities、/search、/collaboration、/backup；外壳 12 主题/4 布局/页签/命令面板/锁屏/计数徽标；搜索分页偏好扩展；旧键迁移；i18n 桥与匿名导入源），协作 UI 由共享包承载、e2e 三 project 跑同一套 spec。核对结果：
+1. **三端领域逻辑重复**：`dashboard-model`、`dashboard-activity-query`、`dashboard-activity-source`、`record-search`、`workbench-menu`、`backup-controller` 等仍有三份框架绑定代码。后续可以在真实复用边界稳定后下沉到产品私有 domain 包，三端保留薄壳。
+2. **测试深度不对称**：React 有较多页面级单测，Angular/Vue 仍主要依赖纯逻辑测试和共享 E2E；React 的 Dashboard、Collaboration 页面也需要补充组件级接线测试。
+3. **协作 i18n 逐键门禁缺失**：当前缺失词条已补齐，但还没有强制每个 `tx()` key 都存在于英文目录的编译期或单测门禁。
+4. **Playwright 失败产物仍被跟踪**：`apps/react-e2e/dot/` 下的 `.last-run.json`、trace 和 error context 仍会污染仓库，应加入忽略规则并从索引移除。
+5. **React 搜索 abort 竞态**：连接等待期间注册 abort 监听过晚，需让等待连接和 abort 信号同时结束，并确保资源销毁路径只执行一次。
+6. **E2E 对 VTable 私有内部的依赖**：三端共享工具仍读取 `__vtable__`、scenegraph 和内部 records；`getHeaderField()` 已补齐 fake，但稳定测试出口仍需继续收敛。
+7. **工作区状态无界增长**：receipts、audit 和 notifications 尚未按 TTL、归档或分页修剪；快照和整行更新的成本会随长期运行线性增加。
+8. **请求体读取无超时**：HTTP 流式读取尚未设置请求级 timeout 和连接上限，仍需补充慢速客户端防护。
+9. **邀请 token 使用 query 参数**：邀请 token 仍可能出现在浏览器历史、代理日志和 Referer，后续应改为 fragment 或分离 token 交付。
+10. **匿名本地身份缺少模板文档护栏**：三端的 `userId: 'userId'` 属于当前匿名本地上下文设计，但应提取命名常量并在 README 的定制表中明确其边界。
 
-- **对称 ✅**：菜单/路由/主题清单/偏好扩展/存储前缀/协作接线（translate/subscribeLanguage/importAnonymous 三参数逐字一致）。Vue 将 dashboard 拆 page+content、search 拆 page+results、backup 抽 controller——功能等价、分层更优。
-- **不对称 ⚠️**：
-  1. 测试深度：React 有页面组件级单测，Angular/Vue 缺（问题 5）。
-  2. 生命周期：Angular 的 afterNextRender 竞态是 Angular 独有（问题 13），React/Vue 无。
-  3. 搜索页门控方式：React 用路由 loader 预连接+errorElement，Angular/Vue 用组件内 connect+loading 门控——对外行为与 testid 契约一致，可接受但实现路径已分叉，抽共享包时需收敛。
-  4. e2e 共享套件宿主在 react-e2e（angular/vue-e2e 以 `testDir: '../react-e2e/src'` 复用）——设计使然且依赖与 inputs 接线正确，但套件演化事实上有 React 端单点所有权，跨端测试工具（e2e-utils 的 VTable 私有依赖）改动需三端同时回归。
+### 3.3 仍保留为 backlog 的 P3 和低风险护栏
 
-## 4. 需求实现核对（US-201 ~ US-216）
+| 位置 | 问题与后续动作 |
+| --- | --- |
+| `packages/collaboration/src/client/pr-view.ts` | 自定义冲突值 `JSON.parse` 的同步异常没有进入统一 failure 路径；移入 perform 或先校验。 |
+| `packages/collaboration/src/server/engine.ts` | invite 审计详情可能暴露受邀邮箱；对审计字段脱敏。 |
+| `packages/collaboration/src/records.ts` | 关系字段用 `String(null)` 等边界值生成关系键时可能产生错误关联；补充显式归一化。名称唯一性检查也应跳过缺失 name 的行。 |
+| `packages/collaboration/src/client/editor.ts` | 数字输入可能得到 `NaN`，序列化后变成 `null`；补充输入提示或业务必填校验。 |
+| `packages/collaboration/src/server/http.ts` | `decodeURIComponent()` 遇到非法编码应返回 400；请求体读取也应补 timeout。 |
+| `supabase/migrations/202611160001_collaboration.sql` | `admin_audit(team_id, app_id, created_at)` 等查询索引尚未补齐。 |
+| `packages/collaboration/src/server/repository.integration.spec.ts` | RLS 测试覆盖 SELECT/UPDATE/DELETE，仍需显式断言 INSERT 被拒绝。 |
+| `packages/collaboration/public/collaboration-sw.js` | `event.source` 可能是没有 `url` 的 `MessagePort`；需做类型保护，并限制 Service Worker scope，避免与三端 PWA 冲突。 |
+| `packages/collaboration/tsconfig.server.json` | `tsBuildInfoFile` 位于 `dist` 时清理产物会丢失增量构建信息，需移到稳定缓存目录。 |
+| `packages/collaboration/src/client/mount.ts` | `restoreFocus` 存在重复条件判断，属于低风险代码清理。 |
+| Angular `afterNextRender` | `/collaboration` 首次渲染回调与组件销毁之间存在竞态；需在回调内确认宿主仍有效，或改用更明确的生命周期钩子。 |
+| Angular Dashboard | `db.connect()` 的同步异常不能由 `Promise.resolve(connect())` 捕获，应改为直接链式处理。 |
+| Angular/Vue 实体查找 | `findWorkbenchEntity(...) as EntityType` 的断言未判空；注册表与 config 脱节时应显式失败。 |
+| Angular backup | `getAdapter(...) as RestoreAdapter` 和恢复前连接检查仍依赖能力断言及 TOCTOU 防护，需把检查收敛到引擎执行点。 |
+| Vue HMR | 模块级 RxDB 单例在 HMR dispose 时仍需显式销毁，避免开发环境同名实例冲突。 |
+| Vue ESLint | `vue/attributes-order` 仍关闭，后续可按 rxdb-model-vue 的规则恢复。 |
+| 三端 bootstrap | Angular bootstrap 失败和类似初始化异常仍缺少用户可见提示。 |
+| 公开 API | `packages/collaboration` 的 model、controller、api 公开导出仍需补齐 TSDoc。 |
 
-16 条协作故事逐条核对 AC 与实现/测试证据，**未发现虚标**：
+## 4. 三端对称性
 
-- ✅ 完整：US-202（11 AC）、US-203（仅缺 INSERT 拒绝显式断言）、US-204、US-205（9 AC）、US-206（11 AC）、US-207、US-208、US-209（12 AC）、US-210（8 AC）、US-211（9 AC）、US-212（11 AC）、US-213、US-214、US-215、US-216——实现文件与故事声明一致，分层测试证据齐全。
-- 🟡 部分：**US-201** 两处真实缺口——(1) AC#2/#3 缺生产 SMTP 投递与验证码自然过期的外部环境证据（故事内已诚实标 ⚠️，非实现缺失）；(2) 离线冷启动后 autoRefreshToken 永久失效（问题 P1），使 AC#4/#5 已标 ✅ 的离线链路在「离线打开后再联网」场景不完整。
+三端路由、菜单、主题清单、偏好扩展、存储前缀、协作接线和匿名导入入口保持一致；Dashboard 活动流、搜索 page size、表格列宽和匿名日期导入的本轮修复均已覆盖 Angular、React、Vue。
 
-安全性独立复核（agent + 主会话）：RLS 逐表核对 5 张 public 表全部 SELECT-only + REVOKE ALL，admin_private 无任何授权，can_read SECURITY DEFINER + search_path=''；前端无 innerHTML/any，用户内容全 textContent 渲染；合并原子性（FOR UPDATE 行锁+单事务+注入失败全回滚）与幂等回执（operationId+canonical 指纹+actor 绑定）成立；服务端全部命令二次授权，anon-key 每请求重验身份。**未发现可绕过服务端规则写入数据的路径。**
+仍存在以下实现层差异，但目前没有发现对外行为差异：
 
-## 5. 优化建议汇总（按主题）
+- React 通过路由 loader 预连接并使用 `errorElement`；Angular、Vue 由组件内完成 connect 和 loading 门控。
+- Vue 对 Dashboard、Search、Backup 的文件分层与 React、Angular 不同，但功能契约一致。
+- Angular/Vue 的页面级单测深度仍低于 React，需要后续补齐。
+- Angular/Vue E2E 复用 React E2E 的共享 spec；这是当前测试组织设计，但共享工具修改必须继续做三端回归。
 
-1. **补洞优先**：P1（autoRefreshToken + lock 前落盘编辑缓冲）→ api.ts:45 i18n 词条 → accept_invite pending 死锁 → 服务端无界状态修剪（TTL/分页）。
-2. **收敛三端重复**：把 dashboard-model/activity-query/activity-source、record-search、workbench-menu、backup-controller 下沉共享包（三端已出现第三份复制，符合抽包条件），顺带收敛搜索页门控方式分叉。
-3. **补门禁**：协作词条逐键校验（仿 satisfies 门禁）；TSDoc 门禁（model.ts 等公开面）；RLS INSERT 拒绝断言；Playwright dot/ 产物出库。
-4. **测试对称**：Angular/Vue 补页面级单测；React 补 dashboard-page/collaboration-page 组件单测与 /collaboration 路由冒烟。
-5. **模板消费方体验**：匿名 userId 常量化+README 登记；access_token 存储方式文档化；bootstrap 失败的用户可见提示。
-6. **数据层护栏**：records.ts 无 name 唯一性假冲突、editor NaN 静默变 null 的必填校验、admin_audit 索引。
+## 5. 需求和安全核对
 
-## 6. 已核实非问题的误报澄清（避免后续误修）
+US-201 至 US-216 的实现与故事声明总体一致。本轮修复后，US-201 的离线冷启动后重新联网场景已经补齐；仍缺少生产 SMTP 投递和验证码自然过期的外部环境证据，这属于验收证据缺口，不是当前实现缺失。
 
-- **协作 UI「约 30 处硬编码中文未走 i18n」**（一份报告报 P1）：不成立——`element()` 工厂内部统一走 `tx()`，主会话逐键核对 320 个中文字面量仅 1 个缺目录键，实为 P2 门禁缺失（问题 2）。
-- **协作 UI「i18n 零缺失」**（另一份报告称无问题）：不完全成立——api.ts:45 一词条缺失，且无编译期保障。
-- **三端写死 `userId` 匿名身份**：US-201 AC#9 语义下的设计行为，协作库按用户物理隔离，当前无泄漏；风险在模板消费方（问题 3）。
-- **material 主题清单**：DaisyUI 列表不含但 `packages/rxdb-admin/admin.css` 在 @layer base 手工定义完整 CSS 变量，非 bug。
-- **angular/vue-e2e 无自有 spec**：设计使然（testDir 指向共享套件），非缺口。
-- **VTable 私有字段直读**：三端同款且带注释，是已知技术债而非新问题（问题 9 已列改进建议）。
+US-203 的 RLS 逻辑仍符合 SELECT-only 设计，但集成测试需要补充一条显式 INSERT 拒绝断言。工作区状态修剪、快照分页、SMTP 外部证据和运维故事中的状态管理仍属于后续 backlog。
+
+安全复核结论保持不变：5 张 public 协作表为受限 SELECT 投影，`admin_private` 不对客户端开放；服务端命令会重新执行身份和权限校验；行锁、单事务和 operationId 幂等约束成立；前端用户内容按文本渲染，未发现可利用的 HTML 注入路径。
+
+## 6. 已核实的非问题
+
+- 协作 UI 中大量中文出现在 `element()` 工厂调用处并不等于绕过 i18n；工厂内部统一经过 `tx()`。真正的问题是英文目录逐键门禁缺失，缺失词条本身已补齐。
+- 三端的 `userId: 'userId'` 当前是匿名本地上下文隔离设计，不是已确认的数据泄漏；风险是模板消费方接入真实身份时容易漏改，因此列为文档和命名护栏 backlog。
+- material 主题不在 DaisyUI 清单中，但 `packages/rxdb-admin/admin.css` 已在 `@layer base` 定义所需 CSS 变量，不属于主题缺失。
+- Angular/Vue E2E 没有独立复制 spec 是共享套件设计，不属于测试未执行；测试深度不对称指页面级单测覆盖不足。
+- VTable 私有字段直读是可维护性技术债，不是本轮表格行为错误；本轮只补了稳定的 `getHeaderField()` fake 能力并验证宽度行为。
+
+## 7. 验证结果
+
+已通过的定向检查：
+
+| 检查 | 结果 |
+| --- | --- |
+| `admin-collaboration:test` | 82/82 通过 |
+| `admin-collaboration:test-integration` | 8/8 通过 |
+| `admin-collaboration:lint`、`typecheck`、`build-server` | 通过 |
+| `rxdb-model:test` | 1229/1229 通过 |
+| `rxdb-model:lint`、`typecheck` | 通过 |
+| `rxdb-plugin-board:coverage` | 167/167；Statements 96.34%，Branches 90.68% |
+| Angular 应用测试 | 75/75 通过 |
+| React 应用测试 | 78/78 通过 |
+| Vue 应用测试 | 75/75 通过 |
+| 三端应用 lint、typecheck | 全部通过 |
+| 匿名日期导入 E2E | Angular、React、Vue 均通过 |
+| actions 列宽 E2E | Angular、React、Vue 均通过 |
+
+全量门禁：
+
+```text
+pnpm test-all --base=origin/main
+```
+
+首次并行执行识别到 107 个受影响项目，唯一失败任务为 `rxdb-plugin-tree:test-browser`；Nx 同时将 `rxdb-adapter-encrypted:test` 和 `rxdb-plugin-board:coverage` 标记为 flaky。随后串行复跑：
+
+```text
+pnpm nx run rxdb-plugin-tree:test-browser --output-style=static --parallel=1
+```
+
+结果为 295/295 通过，Browser coverage 为 Statements 95.34%、Branches 93.13%。该任务仍被 Nx 记录为 flaky，当前判断是并发或资源抖动；不能把首次并行 full gate 记为全绿，也没有证据支持为此修改业务代码。
+
+报告编辑后的 `git diff --check` 和 `git diff --cached --check` 均应保持通过；本次没有自动创建新的 commit。
 
 ---
 
-*评审为只读执行；未运行构建/测试，报告未验证各修复建议的编译影响。原 agent 完整报告存档于 `tmp/review-{react,angular,vue}-agent.md` 与争议核实记录 `tmp/review-adjudication.md`。*
+*本报告已合并初始评审、修复结论、验证结果和剩余 backlog。原 agent 完整报告如仍存在，位于 `tmp/review-{react,angular,vue}-agent.md`，争议核实记录位于 `tmp/review-adjudication.md`。*

@@ -133,6 +133,7 @@ export const collaborationEnglish: Record<string, string> = {
   字段不受支持: 'Unsupported field',
   字段值格式错误: 'Invalid field value format',
   数字必须有限: 'Numbers must be finite',
+  '{v0} 日期格式错误': 'Invalid date format in {v0}',
   字段内容过长: 'The field value is too long',
   必填文本不能为空: 'Required text cannot be empty',
   名称必须唯一: 'The name must be unique',
@@ -364,6 +365,9 @@ export const collaborationEnglish: Record<string, string> = {
   '已另存为新任务，原任务与 PR 保持原远端版本':
     'Saved as a new task. The original task and PR retain their remote version.',
   '会话已过期，请联网登录': 'Session expired. Connect to sign in.',
+  '会话已过期，请重新登录': 'Session expired. Sign in again.',
+  '上次请求记录损坏，已清理': 'The saved request record was corrupted and has been cleared.',
+  '会话即将锁定，未保存输入无法落盘': 'The session is about to lock, and unsaved inputs could not be saved.',
   '团队草稿已锁定，请重新验证身份与权限': 'Team drafts are locked. Verify your identity and permissions again.',
   '先确认或重试上次请求，再执行新的云端变更':
     'Confirm or retry the previous request before making another server change.',

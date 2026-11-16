@@ -95,14 +95,22 @@ function receipt(state: Workspace, user: Identity, command: Command, previous: W
   if (command.type === 'upload' || command.type === 'fork') editTask(state, user, taskFor(state, command.taskId));
   return structuredClone(previous.value);
 }
+/**
+ * 审计详情会随快照发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：
+ * 邀请令牌摘要（tokenHash）、受邀邮箱（email，只有管理者能经快照的 invitations 查看）、完整提交内容（commits）。
+ * 各命令的 result 本身不含邮箱，原样保留（合并结果的 changes 还要供 admin_changes 投影）。
+ */
+const auditExcluded = ['tokenHash', 'email', 'commits'];
 function auditDetails(command: Command, result: Record<string, unknown>): Record<string, unknown> {
   const details: Record<string, unknown> = { ...command, result };
-  delete details['tokenHash'];
-  delete details['commits'];
+  for (const key of auditExcluded) delete details[key];
   return details;
 }
 
-/** 只返回该用户可见的内容；邀请摘要、请求指纹和他人通知永不离开服务端。 */
+/**
+ * 只返回该用户可见的内容；邀请摘要、请求指纹和他人通知永不离开服务端，
+ * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
+ */
 export function snapshot(state: Workspace, user: Identity, now: number, presence = state.presence) {
   const member = authorize(state, user, 'read');
   return structuredClone({

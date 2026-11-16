@@ -10,11 +10,33 @@ interface ServerOptions {
   origins: string[];
   publicConfig: { supabaseUrl: string; supabaseKey: string };
 }
-/** 浏览器只能提交命令；用户身份来自每个请求重新验证的 Supabase 会话。 */
+/**
+ * 慢速客户端防护：Node 默认允许 60 秒收完请求头、300 秒收完整个请求，且每 30 秒才检查一次，
+ * 少量慢速连接就能长期占住服务。这里收紧为 10 秒 / 60 秒，并把检查间隔降到 5 秒（超时偏差不超过 5 秒）；
+ * 超时的连接会收到 408 并被关闭。60 秒对应 2 MiB 请求上限下约 35 KB/s 的最低上行速率，弱网同步仍可完成。
+ * headersTimeout 不得大于 requestTimeout，否则 Node 创建服务器时抛错。
+ */
+const requestLimits = { headersTimeout: 10_000, requestTimeout: 60_000, connectionsCheckingInterval: 5_000 };
+/**
+ * 浏览器只能提交命令；用户身份来自每个请求重新验证的 Supabase 会话。
+ * 返回的服务器已收紧请求头与整个请求的接收时限（10 秒 / 60 秒），调用方直接 listen 即可。
+ */
 export function collaborationServer(options: ServerOptions) {
-  return createServer((request, response) => {
+  return createServer(requestLimits, (request, response) => {
     void dispatch(request, response, options);
   });
+}
+/** 把请求目标拆成已解码的路径段；残缺的百分号编码、无法构成 URL 的目标（如 `//`）是客户端错误，不是服务端故障。 */
+function pathSegments(target: string | undefined): string[] {
+  try {
+    return new URL(target ?? '/', 'http://localhost').pathname
+      .replace(/^\/collaboration-api/, '')
+      .split('/')
+      .filter(Boolean)
+      .map(decodeURIComponent);
+  } catch {
+    throw new CollaborationError('invalid', '请求格式错误');
+  }
 }
 async function dispatch(request: IncomingMessage, response: ServerResponse, options: ServerOptions): Promise<void> {
   response.setHeader('Cache-Control', 'no-store');
@@ -33,11 +55,7 @@ async function dispatch(request: IncomingMessage, response: ServerResponse, opti
       response.writeHead(204).end();
       return;
     }
-    const path = new URL(request.url ?? '/', 'http://localhost').pathname
-      .replace(/^\/collaboration-api/, '')
-      .split('/')
-      .filter(Boolean)
-      .map(decodeURIComponent);
+    const path = pathSegments(request.url);
     if (request.method === 'GET' && path.join('/') === 'config') {
       response.end(JSON.stringify(options.publicConfig));
       return;

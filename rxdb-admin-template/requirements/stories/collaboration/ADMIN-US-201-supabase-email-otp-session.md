@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 tags: [admin, auth, supabase, session, collaboration]
 dependsOn: []
 capabilities: []
@@ -48,7 +48,7 @@ capabilities: []
 | 8   | 原用户恢复在线且有待同步请求           | 刷新或重新认证并恢复任务             | 先验证身份和当前权限，再按原幂等键查询在途结果和重试；权限不足则继续锁定，草稿不删除      | ✅   |
 | 9   | 应用仍有旧匿名或固定 userId 配置       | 登录并执行团队操作                   | 不继承匿名身份或自动上传旧库；三端按 C01 同一会话矩阵处理，云端主体与真实会话一致         | ✅   |
 
-验收证据：controller/local 单元覆盖冷热离线、退出、跨账号队列、迟到请求及恢复；三端浏览器覆盖真实 verifyOtp、重复验证码、冷启动、退出和服务端撤权后的锁定。#2 尚未验证生产 SMTP 投递；#3 尚缺验证码自然到期的真实邮箱环境场景，错误验证码与重复使用已有证据。 详见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。✅ 表示已有本地验收证据；⚠️ 表示仍缺外部环境证据，均不等同于故事已合入或已部署。
+验收证据：controller/local 单元覆盖冷热离线、退出、跨账号队列、迟到请求及恢复；三端浏览器覆盖真实 verifyOtp、重复验证码、冷启动、退出和服务端撤权后的锁定。#4 / #5 的「离线打开后再联网」路径（2026-11-17 评审修复）：Supabase 客户端始终开启 token 自动刷新，`online` 事件触发 `reconnect()` 主动刷新会话并重新读取团队状态；会话失败锁定前先把编辑器未保存输入存为本机草稿，由 `controller.spec.ts` 的离线冷启动刷新与锁定前 checkpoint 用例覆盖。#2 尚未验证生产 SMTP 投递；#3 尚缺验证码自然到期的真实邮箱环境场景，错误验证码与重复使用已有证据，两项外部证据由 [ADMIN-US-217](ADMIN-US-217-production-deployment-operations.md) 的部署环境补齐。 详见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。✅ 表示已有本地验收证据；⚠️ 表示仍缺外部环境证据，均不等同于故事已合入或已部署。
 
 ## 技术笔记
 

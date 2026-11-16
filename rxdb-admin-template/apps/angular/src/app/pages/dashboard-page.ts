@@ -4,6 +4,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Asset, AssetCategory, AssetEvent } from '../entities/asset-entities';
 import {
+  DASHBOARD_ACTIVITY_LIMIT,
   DASHBOARD_METRICS,
   dashboardActivityEntityKey,
   dashboardActivityMessageKey,
@@ -65,7 +66,7 @@ function errorMessage(cause: unknown): string {
     <section class="flex flex-col gap-3" data-testid="dashboard-recent-activity" aria-labelledby="dashboard-recent-activity-title">
       <div class="flex items-center justify-between gap-3">
         <h2 id="dashboard-recent-activity-title" class="text-base font-semibold">{{ t('dashboard.activity.title') }}</h2>
-        <span class="text-xs opacity-60">{{ activities().length }}/5</span>
+        <span class="text-xs opacity-60">{{ activities().length }}/{{ activityLimit }}</span>
       </div>
       @if (activityLoading()) {
         <p class="text-sm opacity-70" data-testid="dashboard-recent-activity-loading" aria-live="polite">
@@ -129,6 +130,7 @@ class DashboardContent {
   private readonly eventCount = useCount(AssetEvent, COUNT_OPTIONS);
   readonly t = this.i18n.t;
   readonly metrics = DASHBOARD_METRICS;
+  readonly activityLimit = DASHBOARD_ACTIVITY_LIMIT;
   readonly activities = signal<readonly DashboardActivity[]>([]);
   readonly activityLoading = signal(true);
   readonly activityError = signal('');

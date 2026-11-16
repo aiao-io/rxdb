@@ -3,6 +3,8 @@ import type { Records } from './model.js';
 import { assertRecords, checkRecords, mergeRecords } from './records.js';
 import { parseCommand } from './server/input.js';
 const base: Records = { c: { entity: 'AssetCategory', fields: { name: 'Category', description: 'Old' } } };
+const describeChecks = (records: Records) =>
+  checkRecords(records).map(check => `${check.recordId}.${check.field}: ${check.message}`);
 describe('three-way data contract', () => {
   it('exposes deletion of a parent against a concurrent child edit and checks the chosen final references', () => {
     const original: Records = {
@@ -59,6 +61,57 @@ describe('three-way data contract', () => {
     expect(checks.some(c => c.field === 'purchasePrice')).toBe(true);
     expect(checks.some(c => c.field === 'happenedAt')).toBe(true);
     expect(() => assertRecords(JSON.parse('{"__proto__":{"entity":"AssetCategory","fields":{}}}'))).toThrow();
+  });
+  it('reports a missing, null or blank name only as missing, never as a duplicate of other unnamed rows', () => {
+    const issues = describeChecks({
+      c: base.c,
+      absent1: { entity: 'Asset', fields: { categoryId: 'c' } },
+      absent2: { entity: 'Asset', fields: { categoryId: 'c' } },
+      nulled1: { entity: 'Asset', fields: { name: null, categoryId: 'c' } },
+      nulled2: { entity: 'Asset', fields: { name: null, categoryId: 'c' } },
+      blank1: { entity: 'Asset', fields: { name: '  ', categoryId: 'c' } },
+      blank2: { entity: 'Asset', fields: { name: '  ', categoryId: 'c' } },
+      bareCategory1: { entity: 'AssetCategory', fields: {} },
+      bareCategory2: { entity: 'AssetCategory', fields: {} }
+    });
+    expect(issues).toEqual([
+      'absent1.name: 必填文本不能为空',
+      'absent2.name: 必填文本不能为空',
+      'nulled1.name: 必填文本不能为空',
+      'nulled2.name: 必填文本不能为空',
+      'blank1.name: 必填文本不能为空',
+      'blank2.name: 必填文本不能为空',
+      'bareCategory1.name: 必填文本不能为空',
+      'bareCategory2.name: 必填文本不能为空'
+    ]);
+  });
+  it('still reports a real duplicate name once, and unnamed rows never poison later named ones', () => {
+    const issues = describeChecks({
+      c: base.c,
+      absent: { entity: 'Asset', fields: { categoryId: 'c' } },
+      first: { entity: 'Asset', fields: { name: 'Laptop', categoryId: 'c' } },
+      second: { entity: 'Asset', fields: { name: 'Laptop', categoryId: 'c' } },
+      third: { entity: 'Asset', fields: { name: 'Monitor', categoryId: 'c' } }
+    });
+    expect(issues).toEqual(['absent.name: 必填文本不能为空', 'second.name: 名称必须唯一']);
+  });
+  it('treats a missing, null or non-string reference as dangling without looking up its string form', () => {
+    const issues = describeChecks({
+      7: { entity: 'AssetCategory', fields: { name: 'Category whose id looks numeric' } },
+      null: { entity: 'AssetCategory', fields: { name: 'Category whose id is the word null' } },
+      undefined: { entity: 'AssetCategory', fields: { name: 'Category whose id is the word undefined' } },
+      nulled: { entity: 'Asset', fields: { name: 'Nulled', categoryId: null } },
+      absent: { entity: 'Asset', fields: { name: 'Absent' } },
+      numeric: { entity: 'Asset', fields: { name: 'Numeric', categoryId: 7 } },
+      event: { entity: 'AssetEvent', fields: { summary: 'Event', happenedAt: '2026-01-01', assetId: null } }
+    });
+    expect(issues).toEqual([
+      'nulled.categoryId: 关联记录不存在',
+      'absent.categoryId: 关联记录不存在',
+      'numeric.categoryId: 关联记录不存在',
+      'numeric.categoryId: 必须为文本',
+      'event.assetId: 关联记录不存在'
+    ]);
   });
   it('strictly rejects untrusted command shapes, forged subjects and prototype keys', () => {
     expect(() =>

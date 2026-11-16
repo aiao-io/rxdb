@@ -3,6 +3,8 @@ import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, inject } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { visibleEntityEntries } from '../entities/entity-registry';
+import { isEntitiesRoot } from './entities-root';
+
 @Component({
   selector: 'app-entity-shell',
   host: { style: 'display: contents' },
@@ -21,7 +23,7 @@ export default class EntityShell {
   constructor() {
     const router = inject(Router);
     const first = this.entries[0];
-    if (first && router.url.split(/[?#]/, 1)[0] === '/entities')
+    if (first && isEntitiesRoot(router.url))
       void router.navigateByUrl(`/entities/${first.namespace}/${first.name}`, { replaceUrl: true });
   }
 }

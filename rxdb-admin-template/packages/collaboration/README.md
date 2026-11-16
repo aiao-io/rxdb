@@ -43,6 +43,8 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 候选包含 B/S/T、冲突选择、最终记录、规则版本和检查。审批只绑定检查通过的当前候选；撤销审核权后再授权不会复活旧批准。未解除的要求修改与必须处理线程不会被新候选或免审批策略清除。多阶段审批支持人数、阶段审核人和前置阶段。候选尚未生成时，审核者也可对当前来源提交提出要求修改；批准始终要求当前候选及其完整检查通过。
 
+浏览器会话沿用 supabase-js 的默认持久化，写入 `localStorage` 的 `admin-collaboration-auth:<Supabase 地址>` 键，离线冷启动恢复依赖这份缓存。同源页面上的任何脚本注入都能读到其中的 access token 与 refresh token：协作 UI 只用文本节点渲染用户内容，模板使用方新增页面或引入第三方脚本时须保持同等约束并配置 CSP；若改用内存或 `sessionStorage` 存储会话，需要重新验证冷启动离线恢复（ADMIN-US-201 AC#5）。
+
 协作页面的 Service Worker 只缓存静态页面和脚本等资源，不缓存认证或产品 API。冷启动离线仍须有未过期的验证记录，且只能打开原用户已缓存且未锁定的任务。主动退出立即锁定本机上下文；远端撤权在在线重新验证时生效。Presence 每 15 秒更新，45 秒过期，不授予操作权限。`admin_workspace_versions` 表通过 Supabase Realtime 发送版本失效通知，接收后重新调用受服务端授权的 API；切换团队、离线任务或退出时撤销旧频道。正式部署须让协作 API 的 `ADMIN_DATABASE_URL` 指向该 Supabase 项目的 PostgreSQL，并启用迁移中的 publication。
 
 ## 验证
@@ -56,6 +58,8 @@ NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 
 数据库集成测试使用临时 Docker PostgreSQL，验证 RLS、并发头比较与事务失败回滚。三端浏览器测试使用工作区隔离的 Supabase Auth 和临时 PostgreSQL；测试脚本把工作区版本与成员读取权限投影同步至隔离 Supabase CI 数据库，以验证真实 Realtime 通知，业务记录仍留在临时 PostgreSQL。正式部署使用同一 Supabase 数据库，不需要这段测试桥接。验证码由 Auth 的管理测试接口生成，再由真实 `verifyOtp` 验证，因此不代表生产 SMTP 投递已验收。测试运行后移除临时数据库；共享 Supabase 测试栈可用 `rxdb-adapter-supabase:test-env-down` 关闭。
 
-首版协议使用完整记录快照，每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。规模扩大前需另行实现分页快照与历史存储分区，不能通过跳过校验或截断提交解决。
+首版协议使用完整记录快照，每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。协作 API 收完请求头最多等 10 秒、收完整个请求最多等 60 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责。规模扩大前需另行实现分页快照与历史存储分区，不能通过跳过校验或截断提交解决。
+
+工作区状态以每个团队/应用一行 JSONB 保存：每个命令复制完整状态并整行更新；幂等回执、审计与通知目前不修剪，快照返回当前用户的全部通知与完整审计，长期运行后单次操作的成本会随之增长。回执保留期、审计归档与快照分页由 [ADMIN-US-217](../../requirements/stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接，上线长期运行前必须完成。
 
 产品故事与未完成验收以 `../../requirements/plans/collaboration-implementation.md` 为准；本包存在并不意味着所有 AC 已通过或功能已合入。

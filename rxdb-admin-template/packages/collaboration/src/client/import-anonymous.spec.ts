@@ -1,7 +1,8 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
 import { of } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readAnonymousAssets } from './import-anonymous.js';
+import { useTranslation } from './translate.js';
 vi.mock('@aiao/rxdb', () => ({ getEntityMetadata: (entity: { name: string }) => ({ name: entity.name }) }));
 class AssetCategory {}
 class Asset {}
@@ -10,6 +11,9 @@ function database(rows: Map<unknown, Record<string, unknown>[]>) {
   const getRepository = vi.fn(entity => ({ findAll: () => of(rows.get(entity) ?? []) }));
   return { database: { entityManager: { getRepository } } as unknown as RxDB, getRepository };
 }
+afterEach(() => {
+  useTranslation(undefined);
+});
 describe('explicit anonymous import boundary', () => {
   it('copies only known fields and original identifiers without touching source rows or unrelated entities', async () => {
     const original = { id: 'category', name: 'Local', localOnly: 'keep' };
@@ -37,5 +41,14 @@ describe('explicit anonymous import boundary', () => {
     await expect(readAnonymousAssets(source, [Asset] as EntityType[])).resolves.toEqual({
       asset: { entity: 'Asset', fields: { name: 'Asset', purchaseDate: '2026-11-16' } }
     });
+  });
+  it('reports an invalid runtime Date by field through the translation catalog', async () => {
+    const { database: source } = database(
+      new Map([[Asset, [{ id: 'asset', name: 'Asset', purchaseDate: new Date('not a date') }]]])
+    );
+    const read = () => readAnonymousAssets(source, [Asset] as EntityType[]);
+    await expect(read()).rejects.toMatchObject({ code: 'invalid', message: 'purchaseDate 日期格式错误' });
+    useTranslation((key, values) => `${key}|${values['v0']}`);
+    await expect(read()).rejects.toMatchObject({ message: 'collaboration.{v0} 日期格式错误|purchaseDate' });
   });
 });
