@@ -1,18 +1,4 @@
 {
-  "format": "aiao-desktop.verify-saltline",
-  "version": 1,
-  "measuredAt": "2026-11-14T00:30:52.381Z",
-  "revision": "bf820c36+workspace",
-  "environment": {
-    "channel": "chrome",
-    "headless": false,
-    "browser": "157.0.8103.52",
-    "node": "v26.12.0",
-    "os": "darwin",
-    "release": "27.2.0",
-    "arch": "arm64",
-    "cpu": "Apple M1 Max"
-  },
   "artifacts": {
     "index.html": "f8730eddd283701363ceeba41d69c98a020e1dad9f6764cc91368831dfc718ee",
     "saltline.html": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966"
@@ -31,10 +17,19 @@
     "minimizedLoopStillRuns": true,
     "noPageErrors": true
   },
-  "timings": {
-    "bootToTitleMs": 3151,
-    "calculatorOpensMs": 127
+  "environment": {
+    "channel": "chrome",
+    "headless": false,
+    "browser": "157.0.8103.52",
+    "node": "v26.12.0",
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max"
   },
+  "format": "aiao-desktop.verify-saltline",
+  "logs": [],
+  "measuredAt": "2026-11-14T00:30:52.381Z",
   "metrics": {
     "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)",
     "pointerLockAttempts": [
@@ -50,5 +45,10 @@
     "fps": 90.1,
     "minimizedFramesPerSecond": 120
   },
-  "logs": []
+  "revision": "bf820c36+workspace",
+  "timings": {
+    "bootToTitleMs": 3151,
+    "calculatorOpensMs": 127
+  },
+  "version": 1
 }

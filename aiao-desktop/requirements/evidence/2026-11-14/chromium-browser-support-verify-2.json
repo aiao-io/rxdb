@@ -1,32 +1,7 @@
 {
-  "format": "aiao-desktop.verify-checks",
-  "version": 1,
-  "extractedAt": "2026-11-14T06:50:54.722Z",
-  "source": {
-    "shaAtVerifyStart": "13d8a872b992a0b68070cac3e49c72c68fb47840",
-    "metadata": "verify-browser-support-2-metadata.json",
-    "workspaceChanges": "以metadata内真实sourceStatusAtStart为准，不声明工作区干净"
-  },
-  "environment": {
-    "os": "darwin",
-    "release": "27.2.0",
-    "arch": "arm64",
-    "node": "v26.12.0",
-    "pnpm": "12.16.1"
-  },
   "artifact": {
     "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
   },
-  "method": {
-    "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
-    "rawLog": "verify-browser-support-2.txt",
-    "rawChecksSha256": "05b5c64e49f9b92fda264c3bffbdf4b18760e740b0c629c33e854c5677e5865f",
-    "note": "从完整聚合日志原样提取checks；没有重建日志未输出的逐组outcomes。",
-    "groups": 24,
-    "engine": "chromium",
-    "parallel": 3
-  },
-  "seconds": 297.1,
   "checks": {
     "shell": {
       "stage": true,
@@ -586,5 +561,30 @@
       "eraseRestartsFresh": true
     }
   },
-  "passed": true
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "node": "v26.12.0",
+    "pnpm": "12.16.1"
+  },
+  "extractedAt": "2026-11-14T06:50:54.722Z",
+  "format": "aiao-desktop.verify-checks",
+  "method": {
+    "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+    "rawLog": "verify-browser-support-2.txt",
+    "rawChecksSha256": "05b5c64e49f9b92fda264c3bffbdf4b18760e740b0c629c33e854c5677e5865f",
+    "note": "从完整聚合日志原样提取checks；没有重建日志未输出的逐组outcomes。",
+    "groups": 24,
+    "engine": "chromium",
+    "parallel": 3
+  },
+  "passed": true,
+  "seconds": 297.1,
+  "source": {
+    "shaAtVerifyStart": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+    "metadata": "verify-browser-support-2-metadata.json",
+    "workspaceChanges": "以metadata内真实sourceStatusAtStart为准，不声明工作区干净"
+  },
+  "version": 1
 }

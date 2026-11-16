@@ -181,8 +181,8 @@ test('waitUntilReachable：超过时限仍连不上就报错，带上地址与�
   const fetchImpl = async () => {
     throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } });
   };
-  await assert.rejects(
-    waitUntilReachable({ baseUrl: BASE, fetchImpl, timeoutMs: 30, intervalMs: 10 }),
-    error => error.message.includes(BASE) && error.message.includes('ENOTFOUND')
-  );
+  await assert.rejects(waitUntilReachable({ baseUrl: BASE, fetchImpl, timeoutMs: 30, intervalMs: 10 }), error => {
+    assert.equal(error.message.split(' ')[0], BASE);
+    return error.message.includes('ENOTFOUND');
+  });
 });

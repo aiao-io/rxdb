@@ -1,21 +1,5 @@
 {
-  "format": "aiao-desktop.native-safari-entry",
-  "version": 1,
-  "recordedAt": "2026-11-14T15:19:34.878058+08:00",
-  "sourceHead": "13d8a872b992a0b68070cac3e49c72c68fb47840",
   "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
-  "method": {
-    "browser": "native Safari macOS application",
-    "browserVersionReference": "safari-native-clipboard.json",
-    "window": "new independent normal browser window",
-    "origin": "http://127.0.0.1:51384",
-    "navigation": "/?boot=0",
-    "driver": "CUA native accessibility actions and screenshot observation",
-    "pageJavaScriptEvaluation": false,
-    "clipboardProbe": false,
-    "acceptedPermissions": false,
-    "loggedIn": false
-  },
   "checks": {
     "desktopVisible": true,
     "aiaoCodeLoadingEntryVisible": true,
@@ -29,6 +13,37 @@
     "browserReloadRestoresTextEditWindow": true,
     "browserReloadKeepsSavedText": true
   },
+  "cleanup": {
+    "recordedAt": "2026-11-14T15:20:42.580525+08:00",
+    "inspectorClosed": true,
+    "acceptanceWindowClosed": true,
+    "originalSafariStartPageWindowRestored": true,
+    "acceptanceServerPid": 68905,
+    "acceptanceServerStopSignal": "SIGTERM",
+    "testOriginDataRetained": true,
+    "systemSettingsChanged": false
+  },
+  "format": "aiao-desktop.native-safari-entry",
+  "method": {
+    "browser": "native Safari macOS application",
+    "browserVersionReference": "safari-native-clipboard.json",
+    "window": "new independent normal browser window",
+    "origin": "http://127.0.0.1:51384",
+    "navigation": "/?boot=0",
+    "driver": "CUA native accessibility actions and screenshot observation",
+    "pageJavaScriptEvaluation": false,
+    "clipboardProbe": false,
+    "acceptedPermissions": false,
+    "loggedIn": false
+  },
+  "notProven": [
+    "terminal-created new file and virtual disk readback",
+    "terminal VM readiness",
+    "game input and rendering",
+    "all page errors",
+    "physical keyboard",
+    "VoiceOver"
+  ],
   "observations": [
     {
       "state": "loading",
@@ -80,23 +95,8 @@
       "networkPanel": "Pre-inspector entries have no response status/transfer measurements; not enough to diagnose the cause."
     }
   ],
+  "recordedAt": "2026-11-14T15:19:34.878058+08:00",
   "safariProductAcceptanceComplete": false,
-  "notProven": [
-    "terminal-created new file and virtual disk readback",
-    "terminal VM readiness",
-    "game input and rendering",
-    "all page errors",
-    "physical keyboard",
-    "VoiceOver"
-  ],
-  "cleanup": {
-    "recordedAt": "2026-11-14T15:20:42.580525+08:00",
-    "inspectorClosed": true,
-    "acceptanceWindowClosed": true,
-    "originalSafariStartPageWindowRestored": true,
-    "acceptanceServerPid": 68905,
-    "acceptanceServerStopSignal": "SIGTERM",
-    "testOriginDataRetained": true,
-    "systemSettingsChanged": false
-  }
+  "sourceHead": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "version": 1
 }

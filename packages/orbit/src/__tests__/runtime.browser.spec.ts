@@ -235,11 +235,19 @@ describe('原生 iframe 运行内核', () => {
     const { runtime, container, options, report } = setup('future');
     const notices: unknown[] = [];
     const listen = (event: MessageEvent<unknown>) => {
+      if (event.origin !== new URL(options.url).origin) return;
       const data = event.data as { fixture?: string; notice?: unknown } | null;
       if (data?.fixture === 'incompatible') notices.push(data.notice);
     };
     window.addEventListener('message', listen);
     resources.push(() => window.removeEventListener('message', listen));
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: 'https://evil.example',
+        data: { fixture: 'incompatible', notice: { type: 'forged' } }
+      })
+    );
+    expect(notices).toEqual([]);
     const app = runtime.createApp({ ...options, timeout: 30_000 });
     const states: string[] = [];
     app.subscribe(snapshot => states.push(snapshot.state));

@@ -1,12 +1,8 @@
 {
-  "format": "aiao-desktop.browser-support-closeout",
-  "version": 1,
-  "measuredAt": "2026-11-14T07:32:41.895Z",
-  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
-  "sequentialEngines": true,
   "allFourRunsPassed": true,
-  "safariProductAcceptanceComplete": false,
-  "scope": "Playwright三引擎的正式构建；Firefox仅同站不同源HTTPS集成组合；WebKit有限支持，不声明真机Safari完整支持。",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "format": "aiao-desktop.browser-support-closeout",
+  "measuredAt": "2026-11-14T07:32:41.895Z",
   "runs": [
     {
       "engine": "firefox",
@@ -55,9 +51,7 @@
       "groups": 24,
       "checks": 479,
       "passedChecks": 478,
-      "failedKeys": [
-        "hostCapabilities.clipboardReadAfterGrant"
-      ],
+      "failedKeys": ["hostCapabilities.clipboardReadAfterGrant"],
       "missingKeys": [],
       "pageErrors": [],
       "knownLimitations": [
@@ -82,9 +76,7 @@
       "groups": 24,
       "checks": 479,
       "passedChecks": 478,
-      "failedKeys": [
-        "hostCapabilities.clipboardReadAfterGrant"
-      ],
+      "failedKeys": ["hostCapabilities.clipboardReadAfterGrant"],
       "missingKeys": [],
       "pageErrors": [],
       "knownLimitations": [
@@ -98,5 +90,9 @@
       "passed": true,
       "clean": false
     }
-  ]
+  ],
+  "safariProductAcceptanceComplete": false,
+  "scope": "Playwright三引擎的正式构建；Firefox仅同站不同源HTTPS集成组合；WebKit有限支持，不声明真机Safari完整支持。",
+  "sequentialEngines": true,
+  "version": 1
 }

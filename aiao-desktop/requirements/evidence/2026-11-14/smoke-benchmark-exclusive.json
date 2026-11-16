@@ -1,7 +1,10 @@
 {
-  "format": "aiao-desktop.benchmark-smoke",
-  "version": 1,
-  "measuredAt": "2026-11-14T00:16:19.303Z",
+  "artifactSource": "85b86fb382c501272e6e121d50f589d6bbb71d40",
+  "checks": {
+    "identicalArtifacts": true,
+    "sameCheckKeysAndAllPass": true,
+    "withinTenPercent": true
+  },
   "environment": {
     "os": "darwin",
     "release": "27.2.0",
@@ -11,31 +14,16 @@
     "chromium": "158.0.8127.18",
     "headless": true
   },
-  "method": "固定提交，各三轮、交替串行执行；每轮新进程与空浏览器上下文，路由拦截外网、禁用 HTTP 缓存，无 Service Worker；计时从 Node 子进程启动到退出；不剔除样本",
-  "splitGroups": [
-    "shell",
-    "disk-terminal",
-    "integrated-app",
-    "transparent-window",
-    "game",
-    "apps",
-    "persistence"
-  ],
   "exclusions": "fixtures 不是默认检查组，不计入比较；拆分之后新增的需求组另由当前完整冒烟验收",
-  "retrospective": true,
-  "scripts": {
-    "baseline": {
-      "sha": "85b86fb382c501272e6e121d50f589d6bbb71d40",
-      "artifactSha256": "9226bfa43a0661800c2b3cbcc621d83f7c75bcf010852a87d75f3467752e6af6",
-      "orbitSha256": "a7c3a9f512ec2185c48639dfa1df9c585a333d7a23b1c46cb09b97c388f40f49"
-    },
-    "split": {
-      "sha": "6859fe56e66b223639fc560d7408161d754140b6",
-      "artifactSha256": "9226bfa43a0661800c2b3cbcc621d83f7c75bcf010852a87d75f3467752e6af6",
-      "orbitSha256": "a7c3a9f512ec2185c48639dfa1df9c585a333d7a23b1c46cb09b97c388f40f49"
-    }
+  "format": "aiao-desktop.benchmark-smoke",
+  "measuredAt": "2026-11-14T00:16:19.303Z",
+  "medians": {
+    "baselineSeconds": 116.024320041,
+    "splitSeconds": 89.34380841599999
   },
-  "artifactSource": "85b86fb382c501272e6e121d50f589d6bbb71d40",
+  "method": "固定提交，各三轮、交替串行执行；每轮新进程与空浏览器上下文，路由拦截外网、禁用 HTTP 缓存，无 Service Worker；计时从 Node 子进程启动到退出；不剔除样本",
+  "ratio": 0.7700438010274759,
+  "retrospective": true,
   "samples": [
     {
       "kind": "baseline",
@@ -746,14 +734,18 @@
       }
     }
   ],
-  "checks": {
-    "identicalArtifacts": true,
-    "sameCheckKeysAndAllPass": true,
-    "withinTenPercent": true
+  "scripts": {
+    "baseline": {
+      "sha": "85b86fb382c501272e6e121d50f589d6bbb71d40",
+      "artifactSha256": "9226bfa43a0661800c2b3cbcc621d83f7c75bcf010852a87d75f3467752e6af6",
+      "orbitSha256": "a7c3a9f512ec2185c48639dfa1df9c585a333d7a23b1c46cb09b97c388f40f49"
+    },
+    "split": {
+      "sha": "6859fe56e66b223639fc560d7408161d754140b6",
+      "artifactSha256": "9226bfa43a0661800c2b3cbcc621d83f7c75bcf010852a87d75f3467752e6af6",
+      "orbitSha256": "a7c3a9f512ec2185c48639dfa1df9c585a333d7a23b1c46cb09b97c388f40f49"
+    }
   },
-  "medians": {
-    "baselineSeconds": 116.024320041,
-    "splitSeconds": 89.34380841599999
-  },
-  "ratio": 0.7700438010274759
+  "splitGroups": ["shell", "disk-terminal", "integrated-app", "transparent-window", "game", "apps", "persistence"],
+  "version": 1
 }

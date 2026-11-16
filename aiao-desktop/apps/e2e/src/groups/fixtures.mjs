@@ -161,7 +161,7 @@ async function checkArtifactOrigin(browser) {
     const keyboardReachesFrame = (await input.inputValue()) === 'cross-origin';
     const hostIsolated = await page.evaluate(() => crossOriginIsolated);
     const relativeAssetsServed = await page.evaluate(() => window.assetLoaded === true);
-    const child = page.frames().find(frame => frame.url().startsWith(APP_ORIGIN));
+    const child = page.frames().find(frame => new URL(frame.url()).origin === APP_ORIGIN);
     const childIsolated = await child.evaluate(() => crossOriginIsolated);
     await page.evaluate(() => localStorage.setItem('artifact-origin-check', 'parent'));
     const storageIsolated = (await child.evaluate(() => localStorage.getItem('artifact-origin-check'))) === null;

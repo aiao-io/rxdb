@@ -1,6 +1,6 @@
 {
-  "measuredAt": "2026-11-14T05:00:12.650Z",
   "browser": "27.2",
+  "measuredAt": "2026-11-14T05:00:12.650Z",
   "method": "Isolated WebKit contexts, fixed clipboard test text, parent API read invoked by cross-frame MessagePort; clipboard-read grant scopes varied; trusted child button click compared with protocol evaluation; no security flags",
   "variants": [
     {

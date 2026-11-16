@@ -7,6 +7,7 @@
     "scopeEvidence": "chrome-only-scope.json",
     "otherBrowserAcceptanceRequired": false
   },
+  "acceptanceUpdatedAt": "2026-11-14T23:45:07.687Z",
   "allRequirementsComplete": false,
   "automatedVerification": {
     "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
@@ -25,10 +26,7 @@
     "coverageReport": "coverage-summary-browser-support.json"
   },
   "browserVerification": {
-    "runManifests": [
-      "browser-support-runs.json",
-      "browser-support-webkit-followup-runs.json"
-    ],
+    "runManifests": ["browser-support-runs.json", "browser-support-webkit-followup-runs.json"],
     "implementationAndEvidence": "browser-support.md",
     "safariProductAcceptanceComplete": false,
     "summary": "browser-support-summary.json",
@@ -103,7 +101,36 @@
     "baselineExceptionsAccepted": true,
     "productionDeployAuthorized": true
   },
+  "deferredAcceptance": [
+    {
+      "id": "ADESK-US-108",
+      "ac": 6,
+      "status": "deferred",
+      "date": "2026-11-15",
+      "timeZone": "Asia/Shanghai",
+      "source": "direct user instruction",
+      "userInstruction": "VoiceOver 跳过 未来再说",
+      "record": "../2026-11-15/voiceover-deferral.json",
+      "waived": false,
+      "passed": false,
+      "unexecutedSteps": "V01-V14"
+    }
+  ],
   "format": "aiao-desktop.requirements-closeout",
+  "manualKeyboardAcceptance": {
+    "story": "ADESK-US-107",
+    "ac": 8,
+    "completedDate": "2026-11-15",
+    "timeZone": "Asia/Shanghai",
+    "operator": "user",
+    "input": "physical keyboard; no keys dispatched by the probe",
+    "record": "manual-chrome-acceptance.md",
+    "events": "manual-keyboard-probe-events.json",
+    "scope": "desktop Chrome ordinary tab",
+    "combinationCount": 9,
+    "allTargetCombinationsUsable": false,
+    "limitations": "Space and Backquote target combinations were not observed at the page; interception or remapping source not located. The cycle menu result is based on user feedback; no state transition history was captured."
+  },
   "measuredAt": "2026-11-14T11:26:49.347Z",
   "pendingAcceptanceCount": 1,
   "previousAutomatedVerifications": [
@@ -327,40 +354,10 @@
       "pendingAcceptance": []
     }
   ],
+  "storiesUpdatedAt": "2026-11-14T23:38:35.806Z",
   "storyCounts": {
     "Done": 21,
     "In Review": 1
   },
-  "version": 1,
-  "storiesUpdatedAt": "2026-11-14T23:38:35.806Z",
-  "manualKeyboardAcceptance": {
-    "story": "ADESK-US-107",
-    "ac": 8,
-    "completedDate": "2026-11-15",
-    "timeZone": "Asia/Shanghai",
-    "operator": "user",
-    "input": "physical keyboard; no keys dispatched by the probe",
-    "record": "manual-chrome-acceptance.md",
-    "events": "manual-keyboard-probe-events.json",
-    "scope": "desktop Chrome ordinary tab",
-    "combinationCount": 9,
-    "allTargetCombinationsUsable": false,
-    "limitations": "Space and Backquote target combinations were not observed at the page; interception or remapping source not located. The cycle menu result is based on user feedback; no state transition history was captured."
-  },
-  "deferredAcceptance": [
-    {
-      "id": "ADESK-US-108",
-      "ac": 6,
-      "status": "deferred",
-      "date": "2026-11-15",
-      "timeZone": "Asia/Shanghai",
-      "source": "direct user instruction",
-      "userInstruction": "VoiceOver 跳过 未来再说",
-      "record": "../2026-11-15/voiceover-deferral.json",
-      "waived": false,
-      "passed": false,
-      "unexecutedSteps": "V01-V14"
-    }
-  ],
-  "acceptanceUpdatedAt": "2026-11-14T23:45:07.687Z"
+  "version": 1
 }

@@ -1,20 +1,11 @@
 {
-  "format": "aiao-desktop.manual-keyboard-probe",
-  "version": 1,
-  "startedAt": "2026-11-14T14:54:05.920Z",
-  "ready": true,
-  "phase": "keyboard-recorded-before-voiceover",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "automation": "setup opens Calculator and Notes and focuses Notes; logs do not infer physical input from isTrusted alone",
   "browser": "157.0.8103.52",
   "channel": "chrome",
-  "platform": "darwin",
-  "kernel": "27.2.0",
-  "macOS": "27.2.1",
-  "url": "http://127.0.0.1:50925/?boot=0",
-  "node": "v26.12.0",
-  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
-  "operator": "user",
+  "endReason": "operator control completed",
+  "endedAt": "2026-11-14T23:45:07.828Z",
   "eventInput": "physical keyboard; no key events dispatched by this probe",
-  "automation": "setup opens Calculator and Notes and focuses Notes; logs do not infer physical input from isTrusted alone",
   "events": [
     {
       "at": "2026-11-14T15:06:56.421Z",
@@ -4403,6 +4394,15 @@
       "editable": false
     }
   ],
+  "format": "aiao-desktop.manual-keyboard-probe",
+  "kernel": "27.2.0",
+  "macOS": "27.2.1",
+  "node": "v26.12.0",
+  "operator": "user",
+  "phase": "keyboard-recorded-before-voiceover",
+  "platform": "darwin",
+  "ready": true,
+  "startedAt": "2026-11-14T14:54:05.920Z",
   "state": {
     "documentFocused": true,
     "targetTag": "APP-WINDOW-FRAME",
@@ -4421,6 +4421,6 @@
     ]
   },
   "updatedAt": "2026-11-14T23:45:07.542Z",
-  "endedAt": "2026-11-14T23:45:07.828Z",
-  "endReason": "operator control completed"
+  "url": "http://127.0.0.1:50925/?boot=0",
+  "version": 1
 }

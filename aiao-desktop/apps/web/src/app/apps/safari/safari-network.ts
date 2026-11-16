@@ -93,7 +93,9 @@ export async function fetchWikiArticle(title: string): Promise<WikiArticle> {
   const lead = parsed?.parse?.text?.['*'];
   return {
     /* 条目带显示标题——macOS，而不是 MacOS。 */
-    title: (summary.titles?.display || summary.title || title).replace(/<[^>]+>/g, ''),
+    title:
+      new DOMParser().parseFromString(summary.titles?.display || summary.title || title, 'text/html').body
+        .textContent ?? '',
     description: summary.description ?? '',
     extract: summary.extract ?? '',
     thumbnail: summary.thumbnail?.source ?? '',
@@ -126,7 +128,8 @@ export async function fetchReader(url: string): Promise<ReaderArticle> {
         .slice(1)
         .join('\n') || raw;
     const html = mdHTML(body.trim());
-    if (html.replace(/<[^>]*>/g, '').trim().length < 40) throw new Error('empty');
+    if ((new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').trim().length < 40)
+      throw new Error('empty');
     return { title, html };
   } finally {
     clearTimeout(timer);

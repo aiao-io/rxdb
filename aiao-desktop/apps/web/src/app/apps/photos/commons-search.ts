@@ -16,8 +16,7 @@ interface CommonsResponse {
 
 /** 摄影师名字里常带着链接标签和多余空白，清掉并截短。 */
 const creditOf = (info: CommonsImageInfo): string =>
-  String(info.extmetadata?.Artist?.value ?? 'Unknown')
-    .replace(/<[^>]*>/g, '')
+  (new DOMParser().parseFromString(info.extmetadata?.Artist?.value ?? 'Unknown', 'text/html').body.textContent ?? '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 42) || 'Unknown';

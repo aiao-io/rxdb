@@ -5,11 +5,16 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { gzipSync, gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { packDirectory, prepareVendor, validateVendorPack } from './prepare.mjs';
 
-const TOOL = { name: 'npm', version: '10.9.2', entry: 'bin/npm-cli.js', tarball: 'https://registry.npmjs.org/npm/-/npm-10.9.2.tgz' };
+const TOOL = {
+  name: 'npm',
+  version: '10.9.2',
+  entry: 'bin/npm-cli.js',
+  tarball: 'https://registry.npmjs.org/npm/-/npm-10.9.2.tgz'
+};
 
 async function fixture(t, { version = TOOL.version, entry = true } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'aiao-vivari-'));
@@ -72,14 +77,24 @@ test('损坏的 gzip、错误版本和缺少 CLI 的缓存不能通过校验', a
 test('首次准备校验下载内容并生成资源，已有合格产物时不联网', async t => {
   const { outputDir, bytes, tool } = await archive(t);
   const requested = [];
-  await prepareVendor({ outputDir, tools: [tool], fetchAsset: async url => {
-    requested.push(url);
-    return new Response(bytes);
-  } });
+  await prepareVendor({
+    outputDir,
+    tools: [tool],
+    fetchAsset: async url => {
+      requested.push(url);
+      return new Response(bytes);
+    }
+  });
   const installed = await readFile(join(outputDir, 'npm-pack.bin'));
   validateVendorPack(installed, tool);
   assert.deepEqual(requested, [tool.tarball]);
-  await prepareVendor({ outputDir, tools: [tool], fetchAsset: () => { throw new Error('不得联网'); } });
+  await prepareVendor({
+    outputDir,
+    tools: [tool],
+    fetchAsset: () => {
+      throw new Error('不得联网');
+    }
+  });
   assert.deepEqual(await readFile(join(outputDir, 'npm-pack.bin')), installed);
 });
 
@@ -104,7 +119,15 @@ test('已有损坏资源直接报错，不能把 HTML 或截断包当作缓存�
   const { outputDir } = await fixture(t);
   await mkdir(outputDir);
   await writeFile(join(outputDir, 'npm-pack.bin'), '<html>fallback</html>');
-  await assert.rejects(prepareVendor({ outputDir, tools: [TOOL], fetchAsset: () => { throw new Error('不得联网'); } }));
+  await assert.rejects(
+    prepareVendor({
+      outputDir,
+      tools: [TOOL],
+      fetchAsset: () => {
+        throw new Error('不得联网');
+      }
+    })
+  );
 });
 
 test('缓存索引越界或包名被替换时拒绝使用', async t => {
@@ -124,16 +147,33 @@ test('缓存索引越界或包名被替换时拒绝使用', async t => {
 
 test('tsgo 发布包提取 Go 引擎供 Vivari 使用，缺少引擎结构时拒绝继续', async t => {
   const { root, directory, outputDir } = await fixture(t);
-  const tool = { name: 'tsgo', packageName: 'tsgo-wasm', version: '7.0.2', entry: 'tsgo.wasm', entries: ['wasm_exec.cjs'], engine: 'tsgo-wasm', tarball: 'https://example.test/tsgo.tgz' };
+  const tool = {
+    name: 'tsgo',
+    packageName: 'tsgo-wasm',
+    version: '7.0.2',
+    entry: 'tsgo.wasm',
+    entries: ['wasm_exec.cjs'],
+    engine: 'tsgo-wasm',
+    tarball: 'https://example.test/tsgo.tgz'
+  };
   await writeFile(join(directory, 'package.json'), JSON.stringify({ name: tool.packageName, version: tool.version }));
   await writeFile(join(directory, tool.entry), Buffer.from([0, 97, 115, 109]));
   const launcher = join(directory, tool.engine);
   const tarball = join(root, 'tsgo.tgz');
   for (const valid of [false, true]) {
-    await writeFile(launcher, valid ? 'import x from "node:fs";\nconst encoder = new TextEncoder();\nclass Go {}\nconst go = new Go();\nthrow new Error("不执行启动器");' : 'layout changed');
+    await writeFile(
+      launcher,
+      valid ?
+        'import x from "node:fs";\nconst encoder = new TextEncoder();\nclass Go {}\nconst go = new Go();\nthrow new Error("不执行启动器");'
+      : 'layout changed'
+    );
     execFileSync('tar', ['-czf', tarball, '-C', root, 'package']);
     const bytes = await readFile(tarball);
-    const options = { outputDir, tools: [{ ...tool, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }], fetchAsset: async () => new Response(bytes) };
+    const options = {
+      outputDir,
+      tools: [{ ...tool, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }],
+      fetchAsset: async () => new Response(bytes)
+    };
     if (!valid) {
       await assert.rejects(prepareVendor(options), /Go.*结构/);
       continue;

@@ -15,12 +15,25 @@ test('SDK 将宿主同源 vendor 请求交回浏览器，其他 localhost 请求
   const end = worker.indexOf('\n}', start) + 2;
   const route = runInNewContext(`(${worker.slice(start, end)})`, { URL });
   const location = new URL('http://127.0.0.1:4410/assets/process-worker.js');
-  for (const input of [location.origin + '/vendor/pyodide/python_stdlib.zip', new URL(location.origin + '/vendor/ruff/ruff_wasm.js'), new Request(location.origin + '/vendor/sqlite/sqlite3.wasm')])
+  for (const input of [
+    location.origin + '/vendor/pyodide/python_stdlib.zip',
+    new URL(location.origin + '/vendor/ruff/ruff_wasm.js'),
+    new Request(location.origin + '/vendor/sqlite/sqlite3.wasm')
+  ])
     assert.equal(route(input, location), true);
-  for (const input of ['http://127.0.0.1:3000/vendor/example', location.origin + '/api', 'https://example.test/vendor/test', 'invalid://', null])
+  for (const input of [
+    'http://127.0.0.1:3000/vendor/example',
+    location.origin + '/api',
+    'https://example.test/vendor/test',
+    'invalid://',
+    null
+  ])
     assert.equal(route(input, location), false);
   assert.equal(route('/vendor/test', undefined), false);
-  assert.match(worker, /!isHostVendorRequest\(input, HOST_REALM\.held\.get\("location"\)\) && loopbackFetch\.route\(input\)/);
+  assert.match(
+    worker,
+    /!isHostVendorRequest\(input, HOST_REALM\.held\.get\("location"\)\) && loopbackFetch\.route\(input\)/
+  );
 });
 
 test('Ruff 使用宿主 ESM 加载器，修补后的两个 worker URL 都区分旧缓存', async () => {
@@ -40,15 +53,25 @@ test('pip 的 wheel 加载失败必须返回失败，不能打印安装成功或
   const stdout = [];
   const stderr = [];
   const install = runInNewContext(`(${worker.slice(start, end).trim()})`, {
-    pipSession: async () => ({ pyodide: {
-      loadPackage: async (names, options) => {
-        if (Array.isArray(names)) options.errorCallback('wheel HTTP 404');
-        return [];
+    pipSession: async () => ({
+      pyodide: {
+        loadPackage: async (names, options) => {
+          if (Array.isArray(names)) options.errorCallback('wheel HTTP 404');
+          return [];
+        },
+        pyimport: () => ({
+          install: async () => {
+            throw new Error('wheel HTTP 404');
+          }
+        })
       },
-      pyimport: () => ({ install: async () => { throw new Error('wheel HTTP 404'); } })
-    }, cwd: '/project', env: { sitePackages: '/site' }, restore: { state: 'absent' } }),
+      cwd: '/project',
+      env: { sitePackages: '/site' },
+      restore: { state: 'absent' }
+    }),
     walkPyodide: () => new Map(),
-    loaderToStderr: {}, loaderToStdout: {},
+    loaderToStderr: {},
+    loaderToStdout: {},
     process: { stdout: { write: text => stdout.push(text) }, stderr: { write: text => stderr.push(text) } }
   });
   assert.equal(await install('http://example.test/vendor/pyodide/', ['missing.whl']), 1);

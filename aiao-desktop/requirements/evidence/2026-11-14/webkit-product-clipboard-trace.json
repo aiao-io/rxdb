@@ -1,6 +1,42 @@
 {
   "measuredAt": "2026-11-14T04:50:11.728Z",
   "method": "Diagnostic wrapper records browser Clipboard API results unchanged; original product and assertions retained",
+  "outcome": {
+    "group": "host-capabilities",
+    "result": {
+      "hostCapabilities": {
+        "undeclaredNotificationDenied": true,
+        "denialShowsReasonInWindow": true,
+        "undeclaredFilesystemDenied": true,
+        "unauthorizedAppearanceWriteDenied": true,
+        "clipboardReadDeniedWithoutPermission": true,
+        "clipboardWriteWithGesture": true,
+        "clipboardHoldsWrittenText": true,
+        "clipboardReadAfterGrant": false,
+        "clipboardWriteWithoutGestureDenied": true,
+        "clipboardUnchangedAfterDenial": true,
+        "clipboardDenialIsForTheAppOnly": true,
+        "notificationAppearsInCentre": true,
+        "notificationAttributedToCaller": true,
+        "notificationSpoofRejected": true,
+        "notificationDedupeReplaces": true,
+        "notificationInvalidIconRejected": true,
+        "notificationSurvivesWindowClose": true,
+        "notificationKeyboardOperable": true,
+        "notificationClearAll": true,
+        "notificationRateLimited": true,
+        "notificationIconsShown": true,
+        "notificationNotKeptAcrossReload": true
+      }
+    },
+    "problems": ["检查项未通过：hostCapabilities.clipboardReadAfterGrant = false"],
+    "failedKeys": ["hostCapabilities.clipboardReadAfterGrant"],
+    "missingKeys": [],
+    "extraKeys": [],
+    "crashed": null,
+    "pageErrors": [],
+    "seconds": 29.938036916999998
+  },
   "trace": [
     {
       "origin": "http://127.0.0.1:64755",
@@ -40,45 +76,5 @@
       "ok": true,
       "length": 23
     }
-  ],
-  "outcome": {
-    "group": "host-capabilities",
-    "result": {
-      "hostCapabilities": {
-        "undeclaredNotificationDenied": true,
-        "denialShowsReasonInWindow": true,
-        "undeclaredFilesystemDenied": true,
-        "unauthorizedAppearanceWriteDenied": true,
-        "clipboardReadDeniedWithoutPermission": true,
-        "clipboardWriteWithGesture": true,
-        "clipboardHoldsWrittenText": true,
-        "clipboardReadAfterGrant": false,
-        "clipboardWriteWithoutGestureDenied": true,
-        "clipboardUnchangedAfterDenial": true,
-        "clipboardDenialIsForTheAppOnly": true,
-        "notificationAppearsInCentre": true,
-        "notificationAttributedToCaller": true,
-        "notificationSpoofRejected": true,
-        "notificationDedupeReplaces": true,
-        "notificationInvalidIconRejected": true,
-        "notificationSurvivesWindowClose": true,
-        "notificationKeyboardOperable": true,
-        "notificationClearAll": true,
-        "notificationRateLimited": true,
-        "notificationIconsShown": true,
-        "notificationNotKeptAcrossReload": true
-      }
-    },
-    "problems": [
-      "检查项未通过：hostCapabilities.clipboardReadAfterGrant = false"
-    ],
-    "failedKeys": [
-      "hostCapabilities.clipboardReadAfterGrant"
-    ],
-    "missingKeys": [],
-    "extraKeys": [],
-    "crashed": null,
-    "pageErrors": [],
-    "seconds": 29.938036916999998
-  }
+  ]
 }

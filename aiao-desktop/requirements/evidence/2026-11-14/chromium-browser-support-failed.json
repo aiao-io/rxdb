@@ -1,42 +1,8 @@
 {
-  "format": "aiao-desktop.verify-checks",
-  "version": 1,
-  "extractedAt": "2026-11-14T06:45:04.877Z",
-  "source": {
-    "metadata": "verify-browser-support-metadata.json"
-  },
+  "actualChecks": 465,
   "artifact": {
     "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
   },
-  "method": {
-    "rawLog": "verify-browser-support.txt",
-    "rawChecksSha256": "b8d0d8884aeed3f9a4e172390df13666662ef36538649459ab4b15922815914b",
-    "note": "从失败聚合日志原样提取checks；缺项单列，未重建逐组outcomes。",
-    "groups": 24,
-    "engine": "chromium",
-    "parallel": 3
-  },
-  "seconds": 301.3,
-  "expectedChecks": 479,
-  "actualChecks": 465,
-  "failedKeys": [],
-  "missing": [
-    "lazyLoading.everyAppIsItsOwnChunk",
-    "lazyLoading.startupLoadsOnlyShellScripts",
-    "lazyLoading.startupSkipsAppEntries",
-    "lazyLoading.startupWritesNoAppSeeds",
-    "lazyLoading.oneAppLoadsOnlyItsChunk",
-    "lazyLoading.oneAppWritesNoSeeds",
-    "lazyLoading.firstReadSeedsItsDomain",
-    "lazyLoading.widgetsShowSeededData",
-    "lazyLoading.widgetsOnExistingLibrary",
-    "lazyLoading.widgetsLoadNoAppChunks",
-    "lazyLoading.remoteEntryOnlyWhenOpened",
-    "lazyLoading.remoteEntryNotReloadedByMinimize",
-    "lazyLoading.bundledHtmlOnlyWhenOpened",
-    "lazyLoading.bundledHtmlFreshOnReopen"
-  ],
-  "extra": [],
   "checks": {
     "shell": {
       "stage": true,
@@ -580,5 +546,39 @@
       "eraseRestartsFresh": true
     }
   },
-  "passed": false
+  "expectedChecks": 479,
+  "extra": [],
+  "extractedAt": "2026-11-14T06:45:04.877Z",
+  "failedKeys": [],
+  "format": "aiao-desktop.verify-checks",
+  "method": {
+    "rawLog": "verify-browser-support.txt",
+    "rawChecksSha256": "b8d0d8884aeed3f9a4e172390df13666662ef36538649459ab4b15922815914b",
+    "note": "从失败聚合日志原样提取checks；缺项单列，未重建逐组outcomes。",
+    "groups": 24,
+    "engine": "chromium",
+    "parallel": 3
+  },
+  "missing": [
+    "lazyLoading.everyAppIsItsOwnChunk",
+    "lazyLoading.startupLoadsOnlyShellScripts",
+    "lazyLoading.startupSkipsAppEntries",
+    "lazyLoading.startupWritesNoAppSeeds",
+    "lazyLoading.oneAppLoadsOnlyItsChunk",
+    "lazyLoading.oneAppWritesNoSeeds",
+    "lazyLoading.firstReadSeedsItsDomain",
+    "lazyLoading.widgetsShowSeededData",
+    "lazyLoading.widgetsOnExistingLibrary",
+    "lazyLoading.widgetsLoadNoAppChunks",
+    "lazyLoading.remoteEntryOnlyWhenOpened",
+    "lazyLoading.remoteEntryNotReloadedByMinimize",
+    "lazyLoading.bundledHtmlOnlyWhenOpened",
+    "lazyLoading.bundledHtmlFreshOnReopen"
+  ],
+  "passed": false,
+  "seconds": 301.3,
+  "source": {
+    "metadata": "verify-browser-support-metadata.json"
+  },
+  "version": 1
 }

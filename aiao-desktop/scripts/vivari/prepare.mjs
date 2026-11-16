@@ -5,12 +5,14 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { gzipSync, gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import manifest from './tools.json' with { type: 'json' };
 
 export const VENDOR_TOOLS = manifest.tools;
-export const VENDOR_DIRECTORY = fileURLToPath(new URL('../../../node_modules/.cache/aiao-desktop/vivari/vendor', import.meta.url));
+export const VENDOR_DIRECTORY = fileURLToPath(
+  new URL('../../../node_modules/.cache/aiao-desktop/vivari/vendor', import.meta.url)
+);
 const execute = promisify(execFile);
 
 /** 校验 Vivari 专用 gzip 包的版本、索引、包信息和命令入口，拒绝缺失或损坏的资源。 */
@@ -18,7 +20,8 @@ export function validateVendorPack(bytes, tool) {
   const raw = gunzipSync(bytes);
   const headerLength = raw.readUInt32LE(0);
   const header = JSON.parse(raw.subarray(4, 4 + headerLength).toString('utf8'));
-  if (header.version !== tool.version) throw new Error(`${tool.name} 版本不匹配：${header.version}，要求 ${tool.version}`);
+  if (header.version !== tool.version)
+    throw new Error(`${tool.name} 版本不匹配：${header.version}，要求 ${tool.version}`);
   const start = 4 + headerLength;
   const files = new Map();
   for (const { p, o, l } of header.files) {
@@ -37,8 +40,10 @@ export function validateVendorPack(bytes, tool) {
 /** 按 Vivari 1.3.0 的索引格式打包，保留原始字节并排除浏览器无法加载的原生扩展。 */
 export async function packDirectory(directory, tool) {
   const entries = await readdir(directory, { recursive: true, withFileTypes: true });
-  const paths = entries.filter(entry => entry.isFile() && !entry.name.endsWith('.node'))
-    .map(entry => relative(directory, join(entry.parentPath, entry.name)).replaceAll('\\', '/')).sort();
+  const paths = entries
+    .filter(entry => entry.isFile() && !entry.name.endsWith('.node'))
+    .map(entry => relative(directory, join(entry.parentPath, entry.name)).replaceAll('\\', '/'))
+    .sort();
   const contents = await Promise.all(paths.map(path => readFile(join(directory, path))));
   let offset = 0;
   const files = paths.map((path, index) => {
@@ -74,7 +79,13 @@ export async function withVendorArchive(tool, fetchAsset, consume) {
   try {
     await writeFile(join(scratch, 'package.tgz'), archive);
     await mkdir(join(scratch, 'package'));
-    await execute('tar', ['-xzf', join(scratch, 'package.tgz'), '-C', join(scratch, 'package'), '--strip-components=1']);
+    await execute('tar', [
+      '-xzf',
+      join(scratch, 'package.tgz'),
+      '-C',
+      join(scratch, 'package'),
+      '--strip-components=1'
+    ]);
     return await consume(join(scratch, 'package'));
   } finally {
     await rm(scratch, { recursive: true, force: true });
@@ -112,4 +123,3 @@ export async function prepareVendor({ outputDir = VENDOR_DIRECTORY, tools = VEND
     else await buildTool(outputDir, tool, fetchAsset);
   }
 }
-

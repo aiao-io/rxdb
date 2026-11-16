@@ -1,4 +1,4 @@
-import { standinProbe } from '../harness/standin.mjs';
+import { STANDIN_ORIGIN, standinProbe } from '../harness/standin.mjs';
 
 /** 替身页里的实例已经握手：拿到桌面给它的实例 ID。 */
 const NOT_YET = Symbol('not yet');
@@ -318,10 +318,11 @@ export const appLifecycle = {
     /* ───── AC#10：应用声明的协议版本高于桌面支持的版本 ───── */
     await closeAll();
     await page.waitForTimeout(300);
-    await page.evaluate(() => {
+    await page.evaluate(origin => {
       /* 替身收到宿主的不兼容通知后会转告桌面页（各引擎都收得到；Firefox 不把跨源 iframe 的控制台消息交给 Playwright）。 */
       window.__notices = [];
       addEventListener('message', event => {
+        if (event.origin !== origin) return;
         if (event.data?.standinNotice) window.__notices.push(event.data.standinNotice);
       });
       window.__states = [];
@@ -336,7 +337,7 @@ export const appLifecycle = {
         attributes: true,
         attributeFilter: ['data-webapp-state']
       });
-    });
+    }, STANDIN_ORIGIN);
     standin.mode = 'future';
     await open();
     const incompatible = await appears(webappIn('failed'), 15_000);

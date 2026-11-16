@@ -1,31 +1,8 @@
 {
-  "format": "aiao-desktop.verify-checks",
-  "version": 1,
-  "extractedAt": "2026-11-14T02:38:02.682565+00:00",
-  "source": {
-    "shaAtVerifyStart": "d49507e34909e6242c37106a4a04526714057bbc",
-    "workspaceChanges": "见verify.txt开头的真实git status，不能把提交SHA当成干净工作区声明"
-  },
-  "environment": {
-    "system": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
-    "node": "v26.12.0",
-    "pnpm": "12.16.1"
-  },
   "artifact": {
     "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
   },
-  "method": {
-    "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
-    "rawLog": "verify.txt",
-    "rawChecksSha256": "eb0ef42ea697aa6ae95500b242c273ac5dcdf83bafd52de570140c48cc10e956",
-    "note": "从最终聚合日志提取默认Chromium检查组的原始checks对象；未重建日志没有输出的逐组outcomes。",
-    "groups": 24,
-    "engine": "chromium",
-    "parallel": 3
-  },
-  "seconds": 296.6,
   "checkCount": 476,
-  "failedKeys": [],
   "checks": {
     "shell": {
       "stage": true,
@@ -582,5 +559,28 @@
       "eraseRestartsFresh": true
     }
   },
-  "passed": true
+  "environment": {
+    "system": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+    "node": "v26.12.0",
+    "pnpm": "12.16.1"
+  },
+  "extractedAt": "2026-11-14T02:38:02.682565+00:00",
+  "failedKeys": [],
+  "format": "aiao-desktop.verify-checks",
+  "method": {
+    "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+    "rawLog": "verify.txt",
+    "rawChecksSha256": "eb0ef42ea697aa6ae95500b242c273ac5dcdf83bafd52de570140c48cc10e956",
+    "note": "从最终聚合日志提取默认Chromium检查组的原始checks对象；未重建日志没有输出的逐组outcomes。",
+    "groups": 24,
+    "engine": "chromium",
+    "parallel": 3
+  },
+  "passed": true,
+  "seconds": 296.6,
+  "source": {
+    "shaAtVerifyStart": "d49507e34909e6242c37106a4a04526714057bbc",
+    "workspaceChanges": "见verify.txt开头的真实git status，不能把提交SHA当成干净工作区声明"
+  },
+  "version": 1
 }

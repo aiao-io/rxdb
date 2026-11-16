@@ -1,6 +1,6 @@
+import { getWorkbenchDisplayMode } from './display-mode.js';
 import { iconMarkup } from './workbench-icons.js';
 import { workbenchStyle } from './workbench-style.js';
-import { getWorkbenchDisplayMode } from './display-mode.js';
 
 /** 创建 VS Code 风格工作台外壳，内容面板随后交给 Dockview 管理。 */
 export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): HTMLElement {

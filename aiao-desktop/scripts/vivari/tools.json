@@ -1,5 +1,5 @@
 {
-  "vivariVersion": "1.3.0",
+  "sdkPatch": "patches/@vivari__core@1.3.0.patch",
   "sourceCommit": "4fbb00997e573679f98dbcdecefd507363dc2ff5",
   "tools": [
     {
@@ -35,13 +35,11 @@
       "packageName": "tsgo-wasm",
       "version": "7.0.2",
       "entry": "tsgo.wasm",
-      "entries": [
-        "wasm_exec.cjs"
-      ],
+      "entries": ["wasm_exec.cjs"],
       "engine": "tsgo-wasm",
       "tarball": "https://registry.npmjs.org/tsgo-wasm/-/tsgo-wasm-7.0.2.tgz",
       "integrity": "sha512-wiu1mK6759F1r5T7w8mGduvjvS8sEIycMdWPxCOThQuOs73zK0Uwzxu0WZRvnR6iOMt+7/j8iGdXzNMZkl5ocA=="
     }
   ],
-  "sdkPatch": "patches/@vivari__core@1.3.0.patch"
+  "vivariVersion": "1.3.0"
 }

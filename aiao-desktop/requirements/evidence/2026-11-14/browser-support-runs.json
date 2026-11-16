@@ -1,11 +1,8 @@
 {
-  "format": "aiao-desktop.browser-support-runs",
-  "version": 1,
-  "startedAt": "2026-11-14T14:50:31.643543+08:00",
-  "sourceHeadAtStart": "13d8a872b992a0b68070cac3e49c72c68fb47840",
-  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
   "aggregateVerification": "verify-browser-support-2-metadata.json",
-  "status": "failed",
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "finishedAt": "2026-11-14T15:11:17.954129+08:00",
+  "format": "aiao-desktop.browser-support-runs",
   "runs": [
     {
       "engine": "firefox",
@@ -65,5 +62,8 @@
       "passedChecks": 477
     }
   ],
-  "finishedAt": "2026-11-14T15:11:17.954129+08:00"
+  "sourceHeadAtStart": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "startedAt": "2026-11-14T14:50:31.643543+08:00",
+  "status": "failed",
+  "version": 1
 }

@@ -1,7 +1,7 @@
 {
+  "childOrigin": "http://127.0.0.1:51379",
   "measuredAt": "2026-11-14T05:37:51.182Z",
   "method": "Native Safari UI, two real loopback origins, COOP/COEP/CORP, native button clicks, system Clipboard API; fixed test text only; no protocol permission overrides",
-  "sentinel": "ADESK-SAFARI-CLIPBOARD-20261114",
   "observations": [
     {
       "at": "2026-11-14T05:38:23.527Z",
@@ -38,5 +38,5 @@
     }
   ],
   "origin": "http://127.0.0.1:51380",
-  "childOrigin": "http://127.0.0.1:51379"
+  "sentinel": "ADESK-SAFARI-CLIPBOARD-20261114"
 }

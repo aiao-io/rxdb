@@ -1,7 +1,8 @@
 {
+  "browser": "159.0",
   "measuredAt": "2026-11-14T04:33:02.360Z",
   "method": "Real loopback HTTP and HTTPS, open Shadow DOM and product sandbox/allow, COOP/COEP/CORP; varying scheme and site; temporary self-signed certificate ignored only in isolated browser context; protocol keyboard input",
-  "browser": "159.0",
+  "passed": false,
   "variants": [
     {
       "name": "http-same-site",
@@ -39,20 +40,7 @@
       ],
       "input": {
         "text": "firefox-site",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "i",
-          "t",
-          "e"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "i", "t", "e"],
         "focused": true,
         "isolated": true
       },
@@ -73,10 +61,7 @@
           "url": ""
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62316/?child=http%3A%2F%2Flocalhost%3A62316%2Finput",
-        ""
-      ],
+      "frames": ["http://127.0.0.1:62316/?child=http%3A%2F%2Flocalhost%3A62316%2Finput", ""],
       "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
       "passed": false
     },
@@ -94,10 +79,7 @@
           "url": ""
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62316/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput",
-        ""
-      ],
+      "frames": ["http://127.0.0.1:62316/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput", ""],
       "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
       "passed": false
     },
@@ -137,20 +119,7 @@
       ],
       "input": {
         "text": "firefox-site",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "i",
-          "t",
-          "e"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "i", "t", "e"],
         "focused": true,
         "isolated": true
       },
@@ -171,13 +140,9 @@
           "url": ""
         }
       ],
-      "frames": [
-        "https://127.0.0.1:62317/?child=https%3A%2F%2Flocalhost%3A62317%2Finput",
-        ""
-      ],
+      "frames": ["https://127.0.0.1:62317/?child=https%3A%2F%2Flocalhost%3A62317%2Finput", ""],
       "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
       "passed": false
     }
-  ],
-  "passed": false
+  ]
 }

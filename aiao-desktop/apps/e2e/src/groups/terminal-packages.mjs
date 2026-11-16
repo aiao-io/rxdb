@@ -20,8 +20,13 @@ export const terminalPackages = {
     const assets = new Set();
     page.on('response', response => {
       const url = new URL(response.url());
-      if (url.origin === origin && /^\/vendor\/.*-pack\.bin$/.test(url.pathname) && response.ok() &&
-        !response.headers()['content-type']?.includes('text/html')) assets.add(url.pathname);
+      if (
+        url.origin === origin &&
+        /^\/vendor\/.*-pack\.bin$/.test(url.pathname) &&
+        response.ok() &&
+        !response.headers()['content-type']?.includes('text/html')
+      )
+        assets.add(url.pathname);
     });
     await installPackageRegistry(context);
     await session.openDesktop();
@@ -51,7 +56,9 @@ export const terminalPackages = {
       runsDependency: false
     };
     await run('mkdir -p /tmp/npm-smoke');
-    const installed = await run('npm install aiao-terminal-smoke@1.0.0 --prefix /tmp/npm-smoke --ignore-scripts --no-audit --no-fund --package-lock=false --fetch-retries=0');
+    const installed = await run(
+      'npm install aiao-terminal-smoke@1.0.0 --prefix /tmp/npm-smoke --ignore-scripts --no-audit --no-fund --package-lock=false --fetch-retries=0'
+    );
     checks.installsDependency = installed.finished && /added 1 package/.test(installed.output);
     const executed = await run('node -e "console.log(require(\'/tmp/npm-smoke/node_modules/aiao-terminal-smoke\'))"');
     checks.runsDependency = executed.finished && executed.output.includes('AIAO_TERMINAL_DEPENDENCY_OK');

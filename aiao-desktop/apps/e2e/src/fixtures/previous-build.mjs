@@ -9,6 +9,7 @@ export function previousBuildSource(env) {
   if (!address) throw new Error('缺少升级起点：指定 AIAO_DESKTOP_PREVIOUS_DIST 或 AIAO_DESKTOP_PREVIOUS_URL');
   const url = new URL(address);
   if (url.protocol !== 'https:') throw new Error('线上升级起点必须是 HTTPS');
-  if (url.pathname !== '/' || url.search || url.hash || url.username || url.password) throw new Error('线上升级起点必须是无凭据、查询和片段的根地址');
+  if (url.pathname !== '/' || url.search || url.hash || url.username || url.password)
+    throw new Error('线上升级起点必须是无凭据、查询和片段的根地址');
   return { url: url.origin };
 }

@@ -1,11 +1,42 @@
 {
-  "format": "aiao-desktop.smoke",
-  "version": 1,
-  "measuredAt": "2026-11-15T10:28:11.017Z",
-  "source": {
-    "sha": "5d1a8fc3336a357e963bc89f26ce4c7a3ea24dd3",
-    "changes": "M ../../README.md\n M src/groups/index.mjs\n M ../web/project.json\n M ../../project.json\n M ../../requirements/capability-matrix.md\n M ../../requirements/decisions.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/stories/desktop/ADESK-US-102-local-data-and-real-disk.md\n M ../../requirements/verification-report.md\n M ../../scripts/deploy/config.spec.mjs\n M ../../scripts/deploy/dist-check.mjs\n M ../../scripts/deploy/dist-check.spec.mjs\n?? src/fixtures/package-registry.mjs\n?? src/fixtures/terminal-package.tgz\n?? src/groups/terminal-packages.mjs\n?? ../../requirements/evidence/2026-11-15/README.md\n?? ../../scripts/vivari/"
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
   },
+  "checks": {
+    "terminalState": {
+      "crossOriginIsolated": true,
+      "xterm": true,
+      "helperInput": true,
+      "vivariShell": true
+    },
+    "diskState": {
+      "sqliteInOpfs": true,
+      "fileBodiesInOpfs": true,
+      "desktopFromFolder": true,
+      "shellStartsAtHome": true,
+      "shellReadsFile": true,
+      "shellListsDesktop": true,
+      "shellWritesDisk": true,
+      "shellCommandsWork": true,
+      "openCommandOpensTextEdit": true,
+      "finderFolderOnDesktop": true,
+      "shellSeesFinderChange": true,
+      "textEditShowsFile": true,
+      "previewShowsImage": true
+    },
+    "terminalPackages": {
+      "vendorAssets": true,
+      "npm": true,
+      "npx": true,
+      "pnpm": true,
+      "yarn": true,
+      "corepack": true,
+      "installsDependency": true,
+      "runsDependency": true
+    }
+  },
+  "clean": true,
   "environment": {
     "os": "darwin",
     "release": "24.6.0",
@@ -16,22 +47,21 @@
     "engine": "chromium",
     "headless": true
   },
-  "artifact": {
-    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
   },
+  "measuredAt": "2026-11-15T10:28:11.017Z",
   "method": {
     "previousBuild": null,
     "parallel": 3,
-    "groups": [
-      "disk-terminal",
-      "terminal-packages"
-    ],
+    "groups": ["disk-terminal", "terminal-packages"],
     "isolatedOrigins": true,
     "integratedArtifactTransport": "loopback-http",
     "interceptedExternalRequests": true
   },
-  "seconds": 21.981049696000003,
   "outcomes": [
     {
       "group": "disk-terminal",
@@ -89,44 +119,11 @@
       "seconds": 21.922660134999997
     }
   ],
-  "checks": {
-    "terminalState": {
-      "crossOriginIsolated": true,
-      "xterm": true,
-      "helperInput": true,
-      "vivariShell": true
-    },
-    "diskState": {
-      "sqliteInOpfs": true,
-      "fileBodiesInOpfs": true,
-      "desktopFromFolder": true,
-      "shellStartsAtHome": true,
-      "shellReadsFile": true,
-      "shellListsDesktop": true,
-      "shellWritesDisk": true,
-      "shellCommandsWork": true,
-      "openCommandOpensTextEdit": true,
-      "finderFolderOnDesktop": true,
-      "shellSeesFinderChange": true,
-      "textEditShowsFile": true,
-      "previewShowsImage": true
-    },
-    "terminalPackages": {
-      "vendorAssets": true,
-      "npm": true,
-      "npx": true,
-      "pnpm": true,
-      "yarn": true,
-      "corepack": true,
-      "installsDependency": true,
-      "runsDependency": true
-    }
-  },
-  "limitations": {
-    "known": [],
-    "unexpected": [],
-    "stale": []
-  },
   "passed": true,
-  "clean": true
+  "seconds": 21.981049696000003,
+  "source": {
+    "sha": "5d1a8fc3336a357e963bc89f26ce4c7a3ea24dd3",
+    "changes": "M ../../README.md\n M src/groups/index.mjs\n M ../web/project.json\n M ../../project.json\n M ../../requirements/capability-matrix.md\n M ../../requirements/decisions.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/stories/desktop/ADESK-US-102-local-data-and-real-disk.md\n M ../../requirements/verification-report.md\n M ../../scripts/deploy/config.spec.mjs\n M ../../scripts/deploy/dist-check.mjs\n M ../../scripts/deploy/dist-check.spec.mjs\n?? src/fixtures/package-registry.mjs\n?? src/fixtures/terminal-package.tgz\n?? src/groups/terminal-packages.mjs\n?? ../../requirements/evidence/2026-11-15/README.md\n?? ../../scripts/vivari/"
+  },
+  "version": 1
 }

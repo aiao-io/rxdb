@@ -1,11 +1,33 @@
 {
-  "format": "aiao-desktop.smoke",
-  "version": 1,
-  "measuredAt": "2026-11-15T12:01:34.639Z",
-  "source": {
-    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
-    "changes": "M src/groups/terminal-runtimes.mjs\n M ../web/project.json\n M ../../scripts/deploy/config.spec.mjs\n M ../../scripts/vivari/README.md\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs\n M ../../scripts/vivari/tools.json\n?? ../../requirements/evidence/2026-11-15/terminal-runtimes-first-failure.json\n?? ../../scripts/vivari/sdk.spec.mjs"
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "0c9ed0fcb2b9635800183329ab40e3065ee6b8177fcc1ebf996f3b7d270bf6dc"
   },
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": true,
+      "python3": true,
+      "script": true,
+      "sharedDisk": true,
+      "pip": true,
+      "installedPackage": false,
+      "pipFreeze": false,
+      "numpyPandas": true,
+      "scipySklearn": true,
+      "pythonLibraries": true,
+      "pytest": false,
+      "black": false,
+      "mypy": false,
+      "ruff": false,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "nodeSqlite": true,
+      "bunSqlite": true
+    }
+  },
+  "clean": false,
   "environment": {
     "os": "darwin",
     "release": "24.6.0",
@@ -16,21 +38,28 @@
     "engine": "chromium",
     "headless": true
   },
-  "artifact": {
-    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "0c9ed0fcb2b9635800183329ab40e3065ee6b8177fcc1ebf996f3b7d270bf6dc"
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.installedPackage",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pipFreeze",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pytest",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.black",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.mypy",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.ruff"
+    ],
+    "stale": []
   },
+  "measuredAt": "2026-11-15T12:01:34.639Z",
   "method": {
     "previousBuild": null,
     "parallel": 3,
-    "groups": [
-      "terminal-runtimes"
-    ],
+    "groups": ["terminal-runtimes"],
     "isolatedOrigins": true,
     "integratedArtifactTransport": "loopback-http",
     "interceptedExternalRequests": true
   },
-  "seconds": 69.12036337800001,
   "outcomes": [
     {
       "group": "terminal-runtimes",
@@ -81,42 +110,11 @@
       "seconds": 69.05426459200001
     }
   ],
-  "checks": {
-    "terminalRuntimes": {
-      "lazy": true,
-      "python": true,
-      "python3": true,
-      "script": true,
-      "sharedDisk": true,
-      "pip": true,
-      "installedPackage": false,
-      "pipFreeze": false,
-      "numpyPandas": true,
-      "scipySklearn": true,
-      "pythonLibraries": true,
-      "pytest": false,
-      "black": false,
-      "mypy": false,
-      "ruff": false,
-      "tsc": true,
-      "tsgo": true,
-      "bun": true,
-      "nodeSqlite": true,
-      "bunSqlite": true
-    }
-  },
-  "limitations": {
-    "known": [],
-    "unexpected": [
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.installedPackage",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pipFreeze",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pytest",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.black",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.mypy",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.ruff"
-    ],
-    "stale": []
-  },
   "passed": false,
-  "clean": false
+  "seconds": 69.12036337800001,
+  "source": {
+    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
+    "changes": "M src/groups/terminal-runtimes.mjs\n M ../web/project.json\n M ../../scripts/deploy/config.spec.mjs\n M ../../scripts/vivari/README.md\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs\n M ../../scripts/vivari/tools.json\n?? ../../requirements/evidence/2026-11-15/terminal-runtimes-first-failure.json\n?? ../../scripts/vivari/sdk.spec.mjs"
+  },
+  "version": 1
 }

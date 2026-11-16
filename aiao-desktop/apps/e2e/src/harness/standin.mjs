@@ -141,14 +141,15 @@ const mainScript = (mode, ordinal) => `
 export async function installAiaoCodeStandin(context) {
   const standin = { mode: 'standard', documents: 0 };
   /* 桌面页（只有顶层文档）收替身转告的调用结果：`window.__standinResults[编号]`。刷新后清空，由新页面的脚本重新收。 */
-  await context.addInitScript(() => {
+  await context.addInitScript(origin => {
     if (window.top !== window) return;
-    window.__standinResults = {};
+    window.__standinResults = Object.create(null);
     window.addEventListener('message', event => {
+      if (event.origin !== origin) return;
       const result = event.data?.standinResult;
       if (result) window.__standinResults[result.id] = result.outcome;
     });
-  });
+  }, STANDIN_ORIGIN);
   await context.route(`${STANDIN_ORIGIN}/**`, route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith('/__standin/orbit/')) {

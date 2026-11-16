@@ -1,11 +1,33 @@
 {
-  "format": "aiao-desktop.smoke",
-  "version": 1,
-  "measuredAt": "2026-11-15T11:53:04.324Z",
-  "source": {
-    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
-    "changes": "M src/groups/terminal-runtimes.mjs\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs"
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
   },
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": false,
+      "python3": false,
+      "script": false,
+      "sharedDisk": false,
+      "pip": false,
+      "installedPackage": false,
+      "pipFreeze": false,
+      "numpyPandas": false,
+      "scipySklearn": false,
+      "pythonLibraries": false,
+      "pytest": false,
+      "black": false,
+      "mypy": false,
+      "ruff": false,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "nodeSqlite": true,
+      "bunSqlite": false
+    }
+  },
+  "clean": false,
   "environment": {
     "os": "darwin",
     "release": "24.6.0",
@@ -16,21 +38,37 @@
     "engine": "chromium",
     "headless": true
   },
-  "artifact": {
-    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python3",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.script",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.sharedDisk",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pip",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.installedPackage",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pipFreeze",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.numpyPandas",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.scipySklearn",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonLibraries",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pytest",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.black",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.mypy",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.ruff",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.bunSqlite"
+    ],
+    "stale": []
   },
+  "measuredAt": "2026-11-15T11:53:04.324Z",
   "method": {
     "previousBuild": null,
     "parallel": 3,
-    "groups": [
-      "terminal-runtimes"
-    ],
+    "groups": ["terminal-runtimes"],
     "isolatedOrigins": true,
     "integratedArtifactTransport": "loopback-http",
     "interceptedExternalRequests": true
   },
-  "seconds": 27.364526402,
   "outcomes": [
     {
       "group": "terminal-runtimes",
@@ -99,51 +137,11 @@
       "seconds": 27.304839287
     }
   ],
-  "checks": {
-    "terminalRuntimes": {
-      "lazy": true,
-      "python": false,
-      "python3": false,
-      "script": false,
-      "sharedDisk": false,
-      "pip": false,
-      "installedPackage": false,
-      "pipFreeze": false,
-      "numpyPandas": false,
-      "scipySklearn": false,
-      "pythonLibraries": false,
-      "pytest": false,
-      "black": false,
-      "mypy": false,
-      "ruff": false,
-      "tsc": true,
-      "tsgo": true,
-      "bun": true,
-      "nodeSqlite": true,
-      "bunSqlite": false
-    }
-  },
-  "limitations": {
-    "known": [],
-    "unexpected": [
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python3",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.script",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.sharedDisk",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pip",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.installedPackage",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pipFreeze",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.numpyPandas",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.scipySklearn",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonLibraries",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pytest",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.black",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.mypy",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.ruff",
-      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.bunSqlite"
-    ],
-    "stale": []
-  },
   "passed": false,
-  "clean": false
+  "seconds": 27.364526402,
+  "source": {
+    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
+    "changes": "M src/groups/terminal-runtimes.mjs\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs"
+  },
+  "version": 1
 }

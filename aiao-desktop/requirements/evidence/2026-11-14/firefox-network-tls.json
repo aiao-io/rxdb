@@ -1,11 +1,70 @@
 {
-  "format": "aiao-desktop.smoke",
-  "version": 1,
-  "measuredAt": "2026-11-14T02:22:19.914Z",
-  "source": {
-    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
-    "changes": "M src/groups/a11y.mjs\n M src/groups/apps.mjs\n M src/groups/dock.mjs\n M src/groups/window-layout.mjs\n M src/harness/capabilities.mjs\n M src/harness/helpers.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n M src/smoke.mjs\n M ../web/src/app/components/overlays/launchpad.ts\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/verification-report.md\n?? src/harness/network-standin.mjs\n?? src/harness/network-standin.spec.mjs\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-green.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.txt\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json\n?? ../../requirements/evidence/2026-11-14/chromium-dock-a11y-failure.json\n?? ../../requirements/evidence/2026-11-14/dock-a11y-state-green.json\n?? ../../requirements/evidence/2026-11-14/domain-storage-final.json\n?? ../../requirements/evidence/2026-11-14/firefox-network-standin.json"
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
   },
+  "checks": {
+    "integratedApp": {
+      "dockPinned": true,
+      "showsLoading": true,
+      "becomesReady": true,
+      "standardKeepsChrome": true,
+      "standinRendered": true,
+      "crossOriginIsolated": true,
+      "iframePolicy": true,
+      "minimizeHides": true,
+      "restoreShows": true,
+      "restoreKeepsDocument": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "keyboardReachesApp": false,
+      "appClickClosesMenu": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "offlineShowsReason": true,
+      "desktopUnaffected": true,
+      "retryRecovers": true,
+      "appFailureShowsReason": true,
+      "launchpadOpens": true,
+      "spotlightLists": true,
+      "menubarName": true,
+      "appMenuItems": true,
+      "quitCloses": true
+    },
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "staleListingNeverOverwrites": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": false
+    }
+  },
+  "clean": false,
   "environment": {
     "os": "darwin",
     "release": "27.2.0",
@@ -16,24 +75,46 @@
     "engine": "firefox",
     "headless": true
   },
-  "artifact": {
-    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "integratedApp.keyboardReachesApp",
+        "tier": "有限支持",
+        "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
+      },
+      {
+        "kind": "group",
+        "group": "transparent-window",
+        "tier": "有限支持",
+        "reason": "透明窗口的检查要点击 iframe 里应用自绘的按钮、在 iframe 内拖动挖空区域，需要把真实输入送进跨源 iframe，Playwright 的 Firefox 做不到（同 integratedApp.keyboardReachesApp）；这一组在 Chromium 与 WebKit 上通过。"
+      },
+      {
+        "kind": "check",
+        "key": "hostFilesystem.focusReturnsToWindow",
+        "tier": "有限支持",
+        "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
+      },
+      {
+        "kind": "group",
+        "group": "window-layout",
+        "tier": "有限支持",
+        "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
   },
+  "measuredAt": "2026-11-14T02:22:19.914Z",
   "method": {
     "previousBuild": null,
     "parallel": 2,
-    "groups": [
-      "integrated-app",
-      "transparent-window",
-      "host-filesystem",
-      "window-layout"
-    ],
+    "groups": ["integrated-app", "transparent-window", "host-filesystem", "window-layout"],
     "isolatedOrigins": true,
     "standinTransport": "https-loopback-cross-origin",
     "interceptedExternalRequests": true
   },
-  "seconds": 100.17948179199999,
   "outcomes": [
     {
       "group": "integrated-app",
@@ -67,12 +148,8 @@
           "quitCloses": true
         }
       },
-      "problems": [
-        "检查项未通过：integratedApp.keyboardReachesApp = false"
-      ],
-      "failedKeys": [
-        "integratedApp.keyboardReachesApp"
-      ],
+      "problems": ["检查项未通过：integratedApp.keyboardReachesApp = false"],
+      "failedKeys": ["integratedApp.keyboardReachesApp"],
       "missingKeys": [],
       "extraKeys": [],
       "crashed": null,
@@ -138,12 +215,8 @@
           "focusReturnsToWindow": false
         }
       },
-      "problems": [
-        "检查项未通过：hostFilesystem.focusReturnsToWindow = false"
-      ],
-      "failedKeys": [
-        "hostFilesystem.focusReturnsToWindow"
-      ],
+      "problems": ["检查项未通过：hostFilesystem.focusReturnsToWindow = false"],
+      "failedKeys": ["hostFilesystem.focusReturnsToWindow"],
       "missingKeys": [],
       "extraKeys": [],
       "crashed": null,
@@ -216,97 +289,11 @@
       "seconds": 62.282773083
     }
   ],
-  "checks": {
-    "integratedApp": {
-      "dockPinned": true,
-      "showsLoading": true,
-      "becomesReady": true,
-      "standardKeepsChrome": true,
-      "standinRendered": true,
-      "crossOriginIsolated": true,
-      "iframePolicy": true,
-      "minimizeHides": true,
-      "restoreShows": true,
-      "restoreKeepsDocument": true,
-      "shieldWhenBehind": true,
-      "clickActivates": true,
-      "keyboardReachesApp": false,
-      "appClickClosesMenu": true,
-      "resizeTracksPointer": true,
-      "closeRemovesFrame": true,
-      "reopensFresh": true,
-      "offlineShowsReason": true,
-      "desktopUnaffected": true,
-      "retryRecovers": true,
-      "appFailureShowsReason": true,
-      "launchpadOpens": true,
-      "spotlightLists": true,
-      "menubarName": true,
-      "appMenuItems": true,
-      "quitCloses": true
-    },
-    "hostFilesystem": {
-      "panelSemantics": true,
-      "panelIsModal": true,
-      "escCancels": true,
-      "openSelectReturnsContent": true,
-      "openGivesNothingElse": true,
-      "openCancelIsSilent": true,
-      "saveChoosesLocationAndName": true,
-      "saveCancelWritesNothing": true,
-      "overwriteNeedsConfirmation": true,
-      "overwriteCannotBeSkippedByApp": true,
-      "acceptIsDisplayFilterOnly": true,
-      "tooLargeFileIsDisabled": true,
-      "secondRequestIsBusy": true,
-      "panelTimeIsNotTimed": true,
-      "handleSaveWritesBack": true,
-      "saveWithoutHandleAsksUser": true,
-      "changedFileIsRejected": true,
-      "renamedFileIsRejectedAndNotRecreated": true,
-      "deletedFileIsRejectedAndNotRecreated": true,
-      "handleInvalidAfterWindowClosed": true,
-      "panelClosesWithWindow": true,
-      "requestEndsWithWindowClosed": true,
-      "lateSaveNeverWrites": true,
-      "keyboardOpen": true,
-      "staleListingNeverOverwrites": true,
-      "escInsideReplaceReturnsToBrowse": true,
-      "keyboardSaveAndReplace": true,
-      "tabStaysInsidePanel": true,
-      "focusReturnsToWindow": false
-    }
-  },
-  "limitations": {
-    "known": [
-      {
-        "kind": "check",
-        "key": "integratedApp.keyboardReachesApp",
-        "tier": "有限支持",
-        "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
-      },
-      {
-        "kind": "group",
-        "group": "transparent-window",
-        "tier": "有限支持",
-        "reason": "透明窗口的检查要点击 iframe 里应用自绘的按钮、在 iframe 内拖动挖空区域，需要把真实输入送进跨源 iframe，Playwright 的 Firefox 做不到（同 integratedApp.keyboardReachesApp）；这一组在 Chromium 与 WebKit 上通过。"
-      },
-      {
-        "kind": "check",
-        "key": "hostFilesystem.focusReturnsToWindow",
-        "tier": "有限支持",
-        "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
-      },
-      {
-        "kind": "group",
-        "group": "window-layout",
-        "tier": "有限支持",
-        "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
-      }
-    ],
-    "unexpected": [],
-    "stale": []
-  },
   "passed": true,
-  "clean": false
+  "seconds": 100.17948179199999,
+  "source": {
+    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
+    "changes": "M src/groups/a11y.mjs\n M src/groups/apps.mjs\n M src/groups/dock.mjs\n M src/groups/window-layout.mjs\n M src/harness/capabilities.mjs\n M src/harness/helpers.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n M src/smoke.mjs\n M ../web/src/app/components/overlays/launchpad.ts\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/verification-report.md\n?? src/harness/network-standin.mjs\n?? src/harness/network-standin.spec.mjs\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-green.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.txt\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json\n?? ../../requirements/evidence/2026-11-14/chromium-dock-a11y-failure.json\n?? ../../requirements/evidence/2026-11-14/dock-a11y-state-green.json\n?? ../../requirements/evidence/2026-11-14/domain-storage-final.json\n?? ../../requirements/evidence/2026-11-14/firefox-network-standin.json"
+  },
+  "version": 1
 }

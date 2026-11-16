@@ -118,7 +118,7 @@ export async function checkDist({ distDir, requiredHeaders, runtimeAssets }) {
   } else {
     problems.push('产物里没有 _headers：它来自 apps/web/public/_headers，缺了它线上没有跨源隔离，终端无法启动');
   }
-  problems.push(...await vendorProblems(distDir, names));
-  problems.push(...await runtimeProblems(path.join(distDir, 'vendor'), runtimeAssets));
+  problems.push(...(await vendorProblems(distDir, names)));
+  problems.push(...(await runtimeProblems(path.join(distDir, 'vendor'), runtimeAssets)));
   return { files, problems };
 }

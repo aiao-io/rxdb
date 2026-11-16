@@ -1,16 +1,4 @@
 {
-  "format": "aiao-desktop.compare-initial",
-  "version": 1,
-  "measuredAt": "2026-11-14T06:04:55.838Z",
-  "environment": {
-    "os": "darwin",
-    "release": "27.2.0",
-    "arch": "arm64",
-    "cpu": "Apple M1 Max",
-    "node": "v26.12.0"
-  },
-  "buildCommand": "pnpm nx run aiao-desktop-web:build --configuration=production",
-  "scope": "index.html 的脚本静态依赖闭包与样式；逐文件 gzip level 9；不含 HTML、字体、图片、Worker、动态模块与 HTTP 头",
   "baseline": {
     "sha": "90d14a18",
     "files": [
@@ -29,6 +17,15 @@
     ],
     "rawBytes": 1756532,
     "gzipBytes": 525471
+  },
+  "buildCommand": "pnpm nx run aiao-desktop-web:build --configuration=production",
+  "change": {
+    "rawBytes": -552245,
+    "gzipBytes": -141091
+  },
+  "checks": {
+    "rawDoesNotGrow": true,
+    "gzipDoesNotGrow": true
   },
   "current": {
     "sha": "13d8a872+browser-support-workspace",
@@ -199,12 +196,15 @@
     "rawBytes": 1204287,
     "gzipBytes": 384380
   },
-  "checks": {
-    "rawDoesNotGrow": true,
-    "gzipDoesNotGrow": true
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0"
   },
-  "change": {
-    "rawBytes": -552245,
-    "gzipBytes": -141091
-  }
+  "format": "aiao-desktop.compare-initial",
+  "measuredAt": "2026-11-14T06:04:55.838Z",
+  "scope": "index.html 的脚本静态依赖闭包与样式；逐文件 gzip level 9；不含 HTML、字体、图片、Worker、动态模块与 HTTP 头",
+  "version": 1
 }

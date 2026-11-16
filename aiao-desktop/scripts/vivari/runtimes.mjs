@@ -8,8 +8,7 @@ import manifest from './runtimes.json' with { type: 'json' };
 export const RUNTIME_ASSETS = [...manifest.archives.flatMap(archive => archive.files), ...manifest.files];
 
 function validate(bytes, asset) {
-  if (createHash('sha256').update(bytes).digest('hex') !== asset.sha256)
-    throw new Error(`${asset.path} 内容校验失败`);
+  if (createHash('sha256').update(bytes).digest('hex') !== asset.sha256) throw new Error(`${asset.path} 内容校验失败`);
 }
 
 async function cached(outputDir, asset) {
@@ -33,7 +32,7 @@ async function store(outputDir, asset, bytes) {
 async function prepareArchive(outputDir, archive, fetchAsset) {
   const missing = [];
   for (const asset of archive.files) {
-    if (!await cached(outputDir, asset)) missing.push(asset);
+    if (!(await cached(outputDir, asset))) missing.push(asset);
   }
   if (missing.length === 0) return;
   await withVendorArchive(archive, fetchAsset, async directory => {
@@ -51,10 +50,17 @@ async function prepareFile(outputDir, asset, fetchAsset) {
 }
 
 /** 托管固定版本的 Python、Ruff 和 SQLite；逐文件验散列，只在首次使用命令时由浏览器加载。 */
-export async function prepareRuntimes({ outputDir = VENDOR_DIRECTORY, archives = manifest.archives, files = manifest.files, fetchAsset = fetch } = {}) {
+export async function prepareRuntimes({
+  outputDir = VENDOR_DIRECTORY,
+  archives = manifest.archives,
+  files = manifest.files,
+  fetchAsset = fetch
+} = {}) {
   for (const archive of archives) await prepareArchive(outputDir, archive, fetchAsset);
   for (let index = 0; index < files.length; index += 4) {
-    const results = await Promise.allSettled(files.slice(index, index + 4).map(asset => prepareFile(outputDir, asset, fetchAsset)));
+    const results = await Promise.allSettled(
+      files.slice(index, index + 4).map(asset => prepareFile(outputDir, asset, fetchAsset))
+    );
     const failures = results.filter(result => result.status === 'rejected').map(result => result.reason);
     if (failures.length) throw new AggregateError(failures, failures.map(error => error.message).join('\n'));
   }
@@ -65,7 +71,7 @@ export async function runtimeProblems(outputDir, assets = RUNTIME_ASSETS) {
   const problems = [];
   for (const asset of assets) {
     try {
-      if (!await cached(outputDir, asset)) problems.push(`${asset.path} 缺失，终端运行时无法首次加载`);
+      if (!(await cached(outputDir, asset))) problems.push(`${asset.path} 缺失，终端运行时无法首次加载`);
     } catch (error) {
       problems.push(`${asset.path} 无效：${error.message}`);
     }

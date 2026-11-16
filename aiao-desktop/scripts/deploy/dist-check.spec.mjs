@@ -7,10 +7,12 @@ import { test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 
 import { VENDOR_TOOLS } from '../vivari/prepare.mjs';
-import { checkDist as validateDist, listDistFiles, parseHeadersFile } from './dist-check.mjs';
+import { listDistFiles, parseHeadersFile, checkDist as validateDist } from './dist-check.mjs';
 
 const runtimeBytes = Buffer.from('runtime fixture');
-const runtimeAssets = [{ path: 'pyodide/pyodide.asm.wasm', sha256: createHash('sha256').update(runtimeBytes).digest('hex') }];
+const runtimeAssets = [
+  { path: 'pyodide/pyodide.asm.wasm', sha256: createHash('sha256').update(runtimeBytes).digest('hex') }
+];
 const checkDist = options => validateDist({ ...options, runtimeAssets });
 
 const REQUIRED = {
@@ -22,10 +24,15 @@ const GOOD_HEADERS = '/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Ori
 function vendorPack(tool) {
   const pkg = Buffer.from(JSON.stringify({ name: tool.packageName ?? tool.name, version: tool.version }));
   const cli = Buffer.from('console.log("fixture");');
-  const header = Buffer.from(JSON.stringify({ version: tool.version, files: [
-    { p: 'package.json', o: 0, l: pkg.length },
-    ...[tool.entry, ...(tool.entries ?? [])].map(p => ({ p, o: pkg.length, l: cli.length }))
-  ] }));
+  const header = Buffer.from(
+    JSON.stringify({
+      version: tool.version,
+      files: [
+        { p: 'package.json', o: 0, l: pkg.length },
+        ...[tool.entry, ...(tool.entries ?? [])].map(p => ({ p, o: pkg.length, l: cli.length }))
+      ]
+    })
+  );
   const length = Buffer.alloc(4);
   length.writeUInt32LE(header.length);
   return gzipSync(Buffer.concat([length, header, pkg, cli]));
@@ -35,7 +42,8 @@ async function fixture(t, files, { vendor = true } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'aiao-desktop-dist-check-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const runtimes = vendor ? { 'vendor/pyodide/pyodide.asm.wasm': runtimeBytes } : {};
-  const assets = vendor ? Object.fromEntries(VENDOR_TOOLS.map(tool => [`vendor/${tool.name}-pack.bin`, vendorPack(tool)])) : {};
+  const assets =
+    vendor ? Object.fromEntries(VENDOR_TOOLS.map(tool => [`vendor/${tool.name}-pack.bin`, vendorPack(tool)])) : {};
   for (const [relative, content] of Object.entries({ ...assets, ...runtimes, ...files })) {
     const file = path.join(root, relative);
     await mkdir(path.dirname(file), { recursive: true });
@@ -148,9 +156,15 @@ test('漏发任何一个包管理器资源都阻止发布', async t => {
 
 test('包管理器资源是 HTML、损坏的 gzip 或错误版本时阻止发布', async t => {
   const tool = VENDOR_TOOLS[0];
-  for (const bytes of [Buffer.from('<html>fallback</html>'), Buffer.from([31, 139]), vendorPack({ ...tool, version: '0.0.0' })]) {
+  for (const bytes of [
+    Buffer.from('<html>fallback</html>'),
+    Buffer.from([31, 139]),
+    vendorPack({ ...tool, version: '0.0.0' })
+  ]) {
     const distDir = await fixture(t, {
-      'index.html': 'x', _headers: GOOD_HEADERS, [`vendor/${tool.name}-pack.bin`]: bytes
+      'index.html': 'x',
+      _headers: GOOD_HEADERS,
+      [`vendor/${tool.name}-pack.bin`]: bytes
     });
     const { problems } = await checkDist({ distDir, requiredHeaders: REQUIRED });
     assert.equal(problems.length, 1);

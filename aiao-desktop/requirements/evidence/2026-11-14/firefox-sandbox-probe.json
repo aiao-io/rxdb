@@ -1,9 +1,10 @@
 {
+  "browser": "159.0",
+  "childOrigin": "http://127.0.0.1:62127",
   "measuredAt": "2026-11-14T04:31:42.367Z",
   "method": "Controlled sandbox/allow variants on real loopback origins; iframe in open Shadow DOM; COOP/COEP preserved; protocol keyboard input only; no product code",
-  "browser": "159.0",
   "parentOrigin": "http://127.0.0.1:62128",
-  "childOrigin": "http://127.0.0.1:62127",
+  "passed": true,
   "variants": [
     {
       "name": "shadow",
@@ -34,29 +35,10 @@
           "url": "http://127.0.0.1:62127/"
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62128/shadow",
-        "http://127.0.0.1:62127/"
-      ],
+      "frames": ["http://127.0.0.1:62128/shadow", "http://127.0.0.1:62127/"],
       "input": {
         "text": "firefox-sandbox",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "a",
-          "n",
-          "d",
-          "b",
-          "o",
-          "x"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "a", "n", "d", "b", "o", "x"],
         "focused": true,
         "isolated": true
       },
@@ -92,29 +74,10 @@
           "url": "http://127.0.0.1:62127/"
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62128/shadow-sandbox",
-        "http://127.0.0.1:62127/"
-      ],
+      "frames": ["http://127.0.0.1:62128/shadow-sandbox", "http://127.0.0.1:62127/"],
       "input": {
         "text": "firefox-sandbox",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "a",
-          "n",
-          "d",
-          "b",
-          "o",
-          "x"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "a", "n", "d", "b", "o", "x"],
         "focused": true,
         "isolated": true
       },
@@ -150,29 +113,10 @@
           "url": "http://127.0.0.1:62127/"
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62128/shadow-sandbox-allow",
-        "http://127.0.0.1:62127/"
-      ],
+      "frames": ["http://127.0.0.1:62128/shadow-sandbox-allow", "http://127.0.0.1:62127/"],
       "input": {
         "text": "firefox-sandbox",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "a",
-          "n",
-          "d",
-          "b",
-          "o",
-          "x"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "a", "n", "d", "b", "o", "x"],
         "focused": true,
         "isolated": true
       },
@@ -208,35 +152,15 @@
           "url": "http://127.0.0.1:62127/"
         }
       ],
-      "frames": [
-        "http://127.0.0.1:62128/shadow-allow",
-        "http://127.0.0.1:62127/"
-      ],
+      "frames": ["http://127.0.0.1:62128/shadow-allow", "http://127.0.0.1:62127/"],
       "input": {
         "text": "firefox-sandbox",
-        "keys": [
-          "f",
-          "i",
-          "r",
-          "e",
-          "f",
-          "o",
-          "x",
-          "-",
-          "s",
-          "a",
-          "n",
-          "d",
-          "b",
-          "o",
-          "x"
-        ],
+        "keys": ["f", "i", "r", "e", "f", "o", "x", "-", "s", "a", "n", "d", "b", "o", "x"],
         "focused": true,
         "isolated": true
       },
       "reload": true,
       "passed": true
     }
-  ],
-  "passed": true
+  ]
 }

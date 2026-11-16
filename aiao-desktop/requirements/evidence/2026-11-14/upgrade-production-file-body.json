@@ -1,11 +1,18 @@
 {
-  "format": "aiao-desktop.smoke",
-  "version": 1,
-  "measuredAt": "2026-11-14T01:53:48.236Z",
-  "source": {
-    "sha": "67bcbbc94f7d1cb666dc0fe401a3dd463c893645",
-    "changes": "M src/groups/upgrade-previous.mjs\n M src/verify-domains.mjs\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n?? src/harness/user-file.mjs"
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
   },
+  "checks": {
+    "upgradePrevious": {
+      "previousBuildWritesNoRecord": true,
+      "originStaysTheSame": true,
+      "dataSurvivesUpgrade": true,
+      "fileBodySurvivesUpgrade": true,
+      "versionRecordWritten": true
+    }
+  },
+  "clean": true,
   "environment": {
     "os": "darwin",
     "release": "27.2.0",
@@ -16,20 +23,20 @@
     "engine": "chromium",
     "headless": true
   },
-  "artifact": {
-    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
   },
+  "measuredAt": "2026-11-14T01:53:48.236Z",
   "method": {
     "previousBuild": "https://d650c06f.aiao-desktop.pages.dev",
     "parallel": 1,
-    "groups": [
-      "upgrade-previous"
-    ],
+    "groups": ["upgrade-previous"],
     "isolatedOrigins": true,
     "interceptedExternalRequests": true
   },
-  "seconds": 15.688651041000002,
   "outcomes": [
     {
       "group": "upgrade-previous",
@@ -51,20 +58,11 @@
       "seconds": 15.654308708
     }
   ],
-  "checks": {
-    "upgradePrevious": {
-      "previousBuildWritesNoRecord": true,
-      "originStaysTheSame": true,
-      "dataSurvivesUpgrade": true,
-      "fileBodySurvivesUpgrade": true,
-      "versionRecordWritten": true
-    }
-  },
-  "limitations": {
-    "known": [],
-    "unexpected": [],
-    "stale": []
-  },
   "passed": true,
-  "clean": true
+  "seconds": 15.688651041000002,
+  "source": {
+    "sha": "67bcbbc94f7d1cb666dc0fe401a3dd463c893645",
+    "changes": "M src/groups/upgrade-previous.mjs\n M src/verify-domains.mjs\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n?? src/harness/user-file.mjs"
+  },
+  "version": 1
 }

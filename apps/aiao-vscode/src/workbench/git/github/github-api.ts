@@ -392,7 +392,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     },
 
     async getBlobContents(owner: string, repo: string, sha: string): Promise<Uint8Array> {
-      const json = asRecord(await requestJson(`${repoPath(owner, repo)}/git/blobs/${encodeURIComponent(sha)}`, {}, true));
+      const json = asRecord(
+        await requestJson(`${repoPath(owner, repo)}/git/blobs/${encodeURIComponent(sha)}`, {}, true)
+      );
       return toBytes(json);
     },
 
@@ -493,7 +495,12 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       return parseRepoSummary(json);
     },
 
-    async getZipball(owner: string, repo: string, ref: string, maxBytes = Number.POSITIVE_INFINITY): Promise<Uint8Array> {
+    async getZipball(
+      owner: string,
+      repo: string,
+      ref: string,
+      maxBytes = Number.POSITIVE_INFINITY
+    ): Promise<Uint8Array> {
       const url = `${apiBase}${repoPath(owner, repo)}/zipball/${encodeURIComponent(ref)}`;
       const token = await getToken();
       const headers: Record<string, string> = {

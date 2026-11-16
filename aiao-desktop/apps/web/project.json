@@ -146,9 +146,7 @@
         "{workspaceRoot}/package.json",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],
-      "outputs": [
-        "{workspaceRoot}/node_modules/.cache/aiao-desktop/vivari/vendor"
-      ],
+      "outputs": ["{workspaceRoot}/node_modules/.cache/aiao-desktop/vivari/vendor"],
       "options": {
         "command": "node aiao-desktop/scripts/vivari/cli.mjs"
       }

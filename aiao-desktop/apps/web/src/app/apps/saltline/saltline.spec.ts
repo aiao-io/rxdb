@@ -1,5 +1,7 @@
+import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 
 import { DesktopAppManifest, LAUNCH_ORDER } from '../../services/desktop-apps';
@@ -35,5 +37,24 @@ describe('几猫3A大作', () => {
   it('游戏是自包含的单文件：不引用外部脚本、样式与媒体，桌面的 COEP 拦不到它', () => {
     const external = /<(?:script|link|img|iframe|source|audio|video)\b[^>]*\b(?:src|href)=["']?(?:https?:)?\/\//gi;
     expect(shipped.match(external)).toBeNull();
+  });
+});
+
+describe('游戏对象标识符', () => {
+  it('对象 UUID 只使用加密随机源，并保持版本 4 格式', () => {
+    const generator = shipped.match(/function vo\(\)\{.*?\}(?=function Ct)/)?.[0];
+    expect(generator).toBeDefined();
+    const uuid: () => string = runInNewContext(`(${generator})`, {
+      crypto: webcrypto,
+      Math: {
+        random: () => {
+          throw new Error('UUID 不得使用 Math.random');
+        }
+      }
+    });
+    const values = Array.from({ length: 100 }, () => uuid());
+    expect(new Set(values).size).toBe(100);
+    for (const value of values)
+      expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 });

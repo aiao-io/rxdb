@@ -754,12 +754,14 @@ describe('GitHub virtual repository backend', () => {
     const id = 'github:octo/repo@main';
     await backend.move(id, 'src', 'lib');
 
-    expect((await backend.status(id)).entries).toEqual([
-      { path: 'lib/a.ts', index: '?', worktree: '?' },
-      { path: 'lib/b.ts', index: '?', worktree: '?' },
-      { path: 'logo.png', index: ' ', worktree: ' ' },
-      { path: 'src/a.ts', index: ' ', worktree: 'D' },
-      { path: 'src/b.ts', index: ' ', worktree: 'D' }
-    ].filter(entry => entry.index !== ' ' || entry.worktree !== ' '));
+    expect((await backend.status(id)).entries).toEqual(
+      [
+        { path: 'lib/a.ts', index: '?', worktree: '?' },
+        { path: 'lib/b.ts', index: '?', worktree: '?' },
+        { path: 'logo.png', index: ' ', worktree: ' ' },
+        { path: 'src/a.ts', index: ' ', worktree: 'D' },
+        { path: 'src/b.ts', index: ' ', worktree: 'D' }
+      ].filter(entry => entry.index !== ' ' || entry.worktree !== ' ')
+    );
   });
 });

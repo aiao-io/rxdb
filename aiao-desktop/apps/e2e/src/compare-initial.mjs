@@ -30,7 +30,10 @@ const report = {
   scope: 'index.html 的脚本静态依赖闭包与样式；逐文件 gzip level 9；不含 HTML、字体、图片、Worker、动态模块与 HTTP 头',
   baseline: { sha: values['baseline-sha'], ...baseline },
   current: { sha: values['current-sha'], ...current },
-  checks: { rawDoesNotGrow: current.rawBytes <= baseline.rawBytes, gzipDoesNotGrow: current.gzipBytes <= baseline.gzipBytes },
+  checks: {
+    rawDoesNotGrow: current.rawBytes <= baseline.rawBytes,
+    gzipDoesNotGrow: current.gzipBytes <= baseline.gzipBytes
+  },
   change: { rawBytes: current.rawBytes - baseline.rawBytes, gzipBytes: current.gzipBytes - baseline.gzipBytes }
 };
 const json = `${JSON.stringify(report, null, 2)}\n`;

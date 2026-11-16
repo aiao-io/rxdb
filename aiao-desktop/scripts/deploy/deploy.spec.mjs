@@ -73,7 +73,7 @@ function fakeDeps({
     },
     checkLive: async ({ baseUrl, files }) => {
       calls.live.push({ baseUrl, files: files.map(file => file.path) });
-      return { checked: files.length, failures: baseUrl.includes('desktop.aiao.io') ? failures : [] };
+      return { checked: files.length, failures: new URL(baseUrl).hostname === 'desktop.aiao.io' ? failures : [] };
     },
     git: () => ({ hash: 'f00dbab', dirty: true }),
     log: message => calls.log.push(message)

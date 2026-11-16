@@ -27,7 +27,8 @@ test('首次准备从校验过的发布包复制解释器和 wheel，合格缓�
   execFileSync('tar', ['-czf', tarball, '-C', root, 'package']);
   const bytes = await readFile(tarball);
   const archive = {
-    name: 'pyodide', tarball: 'https://registry.npmjs.org/fixture.tgz',
+    name: 'pyodide',
+    tarball: 'https://registry.npmjs.org/fixture.tgz',
     integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
     files: [{ ...asset, source: 'python.wasm' }]
   };
@@ -35,15 +36,23 @@ test('首次准备从校验过的发布包复制解释器和 wheel，合格缓�
   const file = { path: 'pyodide/example.whl', url: 'https://example.test/example.whl', sha256: sha256(wheel) };
   const requested = [];
   const options = { outputDir, archives: [archive], files: [file] };
-  await prepareRuntimes({ ...options, fetchAsset: async url => {
-    requested.push(url);
-    return new Response(url === archive.tarball ? bytes : wheel);
-  } });
+  await prepareRuntimes({
+    ...options,
+    fetchAsset: async url => {
+      requested.push(url);
+      return new Response(url === archive.tarball ? bytes : wheel);
+    }
+  });
   assert.deepEqual(requested, [archive.tarball, file.url]);
   assert.deepEqual(await readFile(join(outputDir, asset.path)), wasm);
   assert.deepEqual(await readFile(join(outputDir, file.path)), wheel);
   assert.deepEqual(await runtimeProblems(outputDir, [asset, file]), []);
-  await prepareRuntimes({ ...options, fetchAsset: () => { throw new Error('不得联网'); } });
+  await prepareRuntimes({
+    ...options,
+    fetchAsset: () => {
+      throw new Error('不得联网');
+    }
+  });
 });
 
 test('缺失、HTML 替身和截断资源必须阻止发布', async t => {
@@ -58,7 +67,15 @@ test('缺失、HTML 替身和截断资源必须阻止发布', async t => {
 test('wheel 下载失败或散列不符时失败，不留下文件', async t => {
   const { outputDir } = await fixture(t);
   for (const response of [new Response('missing', { status: 404 }), new Response('<html>SPA</html>')]) {
-    await assert.rejects(prepareRuntimes({ outputDir, archives: [], files: [{ ...asset, url: 'https://example.test/runtime' }], fetchAsset: async () => response }), /HTTP 404|校验/);
+    await assert.rejects(
+      prepareRuntimes({
+        outputDir,
+        archives: [],
+        files: [{ ...asset, url: 'https://example.test/runtime' }],
+        fetchAsset: async () => response
+      }),
+      /HTTP 404|校验/
+    );
     await assert.rejects(readFile(join(outputDir, asset.path)), { code: 'ENOENT' });
   }
 });
@@ -67,7 +84,14 @@ test('本地锁文件与版本信息也按固定散列复制', async t => {
   const { outputDir } = await fixture(t);
   const bytes = await readFile(new URL('./ruff-version.txt', import.meta.url));
   const file = { path: 'ruff/version.txt', source: 'ruff-version.txt', sha256: sha256(bytes) };
-  await prepareRuntimes({ outputDir, archives: [], files: [file], fetchAsset: () => { throw new Error('不得联网'); } });
+  await prepareRuntimes({
+    outputDir,
+    archives: [],
+    files: [file],
+    fetchAsset: () => {
+      throw new Error('不得联网');
+    }
+  });
   assert.deepEqual(await readFile(join(outputDir, file.path)), bytes);
 });
 
@@ -83,6 +107,35 @@ test('Python 锁文件中全部同源 wheel 都有固定资源，传递依赖可
     assert.equal(item.sha256, pkg.sha256);
     for (const dependency of pkg.depends) assert.ok(lock.packages[dependency], `${pkg.name} 缺少 ${dependency}`);
   }
-  for (const name of ['micropip', 'numpy', 'pandas', 'scipy', 'scikit-learn', 'pytest', 'mypy', 'black', 'flask', 'fastapi', 'uvicorn', 'gunicorn'])
+  for (const name of [
+    'micropip',
+    'numpy',
+    'pandas',
+    'scipy',
+    'scikit-learn',
+    'pytest',
+    'mypy',
+    'black',
+    'flask',
+    'fastapi',
+    'uvicorn',
+    'gunicorn'
+  ])
     assert.ok(assets.has(`pyodide/${lock.packages[name].file_name}`), `${name} 必须同源托管`);
+});
+
+test('仓库中的本地运行时资源逐字节符合发布清单的固定散列', async t => {
+  const manifest = JSON.parse(await readFile(new URL('./runtimes.json', import.meta.url), 'utf8'));
+  const { outputDir } = await fixture(t);
+  const files = manifest.files.filter(file => file.source);
+  assert.ok(files.length > 0);
+  await prepareRuntimes({
+    outputDir,
+    archives: [],
+    files,
+    fetchAsset: () => {
+      throw new Error('不得联网');
+    }
+  });
+  assert.deepEqual(await runtimeProblems(outputDir, files), []);
 });

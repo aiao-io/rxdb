@@ -13,17 +13,17 @@
 
 全部资源按命令或 import 首次使用加载，不进入桌面首屏。`.mjs` 必须以 JavaScript 类型返回，WASM 必须保留二进制内容，托管方需要全站跨源隔离响应头。
 
-| 能力 | 命令或模块 | 提供的资源 |
-| --- | --- | --- |
-| 包管理器 | npm / npx、pnpm / pnpx、Yarn、Corepack | 固定版本 pack |
-| Python 3.14 | python / python3、脚本、REPL、标准库 | Pyodide、CPython WASM、标准库 |
-| Python 包 | pip / pip3、python -m pip | micropip、固定 wheel、项目内 `.venv` 包存储 |
-| 数据与科学计算 | NumPy、pandas、SciPy、scikit-learn、matplotlib、openpyxl | 同源 wheel 与传递依赖 |
-| Python 工具 | pytest、Black、mypy、Ruff | 同源 wheel 或独立 Ruff WASM |
-| Python 库 | FastAPI、Flask、httpx、requests、SQLAlchemy、Rich、tzdata | 同源 wheel 与传递依赖 |
-| TypeScript 7 | tsc / tsgo | tsgo-wasm 与 Go 引擎 |
-| Bun 兼容命令 | bun / bunx | SDK 自带，不下载原生 Bun |
-| SQL | node:sqlite、bun:sqlite | 同源 SQLite WASM |
+| 能力           | 命令或模块                                                | 提供的资源                                  |
+| -------------- | --------------------------------------------------------- | ------------------------------------------- |
+| 包管理器       | npm / npx、pnpm / pnpx、Yarn、Corepack                    | 固定版本 pack                               |
+| Python 3.14    | python / python3、脚本、REPL、标准库                      | Pyodide、CPython WASM、标准库               |
+| Python 包      | pip / pip3、python -m pip                                 | micropip、固定 wheel、项目内 `.venv` 包存储 |
+| 数据与科学计算 | NumPy、pandas、SciPy、scikit-learn、matplotlib、openpyxl  | 同源 wheel 与传递依赖                       |
+| Python 工具    | pytest、Black、mypy、Ruff                                 | 同源 wheel 或独立 Ruff WASM                 |
+| Python 库      | FastAPI、Flask、httpx、requests、SQLAlchemy、Rich、tzdata | 同源 wheel 与传递依赖                       |
+| TypeScript 7   | tsc / tsgo                                                | tsgo-wasm 与 Go 引擎                        |
+| Bun 兼容命令   | bun / bunx                                                | SDK 自带，不下载原生 Bun                    |
+| SQL            | node:sqlite、bun:sqlite                                   | 同源 SQLite WASM                            |
 
 Python 按当前目录镜像项目文件；运行项目测试前先 `cd` 到项目目录。pip 是 Vivari 的兼容命令，支持 install / list / freeze / show / check / uninstall，不代表原生 pip 的全部子命令。原生 CPython 扩展必须有匹配的 Pyodide WASM wheel；任意 npm 包与 Node 原生扩展也没有兼容保证。当前没有接入 Web 服务的预览路由、TCP 中继或上游 Studio 的 IDE 界面。Yarn `--version` 仍有 SDK 的退出堆栈问题，可用 `yarn versions --json` 查询版本。
 

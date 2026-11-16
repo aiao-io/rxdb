@@ -283,8 +283,17 @@ export function MacosSprite() {
   );
 }
 
-export function MacosIcon({ symbol, className = '' }: { symbol: MacosAppSymbol | MacosFileSymbol | MacosGlyphSymbol; className?: string }) {
-  const viewBox = symbol.startsWith('g-') ? glyphViewBoxes[symbol as MacosGlyphSymbol] : symbol.startsWith('f-') ? '0 0 64 64' : '0 0 100 100';
+export function MacosIcon({
+  symbol,
+  className = ''
+}: {
+  symbol: MacosAppSymbol | MacosFileSymbol | MacosGlyphSymbol;
+  className?: string;
+}) {
+  const viewBox =
+    symbol.startsWith('g-') ? glyphViewBoxes[symbol as MacosGlyphSymbol]
+    : symbol.startsWith('f-') ? '0 0 64 64'
+    : '0 0 100 100';
   return (
     <svg className={className} viewBox={viewBox} aria-hidden='true'>
       <use href={`#${symbol}`} />

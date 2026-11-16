@@ -100,12 +100,14 @@ const context = await browser.newContext({
 if (vscodeDist) await context.route(`${VSCODE}/**`, serveLocalVscode);
 const page = await context.newPage();
 page.on('pageerror', error => {
-  const fromApp = (error.stack ?? '').includes(VSCODE);
+  const fromApp = [...(error.stack ?? '').matchAll(/https?:\/\/[^\s)]+/g)].some(
+    match => new URL(match[0]).origin === VSCODE
+  );
   (fromApp ? report.appPageErrors : report.desktopErrors).push(error.message);
 });
 page.on('console', message => {
   if (message.type() !== 'error') return;
-  const fromDesktop = (message.location().url ?? '').startsWith(desktop.origin);
+  const fromDesktop = message.location().url && new URL(message.location().url).origin === desktop.origin;
   if (fromDesktop && !/Failed to load resource/.test(message.text())) report.desktopErrors.push(message.text());
   else report.appConsoleErrors.push(message.text().slice(0, 300));
 });

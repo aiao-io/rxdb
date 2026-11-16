@@ -55,7 +55,15 @@ const macDesktopItems = [
     row: 4,
     appId: 'files'
   },
-  { id: 'guidelines', label: 'Interface Guidelines.pdf', kind: 'file', symbol: 'f-pdf', column: 1, row: 1, appId: 'files' }
+  {
+    id: 'guidelines',
+    label: 'Interface Guidelines.pdf',
+    kind: 'file',
+    symbol: 'f-pdf',
+    column: 1,
+    row: 1,
+    appId: 'files'
+  }
 ] as const;
 
 function MacWidgets({ clock }: { clock: Date }) {
