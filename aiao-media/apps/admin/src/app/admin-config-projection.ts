@@ -126,7 +126,7 @@ async function changeInput(
   unit: CommitChangeUnitContent,
   readEntity: AdminConfigProjectionOptions['readEntity']
 ) {
-  if (unit.namespace !== 'media' || !CONFIG_ENTITIES.has(unit.entity)) throw new Error(`实体 ${unit.entity} 不允许投影。`);
+  if (unit.namespace !== 'public' || !CONFIG_ENTITIES.has(unit.entity)) throw new Error(`实体 ${unit.entity} 不允许投影。`);
   const current = await readEntity(unit.entity, unit.entityId);
   const inverse = unit.inversePatch === null ? null : asRecord(unit.inversePatch, '提交逆向 patch 格式无效。');
   const currentRevision = revisionFrom(current);
@@ -149,24 +149,51 @@ async function changeInput(
   } as const;
 }
 
+function isProjectable(entry: CommitLogEntry): boolean {
+  return entry.kind === 'normal' && entry.changeSetCount > 0;
+}
+
+async function projectedCommitId(commitId: string): Promise<string> {
+  return isUuid(commitId) ? commitId : stableUuid(`commit:${commitId}`);
+}
+
+/**
+ * 父提交映射到最近的可投影祖先：工作树的系统基线（`baseline` / `branch_baseline`）不进入投影，
+ * 直接指向它们会让服务端永远找不到父提交而拒绝应用。
+ */
+async function projectedParentIds(entry: CommitLogEntry, history: ReadonlyMap<string, CommitLogEntry>): Promise<string[]> {
+  const resolved: string[] = [];
+  const visit = async (parentId: string): Promise<void> => {
+    const parent = history.get(parentId);
+    if (!parent) throw new Error(`提交 ${entry.commitId} 的父提交 ${parentId} 不在当前分支历史中。`);
+    if (!isProjectable(parent)) {
+      for (const ancestorId of parent.parentIds) await visit(ancestorId);
+      return;
+    }
+    const id = await projectedCommitId(parent.commitId);
+    if (!resolved.includes(id)) resolved.push(id);
+  };
+  for (const parentId of entry.parentIds) await visit(parentId);
+  return resolved;
+}
+
 export async function createMediaConfigCommitEnvelopeFromWorkingTree(
   source: AdminWorkingTreeSource,
   options: { commitId: string; workspaceId: string; authorId: string; readEntity: AdminConfigProjectionOptions['readEntity'] }
 ): Promise<MediaConfigCommitEnvelope> {
   if (!isUuid(options.workspaceId) || !isUuid(options.authorId)) throw new Error('配置 projection 身份无效。');
   const page = await source.listCommits();
-  const entry = page.entries.find(candidate => candidate.commitId === options.commitId);
+  const history = new Map(page.entries.map(candidate => [candidate.commitId, candidate]));
+  const entry = history.get(options.commitId);
   if (!entry) throw new Error(`提交 ${options.commitId} 不在当前分支历史中。`);
-  if (entry.kind === 'baseline' || entry.kind === 'branch_baseline' || entry.changeSetCount === 0) {
-    throw new Error('系统基线提交不能进入配置 projection。');
-  }
+  if (!isProjectable(entry)) throw new Error('系统基线提交不能进入配置 projection。');
   const changes = await source.commitChanges(options.commitId);
   if (changes.entries.length !== entry.changeSetCount) throw new Error('提交变更不完整，暂不投影。');
   const input: MediaConfigCommitInput = {
-    id: isUuid(options.commitId) ? options.commitId : await stableUuid(`commit:${options.commitId}`),
+    id: await projectedCommitId(options.commitId),
     workspaceId: options.workspaceId,
     branchId: page.branchId,
-    parentIds: [...entry.parentIds],
+    parentIds: await projectedParentIds(entry, history),
     authorId: entry.authorId && isUuid(entry.authorId) ? entry.authorId : options.authorId,
     message: entry.message,
     operationId: await stableUuid(`${options.workspaceId}:operation:${options.commitId}`),
@@ -184,7 +211,9 @@ export function createAdminConfigProjectionStore(database: RxDB): AdminConfigPro
       const commitRows = await firstValueFrom(commits.findAll({
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: asUuid(commitId) }] }
       }));
-      if (!commitRows[0]) return false;
+      const commit = commitRows[0];
+      // prepared 说明变更行写完前中断过：仍需补写缺失变更并标记 synced。
+      if (!commit || commit.changeCount !== changeCount || commit.status === 'prepared') return false;
       const changeRows = await firstValueFrom(changes.findAll({
         where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: asUuid(commitId) }] }
       }));
@@ -194,24 +223,28 @@ export function createAdminConfigProjectionStore(database: RxDB): AdminConfigPro
       const existing = await firstValueFrom(commits.findAll({
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: asUuid(envelope.commit.id) }] }
       }));
-      if (!existing[0]) {
-        await commits.create(new MediaConfigCommit(envelope.commit));
-      } else if (existing[0].contentFingerprint !== envelope.commit.contentFingerprint) {
+      let commit = existing[0];
+      if (!commit) {
+        const { changes: _changes, ...fields } = envelope.commit;
+        commit = await commits.create(new MediaConfigCommit(fields));
+      } else if (commit.contentFingerprint !== envelope.commit.contentFingerprint) {
         throw new Error('同一提交的 projection 指纹不一致。');
       }
       const existingChanges = await firstValueFrom(changes.findAll({
         where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: asUuid(envelope.commit.id) }] }
       }));
       const existingIds = new Set<string>(existingChanges.map(change => String(change.id)));
-      
       for (const change of envelope.changes) {
         if (existingIds.has(change.id)) continue;
         await changes.create(new MediaConfigCommitChange({
           ...change,
+          workspaceId: envelope.commit.workspaceId,
           commitId: envelope.commit.id,
           expectedRevision: change.expectedRevision
         }));
       }
+      // 变更全部到齐后才标记 synced；服务端触发器会再核对一次完整性。
+      if (commit.status === 'prepared') await commits.update(commit, { status: 'synced' });
     }
   };
 }
@@ -231,7 +264,7 @@ export function createAdminConfigProjection(options: AdminConfigProjectionOption
   const project = (commitId: string): Promise<MediaConfigCommitEnvelope | null> => enqueue(async () => {
     const page = await options.workingTree.listCommits();
     const entry = page.entries.find(candidate => candidate.commitId === commitId);
-    if (!entry || entry.kind === 'baseline' || entry.kind === 'branch_baseline' || entry.changeSetCount === 0) return null;
+    if (!entry || !isProjectable(entry)) return null;
     const complete = await options.store.hasCompleteProjection(commitId, entry.changeSetCount);
     if (complete && !options.sync) return null;
     const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(options.workingTree, {

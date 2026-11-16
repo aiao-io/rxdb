@@ -11,6 +11,12 @@
       "path": "../../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
+      "path": "../../../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
@@ -35,6 +41,9 @@
       "path": "../../../packages/rxdb-admin/tsconfig.lib.json"
     },
     {
+      "path": "../../../packages/rxdb-adapter-supabase/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {
@@ -45,6 +54,9 @@
     },
     {
       "path": "../../packages/api-contracts/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-pglite/tsconfig.lib.json"
     }
   ]
 }

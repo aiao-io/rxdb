@@ -3,10 +3,44 @@ import type {
   MediaConfigCommitOperation,
   MediaConfigCommitStatus
 } from '@aiao-media/domain';
+import type { RxDB, UUID } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
 
 export interface BackendConfigCommitRemote {
   readCommit(commitId: string): Promise<unknown | null>;
   readChanges(commitId: string): Promise<readonly unknown[]>;
+}
+
+/** 后台节点读取投影所需的最小 RxDB 面。 */
+export interface BackendConfigCommitDatabase {
+  readonly entityManager: Pick<RxDB['entityManager'], 'getRepository'>;
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * 经后台 RxDB 节点的查询缓存读取提交投影：每次读取都按远端 `updatedAt` 新鲜度回源，
+ * 因此服务端 RPC 推进的状态与补写的变更行都能被看到。
+ */
+export function createBackendConfigCommitRemote(db: BackendConfigCommitDatabase): BackendConfigCommitRemote {
+  const rule = (field: 'id' | 'commitId', value: string) => {
+    if (!UUID_PATTERN.test(value)) throw new Error('配置提交标识不是 UUID。');
+    return { combinator: 'and' as const, rules: [{ field, operator: '=' as const, value: value as UUID }] };
+  };
+  return {
+    readCommit: async commitId => {
+      const { MediaConfigCommit } = await import('@aiao-media/domain');
+      const rows = await firstValueFrom(db.entityManager.getRepository(MediaConfigCommit).findAll({ where: rule('id', commitId) }));
+      return rows[0] ? { ...rows[0] } : null;
+    },
+    readChanges: async commitId => {
+      const { MediaConfigCommitChange } = await import('@aiao-media/domain');
+      const rows = await firstValueFrom(
+        db.entityManager.getRepository(MediaConfigCommitChange).findAll({ where: rule('commitId', commitId) })
+      );
+      return rows.map(row => ({ ...row }));
+    }
+  };
 }
 
 export interface BackendConfigCommitCacheOptions {
@@ -22,6 +56,7 @@ interface CommitRow {
   message: string;
   operationId: string;
   contentFingerprint: string;
+  changeCount: number;
   status: MediaConfigCommitStatus;
 }
 
@@ -67,27 +102,34 @@ function operationField(row: Record<string, unknown>): MediaConfigCommitOperatio
 }
 
 function positiveRevision(row: Record<string, unknown>): number | null {
-  const value = row['expected_revision'];
+  const value = row['expectedRevision'];
   if (value === null || value === undefined) return null;
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return value;
   if (typeof value === 'string' && /^[0-9]+$/.test(value)) {
     const number = Number(value);
     if (Number.isSafeInteger(number)) return number;
   }
-  throw new Error('配置变更 expected_revision 无效。');
+  throw new Error('配置变更 expectedRevision 无效。');
+}
+
+function positiveCount(row: Record<string, unknown>): number {
+  const value = row['changeCount'];
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return value;
+  throw new Error('配置提交 changeCount 无效。');
 }
 
 function parseCommit(value: unknown): CommitRow {
   const row = record(value, '配置提交回执无效。');
   return {
     id: stringField(row, 'id'),
-    workspaceId: stringField(row, 'workspace_id'),
-    branchId: stringField(row, 'branch_id'),
-    parentIds: stringArrayField(row, 'parent_ids'),
-    authorId: stringField(row, 'author_id'),
+    workspaceId: stringField(row, 'workspaceId'),
+    branchId: stringField(row, 'branchId'),
+    parentIds: stringArrayField(row, 'parentIds'),
+    authorId: stringField(row, 'authorId'),
     message: stringField(row, 'message'),
-    operationId: stringField(row, 'operation_id'),
-    contentFingerprint: stringField(row, 'content_fingerprint'),
+    operationId: stringField(row, 'operationId'),
+    contentFingerprint: stringField(row, 'contentFingerprint'),
+    changeCount: positiveCount(row),
     status: statusField(row)
   };
 }
@@ -98,12 +140,12 @@ function parseChange(value: unknown): ChangeRow {
     id: stringField(row, 'id'),
     sequence: Number(row['sequence']),
     entity: stringField(row, 'entity'),
-    entityId: stringField(row, 'entity_id'),
+    entityId: stringField(row, 'entityId'),
     operation: operationField(row),
     patch: row['patch'],
-    inversePatch: row['inverse_patch'] ?? null,
+    inversePatch: row['inversePatch'] ?? null,
     expectedRevision: positiveRevision(row),
-    contentFingerprint: stringField(row, 'content_fingerprint')
+    contentFingerprint: stringField(row, 'contentFingerprint')
   };
 }
 
@@ -121,8 +163,10 @@ export class BackendConfigCommitCache {
     const cached = this.#cache.get(commitId);
     if (cached) return cached;
     const commit = parseCommit(await this.#remote.readCommit(commitId));
+    if (commit.status === 'prepared') throw new Error('配置提交尚未同步完成，等待补偿后再加载。');
     const changes = (await this.#remote.readChanges(commitId)).map(parseChange).sort((left, right) => left.sequence - right.sequence);
     if (changes.length === 0) throw new Error('配置提交 envelope 不完整。');
+    if (changes.length !== commit.changeCount) throw new Error('配置提交的变更尚未到齐，等待补偿后再加载。');
     const { createMediaConfigCommitEnvelope } = await import('@aiao-media/domain');
     const envelope = await createMediaConfigCommitEnvelope({
       id: commit.id,

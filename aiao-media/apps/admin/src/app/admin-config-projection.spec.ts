@@ -33,7 +33,7 @@ const commitEntry: CommitLogEntry = {
 const unit = (overrides: Partial<CommitChangeUnitContent>): CommitChangeUnitContent => ({
   unitId: '10000000-0000-4000-8000-000000000006',
   transactionId: null,
-  namespace: 'media',
+  namespace: 'public',
   entity: 'MediaPromptTemplate',
   entityId: templateId,
   operation: 'update',
@@ -173,6 +173,65 @@ describe('Admin 配置提交投影', () => {
       expectedRevision: 7,
       patch: { value: null }
     });
+  });
+
+  it('父提交跳过工作树系统基线，只指向已投影的配置提交，合并保留全部父链', async () => {
+    const baseline = '20000000-0000-4000-8000-000000000001';
+    const first = '20000000-0000-4000-8000-000000000002';
+    const second = '20000000-0000-4000-8000-000000000003';
+    const branchBaseline = '20000000-0000-4000-8000-000000000004';
+    const branchCommit = '20000000-0000-4000-8000-000000000005';
+    const merge = '20000000-0000-4000-8000-000000000006';
+    const node = (id: string, parentIds: string[], kind: CommitLogEntry['kind'] = 'normal'): CommitLogEntry => ({
+      ...commitEntry,
+      commitId: id,
+      parentIds,
+      firstParentId: parentIds[0] ?? null,
+      kind,
+      changeSetCount: kind === 'normal' ? 1 : 0
+    });
+    const entries = [
+      node(merge, [second, branchCommit]),
+      node(branchCommit, [branchBaseline]),
+      node(branchBaseline, [first], 'branch_baseline'),
+      node(second, [first]),
+      node(first, [baseline]),
+      node(baseline, [], 'baseline')
+    ];
+    const history: AdminWorkingTreeSource = {
+      commits$: new Subject<WorkingTreeCommitEvent>(),
+      listCommits: async () => ({ branchId: 'main', headCommitId: merge, entries }),
+      commitChanges: async id => ({ commitId: id, entries: [unit({ unitId: id })] })
+    };
+    const project = (id: string) => createMediaConfigCommitEnvelopeFromWorkingTree(history, {
+      commitId: id,
+      workspaceId,
+      authorId,
+      readEntity: async () => ({ id: templateId, workspaceId, revision: 2, key: 'hero', title: '标题', prompt: 'p', tags: [], enabled: true })
+    });
+
+    expect((await project(first)).commit.parentIds).toEqual([]);
+    expect((await project(second)).commit.parentIds).toEqual([first]);
+    expect((await project(branchCommit)).commit.parentIds).toEqual([first]);
+    expect((await project(merge)).commit.parentIds).toEqual([second, branchCommit]);
+  });
+
+  it('父提交不在可达历史里时拒绝投影，不猜测祖先', async () => {
+    const orphan: AdminWorkingTreeSource = {
+      commits$: new Subject<WorkingTreeCommitEvent>(),
+      listCommits: async () => ({
+        branchId: 'main',
+        headCommitId: commitId,
+        entries: [{ ...commitEntry, parentIds: ['30000000-0000-4000-8000-000000000001'], changeSetCount: 1 }]
+      }),
+      commitChanges: async () => ({ commitId, entries: [unit({})] })
+    };
+    await expect(createMediaConfigCommitEnvelopeFromWorkingTree(orphan, {
+      commitId,
+      workspaceId,
+      authorId,
+      readEntity: async () => ({ id: templateId, workspaceId, revision: 2, key: 'hero', title: '标题', prompt: 'p', tags: [], enabled: true })
+    })).rejects.toThrow('父提交');
   });
 
   it('监听提交并通过补偿扫描，保证同一提交只持久化一次', async () => {

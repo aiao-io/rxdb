@@ -4,7 +4,7 @@ import { ADMIN_CONFIG_DB_NAME, ADMIN_CONFIG_ENTITIES, normalizeAdminUserId } fro
 
 describe('Admin RxDB 配置工作区', () => {
   it('只注册媒体配置实体，不把 RxDB 系统实体作为业务同步契约', () => {
-    expect(ADMIN_CONFIG_DB_NAME).toBe('aiao-media-admin-config');
+    expect(ADMIN_CONFIG_DB_NAME).toBe('aiao-media-admin-config-v2');
     expect(ADMIN_CONFIG_ENTITIES.map(entity => getEntityMetadata(entity).name)).toEqual([
       'MediaPromptTemplate',
       'MediaProviderPolicy',

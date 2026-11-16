@@ -1,9 +1,10 @@
-import { RxDB, SyncType, type EntityType, type SyncOptions } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntitySyncOverride, type EntityType, type SyncOptions } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
 
 type RxdbSupabaseClient = NonNullable<ConstructorParameters<typeof RxDBAdapterSupabase>[1]['client']>;
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -26,7 +27,18 @@ export interface BackendRxdbOptions {
   enableWorkingTree?: boolean;
   store?: 'memory' | 'idb';
   rlsTables?: Array<{ schema?: string; table: string }>;
+  /** 显式同步计划；给出时替代按 workspaceId 生成的默认计划，例如配置同步白名单。 */
+  syncPlan?: { sync: SyncOptions; syncOverrides?: readonly EntitySyncOverride[] };
 }
+
+/** 配置同步节点需要 RLS 自检的远端表。 */
+export const BACKEND_CONFIG_RLS_TABLES: ReadonlyArray<{ schema: string; table: string }> = Object.freeze([
+  { schema: 'public', table: 'media_prompt_templates' },
+  { schema: 'public', table: 'media_provider_policies' },
+  { schema: 'public', table: 'media_platform_models' },
+  { schema: 'public', table: 'media_config_projection_commits' },
+  { schema: 'public', table: 'media_config_projection_changes' }
+]);
 
 export interface BackendRxdbSession {
   readonly db: RxDB;
@@ -93,9 +105,13 @@ function supabaseUrl(value: string): string {
   return url.origin;
 }
 
+function usesQueryCache(plan: { sync: SyncOptions; syncOverrides?: readonly EntitySyncOverride[] }): boolean {
+  return plan.sync.type === SyncType.QueryCache || (plan.syncOverrides ?? []).some(item => item.sync.type === SyncType.QueryCache);
+}
+
 export async function openBackendRxdb(options: BackendRxdbOptions): Promise<BackendRxdbSession> {
   assertBackendRxdbAuth(options.auth);
-  const syncConfig = createBackendRxdbSyncConfig(options);
+  const syncConfig = options.syncPlan ?? createBackendRxdbSyncConfig(options);
   const url = supabaseUrl(options.supabaseUrl);
   const headers = createBackendSupabaseHeaders(options.supabaseAnonKey, options.auth.accessToken);
   const supabase = createClient(url, options.supabaseAnonKey, {
@@ -113,6 +129,7 @@ export async function openBackendRxdb(options: BackendRxdbOptions): Promise<Back
   });
   db.use(rxDBPluginHistory);
   db.use(rxDBPluginSync);
+  if (usesQueryCache(syncConfig)) db.use(rxDBPluginQueryCache);
   db.use(rxDBPluginWorkingTree, {
     worktrees: { adapter: database => new RxDBAdapterPGlite(database, { store: options.store ?? 'memory' }) }
   });
@@ -142,4 +159,29 @@ export async function openBackendRxdb(options: BackendRxdbOptions): Promise<Back
     supabase,
     close: () => db.destroy()
   };
+}
+
+/** {@link openBackendConfigRxdb} 的输入：配置同步固定实体与适配器，只需身份与工作区。 */
+export type BackendConfigRxdbOptions = Omit<BackendRxdbOptions, 'entities' | 'workspaceScopedEntities' | 'syncPlan' | 'rlsTables'> & {
+  workspaceId: string;
+};
+
+/**
+ * 打开配置同步节点：配置实体按工作区双向同步，提交投影按查询缓存读写。
+ *
+ * @remarks
+ * 实体集合固定为领域白名单，RxDB 内部系统实体（含工作树提交图）由领域层拒绝进入同步。
+ * 领域包使用装饰器，Node 原生类型剥离无法直接加载，因此在调用时动态导入。
+ */
+export async function openBackendConfigRxdb(options: BackendConfigRxdbOptions): Promise<BackendRxdbSession> {
+  const { MEDIA_CONFIG_SYNC_ENTITIES, createMediaConfigSyncOptions } = await import('@aiao-media/domain');
+  const workspaceId = assertBackendWorkspaceId(options.workspaceId);
+  const plan = createMediaConfigSyncOptions({ workspaceId, adapters: { local: 'pglite', remote: 'supabase' } });
+  return openBackendRxdb({
+    ...options,
+    workspaceId,
+    entities: [...MEDIA_CONFIG_SYNC_ENTITIES],
+    syncPlan: plan,
+    rlsTables: BACKEND_CONFIG_RLS_TABLES.map(table => ({ ...table }))
+  });
 }

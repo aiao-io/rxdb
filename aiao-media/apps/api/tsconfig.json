@@ -34,6 +34,9 @@
       "path": "../../../packages/rxdb-plugin-sync"
     },
     {
+      "path": "../../../packages/rxdb-plugin-querycache"
+    },
+    {
       "path": "../../../packages/rxdb-plugin-history"
     },
     {

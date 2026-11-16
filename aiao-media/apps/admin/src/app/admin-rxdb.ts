@@ -19,8 +19,14 @@ export const ADMIN_CONFIG_ENTITIES: readonly EntityType[] = [
   MediaConfigCommitChange
 ];
 
-/** 管理后台本地数据库名，账号隔离由实体 workspaceId 与用户上下文共同保证。 */
-export const ADMIN_CONFIG_DB_NAME = 'aiao-media-admin-config';
+/**
+ * 管理后台本地数据库名，账号隔离由实体 workspaceId 与用户上下文共同保证。
+ *
+ * @remarks
+ * `v2`：配置实体改到 `public` 命名空间并新增投影字段。RxDB 只补建缺失的表、不给既有业务表加列，
+ * 旧库（`aiao-media-admin-config`）只存在于未发布的开发环境，不迁移、不再打开。
+ */
+export const ADMIN_CONFIG_DB_NAME = 'aiao-media-admin-config-v2';
 
 /** 规范化本地数据库上下文，避免把账号、邮箱或 token 写入数据库名和日志。 */
 export function normalizeAdminUserId(userId: string): UUID {

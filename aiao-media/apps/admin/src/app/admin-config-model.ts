@@ -106,7 +106,7 @@ export function createAdminConfigWorkspaceQuery(workspaceId: string | null):
       }
       @if (workspaceId() && !permissionDenied()) {
         <div class="model-config-list">
-          <rxdb-entity-list [fixedQuery]="workspaceQuery()" [name]="name()" namespace="media" />
+          <rxdb-entity-list [fixedQuery]="workspaceQuery()" [name]="name()" namespace="public" />
         </div>
       }
     </section>

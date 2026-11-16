@@ -11,7 +11,7 @@ const commitId = '10000000-0000-4000-8000-000000000004';
 const change: CommitChangeUnitContent = {
   unitId: '10000000-0000-4000-8000-000000000005',
   transactionId: null,
-  namespace: 'media',
+  namespace: 'public',
   entity: 'MediaPromptTemplate',
   entityId: templateId,
   operation: 'update',

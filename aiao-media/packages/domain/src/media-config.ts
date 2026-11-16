@@ -11,8 +11,8 @@ export abstract class MediaConfigEntity extends EntityBase {
 /** 管理员可编辑的媒体提示词模板。 */
 @Entity({
   name: 'MediaPromptTemplate',
-  tableName: 'media_prompt_template',
-  namespace: 'media',
+  tableName: 'media_prompt_templates',
+  namespace: 'public',
   displayName: '媒体提示词模板',
   properties: [
     { name: 'workspaceId', type: PropertyType.uuid, displayName: '工作区' },
@@ -42,8 +42,8 @@ export class MediaPromptTemplate extends MediaConfigEntity {
 /** 供应商路由与能力策略。 */
 @Entity({
   name: 'MediaProviderPolicy',
-  tableName: 'media_provider_policy',
-  namespace: 'media',
+  tableName: 'media_provider_policies',
+  namespace: 'public',
   displayName: '媒体供应商策略',
   properties: [
     { name: 'workspaceId', type: PropertyType.uuid, displayName: '工作区' },
@@ -67,8 +67,8 @@ export class MediaProviderPolicy extends MediaConfigEntity {
 /** 平台模型目录实体。 */
 @Entity({
   name: 'MediaPlatformModel',
-  tableName: 'media_platform_model',
-  namespace: 'media',
+  tableName: 'media_platform_models',
+  namespace: 'public',
   displayName: '媒体平台模型',
   properties: [
     { name: 'workspaceId', type: PropertyType.uuid, displayName: '工作区' },
@@ -99,8 +99,8 @@ export type MediaConfigCommitOperation = (typeof MEDIA_CONFIG_COMMIT_OPERATIONS)
 /** 配置提交的领域投影。 */
 @Entity({
   name: 'MediaConfigCommit',
-  tableName: 'media_config_commit',
-  namespace: 'media',
+  tableName: 'media_config_projection_commits',
+  namespace: 'public',
   displayName: '媒体配置提交',
   properties: [
     { name: 'workspaceId', type: PropertyType.uuid, displayName: '工作区' },
@@ -110,6 +110,7 @@ export type MediaConfigCommitOperation = (typeof MEDIA_CONFIG_COMMIT_OPERATIONS)
     { name: 'message', type: PropertyType.string, displayName: '提交说明' },
     { name: 'operationId', type: PropertyType.uuid, displayName: '操作标识' },
     { name: 'contentFingerprint', type: PropertyType.string, displayName: '内容指纹' },
+    { name: 'changeCount', type: PropertyType.integer, displayName: '变更数' },
     { name: 'status', type: PropertyType.enum, enum: MEDIA_CONFIG_COMMIT_STATUSES, displayName: '状态' },
     { name: 'appliedAt', type: PropertyType.date, nullable: true, displayName: '应用时间' },
     { name: 'releasedAt', type: PropertyType.date, nullable: true, displayName: '发布���间' },
@@ -125,6 +126,8 @@ export class MediaConfigCommit extends EntityBase {
   message!: string;
   operationId!: UUID;
   contentFingerprint!: string;
+  /** 提交内变更总数；同步到达的变更行少于它时，投影不完整，不能校验或应用。 */
+  changeCount!: number;
   status: MediaConfigCommitStatus = 'prepared';
   appliedAt: Date | null = null;
   releasedAt: Date | null = null;
@@ -134,10 +137,11 @@ export class MediaConfigCommit extends EntityBase {
 /** 配置提交中的有序领域变更。 */
 @Entity({
   name: 'MediaConfigCommitChange',
-  tableName: 'media_config_commit_change',
-  namespace: 'media',
+  tableName: 'media_config_projection_changes',
+  namespace: 'public',
   displayName: '媒体配置提交变更',
   properties: [
+    { name: 'workspaceId', type: PropertyType.uuid, displayName: '工作区' },
     { name: 'commitId', type: PropertyType.uuid, displayName: '提交' },
     { name: 'sequence', type: PropertyType.integer, displayName: '序号' },
     { name: 'entity', type: PropertyType.string, displayName: '实体' },
@@ -151,6 +155,8 @@ export class MediaConfigCommit extends EntityBase {
   indexes: [{ name: 'commit_sequence', properties: ['commitId', 'sequence'], unique: true }]
 })
 export class MediaConfigCommitChange extends EntityBase {
+  /** 与所属提交相同的工作区，使变更行可以单独按工作区同步与授权。 */
+  workspaceId!: UUID;
   commitId!: UUID;
   sequence!: number;
   entity!: string;
@@ -174,7 +180,7 @@ export interface MediaConfigCommitChangeInput {
 }
 
 export interface MediaConfigCommitEnvelope {
-  commit: MediaConfigCommitInput & { contentFingerprint: string };
+  commit: MediaConfigCommitInput & { contentFingerprint: string; changeCount: number };
   changes: Array<MediaConfigCommitChangeInput & { contentFingerprint: string }>;
 }
 
@@ -245,7 +251,11 @@ export async function createMediaConfigCommitEnvelope(input: MediaConfigCommitIn
     }))
   );
   return {
-    commit: { ...input, contentFingerprint: await createMediaConfigCommitFingerprint(input) },
+    commit: {
+      ...input,
+      contentFingerprint: await createMediaConfigCommitFingerprint(input),
+      changeCount: input.changes.length
+    },
     changes
   };
 }

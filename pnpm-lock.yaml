@@ -821,6 +821,9 @@ importers:
       '@aiao/rxdb-adapter-sqlite-wasm':
         specifier: workspace:*
         version: link:../../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-adapter-supabase':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-supabase
       '@aiao/rxdb-admin':
         specifier: workspace:*
         version: link:../../../packages/rxdb-admin
@@ -845,6 +848,12 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-querycache
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-sync
       '@aiao/rxdb-plugin-working-tree':
         specifier: workspace:*
         version: link:../../../packages/rxdb-plugin-working-tree
@@ -882,6 +891,9 @@ importers:
         specifier: 0.16.2
         version: 0.16.2
     devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-pglite
       '@tailwindcss/postcss':
         specifier: ^4.3.4
         version: 4.3.4
@@ -915,6 +927,9 @@ importers:
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-querycache':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-querycache
       '@aiao/rxdb-plugin-sync':
         specifier: workspace:*
         version: link:../../../packages/rxdb-plugin-sync
@@ -933,6 +948,9 @@ importers:
       hono:
         specifier: ^4.13.17
         version: 4.13.18
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
       zod:
         specifier: ^4.6.7
         version: 4.6.7

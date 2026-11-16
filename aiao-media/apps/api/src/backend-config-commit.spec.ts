@@ -11,25 +11,27 @@ const changeId = '10000000-0000-4000-8000-000000000005';
 const remoteRows = (): { commit: Record<string, unknown>; changes: Record<string, unknown>[] } => ({
   commit: {
     id: commitId,
-    workspace_id: workspaceId,
-    branch_id: 'main',
-    parent_ids: [],
-    author_id: authorId,
+    workspaceId,
+    branchId: 'main',
+    parentIds: [],
+    authorId,
     message: '后台同步配置',
-    operation_id: operationId,
+    operationId,
+    changeCount: 1,
     status: 'synced'
   },
   changes: [{
     id: changeId,
-    commit_id: commitId,
+    workspaceId,
+    commitId,
     sequence: 1,
     entity: 'MediaPromptTemplate',
-    entity_id: '10000000-0000-4000-8000-000000000006',
+    entityId: '10000000-0000-4000-8000-000000000006',
     operation: 'update',
     patch: { value: { key: 'hero', title: '新标题', prompt: '生成海报', purpose: null, style: null, tags: [], enabled: true } },
-    inverse_patch: { value: { key: 'hero', title: '旧标题' } },
-    expected_revision: 2,
-    content_fingerprint: ''
+    inversePatch: { value: { key: 'hero', title: '旧标题' } },
+    expectedRevision: 2,
+    contentFingerprint: ''
   }]
 });
 
@@ -51,14 +53,14 @@ async function validRemote(): Promise<BackendConfigCommitRemote> {
       entityId: '10000000-0000-4000-8000-000000000006',
       operation: 'update' as const,
       patch: rows.changes[0]?.['patch'],
-      inversePatch: rows.changes[0]?.['inverse_patch'],
+      inversePatch: rows.changes[0]?.['inversePatch'],
       expectedRevision: 2
     }]
   };
   const { createMediaConfigCommitEnvelope } = await import('@aiao-media/domain');
   const envelope = await createMediaConfigCommitEnvelope(input);
-  rows.commit['content_fingerprint'] = envelope.commit.contentFingerprint;
-  rows.changes[0]!['content_fingerprint'] = envelope.changes[0]!.contentFingerprint;
+  rows.commit['contentFingerprint'] = envelope.commit.contentFingerprint;
+  rows.changes[0]!['contentFingerprint'] = envelope.changes[0]!.contentFingerprint;
   return {
     readCommit: async () => rows.commit,
     readChanges: async () => rows.changes
@@ -101,9 +103,28 @@ test('fingerprint 不一致时拒绝缓存', async () => {
         if (!row || typeof row !== 'object' || Array.isArray(row)) {
           throw new Error('测试数据无效。');
         }
-        return { ...(row as Record<string, unknown>), content_fingerprint: '0'.repeat(64) };
+        return { ...(row as Record<string, unknown>), contentFingerprint: '0'.repeat(64) };
       });
     }
   };
   await assert.rejects(() => new BackendConfigCommitCache(tampered).load(commitId), /fingerprint/);
+});
+
+test('变更行少于提交声明的数量时视为投影未到齐，不缓存也不放行应用', async () => {
+  const remote = await validRemote();
+  const rows = await remote.readChanges(commitId);
+  const declared: BackendConfigCommitRemote = {
+    readCommit: async id => ({ ...(await remote.readCommit(id) as Record<string, unknown>), changeCount: 2 }),
+    readChanges: async () => rows
+  };
+  await assert.rejects(() => new BackendConfigCommitCache(declared).load(commitId), /未到齐/);
+});
+
+test('prepared 状态的提交还在补写变更，后台不加载', async () => {
+  const remote = await validRemote();
+  const prepared: BackendConfigCommitRemote = {
+    ...remote,
+    readCommit: async id => ({ ...(await remote.readCommit(id) as Record<string, unknown>), status: 'prepared' })
+  };
+  await assert.rejects(() => new BackendConfigCommitCache(prepared).load(commitId), /尚未同步/);
 });

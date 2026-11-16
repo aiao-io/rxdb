@@ -66,7 +66,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 25);
+    assert.equal(first.sources.length, 26);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -272,7 +272,8 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
     ['credits', 11, 13],
     ['image-lifecycle', 13, 16],
     ['supabase-first-admin-rxdb', 16, 21],
-    ['admin-account-profile', 21, 22]
+    ['admin-account-profile', 21, 22],
+    ['config-rxdb-sync', 22, 23]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -665,5 +666,241 @@ test('已有 schema 21 可升级账户资料并安全重放，保留原管理员
     assert.equal((await db.query('SELECT count(*) FROM public.media_admin_audit')).rows[0].count, 1);
   } finally {
     await db.close();
+  }
+});
+
+/** 以普通 JWT 身份执行后续语句；空字符串表示匿名会话。 */
+async function actAs(db, userId) {
+  await db.exec('RESET ROLE');
+  await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [userId]);
+  await db.exec('SET ROLE authenticated');
+}
+
+/** 以服务端身份准备一个管理员及其工作区。 */
+async function seedAdmin(db, { admin = true } = {}) {
+  const userId = crypto.randomUUID();
+  const workspaceId = crypto.randomUUID();
+  await db.exec('RESET ROLE');
+  await db.query('INSERT INTO auth.users VALUES ($1)', [userId]);
+  await db.query('INSERT INTO public.media_workspaces (id,owner_id,request_id) VALUES ($1,$2,$3)', [
+    workspaceId,
+    userId,
+    crypto.randomUUID()
+  ]);
+  if (admin) await db.query('INSERT INTO public.media_admin_memberships(user_id) VALUES ($1)', [userId]);
+  return { userId, workspaceId };
+}
+
+async function insertProjection(db, { workspaceId, authorId, changeCount = 1, status = 'prepared', id = crypto.randomUUID() }) {
+  await db.query(
+    `INSERT INTO public.media_config_projection_commits
+      (id, "workspaceId", "branchId", "parentIds", "authorId", message, "operationId", "contentFingerprint", "changeCount", status, "createdBy", "updatedBy")
+     VALUES ($1,$2,'main','{}',$3,'配置提交',$4,$5,$6,$7,$8,$8)`,
+    [id, workspaceId, authorId, crypto.randomUUID(), 'a'.repeat(64), changeCount, status, authorId]
+  );
+  return id;
+}
+
+async function insertProjectionChange(db, { workspaceId, commitId, sequence, entityId, authorId, operation = 'insert', expected = null }) {
+  await db.query(
+    `INSERT INTO public.media_config_projection_changes
+      (id, "workspaceId", "commitId", sequence, entity, "entityId", operation, patch, "inversePatch", "expectedRevision", "contentFingerprint", "createdBy", "updatedBy")
+     VALUES ($1,$2,$3,$4,'MediaPromptTemplate',$5,$6,$7,NULL,$8,$9,$10::text,$10::text)`,
+    [
+      crypto.randomUUID(),
+      workspaceId,
+      commitId,
+      sequence,
+      entityId,
+      operation,
+      JSON.stringify({ value: { key: `hero-${sequence}`, title: '首页', prompt: '生成海报' } }),
+      expected,
+      'b'.repeat(64),
+      authorId
+    ]
+  );
+}
+
+test('已有 schema 22 可升级配置同步：旧投影迁入 RxDB 形状的新表，重放不重复且旧表停止接收写入', async () => {
+  const db = await historicalProject(22);
+  try {
+    const { userId, workspaceId } = await seedAdmin(db);
+    const commit = crypto.randomUUID();
+    const orphan = crypto.randomUUID();
+    const entity = crypto.randomUUID();
+    await db.query(
+      `INSERT INTO public.media_config_commits
+        (id, workspace_id, branch_id, parent_ids, author_id, message, operation_id, content_fingerprint, status)
+       VALUES ($1,$2,'main','{}',$3,'旧投影',$4,$5,'synced'), ($6,$2,'main','{}',$3,'未写完的旧投影',$7,$5,'prepared')`,
+      [commit, workspaceId, userId, crypto.randomUUID(), 'c'.repeat(64), orphan, crypto.randomUUID()]
+    );
+    await db.query(
+      `INSERT INTO public.media_config_commit_changes
+        (id, commit_id, sequence, entity, entity_id, operation, patch, inverse_patch, expected_revision, content_fingerprint)
+       VALUES ($1,$2,1,'MediaPromptTemplate',$3,'insert',$4,NULL,NULL,$5)`,
+      [crypto.randomUUID(), commit, entity, JSON.stringify({ value: { key: 'hero', title: '首页', prompt: '生成海报' } }), 'd'.repeat(64)]
+    );
+    const upgrade = await productionUpgrade('config-rxdb-sync');
+    await apply(db, upgrade.sql);
+    await apply(db, upgrade.sql);
+    assert.equal(await schemaComment(db), 'aiao-media schema 23');
+    assert.deepEqual(
+      (await db.query('SELECT id, "workspaceId", "changeCount", status FROM public.media_config_projection_commits')).rows,
+      [{ id: commit, workspaceId, changeCount: 1, status: 'synced' }]
+    );
+    assert.deepEqual(
+      (await db.query('SELECT "workspaceId", "commitId", sequence, "entityId" FROM public.media_config_projection_changes')).rows,
+      [{ workspaceId, commitId: commit, sequence: 1, entityId: entity }]
+    );
+    await actAs(db, userId);
+    await assert.rejects(
+      db.query(
+        `INSERT INTO public.media_config_commits (workspace_id, branch_id, author_id, message, operation_id, content_fingerprint)
+         VALUES ($1,'main',$2,'旧表写入',$3,$4)`,
+        [workspaceId, userId, crypto.randomUUID(), 'e'.repeat(64)]
+      ),
+      { code: '42501' }
+    );
+    const applied = (await db.query('SELECT public.apply_media_config_commit($1,$2) AS value', [
+      commit,
+      (await db.query('SELECT "operationId" FROM public.media_config_projection_commits WHERE id=$1', [commit])).rows[0].operationId
+    ])).rows[0].value;
+    assert.equal(applied.status, 'applied');
+    assert.deepEqual(
+      (await db.query('SELECT status FROM public.media_config_projection_commits WHERE id=$1', [commit])).rows,
+      [{ status: 'applied' }]
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test('配置投影新表：客户端只写 prepared、变更到齐才标记 synced，应用与回滚只经服务端 RPC', async t => {
+  const db = await supabaseProject();
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-config-projection-'));
+  try {
+    await apply(db, (await buildProductionBundle(join(directory, 'bootstrap.sql'))).sql);
+    assert.equal(await schemaComment(db), 'aiao-media schema 23');
+    const owner = await seedAdmin(db);
+    const stranger = await seedAdmin(db, { admin: false });
+    const entity = crypto.randomUUID();
+    await actAs(db, owner.userId);
+    let commit;
+    await t.test('新提交必须以 prepared 起步，不能直接写成已应用', async () => {
+      await assert.rejects(insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId, status: 'applied' }), { code: '42501' });
+      commit = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId, changeCount: 2 });
+    });
+    await t.test('变更未到齐时拒绝标记 synced，变更工作区必须与提交一致', async () => {
+      await insertProjectionChange(db, { ...owner, workspaceId: owner.workspaceId, commitId: commit, sequence: 1, entityId: entity, authorId: owner.userId });
+      await assert.rejects(db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [commit]), { code: '22023' });
+      await assert.rejects(
+        insertProjectionChange(db, { workspaceId: stranger.workspaceId, commitId: commit, sequence: 2, entityId: entity, authorId: owner.userId }),
+        error => ['42501', '23503'].includes(error?.code)
+      );
+      await insertProjectionChange(db, { workspaceId: owner.workspaceId, commitId: commit, sequence: 2, entityId: crypto.randomUUID(), authorId: owner.userId });
+      await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [commit]);
+    });
+    await t.test('已同步的提交不可追加变更、改内容或越级推进状态', async () => {
+      await assert.rejects(
+        insertProjectionChange(db, { workspaceId: owner.workspaceId, commitId: commit, sequence: 3, entityId: entity, authorId: owner.userId }),
+        { code: '42501' }
+      );
+      await assert.rejects(db.query('UPDATE public.media_config_projection_commits SET "contentFingerprint"=$2 WHERE id=$1', [commit, 'f'.repeat(64)]), { code: '42501' });
+      for (const status of ['validated', 'applied', 'released', 'rejected'])
+        await assert.rejects(db.query('UPDATE public.media_config_projection_commits SET status=$2 WHERE id=$1', [commit, status]), { code: '42501' });
+      await assert.rejects(db.query('DELETE FROM public.media_config_projection_commits WHERE id=$1', [commit]), { code: '42501' });
+      await assert.rejects(db.query("UPDATE public.media_config_projection_changes SET patch='{}' WHERE \"commitId\"=$1", [commit]), { code: '42501' });
+    });
+    await t.test('服务端 RPC 原子应用并推进状态，updatedAt 前进供查询缓存刷新，回滚幂等', async () => {
+      const before = (await db.query('SELECT "updatedAt", "operationId" FROM public.media_config_projection_commits WHERE id=$1', [commit])).rows[0];
+      const applied = (await db.query('SELECT public.apply_media_config_commit($1,$2) AS value', [commit, before.operationId])).rows[0].value;
+      assert.equal(applied.status, 'applied');
+      assert.equal(applied.revisions.length, 2);
+      const after = (await db.query('SELECT status, "appliedAt", "updatedAt" FROM public.media_config_projection_commits WHERE id=$1', [commit])).rows[0];
+      assert.equal(after.status, 'applied');
+      assert.ok(after.appliedAt instanceof Date);
+      assert.ok(after.updatedAt.getTime() >= before.updatedAt.getTime());
+      assert.deepEqual(
+        (await db.query('SELECT revision, deleted FROM public.media_config_records WHERE workspace_id=$1 AND entity_id=$2', [owner.workspaceId, entity])).rows,
+        [{ revision: 1, deleted: false }]
+      );
+      const rollback = crypto.randomUUID();
+      assert.equal((await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollback])).rows[0].value.reused, false);
+      assert.equal((await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollback])).rows[0].value.reused, true);
+    });
+    await t.test('其他账号看不到也写不进别人的投影', async () => {
+      await actAs(db, stranger.userId);
+      assert.deepEqual((await db.query('SELECT id FROM public.media_config_projection_commits')).rows, []);
+      await assert.rejects(insertProjection(db, { workspaceId: stranger.workspaceId, authorId: stranger.userId }), { code: '42501' });
+    });
+  } finally {
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('配置实体表按工作区授权，变更日志只向本工作区管理员公开，身份字段不可改', async t => {
+  const db = await supabaseProject();
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-config-entities-'));
+  try {
+    await apply(db, (await buildProductionBundle(join(directory, 'bootstrap.sql'))).sql);
+    const owner = await seedAdmin(db);
+    const peer = await seedAdmin(db);
+    const template = crypto.randomUUID();
+    const visibleChanges = async () =>
+      (await db.query(
+        `SELECT type, "entityId" FROM public.rxdb_change WHERE namespace='public' AND entity='MediaPromptTemplate' ORDER BY id`
+      )).rows;
+    await actAs(db, owner.userId);
+    await t.test('管理员只能在自己的工作区写配置', async () => {
+      await db.query(
+        `INSERT INTO public.media_prompt_templates (id, "workspaceId", key, title, prompt, tags, "createdBy", "updatedBy")
+         VALUES ($1,$2,'hero','首页','生成海报','{media}',$3::text,$3::text)`,
+        [template, owner.workspaceId, owner.userId]
+      );
+      await assert.rejects(
+        db.query(
+          `INSERT INTO public.media_prompt_templates (id, "workspaceId", key, title, prompt, "createdBy", "updatedBy")
+           VALUES ($1,$2,'hero','越权','x',$3::text,$3::text)`,
+          [crypto.randomUUID(), peer.workspaceId, owner.userId]
+        ),
+        { code: '42501' }
+      );
+      await db.query(
+        `INSERT INTO public.media_provider_policies (id, "workspaceId", key, providers, "createdBy", "updatedBy") VALUES ($1,$2,'default','[]',$3::text,$3::text)`,
+        [crypto.randomUUID(), owner.workspaceId, owner.userId]
+      );
+      await db.query(
+        `INSERT INTO public.media_platform_models (id, "workspaceId", "providerId", "modelId", "displayName", "createdBy", "updatedBy")
+         VALUES ($1,$2,'platform','image-1','图片模型',$3::text,$3::text)`,
+        [crypto.randomUUID(), owner.workspaceId, owner.userId]
+      );
+    });
+    await t.test('写入经同步触发器进入变更日志，只有本工作区管理员可读', async () => {
+      await db.query('UPDATE public.media_prompt_templates SET title=$2 WHERE id=$1', [template, '新首页']);
+      assert.deepEqual(await visibleChanges(), [
+        { type: 'INSERT', entityId: template },
+        { type: 'UPDATE', entityId: template }
+      ]);
+      await actAs(db, peer.userId);
+      assert.deepEqual(await visibleChanges(), []);
+      assert.deepEqual((await db.query('SELECT id FROM public.media_prompt_templates')).rows, []);
+      await actAs(db, owner.userId);
+    });
+    await t.test('工作区与创建者不可改，删除日志仍可被本工作区读到', async () => {
+      await assert.rejects(db.query('UPDATE public.media_prompt_templates SET "workspaceId"=$2 WHERE id=$1', [template, peer.workspaceId]), error => ['42501'].includes(error?.code));
+      await db.query('DELETE FROM public.media_prompt_templates WHERE id=$1', [template]);
+      assert.deepEqual((await visibleChanges()).map(row => row.type), ['INSERT', 'UPDATE', 'DELETE']);
+    });
+    await t.test('撤销管理员后看不到配置与日志', async () => {
+      await db.exec('RESET ROLE');
+      await db.query('UPDATE public.media_admin_memberships SET enabled=false WHERE user_id=$1', [owner.userId]);
+      await actAs(db, owner.userId);
+      assert.deepEqual(await visibleChanges(), []);
+      assert.deepEqual((await db.query('SELECT id FROM public.media_provider_policies')).rows, []);
+    });
+  } finally {
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
   }
 });

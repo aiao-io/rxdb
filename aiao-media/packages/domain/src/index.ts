@@ -41,6 +41,16 @@ export {
 
 export { MediaSyncRecord, MEDIA_SYNC_RECORD_KINDS, type MediaSyncRecordKind } from './media-sync-record.js';
 
+export {
+  MEDIA_CONFIG_SYNC_ENTITIES,
+  MEDIA_CONFIG_VERSIONED_ENTITIES,
+  assertMediaConfigSyncEntities,
+  createMediaConfigSyncOptions,
+  type MediaConfigSyncAdapters,
+  type MediaConfigSyncPlan,
+  type MediaConfigSyncPlanOptions
+} from './config-sync.js';
+
 export function domain(): string {
   return 'aiao-media';
 }

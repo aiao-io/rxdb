@@ -1,7 +1,8 @@
-import { CORE_SYSTEM_ENTITIES, SyncType, isSystemEntity } from '@aiao/rxdb';
+import { CORE_SYSTEM_ENTITIES, SyncType, getEntityMetadata, isSystemEntity } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
   MEDIA_CONFIG_SYNC_ENTITIES,
+  MEDIA_CONFIG_VERSIONED_ENTITIES,
   MediaConfigCommit,
   MediaConfigCommitChange,
   MediaPlatformModel,
@@ -24,6 +25,7 @@ describe('media configuration sync plan', () => {
       MediaConfigCommit,
       MediaConfigCommitChange
     ]);
+    expect(MEDIA_CONFIG_VERSIONED_ENTITIES).toEqual([MediaPromptTemplate, MediaProviderPolicy, MediaPlatformModel]);
     expect(MEDIA_CONFIG_SYNC_ENTITIES.some(entity => isSystemEntity(entity))).toBe(false);
     expect(() => assertMediaConfigSyncEntities(MEDIA_CONFIG_SYNC_ENTITIES)).not.toThrow();
   });
@@ -44,19 +46,42 @@ describe('media configuration sync plan', () => {
     expect(() => assertMediaConfigSyncEntities([MediaPromptTemplate, MediaPromptTemplate])).toThrow(/重复/);
   });
 
-  it('builds one workspace-filtered sync override per entity under an explicit default', () => {
+  it('maps every synced entity to the public schema table that Supabase exposes', () => {
+    expect(MEDIA_CONFIG_SYNC_ENTITIES.map(entity => {
+      const metadata = getEntityMetadata(entity);
+      return `${metadata.namespace}.${metadata.tableName}`;
+    })).toEqual([
+      'public.media_prompt_templates',
+      'public.media_provider_policies',
+      'public.media_platform_models',
+      'public.media_config_projection_commits',
+      'public.media_config_projection_changes'
+    ]);
+  });
+
+  it('versions configuration edits with a workspace filter and keeps the projection remote-authoritative', () => {
     const plan = createMediaConfigSyncOptions({ workspaceId: workspaceId.toUpperCase(), adapters });
 
     expect(plan.sync).toEqual({ type: SyncType.Full, local: { adapter: 'sqlite-wasm' }, remote: { adapter: 'supabase' } });
     expect(plan.syncOverrides.map(item => item.entity)).toEqual([...MEDIA_CONFIG_SYNC_ENTITIES]);
-    for (const override of plan.syncOverrides) {
-      expect(override.sync.type).toBe(SyncType.Filter);
-      if (override.sync.type !== SyncType.Filter) throw new Error('expected filter sync');
-      expect(override.sync.local).toEqual({ adapter: 'sqlite-wasm' });
-      expect(override.sync.remote.adapter).toBe('supabase');
-      expect(override.sync.remote.filter()).toEqual({
+    const byEntity = new Map(plan.syncOverrides.map(item => [item.entity, item.sync]));
+    for (const entity of MEDIA_CONFIG_VERSIONED_ENTITIES) {
+      const sync = byEntity.get(entity);
+      expect(sync?.type).toBe(SyncType.Filter);
+      if (sync?.type !== SyncType.Filter) throw new Error('expected filter sync');
+      expect(sync.local).toEqual({ adapter: 'sqlite-wasm' });
+      expect(sync.remote.adapter).toBe('supabase');
+      expect(sync.remote.filter()).toEqual({
         combinator: 'and',
         rules: [{ field: 'workspaceId', operator: '=', value: workspaceId }]
+      });
+    }
+    // 投影行由服务端推进状态，作为查询缓存读写：不进工作树，也不会被下一次提交当成配置变更。
+    for (const entity of [MediaConfigCommit, MediaConfigCommitChange]) {
+      expect(byEntity.get(entity)).toEqual({
+        type: SyncType.QueryCache,
+        local: { adapter: 'sqlite-wasm' },
+        remote: { adapter: 'supabase' }
       });
     }
   });

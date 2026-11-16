@@ -35,7 +35,8 @@ export const productionSources = [
   'aiao-media/infra/supabase/migrations/019-pgmq-generation.sql',
   'aiao-media/infra/supabase/migrations/020-admin-direct-config-apply.sql',
   'aiao-media/infra/supabase/migrations/021-config-commit-rollback.sql',
-  'aiao-media/infra/supabase/migrations/022-admin-account-profile.sql'
+  'aiao-media/infra/supabase/migrations/022-admin-account-profile.sql',
+  'aiao-media/infra/supabase/migrations/023-config-rxdb-sync.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
@@ -156,7 +157,13 @@ export const productionUpgrades = [
     toVersion: 21,
     required: ['public.media_credit_accounts']
   },
-  { name: 'admin-account-profile', fromVersion: 21, toVersion: 22, required: ['public.media_admin_memberships', 'public.media_admin_audit'] }
+  { name: 'admin-account-profile', fromVersion: 21, toVersion: 22, required: ['public.media_admin_memberships', 'public.media_admin_audit'] },
+  {
+    name: 'config-rxdb-sync',
+    fromVersion: 22,
+    toVersion: 23,
+    required: ['public.media_config_commits', 'public.media_config_commit_changes', 'public.media_config_records']
+  }
 ];
 
 /** 生成带版本保护的独立事务，拒绝跳版本、未知库和旧包降级。 */
