@@ -1,0 +1,35 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-admin-template",
+  "projectType": "library",
+  "tags": ["product:admin-template", "scope:admin-template", "type:governance"],
+  "targets": {
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
+    },
+    "test": {
+      "executor": "nx:noop",
+      "dependsOn": ["requirements-check", "requirements-test"]
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "eslint scripts --max-warnings=0"
+      }
+    }
+  }
+}

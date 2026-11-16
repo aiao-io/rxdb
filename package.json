@@ -262,6 +262,7 @@
   "workspaces": [
     "packages/*",
     "apps/*",
+    "rxdb-admin-template/apps/*",
     "modules/wujie",
     "modules/recipes-domain",
     "website",

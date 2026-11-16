@@ -136,7 +136,7 @@ Teable 的公开功能可能属于不同托管套餐或自部署版本。立项�
 ### 入场条件与最小范围
 
 已有界面重复拼装关联名称或聚合值，使用者需要在当前列表直接查看这些结果。
-现有 [资产分类、资产与维护记录](../apps/rxdb-admin-template-react/src/app/entities/asset-entities.ts) 可作验证载体，
+现有 [资产分类、资产与维护记录](../rxdb-admin-template/apps/react/src/app/entities/asset-entities.ts) 可作验证载体，
 但示例本身仍需实际使用证明需求。
 
 建议首版交付：

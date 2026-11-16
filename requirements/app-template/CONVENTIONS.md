@@ -1,6 +1,6 @@
 # 应用级约定（Conventions）
 
-本文件是应用需求目录的**增量约定**，只写与根 `requirements/` 不同的规则；命名、状态、写作规范与根完全一致，见根 `requirements/CONVENTIONS.md` 与 `requirements/README.md`，不重复定义。复制本文件到 `apps/<app>/requirements/CONVENTIONS.md` 后替换 `<APP>`。
+本文件是应用需求目录的**增量约定**，只写与根 `requirements/` 不同的规则；命名、状态、写作规范与根完全一致，见根 `requirements/CONVENTIONS.md` 与 `requirements/README.md`，不重复定义。复制本文件到单应用的 `apps/<app>/requirements/CONVENTIONS.md` 或多应用产品的 `<product>/requirements/CONVENTIONS.md` 后替换 `<APP>`；同一产品只维护一份。
 
 ## 文档类型与编号段
 
@@ -49,7 +49,7 @@ PR 描述加 `## Related Stories` 小节列出关联 story。
 
 ## 需求门禁
 
-更新需求后运行应用自己的门禁（如 `pnpm nx run <app>:requirements-check`，脚本随应用代码落地），自动核对状态、关闭硬依赖、派生视图与本地链接；通过结构门禁不等于通过真实能力验收。
+更新需求后运行需求所属应用或产品的门禁（如 `pnpm nx run <product>:requirements-check`；多应用产品把脚本放在产品根目录，成员应用共用同一任务），自动核对状态、关闭硬依赖、派生视图与本地链接；通过结构门禁不等于通过真实能力验收。
 
 ## 变更步骤
 

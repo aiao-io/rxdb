@@ -158,13 +158,13 @@ test('未构建工作区包时仍能加载应用 Vite 配置并生成首屏主�
   const { loadConfigFromFile } = await import('vite');
   const workspaceRoot = resolve(import.meta.dirname, '..');
   const rootDir = mkdtempSync(join(tmpdir(), 'check-workspace-vite-'));
-  const appDir = join(rootDir, 'apps', 'rxdb-admin-template-react');
+  const appDir = join(rootDir, 'rxdb-admin-template', 'apps', 'react');
   const adminDir = join(appDir, 'node_modules', '@aiao', 'rxdb-admin');
   const files = [
-    'apps/rxdb-admin-template-react/vite.config.mts',
-    'apps/rxdb-admin-template-react/app-html-plugin.ts',
-    'apps/rxdb-admin-template-react/src/app/app-config.ts',
-    'apps/rxdb-admin-template-react/app.config.json',
+    'rxdb-admin-template/apps/react/vite.config.mts',
+    'rxdb-admin-template/apps/react/app-html-plugin.ts',
+    'rxdb-admin-template/apps/react/src/app/app-config.ts',
+    'rxdb-admin-template/apps/react/app.config.json',
     'packages/rxdb-admin/src/bootstrap.ts'
   ];
 
@@ -195,4 +195,14 @@ test('未构建工作区包时仍能加载应用 Vite 配置并生成首屏主�
   } finally {
     rmSync(rootDir, { recursive: true, force: true });
   }
+});
+
+test('嵌套产品应用也清理陈旧的 pnpm shim', () => {
+  withFixture(rootDir => {
+    writeFileSync(join(rootDir, 'package.json'), JSON.stringify({ workspaces: ['apps/*', 'apps/product/apps/*'] }));
+    const binDir = join(rootDir, 'apps/product/apps/react/node_modules/.bin');
+    writeShim(binDir, 'vite', 'vite@missing');
+    assert.deepEqual(pruneDanglingBinShims({ rootDir }), [join(binDir, 'vite')]);
+    assert.equal(existsSync(join(binDir, 'vite')), false);
+  });
 });

@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["rxdb-admin-template"],
+  "name": "rxdb-admin-template-react",
+  "projectType": "application",
+  "sourceRoot": "rxdb-admin-template/apps/react/src",
+  "tags": ["react-app", "product:admin-template", "scope:admin-template", "type:app", "layer:ui"],
+  "targets": {
+    "serve": {
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-admin"]
+        }
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-admin"]
+        }
+      ]
+    },
+    "test": {
+      "dependsOn": ["^build", "requirements-check", "requirements-test"]
+    },
+    "requirements-check": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        {
+          "target": "requirements-check",
+          "projects": ["rxdb-admin-template"]
+        }
+      ]
+    },
+    "requirements-test": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        {
+          "target": "requirements-test",
+          "projects": ["rxdb-admin-template"]
+        }
+      ]
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "rxdb-admin-template/apps/react",
+        "command": "node ../../../node_modules/vite/bin/vite.js build"
+      }
+    }
+  }
+}

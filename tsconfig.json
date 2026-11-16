@@ -259,10 +259,10 @@
       "path": "./apps/dev-rxdb-board"
     },
     {
-      "path": "./apps/rxdb-admin-template-react-e2e"
+      "path": "./rxdb-admin-template/apps/react-e2e"
     },
     {
-      "path": "./apps/rxdb-admin-template-react"
+      "path": "./rxdb-admin-template/apps/react"
     },
     {
       "path": "./packages/rxdb-i18n"
@@ -295,16 +295,16 @@
       "path": "./apps/dev-rxdb-p2p"
     },
     {
-      "path": "./apps/rxdb-admin-template-vue"
+      "path": "./rxdb-admin-template/apps/vue"
     },
     {
-      "path": "./apps/rxdb-admin-template-angular"
+      "path": "./rxdb-admin-template/apps/angular"
     },
     {
-      "path": "./apps/rxdb-admin-template-angular-e2e"
+      "path": "./rxdb-admin-template/apps/angular-e2e"
     },
     {
-      "path": "./apps/rxdb-admin-template-vue-e2e"
+      "path": "./rxdb-admin-template/apps/vue-e2e"
     }
   ]
 }

@@ -8,7 +8,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 本目录维护平台与可复用领域能力。应用级产品需求由各应用或产品组独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；通用治理规则见[应用级需求与项目治理办法](application-governance.md)，初始化模板见[应用级需求模板](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
 
-- [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
+- [Admin 三端产品模板](../rxdb-admin-template/requirements/README.md)（`ADMIN-US-*`）：三端共用产品根目录统一管理配置、业务扩展和数据协作需求，公共后台框架能力继续由 epic-010 管理。
 
 ## 术语
 

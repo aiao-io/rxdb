@@ -1,10 +1,10 @@
 # 应用级需求模板
 
-仓库里每个需要独立产品需求的应用（业务应用、demo 应用）或产品组，在自己的需求根目录建立需求集合，独立统计和验收。通用治理规则见根[应用级需求与项目治理办法](../application-governance.md)，本目录只提供应用级的**目录位置、编号前缀与模板**。单应用通常使用 `apps/<app>/requirements/`；多个 Nx 应用组成一个产品时，可以使用 `<product>/requirements/` 统一管理。
+仓库里每个需要独立产品需求的应用（业务应用、demo 应用）或产品组，在自己的需求根目录建立需求集合，独立统计和验收。通用治理规则见根[应用级需求与项目治理办法](../application-governance.md)，本目录只提供应用级的**目录位置、编号前缀与模板**。单应用通常使用 `apps/<app>/requirements/`；多个 Nx 应用组成一个产品时，使用 `<product>/requirements/` 统一管理。
 
 ## 与根 requirements 的关系
 
-- 根 `requirements/` 维护平台与可复用领域能力（`US-XXX`）；应用的产品需求（界面、部署、账号、本机能力）在应用目录内管理，编号独立（`<APP>-US-XXX`），不混入平台统计。
+- 根 `requirements/` 维护平台与可复用领域能力（`US-XXX`）；应用的产品需求（界面、部署、账号、本机能力）在应用或产品根目录统一管理，编号独立（`<APP>-US-XXX`），不混入平台统计。
 - 应用故事引用平台能力，写在 frontmatter `capabilities` 里，形如 `rxdb:US-203`；应用内部前置继续写 `dependsOn`。底层能力 Done 不代表应用已接线或验收。
 
 ## 项目文件在哪里
@@ -33,20 +33,28 @@
 
 应用级增量只有四处：
 
-| 增量     | 规则                                                                                   |
-| -------- | -------------------------------------------------------------------------------------- |
-| 编号前缀 | story `<APP>-US-XXX`、epic `<APP>-EPIC-XXX`，`<APP>` 为应用短前缀（如 `MEDIA`）        |
-| 编号段   | `stories/` 按领域建子目录，每领域分配一段 100 个编号（见本目录 `CONVENTIONS.md`）      |
-| 提交关联 | 提交与 PR 用 `Refs: <APP>-US-XXX`，不用 `Closes`（见本目录 `CONVENTIONS.md`）          |
-| 需求门禁 | 应用自带结构门禁，脚本随应用代码落地（如 `apps/<app>/scripts/check-requirements.mjs`） |
+| 增量     | 规则                                                                              |
+| -------- | --------------------------------------------------------------------------------- |
+| 编号前缀 | story `<APP>-US-XXX`、epic `<APP>-EPIC-XXX`，`<APP>` 为应用短前缀（如 `MEDIA`）   |
+| 编号段   | `stories/` 按领域建子目录，每领域分配一段 100 个编号（见本目录 `CONVENTIONS.md`） |
+| 提交关联 | 提交与 PR 用 `Refs: <APP>-US-XXX`，不用 `Closes`（见本目录 `CONVENTIONS.md`）     |
+| 需求门禁 | 需求根目录所在应用或产品自带结构门禁；多应用产品共用产品脚本和 Nx 目标            |
 
 ## 落地步骤
 
-1. 复制本目录的 `CONVENTIONS.md` 与 `stories/`、`epics/`、`reviews/`、`code-scanning/` 下各文件到 `apps/<app>/requirements/`。
-2. 全局替换 `<APP>` 为应用短前缀。
+1. 复制本目录的 `CONVENTIONS.md` 与 `stories/`、`epics/`、`reviews/`、`code-scanning/` 下各文件到选定需求根目录：单应用为 `apps/<app>/requirements/`，多应用产品为 `<product>/requirements/`，只建一份。
+2. 全局替换 `<APP>` 为应用或产品短前缀；同一产品内所有 Nx 应用共用此前缀。
 3. 建领域目录并分配编号段，按 `story.template.md` 新建故事、`epic.template.md` 新建史诗。
 4. 自建派生视图（`status-overview.md` 等）与 `README.md`；每次改动按 `CONVENTIONS.md` 的「变更步骤」同步派生视图并跑应用门禁。
 
 ## 需求门禁
 
 应用门禁只读文档与链接目标：校验故事 YAML、唯一 ID/文件名、连续 AC 编号、硬依赖存在与无环、Done 的全部 AC 和关闭依赖、派生视图数字、本地链接与标题锚点。结构检查通过**不证明**真实供应商、公网部署、历史迁移或正式发行；这些仍须逐条 AC 的真实环境证据。
+
+## 多应用产品接线示例
+
+[RxDB Admin Template 产品](../../rxdb-admin-template/README.md) 把三端应用与三个 E2E 放入产品 `rxdb-admin-template/apps/`，共用产品 `requirements/` 和 `scripts/`。成员保留现有 Nx 项目名，产品内不嵌套第二个 Nx workspace。
+
+产品治理项目提供 `requirements-check` 和 `requirements-test`。成员应用通过显式项目依赖加入产品影响范围，同名目标依赖产品任务，应用 `test` 再依赖这些入口。一次任务图内共享实际门禁执行；需求变更应能通过 `nx affected` 找到全部成员及对应 E2E。
+
+迁移时保留原故事编号、状态和历史证据，更新根入口、成员应用 README、源码/测试链接及当前门禁命令。加入拒绝子应用需求副本的负例，防止需求再次分散。实际验证见 [产品迁移验收](../../rxdb-admin-template/requirements/plans/product-requirements-verification.md)。

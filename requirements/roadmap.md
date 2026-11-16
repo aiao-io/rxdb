@@ -21,7 +21,7 @@
 
 | Story                                                                                                                                                                   | 状态           | 剩什么                                                                                                 | 排期位置 |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------ | -------- |
-| [US-105](stories/framework/US-105-form-field-error-feedback.md) | 📝 Backlog | 字段内联错误、保存失败归因、摘要定位与三端状态一致；方案待评审，AC 待实现与验收 | 需求评审 |
+| [US-105](stories/framework/US-105-form-field-error-feedback.md)                                                                                                         | 📝 Backlog     | 字段内联错误、保存失败归因、摘要定位与三端状态一致；方案待评审，AC 待实现与验收                        | 需求评审 |
 | [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                        | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                        | 批次 3   |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                    | 批次 3   |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3   |
@@ -69,7 +69,7 @@ US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保�
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
-当前在 `apps/rxdb-admin-template-react` 孵化应用配置与扩展路径，范围见 [ADMIN 应用路线图](../apps/rxdb-admin-template-react/requirements/roadmap.md)。
+当前由 `rxdb-admin-template` 统一管理三端产品需求，应用配置与扩展仍在对应框架项目中孵化，范围见 [ADMIN 产品路线图](../rxdb-admin-template/requirements/roadmap.md)。
 US-528 保留 Backlog；待明确发布产物、具体业务任务与试用者后，再验证仓外安装、样式 / WASM、CRUD 和重开闭环及真实接入增量。
 本轮不实施独立复制，workspace 模板代码量不能推导独立接入收益。
 
