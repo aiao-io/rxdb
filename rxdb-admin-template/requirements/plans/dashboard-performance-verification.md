@@ -46,7 +46,9 @@ Chromium，每库 1,000 / 10,000 / 100,000 条真实 SQLite 日志，256 字符�
 
 历史插件完整测试 458/458；覆盖率 statements 97.63%、branches 91.72%、functions 96.55%、lines 98.37%，四项均达到公共插件 80% 门禁。应用完整测试：React 72/72，Angular、Vue 各 69/69。受影响门禁与浏览器回归结果记录在 [总验收](nexus-dashboard-verification.md)。
 
-从根目录执行，先构建依赖并启动已有目标（四个 server 命令分别保留在终端中；测量结束后停止，避免 E2E 端口冲突）：
+### 当前产品布局
+
+在当前仓库根目录执行，先构建依赖并启动已有目标（四个 server 命令各用一个终端；测量结束后停止，避免端口冲突）：
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run-many -p rxdb-admin-template-react rxdb-admin-template-vue rxdb-admin-template-angular -t build --parallel=1 --skipRemoteCache
@@ -54,11 +56,37 @@ NX_NO_CLOUD=true pnpm nx run rxdb-admin-template-react:serve --excludeTaskDepend
 NX_NO_CLOUD=true pnpm nx run rxdb-admin-template-react:preview --excludeTaskDependencies --port=8312 --host=127.0.0.1 --strictPort
 NX_NO_CLOUD=true pnpm nx run rxdb-admin-template-vue:preview --excludeTaskDependencies --port=8314 --host=127.0.0.1 --strictPort
 NX_NO_CLOUD=true pnpm nx run rxdb-admin-template-angular:serve-e2e
-NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs seed /tmp/dashboard-seed.json
-NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs logic /tmp/dashboard-logic.json
-NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs ui /tmp/dashboard-ui.json
+PROFILE_LAYOUT=product PROFILE_FIXTURE_DIR=/tmp/dashboard-product-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs seed /tmp/dashboard-product-seed.json
+PROFILE_LAYOUT=product PROFILE_FIXTURE_DIR=/tmp/dashboard-product-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs logic /tmp/dashboard-product-logic.json
+PROFILE_LAYOUT=product PROFILE_FIXTURE_DIR=/tmp/dashboard-product-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs ui /tmp/dashboard-product-ui.json
 ```
 
-脚本支持 `PROFILE_FIXTURE_DIR`、`PROFILE_FRAMEWORK`、`PROFILE_SIZE`、`PROFILE_ORIGIN` 与 `PROFILE_UI_REACT/ANGULAR/VUE`。对比旧版本时，在独立的 `b52320402` 检出中安装工作区依赖并构建，使用同一份脚本与相同 seed 参数；旧端生成旧结构归档，最终端生成带索引结构的同数据归档。不要用优化后索引预热基线。临时归档与大体积产物不入库。
+### 旧基线布局
+
+`b52320402` 的应用在 `apps/rxdb-admin-template-{framework}/`，没有当前产品目录。两侧先选择相同且满足仓库要求的 Node/pnpm 环境。创建独立检出，并复制当前测量脚本及其布局模块；不要从当前应用路径导入基线代码。以下命令从当前仓库根执行，临时工作树路径须尚未被占用：
+
+```bash
+ADMIN_PROFILE_SOURCE="$PWD"
+git worktree add --detach /tmp/admin-dashboard-baseline b52320402
+mkdir -p /tmp/admin-dashboard-baseline/apps/rxdb-admin-template-react/scripts
+cp "$ADMIN_PROFILE_SOURCE/rxdb-admin-template/apps/react/scripts/profile-dashboard-activity.mjs" "$ADMIN_PROFILE_SOURCE/rxdb-admin-template/apps/react/scripts/dashboard-profile-layout.mjs" /tmp/admin-dashboard-baseline/apps/rxdb-admin-template-react/scripts/
+cd /tmp/admin-dashboard-baseline
+pnpm install --frozen-lockfile
+NX_NO_CLOUD=true pnpm nx run-many -p rxdb-admin-template-react rxdb-admin-template-vue rxdb-admin-template-angular -t build --parallel=1 --skipRemoteCache
+```
+
+停止当前检出的四个服务后，在旧检出根目录的各个终端启动上节同名 `serve`、`preview` 和 `serve-e2e` 目标，复用相同端口；所有服务与下列命令必须指向同一旧检出：
+
+```bash
+PROFILE_LAYOUT=legacy PROFILE_FIXTURE_DIR=/tmp/dashboard-baseline-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node apps/rxdb-admin-template-react/scripts/profile-dashboard-activity.mjs seed /tmp/dashboard-baseline-seed.json
+PROFILE_LAYOUT=legacy PROFILE_FIXTURE_DIR=/tmp/dashboard-baseline-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node apps/rxdb-admin-template-react/scripts/profile-dashboard-activity.mjs logic /tmp/dashboard-baseline-logic.json
+PROFILE_LAYOUT=legacy PROFILE_FIXTURE_DIR=/tmp/dashboard-baseline-fixtures NX_NO_CLOUD=true pnpm nx exec --projects=@aiao/source --excludeTaskDependencies --skipRemoteCache -- node apps/rxdb-admin-template-react/scripts/profile-dashboard-activity.mjs ui /tmp/dashboard-baseline-ui.json
+```
+
+`PROFILE_LAYOUT` 仅接受 `product`（默认）和 `legacy`。脚本在启动浏览器前检查选定布局的数据库、活动源、模型和备份入口；选错布局或缺文件直接失败，不探测另一目录兜底。输出记录布局与实际应用根路径，便于核对是否测错检出。
+
+其他参数仍为 `PROFILE_FIXTURE_DIR`、`PROFILE_FRAMEWORK`、`PROFILE_SIZE`、`PROFILE_ORIGIN` 与 `PROFILE_UI_REACT/ANGULAR/VUE`。seed 固定使用 React 配置生成跨端共用夹具；logic/ui 默认三端。两侧使用相同 seed 参数、各自独立夹具目录：旧端生成无新增索引的归档，当前端生成带索引的同数据归档，不能用当前归档预热旧基线。临时归档和构建产物不入库。
+
+布局回归通过 `pnpm nx run rxdb-admin-template-react:test-profile` 执行，并已纳入 React 的 `test` 前置；使用临时文件树覆盖三端两种布局、未知配置、选错目录和缺失入口。此次修订的运行验证见 [需求优化复核](requirements-refinement-verification.md)，不覆盖或改写上表历史性能数据。
 
 测量脚本在收尾时将浏览器回调、夹具下载和 UI 测量拆成独立函数，减少执行循环的嵌套。整理后用独立的 1,000 条夹具重跑 seed、三端 logic 以及 React 开发宿主 UI（含刷新比对），全部通过；日志 `/tmp/nexus-profiler-refactor-smoke.log`。该次用于脚本冒烟，未替换上表 production 测量或将开发宿主计时用于性能结论。脚本 lint 零警告。

@@ -23,7 +23,7 @@
       ]
     },
     "test": {
-      "dependsOn": ["^build", "requirements-check", "requirements-test"]
+      "dependsOn": ["^build", "requirements-check", "requirements-test", "test-profile"]
     },
     "requirements-check": {
       "executor": "nx:noop",
@@ -49,6 +49,14 @@
       "options": {
         "cwd": "rxdb-admin-template/apps/react",
         "command": "node ../../../node_modules/vite/bin/vite.js build"
+      }
+    },
+    "test-profile": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template/apps/react",
+        "command": "node --test scripts/dashboard-profile-layout.spec.mjs"
       }
     }
   }

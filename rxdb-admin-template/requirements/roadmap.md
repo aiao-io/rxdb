@@ -17,7 +17,7 @@
 
 ## 协作闭环待排期
 
-以下故事已经把产品行为、权限边界、离线边界和验收条件写清，当前均为 Backlog；实施时按依赖顺序推进，不把底层插件已有能力当作应用闭环证据。
+以下故事按 [协作首版共享契约](collaboration-contract.md) 定义产品行为、并发、权限和验收条件，当前均为 Backlog。先完成可信团队初始化及会话矩阵，再实现任务提交图同步；现有插件不替代应用闭环证据。
 
 ### 第一阶段：身份、团队与任务草稿
 
@@ -32,9 +32,9 @@
 
 - [ADMIN-US-207](stories/collaboration/ADMIN-US-207-data-pr-lifecycle.md) 数据变更 PR 创建与生命周期
 - [ADMIN-US-208](stories/collaboration/ADMIN-US-208-data-pr-discussion-comments.md) 数据 PR 讨论、评论与变更定位
-- [ADMIN-US-209](stories/collaboration/ADMIN-US-209-review-approval.md) 数据 PR 审核、批准与要求修改
 - [ADMIN-US-210](stories/collaboration/ADMIN-US-210-diff-checks.md) 数据差异展示与合并前检查
-- [ADMIN-US-211](stories/collaboration/ADMIN-US-211-three-way-conflict-preview.md) 三方冲突检测与合并预览
+- [ADMIN-US-211](stories/collaboration/ADMIN-US-211-three-way-conflict-preview.md) 三方冲突检测与最终候选生成
+- [ADMIN-US-209](stories/collaboration/ADMIN-US-209-review-approval.md) 候选审核、批准与要求修改聚合
 - [ADMIN-US-212](stories/collaboration/ADMIN-US-212-authorized-atomic-merge.md) 有权限合并与原子提交
 - [ADMIN-US-213](stories/collaboration/ADMIN-US-213-history-audit-restore.md) 提交历史、合并审计与版本恢复草稿
 
@@ -48,7 +48,7 @@
 
 [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 等待一组真实的新业务关联实体、字段、关系与非 `assets` 命名空间；确定后验证新业务 CRUD、关联筛选、搜索、Dashboard、刷新重开和备份恢复，同时保留默认资产回归。Dashboard 已验证非 CRUD 页面路径，自定义页面不再依赖另找实例。
 
-大日志量活动查询和构建体积治理继续按 [优化清单 T04 / T05](plans/nexus-template-optimization-tasks.md) 单独确认范围与预算，不并入已完成的国际化或页面扩展验收。
+[优化清单 T04 / T05](plans/nexus-template-optimization-tasks.md) 已完成本地验证：大日志量查询的预算与九组前后结果见 [性能记录](plans/dashboard-performance-verification.md)，首屏体积及仍存第三方告警见 [构建记录](plans/bundle-size-verification.md)。复验入口已区分旧基线与当前布局；更大规模预算或第三方告警消除需要另行确认范围。
 
 ## 长期目标
 

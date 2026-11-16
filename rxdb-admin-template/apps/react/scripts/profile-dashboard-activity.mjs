@@ -2,6 +2,7 @@ import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { resolveProfileAppRoots } from './dashboard-profile-layout.mjs';
 
 const mode = process.argv[2];
 assert(['seed', 'logic', 'ui'].includes(mode), '用法：profile-dashboard-activity.mjs seed|logic|ui <输出 JSON>');
@@ -12,9 +13,15 @@ const origin = process.env.PROFILE_ORIGIN ?? 'http://127.0.0.1:8315';
 const frameworks = process.env.PROFILE_FRAMEWORK ? [process.env.PROFILE_FRAMEWORK] : ['react', 'angular', 'vue'];
 const sizes = process.env.PROFILE_SIZE ? [Number(process.env.PROFILE_SIZE)] : [1000, 10000, 100000];
 const ports = { react: 8312, angular: 8213, vue: 8314 };
+const layout = process.env.PROFILE_LAYOUT ?? 'product';
+const appRoots = await resolveProfileAppRoots({
+  workspace,
+  layout,
+  frameworks: mode === 'seed' ? ['react'] : frameworks
+});
 
-async function connectScene({ workspace, framework, size, mode }) {
-  const base = `/@fs${workspace}/rxdb-admin-template/apps/${framework}/src/app/`;
+async function connectScene({ appRoot, size, mode }) {
+  const base = `/@fs${appRoot}/`;
   const { createWorkbenchDatabase } = await import(`${base}rxdb/setup_rxdb.ts`);
   const database = createWorkbenchDatabase();
   const adapter = await database.getAdapter('sqlite-wasm');
@@ -201,7 +208,7 @@ async function downloadFixture(page, fixture) {
 
 async function measureDatabase(page, cdp, framework, size, fixture) {
   await prepareDatabasePage(page, fixture);
-  const connection = await page.evaluate(connectScene, { workspace, framework, size, mode });
+  const connection = await page.evaluate(connectScene, { appRoot: appRoots[framework], size, mode });
   if (mode === 'seed') return { ...connection, ...(await downloadFixture(page, fixture)) };
   await cdp.send('HeapProfiler.collectGarbage');
   const before = await cdp.send('Runtime.getHeapUsage');
@@ -244,7 +251,10 @@ try {
       console.log(JSON.stringify(result));
     }
   }
-  await writeFile(output, JSON.stringify({ measuredAt: new Date().toISOString(), mode, results }, null, 2));
+  await writeFile(
+    output,
+    JSON.stringify({ measuredAt: new Date().toISOString(), mode, layout, appRoots, results }, null, 2)
+  );
 } finally {
   await browser.close();
 }

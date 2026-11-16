@@ -14,12 +14,14 @@ owner: jimmy
 
 ## 目标
 
-- [ ] 邮箱验证码登录、会话恢复和会话失效保护（[ADMIN-US-201](../stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md)）。
-- [ ] 团队邀请、成员管理和当前工作区选择（[ADMIN-US-202](../stories/collaboration/ADMIN-US-202-team-membership-workspace.md)）。
-- [ ] 独立的操作权限与服务端团队隔离（[ADMIN-US-203](../stories/collaboration/ADMIN-US-203-permission-server-isolation.md)）。
+- [ ] 邮箱验证码登录、离线冷热启动和退出锁定（[ADMIN-US-201](../stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md)）。
+- [ ] 可信团队初始化、绑定邮箱的原子邀请、成员管理和工作区选择（[ADMIN-US-202](../stories/collaboration/ADMIN-US-202-team-membership-workspace.md)）。
+- [ ] 独立操作权限、团队隔离及共享表直写禁令（[ADMIN-US-203](../stories/collaboration/ADMIN-US-203-permission-server-isolation.md)）。
 - [ ] 本地库上下文隔离与显式导入（[ADMIN-US-204](../stories/collaboration/ADMIN-US-204-local-context-explicit-import.md)）。
-- [ ] 任务草稿和跨实体连续编辑（[ADMIN-US-205](../stories/collaboration/ADMIN-US-205-task-draft-continuous-editing.md)）。
-- [ ] 草稿云同步、跨设备续作和离线恢复（[ADMIN-US-206](../stories/collaboration/ADMIN-US-206-draft-sync-offline-recovery.md)）。
+- [ ] 任务工作树、编辑器输入及整单提交边界（[ADMIN-US-205](../stories/collaboration/ADMIN-US-205-task-draft-continuous-editing.md)）。
+- [ ] 带预期远端头的提交图同步、双设备分叉另存和离线恢复（[ADMIN-US-206](../stories/collaboration/ADMIN-US-206-draft-sync-offline-recovery.md)）。
+
+共享规则见 [协作首版共享契约](../collaboration-contract.md) C01～C03；首个团队由可信服务端初始化，不依赖尚不存在的管理员邀请入口。
 
 ## 故事
 

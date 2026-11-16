@@ -2,7 +2,7 @@
 
 记录日期：2026-11-16。覆盖 Angular / React / Vue 三端，参考本机 `/Users/jimmy/Documents/github/nexus-dashboard-main` 模板。已执行结果见 [Dashboard 验收记录](nexus-dashboard-verification.md)。
 
-本清单记录本次优化进度和剩余工作，不新增用户故事、不计入故事完成数。应用故事状态以各自 YAML 为准，当前为 [2/5 已交付](../README.md)，ADMIN-US-003 / ADMIN-US-102 已完成本地验收并进入 In Review。T04 大日志查询与 T05 首屏体积优化已完成本地验证；图表候选尚未排期。
+本清单记录本次优化进度和剩余工作，不新增用户故事、不计入故事完成数。应用故事状态以各自 YAML 为准，产品统计见 [当前需求索引](../README.md)；ADMIN-US-003 / ADMIN-US-102 已完成本地验收并进入 In Review。T04 大日志查询与 T05 首屏体积优化已完成本地验证；图表候选尚未排期。
 
 ## 已完成
 
@@ -60,7 +60,7 @@
 
 ### T05 · P2 · 构建体积与依赖告警治理
 
-现状：构建通过，但仍存在 Angular CommonJS、Vite 大 chunk 及依赖直接 `eval` 告警；具体证据见 [验收记录](nexus-dashboard-verification.md)。
+完成本轮体积优化后，构建通过，但仍存在 Angular CommonJS、Vite 大 chunk 及依赖直接 `eval` 告警；具体证据见 [验收记录](nexus-dashboard-verification.md)。
 
 - [x] 记录三端首屏、Dashboard 与主要公共依赖的产物大小，定位引入链和实际首屏成本。
 - [x] 评估页面及依赖拆分，验证数据库后端仍按需加载；依赖替换涉及公共包时与应用变更一起评审。

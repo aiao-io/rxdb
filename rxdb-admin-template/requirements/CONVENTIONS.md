@@ -33,7 +33,7 @@ Epic 使用 `Backlog` / `In Progress` / `Done`。Review 使用 `Open` / `Resolve
 
 1. 从 [story.template.md](stories/story.template.md) 创建故事，填写 frontmatter、范围、连续编号的 AC 与实现入口。
 2. 应用硬依赖写 `dependsOn: [ADMIN-US-001]`，平台能力写 `capabilities: [rxdb:US-526]`。没有依赖使用空数组。平台状态不能代替应用验收。
-3. 修改故事后同步 Epic、状态总览、路线图、能力矩阵和验收台账，更新 `updated`。
+3. 修改故事后同步 Epic、状态总览、路线图、能力矩阵和验收台账，更新 `updated`。涉及协作跨故事规则时，同时维护 [共享契约](collaboration-contract.md)，不得只在计划中改变授权、版本或状态语义。
 4. 运行应用结构门禁与相关代码验证；本地通过后可进入 `In Review`，合并后补 PR 引用再标 `Done`。
 
 门禁支持当前使用的扁平 YAML 值与行内数组。新增候选 AC 或继承 AC 等格式时，先补齐门禁支持与回归夹具，再登记，避免文档约定超出实际校验。

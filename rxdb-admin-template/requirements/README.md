@@ -6,29 +6,30 @@
 
 以 `rxdb-admin-template` 为产品根目录，在当前 Nx 工作区统一维护 Angular / React / Vue 三端 Admin 应用模板的需求。应用需求基线与统一配置已合入，国际化和页面扩展已完成本地验收、待评审合并；当前保留资产样例与既有使用行为，并把真实认证、团队工作区、local-first 任务草稿、Supabase 草稿同步和 GitHub PR 式数据协作拆成待实施故事。
 
-协作产品模型固定为：**团队空间 → 任务草稿/分支 → 持续提交 → 数据 PR → 讨论与审核 → 有权限成员合并到共享数据**。本目录的故事只描述目标行为和验收条件，不把现有 RxDB 插件、Supabase 适配器或交互原型当作已经完成的应用闭环。
+协作产品模型固定为：**团队空间 → 任务草稿/分支 → 持续提交 → 数据 PR → 讨论、差异与最终候选 → 审核 → 有权限成员原子合并到共享数据**。本目录的故事只描述目标行为和验收条件，不把现有 RxDB 插件、Supabase 适配器或交互原型当作已经完成的应用闭环。
 
 范围依据见 [D-01](decisions.md#d-01在当前仓库孵化) 和 [D-06](decisions.md#d-06数据协作的产品模型)。
 
 ## 导航
 
-| 文档                                                   | 用途                         |
-| ------------------------------------------------------ | ---------------------------- |
-| [CONVENTIONS.md](CONVENTIONS.md)                       | 编号段、引用规则与应用门禁   |
-| [status-overview.md](status-overview.md)               | 故事状态与统计               |
-| [roadmap.md](roadmap.md)                               | 当前批次、协作闭环顺序与前置 |
-| [decisions.md](decisions.md)                           | 生效决策与执行条件           |
-| [capability-matrix.md](capability-matrix.md)           | 当前能力与未验边界           |
-| [verification-report.md](verification-report.md)       | 本地验收证据与待验项         |
-| [future-requirements.md](future-requirements.md)       | 长期目标与后续候选           |
-| [epics/ADMIN-EPIC-001.md](epics/ADMIN-EPIC-001.md)     | 应用模板孵化范围             |
-| [epics/ADMIN-EPIC-002.md](epics/ADMIN-EPIC-002.md)     | 认证与团队工作区             |
-| [epics/ADMIN-EPIC-003.md](epics/ADMIN-EPIC-003.md)     | 数据变更中心与合并治理       |
-| [stories/story.template.md](stories/story.template.md) | 新故事模板                   |
-| [stories/collaboration/](stories/collaboration)        | 认证、团队和数据协作故事     |
-| [plans/README.md](plans/README.md)                     | 实施计划与验收记录           |
-| [reviews/README.md](reviews/README.md)                 | 待处理 review 工作集         |
-| [code-scanning/README.md](code-scanning/README.md)     | CodeQL 告警工作集            |
+| 文档                                                   | 用途                               |
+| ------------------------------------------------------ | ---------------------------------- |
+| [CONVENTIONS.md](CONVENTIONS.md)                       | 编号段、引用规则与应用门禁         |
+| [status-overview.md](status-overview.md)               | 故事状态与统计                     |
+| [roadmap.md](roadmap.md)                               | 当前批次、协作闭环顺序与前置       |
+| [collaboration-contract.md](collaboration-contract.md) | 协作状态、并发、候选与审核共享规则 |
+| [decisions.md](decisions.md)                           | 生效决策与执行条件                 |
+| [capability-matrix.md](capability-matrix.md)           | 当前能力与未验边界                 |
+| [verification-report.md](verification-report.md)       | 本地验收证据与待验项               |
+| [future-requirements.md](future-requirements.md)       | 长期目标与后续候选                 |
+| [epics/ADMIN-EPIC-001.md](epics/ADMIN-EPIC-001.md)     | 应用模板孵化范围                   |
+| [epics/ADMIN-EPIC-002.md](epics/ADMIN-EPIC-002.md)     | 认证与团队工作区                   |
+| [epics/ADMIN-EPIC-003.md](epics/ADMIN-EPIC-003.md)     | 数据变更中心与合并治理             |
+| [stories/story.template.md](stories/story.template.md) | 新故事模板                         |
+| [stories/collaboration/](stories/collaboration)        | 认证、团队和数据协作故事           |
+| [plans/README.md](plans/README.md)                     | 实施计划与验收记录                 |
+| [reviews/README.md](reviews/README.md)                 | 待处理 review 工作集               |
+| [code-scanning/README.md](code-scanning/README.md)     | CodeQL 告警工作集                  |
 
 ## 平台与应用
 

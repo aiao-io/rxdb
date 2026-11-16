@@ -16,7 +16,7 @@
 
 ## Nexus 参考三端优化
 
-- [优化实施清单](nexus-template-optimization-tasks.md)：已完成两阶段、三项收尾与两项待排期建议，包含三端约束和验收条件。
+- [优化实施清单](nexus-template-optimization-tasks.md)：记录两阶段实现及 T01～T05：T01/T02/T04/T05 本地验证完成，T03 待真实业务输入；图表候选尚未排期。
 - [Dashboard 验收记录](nexus-dashboard-verification.md)：2026-11-16 核对的三端结果、测试入口、复验命令及证据边界。
 
 ## 自定义页面与导航扩展
@@ -26,3 +26,7 @@
 ## 产品根需求迁移
 
 [产品需求迁移验收](product-requirements-verification.md) 记录需求与门禁提升至产品根目录后的链接、回归、三端任务和 affected 验证。
+
+## 全量需求评审整改
+
+[需求优化复核](requirements-refinement-verification.md) 将十项评审发现映射到共享契约、故事 AC、性能脚本回归和实际验证结果；需求完善不代表协作功能完成。

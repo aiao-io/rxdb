@@ -16,12 +16,14 @@ owner: jimmy
 
 - [ ] 创建数据 PR 并管理草稿、审核、关闭、重开和合并生命周期（[ADMIN-US-207](../stories/collaboration/ADMIN-US-207-data-pr-lifecycle.md)）。
 - [ ] 提供四页签讨论、版本和字段级评论（[ADMIN-US-208](../stories/collaboration/ADMIN-US-208-data-pr-discussion-comments.md)）。
-- [ ] 支持绑定当前提交版本的批准和要求修改（[ADMIN-US-209](../stories/collaboration/ADMIN-US-209-review-approval.md)）。
-- [ ] 展示整单差异并执行合并前业务检查（[ADMIN-US-210](../stories/collaboration/ADMIN-US-210-diff-checks.md)）。
-- [ ] 支持三方冲突处理和最终合并预览（[ADMIN-US-211](../stories/collaboration/ADMIN-US-211-three-way-conflict-preview.md)）。
+- [ ] 支持绑定最终候选的批准、多人意见聚合及阻塞撤销审计（[ADMIN-US-209](../stories/collaboration/ADMIN-US-209-review-approval.md)）。
+- [ ] 展示整单差异并检查最终候选结果（[ADMIN-US-210](../stories/collaboration/ADMIN-US-210-diff-checks.md)）。
+- [ ] 支持三方冲突处理、不可变候选与最终合并预览（[ADMIN-US-211](../stories/collaboration/ADMIN-US-211-three-way-conflict-preview.md)）。
 - [ ] 允许有权限成员执行服务端原子合并并生成审计（[ADMIN-US-212](../stories/collaboration/ADMIN-US-212-authorized-atomic-merge.md)）。
 - [ ] 保留提交/审核/合并历史并支持恢复为新草稿（[ADMIN-US-213](../stories/collaboration/ADMIN-US-213-history-audit-restore.md)）。
 - [ ] 后续增强评论通知、Presence 和多级审批（[ADMIN-US-214](../stories/collaboration/ADMIN-US-214-comment-notifications.md)、[ADMIN-US-215](../stories/collaboration/ADMIN-US-215-presence.md)、[ADMIN-US-216](../stories/collaboration/ADMIN-US-216-multi-level-approval.md)）。
+
+共享规则见 [协作首版共享契约](../collaboration-contract.md) C04～C06。实施顺序为 207 → 208/210 → 211 → 209 → 212 → 213；请求审核允许先讨论，批准必须等最终候选及检查完成。
 
 ## 故事
 
