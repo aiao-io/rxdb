@@ -1,6 +1,6 @@
 # Admin 产品验收台账
 
-当前批次为 ADMIN-US-001 / ADMIN-US-002 / ADMIN-US-003 / ADMIN-US-004 / ADMIN-US-102。结构门禁只检查文档契约，应用单测、构建和浏览器行为分别验收；平台故事的完成状态不作为本应用新 AC 的证据。
+当前批次包括模板基线与 ADMIN-US-201～216 协作实现。结构门禁只检查文档契约，应用单测、构建和浏览器行为分别验收；平台故事的完成状态不作为本应用新 AC 的证据。
 
 ## 当前批次
 
@@ -35,9 +35,9 @@
 ## 尚未证明
 
 - 非资产业务替换仍属于 ADMIN-US-101，缺真实业务输入；ADMIN-US-102 的 Dashboard 页面扩展三项 AC 已三端本地通过，剩余为统一评审、合并与 PR 证据。
-- [ADMIN-US-201～ADMIN-US-216](status-overview.md) 的认证、团队、草稿同步、数据 PR、审核、冲突、合并、审计和后续增强全部尚未实现或验收。
+- [ADMIN-US-201～ADMIN-US-216](status-overview.md) 已有本地实现和分层验证，详见 [协作记录](plans/collaboration-implementation.md)；正式部署和逐条完整 AC 证据尚未关闭。
 - 独立复制、仓外安装、正式部署或发行；当前继续在本仓库孵化。
-- Supabase 真实账号、服务端授权、跨设备协作和原子合并环境；现有平台能力测试不能替代应用故事验收。
+- 生产 SMTP 投递与正式 Supabase 项目部署；本地隔离环境已验证真实 Auth 会话、RLS、双设备协作和 PostgreSQL 原子合并。
 
 ## 产品根需求迁移
 
@@ -45,4 +45,4 @@
 
 ## 协作契约与复验入口整改
 
-[需求优化复核](plans/requirements-refinement-verification.md) 记录最终候选审批、同任务分叉、共享表禁写、邀请消费、可信初始化、保存/提交及离线会话规则的 AC 映射，以及性能脚本两种布局的回归。对应协作故事仍为 Backlog，需求和工具验证不能代替运行时验收。
+[需求优化复核](plans/requirements-refinement-verification.md) 记录最终候选审批、同任务分叉、共享表禁写、邀请消费、可信初始化、保存/提交及离线会话规则的 AC 映射，以及性能脚本两种布局的回归。该记录属于实现前的需求修订证据；后续运行时实现与验证已另记于 [协作记录](plans/collaboration-implementation.md)。

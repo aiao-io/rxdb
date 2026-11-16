@@ -82,7 +82,8 @@ function authFixture(userId = 'alice') {
     signOut: vi.fn().mockResolvedValue({ error: null }),
     onAuthStateChange: vi.fn((callback: (event: string, session: Session | null) => void) => { listener = callback; return { data: { subscription: { unsubscribe: vi.fn() } } }; })
   };
-  vi.mocked(createClient).mockReturnValue({ auth } as unknown as ReturnType<typeof createClient>);
+  const channel = { on: vi.fn().mockReturnThis(), subscribe: vi.fn().mockReturnThis() };
+  vi.mocked(createClient).mockReturnValue({ auth, channel: vi.fn().mockReturnValue(channel), removeChannel: vi.fn().mockResolvedValue('ok') } as unknown as ReturnType<typeof createClient>);
   return { session, auth, emit: (event: string, value: Session | null) => listener(event, value) };
 }
 async function initialized(userId = 'alice') {

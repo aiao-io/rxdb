@@ -56,9 +56,12 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.context().setOffline(false);
   await page.getByRole('button', { name: '同步', exact: true }).click();
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await page.getByLabel('PR 说明', { exact: true }).fill('整单采购与安装');
+  await expect(page.getByLabel('目标分支', { exact: true })).toHaveValue('shared');
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
   await expect(page.getByRole('button', { name: '采购电脑 · review', exact: true })).toBeVisible();
+  await expect(page.getByText('整单采购与安装', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
   for (const tab of ['讨论', '提交', '检查', '数据变更']) {
@@ -84,6 +87,23 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(reviewPage.getByRole('button', { name: '合并到共享数据', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
+  await page.getByRole('tab', { name: '讨论', exact: true }).click();
+  await page.getByLabel('新评论', { exact: true }).fill('请核对整单采购');
+  await page.getByLabel('必须处理', { exact: true }).check();
+  await page.getByLabel('提及成员', { exact: true }).selectOption(fixture.reviewer.id);
+  await page.getByRole('button', { name: '发表评论', exact: true }).click();
+  await expect(page.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '数据变更', exact: true }).click();
+  await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+  await expect(page.getByText('必须处理的讨论尚未解决', { exact: true })).toBeVisible();
+  await reviewPage.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await reviewPage.getByRole('heading', { name: /通知（/ }).locator('..').getByRole('button').filter({ hasText: '采购电脑' }).last().click();
+  await expect(reviewPage.getByRole('tab', { name: '讨论', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('required');
+  await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toBeVisible();
+  await reviewPage.getByRole('button', { name: '标记已解决', exact: true }).click();
+  await expect(reviewPage.getByRole('button', { name: '重新打开讨论', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
   await expect(page.getByRole('button', { name: '采购电脑 · merged', exact: true })).toBeVisible();
   const shared = page
@@ -93,6 +113,13 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(shared).toContainText('工作站');
   await expect(shared).toContainText('130');
   await expect(shared).toContainText('安装系统');
+  const restore = page.locator('details').filter({ has: page.getByRole('button', { name: '从此版本创建恢复草稿', exact: true, includeHidden: true }) }).last();
+  await restore.locator(':scope > summary').click();
+  await restore.getByRole('button', { name: '从此版本创建恢复草稿', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /任务：恢复 / })).toBeVisible();
+  await expect(page.getByLabel('购入价', { exact: true })).toHaveValue('130');
+  await expect(page.getByText(/待上传提交：0 · 已保存未提交：/)).toBeVisible();
+  await expect(shared).toContainText('130');
   await reviewContext.close();
 });
 
@@ -260,4 +287,56 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await page.getByRole('button', { name: '打开任务：保留设备甲', exact: true }).click();
   await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备甲版本');
   await otherContext.close();
+});
+
+test('两阶段审批、在线成员和越权合并拒绝', async ({ page, request, browser, baseURL }) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByRole('button', { name: '添加审批阶段', exact: true }).click();
+  await page.getByLabel('阶段名称', { exact: true }).nth(1).fill('财务复核');
+  await page.getByLabel('等待前面所有阶段', { exact: true }).nth(1).check();
+  await page.getByRole('button', { name: '保存审批策略', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '审批策略 v2', exact: true })).toBeVisible();
+  await page.getByLabel('任务名称', { exact: true }).fill('分级采购');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await page.getByRole('button', { name: '新增分类', exact: true }).click();
+  await page.getByRole('textbox', { name: '名称', exact: true }).fill('已核对分类');
+  await page.getByRole('button', { name: '保存全部', exact: true }).click();
+  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '同步', exact: true }).click();
+  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await page.getByRole('button', { name: '请求审核', exact: true }).click();
+  await expect(page.getByRole('button', { name: '分级采购 · review', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
+  await expect(page.getByText('财务复核：0/1 待批准', { exact: true })).toBeVisible();
+  const context = await browser.newContext({ baseURL }); const other = await context.newPage();
+  await login(other, fixture.reviewer);
+  await other.getByText('接受团队邀请', { exact: true }).click();
+  const link = new URL('/collaboration', baseURL);
+  link.searchParams.set('join', JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id: fixture.invitation, token: fixture.token }));
+  await other.getByLabel('邀请链接', { exact: true }).fill(link.toString());
+  await other.getByRole('button', { name: '接受邀请', exact: true }).click();
+  await other.getByRole('button', { name: '分级采购 · review', exact: true }).click();
+  await other.getByLabel('审批阶段', { exact: true }).selectOption({ label: '财务复核' });
+  await other.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(other.getByText('前置审批阶段尚未完成', { exact: true })).toBeVisible();
+  await other.getByLabel('审批阶段', { exact: true }).selectOption({ label: '审核' });
+  await other.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(other.getByText('审核：1/1 已满足', { exact: true })).toBeVisible();
+  await expect(page.getByText('审核：1/1 已满足', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+  await expect(page.getByText('缺少当前候选的有效批准', { exact: true })).toBeVisible();
+  await other.getByLabel('审批阶段', { exact: true }).selectOption({ label: '财务复核' });
+  await other.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(other.getByText('财务复核：1/1 已满足', { exact: true })).toBeVisible();
+  await expect(other.getByRole('button', { name: '合并到共享数据', exact: true })).toHaveCount(0);
+  await expect.poll(async () => {
+    await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+    return page.getByText(/在线成员：/).textContent();
+  }, { timeout: 20000, intervals: [1000] }).toContain(fixture.reviewer.email);
+  await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+  await expect(page.getByRole('button', { name: '分级采购 · merged', exact: true })).toBeVisible();
+  await context.close();
 });

@@ -2,11 +2,13 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { CollaborationError, demand, type Command, type Identity, type Records } from '../model.js';
 import type { WorkspaceSnapshot } from '../server/engine.js';
 import { CollaborationApi, type WorkspaceEntry } from './api.js';
+import { WorkspaceFeed } from './workspace-feed.js';
 import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
 
 export class CollaborationController extends EventTarget {
   private generation = 0;
   private disposed = false;
+  private feed?: WorkspaceFeed;
   private authGeneration = 0;
   private unsubscribe?: () => void;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
@@ -60,6 +62,13 @@ export class CollaborationController extends EventTarget {
         autoRefreshToken: navigator.onLine
       }
     });
+    this.feed = new WorkspaceFeed(this.auth, async () => {
+      if (!navigator.onLine || !this.user || this.disposed) return;
+      await this.refresh().catch(error => this.failure(error));
+    }, status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.message = '实时连接暂不可用，可刷新团队状态';
+      this.changed();
+    });
     if (navigator.onLine) {
       demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
       const initial = await this.current(this.auth.auth.getSession(), this.generation, epoch);
@@ -103,11 +112,13 @@ export class CollaborationController extends EventTarget {
   }
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
     const epoch = ++this.generation;
+    this.feed?.stop();
     const data = await this.current(this.api.snapshot(workspace), epoch);
     if (epoch !== this.generation) return;
     this.workspace = workspace;
     this.snapshot = data;
     this.draft = null;
+    this.feed?.start(workspace);
     this.changed();
   }
   async refresh(): Promise<void> {
@@ -226,6 +237,7 @@ export class CollaborationController extends EventTarget {
     this.changed();
   }
   async openOffline(draft: Draft) {
+    this.feed?.stop();
     const epoch = ++this.generation;
     this.local.assert(draft.context);
     const restored = await this.current(this.local.read(draft.context), epoch);
@@ -278,6 +290,7 @@ export class CollaborationController extends EventTarget {
     if (auth) await auth.auth.signOut({ scope: 'local' });
   }
   async lock(): Promise<void> {
+    this.feed?.stop();
     this.generation++;
     this.authGeneration++;
     localStorage.removeItem(`admin-collaboration-grant:${this.base}`);
@@ -313,6 +326,7 @@ export class CollaborationController extends EventTarget {
     this.disposed = true;
     this.generation++;
     this.authGeneration++;
+    this.feed?.stop();
     this.local.dispose();
     this.unsubscribe?.();
     this.channel.close();

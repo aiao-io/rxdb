@@ -6,6 +6,7 @@ import { tx, useTranslation } from './translate.js';
 beforeEach(() => {
   const window = new Window();
   vi.stubGlobal('document', window.document);
+  vi.stubGlobal('sessionStorage', window.sessionStorage);
   vi.stubGlobal('HTMLInputElement', window.HTMLInputElement);
   vi.stubGlobal('HTMLSelectElement', window.HTMLSelectElement);
   vi.stubGlobal('Event', window.Event);
@@ -52,4 +53,14 @@ describe('pending form inputs across asynchronous refresh', () => {
     const control = button('保存全部', () => new Promise<void>(resolve => { done = resolve; }));
     control.click(); expect(control.disabled).toBe(true); done(); await Promise.resolve(); await Promise.resolve(); expect(control.disabled).toBe(false);
   });
+  it('restores conflict decisions after reload only for the original verified context', () => {
+    const host = document.createElement('div'); const state = new FormDrafts(host);
+    host.addEventListener('input', state.remember); state.restore('view', 'alice/team/task');
+    const decision = input('自定义结果（JSON 值）'); decision.control.dataset['persistentDraft'] = 'true';
+    host.append(decision.wrapper); decision.control.value = '999'; decision.control.dispatchEvent(new Event('input', { bubbles: true }));
+    const restored = input('自定义结果（JSON 值）'); restored.control.dataset['persistentDraft'] = 'true'; host.replaceChildren(restored.wrapper);
+    new FormDrafts(host).restore('view', 'alice/team/task'); expect(restored.control.value).toBe('999');
+    restored.control.value = ''; new FormDrafts(host).restore('view', 'bob/team/task'); expect(restored.control.value).toBe('');
+  });
+
 });

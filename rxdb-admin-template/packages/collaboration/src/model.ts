@@ -48,6 +48,8 @@ export interface PullRequest {
   taskId: string;
   authorId: string;
   title: string;
+  description: string;
+  target: 'shared';
   status: 'draft' | 'review' | 'closed' | 'merged';
   revision: number;
   candidateId: string | null;
@@ -204,7 +206,7 @@ export type Command = Operation &
     | { type: 'task'; id: string; name: string; expectedHead: string | null }
     | { type: 'upload'; taskId: string; expectedHead: string | null; commits: Commit[] }
     | { type: 'fork'; id: string; name: string; taskId: string; expectedHead: string | null; commits: Commit[] }
-    | { type: 'pr'; id: string; taskId: string; title: string }
+    | { type: 'pr'; id: string; taskId: string; title: string; description: string; target: 'shared' }
     | { type: 'pr_state'; prId: string; status: 'draft' | 'review' | 'closed'; expectedRevision: number }
     | { type: 'candidate'; prId: string; expectedRevision: number; resolutions: Resolution[] }
     | {

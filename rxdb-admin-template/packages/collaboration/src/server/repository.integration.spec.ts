@@ -67,6 +67,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await client.query('SET ROLE authenticated');
       await client.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [admin.id]);
       expect((await client.query('SELECT * FROM public.admin_shared')).rows).toHaveLength(1);
+      expect((await client.query('SELECT * FROM public.admin_workspace_versions')).rows).toHaveLength(1);
+      await expect(client.query('UPDATE public.admin_workspace_versions SET revision = 999')).rejects.toThrow(/permission denied/);
       await expect(client.query("UPDATE public.admin_shared SET records = '{}'::jsonb")).rejects.toThrow(
         /permission denied/
       );
@@ -74,6 +76,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await expect(client.query('SELECT * FROM admin_private.workspaces')).rejects.toThrow(/permission denied/);
       await client.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [randomUUID()]);
       expect((await client.query('SELECT * FROM public.admin_shared')).rows).toHaveLength(0);
+      expect((await client.query('SELECT * FROM public.admin_workspace_versions')).rows).toHaveLength(0);
     } finally {
       await client.query('RESET ROLE');
       client.release();
@@ -124,7 +127,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       admin,
       input.teamId,
       input.appId,
-      command({ type: 'pr', id: 'pr', taskId: 'concurrent', title: 'Atomic' })
+      command({ type: 'pr', id: 'pr', taskId: 'concurrent', title: 'Atomic', description: '', target: 'shared' })
     );
     await repository.operation(
       admin,

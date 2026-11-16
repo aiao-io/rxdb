@@ -33,13 +33,15 @@ export class PullRequestView {
     if (this.controller.draft && this.controller.draft.remoteHead && this.has('edit')) {
       const title = input('PR 标题', this.controller.draft.name);
       const task = this.controller.draft;
+      const description = input('PR 说明');
+      const target = select('目标分支', [{ value: 'shared', label: tx('团队共享分支') }], 'shared');
       view.append(
         element('p', tx("审核来源为远端版本 {v0}；本机未保存、未提交或排队内容不会自动纳入。", { v0: task.remoteHead }), 'text-sm'),
-        title.wrapper,
+        title.wrapper, description.wrapper, target.wrapper,
         button('创建 PR', () =>
           this.perform(async () => {
             const id = crypto.randomUUID();
-            await this.controller.run({ type: 'pr', id, title: title.control.value, taskId: task.context.taskId });
+            await this.controller.run({ type: 'pr', id, title: title.control.value, description: description.control.value, target: target.control.value, taskId: task.context.taskId });
             this.selected = id;
           })
         )
@@ -49,6 +51,8 @@ export class PullRequestView {
     if (!pr) return view;
     view.append(
       element('h3', pr.title, 'font-semibold', true),
+      element('p', pr.description, '', true),
+      element('p', tx('目标分支：{v0}', { v0: tx('团队共享分支') })),
       element('p', tx("修订 {v0} · 作者 {v1}", { v0: pr.revision, v1: pr.authorId }), 'text-sm break-all')
     );
     const actions = row();
@@ -79,6 +83,14 @@ export class PullRequestView {
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(this.tab === id));
       tab.setAttribute('aria-controls', 'pr-panel');
+      tab.tabIndex = this.tab === id ? 0 : -1;
+      tab.addEventListener('keydown', event => {
+        const order = Object.keys(labels) as (keyof typeof labels)[];
+        const position = order.indexOf(id);
+        const next = event.key === 'ArrowRight' ? (position + 1) % order.length : event.key === 'ArrowLeft' ? (position + order.length - 1) % order.length : event.key === 'Home' ? 0 : event.key === 'End' ? order.length - 1 : -1;
+        if (next < 0) return;
+        event.preventDefault(); this.tab = order[next]; this.render(); document.getElementById(`pr-tab-${this.tab}`)?.focus();
+      });
       tabs.append(tab);
     }
     view.append(tabs);
@@ -178,6 +190,8 @@ export class PullRequestView {
       view.append(field);
       choice.control.dataset['formKey'] = `resolution:${pr.id}:${task.head}:${data.head}:${conflict.key}`;
       custom.control.dataset['formKey'] = `custom:${pr.id}:${task.head}:${data.head}:${conflict.key}`;
+      choice.control.dataset['persistentDraft'] = 'true';
+      custom.control.dataset['persistentDraft'] = 'true';
       selections.push(() =>
         choice.control.value ?
           {
@@ -349,7 +363,19 @@ export class PullRequestView {
         `${thread.required ? tx('必须处理 · ') : ''}${thread.resolved ? tx('已解决') : tx('未解决')} · ${thread.candidateId === pr.candidateId ? tx('当前版本') : tx('历史位置')}`
       );
       box.id = `thread-${thread.id}`;
-      box.append(element('p', [thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs'));
+      box.append(element('p', [thread.candidateId, thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs'));
+      const anchored = thread.candidateId ? data.candidates[thread.candidateId] : null;
+      if (anchored && thread.recordId) {
+        const version = element('details');
+        const record = anchored.records[thread.recordId];
+        version.append(element('summary', '查看评论锚定版本'), element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true));
+        version.append(readOnlyRecords(record ? { [thread.recordId]: record } : {}));
+        box.append(version);
+      }
+      const events = data.audit.filter(event => ['thread', 'reply', 'resolve_thread', 'edit_comment'].includes(event.action) && (event.details['threadId'] === thread.id || event.details['id'] === thread.id));
+      const history = element('details'); history.append(element('summary', '讨论处理历史'));
+      events.forEach(event => history.append(element('p', `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action}`, '', true)));
+      box.append(history);
       thread.comments.forEach(comment => {
         box.append(element('p', `${comment.authorId}：${comment.deleted ? tx('评论已删除') : comment.body}`));
         if (
@@ -360,6 +386,7 @@ export class PullRequestView {
         )
           return;
         const edit = input('编辑我的评论', comment.body);
+        edit.control.dataset['formKey'] = `comment:${comment.id}:${comment.revision}`;
         box.append(
           edit.wrapper,
           button('保存评论', () =>
@@ -386,6 +413,7 @@ export class PullRequestView {
       });
       if (this.has('comment') && !['closed', 'merged'].includes(pr.status)) {
         const reply = input('回复');
+        reply.control.dataset['formKey'] = `reply:${thread.id}`;
         box.append(
           reply.wrapper,
           button('发送回复', () =>
@@ -405,7 +433,7 @@ export class PullRequestView {
     });
     if (!this.has('comment') || ['closed', 'merged'].includes(pr.status)) return view;
     const body = input('新评论');
-    const record = input('记录标识（留空为 PR 讨论）');
+    const record = input('记录标识（留空为 PR 讨论）', this.selectedRecord ?? '');
     const field = input('字段名（可选）');
     const required = checkbox('必须处理');
     const mention = select('提及成员', [

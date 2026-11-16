@@ -97,6 +97,10 @@ export class CollaborationRepository {
   }
   private async project(client: PoolClient, state: Workspace) {
     const values = [state.teamId, state.appId];
+    await client.query(
+      `INSERT INTO public.admin_workspace_versions(team_id, app_id, revision) VALUES ($1, $2, $3)
+      ON CONFLICT (team_id, app_id) DO UPDATE SET revision = EXCLUDED.revision`, [...values, state.revision]
+    );
     await client.query('DELETE FROM admin_private.memberships WHERE team_id = $1 AND app_id = $2', values);
     await client.query(
       `INSERT INTO admin_private.memberships(team_id, app_id, user_id, can_read)

@@ -99,7 +99,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   window.addEventListener('offline', connectivity);
   const sessionId = crypto.randomUUID();
   const heartbeat = window.setInterval(() => {
-    if (busy || !controller.user || !controller.workspace || !navigator.onLine || document.hidden) return;
+    if (!navigator.onLine) { controller.changed(); return; }
+    if (busy || !controller.user || !controller.workspace || document.hidden) return;
     void controller
       .run({ type: 'presence', sessionId, prId: prs.selected, recordId: prs.selectedRecord, leave: false })
       .catch(error => controller.failure(error));
@@ -140,6 +141,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       return;
     }
     host.append(workspacesView(), invitationView());
+    if (controller.workspace && controller.online) host.append(button('刷新团队状态', () => perform(() => controller.refresh())));
     if (controller.pending()) host.append(button('确认或重试上次请求', () => perform(() => controller.retryPending())));
     if (controller.snapshot) host.append(workspaceView());
     if (controller.draft) host.append(editor.view());
@@ -152,7 +154,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       host.querySelector(`#thread-${CSS.escape(prs.focusThread)}`)?.scrollIntoView({ block: 'center' });
       prs.focusThread = null;
     }
-    formDrafts.restore(JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId, controller.draft?.context.taskId, prs.selected]));
+    formDrafts.restore(JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId, controller.draft?.context.taskId, prs.selected]), JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId]));
     if (focusLabel) restoreFocus(focusLabel, recordId, selection ?? null);
   }
   function restoreFocus(label: string, recordId: string | undefined, selection: number | null) {
@@ -360,6 +362,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
               prs.selected = notice.prId;
               prs.focusThread = notice.threadId;
               prs.tab = notice.threadId ? 'discussion' : 'checks';
+              prs.filter = 'all';
             })
         )
       )
@@ -367,7 +370,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     view.append(
       element(
         'p',
-        tx("在线成员：{v0}（45 秒心跳超时）", { v0: data.presence.map(p => `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}`).join('、') || '暂无' }),
+        tx("在线成员：{v0}（45 秒心跳超时）", { v0: data.presence.filter(p => p.expiresAt > Date.now()).map(p => `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}${p.recordId ? `（${p.recordId}）` : ''}`).join('、') || '暂无' }),
         'text-sm'
       )
     );

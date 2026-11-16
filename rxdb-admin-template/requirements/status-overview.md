@@ -11,7 +11,11 @@
 | 👀 In Review | 19 |
 | 📝 Backlog | 1 |
 | 🚫 Blocked | 0 |
-| **合计** | **22** |
+| **合计** | 22 |
+
+## 进行中（0 条）
+
+无。
 
 ## 待评审（19 条）
 
@@ -56,7 +60,7 @@
 - 👀 [ADMIN-US-202 团队邀请、成员与工作区选择](stories/collaboration/ADMIN-US-202-team-membership-workspace.md)
 - 👀 [ADMIN-US-203 团队操作权限与服务端隔离](stories/collaboration/ADMIN-US-203-permission-server-isolation.md)
 - 👀 [ADMIN-US-204 本地数据上下文隔离与显式导入](stories/collaboration/ADMIN-US-204-local-context-explicit-import.md)
-- 👀 [ADMIN-US-205 任务草稿与连续编辑](stories/collaboration/ADMIN-US-205- task-draft-continuous-editing.md)
+- 👀 [ADMIN-US-205 任务草稿与连续编辑](stories/collaboration/ADMIN-US-205-task-draft-continuous-editing.md)
 - 👀 [ADMIN-US-206 草稿云同步、跨设备续作与离线恢复](stories/collaboration/ADMIN-US-206-draft-sync-offline-recovery.md)
 
 ### ADMIN-EPIC-003 数据变更中心与合并治理

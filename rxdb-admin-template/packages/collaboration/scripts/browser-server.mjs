@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
@@ -28,11 +28,39 @@ const auth = createClient(supabaseUrl, key('SUPABASE_SERVICE_KEY'), {
 const name = `admin-browser-${randomUUID()}`;
 const password = randomUUID();
 const users = [];
+const teams = [];
+const stackId = process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
+const stackDatabase = `rxdb-supabase-db-${stackId}`;
+const migration = await readFile(path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'), 'utf8');
+function liveSql(sql) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('docker', ['exec', '-i', stackDatabase, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q'], { stdio: ['pipe', 'ignore', 'pipe'] });
+    let error = ''; child.stderr.on('data', chunk => { error += chunk; });
+    child.on('error', reject);
+    child.on('close', code => code === 0 ? resolve() : reject(new Error(error)));
+    child.stdin.end(sql);
+  });
+}
+async function publishVersion(teamId, appId) {
+  const { rows } = await pool.query('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [teamId, appId]);
+  const state = rows[0].state;
+  const marker = `$fixture_${randomUUID().replaceAll('-', '')}$`;
+  const data = `${marker}${JSON.stringify(state)}${marker}::jsonb`;
+  await liveSql(`BEGIN;
+    INSERT INTO admin_private.workspaces(team_id, app_id, state) SELECT value->>'teamId', value->>'appId', '{}'::jsonb FROM (SELECT ${data} AS value) input ON CONFLICT DO NOTHING;
+    INSERT INTO admin_private.memberships(team_id, app_id, user_id, can_read)
+    SELECT state->>'teamId', state->>'appId', value->>'id', (value->>'active')::boolean AND (value->'permissions' ? 'read') FROM (SELECT ${data} AS state) input, jsonb_each(state->'members')
+    ON CONFLICT (team_id, app_id, user_id) DO UPDATE SET can_read = EXCLUDED.can_read;
+    INSERT INTO public.admin_workspace_versions(team_id, app_id, revision) SELECT value->>'teamId', value->>'appId', (value->>'revision')::bigint FROM (SELECT ${data} AS value) input
+    ON CONFLICT (team_id, app_id) DO UPDATE SET revision = EXCLUDED.revision;
+    COMMIT;`);
+}
 const servers = [];
 let pool;
 async function stop() {
   await Promise.allSettled(servers.map(server => new Promise(resolve => server.close(resolve))));
   await pool?.end();
+  for (const team of teams) await liveSql(`BEGIN; DELETE FROM public.admin_workspace_versions WHERE team_id = '${team}'; DELETE FROM admin_private.memberships WHERE team_id = '${team}'; DELETE FROM admin_private.workspaces WHERE team_id = '${team}'; COMMIT;`);
   await Promise.allSettled(users.map(id => auth.auth.admin.deleteUser(id)));
   await exec('docker', ['stop', name]).catch(() => undefined);
 }
@@ -43,6 +71,7 @@ process.once('SIGINT', () => {
   void stop().finally(() => process.exit());
 });
 try {
+  await liveSql(migration);
   await exec('docker', [
     'run',
     '--rm',
@@ -71,6 +100,12 @@ try {
     await readFile(path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'), 'utf8')
   );
   const repository = new CollaborationRepository(pool);
+  const operation = repository.operation.bind(repository);
+  repository.operation = async (user, teamId, appId, command) => {
+    const result = await operation(user, teamId, appId, command);
+    await publishVersion(teamId, appId);
+    return result;
+  };
   const api = collaborationServer({
     repository,
     origins: [8306, 8307, 8308].map(port => `http://127.0.0.1:${port}`),
@@ -138,6 +173,7 @@ async function fixture(repository) {
   }
   const [admin, reviewer] = accounts;
   const teamId = randomUUID();
+  teams.push(teamId);
   const appId = 'assets';
   const name = `团队-${suffix.slice(0, 8)}`;
   await repository.initialize({ teamId, appId, name, bootstrapKey: randomUUID(), admin });

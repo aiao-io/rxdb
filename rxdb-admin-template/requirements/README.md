@@ -1,6 +1,6 @@
 # Admin 产品需求
 
-当前交付：2/22 已合入；另有 19/22 故事进入 In Review，1 条因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[2/22 已交付]；另有 19/22 故事进入 In Review，1 条因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 

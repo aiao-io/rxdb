@@ -33,6 +33,7 @@ export function taskCommand(
   if (command.type === 'upload') return upload(state, user, command);
   if (command.type === 'fork') return fork(state, user, command);
   if (command.type === 'pr') {
+    demand(command.target === 'shared', 'invalid', 'PR 目标必须是共享分支');
     const task = taskFor(state, command.taskId);
     editTask(state, user, task);
     demand(task.head !== null && task.head !== task.base, 'empty', '先同步任务变更再创建 PR');
@@ -46,6 +47,8 @@ export function taskCommand(
       id: command.id,
       taskId: task.id,
       title: command.title,
+      description: command.description,
+      target: command.target,
       authorId: user.id,
       status: 'draft',
       revision: 0,

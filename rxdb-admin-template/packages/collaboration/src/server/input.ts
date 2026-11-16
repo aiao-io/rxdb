@@ -65,7 +65,7 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
   task: { id, name: label, expectedHead: nullableId },
   upload: { taskId: id, expectedHead: nullableId, commits: list(commit) },
   fork: { id, name: label, taskId: id, expectedHead: nullableId, commits: list(commit) },
-  pr: { id, taskId: id, title: label },
+  pr: { id, taskId: id, title: label, description: text, target: oneOf('shared') },
   pr_state: { prId: id, status: oneOf('draft', 'review', 'closed'), expectedRevision: integer },
   candidate: { prId: id, expectedRevision: integer, resolutions: list(resolution, 10000) },
   review: {

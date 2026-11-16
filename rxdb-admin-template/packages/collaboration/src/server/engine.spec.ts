@@ -38,7 +38,7 @@ function ready(state: Workspace, suffix = '1', price = 100) {
       { id: `commit${suffix}`, parent: state.head, authorId: admin.id, records: records(price), message: 'Assets' }
     ]
   });
-  act(state, { type: 'pr', id: `pr${suffix}`, taskId: `task${suffix}`, title: 'Asset update' });
+  act(state, { type: 'pr', id: `pr${suffix}`, taskId: `task${suffix}`, title: 'Asset update', description: '', target: 'shared' });
   act(state, { type: 'pr_state', prId: `pr${suffix}`, status: 'review', expectedRevision: 0 });
   act(state, { type: 'candidate', prId: `pr${suffix}`, expectedRevision: 1, resolutions: [] });
   return state.candidates[state.prs[`pr${suffix}`].candidateId!];
@@ -429,4 +429,27 @@ describe('governance, discussion and identity regressions', () => {
     expect(state.prs.pr1.candidateId).toBeNull();
     expect(state.reviews).toHaveLength(1);
   });
+  it('persists PR intent and its explicit shared target, rejects alternate write targets', () => {
+    const state = create(); ready(state);
+    act(state, { type: 'pr_state', prId: 'pr1', status: 'closed', expectedRevision: state.prs.pr1.revision });
+    act(state, { type: 'pr', id: 'intent', taskId: 'task1', title: 'Replace laptops', description: 'Approved procurement scope', target: 'shared' });
+    expect(state.prs.intent).toMatchObject({ description: 'Approved procurement scope', target: 'shared' });
+    expect(state.head).toBeNull();
+    expect(() => act(state, { type: 'pr', id: 'invalid-target', taskId: 'task1', title: 'Invalid', description: '', target: 'other' })).toThrow(/共享分支/);
+  });
+
+  it('reopens resolved required threads only when the anchored result changes in a new candidate', () => {
+    const state = create(); invite(state); const first = ready(state);
+    act(state, { type: 'thread', id: 'required', prId: 'pr1', candidateId: first.id, recordId: 'asset', field: 'purchasePrice', body: 'Check cost', required: true, mentions: [] }, reviewer);
+    act(state, { type: 'resolve_thread', threadId: 'required', resolved: true, expectedRevision: 0 }, reviewer);
+    act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
+    expect(state.threads.required.resolved).toBe(true);
+    act(state, { type: 'upload', taskId: 'task1', expectedHead: 'commit1', commits: [{ id: 'new-price', parent: 'commit1', authorId: admin.id, message: 'Revised price', records: records(999) }] });
+    const outcome = act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
+    expect(state.threads.required.resolved).toBe(false);
+    expect(state.threads.required.candidateId).toBe(first.id);
+    expect(outcome.reopenedThreads).toEqual(['required']);
+    expect(state.threads.required.revision).toBe(2);
+  });
+
 });
