@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { openWindowOverview } from './navigation.js';
 import { readState } from './state.js';
 
 const frameworks = ['Angular', 'React', 'Vue'] as const;
@@ -47,7 +48,7 @@ async function windowAction(window: Locator, action: string) {
 }
 
 async function focus(page: Page, title: string) {
-  await page.getByRole('button', { name: '窗口概览', exact: true }).click();
+  await openWindowOverview(page);
   await page
     .locator('.overview-row')
     .filter({ has: page.getByText(title, { exact: true }) })
@@ -80,6 +81,7 @@ for (const mode of ['macos', 'windows'] as const) {
         const id = await current.getAttribute('data-instance-id');
         expect(id).not.toBeNull();
         const window = page.locator(`[data-instance-id="${id}"]`);
+        await window.getByRole('button', { name: `最大化窗口 ${framework} 便签`, exact: true }).click();
         const frame = window.locator('iframe').contentFrame();
         const name = `${framework}-${index}.txt`;
         const savedText = `${framework} 第 ${index} 份中文\n独立内容 🌏`;

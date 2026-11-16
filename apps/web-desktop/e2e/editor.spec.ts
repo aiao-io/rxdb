@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openWindowOverview } from './navigation.js';
 import { readState } from './state.js';
 
 async function savedEditor(page: Page, mode: 'macos' | 'windows') {
@@ -37,7 +38,7 @@ for (const mode of ['macos', 'windows'] as const) {
     const second = page.locator(`[data-instance-id="${secondId}"]`).locator('iframe').contentFrame();
     await expect(second.getByLabel('文档内容')).toHaveValue('原始正文');
     await expect(second.getByRole('button', { name: '撤销', exact: true })).toBeDisabled();
-    await page.getByRole('button', { name: '窗口概览', exact: true }).click();
+    await openWindowOverview(page);
     await page
       .locator('.overview-row')
       .filter({ has: page.getByText('原稿.txt · 未保存', { exact: true }) })

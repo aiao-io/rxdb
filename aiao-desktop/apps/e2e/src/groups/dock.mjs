@@ -549,9 +549,10 @@ export const dock = {
     await dockPage.release();
     result.finderDragAgainNoDuplicate = againGap === null && sameJson(await dockPage.pinned(), beforeAgain);
     await finder.locator('[data-place="Documents"]').click();
-    const firstItem = finder.locator('.fitem').first();
-    await appears(firstItem, 20_000);
-    const documentBox = await firstItem.boundingBox();
+    const documentItem = finder.locator('.fitem[data-name="design-review.key"]');
+    await documentItem.waitFor({ state: 'visible', timeout: 20_000 });
+    await documentItem.scrollIntoViewIfNeeded();
+    const documentBox = await documentItem.boundingBox();
     await dockPage.press({ x: documentBox.x + documentBox.width / 2, y: documentBox.y + documentBox.height / 2 });
     await dockPage.hoverAt({ x: 720, y: 760 });
     result.finderNonAppNotDraggable = (await dockPage.ghost().count()) === 0 && (await dockPage.dropSlot()) === null;

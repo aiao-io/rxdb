@@ -19,11 +19,17 @@ test('macOS Dock：距离放大带动相邻图标和玻璃底座，移出后回�
   const bar = page.getByRole('navigation', { name: '应用栏' });
   const resting = await bar.boundingBox();
   const widths = await iconWidths(page);
+  const editorIndex = await bar
+    .locator('.bar-app')
+    .evaluateAll(nodes => nodes.findIndex(node => node.getAttribute('data-dock-id') === 'editor'));
+  expect(editorIndex).toBeGreaterThan(0);
+  expect(editorIndex).toBeLessThan(widths.length - 1);
   await bar.getByRole('button', { name: '打开 文本编辑器', exact: true }).hover();
   await expect.poll(async () => (await bar.boundingBox())!.width).toBeGreaterThan(resting!.width + 25);
-  await expect.poll(async () => (await iconWidths(page))[0]).toBeGreaterThan(widths[0] * 1.02);
-  await expect.poll(async () => (await iconWidths(page))[2]).toBeGreaterThan(widths[2] * 1.02);
-  await expect(bar.getByRole('tooltip')).toHaveText('文本编辑器');
+  for (const index of [editorIndex - 1, editorIndex + 1]) {
+    await expect.poll(async () => (await iconWidths(page))[index]).toBeGreaterThan(widths[index] * 1.02);
+  }
+  await expect(bar.getByRole('tooltip')).toHaveText('Notes');
   await page.screenshot({ path: testInfo.outputPath('macos-dock-hover.png') });
   const slots = await bar.locator('[data-dock-item]').evaluateAll(nodes =>
     nodes.map(node => {
@@ -90,10 +96,10 @@ test('macOS Dock：快速横移和小屏放大不越界，键盘聚焦可显示�
   await page.mouse.move(10, 20);
   const files = bar.getByRole('button', { name: '打开 文件', exact: true });
   await files.focus();
-  await expect(bar.getByRole('tooltip')).toHaveText('文件');
+  await expect(bar.getByRole('tooltip')).toHaveText('Finder');
   await bar.getByRole('button', { name: '打开 设置', exact: true }).hover();
   await files.press('Tab');
-  await expect(bar.getByRole('tooltip')).toHaveText('应用启动器');
+  await expect(bar.getByRole('tooltip')).toHaveText('Launchpad');
 });
 
 test.describe('Dock 触屏输入', () => {

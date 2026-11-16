@@ -971,6 +971,7 @@ jobs:
           path: |
             apps/${{ matrix.project }}/test-output/playwright/**
             apps/${{ matrix.project }}/playwright-report/**
+            test-output/${{ matrix.project }}/**
           retention-days: 7
           if-no-files-found: ignore
 

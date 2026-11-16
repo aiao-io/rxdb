@@ -1,9 +1,10 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
 import { openFiles } from './import-support.js';
+import { openWindowOverview } from './navigation.js';
 import { readState } from './state.js';
 
 async function focusDocument(page: Page, name: string) {
-  await page.getByRole('button', { name: '窗口概览', exact: true }).click();
+  await openWindowOverview(page);
   await page
     .locator('.overview-row')
     .filter({ has: page.getByText(name, { exact: true }) })

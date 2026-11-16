@@ -1,4 +1,5 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
+import { openWindowOverview } from './navigation.js';
 import { readState as snapshot } from './state.js';
 
 async function enter(page: Page, mode: 'macos' | 'windows') {
@@ -82,7 +83,7 @@ for (const mode of ['macos', 'windows'] as const) {
     const settingsId = await page.locator('[data-app-id="settings"]').getAttribute('data-instance-id');
     await createWorkspace(frame, '写作');
     const writingId = (await snapshot(page)).workspaces.find(workspace => workspace.name === '写作')!.id;
-    await page.getByRole('button', { name: '窗口概览', exact: true }).click();
+    await openWindowOverview(page);
     await page.getByRole('combobox', { name: /^移动 迁移草稿\.txt.*到工作区$/ }).selectOption(writingId);
     await page.getByLabel('移动 设置 到工作区', { exact: true }).selectOption(writingId);
     await page.getByRole('button', { name: '关闭窗口概览', exact: true }).click();

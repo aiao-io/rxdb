@@ -2029,7 +2029,7 @@
     top: 8px;
     right: 22px;
     left: auto;
-    z-index: 2;
+    z-index: 0;
     display: grid;
     grid-template-columns: repeat(2, 82px);
     grid-template-rows: repeat(4, 86px);

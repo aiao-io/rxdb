@@ -1,6 +1,7 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
 import type { DesktopState } from '../src/core/types.js';
 import { openFiles } from './import-support.js';
+import { openWindowOverview } from './navigation.js';
 import { readState } from './state.js';
 
 async function create(files: FrameLocator, name: string, kind: 'file' | 'directory' = 'directory') {
@@ -230,7 +231,7 @@ for (const mode of ['macos', 'windows'] as const) {
         { scope: allowed.id, instanceId: originalId }
       ]);
     }
-    await page.getByRole('button', { name: '窗口概览', exact: true }).click();
+    await openWindowOverview(page);
     await page
       .locator('.overview-row')
       .filter({ has: page.getByText('允许.txt', { exact: true }) })
