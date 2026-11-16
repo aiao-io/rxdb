@@ -27,12 +27,12 @@
     "@modules/wujie": "workspace:*",
     "@tanstack/react-virtual": "^3.14.26",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.72.0",
     "react-use": "^17.6.1"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.4",
-    "daisyui": "^5.7.50",
-    "tailwindcss": "^4.3.4"
+    "@tailwindcss/vite": "^4.3.5",
+    "daisyui": "^5.8.0",
+    "tailwindcss": "^4.3.5"
   }
 }
