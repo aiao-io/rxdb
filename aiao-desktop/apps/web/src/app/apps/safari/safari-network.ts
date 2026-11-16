@@ -1,10 +1,5 @@
-import { mdHTML } from './safari-markdown';
-import { hostOf, resolveUrl } from './safari-url';
-
 const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const WIKI_REST = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
-/** 带 CORS 的正文抽取器，把文章转成 Markdown；没有 iframe，也就没有 X-Frame-Options 可争。 */
-const READER = 'https://r.jina.ai/';
 const WIKI_NOT_FOUND = 'https://mediawiki.org/wiki/HyperSwitch/errors/not_found';
 const REQUEST: RequestInit = { referrerPolicy: 'no-referrer' };
 
@@ -22,12 +17,6 @@ export interface WikiArticle {
 export interface WikiHit {
   readonly title: string;
   readonly snippet: string;
-}
-
-/** 阅读器抽取出的文章：标题与已转成 HTML 的正文。 */
-export interface ReaderArticle {
-  readonly title: string;
-  readonly html: string;
 }
 
 interface WikiSummary {
@@ -111,27 +100,4 @@ export async function fetchWikiSearch(query: string): Promise<readonly WikiHit[]
   );
   const result = (await response.json()) as WikiSearch;
   return result.query?.search ?? [];
-}
-
-/** 用抽取器读一篇网页；抓取失败、超时（15 秒）或正文过短时抛错。 */
-export async function fetchReader(url: string): Promise<ReaderArticle> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(READER + resolveUrl(url), { signal: controller.signal, ...REQUEST });
-    if (!response.ok) throw new Error(String(response.status));
-    const raw = await response.text();
-    const title = (raw.match(/^Title:\s*(.*)$/m)?.[1] || hostOf(url)).trim();
-    const body =
-      raw
-        .split(/^Markdown Content:\s*$/m)
-        .slice(1)
-        .join('\n') || raw;
-    const html = mdHTML(body.trim());
-    if ((new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').trim().length < 40)
-      throw new Error('empty');
-    return { title, html };
-  } finally {
-    clearTimeout(timer);
-  }
 }

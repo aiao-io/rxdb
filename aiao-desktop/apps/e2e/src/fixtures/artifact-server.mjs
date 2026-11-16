@@ -11,6 +11,7 @@ export const contentTypes = {
   '.ico': 'image/x-icon',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.wasm': 'application/wasm'
 };
 

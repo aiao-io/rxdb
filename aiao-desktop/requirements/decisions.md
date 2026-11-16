@@ -16,9 +16,11 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-04：外网内容可缺失
 
-壁纸与照片、地图瓦片与地名搜索、天气、Safari 的阅读模式、网站图标、视频嵌入与维基百科内容、网页字体，都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
+壁纸与照片、地图瓦片与地名搜索、天气、Safari 的原站网页、网站图标、视频嵌入与维基百科内容、网页字体，都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
 
-这些请求会让第三方看到用户的 IP；Safari 阅读模式还会把用户输入的网址、地名搜索会把搜索词发给对应的第三方。每个外网主机的用途、会发送的数据和触发方式（打开应用就请求，还是用户操作后才请求）登记在代码里的清单 [external-content.ts](../apps/web/src/app/shared/external-content.ts)，主机以它为准，这里不再另列一份。「关于本机」里的 External Content 页由它渲染，web 单测会对账源码里出现的每个外网主机，新增主机必须先登记（[ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)）。清单里还登记了集成应用 Aiao Code 的线上页面（[D-10](#d-10应用分三类登记在同一张表里)），它加载失败时由自己的窗口显示原因与重试。
+这些请求会让第三方看到用户的 IP；Safari 直接向目标网站请求网页，地名搜索会把搜索词发给对应的第三方。每个外网主机的用途、会发送的数据和触发方式（打开应用就请求，还是用户操作后才请求）登记在代码里的清单 [external-content.ts](../apps/web/src/app/shared/external-content.ts)，主机以它为准，这里不再另列一份。「关于本机」里的 External Content 页由它渲染，web 单测会对账源码里出现的每个外网主机，新增主机必须先登记（[ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)）。清单里还登记了集成应用 Aiao Code 的线上页面（[D-10](#d-10应用分三类登记在同一张表里)），它加载失败时由自己的窗口显示原因与重试。
+
+2026-11-16 按用户要求移除 Safari 阅读模式与 `r.jina.ai` 依赖。普通网址直接由 `credentialless iframe` 加载，使用独立临时会话；桌面保留 COOP/COEP。窗口里持续提供“Open in Browser”链接，用户可访问原站或使用已有登录状态。站点自己的 X-Frame-Options / CSP 限制仍然有效，不从白名单或 iframe 的 load 事件推断是否加载成功。
 
 ## D-05：终端依赖跨源隔离
 
@@ -182,7 +184,7 @@ Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投
 
 `bundled-html` 的同源 iframe 是受信构建资产，不是安全隔离边界；它可以继续满足 `saltline.html` 的 pointer lock 与 fullscreen 需求。它纳入统一运行时的目的是生命周期一致；以后若提供 bridge，也不能把它描述成能防御恶意同源代码的 sandbox。非受信任的远程内容必须使用 `remote-web` 和 Orbit。
 
-性能验收以正式构建为准：启动桌面（含自动打开的 Finder 窗口）、打开 Launchpad 和 Spotlight 时不能请求 Finder 以外的应用实现 chunk、应用独有的 seed、`saltline.html` 或任何 remote-web URL；打开一个应用只加载它需要的载荷；打开应用 A 不执行应用 B 的构造函数、订阅或独有的数据种子；首屏 initial 体积不超过实现前的实测值。详细范围与验收见 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)。
+运行时懒加载验收关闭 Service Worker，以正式构建为准（PWA 的后台缓存单独按 [D-21](#d-21pwa-安装与缓存边界) 验收）：启动桌面（含自动打开的 Finder 窗口）、打开 Launchpad 和 Spotlight 时不能请求 Finder 以外的应用实现 chunk、应用独有的 seed、`saltline.html` 或任何 remote-web URL；打开一个应用只加载它需要的载荷；打开应用 A 不执行应用 B 的构造函数、订阅或独有的数据种子；首屏 initial 体积不超过实现前的实测值。详细范围与验收见 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)。
 
 ## D-19：只验收桌面 Chrome
 
@@ -201,3 +203,15 @@ Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投
 批准执行 `pnpm nx run aiao-desktop:deploy`，发布候选正式产物并完成部署地址逐文件核对、两个生产入口核对、双域名存储隔离与真实线上 Aiao Code 复验。授权不等于发布成功，US-004 #2 仅在取得本次线上结果后关闭。当前 schema 为 2026111301；B0（6859fe56）之前的旧生产版本没有降级保护，升级后不能作为数据回滚点。
 
 浏览器范围继续按 [D-19](#d-19只验收桌面-chrome) 只验收桌面 Chrome。物理键盘与 VoiceOver 的实际验收条件保持，不在本次基线例外内。
+
+## D-21：PWA 安装与缓存边界
+
+根据 2026-11-16 的 PWA 支持需求，正式构建使用 Angular Service Worker 与浏览器原生安装入口（[ADESK-US-009](stories/platform/ADESK-US-009-pwa.md)）。开发构建不注册 Worker。
+
+Worker 在桌面稳定后注册，最长等待 30 秒；安装时预缓存桌面 HTML、所有应用 JS/CSS、SQLite WASM 与安装图标，让已安装缓存的桌面能离线重开，并首次打开尚未执行过的内置应用。D-18 的动态 import、应用生命周期与按读取初始化种子不变；性能检查区分页面执行所需请求与 Worker 后台预缓存，后者允许下载未打开应用的代码，不执行组件或种子。
+
+终端 assets/vendor、媒体与同源游戏仅按需缓存，更新也按需下载；不缓存外网内容、远程应用或业务 API，不把整个终端运行时加入预缓存。用户文件与数据继续由 SQLite / OPFS 管理，不放入 Service Worker 缓存。
+
+更新采用 Angular 的版本一致性机制：当前页面继续运行原版，完整新版在后台就绪后，用户刷新或重新打开时切换。没有强制刷新或运行中激活新版。托管保留跨源隔离响应头，对 ngsw.json、ngsw-worker.js 和 manifest.webmanifest 设置 no-cache。
+
+冒烟的普通行为组关闭 Service Worker，避免旧缓存影响构建切换、替身页面和运行时加载统计；独立 pwa 组启用真实 Worker，检查安装条件、离线启动、用户数据、跨源隔离与版本切换。浏览器范围沿用 D-19；操作系统原生安装交互、远程内容离线与生产发布不属于本次自动验收。

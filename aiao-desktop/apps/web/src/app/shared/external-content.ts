@@ -22,9 +22,6 @@ export const EXTERNAL_TRIGGERS = {
 /** 触发方式的取值：`on-open` 打开就请求，`on-action` 用户操作后才请求。 */
 export type ExternalTrigger = keyof typeof EXTERNAL_TRIGGERS;
 
-/** Safari 阅读模式用的网页抽取服务；阅读模式入口处的提示用它渲染主机名，清单里的这一项也用它。 */
-export const READER_HOST = 'r.jina.ai';
-
 /** 清单里的一项：桌面会请求的一个第三方主机。 */
 export interface ExternalContentEntry {
   /** 第三方主机，不含协议与路径；与源码里 URL 的主机逐字相同，单测据此对账。 */
@@ -130,14 +127,6 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
     apps: ['Safari']
   },
   {
-    host: READER_HOST,
-    purpose: `Reader view in Safari. ${READER_HOST} fetches a page for you and sends back its text, so sites that refuse to be framed can still be read.`,
-    sends: `The full address you enter in Safari, including its path and query. ${READER_HOST} fetches that page itself, so it also learns which page you read.`,
-    trigger: 'on-action',
-    when: 'When you enter an address that can’t be shown in a frame, or turn Reader on.',
-    apps: ['Safari']
-  },
-  {
     host: 'en.wikipedia.org',
     purpose:
       'Wikipedia articles in Safari, and the results when you type words instead of a web address in Safari or use “Search the web” in Spotlight.',
@@ -168,9 +157,10 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
 
 /**
  * Safari 里由用户输入决定的站点：主机不固定，没法逐个登记，单独写明。
- * 能内嵌的少数站点（`safari-url.ts` 的 `framable`）由 iframe 直接加载，其余走阅读模式。
+ * 普通网址由 iframe 直接加载；用户可以用浏览器新标签页访问原站。
  */
-export const SAFARI_ENTERED_SITES = `Safari also opens whatever address you enter or pick from its favourites. A few sites that allow embedding load directly in a frame, and every other address is read through ${READER_HOST}. Images inside a Reader article load from the article’s own servers. These hosts depend on what you type, so they are not listed one by one.`;
+export const SAFARI_ENTERED_SITES =
+  'Safari loads websites directly in a frame, using a temporary session separate from your existing sign-in. The site receives the page address, including its path and query, and loads its own resources. If the page cannot be embedded or you need your existing sign-in, choose Open in Browser to open a new browser tab. These hosts depend on what you type, so they are not listed one by one.';
 
 /** 只是链接、不发请求的主机：写在文字里或点击才在新窗口打开，桌面本身从不请求它。 */
 export interface LinkOnlyHost {

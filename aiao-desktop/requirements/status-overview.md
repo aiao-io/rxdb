@@ -1,17 +1,19 @@
 # Aiao Desktop 状态总览
 
-2026-11-15 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前21条Done、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-16 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前22条Done、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+
+2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
 ## 状态汇总
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 21   |
+| ✅ Done        | 22   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 22   |
+| **合计**       | 23   |
 
 ## 进行中（0 条）
 
@@ -33,6 +35,8 @@
 - ✅ [ADESK-US-006 web 单测覆盖率门槛](stories/platform/ADESK-US-006-web-test-coverage-gate.md)
 - ✅ [ADESK-US-007 外网内容来源与隐私说明](stories/platform/ADESK-US-007-external-content-disclosure.md)
 - ✅ [ADESK-US-008 冒烟套件化](stories/platform/ADESK-US-008-smoke-suite.md)
+
+- ✅ [ADESK-US-009 PWA 安装与离线桌面](stories/platform/ADESK-US-009-pwa.md)
 
 ### ADESK-EPIC-002 macOS 风格桌面
 

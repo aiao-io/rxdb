@@ -8,7 +8,6 @@ import {
   EXTERNAL_TRIGGERS,
   ExternalContentEntry,
   LINK_ONLY_HOSTS,
-  READER_HOST,
   SAFARI_ENTERED_SITES
 } from './external-content';
 
@@ -42,7 +41,6 @@ const D04_HOSTS = [
   'basemaps.cartocdn.com',
   'nominatim.openstreetmap.org',
   'api.open-meteo.com',
-  'r.jina.ai',
   'icons.duckduckgo.com',
   'fonts.googleapis.com',
   'fonts.gstatic.com',
@@ -115,7 +113,7 @@ describe('源码里的外网主机与清单对账', () => {
 
   it('已登记的主机与端口、用户名密码、路径的各种写法都认得出，不会误报', () => {
     const fake = [
-      `fetch('https://${READER_HOST}/' + url);`,
+      "fetch('https://en.wikipedia.org/w/api.php');",
       'const tile = `https://${sub}.basemaps.cartocdn.com/${z}/${x}/${y}.png`;',
       '<link href="https://fonts.googleapis.com/css2?family=Inter" rel="stylesheet" />',
       'open http://localhost:3000 and give it a second',
@@ -123,7 +121,7 @@ describe('源码里的外网主机与清单对账', () => {
       'const id = `https://${host}/path`; // 主机完全由用户输入决定，没有固定的一段，不在对账范围'
     ].join('\n');
     expect(hostsIn(fake)).toEqual([
-      READER_HOST,
+      'en.wikipedia.org',
       'basemaps.cartocdn.com',
       'fonts.googleapis.com',
       'localhost',
@@ -168,10 +166,7 @@ describe('外网内容清单本身', () => {
     expect(D04_HOSTS.filter(host => !hosts.includes(host))).toEqual([]);
   });
 
-  it('Safari 阅读模式与地名搜索点名了会发送的内容，且都要用户操作后才请求', () => {
-    const reader = entryOf(READER_HOST);
-    expect(reader.sends).toMatch(/address you enter/i);
-    expect(reader.trigger).toBe('on-action');
+  it('地名搜索点名了会发送的内容，且只在用户操作后请求', () => {
     const nominatim = entryOf('nominatim.openstreetmap.org');
     expect(nominatim.sends).toMatch(/search words/i);
     expect(nominatim.trigger).toBe('on-action');
@@ -179,6 +174,16 @@ describe('外网内容清单本身', () => {
 
   it('统一写明所有请求至少让第三方看到用户的 IP，也写明了 Safari 里用户输入的站点', () => {
     expect(EXTERNAL_CONTENT_NOTICE.join(' ')).toMatch(/IP address/);
-    expect(SAFARI_ENTERED_SITES).toContain(READER_HOST);
+    expect(SAFARI_ENTERED_SITES).toMatch(/directly/i);
+    expect(SAFARI_ENTERED_SITES).toMatch(/browser tab/i);
+  });
+});
+
+describe('Safari 原站访问', () => {
+  it('运行时代码、界面与清单不再依赖阅读代理', () => {
+    const readerSources = sourceFiles().filter(file => /r\.jina\.ai|data-reader|fetchReader/.test(read(file)));
+    expect(readerSources).toEqual([]);
+    expect(EXTERNAL_CONTENT.some(entry => entry.host === 'r.jina.ai')).toBe(false);
+    expect(SAFARI_ENTERED_SITES).not.toMatch(/Reader|refuses embedding/);
   });
 });

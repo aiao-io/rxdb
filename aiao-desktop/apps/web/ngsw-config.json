@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../node_modules/@angular/service-worker/config/schema.json",
+  "assetGroups": [
+    {
+      "name": "desktop",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/index.html",
+          "/favicon.ico",
+          "/manifest.webmanifest",
+          "/icons/**",
+          "/*.css$",
+          "/*.js$",
+          "/sqlite-wasm/*.wasm$"
+        ]
+      }
+    },
+    {
+      "name": "on-demand",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/assets/**", "/vendor/**", "/media/**", "/saltline.html"]
+      }
+    }
+  ],
+  "index": "/index.html",
+  "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/assets/**", "!/vendor/**", "!/sqlite-wasm/**"]
+}

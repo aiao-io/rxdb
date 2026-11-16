@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[21/22 已交付]；1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[22/23 已交付]；1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -29,6 +29,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 - **终端**：[Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python，打开时复制磁盘，与桌面双向同步（[D-09](decisions.md#d-09终端按需复制磁盘)）。
 - **几猫3A大作**：随桌面发布的单文件 3D 游戏，同源 iframe 运行（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)）。
 - **集成应用**：独立部署的 B/S 应用经仓库里的 `@aiao/orbit` 隔离在窗口里，应用统一登记；第一个是 Aiao Code（vscode.aiao.io），支持应用自绘标题栏的透明窗口，见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)（US-201～204）。
+- **PWA**：本地正式构建支持安装为独立窗口、缓存完成后的离线重开、内置应用与 SQLite 数据、用户刷新后切换已缓存新版；终端大资源按需缓存，远程内容仍需联网。本次没有生产发布（[ADESK-US-009](stories/platform/ADESK-US-009-pwa.md)、[验收证据](evidence/2026-11-16/pwa.md)）。
 - **发布**：Cloudflare Pages 上的静态站点，一键发布并线上对账（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)、[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 
 ### 本轮收尾与验收保留

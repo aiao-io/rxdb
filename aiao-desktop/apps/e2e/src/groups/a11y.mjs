@@ -105,7 +105,10 @@ const KEYS = [
   'a11y.tree.updatesWhenWindowsOpenAndClose',
   'a11y.tree.everyControlNamed',
   'a11y.tree.decorativeSvgHidden',
-  'a11y.axe.noViolations'
+  'a11y.axe.noViolations',
+  'a11y.safari.browserLinkNamed',
+  'a11y.safari.keyboardOpen',
+  'a11y.safari.actionsAccessible'
 ];
 
 /** 按点分路径往嵌套对象里写值。 */
@@ -210,6 +213,7 @@ export const a11y = {
     const finder = {};
     const tree = {};
     const axeResult = {};
+    const safari = {};
     const inside = region => info => info !== null && info !== undefined && region === info.region;
     await session.openDesktop();
 
@@ -1208,6 +1212,34 @@ export const a11y = {
       );
     });
 
+    await guarded('safari', safari, async () => {
+      await reset();
+      const url = 'https://www.baidu.com/';
+      await session.context.route(url, route => route.fulfill({ contentType: 'text/html', body: '<h1>Website</h1>' }));
+      if (!(await openFromDock('Safari', 'safari'))) throw new Error('键盘未能打开 Safari');
+      if (!(await tabTo(info => info.app === 'safari' && info.tag === 'input')).found)
+        throw new Error('Tab 未能到达 Safari 地址栏');
+      await page.keyboard.type(url);
+      await press('Enter');
+      const window = win('safari');
+      const link = window.getByRole('link', { name: 'Open in Browser', exact: true });
+      await link.waitFor();
+      safari.browserLinkNamed = problems(
+        (await link.getAttribute('href')) === url ? [] : ['外部打开链接没有指向当前网址'],
+        (await window.locator('iframe.sf-frame').getAttribute('title')) === 'www.baidu.com' ? [] : ['网页没有名称']
+      );
+      const reached = await tabTo(info => info.app === 'safari' && info.tag === 'a' && info.name === 'Open in Browser');
+      if (!reached.found) throw new Error('Tab 未能到达 Open in Browser');
+      const [opened] = await Promise.all([session.context.waitForEvent('page'), press('Enter')]);
+      await opened.waitForURL(url);
+      safari.keyboardOpen = problems(
+        (await opened.evaluate(() => window.opener === null)) ? [] : ['新页保留了 opener']
+      );
+      await opened.close();
+      const actions = await new AxeBuilder({ page }).include('.sf-web-actions').analyze();
+      safari.actionsAccessible = actions.violations.map(violation => violation.id);
+    });
+
     return {
       a11y: {
         tabPath,
@@ -1216,7 +1248,8 @@ export const a11y = {
         windows,
         finder,
         tree,
-        axe: axeResult
+        axe: axeResult,
+        safari
       }
     };
   }

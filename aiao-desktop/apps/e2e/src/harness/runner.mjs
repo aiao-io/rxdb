@@ -56,7 +56,11 @@ export async function runGroup(group, { browser, origin, serve, distRoot, engine
     context: group.context
   });
   try {
-    outcome.result = await withTimeout(group.run(session), group.timeout ?? DEFAULT_TIMEOUT, `检查组 ${group.name}`);
+    outcome.result = await withTimeout(
+      group.run(session, server),
+      group.timeout ?? DEFAULT_TIMEOUT,
+      `检查组 ${group.name}`
+    );
     const { missing, extra } = compareKeys(group.keys, flattenKeys(outcome.result));
     outcome.missingKeys.push(...missing);
     outcome.extraKeys.push(...extra);

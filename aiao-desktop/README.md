@@ -65,6 +65,22 @@ pnpm nx run aiao-desktop:inspect-live
 
 键盘脚本需要操作者用手按键；读屏按[VoiceOver清单](apps/e2e/VOICEOVER.md)保留真实播报。`inspect-live`只读核对线上入口，不能代替`deploy`的本次发布对账。
 
+## PWA 安装与离线使用
+
+正式构建支持通过桌面 Chrome 的安装入口安装为 **Aiao Desktop** 独立窗口。本地验证先运行：
+
+```bash
+pnpm nx run aiao-desktop-web:serve-static
+```
+
+打开 `http://127.0.0.1:4411`。生产部署使用 HTTPS，并保留 `_headers` 中的 COOP / COEP 与 Service Worker 缓存规则。`pnpm nx serve aiao-desktop-web` 默认是开发构建，不注册 Service Worker。
+
+首次联网打开后，Worker 在应用稳定时注册（最长等待 30 秒），随后预缓存桌面与内置应用代码、SQLite WASM 和安装图标。等 Worker 安装完成后，断网刷新仍可启动桌面、使用内置应用并读取本地文件夹、备忘录和设置。外网内容及集成应用仍需要网络；终端 assets/vendor、媒体与同源游戏在使用时缓存，未下载过的资源不能离线首次使用。
+
+打开或刷新页面时检查更新，在后台下载新版，当前窗口不会被强制刷新。下一次刷新或重新打开时使用已缓存完整的新版，SQLite 与 OPFS 数据继续保留。PWA 与同源浏览器标签页共用站点数据；安装不会复制、迁移或备份数据。
+
+正式构建回归：`pnpm nx run aiao-desktop-e2e:e2e --group=pwa`。图标源文件是 `apps/web/public/icons/desktop.svg`，修改后运行 `pnpm nx run aiao-desktop-web:pwa-icons`。验收边界见 [ADESK-US-009](requirements/stories/platform/ADESK-US-009-pwa.md)。
+
 ## 接入集成应用
 
 桌面里的应用分三类：系统入口（启动台、废纸篓）、内置应用（本目录的 Angular 组件）与集成应用（独立部署的 B/S 应用），都登记在 [registry.ts](apps/web/src/app/apps/registry.ts) 里（[D-10](requirements/decisions.md#d-10应用分三类登记在同一张表里)）。集成应用经 [`@aiao/orbit`](../packages/orbit/README.md) 在窗口的 iframe 里运行，每个窗口一个实例（[D-11](requirements/decisions.md#d-11集成应用经-orbit-隔离运行)）。

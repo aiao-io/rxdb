@@ -77,14 +77,3 @@ export function favColor(url: string): string | null {
   const kind = kindOf(url);
   return kind === 'search' || kind === 'start' ? '#8e8e93' : null;
 }
-
-/**
- * file:// 页面分不清被拒绝的 iframe 和正常的 iframe：两者都会触发 load，也都因父页面源不透明
- * 而拒绝访问 DOM。所以只对已知允许内嵌的主机直接用 iframe，其余当文本读。
- */
-export function framable(url: string): boolean {
-  const host = hostOf(url).replace(/^www\./, '');
-  return /(^|\.)(example\.(com|org)|youtube(-nocookie)?\.com|youtu\.be|player\.vimeo\.com|jsfiddle\.net|archive\.org|wikipedia\.org|github\.io|caniuse\.com)$/.test(
-    host
-  );
-}

@@ -153,3 +153,12 @@
 | ADESK-US-003 #5         | 同上                                                         | 第二次 `deploy`                                                                                                                                                                                                 | 通过：识别出已存在的项目，打印上一版生产部署 `b79247e9`（源 `bcfaa45`）；没有文件重新上传（18 个已存在）；整条命令约 25 s（构建与密钥扫描命中缓存）                                                                                                                                                                                                     |
 | ADESK-US-003 #8         | 同上                                                         | `deploy --preview`                                                                                                                                                                                              | 通过：Preview 部署 `18c9bffa`，别名 `preview.aiao-desktop.pages.dev` 入口页一致；生产部署列表的最新一条仍是 `467bbfe5`                                                                                                                                                                                                                                  |
 | ADESK-US-003 #10        | 浏览器（Chromium 无头）、线上桌面加线上 vscode.aiao.io       | `aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop.pages.dev`                                                                                                                                | 通过：9 项全过，就绪 1.9 s、终端 2.9 s、关闭后重开 1.3 s，桌面与应用都没有错误                                                                                                                                                                                                                                                                          |
+
+
+## 2026-11-16：PWA 增量验收
+
+| 日期 / 源码 | 环境 | 命令与证据 | 结论 |
+| --- | --- | --- | --- |
+| 2026-11-16；`1111da18b6` 加本次未提交工作区改动 | Apple M1 Max / darwin 27.2.0 arm64 / Node v26.12.0 / 无头 Chromium 158.0.8127.18 | `aiao-desktop-e2e:e2e --group=pwa,terminal-runtimes`；[报告](evidence/2026-11-16/pwa-terminal.json)、[命令与复跑记录](evidence/2026-11-16/pwa.md) | PWA 14 项、终端 30 项全部通过，页面错误为空。正式构建、类型、lint、1,353 个 web 单测与覆盖率门槛通过。首次 verify 的终端启动超时经隔离复跑和联跑通过；路线图漏记已补齐并复验需求门禁。首次 verify 退出码 1 的原始记录保留。 |
+
+本轮只交付 US-009 的本地代码与自动验收；没有生产发布、原生安装对话框或物理键盘实测。现有线上发布结果与 US-108 的 VoiceOver 保留不变。

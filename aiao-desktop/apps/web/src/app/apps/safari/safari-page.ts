@@ -21,18 +21,10 @@ export type SafariPage =
   | { readonly type: 'blank' }
   | { readonly type: 'start' }
   | { readonly type: 'local'; readonly site: string }
-  | { readonly type: 'frame'; readonly src: SafeResourceUrl }
+  | { readonly type: 'frame'; readonly url: string; readonly src: SafeResourceUrl }
   | { readonly type: 'player'; readonly src: SafeResourceUrl }
   | { readonly type: 'embed-blocked'; readonly id: string }
   | { readonly type: 'loading' }
-  | {
-      readonly type: 'reader';
-      readonly url: string;
-      readonly host: string;
-      readonly title: string;
-      readonly html: SafeHtml;
-    }
-  | { readonly type: 'blocked'; readonly url: string; readonly host: string }
   | { readonly type: 'search'; readonly query: string; readonly note: string; readonly hits: readonly SafariHit[] }
   | {
       readonly type: 'wiki';

@@ -20,12 +20,11 @@ import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
-import { READER_HOST } from '../../shared/external-content';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { SafariBrowsers } from './safari-browsers';
-import { WikiHit, fetchReader, fetchWikiArticle, fetchWikiSearch } from './safari-network';
+import { WikiHit, fetchWikiArticle, fetchWikiSearch } from './safari-network';
 import { SafariOverview } from './safari-overview';
 import { SafariHit, SafariPage, SafariProgress, SafariTile } from './safari-page';
 import {
@@ -33,7 +32,6 @@ import {
   externalUrl,
   favColor,
   faviconOf,
-  framable,
   hostOf,
   kindOf,
   localKey,
@@ -48,12 +46,10 @@ interface SafariTab {
   readonly url: string;
   readonly history: readonly string[];
   readonly index: number;
-  /** null 表示按站点默认：能内嵌的用 iframe，其余用阅读器。 */
-  readonly reader: boolean | null;
 }
 
 /** 每个标签一个新对象：模板按对象身份区分标签，共用同一个对象会撞键。 */
-const blankTab = (): SafariTab => ({ url: '', history: [''], index: 0, reader: null });
+const blankTab = (): SafariTab => ({ url: '', history: [''], index: 0 });
 
 /** 页面区的一次内容；`id` 每次递增，模板据此整块重建（iframe 重新加载）。 */
 interface SafariView {
@@ -88,7 +84,7 @@ const OFFLINE_HITS: readonly SafariHit[] = [
 ].map(hit => ({ ...hit, goto: hit.url, html: null }));
 
 /**
- * Safari：多标签、前进后退、阅读器、侧栏、收藏栏，内容按地址在本地页、iframe、阅读器与维基之间切换。
+ * Safari：多标签、前进后退、侧栏、收藏栏，内容按地址在本地页、iframe 与维基之间切换。
  * 收藏夹、阅读列表与浏览历史来自本地库，所有 Safari 窗口共用。
  */
 @Component({
@@ -126,10 +122,6 @@ export class SafariApp {
   protected readonly favColor = favColor;
   protected readonly faviconOf = faviconOf;
   protected readonly hostOf = hostOf;
-  protected readonly resolveUrl = resolveUrl;
-  protected readonly externalUrl = externalUrl;
-  /** 阅读模式入口处提示里的主机名：地址会发给它（外网内容清单登记了同一个主机）。 */
-  protected readonly readerHost = READER_HOST;
 
   protected readonly tabs = signal<readonly SafariTab[]>([blankTab()]);
   protected readonly current = signal(0);
@@ -158,10 +150,6 @@ export class SafariApp {
   protected readonly kind = computed(() => kindOf(this.tab().url));
   protected readonly address = computed(() => (this.kind() === 'start' ? '' : this.tab().url));
   protected readonly urlIcon = computed(() => (['start', 'search'].includes(this.kind()) ? 'g-search' : 'g-lock'));
-  protected readonly readerOn = computed(() => {
-    const tab = this.tab();
-    return this.kind() === 'web' && (tab.reader === true || (tab.reader === null && !framable(tab.url)));
-  });
   protected readonly canBack = computed(() => this.tab().index > 0);
   protected readonly canForward = computed(() => this.tab().index < this.tab().history.length - 1);
   /** 进度条与页面内容都按对象身份重建元素：iframe 重新加载，进度条的过渡也从头开始。 */
@@ -197,7 +185,7 @@ export class SafariApp {
   protected go(url: string): void {
     const tab = this.tab();
     const history = [...tab.history.slice(0, tab.index + 1), url];
-    this.patch({ url, history, index: history.length - 1, reader: null });
+    this.patch({ url, history, index: history.length - 1 });
     this.browsers.record(url);
     this.render();
   }
@@ -217,15 +205,6 @@ export class SafariApp {
   protected toggleSidebar(): void {
     this.sidebar.update(on => !on);
     this.revision.update(n => n + 1);
-  }
-
-  protected toggleReader(): void {
-    if (this.kind() !== 'web') {
-      this.toast.show('Reader isn’t available on this page');
-      return;
-    }
-    this.patch({ reader: !this.readerOn() });
-    this.render();
   }
 
   protected share(): void {
@@ -313,7 +292,7 @@ export class SafariApp {
     const tab = this.tab();
     const index = tab.index + delta;
     if (index < 0 || index >= tab.history.length) return;
-    this.patch({ index, url: tab.history[index], reader: null });
+    this.patch({ index, url: tab.history[index] });
     this.render();
   }
 
@@ -373,7 +352,7 @@ export class SafariApp {
     const external = target.closest<HTMLElement>('[data-openext]');
     if (external) {
       event.preventDefault();
-      window.open(external.dataset['openext'], '_blank', 'noopener');
+      window.open(external.dataset['openext'], '_blank', 'noopener,noreferrer');
       return;
     }
     const embed = target.closest<HTMLElement>('[data-tryframe]');
@@ -421,7 +400,7 @@ export class SafariApp {
     else if (kind === 'wiki') await this.paintWiki(wikiTitle(url) || 'MacOS', token);
     else if (kind === 'search') await this.paintSearch(url, token);
     else if (video) this.paintVideo(video, token);
-    else await this.paintWeb(url, token);
+    else this.show(token, this.frame(url));
   }
 
   /** YouTube 拒绝没有来源的嵌入方，而从磁盘直接打开的页面就是没有来源，所以如实说明处境。 */
@@ -434,26 +413,9 @@ export class SafariApp {
     this.show(token, { type: 'player', src: this.sanitizer.bypassSecurityTrustResourceUrl(src) });
   }
 
-  private async paintWeb(url: string, token: number): Promise<void> {
-    const reader = this.tab().reader;
-    if (reader === false || (reader === null && framable(url))) {
-      this.show(token, this.frame(url));
-      return;
-    }
-    this.show(token, { type: 'loading' });
-    const article = await fetchReader(url).catch(() => null);
-    if (!article) {
-      this.show(token, { type: 'blocked', url, host: hostOf(url) });
-      return;
-    }
-    /* 信任边界：mdHTML 先把整段文字转义，只会产出自己生成的标签；链接要保留 data-goto，
-       而 Angular 的消毒器会把 data-* 删掉，所以这里显式放行。 */
-    const html = this.sanitizer.bypassSecurityTrustHtml(article.html);
-    this.show(token, { type: 'reader', url, host: hostOf(url), title: article.title, html });
-  }
-
   private frame(url: string): SafariPage {
-    return { type: 'frame', src: this.sanitizer.bypassSecurityTrustResourceUrl(resolveUrl(url)) };
+    const address = resolveUrl(url);
+    return { type: 'frame', url: address, src: this.sanitizer.bypassSecurityTrustResourceUrl(address) };
   }
 
   private async paintSearch(query: string, token: number): Promise<void> {

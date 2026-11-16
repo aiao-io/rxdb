@@ -33,7 +33,7 @@ if (options.list) {
   for (const group of GROUPS) console.log(group.name);
   process.exit(0);
 }
-const selected = selectGroups(GROUPS, options.groups);
+const selected = selectGroups(GROUPS, options.groups, options.engine);
 
 const root = options.dist ? resolve(options.dist) : outputRoot;
 const productionScripts = globSync('**/*.js', { cwd: root });

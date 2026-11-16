@@ -1,0 +1,22 @@
+> nx run aiao-desktop-e2e:e2e --group=terminal-runtimes
+
+aiao-desktop-e2e: (node:11359) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✓ terminal-runtimes  49.5s
+aiao-desktop-e2e: 检查组 1 个，总耗时 49.5s（引擎 chromium，并行 3）
+aiao-desktop-e2e: {"terminalRuntimes":{"lazy":true,"python":true,"python3":true,"pythonExit":true,"pythonAsync":true,"script":true,"sharedDisk":true,"pip":true,"installedPackage":true,"pipFreeze":true,"pythonRepl":true,"pythonReplFile":true,"pythonInput":true,"numpyPandas":true,"scipySklearn":true,"pythonLibraries":true,"pytest":true,"black":true,"mypy":true,"ruff":true,"tsc":true,"tsgo":true,"bun":true,"bunScript":true,"bunSharedDisk":true,"bunRun":true,"bunExit":true,"bunRepl":true,"nodeSqlite":true,"bunSqlite":true}}
+
+
+
+ NX   Successfully ran target e2e for project aiao-desktop-e2e and 23 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 22 out of 24 tasks.
+
+  Run duration:      50.5s
+  Cache:             22/24 hit (92%)
+  Critical path:     50.3s (9 tasks)
+  Recoverable time:  4ms (0% of the run)
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e    50.1s

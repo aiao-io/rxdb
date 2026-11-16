@@ -1,0 +1,13 @@
+{
+  "boundary": "仅验证真实百度首页渲染，没有验证登录或搜索结果。使用独立浏览器上下文并禁用 Service Worker；截图见 baidu-homepage.png。",
+  "browser": "157.0.8103.52",
+  "credentialless": true,
+  "externalUrl": "https://www.baidu.com/",
+  "frameUrl": "https://www.baidu.com/",
+  "indexSha256": "444d7fdebaf59e6d672bda31d811464fdeb4e0682871778f00011ef80761af9d",
+  "isolated": true,
+  "pageErrors": [],
+  "readerControls": 0,
+  "testedAt": "2026-11-16T09:34:12.822Z",
+  "title": "百度一下，你就知道"
+}

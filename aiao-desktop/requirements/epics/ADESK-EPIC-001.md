@@ -23,7 +23,9 @@ Aiao Desktop 作为一个多应用产品管理：Angular 桌面与浏览器冒�
 - [x] 按 D-19 只验收桌面 Chrome，覆盖窄屏与触屏核心交互，写明浏览器范围（[ADESK-US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)）。
 - [x] web 单测接入覆盖率门槛并挡住回退（[ADESK-US-006](../stories/platform/ADESK-US-006-web-test-coverage-gate.md)）。
 
-本Epic全部故事的AC与硬依赖已关闭，发布结果见验收台账。
+本 Epic 的故事与硬依赖已关闭；PWA 增量按 ADESK-US-009 完成本地正式构建验收，本次没有生产发布。
+
+- [x] 支持 PWA 安装、离线桌面与保留本地数据的后台更新（[ADESK-US-009](../stories/platform/ADESK-US-009-pwa.md)）。
 
 ## 故事
 
@@ -38,7 +40,9 @@ Aiao Desktop 作为一个多应用产品管理：Angular 桌面与浏览器冒�
 - [ADESK-US-007 外网内容来源与隐私说明](../stories/platform/ADESK-US-007-external-content-disclosure.md) (High)
 - [ADESK-US-008 冒烟套件化](../stories/platform/ADESK-US-008-smoke-suite.md) (High)
 
+- [ADESK-US-009 PWA 安装与离线桌面](../stories/platform/ADESK-US-009-pwa.md) (High)
+
 ## 非目标
 
-- 不改变桌面的产品行为。
+- PWA 只扩展安装、缓存与更新行为，内置应用业务逻辑继续沿用现状。
 - 不为复用提前抽包：眼下没有跨应用共用的代码。

@@ -3338,36 +3338,6 @@ svg {
 .sf-url input::placeholder {
   color: var(--txt-3);
 }
-/* Reader appears only where there's an article to read. */
-.sf-url .rd {
-  display: none;
-  min-width: 21px;
-  height: 21px;
-  flex: none;
-  margin-left: -3px;
-}
-.sf-url .rd.show {
-  display: grid;
-}
-.sf-url .rd.on {
-  background: color-mix(in srgb, var(--blue) 17%, transparent);
-  color: var(--blue);
-}
-/* Reader reads pages through a third party; say so right under the address field, before anything is typed. */
-.sf-note {
-  padding: 0 12px 7px;
-  font-size: 10.5px;
-  line-height: 1.3;
-  color: var(--txt-2);
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sf-note b {
-  font-weight: 600;
-  color: var(--txt);
-}
 /* One tab needs no tab bar — Safari only grows the strip once there's a choice. */
 .sf-tabs {
   display: flex;
@@ -3865,6 +3835,28 @@ svg {
 }
 
 /* Live pages. Anything fetched off the network lands in one of these. */
+.sf-web {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.sf-web-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 0.5px solid var(--line-2);
+  background: var(--win);
+  color: var(--txt-2);
+  font-size: 12px;
+}
+.sf-web .sf-frame {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
 .sf-frame {
   width: 100%;
   height: 100%;
@@ -3928,110 +3920,6 @@ svg {
   color: var(--txt-2);
   max-width: 400px;
   line-height: 1.5;
-}
-
-/* Reader. Type on paper, one column, nothing else. */
-.rdr {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 44px 32px 64px;
-  background: var(--win);
-  color: var(--txt);
-}
-.rdr h1 {
-  margin: 0;
-  font-size: 33px;
-  line-height: 1.15;
-  font-weight: 600;
-  letter-spacing: -0.028em;
-}
-.rdr .meta {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 13px;
-  padding-bottom: 20px;
-  border-bottom: 0.5px solid var(--line-2);
-  font-size: 12px;
-  color: var(--txt-3);
-}
-.rdr .meta .fav {
-  border-radius: 3px;
-  flex: none;
-}
-.rdr .body {
-  font-size: 16px;
-  line-height: 1.68;
-  margin-top: 24px;
-}
-.rdr .body p {
-  margin: 0 0 17px;
-}
-.rdr .body h2 {
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 32px 0 12px;
-}
-.rdr .body h3,
-.rdr .body h4,
-.rdr .body h5,
-.rdr .body h6 {
-  font-size: 16.5px;
-  font-weight: 600;
-  margin: 26px 0 10px;
-}
-.rdr .body a {
-  color: var(--blue);
-  text-decoration: none;
-  cursor: var(--cur-link);
-}
-.rdr .body a:hover {
-  text-decoration: underline;
-}
-.rdr .body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  display: block;
-  margin: 20px 0;
-}
-.rdr .body ul,
-.rdr .body ol {
-  margin: 0 0 17px;
-  padding-left: 24px;
-}
-.rdr .body li {
-  margin-bottom: 6px;
-}
-.rdr .body blockquote {
-  margin: 0 0 17px;
-  padding: 2px 0 2px 16px;
-  border-left: 3px solid var(--line-2);
-  color: var(--txt-2);
-}
-.rdr .body pre {
-  margin: 0 0 18px;
-  padding: 13px 15px;
-  border-radius: 9px;
-  background: var(--fill);
-  overflow-x: auto;
-}
-.rdr .body code {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-}
-.rdr .body hr {
-  border: 0;
-  border-top: 0.5px solid var(--line-2);
-  margin: 26px 0;
-}
-.rdr .foot {
-  display: flex;
-  gap: 9px;
-  margin-top: 34px;
-  padding-top: 20px;
-  border-top: 0.5px solid var(--line-2);
 }
 
 /* Wikipedia, rendered by hand rather than framed — their headers refuse iframes,

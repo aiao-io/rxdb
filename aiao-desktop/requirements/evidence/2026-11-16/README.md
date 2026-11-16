@@ -30,3 +30,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-desktop:runtime-test:coverage --output-style=s
 NX_NO_CLOUD=true pnpm nx run-many --projects=aiao-desktop,aiao-desktop-e2e --targets=lint,test --parallel=1 --output-style=static
 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=terminal-runtimes,terminal-packages,disk-terminal --report=/tmp/aiao-terminal-final.json --output-style=static
 ```
+
+## 同日 PWA 增量
+
+PWA 安装、离线桌面与更新的验收单独记录在 [PWA 验收](pwa.md)，与本页的终端补验分开归档。

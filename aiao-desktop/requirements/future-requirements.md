@@ -38,4 +38,4 @@
 - **应用停止与资源管理**：用户可达的关闭入口与运行状态；受控应用隐藏后的资源策略；游戏最小化后循环照常运行（[D-15](decisions.md#d-15随桌面发布的单文件游戏在同源-iframe-里运行)），要改这一行为得先调整 D-15「原样发布」的约束。[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 明确不含后台冻结。
 - **数据与能力说明入口**：告诉用户本站保存什么、远程应用另存什么、清理会影响什么，权限被拒时在哪里能找到原因。与 [ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)（第三方来源说明）并列，不替代它。
 - **帮助、命令发现与快捷键替代**：帮助页列出支持范围、保存位置和常见失败；被浏览器或系统占用的快捷键都有菜单或按钮等效的路径（[ADESK-US-107](stories/desktop/ADESK-US-107-shell-interaction-coverage.md)、[ADESK-US-108](stories/desktop/ADESK-US-108-accessibility.md) 只覆盖一部分）。
-- **离线启动与更新处理**：先确认真有这个场景再立项。立项的话，分别验断网后重新加载、应用载荷缺失、更新过程中新旧版本的一致性；冒烟拦截外网请求不能代替这些验收。
+- **完整离线**：桌面 PWA 的离线启动与版本更新已由 [ADESK-US-009](stories/platform/ADESK-US-009-pwa.md) 交付并独立断网验收。远程集成应用、外网内容、未下载的终端资源仍需网络；扩大这些离线保证前另行立项，冒烟拦截外网不能代替验收。

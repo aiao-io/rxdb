@@ -1,0 +1,17 @@
+{
+  "method": "sum of file sizes selected by the generated ngsw.json assetGroups; uncompressed build bytes, not network transfer bytes",
+  "groups": [
+    {
+      "name": "desktop",
+      "installMode": "prefetch",
+      "files": 92,
+      "rawBytes": 4716983
+    },
+    {
+      "name": "on-demand",
+      "installMode": "lazy",
+      "files": 97,
+      "rawBytes": 108541012
+    }
+  ]
+}

@@ -16,16 +16,6 @@
         </button>
       </div>
       <div class="sf-url" data-nodrag>
-        <button
-          class="tbtn rd"
-          [class.on]="readerOn()"
-          [class.show]="kind() === 'web'"
-          (click)="toggleReader()"
-          data-reader
-          title="Show Reader"
-        >
-          <svg appIcon="g-glasses"></svg>
-        </button>
         <span data-urlico><svg [appIcon]="urlIcon()"></svg></span>
         <input
           #urlField
@@ -52,10 +42,6 @@
           <svg appIcon="g-plus"></svg>
         </button>
       </div>
-    </div>
-    <div class="sf-note" data-reader-disclosure>
-      Most sites open in Reader view, which sends the address you enter to
-      <b>{{ readerHost }}</b>
     </div>
     <div class="sf-tabs" data-tabs>
       @if (tabs().length > 1) {
@@ -185,12 +171,22 @@
             </div>
           }
           @case ('frame') {
-            <iframe
-              class="sf-frame"
-              [src]="page.src"
-              referrerpolicy="no-referrer"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            ></iframe>
+            <div class="sf-web">
+              <div class="sf-web-actions">
+                <span>Page not loading? Open it in your browser.</span>
+                <a class="btn" [href]="page.url" rel="noopener noreferrer" tabindex="0" target="_blank">
+                  Open in Browser
+                </a>
+              </div>
+              <iframe
+                class="sf-frame"
+                [src]="page.src"
+                [title]="hostOf(page.url)"
+                credentialless
+                referrerpolicy="no-referrer"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              ></iframe>
+            </div>
           }
           @case ('player') {
             <iframe
@@ -216,34 +212,6 @@
           }
           @case ('loading') {
             <div class="sf-load"><div class="sf-spin"></div></div>
-          }
-          @case ('reader') {
-            <div class="rdr">
-              <h1>{{ page.title }}</h1>
-              <div class="meta">
-                <ng-container
-                  [ngTemplateOutlet]="favicon"
-                  [ngTemplateOutletContext]="{ $implicit: page.url, size: 15 }"
-                />
-                <span>{{ page.host }}</span>
-              </div>
-              <div class="body" [innerHTML]="page.html"></div>
-              <div class="foot">
-                <button class="btn" [attr.data-tryframe]="page.url">Load the live page</button>
-                <button class="btn" [attr.data-openext]="resolveUrl(page.url)">Open in New Window</button>
-              </div>
-            </div>
-          }
-          @case ('blocked') {
-            <div class="sf-blocked">
-              <div class="ico"><img [src]="faviconOf(page.host)" (error)="hideBox($event)" alt="" /></div>
-              <h3>Can't open {{ page.host }}</h3>
-              <p>This site refuses to be embedded and couldn't be read as text either.</p>
-              <div style="display: flex; gap: 9px; margin-top: 6px">
-                <button class="btn pri" [attr.data-tryframe]="page.url">Load Anyway</button>
-                <button class="btn" [attr.data-openext]="externalUrl(page.url)">Open in New Window</button>
-              </div>
-            </div>
           }
           @case ('search') {
             <div class="srch">

@@ -34,7 +34,7 @@ capabilities: []
 - 把 `aiao-desktop.pages.dev` 上的本地数据迁到新域名：没有导出 / 导入能力之前不做，候选见 [future-requirements](../../future-requirements.md) 的「本地数据保障」；旧地址的保留期限由运营决定，在有迁移路径之前不下线、不重定向。
 - 服务端、账号体系或需要密钥的第三方接入（[D-03](../../decisions.md#d-03只有前端不带任何密钥)）。
 - 把 Pages 项目迁移到 Workers、多语言站点等网站化改造。
-- 外网内容（壁纸、地图瓦片、天气、Safari 阅读模式、网站图标、网页字体）的来源与隐私说明：见 [ADESK-US-007](ADESK-US-007-external-content-disclosure.md)，不等域名绑定。
+- 外网内容（壁纸、地图瓦片、天气、Safari 原站网页、网站图标、网页字体）的来源与隐私说明：见 [ADESK-US-007](ADESK-US-007-external-content-disclosure.md)，不等域名绑定。
 
 ## 验收标准
 

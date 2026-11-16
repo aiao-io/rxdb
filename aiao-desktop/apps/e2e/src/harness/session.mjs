@@ -46,8 +46,10 @@ export async function createSession({
   distRoot,
   engine = 'chromium',
   standins = [],
-  context: contextOptions = {}
+  context: requestedContext = {}
 }) {
+  // 普通行为组隔离缓存影响；pwa 组显式启用真实 Worker，覆盖离线与更新。
+  const contextOptions = { serviceWorkers: 'block', ...requestedContext };
   const viewport = contextOptions.viewport ?? VIEWPORT;
   const profile =
     EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });

@@ -50,3 +50,18 @@ test('引擎、并行数与产物目录', () => {
 test('--report 指定完整运行证据的输出路径', () => {
   assert.equal(parseArguments(['--report=/tmp/smoke-report.json']).report, '/tmp/smoke-report.json');
 });
+
+test('按引擎筛选专用检查组；显式选择不支持的组时说明原因', () => {
+  const scoped = [...groups, { name: 'pwa', engines: ['chromium'] }];
+  assert.deepEqual(
+    selectGroups(scoped, null, 'chromium').map(group => group.name),
+    ['shell', 'game', 'pwa']
+  );
+  for (const engine of ['firefox', 'webkit']) {
+    assert.deepEqual(
+      selectGroups(scoped, null, engine).map(group => group.name),
+      ['shell', 'game']
+    );
+    assert.throws(() => selectGroups(scoped, ['pwa'], engine), /不支持.*pwa/);
+  }
+});

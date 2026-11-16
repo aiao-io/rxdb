@@ -5,3 +5,11 @@
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+
+/ngsw.json
+  Cache-Control: no-cache
+/ngsw-worker.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache

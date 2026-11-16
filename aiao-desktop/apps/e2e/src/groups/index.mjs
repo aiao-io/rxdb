@@ -17,6 +17,7 @@ import { multiTabStartup } from './multi-tab-startup.mjs';
 import { multiTab } from './multi-tab.mjs';
 import { narrowScreen } from './narrow-screen.mjs';
 import { persistence } from './persistence.mjs';
+import { pwa } from './pwa.mjs';
 import { shellInteraction } from './shell-interaction.mjs';
 import { shell } from './shell.mjs';
 import { terminalPackages } from './terminal-packages.mjs';
@@ -30,9 +31,9 @@ import { windowLayout } from './window-layout.mjs';
 /**
  * 全部检查组（ADESK-US-008）。每组独立运行、独立的浏览器上下文，用 `weight` 提示相对耗时
  * （并行时耗时长的先开始）；`exclusive` 的组独占运行（真游戏的软件 WebGL 很吃 CPU，不和别的组同时跑）；
- * `default: false` 的组不随全量冒烟运行。
+ * `default: false` 的组不随全量冒烟运行；`engines` 限定有专用浏览器接口的检查组。
  *
- * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session) }`，登记在这里。
+ * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session, server) }`，登记在这里；server 可用于同源切换构建产物。
  */
 export const GROUPS = [
   { ...shell, weight: 20 },
@@ -46,6 +47,7 @@ export const GROUPS = [
   { ...apps, weight: 15 },
   { ...dock, weight: 25 },
   { ...persistence, weight: 30 },
+  { ...pwa, weight: 60 },
   { ...multiTab, weight: 90, exclusive: true },
   { ...multiTabStartup, weight: 45 },
   { ...narrowScreen, weight: 20 },

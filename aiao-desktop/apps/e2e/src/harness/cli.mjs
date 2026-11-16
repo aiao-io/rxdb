@@ -5,7 +5,7 @@ import { ENGINES } from '../fixtures/engines.mjs';
 export const USAGE = `用法：node src/smoke.mjs [选项]
 
   --list                列出全部检查组名（每行一个）后退出
-  --group=<名>[,<名>]   只跑指定的检查组；可重复给出。省略时跑全部默认检查组
+  --group=<名>[,<名>]   只跑指定的检查组；可重复给出。省略时跑当前引擎的默认检查组
   --engine=<引擎>       chromium（默认）| firefox | webkit
   --parallel=<数>       同时跑几个检查组（每组各自的浏览器上下文），默认 3；独占的检查组（真游戏）总是单独跑
   --dist=<目录>         托管另一份 web 产物（默认 dist/aiao-desktop/apps/web/browser；也可用环境变量 AIAO_DESKTOP_DIST）
@@ -52,17 +52,22 @@ export function parseArguments(argv) {
 }
 
 /**
- * 按名字选检查组：不指定时是全部默认检查组；指定了未知的名字直接报错并列出可选项。
+ * 按名字选检查组：不指定时是当前引擎的默认检查组；指定未知或不支持的组时报错。
  *
- * @template {{ name: string, default?: boolean }} G
+ * @template {{ name: string, default?: boolean, engines?: readonly string[] }} G
  * @param {readonly G[]} all
  * @param {readonly string[] | null} names
+ * @param {string} [engine]
  * @returns {G[]}
  */
-export function selectGroups(all, names) {
-  if (!names) return all.filter(group => group.default !== false);
+export function selectGroups(all, names, engine = 'chromium') {
+  const supports = group => !group.engines || group.engines.includes(engine);
+  if (!names) return all.filter(group => group.default !== false && supports(group));
   const known = new Set(all.map(group => group.name));
   const unknown = names.filter(name => !known.has(name));
   if (unknown.length) throw new Error(`未知的检查组：${unknown.join('、')}（可选：${[...known].join('、')}）`);
-  return all.filter(group => names.includes(group.name));
+  const selected = all.filter(group => names.includes(group.name));
+  const unsupported = selected.filter(group => !supports(group)).map(group => group.name);
+  if (unsupported.length) throw new Error(`引擎 ${engine} 不支持检查组：${unsupported.join('、')}`);
+  return selected;
 }

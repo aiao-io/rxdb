@@ -65,6 +65,7 @@
             }
           ],
           "outputHashing": "all",
+          "serviceWorker": "aiao-desktop/apps/web/ngsw-config.json",
           "optimization": {
             "fonts": {
               "inline": false
@@ -135,6 +136,12 @@
       },
       "readyWhen": {
         "url": "http://127.0.0.1:4411"
+      }
+    },
+    "pwa-icons": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node aiao-desktop/apps/web/tools/generate-pwa-icons.mjs"
       }
     },
     "prepare-vendor": {
