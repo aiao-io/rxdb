@@ -59,4 +59,4 @@ story YAML 是状态真相源，`dependsOn` 只表示应用内硬依赖；`capab
 - [ADMIN-EPIC-001](../../epics/ADMIN-EPIC-001.md)
 - [PR #199](https://github.com/aiao-io/rxdb/pull/199)
 
-2026-11-16 路径迁移：本故事已交付的门禁与需求树移至产品根目录，后续产品归属、三端接线及防止需求副本的新增验收由 [ADMIN-US-004](ADMIN-US-004-product-requirements.md) 承担；原故事关闭状态和历史 PR 不因迁移重写。
+本故事的门禁与需求树位于产品根目录，后续产品归属、三端接线及防止需求副本的新增验收由 [ADMIN-US-004](ADMIN-US-004-product-requirements.md) 承担；原故事关闭状态和历史 PR 不因迁移重写。

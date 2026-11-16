@@ -3,9 +3,9 @@ id: US-705
 title: P2P 字节传输
 status: In Progress
 priority: High
-epic: epic-011-p2p-file-share
+epic: epic-013-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-03
+updated: 2026-11-16
 tags: [p2p, webrtc, tcp, chunking, integrity]
 ---
 
@@ -54,6 +54,8 @@ tags: [p2p, webrtc, tcp, chunking, integrity]
 | ---- | ----------------------------- | ------------------------------------------------------------------ | --------------------- | ---- |
 | A    | 浏览器两上下文互传 → 校验一致 | WebRTC DataChannel、分块协议、校验、续传、多源、落盘转正           | #1～#6、#8 浏览器半边 | ⬜   |
 | B    | 桌面双进程互传 → 校验一致     | TCP 直连通道（Electron 主进程 / Tauri Rust 侧），复用阶段 A 块协议 | #7、#8 桌面半边       | ⬜   |
+
+本故事的 AC#8 验收协议与通道的缓冲、续传和清理合同，真实浏览器 / Electron / Tauri 自动化由 US-707 承接；能力实现与宿主验收不能相互替代。
 
 阶段 B 依赖阶段 A 冻结的块协议，并以 [US-706](US-706-p2p-fallback-auth.md) 的桌面链路加密（AC#4）落地为前置——未落地前不得交付 TCP 直传；阶段 A 可独立验收。
 

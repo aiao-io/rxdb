@@ -37,7 +37,7 @@
 ## 命名规范
 
 - 用户故事：`US-XXX-description.md`
-- 史诗：`epic-XXX-name.md`
+- 史诗：`epic-XXX-name.md`，数字编号在平台需求内唯一；文件名去掉扩展名必须与 frontmatter `id` 一致
 - review：`reviews/<projectKey>/RV-<uuid>.md`（可加 `-<英文 slug>`）；按项目分目录，一个问题一个文件，旧 ID 继续有效。`projectKey` 是 Nx 项目名去掉开头的 `@`、`/` 换成 `__`（`@aiao/source` → `aiao__source`）。
 - code-scanning：`CS-XXX-*.md`（编号与 GitHub 告警 number 对应）
 

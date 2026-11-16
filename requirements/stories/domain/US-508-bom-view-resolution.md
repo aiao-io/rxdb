@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-11-16
 tags: [domain, bom, query]
 ---
 
@@ -124,7 +124,9 @@ AC#1，日期固定，宿主日期一过就成了「追溯」）与从 ERP 迁�
 [US-509](US-509-bom-dag-cycle-detection.md) 引的那条原则，这里写明它拦不住，而不是假装拦得住。
 [US-521](US-521-bom-erp-mrp-integration.md) 的日常导入仍只写草稿、不走这条通道；ERP 历史迁移要用它时在 US-521 另加 AC。
 
-结构之外的输入——单位换算率、`qty_formula` 参数、费率——本 Epic 不做时间版本化，它们变了，旧日期的数量与成本会跟着变。
+结构之外的单位换算率与 `qty_formula` 参数不做时间版本化，修改后旧日期的数量与成本可能变化。
+费率的生效期由 [US-524](US-524-routing-master-model.md) 阶段 B 定义，
+[US-514](US-514-bom-cost-rollup.md) 按费率日取值；本故事只解析结构，不承担这些输入的版本管理。
 manifest 记录结构依据（头、修订、发生项 ID），[US-511](US-511-bom-quantity-semantics.md) 与 [US-514](US-514-bom-cost-rollup.md)
 再把各自用到的换算率、参数与费率值追加进去，下游可以比对两次 manifest 判断差异来自哪一层；但 manifest 不是重放引擎，
 「拿旧 manifest 重新算出当年数字」需要真实驱动场景再立项。

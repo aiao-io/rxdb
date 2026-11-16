@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-16
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [collaboration, branch, checkout, history, tri-framework]
 ---
 
@@ -247,9 +247,9 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - 三端 demo 不提供只读入口（见设计决定 8），worktree 界面随 [US-314](US-314-writable-worktrees.md)
 - `website/docs/plugins/rxdb-plugin-working-tree/README.md`、`website/docs/collaboration/branch.md` — 只读检出位文档
 
-## 价值待证
+## 消费边界与扩展准入
 
-本故事已交付，但价值待证（判据见 [CONVENTIONS](../../CONVENTIONS.md#价值待证)）：
+`Done` 只表示本故事的实现与 AC 已合并，快照库路径的消费价值尚不足以支持继续扩展：
 
 - 库内没有消费方：`apps/`、`packages/`、`modules/` 里除测试与工作树插件自身之外，没有任何地方调用 `checkouts.open()` / `checkouts.attach()`
   （`git grep -nE "checkouts\.(open|attach)\("` 复验）；三端 demo 也不提供只读入口（设计决定 8）。
@@ -259,8 +259,8 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - 快照库这条路径（只读三层防线、四个快照原语、六个后端的 `dropStorage()`、登记 / 锁 / 回收）还没有发布：
   npm 上的 `@aiao/rxdb-plugin-working-tree@0.0.28` 不含 `checkouts`。撤掉它不涉及迁移，也不破坏已发布的 API。
 
-**处置（owner，2026-10-27）**：保留现状、不再扩展；1.0 首发前评估是否撤掉快照库路径。
-**解锁条件**：出现具名消费方，或 1.0 前的评估认定三项独有能力值得做公开 API 承诺。
+**当前处置**：按 owner 决定保留现状、不再扩展；1.0 首发前评估是否撤掉快照库路径。
+**扩展准入**：出现具名消费方，或 1.0 前评估认定三项独有能力值得做公开 API 承诺后，另行立项；不将当前 `Done` 视为新范围已获授权。
 
 ## References
 

@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-XXX # 填写 requirements/epics/*.md 中已存在的 id
 created: 2026-02-08
-updated: 2026-02-08
+updated: 2026-11-16
 tags: []
 # 仅登记已明确移出当前承诺范围的候选数字 AC：
 # candidate_acs: [5]
@@ -46,6 +46,10 @@ INVEST 检查清单:
 - [候选后续阶段及解锁条件；若存在，写明不参与当前范围关闭，不将未验收 AC 标绿]
 
 ## 验收标准
+
+复杂故事也可沿用 US-305～US-308 的「用户场景 + Given / When / Then + 功能需求」形态：
+场景使用稳定的 `USn-ACm` 编号，功能需求使用 `FR-NNN` 编号，逐条提供可证伪的结果与验收证据。
+跨故事转移继续在接收方 `inherited_acs` 登记这些编号；不为套用表格重复维护同一条验收标准。
 
 | #   | 前置条件   | 操作       | 预期结果   | 状态 |
 | --- | ---------- | ---------- | ---------- | ---- |

@@ -46,7 +46,7 @@ capabilities: [rxdb:US-526, rxdb:US-702]
 
 当前样例注册在 [ENTITIES](../../../apps/react/src/app/entities/asset-entities.ts)，搜索页与命令面板已通过 `entity-labels.ts` 读取实体和字段的显示元数据；菜单图标映射位于 [workbench-menu.tsx](../../../apps/react/src/app/shell/workbench-menu.tsx)。Dashboard 的指标、实体路由和活动日志仍绑定 `assets`，替换实体必须同步调整 `dashboard-model.ts`、`dashboard-activity-source.ts` 与三端页面。
 
-2026-11-16 复核：尚未提供真实新业务的关联实体、字段、关系与非 `assets` 命名空间。本故事保留 Backlog，待这些输入确定后执行 [优化清单 T03](../../plans/nexus-template-optimization-tasks.md#t03--p1--验证真实新业务实体替换)；默认资产与 Dashboard 验收不替代本故事。
+当前前置：尚未提供真实新业务的关联实体、字段、关系与非 `assets` 命名空间。本故事保留 Backlog，待这些输入确定后执行 [优化清单 T03](../../plans/nexus-template-optimization-tasks.md#t03--p1--验证真实新业务实体替换)；默认资产与 Dashboard 验收不替代本故事。
 
 ## 实现文件
 

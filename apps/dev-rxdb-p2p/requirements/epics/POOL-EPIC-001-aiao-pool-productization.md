@@ -12,7 +12,7 @@ owner: jimmy
 
 把 dev-rxdb-p2p 从「P2P 大文件共享的独立 demo」升级为可验证的产品 aiao-pool（文件池）：浏览器版补上治理与隐私增量后邀请真实团队 beta，桌面端（v2）补齐常驻体验，M3 验证免费/Team 商业化。产品本质：**云盘式资产视图 × P2P 零存储传输**。
 
-技术底座（根 requirements 的 epic-011 六条故事 + epic-012 立项池）不推翻、不复制；本 Epic 只承载产品化视角的增量。决策与里程碑见 [decisions](../decisions.md) 与 [roadmap](../roadmap.md)，立项依据见 [立项方案](../plans/p2p-product-proposal.md)。
+技术底座（根 requirements 的 epic-013 六条故事 + epic-012 立项池）不推翻、不复制；本 Epic 只承载产品化视角的增量。决策与里程碑见 [decisions](../decisions.md) 与 [roadmap](../roadmap.md)，立项依据见 [立项方案](../plans/p2p-product-proposal.md)。
 
 ## 目标
 
@@ -31,8 +31,8 @@ owner: jimmy
 
 ## 非目标
 
-- **不推翻技术底座**：epic-011 六条故事与 epic-012 立项池的编号、状态与验收口径维持根 requirements 不变；本 Epic 不复制其状态。
-- **不做公网 P2P**：STUN/TURN/DHT 维持 epic-011 非目标（D-07 预留）。
+- **不推翻技术底座**：epic-013 六条故事与 epic-012 立项池的编号、状态与验收口径维持根 requirements 不变；本 Epic 不复制其状态。
+- **不做公网 P2P**：STUN/TURN/DHT 维持 epic-013 非目标（D-07 预留）。
 - **不做目录级双向同步、移动端、国内合规基础设施**（D-06）。
 - **M1 不做桌面端与商业化**：桌面端是 v2（D-05），付费与支付是 M3（D-03）；它们以新 story 立项，不在本 Epic 首轮关闭。
 

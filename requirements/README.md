@@ -1,6 +1,6 @@
 # 需求管理
 
-这里维护 rxdb 的用户故事、史诗和状态总览。这个目录不是“想法回收站”，而是当前实现范围、优先级和完成状态的业务入口。本目录维护平台与可复用领域能力。Aiao Pool（文件池）的产品需求位于 [apps/dev-rxdb-p2p/requirements](../apps/dev-rxdb-p2p/requirements/README.md)，使用 `POOL-US-*` 编号，独立统计和验收；本目录的 US-704～US-713 与 epic-011/012 是其技术底座，底层能力通过带作用域的引用关联，不复制故事状态。
+这里维护 rxdb 的用户故事、史诗和状态总览。这个目录不是“想法回收站”，而是当前实现范围、优先级和完成状态的业务入口。本目录维护平台与可复用领域能力。Aiao Pool（文件池）的产品需求位于 [apps/dev-rxdb-p2p/requirements](../apps/dev-rxdb-p2p/requirements/README.md)，使用 `POOL-US-*` 编号，独立统计和验收；本目录的 US-704～US-713 与 epic-013/012 是其技术底座，底层能力通过带作用域的引用关联，不复制故事状态。
 
 Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向，统一见[未来功能需求与目录规划](../apps/dev-rxdb-p2p/requirements/future-requirements.md)。
 
@@ -120,8 +120,8 @@ Epic：
 - [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md)
 - [epic-010 模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
 - [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
-- [epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 - [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
+- [epic-013 局域网 P2P 大文件共享](epics/epic-013-p2p-file-share.md)
 
 视图：
 

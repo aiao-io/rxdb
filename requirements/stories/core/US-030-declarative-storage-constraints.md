@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [core, schema, integrity]
 candidate_acs: [5]
 ---
@@ -279,7 +279,7 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 价值待证
 
-**A～C 的有效授权**：owner 于 2026-10-02 确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#解锁前须先处理)
+**A～C 的有效授权**：owner 确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#跨故事合同与开工决策)
 1～8 条，并授权 A～C 以 Medium 优先级交付，豁免这三个阶段的「病灶数 ≥ 抽象数」准入条件。
 授权不覆盖 D；BOM 领域的准入以 epic-009 自己的有效授权为准。
 

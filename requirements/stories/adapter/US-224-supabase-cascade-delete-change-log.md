@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-27
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [adapter, supabase, sync, change-log]
 ---
 
@@ -92,17 +92,15 @@ INVEST 检查清单:
   并一起提交，再升级客户端；不能原子执行时须在维护窗口禁止写入，避免新触发器与旧 RPC 混用。
   `01-rxdb-system-tables.sql` 无变化。升级与边界见[迁移说明](../../../website/docs/migration/supabase-update-push.md)。
 
-## 验证记录
+## 验收入口
 
-验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～9 全部通过，实现见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
-
-- 先写失败回归，再实现并转绿。级联日志缺失及混合批次按 DELETE → INSERT 顺序复活子行的回归先红后绿；完整 `OLD`、显式删除去重、最终回执、幂等重试、事务设置恢复与 UUID 输入表示均有覆盖。
-- 与 US-223 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。
-- Supabase 适配器 43 个 spec 文件、630 个用例通过；应用单测 50 个、本地模式 e2e 4 个、远端模式 e2e 4 个通过；两客户端同步验证父行及隐式子行最终均不存在。
-- SQL 安全回归 36 个独立用例及 `all` 单事务组合全部通过；脚本套件已执行版本 489 个用例通过。
-- PR 复核补充：大写 UUID 子行先被 RLS 拒绝、随后由父行级联删除及重试的组合验证通过，保留源回执键、映射与完整快照；02 / 04 同事务升级与中途 SQL 错误整组回滚实测通过。
-- 适配器覆盖率：Lines 97.52%、Statements 96.65%、Functions 97.71%、Branches 88.20%，四项均达到 80% 门槛。
-- 评审修复（2026-10-29）：三个反例先写回归，在修复前的 02 / 04 上实测为红——RLS 隐藏的显式子行带常规 `inversePatch` 时最终快照缺 `id`、按 `id` 过滤拉不到删除（`cascade-hidden-inverse-patch`）；`numeric(8,2)` 与无修饰 `numeric`（存 `1.00`、客户端发 `"1"`）主键的显式删除追加隐式重复日志（`cascade-numeric-keys`）；经分区根表或叶分区的显式删除追加隐式重复日志（`cascade-partition-keys`）。修复后 SQL 安全回归 39 个独立用例及 `all` 单事务组合全部通过（PostgreSQL 17.6）；适配器 43 个 spec 文件、630 个用例通过，覆盖率 Lines 97.53%、Statements 96.66%、Functions 97.71%、Branches 88.23%；lint / typecheck 通过。完整 affected 门禁与 e2e 未在本轮重跑。
+- `supabase-sql-security-regressions.sql` 覆盖完整 `OLD`、显式删除去重、最终回执、幂等重试、事务设置恢复与 UUID 输入表示。
+  `cascade-hidden-inverse-patch` 验证 RLS 隐藏子行的完整快照；`cascade-numeric-keys` 验证定精度与无修饰 numeric 主键；
+  `cascade-partition-keys` 验证分区根表与叶分区删除不重复记录。
+- `cascade-delete-sync.spec.ts` 覆盖两客户端拉取、父子最终删除和混合批次不复活；SQL 回归另覆盖 RLS 拒绝后级联删除及重试、
+  02 / 04 同事务升级与 SQL 错误整组回滚。
+- `run-supabase-sql-security-regressions.sh` 提供独立用例与 `all` 单事务组合入口。
+  适配器通过 `pnpm nx test rxdb-adapter-supabase --coverage` 复验，覆盖率门槛为 80%；实现与交付证据见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
 
 ## 实现文件
 
@@ -110,7 +108,7 @@ INVEST 检查清单:
 - `docker/sql/04-rxdb-utils-functions.sql` — 删除上下文、回执与快照收口、源日志与隐式日志顺序、事务设置恢复
 - `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql` — 复现段翻成正向断言
 - `packages/rxdb-adapter-supabase/src/__tests__/cascade-delete-sync.spec.ts` — 两客户端拉取与混合批次不复活回归
-- `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` — 39 个独立用例与 `all` 单事务组合执行入口
+- `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` — 独立用例与 `all` 单事务组合执行入口
 
 ## References
 

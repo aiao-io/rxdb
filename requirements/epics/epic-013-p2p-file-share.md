@@ -1,5 +1,5 @@
 ---
-id: epic-011-p2p-file-share
+id: epic-013-p2p-file-share
 status: In Progress
 startDate: 2026-11-03
 targetDate: TBD
@@ -8,11 +8,13 @@ owner: jimmy
 
 # 局域网 P2P 大文件共享
 
+本 Epic 承接原 `epic-011-p2p-file-share` 的范围；故事编号与职责不变，当前唯一标识为 `epic-013-p2p-file-share`。
+
 ## 愿景
 
 公司内网里，大文件在已持有副本的机器之间点对点直传——元数据（谁有什么）走现有同步、字节流不经服务器；断外网时局域网照传，没有 peer 在线时回退服务器直下。
 
-本 Epic 六条故事已上升为产品 aiao-pool（文件池）的技术底座；产品化增量的故事、决策与里程碑在 [apps/dev-rxdb-p2p/requirements](../../apps/dev-rxdb-p2p/requirements/README.md)（`POOL-US-*` 编号，独立统计），本 Epic 的编号、状态与验收口径不变。
+本 Epic 六条故事已上升为产品 aiao-pool（文件池）的技术底座；产品化增量的故事、决策与里程碑在 [apps/dev-rxdb-p2p/requirements](../../apps/dev-rxdb-p2p/requirements/README.md)（`POOL-US-*` 编号，独立统计），平台故事的编号、状态与验收口径保持独立。
 
 ## 为什么单列一个 Epic
 

@@ -1,11 +1,11 @@
 ---
 id: US-018
 title: 生成器元数据序列化管线与 default 语义
-status: Done
+status: In Review
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-16
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [core, codegen, generator, default, serialization, bigint, binary]
 inherited_acs:
   - from: US-012
@@ -211,6 +211,7 @@ G4.2 把 `undefined` 列进了"改写后守卫的实际落点"，这里是对该
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
+当前实现已合入，但 AC#10 的发布声明要求仍有缺口，因此故事保留 `In Review`，不能以 CHANGELOG 补录替代原 PR 的破坏性声明。
 AC#10 记 ⚠️：回归与 G5 迁移表（[generator-default.md](../../../website/docs/migration/generator-default.md)）均已就位，
 但「PR 标注 `BREAKING CHANGE`」这一条没有兑现。实现随 `a63321c9`（#39，标题是 HTTP 适配器）合入，提交与 PR
 都没有标破坏性。该变更首发于 `@aiao/rxdb-client-generator@0.0.26`（0.0.25 的发布产物里没有 `unsupportedDefaultFactory`），

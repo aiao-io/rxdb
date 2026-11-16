@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [framework, vue]
 ---
 
@@ -46,6 +46,7 @@ tags: [framework, vue]
 - Ref 支持：查询选项接受 `Ref<T>` / `ComputedRef<T>`，自动重新执行
 - 生命周期：`onScopeDispose` 自动取消 RxJS 订阅
 - 跨框架一致性：与 Angular/React API 完全一致
+- 共享状态 API：`useAction` 包装异步函数并提供 `isPending` 并原样传播错误；`usePersistedState` 按 namespace + name 共享 localStorage 持久状态，与 Angular / React 同名同义，分别由 `use-action.spec.ts` 与 `use-persisted-state.spec.ts` 验收。
 
 ## 实现文件
 

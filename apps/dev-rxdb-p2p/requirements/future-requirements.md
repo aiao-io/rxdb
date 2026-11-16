@@ -1,6 +1,6 @@
 # Aiao Pool 未来功能需求与目录规划
 
-整理日期：2026-11-05。依据[立项方案](plans/p2p-product-proposal.md)的形态路线（§7）、商业化假设（§8）与版本规划（§4）整理；技术底座维持根 requirements 的 epic-011 / epic-012 不动。本页描述方向，不是排期承诺；进入实施前各自以新 story 立项（编号段见 [CONVENTIONS](CONVENTIONS.md#文档类型与编号段)）。
+整理日期：2026-11-05。依据[立项方案](plans/p2p-product-proposal.md)的形态路线（§7）、商业化假设（§8）与版本规划（§4）整理；技术底座维持根 requirements 的 epic-013 / epic-012 不动。本页描述方向，不是排期承诺；进入实施前各自以新 story 立项（编号段见 [CONVENTIONS](CONVENTIONS.md#文档类型与编号段)）。
 
 ## 产品目标
 

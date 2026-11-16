@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [core, querycache, fail-fast, adapter, dx]
 ---
 
@@ -153,9 +153,9 @@ return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC#7 现场复验已做：错误确实抛出且可读、无限加载态已消失；报错只落在**控制台**、页面空白（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
+AC#7 验证配置错误可读且不会进入无限加载；demo 的 `connect()` 位于 `provideAppInitializer`，初始化失败的页面呈现归 demo 自身，不属本故事的元数据校验范围。
 
-AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合类型，但 api-baseline 只记 `{ name, kind }`、不记联合成员，故加 `missingQueryCacheAdapter` 无 baseline diff。联合类型加成员仍算公开 API 变更（见[技术笔记](#技术笔记)）。
+AC#8 的 API 基线边界：`MetadataValidationRule` 是导出联合类型，但 api-baseline 只记 `{ name, kind }`、不记联合成员，故加 `missingQueryCacheAdapter` 无 baseline diff。联合类型加成员仍算公开 API 变更（见[技术笔记](#技术笔记)）。
 
 ## 技术笔记
 

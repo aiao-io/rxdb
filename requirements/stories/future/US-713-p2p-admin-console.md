@@ -3,9 +3,9 @@ id: US-713
 title: P2P demo 管理后台：管理员总览并处置账号与服务
 status: In Review
 priority: Medium
-epic: epic-011-p2p-file-share
+epic: epic-013-p2p-file-share
 created: 2026-11-05
-updated: 2026-11-05
+updated: 2026-11-16
 tags: [p2p, admin, supabase, cloudflare, demo]
 ---
 

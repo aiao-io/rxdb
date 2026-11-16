@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
@@ -97,46 +97,23 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 | 6         | [`pglite-open-failure.spec.ts`](../../../packages/rxdb-adapter-electron/src/__tests__/pglite-open-failure.spec.ts)：`open_failed` 可判别、失败实例被逐出（修好可重试）、renderer 侧不回退内存库、越界目录名构造期即拒                                                                           |
 | 11        | `electron-pglite-host.spec.ts` 的协议版本握手用例（握手失败不建目录）                                                                                                                                                                                                                           |
 
-AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_pglite_result` 少了 `rxdb_change`
-行的解码，`UPDATE ... RETURNING *` 的写回会把缓存里已解码的变更实体覆盖回原始列值。浏览器档位
-因为多一次 NOTIFY 驱动的回读恰好把它盖住，桌面档位没有那次回读，同一批共享套件立刻转红。
-修复把解码抽成 `packages/rxdb-adapter-pglite/src/system/change-row.ts`，两条 hydrate 路径共用，
-回归断言在 `transaction_pglite_result.change-row.spec.ts`。
+AC#4 的变更行解码由 `packages/rxdb-adapter-pglite/src/system/change-row.ts` 统一承担，
+两条 hydrate 路径共用。`transaction_pglite_result.change-row.spec.ts` 验证 `UPDATE ... RETURNING *`
+写回不会把已解码的变更实体覆盖为原始列值，桌面与浏览器消费同一解码合同。
 
 ### AC#10：打包侧的依赖收集与 asar 解包
 
-它的判据是「**打包后**的 Electron 应用在 macOS / Windows / Linux **CI** 中通过」，
-三个条件本机一个都满足不了：本机只有 macOS，且跑的是源码档位而不是 electron-builder 产物。
-打包侧的接线（`files: ["!node_modules"]` 之外的 PGlite 暂存步骤、`asarUnpack`、
-从 asar 内读 PGlite 的 wasm/data）已经实现——PGlite 的 wasm 与 initdb 数据必须解包到 asar 外
-才能被 Node fs backend 打开，这类问题只会在真实产物里暴露。
+验收对象是 `release-desktop.yml` 中 macOS / Windows / Linux 的真实 electron-builder 产物。
+PGlite 的 wasm 与 initdb 数据通过暂存步骤和 `asarUnpack` 放在 asar 外，供 Node fs backend 打开。
 
-**dispatch 已经跑过了，而且它确实抓到了缺陷。** 2026-08-31 的 PR
-[aiao-io/rxdb#48](https://github.com/aiao-io/rxdb/pull/48) 真实触发了 `release-desktop.yml`
-的三 OS 矩阵：macOS / Linux 通过，**Windows 红在 `Cannot find module '@electric-sql/pglite'`**。
+长期不变量：external 依赖必须声明在 `dependencies`；
+`apps/dev-rxdb-electron/tools/stage-external-dependencies.mjs` 的搬运清单、manifest 生产依赖与 esbuild 的
+`external` 必须一致，由 `src-electron/desktop-sqlite-bridge.spec.ts` 固定。
+三平台通过的交付证据见 [Release Desktop run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)，
+持续复验入口与约束见 [roadmap 排期约束](../../roadmap.md#排期约束)。
 
-根因不在 asar 解包那一层，而在更前面的**依赖收集**：electron-builder 26 只走
-**production** 依赖图（`pnpm list --prod`；它的回退遍历也只读 `dependencies` +
-`optionalDependencies`），而 `@electric-sql/pglite` 当时声明在 `devDependencies` 里。
-这个错误在本机 dev、Linux / macOS 打包下都碰巧不发作——只有 Windows 那条路径会退化到
-`findWorkspaceRoot` 的回退遍历，于是包根本没被搬进产物。已在 `76e2bf4` 修掉：
-external 依赖改声明进 `dependencies`，并补两条单测把
-`apps/dev-rxdb-electron/tools/stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies`
-与 esbuild 的 `external` 上（`src-electron/desktop-sqlite-bridge.spec.ts`），三者任一处漂移即红。
-
-**那次修完之后本条曾保持 ⬜**：AC#10 要的是「通过」，不是「修过」。**2026-09-01 补上了这一跑**——
-`Release Desktop` [run 33476341615](https://github.com/aiao-io/rxdb/actions/runs/33476341615)
-（`workflow_dispatch` on `main` @ `9d1735a`）**8/8 job 全 `success`、零 `skipped`**，
-`electron-smoke` 三 OS 矩阵全绿，其中 `windows-latest` 由红转绿，直接证实了上述依赖收集修复。
-本条关闭，十一条 AC 全关。修复留下的长期不变量已转
-[roadmap 排期约束 15](../../roadmap.md#排期约束)。同一次跑也关掉了
-[US-505 的 AC#6/#7](../plugin/US-505-tauri-local-file-storage.md)。
-
-> **AC#11 补入**，与 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条)
-> 及 [US-210 AC#10](./US-210-tauri-sqlite-local-database.md) 是同一件事在三条路径上的对偶。
-> 补的理由见 US-207 那一节：校验代码在共享层，但三个 host 是独立实现的，不能只在一处验。
-> 握手（无副作用，不碰会话表、不碰路径解析）在 `open` 之前协商版本：`open` 会建库、开连接、
-> 登记会话，核对排在它之后的话，一次注定失败的连接仍会留下空库文件。证据见「验收证据」AC#11 行。
+AC#11 的版本握手必须无副作用，在 `open` 之前完成协商；失败时不建库、不登记会话、不调用路径解析器。
+各 host 独立实现此约束，不能用另一个 host 的通过证据替代；本 host 证据见「验收证据」AC#11 行。
 
 ## 技术笔记
 

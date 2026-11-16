@@ -3,9 +3,9 @@ id: US-706
 title: 服务器兜底与认证
 status: In Progress
 priority: Medium
-epic: epic-011-p2p-file-share
+epic: epic-013-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-04
+updated: 2026-11-16
 tags: [p2p, fallback, auth, security]
 ---
 
@@ -19,7 +19,7 @@ tags: [p2p, fallback, auth, security]
 
 ## 开工前置
 
-epic-011 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证宿主、用户/设备标识与服务端授权合同。
+epic-013 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证宿主、用户/设备标识与服务端授权合同。
 缺少签发/校验与授权入口时不得把本故事描述成“只做选路”；必要服务端实现必须列出归属与验收。
 
 ## 范围边界
@@ -69,4 +69,4 @@ epic-011 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证�
 - `packages/rxdb-plugin-p2p/src/transfer.ts` — 坏块换源与坏 peer 退避
 - `packages/rxdb-plugin-p2p/src/session/session.ts` / `src/files-protocol.ts` — 会话级认证（hello 阶段对未认证方只回通用拒绝）与 files 协议的逐请求授权
 - `packages/rxdb-plugin-p2p/src/session/tcp-transport.ts` — 桌面通道默认拒绝非 TLS socket
-- 认证宿主、服务端授权与信令中转路由待 US-704 选定宿主后接入
+- `apps/dev-rxdb-p2p/server/` 与 `supabase/` — 认证宿主采用 US-704 的 Supabase Auth + Cloudflare Worker；身份、设备绑定、信令授权与连接凭据按其「开工前置」合同接入，桌面离线凭据仍须宿主级验证

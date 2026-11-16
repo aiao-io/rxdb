@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-28
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [core, reactive-query, cross-tab, bug]
 ---
 
@@ -89,15 +89,13 @@ tags: [core, reactive-query, cross-tab, bug]
 - `packages/rxdb-plugin-tree/src/__tests__/query/merge_tree_update.browser.spec.ts` — 树查询稀疏补丁回归。
 - `packages/rxdb-adapter-wa-sqlite/src/__tests__/live-query-cross-connection.spec.ts` — 独立连接活查询验证。
 
-## 验证
+## 验收入口
 
-以下数字为 2026-10-29 的复跑结果。核心在第三轮评审处理后重跑（该轮只补一条核心用例、改注释）；其余在第二轮修复后跑，第三轮的改动不影响它们。
-
-- 核心测试 2698 条通过（另有 1 条与本故事无关的条件跳过）；lint、typecheck、build 通过。
-- 核心覆盖率：Statements 95.56%、Branches 92.14%、Functions 95.77%、Lines 96.25%，均达到核心 90% 门槛。
-- wa-sqlite 真实双连接 8 / 8 通过；「只改条件不读的列不重数」在评审前的门控下失败（多一次查询）。primeCache 变体持有残缺实体到最后一次断言，钉住走的是残缺缓存分支。
-- 树插件浏览器用例 256 条、graph 192 条、history 439 条、sqlite-core 1576 条、wa-sqlite 1015 条、PGlite 1562 条全部通过。
-- Angular / React / Vue 绑定（含树插件三端）没有单独补跨连接用例：本故事不加 API，三端订阅的就是上面验过的 Repository / 树查询结果流。这是共享核心的覆盖，不是三端各自验证。
+- 核心 `merge_update.spec.ts` 覆盖缺失属性、查询条件及同批补丁合并；通过 `pnpm nx test rxdb --coverage` 复验，核心覆盖率门槛为 90%。
+- wa-sqlite 的 `live-query-cross-connection.spec.ts` 覆盖真实双连接与「只改条件不读的列不重数」；
+  primeCache 变体持续持有残缺实体，验证残缺缓存分支。
+- 树插件的 `merge_tree_update.browser.spec.ts` 覆盖树查询补丁接线；graph、history、sqlite-core、wa-sqlite 与 PGlite 的任务验证共享查询路径兼容性。
+- Angular / React / Vue 绑定没有分别补双连接用例：本故事不加 API，三端订阅同一 Repository / 树查询结果流，证据归共享核心。
 
 ## References
 

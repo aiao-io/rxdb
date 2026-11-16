@@ -7,9 +7,9 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 96   |
+| ✅ Done        | 95   |
 | 🚧 In Progress | 13   |
-| 👀 In Review   | 3    |
+| 👀 In Review   | 4    |
 | 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 140  |
@@ -33,13 +33,14 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 | [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 
-## 待评审（3 条）
+## 待评审（4 条）
 
-| Story                                                                                         | 剩余范围                                                                            |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。 |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                     |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。         |
+| Story                                                                                                  | 剩余范围                                                                            |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                                 | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。 |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)             | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                     |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)          | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。         |
+| [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) | 原 PR 的 BREAKING CHANGE 声明及 Release 文本同步尚待验收，AC#10 保留缺口。          |
 
 ## 阻塞（0 条）
 
@@ -134,7 +135,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 - ✅ [US-011 定义 bigint 与 binary 类型及公共 API 契约](stories/core/US-011-property-type-bigint-binary.md)
 - ✅ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md)
-- ✅ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md)
+- 👀 [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md)
 - ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md)
 - ✅ [US-206 本地适配器持久化与查询 bigint/binary](stories/adapter/US-206-bigint-binary-adapter.md)
 - ✅ [US-303 bigint/binary change codec 与系统迁移](stories/collaboration/US-303-bigint-binary-change-codec.md)
@@ -213,7 +214,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md)
 
-### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
+### [局域网 P2P 大文件共享](epics/epic-013-p2p-file-share.md)
 
 US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成，US-713 管理后台由 owner 决定随独立 demo 交付；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
 当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。

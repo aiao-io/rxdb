@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-21
+updated: 2026-11-16
 tags: [domain, board, search]
 ---
 
@@ -57,8 +57,8 @@ tags: [domain, board, search]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-21）**：服务层半边由 node + browser 单测全绿；AC#4 / #9 的 UI 半边
-> 随 US-539 阶段 B 三端交付（定位高亮 + 更新中结果由「搜索中」状态接管），三端 e2e 覆盖。
+**验收证据**：服务层由 node + browser 单测覆盖；AC#4 / #9 的 UI 半边由 US-539 阶段 B
+的三端 e2e 验收，覆盖结果定位高亮和更新期间的「搜索中」状态。
 
 ## 技术笔记
 
@@ -111,8 +111,9 @@ US-538 依赖 US-534 / US-536 的实体与字段，搜索 UI 由 US-539 阶段 B
 
 ## 价值待证
 
-本故事随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
-解锁（2026-10-19，owner 决定）。新增工作是板级搜索源、归属过滤与分页协调，不新增全文检索原语；
+本故事的开工授权见 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)。
+
+新增工作是板级搜索源、归属过滤与分页协调，不新增全文检索原语；
 演示价值入场的依据与边界见 epic。
 
 ## 实现文件

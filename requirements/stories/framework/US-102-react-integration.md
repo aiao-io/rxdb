@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [framework, react]
 ---
 
@@ -47,6 +47,7 @@ tags: [framework, react]
 - 资源管理：`RxDBResource<T>` 提供 `.value` / `.isLoading` / `.error` / `.isEmpty` / `.hasValue`
 - 生命周期：`useEffect` cleanup 自动取消 RxJS 订阅
 - 无限滚动：`useInfiniteScroll` 订阅管理，自动加载下一页
+- 共享状态 API：`useAction` 包装异步函数并提供 `isPending` 并原样传播错误；`usePersistedState` 按 namespace + name 共享 localStorage 持久状态，与 Angular / Vue 同名同义，分别由 `use-action.spec.ts` 与 `use-persisted-state.spec.ts` 验收。
 
 ## 实现文件
 

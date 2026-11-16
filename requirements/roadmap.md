@@ -7,14 +7,14 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 96     |
+| ✅ Done        | 95     |
 | 🚧 In Progress | 13     |
-| 👀 In Review   | 3      |
+| 👀 In Review   | 4      |
 | 📝 Backlog     | 28     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **44** |
+| **未完成合计** | **45** |
 
-仓库还剩 **44 条**未关闭故事（13 In Progress + 3 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **45 条**未关闭故事（13 In Progress + 4 In Review + 28 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -39,6 +39,8 @@
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                             | 立项池   |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                         | 本轮执行 |
 
+| [US-018](stories/core/US-018-generator-default-serialization.md) | 👀 In Review | 原 PR 的破坏性声明与 Release 文本同步待验收（AC#10） | 批次 3 |
+
 ## 即办清单
 
 US-603 的共享 preflight 仍待受控 registry 替身验收。
@@ -47,10 +49,11 @@ US-603 的共享 preflight 仍待受控 registry 替身验收。
 
 ### 批次 3：能力补齐（可并行开 PR）
 
-| 顺序     | 范围            | 关闭条件                                                       |
-| -------- | --------------- | -------------------------------------------------------------- |
-| 并行收尾 | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入       |
-| 并行收尾 | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明 |
+| 顺序     | 范围            | 关闭条件                                                                      |
+| -------- | --------------- | ----------------------------------------------------------------------------- |
+| 并行收尾 | US-018          | 补齐原 PR 的 BREAKING CHANGE 声明与 Release 文本证据，不以 CHANGELOG 补录代替 |
+| 并行收尾 | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入                      |
+| 并行收尾 | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明                |
 
 US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 的候选 D 不阻塞已授权范围。
 
@@ -89,7 +92,7 @@ US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突
 
 ### 批次 7：局域网 P2P 大文件共享（P2P epic 已解锁）
 
-owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付，记录见 [epic-011 P2P](epics/epic-011-p2p-file-share.md#价值待证)。
+owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付，记录见 [epic-013 P2P](epics/epic-013-p2p-file-share.md#价值待证)。
 框架无关的协议层 `@aiao/rxdb-plugin-p2p` 先行；它的内存协议测试不充当任何 AC 的验收证据。
 
 | 范围            | 关闭条件                                                                                                                                         |

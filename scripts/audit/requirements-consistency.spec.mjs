@@ -239,6 +239,30 @@ test('Done 的 epic 不得持有 Backlog 故事；Backlog 的 epic 不得持有�
   assert.equal(offenders.filter(o => /epic 是 Backlog，但 US-00[12] 已是 Done/.test(o)).length, 2);
 });
 
+test('epic 数字编号不得重复，即使完整 id 不同', async () => {
+  const isolated = await mkdtemp(path.join(dir, 'epic-identity-'));
+  await scaffold(isolated);
+  await writeFile(
+    path.join(isolated, 'requirements/epics/epic-001-y.md'),
+    '---\nid: epic-001-y\nstatus: In Progress\n---\n'
+  );
+  const offenders = checkEpics(await collectEpics(isolated), await collectStories(isolated));
+  assert.equal(offenders.length, 1);
+  assert.match(offenders[0], /epic-001.*编号重复.*epic-001-x/);
+});
+
+test('epic 文件名必须与 frontmatter id 一致', async () => {
+  const isolated = await mkdtemp(path.join(dir, 'epic-identity-'));
+  await scaffold(isolated);
+  await writeFile(
+    path.join(isolated, 'requirements/epics/epic-002-y.md'),
+    '---\nid: epic-003-z\nstatus: In Progress\n---\n'
+  );
+  const offenders = checkEpics(await collectEpics(isolated), await collectStories(isolated));
+  assert.equal(offenders.length, 1);
+  assert.match(offenders[0], /epic-002-y.*文件名.*epic-003-z/);
+});
+
 test('epic 只顺带链接、不持有的故事不受状态约束；故事声明的 epic 必须反向链接它', async () => {
   await scaffold(dir, { epicStatus: 'Backlog' });
   await writeFile(
@@ -447,6 +471,34 @@ test('叙述词扫描认得「（已修）」「历史快照」与带日期的�
   assert.deepEqual(labels.toSorted(), ['历史快照', '带日期的标题', '已修 / 未修', '裸测试计数'].toSorted());
 });
 
+test('正文验收日期、评审轮次和粗体验收注记属于过程叙述，交付期限不误报', async () => {
+  await scaffold(dir);
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    [
+      story('US-001', 'Done'),
+      '> **验收注记（2026-11-16）**：测试通过。',
+      '验证日期：2026-11-16。',
+      '第 2 轮评审修复了遗漏。',
+      '已于 **2026-11-16** 关闭。',
+      ''
+    ].join('\n')
+  );
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    [story('US-002', 'Done'), '交付期限：2026-12-01；日期字段格式 YYYY-MM-DD。', ''].join('\n')
+  );
+  const hits = await scanNarrative(dir);
+  assert.deepEqual(
+    hits.map(hit => hit.rel),
+    ['requirements/stories/core/US-001-x.md']
+  );
+  assert.deepEqual(
+    hits[0].hits.map(([label]) => label).toSorted(),
+    ['带日期的验收记录', '第 N 轮复核 / 评审', '已于 X 日'].toSorted()
+  );
+});
+
 test('仓库现状：requirements 派生视图与 YAML 一致（回归护栏）', async () => {
   const root = path.resolve(import.meta.dirname, '../..');
   const { offenders } = await run({ root });
@@ -543,7 +595,7 @@ test('Done 故事的 AC 表残留 ⬜ 被抓出；⚠️ 与 ✅ 放行；非 Do
   await writeFile(
     path.join(dir, 'requirements/stories/core/US-001-x.md'),
     story('US-001', 'Done') +
-      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n| 2 | a | b | c | ⚠️ 移出承诺范围 |\n| 3 | a | b | c | ✅ |\n'
+      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n| 2 | a | b | c | ⚠️ 部分宿主证据待补 |\n| 3 | a | b | c | ✅ |\n'
   );
   await writeFile(
     path.join(dir, 'requirements/stories/core/US-003-x.md'),
@@ -569,6 +621,29 @@ test('Done 的当前承诺通过后可保留明确登记的候选 AC 未验，�
   const current = { rel: 'US-001.md', fm: { status: 'Done', candidate_acs: '[2]' }, text };
   assert.deepEqual(checkAcSymbols([current]), []);
   assert.match(checkAcSymbols([{ ...current, text: text.replace('✅', '⬜') }]).join('\n'), /Done.*⬜/);
+});
+
+test('AC 状态明确标为候选或移出时必须登记 candidate_acs，各故事状态均适用', () => {
+  for (const status of ['Done', 'Backlog']) {
+    for (const label of ['⚠️ 候选', '⚠️ 移出承诺范围', '⬜ 候选阶段']) {
+      const current = {
+        rel: 'US-001.md',
+        fm: { status },
+        text: `## 验收标准\n\n| 1 | 待准入范围 | 操作 | 结果 | ${label} |\n`
+      };
+      assert.match(checkAcSymbols([current]).join('\n'), /AC#1.*candidate_acs/);
+      assert.deepEqual(checkAcSymbols([{ ...current, fm: { status, candidate_acs: '[1]' } }]), []);
+    }
+  }
+});
+
+test('AC 证据说明提及其他候选编号时不要求把当前 AC 也登记为候选', () => {
+  const current = {
+    rel: 'US-001.md',
+    fm: { status: 'Done' },
+    text: '## 验收标准\n\n| 1 | 当前范围 | 操作 | 结果 | ✅ |\n\n| 1 | 本包单测验收；真实宿主为候选 AC#2 |\n'
+  };
+  assert.deepEqual(checkAcSymbols([current]), []);
 });
 
 test('候选 AC 登记必须是存在且不重复的整数，不能借无效登记绕过验收', () => {
