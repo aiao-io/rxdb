@@ -1,0 +1,215 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T08:36:41.316Z",
+  "source": {
+    "sha": "9d9ff1c75ed3434923892c1780c986192e87bf62",
+    "changes": "M ../../README.md\n M src/groups/terminal-packages.mjs\n M src/groups/terminal-runtimes.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/stories/desktop/ADESK-US-102-local-data-and-real-disk.md\n M ../../scripts/vivari/README.md\n M ../../scripts/vivari/sdk.spec.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "854c1c4bda330bc81feb52ff9f08922dbfa1c9dbf3366977cadffb61e454b4b7"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "disk-terminal",
+      "terminal-packages",
+      "terminal-runtimes"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 72.526653208,
+  "outcomes": [
+    {
+      "group": "disk-terminal",
+      "result": {
+        "terminalState": {
+          "crossOriginIsolated": true,
+          "xterm": true,
+          "helperInput": true,
+          "vivariShell": true
+        },
+        "diskState": {
+          "sqliteInOpfs": true,
+          "fileBodiesInOpfs": true,
+          "desktopFromFolder": true,
+          "shellStartsAtHome": true,
+          "shellReadsFile": true,
+          "shellListsDesktop": true,
+          "shellWritesDisk": true,
+          "shellCommandsWork": true,
+          "openCommandOpensTextEdit": true,
+          "finderFolderOnDesktop": true,
+          "shellSeesFinderChange": true,
+          "textEditShowsFile": true,
+          "previewShowsImage": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 10.406451417
+    },
+    {
+      "group": "terminal-packages",
+      "result": {
+        "terminalPackages": {
+          "vendorAssets": true,
+          "npm": true,
+          "npx": true,
+          "pnpm": true,
+          "yarn": true,
+          "corepack": true,
+          "bunx": true,
+          "bunInstallsDependency": true,
+          "bunRunsDependency": true,
+          "installsDependency": true,
+          "runsDependency": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 21.182415000000002
+    },
+    {
+      "group": "terminal-runtimes",
+      "result": {
+        "terminalRuntimes": {
+          "lazy": true,
+          "python": true,
+          "python3": true,
+          "pythonExit": true,
+          "pythonAsync": true,
+          "script": true,
+          "sharedDisk": true,
+          "pip": true,
+          "installedPackage": true,
+          "pipFreeze": true,
+          "pythonRepl": true,
+          "pythonReplFile": true,
+          "pythonInput": true,
+          "numpyPandas": true,
+          "scipySklearn": true,
+          "pythonLibraries": true,
+          "pytest": true,
+          "black": true,
+          "mypy": true,
+          "ruff": true,
+          "tsc": true,
+          "tsgo": true,
+          "bun": true,
+          "bunScript": true,
+          "bunSharedDisk": true,
+          "bunRun": true,
+          "bunExit": true,
+          "bunRepl": true,
+          "nodeSqlite": true,
+          "bunSqlite": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 51.29197249999999
+    }
+  ],
+  "checks": {
+    "terminalState": {
+      "crossOriginIsolated": true,
+      "xterm": true,
+      "helperInput": true,
+      "vivariShell": true
+    },
+    "diskState": {
+      "sqliteInOpfs": true,
+      "fileBodiesInOpfs": true,
+      "desktopFromFolder": true,
+      "shellStartsAtHome": true,
+      "shellReadsFile": true,
+      "shellListsDesktop": true,
+      "shellWritesDisk": true,
+      "shellCommandsWork": true,
+      "openCommandOpensTextEdit": true,
+      "finderFolderOnDesktop": true,
+      "shellSeesFinderChange": true,
+      "textEditShowsFile": true,
+      "previewShowsImage": true
+    },
+    "terminalPackages": {
+      "vendorAssets": true,
+      "npm": true,
+      "npx": true,
+      "pnpm": true,
+      "yarn": true,
+      "corepack": true,
+      "bunx": true,
+      "bunInstallsDependency": true,
+      "bunRunsDependency": true,
+      "installsDependency": true,
+      "runsDependency": true
+    },
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": true,
+      "python3": true,
+      "pythonExit": true,
+      "pythonAsync": true,
+      "script": true,
+      "sharedDisk": true,
+      "pip": true,
+      "installedPackage": true,
+      "pipFreeze": true,
+      "pythonRepl": true,
+      "pythonReplFile": true,
+      "pythonInput": true,
+      "numpyPandas": true,
+      "scipySklearn": true,
+      "pythonLibraries": true,
+      "pytest": true,
+      "black": true,
+      "mypy": true,
+      "ruff": true,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "bunScript": true,
+      "bunSharedDisk": true,
+      "bunRun": true,
+      "bunExit": true,
+      "bunRepl": true,
+      "nodeSqlite": true,
+      "bunSqlite": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

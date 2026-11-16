@@ -9,7 +9,7 @@
 - `python-lock.json` 源自同版本 Pyodide 的锁文件，补入固定版本的纯 Python wheel，修正上游脚本列出的 mypy / rich 依赖，再解析完整传递依赖。同源 wheel 保留相对路径；其余 Pyodide 索引中的包使用固定版本 CDN 地址，使用它们仍需要网络。
 - 资源生成到 `node_modules/.cache/aiao-desktop/vivari/vendor`，随后复制到正式产物。合格缓存完全离线复用；损坏缓存直接失败。发布前逐文件复核，缺失、HTML 替身、版本错误与内容变更均拒绝。
 
-源码依据是 `tools.json` 的 `sourceCommit`，对应 Vivari 的 `vendor-tsgo.mjs`、`vendor-pyodide.mjs`、`vendor-ruff.mjs` 与 `vendor-sqlite.mjs`。llhttp 已嵌入 SDK worker，不另复制。SDK 的 pnpm 补丁固定在 `tools.json` 的 `sdkPatch`：宿主同源 `/vendor/` 请求使用浏览器网络，其余 localhost 请求继续走虚拟机；Ruff 的 ESM 资源使用宿主加载器。正常 `SystemExit` 保留退出码，pip 的 wheel 加载失败会返回失败；两个 worker URL 带补丁版本参数，避免浏览器复用旧缓存。上游 Studio 的工程模板锁和预热缓存不属于终端运行时。
+源码依据是 `tools.json` 的 `sourceCommit`，对应 Vivari 的 `vendor-tsgo.mjs`、`vendor-pyodide.mjs`、`vendor-ruff.mjs` 与 `vendor-sqlite.mjs`。llhttp 已嵌入 SDK worker，不另复制。SDK 的 pnpm 补丁固定在 `tools.json` 的 `sdkPatch`：宿主同源 `/vendor/` 请求使用浏览器网络，其余 localhost 请求继续走虚拟机；Ruff 的 ESM 资源使用宿主加载器。正常 `SystemExit` 保留退出码，pip 的 wheel 加载失败会返回失败；Python REPL 复用脚本会话，stdin 按完整行读取；Bun `-e` 的 `require()` 从项目目录解析依赖；两个 worker URL 带补丁版本参数，避免浏览器复用旧缓存。上游 Studio 的工程模板锁和预热缓存不属于终端运行时。
 
 全部资源按命令或 import 首次使用加载，不进入桌面首屏。`.mjs` 必须以 JavaScript 类型返回，WASM 必须保留二进制内容，托管方需要全站跨源隔离响应头。
 
@@ -22,10 +22,10 @@
 | Python 工具    | pytest、Black、mypy、Ruff                                 | 同源 wheel 或独立 Ruff WASM                 |
 | Python 库      | FastAPI、Flask、httpx、requests、SQLAlchemy、Rich、tzdata | 同源 wheel 与传递依赖                       |
 | TypeScript 7   | tsc / tsgo                                                | tsgo-wasm 与 Go 引擎                        |
-| Bun 兼容命令   | bun / bunx                                                | SDK 自带，不下载原生 Bun                    |
+| Bun 兼容命令   | bun / bunx、JS / TS 文件、package.json 脚本、REPL         | SDK 自带，安装与包执行委托 npm / npx        |
 | SQL            | node:sqlite、bun:sqlite                                   | 同源 SQLite WASM                            |
 
-Python 按当前目录镜像项目文件；运行项目测试前先 `cd` 到项目目录。pip 是 Vivari 的兼容命令，支持 install / list / freeze / show / check / uninstall，不代表原生 pip 的全部子命令。原生 CPython 扩展必须有匹配的 Pyodide WASM wheel；任意 npm 包与 Node 原生扩展也没有兼容保证。当前没有接入 Web 服务的预览路由、TCP 中继或上游 Studio 的 IDE 界面。Yarn `--version` 仍有 SDK 的退出堆栈问题，可用 `yarn versions --json` 查询版本。
+Python 脚本与 REPL 共用当前目录的文件镜像和 `.venv` 包存储；运行项目测试或启动 REPL 前先 `cd` 到项目目录。REPL 的 import 按需加载同源 wheel，退出时把文件改动回写 Vivari。`input()` 按完整行读取终端按键，保留空行、退格与 EOF 前的内容。pip 是 Vivari 的兼容命令，支持 install / list / freeze / show / check / uninstall，不代表原生 pip 的全部子命令。原生 CPython 扩展必须有匹配的 Pyodide WASM wheel；任意 npm 包与 Node 原生扩展也没有兼容保证。当前没有接入 Web 服务的预览路由、TCP 中继或上游 Studio 的 IDE 界面。Yarn `--version` 仍有 SDK 的退出堆栈问题，可用 `yarn versions --json` 查询版本。
 
 验证通过 Nx 运行：
 

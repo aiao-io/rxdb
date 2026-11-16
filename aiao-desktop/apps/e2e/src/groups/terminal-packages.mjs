@@ -11,6 +11,9 @@ export const terminalPackages = {
     'terminalPackages.pnpm',
     'terminalPackages.yarn',
     'terminalPackages.corepack',
+    'terminalPackages.bunx',
+    'terminalPackages.bunInstallsDependency',
+    'terminalPackages.bunRunsDependency',
     'terminalPackages.installsDependency',
     'terminalPackages.runsDependency'
   ],
@@ -52,6 +55,9 @@ export const terminalPackages = {
       pnpm: await version('pnpm --version', /11\.28\.9/),
       yarn: await version('yarn versions --json', /"yarn"\s*:\s*"1\.22\.22"/),
       corepack: await version('corepack --version', /0\.35\.0/),
+      bunx: await version('bunx --version', /10\.9\.2/),
+      bunInstallsDependency: false,
+      bunRunsDependency: false,
       installsDependency: false,
       runsDependency: false
     };
@@ -62,6 +68,11 @@ export const terminalPackages = {
     checks.installsDependency = installed.finished && /added 1 package/.test(installed.output);
     const executed = await run('node -e "console.log(require(\'/tmp/npm-smoke/node_modules/aiao-terminal-smoke\'))"');
     checks.runsDependency = executed.finished && executed.output.includes('AIAO_TERMINAL_DEPENDENCY_OK');
+    await run('mkdir -p /tmp/bun-packages && cd /tmp/bun-packages');
+    const bunInstalled = await run('bun add aiao-terminal-smoke@1.0.0');
+    checks.bunInstallsDependency = bunInstalled.finished && /added 1 package/.test(bunInstalled.output);
+    const bunExecuted = await run('bun -e "console.log(require(\'aiao-terminal-smoke\'))"');
+    checks.bunRunsDependency = bunExecuted.finished && bunExecuted.output.includes('AIAO_TERMINAL_DEPENDENCY_OK');
     checks.vendorAssets = ['npm', 'pnpm', 'yarn', 'corepack'].every(name => assets.has(`/vendor/${name}-pack.bin`));
     if (Object.values(checks).some(passed => !passed)) console.error(await xtermText());
     return { terminalPackages: checks };

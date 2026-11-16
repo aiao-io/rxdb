@@ -1,6 +1,6 @@
 # aiao-desktop
 
-浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」把磁盘卷恢复成初始内容。数据只在当前浏览器的这个站点（Origin）下：清除站点数据、换浏览器或换域名都看不到原来的数据，目前没有备份与导出。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
+浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm、Bun 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」把磁盘卷恢复成初始内容。数据只在当前浏览器的这个站点（Origin）下：清除站点数据、换浏览器或换域名都看不到原来的数据，目前没有备份与导出。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
 
 这是一个产品根目录：两个 Nx 应用共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。仓库里的 [Web Desktop](../apps/web-desktop/README.md)（React 宿主与 Orbit 运行内核）是另一个产品。
 
@@ -37,6 +37,8 @@ pnpm nx dev aiao-desktop
 开发服务器与正式构建预览都返回跨源隔离所需的响应头，终端才能启动 Vivari；开发服务器的 production 配置不带这两个头。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
 
 终端资源随构建发布：构建和启动开发服务器会先运行 `aiao-desktop-web:prepare-vendor`，准备 npm/npx、pnpm、Yarn、Corepack、TypeScript 7、Python 3.14 / pip、Ruff 与 SQLite。Python 常用库与传递依赖同源托管，首次命令或 import 时加载，不进入桌面首屏。首次准备需要 npm registry、Pyodide CDN、PyPI 文件服务网络和宿主 `tar`；后续校验并复用 `node_modules/.cache/aiao-desktop/vivari/vendor`。版本、资源格式与兼容边界见[终端资源说明](scripts/vivari/README.md)。Yarn 的 `--version` 存在 Vivari 上游退出日志问题，版本查询可用 `yarn versions --json`。
+
+Bun 可在终端执行 `bun app.ts`、`bun run <script>`、`bun add <package>` 和 `bun repl`，`bunx` 复用 npm/npx。Python 可执行 `python app.py`、`python -c "..."`、`python3` 与交互式 `python`；`pip` 安装的包在同一项目目录的脚本和 REPL 中都可导入。REPL 退出后文件回写到共享磁盘，脚本里的 `input()` 等待完整一行。Bun 由 Vivari 提供兼容实现，Python 使用 CPython WASM，兼容范围见终端资源说明。
 
 本地开发自动连接 `@aiao/rxdb-devtools`，安装仓库的 [RxDB DevTools 浏览器扩展](../apps/rxdb-devtools-extension/README.md) 后即可检查桌面数据库与实体。仅 `development` 构建启用；正式构建与正式构建预览均不加载连接器，冒烟会检查生产 JavaScript 里没有 DevTools 代码、页面没有 DevTools 全局入口。
 

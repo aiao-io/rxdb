@@ -1,5 +1,11 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-16：Bun 与 Python 终端交互补齐
+
+修复 Python REPL 未恢复项目目录与 pip 包、`input()` 只读到首字符，以及 Bun `-e` 无法 `require()` 已安装依赖的问题。REPL 复用脚本会话并回写文件，Bun eval 从项目目录解析模块；worker 缓存参数更新到 4。
+
+正式构建上 `terminal-runtimes`、`terminal-packages` 与 `disk-terminal` 三组共 58 项检查通过，无页面错误；运行时脚本 20 条测试与产品 / e2e 的 lint、脚本门禁通过。范围、修复前失败与最终报告见[本轮证据](evidence/2026-11-16/README.md)。本轮未发布线上。
+
 ## 2026-11-15：Python 与终端运行时补齐
 
 已接入 Python 3.14 / pip、72 个固定 Python wheel、Ruff、TypeScript 7 和 SQLite 的同源资源。`terminal-runtimes` 在全新浏览器上下文、外网阻断的正式构建上通过全部 22 项：脚本与桌面文件、pip 安装与跨进程导入、科学计算与常用库、质量工具、退出码、顶层 await、TypeScript 编译、Bun 和两个 SQLite 模块。结果见[运行时报告](evidence/2026-11-15/terminal-runtimes.json)。

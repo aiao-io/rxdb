@@ -15,6 +15,9 @@ export const terminalRuntimes = {
     'terminalRuntimes.pip',
     'terminalRuntimes.installedPackage',
     'terminalRuntimes.pipFreeze',
+    'terminalRuntimes.pythonRepl',
+    'terminalRuntimes.pythonReplFile',
+    'terminalRuntimes.pythonInput',
     'terminalRuntimes.numpyPandas',
     'terminalRuntimes.scipySklearn',
     'terminalRuntimes.pythonLibraries',
@@ -25,6 +28,11 @@ export const terminalRuntimes = {
     'terminalRuntimes.tsc',
     'terminalRuntimes.tsgo',
     'terminalRuntimes.bun',
+    'terminalRuntimes.bunScript',
+    'terminalRuntimes.bunSharedDisk',
+    'terminalRuntimes.bunRun',
+    'terminalRuntimes.bunExit',
+    'terminalRuntimes.bunRepl',
     'terminalRuntimes.nodeSqlite',
     'terminalRuntimes.bunSqlite'
   ],
@@ -69,6 +77,20 @@ export const terminalRuntimes = {
       if (!passed) console.error(`${command}: ${text}`);
       return passed;
     };
+    const interact = async (command, prompt, source, expected, exit) => {
+      const finished = run(command, expected);
+      await page.waitForFunction(
+        pattern =>
+          new RegExp(pattern).test(document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? ''),
+        prompt.source,
+        { timeout: 120_000 }
+      );
+      await page.keyboard.type(source);
+      await page.keyboard.press('Enter');
+      await page.keyboard.type(exit);
+      await page.keyboard.press('Enter');
+      return finished;
+    };
     checks.python = await run(
       'python -c "import sys; print(\'PYTHON_OK\', sys.version_info.major, sys.version_info.minor)"',
       /PYTHON_OK 3 14/
@@ -99,6 +121,21 @@ export const terminalRuntimes = {
       /AIAO_PYTHON_PACKAGE_OK/
     );
     checks.pipFreeze = await run('pip freeze', /aiao[-_]terminal[-_]smoke==1\.0\.0/);
+    checks.pythonRepl = await interact(
+      'python',
+      />>>\s*$/,
+      "from pathlib import Path; import aiao_terminal_smoke, numpy; Path('repl-note.txt').write_text(aiao_terminal_smoke.message); print('PYTHON_' + 'REPL_OK', Path.cwd(), aiao_terminal_smoke.message, int(numpy.arange(5).sum()))",
+      /PYTHON_REPL_OK \/tmp\/python-smoke AIAO_PYTHON_PACKAGE_OK 10/,
+      'exit()'
+    );
+    checks.pythonReplFile = await run('cat repl-note.txt', /AIAO_PYTHON_PACKAGE_OK/);
+    checks.pythonInput = await interact(
+      "python -c \"print('PYTHON_INPUT_OK', input('Name: '))\"",
+      /Name:\s*$/,
+      'aiao',
+      /PYTHON_INPUT_OK aiao/,
+      ''
+    );
     checks.numpyPandas = await run(
       'python -c "import numpy as np; import pandas as pd; print(\'DATA_OK\', int(pd.Series(np.arange(5)).sum()))"',
       /DATA_OK 10/
@@ -130,6 +167,29 @@ export const terminalRuntimes = {
     );
     checks.tsgo = await run('tsgo --version', /Version 7\./);
     checks.bun = await run('bun -e "console.log(\'BUN_OK\', 6 * 7)"', /BUN_OK 42/);
+    await run(
+      'echo \'const answer: number = 42; const file = "/Users/prasenjit/Desktop/bun-note.txt"; await Bun.write(file, "AIAO_BUN_DISK_OK"); console.log("BUN_SCRIPT_OK", answer, await Bun.file(file).text(), process.argv.slice(2).join(","));\' > /tmp/runtime-bun.ts',
+      /[\s\S]*/
+    );
+    checks.bunScript = await run('bun /tmp/runtime-bun.ts direct', /BUN_SCRIPT_OK 42 AIAO_BUN_DISK_OK direct/);
+    checks.bunSharedDisk = await appears(desktopIcon('bun-note.txt'));
+    await run('mkdir -p /tmp/bun-smoke && cd /tmp/bun-smoke', /[\s\S]*/);
+    await run(
+      'echo \'{"scripts":{"presmoke":"echo BUN_PRE_OK","smoke":"bun /tmp/runtime-bun.ts","postsmoke":"echo BUN_POST_OK"}}\' > package.json',
+      /[\s\S]*/
+    );
+    checks.bunRun = await run(
+      'bun run smoke first second',
+      /BUN_PRE_OK[\s\S]*BUN_SCRIPT_OK 42 AIAO_BUN_DISK_OK first,second[\s\S]*BUN_POST_OK/
+    );
+    checks.bunExit = await run('bun -e "process.exit(7)" && echo BAD_EXIT || echo BUN_EXIT_OK', /BUN_EXIT_OK/);
+    checks.bunRepl = await interact(
+      'bun repl',
+      />\s*$/,
+      'const answer: number = 6 * 7; console.log("BUN_" + "REPL_OK", answer, typeof Bun.file)',
+      /BUN_REPL_OK 42 function/,
+      '.exit'
+    );
     checks.nodeSqlite = await run(
       "node -e \"const {DatabaseSync} = require('node:sqlite'); const db = new DatabaseSync('/tmp/node-smoke.sqlite'); db.exec('CREATE TABLE data (value INTEGER); INSERT INTO data VALUES (42)'); db.close(); const reopened = new DatabaseSync('/tmp/node-smoke.sqlite'); console.log('NODE_SQLITE_OK', reopened.prepare('SELECT value FROM data').get().value); reopened.close();\"",
       /NODE_SQLITE_OK 42/

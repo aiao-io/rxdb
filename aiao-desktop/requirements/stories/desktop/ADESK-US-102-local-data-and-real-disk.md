@@ -73,7 +73,7 @@ capabilities: []
 
 包管理器补验（2026-11-15）：#15 对应新增 `terminal-packages` 检查组的 `terminalPackages.vendorAssets`、`npm`、`npx`、`pnpm`、`yarn`、`corepack`，#16 对应 `installsDependency` 与 `runsDependency`。打包与下载校验由 `aiao-desktop:runtime-test:coverage` 验证，产物漏发与损坏由 `aiao-desktop:deploy-test` 验证；结果见[本轮证据](../../evidence/2026-11-15/README.md)。
 
-运行时补验：#17～#22 对应 `terminal-runtimes` 检查组，完整资源清单与兼容边界见[终端资源说明](../../../scripts/vivari/README.md)。浏览器报告与脚本门禁结果登记在[本轮证据](../../evidence/2026-11-15/README.md)。
+运行时补验：#17～#22 对应 `terminal-runtimes` 检查组。Python REPL 在同一项目目录恢复 pip 包、按需加载 NumPy，并在退出后回写文件；`pythonInput` 检查终端逐键输入能被 `input()` 完整读取。Bun 另覆盖 TS 文件与参数、`Bun.file` / `Bun.write` 共享桌面文件、package.json 的 pre / post 脚本、退出码和 REPL；`terminal-packages` 的 `bunx`、`bunInstallsDependency` 与 `bunRunsDependency` 覆盖包执行入口及固定 registry 的真实安装与执行。完整资源清单与兼容边界见[终端资源说明](../../../scripts/vivari/README.md)。首次资源接入的浏览器报告与脚本门禁结果登记在[2026-11-15 证据](../../evidence/2026-11-15/README.md)，Bun 与 Python 的终端交互补验见[2026-11-16 证据](../../evidence/2026-11-16/README.md)。
 
 ## 技术笔记
 

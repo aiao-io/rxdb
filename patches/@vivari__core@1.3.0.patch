@@ -1,8 +1,24 @@
 diff --git a/dist/assets/kernel-worker-B2lyfcKA.js b/dist/assets/kernel-worker-B2lyfcKA.js
-index 7046122bcbd194c06ca195073d50081f0735149c..34ebdc01f3bac72dd656443ae7727a350f076226 100644
+index 7046122bcbd194c06ca195073d50081f0735149c..3c2d5f5f36668bc011eefb45a7d2f2c34c155cfa 100644
 --- a/dist/assets/kernel-worker-B2lyfcKA.js
 +++ b/dist/assets/kernel-worker-B2lyfcKA.js
-@@ -3750,7 +3750,7 @@ async function loadRuff(settings) {
+@@ -2847,12 +2847,13 @@ async function main() {
+   if (first === '-e' || first === '--eval') {
+     installBun(true);
+     const code = argv[1] || '';
+-    const fn = new Function('code', 'return eval(code)');
++    const evalRequire = require('module').createRequire(path.resolve(cwd, '[eval]'));
++    const fn = new Function('code', 'require', 'return eval(code)');
+     // Transpiled, because real bun -e takes TypeScript: bun has no JS-only mode,
+     // and every one of its docs' one-liners is written in TS. This handed the
+     // source straight to eval, so 'bun -e' was the one place in the shim where
+     // 'const n: number = 1' was a SyntaxError.
+-    fn(bunTranspile(code, '-e'));
++    fn(bunTranspile(code, '-e'), evalRequire);
+     process.exit(0);
+   }
+ 
+@@ -3750,7 +3751,7 @@ async function loadRuff(settings) {
      throw done(1);
    }
    const bytes = fs.readFileSync(meta.path);
@@ -11,17 +27,17 @@ index 7046122bcbd194c06ca195073d50081f0735149c..34ebdc01f3bac72dd656443ae7727a35
    await mod.default({ module_or_path: bytes });
    return { mod: mod, workspace: new mod.Workspace(settings) };
  }
-@@ -9414,7 +9414,7 @@ async function boot() {
+@@ -9414,7 +9415,7 @@ async function boot() {
  	const spawnWorker = (info) => {
  		const worker = new Worker(new URL(
  			/* @vite-ignore */
 -			"/assets/process-worker-CEpIMzRj.js",
-+			"/assets/process-worker-CEpIMzRj.js?aiao-runtime=3",
++			"/assets/process-worker-CEpIMzRj.js?aiao-runtime=4",
  			"" + import.meta.url
  		), {
  			type: "module",
 diff --git a/dist/assets/process-worker-CEpIMzRj.js b/dist/assets/process-worker-CEpIMzRj.js
-index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb3859029c0a20ca 100644
+index 3a65fb2d22bec3b4b71b39016702802bac1f3360..86733dbaa8af1be8aae0cd6228ac058b0271946b 100644
 --- a/dist/assets/process-worker-CEpIMzRj.js
 +++ b/dist/assets/process-worker-CEpIMzRj.js
 @@ -81209,6 +81209,7 @@ const SKIP_DIRS = /* @__PURE__ */ new Set([
@@ -32,7 +48,23 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  function withTrailingSlash(u) {
  	const s = String(u || "");
  	return s.endsWith("/") ? s : s + "/";
-@@ -83107,11 +83108,21 @@ end() {
+@@ -81862,13 +81863,8 @@ function installStdin(pyodide, readStdin) {
+ 	const read = readStdin || globalThis.__ocReadStdin;
+ 	if (typeof read !== "function") return false;
+ 	try {
+-		pyodide.setStdin({
+-			stdin: () => {
+-				const chunk = read();
+-				return chunk == null || chunk === "" ? null : chunk;
+-			},
+-			isatty: true
+-		});
++		const readLine = makeLineReader(read, process.env.VV_TTY === "1" ? (text) => process.stderr.write(text) : null);
++		pyodide.setStdin({ stdin: readLine, isatty: true });
+ 		return true;
+ 	} catch {
+ 		return false;
+@@ -83107,11 +83103,21 @@ end() {
  		let code = 0;
  		const ns = moduleName ? pyodide.toPy({ __name__: moduleName }) : null;
  		try {
@@ -59,7 +91,7 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  			flushStreams(pyodide);
  		} catch (e) {
  			flushStreams(pyodide);
-@@ -83365,7 +83376,12 @@ json.dumps({
+@@ -83365,7 +83371,12 @@ json.dumps({
  		const baseline = walkPyodide(pyodide, env.sitePackages);
  		let how = "";
  		try {
@@ -73,7 +105,124 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  			how = "Installed";
  		} catch {
  			try {
-@@ -85250,6 +85266,16 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+@@ -83531,62 +83542,66 @@ each command boots one CPython/WASM interpreter and restores this into it.
+ `);
+ 		return 0;
+ 	}
+-	function repl(indexUrl) {
++	function driveRepl(pyodide) {
+ 		return new Promise((resolve) => {
+-			bootPyodide(indexUrl).then((pyodide) => {
+-				let version = "";
++			let version = "";
++			try {
++				version = pyodide.runPython("import sys; sys.version.split(' ')[0]");
++			} catch {}
++			process.stdout.write(`Python ${version} (Pyodide) on Vivari\nType "exit()" or press Ctrl-D to quit.\n`);
++			pyodide.runPython("import code as _vv_code\n_vv_console = _vv_code.InteractiveConsole()");
++			const console_ = pyodide.globals.get("_vv_console");
++			let more = false;
++			let ended = false;
++			const prompt = () => process.stdout.write(more ? "... " : ">>> ");
++			const finish = (codeVal) => {
++				ended = true;
+ 				try {
+-					version = pyodide.runPython("import sys; sys.version.split(' ')[0]");
++					console_.destroy && console_.destroy();
+ 				} catch {}
+-				process.stdout.write(`Python ${version} (Pyodide) on Vivari\nType "exit()" or press Ctrl-D to quit.\n`);
+-				pyodide.runPython("import code as _vv_code\n_vv_console = _vv_code.InteractiveConsole()");
+-				const console_ = pyodide.globals.get("_vv_console");
+-				let more = false;
+-				let ended = false;
+-				const prompt = () => process.stdout.write(more ? "... " : ">>> ");
+-				const finish = (codeVal) => {
+-					ended = true;
+-					try {
+-						console_.destroy && console_.destroy();
+-					} catch {}
+-					resolve(codeVal | 0);
+-				};
+-				const feed = (line) => {
+-					try {
+-						more = !!withInterruptsSync(() => console_.push(line));
+-					} catch (e) {
+-						const t = terminationFromError(e);
+-						if (t.kind === "exit") {
+-							flushStreams(pyodide);
+-							if (t.report) process.stderr.write(t.report.endsWith("\n") ? t.report : t.report + "\n");
+-							finish(t.code);
+-							return;
+-						}
+-						const interrupted = e && e.type === "KeyboardInterrupt" || /KeyboardInterrupt\s*$/.test(String(e && e.message || e).trimEnd());
+-						process.stderr.write((interrupted ? "KeyboardInterrupt" : e && e.message || String(e)) + "\n");
+-						more = false;
+-					}
+-					flushStreams(pyodide);
+-					prompt();
+-				};
+-				const readLine = makeLineReader(null, process.env.VV_TTY === "1" ? (text) => process.stderr.write(text) : null);
+-				const step = () => {
+-					const line = readLine();
+-					if (line === null) {
+-						process.stdout.write("\n");
+-						finish(0);
++				resolve(codeVal | 0);
++			};
++			const feed = async (line) => {
++				try {
++					await loadImportsFor(pyodide, line, loaderToStderr);
++					more = !!withInterruptsSync(() => console_.push(line));
++				} catch (e) {
++					const t = terminationFromError(e);
++					if (t.kind === "exit") {
++						flushStreams(pyodide);
++						if (t.report) process.stderr.write(t.report.endsWith("\n") ? t.report : t.report + "\n");
++						finish(t.code);
+ 						return;
+ 					}
+-					feed(line);
+-					if (ended) return;
+-					setTimeout(step, 0);
+-				};
++					const interrupted = e && e.type === "KeyboardInterrupt" || /KeyboardInterrupt\s*$/.test(String(e && e.message || e).trimEnd());
++					process.stderr.write((interrupted ? "KeyboardInterrupt" : e && e.message || String(e)) + "\n");
++					more = false;
++				}
++				flushStreams(pyodide);
+ 				prompt();
+-				step();
+-			}, (e) => {
+-				process.stderr.write(`python: failed to start Pyodide: ${e && e.message || e}\n`);
+-				resolve(1);
+-			});
++			};
++			const readLine = makeLineReader(null, process.env.VV_TTY === "1" ? (text) => process.stderr.write(text) : null);
++			const step = async () => {
++				const line = readLine();
++				if (line === null) {
++					process.stdout.write("\n");
++					finish(0);
++					return;
++				}
++				await feed(line);
++				if (ended) return;
++				setTimeout(step, 0);
++			};
++			prompt();
++			step();
++		});
++	}
++	function repl(indexUrl) {
++		return runSource(indexUrl, "", {
++			filename: "<stdin>",
++			argv: [""],
++			cwd: process.cwd(),
++			drive: driveRepl
+ 		});
+ 	}
+ 	async function ensurePackages(pyodide, list) {
+@@ -85250,6 +85265,16 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
  		}
  		return input;
  	};
@@ -90,7 +239,7 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  	const OPAQUE_FETCH_FAILURES = [
  		"Failed to fetch",
  		"NetworkError when attempting to fetch resource",
-@@ -85277,7 +85303,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+@@ -85277,7 +85302,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
  				const viaHost = (i, n) => hostFetch.call(this, rewriteHostAlias(i), n).catch((err) => {
  					throw explainFetchFailure(i, err);
  				});
@@ -99,7 +248,7 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  				return trackHost(viaHost(input, init));
  			};
  			wrappedFetch.__ocHostWrapped = true;
-@@ -85506,6 +85532,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
+@@ -85506,6 +85531,7 @@ function createRuntime({ ctrl, data, notify, pid = 1, ppid = 0, argv = [], env =
  	try {
  		if (!Object.getOwnPropertyDescriptor(globalThis, "fs")) globalThis.fs = vvRootRequire("fs");
  	} catch {}
@@ -108,7 +257,7 @@ index 3a65fb2d22bec3b4b71b39016702802bac1f3360..e334c9966f2ac66864824277eb385902
  		const s = String(spec);
  		let m;
 diff --git a/dist/index.js b/dist/index.js
-index 534f751eb5faa029249fda8ed390c61fcdada196..7e23bc24bb5b819e6479de47ecbcf731a5ccbd6c 100644
+index 534f751eb5faa029249fda8ed390c61fcdada196..8b2c70429e9dd841e90dad6b464ca941900cac63 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -103,7 +103,7 @@ var KernelBridge = class {
@@ -116,7 +265,7 @@ index 534f751eb5faa029249fda8ed390c61fcdada196..7e23bc24bb5b819e6479de47ecbcf731
  		this.worker = new Worker(new URL(
  			/* @vite-ignore */
 -			"/assets/kernel-worker-B2lyfcKA.js",
-+			"/assets/kernel-worker-B2lyfcKA.js?aiao-runtime=3",
++			"/assets/kernel-worker-B2lyfcKA.js?aiao-runtime=4",
  			"" + import.meta.url
  		), {
  			type: "module",
