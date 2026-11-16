@@ -239,7 +239,10 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   }
   await page.getByLabel('任务名称', { exact: true }).fill('级联删除预览');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '任务：级联删除预览', exact: true })).toBeVisible();
+  await expect(page.locator('.collaboration')).toHaveAttribute('aria-busy', 'false');
   await page.getByRole('button', { name: '删除（含关联记录）', exact: true }).first().click();
+  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '保存全部', exact: true }).click();
   await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '同步', exact: true }).click();
