@@ -220,7 +220,8 @@ export function createTheme(isDark: boolean, cssVars: CSSVariables): ReturnType<
       scrollRailColor: cssVars.base200,
       width: 8,
       visible: 'scrolling',
-      hoverOn: true
+      hoverOn: true,
+      barToSide: true
     },
     selectionStyle: {
       cellBorderColor: cssVars.primary,

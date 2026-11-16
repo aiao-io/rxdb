@@ -7,6 +7,7 @@ import { ActivatedRoute } from '@angular/router';
 import { findWorkbenchEntity } from '../entities/entity-registry';
 @Component({
   selector: 'app-entity-list-page',
+  host: { style: 'display: contents' },
   imports: [EntityListComponent],
   template: ` @if (found()) {
       <div class="page-host"><rxdb-entity-list [name]="name()" [namespace]="namespace()" /></div>

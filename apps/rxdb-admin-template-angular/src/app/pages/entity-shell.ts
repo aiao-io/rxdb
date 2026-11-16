@@ -5,6 +5,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { visibleEntityEntries } from '../entities/entity-registry';
 @Component({
   selector: 'app-entity-shell',
+  host: { style: 'display: contents' },
   imports: [RouterOutlet],
   template: `<div class="page-host" data-testid="entity-shell">
     @if (empty) {
