@@ -61,6 +61,99 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     await expect(repository.initialize(input)).resolves.toMatchObject({ teamId: input.teamId });
     await expect(repository.initialize({ ...input, bootstrapKey: 'wrong' })).rejects.toThrow(/初始化/);
   });
+  it('keeps presence outside the business projection and removes expired or revoked sessions', async () => {
+    const seed = { ...input, teamId: randomUUID(), appId: 'presence', bootstrapKey: randomUUID() };
+    await repository.initialize(seed);
+    try {
+      const before = await repository.read(admin, seed.teamId, seed.appId);
+      const sessionId = randomUUID();
+      const presence = command({ type: 'presence', sessionId, prId: null, recordId: null, leave: false });
+
+      await expect(repository.operation(admin, seed.teamId, seed.appId, presence)).resolves.toMatchObject({
+        expiresAt: expect.any(Number)
+      });
+      const after = await repository.read(admin, seed.teamId, seed.appId);
+      expect(after.revision).toBe(before.revision);
+      expect(after.audit).toEqual(before.audit);
+      expect(after.presence).toEqual([expect.objectContaining({ userId: admin.id, sessionId })]);
+
+      const stored = await pool.query<{ state: { revision: number; audit: unknown[]; receipts: Record<string, unknown> } }>(
+        'SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2',
+        [seed.teamId, seed.appId]
+      );
+      expect(stored.rows[0].state.revision).toBe(before.revision);
+      expect(stored.rows[0].state.audit).toHaveLength(before.audit.length);
+      expect(stored.rows[0].state.receipts[presence.operationId]).toBeUndefined();
+      expect(
+        Number(
+          (await pool.query(
+            'SELECT revision FROM public.admin_workspace_versions WHERE team_id = $1 AND app_id = $2',
+            [seed.teamId, seed.appId]
+          )).rows[0].revision
+        )
+      ).toBe(before.revision);
+      expect(
+        (await pool.query('SELECT count(*)::int AS count FROM public.admin_audit WHERE team_id = $1 AND app_id = $2', [
+          seed.teamId,
+          seed.appId
+        ])).rows[0].count
+      ).toBe(before.audit.length);
+
+      await pool.query(
+        'UPDATE public.admin_presence SET expires_at = 0 WHERE team_id = $1 AND app_id = $2 AND session_id = $3',
+        [seed.teamId, seed.appId, sessionId]
+      );
+      expect((await repository.read(admin, seed.teamId, seed.appId)).presence).toEqual([]);
+
+      const reviewer = { id: randomUUID(), email: 'presence-reviewer@example.test', verified: true };
+      await repository.operation(
+        admin,
+        seed.teamId,
+        seed.appId,
+        command({
+          type: 'invite',
+          id: 'presence-invite',
+          email: reviewer.email,
+          permissions: ['read'],
+          tokenHash: 'presence-token',
+          expiresAt: Date.now() + 60000,
+          expectedVersion: 0
+        })
+      );
+      await repository.operation(
+        reviewer,
+        seed.teamId,
+        seed.appId,
+        command({ type: 'accept_invite', id: 'presence-invite', tokenHash: 'presence-token' })
+      );
+      const reviewerSessionId = randomUUID();
+      await repository.operation(
+        reviewer,
+        seed.teamId,
+        seed.appId,
+        command({ type: 'presence', sessionId: reviewerSessionId, prId: null, recordId: null, leave: false })
+      );
+      await repository.operation(
+        admin,
+        seed.teamId,
+        seed.appId,
+        command({ type: 'member', userId: reviewer.id, permissions: [], active: false, expectedGeneration: 1 })
+      );
+      expect((await repository.read(admin, seed.teamId, seed.appId)).presence).toEqual([]);
+    } finally {
+      for (const table of [
+        'public.admin_presence',
+        'public.admin_changes',
+        'public.admin_audit',
+        'public.admin_workspace_versions',
+        'public.admin_shared',
+        'admin_private.memberships',
+        'admin_private.workspaces'
+      ]) {
+        await pool.query(`DELETE FROM ${table} WHERE team_id = $1 AND app_id = $2`, [seed.teamId, seed.appId]);
+      }
+    }
+  });
   it('denies ordinary authenticated admins direct writes and cross-team reads', async () => {
     const client = await pool.connect();
     try {

@@ -129,12 +129,29 @@ export function preserveActionsColumnWidthOnResize(table: VTable.ListTable): voi
     col => table.getHeaderField(col, 0) === 'actions'
   );
   if (actionColumn === undefined) return;
+  let resizingColumn: number | undefined;
   let widthBeforeResize: number | undefined;
+  let resetTimer: ReturnType<typeof setTimeout> | undefined;
   table.on('resize_column', ({ col }: { col: number }) => {
-    if (col !== actionColumn && widthBeforeResize === undefined) widthBeforeResize = table.getColWidth(actionColumn);
+    if (resetTimer !== undefined) {
+      clearTimeout(resetTimer);
+      resetTimer = undefined;
+      resizingColumn = undefined;
+      widthBeforeResize = undefined;
+    }
+    if (resizingColumn === undefined) {
+      resizingColumn = col;
+      if (col !== actionColumn) widthBeforeResize = table.getColWidth(actionColumn);
+    }
   });
-  table.on('resize_column_end', ({ col }: { col: number }) => {
-    if (col !== actionColumn && widthBeforeResize !== undefined) table.setColWidth(actionColumn, widthBeforeResize);
-    widthBeforeResize = undefined;
+  table.on('resize_column_end', () => {
+    if (resizingColumn !== actionColumn && widthBeforeResize !== undefined) {
+      table.setColWidth(actionColumn, widthBeforeResize);
+    }
+    resetTimer ??= setTimeout(() => {
+      resizingColumn = undefined;
+      widthBeforeResize = undefined;
+      resetTimer = undefined;
+    }, 0);
   });
 }

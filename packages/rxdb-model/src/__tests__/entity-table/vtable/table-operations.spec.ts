@@ -126,8 +126,10 @@ describe('preserveActionsColumnWidthOnResize', () => {
     listeners.get('resize_column')!({ col: 1 });
     actionWidth = 104;
     listeners.get('resize_column_end')!({ col: 1 });
+    actionWidth = 104;
+    listeners.get('resize_column_end')!({ col: 2 });
 
-    expect(table.setColWidth).toHaveBeenCalledWith(2, 140);
+    expect(table.setColWidth).toHaveBeenLastCalledWith(2, 140);
     expect(actionWidth).toBe(140);
   });
 });
