@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   collectReorderedIds,
   patchDragIconForReadonlyRows,
+  preserveActionsColumnWidthOnResize,
   syncHeaderSortIcon,
   updateTableRecords
 } from '../../../entity-table/vtable/table-operations.js';
@@ -102,6 +103,32 @@ describe('collectReorderedIds', () => {
     } as unknown as VTable.ListTable;
 
     expect(collectReorderedIds(table, 'id')).toEqual([]);
+  });
+});
+
+describe('preserveActionsColumnWidthOnResize', () => {
+  it('restores the action width after a data column resize', () => {
+    const listeners = new Map<string, (event: { col: number }) => void>();
+    let actionWidth = 140;
+    const table = {
+      colCount: 3,
+      getHeaderField: (col: number) => ['id', 'updatedAt', 'actions'][col],
+      getColWidth: (col: number) => (col === 2 ? actionWidth : 160),
+      setColWidth: vi.fn((_col: number, width: number) => {
+        actionWidth = width;
+      }),
+      on: vi.fn((event: string, callback: (value: { col: number }) => void) => {
+        listeners.set(event, callback);
+      })
+    } as unknown as VTable.ListTable;
+
+    preserveActionsColumnWidthOnResize(table);
+    listeners.get('resize_column')!({ col: 1 });
+    actionWidth = 104;
+    listeners.get('resize_column_end')!({ col: 1 });
+
+    expect(table.setColWidth).toHaveBeenCalledWith(2, 140);
+    expect(actionWidth).toBe(140);
   });
 });
 

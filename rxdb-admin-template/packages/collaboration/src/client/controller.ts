@@ -355,10 +355,14 @@ export class CollaborationController extends EventTarget {
     try {
       const receipt = durable ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      acknowledged = receipt.status === 'accepted' && 'value' in receipt;
-      const result =
-        acknowledged ? receipt.value! : await this.api.command(workspace, request);
-      acknowledged = true;
+      let result: Record<string, unknown>;
+      if (receipt.status === 'accepted' && 'value' in receipt) {
+        acknowledged = true;
+        result = receipt.value!;
+      } else {
+        result = await this.api.command(workspace, request);
+        acknowledged = true;
+      }
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
       if (request.type === 'presence') this.applyPresenceResult(request, result);
       else await this.current(this.refresh(), epoch);

@@ -122,3 +122,19 @@ export function updateTableRecords(
     }
   }
 }
+
+/** 手动调整数据列时保持操作列的当前内容宽度，避免 autoFillWidth 重新分配冻结列。 */
+export function preserveActionsColumnWidthOnResize(table: VTable.ListTable): void {
+  const actionColumn = Array.from({ length: table.colCount }, (_, col) => col).find(
+    col => table.getHeaderField(col, 0) === 'actions'
+  );
+  if (actionColumn === undefined) return;
+  let widthBeforeResize: number | undefined;
+  table.on('resize_column', ({ col }: { col: number }) => {
+    if (col !== actionColumn && widthBeforeResize === undefined) widthBeforeResize = table.getColWidth(actionColumn);
+  });
+  table.on('resize_column_end', ({ col }: { col: number }) => {
+    if (col !== actionColumn && widthBeforeResize !== undefined) table.setColWidth(actionColumn, widthBeforeResize);
+    widthBeforeResize = undefined;
+  });
+}
