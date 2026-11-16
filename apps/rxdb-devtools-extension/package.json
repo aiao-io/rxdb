@@ -28,7 +28,7 @@
     "@types/chrome": "^0.3.7",
     "daisyui": "^5.7.50",
     "tailwindcss": "^4.3.4",
-    "vite": "8.3.6",
+    "vite": "8.3.8",
     "vite-plugin-zip-pack": "^1.2.4"
   }
 }
