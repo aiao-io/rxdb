@@ -48,7 +48,7 @@
       },
       "options": {
         "cwd": "aiao-media",
-        "command": "node scripts/dev/open-dashboard.mjs"
+        "command": "node scripts/dev/supervise.mjs node scripts/dev/open-dashboard.mjs"
       }
     },
     "dev-web": {
@@ -118,7 +118,7 @@
       ],
       "options": {
         "cwd": "aiao-media",
-        "command": "node scripts/supabase/supabase-local.mjs logs-follow"
+        "command": "node scripts/dev/supervise.mjs node scripts/supabase/supabase-local.mjs logs-follow"
       }
     },
     "dev-test": {

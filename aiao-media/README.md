@@ -29,11 +29,11 @@ Admin 使用 `rxdb-admin-template-angular` 的后台外壳：认证和首次安�
 
 端口固定，Supabase 端口统一维护在已提交的 `infra/supabase/ports.env`；私有 `.env` 中的旧端口值不会生效。查看数据库、账号和 SQL 编辑器请打开 Studio；API 网关的根路径返回 404。Web 与 Admin 的 `/api/**` 都转发到完整的本地 Worker。
 
-端口冲突时先停止占用服务，再重试启动，不自动换号。多个检出目录使用同一套固定端口，不能同时启动；可用 `COMPOSE_PROJECT_NAME` 隔离数据卷，已有数据卷的密码须与对应 `.env` 一致。
+端口冲突时先停止占用服务，再重试启动，不自动换号；失败提示会列出占用进程的 pid、命令与目录。多个检出目录使用同一套固定端口，不能同时启动；可用 `COMPOSE_PROJECT_NAME` 隔离数据卷，已有数据卷的密码须与对应 `.env` 一致。
 
 交互终端默认使用 Nx TUI，可切换查看 Web、API、Admin 与数据库日志。使用 `pnpm nx dev aiao-media --tui=false` 输出普通日志。
 
-Ctrl-C 停止应用与日志进程；Supabase 容器继续运行并保留数据。停止数据库：
+Ctrl-C 停止应用与日志进程；Supabase 容器继续运行并保留数据。Nx 被强制终止（如 `kill -9`）时，API、开发导航与日志进程会在数秒内自行退出，不会遗留进程占住固定端口。停止数据库：
 
 ```bash
 pnpm nx run aiao-media:supabase-down
