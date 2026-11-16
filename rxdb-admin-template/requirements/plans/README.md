@@ -30,3 +30,7 @@
 ## 全量需求评审整改
 
 [需求优化复核](requirements-refinement-verification.md) 将十项评审发现映射到共享契约、故事 AC、性能脚本回归和实际验证结果；需求完善不代表协作功能完成。
+
+## 协作实现
+
+[协作实现与验收记录](collaboration-implementation.md) 汇总三端真实身份、IndexedDB 离线任务、双设备分叉、PR、讨论通知、审批、原子事务与 RLS 的实现、测试证据和部署前置。

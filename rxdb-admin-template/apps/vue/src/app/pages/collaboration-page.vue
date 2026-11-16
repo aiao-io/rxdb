@@ -9,9 +9,14 @@ const host = useTemplateRef<HTMLDivElement>('host');
 let dispose: (() => void) | undefined;
 onMounted(() => {
   if (host.value)
-    dispose = mountCollaboration(host.value, { translate: (key, values) => workbenchShell.i18n.t(key, values),
-      subscribeLanguage: listener => { const sub = workbenchShell.i18n.changes$.subscribe(listener); return () => sub.unsubscribe(); },
-      importAnonymous: () => readAnonymousAssets(setupRxdb(), ENTITIES) });
+    dispose = mountCollaboration(host.value, {
+      translate: (key, values) => workbenchShell.i18n.t(key, values),
+      subscribeLanguage: listener => {
+        const sub = workbenchShell.i18n.changes$.subscribe(listener);
+        return () => sub.unsubscribe();
+      },
+      importAnonymous: () => readAnonymousAssets(setupRxdb(), ENTITIES)
+    });
 });
 onUnmounted(() => dispose?.());
 </script>

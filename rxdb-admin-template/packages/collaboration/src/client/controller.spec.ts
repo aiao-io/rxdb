@@ -69,9 +69,20 @@ afterEach(() => {
 });
 function authFixture(userId = 'alice') {
   const session: Session = {
-    access_token: 'access', refresh_token: 'refresh', token_type: 'bearer', expires_in: 3600,
+    access_token: 'access',
+    refresh_token: 'refresh',
+    token_type: 'bearer',
+    expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { id: userId, email: `${userId}@example.test`, email_confirmed_at: '2026-11-16', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-11-16' }
+    user: {
+      id: userId,
+      email: `${userId}@example.test`,
+      email_confirmed_at: '2026-11-16',
+      app_metadata: {},
+      user_metadata: {},
+      aud: 'authenticated',
+      created_at: '2026-11-16'
+    }
   };
   let listener: (event: string, session: Session | null) => void = () => undefined;
   const auth = {
@@ -80,17 +91,29 @@ function authFixture(userId = 'alice') {
     signInWithOtp: vi.fn().mockResolvedValue({ error: null }),
     verifyOtp: vi.fn().mockResolvedValue({ data: { session }, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
-    onAuthStateChange: vi.fn((callback: (event: string, session: Session | null) => void) => { listener = callback; return { data: { subscription: { unsubscribe: vi.fn() } } }; })
+    onAuthStateChange: vi.fn((callback: (event: string, session: Session | null) => void) => {
+      listener = callback;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    })
   };
   const channel = { on: vi.fn().mockReturnThis(), subscribe: vi.fn().mockReturnThis() };
-  vi.mocked(createClient).mockReturnValue({ auth, channel: vi.fn().mockReturnValue(channel), removeChannel: vi.fn().mockResolvedValue('ok') } as unknown as ReturnType<typeof createClient>);
+  vi.mocked(createClient).mockReturnValue({
+    auth,
+    channel: vi.fn().mockReturnValue(channel),
+    removeChannel: vi.fn().mockResolvedValue('ok')
+  } as unknown as ReturnType<typeof createClient>);
   return { session, auth, emit: (event: string, value: Session | null) => listener(event, value) };
 }
 async function initialized(userId = 'alice') {
   const setupValue = await setup();
   const fixture = authFixture(userId);
-  vi.spyOn(setupValue.controller.api, 'config').mockResolvedValue({ supabaseUrl: 'http://auth.test', supabaseKey: 'public-key' });
-  vi.spyOn(setupValue.controller.api, 'workspaces').mockResolvedValue([{ teamId: 'team', appId: 'assets', name: 'Team' }]);
+  vi.spyOn(setupValue.controller.api, 'config').mockResolvedValue({
+    supabaseUrl: 'http://auth.test',
+    supabaseKey: 'public-key'
+  });
+  vi.spyOn(setupValue.controller.api, 'workspaces').mockResolvedValue([
+    { teamId: 'team', appId: 'assets', name: 'Team' }
+  ]);
   await setupValue.controller.initialize();
   return { ...setupValue, ...fixture };
 }
@@ -101,7 +124,10 @@ describe('session verification and access recovery', () => {
     expect(controller.workspaces).toHaveLength(1);
     expect(JSON.parse(localStorage.getItem('admin-collaboration-grant:/test')!).user.id).toBe('alice');
     await controller.sendCode('alice@example.test');
-    expect(auth.signInWithOtp).toHaveBeenCalledWith({ email: 'alice@example.test', options: { shouldCreateUser: true } });
+    expect(auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'alice@example.test',
+      options: { shouldCreateUser: true }
+    });
     await controller.verify('alice@example.test', '123456');
     expect(auth.verifyOtp).toHaveBeenCalledWith({ email: 'alice@example.test', token: '123456', type: 'email' });
     await controller.logout();
@@ -142,7 +168,8 @@ describe('session verification and access recovery', () => {
     const { controller, storage } = await initialized();
     controller.dispose();
     vi.stubGlobal('navigator', { onLine: false });
-    const cold = new CollaborationController('/test', storage); controllers.push(cold);
+    const cold = new CollaborationController('/test', storage);
+    controllers.push(cold);
     await cold.initialize();
     expect(cold.user?.id).toBe('alice');
     expect(cold.offlineDrafts).toHaveLength(1);
@@ -151,7 +178,8 @@ describe('session verification and access recovery', () => {
     expect(cold.online).toBe(false);
     const grant = JSON.parse(localStorage.getItem('admin-collaboration-grant:/test')!);
     localStorage.setItem('admin-collaboration-grant:/test', JSON.stringify({ ...grant, expiresAt: 1 }));
-    const expired = new CollaborationController('/test', storage); controllers.push(expired);
+    const expired = new CollaborationController('/test', storage);
+    controllers.push(expired);
     await expect(expired.initialize()).rejects.toMatchObject({ code: 'locked' });
     expect(expired.user).toBeNull();
     expect(expired.offlineDrafts).toEqual([]);
@@ -170,6 +198,36 @@ describe('session verification and access recovery', () => {
   });
 });
 describe('client concurrency and recovery', () => {
+  it('serializes durable actions until their previous receipt and snapshot are confirmed', async () => {
+    const { controller } = await setup();
+    const delayed = Promise.withResolvers<NonNullable<typeof controller.snapshot>>();
+    vi.mocked(controller.api.snapshot).mockReturnValueOnce(delayed.promise);
+    const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
+    const first = controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'first');
+    await vi.waitFor(() => expect(controller.api.snapshot).toHaveBeenCalledTimes(1));
+    const second = controller.run({ type: 'policy', stages: [], expectedVersion: 2 }, 'second');
+    const completed = Promise.all([first, second]);
+    delayed.resolve(controller.snapshot!);
+    await completed;
+    expect(send.mock.calls.map(([, command]) => command.operationId)).toEqual(['first', 'second']);
+    expect(controller.pending()).toBeNull();
+  });
+  it('cancels queued durable actions when their original identity or workspace is locked', async () => {
+    const { controller } = await setup();
+    const delayed = Promise.withResolvers<Record<string, unknown>>();
+    const send = vi.spyOn(controller.api, 'command').mockReturnValueOnce(delayed.promise);
+    const first = controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'first');
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    const second = controller.run({ type: 'policy', stages: [], expectedVersion: 2 }, 'second');
+    const outcomes = Promise.allSettled([first, second]);
+    await controller.logout();
+    delayed.resolve({});
+    expect(await outcomes).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ code: 'cancelled' }) },
+      { status: 'rejected', reason: expect.objectContaining({ code: 'cancelled' }) }
+    ]);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
   it('retains the original request ID after an unknown outcome and queries its receipt before retrying', async () => {
     const { controller } = await setup();
     const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
@@ -237,7 +295,12 @@ describe('client concurrency and recovery', () => {
     const { controller } = await setup();
     await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Local' } } });
     let reject: (reason: unknown) => void = () => undefined;
-    const send = vi.spyOn(controller.api, 'command').mockImplementation(() => new Promise((_resolve, failure) => { reject = failure; }));
+    const send = vi.spyOn(controller.api, 'command').mockImplementation(
+      () =>
+        new Promise((_resolve, failure) => {
+          reject = failure;
+        })
+    );
     const syncing = controller.sync(false).catch(error => controller.failure(error));
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
     await controller.logout();
@@ -252,7 +315,12 @@ describe('client concurrency and recovery', () => {
     const { controller, storage } = await setup();
     const original = controller.draft!;
     let finish: (value: Draft | undefined) => void = () => undefined;
-    vi.spyOn(storage, 'read').mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    vi.spyOn(storage, 'read').mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
     const opening = controller.openOffline(original).catch(error => controller.failure(error));
     await controller.logout();
     finish(original);
@@ -272,8 +340,17 @@ describe('client concurrency and recovery', () => {
     if (pending.command.type !== 'fork') throw new Error('expected fork');
     const command = pending.command;
     const head = command.commits.at(-1)!.id;
-    controller.snapshot!.tasks.push({ id: command.id, name: command.name, ownerId: 'alice', base: null, head, originTaskId: 'task' });
-    command.commits.forEach(commit => { controller.snapshot!.commits[commit.id] = commit; });
+    controller.snapshot!.tasks.push({
+      id: command.id,
+      name: command.name,
+      ownerId: 'alice',
+      base: null,
+      head,
+      originTaskId: 'task'
+    });
+    command.commits.forEach(commit => {
+      controller.snapshot!.commits[commit.id] = commit;
+    });
     vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
@@ -281,5 +358,4 @@ describe('client concurrency and recovery', () => {
     expect((await controller.local.read(context))?.forkArchive).toEqual({ taskId: command.id, head });
     expect((await controller.local.fastForward(context, 'remote', {}, false)).queue).toEqual([]);
   });
-
 });

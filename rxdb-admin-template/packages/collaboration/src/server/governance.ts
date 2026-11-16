@@ -104,6 +104,7 @@ export function governanceCommand(
       reviewerId: user.id,
       dismissedReviewerId: command.reviewerId,
       decision: 'dismiss',
+      source: null,
       candidateId: null,
       stageId: '',
       generation: state.members[user.id].generation,
@@ -154,14 +155,29 @@ function makeCandidate(
     actorId: user.id,
     at: env.now
   };
+  const reopenedThreads: string[] = [];
+  for (const thread of Object.values(state.threads).filter(
+    value => value.prId === pr.id && value.required && value.resolved && value.candidateId && value.recordId
+  )) {
+    const original = state.candidates[thread.resolvedCandidateId ?? thread.candidateId!]?.records[thread.recordId!];
+    const current = merged.records[thread.recordId!];
+    const before = thread.field ? original?.fields[thread.field] : original;
+    const after = thread.field ? current?.fields[thread.field] : current;
+    if (canonical(before) === canonical(after)) continue;
+    thread.resolved = false;
+    thread.revision++;
+    reopenedThreads.push(thread.id);
+  }
   pr.candidateId = id;
   pr.revision++;
-  return { candidateId: id, revision: pr.revision };
+  return { candidateId: id, revision: pr.revision, reopenedThreads };
 }
 function review(state: Workspace, user: Identity, command: Extract<Command, { type: 'review' }>, env: Environment) {
   const member = authorize(state, user, 'review');
   const pr = openPr(state, command.prId);
   demand(pr.status === 'review', 'state', '先请求审核');
+  const source = taskFor(state, pr.taskId).head;
+  expected(source, command.expectedSource);
   expected(reviewRevision(state, pr.id, user.id), command.expectedRevision);
   demand(pr.authorId !== user.id, 'forbidden', '不能审核自己的 PR');
   const assigned = state.policy.stages.find(stage => stage.id === command.stageId);
@@ -173,13 +189,14 @@ function review(state: Workspace, user: Identity, command: Extract<Command, { ty
   );
   if (command.decision === 'approve') assertStage(state, pr, command, user);
   else {
-    currentCandidate(state, pr, command.candidateId);
+    if (command.candidateId) currentCandidate(state, pr, command.candidateId);
     demand(command.reason.trim(), 'invalid', '要求修改必须填写原因');
   }
   const entry: Review = {
     id: env.id(),
     prId: pr.id,
     reviewerId: user.id,
+    source,
     candidateId: command.candidateId,
     stageId: command.stageId,
     decision: command.decision,
@@ -197,6 +214,7 @@ function assertStage(
   command: Extract<Command, { type: 'review' }>,
   user: Identity
 ): void {
+  demand(command.candidateId, 'candidate', '尚未生成最终候选，检查未通过');
   const candidate = checkedCandidate(state, pr, command.candidateId);
   if (state.policy.stages.length === 0) {
     demand(command.stageId === 'review', 'forbidden', '没有此审批阶段的权限');

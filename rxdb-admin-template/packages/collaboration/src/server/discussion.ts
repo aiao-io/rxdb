@@ -68,6 +68,7 @@ export function discussionCommand(
     );
     expected(thread.revision, command.expectedRevision);
     thread.resolved = command.resolved;
+    thread.resolvedCandidateId = command.resolved ? (pr.candidateId ?? thread.candidateId) : null;
     thread.revision++;
     return { threadId: thread.id, prId: pr.id };
   }
@@ -147,6 +148,7 @@ function startThread(
     field: command.field,
     required: command.required,
     resolved: false,
+    resolvedCandidateId: null,
     revision: 0,
     comments: [{ id: env.id(), authorId: user.id, body: command.body, deleted: false, revision: 0, at: env.now }]
   };

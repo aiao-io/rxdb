@@ -1,50 +1,76 @@
 # 协作实现与验收记录
 
-日期：2026-11-16。范围：ADMIN-US-201～216、共享契约 C01～C06。当前故事状态统一为 `In Review`：实现已进入产品私有包并完成本地验证，但尚未合入 main、完成生产部署和逐条 PR 评审，因此不标记 `Done`。
+日期：2026-11-16。范围：ADMIN-US-201～216、共享契约 C01～C06。16 条协作故事均为 `In Review`：产品实现和本地验证已形成，但完整 AC 组合、正式环境验收及合入证据尚未关闭，因此不标记 `Done`。
 
-## 已落地的实现边界
+故事表中的 ✅ 表示已有本地测试证据，⚠️ 表示该条仍有未验组合或外部环境依赖。每个故事的“验收证据”列明具体缺口；不能把本记录的通过数量推导为全部 AC 已验收。
 
-| 能力 | 实现位置 | 结果 |
-| --- | --- | --- |
-| 真实身份与每请求授权 | `packages/collaboration/src/client/controller.ts`、`src/server/http.ts`、`src/server/access.ts` | Supabase OTP 建立会话；服务端每次用验证后的用户执行授权；客户端不持有 service role key |
-| 团队、邀请、权限和策略 | `src/server/membership.ts`、`src/server/governance.ts`、`src/client/admin-view.ts` | 邀请版本、邮箱匹配、成员代次、六类权限、撤权失效和多阶段策略均进入同一工作区裁决 |
-| 任务工作树与提交图 | `src/client/local.ts`、`src/server/tasks.ts` | IndexedDB 按用户/团队/应用/任务隔离；保存、提交、outbox、回执边界分开；提交保留作者、父链和 ID |
-| 离线、回执和分叉恢复 | `src/client/controller.ts`、`src/client/offline-shell.ts`、`public/collaboration-sw.js` | 热续作、冷启动授权、退出锁定、未知结果查询、双设备陈旧头拒绝和另存为新任务已实现 |
-| PR、差异、候选与冲突 | `src/client/pr-view.ts`、`src/records.ts`、`src/server/governance.ts` | 四页签、三方字段合并、最终候选、完整性检查、候选失效和历史只读展示 |
-| 讨论、通知和 Presence | `src/server/discussion.ts`、`src/client/pr-view.ts`、`src/client/mount.ts` | 字段定位评论、回复、处理/重开、提及通知、筛选、未读和 15 秒心跳/45 秒过期 |
-| 事务合并与数据库隔离 | `src/server/repository.ts`、`supabase/migrations/202611160001_collaboration.sql` | 工作区行锁、共享投影、逐记录变更、审计和合并在同一 PostgreSQL 事务中；普通客户端只有 RLS 读取权限 |
-| 三端接入与语言切换 | `apps/{react,angular,vue}`、`packages/collaboration/src/messages.ts` | 三端懒加载同一共享 DOM UI；语言切换不重挂控制器、不丢编辑器输入；匿名资产工作台和数据库标识保持不变 |
+## 实现边界
 
-现阶段团队编辑使用产品快照协议和共享编辑器；没有把现有 `rxdb-plugin-working-tree` 直接接入协作任务。该插件继续作为平台能力参考，不能被文档描述成已经完成产品闭环。
+下表源码路径以 `rxdb-admin-template/packages/collaboration/` 为根。
 
-## 已执行验证
+| 能力                 | 实现位置                                                                                     | 行为                                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 真实身份与每请求授权 | `src/client/controller.ts`、`src/server/http.ts`、`src/server/access.ts`                     | Supabase OTP 建立会话，服务端逐请求验证用户；浏览器不持有 service role key                                             |
+| 团队、邀请和权限     | `src/server/membership.ts`、`src/client/admin-view.ts`                                       | 邀请版本、邮箱匹配、权限代次、六项权限和撤权失效；管理员复制邀请链接交付目标用户                                       |
+| 任务工作树与提交图   | `src/client/local.ts`、`src/server/tasks.ts`                                                 | IndexedDB 按用户/团队/应用/任务隔离；保存、提交、outbox 和回执分开；提交 ID、父链、作者不可重写                        |
+| 离线与分叉恢复       | `src/client/controller.ts`、`src/client/offline-shell.ts`、三端 `public/collaboration-sw.js` | 热续作、冷启动判定、退出锁定、未知结果查询；分叉另存后可拉取原任务，后续新编辑仍受保护                                 |
+| 实时刷新             | `src/client/workspace-feed.ts`、`src/server/repository.ts`                                   | 订阅工作区版本通知后重新通过 API 授权读取；重连刷新、退出/切团队取消订阅、迟到回调隔离；同一上下文云端变更顺序执行     |
+| PR、差异与候选       | `src/client/pr-view.ts`、`src/records.ts`、`src/server/governance.ts`                        | 四页签、显式 shared 目标、三方字段合并、冲突选择、最终完整性检查及版本失效                                             |
+| 审核与阻塞           | `src/server/governance.ts`、`src/server/discussion.ts`                                       | 批准绑定当前候选；无候选时仍可按来源提交提出要求修改；多阶段/人数/指定审核人；已解决的必须处理线程在锚定结果变化后重开 |
+| 讨论、通知与在线成员 | `src/client/pr-view.ts`、`src/client/mount.ts`、`src/server/discussion.ts`                   | 字段定位、回复、处理历史、提及、筛选和未读；15 秒心跳、45 秒过期；实时重绘保留表单和历史展开状态                       |
+| 原子合并与 RLS       | `src/server/repository.ts`、产品 `supabase/migrations/202611160001_collaboration.sql`        | 同一工作区行锁内更新共享数据/头、逐记录变更、PR、提交、回执和审计；普通客户端只可按 RLS 读取投影                       |
+| 三端与语言           | 三端 `/collaboration` 路由、`src/messages.ts`                                                | 懒加载同一共享 DOM UI；切换语言保留未保存输入；原匿名工作台、数据库名称和连接前恢复入口保留                            |
 
-| 层级 | 命令或入口 | 结果 |
-| --- | --- | --- |
-| 单元测试 | `NX_NO_CLOUD=true pnpm nx test admin-collaboration` | 55 tests passed；覆盖服务端规则、输入校验、会话并发、分叉恢复、表单保留、匿名导入和 IndexedDB |
-| 类型与 lint | `NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration --parallel=1` | 通过，零 ESLint warning |
-| PostgreSQL 集成 | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration` | 4 tests passed；初始化幂等、RLS/直接写拒绝、并发头、事务失败回滚 |
-| 三端浏览器 | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e --parallel=1` | React / Angular / Vue 各 6 场景，共 18 passed；包含真实 Supabase OTP、离线冷启动、邀请负例、匿名导入、语言切换、分叉恢复；主流程含 axe 检查 |
-| 覆盖率 | `NX_NO_CLOUD=true pnpm nx test admin-collaboration --coverage --coverage.reporter=json-summary` | statements 90.13%、functions 90.61%、lines 92.76%、branches 83.07%；按产品包 80% 门槛通过。客户端 UI 的浏览器覆盖不计入此数字 |
+团队模式使用产品快照协议、IndexedDB 和共享编辑器，尚未直接接入 `rxdb-plugin-working-tree`。平台插件继续作为能力参考，边界见 [D-08](../decisions.md)。这条产品实现不代表平台插件已经完成团队协作接线。
 
-浏览器 fixture 使用 Supabase Auth 管理测试接口生成 OTP，再由真实 `verifyOtp` 完成登录；这验证身份协议和隔离，不代表生产 SMTP 投递、邮件模板、域名和部署配置已经验收。
+首版使用完整快照：每请求最多 2 MiB、每任务最多 10000 条记录、每次上传最多 100 个提交；超限明确拒绝。尚未针对大型团队或长期历史进行容量与负载验收。
 
-## 需求映射与未关闭项
+## 验证结果
 
-- C01～C06 已有服务端单元、HTTP、PostgreSQL 集成和三端主流程证据，故事保持 `In Review`，待逐条 AC 评审和合并。
-- `ADMIN-US-206 #7` 的实现使用显式刷新和回执，不承诺 Supabase Realtime；若要求真正 Realtime，需要另补订阅协议和三端断线测试。
-- `ADMIN-US-208` 的四页签、字段定位、回复和处理已实现；还需要补三端完整评论历史与权限负例的浏览器证据。
-- `ADMIN-US-214～216` 已有服务端规则和共享页面，但通知筛选、实时 Presence、多阶段审批尚未各自形成独立的三端浏览器场景。
-- `ADMIN-US-101` 仍为 `Backlog`：没有真实的新业务实体、字段、关系和命名空间输入，不能用资产示例冒充完成。
-- 生产 SMTP、正式 Supabase 项目、服务部署、迁移执行和 PR 合并证据尚未提供；因此所有协作故事不能标记 `Done`。
+结构化结果见 [验证摘要](evidence/collaboration-2026-11-16.json)。
 
-## 复验入口
+| 层级                 | 命令或入口                                                                                                               | 结果                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 产品单元             | `NX_NO_CLOUD=true pnpm nx test admin-collaboration`                                                                      | 68 项通过，10 个测试文件；覆盖权限/候选/审批、HTTP、会话并发、回执、分叉、IndexedDB、表单及实时订阅                               |
+| 产品类型与 lint      | `NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration --parallel=1`                                | 通过，ESLint 零 warning                                                                                                           |
+| PostgreSQL 集成      | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration`                                                      | 4 项通过；初始化幂等、RLS/直接写拒绝、并发上传头、事务失败回滚及重试                                                              |
+| 三端协作浏览器       | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e`                                                                   | 21 项通过；同一套 7 场景分别在 React、Angular、Vue 运行                                                                           |
+| 原应用单元与静态检查 | 三端 `test` / `lint` / `typecheck`                                                                                       | React 72 项、Angular 69 项、Vue 69 项通过                                                                                         |
+| 原匿名浏览器回归     | 三端 `e2e --workers=1 --grep='工作台\|备份\|恢复'`                                                                       | React 43 项、Angular 43 项通过；Vue 首轮 42 项通过，1 项表格等待竞态修复后在三端分别复验通过（共覆盖三端 129 项，不是同一轮全绿） |
+| 覆盖率               | `NX_NO_CLOUD=true pnpm nx test admin-collaboration --coverage --coverage.reporter=text --coverage.reporter=json-summary` | statements 90.81%、functions 90.15%、lines 93.59%、branches 82.93%                                                                |
+
+覆盖率四项均超过产品包采用的 80% 检查线，但统计范围仅为单元实际加载的源码。完整页面、生产启动入口及 PostgreSQL repository 的集成/浏览器执行不计入上述数字，不能作为整个产品的全源码覆盖率。
+
+三端协作浏览器的七组场景：
+
+1. 真实 OTP、跨实体编辑、保存刷新、离线同步、PR 说明和目标、无候选要求修改、批准/合并权限分离、四页签、阻塞讨论、通知定位、合并和历史恢复草稿；编辑器执行 axe 检查。
+2. Service Worker 离线冷启动、缓存授权过期锁定、重新联网和退出。
+3. 错账号不能消费邀请、正确账号接受、验证码不可重复使用。
+4. 匿名资产预览确认后导入任务，原数据库和共享头保持不变。
+5. 中英文切换保留未保存内容，业务值和用户 PR 标题不被翻译。
+6. 双设备分叉另存，再拉取原任务远端，保留两份版本。
+7. 两阶段审批、人数不足拒绝合并、审核者无合并入口、在线成员，以及另一用户批准后真实 Realtime 通知触发刷新。
+
+## 测试环境与部署差异
+
+浏览器 fixture 由隔离 Supabase Auth 的管理测试接口生成 OTP，再通过真实 `verifyOtp` 登录。此流程验证身份协议、验证码重复使用拒绝和用户隔离，未验证 SMTP 投递、邮件模板或真实邮箱收件。
+
+业务事务在每次运行独立创建的临时 PostgreSQL 中执行。为覆盖真实 Realtime，fixture 只把工作区版本与可读成员投影同步到隔离 Supabase CI 数据库，不复制业务记录；这段桥接仅存在于测试脚本。正式部署必须让协作 API 的 `ADMIN_DATABASE_URL` 指向同一 Supabase 项目数据库，并执行包含 `admin_workspace_versions` publication 的迁移；生产代码在同一事务中写入版本通知。
+
+Playwright 通过 SIGTERM 关闭 fixture，清理当次用户、投影和临时数据库；共享隔离 Supabase 栈通过 `rxdb-adapter-supabase:test-env-down` 收尾。历史遗留的本任务临时容器已清理。
+
+## 未关闭项
+
+- 各故事 ⚠️ 已具体记录组合验证缺口，主要包括双团队/全部权限的浏览器矩阵、邀请与合并的完整并发矩阵、完整审计字段断言、恢复草稿再合并、通知全部筛选与并行阶段/指定审核人端到端场景。
+- `ADMIN-US-101` 保持 `Backlog`：缺少真实的新业务实体、字段、关系和命名空间输入，资产样例不能代替业务定义。
+- 生产 SMTP、正式 Supabase 项目、服务部署、正式迁移执行和 PR 合入证据尚未提供。
+- `ADMIN-US-201～216` 均保持 `In Review`。✅ AC、本地通过和已合入/已部署是不同状态。
+
+## 复验与运行入口
+
+运行配置、迁移、可信初始化和 API 启动见 [产品协作包说明](../../packages/collaboration/README.md)。产品需求门禁：
 
 ```bash
-NX_NO_CLOUD=true pnpm nx run admin-collaboration:test
-NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration
-NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e
-NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration --parallel=1
 NX_NO_CLOUD=true pnpm nx run rxdb-admin-template:requirements-check
 NX_NO_CLOUD=true pnpm nx run rxdb-admin-template:requirements-test
 ```

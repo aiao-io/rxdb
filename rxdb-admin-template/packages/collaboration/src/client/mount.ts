@@ -1,13 +1,13 @@
-import { tx, useTranslation, type Translate } from './translate.js';
 import type { Records } from '../model.js';
 import { checkRecords } from '../records.js';
 import { adminView } from './admin-view.js';
-import { FormDrafts } from './form-drafts.js';
 import { CollaborationController } from './controller.js';
 import { TaskEditor, readOnlyRecords } from './editor.js';
 import { button, element, input, row, section } from './elements.js';
+import { FormDrafts } from './form-drafts.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
+import { tx, useTranslation, type Translate } from './translate.js';
 export interface CollaborationOptions {
   apiBase?: string;
   translate?: Translate;
@@ -99,13 +99,17 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   window.addEventListener('offline', connectivity);
   const sessionId = crypto.randomUUID();
   const heartbeat = window.setInterval(() => {
-    if (!navigator.onLine) { controller.changed(); return; }
+    if (!navigator.onLine) {
+      controller.changed();
+      return;
+    }
     if (busy || !controller.user || !controller.workspace || document.hidden) return;
     void controller
       .run({ type: 'presence', sessionId, prId: prs.selected, recordId: prs.selectedRecord, leave: false })
       .catch(error => controller.failure(error));
   }, 15000);
   function renderPage() {
+    formDrafts.rememberDisclosures();
     const active = document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
     const focusLabel = active?.getAttribute('aria-label');
     const recordId = active?.dataset['recordId'];
@@ -141,7 +145,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       return;
     }
     host.append(workspacesView(), invitationView());
-    if (controller.workspace && controller.online) host.append(button('刷新团队状态', () => perform(() => controller.refresh())));
+    if (controller.workspace && controller.online)
+      host.append(button('刷新团队状态', () => perform(() => controller.refresh())));
     if (controller.pending()) host.append(button('确认或重试上次请求', () => perform(() => controller.retryPending())));
     if (controller.snapshot) host.append(workspaceView());
     if (controller.draft) host.append(editor.view());
@@ -154,7 +159,16 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       host.querySelector(`#thread-${CSS.escape(prs.focusThread)}`)?.scrollIntoView({ block: 'center' });
       prs.focusThread = null;
     }
-    formDrafts.restore(JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId, controller.draft?.context.taskId, prs.selected]), JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId]));
+    formDrafts.restore(
+      JSON.stringify([
+        controller.user?.id,
+        controller.workspace?.teamId,
+        controller.workspace?.appId,
+        controller.draft?.context.taskId,
+        prs.selected
+      ]),
+      JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId])
+    );
     if (focusLabel) restoreFocus(focusLabel, recordId, selection ?? null);
   }
   function restoreFocus(label: string, recordId: string | undefined, selection: number | null) {
@@ -213,7 +227,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       )
     );
     controller.offlineDrafts.forEach(draft =>
-      view.append(button(tx("离线任务：{v0}", { v0: draft.name }), () => perform(() => controller.openOffline(draft))))
+      view.append(button(tx('离线任务：{v0}', { v0: draft.name }), () => perform(() => controller.openOffline(draft))))
     );
     if (!controller.workspaces.length && !controller.offlineDrafts.length)
       view.append(element('p', '暂无可访问团队，请接受邀请。登录不会自动成为管理员。'));
@@ -221,6 +235,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   function invitationView() {
     const view = element('details');
+    view.dataset['disclosureKey'] = 'invitation';
     view.append(element('summary', '接受团队邀请'));
     const link = input('邀请链接', new URL(location.href).searchParams.has('join') ? location.href : '');
     view.append(link.wrapper);
@@ -240,9 +255,9 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   function workspaceView() {
     const data = controller.snapshot!;
-    const view = section(tx("共享数据 · {v0}", { v0: data.name }));
+    const view = section(tx('共享数据 · {v0}', { v0: data.name }));
     view.append(
-      element('p', tx("共享版本：{v0} · 默认只读", { v0: data.head ?? '空分支' }), 'text-sm break-all'),
+      element('p', tx('共享版本：{v0} · 默认只读', { v0: data.head ?? '空分支' }), 'text-sm break-all'),
       readOnlyRecords(data.records)
     );
     const member = data.members.find(m => m.id === controller.user?.id);
@@ -263,7 +278,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       .filter(task => task.ownerId === controller.user?.id)
       .forEach(task =>
         tasks.append(
-          button(tx("打开任务：{v0}", { v0: task.name }), () =>
+          button(tx('打开任务：{v0}', { v0: task.name }), () =>
             perform(async () => {
               if (editor.dirty) throw new Error('先保存当前输入');
               await controller.openTask(task.id);
@@ -283,11 +298,17 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const name = input('导入任务名称', '导入本机资产');
     const collisions = Object.keys(records).filter(id => Object.hasOwn(data.records, id));
     const checks = checkRecords({ ...data.records, ...records });
-    content.append(element('p', tx("同 ID 记录：{v0}；完整性或唯一性冲突：{v1}", { v0: collisions.length, v1: checks.length })));
-    collisions.forEach(id => content.append(element('p', tx("同 ID 记录将采用本机内容：{v0}", { v0: id }))));
+    content.append(
+      element('p', tx('同 ID 记录：{v0}；完整性或唯一性冲突：{v1}', { v0: collisions.length, v1: checks.length }))
+    );
+    collisions.forEach(id => content.append(element('p', tx('同 ID 记录将采用本机内容：{v0}', { v0: id }))));
     checks.forEach(check => content.append(element('p', `${check.recordId} / ${check.field}：${check.message}`)));
     content.append(
-      element('h2', tx("将 {v0} 条本机记录复制到 {v1} 的新任务", { v0: Object.keys(records).length, v1: data.name }), 'font-semibold'),
+      element(
+        'h2',
+        tx('将 {v0} 条本机记录复制到 {v1} 的新任务', { v0: Object.keys(records).length, v1: data.name }),
+        'font-semibold'
+      ),
       element('p', '原匿名库保持原样；导入不会直接同步或修改共享数据。'),
       readOnlyRecords(records),
       name.wrapper
@@ -316,7 +337,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const data = controller.snapshot!;
     const view = section('历史与审计');
     const timeline = element('details');
-    timeline.append(element('summary', tx("{v0} 条审计事件", { v0: data.audit.length })));
+    timeline.dataset['disclosureKey'] = 'audit';
+    timeline.append(element('summary', tx('{v0} 条审计事件', { v0: data.audit.length })));
     data.audit.forEach(event =>
       timeline.append(
         element(
@@ -329,9 +351,10 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     view.append(timeline);
     for (const commit of Object.values(data.commits)) {
       const item = element('details');
+      item.dataset['disclosureKey'] = `shared-commit:${commit.id}`;
       item.append(
         element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`),
-        element('p', tx("父提交：{v0}", { v0: commit.parent ?? '空' }), 'text-xs'),
+        element('p', tx('父提交：{v0}', { v0: commit.parent ?? '空' }), 'text-xs'),
         readOnlyRecords(commit.records)
       );
       if (data.members.find(m => m.id === controller.user?.id)?.permissions.includes('edit'))
@@ -339,7 +362,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
           button('从此版本创建恢复草稿', () =>
             perform(async () => {
               if (editor.dirty) throw new Error('先保存当前输入');
-              await controller.createTask(tx("恢复 {v0}", { v0: commit.message }));
+              await controller.createTask(tx('恢复 {v0}', { v0: commit.message }));
               await controller.save(commit.records);
               editor.clear();
             })
@@ -351,7 +374,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   function notificationsView() {
     const data = controller.snapshot!;
-    const view = section(tx("通知（{v0} 条未读）", { v0: data.notifications.filter(n => !n.read).length }));
+    const view = section(tx('通知（{v0} 条未读）', { v0: data.notifications.filter(n => !n.read).length }));
     data.notifications.forEach(notice =>
       view.append(
         button(
@@ -370,7 +393,16 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     view.append(
       element(
         'p',
-        tx("在线成员：{v0}（45 秒心跳超时）", { v0: data.presence.filter(p => p.expiresAt > Date.now()).map(p => `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}${p.recordId ? `（${p.recordId}）` : ''}`).join('、') || '暂无' }),
+        tx('在线成员：{v0}（45 秒心跳超时）', {
+          v0:
+            data.presence
+              .filter(p => p.expiresAt > Date.now())
+              .map(
+                p =>
+                  `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}${p.recordId ? `（${p.recordId}）` : ''}`
+              )
+              .join('、') || '暂无'
+        }),
         'text-sm'
       )
     );

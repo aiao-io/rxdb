@@ -1,6 +1,7 @@
 /** 页面刷新数据时保留用户尚未提交的表单输入；跨账号或任务不复用。 */
 export class FormDrafts {
   private context = '';
+  private readonly disclosures = new Map<string, boolean>();
   private readonly values = new Map<string, { value: string; checked: boolean }>();
   private keyName = '';
   private persistentContext = '';
@@ -17,31 +18,47 @@ export class FormDrafts {
     this.persistent.set(key, value);
     sessionStorage.setItem(this.keyName, JSON.stringify([...this.persistent]));
   };
+  rememberDisclosures(): void {
+    for (const details of this.host.querySelectorAll<HTMLDetailsElement>('details[data-disclosure-key]'))
+      this.disclosures.set(details.dataset['disclosureKey']!, details.open);
+  }
   restore(context: string, persistentContext = context): void {
     if (this.persistentContext !== persistentContext) {
       this.persistent.clear();
       this.persistentContext = persistentContext;
       this.keyName = `admin-collaboration-form:${persistentContext}`;
       const saved = sessionStorage.getItem(this.keyName);
-      if (saved) for (const [key, value] of JSON.parse(saved) as [string, { value: string; checked: boolean }][]) this.persistent.set(key, value);
+      if (saved)
+        for (const [key, value] of JSON.parse(saved) as [string, { value: string; checked: boolean }][])
+          this.persistent.set(key, value);
     }
-    if (this.context !== context) this.values.clear();
+    if (this.context !== context) {
+      this.values.clear();
+      this.disclosures.clear();
+    }
     this.context = context;
+    for (const details of this.host.querySelectorAll<HTMLDetailsElement>('details[data-disclosure-key]'))
+      details.open = this.disclosures.get(details.dataset['disclosureKey']!) === true;
     for (const control of this.controls()) {
       const key = this.key(control);
       const draft = control.dataset['persistentDraft'] ? this.persistent.get(key) : this.values.get(key);
       if (!draft) continue;
       if (control instanceof HTMLInputElement && control.readOnly) continue;
-      if (control instanceof HTMLSelectElement && ![...control.options].some(option => option.value === draft.value)) continue;
+      if (control instanceof HTMLSelectElement && ![...control.options].some(option => option.value === draft.value))
+        continue;
       control.value = draft.value;
       if (control instanceof HTMLInputElement) control.checked = draft.checked;
     }
   }
   private controls(): (HTMLInputElement | HTMLSelectElement)[] {
-    return [...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]:not([data-record-id])')];
+    return [
+      ...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]:not([data-record-id])')
+    ];
   }
   private key(control: HTMLInputElement | HTMLSelectElement): string {
     const label = control.dataset['formKey'];
-    return `${label}:${this.controls().filter(other => other.dataset['formKey'] === label).indexOf(control)}`;
+    return `${label}:${this.controls()
+      .filter(other => other.dataset['formKey'] === label)
+      .indexOf(control)}`;
   }
 }

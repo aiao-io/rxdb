@@ -16,6 +16,7 @@ export default defineConfig({
     command: 'node scripts/browser-server.mjs',
     url: 'http://127.0.0.1:8306',
     reuseExistingServer: false,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 15000 },
     timeout: 90000
   },
   projects: ['react', 'angular', 'vue'].map((name, index) => ({

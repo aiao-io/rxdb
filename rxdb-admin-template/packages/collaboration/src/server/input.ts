@@ -70,7 +70,8 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
   candidate: { prId: id, expectedRevision: integer, resolutions: list(resolution, 10000) },
   review: {
     prId: id,
-    candidateId: id,
+    candidateId: nullableId,
+    expectedSource: id,
     stageId: id,
     decision: oneOf('approve', 'request_changes'),
     reason: text,

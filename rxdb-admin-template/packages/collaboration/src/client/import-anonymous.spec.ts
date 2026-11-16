@@ -20,10 +20,14 @@ describe('explicit anonymous import boundary', () => {
     expect(getRepository).toHaveBeenCalledTimes(1);
   });
   it('rejects cross-entity identifier collisions instead of silently replacing a source record', async () => {
-    const { database: source } = database(new Map<unknown, Record<string, unknown>[]>([
-      [AssetCategory, [{ id: 'same', name: 'Category' }]],
-      [Asset, [{ id: 'same', name: 'Asset', status: 'active' }]]
-    ]));
-    await expect(readAnonymousAssets(source, [AssetCategory, Asset] as EntityType[])).rejects.toMatchObject({ code: 'conflict' });
+    const { database: source } = database(
+      new Map<unknown, Record<string, unknown>[]>([
+        [AssetCategory, [{ id: 'same', name: 'Category' }]],
+        [Asset, [{ id: 'same', name: 'Asset', status: 'active' }]]
+      ])
+    );
+    await expect(readAnonymousAssets(source, [AssetCategory, Asset] as EntityType[])).rejects.toMatchObject({
+      code: 'conflict'
+    });
   });
 });

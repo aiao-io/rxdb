@@ -52,3 +52,9 @@
 产品根目录登记一个仅承担治理任务的 Nx 项目 `rxdb-admin-template`。三个应用使用同一 `product:admin-template` 标签，显式依赖产品项目，保留同名需求门禁目标作为产品任务的入口。三端 `test` 均带入统一门禁；产品文档变化应影响三个应用及其 E2E。禁止子应用重新建立需求副本，门禁通过负例约束这一点。
 
 成员应用和 E2E 的源码统一迁入产品 `apps/{angular,react,vue,angular-e2e,react-e2e,vue-e2e}/`，保留现有 Nx 项目名、端口和数据标识。产品 `requirements/` 统一需求，成员不保留需求副本；`scope:admin-template` 标签和项目依赖共同定义产品边界。只使用仓库现有唯一 Nx workspace；产品私有包按实际复用需要放入产品 `packages/`。迁移验收见 [ADMIN-US-004](stories/platform/ADMIN-US-004-product-requirements.md)。
+
+## D-08：协作首版的产品私有边界
+
+2026-11-16 的实现使用三端共享的产品私有包 `@rxdb-admin-template/collaboration`。团队数据通过产品快照与提交图协议进入 IndexedDB 任务，云端命令由 Supabase 验证身份、Node 服务执行 PostgreSQL 事务；普通客户端只有 RLS 读取权限，不能直写共享业务投影。
+
+团队模式使用共享编辑器和 PR 四页签；既有匿名 RxDB 资产工作台及数据标识保持独立。现有 `rxdb-plugin-working-tree` 没有直接用于团队任务持久化，不以平台插件状态替代产品验收。工作区版本通知通过 Supabase Realtime 触发受授权的 API 读取，通知负载不包含业务内容。完整实现与测试范围见 [协作记录](plans/collaboration-implementation.md)。

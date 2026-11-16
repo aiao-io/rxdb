@@ -122,5 +122,4 @@ describe('local context and commit boundaries', () => {
     await expect(tasks.fastForward(context, 'remote', {}, false)).rejects.toThrow(/本机有修改/);
     expect((await tasks.read(context))?.records).toEqual(newer);
   });
-
 });

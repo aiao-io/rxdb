@@ -2,14 +2,15 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { CollaborationError, demand, type Command, type Identity, type Records } from '../model.js';
 import type { WorkspaceSnapshot } from '../server/engine.js';
 import { CollaborationApi, type WorkspaceEntry } from './api.js';
-import { WorkspaceFeed } from './workspace-feed.js';
 import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
+import { WorkspaceFeed } from './workspace-feed.js';
 
 export class CollaborationController extends EventTarget {
   private generation = 0;
   private disposed = false;
   private feed?: WorkspaceFeed;
   private authGeneration = 0;
+  private mutations?: { epoch: number; settled: Promise<void> };
   private unsubscribe?: () => void;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
   readonly local: LocalTasks;
@@ -30,12 +31,16 @@ export class CollaborationController extends EventTarget {
   ) {
     super();
     this.local = new LocalTasks(storage);
-    this.api = new CollaborationApi(base, async () => {
-      demand(this.auth, 'configuration', '认证未配置');
-      const { data, error } = await this.auth.auth.getSession();
-      demand(!error && data.session && data.session.user.id === this.user?.id, 'unauthenticated', '请重新登录');
-      return data.session.access_token;
-    }, () => this.generation);
+    this.api = new CollaborationApi(
+      base,
+      async () => {
+        demand(this.auth, 'configuration', '认证未配置');
+        const { data, error } = await this.auth.auth.getSession();
+        demand(!error && data.session && data.session.user.id === this.user?.id, 'unauthenticated', '请重新登录');
+        return data.session.access_token;
+      },
+      () => this.generation
+    );
     this.channel.onmessage = event => {
       if (event.data?.type === 'logout' && event.data.userId === this.user?.id) void this.lock();
     };
@@ -62,13 +67,17 @@ export class CollaborationController extends EventTarget {
         autoRefreshToken: navigator.onLine
       }
     });
-    this.feed = new WorkspaceFeed(this.auth, async () => {
-      if (!navigator.onLine || !this.user || this.disposed) return;
-      await this.refresh().catch(error => this.failure(error));
-    }, status => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.message = '实时连接暂不可用，可刷新团队状态';
-      this.changed();
-    });
+    this.feed = new WorkspaceFeed(
+      this.auth,
+      async () => {
+        if (!navigator.onLine || !this.user || this.disposed) return;
+        await this.refresh().catch(error => this.failure(error));
+      },
+      status => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.message = '实时连接暂不可用，可刷新团队状态';
+        this.changed();
+      }
+    );
     if (navigator.onLine) {
       demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
       const initial = await this.current(this.auth.auth.getSession(), this.generation, epoch);
@@ -77,7 +86,11 @@ export class CollaborationController extends EventTarget {
       const cached = localStorage.getItem(`admin-collaboration-grant:${this.base}`);
       demand(cached, 'locked', '请联网验证身份后再使用团队草稿');
       const grant = JSON.parse(cached) as { user: Identity; expiresAt: number };
-      const drafts = await this.current(this.local.coldRestore(grant.user.id, grant.expiresAt, Date.now()), this.generation, epoch);
+      const drafts = await this.current(
+        this.local.coldRestore(grant.user.id, grant.expiresAt, Date.now()),
+        this.generation,
+        epoch
+      );
       if (epoch !== this.authGeneration) return;
       this.offlineDrafts = drafts;
       this.user = grant.user;
@@ -162,47 +175,36 @@ export class CollaborationController extends EventTarget {
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
     operationId: string = crypto.randomUUID()
   ): Promise<Record<string, unknown>> {
-    demand(this.workspace && this.user, 'locked', '先登录并选择团队');
-    const workspace = this.workspace;
+    if (['presence', 'read_notice', 'subscribe'].includes(String(command.type)))
+      return this.executeCommand(command, operationId);
     const epoch = this.generation;
-    const request = { ...command, operationId } as Command;
-    const durable = !['presence', 'read_notice', 'subscribe'].includes(request.type);
-    const key = `admin-collaboration-pending:${this.user.id}`;
-    const previous = this.pending();
-    demand(
-      !durable || !previous || previous.command.operationId === operationId,
-      'pending',
-      '先确认或重试上次请求，再执行新的云端变更'
-    );
-    if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request }));
-    try {
-      const receipt = durable ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
+    const previous = this.mutations?.epoch === epoch ? this.mutations.settled : Promise.resolve();
+    const queued = structuredClone(command);
+    const next = previous.then(() => {
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      const result =
-        receipt.status === 'accepted' && 'value' in receipt ?
-          receipt.value!
-        : await this.api.command(workspace, request);
-      demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      await this.current(this.refresh(), epoch);
-      if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
-      if (durable) sessionStorage.removeItem(key);
-      return result;
-    } catch (error) {
-      demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      if (durable && error instanceof CollaborationError && !['internal', 'cancelled'].includes(error.code))
-        sessionStorage.removeItem(key);
-      throw error;
-    }
+      return this.executeCommand(queued, operationId);
+    });
+    this.mutations = {
+      epoch,
+      settled: next.then(
+        () => undefined,
+        () => undefined
+      )
+    };
+    return next;
   }
   async acceptInvitation(teamId: string, appId: string, id: string, token: string): Promise<void> {
     const workspace = { teamId, appId, name: teamId };
     const epoch = this.generation;
-    await this.current(this.api.command(workspace, {
-      type: 'accept_invite',
-      id,
-      tokenHash: token,
-      operationId: crypto.randomUUID()
-    }), epoch);
+    await this.current(
+      this.api.command(workspace, {
+        type: 'accept_invite',
+        id,
+        tokenHash: token,
+        operationId: crypto.randomUUID()
+      }),
+      epoch
+    );
     const workspaces = await this.current(this.api.workspaces(), epoch);
     this.workspaces = workspaces;
     await this.selectWorkspace(workspace);
@@ -331,6 +333,42 @@ export class CollaborationController extends EventTarget {
     this.unsubscribe?.();
     this.channel.close();
   }
+  private async executeCommand(
+    command: Omit<Command, 'operationId'> | Record<string, unknown>,
+    operationId: string
+  ): Promise<Record<string, unknown>> {
+    demand(this.workspace && this.user, 'locked', '先登录并选择团队');
+    const workspace = this.workspace;
+    const epoch = this.generation;
+    const request = { ...command, operationId } as Command;
+    const durable = !['presence', 'read_notice', 'subscribe'].includes(request.type);
+    const key = `admin-collaboration-pending:${this.user.id}`;
+    const previous = this.pending();
+    demand(
+      !durable || !previous || previous.command.operationId === operationId,
+      'pending',
+      '先确认或重试上次请求，再执行新的云端变更'
+    );
+    if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request }));
+    try {
+      const receipt = durable ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
+      demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      const result =
+        receipt.status === 'accepted' && 'value' in receipt ?
+          receipt.value!
+        : await this.api.command(workspace, request);
+      demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      await this.current(this.refresh(), epoch);
+      if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
+      if (durable) sessionStorage.removeItem(key);
+      return result;
+    } catch (error) {
+      demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      if (durable && error instanceof CollaborationError && !['internal', 'cancelled'].includes(error.code))
+        sessionStorage.removeItem(key);
+      throw error;
+    }
+  }
   private async acceptSession(session: Session | null) {
     if (this.disposed) return;
     if (!session) {
@@ -368,10 +406,18 @@ export class CollaborationController extends EventTarget {
   private async current<T>(request: Promise<T>, epoch = this.generation, authEpoch?: number): Promise<T> {
     try {
       const value = await request;
-      demand(epoch === this.generation && (authEpoch === undefined || authEpoch === this.authGeneration) && !this.disposed, 'cancelled', '上下文已切换');
+      demand(
+        epoch === this.generation && (authEpoch === undefined || authEpoch === this.authGeneration) && !this.disposed,
+        'cancelled',
+        '上下文已切换'
+      );
       return value;
     } catch (error) {
-      demand(epoch === this.generation && (authEpoch === undefined || authEpoch === this.authGeneration) && !this.disposed, 'cancelled', '上下文已切换');
+      demand(
+        epoch === this.generation && (authEpoch === undefined || authEpoch === this.authGeneration) && !this.disposed,
+        'cancelled',
+        '上下文已切换'
+      );
       throw error;
     }
   }
@@ -379,10 +425,23 @@ export class CollaborationController extends EventTarget {
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     const task = this.snapshot.tasks.find(value => value.id === command.taskId);
     demand(task?.ownerId === this.user.id, 'forbidden', '没有此任务编辑权限');
-    const context = { userId: this.user.id, teamId: this.workspace.teamId, appId: this.workspace.appId, taskId: task.id };
+    const context = {
+      userId: this.user.id,
+      teamId: this.workspace.teamId,
+      appId: this.workspace.appId,
+      taskId: task.id
+    };
     const head = command.commits.at(-1)?.id;
     demand(head, 'invalid', '分叉回执缺少版本');
-    await this.current(this.local.openVerified(context, task.name, task.base, task.head, task.head ? this.snapshot.commits[task.head].records : {}));
+    await this.current(
+      this.local.openVerified(
+        context,
+        task.name,
+        task.base,
+        task.head,
+        task.head ? this.snapshot.commits[task.head].records : {}
+      )
+    );
     await this.current(this.local.archiveFork(context, command.id, head));
   }
   private async upload(unsaved: boolean): Promise<void> {
@@ -412,7 +471,10 @@ export class CollaborationController extends EventTarget {
         : await this.api.command(workspace, { type: 'upload', taskId: context.taskId, ...pending });
       demand(viewEpoch === this.generation, 'cancelled', '上下文已切换');
       demand(typeof result['head'] === 'string', 'invalid', '同步回执缺少版本');
-      const acknowledged = await this.current(this.local.acknowledge(context, pending.operationId, result['head'], epoch), viewEpoch);
+      const acknowledged = await this.current(
+        this.local.acknowledge(context, pending.operationId, result['head'], epoch),
+        viewEpoch
+      );
       uploading = acknowledged;
       this.draft = acknowledged;
       this.changed();

@@ -8,8 +8,21 @@ import { appHtmlPlugin } from './app-html-plugin.ts';
 
 const offlineShell: Plugin = {
   name: 'collaboration-offline-shell',
-  generateBundle() { this.emitFile({ type: 'asset', fileName: 'collaboration-sw.js', source: readFileSync(new URL('../../packages/collaboration/public/collaboration-sw.js', import.meta.url), 'utf8') }); },
-  configureServer(server) { server.middlewares.use('/collaboration-sw.js', (_request, response) => { response.setHeader('Content-Type', 'application/javascript'); response.end(readFileSync(new URL('../../packages/collaboration/public/collaboration-sw.js', import.meta.url), 'utf8')); }); }
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'collaboration-sw.js',
+      source: readFileSync(new URL('../../packages/collaboration/public/collaboration-sw.js', import.meta.url), 'utf8')
+    });
+  },
+  configureServer(server) {
+    server.middlewares.use('/collaboration-sw.js', (_request, response) => {
+      response.setHeader('Content-Type', 'application/javascript');
+      response.end(
+        readFileSync(new URL('../../packages/collaboration/public/collaboration-sw.js', import.meta.url), 'utf8')
+      );
+    });
+  }
 };
 
 const sourceConditions = ['@aiao/source', ...defaultClientConditions];

@@ -1,9 +1,9 @@
-import { tx } from './translate.js';
 import type { Command, PullRequest, Records, Resolution } from '../model.js';
 import { canonical, mergeRecords } from '../records.js';
 import type { CollaborationController } from './controller.js';
 import { readOnlyRecords } from './editor.js';
 import { button, checkbox, element, input, row, section, select, valueText, type Perform } from './elements.js';
+import { tx } from './translate.js';
 export class PullRequestView {
   selected: string | null = null;
   selectedRecord: string | null = null;
@@ -36,12 +36,25 @@ export class PullRequestView {
       const description = input('PR 说明');
       const target = select('目标分支', [{ value: 'shared', label: tx('团队共享分支') }], 'shared');
       view.append(
-        element('p', tx("审核来源为远端版本 {v0}；本机未保存、未提交或排队内容不会自动纳入。", { v0: task.remoteHead }), 'text-sm'),
-        title.wrapper, description.wrapper, target.wrapper,
+        element(
+          'p',
+          tx('审核来源为远端版本 {v0}；本机未保存、未提交或排队内容不会自动纳入。', { v0: task.remoteHead }),
+          'text-sm'
+        ),
+        title.wrapper,
+        description.wrapper,
+        target.wrapper,
         button('创建 PR', () =>
           this.perform(async () => {
             const id = crypto.randomUUID();
-            await this.controller.run({ type: 'pr', id, title: title.control.value, description: description.control.value, target: target.control.value, taskId: task.context.taskId });
+            await this.controller.run({
+              type: 'pr',
+              id,
+              title: title.control.value,
+              description: description.control.value,
+              target: target.control.value,
+              taskId: task.context.taskId
+            });
             this.selected = id;
           })
         )
@@ -53,7 +66,7 @@ export class PullRequestView {
       element('h3', pr.title, 'font-semibold', true),
       element('p', pr.description, '', true),
       element('p', tx('目标分支：{v0}', { v0: tx('团队共享分支') })),
-      element('p', tx("修订 {v0} · 作者 {v1}", { v0: pr.revision, v1: pr.authorId }), 'text-sm break-all')
+      element('p', tx('修订 {v0} · 作者 {v1}', { v0: pr.revision, v1: pr.authorId }), 'text-sm break-all')
     );
     const actions = row();
     const canManage = (pr.authorId === user.id && this.has('edit')) || this.has('merge');
@@ -78,7 +91,10 @@ export class PullRequestView {
     tabs.setAttribute('aria-label', tx('PR 详情'));
     const labels = { discussion: '讨论', commits: '提交', changes: '数据变更', checks: '检查' } as const;
     for (const id of Object.keys(labels) as (keyof typeof labels)[]) {
-      const tab = button(labels[id], () => { this.tab = id; this.render(); });
+      const tab = button(labels[id], () => {
+        this.tab = id;
+        this.render();
+      });
       tab.id = `pr-tab-${id}`;
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', String(this.tab === id));
@@ -87,9 +103,17 @@ export class PullRequestView {
       tab.addEventListener('keydown', event => {
         const order = Object.keys(labels) as (keyof typeof labels)[];
         const position = order.indexOf(id);
-        const next = event.key === 'ArrowRight' ? (position + 1) % order.length : event.key === 'ArrowLeft' ? (position + order.length - 1) % order.length : event.key === 'Home' ? 0 : event.key === 'End' ? order.length - 1 : -1;
+        const next =
+          event.key === 'ArrowRight' ? (position + 1) % order.length
+          : event.key === 'ArrowLeft' ? (position + order.length - 1) % order.length
+          : event.key === 'Home' ? 0
+          : event.key === 'End' ? order.length - 1
+          : -1;
         if (next < 0) return;
-        event.preventDefault(); this.tab = order[next]; this.render(); document.getElementById(`pr-tab-${this.tab}`)?.focus();
+        event.preventDefault();
+        this.tab = order[next];
+        this.render();
+        document.getElementById(`pr-tab-${this.tab}`)?.focus();
       });
       tabs.append(tab);
     }
@@ -100,14 +124,18 @@ export class PullRequestView {
     panel.setAttribute('aria-labelledby', `pr-tab-${this.tab}`);
     if (this.tab === 'discussion') panel.append(this.discussions(pr));
     if (this.tab === 'commits') panel.append(this.commits(pr));
-    if (this.tab === 'changes' && canManage && !['closed', 'merged'].includes(pr.status)) panel.append(this.previewControls(pr));
+    if (this.tab === 'changes' && canManage && !['closed', 'merged'].includes(pr.status))
+      panel.append(this.previewControls(pr));
     if (this.tab === 'changes' && !pr.candidateId) {
       const task = data.tasks.find(value => value.id === pr.taskId)!;
-      panel.append(element('p', '来源提交变化（尚未形成最终候选）'), diffTable(task.base ? data.commits[task.base].records : {}, task.head ? data.commits[task.head].records : {}));
+      panel.append(
+        element('p', '来源提交变化（尚未形成最终候选）'),
+        diffTable(task.base ? data.commits[task.base].records : {}, task.head ? data.commits[task.head].records : {})
+      );
     }
     if (['changes', 'checks'].includes(this.tab) && pr.candidateId) panel.append(this.candidate(pr));
     if (this.tab === 'checks' && !pr.candidateId) panel.append(element('p', '尚未生成最终候选，检查未通过'));
-    view.append(panel);
+    view.append(panel, this.reviewControls(pr));
     return view;
   }
   private commits(pr: PullRequest) {
@@ -118,18 +146,24 @@ export class PullRequestView {
     while (head && head !== task.base) {
       const commit = data.commits[head];
       const item = element('details');
+      item.dataset['disclosureKey'] = `source-commit:${commit.id}`;
       item.append(element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`, '', true));
       item.append(element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') })), readOnlyRecords(commit.records));
       view.append(item);
       head = commit.parent;
     }
     const history = element('details');
+    history.dataset['disclosureKey'] = `candidate-history:${pr.id}`;
     history.append(element('summary', '历史候选与审核'));
     Object.values(data.candidates)
       .filter(c => c.prId === pr.id)
       .forEach(c => {
         const item = element('details');
-        item.append(element('summary', tx("{v0} · 策略 v{v1}", { v0: c.id, v1: c.policyVersion })), readOnlyRecords(c.records));
+        item.dataset['disclosureKey'] = `candidate:${c.id}`;
+        item.append(
+          element('summary', tx('{v0} · 策略 v{v1}', { v0: c.id, v1: c.policyVersion })),
+          readOnlyRecords(c.records)
+        );
         data.reviews
           .filter(r => r.candidateId === c.id)
           .forEach(r => item.append(element('p', `${r.reviewerId} · ${r.decision} · ${r.reason}`)));
@@ -159,16 +193,20 @@ export class PullRequestView {
     view.append(
       element(
         'p',
-        tx("共同起点 B：{v0} · 来源 S：{v1} · 目标 T：{v2}", { v0: task.base ?? '空', v1: task.head ?? '空', v2: data.head ?? '空' }),
+        tx('共同起点 B：{v0} · 来源 S：{v1} · 目标 T：{v2}', {
+          v0: task.base ?? '空',
+          v1: task.head ?? '空',
+          v2: data.head ?? '空'
+        }),
         'text-xs break-all'
       )
     );
     for (const conflict of preview.conflicts) {
-      const field = section(tx("冲突：{v0} / {v1}", { v0: conflict.recordId, v1: conflict.field ?? '整条记录' }));
+      const field = section(tx('冲突：{v0} / {v1}', { v0: conflict.recordId, v1: conflict.field ?? '整条记录' }));
       field.append(
-        element('p', tx("起点：{v0}", { v0: valueText(conflict.base) })),
-        element('p', tx("来源：{v0}", { v0: valueText(conflict.source) })),
-        element('p', tx("目标：{v0}", { v0: valueText(conflict.target) }))
+        element('p', tx('起点：{v0}', { v0: valueText(conflict.base) })),
+        element('p', tx('来源：{v0}', { v0: valueText(conflict.source) })),
+        element('p', tx('目标：{v0}', { v0: valueText(conflict.target) }))
       );
       const existing =
         pr.candidateId ? data.candidates[pr.candidateId].resolutions.find(r => r.key === conflict.key) : undefined;
@@ -222,44 +260,91 @@ export class PullRequestView {
     const current =
       candidate.source === task.head &&
       candidate.target === data.head &&
-      candidate.policyVersion === data.policy.version && candidate.schemaVersion === data.schemaVersion;
+      candidate.policyVersion === data.policy.version &&
+      candidate.schemaVersion === data.schemaVersion;
     view.append(
       element(
         'p',
-        tx("候选 {v0} · 策略 v{v1} · {v2}", { v0: candidate.id, v1: candidate.policyVersion, v2: current ? tx('当前版本') : tx('已过期，必须重新生成并审核') }),
+        tx('候选 {v0} · 策略 v{v1} · {v2}', {
+          v0: candidate.id,
+          v1: candidate.policyVersion,
+          v2: current ? tx('当前版本') : tx('已过期，必须重新生成并审核')
+        }),
         'text-sm break-all'
       )
     );
-    view.append(element('p', tx("未解决冲突：{v0} · 检查错误：{v1}", { v0: candidate.conflicts.length, v1: candidate.checks.length })));
-    if (this.tab === 'checks') candidate.checks.forEach(check =>
-      view.append(element('p', `${check.recordId} / ${check.field}：${tx(check.message)}`, 'text-error'))
+    view.append(
+      element(
+        'p',
+        tx('未解决冲突：{v0} · 检查错误：{v1}', { v0: candidate.conflicts.length, v1: candidate.checks.length })
+      )
     );
+    if (this.tab === 'checks')
+      candidate.checks.forEach(check =>
+        view.append(element('p', `${check.recordId} / ${check.field}：${tx(check.message)}`, 'text-error'))
+      );
     const target = candidate.target ? data.commits[candidate.target].records : {};
     if (this.tab === 'changes') view.append(diffTable(target, candidate.records));
     const recordNavigation = row();
     Object.keys({ ...target, ...candidate.records }).forEach(id =>
       recordNavigation.append(
-        button(tx("查看记录 {v0}", { v0: id }), () => {
+        button(tx('查看记录 {v0}', { v0: id }), () => {
           this.selectedRecord = id;
           this.render();
         })
       )
     );
     view.append(recordNavigation);
-    if (this.selectedRecord) view.append(element('p', tx("当前查看记录：{v0}", { v0: this.selectedRecord })));
+    if (this.selectedRecord) view.append(element('p', tx('当前查看记录：{v0}', { v0: this.selectedRecord })));
     const details = element('details');
+    details.dataset['disclosureKey'] = `candidate-records:${candidate.id}`;
     details.append(element('summary', '查看最终完整数据'), readOnlyRecords(candidate.records));
     view.append(details);
+    const actions = row();
+    if (this.has('merge') && pr.status === 'review')
+      actions.append(
+        button(
+          '合并到共享数据',
+          () =>
+            this.run({
+              type: 'merge',
+              prId: pr.id,
+              candidateId: candidate.id,
+              expectedSource: candidate.source,
+              expectedTarget: candidate.target
+            }),
+          !current
+        )
+      );
+    view.append(actions);
+    return view;
+  }
+  private reviewControls(pr: PullRequest) {
+    const data = this.controller.snapshot!;
+    const candidate = pr.candidateId ? data.candidates[pr.candidateId] : null;
+    const task = data.tasks.find(value => value.id === pr.taskId)!;
+    const current =
+      candidate &&
+      candidate.source === task.head &&
+      candidate.target === data.head &&
+      candidate.policyVersion === data.policy.version &&
+      candidate.schemaVersion === data.schemaVersion;
+    const view = section('审核');
     const governance = data.governance.find(g => g.prId === pr.id);
     governance?.stages.forEach(stage =>
       view.append(
-        element('p', `${stage.name}：${stage.approved}/${stage.minimum} ${stage.complete ? tx('已满足') : tx('待批准')}`)
+        element(
+          'p',
+          `${stage.name}：${stage.approved}/${stage.minimum} ${stage.complete ? tx('已满足') : tx('待批准')}`
+        )
       )
     );
     const reason = input('审核或撤销理由');
     view.append(reason.wrapper);
     governance?.blockers.forEach(blocker => {
-      view.append(element('p', tx("要求修改：{v0} — {v1}", { v0: blocker.reviewerId, v1: blocker.reason }), 'text-error'));
+      view.append(
+        element('p', tx('要求修改：{v0} — {v1}', { v0: blocker.reviewerId, v1: blocker.reason }), 'text-error')
+      );
       if (this.has('manage') && this.has('review'))
         view.append(
           button('撤销此阻塞意见', () =>
@@ -287,7 +372,8 @@ export class PullRequestView {
         this.run({
           type: 'review',
           prId: pr.id,
-          candidateId: candidate.id,
+          candidateId: current ? candidate!.id : null,
+          expectedSource: task.head,
           stageId: stage.control.value || 'review',
           decision,
           reason: reason.control.value,
@@ -298,28 +384,13 @@ export class PullRequestView {
           '批准当前候选',
           () => review('approve'),
           !current ||
-            !!candidate.checks.length ||
-            !!candidate.conflicts.length ||
+            !!candidate?.checks.length ||
+            !!candidate?.conflicts.length ||
             (data.policy.stages.length > 0 && !stage.control.value)
         ),
-        button('要求修改', () => review('request_changes'), !current)
+        button('要求修改', () => review('request_changes'), data.policy.stages.length > 0 && !stage.control.value)
       );
     }
-    if (this.has('merge') && pr.status === 'review')
-      actions.append(
-        button(
-          '合并到共享数据',
-          () =>
-            this.run({
-              type: 'merge',
-              prId: pr.id,
-              candidateId: candidate.id,
-              expectedSource: candidate.source,
-              expectedTarget: candidate.target
-            }),
-          !current
-        )
-      );
     view.append(actions);
     return view;
   }
@@ -363,18 +434,34 @@ export class PullRequestView {
         `${thread.required ? tx('必须处理 · ') : ''}${thread.resolved ? tx('已解决') : tx('未解决')} · ${thread.candidateId === pr.candidateId ? tx('当前版本') : tx('历史位置')}`
       );
       box.id = `thread-${thread.id}`;
-      box.append(element('p', [thread.candidateId, thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs'));
+      box.append(
+        element('p', [thread.candidateId, thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs')
+      );
       const anchored = thread.candidateId ? data.candidates[thread.candidateId] : null;
       if (anchored && thread.recordId) {
         const version = element('details');
+        version.dataset['disclosureKey'] = `thread-version:${thread.id}`;
         const record = anchored.records[thread.recordId];
-        version.append(element('summary', '查看评论锚定版本'), element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true));
+        version.append(
+          element('summary', '查看评论锚定版本'),
+          element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true)
+        );
         version.append(readOnlyRecords(record ? { [thread.recordId]: record } : {}));
         box.append(version);
       }
-      const events = data.audit.filter(event => ['thread', 'reply', 'resolve_thread', 'edit_comment'].includes(event.action) && (event.details['threadId'] === thread.id || event.details['id'] === thread.id));
-      const history = element('details'); history.append(element('summary', '讨论处理历史'));
-      events.forEach(event => history.append(element('p', `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action}`, '', true)));
+      const events = data.audit.filter(
+        event =>
+          ['thread', 'reply', 'resolve_thread', 'edit_comment'].includes(event.action) &&
+          (event.details['threadId'] === thread.id || event.details['id'] === thread.id)
+      );
+      const history = element('details');
+      history.dataset['disclosureKey'] = `thread-history:${thread.id}`;
+      history.append(element('summary', '讨论处理历史'));
+      events.forEach(event =>
+        history.append(
+          element('p', `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action}`, '', true)
+        )
+      );
       box.append(history);
       thread.comments.forEach(comment => {
         box.append(element('p', `${comment.authorId}：${comment.deleted ? tx('评论已删除') : comment.body}`));
@@ -470,18 +557,25 @@ function appendDiff(
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (canonical(before[field]) === canonical(after[field])) continue;
     const tr = element('tr');
-    [kind, id, field, valueText(before[field]), valueText(after[field])].forEach(text => tr.append(element('td', text)));
+    [kind, id, field, valueText(before[field]), valueText(after[field])].forEach(text =>
+      tr.append(element('td', text))
+    );
     table.append(tr);
   }
 }
 
 function diffTable(before: Records, after: Records): HTMLTableElement {
   const table = element('table', '', 'table table-sm');
-  const head = element('thead'); const labels = element('tr');
+  const head = element('thead');
+  const labels = element('tr');
   ['变更类型', '记录', '字段', '合并前', '合并后'].forEach(label => labels.append(element('th', label)));
-  head.append(labels); table.append(head);
+  head.append(labels);
+  table.append(head);
   for (const id of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
-    const kind = !before[id] ? tx('新增') : !after[id] ? tx('删除') : tx('修改');
+    const kind =
+      !before[id] ? tx('新增')
+      : !after[id] ? tx('删除')
+      : tx('修改');
     appendDiff(table, id, before[id]?.fields ?? {}, after[id]?.fields ?? {}, kind);
   }
   return table;

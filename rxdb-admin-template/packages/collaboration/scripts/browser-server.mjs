@@ -29,20 +29,34 @@ const name = `admin-browser-${randomUUID()}`;
 const password = randomUUID();
 const users = [];
 const teams = [];
-const stackId = process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
+const stackId =
+  process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
 const stackDatabase = `rxdb-supabase-db-${stackId}`;
-const migration = await readFile(path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'), 'utf8');
+const migration = await readFile(
+  path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'),
+  'utf8'
+);
 function liveSql(sql) {
   return new Promise((resolve, reject) => {
-    const child = spawn('docker', ['exec', '-i', stackDatabase, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q'], { stdio: ['pipe', 'ignore', 'pipe'] });
-    let error = ''; child.stderr.on('data', chunk => { error += chunk; });
+    const child = spawn(
+      'docker',
+      ['exec', '-i', stackDatabase, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q'],
+      { stdio: ['pipe', 'ignore', 'pipe'] }
+    );
+    let error = '';
+    child.stderr.on('data', chunk => {
+      error += chunk;
+    });
     child.on('error', reject);
-    child.on('close', code => code === 0 ? resolve() : reject(new Error(error)));
+    child.on('close', code => (code === 0 ? resolve() : reject(new Error(error))));
     child.stdin.end(sql);
   });
 }
 async function publishVersion(teamId, appId) {
-  const { rows } = await pool.query('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [teamId, appId]);
+  const { rows } = await pool.query('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [
+    teamId,
+    appId
+  ]);
   const state = rows[0].state;
   const marker = `$fixture_${randomUUID().replaceAll('-', '')}$`;
   const data = `${marker}${JSON.stringify(state)}${marker}::jsonb`;
@@ -58,11 +72,24 @@ async function publishVersion(teamId, appId) {
 const servers = [];
 let pool;
 async function stop() {
-  await Promise.allSettled(servers.map(server => new Promise(resolve => server.close(resolve))));
+  await Promise.allSettled(
+    servers.map(
+      server =>
+        new Promise(resolve => {
+          server.close(resolve);
+          server.closeAllConnections();
+        })
+    )
+  );
   await pool?.end();
-  for (const team of teams) await liveSql(`BEGIN; DELETE FROM public.admin_workspace_versions WHERE team_id = '${team}'; DELETE FROM admin_private.memberships WHERE team_id = '${team}'; DELETE FROM admin_private.workspaces WHERE team_id = '${team}'; COMMIT;`);
+  if (teams.length) {
+    const ids = teams.map(team => `'${team}'`).join(',');
+    await liveSql(
+      `BEGIN; DELETE FROM public.admin_workspace_versions WHERE team_id IN (${ids}); DELETE FROM admin_private.memberships WHERE team_id IN (${ids}); DELETE FROM admin_private.workspaces WHERE team_id IN (${ids}); COMMIT;`
+    );
+  }
+  await exec('docker', ['stop', '-t', '1', name]).catch(() => undefined);
   await Promise.allSettled(users.map(id => auth.auth.admin.deleteUser(id)));
-  await exec('docker', ['stop', name]).catch(() => undefined);
 }
 process.once('SIGTERM', () => {
   void stop().finally(() => process.exit());
@@ -162,7 +189,7 @@ function listen(server, port) {
 async function fixture(repository) {
   const suffix = randomUUID();
   const accounts = [];
-  for (const role of ['admin', 'reviewer']) {
+  for (const role of ['admin', 'reviewer', 'second']) {
     const email = `${role}-${suffix}@example.test`;
     const created = await auth.auth.admin.createUser({ email, email_confirm: true });
     if (created.error) throw created.error;
@@ -171,7 +198,7 @@ async function fixture(repository) {
     if (link.error) throw link.error;
     accounts.push({ id: created.data.user.id, email, verified: true, otp: link.data.properties.email_otp });
   }
-  const [admin, reviewer] = accounts;
+  const [admin, reviewer, secondReviewer] = accounts;
   const teamId = randomUUID();
   teams.push(teamId);
   const appId = 'assets';
@@ -190,7 +217,10 @@ async function fixture(repository) {
     expectedVersion: 0,
     operationId: randomUUID()
   });
-  return { teamId, appId, name, admin, reviewer, invitation, token };
+  const secondary = { teamId: randomUUID(), appId, name: `隔离团队-${suffix.slice(0, 8)}` };
+  teams.push(secondary.teamId);
+  await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin });
+  return { teamId, appId, name, admin, reviewer, secondReviewer, secondary, invitation, token };
 }
 async function serve(request, response, directory) {
   try {

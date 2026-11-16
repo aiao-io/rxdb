@@ -1,7 +1,7 @@
-import { tx } from './translate.js';
 import { permissions, type Permission, type Stage } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import { button, checkbox, element, input, row, section, type Perform } from './elements.js';
+import { tx } from './translate.js';
 export const permissionLabels: Record<Permission, string> = {
   read: '查看',
   edit: '编辑与提交',
@@ -124,7 +124,7 @@ export function adminView(controller: CollaborationController, perform: Perform)
 }
 function policyView(controller: CollaborationController, perform: Perform) {
   const policy = controller.snapshot!.policy;
-  const view = section(tx("审批策略 v{v0}", { v0: policy.version }));
+  const view = section(tx('审批策略 v{v0}', { v0: policy.version }));
   view.append(
     element(
       'p',
@@ -132,8 +132,14 @@ function policyView(controller: CollaborationController, perform: Perform) {
       'text-sm'
     )
   );
-  const key = JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId, policy.version]);
-  if (policyDrafts.get(controller)?.key !== key) policyDrafts.set(controller, { key, stages: structuredClone(policy.stages) });
+  const key = JSON.stringify([
+    controller.user?.id,
+    controller.workspace?.teamId,
+    controller.workspace?.appId,
+    policy.version
+  ]);
+  if (policyDrafts.get(controller)?.key !== key)
+    policyDrafts.set(controller, { key, stages: structuredClone(policy.stages) });
   const stages = policyDrafts.get(controller)!.stages;
   const container = element('div', '', 'space-y-3');
   const draw = () => {
@@ -144,7 +150,8 @@ function policyView(controller: CollaborationController, perform: Perform) {
       const minimum = input('批准人数', String(stage.minimum), 'number');
       const ordered = checkbox('等待前面所有阶段', stage.after.length > 0);
       const reviewers = input('审核人 ID（逗号分隔，留空为所有审核者）', stage.reviewers.join(','));
-      for (const [field, control] of Object.entries({ name, minimum, ordered, reviewers })) control.control.dataset['formKey'] = `${key}:${stage.id}:${field}`;
+      for (const [field, control] of Object.entries({ name, minimum, ordered, reviewers }))
+        control.control.dataset['formKey'] = `${key}:${stage.id}:${field}`;
       name.control.oninput = () => {
         stage.name = name.control.value;
       };

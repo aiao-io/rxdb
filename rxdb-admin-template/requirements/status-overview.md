@@ -4,14 +4,14 @@
 
 ## 状态汇总
 
-| 状态 | 数量 |
-| --- | ---: |
-| ✅ Done | 2 |
-| 🚧 In Progress | 0 |
-| 👀 In Review | 19 |
-| 📝 Backlog | 1 |
-| 🚫 Blocked | 0 |
-| **合计** | 22 |
+| 状态           | 数量 |
+| -------------- | ---: |
+| ✅ Done        |    2 |
+| 🚧 In Progress |    0 |
+| 👀 In Review   |   19 |
+| 📝 Backlog     |    1 |
+| 🚫 Blocked     |    0 |
+| **合计**       |   22 |
 
 ## 进行中（0 条）
 

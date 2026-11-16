@@ -34,13 +34,17 @@ describe('persistent draft transaction boundaries', () => {
     const tasks = new LocalTasks(store);
     await tasks.login('alice');
     const before = await tasks.openVerified(context, 'Task', null, null, {});
-    await expect(store.write(contextKey(context), current => {
-      if (!current) throw new Error('missing');
-      current.records = { c: { entity: 'AssetCategory', fields: { name: 'Not committed' } } };
-      throw new Error('injected failure');
-    })).rejects.toThrow('injected failure');
+    await expect(
+      store.write(contextKey(context), current => {
+        if (!current) throw new Error('missing');
+        current.records = { c: { entity: 'AssetCategory', fields: { name: 'Not committed' } } };
+        throw new Error('injected failure');
+      })
+    ).rejects.toThrow('injected failure');
     expect(await store.read(contextKey(context))).toEqual(before);
-    await expect(store.write(contextKey(context), current => ({ ...current!, context: { ...context, userId: 'bob' } }))).rejects.toThrow(/上下文不匹配/);
+    await expect(
+      store.write(contextKey(context), current => ({ ...current!, context: { ...context, userId: 'bob' } }))
+    ).rejects.toThrow(/上下文不匹配/);
     expect(await store.read(contextKey(context))).toEqual(before);
   });
   it('serializes concurrent tabs by revision and locks persisted drafts on logout', async () => {

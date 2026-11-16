@@ -1,8 +1,8 @@
-import { tx } from './translate.js';
 import type { DataRow, Records, Value } from '../model.js';
 import { canonical } from '../records.js';
 import type { CollaborationController } from './controller.js';
 import { button, element, input, row, section, select, type Perform } from './elements.js';
+import { tx } from './translate.js';
 const labels: Record<string, string> = {
   AssetCategory: '分类',
   Asset: '资产',
@@ -49,7 +49,7 @@ export class TaskEditor {
   view(): HTMLElement {
     this.bind();
     const draft = this.controller.draft!;
-    const view = section(tx("任务：{v0}", { v0: draft.name }));
+    const view = section(tx('任务：{v0}', { v0: draft.name }));
     this.indicator = element('p', this.dirty ? tx('有未保存输入') : tx('所有输入已保存到本机'));
     this.indicator.setAttribute('role', 'status');
     view.append(this.indicator);
@@ -57,7 +57,12 @@ export class TaskEditor {
     view.append(
       element(
         'p',
-        tx("本地版本：{v0} · 远端确认：{v1} · 待上传提交：{v2} · 已保存未提交：{v3}", { v0: draft.localHead ?? '空', v1: draft.remoteHead ?? '空', v2: draft.queue.length, v3: unsynced ? tx('有') : tx('无') }),
+        tx('本地版本：{v0} · 远端确认：{v1} · 待上传提交：{v2} · 已保存未提交：{v3}', {
+          v0: draft.localHead ?? '空',
+          v1: draft.remoteHead ?? '空',
+          v2: draft.queue.length,
+          v3: unsynced ? tx('有') : tx('无')
+        }),
         'text-xs break-all'
       )
     );
@@ -66,7 +71,7 @@ export class TaskEditor {
       button('保存全部', () => this.perform(() => this.save())),
       button('同步', () => this.syncDialog(), this.controller.syncing)
     );
-    const name = input('另存任务名称', tx("{v0}（分叉）", { v0: draft.name }));
+    const name = input('另存任务名称', tx('{v0}（分叉）', { v0: draft.name }));
     actions.append(
       name.wrapper,
       button(
@@ -81,11 +86,7 @@ export class TaskEditor {
     );
     const remote = this.controller.snapshot?.tasks.find(t => t.id === draft.context.taskId);
     if (remote && remote.head !== draft.remoteHead)
-      actions.append(
-        button('拉取远端版本', () =>
-          this.perform(() => this.controller.fetchRemote(this.dirty))
-        )
-      );
+      actions.append(button('拉取远端版本', () => this.perform(() => this.controller.fetchRemote(this.dirty))));
     view.append(actions);
     for (const entity of ['AssetCategory', 'Asset', 'AssetEvent'] as const) view.append(this.entityTable(entity));
     return view;
@@ -134,7 +135,7 @@ export class TaskEditor {
   private entityTable(entity: DataRow['entity']) {
     const view = section(labels[entity]);
     view.append(
-      button(tx("新增{v0}", { v0: tx(labels[entity]) }), () => {
+      button(tx('新增{v0}', { v0: tx(labels[entity]) }), () => {
         this.buffer[crypto.randomUUID()] = { entity, fields: {} };
         this.mark();
         this.render();

@@ -1,7 +1,7 @@
-import { collaborationEnMessages, collaborationZhMessages } from '@rxdb-admin-template/collaboration/messages';
 import { adminMessages } from '@aiao/rxdb-admin';
 import { I18n, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
+import { collaborationEnMessages, collaborationZhMessages } from '@rxdb-admin-template/collaboration/messages';
 import { appConfig, type AppConfig } from '../app-config';
 import { domainEnMessages, domainModelEnMessages, domainModelZhMessages, domainZhMessages } from './domain-messages';
 import { pageEnMessages, pageZhMessages } from './page-messages';

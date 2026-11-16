@@ -177,20 +177,20 @@ export class LocalTasks {
     const draft = await this.storage.write(key, previous => {
       demand(epoch === this.generation && context.userId === this.userId, 'cancelled', '上下文已切换');
       return previous ?
-        { ...previous, locked: false, verifiedAt: Date.now() }
-      : {
-          context,
-          name,
-          base,
-          remoteHead: head,
-          localHead: head,
-          records: structuredClone(records),
-          committed: structuredClone(records),
-          revision: 0,
-          queue: [],
-          locked: false,
-          verifiedAt: Date.now()
-        };
+          { ...previous, locked: false, verifiedAt: Date.now() }
+        : {
+            context,
+            name,
+            base,
+            remoteHead: head,
+            localHead: head,
+            records: structuredClone(records),
+            committed: structuredClone(records),
+            revision: 0,
+            queue: [],
+            locked: false,
+            verifiedAt: Date.now()
+          };
     });
     demand(this.generation === epoch, 'locked', '账号已切换');
     this.unlocked.add(key);
@@ -243,9 +243,11 @@ export class LocalTasks {
     });
   }
   async archiveFork(context: Context, taskId: string, head: string): Promise<void> {
-    this.assert(context); const epoch = this.generation;
+    this.assert(context);
+    const epoch = this.generation;
     await this.storage.write(contextKey(context), current => {
-      this.assert(context, epoch); demand(current, 'missing', '任务不存在');
+      this.assert(context, epoch);
+      demand(current, 'missing', '任务不存在');
       return { ...current, forkArchive: { taskId, head } };
     });
   }
@@ -255,7 +257,10 @@ export class LocalTasks {
     return this.storage.write(contextKey(context), current => {
       this.assert(context, epoch);
       demand(
-        current && !unsaved && (!current.queue.length || current.forkArchive?.head === current.localHead) && canonical(current.records) === canonical(current.committed),
+        current &&
+          !unsaved &&
+          (!current.queue.length || current.forkArchive?.head === current.localHead) &&
+          canonical(current.records) === canonical(current.committed),
         'dirty',
         '本机有修改，请先保留或另存为新任务'
       );

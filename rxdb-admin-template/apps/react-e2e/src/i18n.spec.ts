@@ -126,20 +126,17 @@ test.describe('工作台完整国际化', () => {
     await expect
       .poll(() => tableHeaders(page))
       .toEqual(expect.arrayContaining(['Category name', 'Description', 'Actions']));
-    await expect
-      .poll(async () => {
-        const snapshot = await categorySnapshot(page, 'en');
-        return snapshot.displayed === snapshot.expected;
-      })
-      .toBe(true);
+    await expect(async () => {
+      const snapshot = await categorySnapshot(page, 'en');
+      expect(snapshot.displayed).toBe(snapshot.expected);
+    }).toPass({ timeout: 5000 });
     const originalRecord = (await categorySnapshot(page, 'en')).record;
     await setLocale(page, 'zh-Hans');
-    await expect
-      .poll(async () => {
-        const snapshot = await categorySnapshot(page, 'zh-Hans');
-        return snapshot.displayed === snapshot.expected && snapshot.record === originalRecord;
-      })
-      .toBe(true);
+    await expect(async () => {
+      const snapshot = await categorySnapshot(page, 'zh-Hans');
+      expect(snapshot.displayed).toBe(snapshot.expected);
+      expect(snapshot.record).toBe(originalRecord);
+    }).toPass({ timeout: 5000 });
     await setLocale(page, 'en');
 
     await page.getByRole('button', { name: 'Filter', exact: true }).click();

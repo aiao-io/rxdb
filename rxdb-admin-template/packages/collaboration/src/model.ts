@@ -90,6 +90,7 @@ export interface Candidate {
 }
 export interface Review {
   id: string;
+  source: string | null;
   prId: string;
   reviewerId: string;
   candidateId: string | null;
@@ -117,6 +118,7 @@ export interface Thread {
   field: string | null;
   required: boolean;
   resolved: boolean;
+  resolvedCandidateId: string | null;
   revision: number;
   comments: Comment[];
 }
@@ -212,7 +214,8 @@ export type Command = Operation &
     | {
         type: 'review';
         prId: string;
-        candidateId: string;
+        candidateId: string | null;
+        expectedSource: string;
         stageId: string;
         decision: 'approve' | 'request_changes';
         reason: string;
