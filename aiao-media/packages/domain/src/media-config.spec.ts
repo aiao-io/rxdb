@@ -240,4 +240,37 @@ describe('media configuration domain contracts', () => {
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, expectedRevision: -1 }] }))).toThrow('预期修订号');
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, sequence: 2 }] }))).toThrow('连续');
   });
+
+  it('declares the change count so a partial envelope can never look complete', async () => {
+    expect(getEntityMetadata(MediaConfigCommit).properties.map(property => property.name)).toContain('changeCount');
+    const change = (sequence: number): MediaConfigCommitChangeInput => ({
+      id: `10000000-0000-4000-8000-00000000010${sequence}`,
+      sequence,
+      entity: 'MediaPromptTemplate',
+      entityId: `10000000-0000-4000-8000-00000000020${sequence}`,
+      operation: 'update',
+      patch: { value: { key: `fixture-${sequence}` } },
+      inversePatch: null,
+      expectedRevision: 1
+    });
+    const envelope = await createMediaConfigCommitEnvelope({
+      id: '10000000-0000-4000-8000-000000000001',
+      workspaceId: '10000000-0000-4000-8000-000000000002',
+      branchId: 'main',
+      parentIds: [],
+      authorId: '10000000-0000-4000-8000-000000000004',
+      message: '三项变更',
+      operationId: '10000000-0000-4000-8000-000000000005',
+      status: 'prepared',
+      changes: [change(1), change(2), change(3)]
+    });
+    expect(envelope.commit.changeCount).toBe(3);
+    expect(envelope.changes).toHaveLength(3);
+  });
+
+  it('keeps every synced entity addressable by workspace, including the change rows', () => {
+    for (const EntityType of [MediaPromptTemplate, MediaProviderPolicy, MediaPlatformModel, MediaConfigCommit, MediaConfigCommitChange]) {
+      expect(getEntityMetadata(EntityType).properties.map(property => property.name)).toContain('workspaceId');
+    }
+  });
 });

@@ -34,17 +34,30 @@ MEDIA-US-109 AC6 转为通过，累计 9/12；故事保持 In Progress。上游�
 
 独立生命周期 Worker 另接单一条 fixture 任务，完成后保持无人取回。原任务创建时间为北京时间 **2026-11-15 08:04:32.684**，真实 alarm 为 **2026-11-16 08:04:32.684**（UTC `2026-11-16T00:04:32.684Z`），差值精确为 86,400,000 ms。原对象存在，上游计数为 1；保留产品原有期限。
 
-等待进程已启动，计划到期后 30 秒开始核对：先检查原任务行、R2 和真实 alarm 回执，再访问产品状态接口，避免把查询时的惰性过期当作 alarm 删除。全部通过后自动删除本轮生命周期 Worker 与临时域名，并再次核对正式 deployment 不变。只有最终回执写入 `expiryComplete: true` 才能关闭 AC9；当前仍为部分通过。
+等待进程已启动，计划到期后 30 秒开始核对：先检查原任务行、R2 和真实 alarm 回执，再访问产品状态接口，避免把查询时的惰性过期当作 alarm 删除。全部通过后自动删除本轮生命周期 Worker 与临时域名，并再次核对正式 deployment 不变。只有最终回执写入 `expiryComplete: true` 才能关闭 AC9。
 
-生命周期 Worker 仅为这条期限验收继续保留。断网或进程中断后可根据原回执继续检查同一任务，不重发生成。
+### 2026-11-16 期满终验结果
+
+原等待进程在到期前退出，未执行核对。到期后按原回执重新运行同一核对脚本，只查询原任务，没有重发生成：
+
+| 核对项 | 结果 |
+| --- | --- |
+| 真实 alarm | UTC `2026-11-16T00:04:32.988Z` 触发，晚于期限 304 ms；触发前任务行为 `received`，触发后为 0 行 |
+| R2 对象 | 不存在；本轮三条任务的对象均已不存在 |
+| 核对顺序 | 先读审计与对象，再读产品状态接口，排除查询时的惰性过期 |
+| 产品接口 | 状态与结果均返回 404；上游计数仍为 1 |
+| 临时资源 | 生命周期 Worker 与临时域名已删除，正式 `aiao-media` deployment 前后一致 |
+
+回执写入 `expiryComplete: true`，MEDIA-US-109 AC9 转为通过，累计 10/12。浏览器端对期满 404 的处理（记为待核对、提示已过期、不重发）由任务客户端单测覆盖；1 天生命周期规则由 11-14 只读复核确认。
 
 ## 证据与剩余条件
 
 原始回执位于 Git 忽略且权限受限的 `aiao-media/tmp/release-readiness-20261114/`：
 
-- `relay-lifecycle-probe-results.json`：两种真实重置、真实 alarm、唯一上游计数、期限任务与等待进程。
+- `relay-lifecycle-probe-results.json`：两种真实重置、真实 alarm、唯一上游计数、期限任务、期满证据与清理回执。
+- `relay-lifecycle-expiry-resume.log`、`relay-lifecycle-probe-delete.log`：2026-11-16 续查与临时 Worker 删除输出。
 - `relay-lifecycle-probe-attempt1.json`、`relay-lifecycle-probe-attempt2.json`：诊断失败记录。
 - `relay-cpu-probe-custom-domain-results.json`：六次解密、对象清理与官方 CPU 原始数据。
 - `relay-cpu-probe-cleanup.json`：七个 key、容量 Worker、自定义域名及正式 deployment 核对。
 
-公开文档不包含任务令牌、探针访问凭据或会话。当前 MEDIA-US-109 仍待 AC9 的真实到期终验、AC10 的真实双标签页刷新与唯一保存/删除、AC11 的桌面安装版来源。Web/Tauri 原图双向同步、正式签名公证与公众注册邮件按各自故事继续验收。
+公开文档不包含任务令牌、探针访问凭据或会话。当前 MEDIA-US-109 仍待 AC10 的真实双标签页刷新与唯一保存/删除、AC11 的桌面安装版来源。Web/Tauri 原图双向同步、正式签名公证与公众注册邮件按各自故事继续验收。

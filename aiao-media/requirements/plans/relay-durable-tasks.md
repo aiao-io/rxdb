@@ -95,4 +95,4 @@
 
 ## 2026-11-15 实测进展
 
-阶段 A 的 4/24 MiB 加密 CPU 已由同一账号的独立真实 SQLite DO 完成六次实测，使用产品原加密函数、真实 R2 与官方 GraphQL CPU 指标；阶段 B 的实例重置由真实 `ctx.abort()` 与原 210 秒 alarm 验证，上游未重发。原样 24 小时任务已接单，实际到期为北京时间 2026-11-16 08:04:32.684，终验前继续保留 AC9 部分通过。完整边界、CPU 样本与清理证据见[Cloudflare 实测](relay-cloudflare-verification-20261115.md)。
+阶段 A 的 4/24 MiB 加密 CPU 已由同一账号的独立真实 SQLite DO 完成六次实测，使用产品原加密函数、真实 R2 与官方 GraphQL CPU 指标；阶段 B 的实例重置由真实 `ctx.abort()` 与原 210 秒 alarm 验证，上游未重发。原样 24 小时任务的真实 alarm 于 2026-11-16 期满后 304 ms 删除任务行与 R2 对象，状态与结果接口返回 404、上游未重发，AC9 已通过。完整边界、CPU 样本与清理证据见[Cloudflare 实测](relay-cloudflare-verification-20261115.md)。

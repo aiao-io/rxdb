@@ -1,5 +1,7 @@
 # 验收记录
 
+2026-11-16 完成原样 24 小时期满终验：真实 alarm 在期限后 304 ms 删除 `received` 任务行与 R2 对象，核对先于产品状态读取，随后状态与结果接口均为 404、上游计数仍为 1；临时生命周期 Worker 与临时域名已删除，正式 deployment 不变。MEDIA-US-109 AC9 转为通过，累计 10/12，双标签页和桌面来源继续待验，见[Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md#2026-11-16-期满终验结果)。
+
 2026-11-15 已补真实 Cloudflare 实例重置与 4/24 MiB 加密 CPU：未修改的 `RelayTask` 在真实 `ctx.abort()` 后由原 210 秒 alarm 分别恢复为待核对、可取回，上游各只有一次；原密文取回、解密及删除通过。六次官方 GraphQL CPU 样本和容量探针清理通过，MEDIA-US-109 AC6 转为通过，累计 9/12。原样 24 小时任务已接单，实际到期为北京时间 2026-11-16 08:04:32.684，等待终验及资源回收；双标签页和桌面来源继续待验。fixture 上游/积分、真实运行时及原始回执边界见[Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。
 
 2026-11-14 补齐真实私有 Storage 传输层与原生应用复验：修复 CORS 续传头、重复对象回执和桌面 HTML 入口；7 MiB 原图续传与摘要、原生启动/保存/备份、满盘失败后重试及重开通过。旧产物整包签名失败已修复，构建目录及 DMG/ZIP 内应用严格验证通过，但仅为本地 ad-hoc。验证层级和剩余外部条件见[需求收口记录](plans/requirements-completion-20261114.md)。此轮 Storage 与原生证据不关闭 Web/Tauri 跨设备或签名发行；后续双区域平台生图证据另见下文。
