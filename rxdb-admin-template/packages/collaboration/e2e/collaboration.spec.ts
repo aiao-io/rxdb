@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { WorkspaceSnapshot } from '../src/server/engine.js';
 import { expect, test, type Page } from '@playwright/test';
+import type { WorkspaceSnapshot } from '../src/server/engine.js';
 interface Account {
   id: string;
   email: string;
@@ -25,18 +25,21 @@ async function login(page: Page, account: Account) {
   await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
 }
 async function api(page: Page, workspace: { teamId: string; appId: string }, command?: Record<string, unknown>) {
-  return page.evaluate(async ({ workspace, command }) => {
-    const key = Object.keys(localStorage).find(key => key.startsWith('admin-collaboration-auth:'));
-    if (!key) throw new Error('Missing authenticated test session');
-    const session = JSON.parse(localStorage.getItem(key)!) as { access_token: string };
-    const path = `/collaboration-api/workspaces/${workspace.teamId}/${workspace.appId}`;
-    const response = await fetch(command ? `${path}/commands` : path, {
-      method: command ? 'POST' : 'GET',
-      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      body: command ? JSON.stringify({ ...command, operationId: crypto.randomUUID() }) : undefined
-    });
-    return { status: response.status, body: await response.json() as Record<string, unknown> };
-  }, { workspace, command });
+  return page.evaluate(
+    async ({ workspace, command }) => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('admin-collaboration-auth:'));
+      if (!key) throw new Error('Missing authenticated test session');
+      const session = JSON.parse(localStorage.getItem(key)!) as { access_token: string };
+      const path = `/collaboration-api/workspaces/${workspace.teamId}/${workspace.appId}`;
+      const response = await fetch(command ? `${path}/commands` : path, {
+        method: command ? 'POST' : 'GET',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: command ? JSON.stringify({ ...command, operationId: crypto.randomUUID() }) : undefined
+      });
+      return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+    },
+    { workspace, command }
+  );
 }
 async function act(page: Page, workspace: { teamId: string; appId: string }, command: Record<string, unknown>) {
   const response = await api(page, workspace, command);
@@ -48,7 +51,13 @@ async function state(page: Page, workspace: { teamId: string; appId: string }) {
   expect(response.status).toBe(200);
   return response.body as unknown as WorkspaceSnapshot;
 }
-async function accept(page: Page, fixture: Fixture, baseURL: string | undefined, id = fixture.invitation, token = fixture.token) {
+async function accept(
+  page: Page,
+  fixture: Fixture,
+  baseURL: string | undefined,
+  id = fixture.invitation,
+  token = fixture.token
+) {
   const link = new URL('/collaboration', baseURL);
   link.searchParams.set('join', JSON.stringify({ teamId: fixture.teamId, appId: fixture.appId, id, token }));
   await page.getByText('接受团队邀请', { exact: true }).click();
@@ -197,6 +206,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^恢复 .* · review$/ })).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
   await expect(page.getByText('缺少当前候选的有效批准', { exact: true })).toBeVisible();
@@ -212,15 +222,20 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   expect(otherHistory.head).toBe(finalHistory.head);
   expect(otherHistory.audit).toEqual(finalHistory.audit);
   expect(finalHistory.head).not.toBe(firstHistory.head);
+  expect(finalHistory.commits[finalHistory.head!].parent).toBe(firstHistory.head);
   const merges = finalHistory.audit.filter(event => event.action === 'merge');
   expect(merges).toHaveLength(2);
-  expect(finalHistory.reviews.filter(review => review.decision === 'approve').map(review => review.candidateId)).toEqual(expect.arrayContaining(finalHistory.prs.map(pr => pr.candidateId)));
+  expect(
+    finalHistory.reviews.filter(review => review.decision === 'approve').map(review => review.candidateId)
+  ).toEqual(expect.arrayContaining(finalHistory.prs.map(pr => pr.candidateId)));
   for (const pr of finalHistory.prs) {
     const candidate = finalHistory.candidates[pr.candidateId!];
     expect(candidate.actorId).toBe(fixture.admin.id);
     expect(candidate.policyVersion).toBe(finalHistory.policy.version);
     expect(finalHistory.commits[candidate.source].authorId).toBe(fixture.admin.id);
-    expect(merges.some(event => event.actorId === fixture.admin.id && JSON.stringify(event.details).includes(candidate.id))).toBe(true);
+    expect(
+      merges.some(event => event.actorId === fixture.admin.id && JSON.stringify(event.details).includes(candidate.id))
+    ).toBe(true);
   }
   await page.getByLabel('任务名称', { exact: true }).fill('级联删除预览');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
@@ -231,12 +246,18 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
+  await expect(page.getByRole('button', { name: '级联删除预览 · review', exact: true })).toBeVisible();
   const candidateRequests: string[] = [];
   await page.route('**/collaboration-api/workspaces/*/*/commands', async route => {
     const command = route.request().postDataJSON() as { type: string; operationId: string };
     if (command.type !== 'candidate') return route.continue();
     candidateRequests.push(command.operationId);
-    if (candidateRequests.length === 1) return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'internal', message: '服务暂时不可用，请稍后按原请求重试' }) });
+    if (candidateRequests.length === 1)
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'internal', message: '服务暂时不可用，请稍后按原请求重试' })
+      });
     await route.continue();
   });
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
@@ -245,10 +266,12 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(page.getByText('尚未生成最终候选，检查未通过', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '确认或重试上次请求', exact: true }).click();
   await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
-  expect(candidateRequests).toHaveLength(2); expect(candidateRequests[1]).toBe(candidateRequests[0]);
+  expect(candidateRequests).toHaveLength(2);
+  expect(candidateRequests[1]).toBe(candidateRequests[0]);
   await page.getByRole('tab', { name: '数据变更', exact: true }).click();
   const changes = page.getByRole('tabpanel', { name: '数据变更', exact: true });
-  await expect(changes).toContainText('工作站'); await expect(changes).toContainText('安装系统');
+  await expect(changes).toContainText('工作站');
+  await expect(changes).toContainText('安装系统');
   expect(await changes.getByRole('cell', { name: '删除', exact: true }).count()).toBeGreaterThanOrEqual(3);
   await reviewContext.close();
 });
@@ -417,6 +440,15 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备乙版本');
   await page.getByRole('button', { name: '打开任务：保留设备甲', exact: true }).click();
   await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备甲版本');
+  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await expect(page.getByRole('button', { name: '保留设备甲 · draft', exact: true })).toBeVisible();
+  const forked = await state(page, fixture);
+  const forkTask = forked.tasks.find(task => task.name === '保留设备甲')!;
+  const originalTask = forked.tasks.find(task => task.name === '双设备任务')!;
+  expect(forkTask.originTaskId).toBe(originalTask.id);
+  expect(forked.prs.find(pr => pr.title === '保留设备甲')?.taskId).toBe(forkTask.id);
+  expect(forked.commits[forkTask.head!].authorId).toBe(fixture.admin.id);
+  expect(forkTask.head).not.toBe(originalTask.head);
   await otherContext.close();
 });
 
@@ -479,4 +511,277 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
   await expect(page.getByRole('button', { name: '分级采购 · merged', exact: true })).toBeVisible();
   await context.close();
+});
+
+test('双团队切换保留本机任务并隔离查询、通知与在线成员', async ({ page, request, browser, baseURL }) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByLabel('任务名称', { exact: true }).fill('甲团队草稿');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await page.getByRole('button', { name: '新增分类', exact: true }).click();
+  await page.getByRole('textbox', { name: '名称', exact: true }).fill('仅甲团队可见');
+  await page.getByRole('button', { name: '保存全部', exact: true }).click();
+  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
+  await expect(page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true })).toHaveCount(0);
+  await page.getByLabel('任务名称', { exact: true }).fill('乙团队任务');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await page.getByRole('button', { name: '新增分类', exact: true }).click();
+  await page.getByRole('textbox', { name: '名称', exact: true }).fill('仅乙团队可见');
+  await page.getByRole('button', { name: '保存全部', exact: true }).click();
+  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '同步', exact: true }).click();
+  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('仅甲团队可见');
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  const context = await browser.newContext({ baseURL });
+  const other = await context.newPage();
+  await login(other, fixture.reviewer);
+  await expect(other.getByRole('button', { name: fixture.name, exact: true })).toHaveCount(0);
+  await accept(other, fixture, baseURL);
+  await expect(other.getByRole('button', { name: fixture.secondary.name, exact: true })).toHaveCount(0);
+  const denied = await api(other, fixture.secondary);
+  expect(denied.status).toBe(403);
+  expect(JSON.stringify(denied.body)).not.toContain('仅乙团队可见');
+  expect((await api(other, { teamId: fixture.teamId, appId: 'other-app' })).status).toBe(403);
+  await act(other, fixture, {
+    type: 'presence',
+    sessionId: 'scoped-presence',
+    prId: null,
+    recordId: null,
+    leave: false
+  });
+  await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await expect(page.getByText(/在线成员：/)).toContainText(fixture.reviewer.email);
+  await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
+  await expect(page.getByText(/在线成员：/)).not.toContainText(fixture.reviewer.email);
+  await page.getByRole('button', { name: '打开任务：乙团队任务', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('仅乙团队可见');
+  expect((await state(page, fixture)).tasks.map(task => task.name)).toEqual(['甲团队草稿']);
+  expect((await state(page, fixture.secondary)).tasks.map(task => task.name)).toEqual(['乙团队任务']);
+  await context.close();
+});
+
+test('六项权限独立生效，指定审核人与并行人数门槛不能绕过', async ({ page, request, browser, baseURL }) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  const prepare = async (id: string, head: string | null) => {
+    await act(page, fixture, { type: 'task', id, name: id, expectedHead: head });
+    await act(page, fixture, {
+      type: 'upload',
+      taskId: id,
+      expectedHead: head,
+      commits: [
+        {
+          id: `commit-${id}`,
+          parent: head,
+          authorId: fixture.admin.id,
+          message: id,
+          records: { category: { entity: 'AssetCategory', fields: { name: id } } }
+        }
+      ]
+    });
+    await act(page, fixture, { type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
+    await act(page, fixture, { type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
+    return act(page, fixture, { type: 'candidate', prId: id, expectedRevision: 1, resolutions: [] });
+  };
+  const candidate = await prepare('permission', null);
+  await act(page, fixture, {
+    type: 'thread',
+    id: 'thread',
+    prId: 'permission',
+    candidateId: candidate['candidateId'],
+    recordId: null,
+    field: null,
+    body: 'Restricted discussion',
+    required: false,
+    mentions: []
+  });
+  const context = await browser.newContext({ baseURL });
+  const other = await context.newPage();
+  await login(other, fixture.reviewer);
+  await accept(other, fixture, baseURL);
+  let generation = 1;
+  const grants = async (permissions: string[]) => {
+    await act(page, fixture, {
+      type: 'member',
+      userId: fixture.reviewer.id,
+      permissions,
+      active: true,
+      expectedGeneration: generation++
+    });
+    await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+    await other.getByRole('button', { name: 'permission · review', exact: true }).click();
+  };
+  await grants(['read']);
+  await other.getByRole('tab', { name: '讨论', exact: true }).click();
+  for (const label of [
+    '开始修改',
+    '发表评论',
+    '发送回复',
+    '标记已解决',
+    '批准当前候选',
+    '合并到共享数据',
+    '创建邀请链接'
+  ])
+    await expect(other.getByRole('button', { name: label, exact: true })).toHaveCount(0);
+  const operations: Record<string, Record<string, unknown>> = {
+    edit: { type: 'task', id: 'reviewer-task', name: 'Reviewer task', expectedHead: null },
+    comment: { type: 'reply', threadId: 'thread', body: 'Permitted reply', mentions: [] },
+    review: {
+      type: 'review',
+      prId: 'permission',
+      candidateId: candidate['candidateId'],
+      expectedSource: 'commit-permission',
+      stageId: 'review',
+      decision: 'approve',
+      reason: '',
+      expectedRevision: 0
+    },
+    merge: {
+      type: 'merge',
+      prId: 'permission',
+      candidateId: candidate['candidateId'],
+      expectedSource: 'commit-permission',
+      expectedTarget: null
+    },
+    manage: {
+      type: 'invite',
+      id: 'readonly-invite',
+      email: 'reader@example.test',
+      permissions: ['read'],
+      tokenHash: 'token',
+      expiresAt: Date.now() + 60000,
+      expectedVersion: 0
+    }
+  };
+  for (const operation of Object.values(operations)) expect((await api(other, fixture, operation)).status).toBe(403);
+  expect(
+    (
+      await api(other, fixture, {
+        type: 'thread',
+        id: 'forbidden-thread',
+        prId: 'permission',
+        candidateId: candidate['candidateId'],
+        recordId: null,
+        field: null,
+        body: 'Denied',
+        required: false,
+        mentions: []
+      })
+    ).status
+  ).toBe(403);
+  expect(
+    (await api(other, fixture, { type: 'resolve_thread', threadId: 'thread', resolved: true, expectedRevision: 0 }))
+      .status
+  ).toBe(403);
+  const buttons = { edit: '开始修改', comment: '发送回复', review: '批准当前候选', manage: '创建邀请链接' };
+  for (const [permission, label] of Object.entries(buttons)) {
+    await grants(['read', permission]);
+    if (permission === 'comment') await other.getByRole('tab', { name: '讨论', exact: true }).click();
+    await expect(other.getByRole('button', { name: label, exact: true })).toBeVisible();
+    await act(other, fixture, operations[permission]);
+  }
+  await grants(['read', 'merge']);
+  await other.getByRole('tab', { name: '数据变更', exact: true }).click();
+  await expect(other.getByRole('button', { name: '合并到共享数据', exact: true })).toBeVisible();
+  expect((await api(other, fixture, operations['merge'])).status).toBe(409);
+  await act(page, fixture, { type: 'policy', stages: [], expectedVersion: 1 });
+  const current = await state(page, fixture);
+  const replacement = await act(page, fixture, {
+    type: 'candidate',
+    prId: 'permission',
+    expectedRevision: current.prs[0].revision,
+    resolutions: []
+  });
+  await act(other, fixture, { ...operations['merge'], candidateId: replacement['candidateId'] });
+  await act(page, fixture, {
+    type: 'member',
+    userId: fixture.reviewer.id,
+    permissions: ['read', 'review'],
+    active: true,
+    expectedGeneration: generation++
+  });
+  await act(page, fixture, {
+    type: 'invite',
+    id: 'second',
+    email: fixture.secondReviewer.email,
+    permissions: ['read', 'review'],
+    tokenHash: 'second-token',
+    expiresAt: Date.now() + 60000,
+    expectedVersion: 0
+  });
+  const secondContext = await browser.newContext({ baseURL });
+  const second = await secondContext.newPage();
+  await login(second, fixture.secondReviewer);
+  await accept(second, fixture, baseURL, 'second', 'second-token');
+  await act(page, fixture, {
+    type: 'policy',
+    expectedVersion: 2,
+    stages: [
+      {
+        id: 'cost',
+        name: '两人会签',
+        minimum: 2,
+        reviewers: [fixture.reviewer.id, fixture.secondReviewer.id],
+        after: []
+      },
+      { id: 'risk', name: '指定复核', minimum: 1, reviewers: [fixture.secondReviewer.id], after: [] }
+    ]
+  });
+  const before = await state(page, fixture);
+  const parallel = await prepare('parallel', before.head);
+  await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await other.getByRole('button', { name: 'parallel · review', exact: true }).click();
+  await expect(other.getByLabel('审批阶段', { exact: true }).locator('option')).toHaveText(['两人会签']);
+  expect(
+    (
+      await api(other, fixture, {
+        type: 'review',
+        prId: 'parallel',
+        candidateId: parallel['candidateId'],
+        expectedSource: 'commit-parallel',
+        stageId: 'risk',
+        decision: 'approve',
+        reason: '',
+        expectedRevision: 0
+      })
+    ).status
+  ).toBe(403);
+  await second.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await second.getByRole('button', { name: 'parallel · review', exact: true }).click();
+  await second.getByLabel('审批阶段', { exact: true }).selectOption('risk');
+  await second.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(second.getByText('指定复核：1/1 已满足', { exact: true })).toBeVisible();
+  await other.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(other.getByText('两人会签：1/2 待批准', { exact: true })).toBeVisible();
+  const merge = {
+    type: 'merge',
+    prId: 'parallel',
+    candidateId: parallel['candidateId'],
+    expectedSource: 'commit-parallel',
+    expectedTarget: before.head
+  };
+  expect((await api(page, fixture, merge)).status).toBe(409);
+  await second.getByLabel('审批阶段', { exact: true }).selectOption('cost');
+  await second.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(second.getByText('两人会签：2/2 已满足', { exact: true })).toBeVisible();
+  await act(page, fixture, merge);
+  await act(page, fixture, {
+    type: 'member',
+    userId: fixture.reviewer.id,
+    permissions: [],
+    active: false,
+    expectedGeneration: generation++
+  });
+  await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0);
+  await expect(other.getByRole('heading', { name: '数据 PR', exact: true })).toHaveCount(0);
+  expect((await api(other, fixture)).status).toBe(403);
+  await context.close();
+  await secondContext.close();
 });

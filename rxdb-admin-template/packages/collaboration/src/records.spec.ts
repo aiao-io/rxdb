@@ -4,6 +4,21 @@ import { assertRecords, checkRecords, mergeRecords } from './records.js';
 import { parseCommand } from './server/input.js';
 const base: Records = { c: { entity: 'AssetCategory', fields: { name: 'Category', description: 'Old' } } };
 describe('three-way data contract', () => {
+  it('exposes deletion of a parent against a concurrent child edit and checks the chosen final references', () => {
+    const original: Records = {
+      ...base,
+      a: { entity: 'Asset', fields: { name: 'Asset', categoryId: 'c', purchasePrice: 100 } }
+    };
+    const edited: Records = { ...original, a: { ...original.a, fields: { ...original.a.fields, purchasePrice: 120 } } };
+    const preview = mergeRecords(original, {}, edited, []);
+    expect(preview.conflicts.map(conflict => conflict.key)).toContain('a/$record');
+    const keptChild = mergeRecords(original, {}, edited, [{ key: 'a/$record', choice: 'target' }]);
+    expect(keptChild.records.a.fields['purchasePrice']).toBe(120);
+    expect(checkRecords(keptChild.records)).toContainEqual(
+      expect.objectContaining({ recordId: 'a', field: 'categoryId' })
+    );
+    expect(mergeRecords(original, {}, edited, [{ key: 'a/$record', choice: 'source' }]).records).toEqual({});
+  });
   it('merges independent fields without losing either side', () => {
     const result = mergeRecords(
       base,

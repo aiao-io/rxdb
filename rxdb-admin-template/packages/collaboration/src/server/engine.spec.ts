@@ -323,6 +323,10 @@ describe('governance, discussion and identity regressions', () => {
     expect(state.tasks.fork.head).toBe('local');
     expect(state.prs.pr1).toEqual(original);
     expect(state.commits.local.authorId).toBe('admin');
+    act(state, { type: 'pr', id: 'fork-pr', taskId: 'fork', title: 'Fork review', description: '', target: 'shared' });
+    expect(state.prs['fork-pr'].taskId).toBe('fork');
+    expect(state.tasks.fork.originTaskId).toBe('task1');
+    expect(state.prs.pr1).toEqual(original);
   });
   it('required threads block merging even with a valid approval; notifications are scoped to their recipients', () => {
     const state = create();
@@ -421,6 +425,9 @@ describe('governance, discussion and identity regressions', () => {
     ready(state);
     act(state, { type: 'presence', sessionId: 'browser', prId: 'pr1', recordId: 'asset', leave: false }, reviewer);
     expect(snapshot(state, admin, 1000).presence).toHaveLength(1);
+    ready(state, '2');
+    act(state, { type: 'presence', sessionId: 'browser', prId: 'pr2', recordId: null, leave: false }, reviewer);
+    expect(snapshot(state, admin, 1000).presence).toMatchObject([{ prId: 'pr2', recordId: null }]);
     expect(snapshot(state, admin, 46001).presence).toHaveLength(0);
     act(state, { type: 'member', userId: 'reviewer', permissions: [], active: false, expectedGeneration: 1 });
     expect(snapshot(state, admin, 1000).presence).toHaveLength(0);
@@ -549,15 +556,56 @@ describe('governance, discussion and identity regressions', () => {
 
 describe('cross-feature acceptance boundaries', () => {
   it('preserves each reviewer blocker and required thread until its own authorized resolution', () => {
-    const state = create(); invite(state); const candidate = ready(state);
+    const state = create();
+    invite(state);
+    const candidate = ready(state);
     const second = { id: 'second', email: 'second@example.test', verified: true };
     state.members[second.id] = { ...state.members[reviewer.id], id: second.id, email: second.email };
-    act(state, { type: 'review', prId: 'pr1', candidateId: candidate.id, expectedSource: candidate.source, stageId: 'review', decision: 'request_changes', reason: 'Verify cost', expectedRevision: 0 }, reviewer);
+    act(
+      state,
+      {
+        type: 'review',
+        prId: 'pr1',
+        candidateId: candidate.id,
+        expectedSource: candidate.source,
+        stageId: 'review',
+        decision: 'request_changes',
+        reason: 'Verify cost',
+        expectedRevision: 0
+      },
+      reviewer
+    );
     approve(state, 'pr1', candidate.id, second);
-    act(state, { type: 'thread', id: 'required', prId: 'pr1', candidateId: candidate.id, recordId: 'asset', field: 'purchasePrice', body: 'Check total', required: true, mentions: [] }, reviewer);
-    const merge = { type: 'merge', prId: 'pr1', candidateId: candidate.id, expectedSource: candidate.source, expectedTarget: null };
+    act(
+      state,
+      {
+        type: 'thread',
+        id: 'required',
+        prId: 'pr1',
+        candidateId: candidate.id,
+        recordId: 'asset',
+        field: 'purchasePrice',
+        body: 'Check total',
+        required: true,
+        mentions: []
+      },
+      reviewer
+    );
+    const merge = {
+      type: 'merge',
+      prId: 'pr1',
+      candidateId: candidate.id,
+      expectedSource: candidate.source,
+      expectedTarget: null
+    };
     expect(() => act(state, merge)).toThrow(/要求修改/);
-    expect(() => act(state, { type: 'dismiss', prId: 'pr1', reviewerId: reviewer.id, reason: 'Override', expectedRevision: 1 }, second)).toThrow(/权限/);
+    expect(() =>
+      act(
+        state,
+        { type: 'dismiss', prId: 'pr1', reviewerId: reviewer.id, reason: 'Override', expectedRevision: 1 },
+        second
+      )
+    ).toThrow(/权限/);
     approve(state, 'pr1', candidate.id, reviewer, 1);
     expect(() => act(state, merge)).toThrow(/讨论/);
     act(state, { type: 'resolve_thread', threadId: 'required', resolved: true, expectedRevision: 0 }, reviewer);
@@ -566,19 +614,39 @@ describe('cross-feature acceptance boundaries', () => {
     expect(state.reviews.filter(r => r.decision === 'request_changes')).toHaveLength(1);
   });
   it('enforces independent parallel stages, distinct approval counts and assigned reviewer permissions', () => {
-    const state = create(); invite(state);
+    const state = create();
+    invite(state);
     const second = { id: 'second', email: 'second@example.test', verified: true };
     state.members[second.id] = { ...state.members[reviewer.id], id: second.id, email: second.email };
-    act(state, { type: 'policy', expectedVersion: 1, stages: [
-      { id: 'cost', name: 'Cost', minimum: 2, reviewers: [reviewer.id, second.id], after: [] },
-      { id: 'risk', name: 'Risk', minimum: 1, reviewers: [second.id], after: [] }
-    ] });
+    act(state, {
+      type: 'policy',
+      expectedVersion: 1,
+      stages: [
+        { id: 'cost', name: 'Cost', minimum: 2, reviewers: [reviewer.id, second.id], after: [] },
+        { id: 'risk', name: 'Risk', minimum: 1, reviewers: [second.id], after: [] }
+      ]
+    });
     const candidate = ready(state);
-    const review = { type: 'review', prId: 'pr1', candidateId: candidate.id, expectedSource: candidate.source, stageId: 'risk', decision: 'approve', reason: '', expectedRevision: 0 };
+    const review = {
+      type: 'review',
+      prId: 'pr1',
+      candidateId: candidate.id,
+      expectedSource: candidate.source,
+      stageId: 'risk',
+      decision: 'approve',
+      reason: '',
+      expectedRevision: 0
+    };
     expect(() => act(state, review, reviewer)).toThrow(/阶段/);
     act(state, review, second);
     act(state, { ...review, stageId: 'cost' }, reviewer);
-    const merge = { type: 'merge', prId: 'pr1', candidateId: candidate.id, expectedSource: candidate.source, expectedTarget: null };
+    const merge = {
+      type: 'merge',
+      prId: 'pr1',
+      candidateId: candidate.id,
+      expectedSource: candidate.source,
+      expectedTarget: null
+    };
     expect(() => act(state, merge)).toThrow(/批准/);
     act(state, { ...review, stageId: 'cost', expectedRevision: 1 }, reviewer);
     expect(() => act(state, merge)).toThrow(/批准/);
@@ -587,7 +655,9 @@ describe('cross-feature acceptance boundaries', () => {
     expect(state.prs.pr1.status).toBe('merged');
   });
   it('rejects stale concurrent candidates, missing ancestry and post-merge writes without rewriting history', () => {
-    const state = create(); invite(state); const original = ready(state);
+    const state = create();
+    invite(state);
+    const original = ready(state);
     const make = { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] };
     act(state, make);
     expect(() => act(state, make)).toThrow(/版本/);
@@ -597,10 +667,27 @@ describe('cross-feature acceptance boundaries', () => {
     expect(() => act(state, { ...make, expectedRevision: state.prs.pr1.revision })).toThrow(/共同起点/);
     state.tasks.task1.base = null;
     approve(state, 'pr1', candidate.id);
-    act(state, { type: 'merge', prId: 'pr1', candidateId: candidate.id, expectedSource: candidate.source, expectedTarget: null });
+    act(state, {
+      type: 'merge',
+      prId: 'pr1',
+      candidateId: candidate.id,
+      expectedSource: candidate.source,
+      expectedTarget: null
+    });
     const before = structuredClone(state);
-    expect(() => act(state, { type: 'pr_state', prId: 'pr1', status: 'draft', expectedRevision: state.prs.pr1.revision })).toThrow(/合并/);
-    expect(() => act(state, { type: 'upload', taskId: 'task1', expectedHead: candidate.source, commits: [{ id: 'late', parent: candidate.source, authorId: admin.id, records: records(500), message: 'Late edit' }] })).toThrow(/合并/);
+    expect(() =>
+      act(state, { type: 'pr_state', prId: 'pr1', status: 'draft', expectedRevision: state.prs.pr1.revision })
+    ).toThrow(/合并/);
+    expect(() =>
+      act(state, {
+        type: 'upload',
+        taskId: 'task1',
+        expectedHead: candidate.source,
+        commits: [
+          { id: 'late', parent: candidate.source, authorId: admin.id, records: records(500), message: 'Late edit' }
+        ]
+      })
+    ).toThrow(/合并/);
     expect(state).toEqual(before);
   });
 });
