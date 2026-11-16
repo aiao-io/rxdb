@@ -27,7 +27,10 @@ export const MEDIA_CONFIG_VERSIONED_ENTITIES: readonly EntityType[] = Object.fre
 ]);
 
 /** 领域提交投影：服务端推进状态，按查询缓存读写，不进工作树。 */
-const MEDIA_CONFIG_PROJECTION_ENTITIES: readonly EntityType[] = Object.freeze([MediaConfigCommit, MediaConfigCommitChange]);
+const MEDIA_CONFIG_PROJECTION_ENTITIES: readonly EntityType[] = Object.freeze([
+  MediaConfigCommit,
+  MediaConfigCommitChange
+]);
 
 /**
  * 配置同步白名单：配置实体与领域提交投影。
@@ -67,7 +70,7 @@ export interface MediaConfigSyncPlan {
   readonly syncOverrides: readonly EntitySyncOverride[];
 }
 
-const WORKSPACE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKSPACE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function entityIdentity(entity: EntityType): string {
   const metadata = tryGetEntityMetadata(entity);
@@ -138,8 +141,9 @@ export function createMediaConfigSyncOptions(options: MediaConfigSyncPlanOptions
     sync: { type: SyncType.Full, local: { adapter: local }, remote: { adapter: remote } },
     syncOverrides: entities.map(entity => ({
       entity,
-      sync: projection.has(entityIdentity(entity))
-        ? { type: SyncType.QueryCache, local: { adapter: local }, remote: { adapter: remote } }
+      sync:
+        projection.has(entityIdentity(entity)) ?
+          { type: SyncType.QueryCache, local: { adapter: local }, remote: { adapter: remote } }
         : { type: SyncType.Filter, local: { adapter: local }, remote: { adapter: remote, filter } }
     }))
   };

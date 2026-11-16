@@ -828,10 +828,32 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
       assert.equal((await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollback])).rows[0].value.reused, false);
       assert.equal((await db.query('SELECT public.rollback_media_config_commit($1,$2) AS value', [commit, rollback])).rows[0].value.reused, true);
     });
+    await t.test('版本冲突以 PT409 返回：PostgREST 直接给 409，不把业务冲突当成序列化失败重试', async () => {
+      const existing = crypto.randomUUID();
+      await db.exec('RESET ROLE');
+      await db.query(
+        `INSERT INTO public.media_config_records (workspace_id, branch_id, entity, entity_id, revision, payload, deleted, updated_by)
+         VALUES ($1,'main','MediaPromptTemplate',$2,1,$3,false,$4)`,
+        [owner.workspaceId, existing, JSON.stringify({ key: 'other-device' }), owner.userId]
+      );
+      await actAs(db, owner.userId);
+      const conflicting = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId });
+      await insertProjectionChange(db, { workspaceId: owner.workspaceId, commitId: conflicting, sequence: 1, entityId: existing, authorId: owner.userId });
+      await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [conflicting]);
+      const operation = (await db.query('SELECT "operationId" FROM public.media_config_projection_commits WHERE id=$1', [conflicting])).rows[0].operationId;
+      await assert.rejects(db.query('SELECT public.apply_media_config_commit($1,$2)', [conflicting, operation]), { code: 'PT409' });
+      assert.equal((await db.query('SELECT status FROM public.media_config_projection_commits WHERE id=$1', [conflicting])).rows[0].status, 'synced');
+    });
     await t.test('其他账号看不到也写不进别人的投影', async () => {
       await actAs(db, stranger.userId);
       assert.deepEqual((await db.query('SELECT id FROM public.media_config_projection_commits')).rows, []);
       await assert.rejects(insertProjection(db, { workspaceId: stranger.workspaceId, authorId: stranger.userId }), { code: '42501' });
+    });
+    await t.test('删除工作区所有者账号时级联清理投影与应用结果，不被外键挡住', async () => {
+      await db.exec('RESET ROLE');
+      await db.query('DELETE FROM auth.users WHERE id=$1', [owner.userId]);
+      assert.deepEqual((await db.query('SELECT id FROM public.media_config_projection_commits')).rows, []);
+      assert.deepEqual((await db.query('SELECT entity_id FROM public.media_config_records WHERE workspace_id=$1', [owner.workspaceId])).rows, []);
     });
   } finally {
     await db.close();

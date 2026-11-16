@@ -1292,3 +1292,148 @@ test('后台账户：资料读取失败保留会话，撤权后资料保存被�
   expect(profiles.error).toBeNull();
   expect(profiles.data).toEqual([]);
 });
+
+/** 读取管理员工作区下的配置模板（服务端视角）。 */
+async function workspaceTemplates(ownerId: string) {
+  const workspace = await admin.from('media_workspaces').select('id').eq('owner_id', ownerId).single();
+  expect(workspace.error).toBeNull();
+  const rows = await admin
+    .from('media_prompt_templates')
+    .select('id,key,title,revision')
+    .eq('workspaceId', workspace.data!.id)
+    .order('key');
+  expect(rows.error).toBeNull();
+  return { workspaceId: workspace.data!.id as string, rows: rows.data ?? [] };
+}
+
+/** 进入配置页并等到本机库打开、权限确认、首轮同步完成。 */
+async function openTemplates(page: Page) {
+  const config = page.locator('app-admin-config-model');
+  await expect(config.locator('rxdb-entity-list')).toBeVisible({ timeout: 30000 });
+  await expect(
+    config.locator('app-admin-config-state').getByRole('status').filter({ hasText: /同步状态：(已与工作区同步|最近提交已应用)/ })
+  ).toBeVisible({ timeout: 30000 });
+  return config;
+}
+
+/** 经模型驱动的新增弹窗创建一条模板；系统字段由页面固定带入。 */
+async function createTemplate(page: Page, values: { key: string; title: string; prompt: string }) {
+  await page.locator('app-admin-config-model rxdb-entity-list').getByRole('button', { name: '+ 新增', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  // 模型表单把标签放在字段组上，输入框本身没有关联标签（rxdb-model-angular 的可访问性缺口），按字段组定位。
+  const field = (label: string) => dialog.getByRole('group', { name: `${label} *`, exact: true }).getByRole('textbox');
+  await field('标识').fill(values.key);
+  await field('标题').fill(values.title);
+  await field('提示词').fill(values.prompt);
+  await dialog.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
+async function commitChanges(page: Page, message: string) {
+  const form = page.getByRole('form', { name: '提交本机修改' });
+  await form.getByLabel('提交说明').fill(message);
+  await form.getByRole('button', { name: '提交修改', exact: true }).click();
+  await expect(form).toHaveCount(0);
+}
+
+test('后台配置：断网时的修改保存在本机，刷新后恢复未提交状态，联网后同步到工作区草稿', async ({ page }) => {
+  const user = await signInAdmin(page, 'templates');
+  const config = await openTemplates(page);
+  const suffix = randomUUID().slice(0, 8);
+  await createTemplate(page, { key: `e2e-online-${suffix}`, title: '联网新增', prompt: '联网时写入的模板' });
+  await expect(config.getByRole('form', { name: '提交本机修改' })).toContainText('本机有 1 项未提交的修改');
+
+  await page.context().setOffline(true);
+  await expect(config.locator('app-admin-config-state').getByRole('status')).toContainText('离线：修改只保存在本机');
+  await createTemplate(page, { key: `e2e-offline-${suffix}`, title: '断网新增', prompt: '断网时写入的模板' });
+  await expect(config.getByRole('form', { name: '提交本机修改' })).toContainText('本机有 2 项未提交的修改');
+
+  await page.context().setOffline(false);
+  await page.reload();
+  const restored = await openTemplates(page);
+  await expect(restored.getByRole('form', { name: '提交本机修改' })).toContainText('本机有 2 项未提交的修改');
+  await expect
+    .poll(async () => (await workspaceTemplates(user.id)).rows.map(row => row.key), { timeout: 30000 })
+    .toEqual([`e2e-offline-${suffix}`, `e2e-online-${suffix}`]);
+});
+
+test('后台配置：提交后应用，状态与服务端修订号可见且不留簿记修改，回滚需二次确认，状态区与提交详情无 WCAG 2.1 AA 违规', async ({
+  page
+}) => {
+  const user = await signInAdmin(page, 'templates');
+  const config = await openTemplates(page);
+  const key = `e2e-apply-${randomUUID().slice(0, 8)}`;
+  await createTemplate(page, { key, title: '首页', prompt: '生成海报' });
+  await commitChanges(page, '新增首页模板');
+  const detail = config.locator('app-admin-config-commit');
+  await expect(detail).toContainText('新增首页模板');
+  await expect(detail).toContainText('已同步，待应用', { timeout: 30000 });
+
+  await detail.getByRole('button', { name: '应用提交', exact: true }).click();
+  await expect(detail).toContainText('已应用', { timeout: 30000 });
+  const { workspaceId, rows } = await workspaceTemplates(user.id);
+  const template = rows.find(row => row.key === key)!;
+  const applied = await admin
+    .from('media_config_records')
+    .select('revision,deleted')
+    .eq('workspace_id', workspaceId)
+    .eq('entity_id', template.id)
+    .single();
+  expect(applied.data).toEqual({ revision: 1, deleted: false });
+  await expect(config.getByRole('form', { name: '提交本机修改' })).toHaveCount(0);
+
+  await page.reload();
+  const reloaded = await openTemplates(page);
+  const reloadedDetail = reloaded.locator('app-admin-config-commit');
+  await expect(reloadedDetail).toContainText('新增首页模板');
+  await expect(reloadedDetail).toContainText('已应用');
+  await expect(reloadedDetail).toContainText(user.id);
+  await expect(reloaded.getByRole('form', { name: '提交本机修改' })).toHaveCount(0);
+
+  const accessibility = await new AxeBuilder({ page })
+    .include('app-admin-config-state')
+    .include('app-admin-config-commit')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
+
+  await detail.getByRole('button', { name: '执行安全回滚', exact: true }).click();
+  await expect(detail).toContainText('确认回滚「新增首页模板」');
+  await detail.getByRole('button', { name: '确认回滚', exact: true }).click();
+  await expect
+    .poll(async () =>
+      (await admin.from('media_config_records').select('revision,deleted').eq('workspace_id', workspaceId).eq('entity_id', template.id).single()).data
+    )
+    .toEqual({ revision: 2, deleted: true });
+});
+
+test('后台配置：其他设备已应用同一配置时，应用被服务端拒绝并显示冲突，不写入配置', async ({ page }) => {
+  const user = await signInAdmin(page, 'templates');
+  const config = await openTemplates(page);
+  const key = `e2e-conflict-${randomUUID().slice(0, 8)}`;
+  await createTemplate(page, { key, title: '冲突模板', prompt: '本机版本' });
+  await commitChanges(page, '本机新增模板');
+  const detail = config.locator('app-admin-config-commit');
+  await expect(detail).toContainText('已同步，待应用', { timeout: 30000 });
+
+  await expect.poll(async () => (await workspaceTemplates(user.id)).rows.map(row => row.key)).toEqual([key]);
+  const { workspaceId, rows } = await workspaceTemplates(user.id);
+  const otherDevice = await admin.from('media_config_records').insert({
+    workspace_id: workspaceId,
+    branch_id: 'main',
+    entity: 'MediaPromptTemplate',
+    entity_id: rows[0]!.id,
+    revision: 1,
+    payload: { key, title: '另一台设备的版本', prompt: '先应用' },
+    deleted: false,
+    updated_by: user.id
+  });
+  expect(otherDevice.error).toBeNull();
+
+  await detail.getByRole('button', { name: '应用提交', exact: true }).click();
+  await expect(detail.getByRole('alert')).toContainText('冲突：数据版本已变化');
+  await expect(config.locator('app-admin-config-state').getByRole('alert')).toHaveCount(0);
+  await expect(detail).toContainText('已同步，待应用');
+  const record = await admin.from('media_config_records').select('payload').eq('workspace_id', workspaceId).eq('entity_id', rows[0]!.id).single();
+  expect(record.data?.payload).toEqual({ key, title: '另一台设备的版本', prompt: '先应用' });
+});

@@ -1,5 +1,6 @@
 import type { InstallationStatus } from '@aiao-media/api-contracts';
 import { AdminLayoutComponent, AdminPageDirective } from '@aiao/rxdb-admin-angular';
+import { DOCUMENT } from '@angular/common';
 import { Component, computed, DestroyRef, effect, inject, OnInit, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +9,7 @@ import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/a
 import { filter, map } from 'rxjs';
 import { AdminConsole } from './admin-console';
 import { AdminConfigModelComponent } from './admin-config-model';
+import { AdminConfigDatabaseHost } from './admin-rxdb';
 import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
 import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
 import { ProductClient } from './product-client';
@@ -58,6 +60,8 @@ function readStoredSession(): AdminSession | null {
 export class App implements OnInit {
   private readonly router = inject(Router);
   private authClient: AdminSupabaseAuth | null = null;
+  private readonly configHost = inject(AdminConfigDatabaseHost);
+  private readonly document = inject(DOCUMENT);
   readonly installation = signal<InstallationStatus | null>(null);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -171,6 +175,8 @@ export class App implements OnInit {
     localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
     this.form.password = '';
     void this.authClient?.signOut().catch(() => undefined);
+    // 配置库按账号打开且其实例被根注入器缓存：关闭后重新加载页面，下一个账号拿到自己的库。
+    if (this.configHost.isOpen()) void this.configHost.close().finally(() => this.document.location.reload());
   }
   private async run(operation: () => Promise<void>): Promise<void> {
     if (this.busy()) return;

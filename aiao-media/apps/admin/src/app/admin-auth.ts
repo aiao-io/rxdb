@@ -64,6 +64,18 @@ function authError(error: unknown): Error {
   );
 }
 
+/** 后台访问 Supabase 的统一请求约束：不带 Cookie、不缓存、不跟随跳转、15 秒超时。 */
+function hardenedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    credentials: 'omit',
+    cache: 'no-store',
+    redirect: 'error',
+    referrerPolicy: 'no-referrer',
+    signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(15000)])
+  });
+}
+
 async function defaultFactory(config: AdminSupabaseConfig): Promise<AdminSupabaseClient> {
   return createClient(config.url, config.anonKey, {
     auth: {
@@ -72,17 +84,23 @@ async function defaultFactory(config: AdminSupabaseConfig): Promise<AdminSupabas
       autoRefreshToken: true,
       detectSessionInUrl: false
     },
-    global: {
-      fetch: (input, init) =>
-        fetch(input, {
-          ...init,
-          credentials: 'omit',
-          cache: 'no-store',
-          redirect: 'error',
-          referrerPolicy: 'no-referrer',
-          signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(15000)])
-        })
-    }
+    global: { fetch: hardenedFetch }
+  });
+}
+
+/**
+ * 创建配置同步专用的 Supabase 客户端：每次请求与 Realtime 连接都向登录会话取当前访问令牌。
+ *
+ * @param config - 账号服务地址与公开 Key
+ * @param accessToken - 返回当前管理员普通 JWT；会话失效时应抛错
+ * @returns 只用于 RxDB 远端适配器的客户端，不持久化会话、不刷新令牌
+ */
+export function createAdminSupabaseSyncClient(config: AdminSupabaseConfig, accessToken: () => Promise<string>): SupabaseClient {
+  const valid = validateConfig(config);
+  return createClient(valid.url, valid.anonKey, {
+    accessToken,
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: hardenedFetch }
   });
 }
 

@@ -115,7 +115,7 @@ let nextHeadingId = 0;
       }
       @if (conflictMessage(); as message) {
         <p class="config-notice config-notice-warning" role="alert">
-          冲突：{{ message }}。本机修改不会被覆盖，请重新读取后核对双方修改再提交。
+          冲突：{{ message }} 本机修改不会被覆盖，请重新读取后核对双方修改再提交。
         </p>
       }
     }

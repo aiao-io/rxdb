@@ -178,6 +178,20 @@ describe('product authorization and response boundaries', () => {
     await expect(new ProductClient(async () => access).admin('session')).rejects.toThrow(message);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['40001', '23505', '23514', 'PT409'])('数据库冲突码 %s 按版本冲突报告，不显示成服务不可用', async code => {
+    respond({ code, message: 'Config revision conflict', details: 'private-upstream' }, code === 'PT409' ? 409 : 500);
+    const failure = new ProductClient(async () => access).applyConfigCommit('commit', 'operation');
+    await expect(failure).rejects.toMatchObject({ status: 409, message: '数据版本已变化，请重试。' });
+  });
+
+  it('请求被数据库拒绝（400）时说明内容或状态不允许，不泄露上游原文', async () => {
+    respond({ code: '22023', message: 'Config commit changes are incomplete', details: 'private-upstream' }, 400);
+    await expect(new ProductClient(async () => access).applyConfigCommit('commit', 'operation')).rejects.toMatchObject({
+      status: 400,
+      message: '请求被拒绝：内容无效，或当前状态不允许该操作。'
+    });
+  });
 });
 
 it.each([
@@ -194,7 +208,7 @@ it.each([
   );
 });
 
-it('直接 upsert 配置提交和变更，不经 Edge Function', async () => {
+it('直接写入 RxDB 形状的投影表：幂等插入提交与变更，变更到齐后才标记 synced', async () => {
   const envelope = {
     commit: {
       id: '10000000-0000-4000-8000-000000000010',
@@ -206,7 +220,8 @@ it('直接 upsert 配置提交和变更，不经 Edge Function', async () => {
       operationId: '10000000-0000-4000-8000-000000000011',
       status: 'prepared' as const,
       changes: [],
-      contentFingerprint: 'a'.repeat(64)
+      contentFingerprint: 'a'.repeat(64),
+      changeCount: 1
     },
     changes: [{
       id: '10000000-0000-4000-8000-000000000012',
@@ -229,47 +244,77 @@ it('直接 upsert 配置提交和变更，不经 Edge Function', async () => {
 
   expect(fetch).toHaveBeenNthCalledWith(
     1,
-    'https://account.example/rest/v1/media_config_commits?on_conflict=workspace_id%2Coperation_id',
+    'https://account.example/rest/v1/media_config_projection_commits?on_conflict=id',
     expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({
         id: envelope.commit.id,
-        workspace_id: envelope.commit.workspaceId,
-        branch_id: envelope.commit.branchId,
-        parent_ids: [],
-        author_id: envelope.commit.authorId,
+        workspaceId: envelope.commit.workspaceId,
+        branchId: envelope.commit.branchId,
+        parentIds: [],
+        authorId: envelope.commit.authorId,
         message: envelope.commit.message,
-        operation_id: envelope.commit.operationId,
-        content_fingerprint: envelope.commit.contentFingerprint,
-        status: 'prepared'
+        operationId: envelope.commit.operationId,
+        contentFingerprint: envelope.commit.contentFingerprint,
+        changeCount: 1,
+        status: 'prepared',
+        createdBy: envelope.commit.authorId,
+        updatedBy: envelope.commit.authorId
       }),
       headers: expect.objectContaining({ Prefer: 'resolution=ignore-duplicates,return=minimal' })
     })
   );
   expect(fetch).toHaveBeenNthCalledWith(
     2,
-    'https://account.example/rest/v1/media_config_commit_changes?on_conflict=commit_id%2Csequence',
+    'https://account.example/rest/v1/media_config_projection_changes?on_conflict=id',
     expect.objectContaining({
       method: 'POST',
       body: JSON.stringify([{
         id: envelope.changes[0]?.id,
-        commit_id: envelope.commit.id,
+        workspaceId: envelope.commit.workspaceId,
+        commitId: envelope.commit.id,
         sequence: 1,
         entity: 'MediaPromptTemplate',
-        entity_id: envelope.changes[0]?.entityId,
+        entityId: envelope.changes[0]?.entityId,
         operation: 'update',
         patch: { value: { key: 'hero' } },
-        inverse_patch: { value: { key: 'old' } },
-        expected_revision: 2,
-        content_fingerprint: 'b'.repeat(64)
-      }])
+        inversePatch: { value: { key: 'old' } },
+        expectedRevision: 2,
+        contentFingerprint: 'b'.repeat(64),
+        createdBy: envelope.commit.authorId,
+        updatedBy: envelope.commit.authorId
+      }]),
+      headers: expect.objectContaining({ Prefer: 'resolution=ignore-duplicates,return=minimal' })
     })
   );
   expect(fetch).toHaveBeenNthCalledWith(
     3,
-    'https://account.example/rest/v1/media_config_commits?id=eq.10000000-0000-4000-8000-000000000010&status=eq.prepared',
+    'https://account.example/rest/v1/media_config_projection_commits?id=eq.10000000-0000-4000-8000-000000000010&status=eq.prepared',
     expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'synced' }) })
   );
+});
+
+it('读取投影完整度：提交状态、声明的变更数与实际到达的变更数', async () => {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 'c1', status: 'prepared', changeCount: 2 }])))
+    .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 'x1' }])));
+  await expect(new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')).resolves.toEqual({
+    status: 'prepared',
+    changeCount: 2,
+    receivedChanges: 1
+  });
+  expect(fetch).toHaveBeenNthCalledWith(
+    1,
+    'https://account.example/rest/v1/media_config_projection_commits?select=id,status,changeCount&id=eq.10000000-0000-4000-8000-000000000010',
+    expect.objectContaining({ method: 'GET' })
+  );
+  expect(fetch).toHaveBeenNthCalledWith(
+    2,
+    'https://account.example/rest/v1/media_config_projection_changes?select=id&commitId=eq.10000000-0000-4000-8000-000000000010',
+    expect.objectContaining({ method: 'GET' })
+  );
+  vi.mocked(fetch).mockResolvedValueOnce(new Response('[]'));
+  await expect(new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')).resolves.toBeNull();
 });
 
 it('直接调用 rollback RPC，保持回滚经过普通管理员身份', async () => {
@@ -288,16 +333,17 @@ it('直接调用 rollback RPC，保持回滚经过普通管理员身份', async 
 it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表', async () => {
   respond([{
     id: '10000000-0000-4000-8000-000000000010',
-    workspace_id: userId,
-    branch_id: 'main',
-    parent_ids: [],
-    author_id: userId,
-    operation_id: '10000000-0000-4000-8000-000000000011',
+    workspaceId: userId,
+    branchId: 'main',
+    parentIds: [],
+    authorId: userId,
+    message: '更新首页模板',
+    operationId: '10000000-0000-4000-8000-000000000011',
     status: 'rejected',
-    created_at: '2026-11-15T07:00:00Z',
-    applied_at: null,
-    released_at: null,
-    rejection_code: 'revision_conflict'
+    createdAt: '2026-11-15T07:00:00Z',
+    appliedAt: null,
+    releasedAt: null,
+    rejectionCode: 'revision_conflict'
   }]);
   await expect(new ProductClient(async () => access).latestConfigCommit(userId)).resolves.toEqual({
     id: '10000000-0000-4000-8000-000000000010',
@@ -305,6 +351,7 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
     branchId: 'main',
     parentIds: [],
     authorId: userId,
+    message: '更新首页模板',
     operationId: '10000000-0000-4000-8000-000000000011',
     status: 'rejected',
     createdAt: '2026-11-15T07:00:00Z',
@@ -313,7 +360,7 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
     rejectionCode: 'revision_conflict'
   });
   expect(fetch).toHaveBeenCalledWith(
-    `https://account.example/rest/v1/media_config_commits?select=id,workspace_id,branch_id,parent_ids,author_id,operation_id,status,created_at,applied_at,released_at,rejection_code&workspace_id=eq.${userId}&order=created_at.desc&limit=1`,
+    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&order=createdAt.desc&limit=1`,
     expect.objectContaining({ method: 'GET' })
   );
 });

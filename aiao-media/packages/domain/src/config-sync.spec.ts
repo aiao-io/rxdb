@@ -47,10 +47,12 @@ describe('media configuration sync plan', () => {
   });
 
   it('maps every synced entity to the public schema table that Supabase exposes', () => {
-    expect(MEDIA_CONFIG_SYNC_ENTITIES.map(entity => {
-      const metadata = getEntityMetadata(entity);
-      return `${metadata.namespace}.${metadata.tableName}`;
-    })).toEqual([
+    expect(
+      MEDIA_CONFIG_SYNC_ENTITIES.map(entity => {
+        const metadata = getEntityMetadata(entity);
+        return `${metadata.namespace}.${metadata.tableName}`;
+      })
+    ).toEqual([
       'public.media_prompt_templates',
       'public.media_provider_policies',
       'public.media_platform_models',
@@ -62,7 +64,11 @@ describe('media configuration sync plan', () => {
   it('versions configuration edits with a workspace filter and keeps the projection remote-authoritative', () => {
     const plan = createMediaConfigSyncOptions({ workspaceId: workspaceId.toUpperCase(), adapters });
 
-    expect(plan.sync).toEqual({ type: SyncType.Full, local: { adapter: 'sqlite-wasm' }, remote: { adapter: 'supabase' } });
+    expect(plan.sync).toEqual({
+      type: SyncType.Full,
+      local: { adapter: 'sqlite-wasm' },
+      remote: { adapter: 'supabase' }
+    });
     expect(plan.syncOverrides.map(item => item.entity)).toEqual([...MEDIA_CONFIG_SYNC_ENTITIES]);
     const byEntity = new Map(plan.syncOverrides.map(item => [item.entity, item.sync]));
     for (const entity of MEDIA_CONFIG_VERSIONED_ENTITIES) {
@@ -102,7 +108,11 @@ describe('media configuration sync plan', () => {
   });
 
   it('rejects empty adapter names instead of silently falling back to a default', () => {
-    expect(() => createMediaConfigSyncOptions({ workspaceId, adapters: { local: '', remote: 'supabase' } })).toThrow(/适配器/);
-    expect(() => createMediaConfigSyncOptions({ workspaceId, adapters: { local: 'pglite', remote: ' ' } })).toThrow(/适配器/);
+    expect(() => createMediaConfigSyncOptions({ workspaceId, adapters: { local: '', remote: 'supabase' } })).toThrow(
+      /适配器/
+    );
+    expect(() => createMediaConfigSyncOptions({ workspaceId, adapters: { local: 'pglite', remote: ' ' } })).toThrow(
+      /适配器/
+    );
   });
 });

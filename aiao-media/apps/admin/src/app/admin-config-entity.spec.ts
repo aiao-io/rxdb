@@ -299,17 +299,14 @@ describe('Admin 配置实体：真实 rxdb-entity-list / 详情 / 表单 / 表�
     const fixture = await renderList({ workspaceId: workspaceA, fixedFormData: { workspaceId: workspaceA } });
     const dialog = await openCreateDialog(fixture);
 
-    const errors = await saveEmptyForm(dialog);
+    await saveEmptyForm(dialog);
 
-    expect(errors.textContent).toContain('保存失败');
     expect(await allTemplates()).toEqual([]);
     expect(document.querySelector('rxdb-entity-detail')).not.toBeNull();
   });
 
-  // 已知缺口：MediaPromptTemplate 的元数据没有声明 required，表单不在提交前拦截，空值一路打到
-  // 存储层 NOT NULL，用户看到的是数据库原文。领域实体给 key / title / prompt 声明 required 后，
-  // 这条会转为通过（it.fails 随之报错），届时改回 it。
-  it.fails('新增表单：提交前就按字段提示必填项（等待领域元数据声明 required）', async () => {
+  // 领域元数据声明了 key / title / prompt 为 required：表单在提交前拦截，不再把空值打到存储层。
+  it('新增表单：提交前就按字段提示必填项，不出现存储层原文', async () => {
     const fixture = await renderList({ workspaceId: workspaceA, fixedFormData: { workspaceId: workspaceA } });
     const dialog = await openCreateDialog(fixture);
 

@@ -611,7 +611,7 @@
         "supabase-migrate"
       ],
       "options": {
-        "command": "AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node --test src/pgmq-supabase.integration.test.ts && AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node ../../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/backend-rxdb/backend-rxdb.local.integration.spec.ts",
+        "command": "AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node --test src/pgmq-supabase.integration.test.ts && AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 node ../../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/backend-rxdb/backend-rxdb.local.integration.spec.ts src/backend-rxdb/config-sync.local.integration.spec.ts",
         "cwd": "aiao-media/apps/api"
       }
     },

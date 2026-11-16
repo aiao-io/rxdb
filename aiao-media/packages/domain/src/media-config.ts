@@ -19,9 +19,9 @@ export abstract class MediaConfigEntity extends EntityBase {
     { name: 'revision', type: PropertyType.integer, displayName: '修订号' },
     { name: 'branchId', type: PropertyType.string, nullable: true, displayName: '配置分支' },
     { name: 'deletedAt', type: PropertyType.date, nullable: true, displayName: '删除时间' },
-    { name: 'key', type: PropertyType.string, displayName: '标识', searchable: true },
-    { name: 'title', type: PropertyType.string, displayName: '标题', searchable: true },
-    { name: 'prompt', type: PropertyType.string, displayName: '提示词', searchable: true },
+    { name: 'key', type: PropertyType.string, displayName: '标识', searchable: true, required: true },
+    { name: 'title', type: PropertyType.string, displayName: '标题', searchable: true, required: true },
+    { name: 'prompt', type: PropertyType.string, displayName: '提示词', searchable: true, required: true },
     { name: 'purpose', type: PropertyType.string, nullable: true, displayName: '用途' },
     { name: 'style', type: PropertyType.string, nullable: true, displayName: '风格' },
     { name: 'tags', type: PropertyType.stringArray, displayName: '标签' },
@@ -50,7 +50,7 @@ export class MediaPromptTemplate extends MediaConfigEntity {
     { name: 'revision', type: PropertyType.integer, displayName: '修订号' },
     { name: 'branchId', type: PropertyType.string, nullable: true, displayName: '配置分支' },
     { name: 'deletedAt', type: PropertyType.date, nullable: true, displayName: '删除时间' },
-    { name: 'key', type: PropertyType.string, displayName: '标识', searchable: true },
+    { name: 'key', type: PropertyType.string, displayName: '标识', searchable: true, required: true },
     { name: 'version', type: PropertyType.integer, displayName: '策略版本' },
     { name: 'providers', type: PropertyType.json, displayName: '供应商配置' },
     { name: 'enabled', type: PropertyType.boolean, displayName: '启用' }
@@ -75,9 +75,9 @@ export class MediaProviderPolicy extends MediaConfigEntity {
     { name: 'revision', type: PropertyType.integer, displayName: '修订号' },
     { name: 'branchId', type: PropertyType.string, nullable: true, displayName: '配置分支' },
     { name: 'deletedAt', type: PropertyType.date, nullable: true, displayName: '删除时间' },
-    { name: 'providerId', type: PropertyType.string, displayName: '供应商' },
-    { name: 'modelId', type: PropertyType.string, displayName: '模型标识', searchable: true },
-    { name: 'displayName', type: PropertyType.string, displayName: '显示名称', searchable: true },
+    { name: 'providerId', type: PropertyType.string, displayName: '供应商', required: true },
+    { name: 'modelId', type: PropertyType.string, displayName: '模型标识', searchable: true, required: true },
+    { name: 'displayName', type: PropertyType.string, displayName: '显示名称', searchable: true, required: true },
     { name: 'capabilities', type: PropertyType.stringArray, displayName: '能力' },
     { name: 'enabled', type: PropertyType.boolean, displayName: '启用' }
   ],
@@ -196,7 +196,7 @@ export interface MediaConfigCommitInput {
   changes: MediaConfigCommitChangeInput[];
 }
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isUuid = (value: unknown): value is string => typeof value === 'string' && uuidPattern.test(value);
 
 /** 检查配置提交状态是否允许前进。 */
@@ -218,9 +218,23 @@ function stableJson(value: unknown): string {
     .join(',')}}`;
 }
 
-/** 为完整提交 envelope 生成稳定的异步 SHA-256 指纹。 */
+/**
+ * 为完整提交 envelope 生成稳定的异步 SHA-256 指纹。
+ *
+ * @remarks
+ * 只覆盖不可变内容：`status` 由服务端从 prepared 推进到 applied / released，计入指纹会让后台复核永远失败。
+ */
 export async function createMediaConfigCommitFingerprint(input: MediaConfigCommitInput): Promise<string> {
-  const serialized = stableJson(input);
+  const serialized = stableJson({
+    id: input.id,
+    workspaceId: input.workspaceId,
+    branchId: input.branchId,
+    parentIds: input.parentIds,
+    authorId: input.authorId,
+    message: input.message,
+    operationId: input.operationId,
+    changes: input.changes
+  });
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(serialized));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }

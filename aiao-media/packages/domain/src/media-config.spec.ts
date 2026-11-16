@@ -268,6 +268,58 @@ describe('media configuration domain contracts', () => {
     expect(envelope.changes).toHaveLength(3);
   });
 
+  it('fingerprints only immutable commit content, so server-advanced status never invalidates it', async () => {
+    const input: MediaConfigCommitInput = {
+      id: '10000000-0000-4000-8000-000000000001',
+      workspaceId: '10000000-0000-4000-8000-000000000002',
+      branchId: 'main',
+      parentIds: [],
+      authorId: '10000000-0000-4000-8000-000000000004',
+      message: '状态无关',
+      operationId: '10000000-0000-4000-8000-000000000005',
+      status: 'prepared',
+      changes: [{
+        id: '10000000-0000-4000-8000-000000000006',
+        sequence: 1,
+        entity: 'MediaPromptTemplate',
+        entityId: '10000000-0000-4000-8000-000000000007',
+        operation: 'insert',
+        patch: { value: { key: 'hero' } },
+        inversePatch: null,
+        expectedRevision: null
+      }]
+    };
+    const prepared = await createMediaConfigCommitFingerprint(input);
+    for (const status of ['synced', 'validated', 'applied', 'released', 'rejected'] as const) {
+      expect(await createMediaConfigCommitFingerprint({ ...input, status })).toBe(prepared);
+    }
+    expect(await createMediaConfigCommitFingerprint({ ...input, message: '内容变化' })).not.toBe(prepared);
+  });
+
+  it('accepts the UUID v7 identities that RxDB and the working tree generate', () => {
+    const v7 = '01a1e4ab-2eb4-74ac-8053-9f223ad0bf50';
+    expect(() => assertValidMediaConfigCommit({
+      id: v7,
+      workspaceId: '10000000-0000-4000-8000-000000000002',
+      branchId: 'main',
+      parentIds: ['01a1e4ab-2eb4-74ac-8053-9f223ad0bf51'],
+      authorId: '10000000-0000-4000-8000-000000000004',
+      message: 'v7 提交',
+      operationId: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf52',
+      status: 'prepared',
+      changes: [{
+        id: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf53',
+        sequence: 1,
+        entity: 'MediaPromptTemplate',
+        entityId: v7,
+        operation: 'insert',
+        patch: { value: { key: 'hero' } },
+        inversePatch: null,
+        expectedRevision: null
+      }]
+    })).not.toThrow();
+  });
+
   it('keeps every synced entity addressable by workspace, including the change rows', () => {
     for (const EntityType of [MediaPromptTemplate, MediaProviderPolicy, MediaPlatformModel, MediaConfigCommit, MediaConfigCommitChange]) {
       expect(getEntityMetadata(EntityType).properties.map(property => property.name)).toContain('workspaceId');

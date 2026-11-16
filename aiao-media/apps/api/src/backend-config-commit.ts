@@ -16,27 +16,31 @@ export interface BackendConfigCommitDatabase {
   readonly entityManager: Pick<RxDB['entityManager'], 'getRepository'>;
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * 经后台 RxDB 节点的查询缓存读取提交投影：每次读取都按远端 `updatedAt` 新鲜度回源，
  * 因此服务端 RPC 推进的状态与补写的变更行都能被看到。
  */
 export function createBackendConfigCommitRemote(db: BackendConfigCommitDatabase): BackendConfigCommitRemote {
-  const rule = (field: 'id' | 'commitId', value: string) => {
+  const uuid = (value: string): UUID => {
     if (!UUID_PATTERN.test(value)) throw new Error('配置提交标识不是 UUID。');
-    return { combinator: 'and' as const, rules: [{ field, operator: '=' as const, value: value as UUID }] };
+    return value as UUID;
   };
   return {
     readCommit: async commitId => {
       const { MediaConfigCommit } = await import('@aiao-media/domain');
-      const rows = await firstValueFrom(db.entityManager.getRepository(MediaConfigCommit).findAll({ where: rule('id', commitId) }));
+      const rows = await firstValueFrom(db.entityManager.getRepository(MediaConfigCommit).findAll({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: uuid(commitId) }] }
+      }));
       return rows[0] ? { ...rows[0] } : null;
     },
     readChanges: async commitId => {
       const { MediaConfigCommitChange } = await import('@aiao-media/domain');
       const rows = await firstValueFrom(
-        db.entityManager.getRepository(MediaConfigCommitChange).findAll({ where: rule('commitId', commitId) })
+        db.entityManager.getRepository(MediaConfigCommitChange).findAll({
+          where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: uuid(commitId) }] }
+        })
       );
       return rows.map(row => ({ ...row }));
     }

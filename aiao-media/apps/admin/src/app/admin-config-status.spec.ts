@@ -196,13 +196,12 @@ describe('配置提交详情', () => {
     const heading = root.querySelector(`#${article?.getAttribute('aria-labelledby')}`);
     expect(heading?.textContent).toContain('最近提交');
     expect(text(root)).toContain('调整海报模板');
-    expect(text(root)).toContain('操作者：运营小王');
-    expect(text(root)).not.toContain(`操作者：${authorId}`);
+    expect(fact(root, '操作者')).toBe('运营小王');
   });
 
   it('没有名称时把操作者 UUID 原样显示', () => {
     const root = renderCommit({ commit: commit(), canManage: true }).nativeElement as HTMLElement;
-    expect(text(root)).toContain(`操作者：${authorId}`);
+    expect(fact(root, '操作者')).toBe(authorId);
   });
 
   it('技术详情可折叠，列出分支、提交 ID 与全部父提交', () => {
@@ -227,9 +226,10 @@ describe('配置提交详情', () => {
   });
 
   it('显示应用与发布时间，未发生时明确写出', () => {
-    const pending = renderCommit({ commit: commit(), canManage: true }).nativeElement as HTMLElement;
-    expect(text(pending)).toContain('应用：未应用');
-    expect(text(pending)).toContain('发布：未发布');
+    const pending = renderCommit({ commit: commit({ createdAt: null }), canManage: true }).nativeElement as HTMLElement;
+    expect(fact(pending, '创建')).toBe('未记录');
+    expect(fact(pending, '应用')).toBe('未应用');
+    expect(fact(pending, '发布')).toBe('未发布');
 
     const appliedAt = '2026-11-16T03:00:00.000Z';
     const releasedAt = '2026-11-16T04:30:00.000Z';
@@ -241,6 +241,8 @@ describe('配置提交详情', () => {
     ]);
     expect(times).toContainEqual([appliedAt, time(appliedAt)]);
     expect(times).toContainEqual([releasedAt, time(releasedAt)]);
+    expect(fact(done, '应用')).toBe(time(appliedAt));
+    expect(fact(done, '发布')).toBe(time(releasedAt));
   });
 
   it('已知拒绝码翻成中文，未知码原样显示并标注', () => {
@@ -248,12 +250,23 @@ describe('配置提交详情', () => {
       commit: commit({ status: 'rejected', rejectionCode: 'revision_conflict' }),
       canManage: true
     }).nativeElement as HTMLElement;
-    expect(text(known)).toContain('拒绝原因：配置版本冲突');
+    expect(fact(known, '拒绝原因')).toBe('配置版本冲突：目标配置已被其他提交修改');
     expect(text(known)).not.toContain('revision_conflict');
 
     const unknown = renderCommit({ commit: commit({ status: 'rejected', rejectionCode: 'quota_x' }), canManage: true })
       .nativeElement as HTMLElement;
-    expect(text(unknown)).toContain('拒绝原因：未识别的拒绝码 quota_x');
+    expect(fact(unknown, '拒绝原因')).toBe('未识别的拒绝码 quota_x');
+
+    const prototypeKey = renderCommit({
+      commit: commit({ status: 'rejected', rejectionCode: 'constructor' }),
+      canManage: true
+    }).nativeElement as HTMLElement;
+    expect(fact(prototypeKey, '拒绝原因')).toBe('未识别的拒绝码 constructor');
+  });
+
+  it('未拒绝的提交不显示拒绝原因', () => {
+    const root = renderCommit({ commit: commit(), canManage: true }).nativeElement as HTMLElement;
+    expect(fact(root, '拒绝原因')).toBeUndefined();
   });
 
   it('冲突信息以警示播报', () => {

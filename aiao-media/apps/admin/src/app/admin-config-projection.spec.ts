@@ -8,10 +8,13 @@ import type {
 } from '@aiao/rxdb-plugin-working-tree';
 import {
   createAdminConfigProjection,
+  createAdminConfigProjectionStore,
   createMediaConfigCommitEnvelopeFromWorkingTree,
+  isConfigContentUnit,
   type AdminConfigProjectionStore,
   type AdminWorkingTreeSource
 } from './admin-config-projection';
+import type { RemoteConfigProjection } from './product-client';
 
 const workspaceId = '10000000-0000-4000-8000-000000000001';
 const authorId = '10000000-0000-4000-8000-000000000002';
@@ -154,6 +157,41 @@ describe('Admin 配置提交投影', () => {
     })).rejects.toThrow('不允许投影');
   });
 
+  it('更新以提交时的当前 revision 作为 CAS 预期值：应用后写回的 revision 不会让下一次编辑必然冲突', async () => {
+    const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(source([
+      unit({ patch: { revision: 2, title: '再改一次' }, inversePatch: { revision: 1, title: '上次应用的标题' } })
+    ]), {
+      commitId,
+      workspaceId,
+      authorId,
+      readEntity: async () => ({ id: templateId, workspaceId, revision: 2, key: 'hero', title: '再改一次', prompt: 'p', tags: [], enabled: true })
+    });
+    expect(envelope.changes[0]?.expectedRevision).toBe(2);
+  });
+
+  it('只改修订号的回写单元不进入投影；只有回写的提交不需要投影', async () => {
+    expect(isConfigContentUnit(unit({ patch: { revision: 3 }, inversePatch: { revision: 2 } }))).toBe(false);
+    expect(isConfigContentUnit(unit({ patch: { title: '新标题', revision: 3 }, inversePatch: { title: '旧', revision: 2 } }))).toBe(true);
+    expect(isConfigContentUnit(unit({ operation: 'insert', patch: { revision: 1 }, inversePatch: null }))).toBe(true);
+    expect(isConfigContentUnit(unit({ operation: 'delete', patch: null, inversePatch: { revision: 2 } }))).toBe(true);
+
+    const mixed = await createMediaConfigCommitEnvelopeFromWorkingTree(source([
+      unit({ unitId: '10000000-0000-4000-8000-000000000020', patch: { revision: 3 }, inversePatch: { revision: 2 } }),
+      unit({ unitId: '10000000-0000-4000-8000-000000000021', entityId: policyId, entity: 'MediaProviderPolicy', patch: { enabled: false }, inversePatch: { enabled: true } })
+    ]), {
+      commitId,
+      workspaceId,
+      authorId,
+      readEntity: async () => ({ id: policyId, workspaceId, revision: 1, key: 'default', version: 1, providers: [], enabled: false })
+    });
+    expect(mixed.changes.map(change => [change.sequence, change.entity])).toEqual([[1, 'MediaProviderPolicy']]);
+    expect(mixed.commit.changeCount).toBe(1);
+
+    await expect(createMediaConfigCommitEnvelopeFromWorkingTree(source([
+      unit({ patch: { revision: 3 }, inversePatch: { revision: 2 } })
+    ]), { commitId, workspaceId, authorId, readEntity: async () => null })).rejects.toThrow('修订号');
+  });
+
   it('删除使用逆向 patch 中的 revision 作为 CAS 预期值', async () => {
     const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(source([
       unit({
@@ -232,6 +270,35 @@ describe('Admin 配置提交投影', () => {
       authorId,
       readEntity: async () => ({ id: templateId, workspaceId, revision: 2, key: 'hero', title: '标题', prompt: 'p', tags: [], enabled: true })
     })).rejects.toThrow('父提交');
+  });
+
+  it('远端投影只有在状态越过 prepared 且变更数与工作树一致时才算完整，保存直接写远端投影表', async () => {
+    const pushed: string[] = [];
+    let projection: RemoteConfigProjection | null = null;
+    const client = {
+      configProjection: async () => projection,
+      pushConfigCommit: async (envelope: { commit: { id: string } }) => {
+        pushed.push(envelope.commit.id);
+      }
+    };
+    const store = createAdminConfigProjectionStore(client);
+    expect(await store.hasCompleteProjection(commitId, 2)).toBe(false);
+    projection = { status: 'prepared', changeCount: 2, receivedChanges: 2 };
+    expect(await store.hasCompleteProjection(commitId, 2)).toBe(false);
+    projection = { status: 'synced', changeCount: 2, receivedChanges: 1 };
+    expect(await store.hasCompleteProjection(commitId, 2)).toBe(false);
+    projection = { status: 'applied', changeCount: 3, receivedChanges: 3 };
+    expect(await store.hasCompleteProjection(commitId, 2)).toBe(false);
+    projection = { status: 'synced', changeCount: 2, receivedChanges: 2 };
+    expect(await store.hasCompleteProjection(commitId, 2)).toBe(true);
+    const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(source([unit({})]), {
+      commitId,
+      workspaceId,
+      authorId,
+      readEntity: async () => ({ id: templateId, workspaceId, revision: 2, key: 'hero', title: '标题', prompt: 'p', tags: [], enabled: true })
+    });
+    await store.save(envelope);
+    expect(pushed).toEqual([commitId]);
   });
 
   it('监听提交并通过补偿扫描，保证同一提交只持久化一次', async () => {

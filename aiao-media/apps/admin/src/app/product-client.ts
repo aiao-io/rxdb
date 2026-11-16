@@ -1,5 +1,5 @@
 import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
-import type { MediaConfigCommitEnvelope, MediaConfigCommitStatus } from '@aiao-media/domain';
+import { MEDIA_CONFIG_COMMIT_STATUSES, type MediaConfigCommitEnvelope, type MediaConfigCommitStatus } from '@aiao-media/domain';
 import type { AdminSupabaseClient } from './admin-auth';
 import { normalizeDisplayName, parseAccountIdentity, parseAdminProfile, type AdminAccountIdentity, type AdminProfile } from './admin-profile';
 
@@ -24,12 +24,19 @@ export interface RemoteConfigCommitStatus {
   branchId: string;
   parentIds: string[];
   authorId: string;
+  message: string;
   operationId: string;
   status: MediaConfigCommitStatus;
   createdAt: string;
   appliedAt: string | null;
   releasedAt: string | null;
   rejectionCode: string | null;
+}
+/** 远端投影完整度：补偿扫描据此判断是否需要续写变更或标记 synced。 */
+export interface RemoteConfigProjection {
+  status: MediaConfigCommitStatus;
+  changeCount: number;
+  receivedChanges: number;
 }
 export type ProductAuthorizer = () => Promise<ProductAuthorization>;
 
@@ -122,42 +129,68 @@ export class ProductClient {
     return this.remote(access, `/rpc/${path}`, operation === 'delete' ? { p_request_id: requestId } : {});
   }
 
+  /**
+   * 把领域投影写入 RxDB 形状的投影表：先以 prepared 幂等插入提交与变更，再把仍是 prepared 的提交标记为 synced。
+   *
+   * @remarks
+   * 服务端触发器只接受客户端写 prepared、在变更到齐后改 synced；其余状态只由应用 / 回滚 RPC 推进。
+   * 重放时已存在的行被忽略，已同步的提交不会被 PATCH 命中。
+   */
   async pushConfigCommit(envelope: MediaConfigCommitEnvelope): Promise<void> {
     const access = await this.authorize();
+    const author = envelope.commit.authorId;
     const commit = {
       id: envelope.commit.id,
-      workspace_id: envelope.commit.workspaceId,
-      branch_id: envelope.commit.branchId,
-      parent_ids: envelope.commit.parentIds,
-      author_id: envelope.commit.authorId,
+      workspaceId: envelope.commit.workspaceId,
+      branchId: envelope.commit.branchId,
+      parentIds: envelope.commit.parentIds,
+      authorId: author,
       message: envelope.commit.message,
-      operation_id: envelope.commit.operationId,
-      content_fingerprint: envelope.commit.contentFingerprint,
-      status: envelope.commit.status
+      operationId: envelope.commit.operationId,
+      contentFingerprint: envelope.commit.contentFingerprint,
+      changeCount: envelope.commit.changeCount,
+      status: 'prepared',
+      createdBy: author,
+      updatedBy: author
     };
-    await this.remote(access, '/media_config_commits?on_conflict=workspace_id%2Coperation_id', commit, {
-      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }
-    });
-    await this.remote(access, '/media_config_commit_changes?on_conflict=commit_id%2Csequence', envelope.changes.map(change => ({
+    const ignoreDuplicates = { headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } };
+    await this.remote(access, '/media_config_projection_commits?on_conflict=id', commit, ignoreDuplicates);
+    await this.remote(access, '/media_config_projection_changes?on_conflict=id', envelope.changes.map(change => ({
       id: change.id,
-      commit_id: envelope.commit.id,
+      workspaceId: envelope.commit.workspaceId,
+      commitId: envelope.commit.id,
       sequence: change.sequence,
       entity: change.entity,
-      entity_id: change.entityId,
+      entityId: change.entityId,
       operation: change.operation,
       patch: change.patch,
-      inverse_patch: change.inversePatch,
-      expected_revision: change.expectedRevision,
-      content_fingerprint: change.contentFingerprint
-    })), {
-      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }
-    });
+      inversePatch: change.inversePatch,
+      expectedRevision: change.expectedRevision,
+      contentFingerprint: change.contentFingerprint,
+      createdBy: author,
+      updatedBy: author
+    })), ignoreDuplicates);
     await this.remote(
       access,
-      `/media_config_commits?id=eq.${encodeURIComponent(envelope.commit.id)}&status=eq.prepared`,
+      `/media_config_projection_commits?id=eq.${encodeURIComponent(envelope.commit.id)}&status=eq.prepared`,
       { status: 'synced' },
       { method: 'PATCH', headers: { Prefer: 'return=minimal' } }
     );
+  }
+
+  /** 读取远端投影的完整度：提交状态、声明的变更数与实际到达的变更数；提交不存在时为 null。 */
+  async configProjection(commitId: string): Promise<RemoteConfigProjection | null> {
+    const access = await this.authorize();
+    const id = encodeURIComponent(commitId);
+    const rows = await this.remote(access, `/media_config_projection_commits?select=id,status,changeCount&id=eq.${id}`);
+    if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交投影不可读。');
+    if (!rows.length) return null;
+    const row = rows[0] as Record<string, unknown>;
+    if (!MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus) || !Number.isSafeInteger(row['changeCount']))
+      throw new Error('配置提交投影回执无效。');
+    const changes = await this.remote(access, `/media_config_projection_changes?select=id&commitId=eq.${id}`);
+    if (!Array.isArray(changes)) throw new Error('配置提交变更不可读。');
+    return { status: row['status'] as MediaConfigCommitStatus, changeCount: row['changeCount'] as number, receivedChanges: changes.length };
   }
 
   async applyConfigCommit(commitId: string, operationId: string): Promise<unknown> {
@@ -180,7 +213,7 @@ export class ProductClient {
     const access = await this.authorize();
     const rows = await this.remote(
       access,
-      `/media_config_commits?select=id,workspace_id,branch_id,parent_ids,author_id,operation_id,status,created_at,applied_at,released_at,rejection_code&workspace_id=eq.${encodeURIComponent(workspaceId)}&order=created_at.desc&limit=1`
+      `/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${encodeURIComponent(workspaceId)}&order=createdAt.desc&limit=1`
     );
     if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交状态不可读。');
     if (!rows.length) return null;
@@ -375,7 +408,11 @@ export class ProductClient {
       referrerPolicy: 'no-referrer',
       signal: AbortSignal.timeout(15000)
     });
-    if (!result.ok) throw new ProductRequestError(result.status, this.errorMessage(result.status));
+    if (!result.ok) {
+      // PostgREST 把 40001 等冲突映射成 5xx；按数据库错误码归为版本冲突，与 Worker 的 product-http 同一口径。
+      const status = CONFLICT_CODES.has(await errorCode(result)) ? 409 : result.status;
+      throw new ProductRequestError(status, this.errorMessage(status));
+    }
     const body = await result.text();
     return body ? JSON.parse(body) as unknown : null;
 
@@ -386,34 +423,54 @@ export class ProductClient {
       : status === 402 ? '可用积分不足，请查看当前余额。'
       : status === 409 ? '数据版本已变化，请重试。'
       : status === 405 ? '当前操作不被支持。'
+      : status === 400 ? '请求被拒绝：内容无效，或当前状态不允许该操作。'
       : '产品服务暂不可用，原数据保留。';
   }
+}
+
+/** 数据库返回的版本冲突类错误码：序列化冲突、唯一约束、检查约束与自定义 409。 */
+const CONFLICT_CODES: ReadonlySet<string | null> = new Set(['40001', '23505', '23514', 'PT409']);
+
+/** 读取 PostgREST 错误体里的 SQLSTATE；非 JSON 或缺字段时没有错误码。 */
+async function errorCode(response: Response): Promise<string | null> {
+  const text = await response.text();
+  try {
+    const body = JSON.parse(text) as unknown;
+    return isRecordValue(body) && typeof body['code'] === 'string' ? body['code'] : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRecordValue(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 function parseConfigCommitStatus(value: unknown): RemoteConfigCommitStatus {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('配置提交状态回执无效。');
   const row = value as Record<string, unknown>;
-  const strings = ['id', 'workspace_id', 'branch_id', 'author_id', 'operation_id', 'created_at'] as const;
+  const strings = ['id', 'workspaceId', 'branchId', 'authorId', 'message', 'operationId', 'createdAt'] as const;
   for (const key of strings) if (typeof row[key] !== 'string' || row[key].length === 0) throw new Error('配置提交状态回执无效。');
-  if (!Array.isArray(row['parent_ids']) || row['parent_ids'].some(parent => typeof parent !== 'string')) throw new Error('配置提交父提交无效。');
-  if (!['prepared', 'synced', 'validated', 'applied', 'released', 'rejected'].includes(String(row['status']))) throw new Error('配置提交状态无效。');
-  const nullableString = (key: 'applied_at' | 'released_at' | 'rejection_code'): string | null => {
+  if (!Array.isArray(row['parentIds']) || row['parentIds'].some(parent => typeof parent !== 'string')) throw new Error('配置提交父提交无效。');
+  if (!MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus)) throw new Error('配置提交状态无效。');
+  const nullableString = (key: 'appliedAt' | 'releasedAt' | 'rejectionCode'): string | null => {
     const value = row[key];
     if (value !== null && value !== undefined && typeof value !== 'string') throw new Error('配置提交状态回执无效。');
     return value ?? null;
   };
   return {
     id: row['id'] as string,
-    workspaceId: row['workspace_id'] as string,
-    branchId: row['branch_id'] as string,
-    parentIds: [...(row['parent_ids'] as string[])],
-    authorId: row['author_id'] as string,
-    operationId: row['operation_id'] as string,
+    workspaceId: row['workspaceId'] as string,
+    branchId: row['branchId'] as string,
+    parentIds: [...(row['parentIds'] as string[])],
+    authorId: row['authorId'] as string,
+    message: row['message'] as string,
+    operationId: row['operationId'] as string,
     status: row['status'] as MediaConfigCommitStatus,
-    createdAt: row['created_at'] as string,
-    appliedAt: nullableString('applied_at'),
-    releasedAt: nullableString('released_at'),
-    rejectionCode: nullableString('rejection_code')
+    createdAt: row['createdAt'] as string,
+    appliedAt: nullableString('appliedAt'),
+    releasedAt: nullableString('releasedAt'),
+    rejectionCode: nullableString('rejectionCode')
   };
 }
 

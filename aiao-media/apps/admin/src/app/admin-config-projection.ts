@@ -1,11 +1,8 @@
 import {
-  MediaConfigCommit,
-  MediaConfigCommitChange,
   createMediaConfigCommitEnvelope,
   type MediaConfigCommitEnvelope,
   type MediaConfigCommitInput
 } from '@aiao-media/domain';
-import { RxDB, type UUID } from '@aiao/rxdb';
 import type {
   CommitChangeSetPage,
   CommitChangeUnitContent,
@@ -14,7 +11,8 @@ import type {
   WorkingTreeCommitEvent,
   WorkingTreeManager
 } from '@aiao/rxdb-plugin-working-tree';
-import { firstValueFrom, Observable, Subject, type Subscription } from 'rxjs';
+import { Observable, Subject, type Subscription } from 'rxjs';
+import type { ProductClient } from './product-client';
 
 const CONFIG_ENTITIES = new Set(['MediaPromptTemplate', 'MediaProviderPolicy', 'MediaPlatformModel']);
 const CONFIG_FIELDS: Record<string, readonly string[]> = {
@@ -22,7 +20,7 @@ const CONFIG_FIELDS: Record<string, readonly string[]> = {
   MediaProviderPolicy: ['key', 'version', 'providers', 'enabled'],
   MediaPlatformModel: ['providerId', 'modelId', 'displayName', 'capabilities', 'enabled']
 };
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export interface AdminWorkingTreeSource {
   readonly commits$: Observable<WorkingTreeCommitEvent>;
@@ -56,11 +54,6 @@ export interface AdminConfigProjection {
 
 function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
-}
-
-function asUuid(value: string): UUID {
-  if (!isUuid(value)) throw new Error('配置标识不是 UUID。');
-  return value as UUID;
 }
 
 async function stableUuid(seed: string): Promise<string> {
@@ -120,6 +113,21 @@ function inversePatchValue(entity: string, patch: Record<string, unknown> | null
   return { value: configPayload(entity, patch) };
 }
 
+/**
+ * 判断工作树变更单元是否改了配置内容。
+ *
+ * @remarks
+ * 应用或回滚成功后，本机把服务端返回的 revision 写回实体；这类只动非白名单字段的更新是簿记，
+ * 不是配置变更，进入投影会生成一次内容不变却推进服务端版本的提交。插入与删除总是内容变更。
+ */
+export function isConfigContentUnit(unit: Pick<CommitChangeUnitContent, 'namespace' | 'entity' | 'operation' | 'patch'>): boolean {
+  const fields = CONFIG_FIELDS[unit.entity];
+  // 未知实体或命名空间一律按内容处理，交给投影校验当场拒绝，不能被当成簿记静默丢弃。
+  if (unit.operation !== 'update' || unit.namespace !== 'public' || !fields) return true;
+  const patch = unit.patch && typeof unit.patch === 'object' ? Object.keys(unit.patch) : [];
+  return patch.some(field => fields.includes(field));
+}
+
 async function changeInput(
   commitId: string,
   sequence: number,
@@ -131,7 +139,9 @@ async function changeInput(
   const inverse = unit.inversePatch === null ? null : asRecord(unit.inversePatch, '提交逆向 patch 格式无效。');
   const currentRevision = revisionFrom(current);
   const inverseRevision = revisionFrom(inverse);
-  const expectedRevision = unit.operation === 'insert' ? null : inverseRevision ?? currentRevision;
+  // 更新以提交时实体的当前 revision 为准：应用成功后本机写回的服务端 revision 也进入了这次提交的逆向 patch，
+  // 优先取逆向值会退回到上一次应用前的版本，导致每次编辑都被 CAS 拒绝。删除后没有当前行，才取逆向快照。
+  const expectedRevision = unit.operation === 'insert' ? null : currentRevision ?? inverseRevision;
   if (unit.operation !== 'insert' && expectedRevision === null) throw new Error(`实体 ${unit.entity} 缺少预期 revision。`);
   if (unit.operation !== 'delete' && current === null) throw new Error(`实体 ${unit.entity}:${unit.entityId} 的提交后快照不存在。`);
   const patch = unit.operation === 'delete'
@@ -189,6 +199,8 @@ export async function createMediaConfigCommitEnvelopeFromWorkingTree(
   if (!isProjectable(entry)) throw new Error('系统基线提交不能进入配置 projection。');
   const changes = await source.commitChanges(options.commitId);
   if (changes.entries.length !== entry.changeSetCount) throw new Error('提交变更不完整，暂不投影。');
+  const content = changes.entries.filter(isConfigContentUnit);
+  if (content.length === 0) throw new Error('提交只包含服务端修订号回写，不需要投影。');
   const input: MediaConfigCommitInput = {
     id: await projectedCommitId(options.commitId),
     workspaceId: options.workspaceId,
@@ -198,54 +210,33 @@ export async function createMediaConfigCommitEnvelopeFromWorkingTree(
     message: entry.message,
     operationId: await stableUuid(`${options.workspaceId}:operation:${options.commitId}`),
     status: 'prepared',
-    changes: await Promise.all(changes.entries.map((unit, index) => changeInput(options.commitId, index + 1, unit, options.readEntity)))
+    changes: await Promise.all(content.map((unit, index) => changeInput(options.commitId, index + 1, unit, options.readEntity)))
   };
   return createMediaConfigCommitEnvelope(input);
 }
 
-export function createAdminConfigProjectionStore(database: RxDB): AdminConfigProjectionStore {
-  const commits = database.entityManager.getRepository(MediaConfigCommit);
-  const changes = database.entityManager.getRepository(MediaConfigCommitChange);
+/** 投影存储使用的远端接口；生产实现是 {@link ProductClient}。 */
+export type AdminConfigProjectionClient = Pick<ProductClient, 'configProjection' | 'pushConfigCommit'>;
+
+/**
+ * 以远端投影表为准的存储：投影由服务端推进状态，不在本机另存副本。
+ *
+ * @remarks
+ * 只有状态越过 prepared、声明的变更数与实际到达的变更数都等于工作树记录时才算完整；
+ * 否则补偿扫描会重新写入（已存在的行被忽略），最后把 prepared 标记为 synced。
+ */
+export function createAdminConfigProjectionStore(client: AdminConfigProjectionClient): AdminConfigProjectionStore {
   return {
     hasCompleteProjection: async (commitId, changeCount) => {
-      const commitRows = await firstValueFrom(commits.findAll({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: asUuid(commitId) }] }
-      }));
-      const commit = commitRows[0];
-      // prepared 说明变更行写完前中断过：仍需补写缺失变更并标记 synced。
-      if (!commit || commit.changeCount !== changeCount || commit.status === 'prepared') return false;
-      const changeRows = await firstValueFrom(changes.findAll({
-        where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: asUuid(commitId) }] }
-      }));
-      return changeRows.length === changeCount;
+      const projection = await client.configProjection(commitId);
+      return Boolean(
+        projection &&
+          projection.status !== 'prepared' &&
+          projection.changeCount === changeCount &&
+          projection.receivedChanges === changeCount
+      );
     },
-    save: async envelope => {
-      const existing = await firstValueFrom(commits.findAll({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: asUuid(envelope.commit.id) }] }
-      }));
-      let commit = existing[0];
-      if (!commit) {
-        const { changes: _changes, ...fields } = envelope.commit;
-        commit = await commits.create(new MediaConfigCommit(fields));
-      } else if (commit.contentFingerprint !== envelope.commit.contentFingerprint) {
-        throw new Error('同一提交的 projection 指纹不一致。');
-      }
-      const existingChanges = await firstValueFrom(changes.findAll({
-        where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: asUuid(envelope.commit.id) }] }
-      }));
-      const existingIds = new Set<string>(existingChanges.map(change => String(change.id)));
-      for (const change of envelope.changes) {
-        if (existingIds.has(change.id)) continue;
-        await changes.create(new MediaConfigCommitChange({
-          ...change,
-          workspaceId: envelope.commit.workspaceId,
-          commitId: envelope.commit.id,
-          expectedRevision: change.expectedRevision
-        }));
-      }
-      // 变更全部到齐后才标记 synced；服务端触发器会再核对一次完整性。
-      if (commit.status === 'prepared') await commits.update(commit, { status: 'synced' });
-    }
+    save: envelope => client.pushConfigCommit(envelope)
   };
 }
 
@@ -265,7 +256,10 @@ export function createAdminConfigProjection(options: AdminConfigProjectionOption
     const page = await options.workingTree.listCommits();
     const entry = page.entries.find(candidate => candidate.commitId === commitId);
     if (!entry || !isProjectable(entry)) return null;
-    const complete = await options.store.hasCompleteProjection(commitId, entry.changeSetCount);
+    const contentCount = (await options.workingTree.commitChanges(commitId)).entries.filter(isConfigContentUnit).length;
+    if (contentCount === 0) return null;
+    // 远端以投影后的标识存储，完整度必须按同一标识、按内容变更数查询。
+    const complete = await options.store.hasCompleteProjection(await projectedCommitId(commitId), contentCount);
     if (complete && !options.sync) return null;
     const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(options.workingTree, {
       commitId,

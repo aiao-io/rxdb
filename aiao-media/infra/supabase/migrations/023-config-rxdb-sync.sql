@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.media_config_projection_commits (
   "workspaceId" uuid NOT NULL REFERENCES public.media_workspaces(id) ON DELETE CASCADE,
   "branchId" text NOT NULL CHECK (length("branchId") BETWEEN 1 AND 128),
   "parentIds" uuid[] NOT NULL DEFAULT '{}'::uuid[],
-  "authorId" uuid NOT NULL REFERENCES auth.users(id),
+  "authorId" uuid NOT NULL,
   message text NOT NULL CHECK (length(message) BETWEEN 1 AND 500),
   "operationId" uuid NOT NULL,
   "contentFingerprint" text NOT NULL CHECK ("contentFingerprint" ~ '^[a-f0-9]{64}$'),
@@ -158,6 +158,16 @@ CREATE TABLE IF NOT EXISTS public.media_config_projection_commits (
 );
 CREATE INDEX IF NOT EXISTS media_config_projection_commits_branch
   ON public.media_config_projection_commits ("workspaceId", "branchId", "createdAt" DESC);
+
+-- 作者恒为工作区所有者（RLS 与 RPC 都要求），随账号一起删除。NO ACTION 会在工作区级联之前检查，
+-- 让删除账号失败；外键先删后建，保证本地 migrate 重放后也收敛到同一定义。
+ALTER TABLE public.media_config_projection_commits DROP CONSTRAINT IF EXISTS "media_config_projection_commits_authorId_fkey";
+ALTER TABLE public.media_config_projection_commits ADD CONSTRAINT "media_config_projection_commits_authorId_fkey"
+  FOREIGN KEY ("authorId") REFERENCES auth.users(id) ON DELETE CASCADE;
+-- 020 的应用结果同理：updated_by 恒为执行应用的工作区所有者。
+ALTER TABLE public.media_config_records DROP CONSTRAINT IF EXISTS media_config_records_updated_by_fkey;
+ALTER TABLE public.media_config_records ADD CONSTRAINT media_config_records_updated_by_fkey
+  FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS public.media_config_projection_changes (
   id uuid PRIMARY KEY,
@@ -317,6 +327,7 @@ ON CONFLICT (id) DO NOTHING;
 REVOKE INSERT, UPDATE, DELETE ON public.media_config_commits, public.media_config_commit_changes FROM authenticated;
 
 -- 5. 应用与回滚改读新投影表 --------------------------------------------------------
+-- 版本冲突用 PT409：PostgREST 直接返回 409；40001 会被当成序列化失败自动重试，冲突要数秒后才以 500 返回。
 
 CREATE OR REPLACE FUNCTION public.apply_media_config_commit(
   p_commit_id uuid,
@@ -385,7 +396,7 @@ BEGIN
       AND parent."branchId" = commit_row."branchId"
     WHERE parent.id IS NULL OR parent.status NOT IN ('applied', 'released')
   ) THEN
-    RAISE EXCEPTION 'Config commit parent is missing or not applied' USING ERRCODE = '40001';
+    RAISE EXCEPTION 'Config commit parent is missing or not applied' USING ERRCODE = 'PT409';
   END IF;
 
   SELECT count(*), min(sequence), max(sequence)
@@ -415,10 +426,10 @@ BEGIN
     FOR UPDATE;
     current_revision := COALESCE(current_row.revision, 0);
     IF change_row."expectedRevision" IS NOT NULL AND change_row."expectedRevision" <> current_revision THEN
-      RAISE EXCEPTION 'Config revision conflict' USING ERRCODE = '40001';
+      RAISE EXCEPTION 'Config revision conflict' USING ERRCODE = 'PT409';
     END IF;
     IF change_row.operation = 'insert' AND current_row.revision IS NOT NULL AND NOT current_row.deleted THEN
-      RAISE EXCEPTION 'Config record already exists' USING ERRCODE = '40001';
+      RAISE EXCEPTION 'Config record already exists' USING ERRCODE = 'PT409';
     END IF;
     next_revision := current_revision + 1;
 
@@ -546,12 +557,12 @@ BEGIN
       AND entity_id = change_row."entityId"
     FOR UPDATE;
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'Config record for rollback is missing' USING ERRCODE = '40001';
+      RAISE EXCEPTION 'Config record for rollback is missing' USING ERRCODE = 'PT409';
     END IF;
     current_revision := current_row.revision;
     expected_revision := COALESCE(change_row."expectedRevision", 0) + 1;
     IF current_revision <> expected_revision THEN
-      RAISE EXCEPTION 'Config rollback revision conflict' USING ERRCODE = '40001';
+      RAISE EXCEPTION 'Config rollback revision conflict' USING ERRCODE = 'PT409';
     END IF;
 
     IF change_row."inversePatch" IS NULL OR NOT (change_row."inversePatch" ? 'value') OR jsonb_typeof(change_row."inversePatch"->'value') = 'null' THEN
