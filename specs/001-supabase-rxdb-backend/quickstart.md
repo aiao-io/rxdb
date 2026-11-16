@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-本特性已完成代码实现和本地真实 Supabase 验证：Admin Auth/普通 Supabase 业务路径、特权 Edge Function、后台 RxDB 同步装配、`rxdb-model-angular` 配置入口、领域级配置提交投影、原子 apply/回滚 RPC 和 PGMQ 隔离 PoC 均已接入。普通 JWT、workspace/RLS、Pull/Push、Realtime 恢复、revision 冲突、tombstone、PGMQ 入队授权和运维演练已在 2026-11-15 通过；Playwright、双区域和生产切换仍待验收，PGMQ 未通过生产评审前继续使用 Durable Object。
+本特性已完成代码实现和本地真实 Supabase 验证：Admin Auth/普通 Supabase 业务路径、特权 Edge Function、后台 RxDB 同步装配、`rxdb-model-angular` 配置入口、领域级配置提交投影、原子 apply/回滚 RPC 和 PGMQ 隔离 PoC 均已接入。普通 JWT、workspace/RLS、Pull/Push、Realtime 恢复、revision 冲突、tombstone、PGMQ 入队授权和运维演练已在 2026-11-15 通过；配置实体与提交投影接入 RxDB 同步、后台提交工作流与 Playwright 验收已在 2026-11-16 通过，任务清单 68 项全部完成。双区域和生产切换仍待验收，PGMQ 未通过生产评审前继续使用 Durable Object。
 
 ## 2026-11-15 已验证证据
 
@@ -10,7 +10,14 @@
 - 后台 RxDB 使用普通 JWT，不把 service role 当作同步身份；本地 PGlite 与 Supabase remote adapter、history、sync、working-tree、固定 workspace filter 和 backend identity 校验已接入。
 - 真实本地 Supabase 集成已验证 Pull/Push、重复批次、Realtime 多节点、Realtime 断线后的 REST 恢复、revision 冲突和删除 tombstone。
 - PGMQ 已验证真实事务入队、匿名/普通身份拒绝、service role 指标读取、失败回滚、consumer 重启/积压/清理/死信演练；生产任务链路仍由 Durable Object 承担。
-- 配置 projection、fingerprint、补偿扫描和 apply/rollback RPC 已验证。完整配置实体与 projection 接入 Supabase `sync/syncBranches`、完整 working-tree 分支合并和后台提交状态 UI 仍未宣称完成。
+- 配置 projection、fingerprint、补偿扫描和 apply/rollback RPC 已验证。
+
+## 2026-11-16 已验证证据
+
+- 配置实体经 RxDB 原生同步按工作区双向同步（迁移 023，`public` 命名空间），提交投影换到 RxDB 形状的新表并按查询缓存读取；投影写入走 PostgREST，客户端只能写 prepared、在变更到齐后标记 synced。RxDB 内部系统实体由领域层拒绝进入同步。
+- 后台节点 `openBackendConfigRxdb` 与 Admin 使用同一份同步计划；Admin 每个账号一个本地库，先显示本机内容再同步，提供提交入口、提交详情、应用与带确认的安全回滚。
+- 真实 RxDB 工作树集成覆盖捕获、提交、补偿、配置分支与合并预览冲突；真实本地 Supabase 集成与真实浏览器 e2e 覆盖断网编辑、刷新恢复、同步、应用、冲突与 WCAG 2.1 AA。
+- 仍未关闭：远端非 main 分支、后台分支与合并界面、应用结果到公共目录的发布链路，以及双区域与生产切换。详见[交付记录](../../aiao-media/requirements/plans/config-sync-delivery-20261116.md)。
 
 ## 本地准备
 
@@ -76,6 +83,8 @@ env -u PNPM_HOME pnpm nx run aiao-media-api:lint --output-style=static
 env -u PNPM_HOME pnpm nx run aiao-media-api:typecheck --output-style=static
 env -u PNPM_HOME pnpm nx run aiao-media-api:test --output-style=static
 env -u PNPM_HOME AIAO_MEDIA_RUN_LOCAL_SUPABASE=1 pnpm nx run aiao-media:backend-rxdb-local-test --output-style=static
+env -u PNPM_HOME pnpm nx run aiao-media:production-bundle-test --output-style=static
+env -u PNPM_HOME pnpm exec playwright test -c aiao-media/apps/web-e2e/local-product.config.ts --reporter=line -g 后台
 env -u PNPM_HOME pnpm nx run aiao-media-admin:lint --output-style=static
 env -u PNPM_HOME pnpm nx run aiao-media-admin:bundle-security --output-style=static
 ```

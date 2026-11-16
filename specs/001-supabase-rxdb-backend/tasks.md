@@ -95,8 +95,8 @@ description: "Supabase-first 后台与 RxDB 同步架构的实施任务"
 ### Tests for User Story 3
 
 - [X] T034 [P] [US3] 为共享领域实体 schema、字段元数据、关系和 repository 补测试，文件 `aiao-media/packages/domain/src/*.spec.ts`。
-- [ ] T035 [P] [US3] 为 Admin Entity List/Detail/Form/Table 的配置编辑、校验、空态、加载态和错误态补组件测试。
-- [ ] T036 [P] [US3] 为 Admin 断网编辑、刷新恢复、冲突显示和未提交状态补 Playwright/组件集成测试。
+- [X] T035 [P] [US3] 为 Admin Entity List/Detail/Form/Table 的配置编辑、校验、空态、加载态和错误态补组件测试。（2026-11-16：`admin-config-entity.spec.ts` 用真实 PGlite RxDB 渲染 `rxdb-entity-list`，覆盖工作区查询、空态、加载、必填与格式校验、重复标识、保存与行内编辑；读取失败由宿主状态组件承担，见[交付记录](../../aiao-media/requirements/plans/config-sync-delivery-20261116.md)）
+- [X] T036 [P] [US3] 为 Admin 断网编辑、刷新恢复、冲突显示和未提交状态补 Playwright/组件集成测试。（2026-11-16：`product-local.spec.mts` 三条真实浏览器用例覆盖断网编辑、刷新恢复未提交状态、联网同步与冲突显示）
 
 ### Implementation for User Story 3
 
@@ -104,7 +104,7 @@ description: "Supabase-first 后台与 RxDB 同步架构的实施任务"
 - [X] T038 [US3] 在 `aiao-media/apps/admin/src/app/` 建立 RxDB repository、查询和配置编辑 facade，统一本地读写与同步状态。
 - [X] T039 [US3] 将 `aiao-media/apps/admin/src/app/admin-console.ts` 的模板/策略配置状态迁移到共享实体和 repository。
 - [X] T040 [US3] 将 `aiao-media/apps/admin/src/app/app.html` 的配置入口接入 `rxdb-model-angular`，由 `AdminConfigModelComponent` 提供列表、详情、表单和筛选。
-- [ ] T041 [US3] 为配置界面补 loading、empty、error、conflict、offline 和无权限状态，符合 WCAG 2.1 AA。
+- [X] T041 [US3] 为配置界面补 loading、empty、error、conflict、offline 和无权限状态，符合 WCAG 2.1 AA。（2026-11-16：`AdminConfigStateComponent` 与配置页接入；无权限与权限未确认时不渲染特权控件；e2e 对状态区与提交详情跑 axe WCAG 2.1 AA 无违规）
 - [X] T042 [US3] 运行 `tri-framework-check` 需要覆盖的公共实体和 `rxdb-model` API 对称检查，Aiao Media Angular 私有页面记录范围例外。
 
 **Checkpoint**: US3 可独立完成配置查看、编辑、校验和离线恢复；不改变 Auth Admin 特权边界。
@@ -118,9 +118,9 @@ description: "Supabase-first 后台与 RxDB 同步架构的实施任务"
 ### Tests for User Story 4
 
 - [X] T043 [P] [US4] 为 `MediaConfigCommit`/`MediaConfigCommitChange` projection 生成、唯一键、fingerprint 和补偿扫描补测试。
-- [ ] T044 [P] [US4] 为 branch/working-tree/commit 捕获、提交状态和分支合并补 working-tree integration tests。
+- [X] T044 [P] [US4] 为 branch/working-tree/commit 捕获、提交状态和分支合并补 working-tree integration tests。（2026-11-16：`admin-config-working-tree.rxdb.spec.ts` 在真实 RxDB 工作树上覆盖捕获、提交事件、补偿、配置分支与合并预览冲突）
 - [X] T045 [P] [US4] 为 `apply_media_config_commit` 的完整性、parent、revision、幂等、部分失败回滚和审计补 Supabase integration tests。
-- [ ] T046 [P] [US4] 为后台 UI 显示 branch、commit、sync、apply、release 和 rejection 状态补组件测试。
+- [X] T046 [P] [US4] 为后台 UI 显示 branch、commit、sync、apply、release 和 rejection 状态补组件测试。（2026-11-16：`admin-config-status.spec.ts` 用真实模板覆盖分支、提交、同步、应用、发布、拒绝与回滚确认）
 
 ### Implementation for User Story 4
 
@@ -128,8 +128,8 @@ description: "Supabase-first 后台与 RxDB 同步架构的实施任务"
 - [X] T048 [US4] 在 `aiao-media/apps/admin/src/app/` 监听 working-tree commit，生成领域 projection，支持启动补偿扫描和唯一 operationId。
 - [X] T049 [US4] 在 `aiao-media/apps/api/src/backend-rxdb/` 拉取、校验和缓存完整 commit envelope，拒绝不完整或 fingerprint 不匹配的提交。
 - [X] T050 [US4] 实现 `apply_media_config_commit` migration/RPC，在同一事务中应用配置、写审计、更新 commit 状态和返回 revision。
-- [ ] T051 [US4] 将 branch metadata、配置实体和 projection 接入现有 sync/syncBranches，禁止同步 RxDB 内部系统实体。
-- [ ] T052 [US4] 在 Admin 配置详情显示提交状态、操作者、父提交、冲突、应用和发布结果，并支持安全回滚入口。
+- [X] T051 [US4] 将 branch metadata、配置实体和 projection 接入现有 sync/syncBranches，禁止同步 RxDB 内部系统实体。（2026-11-16：迁移 `023-config-rxdb-sync.sql`、领域同步计划与后台节点 `openBackendConfigRxdb`；配置实体 Filter 双向同步、投影 QueryCache 读取，系统实体被领域层拒绝；远端分支仍只开放 main）
+- [X] T052 [US4] 在 Admin 配置详情显示提交状态、操作者、父提交、冲突、应用和发布结果，并支持安全回滚入口。（2026-11-16：`AdminConfigCommitComponent` 显示状态、操作者、全部父提交、冲突、应用与发布时间，安全回滚带页内确认）
 
 **Checkpoint**: US4 可独立验证配置变更的可追踪、幂等、冲突和原子应用。
 
