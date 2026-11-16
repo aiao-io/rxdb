@@ -31,6 +31,7 @@ vi.mock('@aiao/rxdb-plugin-search-react', () => ({ useSearch: () => mocks.search
 vi.mock('@aiao/rxdb-admin-react', () => ({ useAdminStore: () => ({ extension: { searchPageSize: 20 } }) }));
 vi.mock('../shell/workbench-shell', () => ({
   SEARCH_PAGE_SIZE_KEY: 'searchPageSize',
+  normalizeSearchPageSize: (value: unknown) => (typeof value === 'number' ? value : 20),
   workbenchShell: { preferences: {} }
 }));
 

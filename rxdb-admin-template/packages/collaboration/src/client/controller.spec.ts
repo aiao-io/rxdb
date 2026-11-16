@@ -230,7 +230,7 @@ describe('client concurrency and recovery', () => {
     controller.snapshot = null;
     vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'unknown' });
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
-    vi.mocked(controller.api.workspaces).mockResolvedValue([workspace]);
+    vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
     sessionStorage.setItem(`admin-collaboration-pending:${controller.user!.id}`, JSON.stringify({ workspace, command }));
     await controller.retryPending();
     expect(send).toHaveBeenCalledWith(workspace, command);
