@@ -1,0 +1,64 @@
+---
+id: ADMIN-US-215
+title: 在线成员与当前查看状态
+status: Backlog
+priority: Low
+epic: ADMIN-EPIC-003
+created: 2026-11-16
+updated: 2026-11-16
+tags: [admin, data-pr, presence, realtime, future]
+dependsOn: [ADMIN-US-204, ADMIN-US-207]
+capabilities: []
+---
+
+# 用户故事：在线成员与当前查看状态
+
+## 作为/我想要/以便
+
+**作为** 团队协作者
+**我想要** 看到谁在线、谁正在查看同一个 PR 或记录
+**以便** 减少重复修改和相互等待，并在提交前主动沟通。
+
+## 范围边界
+
+### In Scope
+
+- 在当前团队和 PR 范围内显示在线成员及最近心跳状态。
+- 显示成员正在查看的 PR、提交、实体记录或字段上下文。
+- Presence 只用于协作提示，不授予任何查看、编辑、审核或合并权限。
+- 网络中断、切换团队和退出登录时及时清理或过期状态。
+
+### Out of Scope
+
+- 实时光标、字段锁、强制独占编辑和自动分配任务。
+- 保存成员完整浏览历史或向其他团队暴露在线信息。
+
+## 验收标准
+
+| # | 前置条件 | 操作 | 预期结果 | 状态 |
+| --- | --- | --- | --- | --- |
+| 1 | 多名成员登录同一团队并打开 PR | 查看协作状态 | 显示在线成员及其允许展示的 PR/记录上下文，且只对当前团队可见 | ⬜ |
+| 2 | 成员切换 PR、记录或团队 | 等待状态同步 | 当前查看上下文更新；旧团队或旧 PR 不继续显示过期位置 | ⬜ |
+| 3 | 成员关闭页面、退出或网络中断 | 查看在线列表 | 心跳超时后标记离线或移除，不把离线成员当作实时在线 | ⬜ |
+| 4 | 访客或无权限用户访问对应 PR | 查看 Presence 频道 | 服务端不返回未授权团队、PR 或记录的成员状态 | ⬜ |
+| 5 | 任意用户看到其他成员在线 | 尝试根据 Presence 发起合并或编辑 | Presence 不改变操作授权；实际操作仍按服务端权限和当前版本检查 | ⬜ |
+| 6 | Angular、React、Vue 使用同一团队 | 查看在线和当前查看状态 | 展示字段、超时语义和权限边界一致 | ⬜ |
+
+验收证据：后续实现时补充 Realtime presence、断线超时、团队隔离和权限负例用例。
+
+## 技术笔记
+
+Presence 数据应使用短生命周期 Realtime channel 或等价临时存储，不进入业务数据历史和审计。客户端发送的当前查看位置只作为提示，服务端必须按团队和 PR 可见范围过滤广播。
+
+## 实现文件
+
+- `apps/rxdb-admin-template-react/src/app/data-pr/presence/` — 在线成员和当前查看状态。
+- `apps/rxdb-admin-template-angular/src/app/data-pr/`、`apps/rxdb-admin-template-vue/src/app/data-pr/` — 三端等价入口。
+- `packages/rxdb-adapter-supabase/` — Realtime presence 接线。
+
+## References
+
+- [ADMIN-US-204](ADMIN-US-204-local-context-explicit-import.md)
+- [ADMIN-US-207](ADMIN-US-207-data-pr-lifecycle.md)
+- [团队操作权限与服务端隔离](ADMIN-US-203-permission-server-isolation.md)
+- [ADMIN-EPIC-003](../../epics/ADMIN-EPIC-003.md)

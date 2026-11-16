@@ -1,0 +1,63 @@
+---
+id: ADMIN-US-201
+title: Supabase 邮箱验证码登录与会话恢复
+status: Backlog
+priority: High
+epic: ADMIN-EPIC-002
+created: 2026-11-16
+updated: 2026-11-16
+tags: [admin, auth, supabase, session, collaboration]
+dependsOn: []
+capabilities: []
+---
+
+# 用户故事：Supabase 邮箱验证码登录与会话恢复
+
+## 作为/我想要/以便
+
+**作为** Admin 使用者
+**我想要** 用 Supabase 邮箱验证码登录、退出并恢复会话
+**以便** 以真实身份安全访问团队数据，同时在会话失效时不丢失本机草稿。
+
+## 范围边界
+
+### In Scope
+
+- 首版使用 Supabase 邮箱验证码登录、退出和会话刷新。
+- 用真实会话中的用户 ID 替代模板写死的 `userId`，作为所有云端请求和审计记录的身份来源。
+- 显示当前用户、会话状态和重新认证入口。
+- 会话失效或主动退出时保留本机草稿，暂停云端操作，重新认证后继续。
+
+### Out of Scope
+
+- OAuth、企业 SSO、密码登录、账号合并和组织计费；OAuth 作为后续候选，不参与本故事关闭。
+- 登录后自动上传匿名旧库、样例数据或未选择的本机数据。
+
+## 验收标准
+
+| # | 前置条件 | 操作 | 预期结果 | 状态 |
+| --- | --- | --- | --- | --- |
+| 1 | 未建立有效会话 | 打开应用并进入业务页面 | 先显示登录入口；未登录时不发起团队业务查询、同步或合并请求 | ⬜ |
+| 2 | 用户输入可用邮箱 | 请求验证码并输入有效且未过期的验证码 | 建立 Supabase 会话，界面显示当前用户，后续服务请求使用会话身份 | ⬜ |
+| 3 | 验证码错误、过期或重复使用 | 提交验证码 | 显示可理解的错误并允许重新请求；不产生半登录状态或匿名云端写入 | ⬜ |
+| 4 | 用户有未同步本机草稿 | 会话过期或主动退出 | 草稿和本地保存状态保留；云端操作暂停；界面提供重新认证入口，不把草稿删除或改归其他用户 | ⬜ |
+| 5 | 应用被刷新或重新打开 | 使用有效会话恢复应用 | 恢复同一用户身份和可访问团队选择；无效会话回到登录入口但本机草稿仍可保留 | ⬜ |
+| 6 | 应用存在旧的匿名或固定 `userId` 配置 | 登录并执行查询、保存、同步或审计操作 | 业务操作不再使用写死身份；请求身份、当前用户展示和审计主体一致 | ⬜ |
+
+验收证据：待实现后补充三端认证浏览器用例、会话失效用例和 Supabase 隔离环境记录。
+
+## 技术笔记
+
+会话状态由 Supabase Auth 驱动，身份不能由前端表单字段、URL 或本地缓存伪造。认证适配层需要把 token 刷新、过期和主动退出转换为应用状态；本地保存路径必须与云端会话解耦。三端共用同一会话状态机、错误语义和权限请求契约。
+
+## 实现文件
+
+- `apps/rxdb-admin-template-react/src/app/auth/` — React 登录、会话状态和重新认证入口。
+- `apps/rxdb-admin-template-angular/src/app/auth/` — Angular 等价入口。
+- `apps/rxdb-admin-template-vue/src/app/auth/` — Vue 等价入口。
+- `packages/rxdb-adapter-supabase/` — Supabase 请求和会话传递接线。
+
+## References
+
+- [ADMIN-EPIC-002](../../epics/ADMIN-EPIC-002.md)
+- [Supabase 远程适配器能力](../../../../../requirements/stories/adapter/US-203-supabase-adapter.md)

@@ -32,8 +32,13 @@ owner: jimmy
 - [ADMIN-US-101 示例实体替换与元数据贯通](../stories/domain/ADMIN-US-101-replace-sample-domain.md) (Medium)
 - [ADMIN-US-102 自定义页面与导航扩展路径](../stories/domain/ADMIN-US-102-custom-pages-navigation.md) (Medium)
 
+## 关联后续 Epic
+
+- [ADMIN-EPIC-002 认证与团队工作区](ADMIN-EPIC-002.md) 管理 Supabase 身份、团队上下文、权限隔离和任务草稿。
+- [ADMIN-EPIC-003 数据变更中心与合并治理](ADMIN-EPIC-003.md) 管理数据 PR、审核、冲突、合并和审计。
+
 ## 非目标
 
-- 当前批次不实施独立复制、导出、生成器、发包或仓外安装。
-- 不随模板孵化加入账号认证、多用户授权、云端同步或桌面宿主。
+- 当前 Epic 不实施独立复制、导出、生成器、发包或仓外安装。
+- 账号认证、团队授权、云端协作和数据合并不属于本 Epic 的关闭条件，分别由后续 Epic 管理。
 - 不重写公共后台框架；公共包能力继续由平台故事管理。
