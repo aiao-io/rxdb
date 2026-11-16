@@ -27,7 +27,8 @@ before(async () => {
   `);
   const directory = new URL('../../infra/supabase/migrations/', import.meta.url);
   for (const name of (await readdir(directory)).sort()) {
-    if (/^(001|003)-/.test(name) || !name.endsWith('.sql')) continue;
+    // 003 与 023 依赖 RxDB 核心同步函数（rxdb_enable_sync_for_table 等），本桩库不加载；两者由生产 SQL 包测试连同核心一起覆盖。
+    if (/^(001|003|023)-/.test(name) || !name.endsWith('.sql')) continue;
     await db.exec(await readFile(new URL(name, directory), 'utf8'));
   }
   await db.query('INSERT INTO public.media_workspaces(id,owner_id,request_id) VALUES ($1,$2,$1)', [

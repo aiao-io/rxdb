@@ -1,5 +1,6 @@
 ---
 id: MEDIA-US-306
+product: aiao-media
 title: 后台服务 RxDB 双向同步
 status: In Progress
 priority: High

@@ -1,5 +1,6 @@
 ---
 id: MEDIA-US-308
+product: aiao-media
 title: 配置分支提交与后台应用同步
 status: In Progress
 priority: High

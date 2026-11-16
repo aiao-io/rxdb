@@ -1,5 +1,6 @@
 ---
 id: MEDIA-US-307
+product: aiao-media
 title: rxdb-model 驱动后台配置编辑
 status: In Review
 priority: High

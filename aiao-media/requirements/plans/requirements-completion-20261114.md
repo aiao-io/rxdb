@@ -241,4 +241,4 @@ PGMQ 只作为隔离 PoC 实施：最小消息、事务入队、匿名/普通身
 - `aiao-media:backend-rxdb-local-test`：PGMQ 本地集成 2 passed；后台 RxDB 本地 Supabase 集成 2 passed。
 - Admin lint、domain lint/typecheck/test、domain coverage gate 和 Admin bundle security scan：通过；domain coverage statements 84.52%、branches 98.03%、functions 93.33%、lines 83.78%。
 
-仍未关闭的范围：完整 Admin Entity List/Detail/Form/Table DOM 测试、断网刷新 Playwright、实际 axe/WCAG 2.1 AA 验证、完整 branch/working-tree/commit integration、配置 projection 的 Supabase 双向同步，以及正式双区域/生产切换验收。对应 Spec Kit 任务仍保持未勾选：T035、T036、T041、T044、T046、T051、T052。
+当时仍未关闭的 T035、T036、T041、T044、T046、T051、T052 已于 2026-11-16 完成，见[配置同步交付记录](config-sync-delivery-20261116.md)；正式双区域与生产切换验收仍待完成。

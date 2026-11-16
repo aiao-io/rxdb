@@ -1,5 +1,6 @@
 ---
 id: MEDIA-US-110
+product: aiao-media
 title: PGMQ 生成任务队列 PoC
 status: In Progress
 priority: Medium

@@ -1,5 +1,6 @@
 ---
 id: MEDIA-US-208
+product: aiao-media
 title: Supabase 后台直连与特权 Edge Function 边界
 status: In Progress
 priority: High

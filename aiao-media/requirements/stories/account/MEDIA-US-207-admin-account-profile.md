@@ -1,6 +1,5 @@
 ---
 id: MEDIA-US-207
-legacyId: aiao-media:US-207
 product: aiao-media
 title: 后台管理员账户资料与身份菜单
 status: In Review
