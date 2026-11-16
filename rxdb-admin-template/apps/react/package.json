@@ -17,6 +17,7 @@
     "@aiao/rxdb-plugin-search-react": "workspace:*",
     "@aiao/rxdb-react": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
+    "@rxdb-admin-template/collaboration": "workspace:*",
     "lucide-react": "^1.70.0",
     "rxjs": "^7.8.2"
   },

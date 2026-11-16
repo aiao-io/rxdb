@@ -32,10 +32,13 @@
   "include": ["app.config.json", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
-      "path": "../../../packages/rxdb-test/tsconfig.lib.json"
+      "path": "../../packages/collaboration/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-test/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-plugin-search-vue/tsconfig.lib.json"

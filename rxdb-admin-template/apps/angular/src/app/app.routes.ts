@@ -8,5 +8,6 @@ export const routes: Routes = [
     children: [{ path: ':namespace/:name', loadComponent: () => import('./pages/entity-list-page') }]
   },
   { path: 'search', loadComponent: () => import('./pages/search-page') },
+  { path: 'collaboration', loadComponent: () => import('./pages/collaboration-page') },
   { path: 'backup', loadComponent: () => import('./pages/backup-page') }
 ];

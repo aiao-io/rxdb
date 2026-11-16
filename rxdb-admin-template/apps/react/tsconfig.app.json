@@ -32,6 +32,9 @@
   "include": ["app.config.json", "src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../packages/collaboration/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/rxdb-test/tsconfig.lib.json"
     },
     {

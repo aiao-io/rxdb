@@ -305,6 +305,9 @@
     },
     {
       "path": "./rxdb-admin-template/apps/vue-e2e"
+    },
+    {
+      "path": "./rxdb-admin-template/packages/collaboration"
     }
   ]
 }

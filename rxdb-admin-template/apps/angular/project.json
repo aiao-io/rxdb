@@ -26,6 +26,11 @@
             "input": "packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
             "output": "sqlite-wasm/",
             "followSymlinks": true
+          },
+          {
+            "glob": "collaboration-sw.js",
+            "input": "rxdb-admin-template/packages/collaboration/public",
+            "output": "/"
           }
         ],
         "styles": ["rxdb-admin-template/apps/angular/src/styles.css"],
@@ -93,7 +98,8 @@
       ],
       "options": {
         "port": 4207,
-        "host": "127.0.0.1"
+        "host": "127.0.0.1",
+        "proxyConfig": "rxdb-admin-template/apps/angular/proxy.conf.cjs"
       },
       "configurations": {
         "production": {

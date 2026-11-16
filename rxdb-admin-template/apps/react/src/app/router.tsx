@@ -51,6 +51,7 @@ export const routes: RouteObject[] = [
           return null;
         }
       },
+      { path: 'collaboration', lazy: lazyRoute(() => import('./pages/collaboration-page')) },
       { path: 'backup', lazy: lazyRoute(() => import('./pages/backup-page')) }
     ]
   }

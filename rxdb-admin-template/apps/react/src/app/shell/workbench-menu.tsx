@@ -66,6 +66,12 @@ export function buildWorkbenchMenu(entities: readonly EntityType[], translate?: 
           testId: 'search-nav-link'
         },
         {
+          id: 'collaboration',
+          label: label('nav.collaboration'),
+          route: '/collaboration',
+          testId: 'collaboration-nav-link'
+        },
+        {
           id: 'backup',
           label: label('nav.backup'),
           icon: <ArchiveRestore size={16} />,

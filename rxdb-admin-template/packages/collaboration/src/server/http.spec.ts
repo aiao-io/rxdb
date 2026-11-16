@@ -1,0 +1,94 @@
+import type { Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { bootstrap, snapshot } from './engine.js';
+import { collaborationServer, type RepositoryApi } from './http.js';
+const user = { id: 'user', email: 'user@example.test', verified: true };
+let server: Server;
+let url: string;
+const data = snapshot(
+  bootstrap(
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
+    { now: 1, id: () => 'id' }
+  ),
+  user,
+  1
+);
+const repository: RepositoryApi = {
+  list: vi.fn(async () => []),
+  read: vi.fn(async () => data),
+  operation: vi.fn(async () => ({ head: 'head' })),
+  receipt: vi.fn(async () => ({ status: 'unknown' }))
+};
+const authenticate = vi.fn(async (token: string) => {
+  if (token !== 'valid') throw new Error('private provider detail');
+  return user;
+});
+beforeEach(async () => {
+  vi.clearAllMocks();
+  server = collaborationServer({
+    repository,
+    authenticate,
+    origins: ['https://product.example'],
+    publicConfig: { supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' }
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+});
+afterEach(async () => {
+  await new Promise<void>(resolve => server.close(() => resolve()));
+});
+const post = (body: unknown, headers = {}) =>
+  fetch(`${url}/workspaces/team/assets/commands`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer valid', 'content-type': 'application/json', ...headers },
+    body: JSON.stringify(body)
+  });
+describe('HTTP identity boundary', () => {
+  it('requires provider-verified identity for every data request and never leaks provider errors', async () => {
+    expect((await fetch(`${url}/workspaces`)).status).toBe(401);
+    const failed = await fetch(`${url}/workspaces`, { headers: { authorization: 'Bearer invalid' } });
+    expect(failed.status).toBe(500);
+    expect(await failed.text()).not.toContain('private');
+    expect((await fetch(`${url}/workspaces`, { headers: { authorization: 'Bearer valid' } })).status).toBe(200);
+    expect(authenticate).toHaveBeenCalledWith('valid');
+    expect(repository.list).toHaveBeenCalledWith(user);
+  });
+  it('rejects cross-origin requests and forged actors before any operation', async () => {
+    expect(
+      (
+        await post(
+          { type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null },
+          { origin: 'https://attacker.example' }
+        )
+      ).status
+    ).toBe(403);
+    expect(
+      (await post({ type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null, userId: 'admin' }))
+        .status
+    ).toBe(409);
+    expect(repository.operation).not.toHaveBeenCalled();
+  });
+  it('hashes invitation credentials before persistence and passes the verified principal separately', async () => {
+    const response = await post({ type: 'accept_invite', operationId: 'op', id: 'invite', tokenHash: 'raw-token' });
+    expect(response.status).toBe(200);
+    expect(repository.operation).toHaveBeenCalledWith(
+      user,
+      'team',
+      'assets',
+      expect.objectContaining({ tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
+    );
+  });
+  it('exposes only public auth configuration and restricts receipts to the authenticated repository', async () => {
+    const config = await (await fetch(`${url}/collaboration-api/config`)).json();
+    expect(config).toEqual({ supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' });
+    await fetch(`${url}/workspaces/team/assets/receipts/op`, { headers: { authorization: 'Bearer valid' } });
+    expect(repository.receipt).toHaveBeenCalledWith(user, 'team', 'assets', 'op');
+    const cors = await fetch(`${url}/workspaces`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://product.example' }
+    });
+    expect(cors.status).toBe(204);
+    expect(cors.headers.get('access-control-allow-origin')).toBe('https://product.example');
+  });
+});

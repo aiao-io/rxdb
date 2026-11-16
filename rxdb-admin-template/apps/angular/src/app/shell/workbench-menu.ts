@@ -4,8 +4,8 @@ import type { AdminIcon } from '@aiao/rxdb-admin-angular';
 import type { I18n } from '@aiao/rxdb-i18n';
 import {
   LucideArchiveRestore as ArchiveRestore,
-  LucideLayoutDashboard as LayoutDashboard,
   LucideBoxes as Boxes,
+  LucideLayoutDashboard as LayoutDashboard,
   LucideSearch as Search,
   LucideTags as Tags,
   LucideWrench as Wrench
@@ -71,6 +71,12 @@ export function buildWorkbenchMenu(entities: readonly EntityType[], translate?: 
           icon: Search,
           route: '/search',
           testId: 'search-nav-link'
+        },
+        {
+          id: 'collaboration',
+          label: label('nav.collaboration'),
+          route: '/collaboration',
+          testId: 'collaboration-nav-link'
         },
         {
           id: 'backup',

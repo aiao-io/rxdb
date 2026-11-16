@@ -263,6 +263,7 @@
     "packages/*",
     "apps/*",
     "rxdb-admin-template/apps/*",
+    "rxdb-admin-template/packages/*",
     "modules/wujie",
     "modules/recipes-domain",
     "website",

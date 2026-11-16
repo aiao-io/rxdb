@@ -1,0 +1,170 @@
+import { demand, type Command, type Environment, type Identity, type Thread, type Workspace } from '../model.js';
+import { authorize, expected, openPr, prFor } from './access.js';
+
+export function notify(
+  state: Workspace,
+  userId: string,
+  prId: string,
+  threadId: string | null,
+  mentions: string[],
+  env: Environment
+): void {
+  const pr = prFor(state, prId);
+  for (const id of new Set([...pr.subscribers, ...mentions])) {
+    const member = state.members[id];
+    if (id === userId || !member?.active || !member.permissions.includes('read')) continue;
+    state.notifications.push({
+      id: env.id(),
+      userId: id,
+      prId,
+      threadId,
+      candidateId: pr.candidateId,
+      read: false,
+      at: env.now
+    });
+  }
+}
+export function discussionCommand(
+  state: Workspace,
+  user: Identity,
+  command: Command,
+  env: Environment
+): Record<string, unknown> | undefined {
+  if (command.type === 'thread') return startThread(state, user, command, env);
+  if (command.type === 'reply') {
+    authorize(state, user, 'comment');
+    const thread = threadFor(state, command.threadId);
+    openPr(state, thread.prId);
+    demand(command.body.trim(), 'invalid', '评论不能为空');
+    const id = env.id();
+    thread.comments.push({ id, authorId: user.id, body: command.body, deleted: false, revision: 0, at: env.now });
+    thread.revision++;
+    notify(state, user.id, thread.prId, thread.id, command.mentions, env);
+    return { commentId: id };
+  }
+  if (command.type === 'edit_comment') {
+    authorize(state, user, 'comment');
+    const thread = threadFor(state, command.threadId);
+    openPr(state, thread.prId);
+    const comment = thread.comments.find(c => c.id === command.commentId);
+    demand(comment && comment.authorId === user.id, 'forbidden', '只能修改自己的评论');
+    expected(comment.revision, command.expectedRevision);
+    demand(!comment.deleted && (command.deleted || command.body.trim()), 'invalid', '评论已删除或内容为空');
+    comment.body = command.deleted ? '' : command.body;
+    comment.deleted = command.deleted;
+    comment.revision++;
+    return { commentId: comment.id, revision: comment.revision };
+  }
+  if (command.type === 'resolve_thread') {
+    authorize(state, user, 'comment');
+    const thread = threadFor(state, command.threadId);
+    const pr = openPr(state, thread.prId);
+    demand(
+      thread.comments[0].authorId === user.id ||
+        state.members[user.id].permissions.includes('review') ||
+        state.members[user.id].permissions.includes('merge'),
+      'forbidden',
+      '只有线程发起者、审核者或合并者能处理线程'
+    );
+    expected(thread.revision, command.expectedRevision);
+    thread.resolved = command.resolved;
+    thread.revision++;
+    return { threadId: thread.id, prId: pr.id };
+  }
+  if (command.type === 'subscribe') {
+    authorize(state, user, 'read');
+    const pr = prFor(state, command.prId);
+    pr.subscribers = pr.subscribers.filter(id => id !== user.id);
+    if (command.subscribed) pr.subscribers.push(user.id);
+    return { subscribed: command.subscribed };
+  }
+  if (command.type === 'read_notice') {
+    authorize(state, user, 'read');
+    const notice = state.notifications.find(n => n.id === command.id && n.userId === user.id);
+    demand(notice, 'not_found', '通知不存在');
+    notice.read = true;
+    return { noticeId: notice.id };
+  }
+  if (command.type === 'presence') {
+    authorize(state, user, 'read');
+    if (command.prId) prFor(state, command.prId);
+    demand(
+      !command.recordId ||
+        Object.hasOwn(state.records, command.recordId) ||
+        (command.prId &&
+          Object.hasOwn(
+            state.commits[state.tasks[state.prs[command.prId].taskId].head!]?.records ?? {},
+            command.recordId
+          )),
+      'not_found',
+      '记录不存在'
+    );
+    state.presence = state.presence.filter(
+      p => p.expiresAt > env.now && !(p.userId === user.id && p.sessionId === command.sessionId)
+    );
+    if (!command.leave)
+      state.presence.push({
+        userId: user.id,
+        sessionId: command.sessionId,
+        prId: command.prId,
+        recordId: command.recordId,
+        expiresAt: env.now + 45000
+      });
+    return { expiresAt: env.now + 45000 };
+  }
+  return undefined;
+}
+function threadFor(state: Workspace, id: string): Thread {
+  const thread = state.threads[id];
+  demand(thread, 'not_found', '讨论不存在');
+  return thread;
+}
+function startThread(
+  state: Workspace,
+  user: Identity,
+  command: Extract<Command, { type: 'thread' }>,
+  env: Environment
+) {
+  authorize(state, user, 'comment');
+  const pr = openPr(state, command.prId);
+  if (command.required)
+    demand(
+      state.members[user.id].permissions.includes('review') || state.members[user.id].permissions.includes('merge'),
+      'forbidden',
+      '标记必须处理需要审核或合并权限'
+    );
+  if (command.candidateId)
+    demand(state.candidates[command.candidateId]?.prId === pr.id, 'not_found', '候选不属于此 PR');
+  demand(!command.recordId || command.candidateId, 'invalid', '记录讨论必须绑定候选版本');
+  demand(!command.field || command.recordId, 'invalid', '字段讨论必须绑定记录');
+  demand(!state.threads[command.id] && command.body.trim(), 'invalid', '讨论已存在或内容为空');
+  if (command.recordId) validateAnchor(state, command);
+  state.threads[command.id] = {
+    id: command.id,
+    prId: pr.id,
+    candidateId: command.candidateId,
+    recordId: command.recordId,
+    field: command.field,
+    required: command.required,
+    resolved: false,
+    revision: 0,
+    comments: [{ id: env.id(), authorId: user.id, body: command.body, deleted: false, revision: 0, at: env.now }]
+  };
+  notify(state, user.id, pr.id, command.id, command.mentions, env);
+  return { threadId: command.id };
+}
+function validateAnchor(state: Workspace, command: Extract<Command, { type: 'thread' }>): void {
+  const candidate = state.candidates[command.candidateId!];
+  const id = command.recordId!;
+  const rows = [
+    candidate.records[id],
+    state.commits[candidate.source].records[id],
+    candidate.target ? state.commits[candidate.target].records[id] : undefined
+  ];
+  demand(rows.some(Boolean), 'not_found', '记录不属于所选版本');
+  demand(
+    !command.field || rows.some(row => row && Object.hasOwn(row.fields, command.field!)),
+    'not_found',
+    '字段不属于所选版本'
+  );
+}

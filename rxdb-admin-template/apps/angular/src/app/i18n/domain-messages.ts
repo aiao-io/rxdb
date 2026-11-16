@@ -4,6 +4,7 @@ export const domainZhMessages = {
   'nav.entities': '实体',
   'nav.data': '数据',
   'nav.search': '搜索',
+  'nav.collaboration': '团队协作',
   'nav.backup': '备份 / 恢复',
   'search.recordFailed': '数据记录搜索失败'
 };
@@ -14,6 +15,7 @@ export const domainEnMessages: Record<keyof typeof domainZhMessages, string> = {
   'nav.entities': 'Entities',
   'nav.data': 'Data',
   'nav.search': 'Search',
+  'nav.collaboration': 'Team collaboration',
   'nav.backup': 'Backup / Restore',
   'search.recordFailed': 'Record search failed'
 };

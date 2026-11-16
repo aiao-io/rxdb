@@ -36,10 +36,10 @@
   "include": ["app.config.json", "src/**/*.ts"],
   "references": [
     {
-      "path": "../../../packages/rxdb-test/tsconfig.lib.json"
+      "path": "../../packages/collaboration/tsconfig.lib.json"
     },
     {
-      "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
+      "path": "../../../packages/rxdb-test/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-plugin-search-angular/tsconfig.lib.json"
@@ -64,6 +64,9 @@
     },
     {
       "path": "../../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-admin-angular/tsconfig.lib.json"

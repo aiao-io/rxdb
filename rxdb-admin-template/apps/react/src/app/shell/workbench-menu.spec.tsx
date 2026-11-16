@@ -31,7 +31,11 @@ describe('工作台导航国际化', () => {
       'Asset categories',
       'Maintenance records'
     ]);
-    expect(english[2]?.children?.map(entry => entry.label)).toEqual(['Search', 'Backup / Restore']);
+    expect(english[2]?.children?.map(entry => entry.label)).toEqual([
+      'Search',
+      'Team collaboration',
+      'Backup / Restore'
+    ]);
     await runtime.setLocale('zh-Hans');
     const chinese = buildWorkbenchMenu(ENTITIES, runtime.t);
     expect(chinese[1]?.children?.map(entry => entry.label)).toEqual(['资产', '资产分类', '维护记录']);

@@ -1,3 +1,4 @@
+import { collaborationEnMessages, collaborationZhMessages } from '@rxdb-admin-template/collaboration/messages';
 import { adminMessages } from '@aiao/rxdb-admin';
 import { I18n, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
@@ -9,6 +10,7 @@ const applicationMessages = [
   {
     locale: 'zh-Hans',
     messages: {
+      ...collaborationZhMessages,
       ...pageZhMessages,
       ...domainZhMessages,
       'app.loading': '加载中',
@@ -19,6 +21,7 @@ const applicationMessages = [
   {
     locale: 'en',
     messages: {
+      ...collaborationEnMessages,
       ...pageEnMessages,
       ...domainEnMessages,
       'app.loading': 'Loading',

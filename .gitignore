@@ -161,3 +161,4 @@ docker/.supabase-ci-state.*.env
 .nx-test-prereqs.tsv
 
 rxdb-admin-template/apps/angular/.generated/
+.vitest
