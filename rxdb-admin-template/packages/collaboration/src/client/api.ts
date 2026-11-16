@@ -40,7 +40,10 @@ export class CollaborationApi {
       cache: 'no-store'
     });
     if (!response.headers.get('content-type')?.includes('application/json'))
-      throw new CollaborationError('configuration', '团队协作服务尚未配置或响应格式不正确');
+      throw new CollaborationError(
+        command ? 'uncertain' : 'configuration',
+        command ? '请求结果不确定，请确认或重试原请求' : '团队协作服务尚未配置或响应格式不正确'
+      );
     const result = (await response.json()) as { error?: string; message?: string; details?: Record<string, unknown> };
     if (!response.ok)
       throw new CollaborationError(result.error ?? 'http', result.message ?? '请求失败', result.details);

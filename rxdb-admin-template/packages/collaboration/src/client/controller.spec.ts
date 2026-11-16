@@ -358,4 +358,21 @@ describe('client concurrency and recovery', () => {
     expect((await controller.local.read(context))?.forkArchive).toEqual({ taskId: command.id, head });
     expect((await controller.local.fastForward(context, 'remote', {}, false)).queue).toEqual([]);
   });
+  it('keeps the original operation when the transport result is uncertain', async () => {
+    const { controller } = await setup();
+    vi.spyOn(controller.api, 'command').mockRejectedValue(new CollaborationError('uncertain', '请求结果不确定'));
+    await expect(controller.run({ type: 'task', id: 'uncertain', name: 'Uncertain', expectedHead: null }, 'uncertain-op')).rejects.toThrow(
+      '请求结果不确定'
+    );
+    expect(controller.pending()?.command.operationId).toBe('uncertain-op');
+  });
+  it('keeps the original operation when the command was accepted but refresh failed', async () => {
+    const { controller } = await setup();
+    vi.spyOn(controller.api, 'command').mockResolvedValue({ taskId: 'accepted' });
+    vi.spyOn(controller.api, 'snapshot').mockRejectedValue(new CollaborationError('forbidden', '刷新失败'));
+    await expect(controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')).rejects.toThrow(
+      '刷新失败'
+    );
+    expect(controller.pending()?.command.operationId).toBe('accepted-op');
+  });
 });

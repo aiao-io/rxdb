@@ -50,6 +50,11 @@ export function bootstrap(
 /** 在副本上执行；任一步拒绝均保持输入状态原样。持久化层负责事务锁与原子提交。 */
 export function execute(state: Workspace, user: Identity, command: Command, env: Environment): Record<string, unknown> {
   demand(user.verified, 'forbidden', '需要已验证的用户身份');
+  if (command.type === 'presence') {
+    const result = discussionCommand(state, user, command, env);
+    demand(result, 'invalid', '不支持的操作');
+    return structuredClone(result);
+  }
   if (command.type !== 'accept_invite') authorize(state, user, 'read');
   const previous = state.receipts[command.operationId];
   if (previous) return receipt(state, user, command, previous);
@@ -62,22 +67,20 @@ export function execute(state: Workspace, user: Identity, command: Command, env:
   demand(result, 'invalid', '不支持的操作');
   if (command.type === 'review' || command.type === 'merge' || command.type === 'pr_state')
     notify(next, user.id, command.prId, null, [], env);
-  if (command.type !== 'presence')
-    next.audit.push({
-      id: env.id(),
-      actorId: user.id,
-      action: command.type,
-      operationId: command.operationId,
-      at: env.now,
-      details: auditDetails(command, result)
-    });
-  if (command.type !== 'presence')
-    next.receipts[command.operationId] = {
-      operationId: command.operationId,
-      actorId: user.id,
-      fingerprint: canonical(command),
-      value: structuredClone(result)
-    };
+  next.audit.push({
+    id: env.id(),
+    actorId: user.id,
+    action: command.type,
+    operationId: command.operationId,
+    at: env.now,
+    details: auditDetails(command, result)
+  });
+  next.receipts[command.operationId] = {
+    operationId: command.operationId,
+    actorId: user.id,
+    fingerprint: canonical(command),
+    value: structuredClone(result)
+  };
   next.revision++;
   Object.assign(state, next);
   return structuredClone(result);
@@ -100,7 +103,7 @@ function auditDetails(command: Command, result: Record<string, unknown>): Record
 }
 
 /** 只返回该用户可见的内容；邀请摘要、请求指纹和他人通知永不离开服务端。 */
-export function snapshot(state: Workspace, user: Identity, now: number) {
+export function snapshot(state: Workspace, user: Identity, now: number, presence = state.presence) {
   const member = authorize(state, user, 'read');
   return structuredClone({
     teamId: state.teamId,
@@ -119,7 +122,7 @@ export function snapshot(state: Workspace, user: Identity, now: number) {
     reviews: state.reviews,
     threads: Object.values(state.threads),
     notifications: state.notifications.filter(n => n.userId === user.id),
-    presence: state.presence.filter(p => p.expiresAt > now && state.members[p.userId]?.active),
+    presence: presence.filter(p => p.expiresAt > now && state.members[p.userId]?.active),
     invitations:
       member.permissions.includes('manage') ?
         Object.values(state.invitations).map(i => ({

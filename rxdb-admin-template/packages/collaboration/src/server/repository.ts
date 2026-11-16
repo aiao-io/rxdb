@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { demand, type Command, type Identity, type Workspace } from '../model.js';
+import { demand, type Command, type Identity, type Presence, type Workspace } from '../model.js';
 import { authorize } from './access.js';
 import { bootstrap, execute, snapshot } from './engine.js';
 
@@ -43,10 +43,15 @@ export class CollaborationRepository {
       .map(({ state }) => ({ teamId: state.teamId, appId: state.appId, name: state.name }));
   }
   async read(user: Identity, teamId: string, appId: string) {
-    return this.transaction(async client => snapshot(await this.required(client, teamId, appId), user, Date.now()));
+    return this.transaction(async client => {
+      const state = await this.required(client, teamId, appId);
+      const now = Date.now();
+      return snapshot(state, user, now, await this.readPresence(client, teamId, appId, now));
+    });
   }
   async operation(user: Identity, teamId: string, appId: string, command: Command) {
     return this.transaction(async client => {
+      if (command.type === 'presence') return this.updatePresence(client, user, teamId, appId, command);
       const state = await this.required(client, teamId, appId);
       const previousRevision = state.revision;
       const result = execute(state, user, command, { now: Date.now(), id: randomUUID });
@@ -80,6 +85,63 @@ export class CollaborationRepository {
     const state = await this.load(client, teamId, appId);
     demand(state, 'forbidden', '当前用户没有操作权限');
     return state;
+  }
+  private async updatePresence(
+    client: PoolClient,
+    user: Identity,
+    teamId: string,
+    appId: string,
+    command: Extract<Command, { type: 'presence' }>
+  ): Promise<Record<string, unknown>> {
+    const state = await this.required(client, teamId, appId);
+    const now = Date.now();
+    const result = execute(state, user, command, { now, id: randomUUID });
+    await client.query('DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND expires_at <= $3', [
+      teamId,
+      appId,
+      now
+    ]);
+    if (command.leave) {
+      await client.query(
+        'DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND user_id = $3 AND session_id = $4',
+        [teamId, appId, user.id, command.sessionId]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO public.admin_presence(team_id, app_id, user_id, session_id, pr_id, record_id, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (team_id, app_id, user_id, session_id)
+         DO UPDATE SET pr_id = EXCLUDED.pr_id, record_id = EXCLUDED.record_id, expires_at = EXCLUDED.expires_at`,
+        [teamId, appId, user.id, command.sessionId, command.prId, command.recordId, result['expiresAt']]
+      );
+    }
+    return result;
+  }
+  private async readPresence(client: PoolClient, teamId: string, appId: string, now: number): Promise<Presence[]> {
+    await client.query('DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND expires_at <= $3', [
+      teamId,
+      appId,
+      now
+    ]);
+    const result = await client.query<{
+      user_id: string;
+      session_id: string;
+      pr_id: string | null;
+      record_id: string | null;
+      expires_at: string | number;
+    }>(
+      `SELECT user_id, session_id, pr_id, record_id, expires_at
+       FROM public.admin_presence
+       WHERE team_id = $1 AND app_id = $2 AND expires_at > $3`,
+      [teamId, appId, now]
+    );
+    return result.rows.map(row => ({
+      userId: row.user_id,
+      sessionId: row.session_id,
+      prId: row.pr_id,
+      recordId: row.record_id,
+      expiresAt: Number(row.expires_at)
+    }));
   }
   private async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
@@ -126,6 +188,18 @@ export class CollaborationRepository {
       SELECT $1, $2, value->>'id', value->>'actorId', value->>'action', value, to_timestamp((value->>'at')::double precision / 1000)
       FROM jsonb_array_elements($3::jsonb) ON CONFLICT DO NOTHING`,
       [...values, JSON.stringify(state.audit)]
+    );
+    await client.query(
+      `DELETE FROM public.admin_presence p
+       WHERE p.team_id = $1 AND p.app_id = $2
+         AND NOT EXISTS (
+           SELECT 1
+           FROM jsonb_each($3::jsonb) member
+           WHERE member.key = p.user_id
+             AND (member.value->>'active')::boolean
+             AND member.value->'permissions' ? 'read'
+         )`,
+      [...values, JSON.stringify(state.members)]
     );
   }
 }

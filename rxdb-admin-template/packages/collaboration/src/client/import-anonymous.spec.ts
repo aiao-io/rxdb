@@ -30,4 +30,12 @@ describe('explicit anonymous import boundary', () => {
       code: 'conflict'
     });
   });
+  it('serializes runtime Date values as date-only contract values', async () => {
+    const { database: source } = database(
+      new Map([[Asset, [{ id: 'asset', name: 'Asset', purchaseDate: new Date('2026-11-16T12:34:56.000Z') }]]])
+    );
+    await expect(readAnonymousAssets(source, [Asset] as EntityType[])).resolves.toEqual({
+      asset: { entity: 'Asset', fields: { name: 'Asset', purchaseDate: '2026-11-16' } }
+    });
+  });
 });

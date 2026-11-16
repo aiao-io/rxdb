@@ -423,7 +423,13 @@ describe('governance, discussion and identity regressions', () => {
     const state = create();
     invite(state);
     ready(state);
+    const revision = state.revision;
+    const audit = state.audit.length;
+    const receipts = Object.keys(state.receipts).length;
     act(state, { type: 'presence', sessionId: 'browser', prId: 'pr1', recordId: 'asset', leave: false }, reviewer);
+    expect(state.revision).toBe(revision);
+    expect(state.audit).toHaveLength(audit);
+    expect(Object.keys(state.receipts)).toHaveLength(receipts);
     expect(snapshot(state, admin, 1000).presence).toHaveLength(1);
     ready(state, '2');
     act(state, { type: 'presence', sessionId: 'browser', prId: 'pr2', recordId: null, leave: false }, reviewer);

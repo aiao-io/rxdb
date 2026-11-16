@@ -56,6 +56,16 @@ describe('authenticated HTTP client', () => {
     });
     await expect(api.workspaces()).rejects.toMatchObject({ code: 'http', message: '请求失败' });
   });
+  it('marks a non-JSON command response as uncertain so the caller can recover its idempotency key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))
+    );
+    const api = new CollaborationApi('/api', async () => 'token');
+    await expect(api.command(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: null, operationId: 'op' })).rejects.toMatchObject({
+      code: 'uncertain'
+    });
+  });
   it('cancels an unissued request if the account or workspace changes while obtaining its token', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);

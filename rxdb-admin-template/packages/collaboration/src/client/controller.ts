@@ -3,7 +3,7 @@ import { CollaborationError, demand, type Command, type Identity, type Records }
 import type { WorkspaceSnapshot } from '../server/engine.js';
 import { CollaborationApi, type WorkspaceEntry } from './api.js';
 import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
-import { WorkspaceFeed } from './workspace-feed.js';
+import { WorkspaceFeed, type WorkspacePresenceChange } from './workspace-feed.js';
 
 export class CollaborationController extends EventTarget {
   private generation = 0;
@@ -76,7 +76,8 @@ export class CollaborationController extends EventTarget {
       status => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.message = '实时连接暂不可用，可刷新团队状态';
         this.changed();
-      }
+      },
+      change => this.applyPresenceChange(change)
     );
     if (navigator.onLine) {
       demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
@@ -350,24 +351,69 @@ export class CollaborationController extends EventTarget {
       '先确认或重试上次请求，再执行新的云端变更'
     );
     if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request }));
+    let acknowledged = false;
     try {
       const receipt = durable ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      acknowledged = receipt.status === 'accepted' && 'value' in receipt;
       const result =
-        receipt.status === 'accepted' && 'value' in receipt ?
-          receipt.value!
-        : await this.api.command(workspace, request);
+        acknowledged ? receipt.value! : await this.api.command(workspace, request);
+      acknowledged = true;
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      await this.current(this.refresh(), epoch);
+      if (request.type === 'presence') this.applyPresenceResult(request, result);
+      else await this.current(this.refresh(), epoch);
       if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
       if (durable) sessionStorage.removeItem(key);
       return result;
     } catch (error) {
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      if (durable && error instanceof CollaborationError && !['internal', 'cancelled'].includes(error.code))
+      if (
+        durable &&
+        error instanceof CollaborationError &&
+        !['internal', 'uncertain', 'cancelled'].includes(error.code) &&
+        !acknowledged
+      )
         sessionStorage.removeItem(key);
       throw error;
     }
+  }
+  private applyPresenceResult(command: Extract<Command, { type: 'presence' }>, result: Record<string, unknown>): void {
+    this.applyPresenceChange({
+      eventType: command.leave ? 'DELETE' : 'UPDATE',
+      row: {
+        app_id: this.workspace?.appId,
+        user_id: this.user?.id,
+        session_id: command.sessionId,
+        pr_id: command.prId,
+        record_id: command.recordId,
+        expires_at: result['expiresAt']
+      }
+    });
+  }
+  private applyPresenceChange(change: WorkspacePresenceChange): void {
+    if (!this.snapshot) return;
+    const userId = change.row['user_id'];
+    const sessionId = change.row['session_id'];
+    if (typeof userId !== 'string' || typeof sessionId !== 'string') return;
+    const key = `${userId}:${sessionId}`;
+    const current = this.snapshot.presence.filter(item => `${item.userId}:${item.sessionId}` !== key);
+    if (change.eventType !== 'DELETE') {
+      const expiresAt = Number(change.row['expires_at']);
+      if (
+        Number.isFinite(expiresAt) &&
+        expiresAt > Date.now() &&
+        this.snapshot.members.some(member => member.id === userId && member.active)
+      )
+        current.push({
+          userId,
+          sessionId,
+          prId: typeof change.row['pr_id'] === 'string' ? change.row['pr_id'] : null,
+          recordId: typeof change.row['record_id'] === 'string' ? change.row['record_id'] : null,
+          expiresAt
+        });
+    }
+    this.snapshot = { ...this.snapshot, presence: current };
+    this.changed();
   }
   private async acceptSession(session: Session | null) {
     if (this.disposed) return;

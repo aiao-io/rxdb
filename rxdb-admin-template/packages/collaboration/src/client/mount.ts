@@ -210,24 +210,26 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   function workspacesView() {
     const view = section('选择团队');
+    const switchContext = (work: () => Promise<void>) =>
+      perform(async () => {
+        if (editor.dirty) {
+          controller.message = '切换前请保存全部输入';
+          return;
+        }
+        editor.clear();
+        prs.selected = null;
+        prs.selectedRecord = null;
+        await work();
+      });
     controller.workspaces.forEach(workspace =>
       view.append(
-        button(workspace.name, () =>
-          perform(async () => {
-            if (editor.dirty) {
-              controller.message = '切换前请保存全部输入';
-              return;
-            }
-            editor.clear();
-            prs.selected = null;
-            prs.selectedRecord = null;
-            await controller.selectWorkspace(workspace);
-          })
-        )
+        button(workspace.name, () => switchContext(() => controller.selectWorkspace(workspace)))
       )
     );
     controller.offlineDrafts.forEach(draft =>
-      view.append(button(tx('离线任务：{v0}', { v0: draft.name }), () => perform(() => controller.openOffline(draft))))
+      view.append(
+        button(tx('离线任务：{v0}', { v0: draft.name }), () => switchContext(() => controller.openOffline(draft)))
+      )
     );
     if (!controller.workspaces.length && !controller.offlineDrafts.length)
       view.append(element('p', '暂无可访问团队，请接受邀请。登录不会自动成为管理员。'));

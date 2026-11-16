@@ -17,9 +17,11 @@ export async function readAnonymousAssets(database: RxDB, entities: readonly Ent
       database.entityManager.getRepository(entity).findAll({ where: { combinator: 'and', rules: [] } })
     );
     for (const row of rows) {
-      const values = row as unknown as Record<string, Value>;
+      const values = row as unknown as Record<string, unknown>;
       const data = Object.fromEntries(
-        fields[name].filter(field => values[field] !== undefined).map(field => [field, values[field]])
+        fields[name]
+          .filter(field => values[field] !== undefined)
+          .map(field => [field, serializeValue(field, values[field])])
       );
       const id = String(values['id']);
       demand(!Object.hasOwn(records, id), 'conflict', '匿名记录 ID 跨实体重复，无法安全导入');
@@ -28,4 +30,14 @@ export async function readAnonymousAssets(database: RxDB, entities: readonly Ent
   }
   assertRecords(records);
   return records;
+}
+
+function serializeValue(field: string, value: unknown): Value {
+  if (value instanceof Date) {
+    demand(!Number.isNaN(value.getTime()), 'invalid', `${field} 日期格式错误`);
+    return value.toISOString().slice(0, 10);
+  }
+  demand(value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean', 'invalid', '字段值格式错误');
+  demand(typeof value !== 'number' || Number.isFinite(value), 'invalid', '数字必须有限');
+  return value;
 }
