@@ -43,6 +43,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     }
   };
   const editor = new TaskEditor(controller, perform, render);
+  const unregisterCheckpoint = controller.registerCheckpoint(() => editor.checkpoint());
   const prs = new PullRequestView(controller, perform, render);
   const change = () => {
     if (!controller.user) editor.clear();
@@ -93,7 +94,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   const connectivity = () => {
     controller.online = navigator.onLine;
     controller.changed();
-    void controller.refresh().catch(error => controller.failure(error));
+    void controller.reconnect().catch(error => controller.failure(error));
   };
   window.addEventListener('online', connectivity);
   window.addEventListener('offline', connectivity);
@@ -429,6 +430,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     window.removeEventListener('online', connectivity);
     window.removeEventListener('offline', connectivity);
     controller.removeEventListener('change', change);
+    unregisterCheckpoint();
     host.removeEventListener('input', formDrafts.remember);
     host.removeEventListener('change', formDrafts.remember);
     controller.dispose();

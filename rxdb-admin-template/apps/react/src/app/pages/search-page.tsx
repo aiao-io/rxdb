@@ -5,7 +5,7 @@ import { useRxDB } from '@aiao/rxdb-react';
 import { useMemo } from 'react';
 import { entityDisplayName, fieldDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries } from '../entities/entity-registry';
-import { SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
+import { normalizeSearchPageSize, SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
 
 /**
  * 全文搜索页（FTS5 + CJK bigram）：跨工作台全部可搜索实体
@@ -15,7 +15,7 @@ export default function SearchPage() {
   const rxdb = useRxDB();
   const { t } = useI18n();
   const entries = useMemo(() => visibleEntityEntries(rxdb.config.entities), [rxdb]);
-  const pageSize = useAdminStore(workbenchShell.preferences).extension[SEARCH_PAGE_SIZE_KEY] as number;
+  const pageSize = normalizeSearchPageSize(useAdminStore(workbenchShell.preferences).extension[SEARCH_PAGE_SIZE_KEY]);
   const options = useMemo(() => ({ debounce: 300, pageSize, snippetLength: 64 }), [pageSize]);
   const search = useSearch(rxdb, options);
 

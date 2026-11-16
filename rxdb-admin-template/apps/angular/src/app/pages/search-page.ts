@@ -5,7 +5,7 @@ import { useSearch } from '@aiao/rxdb-plugin-search-angular';
 import { Component, computed, signal } from '@angular/core';
 import { entityDisplayName, fieldDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries } from '../entities/entity-registry';
-import { SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
+import { normalizeSearchPageSize, SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
 
 @Component({
   selector: 'app-search-results',
@@ -57,7 +57,7 @@ export class SearchResults {
   readonly t = useI18n().t;
   readonly options = computed(() => ({
     debounce: 300,
-    pageSize: this.preferences().extension[SEARCH_PAGE_SIZE_KEY] as number,
+    pageSize: normalizeSearchPageSize(this.preferences().extension[SEARCH_PAGE_SIZE_KEY]),
     snippetLength: 64
   }));
   readonly search = useSearch(this.db, this.options);

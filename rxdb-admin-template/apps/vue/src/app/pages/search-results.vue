@@ -6,14 +6,14 @@ import { useRxDB } from '@aiao/rxdb-vue';
 import { computed } from 'vue';
 import { entityDisplayName, fieldDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries } from '../entities/entity-registry';
-import { SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
+import { normalizeSearchPageSize, SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
 const db = useRxDB();
 const { t } = useI18n();
 const entries = visibleEntityEntries(db.config.entities);
 const preferences = useAdminStore(workbenchShell.preferences);
 const options = computed(() => ({
   debounce: 300,
-  pageSize: preferences.value.extension[SEARCH_PAGE_SIZE_KEY] as number,
+  pageSize: normalizeSearchPageSize(preferences.value.extension[SEARCH_PAGE_SIZE_KEY]),
   snippetLength: 64
 }));
 const { query, results, state, error, hasMore, loadMore } = useSearch(db, options);

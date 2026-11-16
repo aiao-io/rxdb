@@ -102,6 +102,7 @@ export const collaborationEnglish: Record<string, string> = {
   '请先保存全部输入，或取消同步': 'Save all inputs or cancel syncing',
   '请求不能超过 2 MiB': 'The request cannot exceed 2 MiB',
   请求失败: 'Request failed',
+  '请求结果不确定，请确认或重试原请求': 'The request result is uncertain. Confirm or retry the original request.',
   请求字段不合法: 'Invalid request fields',
   请求格式错误: 'Invalid request format',
   请登录: 'Sign in first',

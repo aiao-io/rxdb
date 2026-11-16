@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { renderAppHtml } from '../../../app-html-plugin';
 import {
+  normalizeSearchPageSize,
   SEARCH_PAGE_SIZE_KEY,
   WORKBENCH_STORAGE_PREFIX,
   bindWorkbenchNavigator,
@@ -146,6 +147,17 @@ describe('workbench-shell', () => {
   it('外壳带搜索条数扩展，默认 20；手风琴默认关闭以保持两组始终展开', () => {
     expect(workbenchShell.preferences.value.extension[SEARCH_PAGE_SIZE_KEY]).toBe(20);
     expect(workbenchShell.preferences.value.navigation.accordion).toBe(false);
+  });
+
+  it.each([
+    [Number.NaN, 20],
+    [3, 5],
+    [55, 50],
+    [7.4, 7],
+    [' 30 ', 30],
+    ['', 20]
+  ])('运行时归一化被篡改的搜索条数 %s 为 %s', (value, expected) => {
+    expect(normalizeSearchPageSize(value)).toBe(expected);
   });
 
   it('跳转延迟绑定到路由器', () => {

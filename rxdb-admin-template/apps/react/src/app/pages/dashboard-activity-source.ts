@@ -57,13 +57,22 @@ async function readDashboardActivities(
   return decodeDashboardActivities(result);
 }
 
-function observeBranchActivities(db: RxDB, branchId: string): Observable<DashboardActivity[]> {
+function activityError(cause: unknown): DashboardActivityState {
+  return { activities: [], loading: false, error: cause instanceof Error ? cause.message : String(cause) };
+}
+
+function observeBranchActivities(db: RxDB, branchId: string): Observable<DashboardActivityState> {
   return db.localAdapter$.pipe(
     switchMap(adapter =>
       dashboardChangeEvents(db).pipe(
         startWith(undefined),
         auditTime(0),
-        switchMap(() => readDashboardActivities(db, adapter, branchId))
+        switchMap(() =>
+          defer(() => readDashboardActivities(db, adapter, branchId)).pipe(
+            map(activities => ({ activities, loading: false, error: null })),
+            catchError((cause: unknown) => of(activityError(cause)))
+          )
+        )
       )
     )
   );
@@ -74,13 +83,12 @@ export function observeDashboardActivities(db: RxDB): Observable<DashboardActivi
   return defer(() =>
     db.worktreeTableSet$.pipe(
       switchMap(tableSet => db.entityManager.getRepository(RxDBBranch).findOne({ where: tableSet.heldBranchWhere })),
-      switchMap(branch => (branch ? observeBranchActivities(db, branch.id) : of([]))),
-      map(activities => ({ activities, loading: false, error: null }))
+      switchMap(branch =>
+        branch ? observeBranchActivities(db, branch.id) : of({ activities: [], loading: false, error: null })
+      )
     )
   ).pipe(
     startWith(DASHBOARD_ACTIVITY_LOADING),
-    catchError((cause: unknown) =>
-      of({ activities: [], loading: false, error: cause instanceof Error ? cause.message : String(cause) })
-    )
+    catchError((cause: unknown) => of(activityError(cause)))
   );
 }

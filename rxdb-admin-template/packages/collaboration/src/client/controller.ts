@@ -12,6 +12,7 @@ export class CollaborationController extends EventTarget {
   private authGeneration = 0;
   private mutations?: { epoch: number; settled: Promise<void> };
   private unsubscribe?: () => void;
+  private checkpoint?: () => Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
   readonly local: LocalTasks;
   readonly api: CollaborationApi;
@@ -48,6 +49,13 @@ export class CollaborationController extends EventTarget {
   changed() {
     this.dispatchEvent(new Event('change'));
   }
+  /** 注册锁定前的本地编辑保存钩子，避免会话恢复失败时丢失输入。 */
+  registerCheckpoint(checkpoint: () => Promise<void>): () => void {
+    this.checkpoint = checkpoint;
+    return () => {
+      if (this.checkpoint === checkpoint) this.checkpoint = undefined;
+    };
+  }
   async initialize(): Promise<void> {
     const epoch = ++this.authGeneration;
     const configKey = `admin-collaboration-config:${this.base}`;
@@ -64,7 +72,7 @@ export class CollaborationController extends EventTarget {
       auth: {
         storageKey: `admin-collaboration-auth:${config.supabaseUrl}`,
         detectSessionInUrl: false,
-        autoRefreshToken: navigator.onLine
+        autoRefreshToken: true
       }
     });
     this.feed = new WorkspaceFeed(
@@ -135,6 +143,17 @@ export class CollaborationController extends EventTarget {
     this.feed?.start(workspace);
     this.changed();
   }
+  async reconnect(): Promise<void> {
+    this.online = navigator.onLine;
+    if (!this.online || !this.auth || !this.user) {
+      this.changed();
+      return;
+    }
+    const { data, error } = await this.auth.auth.refreshSession();
+    demand(!error && data.session, 'unauthenticated', '会话已过期，请重新登录');
+    await this.acceptSession(data.session);
+    await this.refresh();
+  }
   async refresh(): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
@@ -162,12 +181,39 @@ export class CollaborationController extends EventTarget {
   }
   pending(): { workspace: WorkspaceEntry; command: Command } | null {
     if (!this.user) return null;
-    const value = sessionStorage.getItem(`admin-collaboration-pending:${this.user.id}`);
-    return value ? (JSON.parse(value) as { workspace: WorkspaceEntry; command: Command }) : null;
+    const key = `admin-collaboration-pending:${this.user.id}`;
+    const value = sessionStorage.getItem(key);
+    if (!value) return null;
+    try {
+      const pending = JSON.parse(value) as { workspace?: unknown; command?: unknown };
+      const workspace = pending.workspace as Partial<WorkspaceEntry> | undefined;
+      const command = pending.command as Partial<Command> | undefined;
+      demand(
+        !!workspace &&
+          typeof workspace.teamId === 'string' &&
+          typeof workspace.appId === 'string' &&
+          typeof workspace.name === 'string' &&
+          !!command &&
+          typeof command.type === 'string' &&
+          typeof command.operationId === 'string',
+        'invalid',
+        '上次请求记录损坏，已清理'
+      );
+      return { workspace: workspace as WorkspaceEntry, command: command as Command };
+    } catch {
+      sessionStorage.removeItem(key);
+      return null;
+    }
   }
   async retryPending(): Promise<void> {
     const pending = this.pending();
     demand(pending && this.user, 'missing', '没有待确认请求');
+    if (pending.command.type === 'accept_invite') {
+      await this.executeCommand(pending.command, pending.command.operationId, pending.workspace);
+      this.workspaces = await this.current(this.api.workspaces());
+      await this.selectWorkspace(pending.workspace);
+      return;
+    }
     await this.selectWorkspace(pending.workspace);
     await this.run(pending.command, pending.command.operationId);
     if (pending.command.type === 'fork') await this.openTask(pending.command.id);
@@ -198,12 +244,11 @@ export class CollaborationController extends EventTarget {
     const workspace = { teamId, appId, name: teamId };
     const epoch = this.generation;
     await this.current(
-      this.api.command(workspace, {
-        type: 'accept_invite',
-        id,
-        tokenHash: token,
-        operationId: crypto.randomUUID()
-      }),
+      this.executeCommand(
+        { type: 'accept_invite', id, tokenHash: token },
+        crypto.randomUUID(),
+        workspace
+      ),
       epoch
     );
     const workspaces = await this.current(this.api.workspaces(), epoch);
@@ -293,6 +338,13 @@ export class CollaborationController extends EventTarget {
     if (auth) await auth.auth.signOut({ scope: 'local' });
   }
   async lock(): Promise<void> {
+    if (this.user && this.checkpoint) {
+      try {
+        await this.checkpoint();
+      } catch {
+        this.message = '会话即将锁定，未保存输入无法落盘';
+      }
+    }
     this.feed?.stop();
     this.generation++;
     this.authGeneration++;
@@ -336,10 +388,11 @@ export class CollaborationController extends EventTarget {
   }
   private async executeCommand(
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
-    operationId: string
+    operationId: string,
+    workspaceOverride?: WorkspaceEntry
   ): Promise<Record<string, unknown>> {
-    demand(this.workspace && this.user, 'locked', '先登录并选择团队');
-    const workspace = this.workspace;
+    demand((workspaceOverride ?? this.workspace) && this.user, 'locked', '先登录并选择团队');
+    const workspace = workspaceOverride ?? this.workspace!;
     const epoch = this.generation;
     const request = { ...command, operationId } as Command;
     const durable = !['presence', 'read_notice', 'subscribe'].includes(request.type);
@@ -365,7 +418,7 @@ export class CollaborationController extends EventTarget {
       }
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
       if (request.type === 'presence') this.applyPresenceResult(request, result);
-      else await this.current(this.refresh(), epoch);
+      else if (request.type !== 'accept_invite') await this.current(this.refresh(), epoch);
       if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
       if (durable) sessionStorage.removeItem(key);
       return result;

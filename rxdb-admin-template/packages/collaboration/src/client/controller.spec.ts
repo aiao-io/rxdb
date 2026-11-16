@@ -90,6 +90,7 @@ function authFixture(userId = 'alice') {
     getUser: vi.fn().mockResolvedValue({ data: { user: session.user }, error: null }),
     signInWithOtp: vi.fn().mockResolvedValue({ error: null }),
     verifyOtp: vi.fn().mockResolvedValue({ data: { session }, error: null }),
+    refreshSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     onAuthStateChange: vi.fn((callback: (event: string, session: Session | null) => void) => {
       listener = callback;
@@ -134,6 +135,19 @@ describe('session verification and access recovery', () => {
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(localStorage.getItem('admin-collaboration-grant:/test')).toBeNull();
   });
+  it('keeps token refresh enabled after an offline cold start and refreshes on reconnect', async () => {
+    vi.mocked(createClient).mockClear();
+    const { controller, auth } = await initialized();
+    const options = vi.mocked(createClient).mock.calls.at(-1)?.[2];
+    expect(options).toMatchObject({ auth: { autoRefreshToken: true } });
+    vi.stubGlobal('navigator', { onLine: false });
+    controller.online = false;
+    vi.stubGlobal('navigator', { onLine: true });
+    await controller.reconnect();
+    expect(auth.refreshSession).toHaveBeenCalledTimes(1);
+    expect(controller.online).toBe(true);
+  });
+
   it('keeps failed OTP requests unauthenticated and never trusts an unconfirmed email', async () => {
     const { controller, auth } = await initialized();
     await controller.lock();
@@ -171,6 +185,7 @@ describe('session verification and access recovery', () => {
     const cold = new CollaborationController('/test', storage);
     controllers.push(cold);
     await cold.initialize();
+    expect(vi.mocked(createClient).mock.calls.at(-1)?.[2]).toMatchObject({ auth: { autoRefreshToken: true } });
     expect(cold.user?.id).toBe('alice');
     expect(cold.offlineDrafts).toHaveLength(1);
     await cold.openOffline(cold.offlineDrafts[0]);
@@ -198,6 +213,39 @@ describe('session verification and access recovery', () => {
   });
 });
 describe('client concurrency and recovery', () => {
+  it('checkpoints the editor before locking a session', async () => {
+    const { controller } = await setup();
+    const checkpoint = vi.fn().mockResolvedValue(undefined);
+    controller.registerCheckpoint(checkpoint);
+    await controller.lock();
+    expect(checkpoint).toHaveBeenCalledTimes(1);
+    expect(controller.user).toBeNull();
+  });
+
+  it('retries an invitation without selecting a workspace before membership exists', async () => {
+    const { controller } = await setup();
+    const workspace = { teamId: 'new-team', appId: 'assets', name: 'New team' };
+    const command = { type: 'accept_invite' as const, id: 'invite', tokenHash: 'token', operationId: 'invite-op' };
+    controller.workspace = null;
+    controller.snapshot = null;
+    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'unknown' });
+    const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
+    vi.mocked(controller.api.workspaces).mockResolvedValue([workspace]);
+    sessionStorage.setItem(`admin-collaboration-pending:${controller.user!.id}`, JSON.stringify({ workspace, command }));
+    await controller.retryPending();
+    expect(send).toHaveBeenCalledWith(workspace, command);
+    expect(controller.workspace).toEqual(workspace);
+    expect(controller.pending()).toBeNull();
+  });
+
+  it('clears malformed pending data instead of blocking future commands', async () => {
+    const { controller } = await setup();
+    const key = `admin-collaboration-pending:${controller.user!.id}`;
+    sessionStorage.setItem(key, '{malformed');
+    expect(controller.pending()).toBeNull();
+    expect(sessionStorage.getItem(key)).toBeNull();
+  });
+
   it('serializes durable actions until their previous receipt and snapshot are confirmed', async () => {
     const { controller } = await setup();
     const delayed = Promise.withResolvers<NonNullable<typeof controller.snapshot>>();

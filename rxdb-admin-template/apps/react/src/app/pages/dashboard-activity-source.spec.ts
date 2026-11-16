@@ -157,13 +157,19 @@ describe('Dashboard 持久化活动', () => {
     expect(scene.query).toHaveBeenCalledTimes(2);
   });
 
-  it.each([new Error('日志查询失败'), '日志查询失败'])('查询失败显示错误，不能伪装成空历史：%s', async cause => {
+  it.each([new Error('日志查询失败'), '日志查询失败'])('查询失败显示错误并保留事件监听：%s', async cause => {
     const scene = await createScene();
-    scene.query.mockRejectedValue(cause);
+    scene.query.mockRejectedValueOnce(cause).mockResolvedValue(result);
     const subscription = observeDashboardActivities(scene.db).subscribe(state => scene.states.push(state));
     await vi.waitFor(() =>
       expect(scene.states.at(-1)).toEqual({ activities: [], loading: false, error: '日志查询失败' })
     );
-    expect(subscription.closed).toBe(true);
+    expect(subscription.closed).toBe(false);
+    notifyChange(scene.db);
+    await vi.waitFor(() => expect(scene.query).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(scene.states.at(-1)).toMatchObject({ activities: [{ changeId: 1 }], loading: false, error: null })
+    );
+    subscription.unsubscribe();
   });
 });

@@ -96,6 +96,11 @@ export class TaskEditor {
     this.dirty = false;
     this.render();
   }
+  async checkpoint(): Promise<void> {
+    if (!this.dirty || !this.controller.draft) return;
+    await this.controller.save(this.buffer);
+    this.dirty = false;
+  }
   private mark() {
     this.dirty = true;
     if (this.indicator) this.indicator.textContent = tx('有未保存输入');

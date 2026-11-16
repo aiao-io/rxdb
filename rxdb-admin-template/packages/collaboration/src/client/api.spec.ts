@@ -56,6 +56,13 @@ describe('authenticated HTTP client', () => {
     });
     await expect(api.workspaces()).rejects.toMatchObject({ code: 'http', message: '请求失败' });
   });
+  it('translates uncertain command results in the English collaboration catalog', async () => {
+    const { collaborationEnMessages } = await import('../messages.js');
+    expect(collaborationEnMessages['collaboration.请求结果不确定，请确认或重试原请求']).toBe(
+      'The request result is uncertain. Confirm or retry the original request.'
+    );
+  });
+
   it('marks a non-JSON command response as uncertain so the caller can recover its idempotency key', async () => {
     vi.stubGlobal(
       'fetch',

@@ -128,6 +128,11 @@ export class FakeListTable {
     return { width: text.length * font.fontSize };
   }
 
+  /** 读取列头字段；第 0 列是行号列，没有业务字段。 */
+  getHeaderField(col: number, _row: number): unknown {
+    return this.#columns[col - 1]?.['field'];
+  }
+
   getColWidth(col: number): number {
     return (this.#columns[col - 1]?.['width'] as number | undefined) ?? 120;
   }

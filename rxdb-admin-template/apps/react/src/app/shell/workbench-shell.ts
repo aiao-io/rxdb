@@ -17,6 +17,16 @@ export const WORKBENCH_STORAGE_PREFIX = appConfig.storagePrefix;
 
 /** 全文搜索页的每页条数：作为「拓展」偏好注册，演示应用如何接入自己的设置项。 */
 export const SEARCH_PAGE_SIZE_KEY = 'searchPageSize';
+export const DEFAULT_SEARCH_PAGE_SIZE = 20;
+
+/** 将持久化偏好归一化为搜索插件可接受的整数范围。 */
+export function normalizeSearchPageSize(value: unknown): number {
+  const candidate =
+    typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
+  return Number.isFinite(candidate)
+    ? Math.min(50, Math.max(5, Math.round(candidate)))
+    : DEFAULT_SEARCH_PAGE_SIZE;
+}
 
 const EXTENSIONS: readonly PreferenceExtension[] = [
   {
