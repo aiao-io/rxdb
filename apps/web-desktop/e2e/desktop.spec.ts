@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { readState } from './state.js';
 
 async function enter(page: Page, mode: 'macos' | 'windows') {
   await page.goto('/');
@@ -34,6 +35,7 @@ for (const mode of ['macos', 'windows'] as const) {
     const reopened = page.frameLocator('iframe[title="文本编辑器"]').last();
     await expect(reopened.getByLabel('文档内容')).toBeVisible();
     await expect(reopened.getByLabel('文档内容')).toHaveValue('尚未保存的新内容');
+    await expect.poll(async () => (await readState(page)).session.map(win => win.appId)).toContain('editor');
     await page.reload();
 
     await expect(page.frameLocator('iframe[title="文本编辑器"]').last().getByLabel('文档内容')).toHaveValue(
