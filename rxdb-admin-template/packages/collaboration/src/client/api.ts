@@ -1,24 +1,39 @@
 import { CollaborationError, demand, type Command } from '../model.js';
 import type { WorkspaceSnapshot } from '../server/engine.js';
+/** 一个可访问的团队与应用；`name` 是展示名。 */
 export type WorkspaceEntry = { teamId: string; appId: string; name: string };
+/**
+ * 协作 HTTP 接口的客户端。除公开配置外，每次请求都先向 `token` 取一次最新会话令牌；
+ * 取令牌期间 `context` 的返回值变化（账号或团队已切换）则放弃请求，避免用旧上下文发出新请求。
+ */
 export class CollaborationApi {
+  /**
+   * @param base 接口路径前缀。
+   * @param token 返回当前会话的访问令牌；会话失效时应抛出。
+   * @param context 返回当前上下文的标识，用于发现取令牌期间账号或团队已切换。
+   */
   constructor(
     readonly base: string,
     private readonly token: () => Promise<string>,
     private readonly context: () => unknown = () => undefined
   ) {}
+  /** 读取公开配置（Supabase 地址与公开密钥），无需登录。 */
   async config() {
     return this.request<{ supabaseUrl: string; supabaseKey: string }>('/config', false);
   }
+  /** 列出当前账号可访问的团队与应用。 */
   async workspaces() {
     return this.request<WorkspaceEntry[]>('/workspaces');
   }
+  /** 读取工作区快照，只包含当前用户可见的内容。 */
   async snapshot(context: WorkspaceEntry) {
     return this.request<WorkspaceSnapshot>(this.path(context));
   }
+  /** 提交一条命令。响应不是 JSON 时按「结果不确定」报错，调用方可用原幂等键查询回执或重试。 */
   async command(context: WorkspaceEntry, command: Command) {
     return this.request<Record<string, unknown>>(`${this.path(context)}/commands`, true, command);
   }
+  /** 查询某个幂等键是否已被服务端接受，用于确认结果不确定的请求。 */
   async receipt(context: WorkspaceEntry, operationId: string) {
     return this.request<{ status: 'accepted' | 'unknown'; value?: Record<string, unknown> }>(
       `${this.path(context)}/receipts/${encodeURIComponent(operationId)}`

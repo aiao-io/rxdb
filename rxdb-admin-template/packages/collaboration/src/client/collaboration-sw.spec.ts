@@ -9,6 +9,7 @@ type Handler = (event: unknown) => void;
 
 function loadWorker() {
   const handlers = new Map<string, Handler>();
+  const fetcher = vi.fn();
   const cache = { addAll: vi.fn().mockResolvedValue(undefined), put: vi.fn(), match: vi.fn() };
   const caches = { open: vi.fn().mockResolvedValue(cache) };
   const scope = {
@@ -17,8 +18,20 @@ function loadWorker() {
     skipWaiting: vi.fn(),
     clients: { claim: vi.fn() }
   };
-  runInNewContext(script, { self: scope, caches, URL, fetch: vi.fn() });
-  return { handlers, cache, caches };
+  runInNewContext(script, { self: scope, caches, URL, fetch: fetcher });
+  return { handlers, cache, caches, fetcher };
+}
+
+/** 构造 fetch 事件；respondWith 收到的 Promise 通过 answer() 取得，没有调用则说明请求不由 Service Worker 处理。 */
+function request(url: string, { method = 'GET', mode = 'no-cors' } = {}) {
+  let answer: Promise<Response> | undefined;
+  const event = {
+    request: { url, method, mode },
+    respondWith: (response: Promise<Response>) => {
+      answer = response;
+    }
+  };
+  return { event, answer: () => answer };
 }
 
 /** 构造发给 Service Worker 的 cache-shell 消息；返回需要等待的 waitUntil 任务与应答端口。 */
@@ -48,7 +61,11 @@ describe('协作页面的离线 Service Worker', () => {
     const { event, port, settled } = cacheShell({ url: `${origin}/collaboration` }, urls);
     handlers.get('message')!(event);
     await settled();
-    expect(cache.addAll).toHaveBeenCalledWith([`${origin}/collaboration`, `${origin}/assets/app.js`, `${origin}/assets/app.css`]);
+    expect(cache.addAll).toHaveBeenCalledWith([
+      `${origin}/collaboration`,
+      `${origin}/assets/app.js`,
+      `${origin}/assets/app.css`
+    ]);
     expect(port.postMessage).toHaveBeenCalledWith({ ok: true });
   });
 
@@ -84,5 +101,61 @@ describe('协作页面的离线 Service Worker', () => {
     handlers.get('message')!(event);
     await settled();
     expect(port.postMessage).toHaveBeenCalledWith({ ok: false });
+  });
+});
+
+describe('协作页面的离线 Service Worker：请求拦截', () => {
+  const shell = `${origin}/collaboration`;
+
+  it('对 /collaboration 的导航网络优先，成功就刷新缓存的页面外壳', async () => {
+    const { handlers, cache, fetcher } = loadWorker();
+    fetcher.mockResolvedValue(new Response('<html>online</html>'));
+    const { event, answer } = request(shell, { mode: 'navigate' });
+    handlers.get('fetch')!(event);
+    expect(await (await answer())!.text()).toBe('<html>online</html>');
+    expect(cache.put).toHaveBeenCalledWith(shell, expect.any(Response));
+  });
+
+  it('离线时用缓存的页面外壳回应导航；没有缓存就原样抛出网络错误', async () => {
+    const { handlers, cache, fetcher } = loadWorker();
+    fetcher.mockRejectedValue(new TypeError('offline'));
+    cache.match.mockResolvedValueOnce(new Response('<html>cached</html>'));
+    const cached = request(shell, { mode: 'navigate' });
+    handlers.get('fetch')!(cached.event);
+    expect(await (await cached.answer())!.text()).toBe('<html>cached</html>');
+    expect(cache.match).toHaveBeenCalledWith(shell);
+    cache.match.mockResolvedValueOnce(undefined);
+    const empty = request(shell, { mode: 'navigate' });
+    handlers.get('fetch')!(empty.event);
+    await expect(empty.answer()).rejects.toThrow('offline');
+  });
+
+  it('同源静态资源以请求本身为键缓存，离线时回放', async () => {
+    const { handlers, cache, fetcher } = loadWorker();
+    fetcher.mockResolvedValueOnce(new Response('script'));
+    const online = request(`${origin}/assets/app.js`);
+    handlers.get('fetch')!(online.event);
+    await online.answer();
+    expect(cache.put).toHaveBeenCalledWith(online.event.request, expect.any(Response));
+    fetcher.mockRejectedValueOnce(new TypeError('offline'));
+    cache.match.mockResolvedValueOnce(new Response('cached script'));
+    const offline = request(`${origin}/assets/app.js`);
+    handlers.get('fetch')!(offline.event);
+    expect(await (await offline.answer())!.text()).toBe('cached script');
+  });
+
+  it.each([
+    ['应用其余页面的导航', `${origin}/entities`, { mode: 'navigate' }],
+    ['/collaboration 的子路径导航', `${origin}/collaboration/extra`, { mode: 'navigate' }],
+    ['非 GET 请求', shell, { method: 'POST', mode: 'navigate' }],
+    ['协作接口', `${origin}/collaboration-api/assets.js`, {}],
+    ['带查询串的资源', `${origin}/assets/app.js?v=1`, {}],
+    ['跨源资源', 'https://cdn.example/lib.js', {}],
+    ['非静态资源类型', `${origin}/data.json`, {}]
+  ])('不拦截：%s', (_name, url, init) => {
+    const { handlers } = loadWorker();
+    const { event, answer } = request(url, init);
+    handlers.get('fetch')!(event);
+    expect(answer()).toBeUndefined();
   });
 });

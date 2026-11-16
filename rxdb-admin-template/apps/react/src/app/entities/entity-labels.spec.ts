@@ -5,22 +5,10 @@ import { ENTITIES } from './asset-entities';
 import { entityDisplayName, fieldDisplayName } from './entity-labels';
 import { WORKBENCH_NAMESPACES } from './entity-registry';
 
-/**
- * 实体显示名目录的完整性门禁。
- *
- * `entity-labels` 在目录缺键时按设计回退到元数据声明名，漏键不会报错，只会让某个语言下露出声明名；
- * 这里逐键核对，给每个可见实体补齐目录前不放行。
- *
- * 口径与 rxdb-model 的 `localizeEntityMetadata` 读取的键一致：
- * - 实体：`entity.<namespace>.<name>.displayName`
- * - 属性与计算属性：`entity.<namespace>.<name>.property.<field>`
- * - 关系：`entity.<namespace>.<name>.relation.<relation>`（外键列 `xxxId` 也取对应关系的键）
- *
- * 系统字段（id / createdAt / updatedAt / createdBy / updatedBy）由 rxdb-model 内置的通用词条提供标签，
- * 不属于业务目录，不在核对范围内。
- */
+/** 系统字段的标签由 rxdb-model 内置的通用词条提供（common.createdAt 等），不属于业务目录。 */
 const SYSTEM_PROPERTIES: ReadonlySet<string> = new Set(['id', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']);
 
+/** 一个实体在业务目录里应当具备的全部键，口径与 rxdb-model 的 `localizeEntityMetadata` 读取的键一致。 */
 function requiredKeys(metadata: EntityMetadata): string[] {
   const prefix = `entity.${metadata.namespace}.${metadata.name}`;
   const properties = [...metadata.propertyMap.keys(), ...metadata.computedPropertyMap.keys()].filter(
@@ -37,6 +25,15 @@ const visibleMetadata = ENTITIES.map(entity => getEntityMetadata(entity)).filter
   WORKBENCH_NAMESPACES.includes(metadata.namespace)
 );
 
+/**
+ * 实体显示名目录的完整性门禁。
+ *
+ * `entity-labels` 在目录缺键时按设计回退到元数据声明名：漏键不会报错，只会让某个语言下露出声明名。
+ * 这里逐键核对每个可见实体：
+ * - 实体：`entity.<namespace>.<name>.displayName`
+ * - 属性与计算属性（不含系统字段）：`entity.<namespace>.<name>.property.<field>`
+ * - 关系：`entity.<namespace>.<name>.relation.<relation>`；外键列 `xxxId` 的标签取对应关系的键，不单独占键
+ */
 describe('实体显示名目录', () => {
   it('可见实体不为空，门禁不会空转', () => {
     expect(visibleMetadata.length).toBeGreaterThan(0);

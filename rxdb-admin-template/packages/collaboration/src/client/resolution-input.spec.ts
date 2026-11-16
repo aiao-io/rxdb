@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CollaborationError } from '../model.js';
 import { collaborationEnglish } from '../messages.js';
+import { CollaborationError } from '../model.js';
 import { readResolution } from './resolution-input.js';
 
 describe('冲突处理输入', () => {

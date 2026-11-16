@@ -9,14 +9,24 @@ import { carriesInvitation, parseInvitationLink } from './invitation-link.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
 import { tx, useTranslation, type Translate } from './translate.js';
+/** 挂载协作界面时的可选项；三端应用传入的内容对称。 */
 export interface CollaborationOptions {
+  /** 协作 HTTP 接口的路径前缀，默认 `/collaboration-api`（开发与预览服务器把它代理到真实服务端）。 */
   apiBase?: string;
+  /** 应用的翻译函数，入参是 `collaboration.<中文原文>` 形式的消息键与占位符取值；不传则直接显示中文原文。 */
   translate?: Translate;
+  /** 订阅应用的语言切换，收到通知后重新渲染；返回取消订阅函数，卸载界面时调用。 */
   subscribeLanguage?: (listener: () => void) => () => void;
+  /** 读取匿名本机库里的全部资产记录，供「预览匿名数据导入」使用；不传则不显示该入口。只读取，不修改匿名库。 */
   importAnonymous?: () => Promise<Records>;
 }
 
-/** 三端共享的协作界面，所有用户内容均通过文本节点渲染。 */
+/**
+ * 三端共享的协作界面，所有用户内容均通过文本节点渲染。
+ * @param host 承载界面的容器元素；卸载时会清空其内容。
+ * @param options 接口前缀、翻译与匿名数据导入等可选项。
+ * @returns 卸载函数：移除全部监听、停止心跳、释放控制器并清空容器。
+ */
 export function mountCollaboration(host: HTMLElement, options: CollaborationOptions = {}): () => void {
   useTranslation(options.translate);
   const controller = new CollaborationController(options.apiBase);
@@ -223,9 +233,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
         await work();
       });
     controller.workspaces.forEach(workspace =>
-      view.append(
-        button(workspace.name, () => switchContext(() => controller.selectWorkspace(workspace)))
-      )
+      view.append(button(workspace.name, () => switchContext(() => controller.selectWorkspace(workspace))))
     );
     controller.offlineDrafts.forEach(draft =>
       view.append(
@@ -258,7 +266,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const data = controller.snapshot!;
     const view = section(tx('共享数据 · {v0}', { v0: data.name }));
     view.append(
-      element('p', tx('共享版本：{v0} · 默认只读', { v0: data.head ?? '空分支' }), 'text-sm break-all'),
+      element('p', tx('共享版本：{v0} · 默认只读', { v0: data.head ?? tx('空分支') }), 'text-sm break-all'),
       readOnlyRecords(data.records)
     );
     const member = data.members.find(m => m.id === controller.user?.id);
@@ -303,7 +311,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       element('p', tx('同 ID 记录：{v0}；完整性或唯一性冲突：{v1}', { v0: collisions.length, v1: checks.length }))
     );
     collisions.forEach(id => content.append(element('p', tx('同 ID 记录将采用本机内容：{v0}', { v0: id }))));
-    checks.forEach(check => content.append(element('p', `${check.recordId} / ${check.field}：${check.message}`)));
+    checks.forEach(check => content.append(element('p', `${check.recordId} / ${check.field}：${tx(check.message)}`)));
     content.append(
       element(
         'h2',
@@ -355,7 +363,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       item.dataset['disclosureKey'] = `shared-commit:${commit.id}`;
       item.append(
         element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`),
-        element('p', tx('父提交：{v0}', { v0: commit.parent ?? '空' }), 'text-xs'),
+        element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') }), 'text-xs'),
         readOnlyRecords(commit.records)
       );
       if (data.members.find(m => m.id === controller.user?.id)?.permissions.includes('edit'))
@@ -402,7 +410,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
                 p =>
                   `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}${p.recordId ? `（${p.recordId}）` : ''}`
               )
-              .join('、') || '暂无'
+              .join('、') || tx('暂无')
         }),
         'text-sm'
       )

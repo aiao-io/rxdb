@@ -6,7 +6,9 @@ const encoded = (value: unknown) => encodeURIComponent(JSON.stringify(value));
 
 describe('邀请链接', () => {
   it('把令牌放进 fragment，不进入查询参数，并丢弃当前页面原有的查询与 fragment', () => {
-    const link = new URL(createInvitationLink('https://admin.example/collaboration?theme=dark&join=old#section', ticket));
+    const link = new URL(
+      createInvitationLink('https://admin.example/collaboration?theme=dark&join=old#section', ticket)
+    );
     expect(link.origin + link.pathname).toBe('https://admin.example/collaboration');
     expect(link.search).toBe('');
     expect(link.searchParams.has('join')).toBe(false);

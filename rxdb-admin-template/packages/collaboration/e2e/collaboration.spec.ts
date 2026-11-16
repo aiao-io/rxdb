@@ -52,12 +52,7 @@ async function state(page: Page, workspace: { teamId: string; appId: string }) {
   return response.body as unknown as WorkspaceSnapshot;
 }
 /** 邀请令牌只放在 URL fragment（`#join=<转义后的 JSON>`），不进查询参数，避免落入代理日志与 Referer。 */
-function invitationLink(
-  baseURL: string | undefined,
-  fixture: Fixture,
-  id = fixture.invitation,
-  token = fixture.token
-) {
+function invitationLink(baseURL: string | undefined, fixture: Fixture, id = fixture.invitation, token = fixture.token) {
   const link = new URL('/collaboration', baseURL);
   const ticket = { teamId: fixture.teamId, appId: fixture.appId, id, token };
   link.hash = `join=${encodeURIComponent(JSON.stringify(ticket))}`;

@@ -22,10 +22,10 @@ export const DEFAULT_SEARCH_PAGE_SIZE = 20;
 /** 将持久化偏好归一化为搜索插件可接受的整数范围。 */
 export function normalizeSearchPageSize(value: unknown): number {
   const candidate =
-    typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-  return Number.isFinite(candidate)
-    ? Math.min(50, Math.max(5, Math.round(candidate)))
-    : DEFAULT_SEARCH_PAGE_SIZE;
+    typeof value === 'number' ? value
+    : typeof value === 'string' && value.trim() ? Number(value)
+    : Number.NaN;
+  return Number.isFinite(candidate) ? Math.min(50, Math.max(5, Math.round(candidate))) : DEFAULT_SEARCH_PAGE_SIZE;
 }
 
 const EXTENSIONS: readonly PreferenceExtension[] = [

@@ -16,7 +16,7 @@
 | `ADMIN_ALLOWED_ORIGINS`             | 允许的工作台来源，逗号分隔，含协议与端口                       |
 | `ADMIN_API_PORT` / `ADMIN_API_HOST` | 默认 `8088` / `127.0.0.1`                                      |
 
-邮箱登录需要在 Supabase 配置邮件发送服务，并将 passwordless 邮件模板配置为显示 `{{ .Token }}` 验证码。允许创建认证账号不等于授予团队成员关系；新用户必须接受匹配其已验证邮箱的邀请。
+邮箱登录需要在 Supabase 配置邮件发送服务，并将 passwordless 邮件模板配置为显示 `{{ .Token }}` 验证码。允许创建认证账号不等于授予团队成员关系；新用户必须接受匹配其已验证邮箱的邀请。邀请链接把团队、应用、邀请标识与一次性令牌放在 URL fragment（`#join=…`）里，浏览器不会把它发给服务器，也不会写进代理日志或 Referer；服务端只保存令牌摘要，审计详情不含受邀邮箱。
 
 先应用迁移：
 
@@ -45,7 +45,7 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 浏览器会话沿用 supabase-js 的默认持久化，写入 `localStorage` 的 `admin-collaboration-auth:<Supabase 地址>` 键，离线冷启动恢复依赖这份缓存。同源页面上的任何脚本注入都能读到其中的 access token 与 refresh token：协作 UI 只用文本节点渲染用户内容，模板使用方新增页面或引入第三方脚本时须保持同等约束并配置 CSP；若改用内存或 `sessionStorage` 存储会话，需要重新验证冷启动离线恢复（ADMIN-US-201 AC#5）。
 
-协作页面的 Service Worker 只缓存静态页面和脚本等资源，不缓存认证或产品 API。冷启动离线仍须有未过期的验证记录，且只能打开原用户已缓存且未锁定的任务。主动退出立即锁定本机上下文；远端撤权在在线重新验证时生效。Presence 每 15 秒更新，45 秒过期，不授予操作权限。`admin_workspace_versions` 表通过 Supabase Realtime 发送版本失效通知，接收后重新调用受服务端授权的 API；切换团队、离线任务或退出时撤销旧频道。正式部署须让协作 API 的 `ADMIN_DATABASE_URL` 指向该 Supabase 项目的 PostgreSQL，并启用迁移中的 publication。
+协作页面的 Service Worker 只缓存静态页面和脚本等资源，不缓存认证或产品 API。它以 `/collaboration` 为 scope 注册，不接管应用其余页面，也不与宿主应用在 `/` 注册的 Service Worker 互相顶替；挂载时把当前已加载的资源清单交给它缓存。从其他路由经前端路由进入协作页时，页面本身不受它控制，挂载之后才懒加载的资源要等下次直接打开 `/collaboration` 才会进入缓存。冷启动离线仍须有未过期的验证记录，且只能打开原用户已缓存且未锁定的任务。主动退出立即锁定本机上下文；远端撤权在在线重新验证时生效。Presence 每 15 秒更新，45 秒过期，不授予操作权限。`admin_workspace_versions` 表通过 Supabase Realtime 发送版本失效通知，接收后重新调用受服务端授权的 API；切换团队、离线任务或退出时撤销旧频道。正式部署须让协作 API 的 `ADMIN_DATABASE_URL` 指向该 Supabase 项目的 PostgreSQL，并启用迁移中的 publication。
 
 ## 验证
 

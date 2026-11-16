@@ -61,7 +61,7 @@ describe('downloadBlob', () => {
   it('隐藏的锚点挂进文档后才点击，点击后立即移除', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:workbench-backup');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    const clicks: { connected: boolean; hidden: boolean; href: string; download: string }[] = [];
+    const clicks: { connected: boolean; hidden: boolean | string; href: string; download: string }[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       clicks.push({ connected: this.isConnected, hidden: this.hidden, href: this.href, download: this.download });
     });

@@ -27,16 +27,12 @@ function errorMessage(cause: unknown): string {
   selector: 'app-dashboard-content',
   imports: [RouterLink],
   template: `
-    <section
-      class="grid gap-4 sm:grid-cols-3"
-      [attr.aria-label]="t('dashboard.title')"
-      data-testid="dashboard-metrics"
-    >
+    <section class="grid gap-4 sm:grid-cols-3" [attr.aria-label]="t('dashboard.title')" data-testid="dashboard-metrics">
       @for (metric of metrics; track metric.key) {
         <a
           class="card bg-base-200 border-base-300 hover:border-primary border transition-colors"
-          [routerLink]="metric.route"
           [attr.data-metric]="metric.key"
+          [routerLink]="metric.route"
           data-testid="dashboard-metric-card"
         >
           <div class="card-body gap-2 p-5">
@@ -48,7 +44,7 @@ function errorMessage(cause: unknown): string {
     </section>
     <p class="text-sm opacity-70" data-testid="dashboard-total">{{ t('dashboard.total', { count: total() }) }}</p>
     @if (loading()) {
-      <p class="text-sm" data-testid="dashboard-loading" aria-live="polite">
+      <p class="text-sm" aria-live="polite" data-testid="dashboard-loading">
         <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.loading') }}
       </p>
     }
@@ -63,13 +59,19 @@ function errorMessage(cause: unknown): string {
         <p class="text-sm opacity-70">{{ t('dashboard.empty.description') }}</p>
       </section>
     }
-    <section class="flex flex-col gap-3" data-testid="dashboard-recent-activity" aria-labelledby="dashboard-recent-activity-title">
+    <section
+      class="flex flex-col gap-3"
+      aria-labelledby="dashboard-recent-activity-title"
+      data-testid="dashboard-recent-activity"
+    >
       <div class="flex items-center justify-between gap-3">
-        <h2 id="dashboard-recent-activity-title" class="text-base font-semibold">{{ t('dashboard.activity.title') }}</h2>
+        <h2 class="text-base font-semibold" id="dashboard-recent-activity-title">
+          {{ t('dashboard.activity.title') }}
+        </h2>
         <span class="text-xs opacity-60">{{ activities().length }}/{{ activityLimit }}</span>
       </div>
       @if (activityLoading()) {
-        <p class="text-sm opacity-70" data-testid="dashboard-recent-activity-loading" aria-live="polite">
+        <p class="text-sm opacity-70" aria-live="polite" data-testid="dashboard-recent-activity-loading">
           <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.activity.loading') }}
         </p>
       } @else if (activityError(); as message) {
@@ -81,7 +83,10 @@ function errorMessage(cause: unknown): string {
           {{ t('dashboard.activity.empty') }}
         </p>
       } @else {
-        <ol class="divide-base-300 divide-y rounded-box border border-base-300" aria-label="{{ t('dashboard.activity.title') }}">
+        <ol
+          class="divide-base-300 rounded-box border-base-300 divide-y border"
+          aria-label="{{ t('dashboard.activity.title') }}"
+        >
           @for (activity of activities(); track activity.fingerprint) {
             <li
               class="flex flex-wrap items-start justify-between gap-3 p-4"
@@ -186,7 +191,11 @@ class DashboardContent {
   selector: 'app-dashboard-page',
   imports: [DashboardContent],
   template: `
-    <div class="page-host gap-4 overflow-auto p-6" [attr.aria-busy]="connection() === 'connecting'" data-testid="dashboard-page">
+    <div
+      class="page-host gap-4 overflow-auto p-6"
+      [attr.aria-busy]="connection() === 'connecting'"
+      data-testid="dashboard-page"
+    >
       <header class="flex flex-wrap items-start justify-between gap-3">
         <div class="flex flex-col gap-1">
           <h1 class="text-xl font-semibold">{{ t('dashboard.title') }}</h1>
@@ -194,8 +203,8 @@ class DashboardContent {
         </div>
         <span
           class="badge"
-          [class.badge-success]="connection() === 'ready'"
           [class.badge-error]="connection() === 'error'"
+          [class.badge-success]="connection() === 'ready'"
           data-testid="dashboard-connection-status"
         >
           @switch (connection()) {
@@ -217,7 +226,11 @@ class DashboardContent {
         </p>
       }
       @if (connection() === 'connecting') {
-        <section class="bg-base-200 rounded-box flex items-center gap-3 p-5" data-testid="dashboard-connecting" aria-live="polite">
+        <section
+          class="bg-base-200 rounded-box flex items-center gap-3 p-5"
+          aria-live="polite"
+          data-testid="dashboard-connecting"
+        >
           <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.status.connecting') }}
         </section>
       }

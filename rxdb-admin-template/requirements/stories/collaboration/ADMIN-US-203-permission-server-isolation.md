@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-17
 tags: [admin, permission, rls, security, collaboration]
 dependsOn: [ADMIN-US-201, ADMIN-US-202]
 capabilities: [rxdb:US-027, rxdb:US-029]
@@ -48,7 +48,7 @@ capabilities: [rxdb:US-027, rxdb:US-029]
 | 7   | 三端使用相同权限                                          | 分别操作查看、编辑、评论、审核、合并及成员管理         | 入口、拒绝语义和服务端结果一致                                                      | ✅   |
 | 8   | 导入、恢复和任务同步请求企图写入共享目标                  | 绕过 UI 发送请求                                       | 服务端拒绝目标错配；只有 212 的合并入口可改变共享业务数据，可信初始化不导入业务内容 | ✅   |
 
-验收证据：HTTP 和服务端单元验证真实身份及伪造请求；PostgreSQL 验证管理员直接写共享数据/审计/版本表被拒、跨团队 RLS 隔离；三端权限矩阵逐项验证查看、编辑、评论、审核、合并、成员管理的入口与服务端授权，并验证无评论权时回复/处理拒绝和撤权锁定。 详见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。✅ 表示已有本地验收证据；⚠️ 表示仍缺外部环境证据，均不等同于故事已合入或已部署。
+验收证据：HTTP 和服务端单元验证真实身份及伪造请求；PostgreSQL 验证管理员对共享数据、审计、变更、版本与 Presence 五张公开表的直接 INSERT、共享数据与版本表的 UPDATE、审计表的 DELETE 均被拒（INSERT 断言为 2026-11-17 评审补充），跨团队 RLS 隔离；三端权限矩阵逐项验证查看、编辑、评论、审核、合并、成员管理的入口与服务端授权，并验证无评论权时回复/处理拒绝和撤权锁定。 详见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。✅ 表示已有本地验收证据；⚠️ 表示仍缺外部环境证据，均不等同于故事已合入或已部署。
 
 ## 技术笔记
 

@@ -74,10 +74,10 @@ export class SearchResults {
 @Component({
   selector: 'app-search-page',
   imports: [SearchResults],
-  template: ` @if (error(); as failure) {
+  template: ` @if (failed()) {
       <div class="page-host items-center justify-center gap-2 p-8" data-testid="search-load-failed" role="alert">
         <span class="text-error font-semibold">{{ t('app.loadFailed') }}</span
-        ><span>{{ failure }}</span>
+        ><span>{{ failureMessage() }}</span>
       </div>
     } @else if (ready()) {
       <app-search-results />
@@ -93,14 +93,24 @@ export class SearchResults {
     }`
 })
 export default class SearchPage {
+  private readonly failure = signal<unknown>(undefined);
   readonly t = useI18n().t;
   readonly ready = signal(false);
-  readonly error = signal('');
+  // 失败与否由独立的标志表示，原因为空串也不会被当成「没有失败」。
+  readonly failed = signal(false);
+  // 失败时只保存原始原因，文案在渲染时按当前语言翻译，切换语言后随之更新。
+  readonly failureMessage = computed(() => {
+    const cause = this.failure();
+    return cause instanceof Error ? cause.message : this.t('app.searchLoadFailed');
+  });
   constructor() {
     const db = useRxDB();
     void db.connect('sqlite-wasm').then(
       () => this.ready.set(true),
-      error => this.error.set(error instanceof Error ? error.message : this.t('app.searchLoadFailed'))
+      cause => {
+        this.failure.set(cause);
+        this.failed.set(true);
+      }
     );
   }
 }

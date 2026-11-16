@@ -25,22 +25,39 @@ const interpolatedAllowlist: readonly { file: string; source: string; reason: st
   }
 ];
 
-/** 返回该文件里所有未被英文目录覆盖的含汉字字面量，格式为「文件:行 说明」。 */
-function uncovered(file: string, source: string, catalog: Record<string, string>): string[] {
+const isText = (node: ts.Node): node is ts.StringLiteral | ts.NoSubstitutionTemplateLiteral =>
+  ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
+const isTx = (node: ts.Node): node is ts.CallExpression =>
+  ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'tx';
+
+/**
+ * 返回该文件里违反词条约定的位置，格式为「文件:行 说明」：
+ * 含汉字的字面量必须是目录的键；带插值的汉字模板无法作键；
+ * tx 的占位符取值不会再被翻译，其中直接出现的汉字字面量必须先包一层 tx。
+ */
+function findProblems(file: string, source: string, catalog: Record<string, string>): string[] {
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
   const problems: string[] = [];
   const report = (node: ts.Node, message: string) => {
     const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
     problems.push(`${file}:${line} ${message}`);
   };
+  const untranslatedValues = (node: ts.Node): void => {
+    if (isTx(node)) return;
+    if (isText(node) && han.test(node.text))
+      report(node, `占位符取值里的汉字字面量没有先经 tx 翻译：${JSON.stringify(node.text)}`);
+    ts.forEachChild(node, untranslatedValues);
+  };
   const visit = (node: ts.Node): void => {
-    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && han.test(node.text)) {
+    if (isText(node) && han.test(node.text)) {
       if (!Object.hasOwn(catalog, node.text)) report(node, `缺少英文词条：${JSON.stringify(node.text)}`);
     } else if (ts.isTemplateExpression(node)) {
       const text = [node.head.text, ...node.templateSpans.map(span => span.literal.text)].join('');
       const code = node.getText(sourceFile);
       const allowed = interpolatedAllowlist.some(item => item.file === file && item.source === code);
       if (han.test(text) && !allowed) report(node, `带插值的汉字模板字符串无法作词条键：${code}`);
+    } else if (isTx(node) && node.arguments[1] && ts.isObjectLiteralExpression(node.arguments[1])) {
+      ts.forEachChild(node.arguments[1], untranslatedValues);
     }
     ts.forEachChild(node, visit);
   };
@@ -55,7 +72,7 @@ function scanSources(catalog: Record<string, string>): string[] {
     .filter(path => path.endsWith('.ts') && !path.endsWith('.d.ts') && !path.endsWith('.spec.ts'))
     .filter(path => path !== 'messages.ts')
     .sort()
-    .flatMap(path => uncovered(path, readFileSync(`${sourceRoot}${path}`, 'utf8'), catalog));
+    .flatMap(path => findProblems(path, readFileSync(`${sourceRoot}${path}`, 'utf8'), catalog));
 }
 
 describe('协作界面词条门禁', () => {
@@ -64,15 +81,17 @@ describe('协作界面词条门禁', () => {
   });
 
   it('从目录里删掉任何一个仍在使用的键，门禁都会变红', () => {
-    const incomplete = Object.fromEntries(Object.entries(collaborationEnglish).filter(([key]) => key !== '评论不能为空'));
+    const incomplete = Object.fromEntries(
+      Object.entries(collaborationEnglish).filter(([key]) => key !== '评论不能为空')
+    );
     expect(scanSources(incomplete)).toContainEqual(expect.stringContaining('缺少英文词条："评论不能为空"'));
   });
 
   it('白名单里的模板只对指定文件生效，且每条都写明了理由', () => {
     expect(interpolatedAllowlist.every(item => item.reason.length > 0)).toBe(true);
     const code = 'export const message = `缺少环境变量 ${name}`;';
-    expect(uncovered('server/main.ts', code, {})).toEqual([]);
-    expect(uncovered('client/mount.ts', code, {})).toEqual([expect.stringContaining('client/mount.ts:1')]);
+    expect(findProblems('server/main.ts', code, {})).toEqual([]);
+    expect(findProblems('client/mount.ts', code, {})).toEqual([expect.stringContaining('client/mount.ts:1')]);
   });
 
   it('逐类识别字面量：普通字符串、无插值模板、带插值模板；注释与非汉字内容不参与', () => {
@@ -86,10 +105,26 @@ describe('协作界面词条门禁', () => {
       "// 行注释：'不是字符串'",
       "const unrelated = 'ascii，：（）～';"
     ].join('\n');
-    expect(uncovered('sample.ts', source, { 已有词条: 'Covered' })).toEqual([
+    expect(findProblems('sample.ts', source, { 已有词条: 'Covered' })).toEqual([
       'sample.ts:3 缺少英文词条："没有词条"',
       'sample.ts:4 缺少英文词条："无插值模板"',
       'sample.ts:5 带插值的汉字模板字符串无法作词条键：`共 ${count} 条`'
+    ]);
+  });
+
+  it('tx 的占位符取值里直接写汉字字面量会漏翻译：必须先经 tx；数据与非汉字取值不受影响', () => {
+    const catalog = { '共 {v0} 项': 'Total {v0}', 暂无: 'None', 空: 'Empty' };
+    const source = [
+      "tx('共 {v0} 项', { v0: tx('暂无') });",
+      "tx('共 {v0} 项', { v0: count });",
+      "tx('共 {v0} 项', { v0: list.join('、') });",
+      "tx('共 {v0} 项', { v0: head ?? '空' });",
+      "tx('共 {v0} 项', { v0: names.join(', ') || '暂无' });",
+      "other('共 {v0} 项', { v0: '暂无' });"
+    ].join('\n');
+    expect(findProblems('sample.ts', source, catalog)).toEqual([
+      'sample.ts:4 占位符取值里的汉字字面量没有先经 tx 翻译："空"',
+      'sample.ts:5 占位符取值里的汉字字面量没有先经 tx 翻译："暂无"'
     ]);
   });
 });

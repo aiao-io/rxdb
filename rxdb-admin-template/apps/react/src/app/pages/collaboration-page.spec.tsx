@@ -31,24 +31,51 @@ function lastMount(): { host: HTMLElement; options: CollaborationOptions } {
   return { host, options };
 }
 
+const PLACEHOLDER = /\{(v\d+)\}/g;
+
+/** 词条中的 {vN} 占位符名，按出现顺序。 */
+function placeholdersOf(text: string): string[] {
+  return [...text.matchAll(PLACEHOLDER)].map(match => match[1] ?? '');
+}
+
+/** 除 {vN} 占位符外不含 ICU 特殊字符，消息格式化器会原样输出其余文字。 */
+function isLiteral(text: string): boolean {
+  return !/['<>{}]/.test(text.replace(PLACEHOLDER, ''));
+}
+
 /** 取一条不含占位符的固定文案词条，用它观察语言切换。 */
 function plainEntry(): { key: string; english: string } {
-  const entry = Object.entries(collaborationEnglish).find(([key]) => !/\{v\d+\}/.test(key));
-  if (!entry) throw new Error('协作词条中没有不含占位符的条目');
+  const entry = Object.entries(collaborationEnglish).find(
+    ([key, english]) =>
+      isLiteral(key) && isLiteral(english) && placeholdersOf(key).length === 0 && placeholdersOf(english).length === 0
+  );
+  if (!entry) throw new Error('协作词条中没有可直接格式化的固定文案');
   return { key: entry[0], english: entry[1] };
 }
 
 /** 取一条带占位符的词条，并为其声明的每个占位符准备取值。 */
 function placeholderEntry(): { key: string; english: string; values: Record<string, string> } {
-  const entry = Object.entries(collaborationEnglish).find(([key]) => /\{v\d+\}/.test(key));
-  if (!entry) throw new Error('协作词条中没有带占位符的条目');
-  const names = [...entry[0].matchAll(/\{(v\d+)\}/g)].map(match => match[1] ?? '');
-  return { key: entry[0], english: entry[1], values: Object.fromEntries(names.map((name, index) => [name, `#${index}`])) };
+  const entry = Object.entries(collaborationEnglish).find(([key, english]) => {
+    const names = placeholdersOf(key);
+    return (
+      names.length > 0 &&
+      isLiteral(key) &&
+      isLiteral(english) &&
+      names.every(name => placeholdersOf(english).includes(name))
+    );
+  });
+  if (!entry) throw new Error('协作词条中没有可直接格式化的占位符文案');
+  const names = placeholdersOf(entry[0]);
+  return {
+    key: entry[0],
+    english: entry[1],
+    values: Object.fromEntries(names.map((name, index) => [name, `#${index}`]))
+  };
 }
 
 /** 按取值替换文案里的占位符，得到期望输出。 */
 function fill(text: string, values: Record<string, string>): string {
-  return text.replace(/\{(v\d+)\}/g, (_match, name: string) => values[name] ?? `{${name}}`);
+  return text.replace(PLACEHOLDER, (_match, name: string) => values[name] ?? `{${name}}`);
 }
 
 describe('协作页面接线', () => {

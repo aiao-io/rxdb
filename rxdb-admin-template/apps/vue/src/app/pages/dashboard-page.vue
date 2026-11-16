@@ -50,11 +50,9 @@ onScopeDispose(() => unsubscribe());
         :class="{ 'badge-success': connection === 'ready', 'badge-error': connection === 'error' }"
         data-testid="dashboard-connection-status"
         >{{
-          connection === 'ready'
-            ? t('dashboard.status.ready')
-            : connection === 'error'
-              ? t('dashboard.status.error')
-              : t('dashboard.status.connecting')
+          connection === 'ready' ? t('dashboard.status.ready')
+          : connection === 'error' ? t('dashboard.status.error')
+          : t('dashboard.status.connecting')
         }}</span
       >
     </header>

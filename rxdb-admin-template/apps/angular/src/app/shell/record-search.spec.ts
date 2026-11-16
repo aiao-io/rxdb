@@ -157,7 +157,7 @@ describe('record-search', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('等待连接期间被中止则不再创建搜索句柄', async () => {
+  it('等待连接期间被中止则不调用 rxdb.search，直接返回空结果', async () => {
     const connection = new Subject<boolean>();
     const { handle, destroy } = createHandle(() => ({ state: 'success', results: [hit('1', 'Asset', '笔记本')] }));
     const { rxdb, search } = createRxdb(connection, handle);

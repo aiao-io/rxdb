@@ -73,7 +73,11 @@ onScopeDispose(() => subscription.unsubscribe());
       </div>
     </RouterLink>
   </section>
-  <p class="text-sm opacity-70" data-testid="dashboard-total">{{ t('dashboard.total', { count: total }) }}</p>
+  <p
+    class="text-sm opacity-70"
+    data-testid="dashboard-total"
+    >{{ t('dashboard.total', { count: total }) }}</p
+  >
   <p
     v-if="loading"
     class="text-sm"
@@ -102,7 +106,11 @@ onScopeDispose(() => subscription.unsubscribe());
     aria-labelledby="dashboard-recent-activity-title"
   >
     <div class="flex items-center justify-between gap-3">
-      <h2 id="dashboard-recent-activity-title" class="text-base font-semibold">{{ t('dashboard.activity.title') }}</h2>
+      <h2
+        id="dashboard-recent-activity-title"
+        class="text-base font-semibold"
+        >{{ t('dashboard.activity.title') }}</h2
+      >
       <span class="text-xs opacity-60">{{ activities.length }}/{{ DASHBOARD_ACTIVITY_LIMIT }}</span>
     </div>
     <p
@@ -127,7 +135,7 @@ onScopeDispose(() => subscription.unsubscribe());
     >
     <ol
       v-else
-      class="divide-base-300 divide-y rounded-box border border-base-300"
+      class="divide-base-300 rounded-box border-base-300 divide-y border"
       :aria-label="t('dashboard.activity.title')"
     >
       <li
@@ -138,26 +146,63 @@ onScopeDispose(() => subscription.unsubscribe());
         data-testid="dashboard-activity-item"
       >
         <div class="min-w-0 flex-1">
-          <p class="font-medium" :class="{ 'line-through': activity.redoInvalidated }">
-            {{ t(dashboardActivityMessageKey(activity.type), { entity: t(dashboardActivityEntityKey(activity), {}, 'rxdb-model'), count: activity.count }) }}
+          <p
+            class="font-medium"
+            :class="{ 'line-through': activity.redoInvalidated }"
+          >
+            {{
+              t(dashboardActivityMessageKey(activity.type), {
+                entity: t(dashboardActivityEntityKey(activity), {}, 'rxdb-model'),
+                count: activity.count
+              })
+            }}
           </p>
           <div class="mt-2 flex flex-wrap gap-2">
             <span class="badge badge-sm badge-outline">{{ t(activityTypeKey(activity.type)) }}</span>
-            <span class="badge badge-sm badge-ghost">{{ t(dashboardActivityEntityKey(activity), {}, 'rxdb-model') }}</span>
-            <span v-if="activity.reverted" class="badge badge-sm badge-warning">{{ t('dashboard.activity.reverted') }}</span>
-            <span v-if="activity.redoInvalidated" class="badge badge-sm badge-error">{{ t('dashboard.activity.invalidated') }}</span>
+            <span class="badge badge-sm badge-ghost">{{
+              t(dashboardActivityEntityKey(activity), {}, 'rxdb-model')
+            }}</span>
+            <span
+              v-if="activity.reverted"
+              class="badge badge-sm badge-warning"
+              >{{ t('dashboard.activity.reverted') }}</span
+            >
+            <span
+              v-if="activity.redoInvalidated"
+              class="badge badge-sm badge-error"
+              >{{ t('dashboard.activity.invalidated') }}</span
+            >
           </div>
         </div>
-        <time class="text-xs opacity-60" :datetime="activity.createdAt.toISOString()">{{ formatActivityTime(activity) }}</time>
+        <time
+          class="text-xs opacity-60"
+          :datetime="activity.createdAt.toISOString()"
+          >{{ formatActivityTime(activity) }}</time
+        >
       </li>
     </ol>
   </section>
-  <section class="flex flex-col gap-3" data-testid="dashboard-quick-actions">
+  <section
+    class="flex flex-col gap-3"
+    data-testid="dashboard-quick-actions"
+  >
     <h2 class="text-base font-semibold">{{ t('dashboard.quick.title') }}</h2>
     <div class="flex flex-wrap gap-3">
-      <RouterLink class="btn btn-primary" to="/entities/assets/Asset">{{ t('dashboard.quick.assets') }}</RouterLink>
-      <RouterLink class="btn btn-outline" to="/search">{{ t('dashboard.quick.search') }}</RouterLink>
-      <RouterLink class="btn btn-outline" to="/backup">{{ t('dashboard.quick.backup') }}</RouterLink>
+      <RouterLink
+        class="btn btn-primary"
+        to="/entities/assets/Asset"
+        >{{ t('dashboard.quick.assets') }}</RouterLink
+      >
+      <RouterLink
+        class="btn btn-outline"
+        to="/search"
+        >{{ t('dashboard.quick.search') }}</RouterLink
+      >
+      <RouterLink
+        class="btn btn-outline"
+        to="/backup"
+        >{{ t('dashboard.quick.backup') }}</RouterLink
+      >
     </div>
   </section>
 </template>

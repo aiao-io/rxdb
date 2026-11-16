@@ -38,7 +38,11 @@ function serializeValue(field: string, value: unknown): Value {
     demand(!Number.isNaN(value.getTime()), 'invalid', tx('{v0} 日期格式错误', { v0: field }));
     return value.toISOString().slice(0, 10);
   }
-  demand(value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean', 'invalid', '字段值格式错误');
+  demand(
+    value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean',
+    'invalid',
+    '字段值格式错误'
+  );
   demand(typeof value !== 'number' || Number.isFinite(value), 'invalid', '数字必须有限');
   return value;
 }

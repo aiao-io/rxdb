@@ -58,8 +58,8 @@ export class TaskEditor {
       element(
         'p',
         tx('本地版本：{v0} · 远端确认：{v1} · 待上传提交：{v2} · 已保存未提交：{v3}', {
-          v0: draft.localHead ?? '空',
-          v1: draft.remoteHead ?? '空',
+          v0: draft.localHead ?? tx('空'),
+          v1: draft.remoteHead ?? tx('空'),
           v2: draft.queue.length,
           v3: unsynced ? tx('有') : tx('无')
         }),
@@ -242,7 +242,7 @@ export function readOnlyRecords(records: Records) {
       element(
         'td',
         Object.entries(record.fields)
-          .map(([field, value]) => `${labels[field] ?? field}：${value ?? '空'}`)
+          .map(([field, value]) => `${tx(labels[field] ?? field)}：${value ?? tx('空')}`)
           .join('；')
       )
     );

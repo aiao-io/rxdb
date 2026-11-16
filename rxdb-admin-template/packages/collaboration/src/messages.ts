@@ -1,3 +1,8 @@
+/**
+ * 协作界面的英文词条表：键是源码里的中文原文（也是中文界面的显示文本），值是英文译文。
+ * `{v0}`、`{v1}` 等占位符在键与译文里必须一一对应。
+ * 凡是会显示给用户的中文字面量（含服务端经 HTTP 返回的消息）都必须在此登记，`messages.spec.ts` 会扫描源码强制检查。
+ */
 export const collaborationEnglish: Record<string, string> = {
   '实时连接暂不可用，可刷新团队状态': 'The live connection is unavailable. Refresh the team status',
   'JSON 格式错误': 'Invalid JSON',
@@ -374,9 +379,11 @@ export const collaborationEnglish: Record<string, string> = {
   '邀请无效或登录邮箱不匹配，请切换账号': 'Invalid invitation or mismatched email. Switch accounts and try again.',
   团队协作服务尚未配置或响应格式不正确: 'The collaboration service is not configured or returned an invalid response.'
 };
+/** 中文消息表，供应用的 i18n 运行时注册：消息键为 `collaboration.<中文原文>`，值就是中文原文。 */
 export const collaborationZhMessages = Object.fromEntries(
   Object.keys(collaborationEnglish).map(key => [`collaboration.${key}`, key])
 );
+/** 英文消息表，供应用的 i18n 运行时注册：消息键为 `collaboration.<中文原文>`，值是英文译文。 */
 export const collaborationEnMessages = Object.fromEntries(
   Object.entries(collaborationEnglish).map(([key, value]) => [`collaboration.${key}`, value])
 );

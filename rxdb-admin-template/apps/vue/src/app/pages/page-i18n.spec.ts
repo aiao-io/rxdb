@@ -3,8 +3,8 @@ import type { I18n } from '@aiao/rxdb-i18n';
 import { I18N } from '@aiao/rxdb-i18n-vue';
 import type { SearchResult, SearchState } from '@aiao/rxdb-plugin-search';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createApp, defineComponent, h, nextTick, ref, type App, type Ref } from 'vue';
-import { createMemoryHistory, createRouter, RouterView, type RouteRecordRaw, type Router } from 'vue-router';
+import { createApp, h, nextTick, ref, type App, type FunctionalComponent, type Ref } from 'vue';
+import { createMemoryHistory, createRouter, RouterView, type Router, type RouteRecordRaw } from 'vue-router';
 import { ENTITIES } from '../entities/asset-entities';
 import { createWorkbenchI18n } from '../i18n/workbench-i18n';
 import EntityListPage from './entity-list-page.vue';
@@ -37,13 +37,10 @@ vi.mock('@aiao/rxdb-admin-vue', async () => {
   return { useAdminStore: () => createRef({ extension: { searchPageSize: 20 } }) };
 });
 vi.mock('@aiao/rxdb-model-vue', async () => {
-  const { defineComponent: define, h: render } = await import('vue');
-  const EntityList = define({
-    name: 'EntityListStub',
-    props: { namespace: { type: String, required: true }, name: { type: String, required: true } },
-    setup: props => () =>
-      render('div', { 'data-testid': 'entity-list', 'data-namespace': props.namespace, 'data-name': props.name })
-  });
+  const { h: render } = await import('vue');
+  const EntityList: FunctionalComponent<{ namespace: string; name: string }> = props =>
+    render('div', { 'data-testid': 'entity-list', 'data-namespace': props.namespace, 'data-name': props.name });
+  EntityList.props = ['namespace', 'name'];
   return { EntityList };
 });
 vi.mock('../shell/workbench-shell', () => ({
@@ -76,7 +73,9 @@ const runtimes: I18n[] = [];
 const mounted: Mounted[] = [];
 
 /** 构造搜索替身；默认是已有一条命中的成功态，查询词为「笔记本」。 */
-function createSearch(initial: { query?: string; results?: readonly SearchResult[]; state?: SearchState } = {}): FakeSearch {
+function createSearch(
+  initial: { query?: string; results?: readonly SearchResult[]; state?: SearchState } = {}
+): FakeSearch {
   return {
     query: ref(initial.query ?? '笔记本'),
     results: ref<readonly SearchResult[]>(initial.results ?? [ASSET_HIT]),
@@ -99,6 +98,9 @@ async function switchLocale(runtime: I18n, locale: string): Promise<void> {
   await nextTick();
 }
 
+/** 测试应用的根组件：只负责渲染当前路由匹配的页面。 */
+const Root: FunctionalComponent = () => h(RouterView);
+
 /** 用真实路由与真实国际化运行时渲染页面，路由表决定页面拿到的路由参数。 */
 async function renderPage(routes: RouteRecordRaw[], path = '/'): Promise<RenderedPage> {
   const runtime = createWorkbenchI18n();
@@ -107,7 +109,7 @@ async function renderPage(routes: RouteRecordRaw[], path = '/'): Promise<Rendere
   await router.push(path);
   const container = document.createElement('div');
   document.body.append(container);
-  const app = createApp({ render: () => h(RouterView) });
+  const app = createApp(Root);
   app.provide(I18N, runtime);
   app.use(router);
   mounted.push({ app, container });
@@ -153,11 +155,9 @@ function resultLabels(container: ParentNode): string[] {
   );
 }
 
-/** 路由占位页：页面里的链接与重定向目标只需要能匹配到路由。 */
-const RouteStub = defineComponent({
-  name: 'RouteStub',
-  setup: () => () => h('div', { 'data-testid': 'route-stub' })
-});
+/** 路由占位页：页面里的链接与重定向目标只需要能匹配到路由；displayName 让路由器不把函数当成懒加载。 */
+const RouteStub: FunctionalComponent = () => h('div', { 'data-testid': 'route-stub' });
+RouteStub.displayName = 'RouteStub';
 const startRoutes: RouteRecordRaw[] = [
   { path: '/', component: StartPage },
   { path: '/entities', component: RouteStub },
@@ -202,7 +202,14 @@ describe('工作台页面国际化', () => {
   it('搜索界面和命中字段标签切换语言，记录内容与查询值保持原样', async () => {
     mocks.search.results.value = [
       ASSET_HIT,
-      { entity: 'Unregistered', collection: 'ghost', id: 'ghost-1', rank: 1, matchedField: 'title', snippet: '未登记记录' }
+      {
+        entity: 'Unregistered',
+        collection: 'ghost',
+        id: 'ghost-1',
+        rank: 1,
+        matchedField: 'title',
+        snippet: '未登记记录'
+      }
     ];
     const connection = controlConnection();
     const view = await renderPage(searchRoutes);
@@ -326,6 +333,28 @@ describe('搜索页连接与结果状态', () => {
     connection.reject('blocked');
     await settle();
     expect(textOf(view.container, '[data-testid="search-load-failed"]')).toBe(expected);
+  });
+
+  it('连接失败原因不是错误对象时，失败后切换语言统一提示随之重译', async () => {
+    const connection = controlConnection();
+    const view = await renderPage(searchRoutes);
+    connection.reject('blocked');
+    await settle();
+    expect(textOf(view.container, '[data-testid="search-load-failed"]')).toBe('加载失败搜索页初始化失败，请刷新重试');
+
+    await switchLocale(view.runtime, 'en');
+    expect(textOf(view.container, '[data-testid="search-load-failed"]')).toBe(
+      'Loading failedSearch could not be initialized. Please refresh and try again.'
+    );
+  });
+
+  it('连接以空消息的错误失败时仍显示失败态，不会一直停在加载占位', async () => {
+    const connection = controlConnection();
+    const view = await renderPage(searchRoutes);
+    connection.reject(new Error(''));
+    await settle();
+    expect(view.container.querySelector('[data-testid="search-load-failed"]')).not.toBeNull();
+    expect(view.container.querySelector('[role="status"]')).toBeNull();
   });
 
   it('搜索中、无匹配与有更多结果的提示随语言更新，空白查询不显示无匹配', async () => {

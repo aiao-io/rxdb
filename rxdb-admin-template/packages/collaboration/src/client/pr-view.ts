@@ -199,15 +199,15 @@ export class PullRequestView {
       element(
         'p',
         tx('共同起点 B：{v0} · 来源 S：{v1} · 目标 T：{v2}', {
-          v0: task.base ?? '空',
-          v1: task.head ?? '空',
-          v2: data.head ?? '空'
+          v0: task.base ?? tx('空'),
+          v1: task.head ?? tx('空'),
+          v2: data.head ?? tx('空')
         }),
         'text-xs break-all'
       )
     );
     for (const conflict of preview.conflicts) {
-      const field = section(tx('冲突：{v0} / {v1}', { v0: conflict.recordId, v1: conflict.field ?? '整条记录' }));
+      const field = section(tx('冲突：{v0} / {v1}', { v0: conflict.recordId, v1: conflict.field ?? tx('整条记录') }));
       field.append(
         element('p', tx('起点：{v0}', { v0: valueText(conflict.base) })),
         element('p', tx('来源：{v0}', { v0: valueText(conflict.source) })),

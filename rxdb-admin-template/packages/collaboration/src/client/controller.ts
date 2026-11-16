@@ -5,6 +5,10 @@ import { CollaborationApi, type WorkspaceEntry } from './api.js';
 import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
 import { WorkspaceFeed, type WorkspacePresenceChange } from './workspace-feed.js';
 
+/**
+ * 协作界面的状态与动作中枢：持有认证会话、团队与服务端快照、本机任务草稿，界面监听 `change` 事件重绘。
+ * 所有云端变更都以带幂等键的命令按队列串行提交；账号、团队或任务上下文切换后，在途请求的结果会被丢弃。
+ */
 export class CollaborationController extends EventTarget {
   private generation = 0;
   private disposed = false;
@@ -14,18 +18,35 @@ export class CollaborationController extends EventTarget {
   private unsubscribe?: () => void;
   private checkpoint?: () => Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
+  /** 本机任务草稿：按账号与团队隔离，退出或会话失效时锁定。 */
   readonly local: LocalTasks;
+  /** 携带当前会话令牌的 HTTP 客户端。 */
   readonly api: CollaborationApi;
+  /** Supabase 认证客户端；`initialize` 完成后才存在。 */
   auth?: SupabaseClient;
+  /** 当前已确认的身份；未登录或已锁定时为 null。 */
   user: Identity | null = null;
+  /** 当前账号可访问的团队与应用。 */
   workspaces: WorkspaceEntry[] = [];
+  /** 当前选中的团队与应用。 */
   workspace: WorkspaceEntry | null = null;
+  /** 当前工作区的服务端快照；尚未选择团队或处于离线任务模式时为 null。 */
   snapshot: WorkspaceSnapshot | null = null;
+  /** 当前打开的本机任务草稿。 */
   draft: Draft | null = null;
+  /** 离线冷启动时按缓存授权恢复出的可解锁草稿。 */
   offlineDrafts: Draft[] = [];
+  /** 是否在线：随浏览器网络状态与最近一次云端请求更新。 */
   online = navigator.onLine;
+  /** 最近一条提示，通常是中文词条原文，由界面经词条表翻译后显示。 */
   message = '';
+  /** 是否正在上传任务提交。 */
   syncing = false;
+  /**
+   * 创建控制器；此时尚未联网，需继续调用 {@link CollaborationController.initialize}。
+   * @param base 协作 HTTP 接口的路径前缀。
+   * @param storage 本机草稿存储，默认使用 IndexedDB。
+   */
   constructor(
     readonly base = '/collaboration-api',
     storage: DraftStorage = new IndexedDraftStorage()
@@ -46,6 +67,7 @@ export class CollaborationController extends EventTarget {
       if (event.data?.type === 'logout' && event.data.userId === this.user?.id) void this.lock();
     };
   }
+  /** 通知界面重绘（派发 `change` 事件）。 */
   changed() {
     this.dispatchEvent(new Event('change'));
   }
@@ -56,6 +78,7 @@ export class CollaborationController extends EventTarget {
       if (this.checkpoint === checkpoint) this.checkpoint = undefined;
     };
   }
+  /** 读取公开配置（离线时用缓存）、创建认证客户端并恢复会话；离线时只按缓存授权恢复可解锁的本机草稿。 */
   async initialize(): Promise<void> {
     const epoch = ++this.authGeneration;
     const configKey = `admin-collaboration-config:${this.base}`;
@@ -119,6 +142,7 @@ export class CollaborationController extends EventTarget {
     });
     this.unsubscribe = () => data.subscription.unsubscribe();
   }
+  /** 向邮箱发送一次性验证码。 */
   async sendCode(email: string): Promise<void> {
     demand(this.auth, 'configuration', '认证未配置');
     const { error } = await this.current(this.auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
@@ -126,12 +150,14 @@ export class CollaborationController extends EventTarget {
     this.message = '验证码已发送，请检查邮箱';
     this.changed();
   }
+  /** 校验邮箱验证码并建立会话。 */
   async verify(email: string, token: string): Promise<void> {
     demand(this.auth, 'configuration', '认证未配置');
     const { data, error } = await this.current(this.auth.auth.verifyOtp({ email, token, type: 'email' }));
     if (error) throw error;
     await this.acceptSession(data.session);
   }
+  /** 切换到指定团队：拉取快照并启动实时订阅。 */
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
     const epoch = ++this.generation;
     this.feed?.stop();
@@ -143,6 +169,7 @@ export class CollaborationController extends EventTarget {
     this.feed?.start(workspace);
     this.changed();
   }
+  /** 网络恢复后刷新会话与快照；离线时只更新在线状态。 */
   async reconnect(): Promise<void> {
     this.online = navigator.onLine;
     if (!this.online || !this.auth || !this.user) {
@@ -154,6 +181,7 @@ export class CollaborationController extends EventTarget {
     await this.acceptSession(data.session);
     await this.refresh();
   }
+  /** 重新拉取当前快照；较旧的快照被丢弃，已打开任务的编辑权限被撤销时抛出 forbidden。 */
   async refresh(): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
@@ -179,6 +207,7 @@ export class CollaborationController extends EventTarget {
     }
     this.changed();
   }
+  /** 读取尚未得到确认的云端请求（刷新页面后仍保留在 sessionStorage）；记录损坏时清理并返回 null。 */
   pending(): { workspace: WorkspaceEntry; command: Command } | null {
     if (!this.user) return null;
     const key = `admin-collaboration-pending:${this.user.id}`;
@@ -205,6 +234,7 @@ export class CollaborationController extends EventTarget {
       return null;
     }
   }
+  /** 用原幂等键确认或重试上次未得到确认的请求。 */
   async retryPending(): Promise<void> {
     const pending = this.pending();
     demand(pending && this.user, 'missing', '没有待确认请求');
@@ -218,6 +248,11 @@ export class CollaborationController extends EventTarget {
     await this.run(pending.command, pending.command.operationId);
     if (pending.command.type === 'fork') await this.openTask(pending.command.id);
   }
+  /**
+   * 提交一条云端命令并返回结果。变更类命令按队列串行，先查回执再执行，同一幂等键不会重复生效；presence、read_notice、subscribe 不排队。
+   * @param command 命令内容，不含幂等键。
+   * @param operationId 幂等键，重试同一请求时传入原值。
+   */
   async run(
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
     operationId: string = crypto.randomUUID()
@@ -240,26 +275,25 @@ export class CollaborationController extends EventTarget {
     };
     return next;
   }
+  /** 用邀请令牌加入团队并选中它。 */
   async acceptInvitation(teamId: string, appId: string, id: string, token: string): Promise<void> {
     const workspace = { teamId, appId, name: teamId };
     const epoch = this.generation;
     await this.current(
-      this.executeCommand(
-        { type: 'accept_invite', id, tokenHash: token },
-        crypto.randomUUID(),
-        workspace
-      ),
+      this.executeCommand({ type: 'accept_invite', id, tokenHash: token }, crypto.randomUUID(), workspace),
       epoch
     );
     const workspaces = await this.current(this.api.workspaces(), epoch);
     this.workspaces = workspaces;
     await this.selectWorkspace(workspace);
   }
+  /** 基于当前共享版本新建任务并打开。 */
   async createTask(name: string): Promise<void> {
     const id = crypto.randomUUID();
     await this.run({ type: 'task', id, name, expectedHead: this.snapshot?.head ?? null });
     await this.openTask(id);
   }
+  /** 打开自己的任务：校验编辑权限后建立或解锁对应的本机草稿。 */
   async openTask(id: string): Promise<void> {
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     await this.current(this.refresh());
@@ -284,6 +318,7 @@ export class CollaborationController extends EventTarget {
     this.draft = draft;
     this.changed();
   }
+  /** 离线时打开一个已解锁的本机草稿。 */
   async openOffline(draft: Draft) {
     this.feed?.stop();
     const epoch = ++this.generation;
@@ -294,6 +329,7 @@ export class CollaborationController extends EventTarget {
     this.workspace = { ...draft.context, name: draft.context.teamId };
     this.changed();
   }
+  /** 把全部输入保存到本机草稿；只落盘，不形成提交也不同步。 */
   async save(records: Records): Promise<void> {
     demand(this.draft, 'missing', '先打开任务');
     const epoch = this.generation;
@@ -303,6 +339,7 @@ export class CollaborationController extends EventTarget {
     this.message = '已保存到本机，尚未同步';
     this.changed();
   }
+  /** 把本机改动形成提交并上传；`unsaved` 为 true（仍有未保存输入）时拒绝，离线时只排队。 */
   async sync(unsaved: boolean): Promise<void> {
     if (this.syncing) return;
     this.syncing = true;
@@ -313,6 +350,7 @@ export class CollaborationController extends EventTarget {
       this.changed();
     }
   }
+  /** 把本机提交另存为新任务并打开；原任务与 PR 保持原远端版本。 */
   async fork(name: string, unsaved: boolean): Promise<void> {
     demand(this.draft, 'missing', '先打开任务');
     const original = await this.current(this.local.capture(this.draft.context, name, unsaved));
@@ -330,6 +368,7 @@ export class CollaborationController extends EventTarget {
     this.message = '已另存为新任务，原任务与 PR 保持原远端版本';
     this.changed();
   }
+  /** 退出账号：先锁定本机草稿，再通知其他页面并清除本机会话。 */
   async logout(): Promise<void> {
     const auth = this.auth;
     const userId = this.user?.id;
@@ -337,6 +376,7 @@ export class CollaborationController extends EventTarget {
     this.channel.postMessage({ type: 'logout', userId });
     if (auth) await auth.auth.signOut({ scope: 'local' });
   }
+  /** 锁定会话：先保存未保存输入，停止订阅，清空账号与团队状态并锁定本机草稿。 */
   async lock(): Promise<void> {
     if (this.user && this.checkpoint) {
       try {
@@ -358,6 +398,7 @@ export class CollaborationController extends EventTarget {
     this.changed();
     await this.local.logout();
   }
+  /** 统一处理失败：上下文切换造成的取消静默忽略；权限或身份失效类错误先锁定会话；其余显示为提示。 */
   async failure(error: unknown): Promise<void> {
     if (error instanceof CollaborationError && error.code === 'cancelled') return;
     if (error instanceof CollaborationError && ['forbidden', 'unauthenticated', 'locked'].includes(error.code))
@@ -365,6 +406,7 @@ export class CollaborationController extends EventTarget {
     this.message = error instanceof Error ? error.message : '操作失败';
     this.changed();
   }
+  /** 把本机任务快进到远端最新版本；本机有未提交修改、排队提交或未保存输入时拒绝。 */
   async fetchRemote(unsaved: boolean): Promise<void> {
     demand(this.draft, 'missing', '先打开任务');
     const context = this.draft.context;
@@ -377,6 +419,7 @@ export class CollaborationController extends EventTarget {
     this.draft = draft;
     this.changed();
   }
+  /** 释放订阅、广播频道与本机存储；之后控制器不再响应任何结果。 */
   dispose() {
     this.disposed = true;
     this.generation++;
