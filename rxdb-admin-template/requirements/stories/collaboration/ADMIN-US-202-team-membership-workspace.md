@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-202
 title: 团队邀请、成员与工作区选择
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -50,7 +50,7 @@ capabilities: []
 | 10  | 全新部署且只有已验证初始用户                       | 使用可信服务端初始化入口，重试并注入中途失败          | 原子创建团队、管理员、空共享分支及默认至少一名非作者批准策略；重复不重建，参数不一致拒绝，失败无半初始化或样例导入 | ⬜   |
 | 11  | 三端连接同一初始化环境                             | 分别完成正确/错误账号接受、重发、团队切换和无团队登录 | 身份、邀请状态、默认策略与隔离结果一致；普通浏览器无法调用初始化入口抢占管理员                                     | ⬜   |
 
-验收证据：待实现后补充邀请生命周期、双团队隔离和成员撤销的 Supabase 集成及三端浏览器用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据邀请生命周期、双团队隔离和成员撤销的 Supabase 集成及三端浏览器用例。
 
 ## 技术笔记
 
@@ -58,12 +58,9 @@ capabilities: []
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/workspace/` — 团队选择、成员列表和邀请入口。
-- `rxdb-admin-template/apps/angular/src/app/workspace/` — Angular 等价入口。
-- `rxdb-admin-template/apps/vue/src/app/workspace/` — Vue 等价入口。
-- `packages/rxdb-adapter-supabase/` — 团队关系查询与服务端请求接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/membership.ts`、`src/client/admin-view.ts`、`src/server/engine.spec.ts`、`src/server/repository.integration.spec.ts`。
 
-- `supabase/` — 可信初始化、邀请版本与原子接受、唯一成员及审计约束。
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-206
 title: 草稿云同步、跨设备续作与离线恢复
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -52,7 +52,7 @@ capabilities: [rxdb:US-203, rxdb:US-218]
 | 10  | 工作树为空或存在未保存表单输入                 | 点击同步                 | 空工作树只重试待发提交或显示无需同步；未保存输入要求保存全部或取消，不生成空提交或遗漏输入                                 | ⬜   |
 | 11  | S 正在上传，用户继续保存新修改                 | 收到 S 成功回执          | 显示 S 已同步且新增修改仍待提交/上传；下一次同步生成新提交，不修改 S 或误报全部同步                                        | ⬜   |
 
-验收证据：待实现后补充 Supabase 隔离环境下的双设备、离线重连、会话失效和重复重试测试。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据 Supabase 隔离环境下的双设备、离线重连、会话失效和重复重试测试。
 
 ## 技术笔记
 
@@ -60,11 +60,9 @@ C02/C03 是任务级同步协议。服务端必须原子验证权限、expectedR
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/sync/` — 同步状态、离线队列和恢复入口。
-- `rxdb-admin-template/apps/angular/src/app/sync/`、`rxdb-admin-template/apps/vue/src/app/sync/` — 三端等价入口。
-- `packages/rxdb-adapter-supabase/`、`packages/rxdb-plugin-sync/` — Supabase push/pull 与通知接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/client/controller.ts`、`src/client/offline-shell.ts`、`src/server/tasks.ts`、`e2e/collaboration.spec.ts`。
 
-- `supabase/` — 提交图接收、任务头并发控制、幂等回执和分叉另存事务。
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

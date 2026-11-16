@@ -46,7 +46,7 @@ export class CollaborationController extends EventTarget {
     const configKey = `admin-collaboration-config:${this.base}`;
     let config: { supabaseUrl: string; supabaseKey: string };
     if (navigator.onLine) {
-      config = await this.current(this.api.config());
+      config = await this.current(this.api.config(), this.generation, epoch);
       localStorage.setItem(configKey, JSON.stringify(config));
     } else {
       const cached = localStorage.getItem(configKey);
@@ -61,13 +61,14 @@ export class CollaborationController extends EventTarget {
       }
     });
     if (navigator.onLine) {
-      const initial = await this.current(this.auth.auth.getSession());
+      demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
+      const initial = await this.current(this.auth.auth.getSession(), this.generation, epoch);
       await this.acceptSession(initial.data.session);
     } else {
       const cached = localStorage.getItem(`admin-collaboration-grant:${this.base}`);
       demand(cached, 'locked', '请联网验证身份后再使用团队草稿');
       const grant = JSON.parse(cached) as { user: Identity; expiresAt: number };
-      const drafts = await this.current(this.local.coldRestore(grant.user.id, grant.expiresAt, Date.now()));
+      const drafts = await this.current(this.local.coldRestore(grant.user.id, grant.expiresAt, Date.now()), this.generation, epoch);
       if (epoch !== this.authGeneration) return;
       this.offlineDrafts = drafts;
       this.user = grant.user;

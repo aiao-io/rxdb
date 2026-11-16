@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-211
 title: 三方冲突检测与合并预览
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -49,7 +49,7 @@ capabilities: [rxdb:US-308, rxdb:US-312]
 | 8   | 价格 100→来源120/目标110，选择120的 C1 已获批准 | 保持来源头不变，把结果改成999 | 产生 C2，C1 检查和批准失效；C2 未重检重审前不能写入999                                 | ⬜   |
 | 9   | 两个客户端同时修改选择或无法验证共同起点        | 用陈旧 PR 修订号生成候选      | 拒绝并发覆盖；无可信起点时明确阻塞，不猜测或整表覆盖；现有选择草稿可恢复               | ⬜   |
 
-验收证据：待实现后补充字段自动合并、同字段三选一、删除/编辑冲突、目标头变化和预览不写库的集成用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据字段自动合并、同字段三选一、删除/编辑冲突、目标头变化和预览不写库的集成用例。
 
 ## 技术笔记
 
@@ -57,10 +57,9 @@ capabilities: [rxdb:US-308, rxdb:US-312]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/merge/` — 冲突列表、三方值和最终预览。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-plugin-working-tree/` — 分支比较和冲突基础能力。
-- `supabase/` — 服务端版本校验和最终合并事务。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/records.ts`、`src/client/pr-view.ts`、`src/server/governance.ts`、`src/records.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

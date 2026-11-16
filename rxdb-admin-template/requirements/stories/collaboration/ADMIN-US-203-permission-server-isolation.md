@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-203
 title: 团队操作权限与服务端隔离
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -48,7 +48,7 @@ capabilities: [rxdb:US-027, rxdb:US-029]
 | 7   | 三端使用相同权限                                          | 分别操作查看、编辑、评论、审核、合并及成员管理         | 入口、拒绝语义和服务端结果一致                                                      | ⬜   |
 | 8   | 导入、恢复和任务同步请求企图写入共享目标                  | 绕过 UI 发送请求                                       | 服务端拒绝目标错配；只有 212 的合并入口可改变共享业务数据，可信初始化不导入业务内容 | ⬜   |
 
-验收证据：待实现后补充 Supabase RLS、RPC 负例、Realtime 订阅隔离和三端权限矩阵浏览器用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据 Supabase RLS、RPC 负例、Realtime 订阅隔离和三端权限矩阵浏览器用例。
 
 ## 技术笔记
 
@@ -56,11 +56,9 @@ capabilities: [rxdb:US-027, rxdb:US-029]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/permissions/` — 权限矩阵、守卫和入口状态。
-- `rxdb-admin-template/apps/angular/src/app/permissions/` — Angular 等价入口。
-- `rxdb-admin-template/apps/vue/src/app/permissions/` — Vue 等价入口。
-- `packages/rxdb-adapter-supabase/` — RLS、RPC 和 Realtime 授权接线。
-- `supabase/` — 团队、权限、分支和日志策略迁移。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/access.ts`、`src/server/input.ts`、`src/server/repository.ts`、`supabase/migrations/202611160001_collaboration.sql`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

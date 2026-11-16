@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-208
 title: 数据 PR 讨论、评论与变更定位
-status: Backlog
+status: In Review
 priority: Medium
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -47,7 +47,7 @@ capabilities: []
 | 7   | 三端打开同一 PR                      | 查看定位、处理状态和历史         | 内容、字段、候选及阻塞结果一致                                                                  | ⬜   |
 | 8   | 审核者另有要求修改结论               | 解决一条必须处理线程             | 只更新线程，不自动清除 209 的要求修改；两个阻塞来源独立显示与验收                               | ⬜   |
 
-验收证据：待实现后补充四页签、字段级评论、版本保留、必须处理阻塞和权限负例用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据四页签、字段级评论、版本保留、必须处理阻塞和权限负例用例。
 
 ## 技术笔记
 
@@ -55,9 +55,9 @@ capabilities: []
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/discussion/` — 页签、线程和定位组件。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `supabase/` — PR 评论、线程定位和处理状态表。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/discussion.ts`、`src/client/pr-view.ts`、`src/server/engine.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

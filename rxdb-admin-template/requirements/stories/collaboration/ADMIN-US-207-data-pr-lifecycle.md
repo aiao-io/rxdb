@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-207
 title: 数据变更 PR 创建与生命周期
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -46,7 +46,7 @@ capabilities: [rxdb:US-306]
 | 6   | 多名成员同时查看 PR                          | 接收状态、提交和候选更新           | 显示同一服务端当前版本；迟到事件不把 PR 降回旧版本                                | ⬜   |
 | 7   | 同任务分叉已另存为新任务                     | 查看原 PR 并为新任务创建 PR        | 原 PR 不被重指到分叉；新 PR 明确关联新任务、原始祖先和新来源头                    | ⬜   |
 
-验收证据：待实现后补充 PR 状态机、持续追加提交、关闭/重开和跨客户端状态同步用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据 PR 状态机、持续追加提交、关闭/重开和跨客户端状态同步用例。
 
 ## 技术笔记
 
@@ -54,9 +54,9 @@ PR 是持久化协作对象，保存来源/目标、生命周期、当前候选�
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/` — PR 创建、列表和生命周期入口。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-plugin-working-tree/`、`packages/rxdb-plugin-sync/` — 分支和提交接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/tasks.ts`、`src/client/pr-view.ts`、`src/server/engine.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

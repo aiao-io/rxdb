@@ -15,11 +15,11 @@
 
 公共元数据呈现能力与应用接线在同一变更内评审、验证。Done 仍以合并并补齐同层验收证据为准。
 
-## 协作闭环待排期
+## 协作闭环本地实现，待评审与部署
 
-以下故事按 [协作首版共享契约](collaboration-contract.md) 定义产品行为、并发、权限和验收条件，当前均为 Backlog。先完成可信团队初始化及会话矩阵，再实现任务提交图同步；现有插件不替代应用闭环证据。
+以下故事按 [协作首版共享契约](collaboration-contract.md) 定义产品行为、并发、权限和验收条件，当前故事均为 In Review。可信初始化、会话矩阵、任务提交图同步、PR、讨论、审核、原子合并、审计和基础通知/Presence/多阶段规则已落地到 `packages/collaboration`；待统一评审、正式部署和逐条 AC 证据补齐。现有插件不替代应用闭环证据。
 
-### 第一阶段：身份、团队与任务草稿
+### 第一阶段：身份、团队与任务草稿（In Review）
 
 - [ADMIN-US-201](stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md) Supabase 邮箱验证码登录与会话恢复
 - [ADMIN-US-202](stories/collaboration/ADMIN-US-202-team-membership-workspace.md) 团队邀请、成员与工作区选择
@@ -28,7 +28,7 @@
 - [ADMIN-US-205](stories/collaboration/ADMIN-US-205-task-draft-continuous-editing.md) 任务草稿与连续编辑
 - [ADMIN-US-206](stories/collaboration/ADMIN-US-206-draft-sync-offline-recovery.md) 草稿云同步、跨设备续作与离线恢复
 
-### 第二阶段：数据 PR、审核与合并
+### 第二阶段：数据 PR、审核与合并（In Review）
 
 - [ADMIN-US-207](stories/collaboration/ADMIN-US-207-data-pr-lifecycle.md) 数据变更 PR 创建与生命周期
 - [ADMIN-US-208](stories/collaboration/ADMIN-US-208-data-pr-discussion-comments.md) 数据 PR 讨论、评论与变更定位
@@ -38,7 +38,7 @@
 - [ADMIN-US-212](stories/collaboration/ADMIN-US-212-authorized-atomic-merge.md) 有权限合并与原子提交
 - [ADMIN-US-213](stories/collaboration/ADMIN-US-213-history-audit-restore.md) 提交历史、合并审计与版本恢复草稿
 
-### 后续增强
+### 后续增强（In Review，独立浏览器证据待补）
 
 - [ADMIN-US-214](stories/collaboration/ADMIN-US-214-comment-notifications.md) 评论通知与增强讨论协作
 - [ADMIN-US-215](stories/collaboration/ADMIN-US-215-presence.md) 在线成员与当前查看状态

@@ -4,12 +4,12 @@
 
 先在本仓库形成可维护的应用模板基线，再通过一组新业务实体与一个非 CRUD 页面检验实际扩展成本。对应 [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) / [ADMIN-US-102](stories/domain/ADMIN-US-102-custom-pages-navigation.md)，不先设计额外插件系统。
 
-认证和数据协作已经完成产品需求拆分，但仍未实现：
+认证和数据协作已经完成产品需求拆分，并已在产品私有包完成首版本地实现；故事保持 In Review，尚未视为合入或生产可用：
 
 - [ADMIN-EPIC-002](epics/ADMIN-EPIC-002.md) 负责 Supabase 邮箱认证、团队工作区、权限隔离、任务草稿和跨设备同步。
 - [ADMIN-EPIC-003](epics/ADMIN-EPIC-003.md) 负责 GitHub PR 式数据变更中心、讨论、审核、冲突、合并和审计。
 
-这些 Epic 的故事全部是 Backlog。现有 Supabase 适配器、working tree、sync、历史和分支比较能力不能替代团队授权、PR 生命周期或服务端原子合并验收。
+ADMIN-EPIC-002 与 ADMIN-EPIC-003 当前为 In Progress，其故事为 In Review；正式部署和逐条 AC 评审仍未完成。现有 Supabase 适配器、working tree、sync、历史和分支比较能力不能替代团队授权、PR 生命周期或服务端原子合并验收。
 
 ## 协作首版边界
 

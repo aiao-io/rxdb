@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-210
 title: 数据差异展示与合并前检查
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -48,7 +48,7 @@ capabilities: [rxdb:US-312]
 | 7   | 来源提交合法但手工冲突值造成唯一性或引用违规  | 生成候选并重检       | 针对最终结果失败，旧来源检查和批准不能授权该结果               | ⬜   |
 | 8   | 检查 C1 的请求迟到返回，PR 已切到 C2          | 接收结果             | 历史可记录 C1 结果，C2 不得被标绿；服务端只认当前候选的检查    | ⬜   |
 
-验收证据：待实现后补充新增/修改/删除、级联影响、完整性负例、目标头变化和检查失败的集成用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据新增/修改/删除、级联影响、完整性负例、目标头变化和检查失败的集成用例。
 
 ## 技术笔记
 
@@ -56,10 +56,9 @@ C04 的 candidateId 是最终检查身份；B/S/T 的初步差异只是输入。
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/diff/` — 差异分组、字段前后值和检查页签。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-plugin-working-tree/` — 分支比较和变更读取能力。
-- `supabase/` — 服务端完整性检查与版本指纹。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/records.ts`、`src/server/governance.ts`、`src/client/pr-view.ts`、`src/server/engine.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

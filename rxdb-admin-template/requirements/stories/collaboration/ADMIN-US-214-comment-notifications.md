@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-214
 title: 评论通知与增强讨论协作
-status: Backlog
+status: In Review
 priority: Low
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -51,9 +51,9 @@ capabilities: []
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/notifications/` — 通知列表、未读计数和筛选。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `supabase/` — 通知、订阅和未读状态表。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/discussion.ts`、`src/client/mount.ts`、`src/client/pr-view.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-209
 title: 数据 PR 审核、批准与要求修改
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -52,7 +52,7 @@ capabilities: []
 | 11  | 已有批准人被移除或收回审核权                          | 刷新或直接调用合并                            | 批准立即失效，恢复权限后也须重新批准；遗留要求修改仍待显式解除                           | ⬜   |
 | 12  | 三端面对相同候选及多人意见                            | 对照摘要、失效历史和合并条件                  | 按 C05 得出相同结果；未解决冲突、检查未通过或过期候选不能接受批准                        | ⬜   |
 
-验收证据：待实现后补充批准失效、要求修改、权限分离和两种团队策略的三端测试。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据批准失效、要求修改、权限分离和两种团队策略的三端测试。
 
 ## 技术笔记
 
@@ -60,9 +60,9 @@ capabilities: []
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/review/` — 审核摘要、批准和要求修改入口。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `supabase/` — 审核记录、团队合并策略和服务端校验。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/governance.ts`、`src/client/pr-view.ts`、`src/server/engine.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

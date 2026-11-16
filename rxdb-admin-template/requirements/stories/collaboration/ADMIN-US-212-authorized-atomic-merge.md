@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-212
 title: 有权限合并与原子提交
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -50,7 +50,7 @@ capabilities: [rxdb:US-203, rxdb:US-218, rxdb:US-224]
 | 10  | 普通会话有管理员或合并权限                                    | 直接写共享表或提交伪造候选内容             | 拒绝直写和篡改；只允许通过服务端权威候选执行受控合并                           | ⬜   |
 | 11  | C1 已批准但选择已改为 C2，来源头仍相同                        | 携带 C1 或仅来源批准请求写入 C2            | 全部拒绝；C2 必须重检并满足当前审批策略，审计不得把 C1 批准记成覆盖 C2         | ⬜   |
 
-验收证据：待实现后补充 RLS/RPC 原子事务、并发目标头、重复请求、失败回滚和跨设备同步测试。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据 RLS/RPC 原子事务、并发目标头、重复请求、失败回滚和跨设备同步测试。
 
 ## 技术笔记
 
@@ -58,10 +58,9 @@ capabilities: [rxdb:US-203, rxdb:US-218, rxdb:US-224]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/merge/` — 合并条件摘要和结果状态。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-adapter-supabase/` — 事务/RPC 调用与回执处理。
-- `supabase/` — 原子合并函数、RLS、幂等约束和审计表。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/repository.ts`、`src/server/governance.ts`、`supabase/migrations/202611160001_collaboration.sql`、`src/server/repository.integration.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

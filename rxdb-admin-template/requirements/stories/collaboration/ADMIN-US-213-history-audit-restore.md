@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-213
 title: 提交历史、合并审计与版本恢复草稿
-status: Backlog
+status: In Review
 priority: Medium
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -47,7 +47,7 @@ capabilities: [rxdb:US-307, rxdb:US-312]
 | 7   | 三端查看同一历史              | 打开提交、候选、审核、评论和合并记录 | 时间线、版本关系、差异与恢复语义一致                                                  | ⬜   |
 | 8   | 另一设备拉取或同任务分叉另存  | 查看来源历史和新上传审计             | 提交 ID、父链及原作者保持；上传者、分叉操作者和合并人单独记录，不把拉取者伪记为作者   | ⬜   |
 
-验收证据：待实现后补充历史时间线、审计完整性、恢复为新草稿和团队隔离用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据历史时间线、审计完整性、恢复为新草稿和团队隔离用例。
 
 ## 技术笔记
 
@@ -55,10 +55,9 @@ capabilities: [rxdb:US-307, rxdb:US-312]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/history/` — 历史时间线、版本查看和恢复入口。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-plugin-working-tree/`、`packages/rxdb-plugin-history/` — 历史和恢复基础能力。
-- `supabase/` — 服务端提交、审核和合并审计记录。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/engine.ts`、`src/client/mount.ts`、`src/server/repository.ts`、`src/server/engine.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

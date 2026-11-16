@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-205
 title: 任务草稿与连续编辑
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -49,7 +49,7 @@ capabilities: [rxdb:US-306]
 | 8   | 已有本地待上传提交 S，随后继续编辑并保存 | 查看当前任务版本和同步状态     | S 内容及 ID 不变，新变化留在下一份工作树，不显示为已包含在 S 中              | ⬜   |
 | 9   | 整单提交涉及多实体且本地写入中途失败     | 通过同步命令生成提交           | 提交、父节点和待发记录原子持久化；失败保留工作树，不产生丢失内容的半提交     | ⬜   |
 
-验收证据：待实现后补充任务草稿、跨实体编辑、本地恢复和权限负例的三端浏览器用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据任务草稿、跨实体编辑、本地恢复和权限负例的三端浏览器用例。
 
 ## 技术笔记
 
@@ -57,9 +57,9 @@ capabilities: [rxdb:US-306]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/tasks/` — 任务草稿、编辑状态和顶栏。
-- `rxdb-admin-template/apps/angular/src/app/tasks/`、`rxdb-admin-template/apps/vue/src/app/tasks/` — 三端等价入口。
-- `packages/rxdb-plugin-working-tree/` — working tree 和提交能力接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/client/editor.ts`、`src/client/local.ts`、`src/client/form-drafts.ts`、`e2e/collaboration.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

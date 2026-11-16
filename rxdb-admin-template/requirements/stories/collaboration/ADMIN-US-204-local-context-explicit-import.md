@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-204
 title: 本地数据上下文隔离与显式导入
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -45,7 +45,7 @@ capabilities: [rxdb:US-203]
 | 6   | 三端使用相同账户和团队                   | 执行首次接入、切换和导入                  | 确认语义、隔离边界和共享数据结果一致                                              | ⬜   |
 | 7   | 账号 A 有待发送队列或在途回执，切换到 B  | 处理通知、恢复队列或加载本机任务          | B 不能访问或发送 A 的内容；A 的迟到结果只关联 A 上下文，待 A 重新验证后查询恢复   | ⬜   |
 
-验收证据：待实现后补充匿名库接入、双团队切换、导入预览和会话失效的三端浏览器用例。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据匿名库接入、双团队切换、导入预览和会话失效的三端浏览器用例。
 
 ## 技术笔记
 
@@ -53,9 +53,9 @@ capabilities: [rxdb:US-203]
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/rxdb/` — 本地库和上下文键接线。
-- `rxdb-admin-template/apps/react/src/app/import/` — 导入预览与确认流程。
-- `rxdb-admin-template/apps/angular/src/app/`、`rxdb-admin-template/apps/vue/src/app/` — 三端等价入口。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/client/local.ts`、`src/client/import-anonymous.ts`、`src/client/indexed-storage.spec.ts`、`e2e/collaboration.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

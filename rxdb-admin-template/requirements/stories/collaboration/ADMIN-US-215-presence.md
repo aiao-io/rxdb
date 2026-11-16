@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-215
 title: 在线成员与当前查看状态
-status: Backlog
+status: In Review
 priority: Low
 epic: ADMIN-EPIC-003
 created: 2026-11-16
@@ -52,9 +52,9 @@ Presence 数据应使用短生命周期 Realtime channel 或等价临时存储�
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/data-pr/presence/` — 在线成员和当前查看状态。
-- `rxdb-admin-template/apps/angular/src/app/data-pr/`、`rxdb-admin-template/apps/vue/src/app/data-pr/` — 三端等价入口。
-- `packages/rxdb-adapter-supabase/` — Realtime presence 接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/server/discussion.ts`、`src/client/mount.ts`、`src/client/pr-view.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 

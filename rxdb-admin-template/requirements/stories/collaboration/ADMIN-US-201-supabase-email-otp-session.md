@@ -1,7 +1,7 @@
 ---
 id: ADMIN-US-201
 title: Supabase 邮箱验证码登录与会话恢复
-status: Backlog
+status: In Review
 priority: High
 epic: ADMIN-EPIC-002
 created: 2026-11-16
@@ -48,7 +48,7 @@ capabilities: []
 | 8   | 原用户恢复在线且有待同步请求           | 刷新或重新认证并恢复任务             | 先验证身份和当前权限，再按原幂等键查询在途结果和重试；权限不足则继续锁定，草稿不删除      | ⬜   |
 | 9   | 应用仍有旧匿名或固定 userId 配置       | 登录并执行团队操作                   | 不继承匿名身份或自动上传旧库；三端按 C01 同一会话矩阵处理，云端主体与真实会话一致         | ⬜   |
 
-验收证据：待实现后补充三端认证浏览器用例、会话失效用例和 Supabase 隔离环境记录。
+验收证据：本地实现与验证记录见 [协作实现与验收记录](../../plans/collaboration-implementation.md)；仍需补齐本故事未关闭的逐条三端/部署证据三端认证浏览器用例、会话失效用例和 Supabase 隔离环境记录。
 
 ## 技术笔记
 
@@ -56,10 +56,9 @@ capabilities: []
 
 ## 实现文件
 
-- `rxdb-admin-template/apps/react/src/app/auth/` — React 登录、会话状态和重新认证入口。
-- `rxdb-admin-template/apps/angular/src/app/auth/` — Angular 等价入口。
-- `rxdb-admin-template/apps/vue/src/app/auth/` — Vue 等价入口。
-- `packages/rxdb-adapter-supabase/` — Supabase 请求和会话传递接线。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/client/controller.ts`、`src/client/api.ts`、`src/server/http.ts`、`src/client/controller.spec.ts`、`e2e/collaboration.spec.ts`。
+
+验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 
 ## References
 
