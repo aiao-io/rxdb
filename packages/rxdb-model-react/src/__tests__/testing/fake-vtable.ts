@@ -143,6 +143,11 @@ export class FakeListTable {
     this.#columns = columns;
   }
 
+  /** 文字测量替身；真实字体宽度由浏览器回归验证。 */
+  measureText(text: string, font: { fontSize: number }): { width: number } {
+    return { width: text.length * font.fontSize };
+  }
+
   getColWidth(col: number): number {
     return (this.#columns[col - 1]?.['width'] as number | undefined) ?? 120;
   }

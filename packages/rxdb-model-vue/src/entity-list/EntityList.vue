@@ -154,6 +154,8 @@ const props = withDefaults(
     namespace: string;
     /** 实体名 */
     name: string;
+    /** 操作列最大宽度；初始宽度随按钮内容自动计算。 */
+    actionsMaxWidth?: number | string;
     /** 固定查询条件，与用户筛选条件做 AND 合并（用于关系属性过滤，如 ownerId = currentId） */
     // eslint-disable-next-line vue/require-default-prop -- 对象类型 props 的 undefined 默认与 withDefaults 类型推断不兼容（语义与 Angular 的 input<T | undefined>() 一致）
     fixedQuery?: FilterQuery | undefined;
@@ -182,6 +184,7 @@ const props = withDefaults(
     alreadyLinkedIds?: Set<string>;
   }>(),
   {
+    actionsMaxWidth: undefined,
     initialFilter: undefined,
     parentRelationName: undefined,
     creationChain: () => [],
@@ -359,6 +362,7 @@ const columnsCache = computed(() => {
         buildEditableColumns(meta, {
           i18n: modelI18n,
           readOnly: rxdb.readOnly,
+          actionsMaxWidth: props.actionsMaxWidth,
           relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => {
               const m = getEntityMetadata(c);

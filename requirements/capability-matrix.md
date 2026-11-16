@@ -77,6 +77,7 @@
 
 ## 已知的需求覆盖缺口
 
+- **rxdb-model 表单错误尚未按属性展示，保存错误直接使用底层消息**。三端对话框错误面板由 [US-104](stories/framework/US-104-validation-feedback.md)交付；字段内联提示、唯一冲突归因、摘要定位与按关联属性更新错误由 [US-105](stories/framework/US-105-form-field-error-feedback.md)认领（Backlog）。现状证据与拟交付边界见该故事。
 - **小程序平台：百度 / QQ 无实现，抖音与支付宝 Android 未验证**。平台登记表是 `wechat` / `douyin` / `alipay`：抖音、支付宝经开发者工具与 iOS 真机实验判 `supported`，对外写「实验性支持」，Android 真机未跑（矩阵 caveat `android-unverified`）；支付宝另依赖四项未文档化能力（逻辑层 `WebAssembly` 与 `BigInt`、Worker 里的 `crypto` 随机源、找回真实全局对象）。百度 / QQ 按[可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)判 `unsupported`。缺口由 [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md) 认领（In Progress）。
 - **小程序运行时的搜索能力仍无故事覆盖**。`wa-sqlite-miniprogram` 已在 [backend-registry.ts](../packages/rxdb-plugin-search/src/backend/backend-registry.ts) 登记为 `unverified`（登记 ≠ 放行，仍抛 `SearchUnsupportedAdapterError`）。glue + wasm 取自 `@subframe7536/sqlite-wasm`（`ENABLE_FTS5` 编译），[fts5.integration.spec.ts](../packages/rxdb-adapter-miniprogram/src/__tests__/fts5.integration.spec.ts) 在 Node 里对真 wasm + 微信 VFS 存根验证了 `CREATE VIRTUAL TABLE ... USING fts5` 与 `rxdb_fts_bigram` 注册。**剩下的缺口是真机实测与 registry 放行**——不在 US-209 范围内，也无故事认领。
 - **两个 `unverified` 后端待转正**，均为环境/构建管线问题而非设计缺口：`wa-sqlite`（浏览器）要用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm（npm 预编译产物未编入 FTS5，见 [US-703](stories/future/US-703-pglite-full-text-search.md) AC#8）；`wa-sqlite-miniprogram` 的 wasm 已换成编入 FTS5 的构建，只差真机实测（见上一条）。SQLite FTS5（[US-702](stories/future/US-702-full-text-search.md)）与 PGlite `pg-tsvector`（US-703，Done）本身均已交付，引擎侧不再有能力不对称。

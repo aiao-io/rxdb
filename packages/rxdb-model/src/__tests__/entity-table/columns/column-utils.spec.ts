@@ -26,7 +26,8 @@ function makeArgs(record: Record<string, unknown>): StylePropertyFunctionArg {
     col: 1,
     row: 1,
     table: {
-      getRecordByCell: vi.fn().mockReturnValue(record)
+      getRecordByCell: vi.fn().mockReturnValue(record),
+      measureText: vi.fn().mockReturnValue({ width: 36 })
     }
   } as unknown as StylePropertyFunctionArg;
 }
@@ -101,6 +102,11 @@ describe('makeDeleteIcons', () => {
     expect(textIcon.content).toBe('Delete');
   });
 
+  it('文字实测宽度参与自动列宽计算', () => {
+    const icons = makeDeleteIcons('Delete', 36) as Array<{ width?: number }>;
+    expect(icons[1].width).toBe(36);
+  });
+
   it('resolves delete color from current CSS variables', () => {
     document.documentElement.style.setProperty('--entity-table-delete', 'rgb(10, 20, 30)');
 
@@ -171,12 +177,19 @@ describe('actionsColumn', () => {
   const canDelete = (): boolean => true;
   const cannotDelete = (): boolean => false;
 
-  it('creates a column with fixed 100-width and actions field', () => {
+  it('操作列按内容自动计算宽度，不设置固定的最小或最大宽度', () => {
     const col = actionsColumn('Actions', 'Delete', canDelete);
     expect(col.field).toBe('actions');
-    expect(col.width).toBe(100);
-    expect(col.minWidth).toBe(100);
-    expect(col.maxWidth).toBe(100);
+    expect(col.width).toBe('auto');
+    expect(col.minWidth).toBeUndefined();
+    expect(col.maxWidth).toBeUndefined();
+  });
+
+  it('允许配置最大宽度，仍不锁定最小宽度', () => {
+    const col = actionsColumn('操作', '删除', canDelete, '查看', { maxWidth: 180 });
+    expect(col.width).toBe('auto');
+    expect(col.maxWidth).toBe(180);
+    expect(col.minWidth).toBeUndefined();
   });
 
   it('icon callback returns empty array when the delete predicate rejects the record', () => {
@@ -824,11 +837,11 @@ describe('buildPropertyColumn relation types', () => {
 // ── actionsColumn 带查看按钮 ───────────────────────────────────────────────
 
 describe('actionsColumn with view label', () => {
-  it('uses a wider column and renders view + delete icons', () => {
+  it('查看和删除按钮共同参与操作列的自动宽度计算', () => {
     const col = actionsColumn('操作', '删除', () => true, '查看');
-    expect(col.width).toBe(130);
-    expect(col.minWidth).toBe(130);
-    expect(col.maxWidth).toBe(130);
+    expect(col.width).toBe('auto');
+    expect(col.minWidth).toBeUndefined();
+    expect(col.maxWidth).toBeUndefined();
 
     const iconFn = col.icon as (args: StylePropertyFunctionArg) => unknown[];
     const icons = iconFn(makeArgs({ id: '1' }));
@@ -837,6 +850,14 @@ describe('actionsColumn with view label', () => {
     const names = (icons as Array<{ name?: string }>).map(i => i.name);
     expect(names).toContain('view-action');
     expect(names.filter(n => n === 'delete-action')).toHaveLength(2);
+  });
+
+  it('使用表格的文字测量结果计算删除标签宽度', () => {
+    const col = actionsColumn('操作', '删除', () => true, '查看');
+    const args = makeArgs({ id: '1' });
+    const icons = (col.icon as (args: StylePropertyFunctionArg) => Array<{ type: string; width?: number }>)(args);
+    expect(args.table.measureText).toHaveBeenCalledWith('删除', { fontSize: 12, fontFamily: 'sans-serif' });
+    expect(icons.find(icon => icon.type === 'text')?.width).toBe(36);
   });
 
   it('keeps only the view icon when the record cannot be deleted (delete hidden)', () => {

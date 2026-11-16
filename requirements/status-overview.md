@@ -10,9 +10,9 @@
 | ✅ Done        | 96   |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 139  |
+| **合计**       | 140  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -103,6 +103,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
+- ⬜ [US-105 rxdb-model 表单字段错误提示与保存失败归因（三端对称）](stories/framework/US-105-form-field-error-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md)

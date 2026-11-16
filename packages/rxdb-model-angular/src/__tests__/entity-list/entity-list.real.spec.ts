@@ -146,12 +146,20 @@ describe('EntityListComponent（真实组件）', () => {
   }
 
   /** 挂载列表组件并等待首页加载完成。 */
-  async function renderList(inputs: Partial<{ namespace: string; name: string; mode: 'default' | 'select' }> = {}) {
+  async function renderList(
+    inputs: Partial<{
+      namespace: string;
+      name: string;
+      mode: 'default' | 'select';
+      actionsMaxWidth: number | string;
+    }> = {}
+  ) {
     const fixture = TestBed.createComponent(EntityListComponent);
     const component = fixture.componentInstance;
     fixture.componentRef.setInput('namespace', inputs.namespace ?? 'public');
     fixture.componentRef.setInput('name', inputs.name ?? 'Todo');
     if (inputs.mode) fixture.componentRef.setInput('mode', inputs.mode);
+    fixture.componentRef.setInput('actionsMaxWidth', inputs.actionsMaxWidth);
     const confirmed: Array<Array<{ id: string }>> = [];
     const cancelled: unknown[] = [];
     const viewed: EntityTableRecord[] = [];
@@ -168,6 +176,18 @@ describe('EntityListComponent（真实组件）', () => {
     const queryTable = fixture.debugElement.query(By.directive(QueryTableComponent));
     return queryTable.componentInstance.tableInstance as unknown as FakeListTable;
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { fixture } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => tableOf(fixture).columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    fixture.componentRef.setInput('actionsMaxWidth', 120);
+    fixture.detectChanges();
+    await FLUSH();
+    expect(column()?.['maxWidth']).toBe(120);
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 

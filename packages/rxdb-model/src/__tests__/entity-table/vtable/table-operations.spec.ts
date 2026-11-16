@@ -128,6 +128,22 @@ describe('updateTableRecords', () => {
     expect(setColWidth).toHaveBeenCalledWith(2, 200);
   });
 
+  it('操作列更新后重新计算内容宽度，不恢复旧的操作列宽度', () => {
+    const setColWidth = vi.fn();
+    const table = {
+      colCount: 3,
+      getColWidth: vi.fn((col: number) => (col === 1 ? 150 : 100)),
+      setRecords: vi.fn(),
+      updateColumns: vi.fn(),
+      setColWidth
+    } as unknown as VTable.ListTable;
+    const columns = [{ field: 'name' }, { field: 'actions', width: 'auto' }] as TableColumns;
+
+    updateTableRecords(table, [], columns, columns);
+
+    expect(setColWidth).toHaveBeenCalledExactlyOnceWith(1, 150);
+  });
+
   it('handles missing field gracefully', () => {
     const table = {
       colCount: 2,

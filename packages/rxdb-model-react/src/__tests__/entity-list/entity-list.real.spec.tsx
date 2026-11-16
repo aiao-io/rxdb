@@ -111,6 +111,7 @@ describe('EntityList（真实组件）', () => {
         <EntityList
           namespace={props.namespace ?? 'public'}
           name={props.name ?? 'Todo'}
+          actionsMaxWidth={props.actionsMaxWidth}
           mode={props.mode}
           fixedQuery={props.fixedQuery}
           initialFilter={props.initialFilter}
@@ -139,6 +140,20 @@ describe('EntityList（真实组件）', () => {
   function tableOf(): FakeListTable {
     return getLastListTable();
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { rerender } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => getLastListTable().columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    rerender(
+      <RxDBProvider db={rxdb}>
+        <EntityList namespace='public' name='Todo' actionsMaxWidth={120} />
+      </RxDBProvider>
+    );
+    await waitFor(() => expect(column()?.['maxWidth']).toBe(120));
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 

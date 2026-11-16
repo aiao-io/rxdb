@@ -90,7 +90,7 @@ export function collectReorderedIds(table: VTable.ListTable, idField: string): s
 }
 
 /**
- * 更新表格数据并恢复列宽（按 field 名匹配，容忍列增删）
+ * 更新表格数据并恢复数据列宽；操作列按内容重新计算宽度。
  *
  * @param table 目标表格实例
  * @param records 更新后的行数据
@@ -108,7 +108,7 @@ export function updateTableRecords(
   const widthByField = new Map<string, number>();
   for (let col = 1; col < colCount; col++) {
     const field = prevCols[col - 1]?.field;
-    if (field) widthByField.set(field, table.getColWidth(col));
+    if (field && field !== 'actions') widthByField.set(field, table.getColWidth(col));
   }
   table.setRecords(records);
   if (newColumns) table.updateColumns(newColumns as never);

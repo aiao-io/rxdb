@@ -100,3 +100,109 @@ test('只有一行时横向滚动条贴住视口底边，并能横向滚动', as
     )
     .toBeGreaterThan(0);
 });
+
+interface ResizableTable {
+  colCount: number;
+  rightFrozenColCount: number;
+  columns: Array<{ field?: string; width?: number | string; minWidth?: number | string; maxWidth?: number | string }>;
+  getHeaderField(col: number, row: number): unknown;
+  getColWidth(col: number): number;
+  scrollToCell(cell: { col: number; row: number }): void;
+  updateColumns(columns: ResizableTable['columns']): void;
+  scenegraph: {
+    getCell(col: number, row: number): { globalAABBBounds: { x1: number; y1: number; y2: number } };
+  };
+}
+
+async function columnWidths(page: Page) {
+  return page
+    .getByTestId('entity-shell')
+    .locator('canvas')
+    .first()
+    .evaluate(element => {
+      const table = (element as unknown as { __vtable__: ResizableTable }).__vtable__;
+      const fields = Array.from({ length: table.colCount }, (_, col) => table.getHeaderField(col, 0));
+      const actions = table.columns.find(column => column.field === 'actions')!;
+      return {
+        updatedAt: table.getColWidth(fields.indexOf('updatedAt')),
+        actions: table.getColWidth(fields.indexOf('actions')),
+        rightFrozenColCount: table.rightFrozenColCount,
+        width: actions.width,
+        minWidth: actions.minWidth,
+        maxWidth: actions.maxWidth
+      };
+    });
+}
+
+async function columnResizeHandle(page: Page) {
+  return page
+    .getByTestId('entity-shell')
+    .locator('canvas')
+    .first()
+    .evaluate(async element => {
+      const table = (element as unknown as { __vtable__: ResizableTable }).__vtable__;
+      const col = Array.from({ length: table.colCount }, (_, index) => index).find(
+        index => table.getHeaderField(index, 0) === 'updatedAt'
+      )!;
+      table.scrollToCell({ col, row: 0 });
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const bounds = table.scenegraph.getCell(col + 1, 0).globalAABBBounds;
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + bounds.x1 - 2, y: rect.top + (bounds.y1 + bounds.y2) / 2 };
+    });
+}
+
+async function dragColumnBoundary(page: Page, delta: number): Promise<void> {
+  const handle = await columnResizeHandle(page);
+  await page.mouse.move(handle.x, handle.y);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + delta, handle.y, { steps: 12 });
+  await page.mouse.up();
+}
+
+for (const viewportWidth of [1024, 2048]) {
+  test(`滚动到最右端后，更新时间列能缩小和放大（${viewportWidth}px）`, async ({ page }) => {
+    await page.setViewportSize({ width: viewportWidth, height: 720 });
+    await createAsset(page, '列宽测试资产', '布局测试分类');
+    await expectListHasRows(page, { name: '列宽测试资产' });
+    await settleAnimations(page);
+    const before = await columnWidths(page);
+
+    await dragColumnBoundary(page, -60);
+    await expect.poll(async () => (await columnWidths(page)).updatedAt).toBeLessThan(before.updatedAt - 40);
+    expect(await columnWidths(page)).toMatchObject({ actions: before.actions, rightFrozenColCount: 1 });
+    const narrowed = await columnWidths(page);
+
+    await dragColumnBoundary(page, 60);
+    await expect.poll(async () => (await columnWidths(page)).updatedAt).toBeGreaterThan(narrowed.updatedAt + 40);
+    expect(await columnWidths(page)).toMatchObject({ actions: before.actions, rightFrozenColCount: 1 });
+  });
+}
+
+test('操作列根据内容自动计算宽度，并遵守最大宽度设置', async ({ page }) => {
+  await createAsset(page, '操作列测试资产', '布局测试分类');
+  await expectListHasRows(page, { name: '操作列测试资产' });
+  await settleAnimations(page);
+  const before = await columnWidths(page);
+  expect(before).toMatchObject({ width: 'auto', minWidth: undefined, maxWidth: undefined });
+
+  await page.getByTestId('admin-widget-language').click();
+  await page.getByRole('menuitemradio', { name: 'English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect.poll(async () => (await columnWidths(page)).actions).toBeGreaterThan(before.actions);
+
+  const canvas = page.getByTestId('entity-shell').locator('canvas').first();
+  await canvas.evaluate(element => {
+    const table = (element as unknown as { __vtable__: ResizableTable }).__vtable__;
+    table.updateColumns(
+      table.columns.map(column => (column.field === 'actions' ? { ...column, maxWidth: 80 } : column))
+    );
+  });
+  await expect.poll(async () => (await columnWidths(page)).actions).toBe(80);
+  expect(await columnWidths(page)).toMatchObject({
+    width: 'auto',
+    minWidth: undefined,
+    maxWidth: 80,
+    rightFrozenColCount: 1
+  });
+});

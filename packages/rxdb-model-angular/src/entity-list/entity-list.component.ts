@@ -241,6 +241,7 @@ export class EntityListComponent {
           buildEditableColumns(meta, {
             i18n: this.modelI18n,
             readOnly: this.#rxdb.readOnly,
+            actionsMaxWidth: this.actionsMaxWidth(),
             relatedItemsProviderFactory: (fkField, relatedEntityName) => {
               const relCls = [...this.#entityClsMap.values()].find(c => {
                 const m = getEntityMetadata(c);
@@ -379,6 +380,8 @@ export class EntityListComponent {
   // ── Route inputs ──────────────────────────────────────────────────────
   readonly namespace = input.required<string>();
   readonly name = input.required<string>();
+  /** 操作列最大宽度；初始宽度随按钮内容自动计算。 */
+  readonly actionsMaxWidth = input<number | string>();
 
   /** 固定查询条件，与用户筛选条件做 AND 合并（用于关系属性过滤，如 ownerId = currentId） */
   readonly fixedQuery = input<FilterQuery | undefined>(undefined);

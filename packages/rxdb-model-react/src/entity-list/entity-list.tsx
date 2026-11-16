@@ -161,6 +161,8 @@ export interface EntityListProps {
   namespace: string;
   /** 实体名（必填）。 */
   name: string;
+  /** 操作列最大宽度；初始宽度随按钮内容自动计算。 */
+  actionsMaxWidth?: number | string;
   /** 固定查询条件，与用户筛选条件做 AND 合并（用于关系属性过滤）。 */
   fixedQuery?: FilterQuery;
   /** 外部导航传入的初始筛选条件（JSON 字符串）。 */
@@ -197,6 +199,7 @@ export interface EntityListProps {
 export function EntityList({
   namespace,
   name,
+  actionsMaxWidth,
   fixedQuery,
   initialFilter,
   fixedFormData,
@@ -487,6 +490,7 @@ export function EntityList({
         buildEditableColumns(meta, {
           i18n: modelI18n,
           readOnly: rxdb.readOnly,
+          actionsMaxWidth,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
             if (!relCls) return undefined;
@@ -507,7 +511,7 @@ export function EntityList({
       );
     }
     return cache;
-  }, [rxdb, entityClsMap, t, modelI18n]);
+  }, [rxdb, entityClsMap, t, modelI18n, actionsMaxWidth]);
 
   const baseTableColumns = useMemo<ColumnDefine[]>(() => {
     // 未注册实体无元数据可派生，不给删除

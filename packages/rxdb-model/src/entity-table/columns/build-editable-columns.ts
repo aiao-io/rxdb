@@ -37,6 +37,8 @@ export interface BuildEditableColumnsOptions {
   relatedItemsProviderFactory?: RelatedItemsProviderFactory;
   /** 操作列标题（默认「操作」） */
   actionsTitle?: string;
+  /** 操作列最大宽度；初始宽度根据实际按钮内容自动计算。 */
+  actionsMaxWidth?: ColumnDefine['maxWidth'];
   /** 删除按钮文案（默认「删除」） */
   deleteLabel?: string;
   /** 查看按钮文案（默认「查看」） */
@@ -124,6 +126,7 @@ export function buildEditableColumns(
   const {
     relatedItemsProviderFactory,
     i18n,
+    actionsMaxWidth,
     actionsTitle = modelText('common.actions', undefined, i18n),
     deleteLabel = modelText('common.delete', undefined, i18n),
     viewLabel = modelText('common.view', undefined, i18n),
@@ -197,7 +200,7 @@ export function buildEditableColumns(
       fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'], i18n),
       ...SYSTEM_COLUMN_READONLY
     },
-    actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel)
+    actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel, { maxWidth: actionsMaxWidth })
   );
 
   return columns;

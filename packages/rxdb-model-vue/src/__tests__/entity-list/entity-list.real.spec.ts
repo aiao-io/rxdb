@@ -184,11 +184,19 @@ describe('EntityList（真实组件）', () => {
   }
 
   /** 挂载列表组件并等待首页加载完成。 */
-  async function renderList(inputs: Partial<{ namespace: string; name: string; mode: 'default' | 'select' }> = {}) {
+  async function renderList(
+    inputs: Partial<{
+      namespace: string;
+      name: string;
+      mode: 'default' | 'select';
+      actionsMaxWidth: number | string;
+    }> = {}
+  ) {
     const { wrapper, child } = mountWithRxDB(EntityList, rxdb, {
       props: {
         namespace: inputs.namespace ?? 'public',
         name: inputs.name ?? 'Todo',
+        actionsMaxWidth: inputs.actionsMaxWidth,
         ...(inputs.mode ? { mode: inputs.mode } : {})
       }
     });
@@ -209,6 +217,17 @@ describe('EntityList（真实组件）', () => {
   function tableOf(child: ReturnType<typeof mountWithRxDB>['child']): FakeListTable {
     return child.findComponent(QueryTable).vm.tableInstance as unknown as FakeListTable;
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { wrapper, child } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => tableOf(child).columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    await wrapper.setProps({ actionsMaxWidth: 120 });
+    await FLUSH();
+    expect(column()?.['maxWidth']).toBe(120);
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 

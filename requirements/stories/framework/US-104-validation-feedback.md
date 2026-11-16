@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-21
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [framework, rxdb-model, tri-framework, validation]
 ---
 
@@ -65,4 +65,5 @@ tags: [framework, rxdb-model, tri-framework, validation]
 
 ## References
 
+- [US-105 字段错误提示与保存失败归因](US-105-form-field-error-feedback.md) — 后续需求：字段内联提示、友好约束文案、摘要定位与按关联属性清理；当前为 Backlog，不作为本故事已交付证据。
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 触发背景（首版边界「校验反馈可读」，US-526 工作台 AC#4 的红色用例）

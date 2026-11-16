@@ -10,17 +10,18 @@
 | ✅ Done        | 96     |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 27     |
+| 📝 Backlog     | 28     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **43** |
+| **未完成合计** | **44** |
 
-仓库还剩 **43 条**未关闭故事（13 In Progress + 3 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **44 条**未关闭故事（13 In Progress + 3 In Review + 28 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
 
 | Story                                                                                                                                                                   | 状态           | 剩什么                                                                                                 | 排期位置 |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------ | -------- |
+| [US-105](stories/framework/US-105-form-field-error-feedback.md) | 📝 Backlog | 字段内联错误、保存失败归因、摘要定位与三端状态一致；方案待评审，AC 待实现与验收 | 需求评审 |
 | [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                        | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                        | 批次 3   |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                    | 批次 3   |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3   |

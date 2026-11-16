@@ -17,6 +17,7 @@ import { COLUMN_READONLY_KEY } from './column-writable.js';
 export const DELETE_COLOR = 'var(--entity-table-delete, #ef4444)';
 
 const DELETE_FALLBACK_COLOR = '#ef4444';
+const DELETE_LABEL_FONT = { fontSize: 12, fontFamily: 'sans-serif' };
 const SAFE_COLOR = /^[#\w(),.\-\s/%]+$/;
 
 // ── PropertyType 列构建器 ──────────────────────────────────────────────────────
@@ -615,9 +616,10 @@ export function makeViewIcons(): unknown[] {
  * 生成删除按钮的图标选项（SVG 图标 + 文字标签）
  *
  * @param label 删除按钮文字
+ * @param labelWidth 文字实测宽度，供自动列宽计算使用
  * @returns 图标选项数组
  */
-export function makeDeleteIcons(label: string): unknown[] {
+export function makeDeleteIcons(label: string, labelWidth?: number): unknown[] {
   const deleteColor = resolveDeleteColor();
 
   return [
@@ -635,10 +637,11 @@ export function makeDeleteIcons(label: string): unknown[] {
     {
       type: 'text',
       content: label,
+      width: labelWidth,
       name: 'delete-action',
       positionType: 'contentLeft',
       cursor: 'pointer',
-      style: { fill: deleteColor, fontSize: 12 },
+      style: { fill: deleteColor, ...DELETE_LABEL_FONT },
       hover: { bgColor: 'rgba(239,68,68,0.12)' }
     }
   ];
@@ -668,27 +671,29 @@ export type RecordDeletePredicate = (record: Readonly<Record<string, unknown>>) 
  * @param deleteLabel 删除按钮文案
  * @param canDelete 逐行判定是否出删除按钮；与行是否只读无关（`update: 'system'` 的实体行只读仍可删）
  * @param viewLabel 查看按钮文案（可选，不传则只显示删除按钮，不可删的行因此无图标）
+ * @param options 操作列宽度选项，仅允许配置最大宽度
  * @returns 操作列定义（不承载实体数据，带列级只读标记，粘贴 / 清空不写入）
  */
 export function actionsColumn(
   title: string,
   deleteLabel: string,
   canDelete: RecordDeletePredicate,
-  viewLabel?: string
+  viewLabel?: string,
+  options: Pick<ColumnDefine, 'maxWidth'> = {}
 ): ColumnDefine {
-  const width = viewLabel ? 130 : 100;
   const col: ColumnDefine & Record<string, unknown> = {
     field: 'actions',
     title,
-    width,
-    maxWidth: width,
-    minWidth: width,
+    width: 'auto',
+    maxWidth: options.maxWidth,
     disableSelect: true,
     disableHeaderSelect: true,
     icon: ((args: StylePropertyFunctionArg) => {
       const record = getCellRecord(args);
       const viewIcons = viewLabel ? makeViewIcons() : [];
-      return record && canDelete(record) ? [...viewIcons, ...makeDeleteIcons(deleteLabel)] : viewIcons;
+      return record && canDelete(record) ?
+          [...viewIcons, ...makeDeleteIcons(deleteLabel, args.table.measureText(deleteLabel, DELETE_LABEL_FONT).width)]
+        : viewIcons;
     }) as ColumnDefine['icon']
   };
   col[COLUMN_READONLY_KEY] = true;
