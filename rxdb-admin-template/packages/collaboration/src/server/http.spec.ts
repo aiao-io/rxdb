@@ -1,9 +1,12 @@
 import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CollaborationError, type Command, type Identity, type Workspace } from '../model.js';
-import { auditPage, bootstrap, candidateContent, commitContent, execute, sharedRecords, snapshot } from './engine.js';
+import { diffRecords } from '../changes.js';
+import { sealCommit } from '../commit.js';
+import { CollaborationError, type Command, type Identity } from '../model.js';
+import { auditPage, bootstrap, snapshot } from './engine.js';
 import { collaborationServer, type RepositoryApi } from './http.js';
+import { MemoryWorkspace } from './memory.testing.js';
 const user = { id: 'user', email: 'user@example.test', verified: true };
 let server: Server;
 let url: string;
@@ -13,7 +16,8 @@ const data = snapshot(
     { now: 1, id: () => 'id' }
   ),
   user,
-  1
+  1,
+  {}
 );
 const repository: RepositoryApi = {
   list: vi.fn(async () => []),
@@ -85,6 +89,32 @@ describe('HTTP identity boundary', () => {
       'assets',
       expect.objectContaining({ tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
     );
+  });
+  it('hands an upload of field-level changes to the repository and refuses the old whole-record commits before it', async () => {
+    const commit = await sealCommit({
+      id: 'c1',
+      parent: null,
+      authorId: user.id,
+      message: 'First',
+      changes: diffRecords({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
+    });
+    const upload = (commits: unknown[]) =>
+      post({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: null, commits });
+    expect((await upload([commit])).status).toBe(200);
+    expect(repository.operation).toHaveBeenCalledWith(
+      user,
+      'team',
+      'assets',
+      expect.objectContaining({ type: 'upload', commits: [commit] })
+    );
+    vi.mocked(repository.operation).mockClear();
+    const legacy = { id: 'c1', parent: null, authorId: user.id, message: 'First', records: {} };
+    for (const invalid of [legacy, { ...commit, fingerprint: 'not-a-digest' }, { ...commit, mergeSource: 'x' }]) {
+      const response = await upload([invalid]);
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ error: 'invalid' });
+    }
+    expect(repository.operation).not.toHaveBeenCalled();
   });
   it('exposes only public auth configuration and restricts receipts to the authenticated repository', async () => {
     const config = await (await fetch(`${url}/collaboration-api/config`)).json();
@@ -245,31 +275,30 @@ describe('on-demand read routes', () => {
   });
 });
 
-/** 以引擎纯函数实现的内存仓储：验证路由、授权与错误码的端到端映射，不涉及数据库。 */
-function memoryRepository(state: Workspace): RepositoryApi {
+/** 以内存工作区实现的仓储：验证路由、授权与错误码的端到端映射，不涉及数据库。 */
+function memoryRepository(workspace: MemoryWorkspace): RepositoryApi {
   const operation = async (actor: Identity, _team: string, _app: string, command: Command) =>
-    execute(state, actor, command, { now: 1000, id: () => `event-${state.audit.length + 1}` });
+    workspace.run(actor, command, { now: 1000, id: () => `event-${workspace.state.audit.length + 1}` });
   return {
     ...repository,
     operation,
-    readRecords: async actor => sharedRecords(state, actor),
-    readCommit: async (actor, _team, _app, id) => commitContent(state, actor, id),
-    readCandidate: async (actor, _team, _app, id) => candidateContent(state, actor, id),
-    readAudit: async (actor, _team, _app, query) => auditPage(state, actor, query)
+    readRecords: async actor => workspace.records(actor),
+    readCommit: async (actor, _team, _app, id) => workspace.commit(actor, id),
+    readCandidate: async (actor, _team, _app, id) => workspace.candidate(actor, id),
+    readAudit: async (actor, _team, _app, query) => auditPage(workspace.state, actor, query)
   };
 }
 describe('on-demand reads over the engine', () => {
   const outsider = { id: 'outsider', email: 'outsider@example.test', verified: true };
-  let memory: Workspace;
   let remote: Server;
   let base: string;
   const fetchAs = (id: string, path: string) => fetch(`${base}${path}`, { headers: { authorization: `Bearer ${id}` } });
   beforeEach(async () => {
-    memory = bootstrap(
+    const workspace = MemoryWorkspace.create(
       { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
       { now: 1, id: () => 'bootstrap-event' }
     );
-    const api = memoryRepository(memory);
+    const api = memoryRepository(workspace);
     await api.operation(user, 'team', 'assets', {
       type: 'task',
       id: 'task',
@@ -283,13 +312,13 @@ describe('on-demand reads over the engine', () => {
       expectedHead: null,
       operationId: 'operation-2',
       commits: [
-        {
+        await sealCommit({
           id: 'c1',
           parent: null,
           authorId: user.id,
           message: 'First',
-          records: { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } }
-        }
+          changes: diffRecords({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
+        })
       ]
     });
     remote = collaborationServer({

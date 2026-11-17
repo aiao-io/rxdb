@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import pg from 'pg';
 import { collaborationServer } from '../dist/server/server/http.js';
+import { applyMigrations, readMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -32,10 +33,8 @@ const teams = [];
 const stackId =
   process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
 const stackDatabase = `rxdb-supabase-db-${stackId}`;
-const migration = await readFile(
-  path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'),
-  'utf8'
-);
+// supabase/migrations 下的全部迁移，按文件名顺序；与迁移命令、集成测试、基准共用同一个读取函数
+const migrations = await readMigrations();
 function liveSql(sql) {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -98,7 +97,7 @@ process.once('SIGINT', () => {
   void stop().finally(() => process.exit());
 });
 try {
-  await liveSql(migration);
+  for (const migration of migrations) await liveSql(migration.sql);
   await exec('docker', [
     'run',
     '--rm',
@@ -123,9 +122,7 @@ try {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
   }
-  await pool.query(
-    await readFile(path.join(root, 'rxdb-admin-template/supabase/migrations/202611160001_collaboration.sql'), 'utf8')
-  );
+  await applyMigrations(pool);
   const repository = new CollaborationRepository(pool);
   const operation = repository.operation.bind(repository);
   repository.operation = async (user, teamId, appId, command) => {

@@ -1,12 +1,10 @@
 import { demand, type ChangeSet, type DataRow, type Records, type Value } from './model.js';
-import { assetNamespace, canonical } from './records.js';
+import { assetNamespace, canonical, rowAt } from './records.js';
 
 type Fields = Record<string, Value>;
 
 const mismatch = '提交内容与其父提交不一致';
 
-const rowOf = (records: Records, id: string): DataRow | undefined =>
-  Object.hasOwn(records, id) ? records[id] : undefined;
 const sameValue = (a: Value | undefined, b: Value | undefined) => canonical(a) === canonical(b);
 const insertOf = (entityId: string, row: DataRow): ChangeSet => ({
   namespace: assetNamespace,
@@ -53,8 +51,8 @@ function updateOf(entityId: string, before: DataRow, after: DataRow): ChangeSet 
 export function diffRecords(before: Records, after: Records): ChangeSet[] {
   const changes: ChangeSet[] = [];
   for (const id of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
-    const old = rowOf(before, id);
-    const row = rowOf(after, id);
+    const old = rowAt(before, id);
+    const row = rowAt(after, id);
     if (old && row && old.entity === row.entity) {
       const change = updateOf(id, old, row);
       if (change) changes.push(change);
@@ -73,7 +71,7 @@ function fieldsOf(fields: Fields | null): Fields {
 }
 /** 取出必须存在、且与变更同一实体的记录。 */
 function existing(records: Records, change: ChangeSet): DataRow {
-  const row = rowOf(records, change.entityId);
+  const row = rowAt(records, change.entityId);
   demand(row && row.entity === change.entity, 'invalid', mismatch);
   return row;
 }
@@ -85,7 +83,7 @@ function rewrite(row: DataRow, from: Fields, to: Fields): void {
 
 function applyOne(records: Records, change: ChangeSet): void {
   if (change.operation === 'insert') {
-    demand(!rowOf(records, change.entityId), 'invalid', mismatch);
+    demand(!rowAt(records, change.entityId), 'invalid', mismatch);
     records[change.entityId] = { entity: change.entity, fields: { ...fieldsOf(change.patch) } };
   } else if (change.operation === 'update') {
     rewrite(existing(records, change), fieldsOf(change.inversePatch), fieldsOf(change.patch));
@@ -101,7 +99,7 @@ function revertOne(records: Records, change: ChangeSet): void {
   } else if (change.operation === 'update') {
     rewrite(existing(records, change), fieldsOf(change.patch), fieldsOf(change.inversePatch));
   } else {
-    demand(!rowOf(records, change.entityId), 'invalid', mismatch);
+    demand(!rowAt(records, change.entityId), 'invalid', mismatch);
     records[change.entityId] = { entity: change.entity, fields: { ...fieldsOf(change.inversePatch) } };
   }
 }

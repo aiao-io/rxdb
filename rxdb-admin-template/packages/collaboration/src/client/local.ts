@@ -1,3 +1,5 @@
+import { diffRecords } from '../changes.js';
+import { sealCommit, uuidv7 } from '../commit.js';
 import { demand, type Commit, type Records } from '../model.js';
 import { canonical } from '../records.js';
 export interface Context {
@@ -209,21 +211,30 @@ export class LocalTasks {
       return { ...current, records: structuredClone(records), revision: current.revision + 1 };
     });
   }
+  /**
+   * 把已保存、尚未提交的内容形成一个不可变提交并加入待上传队列。提交只含「上次提交的内容」到「当前已保存内容」之间逐字段的
+   * 差异（字段级变更），带 UUIDv7 提交 ID 与内容指纹；没有差异时不制造空提交，已有待上传提交时原样保留，重试复用同一提交。
+   * 指纹用异步的 `crypto.subtle` 计算，不能放进 IndexedDB 事务回调，所以先读草稿再算提交，写入时用修订号确认期间没有被其他页面改动。
+   */
   async capture(context: Context, message: string, unsaved: boolean): Promise<Draft> {
     this.assert(context);
     demand(!unsaved, 'unsaved', '请先保存全部输入，或取消同步');
     const epoch = this.generation;
-    return this.storage.write(contextKey(context), current => {
+    const key = contextKey(context);
+    const read = await this.storage.read(key);
+    demand(read, 'missing', '任务不存在');
+    this.assert(context, epoch);
+    if (canonical(read.records) === canonical(read.committed)) return read;
+    const commit = await sealCommit({
+      id: uuidv7(),
+      parent: read.localHead,
+      authorId: context.userId,
+      message,
+      changes: diffRecords(read.committed, read.records)
+    });
+    return this.storage.write(key, current => {
       this.assert(context, epoch);
-      demand(current, 'missing', '任务不存在');
-      if (canonical(current.records) === canonical(current.committed)) return current;
-      const commit: Commit = {
-        id: crypto.randomUUID(),
-        parent: current.localHead,
-        authorId: context.userId,
-        message,
-        records: structuredClone(current.records)
-      };
+      demand(current && current.revision === read.revision, 'stale', '其他页面已修改草稿，请保留输入后重新打开');
       return {
         ...current,
         localHead: commit.id,

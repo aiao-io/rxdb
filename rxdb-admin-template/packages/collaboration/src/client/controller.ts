@@ -6,7 +6,7 @@ import {
   type Audit,
   type Candidate,
   type Command,
-  type Commit,
+  type CommitContent,
   type Identity,
   type Records,
   type SharedRecords,
@@ -34,7 +34,7 @@ export class CollaborationController extends EventTarget {
   private checkpoint?: () => Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
   /** 提交不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
-  private readonly commits = new ContentCache<Commit>(
+  private readonly commits = new ContentCache<CommitContent>(
     async id => this.api.commit(this.activeWorkspace(), id),
     () => this.changed(),
     error => this.contentFailed(error)
@@ -469,7 +469,7 @@ export class CollaborationController extends EventTarget {
     this.channel.close();
   }
   /** 读取提交内容（同步）：命中返回；未命中返回 undefined 并在后台加载，加载完成后触发 `change`。 */
-  commitContent(id: string): Commit | undefined {
+  commitContent(id: string): CommitContent | undefined {
     return this.commits.peek(id);
   }
   /** 读取合并候选的内容（同步），语义同 {@link CollaborationController.commitContent}。 */
@@ -490,7 +490,7 @@ export class CollaborationController extends EventTarget {
     return this.threads.peek(threadId);
   }
   /** 等待提交内容加载完成；失败时抛出，用户操作可以再试。 */
-  loadCommit(id: string): Promise<Commit> {
+  loadCommit(id: string): Promise<CommitContent> {
     return this.commits.load(id);
   }
   /** 等待合并候选内容加载完成；失败时抛出，用户操作可以再试。 */

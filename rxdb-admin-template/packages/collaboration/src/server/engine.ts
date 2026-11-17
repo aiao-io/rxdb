@@ -6,23 +6,23 @@ import {
   type Audit,
   type AuditPage,
   type AuditQuery,
-  type Candidate,
   type CandidateSummary,
   type Command,
-  type Commit,
   type CommitSummary,
   type Environment,
   type Identity,
-  type SharedRecords,
+  type Presence,
+  type StoredCandidate,
   type Workspace,
   type WorkspaceSummary
 } from '../model.js';
 import { canonical } from '../records.js';
 import { authorize, editTask, taskFor } from './access.js';
-import { discussionCommand, notify } from './discussion.js';
-import { blockers, governanceCommand, progress } from './governance.js';
+import { discussionCommand, discussionPlan, notify } from './discussion.js';
+import { blockers, governanceCommand, governancePlan, progress } from './governance.js';
 import { membershipCommand } from './membership.js';
-import { taskCommand } from './tasks.js';
+import { noFacts, type Effects, type Facts, type Plan } from './plan.js';
+import { taskCommand, taskPlan } from './tasks.js';
 
 /** 仅由可信服务端部署命令调用，普通会话没有初始化入口。 */
 export function bootstrap(
@@ -39,11 +39,9 @@ export function bootstrap(
     schemaVersion: 1,
     revision: 0,
     head: null,
-    records: {},
     policy: { version: 1, stages: [{ id: 'review', name: '审核', minimum: 1, reviewers: [], after: [] }] },
     members: { [input.admin.id]: { ...input.admin, permissions: [...permissions], generation: 1, active: true } },
     tasks: {},
-    commits: {},
     prs: {},
     candidates: {},
     invitations: {},
@@ -65,23 +63,57 @@ export function bootstrap(
   };
 }
 
-/** 在副本上执行；任一步拒绝均保持输入状态原样。持久化层负责事务锁与原子提交。 */
-export function execute(state: Workspace, user: Identity, command: Command, env: Environment): Record<string, unknown> {
+/** 命令的执行结果：返回给调用方的 `result`，以及除工作区状态变化之外要落到存储的 `effects`（新提交、共享记录改动）。 */
+export interface Outcome {
+  result: Record<string, unknown>;
+  effects: Effects;
+}
+
+/**
+ * 命令需要预加载哪些提交与记录数据：先做与 {@link execute} 相同的授权与状态校验，通过后按命令类型声明所需数据。
+ * 已有回执的重试不需要任何数据；校验不通过时抛出与 {@link execute} 相同的错误，不会白白读取数据。
+ */
+export function plan(state: Workspace, user: Identity, command: Command): Plan {
   demand(user.verified, 'forbidden', '需要已验证的用户身份');
+  if (command.type !== 'presence') {
+    if (command.type !== 'accept_invite') authorize(state, user, 'read');
+    if (state.receipts[command.operationId]) return { type: 'none' };
+  }
+  return (
+    taskPlan(state, user, command) ??
+    governancePlan(state, user, command) ??
+    discussionPlan(state, user, command) ?? { type: 'none' }
+  );
+}
+
+/**
+ * 在副本上执行；任一步拒绝均保持输入状态原样。持久化层负责事务锁与原子提交，并把返回的 `effects` 写入存储。
+ * `facts` 是仓储按 {@link plan} 预加载的数据，引擎只读它；不需要数据的命令可以省略。
+ */
+export function execute(
+  state: Workspace,
+  user: Identity,
+  command: Command,
+  env: Environment,
+  facts: Facts = noFacts
+): Outcome {
+  demand(user.verified, 'forbidden', '需要已验证的用户身份');
+  const effects: Effects = { commits: [], shared: null };
+  const run = { facts, effects };
   if (command.type === 'presence') {
-    const result = discussionCommand(state, user, command, env);
+    const result = discussionCommand(state, user, command, env, run);
     demand(result, 'invalid', '不支持的操作');
-    return structuredClone(result);
+    return { result: structuredClone(result), effects };
   }
   if (command.type !== 'accept_invite') authorize(state, user, 'read');
   const previous = state.receipts[command.operationId];
-  if (previous) return receipt(state, user, command, previous);
+  if (previous) return { result: receipt(state, user, command, previous), effects };
   const next = structuredClone(state);
   const result =
     membershipCommand(next, user, command, env) ??
-    taskCommand(next, user, command, env) ??
-    governanceCommand(next, user, command, env) ??
-    discussionCommand(next, user, command, env);
+    taskCommand(next, user, command, env, run) ??
+    governanceCommand(next, user, command, env, run) ??
+    discussionCommand(next, user, command, env, run);
   demand(result, 'invalid', '不支持的操作');
   if (command.type === 'review' || command.type === 'merge' || command.type === 'pr_state')
     notify(next, user.id, command.prId, null, [], env);
@@ -96,22 +128,30 @@ export function execute(state: Workspace, user: Identity, command: Command, env:
   next.receipts[command.operationId] = {
     operationId: command.operationId,
     actorId: user.id,
-    fingerprint: canonical(command),
+    fingerprint: requestFingerprint(command),
     value: structuredClone(result)
   };
   next.revision++;
   Object.assign(state, next);
-  return structuredClone(result);
+  return { result: structuredClone(result), effects };
 }
 function receipt(state: Workspace, user: Identity, command: Command, previous: Workspace['receipts'][string]) {
   authorize(state, user, 'read');
   demand(
-    previous.actorId === user.id && previous.fingerprint === canonical(command),
+    previous.actorId === user.id && previous.fingerprint === requestFingerprint(command),
     'idempotency',
     '幂等键已绑定其他请求或参数'
   );
   if (command.type === 'upload' || command.type === 'fork') editTask(state, user, taskFor(state, command.taskId));
   return structuredClone(previous.value);
+}
+/**
+ * 请求指纹：回执用它拒绝「换参数复用同一幂等键」。上传与分叉的提交内容可能很大，且每个提交已带核验过的内容指纹，
+ * 所以只取提交 ID 与指纹，回执体积不随提交内容增长；其余命令用规范化后的整个命令。
+ */
+function requestFingerprint(command: Command): string {
+  if (command.type !== 'upload' && command.type !== 'fork') return canonical(command);
+  return canonical({ ...command, commits: command.commits.map(({ id, fingerprint }) => ({ id, fingerprint })) });
 }
 /**
  * 审计详情会随摘要与审计分页发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：
@@ -125,26 +165,29 @@ function auditDetails(command: Command, result: Record<string, unknown>): Record
   return details;
 }
 
-/** 去掉记录内容后的元数据；提交与候选的记录改经按需读取接口获取。 */
-function withoutRecords<T extends { records: unknown }>(value: T): Omit<T, 'records'> {
-  const metadata: Partial<T> = { ...value };
-  delete metadata.records;
-  return metadata as Omit<T, 'records'>;
+/** 候选的元数据：去掉存储的字段级变更；最终记录改经按需读取接口获取。 */
+export function candidateSummary(candidate: StoredCandidate): CandidateSummary {
+  const summary: Partial<StoredCandidate> = { ...candidate };
+  delete summary.changes;
+  return summary as CandidateSummary;
 }
 
 /**
- * 工作区摘要，只返回该用户可见的内容：提交只含元数据，候选不含记录，不含共享数据，审计只含最近
- * {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
+ * 工作区摘要，只返回该用户可见的内容：提交只含元数据（由仓储从提交表读出后传入 `commits`），候选不含记录，
+ * 不含共享数据，审计只含最近 {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
  * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
- * 体积与记录数无关；需要内容时经 {@link sharedRecords}、{@link commitContent}、{@link candidateContent}、
- * {@link auditPage} 读取。
+ * 体积与记录数无关；需要内容时经仓储的按需读取接口读取共享记录、提交、候选与审计分页。
  */
-export function snapshot(state: Workspace, user: Identity, now: number, presence = state.presence): WorkspaceSummary {
+export function snapshot(
+  state: Workspace,
+  user: Identity,
+  now: number,
+  commits: Record<string, CommitSummary>,
+  presence: Presence[] = state.presence
+): WorkspaceSummary {
   const member = authorize(state, user, 'read');
-  const commits: Record<string, CommitSummary> = {};
-  for (const [id, commit] of Object.entries(state.commits)) commits[id] = withoutRecords(commit);
   const candidates: Record<string, CandidateSummary> = {};
-  for (const [id, candidate] of Object.entries(state.candidates)) candidates[id] = withoutRecords(candidate);
+  for (const [id, candidate] of Object.entries(state.candidates)) candidates[id] = candidateSummary(candidate);
   return structuredClone({
     teamId: state.teamId,
     appId: state.appId,
@@ -186,24 +229,6 @@ export function snapshot(state: Workspace, user: Identity, now: number, presence
 }
 /** `snapshot()` 的返回类型：摘要，同 {@link WorkspaceSummary}。 */
 export type WorkspaceSnapshot = WorkspaceSummary;
-
-/** 共享分支当前的全部记录及其头提交；授权与摘要一致，需要 read 权限。 */
-export function sharedRecords(state: Workspace, user: Identity): SharedRecords {
-  authorize(state, user, 'read');
-  return structuredClone({ head: state.head, records: state.records });
-}
-/** 一个提交的完整内容（含记录）；未知 ID 返回 `not_found`，授权与摘要一致。 */
-export function commitContent(state: Workspace, user: Identity, id: string): Commit {
-  authorize(state, user, 'read');
-  demand(Object.hasOwn(state.commits, id), 'not_found', '提交不存在');
-  return structuredClone(state.commits[id]);
-}
-/** 一个合并候选的完整内容（含最终记录）；未知 ID 返回 `not_found`，授权与摘要一致。 */
-export function candidateContent(state: Workspace, user: Identity, id: string): Candidate {
-  authorize(state, user, 'read');
-  demand(Object.hasOwn(state.candidates, id), 'not_found', '候选不存在');
-  return structuredClone(state.candidates[id]);
-}
 
 const threadActions = ['thread', 'reply', 'resolve_thread', 'edit_comment'];
 /** 讨论线程的处理历史：创建、回复、编辑、解决事件，线程 ID 在 `threadId`（回复等）或 `id`（创建）里。 */

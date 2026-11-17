@@ -1,4 +1,4 @@
-import type { Commit, CommitSummary } from '../model.js';
+import type { CommitContent, CommitSummary } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
 import { readOnlyRecords, type TaskEditor } from './editor.js';
@@ -68,7 +68,7 @@ function commitHistory(
       button('从此版本创建恢复草稿', () =>
         perform(async () => {
           if (editor.dirty) throw new Error('先保存当前输入');
-          const content: Commit = await controller.loadCommit(commit.id);
+          const content: CommitContent = await controller.loadCommit(commit.id);
           await controller.createTask(tx('恢复 {v0}', { v0: commit.message }));
           await controller.save(content.records);
           editor.clear();

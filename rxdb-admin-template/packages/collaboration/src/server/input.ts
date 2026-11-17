@@ -1,5 +1,5 @@
 import { demand, permissions, type AuditQuery, type Command } from '../model.js';
-import { assertRecords } from '../records.js';
+import { assertChanges } from '../records.js';
 type Rule = (value: unknown) => boolean;
 const text: Rule = value => typeof value === 'string' && value.length <= 10000;
 const label: Rule = value => text(value) && (value as string).trim().length > 0;
@@ -28,15 +28,18 @@ const object =
       Object.entries(rules).every(([key, rule]) => rule(record[key]))
     );
   };
+const fingerprint: Rule = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+/** 上传的提交：字段级变更与客户端计算的内容指纹；合并关联只由服务端在合并时写入，不接受客户端提供。 */
 const commit: Rule = object({
   id,
   parent: nullableId,
   authorId: id,
   message: label,
-  records: value => {
-    assertRecords(value);
+  changes: value => {
+    assertChanges(value);
     return true;
-  }
+  },
+  fingerprint
 });
 const stage = object({ id, name: label, minimum: integer, reviewers: list(id), after: list(id) });
 const resolution: Rule = value => {

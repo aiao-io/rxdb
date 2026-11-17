@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import { demand } from '../model.js';
+import { applyMigrations } from './migrate.js';
 import { CollaborationRepository } from './repository.js';
 const required = (name: string) => {
   const value = process.env[name];
@@ -11,13 +11,7 @@ const required = (name: string) => {
 const pool = new pg.Pool({ connectionString: required('ADMIN_DATABASE_URL'), max: 1 });
 try {
   if (process.argv.includes('--migrate')) {
-    await pool.query(
-      await readFile(
-        new URL('../../../../../supabase/migrations/202611160001_collaboration.sql', import.meta.url),
-        'utf8'
-      )
-    );
-    console.info('Collaboration migration applied');
+    console.info('Collaboration migrations applied:', (await applyMigrations(pool)).join(', '));
   } else {
     const auth = createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), {
       auth: { persistSession: false, autoRefreshToken: false }

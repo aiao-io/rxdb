@@ -1,19 +1,20 @@
+import { applyChanges, diffRecords } from '../changes.js';
 import {
   demand,
-  type Candidate,
   type Command,
   type Environment,
   type Identity,
   type PullRequest,
   type Review,
   type StageProgress,
+  type StoredCandidate,
   type Workspace
 } from '../model.js';
-import { canonical, checkRecords, mergeRecords } from '../records.js';
+import { canonical, checkRecords, mergeRecords, rowAt } from '../records.js';
 import { authorize, expected, managePr, openPr, prFor, taskFor } from './access.js';
-import { reachable } from './tasks.js';
+import { preloaded, type Facts, type MergeInputs, type Plan, type Reopen, type Run } from './plan.js';
 
-export function currentCandidate(state: Workspace, pr: PullRequest, id: string): Candidate {
+export function currentCandidate(state: Workspace, pr: PullRequest, id: string): StoredCandidate {
   const candidate = state.candidates[id];
   const task = taskFor(state, pr.taskId);
   demand(
@@ -29,7 +30,7 @@ export function currentCandidate(state: Workspace, pr: PullRequest, id: string):
   );
   return candidate;
 }
-export function checkedCandidate(state: Workspace, pr: PullRequest, id: string): Candidate {
+export function checkedCandidate(state: Workspace, pr: PullRequest, id: string): StoredCandidate {
   const candidate = currentCandidate(state, pr, id);
   demand(!candidate.conflicts.length, 'conflict', '还有未解决的冲突');
   demand(!candidate.checks.length, 'checks', '最终结果检查未通过', { checks: candidate.checks });
@@ -52,7 +53,7 @@ export function blockers(state: Workspace, prId: string): Review[] {
   }
   return [...active.values()];
 }
-export function progress(state: Workspace, pr: PullRequest, candidate: Candidate): StageProgress[] {
+export function progress(state: Workspace, pr: PullRequest, candidate: StoredCandidate): StageProgress[] {
   return state.policy.stages.map(stage => {
     const latest = new Map<string, Review>();
     for (const review of state.reviews.filter(r => r.prId === pr.id && r.stageId === stage.id))
@@ -69,7 +70,7 @@ export function progress(state: Workspace, pr: PullRequest, candidate: Candidate
     };
   });
 }
-function validApproval(state: Workspace, pr: PullRequest, candidate: Candidate, review: Review): boolean {
+function validApproval(state: Workspace, pr: PullRequest, candidate: StoredCandidate, review: Review): boolean {
   const member = state.members[review.reviewerId];
   return (
     review.decision === 'approve' &&
@@ -80,13 +81,24 @@ function validApproval(state: Workspace, pr: PullRequest, candidate: Candidate, 
     member.permissions.includes('review')
   );
 }
+/** 候选与合并需要预加载的数据：B、S、T 的完整记录；候选另需已解决的必须处理线程所锚定的历史候选行。 */
+export function governancePlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
+  if (command.type === 'candidate') {
+    const { pr, task, source } = candidateGuards(state, user, command);
+    return { type: 'inputs', head: state.head, base: task.base, source, reopen: reopenTargets(state, pr) };
+  }
+  if (command.type !== 'merge') return undefined;
+  const { candidate } = mergeGuards(state, user, command);
+  return { type: 'inputs', head: state.head, base: candidate.base, source: candidate.source, reopen: [] };
+}
 export function governanceCommand(
   state: Workspace,
   user: Identity,
   command: Command,
-  env: Environment
+  env: Environment,
+  run: Run
 ): Record<string, unknown> | undefined {
-  if (command.type === 'candidate') return makeCandidate(state, user, command, env);
+  if (command.type === 'candidate') return makeCandidate(state, user, command, env, run);
   if (command.type === 'review') return review(state, user, command, env);
   if (command.type === 'dismiss') {
     authorize(state, user, 'manage');
@@ -116,52 +128,68 @@ export function governanceCommand(
     state.reviews.push(entry);
     return { reviewId: entry.id };
   }
-  if (command.type === 'merge') return merge(state, user, command, env);
+  if (command.type === 'merge') return merge(state, user, command, env, run);
   return undefined;
 }
-function makeCandidate(
-  state: Workspace,
-  user: Identity,
-  command: Extract<Command, { type: 'candidate' }>,
-  env: Environment
-) {
+/** 生成候选前的授权与状态校验：PR 打开且可管理、修订号一致、任务已有同步的提交。 */
+function candidateGuards(state: Workspace, user: Identity, command: Extract<Command, { type: 'candidate' }>) {
   const pr = openPr(state, command.prId);
   managePr(state, user, pr);
   expected(pr.revision, command.expectedRevision);
   const task = taskFor(state, pr.taskId);
   demand(task.head, 'empty', '任务没有已同步提交');
-  demand(
-    reachable(state, task.head, task.base) && reachable(state, state.head, task.base),
-    'ancestry',
-    '找不到可信共同起点'
-  );
-  const merged = mergeRecords(
-    task.base ? state.commits[task.base].records : {},
-    state.commits[task.head].records,
-    state.records,
-    command.resolutions
-  );
+  return { pr, task, source: task.head };
+}
+/** 已解决的必须处理线程所锚定的记录，按它们当时对应的候选归并；新候选里这些记录变化了线程才会重新打开。 */
+function reopenTargets(state: Workspace, pr: PullRequest): Reopen[] {
+  const targets = new Map<string, Reopen>();
+  for (const thread of Object.values(state.threads)) {
+    if (thread.prId !== pr.id || !thread.required || !thread.resolved || !thread.candidateId || !thread.recordId)
+      continue;
+    const candidate = state.candidates[thread.resolvedCandidateId ?? thread.candidateId];
+    if (!candidate) continue;
+    const target = targets.get(candidate.id) ?? { candidate, recordIds: [] };
+    if (!target.recordIds.includes(thread.recordId)) target.recordIds.push(thread.recordId);
+    targets.set(candidate.id, target);
+  }
+  return [...targets.values()];
+}
+function makeCandidate(
+  state: Workspace,
+  user: Identity,
+  command: Extract<Command, { type: 'candidate' }>,
+  env: Environment,
+  run: Run
+) {
+  const { pr, task, source } = candidateGuards(state, user, command);
+  const { base, source: sourceRecords, target } = mergeInputs(run.facts);
+  const merged = mergeRecords(base, sourceRecords, target, command.resolutions);
   const id = env.id();
   state.candidates[id] = {
     id,
     prId: pr.id,
     base: task.base,
-    source: task.head,
+    source,
     target: state.head,
     schemaVersion: state.schemaVersion,
     policyVersion: state.policy.version,
     resolutions: structuredClone(command.resolutions),
-    ...merged,
+    conflicts: merged.conflicts,
     checks: checkRecords(merged.records),
     actorId: user.id,
-    at: env.now
+    at: env.now,
+    // 只存最终结果相对目标版本 T 的字段级变更；整份记录在读取时由 T 加变更推导
+    changes: diffRecords(target, merged.records)
   };
   const reopenedThreads: string[] = [];
   for (const thread of Object.values(state.threads).filter(
     value => value.prId === pr.id && value.required && value.resolved && value.candidateId && value.recordId
   )) {
-    const original = state.candidates[thread.resolvedCandidateId ?? thread.candidateId!]?.records[thread.recordId!];
-    const current = merged.records[thread.recordId!];
+    const original = rowAt(
+      run.facts.previous[thread.resolvedCandidateId ?? thread.candidateId!] ?? {},
+      thread.recordId!
+    );
+    const current = rowAt(merged.records, thread.recordId!);
     const before = thread.field ? original?.fields[thread.field] : original;
     const after = thread.field ? current?.fields[thread.field] : current;
     if (canonical(before) === canonical(after)) continue;
@@ -172,6 +200,12 @@ function makeCandidate(
   pr.candidateId = id;
   pr.revision++;
   return { candidateId: id, revision: pr.revision, reopenedThreads };
+}
+/** 取出预加载的合并输入：找不到可信共同起点时拒绝；仓储没有按声明预加载说明与引擎不同步，按内部错误处理。 */
+function mergeInputs(facts: Facts): MergeInputs {
+  const inputs = preloaded(facts.inputs, 'merge inputs');
+  demand(inputs !== null, 'ancestry', '找不到可信共同起点');
+  return inputs;
 }
 function review(state: Workspace, user: Identity, command: Extract<Command, { type: 'review' }>, env: Environment) {
   const member = authorize(state, user, 'review');
@@ -230,7 +264,8 @@ function assertStage(
     '前置审批阶段尚未完成'
   );
 }
-function merge(state: Workspace, user: Identity, command: Extract<Command, { type: 'merge' }>, env: Environment) {
+/** 合并前的授权与状态校验：候选当前且检查通过、来源与目标符合预期、没有阻塞意见与未处理线程、审批阶段全部满足。 */
+function mergeGuards(state: Workspace, user: Identity, command: Extract<Command, { type: 'merge' }>) {
   authorize(state, user, 'merge');
   const pr = prFor(state, command.prId);
   demand(pr.status === 'review', 'state', 'PR 不在可合并状态');
@@ -250,33 +285,41 @@ function merge(state: Workspace, user: Identity, command: Extract<Command, { typ
     '缺少当前候选的有效批准',
     { stages }
   );
-  const result = mergeRecords(
-    candidate.base ? state.commits[candidate.base].records : {},
-    state.commits[candidate.source].records,
-    state.records,
-    candidate.resolutions
-  );
+  return { pr, candidate };
+}
+function merge(
+  state: Workspace,
+  user: Identity,
+  command: Extract<Command, { type: 'merge' }>,
+  env: Environment,
+  run: Run
+) {
+  const { pr, candidate } = mergeGuards(state, user, command);
+  const { base, source, target } = mergeInputs(run.facts);
+  // 服务端重算并核对候选：重新得到的结果与候选存储的变更应用到 T 之后必须完全一致，不能在事务里换用新的冲突值
+  const result = mergeRecords(base, source, target, candidate.resolutions);
+  const final = applyChanges(structuredClone(target), candidate.changes);
   demand(
-    !result.conflicts.length &&
-      !checkRecords(result.records).length &&
-      canonical(result.records) === canonical(candidate.records),
+    !result.conflicts.length && !checkRecords(result.records).length && canonical(result.records) === canonical(final),
     'checks',
     '候选内容与重新检查的结果不一致'
   );
   const head = env.id();
-  const changes = Object.keys({ ...state.records, ...candidate.records })
-    .filter(id => canonical(state.records[id]) !== canonical(candidate.records[id]))
-    .map(id => ({ id, before: state.records[id] ?? null, after: candidate.records[id] ?? null }));
-  state.commits[head] = {
+  const changedIds = [...new Set(candidate.changes.map(change => change.entityId))];
+  const changes = changedIds.map(id => ({ id, before: rowAt(target, id) ?? null, after: rowAt(final, id) ?? null }));
+  run.effects.commits.push({
     id: head,
     parent: state.head,
     authorId: user.id,
     message: `Merge ${pr.title}`,
     mergeSource: candidate.source,
     candidateId: candidate.id,
-    records: structuredClone(candidate.records)
+    changes: structuredClone(candidate.changes)
+  });
+  run.effects.shared = {
+    upsert: Object.fromEntries(changes.filter(change => change.after).map(change => [change.id, change.after!])),
+    remove: changes.filter(change => !change.after).map(change => change.id)
   };
-  state.records = structuredClone(candidate.records);
   state.head = head;
   pr.status = 'merged';
   pr.revision++;

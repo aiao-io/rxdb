@@ -1,5 +1,6 @@
 import { demand, type Command, type Environment, type Identity, type Thread, type Workspace } from '../model.js';
-import { authorize, expected, openPr, prFor } from './access.js';
+import { authorize, expected, openPr, prFor, taskFor } from './access.js';
+import { preloaded, type Facts, type Plan, type Run } from './plan.js';
 
 export function notify(
   state: Workspace,
@@ -24,13 +25,39 @@ export function notify(
     });
   }
 }
+/** 评论锚点与在线状态需要预加载的数据：锚定的那条记录在候选结果、来源与目标三处的取值，或记录是否存在；其余讨论命令不需要。 */
+export function discussionPlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
+  if (command.type === 'thread') {
+    threadGuards(state, user, command);
+    return command.recordId ?
+        {
+          type: 'anchor',
+          head: state.head,
+          candidate: state.candidates[command.candidateId!],
+          recordId: command.recordId
+        }
+      : undefined;
+  }
+  if (command.type !== 'presence') return undefined;
+  authorize(state, user, 'read');
+  const task = command.prId ? taskFor(state, prFor(state, command.prId).taskId) : null;
+  return command.recordId ?
+      {
+        type: 'presence',
+        head: state.head,
+        recordId: command.recordId,
+        task: task && { head: task.head, base: task.base }
+      }
+    : undefined;
+}
 export function discussionCommand(
   state: Workspace,
   user: Identity,
   command: Command,
-  env: Environment
+  env: Environment,
+  run: Run
 ): Record<string, unknown> | undefined {
-  if (command.type === 'thread') return startThread(state, user, command, env);
+  if (command.type === 'thread') return startThread(state, user, command, env, run.facts);
   if (command.type === 'reply') {
     authorize(state, user, 'comment');
     const thread = threadFor(state, command.threadId);
@@ -90,13 +117,7 @@ export function discussionCommand(
     authorize(state, user, 'read');
     if (command.prId) prFor(state, command.prId);
     demand(
-      !command.recordId ||
-        Object.hasOwn(state.records, command.recordId) ||
-        (command.prId &&
-          Object.hasOwn(
-            state.commits[state.tasks[state.prs[command.prId].taskId].head!]?.records ?? {},
-            command.recordId
-          )),
+      !command.recordId || !!run.facts.presence?.shared || (!!command.prId && !!run.facts.presence?.task),
       'not_found',
       '记录不存在'
     );
@@ -120,12 +141,8 @@ function threadFor(state: Workspace, id: string): Thread {
   demand(thread, 'not_found', '讨论不存在');
   return thread;
 }
-function startThread(
-  state: Workspace,
-  user: Identity,
-  command: Extract<Command, { type: 'thread' }>,
-  env: Environment
-) {
+/** 开始讨论前的授权与锚点校验（不含需要预加载数据才能判断的记录与字段是否属于所选版本）。 */
+function threadGuards(state: Workspace, user: Identity, command: Extract<Command, { type: 'thread' }>) {
   authorize(state, user, 'comment');
   const pr = openPr(state, command.prId);
   if (command.required)
@@ -139,7 +156,17 @@ function startThread(
   demand(!command.recordId || command.candidateId, 'invalid', '记录讨论必须绑定候选版本');
   demand(!command.field || command.recordId, 'invalid', '字段讨论必须绑定记录');
   demand(!state.threads[command.id] && command.body.trim(), 'invalid', '讨论已存在或内容为空');
-  if (command.recordId) validateAnchor(state, command);
+  return pr;
+}
+function startThread(
+  state: Workspace,
+  user: Identity,
+  command: Extract<Command, { type: 'thread' }>,
+  env: Environment,
+  facts: Facts
+) {
+  const pr = threadGuards(state, user, command);
+  if (command.recordId) validateAnchor(command, facts);
   state.threads[command.id] = {
     id: command.id,
     prId: pr.id,
@@ -155,14 +182,10 @@ function startThread(
   notify(state, user.id, pr.id, command.id, command.mentions, env);
   return { threadId: command.id };
 }
-function validateAnchor(state: Workspace, command: Extract<Command, { type: 'thread' }>): void {
-  const candidate = state.candidates[command.candidateId!];
-  const id = command.recordId!;
-  const rows = [
-    candidate.records[id],
-    state.commits[candidate.source].records[id],
-    candidate.target ? state.commits[candidate.target].records[id] : undefined
-  ];
+/** 锚定的记录必须存在于候选结果、来源或目标之一，字段锚点还要存在于其中某一份的这条记录里。 */
+function validateAnchor(command: Extract<Command, { type: 'thread' }>, facts: Facts): void {
+  const anchor = preloaded(facts.anchor, 'discussion anchor');
+  const rows = [anchor.candidate, anchor.source, anchor.target];
   demand(rows.some(Boolean), 'not_found', '记录不属于所选版本');
   demand(
     !command.field || rows.some(row => row && Object.hasOwn(row.fields, command.field!)),

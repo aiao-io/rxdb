@@ -1,13 +1,17 @@
 // 协作后端收敛的容量基准：随提交数增长，记录普通命令耗时、单次命令 WAL、工作区行大小、
-// 工作区摘要与共享数据的体积和读取耗时，以及并发读取摘要时写命令的等待。用临时 Docker PostgreSQL，与集成测试同一镜像。
+// 工作区摘要与共享数据的体积和读取耗时、提交表与变更表的规模，以及并发读取摘要时写命令的等待。
+// 提交按字段级变更协议上传（每个提交只含改动的 5 条记录，带内容指纹）。用临时 Docker PostgreSQL，与集成测试同一镜像。
 // 环境变量：BENCH_RECORDS（默认 1000）、BENCH_CHECKPOINTS（默认 10,50,100,200）、BENCH_SAMPLES（默认 7）、
 // BENCH_READERS（默认 4）、BENCH_LABEL（写进结果的实现说明）、BENCH_OUT（可选，结果 JSON 的写入路径）。
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 import pg from 'pg';
+import { diffRecords } from '../dist/server/changes.js';
+import { sealCommit, uuidv7 } from '../dist/server/commit.js';
+import { applyMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
 
 const run = promisify(execFile);
@@ -51,15 +55,25 @@ function initialRecords() {
   return records;
 }
 
-/** 现行协议：每个提交携带全量记录，只改动少量资产的价格。 */
-function nextCommit(previous, parent, index) {
-  const records = structuredClone(previous);
+/**
+ * 现行协议：每个提交只携带相对上一个提交的字段级变更（改动 5 条资产的价格）与内容指纹；
+ * 第一个提交相对空内容，新增全部初始记录；返回新记录供下一个提交比较。
+ */
+async function nextCommit(previous, parent, index) {
+  const records = index === 0 ? initialRecords() : structuredClone(previous);
   const assetIds = Object.keys(records).filter(key => key.startsWith('a'));
   for (let i = 0; i < changedPerCommit; i++) {
     const id = assetIds[(index * changedPerCommit + i) % assetIds.length];
     records[id].fields.purchasePrice = Number(records[id].fields.purchasePrice) + 1;
   }
-  return { id: randomUUID(), parent, authorId: admin.id, message: `基准提交 ${index}`, records };
+  const commit = await sealCommit({
+    id: uuidv7(),
+    parent,
+    authorId: admin.id,
+    message: `基准提交 ${index}`,
+    changes: diffRecords(previous, records)
+  });
+  return { commit, records };
 }
 
 async function startDatabase() {
@@ -95,8 +109,7 @@ async function startDatabase() {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
-  const migration = new URL('../../../supabase/migrations/202611160001_collaboration.sql', import.meta.url);
-  await pool.query(await readFile(migration, 'utf8'));
+  await applyMigrations(pool);
   return { container, pool };
 }
 
@@ -142,13 +155,27 @@ async function measureCheckpoint(context, commits, lastUploadMsPerCommit) {
     );
   }
   // 切片 B 起共享数据移出摘要，只在共享头变化时另行下载，单独记录
-  const shared = repository.readRecords ? await repository.readRecords(admin, seed.teamId, seed.appId) : null;
+  const shared = await repository.readRecords(admin, seed.teamId, seed.appId);
+  // 切片 C 起提交与字段级变更在提交表、共享记录按行物化，工作区行不再含它们；这里记录这些表的规模
+  const [store] = (
+    await pool.query(
+      `SELECT (SELECT count(*) FROM admin_private.commits WHERE team_id = $1) AS commits,
+              (SELECT count(*) FROM admin_private.commit_changes WHERE team_id = $1) AS changes,
+              (SELECT count(*) FROM public.shared_records WHERE team_id = $1) AS shared_rows,
+              pg_total_relation_size('admin_private.commits') + pg_total_relation_size('admin_private.commit_changes') AS store_bytes`,
+      [seed.teamId]
+    )
+  ).rows;
   return {
     commits,
     stateTextBytes: Number(stateRow.text),
     stateStoredBytes: Number(stateRow.stored),
     snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
-    sharedRecordsBytes: shared ? Buffer.byteLength(JSON.stringify(shared)) : null,
+    sharedRecordsBytes: Buffer.byteLength(JSON.stringify(shared)),
+    commitRows: Number(store.commits),
+    commitChangeRows: Number(store.changes),
+    sharedRows: Number(store.shared_rows),
+    commitStoreBytes: Number(store.store_bytes),
     snapshotMs: Math.round(median(snapshotMs)),
     commandMs: Math.round(median(commandMs)),
     commandWalBytes: median(commandWal),
@@ -185,7 +212,7 @@ async function main() {
       seed.appId,
       command({ type: 'task', id: taskId, name: '基准任务', expectedHead: null })
     );
-    let records = initialRecords();
+    let records = {};
     let head = null;
     let committed = 0;
     let lastUploadMsPerCommit = 0;
@@ -196,10 +223,10 @@ async function main() {
         const size = Math.min(batchSize, target - committed);
         let parent = head;
         for (let i = 0; i < size; i++) {
-          const next = nextCommit(records, parent, committed + i);
-          batch.push(next);
+          const next = await nextCommit(records, parent, committed + i);
+          batch.push(next.commit);
           records = next.records;
-          parent = next.id;
+          parent = next.commit.id;
         }
         const upload = command({ type: 'upload', taskId, expectedHead: head, commits: batch });
         const ms = await timed(() => repository.operation(admin, seed.teamId, seed.appId, upload));

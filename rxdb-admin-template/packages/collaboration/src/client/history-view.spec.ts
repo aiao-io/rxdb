@@ -1,6 +1,6 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CollaborationError, type Audit, type Commit, type Records } from '../model.js';
+import { CollaborationError, type Audit, type CommitContent, type Records } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import type { Disclosures } from './disclosure.js';
 import type { Perform } from './elements.js';
@@ -8,14 +8,14 @@ import { FormDrafts } from './form-drafts.js';
 import { historyView } from './history-view.js';
 
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
-const commit = (id: string, parent: string | null): Commit => ({
+const commit = (id: string, parent: string | null): CommitContent => ({
   id,
   parent,
   authorId: 'u1',
   message: `Message ${id}`,
   records: records(`Name ${id}`)
 });
-const metadata = ({ id, parent, authorId, message }: Commit) => ({ id, parent, authorId, message });
+const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
 const event = (id: number): Audit => ({
   id: `e${id}`,
   actorId: 'u1',
@@ -38,7 +38,7 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
   const calls: string[] = [];
   const failures: unknown[] = [];
   const requested: string[] = [];
-  const store = { commits: {} as Record<string, Commit>, failure: undefined as unknown };
+  const store = { commits: {} as Record<string, CommitContent>, failure: undefined as unknown };
   const open = new Set<string>();
   const reveal = vi.fn();
   const controller = {

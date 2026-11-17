@@ -1,5 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { diffRecords } from '../src/changes.js';
+import { sealCommit } from '../src/commit.js';
+import type { Records } from '../src/model.js';
 import type { WorkspaceSnapshot } from '../src/server/engine.js';
 interface Account {
   id: string;
@@ -565,27 +568,28 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
   const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  const prepare = async (id: string, head: string | null) => {
+  /** 以 `current`（共享头 `head` 时的记录）为起点，提交一份把分类改名为 `id` 的字段级变更，并带上内容指纹。 */
+  const prepare = async (id: string, head: string | null, current: Records) => {
     await act(page, fixture, { type: 'task', id, name: id, expectedHead: head });
     await act(page, fixture, {
       type: 'upload',
       taskId: id,
       expectedHead: head,
       commits: [
-        {
+        await sealCommit({
           id: `commit-${id}`,
           parent: head,
           authorId: fixture.admin.id,
           message: id,
-          records: { category: { entity: 'AssetCategory', fields: { name: id } } }
-        }
+          changes: diffRecords(current, { category: { entity: 'AssetCategory', fields: { name: id } } })
+        })
       ]
     });
     await act(page, fixture, { type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
     await act(page, fixture, { type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
     return act(page, fixture, { type: 'candidate', prId: id, expectedRevision: 1, resolutions: [] });
   };
-  const candidate = await prepare('permission', null);
+  const candidate = await prepare('permission', null, {});
   await act(page, fixture, {
     type: 'thread',
     id: 'thread',
@@ -730,7 +734,9 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     ]
   });
   const before = await state(page, fixture);
-  const parallel = await prepare('parallel', before.head);
+  const parallel = await prepare('parallel', before.head, {
+    category: { entity: 'AssetCategory', fields: { name: 'permission' } }
+  });
   await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await other.getByRole('button', { name: 'parallel · review', exact: true }).click();
   await expect(other.getByLabel('审批阶段', { exact: true }).locator('option')).toHaveText(['两人会签']);

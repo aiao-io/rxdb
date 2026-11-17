@@ -5,7 +5,7 @@ import {
   type AuditQuery,
   type Candidate,
   type Command,
-  type Commit,
+  type CommitContent,
   type SharedRecords,
   type WorkspaceSummary
 } from '../model.js';
@@ -44,7 +44,7 @@ export class CollaborationApi {
   }
   /** 读取一个提交的完整内容；提交不可变，可按 ID 长期缓存。 */
   async commit(context: WorkspaceEntry, id: string) {
-    return this.request<Commit>(`${this.path(context)}/commits/${encodeURIComponent(id)}`);
+    return this.request<CommitContent>(`${this.path(context)}/commits/${encodeURIComponent(id)}`);
   }
   /** 读取一个合并候选的完整内容；候选不可变，可按 ID 长期缓存。 */
   async candidate(context: WorkspaceEntry, id: string) {

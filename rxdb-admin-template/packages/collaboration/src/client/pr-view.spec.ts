@@ -1,18 +1,18 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Audit, Candidate, Commit, Records, Thread } from '../model.js';
+import type { Audit, Candidate, CommitContent, Records, Thread } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import type { Perform } from './elements.js';
 import { PullRequestView } from './pr-view.js';
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
-const commit = (id: string, parent: string | null, name: string): Commit => ({
+const commit = (id: string, parent: string | null, name: string): CommitContent => ({
   id,
   parent,
   authorId: 'u1',
   message: id,
   records: records(name)
 });
-const metadata = ({ id, parent, authorId, message }: Commit) => ({ id, parent, authorId, message });
+const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 beforeEach(() => {
   const window = new Window();
@@ -61,7 +61,7 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
   const run = vi.fn().mockResolvedValue({});
   const requested: string[] = [];
   const store = {
-    commits: {} as Record<string, Commit>,
+    commits: {} as Record<string, CommitContent>,
     candidates: {} as Record<string, Candidate>,
     shared: undefined as Records | undefined,
     threads: {} as Record<string, Audit[]>

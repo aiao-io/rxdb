@@ -1,6 +1,7 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CollaborationError, type Audit, type Commit, type Records, type WorkspaceSummary } from '../model.js';
+import { commitFingerprint } from '../commit.js';
+import { CollaborationError, type Audit, type CommitContent, type Records, type WorkspaceSummary } from '../model.js';
 import { bootstrap, snapshot } from '../server/engine.js';
 import { CollaborationController } from './controller.js';
 import type { Draft, DraftStorage } from './local.js';
@@ -49,7 +50,7 @@ async function setup() {
   state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: null, head: null, originTaskId: null };
   controller.user = user;
   controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
-  controller.snapshot = snapshot(state, user, 1);
+  controller.snapshot = snapshot(state, user, 1, {});
   await controller.local.login('alice');
   controller.draft = await controller.local.openVerified(
     { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
@@ -352,6 +353,48 @@ describe('client concurrency and recovery', () => {
     expect(controller.draft!.records.c.fields['name']).toBe('Newer');
     expect(controller.draft!.committed.c.fields['name']).toBe('Original');
   });
+  it('uploads the queued commit as field-level changes with its fingerprint and resends the very same commit on retry', async () => {
+    const { controller } = await setup();
+    await controller.save({
+      c: { entity: 'AssetCategory', fields: { name: 'Computers', description: null } },
+      d: { entity: 'AssetCategory', fields: { name: 'Desks' } }
+    });
+    const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
+    await expect(controller.sync(false)).rejects.toThrow('network');
+    const first = send.mock.calls[0][1];
+    if (first.type !== 'upload') throw new Error('expected an upload');
+    expect(first).toMatchObject({ taskId: 'task', expectedHead: null });
+    expect(first.commits).toHaveLength(1);
+    const [commit] = first.commits;
+    expect(commit.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(commit).toMatchObject({ parent: null, authorId: 'alice' });
+    expect(commit).not.toHaveProperty('records');
+    expect(commit.changes).toEqual([
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'c',
+        operation: 'insert',
+        patch: { name: 'Computers', description: null },
+        inversePatch: null
+      },
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'd',
+        operation: 'insert',
+        patch: { name: 'Desks' },
+        inversePatch: null
+      }
+    ]);
+    expect(commit.fingerprint).toBe(await commitFingerprint(commit));
+    send.mockResolvedValueOnce({ head: commit.id });
+    await controller.sync(false);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][1]).toEqual(first);
+    expect(controller.draft?.queue).toEqual([]);
+    expect(controller.draft?.remoteHead).toBe(commit.id);
+  });
   it('queues offline commits without attempting a cloud request', async () => {
     const { controller } = await setup();
     await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Offline' } } });
@@ -409,6 +452,18 @@ describe('client concurrency and recovery', () => {
     expect(pending.command.type).toBe('fork');
     if (pending.command.type !== 'fork') throw new Error('expected fork');
     const command = pending.command;
+    expect(command.commits).toHaveLength(1);
+    expect(command.commits[0].changes).toEqual([
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'c',
+        operation: 'insert',
+        patch: { name: 'Preserved' },
+        inversePatch: null
+      }
+    ]);
+    expect(command.commits[0].fingerprint).toBe(await commitFingerprint(command.commits[0]));
     const head = command.commits.at(-1)!.id;
     controller.snapshot!.tasks.push({
       id: command.id,
@@ -429,7 +484,13 @@ describe('client concurrency and recovery', () => {
     vi.spyOn(controller.api, 'commit').mockImplementation(async (_workspace, id) => {
       const commit = command.commits.find(item => item.id === id);
       if (!commit) throw new CollaborationError('not_found', '提交不存在');
-      return commit;
+      return {
+        id: commit.id,
+        parent: commit.parent,
+        authorId: commit.authorId,
+        message: commit.message,
+        records: records('Preserved')
+      };
     });
     vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
@@ -458,14 +519,14 @@ describe('client concurrency and recovery', () => {
 });
 
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
-const commitOf = (id: string, parent: string | null, name: string): Commit => ({
+const commitOf = (id: string, parent: string | null, name: string): CommitContent => ({
   id,
   parent,
   authorId: 'alice',
   message: id,
   records: records(name)
 });
-const metadata = ({ id, parent, authorId, message }: Commit) => ({ id, parent, authorId, message });
+const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
 /** 在当前摘要上叠加改动并让 api.snapshot 返回它（修订号加一），模拟别人推进了工作区。 */
 function publish(controller: CollaborationController, change: (summary: WorkspaceSummary) => void) {
   const next = structuredClone(controller.snapshot!);
@@ -500,7 +561,7 @@ describe('on-demand content', () => {
   });
   it('shares one request between background reads and awaited loads of the same id, but not across ids', async () => {
     const { controller } = await setup();
-    const reply = Promise.withResolvers<Commit>();
+    const reply = Promise.withResolvers<CommitContent>();
     const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
     const candidate = vi.spyOn(controller.api, 'candidate');
     controller.commitContent('c1');
@@ -637,7 +698,7 @@ describe('on-demand content', () => {
   });
   it('discards content that arrives after switching team and starts over in the new one', async () => {
     const { controller } = await setup();
-    const late = Promise.withResolvers<Commit>();
+    const late = Promise.withResolvers<CommitContent>();
     const request = vi
       .spyOn(controller.api, 'commit')
       .mockReturnValueOnce(late.promise)
@@ -666,7 +727,7 @@ describe('operations that need content', () => {
   it('loads the head commit before opening a task and opens the draft from its records', async () => {
     const { controller } = await setup();
     withSharedCommit(controller);
-    const reply = Promise.withResolvers<Commit>();
+    const reply = Promise.withResolvers<CommitContent>();
     const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
     const opening = controller.openTask('task2');
     await vi.waitFor(() => expect(request).toHaveBeenCalledWith(controller.workspace, 'c1'));

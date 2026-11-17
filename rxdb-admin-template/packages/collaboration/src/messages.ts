@@ -69,7 +69,6 @@ export const collaborationEnglish: Record<string, string> = {
   接口不存在: 'Endpoint not found',
   提交图不能包含环: 'The commit graph cannot contain cycles',
   提交父链不连续: 'The commit parent chain is not continuous',
-  提交起点不属于该任务: 'The commit ancestor does not belong to this task',
   撤销阻塞意见必须填写理由: 'Provide a reason to dismiss a blocking review',
   操作不受支持: 'Unsupported operation',
   操作失败: 'Operation failed',

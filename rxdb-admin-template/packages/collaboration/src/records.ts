@@ -25,6 +25,9 @@ export function canonical(value: unknown): string {
     .join(',')}}`;
 }
 const same = (a: unknown, b: unknown) => canonical(a) === canonical(b);
+/** 取记录自己的一行：记录标识不是自有属性（例如 `toString`）时返回 undefined，不会取到原型上的成员。 */
+export const rowAt = (records: Records, id: string): DataRow | undefined =>
+  Object.hasOwn(records, id) ? records[id] : undefined;
 const safeKey = (key: string) =>
   /^[A-Za-z0-9_-]{1,128}$/.test(key) && !['__proto__', 'constructor', 'prototype'].includes(key);
 const entityFields = {
@@ -78,12 +81,20 @@ function assertChange(value: unknown): asserts value is ChangeSet {
   const keys = Object.keys(change);
   demand(keys.length === changeKeys.length && changeKeys.every(key => keys.includes(key)), 'invalid', '变更格式错误');
   demand(change['namespace'] === assetNamespace, 'invalid', '实体不受支持');
-  demand(typeof change['entity'] === 'string' && Object.hasOwn(entityFields, change['entity']), 'invalid', '实体不受支持');
+  demand(
+    typeof change['entity'] === 'string' && Object.hasOwn(entityFields, change['entity']),
+    'invalid',
+    '实体不受支持'
+  );
   demand(typeof change['entityId'] === 'string' && safeKey(change['entityId']), 'invalid', '记录标识格式错误');
   const operation = change['operation'];
   demand(typeof operation === 'string' && Object.hasOwn(changeShapes, operation), 'invalid', '变更格式错误');
   const [patch, inversePatch] = changeShapes[operation as ChangeSet['operation']];
-  demand((change['patch'] !== null) === patch && (change['inversePatch'] !== null) === inversePatch, 'invalid', '变更格式错误');
+  demand(
+    (change['patch'] !== null) === patch && (change['inversePatch'] !== null) === inversePatch,
+    'invalid',
+    '变更格式错误'
+  );
   for (const fields of [change['patch'], change['inversePatch']])
     if (fields !== null) assertFields(change['entity'] as DataRow['entity'], fields);
 }
@@ -133,13 +144,23 @@ function checkValue(field: string, value: Value, add: (field: string, message: s
     add(field, '日期无效');
 }
 
-/** 按字段进行三方比较，保留删除与缺失的区别。 */
+/** 按记录标识排序重建记录表：读取接口的返回顺序因此只取决于内容，不取决于存储或推导时的插入顺序。 */
+export function sortRecords(records: Records): Records {
+  const sorted: Records = {};
+  for (const id of Object.keys(records).sort()) sorted[id] = records[id];
+  return sorted;
+}
+
+/**
+ * 按字段进行三方比较，保留删除与缺失的区别。记录与字段都按标识顺序比较，
+ * 因此结果与冲突列表的顺序只取决于三方内容，不取决于各方记录表的键顺序。
+ */
 export function mergeRecords(base: Records, source: Records, target: Records, resolutions: Resolution[]) {
   const result: Records = {};
   const conflicts: Conflict[] = [];
   const used = new Set<string>();
   demand(new Set(resolutions.map(r => r.key)).size === resolutions.length, 'invalid', '冲突选择重复');
-  for (const id of new Set([...Object.keys(base), ...Object.keys(source), ...Object.keys(target)])) {
+  for (const id of [...new Set([...Object.keys(base), ...Object.keys(source), ...Object.keys(target)])].sort()) {
     const row = mergeRow(id, base[id], source[id], target[id], resolutions, conflicts, used);
     if (row) result[id] = structuredClone(row);
   }
@@ -171,11 +192,9 @@ function mergeRow(
     ) as DataRow | undefined;
   }
   const fields: Record<string, Value> = {};
-  for (const field of new Set([
-    ...Object.keys(base.fields),
-    ...Object.keys(source.fields),
-    ...Object.keys(target.fields)
-  ])) {
+  for (const field of [
+    ...new Set([...Object.keys(base.fields), ...Object.keys(source.fields), ...Object.keys(target.fields)])
+  ].sort()) {
     const value = mergeField(
       id,
       field,

@@ -65,11 +65,14 @@ function findProblems(file: string, source: string, catalog: Record<string, stri
   return problems;
 }
 
-/** 扫描 src 下所有非测试源文件；英文目录本身与类型声明不在其内。 */
+/** 扫描 src 下所有非测试源文件（`*.spec.ts` 与测试支撑文件 `*.testing.ts` 都不是界面源码）；英文目录本身与类型声明不在其内。 */
 function scanSources(catalog: Record<string, string>): string[] {
   return readdirSync(sourceRoot, { recursive: true, encoding: 'utf8' })
     .map(path => path.replaceAll('\\', '/'))
-    .filter(path => path.endsWith('.ts') && !path.endsWith('.d.ts') && !path.endsWith('.spec.ts'))
+    .filter(
+      path =>
+        path.endsWith('.ts') && !path.endsWith('.d.ts') && !path.endsWith('.spec.ts') && !path.endsWith('.testing.ts')
+    )
     .filter(path => path !== 'messages.ts')
     .sort()
     .flatMap(path => findProblems(path, readFileSync(`${sourceRoot}${path}`, 'utf8'), catalog));

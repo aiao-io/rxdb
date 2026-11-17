@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { diffRecords } from './changes.js';
+import { sealCommit } from './commit.js';
 import type { Records } from './model.js';
-import { assertRecords, checkRecords, mergeRecords } from './records.js';
+import { assertRecords, canonical, checkRecords, mergeRecords, sortRecords } from './records.js';
 import { parseCommand } from './server/input.js';
 const base: Records = { c: { entity: 'AssetCategory', fields: { name: 'Category', description: 'Old' } } };
 const describeChecks = (records: Records) =>
@@ -113,6 +115,48 @@ describe('three-way data contract', () => {
       'event.assetId: 关联记录不存在'
     ]);
   });
+  it('orders conflicts and merged rows by record and field id, whatever the key order of the three sides', () => {
+    const row = (name: string, description: string) => ({
+      entity: 'AssetCategory' as const,
+      fields: { name, description }
+    });
+    const ids = ['m', 'b', 'z', 'a'];
+    const side = (name: string, description: string, order: string[]): Records =>
+      Object.fromEntries(order.map(id => [id, row(`${name}-${id}`, description)]));
+    const merge = (order: string[]) =>
+      mergeRecords(side('x', 'old', order), side('y', 'new', order), side('z', 'other', [...order].reverse()), []);
+    const forward = merge(ids);
+    const backward = merge([...ids].reverse());
+    expect(forward.conflicts.map(conflict => conflict.key)).toEqual(
+      ['a', 'b', 'm', 'z'].flatMap(id => [`${id}/description`, `${id}/name`])
+    );
+    expect(canonical(backward.conflicts)).toBe(canonical(forward.conflicts));
+    expect(Object.keys(forward.records)).toEqual(['a', 'b', 'm', 'z']);
+    expect(Object.keys(sortRecords({ b: row('B', ''), a: row('A', '') }))).toEqual(['a', 'b']);
+  });
+  it('accepts an upload of field-level changes with a SHA-256 fingerprint and rejects anything else', async () => {
+    const commit = await sealCommit({
+      id: 'c',
+      parent: null,
+      authorId: 'user',
+      message: 'Message',
+      changes: diffRecords({}, { c: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
+    });
+    const upload = (value: unknown) =>
+      parseCommand({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: null, commits: [value] });
+    expect(upload(commit).type).toBe('upload');
+    for (const invalid of [
+      { ...commit, fingerprint: 'abc' },
+      { ...commit, fingerprint: commit.fingerprint.toUpperCase() },
+      { ...commit, fingerprint: undefined },
+      { ...commit, changes: undefined },
+      { ...commit, changes: [{ ...commit.changes[0], patch: { name: {} } }] },
+      { ...commit, changes: [{ ...commit.changes[0], operation: 'upsert' }] },
+      { ...commit, records: { c: { entity: 'AssetCategory', fields: { name: 'Laptops' } } } },
+      { ...commit, mergeSource: 'source', candidateId: 'candidate' }
+    ])
+      expect(() => upload(invalid), JSON.stringify(invalid)).toThrow();
+  });
   it('strictly rejects untrusted command shapes, forged subjects and prototype keys', () => {
     expect(() =>
       parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: null, userId: 'admin' })
@@ -132,7 +176,17 @@ describe('three-way data contract', () => {
             parent: null,
             authorId: 'user',
             message: 'Message',
-            records: { c: { entity: 'AssetCategory', fields: { name: {} } } }
+            fingerprint: 'f'.repeat(64),
+            changes: [
+              {
+                namespace: 'assets',
+                entity: 'AssetCategory',
+                entityId: 'c',
+                operation: 'insert',
+                patch: { name: {} },
+                inversePatch: null
+              }
+            ]
           }
         ]
       })

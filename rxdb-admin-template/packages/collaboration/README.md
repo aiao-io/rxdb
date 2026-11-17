@@ -18,7 +18,7 @@
 
 邮箱登录需要在 Supabase 配置邮件发送服务，并将 passwordless 邮件模板配置为显示 `{{ .Token }}` 验证码。允许创建认证账号不等于授予团队成员关系；新用户必须接受匹配其已验证邮箱的邀请。邀请链接把团队、应用、邀请标识与一次性令牌放在 URL fragment（`#join=…`）里，浏览器不会把它发给服务器，也不会写进代理日志或 Referer；服务端只保存令牌摘要，审计详情不含受邀邮箱。
 
-先应用迁移：
+先应用迁移（按文件名顺序执行 `supabase/migrations/` 下的全部文件，每个文件幂等，可重复执行）：
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:migrate
@@ -35,17 +35,40 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 ## 状态与事务
 
-本地数据库名和索引均包含用户、团队、应用、任务。编辑器输入先保存到任务工作树；点击同步时，工作树快照、不可变提交与 outbox 在同一 IndexedDB 事务里写入。上传期间的后续保存留在下一份工作树中。任务同步保留提交 ID、父链与作者，不把通用实体推拉当成提交图复制。
+本地数据库名和索引均包含用户、团队、应用、任务。编辑器输入先保存到任务工作树；点击同步时，不可变提交与 outbox 在同一 IndexedDB 事务里写入。提交只含「上次提交的内容」到「当前已保存内容」之间逐字段的差异（`ChangeSet`，见下），带 UUIDv7 提交 ID 与内容指纹；上传期间的后续保存留在下一份工作树中。任务同步保留提交 ID、父链与作者，不把通用实体推拉当成提交图复制，失败与超时重试复用同一个提交 ID 与内容。
 
 服务端按团队/应用锁定状态行，先校验当前身份与权限，再执行命令。提交、候选、审批、阻塞讨论、成员与策略变更共享这一裁决顺序。只有 `merge` 能更新共享业务数据；共享头、数据、逐记录变更日志、PR、合并提交、候选关联、策略快照和审计在同一个 PostgreSQL 事务中落地。所有普通客户端角色都只能按 RLS 读取公开投影，不能直接写入。
 
 每次业务命令有稳定幂等键。上传 outbox 持久化原请求；其他尚未确认的请求保留在当前用户的会话存储中，并提供回执查询与原请求重试入口。分叉恢复通过另存为新任务完成，原任务与 PR 的远端头不被覆盖。同一页面上下文中的云端变更顺序执行，避免 Realtime 更新先于请求确认时阻挡下一操作；账号或团队切换会取消尚未发送的旧上下文操作。
 
-候选包含 B/S/T、冲突选择、最终记录、规则版本和检查。审批只绑定检查通过的当前候选；撤销审核权后再授权不会复活旧批准。未解除的要求修改与必须处理线程不会被新候选或免审批策略清除。多阶段审批支持人数、阶段审核人和前置阶段。候选尚未生成时，审核者也可对当前来源提交提出要求修改；批准始终要求当前候选及其完整检查通过。
+候选包含 B/S/T 的版本、冲突选择、冲突、规则版本和检查，最终结果以相对目标版本 T 的字段级变更保存（`GET .../candidates/:id` 由 T 加变更推导出整份记录）。审批只绑定检查通过的当前候选；撤销审核权后再授权不会复活旧批准。未解除的要求修改与必须处理线程不会被新候选或免审批策略清除。多阶段审批支持人数、阶段审核人和前置阶段。候选尚未生成时，审核者也可对当前来源提交提出要求修改；批准始终要求当前候选及其完整检查通过。
 
 浏览器会话沿用 supabase-js 的默认持久化，写入 `localStorage` 的 `admin-collaboration-auth:<Supabase 地址>` 键，离线冷启动恢复依赖这份缓存。同源页面上的任何脚本注入都能读到其中的 access token 与 refresh token：协作 UI 只用文本节点渲染用户内容，模板使用方新增页面或引入第三方脚本时须保持同等约束并配置 CSP；若改用内存或 `sessionStorage` 存储会话，需要重新验证冷启动离线恢复（ADMIN-US-201 AC#5）。
 
 协作页面的 Service Worker 只缓存静态页面和脚本等资源，不缓存认证或产品 API。它以 `/collaboration` 为 scope 注册，不接管应用其余页面，也不与宿主应用在 `/` 注册的 Service Worker 互相顶替；挂载时把当前已加载的资源清单交给它缓存。从其他路由经前端路由进入协作页时，页面本身不受它控制，挂载之后才懒加载的资源要等下次直接打开 `/collaboration` 才会进入缓存。冷启动离线仍须有未过期的验证记录，且只能打开原用户已缓存且未锁定的任务。主动退出立即锁定本机上下文；远端撤权在在线重新验证时生效。Presence 每 15 秒更新，45 秒过期，不授予操作权限。`admin_workspace_versions` 表通过 Supabase Realtime 发送版本失效通知，接收后重新调用受服务端授权的 API；切换团队、离线任务或退出时撤销旧频道。正式部署须让协作 API 的 `ADMIN_DATABASE_URL` 指向该 Supabase 项目的 PostgreSQL，并启用迁移中的 publication。
+
+## 提交协议与存储
+
+提交是字段级变更的列表，形状对齐平台 working-tree 的 `CommitChangeSet`：`{ namespace, entity, entityId, operation, patch, inversePatch }`。`insert` 的 `patch` 是整行字段、`inversePatch` 为 null；`update` 的 `patch` 只含变更字段的新值、`inversePatch` 含这些字段的旧值（只在 `patch` 里出现的字段是新增字段，只在 `inversePatch` 里出现的是被移除的字段）；`delete` 的 `patch` 为 null、`inversePatch` 是整行。`namespace` 目前固定为 `assets`。
+
+提交 ID 使用 UUIDv7。客户端对规范化（键排序）的 `parent`、`authorId`、`message`、`changes` 用 `crypto.subtle` 计算 SHA-256 指纹随提交上传，服务端重新计算，不一致以 `invalid` 拒绝整批；同一个提交 ID 重传时指纹一致则幂等（已有祖先不重复写入、不能改写作者），不一致或不属于该任务则拒绝。上传的提交不能带合并关联，合并提交由服务端在合并时生成并补算指纹。
+
+存储（迁移 `202611170001_commit_store.sql`）：
+
+| 表                             | 内容                                                                                           | 写入方式     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- | ------------ |
+| `admin_private.workspaces`     | 成员、任务、PR、候选（含相对 T 的变更）、审核、讨论、回执、审计与共享头 `head`；不含提交与记录 | 命令事务     |
+| `admin_private.commits`        | 提交元数据：父指针（带索引）、作者、说明、合并关联、内容指纹，按追加顺序编号                   | 只追加       |
+| `admin_private.commit_changes` | 按提交与序号存放的字段级变更                                                                   | 只追加       |
+| `public.shared_records`        | 共享头的记录，每条记录一行；可读成员经 RLS 只读，客户端角色没有任何写权限                      | 只经合并事务 |
+| `public.admin_shared`          | 只保留共享头                                                                                   | 合并事务     |
+
+引擎仍是纯函数，不碰存储：仓储先让引擎做授权与状态校验并声明所需数据（`plan`），按声明预加载（`content.ts`），再把数据交给引擎裁决，最后把返回的新提交与共享记录改动写回，全部在同一个事务里。内容由变更推导，成本只与所问内容有关：
+
+- 上传：只按命令里的提交 ID 查一次已存在的提交（指纹相等与归属校验），新 ID 不可能成环，不再沿祖先链回溯；另存分叉再读一次原任务头到共同起点的路径。
+- 共享头 T 取自 `shared_records`；合并基 B 由 T 反向应用共享分支上 B 之后各合并提交的 `inversePatch` 得到；任务头 S 由 B 加任务分支在 B 之后的变更得到；任意提交的内容同理（`GET .../commits/:id`）。
+- 候选与合并沿用 `mergeRecords` / `checkRecords`，候选时加载完整的 T，成本与记录数相关、与提交数无关；合并把候选的变更应用到共享头，生成以 T 为父的合并提交，同一事务里更新 `shared_records` 与 `admin_shared.head`，`admin_changes` 投影照旧。
+- 返回的记录表按记录标识排序，冲突按记录与字段标识排序，结果只取决于内容。
 
 ## 读取接口
 
@@ -55,8 +78,8 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | `GET /workspaces/:teamId/:appId`                       | 工作区摘要，见下                                                                     |
 | `GET /workspaces/:teamId/:appId/records`               | `{ head, records }`：共享分支当前的全部记录，`head` 与摘要的 `head` 一致才与摘要匹配 |
-| `GET /workspaces/:teamId/:appId/commits/:id`           | 含 `records` 的提交；未知 ID 返回 `not_found`                                        |
-| `GET /workspaces/:teamId/:appId/candidates/:id`        | 含 `records` 的合并候选；未知 ID 返回 `not_found`                                    |
+| `GET /workspaces/:teamId/:appId/commits/:id`           | 含 `records` 的提交（由字段级变更推导）；未知 ID 返回 `not_found`                    |
+| `GET /workspaces/:teamId/:appId/candidates/:id`        | 含 `records` 的合并候选（由 T 加存储的变更推导）；未知 ID 返回 `not_found`           |
 | `GET /workspaces/:teamId/:appId/audit`                 | `{ events, nextBefore }`：审计事件按时间从新到旧分页，参数见下                       |
 | `GET /workspaces/:teamId/:appId/receipts/:operationId` | 幂等回执：`{ status: 'accepted', value }` 或 `{ status: 'unknown' }`，只能读自己的   |
 

@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { applyChanges } from '../changes.js';
+import { assertFingerprints, commitFingerprint } from '../commit.js';
 import type { Records } from '../model.js';
+import { parseCommand } from '../server/input.js';
 import { LocalTasks, contextKey, type Context, type Draft, type DraftStorage } from './local.js';
 class MemoryStorage implements DraftStorage {
   rows = new Map<string, Draft>();
   fail = false;
+  /** 读取完成后、把结果交给调用方之前执行一次：模拟别的页面在此期间改了草稿。 */
+  afterRead?: () => Promise<void>;
   async read(key: string) {
-    return structuredClone(this.rows.get(key));
+    const draft = structuredClone(this.rows.get(key));
+    const hook = this.afterRead;
+    this.afterRead = undefined;
+    await hook?.();
+    return draft;
   }
   async write(key: string, change: (current: Draft | undefined) => Draft) {
     const next = change(await this.read(key));
@@ -45,6 +54,103 @@ describe('local context and commit boundaries', () => {
     const committed = await tasks.capture(context, 'update', false);
     expect(committed.queue).toHaveLength(1);
     expect((await tasks.capture(context, 'retry', false)).queue).toEqual(committed.queue);
+  });
+  it('captures only the field-level difference to the last commit, with a fingerprint over parent, author, message and changes', async () => {
+    const { tasks } = await setup();
+    const saved = await tasks.save(
+      context,
+      {
+        row: { entity: 'AssetCategory', fields: { name: 'Computers', description: 'Old' } },
+        kept: { entity: 'AssetCategory', fields: { name: 'Kept' } }
+      },
+      0
+    );
+    const first = (await tasks.capture(context, 'first', false)).queue[0].commits[0];
+    expect(first).toMatchObject({ parent: null, authorId: 'alice', message: 'first' });
+    expect(first.changes.map(change => [change.entityId, change.operation])).toEqual([
+      ['kept', 'insert'],
+      ['row', 'insert']
+    ]);
+    expect(first.fingerprint).toBe(await commitFingerprint(first));
+
+    const edited: Records = {
+      row: { entity: 'AssetCategory', fields: { name: 'Computers', description: 'New' } },
+      added: { entity: 'AssetCategory', fields: { name: 'Added' } }
+    };
+    await tasks.save(context, edited, saved.revision + 1);
+    const second = (await tasks.capture(context, 'second', false)).queue[1].commits[0];
+    expect(second.parent).toBe(first.id);
+    expect(second.changes).toEqual([
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'added',
+        operation: 'insert',
+        patch: { name: 'Added' },
+        inversePatch: null
+      },
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'kept',
+        operation: 'delete',
+        patch: null,
+        inversePatch: { name: 'Kept' }
+      },
+      {
+        namespace: 'assets',
+        entity: 'AssetCategory',
+        entityId: 'row',
+        operation: 'update',
+        patch: { description: 'New' },
+        inversePatch: { description: 'Old' }
+      }
+    ]);
+    expect(second.fingerprint).toBe(await commitFingerprint(second));
+    expect(second.fingerprint).not.toBe(first.fingerprint);
+    // 两个提交依次应用，恰好得到当前已保存的内容
+    expect(applyChanges(applyChanges({}, first.changes), second.changes)).toEqual(edited);
+  });
+  it('produces commits that pass the server input validation and fingerprint check as they are', async () => {
+    const { tasks } = await setup();
+    await tasks.save(context, records, 0);
+    const { queue } = await tasks.capture(context, 'update', false);
+    const sent = JSON.parse(JSON.stringify({ type: 'upload', taskId: 'task', ...queue[0] })) as Record<string, unknown>;
+    const command = parseCommand(sent);
+    expect(command.type).toBe('upload');
+    if (command.type !== 'upload') throw new Error('expected an upload');
+    await expect(assertFingerprints(command.commits)).resolves.toBeUndefined();
+  });
+  it('gives every commit a fresh UUIDv7 id and keeps the same id and content while it waits for upload', async () => {
+    const { tasks } = await setup();
+    await tasks.save(context, records, 0);
+    const captured = await tasks.capture(context, 'first', false);
+    const commit = captured.queue[0].commits[0];
+    expect(commit.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    const retried = await tasks.capture(context, 'retry', false);
+    expect(retried.queue[0].commits[0]).toEqual(commit);
+    expect(retried.queue[0].operationId).toBe(captured.queue[0].operationId);
+    await tasks.save(
+      context,
+      { ...records, extra: { entity: 'AssetCategory', fields: { name: 'Extra' } } },
+      retried.revision
+    );
+    const next = (await tasks.capture(context, 'next', false)).queue[1].commits[0];
+    expect(next.id).not.toBe(commit.id);
+    expect(next.parent).toBe(commit.id);
+  });
+  it('does not commit over edits saved by another page while the commit was being prepared', async () => {
+    const { tasks, storage } = await setup();
+    const saved = await tasks.save(context, records, 0);
+    const newer: Records = { row: { entity: 'AssetCategory', fields: { name: 'Edited elsewhere' } } };
+    storage.afterRead = async () => {
+      await tasks.save(context, newer, saved.revision);
+    };
+    await expect(tasks.capture(context, 'update', false)).rejects.toThrow(/其他页面/);
+    const draft = await tasks.read(context);
+    expect(draft?.records).toEqual(newer);
+    expect(draft?.queue).toEqual([]);
+    expect(draft?.localHead).toBeNull();
   });
   it('refuses to silently exclude unsaved inputs and never creates empty commits', async () => {
     const { tasks } = await setup();
