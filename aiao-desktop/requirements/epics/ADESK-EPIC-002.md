@@ -24,6 +24,14 @@ owner: jimmy
 - [ ] 读屏与纯键盘路径可用，无障碍树断言进冒烟（[ADESK-US-108](../stories/desktop/ADESK-US-108-accessibility.md)）。
 
 - [x] 真实运行状态与受控游戏隐藏暂停（US-112），本地壁纸与天气地图失败恢复（US-113）完成本地正式构建自动验收。
+- [x] Calendar 本地事件编辑、失败保护、并发冲突与副本恢复完成本地正式构建自动验收（[ADESK-US-119](../stories/desktop/ADESK-US-119-calendar-drafts.md)）。
+- [x] Contacts 搜索、联系人创建/编辑/删除、失败保留和冲突保护完成本地正式构建自动验收（[ADESK-US-120](../stories/desktop/ADESK-US-120-contacts-workflow.md)）。
+- [x] Reminders 列表筛选、动态统计和 Flag/Unflag 完成本地正式构建自动验收（[ADESK-US-122](../stories/desktop/ADESK-US-122-reminder-filters.md)）。
+- [x] Notes 用户文件夹、目录持久化和自定义目录中新建笔记完成本地正式构建自动验收（[ADESK-US-123](../stories/desktop/ADESK-US-123-notes-folders.md)）。
+- [x] Freeform 笔迹持久化、失败保留、重试与清空完成本地正式构建自动验收（[ADESK-US-124](../stories/desktop/ADESK-US-124-freeform-workflow.md)）。
+- [x] Stocks 本地代码/公司名搜索、空结果、详情联动和演示数据声明完成本地正式构建自动验收（[ADESK-US-125](../stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)）。
+- [x] Font Book 字体族搜索、空结果、清空恢复和详情联动完成本地正式构建自动验收（[ADESK-US-126](../stories/desktop/ADESK-US-126-fontbook-search.md)）。
+- [x] Settings 分区搜索、空结果、清空恢复和面板联动完成本地正式构建自动验收（[ADESK-US-127](../stories/desktop/ADESK-US-127-settings-search.md)）。
 
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
 
@@ -57,6 +65,17 @@ owner: jimmy
 - [ADESK-US-117 本地会话草稿保护与通讯范围说明](../stories/desktop/ADESK-US-117-local-messages.md) (High)
 
 - [ADESK-US-118 本地邮件草稿保存与失败保护](../stories/desktop/ADESK-US-118-local-mail-drafts.md) (High)
+
+- [ADESK-US-119 日历事件草稿与失败保护](../stories/desktop/ADESK-US-119-calendar-drafts.md) (High)
+
+- [ADESK-US-120 联系人搜索与本地编辑流程](../stories/desktop/ADESK-US-120-contacts-workflow.md) (Medium)
+- [ADESK-US-121 备忘录置顶与取消置顶](../stories/desktop/ADESK-US-121-notes-pin.md) (Medium)
+- [ADESK-US-122 提醒事项列表筛选与动态统计](../stories/desktop/ADESK-US-122-reminder-filters.md) (Medium)
+- [ADESK-US-123 备忘录新建文件夹](../stories/desktop/ADESK-US-123-notes-folders.md) (Medium)
+- [ADESK-US-124 Freeform 笔迹保存与失败保护](../stories/desktop/ADESK-US-124-freeform-workflow.md) (Medium)
+- [ADESK-US-125 Stocks 本地搜索与演示数据声明](../stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md) (Medium)
+- [ADESK-US-126 Font Book 字体族搜索](../stories/desktop/ADESK-US-126-fontbook-search.md) (Medium)
+- [ADESK-US-127 Settings 分区搜索](../stories/desktop/ADESK-US-127-settings-search.md) (Medium)
 
 ## 非目标
 

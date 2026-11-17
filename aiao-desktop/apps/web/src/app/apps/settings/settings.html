@@ -5,7 +5,7 @@
       <div class="top">
         <div class="sfield" data-nodrag>
           <span><svg appIcon="g-search"></svg></span>
-          <input data-stq placeholder="Search" />
+          <input #search data-stq aria-label="Search settings" placeholder="Search" [value]="query()" (input)="query.set(search.value)" />
         </div>
       </div>
       <div class="st-scroll">
@@ -20,7 +20,7 @@
             <span style="font-size: 11px; color: var(--txt-2)">Apple Account</span>
           </span>
         </div>
-        @for (group of groups; track $index) {
+        @for (group of visibleGroups(); track $index) {
           @if ($index > 0) {
             <div class="msep" style="margin: 8px 8px"></div>
           }
@@ -37,6 +37,9 @@
               <span>{{ item.name }}</span>
             </div>
           }
+        }
+        @if (!visibleGroups().length) {
+          <div data-settings-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">No matching settings</div>
         }
       </div>
     </div>

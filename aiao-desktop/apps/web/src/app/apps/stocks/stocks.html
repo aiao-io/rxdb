@@ -4,17 +4,17 @@
     <div style="padding: 0 10px 8px">
       <div class="sfield" data-nodrag>
         <span><svg appIcon="g-search"></svg></span>
-        <input placeholder="Search" />
+        <input #search aria-label="Search stocks" placeholder="Search" [value]="query()" (input)="query.set(search.value)" />
       </div>
     </div>
     <div style="overflow: auto; padding: 0 8px">
-      @for (ticker of tickers(); track ticker.s; let i = $index) {
+      @for (ticker of visibleTickers(); track ticker.s; let i = $index) {
         <div
           class="si"
           [attr.data-ti]="i"
-          [class.on]="i === selected()"
-          (click)="selected.set(i)"
-          (keydown.enter)="selected.set(i)"
+          [class.on]="ticker.s === current()?.s"
+          (click)="selected.set(ticker.s)"
+          (keydown.enter)="selected.set(ticker.s)"
           style="height: 52px; align-items: center"
           tabindex="-1"
         >
@@ -46,11 +46,15 @@
           </span>
         </div>
       }
+      @if (!visibleTickers().length) {
+        <div data-stock-empty style="padding: 20px 10px; color: var(--txt-2); font-size: 12px">No matching stocks</div>
+      }
     </div>
   </div>
   <div class="wmain">
     <div class="tbar" data-drag style="height: 52px">
       <div class="fx-title" data-stt>{{ current()?.s }}</div>
+      <div data-demo style="margin-left: 10px; color: var(--txt-2); font-size: 11px">Demo data · No live market feed</div>
     </div>
     <div class="scroll" data-stbody style="flex: 1; padding: 18px 22px">
       @if (detail(); as view) {

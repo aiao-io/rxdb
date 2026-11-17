@@ -1,5 +1,102 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-18：Settings 分区搜索（ADESK-US-127）
+
+ADESK-US-127 自动验收完成：Settings 本地分区支持按名称搜索，空结果和清空恢复可用，点击结果后右侧标题与面板跟随选择。各面板完整系统 API、远程账号、权限中心和跨设备同步仍未接入。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/settings/settings-data.spec.ts`：Settings 搜索模型 3 条用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck` 和 `pnpm nx run aiao-desktop-e2e:lint`：通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-settings-workflow-green.json'`：5 项全绿，`initialSections`、`searchesBySection`、`emptySearch`、`clearsSearch` 和 `sectionFollowsSelection` 均为 `true`，无页面错误；报告见[证据](evidence/2026-11-17/aiao-settings-workflow-green.json)。
+
+本次 E2E target 依赖任务已完成生产构建；本轮未发布。
+- 最终无警告生产构建上的三组搜索回归：`pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --group=fontbook-workflow --group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-search-workflows-final.json'`，17 项全部通过，报告见[证据](evidence/2026-11-17/aiao-search-workflows-final.json)。
+
+
+## 2026-11-18：Font Book 字体族搜索（ADESK-US-126）
+
+ADESK-US-126 自动验收完成：Font Book 本地字体族支持按名称搜索，空结果和清空恢复可用，筛选后详情标题与示例文字跟随当前字体。系统字体安装、删除和冲突管理仍未接入。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/font-book/font-book-data.spec.ts`：Font Book 搜索模型 3 条用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck` 和 `pnpm nx run aiao-desktop-e2e:lint`：通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=fontbook-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-fontbook-workflow-green.json'`：5 项全绿，`initialFamilies`、`searchesByFamily`、`emptySearch`、`clearsSearch` 和 `detailFollowsSelection` 均为 `true`，无页面错误；报告见[证据](evidence/2026-11-17/aiao-fontbook-workflow-green.json)。
+
+本次 E2E target 依赖任务已完成生产构建；本轮未发布。
+
+
+## 2026-11-18：Stocks 本地搜索与演示数据声明（ADESK-US-125）
+
+ADESK-US-125 自动验收完成：Stocks 本地自选股支持按代码或公司名搜索，空结果和清空恢复可用，筛选后详情跟随当前股票；页面明确显示 `Demo data · No live market feed`，推算的 Open、High、Low 标为 demo。实时行情、交易和远程同步仍未接入。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/stocks/stocks-data.spec.ts`：Stocks 搜索模型 3 条用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck`、`pnpm nx run aiao-desktop-web:lint` 和 `pnpm nx run aiao-desktop-e2e:lint`：全部通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-stocks-workflow-green.json'`：7 项全绿，`initialWatchlist`、`searchesBySymbol`、`searchesByCompany`、`emptySearch`、`clearsSearch`、`detailFollowsSelection` 和 `declaresDemoData` 均为 `true`，无页面错误；报告见[证据](evidence/2026-11-17/aiao-stocks-workflow-green.json)。
+
+本次 E2E target 依赖任务已完成生产构建；本轮未发布。
+
+
+## 2026-11-18：Freeform 笔迹保存与失败保护（ADESK-US-124）
+
+ADESK-US-124 自动验收完成：Freeform 画笔输入真实写入 SQLite；INSERT 失败时错误可见且失败笔迹保留，Retry 可恢复写入；DELETE 失败时原画板保留，Retry 可恢复清空；刷新后已保存笔迹继续存在。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/freeform/freeform-ink.spec.ts --output-style=static`：Freeform 笔迹状态单测通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static` 和 `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：全部通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:build --configuration=production --output-style=static`：正式构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=freeform-workflow --parallel=1 --report=/tmp/aiao-freeform-workflow-green.json --output-style=static`：6 项全绿，`strokePersists`、`failedInsertKeepsStroke`、`retryPersistsStroke`、`failedClearKeepsStrokes`、`retryClearsStrokes` 和 `survivesReload` 均为 `true`，无页面错误；归档报告见 [aiao-freeform-workflow-green.json](evidence/2026-11-17/aiao-freeform-workflow-green.json)。
+
+本地 Freeform 单画板范围已关闭；橡皮擦、选区、撤销/重做、图层、协作、导出、云端同步和远程账号仍未接入。
+
+
+## 2026-11-18：备忘录新建文件夹（ADESK-US-123）
+
+ADESK-US-123 自动验收完成：Notes 支持通过侧栏按钮或 File 菜单新建用户文件夹，目录真实写入 SQLite；选中自定义目录后新建笔记归属正确，重复名称被拒绝，刷新后目录和笔记继续存在；schema 升至 `2026111802`，旧库由 RxDB 补建 `desktop$note_folder`。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/notes-model.spec.ts src/app/data/schema-version.spec.ts src/app/data/schema-fingerprint.spec.ts --output-style=static`：模型、schema 和指纹检查通过；随后使用 `UPDATE_SCHEMA_SNAPSHOT=1` 更新实体指纹快照。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static` 和生产构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-folders --parallel=1 --report=/tmp/aiao-notes-folders-green.json --output-style=static`：4 项全绿，`folderPersists`、`noteUsesFolder`、`duplicateNameIsRejected` 和 `folderSurvivesReload` 均为 `true`，无页面错误；归档报告见 [证据](evidence/2026-11-17/aiao-notes-folders-green.json)。
+
+## 2026-11-18：提醒事项列表筛选与动态统计（ADESK-US-122）
+
+ADESK-US-122 自动验收完成：Reminders 五个侧栏列表已按本地记录筛选，统计随 SQLite 数据变化，Flag/Unflag 真实持久化，旧库通过 `2026111801` 补齐 `flagged` 字段；远程提醒服务、自定义列表和自然语言日期解析未接入。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/reminders/reminders-model.spec.ts src/app/data/schema-version.spec.ts --output-style=static`：34 条用例通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static` 与 `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=reminder-filters --parallel=1 --report=/tmp/aiao-reminder-filters-green.json --output-style=static`：1 组全绿，Today/Scheduled/All/Flagged/Completed 统计与筛选、Flag/Unflag 均通过；归档报告见 [aiao-reminder-filters-green.json](evidence/2026-11-17/aiao-reminder-filters-green.json)。
+- 既有 `reminder-drafts` 回归组重新通过，失败草稿、关闭等待、重试、完成状态和键盘持久化仍有证据；本轮未发布。
+
+
+## 2026-11-18：备忘录置顶与取消置顶（ADESK-US-121）
+
+ADESK-US-121 自动验收完成：Notes 工具栏、File 菜单和右键菜单可切换 Pin/Unpin，状态通过真实 SQLite 持久化，置顶优先排序和 US-116 的冲突保护继续生效；New Folder 已由 US-123 补齐。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/*.spec.ts --output-style=static`：23 条用例通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`：通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-actions --parallel=1 --report=/tmp/aiao-notes-actions-green.json --output-style=static`：1 组全绿，`pinPersists = true`、`unpinPersists = true`，无页面错误；归档报告见 [aiao-notes-actions-green.json](evidence/2026-11-17/aiao-notes-actions-green.json)。
+
+
+## 2026-11-18：Contacts 搜索与本地编辑流程（ADESK-US-120）
+
+ADESK-US-120 自动验收完成：Contacts 搜索、非法草稿保留、真实 SQLite 创建/更新/删除和编辑冲突保护全部通过；远程联系人账号、电话、消息和邮件发送未接入。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/contacts/contacts-model.spec.ts src/app/apps/contacts/contacts-data.spec.ts --output-style=static`：2 个文件、9 条用例通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`：通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static`：通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:build --configuration=production --output-style=static`：正式构建通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=contacts --report=/tmp/aiao-contacts-green.json --output-style=static`：5 项全绿、无页面错误；归档报告见 [aiao-contacts-green.json](evidence/2026-11-17/aiao-contacts-green.json)。
+
+本地 Contacts 核心编辑范围已关闭；远程通讯录、头像上传、电话、消息、邮件和跨设备同步仍未接入。
+
+
+## 2026-11-18：Calendar 事件草稿与失败保护（ADESK-US-119）
+
+ADESK-US-119 自动验收完成：严格日期/时间输入、失败创建与更新、关闭等待、重试、并发冲突、Save a Copy、删除失败保护、键盘路径和刷新持久化全部通过；远程日历账号、邀请与同步未接入。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/calendar/calendar-draft.spec.ts src/app/apps/calendar/calendar-input.spec.ts src/app/services/calendar-records.spec.ts src/app/services/calendar-store.spec.ts --output-style=static`：4 个文件、73 条用例通过，见 [单测日志](evidence/2026-11-17/calendar-unit-green.txt)。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=calendar-drafts --report=/tmp/aiao-calendar-drafts-green.json --output-style=static`：11 项全绿，无页面错误，`noViolations = []`；归档报告见 [aiao-calendar-drafts-green.json](evidence/2026-11-17/aiao-calendar-drafts-green.json)。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=calendar-drafts,persistence,apps,a11y,shell-interaction,document-workflow --report=/tmp/aiao-calendar-final.json --output-style=static`：6 组全绿，无页面错误；归档报告见 [aiao-calendar-final.json](evidence/2026-11-17/aiao-calendar-final.json)。
+- 失败状态截图 [aiao-calendar-failure.png](evidence/2026-11-17/aiao-calendar-failure.png) 已目视检查；本轮未发布。
+
 US-118 本地邮件草稿自动验收完成：真实 Drafts 保存、失败保留、跨页冲突与副本、搜索和分享内容，十五项正式构建检查及关联回归通过；真实邮件收发未接入。见[证据](evidence/2026-11-17/README.md#a06-本地邮件草稿us-118)。
 
 US-117 本地会话草稿保护自动验收完成：逐会话输入、稳定 ID、真实写入失败和关闭等待，十四项浏览器检查与相关回归通过；真实通讯仍未接入。见[证据](evidence/2026-11-17/README.md#a06-本地会话草稿与范围us-117)。

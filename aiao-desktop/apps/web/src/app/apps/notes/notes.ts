@@ -15,11 +15,12 @@ import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { PopoverService } from '../../services/popover';
+import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { CHECK_ICON } from './notes-data';
 import { NoteDocument, NoteSaveError, NoteSnapshot, NoteWrite, noteFailureMessage, sameNoteContent } from './note-document';
+import { NoteFolderEditor } from './note-folder-editor';
 import {
   ALL_NOTES,
   NOTES_FOLDER,
@@ -27,12 +28,13 @@ import {
   folderCount,
   inFolder,
   newNoteBody,
+  noteFolderNameError,
   noteSnippet,
   noteTitle,
   noteWhen,
   visibleNotes
 } from './notes-model';
-import { Note } from './notes.entities';
+import { Note, NoteFolder } from './notes.entities';
 
 /** 侧栏的文件夹；右侧的数量由库里的笔记现数。 */
 const FOLDERS = [
@@ -77,13 +79,18 @@ const commandState = (command: string): boolean => {
 export class NotesApp {
   private readonly popover = inject(PopoverService);
   private readonly data = inject(DesktopData);
+  private readonly frame = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
   private readonly notes = liveQuery(
     () => Note.findAll({ where: ALL_ROWS, orderBy: [{ field: 'date', sort: 'desc' }] }),
     [],
     Note
   );
-  private readonly current = computed(() => this.notes().find(note => note.id === this.selected()));
+  private readonly noteFolders = liveQuery(
+    () => NoteFolder.findAll({ where: ALL_ROWS, orderBy: [{ field: 'name', sort: 'asc' }] }),
+    [],
+    NoteFolder
+  );
   private readonly list = computed(() => visibleNotes(this.notes(), this.folder(), this.query()));
   private timer: ReturnType<typeof setTimeout> | undefined;
   /** 编辑区里现在装的是哪条笔记。 */
@@ -93,14 +100,16 @@ export class NotesApp {
   /** 刚新建、等活查询带回来后再选中并聚焦的笔记。 */
   private fresh: string | null = null;
 
+  protected readonly current = computed(() => this.notes().find(note => note.id === this.selected()));
   protected readonly win = inject(DesktopWindow);
   protected readonly editor = new NoteDocument(change => this.persist(change));
   protected readonly busy = signal(false);
   protected readonly actionError = signal('');
   protected readonly failure = computed(() => this.actionError() || this.editor.error());
-  protected readonly folders = computed(() =>
-    FOLDERS.map(folder => ({ ...folder, count: folderCount(this.notes(), folder.name) }))
-  );
+  protected readonly folders = computed(() => [
+    ...FOLDERS.map(folder => ({ ...folder, count: folderCount(this.notes(), folder.name) })),
+    ...this.noteFolders().map(folder => ({ name: folder.name, icon: 'g-folder-g', count: folderCount(this.notes(), folder.name) }))
+  ]);
   protected readonly textFormats = TEXT_FORMATS;
   protected readonly folder = signal<string>(NOTES_FOLDER);
   protected readonly query = signal('');
@@ -128,7 +137,8 @@ export class NotesApp {
               { id: 'n', label: 'New Note', key: '⌘N', run: () => this.create() },
               { id: 's', label: 'Save Note', key: '⌘S', run: () => this.retry() },
               { id: 'copy', label: 'Save a Copy', run: () => this.saveCopy() },
-              { id: 'f', label: 'New Folder', key: '⇧⌘N', disabled: true },
+              { id: 'p', label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin(), disabled: !this.current() },
+              { id: 'f', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() },
               '-',
               { id: 'd', label: 'Delete Note', run: () => this.remove() }
             ],
@@ -190,7 +200,7 @@ export class NotesApp {
     event.preventDefault();
     if (!(await this.pick(id))) return;
     this.popover.contextMenu(event, [
-      { id: 'p', label: 'Pin Note', disabled: true },
+      { id: 'p', label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin() },
       { id: 'd', label: 'Duplicate', run: () => this.saveCopy() },
       '-',
       { id: 'x', label: 'Delete', run: () => this.remove() }
@@ -208,6 +218,41 @@ export class NotesApp {
 
   protected toggleSidebar(): void {
     this.sidebar.update(visible => !visible);
+  }
+
+  protected newFolder(): void {
+    const bounds = (this.frame.nativeElement.closest('.win') ?? this.frame.nativeElement).getBoundingClientRect();
+    this.popover.openComponent(
+      NoteFolderEditor,
+      {
+        x: Math.min(bounds.left + 18, innerWidth - 338),
+        y: Math.min(bounds.top + 56, innerHeight - 190),
+        origin: 'top left',
+        focus: true,
+        onClose: reason => {
+          if (RETURNS_FOCUS.has(reason)) this.frame.nativeElement.focus();
+        }
+      },
+      { submit: (name: string) => this.createFolder(name) }
+    );
+  }
+
+  protected createFolder(name: string): Promise<string> {
+    const trimmed = name.trim();
+    const problem = noteFolderNameError(trimmed, this.noteFolders().map(folder => folder.name));
+    if (problem) return Promise.resolve(problem);
+    return this.operate(async () => {
+      const folder = this.data.instantiate(NoteFolder, { name: trimmed });
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(NoteFolder);
+        const existing = await repository.find({ where: ALL_ROWS });
+        if (existing.some(item => item.name.toLowerCase() === trimmed.toLowerCase()))
+          throw new Error('A folder with that name already exists.');
+        await repository.create(folder);
+      });
+      this.folder.set(trimmed);
+      this.query.set('');
+    }).then(ok => ok ? '' : this.actionError() || 'The folder could not be created.');
   }
 
   protected create(): Promise<boolean> {
@@ -245,6 +290,20 @@ export class NotesApp {
 
   protected retry(): Promise<boolean> {
     return this.operate(() => undefined);
+  }
+
+  protected togglePin(): Promise<boolean> {
+    return this.operate(async () => {
+      const value = this.editor.value();
+      if (!value) return;
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(Note);
+        const [note] = await repository.find({ where: this.whereId(value.id), limit: 1 });
+        if (!note) throw new NoteSaveError('missing');
+        if (!sameNoteContent(note, value)) throw new NoteSaveError('conflict');
+        await repository.update(note, { pinned: !note.pinned });
+      });
+    });
   }
 
   protected discardChanges(): Promise<boolean> {

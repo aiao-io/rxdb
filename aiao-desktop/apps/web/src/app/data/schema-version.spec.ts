@@ -177,6 +177,34 @@ describe('runUpgrade：迁移在前，版本记录最后写', () => {
   });
 });
 
+describe('Notes 文件夹 schema 步骤', () => {
+  it('新增用户文件夹实体时把当前版本推进到 2026111802', () => {
+    expect(SCHEMA_STEPS.at(-1)).toMatchObject({
+      version: 2026111802,
+      summary: expect.stringContaining('用户文件夹')
+    });
+    expect(SCHEMA_STEPS.at(-1)?.migrate).toBeUndefined();
+  });
+});
+
+describe('提醒标旗字段迁移', () => {
+  it('旧库补上 flagged 列，新库已有列时不重复添加', async () => {
+    const migrate = SCHEMA_STEPS.find(step => step.version === 2026111801)?.migrate;
+    expect(migrate).toBeDefined();
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ columns: ['cid', 'name'], rows: [[0, 'id']] })
+      .mockResolvedValue({ rows: [], columns: [] });
+    await migrate?.({ execute });
+    expect(execute).toHaveBeenCalledWith(
+      'ALTER TABLE "desktop$reminder" ADD COLUMN "flagged" INTEGER NOT NULL DEFAULT 0'
+    );
+    execute.mockReset().mockResolvedValue({ columns: ['cid', 'name'], rows: [[0, 'flagged']] });
+    await migrate?.({ execute });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('废纸篓原位置字段迁移', () => {
   it('旧库在同一升级事务内加列，首次新库已有列时不重复添加', async () => {
     const migrate = SCHEMA_STEPS.find(step => step.version === 2026111701)?.migrate;

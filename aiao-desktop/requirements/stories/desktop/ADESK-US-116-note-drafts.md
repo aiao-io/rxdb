@@ -53,4 +53,4 @@ capabilities: []
 - AC#5：`createFailureAndRecovery`、`deleteFailureAndRecovery`、`copyFailureAndRecovery` 对真实 INSERT/UPDATE 失败和恢复校验数据库状态与选择。
 - AC#6：`keyboardRecovery`、`noViolations` 和 `beforeUnloadGuard`；六组相关正式构建回归通过，含既有五轮跨页文档冲突。自动键盘、合成卸载事件和 axe 不替代物理输入或读屏。
 
-界面已明确为本浏览器本地笔记，文件夹与笔记选择改为可达按钮，编辑器具有名称和键盘焦点环。菜单中尚未实现的 New Folder、Pin 已禁用，仍在 A06 后续范围；Duplicate 已调用真实保存副本路径。
+界面已明确为本浏览器本地笔记，文件夹与笔记选择改为可达按钮，编辑器具有名称和键盘焦点环。菜单中的 Pin 和 New Folder 已由 US-121、US-123 补齐；Duplicate 已调用真实保存副本路径。

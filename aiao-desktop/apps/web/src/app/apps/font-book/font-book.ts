@@ -5,6 +5,7 @@ import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { filterFontFamilies, type FontFamilySummary } from './font-book-data';
 import { FontFamily } from './font-book.entities';
 
 const SIZES = [42, 30, 22, 17, 13, 11] as const;
@@ -24,12 +25,17 @@ export class FontBookApp {
   );
 
   protected readonly sizes = SIZES;
-  protected readonly selected = signal(0);
+  protected readonly selected = signal<string | null>(null);
+  protected readonly query = signal('');
   protected readonly fonts = computed(() =>
     this.families().map(({ name, stack, styles }) => ({ name, stack, styles }))
   );
-  /** 选中的字体族；目录还没读到时为 `undefined`。 */
-  protected readonly current = computed(() => this.fonts().at(this.selected()));
+  protected readonly visibleFonts = computed(() => filterFontFamilies(this.fonts(), this.query()));
+  /** 选中的字体族；筛选后原选中项消失就显示第一支。 */
+  protected readonly current = computed<FontFamilySummary | undefined>(() => {
+    const fonts = this.visibleFonts();
+    return fonts.find(font => font.name === this.selected()) ?? fonts[0] ?? undefined;
+  });
 
   constructor() {
     const menus = inject(DesktopMenus);

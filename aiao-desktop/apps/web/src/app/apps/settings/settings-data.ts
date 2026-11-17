@@ -31,3 +31,14 @@ export const DEFAULT_SECTION: SettingsSection = SETTINGS_GROUPS[1][0];
 /** 按 id 找分区。 */
 export const findSection = (id: string): SettingsSection =>
   SETTINGS_GROUPS.flat().find(section => section.id === id) ?? DEFAULT_SECTION;
+
+
+/** 按分区名称筛选系统设置侧栏，并保留原有分组顺序。 */
+export function filterSettingsGroups(
+  groups: readonly (readonly SettingsSection[])[],
+  query: string
+): readonly (readonly SettingsSection[])[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return groups;
+  return groups.map(group => group.filter(section => section.name.toLocaleLowerCase().includes(normalized))).filter(group => group.length);
+}

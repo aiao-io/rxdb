@@ -1,0 +1,71 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T17:05:00.592Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M src/groups/calendar-drafts.mjs\n M src/groups/index.mjs\n M ../web/src/app/apps/calendar/calendar.html\n M ../web/src/app/apps/contacts/contacts.ts\n M ../../requirements/README.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/evidence/2026-11-17/README.md\n M ../../requirements/plans/2026-11-17-autonomous-completion.md\n M ../../requirements/plans/2026-11-17-builtin-workflows.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/verification-report.md\n?? src/groups/contacts.mjs\n?? ../web/src/app/apps/contacts/contacts-model.spec.ts\n?? ../web/src/app/apps/contacts/contacts-model.ts\n?? ../../requirements/evidence/2026-11-17/aiao-calendar-drafts-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-calendar-failure.png\n?? ../../requirements/evidence/2026-11-17/aiao-calendar-final.json\n?? ../../requirements/evidence/2026-11-17/calendar-unit-green.txt\n?? ../../requirements/stories/desktop/ADESK-US-119-calendar-drafts.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "7ce7300e2bfa47b8366c5552c17f359904f7a7489052d8e93cb83d0370a5b8fb"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "contacts"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 7.145719917,
+  "outcomes": [
+    {
+      "group": "contacts",
+      "result": {
+        "contacts": {
+          "searchFilters": true,
+          "invalidDraftKeepsFields": true,
+          "createPersists": true,
+          "updatePersists": true,
+          "deletePersists": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 7.09949225
+    }
+  ],
+  "checks": {
+    "contacts": {
+      "searchFilters": true,
+      "invalidDraftKeepsFields": true,
+      "createPersists": true,
+      "updatePersists": true,
+      "deletePersists": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

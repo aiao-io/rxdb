@@ -17,7 +17,7 @@ import { PrivacyPane } from './panes/privacy-pane';
 import { SoundPane } from './panes/sound-pane';
 import { WallpaperPane } from './panes/wallpaper-pane';
 import { WifiPane } from './panes/wifi-pane';
-import { SETTINGS_GROUPS, findSection } from './settings-data';
+import { filterSettingsGroups, SETTINGS_GROUPS, findSection } from './settings-data';
 
 /** 系统设置：侧栏选分区，右侧按分区换面板。 */
 @Component({
@@ -45,8 +45,9 @@ export class SettingsApp {
   private readonly selected = signal(this.win.options.section || 'appearance');
   private readonly generation = signal(0);
 
+  protected readonly query = signal('');
+  protected readonly visibleGroups = computed(() => filterSettingsGroups(SETTINGS_GROUPS, this.query()));
   protected readonly system = inject(SystemState);
-  protected readonly groups = SETTINGS_GROUPS;
   protected readonly avatar = `url('${AVATAR}')`;
   protected readonly section = computed(() => findSection(this.selected()));
   /** 面板重绘：编号一变，面板的元素整块重建，只改外观的开关回到初始值。 */

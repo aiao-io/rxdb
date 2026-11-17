@@ -1,0 +1,71 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T18:39:39.553Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M  src/groups/calendar-drafts.mjs\nA  src/groups/contacts.mjs\nMM src/groups/index.mjs\nM  ../web/src/app/apps/calendar/calendar.html\nA  ../web/src/app/apps/contacts/contacts-model.spec.ts\nA  ../web/src/app/apps/contacts/contacts-model.ts\nM  ../web/src/app/apps/contacts/contacts.ts\n M ../web/src/app/apps/font-book/font-book.html\n M ../web/src/app/apps/font-book/font-book.ts\n M ../web/src/app/apps/freeform/freeform.ts\n M ../web/src/app/apps/notes/notes-model.spec.ts\n M ../web/src/app/apps/notes/notes-model.ts\n M ../web/src/app/apps/notes/notes.entities.ts\n M ../web/src/app/apps/notes/notes.html\n M ../web/src/app/apps/notes/notes.ts\n M ../web/src/app/apps/reminders/reminders-data.ts\n M ../web/src/app/apps/reminders/reminders-model.spec.ts\n M ../web/src/app/apps/reminders/reminders-model.ts\n M ../web/src/app/apps/reminders/reminders.entities.ts\n M ../web/src/app/apps/reminders/reminders.html\n M ../web/src/app/apps/reminders/reminders.ts\n M ../web/src/app/apps/stocks/stocks-data.ts\n M ../web/src/app/apps/stocks/stocks.html\n M ../web/src/app/apps/stocks/stocks.ts\n M ../web/src/app/data/schema-fingerprint.snapshot.json\n M ../web/src/app/data/schema-version.spec.ts\n M ../web/src/app/data/schema-version.ts\nMM ../../requirements/README.md\nMM ../../requirements/epics/ADESK-EPIC-002.md\nMM ../../requirements/evidence/2026-11-17/README.md\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-drafts-green.json\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-failure.png\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-final.json\nA  ../../requirements/evidence/2026-11-17/aiao-contacts-green.json\nA  ../../requirements/evidence/2026-11-17/calendar-unit-green.txt\nMM ../../requirements/plans/2026-11-17-autonomous-completion.md\nMM ../../requirements/plans/2026-11-17-builtin-workflows.md\nMM ../../requirements/roadmap.md\nMM ../../requirements/status-overview.md\n M ../../requirements/stories/desktop/ADESK-US-116-note-drafts.md\nA  ../../requirements/stories/desktop/ADESK-US-119-calendar-drafts.md\nA  ../../requirements/stories/desktop/ADESK-US-120-contacts-workflow.md\nMM ../../requirements/verification-report.md\n?? src/groups/fontbook-workflow.mjs\n?? src/groups/freeform-workflow.mjs\n?? src/groups/notes-actions.mjs\n?? src/groups/notes-folders.mjs\n?? src/groups/reminder-filters.mjs\n?? src/groups/stocks-workflow.mjs\n?? ../web/src/app/apps/font-book/font-book-data.spec.ts\n?? ../web/src/app/apps/font-book/font-book-data.ts\n?? ../web/src/app/apps/notes/note-folder-editor.ts\n?? ../web/src/app/apps/stocks/stocks-data.spec.ts\n?? ../../requirements/evidence/2026-11-17/aiao-freeform-workflow-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-notes-actions-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-notes-folders-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-reminder-filters-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-stocks-workflow-green.json\n?? ../../requirements/evidence/2026-11-17/aiao-upgrade-previous-after-notes-folders-green.json\n?? ../../requirements/stories/desktop/ADESK-US-121-notes-pin.md\n?? ../../requirements/stories/desktop/ADESK-US-122-reminder-filters.md\n?? ../../requirements/stories/desktop/ADESK-US-123-notes-folders.md\n?? ../../requirements/stories/desktop/ADESK-US-124-freeform-workflow.md\n?? ../../requirements/stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "88705db62a3996d5858bc6596160a70d353460eae414dafbcb44defc1cd8531e"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "fontbook-workflow"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 5.050464583,
+  "outcomes": [
+    {
+      "group": "fontbook-workflow",
+      "result": {
+        "fontbookWorkflow": {
+          "initialFamilies": true,
+          "searchesByFamily": true,
+          "emptySearch": true,
+          "clearsSearch": true,
+          "detailFollowsSelection": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 5.0011025
+    }
+  ],
+  "checks": {
+    "fontbookWorkflow": {
+      "initialFamilies": true,
+      "searchesByFamily": true,
+      "emptySearch": true,
+      "clearsSearch": true,
+      "detailFollowsSelection": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

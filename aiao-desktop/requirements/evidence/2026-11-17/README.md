@@ -144,6 +144,24 @@ US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/3
 US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-108 人工读屏保留。
 
 
+## A06 提醒事项列表筛选与动态统计（US-122）
+
+基线 `2a3e46183` 加本次未提交工作区，schema 升至 `2026111801`，未发布。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/reminders/reminders-model.spec.ts src/app/data/schema-version.spec.ts`：34 条用例通过；覆盖列表匹配、动态计数、schema 迁移和重复迁移保护。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint` 与 `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint` 通过；生产构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=reminder-filters --parallel=1 --report=/tmp/aiao-reminder-filters-green.json --output-style=static`：1 组全绿，7 项检查通过，报告见 [aiao-reminder-filters-green.json](aiao-reminder-filters-green.json)。
+- `reminder-drafts` 回归组重新通过，真实 SQLite 失败、草稿保留、关闭等待、完成后保存和键盘持久化继续通过；已完成草稿在 Today 列表保持可见。
+
+## A06 备忘录置顶与取消置顶（US-121）
+
+基线 `2a3e46183` 加本次未提交工作区，未发布；schema 未变。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/*.spec.ts`：Notes 单测 23/23 通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint` 与生产构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-actions --parallel=1 --report=/tmp/aiao-notes-actions-green.json --output-style=static`：1 组全绿；Pin 和 Unpin 都在真实 SQLite 中持久化，报告见 [aiao-notes-actions-green.json](aiao-notes-actions-green.json)。
+- E2E 只按目标标题定位笔记，不假定列表首行；已有置顶笔记继续按置顶优先排序。New Folder 已由 US-123 补齐。
+
 ## A06 备忘录保存与编辑保护（US-116）
 
 基线 `2a3e46183` 加本次未提交改动，schema `2026111703` 未变；本次未发布。
@@ -155,7 +173,7 @@ US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-1
 - 真实 SQLite UPDATE/INSERT 失败、写锁等待期间继续输入、两个实际页面修改同一笔记、副本失败重试、原记录删除和显式放弃均有证据。关闭与重启等待保存，失败不移除编辑器；保存后真实正文、格式和标题刷新仍在。
 - [失败状态截图](aiao-note-failure.png)已目视核查，错误不暴露 SQL；本地数据说明、可达按钮与编辑器焦点环已补齐。软件键盘、axe 与合成 beforeunload 不冒充人工键盘或 VoiceOver。
 
-Pin 和 New Folder 已禁用，仍属于 A06 后续工作；Duplicate 使用真实保存副本路径。未声称接入 iCloud。
+Pin 和 New Folder 已分别由 US-121、US-123 补齐；Duplicate 使用真实保存副本路径。未声称接入 iCloud。
 
 US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 人工读屏保留。
 
@@ -188,3 +206,85 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 - 真实 SQLite INSERT/UPDATE 拒绝与恢复、真实写锁关闭等待、两个实际页面的草稿冲突、副本失败重试、原记录删除、面板替换后恢复、刷新可编辑、搜索和实际内容均检查。[失败截图](aiao-mail-failure.png)已目视核查，输入与操作提示可见，无 SQL 泄露。
 
 未接入邮件账号、远程投递或附件传输；历史 Sent 数据保留并标明本地存档。beforeunload 为合成事件，软件键盘和 axe 不替代物理输入或读屏。
+
+
+## A06 Contacts 联系人搜索与本地编辑（US-120）
+
+基线 `19a839ff0` 加当前工作区改动；本轮未发布。Contacts 的正式构建验收覆盖搜索、非法表单保留、真实 SQLite 创建/更新/删除和编辑冲突保护。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/contacts/contacts-model.spec.ts src/app/apps/contacts/contacts-data.spec.ts --output-style=static`：2 个测试文件、9 条用例通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：全部通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:build --configuration=production --output-style=static`：正式构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=contacts --report=/tmp/aiao-contacts-green.json --output-style=static`：搜索、非法草稿保留、创建、更新和删除 5 项全绿，无页面错误；见 [aiao-contacts-green.json](aiao-contacts-green.json)。
+
+浏览器检查直接读取 `desktop$contact` 验证创建、更新和删除落库；本轮没有接入远程联系人账号、电话、消息、邮件、头像上传或跨设备同步。
+
+## A06 Calendar 事件草稿与失败保护（US-119）
+
+基线 `2a3e46183` 加当前工作区改动；本轮未发布。Calendar 的正式构建验收覆盖严格日期/时间输入、真实 SQLite 创建/更新/删除失败、关闭等待、重试、并发冲突、Save a Copy、键盘路径和刷新持久化。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/calendar/calendar-draft.spec.ts src/app/apps/calendar/calendar-input.spec.ts src/app/services/calendar-records.spec.ts src/app/services/calendar-store.spec.ts --output-style=static`：4 个测试文件、73 条用例通过，见 [calendar-unit-green.txt](calendar-unit-green.txt)。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=calendar-drafts --report=/tmp/aiao-calendar-drafts-green.json --output-style=static`：11 项全绿，`noViolations = []`，无页面错误，见 [aiao-calendar-drafts-green.json](aiao-calendar-drafts-green.json)。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=calendar-drafts,persistence,apps,a11y,shell-interaction,document-workflow --report=/tmp/aiao-calendar-final.json --output-style=static`：Calendar 与五组关联回归全绿，见 [aiao-calendar-final.json](aiao-calendar-final.json)。
+- [失败状态截图](aiao-calendar-failure.png)已目视检查；页面错误、axe 违规和报告 stale/ unexpected 限制均为空。
+
+本轮没有接入远程日历账号、邀请、同步或系统 Calendar 集成；自动化键盘、合成 beforeunload 和 axe 不替代物理键盘或 VoiceOver。
+
+## A06 备忘录新建文件夹（US-123）
+
+基线 `19a839ff0` 加本次未提交工作区，schema 升至 `2026111802`，未发布。Notes 的用户文件夹目录、目录中新建笔记、重复名称保护和刷新持久化已在正式构建上验证。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/notes-model.spec.ts src/app/data/schema-version.spec.ts src/app/data/schema-fingerprint.spec.ts --output-style=static`：模型、schema 和实体指纹检查通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static` 和生产构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-folders --parallel=1 --report=/tmp/aiao-notes-folders-green.json --output-style=static`：`folderPersists`、`noteUsesFolder`、`duplicateNameIsRejected` 和 `folderSurvivesReload` 均为 `true`，无页面错误；原始报告见 [aiao-notes-folders-green.json](aiao-notes-folders-green.json)。
+- `AIAO_DESKTOP_PREVIOUS_DIST=/tmp/aiao-pre-file-management-2026111301 E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=upgrade-previous --parallel=1 --report=/tmp/aiao-upgrade-previous-after-notes-folders-green.json --output-style=static`：旧库内容、文件体、版本记录和同源地址均保留；原始报告见 [aiao-upgrade-previous-after-notes-folders-green.json](aiao-upgrade-previous-after-notes-folders-green.json)。
+
+
+## A06 Freeform 笔迹保存与失败保护（US-124）
+
+基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Freeform 的正式构建验收覆盖真实 canvas 绘制、本地 SQLite 持久化、INSERT/DELETE 失败保留、Retry 和刷新恢复。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/freeform/freeform-ink.spec.ts --output-style=static`：Freeform 笔迹状态单测通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`、`NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static` 和 `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：全部通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:build --configuration=production --output-style=static`：正式构建通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=freeform-workflow --parallel=1 --report=/tmp/aiao-freeform-workflow-green.json --output-style=static`：`strokePersists`、`failedInsertKeepsStroke`、`retryPersistsStroke`、`failedClearKeepsStrokes`、`retryClearsStrokes` 和 `survivesReload` 均为 `true`，无页面错误；归档报告见 [aiao-freeform-workflow-green.json](aiao-freeform-workflow-green.json)。
+
+触发器只用于浏览器验收注入受控失败；生产界面显示局部操作提示，不把 SQL 错误泄露给用户。
+
+
+## A06 Stocks 本地搜索与演示数据声明（US-125）
+
+基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Stocks 的本地自选股搜索、空结果、清空恢复、详情联动和演示数据边界已在正式构建上验证。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/stocks/stocks-data.spec.ts`：3 条搜索模型用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck`、`pnpm nx run aiao-desktop-web:lint` 和 `pnpm nx run aiao-desktop-e2e:lint`：全部通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-stocks-workflow-green.json'`：7 项全绿，代码搜索、公司名搜索、空结果、清空恢复、详情跟随选择和演示数据提示均为 `true`，无页面错误；原始报告见 [aiao-stocks-workflow-green.json](aiao-stocks-workflow-green.json)。
+
+页面现已明确无实时行情源；本故事不关闭实时行情、交易、账户、远程同步或真实指标能力。
+
+
+## A06 Font Book 字体族搜索（US-126）
+
+基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Font Book 的本地字体族搜索、空结果、清空恢复和详情联动已在正式构建上验证。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/font-book/font-book-data.spec.ts`：3 条搜索模型用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck` 和 `pnpm nx run aiao-desktop-e2e:lint`：通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=fontbook-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-fontbook-workflow-green.json'`：5 项全绿，字体族搜索、空结果、清空恢复和详情跟随选择均为 `true`，无页面错误；原始报告见 [aiao-fontbook-workflow-green.json](aiao-fontbook-workflow-green.json)。
+
+本故事不关闭系统字体安装、删除、冲突处理、收藏和最近使用能力。
+
+
+## A06 Settings 分区搜索（US-127）
+
+基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Settings 的本地分区搜索、空结果、清空恢复和面板联动已在正式构建上验证。
+
+- `pnpm nx run aiao-desktop-web:test -- --coverage.enabled=false --run src/app/apps/settings/settings-data.spec.ts`：3 条搜索模型用例通过。
+- `pnpm nx run aiao-desktop-web:typecheck` 和 `pnpm nx run aiao-desktop-e2e:lint`：通过。
+- `pnpm nx run aiao-desktop-e2e:e2e --args='--group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-settings-workflow-green.json'`：5 项全绿，分区搜索、空结果、清空恢复和面板跟随选择均为 `true`，无页面错误；原始报告见 [aiao-settings-workflow-green.json](aiao-settings-workflow-green.json)。
+
+本故事不关闭设置面板内部完整系统 API、权限中心、远程账号和跨设备同步能力。
+
+
+## A06 三组搜索最终回归
+
+在最终无警告生产构建上串行重跑 Stocks、Font Book 和 Settings 三组搜索流程，共 17 项检查全部通过，无页面错误；原始报告见 [aiao-search-workflows-final.json](aiao-search-workflows-final.json)。

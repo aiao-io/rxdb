@@ -19,16 +19,19 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { ReminderDrafts, ReminderWrite, reminderFailureMessage } from './reminder-drafts';
-import { DONE_TINT, NEW_REMINDER_DUE, ReminderRow, draftRow, rowOf, togglePatch } from './reminders-model';
+import {
+  DONE_TINT,
+  NEW_REMINDER_DUE,
+  REMINDER_LISTS,
+  ReminderList,
+  ReminderRow,
+  draftRow,
+  reminderListCount,
+  reminderMatchesList,
+  rowOf,
+  togglePatch
+} from './reminders-model';
 import { Reminder } from './reminders.entities';
-
-const LISTS = [
-  ['Today', '#0a84ff', 3],
-  ['Scheduled', '#ff375f', 5],
-  ['All', '#1d1d1f', 11],
-  ['Flagged', '#ff9f0a', 2],
-  ['Completed', '#8e8e93', 24]
-] as const;
 
 @Component({
   selector: 'app-reminders',
@@ -53,16 +56,26 @@ export class RemindersApp {
     [],
     Reminder
   );
-
-  protected readonly win = inject(DesktopWindow);
-  protected readonly drafts = new ReminderDrafts(draft => this.writeDraft(draft));
-  protected readonly lists = LISTS;
-  protected readonly toggling = signal<ReadonlySet<string>>(new Set());
-  protected readonly error = signal('');
-  protected readonly items = computed<readonly ReminderRow[]>(() => {
+  private readonly allItems = computed<readonly ReminderRow[]>(() => {
     const known = new Set<string>(this.reminders().map(reminder => reminder.id));
     const open = this.drafts.rows().filter(draft => draft.createdId === null || !known.has(draft.createdId));
     return [...open.map(draftRow), ...this.reminders().map(rowOf)];
+  });
+
+  protected readonly win = inject(DesktopWindow);
+  protected readonly drafts = new ReminderDrafts(draft => this.writeDraft(draft));
+  protected readonly selectedList = signal<ReminderList>('today');
+  protected readonly listTitle = computed(
+    () => REMINDER_LISTS.find(list => list.id === this.selectedList())?.name ?? 'Today'
+  );
+  protected readonly lists = computed(() =>
+    REMINDER_LISTS.map(list => ({ ...list, count: reminderListCount(this.reminders(), list.id) }))
+  );
+  protected readonly toggling = signal<ReadonlySet<string>>(new Set());
+  protected readonly error = signal('');
+  protected readonly items = computed<readonly ReminderRow[]>(() => {
+    const list = this.selectedList();
+    return this.allItems().filter(item => item.fresh ? list === 'today' : reminderMatchesList(item, list));
   });
 
   constructor() {
@@ -91,8 +104,13 @@ export class RemindersApp {
     });
   }
 
+  protected selectList(list: ReminderList): void {
+    this.selectedList.set(list);
+  }
+
   protected add(): void {
     if (this.win.closePending()) return;
+    this.selectedList.set('today');
     this.drafts.add();
     afterNextRender(() => this.fields().at(0)?.nativeElement.focus(), { injector: this.injector });
   }
@@ -102,13 +120,12 @@ export class RemindersApp {
       this.drafts.toggle(item.id);
       return;
     }
-    if (this.writes.has(item.id)) return;
-    const write = this.writeToggle(item.id);
-    this.writes.set(item.id, write);
-    this.toggling.set(new Set(this.writes.keys()));
-    await write;
-    this.writes.delete(item.id);
-    this.toggling.set(new Set(this.writes.keys()));
+    await this.runTracked(item.id, () => this.writeToggle(item.id));
+  }
+
+  protected async toggleFlag(item: ReminderRow): Promise<void> {
+    if (item.fresh) return;
+    await this.runTracked(item.id, () => this.writeFlag(item.id));
   }
 
   protected leaveDraft(event: FocusEvent, item: ReminderRow): void {
@@ -122,6 +139,19 @@ export class RemindersApp {
     event.preventDefault();
     event.stopPropagation();
     void this.drafts.save(id);
+  }
+
+  private async runTracked(id: string, operation: () => Promise<void>): Promise<void> {
+    if (this.writes.has(id)) return;
+    const write = operation();
+    this.writes.set(id, write);
+    this.toggling.set(new Set(this.writes.keys()));
+    try {
+      await write;
+    } finally {
+      this.writes.delete(id);
+      this.toggling.set(new Set(this.writes.keys()));
+    }
   }
 
   private async writeDraft(draft: ReminderWrite): Promise<void> {
@@ -146,6 +176,7 @@ export class RemindersApp {
         this.data.instantiate(Reminder, {
           ...draft,
           due: NEW_REMINDER_DUE,
+          flagged: false,
           tint: DONE_TINT,
           position: first ? first.position - 1 : 0
         })
@@ -160,6 +191,18 @@ export class RemindersApp {
       const reminder = this.reminders().find(item => item.id === id);
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.update(reminder, togglePatch(reminder));
+    } catch (error) {
+      this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
+    }
+  }
+
+  private async writeFlag(id: string): Promise<void> {
+    this.error.set('');
+    try {
+      const repository = await this.data.repository(Reminder);
+      const reminder = this.reminders().find(item => item.id === id);
+      if (!reminder) throw new Error('This reminder is no longer available.');
+      await repository.update(reminder, { flagged: !reminder.flagged });
     } catch (error) {
       this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
     }

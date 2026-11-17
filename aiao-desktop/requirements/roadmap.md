@@ -6,7 +6,7 @@
 
 按[自动完成计划](plans/2026-11-17-autonomous-completion.md)推进全部可自动完成的缺口。先实施 [ADESK-US-109 文档保存与关闭保护](stories/desktop/ADESK-US-109-document-workflow.md)，接续 [ADESK-US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)，再推进 [ADESK-US-111 数据保障](stories/desktop/ADESK-US-111-backup-and-storage-health.md) 与 [ADESK-US-207 批准目录及版本生命周期](stories/application/ADESK-US-207-approved-app-catalog.md)，再实施 [ADESK-US-112 运行状态与隐藏资源管理](stories/desktop/ADESK-US-112-runtime-activity.md)和 [ADESK-US-113 离线资源与真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)，最后汇总两个产品的自动验收。人工读屏和用户研究保留原证据要求。
 
-2026-11-17 进度：A01～A05 已完成本地自动验收，包括 US-112、US-113 与 US-208；内置应用补缺及 React 自动验收仍继续，未作本轮生产发布。
+2026-11-18 进度：A01～A05 已完成本地自动验收，包括 US-112、US-113 与 US-208；A06 已完成 US-114～US-127 的本地自动验收，媒体、书架等应用流程及 React 自动验收仍继续，未作本轮生产发布。
 
 ## 本次收尾
 
@@ -38,3 +38,21 @@ A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 
 [US-117 本地会话与草稿保护](stories/desktop/ADESK-US-117-local-messages.md)已完成自动验收；真实远程通讯仍未接入。
 
 [US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)已完成自动验收，真实邮件收发仍未接入。
+
+[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)已完成自动验收，严格日期/时间校验、失败重试、关闭等待、并发冲突和保存副本均有正式构建证据；远程日历账号、邀请和同步仍未接入。
+
+[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)已完成自动验收：搜索、非法草稿保留、真实 SQLite 创建/更新/删除与冲突保护均有正式构建证据；远程联系人账号、电话、消息和邮件发送仍未接入。
+
+[US-121 备忘录置顶与取消置顶](stories/desktop/ADESK-US-121-notes-pin.md)已完成自动验收：工具栏、File 菜单和右键菜单切换 Pin/Unpin，真实 SQLite 持久化与置顶优先排序均有正式构建证据。
+
+[US-122 提醒事项列表筛选与动态统计](stories/desktop/ADESK-US-122-reminder-filters.md)已完成自动验收：五个本地列表动态统计、筛选、Flag/Unflag 持久化和 `flagged` schema 迁移均有正式构建证据。
+
+[US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)已完成自动验收：用户文件夹真实 SQLite 持久化、自定义目录中新建笔记、重复名称拒绝和刷新恢复均有正式构建证据。
+
+[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)已完成自动验收：笔迹持久化、INSERT/DELETE 失败保留、Retry 恢复和刷新恢复均有正式构建证据。
+
+[US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)已完成自动验收：本地自选股支持代码和公司名搜索、空结果与清空恢复，页面明确标出无实时行情源；实时行情、交易和远程同步仍未接入。
+
+[US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)已完成自动验收：本地字体族支持名称搜索、空结果和清空恢复，筛选后的字体标题与示例文字保持一致；系统字体安装、删除和冲突管理仍未接入。
+
+[US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成自动验收：本地设置分区支持名称搜索、空结果、清空恢复和面板联动；各面板完整系统 API、远程账号、权限中心和跨设备同步仍未接入。A06 剩余项见[逐应用台账](plans/2026-11-17-builtin-workflows.md)。

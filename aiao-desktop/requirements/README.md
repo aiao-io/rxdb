@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[34/35 已交付]；0 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[43/44 已交付]；0 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -18,7 +18,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
-2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)和 [US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)已完成；其余 A06～A09 按计划继续，人工验收独立保留。
+2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)、[US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)、[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-117 本地会话草稿保护](stories/desktop/ADESK-US-117-local-messages.md)、[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)、[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)、[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)、[US-122 提醒事项筛选](stories/desktop/ADESK-US-122-reminder-filters.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)、[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)和 [US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)和 [US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)和 [US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成本地自动验收；媒体、书架等应用的主要流程、A07～A09 和人工验收仍按计划继续。
 
 浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，历史发布范围中仅剩 US-108 的 VoiceOver AC（按用户要求延期）；新增 US-207 已完成本地正式构建验收，未发布，详见[验收台账](verification-report.md)。
 
@@ -111,8 +111,20 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 当前实施 [US-208 Aiao Code 文件复制与嵌入边界](stories/application/ADESK-US-208-aiao-code-file-copy.md)，复用现有文件授权，不扩展共享目录或自动同步。
 
-[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)已完成本地自动验收，继续 Messages 等主要写入流程。
+[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)已完成本地自动验收；文件夹重命名、删除和云端同步仍未接入。
 
-[US-117 本地会话与草稿保护](stories/desktop/ADESK-US-117-local-messages.md)已完成；真实远程通讯未接入，继续 Mail 等主要写入流程。
+[US-117 本地会话与草稿保护](stories/desktop/ADESK-US-117-local-messages.md)已完成；真实远程通讯未接入。
 
-[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)已完成自动验收；真实邮件收发服务仍未接入，继续 Calendar 等主要流程。
+[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)已完成自动验收；真实邮件收发服务仍未接入。
+
+[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)已完成本地自动验收；远程日历账号、邀请和同步仍未接入。
+
+[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)、[US-122 提醒事项筛选](stories/desktop/ADESK-US-122-reminder-filters.md)、[US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)和 [US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)已完成本地自动验收；远程账号、跨设备同步和自定义列表仍未接入。
+
+[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)已完成自动验收：笔迹真实持久化、INSERT/DELETE 失败保留、Retry 恢复和刷新恢复均有正式构建证据。
+
+[US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)已完成自动验收：本地自选股支持代码和公司名搜索、空结果与清空恢复，页面明确标出无实时行情源；实时行情、交易和远程同步仍未接入。
+
+[US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)已完成自动验收：本地字体族支持名称搜索、空结果和清空恢复，筛选后的字体标题与示例文字保持一致；系统字体安装、删除和冲突管理仍未接入。
+
+[US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成自动验收：本地设置分区支持名称搜索、空结果、清空恢复和面板联动；各面板完整系统 API、远程账号、权限中心和跨设备同步仍未接入。

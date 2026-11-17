@@ -12,6 +12,7 @@ import { Entity, EntityBase, EntityType, PropertyType } from '@aiao/rxdb';
     { name: 'title', type: PropertyType.string, required: true },
     { name: 'due', type: PropertyType.string, required: true },
     { name: 'done', type: PropertyType.boolean, default: false },
+    { name: 'flagged', type: PropertyType.boolean, default: false },
     { name: 'tint', type: PropertyType.string, required: true },
     { name: 'position', type: PropertyType.integer, required: true }
   ]
@@ -20,6 +21,7 @@ export class Reminder extends EntityBase {
   declare title: string;
   declare due: string;
   declare done: boolean;
+  declare flagged: boolean;
   declare tint: string;
   declare position: number;
 }

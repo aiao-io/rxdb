@@ -19,17 +19,20 @@
     </div>
     <div class="grp">
       <div class="gh">Family</div>
-      @for (font of fonts(); track font.name; let i = $index) {
+      @for (font of visibleFonts(); track font.name; let i = $index) {
         <div
           class="si"
           [attr.data-fi]="i"
-          [class.on]="i === selected()"
-          (click)="selected.set(i)"
-          (keydown.enter)="selected.set(i)"
+          [class.on]="font.name === current()?.name"
+          (click)="selected.set(font.name)"
+          (keydown.enter)="selected.set(font.name)"
           tabindex="-1"
         >
           <span class="nm" [style.font-family]="font.stack">{{ font.name }}</span>
         </div>
+      }
+      @if (!visibleFonts().length) {
+        <div data-font-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">No matching fonts</div>
       }
     </div>
   </div>
@@ -39,7 +42,7 @@
       <div style="flex: 1"></div>
       <div class="sfield" data-nodrag style="width: 150px">
         <span><svg appIcon="g-search"></svg></span>
-        <input placeholder="Search" />
+        <input #search aria-label="Search fonts" placeholder="Search" [value]="query()" (input)="query.set(search.value)" />
       </div>
     </div>
     <div class="scroll" data-fbody style="flex: 1; padding: 26px 30px">

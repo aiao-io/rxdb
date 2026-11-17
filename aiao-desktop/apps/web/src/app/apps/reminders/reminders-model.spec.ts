@@ -8,6 +8,8 @@ import {
   draftRow,
   dueToday,
   nextPosition,
+  reminderListCount,
+  reminderMatchesList,
   rowOf,
   togglePatch
 } from './reminders-model';
@@ -17,6 +19,7 @@ const reminder = (patch: Partial<ReminderFields> = {}): ReminderFields => ({
   title: 'Pick up dry cleaning',
   due: 'Today',
   done: false,
+  flagged: false,
   tint: '#ff9f0a',
   position: 0,
   ...patch
@@ -29,6 +32,7 @@ describe('rowOf / draftRow', () => {
       title: 'Pick up dry cleaning',
       due: 'Today',
       done: false,
+      flagged: false,
       tint: '#ff9f0a',
       fresh: false,
       editing: false
@@ -42,6 +46,7 @@ describe('rowOf / draftRow', () => {
       title: '',
       due: 'Today',
       done: true,
+      flagged: false,
       tint: DONE_TINT,
       fresh: true,
       editing: true
@@ -88,6 +93,38 @@ describe('dueToday', () => {
       'Review PR #142 — column view sizing',
       'Pick up dry cleaning'
     ]);
+  });
+});
+
+describe('reminderMatchesList / reminderListCount', () => {
+  const reminders: ReminderFields[] = [
+    reminder({ id: 'today', due: 'Today 5:00 PM' }),
+    reminder({ id: 'tomorrow', due: 'Tomorrow' }),
+    reminder({ id: 'flagged', due: 'Tomorrow 9:00 AM', flagged: true }),
+    reminder({ id: 'done', due: 'Done', done: true })
+  ];
+
+  it('按 Today、Scheduled、All、Flagged、Completed 过滤', () => {
+    expect(reminders.filter(item => reminderMatchesList(item, 'today')).map(item => item.id)).toEqual(['today']);
+    expect(reminders.filter(item => reminderMatchesList(item, 'scheduled')).map(item => item.id)).toEqual([
+      'tomorrow',
+      'flagged'
+    ]);
+    expect(reminders.filter(item => reminderMatchesList(item, 'all')).map(item => item.id)).toEqual([
+      'today',
+      'tomorrow',
+      'flagged'
+    ]);
+    expect(reminders.filter(item => reminderMatchesList(item, 'flagged')).map(item => item.id)).toEqual(['flagged']);
+    expect(reminders.filter(item => reminderMatchesList(item, 'completed')).map(item => item.id)).toEqual(['done']);
+  });
+
+  it('侧栏统计跟着本地记录变化', () => {
+    expect(reminderListCount(reminders, 'today')).toBe(1);
+    expect(reminderListCount(reminders, 'scheduled')).toBe(2);
+    expect(reminderListCount(reminders, 'all')).toBe(3);
+    expect(reminderListCount(reminders, 'flagged')).toBe(1);
+    expect(reminderListCount(reminders, 'completed')).toBe(1);
   });
 });
 

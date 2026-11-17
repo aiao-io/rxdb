@@ -24,3 +24,10 @@ export const toTicker = (row: {
   readonly price: number;
   readonly changePercent: number;
 }): Ticker => ({ s: row.symbol, n: row.name, p: row.price, d: row.changePercent, up: row.changePercent >= 0 });
+
+/** 按股票代码或公司名筛选本地演示自选股。 */
+export function filterTickers(tickers: readonly Ticker[], query: string): readonly Ticker[] {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return tickers;
+  return tickers.filter(ticker => `${ticker.s} ${ticker.n}`.toLocaleLowerCase().includes(normalized));
+}

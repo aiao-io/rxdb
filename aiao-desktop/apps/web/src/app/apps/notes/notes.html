@@ -5,6 +5,9 @@
         <app-traffic-lights />
       }
       <div style="flex: 1"></div>
+      <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Folder" (click)="newFolder()" data-nodrag data-new-folder title="New Folder">
+        <svg appIcon="g-plus"></svg>
+      </button>
       <button class="tbtn" tabindex="0" aria-label="Toggle folders" (click)="toggleSidebar()" data-nodrag data-sbtoggle title="Hide Folders">
         <svg appIcon="g-sidebar"></svg>
       </button>
@@ -72,6 +75,18 @@
     <div class="nt-ed">
       <div class="nt-fmt" data-drag>
         <div style="flex: 1"></div>
+        <button
+          class="tbtn"
+          [attr.aria-pressed]="current()?.pinned ?? false"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [attr.aria-label]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          [title]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          (click)="togglePin()"
+          data-pin
+          data-nodrag
+        >
+          {{ current()?.pinned ? '📌' : 'Pin' }}
+        </button>
         @for (item of textFormats; track item.command) {
           <button
             class="tbtn"

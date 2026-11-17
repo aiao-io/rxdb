@@ -13,6 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { DesktopData } from '../../data/desktop-data';
+import { localWriteFailureMessage } from '../../data/local-write-error';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -55,7 +56,7 @@ interface PenStroke extends Stroke {
             </button>
           }
         </div>
-        <button class="tbtn" (click)="clear()" data-clear data-nodrag title="Clear">
+        <button class="tbtn" [disabled]="busy() || inking()" (click)="clear()" data-clear data-nodrag title="Clear" aria-label="Clear board">
           <svg appIcon="g-x"></svg>
         </button>
       </div>
@@ -82,6 +83,12 @@ interface PenStroke extends Stroke {
       >
         Drag to draw
       </div>
+      @if (failure(); as problem) {
+        <div role="alert" data-fferror style="position: relative; z-index: 1; padding: 5px 10px; color: var(--red); font-size: 12px; pointer-events: auto">
+          <span>{{ problem }}</span>
+          <button class="btn" type="button" [disabled]="busy()" (click)="retry()" data-retry style="margin-left: 8px">Retry</button>
+        </div>
+      }
     </div>
   `
 })
@@ -96,21 +103,29 @@ export class FreeformApp {
   );
   /** 已松手、库还没回报的笔迹：回报之前照样画在画布上，免得闪一下。 */
   private readonly settling = signal<readonly Ink[]>([]);
-  /** 指针按着、正在画。 */
-  private readonly inking = signal(false);
+  /** 落库失败后留在画布上的笔迹，等用户重试。 */
+  private readonly failed = signal<readonly Ink[]>([]);
+  /** 清空操作失败后，Retry 应该再次执行删除。 */
+  private readonly clearFailed = signal(false);
+  private readonly actionError = signal('');
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
   private readonly board = viewChild.required<ElementRef<HTMLCanvasElement>>('board');
   private readonly dpr = Math.min(2, devicePixelRatio || 1);
   private inProgress: PenStroke | null = null;
   private drawing: AbortController | null = null;
 
+  /** 指针按着、正在画。 */
+  protected readonly inking = signal(false);
+  /** 正在清空或重新保存失败笔迹。 */
+  protected readonly busy = signal(false);
   protected readonly pens = PENS;
   protected readonly pen = signal<string>(PENS[0]);
   /** 提示语在有笔迹（或正落笔）时淡出，清空后再回来；库读到之前先藏着。 */
   protected readonly hint = computed<'0' | '1'>(() => {
     const saved = this.saved();
-    return saved === null || saved.length > 0 || this.settling().length > 0 || this.inking() ? '0' : '1';
+    return saved === null || saved.length > 0 || this.settling().length > 0 || this.failed().length > 0 || this.inking() ? '0' : '1';
   });
+  protected readonly failure = computed(() => this.actionError());
 
   constructor() {
     const menus = inject(DesktopMenus);
@@ -122,6 +137,7 @@ export class FreeformApp {
       this.system.theme();
       this.saved();
       this.settling();
+      this.failed();
       untracked(() => this.fit());
     });
     /* 库回报过的笔迹，就不必再靠本窗口记着的副本来画。 */
@@ -144,7 +160,7 @@ export class FreeformApp {
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.lineWidth = LINE_WIDTH;
-    for (const stroke of visibleStrokes(this.saved() ?? [], this.settling(), this.inProgress)) {
+    for (const stroke of visibleStrokes(this.saved() ?? [], [...this.settling(), ...this.failed()], this.inProgress)) {
       g.strokeStyle = stroke.color;
       g.beginPath();
       stroke.points.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
@@ -153,11 +169,43 @@ export class FreeformApp {
   }
 
   protected clear(): void {
-    this.settling.set([]);
-    void this.erase();
+    if (this.busy() || this.inking()) return;
+    const strokes = this.saved() ?? [];
+    this.actionError.set('');
+    this.clearFailed.set(false);
+    if (!strokes.length) {
+      this.failed.set([]);
+      return;
+    }
+    this.busy.set(true);
+    void this.erase(strokes).then(
+      () => {
+        this.settling.set([]);
+        this.failed.set([]);
+      },
+      error => {
+        this.clearFailed.set(true);
+        this.actionError.set(localWriteFailureMessage(error));
+      }
+    ).finally(() => this.busy.set(false));
+  }
+
+  protected retry(): void {
+    if (this.busy()) return;
+    if (this.clearFailed()) {
+      this.clear();
+      return;
+    }
+    const failed = this.failed();
+    if (!failed.length) return;
+    this.actionError.set('');
+    this.failed.set([]);
+    this.busy.set(true);
+    void Promise.all(failed.map(stroke => this.persist(stroke))).finally(() => this.busy.set(false));
   }
 
   protected start(event: PointerEvent): void {
+    if (this.busy()) return;
     this.finish();
     this.inking.set(true);
     const rect = this.board().nativeElement.getBoundingClientRect();
@@ -195,31 +243,37 @@ export class FreeformApp {
     if (stroke && isStroke(stroke)) void this.persist(stroke);
   }
 
-  /** 存进库；落库之前先记在 `settling` 里继续画着，保存失败就撤掉这一笔并抛出错误。 */
-  private async persist(stroke: Stroke): Promise<void> {
+  /** 存进库；落库之前先记在 `settling` 里继续画着，失败后保留在画布上等待重试。 */
+  private async persist(stroke: Stroke | Ink): Promise<void> {
     const row = this.data.instantiate(FreeformStroke, { color: stroke.color, points: stroke.points });
     const ink: Ink = { id: row.id, color: stroke.color, points: stroke.points };
     this.settling.update(list => [...list, ink]);
     try {
       await (await this.data.repository(FreeformStroke)).create(row);
+      this.actionError.set('');
     } catch (error) {
-      this.settling.update(list => list.filter(item => item !== ink));
-      throw error;
+      this.settling.update(list => list.filter(item => item.id !== ink.id));
+      this.failed.update(list => list.some(item => item.id === ink.id) ? list : [...list, ink]);
+      this.actionError.set(localWriteFailureMessage(error));
     }
   }
 
-  /** 清空画板：删掉库里的全部笔迹，所有窗口一起变空。 */
-  private async erase(): Promise<void> {
-    const strokes = this.saved() ?? [];
+  /** 清空画板：删掉当前已落库的全部笔迹，失败时保留原画板。 */
+  private async erase(strokes: readonly FreeformStroke[]): Promise<void> {
     await this.data.transaction(async executor => {
       const repository = executor.getRepository(FreeformStroke);
       for (const stroke of strokes) await repository.remove(stroke);
     });
+    this.actionError.set('');
+    this.clearFailed.set(false);
   }
 
   private dropSettled(saved: readonly FreeformStroke[]): void {
-    const rest = unsettled(this.settling(), saved);
-    if (rest.length !== this.settling().length) this.settling.set(rest);
+    const settling = unsettled(this.settling(), saved);
+    if (settling.length !== this.settling().length) this.settling.set(settling);
+    const failed = unsettled(this.failed(), saved);
+    if (failed.length !== this.failed().length) this.failed.set(failed);
+    if (!failed.length && !this.clearFailed()) this.actionError.set('');
   }
 
   private context(): CanvasRenderingContext2D {

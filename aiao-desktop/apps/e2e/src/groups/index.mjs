@@ -9,12 +9,15 @@ import { apps } from './apps.mjs';
 import { backupStorage } from './backup-storage.mjs';
 import { calendarDrafts } from './calendar-drafts.mjs';
 import { contentActions } from './content-actions.mjs';
+import { contacts } from './contacts.mjs';
 import { diskTerminal } from './disk-terminal.mjs';
 import { dock } from './dock.mjs';
 import { documentWorkflow } from './document-workflow.mjs';
 import { externalContent } from './external-content.mjs';
 import { fileManagement } from './file-management.mjs';
+import { fontbookWorkflow } from './fontbook-workflow.mjs';
 import { fixtures } from './fixtures.mjs';
+import { freeformWorkflow } from './freeform-workflow.mjs';
 import { game } from './game.mjs';
 import { hostCapabilities } from './host-capabilities.mjs';
 import { hostFilesystem } from './host-filesystem.mjs';
@@ -25,15 +28,20 @@ import { localMessages } from './local-messages.mjs';
 import { multiTabStartup } from './multi-tab-startup.mjs';
 import { multiTab } from './multi-tab.mjs';
 import { noteDrafts } from './note-drafts.mjs';
+import { notesActions } from './notes-actions.mjs';
+import { notesFolders } from './notes-folders.mjs';
 import { narrowScreen } from './narrow-screen.mjs';
 import { offlineResources } from './offline-resources.mjs';
 import { persistence } from './persistence.mjs';
 import { pwa } from './pwa.mjs';
 import { reminderDrafts } from './reminder-drafts.mjs';
+import { reminderFilters } from './reminder-filters.mjs';
 import { runtimeActivity } from './runtime-activity.mjs';
 import { shellInteraction } from './shell-interaction.mjs';
 import { shell } from './shell.mjs';
+import { settingsWorkflow } from './settings-workflow.mjs';
 import { storageFaults } from './storage-faults.mjs';
+import { stocksWorkflow } from './stocks-workflow.mjs';
 import { terminalPackages } from './terminal-packages.mjs';
 import { terminalRuntimes } from './terminal-runtimes.mjs';
 import { transparentWindow } from './transparent-window.mjs';
@@ -54,8 +62,12 @@ export const GROUPS = [
   { ...localMail, weight: 45 },
   { ...localMessages, weight: 40 },
   { ...noteDrafts, weight: 40 },
+  { ...notesActions, weight: 20 },
+  { ...notesFolders, weight: 20 },
   { ...reminderDrafts, weight: 35 },
+  { ...reminderFilters, weight: 25 },
   { ...contentActions, engines: ['chromium'], weight: 25 },
+  { ...contacts, weight: 25 },
   { ...aiaoCodeFiles, default: false, engines: ['chromium'], exclusive: true, weight: 80 },
   { ...offlineResources, weight: 35 },
   { ...runtimeActivity, weight: 30 },
@@ -92,5 +104,9 @@ export const GROUPS = [
   { ...upgradeLegacy, weight: 35 },
   { ...upgradeProtection, weight: 30 },
   { ...upgradePrevious, weight: 20 },
+  { ...freeformWorkflow, weight: 30 },
+  { ...fontbookWorkflow, weight: 20 },
+  { ...stocksWorkflow, weight: 25 },
+  { ...settingsWorkflow, weight: 20 },
   { ...fixtures, weight: 40, exclusive: true }
 ];

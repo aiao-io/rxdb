@@ -9,6 +9,7 @@ import {
   folderCount,
   inFolder,
   newNoteBody,
+  noteFolderNameError,
   noteWhen,
   visibleNotes
 } from './notes-model';
@@ -33,6 +34,22 @@ describe('inFolder / folderCount', () => {
 
   it('空列表的数量是 0', () => {
     expect(folderCount([], ALL_NOTES)).toBe(0);
+  });
+});
+
+describe('noteFolderNameError', () => {
+  it('接受去掉首尾空格后的用户文件夹名', () => {
+    expect(noteFolderNameError('  Projects  ', [])).toBeNull();
+  });
+
+  it('拒绝空名、系统文件夹和重复名', () => {
+    expect(noteFolderNameError('   ', [])).toBe('Enter a folder name.');
+    expect(noteFolderNameError('notes', [])).toBe('That name is reserved by Notes.');
+    expect(noteFolderNameError('projects', ['Projects'])).toBe('A folder with that name already exists.');
+  });
+
+  it('拒绝过长名称', () => {
+    expect(noteFolderNameError('x'.repeat(61), [])).toBe('Folder names can be at most 60 characters.');
   });
 });
 

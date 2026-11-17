@@ -25,5 +25,17 @@ export class Note extends EntityBase {
   declare pinned: boolean;
 }
 
+/** 用户创建的 Notes 文件夹目录；系统文件夹仍是虚拟项，不写入这张表。 */
+@Entity({
+  name: 'NoteFolder',
+  tableName: 'note_folder',
+  namespace: 'desktop',
+  properties: [{ name: 'name', type: PropertyType.string, required: true }],
+  indexes: [{ name: 'note_folder_name', properties: ['name'], unique: true }]
+})
+export class NoteFolder extends EntityBase {
+  declare name: string;
+}
+
 /** 备忘录登记到桌面库的实体。 */
-export const NOTES_ENTITIES: readonly EntityType[] = [Note];
+export const NOTES_ENTITIES: readonly EntityType[] = [Note, NoteFolder];

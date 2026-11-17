@@ -193,7 +193,7 @@ export const calendarDrafts = {
     expect(await rows(`SELECT duration_minutes FROM "${TABLE}" WHERE title = ?`, ['keyboard-calendar'])).toEqual([[75]]);
     await session.reloadDesktop(page, { finder: false });
     await open();
-    expect(await win().locator('[data-ev]').filter({ hasText: 'keyboard-calendar' })).toHaveCount(1);
+    expect(await win().locator('.cal-ev[data-ev]').filter({ hasText: 'keyboard-calendar' })).toHaveCount(1);
     result.keyboardAndPersistence = true;
     await helpers.closeAll();
     return { calendarDrafts: result };

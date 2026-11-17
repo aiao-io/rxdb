@@ -6,7 +6,7 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { Icon } from '../../shared/icon';
 import { Sparkline } from '../../shared/status-glyphs';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { toTicker } from './stocks-data';
+import { filterTickers, toTicker, type Ticker } from './stocks-data';
 import { WatchlistSymbol } from './stocks.entities';
 
 /** 时间范围按钮与折线的颠簸步数：窗口越长走势越平滑，一天则很毛躁。 */
@@ -40,16 +40,25 @@ export class StocksApp {
   );
 
   protected readonly ranges = RANGES;
-  protected readonly selected = signal(0);
+  protected readonly selected = signal<string | null>(null);
+  protected readonly query = signal('');
   protected readonly range = signal<Range>('1M');
 
   protected readonly tickers = computed(() => this.watchlist().map(toTicker));
-  /** 选中的那支；自选列表还没读到时为 `undefined`。 */
-  protected readonly current = computed(() => this.tickers().at(this.selected()));
+  protected readonly visibleTickers = computed(() => filterTickers(this.tickers(), this.query()));
+  /** 选中的那支；筛选后原选中项消失就显示第一支。 */
+  protected readonly current = computed<Ticker | undefined>(() => {
+    const tickers = this.visibleTickers();
+    return tickers.find(ticker => ticker.s === this.selected()) ?? tickers[0] ?? undefined;
+  });
+  protected readonly selectedIndex = computed(() => {
+    const current = this.current();
+    return current ? this.visibleTickers().findIndex(ticker => ticker.s === current.s) : 0;
+  });
   protected readonly rangeIndex = computed(() => RANGES.findIndex(([label]) => label === this.range()));
   protected readonly steps = computed(() => RANGES[this.rangeIndex()][1]);
   /** 种子随股票与范围变化，所以换范围时走势真的会换一条。 */
-  protected readonly seed = computed(() => this.selected() + 3 + this.rangeIndex() * 5);
+  protected readonly seed = computed(() => this.selectedIndex() + 3 + this.rangeIndex() * 5);
   /** 详情区要显示的内容：涨跌幅文字与八格数据。 */
   protected readonly detail = computed(() => {
     const quote = this.current();
@@ -57,9 +66,9 @@ export class StocksApp {
     const { p, d } = quote;
     /* 「Open」沿用旧实现：现价减去涨跌幅百分比，并不是真正的开盘价。 */
     const stats = [
-      ['Open', (p - d).toFixed(2)],
-      ['High', (p * 1.014).toFixed(2)],
-      ['Low', (p * 0.986).toFixed(2)],
+      ['Open (demo)', (p - d).toFixed(2)],
+      ['High (demo)', (p * 1.014).toFixed(2)],
+      ['Low (demo)', (p * 0.986).toFixed(2)],
       ['Vol', '58.2M'],
       ['P/E', '34.2'],
       ['Mkt Cap', '3.48T'],

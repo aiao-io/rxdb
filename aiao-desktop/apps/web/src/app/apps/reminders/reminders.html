@@ -3,11 +3,18 @@
     <div class="sb-top"><app-traffic-lights /></div>
     <div class="grp">
       <div class="gh">My Lists</div>
-      @for (list of lists; track list[0]) {
-        <div class="si">
+      @for (list of lists(); track list.id) {
+        <button
+          class="si"
+          [class.on]="selectedList() === list.id"
+          [attr.aria-current]="selectedList() === list.id ? 'page' : null"
+          [attr.data-rlist]="list.id"
+          (click)="selectList(list.id)"
+          type="button"
+        >
           <span
             class="ico"
-            [style.background]="list[1]"
+            [style.background]="list.color"
             style="
               width: 16px;
               height: 16px;
@@ -20,15 +27,15 @@
           >
             ●
           </span>
-          <span class="nm">{{ list[0] }}</span>
-          <span class="tail">{{ list[2] }}</span>
-        </div>
+          <span class="nm">{{ list.name }}</span>
+          <span class="tail" data-rcount>{{ list.count }}</span>
+        </button>
       }
     </div>
   </div>
   <div class="wmain">
     <div class="tbar" data-drag style="height: 52px">
-      <div class="fx-title" style="color: var(--blue); font-size: 22px; font-weight: 700">Today</div>
+      <div class="fx-title" style="color: var(--blue); font-size: 22px; font-weight: 700">{{ listTitle() }}</div>
       <div class="grow" style="flex: 1"></div>
       <button
         class="tbtn"
@@ -140,7 +147,7 @@
               </div>
             </div>
           } @else {
-            <div style="min-width: 0">
+            <div style="min-width: 0; flex: 1">
               <span
                 [style.color]="item.done ? 'var(--txt-3)' : null"
                 [style.text-decoration]="item.done ? 'line-through' : null"
@@ -150,8 +157,23 @@
               </span>
               <div style="font-size: 11.5px; color: var(--txt-2)">{{ item.due }}</div>
             </div>
+            <button
+              class="tbtn"
+              [disabled]="win.closePending() || toggling().has(item.id)"
+              [attr.aria-label]="item.flagged ? 'Unflag ' + item.title : 'Flag ' + item.title"
+              [attr.aria-pressed]="item.flagged"
+              [title]="item.flagged ? 'Unflag' : 'Flag'"
+              (click)="toggleFlag(item)"
+              data-rflag
+              data-nodrag
+              type="button"
+            >
+              {{ item.flagged ? '🚩' : 'Flag' }}
+            </button>
           }
         </div>
+      } @empty {
+        <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No reminders</div>
       }
     </div>
   </div>

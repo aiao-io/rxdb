@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-17 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前34条Done、0条In Progress、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-18 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前43条Done、0条In Progress、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
@@ -8,20 +8,20 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 34   |
+| ✅ Done        | 43   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 35   |
+| **合计**       | 44   |
 
 ## 自动完成计划
 
-A01～A05 已完成并归档，包括 US-112、US-113 与 US-208；继续 A06 内置应用核查及后续自动任务，见[计划](plans/2026-11-17-autonomous-completion.md)。
+A01～A05 已完成并归档，包括 US-112、US-113 与 US-208；A06 已完成 US-114～US-127 的本地自动验收，剩余应用主要流程和 A07～A09 继续推进，见[计划](plans/2026-11-17-autonomous-completion.md)。
 
 ## 进行中（0 条）
 
-US-118 本地邮件草稿保护已完成；A06 的 Calendar 等主要流程继续。
+无故事处于 In Progress；US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、US-124 Freeform、US-125 Stocks、US-126 Font Book 和 US-127 Settings 已完成，A06 台账仍保留媒体、书架、其他搜索筛选和主要操作等未核查应用流程。
 
 ## 待评审（1 条）
 
@@ -71,6 +71,15 @@ US-118 本地邮件草稿保护已完成；A06 的 Calendar 等主要流程继�
 - ✅ [ADESK-US-117 本地会话草稿保护与通讯范围说明](stories/desktop/ADESK-US-117-local-messages.md)
 
 - ✅ [ADESK-US-118 本地邮件草稿保存与失败保护](stories/desktop/ADESK-US-118-local-mail-drafts.md)
+- ✅ [ADESK-US-119 日历事件草稿与失败保护](stories/desktop/ADESK-US-119-calendar-drafts.md)
+- ✅ [ADESK-US-120 联系人搜索与本地编辑流程](stories/desktop/ADESK-US-120-contacts-workflow.md)
+- ✅ [ADESK-US-121 备忘录置顶与取消置顶](stories/desktop/ADESK-US-121-notes-pin.md)
+- ✅ [ADESK-US-122 提醒事项列表筛选与动态统计](stories/desktop/ADESK-US-122-reminder-filters.md)
+- ✅ [ADESK-US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)
+- ✅ [ADESK-US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)
+- ✅ [ADESK-US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)
+- ✅ [ADESK-US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)
+- ✅ [ADESK-US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 

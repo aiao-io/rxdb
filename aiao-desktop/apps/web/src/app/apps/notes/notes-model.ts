@@ -7,6 +7,12 @@ export const NOTES_FOLDER = 'Notes';
 /** 删除的笔记先放进这里；已经在里面的再删才是真删除。 */
 export const TRASH_FOLDER = 'Recently Deleted';
 
+/** 系统占用的名字不能被用户文件夹复用。 */
+export const SYSTEM_FOLDERS: readonly string[] = [ALL_NOTES, NOTES_FOLDER, TRASH_FOLDER];
+
+/** Notes 文件夹名称的最大长度，避免侧栏被异常长文本撑坏。 */
+export const NOTE_FOLDER_NAME_MAX_LENGTH = 60;
+
 /** 过滤、排序与计数用到的笔记字段：库里的 `Note` 实体和测试里的普通对象都满足。 */
 export interface NoteLike {
   readonly folder: string;
@@ -23,6 +29,18 @@ export const inFolder = (note: Pick<NoteLike, 'folder'>, folder: string): boolea
 /** 侧栏文件夹右侧的笔记数量。 */
 export const folderCount = (notes: readonly Pick<NoteLike, 'folder'>[], folder: string): number =>
   notes.filter(note => inFolder(note, folder)).length;
+
+/** 新建文件夹前的用户可操作校验；比较名称时忽略首尾空格与大小写。 */
+export function noteFolderNameError(name: string, existing: readonly string[]): string | null {
+  const value = name.trim();
+  if (!value) return 'Enter a folder name.';
+  if (value.length > NOTE_FOLDER_NAME_MAX_LENGTH)
+    return `Folder names can be at most ${NOTE_FOLDER_NAME_MAX_LENGTH} characters.`;
+  const folded = value.toLowerCase();
+  if (SYSTEM_FOLDERS.some(folder => folder.toLowerCase() === folded)) return 'That name is reserved by Notes.';
+  if (existing.some(folder => folder.trim().toLowerCase() === folded)) return 'A folder with that name already exists.';
+  return null;
+}
 
 /** 列表里显示的笔记：按文件夹与搜索词（标题或正文，不分大小写）过滤，置顶优先、其余按日期新到旧。 */
 export function visibleNotes<T extends NoteLike>(notes: readonly T[], folder: string, query: string): T[] {

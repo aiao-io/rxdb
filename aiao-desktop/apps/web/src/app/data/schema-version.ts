@@ -21,7 +21,7 @@ import type { RawQueryResult } from '@aiao/rxdb';
  * 构建产物里最大的十位版本字面量是当前版本，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
  * **改这个常量是一次单向操作**：升过的库，没有降级保护的旧构建会直接打开，所以每次升版本都进发布说明。
  */
-export const DESKTOP_SCHEMA_VERSION = 2026111703;
+export const DESKTOP_SCHEMA_VERSION = 2026111802;
 
 /** 版本记录在系统偏好表里的键。 */
 export const SCHEMA_RECORD_KEY = 'schema:desktop';
@@ -91,6 +91,20 @@ export const SCHEMA_STEPS: readonly SchemaStep[] = [
   {
     version: 2026111703,
     summary: '批准目录安装集与应用投影日志成为写入协议；阻止只认识静态预装清单的旧构建删除已安装应用包。'
+  },
+  {
+    version: 2026111801,
+    summary: '提醒事项新增 flagged 字段；旧库默认未标旗，新库按提醒种子写入标旗状态。',
+    migrate: async executor => {
+      const result = (await executor.execute('PRAGMA table_info("desktop$reminder")')) as RawQueryResult;
+      const name = result.columns.indexOf('name');
+      if (!result.rows.some(row => row[name] === 'flagged'))
+        await executor.execute('ALTER TABLE "desktop$reminder" ADD COLUMN "flagged" INTEGER NOT NULL DEFAULT 0');
+    }
+  },
+  {
+    version: 2026111802,
+    summary: 'Notes 新增用户文件夹目录；旧库由 RxDB 补建空目录表，已有笔记和系统文件夹保持不变。'
   }
 ];
 
