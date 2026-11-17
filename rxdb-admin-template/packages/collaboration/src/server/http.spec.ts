@@ -1,101 +1,78 @@
+import { createHmac } from 'node:crypto';
 import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sealCommit } from '../commit.js';
-import { CollaborationError, type Command, type Identity } from '../model.js';
-import { assetSchema, diffAssets } from '../schema.testing.js';
-import { auditPage, bootstrap, snapshot } from './engine.js';
+import { CollaborationError, type Identity } from '../model.js';
+import { diffAssets } from '../schema.testing.js';
 import { collaborationServer, type RepositoryApi } from './http.js';
-import { MemoryWorkspace } from './memory.testing.js';
-const user = { id: 'user', email: 'user@example.test', verified: true };
+import { createIdentities, type AuthLookup, type Identities } from './identity.js';
+const user: Identity = { id: 'user', email: 'user@example.test', verified: true };
+const confirmed: Identity = { id: 'user', email: 'confirmed@example.test', verified: true };
 let server: Server;
 let url: string;
-const data = snapshot(
-  bootstrap(
-    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
-    { now: 1, id: () => 'id' }
-  ),
-  user,
-  1
-);
-const repository: RepositoryApi = {
-  list: vi.fn(async () => []),
-  read: vi.fn(async () => data),
-  operation: vi.fn(async () => ({ head: 'head' })),
-  receipt: vi.fn(async () => ({ status: 'unknown' })),
-  readRecords: vi.fn(async () => ({ head: null, records: {} })),
-  readCommit: vi.fn(async () => ({
-    id: 'c1',
-    parent: null,
-    authorId: 'user',
-    message: 'First',
-    changes: [],
-    records: {}
-  })),
-  readCandidate: vi.fn(async () => {
-    throw new CollaborationError('not_found', '候选不存在');
+const repository: RepositoryApi = { operation: vi.fn(async () => ({ head: 'head' })) };
+/** 身份校验的替身：`valid` 是有效令牌；接受邀请时的 Auth 确认返回以 Auth 为准的邮箱。 */
+const identities: Identities = {
+  verify: vi.fn(async (token: string) => {
+    if (token !== 'valid') throw new CollaborationError('unauthenticated', '会话已失效，请重新登录');
+    return user;
   }),
-  readHistory: vi.fn(async () => ({
-    commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
-    nextBefore: null
-  })),
-  readSchema: vi.fn(async () => assetSchema),
-  readAudit: vi.fn(async () => ({ events: [], nextBefore: null }))
+  confirm: vi.fn(async () => confirmed)
 };
-const authenticate = vi.fn(async (token: string) => {
-  if (token !== 'valid') throw new Error('private provider detail');
-  return user;
-});
-beforeEach(async () => {
-  vi.clearAllMocks();
+async function start(options: { identities: Identities } = { identities }) {
   server = collaborationServer({
     repository,
-    authenticate,
+    identities: options.identities,
     origins: ['https://product.example'],
     publicConfig: { supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' }
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+beforeEach(async () => {
+  vi.clearAllMocks();
+  await start();
 });
 afterEach(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()));
 });
-const post = (body: unknown, headers = {}) =>
-  fetch(`${url}/workspaces/team/assets/commands`, {
+const post = (body: unknown, headers: Record<string, string> = {}, path = '/workspaces/team/assets/commands') =>
+  fetch(`${url}${path}`, {
     method: 'POST',
     headers: { authorization: 'Bearer valid', 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body)
   });
+const task = { type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null };
 describe('HTTP identity boundary', () => {
-  it('requires provider-verified identity for every data request and never leaks provider errors', async () => {
-    expect((await fetch(`${url}/workspaces`)).status).toBe(401);
-    const failed = await fetch(`${url}/workspaces`, { headers: { authorization: 'Bearer invalid' } });
-    expect(failed.status).toBe(500);
-    expect(await failed.text()).not.toContain('private');
-    expect((await fetch(`${url}/workspaces`, { headers: { authorization: 'Bearer valid' } })).status).toBe(200);
-    expect(authenticate).toHaveBeenCalledWith('valid');
-    expect(repository.list).toHaveBeenCalledWith(user);
-  });
-  it('rejects cross-origin requests and forged actors before any operation', async () => {
-    expect(
-      (
-        await post(
-          { type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null },
-          { origin: 'https://attacker.example' }
-        )
-      ).status
-    ).toBe(403);
-    expect(
-      (await post({ type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null, userId: 'admin' }))
-        .status
-    ).toBe(409);
-    expect(repository.operation).not.toHaveBeenCalled();
-  });
-  it('hashes invitation credentials before persistence and passes the verified principal separately', async () => {
-    const response = await post({ type: 'accept_invite', operationId: 'op', id: 'invite', tokenHash: 'raw-token' });
-    expect(response.status).toBe(200);
+  it('verifies every command locally and answers a bad token as unauthenticated without detail', async () => {
+    expect((await post(task, { authorization: '' })).status).toBe(401);
+    const failed = await post(task, { authorization: 'Bearer invalid' });
+    expect(failed.status).toBe(401);
+    expect(await failed.json()).toEqual({ error: 'unauthenticated', message: '会话已失效，请重新登录', details: {} });
+    expect((await post(task)).status).toBe(200);
+    expect(identities.verify).toHaveBeenCalledWith('valid');
+    expect(identities.confirm).not.toHaveBeenCalled();
+    expect(repository.operation).toHaveBeenCalledTimes(1);
     expect(repository.operation).toHaveBeenCalledWith(
       user,
+      'team',
+      'assets',
+      expect.objectContaining({ type: 'task' })
+    );
+  });
+  it('rejects cross-origin requests and forged actors before any operation', async () => {
+    expect((await post(task, { origin: 'https://attacker.example' })).status).toBe(403);
+    expect((await post({ ...task, userId: 'admin' })).status).toBe(409);
+    expect(repository.operation).not.toHaveBeenCalled();
+  });
+  it('confirms the email with Auth only when accepting an invitation, and hashes the invitation token first', async () => {
+    const response = await post({ type: 'accept_invite', operationId: 'op', id: 'invite', tokenHash: 'raw-token' });
+    expect(response.status).toBe(200);
+    expect(identities.confirm).toHaveBeenCalledTimes(1);
+    expect(identities.confirm).toHaveBeenCalledWith('valid', user);
+    expect(repository.operation).toHaveBeenCalledWith(
+      confirmed,
       'team',
       'assets',
       expect.objectContaining({ tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
@@ -127,17 +104,54 @@ describe('HTTP identity boundary', () => {
     }
     expect(repository.operation).not.toHaveBeenCalled();
   });
-  it('exposes only public auth configuration and restricts receipts to the authenticated repository', async () => {
+  it('no longer accepts presence as a command: online state is Realtime Presence (ADMIN-US-219)', async () => {
+    const response = await post({
+      type: 'presence',
+      operationId: 'op',
+      sessionId: 'browser',
+      prId: null,
+      recordId: null,
+      leave: false
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'invalid', message: '操作不受支持', details: {} });
+    expect(repository.operation).not.toHaveBeenCalled();
+  });
+});
+describe('HTTP surface: public configuration and commands only (ADMIN-US-219)', () => {
+  it('exposes the public configuration without a session and allows command preflights', async () => {
     const config = await (await fetch(`${url}/collaboration-api/config`)).json();
     expect(config).toEqual({ supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' });
-    await fetch(`${url}/workspaces/team/assets/receipts/op`, { headers: { authorization: 'Bearer valid' } });
-    expect(repository.receipt).toHaveBeenCalledWith(user, 'team', 'assets', 'op');
-    const cors = await fetch(`${url}/workspaces`, {
+    const cors = await fetch(`${url}/workspaces/team/assets/commands`, {
       method: 'OPTIONS',
       headers: { origin: 'https://product.example' }
     });
     expect(cors.status).toBe(204);
     expect(cors.headers.get('access-control-allow-origin')).toBe('https://product.example');
+    expect(cors.headers.get('access-control-allow-methods')).toContain('POST');
+  });
+  it('serves none of the former read endpoints: reads go to Supabase through the RLS projections', async () => {
+    for (const path of [
+      '/workspaces',
+      '/workspaces/team/assets',
+      '/workspaces/team/assets/records',
+      '/workspaces/team/assets/history?branch=shared',
+      '/workspaces/team/assets/commits/c1',
+      '/workspaces/team/assets/candidates/k1',
+      '/workspaces/team/assets/schemas/1',
+      '/workspaces/team/assets/audit',
+      '/workspaces/team/assets/receipts/op'
+    ]) {
+      const response = await fetch(`${url}${path}`, { headers: { authorization: 'Bearer valid' } });
+      expect(response.status, path).toBe(409);
+      expect(await response.json(), path).toEqual({ error: 'not_found', message: '接口不存在', details: {} });
+    }
+    for (const path of ['/workspaces/team/assets', '/workspaces/team/assets/commands/x', '/workspaces/team']) {
+      const response = await post(task, {}, path);
+      expect(response.status, path).toBe(409);
+      expect(await response.json(), path).toMatchObject({ error: 'not_found' });
+    }
+    expect(repository.operation).not.toHaveBeenCalled();
   });
 });
 /** 不经 fetch 的原始请求：fetch 会规范化请求目标，发不出 `//` 这类连 URL 都构不成的目标。 */
@@ -161,19 +175,18 @@ describe('HTTP request hygiene', () => {
       expect(response.status).toBe(409);
       expect(await response.json()).toEqual({ error: 'invalid', message: '请求格式错误', details: {} });
     }
-    expect(authenticate).not.toHaveBeenCalled();
-    expect(repository.read).not.toHaveBeenCalled();
-    expect(repository.list).not.toHaveBeenCalled();
+    expect(identities.verify).not.toHaveBeenCalled();
+    expect(repository.operation).not.toHaveBeenCalled();
   });
   it('answers a request target that cannot form a URL as an invalid request, not an internal error', async () => {
     const response = await rawGet('//');
     expect(response.status).toBe(409);
     expect(JSON.parse(response.body)).toEqual({ error: 'invalid', message: '请求格式错误', details: {} });
-    expect(authenticate).not.toHaveBeenCalled();
+    expect(identities.verify).not.toHaveBeenCalled();
   });
-  it('keeps decoding valid percent-encoded path segments', async () => {
-    await fetch(`${url}/workspaces/team%2Done/assets`, { headers: { authorization: 'Bearer valid' } });
-    expect(repository.read).toHaveBeenCalledWith(user, 'team-one', 'assets');
+  it('keeps decoding valid percent-encoded path segments behind the collaboration-api prefix', async () => {
+    await post(task, {}, '/collaboration-api/workspaces/team%2Done/assets/commands');
+    expect(repository.operation).toHaveBeenCalledWith(user, 'team-one', 'assets', expect.objectContaining(task));
   });
   it('bounds slow clients with explicit, tight and enabled request timeouts', () => {
     const checking = (server as Server & { connectionsCheckingInterval: number }).connectionsCheckingInterval;
@@ -187,270 +200,51 @@ describe('HTTP request hygiene', () => {
   });
 });
 
-const get = (path: string, token = 'valid') =>
-  fetch(`${url}${path}`, { headers: { authorization: `Bearer ${token}` } });
-describe('on-demand read routes', () => {
-  it('serves shared records, commits, candidates and audit pages to the authenticated user', async () => {
-    const records = await get('/workspaces/team/assets/records');
-    expect(records.status).toBe(200);
-    expect(await records.json()).toEqual({ head: null, records: {} });
-    expect(repository.readRecords).toHaveBeenCalledWith(user, 'team', 'assets');
-    const commit = await get('/workspaces/team/assets/commits/c1');
-    expect((await commit.json()) as unknown).toMatchObject({ id: 'c1', message: 'First' });
-    expect(repository.readCommit).toHaveBeenCalledWith(user, 'team', 'assets', 'c1');
-    await get('/workspaces/team/assets/candidates/k1');
-    expect(repository.readCandidate).toHaveBeenCalledWith(user, 'team', 'assets', 'k1');
-    const audit = await get('/workspaces/team/assets/audit');
-    expect(await audit.json()).toEqual({ events: [], nextBefore: null });
-    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {});
-    const schema = await get('/workspaces/team/assets/schemas/1');
-    expect(await schema.json()).toEqual(assetSchema);
-    expect(repository.readSchema).toHaveBeenCalledWith(user, 'team', 'assets', 1);
-    expect(repository.read).not.toHaveBeenCalled();
-    expect(repository.operation).not.toHaveBeenCalled();
-  });
-  it('accepts only a positive decimal schema version, without touching the repository otherwise', async () => {
-    for (const version of ['0', '01', '-1', '1.5', 'x', '1234567890']) {
-      const response = await get(`/workspaces/team/assets/schemas/${version}`);
-      expect(await response.json(), version).toMatchObject({ error: 'invalid' });
-    }
-    expect(repository.readSchema).not.toHaveBeenCalled();
-  });
-  it('serves commit history pages by branch, task or PR, with paging parameters parsed and validated', async () => {
-    const page = await get('/workspaces/team/assets/history?branch=shared');
-    expect(page.status).toBe(200);
-    expect(await page.json()).toEqual({
-      commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
-      nextBefore: null
-    });
-    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', { branch: 'shared' });
-    await get('/workspaces/team/assets/history?taskId=task-1&before=c9&limit=20');
-    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', {
-      taskId: 'task-1',
-      before: 'c9',
-      limit: 20
-    });
-    await get('/collaboration-api/workspaces/team/assets/history?prId=pr%2D1');
-    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', { prId: 'pr-1' });
-    expect(repository.read).not.toHaveBeenCalled();
-    expect(repository.operation).not.toHaveBeenCalled();
-  });
-  it('rejects history queries without exactly one branch selector or with malformed parameters', async () => {
-    for (const query of [
-      '',
-      'branch=main',
-      'branch=shared&taskId=t',
-      'taskId=t&prId=p',
-      'branch=shared&branch=shared',
-      'branch=shared&limit=x',
-      'branch=shared&limit=1000',
-      'taskId=a%20b',
-      'before=c1',
-      'branch=shared&threadId=t'
-    ]) {
-      const response = await get(`/workspaces/team/assets/history?${query}`);
-      expect(response.status, query).toBe(409);
-      expect(await response.json(), query).toEqual({ error: 'invalid', message: '请求字段不合法', details: {} });
-    }
-    expect(repository.readHistory).not.toHaveBeenCalled();
-    expect((await fetch(`${url}/workspaces/team/assets/history?branch=shared`)).status).toBe(401);
-  });
-  it('passes audit filters and paging parameters through, parsed and validated', async () => {
-    await get('/workspaces/team/assets/audit?before=event-1&limit=20&prId=pr-1&threadId=thread_1');
-    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {
-      before: 'event-1',
-      limit: 20,
-      prId: 'pr-1',
-      threadId: 'thread_1'
-    });
-    await get('/workspaces/team/assets/audit?limit=100');
-    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', { limit: 100 });
-    await get('/workspaces/team/assets/audit?prId=pr-2');
-    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', { prId: 'pr-2' });
-  });
-  it('rejects malformed audit queries as invalid requests without touching the repository', async () => {
-    const malformed = [
-      'limit=abc',
-      'limit=',
-      'limit=1.5',
-      'limit=-1',
-      'limit=1000',
-      'limit=1&limit=2',
-      'before=',
-      'before=a/b',
-      'prId=',
-      'threadId=a%20b',
-      'unknown=1'
-    ];
-    for (const query of malformed) {
-      const response = await get(`/workspaces/team/assets/audit?${query}`);
-      expect(response.status, query).toBe(409);
-      expect(await response.json(), query).toEqual({ error: 'invalid', message: '请求字段不合法', details: {} });
-    }
-    expect(repository.readAudit).not.toHaveBeenCalled();
-  });
-  it('decodes percent-encoded ids and answers behind the collaboration-api prefix', async () => {
-    await get('/collaboration-api/workspaces/team%2Done/assets/commits/commit%2D1');
-    expect(repository.readCommit).toHaveBeenCalledWith(user, 'team-one', 'assets', 'commit-1');
-    await get('/collaboration-api/workspaces/team/assets/records');
-    expect(repository.readRecords).toHaveBeenCalledWith(user, 'team', 'assets');
-  });
-  it('requires an authenticated session before any read', async () => {
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
-      expect((await fetch(`${url}/workspaces/team/assets/${path}`)).status, path).toBe(401);
-      expect((await get(`/workspaces/team/assets/${path}`, 'invalid')).status, path).toBe(500);
-    }
-    expect(repository.readRecords).not.toHaveBeenCalled();
-    expect(repository.readCommit).not.toHaveBeenCalled();
-    expect(repository.readCandidate).not.toHaveBeenCalled();
-    expect(repository.readAudit).not.toHaveBeenCalled();
-  });
-  it('reports an unknown id as not_found without leaking anything else', async () => {
-    const response = await get('/workspaces/team/assets/candidates/missing');
-    expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({ error: 'not_found', message: '候选不存在', details: {} });
-  });
-  it('treats other methods, extra segments and unknown resources as unknown endpoints', async () => {
-    const headers = { authorization: 'Bearer valid', 'content-type': 'application/json' };
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history', 'schemas/1']) {
-      const response = await fetch(`${url}/workspaces/team/assets/${path}`, { method: 'POST', headers, body: '{}' });
-      expect(response.status, path).toBe(409);
-      expect(await response.json(), path).toMatchObject({ error: 'not_found' });
-    }
-    for (const path of [
-      'records/x',
-      'commits',
-      'commits/c1/x',
-      'candidates',
-      'audit/x',
-      'history/x',
-      'schemas',
-      'schemas/1/x',
-      'unknown',
-      'unknown/x'
-    ]) {
-      const response = await get(`/workspaces/team/assets/${path}`);
-      expect(response.status, path).toBe(409);
-      expect(await response.json(), path).toMatchObject({ error: 'not_found' });
-    }
-    expect(repository.readRecords).not.toHaveBeenCalled();
-    expect(repository.readCommit).not.toHaveBeenCalled();
-    expect(repository.readAudit).not.toHaveBeenCalled();
-    expect(repository.readHistory).not.toHaveBeenCalled();
-  });
-  it('allows the read methods in CORS preflight', async () => {
-    const response = await fetch(`${url}/workspaces/team/assets/records`, {
-      method: 'OPTIONS',
-      headers: { origin: 'https://product.example' }
-    });
-    expect(response.headers.get('access-control-allow-methods')).toContain('GET');
-  });
-});
-
-/** 以内存工作区实现的仓储：验证路由、授权与错误码的端到端映射，不涉及数据库。 */
-function memoryRepository(workspace: MemoryWorkspace): RepositoryApi {
-  const operation = async (actor: Identity, _team: string, _app: string, command: Command) =>
-    workspace.run(actor, command, { now: 1000, id: () => `event-${workspace.state.audit.length + 1}` });
-  return {
-    ...repository,
-    operation,
-    readRecords: async actor => workspace.records(actor),
-    readCommit: async (actor, _team, _app, id) => workspace.commit(actor, id),
-    readCandidate: async (actor, _team, _app, id) => workspace.candidate(actor, id),
-    readHistory: async (actor, _team, _app, query) => workspace.history(actor, query),
-    readSchema: async (actor, _team, _app, version) => workspace.schema(actor, version),
-    readAudit: async (actor, _team, _app, query) => auditPage(workspace.state, actor, query)
+describe('Auth is consulted only when accepting an invitation (ADMIN-US-219 AC#5/#6)', () => {
+  const secret = 'http-spec-local-secret-with-at-least-32-characters';
+  const hs256 = (claims: Record<string, unknown>) => {
+    const input = `${Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')}.${Buffer.from(
+      JSON.stringify(claims)
+    ).toString('base64url')}`;
+    return `${input}.${createHmac('sha256', secret).update(input).digest('base64url')}`;
   };
-}
-describe('on-demand reads over the engine', () => {
-  const outsider = { id: 'outsider', email: 'outsider@example.test', verified: true };
-  let remote: Server;
-  let base: string;
-  const fetchAs = (id: string, path: string) => fetch(`${base}${path}`, { headers: { authorization: `Bearer ${id}` } });
-  beforeEach(async () => {
-    const workspace = MemoryWorkspace.create(
-      { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
-      { now: 1, id: () => 'bootstrap-event' }
-    );
-    const api = memoryRepository(workspace);
-    await api.operation(user, 'team', 'assets', {
-      type: 'task',
-      id: 'task',
-      name: 'Task',
-      expectedHead: null,
-      operationId: 'operation-1'
-    });
-    await api.operation(user, 'team', 'assets', {
-      type: 'upload',
-      taskId: 'task',
-      expectedHead: null,
-      operationId: 'operation-2',
-      commits: [
-        await sealCommit({
-          id: 'c1',
-          parent: null,
-          authorId: user.id,
-          message: 'First',
-          changes: diffAssets({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
-        })
-      ]
-    });
-    remote = collaborationServer({
-      repository: api,
-      authenticate: async token => ({ id: token, email: `${token}@example.test`, verified: true }),
-      origins: [],
-      publicConfig: { supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' }
-    });
-    await new Promise<void>(resolve => remote.listen(0, '127.0.0.1', resolve));
-    base = `http://127.0.0.1:${(remote.address() as AddressInfo).port}`;
+  const token = hs256({
+    sub: 'member',
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'member@example.test',
+    exp: Math.floor(Date.now() / 1000) + 600
   });
-  afterEach(async () => {
-    await new Promise<void>(resolve => remote.close(() => resolve()));
-  });
-  it('serves members the real content and an unknown id as not_found', async () => {
-    const commit = await fetchAs('user', '/workspaces/team/assets/commits/c1');
-    expect(commit.status).toBe(200);
-    expect(await commit.json()).toMatchObject({ id: 'c1', records: { cat: { fields: { name: 'Laptops' } } } });
-    const records = await fetchAs('user', '/workspaces/team/assets/records');
-    expect(await records.json()).toEqual({ head: null, records: {} });
-    const missing = await fetchAs('user', '/workspaces/team/assets/commits/constructor');
-    expect(missing.status).toBe(409);
-    expect(await missing.json()).toMatchObject({ error: 'not_found', message: '提交不存在' });
-    const events = (await (await fetchAs('user', '/workspaces/team/assets/audit?limit=2')).json()) as {
-      events: { action: string }[];
-      nextBefore: string | null;
+  it('verifies a stream of commands without calling Auth, and calls it exactly once for an invitation', async () => {
+    const auth: AuthLookup = {
+      getUser: vi.fn(async () => ({
+        data: { user: { id: 'member', email: 'member@example.test', email_confirmed_at: '2026-11-17T00:00:00Z' } },
+        error: null
+      }))
     };
-    expect(events.events.map(event => event.action)).toEqual(['upload', 'task']);
-    expect(events.nextBefore).not.toBeNull();
-  });
-  it('serves the task history to members and paging limits are enforced by the engine', async () => {
-    const history = await fetchAs('user', '/workspaces/team/assets/history?taskId=task');
-    expect(history.status).toBe(200);
-    expect(await history.json()).toEqual({
-      commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
-      nextBefore: null
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    await start({
+      identities: createIdentities({ rules: { keys: { kind: 'secret', secret }, issuer: undefined }, auth })
     });
-    expect(await (await fetchAs('user', '/workspaces/team/assets/history?branch=shared')).json()).toEqual({
-      commits: [],
-      nextBefore: null
-    });
-    const unknown = await fetchAs('user', '/workspaces/team/assets/history?taskId=missing');
-    expect(await unknown.json()).toMatchObject({ error: 'not_found', message: '任务不存在' });
-    const tooMany = await fetchAs('user', '/workspaces/team/assets/history?taskId=task&limit=101');
-    expect(await tooMany.json()).toMatchObject({ error: 'invalid' });
-  });
-  it('serves registered schema versions to members and an unregistered version as not_found', async () => {
-    expect(await (await fetchAs('user', '/workspaces/team/assets/schemas/1')).json()).toEqual(assetSchema);
-    const missing = await fetchAs('user', '/workspaces/team/assets/schemas/2');
-    expect(await missing.json()).toMatchObject({ error: 'not_found', message: '数据模式不存在' });
-  });
-  it('answers non-members with 403 and no content for every read', async () => {
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history?branch=shared', 'schemas/1']) {
-      const response = await fetchAs(outsider.id, `/workspaces/team/assets/${path}`);
-      expect(response.status, path).toBe(403);
-      const text = await response.text();
-      expect(text, path).not.toContain('Laptops');
-      expect(JSON.parse(text), path).toMatchObject({ error: 'forbidden' });
-    }
+    const headers = { authorization: `Bearer ${token}` };
+    for (let i = 0; i < 5; i++) expect((await post({ ...task, operationId: `op-${i}` }, headers)).status).toBe(200);
+    expect(auth.getUser).not.toHaveBeenCalled();
+    expect(repository.operation).toHaveBeenCalledTimes(5);
+    expect(repository.operation).toHaveBeenCalledWith(
+      { id: 'member', email: 'member@example.test', verified: true },
+      'team',
+      'assets',
+      expect.objectContaining({ type: 'task' })
+    );
+    expect(
+      (await post({ type: 'accept_invite', operationId: 'accept', id: 'i', tokenHash: 't' }, headers)).status
+    ).toBe(200);
+    expect(auth.getUser).toHaveBeenCalledTimes(1);
+    expect(auth.getUser).toHaveBeenCalledWith(token);
+    for (let i = 0; i < 3; i++) await post({ ...task, operationId: `after-${i}` }, headers);
+    expect(auth.getUser).toHaveBeenCalledTimes(1);
+    const forged = hs256({ sub: 'member', aud: 'authenticated', role: 'service_role', exp: Date.now() / 1000 + 600 });
+    expect((await post(task, { authorization: `Bearer ${forged}` })).status).toBe(401);
+    expect(auth.getUser).toHaveBeenCalledTimes(1);
   });
 });

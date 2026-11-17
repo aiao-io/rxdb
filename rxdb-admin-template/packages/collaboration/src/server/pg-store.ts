@@ -1,52 +1,27 @@
 import type { PoolClient } from 'pg';
 import {
-  demand,
-  type ChangeSet,
-  type Commit,
-  type CommitMeta,
-  type CommitSummary,
-  type DataRow,
-  type Records
-} from '../model.js';
+  changesOf,
+  commitSummaryOf,
+  lineageOf,
+  pathOf,
+  type ChangeRow,
+  type CommitRow,
+  type LinkRow
+} from '../derive.js';
+import type { ChangeSet, Commit, CommitMeta, CommitSummary, DataRow, Records } from '../model.js';
 import { recordKeyText, type RecordKey } from '../schema.js';
-import type { CommitStore, IndexedKey, Lineage, Link, Path, SharedChange } from './store.js';
+import type { CommitStore, IndexedKey, Lineage, Path, SharedChange } from './store.js';
 
-interface CommitRow {
-  id: string;
-  parent_id: string | null;
-  author_id: string;
-  message: string;
-  merge_source: string | null;
-  candidate_id: string | null;
-  fingerprint: string;
-}
-interface LinkRow {
-  id: string;
-  parent_id: string | null;
-  merge: boolean;
-}
-interface ChangeRow {
-  commit_id: string;
-  namespace: string;
-  entity: string;
-  entity_id: string;
-  operation: ChangeSet['operation'];
-  patch: ChangeSet['patch'];
-  inverse_patch: ChangeSet['inversePatch'];
-}
 interface SharedRow {
   record_id: string;
   entity: string;
   fields: DataRow['fields'];
 }
 
-const summaryOf = (row: Omit<CommitRow, 'fingerprint'>): CommitSummary => {
-  const summary: CommitSummary = { id: row.id, parent: row.parent_id, authorId: row.author_id, message: row.message };
-  if (row.merge_source !== null) summary.mergeSource = row.merge_source;
-  if (row.candidate_id !== null) summary.candidateId = row.candidate_id;
-  return summary;
-};
-const metaOf = (row: CommitRow): CommitMeta => ({ ...summaryOf(row), fingerprint: row.fingerprint });
+const metaOf = (row: CommitRow & { fingerprint: string }): CommitMeta => ({
+  ...commitSummaryOf(row),
+  fingerprint: row.fingerprint
+});
 
 /** 键索引的列，与 `admin_private.record_keys` 一致。 */
 const keyColumns = 'record_id text, kind text, entity text, field text, value text';
@@ -76,7 +51,7 @@ export class PgCommitStore implements CommitStore {
 
   async commits(ids: readonly string[]): Promise<Map<string, CommitMeta>> {
     if (!ids.length) return new Map();
-    const result = await this.client.query<CommitRow>(
+    const result = await this.client.query<CommitRow & { fingerprint: string }>(
       `SELECT id, parent_id, author_id, message, merge_source, candidate_id, fingerprint
        FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 AND id = ANY($3::text[])`,
       [this.teamId, this.appId, [...ids]]
@@ -96,21 +71,11 @@ export class PgCommitStore implements CommitStore {
        ) SELECT id, parent_id, merge FROM chain`,
       [this.teamId, this.appId, from, until]
     );
-    const rows = new Map(result.rows.map(row => [row.id, row]));
-    const links: Link[] = [];
-    let cursor: string | null = from;
-    while (cursor !== null && cursor !== until) {
-      const row = rows.get(cursor);
-      if (!row) return { links, reached: false };
-      demand(links.length <= rows.size, 'ancestry', '提交图不能包含环');
-      links.push({ id: row.id, parent: row.parent_id, merge: row.merge });
-      cursor = row.parent_id;
-    }
-    return { links, reached: cursor === until };
+    return pathOf(result.rows, from, until);
   }
   async history(from: string | null, until: string | null, limit: number): Promise<CommitSummary[]> {
     if (from === null || from === until || limit < 1) return [];
-    const result = await this.client.query<Omit<CommitRow, 'fingerprint'>>(
+    const result = await this.client.query<CommitRow>(
       `WITH RECURSIVE chain AS (
          SELECT id, parent_id, author_id, message, merge_source, candidate_id, 1 AS depth FROM admin_private.commits
          WHERE team_id = $1 AND app_id = $2 AND id = $3
@@ -121,7 +86,7 @@ export class PgCommitStore implements CommitStore {
        ) SELECT id, parent_id, author_id, message, merge_source, candidate_id FROM chain ORDER BY depth`,
       [this.teamId, this.appId, from, until, limit]
     );
-    return result.rows.map(summaryOf);
+    return result.rows.map(commitSummaryOf);
   }
   async lineage(id: string): Promise<Lineage> {
     const result = await this.client.query<LinkRow>(
@@ -135,22 +100,10 @@ export class PgCommitStore implements CommitStore {
        ) SELECT id, parent_id, merge FROM chain`,
       [this.teamId, this.appId, id]
     );
-    const rows = new Map(result.rows.map(row => [row.id, row]));
-    demand(rows.has(id), 'not_found', '提交不存在');
-    const links: Link[] = [];
-    let cursor: string | null = id;
-    while (cursor !== null) {
-      const row = rows.get(cursor);
-      demand(row && links.length <= rows.size, 'ancestry', '提交图不能包含环');
-      if (row.merge) return { links, anchor: row.id };
-      links.push({ id: row.id, parent: row.parent_id, merge: false });
-      cursor = row.parent_id;
-    }
-    return { links, anchor: null };
+    return lineageOf(result.rows, id);
   }
   async changes(ids: readonly string[], records?: readonly string[]): Promise<Map<string, ChangeSet[]>> {
-    const found = new Map<string, ChangeSet[]>();
-    if (!ids.length) return found;
+    if (!ids.length) return new Map();
     const result = await this.client.query<ChangeRow>(
       `SELECT commit_id, namespace, entity, entity_id, operation, patch, inverse_patch
        FROM admin_private.commit_changes
@@ -159,19 +112,7 @@ export class PgCommitStore implements CommitStore {
        ORDER BY commit_id, seq`,
       [this.teamId, this.appId, [...ids], records ? [...records] : null]
     );
-    for (const row of result.rows) {
-      const list = found.get(row.commit_id) ?? [];
-      list.push({
-        namespace: row.namespace,
-        entity: row.entity,
-        entityId: row.entity_id,
-        operation: row.operation,
-        patch: row.patch,
-        inversePatch: row.inverse_patch
-      });
-      found.set(row.commit_id, list);
-    }
-    return found;
+    return changesOf(result.rows);
   }
   async shared(records?: readonly string[]): Promise<Records> {
     const result = await this.client.query<SharedRow>(

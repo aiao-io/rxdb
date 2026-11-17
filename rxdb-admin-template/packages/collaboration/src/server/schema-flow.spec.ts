@@ -478,7 +478,7 @@ describe('登记新的数据模式版本', () => {
       schemaVersion: 3
     });
     expect(workspace.state.schemaVersion).toBe(3);
-    expect((await workspace.summary(admin, 1000)).schemaVersion).toBe(3);
+    expect((await workspace.summary(admin)).schemaVersion).toBe(3);
     expect(await workspace.schema(admin, 1)).toEqual(planningSchema);
     expect((await workspace.schema(admin, 3)).schemaVersion).toBe(3);
     expect(await codeOf(workspace.schema(admin, 2))).toBe('not_found');

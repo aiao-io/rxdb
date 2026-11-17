@@ -1,5 +1,5 @@
 import { demand, type Command, type Environment, type Identity, type Thread, type Workspace } from '../model.js';
-import { authorize, expected, openPr, prFor, taskFor } from './access.js';
+import { authorize, expected, openPr, prFor } from './access.js';
 import { preloaded, type Facts, type Plan, type Run } from './plan.js';
 
 export function notify(
@@ -25,7 +25,7 @@ export function notify(
     });
   }
 }
-/** 评论锚点与在线状态需要预加载的数据：锚定的那条记录在候选结果、来源与目标三处的取值，或记录是否存在；其余讨论命令不需要。 */
+/** 评论锚点需要预加载的数据：锚定的那条记录在候选结果、来源与目标三处的取值；其余讨论命令不需要。 */
 export function discussionPlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
   if (command.type === 'thread') {
     threadGuards(state, user, command);
@@ -38,17 +38,7 @@ export function discussionPlan(state: Workspace, user: Identity, command: Comman
         }
       : undefined;
   }
-  if (command.type !== 'presence') return undefined;
-  authorize(state, user, 'read');
-  const task = command.prId ? taskFor(state, prFor(state, command.prId).taskId) : null;
-  return command.recordId ?
-      {
-        type: 'presence',
-        head: state.head,
-        recordId: command.recordId,
-        task: task && { head: task.head, base: task.base }
-      }
-    : undefined;
+  return undefined;
 }
 export function discussionCommand(
   state: Workspace,
@@ -112,27 +102,6 @@ export function discussionCommand(
     demand(notice, 'not_found', '通知不存在');
     notice.read = true;
     return { noticeId: notice.id };
-  }
-  if (command.type === 'presence') {
-    authorize(state, user, 'read');
-    if (command.prId) prFor(state, command.prId);
-    demand(
-      !command.recordId || !!run.facts.presence?.shared || (!!command.prId && !!run.facts.presence?.task),
-      'not_found',
-      '记录不存在'
-    );
-    state.presence = state.presence.filter(
-      p => p.expiresAt > env.now && !(p.userId === user.id && p.sessionId === command.sessionId)
-    );
-    if (!command.leave)
-      state.presence.push({
-        userId: user.id,
-        sessionId: command.sessionId,
-        prId: command.prId,
-        recordId: command.recordId,
-        expiresAt: env.now + 45000
-      });
-    return { expiresAt: env.now + 45000 };
   }
   return undefined;
 }

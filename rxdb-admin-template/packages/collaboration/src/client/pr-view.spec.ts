@@ -1,6 +1,6 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Audit, Candidate, CommitContent, Records, Thread } from '../model.js';
+import type { Audit, Candidate, CommitContent, PullRequestDetail, Records, Thread } from '../model.js';
 import { assetSchema } from '../schema.testing.js';
 import type { CollaborationController } from './controller.js';
 import type { Perform } from './elements.js';
@@ -71,7 +71,14 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
     commits: {} as Record<string, CommitContent>,
     candidates: {} as Record<string, Candidate>,
     shared: undefined as Records | undefined,
-    threads: {} as Record<string, Audit[]>
+    threads: {} as Record<string, Audit[]>,
+    detail: {
+      prId: 'pr',
+      candidates: options.candidate ? { cand: { ...candidateSummary, base, target } } : {},
+      reviews: [],
+      threads: [thread],
+      governance: { prId: 'pr', blockers: [], stages: [] }
+    } as PullRequestDetail | undefined
   };
   const open = new Set<string>();
   const reveal = vi.fn();
@@ -103,6 +110,9 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
     loadEarlierCommits: vi.fn(async (branch: unknown) => {
       calls.push(`earlier-commits:${JSON.stringify(branch)}`);
     }),
+    loadEarlierPrs: vi.fn(async () => {
+      calls.push('earlier-prs');
+    }),
     snapshot: {
       head: target,
       policy: { version: 1, stages: [] },
@@ -125,10 +135,12 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
           subscribers: []
         }
       ],
-      candidates: options.candidate ? { cand: { ...candidateSummary, base, target } } : {},
-      reviews: [],
-      threads: [thread],
-      governance: []
+      earlier: { prs: false, tasks: false, notices: false }
+    },
+    // 候选、审核与讨论是 PR 详情，按 PR 读取（ADMIN-US-219）
+    prDetail: (prId: string) => {
+      requested.push(`detail:${prId}`);
+      return store.detail;
     }
   } as unknown as CollaborationController;
   const perform: Perform = async work => {
@@ -432,5 +444,32 @@ describe('最终候选与讨论的按需内容', () => {
     expect(history).toHaveLength(2);
     expect(history[0]).toContain('u1 · reply');
     expect(history[1]).toContain('u1 · resolve_thread');
+  });
+});
+
+describe('PR 详情按 PR 读取（ADMIN-US-219）', () => {
+  it('详情读到之前各页签只显示占位，不渲染审核、讨论与候选，也不读取提交与候选内容', () => {
+    const { draw, view, requested, store, buttons } = setup({ candidate: true });
+    store.detail = undefined;
+    for (const tab of ['discussion', 'commits', 'changes', 'checks'] as const) {
+      view.tab = tab;
+      const root = draw();
+      expect(root.querySelector('#pr-panel [data-loading]'), tab).not.toBeNull();
+      expect(buttons(root, '批准当前候选'), tab).toHaveLength(0);
+      expect(buttons(root, '发表评论'), tab).toHaveLength(0);
+    }
+    expect(requested.filter(entry => entry.startsWith('candidate:') || entry.startsWith('commit:'))).toEqual([]);
+    expect(requested).toContain('detail:pr');
+  });
+  it('团队页窗口之外还有更早的 PR 时提供加载入口', async () => {
+    const { draw, buttons, calls, view } = setup();
+    expect(buttons(draw(), '加载更早的 PR')).toHaveLength(0);
+    const snapshot = (view as unknown as { controller: { snapshot: { earlier: { prs: boolean } } } }).controller
+      .snapshot;
+    snapshot.earlier.prs = true;
+    const [load] = buttons(draw(), '加载更早的 PR');
+    load.click();
+    await flush();
+    expect(calls).toContain('earlier-prs');
   });
 });

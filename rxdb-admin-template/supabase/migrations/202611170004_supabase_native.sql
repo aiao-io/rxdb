@@ -44,14 +44,16 @@ GRANT EXECUTE ON FUNCTION admin_private.can_manage(text, text), admin_private.ca
 -- 只读投影：视图以所有者身份读私有表，可见范围写在视图条件里（等价于 RLS：can_read 成员资格，通知与回执另限本人，
 -- 邀请另限管理者）；security_barrier 保证调用方的筛选条件不会先于这些条件求值而泄露行。
 -- 不暴露的列：邀请令牌摘要、请求指纹、初始化密钥、提交内容指纹。
+-- 工作区行从当前用户的可读成员行出发（memberships_user 索引）：「我的工作区」只读本人的成员行，不扫其他团队
 CREATE OR REPLACE VIEW public.admin_workspaces WITH (security_barrier = true) AS
   SELECT w.team_id, w.app_id, w.name, w.schema_version, w.policy_version, p.stages AS policy_stages, r.head,
     v.revision, v.audit_count
-  FROM admin_private.workspaces w
+  FROM admin_private.memberships m
+  JOIN admin_private.workspaces w ON w.team_id = m.team_id AND w.app_id = m.app_id
   JOIN admin_private.policies p ON p.team_id = w.team_id AND p.app_id = w.app_id AND p.version = w.policy_version
   JOIN admin_private.refs r ON r.team_id = w.team_id AND r.app_id = w.app_id AND r.ref = 'shared'
   JOIN public.admin_workspace_versions v ON v.team_id = w.team_id AND v.app_id = w.app_id
-  WHERE admin_private.can_read(w.team_id, w.app_id);
+  WHERE m.user_id = auth.uid()::text AND m.can_read;
 CREATE OR REPLACE VIEW public.admin_members WITH (security_barrier = true) AS
   SELECT m.team_id, m.app_id, m.user_id, m.email, m.permissions, m.generation, m.seq
   FROM admin_private.memberships m

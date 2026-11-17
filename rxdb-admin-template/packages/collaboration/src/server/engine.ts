@@ -1,27 +1,19 @@
 import type { RecordCheck } from '../checks.js';
 import {
-  auditPageSize,
-  auditSummarySize,
   demand,
   permissions,
   type Audit,
-  type AuditPage,
-  type AuditQuery,
-  type CandidateSummary,
   type Command,
   type Environment,
   type Identity,
-  type Presence,
   type SchemaManifest,
-  type StoredCandidate,
-  type Workspace,
-  type WorkspaceSummary
+  type Workspace
 } from '../model.js';
 import { canonical } from '../records.js';
 import { parseSchemaManifest } from '../schema.js';
 import { authorize, editTask, taskFor } from './access.js';
 import { discussionCommand, discussionPlan, notify } from './discussion.js';
-import { blockers, governanceCommand, governancePlan, progress } from './governance.js';
+import { governanceCommand, governancePlan } from './governance.js';
 import { membershipCommand } from './membership.js';
 import { noEffects, noFacts, type Effects, type Facts, type Plan } from './plan.js';
 import { schemaCommand, schemaPlan } from './schemas.js';
@@ -30,6 +22,7 @@ import { taskCommand, taskPlan } from './tasks.js';
 /**
  * 新建工作区的初始状态，仅由可信服务端部署命令调用，普通会话没有初始化入口。
  * 同时登记 `schema` 作为第一个数据模式版本（清单重新解析一遍，只保留已知键），工作区的数据模式版本取清单的版本号。
+ * 团队与应用标识不能含冒号：私有频道名 `collab:<团队>:<应用>` 以冒号分隔，含冒号会让两个工作区共用一个频道。
  */
 export function bootstrap(
   input: {
@@ -43,6 +36,7 @@ export function bootstrap(
   env: Environment
 ): Workspace {
   demand(input.admin.verified, 'forbidden', '初始管理员必须有已验证邮箱');
+  demand(!input.teamId.includes(':') && !input.appId.includes(':'), 'invalid', '团队与应用标识不能包含冒号');
   const schema = parseSchemaManifest(input.schema);
   return {
     teamId: input.teamId,
@@ -63,7 +57,6 @@ export function bootstrap(
     reviews: [],
     threads: {},
     notifications: [],
-    presence: [],
     receipts: {},
     audit: [
       {
@@ -94,10 +87,8 @@ export interface EngineOptions {
  */
 export function plan(state: Workspace, user: Identity, command: Command): Plan {
   demand(user.verified, 'forbidden', '需要已验证的用户身份');
-  if (command.type !== 'presence') {
-    if (command.type !== 'accept_invite') authorize(state, user, 'read');
-    if (state.receipts[command.operationId]) return { type: 'none' };
-  }
+  if (command.type !== 'accept_invite') authorize(state, user, 'read');
+  if (state.receipts[command.operationId]) return { type: 'none' };
   return (
     taskPlan(state, user, command) ??
     governancePlan(state, user, command) ??
@@ -122,11 +113,6 @@ export function execute(
   demand(user.verified, 'forbidden', '需要已验证的用户身份');
   const effects = noEffects();
   const run = { facts, effects, checks: options.checks };
-  if (command.type === 'presence') {
-    const result = discussionCommand(state, user, command, env, run);
-    demand(result, 'invalid', '不支持的操作');
-    return { result: structuredClone(result), effects };
-  }
   if (command.type !== 'accept_invite') authorize(state, user, 'read');
   const previous = state.receipts[command.operationId];
   if (previous) return { result: receipt(state, user, command, previous), effects };
@@ -191,73 +177,6 @@ function auditDetails(command: Command, result: Record<string, unknown>): Record
   return details;
 }
 
-/** 候选的元数据：去掉存储的字段级变更；最终记录改经按需读取接口获取。 */
-export function candidateSummary(candidate: StoredCandidate): CandidateSummary {
-  const summary: Partial<StoredCandidate> = { ...candidate };
-  delete summary.changes;
-  return summary as CandidateSummary;
-}
-
-/**
- * 摘要的外部输入：`auditCount` 是审计事件总数（仓储只把最近一窗事件放进状态时传入，省略时取 `state.audit.length`），
- * `presence` 是在线记录（省略时取状态里的）。
- */
-export interface SummaryView {
-  auditCount?: number;
-  presence?: Presence[];
-}
-/**
- * 工作区摘要，只返回该用户可见的内容：不含提交元数据（经提交历史分页读取）、候选不含记录、不含共享数据，
- * 审计只含最近 {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
- * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
- * 体积与记录数、提交数无关；需要内容时经仓储的按需读取接口读取提交历史、共享记录、提交、候选与审计分页。
- */
-export function snapshot(state: Workspace, user: Identity, now: number, view: SummaryView = {}): WorkspaceSummary {
-  const member = authorize(state, user, 'read');
-  const presence = view.presence ?? state.presence;
-  const candidates: Record<string, CandidateSummary> = {};
-  for (const [id, candidate] of Object.entries(state.candidates)) candidates[id] = candidateSummary(candidate);
-  return structuredClone({
-    teamId: state.teamId,
-    appId: state.appId,
-    name: state.name,
-    revision: state.revision,
-    schemaVersion: state.schemaVersion,
-    head: state.head,
-    policy: state.policy,
-    members: Object.values(state.members).filter(m => m.active),
-    tasks: Object.values(state.tasks),
-    prs: Object.values(state.prs),
-    candidates,
-    reviews: state.reviews,
-    threads: Object.values(state.threads),
-    notifications: state.notifications.filter(n => n.userId === user.id),
-    presence: presence.filter(p => p.expiresAt > now && state.members[p.userId]?.active),
-    invitations:
-      member.permissions.includes('manage') ?
-        Object.values(state.invitations).map(i => ({
-          id: i.id,
-          email: i.email,
-          permissions: i.permissions,
-          inviterId: i.inviterId,
-          version: i.version,
-          expiresAt: i.expiresAt,
-          state: i.state,
-          acceptedBy: i.acceptedBy
-        }))
-      : [],
-    audit: state.audit.slice(-auditSummarySize),
-    auditCount: view.auditCount ?? state.audit.length,
-    governance: Object.values(state.prs).map(pr => ({
-      prId: pr.id,
-      blockers: blockers(state, pr.id),
-      stages: pr.candidateId ? progress(state, pr, state.candidates[pr.candidateId]) : []
-    }))
-  });
-}
-/** `snapshot()` 的返回类型：摘要，同 {@link WorkspaceSummary}。 */
-export type WorkspaceSnapshot = WorkspaceSummary;
-
 const threadActions = ['thread', 'reply', 'resolve_thread', 'edit_comment'];
 const text = (value: unknown) => (typeof value === 'string' ? value : null);
 /**
@@ -278,38 +197,4 @@ export function auditPr(event: Audit, threadPr: (threadId: string) => string | u
   if (event.action === 'pr') return text(event.details['id']);
   const threadId = text(event.details['threadId']);
   return threadId === null ? null : (threadPr(threadId) ?? null);
-}
-/** 讨论线程所属的 PR：线程 ID 不是自有属性（例如 `toString`）时视为不存在。 */
-const threadPrOf = (state: Workspace) => (threadId: string) =>
-  Object.hasOwn(state.threads, threadId) ? state.threads[threadId].prId : undefined;
-/**
- * 审计分页，按时间从新到旧。`before` 是游标事件 ID，只返回比它更早的事件（游标事件本身不必匹配筛选）；
- * `prId` 与 `threadId` 同时给出时取交集；还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID，否则为 null。
- * 授权与摘要一致；游标不存在返回 `not_found`，`limit` 必须是 1～{@link auditPageSize}.maximum 的整数。
- */
-export function auditPage(state: Workspace, user: Identity, query: AuditQuery): AuditPage {
-  authorize(state, user, 'read');
-  const limit = pageLimit(query.limit, auditPageSize);
-  const threadPr = threadPrOf(state);
-  const matches = (event: Audit) =>
-    (query.prId === undefined || auditPr(event, threadPr) === query.prId) &&
-    (query.threadId === undefined || auditThread(event) === query.threadId);
-  let position = state.audit.length;
-  if (query.before !== undefined) {
-    position = state.audit.findIndex(event => event.id === query.before);
-    demand(position >= 0, 'not_found', '审计事件不存在');
-  }
-  const events: Audit[] = [];
-  while (position > 0 && events.length < limit) {
-    position--;
-    if (matches(state.audit[position])) events.push(state.audit[position]);
-  }
-  const older = state.audit.slice(0, position).some(matches);
-  return structuredClone({ events, nextBefore: older ? events[events.length - 1].id : null });
-}
-/** 分页条数：省略时取默认值，否则必须是 1～上限的整数，审计与提交历史共用。 */
-export function pageLimit(limit: number | undefined, size: { default: number; maximum: number }): number {
-  const value = limit ?? size.default;
-  demand(Number.isInteger(value) && value >= 1 && value <= size.maximum, 'invalid', '请求字段不合法');
-  return value;
 }

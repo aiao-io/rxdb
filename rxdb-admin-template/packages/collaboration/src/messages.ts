@@ -388,7 +388,7 @@ export const collaborationEnglish: Record<string, string> = {
   '{v0} · {v1}': '{v0} · {v1}',
   已读: 'Read',
   未读: 'Unread',
-  '在线成员：{v0}（45 秒心跳超时）': 'Online members: {v0} (45-second heartbeat timeout)',
+  '在线成员：{v0}': 'Online members: {v0}',
   暂无: 'None',
   '已保存到本机，尚未同步': 'Saved locally; not synced yet',
   '已形成提交，联网验证后可同步': 'Commit queued; reconnect and verify your session to sync',
@@ -412,7 +412,15 @@ export const collaborationEnglish: Record<string, string> = {
   放弃上次请求: 'Discard previous request',
   '待上传提交已超过回执保留期，请核对远端版本后确认同步':
     'Queued commits are older than the receipt retention period. Check the remote version, then confirm the sync.',
-  确认同步过期提交: 'Confirm syncing expired commits'
+  确认同步过期提交: 'Confirm syncing expired commits',
+  团队与应用标识不能包含冒号: 'Team and application IDs cannot contain a colon',
+  身份校验必须且只能配置一种签名密钥: 'Configure exactly one token signing key source',
+  签名密钥地址格式错误: 'The signing key URL is invalid',
+  '使用 JWKS 校验令牌时必须配置签发者': 'Configure the token issuer when verifying with JWKS',
+  '读取团队数据失败，请稍后重试': 'Could not read team data. Try again later',
+  '加载更早的 PR': 'Load earlier PRs',
+  加载更早的任务: 'Load earlier tasks',
+  加载更早的通知: 'Load earlier notifications'
 };
 /** 中文消息表，供应用的 i18n 运行时注册：消息键为 `collaboration.<中文原文>`，值就是中文原文。 */
 export const collaborationZhMessages = Object.fromEntries(

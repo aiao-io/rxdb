@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sealCommit } from '../commit.js';
+import { candidateSummary } from '../derive.js';
 import {
   CollaborationError,
   type Command,
@@ -9,8 +10,8 @@ import {
   type Workspace
 } from '../model.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
-import { auditPage, candidateSummary } from './engine.js';
 import { MemoryWorkspace } from './memory.testing.js';
+import { auditPage } from './reference.testing.js';
 
 const admin: Identity = { id: 'admin', email: 'admin@example.test', verified: true };
 const reviewer: Identity = { id: 'reviewer', email: 'reviewer@example.test', verified: true };
@@ -106,7 +107,7 @@ describe('authoritative collaboration transactions', () => {
     const state = create();
     expect(await shared(state)).toEqual({});
     expect(state.head).toBeNull();
-    await expect(space(state).summary(reviewer, 1000)).rejects.toThrow(/权限/);
+    await expect(space(state).summary(reviewer)).rejects.toThrow(/权限/);
     await expect(act(state, { type: 'task', id: 'x', name: 'x', expectedHead: null }, reviewer)).rejects.toThrow(
       /权限/
     );
@@ -400,7 +401,7 @@ describe('governance, discussion and identity regressions', () => {
       expiresAt: 5000,
       expectedVersion: 0
     });
-    const audit = (await space(state).summary(reviewer, 1000)).audit;
+    const audit = (await space(state).summary(reviewer)).audit;
     const serialized = JSON.stringify(audit);
     expect(serialized).not.toMatch(/@example\.test/i);
     expect(serialized).not.toContain('digest-of-secret');
@@ -414,8 +415,8 @@ describe('governance, discussion and identity regressions', () => {
       expiresAt: 5000,
       result: { invitationId: 'pending', version: 1 }
     });
-    expect((await space(state).summary(reviewer, 1000)).invitations).toEqual([]);
-    expect((await space(state).summary(admin, 1000)).invitations).toContainEqual(
+    expect((await space(state).summary(reviewer)).invitations).toEqual([]);
+    expect((await space(state).summary(admin)).invitations).toContainEqual(
       expect.objectContaining({ id: 'pending', email: pending.toLowerCase() })
     );
   });
@@ -467,8 +468,8 @@ describe('governance, discussion and identity regressions', () => {
       },
       reviewer
     );
-    expect((await space(state).summary(admin, 1000)).notifications.length).toBeGreaterThan(0);
-    expect((await space(state).summary(reviewer, 1000)).notifications).toEqual([]);
+    expect((await space(state).summary(admin)).notifications.length).toBeGreaterThan(0);
+    expect((await space(state).summary(reviewer)).notifications).toEqual([]);
     const merge = {
       type: 'merge',
       prId: 'pr1',
@@ -564,42 +565,15 @@ describe('governance, discussion and identity regressions', () => {
     await expect(thread('no-record', 'ghost', null)).rejects.toThrow(/记录/);
     await expect(thread('inherited', 'toString', null)).rejects.toThrow(/记录/);
   });
-  it('presence expires and never grants permissions; removed members disappear immediately', async () => {
+  it('removing a member changes only the membership: online state is no longer engine state (ADMIN-US-219)', async () => {
     const state = create();
     await invite(state);
     await ready(state);
-    const revision = state.revision;
-    const audit = state.audit.length;
-    const receipts = Object.keys(state.receipts).length;
-    await act(
-      state,
-      { type: 'presence', sessionId: 'browser', prId: 'pr1', recordId: 'asset', leave: false },
-      reviewer
-    );
-    expect(state.revision).toBe(revision);
-    expect(state.audit).toHaveLength(audit);
-    expect(Object.keys(state.receipts)).toHaveLength(receipts);
-    expect((await space(state).summary(admin, 1000)).presence).toHaveLength(1);
-    await ready(state, '2');
-    await act(state, { type: 'presence', sessionId: 'browser', prId: 'pr2', recordId: null, leave: false }, reviewer);
-    expect((await space(state).summary(admin, 1000)).presence).toMatchObject([{ prId: 'pr2', recordId: null }]);
-    expect((await space(state).summary(admin, 46001)).presence).toHaveLength(0);
+    expect(state).not.toHaveProperty('presence');
+    const before = structuredClone(state);
     await act(state, { type: 'member', userId: 'reviewer', permissions: [], active: false, expectedGeneration: 1 });
-    expect((await space(state).summary(admin, 1000)).presence).toHaveLength(0);
-    await expect(
-      act(state, { type: 'presence', sessionId: 'browser', prId: 'pr1', recordId: null, leave: false }, reviewer)
-    ).rejects.toThrow(/权限/);
-  });
-  it('accepts presence only on records that exist in the shared data or in the pull request source', async () => {
-    const state = create();
-    await invite(state);
-    await ready(state);
-    const presence = (recordId: string | null, prId: string | null = 'pr1') =>
-      act(state, { type: 'presence', sessionId: 'browser', prId, recordId, leave: false }, reviewer);
-    await presence('asset');
-    await expect(presence('ghost')).rejects.toThrow(/记录/);
-    await expect(presence('toString')).rejects.toThrow(/记录/);
-    await expect(presence('asset', null)).rejects.toThrow(/记录/);
+    expect(state.members['reviewer']).toMatchObject({ active: false, permissions: [], generation: 2 });
+    expect(Object.keys(state).sort()).toEqual(Object.keys(before).sort());
   });
   it('multi-stage approval enforces ordering and stage membership and retains blockers', async () => {
     const state = create();
@@ -882,7 +856,7 @@ async function merged() {
 describe('workspace summary', () => {
   it('lists commits as metadata only and candidates without records, keeping merge links and review facts', async () => {
     const { state, candidate } = await merged();
-    const summary = await space(state).summary(reviewer, 1000);
+    const summary = await space(state).summary(reviewer);
     expect(summary).not.toHaveProperty('records');
     // 提交元数据不在摘要里，改由提交历史分页按分支读取
     expect(summary).not.toHaveProperty('commits');
@@ -931,7 +905,7 @@ describe('workspace summary', () => {
     });
     await act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
     const current = state.candidates[state.prs.pr1.candidateId!];
-    const summary = (await space(state).summary(admin, 1000)).candidates[current.id];
+    const summary = (await space(state).summary(admin)).candidates[current.id];
     expect(summary.checks).not.toHaveLength(0);
     expect(summary.checks).toEqual(current.checks);
     expect(summary.conflicts).toEqual(current.conflicts);
@@ -954,7 +928,7 @@ describe('workspace summary', () => {
       commits: [await commit(state, 'huge', null, rows, 'Huge')]
     });
     expect(JSON.stringify(rows).length).toBeGreaterThan(50_000);
-    expect(JSON.stringify(await space(state).summary(admin, 1000)).length).toBeLessThan(4_000);
+    expect(JSON.stringify(await space(state).summary(admin)).length).toBeLessThan(4_000);
     // 数据模式清单是治理字段里体积固定的一部分（按版本存一份），不随记录增长，单独计
     expect(JSON.stringify({ ...state, schema: null }).length).toBeLessThan(6_000);
   });
@@ -962,7 +936,7 @@ describe('workspace summary', () => {
     const state = create();
     for (let index = 0; index < 60; index++)
       await act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: null });
-    const summary = await space(state).summary(admin, 1000);
+    const summary = await space(state).summary(admin);
     expect(state.audit).toHaveLength(61);
     expect(summary.auditCount).toBe(61);
     expect(summary.audit).toHaveLength(50);
@@ -972,7 +946,7 @@ describe('workspace summary', () => {
   it('returns the whole audit trail when it is shorter than the summary window', async () => {
     const state = create();
     await invite(state);
-    const summary = await space(state).summary(admin, 1000);
+    const summary = await space(state).summary(admin);
     expect(summary.auditCount).toBe(state.audit.length);
     expect(summary.audit).toEqual(state.audit);
   });
@@ -993,14 +967,14 @@ describe('workspace summary', () => {
     };
     await act(state, thread, reviewer);
     await act(state, { type: 'reply', threadId: 'mention', body: 'Ping back', mentions: ['reviewer'] });
-    const forAdmin = (await space(state).summary(admin, 1000)).notifications;
-    const forReviewer = (await space(state).summary(reviewer, 1000)).notifications;
+    const forAdmin = (await space(state).summary(admin)).notifications;
+    const forReviewer = (await space(state).summary(reviewer)).notifications;
     expect(forAdmin).not.toHaveLength(0);
     expect(forReviewer).not.toHaveLength(0);
     expect(forAdmin.every(notice => notice.userId === 'admin')).toBe(true);
     expect(forReviewer.every(notice => notice.userId === 'reviewer')).toBe(true);
-    expect((await space(state).summary(admin, 1000)).invitations).toHaveLength(1);
-    expect((await space(state).summary(reviewer, 1000)).invitations).toEqual([]);
+    expect((await space(state).summary(admin)).invitations).toHaveLength(1);
+    expect((await space(state).summary(reviewer)).invitations).toEqual([]);
   });
 });
 

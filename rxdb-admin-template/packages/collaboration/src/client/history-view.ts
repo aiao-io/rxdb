@@ -36,24 +36,29 @@ export function historyView(
   return view;
 }
 
-/** 审计时间线：标题显示事件总数；展开后列出已加载的事件，还有更早的事件时提供加载入口。 */
+/**
+ * 审计时间线：标题显示事件总数；展开后才读取最近一窗事件并列出（读到之前显示占位），还有更早的事件时提供加载入口。
+ */
 function auditTimeline(controller: CollaborationController, perform: Perform, disclosures: Disclosures) {
   const { details, open } = lazyDetails('audit', disclosures);
   details.append(element('summary', tx('{v0} 条审计事件', { v0: controller.snapshot!.auditCount })));
   if (!open) return details;
+  const events = controller.auditEvents();
+  if (!events) {
+    details.append(loading());
+    return details;
+  }
   if (controller.hasEarlierAudit())
     details.append(button('加载更早的审计事件', () => perform(() => controller.loadEarlierAudit())));
-  controller
-    .auditEvents()
-    .forEach(event =>
-      details.append(
-        element(
-          'p',
-          `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action} · ${JSON.stringify(event.details)}`,
-          'text-xs break-all'
-        )
+  events.forEach(event =>
+    details.append(
+      element(
+        'p',
+        `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action} · ${JSON.stringify(event.details)}`,
+        'text-xs break-all'
       )
-    );
+    )
+  );
   return details;
 }
 

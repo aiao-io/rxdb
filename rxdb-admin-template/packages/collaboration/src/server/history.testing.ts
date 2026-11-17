@@ -10,17 +10,18 @@ import type {
   Identity,
   Records,
   Resolution,
-  SharedRecords,
-  WorkspaceSummary
+  SharedRecords
 } from '../model.js';
 import { choose, pick, seeded } from '../random.testing.js';
 import { canonical, mergeRecords } from '../records.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
+import type { ReferenceSummary } from './reference.testing.js';
 
 /** 随机历史测试需要的最小驱动：内存工作区与 PostgreSQL 仓储各自适配，走同一套场景与同一个全量快照对照。 */
 export interface HistoryDriver {
   run(command: Record<string, unknown>): Promise<Record<string, unknown>>;
-  summary(): Promise<WorkspaceSummary>;
+  /** 当前的整页读取结果（成员与 PR 用于驱动场景）。 */
+  summary(): Promise<Pick<ReferenceSummary, 'members' | 'prs'>>;
   records(): Promise<SharedRecords>;
   commit(id: string): Promise<CommitContent>;
   candidate(id: string): Promise<Candidate>;
@@ -304,5 +305,9 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
 
 /** 随机历史用的数据模式：产品的资产清单。 */
 export const historySchema = assetSchema;
-/** 供内存与 PostgreSQL 用例共用的管理员身份。 */
-export const historyAdmin: Identity = { id: 'history-admin', email: 'history-admin@example.test', verified: true };
+/** 供内存与 PostgreSQL 用例共用的管理员身份；标识是 UUID，与 Supabase 账号一致（只读投影按 `auth.uid()` 判定成员）。 */
+export const historyAdmin: Identity = {
+  id: '0193c4e0-0000-7000-8000-00000000a001',
+  email: 'history-admin@example.test',
+  verified: true
+};

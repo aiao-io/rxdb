@@ -15,7 +15,7 @@ function memoryDriver(workspace: MemoryWorkspace): HistoryDriver {
   const env = () => ({ now: Date.now(), id: () => uuidv7() });
   return {
     run: command => workspace.run(historyAdmin, { ...command, operationId: `operation-${++serial}` } as never, env()),
-    summary: () => workspace.summary(historyAdmin, Date.now()),
+    summary: () => workspace.summary(historyAdmin),
     records: () => workspace.records(historyAdmin),
     commit: id => workspace.commit(historyAdmin, id),
     candidate: id => workspace.candidate(historyAdmin, id),

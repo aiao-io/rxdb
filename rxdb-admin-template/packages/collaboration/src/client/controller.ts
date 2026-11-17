@@ -9,12 +9,19 @@ import {
   type CommitContent,
   type CommitPage,
   type Identity,
+  type Presence,
+  type PullRequestDetail,
   type Records,
+  type RevocationSignal,
   type SchemaManifest,
   type SharedRecords,
+  type SignalKind,
+  type WorkspaceSignal,
   type WorkspaceSummary
 } from '../model.js';
-import { CollaborationApi, type WorkspaceEntry } from './api.js';
+import { supabaseReadSource, type ReadSource } from '../read-source.js';
+import { CollaborationReader, type TeamPage, type WorkspaceEntry } from '../reader.js';
+import { CollaborationApi } from './api.js';
 import { AuditTimeline } from './audit-timeline.js';
 import { CommitHistory, type HistoryBranch, type HistoryView } from './commit-history.js';
 import { ContentCache } from './content-cache.js';
@@ -28,7 +35,9 @@ import {
   type DraftStorage,
   type PendingUpload
 } from './local.js';
-import { WorkspaceFeed, type WorkspacePresenceChange } from './workspace-feed.js';
+import { WorkspaceFeed, type FeedStatus } from './workspace-feed.js';
+
+export type { WorkspaceEntry } from '../reader.js';
 
 /** 尚未得到确认的云端请求：所属团队、原请求（含幂等键）与首次发出的时间。 */
 export interface PendingRequest {
@@ -37,31 +46,59 @@ export interface PendingRequest {
   createdAt: number;
 }
 
+/** 团队页里 PR、本人任务与通知的窗口大小；「加载更早的…」每次再多读这么多。 */
+export const teamWindowSize = 50;
+/** 改动团队页内容的失效类别：收到它们时重读团队页，否则只读工作区行（修订号与审计总数）。 */
+const teamKinds: readonly SignalKind[] = ['members', 'policy', 'schema', 'tasks', 'prs', 'shared'];
+/** 改动全部 PR 详情推导依据的类别：成员与策略影响阶段进度，数据模式与共享头影响候选是否当前。 */
+const detailKinds: readonly SignalKind[] = ['members', 'policy', 'schema', 'shared'];
+/** 只在上下文内生效、不入队列的命令：标记已读与订阅通知。 */
+const lightweight = ['read_notice', 'subscribe'];
+const realtimeUnavailable = '实时连接暂不可用，可刷新团队状态';
+
 /**
- * 协作界面的状态与动作中枢：持有认证会话、团队与服务端摘要、本机任务草稿，界面监听 `change` 事件重绘。
- * 摘要不含提交元数据，也不含提交、候选与共享数据的记录和完整审计；这些内容按需读取并缓存（提交历史按分支分页），
- * 同步读取入口未命中时返回 undefined 并在后台加载，加载完成后触发 `change`。
- * 所有云端变更都以带幂等键的命令按队列串行提交；账号、团队或任务上下文切换后，在途请求的结果会被丢弃。
- * 超过自动重试期限（比服务端回执保留期早一天）仍未确认的请求不再自动重发，交给用户确认或放弃。
+ * 协作界面的状态与动作中枢：持有认证会话、团队页、本机任务草稿与实时频道，界面监听 `change` 事件重绘。
+ * 读取全部经 Supabase 的只读投影（{@link CollaborationReader}，PostgREST + RLS）：团队页只含成员、策略、引用与 PR 列表元数据
+ * 与本人的通知窗口；PR 详情、提交历史、提交与候选内容、共享数据、审计都按需读取并缓存，同步读取入口未命中时返回 undefined
+ * 并在后台加载，加载完成后触发 `change`。写入只经命令入口：所有云端变更都以带幂等键的命令按队列串行提交；
+ * 账号、团队或任务上下文切换后，在途请求的结果会被丢弃。超过自动重试期限（比服务端回执保留期早一天）仍未确认的请求
+ * 不再自动重发，交给用户确认或放弃。
+ * 实时：私有频道上的失效通知按修订号推进，只重读变化的部分（类别与标识见 {@link WorkspaceSignal}）；修订号跳号、
+ * 频道重连或恢复联网时按修订号补齐（整页重读）。在线状态来自同一频道的 Presence；撤权事件到达即移除该成员，
+ * 被撤成员自己的页面立即锁定。
  */
 export class CollaborationController extends EventTarget {
   private generation = 0;
   private disposed = false;
   private feed?: WorkspaceFeed;
+  private source?: ReadSource;
   private authGeneration = 0;
   private mutations?: { epoch: number; settled: Promise<void> };
   private unsubscribe?: () => void;
   private checkpoint?: () => Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
+  /** 本页面的 Presence 会话标识。 */
+  private readonly sessionId = crypto.randomUUID();
+  /** 频道上最近一次 Presence 全集（未按成员过滤）。 */
+  private sessions: Presence[] = [];
+  /** 撤权事件里已失去读权限的成员：立即从在线列表移除，不等成员列表重读。 */
+  private readonly revokedUsers = new Set<string>();
+  /** 团队页的窗口：PR、本人任务与通知各读最近多少条。 */
+  private windows = { prs: teamWindowSize, tasks: teamWindowSize, notices: teamWindowSize };
+  /** 待处理的失效通知（按到达顺序）与正在处理它们的任务。 */
+  private signals: WorkspaceSignal[] = [];
+  private draining?: Promise<void>;
+  /** 实时频道当前是否已订阅；从已订阅变为异常时补齐一次，频道反复重试时不重复读取。 */
+  private live = false;
   /** 提交不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
   private readonly commits = new ContentCache<CommitContent>(
-    async id => this.api.commit(this.activeWorkspace(), id),
+    async id => this.reader.commit(this.activeWorkspace(), this.sharedHead(), id),
     () => this.changed(),
     error => this.contentFailed(error)
   );
   /** 候选不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
   private readonly candidates = new ContentCache<Candidate>(
-    async id => this.api.candidate(this.activeWorkspace(), id),
+    async id => this.reader.candidate(this.activeWorkspace(), this.sharedHead(), id),
     () => this.changed(),
     error => this.contentFailed(error)
   );
@@ -73,13 +110,25 @@ export class CollaborationController extends EventTarget {
   );
   /** 数据模式清单按版本只追加、不可修改，按版本缓存；只在切换团队或锁定时丢弃（版本号只在一个工作区内有意义）。 */
   private readonly schemas = new ContentCache<SchemaManifest>(
-    async version => this.api.schema(this.activeWorkspace(), Number(version)),
+    async version => this.reader.schema(this.activeWorkspace(), Number(version)),
     () => this.changed(),
     error => this.contentFailed(error)
   );
   /** 讨论线程的处理历史，工作区修订号变化即丢弃。 */
   private readonly threads = new ContentCache<Audit[]>(
     threadId => this.fetchThreadEvents(threadId),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** PR 详情按 PR 缓存：失效通知点到某个 PR 时标为过期，旧详情照常显示、后台重读。 */
+  private readonly details = new ContentCache<PullRequestDetail>(
+    prId => this.fetchDetail(prId),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 最近一窗审计事件，按工作区修订号缓存：修订号变化即丢弃，审计时间线展开时才读取。 */
+  private readonly recentAudit = new ContentCache<Audit[]>(
+    async () => this.reader.recentAudit(this.activeWorkspace()),
     () => this.changed(),
     error => this.contentFailed(error)
   );
@@ -92,8 +141,10 @@ export class CollaborationController extends EventTarget {
   private readonly timeline = new AuditTimeline();
   /** 本机任务草稿：按账号与团队隔离，退出或会话失效时锁定。 */
   readonly local: LocalTasks;
-  /** 携带当前会话令牌的 HTTP 客户端。 */
+  /** 公开配置与命令的 HTTP 客户端：命令携带当前会话令牌，由服务端本地验签。 */
   readonly api: CollaborationApi;
+  /** 只读访问：经 Supabase 的只读投影读取，可见范围由 RLS 按当前会话裁决。 */
+  readonly reader: CollaborationReader;
   /** Supabase 认证客户端；`initialize` 完成后才存在。 */
   auth?: SupabaseClient;
   /** 当前已确认的身份；未登录或已锁定时为 null。 */
@@ -102,7 +153,7 @@ export class CollaborationController extends EventTarget {
   workspaces: WorkspaceEntry[] = [];
   /** 当前选中的团队与应用。 */
   workspace: WorkspaceEntry | null = null;
-  /** 当前工作区的服务端摘要；尚未选择团队或处于离线任务模式时为 null。 */
+  /** 当前工作区的团队页；尚未选择团队或处于离线任务模式时为 null。 */
   snapshot: WorkspaceSummary | null = null;
   /** 当前打开的本机任务草稿。 */
   draft: Draft | null = null;
@@ -135,6 +186,10 @@ export class CollaborationController extends EventTarget {
       },
       () => this.generation
     );
+    this.reader = new CollaborationReader(() => {
+      demand(this.source, 'configuration', '认证未配置');
+      return this.source;
+    });
     this.channel.onmessage = event => {
       if (event.data?.type === 'logout' && event.data.userId === this.user?.id) void this.lock();
     };
@@ -170,18 +225,13 @@ export class CollaborationController extends EventTarget {
         autoRefreshToken: true
       }
     });
-    this.feed = new WorkspaceFeed(
-      this.auth,
-      async () => {
-        if (!navigator.onLine || !this.user || this.disposed) return;
-        await this.refresh().catch(error => this.failure(error));
-      },
-      status => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.message = '实时连接暂不可用，可刷新团队状态';
-        this.changed();
-      },
-      change => this.applyPresenceChange(change)
-    );
+    this.source = supabaseReadSource(this.auth);
+    this.feed = new WorkspaceFeed(this.auth, {
+      changed: signal => this.onSignal(signal),
+      revoked: signal => this.onRevoked(signal),
+      presence: sessions => this.onPresence(sessions),
+      status: status => this.onFeedStatus(status)
+    });
     if (navigator.onLine) {
       demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
       const initial = await this.current(this.auth.auth.getSession(), this.generation, epoch);
@@ -229,20 +279,26 @@ export class CollaborationController extends EventTarget {
     if (error) throw error;
     await this.acceptSession(data.session);
   }
-  /** 切换到指定团队：拉取摘要并启动实时订阅，丢弃上一个团队的已加载内容。 */
+  /** 切换到指定团队：读取团队页并加入它的私有频道，丢弃上一个团队的已加载内容与在线状态。 */
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
+    demand(this.user, 'locked', '先登录并选择团队');
+    const user = this.user;
     const epoch = ++this.generation;
     this.feed?.stop();
-    const data = await this.current(this.api.snapshot(workspace), epoch);
+    this.sessions = [];
+    this.revokedUsers.clear();
+    this.signals = [];
+    this.windows = { prs: teamWindowSize, tasks: teamWindowSize, notices: teamWindowSize };
+    const data = await this.current(this.loadTeam(workspace), epoch);
     if (epoch !== this.generation) return;
     this.workspace = workspace;
     this.resetContents();
     this.adopt(data);
     this.draft = null;
-    this.feed?.start(workspace);
+    this.feed?.start(workspace, { userId: user.id, sessionId: this.sessionId });
     this.changed();
   }
-  /** 网络恢复后刷新会话与快照；离线时只更新在线状态。 */
+  /** 网络恢复后刷新会话与团队页（按修订号补齐离线期间的变化）；离线时只更新在线状态。 */
   async reconnect(): Promise<void> {
     this.online = navigator.onLine;
     if (!this.online || !this.auth || !this.user) {
@@ -254,7 +310,10 @@ export class CollaborationController extends EventTarget {
     await this.acceptSession(data.session);
     await this.refresh();
   }
-  /** 重新拉取当前摘要；较旧的摘要被丢弃，已打开任务的编辑权限被撤销时抛出 forbidden。 */
+  /**
+   * 整页重读团队页：较旧的结果被丢弃，已加载的 PR 详情标为过期（显示中的那个随即重读）；
+   * 已打开任务的编辑权限被撤销时抛出 forbidden。
+   */
   async refresh(): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
@@ -264,21 +323,33 @@ export class CollaborationController extends EventTarget {
     if (!this.workspace) return;
     const workspace = this.workspace;
     const epoch = this.generation;
-    const data = await this.current(this.api.snapshot(workspace), epoch);
+    const data = await this.current(this.loadTeam(workspace), epoch);
     if (epoch !== this.generation || workspace !== this.workspace) return;
     if (this.snapshot && data.revision < this.snapshot.revision) return;
+    this.details.invalidate();
     this.adopt(data);
     this.online = true;
-    if (this.draft) {
-      const task = data.tasks.find(t => t.id === this.draft?.context.taskId);
-      const member = data.members.find(m => m.id === this.user?.id);
-      demand(
-        task?.ownerId === this.user?.id && member?.permissions.includes('edit'),
-        'forbidden',
-        '任务编辑权限已撤销'
-      );
-    }
+    this.assertDraftAccess();
     this.changed();
+  }
+  /** 多读一窗更早的 PR。 */
+  async loadEarlierPrs(): Promise<void> {
+    this.windows = { ...this.windows, prs: this.windows.prs + teamWindowSize };
+    await this.refresh();
+  }
+  /** 多读一窗本人更早的任务。 */
+  async loadEarlierTasks(): Promise<void> {
+    this.windows = { ...this.windows, tasks: this.windows.tasks + teamWindowSize };
+    await this.refresh();
+  }
+  /** 多读一窗本人更早的通知。 */
+  async loadEarlierNotices(): Promise<void> {
+    this.windows = { ...this.windows, notices: this.windows.notices + teamWindowSize };
+    await this.refresh();
+  }
+  /** 上报本页面当前查看的 PR 与记录（Realtime Presence）；与上次相同时不发送。只是协作提示，不授予任何权限。 */
+  trackPresence(prId: string | null, recordId: string | null): void {
+    this.feed?.view(prId, recordId);
   }
   /**
    * 读取尚未得到确认的云端请求（刷新页面后仍保留在 sessionStorage），含首次发出的时间；
@@ -335,7 +406,7 @@ export class CollaborationController extends EventTarget {
     this.changed();
   }
   /**
-   * 提交一条云端命令并返回结果。变更类命令按队列串行，先查回执再执行，同一幂等键不会重复生效；presence、read_notice、subscribe 不排队。
+   * 提交一条云端命令并返回结果。变更类命令按队列串行，先查回执再执行，同一幂等键不会重复生效；read_notice、subscribe 不排队。
    * @param command 命令内容，不含幂等键。
    * @param operationId 幂等键，重试同一请求时传入原值。
    */
@@ -353,7 +424,7 @@ export class CollaborationController extends EventTarget {
       this.executeCommand({ type: 'accept_invite', id, tokenHash: token }, crypto.randomUUID(), workspace),
       epoch
     );
-    const workspaces = await this.current(this.api.workspaces(), epoch);
+    const workspaces = await this.current(this.reader.workspaces(), epoch);
     this.workspaces = workspaces;
     await this.selectWorkspace(workspace);
   }
@@ -455,7 +526,7 @@ export class CollaborationController extends EventTarget {
     this.channel.postMessage({ type: 'logout', userId });
     if (auth) await auth.auth.signOut({ scope: 'local' });
   }
-  /** 锁定会话：先保存未保存输入，停止订阅，清空账号与团队状态并锁定本机草稿。 */
+  /** 锁定会话：先保存未保存输入，离开实时频道，清空账号与团队状态并锁定本机草稿。 */
   async lock(): Promise<void> {
     if (this.user && this.checkpoint) {
       try {
@@ -475,6 +546,9 @@ export class CollaborationController extends EventTarget {
     this.workspace = null;
     this.offlineDrafts = [];
     this.workspaces = [];
+    this.sessions = [];
+    this.signals = [];
+    this.live = false;
     this.changed();
     await this.local.logout();
   }
@@ -499,7 +573,7 @@ export class CollaborationController extends EventTarget {
     this.draft = draft;
     this.changed();
   }
-  /** 释放订阅、广播频道与本机存储；之后控制器不再响应任何结果。 */
+  /** 释放实时频道、广播频道与本机存储；之后控制器不再响应任何结果。 */
   dispose() {
     this.disposed = true;
     this.generation++;
@@ -517,6 +591,19 @@ export class CollaborationController extends EventTarget {
   /** 读取合并候选的内容（同步），语义同 {@link CollaborationController.commitContent}。 */
   candidateContent(id: string): Candidate | undefined {
     return this.candidates.peek(id);
+  }
+  /**
+   * 读取一个 PR 的详情（同步）：候选、审核、讨论与审批进度。未加载时返回 undefined 并在后台读取；
+   * 失效通知点到它时旧详情照常返回、后台重读。团队页里的 PR 已指向详情里还没有的候选时，详情落后于列表，按未加载处理并重读。
+   */
+  prDetail(prId: string): PullRequestDetail | undefined {
+    const pr = this.snapshot?.prs.find(item => item.id === prId);
+    if (!pr) return undefined;
+    const detail = this.details.peek(prId);
+    if (!detail || pr.candidateId === null || Object.hasOwn(detail.candidates, pr.candidateId)) return detail;
+    this.details.invalidate([prId]);
+    this.details.peek(prId);
+    return undefined;
   }
   /**
    * 读取共享分支的记录（同步）：按摘要的头缓存，头变化后重新读取；空分支没有记录，直接返回空记录。
@@ -572,8 +659,15 @@ export class CollaborationController extends EventTarget {
     const head = this.snapshot.head;
     return head === null ? {} : (await this.shared.load(head)).records;
   }
-  /** 审计时间线：摘要里最近的事件加上已加载的更早事件，时间正序。 */
-  auditEvents(): readonly Audit[] {
+  /**
+   * 审计时间线（同步，时间正序）：最近一窗事件加上已加载的更早事件。最近一窗在第一次读取时（展开时间线）才加载，
+   * 未加载时返回 undefined 并在后台读取；修订号变化后重读最近一窗并接到时间线上。
+   */
+  auditEvents(): readonly Audit[] | undefined {
+    if (!this.snapshot) return undefined;
+    const window = this.recentAudit.peek(String(this.snapshot.revision));
+    if (!window) return undefined;
+    this.timeline.accept(window, this.snapshot.auditCount);
     return this.timeline.events;
   }
   /** 还有更早的审计事件没有加载。 */
@@ -584,18 +678,172 @@ export class CollaborationController extends EventTarget {
   async loadEarlierAudit(): Promise<void> {
     const cursor = this.timeline.cursor;
     demand(cursor !== undefined, 'missing', '先选择团队');
-    const page = await this.current(this.api.audit(this.activeWorkspace(), { before: cursor }));
+    const page = await this.current(this.reader.audit(this.activeWorkspace(), { before: cursor }));
     if (this.timeline.prepend(cursor, page.events)) this.changed();
   }
-  /** 接受一份新摘要：头提交变化则丢弃共享数据，修订号变化则丢弃讨论历史，并让失败过的内容在下次读取时重试。 */
+  /** 读取团队页：窗口之外还要带上当前草稿的任务，免得编辑权限校验看不到它。 */
+  private async loadTeam(workspace: WorkspaceEntry): Promise<WorkspaceSummary> {
+    demand(this.user, 'locked', '先登录并选择团队');
+    const taskIds = this.draft ? [this.draft.context.taskId] : [];
+    return this.compose(await this.reader.team(workspace, this.user.id, { ...this.windows, taskIds }));
+  }
+  /** 团队页的读取结果转成界面用的视图；在线状态由频道另行提供。 */
+  private compose(team: TeamPage): WorkspaceSummary {
+    return {
+      teamId: team.teamId,
+      appId: team.appId,
+      name: team.name,
+      revision: team.revision,
+      schemaVersion: team.schemaVersion,
+      head: team.head,
+      policy: team.policy,
+      members: team.members,
+      tasks: team.tasks,
+      prs: team.prs,
+      notifications: team.notices.notices,
+      unread: team.notices.unread,
+      earlier: { prs: team.earlier.prs, tasks: team.earlier.tasks, notices: team.notices.earlier },
+      invitations: team.invitations,
+      presence: [],
+      auditCount: team.auditCount
+    };
+  }
+  /**
+   * 接受一份新的团队页：头提交变化则丢弃共享数据，修订号变化则丢弃讨论历史与最近一窗审计，并让失败过的内容在下次读取时重试；
+   * 在线状态按新的成员列表重新过滤。
+   */
   private adopt(data: WorkspaceSummary): void {
     const previous = this.snapshot;
     if (previous?.head !== data.head) this.shared.reset();
-    if (previous?.revision !== data.revision) this.threads.reset();
-    for (const cache of [this.commits, this.candidates, this.shared, this.threads, this.history, this.schemas])
+    if (previous?.revision !== data.revision) {
+      this.threads.reset();
+      this.recentAudit.reset();
+    }
+    for (const cache of [
+      this.commits,
+      this.candidates,
+      this.shared,
+      this.threads,
+      this.history,
+      this.schemas,
+      this.details,
+      this.recentAudit
+    ])
       cache.retry();
-    this.snapshot = data;
-    this.timeline.accept(data.audit, data.auditCount);
+    this.snapshot = { ...data, presence: this.visibleSessions(data) };
+  }
+  /** 在线会话里当前有效、未被撤权的成员；同一份 Presence 全集随成员列表变化重新过滤。 */
+  private visibleSessions(data: Pick<WorkspaceSummary, 'members'>): Presence[] {
+    const members = new Set(data.members.map(member => member.id));
+    return this.sessions.filter(session => members.has(session.userId) && !this.revokedUsers.has(session.userId));
+  }
+  /** 已打开的任务必须仍属于本人且本人仍有编辑权限，否则锁定（撤权、移交或降权之后）。 */
+  private assertDraftAccess(): void {
+    if (!this.draft || !this.snapshot) return;
+    const task = this.snapshot.tasks.find(t => t.id === this.draft?.context.taskId);
+    const member = this.snapshot.members.find(m => m.id === this.user?.id);
+    demand(task?.ownerId === this.user?.id && member?.permissions.includes('edit'), 'forbidden', '任务编辑权限已撤销');
+  }
+  /** 失效通知到达：排队，按到达顺序合并处理，处理期间到达的通知合进下一批。 */
+  private onSignal(signal: WorkspaceSignal): void {
+    this.signals.push(signal);
+    void this.drain();
+  }
+  private drain(): Promise<void> {
+    this.draining ??= (async () => {
+      try {
+        while (this.signals.length) await this.applySignals(this.signals.splice(0));
+      } catch (error) {
+        await this.failure(error);
+      } finally {
+        this.draining = undefined;
+      }
+    })();
+    return this.draining;
+  }
+  /**
+   * 处理一批失效通知：已反映的修订号忽略；与当前修订号连续时只重读变化的部分——团队页（成员、策略、数据模式、任务、PR、共享头
+   * 有变化时）或只读工作区行、点到的 PR 详情（标为过期，显示中的随即重读）、本人通知（被点名时）；修订号跳号说明漏了通知，整页重读。
+   */
+  private async applySignals(batch: WorkspaceSignal[]): Promise<void> {
+    const data = this.snapshot;
+    const workspace = this.workspace;
+    const user = this.user;
+    if (!data || !workspace || !user || !navigator.onLine) return;
+    const fresh = batch.filter(signal => signal.revision > data.revision).sort((a, b) => a.revision - b.revision);
+    if (!fresh.length) return;
+    if (!fresh.every((signal, index) => signal.revision === data.revision + 1 + index)) {
+      await this.refresh();
+      return;
+    }
+    const kinds = new Set(fresh.flatMap(signal => signal.kinds));
+    const revision = fresh[fresh.length - 1].revision;
+    const epoch = this.generation;
+    if (detailKinds.some(kind => kinds.has(kind))) this.details.invalidate();
+    else this.details.invalidate(fresh.flatMap(signal => signal.prIds));
+    const noticed = fresh.some(signal => signal.noticeUserIds.includes(user.id));
+    const teamChanged = teamKinds.some(kind => kinds.has(kind));
+    const [team, version, notices] = await this.current(
+      Promise.all([
+        teamChanged ? this.loadTeam(workspace) : undefined,
+        teamChanged ? undefined : this.reader.version(workspace),
+        !teamChanged && noticed ? this.reader.notices(workspace, this.windows.notices) : undefined
+      ]),
+      epoch
+    );
+    const now = this.snapshot;
+    if (!now || epoch !== this.generation || now.revision >= revision) return;
+    if (team) this.adopt({ ...team, revision });
+    else
+      this.adopt({
+        ...now,
+        revision,
+        auditCount: version!.auditCount,
+        ...(notices && {
+          notifications: notices.notices,
+          unread: notices.unread,
+          earlier: { ...now.earlier, notices: notices.earlier }
+        })
+      });
+    this.assertDraftAccess();
+    this.changed();
+  }
+  /** 撤权事件：自己被撤权立即锁定（停止接收频道消息、锁定团队上下文）；他人被撤权立即从在线列表移除。 */
+  private onRevoked(signal: RevocationSignal): void {
+    if (this.user && signal.userIds.includes(this.user.id)) {
+      void this.failure(new CollaborationError('forbidden', '当前用户没有操作权限'));
+      return;
+    }
+    for (const id of signal.userIds) this.revokedUsers.add(id);
+    if (this.snapshot) this.snapshot = { ...this.snapshot, presence: this.visibleSessions(this.snapshot) };
+    this.changed();
+  }
+  /** 频道上 Presence 的最新全集：按当前成员过滤后显示。 */
+  private onPresence(sessions: Presence[]): void {
+    this.sessions = sessions;
+    if (this.snapshot) this.snapshot = { ...this.snapshot, presence: this.visibleSessions(this.snapshot) };
+    this.changed();
+  }
+  /**
+   * 频道状态：订阅成功（首次或断线重连后）时按修订号补齐；从已订阅变为失败、超时或被服务端关闭时提示并补齐一次——
+   * 被撤权的成员此时读不到工作区行，随即锁定。频道反复重试时不重复读取。
+   */
+  private onFeedStatus(status: FeedStatus): void {
+    const recovered = status === 'SUBSCRIBED';
+    const lost = !recovered && this.live;
+    this.live = recovered;
+    if (recovered && this.message === realtimeUnavailable) this.message = '';
+    if (!recovered) this.message = realtimeUnavailable;
+    if (recovered || lost) void this.catchUp().catch(error => this.failure(error));
+    this.changed();
+  }
+  /** 按修订号补齐：工作区行的修订号比手里的新，说明有没收到的通知，整页重读。 */
+  private async catchUp(): Promise<void> {
+    const workspace = this.workspace;
+    const data = this.snapshot;
+    if (!workspace || !data || !navigator.onLine) return;
+    const { revision } = await this.current(this.reader.version(workspace), this.generation);
+    if (revision > data.revision) await this.refresh();
   }
   /** 丢弃全部已加载内容并使进行中的加载失效，用于切换团队、离线任务、锁定与释放。 */
   private resetContents(): void {
@@ -604,21 +852,32 @@ export class CollaborationController extends EventTarget {
     this.shared.reset();
     this.schemas.reset();
     this.threads.reset();
+    this.details.reset();
+    this.recentAudit.reset();
     this.history.reset();
     this.timeline.reset();
+  }
+  /** 推导内容时所依据的共享头：团队页里的头；还没有团队页时为 null。 */
+  private sharedHead(): string | null {
+    return this.snapshot?.head ?? null;
   }
   /**
    * 分支历史的头：共享分支取摘要的 `head`；PR 取其来源任务的头，任务在起点之后还没有提交（头就是起点）时为 null。
    * 还没有摘要、或 PR 与任务不在摘要里时为 undefined。
    */
   private historyHead(branch: HistoryBranch): string | null | undefined {
+    const range = this.historyRange(branch);
+    if (!range) return undefined;
+    return range.head === range.until ? null : range.head;
+  }
+  /** 分支历史的范围：共享分支从共享头走到根，PR 从来源任务的头走到它的共同起点（不含）。 */
+  private historyRange(branch: HistoryBranch): { head: string | null; until: string | null } | undefined {
     const data = this.snapshot;
     if (!data) return undefined;
-    if (!('prId' in branch)) return data.head;
+    if (!('prId' in branch)) return { head: data.head, until: null };
     const pr = data.prs.find(item => item.id === branch.prId);
     const task = pr && data.tasks.find(item => item.id === pr.taskId);
-    if (!task) return undefined;
-    return task.head === task.base ? null : task.head;
+    return task ? { head: task.head, until: task.base } : undefined;
   }
   /** 重放上次未确认的请求；`confirmed` 表示用户已核对并确认重发，不再检查自动重试期限。 */
   private async replayPending(confirmed: boolean): Promise<void> {
@@ -626,7 +885,7 @@ export class CollaborationController extends EventTarget {
     demand(pending && this.user, 'missing', '没有待确认请求');
     if (pending.command.type === 'accept_invite') {
       await this.executeCommand(pending.command, pending.command.operationId, pending.workspace, confirmed);
-      this.workspaces = await this.current(this.api.workspaces());
+      this.workspaces = await this.current(this.reader.workspaces());
       await this.selectWorkspace(pending.workspace);
       return;
     }
@@ -634,14 +893,13 @@ export class CollaborationController extends EventTarget {
     await this.enqueue(pending.command, pending.command.operationId, confirmed);
     if (pending.command.type === 'fork') await this.openTask(pending.command.id);
   }
-  /** 变更类命令进入串行队列，presence、read_notice、subscribe 直接执行；`confirmed` 的含义同 executeCommand。 */
+  /** 变更类命令进入串行队列，read_notice、subscribe 直接执行；`confirmed` 的含义同 executeCommand。 */
   private enqueue(
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
     operationId: string,
     confirmed: boolean
   ): Promise<Record<string, unknown>> {
-    if (['presence', 'read_notice', 'subscribe'].includes(String(command.type)))
-      return this.executeCommand(command, operationId);
+    if (lightweight.includes(String(command.type))) return this.executeCommand(command, operationId);
     const epoch = this.generation;
     const previous = this.mutations?.epoch === epoch ? this.mutations.settled : Promise.resolve();
     const queued = structuredClone(command);
@@ -666,33 +924,37 @@ export class CollaborationController extends EventTarget {
   private async recordsAt(head: string | null): Promise<Records> {
     return head === null ? {} : (await this.loadCommit(head)).records;
   }
+  /** 读取一个 PR 的详情：以团队页里的 PR、成员与策略推导审批进度；PR 已不在团队页里时按版本已变化处理。 */
+  private async fetchDetail(prId: string): Promise<PullRequestDetail> {
+    const data = this.snapshot;
+    const pr = data?.prs.find(item => item.id === prId);
+    demand(data && pr, 'stale', '版本已变化，请刷新后重试');
+    return this.reader.prDetail(this.activeWorkspace(), pr, data);
+  }
   /**
-   * 读取分支历史的一页。第一页必须从摘要里的头开始：读摘要之后分支又前进了，服务端给的就是更新的历史，
-   * 与缓存键（摘要的头）对不上，按「版本已变化」处理，不显示也不提示，等下一次刷新换到新头后再读。
+   * 读取分支历史的一页。第一页必须从摘要里的头开始：读摘要之后分支又前进了，读到的就不是缓存键（摘要的头）的历史，
+   * 按「版本已变化」处理，不显示也不提示，等下一次刷新换到新头后再读。
    */
   private async fetchHistory(branch: HistoryBranch, before: string | undefined): Promise<CommitPage> {
     const head = this.historyHead(branch);
-    const page = await this.api.history(
-      this.activeWorkspace(),
-      before === undefined ? { ...branch } : { ...branch, before }
-    );
+    const range = this.historyRange(branch);
+    demand(range, 'stale', '版本已变化，请刷新后重试');
+    const page = await this.reader.history(this.activeWorkspace(), range, before === undefined ? {} : { before });
     demand(before !== undefined || page.commits[0]?.id === head, 'stale', '版本已变化，请刷新后重试');
     return page;
   }
-  /** 读取共享记录；服务端返回的头已不是摘要的头时按「版本已变化」处理，等下一次刷新后再读。 */
-  private async fetchShared(head: string): Promise<SharedRecords> {
-    const content = await this.api.records(this.activeWorkspace());
-    demand(content.head === head, 'stale', '版本已变化，请刷新后重试');
-    return content;
+  /** 读取共享记录；服务端的共享头已不是摘要的头时按「版本已变化」处理，等下一次刷新后再读。 */
+  private fetchShared(head: string): Promise<SharedRecords> {
+    return this.reader.records(this.activeWorkspace(), head);
   }
   /** 读取讨论线程的全部处理事件：逐页向前读到头，再翻成时间正序。 */
   private async fetchThreadEvents(threadId: string): Promise<Audit[]> {
     const workspace = this.activeWorkspace();
     const limit = auditPageSize.maximum;
-    let page = await this.api.audit(workspace, { threadId, limit });
+    let page = await this.reader.audit(workspace, { threadId, limit });
     const newestFirst = [...page.events];
     while (page.nextBefore) {
-      page = await this.api.audit(workspace, { threadId, limit, before: page.nextBefore });
+      page = await this.reader.audit(workspace, { threadId, limit, before: page.nextBefore });
       newestFirst.push(...page.events);
     }
     return newestFirst.reverse();
@@ -717,8 +979,8 @@ export class CollaborationController extends EventTarget {
     const workspace = workspaceOverride ?? this.workspace!;
     const epoch = this.generation;
     const request = { ...command, operationId } as Command;
-    const durable = !['presence', 'read_notice', 'subscribe'].includes(request.type);
-    // 回执接口要求成员读权限；接受邀请时用户还不是成员，只能直接重发，由服务端按 operationId 幂等返回原结果
+    const durable = !lightweight.includes(request.type);
+    // 回执只对成员可读；接受邀请时用户还不是成员，只能直接重发，由服务端按 operationId 幂等返回原结果
     const readsReceipt = durable && request.type !== 'accept_invite';
     const key = `admin-collaboration-pending:${this.user.id}`;
     const previous = this.pending();
@@ -732,7 +994,7 @@ export class CollaborationController extends EventTarget {
     if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request, createdAt }));
     let acknowledged = false;
     try {
-      const receipt = readsReceipt ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
+      const receipt = readsReceipt ? await this.reader.receipt(workspace, operationId) : { status: 'unknown' };
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
       let result: Record<string, unknown>;
       if (receipt.status === 'accepted' && 'value' in receipt) {
@@ -748,61 +1010,22 @@ export class CollaborationController extends EventTarget {
         acknowledged = true;
       }
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      if (request.type === 'presence') this.applyPresenceResult(request, result);
-      else if (request.type !== 'accept_invite') await this.current(this.refresh(), epoch);
+      if (request.type !== 'accept_invite') await this.current(this.refresh(), epoch);
       if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
       if (durable) sessionStorage.removeItem(key);
       return result;
     } catch (error) {
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      // 结果不确定、已取消或因超过自动重试期限而没有发送的请求保留记录，留给用户确认
+      // 结果不确定、已取消、服务暂不可用或因超过自动重试期限而没有发送的请求保留记录，留给用户确认
       if (
         durable &&
         error instanceof CollaborationError &&
-        !['internal', 'uncertain', 'cancelled', 'expired'].includes(error.code) &&
+        !['internal', 'uncertain', 'cancelled', 'expired', 'unavailable'].includes(error.code) &&
         !acknowledged
       )
         sessionStorage.removeItem(key);
       throw error;
     }
-  }
-  private applyPresenceResult(command: Extract<Command, { type: 'presence' }>, result: Record<string, unknown>): void {
-    this.applyPresenceChange({
-      eventType: command.leave ? 'DELETE' : 'UPDATE',
-      row: {
-        app_id: this.workspace?.appId,
-        user_id: this.user?.id,
-        session_id: command.sessionId,
-        pr_id: command.prId,
-        record_id: command.recordId,
-        expires_at: result['expiresAt']
-      }
-    });
-  }
-  private applyPresenceChange(change: WorkspacePresenceChange): void {
-    if (!this.snapshot) return;
-    const userId = change.row['user_id'];
-    const sessionId = change.row['session_id'];
-    if (typeof userId !== 'string' || typeof sessionId !== 'string') return;
-    const key = `${userId}:${sessionId}`;
-    const current = this.snapshot.presence.filter(item => `${item.userId}:${item.sessionId}` !== key);
-    if (change.eventType !== 'DELETE') {
-      const expiresAt = Number(change.row['expires_at']);
-      if (
-        Number.isFinite(expiresAt) &&
-        expiresAt > Date.now() &&
-        this.snapshot.members.some(member => member.id === userId && member.active)
-      )
-        current.push({
-          userId,
-          sessionId,
-          prId: typeof change.row['pr_id'] === 'string' ? change.row['pr_id'] : null,
-          recordId: typeof change.row['record_id'] === 'string' ? change.row['record_id'] : null,
-          expiresAt
-        });
-    }
-    this.snapshot = { ...this.snapshot, presence: current };
-    this.changed();
   }
   private async acceptSession(session: Session | null) {
     if (this.disposed) return;
@@ -832,7 +1055,7 @@ export class CollaborationController extends EventTarget {
       `admin-collaboration-grant:${this.base}`,
       JSON.stringify({ user: this.user, expiresAt: (session.expires_at ?? 0) * 1000 })
     );
-    const workspaces = await this.current(this.api.workspaces(), this.generation, epoch);
+    const workspaces = await this.current(this.reader.workspaces(), this.generation, epoch);
     if (epoch !== this.authGeneration) return;
     this.workspaces = workspaces;
     this.online = true;
@@ -892,7 +1115,7 @@ export class CollaborationController extends EventTarget {
     while (uploading.queue.length) {
       this.local.assert(context, epoch);
       const pending = uploading.queue[0];
-      const receipt = await this.api.receipt(workspace, pending.operationId);
+      const receipt = await this.reader.receipt(workspace, pending.operationId);
       demand(viewEpoch === this.generation, 'cancelled', '上下文已切换');
       const result =
         receipt.status === 'accepted' ?

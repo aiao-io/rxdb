@@ -92,13 +92,6 @@ async function threadAction(loader: WorkspaceLoader, command: { threadId: string
   await loader.lockPrs([prId]);
   await loader.threads([command.threadId]);
 }
-/** 在线状态：读 PR 与其来源任务；带记录时共享引用加共享锁，保证判断记录是否存在时共享内容不变。 */
-async function presence(loader: WorkspaceLoader, command: Extract<Command, { type: 'presence' }>) {
-  if (command.prId !== null) await loader.prs([command.prId]);
-  const pr = command.prId === null ? undefined : loader.state.prs[command.prId];
-  if (command.recordId !== null) await loader.sharedRef('share');
-  if (pr) await loader.task(pr.taskId, 'none');
-}
 /** 合并：锁定 PR → 锁定共享引用 → 来源任务引用加共享锁 → 候选、审核记录与讨论线程。 */
 async function merge(loader: WorkspaceLoader, command: Extract<Command, { type: 'merge' }>) {
   await loader.lockPrs([command.prId]);
@@ -146,7 +139,6 @@ const gatherers: Gatherers = {
   resolve_thread: threadAction,
   subscribe: (loader, command) => loader.lockPrs([command.prId]),
   read_notice: nothing,
-  presence,
   merge
 };
 
@@ -163,10 +155,6 @@ export async function gather(
   now: number
 ): Promise<Workspace | undefined> {
   if (!(await loader.governance(governanceLock(command)))) return undefined;
-  if (command.type === 'presence') {
-    await presence(loader, command);
-    return loader.state;
-  }
   if (await loader.receipt(command.operationId, now)) {
     if (command.type === 'upload' || command.type === 'fork') await loader.task(command.taskId, 'none');
     return loader.state;

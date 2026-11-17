@@ -105,7 +105,6 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
   resolve_thread: { threadId: id, resolved: boolean, expectedRevision: integer },
   subscribe: { prId: id, subscribed: boolean },
   read_notice: { id },
-  presence: { sessionId: id, prId: nullableId, recordId: nullableId, leave: boolean },
   merge: { prId: id, candidateId: id, expectedSource: id, expectedTarget: nullableId }
 };
 /** 对不可信 JSON 完整校验，拒绝客户端主体、任意表名和额外属性。 */

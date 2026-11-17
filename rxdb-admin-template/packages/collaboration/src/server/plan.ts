@@ -54,14 +54,7 @@ export type Plan =
   /** 登记新的数据模式版本：共享分支当前的全部记录，新清单必须让它们全部通过检查。 */
   | { type: 'records' }
   /** 评论锚点：某条记录在候选结果、来源与目标三处的取值。 */
-  | { type: 'anchor'; head: string | null; candidate: StoredCandidate; recordId: string }
-  /** 在线状态：某条记录是否存在于共享数据，或存在于 PR 来源任务的头。 */
-  | {
-      type: 'presence';
-      head: string | null;
-      recordId: string;
-      task: { head: string | null; base: string | null } | null;
-    };
+  | { type: 'anchor'; head: string | null; candidate: StoredCandidate; recordId: string };
 
 /**
  * 合并的三方输入，只含合并基以来任一侧改动过的记录（`touched`）：共同起点 B、来源 S 与目标 T 在这些记录上的取值；
@@ -98,8 +91,6 @@ export interface Facts {
   previous: Readonly<Record<string, Records>>;
   /** 评论锚点所在记录的三处取值。 */
   anchor: AnchorRows | undefined;
-  /** 记录是否存在于共享数据 / PR 来源任务的头。 */
-  presence: { shared: boolean; task: boolean } | undefined;
 }
 /** 不需要任何预加载数据的命令使用的空事实。 */
 export const noFacts: Facts = {
@@ -109,8 +100,7 @@ export const noFacts: Facts = {
   inputs: undefined,
   records: undefined,
   previous: {},
-  anchor: undefined,
-  presence: undefined
+  anchor: undefined
 };
 
 /** 引擎新建的提交：上传的提交已带核验过的指纹，服务端生成的合并提交没有，由仓储在写入前补算。 */

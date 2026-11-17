@@ -324,7 +324,7 @@ describe('state changes written back', () => {
     const changes = stateChanges(before, after);
     expect(changes.heads).toEqual({ task: { from: 'task-c1', to: 'next' } });
     expect(changes).toMatchObject({ members: [], tasks: [], shared: null, audit: [], receipts: [], revised: true });
-    expect(stateChanges(before, structuredClone(before))).toMatchObject({ heads: {}, revised: false, presence: null });
+    expect(stateChanges(before, structuredClone(before))).toMatchObject({ heads: {}, revised: false });
   });
   it('treats removed rows and edits of immutable rows as internal errors, never as writes', async () => {
     const workspace = create();

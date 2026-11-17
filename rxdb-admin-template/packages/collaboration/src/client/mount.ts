@@ -33,7 +33,7 @@ export interface CollaborationOptions {
  * 三端共享的协作界面，所有用户内容均通过文本节点渲染。
  * @param host 承载界面的容器元素；卸载时会清空其内容。
  * @param options 接口前缀、翻译与匿名数据导入等可选项。
- * @returns 卸载函数：移除全部监听、停止心跳、释放控制器并清空容器。
+ * @returns 卸载函数：移除全部监听、离开实时频道、释放控制器并清空容器。
  */
 export function mountCollaboration(host: HTMLElement, options: CollaborationOptions = {}): () => void {
   useTranslation(options.translate);
@@ -119,18 +119,9 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   };
   window.addEventListener('online', connectivity);
   window.addEventListener('offline', connectivity);
-  const sessionId = crypto.randomUUID();
-  const heartbeat = window.setInterval(() => {
-    if (!navigator.onLine) {
-      controller.changed();
-      return;
-    }
-    if (busy || !controller.user || !controller.workspace || document.hidden) return;
-    void controller
-      .run({ type: 'presence', sessionId, prId: prs.selected, recordId: prs.selectedRecord, leave: false })
-      .catch(error => controller.failure(error));
-  }, 15000);
   function renderPage() {
+    // 在线状态经 Realtime Presence 上报当前查看的 PR 与记录，只在变化时发送，不调用命令接口
+    controller.trackPresence(prs.selected, prs.selectedRecord);
     formDrafts.rememberDisclosures();
     const disclosure = formDrafts.focusedDisclosure();
     const active = document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
@@ -324,6 +315,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
           )
         )
       );
+    if (data.earlier.tasks) tasks.append(button('加载更早的任务', () => perform(() => controller.loadEarlierTasks())));
     view.append(tasks);
     if (options.importAnonymous) view.append(button('预览匿名数据导入', () => perform(importPreview)));
     return view;
@@ -375,7 +367,9 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   function notificationsView() {
     const data = controller.snapshot!;
-    const view = section(tx('通知（{v0} 条未读）', { v0: data.notifications.filter(n => !n.read).length }));
+    const view = section(tx('通知（{v0} 条未读）', { v0: data.unread }));
+    if (data.earlier.notices)
+      view.append(button('加载更早的通知', () => perform(() => controller.loadEarlierNotices())));
     data.notifications.forEach(notice =>
       view.append(
         button(
@@ -394,10 +388,9 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     view.append(
       element(
         'p',
-        tx('在线成员：{v0}（45 秒心跳超时）', {
+        tx('在线成员：{v0}', {
           v0:
             data.presence
-              .filter(p => p.expiresAt > Date.now())
               .map(
                 p =>
                   `${data.members.find(m => m.id === p.userId)?.email ?? p.userId}${p.prId ? `（PR ${p.prId}）` : ''}${p.recordId ? `（${p.recordId}）` : ''}`
@@ -422,7 +415,6 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   return () => {
     disposed = true;
     unsubscribeLanguage?.();
-    clearInterval(heartbeat);
     document.removeEventListener('click', navigate, true);
     window.removeEventListener('beforeunload', leave);
     window.removeEventListener('online', connectivity);

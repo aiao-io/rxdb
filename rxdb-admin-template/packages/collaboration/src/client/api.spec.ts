@@ -1,112 +1,57 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CollaborationApi } from './api.js';
 const workspace = { teamId: 'team/one', appId: 'assets', name: 'Team' };
+const task = { type: 'task' as const, id: 'task', name: 'Task', expectedHead: null, operationId: 'op' };
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-describe('authenticated HTTP client', () => {
-  it('fetches public config without a token and obtains fresh auth for each data request', async () => {
+describe('command HTTP client', () => {
+  it('fetches public config without a token and obtains fresh auth for each command', async () => {
     const token = vi.fn().mockResolvedValue('verified-token');
     const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({})));
     vi.stubGlobal('fetch', fetcher);
     const api = new CollaborationApi('/api', token);
     await api.config();
     expect(token).not.toHaveBeenCalled();
-    await api.workspaces();
-    await api.snapshot(workspace);
-    await api.receipt(workspace, 'receipt/id');
+    expect(fetcher).toHaveBeenCalledWith('/api/config', expect.objectContaining({ method: 'GET', headers: {} }));
     await api.command(workspace, { type: 'read_notice', id: 'n', operationId: 'op' });
-    expect(token).toHaveBeenCalledTimes(4);
-    expect(fetcher).toHaveBeenCalledWith(
-      '/api/workspaces/team%2Fone/assets/receipts/receipt%2Fid',
-      expect.objectContaining({ cache: 'no-store', headers: { Authorization: 'Bearer verified-token' } })
-    );
+    await api.command(workspace, task);
+    expect(token).toHaveBeenCalledTimes(2);
     expect(fetcher).toHaveBeenLastCalledWith(
       '/api/workspaces/team%2Fone/assets/commands',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ type: 'read_notice', id: 'n', operationId: 'op' })
+        cache: 'no-store',
+        headers: { Authorization: 'Bearer verified-token', 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
       })
     );
   });
-  it('reads shared records, commits, candidates and audit pages through the encoded workspace path', async () => {
-    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ events: [], nextBefore: null })));
-    vi.stubGlobal('fetch', fetcher);
-    const token = vi.fn().mockResolvedValue('verified-token');
-    const api = new CollaborationApi('/api', token);
-    await api.records(workspace);
-    await api.commit(workspace, 'commit/1');
-    await api.candidate(workspace, 'candidate 1');
-    const urls = fetcher.mock.calls.map(([target]) => target as string);
-    expect(urls).toEqual([
-      '/api/workspaces/team%2Fone/assets/records',
-      '/api/workspaces/team%2Fone/assets/commits/commit%2F1',
-      '/api/workspaces/team%2Fone/assets/candidates/candidate%201'
-    ]);
-    for (const [, options] of fetcher.mock.calls)
-      expect(options).toMatchObject({
-        method: 'GET',
-        cache: 'no-store',
-        headers: { Authorization: 'Bearer verified-token' }
-      });
-    expect(token).toHaveBeenCalledTimes(3);
-  });
-  it('builds audit queries from only the parameters that are set', async () => {
-    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ events: [], nextBefore: null })));
-    vi.stubGlobal('fetch', fetcher);
+  it('has no read endpoints: reads go to Supabase through the RLS projections', () => {
     const api = new CollaborationApi('/api', async () => 'token');
-    await api.audit(workspace);
-    await api.audit(workspace, { before: 'event/1', limit: 100, prId: 'pr 1', threadId: 'thread-1' });
-    await api.audit(workspace, { threadId: 'thread-1' });
-    expect(fetcher.mock.calls.map(([target]) => target as string)).toEqual([
-      '/api/workspaces/team%2Fone/assets/audit',
-      '/api/workspaces/team%2Fone/assets/audit?before=event%2F1&limit=100&prId=pr+1&threadId=thread-1',
-      '/api/workspaces/team%2Fone/assets/audit?threadId=thread-1'
-    ]);
+    for (const name of [
+      'workspaces',
+      'snapshot',
+      'records',
+      'commit',
+      'candidate',
+      'schema',
+      'audit',
+      'history',
+      'receipt'
+    ])
+      expect(name in api, name).toBe(false);
   });
-  it('reads commit history pages for the shared branch, a task or a pull request with only the parameters that are set', async () => {
-    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ commits: [], nextBefore: null })));
-    vi.stubGlobal('fetch', fetcher);
-    const token = vi.fn().mockResolvedValue('verified-token');
-    const api = new CollaborationApi('/api', token);
-    await expect(api.history(workspace, { branch: 'shared' })).resolves.toEqual({ commits: [], nextBefore: null });
-    await api.history(workspace, { branch: 'shared', before: 'merge/2', limit: 20 });
-    await api.history(workspace, { prId: 'pr 1' });
-    await api.history(workspace, { taskId: 'task-1', before: undefined });
-    expect(fetcher.mock.calls.map(([target]) => target as string)).toEqual([
-      '/api/workspaces/team%2Fone/assets/history?branch=shared',
-      '/api/workspaces/team%2Fone/assets/history?branch=shared&before=merge%2F2&limit=20',
-      '/api/workspaces/team%2Fone/assets/history?prId=pr+1',
-      '/api/workspaces/team%2Fone/assets/history?taskId=task-1'
-    ]);
-    for (const [, options] of fetcher.mock.calls)
-      expect(options).toMatchObject({
-        method: 'GET',
-        cache: 'no-store',
-        headers: { Authorization: 'Bearer verified-token' }
-      });
-    expect(token).toHaveBeenCalledTimes(4);
-  });
-  it('surfaces structured read failures such as an unknown id', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(Response.json({ error: 'not_found', message: '提交不存在', details: {} }, { status: 409 }))
-    );
-    const api = new CollaborationApi('/api', async () => 'token');
-    await expect(api.commit(workspace, 'missing')).rejects.toMatchObject({ code: 'not_found', message: '提交不存在' });
-  });
-  it('rejects stale identities before sending requests', async () => {
+  it('rejects stale identities before sending a command', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
     const api = new CollaborationApi('/api', async () => {
       throw new Error('session expired');
     });
-    await expect(api.snapshot(workspace)).rejects.toThrow('session expired');
+    await expect(api.command(workspace, task)).rejects.toThrow('session expired');
     expect(fetcher).not.toHaveBeenCalled();
   });
-  it('distinguishes missing service configuration from structured permission failures', async () => {
+  it('distinguishes missing service configuration from structured command failures', async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(new Response('<html>SPA</html>', { headers: { 'Content-Type': 'text/html' } }))
@@ -117,12 +62,12 @@ describe('authenticated HTTP client', () => {
     vi.stubGlobal('fetch', fetcher);
     const api = new CollaborationApi('/api', async () => 'token');
     await expect(api.config()).rejects.toMatchObject({ code: 'configuration' });
-    await expect(api.workspaces()).rejects.toMatchObject({
+    await expect(api.command(workspace, task)).rejects.toMatchObject({
       code: 'forbidden',
       message: 'revoked',
       details: { team: 'team' }
     });
-    await expect(api.workspaces()).rejects.toMatchObject({ code: 'http', message: '请求失败' });
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'http', message: '请求失败' });
   });
   it('translates uncertain command results in the English collaboration catalog', async () => {
     const { collaborationEnMessages } = await import('../messages.js');
@@ -130,7 +75,6 @@ describe('authenticated HTTP client', () => {
       'The request result is uncertain. Confirm or retry the original request.'
     );
   });
-
   it('marks a non-JSON command response as uncertain so the caller can recover its idempotency key', async () => {
     vi.stubGlobal(
       'fetch',
@@ -141,13 +85,9 @@ describe('authenticated HTTP client', () => {
         )
     );
     const api = new CollaborationApi('/api', async () => 'token');
-    await expect(
-      api.command(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: null, operationId: 'op' })
-    ).rejects.toMatchObject({
-      code: 'uncertain'
-    });
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'uncertain' });
   });
-  it('cancels an unissued request if the account or workspace changes while obtaining its token', async () => {
+  it('cancels an unissued command if the account or workspace changes while obtaining its token', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
     let generation = 1;
@@ -160,7 +100,7 @@ describe('authenticated HTTP client', () => {
         }),
       () => generation
     );
-    const pending = api.snapshot(workspace);
+    const pending = api.command(workspace, task);
     generation++;
     finish('new-account-token');
     await expect(pending).rejects.toMatchObject({ code: 'cancelled' });

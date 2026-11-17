@@ -1,3 +1,4 @@
+import { activeBlockers, reviewRevision as sharedReviewRevision, stageProgress } from '../approval.js';
 import { applyChanges, diffRecords } from '../changes.js';
 import { checkMerged, type RecordCheck } from '../checks.js';
 import {
@@ -41,50 +42,17 @@ export function checkedCandidate(state: Workspace, pr: PullRequest, id: string):
   demand(!candidate.checks.length, 'checks', '最终结果检查未通过', { checks: candidate.checks });
   return candidate;
 }
+/** 某个审核者在 PR 上的最新审核版本号，规则见 `approval.ts`。 */
 export function reviewRevision(state: Workspace, prId: string, reviewerId: string): number {
-  return state.reviews
-    .filter(
-      r =>
-        r.prId === prId &&
-        (r.decision === 'dismiss' ? r.dismissedReviewerId === reviewerId : r.reviewerId === reviewerId)
-    )
-    .reduce((revision, r) => Math.max(revision, r.revision), 0);
+  return sharedReviewRevision(state.reviews, prId, reviewerId);
 }
+/** 仍然生效的要求修改，规则见 `approval.ts`。 */
 export function blockers(state: Workspace, prId: string): Review[] {
-  const active = new Map<string, Review>();
-  for (const review of state.reviews.filter(r => r.prId === prId)) {
-    if (review.decision === 'request_changes') active.set(review.reviewerId, review);
-    else active.delete(review.dismissedReviewerId ?? review.reviewerId);
-  }
-  return [...active.values()];
+  return activeBlockers(state.reviews, prId);
 }
+/** 当前候选在各审批阶段的进度，规则见 `approval.ts`。 */
 export function progress(state: Workspace, pr: PullRequest, candidate: StoredCandidate): StageProgress[] {
-  return state.policy.stages.map(stage => {
-    const latest = new Map<string, Review>();
-    for (const review of state.reviews.filter(r => r.prId === pr.id && r.stageId === stage.id))
-      latest.set(review.reviewerId, review);
-    const approved = [...latest.values()].filter(
-      r => validApproval(state, pr, candidate, r) && (!stage.reviewers.length || stage.reviewers.includes(r.reviewerId))
-    );
-    return {
-      id: stage.id,
-      name: stage.name,
-      minimum: stage.minimum,
-      approved: approved.length,
-      complete: approved.length >= stage.minimum
-    };
-  });
-}
-function validApproval(state: Workspace, pr: PullRequest, candidate: StoredCandidate, review: Review): boolean {
-  const member = state.members[review.reviewerId];
-  return (
-    review.decision === 'approve' &&
-    review.candidateId === candidate.id &&
-    review.reviewerId !== pr.authorId &&
-    member?.active &&
-    member.generation === review.generation &&
-    member.permissions.includes('review')
-  );
+  return stageProgress(state.policy, state.members, state.reviews, pr, candidate);
 }
 /**
  * 候选与合并需要预加载的数据：合并基以来改动过的记录在 B、S、T 三处的取值与跨记录检查要用到的记录；

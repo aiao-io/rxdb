@@ -1,25 +1,15 @@
 import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { CollaborationError, demand, type Identity } from '../model.js';
-import { parseAuditQuery, parseCommand, parseHistoryQuery, parseSchemaVersion } from './input.js';
+import type { Identities } from './identity.js';
+import { parseCommand } from './input.js';
 import type { CollaborationRepository } from './repository.js';
-/** HTTP 层用到的仓储接口：命令写入，以及摘要、共享记录、提交、候选、提交历史、数据模式、审计与回执的只读查询。 */
-export type RepositoryApi = Pick<
-  CollaborationRepository,
-  | 'list'
-  | 'read'
-  | 'readRecords'
-  | 'readCommit'
-  | 'readCandidate'
-  | 'readHistory'
-  | 'readSchema'
-  | 'readAudit'
-  | 'receipt'
-  | 'operation'
->;
+/** HTTP 层用到的仓储接口：只有命令写入。读取经 Supabase 的只读投影，不经本服务。 */
+export type RepositoryApi = Pick<CollaborationRepository, 'operation'>;
 interface ServerOptions {
   repository: RepositoryApi;
-  authenticate: (token: string) => Promise<Identity>;
+  /** 命令入口的身份校验：每个请求本地验签，只有接受邀请时向 Auth 确认邮箱（见 `identity.ts`）。 */
+  identities: Identities;
   origins: string[];
   publicConfig: { supabaseUrl: string; supabaseKey: string };
 }
@@ -31,7 +21,8 @@ interface ServerOptions {
  */
 const requestLimits = { headersTimeout: 10_000, requestTimeout: 60_000, connectionsCheckingInterval: 5_000 };
 /**
- * 浏览器只能提交命令；用户身份来自每个请求重新验证的 Supabase 会话。
+ * 协作命令入口：浏览器只能读取公开配置与提交命令。用户身份来自每个请求本地验签的 Supabase access token，
+ * 稳态下不访问 Auth；接受邀请时才向 Auth 确认邮箱已验证并与邀请匹配。
  * 返回的服务器已收紧请求头与整个请求的接收时限（10 秒 / 60 秒），调用方直接 listen 即可。
  */
 export function collaborationServer(options: ServerOptions) {
@@ -75,15 +66,15 @@ async function dispatch(request: IncomingMessage, response: ServerResponse, opti
     }
     const token = request.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];
     demand(token, 'unauthenticated', '请登录');
-    const user = await options.authenticate(token);
-    demand(user.verified, 'unauthenticated', '邮箱尚未验证');
-    response.end(JSON.stringify(await route(request, path, user, options.repository)));
+    const user = await options.identities.verify(token);
+    response.end(JSON.stringify(await route(request, path, token, user, options)));
   } catch (error) {
     const known = error instanceof CollaborationError;
     response.statusCode =
       !known ? 500
       : error.code === 'unauthenticated' ? 401
       : error.code === 'forbidden' ? 403
+      : error.code === 'unavailable' ? 503
       : 409;
     response.end(
       JSON.stringify({
@@ -94,42 +85,28 @@ async function dispatch(request: IncomingMessage, response: ServerResponse, opti
     );
   }
 }
-async function route(request: IncomingMessage, path: string[], user: Identity, repository: RepositoryApi) {
-  if (request.method === 'GET' && path.join('/') === 'workspaces') return repository.list(user);
-  demand(path[0] === 'workspaces' && path[1] && path[2], 'not_found', '接口不存在');
+/**
+ * 唯一的业务接口：`POST /workspaces/:teamId/:appId/commands`。接受邀请前先向 Auth 确认邮箱（以 Auth 的已验证邮箱为准），
+ * 其余命令直接使用本地验签得到的身份，成员关系与权限由仓储在命令事务里按成员表裁决。
+ */
+async function route(request: IncomingMessage, path: string[], token: string, user: Identity, options: ServerOptions) {
+  demand(
+    request.method === 'POST' &&
+      path[0] === 'workspaces' &&
+      path[1] &&
+      path[2] &&
+      path[3] === 'commands' &&
+      path.length === 4,
+    'not_found',
+    '接口不存在'
+  );
   const [, teamId, appId] = path;
-  if (request.method === 'GET') return readRoute(request, path, user, repository);
-  demand(request.method === 'POST' && path[3] === 'commands' && path.length === 4, 'not_found', '接口不存在');
   demand(request.headers['content-type']?.split(';')[0] === 'application/json', 'invalid', '需要 JSON 请求');
   const command = parseCommand(await body(request));
   if (command.type === 'invite' || command.type === 'accept_invite')
     command.tokenHash = createHash('sha256').update(command.tokenHash).digest('hex');
-  return repository.operation(user, teamId, appId, command);
-}
-/**
- * 只读接口：工作区摘要，以及按需读取的共享记录、提交、候选、数据模式（按版本）、提交历史分页、审计分页与回执。
- * 全部不加锁、不写库，授权由仓储按读权限裁决。
- */
-function readRoute(
-  request: IncomingMessage,
-  path: string[],
-  user: Identity,
-  repository: RepositoryApi
-): Promise<unknown> {
-  const [, teamId, appId, resource, id] = path;
-  const search = () => new URL(request.url ?? '/', 'http://localhost').searchParams;
-  if (path.length === 3) return repository.read(user, teamId, appId);
-  if (path.length === 4 && resource === 'records') return repository.readRecords(user, teamId, appId);
-  if (path.length === 4 && resource === 'audit')
-    return repository.readAudit(user, teamId, appId, parseAuditQuery(search()));
-  if (path.length === 4 && resource === 'history')
-    return repository.readHistory(user, teamId, appId, parseHistoryQuery(search()));
-  if (path.length === 5 && resource === 'commits') return repository.readCommit(user, teamId, appId, id);
-  if (path.length === 5 && resource === 'candidates') return repository.readCandidate(user, teamId, appId, id);
-  if (path.length === 5 && resource === 'schemas')
-    return repository.readSchema(user, teamId, appId, parseSchemaVersion(id));
-  if (path.length === 5 && resource === 'receipts') return repository.receipt(user, teamId, appId, id);
-  throw new CollaborationError('not_found', '接口不存在');
+  const actor = command.type === 'accept_invite' ? await options.identities.confirm(token, user) : user;
+  return options.repository.operation(actor, teamId, appId, command);
 }
 async function body(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];

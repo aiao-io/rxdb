@@ -6,14 +6,16 @@ import {
   type Audit,
   type CommitContent,
   type CommitPage,
+  type PullRequestDetail,
   type Records,
   type WorkspaceSummary
 } from '../model.js';
 import { assetSchema } from '../schema.testing.js';
-import { bootstrap, snapshot } from '../server/engine.js';
+import { bootstrap } from '../server/engine.js';
 import { CollaborationController } from './controller.js';
 import type { Draft, DraftStorage } from './local.js';
 import { contextKey } from './local.js';
+import { teamPageOf, teamSummary } from './view.testing.js';
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn() }));
 class MemoryStorage implements DraftStorage {
   rows = new Map<string, Draft>();
@@ -58,7 +60,7 @@ async function setup() {
   state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: null, head: null, originTaskId: null };
   controller.user = user;
   controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
-  controller.snapshot = snapshot(state, user, 1);
+  controller.snapshot = teamSummary(state, user);
   await controller.local.login('alice');
   controller.draft = await controller.local.openVerified(
     { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
@@ -68,9 +70,9 @@ async function setup() {
     {},
     assetSchema
   );
-  vi.spyOn(controller.api, 'snapshot').mockResolvedValue(controller.snapshot);
-  vi.spyOn(controller.api, 'receipt').mockResolvedValue({ status: 'unknown' });
-  vi.spyOn(controller.api, 'schema').mockResolvedValue(assetSchema);
+  vi.spyOn(controller.reader, 'team').mockResolvedValue(teamPageOf(controller.snapshot));
+  vi.spyOn(controller.reader, 'receipt').mockResolvedValue({ status: 'unknown' });
+  vi.spyOn(controller.reader, 'schema').mockResolvedValue(assetSchema);
   return { controller, storage };
 }
 afterEach(() => {
@@ -108,13 +110,18 @@ function authFixture(userId = 'alice') {
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     })
   };
-  const channel = { on: vi.fn().mockReturnThis(), subscribe: vi.fn().mockReturnThis() };
+  const channel = {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+    presenceState: vi.fn(() => ({})),
+    track: vi.fn().mockResolvedValue('ok')
+  };
   vi.mocked(createClient).mockReturnValue({
     auth,
     channel: vi.fn().mockReturnValue(channel),
     removeChannel: vi.fn().mockResolvedValue('ok')
   } as unknown as ReturnType<typeof createClient>);
-  return { session, auth, emit: (event: string, value: Session | null) => listener(event, value) };
+  return { session, auth, channel, emit: (event: string, value: Session | null) => listener(event, value) };
 }
 async function initialized(userId = 'alice') {
   const setupValue = await setup();
@@ -123,7 +130,7 @@ async function initialized(userId = 'alice') {
     supabaseUrl: 'http://auth.test',
     supabaseKey: 'public-key'
   });
-  vi.spyOn(setupValue.controller.api, 'workspaces').mockResolvedValue([
+  vi.spyOn(setupValue.controller.reader, 'workspaces').mockResolvedValue([
     { teamId: 'team', appId: 'assets', name: 'Team' }
   ]);
   await setupValue.controller.initialize();
@@ -216,7 +223,7 @@ describe('session verification and access recovery', () => {
     await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Retain' } } });
     const revoked = structuredClone(controller.snapshot!);
     revoked.members[0].permissions = ['read'];
-    vi.mocked(controller.api.snapshot).mockResolvedValue(revoked);
+    vi.mocked(controller.reader.team).mockResolvedValue(teamPageOf(revoked));
     await controller.refresh().catch(error => controller.failure(error));
     expect(controller.draft).toBeNull();
     expect((await storage.read(contextKey(context)))?.records.c.fields['name']).toBe('Retain');
@@ -239,9 +246,9 @@ describe('client concurrency and recovery', () => {
     const command = { type: 'accept_invite' as const, id: 'invite', tokenHash: 'token', operationId: 'invite-op' };
     controller.workspace = null;
     controller.snapshot = null;
-    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'unknown' });
+    vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'unknown' });
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
-    vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
+    vi.spyOn(controller.reader, 'workspaces').mockResolvedValue([workspace]);
     sessionStorage.setItem(
       `admin-collaboration-pending:${controller.user!.id}`,
       JSON.stringify({ workspace, command, createdAt: Date.now() })
@@ -258,11 +265,11 @@ describe('client concurrency and recovery', () => {
     controller.workspace = null;
     controller.snapshot = null;
     // 回执接口要求读权限，受邀者在接受之前还不是成员，读回执必然被拒
-    vi.mocked(controller.api.receipt).mockRejectedValue(new CollaborationError('forbidden', '当前用户没有操作权限'));
+    vi.mocked(controller.reader.receipt).mockRejectedValue(new CollaborationError('forbidden', '当前用户没有操作权限'));
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
-    vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
+    vi.spyOn(controller.reader, 'workspaces').mockResolvedValue([workspace]);
     await controller.acceptInvitation('new-team', 'assets', 'invite', 'token');
-    expect(controller.api.receipt).not.toHaveBeenCalled();
+    expect(controller.reader.receipt).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith(
       workspace,
       expect.objectContaining({ type: 'accept_invite', id: 'invite', tokenHash: 'token' })
@@ -282,10 +289,10 @@ describe('client concurrency and recovery', () => {
   it('serializes durable actions until their previous receipt and snapshot are confirmed', async () => {
     const { controller } = await setup();
     const delayed = Promise.withResolvers<NonNullable<typeof controller.snapshot>>();
-    vi.mocked(controller.api.snapshot).mockReturnValueOnce(delayed.promise);
+    vi.mocked(controller.reader.team).mockReturnValueOnce(delayed.promise.then(teamPageOf));
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
     const first = controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'first');
-    await vi.waitFor(() => expect(controller.api.snapshot).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(controller.reader.team).toHaveBeenCalledTimes(1));
     const second = controller.run({ type: 'policy', stages: [], expectedVersion: 2 }, 'second');
     const completed = Promise.all([first, second]);
     delayed.resolve(controller.snapshot!);
@@ -316,7 +323,7 @@ describe('client concurrency and recovery', () => {
       'network'
     );
     expect(controller.pending()?.command.operationId).toBe('operation');
-    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { policyVersion: 2 } });
+    vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'accepted', value: { policyVersion: 2 } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
     expect(controller.pending()).toBeNull();
@@ -483,7 +490,7 @@ describe('client concurrency and recovery', () => {
       head,
       originTaskId: 'task'
     });
-    vi.spyOn(controller.api, 'commit').mockImplementation(async (_workspace, id) => {
+    vi.spyOn(controller.reader, 'commit').mockImplementation(async (_workspace, _head, id) => {
       const commit = command.commits.find(item => item.id === id);
       if (!commit) throw new CollaborationError('not_found', '提交不存在');
       return {
@@ -495,7 +502,7 @@ describe('client concurrency and recovery', () => {
         records: records('Preserved')
       };
     });
-    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
+    vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
     expect(controller.draft?.context.taskId).toBe(command.id);
@@ -513,7 +520,7 @@ describe('client concurrency and recovery', () => {
   it('keeps the original operation when the command was accepted but refresh failed', async () => {
     const { controller } = await setup();
     vi.spyOn(controller.api, 'command').mockResolvedValue({ taskId: 'accepted' });
-    vi.spyOn(controller.api, 'snapshot').mockRejectedValue(new CollaborationError('forbidden', '刷新失败'));
+    vi.spyOn(controller.reader, 'team').mockRejectedValue(new CollaborationError('forbidden', '刷新失败'));
     await expect(
       controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')
     ).rejects.toThrow('刷新失败');
@@ -531,12 +538,12 @@ const commitOf = (id: string, parent: string | null, name: string): CommitConten
   records: records(name)
 });
 const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
-/** 在当前摘要上叠加改动并让 api.snapshot 返回它（修订号加一），模拟别人推进了工作区。 */
+/** 在当前团队页上叠加改动并让读取返回它（修订号加一），模拟别人推进了工作区。 */
 function publish(controller: CollaborationController, change: (summary: WorkspaceSummary) => void) {
   const next = structuredClone(controller.snapshot!);
   change(next);
   next.revision += 1;
-  vi.mocked(controller.api.snapshot).mockResolvedValue(next);
+  vi.mocked(controller.reader.team).mockResolvedValue(teamPageOf(next));
   return next;
 }
 /** 共享分支头指向提交 c1、另有一个头在 c1 的自己的任务 task2 的摘要。 */
@@ -551,13 +558,13 @@ const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 describe('on-demand content', () => {
   it('serves commit content on a miss with one request, announces the arrival and then answers from the cache', async () => {
     const { controller } = await setup();
-    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    const request = vi.spyOn(controller.reader, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
     const changed = vi.fn();
     controller.addEventListener('change', changed);
     expect(controller.commitContent('c1')).toBeUndefined();
     expect(controller.commitContent('c1')).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, 'c1');
+    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'c1');
     await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
     expect(controller.commitContent('c1')?.records).toEqual(records('One'));
     expect(request).toHaveBeenCalledTimes(1);
@@ -565,8 +572,8 @@ describe('on-demand content', () => {
   it('shares one request between background reads and awaited loads of the same id, but not across ids', async () => {
     const { controller } = await setup();
     const reply = Promise.withResolvers<CommitContent>();
-    const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
-    const candidate = vi.spyOn(controller.api, 'candidate');
+    const request = vi.spyOn(controller.reader, 'commit').mockReturnValue(reply.promise);
+    const candidate = vi.spyOn(controller.reader, 'candidate');
     controller.commitContent('c1');
     const loading = [controller.loadCommit('c1'), controller.loadCommit('c1')];
     controller.commitContent('c1');
@@ -580,16 +587,16 @@ describe('on-demand content', () => {
   it('caches candidates by id the same way', async () => {
     const { controller } = await setup();
     const content = { id: 'k1', prId: 'pr', records: records('Final') } as never;
-    const request = vi.spyOn(controller.api, 'candidate').mockResolvedValue(content);
+    const request = vi.spyOn(controller.reader, 'candidate').mockResolvedValue(content);
     expect(controller.candidateContent('k1')).toBeUndefined();
     await expect(controller.loadCandidate('k1')).resolves.toBe(content);
     expect(controller.candidateContent('k1')).toBe(content);
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, 'k1');
+    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'k1');
   });
   it('keeps immutable commits across refreshes', async () => {
     const { controller } = await setup();
-    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    const request = vi.spyOn(controller.reader, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
     await controller.loadCommit('c1');
     publish(controller, () => undefined);
     await controller.refresh();
@@ -599,7 +606,7 @@ describe('on-demand content', () => {
   it('records a failed read once, shows the error, does not retry by itself and tries again after a refresh', async () => {
     const { controller } = await setup();
     const request = vi
-      .spyOn(controller.api, 'commit')
+      .spyOn(controller.reader, 'commit')
       .mockRejectedValueOnce(new CollaborationError('internal', '服务暂时不可用，请稍后按原请求重试'))
       .mockResolvedValue(commitOf('c1', null, 'One'));
     expect(controller.commitContent('c1')).toBeUndefined();
@@ -617,7 +624,7 @@ describe('on-demand content', () => {
   it('lets a user operation retry a failed read immediately and reports its failure to the caller', async () => {
     const { controller } = await setup();
     const request = vi
-      .spyOn(controller.api, 'commit')
+      .spyOn(controller.reader, 'commit')
       .mockRejectedValueOnce(new CollaborationError('internal', 'first'))
       .mockRejectedValueOnce(new CollaborationError('internal', 'second'))
       .mockResolvedValue(commitOf('c1', null, 'One'));
@@ -631,7 +638,7 @@ describe('on-demand content', () => {
   it('answers a read without a selected team with undefined and an error message, never a throw or a lock', async () => {
     const { controller } = await setup();
     controller.workspace = null;
-    const request = vi.spyOn(controller.api, 'commit');
+    const request = vi.spyOn(controller.reader, 'commit');
     expect(controller.commitContent('c1')).toBeUndefined();
     expect(controller.candidateContent('k1')).toBeUndefined();
     await vi.waitFor(() => expect(controller.message).toBe('先选择团队'));
@@ -640,7 +647,7 @@ describe('on-demand content', () => {
   });
   it('serves the empty shared branch without a request', async () => {
     const { controller } = await setup();
-    const request = vi.spyOn(controller.api, 'records');
+    const request = vi.spyOn(controller.reader, 'records');
     expect(controller.snapshot!.head).toBeNull();
     expect(controller.sharedRecords()).toEqual({});
     await expect(controller.loadSharedRecords()).resolves.toEqual({});
@@ -649,7 +656,7 @@ describe('on-demand content', () => {
   it('caches shared records by the summary head and drops them as soon as the head changes', async () => {
     const { controller } = await setup();
     const request = vi
-      .spyOn(controller.api, 'records')
+      .spyOn(controller.reader, 'records')
       .mockResolvedValueOnce({ head: 'h1', records: records('First') })
       .mockResolvedValueOnce({ head: 'h2', records: records('Second') });
     publish(controller, summary => {
@@ -677,10 +684,11 @@ describe('on-demand content', () => {
   });
   it('does not show or retry a shared read that was overtaken by a newer head, and recovers on the next refresh', async () => {
     const { controller } = await setup();
-    const request = vi
-      .spyOn(controller.api, 'records')
-      .mockResolvedValueOnce({ head: 'h2', records: records('Second') })
-      .mockResolvedValue({ head: 'h2', records: records('Second') });
+    // 读取接口核对服务端的共享头：已不是请求里的头时报 stale（见 reader.ts），这里的替身照此行为
+    const request = vi.spyOn(controller.reader, 'records').mockImplementation(async (_workspace, head) => {
+      if (head !== 'h2') throw new CollaborationError('stale', '版本已变化，请刷新后重试');
+      return { head: 'h2', records: records('Second') };
+    });
     publish(controller, summary => {
       summary.head = 'h1';
     });
@@ -703,7 +711,7 @@ describe('on-demand content', () => {
     const { controller } = await setup();
     const late = Promise.withResolvers<CommitContent>();
     const request = vi
-      .spyOn(controller.api, 'commit')
+      .spyOn(controller.reader, 'commit')
       .mockReturnValueOnce(late.promise)
       .mockResolvedValue(commitOf('c1', null, 'Other team'));
     controller.commitContent('c1');
@@ -713,11 +721,11 @@ describe('on-demand content', () => {
     expect(controller.commitContent('c1')).toBeUndefined();
     await vi.waitFor(() => expect(controller.commitContent('c1')?.records).toEqual(records('Other team')));
     expect(request).toHaveBeenCalledTimes(2);
-    expect(request).toHaveBeenLastCalledWith({ teamId: 'other', appId: 'assets', name: 'Other' }, 'c1');
+    expect(request).toHaveBeenLastCalledWith({ teamId: 'other', appId: 'assets', name: 'Other' }, null, 'c1');
   });
   it('forgets all content when the session locks', async () => {
     const { controller } = await setup();
-    vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    vi.spyOn(controller.reader, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
     await controller.loadCommit('c1');
     await controller.lock();
     expect(controller.snapshot).toBeNull();
@@ -731,9 +739,9 @@ describe('operations that need content', () => {
     const { controller } = await setup();
     withSharedCommit(controller);
     const reply = Promise.withResolvers<CommitContent>();
-    const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
+    const request = vi.spyOn(controller.reader, 'commit').mockReturnValue(reply.promise);
     const opening = controller.openTask('task2');
-    await vi.waitFor(() => expect(request).toHaveBeenCalledWith(controller.workspace, 'c1'));
+    await vi.waitFor(() => expect(request).toHaveBeenCalledWith(controller.workspace, 'c1', 'c1'));
     expect(controller.draft?.context.taskId).toBe('task');
     reply.resolve(commitOf('c1', null, 'One'));
     await opening;
@@ -744,14 +752,14 @@ describe('operations that need content', () => {
   it('does not open the task when its head commit cannot be loaded', async () => {
     const { controller } = await setup();
     withSharedCommit(controller);
-    vi.spyOn(controller.api, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
+    vi.spyOn(controller.reader, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
     await expect(controller.openTask('task2')).rejects.toMatchObject({ message: 'down' });
     expect(controller.draft?.context.taskId).toBe('task');
     expect((await controller.local.storage.list('alice')).map(draft => draft.context.taskId)).toEqual(['task']);
   });
   it('needs no commit request for a task that has no commits yet', async () => {
     const { controller } = await setup();
-    const request = vi.spyOn(controller.api, 'commit');
+    const request = vi.spyOn(controller.reader, 'commit');
     await controller.openTask('task');
     expect(request).not.toHaveBeenCalled();
     expect(controller.draft?.records).toEqual({});
@@ -761,9 +769,9 @@ describe('operations that need content', () => {
     publish(controller, summary => {
       summary.tasks[0].head = 'c1';
     });
-    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'Remote'));
+    const request = vi.spyOn(controller.reader, 'commit').mockResolvedValue(commitOf('c1', null, 'Remote'));
     await controller.fetchRemote(false);
-    expect(request).toHaveBeenCalledWith(controller.workspace, 'c1');
+    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'c1');
     expect(controller.draft?.remoteHead).toBe('c1');
     expect(controller.draft?.records).toEqual(records('Remote'));
   });
@@ -772,7 +780,7 @@ describe('operations that need content', () => {
     publish(controller, summary => {
       summary.tasks[0].head = 'c1';
     });
-    vi.spyOn(controller.api, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
+    vi.spyOn(controller.reader, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
     await expect(controller.fetchRemote(false)).rejects.toMatchObject({ message: 'down' });
     expect(controller.draft?.remoteHead).toBeNull();
     expect(controller.draft?.records).toEqual({});
@@ -789,57 +797,65 @@ describe('audit timeline', () => {
     details: {}
   });
   const events = (from: number, to: number) => Array.from({ length: to - from }, (_, index) => event(from + index));
-  it('loads earlier events through the cursor and keeps them across refreshes that overlap', async () => {
+  it('reads the latest window only when the timeline is read, earlier events through the cursor, and keeps them across overlapping refreshes', async () => {
     const { controller } = await setup();
+    const latest = vi.spyOn(controller.reader, 'recentAudit').mockResolvedValue(events(3, 6));
     publish(controller, summary => {
-      summary.audit = events(3, 6);
       summary.auditCount = 6;
     });
     await controller.refresh();
-    expect(controller.auditEvents().map(item => item.id)).toEqual(['e3', 'e4', 'e5']);
+    // 团队页只带审计总数，事件在时间线展开（第一次读取）时才读
+    expect(latest).not.toHaveBeenCalled();
+    expect(controller.auditEvents()).toBeUndefined();
+    await vi.waitFor(() => expect(controller.auditEvents()?.map(item => item.id)).toEqual(['e3', 'e4', 'e5']));
     expect(controller.hasEarlierAudit()).toBe(true);
     const request = vi
-      .spyOn(controller.api, 'audit')
+      .spyOn(controller.reader, 'audit')
       .mockResolvedValue({ events: events(0, 3).reverse(), nextBefore: null });
     await controller.loadEarlierAudit();
     expect(request).toHaveBeenCalledWith(controller.workspace, { before: 'e3' });
-    expect(controller.auditEvents().map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5']);
+    expect(controller.auditEvents()?.map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5']);
     expect(controller.hasEarlierAudit()).toBe(false);
+    latest.mockResolvedValue(events(4, 8));
     publish(controller, summary => {
-      summary.audit = events(4, 8);
       summary.auditCount = 8;
     });
     await controller.refresh();
-    expect(controller.auditEvents().map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7']);
+    await vi.waitFor(() =>
+      expect(controller.auditEvents()?.map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7'])
+    );
     expect(controller.hasEarlierAudit()).toBe(false);
+    expect(latest).toHaveBeenCalledTimes(2);
   });
   it('announces loaded earlier events and ignores a page that no longer lines up', async () => {
     const { controller } = await setup();
+    const latest = vi.spyOn(controller.reader, 'recentAudit').mockResolvedValue(events(3, 6));
     publish(controller, summary => {
-      summary.audit = events(3, 6);
       summary.auditCount = 6;
     });
     await controller.refresh();
+    controller.auditEvents();
+    await vi.waitFor(() => expect(controller.auditEvents()).toHaveLength(3));
     const reply = Promise.withResolvers<{ events: Audit[]; nextBefore: string | null }>();
-    vi.spyOn(controller.api, 'audit').mockReturnValue(reply.promise);
-    const changed = vi.fn();
-    controller.addEventListener('change', changed);
+    vi.spyOn(controller.reader, 'audit').mockReturnValue(reply.promise);
     const loading = controller.loadEarlierAudit();
+    latest.mockResolvedValue(events(40, 90));
     publish(controller, summary => {
-      summary.audit = events(40, 90);
       summary.auditCount = 90;
     });
     await controller.refresh();
-    changed.mockClear();
+    await vi.waitFor(() => expect(controller.auditEvents()).toHaveLength(50));
+    const changed = vi.fn();
+    controller.addEventListener('change', changed);
     reply.resolve({ events: events(0, 3).reverse(), nextBefore: null });
     await loading;
-    expect(controller.auditEvents().map(item => item.id)).toEqual(events(40, 90).map(item => item.id));
+    expect(controller.auditEvents()?.map(item => item.id)).toEqual(events(40, 90).map(item => item.id));
     expect(changed).not.toHaveBeenCalled();
   });
   it('reads a thread history completely, oldest first, and refreshes it when the workspace revision changes', async () => {
     const { controller } = await setup();
     const request = vi
-      .spyOn(controller.api, 'audit')
+      .spyOn(controller.reader, 'audit')
       .mockResolvedValueOnce({ events: [event(3), event(2)], nextBefore: 'e2' })
       .mockResolvedValueOnce({ events: [event(1)], nextBefore: null })
       .mockResolvedValue({ events: [event(4), event(3), event(2), event(1)], nextBefore: null });
@@ -884,7 +900,7 @@ describe('commit history pages', () => {
     controller.commitHistory(branch)?.commits.map(commit => commit.id);
   it('serves the empty shared branch and a PR whose task has no commits of its own without a request', async () => {
     const { controller } = await setup();
-    const request = vi.spyOn(controller.api, 'history');
+    const request = vi.spyOn(controller.reader, 'history');
     expect(controller.commitHistory(shared)).toEqual({ commits: [], hasEarlier: false });
     publish(controller, summary => {
       summary.tasks[0] = { ...summary.tasks[0], base: 'c1', head: 'c1' };
@@ -901,7 +917,7 @@ describe('commit history pages', () => {
     });
     await controller.refresh();
     const request = vi
-      .spyOn(controller.api, 'history')
+      .spyOn(controller.reader, 'history')
       .mockResolvedValueOnce(page(['m2', 'm1'], null))
       .mockResolvedValueOnce(page(['m3', 'm2', 'm1'], null));
     const changed = vi.fn();
@@ -909,7 +925,7 @@ describe('commit history pages', () => {
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, { branch: 'shared' });
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 'm2', until: null }, {});
     await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
     expect(controller.commitHistory(shared)).toEqual({ commits: page(['m2', 'm1'], null).commits, hasEarlier: false });
     publish(controller, summary => {
@@ -934,14 +950,14 @@ describe('commit history pages', () => {
     });
     await controller.refresh();
     const request = vi
-      .spyOn(controller.api, 'history')
+      .spyOn(controller.reader, 'history')
       .mockResolvedValueOnce(page(['t3', 't2'], 't2'))
       .mockResolvedValueOnce(page(['t1'], null));
     expect(controller.commitHistory({ prId: 'pr' })).toBeUndefined();
     await vi.waitFor(() => expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(true));
-    expect(request).toHaveBeenCalledWith(controller.workspace, { prId: 'pr' });
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 't3', until: null }, {});
     await controller.loadEarlierCommits({ prId: 'pr' });
-    expect(request).toHaveBeenLastCalledWith(controller.workspace, { prId: 'pr', before: 't2' });
+    expect(request).toHaveBeenLastCalledWith(controller.workspace, { head: 't3', until: null }, { before: 't2' });
     expect(ids(controller, { prId: 'pr' })).toEqual(['t3', 't2', 't1']);
     expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(false);
     await controller.loadEarlierCommits({ prId: 'pr' });
@@ -954,7 +970,7 @@ describe('commit history pages', () => {
     });
     await controller.refresh();
     const request = vi
-      .spyOn(controller.api, 'history')
+      .spyOn(controller.reader, 'history')
       .mockRejectedValueOnce(new CollaborationError('internal', '服务暂时不可用，请稍后按原请求重试'))
       .mockResolvedValue(page(['m1'], null));
     expect(controller.commitHistory(shared)).toBeUndefined();
@@ -976,7 +992,7 @@ describe('commit history pages', () => {
     await controller.refresh();
     // 读摘要之后共享分支又合并了一次：服务端返回的第一页从 m2 开始，与摘要的头对不上
     const request = vi
-      .spyOn(controller.api, 'history')
+      .spyOn(controller.reader, 'history')
       .mockResolvedValueOnce(page(['m2', 'm1'], null))
       .mockResolvedValue(page(['m2', 'm1'], null));
     expect(controller.commitHistory(shared)).toBeUndefined();
@@ -997,13 +1013,13 @@ describe('commit history pages', () => {
       summary.head = 'm1';
     });
     await controller.refresh();
-    const request = vi.spyOn(controller.api, 'history').mockResolvedValue(page(['m1'], null));
+    const request = vi.spyOn(controller.reader, 'history').mockResolvedValue(page(['m1'], null));
     controller.commitHistory(shared);
     await vi.waitFor(() => expect(controller.commitHistory(shared)).toBeDefined());
     const other = { teamId: 'other', appId: 'assets', name: 'Other' };
     await controller.selectWorkspace(other);
     expect(controller.commitHistory(shared)).toBeUndefined();
-    await vi.waitFor(() => expect(request).toHaveBeenLastCalledWith(other, { branch: 'shared' }));
+    await vi.waitFor(() => expect(request).toHaveBeenLastCalledWith(other, { head: 'm1', until: null }, {}));
     await controller.lock();
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(2);
@@ -1054,7 +1070,7 @@ describe('requests older than the receipt retention period', () => {
     const send = await unconfirmed(controller);
     age(31 * day);
     await expect(controller.retryPending()).rejects.toMatchObject({ code: 'expired', message: expiredMessage });
-    expect(controller.api.receipt).toHaveBeenLastCalledWith(controller.workspace, 'operation');
+    expect(controller.reader.receipt).toHaveBeenLastCalledWith(controller.workspace, 'operation');
     expect(send).toHaveBeenCalledTimes(1);
     expect(controller.pending()?.command.operationId).toBe('operation');
     await expect(controller.run({ type: 'policy', stages: [], expectedVersion: 1 })).rejects.toMatchObject({
@@ -1066,7 +1082,7 @@ describe('requests older than the receipt retention period', () => {
     const { controller } = await setup();
     const send = await unconfirmed(controller);
     age(40 * day);
-    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { policyVersion: 2 } });
+    vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'accepted', value: { policyVersion: 2 } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
     expect(controller.pending()).toBeNull();
@@ -1176,5 +1192,242 @@ describe('queued uploads older than the receipt retention period', () => {
     await controller.sync(false);
     expect(send).toHaveBeenCalledTimes(2);
     expect(controller.draft?.queue).toEqual([]);
+  });
+});
+
+type Listener = (message: Record<string, unknown>) => void;
+/**
+ * 已登录并加入了团队频道的控制器：从假频道上取出 Broadcast、Presence 与状态回调，用例直接驱动它们，
+ * 就像 Realtime 推来了失效通知、撤权事件、在线状态与连接状态变化。
+ */
+async function joined() {
+  const value = await initialized();
+  const { controller, channel } = value;
+  await controller.selectWorkspace({ teamId: 'team', appId: 'assets', name: 'Team' });
+  const handler = (type: string, event: string) =>
+    channel.on.mock.calls.find(
+      call => call[0] === type && (call[1] as { event: string }).event === event
+    )![2] as Listener;
+  const status = channel.subscribe.mock.calls.at(-1)![0] as (value: string) => void;
+  const team = vi.mocked(controller.reader.team);
+  team.mockClear();
+  const revision = controller.snapshot!.revision;
+  return {
+    ...value,
+    revision,
+    team,
+    status,
+    signal: (payload: Record<string, unknown>) =>
+      handler(
+        'broadcast',
+        'changed'
+      )({ event: 'changed', payload: { kinds: [], prIds: [], noticeUserIds: [], ...payload } }),
+    revoke: (userIds: string[]) =>
+      handler('broadcast', 'revoked')({ event: 'revoked', payload: { revision: revision + 1, userIds } }),
+    presence: (state: Record<string, Record<string, unknown>[]>) => {
+      channel.presenceState.mockReturnValue(state as never);
+      handler('presence', 'sync')({});
+    }
+  };
+}
+const detailFor = (prId: string, candidates: string[] = []): PullRequestDetail => ({
+  prId,
+  candidates: Object.fromEntries(
+    candidates.map(id => [
+      id,
+      {
+        id,
+        prId,
+        base: null,
+        source: 's',
+        target: null,
+        schemaVersion: 1,
+        policyVersion: 1,
+        resolutions: [],
+        conflicts: [],
+        checks: [],
+        actorId: 'alice',
+        at: 1
+      }
+    ])
+  ),
+  reviews: [],
+  threads: [],
+  governance: { prId, blockers: [], stages: [] }
+});
+const openPr = (id: string, candidateId: string | null = null) => ({
+  id,
+  taskId: 'task',
+  authorId: 'alice',
+  title: id,
+  description: '',
+  target: 'shared' as const,
+  status: 'review' as const,
+  revision: 1,
+  candidateId,
+  subscribers: []
+});
+
+describe('Realtime 失效通知按修订号推进，只重读变化的部分（ADMIN-US-219 AC#2、AC#7）', () => {
+  it('连续的通知只点到讨论时只读工作区行与这个 PR 的详情，不重读团队页', async () => {
+    const { controller, signal, revision, team } = await joined();
+    const version = vi
+      .spyOn(controller.reader, 'version')
+      .mockResolvedValue({ revision: revision + 1, auditCount: 9, head: null });
+    signal({ revision: revision + 1, kinds: ['details', 'audit'], prIds: ['pr'] });
+    await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
+    expect(controller.snapshot!.auditCount).toBe(9);
+    expect(version).toHaveBeenCalledTimes(1);
+    expect(team).not.toHaveBeenCalled();
+  });
+  it('成员、策略、任务、PR 或共享头有变化时重读团队页；修订号取通知里的而不是读到的', async () => {
+    const { controller, signal, revision, team } = await joined();
+    const ahead = teamPageOf({ ...controller.snapshot!, revision: revision + 5, name: 'Renamed' });
+    team.mockResolvedValue(ahead);
+    signal({ revision: revision + 1, kinds: ['members', 'audit'] });
+    await vi.waitFor(() => expect(controller.snapshot!.name).toBe('Renamed'));
+    expect(controller.snapshot!.revision).toBe(revision + 1);
+    expect(team).toHaveBeenCalledTimes(1);
+  });
+  it('只有被点名的成员重读通知窗口', async () => {
+    const { controller, signal, revision, team } = await joined();
+    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 2, auditCount: 3, head: null });
+    const notices = vi.spyOn(controller.reader, 'notices').mockResolvedValue({
+      notices: [{ id: 'n1', userId: 'alice', prId: 'pr', threadId: null, candidateId: null, read: false, at: 1 }],
+      earlier: false,
+      unread: 1
+    });
+    signal({ revision: revision + 1, kinds: ['details', 'notices', 'audit'], noticeUserIds: ['bob'] });
+    await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
+    expect(notices).not.toHaveBeenCalled();
+    signal({ revision: revision + 2, kinds: ['details', 'notices', 'audit'], noticeUserIds: ['alice'] });
+    await vi.waitFor(() => expect(controller.snapshot!.unread).toBe(1));
+    expect(notices).toHaveBeenCalledTimes(1);
+    expect(team).not.toHaveBeenCalled();
+  });
+  it('已反映的通知忽略；修订号跳号说明漏了通知，整页重读', async () => {
+    const { controller, signal, revision, team } = await joined();
+    const version = vi.spyOn(controller.reader, 'version');
+    signal({ revision, kinds: ['prs', 'audit'] });
+    await settle();
+    expect(team).not.toHaveBeenCalled();
+    expect(version).not.toHaveBeenCalled();
+    team.mockResolvedValue(teamPageOf({ ...controller.snapshot!, revision: revision + 3 }));
+    signal({ revision: revision + 3, kinds: ['details', 'audit'], prIds: ['pr'] });
+    await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 3));
+    expect(team).toHaveBeenCalledTimes(1);
+    expect(version).not.toHaveBeenCalled();
+  });
+  it('通知点到的 PR 详情照常显示旧内容并在后台重读；列表已指向详情里没有的候选时按未加载处理', async () => {
+    const { controller, signal, revision, team } = await joined();
+    controller.snapshot = { ...controller.snapshot!, prs: [openPr('pr')] };
+    const detail = vi
+      .spyOn(controller.reader, 'prDetail')
+      .mockResolvedValueOnce(detailFor('pr'))
+      .mockResolvedValueOnce(detailFor('pr', ['cand']))
+      .mockResolvedValue(detailFor('pr', ['cand']));
+    expect(controller.prDetail('pr')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.prDetail('pr')).toEqual(detailFor('pr')));
+    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 1, auditCount: 1, head: null });
+    signal({ revision: revision + 1, kinds: ['details', 'audit'], prIds: ['pr'] });
+    await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
+    expect(controller.prDetail('pr')).toEqual(detailFor('pr'));
+    await vi.waitFor(() => expect(controller.prDetail('pr')).toEqual(detailFor('pr', ['cand'])));
+    expect(detail).toHaveBeenCalledTimes(2);
+    team.mockResolvedValue(
+      teamPageOf({ ...controller.snapshot!, revision: revision + 2, prs: [openPr('pr', 'newer')] })
+    );
+    signal({ revision: revision + 2, kinds: ['prs', 'details', 'audit'], prIds: ['pr'] });
+    await vi.waitFor(() => expect(controller.snapshot!.prs[0].candidateId).toBe('newer'));
+    expect(controller.prDetail('pr')).toBeUndefined();
+    detail.mockResolvedValue(detailFor('pr', ['cand', 'newer']));
+    await vi.waitFor(() => expect(controller.prDetail('pr')?.candidates).toHaveProperty('newer'));
+  });
+  it('Supabase 查询暂不可用时提示并保留会话、草稿与队列，恢复后补齐，不伪报同步成功', async () => {
+    const { controller, team } = await joined();
+    team.mockRejectedValue(new CollaborationError('unavailable', '读取团队数据失败，请稍后重试'));
+    const send = vi.spyOn(controller.api, 'command');
+    controller.draft = await controller.local.openVerified(
+      { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
+      'Task',
+      null,
+      null,
+      {},
+      assetSchema
+    );
+    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Queued' } } });
+    await controller.sync(false).catch(error => controller.failure(error));
+    expect(controller.message).toBe('读取团队数据失败，请稍后重试');
+    expect(controller.user?.id).toBe('alice');
+    expect(controller.draft?.queue).toHaveLength(1);
+    expect(send).not.toHaveBeenCalled();
+    team.mockResolvedValue(teamPageOf(controller.snapshot!));
+    send.mockResolvedValue({ taskId: 'task', head: controller.draft!.queue[0].commits.at(-1)!.id });
+    await controller.sync(false);
+    expect(controller.message).toBe('当前提交已同步；后续编辑仍需另行同步');
+    expect(controller.draft?.queue).toHaveLength(0);
+  });
+});
+
+describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
+  it('在线状态来自频道 Presence：只显示当前有效成员，订阅成功后才上报本页面的查看位置', async () => {
+    const { controller, presence, status, channel } = await joined();
+    controller.trackPresence('pr', null);
+    expect(channel.track).not.toHaveBeenCalled();
+    vi.spyOn(controller.reader, 'version').mockResolvedValue({
+      revision: controller.snapshot!.revision,
+      auditCount: 1,
+      head: null
+    });
+    status('SUBSCRIBED');
+    expect(channel.track).toHaveBeenCalledWith({ userId: 'alice', prId: 'pr', recordId: null });
+    presence({
+      s1: [{ userId: 'alice', prId: 'pr', recordId: null }],
+      s2: [{ userId: 'stranger', prId: null, recordId: null }]
+    });
+    expect(controller.snapshot!.presence).toEqual([{ userId: 'alice', sessionId: 's1', prId: 'pr', recordId: null }]);
+  });
+  it('他人被撤权时立即移出在线列表；自己被撤权时立即锁定并离开频道', async () => {
+    const { controller, presence, revoke, auth } = await joined();
+    controller.snapshot = {
+      ...controller.snapshot!,
+      members: [
+        ...controller.snapshot!.members,
+        { id: 'bob', email: 'bob@example.test', permissions: ['read'], generation: 1, active: true }
+      ]
+    };
+    presence({
+      s1: [{ userId: 'alice', prId: null, recordId: null }],
+      s2: [{ userId: 'bob', prId: null, recordId: null }]
+    });
+    expect(controller.snapshot!.presence.map(item => item.userId)).toEqual(['alice', 'bob']);
+    revoke(['bob']);
+    expect(controller.snapshot!.presence.map(item => item.userId)).toEqual(['alice']);
+    expect(controller.user?.id).toBe('alice');
+    const client = vi.mocked(createClient).mock.results.at(-1)!.value as { removeChannel: ReturnType<typeof vi.fn> };
+    revoke(['alice']);
+    await vi.waitFor(() => expect(controller.user).toBeNull());
+    expect(controller.snapshot).toBeNull();
+    expect(client.removeChannel).toHaveBeenCalled();
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+  it('频道重连或掉线时按修订号补齐；工作区行已读不到（撤权后频道被关闭）即锁定', async () => {
+    const { controller, status, revision, team } = await joined();
+    const version = vi
+      .spyOn(controller.reader, 'version')
+      .mockResolvedValueOnce({ revision, auditCount: 1, head: null })
+      .mockResolvedValueOnce({ revision: revision + 4, auditCount: 1, head: null });
+    status('SUBSCRIBED');
+    await vi.waitFor(() => expect(version).toHaveBeenCalledTimes(1));
+    expect(team).not.toHaveBeenCalled();
+    status('CHANNEL_ERROR');
+    expect(controller.message).toBe('实时连接暂不可用，可刷新团队状态');
+    team.mockResolvedValue(teamPageOf({ ...controller.snapshot!, revision: revision + 4 }));
+    await vi.waitFor(() => expect(controller.snapshot?.revision).toBe(revision + 4));
+    status('CHANNEL_ERROR');
+    expect(version).toHaveBeenCalledTimes(2);
+    version.mockRejectedValue(new CollaborationError('forbidden', '当前用户没有操作权限'));
+    status('SUBSCRIBED');
+    await vi.waitFor(() => expect(controller.user).toBeNull());
   });
 });

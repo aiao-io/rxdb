@@ -5,7 +5,6 @@ import type {
   Member,
   Notice,
   Policy,
-  Presence,
   PullRequest,
   Receipt,
   Review,
@@ -24,8 +23,8 @@ export interface AuditEntry {
   prId: string | null;
   threadId: string | null;
 }
-/** 一条评论连同它所属的线程，写回评论表时用。 */
-export type ThreadComment = Comment & { threadId: string };
+/** 一条评论连同它所属的线程与 PR：写回评论表时用线程，广播失效通知时用 PR。 */
+export type ThreadComment = Comment & { threadId: string; prId: string };
 /** 讨论线程自身的字段（不含评论），写回线程表时用。 */
 export type ThreadRow = Omit<Thread, 'comments'>;
 /** 引用的一次推进：期望的旧头与新头，写回时按旧头比较交换。 */
@@ -71,8 +70,6 @@ export interface WorkspaceChanges {
   audit: AuditEntry[];
   /** 新增的回执。 */
   receipts: Receipt[];
-  /** 在线记录变化后的完整列表（只有内存存储使用；PostgreSQL 的在线记录由仓储直接写入）；没有变化时为 null。 */
-  presence: Presence[] | null;
   /** 修订号是否前进（命令改变了状态）。 */
   revised: boolean;
 }
@@ -123,8 +120,8 @@ function threadChanges(before: Workspace, after: Workspace) {
     else if (canonical({ ...previous, comments: [] }) !== canonical({ ...row, comments: [] }))
       threads.updated.push(row);
     const changed = listed(previous?.comments ?? [], list, 'comment');
-    comments.created.push(...changed.created.map(comment => ({ ...comment, threadId: thread.id })));
-    comments.updated.push(...changed.updated.map(comment => ({ ...comment, threadId: thread.id })));
+    comments.created.push(...changed.created.map(comment => ({ ...comment, threadId: thread.id, prId: thread.prId })));
+    comments.updated.push(...changed.updated.map(comment => ({ ...comment, threadId: thread.id, prId: thread.prId })));
   }
   return { threads, comments };
 }
@@ -165,7 +162,6 @@ export function stateChanges(before: Workspace, after: Workspace): WorkspaceChan
       threadId: auditThread(event)
     })),
     receipts: appended(keyed(before.receipts, after.receipts, 'receipt'), 'receipt'),
-    presence: canonical(before.presence) === canonical(after.presence) ? null : after.presence,
     revised: before.revision !== after.revision
   };
 }

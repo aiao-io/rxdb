@@ -133,6 +133,51 @@ describe('on-demand content cache', () => {
     expect(cache.peek('b')).toBeUndefined();
     expect(fetch).toHaveBeenCalledTimes(4);
   });
+  it('keeps serving an invalidated value while re-reading it once in the background, then swaps in the new one', async () => {
+    const { cache, fetch, requests, loaded } = setup();
+    cache.peek('pr');
+    requests[0].resolve('v1');
+    await settle();
+    cache.peek('other');
+    requests[1].resolve('other');
+    await settle();
+    cache.invalidate(['pr']);
+    expect(cache.peek('pr')).toBe('v1');
+    expect(cache.peek('pr')).toBe('v1');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(cache.peek('other')).toBe('other');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    requests[2].resolve('v2');
+    await settle();
+    expect(cache.peek('pr')).toBe('v2');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(loaded).toHaveBeenCalledTimes(3);
+    // 全部失效：只有再被读到的键才重读
+    cache.invalidate();
+    expect(cache.peek('pr')).toBe('v2');
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenLastCalledWith('pr');
+  });
+  it('stays stale when invalidated again while its re-read is in flight, and a user load waits for fresh content', async () => {
+    const { cache, fetch, requests } = setup();
+    cache.peek('pr');
+    requests[0].resolve('v1');
+    await settle();
+    cache.invalidate(['pr']);
+    cache.peek('pr');
+    cache.invalidate(['pr']);
+    requests[1].resolve('v2');
+    await settle();
+    expect(cache.peek('pr')).toBe('v2');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const fresh = cache.load('pr');
+    requests[2].resolve('v3');
+    await expect(fresh).resolves.toBe('v3');
+    await expect(cache.load('pr')).resolves.toBe('v3');
+    expect(fetch).toHaveBeenCalledTimes(3);
+    cache.invalidate(['missing']);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
   it('treats an empty string as a normal cached value', async () => {
     const { cache, fetch, requests } = setup();
     cache.peek('a');

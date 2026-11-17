@@ -1,29 +1,41 @@
 import type { PoolClient } from 'pg';
 import {
-  auditPageSize,
-  auditSummarySize,
+  channelTopic,
   demand,
   receiptRetentionMs,
-  type Audit,
-  type AuditPage,
-  type AuditQuery,
   type Comment,
   type Invitation,
   type Member,
-  type Notice,
-  type Permission,
   type PullRequest,
   type Receipt,
   type Review,
   type SchemaManifest,
   type StoredCandidate,
   type Task,
-  type Thread,
   type Workspace
 } from '../model.js';
+import {
+  asNumber,
+  candidateOf,
+  invitationOf,
+  noticeOf,
+  prColumns,
+  prOf,
+  reviewColumns,
+  reviewOf,
+  taskOf,
+  threadOf,
+  type CandidateRow,
+  type InvitationRow,
+  type NoticeRow,
+  type PrRow,
+  type ReviewRow,
+  type TaskRow,
+  type ThreadRow as ThreadRecord
+} from '../rows.js';
 import { parseSchemaManifest } from '../schema.js';
-import { pageLimit } from './engine.js';
 import type { Effects, MergeLog } from './plan.js';
+import { broadcastOf } from './signal.js';
 import type { HeadMove, RowChanges, ThreadComment, ThreadRow, WorkspaceChanges } from './state-changes.js';
 import type { GovernanceLock, RefLock, WorkspaceLoader } from './store.js';
 
@@ -36,7 +48,6 @@ const lockClause: Record<RefLock, string> = { update: ' FOR UPDATE', share: ' FO
 const sharedRef = 'shared';
 /** 任务引用的名字：`tasks/<任务 ID>`（任务 ID 不含斜杠）。 */
 export const taskRef = (taskId: string) => `tasks/${taskId}`;
-const asNumber = (value: string | number) => Number(value);
 
 /**
  * 只含治理字段的空局部状态：其余集合由加载器按需填入。修订号不在治理行里，命令只看它是否前进。
@@ -62,7 +73,6 @@ export function emptyState(teamId: string, appId: string): Workspace {
     reviews: [],
     threads: {},
     notifications: [],
-    presence: [],
     receipts: {},
     audit: []
   };
@@ -75,87 +85,10 @@ interface GovernanceRow {
   schema_version: number;
   policy_version: number;
 }
-interface PrRow {
-  id: string;
-  task_id: string;
-  author_id: string;
-  title: string;
-  description: string;
-  target: 'shared';
-  status: PullRequest['status'];
-  revision: number;
-  candidate_id: string | null;
-  subscribers: string[];
-}
-interface TaskRow {
-  id: string;
-  name: string;
-  owner_id: string;
-  base: string | null;
-  origin_task_id: string | null;
-  head: string | null;
-}
-interface CandidateRow {
-  id: string;
-  pr_id: string;
-  base: string | null;
-  source: string;
-  target: string | null;
-  schema_version: number;
-  policy_version: number;
-  resolutions: StoredCandidate['resolutions'];
-  conflicts: StoredCandidate['conflicts'];
-  checks: StoredCandidate['checks'];
-  actor_id: string;
-  at: string;
-  changes: StoredCandidate['changes'];
-}
-interface ReviewRow {
-  id: string;
-  pr_id: string;
-  reviewer_id: string;
-  source: string | null;
-  candidate_id: string | null;
-  stage_id: string;
-  decision: Review['decision'];
-  generation: number;
-  revision: number;
-  reason: string;
-  at: string;
-  dismissed_reviewer_id: string | null;
-}
-interface ThreadRowData {
-  id: string;
-  pr_id: string;
-  candidate_id: string | null;
-  record_id: string | null;
-  field: string | null;
-  required: boolean;
-  resolved: boolean;
-  resolved_candidate_id: string | null;
-  revision: number;
-  comments: Comment[];
-}
-interface NoticeRow {
-  id: string;
-  user_id: string;
-  pr_id: string;
-  thread_id: string | null;
-  candidate_id: string | null;
-  read: boolean;
-  at: string;
-}
-interface InvitationRow {
-  id: string;
-  email: string;
-  permissions: Permission[];
-  inviter_id: string;
-  token_hash: string;
-  version: number;
-  expires_at: string;
-  state: Invitation['state'];
-  accepted_by: string | null;
-}
+/** 命令路径读的线程：线程行加上按写入顺序聚合好的评论。 */
+type ThreadRowData = ThreadRecord & { comments: Comment[] };
+/** 命令路径读的邀请：比公开投影多出令牌摘要，接受邀请时要核对它。 */
+type PrivateInvitationRow = InvitationRow & { token_hash: string };
 interface ReceiptRow {
   operation_id: string;
   actor_id: string;
@@ -164,14 +97,11 @@ interface ReceiptRow {
   at: string;
 }
 
-const prColumns = 'id, task_id, author_id, title, description, target, status, revision, candidate_id, subscribers';
 const taskSelect = `SELECT t.id, t.name, t.owner_id, t.base, t.origin_task_id, r.head
   FROM admin_private.tasks t
   JOIN admin_private.refs r ON r.team_id = t.team_id AND r.app_id = t.app_id AND r.ref = 'tasks/' || t.id`;
 const candidateColumns =
   'id, pr_id, base, source, target, schema_version, policy_version, resolutions, conflicts, checks, actor_id, at, changes';
-const reviewColumns =
-  'id, pr_id, reviewer_id, source, candidate_id, stage_id, decision, generation, revision, reason, at, dismissed_reviewer_id';
 const threadSelect = `SELECT th.id, th.pr_id, th.candidate_id, th.record_id, th.field, th.required, th.resolved,
     th.resolved_candidate_id, th.revision,
     coalesce((SELECT json_agg(json_build_object('id', c.id, 'authorId', c.author_id, 'body', c.body, 'deleted', c.deleted,
@@ -182,89 +112,9 @@ const threadSelect = `SELECT th.id, th.pr_id, th.candidate_id, th.record_id, th.
 const noticeColumns = 'id, user_id, pr_id, thread_id, candidate_id, read, at';
 const invitationColumns = 'id, email, permissions, inviter_id, token_hash, version, expires_at, state, accepted_by';
 
-const prOf = (row: PrRow): PullRequest => ({
-  id: row.id,
-  taskId: row.task_id,
-  authorId: row.author_id,
-  title: row.title,
-  description: row.description,
-  target: row.target,
-  status: row.status,
-  revision: row.revision,
-  candidateId: row.candidate_id,
-  subscribers: row.subscribers
-});
-const taskOf = (row: TaskRow): Task => ({
-  id: row.id,
-  name: row.name,
-  ownerId: row.owner_id,
-  base: row.base,
-  head: row.head,
-  originTaskId: row.origin_task_id
-});
-const candidateOf = (row: CandidateRow): StoredCandidate => ({
-  id: row.id,
-  prId: row.pr_id,
-  base: row.base,
-  source: row.source,
-  target: row.target,
-  schemaVersion: row.schema_version,
-  policyVersion: row.policy_version,
-  resolutions: row.resolutions,
-  conflicts: row.conflicts,
-  checks: row.checks,
-  actorId: row.actor_id,
-  at: asNumber(row.at),
-  changes: row.changes
-});
-const reviewOf = (row: ReviewRow): Review => {
-  const review: Review = {
-    id: row.id,
-    source: row.source,
-    prId: row.pr_id,
-    reviewerId: row.reviewer_id,
-    candidateId: row.candidate_id,
-    stageId: row.stage_id,
-    decision: row.decision,
-    generation: row.generation,
-    revision: row.revision,
-    reason: row.reason,
-    at: asNumber(row.at)
-  };
-  if (row.dismissed_reviewer_id !== null) review.dismissedReviewerId = row.dismissed_reviewer_id;
-  return review;
-};
-const threadOf = (row: ThreadRowData): Thread => ({
-  id: row.id,
-  prId: row.pr_id,
-  candidateId: row.candidate_id,
-  recordId: row.record_id,
-  field: row.field,
-  required: row.required,
-  resolved: row.resolved,
-  resolvedCandidateId: row.resolved_candidate_id,
-  revision: row.revision,
-  comments: row.comments
-});
-const noticeOf = (row: NoticeRow): Notice => ({
-  id: row.id,
-  userId: row.user_id,
-  prId: row.pr_id,
-  threadId: row.thread_id,
-  candidateId: row.candidate_id,
-  read: row.read,
-  at: asNumber(row.at)
-});
-const invitationOf = (row: InvitationRow): Invitation => ({
-  id: row.id,
-  email: row.email,
-  permissions: row.permissions,
-  inviterId: row.inviter_id,
-  tokenHash: row.token_hash,
-  version: row.version,
-  expiresAt: asNumber(row.expires_at),
-  state: row.state,
-  acceptedBy: row.accepted_by
+const privateInvitationOf = (row: PrivateInvitationRow): Invitation => ({
+  ...invitationOf(row),
+  tokenHash: row.token_hash
 });
 const receiptOf = (row: ReceiptRow): Receipt => ({
   operationId: row.operation_id,
@@ -275,9 +125,8 @@ const receiptOf = (row: ReceiptRow): Receipt => ({
 });
 
 /**
- * 工作区各表的 PostgreSQL 读取，绑定一个团队下的一个应用与一个连接，随该连接所在的事务执行。
- * 命令路径（{@link PgWorkspaceLoader}）按调用加行锁，只读查询（{@link PgWorkspaceReader}）不加锁、在只读快照里执行。
- * 每个方法只发一两条查询，范围由所问的行决定，不扫描工作区的历史。
+ * 命令路径对工作区各表的 PostgreSQL 读取，绑定一个团队下的一个应用与一个连接，随该连接所在的事务执行。
+ * 每个方法只发一两条查询，范围由所问的行决定，不扫描工作区的历史。浏览器的只读查询不经这里，走 public 下的只读投影。
  */
 class PgWorkspaceRows {
   state: Workspace;
@@ -364,7 +213,7 @@ class PgWorkspaceRows {
   }
   protected async readPrs(where: string, params: unknown[], lock = ''): Promise<PullRequest[]> {
     const found = await this.query<PrRow>(
-      `SELECT ${prColumns} FROM admin_private.prs WHERE team_id = $1 AND app_id = $2 AND ${where}${lock}`,
+      `SELECT ${prColumns.join(', ')} FROM admin_private.prs WHERE team_id = $1 AND app_id = $2 AND ${where}${lock}`,
       params
     );
     const prs = found.rows.map(prOf);
@@ -376,7 +225,7 @@ class PgWorkspaceRows {
       `${threadSelect} WHERE th.team_id = $1 AND th.app_id = $2 AND ${where} ORDER BY th.seq`,
       params
     );
-    for (const row of found.rows) this.state.threads[row.id] = threadOf(row);
+    for (const row of found.rows) this.state.threads[row.id] = threadOf(row, row.comments);
   }
 }
 
@@ -416,17 +265,18 @@ export class PgWorkspaceLoader extends PgWorkspaceRows implements WorkspaceLoade
   }
   async prReviews(prId: string): Promise<void> {
     const found = await this.query<ReviewRow>(
-      `SELECT ${reviewColumns} FROM admin_private.reviews WHERE team_id = $1 AND app_id = $2 AND pr_id = $3 ORDER BY seq`,
+      `SELECT ${reviewColumns.join(', ')} FROM admin_private.reviews
+       WHERE team_id = $1 AND app_id = $2 AND pr_id = $3 ORDER BY seq`,
       [prId]
     );
     this.state.reviews = found.rows.map(reviewOf);
   }
   async invitation(id: string): Promise<void> {
-    const found = await this.query<InvitationRow>(
+    const found = await this.query<PrivateInvitationRow>(
       `SELECT ${invitationColumns} FROM admin_private.invitations WHERE team_id = $1 AND app_id = $2 AND id = $3`,
       [id]
     );
-    for (const row of found.rows) this.state.invitations[row.id] = invitationOf(row);
+    for (const row of found.rows) this.state.invitations[row.id] = privateInvitationOf(row);
   }
   async notification(id: string, userId: string): Promise<void> {
     const found = await this.query<NoticeRow>(
@@ -449,113 +299,6 @@ export class PgWorkspaceLoader extends PgWorkspaceRows implements WorkspaceLoade
       [prId]
     );
     return found.rows[0]?.task_id;
-  }
-}
-
-/** 摘要所需的局部状态：除回执、他人通知与早于最近一窗的审计之外的全部元数据，以及审计总数。 */
-export interface SummaryState {
-  state: Workspace;
-  auditCount: number;
-}
-
-/**
- * 只读查询的 PostgreSQL 读取：不加锁、不写库，调用方在只读的可重复读事务里使用，
- * 多条语句看到的是同一份已提交快照（合并同事务更新共享头与共享记录，读者不会看到合并到一半）。
- */
-export class PgWorkspaceReader extends PgWorkspaceRows {
-  /** 治理字段、成员与共享头；工作区不存在时返回 false。 */
-  open(): Promise<boolean> {
-    return this.governance('none');
-  }
-  /** 摘要的全部内容：任务、PR、候选（不含变更）、审核、讨论、本人的通知、邀请、最近一窗审计、修订号与审计总数。 */
-  async summary(userId: string): Promise<SummaryState> {
-    const version = await this.query<{ revision: string; audit_count: string }>(
-      'SELECT revision, audit_count FROM public.admin_workspace_versions WHERE team_id = $1 AND app_id = $2'
-    );
-    this.state.revision = asNumber(version.rows[0].revision);
-    const tasks = await this.query<TaskRow>(`${taskSelect} WHERE t.team_id = $1 AND t.app_id = $2 ORDER BY t.seq`);
-    this.state.tasks = Object.fromEntries(tasks.rows.map(row => [row.id, taskOf(row)]));
-    await this.readPrs('true ORDER BY seq', []);
-    const candidates = await this.query<CandidateRow>(
-      `SELECT ${candidateColumns.replace('changes', `'[]'::jsonb AS changes`)} FROM admin_private.candidates
-       WHERE team_id = $1 AND app_id = $2 ORDER BY seq`
-    );
-    this.state.candidates = Object.fromEntries(candidates.rows.map(row => [row.id, candidateOf(row)]));
-    const reviews = await this.query<ReviewRow>(
-      `SELECT ${reviewColumns} FROM admin_private.reviews WHERE team_id = $1 AND app_id = $2 ORDER BY seq`
-    );
-    this.state.reviews = reviews.rows.map(reviewOf);
-    await this.readThreads('true', []);
-    const notices = await this.query<NoticeRow>(
-      `SELECT ${noticeColumns} FROM admin_private.notifications
-       WHERE team_id = $1 AND app_id = $2 AND user_id = $3 ORDER BY seq`,
-      [userId]
-    );
-    this.state.notifications = notices.rows.map(noticeOf);
-    const invitations = await this.query<InvitationRow>(
-      `SELECT ${invitationColumns} FROM admin_private.invitations WHERE team_id = $1 AND app_id = $2 ORDER BY seq`
-    );
-    this.state.invitations = Object.fromEntries(invitations.rows.map(row => [row.id, invitationOf(row)]));
-    const audit = await this.query<{ details: Audit }>(
-      `SELECT details FROM public.admin_audit WHERE team_id = $1 AND app_id = $2 ORDER BY seq DESC LIMIT $3`,
-      [auditSummarySize]
-    );
-    this.state.audit = audit.rows.map(row => row.details).reverse();
-    return { state: this.state, auditCount: asNumber(version.rows[0].audit_count) };
-  }
-  /** 读取一个候选（含存储的变更）。 */
-  candidate(id: string): Promise<void> {
-    return this.candidates([id]);
-  }
-  /** 按版本读取登记过的数据模式清单；没有登记过的版本为 undefined。 */
-  async schema(version: number): Promise<SchemaManifest | undefined> {
-    const found = await this.query<{ manifest: unknown }>(
-      'SELECT manifest FROM admin_private.schemas WHERE team_id = $1 AND app_id = $2 AND version = $3',
-      [version]
-    );
-    return found.rows[0] ? parseSchemaManifest(found.rows[0].manifest) : undefined;
-  }
-  /** 读取一个 PR 与它的来源任务。 */
-  async prWithTask(prId: string): Promise<void> {
-    await this.prs([prId]);
-    const pr = this.state.prs[prId];
-    if (pr) await this.task(pr.taskId, 'none');
-  }
-  /**
-   * 审计分页，与引擎的 `auditPage` 同一份规则：`before` 是游标事件 ID，只返回比它更早（按写入顺序）的事件，
-   * `prId` / `threadId` 按写入时登记的归属筛选，走 (team, app, pr_id|thread_id, seq) 索引，成本只与页大小有关。
-   */
-  async auditPage(query: AuditQuery): Promise<AuditPage> {
-    const limit = pageLimit(query.limit, auditPageSize);
-    const conditions = ['team_id = $1', 'app_id = $2'];
-    const params: unknown[] = [];
-    const add = (condition: string, value: unknown) => {
-      params.push(value);
-      conditions.push(condition.replace('?', `$${params.length + 2}`));
-    };
-    if (query.before !== undefined) {
-      const cursor = await this.query<{ seq: string }>(
-        'SELECT seq FROM public.admin_audit WHERE team_id = $1 AND app_id = $2 AND id = $3',
-        [query.before]
-      );
-      demand(cursor.rows[0], 'not_found', '审计事件不存在');
-      add('seq < ?', cursor.rows[0].seq);
-    }
-    if (query.prId !== undefined) add('pr_id = ?', query.prId);
-    if (query.threadId !== undefined) add('thread_id = ?', query.threadId);
-    params.push(limit + 1);
-    const found = await this.query<{ details: Audit }>(
-      `SELECT details FROM public.admin_audit WHERE ${conditions.join(' AND ')}
-       ORDER BY seq DESC LIMIT $${params.length + 2}`,
-      params
-    );
-    const events = found.rows.slice(0, limit).map(row => row.details);
-    return { events, nextBefore: found.rows.length > limit ? events[events.length - 1].id : null };
-  }
-  /** 读取保留期内的一条回执，不论操作者是谁；是否可读由调用方按操作者裁决。 */
-  async receiptRow(operationId: string, now: number): Promise<Receipt | undefined> {
-    await this.receipt(operationId, now);
-    return Object.hasOwn(this.state.receipts, operationId) ? this.state.receipts[operationId] : undefined;
   }
 }
 
@@ -657,7 +400,9 @@ const commentRow = (comment: ThreadComment) => ({
 
 /**
  * 把一条命令的结果写回 PostgreSQL：只写局部状态差异列出的行与命令效果，顺序固定——业务行 → 引用（比较交换）→
- * 审计 → 回执 → 有界清理过期回执 → 版本行。版本行是最后一步：所有写事务只在这一步排队，持锁时间只覆盖提交本身。
+ * 审计 → 回执 → 有界清理过期回执 → 版本行与广播。版本行是最后一条语句：所有写事务只在这一步排队，持锁时间只覆盖提交本身。
+ * 同一条语句经 `realtime.send()` 向私有频道 `collab:<团队>:<应用>` 写入失效通知（撤权时另加撤权事件）：通知是事务的一部分，
+ * 提交后 Realtime 才从 WAL 读到并广播，回滚则不发；载荷只含修订号、类别与标识（见 `signal.ts`）。
  */
 export class PgWorkspaceWriter {
   private readonly scope: [string, string];
@@ -686,13 +431,38 @@ export class PgWorkspaceWriter {
     await this.receipts(changes.receipts);
     if (!changes.revised) return;
     await this.sweep(now);
+    await this.publish(changes);
+  }
+  /**
+   * 写事务的最后一条语句：版本行加一，并以新的修订号广播失效通知；有成员失去读权限时同一条语句再广播撤权事件。
+   * 广播只是往 realtime.messages 插一行（Realtime 提交后从 WAL 读取），不另开往返，版本行的持锁时间因此不变。
+   */
+  private async publish(changes: WorkspaceChanges): Promise<void> {
+    const { changed, revoked } = broadcastOf(changes);
+    const [teamId, appId] = this.scope;
     await this.client.query(
-      `UPDATE public.admin_workspace_versions SET revision = revision + 1, audit_count = audit_count + $3
-       WHERE team_id = $1 AND app_id = $2`,
-      [...this.scope, changes.audit.length]
+      `WITH version AS (
+         UPDATE public.admin_workspace_versions SET revision = revision + 1, audit_count = audit_count + $3
+         WHERE team_id = $1 AND app_id = $2 RETURNING revision
+       )
+       SELECT realtime.send(jsonb_build_object('revision', version.revision) || $4::jsonb, 'changed', $5, true)${
+         revoked.length ?
+           `,
+         realtime.send(jsonb_build_object('revision', version.revision, 'userIds', $6::jsonb), 'revoked', $5, true)`
+         : ''
+       }
+       FROM version`,
+      [
+        teamId,
+        appId,
+        changes.audit.length,
+        JSON.stringify(changed),
+        channelTopic({ teamId, appId }),
+        ...(revoked.length ? [JSON.stringify(revoked)] : [])
+      ]
     );
   }
-  /** 成员变更：写回成员行；失去读权限的成员同时移出在线状态。 */
+  /** 成员变更：写回成员行。失去读权限的成员由撤权事件通知各端移出在线列表（见 {@link PgWorkspaceWriter.publish}）。 */
   private async members(members: Member[]): Promise<void> {
     await insertRows(
       this.client,
@@ -709,12 +479,6 @@ export class PgWorkspaceWriter {
       ` ON CONFLICT (team_id, app_id, user_id) DO UPDATE SET email = EXCLUDED.email, permissions = EXCLUDED.permissions,
           generation = EXCLUDED.generation, active = EXCLUDED.active`
     );
-    const revoked = members.filter(member => !member.active || !member.permissions.includes('read'));
-    if (revoked.length)
-      await this.client.query(
-        'DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND user_id = ANY($3::text[])',
-        [...this.scope, revoked.map(member => member.id)]
-      );
   }
   private invitations(invitations: Invitation[]): Promise<void> {
     return insertRows(

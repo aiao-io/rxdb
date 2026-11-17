@@ -1,35 +1,11 @@
 import { assertFingerprints, commitFingerprint } from '../commit.js';
-import {
-  demand,
-  historyPageSize,
-  type Candidate,
-  type Command,
-  type CommitContent,
-  type CommitPage,
-  type Environment,
-  type HistoryQuery,
-  type Identity,
-  type SchemaManifest,
-  type SharedRecords,
-  type Workspace,
-  type WorkspaceSummary
-} from '../model.js';
-import { sortRecords } from '../records.js';
-import { authorize, prFor, taskFor } from './access.js';
-import { candidateRecords, commitRecords, preload } from './content.js';
-import {
-  candidateSummary,
-  execute,
-  pageLimit,
-  plan,
-  snapshot,
-  type EngineOptions,
-  type SummaryView
-} from './engine.js';
+import { demand, type Command, type Environment, type Identity } from '../model.js';
+import { preload } from './content.js';
+import { execute, plan, type EngineOptions } from './engine.js';
 import type { NewCommit } from './plan.js';
 import { gather } from './scope.js';
 import { stateChanges } from './state-changes.js';
-import { commitSummary, type CommandStore, type CommitStore } from './store.js';
+import type { CommandStore } from './store.js';
 
 /** 给新提交补上指纹：上传的提交已带核验过的指纹，服务端生成的合并提交在写入前计算。 */
 async function sealed(commit: NewCommit) {
@@ -41,6 +17,7 @@ async function sealed(commit: NewCommit) {
  * 核验上传提交的内容指纹，按声明预加载，交给纯函数的引擎裁决，再把新提交、共享记录改动（连同键索引）
  * 与局部状态的差异写回。调用方负责事务：任一步失败时整体回滚；工作区不存在时与无权访问同样拒绝。
  * `options` 是部署入口注入的引擎扩展（特殊业务检查），默认没有。
+ * 读取不经这里：浏览器经 Supabase 的只读投影读取（见 `reader.ts`），授权由投影的成员资格条件裁决。
  */
 export async function runCommand(
   store: CommandStore,
@@ -60,94 +37,4 @@ export async function runCommand(
   if (effects.reindex) await store.commits.reindex(effects.reindex);
   await store.save(stateChanges(before, state), effects, env.now);
   return result;
-}
-/**
- * 按版本读取登记过的数据模式清单（版本只追加、不可修改，客户端可按版本长期缓存）；需要 read 权限，
- * 没有登记过的版本返回 `not_found`。`find` 是存储按版本的查询。
- */
-export async function readSchema(
-  find: (version: number) => Promise<SchemaManifest | undefined>,
-  state: Workspace,
-  user: Identity,
-  version: number
-): Promise<SchemaManifest> {
-  authorize(state, user, 'read');
-  const schema = await find(version);
-  demand(schema, 'not_found', '数据模式不存在');
-  return schema;
-}
-
-/** 工作区摘要：只含元数据，不含提交元数据、记录与完整审计。需要 read 权限。 */
-export function readSummary(state: Workspace, user: Identity, now: number, view?: SummaryView): WorkspaceSummary {
-  return snapshot(state, user, now, view);
-}
-/** 共享分支当前的全部记录及其头提交；需要 read 权限。 */
-export async function readSharedRecords(store: CommitStore, state: Workspace, user: Identity): Promise<SharedRecords> {
-  authorize(state, user, 'read');
-  return { head: state.head, records: sortRecords(await store.shared()) };
-}
-/** 一个提交的完整内容：元数据、它自身的字段级变更与推导出的整份记录；未知 ID 返回 `not_found`，授权与摘要一致。 */
-export async function readCommit(
-  store: CommitStore,
-  state: Workspace,
-  user: Identity,
-  id: string
-): Promise<CommitContent> {
-  authorize(state, user, 'read');
-  const meta = (await store.commits([id])).get(id);
-  demand(meta, 'not_found', '提交不存在');
-  const records = await commitRecords(store, state.head, meta);
-  const changes = (await store.changes([id])).get(id) ?? [];
-  return { ...commitSummary(meta), changes, records: sortRecords(records) };
-}
-/** 一个合并候选的完整内容（含推导出的最终记录）；未知 ID 返回 `not_found`，授权与摘要一致。 */
-export async function readCandidate(
-  store: CommitStore,
-  state: Workspace,
-  user: Identity,
-  id: string
-): Promise<Candidate> {
-  authorize(state, user, 'read');
-  demand(Object.hasOwn(state.candidates, id), 'not_found', '候选不存在');
-  const candidate = state.candidates[id];
-  return structuredClone({
-    ...candidateSummary(candidate),
-    records: sortRecords(await candidateRecords(store, state.head, candidate))
-  });
-}
-
-/** 提交历史要读的分支：共享分支从共享头走到根，任务分支从任务头走到它的共同起点（不含）。 */
-export function historyBranch(state: Workspace, query: HistoryQuery): { head: string | null; until: string | null } {
-  const selectors = [query.branch, query.taskId, query.prId].filter(value => value !== undefined);
-  demand(selectors.length === 1, 'invalid', '请求字段不合法');
-  if (query.branch !== undefined) {
-    demand(query.branch === 'shared', 'invalid', '请求字段不合法');
-    return { head: state.head, until: null };
-  }
-  const task = taskFor(state, query.taskId ?? prFor(state, query.prId!).taskId);
-  return { head: task.head, until: task.base };
-}
-/**
- * 提交历史的一页（从新到旧，只含元数据）：共享分支、任务分支或 PR 的来源任务，见 {@link HistoryQuery}。
- * `before` 是上一页的 `nextBefore`，从它的父提交接着读；未知的 `before` 返回 `not_found`。
- * 只沿父指针读本页的提交（多读一个判断是否还有更早的），成本只与页大小有关。授权与摘要一致。
- */
-export async function readHistory(
-  store: CommitStore,
-  state: Workspace,
-  user: Identity,
-  query: HistoryQuery
-): Promise<CommitPage> {
-  authorize(state, user, 'read');
-  const limit = pageLimit(query.limit, historyPageSize);
-  const branch = historyBranch(state, query);
-  let from = branch.head;
-  if (query.before !== undefined) {
-    const cursor = (await store.commits([query.before])).get(query.before);
-    demand(cursor, 'not_found', '提交不存在');
-    from = cursor.parent;
-  }
-  const commits = await store.history(from, branch.until, limit + 1);
-  const page = commits.slice(0, limit);
-  return { commits: page, nextBefore: commits.length > limit ? page[page.length - 1].id : null };
 }

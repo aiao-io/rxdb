@@ -1,4 +1,5 @@
-import type { Command, PullRequest, Records, Resolution, Task, Thread } from '../model.js';
+import { reviewRevision } from '../approval.js';
+import type { Command, PullRequest, PullRequestDetail, Records, Resolution, Task, Thread } from '../model.js';
 import { mergeRecords } from '../records.js';
 import type { CollaborationController } from './controller.js';
 import { diffTable } from './diff-table.js';
@@ -25,7 +26,7 @@ export class PullRequestView {
   tab: 'discussion' | 'commits' | 'changes' | 'checks' = 'changes';
   focusThread: string | null = null;
   /**
-   * @param controller 提供摘要与按需读取的内容；内容未加载时同步读取返回 undefined，视图先显示占位。
+   * @param controller 提供团队页、PR 详情与按需读取的内容；内容未加载时同步读取返回 undefined，视图先显示占位。
    * @param perform 统一的执行入口，负责忙碌状态与错误提示。
    * @param render 请求重绘整个页面。
    * @param disclosures 内容较大的 details 的展开状态：只在展开时生成并加载内容。
@@ -50,6 +51,8 @@ export class PullRequestView {
         })
       )
     );
+    if (data.earlier.prs)
+      list.append(button('加载更早的 PR', () => this.perform(() => this.controller.loadEarlierPrs())));
     view.append(list);
     if (this.controller.draft && this.controller.draft.remoteHead && this.has('edit')) {
       const title = input('PR 标题', this.controller.draft.name);
@@ -143,21 +146,28 @@ export class PullRequestView {
     panel.id = 'pr-panel';
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', `pr-tab-${this.tab}`);
-    if (this.tab === 'discussion') panel.append(this.discussions(pr));
-    if (this.tab === 'commits') panel.append(this.commits(pr));
+    // 候选、审核与讨论是 PR 详情，打开 PR 时才读取；读到之前各页签先显示占位
+    const detail = this.controller.prDetail(pr.id);
+    if (!detail) {
+      panel.append(loading());
+      view.append(panel);
+      return view;
+    }
+    if (this.tab === 'discussion') panel.append(this.discussions(pr, detail));
+    if (this.tab === 'commits') panel.append(this.commits(pr, detail));
     if (this.tab === 'changes' && canManage && !['closed', 'merged'].includes(pr.status))
-      panel.append(this.previewControls(pr));
+      panel.append(this.previewControls(pr, detail));
     if (this.tab === 'changes' && !pr.candidateId) {
       const task = data.tasks.find(value => value.id === pr.taskId)!;
       panel.append(element('p', '来源提交变化（尚未形成最终候选）'), this.sourceChanges(task));
     }
-    if (['changes', 'checks'].includes(this.tab) && pr.candidateId) panel.append(this.candidate(pr));
+    if (['changes', 'checks'].includes(this.tab) && pr.candidateId) panel.append(this.candidate(pr, detail));
     if (this.tab === 'checks' && !pr.candidateId) panel.append(element('p', '尚未生成最终候选，检查未通过'));
-    view.append(panel, this.reviewControls(pr));
+    view.append(panel, this.reviewControls(pr, detail));
     return view;
   }
   /** 「提交」页签：按 PR 分页读取来源任务在起点之后的提交，从新到旧列出，末尾可加载更早的提交；之后是历史候选。 */
-  private commits(pr: PullRequest) {
+  private commits(pr: PullRequest, detail: PullRequestDetail) {
     const view = section('提交历史');
     const branch = { prId: pr.id };
     const history = this.controller.commitHistory(branch);
@@ -173,21 +183,20 @@ export class PullRequestView {
     }
     if (history?.hasEarlier)
       view.append(button('加载更早的提交', () => this.perform(() => this.controller.loadEarlierCommits(branch))));
-    view.append(this.candidateHistory(pr));
+    view.append(this.candidateHistory(pr, detail));
     return view;
   }
-  private candidateHistory(pr: PullRequest) {
-    const data = this.controller.snapshot!;
+  private candidateHistory(pr: PullRequest, detail: PullRequestDetail) {
     const { details: history, open } = lazyDetails(`candidate-history:${pr.id}`, this.disclosures);
     history.append(element('summary', '历史候选与审核'));
     if (!open) return history;
-    Object.values(data.candidates)
+    Object.values(detail.candidates)
       .filter(c => c.prId === pr.id)
       .forEach(c => {
         const { details: item, open: itemOpen } = lazyDetails(`candidate:${c.id}`, this.disclosures);
         item.append(element('summary', tx('{v0} · 策略 v{v1}', { v0: c.id, v1: c.policyVersion })));
         if (itemOpen) item.append(this.candidateRecords(c.id));
-        data.reviews
+        detail.reviews
           .filter(r => r.candidateId === c.id)
           .forEach(r => item.append(element('p', `${r.reviewerId} · ${r.decision} · ${r.reason}`)));
         history.append(item);
@@ -228,7 +237,7 @@ export class PullRequestView {
         ?.permissions.some(item => item === permission) ?? false
     );
   }
-  private previewControls(pr: PullRequest) {
+  private previewControls(pr: PullRequest, detail: PullRequestDetail) {
     const view = section('三方合并预览');
     const data = this.controller.snapshot!;
     const task = data.tasks.find(t => t.id === pr.taskId)!;
@@ -260,7 +269,7 @@ export class PullRequestView {
         element('p', tx('目标：{v0}', { v0: valueText(conflict.target) }))
       );
       const existing =
-        pr.candidateId ? data.candidates[pr.candidateId].resolutions.find(r => r.key === conflict.key) : undefined;
+        pr.candidateId ? detail.candidates[pr.candidateId].resolutions.find(r => r.key === conflict.key) : undefined;
       const choice = select(
         '冲突处理',
         [
@@ -296,9 +305,9 @@ export class PullRequestView {
     );
     return view;
   }
-  private candidate(pr: PullRequest) {
+  private candidate(pr: PullRequest, detail: PullRequestDetail) {
     const data = this.controller.snapshot!;
-    const candidate = data.candidates[pr.candidateId!];
+    const candidate = detail.candidates[pr.candidateId!];
     const view = section('最终合并候选');
     const task = data.tasks.find(t => t.id === pr.taskId)!;
     const current =
@@ -370,9 +379,9 @@ export class PullRequestView {
     );
     return navigation;
   }
-  private reviewControls(pr: PullRequest) {
+  private reviewControls(pr: PullRequest, detail: PullRequestDetail) {
     const data = this.controller.snapshot!;
-    const candidate = pr.candidateId ? data.candidates[pr.candidateId] : null;
+    const candidate = pr.candidateId ? detail.candidates[pr.candidateId] : null;
     const task = data.tasks.find(value => value.id === pr.taskId)!;
     const current =
       candidate &&
@@ -381,8 +390,8 @@ export class PullRequestView {
       candidate.policyVersion === data.policy.version &&
       candidate.schemaVersion === data.schemaVersion;
     const view = section('审核');
-    const governance = data.governance.find(g => g.prId === pr.id);
-    governance?.stages.forEach(stage =>
+    const governance = detail.governance;
+    governance.stages.forEach(stage =>
       view.append(
         element(
           'p',
@@ -392,7 +401,7 @@ export class PullRequestView {
     );
     const reason = input('审核或撤销理由');
     view.append(reason.wrapper);
-    governance?.blockers.forEach(blocker => {
+    governance.blockers.forEach(blocker => {
       view.append(
         element('p', tx('要求修改：{v0} — {v1}', { v0: blocker.reviewerId, v1: blocker.reason }), 'text-error')
       );
@@ -403,7 +412,7 @@ export class PullRequestView {
               type: 'dismiss',
               prId: pr.id,
               reviewerId: blocker.reviewerId,
-              expectedRevision: this.reviewRevision(pr.id, blocker.reviewerId),
+              expectedRevision: reviewRevision(detail.reviews, pr.id, blocker.reviewerId),
               reason: reason.control.value
             })
           )
@@ -428,7 +437,7 @@ export class PullRequestView {
           stageId: stage.control.value || 'review',
           decision,
           reason: reason.control.value,
-          expectedRevision: this.reviewRevision(pr.id, this.controller.user!.id)
+          expectedRevision: reviewRevision(detail.reviews, pr.id, this.controller.user!.id)
         });
       actions.append(
         button(
@@ -444,13 +453,6 @@ export class PullRequestView {
     }
     view.append(actions);
     return view;
-  }
-  private reviewRevision(prId: string, userId: string) {
-    return this.controller
-      .snapshot!.reviews.filter(
-        r => r.prId === prId && (r.decision === 'dismiss' ? r.dismissedReviewerId === userId : r.reviewerId === userId)
-      )
-      .reduce((n, r) => Math.max(n, r.revision), 0);
   }
   /** 评论锚定的候选版本：展开时才读取候选内容并渲染该记录。 */
   private anchoredVersion(thread: Thread, candidateId: string, recordId: string) {
@@ -485,7 +487,7 @@ export class PullRequestView {
       );
     return details;
   }
-  private discussions(pr: PullRequest) {
+  private discussions(pr: PullRequest, detail: PullRequestDetail) {
     const view = section('讨论');
     const data = this.controller.snapshot!;
     const userId = this.controller.user!.id;
@@ -505,7 +507,7 @@ export class PullRequestView {
       this.render();
     };
     view.append(filter.wrapper);
-    const visible = data.threads.filter(
+    const visible = detail.threads.filter(
       t =>
         t.prId === pr.id &&
         (this.filter !== 'required' || t.required) &&
@@ -521,7 +523,7 @@ export class PullRequestView {
       box.append(
         element('p', [thread.candidateId, thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs')
       );
-      if (thread.candidateId && thread.recordId && data.candidates[thread.candidateId])
+      if (thread.candidateId && thread.recordId && detail.candidates[thread.candidateId])
         box.append(this.anchoredVersion(thread, thread.candidateId, thread.recordId));
       box.append(this.threadHistory(thread));
       thread.comments.forEach(comment => {

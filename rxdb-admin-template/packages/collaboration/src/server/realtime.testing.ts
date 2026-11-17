@@ -1,11 +1,19 @@
 /**
  * 集成测试用的 Realtime 数据库对象。裸 `supabase/postgres` 镜像只有空的 realtime schema，
  * realtime.messages、realtime.topic() 与 realtime.send() 由 Realtime 服务首次连库时建出。这里按本机隔离栈里
- * Realtime v2.102.3 建出的定义原样复制（列、分区键、约束、授权与行级安全；分区改为一个默认分区，免得按日期建表），
+ * Realtime v2.102.3 建出的定义原样复制（列、分区键、约束、所有者、授权与行级安全；分区改为一个默认分区，免得按日期建表），
  * 让迁移里的频道策略与命令事务里的广播在临时库上照常执行；真实频道的收发另在三端 E2E 的隔离栈上验证。
+ * 与 Supabase 一样，消息表归 supabase_realtime_admin 所有，postgres 是它的成员，因此迁移能在表上建策略。
  */
 const realtimeObjects = `
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_realtime_admin') THEN
+    CREATE ROLE supabase_realtime_admin NOINHERIT NOLOGIN NOREPLICATION;
+  END IF;
+END $$;
+GRANT supabase_realtime_admin TO postgres;
 CREATE SCHEMA IF NOT EXISTS realtime;
+GRANT USAGE, CREATE ON SCHEMA realtime TO supabase_realtime_admin;
 CREATE TABLE IF NOT EXISTS realtime.messages (
   topic text NOT NULL,
   extension text NOT NULL,
@@ -19,8 +27,10 @@ CREATE TABLE IF NOT EXISTS realtime.messages (
   CONSTRAINT messages_payload_exclusive CHECK (payload IS NULL OR binary_payload IS NULL),
   PRIMARY KEY (id, inserted_at)
 ) PARTITION BY RANGE (inserted_at);
+ALTER TABLE realtime.messages OWNER TO supabase_realtime_admin;
 CREATE TABLE IF NOT EXISTS realtime.messages_default PARTITION OF realtime.messages DEFAULT;
 ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+GRANT ALL ON TABLE realtime.messages TO postgres, dashboard_user;
 GRANT SELECT, INSERT, UPDATE ON TABLE realtime.messages TO anon, authenticated, service_role;
 CREATE OR REPLACE FUNCTION realtime.topic()
  RETURNS text
@@ -29,6 +39,7 @@ CREATE OR REPLACE FUNCTION realtime.topic()
 AS $function$
 select nullif(current_setting('realtime.topic', true), '')::text;
 $function$;
+ALTER FUNCTION realtime.topic() OWNER TO supabase_realtime_admin;
 CREATE OR REPLACE FUNCTION realtime.send(payload jsonb, event text, topic text, private boolean DEFAULT true)
  RETURNS void
  LANGUAGE plpgsql
@@ -64,7 +75,7 @@ $function$;
 GRANT USAGE ON SCHEMA realtime TO anon, authenticated, service_role;
 `;
 
-/** 在临时库上建出 Realtime 的消息表与函数（幂等），须在执行产品迁移之前调用。 */
-export async function installRealtime(database: { query: (sql: string) => Promise<unknown> }): Promise<void> {
-  await database.query(realtimeObjects);
+/** 在临时库上建出 Realtime 的消息表与函数（幂等），须以超级用户（supabase_admin）连接、在执行产品迁移之前调用。 */
+export async function installRealtime(superuser: { query: (sql: string) => Promise<unknown> }): Promise<void> {
+  await superuser.query(realtimeObjects);
 }

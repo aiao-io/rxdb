@@ -41,7 +41,6 @@ export function membershipCommand(
     member.active = command.active;
     member.permissions = [...command.permissions];
     member.generation++;
-    state.presence = state.presence.filter(p => p.userId !== member.id);
     return { userId: member.id, generation: member.generation };
   }
   if (command.type === 'policy') {

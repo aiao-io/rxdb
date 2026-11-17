@@ -239,13 +239,15 @@ export interface Notice {
   read: boolean;
   at: number;
 }
-/** 在线状态：按会话上报的心跳，超过 `expiresAt` 后失效。 */
+/**
+ * 在线状态：成员的一个页面会话经私有频道的 Realtime Presence 上报的当前查看位置，不写数据库。
+ * 会话离开频道（关闭页面、切换团队、退出或断网后被 Realtime 判定离线）即消失；只作协作提示，不授予任何权限。
+ */
 export interface Presence {
   userId: string;
   sessionId: string;
   prId: string | null;
   recordId: string | null;
-  expiresAt: number;
 }
 /** 审计事件：操作者、动作与不含敏感字段（令牌摘要、邮箱、完整提交内容）的详情。 */
 export interface Audit {
@@ -307,7 +309,6 @@ export interface Workspace {
   reviews: Review[];
   threads: Record<string, Thread>;
   notifications: Notice[];
-  presence: Presence[];
   receipts: Record<string, Receipt>;
   audit: Audit[];
 }
@@ -334,35 +335,88 @@ export interface Governance {
 /** 管理者可见的邀请视图：不含令牌摘要，受邀邮箱以小写保存。 */
 export type InvitationSummary = Omit<Invitation, 'tokenHash'>;
 /**
- * 工作区摘要，即 `GET /workspaces/:teamId/:appId` 的响应：只含成员、任务、PR、审核、讨论、通知等元数据，
- * 体积不随记录数与提交数增长。提交元数据、提交与候选的记录、共享分支数据与完整审计都不在其中，需分别经
- * `GET .../history`、`.../records`、`.../commits/:id`、`.../candidates/:id`、`.../audit` 按需读取。
- * 仅返回该用户可见的内容：通知只含本人的，`invitations` 只对有 manage 权限者非空。
+ * 团队页：浏览器经 Supabase 的只读投影（PostgREST + RLS）组装的当前工作区视图，只含团队页需要的元数据——
+ * 成员、审批策略、引用与 PR 列表元数据、本人的通知窗口与在线状态。体积不随讨论、审核、通知与提交的条数增长：
+ * PR 的候选、审核与讨论在打开 PR 时另读（{@link PullRequestDetail}），提交历史、共享记录、提交与候选内容、审计都按需分页读取。
+ * 只含当前用户可见的内容：通知只含本人的，`invitations` 只对有 manage 权限者非空。
  */
 export interface WorkspaceSummary {
   teamId: string;
   appId: string;
   name: string;
-  /** 工作区修订号：每条改变状态的命令提交时加一，与摘要内容取自同一份已提交快照。 */
+  /** 工作区修订号：每条改变状态的命令提交时加一；客户端按失效通知里的修订号推进，跳号说明漏了通知，整页重读。 */
   revision: number;
   schemaVersion: number;
   /** 共享分支的头提交；共享数据以它为版本，头变化后需重新读取。 */
   head: string | null;
   policy: Policy;
+  /** 有效成员，按加入顺序。 */
   members: Member[];
+  /** 本人最近创建的任务（窗口内，按创建顺序），加上已加载 PR 的来源任务与当前草稿的任务。 */
   tasks: Task[];
+  /** 最近创建的 PR（窗口内），按创建顺序。 */
   prs: PullRequest[];
-  candidates: Record<string, CandidateSummary>;
-  reviews: Review[];
-  threads: Thread[];
+  /** 本人最近的通知（窗口内），按时间正序。 */
   notifications: Notice[];
-  presence: Presence[];
+  /** 本人未读通知的总数（含窗口之外的）。 */
+  unread: number;
+  /** 窗口之外是否还有更早的 PR、本人任务与通知。 */
+  earlier: { prs: boolean; tasks: boolean; notices: boolean };
+  /** 管理者可见的邀请；其他成员为空。 */
   invitations: InvitationSummary[];
-  /** 最近的 {@link auditSummarySize} 条审计事件，按时间正序。 */
-  audit: Audit[];
-  /** 审计事件总数，大于 `audit.length` 时更早的事件可经审计分页读取。 */
+  /** 在线会话（Realtime Presence），只含当前有效、未被撤权的成员。 */
+  presence: Presence[];
+  /** 审计事件总数；事件本身在展开审计时间线时按页读取。 */
   auditCount: number;
-  governance: Governance[];
+}
+/** 一个 PR 的详情：打开 PR 时读取，失效通知点到这个 PR 时重读。 */
+export interface PullRequestDetail {
+  prId: string;
+  /** 这个 PR 的全部候选（不含最终记录），键为候选 ID。 */
+  candidates: Record<string, CandidateSummary>;
+  /** 这个 PR 的审核记录，按写入顺序。 */
+  reviews: Review[];
+  /** 这个 PR 的讨论线程（含评论），按创建顺序。 */
+  threads: Thread[];
+  /** 仍生效的阻塞意见与当前候选的阶段进度，由审核记录、成员与策略按 `approval.ts` 的规则推导。 */
+  governance: Governance;
+}
+/**
+ * 失效通知的类别：变化落在哪一部分，客户端据此只重读这一部分。members 为成员与邀请，policy 为审批策略，
+ * schema 为数据模式，tasks 为任务与任务头，prs 为 PR 行（列表元数据），details 为 PR 的候选、审核与讨论，
+ * shared 为共享头，notices 为通知，audit 为审计（每条改变状态的命令都有）。
+ */
+export const signalKinds = [
+  'members',
+  'policy',
+  'schema',
+  'tasks',
+  'prs',
+  'details',
+  'shared',
+  'notices',
+  'audit'
+] as const;
+/** 单个失效类别，见 {@link signalKinds}。 */
+export type SignalKind = (typeof signalKinds)[number];
+/**
+ * 命令提交后经私有频道广播的失效通知（事件 `changed`）：只含修订号、类别与标识，不含任何业务内容。
+ * `prIds` 是 PR 行或详情有变化的 PR，`noticeUserIds` 是通知有变化（新收到或标为已读）的成员。
+ */
+export interface WorkspaceSignal {
+  revision: number;
+  kinds: SignalKind[];
+  prIds: string[];
+  noticeUserIds: string[];
+}
+/** 撤权事件（事件 `revoked`）：失去读权限的成员。各端把他们移出在线列表，被撤成员锁定团队上下文。 */
+export interface RevocationSignal {
+  revision: number;
+  userIds: string[];
+}
+/** 一个工作区的私有 Realtime 频道：`collab:<团队>:<应用>`（团队与应用标识不含冒号，频道名因此一一对应）。 */
+export function channelTopic(workspace: { teamId: string; appId: string }): string {
+  return `collab:${workspace.teamId}:${workspace.appId}`;
 }
 /** 共享分支的全部记录及其版本：`head` 与摘要的 `head` 一致时内容才与摘要匹配。 */
 export interface SharedRecords {
@@ -388,7 +442,8 @@ interface Operation {
 }
 /**
  * 浏览器可提交的全部命令，按 `type` 区分，每条都带幂等键 `operationId`。
- * 涵盖邀请与成员管理、审批策略、数据模式登记、任务与提交同步、PR 与合并候选、审核、讨论、订阅通知与在线状态。
+ * 涵盖邀请与成员管理、审批策略、数据模式登记、任务与提交同步、PR 与合并候选、审核、讨论与订阅通知；
+ * 在线状态不经命令，由私有频道的 Realtime Presence 承载。
  * `invite` 与 `accept_invite` 的 `tokenHash` 由客户端提交明文令牌，HTTP 层在进入引擎前替换为 SHA-256 摘要。
  */
 export type Command = Operation &
@@ -447,7 +502,6 @@ export type Command = Operation &
     | { type: 'resolve_thread'; threadId: string; resolved: boolean; expectedRevision: number }
     | { type: 'subscribe'; prId: string; subscribed: boolean }
     | { type: 'read_notice'; id: string }
-    | { type: 'presence'; sessionId: string; prId: string | null; recordId: string | null; leave: boolean }
     | { type: 'merge'; prId: string; candidateId: string; expectedSource: string; expectedTarget: string | null }
   );
 /** 命令执行环境：当前时间与标识生成器，由调用方注入以便测试与保证同一事务内时间一致。 */

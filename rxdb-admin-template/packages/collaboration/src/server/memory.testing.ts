@@ -1,9 +1,11 @@
+import { candidateContent, commitContent, commitSummary, historyPage } from '../derive.js';
 import {
   demand,
   receiptRetentionMs,
   type Candidate,
   type ChangeSet,
   type Command,
+  type Comment,
   type Commit,
   type CommitContent,
   type CommitMeta,
@@ -15,33 +17,36 @@ import {
   type Records,
   type SchemaManifest,
   type SharedRecords,
-  type Workspace,
-  type WorkspaceSummary
+  type Workspace
 } from '../model.js';
+import { sortRecords } from '../records.js';
 import { recordKeyText, type RecordKey } from '../schema.js';
+import { authorize, prFor, taskFor } from './access.js';
 import { bootstrap, type EngineOptions } from './engine.js';
 import type { Effects, MergeLog } from './plan.js';
-import {
-  readCandidate,
-  readCommit,
-  readHistory,
-  readSchema,
-  readSharedRecords,
-  readSummary,
-  runCommand
-} from './service.js';
-import type { WorkspaceChanges } from './state-changes.js';
-import {
-  commitSummary,
-  type CommandStore,
-  type CommitStore,
-  type IndexedKey,
-  type Lineage,
-  type Link,
-  type Path,
-  type SharedChange,
-  type WorkspaceLoader
+import { referenceSummary, type ReferenceSummary } from './reference.testing.js';
+import { runCommand } from './service.js';
+import type { ThreadComment, WorkspaceChanges } from './state-changes.js';
+import type {
+  CommandStore,
+  CommitStore,
+  IndexedKey,
+  Lineage,
+  Link,
+  Path,
+  SharedChange,
+  WorkspaceLoader
 } from './store.js';
+
+/** 写回线程时去掉评论上附带的线程与 PR 标识（它们只是写回与广播用的定位）。 */
+const bare = ({ id, authorId, body, deleted, revision, at }: ThreadComment): Comment => ({
+  id,
+  authorId,
+  body,
+  deleted,
+  revision,
+  at
+});
 
 /** 每个写事务最多清理的过期回执条数，与 PostgreSQL 实现一致。 */
 export const memoryReceiptSweep = 20;
@@ -353,24 +358,44 @@ export class MemoryWorkspace {
       this.lastLoaded = loader.state;
     }
   }
-  /** 摘要；授权失败以被拒绝的 Promise 报告，与仓储一致。 */
-  async summary(user: Identity, now: number): Promise<WorkspaceSummary> {
-    return readSummary(this.state, user, now);
+  /** 参照模型下的整页读取（见 `reference.testing.ts`）；授权失败以被拒绝的 Promise 报告，与读取路径一致。 */
+  async summary(user: Identity): Promise<ReferenceSummary> {
+    return referenceSummary(this.state, user);
   }
-  records(user: Identity): Promise<SharedRecords> {
-    return readSharedRecords(this.store, this.state, user);
+  /** 共享分支当前的全部记录与头提交；需要 read 权限。 */
+  async records(user: Identity): Promise<SharedRecords> {
+    authorize(this.state, user, 'read');
+    return { head: this.state.head, records: sortRecords(await this.store.shared()) };
   }
-  commit(user: Identity, id: string): Promise<CommitContent> {
-    return readCommit(this.store, this.state, user, id);
+  /** 一个提交的完整内容，推导与浏览器读取同一份 `derive.ts`；需要 read 权限。 */
+  async commit(user: Identity, id: string): Promise<CommitContent> {
+    authorize(this.state, user, 'read');
+    return commitContent(this.store, this.state.head, id);
   }
-  candidate(user: Identity, id: string): Promise<Candidate> {
-    return readCandidate(this.store, this.state, user, id);
+  /** 一个合并候选的完整内容；需要 read 权限，未知 ID 返回 `not_found`。 */
+  async candidate(user: Identity, id: string): Promise<Candidate> {
+    authorize(this.state, user, 'read');
+    demand(Object.hasOwn(this.state.candidates, id), 'not_found', '候选不存在');
+    return structuredClone(await candidateContent(this.store, this.state.head, this.state.candidates[id]));
   }
-  history(user: Identity, query: HistoryQuery): Promise<CommitPage> {
-    return readHistory(this.store, this.state, user, query);
+  /** 提交历史的一页：共享分支、任务分支或 PR 的来源任务三者恰好取一；需要 read 权限。 */
+  async history(user: Identity, query: HistoryQuery): Promise<CommitPage> {
+    authorize(this.state, user, 'read');
+    const selectors = [query.branch, query.taskId, query.prId].filter(value => value !== undefined);
+    demand(selectors.length === 1, 'invalid', '请求字段不合法');
+    if (query.branch !== undefined) {
+      demand(query.branch === 'shared', 'invalid', '请求字段不合法');
+      return historyPage(this.store, { head: this.state.head, until: null }, query);
+    }
+    const task = taskFor(this.state, query.taskId ?? prFor(this.state, query.prId!).taskId);
+    return historyPage(this.store, { head: task.head, until: task.base }, query);
   }
-  schema(user: Identity, version: number): Promise<SchemaManifest> {
-    return readSchema(found => Promise.resolve(structuredClone(this.schemas.get(found))), this.state, user, version);
+  /** 按版本读取登记过的数据模式清单；需要 read 权限，未登记的版本返回 `not_found`。 */
+  async schema(user: Identity, version: number): Promise<SchemaManifest> {
+    authorize(this.state, user, 'read');
+    const schema = this.schemas.get(version);
+    demand(schema, 'not_found', '数据模式不存在');
+    return structuredClone(schema);
   }
   /** 把局部状态的差异写回完整状态：只动差异列出的行，引用按期望头比较交换，与 PostgreSQL 写回的语义一致。 */
   private save(changes: WorkspaceChanges, effects: Effects, now: number): void {
@@ -405,7 +430,6 @@ export class MemoryWorkspace {
     if (effects.log) this.changeLog.push(structuredClone(effects.log));
     state.audit.push(...structuredClone(changes.audit.map(entry => entry.event)));
     for (const receipt of changes.receipts) state.receipts[receipt.operationId] = structuredClone(receipt);
-    if (changes.presence) state.presence = structuredClone(changes.presence);
     if (!changes.revised) return;
     this.sweepReceipts(now);
     state.revision++;
@@ -414,10 +438,10 @@ export class MemoryWorkspace {
     const threads = this.state.threads;
     for (const thread of changes.threads.created) threads[thread.id] = { ...structuredClone(thread), comments: [] };
     for (const thread of changes.threads.updated) Object.assign(threads[thread.id], structuredClone(thread));
-    for (const { threadId, ...comment } of changes.comments.created) threads[threadId].comments.push(comment);
-    for (const { threadId, ...comment } of changes.comments.updated) {
-      const index = threads[threadId].comments.findIndex(item => item.id === comment.id);
-      threads[threadId].comments[index] = comment;
+    for (const comment of changes.comments.created) threads[comment.threadId].comments.push(bare(comment));
+    for (const comment of changes.comments.updated) {
+      const index = threads[comment.threadId].comments.findIndex(item => item.id === comment.id);
+      threads[comment.threadId].comments[index] = bare(comment);
     }
   }
   /** 有界清理：每个写事务最多删除 {@link memoryReceiptSweep} 条过期回执，最旧的先删。 */

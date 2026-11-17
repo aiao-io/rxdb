@@ -12,7 +12,12 @@
     "src/changes.ts",
     "src/commit.ts",
     "src/schema.ts",
-    "src/checks.ts"
+    "src/checks.ts",
+    "src/derive.ts",
+    "src/rows.ts",
+    "src/approval.ts",
+    "src/reader.ts",
+    "src/read-source.ts"
   ],
   "references": [
     {
