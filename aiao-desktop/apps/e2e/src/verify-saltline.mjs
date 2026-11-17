@@ -1,7 +1,7 @@
 /**
  * 几猫3A大作的本机实测（ADESK-US-103 #9、ADESK-US-008 #9）：本机有 GPU 的真 Chrome 里，对桌面的正式构建
  * 从启动台打开真游戏，记录启动到标题画面的耗时、点「开始行动」后指针锁定、帧率、Esc 退出锁定并暂停、
- * 游戏开着时桌面是否照常响应，以及最小化后游戏循环是否仍在运行。要 GPU，不进 CI。
+ * 游戏开着时桌面是否照常响应，以及最小化、锁屏、睡眠与切换浏览器标签页后游戏是否暂停。要 GPU，不进 CI。
  *
  *   --channel=<名>   Playwright 的浏览器通道，默认 chrome（本机安装的 Chrome）；传 chromium 用自带的无头构建（只有软件 WebGL）
  *   --dist=<目录>    托管另一份桌面产物（默认 dist/aiao-desktop/apps/web/browser）
@@ -21,6 +21,8 @@ import { parseArgs } from 'node:util';
 
 import { outputRoot, startDesktopServer } from './desktop-server.mjs';
 import { launchEngine } from './fixtures/engines.mjs';
+import { launchNativeChrome } from './fixtures/native-chrome.mjs';
+import { checkGameLifecycle } from './harness/game-lifecycle.mjs';
 
 const { values } = parseArgs({
   options: {
@@ -36,16 +38,21 @@ const { values } = parseArgs({
 const BOOT_TIMEOUT = 180_000;
 const distRoot = values.dist ? resolve(values.dist) : outputRoot;
 const desktop = await startDesktopServer({ root: distRoot });
-const browser = await launchEngine('chromium', {
-  headless: values.headless,
-  channel: values.channel === 'chromium' ? undefined : values.channel
-});
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const native =
+  !values.headless && platform() === 'darwin' && values.channel === 'chrome' ? await launchNativeChrome() : null;
+const browser =
+  native?.browser ??
+  (await launchEngine('chromium', {
+    headless: values.headless,
+    channel: values.channel === 'chromium' ? undefined : values.channel
+  }));
+const context = native?.context ?? (await browser.newContext({ viewport: { width: 1440, height: 900 } }));
 await context.route(
   url => !url.href.startsWith(desktop.origin),
   route => route.abort()
 );
-const page = await context.newPage();
+const page = native ? context.pages()[0] : await context.newPage();
+if (native) await page.setViewportSize({ width: 1440, height: 900 });
 const logs = [];
 page.on('console', message => {
   if (['error', 'warning'].includes(message.type()) && !/Failed to load resource/.test(message.text()))
@@ -61,6 +68,7 @@ const report = {
   environment: {
     channel: values.channel,
     headless: values.headless,
+    nativeVisibility: Boolean(native),
     browser: browser.version(),
     node: process.version,
     os: platform(),
@@ -85,8 +93,11 @@ const report = {
 try {
   await page.goto(`${desktop.origin}/?boot=0`, { waitUntil: 'load' });
   await page.bringToFront();
-  if (!values.headless && platform() === 'darwin' && values.channel === 'chrome')
-    execFileSync('osascript', ['-e', 'tell application "Google Chrome" to activate']);
+  native?.activate();
+  if (!native && !values.headless && platform() === 'darwin' && values.channel === 'chrome')
+    execFileSync('osascript', ['-e', 'tell application "Google Chrome" to activate'], { timeout: 5_000 });
+  await page.bringToFront();
+  await page.waitForFunction(() => document.visibilityState === 'visible', undefined, { polling: 100 });
   await page.locator('.win[data-app="finder"]').waitFor();
   await page.locator('.win:not(.closing) .tl .c').first().dispatchEvent('click');
 
@@ -175,6 +186,10 @@ try {
   await page.waitForTimeout(8_000);
 
   /* 点击画面请求指针锁定；有 GPU 时帧率约 60。 */
+  native?.activate();
+  await page.bringToFront();
+  await page.waitForTimeout(300);
+  if (native) report.metrics.nativeFocus = native.focusState();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(800);
   const playing = await state();
@@ -184,6 +199,16 @@ try {
   report.metrics.fps = playing.fps;
   report.checks.fpsNear60 = typeof playing.fps === 'number' && playing.fps >= 50;
 
+  await gameWin.locator('.tl .m').dispatchEvent('click');
+  await frame().waitForFunction(() => window.saltlineDesktop.state === 'paused', undefined, { polling: 100 });
+  const hiddenWhilePlaying = await state();
+  report.checks.playingMinimizePauses = hiddenWhilePlaying.game === 'paused' && !hiddenWhilePlaying.locked;
+  await page.locator('#dock .di[data-app="saltline"]').click();
+  await frame().waitForFunction(() => window.saltlineDesktop.state === 'running', undefined, { polling: 100 });
+  report.checks.restoreRequiresContinue = (await state()).game === 'paused';
+  await frame().locator('button[data-act="resume"]').click();
+  await frame().waitForFunction(() => window.__stats().state === 'playing');
+
   /* Esc：退出指针锁定，游戏暂停。 */
   await page.keyboard.press('Escape');
   await page.waitForTimeout(800);
@@ -191,18 +216,24 @@ try {
   report.checks.escExitsLock = paused.locked === false;
   report.checks.escPauses = paused.game === 'paused';
 
-  /* 最小化（黄色按钮）后的游戏循环：桌面不通知游戏，隐藏的窗口里循环照常运行（D-15 的已知限制）。 */
-  await gameWin.locator('.tl .m').click();
-  await page.waitForTimeout(1_500);
-  const first = await frame().evaluate(() => window.__frames);
-  await page.waitForTimeout(1_000);
-  const second = await frame().evaluate(() => window.__frames);
-  report.metrics.minimizedFramesPerSecond = second - first;
-  report.checks.minimizedLoopStillRuns = second - first > 0;
+  Object.assign(report.checks, await checkGameLifecycle(page, { hiddenTab: !values.headless }));
 
   report.checks.noPageErrors = logs.length === 0;
+} catch (error) {
+  report.failure = error instanceof Error ? error.message : String(error);
+  report.checks.completed = false;
+  report.failurePage = await page
+    .evaluate(() => ({
+      url: location.href,
+      visibility: document.visibilityState,
+      focused: document.hasFocus(),
+      text: document.body.innerText.slice(0, 8_000)
+    }))
+    .catch(() => null);
+  if (values.screenshot) await page.screenshot({ path: values.screenshot }).catch(() => undefined);
 } finally {
-  await browser.close();
+  if (native) await native.close();
+  else await browser.close();
   desktop.close();
 }
 

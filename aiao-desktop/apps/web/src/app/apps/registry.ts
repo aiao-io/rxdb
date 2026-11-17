@@ -41,7 +41,7 @@ const BUILTIN_LOADERS: Readonly<Record<BuiltinAppId, AppLoader>> = {
   podcasts: () => import('./shelf/shelf').then(m => m.ShelfApp),
   tv: () => import('./shelf/shelf').then(m => m.ShelfApp),
   books: () => import('./shelf/shelf').then(m => m.ShelfApp),
-  appstore: () => import('./shelf/shelf').then(m => m.ShelfApp),
+  appstore: () => import('./app-store/app-store').then(m => m.AppStore),
   facetime: () => import('./facetime/facetime').then(m => m.FaceTimeApp),
   activity: () => import('./activity-monitor/activity-monitor').then(m => m.ActivityMonitorApp),
   diskutil: () => import('./disk-utility/disk-utility').then(m => m.DiskUtilityApp),

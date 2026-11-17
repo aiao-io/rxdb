@@ -16,7 +16,12 @@
     {{ restriction.reason }}
   </div>
 }
-<div class="webapp" [attr.data-webapp-state]="state()" [attr.data-webapp]="app.id">
+<div
+  class="webapp"
+  [attr.data-webapp-state]="state()"
+  [attr.data-webapp]="app.id"
+  [inert]="lease?.confirming() ?? false"
+>
   <div class="webapp-stage" #stage></div>
   @switch (state()) {
     @case ('loading') {
@@ -68,3 +73,25 @@
     </div>
   }
 </div>
+
+@if (lease?.confirming()) {
+  <div class="webapp-close-scrim">
+    <div
+      class="webapp-close-confirm"
+      [attr.aria-label]="'Close ' + app.name"
+      (keydown.escape)="keepEditing($event)"
+      appFocusTrap
+      aria-modal="true"
+      data-catalog-close-confirm
+      role="dialog"
+    >
+      <h2>Close {{ app.name }}?</h2>
+      <p>Save your work inside this app before closing. The desktop cannot check this app’s unsaved documents.</p>
+      <p>If a desktop tab is updating or removing this app, keeping this window open cancels that change.</p>
+      <div class="webapp-close-actions">
+        <button (click)="keepEditing($event)" data-autofocus tabindex="0" type="button">Keep Editing</button>
+        <button (click)="lease.answer(true)" tabindex="0" type="button">Close Window</button>
+      </div>
+    </div>
+  </div>
+}

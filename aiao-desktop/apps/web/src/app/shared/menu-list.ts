@@ -74,7 +74,7 @@ export function nextIndex(key: string, at: number, count: number): number | null
           [class.dis]="row.command.disabled"
           [class.on]="row.command.checked"
           (click)="run(row.command)"
-          (keydown.enter)="run(row.command)"
+          (keydown.enter)="runByKey($event, row.command)"
           (keydown.space)="runByKey($event, row.command)"
           (mousedown)="hold($event, row.command)"
           tabindex="-1"

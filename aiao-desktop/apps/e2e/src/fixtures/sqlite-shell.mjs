@@ -18,7 +18,10 @@ export function scriptsOf(distRoot) {
 export function findSqliteWorker(distRoot) {
   const names = new Set(
     scriptsOf(distRoot).flatMap(({ source }) => {
-      const match = /new Worker\(new URL\(`(worker-[\w-]+\.js)`/.exec(source);
+      const match =
+        /new Worker\(new URL\([`"'](worker-[\w-]+\.js)[`"'][^)]*\),\{[^}]*name:[`"']aiao-desktop-sqlite[`"'][^}]*\}\)/.exec(
+          source
+        );
       return match ? [match[1]] : [];
     })
   );
@@ -55,9 +58,11 @@ export async function openSqliteShell(context, { origin, distRoot }) {
   await page.goto(`${origin}${SHELL_PATH}`);
   await page.evaluate(async file => {
     const root = await navigator.storage.getDirectory();
+    const selected = JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? 'null');
+    const prefix = `aiao-desktop${selected?.active ? `-${selected.active}` : ''}@`;
     let dbName;
     for await (const [name] of root.entries()) {
-      if (/^aiao-desktop@.*\.sqlite$/.test(name)) dbName = name.slice(0, -'.sqlite'.length);
+      if (name.startsWith(prefix) && name.endsWith('.sqlite')) dbName = name.slice(0, -'.sqlite'.length);
     }
     if (!dbName) throw new Error('OPFS 里没有桌面的库文件');
     const worker = new Worker(`/${file}`, { type: 'module' });

@@ -155,3 +155,14 @@ describe('FileOpener.openApp 按应用 id 打开（终端的 open -a / -b）', (
     expect(wm.open).not.toHaveBeenCalled();
   });
 });
+
+describe('Open With 应用选择', () => {
+  it('只列出能够接收当前文件的应用，不把文件夹和程序包伪装成文档', () => {
+    const { opener } = setup();
+    expect(opener.choices(fileNode('note.txt'))).toEqual([{ id: 'textedit', name: 'TextEdit' }]);
+    expect(opener.choices(fileNode('image.png'))).toEqual([{ id: 'preview', name: 'Preview' }]);
+    expect(opener.choices(fileNode('archive.zip'))).toEqual([]);
+    expect(opener.choices(folderNode('project', []))).toEqual([]);
+    expect(opener.choices(fileNode('Safari.app'))).toEqual([]);
+  });
+});

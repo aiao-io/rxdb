@@ -8,6 +8,7 @@ import {
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 import { CompilationError, type WorkbenchDiagnostic } from './compiler/compiler-types.js';
+import type { WorkbenchDesktopFiles } from './desktop-files.js';
 import type { WorkbenchEditorCommand, WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
 import { createExtensionManagement, prepareMarkdownExtension } from './extensions/extension-management.js';
 import { mountMarkdownExtensionView } from './extensions/extension-view.js';
@@ -17,10 +18,12 @@ import {
   type MarkdownExtensionOptions
 } from './extensions/markdown-extension.js';
 import { mountMarkdownRuntime } from './extensions/runtime-client.js';
-import { readFolderProject } from './folder-import.js';
+import { readFolderProject, type ImportedFolderProject } from './folder-import.js';
+import { requestFolderProject } from './folder-picker.js';
 import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
-import { decodeFileBytes } from './git/file-encoding.js';
+import { decodeFileBytes, encodeFileBytes } from './git/file-encoding.js';
+import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
@@ -28,6 +31,7 @@ import { requestGitHubRepository } from './git/github/github-picker.js';
 import type { GitHubSession } from './git/github/github-types.js';
 import { attachHostWindow, type WorkbenchHostWindow } from './host-window.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
+import { projectArchiveInfo } from './project-archive.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
 import { angularTemplate } from './templates-angular.js';
@@ -82,6 +86,10 @@ export interface BrowserWorkbenchOptions {
   readonly assetBaseURL?: string;
   /** Aiao Desktop 的透明窗口：标题栏自绘红黄绿按钮并成为拖动区（US-411）。 */
   readonly hostWindow?: WorkbenchHostWindow;
+  /** 桌面文件是显式副本，保存工作台项目不会自动写回桌面。 */
+  readonly desktopFiles?: WorkbenchDesktopFiles;
+  /** 嵌入时使用文件输入并明确 OAuth 弹窗限制。 */
+  readonly embedded?: boolean;
   /** 可注入正式扩展宿主加载器，默认运行独立同源页面。 */
   readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
@@ -218,6 +226,7 @@ export function mountWorkbench(
   let preview: ReturnType<typeof mountPreview> | undefined;
   let previewId = 0;
   let disposed = false;
+  const lifetime = new AbortController();
   let initializing = true;
   let pendingOperations = 0;
   let gitRefresh = 0;
@@ -628,6 +637,7 @@ export function mountWorkbench(
       if (disposed) return;
       requestAnimationFrame(() => {
         if (disposed || session.state.projectId !== id || session.state.activePath !== path) return;
+        if (options.embedded && !root.ownerDocument.hasFocus()) return;
         if (docking.api.activePanel?.id !== `editor:${path}`) return;
         const focused = root.ownerDocument.activeElement;
         if (focused !== previousFocus && focused !== root && focused !== root.ownerDocument.body) return;
@@ -1102,7 +1112,10 @@ export function mountWorkbench(
     welcome.append(openFolderButton);
     const storageHint = document.createElement('p');
     storageHint.className = 'wb-empty-view-storage';
-    storageHint.textContent = '导入副本保存在此浏览器，编辑与保存不会修改原文件夹。';
+    storageHint.textContent =
+      options.desktopFiles ?
+        '工作台与桌面分别保存数据。文件菜单可显式复制文件或项目，每次最多 512 KiB；普通保存不会修改桌面原文件。'
+      : '导入副本保存在此浏览器，编辑与保存不会修改原文件夹。';
     welcome.append(storageHint);
     const recent = projects.slice(0, 10);
     if (recent.length) {
@@ -1147,15 +1160,33 @@ export function mountWorkbench(
       loginButton.className = 'wb-empty-view-action';
       loginButton.dataset['welcomeAction'] = 'github-login';
       loginButton.append(document.createTextNode('登录 GitHub'));
-      loginButton.onclick = () => void requestGitHubLogin(root, { auth: options.githubAuth! });
+      loginButton.onclick = () => void openGitHubLogin();
       welcome.append(loginButton);
     }
     const pane = explorerPane('no-folder', '无打开的文件夹');
     if (!collapsedSections.has('no-folder')) pane.append(welcome);
   }
 
+  function openGitHubLogin(): Promise<void> {
+    if (!options.githubAuth) return Promise.resolve();
+    return requestGitHubLogin(root, {
+      auth: options.githubAuth,
+      ...(options.embedded ?
+        {
+          oauthUnavailable:
+            '桌面窗口暂不支持 OAuth 登录弹窗，请在此窗口使用个人访问令牌（PAT）。独立页面的登录状态可能不与桌面共享。'
+        }
+      : {})
+    });
+  }
+
   /** 打开本地文件夹：目录选择器读取后登记为受控模板项目并打开，取消选择静默。 */
   async function openFolder(): Promise<void> {
+    if (options.embedded) {
+      const imported = await requestFolderProject(root, lifetime.signal);
+      if (imported && !disposed) await registerFolderProject(imported.name, imported);
+      return;
+    }
     const picker = window as unknown as {
       showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
     };
@@ -1169,9 +1200,13 @@ export function mountWorkbench(
       throw cause;
     }
     const imported = await readFolderProject(handle);
+    if (!disposed) await registerFolderProject(handle.name, imported);
+  }
+
+  async function registerFolderProject(name: string, imported: ImportedFolderProject): Promise<void> {
     const info: WorkbenchProjectInfo = {
       id: crypto.randomUUID(),
-      name: handle.name,
+      name,
       template: imported.template,
       entry: imported.entry,
       updatedAt: Date.now()
@@ -1187,7 +1222,7 @@ export function mountWorkbench(
   async function openGitHubRepository(): Promise<void> {
     if (!options.githubApi) throw new Error('GitHub 能力未启用');
     const target = await requestGitHubRepository(root, options.githubApi, {
-      onLogin: options.githubAuth ? () => void requestGitHubLogin(root, { auth: options.githubAuth! }) : undefined
+      onLogin: options.githubAuth ? () => void openGitHubLogin() : undefined
     });
     if (disposed || !target) return;
     const info = githubProjectInfo(target.owner, target.repo, target.branch);
@@ -2228,20 +2263,43 @@ export function mountWorkbench(
     await savePreview.save();
     await refreshGit();
   }
-  async function exportProject(): Promise<void> {
+  async function projectArchive(): Promise<{ name: string; bytes: Uint8Array }> {
     const info = project;
     const id = projectId();
     await terminal?.flush();
     await session.save();
+    if (disposed || session.state.projectId !== id) throw new Error('项目已经关闭或切换');
     if (session.state.dirty) throw new Error('保存期间内容发生变化，请重试导出');
-    const archive = await backend.exportArchive(id);
-    const blob = URL.createObjectURL(new Blob([new Uint8Array(archive)], { type: 'application/zip' }));
+    const revision = session.state.revision;
+    const bytes = await backend.exportArchive(id);
+    if (disposed || session.state.projectId !== id) throw new Error('项目已经关闭或切换');
+    if (session.state.dirty || session.state.revision !== revision) throw new Error('导出期间内容发生变化，请重试导出');
+    return { name: `${info?.name ?? id}.zip`, bytes };
+  }
+  async function exportProject(): Promise<void> {
+    const archive = await projectArchive();
+    const blob = URL.createObjectURL(new Blob([new Uint8Array(archive.bytes)], { type: 'application/zip' }));
     const link = document.createElement('a');
     link.href = blob;
-    link.download = `${info?.name ?? id}.zip`;
+    link.download = archive.name;
     link.click();
     setTimeout(() => URL.revokeObjectURL(blob), 1000);
     log('output', '已导出源码、暂存区与 Git 历史');
+  }
+  async function importArchive(name: string, bytes: Uint8Array): Promise<void> {
+    if (disposed) return;
+    if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
+    const info: WorkbenchProjectInfo = {
+      ...projectArchiveInfo(name, bytes),
+      id: crypto.randomUUID(),
+      updatedAt: Date.now()
+    };
+    await backend.importArchive(info.id, bytes);
+    if (disposed) return;
+    await catalog.put(info);
+    if (disposed) return;
+    projects = [...projects, info];
+    await openProject(info.id);
   }
   function importProject(): void {
     if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
@@ -2253,33 +2311,74 @@ export function mountWorkbench(
         const file = input.files?.[0];
         if (!file) return;
         if (file.size > 24 * 1024 * 1024) throw new Error('归档超过 24 MiB 上限');
-        const id = crypto.randomUUID();
-        await backend.importArchive(id, new Uint8Array(await file.arrayBuffer()));
-        const snapshot = await backend.open(id);
-        const source = snapshot.files['workbench.project.json'];
-        if (typeof source !== 'string') throw new Error(`归档缺少受控模板配置，仓库保留为 ${id}`);
-        const config: unknown = JSON.parse(source);
-        if (!config || typeof config !== 'object') throw new Error('无效模板配置');
-        const metadata = config as Record<string, unknown>;
-        if (
-          typeof metadata['template'] !== 'string' ||
-          !Object.hasOwn(templates, metadata['template']) ||
-          typeof metadata['entry'] !== 'string' ||
-          !Object.hasOwn(snapshot.files, metadata['entry'])
-        )
-          throw new Error('导入归档不属于受控模板');
-        const info: WorkbenchProjectInfo = {
-          id,
-          name: file.name.replace(/\.zip$/i, ''),
-          template: metadata['template'] as ProjectTemplate,
-          entry: metadata['entry'],
-          updatedAt: Date.now()
-        };
-        await catalog.put(info);
-        projects = [...projects, info];
-        await openProject(id);
+        await importArchive(file.name, new Uint8Array(await file.arrayBuffer()));
       });
     input.click();
+  }
+  async function importDesktopFile(): Promise<void> {
+    const id = projectId();
+    const file = await options.desktopFiles!.open();
+    if (!file || disposed) return;
+    if (session.state.projectId !== id) throw new Error('项目已切换，请重新选择文件');
+    assertGitPath(file.name);
+    if (Object.hasOwn(session.state.files, file.name)) throw new Error('项目中已有同名文件，请先重命名后再导入');
+    assertNoPathCollisions([...Object.keys(session.state.files), file.name]);
+    await session.applyExternalFiles({ [file.name]: decodeFileBytes(file.name, file.bytes) }, []);
+    if (disposed || session.state.projectId !== id) return;
+    session.select(file.name);
+    await refreshGit();
+    log('output', `已从桌面复制 ${file.name}；工作台保存不会修改原文件`);
+  }
+  async function exportDesktopFile(): Promise<void> {
+    const path = session.state.activePath;
+    if (!path) throw new Error('请先打开需要复制的文件');
+    const value = session.state.files[path];
+    if (value === undefined) throw new Error('当前文件已不存在');
+    const name = await options.desktopFiles!.save(treePathBase(path), encodeFileBytes(value));
+    if (name && !disposed) log('output', `已复制到桌面：${name}`);
+  }
+  async function importDesktopProject(): Promise<void> {
+    if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
+    const file = await options.desktopFiles!.open(['.zip']);
+    if (file && !disposed) await importArchive(file.name, file.bytes);
+  }
+  async function exportDesktopProject(): Promise<void> {
+    const archive = await projectArchive();
+    const name = await options.desktopFiles!.save(archive.name, archive.bytes);
+    if (name && !disposed) log('output', `已复制到桌面：${name}（源码、暂存区与 Git 历史）`);
+  }
+  function desktopFileMenus(busy: boolean): MenuEntry[] {
+    const files = options.desktopFiles;
+    if (!files) return [];
+    const opened = !!session.state.projectId;
+    return [
+      SEPARATOR,
+      {
+        label: files.canRead ? '从桌面复制文件到项目…' : '从桌面复制文件（未授予读取权限）',
+        id: 'desktop-import-file',
+        action: importDesktopFile,
+        disabled: busy || !opened || !files.canRead
+      },
+      {
+        label: files.canWrite ? '复制当前文件到桌面（≤512 KiB）…' : '复制当前文件到桌面（未授予写入权限）',
+        id: 'desktop-export-file',
+        action: exportDesktopFile,
+        disabled: busy || !session.state.activePath || !files.canWrite
+      },
+      {
+        label: files.canRead ? '从桌面复制项目归档…' : '从桌面复制项目（未授予读取权限）',
+        id: 'desktop-import-project',
+        action: importDesktopProject,
+        disabled: busy || !files.canRead
+      },
+      {
+        label: files.canWrite ? '复制项目到桌面（≤512 KiB）…' : '复制项目到桌面（未授予写入权限）',
+        id: 'desktop-export-project',
+        action: exportDesktopProject,
+        disabled: busy || !opened || !files.canWrite
+      },
+      SEPARATOR
+    ];
   }
   function showRecentProjects(returnFocus?: HTMLElement): void {
     if (projectSwitchBusy(1)) return;
@@ -2325,13 +2424,14 @@ export function mountWorkbench(
           label: '导入文件夹（副本）…',
           id: 'open-folder',
           action: openFolder,
-          disabled: busy || !('showDirectoryPicker' in window)
+          disabled: busy || (!options.embedded && !('showDirectoryPicker' in window))
         },
         ...(options.githubApi ?
           [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: busy }]
         : []),
         { label: '导入项目', id: 'import', action: importProject, disabled: busy },
         { label: '导出项目', id: 'export', action: exportProject, disabled: !editable },
+        ...desktopFileMenus(busy),
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
         { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable },
@@ -2367,13 +2467,14 @@ export function mountWorkbench(
           label: '导入文件夹（副本）…',
           id: 'open-folder',
           action: openFolder,
-          disabled: busy || !('showDirectoryPicker' in window)
+          disabled: busy || (!options.embedded && !('showDirectoryPicker' in window))
         },
         ...(options.githubApi ?
           [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: busy }]
         : []),
         { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
-        { label: '导入项目', id: 'import', action: importProject, disabled: busy }
+        { label: '导入项目', id: 'import', action: importProject, disabled: busy },
+        ...desktopFileMenus(busy)
       ]);
     },
     'new-project': newProject,
@@ -2487,7 +2588,7 @@ export function mountWorkbench(
         ]);
         return;
       }
-      void requestGitHubLogin(root, { auth: options.githubAuth }).catch(report);
+      void openGitHubLogin().catch(report);
     },
     'reset-layout': () => {
       docking.resetLayout();
@@ -2750,6 +2851,7 @@ export function mountWorkbench(
       detachHostWindow?.();
       if (disposed) return;
       disposed = true;
+      lifetime.abort();
       releaseGitHubAuth?.();
       closeContextMenu();
       releaseState();

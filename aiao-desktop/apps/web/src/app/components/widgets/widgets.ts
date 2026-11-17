@@ -14,6 +14,7 @@ import { AnalogClock } from '../../shared/analog-clock';
 import { DAYS, time12 } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { Sparkline } from '../../shared/status-glyphs';
+import { WeatherStatus } from '../weather-status';
 
 /** 今天的日程；在日历里增删、移动或隐藏事件会立刻反映到这里。 */
 @Component({
@@ -46,29 +47,33 @@ export class CalendarWidget {
   protected readonly time = eventTime;
 }
 
-/** 天气：先显示离线读数，实况到达后刷新。 */
+/** 天气：只展示真实响应，失败与旧读数状态和天气应用同步。 */
 @Component({
   selector: 'app-weather-widget',
-  imports: [Icon],
+  imports: [Icon, WeatherStatus],
   host: { class: 'wgt', '(dblclick)': "wm.open('weather')" },
   template: `
     <div class="wx" data-wxw>
-      @let now = weather.now();
-      @let code = condition();
       <div class="loc">{{ weather.place() }}</div>
-      <div class="now">
-        <span class="deg">{{ now.t }}°</span><span class="ico"><svg [appIcon]="code[1]"></svg></span>
-      </div>
-      <div class="cond">{{ code[0] }}</div>
-      <div class="hi">H:{{ now.hi }}° L:{{ now.lo }}°</div>
-      <div class="hours">
-        @for (hour of weather.hours(5); track $index) {
-          <div>
-            <span>{{ hour[0] }}</span
-            ><svg [appIcon]="hour[2]"></svg><b>{{ hour[1] }}°</b>
-          </div>
-        }
-      </div>
+      @if (weather.now(); as now) {
+        @let code = condition();
+        <div class="now">
+          <span class="deg">{{ now.t }}°</span><span class="ico"><svg [appIcon]="code[1]"></svg></span>
+        </div>
+        <div class="cond">{{ code[0] }}</div>
+        <div class="hi">H:{{ now.hi }}° L:{{ now.lo }}°</div>
+        <div class="hours">
+          @for (hour of weather.hours(5); track $index) {
+            <div>
+              <span>{{ hour[0] }}</span
+              ><svg [appIcon]="hour[2]"></svg><b>{{ hour[1] }}°</b>
+            </div>
+          }
+        </div>
+      } @else {
+        <p>No weather data</p>
+      }
+      <app-weather-status />
     </div>
   `
 })
@@ -77,7 +82,7 @@ export class WeatherWidget {
   protected readonly weather = inject(WeatherStore);
   protected readonly condition = computed(() => {
     const now = this.weather.now();
-    return weatherCode(now.code, now.day);
+    return now ? weatherCode(now.code, now.day) : ['Weather unavailable', 'g-cloud'];
   });
 
   constructor() {

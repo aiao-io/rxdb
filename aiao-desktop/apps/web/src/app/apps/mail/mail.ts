@@ -2,9 +2,11 @@ import { Component, computed, inject, signal } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
+import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
+import { PrintableContent, printableText } from '../../services/print-document';
 import { Toast } from '../../services/toast';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
@@ -16,6 +18,7 @@ import { MailMailbox, MailMessage } from './mail.entities';
 @Component({
   selector: 'app-mail',
   imports: [Icon, TrafficLights],
+  providers: [ContentActions],
   host: { style: 'display: contents' },
   templateUrl: './mail.html'
 })
@@ -25,6 +28,7 @@ export class MailApp {
   private readonly popover = inject(PopoverService);
   private readonly composer = inject(MailComposer);
 
+  protected readonly actions = inject(ContentActions);
   protected readonly party = partyOf;
   protected readonly boxes = liveQuery(
     () => MailMailbox.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
@@ -73,19 +77,31 @@ export class MailApp {
     this.toast.show(flagged ? 'Flagged' : 'Flag removed');
   }
 
-  protected share(anchor: HTMLElement): void {
+  protected share(anchor: HTMLElement, event: MouseEvent): void {
     const mail = this.current();
-    this.popover.menuUnder(anchor, [
-      {
-        id: 'r',
-        label: 'Reply',
-        run: () => this.composer.compose(`Re: ${mail ? mail.subject : ''}`, mail ? counterpartOf(mail) : '')
-      },
-      { id: 'f', label: 'Forward', run: () => this.composer.compose(`Fwd: ${mail ? mail.subject : ''}`) },
-      '-',
-      { id: 'c', label: 'Copy Link', run: () => this.toast.show('Link copied') },
-      { id: 'p', label: 'Print…', run: () => this.toast.show('Sent to printer') }
-    ]);
+    const content: PrintableContent | null =
+      mail ?
+        {
+          title: mail.subject,
+          paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, mail.body]
+        }
+      : null;
+    const disabled = !content || this.actions.busy();
+    this.popover.menuUnder(
+      anchor,
+      [
+        {
+          id: 'r',
+          label: 'Reply',
+          run: () => this.composer.compose(`Re: ${mail ? mail.subject : ''}`, mail ? counterpartOf(mail) : '')
+        },
+        { id: 'f', label: 'Forward', run: () => this.composer.compose(`Fwd: ${mail ? mail.subject : ''}`) },
+        '-',
+        { id: 'c', label: 'Copy Message', disabled, run: () => content && this.actions.copy(printableText(content)) },
+        { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }
+      ],
+      { keyboard: event.detail === 0, label: 'mail sharing' }
+    );
   }
 
   private async update(mail: MailMessage, patch: Partial<MailMessage>): Promise<void> {

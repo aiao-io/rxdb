@@ -1,4 +1,4 @@
-<div class="wb">
+<div class="wb" [inert]="fileOperation() !== null">
   <div class="sbar" [style.display]="sidebar() ? '' : 'none'" data-drag data-fsb>
     <div class="sb-top"><app-traffic-lights /></div>
     @for (group of sidebarGroups; track group.head) {
@@ -58,6 +58,20 @@
       </button>
       <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
+      <input #importInput (change)="importSelection(importInput)" hidden multiple type="file" />
+      <button
+        class="tbtn"
+        [disabled]="!canImport()"
+        (click)="importInput.click()"
+        aria-label="Import Files"
+        style="width: auto; padding: 0 8px"
+        tabindex="0"
+        title="Import files — up to 256 MiB per batch"
+        type="button"
+      >
+        {{ importing() ? 'Importing…' : 'Import…' }}
+      </button>
+
       <div class="seg" aria-label="View" data-nodrag role="group">
         <button
           [attr.aria-pressed]="view() === 'icon'"
@@ -167,7 +181,7 @@
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [class.sel]="item.name === selected()"
                 (click)="select(item.name)"
-                (contextmenu)="itemMenu($event, item.name)"
+                (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
                 (focus)="select(item.name)"
                 (keydown)="itemKey($event, item.name)"
@@ -209,7 +223,7 @@
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [class.sel]="item.name === selected()"
                 (click)="select(item.name)"
-                (contextmenu)="itemMenu($event, item.name)"
+                (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
                 (focus)="select(item.name)"
                 (keydown)="itemKey($event, item.name)"
@@ -258,7 +272,7 @@
                       [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
                       [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
                       (click)="pickColumn(ci, item.name)"
-                      (contextmenu)="itemMenu($event, item.name)"
+                      (contextmenu)="itemMenu($event, item)"
                       (dblclick)="openColumnFile(item)"
                       (focus)="pickColumn(ci, item.name)"
                       (keydown)="itemKey($event, item.name, ci)"
@@ -343,6 +357,7 @@
                   [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                   [class.sel]="item === current"
                   (click)="select(item.name)"
+                  (contextmenu)="itemMenu($event, item)"
                   (focus)="select(item.name)"
                   (keydown)="itemKey($event, item.name)"
                   role="option"
@@ -376,3 +391,7 @@
     </div>
   </div>
 </div>
+
+@if (fileOperation(); as operation) {
+  <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation($event)" />
+}

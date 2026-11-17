@@ -12,12 +12,18 @@ import { configureServices } from '../testing/angular';
 import { FakeDesktopData, FakeRepository } from '../testing/fake-desktop-data';
 import { DesktopData, DesktopDataProblemError, seedMarkerKey } from './desktop-data';
 import { createDesktopDatabase, schemaGuardOf, tabSyncOf } from './desktop-database';
+import { ERASE_PENDING_KEY, browserEraseHost } from './desktop-erase';
 import { DesktopSchemaStaleError } from './schema-guard';
 import { adapterInspector, probeSchema } from './schema-probe';
 import { DESKTOP_SCHEMA_VERSION, SCHEMA_RECORD_KEY, SchemaProbe, runUpgrade } from './schema-version';
 import { DATA_DOMAINS, domainOf } from './seeds';
 import { SystemPreference } from './system-preference.entity';
 import { TabSync } from './tab-sync';
+
+vi.mock('./desktop-erase', async original => ({
+  ...(await original<typeof import('./desktop-erase')>()),
+  browserEraseHost: vi.fn()
+}));
 
 vi.mock('./schema-probe', () => ({ adapterInspector: vi.fn(), probeSchema: vi.fn() }));
 /** 升级默认走真实现；个别用例换成带迁移 SQL 的假升级，验证迁移经事务的 executor 执行。 */
@@ -91,7 +97,10 @@ function setup({
     }
     return table;
   };
-  const executor = { getRepository: repository, query: vi.fn(async () => undefined) };
+  const executor = {
+    getRepository: repository,
+    query: vi.fn(async () => ({ columns: ['name'], rows: [['original_path']], rowsAffected: 0 }))
+  };
   const adapter = Object.assign(Object.create(RxDBAdapterSqlite.prototype) as RxDBAdapterSqlite, {
     connect: vi.fn(async () => {
       order.push('adapter.connect');
@@ -154,6 +163,16 @@ const rowsOf = (db: FakeDesktopData) => db.table<{ key: string; value: unknown }
 const valueOf = (db: FakeDesktopData, key: string): unknown => rowsOf(db).find(row => row.key === key)?.value;
 
 beforeEach(() => {
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    }
+  });
   vi.mocked(adapterInspector).mockReset();
   vi.mocked(probeSchema).mockReset();
 });
@@ -596,64 +615,65 @@ describe('DesktopData 读写入口', () => {
 });
 
 describe('DesktopData.eraseLocalData', () => {
-  function stubStorage(removeEntry: (name: string, options: object) => Promise<void>) {
-    const remove = vi.fn(removeEntry);
-    vi.stubGlobal('navigator', { storage: { getDirectory: async () => ({ removeEntry: remove }) } });
-    return remove;
+  function eraseHost() {
+    const host = {
+      listFiles: vi.fn(async () => ['aiao-desktop@0_1.sqlite', 'aiao-desktop-files']),
+      removeFile: vi.fn<(name: string) => Promise<void>>(async () => undefined),
+      listDatabases: vi.fn(async () => []),
+      removeDatabase: vi.fn<(name: string) => Promise<void>>(async () => undefined)
+    };
+    vi.mocked(browserEraseHost).mockReturnValue(host);
+    return host;
   }
 
-  it('按顺序断开库、删掉库文件、再删掉 OPFS 里的文件体目录', async () => {
+  it('断开后清理全部桌面代际，日志完成后删除', async () => {
     const { data, order } = setup();
     await settled(data);
-    const remove = stubStorage(async () => {
+    const host = eraseHost();
+    host.removeFile.mockImplementation(async () => {
       order.push('removeEntry');
     });
     order.length = 0;
-
     await data.eraseLocalData();
-    expect(order).toEqual(['adapter.disconnect', 'adapter.dropStorage', 'removeEntry']);
-    expect(remove).toHaveBeenCalledExactlyOnceWith('aiao-desktop-files', { recursive: true });
+    expect(order).toEqual(['adapter.disconnect', 'removeEntry', 'removeEntry']);
+    expect(host.removeFile.mock.calls).toEqual([['aiao-desktop@0_1.sqlite'], ['aiao-desktop-files']]);
+    expect(localStorage.getItem(ERASE_PENDING_KEY)).toBeNull();
   });
 
-  it('文件体目录本来就不存在不算错', async () => {
+  it('删除失败保留意图，启动时先继续清理再连接数据库', async () => {
     const { data } = setup();
-    stubStorage(async () => {
-      throw new DOMException('gone', 'NotFoundError');
+    await settled(data);
+    const host = eraseHost();
+    host.removeFile.mockRejectedValueOnce(new Error('busy'));
+    await expect(data.eraseLocalData()).rejects.toThrow('busy');
+    expect(localStorage.getItem(ERASE_PENDING_KEY)).not.toBeNull();
+    const reopened = setup();
+    host.removeFile.mockImplementation(async () => {
+      reopened.order.push('removeEntry');
     });
-    await expect(data.eraseLocalData()).resolves.toBeUndefined();
+    await settled(reopened.data);
+    expect(reopened.order.slice(0, 3)).toEqual(['removeEntry', 'removeEntry', 'adapter.connect']);
+    expect(localStorage.getItem(ERASE_PENDING_KEY)).toBeNull();
   });
 
-  it('删目录时的其他错误照常抛出', async () => {
-    const { data } = setup();
-    stubStorage(async () => {
-      throw new DOMException('denied', 'NoModificationAllowedError');
-    });
-    await expect(data.eraseLocalData()).rejects.toThrow('denied');
-
-    stubStorage(async () => {
-      throw new Error('storage broke');
-    });
-    await expect(data.eraseLocalData()).rejects.toThrow('storage broke');
-  });
-
-  it('断开失败也继续清掉库文件和文件体，最后把断开的错误抛出去', async () => {
+  it('断开失败不删除仍被占用的数据，留下可重试的意图', async () => {
     const { data, adapter } = setup();
-    const remove = stubStorage(async () => undefined);
-    adapter.disconnect = vi.fn(async () => {
-      throw new Error('still busy');
-    }) as never;
-
+    await settled(data);
+    const host = eraseHost();
+    vi.mocked(adapter.disconnect).mockRejectedValueOnce(new Error('still busy'));
     await expect(data.eraseLocalData()).rejects.toThrow('still busy');
-    expect(adapter.dropStorage).toHaveBeenCalledTimes(1);
-    expect(remove).toHaveBeenCalledTimes(1);
+    expect(host.removeFile).not.toHaveBeenCalled();
+    expect(localStorage.getItem(ERASE_PENDING_KEY)).not.toBeNull();
+    await data.eraseLocalData();
+    expect(localStorage.getItem(ERASE_PENDING_KEY)).toBeNull();
   });
 
-  it('适配器不是 sqlite-wasm 时什么也不删', async () => {
-    const { data, adapter } = setup({ notSqlite: true });
-    const remove = stubStorage(async () => undefined);
+  it('适配器错误不删除数据，坏活动指针允许用户重新确认抹除', async () => {
+    const { data } = setup({ notSqlite: true });
+    await settled(data);
+    const host = eraseHost();
     await expect(data.eraseLocalData()).rejects.toThrow('桌面的本地适配器不是 sqlite-wasm');
-    expect(adapter.dropStorage).not.toHaveBeenCalled();
-    expect(remove).not.toHaveBeenCalled();
+    expect(host.removeFile).not.toHaveBeenCalled();
   });
 });
 

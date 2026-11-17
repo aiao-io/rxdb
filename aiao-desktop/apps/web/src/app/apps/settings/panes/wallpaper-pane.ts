@@ -14,17 +14,18 @@ import { ToggleSwitch } from '../toggle-switch';
     <div class="st-group">
       <div class="wp-grid">
         @for (paper of papers; track paper.key) {
-          <div
+          <button
             class="wp"
+            [attr.aria-pressed]="system.wallpaper() === paper.key"
             [attr.data-wp]="paper.key"
             [class.on]="system.wallpaper() === paper.key"
             [style.background-image]="paper.image"
             (click)="wallpaper.set(paper.key)"
-            (keydown.enter)="wallpaper.set(paper.key)"
-            tabindex="-1"
+            tabindex="0"
+            type="button"
           >
             <span>{{ paper.name }}</span>
-          </div>
+          </button>
         }
       </div>
     </div>
@@ -46,6 +47,6 @@ export class WallpaperPane {
   protected readonly papers = WALLPAPER_KEYS.map(key => ({
     key,
     name: WALLPAPERS[key].name,
-    image: `url('${wallpaperThumb(WALLPAPERS[key], 420)}')`
+    image: `url('${wallpaperThumb(WALLPAPERS[key])}')`
   }));
 }

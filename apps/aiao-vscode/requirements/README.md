@@ -19,3 +19,5 @@
 ## 状态定义
 
 沿用仓库 `requirements/CONVENTIONS.md` 的状态集合（story 五态：`Backlog` / `In Progress` / `In Review` / `Done` / `Blocked`），真相源为故事 YAML 的 `status` 字段，本目录的派生视图不独立维护。
+
+2026-11-17：[US-412 桌面文件复制与嵌入边界](stories/US-412-desktop-file-copy.md) 已完成本地自动验收，与 ADESK-US-208 共用逐 AC 证据；按根规范保持 In Review 待评审合并，本轮未发布。

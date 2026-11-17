@@ -1,8 +1,12 @@
+import { DOCUMENT } from '@angular/common';
 import { Component, ViewEncapsulation, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { DesktopData } from '../data/desktop-data';
+import { DATA_LOCATION_KEY } from '../data/desktop-data-location';
 import { Session } from '../services/session';
 import { Toast } from '../services/toast';
+import { WindowManager } from '../services/window-manager';
 import { BootScreen } from './boot-screen';
 import { DataProblemScreen } from './data-problem';
 import { DesktopSurface } from './desktop-surface';
@@ -39,11 +43,16 @@ import { WindowLayer } from './window-layer';
   styleUrl: './desktop-shell.scss',
   encapsulation: ViewEncapsulation.None,
   host: {
-    '[style.display]': '"contents"'
+    '[style.display]': '"contents"',
+    '(window:storage)': 'checkLocation($event)',
+    '(window:focus)': 'checkLocation()'
   }
 })
 export class DesktopShell {
   private readonly data = inject(DesktopData);
+  private readonly windows = inject(WindowManager);
+  private readonly document = inject(DOCUMENT);
+  protected readonly replaced = toSignal(this.data.locationGuard.replaced$, { initialValue: false });
   protected readonly toast = inject(Toast);
   protected readonly session = inject(Session);
   /** 锁屏、开机画面、睡眠或本地数据问题的阻断界面盖住了桌面。 */
@@ -54,4 +63,17 @@ export class DesktopShell {
       this.session.sleep() !== 'awake' ||
       this.data.problem() !== null
   );
+
+  protected checkLocation(event?: StorageEvent): void {
+    if (event && event.key !== DATA_LOCATION_KEY && event.key !== null) return;
+    try {
+      this.data.locationGuard.assertCurrent();
+    } catch (error) {
+      this.toast.show(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  protected async reloadRestored(): Promise<void> {
+    if (await this.windows.closeAll()) this.document.location.reload();
+  }
 }

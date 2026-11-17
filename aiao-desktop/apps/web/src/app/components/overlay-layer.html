@@ -13,8 +13,8 @@
       <div class="grid">
         @for (id of warmApps; track id) {
           <div class="app">
-            <div class="art"><svg [appIcon]="apps[id].icon"></svg></div>
-            <div class="nm">{{ apps[id].name }}</div>
+            <div class="art"><svg [appIcon]="apps()[id].icon"></svg></div>
+            <div class="nm">{{ apps()[id].name }}</div>
           </div>
         }
       </div>

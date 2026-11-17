@@ -5,19 +5,20 @@ import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { checkOPFSAvailable } from '@aiao/utils';
 
 import { USER_NAME } from '../disk/disk-path';
+import { DataSelectionStorage, DesktopDataLocation } from './desktop-data-location';
+import { DesktopLocationGuard } from './desktop-location-guard';
 import { DESKTOP_ENTITIES } from './entities';
 import { SchemaGuard } from './schema-guard';
 import { TabSync } from './tab-sync';
 
 /** 本地适配器名：`@aiao/rxdb-adapter-sqlite-wasm`。 */
 export const DESKTOP_ADAPTER = 'sqlite-wasm' as const;
-/** 库名要短：RxDB 会追加 `@<后缀>`，SQLite 的 VFS 路径有长度上限。 */
-const DB_NAME = 'aiao-desktop';
 /** storage 插件在 OPFS 里存放文件体的根目录。 */
 export const FILES_ROOT = 'aiao-desktop-files';
 
 /** 和 dev-rxdb-angular 相同的选择：OPFS 可用时库文件落在 OPFS（必须在专用 Worker 里），否则用 IndexedDB。 */
-async function localOptions(baseHref: string): Promise<SqliteOptions> {
+async function localOptions(baseHref: string, options: DesktopDatabaseOptions): Promise<SqliteOptions> {
+  if (options.inWorker) return { vfs: 'opfs', wasmUrl: `${baseHref}sqlite-wasm/wa-sqlite.wasm` };
   if (await checkOPFSAvailable())
     return {
       vfs: 'opfs',
@@ -43,7 +44,8 @@ class DesktopSqliteAdapter extends RxDBAdapterSqlite {
   constructor(
     rxdb: RxDB,
     options: SqliteOptions,
-    private readonly guard: SchemaGuard
+    private readonly guard: SchemaGuard,
+    private readonly location: DesktopLocationGuard
   ) {
     super(rxdb, options);
   }
@@ -52,13 +54,28 @@ class DesktopSqliteAdapter extends RxDBAdapterSqlite {
     transactionFun: T,
     transactionLog = true
   ): Promise<Awaited<ReturnType<T>>> {
-    await this.guard.assertWritable();
-    return super.transaction(transactionFun, transactionLog);
+    return await this.location.write(async () => {
+      await this.guard.assertWritable();
+      return super.transaction(transactionFun, transactionLog);
+    });
   }
 }
 
 const GUARDS = new WeakMap<RxDB, SchemaGuard>();
 const TABS = new WeakMap<RxDB, TabSync>();
+const LOCATIONS = new WeakMap<RxDB, DesktopLocationGuard>();
+
+export function locationGuardOf(rxdb: RxDB): DesktopLocationGuard {
+  const guard = LOCATIONS.get(rxdb);
+  if (!guard) throw new Error('这个 RxDB 实例不是 createDesktopDatabase 建的，没有活动存储守卫');
+  return guard;
+}
+
+export interface DesktopDatabaseOptions {
+  readonly location?: DesktopDataLocation;
+  readonly inWorker?: boolean;
+  readonly selectionStorage?: Pick<DataSelectionStorage, 'getItem'>;
+}
 
 /** 桌面库的写前守卫；只有 {@link createDesktopDatabase} 建出来的库才有。 */
 export function schemaGuardOf(rxdb: RxDB): SchemaGuard {
@@ -81,19 +98,24 @@ export function tabSyncOf(rxdb: RxDB): TabSync {
  * 桌面的本地库：系统设置、磁盘目录树与各内置应用的数据都在这里；文件体由 storage 插件放在 OPFS。
  * 返回已 `init()`、尚未连接的实例，由 {@link DesktopData} 连接并写入初始数据。
  */
-export function createDesktopDatabase(baseHref: string): RxDB {
+export function createDesktopDatabase(baseHref: string, options: DesktopDatabaseOptions = {}): RxDB {
   const guard = new SchemaGuard();
+  const location = new DesktopLocationGuard(options.selectionStorage, options.location);
   const rxdb = new RxDB({
-    dbName: DB_NAME,
+    dbName: location.location.databaseName,
     context: { userId: USER_NAME },
     entities: [...DESKTOP_ENTITIES],
     sync: { local: { adapter: DESKTOP_ADAPTER }, type: SyncType.None }
   });
   rxdb
     .use(rxDBPluginTree)
-    .use(rxDBPluginStorage, { rootDir: FILES_ROOT })
-    .adapter(DESKTOP_ADAPTER, async db => new DesktopSqliteAdapter(db, await localOptions(baseHref), guard));
+    .use(rxDBPluginStorage, { rootDir: location.location.filesRoot })
+    .adapter(
+      DESKTOP_ADAPTER,
+      async db => new DesktopSqliteAdapter(db, await localOptions(baseHref, options), guard, location)
+    );
   GUARDS.set(rxdb, guard);
+  LOCATIONS.set(rxdb, location);
   TABS.set(rxdb, new TabSync());
   rxdb.init();
   if (import.meta.env.DEV) {

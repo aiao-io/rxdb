@@ -2,10 +2,12 @@ import { Component, ElementRef, computed, inject, signal, viewChild } from '@ang
 
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
 import { PdfDocument, readPdfText } from '../../disk/formats/pdf';
+import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
 import { PopoverService } from '../../services/popover';
+import { PrintableContent, printableText } from '../../services/print-document';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
@@ -36,6 +38,7 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
 @Component({
   selector: 'app-preview',
   imports: [Icon, TrafficLights],
+  providers: [ContentActions],
   host: { style: 'display: contents' },
   templateUrl: './preview.html'
 })
@@ -49,6 +52,20 @@ export class PreviewApp {
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
 
+  protected readonly actions = inject(ContentActions);
+  protected readonly content = computed<PrintableContent | null>(() => {
+    const view = this.view();
+    if (view.kind === 'image') return { title: this.name, paragraphs: [], image: { url: view.url, alt: this.name } };
+    if (view.kind !== 'sheet') return null;
+    return {
+      title: view.doc.title,
+      paragraphs: [
+        ...(view.doc.subtitle ? [view.doc.subtitle] : []),
+        ...view.doc.sections.flatMap(section => [section.title, section.text])
+      ]
+    };
+  });
+
   protected readonly name = fileName(this.win.options.file);
   protected readonly view = signal<PreviewView>({ kind: 'loading' });
   protected readonly finding = signal(false);
@@ -59,14 +76,25 @@ export class PreviewApp {
     void this.load();
   }
 
-  protected openShare(anchor: HTMLElement): void {
-    this.popover.menuUnder(anchor, [
-      { id: 'm', label: 'Mail', icon: 'g-compose', run: () => this.mail.compose(this.name) },
-      { id: 'g', label: 'Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
-      '-',
-      { id: 'c', label: 'Copy', run: () => this.toast.show('Copied to clipboard') },
-      { id: 'p', label: 'Print…', run: () => this.toast.show('Sent to printer') }
-    ]);
+  protected openShare(anchor: HTMLElement, event: MouseEvent): void {
+    const content = this.content();
+    const disabled = !content || this.actions.busy();
+    this.popover.menuUnder(
+      anchor,
+      [
+        { id: 'm', label: 'Mail', icon: 'g-compose', run: () => this.mail.compose(this.name) },
+        { id: 'g', label: 'Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
+        '-',
+        {
+          id: 'c',
+          label: this.view().kind === 'sheet' ? 'Copy Text' : 'Copy File Name',
+          disabled,
+          run: () => content && this.actions.copy(this.view().kind === 'sheet' ? printableText(content) : this.name)
+        },
+        { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }
+      ],
+      { keyboard: event.detail === 0, label: 'preview sharing' }
+    );
   }
 
   /** 查找框展开时聚焦，收起时清空输入并去掉高亮。 */

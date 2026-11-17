@@ -30,17 +30,36 @@
     <div class="tbar" data-drag style="height: 52px">
       <div class="fx-title" style="color: var(--blue); font-size: 22px; font-weight: 700">Today</div>
       <div class="grow" style="flex: 1"></div>
-      <button class="tbtn" (click)="add()" data-nodrag data-radd title="New Reminder">
+      <button
+        class="tbtn"
+        [disabled]="win.closePending()"
+        (click)="add()"
+        aria-label="New Reminder"
+        data-nodrag
+        data-radd
+        tabindex="0"
+        title="New Reminder"
+      >
         <svg appIcon="g-plus"></svg>
       </button>
     </div>
+    <div aria-live="polite" role="status" style="padding: 4px 18px; font-size: 12px; color: var(--txt)">
+      {{
+        drafts.pending() || toggling().size ? 'Saving…'
+        : drafts.dirty() ? 'Unsaved reminders'
+        : 'Saved'
+      }}
+    </div>
+    @if (error()) {
+      <p role="alert" style="padding: 4px 18px; color: var(--txt)">{{ error() }}</p>
+    }
     <div class="scroll" data-rlist style="flex: 1; padding: 6px 18px 20px">
       @for (item of items(); track item.id) {
         <div
           class="rem"
+          [attr.data-draft-id]="item.fresh ? item.id : null"
           [attr.data-ri]="item.fresh ? null : item.id"
-          (click)="toggle(item)"
-          (keydown.enter)="toggle(item)"
+          (focusout)="leaveDraft($event, item)"
           style="
             display: flex;
             gap: 11px;
@@ -48,15 +67,20 @@
             padding: 9px 2px;
             border-bottom: 0.5px solid var(--line);
           "
-          tabindex="-1"
         >
-          <span
+          <button
             class="rc"
+            [attr.aria-checked]="item.done"
+            [attr.aria-label]="item.title ? 'Complete ' + item.title : 'Complete draft reminder'"
+            [disabled]="win.closePending() || (item.fresh ? !item.editing : toggling().has(item.id))"
             [style.background]="item.done ? item.tint : 'transparent'"
             [style.border]="'1.6px solid ' + (item.done ? item.tint : 'var(--txt-3)')"
+            (click)="toggle(item)"
+            role="checkbox"
             style="
-              width: 17px;
-              height: 17px;
+              width: 19px;
+              height: 19px;
+              padding: 0;
               border-radius: 50%;
               flex: none;
               margin-top: 1px;
@@ -64,37 +88,68 @@
               place-items: center;
               color: #fff;
             "
+            tabindex="0"
           >
             @if (item.done) {
               <svg appIcon="g-check" style="width: 10px; height: 10px"></svg>
             }
-          </span>
+          </button>
           @if (item.fresh) {
-            <span style="min-width: 0; flex: 1">
-              <span
+            <div style="min-width: 0; flex: 1">
+              <input
                 #draft
-                [attr.contenteditable]="item.editing ? 'true' : null"
-                [style.color]="item.done ? 'var(--txt-3)' : null"
-                [style.text-decoration]="item.done ? 'line-through' : null"
-                (blur)="commit(item, draft.textContent)"
-                (keydown.enter)="finish($event, draft)"
+                [disabled]="!item.editing || win.closePending()"
+                [value]="item.title"
+                (input)="drafts.edit(item.id, draft.value)"
+                (keydown.enter)="finish($event, item.id)"
+                aria-label="Reminder text"
                 data-rnew
-                style="display: block; font-size: 13px; outline: none; min-height: 17px"
-                tabindex="-1"
-              ></span>
+                style="
+                  display: block;
+                  box-sizing: border-box;
+                  width: 100%;
+                  font-size: 13px;
+                  min-height: 23px;
+                  border: 0;
+                  background: transparent;
+                  color: var(--txt);
+                "
+                tabindex="0"
+              />
               <span style="font-size: 11.5px; color: var(--txt-2)">{{ item.due }}</span>
-            </span>
+              @if (drafts.errorFor(item.id); as problem) {
+                <p role="alert" style="margin: 6px 0; color: var(--txt)">Reminder was not saved: {{ problem }}</p>
+              }
+              <div style="display: flex; gap: 8px; margin-top: 6px">
+                <button
+                  class="btn"
+                  [disabled]="!item.editing || win.closePending()"
+                  (click)="drafts.save(item.id)"
+                  tabindex="0"
+                >
+                  {{ drafts.errorFor(item.id) ? 'Retry Save' : 'Save Reminder' }}
+                </button>
+                <button
+                  class="btn"
+                  [disabled]="!item.editing || win.closePending()"
+                  (click)="drafts.discard(item.id)"
+                  tabindex="0"
+                >
+                  Discard Draft
+                </button>
+              </div>
+            </div>
           } @else {
-            <span style="min-width: 0">
+            <div style="min-width: 0">
               <span
                 [style.color]="item.done ? 'var(--txt-3)' : null"
                 [style.text-decoration]="item.done ? 'line-through' : null"
-                style="display: block; font-size: 13px"
+                style="font-size: 13px"
               >
                 {{ item.title }}
               </span>
-              <span style="font-size: 11.5px; color: var(--txt-2)">{{ item.due }}</span>
-            </span>
+              <div style="font-size: 11.5px; color: var(--txt-2)">{{ item.due }}</div>
+            </div>
           }
         </div>
       }

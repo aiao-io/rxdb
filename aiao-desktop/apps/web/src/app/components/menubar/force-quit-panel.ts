@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
+import { ApplicationRegistry } from '../../services/application-registry';
 
-import { DESKTOP_APPS, DesktopAppId } from '../../services/desktop-apps';
+import { DesktopAppId } from '../../services/desktop-apps';
 import { PopoverService } from '../../services/popover';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
@@ -20,8 +21,8 @@ import { Icon } from '../../shared/icon';
     <div style="max-height: 220px; overflow: auto; padding: 0 6px 6px">
       @for (id of running(); track id) {
         <button class="mi" [attr.data-q]="id" (click)="quit(id)" style="height: 30px" tabindex="0" type="button">
-          <svg class="ico" [appIcon]="apps[id].icon" style="width: 19px; height: 19px"></svg
-          ><span>{{ apps[id].name }}</span>
+          <svg class="ico" [appIcon]="apps()[id].icon" style="width: 19px; height: 19px"></svg
+          ><span>{{ apps()[id].name }}</span>
         </button>
       } @empty {
         <div style="padding: 14px; color: var(--txt-2); font-size: 12.5px">No applications are open.</div>
@@ -32,7 +33,7 @@ import { Icon } from '../../shared/icon';
 export class ForceQuitPanel {
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
-  protected readonly apps = inject(DESKTOP_APPS);
+  protected readonly apps = inject(ApplicationRegistry).apps;
 
   protected readonly running = computed(() => [
     ...new Set(

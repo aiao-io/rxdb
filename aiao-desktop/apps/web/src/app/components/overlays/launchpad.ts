@@ -1,7 +1,8 @@
 import { Component, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import { ApplicationRegistry } from '../../services/application-registry';
 
 import { AppLauncher } from '../../services/app-launcher';
-import { DESKTOP_APPS, DesktopAppId, LAUNCH_ORDER } from '../../services/desktop-apps';
+import { DesktopAppId } from '../../services/desktop-apps';
 import { DockDragController } from '../../services/dock-drag';
 import { DockLayoutStore } from '../../services/dock-layout';
 import { MenuEntry } from '../../services/menu';
@@ -59,8 +60,8 @@ export const LAUNCHPAD_PER_PAGE = 28;
           role="button"
           tabindex="0"
         >
-          <div class="art"><svg [appIcon]="apps[id].icon"></svg></div>
-          <div class="nm">{{ apps[id].name }}</div>
+          <div class="art"><svg [appIcon]="apps()[id].icon"></svg></div>
+          <div class="nm">{{ apps()[id].name }}</div>
         </div>
       } @empty {
         <div
@@ -89,10 +90,11 @@ export class Launchpad {
   private readonly query = signal('');
   private readonly matches = computed(() => {
     const q = this.query().toLowerCase();
-    return q ? LAUNCH_ORDER.filter(id => this.apps[id].name.toLowerCase().includes(q)) : LAUNCH_ORDER;
+    return q ? this.appOrder().filter(id => this.apps()[id].name.toLowerCase().includes(q)) : this.appOrder();
   });
   private readonly requestedPage = signal(0);
-  protected readonly apps = inject(DESKTOP_APPS);
+  private readonly appOrder = inject(ApplicationRegistry).launchOrder;
+  protected readonly apps = inject(ApplicationRegistry).apps;
   protected readonly overlays = inject(Overlays);
   protected readonly dockDrag = inject(DockDragController);
 
@@ -138,7 +140,7 @@ export class Launchpad {
   }
 
   protected menu(event: MouseEvent, id: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuItems(id), this.apps[id].name);
+    this.popover.contextMenu(event, this.menuItems(id), this.apps()[id].name);
   }
 
   /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
@@ -152,7 +154,7 @@ export class Launchpad {
       y: rect.top + rect.height / 2,
       origin: 'top left',
       focus: true,
-      label: this.apps[id].name,
+      label: this.apps()[id].name,
       onClose: () => anchor.focus()
     });
   }

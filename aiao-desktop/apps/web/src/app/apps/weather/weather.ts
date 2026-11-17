@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 
+import { WeatherStatus } from '../../components/weather-status';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { WeatherStore, weatherCode } from '../../services/weather-store';
@@ -7,7 +8,7 @@ import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 
 /** 天空颜色跟着昼夜走，和真机的天气应用一样。 */
-const DAY_SKY = 'linear-gradient(175deg,#4aa3e8,#1f6fb8 55%,#17518d)';
+const DAY_SKY = 'linear-gradient(175deg,#175e95,#154b78 55%,#113958)';
 const NIGHT_SKY = 'linear-gradient(175deg,#274b7a,#1a2f52 55%,#141d33)';
 
 interface WeekRow {
@@ -20,10 +21,10 @@ interface WeekRow {
   readonly right: string;
 }
 
-/** 天气：主城市（城市列表里排第一的，默认库比蒂诺）的实况（Open-Meteo），离线时显示上一次的读数。 */
+/** 天气：主城市（城市列表里排第一的，默认库比蒂诺）的预报（Open-Meteo）；没有成功响应时不显示数字。 */
 @Component({
   selector: 'app-weather',
-  imports: [Icon, TrafficLights],
+  imports: [Icon, TrafficLights, WeatherStatus],
   host: { style: 'display: contents' },
   templateUrl: './weather.html'
 })
@@ -33,8 +34,11 @@ export class WeatherApp {
   protected readonly place = this.weather.place;
   /** 商店在方法内部读信号，所以实况一到，下面这些 computed 都会重算。 */
   protected readonly now = computed(() => this.weather.now());
-  protected readonly label = computed(() => weatherCode(this.now().code, this.now().day)[0]);
-  protected readonly sky = computed(() => (this.now().day ? DAY_SKY : NIGHT_SKY));
+  protected readonly label = computed(() => {
+    const now = this.now();
+    return now ? weatherCode(now.code, now.day)[0] : 'Weather unavailable';
+  });
+  protected readonly sky = computed(() => (this.now()?.day === 0 ? NIGHT_SKY : DAY_SKY));
   protected readonly hours = computed(() => this.weather.hours(6));
   /** 每根条只占那一天的温度区间在整周区间里的位置，冷天就是偏左的一小段。 */
   protected readonly week = computed((): readonly WeekRow[] => {

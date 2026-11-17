@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[22/23 已交付]；1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[31/32 已交付]；0 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -18,7 +18,9 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
-浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC（按用户要求延期），详见[验收台账](verification-report.md)。
+2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)和 [US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)已完成；其余 A06～A09 按计划继续，人工验收独立保留。
+
+浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，历史发布范围中仅剩 US-108 的 VoiceOver AC（按用户要求延期）；新增 US-207 已完成本地正式构建验收，未发布，详见[验收台账](verification-report.md)。
 
 ### 已验收能力
 
@@ -46,11 +48,11 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 ### 已知限制
 
 - 本轮[只验收桌面 Chrome](decisions.md#d-19只验收桌面-chrome)，自动回归使用受控 Chromium；真实 Chrome 记录分别注明环境。[跨浏览器历史记录](evidence/2026-11-14/browser-support.md)保留成功、失败与未完成观察，Safari、Firefox与WebKit不在本轮必验或支持承诺内。390×844与触屏仿真不代表移动端真机支持。
-- 数据按当前浏览器的 Origin 隔离；清除站点数据、换浏览器或换域名看不到原数据。没有备份、导出、账号或跨设备同步。配额不足等存储失败路径未完整验收；TextEdit 新建文档没有保存入口。
-- 窗口布局按标签页恢复；多页文件、设置与应用数据按提交顺序收敛，同一文件最后提交生效，不提供合并或冲突提示。删除、改名、抹掉后的旧编辑器保存必须失败，保留编辑内容。
+- 数据按当前浏览器的 Origin 隔离；清除站点数据、换浏览器或换域名看不到原数据。已有文件导入下载、完整桌面备份与跨 Origin 恢复；配额不足、OPFS 不可用和存储中断已通过 US-111 自动验收。账号或跨设备实时同步不在当前范围。TextEdit 新建保存和未保存保护已通过 US-109 自动验收。
+- 窗口布局按标签页恢复；多页文件、设置与应用数据按提交顺序收敛，TextEdit 保存会检查打开时版本，冲突保留草稿，支持重新加载与另存副本；终端原始写入仍最后提交生效。删除、改名、抹掉后的旧编辑器保存必须失败，保留编辑内容。
 - 集成应用不能弹窗或调用受限的文件句柄 API。桌面内不能弹 GitHub OAuth 登录窗口；能否读到直接访问时已有的登录状态另行实测，不用同站规则推断。
 - 纯键盘与无障碍树已进自动冒烟；真实物理键盘截获与真实 VoiceOver 逐步播报独立记录。
-- 外网壁纸、地图、天气等的真实显示效果不在验收范围；请求失败时桌面不能报页面错误。来源与隐私说明已在 About 提供。
+- 六张自带壁纸及缩略图已本地分发并通过真实断网切换验收（US-113）。地图与天气仍需网络，已验证真实失败状态、响应校验与重试；受控响应不代表外网实况准确性。来源与隐私说明在 About 提供。
 
 完整边界见[能力矩阵](capability-matrix.md)和[验收台账](verification-report.md#尚未证明)。
 
@@ -106,3 +108,5 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 | 窗口               | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                                                                                                                                                                                                                                                                               |
 | 虚拟文件系统       | Finder 浏览的磁盘：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体在 OPFS（[D-08](decisions.md#d-08文件体由-storage-插件放在-opfs)）                                                                                                                                                                                        |
 | 冒烟               | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败                                                                                                                                                                                                                                                       |
+
+当前实施 [US-208 Aiao Code 文件复制与嵌入边界](stories/application/ADESK-US-208-aiao-code-file-copy.md)，复用现有文件授权，不扩展共享目录或自动同步。

@@ -97,6 +97,10 @@
         {
           "projects": ["aiao-desktop-e2e"],
           "target": "e2e-fixtures"
+        },
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "e2e-aiao-code-files"
         }
       ]
     },

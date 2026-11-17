@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchCatalog, WorkbenchPreferences, WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import { CompilationError } from './compiler/compiler-types.js';
+import type { WorkbenchDesktopFiles } from './desktop-files.js';
 import type { WorkbenchEditorMount } from './editor.js';
+import { encodeGitArchive } from './git/git-archive.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { loadMonacoDiff } from './monaco-loader.js';
@@ -27,6 +29,17 @@ afterEach(() => {
 });
 
 const files = { 'src/main.ts': 'console.log(1)', 'src/label.ts': 'export const label = 1;' };
+const testArchive = (source?: string) =>
+  encodeGitArchive({
+    directories: ['.git', 'src'],
+    files: Object.entries({
+      '.git/HEAD': 'ref: refs/heads/main\n',
+      '.git/config': '[core]\n bare = false\n',
+      ...files,
+      ...(source === undefined ? {} : { 'workbench.project.json': source })
+    }).map(([path, text]) => ({ path, bytes: new TextEncoder().encode(text) }))
+  });
+
 function fixture(
   withProject = true,
   assetBaseURL = '/browser-workbench-assets/',
@@ -35,7 +48,8 @@ function fixture(
   initialFiles: WorkbenchFiles = files,
   github?: { auth: GitHubAuth; api?: GitHubApi },
   preferences: WorkbenchPreferences | null = null,
-  markdownRuntime?: BrowserWorkbenchOptions['markdownRuntime']
+  markdownRuntime?: BrowserWorkbenchOptions['markdownRuntime'],
+  extraOptions: Partial<BrowserWorkbenchOptions> = {}
 ) {
   let currentFiles: WorkbenchFiles = { ...initialFiles };
   let revision = 1;
@@ -98,6 +112,7 @@ function fixture(
     update: vi.fn(),
     replace: vi.fn(),
     dispose: disposeEditor,
+    focus: vi.fn(),
     runCommand: vi.fn(() => true),
     setIndentUnit: vi.fn(),
     setEngine: vi.fn(),
@@ -136,6 +151,7 @@ function fixture(
       catalog,
       assetBaseURL,
       markdownRuntime,
+      ...extraOptions,
       ...(withProject ? { initialProjectId: 'one' } : {}),
       ...(github?.auth ? { githubAuth: github.auth } : {}),
       ...(github?.api ? { githubApi: github.api } : {})
@@ -2309,7 +2325,8 @@ describe('VS Code 风格工作台', () => {
     expect(backend.save).toHaveBeenCalled();
     expect(download).toHaveBeenCalled();
     expect(createURL).toHaveBeenCalled();
-    const file = new File([new Uint8Array([1, 2, 3])], 'imported.zip', { type: 'application/zip' });
+    const archive = testArchive(JSON.stringify({ template: 'vanilla', entry: 'src/main.ts' }));
+    const file = new File([archive], 'imported.zip', { type: 'application/zip' });
     const upload = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function (this: HTMLInputElement) {
       if (this.type !== 'file') return;
       Object.defineProperty(this, 'files', { value: [file] });
@@ -2321,9 +2338,7 @@ describe('VS Code 风格工作台', () => {
       files: { ...files, 'workbench.project.json': JSON.stringify({ template: 'vanilla', entry: 'src/main.ts' }) }
     }));
     await clickTitleMenu(host, 'import');
-    await vi.waitFor(() =>
-      expect(backend.importArchive).toHaveBeenCalledWith(expect.any(String), new Uint8Array([1, 2, 3]))
-    );
+    await vi.waitFor(() => expect(backend.importArchive).toHaveBeenCalledWith(expect.any(String), archive));
     await vi.waitFor(() =>
       expect(catalog.put).toHaveBeenCalledWith(expect.objectContaining({ name: 'imported', template: 'vanilla' }))
     );
@@ -2376,11 +2391,11 @@ describe('VS Code 风格工作台', () => {
     { source: 'null', message: '无效模板配置' },
     { source: JSON.stringify({ template: 'node', entry: 'src/main.ts' }), message: '导入归档不属于受控模板' },
     { source: JSON.stringify({ template: 'react', entry: 'missing.tsx' }), message: '导入归档不属于受控模板' }
-  ])('导入后拒绝不受支持的模板描述：$message', async ({ source, message }) => {
+  ])('写入仓库前拒绝不受支持的模板描述：$message', async ({ source, message }) => {
     const { host, handle, backend, catalog } = fixture();
     await handle.ready;
     catalog.put.mockClear();
-    const file = new File([new Uint8Array([1])], 'invalid.zip');
+    const file = new File([testArchive(source)], 'invalid.zip');
     const upload = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function (this: HTMLInputElement) {
       if (this.type !== 'file') return;
       Object.defineProperty(this, 'files', { value: [file] });
@@ -2391,6 +2406,7 @@ describe('VS Code 风格工作台', () => {
     vi.mocked(backend.open).mockImplementation(async projectId => ({ projectId, revision: '1', files: imported }));
     await clickTitleMenu(host, 'import');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain(message));
+    expect(backend.importArchive).not.toHaveBeenCalled();
     expect(catalog.put).not.toHaveBeenCalled();
     expect(handle.session.state.projectId).toBe('one');
     handle.dispose();
@@ -2913,5 +2929,118 @@ describe('扩展安装与卸载的工作台集成', () => {
     await click(f.host, '[data-markdown-preview]:not([hidden])');
     await vi.waitFor(() => expect(mount).toHaveBeenCalledOnce());
     expect(f.backend.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('桌面文件复制菜单', () => {
+  it.each([false, true])('嵌入项目恢复只在文档已经获得焦点时聚焦编辑器：%s', async focused => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(focused);
+    const { handle, editorHandle } = fixture(true, undefined, undefined, [], files, undefined, null, undefined, { embedded: true });
+    await handle.ready;
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    expect(editorHandle.focus.mock.calls.length > 0).toBe(focused);
+  });
+
+  function desktopFixture(withProject = true) {
+    const desktopFiles = {
+      canRead: true,
+      canWrite: true,
+      maxBytes: 524_288,
+      open: vi.fn<WorkbenchDesktopFiles['open']>(async () => ({ name: 'copied.bin', bytes: new Uint8Array([0, 255]) })),
+      save: vi.fn<WorkbenchDesktopFiles['save']>(async name => name)
+    };
+    const mounted = fixture(withProject, undefined, undefined, [], files, undefined, null, undefined, {
+      desktopFiles,
+      embedded: true
+    });
+    return { ...mounted, desktopFiles };
+  }
+  async function run(host: HTMLElement, id: string) {
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="new-file"]')?.disabled).toBe(false)
+    );
+    await clickTitleMenu(host, id);
+  }
+
+  it('导入副本保留二进制和其他未保存草稿，普通保存不写回桌面', async () => {
+    const { host, handle, desktopFiles } = desktopFixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'unsaved draft');
+    await run(host, 'desktop-import-file');
+    await vi.waitFor(() => expect(handle.session.state.files['copied.bin']).toEqual(new Uint8Array([0, 255])));
+    expect(handle.session.state.files['src/main.ts']).toBe('unsaved draft');
+    expect(handle.session.isModified('src/main.ts')).toBe(true);
+    await handle.session.save();
+    expect(desktopFiles.save).not.toHaveBeenCalled();
+  });
+
+  it('复制当前文件包含当前缓冲，取消没有成功提示，保存错误保留草稿', async () => {
+    const { host, handle, desktopFiles } = desktopFixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'edited');
+    desktopFiles.save.mockResolvedValueOnce(null);
+    await run(host, 'desktop-export-file');
+    await vi.waitFor(() =>
+      expect(desktopFiles.save).toHaveBeenCalledWith('main.ts', new TextEncoder().encode('edited'))
+    );
+    expect(host.textContent).not.toContain('已复制到桌面');
+    desktopFiles.save.mockRejectedValueOnce(new Error('desktop full'));
+    await run(host, 'desktop-export-file');
+    await vi.waitFor(() => expect(host.querySelector('[data-log="problems"]')?.textContent).toContain('desktop full'));
+    expect(handle.session.state.files['src/main.ts']).toBe('edited');
+    expect(handle.session.state.dirty).toBe(true);
+  });
+
+  it('重名、目录冲突和存储错误都不覆盖已有文件', async () => {
+    const { host, handle, desktopFiles, backend } = desktopFixture();
+    await handle.ready;
+    desktopFiles.open.mockResolvedValueOnce({ name: 'src', bytes: new Uint8Array([1]) });
+    await run(host, 'desktop-import-file');
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-log="problems"]')?.textContent).toContain('File blocks directory')
+    );
+    expect(backend.save).not.toHaveBeenCalled();
+    desktopFiles.open.mockResolvedValueOnce({ name: 'new.txt', bytes: new TextEncoder().encode('new') });
+    vi.mocked(backend.save).mockRejectedValueOnce(new Error('write failed'));
+    await run(host, 'desktop-import-file');
+    await vi.waitFor(() => expect(host.querySelector('[data-log="problems"]')?.textContent).toContain('write failed'));
+    expect(handle.session.state.files['new.txt']).toBeUndefined();
+    expect(handle.session.state.files['src/main.ts']).toBe(files['src/main.ts']);
+  });
+
+  it('取消选择、关闭后的迟到选择不创建副本', async () => {
+    const { host, handle, desktopFiles, backend } = desktopFixture();
+    await handle.ready;
+    desktopFiles.open.mockResolvedValueOnce(null);
+    await run(host, 'desktop-import-file');
+    await vi.waitFor(() => expect(desktopFiles.open).toHaveBeenCalledOnce());
+    expect(backend.save).not.toHaveBeenCalled();
+    let finish!: (value: { name: string; bytes: Uint8Array }) => void;
+    desktopFiles.open.mockReturnValueOnce(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    await run(host, 'desktop-import-file');
+    await vi.waitFor(() => expect(desktopFiles.open).toHaveBeenCalledTimes(2));
+    handle.dispose();
+    finish({ name: 'late.txt', bytes: new Uint8Array([1]) });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(backend.save).not.toHaveBeenCalled();
+  });
+
+  it('无项目时保留项目导入入口，坏包在写入仓库之前拒绝', async () => {
+    const { host, handle, desktopFiles, backend } = desktopFixture(false);
+    await handle.ready;
+    const menu = await openTitleMenu(host);
+    expect(menuItem(menu, 'desktop-import-file').disabled).toBe(true);
+    expect(menuItem(menu, 'desktop-import-project').disabled).toBe(false);
+    desktopFiles.open.mockResolvedValueOnce({ name: 'bad.zip', bytes: new Uint8Array([0, 255]) });
+    menuItem(menu, 'desktop-import-project').click();
+    await vi.waitFor(() => expect(desktopFiles.open).toHaveBeenCalledWith(['.zip']));
+    await vi.waitFor(() => expect(host.querySelector('[data-log="problems"]')?.textContent).toContain('Archive'));
+    expect(backend.importArchive).not.toHaveBeenCalled();
+    expect(handle.session.state.projectId).toBeNull();
   });
 });

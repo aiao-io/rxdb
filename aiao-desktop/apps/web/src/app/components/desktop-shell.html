@@ -8,6 +8,29 @@
   <app-lock-screen></app-lock-screen>
   <app-boot-screen></app-boot-screen>
   <app-data-problem></app-data-problem>
+  @if (replaced()) {
+    <aside
+      data-data-replaced
+      role="alert"
+      style="
+        position: fixed;
+        top: 40px;
+        right: 16px;
+        z-index: 9000;
+        max-width: 340px;
+        background: var(--win);
+        color: var(--txt);
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: 0 4px 24px #0004;
+      "
+    >
+      <b>Desktop data was restored in another tab.</b>
+      <p>Open documents remain here. Copy any unsaved text before reloading; this tab can no longer save changes.</p>
+      <button class="btn" (click)="reloadRestored()">Reload restored desktop</button>
+    </aside>
+  }
   <div id="toast" [class.on]="toast.visible()" aria-atomic="true" aria-live="polite" role="status">
     {{ toast.message() }}
   </div>

@@ -15,9 +15,9 @@ const VERSION = /^\d+:\d+$/;
 
 /**
  * 文件能力与桌面的打开 / 保存面板（ADESK-US-206 阶段 D，AC#12、#16、#17）：用替身应用顶替 Aiao Code，
- * 在正式构建上操作真实的面板与虚拟磁盘。Aiao Code 的清单保持最小化，成功路径靠改写本上下文里加载的主脚本授予
+ * 在正式构建上操作真实的面板与虚拟磁盘。Aiao Code 按 US-208 已声明文件复制；本组仍显式改写当前上下文的清单，授予
  * `filesystem:read` / `filesystem:write`（见 `harness/capabilities.mjs`，改写不到唯一一处就直接抛错）；未声明时的拒绝在
- * `host-capabilities` 组里用没改写的构建验证。
+ * `host-capabilities` 组里用显式收窄授权的上下文验证。
  *
  * **关于 AC#17 迟到消息的诚实说明**：Orbit 实例销毁即关端口、移除 iframe，旧实例的迟到消息物理上到不了宿主，所以这里只验证
  * 不变量——面板随窗口关闭、请求以 `WINDOW_CLOSED` 结束（关闭动画的 200 毫秒里实例还活着，替身把结果转告桌面页）、磁盘不变，

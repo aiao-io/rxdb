@@ -132,6 +132,7 @@ export interface FakeDatabase {
 export class FakeDesktopData {
   private readonly tables = new Map<EntityKey, FakeRepository>();
   readonly storage = new FakeStorage();
+  readonly locationGuard = { assertCurrent: vi.fn<() => void>() };
   readonly database: FakeDatabase = { storage: this.storage };
   /** 默认立即就绪；用例想模拟连不上库时换成一个会拒绝的 Promise。 */
   ready: Promise<FakeDatabase> = Promise.resolve(this.database);

@@ -2,8 +2,10 @@ import { createOrbit } from '@aiao/orbit';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovedRelease, catalogManifest } from '../data/approved-catalog';
 import { configureServices } from '../testing/angular';
 import { testApps } from '../testing/desktop-apps';
+import { ApplicationRegistry } from './application-registry';
 import { DESKTOP_APPS, DesktopAppRegistry } from './desktop-apps';
 import { OrbitHost } from './orbit-host';
 
@@ -65,5 +67,59 @@ describe('OrbitHost', () => {
     expect(dispose).not.toHaveBeenCalled();
     TestBed.resetTestingModule();
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+});
+
+const approved: ApprovedRelease = {
+  id: 'catalog:editor',
+  name: 'Approved Editor',
+  bundleId: 'io.example.editor',
+  version: '1.0.0',
+  url: 'https://apps.example/releases/1.0.0/editor/',
+  summary: 'Edit text.',
+  capabilities: ['window'],
+  allow: [],
+  readyTimeout: 10000
+};
+
+describe('批准应用的 Orbit 授权', () => {
+  it('未安装或已换版本的清单不能创建运行内核', () => {
+    const { host } = setup();
+    expect(() => host.connect(catalogManifest(approved))).toThrow('installed');
+    TestBed.inject(ApplicationRegistry).replace([approved]);
+    expect(() => host.connect(catalogManifest({ ...approved, version: '2.0.0' }))).toThrow('installed');
+    expect(createOrbit).toHaveBeenCalledTimes(1);
+  });
+
+  it('每个可选应用只信任自身精确来源，关闭时只释放自己的内核', () => {
+    const { host } = setup(withWebApp('https://preinstalled.example/editor'));
+    TestBed.inject(ApplicationRegistry).replace([approved]);
+    const connection = host.connect(catalogManifest(approved));
+    expect(createOrbit).toHaveBeenLastCalledWith(expect.objectContaining({ allowedOrigins: ['https://apps.example'] }));
+    connection.dispose();
+    connection.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('跨页更新和卸载立即撤回旧内核，不重建未改变版本的运行实例', () => {
+    const { host } = setup();
+    const registry = TestBed.inject(ApplicationRegistry);
+    registry.replace([approved]);
+    const connection = host.connect(catalogManifest(approved));
+    TestBed.tick();
+    registry.replace([{ ...approved }]);
+    TestBed.tick();
+    expect(dispose).not.toHaveBeenCalled();
+    registry.replace([{ ...approved, version: '2.0.0', url: 'https://apps.example/releases/2.0.0/editor/' }]);
+    TestBed.tick();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    connection.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    const current = registry.apps()['catalog:editor'];
+    if (current.kind !== 'web') throw new Error('expected a web application');
+    host.connect(current);
+    registry.replace([]);
+    TestBed.tick();
+    expect(dispose).toHaveBeenCalledTimes(2);
   });
 });

@@ -12,10 +12,13 @@ import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
 import { AppNotifications } from '../services/app-notifications';
 import { ApplicationCatalog } from '../services/application-catalog';
+import { ApplicationRegistry } from '../services/application-registry';
 import { ApplicationRuntime } from '../services/application-runtime';
+import { ApplicationTransitions } from '../services/application-transitions';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
+import { DesktopBackup } from '../services/desktop-backup';
 import { DesktopItems } from '../services/desktop-items';
 import { DesktopMenus } from '../services/desktop-menus';
 import { DockDragController } from '../services/dock-drag';
@@ -24,9 +27,11 @@ import { DockState } from '../services/dock-state';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
+import { InstalledApplications } from '../services/installed-applications';
 import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
+import { RuntimeActivity } from '../services/runtime-activity';
 import { Session } from '../services/session';
 import { SystemSettingsStore } from '../services/system-settings';
 import { SystemState } from '../services/system-state';
@@ -51,6 +56,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
   providers: [
     { provide: DESKTOP_APPS, useFactory: desktopAppRegistry },
     DesktopData,
+    DesktopBackup,
     Preferences,
     SystemState,
     SystemSettingsStore,
@@ -66,7 +72,11 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     Overlays,
     AppLauncher,
     Session,
+    RuntimeActivity,
     WallpaperService,
+    ApplicationRegistry,
+    InstalledApplications,
+    ApplicationTransitions,
     ApplicationCatalog,
     ApplicationRuntime,
     FileSystem,
@@ -106,6 +116,8 @@ export class DesktopPage {
   private readonly popover = inject(PopoverService);
   private readonly overlays = inject(Overlays);
   private readonly wallpaper = inject(WallpaperService);
+  private readonly backup = inject(DesktopBackup);
+  private readonly toast = inject(Toast);
 
   protected readonly wm = inject(WindowManager);
   protected readonly layout = inject(WindowLayoutStore);
@@ -115,7 +127,14 @@ export class DesktopPage {
     this.wallpaper.set(this.system.wallpaper());
     /* 设置存在本地库里：库就绪后恢复上次的外观、壁纸、Dock 等，之后的改动自动写回。 */
     inject(SystemSettingsStore);
-    afterNextRender(() => void this.startWindows());
+    afterNextRender(() => {
+      void this.startWindows();
+      void this.backup
+        .cleanupInterruptedRestore()
+        .catch((error: unknown) =>
+          this.toast.show(`Restore cleanup failed: ${error instanceof Error ? error.message : String(error)}`)
+        );
+    });
     /* 电量缓慢下降，桌面永远不会完全静止。 */
     const drift = setInterval(() => this.driftBattery(), 42000);
     inject(DestroyRef).onDestroy(() => clearInterval(drift));

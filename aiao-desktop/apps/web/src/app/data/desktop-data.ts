@@ -2,14 +2,17 @@ import { EntityType, IRepository, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Service, inject, signal } from '@angular/core';
 
-import { DESKTOP_ADAPTER, FILES_ROOT, schemaGuardOf, tabSyncOf } from './desktop-database';
+import { DESKTOP_ADAPTER, locationGuardOf, schemaGuardOf, tabSyncOf } from './desktop-database';
+import { beginDesktopErase, browserEraseHost, pendingEraseGeneration, resumeDesktopErase } from './desktop-erase';
+import { DATA_WRITE_LOCK } from './desktop-location-guard';
+import { RESTORE_LOCK } from './desktop-restore';
 import { DESKTOP_ENTITIES } from './entities';
 import { DesktopSchemaStaleError } from './schema-guard';
 import { adapterInspector, probeSchema } from './schema-probe';
 import { DESKTOP_SCHEMA_VERSION, SCHEMA_RECORD_KEY, SchemaPlan, planSchema, runUpgrade } from './schema-version';
 import { DataDomain, DataSeed, domainOf } from './seeds';
 import { SystemPreference } from './system-preference.entity';
-import { STARTUP_LOCK, TabSync, seedLock } from './tab-sync';
+import { DISK_LOCK, STARTUP_LOCK, TabSync, seedLock } from './tab-sync';
 
 export type DataState = 'connecting' | 'ready' | 'failed';
 
@@ -84,6 +87,7 @@ export class DesktopData {
   readonly ready: Promise<RxDB>;
   /** 跨标签页协调：独占锁与变更广播（ADESK-US-105）。 */
   readonly tabs: TabSync = tabSyncOf(this.rxdb);
+  readonly locationGuard = locationGuardOf(this.rxdb);
 
   get database(): RxDB {
     return this.rxdb;
@@ -164,13 +168,26 @@ export class DesktopData {
    * 这是不能打开的库（损坏、没有迁移路径）的恢复入口，由用户在阻断界面里明确选择，不会自动发生。
    */
   async eraseLocalData(): Promise<void> {
-    const adapter = await this.sqliteAdapter();
-    try {
+    await this.eraseExclusive(async () => {
+      const generation = [...crypto.getRandomValues(new Uint8Array(6))]
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      beginDesktopErase(localStorage, generation);
+      const adapter = await this.sqliteAdapter();
       await adapter.disconnect();
-    } finally {
-      await adapter.dropStorage();
-      await removeDirectory(FILES_ROOT);
-    }
+      await resumeDesktopErase(localStorage, browserEraseHost());
+    });
+  }
+
+  private eraseExclusive<T>(task: () => Promise<T>): Promise<T> {
+    return this.tabs.exclusive(
+      () =>
+        this.tabs.exclusive(
+          () => this.tabs.exclusive(() => this.tabs.exclusive(task, DATA_WRITE_LOCK), DISK_LOCK),
+          STARTUP_LOCK
+        ),
+      RESTORE_LOCK
+    );
   }
 
   private async sqliteAdapter(): Promise<RxDBAdapterSqlite> {
@@ -189,11 +206,14 @@ export class DesktopData {
    * 启动：连接、探测、建表、升级。两个标签页同时打开桌面时，OPFS 上的库文件被两条连接同时初始化、同时建表与升级
    * 会互相撞上（实测同时刷新两个标签页，约三十分之一出现「找不到文件或目录」而打不开库），所以整段放进启动锁，一个接一个来。
    */
-  private start(): Promise<RxDB> {
+  private async start(): Promise<RxDB> {
+    if (pendingEraseGeneration(localStorage) !== null)
+      await this.eraseExclusive(() => resumeDesktopErase(localStorage, browserEraseHost()));
     return this.tabs.exclusive(() => this.open(), STARTUP_LOCK);
   }
 
   private async open(): Promise<RxDB> {
+    this.locationGuard.assertCurrent();
     const adapter = await this.sqliteAdapter();
     await adapter.connect();
     const inspector = adapterInspector(adapter);
@@ -259,9 +279,3 @@ export class DesktopData {
 }
 
 /** 删掉 OPFS 根目录下的一个目录（不存在时什么也不做）。 */
-async function removeDirectory(name: string): Promise<void> {
-  const root = await navigator.storage.getDirectory();
-  await root.removeEntry(name, { recursive: true }).catch((error: unknown) => {
-    if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error;
-  });
-}

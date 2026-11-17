@@ -12,7 +12,7 @@ export interface WindowManagerStub {
   readonly zoomFront: Mock;
   readonly quitFront: Mock;
   readonly closeFront: Mock;
-  readonly closeAll: Mock;
+  readonly closeAll: Mock<() => boolean | Promise<boolean>>;
   readonly hideOthers: Mock;
   readonly showAll: Mock;
   readonly cycle: Mock;
@@ -34,7 +34,7 @@ export function createWindowManagerStub(): WindowManagerStub {
     zoomFront: vi.fn(),
     quitFront: vi.fn(),
     closeFront: vi.fn(),
-    closeAll: vi.fn(),
+    closeAll: vi.fn(() => true),
     hideOthers: vi.fn(),
     showAll: vi.fn(),
     cycle: vi.fn(),

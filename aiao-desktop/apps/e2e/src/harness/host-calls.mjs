@@ -159,7 +159,9 @@ export async function diskText(session, name) {
   if (!row?.blob) return undefined;
   return session.page.evaluate(async path => {
     const root = await navigator.storage.getDirectory();
-    const dir = await (await root.getDirectoryHandle('aiao-desktop-files')).getDirectoryHandle('blobs');
+    const selected = JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? 'null');
+    const filesRoot = `aiao-desktop-files${selected?.active ? `-${selected.active}` : ''}`;
+    const dir = await (await root.getDirectoryHandle(filesRoot)).getDirectoryHandle('blobs');
     return (await (await dir.getFileHandle(path.replace(/^blobs\//, ''))).getFile()).text();
   }, row.blob);
 }

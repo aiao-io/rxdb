@@ -1,11 +1,14 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * Aiao Code 在清单里的最小能力（ADESK-US-206）：窗口与剪贴板读写。成功路径的冒烟需要 notification 与 filesystem，
- * 但**不能**为了方便测试改清单——所以在测试里改写构建产物，只对本次浏览器上下文生效，清单源码不动。
- */
-export const AIAO_CODE_CAPABILITIES = Object.freeze(['window', 'clipboard:read', 'clipboard:write']);
+/** Aiao Code 当前正式清单：窗口、剪贴板和显式文件复制。测试可在独立上下文中收窄或扩展授权。 */
+export const AIAO_CODE_CAPABILITIES = Object.freeze([
+  'window',
+  'clipboard:read',
+  'clipboard:write',
+  'filesystem:read',
+  'filesystem:write'
+]);
 
 /** 产物里清单的 `capabilities` 数组字面量；压缩后引号可能是反引号、双引号或单引号。 */
 const ARRAY = /capabilities:\[([^\]]*)\]/g;

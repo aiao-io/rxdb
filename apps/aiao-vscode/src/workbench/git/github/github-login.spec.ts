@@ -60,6 +60,24 @@ describe('requestGitHubLogin', () => {
     await expect(pending).resolves.toBeUndefined();
   });
 
+  it('嵌入环境说明 OAuth 限制，同时保留 PAT 登录', async () => {
+    const pending = requestGitHubLogin(host, { auth, oauthUnavailable: '桌面窗口暂不支持 OAuth，请使用 PAT' });
+    await flush();
+    expect(dialog().textContent).toContain('桌面窗口暂不支持 OAuth');
+    const oauth = [...dialog().querySelectorAll('button')].find(
+      button => button.textContent === '使用 GitHub 账号登录'
+    )!;
+    expect(oauth.disabled).toBe(true);
+    oauth.click();
+    expect(auth.beginOAuth).not.toHaveBeenCalled();
+    dialog().querySelector<HTMLInputElement>('input')!.value = 'ghp_abc';
+    [...dialog().querySelectorAll('button')].find(button => button.textContent === '登录')!.click();
+    await flush();
+    expect(auth.loginWithPat).toHaveBeenCalledWith('ghp_abc');
+    [...dialog().querySelectorAll('button')].find(button => button.textContent === '关闭')!.click();
+    await pending;
+  });
+
   it('shows login failures inside the dialog', async () => {
     auth.loginWithPat.mockRejectedValueOnce(Object.assign(new Error('登录凭据无效'), { code: 'auth_invalid' }));
     void requestGitHubLogin(host, { auth });

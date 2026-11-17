@@ -17,7 +17,7 @@ const PNG =
 /**
  * 通知、剪贴板与未授权的写入（ADESK-US-206 阶段 D，AC#11）：用替身应用顶替 Aiao Code。
  *
- * - **没改写的构建**（Aiao Code 的最小清单：window 与剪贴板读写）：未声明的 notification、filesystem 与 appearance 写入被稳定拒绝，
+ * - **显式收窄授权的上下文**（只保留 window 与剪贴板读写）：未声明的 notification、filesystem 与 appearance 写入被稳定拒绝，
  *   窗口里有一句可见原因；WebKit 的宿主读取在入口禁用并持续说明原因，其余引擎的读取由浏览器权限决定（不授权时 `BROWSER_PERMISSION_DENIED`，Playwright 的 `grantPermissions`
  *   之后读到系统剪贴板的内容），写入要求用户手势：点一下应用的 iframe 之后写成功，空闲 5 秒以上（用户激活过期）再写被拒绝，宿主不替用户写。
  * - **改写清单的构建**（见 `harness/capabilities.mjs`）：通知出现在通知中心、归属调用方、同一应用的去重键覆盖旧条目、频率上限、
@@ -112,11 +112,12 @@ export const hostCapabilities = {
     const waitCount = async wanted =>
       (await until(page, async () => (await centre.count()) === wanted, 3_000)) === true;
 
+    await grantCapabilities(session, ['window', 'clipboard:read', 'clipboard:write']);
     await session.openDesktop();
     await closeAll();
     await openAiaoCode();
 
-    /* ───── 没改写的构建：Aiao Code 的最小清单。未声明的能力稳定被拒绝，窗口里有一句可见原因 ───── */
+    /* ───── 显式收窄授权：只保留窗口与剪贴板。未声明的能力稳定被拒绝，窗口里有一句可见原因 ───── */
     const themeBefore = await theme();
     const denied = result =>
       result.ok === false && result.code === 'CAPABILITY_DENIED' && result.name === 'DesktopError';

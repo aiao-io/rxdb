@@ -1,12 +1,18 @@
 import { a11y } from './a11y.mjs';
+import { aiaoCodeFiles } from './aiao-code-files.mjs';
 import { appLifecycle } from './app-lifecycle.mjs';
 import { applicationsProtection } from './applications-protection.mjs';
 import { applicationsUpgrade } from './applications-upgrade.mjs';
 import { applications } from './applications.mjs';
+import { approvedCatalog } from './approved-catalog.mjs';
 import { apps } from './apps.mjs';
+import { backupStorage } from './backup-storage.mjs';
+import { contentActions } from './content-actions.mjs';
 import { diskTerminal } from './disk-terminal.mjs';
 import { dock } from './dock.mjs';
+import { documentWorkflow } from './document-workflow.mjs';
 import { externalContent } from './external-content.mjs';
+import { fileManagement } from './file-management.mjs';
 import { fixtures } from './fixtures.mjs';
 import { game } from './game.mjs';
 import { hostCapabilities } from './host-capabilities.mjs';
@@ -16,10 +22,14 @@ import { lazyLoading } from './lazy-loading.mjs';
 import { multiTabStartup } from './multi-tab-startup.mjs';
 import { multiTab } from './multi-tab.mjs';
 import { narrowScreen } from './narrow-screen.mjs';
+import { offlineResources } from './offline-resources.mjs';
 import { persistence } from './persistence.mjs';
 import { pwa } from './pwa.mjs';
+import { reminderDrafts } from './reminder-drafts.mjs';
+import { runtimeActivity } from './runtime-activity.mjs';
 import { shellInteraction } from './shell-interaction.mjs';
 import { shell } from './shell.mjs';
+import { storageFaults } from './storage-faults.mjs';
 import { terminalPackages } from './terminal-packages.mjs';
 import { terminalRuntimes } from './terminal-runtimes.mjs';
 import { transparentWindow } from './transparent-window.mjs';
@@ -36,6 +46,16 @@ import { windowLayout } from './window-layout.mjs';
  * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session, server) }`，登记在这里；server 可用于同源切换构建产物。
  */
 export const GROUPS = [
+  { ...reminderDrafts, weight: 35 },
+  { ...contentActions, engines: ['chromium'], weight: 25 },
+  { ...aiaoCodeFiles, default: false, engines: ['chromium'], exclusive: true, weight: 80 },
+  { ...offlineResources, weight: 35 },
+  { ...runtimeActivity, weight: 30 },
+  { ...approvedCatalog, weight: 60 },
+  { ...storageFaults, weight: 80 },
+  { ...backupStorage, weight: 40 },
+  { ...fileManagement, weight: 35 },
+  { ...documentWorkflow, weight: 30 },
   { ...shell, weight: 20 },
   { ...shellInteraction, weight: 40 },
   { ...diskTerminal, weight: 30 },

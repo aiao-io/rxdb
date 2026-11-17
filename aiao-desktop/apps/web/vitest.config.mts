@@ -32,10 +32,14 @@ export default defineConfig({
       reportsDirectory: '../../../coverage/aiao-desktop/apps/web',
       reporter: ['text', 'json-summary'],
       // 非界面代码；Angular 组件与模板（components、apps、pages、shared）由冒烟覆盖，不在统计范围内。
-      include: ['src/app/{services,disk,vm,data}/**/*.ts'],
+      include: [
+        'src/app/{services,disk,vm,data}/**/*.ts',
+        'src/app/apps/textedit/text-document.ts',
+        'src/app/apps/reminders/reminder-drafts.ts'
+      ],
       /*
        * 范围内放不进 80% 的胶水文件，一条一个文件、一个理由；不得整目录排除，新增排除项必须在这里写明理由。
-       * 排除项当前只有两处，都是只能在真实浏览器里运行的路径，由冒烟覆盖。
+       * 排除项当前只有三处，都是只能在真实浏览器里运行的路径，由冒烟覆盖。
        */
       exclude: [
         'src/**/*.spec.ts',
@@ -47,7 +51,10 @@ export default defineConfig({
         'src/app/services/photo-encoder.ts',
         // sqlite-wasm.worker.ts：专用 Worker 的入口，只有一行 expose(new SqliteClient())；
         // OPFS 上的 SQLite 只能在 Worker 里打开，Node 单测无法加载，由冒烟里真实的桌面启动覆盖。
-        'src/app/data/sqlite-wasm.worker.ts'
+        'src/app/data/sqlite-wasm.worker.ts',
+        // desktop-restore.worker.ts：独立 realm 内实际恢复、探测 SQLite 并写入 OPFS。
+        // 由正式构建的 backup-storage 组验证完整文件往返，平台备份套件验证各阶段强杀、损坏与清理重试。
+        'src/app/data/desktop-restore.worker.ts'
       ],
       thresholds: { perFile: true, lines: 80, statements: 80 }
     }

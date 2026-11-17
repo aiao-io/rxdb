@@ -8,8 +8,9 @@ import {
   signal,
   viewChild
 } from '@angular/core';
+import { ApplicationRegistry } from '../services/application-registry';
 
-import { DESKTOP_APPS, LAUNCH_ORDER } from '../services/desktop-apps';
+import { LAUNCH_ORDER } from '../services/desktop-apps';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
@@ -41,7 +42,7 @@ export class OverlayLayer {
   private readonly genie = viewChild<ElementRef<HTMLElement>>('genie');
   protected readonly overlays = inject(Overlays);
   protected readonly popover = inject(PopoverService);
-  protected readonly apps = inject(DESKTOP_APPS);
+  protected readonly apps = inject(ApplicationRegistry).apps;
 
   /** 用遮罩而不是给壁纸加 filter：带 filter 的元素会让背景模糊面板漏掉桌面图标。 */
   protected readonly dim = computed(() => ((1 - this.system.brightness()) * 0.78).toFixed(3));

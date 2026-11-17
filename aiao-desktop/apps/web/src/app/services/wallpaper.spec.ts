@@ -1,4 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FakeDom, configureServices } from '../testing/angular';
@@ -89,11 +92,38 @@ afterEach(() => {
 });
 
 describe('壁纸表', () => {
+  it('十二份本地图像与来源摘要一致，均列入安装预缓存', () => {
+    const root = resolve(import.meta.dirname, '../../../public');
+    const manifest = JSON.parse(readFileSync(resolve(root, 'wallpapers/sources.json'), 'utf8')) as {
+      assets: { file: string; source: string; sha256: string; bytes: number }[];
+    };
+    expect(manifest.assets).toHaveLength(12);
+    for (const key of WALLPAPER_KEYS) {
+      for (const file of [WALLPAPERS[key].url, wallpaperThumb(WALLPAPERS[key])]) {
+        expect(file).toMatch(/^wallpapers\/[a-z-]+\.jpg$/);
+        const entry = manifest.assets.find(item => `wallpapers/${item.file}` === file);
+        expect(entry).toBeDefined();
+        const bytes = readFileSync(resolve(root, file));
+        expect(bytes.length).toBe(entry!.bytes);
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(entry!.sha256);
+        expect(entry!.source).toMatch(/^https:\/\/images\.unsplash\.com\/photo-/);
+      }
+    }
+    const config = JSON.parse(readFileSync(resolve(root, '../ngsw-config.json'), 'utf8')) as {
+      assetGroups: { name: string; installMode: string; resources: { files: string[] } }[];
+    };
+    expect(config.assetGroups).toContainEqual(
+      expect.objectContaining({
+        name: 'wallpapers',
+        installMode: 'prefetch',
+        resources: { files: ['/wallpapers/**'] }
+      })
+    );
+  });
   it('六张壁纸，缩略图用同一张图的小尺寸版本', () => {
     expect(WALLPAPER_KEYS).toEqual(['tahoe', 'ridges', 'summit', 'valley', 'forest', 'night']);
-    expect(wallpaperThumb(WALLPAPERS.tahoe)).toContain('w=640');
-    expect(wallpaperThumb(WALLPAPERS.tahoe)).not.toContain('w=3200');
-    expect(wallpaperThumb(WALLPAPERS.tahoe, 320)).toContain('w=320');
+    expect(wallpaperThumb(WALLPAPERS.tahoe)).toBe('wallpapers/tahoe-thumb.jpg');
+    expect(WALLPAPERS.tahoe.url).toBe('wallpapers/tahoe.jpg');
   });
 });
 

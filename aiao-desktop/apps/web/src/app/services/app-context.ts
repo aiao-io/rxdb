@@ -26,6 +26,7 @@ import {
 } from '@aiao/orbit/desktop';
 import type { OrbitDragRegion } from '@aiao/orbit/window';
 import { Injector, Service, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
 
 import { mimeTypeOf } from '../disk/disk-kinds';
 import type { DiskPath } from '../disk/disk-path';
@@ -33,7 +34,7 @@ import { AppContextFiles, FileStamp, appFilesOver, parseVersion, versionOf } fro
 import { AppNotifications, NotificationContent, NotificationPost, NotificationSource } from './app-notifications';
 import { AppCapabilityRestriction, appCapabilitySupport } from './browser-app-support';
 import { AppContextClipboard, browserClipboard } from './browser-clipboard';
-import { DESKTOP_APPS, DesktopAppId, DesktopAppRegistry } from './desktop-apps';
+import { DesktopAppId, DesktopAppRegistry } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { FilePanelRequest, FilePanelResult, FilePanelTicket, FilePanels } from './file-panels';
 import { FileSystem } from './file-system';
@@ -679,7 +680,7 @@ export interface BindOptions {
  */
 @Service({ autoProvided: false })
 export class DesktopAppContexts {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly windows = inject(WindowManager);
   private readonly system = inject(SystemState);
   private readonly theme = inject(ThemeService);
@@ -693,10 +694,13 @@ export class DesktopAppContexts {
 
   /** 为窗口当前的实例创建上下文。 */
   bind(win: DesktopWindow, options: BindOptions = {}): DesktopAppContext {
+    const apps = this.apps;
     const context = new DesktopAppContext({
       win,
       ...appCapabilitySupport(win.app),
-      apps: this.apps,
+      get apps() {
+        return apps();
+      },
       windows: this.windows,
       system: this.system,
       theme: this.theme,

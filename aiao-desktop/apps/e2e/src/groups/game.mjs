@@ -1,3 +1,5 @@
+import { checkGameLifecycle } from '../harness/game-lifecycle.mjs';
+
 /**
  * 几猫3A大作（ADESK-US-103）：随桌面发布的单文件游戏，在同源 iframe 里运行。无头 Chromium 只有软件 WebGL，
  * 真游戏开着时整页每秒约一帧，所以窗口这一侧用替身页顶替 /saltline.html，最后单独启动一次真游戏。
@@ -19,7 +21,11 @@ export const game = {
     'game.closeRemovesFrame',
     'game.reopensFresh',
     'game.spotlightLists',
-    'game.realGameBoots'
+    'game.realGameBoots',
+    'game.minimizedLoopStops',
+    'game.restoreKeepsGame',
+    'game.lockedLoopStops',
+    'game.sleepLoopStops'
   ],
   async run(session) {
     const { page, game: gameControl } = session;
@@ -152,6 +158,7 @@ export const game = {
       realGame.errors === 0 &&
       realGame.isolated === true &&
       realGame.screen === 'title';
+    Object.assign(game, await checkGameLifecycle(page, { synthetic: true }));
     await closeAll();
     gameControl.enabled = true;
 

@@ -23,11 +23,12 @@ export const upgradePrevious = {
   description:
     '真实的上一版产物建库 → 同一来源切到当前产物打开（需要 AIAO_DESKTOP_PREVIOUS_DIST 或 AIAO_DESKTOP_PREVIOUS_URL）',
   keys: [
-    'upgradePrevious.previousBuildWritesNoRecord',
+    'upgradePrevious.previousBuildHasOlderSchema',
     'upgradePrevious.originStaysTheSame',
     'upgradePrevious.dataSurvivesUpgrade',
     'upgradePrevious.fileBodySurvivesUpgrade',
-    'upgradePrevious.versionRecordWritten'
+    'upgradePrevious.versionRecordWritten',
+    'upgradePrevious.invalidTrashMetadataRejected'
   ],
   async run(session) {
     const previous = previousBuildSource(process.env);
@@ -79,10 +80,25 @@ export const upgradePrevious = {
       const recordAfter = await after.rows(
         `SELECT "value" FROM "desktop$system_preference" WHERE "key" = 'schema:desktop'`
       );
+      const columns = await after.rows('PRAGMA table_info("desktop$desktop_file")');
+      const invalidTrashMetadataRejected =
+        columns.some(row => row[1] === 'original_path') &&
+        (await after
+          .execute('UPDATE "desktop$desktop_file" SET "original_path" = ? WHERE "name" = ?', [
+            'broken-json',
+            'upgrade-user.txt'
+          ])
+          .then(
+            () => false,
+            () => true
+          ));
       await after.close();
       return {
         upgradePrevious: {
-          previousBuildWritesNoRecord: recordBefore.length === 0,
+          invalidTrashMetadataRejected,
+          previousBuildHasOlderSchema:
+            recordBefore.length === 0 ||
+            (recordBefore.length === 1 && JSON.parse(recordBefore[0][0]).version < schemaVersionOf(current)),
           originStaysTheSame: new URL(page.url()).origin === origin,
           dataSurvivesUpgrade: userDataIntact(kept),
           fileBodySurvivesUpgrade: upgradedBody === fileBody,

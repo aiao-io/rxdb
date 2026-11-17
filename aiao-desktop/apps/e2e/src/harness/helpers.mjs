@@ -20,6 +20,10 @@ export function createHelpers(page) {
       if ((await close.count()) === 0) return;
       await close.first().dispatchEvent('click');
       await page.waitForTimeout(240);
+      const discard = page
+        .getByRole('alertdialog', { name: 'Save changes before closing?' })
+        .getByRole('button', { name: 'Don’t Save', exact: true });
+      if (await discard.isVisible()) await discard.click();
     }
   };
 

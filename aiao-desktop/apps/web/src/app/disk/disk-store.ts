@@ -5,6 +5,8 @@ export type DiskEntryKind = 'file' | 'directory';
 export interface DiskEntry {
   readonly name: string;
   readonly kind: DiskEntryKind;
+  /** 废纸篓条目移入前的位置；旧条目没有此信息。 */
+  readonly originalPath?: DiskPath;
 }
 
 export interface DiskFileInfo {

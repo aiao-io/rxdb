@@ -1,0 +1,7 @@
+{
+  "source": "2a3e46183 + A01 working tree before A02",
+  "desktopSchema": 2026111301,
+  "dist": "/tmp/aiao-pre-file-management-2026111301",
+  "indexSha256": "12bee8a8dcf498371c0cd945cea61e07f9a48512a76826f56d87c3ea8e2a1ea7",
+  "note": "构建在改动文件管理和 schema 前保留；未作为线上发布。"
+}

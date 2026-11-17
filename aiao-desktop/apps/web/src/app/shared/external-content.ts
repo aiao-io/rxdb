@@ -67,14 +67,6 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
     apps: ['Every app']
   },
   {
-    host: 'images.unsplash.com',
-    purpose: 'Wallpaper photographs, and the thumbnails in System Settings ▸ Wallpaper.',
-    sends: 'Which photo and what size, as part of the address (for example w=3200).',
-    trigger: 'on-open',
-    when: 'Loads the wallpaper you picked when the desktop opens, and again when you switch wallpaper.',
-    apps: ['Desktop', 'System Settings']
-  },
-  {
     host: 'api.open-meteo.com',
     purpose: 'Current conditions and the seven-day forecast in the Weather widget and the Weather app.',
     sends:

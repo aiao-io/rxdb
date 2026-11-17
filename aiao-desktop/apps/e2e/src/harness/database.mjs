@@ -5,18 +5,17 @@ export const PREFERENCES = 'desktop$system_preference';
 export const SCHEMA_KEY = 'schema:desktop';
 
 /**
- * 构建里的 schema 版本：产物脚本里唯一的、形如 `YYYYMMDDNN` 的十位数字字面量（`DESKTOP_SCHEMA_VERSION`）。
+ * 构建里的 schema 版本：产物脚本里最大的、形如 `YYYYMMDDNN` 的十位数字字面量（`DESKTOP_SCHEMA_VERSION`）。
  * e2e 不 import web 的源码（D-02），所以从产物里读（应用按需加载后它不一定在主包里，所以扫全部脚本）；
- * 字面量不唯一说明常量的写法变了，直接报错。
+ * 升级清单保留旧版本，最大值是当前版本；版本清单单测保证它与当前常量一致。
  *
  * @param {string} distRoot web 的构建产物目录
  */
 export function schemaVersionOf(distRoot) {
   const pattern = /\b20(?:2[4-9]|3\d)(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{2}\b/g;
   const versions = new Set(scriptsOf(distRoot).flatMap(({ source }) => source.match(pattern) ?? []));
-  if (versions.size !== 1)
-    throw new Error(`主包里应该恰有一个 schema 版本字面量，找到：${[...versions].join('、') || '没有'}`);
-  return Number([...versions][0]);
+  if (!versions.size) throw new Error('构建产物里没有 schema 版本字面量');
+  return Math.max(...[...versions].map(Number));
 }
 
 const quote = name => `"${name.replaceAll('"', '""')}"`;

@@ -176,3 +176,19 @@ describe('runUpgrade：迁移在前，版本记录最后写', () => {
     expect(calls).toEqual(['record:22@3']);
   });
 });
+
+describe('废纸篓原位置字段迁移', () => {
+  it('旧库在同一升级事务内加列，首次新库已有列时不重复添加', async () => {
+    const migrate = SCHEMA_STEPS.find(step => step.version === 2026111701)?.migrate;
+    expect(migrate).toBeDefined();
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({ columns: ['cid', 'name'], rows: [[0, 'id']] })
+      .mockResolvedValue({ rows: [], columns: [] });
+    await migrate?.({ execute });
+    expect(execute).toHaveBeenCalledWith('ALTER TABLE "desktop$desktop_file" ADD COLUMN "original_path" TEXT');
+    execute.mockReset().mockResolvedValue({ columns: ['cid', 'name'], rows: [[0, 'original_path']] });
+    await migrate?.({ execute });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+});

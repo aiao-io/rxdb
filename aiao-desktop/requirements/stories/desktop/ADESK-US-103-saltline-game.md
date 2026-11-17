@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-17
 tags: [desktop, builtin-app, game, iframe]
 dependsOn: [ADESK-US-101]
 capabilities: []
@@ -18,6 +18,8 @@ capabilities: []
 **作为** 在桌面里歇一会儿的人
 **我想要** 从启动台或聚焦搜索打开「几猫3A大作」（随桌面一起发布的单文件 3D 射击游戏），在桌面的窗口里玩
 **以便** 不离开桌面就能玩，游戏随桌面一起发布、一起更新。
+
+2026-11-17 增量说明：本故事保留 2026-11-13 的范围与历史验收。当前游戏已按 [US-112](ADESK-US-112-runtime-activity.md) 加入最小化、锁屏、睡眠及页隐藏暂停；下文“原样发布”“最小化循环继续”描述原基线，不是当前能力。GPU 整组复验未通过，见 US-112 的环境限制。
 
 ## 范围边界
 

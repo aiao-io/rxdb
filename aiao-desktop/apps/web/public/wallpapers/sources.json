@@ -1,0 +1,117 @@
+{
+  "format": "aiao-desktop.wallpaper-sources",
+  "version": 1,
+  "retrievedAt": "2026-11-17T04:36:01.469321+00:00",
+  "license": "https://unsplash.com/license",
+  "purpose": "Local distribution of the six existing desktop wallpaper choices. No new photographs or renamed choices.",
+  "assets": [
+    {
+      "file": "tahoe.jpg",
+      "name": "Alpine Lake",
+      "source": "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "05986bb43c856c634254bbb5d142982d29f42eba63f0617ed7265b192ddae5ac",
+      "bytes": 1814526,
+      "widthRequested": 3200
+    },
+    {
+      "file": "tahoe-thumb.jpg",
+      "name": "Alpine Lake",
+      "source": "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "4798ea4aad8ca2e7faaee1e3c318de22b7da21efa254af28a3d73048a849a650",
+      "bytes": 88003,
+      "widthRequested": 640
+    },
+    {
+      "file": "ridges.jpg",
+      "name": "Blue Ridges",
+      "source": "https://images.unsplash.com/photo-1490604001847-b712b0c2f967?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1490604001847-b712b0c2f967?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "1ac9ac751087eb22889079aee44ab9a43a79926c2c601c815908456f6c1f8a64",
+      "bytes": 497282,
+      "widthRequested": 3200
+    },
+    {
+      "file": "ridges-thumb.jpg",
+      "name": "Blue Ridges",
+      "source": "https://images.unsplash.com/photo-1490604001847-b712b0c2f967?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1490604001847-b712b0c2f967?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "9b9b406712a88506a5acb9ede2a70ef47b6f78ed53ec786ae1d9c73621c47565",
+      "bytes": 30161,
+      "widthRequested": 640
+    },
+    {
+      "file": "summit.jpg",
+      "name": "Above Clouds",
+      "source": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "5d35c9d67c655be155d5d3100a4c68ef896ed1a7a909016afe88085781a71df5",
+      "bytes": 936622,
+      "widthRequested": 3200
+    },
+    {
+      "file": "summit-thumb.jpg",
+      "name": "Above Clouds",
+      "source": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "071d31031428174be87b65b3021186ec82903b13998df0f6c985c5f13df8ada7",
+      "bytes": 51295,
+      "widthRequested": 640
+    },
+    {
+      "file": "valley.jpg",
+      "name": "Glacier Bay",
+      "source": "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "965d0e8310189314c1244135f37089b23e25d3b61d1c4ea39a38a3c771ea30a7",
+      "bytes": 709884,
+      "widthRequested": 3200
+    },
+    {
+      "file": "valley-thumb.jpg",
+      "name": "Glacier Bay",
+      "source": "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "ce1a557d0454dbad499fa90bdfe0c00ce77b4f6a8483952eef6593d0c3010246",
+      "bytes": 50617,
+      "widthRequested": 640
+    },
+    {
+      "file": "forest.jpg",
+      "name": "Redwoods",
+      "source": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "28c279293f2a3574659743052b20bc8316c28c46ba64311ccf950e30e0c01ea9",
+      "bytes": 1896280,
+      "widthRequested": 3200
+    },
+    {
+      "file": "forest-thumb.jpg",
+      "name": "Redwoods",
+      "source": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "52aa7839db026cbb809924993ad98eae6add7459cf3a6f9b0846ba572fd072bb",
+      "bytes": 104837,
+      "widthRequested": 640
+    },
+    {
+      "file": "night.jpg",
+      "name": "Night Sky",
+      "source": "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=3200&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "effbd1c479aba3a1d436e2103368aba2ba03cda78f0a7d03addc195f3bf39aa8",
+      "bytes": 1495348,
+      "widthRequested": 3200
+    },
+    {
+      "file": "night-thumb.jpg",
+      "name": "Night Sky",
+      "source": "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=640&fm=jpg&fit=crop",
+      "previousRuntimeSource": "https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=3200&auto=format&fit=crop",
+      "sha256": "24073500f48237a522b4eb22db7e7134045b0578a181798c7a4e36a39a53f212",
+      "bytes": 73078,
+      "widthRequested": 640
+    }
+  ]
+}

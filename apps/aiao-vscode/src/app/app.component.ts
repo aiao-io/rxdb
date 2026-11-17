@@ -1,5 +1,6 @@
 import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import { CodeEditor } from '@aiao/code-editor-angular';
+import { getDesktop } from '@aiao/orbit/desktop';
 import { getCurrentWindow } from '@aiao/orbit/window';
 import { RxDB } from '@aiao/rxdb';
 import { isPlatformBrowser } from '@angular/common';
@@ -22,6 +23,7 @@ import { EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
 import { RUNTIME_HOSTS, runtimeHostsFor } from '../runtime-hosts/hosts.js';
+import { createDesktopFiles } from '../workbench/desktop-files.js';
 import { mountSwitchableEditor } from '../workbench/editor-switcher.js';
 import type { WorkbenchEditorMount } from '../workbench/editor.js';
 import { createGitBackend } from '../workbench/git-backend.js';
@@ -273,12 +275,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (this.destroyed) return;
     /* Aiao Desktop 批准了透明窗口（US-411）：标题栏自绘红黄绿按钮，桌面不再画自己的标题栏。 */
     const appWindow = this.orbit && getCurrentWindow(this.orbit);
+    const desktop = this.orbit && getDesktop(this.orbit);
     const hostWindow = appWindow?.state.frame === 'transparent' ? appWindow : undefined;
     this.workbench = mountWorkbench(
       this.host.nativeElement,
       {
         ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
         ...(hostWindow ? { hostWindow } : {}),
+        ...(desktop ? { desktopFiles: createDesktopFiles(desktop) } : {}),
+        embedded: !!this.orbit,
         runtimeHosts: runtimeHostsFor(RUNTIME_HOSTS, location.origin),
         backend: createRouterBackend({
           local: createGitBackend('/browser-workbench-assets/'),

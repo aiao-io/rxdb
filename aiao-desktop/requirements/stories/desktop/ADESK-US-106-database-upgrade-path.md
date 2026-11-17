@@ -93,3 +93,7 @@ capabilities: []
 
 - [ADESK-US-102 本地数据与真实磁盘](ADESK-US-102-local-data-and-real-disk.md)
 - [D-07 系统数据存在本地 SQLite](../../decisions.md#d-07系统数据存在本地-sqlite)
+
+## 2026-11-17 升级起点补充
+
+`2026111301` → `2026111701`：增加废纸篓原位置字段，现有文件、应用数据、偏好和正文保留。真实旧产物来自 `2a3e46183` 加 ADESK-US-109 工作区，保存路径与 index 摘要见[旧构建标识](../../evidence/2026-11-17/finder-previous-artifact.json)；同源切换六项验证、降级保护与四轮启动中断证据见[本轮台账](../../evidence/2026-11-17/README.md#a02-finder-文件管理adesk-us-110)。本次尚未发布。

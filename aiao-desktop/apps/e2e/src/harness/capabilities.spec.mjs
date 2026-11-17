@@ -39,6 +39,6 @@ test('匹配到多处就抛错，并报出每一处在哪个文件', () => {
 test('匹配到的不是 Aiao Code 当前的最小清单（清单已经被改过、或是别的应用的清单）就抛错', () => {
   const widened = manifest('`').replace('`clipboard:write`', '`clipboard:write`,`notification`');
   assert.throws(() => rewriteCapabilities([script('main-X.js', widened)], FULL), /不是 Aiao Code 的最小清单/);
-  const other = `notes:{id:\`notes\`,name:\`Notes\`,capabilities:[\`window\`,\`clipboard:read\`,\`clipboard:write\`]}`;
+  const other = manifest('`').replaceAll('vscode', 'notes').replace('Aiao Code', 'Notes');
   assert.throws(() => rewriteCapabilities([script('main-X.js', other)], FULL), /前面看不到 Aiao Code 的登记/);
 });

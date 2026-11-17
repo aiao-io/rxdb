@@ -1,9 +1,10 @@
 import { Service, inject } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
 
 import { extensionOf, isPackageName, isTextName } from '../disk/disk-kinds';
 import { AppLauncher } from './app-launcher';
 import { ApplicationCatalog } from './application-catalog';
-import { DESKTOP_APPS, DesktopAppId } from './desktop-apps';
+import { DesktopAppId } from './desktop-apps';
 import { FileSystem, FsNode } from './file-system';
 import { Toast } from './toast';
 import { WindowManager } from './window-manager';
@@ -19,12 +20,20 @@ const MUSIC = new Set(['mp3', 'wav']);
  */
 @Service({ autoProvided: false })
 export class FileOpener {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly wm = inject(WindowManager);
   private readonly fs = inject(FileSystem);
   private readonly toast = inject(Toast);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly launcher = inject(AppLauncher);
+
+  /** 只显示已实现文档传入的应用，避免启动成功却丢掉所选文件。 */
+  choices(node: FsNode): readonly { readonly id: DesktopAppId; readonly name: string }[] {
+    if (node.kind !== 'file' || isPackageName(node.name)) return [];
+    if (isTextName(node.name)) return [{ id: 'textedit', name: 'TextEdit' }];
+    if (PREVIEW.has(extensionOf(node.name))) return [{ id: 'preview', name: 'Preview' }];
+    return [];
+  }
 
   open(node: FsNode): void {
     if (isPackageName(node.name)) {
@@ -44,7 +53,7 @@ export class FileOpener {
    * 返回是否找到了这个应用；终端的 `open -a` / `-b` 在虚拟机里已经把名字或包标识解析成了 id。
    */
   openApp(id: string, node: FsNode | null): boolean {
-    if (!(id in this.apps) || this.apps[id as DesktopAppId].kind === 'system') {
+    if (!(id in this.apps()) || this.apps()[id as DesktopAppId].kind === 'system') {
       this.toast.show(`Unable to find application “${id}”`);
       return false;
     }

@@ -1,9 +1,10 @@
 import { DestroyRef, InjectionToken, Service, effect, inject, signal, untracked } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
 
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
-import { DESKTOP_APPS, DesktopOpenOptions } from './desktop-apps';
+import { DesktopOpenOptions } from './desktop-apps';
 import { FileSystem } from './file-system';
 import { Session } from './session';
 import { Toast } from './toast';
@@ -102,7 +103,7 @@ export class WindowLayoutStore {
   private readonly fs = inject(FileSystem);
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly pause = inject(RESTORE_YIELD);
   /** 等桌面看得见了再弹的提示（开机画面和登录界面盖着时弹了也看不到）。 */
   private readonly notice = signal<string | null>(null);
@@ -156,7 +157,7 @@ export class WindowLayoutStore {
     }
     await this.fs.whenReady();
     const stored = this.preferences.get(key, present);
-    const parsed = parseLayout(stored, this.apps);
+    const parsed = parseLayout(stored, this.apps());
     const planned = this.plan(parsed.windows);
     const skipped = [...parsed.skipped, ...planned.missing];
     this.notice.set(parsed.unreadable ? UNREADABLE_NOTICE : describeSkipped(skipped));

@@ -9,45 +9,52 @@ export interface WallpaperInfo {
   /** 取样前的菜单栏墨色；取样结果通常就是它，所以加载时菜单栏不会闪。 */
   readonly ink: 'dark' | 'light';
   readonly url: string;
+  readonly thumbnail: string;
 }
 
 export const WALLPAPERS: Readonly<Record<WallpaperKey, WallpaperInfo>> = {
   tahoe: {
     name: 'Alpine Lake',
     ink: 'dark',
-    url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/tahoe.jpg',
+    thumbnail: 'wallpapers/tahoe-thumb.jpg'
   },
   ridges: {
     name: 'Blue Ridges',
     ink: 'dark',
-    url: 'https://images.unsplash.com/photo-1490604001847-b712b0c2f967?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/ridges.jpg',
+    thumbnail: 'wallpapers/ridges-thumb.jpg'
   },
   summit: {
     name: 'Above Clouds',
     ink: 'dark',
-    url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/summit.jpg',
+    thumbnail: 'wallpapers/summit-thumb.jpg'
   },
   valley: {
     name: 'Glacier Bay',
     ink: 'dark',
-    url: 'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/valley.jpg',
+    thumbnail: 'wallpapers/valley-thumb.jpg'
   },
   forest: {
     name: 'Redwoods',
     ink: 'light',
-    url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/forest.jpg',
+    thumbnail: 'wallpapers/forest-thumb.jpg'
   },
   night: {
     name: 'Night Sky',
     ink: 'light',
-    url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=3200&auto=format&fit=crop'
+    url: 'wallpapers/night.jpg',
+    thumbnail: 'wallpapers/night-thumb.jpg'
   }
 };
 
 export const WALLPAPER_KEYS = Object.keys(WALLPAPERS) as WallpaperKey[];
 
 /** 同一张图的小尺寸版本：设置面板也用它，所以通常已在缓存里。 */
-export const wallpaperThumb = (info: WallpaperInfo, width = 640): string => info.url.replace('w=3200', `w=${width}`);
+export const wallpaperThumb = (info: WallpaperInfo): string => info.thumbnail;
 
 export interface WallpaperLayer {
   readonly id: number;

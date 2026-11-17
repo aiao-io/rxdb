@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
+import { ApprovedRelease } from '../data/approved-catalog';
+import { ApplicationRegistry } from './application-registry';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
@@ -339,4 +341,24 @@ describe('DockLayoutStore 多标签页（ADESK-US-105）', () => {
     expect(ids(store.items())).not.toContain('ghost-app');
     expect(set).toHaveBeenCalledTimes(1);
   });
+});
+
+it('卸载可选应用同步清除固定记录，重新安装不会复活旧固定项', async () => {
+  const { store, preferences, table } = setup();
+  const registry = TestBed.inject(ApplicationRegistry);
+  const release: ApprovedRelease = { id: 'catalog:editor', name: 'Approved Editor', bundleId: 'io.example.editor', version: '1.0.0', url: 'https://apps.example/releases/1.0.0/', summary: 'Edit.', capabilities: [], allow: [], readyTimeout: 10000 };
+  registry.replace([release]);
+  await preferences.ready;
+  await settle();
+  store.pin(release.id);
+  await settle();
+  expect(store.pinned(release.id)).toBe(true);
+  registry.replace([]);
+  TestBed.tick();
+  await settle();
+  expect(store.pinned(release.id)).toBe(false);
+  expect(ids((savedLayout(table) as DockLayout).items)).not.toContain(release.id);
+  registry.replace([release]);
+  TestBed.tick();
+  expect(store.pinned(release.id)).toBe(false);
 });

@@ -3,7 +3,7 @@ import type { RxdbFileStorage } from '@aiao/rxdb-plugin-storage';
 
 import { DesktopFile } from './desktop-file.entity';
 import { mimeTypeOf } from './disk-kinds';
-import { DiskPath, isWithin, parentOf } from './disk-path';
+import { DiskPath, isWithin, movedOrigin, parentOf } from './disk-path';
 import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore } from './disk-store';
 
 /** storage 插件里存放文件体的目录：文件体按随机名平铺，改名与移动只改目录树，不动 OPFS。 */
@@ -115,9 +115,11 @@ export class RxdbDiskStore implements DiskStore {
   async list(dir: DiskPath): Promise<DiskEntry[]> {
     const index = await this.loaded();
     const parentId = await this.directoryId(dir);
-    return index
-      .children(parentId)
-      .map(row => ({ name: row.name, kind: row.type === 'folder' ? 'directory' : 'file' }));
+    return index.children(parentId).map(row => ({
+      name: row.name,
+      kind: row.type === 'folder' ? 'directory' : 'file',
+      ...(row.originalPath ? { originalPath: row.originalPath } : {})
+    }));
   }
 
   async kindOf(path: DiskPath): Promise<DiskEntryKind | null> {
@@ -180,7 +182,9 @@ export class RxdbDiskStore implements DiskStore {
     if (isWithin(to, from)) throw new DiskError('EACCES', to, `“${leaf(from)}” can’t be moved into itself.`);
     const parentId = await this.ensureDirectory(parentOf(to));
     const previous = { parentId: row.parentId ?? null, name: row.name };
-    const moved = await (await this.deps.repository()).update(row, { parentId, name: leaf(to) });
+    const moved = await (
+      await this.deps.repository()
+    ).update(row, { parentId, name: leaf(to), originalPath: movedOrigin(from, to, row.originalPath) });
     index.drop(row.id, previous.parentId, previous.name);
     index.add(moved);
     this.mutations++;
@@ -197,7 +201,8 @@ export class RxdbDiskStore implements DiskStore {
     const blob = await this.deps
       .storage()
       .upload(new File([data.slice()], crypto.randomUUID(), { type: mimeType }), { path: BLOB_DIR });
-    const fields = { size: data.length, mimeType, contentId: blob.id, modifiedAt: new Date(this.deps.now()) };
+    const modified = Math.max(this.deps.now(), (existing?.modifiedAt.getTime() ?? -1) + 1);
+    const fields = { size: data.length, mimeType, contentId: blob.id, modifiedAt: new Date(modified) };
     /* RxDB 的 update 就地改实体：先记下旧文件体，更新之后 existing.contentId 已经是新的了。 */
     const previousContent = existing?.contentId;
     const repository = await this.deps.repository();

@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApprovedRelease } from '../data/approved-catalog';
 import { FakeDom, configureServices } from '../testing/angular';
 import { stubViewport } from '../testing/browser';
 import { StubApp, testApps } from '../testing/desktop-apps';
+import { ApplicationRegistry } from './application-registry';
 import { ApplicationRuntime } from './application-runtime';
 import { AppLoader, DESKTOP_APPS, DesktopAppId, DesktopAppRegistry, DesktopOpenOptions } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
@@ -876,5 +878,111 @@ describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
     wm.started = true;
     const later = open(wm, 'calculator');
     expect(later.quiet).toBe(false);
+  });
+});
+
+describe('WindowManager 未保存内容关闭协商', () => {
+  it('取消关闭保留窗口、实例和焦点，批准之后才开始关闭动画', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    win.confirmClose = vi.fn(async () => false);
+    wm.close(win.id);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(wm.get(win.id)).toBe(win);
+    expect(win.closing()).toBe(false);
+    expect(wm.focused()).toBe(win);
+    win.confirmClose = vi.fn(async () => true);
+    wm.close(win.id);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(wm.get(win.id)).toBeUndefined();
+  });
+
+  it('退出应用先协商所有窗口，其中一个取消时任何窗口都不销毁', async () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'notes', 2);
+    first.confirmClose = vi.fn(async () => true);
+    second.confirmClose = vi.fn(async () => false);
+    wm.quitApp('notes');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(wm.byApp('notes')).toEqual([first, second]);
+    expect(first.closing()).toBe(false);
+    expect(second.closing()).toBe(false);
+    expect(first.closePending()).toBe(false);
+  });
+
+  it('相同窗口重复关闭不重复协商，批准时只销毁一次', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    let approve!: (value: boolean) => void;
+    win.confirmClose = vi.fn(() => new Promise<boolean>(resolve => (approve = resolve)));
+    wm.close(win.id);
+    wm.close(win.id);
+    expect(win.confirmClose).toHaveBeenCalledTimes(1);
+    expect(win.closePending()).toBe(true);
+    approve(true);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(wm.get(win.id)).toBeUndefined();
+  });
+
+  it('保存错误取消整批关闭并显示原因，随后允许重试', async () => {
+    const { wm, toast } = setup();
+    const win = open(wm, 'notes');
+    const show = vi.spyOn(toast, 'show');
+    win.confirmClose = vi.fn(async () => {
+      throw new Error('storage full');
+    });
+    expect(await wm.closeAll()).toBe(false);
+    expect(win.closing()).toBe(false);
+    expect(win.closePending()).toBe(false);
+    expect(show).toHaveBeenCalledWith(expect.stringContaining('storage full'));
+    win.confirmClose = vi.fn(async () => true);
+    expect(await wm.closeAll()).toBe(true);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(wm.windows()).toEqual([]);
+  });
+});
+
+describe('可选应用变更撤回窗口', () => {
+  it('未改变版本保留实例；跨页更新与卸载触发 beforeClose 并关闭旧窗', () => {
+    const { wm } = setup();
+    const registry = TestBed.inject(ApplicationRegistry);
+    const release: ApprovedRelease = {
+      id: 'catalog:editor',
+      name: 'Approved Editor',
+      bundleId: 'io.example.editor',
+      version: '1.0.0',
+      url: 'https://apps.example/releases/1.0.0/editor/',
+      summary: 'Edit.',
+      capabilities: ['window'],
+      allow: [],
+      readyTimeout: 10000
+    };
+    registry.replace([release]);
+    const first = open(wm, release.id, { force: true });
+    const revoked = vi.fn();
+    first.beforeClose.subscribe(revoked);
+    registry.replace([{ ...release }]);
+    TestBed.tick();
+    expect(first.closing()).toBe(false);
+    registry.replace([{ ...release, version: '2.0.0', url: 'https://apps.example/releases/2.0.0/editor/' }]);
+    TestBed.tick();
+    expect(revoked).toHaveBeenCalledOnce();
+    expect(first.closing()).toBe(true);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.get(first.id)).toBeUndefined();
+    const next = open(wm, release.id, { force: true });
+    registry.replace([]);
+    TestBed.tick();
+    expect(next.closing()).toBe(true);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.open(release.id)).toBeNull();
+  });
+
+  it('按应用关闭先协商，拒绝时保留窗口和旧会话', async () => {
+    const { wm } = setup();
+    const first = open(wm, 'notes');
+    first.confirmClose = async () => false;
+    expect(await wm.closeApp('notes')).toBe(false);
+    expect(first.closing()).toBe(false);
   });
 });

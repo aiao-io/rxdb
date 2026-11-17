@@ -27,6 +27,15 @@ export const isWithin = (path: DiskPath, dir: DiskPath): boolean =>
 
 export const samePath = (a: DiskPath, b: DiskPath): boolean => a.length === b.length && isWithin(a, b);
 
+const HOME_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public', '.Trash'];
+
+/** 系统管理的根目录和标准主目录不能被移动、删除或作为批次清理目标。 */
+export const isRequiredDiskPath = (path: DiskPath): boolean =>
+  path.length <= 1 ||
+  path[0] === 'System' ||
+  samePath(path, HOME) ||
+  (path.length === HOME.length + 1 && isWithin(path, HOME) && HOME_FOLDERS.includes(path[HOME.length]));
+
 /** 卷内路径对应的 Finder 路径：`['Macintosh HD', …]`，废纸篓里的条目以 `Trash` 开头。 */
 export function finderPathOf(path: DiskPath): readonly string[] {
   if (isWithin(path, TRASH)) return [TRASH_PLACE, ...path.slice(TRASH.length)];
@@ -49,4 +58,10 @@ export function uniqueName(existing: readonly string[], name: string): string {
   let index = 2;
   while (taken.has(`${stem} ${index}${extension}`)) index++;
   return `${stem} ${index}${extension}`;
+}
+
+/** 移进废纸篓时记录原路径，在篓内改名保留，移出时清除。 */
+export function movedOrigin(from: DiskPath, to: DiskPath, original?: DiskPath | null): DiskPath | null {
+  if (!isWithin(to, TRASH)) return null;
+  return isWithin(from, TRASH) ? (original ?? null) : [...from];
 }

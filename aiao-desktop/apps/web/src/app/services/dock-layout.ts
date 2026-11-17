@@ -1,9 +1,11 @@
-import { Service, computed, inject, signal } from '@angular/core';
+import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
+import { ApplicationRegistry } from './application-registry';
+import { InstalledApplications } from './installed-applications';
 
 import { Preferences } from '../data/preferences';
-import { DESKTOP_APPS, DesktopAppId } from './desktop-apps';
+import { DesktopAppId } from './desktop-apps';
 import {
   DockLayout,
   canUnpin,
@@ -38,19 +40,31 @@ const present = (value: unknown): value is StoredJson => value !== undefined;
  */
 @Service({ autoProvided: false })
 export class DockLayoutStore {
-  private readonly manifests = inject(DESKTOP_APPS);
+  private readonly installed = inject(InstalledApplications);
+  private readonly manifests = inject(ApplicationRegistry).apps;
   private readonly preferences = inject(Preferences);
   private readonly toast = inject(Toast);
-  private readonly layoutState = signal<DockLayout>(defaultLayout(this.manifests));
+  private readonly layoutState = signal<DockLayout>(defaultLayout(this.manifests()));
   /** 库读完之前用户做的改动；读完后在已存的布局上依次重放。读完（`null`）之后直接落库。 */
   private pending: LayoutChange[] | null = [];
 
-  readonly layout = this.layoutState.asReadonly();
+  readonly layout = computed(() => repairLayout(this.layoutState(), this.manifests()));
   /** 当前布局的有序项：固定应用与分隔线。 */
-  readonly items = computed(() => this.layoutState().items);
+  readonly items = computed(() => this.layout().items);
 
   constructor() {
-    this.preferences.ready.then(
+    effect(() => {
+      const manifests = this.manifests();
+      untracked(() => {
+        if (this.pending) return;
+        const current = this.layoutState();
+        const next = repairLayout(current, manifests);
+        if (sameLayout(current, next)) return;
+        this.layoutState.set(next);
+        this.save(next);
+      });
+    });
+    Promise.all([this.preferences.ready, this.installed.ready]).then(
       () => this.restore(),
       () => undefined
     );
@@ -59,37 +73,37 @@ export class DockLayoutStore {
         filter(keys => keys.includes(DOCK_LAYOUT_KEY)),
         takeUntilDestroyed()
       )
-      .subscribe(() => this.adoptRemote());
+      .subscribe(() => void this.installed.reload().then(() => this.adoptRemote()));
   }
 
   /** 应用是否已固定在 Dock 里（读取信号，模板与 `computed` 里随布局更新）。 */
   pinned(appId: DesktopAppId): boolean {
-    return isPinned(this.layoutState(), appId);
+    return isPinned(this.layout(), appId);
   }
 
   /** 能不能固定到 Dock（有 `.app` 身份，或本来就是 Dock 的系统入口）。 */
   pinnable(appId: DesktopAppId): boolean {
-    return isPinnable(this.manifests, appId);
+    return isPinnable(this.manifests(), appId);
   }
 
   /** 已固定、且清单允许移除；系统入口与 Finder 不能。 */
   canUnpin(appId: DesktopAppId): boolean {
-    return canUnpin(this.layoutState(), appId, this.manifests);
+    return canUnpin(this.layout(), appId, this.manifests());
   }
 
   /** 固定一个应用，`index` 不给就放在应用区末尾；返回布局有没有变化（已固定或不能固定时没有）。 */
   pin(appId: DesktopAppId, index?: number): boolean {
-    return this.change(layout => pin(layout, appId, index, this.manifests));
+    return this.change(layout => pin(layout, appId, index, this.manifests()));
   }
 
   /** 取消固定（应用本体不受影响）；不可移除的固定项被拒绝，返回 false。 */
   unpin(appId: DesktopAppId): boolean {
-    return this.change(layout => unpin(layout, appId, this.manifests));
+    return this.change(layout => unpin(layout, appId, this.manifests()));
   }
 
   /** 调整固定应用的顺序，`index` 是取出该应用之后的插入位置。 */
   move(appId: DesktopAppId, index: number): boolean {
-    return this.change(layout => move(layout, appId, index, this.manifests));
+    return this.change(layout => move(layout, appId, index, this.manifests()));
   }
 
   /**
@@ -132,12 +146,12 @@ export class DockLayoutStore {
 
   private restore(): void {
     const stored = this.preferences.get(DOCK_LAYOUT_KEY, present);
-    const base = repairLayout(stored, this.manifests);
+    const base = repairLayout(stored, this.manifests());
     const layout = (this.pending ?? []).reduce((current, update) => update(current), base);
     this.pending = null;
     this.layoutState.set(layout);
     /* 没存过布局时，与默认布局一致就不必写库；存过的内容与最终布局不一致（被修复，或有读完之前的改动）就写回。 */
-    const baseline = stored === undefined ? defaultLayout(this.manifests) : stored;
+    const baseline = stored === undefined ? defaultLayout(this.manifests()) : stored;
     if (!sameLayout(baseline, layout)) this.save(layout);
   }
 
@@ -148,7 +162,7 @@ export class DockLayoutStore {
   private adoptRemote(): void {
     if (this.pending) return;
     const stored = this.preferences.get(DOCK_LAYOUT_KEY, present);
-    const layout = repairLayout(stored, this.manifests);
+    const layout = repairLayout(stored, this.manifests());
     this.layoutState.set(layout);
     if (stored !== undefined && !sameLayout(stored, layout)) this.save(layout);
   }

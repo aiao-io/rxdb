@@ -1,11 +1,29 @@
-import { DestroyRef, EnvironmentInjector, ErrorHandler, Service, computed, inject, signal } from '@angular/core';
+import {
+  DestroyRef,
+  EnvironmentInjector,
+  ErrorHandler,
+  Service,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, auditTime } from 'rxjs';
 
+import { ApprovedRelease } from '../data/approved-catalog';
 import { DesktopData, keyIs } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
+import {
+  APPLICATION_JOURNAL_KEY,
+  ApplicationJournal,
+  prepareApplicationChange,
+  recoverApplicationChange
+} from '../disk/application-journal';
 import { DesktopFile } from '../disk/desktop-file.entity';
+import { DiskBatchJournal, DiskBatchRecord, recoverDiskBatch } from '../disk/disk-batch';
 import {
   DESKTOP,
   DISK_ROOTS,
@@ -14,7 +32,9 @@ import {
   TRASH,
   VOLUME_NAME,
   finderPathOf,
+  isRequiredDiskPath,
   isWithin,
+  parentOf,
   samePath,
   uniqueName
 } from '../disk/disk-path';
@@ -22,9 +42,18 @@ import { buildSeed, writeSeed } from '../disk/disk-seed';
 import { DiskError, DiskStore } from '../disk/disk-store';
 import { FileRow, FsNode, buildTree, emptyVolume, nodeAt as findNode, searchNodes } from '../disk/disk-tree';
 import { DiskMarker, DiskSeeder, DiskVolume, eraseVolume, openVolume } from '../disk/disk-volume';
+import {
+  ImportedFile,
+  duplicateEntry,
+  importFiles as importEntries,
+  renameEntry,
+  restoreEntry
+} from '../disk/file-operations';
 import { ProtectedDiskStore } from '../disk/protected-store';
 import { BLOB_DIR, RxdbDiskStore } from '../disk/rxdb-disk-store';
 import { ApplicationCatalog } from './application-catalog';
+import { ApplicationRegistry } from './application-registry';
+import { InstalledApplications } from './installed-applications';
 import { photoEncoder } from './photo-encoder';
 
 export type { FsNode } from '../disk/disk-tree';
@@ -60,16 +89,6 @@ const RECENT_SEED: readonly DiskPath[] = [
 ];
 const RECENTS_KEY = 'finder:recents';
 const DISK_MARKER_KEY = 'seed:disk';
-
-/** 主目录里 macOS 不允许移走的文件夹。 */
-const HOME_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public', '.Trash'];
-
-/** 卷根、顶层目录、主目录与其中的标准文件夹，以及 System 里的一切，都由「系统」管理。 */
-const isRequired = (path: DiskPath): boolean =>
-  path.length <= 1 ||
-  path[0] === 'System' ||
-  samePath(path, HOME) ||
-  (path.length === HOME.length + 1 && isWithin(path, HOME) && HOME_FOLDERS.includes(path[HOME.length]));
 
 /** 卷根与 System 里不能新建东西；保存面板也据此禁用这些位置。 */
 export const isLocked = (dir: DiskPath): boolean => dir.length === 0 || dir[0] === 'System';
@@ -107,6 +126,8 @@ export const describeDiskError = (error: unknown): string => (error instanceof E
  */
 @Service({ autoProvided: false })
 export class FileSystem {
+  private readonly installed = inject(InstalledApplications);
+  private readonly registry = inject(ApplicationRegistry);
   private readonly data = inject(DesktopData);
   private readonly preferences = inject(Preferences);
   private readonly injector = inject(EnvironmentInjector);
@@ -123,6 +144,7 @@ export class FileSystem {
   private queue: Promise<unknown> = Promise.resolve();
   /** 活查询发出过多少次结果；回到前台重读目录树时，靠它判断读的期间有没有更新的结果到达。 */
   private treeSeq = 0;
+  private applicationSignature = '';
   private readonly mounted: Promise<void>;
 
   readonly root = this.rootState.asReadonly();
@@ -135,6 +157,13 @@ export class FileSystem {
 
   constructor() {
     this.mounted = this.mount();
+    effect(() => {
+      this.registry.apps();
+      untracked(() => {
+        if (this.stateValue() === 'ready')
+          void this.exclusive(async () => undefined).catch((error: unknown) => this.fail(error));
+      });
+    });
     const tabs = this.data.tabs;
     /* 别的标签页写了磁盘：下一次磁盘操作之前重读内存索引。回到前台：整树重读，索引同样重读。 */
     tabs
@@ -206,7 +235,7 @@ export class FileSystem {
   /** 移进 `~/.Trash`，重名时追加序号。 */
   async moveToTrash(path: DiskPath): Promise<void> {
     const name = path.at(-1) ?? VOLUME_NAME;
-    if (isRequired(path))
+    if (isRequiredDiskPath(path))
       throw new DiskError(
         'EACCES',
         path,
@@ -239,6 +268,39 @@ export class FileSystem {
       return to;
     });
     this.changes.next([path, target]);
+  }
+
+  /** Finder 改名：系统目录与预装应用的保护同样适用。 */
+  async rename(path: DiskPath, name: string): Promise<DiskPath> {
+    if (isRequiredDiskPath(path))
+      throw new DiskError('EACCES', path, 'This item is required by the system and cannot be renamed.');
+    const target = await this.exclusive(store => renameEntry(store, path, name));
+    this.changes.next([path, target]);
+    return target;
+  }
+
+  async duplicate(path: DiskPath): Promise<DiskPath> {
+    this.requireWritable(parentOf(path));
+    const target = await this.exclusive(store => duplicateEntry(store, path, this.batchJournal()));
+    this.changes.next([target]);
+    return target;
+  }
+
+  async importFiles(dir: DiskPath, files: readonly ImportedFile[]): Promise<DiskPath[]> {
+    this.requireWritable(dir);
+    const targets = await this.exclusive(store => importEntries(store, dir, files, this.batchJournal()));
+    this.changes.next(targets);
+    return targets;
+  }
+
+  async restore(path: DiskPath, dir?: DiskPath): Promise<DiskPath> {
+    const target = await this.exclusive(async store => {
+      const original = (await store.list(TRASH)).find(entry => entry.name === path.at(-1))?.originalPath;
+      if (dir ?? original) this.requireWritable(dir ?? parentOf(original!));
+      return restoreEntry(store, path, dir);
+    });
+    this.changes.next([path, target]);
+    return target;
   }
 
   async emptyTrash(): Promise<void> {
@@ -290,6 +352,33 @@ export class FileSystem {
     this.changes.next([path]);
   }
 
+  /** 投影日志先落库，再提交安装状态；中断后按已提交状态恢复系统文件。 */
+  async projectApplications(releases: readonly ApprovedRelease[], commit: () => Promise<void>): Promise<void> {
+    await this.exclusive(async () => {
+      const before = this.registry.apps();
+      const after = this.registry.definitionsFor(releases);
+      const store = this.mountedRawStore();
+      const journal = this.applicationJournal();
+      await prepareApplicationChange(store, journal, before, after);
+      try {
+        await this.catalog.reconcile(store, after);
+        await commit();
+        await journal.clear();
+      } catch (error) {
+        try {
+          await this.reconcileCurrent(store);
+        } catch (cleanup) {
+          throw new AggregateError(
+            [error, cleanup],
+            'Application files need recovery. Reload the desktop before retrying.',
+            { cause: cleanup }
+          );
+        }
+        throw error;
+      }
+    });
+  }
+
   /** 抹掉整块磁盘并恢复内置内容（磁盘工具的「抹掉」）。 */
   async erase(): Promise<void> {
     await this.exclusive(async () => {
@@ -305,8 +394,13 @@ export class FileSystem {
     return this.exclusive(task);
   }
 
+  private requireWritable(dir: DiskPath): void {
+    if (isLocked(dir)) throw new DiskError('EACCES', dir, 'You do not have permission to change this folder.');
+  }
+
   private async mount(): Promise<void> {
     try {
+      await this.installed.ready;
       const database = await this.data.ready;
       const store = new RxdbDiskStore({
         repository: () => this.data.repository(DesktopFile),
@@ -322,9 +416,10 @@ export class FileSystem {
        */
       this.marker = await this.data.tabs.exclusive(async () => {
         await store.refresh();
+        await recoverDiskBatch(new ProtectedDiskStore(store, () => this.catalog.ownedPackages()), this.batchJournal());
         const marker = await openVolume(volume, this.seeder(), Date.now);
         /* 应用清单是唯一真相源：首次建库、升级旧库与每次启动都走这条幂等对账，补齐缺的预装包（D-17）。 */
-        await this.catalog.reconcile(store);
+        await this.reconcileCurrent(store);
         return marker;
       });
       if (store.revision > 0) this.data.tabs.notify('disk');
@@ -412,6 +507,42 @@ export class FileSystem {
     };
   }
 
+  private batchJournal(): DiskBatchJournal {
+    return this.operationJournal<DiskBatchRecord>('disk:pending-batch');
+  }
+
+  private applicationJournal(): ApplicationJournal {
+    return this.operationJournal(APPLICATION_JOURNAL_KEY);
+  }
+
+  private operationJournal<T>(key: string) {
+    const row = async () =>
+      (await (await this.data.repository(SystemPreference)).find({ where: keyIs(key), limit: 1 }))[0];
+    return {
+      read: async () => (await row())?.value ?? null,
+      write: async (value: T) => {
+        if (await row()) throw new Error('A previous file operation still needs recovery.');
+        await (
+          await this.data.repository(SystemPreference)
+        ).create(this.data.instantiate(SystemPreference, { key, value }));
+      },
+      clear: async () => {
+        const record = await row();
+        if (record) await (await this.data.repository(SystemPreference)).remove(record);
+      }
+    };
+  }
+
+  private async reconcileCurrent(store: DiskStore): Promise<void> {
+    const releases = await this.installed.reload();
+    const manifests = this.registry.definitionsFor(releases);
+    const recovered = await recoverApplicationChange(store, this.applicationJournal(), manifests);
+    const signature = JSON.stringify(manifests);
+    if (!recovered && signature === this.applicationSignature) return;
+    await this.catalog.reconcile(store, manifests);
+    this.applicationSignature = signature;
+  }
+
   private seeder(): DiskSeeder {
     const encodeImage = photoEncoder(this.injector);
     return store => writeSeed(store, buildSeed(), encodeImage);
@@ -441,10 +572,13 @@ export class FileSystem {
     const run = this.queue.then(async () => {
       await this.mounted;
       return this.data.tabs.exclusive(async () => {
+        this.data.locationGuard.assertCurrent();
         const raw = this.mountedRawStore();
         await raw.refresh();
         const before = raw.revision;
         try {
+          await this.reconcileCurrent(raw);
+          await recoverDiskBatch(this.mountedStore(), this.batchJournal());
           return await task(this.mountedStore());
         } finally {
           if (raw.revision !== before) this.data.tabs.notify('disk');

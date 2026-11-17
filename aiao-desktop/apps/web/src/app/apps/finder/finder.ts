@@ -12,7 +12,9 @@ import {
   viewChild
 } from '@angular/core';
 
-import { diskPathOf } from '../../disk/disk-path';
+import { isPackageName } from '../../disk/disk-kinds';
+import { DiskPath, TRASH, diskPathOf, isWithin, parentOf, samePath } from '../../disk/disk-path';
+import { validateImportSize } from '../../disk/file-operations';
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -28,6 +30,7 @@ import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
 import { PhotoArt } from '../../shared/photo-art';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
 import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
 import {
   FinderSort,
@@ -54,7 +57,7 @@ const PREVIEW_WIDTH = 250;
  */
 @Component({
   selector: 'app-finder',
-  imports: [Icon, PhotoArt, TrafficLights],
+  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog],
   host: { style: 'display: contents' },
   templateUrl: './finder.html'
 })
@@ -75,6 +78,10 @@ export class FinderApp implements FinderCommands {
   private readonly bodyWidth = signal(0);
   /** 导航之前键盘焦点在内容区里：导航之后条目重新渲染，焦点要交还给新的 Tab 停靠点。 */
   private refocus = false;
+
+  protected readonly fileOperation = signal<FileOperationRequest | null>(null);
+  protected readonly importing = signal(false);
+  protected readonly canImport = computed(() => Boolean(diskPathOf(this.path())) && !this.query() && !this.importing());
 
   protected readonly sidebarGroups = SIDEBAR;
   protected readonly path = signal<readonly string[]>([]);
@@ -241,6 +248,18 @@ export class FinderApp implements FinderCommands {
 
   /** 内容区条目上的按键：方向键移动选择、Enter 打开、Backspace 或 ⌘↑ 上一级、Menu 键弹出菜单；`column` 是分栏视图里条目所在的栏。 */
   protected itemKey(event: KeyboardEvent, name: string, column = -1): void {
+    const node = (column < 0 ? this.items() : this.columns().chain[column]?.items)?.find(item => item.name === name);
+    if (node && event.key === 'F2') {
+      event.preventDefault();
+      this.requestFileOperation('rename', node);
+      return;
+    }
+    if (node && (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'd') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (node.path && !isWithin(node.path, TRASH)) this.duplicate(node);
+      return;
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
       this.activate(name, column);
@@ -249,7 +268,7 @@ export class FinderApp implements FinderCommands {
       this.goUp();
     } else if (isMenuKey(event)) {
       event.preventDefault();
-      this.itemMenuByKey(event.currentTarget as HTMLElement, name);
+      if (node) this.itemMenuByKey(event.currentTarget as HTMLElement, node);
     } else if (this.view() === 'column') this.moveInColumns(event, name, column);
     else this.moveInView(event, name);
   }
@@ -344,13 +363,13 @@ export class FinderApp implements FinderCommands {
     this.toast.show('Nothing to share — it is all local.');
   }
 
-  protected itemMenu(event: MouseEvent, name: string): void {
-    this.selected.set(name);
-    this.popover.contextMenu(event, this.itemMenuItems(name), name);
+  protected itemMenu(event: MouseEvent, node: FsNode): void {
+    this.selected.set(node.name);
+    this.popover.contextMenu(event, this.itemMenuItems(node), node.name);
   }
 
   protected bodyMenu(event: MouseEvent): void {
-    if ((event.target as Element).closest('.fitem,.r,.ci')) return;
+    if ((event.target as Element).closest('[role="option"]')) return;
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.newFolder() },
       { id: 'gi', label: 'Get Info' },
@@ -360,31 +379,129 @@ export class FinderApp implements FinderCommands {
     ]);
   }
 
-  private itemMenuItems(name: string): MenuEntry[] {
+  protected finishFileOperation(path: DiskPath | null): void {
+    if (path) this.selectPath(path);
+    this.refocus = this.fileOperation()?.kind !== 'open-with';
+    this.fileOperation.set(null);
+  }
+
+  protected async importSelection(input: HTMLInputElement): Promise<void> {
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    const dir = diskPathOf(this.path());
+    if (!dir || !files.length || this.importing()) return;
+    this.importing.set(true);
+    try {
+      validateImportSize(files.map(file => file.size));
+      const entries = await Promise.all(
+        files.map(async file => ({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }))
+      );
+      const paths = await this.fs.importFiles(dir, entries);
+      this.selected.set(paths.at(-1)?.at(-1) ?? null);
+      this.toast.show(`Imported ${paths.length} file${paths.length === 1 ? '' : 's'}`);
+    } catch (error) {
+      this.toast.show(describeDiskError(error));
+    } finally {
+      this.importing.set(false);
+    }
+  }
+
+  private itemMenuItems(node: FsNode): MenuEntry[] {
+    const name = node.name;
+    const inTrash = Boolean(node?.path && isWithin(node.path, TRASH));
+    const restorable = Boolean(node?.path && samePath(parentOf(node.path), TRASH));
     return [
-      { id: 'o', label: 'Open', run: () => this.enter(name) },
-      { id: 'w', label: 'Open With', key: '▸' },
+      { id: 'o', label: 'Open', run: () => this.openNode(node) },
+      {
+        id: 'w',
+        label: 'Open With…',
+        disabled: node?.kind !== 'file' || isPackageName(name),
+        run: () => this.requestFileOperation('open-with', node)
+      },
       '-',
-      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.info(name) },
-      { id: 'r', label: 'Rename' },
-      { id: 'd', label: 'Duplicate', key: '⌘D' },
+      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.info(node) },
+      { id: 'r', label: 'Rename…', run: () => this.requestFileOperation('rename', node) },
+      { id: 'd', label: 'Duplicate', key: '⌘D', disabled: inTrash, run: () => this.duplicate(node) },
+      {
+        id: 'download',
+        label: 'Download File',
+        disabled: node?.kind !== 'file' || isPackageName(name),
+        run: () => void this.download(node)
+      },
       '-',
-      { id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trashSelected() },
+      ...(inTrash ?
+        [
+          { id: 'back', label: 'Put Back', disabled: !restorable, run: () => this.restore(node) },
+          {
+            id: 'restore',
+            label: 'Restore to Folder…',
+            disabled: !restorable,
+            run: () => this.requestFileOperation('restore', node)
+          }
+        ]
+      : [{ id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trashNode(node) }]),
       '-',
-      { id: 'q', label: 'Quick Look', key: '␣', run: () => this.info(name) }
+      { id: 'q', label: 'Quick Look', key: '␣', run: () => this.info(node) }
     ];
   }
 
+  private selectPath(path: DiskPath): void {
+    this.selected.set(path.at(-1) ?? null);
+    const base = diskPathOf(this.path());
+    if (this.view() === 'column' && base && isWithin(path, base)) this.columnSelection.set(path.slice(base.length));
+  }
+
+  private requestFileOperation(kind: FileOperationRequest['kind'], node: FsNode): void {
+    if (node?.path) this.fileOperation.set({ kind, node });
+  }
+
+  private trashNode(node: FsNode): void {
+    if (!node.path) return;
+    this.selected.set(null);
+    this.fs.moveToTrash(node.path).catch((error: unknown) => this.toast.show(describeDiskError(error)));
+  }
+
+  private duplicate(node: FsNode): void {
+    if (node?.path)
+      this.fs.duplicate(node.path).then(
+        path => this.selectPath(path),
+        (error: unknown) => this.toast.show(describeDiskError(error))
+      );
+  }
+
+  private restore(node: FsNode): void {
+    if (node?.path)
+      this.fs.restore(node.path).then(
+        path => this.toast.show(`Restored to ${path.join('/')}`),
+        (error: unknown) => this.toast.show(describeDiskError(error))
+      );
+  }
+
+  private async download(node: FsNode): Promise<void> {
+    if (!node?.path) return;
+    try {
+      const bytes = await this.fs.read(node.path);
+      const url = URL.createObjectURL(new Blob([bytes.slice()], { type: 'application/octet-stream' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = node.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      this.toast.show(describeDiskError(error));
+    }
+  }
+
   /** 键盘弹出的右键菜单：贴着条目，焦点交给第一项，关闭后焦点回到条目（条目没了就回到 Tab 停靠点）。 */
-  private itemMenuByKey(anchor: HTMLElement, name: string): void {
-    this.selected.set(name);
+  private itemMenuByKey(anchor: HTMLElement, node: FsNode): void {
+    this.selected.set(node.name);
     const rect = anchor.getBoundingClientRect();
-    this.popover.openMenu(this.itemMenuItems(name), {
+    this.popover.openMenu(this.itemMenuItems(node), {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
       origin: 'top left',
       focus: true,
-      label: name,
+      label: node.name,
       onClose: reason => {
         if (!RETURNS_FOCUS.has(reason)) return;
         if (anchor.isConnected) anchor.focus();
@@ -484,9 +601,8 @@ export class FinderApp implements FinderCommands {
     this.refocus = body.contains(body.ownerDocument.activeElement);
   }
 
-  private info(name: string): void {
-    const node = this.items().find(item => item.name === name);
-    if (node) this.toast.show(`${node.name} — ${node.k}${node.size ? `, ${node.size}` : ''}`);
+  private info(node: FsNode): void {
+    this.toast.show(`${node.name} — ${node.k}${node.size ? `, ${node.size}` : ''}`);
   }
 
   private nav(path: readonly string[]): void {

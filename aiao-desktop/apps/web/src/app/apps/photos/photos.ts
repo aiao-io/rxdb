@@ -9,6 +9,7 @@ import {
   viewChild
 } from '@angular/core';
 
+import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
@@ -87,6 +88,7 @@ const bucketOf = (key: string, items: readonly PhotoAsset[], group: PhotoGroup):
 /** 照片：图库、相簿、按年月日分组、详情查看、收藏、删除，以及从维基共享资源搜图导入；图库与相簿存在本地库里。 */
 @Component({
   selector: 'app-photos',
+  providers: [ContentActions],
   imports: [Icon, PhotoSrc, TrafficLights],
   host: { style: 'display: contents', '(keydown)': 'key($event)' },
   templateUrl: './photos.html'
@@ -102,6 +104,7 @@ export class PhotosApp {
   private readonly strip = viewChild<ElementRef<HTMLElement>>('strip');
   private destroyed = false;
 
+  protected readonly actions = inject(ContentActions);
   protected readonly libraryViews = LIBRARY_VIEWS;
   protected readonly groups = GROUPS;
   protected readonly skeletons = Array.from({ length: 8 }, (_, n) => n);
@@ -298,26 +301,31 @@ export class PhotosApp {
     this.toast.show(`Added “${photo.title}” to your library`);
   }
 
-  protected share(anchor: Element): void {
+  protected share(anchor: Element, event: MouseEvent): void {
     const photo = this.current();
-    this.popover.menuUnder(anchor, [
-      { id: 'm', label: 'Mail', icon: 'g-compose', run: () => this.mail.compose(photo ? photo.title : 'Photos') },
-      { id: 'g', label: 'Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
-      '-',
-      {
-        id: 'c',
-        label: 'Copy Photo',
-        run: () => this.toast.show(photo ? `Copied “${photo.title}”` : 'Select a photo first')
-      },
-      {
-        id: 'w',
-        label: 'Open on Wikimedia Commons',
-        run: () => {
-          if (photo) this.wm.open('safari', { url: photo.thumb });
-          else this.toast.show('Select a photo first');
+    this.popover.menuUnder(
+      anchor,
+      [
+        { id: 'm', label: 'Mail', icon: 'g-compose', run: () => this.mail.compose(photo ? photo.title : 'Photos') },
+        { id: 'g', label: 'Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
+        '-',
+        {
+          id: 'c',
+          label: 'Copy Image Address',
+          disabled: !photo || this.actions.busy(),
+          run: () => photo && this.actions.copy(photo.thumb)
+        },
+        {
+          id: 'w',
+          label: 'Open on Wikimedia Commons',
+          run: () => {
+            if (photo) this.wm.open('safari', { url: photo.thumb });
+            else this.toast.show('Select a photo first');
+          }
         }
-      }
-    ]);
+      ],
+      { keyboard: event.detail === 0, label: 'photos sharing' }
+    );
   }
 
   private keyStep(event: KeyboardEvent, delta: number): void {

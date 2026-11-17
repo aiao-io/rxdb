@@ -23,6 +23,8 @@ owner: jimmy
 - [x] 开机、锁屏、睡眠、状态栏面板、控制中心与窗口拖动/缩放/全屏进冒烟验收（[ADESK-US-107](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md)）。
 - [ ] 读屏与纯键盘路径可用，无障碍树断言进冒烟（[ADESK-US-108](../stories/desktop/ADESK-US-108-accessibility.md)）。
 
+- [x] 真实运行状态与受控游戏隐藏暂停（US-112），本地壁纸与天气地图失败恢复（US-113）完成本地正式构建自动验收。
+
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
 
 ## 故事
@@ -38,6 +40,19 @@ owner: jimmy
 - [ADESK-US-107 外壳交互验收补齐](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md) (Medium)
 - [ADESK-US-108 无障碍：读屏与纯键盘路径](../stories/desktop/ADESK-US-108-accessibility.md) (Medium)
 
+- [ADESK-US-109 文档保存、冲突与未保存内容保护](../stories/desktop/ADESK-US-109-document-workflow.md) (High)
+- [ADESK-US-110 Finder 文件管理与废纸篓恢复](../stories/desktop/ADESK-US-110-file-management.md) (High)
+- [ADESK-US-111 完整备份恢复与存储健康](../stories/desktop/ADESK-US-111-backup-and-storage-health.md) (High)
+
+- [ADESK-US-112 应用运行状态与隐藏资源管理](../stories/desktop/ADESK-US-112-runtime-activity.md) (High)
+
+- [ADESK-US-113 本地壁纸与天气地图的真实网络状态](../stories/desktop/ADESK-US-113-offline-resources.md) (High)
+
+- [ADESK-US-114 内置内容复制与打印](../stories/desktop/ADESK-US-114-content-actions.md) (High)
+
+- [ADESK-US-115 提醒事项草稿与写入失败保护](../stories/desktop/ADESK-US-115-reminder-drafts.md) (High)
+
 ## 非目标
 
-- 外网内容本地化（壁纸随构建分发、无网占位）：见 [future-requirements](../future-requirements.md)，其余原候选方向已立项，见 [roadmap](../roadmap.md)。
+- 离线世界地图、离线新天气及远程第三方应用的完整离线运行，仍见 [future-requirements](../future-requirements.md)。壁纸本地化及天气地图的失败恢复已进入 US-113。
+

@@ -66,6 +66,10 @@ async function closeTextEdit(page) {
     if ((await close.count()) === 0) return;
     await close.first().dispatchEvent('click');
     await sleep(260);
+    const discard = page
+      .getByRole('alertdialog', { name: 'Save changes before closing?' })
+      .getByRole('button', { name: 'Don’t Save', exact: true });
+    if (await discard.isVisible()) await discard.click();
   }
 }
 
@@ -180,7 +184,8 @@ export const multiTab = {
   timeout: 900_000,
   keys: [
     'multiTab.sameFileSavesStaySafe',
-    'multiTab.sameFileConvergesWithoutReload',
+    'multiTab.concurrentDraftsStaySafe',
+    'multiTab.sameFileConvergesAfterExplicitReload',
     'multiTab.sameFileConsistentAfterReload',
     'multiTab.bothTerminalsStart',
     'multiTab.closingOneTerminalKeepsOther',
@@ -305,11 +310,11 @@ export const multiTab = {
       lastWriter[0][2] === 'content-2' &&
       promptsShown.length === 0;
 
-    /* AC#1：A、B 同时保存同一个文件的不同内容（多轮）：库不损坏、没有页面错误，两边无需刷新就在同步时限内一致且等于其中一份；
-       各自刷新后再打开该文件，看到同一份内容。 */
+    /* US-109：五轮同时编辑保存，只允许一个版本提交；另一方保留草稿，显式重新加载之后收敛。 */
     const errorsBefore = session.errors.length;
     let candidates = [];
     let convergedEveryRound = true;
+    let protectedEveryRound = true;
     for (let round = 1; round <= 5; round++) {
       const fromA = `A-round-${round}`;
       const fromB = `B-round-${round}`;
@@ -317,17 +322,56 @@ export const multiTab = {
       await doc(A).fill(fromA);
       await doc(B).fill(fromB);
       await Promise.all([A.keyboard.press('Meta+s'), B.keyboard.press('Meta+s')]);
+      const settled = await Promise.all(
+        [A, B].map(page =>
+          within(
+            page,
+            () => {
+              const window = document.querySelector('.win[data-app="textedit"]:not(.closing)');
+              return (
+                Boolean(window?.querySelector('.document-error')) ||
+                !window?.querySelector('[data-te-title]')?.textContent.includes('Edited')
+              );
+            },
+            undefined,
+            SYNC_LIMIT
+          )
+        )
+      );
+      const conflicts = await Promise.all(
+        [A, B].map(async page =>
+          (await page.locator('.win[data-app="textedit"]:not(.closing) .document-error').allTextContents()).some(text =>
+            text.includes('changed in another window')
+          )
+        )
+      );
+      const [a, b] = await Promise.all([docText(A), docText(B)]);
+      const stored = await filesNamed(session, A, ['prasenx.txt']);
+      protectedEveryRound &&=
+        settled.every(Boolean) &&
+        conflicts.filter(Boolean).length === 1 &&
+        a === fromA &&
+        b === fromB &&
+        stored.length === 1 &&
+        candidates.includes(stored[0][2]);
+      const loser = conflicts[0] ? A : B;
+      await loser.getByRole('button', { name: 'Reload from Disk', exact: true }).click();
+      await loser
+        .getByRole('alertdialog', { name: 'Discard changes and reload?' })
+        .getByRole('button', { name: 'Reload', exact: true })
+        .click();
       wrote = Date.now();
       let agreed = false;
       while (Date.now() - wrote < SYNC_LIMIT && !agreed) {
-        const [a, b] = await Promise.all([docText(A), docText(B)]);
-        agreed = a === b && candidates.includes(a);
+        const values = await Promise.all([docText(A), docText(B)]);
+        agreed = values[0] === values[1] && candidates.includes(values[0]);
         if (!agreed) await sleep(60);
       }
-      mark(`AC1 第 ${round} 轮两边一致`, wrote);
+      mark(`AC1 第 ${round} 轮确认重载后两边一致`, wrote);
       convergedEveryRound &&= agreed;
     }
-    checks.sameFileConvergesWithoutReload = convergedEveryRound;
+    checks.concurrentDraftsStaySafe = protectedEveryRound;
+    checks.sameFileConvergesAfterExplicitReload = convergedEveryRound;
     checks.sameFileSavesStaySafe = (await integrityOk(session)) && session.errors.length === errorsBefore;
     await reloadDesktop(A);
     await reloadDesktop(B);

@@ -19,6 +19,7 @@ apps/e2e ──（只读构建产物 dist/aiao-desktop/apps/web）──> apps/w
 apps/web ──> 平台包（@aiao/rxdb、@aiao/rxdb-angular、@aiao/rxdb-adapter-sqlite-wasm、@aiao/rxdb-plugin-tree、@aiao/rxdb-plugin-storage、@aiao/utils、@aiao/orbit）
 apps/web ──（运行时，经 Orbit 的 iframe）──> 集成应用的线上地址（https://vscode.aiao.io）
 apps/e2e ──（只读构建产物 packages/orbit/dist，拼替身应用）──> @aiao/orbit
+apps/e2e ──（仅 e2e-aiao-code-files，只读正式产物）──> apps/aiao-vscode
 apps/web ──> 第三方库（@angular/*、rxjs、comlink、@xterm/*、@vivari/core）
 产品根 ──（implicitDependencies）──> apps/web、apps/e2e
 ```

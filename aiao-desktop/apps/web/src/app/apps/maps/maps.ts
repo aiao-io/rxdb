@@ -26,20 +26,13 @@ import { CUPERTINO, TILE, latAt, lonAt, tileUrl, worldX, worldY, zoomForBox } fr
 import { PlaceSpot, samePlace } from './maps-places';
 import { MapPlace } from './maps.entities';
 
-/** Nominatim 返回的一个地点。 */
-interface Place {
-  readonly lat: string;
-  readonly lon: string;
-  readonly name?: string;
-  readonly display_name: string;
-  readonly boundingbox?: readonly string[];
-}
+import { Place, searchPlaces } from './maps-search';
 
 /** 搜索结果面板的几种状态。 */
 type MapResults =
   | { readonly status: 'searching' }
   | { readonly status: 'empty'; readonly query: string }
-  | { readonly status: 'failed' }
+  | { readonly status: 'failed'; readonly query: string }
   | { readonly status: 'hits'; readonly hits: readonly Place[] };
 
 /** 地图左上角的地点卡片。 */
@@ -67,7 +60,7 @@ interface Drag {
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 19;
 /** 点在这些浮层上不拖动也不双击缩放。 */
-const OVERLAYS = '.zoom,.card,.results';
+const OVERLAYS = '.zoom,.card,.results,.offline';
 
 const placeName = (place: Place): string => place.name || place.display_name.split(',')[0];
 
@@ -105,15 +98,18 @@ export class MapsApp {
   private z = CUPERTINO.zoom;
   private lat = CUPERTINO.lat;
   private lon = CUPERTINO.lon;
-  /** 连续加载失败的瓦片数；攒到 4 个就说明没有网络。 */
+  /** 当前样式加载失败的瓦片数；资源错误不能直接当作断网。 */
   private fails = 0;
   /** 每次搜索或清空都加一，过期的响应不能再画结果。 */
   private searchSeq = 0;
+  private searchController: AbortController | null = null;
+  private tileGeneration = 0;
   private closed = false;
 
   protected readonly card = signal<MapCard>({ title: CUPERTINO.title, sub: CUPERTINO.sub });
   protected readonly results = signal<MapResults | null>(null);
   protected readonly offline = signal(false);
+  protected readonly loadingTiles = signal(true);
   protected readonly placeName = placeName;
 
   constructor() {
@@ -142,6 +138,7 @@ export class MapsApp {
     );
     destroyRef.onDestroy(() => {
       this.closed = true;
+      this.searchController?.abort();
     });
     this.win.afterResize.subscribe(() => this.layout());
     /* 窗口刚创建时再等一帧，尺寸才是真的。 */
@@ -230,6 +227,15 @@ export class MapsApp {
   }
 
   /** 收藏一处地点；库里已经有同一处就不重复添加。 */
+  protected retryTiles(): void {
+    this.restyle();
+  }
+
+  protected retrySearch(): void {
+    const panel = this.results();
+    if (panel?.status === 'failed') void this.search(panel.query);
+  }
+
   private async keep(spot: PlaceSpot): Promise<void> {
     await this.data.transaction(async executor => {
       const places = executor.getRepository(MapPlace);
@@ -280,6 +286,10 @@ export class MapsApp {
   }
 
   private restyle(): void {
+    this.tileGeneration++;
+    this.fails = 0;
+    this.offline.set(false);
+    this.loadingTiles.set(true);
     this.tiles.forEach(tile => tile.img.remove());
     this.tiles.clear();
     this.layout();
@@ -330,11 +340,14 @@ export class MapsApp {
     this.renderer.setAttribute(img, 'alt', '');
     this.renderer.setStyle(img, 'left', `${x * TILE}px`);
     this.renderer.setStyle(img, 'top', `${y * TILE}px`);
+    const generation = this.tileGeneration;
     this.renderer.listen(img, 'load', () => {
+      if (generation !== this.tileGeneration || this.closed) return;
       this.renderer.addClass(img, 'in');
       this.online(true);
     });
     this.renderer.listen(img, 'error', () => {
+      if (generation !== this.tileGeneration || this.closed) return;
       img.remove();
       if (this.tiles.get(key)?.img === img) this.tiles.delete(key);
       this.online(false);
@@ -354,19 +367,18 @@ export class MapsApp {
     }
   }
 
-  /** 瓦片成批失败就是没有网络，说一次就够。 */
+  /** 部分瓦片失败也保留提示，不能因另一张加载成功而掩盖缺失。 */
   private online(ok: boolean): void {
     if (this.closed) return;
-    if (ok) {
-      this.fails = 0;
-      this.offline.set(false);
-      return;
-    }
-    if (++this.fails >= 4) this.offline.set(true);
+    this.loadingTiles.set(false);
+    if (!ok) this.fails++;
+    this.offline.set(this.fails > 0);
   }
 
   private clearResults(): void {
     this.searchSeq++;
+    this.searchController?.abort();
+    this.searchController = null;
     this.results.set(null);
   }
 
@@ -376,16 +388,18 @@ export class MapsApp {
     this.clearResults();
     const seq = this.searchSeq;
     this.results.set({ status: 'searching' });
+    const controller = new AbortController();
+    this.searchController = controller;
+    const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(query)}`,
-        { headers: { Accept: 'application/json' } }
-      );
-      const hits = (await response.json()) as readonly Place[];
+      const hits = await searchPlaces(query, controller.signal);
       if (this.closed || seq !== this.searchSeq) return;
       this.results.set(hits.length ? { status: 'hits', hits } : { status: 'empty', query });
     } catch {
-      if (!this.closed && seq === this.searchSeq) this.results.set({ status: 'failed' });
+      if (!this.closed && seq === this.searchSeq) this.results.set({ status: 'failed', query });
+    } finally {
+      clearTimeout(timeout);
+      if (seq === this.searchSeq) this.searchController = null;
     }
   }
 }

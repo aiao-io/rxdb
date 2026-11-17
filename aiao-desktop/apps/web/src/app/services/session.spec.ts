@@ -124,3 +124,42 @@ describe('Session 锁屏、重启与关机', () => {
     expect(session.sleep()).toBe('awake');
   });
 });
+
+describe('Session 等待未保存内容协商', () => {
+  it('取消重启或关机保留会话和通知中心', async () => {
+    const { session, wm, overlays } = setup({ search: '?boot=0' });
+    overlays.openNotifications();
+    wm.closeAll.mockReturnValue(Promise.resolve(false));
+    session.restart();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.boot()).toBeNull();
+    expect(overlays.notifications()).toBe('open');
+    session.shutDown();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.boot()).toBeNull();
+  });
+
+  it('批准之后才关闭会话并启动开机流程', async () => {
+    const { session, wm } = setup({ search: '?boot=0' });
+    let approve!: (value: boolean) => void;
+    wm.closeAll.mockReturnValue(new Promise<boolean>(resolve => (approve = resolve)));
+    session.restart();
+    expect(session.boot()).toBeNull();
+    approve(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(session.boot()).toEqual({ id: 1, mode: 'restart' });
+  });
+});
+
+it('重启协商中重复重启或关机不会重复执行会话替换', async () => {
+  const { session, wm } = setup({ search: '?boot=0' });
+  let approve!: (value: boolean) => void;
+  wm.closeAll.mockReturnValue(new Promise<boolean>(resolve => (approve = resolve)));
+  session.restart();
+  session.restart();
+  session.shutDown();
+  expect(wm.closeAll).toHaveBeenCalledTimes(1);
+  approve(true);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(session.boot()).toEqual({ id: 1, mode: 'restart' });
+});

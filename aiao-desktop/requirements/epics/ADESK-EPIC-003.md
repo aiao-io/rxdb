@@ -25,7 +25,7 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [x] 应用清单是唯一真相源，Applications 是系统投影，预装应用受保护，Dock 布局可拖放并持久化（[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md)）。
 - [x] 应用懒加载与统一宿主能力：shell-first 启动，窗口、菜单、通知、剪贴板与文件能力经统一接口授予（[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
 
-本Epic全部故事的AC与硬依赖已关闭，发布结果见验收台账。
+US-201～206 已关闭；2026-11-17 新增的 US-207 已完成本地正式构建验收，未发布，既有发布结果与新增工作分别记录。
 
 ## 故事
 
@@ -38,6 +38,10 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](../stories/application/ADESK-US-205-application-management.md) (High)
 - [ADESK-US-206 应用懒加载与统一系统能力](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) (High)
 
+- [ADESK-US-207 运营批准应用目录与版本管理](../stories/application/ADESK-US-207-approved-app-catalog.md) (High)
+
+- [ADESK-US-208 Aiao Code 文件复制与嵌入边界](../stories/application/ADESK-US-208-aiao-code-file-copy.md) (High)
+
 ## 本轮已交付范围
 
 - [ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 把清单投影到 Applications，补预装应用保护、预装的远程应用包、Dock 固定/运行态/拖放与持久化。
@@ -45,5 +49,6 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 
 ## 非目标
 
-- 用户自己填网址添加任意应用、商店评分与付费、代码签名：批准边界仍是 [D-10](../decisions.md#d-10应用分三类登记在同一张表里)；运营批准的目录安装、更新与回退还没有立项，见 [future-requirements](../future-requirements.md)。
+- 用户自己填网址添加任意应用、商店评分与付费、代码签名：批准边界仍是 [D-10](../decisions.md#d-10应用分三类登记在同一张表里)；运营批准的目录安装、更新与回退已纳入 US-207；正式目录初始为空，实际发布版本仍由运营和发布方提供。
 - 恶意第三方代码的安全隔离、浏览器进程级沙箱和桌面级 root 能力。
+

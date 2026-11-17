@@ -1,4 +1,6 @@
 import { Service, computed, inject, signal } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
+import { DesktopAppManifests } from './desktop-apps';
 
 import {
   APPLICATIONS,
@@ -10,7 +12,7 @@ import {
 import { DiskPath } from '../disk/disk-path';
 import { DiskStore } from '../disk/disk-store';
 import { parseInfoPlist } from '../disk/formats/plist';
-import { DESKTOP_APPS, DesktopAppId, DesktopAppManifest } from './desktop-apps';
+import { DesktopAppId, DesktopAppManifest } from './desktop-apps';
 
 /** 打开一个 `.app` 包得到的结果。 */
 export type BundleResolution =
@@ -30,7 +32,7 @@ export type BundleResolution =
  */
 @Service({ autoProvided: false })
 export class ApplicationCatalog {
-  private readonly manifests = inject(DESKTOP_APPS);
+  private readonly manifests = inject(ApplicationRegistry).apps;
   private readonly ownedState = signal<ReadonlyMap<string, string>>(new Map());
   private readonly conflictState = signal<readonly ProjectionConflict[]>([]);
 
@@ -50,8 +52,8 @@ export class ApplicationCatalog {
    * 让 /Applications 与清单一致；在 FileSystem 的串行队列里、用未加保护的存储调用。
    * 返回的报告同时更新本服务的 `owned` 与 `conflicts`。
    */
-  async reconcile(store: DiskStore): Promise<ProjectionReport> {
-    const report = await reconcileApplications(store, this.manifests);
+  async reconcile(store: DiskStore, manifests: DesktopAppManifests = this.manifests()): Promise<ProjectionReport> {
+    const report = await reconcileApplications(store, manifests);
     this.ownedState.set(report.owned);
     this.conflictState.set(report.conflicts);
     return report;
@@ -71,7 +73,7 @@ export class ApplicationCatalog {
   appIdAt(path: DiskPath | null): DesktopAppId | null {
     if (!path || path.length !== APPLICATIONS.length + 1 || path[0] !== APPLICATIONS[0]) return null;
     const id = this.ownedState().get(path[1]);
-    return id && id in this.manifests ? (id as DesktopAppId) : null;
+    return id && id in this.manifests() ? (id as DesktopAppId) : null;
   }
 
   /** 包路径是系统拥有的预装包时的应用 id。 */
@@ -110,7 +112,7 @@ export class ApplicationCatalog {
   /** 按应用 id、包标识或显示名找清单里的应用（终端的 `open -a` 与 `-b` 用）；显示名只在没有 id/标识命中时才比。 */
   find(query: string): DesktopAppManifest | null {
     const lowered = query.replace(/\.app$/i, '').toLowerCase();
-    const apps = Object.values(this.manifests).filter(app => app.kind !== 'system');
+    const apps = Object.values(this.manifests()).filter(app => app.kind !== 'system');
     return (
       apps.find(app => app.id === query) ??
       apps.find(app => app.bundleId.toLowerCase() === lowered) ??
@@ -120,6 +122,6 @@ export class ApplicationCatalog {
   }
 
   private manifestOf(id: string): DesktopAppManifest | null {
-    return id in this.manifests ? this.manifests[id as DesktopAppId] : null;
+    return id in this.manifests() ? this.manifests()[id as DesktopAppId] : null;
   }
 }

@@ -152,8 +152,9 @@ export async function installAiaoCodeStandin(context) {
   }, STANDIN_ORIGIN);
   await context.route(`${STANDIN_ORIGIN}/**`, route => {
     const url = new URL(route.request().url());
-    if (url.pathname.startsWith('/__standin/orbit/')) {
-      const filePath = normalize(join(orbitDist, url.pathname.slice('/__standin/orbit/'.length)));
+    const orbitPath = url.pathname.match(/(?:^|\/)__standin\/orbit\/(.*)$/)?.[1];
+    if (orbitPath !== undefined) {
+      const filePath = normalize(join(orbitDist, orbitPath));
       if (!filePath.startsWith(`${orbitDist}/`) || !existsSync(filePath)) return route.fulfill({ status: 404 });
       return route.fulfill({
         path: filePath,

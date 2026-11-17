@@ -98,3 +98,45 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
   pointer-events: none;
 }
+
+.webapp-close-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: #0005;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.webapp-close-confirm {
+  box-sizing: border-box;
+  width: min(430px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 22px;
+  background: var(--win);
+  color: var(--txt);
+  border-radius: 12px;
+  box-shadow: 0 14px 45px #0006;
+}
+.webapp-close-confirm h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+.webapp-close-confirm p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.webapp-close-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.webapp-close-actions button {
+  padding: 8px 12px;
+  color: var(--txt);
+  background: var(--win-2);
+  border: 1px solid #888;
+  border-radius: 5px;
+}

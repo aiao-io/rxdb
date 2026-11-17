@@ -22,6 +22,7 @@ export class Session {
   private readonly overlays = inject(Overlays);
   private readonly location = inject(DOCUMENT).location;
   private seq = 0;
+  private stopping = false;
 
   /** `?boot=0` 或 `#noboot` 跳过开机动画，测试脚本依赖这一点。 */
   readonly boot = signal<BootRun | null>(this.bootWanted() ? { id: 0, mode: 'startup' } : null);
@@ -50,13 +51,11 @@ export class Session {
 
   /** 重启真的会拆掉会话：关掉所有窗口，重新走一遍开机进度，回到登录界面。 */
   restart(): void {
-    this.tearDown();
-    this.boot.set({ id: ++this.seq, mode: 'restart' });
+    this.tearDown('restart');
   }
 
   shutDown(): void {
-    this.tearDown();
-    this.boot.set({ id: ++this.seq, mode: 'off' });
+    this.tearDown('off');
   }
 
   sleepNow(): void {
@@ -68,10 +67,24 @@ export class Session {
     }, 1000);
   }
 
-  private tearDown(): void {
-    this.wm.closeAll();
+  private tearDown(mode: 'restart' | 'off'): void {
+    if (this.stopping) return;
+    const result = this.wm.closeAll();
+    if (typeof result === 'boolean') this.finishTearDown(mode, result);
+    else {
+      this.stopping = true;
+      void result.then(approved => {
+        this.stopping = false;
+        this.finishTearDown(mode, approved);
+      });
+    }
+  }
+
+  private finishTearDown(mode: 'restart' | 'off', approved: boolean): void {
+    if (!approved) return;
     this.overlays.closeNotifications();
     this.popover.close(true);
+    this.boot.set({ id: ++this.seq, mode });
   }
 
   private bootWanted(): boolean {

@@ -41,6 +41,8 @@ export interface WindowFrameHandle {
  */
 export type AppInstanceState = 'registered' | 'loading' | 'ready' | 'closing' | 'closed' | 'failed';
 
+export type AppResourceState = 'unmanaged' | 'pending' | 'running' | 'paused' | 'failed';
+
 /**
  * 一个已打开的窗口。窗口框架把它注入给应用组件，应用用它改标题、登记菜单、
  * 监听缩放与关闭。
@@ -52,6 +54,9 @@ export class DesktopWindow {
   readonly zIndex = signal(0);
   readonly opening = signal(true);
   readonly closing = signal(false);
+  readonly closePending = signal(false);
+  readonly hasUnsavedChanges = signal(false);
+  confirmClose: (() => Promise<boolean>) | null = null;
   readonly minimized = signal(false);
   /** 窗口完全收进 Dock（最小化动画结束）时为 true，还原动画开始前变回 false。 */
   readonly hidden = signal(false);
@@ -74,6 +79,8 @@ export class DesktopWindow {
   readonly restoreOptions = signal<RestoreOptions | null>(null, { equal: sameJson });
   /** 应用实例的生命周期状态，由应用运行时推进。 */
   readonly state = signal<AppInstanceState>('registered');
+  readonly resourceState = signal<AppResourceState>('unmanaged');
+  readonly resourceFailure = signal<string | null>(null);
   /** 装载失败的原因；没有失败时为 `null`。 */
   readonly failure = signal<string | null>(null);
   /** 已装载的应用组件；`ready` 之前为 `null`。 */

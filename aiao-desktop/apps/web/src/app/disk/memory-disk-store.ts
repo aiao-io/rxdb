@@ -1,14 +1,16 @@
-import { DiskPath, parentOf } from './disk-path';
+import { DiskPath, isWithin, movedOrigin, parentOf } from './disk-path';
 import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore } from './disk-store';
 import { DiskMarker, DiskVolume } from './disk-volume';
 
 interface MemoryFile {
+  readonly originalPath?: DiskPath;
   readonly kind: 'file';
   readonly data: Uint8Array;
   readonly modified: number;
 }
 
 interface MemoryDirectory {
+  readonly originalPath?: DiskPath;
   readonly kind: 'directory';
   readonly children: Map<string, MemoryNode>;
 }
@@ -26,7 +28,11 @@ export class MemoryDiskStore implements DiskStore {
   async list(dir: DiskPath): Promise<DiskEntry[]> {
     const node = this.directoryAt(dir);
     return [...node.children]
-      .map(([name, child]) => ({ name, kind: child.kind }))
+      .map(([name, child]) => ({
+        name,
+        kind: child.kind,
+        ...(child.originalPath ? { originalPath: child.originalPath } : {})
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
@@ -46,7 +52,12 @@ export class MemoryDiskStore implements DiskStore {
   async write(file: DiskPath, data: Uint8Array): Promise<void> {
     const parent = this.directoryAt(parentOf(file), true);
     if (parent.children.get(this.nameOf(file))?.kind === 'directory') throw new DiskError('EISDIR', file);
-    parent.children.set(this.nameOf(file), { kind: 'file', data: data.slice(), modified: this.clock() });
+    parent.children.set(this.nameOf(file), {
+      kind: 'file',
+      data: data.slice(),
+      modified: this.clock(),
+      originalPath: parent.children.get(this.nameOf(file))?.originalPath
+    });
   }
 
   async replace(file: DiskPath, data: Uint8Array): Promise<void> {
@@ -57,7 +68,8 @@ export class MemoryDiskStore implements DiskStore {
     this.directoryAt(parentOf(file)).children.set(this.nameOf(file), {
       kind: 'file',
       data: data.slice(),
-      modified: this.clock()
+      modified: this.clock(),
+      originalPath: node.originalPath
     });
   }
 
@@ -75,7 +87,9 @@ export class MemoryDiskStore implements DiskStore {
     if (!node) throw new DiskError('ENOENT', from);
     const target = this.directoryAt(parentOf(to), true);
     if (target.children.has(this.nameOf(to))) throw new DiskError('EEXIST', to);
-    target.children.set(this.nameOf(to), node);
+    if (isWithin(to, from)) throw new DiskError('EACCES', to);
+    const originalPath = movedOrigin(from, to, node.originalPath) ?? undefined;
+    target.children.set(this.nameOf(to), { ...node, originalPath });
     (this.find(parentOf(from)) as MemoryDirectory).children.delete(this.nameOf(from));
   }
 

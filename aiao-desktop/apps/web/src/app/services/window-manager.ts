@@ -1,9 +1,10 @@
 import { DOCUMENT } from '@angular/common';
-import { Service, computed, inject, signal } from '@angular/core';
+import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
 
 import { clamp } from '../shared/format';
 import { ApplicationRuntime } from './application-runtime';
-import { DESKTOP_APPS, DesktopAppId, DesktopOpenOptions } from './desktop-apps';
+import { DesktopAppId, DesktopOpenOptions } from './desktop-apps';
 import { DEFAULT_MIN_HEIGHT, DEFAULT_MIN_WIDTH, DesktopWindow, WindowBox } from './desktop-window';
 import { DockState } from './dock-state';
 import { Toast } from './toast';
@@ -36,7 +37,7 @@ function insertByLayer(list: readonly DesktopWindow[], win: DesktopWindow): Desk
 /** 窗口列表、层叠顺序与焦点。几何和动画由各自的窗口框架组件负责。 */
 @Service({ autoProvided: false })
 export class WindowManager {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly dock = inject(DockState);
   private readonly toast = inject(Toast);
   private readonly runtime = inject(ApplicationRuntime);
@@ -47,6 +48,7 @@ export class WindowManager {
   private z = 10;
   private seq = 0;
   private cascade = 0;
+  private closeRequest: { readonly windows: readonly DesktopWindow[]; readonly result: Promise<boolean> } | null = null;
 
   readonly windows = this.windowsState.asReadonly();
   readonly focused = this.focusedState.asReadonly();
@@ -76,6 +78,25 @@ export class WindowManager {
 
   readonly runningApps = computed(() => new Set(this.windowsState().map(win => win.appId)));
 
+  constructor() {
+    effect(() => {
+      const apps = this.apps();
+      untracked(() => {
+        for (const win of this.windowsState())
+          if (
+            win.app.kind === 'web' &&
+            win.app.installScope === 'approved-catalog' &&
+            JSON.stringify(apps[win.appId]) !== JSON.stringify(win.app)
+          )
+            this.closeApproved(win);
+      });
+    });
+  }
+
+  closeApp(appId: DesktopAppId): boolean | Promise<boolean> {
+    return this.closeWindows(this.byApp(appId));
+  }
+
   get(id: string): DesktopWindow | undefined {
     return this.windowsState().find(win => win.id === id);
   }
@@ -104,8 +125,8 @@ export class WindowManager {
   }
 
   open(appId: DesktopAppId, options: DesktopOpenOptions = {}): DesktopWindow | null {
-    const app = this.apps[appId];
-    if (!app.load) {
+    const app = this.apps()[appId];
+    if (!app?.load) {
       this.toast.show(`Unknown app: ${appId}`);
       return null;
     }
@@ -155,7 +176,7 @@ export class WindowManager {
    * 没有组件的系统入口、不认识的应用恢复不了，返回 `null`。
    */
   restore(spec: WindowRestoreSpec): DesktopWindow | null {
-    const app = this.apps[spec.appId];
+    const app = this.apps()[spec.appId];
     if (!app?.load) return null;
     const min = { width: app.minW ?? DEFAULT_MIN_WIDTH, height: app.minH ?? DEFAULT_MIN_HEIGHT };
     const box = fitBox(spec.box, { width: innerWidth, height: innerHeight }, this.menubarHeight(), min);
@@ -213,18 +234,7 @@ export class WindowManager {
 
   close(id: string): void {
     const win = this.get(id);
-    if (!win || win.closing()) return;
-    /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
-    const hadFocus = win.frame?.holdsFocus() ?? false;
-    win.closing.set(true);
-    this.handOffFocus(win, hadFocus);
-    this.runtime.closing(win);
-    win.beforeClose.next();
-    win.beforeClose.complete();
-    setTimeout(() => {
-      this.windowsState.update(list => list.filter(item => item !== win));
-      this.runtime.closed(win);
-    }, 200);
+    if (win) void this.closeWindows([win]);
   }
 
   /** 装载失败的窗口重试：创建新的应用实例（见 {@link ApplicationRuntime}）。 */
@@ -233,8 +243,13 @@ export class WindowManager {
     if (win) this.runtime.retry(win);
   }
 
-  closeAll(): void {
-    this.windowsState().forEach(win => this.close(win.id));
+  closeAll(): boolean | Promise<boolean> {
+    return this.closeWindows(this.windowsState());
+  }
+
+  /** 数据恢复与抹掉保留操作窗口，其余窗口仍逐个协商未保存内容。 */
+  closeOthers(id: string): boolean | Promise<boolean> {
+    return this.closeWindows(this.windowsState().filter(win => win.id !== id));
   }
 
   minimize(id: string): void {
@@ -289,7 +304,7 @@ export class WindowManager {
   }
 
   quitApp(appId: DesktopAppId): void {
-    this.byApp(appId).forEach(win => this.close(win.id));
+    void this.closeWindows(this.byApp(appId));
   }
 
   /** ⌘`：把最底层的可见窗口提到最前。 */
@@ -298,6 +313,56 @@ export class WindowManager {
       .filter(win => !win.minimized() && !win.closing())
       .sort((a, b) => a.zIndex() - b.zIndex());
     if (visible.length > 1) this.focus(visible[0].id);
+  }
+
+  private closeApproved(win: DesktopWindow): void {
+    if (win.closing() || this.get(win.id) !== win) return;
+    /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
+    const hadFocus = win.frame?.holdsFocus() ?? false;
+    win.closing.set(true);
+    this.handOffFocus(win, hadFocus);
+    this.runtime.closing(win);
+    win.beforeClose.next();
+    win.beforeClose.complete();
+    setTimeout(() => {
+      this.windowsState.update(list => list.filter(item => item !== win));
+      this.runtime.closed(win);
+    }, 200);
+  }
+
+  private closeWindows(windows: readonly DesktopWindow[]): boolean | Promise<boolean> {
+    const pending = this.closeRequest;
+    if (pending && windows.every(win => pending.windows.includes(win))) return pending.result;
+    if (pending) return pending.result.then(() => this.closeWindows(windows));
+    const selected = windows.filter(win => this.get(win.id) === win && !win.closing());
+    if (!selected.some(win => win.confirmClose)) {
+      selected.forEach(win => this.closeApproved(win));
+      return true;
+    }
+    selected.forEach(win => win.closePending.set(true));
+    const result = this.approveAndClose(selected).finally(() => {
+      selected.forEach(win => win.closePending.set(false));
+      this.closeRequest = null;
+    });
+    this.closeRequest = { windows: selected, result };
+    return result;
+  }
+
+  private async approveAndClose(windows: readonly DesktopWindow[]): Promise<boolean> {
+    try {
+      for (const win of windows) {
+        if (win.hasUnsavedChanges()) {
+          this.unminimize(win.id);
+          this.focus(win.id);
+        }
+        if (win.confirmClose && !(await win.confirmClose())) return false;
+      }
+      windows.forEach(win => this.closeApproved(win));
+      return true;
+    } catch (error) {
+      this.toast.show(`Unable to close: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
   }
 
   private withFront(action: (win: DesktopWindow) => void): void {

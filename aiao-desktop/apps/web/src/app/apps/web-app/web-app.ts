@@ -1,25 +1,27 @@
 import type { OrbitDragRegion } from '@aiao/orbit/window';
 import {
-  Component,
-  DestroyRef,
-  ElementRef,
-  ViewEncapsulation,
   afterNextRender,
+  Component,
   computed,
+  DestroyRef,
   effect,
+  ElementRef,
   inject,
   linkedSignal,
   untracked,
-  viewChild
+  viewChild,
+  ViewEncapsulation
 } from '@angular/core';
 
 import { DesktopAppContexts } from '../../services/app-context';
 import { ApplicationRuntime } from '../../services/application-runtime';
+import { ApplicationTransitions, AppWindowLease } from '../../services/application-transitions';
 import { WebAppManifest } from '../../services/desktop-apps';
 import { AppInstanceState, DesktopWindow } from '../../services/desktop-window';
 import { OrbitHost } from '../../services/orbit-host';
 import { RemoteAppSession } from '../../services/remote-app-session';
 import { WindowManager } from '../../services/window-manager';
+import { FocusTrap } from '../../shared/focus-trap';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { dragClipPath } from './web-app-drag';
@@ -45,7 +47,7 @@ function webManifest(win: DesktopWindow): WebAppManifest {
  */
 @Component({
   selector: 'app-web-app',
-  imports: [Icon, TrafficLights],
+  imports: [Icon, TrafficLights, FocusTrap],
   templateUrl: './web-app.html',
   styleUrl: './web-app.scss',
   encapsulation: ViewEncapsulation.None,
@@ -56,6 +58,7 @@ export class WebAppWindow {
   private readonly wm = inject(WindowManager);
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
   protected readonly session: RemoteAppSession;
+  protected readonly lease: AppWindowLease | null;
   protected readonly win = inject(DesktopWindow);
   protected readonly app = webManifest(this.win);
   /** 窗口里应用实例的状态，取自应用运行时；窗口关闭动画期间保持关闭前的样子，不闪成空白。 */
@@ -71,21 +74,39 @@ export class WebAppWindow {
   protected readonly shielded = computed(() => this.wm.focused() !== this.win);
 
   constructor() {
+    this.lease = this.app.installScope === 'approved-catalog' ? inject(ApplicationTransitions).track(this.win) : null;
+    const connection = inject(OrbitHost).connect(this.app);
+    const runtime = inject(ApplicationRuntime);
     const session = new RemoteAppSession({
       win: this.win,
       app: this.app,
-      orbit: inject(OrbitHost).runtime,
-      runtime: inject(ApplicationRuntime),
+      orbit: connection.runtime,
+      runtime,
       contexts: inject(DesktopAppContexts)
     });
     this.session = session;
-    inject(DestroyRef).onDestroy(() => session.dispose());
-    afterNextRender(() => void session.start(this.stage().nativeElement));
+    inject(DestroyRef).onDestroy(() => {
+      this.lease?.dispose();
+      session.dispose();
+      connection.dispose();
+    });
+    afterNextRender(() => {
+      void this.startSession().catch((error: unknown) => {
+        if (!this.win.closing())
+          runtime.instanceFailed(this.win, this.win.instanceId, error instanceof Error ? error.message : String(error));
+      });
+    });
     effect(() => this.syncVisibility(this.win.hidden(), this.state()));
     /* 应用就绪时，如果窗口在前台，把键盘焦点交给应用。 */
     effect(() => {
       if (this.win.state() === 'ready') untracked(() => this.focusIfForeground());
     });
+  }
+
+  protected keepEditing(event: Event): void {
+    event.stopPropagation();
+    this.lease?.answer(false);
+    setTimeout(() => this.focusIfForeground());
   }
 
   /** 激活层：窗口框架在捕获阶段已把窗口提到前台；等鼠标按下的默认焦点动作做完，再把键盘焦点交给应用。 */
@@ -99,6 +120,11 @@ export class WebAppWindow {
 
   protected clipPath(region: OrbitDragRegion): string {
     return dragClipPath(region);
+  }
+
+  private async startSession(): Promise<void> {
+    await this.lease?.ready;
+    if (!this.win.closing()) await this.session.start(this.stage().nativeElement);
   }
 
   private focusIfForeground(): void {

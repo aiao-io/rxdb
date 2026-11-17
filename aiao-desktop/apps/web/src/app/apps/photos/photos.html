@@ -83,7 +83,16 @@
         >
           <svg appIcon="g-info"></svg>
         </button>
-        <button class="tbtn" #shareButton (click)="share(shareButton)" data-nodrag data-pshare title="Share">
+        <button
+          class="tbtn"
+          #shareButton
+          (click)="share(shareButton, $event)"
+          aria-label="Share"
+          data-nodrag
+          data-pshare
+          tabindex="0"
+          title="Share"
+        >
           <svg appIcon="g-share"></svg>
         </button>
         <div class="sfield" data-nodrag style="width: 172px">
@@ -98,6 +107,15 @@
           />
         </div>
       </div>
+      @if (actions.error()) {
+        <p
+          data-content-error
+          role="alert"
+          style="margin: 0; padding: 8px 14px; color: var(--txt); background: var(--win); flex-shrink: 0"
+        >
+          {{ actions.error() }}
+        </p>
+      }
       <div class="ph-body" data-pbody>
         @if (detail()) {
           @if (selected(); as photo) {

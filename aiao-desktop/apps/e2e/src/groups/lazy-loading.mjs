@@ -198,6 +198,7 @@ export const lazyLoading = {
         stocks: document.querySelectorAll('#nc .stk .row').length,
         hours: document.querySelectorAll('#nc [data-wxw] .hours > div').length,
         place: document.querySelector('#nc [data-wxw] .loc')?.textContent?.trim() ?? '',
+        weatherText: document.querySelector('#nc [data-wxw]')?.textContent ?? '',
         remaining:
           [...document.querySelectorAll('#nc .wgt .wh .s')]
             .map(node => node.textContent?.trim() ?? '')
@@ -217,7 +218,14 @@ export const lazyLoading = {
         )
       ).then(async shown => {
         const seen = await widgets();
-        return shown && seen.stocks === 3 && seen.hours === 5 && seen.place !== '';
+        return (
+          shown &&
+          seen.stocks === 3 &&
+          seen.hours === 0 &&
+          seen.place !== '' &&
+          seen.weatherText.includes('No weather data') &&
+          !/\d+°/.test(seen.weatherText)
+        );
       });
     const databaseHoldsSeeds = async () =>
       (

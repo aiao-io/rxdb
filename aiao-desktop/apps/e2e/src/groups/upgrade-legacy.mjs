@@ -33,6 +33,7 @@ export const upgradeLegacy = {
     'upgradeLegacy.freshDatabaseGetsRecord',
     'upgradeLegacy.legacyKeepsData',
     'upgradeLegacy.legacyGetsVersionRecord',
+    'upgradeLegacy.fileOriginColumnMigrated',
     'upgradeLegacy.seedsNotRewritten',
     'upgradeLegacy.newDomainSeededOnce',
     'upgradeLegacy.existingDomainsNotOverwritten',
@@ -59,14 +60,18 @@ export const upgradeLegacy = {
     result.freshDatabaseGetsRecord = fresh.record?.version === current;
 
     /* 1) 此前发布的构建建的库（没有版本记录）：当前构建打开，数据都在，记录补上，种子标记原样。 */
-    await surgery(session, db => db.deleteRecord());
+    await surgery(session, async db => {
+      await db.deleteRecord();
+    });
     desktop = await session.openDesktopPage();
     const keptLegacy = await readUserData(desktop.page, desktop.helpers);
     await desktop.page.close();
     const afterLegacy = await surgery(session, async db => ({
       record: await db.record(),
-      markers: await db.markers()
+      markers: await db.markers(),
+      columns: await db.shell.rows('PRAGMA table_info("desktop$desktop_file")')
     }));
+    result.fileOriginColumnMigrated = afterLegacy.columns.some(row => row[1] === 'original_path');
     result.legacyKeepsData = userDataIntact(keptLegacy);
     result.legacyGetsVersionRecord = afterLegacy.record?.version === current;
     result.seedsNotRewritten = sameJson(afterLegacy.markers, fresh.markers);
@@ -142,6 +147,9 @@ export const upgradeLegacy = {
         const markers = await db.markers();
         return {
           record,
+          originColumn: (await db.shell.rows('PRAGMA table_info("desktop$desktop_file")')).some(
+            row => row[1] === 'original_path'
+          ),
           hasClock,
           marked: 'seed:clock' in markers,
           rows: hasClock ? await db.count(CLOCK_TABLE) : 0,
@@ -151,7 +159,10 @@ export const upgradeLegacy = {
       /* 升级前：没有记录。升级后：有记录，clock 表已补建；种子标记存在就必须带着完整的种子行（种子与标记同一个事务）。 */
       const before = state.record === undefined;
       const after =
-        state.record?.version === current && state.hasClock && (!state.marked || state.rows === seeded.clockRows);
+        state.record?.version === current &&
+        state.originColumn &&
+        state.hasClock &&
+        (!state.marked || state.rows === seeded.clockRows);
       wholeStates.push(
         state.preferencesTable && (before || after) && (!state.marked || state.rows === seeded.clockRows)
       );

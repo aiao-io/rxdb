@@ -1,29 +1,11 @@
-import { Service, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Service, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { WeatherCity } from '../apps/weather/weather.entities';
 import { DesktopData } from '../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../data/live-query';
 import { DAYS3 } from '../shared/format';
 
-interface ForecastPayload {
-  readonly current: {
-    readonly time: string;
-    readonly temperature_2m: number;
-    readonly weather_code: number;
-    readonly is_day: number;
-  };
-  readonly hourly: {
-    readonly time: readonly string[];
-    readonly temperature_2m: readonly number[];
-    readonly weather_code: readonly number[];
-  };
-  readonly daily: {
-    readonly time: readonly string[];
-    readonly weather_code: readonly number[];
-    readonly temperature_2m_max: readonly number[];
-    readonly temperature_2m_min: readonly number[];
-  };
-}
+import { ForecastPayload, parseForecast } from './weather-forecast';
 
 export interface WeatherNow {
   readonly t: number;
@@ -70,25 +52,6 @@ const CODES: Readonly<Record<number, readonly [string, string, string?]>> = {
   99: ['Thunderstorms', 'g-storm']
 };
 
-const OFFLINE_HOURS: readonly WeatherHour[] = [
-  ['Now', 55, 'g-sun'],
-  ['5PM', 56, 'g-sun'],
-  ['6PM', 54, 'g-suncloud'],
-  ['7PM', 51, 'g-mooncloud'],
-  ['8PM', 49, 'g-moon'],
-  ['9PM', 47, 'g-moon']
-];
-
-const OFFLINE_DAYS: readonly WeatherDay[] = [
-  ['Today', 53, 83, 'g-sun'],
-  ['Tue', 55, 81, 'g-sun'],
-  ['Wed', 56, 84, 'g-suncloud'],
-  ['Thu', 57, 88, 'g-sun'],
-  ['Fri', 56, 85, 'g-sun'],
-  ['Sat', 54, 79, 'g-suncloud'],
-  ['Sun', 52, 76, 'g-sun']
-];
-
 /** WMO 天气代码 → [文字, 图标]；夜里把太阳换成月亮。 */
 export function weatherCode(code: number, day: boolean | number = true): readonly [string, string] {
   const entry = CODES[code];
@@ -106,11 +69,22 @@ function forecastUrl(latitude: number, longitude: number): string {
   );
 }
 
-/**
- * Open-Meteo 实况：无需密钥且带 CORS，天气应用与小组件共用一份读数。
- * 城市来自本地库的城市列表（排第一的是主城市），实时读数只放内存。
- * 离线时返回一组合理的固定读数，界面不会空着。
- */
+interface WeatherReading {
+  readonly city: string;
+  readonly payload: ForecastPayload;
+  readonly receivedAt: string;
+}
+
+interface WeatherRequest {
+  readonly city: string;
+  readonly controller: AbortController;
+  readonly promise: Promise<ForecastPayload | null>;
+}
+
+const cityKey = (city: WeatherCity | undefined): string =>
+  city ? JSON.stringify([city.id, city.name, city.latitude, city.longitude]) : '';
+
+/** 主城市的真实天气；只在本会话保留成功读数，失败有明确状态和重试入口。 */
 @Service({ autoProvided: false })
 export class WeatherStore {
   private readonly desktop = inject(DesktopData);
@@ -119,84 +93,155 @@ export class WeatherStore {
     [],
     WeatherCity
   );
-  private readonly forecast = signal<ForecastPayload | null>(null);
-  private pending: Promise<ForecastPayload | null> | null = null;
+  private readonly city = computed(() => cityKey(this.cities().at(0)));
+  private readonly forecast = signal<WeatherReading | null>(null);
+  private readonly reading = computed(() => (this.forecast()?.city === this.city() ? this.forecast() : null));
+  private readonly loadingState = signal(false);
+  private readonly errorState = signal<string | null>(null);
+  private pending: WeatherRequest | null = null;
+  private selectedCity = '';
+  private revision = 0;
+  private started = false;
+  private destroyed = false;
 
-  /** 主城市的名字；城市列表还没读到时为空串。 */
   readonly place = computed(() => this.cities().at(0)?.name ?? '');
+  readonly loading = this.loadingState.asReadonly();
+  readonly error = this.errorState.asReadonly();
+  readonly stale = computed(() => this.reading() !== null && this.error() !== null);
+  readonly sourceTime = computed(() => this.reading()?.payload.current.time ?? null);
+  readonly receivedAt = computed(() => this.reading()?.receivedAt ?? null);
 
-  /** 每个会话只请求一次，所有调用方共享；失败后下一次调用会重试。 */
-  load(): Promise<ForecastPayload | null> {
-    const ready = this.forecast();
-    if (ready) return Promise.resolve(ready);
-    this.pending ??= this.fetchForecast().finally(() => {
-      this.pending = null;
+  constructor() {
+    effect(() => {
+      const city = this.city();
+      if (city === this.selectedCity) return;
+      untracked(() => {
+        this.selectedCity = city;
+        this.cancel();
+        this.forecast.set(null);
+        this.errorState.set(null);
+        if (this.started) void this.load();
+      });
     });
-    return this.pending;
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.cancel();
+    });
   }
 
-  now(): WeatherNow {
-    const d = this.forecast();
-    if (!d) return { t: 55, code: 0, day: 1, hi: 83, lo: 53, live: false };
+  /** 同城市共享正在执行的请求；已有成功读数时直接使用。 */
+  load(): Promise<ForecastPayload | null> {
+    return this.start(false);
+  }
+
+  /** 显式刷新失败时保留同城市旧读数，直到下一次成功。 */
+  refresh(): Promise<ForecastPayload | null> {
+    return this.start(true);
+  }
+
+  now(): WeatherNow | null {
+    const d = this.reading()?.payload;
+    if (!d) return null;
     return {
       t: Math.round(d.current.temperature_2m),
       code: d.current.weather_code,
       day: d.current.is_day,
       hi: Math.round(d.daily.temperature_2m_max[0]),
       lo: Math.round(d.daily.temperature_2m_min[0]),
-      live: true
+      live: !this.stale()
     };
   }
 
-  /** 接下来几个小时；Open-Meteo 从午夜开始返回，所以先找到当前小时。 */
+  /** 城市当地时间的后续预报；超出响应末尾不补造读数。 */
   hours(count = 6): readonly WeatherHour[] {
-    const d = this.forecast();
-    if (!d) return OFFLINE_HOURS.slice(0, count);
-    const now = new Date(d.current.time);
-    const start = Math.max(
-      0,
-      d.hourly.time.findIndex(time => new Date(time) >= now)
-    );
-    return Array.from({ length: count }, (_, k): WeatherHour => {
-      const j = Math.min(start + k, d.hourly.time.length - 1);
-      const hour = new Date(d.hourly.time[j]).getHours();
+    const d = this.reading()?.payload;
+    if (!d) return [];
+    const start = d.hourly.time.findIndex(time => time >= d.current.time);
+    if (start < 0) return [];
+    return d.hourly.time.slice(start, start + Math.max(0, count)).map((time, index): WeatherHour => {
+      const hour = Number(time.slice(11, 13));
       return [
-        k === 0 ? 'Now' : `${hour % 12 || 12}${hour < 12 ? 'AM' : 'PM'}`,
-        Math.round(d.hourly.temperature_2m[j]),
-        weatherCode(d.hourly.weather_code[j], hour >= 6 && hour < 20)[1]
+        index === 0 ? 'Now' : `${hour % 12 || 12}${hour < 12 ? 'AM' : 'PM'}`,
+        Math.round(d.hourly.temperature_2m[start + index]),
+        weatherCode(d.hourly.weather_code[start + index], hour >= 6 && hour < 20)[1]
       ];
     });
   }
 
   days(): readonly WeatherDay[] {
-    const d = this.forecast();
-    if (!d) return OFFLINE_DAYS;
-    return d.daily.time.map((time, i): WeatherDay => [
-      i === 0 ? 'Today' : DAYS3[new Date(`${time}T12:00`).getDay()],
-      Math.round(d.daily.temperature_2m_min[i]),
-      Math.round(d.daily.temperature_2m_max[i]),
-      weatherCode(d.daily.weather_code[i])[1]
+    const d = this.reading()?.payload;
+    if (!d) return [];
+    return d.daily.time.map((time, index): WeatherDay => [
+      index === 0 ? 'Today' : DAYS3[new Date(`${time}T12:00:00Z`).getUTCDay()],
+      Math.round(d.daily.temperature_2m_min[index]),
+      Math.round(d.daily.temperature_2m_max[index]),
+      weatherCode(d.daily.weather_code[index])[1]
     ]);
   }
 
-  /** 从库里取主城市的坐标再请求实况；没有城市就没有实况可取。 */
-  private async fetchForecast(): Promise<ForecastPayload | null> {
-    if (!(await this.desktop.available())) return null;
-    const cities = await this.desktop.repository(WeatherCity);
-    const [city] = await cities.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 1 });
-    return city ? this.request(city.latitude, city.longitude) : null;
+  private start(refresh: boolean): Promise<ForecastPayload | null> {
+    if (this.destroyed) return Promise.resolve(null);
+    this.started = true;
+    const city = this.city();
+    this.selectedCity = city;
+    if (this.pending?.city === city) return this.pending.promise;
+    const ready = this.reading();
+    if (!refresh && ready && !this.error()) return Promise.resolve(ready.payload);
+    this.cancel();
+    const revision = this.revision;
+    const controller = new AbortController();
+    this.loadingState.set(true);
+    if (!ready) this.errorState.set(null);
+    const promise = this.fetchForecast(controller, revision).finally(() => {
+      if (revision !== this.revision) return;
+      this.pending = null;
+      this.loadingState.set(false);
+    });
+    this.pending = { city, controller, promise };
+    return promise;
   }
 
-  /** 网络不通或返回异常时得到 `null`，界面退回离线读数。 */
-  private async request(latitude: number, longitude: number): Promise<ForecastPayload | null> {
+  private cancel(): void {
+    this.revision++;
+    this.pending?.controller.abort();
+    this.pending = null;
+    this.loadingState.set(false);
+  }
+
+  private async fetchForecast(controller: AbortController, revision: number): Promise<ForecastPayload | null> {
+    let failure = 'Weather settings are unavailable.';
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
     try {
-      const response = await fetch(forecastUrl(latitude, longitude));
-      const payload = (await response.json()) as ForecastPayload;
-      if (!payload.current) throw new Error('bad payload');
-      this.forecast.set(payload);
+      if (!(await this.desktop.available())) throw new Error(failure);
+      const repository = await this.desktop.repository(WeatherCity);
+      const [city] = await repository.find({
+        where: ALL_ROWS,
+        orderBy: [{ field: 'position', sort: 'asc' }],
+        limit: 1
+      });
+      failure = 'No weather city is configured.';
+      if (!city) throw new Error(failure);
+      if (controller.signal.aborted) return null;
+      const key = cityKey(city);
+      failure = 'Weather is unavailable. Try again.';
+      timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 10_000);
+      const response = await fetch(forecastUrl(city.latitude, city.longitude), { signal: controller.signal });
+      if (!response.ok) throw new Error(failure);
+      const payload = parseForecast(await response.json());
+      if (revision !== this.revision || key !== this.city() || controller.signal.aborted) return null;
+      this.forecast.set({ city: key, payload, receivedAt: new Date().toISOString() });
+      this.errorState.set(null);
       return payload;
     } catch {
+      if (revision === this.revision && (!controller.signal.aborted || timedOut))
+        this.errorState.set(timedOut ? 'Weather request timed out. Try again.' : failure);
       return null;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }

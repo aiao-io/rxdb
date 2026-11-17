@@ -9,9 +9,10 @@ import {
   viewChild,
   viewChildren
 } from '@angular/core';
+import { ApplicationRegistry } from '../services/application-registry';
 
 import { AppLauncher } from '../services/app-launcher';
-import { DESKTOP_APPS, DesktopAppDefinition, DesktopAppId } from '../services/desktop-apps';
+import { DesktopAppDefinition, DesktopAppId } from '../services/desktop-apps';
 import { DockDragController, DockDropTarget } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
 import { DockSlotItem, dockSlots, slotIndexAt, temporaryApps } from '../services/dock-layout-model';
@@ -86,7 +87,7 @@ const padOf = (size: number): number => Math.round(size * 0.15);
   }
 })
 export class Dock implements DockView, DockDropTarget {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly system = inject(SystemState);
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
@@ -118,7 +119,7 @@ export class Dock implements DockView, DockDropTarget {
   protected readonly running = this.wm.runningApps;
   protected readonly slots = computed<readonly DockSlot[]>(() => {
     const layout = this.layout.layout();
-    const temporary = temporaryApps(layout, this.running(), this.apps);
+    const temporary = temporaryApps(layout, this.running(), this.apps());
     return dockSlots(layout, temporary).map(item => this.toSlot(item));
   });
 
@@ -233,7 +234,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   protected iconMenu(event: MouseEvent, appId: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuFor(appId, false), this.apps[appId].name);
+    this.popover.contextMenu(event, this.menuFor(appId, false), this.apps()[appId].name);
   }
 
   /**
@@ -253,7 +254,7 @@ export class Dock implements DockView, DockDropTarget {
       y: rect.top,
       origin: 'bottom left',
       focus: true,
-      label: this.apps[appId].name,
+      label: this.apps()[appId].name,
       onClose: () => anchor.focus()
     });
   }
@@ -282,12 +283,12 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   protected iconOf(appId: DesktopAppId): string {
-    return this.apps[appId].icon;
+    return this.apps()[appId].icon;
   }
 
   private toSlot(item: DockSlotItem): DockSlot {
     if (item.type === 'divider') return { key: 'divider', app: null, temporary: false, draggable: false };
-    const app = this.apps[item.id];
+    const app = this.apps()[item.id];
     const draggable = !item.temporary && (app.dockZone ?? 'apps') === 'apps';
     return { key: item.id, app, temporary: item.temporary, draggable };
   }
@@ -361,7 +362,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   private appMenu(appId: DesktopAppId, keyboard: boolean): MenuEntry[] {
-    const app = this.apps[appId];
+    const app = this.apps()[appId];
     const open = this.wm.byApp(appId);
     const dockEntry = this.layout.menuEntry(appId, keyboard ? () => this.markRefocus(appId) : undefined);
     const toggle: MenuEntry =

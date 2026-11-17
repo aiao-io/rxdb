@@ -54,7 +54,7 @@ export function bundleInfoText(app: Exclude<DesktopAppManifest, { kind: 'system'
   return infoPlist({
     name: app.name,
     identifier: app.bundleId,
-    version: BUNDLE_VERSION,
+    version: app.kind === 'web' && app.installScope === 'approved-catalog' ? app.web.version : BUNDLE_VERSION,
     appId: app.id,
     ...(runtime ? { runtime } : {})
   });
@@ -221,7 +221,7 @@ async function applyOp(store: DiskStore, manifests: DesktopAppManifests, op: Pro
 }
 
 /** 退役：只移除系统写入的文件；包里还有用户放进去的东西就保留为普通文件夹，否则整个目录一并移除。 */
-async function retireBundle(store: DiskStore, dir: string): Promise<void> {
+export async function retireBundle(store: DiskStore, dir: string): Promise<void> {
   await store.remove(join(dir, INFO_PLIST));
   await store.remove(join(dir, PKG_INFO));
   const contents = join(dir, ['Contents']);

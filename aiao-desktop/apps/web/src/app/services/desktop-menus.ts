@@ -1,7 +1,8 @@
 import { Service, inject } from '@angular/core';
+import { ApplicationRegistry } from './application-registry';
 
 import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
-import { DESKTOP_APPS, DesktopAppId } from './desktop-apps';
+import { DesktopAppId } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
 import { HOME_PATH, PLACES } from './file-system';
 import { MenuEntry, MenuSection, section } from './menu';
@@ -33,7 +34,7 @@ const exec = (command: string): void => {
 /** 菜单栏的菜单定义：Apple 菜单、应用菜单、Finder 菜单与各应用通用的标准菜单。 */
 @Service({ autoProvided: false })
 export class DesktopMenus {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly wm = inject(WindowManager);
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
@@ -182,7 +183,7 @@ export class DesktopMenus {
         { field: 'Search' },
         {
           id: 'h',
-          label: `${this.apps[appId].name} Help`,
+          label: `${this.apps()[appId].name} Help`,
           run: () => this.toast.show('No help needed — click things.')
         },
         { id: 'k', label: 'Keyboard Shortcuts', run: () => this.toast.show('⌘Space, ⌘W, ⌘Q, ⌃⌘F all work.') }

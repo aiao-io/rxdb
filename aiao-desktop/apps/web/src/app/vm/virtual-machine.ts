@@ -1,12 +1,12 @@
 import { Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription } from 'rxjs';
+import { ApplicationRegistry } from '../services/application-registry';
 
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
 import { ApplicationCatalog } from '../services/application-catalog';
-import { DESKTOP_APPS } from '../services/desktop-apps';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
@@ -57,7 +57,7 @@ export class VirtualMachine {
   private readonly catalog = inject(ApplicationCatalog);
   private readonly wm = inject(WindowManager);
   private readonly toast = inject(Toast);
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly apps = inject(ApplicationRegistry).apps;
   private machine: Promise<Machine> | null = null;
   private users = 0;
   private stopping: Promise<void> = Promise.resolve();
@@ -160,7 +160,7 @@ export class VirtualMachine {
 
   /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open。 */
   private async install(vivari: Vivari): Promise<void> {
-    const apps = Object.values(this.apps).flatMap(app =>
+    const apps = Object.values(this.apps()).flatMap(app =>
       app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]
     );
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));

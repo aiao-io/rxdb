@@ -848,3 +848,58 @@ describe('FileSystem 保存已打开的文件（目标消失时失败，不在�
     });
   });
 });
+
+describe('Finder 文件管理入口', () => {
+  it('重命名、复制、导入和恢复都广播实际路径，保护系统目录', async () => {
+    const { fs, changes } = await mounted();
+    const path = [...DESKTOP, 'test.txt'];
+    await fs.writeText(path, 'keep');
+    const renamed = await fs.rename(path, 'renamed.txt');
+    expect(changes.at(-1)).toEqual([path, renamed]);
+    const copied = await fs.duplicate(renamed);
+    expect(await fs.readText(copied)).toBe('keep');
+    expect(changes.at(-1)).toEqual([copied]);
+    const imported = await fs.importFiles(DESKTOP, [{ name: 'renamed.txt', data: new TextEncoder().encode('import') }]);
+    expect(imported[0]).toEqual([...DESKTOP, 'renamed 2.txt']);
+    await fs.moveToTrash(renamed);
+    const restored = await fs.restore([...TRASH, 'renamed.txt']);
+    expect(restored).toEqual(renamed);
+    expect(await fs.readText(restored)).toBe('keep');
+    expect(changes.at(-1)).toEqual([[...TRASH, 'renamed.txt'], restored]);
+    await expect(fs.rename(DESKTOP, 'renamed')).rejects.toMatchObject({ code: 'EACCES' });
+    await expect(fs.importFiles(['System'], [])).rejects.toMatchObject({ code: 'EACCES' });
+    await expect(fs.rename(['Applications', 'Safari.app'], 'Renamed.app')).rejects.toMatchObject({ code: 'EACCES' });
+    await fs.moveToTrash(restored);
+    await expect(fs.restore([...TRASH, 'renamed.txt'], ['System'])).rejects.toMatchObject({ code: 'EACCES' });
+  });
+});
+
+describe('批准目录的文件投影提交', () => {
+  const release = {
+    id: 'catalog:editor' as const,
+    name: 'Approved Editor',
+    bundleId: 'io.example.editor',
+    version: '1.0.0',
+    url: 'https://apps.example/releases/1.0.0/editor/',
+    summary: 'Edit text.',
+    capabilities: [],
+    allow: [],
+    readyTimeout: 10000
+  };
+
+  it('确认持久化前先准备应用包，失败回退投影且保留用户文件', async () => {
+    const { fs } = await mounted();
+    await fs.writeText([...DESKTOP, 'keep.txt'], 'user content');
+    await expect(
+      fs.projectApplications([release], async () => {
+        throw new Error('quota');
+      })
+    ).rejects.toThrow('quota');
+    expect(await fs.run(store => store.kindOf(['Applications', 'Approved Editor.app']))).toBeNull();
+    expect(await fs.readText([...DESKTOP, 'keep.txt'])).toBe('user content');
+    const commit = vi.fn(async () => undefined);
+    await fs.projectApplications([release], commit);
+    expect(commit).toHaveBeenCalledOnce();
+    expect(await fs.readText(['Applications', 'Approved Editor.app', 'Contents', 'Info.plist'])).toContain('1.0.0');
+  });
+});

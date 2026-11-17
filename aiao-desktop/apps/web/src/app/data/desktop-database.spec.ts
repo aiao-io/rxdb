@@ -3,7 +3,7 @@ import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createDesktopDatabase, DESKTOP_ADAPTER, schemaGuardOf, tabSyncOf } from './desktop-database';
+import { createDesktopDatabase, DESKTOP_ADAPTER, locationGuardOf, schemaGuardOf, tabSyncOf } from './desktop-database';
 import { DesktopSchemaStaleError, SchemaGuard } from './schema-guard';
 import { DESKTOP_SCHEMA_VERSION } from './schema-version';
 import { TabSync } from './tab-sync';
@@ -171,5 +171,38 @@ describe('桌面数据库的跨标签页协调', () => {
 
   it('不是 createDesktopDatabase 建出来的库没有跨标签页协调：报错，而不是悄悄放行', () => {
     expect(() => tabSyncOf({} as RxDB)).toThrow('不是 createDesktopDatabase 建的');
+  });
+});
+
+describe('桌面数据库的活动代际', () => {
+  it('新代际使用隔离库名与文件根，切换后不能再开始事务', async () => {
+    vi.stubEnv('DEV', false);
+    let active: string | null = 'abcdef123456';
+    const selectionStorage = {
+      getItem: (key: string) =>
+        key === 'aiao-desktop:data-location' ? JSON.stringify({ version: 1, active, previous: null }) : null
+    };
+    const database = createDesktopDatabase('/', { selectionStorage });
+    const base = vi.spyOn(RxDBAdapterSqlite.prototype, 'transaction').mockResolvedValue('written' as never);
+    vi.stubGlobal('navigator', {
+      locks: { request: async (_name: string, _options: LockOptions, task: () => Promise<unknown>) => task() }
+    });
+    try {
+      expect(locationGuardOf(database).location).toMatchObject({
+        databaseName: 'aiao-desktop-abcdef123456',
+        filesRoot: 'aiao-desktop-files-abcdef123456'
+      });
+      const adapter = await database.getAdapter(DESKTOP_ADAPTER);
+      await expect(adapter.transaction(async () => 'x')).resolves.toBe('written');
+      active = 'fedcba654321';
+      await expect(adapter.transaction(async () => 'x')).rejects.toThrow('another tab');
+      expect(base).toHaveBeenCalledTimes(1);
+    } finally {
+      await database.destroy();
+    }
+  });
+
+  it('外部库不能绕过活动存储守卫', () => {
+    expect(() => locationGuardOf({} as RxDB)).toThrow('不是 createDesktopDatabase 建的');
   });
 });

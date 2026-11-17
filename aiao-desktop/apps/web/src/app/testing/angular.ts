@@ -6,6 +6,9 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { afterEach } from 'vitest';
 
+import { ApplicationRegistry } from '../services/application-registry';
+import { InstalledApplications } from '../services/installed-applications';
+
 /** 假的 CSS 声明块：只实现服务读写根元素样式用到的方法，内容存在 Map 里便于断言。 */
 export class FakeStyle {
   readonly values = new Map<string, string>();
@@ -83,7 +86,13 @@ export function configureServices(providers: readonly Provider[], location: Part
   const dom = createFakeDom(location);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    providers: [provideZonelessChangeDetection(), { provide: DOCUMENT, useValue: dom.document }, ...providers]
+    providers: [
+      { provide: InstalledApplications, useValue: { ready: Promise.resolve(), reload: async () => [] } },
+      ApplicationRegistry,
+      provideZonelessChangeDetection(),
+      { provide: DOCUMENT, useValue: dom.document },
+      ...providers
+    ]
   });
   return dom;
 }

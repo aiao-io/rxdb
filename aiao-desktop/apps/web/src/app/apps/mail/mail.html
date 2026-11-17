@@ -40,7 +40,16 @@
       <button class="tbtn" (click)="toggleFlag()" data-mflag data-nodrag title="Flag">
         <svg appIcon="g-tag"></svg>
       </button>
-      <button class="tbtn" #shareButton (click)="share(shareButton)" data-mshare data-nodrag title="Share">
+      <button
+        class="tbtn"
+        #shareButton
+        (click)="share(shareButton, $event)"
+        aria-label="Share"
+        data-mshare
+        data-nodrag
+        tabindex="0"
+        title="Share"
+      >
         <svg appIcon="g-share"></svg>
       </button>
       <div class="fx-title" data-mbtitle>{{ box() }}</div>
@@ -50,6 +59,15 @@
         <input placeholder="Search" />
       </div>
     </div>
+    @if (actions.error()) {
+      <p
+        data-content-error
+        role="alert"
+        style="margin: 0; padding: 8px 14px; color: var(--txt); background: var(--win); flex-shrink: 0"
+      >
+        {{ actions.error() }}
+      </p>
+    }
     <div class="wb" style="flex: 1; min-height: 0">
       <div class="msg-list scroll" data-mlist style="width: 344px">
         @for (mail of list(); track mail.id; let i = $index) {

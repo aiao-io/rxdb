@@ -5,6 +5,8 @@ import { ensureGithubStyle } from './github-style.js';
 
 export interface GitHubLoginRequest {
   readonly auth: GitHubAuth;
+  /** 当前环境不支持 OAuth 时的用户说明；保留 PAT 登录。 */
+  readonly oauthUnavailable?: string;
   /** 打开授权页；默认弹窗，测试可注入。 */
   readonly openAuthorize?: (url: string) => void;
 }
@@ -69,7 +71,7 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       label.textContent = '个人访问令牌（PAT）';
       const input = document.createElement('input');
       input.type = 'password';
-      input.placeholder = 'ghp_…（仅本机存储，不出浏览器）';
+      input.placeholder = 'ghp_…（保存在本机，用于向 GitHub 请求授权）';
       input.setAttribute('aria-label', '个人访问令牌');
       const patButton = document.createElement('button');
       patButton.type = 'button';
@@ -103,6 +105,7 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       const oauthButton = document.createElement('button');
       oauthButton.type = 'button';
       oauthButton.textContent = '使用 GitHub 账号登录';
+      oauthButton.disabled = !!request.oauthUnavailable;
       oauthButton.onclick = () => {
         void (async () => {
           try {
@@ -121,6 +124,13 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
         })();
       };
       content.append(oauthButton);
+      if (request.oauthUnavailable)
+        content.append(
+          Object.assign(document.createElement('p'), {
+            className: 'wb-github-message wb-github-hint',
+            textContent: request.oauthUnavailable
+          })
+        );
       content.append(
         Object.assign(document.createElement('p'), {
           className: 'wb-github-message wb-github-hint',

@@ -9,7 +9,10 @@ import { tableCounts } from './database.mjs';
 async function fixture(run, { fail = false } = {}) {
   const distRoot = await mkdtemp(join(tmpdir(), 'desktop-counts-'));
   const calls = { opened: 0, disconnected: 0, closed: 0, sql: [] };
-  await writeFile(join(distRoot, 'main.js'), 'new Worker(new URL(`worker-db.js`,import.meta.url))');
+  await writeFile(
+    join(distRoot, 'main.js'),
+    'new Worker(new URL(`worker-restore.js`,import.meta.url),{name:"aiao-desktop-restore"});new Worker(new URL(`worker-db.js`,import.meta.url),{type:"module",name:"aiao-desktop-sqlite"})'
+  );
   const page = {
     async route(url, handler) {
       assert.equal(url, 'https://desktop.example/__sqlite-shell__');
@@ -19,7 +22,10 @@ async function fixture(run, { fail = false } = {}) {
       assert.equal(url, 'https://desktop.example/__sqlite-shell__');
     },
     async evaluate(_callback, argument) {
-      if (typeof argument === 'string') return;
+      if (typeof argument === 'string') {
+        assert.equal(argument, 'worker-db.js');
+        return;
+      }
       if (!Array.isArray(argument)) {
         calls.disconnected++;
         return;

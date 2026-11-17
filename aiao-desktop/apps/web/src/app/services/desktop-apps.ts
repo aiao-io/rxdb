@@ -3,7 +3,7 @@ import { InjectionToken, Type } from '@angular/core';
 
 import type { FsNode } from './file-system';
 
-export type DesktopAppId =
+export type BuiltinDesktopAppId =
   | 'finder'
   | 'terminal'
   | 'vscode'
@@ -38,6 +38,9 @@ export type DesktopAppId =
   | 'saltline'
   | 'launchpad'
   | 'trash';
+
+export type CatalogAppId = `catalog:${string}`;
+export type DesktopAppId = BuiltinDesktopAppId | CatalogAppId;
 
 /**
  * 应用的三种类别（D-10）：系统入口不开窗口；内置应用是随桌面构建的组件；
@@ -83,8 +86,8 @@ export interface WebAppEntry {
  */
 export type AppRuntime = 'builtin-component' | 'bundled-html' | 'remote-web';
 
-/** 安装来源（D-17）：本阶段只有随构建发布的预装应用，目录安装与用户安装不在已立项范围。 */
-export const INSTALL_SCOPES = ['preinstalled'] as const;
+/** 安装来源（D-17）：预装应用随构建发布；可选应用只能来自运营批准的版本目录。 */
+export const INSTALL_SCOPES = ['preinstalled', 'approved-catalog'] as const;
 
 export type InstallScope = (typeof INSTALL_SCOPES)[number];
 

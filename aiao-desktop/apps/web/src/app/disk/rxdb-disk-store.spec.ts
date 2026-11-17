@@ -19,7 +19,7 @@ interface FileRow {
 const text = (value: string): Uint8Array => new TextEncoder().encode(value);
 const decode = (value: Uint8Array): string => new TextDecoder().decode(value);
 
-function setup() {
+function setup(fixedNow?: number) {
   const data = new FakeDesktopData();
   const files = data.table<FileRow>(DesktopFile);
   let clock = 1000;
@@ -30,7 +30,7 @@ function setup() {
       repository: () => data.repository(DesktopFile) as never,
       instantiate: fields => data.instantiate(DesktopFile, fields) as never,
       storage: () => data.storage as never,
-      now: () => clock++,
+      now: () => fixedNow ?? clock++,
       dataVersion: async () => version
     });
   const store = newStore();
@@ -421,5 +421,55 @@ describe('RxdbDiskStore 内存索引', () => {
     store.invalidate();
     expect(await names(store, [])).toEqual(['a.txt', 'outside']);
     expect(files.find).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('文件版本单调递增', () => {
+  it('同一毫秒等长写入也改变版本，旧编辑器能够检测冲突', async () => {
+    const { store } = setup(1000);
+    await store.write(['same.txt'], text('one'));
+    const first = await store.info(['same.txt']);
+    await store.replace(['same.txt'], text('two'));
+    const second = await store.info(['same.txt']);
+    expect(second.size).toBe(first.size);
+    expect(second.modified).toBeGreaterThan(first.modified);
+  });
+
+  it('本机时钟回退不重复已有版本', async () => {
+    const { store, files } = setup(1000);
+    await store.write(['same.txt'], text('one'));
+    const row = files.rows.find(item => item.name === 'same.txt');
+    if (!row) throw new Error('missing file');
+    row.modifiedAt = new Date(5000);
+    await store.replace(['same.txt'], text('two'));
+    expect((await store.info(['same.txt'])).modified).toBe(5001);
+  });
+});
+
+describe('废纸篓原位置持久化', () => {
+  const origin = ['Users', 'prasenjit', 'Desktop', 'folder'];
+  const trash = ['Users', 'prasenjit', '.Trash'];
+
+  it('移动和原位置在同一行更新；刷新存储实例仍能读到，改名保留，移出清除', async () => {
+    const { store, otherTab } = setup();
+    await store.write([...origin, 'note.txt'], text('keep'));
+    await store.move(origin, [...trash, 'folder']);
+    const reopened = otherTab();
+    expect((await reopened.list(trash))[0]).toMatchObject({ originalPath: origin });
+    await reopened.move([...trash, 'folder'], [...trash, 'renamed']);
+    expect((await reopened.list(trash))[0]).toMatchObject({ originalPath: origin });
+    await reopened.move([...trash, 'renamed'], origin);
+    expect((await reopened.list(origin.slice(0, -1)))[0]).not.toHaveProperty('originalPath');
+    expect(decode(await reopened.read([...origin, 'note.txt']))).toBe('keep');
+  });
+
+  it('移动失败不留下原位置记录，也不丢源节点', async () => {
+    const { store, files } = setup();
+    await store.mkdir(origin);
+    await store.mkdir(trash);
+    vi.spyOn(files, 'update').mockRejectedValueOnce(new Error('write failed'));
+    await expect(store.move(origin, [...trash, 'folder'])).rejects.toThrow('write failed');
+    expect(await store.kindOf(origin)).toBe('directory');
+    expect(await store.list(trash)).toEqual([]);
   });
 });

@@ -73,8 +73,8 @@ export const DESKTOP_APP_MANIFESTS = {
     h: 740,
     minW: 720,
     minH: 440,
-    /* 只声明 Aiao Code 现在实际用到的能力：透明窗口里它调用窗口接口，剪贴板由浏览器权限（下面的 allow）直接授予，两层要一致。 */
-    capabilities: ['window', 'clipboard:read', 'clipboard:write'],
+    /* 文件读写只经过桌面面板授权，用于 US-208 显式复制；不开放目录或后台同步。 */
+    capabilities: ['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write'],
     web: {
       url: 'https://vscode.aiao.io/',
       version: 'online',

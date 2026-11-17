@@ -13,12 +13,13 @@ import {
   untracked,
   viewChild
 } from '@angular/core';
+import { ApplicationRegistry } from '../../services/application-registry';
 
 import { Note } from '../../apps/notes/notes.entities';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { AppLauncher } from '../../services/app-launcher';
-import { DESKTOP_APPS, LAUNCH_ORDER } from '../../services/desktop-apps';
+import {} from '../../services/desktop-apps';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, describeDiskError } from '../../services/file-system';
 import { Overlays } from '../../services/overlays';
@@ -108,7 +109,8 @@ interface SpotlightGroup {
   `
 })
 export class Spotlight {
-  private readonly apps = inject(DESKTOP_APPS);
+  private readonly appOrder = inject(ApplicationRegistry).launchOrder;
+  private readonly apps = inject(ApplicationRegistry).apps;
   private readonly launcher = inject(AppLauncher);
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
@@ -221,12 +223,14 @@ export class Spotlight {
 
   private collect(q: string): SpotlightGroup[] {
     const lq = q.toLowerCase();
-    const apps = LAUNCH_ORDER.filter(id => this.apps[id].name.toLowerCase().includes(lq)).map((id): SpotlightHit => ({
-      name: this.apps[id].name,
-      kind: 'Application',
-      icon: this.apps[id].icon,
-      run: () => this.launcher.activate(id)
-    }));
+    const apps = this.appOrder()
+      .filter(id => this.apps()[id].name.toLowerCase().includes(lq))
+      .map((id): SpotlightHit => ({
+        name: this.apps()[id].name,
+        kind: 'Application',
+        icon: this.apps()[id].icon,
+        run: () => this.launcher.activate(id)
+      }));
     const actions = this.actions.filter(action => action.name.toLowerCase().includes(lq));
     const found = this.fs
       .deepSearch(this.fs.root(), lq)

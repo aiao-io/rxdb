@@ -43,7 +43,7 @@ async function setup(cities: CityRow[] = [CUPERTINO]) {
   const rows = data.table<CityRow>(WeatherCity);
   rows.seed(cities);
   stubFindAll(WeatherCity, rows.rows$ as Observable<CityRow[]>);
-  const fetchMock = vi.fn(async () => ({ json: async () => PAYLOAD }));
+  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => PAYLOAD }));
   vi.stubGlobal('fetch', fetchMock);
   configureServices([WeatherStore, { provide: DesktopData, useValue: data }]);
   const store = TestBed.inject(WeatherStore);
@@ -53,6 +53,7 @@ async function setup(cities: CityRow[] = [CUPERTINO]) {
 
 afterEach(() => {
   restoreEntityStubs();
+  vi.useRealTimers();
 });
 
 describe('weatherCode', () => {
@@ -84,13 +85,11 @@ describe('WeatherStore 离线读数', () => {
     expect(empty.store.place()).toBe('');
   });
 
-  it('没有请求到实况前，给一组固定读数，界面不会空着', async () => {
+  it('没有请求到实况前不生成温度、小时或七日预报', async () => {
     const { store } = await setup();
-    expect(store.now()).toEqual({ t: 55, code: 0, day: 1, hi: 83, lo: 53, live: false });
-    expect(store.hours()).toHaveLength(6);
-    expect(store.hours(3).map(hour => hour[0])).toEqual(['Now', '5PM', '6PM']);
-    expect(store.days()).toHaveLength(7);
-    expect(store.days()[0]).toEqual(['Today', 53, 83, 'g-sun']);
+    expect(store.now()).toBeNull();
+    expect(store.hours()).toEqual([]);
+    expect(store.days()).toEqual([]);
   });
 });
 
@@ -120,9 +119,10 @@ describe('WeatherStore 实况', () => {
     ]);
   });
 
-  it('hours 超过预报末尾时停在最后一小时', async () => {
+  it('hours 不为超出预报的时刻复制最后一条读数', async () => {
     const { store } = await setup();
     await store.load();
+    expect(store.hours(12)).toHaveLength(8);
     expect(store.hours(12).at(-1)).toEqual(['11PM', 73, 'g-moon']);
   });
 
@@ -144,14 +144,15 @@ describe('WeatherStore 实况', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('网络不通时得到 null 并保持离线读数，下一次调用会重试', async () => {
+  it('网络不通时得到 null 和错误，下一次调用会重试', async () => {
     const { store, fetchMock } = await setup();
     fetchMock.mockRejectedValueOnce(new Error('offline'));
     expect(await store.load()).toBeNull();
-    expect(store.now().live).toBe(false);
+    expect(store.now()).toBeNull();
+    expect(store.error()).not.toBeNull();
 
     expect(await store.load()).toEqual(PAYLOAD);
-    expect(store.now().live).toBe(true);
+    expect(store.now()?.live).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -159,10 +160,11 @@ describe('WeatherStore 实况', () => {
     const { store, fetchMock } = await setup();
     fetchMock.mockResolvedValueOnce({ json: async () => ({ error: true }) } as never);
     expect(await store.load()).toBeNull();
-    expect(store.now().live).toBe(false);
+    expect(store.now()).toBeNull();
+    expect(store.error()).not.toBeNull();
   });
 
-  it('本地数据起不来时安静地没有实况，不读库也不发请求', async () => {
+  it('本地数据起不来时报告设置不可用，不读库也不发请求', async () => {
     const data = new FakeDesktopData();
     data.ready = Promise.reject(new Error('库不可用'));
     stubFindAll(WeatherCity, data.table<CityRow>(WeatherCity).rows$ as Observable<CityRow[]>);
@@ -173,7 +175,8 @@ describe('WeatherStore 实况', () => {
     await tick();
 
     expect(await store.load()).toBeNull();
-    expect(store.now().live).toBe(false);
+    expect(store.now()).toBeNull();
+    expect(store.error()).not.toBeNull();
     expect(data.repository).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -182,5 +185,132 @@ describe('WeatherStore 实况', () => {
     const { store, fetchMock } = await setup([]);
     expect(await store.load()).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('WeatherStore 失败、刷新与城市切换', () => {
+  it('HTTP 错误不能因为正文有天气字段而成功', async () => {
+    const { store, fetchMock } = await setup();
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => PAYLOAD });
+    expect(await store.load()).toBeNull();
+    expect(store.now()).toBeNull();
+    expect(store.error()).toMatch(/unavailable/i);
+  });
+
+  it.each([
+    { ...PAYLOAD, current: { ...PAYLOAD.current, temperature_2m: NaN } },
+    { ...PAYLOAD, current: { ...PAYLOAD.current, is_day: 3 } },
+    { ...PAYLOAD, hourly: { ...PAYLOAD.hourly, time: [] } },
+    { ...PAYLOAD, hourly: { ...PAYLOAD.hourly, weather_code: [0] } },
+    { ...PAYLOAD, daily: { ...PAYLOAD.daily, temperature_2m_min: [Infinity, 54, 50] } },
+    { ...PAYLOAD, daily: { ...PAYLOAD.daily, time: ['not-a-date', '2026-07-28', '2026-07-29'] } },
+    { current: PAYLOAD.current }
+  ])('非法或长度不一致的预报不进入状态：%j', async payload => {
+    const { store, fetchMock } = await setup();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => payload } as never);
+    expect(await store.load()).toBeNull();
+    expect(store.now()).toBeNull();
+    expect(store.error()).not.toBeNull();
+  });
+
+  it('记录来源与取得时间，刷新失败只保留真实旧读数，重试后清除陈旧状态', async () => {
+    const { store, fetchMock } = await setup();
+    await store.load();
+    const received = store.receivedAt();
+    expect(store.sourceTime()).toBe(PAYLOAD.current.time);
+    expect(Number.isFinite(Date.parse(received!))).toBe(true);
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    expect(await store.refresh()).toBeNull();
+    expect(store.now()).toMatchObject({ t: 72, live: false });
+    expect(store.stale()).toBe(true);
+    expect(store.receivedAt()).toBe(received);
+    expect(store.hours()).toHaveLength(6);
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...PAYLOAD, current: { ...PAYLOAD.current, temperature_2m: 64 } })
+    });
+    await store.refresh();
+    expect(store.now()).toMatchObject({ t: 64, live: true });
+    expect(store.stale()).toBe(false);
+    expect(store.error()).toBeNull();
+  });
+
+  it('等待中重复刷新共享请求，完成后退出等待状态', async () => {
+    const { store, fetchMock } = await setup();
+    let done!: (value: { ok: boolean; json: () => Promise<typeof PAYLOAD> }) => void;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          done = resolve;
+        })
+    );
+    const first = store.refresh();
+    const second = store.refresh();
+    await tick();
+    expect(store.loading()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    done({ ok: true, json: async () => PAYLOAD });
+    expect(await first).toBe(await second);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('城市切换后取消旧请求，迟到的响应不会出现在新城市', async () => {
+    const { store, fetchMock, rows } = await setup();
+    let done!: (value: { ok: boolean; json: () => Promise<typeof PAYLOAD> }) => void;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          done = resolve;
+        })
+    );
+    const first = store.load();
+    await tick();
+    const options = (fetchMock.mock.calls as unknown[][])[0][1] as RequestInit;
+    await rows.update(rows.rows[0], { name: 'Tokyo', latitude: 35.68, longitude: 139.69 });
+    TestBed.tick();
+    await tick();
+    const current = await store.load();
+    expect(options.signal?.aborted).toBe(true);
+    expect(store.place()).toBe('Tokyo');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    done({ ok: true, json: async () => ({ ...PAYLOAD, current: { ...PAYLOAD.current, temperature_2m: 100 } }) });
+    await first;
+    expect(current).toEqual(PAYLOAD);
+    expect(store.now()?.t).toBe(72);
+  });
+
+  it('超过十秒中止请求并提供可重试的超时反馈', async () => {
+    const { store, fetchMock } = await setup();
+    fetchMock.mockImplementationOnce(
+      (...args: unknown[]) =>
+        new Promise((_resolve, reject) => {
+          const options = args[1] as RequestInit;
+          options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        })
+    );
+    vi.useFakeTimers();
+    const pending = store.load();
+    await vi.advanceTimersByTimeAsync(10_001);
+    expect(await pending).toBeNull();
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toMatch(/timed out/i);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('服务销毁会取消请求并清理计时器', async () => {
+    const { store, fetchMock } = await setup();
+    fetchMock.mockImplementationOnce(
+      (...args: unknown[]) =>
+        new Promise((_resolve, reject) => {
+          const options = args[1] as RequestInit;
+          options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        })
+    );
+    const pending = store.load();
+    await tick();
+    const options = (fetchMock.mock.calls as unknown[][])[0][1] as RequestInit;
+    TestBed.resetTestingModule();
+    expect(options.signal?.aborted).toBe(true);
+    expect(await pending).toBeNull();
   });
 });

@@ -1,3 +1,5 @@
+import type { RawQueryResult } from '@aiao/rxdb';
+
 /**
  * 桌面本地库的 schema 版本（ADESK-US-106）。
  *
@@ -16,10 +18,10 @@
 
 /**
  * 当前构建的 schema 版本。取 `YYYYMMDDNN`（日期加当天序号）的十位整数，单调递增，一眼能对上提交日期；
- * 十位数字在构建产物里是唯一的字面量，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
+ * 构建产物里最大的十位版本字面量是当前版本，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
  * **改这个常量是一次单向操作**：升过的库，没有降级保护的旧构建会直接打开，所以每次升版本都进发布说明。
  */
-export const DESKTOP_SCHEMA_VERSION = 2026111301;
+export const DESKTOP_SCHEMA_VERSION = 2026111703;
 
 /** 版本记录在系统偏好表里的键。 */
 export const SCHEMA_RECORD_KEY = 'schema:desktop';
@@ -71,6 +73,24 @@ export const SCHEMA_STEPS: readonly SchemaStep[] = [
     summary:
       '首个带版本记录的构建。此前发布的构建建的库没有版本记录，视为版本 0；新增的实体表由 RxDB 在连接时补建，' +
       '新数据域按 seed:<domain> 标记补种子，已有内容不被覆盖。'
+  },
+  {
+    version: 2026111701,
+    summary: '文件行新增 original_path，废纸篓恢复原位置与移动在同一行提交；旧废纸篓条目由用户选择恢复目录。',
+    migrate: async executor => {
+      const result = (await executor.execute('PRAGMA table_info("desktop$desktop_file")')) as RawQueryResult;
+      const name = result.columns.indexOf('name');
+      if (!result.rows.some(row => row[name] === 'original_path'))
+        await executor.execute('ALTER TABLE "desktop$desktop_file" ADD COLUMN "original_path" TEXT');
+    }
+  },
+  {
+    version: 2026111702,
+    summary: '引入文件批次中断日志和恢复代际写保护；旧构建必须停止写入，避免清理未完成批次时删除旧页新写入的内容。'
+  },
+  {
+    version: 2026111703,
+    summary: '批准目录安装集与应用投影日志成为写入协议；阻止只认识静态预装清单的旧构建删除已安装应用包。'
   }
 ];
 

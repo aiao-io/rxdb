@@ -58,7 +58,7 @@ describe('应用登记表', () => {
     const ids = Object.keys(DESKTOP_APP_MANIFESTS);
     expect(Object.values(DESKTOP_APP_MANIFESTS).map(app => app.id)).toEqual(ids);
     const byKind = (kind: string) =>
-      ids.filter(id => DESKTOP_APP_MANIFESTS[id as keyof DesktopAppManifests].kind === kind);
+      ids.filter(id => DESKTOP_APP_MANIFESTS[id as keyof typeof DESKTOP_APP_MANIFESTS].kind === kind);
     expect(byKind('system')).toEqual(['launchpad', 'trash']);
     expect(byKind('web')).toEqual(['vscode']);
     expect(byKind('builtin')).toHaveLength(31);
@@ -137,7 +137,8 @@ describe('应用清单派生的视图（D-17）', () => {
     expect(shown).not.toContain('finder');
     expect(shown).not.toContain('about');
     expect(shown).toEqual(expect.arrayContaining(['saltline', 'vscode', 'textedit', 'safari', 'settings']));
-    for (const id of shown) expect(DESKTOP_APP_MANIFESTS[id].showInApplications).toBe(true);
+    for (const id of shown)
+      expect(DESKTOP_APP_MANIFESTS[id as keyof typeof DESKTOP_APP_MANIFESTS].showInApplications).toBe(true);
     expect(shown).toHaveLength(Object.values(DESKTOP_APP_MANIFESTS).filter(app => app.showInApplications).length);
   });
 
@@ -207,7 +208,7 @@ describe('应用清单派生的视图（D-17）', () => {
     );
     expect(problems).toEqual([
       'badbundle.bundleId：必须是形如 io.aiao.desktop.name 的反向域名标识',
-      'badscope.installScope：只能是 preinstalled',
+      'badscope.installScope：只能是 preinstalled 或 approved-catalog',
       'unordered.dockOrder：默认固定在 Dock 的应用必须登记整数顺序',
       'stray.dockOrder：没有默认固定在 Dock 就不该登记顺序',
       'zoneless.dockZone：只能是 apps 或 trailing',
@@ -245,9 +246,9 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
       ...(capabilities === undefined ? { capabilities: undefined } : { capabilities })
     });
 
-  it('Aiao Code 只声明它现在实际用到的能力：窗口，以及与 allow 一致的剪贴板读写', () => {
-    expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual(['window', 'clipboard:read', 'clipboard:write']);
-    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual(['window', 'clipboard:read', 'clipboard:write']);
+  it('Aiao Code 只授予窗口、剪贴板与 US-208 显式文件复制能力', () => {
+    expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']);
+    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']);
   });
 
   it('清单可声明的能力名与 Orbit 的能力协议逐项一致（桌面首屏不引入 Orbit 的桌面能力模块，靠这条断言防漂移）', () => {
@@ -259,7 +260,7 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
     expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.launchpad)).toEqual([]);
     expect(grantedCapabilities(web('plain', []) as unknown as DesktopAppManifest)).toEqual([]);
     const everything = Object.values(DESKTOP_APP_MANIFESTS).flatMap(app => grantedCapabilities(app));
-    expect(new Set(everything)).toEqual(new Set(['window', 'clipboard:read', 'clipboard:write']));
+    expect(new Set(everything)).toEqual(new Set(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']));
   });
 
   it('capabilities 不合规逐项报出：不是数组、不认识的能力、重复、写外观没有同时读外观、系统入口不能声明', () => {

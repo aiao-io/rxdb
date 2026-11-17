@@ -3,7 +3,16 @@
   <div class="tbz"><app-traffic-lights /></div>
   <div class="grow"></div>
   <div class="tbz">
-    <button class="tbtn" #share (click)="openShare(share)" data-nodrag data-pvshare title="Share">
+    <button
+      class="tbtn"
+      #share
+      (click)="openShare(share, $event)"
+      aria-label="Share"
+      data-nodrag
+      data-pvshare
+      tabindex="0"
+      title="Share"
+    >
       <svg appIcon="g-share"></svg>
     </button>
     <button class="tbtn" (click)="toggleFind()" data-nodrag data-pvfind title="Search">
@@ -29,6 +38,15 @@
     </div>
   </div>
 </div>
+@if (actions.error()) {
+  <p
+    data-content-error
+    role="alert"
+    style="margin: 0; padding: 8px 14px; color: var(--txt); background: var(--win); flex-shrink: 0"
+  >
+    {{ actions.error() }}
+  </p>
+}
 <div class="pv" #body style="flex-direction: column">
   @let current = view();
   @switch (current.kind) {

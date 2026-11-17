@@ -35,7 +35,6 @@ const NOT_A_REQUEST: Readonly<Record<string, string>> = {
 
 /** D-04 改成指向清单之前逐一点名的外网主机：清单不能比这份少。要删减得先改 D-04 的结论。 */
 const D04_HOSTS = [
-  'images.unsplash.com',
   'upload.wikimedia.org',
   'commons.wikimedia.org',
   'basemaps.cartocdn.com',

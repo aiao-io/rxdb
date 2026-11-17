@@ -1,4 +1,4 @@
-import type { RxDB } from '@aiao/rxdb';
+import { RxDBBackupError, type RxDB } from '@aiao/rxdb';
 import {
   deleteIndexedDatabase,
   removeOpfsFiles,
@@ -8,6 +8,7 @@ import {
   type SqliteClientLike
 } from '@aiao/rxdb-adapter-sqlite-core';
 import { createSqliteClient } from './create_sqlite_client.js';
+import { detectRuntimeContext } from './sqlite-load.utils.js';
 import { ADAPTER_NAME, type SqliteOptions } from './sqlite.interface.js';
 import { resolveSqliteWasmTransport, type SqliteWasmTransport } from './transport.js';
 
@@ -61,20 +62,33 @@ export class RxDBAdapterSqlite extends RxDBAdapterSqliteBase {
   }
 
   /**
-   * 备份 / 恢复支持的 VFS：`memory`（内存）与 `idb`（IndexedDB）。
-   * 其余 VFS 报 `unsupported_combination`。
+   * 备份与恢复矩阵：主线程 memory / idb，以及专用 Worker 上的 opfs。
    *
    * @remarks
-   * 只交付了主线程连接：dedicated Worker / SharedWorker 传输下的备份与恢复还没有实测，
-   * 设置了其中任一选项都报 `unsupported_combination`（`field` 为 `transport`）。
+   * OPFS 走专用 Worker 的真实持久化套件；SharedWorker 与其余组合仍明确拒绝。
    */
   protected override backupStorage(): SqliteBackupStorage {
-    if (this.#transport.worker) return { kind: 'unsupported', field: 'transport', actual: 'worker' };
     if (this.#transport.sharedWorker) return { kind: 'unsupported', field: 'transport', actual: 'sharedWorker' };
     const vfs = this.options.vfs ?? 'idb';
+    if (vfs === 'opfs' && (this.#transport.worker || detectRuntimeContext() === 'worker'))
+      return this.persistentBackupStorage('opfs');
+    if (this.#transport.worker) return { kind: 'unsupported', field: 'transport', actual: 'worker' };
     if (vfs === 'memory') return { kind: 'memory', label: 'memory' };
     if (vfs === 'idb') return this.persistentBackupStorage('idb');
     return { kind: 'unsupported', field: 'vfs', actual: vfs };
+  }
+
+  /** 恢复需要关闭临时连接后重连；一次性 Worker 必须在写入前拒绝。 */
+  protected override createRestoreTargetClient(): Promise<SqliteClientLike> {
+    if (this.#transport.worker && this.options.workerOwnership === 'client')
+      return Promise.reject(
+        new RxDBBackupError(
+          'unsupported_combination',
+          'Restore requires a caller-owned Worker so it can reconnect after verification.',
+          { details: { field: 'workerOwnership', actual: 'client' } }
+        )
+      );
+    return super.createRestoreTargetClient();
   }
 
   protected override async createClient(): Promise<SqliteClientLike> {

@@ -22,3 +22,5 @@
 - [US-408](stories/US-408-browser-terminal.md) 承接浏览器 WebContainer 终端；US-404 的受控编译边界保留。原生扩展与任意 Nx 仓库兼容仍不承诺。
 - 远端 Git（连接 / 打开 / 提交推送）已由 [US-406](stories/US-406-github-remote-repositories.md) 立项并解锁，阶段 A 进行中；真 git push（CORS 代理）、PR 创建、多人协作与 AI agent 仍不承诺，是后续独立候选。
 - 应用宿主（Angular）与所编辑项目框架独立：vanilla TS / React TSX / Vue SFC / Angular standalone 四类模板都必须在 aiao-vscode 里跑通。
+
+2026-11-17：[US-412 桌面文件复制与嵌入边界](stories/US-412-desktop-file-copy.md) 已完成本地自动验收，与 ADESK-US-208 共用逐 AC 证据；按根规范保持 In Review 待评审合并，本轮未发布。

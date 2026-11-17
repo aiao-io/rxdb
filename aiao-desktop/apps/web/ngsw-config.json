@@ -18,6 +18,14 @@
       }
     },
     {
+      "name": "wallpapers",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/wallpapers/**"]
+      }
+    },
+    {
       "name": "on-demand",
       "installMode": "lazy",
       "updateMode": "lazy",

@@ -1,6 +1,6 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["aiao-desktop-web", "orbit"],
+  "implicitDependencies": ["aiao-desktop-web", "orbit", "aiao-vscode"],
   "name": "aiao-desktop-e2e",
   "projectType": "application",
   "sourceRoot": "aiao-desktop/apps/e2e/src",
@@ -162,6 +162,20 @@
       "options": {
         "cwd": "aiao-desktop/apps/e2e",
         "command": "node src/verify-domains.mjs"
+      }
+    },
+    "e2e-aiao-code-files": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web", "aiao-vscode", "orbit"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --group=aiao-code-files"
       }
     }
   }

@@ -50,6 +50,9 @@ export const pwa = {
     'pwa.installable',
     'pwa.workerControlsDesktop',
     'pwa.desktopPrecached',
+    'pwa.wallpapersPrecached',
+    'pwa.wallpapersOffline',
+    'pwa.noWallpaperNetwork',
     'pwa.largeResourcesLazy',
     'pwa.lazyResourceOffline',
     'pwa.offlineReload',
@@ -68,6 +71,10 @@ export const pwa = {
     assert.match(response.headers()['content-type'], /application\/manifest\+json/);
     const manifest = await response.json();
     const requests = [];
+    const remoteWallpapers = [];
+    context.on('request', request => {
+      if (new URL(request.url()).hostname === 'images.unsplash.com') remoteWallpapers.push(request.url());
+    });
     context.on('request', request => requests.push(new URL(request.url()).pathname));
     await session.openDesktop();
     const linkedManifest = await page.locator('link[rel="manifest"]').getAttribute('href');
@@ -108,6 +115,8 @@ export const pwa = {
       shell.urls.every(url => paths.includes(url)) &&
       paths.includes('/sqlite-wasm/wa-sqlite.wasm') &&
       paths.includes('/sqlite-wasm/wa-sqlite-async.wasm');
+    const wallpapers = config.assetGroups.find(group => group.name === 'wallpapers');
+    result.wallpapersPrecached = wallpapers.urls.length === 13 && wallpapers.urls.every(url => paths.includes(url));
     result.largeResourcesLazy = ![...paths, ...requests].some(
       path => path.startsWith('/vendor/') || path.startsWith('/assets/')
     );
@@ -136,6 +145,38 @@ export const pwa = {
       5_000
     );
     result.offlineDataIntact = userDataIntact(await readUserData(page, helpers));
+    await helpers.launch('System Settings');
+    const settings = helpers.win('settings');
+    await settings.locator('[data-sec="wallpaper"]').click();
+    const choices = settings.locator('[data-wp]');
+    await choices.first().waitFor();
+    assert.equal(await choices.count(), 6);
+    const keys = await choices.evaluateAll(nodes => nodes.map(node => node.dataset.wp));
+    for (const key of keys) {
+      await settings.locator(`[data-wp="${key}"]`).click();
+      await page.waitForFunction(key => {
+        const layer = document.querySelector(`#wall .photo.on[data-full][data-key="${key}"]`);
+        return (
+          layer &&
+          getComputedStyle(layer).opacity === '1' &&
+          getComputedStyle(layer).backgroundImage.includes(`/wallpapers/${key}.jpg`)
+        );
+      }, key);
+    }
+    result.wallpapersOffline = await choices.evaluateAll(async nodes => {
+      const decoded = await Promise.all(
+        nodes.map(async node => {
+          const url = getComputedStyle(node).backgroundImage.slice(5, -2);
+          const image = new Image();
+          image.src = url;
+          await image.decode();
+          return image.naturalWidth === 640;
+        })
+      );
+      return decoded.every(Boolean);
+    });
+    result.noWallpaperNetwork = remoteWallpapers.length === 0;
+    await page.screenshot({ path: '/tmp/aiao-wallpapers-offline.png' });
     await context.setOffline(false);
     result.onlineRecovery = await page.evaluate(
       async () => (await fetch('manifest.webmanifest?ngsw-bypass=true', { cache: 'no-store' })).ok

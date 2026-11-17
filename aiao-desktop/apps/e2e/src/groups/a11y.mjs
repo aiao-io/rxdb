@@ -1,5 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 
+import { checkResourceAccessibility } from './offline-resources.mjs';
+import { checkActivityAccessibility } from './runtime-activity.mjs';
+
 import {
   brief,
   eventually,
@@ -108,7 +111,14 @@ const KEYS = [
   'a11y.axe.noViolations',
   'a11y.safari.browserLinkNamed',
   'a11y.safari.keyboardOpen',
-  'a11y.safari.actionsAccessible'
+  'a11y.safari.actionsAccessible',
+  'a11y.fileOperations.namedDialogs',
+  'a11y.fileOperations.keyboardAndFocus',
+  'a11y.fileOperations.noViolations',
+  'a11y.activity.keyboardControls',
+  'a11y.activity.noViolations',
+  'a11y.resources.keyboardControls',
+  'a11y.resources.noViolations'
 ];
 
 /** 按点分路径往嵌套对象里写值。 */
@@ -214,6 +224,7 @@ export const a11y = {
     const tree = {};
     const axeResult = {};
     const safari = {};
+    const fileOperations = {};
     const inside = region => info => info !== null && info !== undefined && region === info.region;
     await session.openDesktop();
 
@@ -288,10 +299,16 @@ export const a11y = {
         ),
         ascending(dockStops) ? [] : ['Dock 的停靠点不是从左到右']
       );
+      const iconStops = desktopStops.filter(stop => desktopNames.includes(stop.name));
+      const weatherStops = desktopStops.filter(stop => /^(Retry|Refresh) weather$/.test(stop.name));
       tabPath.desktopAfterDock = problems(
-        desktopStops.length === desktopNames.length && desktopNames.length >= 5 ?
-          []
-        : [`桌面图标停靠点 ${desktopStops.length} 个，桌面上有 ${desktopNames.length} 个`]
+        sameList(
+          iconStops.map(stop => stop.name),
+          desktopNames
+        ),
+        desktopNames.length >= 5 ? [] : ['桌面缺少既有图标'],
+        weatherStops.length === 1 ? [] : ['桌面天气应有一个可达的刷新或重试按钮'],
+        desktopStops.length === iconStops.length + weatherStops.length ? [] : ['桌面出现未登记的停靠点']
       );
       tabPath.regionsInVisibleOrder = sameList(collapse(stops.map(stop => stop.region)), [
         'menubar',
@@ -1240,6 +1257,68 @@ export const a11y = {
       safari.actionsAccessible = actions.violations.map(violation => violation.id);
     });
 
+    await guarded('fileOperations', fileOperations, async () => {
+      await reset();
+      await openFromDock('Finder', 'finder');
+      await win('finder').locator('[data-place="Desktop"]').focus();
+      await press('Enter');
+      const entry = () => page.locator('.win.front[data-app="finder"] [role="option"][data-name="prasenx.txt"]');
+      const command = async label => {
+        if (process.env.E2E_TRACE) console.error(`[a11y.files] ${label}`);
+        await entry().focus();
+        await press('Shift+F10');
+        await page.getByRole('menuitem', { name: label, exact: true }).focus();
+        await press('Enter');
+      };
+      const names = [];
+      const focus = [];
+      const violations = [];
+      for (const label of ['Rename…', 'Open With…']) {
+        await command(label);
+        const dialog = page.locator('app-file-operation-dialog [role="dialog"]');
+        await dialog.waitFor();
+        names.push(...unnamedControls(await dialog.ariaSnapshot()));
+        await press('Shift+Tab');
+        focus.push(await page.evaluate(() => Boolean(document.activeElement?.closest('app-file-operation-dialog'))));
+        const axe = await new AxeBuilder({ page }).include('app-file-operation-dialog').analyze();
+        violations.push(...axe.violations.map(item => item.id));
+        await press('Escape');
+        await dialog.waitFor({ state: 'detached' });
+        focus.push(await entry().evaluate(node => node === document.activeElement));
+      }
+      await command('Move to Trash');
+      await entry().waitFor({ state: 'detached' });
+      const previousFinder = await page.locator('.win.front[data-app="finder"]').getAttribute('id');
+      await page.locator('#dock .di[data-app="trash"]').focus();
+      await press('Enter');
+      await page.waitForFunction(previous => {
+        const front = document.querySelector('.win.front[data-app="finder"]');
+        return front && front.id !== previous && front.getAttribute('aria-label') === 'Trash';
+      }, previousFinder);
+      await command('Restore to Folder…');
+      const restore = page.locator('app-file-operation-dialog [role="dialog"]');
+      await restore.waitFor();
+      names.push(...unnamedControls(await restore.ariaSnapshot()));
+      await press('Shift+Tab');
+      focus.push(await page.evaluate(() => Boolean(document.activeElement?.closest('app-file-operation-dialog'))));
+      const axe = await new AxeBuilder({ page }).include('app-file-operation-dialog').analyze();
+      violations.push(...axe.violations.map(item => item.id));
+      await press('Escape');
+      await restore.waitFor({ state: 'detached' });
+      focus.push(await entry().evaluate(node => node === document.activeElement));
+      await command('Put Back');
+      fileOperations.namedDialogs = names;
+      fileOperations.keyboardAndFocus = focus.every(Boolean) ? [] : ['文件操作对话框焦点未保持或未恢复'];
+      fileOperations.noViolations = violations;
+    });
+
+    const resources = {};
+    await guarded('resources', resources, async () =>
+      Object.assign(resources, await checkResourceAccessibility(session))
+    );
+    const activity = {};
+    await guarded('activity', activity, async () => Object.assign(activity, await checkActivityAccessibility(session)));
+
     return {
       a11y: {
         tabPath,
@@ -1249,7 +1328,10 @@ export const a11y = {
         finder,
         tree,
         axe: axeResult,
-        safari
+        safari,
+        fileOperations,
+        activity,
+        resources
       }
     };
   }
