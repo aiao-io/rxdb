@@ -15,7 +15,7 @@
 
 ## 进行中（1 条）
 
-- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：阶段 0 基线与切片 A～D 已落地（读路径不加锁、摘要瘦身、字段级 ChangeSet 与提交表、拆表与细粒度锁）；一条评论由基线 2.74 s / 6.77 MB WAL 降到 12 ms / 3.6 KB，且不随提交数增长。切片 E（清单驱动校验、定向加载）见 [收敛实施计划](plans/collaboration-convergence-tasks.md)。
+- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：切片 A～E 全部落地（读路径不加锁、摘要瘦身、字段级 ChangeSet 与提交表、拆表与细粒度锁、清单驱动校验与定向加载）；一条评论由基线 2.74 s / 6.77 MB WAL 降到约 10 ms / 3.6 KB。剩 AC#1 在空闲机器上复测耗时、AC#6 摘要随讨论增长（由 ADMIN-US-219 关闭）、AC#8 整体回归。
 
 ## 待评审（19 条）
 

@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { diffRecords } from '../src/changes.js';
 import { sealCommit } from '../src/commit.js';
 import type { CommitContent, Records } from '../src/model.js';
@@ -71,6 +71,19 @@ async function commitOf(page: Page, workspace: { teamId: string; appId: string }
   return body as unknown as CommitContent;
 }
 /** 邀请令牌只放在 URL fragment（`#join=<转义后的 JSON>`），不进查询参数，避免落入代理日志与 Referer。 */
+/**
+ * 填值并确认当前输入框里确实是这个值。
+ *
+ * 协作面板在异步加载、刷新完成后会整块重绘（`replaceChildren`）。Playwright 拿到元素与真正填值之间若恰好重绘，
+ * 值会落进已脱离文档的旧元素：`input` 事件冒泡不到宿主，表单草稿记不住，新输入框是空的，随后发出去的就是空内容。
+ * 定位器每次重新解析，断言不成立就对新元素重填。真实用户只在可见的元素上输入，事件照常冒泡，不受此影响。
+ */
+async function fillSettled(target: Locator, value: string) {
+  await expect(async () => {
+    await target.fill(value);
+    await expect(target).toHaveValue(value, { timeout: 1000 });
+  }).toPass({ timeout: 15000 });
+}
 function invitationLink(baseURL: string | undefined, fixture: Fixture, id = fixture.invitation, token = fixture.token) {
   const link = new URL('/collaboration', baseURL);
   const ticket = { teamId: fixture.teamId, appId: fixture.appId, id, token };
@@ -125,7 +138,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.context().setOffline(false);
   await page.getByRole('button', { name: '同步', exact: true }).click();
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
-  await page.getByLabel('PR 说明', { exact: true }).fill('整单采购与安装');
+  await fillSettled(page.getByLabel('PR 说明', { exact: true }), '整单采购与安装');
   await expect(page.getByLabel('目标分支', { exact: true })).toHaveValue('shared');
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
@@ -139,7 +152,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await reviewPage.getByRole('button', { name: '接受邀请', exact: true }).click();
   await reviewPage.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
   await expect(reviewPage.getByRole('button', { name: '批准当前候选', exact: true })).toBeDisabled();
-  await reviewPage.getByLabel('审核或撤销理由', { exact: true }).fill('请先确认采购范围');
+  await fillSettled(reviewPage.getByLabel('审核或撤销理由', { exact: true }), '请先确认采购范围');
   await reviewPage.getByRole('button', { name: '要求修改', exact: true }).click();
   await expect(
     reviewPage.getByText(`要求修改：${fixture.reviewer.id} — 请先确认采购范围`, { exact: true })
@@ -161,7 +174,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
   await page.getByRole('tab', { name: '讨论', exact: true }).click();
-  await page.getByLabel('新评论', { exact: true }).fill('请核对整单采购');
+  await fillSettled(page.getByLabel('新评论', { exact: true }), '请核对整单采购');
   await page.getByLabel('必须处理', { exact: true }).check();
   await page.getByLabel('提及成员', { exact: true }).selectOption(fixture.reviewer.id);
   await page.getByRole('button', { name: '发表评论', exact: true }).click();
@@ -187,7 +200,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('mine');
   await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toHaveCount(0);
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('all');
-  await reviewPage.getByLabel('回复', { exact: true }).fill('已核对采购范围');
+  await fillSettled(reviewPage.getByLabel('回复', { exact: true }), '已核对采购范围');
   await reviewPage.getByRole('button', { name: '发送回复', exact: true }).click();
   await expect(reviewPage.getByText(`${fixture.reviewer.id}：已核对采购范围`, { exact: true })).toBeVisible();
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('mine');

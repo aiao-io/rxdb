@@ -1,0 +1,350 @@
+{
+  "checkpoints": [
+    {
+      "commits": 10,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 8332,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 38,
+        "policy": 25,
+        "members": 326,
+        "tasks": 399,
+        "prs": 591,
+        "candidates": 325,
+        "reviews": 2,
+        "threads": 2,
+        "notifications": 2,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 5947,
+        "auditCount": 2,
+        "governance": 120
+      },
+      "sharedRecordsBytes": 1366439,
+      "historyPageBytes": 1741,
+      "commitRows": 12,
+      "commitChangeRows": 20050,
+      "sharedRows": 10000,
+      "tableRows": {
+        "threads": 7,
+        "comments": 14,
+        "reviews": 7,
+        "notifications": 14,
+        "operations": 48,
+        "audit": 49
+      },
+      "commitStoreBytes": 8044544,
+      "snapshotMs": 11,
+      "historyMs": 4.5,
+      "commandMs": 10,
+      "commandWalBytes": 3600,
+      "commands": {
+        "thread": {
+          "ms": 9.6,
+          "walBytes": 3600
+        },
+        "reply": {
+          "ms": 11,
+          "walBytes": 3680
+        },
+        "review": {
+          "ms": 9.6,
+          "walBytes": 3592
+        },
+        "read_notice": {
+          "ms": 9.9,
+          "walBytes": 2048
+        },
+        "member": {
+          "ms": 8,
+          "walBytes": 2320
+        }
+      },
+      "uploadMsPerCommit": 2,
+      "upload100Ms": 17.5,
+      "candidateMerge100Ms": 52,
+      "bulkChanges": {
+        "records": 100,
+        "uploadMs": 17.5,
+        "candidateMs": 16.1,
+        "mergeMs": 36.6,
+        "candidateAndMergeMs": 52
+      }
+    },
+    {
+      "commits": 100,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 45971,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 38,
+        "policy": 25,
+        "members": 333,
+        "tasks": 1806,
+        "prs": 2572,
+        "candidates": 3062,
+        "reviews": 4551,
+        "threads": 3914,
+        "notifications": 4607,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 23744,
+        "auditCount": 3,
+        "governance": 763
+      },
+      "sharedRecordsBytes": 1366440,
+      "historyPageBytes": 8665,
+      "commitRows": 116,
+      "commitChangeRows": 21900,
+      "sharedRows": 10000,
+      "tableRows": {
+        "threads": 14,
+        "comments": 28,
+        "reviews": 21,
+        "notifications": 35,
+        "operations": 134,
+        "audit": 135
+      },
+      "commitStoreBytes": 8626176,
+      "snapshotMs": 9,
+      "historyMs": 5.5,
+      "commandMs": 7,
+      "commandWalBytes": 3576,
+      "commands": {
+        "thread": {
+          "ms": 6.8,
+          "walBytes": 3576
+        },
+        "reply": {
+          "ms": 9.9,
+          "walBytes": 3656
+        },
+        "review": {
+          "ms": 7.7,
+          "walBytes": 3592
+        },
+        "read_notice": {
+          "ms": 8.1,
+          "walBytes": 2008
+        },
+        "member": {
+          "ms": 6,
+          "walBytes": 2320
+        }
+      },
+      "uploadMsPerCommit": 1,
+      "upload100Ms": 16.6,
+      "candidateMerge100Ms": 49.9,
+      "bulkChanges": {
+        "records": 100,
+        "uploadMs": 16.6,
+        "candidateMs": 14.6,
+        "mergeMs": 35.4,
+        "candidateAndMergeMs": 49.9
+      }
+    },
+    {
+      "commits": 500,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 65527,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 3,
+        "schemaVersion": 1,
+        "head": 38,
+        "policy": 25,
+        "members": 327,
+        "tasks": 3221,
+        "prs": 4566,
+        "candidates": 5803,
+        "reviews": 9117,
+        "threads": 7827,
+        "notifications": 9217,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 23753,
+        "auditCount": 3,
+        "governance": 1076
+      },
+      "sharedRecordsBytes": 1366441,
+      "historyPageBytes": 8715,
+      "commitRows": 530,
+      "commitChangeRows": 25300,
+      "sharedRows": 10000,
+      "tableRows": {
+        "threads": 21,
+        "comments": 42,
+        "reviews": 35,
+        "notifications": 56,
+        "operations": 226,
+        "audit": 227
+      },
+      "commitStoreBytes": 9977856,
+      "snapshotMs": 10,
+      "historyMs": 9.2,
+      "commandMs": 7,
+      "commandWalBytes": 3600,
+      "commands": {
+        "thread": {
+          "ms": 7.3,
+          "walBytes": 3600
+        },
+        "reply": {
+          "ms": 7.8,
+          "walBytes": 3656
+        },
+        "review": {
+          "ms": 9.2,
+          "walBytes": 3568
+        },
+        "read_notice": {
+          "ms": 8.6,
+          "walBytes": 2016
+        },
+        "member": {
+          "ms": 6.5,
+          "walBytes": 2320
+        }
+      },
+      "uploadMsPerCommit": 1,
+      "upload100Ms": 19.7,
+      "candidateMerge100Ms": 49.9,
+      "bulkChanges": {
+        "records": 100,
+        "uploadMs": 19.7,
+        "candidateMs": 12.9,
+        "mergeMs": 37,
+        "candidateAndMergeMs": 49.9
+      }
+    },
+    {
+      "commits": 1000,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 85250,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 3,
+        "schemaVersion": 1,
+        "head": 38,
+        "policy": 25,
+        "members": 334,
+        "tasks": 4642,
+        "prs": 6568,
+        "candidates": 8547,
+        "reviews": 13695,
+        "threads": 11740,
+        "notifications": 13830,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 23882,
+        "auditCount": 3,
+        "governance": 1392
+      },
+      "sharedRecordsBytes": 1366442,
+      "historyPageBytes": 8715,
+      "commitRows": 1044,
+      "commitChangeRows": 29200,
+      "sharedRows": 10000,
+      "tableRows": {
+        "threads": 28,
+        "comments": 56,
+        "reviews": 49,
+        "notifications": 77,
+        "operations": 320,
+        "audit": 321
+      },
+      "commitStoreBytes": 11542528,
+      "snapshotMs": 16,
+      "historyMs": 20.8,
+      "commandMs": 12,
+      "commandWalBytes": 3600,
+      "commands": {
+        "thread": {
+          "ms": 11.6,
+          "walBytes": 3600
+        },
+        "reply": {
+          "ms": 12.3,
+          "walBytes": 3680
+        },
+        "review": {
+          "ms": 14.5,
+          "walBytes": 3568
+        },
+        "read_notice": {
+          "ms": 12.4,
+          "walBytes": 2072
+        },
+        "member": {
+          "ms": 21.9,
+          "walBytes": 2320
+        }
+      },
+      "uploadMsPerCommit": 2,
+      "upload100Ms": 59.4,
+      "candidateMerge100Ms": 107.9,
+      "bulkChanges": {
+        "records": 100,
+        "uploadMs": 59.4,
+        "candidateMs": 33.4,
+        "mergeMs": 72.5,
+        "candidateAndMergeMs": 107.9
+      }
+    }
+  ],
+  "contention": {
+    "commits": 1000,
+    "idleCommandMs": 12,
+    "readers": 4,
+    "contendedCommandMs": 28
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 10000,
+    "sharedRecords": 10000,
+    "changedRecordsPerCommit": 5,
+    "bulkChangedRecords": 100,
+    "commands": ["thread", "reply", "review", "read_notice", "member"],
+    "samples": 7
+  },
+  "generatedAt": "2026-11-17T10:56:31.877Z",
+  "label": "切片 E：清单驱动校验、候选与合并定向读取、上传核对父内容；10000 条共享记录"
+}

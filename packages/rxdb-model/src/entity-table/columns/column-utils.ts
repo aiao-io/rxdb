@@ -112,6 +112,16 @@ export interface KVSchemaEntry {
 }
 
 /**
+ * 数字列是否按语言格式化显示。
+ *
+ * @remarks
+ * `number` 这一种 format 只带取值边界（`min` / `max` / `step`），没有显示语义：带上它是为了让编辑器与校验
+ * 知道边界，不该让表格从本地化的「1,234」退成原值「1234」。其余数字类 format（货币、百分比、评分、时长）
+ * 各有自己的显示规则，仍交给 {@link formatEntityFieldValue}。
+ */
+const localizesNumber = (format: FieldFormat | undefined): boolean => !format || format.kind === 'number';
+
+/**
  * 格式化日期值为本地字符串
  *
  * @param v 待格式化的日期值
@@ -392,7 +402,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
 
     case 'number':
       col['fieldFormat'] = (r: Record<string, unknown>) =>
-        i18n?.formatNumber && !format && typeof r[field] === 'number' ?
+        i18n?.formatNumber && localizesNumber(format) && typeof r[field] === 'number' ?
           i18n.formatNumber(r[field] as number)
         : formatEntityFieldValue('number', r[field], format);
       applyDefaultSizes(col, type, config.width);
@@ -410,7 +420,7 @@ export function buildPropertyColumn(config: PropertyColumnConfig): ColumnDefine 
 
     case 'integer':
       col['fieldFormat'] = (r: Record<string, unknown>) =>
-        i18n?.formatNumber && !format && typeof r[field] === 'number' ?
+        i18n?.formatNumber && localizesNumber(format) && typeof r[field] === 'number' ?
           i18n.formatNumber(r[field] as number)
         : formatEntityFieldValue('integer', r[field], format);
       applyDefaultSizes(col, type, config.width);

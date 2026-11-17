@@ -20,6 +20,33 @@ describe('模型列的本地化值', () => {
     expect(format({ amount: 1234567.89 })).toBe('1234567.89');
   });
 
+  it('只带取值边界的数字 format 不改变显示：仍按语言格式化', () => {
+    const runtime = new I18n({ locale: 'en-US' });
+    try {
+      const english = new Intl.NumberFormat('en-US').format(1234567.89);
+      for (const type of ['number', 'integer'] as const) {
+        const column = buildPropertyColumn({
+          field: 'amount',
+          type,
+          i18n: runtime,
+          format: { kind: 'number', min: 0 }
+        });
+        const format = column.fieldFormat as (row: Record<string, unknown>) => string;
+        expect(format({ amount: 1234567.89 })).toBe(english);
+      }
+      // 带显示语义的 format 仍走自己的渲染，不被本地化覆盖。
+      const currency = buildPropertyColumn({
+        field: 'amount',
+        type: 'number',
+        i18n: runtime,
+        format: { kind: 'currency', currency: 'CNY' }
+      });
+      expect((currency.fieldFormat as (row: Record<string, unknown>) => string)({ amount: 12 })).toBe('12 CNY');
+    } finally {
+      runtime.destroy();
+    }
+  });
+
   it('显式运行时按语言格式化完整日期与时间，保留到秒', async () => {
     const runtime = new I18n({ locale: 'en-US' });
     try {
