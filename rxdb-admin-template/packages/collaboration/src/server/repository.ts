@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { demand, type Command, type Identity, type Presence, type Workspace } from '../model.js';
+import { demand, type AuditQuery, type Command, type Identity, type Presence, type Workspace } from '../model.js';
 import { authorize } from './access.js';
-import { bootstrap, execute, snapshot } from './engine.js';
+import { auditPage, bootstrap, candidateContent, commitContent, execute, sharedRecords, snapshot } from './engine.js';
 
 /** 读取工作区行时的锁：命令排他、Presence 共享、只读查询不加锁。 */
 type RowLock = 'update' | 'share' | 'none';
@@ -53,6 +53,22 @@ export class CollaborationRepository {
       return snapshot(state, user, now, await this.readPresence(client, teamId, appId, now));
     });
   }
+  /** 共享分支当前的全部记录与头提交；不加锁、不写库。 */
+  async readRecords(user: Identity, teamId: string, appId: string) {
+    return this.view(teamId, appId, state => sharedRecords(state, user));
+  }
+  /** 一个提交的完整内容；不加锁、不写库，未知 ID 返回 `not_found`。 */
+  async readCommit(user: Identity, teamId: string, appId: string, id: string) {
+    return this.view(teamId, appId, state => commitContent(state, user, id));
+  }
+  /** 一个合并候选的完整内容；不加锁、不写库，未知 ID 返回 `not_found`。 */
+  async readCandidate(user: Identity, teamId: string, appId: string, id: string) {
+    return this.view(teamId, appId, state => candidateContent(state, user, id));
+  }
+  /** 审计分页（新到旧）；不加锁、不写库。 */
+  async readAudit(user: Identity, teamId: string, appId: string, query: AuditQuery) {
+    return this.view(teamId, appId, state => auditPage(state, user, query));
+  }
   async operation(user: Identity, teamId: string, appId: string, command: Command) {
     return this.transaction(async client => {
       if (command.type === 'presence') return this.updatePresence(client, user, teamId, appId, command);
@@ -80,7 +96,7 @@ export class CollaborationRepository {
   }
   /**
    * 读取工作区状态。命令用排他锁串行裁决；Presence 只需按已提交的成员关系授权，用共享锁等待进行中的
-   * 成员变更、但不与其他读者互斥；快照与回执读取基于已提交版本，不加锁，不会排在写事务后面。
+   * 成员变更、但不与其他读者互斥；摘要、回执与按需内容读取基于已提交版本，不加锁，不会排在写事务后面。
    */
   private async load(client: PoolClient, teamId: string, appId: string, lock: RowLock = 'update') {
     const result = await client.query<{ state: Workspace }>(
@@ -88,6 +104,15 @@ export class CollaborationRepository {
       [teamId, appId]
     );
     return result.rows[0]?.state;
+  }
+  /** 只读查询：基于已提交版本，不加锁、不开事务、不写库，不会排在写事务后面。 */
+  private async view<T>(teamId: string, appId: string, read: (state: Workspace) => T): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      return read(await this.required(client, teamId, appId, 'none'));
+    } finally {
+      client.release();
+    }
   }
   private async required(client: PoolClient, teamId: string, appId: string, lock: RowLock = 'update') {
     const state = await this.load(client, teamId, appId, lock);

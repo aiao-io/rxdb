@@ -1,6 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CollaborationError } from '../model.js';
+import { CollaborationError, type Audit, type Commit, type Records, type WorkspaceSummary } from '../model.js';
 import { bootstrap, snapshot } from '../server/engine.js';
 import { CollaborationController } from './controller.js';
 import type { Draft, DraftStorage } from './local.js';
@@ -419,7 +419,17 @@ describe('client concurrency and recovery', () => {
       originTaskId: 'task'
     });
     command.commits.forEach(commit => {
-      controller.snapshot!.commits[commit.id] = commit;
+      controller.snapshot!.commits[commit.id] = {
+        id: commit.id,
+        parent: commit.parent,
+        authorId: commit.authorId,
+        message: commit.message
+      };
+    });
+    vi.spyOn(controller.api, 'commit').mockImplementation(async (_workspace, id) => {
+      const commit = command.commits.find(item => item.id === id);
+      if (!commit) throw new CollaborationError('not_found', '提交不存在');
+      return commit;
     });
     vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
@@ -444,5 +454,348 @@ describe('client concurrency and recovery', () => {
       controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')
     ).rejects.toThrow('刷新失败');
     expect(controller.pending()?.command.operationId).toBe('accepted-op');
+  });
+});
+
+const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
+const commitOf = (id: string, parent: string | null, name: string): Commit => ({
+  id,
+  parent,
+  authorId: 'alice',
+  message: id,
+  records: records(name)
+});
+const metadata = ({ id, parent, authorId, message }: Commit) => ({ id, parent, authorId, message });
+/** 在当前摘要上叠加改动并让 api.snapshot 返回它（修订号加一），模拟别人推进了工作区。 */
+function publish(controller: CollaborationController, change: (summary: WorkspaceSummary) => void) {
+  const next = structuredClone(controller.snapshot!);
+  change(next);
+  next.revision += 1;
+  vi.mocked(controller.api.snapshot).mockResolvedValue(next);
+  return next;
+}
+/** 共享分支头指向提交 c1、另有一个头在 c1 的自己的任务 task2 的摘要。 */
+function withSharedCommit(controller: CollaborationController) {
+  return publish(controller, summary => {
+    summary.head = 'c1';
+    summary.commits['c1'] = metadata(commitOf('c1', null, 'One'));
+    summary.tasks.push({ id: 'task2', name: 'Second', ownerId: 'alice', base: 'c1', head: 'c1', originTaskId: null });
+  });
+}
+const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+describe('on-demand content', () => {
+  it('serves commit content on a miss with one request, announces the arrival and then answers from the cache', async () => {
+    const { controller } = await setup();
+    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    const changed = vi.fn();
+    controller.addEventListener('change', changed);
+    expect(controller.commitContent('c1')).toBeUndefined();
+    expect(controller.commitContent('c1')).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(controller.workspace, 'c1');
+    await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    expect(controller.commitContent('c1')?.records).toEqual(records('One'));
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+  it('shares one request between background reads and awaited loads of the same id, but not across ids', async () => {
+    const { controller } = await setup();
+    const reply = Promise.withResolvers<Commit>();
+    const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
+    const candidate = vi.spyOn(controller.api, 'candidate');
+    controller.commitContent('c1');
+    const loading = [controller.loadCommit('c1'), controller.loadCommit('c1')];
+    controller.commitContent('c1');
+    expect(request).toHaveBeenCalledTimes(1);
+    reply.resolve(commitOf('c1', null, 'One'));
+    expect((await Promise.all(loading)).map(commit => commit.id)).toEqual(['c1', 'c1']);
+    controller.commitContent('c2');
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(candidate).not.toHaveBeenCalled();
+  });
+  it('caches candidates by id the same way', async () => {
+    const { controller } = await setup();
+    const content = { id: 'k1', prId: 'pr', records: records('Final') } as never;
+    const request = vi.spyOn(controller.api, 'candidate').mockResolvedValue(content);
+    expect(controller.candidateContent('k1')).toBeUndefined();
+    await expect(controller.loadCandidate('k1')).resolves.toBe(content);
+    expect(controller.candidateContent('k1')).toBe(content);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(controller.workspace, 'k1');
+  });
+  it('keeps immutable commits across refreshes', async () => {
+    const { controller } = await setup();
+    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    await controller.loadCommit('c1');
+    publish(controller, () => undefined);
+    await controller.refresh();
+    expect(controller.commitContent('c1')?.id).toBe('c1');
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+  it('records a failed read once, shows the error, does not retry by itself and tries again after a refresh', async () => {
+    const { controller } = await setup();
+    const request = vi
+      .spyOn(controller.api, 'commit')
+      .mockRejectedValueOnce(new CollaborationError('internal', '服务暂时不可用，请稍后按原请求重试'))
+      .mockResolvedValue(commitOf('c1', null, 'One'));
+    expect(controller.commitContent('c1')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.message).toBe('服务暂时不可用，请稍后按原请求重试'));
+    for (let index = 0; index < 5; index++) expect(controller.commitContent('c1')).toBeUndefined();
+    await settle();
+    expect(request).toHaveBeenCalledTimes(1);
+    publish(controller, () => undefined);
+    await controller.refresh();
+    expect(controller.commitContent('c1')).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(controller.commitContent('c1')?.id).toBe('c1'));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('lets a user operation retry a failed read immediately and reports its failure to the caller', async () => {
+    const { controller } = await setup();
+    const request = vi
+      .spyOn(controller.api, 'commit')
+      .mockRejectedValueOnce(new CollaborationError('internal', 'first'))
+      .mockRejectedValueOnce(new CollaborationError('internal', 'second'))
+      .mockResolvedValue(commitOf('c1', null, 'One'));
+    controller.commitContent('c1');
+    await vi.waitFor(() => expect(controller.message).toBe('first'));
+    await expect(controller.loadCommit('c1')).rejects.toMatchObject({ message: 'second' });
+    expect(controller.message).toBe('first');
+    await expect(controller.loadCommit('c1')).resolves.toMatchObject({ id: 'c1' });
+    expect(request).toHaveBeenCalledTimes(3);
+  });
+  it('answers a read without a selected team with undefined and an error message, never a throw or a lock', async () => {
+    const { controller } = await setup();
+    controller.workspace = null;
+    const request = vi.spyOn(controller.api, 'commit');
+    expect(controller.commitContent('c1')).toBeUndefined();
+    expect(controller.candidateContent('k1')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.message).toBe('先选择团队'));
+    expect(controller.user?.id).toBe('alice');
+    expect(request).not.toHaveBeenCalled();
+  });
+  it('serves the empty shared branch without a request', async () => {
+    const { controller } = await setup();
+    const request = vi.spyOn(controller.api, 'records');
+    expect(controller.snapshot!.head).toBeNull();
+    expect(controller.sharedRecords()).toEqual({});
+    await expect(controller.loadSharedRecords()).resolves.toEqual({});
+    expect(request).not.toHaveBeenCalled();
+  });
+  it('caches shared records by the summary head and drops them as soon as the head changes', async () => {
+    const { controller } = await setup();
+    const request = vi
+      .spyOn(controller.api, 'records')
+      .mockResolvedValueOnce({ head: 'h1', records: records('First') })
+      .mockResolvedValueOnce({ head: 'h2', records: records('Second') });
+    publish(controller, summary => {
+      summary.head = 'h1';
+    });
+    await controller.refresh();
+    expect(controller.sharedRecords()).toBeUndefined();
+    await vi.waitFor(() => expect(controller.sharedRecords()).toEqual(records('First')));
+    publish(controller, summary => {
+      summary.head = 'h1';
+      summary.name = 'Renamed';
+    });
+    await controller.refresh();
+    expect(controller.sharedRecords()).toEqual(records('First'));
+    expect(request).toHaveBeenCalledTimes(1);
+    publish(controller, summary => {
+      summary.head = 'h2';
+    });
+    await controller.refresh();
+    expect(controller.sharedRecords()).toBeUndefined();
+    await vi.waitFor(() => expect(controller.sharedRecords()).toEqual(records('Second')));
+    expect(request).toHaveBeenCalledTimes(2);
+    await expect(controller.loadSharedRecords()).resolves.toEqual(records('Second'));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('does not show or retry a shared read that was overtaken by a newer head, and recovers on the next refresh', async () => {
+    const { controller } = await setup();
+    const request = vi
+      .spyOn(controller.api, 'records')
+      .mockResolvedValueOnce({ head: 'h2', records: records('Second') })
+      .mockResolvedValue({ head: 'h2', records: records('Second') });
+    publish(controller, summary => {
+      summary.head = 'h1';
+    });
+    await controller.refresh();
+    expect(controller.sharedRecords()).toBeUndefined();
+    await settle();
+    for (let index = 0; index < 3; index++) expect(controller.sharedRecords()).toBeUndefined();
+    await settle();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(controller.message).toBe('');
+    publish(controller, summary => {
+      summary.head = 'h2';
+    });
+    await controller.refresh();
+    expect(controller.sharedRecords()).toBeUndefined();
+    await vi.waitFor(() => expect(controller.sharedRecords()).toEqual(records('Second')));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('discards content that arrives after switching team and starts over in the new one', async () => {
+    const { controller } = await setup();
+    const late = Promise.withResolvers<Commit>();
+    const request = vi
+      .spyOn(controller.api, 'commit')
+      .mockReturnValueOnce(late.promise)
+      .mockResolvedValue(commitOf('c1', null, 'Other team'));
+    controller.commitContent('c1');
+    await controller.selectWorkspace({ teamId: 'other', appId: 'assets', name: 'Other' });
+    late.resolve(commitOf('c1', null, 'Old team'));
+    await settle();
+    expect(controller.commitContent('c1')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.commitContent('c1')?.records).toEqual(records('Other team')));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenLastCalledWith({ teamId: 'other', appId: 'assets', name: 'Other' }, 'c1');
+  });
+  it('forgets all content when the session locks', async () => {
+    const { controller } = await setup();
+    vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'One'));
+    await controller.loadCommit('c1');
+    await controller.lock();
+    expect(controller.snapshot).toBeNull();
+    controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
+    expect(controller.commitContent('c1')).toBeUndefined();
+  });
+});
+
+describe('operations that need content', () => {
+  it('loads the head commit before opening a task and opens the draft from its records', async () => {
+    const { controller } = await setup();
+    withSharedCommit(controller);
+    const reply = Promise.withResolvers<Commit>();
+    const request = vi.spyOn(controller.api, 'commit').mockReturnValue(reply.promise);
+    const opening = controller.openTask('task2');
+    await vi.waitFor(() => expect(request).toHaveBeenCalledWith(controller.workspace, 'c1'));
+    expect(controller.draft?.context.taskId).toBe('task');
+    reply.resolve(commitOf('c1', null, 'One'));
+    await opening;
+    expect(controller.draft?.context.taskId).toBe('task2');
+    expect(controller.draft?.records).toEqual(records('One'));
+    expect(controller.draft?.remoteHead).toBe('c1');
+  });
+  it('does not open the task when its head commit cannot be loaded', async () => {
+    const { controller } = await setup();
+    withSharedCommit(controller);
+    vi.spyOn(controller.api, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
+    await expect(controller.openTask('task2')).rejects.toMatchObject({ message: 'down' });
+    expect(controller.draft?.context.taskId).toBe('task');
+    expect((await controller.local.storage.list('alice')).map(draft => draft.context.taskId)).toEqual(['task']);
+  });
+  it('needs no commit request for a task that has no commits yet', async () => {
+    const { controller } = await setup();
+    const request = vi.spyOn(controller.api, 'commit');
+    await controller.openTask('task');
+    expect(request).not.toHaveBeenCalled();
+    expect(controller.draft?.records).toEqual({});
+  });
+  it('loads the head commit before fast-forwarding the local task to the remote version', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.commits['c1'] = metadata(commitOf('c1', null, 'Remote'));
+      summary.tasks[0].head = 'c1';
+    });
+    const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'Remote'));
+    await controller.fetchRemote(false);
+    expect(request).toHaveBeenCalledWith(controller.workspace, 'c1');
+    expect(controller.draft?.remoteHead).toBe('c1');
+    expect(controller.draft?.records).toEqual(records('Remote'));
+  });
+  it('keeps local work when the remote head commit cannot be loaded for a fast-forward', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.commits['c1'] = metadata(commitOf('c1', null, 'Remote'));
+      summary.tasks[0].head = 'c1';
+    });
+    vi.spyOn(controller.api, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
+    await expect(controller.fetchRemote(false)).rejects.toMatchObject({ message: 'down' });
+    expect(controller.draft?.remoteHead).toBeNull();
+    expect(controller.draft?.records).toEqual({});
+  });
+});
+
+describe('audit timeline', () => {
+  const event = (id: number): Audit => ({
+    id: `e${id}`,
+    actorId: 'alice',
+    action: 'task',
+    operationId: `op${id}`,
+    at: id,
+    details: {}
+  });
+  const events = (from: number, to: number) => Array.from({ length: to - from }, (_, index) => event(from + index));
+  it('loads earlier events through the cursor and keeps them across refreshes that overlap', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.audit = events(3, 6);
+      summary.auditCount = 6;
+    });
+    await controller.refresh();
+    expect(controller.auditEvents().map(item => item.id)).toEqual(['e3', 'e4', 'e5']);
+    expect(controller.hasEarlierAudit()).toBe(true);
+    const request = vi
+      .spyOn(controller.api, 'audit')
+      .mockResolvedValue({ events: events(0, 3).reverse(), nextBefore: null });
+    await controller.loadEarlierAudit();
+    expect(request).toHaveBeenCalledWith(controller.workspace, { before: 'e3' });
+    expect(controller.auditEvents().map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5']);
+    expect(controller.hasEarlierAudit()).toBe(false);
+    publish(controller, summary => {
+      summary.audit = events(4, 8);
+      summary.auditCount = 8;
+    });
+    await controller.refresh();
+    expect(controller.auditEvents().map(item => item.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7']);
+    expect(controller.hasEarlierAudit()).toBe(false);
+  });
+  it('announces loaded earlier events and ignores a page that no longer lines up', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.audit = events(3, 6);
+      summary.auditCount = 6;
+    });
+    await controller.refresh();
+    const reply = Promise.withResolvers<{ events: Audit[]; nextBefore: string | null }>();
+    vi.spyOn(controller.api, 'audit').mockReturnValue(reply.promise);
+    const changed = vi.fn();
+    controller.addEventListener('change', changed);
+    const loading = controller.loadEarlierAudit();
+    publish(controller, summary => {
+      summary.audit = events(40, 90);
+      summary.auditCount = 90;
+    });
+    await controller.refresh();
+    changed.mockClear();
+    reply.resolve({ events: events(0, 3).reverse(), nextBefore: null });
+    await loading;
+    expect(controller.auditEvents().map(item => item.id)).toEqual(events(40, 90).map(item => item.id));
+    expect(changed).not.toHaveBeenCalled();
+  });
+  it('reads a thread history completely, oldest first, and refreshes it when the workspace revision changes', async () => {
+    const { controller } = await setup();
+    const request = vi
+      .spyOn(controller.api, 'audit')
+      .mockResolvedValueOnce({ events: [event(3), event(2)], nextBefore: 'e2' })
+      .mockResolvedValueOnce({ events: [event(1)], nextBefore: null })
+      .mockResolvedValue({ events: [event(4), event(3), event(2), event(1)], nextBefore: null });
+    expect(controller.threadEvents('t1')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.threadEvents('t1')?.map(item => item.id)).toEqual(['e1', 'e2', 'e3']));
+    expect(request).toHaveBeenNthCalledWith(1, controller.workspace, { threadId: 't1', limit: 100 });
+    expect(request).toHaveBeenNthCalledWith(2, controller.workspace, { threadId: 't1', limit: 100, before: 'e2' });
+    publish(controller, summary => {
+      summary.name = 'Same revision data';
+      summary.revision -= 1;
+    });
+    await controller.refresh();
+    expect(controller.threadEvents('t1')?.map(item => item.id)).toEqual(['e1', 'e2', 'e3']);
+    expect(request).toHaveBeenCalledTimes(2);
+    publish(controller, () => undefined);
+    await controller.refresh();
+    expect(controller.threadEvents('t1')).toBeUndefined();
+    await vi.waitFor(() => expect(controller.threadEvents('t1')).toHaveLength(4));
+    expect(request).toHaveBeenCalledTimes(3);
   });
 });

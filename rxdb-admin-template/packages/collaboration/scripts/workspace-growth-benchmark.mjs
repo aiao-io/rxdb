@@ -1,7 +1,7 @@
-// 协作后端收敛阶段 0 的基线度量：随提交数增长，记录普通命令耗时、单次命令 WAL、工作区行大小、
-// 快照体积与读取耗时，以及并发读取快照时写命令的等待。用临时 Docker PostgreSQL，与集成测试同一镜像。
+// 协作后端收敛的容量基准：随提交数增长，记录普通命令耗时、单次命令 WAL、工作区行大小、
+// 工作区摘要与共享数据的体积和读取耗时，以及并发读取摘要时写命令的等待。用临时 Docker PostgreSQL，与集成测试同一镜像。
 // 环境变量：BENCH_RECORDS（默认 1000）、BENCH_CHECKPOINTS（默认 10,50,100,200）、BENCH_SAMPLES（默认 7）、
-// BENCH_READERS（默认 4）、BENCH_OUT（可选，结果 JSON 的写入路径）。
+// BENCH_READERS（默认 4）、BENCH_LABEL（写进结果的实现说明）、BENCH_OUT（可选，结果 JSON 的写入路径）。
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -141,11 +141,14 @@ async function measureCheckpoint(context, commits, lastUploadMsPerCommit) {
       Number((await pool.query('SELECT pg_wal_lsn_diff($1, $2) AS bytes', [after, before])).rows[0].bytes)
     );
   }
+  // 切片 B 起共享数据移出摘要，只在共享头变化时另行下载，单独记录
+  const shared = repository.readRecords ? await repository.readRecords(admin, seed.teamId, seed.appId) : null;
   return {
     commits,
     stateTextBytes: Number(stateRow.text),
     stateStoredBytes: Number(stateRow.stored),
     snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
+    sharedRecordsBytes: shared ? Buffer.byteLength(JSON.stringify(shared)) : null,
     snapshotMs: Math.round(median(snapshotMs)),
     commandMs: Math.round(median(commandMs)),
     commandWalBytes: median(commandWal),
@@ -231,7 +234,7 @@ async function main() {
         changedRecordsPerCommit: changedPerCommit,
         samples
       },
-      protocol: '首版：每个提交携带全量记录，整个工作区一行 JSONB，读快照带行锁',
+      label: process.env['BENCH_LABEL'] ?? '未标注',
       checkpoints: results,
       contention
     };

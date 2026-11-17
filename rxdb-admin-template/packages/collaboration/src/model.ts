@@ -35,6 +35,8 @@ export interface Commit {
   mergeSource?: string;
   candidateId?: string;
 }
+/** 提交摘要：只含元数据，不含记录内容；内容经 `GET .../commits/:id` 按需读取，提交不可变，客户端可按 ID 长期缓存。 */
+export type CommitSummary = Omit<Commit, 'records'>;
 /** 任务：成员私有的工作分支。`base` 是创建时的共享版本，`head` 是已同步到服务端的最新提交，`originTaskId` 指向另存前的原任务。 */
 export interface Task {
   id: string;
@@ -113,6 +115,11 @@ export interface Candidate {
   actorId: string;
   at: number;
 }
+/**
+ * 候选摘要：保留来源、目标、冲突选择、冲突与检查结果，去掉最终记录；记录经 `GET .../candidates/:id` 按需读取，
+ * 候选不可变，客户端可按 ID 长期缓存。
+ */
+export type CandidateSummary = Omit<Candidate, 'records'>;
 /**
  * 一条审核记录：批准、要求修改，或撤销他人的阻塞意见（dismiss）。
  * `generation` 记录审核者当时的授权代次，授权变更后旧批准不再有效；`revision` 是同一审核者记录的版本。
@@ -226,6 +233,76 @@ export interface Workspace {
   presence: Presence[];
   receipts: Record<string, Receipt>;
   audit: Audit[];
+}
+/** 摘要里内嵌的最近审计事件条数；更早的事件经审计分页接口读取。 */
+export const auditSummarySize = 50;
+/** 审计分页的每页条数：不传 `limit` 时取 `default`，超过 `maximum` 的请求被拒绝。 */
+export const auditPageSize = { default: 50, maximum: 100 } as const;
+/** 一个审批阶段的当前进度：已有效批准的人数与是否达到所需人数。 */
+export interface StageProgress {
+  id: string;
+  name: string;
+  minimum: number;
+  approved: number;
+  complete: boolean;
+}
+/** 一个 PR 的治理状态：仍生效的阻塞意见与各审批阶段进度（尚无候选时没有阶段进度）。 */
+export interface Governance {
+  prId: string;
+  blockers: Review[];
+  stages: StageProgress[];
+}
+/** 管理者可见的邀请视图：不含令牌摘要，受邀邮箱以小写保存。 */
+export type InvitationSummary = Omit<Invitation, 'tokenHash'>;
+/**
+ * 工作区摘要，即 `GET /workspaces/:teamId/:appId` 的响应：只含成员、任务、PR、审核、讨论、通知等元数据，
+ * 体积不随记录数增长。提交与候选的记录、共享分支数据与完整审计都不在其中，需分别经
+ * `GET .../records`、`.../commits/:id`、`.../candidates/:id`、`.../audit` 按需读取。
+ * 仅返回该用户可见的内容：通知只含本人的，`invitations` 只对有 manage 权限者非空。
+ */
+export interface WorkspaceSummary {
+  teamId: string;
+  appId: string;
+  name: string;
+  revision: number;
+  schemaVersion: number;
+  /** 共享分支的头提交；共享数据以它为版本，头变化后需重新读取。 */
+  head: string | null;
+  policy: Policy;
+  members: Member[];
+  tasks: Task[];
+  commits: Record<string, CommitSummary>;
+  prs: PullRequest[];
+  candidates: Record<string, CandidateSummary>;
+  reviews: Review[];
+  threads: Thread[];
+  notifications: Notice[];
+  presence: Presence[];
+  invitations: InvitationSummary[];
+  /** 最近的 {@link auditSummarySize} 条审计事件，按时间正序。 */
+  audit: Audit[];
+  /** 审计事件总数，大于 `audit.length` 时更早的事件可经审计分页读取。 */
+  auditCount: number;
+  governance: Governance[];
+}
+/** 共享分支的全部记录及其版本：`head` 与摘要的 `head` 一致时内容才与摘要匹配。 */
+export interface SharedRecords {
+  head: string | null;
+  records: Records;
+}
+/** 审计分页的查询条件；`before` 是游标事件 ID，只返回比它更早的事件。 */
+export interface AuditQuery {
+  before?: string;
+  limit?: number;
+  /** 只返回与该 PR 相关的事件：PR 命令本身，以及属于该 PR 的讨论线程上的事件。 */
+  prId?: string;
+  /** 只返回该讨论线程的创建、回复、编辑与解决事件。 */
+  threadId?: string;
+}
+/** 审计的一页：`events` 按时间从新到旧；`nextBefore` 是继续往前读取用的游标，没有更早事件时为 null。 */
+export interface AuditPage {
+  events: Audit[];
+  nextBefore: string | null;
 }
 interface Operation {
   operationId: string;

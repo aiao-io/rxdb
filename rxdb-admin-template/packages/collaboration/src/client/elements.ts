@@ -65,6 +65,13 @@ export function section(title: string) {
   return node;
 }
 export const row = () => element('div', '', 'flex flex-wrap items-end gap-3');
+/** 内容正在按需加载时的占位；加载完成后控制器触发重绘，由真实内容替换。 */
+export function loading() {
+  const node = element('p', '正在加载…', 'text-sm opacity-70');
+  node.setAttribute('role', 'status');
+  node.dataset['loading'] = 'true';
+  return node;
+}
 export function valueText(value: unknown): string {
   return (
     value === undefined ? tx('（不存在）')

@@ -29,6 +29,51 @@ describe('authenticated HTTP client', () => {
       })
     );
   });
+  it('reads shared records, commits, candidates and audit pages through the encoded workspace path', async () => {
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ events: [], nextBefore: null })));
+    vi.stubGlobal('fetch', fetcher);
+    const token = vi.fn().mockResolvedValue('verified-token');
+    const api = new CollaborationApi('/api', token);
+    await api.records(workspace);
+    await api.commit(workspace, 'commit/1');
+    await api.candidate(workspace, 'candidate 1');
+    const urls = fetcher.mock.calls.map(([target]) => target as string);
+    expect(urls).toEqual([
+      '/api/workspaces/team%2Fone/assets/records',
+      '/api/workspaces/team%2Fone/assets/commits/commit%2F1',
+      '/api/workspaces/team%2Fone/assets/candidates/candidate%201'
+    ]);
+    for (const [, options] of fetcher.mock.calls)
+      expect(options).toMatchObject({
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: 'Bearer verified-token' }
+      });
+    expect(token).toHaveBeenCalledTimes(3);
+  });
+  it('builds audit queries from only the parameters that are set', async () => {
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ events: [], nextBefore: null })));
+    vi.stubGlobal('fetch', fetcher);
+    const api = new CollaborationApi('/api', async () => 'token');
+    await api.audit(workspace);
+    await api.audit(workspace, { before: 'event/1', limit: 100, prId: 'pr 1', threadId: 'thread-1' });
+    await api.audit(workspace, { threadId: 'thread-1' });
+    expect(fetcher.mock.calls.map(([target]) => target as string)).toEqual([
+      '/api/workspaces/team%2Fone/assets/audit',
+      '/api/workspaces/team%2Fone/assets/audit?before=event%2F1&limit=100&prId=pr+1&threadId=thread-1',
+      '/api/workspaces/team%2Fone/assets/audit?threadId=thread-1'
+    ]);
+  });
+  it('surfaces structured read failures such as an unknown id', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(Response.json({ error: 'not_found', message: '提交不存在', details: {} }, { status: 409 }))
+    );
+    const api = new CollaborationApi('/api', async () => 'token');
+    await expect(api.commit(workspace, 'missing')).rejects.toMatchObject({ code: 'not_found', message: '提交不存在' });
+  });
   it('rejects stale identities before sending requests', async () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
@@ -66,10 +111,16 @@ describe('authenticated HTTP client', () => {
   it('marks a non-JSON command response as uncertain so the caller can recover its idempotency key', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }))
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('<html>Bad Gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } })
+        )
     );
     const api = new CollaborationApi('/api', async () => 'token');
-    await expect(api.command(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: null, operationId: 'op' })).rejects.toMatchObject({
+    await expect(
+      api.command(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: null, operationId: 'op' })
+    ).rejects.toMatchObject({
       code: 'uncertain'
     });
   });

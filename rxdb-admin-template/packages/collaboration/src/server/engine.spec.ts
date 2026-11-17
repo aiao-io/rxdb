@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Command, Identity, Workspace } from '../model.js';
-import { bootstrap, execute, snapshot } from './engine.js';
+import { CollaborationError, type Command, type Identity, type Workspace } from '../model.js';
+import { auditPage, bootstrap, candidateContent, commitContent, execute, sharedRecords, snapshot } from './engine.js';
 const admin: Identity = { id: 'admin', email: 'admin@example.test', verified: true };
 const reviewer: Identity = { id: 'reviewer', email: 'reviewer@example.test', verified: true };
 let serial = 0;
@@ -727,5 +727,304 @@ describe('cross-feature acceptance boundaries', () => {
       })
     ).toThrow(/合并/);
     expect(state).toEqual(before);
+  });
+});
+
+/** 执行读取并返回错误码；没有抛错时返回 `none`，用来断言授权与未知 ID。 */
+const codeOf = (work: () => unknown) => {
+  try {
+    work();
+  } catch (error) {
+    return error instanceof CollaborationError ? error.code : 'unexpected';
+  }
+  return 'none';
+};
+/** 已合并一次的工作区：共享分支有头提交，候选与提交的内容都不为空。 */
+function merged() {
+  const state = create();
+  invite(state);
+  const candidate = ready(state);
+  approve(state, 'pr1', candidate.id);
+  act(state, {
+    type: 'merge',
+    prId: 'pr1',
+    candidateId: candidate.id,
+    expectedSource: 'commit1',
+    expectedTarget: null
+  });
+  return { state, candidate };
+}
+
+describe('workspace summary', () => {
+  it('lists commits as metadata only and candidates without records, keeping merge links and review facts', () => {
+    const { state, candidate } = merged();
+    const summary = snapshot(state, reviewer, 1000);
+    expect(summary).not.toHaveProperty('records');
+    expect(summary.head).toBe(state.head);
+    expect(summary.commits['commit1']).toEqual({ id: 'commit1', parent: null, authorId: 'admin', message: 'Assets' });
+    expect(summary.commits[state.head!]).toEqual({
+      id: state.head,
+      parent: null,
+      authorId: 'admin',
+      message: 'Merge Asset update',
+      mergeSource: 'commit1',
+      candidateId: candidate.id
+    });
+    for (const commit of Object.values(summary.commits)) expect(commit).not.toHaveProperty('records');
+    expect(Object.keys(summary.candidates)).toEqual([candidate.id]);
+    expect(summary.candidates[candidate.id]).not.toHaveProperty('records');
+    expect(summary.candidates[candidate.id]).toEqual({ ...state.candidates[candidate.id], records: undefined });
+    expect(summary.reviews).toEqual(state.reviews);
+    expect(summary.governance).toEqual([
+      { prId: 'pr1', blockers: [], stages: [{ id: 'review', name: '审核', minimum: 1, approved: 1, complete: true }] }
+    ]);
+  });
+  it('keeps conflicts and checks in the candidate summary so views can show them without loading content', () => {
+    const state = create();
+    ready(state);
+    state.commits.commit1.records.asset.fields.categoryId = 'missing';
+    act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
+    const current = state.candidates[state.prs.pr1.candidateId!];
+    const summary = snapshot(state, admin, 1000).candidates[current.id];
+    expect(summary.checks).not.toHaveLength(0);
+    expect(summary.checks).toEqual(current.checks);
+    expect(summary.conflicts).toEqual(current.conflicts);
+    expect(summary.resolutions).toEqual(current.resolutions);
+    expect(summary).toMatchObject({ source: 'commit1', target: null, base: null, prId: 'pr1' });
+  });
+  it('does not grow with the number of records in a commit', () => {
+    const state = create();
+    act(state, { type: 'task', id: 'big', name: 'Big', expectedHead: null });
+    const rows = Object.fromEntries(
+      Array.from({ length: 1000 }, (_, index) => [
+        `c${index}`,
+        { entity: 'AssetCategory' as const, fields: { name: `Category ${index} with a reasonably long name` } }
+      ])
+    );
+    act(state, {
+      type: 'upload',
+      taskId: 'big',
+      expectedHead: null,
+      commits: [{ id: 'huge', parent: null, authorId: admin.id, message: 'Huge', records: rows }]
+    });
+    expect(JSON.stringify(rows).length).toBeGreaterThan(50_000);
+    expect(JSON.stringify(snapshot(state, admin, 1000)).length).toBeLessThan(4_000);
+  });
+  it('returns the latest 50 audit events in chronological order together with the total count', () => {
+    const state = create();
+    for (let index = 0; index < 60; index++)
+      act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: null });
+    const summary = snapshot(state, admin, 1000);
+    expect(state.audit).toHaveLength(61);
+    expect(summary.auditCount).toBe(61);
+    expect(summary.audit).toHaveLength(50);
+    expect(summary.audit).toEqual(state.audit.slice(-50));
+    expect(summary.audit.at(-1)?.details['id']).toBe('task-59');
+  });
+  it('returns the whole audit trail when it is shorter than the summary window', () => {
+    const state = create();
+    invite(state);
+    const summary = snapshot(state, admin, 1000);
+    expect(summary.auditCount).toBe(state.audit.length);
+    expect(summary.audit).toEqual(state.audit);
+  });
+  it('keeps notifications private to their recipient and invitations visible to managers only', () => {
+    const state = create();
+    invite(state);
+    const candidate = ready(state);
+    const thread = {
+      type: 'thread',
+      id: 'mention',
+      prId: 'pr1',
+      candidateId: candidate.id,
+      recordId: null,
+      field: null,
+      body: 'Ping',
+      required: false,
+      mentions: ['admin']
+    };
+    act(state, thread, reviewer);
+    act(state, { type: 'reply', threadId: 'mention', body: 'Ping back', mentions: ['reviewer'] });
+    const forAdmin = snapshot(state, admin, 1000).notifications;
+    const forReviewer = snapshot(state, reviewer, 1000).notifications;
+    expect(forAdmin).not.toHaveLength(0);
+    expect(forReviewer).not.toHaveLength(0);
+    expect(forAdmin.every(notice => notice.userId === 'admin')).toBe(true);
+    expect(forReviewer.every(notice => notice.userId === 'reviewer')).toBe(true);
+    expect(snapshot(state, admin, 1000).invitations).toHaveLength(1);
+    expect(snapshot(state, reviewer, 1000).invitations).toEqual([]);
+  });
+});
+
+describe('on-demand reads', () => {
+  it('serves shared records with their head, and full commit and candidate content, to readers', () => {
+    const { state, candidate } = merged();
+    expect(sharedRecords(state, reviewer)).toEqual({ head: state.head, records: state.records });
+    expect(sharedRecords(state, reviewer).records['asset'].fields['purchasePrice']).toBe(100);
+    expect(commitContent(state, reviewer, 'commit1')).toEqual(state.commits['commit1']);
+    expect(commitContent(state, reviewer, state.head!)).toEqual(state.commits[state.head!]);
+    expect(commitContent(state, reviewer, state.head!).records).toEqual(state.records);
+    expect(candidateContent(state, reviewer, candidate.id)).toEqual(state.candidates[candidate.id]);
+    expect(candidateContent(state, reviewer, candidate.id).records['category']).toEqual(records().category);
+  });
+  it('serves an empty shared branch before the first merge', () => {
+    const state = create();
+    expect(sharedRecords(state, admin)).toEqual({ head: null, records: {} });
+  });
+  it('answers unknown, inherited and cross-kind ids with not_found', () => {
+    const { state, candidate } = merged();
+    for (const id of ['missing', 'constructor', '__proto__', 'toString', candidate.id])
+      expect(
+        codeOf(() => commitContent(state, admin, id)),
+        `commit ${id}`
+      ).toBe('not_found');
+    for (const id of ['missing', 'constructor', '__proto__', 'commit1', state.head!])
+      expect(
+        codeOf(() => candidateContent(state, admin, id)),
+        `candidate ${id}`
+      ).toBe('not_found');
+  });
+  it('requires an active, verified member with read permission for every read', () => {
+    const { state, candidate } = merged();
+    const stranger: Identity = { id: 'stranger', email: 'stranger@example.test', verified: true };
+    const reads = (user: Identity) => [
+      () => sharedRecords(state, user),
+      () => commitContent(state, user, 'commit1'),
+      () => candidateContent(state, user, candidate.id),
+      () => auditPage(state, user, {})
+    ];
+    for (const read of reads(admin)) expect(codeOf(read)).toBe('none');
+    for (const read of reads(stranger)) expect(codeOf(read)).toBe('forbidden');
+    for (const read of reads({ ...admin, verified: false })) expect(codeOf(read)).toBe('forbidden');
+    act(state, { type: 'member', userId: reviewer.id, permissions: [], active: false, expectedGeneration: 1 });
+    for (const read of reads(reviewer)) expect(codeOf(read)).toBe('forbidden');
+  });
+  it('returns copies so callers cannot alter workspace state', () => {
+    const { state, candidate } = merged();
+    sharedRecords(state, admin).records['asset'].fields['purchasePrice'] = 1;
+    commitContent(state, admin, 'commit1').records['asset'].fields['purchasePrice'] = 2;
+    candidateContent(state, admin, candidate.id).records['asset'].fields['purchasePrice'] = 3;
+    auditPage(state, admin, {}).events[0].details['type'] = 'tampered';
+    expect(state.records['asset'].fields['purchasePrice']).toBe(100);
+    expect(state.commits['commit1'].records['asset'].fields['purchasePrice']).toBe(100);
+    expect(state.candidates[candidate.id].records['asset'].fields['purchasePrice']).toBe(100);
+    expect(state.audit.at(-1)?.details['type']).toBe('merge');
+  });
+});
+
+describe('audit pages', () => {
+  /** 两个 PR、各一条讨论线程的工作区，含邀请、任务、上传等与 PR 无关的事件。 */
+  function discussed() {
+    const state = create();
+    invite(state);
+    const first = ready(state);
+    const second = ready(state, '2');
+    const thread = (id: string, prId: string, candidateId: string) =>
+      act(
+        state,
+        {
+          type: 'thread',
+          id,
+          prId,
+          candidateId,
+          recordId: null,
+          field: null,
+          body: `Discuss ${id}`,
+          required: false,
+          mentions: []
+        },
+        reviewer
+      );
+    thread('t1', 'pr1', first.id);
+    thread('t2', 'pr2', second.id);
+    act(state, { type: 'reply', threadId: 't1', body: 'Reply 1', mentions: [] });
+    act(state, { type: 'reply', threadId: 't2', body: 'Reply 2', mentions: [] });
+    act(state, { type: 'resolve_thread', threadId: 't1', resolved: true, expectedRevision: 1 }, reviewer);
+    return state;
+  }
+  const actions = (events: { action: string }[]) => events.map(event => event.action);
+  it('pages newest first and chains pages through nextBefore until the log is exhausted', () => {
+    const state = discussed();
+    const seen: string[] = [];
+    let before: string | undefined;
+    let pages = 0;
+    do {
+      const page = auditPage(state, admin, { before, limit: 4 });
+      expect(page.events.length).toBeGreaterThan(0);
+      expect(page.events.length).toBeLessThanOrEqual(4);
+      seen.push(...page.events.map(event => event.id));
+      before = page.nextBefore ?? undefined;
+      pages++;
+    } while (before);
+    expect(pages).toBe(Math.ceil(state.audit.length / 4));
+    expect(seen).toEqual(state.audit.map(event => event.id).reverse());
+  });
+  it('sets nextBefore to the oldest returned event only while older events remain', () => {
+    const state = discussed();
+    const total = state.audit.length;
+    const all = auditPage(state, admin, { limit: 100 });
+    expect(all.events).toHaveLength(total);
+    expect(all.nextBefore).toBeNull();
+    const exact = auditPage(state, admin, { limit: total });
+    expect(exact.nextBefore).toBeNull();
+    const partial = auditPage(state, admin, { limit: total - 1 });
+    expect(partial.nextBefore).toBe(state.audit[1].id);
+    expect(partial.events.at(-1)?.id).toBe(state.audit[1].id);
+    expect(auditPage(state, admin, { before: state.audit[0].id }).events).toEqual([]);
+    expect(auditPage(state, admin, { before: state.audit[0].id }).nextBefore).toBeNull();
+  });
+  it('defaults to 50 events and returns the stored events unchanged', () => {
+    const state = create();
+    for (let index = 0; index < 60; index++)
+      act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: null });
+    const page = auditPage(state, admin, {});
+    expect(page.events).toHaveLength(50);
+    expect(page.events[0]).toEqual(state.audit.at(-1));
+    expect(page.nextBefore).toBe(state.audit.at(-50)?.id);
+    const rest = auditPage(state, admin, { before: page.nextBefore! });
+    expect(rest.events).toHaveLength(state.audit.length - 50);
+    expect(rest.nextBefore).toBeNull();
+  });
+  it('filters by thread with the same rule the discussion history used on the client', () => {
+    const state = discussed();
+    expect(actions(auditPage(state, admin, { threadId: 't1' }).events)).toEqual(['resolve_thread', 'reply', 'thread']);
+    expect(actions(auditPage(state, admin, { threadId: 't2' }).events)).toEqual(['reply', 'thread']);
+    expect(auditPage(state, admin, { threadId: 'unknown' })).toEqual({ events: [], nextBefore: null });
+    const paged = auditPage(state, admin, { threadId: 't1', limit: 1 });
+    expect(actions(paged.events)).toEqual(['resolve_thread']);
+    expect(paged.nextBefore).toBe(paged.events[0].id);
+    expect(actions(auditPage(state, admin, { threadId: 't1', limit: 1, before: paged.nextBefore! }).events)).toEqual([
+      'reply'
+    ]);
+  });
+  it('filters by pull request, including its threads, and excludes unrelated events', () => {
+    const state = discussed();
+    const first = auditPage(state, admin, { prId: 'pr1' });
+    expect(actions(first.events)).toEqual(['resolve_thread', 'reply', 'thread', 'candidate', 'pr_state', 'pr']);
+    expect(first.nextBefore).toBeNull();
+    const second = auditPage(state, admin, { prId: 'pr2' });
+    expect(actions(second.events)).toEqual(['reply', 'thread', 'candidate', 'pr_state', 'pr']);
+    expect(first.events.some(event => second.events.includes(event))).toBe(false);
+    expect(auditPage(state, admin, { prId: 'pr1', threadId: 't2' }).events).toEqual([]);
+    expect(actions(auditPage(state, admin, { prId: 'pr1', threadId: 't1' }).events)).toEqual([
+      'resolve_thread',
+      'reply',
+      'thread'
+    ]);
+  });
+  it('pages across a filter even when the cursor event itself does not match it', () => {
+    const state = discussed();
+    const cursor = state.audit.at(-1)!;
+    expect(cursor.action).toBe('resolve_thread');
+    const page = auditPage(state, admin, { before: cursor.id, prId: 'pr2' });
+    expect(actions(page.events)).toEqual(['reply', 'thread', 'candidate', 'pr_state', 'pr']);
+  });
+  it('rejects an unknown cursor and a limit outside 1 to 100', () => {
+    const state = discussed();
+    expect(codeOf(() => auditPage(state, admin, { before: 'missing' }))).toBe('not_found');
+    for (const limit of [0, -1, 101, 1.5, Number.NaN])
+      expect(codeOf(() => auditPage(state, admin, { limit }))).toBe('invalid');
+    expect(codeOf(() => auditPage(state, admin, { limit: 1 }))).toBe('none');
+    expect(codeOf(() => auditPage(state, admin, { limit: 100 }))).toBe('none');
   });
 });

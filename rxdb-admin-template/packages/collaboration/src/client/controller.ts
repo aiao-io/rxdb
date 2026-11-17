@@ -1,12 +1,27 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import { CollaborationError, demand, type Command, type Identity, type Records } from '../model.js';
-import type { WorkspaceSnapshot } from '../server/engine.js';
+import {
+  auditPageSize,
+  CollaborationError,
+  demand,
+  type Audit,
+  type Candidate,
+  type Command,
+  type Commit,
+  type Identity,
+  type Records,
+  type SharedRecords,
+  type WorkspaceSummary
+} from '../model.js';
 import { CollaborationApi, type WorkspaceEntry } from './api.js';
+import { AuditTimeline } from './audit-timeline.js';
+import { ContentCache } from './content-cache.js';
 import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
 import { WorkspaceFeed, type WorkspacePresenceChange } from './workspace-feed.js';
 
 /**
- * 协作界面的状态与动作中枢：持有认证会话、团队与服务端快照、本机任务草稿，界面监听 `change` 事件重绘。
+ * 协作界面的状态与动作中枢：持有认证会话、团队与服务端摘要、本机任务草稿，界面监听 `change` 事件重绘。
+ * 摘要不含提交、候选与共享数据的记录，也不含完整审计；这些内容按需读取并缓存，
+ * 同步读取入口未命中时返回 undefined 并在后台加载，加载完成后触发 `change`。
  * 所有云端变更都以带幂等键的命令按队列串行提交；账号、团队或任务上下文切换后，在途请求的结果会被丢弃。
  */
 export class CollaborationController extends EventTarget {
@@ -18,6 +33,31 @@ export class CollaborationController extends EventTarget {
   private unsubscribe?: () => void;
   private checkpoint?: () => Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
+  /** 提交不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
+  private readonly commits = new ContentCache<Commit>(
+    async id => this.api.commit(this.activeWorkspace(), id),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 候选不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
+  private readonly candidates = new ContentCache<Candidate>(
+    async id => this.api.candidate(this.activeWorkspace(), id),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 共享数据按摘要的头提交缓存，头变化即丢弃。 */
+  private readonly shared = new ContentCache<SharedRecords>(
+    head => this.fetchShared(head),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 讨论线程的处理历史，工作区修订号变化即丢弃。 */
+  private readonly threads = new ContentCache<Audit[]>(
+    threadId => this.fetchThreadEvents(threadId),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  private readonly timeline = new AuditTimeline();
   /** 本机任务草稿：按账号与团队隔离，退出或会话失效时锁定。 */
   readonly local: LocalTasks;
   /** 携带当前会话令牌的 HTTP 客户端。 */
@@ -30,8 +70,8 @@ export class CollaborationController extends EventTarget {
   workspaces: WorkspaceEntry[] = [];
   /** 当前选中的团队与应用。 */
   workspace: WorkspaceEntry | null = null;
-  /** 当前工作区的服务端快照；尚未选择团队或处于离线任务模式时为 null。 */
-  snapshot: WorkspaceSnapshot | null = null;
+  /** 当前工作区的服务端摘要；尚未选择团队或处于离线任务模式时为 null。 */
+  snapshot: WorkspaceSummary | null = null;
   /** 当前打开的本机任务草稿。 */
   draft: Draft | null = null;
   /** 离线冷启动时按缓存授权恢复出的可解锁草稿。 */
@@ -157,14 +197,15 @@ export class CollaborationController extends EventTarget {
     if (error) throw error;
     await this.acceptSession(data.session);
   }
-  /** 切换到指定团队：拉取快照并启动实时订阅。 */
+  /** 切换到指定团队：拉取摘要并启动实时订阅，丢弃上一个团队的已加载内容。 */
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
     const epoch = ++this.generation;
     this.feed?.stop();
     const data = await this.current(this.api.snapshot(workspace), epoch);
     if (epoch !== this.generation) return;
     this.workspace = workspace;
-    this.snapshot = data;
+    this.resetContents();
+    this.adopt(data);
     this.draft = null;
     this.feed?.start(workspace);
     this.changed();
@@ -181,7 +222,7 @@ export class CollaborationController extends EventTarget {
     await this.acceptSession(data.session);
     await this.refresh();
   }
-  /** 重新拉取当前快照；较旧的快照被丢弃，已打开任务的编辑权限被撤销时抛出 forbidden。 */
+  /** 重新拉取当前摘要；较旧的摘要被丢弃，已打开任务的编辑权限被撤销时抛出 forbidden。 */
   async refresh(): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
@@ -194,7 +235,7 @@ export class CollaborationController extends EventTarget {
     const data = await this.current(this.api.snapshot(workspace), epoch);
     if (epoch !== this.generation || workspace !== this.workspace) return;
     if (this.snapshot && data.revision < this.snapshot.revision) return;
-    this.snapshot = data;
+    this.adopt(data);
     this.online = true;
     if (this.draft) {
       const task = data.tasks.find(t => t.id === this.draft?.context.taskId);
@@ -306,14 +347,9 @@ export class CollaborationController extends EventTarget {
       appId: this.workspace.appId,
       taskId: task.id
     };
+    const records = await this.current(this.recordsAt(task.head));
     const epoch = ++this.generation;
-    const draft = await this.local.openVerified(
-      context,
-      task.name,
-      task.base,
-      task.head,
-      task.head ? this.snapshot.commits[task.head].records : {}
-    );
+    const draft = await this.local.openVerified(context, task.name, task.base, task.head, records);
     demand(epoch === this.generation, 'cancelled', '上下文已切换');
     this.draft = draft;
     this.changed();
@@ -326,6 +362,7 @@ export class CollaborationController extends EventTarget {
     const restored = await this.current(this.local.read(draft.context), epoch);
     this.draft = restored ?? null;
     this.snapshot = null;
+    this.resetContents();
     this.workspace = { ...draft.context, name: draft.context.teamId };
     this.changed();
   }
@@ -391,6 +428,7 @@ export class CollaborationController extends EventTarget {
     localStorage.removeItem(`admin-collaboration-grant:${this.base}`);
     this.user = null;
     this.snapshot = null;
+    this.resetContents();
     this.draft = null;
     this.workspace = null;
     this.offlineDrafts = [];
@@ -413,8 +451,8 @@ export class CollaborationController extends EventTarget {
     const epoch = this.generation;
     await this.current(this.refresh(), epoch);
     const task = this.snapshot?.tasks.find(value => value.id === context.taskId);
-    demand(task && this.snapshot, 'missing', '任务不存在');
-    const records = task.head ? this.snapshot.commits[task.head].records : {};
+    demand(task, 'missing', '任务不存在');
+    const records = await this.current(this.recordsAt(task.head), epoch);
     const draft = await this.current(this.local.fastForward(context, task.head, records, unsaved), epoch);
     this.draft = draft;
     this.changed();
@@ -425,9 +463,108 @@ export class CollaborationController extends EventTarget {
     this.generation++;
     this.authGeneration++;
     this.feed?.stop();
+    this.resetContents();
     this.local.dispose();
     this.unsubscribe?.();
     this.channel.close();
+  }
+  /** 读取提交内容（同步）：命中返回；未命中返回 undefined 并在后台加载，加载完成后触发 `change`。 */
+  commitContent(id: string): Commit | undefined {
+    return this.commits.peek(id);
+  }
+  /** 读取合并候选的内容（同步），语义同 {@link CollaborationController.commitContent}。 */
+  candidateContent(id: string): Candidate | undefined {
+    return this.candidates.peek(id);
+  }
+  /**
+   * 读取共享分支的记录（同步）：按摘要的头缓存，头变化后重新读取；空分支没有记录，直接返回空记录。
+   * 未命中时返回 undefined 并在后台加载。
+   */
+  sharedRecords(): Records | undefined {
+    const head = this.snapshot?.head;
+    if (head === undefined) return undefined;
+    return head === null ? {} : this.shared.peek(head)?.records;
+  }
+  /** 读取讨论线程的处理历史（同步，时间正序）；工作区修订号变化后重新读取。 */
+  threadEvents(threadId: string): Audit[] | undefined {
+    return this.threads.peek(threadId);
+  }
+  /** 等待提交内容加载完成；失败时抛出，用户操作可以再试。 */
+  loadCommit(id: string): Promise<Commit> {
+    return this.commits.load(id);
+  }
+  /** 等待合并候选内容加载完成；失败时抛出，用户操作可以再试。 */
+  loadCandidate(id: string): Promise<Candidate> {
+    return this.candidates.load(id);
+  }
+  /** 等待共享分支的记录加载完成；空分支没有记录，直接返回空记录。 */
+  async loadSharedRecords(): Promise<Records> {
+    demand(this.snapshot, 'missing', '先选择团队');
+    const head = this.snapshot.head;
+    return head === null ? {} : (await this.shared.load(head)).records;
+  }
+  /** 审计时间线：摘要里最近的事件加上已加载的更早事件，时间正序。 */
+  auditEvents(): readonly Audit[] {
+    return this.timeline.events;
+  }
+  /** 还有更早的审计事件没有加载。 */
+  hasEarlierAudit(): boolean {
+    return this.timeline.hasEarlier;
+  }
+  /** 加载更早的一页审计事件并接到时间线最前面；期间时间线已被重置或重新开始则丢弃这一页。 */
+  async loadEarlierAudit(): Promise<void> {
+    const cursor = this.timeline.cursor;
+    demand(cursor !== undefined, 'missing', '先选择团队');
+    const page = await this.current(this.api.audit(this.activeWorkspace(), { before: cursor }));
+    if (this.timeline.prepend(cursor, page.events)) this.changed();
+  }
+  /** 接受一份新摘要：头提交变化则丢弃共享数据，修订号变化则丢弃讨论历史，并让失败过的内容在下次读取时重试。 */
+  private adopt(data: WorkspaceSummary): void {
+    const previous = this.snapshot;
+    if (previous?.head !== data.head) this.shared.reset();
+    if (previous?.revision !== data.revision) this.threads.reset();
+    for (const cache of [this.commits, this.candidates, this.shared, this.threads]) cache.retry();
+    this.snapshot = data;
+    this.timeline.accept(data.audit, data.auditCount);
+  }
+  /** 丢弃全部已加载内容并使进行中的加载失效，用于切换团队、离线任务、锁定与释放。 */
+  private resetContents(): void {
+    this.commits.reset();
+    this.candidates.reset();
+    this.shared.reset();
+    this.threads.reset();
+    this.timeline.reset();
+  }
+  private activeWorkspace(): WorkspaceEntry {
+    demand(this.workspace, 'missing', '先选择团队');
+    return this.workspace;
+  }
+  /** 提交头对应的记录：还没有提交时是空记录，否则等待提交内容加载完成。 */
+  private async recordsAt(head: string | null): Promise<Records> {
+    return head === null ? {} : (await this.loadCommit(head)).records;
+  }
+  /** 读取共享记录；服务端返回的头已不是摘要的头时按「版本已变化」处理，等下一次刷新后再读。 */
+  private async fetchShared(head: string): Promise<SharedRecords> {
+    const content = await this.api.records(this.activeWorkspace());
+    demand(content.head === head, 'stale', '版本已变化，请刷新后重试');
+    return content;
+  }
+  /** 读取讨论线程的全部处理事件：逐页向前读到头，再翻成时间正序。 */
+  private async fetchThreadEvents(threadId: string): Promise<Audit[]> {
+    const workspace = this.activeWorkspace();
+    const limit = auditPageSize.maximum;
+    let page = await this.api.audit(workspace, { threadId, limit });
+    const newestFirst = [...page.events];
+    while (page.nextBefore) {
+      page = await this.api.audit(workspace, { threadId, limit, before: page.nextBefore });
+      newestFirst.push(...page.events);
+    }
+    return newestFirst.reverse();
+  }
+  /** 后台加载内容失败：版本已变化会随下一次刷新自动恢复，不提示；其余按统一的失败路径处理。 */
+  private contentFailed(error: unknown): void {
+    if (error instanceof CollaborationError && error.code === 'stale') return;
+    void this.failure(error);
   }
   private async executeCommand(
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
@@ -581,15 +718,8 @@ export class CollaborationController extends EventTarget {
     };
     const head = command.commits.at(-1)?.id;
     demand(head, 'invalid', '分叉回执缺少版本');
-    await this.current(
-      this.local.openVerified(
-        context,
-        task.name,
-        task.base,
-        task.head,
-        task.head ? this.snapshot.commits[task.head].records : {}
-      )
-    );
+    const records = await this.current(this.recordsAt(task.head));
+    await this.current(this.local.openVerified(context, task.name, task.base, task.head, records));
     await this.current(this.local.archiveFork(context, command.id, head));
   }
   private async upload(unsaved: boolean): Promise<void> {

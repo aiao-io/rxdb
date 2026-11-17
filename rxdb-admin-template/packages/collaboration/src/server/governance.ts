@@ -6,6 +6,7 @@ import {
   type Identity,
   type PullRequest,
   type Review,
+  type StageProgress,
   type Workspace
 } from '../model.js';
 import { canonical, checkRecords, mergeRecords } from '../records.js';
@@ -51,7 +52,7 @@ export function blockers(state: Workspace, prId: string): Review[] {
   }
   return [...active.values()];
 }
-export function progress(state: Workspace, pr: PullRequest, candidate: Candidate) {
+export function progress(state: Workspace, pr: PullRequest, candidate: Candidate): StageProgress[] {
   return state.policy.stages.map(stage => {
     const latest = new Map<string, Review>();
     for (const review of state.reviews.filter(r => r.prId === pr.id && r.stageId === stage.id))

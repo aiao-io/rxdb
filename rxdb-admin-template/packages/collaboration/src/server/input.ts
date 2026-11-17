@@ -1,4 +1,4 @@
-import { demand, permissions, type Command } from '../model.js';
+import { demand, permissions, type AuditQuery, type Command } from '../model.js';
 import { assertRecords } from '../records.js';
 type Rule = (value: unknown) => boolean;
 const text: Rule = value => typeof value === 'string' && value.length <= 10000;
@@ -104,4 +104,28 @@ export function parseCommand(value: unknown): Command {
   const shape = shapes[command['type'] as Command['type']];
   demand(object({ type: oneOf(command['type']), operationId: id, ...shape })(command), 'invalid', '请求字段不合法');
   return command as unknown as Command;
+}
+
+const auditTextKeys = ['before', 'prId', 'threadId'] as const;
+/**
+ * 审计分页的查询参数：只接受 before、limit、prId、threadId，每个至多出现一次；
+ * 标识须符合命令里的标识格式，`limit` 须是不超过三位的非负整数（取值范围由引擎裁决）。
+ */
+export function parseAuditQuery(params: URLSearchParams): AuditQuery {
+  const keys = [...params.keys()];
+  const known: readonly string[] = [...auditTextKeys, 'limit'];
+  demand(new Set(keys).size === keys.length && keys.every(key => known.includes(key)), 'invalid', '请求字段不合法');
+  const query: AuditQuery = {};
+  for (const key of auditTextKeys) {
+    const value = params.get(key);
+    if (value === null) continue;
+    demand(id(value), 'invalid', '请求字段不合法');
+    query[key] = value;
+  }
+  const limit = params.get('limit');
+  if (limit !== null) {
+    demand(/^\d{1,3}$/.test(limit), 'invalid', '请求字段不合法');
+    query.limit = Number(limit);
+  }
+  return query;
 }

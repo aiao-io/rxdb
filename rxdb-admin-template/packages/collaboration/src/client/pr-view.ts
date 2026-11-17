@@ -1,8 +1,20 @@
-import type { Command, PullRequest, Records, Resolution } from '../model.js';
+import type { Command, PullRequest, Records, Resolution, Task, Thread } from '../model.js';
 import { canonical, mergeRecords } from '../records.js';
 import type { CollaborationController } from './controller.js';
+import { lazyDetails, type Disclosures } from './disclosure.js';
 import { readOnlyRecords } from './editor.js';
-import { button, checkbox, element, input, row, section, select, valueText, type Perform } from './elements.js';
+import {
+  button,
+  checkbox,
+  element,
+  input,
+  loading,
+  row,
+  section,
+  select,
+  valueText,
+  type Perform
+} from './elements.js';
 import { readResolution } from './resolution-input.js';
 import { tx } from './translate.js';
 export class PullRequestView {
@@ -11,10 +23,17 @@ export class PullRequestView {
   filter = 'all';
   tab: 'discussion' | 'commits' | 'changes' | 'checks' = 'changes';
   focusThread: string | null = null;
+  /**
+   * @param controller 提供摘要与按需读取的内容；内容未加载时同步读取返回 undefined，视图先显示占位。
+   * @param perform 统一的执行入口，负责忙碌状态与错误提示。
+   * @param render 请求重绘整个页面。
+   * @param disclosures 内容较大的 details 的展开状态：只在展开时生成并加载内容。
+   */
   constructor(
     private readonly controller: CollaborationController,
     private readonly perform: Perform,
-    private readonly render: () => void
+    private readonly render: () => void,
+    private readonly disclosures: Disclosures
   ) {}
   view() {
     const view = section('数据 PR');
@@ -129,10 +148,7 @@ export class PullRequestView {
       panel.append(this.previewControls(pr));
     if (this.tab === 'changes' && !pr.candidateId) {
       const task = data.tasks.find(value => value.id === pr.taskId)!;
-      panel.append(
-        element('p', '来源提交变化（尚未形成最终候选）'),
-        diffTable(task.base ? data.commits[task.base].records : {}, task.head ? data.commits[task.head].records : {})
-      );
+      panel.append(element('p', '来源提交变化（尚未形成最终候选）'), this.sourceChanges(task));
     }
     if (['changes', 'checks'].includes(this.tab) && pr.candidateId) panel.append(this.candidate(pr));
     if (this.tab === 'checks' && !pr.candidateId) panel.append(element('p', '尚未生成最终候选，检查未通过'));
@@ -146,32 +162,53 @@ export class PullRequestView {
     let head = task.head;
     while (head && head !== task.base) {
       const commit = data.commits[head];
-      const item = element('details');
-      item.dataset['disclosureKey'] = `source-commit:${commit.id}`;
-      item.append(element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`, '', true));
-      item.append(element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') })), readOnlyRecords(commit.records));
-      view.append(item);
+      const { details, open } = lazyDetails(`source-commit:${commit.id}`, this.disclosures);
+      details.append(
+        element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`, '', true),
+        element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') }))
+      );
+      if (open) details.append(this.commitRecords(commit.id));
+      view.append(details);
       head = commit.parent;
     }
-    const history = element('details');
-    history.dataset['disclosureKey'] = `candidate-history:${pr.id}`;
+    view.append(this.candidateHistory(pr));
+    return view;
+  }
+  private candidateHistory(pr: PullRequest) {
+    const data = this.controller.snapshot!;
+    const { details: history, open } = lazyDetails(`candidate-history:${pr.id}`, this.disclosures);
     history.append(element('summary', '历史候选与审核'));
+    if (!open) return history;
     Object.values(data.candidates)
       .filter(c => c.prId === pr.id)
       .forEach(c => {
-        const item = element('details');
-        item.dataset['disclosureKey'] = `candidate:${c.id}`;
-        item.append(
-          element('summary', tx('{v0} · 策略 v{v1}', { v0: c.id, v1: c.policyVersion })),
-          readOnlyRecords(c.records)
-        );
+        const { details: item, open: itemOpen } = lazyDetails(`candidate:${c.id}`, this.disclosures);
+        item.append(element('summary', tx('{v0} · 策略 v{v1}', { v0: c.id, v1: c.policyVersion })));
+        if (itemOpen) item.append(this.candidateRecords(c.id));
         data.reviews
           .filter(r => r.candidateId === c.id)
           .forEach(r => item.append(element('p', `${r.reviewerId} · ${r.decision} · ${r.reason}`)));
         history.append(item);
       });
-    view.append(history);
-    return view;
+    return history;
+  }
+  /** 提交头对应的记录：没有提交（null）就没有记录；内容未加载时返回 undefined，并触发加载。 */
+  private recordsAt(id: string | null): Records | undefined {
+    return id === null ? {} : this.controller.commitContent(id)?.records;
+  }
+  private commitRecords(id: string) {
+    const commit = this.controller.commitContent(id);
+    return commit ? readOnlyRecords(commit.records) : loading();
+  }
+  private candidateRecords(id: string) {
+    const candidate = this.controller.candidateContent(id);
+    return candidate ? readOnlyRecords(candidate.records) : loading();
+  }
+  /** 来源相对起点的记录差异；两个提交都加载完成前先显示占位。 */
+  private sourceChanges(task: Task) {
+    const before = this.recordsAt(task.base);
+    const after = this.recordsAt(task.head);
+    return before && after ? diffTable(before, after) : loading();
   }
   private run(command: Omit<Command, 'operationId'> | Record<string, unknown>) {
     return this.runLazily(() => command);
@@ -191,9 +228,14 @@ export class PullRequestView {
     const view = section('三方合并预览');
     const data = this.controller.snapshot!;
     const task = data.tasks.find(t => t.id === pr.taskId)!;
-    const source = task.head ? data.commits[task.head].records : {};
-    const base = task.base ? data.commits[task.base].records : {};
-    const preview = mergeRecords(base, source, data.records, []);
+    const source = this.recordsAt(task.head);
+    const base = this.recordsAt(task.base);
+    const target = this.controller.sharedRecords();
+    if (!source || !base || !target) {
+      view.append(loading());
+      return view;
+    }
+    const preview = mergeRecords(base, source, target, []);
     const selections: (() => Resolution | null)[] = [];
     view.append(
       element(
@@ -281,22 +323,16 @@ export class PullRequestView {
       candidate.checks.forEach(check =>
         view.append(element('p', `${check.recordId} / ${check.field}：${tx(check.message)}`, 'text-error'))
       );
-    const target = candidate.target ? data.commits[candidate.target].records : {};
-    if (this.tab === 'changes') view.append(diffTable(target, candidate.records));
-    const recordNavigation = row();
-    Object.keys({ ...target, ...candidate.records }).forEach(id =>
-      recordNavigation.append(
-        button(tx('查看记录 {v0}', { v0: id }), () => {
-          this.selectedRecord = id;
-          this.render();
-        })
-      )
-    );
-    view.append(recordNavigation);
+    const content = this.controller.candidateContent(candidate.id);
+    const target = this.recordsAt(candidate.target);
+    if (content && target) {
+      if (this.tab === 'changes') view.append(diffTable(target, content.records));
+      view.append(this.recordNavigation(target, content.records));
+    } else view.append(loading());
     if (this.selectedRecord) view.append(element('p', tx('当前查看记录：{v0}', { v0: this.selectedRecord })));
-    const details = element('details');
-    details.dataset['disclosureKey'] = `candidate-records:${candidate.id}`;
-    details.append(element('summary', '查看最终完整数据'), readOnlyRecords(candidate.records));
+    const { details, open } = lazyDetails(`candidate-records:${candidate.id}`, this.disclosures);
+    details.append(element('summary', '查看最终完整数据'));
+    if (open) details.append(content ? readOnlyRecords(content.records) : loading());
     view.append(details);
     const actions = row();
     if (this.has('merge') && pr.status === 'review')
@@ -316,6 +352,18 @@ export class PullRequestView {
       );
     view.append(actions);
     return view;
+  }
+  private recordNavigation(target: Records, result: Records) {
+    const navigation = row();
+    Object.keys({ ...target, ...result }).forEach(id =>
+      navigation.append(
+        button(tx('查看记录 {v0}', { v0: id }), () => {
+          this.selectedRecord = id;
+          this.render();
+        })
+      )
+    );
+    return navigation;
   }
   private reviewControls(pr: PullRequest) {
     const data = this.controller.snapshot!;
@@ -399,6 +447,38 @@ export class PullRequestView {
       )
       .reduce((n, r) => Math.max(n, r.revision), 0);
   }
+  /** 评论锚定的候选版本：展开时才读取候选内容并渲染该记录。 */
+  private anchoredVersion(thread: Thread, candidateId: string, recordId: string) {
+    const { details, open } = lazyDetails(`thread-version:${thread.id}`, this.disclosures);
+    details.append(element('summary', '查看评论锚定版本'));
+    if (!open) return details;
+    const candidate = this.controller.candidateContent(candidateId);
+    if (!candidate) {
+      details.append(loading());
+      return details;
+    }
+    const record = candidate.records[recordId];
+    details.append(
+      element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true),
+      readOnlyRecords(record ? { [recordId]: record } : {})
+    );
+    return details;
+  }
+  /** 讨论的处理历史：展开时才按线程读取审计事件。 */
+  private threadHistory(thread: Thread) {
+    const { details, open } = lazyDetails(`thread-history:${thread.id}`, this.disclosures);
+    details.append(element('summary', '讨论处理历史'));
+    if (!open) return details;
+    const events = this.controller.threadEvents(thread.id);
+    if (!events) details.append(loading());
+    else
+      events.forEach(event =>
+        details.append(
+          element('p', `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action}`, '', true)
+        )
+      );
+    return details;
+  }
   private discussions(pr: PullRequest) {
     const view = section('讨论');
     const data = this.controller.snapshot!;
@@ -435,32 +515,9 @@ export class PullRequestView {
       box.append(
         element('p', [thread.candidateId, thread.recordId, thread.field].filter(Boolean).join(' / '), 'text-xs')
       );
-      const anchored = thread.candidateId ? data.candidates[thread.candidateId] : null;
-      if (anchored && thread.recordId) {
-        const version = element('details');
-        version.dataset['disclosureKey'] = `thread-version:${thread.id}`;
-        const record = anchored.records[thread.recordId];
-        version.append(
-          element('summary', '查看评论锚定版本'),
-          element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true)
-        );
-        version.append(readOnlyRecords(record ? { [thread.recordId]: record } : {}));
-        box.append(version);
-      }
-      const events = data.audit.filter(
-        event =>
-          ['thread', 'reply', 'resolve_thread', 'edit_comment'].includes(event.action) &&
-          (event.details['threadId'] === thread.id || event.details['id'] === thread.id)
-      );
-      const history = element('details');
-      history.dataset['disclosureKey'] = `thread-history:${thread.id}`;
-      history.append(element('summary', '讨论处理历史'));
-      events.forEach(event =>
-        history.append(
-          element('p', `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action}`, '', true)
-        )
-      );
-      box.append(history);
+      if (thread.candidateId && thread.recordId && data.candidates[thread.candidateId])
+        box.append(this.anchoredVersion(thread, thread.candidateId, thread.recordId));
+      box.append(this.threadHistory(thread));
       thread.comments.forEach(comment => {
         box.append(element('p', `${comment.authorId}：${comment.deleted ? tx('评论已删除') : comment.body}`));
         if (

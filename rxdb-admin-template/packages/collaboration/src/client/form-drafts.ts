@@ -22,6 +22,22 @@ export class FormDrafts {
     for (const details of this.host.querySelectorAll<HTMLDetailsElement>('details[data-disclosure-key]'))
       this.disclosures.set(details.dataset['disclosureKey']!, details.open);
   }
+  /** 该键的 details 在上一次重绘前是否展开；内容较大的 details 据此决定重绘时要不要生成并加载内容。 */
+  isOpen(key: string): boolean {
+    return this.disclosures.get(key) === true;
+  }
+  /** 键盘焦点正落在哪个 details 的 summary 上（返回该 details 的键）；重绘前读取，重绘后交给 `focusDisclosure`。 */
+  focusedDisclosure(): string | undefined {
+    const active = document.activeElement;
+    if (!active || active.tagName !== 'SUMMARY' || !this.host.contains(active)) return undefined;
+    return active.parentElement?.dataset['disclosureKey'];
+  }
+  /** 重绘后把焦点还给同键 details 的 summary，避免展开一个折叠项后键盘用户丢失位置。 */
+  focusDisclosure(key: string): void {
+    for (const details of this.host.querySelectorAll<HTMLDetailsElement>('details[data-disclosure-key]'))
+      if (details.dataset['disclosureKey'] === key)
+        details.querySelector<HTMLElement>(':scope > summary')?.focus({ preventScroll: true });
+  }
   restore(context: string, persistentContext = context): void {
     if (this.persistentContext !== persistentContext) {
       this.persistent.clear();

@@ -47,6 +47,25 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 协作页面的 Service Worker 只缓存静态页面和脚本等资源，不缓存认证或产品 API。它以 `/collaboration` 为 scope 注册，不接管应用其余页面，也不与宿主应用在 `/` 注册的 Service Worker 互相顶替；挂载时把当前已加载的资源清单交给它缓存。从其他路由经前端路由进入协作页时，页面本身不受它控制，挂载之后才懒加载的资源要等下次直接打开 `/collaboration` 才会进入缓存。冷启动离线仍须有未过期的验证记录，且只能打开原用户已缓存且未锁定的任务。主动退出立即锁定本机上下文；远端撤权在在线重新验证时生效。Presence 每 15 秒更新，45 秒过期，不授予操作权限。`admin_workspace_versions` 表通过 Supabase Realtime 发送版本失效通知，接收后重新调用受服务端授权的 API；切换团队、离线任务或退出时撤销旧频道。正式部署须让协作 API 的 `ADMIN_DATABASE_URL` 指向该 Supabase 项目的 PostgreSQL，并启用迁移中的 publication。
 
+## 读取接口
+
+读取接口都只读：要求成员有 read 权限（被移除或不在团队内返回 403，未登录或邮箱未验证返回 401），基于已提交版本读取，不加锁、不写库，不会排在进行中的写事务后面。工作区摘要不含记录，记录与更早的审计按需读取：
+
+| 接口                                                   | 返回                                                                                 |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `GET /workspaces/:teamId/:appId`                       | 工作区摘要，见下                                                                     |
+| `GET /workspaces/:teamId/:appId/records`               | `{ head, records }`：共享分支当前的全部记录，`head` 与摘要的 `head` 一致才与摘要匹配 |
+| `GET /workspaces/:teamId/:appId/commits/:id`           | 含 `records` 的提交；未知 ID 返回 `not_found`                                        |
+| `GET /workspaces/:teamId/:appId/candidates/:id`        | 含 `records` 的合并候选；未知 ID 返回 `not_found`                                    |
+| `GET /workspaces/:teamId/:appId/audit`                 | `{ events, nextBefore }`：审计事件按时间从新到旧分页，参数见下                       |
+| `GET /workspaces/:teamId/:appId/receipts/:operationId` | 幂等回执：`{ status: 'accepted', value }` 或 `{ status: 'unknown' }`，只能读自己的   |
+
+摘要（`WorkspaceSummary`）包含成员、审批策略、任务、PR、审核、讨论、在线成员、治理状态与当前用户自己的通知；邀请只对有 manage 权限者非空。提交只含元数据（`id`、`parent`、`authorId`、`message`，合并提交另有 `mergeSource`、`candidateId`），候选去掉 `records` 但保留来源、目标、冲突选择、冲突与检查结果，共享数据只有 `head`，审计只含最近 50 条（时间正序）并附总数 `auditCount`。摘要体积只随提交数线性增长（每个提交约 0.2 KB，与记录数无关）；合并事件的审计详情带着被合并改动记录的前后值（`result.changes`），所以这 50 条的体积还会随单次合并的改动量增长。
+
+审计分页参数：`before` 是游标事件 ID，只返回比它更早的事件，游标事件本身不必匹配筛选；`limit` 为 1～100 的整数，默认 50；`prId` 只返回与该 PR 相关的事件（PR 命令本身及属于该 PR 的讨论线程上的事件）；`threadId` 只返回该线程的创建、回复、编辑与解决事件，两者同时给出时取交集。还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID，作为下一页的 `before`，否则为 `null`。未知游标返回 `not_found`，范围外的 `limit`、重复或未知的参数返回 `invalid`。
+
+浏览器端的 `CollaborationController` 按需读取并缓存这些内容：提交与候选不可变，按 ID 缓存；共享数据按摘要的 `head` 缓存，`head` 变化即失效；讨论线程的处理历史随工作区修订号失效；同一 ID 的并发读取只发一次请求。同步读取（`commitContent`、`candidateContent`、`sharedRecords`、`threadEvents`）未命中时返回 `undefined` 并在后台加载，加载完成后派发 `change`，界面先显示「正在加载」占位；需要内容才能执行的操作（打开任务、拉取远端版本、另存分叉、从历史版本创建恢复草稿、预览匿名数据导入）用 `loadCommit`、`loadSharedRecords` 等异步入口先等内容加载完成。失败会提示一次，之后不自动重试，下一次刷新或用户操作再试。历史与审计里每个提交、候选和审计时间线都只在 `<details>` 展开时才生成并加载内容；尚未打开过的内容离线时不可用。
+
 ## 验证
 
 ```bash
@@ -64,8 +83,8 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:benchmark-growth
 
 数据库集成测试使用临时 Docker PostgreSQL，验证 RLS、并发头比较与事务失败回滚。三端浏览器测试使用工作区隔离的 Supabase Auth 和临时 PostgreSQL；测试脚本把工作区版本与成员读取权限投影同步至隔离 Supabase CI 数据库，以验证真实 Realtime 通知，业务记录仍留在临时 PostgreSQL。正式部署使用同一 Supabase 数据库，不需要这段测试桥接。验证码由 Auth 的管理测试接口生成，再由真实 `verifyOtp` 验证，因此不代表生产 SMTP 投递已验收。测试运行后移除临时数据库；共享 Supabase 测试栈可用 `rxdb-adapter-supabase:test-env-down` 关闭。
 
-首版协议使用完整记录快照，每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。协作 API 收完请求头最多等 10 秒、收完整个请求最多等 60 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责。规模扩大前需另行实现分页快照与历史存储分区，不能通过跳过校验或截断提交解决。
+首版协议使用完整记录快照，每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。协作 API 收完请求头最多等 10 秒、收完整个请求最多等 60 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责。摘要接口已不下发记录与完整审计，但提交元数据仍随摘要整体下发；提交数很大时的元数据分页与历史存储分区仍须另行实现，不能通过跳过校验或截断提交解决。
 
-工作区状态以每个团队/应用一行 JSONB 保存：每个命令复制完整状态并整行更新；幂等回执、审计与通知目前不修剪，快照返回当前用户的全部通知与完整审计，长期运行后单次操作的成本会随之增长。回执保留期、审计归档与快照分页由 [ADMIN-US-217](../../requirements/stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接，上线长期运行前必须完成。
+工作区状态以每个团队/应用一行 JSONB 保存：每个命令复制完整状态并整行更新；幂等回执、审计与通知目前不修剪，摘要返回当前用户的全部通知与最近 50 条审计（完整审计经分页接口读取），但每次读取仍要加载完整状态、每个命令还要整行重写它，长期运行后单次操作的成本会随之增长。回执保留期、审计归档与存储拆分由 [ADMIN-US-217](../../requirements/stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接，上线长期运行前必须完成。
 
 产品故事与未完成验收以 `../../requirements/plans/collaboration-implementation.md` 为准；本包存在并不意味着所有 AC 已通过或功能已合入。

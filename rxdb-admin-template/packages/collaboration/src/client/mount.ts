@@ -2,9 +2,11 @@ import type { Records } from '../model.js';
 import { checkRecords } from '../records.js';
 import { adminView } from './admin-view.js';
 import { CollaborationController } from './controller.js';
+import type { Disclosures } from './disclosure.js';
 import { TaskEditor, readOnlyRecords } from './editor.js';
-import { button, element, input, row, section } from './elements.js';
+import { button, element, input, loading, row, section } from './elements.js';
 import { FormDrafts } from './form-drafts.js';
+import { historyView } from './history-view.js';
 import { carriesInvitation, parseInvitationLink } from './invitation-link.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
@@ -55,7 +57,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   };
   const editor = new TaskEditor(controller, perform, render);
   const unregisterCheckpoint = controller.registerCheckpoint(() => editor.checkpoint());
-  const prs = new PullRequestView(controller, perform, render);
+  const disclosures: Disclosures = { isOpen: key => formDrafts.isOpen(key), reveal: render };
+  const prs = new PullRequestView(controller, perform, render, disclosures);
   const change = () => {
     if (!controller.user) editor.clear();
     if (
@@ -122,6 +125,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }, 15000);
   function renderPage() {
     formDrafts.rememberDisclosures();
+    const disclosure = formDrafts.focusedDisclosure();
     const active = document.activeElement instanceof HTMLInputElement ? document.activeElement : null;
     const focusLabel = active?.getAttribute('aria-label');
     const recordId = active?.dataset['recordId'];
@@ -163,7 +167,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     if (controller.snapshot) host.append(workspaceView());
     if (controller.draft) host.append(editor.view());
     if (controller.snapshot) {
-      host.append(prs.view(), historyView(), notificationsView());
+      host.append(prs.view(), historyView(controller, perform, editor, disclosures), notificationsView());
       if (controller.snapshot.members.find(m => m.id === controller.user?.id)?.permissions.includes('manage'))
         host.append(adminView(controller, perform));
     }
@@ -182,6 +186,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       JSON.stringify([controller.user?.id, controller.workspace?.teamId, controller.workspace?.appId])
     );
     if (focusLabel) restoreFocus(focusLabel, recordId, selection ?? null);
+    if (disclosure) formDrafts.focusDisclosure(disclosure);
   }
   function restoreFocus(label: string, recordId: string | undefined, selection: number | null) {
     const candidates = host.querySelectorAll<HTMLInputElement>('input[aria-label]');
@@ -265,9 +270,10 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   function workspaceView() {
     const data = controller.snapshot!;
     const view = section(tx('共享数据 · {v0}', { v0: data.name }));
+    const shared = controller.sharedRecords();
     view.append(
       element('p', tx('共享版本：{v0} · 默认只读', { v0: data.head ?? tx('空分支') }), 'text-sm break-all'),
-      readOnlyRecords(data.records)
+      shared ? readOnlyRecords(shared) : loading()
     );
     const member = data.members.find(m => m.id === controller.user?.id);
     if (!member?.permissions.includes('edit')) return view;
@@ -301,12 +307,13 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   }
   async function importPreview() {
     const records = await options.importAnonymous!();
+    const shared = await controller.loadSharedRecords();
     const data = controller.snapshot!;
     const dialog = element('dialog', '', 'modal');
     const content = element('div', '', 'modal-box max-w-4xl space-y-4');
     const name = input('导入任务名称', '导入本机资产');
-    const collisions = Object.keys(records).filter(id => Object.hasOwn(data.records, id));
-    const checks = checkRecords({ ...data.records, ...records });
+    const collisions = Object.keys(records).filter(id => Object.hasOwn(shared, id));
+    const checks = checkRecords({ ...shared, ...records });
     content.append(
       element('p', tx('同 ID 记录：{v0}；完整性或唯一性冲突：{v1}', { v0: collisions.length, v1: checks.length }))
     );
@@ -341,45 +348,6 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     dialog.append(content);
     document.body.append(dialog);
     dialog.showModal();
-  }
-  function historyView() {
-    const data = controller.snapshot!;
-    const view = section('历史与审计');
-    const timeline = element('details');
-    timeline.dataset['disclosureKey'] = 'audit';
-    timeline.append(element('summary', tx('{v0} 条审计事件', { v0: data.audit.length })));
-    data.audit.forEach(event =>
-      timeline.append(
-        element(
-          'p',
-          `${new Date(event.at).toLocaleString()} · ${event.actorId} · ${event.action} · ${JSON.stringify(event.details)}`,
-          'text-xs break-all'
-        )
-      )
-    );
-    view.append(timeline);
-    for (const commit of Object.values(data.commits)) {
-      const item = element('details');
-      item.dataset['disclosureKey'] = `shared-commit:${commit.id}`;
-      item.append(
-        element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`),
-        element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') }), 'text-xs'),
-        readOnlyRecords(commit.records)
-      );
-      if (data.members.find(m => m.id === controller.user?.id)?.permissions.includes('edit'))
-        item.append(
-          button('从此版本创建恢复草稿', () =>
-            perform(async () => {
-              if (editor.dirty) throw new Error('先保存当前输入');
-              await controller.createTask(tx('恢复 {v0}', { v0: commit.message }));
-              await controller.save(commit.records);
-              editor.clear();
-            })
-          )
-        );
-      view.append(item);
-    }
-    return view;
   }
   function notificationsView() {
     const data = controller.snapshot!;

@@ -36,6 +36,59 @@ describe('pending form inputs across asynchronous refresh', () => {
     state.restore('bob/task');
     expect(other.open).toBe(false);
   });
+  it('reports whether a disclosure was open at the last render, and forgets that across contexts', () => {
+    const host = document.createElement('div');
+    const state = new FormDrafts(host);
+    state.restore('alice/task');
+    const details = element('details');
+    details.dataset['disclosureKey'] = 'commit:a';
+    host.append(details);
+    expect(state.isOpen('commit:a')).toBe(false);
+    details.open = true;
+    expect(state.isOpen('commit:a')).toBe(false);
+    state.rememberDisclosures();
+    expect(state.isOpen('commit:a')).toBe(true);
+    expect(state.isOpen('commit:unknown')).toBe(false);
+    details.open = false;
+    state.rememberDisclosures();
+    expect(state.isOpen('commit:a')).toBe(false);
+    details.open = true;
+    state.rememberDisclosures();
+    state.restore('bob/task');
+    expect(state.isOpen('commit:a')).toBe(false);
+  });
+  it('hands keyboard focus on a disclosure summary back to the same disclosure after a redraw', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const state = new FormDrafts(host);
+    const build = (...keys: string[]) =>
+      keys.map(key => {
+        const details = element('details');
+        details.dataset['disclosureKey'] = key;
+        const summary = element('summary', key, '', true);
+        summary.tabIndex = 0;
+        details.append(summary);
+        return { details, summary };
+      });
+    const before = build('commit:a', 'commit:b');
+    host.append(...before.map(item => item.details));
+    expect(state.focusedDisclosure()).toBeUndefined();
+    before[1].summary.focus();
+    expect(state.focusedDisclosure()).toBe('commit:b');
+    const outside = element('button', 'outside', '', true);
+    document.body.append(outside);
+    outside.focus();
+    expect(state.focusedDisclosure()).toBeUndefined();
+    before[1].summary.focus();
+    const after = build('commit:a', 'commit:b');
+    host.replaceChildren(...after.map(item => item.details));
+    state.focusDisclosure('commit:b');
+    expect(document.activeElement).toBe(after[1].summary);
+    state.focusDisclosure('commit:missing');
+    expect(document.activeElement).toBe(after[1].summary);
+    host.remove();
+    outside.remove();
+  });
   it('retains typed input and permissions through refresh but clears them for another account or task', () => {
     const host = document.createElement('div');
     const state = new FormDrafts(host);

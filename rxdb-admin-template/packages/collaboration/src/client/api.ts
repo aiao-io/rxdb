@@ -1,5 +1,14 @@
-import { CollaborationError, demand, type Command } from '../model.js';
-import type { WorkspaceSnapshot } from '../server/engine.js';
+import {
+  CollaborationError,
+  demand,
+  type AuditPage,
+  type AuditQuery,
+  type Candidate,
+  type Command,
+  type Commit,
+  type SharedRecords,
+  type WorkspaceSummary
+} from '../model.js';
 /** 一个可访问的团队与应用；`name` 是展示名。 */
 export type WorkspaceEntry = { teamId: string; appId: string; name: string };
 /**
@@ -25,9 +34,28 @@ export class CollaborationApi {
   async workspaces() {
     return this.request<WorkspaceEntry[]>('/workspaces');
   }
-  /** 读取工作区快照，只包含当前用户可见的内容。 */
+  /** 读取工作区摘要，只包含当前用户可见的元数据；提交与候选的记录、共享数据和更早的审计需按需读取。 */
   async snapshot(context: WorkspaceEntry) {
-    return this.request<WorkspaceSnapshot>(this.path(context));
+    return this.request<WorkspaceSummary>(this.path(context));
+  }
+  /** 读取共享分支当前的全部记录；返回的 `head` 与摘要的 `head` 一致时才与摘要匹配。 */
+  async records(context: WorkspaceEntry) {
+    return this.request<SharedRecords>(`${this.path(context)}/records`);
+  }
+  /** 读取一个提交的完整内容；提交不可变，可按 ID 长期缓存。 */
+  async commit(context: WorkspaceEntry, id: string) {
+    return this.request<Commit>(`${this.path(context)}/commits/${encodeURIComponent(id)}`);
+  }
+  /** 读取一个合并候选的完整内容；候选不可变，可按 ID 长期缓存。 */
+  async candidate(context: WorkspaceEntry, id: string) {
+    return this.request<Candidate>(`${this.path(context)}/candidates/${encodeURIComponent(id)}`);
+  }
+  /** 读取审计事件的一页，按时间从新到旧；只带已设置的筛选与分页参数。 */
+  async audit(context: WorkspaceEntry, query: AuditQuery = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) if (value !== undefined) params.set(key, String(value));
+    const search = params.toString();
+    return this.request<AuditPage>(`${this.path(context)}/audit${search ? `?${search}` : ''}`);
   }
   /** 提交一条命令。响应不是 JSON 时按「结果不确定」报错，调用方可用原幂等键查询回执或重试。 */
   async command(context: WorkspaceEntry, command: Command) {

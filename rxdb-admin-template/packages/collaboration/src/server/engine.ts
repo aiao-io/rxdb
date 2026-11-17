@@ -1,4 +1,22 @@
-import { demand, permissions, type Command, type Environment, type Identity, type Workspace } from '../model.js';
+import {
+  auditPageSize,
+  auditSummarySize,
+  demand,
+  permissions,
+  type Audit,
+  type AuditPage,
+  type AuditQuery,
+  type Candidate,
+  type CandidateSummary,
+  type Command,
+  type Commit,
+  type CommitSummary,
+  type Environment,
+  type Identity,
+  type SharedRecords,
+  type Workspace,
+  type WorkspaceSummary
+} from '../model.js';
 import { canonical } from '../records.js';
 import { authorize, editTask, taskFor } from './access.js';
 import { discussionCommand, notify } from './discussion.js';
@@ -96,8 +114,8 @@ function receipt(state: Workspace, user: Identity, command: Command, previous: W
   return structuredClone(previous.value);
 }
 /**
- * 审计详情会随快照发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：
- * 邀请令牌摘要（tokenHash）、受邀邮箱（email，只有管理者能经快照的 invitations 查看）、完整提交内容（commits）。
+ * 审计详情会随摘要与审计分页发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：
+ * 邀请令牌摘要（tokenHash）、受邀邮箱（email，只有管理者能经摘要的 invitations 查看）、完整提交内容（commits）。
  * 各命令的 result 本身不含邮箱，原样保留（合并结果的 changes 还要供 admin_changes 投影）。
  */
 const auditExcluded = ['tokenHash', 'email', 'commits'];
@@ -107,12 +125,26 @@ function auditDetails(command: Command, result: Record<string, unknown>): Record
   return details;
 }
 
+/** 去掉记录内容后的元数据；提交与候选的记录改经按需读取接口获取。 */
+function withoutRecords<T extends { records: unknown }>(value: T): Omit<T, 'records'> {
+  const metadata: Partial<T> = { ...value };
+  delete metadata.records;
+  return metadata as Omit<T, 'records'>;
+}
+
 /**
- * 只返回该用户可见的内容；邀请摘要、请求指纹和他人通知永不离开服务端，
+ * 工作区摘要，只返回该用户可见的内容：提交只含元数据，候选不含记录，不含共享数据，审计只含最近
+ * {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
  * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
+ * 体积与记录数无关；需要内容时经 {@link sharedRecords}、{@link commitContent}、{@link candidateContent}、
+ * {@link auditPage} 读取。
  */
-export function snapshot(state: Workspace, user: Identity, now: number, presence = state.presence) {
+export function snapshot(state: Workspace, user: Identity, now: number, presence = state.presence): WorkspaceSummary {
   const member = authorize(state, user, 'read');
+  const commits: Record<string, CommitSummary> = {};
+  for (const [id, commit] of Object.entries(state.commits)) commits[id] = withoutRecords(commit);
+  const candidates: Record<string, CandidateSummary> = {};
+  for (const [id, candidate] of Object.entries(state.candidates)) candidates[id] = withoutRecords(candidate);
   return structuredClone({
     teamId: state.teamId,
     appId: state.appId,
@@ -120,13 +152,12 @@ export function snapshot(state: Workspace, user: Identity, now: number, presence
     revision: state.revision,
     schemaVersion: state.schemaVersion,
     head: state.head,
-    records: state.records,
     policy: state.policy,
     members: Object.values(state.members).filter(m => m.active),
     tasks: Object.values(state.tasks),
-    commits: state.commits,
+    commits,
     prs: Object.values(state.prs),
-    candidates: state.candidates,
+    candidates,
     reviews: state.reviews,
     threads: Object.values(state.threads),
     notifications: state.notifications.filter(n => n.userId === user.id),
@@ -144,7 +175,8 @@ export function snapshot(state: Workspace, user: Identity, now: number, presence
           acceptedBy: i.acceptedBy
         }))
       : [],
-    audit: state.audit,
+    audit: state.audit.slice(-auditSummarySize),
+    auditCount: state.audit.length,
     governance: Object.values(state.prs).map(pr => ({
       prId: pr.id,
       blockers: blockers(state, pr.id),
@@ -152,4 +184,65 @@ export function snapshot(state: Workspace, user: Identity, now: number, presence
     }))
   });
 }
-export type WorkspaceSnapshot = ReturnType<typeof snapshot>;
+/** `snapshot()` 的返回类型：摘要，同 {@link WorkspaceSummary}。 */
+export type WorkspaceSnapshot = WorkspaceSummary;
+
+/** 共享分支当前的全部记录及其头提交；授权与摘要一致，需要 read 权限。 */
+export function sharedRecords(state: Workspace, user: Identity): SharedRecords {
+  authorize(state, user, 'read');
+  return structuredClone({ head: state.head, records: state.records });
+}
+/** 一个提交的完整内容（含记录）；未知 ID 返回 `not_found`，授权与摘要一致。 */
+export function commitContent(state: Workspace, user: Identity, id: string): Commit {
+  authorize(state, user, 'read');
+  demand(Object.hasOwn(state.commits, id), 'not_found', '提交不存在');
+  return structuredClone(state.commits[id]);
+}
+/** 一个合并候选的完整内容（含最终记录）；未知 ID 返回 `not_found`，授权与摘要一致。 */
+export function candidateContent(state: Workspace, user: Identity, id: string): Candidate {
+  authorize(state, user, 'read');
+  demand(Object.hasOwn(state.candidates, id), 'not_found', '候选不存在');
+  return structuredClone(state.candidates[id]);
+}
+
+const threadActions = ['thread', 'reply', 'resolve_thread', 'edit_comment'];
+/** 讨论线程的处理历史：创建、回复、编辑、解决事件，线程 ID 在 `threadId`（回复等）或 `id`（创建）里。 */
+function isThreadEvent(event: Audit, threadId: string): boolean {
+  return (
+    threadActions.includes(event.action) && (event.details['threadId'] === threadId || event.details['id'] === threadId)
+  );
+}
+/** 与 PR 相关的事件：带 `prId` 的命令、PR 创建本身（`id`），以及属于该 PR 的线程上的事件。 */
+function isPrEvent(state: Workspace, event: Audit, prId: string): boolean {
+  if (event.details['prId'] === prId) return true;
+  if (event.action === 'pr') return event.details['id'] === prId;
+  const threadId = event.details['threadId'];
+  return (
+    typeof threadId === 'string' && Object.hasOwn(state.threads, threadId) && state.threads[threadId].prId === prId
+  );
+}
+/**
+ * 审计分页，按时间从新到旧。`before` 是游标事件 ID，只返回比它更早的事件（游标事件本身不必匹配筛选）；
+ * `prId` 与 `threadId` 同时给出时取交集；还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID，否则为 null。
+ * 授权与摘要一致；游标不存在返回 `not_found`，`limit` 必须是 1～{@link auditPageSize}.maximum 的整数。
+ */
+export function auditPage(state: Workspace, user: Identity, query: AuditQuery): AuditPage {
+  authorize(state, user, 'read');
+  const limit = query.limit ?? auditPageSize.default;
+  demand(Number.isInteger(limit) && limit >= 1 && limit <= auditPageSize.maximum, 'invalid', '请求字段不合法');
+  const matches = (event: Audit) =>
+    (query.prId === undefined || isPrEvent(state, event, query.prId)) &&
+    (query.threadId === undefined || isThreadEvent(event, query.threadId));
+  let position = state.audit.length;
+  if (query.before !== undefined) {
+    position = state.audit.findIndex(event => event.id === query.before);
+    demand(position >= 0, 'not_found', '审计事件不存在');
+  }
+  const events: Audit[] = [];
+  while (position > 0 && events.length < limit) {
+    position--;
+    if (matches(state.audit[position])) events.push(state.audit[position]);
+  }
+  const older = state.audit.slice(0, position).some(matches);
+  return structuredClone({ events, nextBefore: older ? events[events.length - 1].id : null });
+}

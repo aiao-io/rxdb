@@ -246,6 +246,123 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       writer.release();
     }
   });
+  /** 带一个已合并 PR 的工作区：共享头、提交、候选与审计事件都有内容。 */
+  async function mergedWorkspace(appId: string) {
+    const seed = { ...input, teamId: randomUUID(), appId, bootstrapKey: randomUUID() };
+    await repository.initialize(seed);
+    const op = (data: Record<string, unknown>, actor = admin) =>
+      repository.operation(actor, seed.teamId, seed.appId, command(data));
+    await op({ type: 'policy', stages: [], expectedVersion: 1 });
+    await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+    await op({
+      type: 'upload',
+      taskId: 'task',
+      expectedHead: null,
+      commits: [
+        {
+          id: 'commit-1',
+          parent: null,
+          authorId: admin.id,
+          message: 'First',
+          records: { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } }
+        }
+      ]
+    });
+    await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'Review', description: '', target: 'shared' });
+    await op({ type: 'pr_state', prId: 'pr', status: 'review', expectedRevision: 0 });
+    const candidateId = String(
+      (await op({ type: 'candidate', prId: 'pr', expectedRevision: 1, resolutions: [] }))['candidateId']
+    );
+    const merged = await op({
+      type: 'merge',
+      prId: 'pr',
+      candidateId,
+      expectedSource: 'commit-1',
+      expectedTarget: null
+    });
+    return { seed, candidateId, head: String(merged['head']) };
+  }
+  it('serves a metadata-only summary and the heavy content through on-demand reads with the same authorization', async () => {
+    const { seed, candidateId, head } = await mergedWorkspace('on-demand');
+    try {
+      const summary = await repository.read(admin, seed.teamId, seed.appId);
+      expect(summary).not.toHaveProperty('records');
+      expect(summary.head).toBe(head);
+      expect(summary.auditCount).toBe(summary.audit.length);
+      for (const commit of Object.values(summary.commits)) expect(commit).not.toHaveProperty('records');
+      expect(summary.candidates[candidateId]).not.toHaveProperty('records');
+      expect(summary.commits[head]).toMatchObject({ parent: null, mergeSource: 'commit-1', candidateId });
+
+      const records = { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } };
+      await expect(repository.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({ head, records });
+      await expect(repository.readCommit(admin, seed.teamId, seed.appId, 'commit-1')).resolves.toEqual({
+        id: 'commit-1',
+        parent: null,
+        authorId: admin.id,
+        message: 'First',
+        records
+      });
+      await expect(repository.readCommit(admin, seed.teamId, seed.appId, head)).resolves.toMatchObject({ records });
+      await expect(repository.readCandidate(admin, seed.teamId, seed.appId, candidateId)).resolves.toMatchObject({
+        id: candidateId,
+        source: 'commit-1',
+        records
+      });
+      const newest = await repository.readAudit(admin, seed.teamId, seed.appId, { limit: 2 });
+      expect(newest.events.map(event => event.action)).toEqual(['merge', 'candidate']);
+      expect(newest.nextBefore).toBe(newest.events[1].id);
+      const rest = await repository.readAudit(admin, seed.teamId, seed.appId, { before: newest.nextBefore! });
+      expect(rest.events.length + newest.events.length).toBe(summary.auditCount);
+      expect(rest.nextBefore).toBeNull();
+      const related = await repository.readAudit(admin, seed.teamId, seed.appId, { prId: 'pr' });
+      expect(related.events.map(event => event.action)).toEqual(['merge', 'candidate', 'pr_state', 'pr']);
+
+      await expect(repository.readCommit(admin, seed.teamId, seed.appId, 'missing')).rejects.toMatchObject({
+        code: 'not_found'
+      });
+      await expect(repository.readCandidate(admin, seed.teamId, seed.appId, 'commit-1')).rejects.toMatchObject({
+        code: 'not_found'
+      });
+      const outsider = { id: randomUUID(), email: 'outsider@example.test', verified: true };
+      for (const read of [
+        () => repository.read(outsider, seed.teamId, seed.appId),
+        () => repository.readRecords(outsider, seed.teamId, seed.appId),
+        () => repository.readCommit(outsider, seed.teamId, seed.appId, 'commit-1'),
+        () => repository.readCandidate(outsider, seed.teamId, seed.appId, candidateId),
+        () => repository.readAudit(outsider, seed.teamId, seed.appId, {})
+      ])
+        await expect(read()).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(repository.readCommit(admin, randomUUID(), 'other', 'commit-1')).rejects.toMatchObject({
+        code: 'forbidden'
+      });
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+  it('serves on-demand reads without waiting for an in-flight write lock', async () => {
+    const { seed, candidateId } = await mergedWorkspace('on-demand-lock');
+    const writer = await pool.connect();
+    try {
+      await writer.query('BEGIN');
+      await writer.query('SELECT 1 FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2 FOR UPDATE', [
+        seed.teamId,
+        seed.appId
+      ]);
+      // 写事务持有行锁期间，按需读取同样基于已提交版本立即返回，不能排队等待写入结束
+      const reads: Record<string, () => Promise<unknown>> = {
+        records: () => repository.readRecords(admin, seed.teamId, seed.appId),
+        commit: () => repository.readCommit(admin, seed.teamId, seed.appId, 'commit-1'),
+        candidate: () => repository.readCandidate(admin, seed.teamId, seed.appId, candidateId),
+        audit: () => repository.readAudit(admin, seed.teamId, seed.appId, { limit: 2 })
+      };
+      for (const [name, read] of Object.entries(reads))
+        await expect(outcomeWithin(read(), 1000), name).resolves.toBe('resolved');
+    } finally {
+      await writer.query('ROLLBACK');
+      writer.release();
+      await removeWorkspace(seed);
+    }
+  });
   it('does not let a presence heartbeat race past a concurrent revocation', async () => {
     const seed = { ...input, teamId: randomUUID(), appId: 'presence-race', bootstrapKey: randomUUID() };
     await repository.initialize(seed);
@@ -415,7 +532,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     await repository.initialize(seed);
     const state = await repository.read(admin, seed.teamId, seed.appId);
     expect(state.head).toBeNull();
-    expect(state.records).toEqual({});
+    await expect(repository.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({ head: null, records: {} });
     expect(state.policy.stages).toMatchObject([{ minimum: 1 }]);
     expect(state.members).toMatchObject([{ id: admin.id, permissions: expect.arrayContaining(['manage']) }]);
   });

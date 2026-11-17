@@ -1,7 +1,8 @@
 import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { bootstrap, snapshot } from './engine.js';
+import { CollaborationError, type Command, type Identity, type Workspace } from '../model.js';
+import { auditPage, bootstrap, candidateContent, commitContent, execute, sharedRecords, snapshot } from './engine.js';
 import { collaborationServer, type RepositoryApi } from './http.js';
 const user = { id: 'user', email: 'user@example.test', verified: true };
 let server: Server;
@@ -18,7 +19,13 @@ const repository: RepositoryApi = {
   list: vi.fn(async () => []),
   read: vi.fn(async () => data),
   operation: vi.fn(async () => ({ head: 'head' })),
-  receipt: vi.fn(async () => ({ status: 'unknown' }))
+  receipt: vi.fn(async () => ({ status: 'unknown' })),
+  readRecords: vi.fn(async () => ({ head: null, records: {} })),
+  readCommit: vi.fn(async () => ({ id: 'c1', parent: null, authorId: 'user', message: 'First', records: {} })),
+  readCandidate: vi.fn(async () => {
+    throw new CollaborationError('not_found', '候选不存在');
+  }),
+  readAudit: vi.fn(async () => ({ events: [], nextBefore: null }))
 };
 const authenticate = vi.fn(async (token: string) => {
   if (token !== 'valid') throw new Error('private provider detail');
@@ -136,5 +143,190 @@ describe('HTTP request hygiene', () => {
     expect(server.headersTimeout).toBeLessThanOrEqual(server.requestTimeout);
     expect(checking).toBeGreaterThan(0);
     expect(checking).toBeLessThanOrEqual(5_000);
+  });
+});
+
+const get = (path: string, token = 'valid') =>
+  fetch(`${url}${path}`, { headers: { authorization: `Bearer ${token}` } });
+describe('on-demand read routes', () => {
+  it('serves shared records, commits, candidates and audit pages to the authenticated user', async () => {
+    const records = await get('/workspaces/team/assets/records');
+    expect(records.status).toBe(200);
+    expect(await records.json()).toEqual({ head: null, records: {} });
+    expect(repository.readRecords).toHaveBeenCalledWith(user, 'team', 'assets');
+    const commit = await get('/workspaces/team/assets/commits/c1');
+    expect((await commit.json()) as unknown).toMatchObject({ id: 'c1', message: 'First' });
+    expect(repository.readCommit).toHaveBeenCalledWith(user, 'team', 'assets', 'c1');
+    await get('/workspaces/team/assets/candidates/k1');
+    expect(repository.readCandidate).toHaveBeenCalledWith(user, 'team', 'assets', 'k1');
+    const audit = await get('/workspaces/team/assets/audit');
+    expect(await audit.json()).toEqual({ events: [], nextBefore: null });
+    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {});
+    expect(repository.read).not.toHaveBeenCalled();
+    expect(repository.operation).not.toHaveBeenCalled();
+  });
+  it('passes audit filters and paging parameters through, parsed and validated', async () => {
+    await get('/workspaces/team/assets/audit?before=event-1&limit=20&prId=pr-1&threadId=thread_1');
+    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {
+      before: 'event-1',
+      limit: 20,
+      prId: 'pr-1',
+      threadId: 'thread_1'
+    });
+    await get('/workspaces/team/assets/audit?limit=100');
+    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', { limit: 100 });
+    await get('/workspaces/team/assets/audit?prId=pr-2');
+    expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', { prId: 'pr-2' });
+  });
+  it('rejects malformed audit queries as invalid requests without touching the repository', async () => {
+    const malformed = [
+      'limit=abc',
+      'limit=',
+      'limit=1.5',
+      'limit=-1',
+      'limit=1000',
+      'limit=1&limit=2',
+      'before=',
+      'before=a/b',
+      'prId=',
+      'threadId=a%20b',
+      'unknown=1'
+    ];
+    for (const query of malformed) {
+      const response = await get(`/workspaces/team/assets/audit?${query}`);
+      expect(response.status, query).toBe(409);
+      expect(await response.json(), query).toEqual({ error: 'invalid', message: '请求字段不合法', details: {} });
+    }
+    expect(repository.readAudit).not.toHaveBeenCalled();
+  });
+  it('decodes percent-encoded ids and answers behind the collaboration-api prefix', async () => {
+    await get('/collaboration-api/workspaces/team%2Done/assets/commits/commit%2D1');
+    expect(repository.readCommit).toHaveBeenCalledWith(user, 'team-one', 'assets', 'commit-1');
+    await get('/collaboration-api/workspaces/team/assets/records');
+    expect(repository.readRecords).toHaveBeenCalledWith(user, 'team', 'assets');
+  });
+  it('requires an authenticated session before any read', async () => {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
+      expect((await fetch(`${url}/workspaces/team/assets/${path}`)).status, path).toBe(401);
+      expect((await get(`/workspaces/team/assets/${path}`, 'invalid')).status, path).toBe(500);
+    }
+    expect(repository.readRecords).not.toHaveBeenCalled();
+    expect(repository.readCommit).not.toHaveBeenCalled();
+    expect(repository.readCandidate).not.toHaveBeenCalled();
+    expect(repository.readAudit).not.toHaveBeenCalled();
+  });
+  it('reports an unknown id as not_found without leaking anything else', async () => {
+    const response = await get('/workspaces/team/assets/candidates/missing');
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'not_found', message: '候选不存在', details: {} });
+  });
+  it('treats other methods, extra segments and unknown resources as unknown endpoints', async () => {
+    const headers = { authorization: 'Bearer valid', 'content-type': 'application/json' };
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
+      const response = await fetch(`${url}/workspaces/team/assets/${path}`, { method: 'POST', headers, body: '{}' });
+      expect(response.status, path).toBe(409);
+      expect(await response.json(), path).toMatchObject({ error: 'not_found' });
+    }
+    for (const path of ['records/x', 'commits', 'commits/c1/x', 'candidates', 'audit/x', 'unknown', 'unknown/x']) {
+      const response = await get(`/workspaces/team/assets/${path}`);
+      expect(response.status, path).toBe(409);
+      expect(await response.json(), path).toMatchObject({ error: 'not_found' });
+    }
+    expect(repository.readRecords).not.toHaveBeenCalled();
+    expect(repository.readCommit).not.toHaveBeenCalled();
+    expect(repository.readAudit).not.toHaveBeenCalled();
+  });
+  it('allows the read methods in CORS preflight', async () => {
+    const response = await fetch(`${url}/workspaces/team/assets/records`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://product.example' }
+    });
+    expect(response.headers.get('access-control-allow-methods')).toContain('GET');
+  });
+});
+
+/** 以引擎纯函数实现的内存仓储：验证路由、授权与错误码的端到端映射，不涉及数据库。 */
+function memoryRepository(state: Workspace): RepositoryApi {
+  const operation = async (actor: Identity, _team: string, _app: string, command: Command) =>
+    execute(state, actor, command, { now: 1000, id: () => `event-${state.audit.length + 1}` });
+  return {
+    ...repository,
+    operation,
+    readRecords: async actor => sharedRecords(state, actor),
+    readCommit: async (actor, _team, _app, id) => commitContent(state, actor, id),
+    readCandidate: async (actor, _team, _app, id) => candidateContent(state, actor, id),
+    readAudit: async (actor, _team, _app, query) => auditPage(state, actor, query)
+  };
+}
+describe('on-demand reads over the engine', () => {
+  const outsider = { id: 'outsider', email: 'outsider@example.test', verified: true };
+  let memory: Workspace;
+  let remote: Server;
+  let base: string;
+  const fetchAs = (id: string, path: string) => fetch(`${base}${path}`, { headers: { authorization: `Bearer ${id}` } });
+  beforeEach(async () => {
+    memory = bootstrap(
+      { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
+      { now: 1, id: () => 'bootstrap-event' }
+    );
+    const api = memoryRepository(memory);
+    await api.operation(user, 'team', 'assets', {
+      type: 'task',
+      id: 'task',
+      name: 'Task',
+      expectedHead: null,
+      operationId: 'operation-1'
+    });
+    await api.operation(user, 'team', 'assets', {
+      type: 'upload',
+      taskId: 'task',
+      expectedHead: null,
+      operationId: 'operation-2',
+      commits: [
+        {
+          id: 'c1',
+          parent: null,
+          authorId: user.id,
+          message: 'First',
+          records: { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } }
+        }
+      ]
+    });
+    remote = collaborationServer({
+      repository: api,
+      authenticate: async token => ({ id: token, email: `${token}@example.test`, verified: true }),
+      origins: [],
+      publicConfig: { supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' }
+    });
+    await new Promise<void>(resolve => remote.listen(0, '127.0.0.1', resolve));
+    base = `http://127.0.0.1:${(remote.address() as AddressInfo).port}`;
+  });
+  afterEach(async () => {
+    await new Promise<void>(resolve => remote.close(() => resolve()));
+  });
+  it('serves members the real content and an unknown id as not_found', async () => {
+    const commit = await fetchAs('user', '/workspaces/team/assets/commits/c1');
+    expect(commit.status).toBe(200);
+    expect(await commit.json()).toMatchObject({ id: 'c1', records: { cat: { fields: { name: 'Laptops' } } } });
+    const records = await fetchAs('user', '/workspaces/team/assets/records');
+    expect(await records.json()).toEqual({ head: null, records: {} });
+    const missing = await fetchAs('user', '/workspaces/team/assets/commits/constructor');
+    expect(missing.status).toBe(409);
+    expect(await missing.json()).toMatchObject({ error: 'not_found', message: '提交不存在' });
+    const events = (await (await fetchAs('user', '/workspaces/team/assets/audit?limit=2')).json()) as {
+      events: { action: string }[];
+      nextBefore: string | null;
+    };
+    expect(events.events.map(event => event.action)).toEqual(['upload', 'task']);
+    expect(events.nextBefore).not.toBeNull();
+  });
+  it('answers non-members with 403 and no content for every read', async () => {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
+      const response = await fetchAs(outsider.id, `/workspaces/team/assets/${path}`);
+      expect(response.status, path).toBe(403);
+      const text = await response.text();
+      expect(text, path).not.toContain('Laptops');
+      expect(JSON.parse(text), path).toMatchObject({ error: 'forbidden' });
+    }
   });
 });
