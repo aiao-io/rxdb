@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { BOM_WORKSPACE_CONFIG } from '../config';
 import { BomWorkspaceState } from './bom-workspace-state';
 
 @Component({ template: '' })
@@ -88,5 +89,81 @@ describe('业务工作条件的恢复与连续使用', () => {
     expect(router.parseUrl(router.url).queryParams['root']).toBe('PCBA');
     expect(router.parseUrl(router.url).queryParams['qty']).toBe('12');
     expect(state.unit()).toBeNull();
+  });
+});
+
+describe('统一外壳下的工作台路径豁免', () => {
+  const unified = {
+    databaseName: 'bom-workspace-test',
+    overviewPath: '/bom',
+    workbenchPath: '/',
+    label: '测试 BOM'
+  };
+
+  it('工作台路径上修改条件不合并领域参数到 URL', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: '', component: WorkspaceTestPage },
+          { path: 'cost', component: WorkspaceTestPage }
+        ]),
+        { provide: BOM_WORKSPACE_CONFIG, useValue: unified }
+      ]
+    });
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const state = TestBed.inject(BomWorkspaceState);
+    await router.navigateByUrl('/');
+    state.bindRouter(router);
+    state.update({ rootKey: 'PCBA', plannedQty: '12' });
+    TestBed.tick();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('离开工作台路径后恢复领域参数合并', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: '', component: WorkspaceTestPage },
+          { path: 'cost', component: WorkspaceTestPage }
+        ]),
+        { provide: BOM_WORKSPACE_CONFIG, useValue: unified }
+      ]
+    });
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const state = TestBed.inject(BomWorkspaceState);
+    await router.navigateByUrl('/cost');
+    state.bindRouter(router);
+    state.update({ rootKey: 'PCBA', plannedQty: '12' });
+    TestBed.tick();
+    expect(navigate).toHaveBeenCalled();
+  });
+
+  it('工作台路径不覆盖返回路径，专项页会更新', async () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([
+          { path: '', component: WorkspaceTestPage },
+          { path: 'cost', component: WorkspaceTestPage }
+        ]),
+        { provide: BOM_WORKSPACE_CONFIG, useValue: unified }
+      ]
+    });
+    const router = TestBed.inject(Router);
+    const state = TestBed.inject(BomWorkspaceState);
+    await router.navigateByUrl('/');
+    state.bindRouter(router);
+    expect(state.resumePath()).toBe('/explosion');
+    await router.navigateByUrl('/cost');
+    expect(state.resumePath()).toBe('/cost');
+  });
+
+  it('restore 忽略工作台专属查询参数，不污染领域条件', () => {
+    const state = TestBed.inject(BomWorkspaceState);
+    state.restore({ structure: 'cad', pn: '1321315X9D01A', scope: 'a:b', view: 'flat' });
+    expect(state.rootKey()).toBe('SC-100');
+    expect(state.asOfDate()).toBe('2026-09-22');
+    expect(state.plannedQty()).toBe('1');
   });
 });

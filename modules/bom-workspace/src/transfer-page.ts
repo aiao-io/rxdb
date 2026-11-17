@@ -9,13 +9,13 @@ import { BOM_WORKSPACE_CONFIG, type DomainImportEnvelope } from './config';
   template: `
     <section class="panel" aria-labelledby="transfer-title">
       <h1 id="transfer-title">工作区备份与迁移</h1>
-      <p>备份包含领域数据库的草稿、修订、ECN、映射、实例与历史。模型文件和结构工作台的独立快照另行保存。</p>
+      <p>备份包含 BOM 库的草稿、修订、ECN、映射、实例与历史。模型文件和结构工作台的独立快照另行保存。</p>
       <p>
         当前数据库：<code data-testid="domain-database">{{ service.databaseName() }}</code>
       </p>
       <div class="toolbar">
         <button class="btn btn-primary" [disabled]="busy() || !service.connected()" (click)="backup()">
-          下载完整领域备份
+          下载完整备份
         </button>
         <button class="btn" [disabled]="busy() || !service.previousDatabase()" (click)="rollback()">
           回退到保留的原库
@@ -26,11 +26,11 @@ import { BOM_WORKSPACE_CONFIG, type DomainImportEnvelope } from './config';
           <h2>从结构工作台接收草稿</h2>
           <p>{{ draft.name }} · {{ draft.rootItemNo }} · 修订 {{ draft.revisionNo }} · {{ draft.orgId }}</p>
           <p>
-            {{ draft.records.length }} 条领域记录；{{ draft.identities.length }}
-            个来源位置对应关系。校验成功后整批写入领域草稿，发布另行操作。
+            {{ draft.records.length }} 条 BOM 记录；{{ draft.identities.length }}
+            个来源位置对应关系。校验成功后整批写入 BOM 草稿，发布另行操作。
           </p>
           <button class="btn btn-primary" [disabled]="busy() || !service.connected()" (click)="importDraft()">
-            校验并写入领域草稿
+            校验并写入 BOM 草稿
           </button>
         </section>
       }
@@ -42,14 +42,14 @@ import { BOM_WORKSPACE_CONFIG, type DomainImportEnvelope } from './config';
           >核对导入装配并发布</a
         >
       }
-      <a class="btn" routerLink="/explosion">进入领域展开、导入校验与发布</a>
+      <a class="btn" routerLink="/explosion">进入展开页、导入校验与发布</a>
       <h2>从旧版迁入</h2>
       <ol>
-        <li>在旧版的“备份与迁移”下载完整领域备份，保留原文件。</li>
+        <li>在旧版的“备份与迁移”下载完整备份，保留原文件。</li>
         <li>在这里选择归档；校验并恢复到一个新库后切换。当前库保留，可随时回退。</li>
       </ol>
       <label
-        >选择领域备份文件
+        >选择备份文件
         <input [disabled]="busy()" (change)="file($event)" accept=".rxdb-backup,application/octet-stream" type="file"
       /></label>
       @if (incoming(); as file) {
@@ -92,7 +92,7 @@ export class TransferPage implements OnInit {
     await this.run(async () => {
       const result = await this.service.importBom(envelope.records);
       if (!result.committed) throw new Error(result.diagnostics.map(issue => issue.message).join('；'));
-      this.message.set(`已写入领域草稿：${envelope.rootItemNo}。可进入展开页核对并发布。`);
+      this.message.set(`已写入 BOM 草稿：${envelope.rootItemNo}。可进入展开页核对并发布。`);
       this.imported.set(envelope);
       this.pending.set(undefined);
       await this.config.completePending?.(envelope);

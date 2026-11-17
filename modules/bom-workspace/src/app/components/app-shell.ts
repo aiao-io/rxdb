@@ -27,6 +27,8 @@ interface NavItem {
   description: string;
   icon: string;
   exact: boolean;
+  /** 链接不带领域查询参数（如结构工作台入口）。 */
+  excludeQuery?: boolean;
 }
 
 @Component({
@@ -45,7 +47,7 @@ interface NavItem {
         <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
       }
       <aside class="sidebar" id="bom-navigation" #navigation aria-label="演示场景导航">
-        <a class="brand" [routerLink]="config.overviewPath" (click)="closeNavigation()" aria-label="BOM 演示中心首页">
+        <a class="brand" [routerLink]="config.overviewPath" [attr.aria-label]="config.label + ' 首页'" (click)="closeNavigation()">
           <span class="brand-mark" aria-hidden="true">
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
@@ -65,7 +67,7 @@ interface NavItem {
                 <a
                   class="nav-item"
                   [attr.aria-label]="item.label"
-                  [queryParams]="workspaceState.queryParams()"
+                  [queryParams]="item.excludeQuery ? undefined : workspaceState.queryParams()"
                   [routerLink]="item.path"
                   [routerLinkActiveOptions]="navigationMatch"
                   (click)="closeNavigation()"
@@ -86,9 +88,6 @@ interface NavItem {
           }
           <div class="nav-section">
             <span class="nav-section-title">工作区</span>
-            @if (config.workbenchPath) {
-              <a class="nav-item" [routerLink]="config.workbenchPath" (click)="closeNavigation()">返回结构工作台</a>
-            }
             <a class="nav-item" (click)="closeNavigation()" routerLink="/transfer">备份与迁移</a>
           </div>
         </nav>
@@ -119,11 +118,12 @@ interface NavItem {
               </svg>
             </button>
             <div class="breadcrumb">
-              <a [routerLink]="config.overviewPath">演示中心</a><span aria-hidden="true">/</span
+              <a [routerLink]="config.overviewPath">{{ config.label }}</a><span aria-hidden="true">/</span
               ><strong>{{ activeLabel() }}</strong>
             </div>
           </div>
-          <div class="header-actions">
+          @if (!workbenchRoute()) {
+            <div class="header-actions">
             <span
               class="badge"
               [class.badge-neutral]="!ready() || resetting()"
@@ -145,8 +145,9 @@ interface NavItem {
               <span>重置演示</span>
             </button>
           </div>
+          }
         </header>
-        @if (ready() && !reviewRoute()) {
+        @if (ready() && !reviewRoute() && !workbenchRoute()) {
           <div class="workspace-context" aria-label="当前分析条件">
             <div>
               <strong>{{ materialLabel(workspaceState.rootKey()) }}</strong
@@ -162,14 +163,14 @@ interface NavItem {
             </nav>
           </div>
         }
-        <main class="content" id="main-content" tabindex="-1">
-          @if (!reviewRoute()) {
+        <main class="content" id="main-content" tabindex="-1" [class.workbench-content]="workbenchRoute()">
+          @if (!reviewRoute() && !workbenchRoute()) {
             <bom-workflow-journey />
           }
           @if (serviceResetting()) {
             <p class="workspace-notice hint" role="status">{{ resetStatus() }}</p>
           }
-          @if (connectionError()) {
+          @if (connectionError() && !workbenchRoute()) {
             <div class="error-box workspace-notice connection-error" role="alert">
               <strong>演示数据连接失败</strong>
               <div>请查看原因，或重置演示数据后重试。</div>
@@ -180,7 +181,7 @@ interface NavItem {
               </details>
             </div>
           }
-          @if (actionError()) {
+          @if (actionError() && !workbenchRoute()) {
             <div class="error-box workspace-notice action-error" role="alert">
               <strong>恢复演示数据失败</strong>
               <div>请稍后重试；下方保留本次错误原因。</div>
@@ -214,6 +215,9 @@ export class AppShell implements OnInit {
   readonly config = inject(BOM_WORKSPACE_CONFIG);
   readonly workspaceState = inject(BomWorkspaceState);
   readonly reviewRoute = computed(() => this.currentUrl().split(/[?#]/)[0] === '/review');
+  readonly workbenchRoute = computed(
+    () => this.config.workbenchPath !== null && this.currentUrl().split(/[?#]/)[0] === this.config.workbenchPath
+  );
   readonly navigationMatch = {
     paths: 'exact',
     queryParams: 'ignored',
@@ -235,6 +239,18 @@ export class AppShell implements OnInit {
     {
       label: '开始使用',
       items: [
+        ...(this.config.workbenchPath
+          ? [
+              {
+                path: this.config.workbenchPath,
+                label: '结构工作台',
+                description: '结构表、工作草稿与版本快照',
+                icon: 'M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5',
+                exact: true,
+                excludeQuery: true
+              }
+            ]
+          : []),
         {
           path: this.config.overviewPath,
           label: '概览',

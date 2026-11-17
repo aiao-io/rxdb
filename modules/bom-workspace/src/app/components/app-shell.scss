@@ -328,6 +328,13 @@
   scrollbar-gutter: stable;
 }
 
+.content.workbench-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  scrollbar-gutter: auto;
+}
+
 .workspace-notice {
   margin: 24px 32px 0;
 }

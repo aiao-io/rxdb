@@ -2,19 +2,22 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BOM_WORKSPACE_CONFIG, type BomWorkspaceConfig } from '../../config';
 import { BomDemoService } from '../bom-demo.service';
 import { AppShell } from './app-shell';
 
+const serviceStub = () => ({
+  ready: signal(true),
+  itemCount: signal(41),
+  dataRevision: signal(0),
+  resetting: signal(false),
+  resetStatus: signal(''),
+  connectExisting: vi.fn().mockResolvedValue(undefined),
+  resetAndSeed: vi.fn().mockResolvedValue(undefined)
+});
+
 const mount = async () => {
-  const service = {
-    ready: signal(true),
-    itemCount: signal(41),
-    dataRevision: signal(0),
-    resetting: signal(false),
-    resetStatus: signal(''),
-    connectExisting: vi.fn().mockResolvedValue(undefined),
-    resetAndSeed: vi.fn().mockResolvedValue(undefined)
-  };
+  const service = serviceStub();
   TestBed.configureTestingModule({
     imports: [AppShell],
     providers: [provideRouter([]), { provide: BomDemoService, useValue: service }]
@@ -31,6 +34,23 @@ const mount = async () => {
     expect(reset.disabled).toBe(false);
   });
   return { fixture, root, reset, service };
+};
+
+const mountShell = async (config: BomWorkspaceConfig) => {
+  const service = serviceStub();
+  TestBed.configureTestingModule({
+    imports: [AppShell],
+    providers: [
+      provideRouter([]),
+      { provide: BomDemoService, useValue: service },
+      { provide: BOM_WORKSPACE_CONFIG, useValue: config }
+    ]
+  });
+  const fixture = TestBed.createComponent(AppShell);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.detectChanges();
+  return { fixture, root: fixture.nativeElement as HTMLElement, service };
 };
 
 beforeEach(() => {
@@ -98,5 +118,35 @@ describe('BOM 工作区交互', () => {
     await fixture.whenStable();
     expect(root.querySelector('#bom-navigation')?.contains(document.activeElement)).toBe(true);
     expect(root.querySelector('.workspace')?.hasAttribute('inert')).toBe(true);
+  });
+});
+
+describe('统一外壳下的工作台入口', () => {
+  const unified: BomWorkspaceConfig = {
+    databaseName: 'bom-workspace-test',
+    overviewPath: '/bom',
+    workbenchPath: '/',
+    label: '测试 BOM'
+  };
+
+  it('工作台路由不显示数据徽章与重置，内容区全出血', async () => {
+    const { root } = await mountShell(unified);
+    expect(root.querySelector('.header-actions')).toBeNull();
+    expect(root.querySelector('main.content')?.classList.contains('workbench-content')).toBe(true);
+  });
+
+  it('导航含「结构工作台」一级项且不带领域查询参数，无「返回结构工作台」', async () => {
+    const { root } = await mountShell(unified);
+    const item = root.querySelector<HTMLAnchorElement>('a[aria-label="结构工作台"]');
+    expect(item).not.toBeNull();
+    expect(item?.getAttribute('href')).toBe('/');
+    expect(root.textContent).not.toContain('返回结构工作台');
+  });
+
+  it('默认配置（无工作台路径）不渲染工作台项与全出血类，保留徽章', async () => {
+    const { root } = await mount();
+    expect(root.querySelector('a[aria-label="结构工作台"]')).toBeNull();
+    expect(root.querySelector('main.content')?.classList.contains('workbench-content')).toBe(false);
+    expect(root.querySelector('.header-actions')).not.toBeNull();
   });
 });

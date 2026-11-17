@@ -54,7 +54,7 @@ describe('备份迁移页面', () => {
     expect(service.importBom).toHaveBeenCalledWith(pending.records);
     expect(config.completePending).toHaveBeenCalledWith(pending);
     expect(page.pending()).toBeUndefined();
-    expect(page.message()).toContain('已写入领域草稿');
+    expect(page.message()).toContain('已写入 BOM 草稿');
   });
   it('领域拒绝保留输入并显示逐条诊断', async () => {
     const { page, service, config } = await setup(true);

@@ -3,6 +3,7 @@ import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angul
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, type Router } from '@angular/router';
 import { filter } from 'rxjs';
+import { BOM_WORKSPACE_CONFIG } from '../config';
 
 /** 各业务页共同使用的显式工作条件。 */
 export interface BomWorkspaceContext {
@@ -46,6 +47,7 @@ const substitutes = (value: unknown): value is NonNullable<ResolutionContext['su
 @Injectable({ providedIn: 'root' })
 export class BomWorkspaceState {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly config = inject(BOM_WORKSPACE_CONFIG);
   private readonly router = signal<Router | null>(null);
   private readonly routeError = signal('');
   readonly rootKey = signal('SC-100');
@@ -125,6 +127,11 @@ export class BomWorkspaceState {
       const navigation = router.currentNavigation();
       if (!router.navigated || navigation !== null || this.validationError()) return;
       const current = router.parseUrl(router.url).queryParams;
+      if (
+        this.config.workbenchPath !== null &&
+        router.url.split(/[?#]/)[0] === this.config.workbenchPath
+      )
+        return;
       if (Object.entries(params).every(([key, value]) => current[key] === value)) return;
       void router.navigate([], { queryParams: params, queryParamsHandling: 'merge', replaceUrl: true });
     });
@@ -142,7 +149,7 @@ export class BomWorkspaceState {
       .subscribe(event => {
         this.restore(router.parseUrl(event.urlAfterRedirects).queryParams);
         const path = event.urlAfterRedirects.split(/[?#]/)[0];
-        if (path !== '/') this.resumePath.set(path);
+        if (path !== '/' && path !== this.config.workbenchPath) this.resumePath.set(path);
       });
     this.router.set(router);
   }
