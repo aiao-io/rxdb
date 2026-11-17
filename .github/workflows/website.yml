@@ -1,0 +1,153 @@
+name: Website (Cloudflare Pages)
+
+on:
+  workflow_call:
+    inputs:
+      deployment-branch:
+        description: main 发布正式站；pr-编号发布独立预览
+        required: true
+        type: string
+    outputs:
+      alias-url:
+        value: ${{ jobs.website.outputs.alias-url }}
+      deployment-url:
+        value: ${{ jobs.website.outputs.deployment-url }}
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      CLOUDFLARE_API_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  deployments: write
+  pull-requests: read
+
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: website-pages-${{ inputs.deployment-branch }}
+      cancel-in-progress: false
+    outputs:
+      alias-url: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+      deployment-url: ${{ steps.deploy.outputs.deployment-url }}
+    env:
+      NX_NO_CLOUD: 'true'
+      NODE_OPTIONS: --max-old-space-size=4096
+      DOCUSAURUS_SSR_CONCURRENCY: '1'
+      DOCUSAURUS_SSG_WORKER_THREAD_COUNT: '1'
+      DOCUSAURUS_NO_PERSISTENT_CACHE: 'true'
+      RAYON_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: tree:0
+          persist-credentials: false
+
+      - name: Validate deployment branch
+        env:
+          DEPLOYMENT_BRANCH: ${{ inputs.deployment-branch }}
+          EXPECTED_BRANCH: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          test "$DEPLOYMENT_BRANCH" = "$EXPECTED_BRANCH"
+          if [ "$EVENT_NAME" != pull_request ]; then
+            test "$GITHUB_REF" = refs/heads/main
+          fi
+
+      - uses: ./.github/actions/setup-workspace
+        with:
+          free-disk: 'true'
+
+      - uses: ./.github/actions/nx-cache-restore
+
+      - name: Build website
+        run: pnpm exec nx run website:build --output-style=stream
+
+      - name: Check Pages asset limits
+        run: pnpm exec nx run website:pages-check --output-style=stream
+
+      - name: Check current PR before deployment
+        id: current-pr
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]' && github.actor != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_STATE: open
+        run: pnpm exec nx run website:preview-state --output-style=stream
+
+      - name: Check deployment credentials
+        id: credentials
+        if: github.event_name != 'pull_request' || steps.current-pr.outputs.eligible == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo '::error::缺少 CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN，无法发布网站。'
+          exit 1
+
+      - name: Ensure Pages project
+        id: project
+        if: steps.credentials.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec nx run website:pages-project --output-style=stream
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: steps.credentials.outputs.enabled == 'true'
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          wranglerVersion: '4.156.2'
+          command: pages deploy website/build --project-name=rxdb --branch=${{ inputs.deployment-branch }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }} --commit-dirty=false
+
+      - name: Bind production domain
+        if: steps.credentials.outputs.enabled == 'true' && inputs.deployment-branch == 'main'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: pnpm exec nx run website:pages-domain --output-style=stream
+
+      - name: Write deployment summary
+        env:
+          DEPLOYMENT_BRANCH: ${{ inputs.deployment-branch }}
+          ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          SUBDOMAIN: ${{ steps.project.outputs.subdomain }}
+        run: |
+          if [ -z "$DEPLOYMENT_URL" ]; then
+            echo '网站构建成功；未发布预览：fork / Dependabot PR 不使用部署凭据，过时或已关闭的 PR 跳过发布。' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "部署分支：\`$DEPLOYMENT_BRANCH\`"
+            echo
+            echo "本次构建：$DEPLOYMENT_URL"
+            echo
+            if [ "$DEPLOYMENT_BRANCH" = main ]; then
+              echo '正式域名：https://rxdb.aiao.io（首次迁移需完成 DNS 指向与证书验证）'
+              echo "DNS CNAME 目标：$SUBDOMAIN"
+            else
+              echo "PR 固定预览：$ALIAS_URL"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prune older PR deployments
+        if: steps.deploy.outputs.deployment-url != '' && inputs.deployment-branch != 'main'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DEPLOYMENT_BRANCH: ${{ inputs.deployment-branch }}
+          KEEP_DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: pnpm exec nx run website:pages-clean-preview --output-style=stream

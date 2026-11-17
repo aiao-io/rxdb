@@ -1,3 +1,59 @@
+diff --git a/dist/client/client/theme/worker.js b/dist/client/client/theme/worker.js
+index 4c84cd0997e87591080f7f2c67ac4f036d74b62b..7605b5a16b75a704a8d92c5da95bcd546437a4f9 100644
+--- a/dist/client/client/theme/worker.js
++++ b/dist/client/client/theme/worker.js
+@@ -75,7 +75,11 @@ async function legacyFetchIndexes(baseUrl, searchContext) {
+     if (fullUrl.origin !== location.origin) {
+         throw new Error("Unexpected version url");
+     }
+-    const json = (await (await fetch(url)).json());
++    const response = await fetch(url);
++    if (!response.ok) {
++        throw new Error(`Search index request failed: ${response.status}`);
++    }
++    const json = await new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).json();
+     const wrappedIndexes = json.map(({ documents, index }, type) => ({
+         type: type,
+         documents,
+diff --git a/dist/server/server/utils/generate.js b/dist/server/server/utils/generate.js
+index 8181a5341984f4e8e226dbadd80eac6b0debe8fd..3d5df5659ef32e62dfd7c906cb38ea893d5d320e 100644
+--- a/dist/server/server/utils/generate.js
++++ b/dist/server/server/utils/generate.js
+@@ -17,11 +17,11 @@ function generate(config, dir) {
+     else {
+         contents.push("export const Mark = null;");
+     }
+-    let searchIndexFilename = "search-index{dir}.json";
++    let searchIndexFilename = "search-index{dir}.json.gz";
+     let searchIndexQuery = "";
+     if (indexHash) {
+         if (config.hashed === "filename") {
+-            searchIndexFilename = `search-index{dir}-${indexHash}.json`;
++            searchIndexFilename = `search-index{dir}-${indexHash}.json.gz`;
+         }
+         else {
+             searchIndexQuery = `?_=${indexHash}`;
+diff --git a/dist/server/server/utils/postBuildFactory.js b/dist/server/server/utils/postBuildFactory.js
+index ba421371a87bb99e7d3b0b3a783e031cc2025c1e..d7740c6d042e76b3386ee7bbb9f234dcacfab058 100644
+--- a/dist/server/server/utils/postBuildFactory.js
++++ b/dist/server/server/utils/postBuildFactory.js
+@@ -9,6 +9,7 @@ const buildIndex_1 = require("./buildIndex");
+ const debug_1 = require("./debug");
+ const processDocInfos_1 = require("./processDocInfos");
+ const scanDocuments_1 = require("./scanDocuments");
++const { gzipSync } = require("node:zlib");
+ const writeFileAsync = util_1.default.promisify(fs_1.default.writeFile);
+ function postBuildFactory(config, searchIndexFilename) {
+     return function postBuild(buildData) {
+@@ -69,7 +70,7 @@ function postBuildFactory(config, searchIndexFilename) {
+                 for (const [k, allDocs] of Array.from(docsByDirMap.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+                     const searchIndex = (0, buildIndex_1.buildIndex)(allDocs, config);
+                     (0, debug_1.debugInfo)(`writing index (/${k}) to disk`);
+-                    yield writeFileAsync(path_1.default.join(versionData.outDir, searchIndexFilename.replace("{dir}", k === "" ? "" : `-${k.replace(/\//g, "-")}`)), JSON.stringify(searchIndex), { encoding: "utf8" });
++                    yield writeFileAsync(path_1.default.join(versionData.outDir, searchIndexFilename.replace("{dir}", k === "" ? "" : `-${k.replace(/\//g, "-")}`)), gzipSync(JSON.stringify(searchIndex)));
+                     (0, debug_1.debugInfo)(`index (/${k}) written to disk successfully!`);
+                 }
+             }
 diff --git a/dist/server/server/utils/scanDocuments.js b/dist/server/server/utils/scanDocuments.js
 index ac892fd42d230d5acd1a1114edf3acb51dfceb6f..6dec0d04082f0ac2df9777d42341c475e867e46c 100644
 --- a/dist/server/server/utils/scanDocuments.js

@@ -233,7 +233,8 @@
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "4.1.11",
     "vue-tsc": "^3.3.14",
-    "wait-on": "^9.5.1"
+    "wait-on": "^9.5.1",
+    "wrangler": "4.156.2"
   },
   "config": {
     "commitizen": {
