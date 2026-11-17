@@ -1,6 +1,6 @@
 # Admin 产品需求
 
-当前交付：[2/27 已交付]；另有 19/27 故事进入 In Review，6 条保持 Backlog：1 条缺少真实业务输入，5 条为协作后端收敛与上线（见 [D-09](decisions.md#d-09协作后端收敛方向)）。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[2/27 已交付]；另有 19/27 故事进入 In Review；协作后端收敛与上线共 5 条（见 [D-09](decisions.md#d-09协作后端收敛方向)），其中 ADMIN-US-218 进行中、其余 4 条 Backlog；另有 1 条因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 

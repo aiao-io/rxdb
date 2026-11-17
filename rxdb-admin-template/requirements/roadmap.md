@@ -48,7 +48,7 @@
 
 方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。以上协作故事的用户可见行为不变，保持 In Review；收敛完成后在新实现上整体回归，再统一评审合并。
 
-1. 阶段 0，基线度量：记录现状下命令耗时、快照体积、WAL 与锁等待随提交数增长的曲线，作为对照组。
+1. 阶段 0，基线度量：✅ 2026-11-17 完成，见 [收敛实施计划 3.1 节](plans/collaboration-convergence-tasks.md#31-阶段-0-基线与切片进度)；200 个提交时一条评论 2.7 s、写 6.8 MB WAL，快照 26.8 MB。
 2. [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：ChangeSet 提交（对齐平台 working-tree）、拆表、引用 CAS、细粒度锁、元数据驱动校验。
 3. [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) RLS 分页读取、Realtime Broadcast 与 Presence、本地 JWT 校验。
 4. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase。

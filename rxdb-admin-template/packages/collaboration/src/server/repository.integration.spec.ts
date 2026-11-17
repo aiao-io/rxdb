@@ -14,15 +14,29 @@ let repository: CollaborationRepository;
 let started = false;
 const input = { teamId: randomUUID(), appId: 'assets', name: 'Isolation test', bootstrapKey: randomUUID(), admin };
 const command = (data: Record<string, unknown>) => ({ operationId: randomUUID(), ...data }) as Command;
-/** 在时限内是否已完成（成功或失败都算完成）；用于断言某个调用是否被行锁挡住。 */
-const settlesWithin = (pending: Promise<unknown>, ms: number) =>
+/** 时限内的结果：成功、失败或仍在等待；用于断言某个调用是否被行锁挡住。 */
+const outcomeWithin = (pending: Promise<unknown>, ms: number) =>
   Promise.race([
     pending.then(
-      () => true,
-      () => true
+      () => 'resolved' as const,
+      () => 'rejected' as const
     ),
-    new Promise<boolean>(resolve => setTimeout(() => resolve(false), ms))
+    new Promise<'pending'>(resolve => setTimeout(() => resolve('pending'), ms))
   ]);
+/** 删除测试自建的工作区及其全部投影，避免影响按行数断言的 RLS 用例。 */
+async function removeWorkspace(workspace: { teamId: string; appId: string }) {
+  for (const table of [
+    'public.admin_presence',
+    'public.admin_changes',
+    'public.admin_audit',
+    'public.admin_workspace_versions',
+    'public.admin_shared',
+    'admin_private.memberships',
+    'admin_private.workspaces'
+  ]) {
+    await pool.query(`DELETE FROM ${table} WHERE team_id = $1 AND app_id = $2`, [workspace.teamId, workspace.appId]);
+  }
+}
 describe('PostgreSQL transaction and RLS boundary', () => {
   beforeAll(async () => {
     const password = randomUUID();
@@ -153,17 +167,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       );
       expect((await repository.read(admin, seed.teamId, seed.appId)).presence).toEqual([]);
     } finally {
-      for (const table of [
-        'public.admin_presence',
-        'public.admin_changes',
-        'public.admin_audit',
-        'public.admin_workspace_versions',
-        'public.admin_shared',
-        'admin_private.memberships',
-        'admin_private.workspaces'
-      ]) {
-        await pool.query(`DELETE FROM ${table} WHERE team_id = $1 AND app_id = $2`, [seed.teamId, seed.appId]);
-      }
+      await removeWorkspace(seed);
     }
   });
   it('denies ordinary authenticated admins direct writes and cross-team reads', async () => {
@@ -233,37 +237,77 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         input.appId
       ]);
       // 写事务持有行锁期间，读取必须基于已提交版本立即返回，不能排队等待写入结束
-      await expect(settlesWithin(repository.read(admin, input.teamId, input.appId), 1000)).resolves.toBe(true);
+      await expect(outcomeWithin(repository.read(admin, input.teamId, input.appId), 1000)).resolves.toBe('resolved');
       await expect(
-        settlesWithin(repository.receipt(admin, input.teamId, input.appId, randomUUID()), 1000)
-      ).resolves.toBe(true);
+        outcomeWithin(repository.receipt(admin, input.teamId, input.appId, randomUUID()), 1000)
+      ).resolves.toBe('resolved');
     } finally {
       await writer.query('ROLLBACK');
       writer.release();
     }
   });
-  it('makes presence wait for an in-flight membership change instead of racing past it', async () => {
-    const writer = await pool.connect();
-    let heartbeat: Promise<unknown> | undefined;
+  it('does not let a presence heartbeat race past a concurrent revocation', async () => {
+    const seed = { ...input, teamId: randomUUID(), appId: 'presence-race', bootstrapKey: randomUUID() };
+    await repository.initialize(seed);
     try {
-      await writer.query('BEGIN');
-      await writer.query('SELECT 1 FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2 FOR UPDATE', [
-        input.teamId,
-        input.appId
-      ]);
-      // 撤权等成员变更提交前，在线状态写入必须等它结束并读取新状态，否则被撤成员会短暂残留在线
-      heartbeat = repository.operation(
+      const reviewer = { id: randomUUID(), email: 'presence-race@example.test', verified: true };
+      await repository.operation(
         admin,
-        input.teamId,
-        input.appId,
-        command({ type: 'presence', sessionId: randomUUID(), prId: null, recordId: null, leave: false })
+        seed.teamId,
+        seed.appId,
+        command({
+          type: 'invite',
+          id: 'race-invite',
+          email: reviewer.email,
+          permissions: ['read'],
+          tokenHash: 'race-token',
+          expiresAt: Date.now() + 60000,
+          expectedVersion: 0
+        })
       );
-      await expect(settlesWithin(heartbeat, 300)).resolves.toBe(false);
+      await repository.operation(
+        reviewer,
+        seed.teamId,
+        seed.appId,
+        command({ type: 'accept_invite', id: 'race-invite', tokenHash: 'race-token' })
+      );
+      const writer = await pool.connect();
+      let heartbeat: Promise<unknown> | undefined;
+      let committed = false;
+      try {
+        await writer.query('BEGIN');
+        await writer.query('SELECT 1 FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2 FOR UPDATE', [
+          seed.teamId,
+          seed.appId
+        ]);
+        heartbeat = repository.operation(
+          reviewer,
+          seed.teamId,
+          seed.appId,
+          command({ type: 'presence', sessionId: randomUUID(), prId: null, recordId: null, leave: false })
+        );
+        await expect(outcomeWithin(heartbeat, 300)).resolves.toBe('pending');
+        // 与心跳并发提交的撤权：心跳必须等它提交并按新的成员关系授权，不能凭撤权前读到的状态写入在线记录
+        await writer.query(
+          `UPDATE admin_private.workspaces SET state = jsonb_set(state, ARRAY['members', $3::text, 'active'], 'false'::jsonb)
+           WHERE team_id = $1 AND app_id = $2`,
+          [seed.teamId, seed.appId, reviewer.id]
+        );
+        await writer.query('COMMIT');
+        committed = true;
+      } finally {
+        if (!committed) await writer.query('ROLLBACK');
+        writer.release();
+      }
+      await expect(heartbeat).rejects.toMatchObject({ code: 'forbidden' });
+      const online = await pool.query(
+        'SELECT 1 FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND user_id = $3',
+        [seed.teamId, seed.appId, reviewer.id]
+      );
+      expect(online.rowCount).toBe(0);
     } finally {
-      await writer.query('ROLLBACK');
-      writer.release();
+      await removeWorkspace(seed);
     }
-    await expect(heartbeat).resolves.toMatchObject({ expiresAt: expect.any(Number) });
   });
   it('serializes concurrent upload heads and preserves the losing branch locally for recovery', async () => {
     await repository.operation(

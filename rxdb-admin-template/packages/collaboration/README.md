@@ -56,6 +56,12 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e
 NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 ```
 
+容量基准用同一镜像的临时 PostgreSQL，随提交数增长记录普通命令耗时、单次命令 WAL、工作区行与快照体积，以及并发读取时写命令的等待；参数见 [脚本](scripts/workspace-growth-benchmark.mjs) 开头，`BENCH_OUT` 指定结果文件，历次结果存于 [需求证据目录](../../requirements/plans/evidence/)：
+
+```bash
+NX_NO_CLOUD=true pnpm nx run admin-collaboration:benchmark-growth
+```
+
 数据库集成测试使用临时 Docker PostgreSQL，验证 RLS、并发头比较与事务失败回滚。三端浏览器测试使用工作区隔离的 Supabase Auth 和临时 PostgreSQL；测试脚本把工作区版本与成员读取权限投影同步至隔离 Supabase CI 数据库，以验证真实 Realtime 通知，业务记录仍留在临时 PostgreSQL。正式部署使用同一 Supabase 数据库，不需要这段测试桥接。验证码由 Auth 的管理测试接口生成，再由真实 `verifyOtp` 验证，因此不代表生产 SMTP 投递已验收。测试运行后移除临时数据库；共享 Supabase 测试栈可用 `rxdb-adapter-supabase:test-env-down` 关闭。
 
 首版协议使用完整记录快照，每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。协作 API 收完请求头最多等 10 秒、收完整个请求最多等 60 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责。规模扩大前需另行实现分页快照与历史存储分区，不能通过跳过校验或截断提交解决。
