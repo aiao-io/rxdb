@@ -11,7 +11,7 @@ import { applyMigrations } from './migrate.js';
 import { pgReadSource } from './pg-read.js';
 import { emptyState, PgWorkspaceWriter } from './pg-workspace.js';
 import { noEffects } from './plan.js';
-import { installRealtime } from './realtime.testing.js';
+import { installRealtime } from './realtime-fixture.js';
 import { CollaborationRepository } from './repository.js';
 import { stateChanges } from './state-changes.js';
 

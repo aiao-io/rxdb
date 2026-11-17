@@ -13,7 +13,7 @@ import { applyMigrations, readMigrations } from './migrate.js';
 import { advance, emptyState, PgWorkspaceWriter, receiptSweepLimit } from './pg-workspace.js';
 import { noEffects } from './plan.js';
 import { pgReads } from './reads.testing.js';
-import { installRealtime } from './realtime.testing.js';
+import { installRealtime } from './realtime-fixture.js';
 import { CollaborationRepository } from './repository.js';
 import { stateChanges } from './state-changes.js';
 const run = promisify(execFile);
@@ -122,7 +122,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       },
       { timeout: 45000, interval: 500 }
     );
-    // Realtime 的消息表与 realtime.send()：迁移在它上面建频道策略，命令事务经它广播（见 realtime.testing.ts）
+    // Realtime 的消息表与 realtime.send()：迁移在它上面建频道策略，命令事务经它广播（见 realtime-fixture.ts）
     const superuser = new pg.Client({ ...connection, user: 'supabase_admin' });
     await superuser.connect();
     try {

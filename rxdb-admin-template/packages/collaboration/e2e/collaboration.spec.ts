@@ -110,7 +110,13 @@ async function state(page: Page, fixture: Fixture, workspace: { teamId: string; 
     head: row.head,
     policy: { version: row.policy_version },
     tasks: tasks.map(task => ({ id: task.id, name: task.name, originTaskId: task.origin_task_id, head: task.head })),
-    prs: prs.map(pr => ({ id: pr.id, taskId: pr.task_id, title: pr.title, revision: pr.revision, candidateId: pr.candidate_id })),
+    prs: prs.map(pr => ({
+      id: pr.id,
+      taskId: pr.task_id,
+      title: pr.title,
+      revision: pr.revision,
+      candidateId: pr.candidate_id
+    })),
     reviews: reviews.map(review => ({ decision: review.decision, candidateId: review.candidate_id })),
     candidates: Object.fromEntries(
       candidates.map(item => [
@@ -903,7 +909,11 @@ async function preparePr(page: Page, fixture: Fixture, id: string) {
         parent: null,
         authorId: fixture.admin.id,
         message: id,
-        changes: diffRecords({}, { [`category-${id}`]: { entity: 'AssetCategory', fields: { name: id } } }, () => 'assets')
+        changes: diffRecords(
+          {},
+          { [`category-${id}`]: { entity: 'AssetCategory', fields: { name: id } } },
+          () => 'assets'
+        )
       })
     ]
   });

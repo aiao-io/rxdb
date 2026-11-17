@@ -1,5 +1,7 @@
 // 协作后端收敛的容量基准：随提交数增长，记录普通命令耗时、单次命令 WAL、工作区各行的大小、
-// 工作区摘要与共享数据的体积和读取耗时、提交表与变更表的规模，以及并发读取摘要时写命令的等待。
+// 团队页与共享数据的体积和读取耗时、提交表与变更表的规模，以及并发读取团队页时写命令的等待。
+// ADMIN-US-219 起读取经 public 下的只读投影：团队页、提交历史与共享记录都用浏览器同一个 CollaborationReader，
+// 以 authenticated 角色经与 PostgREST 等价的读取源读取（server/pg-read.ts）；`snapshot*` 字段即团队页。
 // 提交按字段级变更协议上传（每个提交只含改动的 5 条记录，带内容指纹）。用临时 Docker PostgreSQL，与集成测试同一镜像。
 // 环境变量：
 // - BENCH_RECORDS（默认 1000）：记录条数；BENCH_CHECKPOINTS（默认 10,50,100,200）：在这些提交数上测量。
@@ -27,8 +29,11 @@ import { promisify } from 'node:util';
 import pg from 'pg';
 import { diffRecords } from '../dist/server/changes.js';
 import { sealCommit, uuidv7 } from '../dist/server/commit.js';
+import { CollaborationReader } from '../dist/server/reader.js';
 import { namespaceOf, parseSchemaManifest } from '../dist/server/schema.js';
 import { applyMigrations } from '../dist/server/server/migrate.js';
+import { pgReadSource } from '../dist/server/server/pg-read.js';
+import { installRealtime } from '../dist/server/server/realtime-fixture.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
 
 const run = promisify(execFile);
@@ -63,6 +68,9 @@ const seed = {
   admin,
   schema
 };
+/** 读取用的工作区与团队页窗口（与浏览器的默认窗口一致）。 */
+const workspace = { teamId: seed.teamId, appId: seed.appId, name: seed.name };
+const teamWindow = { prs: 50, tasks: 50, notices: 50, taskIds: [] };
 
 const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 const command = data => ({ operationId: randomUUID(), ...data });
@@ -241,6 +249,14 @@ async function startDatabase() {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
+  // 命令事务经 realtime.send() 广播：先按 Realtime 的定义装上消息表与函数，再执行迁移
+  const superuser = new pg.Client({ host: '127.0.0.1', port, user: 'supabase_admin', password, database: 'postgres' });
+  await superuser.connect();
+  try {
+    await installRealtime(superuser);
+  } finally {
+    await superuser.end();
+  }
   await applyMigrations(pool);
   return { container, pool };
 }
@@ -308,8 +324,8 @@ async function sample(context, type) {
     return result;
   }
   if (type === 'read_notice') {
-    const summary = await repository.read(admin, seed.teamId, seed.appId);
-    const notice = summary.notifications.find(item => !item.read);
+    const team = await context.reader.team(workspace, admin.id, teamWindow);
+    const notice = team.notices.notices.find(item => !item.read);
     if (!notice) throw new Error('read_notice needs an unread notification; include reply or review in BENCH_COMMANDS');
     return measured(pool, () => operation(admin, { type: 'read_notice', id: notice.id }));
   }
@@ -341,7 +357,7 @@ async function measureCheckpoint(context, commits, lastUploadMsPerCommit) {
 }
 
 async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
-  const { pool, repository, prId, taskId } = context;
+  const { pool, prId, taskId } = context;
   const [stateRow] = (
     await pool.query(
       `SELECT pg_column_size(w.*) AS stored, octet_length(row_to_json(w)::text) AS text
@@ -357,13 +373,15 @@ async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
       [seed.teamId, seed.appId, prId, `tasks/${taskId}`]
     )
   ).rows;
-  const snapshot = await repository.read(admin, seed.teamId, seed.appId);
+  const { reader } = context;
+  const snapshot = await reader.team(workspace, admin.id, teamWindow);
   const snapshotMs = [];
-  for (let i = 0; i < samples; i++) snapshotMs.push(await timed(() => repository.read(admin, seed.teamId, seed.appId)));
-  const history = await repository.readHistory(admin, seed.teamId, seed.appId, { taskId });
+  for (let i = 0; i < samples; i++) snapshotMs.push(await timed(() => reader.team(workspace, admin.id, teamWindow)));
+  const task = snapshot.tasks.find(item => item.id === taskId);
+  const range = { head: task.head, until: task.base };
+  const history = await reader.history(workspace, range, {});
   const historyMs = [];
-  for (let i = 0; i < samples; i++)
-    historyMs.push(await timed(() => repository.readHistory(admin, seed.teamId, seed.appId, { taskId })));
+  for (let i = 0; i < samples; i++) historyMs.push(await timed(() => reader.history(workspace, range, {})));
   const commands = {};
   for (const type of commandTypes) {
     const values = [];
@@ -374,7 +392,7 @@ async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
     };
   }
   // 切片 B 起共享数据移出摘要，只在共享头变化时另行下载，单独记录
-  const shared = await repository.readRecords(admin, seed.teamId, seed.appId);
+  const shared = await reader.records(workspace, snapshot.head);
   // 切片 C 起提交与字段级变更在提交表、共享记录按行物化；切片 D 起其余集合也各自成表，这里记录它们的规模
   const [store] = (
     await pool.query(
@@ -397,7 +415,7 @@ async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
     stateStoredBytes: Number(stateRow.stored),
     rowBytes: { pr: Number(rows.pr), version: Number(rows.version), taskRef: Number(rows.task_ref) },
     snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
-    // 摘要各字段的字节数：哪一部分在增长一目了然（切片 D 起没有提交元数据，增长只来自讨论、审核、通知与审计窗口）
+    // 团队页各部分的字节数：ADMIN-US-219 起不含讨论、审核与审计，通知只有最近一窗，体积不随协作活动增长
     snapshotParts: Object.fromEntries(
       Object.entries(snapshot).map(([key, value]) => [key, Buffer.byteLength(JSON.stringify(value))])
     ),
@@ -424,12 +442,12 @@ async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
   };
 }
 
-/** 并发读取摘要时，写命令的耗时。 */
+/** 并发读取团队页时，写命令的耗时。 */
 async function measureContention(context) {
-  const { repository, prId } = context;
+  const { repository, reader, prId } = context;
   let active = true;
   const loops = Array.from({ length: readers }, async () => {
-    while (active) await repository.read(admin, seed.teamId, seed.appId);
+    while (active) await reader.team(workspace, admin.id, teamWindow);
   });
   await new Promise(resolve => setTimeout(resolve, 500));
   const contended = [];
@@ -502,6 +520,7 @@ async function main() {
   const { container, pool } = await startDatabase();
   try {
     const repository = new CollaborationRepository(pool);
+    const reader = new CollaborationReader(() => pgReadSource(pool, admin.id));
     await repository.initialize(seed);
     const operation = data => repository.operation(admin, seed.teamId, seed.appId, command(data));
     const start = seedShared ? await seedSharedBranch(repository) : { head: null, records: {} };
@@ -548,7 +567,7 @@ async function main() {
       }
       state.head = head;
       const result = await measureCheckpoint(
-        { pool, repository, prId, taskId, state },
+        { pool, repository, reader, prId, taskId, state },
         committed,
         lastUploadMsPerCommit
       );
@@ -559,7 +578,7 @@ async function main() {
     const contention = {
       commits: idle.commits,
       idleCommandMs: idle.commandMs,
-      ...(await measureContention({ repository, prId }))
+      ...(await measureContention({ repository, reader, prId }))
     };
     console.info(JSON.stringify(contention));
     const report = {

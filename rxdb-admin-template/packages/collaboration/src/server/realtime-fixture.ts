@@ -1,5 +1,5 @@
 /**
- * 集成测试用的 Realtime 数据库对象。裸 `supabase/postgres` 镜像只有空的 realtime schema，
+ * 集成测试与容量基准用的 Realtime 数据库对象（生产库由 Realtime 服务自己建出，不用它）。裸 `supabase/postgres` 镜像只有空的 realtime schema，
  * realtime.messages、realtime.topic() 与 realtime.send() 由 Realtime 服务首次连库时建出。这里按本机隔离栈里
  * Realtime v2.102.3 建出的定义原样复制（列、分区键、约束、所有者、授权与行级安全；分区改为一个默认分区，免得按日期建表），
  * 让迁移里的频道策略与命令事务里的广播在临时库上照常执行；真实频道的收发另在三端 E2E 的隔离栈上验证。

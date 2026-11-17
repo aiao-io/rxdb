@@ -7,7 +7,6 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import pg from 'pg';
 import { parseSchemaManifest } from '../dist/server/schema.js';
 import { applyMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
@@ -162,7 +161,10 @@ try {
   const apiHandler = service.server.listeners('request')[0];
   service.server.removeAllListeners('request');
   service.server.on('request', (request, response) => {
-    const fixtureRoute = request.url === '/__fixture' ? fixture(repository) : request.url?.startsWith('/__otp?') ? otp(request.url) : undefined;
+    const fixtureRoute =
+      request.url === '/__fixture' ? fixture(repository)
+      : request.url?.startsWith('/__otp?') ? otp(request.url)
+      : undefined;
     if (!fixtureRoute) {
       apiHandler(request, response);
       return;
@@ -244,7 +246,19 @@ async function fixture(repository) {
   const secondary = { teamId: randomUUID(), appId, name: `隔离团队-${suffix.slice(0, 8)}` };
   teams.push(secondary.teamId);
   await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin, schema });
-  return { teamId, appId, name, admin, reviewer, secondReviewer, secondary, invitation, token, supabaseUrl, supabaseKey };
+  return {
+    teamId,
+    appId,
+    name,
+    admin,
+    reviewer,
+    secondReviewer,
+    secondary,
+    invitation,
+    token,
+    supabaseUrl,
+    supabaseKey
+  };
 }
 async function serve(request, response, directory) {
   try {
