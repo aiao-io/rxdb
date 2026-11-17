@@ -71,6 +71,15 @@ export class TaskEditor {
       button('保存全部', () => this.perform(() => this.save())),
       button('同步', () => this.syncDialog(), this.controller.syncing)
     );
+    // 队首待上传提交已超过自动重试期限：同步不会自动重发，用户核对远端版本后在这里确认
+    if (this.controller.uploadExpired())
+      actions.append(
+        button(
+          '确认同步过期提交',
+          () => this.perform(() => this.controller.sync(this.dirty, true)),
+          this.controller.syncing
+        )
+      );
     const name = input('另存任务名称', tx('{v0}（分叉）', { v0: draft.name }));
     actions.append(
       name.wrapper,

@@ -1,4 +1,4 @@
-import { demand, permissions, type AuditQuery, type Command } from '../model.js';
+import { demand, permissions, type AuditQuery, type Command, type HistoryQuery } from '../model.js';
 import { assertChanges } from '../records.js';
 type Rule = (value: unknown) => boolean;
 const text: Rule = value => typeof value === 'string' && value.length <= 10000;
@@ -109,26 +109,42 @@ export function parseCommand(value: unknown): Command {
   return command as unknown as Command;
 }
 
-const auditTextKeys = ['before', 'prId', 'threadId'] as const;
 /**
- * 审计分页的查询参数：只接受 before、limit、prId、threadId，每个至多出现一次；
- * 标识须符合命令里的标识格式，`limit` 须是不超过三位的非负整数（取值范围由引擎裁决）。
+ * 分页查询参数的通用解析：只接受 `keys` 与 `limit`，每个至多出现一次；标识须符合命令里的标识格式，
+ * `limit` 须是不超过三位的非负整数（取值范围由引擎裁决）。
  */
-export function parseAuditQuery(params: URLSearchParams): AuditQuery {
-  const keys = [...params.keys()];
-  const known: readonly string[] = [...auditTextKeys, 'limit'];
-  demand(new Set(keys).size === keys.length && keys.every(key => known.includes(key)), 'invalid', '请求字段不合法');
-  const query: AuditQuery = {};
-  for (const key of auditTextKeys) {
+function parsePageQuery(params: URLSearchParams, keys: readonly string[]) {
+  const names = [...params.keys()];
+  const known: readonly string[] = [...keys, 'limit'];
+  demand(new Set(names).size === names.length && names.every(key => known.includes(key)), 'invalid', '请求字段不合法');
+  const values: Record<string, string> = {};
+  for (const key of keys) {
     const value = params.get(key);
     if (value === null) continue;
     demand(id(value), 'invalid', '请求字段不合法');
-    query[key] = value;
+    values[key] = value;
   }
   const limit = params.get('limit');
-  if (limit !== null) {
-    demand(/^\d{1,3}$/.test(limit), 'invalid', '请求字段不合法');
-    query.limit = Number(limit);
-  }
-  return query;
+  if (limit === null) return { values };
+  demand(/^\d{1,3}$/.test(limit), 'invalid', '请求字段不合法');
+  return { values, limit: Number(limit) };
+}
+/** 审计分页的查询参数：before、limit、prId、threadId，规则见 {@link parsePageQuery}。 */
+export function parseAuditQuery(params: URLSearchParams): AuditQuery {
+  const { values, limit } = parsePageQuery(params, ['before', 'prId', 'threadId']);
+  return { ...values, ...(limit === undefined ? {} : { limit }) };
+}
+/**
+ * 提交历史分页的查询参数：branch（只能是 shared）、taskId、prId 三者恰好取一，外加 before、limit，规则见 {@link parsePageQuery}。
+ */
+export function parseHistoryQuery(params: URLSearchParams): HistoryQuery {
+  const { values, limit } = parsePageQuery(params, ['branch', 'taskId', 'prId', 'before']);
+  const { branch, ...rest } = values;
+  demand(branch === undefined || branch === 'shared', 'invalid', '请求字段不合法');
+  demand(
+    [branch, rest['taskId'], rest['prId']].filter(value => value !== undefined).length === 1,
+    'invalid',
+    '请求字段不合法'
+  );
+  return { ...rest, ...(branch === undefined ? {} : { branch }), ...(limit === undefined ? {} : { limit }) };
 }

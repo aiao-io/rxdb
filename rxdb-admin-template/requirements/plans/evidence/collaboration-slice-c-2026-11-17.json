@@ -1,0 +1,79 @@
+{
+  "checkpoints": [
+    {
+      "commits": 10,
+      "stateTextBytes": 5829,
+      "stateStoredBytes": 2894,
+      "snapshotBytes": 4859,
+      "sharedRecordsBytes": 26,
+      "commitRows": 10,
+      "commitChangeRows": 1045,
+      "sharedRows": 0,
+      "commitStoreBytes": 516096,
+      "snapshotMs": 2,
+      "commandMs": 6,
+      "commandWalBytes": 6832,
+      "uploadMsPerCommit": 4
+    },
+    {
+      "commits": 50,
+      "stateTextBytes": 22962,
+      "stateStoredBytes": 10382,
+      "snapshotBytes": 20150,
+      "sharedRecordsBytes": 26,
+      "commitRows": 50,
+      "commitChangeRows": 1245,
+      "sharedRows": 0,
+      "commitStoreBytes": 614400,
+      "snapshotMs": 3,
+      "commandMs": 6,
+      "commandWalBytes": 15016,
+      "uploadMsPerCommit": 0
+    },
+    {
+      "commits": 100,
+      "stateTextBytes": 41446,
+      "stateStoredBytes": 18565,
+      "snapshotBytes": 37550,
+      "sharedRecordsBytes": 26,
+      "commitRows": 100,
+      "commitChangeRows": 1495,
+      "sharedRows": 0,
+      "commitStoreBytes": 745472,
+      "snapshotMs": 3,
+      "commandMs": 8,
+      "commandWalBytes": 24168,
+      "uploadMsPerCommit": 0
+    },
+    {
+      "commits": 200,
+      "stateTextBytes": 67655,
+      "stateStoredBytes": 32664,
+      "snapshotBytes": 66073,
+      "sharedRecordsBytes": 26,
+      "commitRows": 200,
+      "commitChangeRows": 1995,
+      "sharedRows": 0,
+      "commitStoreBytes": 958464,
+      "snapshotMs": 4,
+      "commandMs": 9,
+      "commandWalBytes": 39600,
+      "uploadMsPerCommit": 0
+    }
+  ],
+  "contention": {
+    "commits": 200,
+    "idleCommandMs": 9,
+    "readers": 4,
+    "contendedCommandMs": 23
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 1000,
+    "changedRecordsPerCommit": 5,
+    "samples": 7
+  },
+  "generatedAt": "2026-11-17T06:33:02.319Z",
+  "label": "切片 C：字段级 ChangeSet 提交与提交表、共享记录按行物化；工作区行不再含提交与记录"
+}

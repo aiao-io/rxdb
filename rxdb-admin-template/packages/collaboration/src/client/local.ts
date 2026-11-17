@@ -1,6 +1,6 @@
 import { diffRecords } from '../changes.js';
 import { sealCommit, uuidv7 } from '../commit.js';
-import { demand, type Commit, type Records } from '../model.js';
+import { demand, receiptRetentionMs, type Command, type Commit, type Records } from '../model.js';
 import { canonical } from '../records.js';
 export interface Context {
   userId: string;
@@ -8,10 +8,34 @@ export interface Context {
   appId: string;
   taskId: string;
 }
+/**
+ * 待上传的一个整单提交及其幂等键。`createdAt` 是它在本机形成的时间，只用于判断是否还能自动重试，不随请求发出；
+ * 切片 D 之前写入的条目没有这个字段，无法证明仍在回执保留期内，按已超过自动重试期限处理。
+ */
 export interface PendingUpload {
   operationId: string;
   expectedHead: string | null;
   commits: Commit[];
+  createdAt?: number;
+}
+/**
+ * 本机自动重试待确认请求的期限：比服务端回执保留期（{@link receiptRetentionMs}）早一天停止，
+ * 给本机与服务端的时钟偏差留出余量；超过后服务端可能已清理回执，无法再用原幂等键确认结果，交给用户确认。
+ */
+export const autoRetryWindowMs = receiptRetentionMs - 86_400_000;
+/** 首次发出（或形成）于 `createdAt` 的请求是否已超过自动重试期限；没有有效时间的按已超过处理。 */
+export function retryWindowPassed(createdAt: number | undefined, now = Date.now()): boolean {
+  return createdAt === undefined || !Number.isFinite(createdAt) || now - createdAt >= autoRetryWindowMs;
+}
+/** 把待上传条目还原成上传命令：只取命令字段，本机记账用的 `createdAt` 不随请求发出（服务端拒绝多余字段）。 */
+export function uploadCommand(taskId: string, pending: PendingUpload): Extract<Command, { type: 'upload' }> {
+  return {
+    type: 'upload',
+    taskId,
+    operationId: pending.operationId,
+    expectedHead: pending.expectedHead,
+    commits: pending.commits
+  };
 }
 export interface Draft {
   context: Context;
@@ -214,6 +238,7 @@ export class LocalTasks {
   /**
    * 把已保存、尚未提交的内容形成一个不可变提交并加入待上传队列。提交只含「上次提交的内容」到「当前已保存内容」之间逐字段的
    * 差异（字段级变更），带 UUIDv7 提交 ID 与内容指纹；没有差异时不制造空提交，已有待上传提交时原样保留，重试复用同一提交。
+   * 新条目记下形成时间 `createdAt`，超过自动重试期限后由控制器交给用户确认。
    * 指纹用异步的 `crypto.subtle` 计算，不能放进 IndexedDB 事务回调，所以先读草稿再算提交，写入时用修订号确认期间没有被其他页面改动。
    */
   async capture(context: Context, message: string, unsaved: boolean): Promise<Draft> {
@@ -240,7 +265,10 @@ export class LocalTasks {
         localHead: commit.id,
         committed: structuredClone(current.records),
         revision: current.revision + 1,
-        queue: [...current.queue, { operationId: crypto.randomUUID(), expectedHead: commit.parent, commits: [commit] }]
+        queue: [
+          ...current.queue,
+          { operationId: crypto.randomUUID(), expectedHead: commit.parent, commits: [commit], createdAt: Date.now() }
+        ]
       };
     });
   }

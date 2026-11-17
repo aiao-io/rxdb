@@ -73,13 +73,31 @@ export const noFacts: Facts = {
 
 /** 引擎新建的提交：上传的提交已带核验过的指纹，服务端生成的合并提交没有，由仓储在写入前补算。 */
 export type NewCommit = Omit<Commit, 'fingerprint'> & { fingerprint?: string };
+/** 合并改动的一条记录：合并前后的整行，新增时 `before` 为 null、删除时 `after` 为 null。 */
+export interface MergedRecord {
+  id: string;
+  before: DataRow | null;
+  after: DataRow | null;
+}
+/** 一次合并写进逐记录变更日志（admin_changes）的内容：合并提交 ID 与改动到的记录。 */
+export interface MergeLog {
+  head: string;
+  records: MergedRecord[];
+}
 /** 命令除工作区状态变化之外要落到存储的效果。 */
 export interface Effects {
   /** 新建的提交，按追加顺序。 */
   commits: NewCommit[];
   /** 合并对共享记录的改动；没有合并时为 null。 */
   shared: SharedChange | null;
+  /**
+   * 合并的逐记录变更日志；没有合并时为 null。它只由变更表承载，不进命令结果、回执与审计详情，
+   * 审计因此不随单次合并的改动量增长。
+   */
+  log: MergeLog | null;
 }
+/** 没有任何效果的命令使用的空效果；每次执行都要新建一份，不能共用同一个对象。 */
+export const noEffects = (): Effects => ({ commits: [], shared: null, log: null });
 /** 引擎执行一条命令时携带的预加载数据与效果收集器。 */
 export interface Run {
   facts: Facts;

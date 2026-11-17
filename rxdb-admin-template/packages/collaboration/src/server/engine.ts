@@ -8,7 +8,6 @@ import {
   type AuditQuery,
   type CandidateSummary,
   type Command,
-  type CommitSummary,
   type Environment,
   type Identity,
   type Presence,
@@ -21,7 +20,7 @@ import { authorize, editTask, taskFor } from './access.js';
 import { discussionCommand, discussionPlan, notify } from './discussion.js';
 import { blockers, governanceCommand, governancePlan, progress } from './governance.js';
 import { membershipCommand } from './membership.js';
-import { noFacts, type Effects, type Facts, type Plan } from './plan.js';
+import { noEffects, noFacts, type Effects, type Facts, type Plan } from './plan.js';
 import { taskCommand, taskPlan } from './tasks.js';
 
 /** 仅由可信服务端部署命令调用，普通会话没有初始化入口。 */
@@ -63,7 +62,7 @@ export function bootstrap(
   };
 }
 
-/** 命令的执行结果：返回给调用方的 `result`，以及除工作区状态变化之外要落到存储的 `effects`（新提交、共享记录改动）。 */
+/** 命令的执行结果：返回给调用方的 `result`，以及除工作区状态变化之外要落到存储的 `effects`（新提交、共享记录改动、合并变更日志）。 */
 export interface Outcome {
   result: Record<string, unknown>;
   effects: Effects;
@@ -98,7 +97,7 @@ export function execute(
   facts: Facts = noFacts
 ): Outcome {
   demand(user.verified, 'forbidden', '需要已验证的用户身份');
-  const effects: Effects = { commits: [], shared: null };
+  const effects = noEffects();
   const run = { facts, effects };
   if (command.type === 'presence') {
     const result = discussionCommand(state, user, command, env, run);
@@ -129,7 +128,8 @@ export function execute(
     operationId: command.operationId,
     actorId: user.id,
     fingerprint: requestFingerprint(command),
-    value: structuredClone(result)
+    value: structuredClone(result),
+    at: env.now
   };
   next.revision++;
   Object.assign(state, next);
@@ -156,7 +156,8 @@ function requestFingerprint(command: Command): string {
 /**
  * 审计详情会随摘要与审计分页发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：
  * 邀请令牌摘要（tokenHash）、受邀邮箱（email，只有管理者能经摘要的 invitations 查看）、完整提交内容（commits）。
- * 各命令的 result 本身不含邮箱，原样保留（合并结果的 changes 还要供 admin_changes 投影）。
+ * 各命令的 result 本身不含邮箱，原样保留；合并改动的记录前后值不在 result 里，只由变更表（admin_changes）承载，
+ * 审计因此不随单次合并的改动量增长。
  */
 const auditExcluded = ['tokenHash', 'email', 'commits'];
 function auditDetails(command: Command, result: Record<string, unknown>): Record<string, unknown> {
@@ -173,19 +174,22 @@ export function candidateSummary(candidate: StoredCandidate): CandidateSummary {
 }
 
 /**
- * 工作区摘要，只返回该用户可见的内容：提交只含元数据（由仓储从提交表读出后传入 `commits`），候选不含记录，
- * 不含共享数据，审计只含最近 {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
- * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
- * 体积与记录数无关；需要内容时经仓储的按需读取接口读取共享记录、提交、候选与审计分页。
+ * 摘要的外部输入：`auditCount` 是审计事件总数（仓储只把最近一窗事件放进状态时传入，省略时取 `state.audit.length`），
+ * `presence` 是在线记录（省略时取状态里的）。
  */
-export function snapshot(
-  state: Workspace,
-  user: Identity,
-  now: number,
-  commits: Record<string, CommitSummary>,
-  presence: Presence[] = state.presence
-): WorkspaceSummary {
+export interface SummaryView {
+  auditCount?: number;
+  presence?: Presence[];
+}
+/**
+ * 工作区摘要，只返回该用户可见的内容：不含提交元数据（经提交历史分页读取）、候选不含记录、不含共享数据，
+ * 审计只含最近 {@link auditSummarySize} 条（另附总数）。邀请摘要、请求指纹和他人通知永不离开服务端，
+ * 受邀邮箱只出现在有 manage 权限者的 invitations 里（审计详情不含邮箱）。
+ * 体积与记录数、提交数无关；需要内容时经仓储的按需读取接口读取提交历史、共享记录、提交、候选与审计分页。
+ */
+export function snapshot(state: Workspace, user: Identity, now: number, view: SummaryView = {}): WorkspaceSummary {
   const member = authorize(state, user, 'read');
+  const presence = view.presence ?? state.presence;
   const candidates: Record<string, CandidateSummary> = {};
   for (const [id, candidate] of Object.entries(state.candidates)) candidates[id] = candidateSummary(candidate);
   return structuredClone({
@@ -198,7 +202,6 @@ export function snapshot(
     policy: state.policy,
     members: Object.values(state.members).filter(m => m.active),
     tasks: Object.values(state.tasks),
-    commits,
     prs: Object.values(state.prs),
     candidates,
     reviews: state.reviews,
@@ -219,7 +222,7 @@ export function snapshot(
         }))
       : [],
     audit: state.audit.slice(-auditSummarySize),
-    auditCount: state.audit.length,
+    auditCount: view.auditCount ?? state.audit.length,
     governance: Object.values(state.prs).map(pr => ({
       prId: pr.id,
       blockers: blockers(state, pr.id),
@@ -231,21 +234,29 @@ export function snapshot(
 export type WorkspaceSnapshot = WorkspaceSummary;
 
 const threadActions = ['thread', 'reply', 'resolve_thread', 'edit_comment'];
-/** 讨论线程的处理历史：创建、回复、编辑、解决事件，线程 ID 在 `threadId`（回复等）或 `id`（创建）里。 */
-function isThreadEvent(event: Audit, threadId: string): boolean {
-  return (
-    threadActions.includes(event.action) && (event.details['threadId'] === threadId || event.details['id'] === threadId)
-  );
+const text = (value: unknown) => (typeof value === 'string' ? value : null);
+/**
+ * 审计事件所属的讨论线程：创建、回复、编辑、解决线程的事件，线程 ID 在 `threadId`（回复等）或 `id`（创建）里；
+ * 其余事件为 null。审计分页的线程筛选与仓储写入审计时登记的线程列都以它为准。
+ */
+export function auditThread(event: Audit): string | null {
+  if (!threadActions.includes(event.action)) return null;
+  return text(event.details['threadId']) ?? text(event.details['id']);
 }
-/** 与 PR 相关的事件：带 `prId` 的命令、PR 创建本身（`id`），以及属于该 PR 的线程上的事件。 */
-function isPrEvent(state: Workspace, event: Audit, prId: string): boolean {
-  if (event.details['prId'] === prId) return true;
-  if (event.action === 'pr') return event.details['id'] === prId;
-  const threadId = event.details['threadId'];
-  return (
-    typeof threadId === 'string' && Object.hasOwn(state.threads, threadId) && state.threads[threadId].prId === prId
-  );
+/**
+ * 审计事件所属的 PR：带 `prId` 的命令、PR 创建本身（`id`），以及属于某个 PR 的线程上的事件（`threadPr` 给出线程所属的 PR）；
+ * 与 PR 无关的事件为 null。审计分页的 PR 筛选与仓储写入审计时登记的 PR 列都以它为准。
+ */
+export function auditPr(event: Audit, threadPr: (threadId: string) => string | undefined): string | null {
+  const prId = text(event.details['prId']);
+  if (prId !== null) return prId;
+  if (event.action === 'pr') return text(event.details['id']);
+  const threadId = text(event.details['threadId']);
+  return threadId === null ? null : (threadPr(threadId) ?? null);
 }
+/** 讨论线程所属的 PR：线程 ID 不是自有属性（例如 `toString`）时视为不存在。 */
+const threadPrOf = (state: Workspace) => (threadId: string) =>
+  Object.hasOwn(state.threads, threadId) ? state.threads[threadId].prId : undefined;
 /**
  * 审计分页，按时间从新到旧。`before` 是游标事件 ID，只返回比它更早的事件（游标事件本身不必匹配筛选）；
  * `prId` 与 `threadId` 同时给出时取交集；还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID，否则为 null。
@@ -253,11 +264,11 @@ function isPrEvent(state: Workspace, event: Audit, prId: string): boolean {
  */
 export function auditPage(state: Workspace, user: Identity, query: AuditQuery): AuditPage {
   authorize(state, user, 'read');
-  const limit = query.limit ?? auditPageSize.default;
-  demand(Number.isInteger(limit) && limit >= 1 && limit <= auditPageSize.maximum, 'invalid', '请求字段不合法');
+  const limit = pageLimit(query.limit, auditPageSize);
+  const threadPr = threadPrOf(state);
   const matches = (event: Audit) =>
-    (query.prId === undefined || isPrEvent(state, event, query.prId)) &&
-    (query.threadId === undefined || isThreadEvent(event, query.threadId));
+    (query.prId === undefined || auditPr(event, threadPr) === query.prId) &&
+    (query.threadId === undefined || auditThread(event) === query.threadId);
   let position = state.audit.length;
   if (query.before !== undefined) {
     position = state.audit.findIndex(event => event.id === query.before);
@@ -270,4 +281,10 @@ export function auditPage(state: Workspace, user: Identity, query: AuditQuery): 
   }
   const older = state.audit.slice(0, position).some(matches);
   return structuredClone({ events, nextBefore: older ? events[events.length - 1].id : null });
+}
+/** 分页条数：省略时取默认值，否则必须是 1～上限的整数，审计与提交历史共用。 */
+export function pageLimit(limit: number | undefined, size: { default: number; maximum: number }): number {
+  const value = limit ?? size.default;
+  demand(Number.isInteger(value) && value >= 1 && value <= size.maximum, 'invalid', '请求字段不合法');
+  return value;
 }

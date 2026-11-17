@@ -1,5 +1,5 @@
 import { firstValueFrom } from 'rxjs';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 const backend = vi.hoisted(() => ({ loaded: vi.fn() }));
 
@@ -8,10 +8,17 @@ vi.mock('@aiao/rxdb-adapter-sqlite-wasm', async importOriginal => {
   return importOriginal<typeof import('@aiao/rxdb-adapter-sqlite-wasm')>();
 });
 
+// 冷导入 setup_rxdb 要现编整套 RxDB 依赖：全量并行跑时单这一步就超过默认的 5 秒用例时限，
+// 而它不是本用例要测的东西。导入放进 beforeAll 并给足时限，用例只计「创建 → 取适配器」。
+// 断言的区分力不变：导入若提前加载了后端，backend.loaded 的计数会在用例开头被抓到。
+let setup: typeof import('./setup_rxdb');
+beforeAll(async () => {
+  setup = await import('./setup_rxdb');
+}, 60_000);
+
 describe('工作台数据库后端按需加载', () => {
   it('创建工作台时不加载后端，首次并发取得适配器时只加载一次且不连接空库', async () => {
-    const { createWorkbenchDatabase } = await import('./setup_rxdb');
-    const database = createWorkbenchDatabase();
+    const database = setup.createWorkbenchDatabase();
     try {
       expect(backend.loaded).not.toHaveBeenCalled();
       const [first, second] = await Promise.all([
@@ -25,5 +32,6 @@ describe('工作台数据库后端按需加载', () => {
     } finally {
       await database.destroy();
     }
-  });
+    // 用例本身含一次后端模块的冷导入（正是被测的按需加载，不能预热），时限按冷导入给。
+  }, 30_000);
 });

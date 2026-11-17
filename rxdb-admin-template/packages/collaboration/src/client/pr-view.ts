@@ -1,6 +1,7 @@
 import type { Command, PullRequest, Records, Resolution, Task, Thread } from '../model.js';
-import { canonical, mergeRecords } from '../records.js';
+import { mergeRecords } from '../records.js';
 import type { CollaborationController } from './controller.js';
+import { diffTable } from './diff-table.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
 import { readOnlyRecords } from './editor.js';
 import {
@@ -155,13 +156,13 @@ export class PullRequestView {
     view.append(panel, this.reviewControls(pr));
     return view;
   }
+  /** 「提交」页签：按 PR 分页读取来源任务在起点之后的提交，从新到旧列出，末尾可加载更早的提交；之后是历史候选。 */
   private commits(pr: PullRequest) {
-    const data = this.controller.snapshot!;
     const view = section('提交历史');
-    const task = data.tasks.find(value => value.id === pr.taskId)!;
-    let head = task.head;
-    while (head && head !== task.base) {
-      const commit = data.commits[head];
+    const branch = { prId: pr.id };
+    const history = this.controller.commitHistory(branch);
+    if (!history) view.append(loading());
+    for (const commit of history?.commits ?? []) {
       const { details, open } = lazyDetails(`source-commit:${commit.id}`, this.disclosures);
       details.append(
         element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`, '', true),
@@ -169,8 +170,9 @@ export class PullRequestView {
       );
       if (open) details.append(this.commitRecords(commit.id));
       view.append(details);
-      head = commit.parent;
     }
+    if (history?.hasEarlier)
+      view.append(button('加载更早的提交', () => this.perform(() => this.controller.loadEarlierCommits(branch))));
     view.append(this.candidateHistory(pr));
     return view;
   }
@@ -601,37 +603,4 @@ export class PullRequestView {
     );
     return view;
   }
-}
-function appendDiff(
-  table: HTMLTableElement,
-  id: string,
-  before: Record<string, unknown>,
-  after: Record<string, unknown>,
-  kind: string
-) {
-  for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
-    if (canonical(before[field]) === canonical(after[field])) continue;
-    const tr = element('tr');
-    [kind, id, field, valueText(before[field]), valueText(after[field])].forEach(text =>
-      tr.append(element('td', text))
-    );
-    table.append(tr);
-  }
-}
-
-function diffTable(before: Records, after: Records): HTMLTableElement {
-  const table = element('table', '', 'table table-sm');
-  const head = element('thead');
-  const labels = element('tr');
-  ['变更类型', '记录', '字段', '合并前', '合并后'].forEach(label => labels.append(element('th', label)));
-  head.append(labels);
-  table.append(head);
-  for (const id of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
-    const kind =
-      !before[id] ? tx('新增')
-      : !after[id] ? tx('删除')
-      : tx('修改');
-    appendDiff(table, id, before[id]?.fields ?? {}, after[id]?.fields ?? {}, kind);
-  }
-  return table;
 }

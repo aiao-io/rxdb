@@ -319,7 +319,23 @@ describe('candidates and merges are stored as changes relative to the target', (
     expect(changes).toEqual(stored.changes);
     expect((await workspace.records(admin)).records).toEqual(edited);
     expect((await workspace.candidate(admin, stored.id)).records).toEqual(edited);
-    expect((merged['changes'] as { id: string }[]).map(change => change.id)).toEqual(['c1', 'c2', 'c3', 'c4', 'fresh']);
+    // 改动记录的前后值只进变更日志，不进命令结果（也就不进回执与审计详情）
+    expect(merged).not.toHaveProperty('changes');
+    const log = workspace.changeLog.at(-1)!;
+    expect(log.head).toBe(head);
+    expect(log.records.map(change => change.id)).toEqual(['c1', 'c2', 'c3', 'c4', 'fresh']);
+    expect(log.records[0]).toEqual({
+      id: 'c1',
+      before: category('Category 1', 'initial'),
+      after: category('Category c1', 'edited')
+    });
+    expect(log.records.find(change => change.id === 'c4')).toEqual({
+      id: 'c4',
+      before: category('Category 4', 'initial'),
+      after: null
+    });
+    expect(log.records.at(-1)).toEqual({ id: 'fresh', before: null, after: category('Fresh') });
+    expect(JSON.stringify(workspace.state.audit.at(-1))).not.toContain('Category c1');
   });
   it('derives the merge base by reverting the later merges from the shared head', async () => {
     const workspace = await open();

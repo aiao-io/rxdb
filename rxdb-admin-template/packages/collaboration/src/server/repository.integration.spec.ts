@@ -5,10 +5,13 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffRecords } from '../changes.js';
 import { commitFingerprint, sealCommit, uuidv7 } from '../commit.js';
-import type { Command, Commit, Identity, Records } from '../model.js';
+import { receiptRetentionMs, type Command, type Commit, type Identity, type Records } from '../model.js';
 import { historyAdmin, replayHistory, type HistoryDriver } from './history.testing.js';
 import { applyMigrations, readMigrations } from './migrate.js';
+import { advance, emptyState, PgWorkspaceWriter, receiptSweepLimit } from './pg-workspace.js';
+import { noEffects } from './plan.js';
 import { CollaborationRepository } from './repository.js';
+import { stateChanges } from './state-changes.js';
 const run = promisify(execFile);
 const container = `admin-collaboration-${randomUUID()}`;
 const admin: Identity = { id: randomUUID(), email: 'admin@example.test', verified: true };
@@ -16,6 +19,24 @@ let pool: pg.Pool;
 let repository: CollaborationRepository;
 let started = false;
 const input = { teamId: randomUUID(), appId: 'assets', name: 'Isolation test', bootstrapKey: randomUUID(), admin };
+/** admin_private 下的全部表：普通登录用户一律不能读写。 */
+const privateTables = [
+  'workspaces',
+  'memberships',
+  'policies',
+  'tasks',
+  'refs',
+  'prs',
+  'candidates',
+  'reviews',
+  'threads',
+  'comments',
+  'notifications',
+  'invitations',
+  'operations',
+  'commits',
+  'commit_changes'
+];
 const command = (data: Record<string, unknown>) => ({ operationId: randomUUID(), ...data }) as Command;
 /** 时限内的结果：成功、失败或仍在等待；用于断言某个调用是否被行锁挡住。 */
 const outcomeWithin = (pending: Promise<unknown>, ms: number) =>
@@ -29,20 +50,33 @@ const outcomeWithin = (pending: Promise<unknown>, ms: number) =>
 /** 相对 `before` 的内容形成一个已签名的提交：字段级变更加上内容指纹。 */
 const signed = (id: string, parent: string | null, before: Records, after: Records, message = id): Promise<Commit> =>
   sealCommit({ id, parent, authorId: admin.id, message, changes: diffRecords(before, after) });
-/** 删除测试自建的工作区及其全部投影，避免影响按行数断言的 RLS 用例。 */
+/** 工作区的全部表，按外键依赖从叶到根排列：删除时依次清空。 */
+const workspaceTables = [
+  'public.admin_presence',
+  'public.admin_changes',
+  'public.admin_audit',
+  'public.admin_workspace_versions',
+  'public.admin_shared',
+  'public.shared_records',
+  'admin_private.comments',
+  'admin_private.notifications',
+  'admin_private.threads',
+  'admin_private.reviews',
+  'admin_private.candidates',
+  'admin_private.prs',
+  'admin_private.refs',
+  'admin_private.tasks',
+  'admin_private.commit_changes',
+  'admin_private.commits',
+  'admin_private.invitations',
+  'admin_private.operations',
+  'admin_private.policies',
+  'admin_private.memberships',
+  'admin_private.workspaces'
+];
+/** 删除测试自建的工作区及其全部行，避免影响按行数断言的 RLS 用例。 */
 async function removeWorkspace(workspace: { teamId: string; appId: string }) {
-  for (const table of [
-    'public.admin_presence',
-    'public.admin_changes',
-    'public.admin_audit',
-    'public.admin_workspace_versions',
-    'public.admin_shared',
-    'public.shared_records',
-    'admin_private.commit_changes',
-    'admin_private.commits',
-    'admin_private.memberships',
-    'admin_private.workspaces'
-  ]) {
+  for (const table of workspaceTables) {
     await pool.query(`DELETE FROM ${table} WHERE team_id = $1 AND app_id = $2`, [workspace.teamId, workspace.appId]);
   }
 }
@@ -107,12 +141,11 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect(after.audit).toEqual(before.audit);
       expect(after.presence).toEqual([expect.objectContaining({ userId: admin.id, sessionId })]);
 
-      const stored = await pool.query<{
-        state: { revision: number; audit: unknown[]; receipts: Record<string, unknown> };
-      }>('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [seed.teamId, seed.appId]);
-      expect(stored.rows[0].state.revision).toBe(before.revision);
-      expect(stored.rows[0].state.audit).toHaveLength(before.audit.length);
-      expect(stored.rows[0].state.receipts[presence.operationId]).toBeUndefined();
+      const receipts = await pool.query(
+        'SELECT 1 FROM admin_private.operations WHERE team_id = $1 AND app_id = $2 AND operation_id = $3',
+        [seed.teamId, seed.appId, presence.operationId]
+      );
+      expect(receipts.rowCount).toBe(0);
       expect(
         Number(
           (
@@ -230,8 +263,16 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       ];
       for (const [table, sql, params] of forgedInserts)
         await expect(client.query(sql, params), `INSERT INTO ${table}`).rejects.toThrow(/permission denied/);
-      for (const table of ['workspaces', 'commits', 'commit_changes'])
+      for (const table of privateTables)
         await expect(client.query(`SELECT * FROM admin_private.${table}`), table).rejects.toThrow(/permission denied/);
+      await expect(client.query('UPDATE admin_private.refs SET head = NULL'), 'refs').rejects.toThrow(
+        /permission denied/
+      );
+      await expect(
+        client.query(`INSERT INTO admin_private.operations(team_id, app_id, operation_id, actor_id, fingerprint, result, at)
+          VALUES ('${input.teamId}', '${input.appId}', 'forged', '${admin.id}', 'x', '{}', 0)`),
+        'operations'
+      ).rejects.toThrow(/permission denied/);
       await client.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [randomUUID()]);
       expect((await client.query('SELECT * FROM public.admin_shared')).rows).toHaveLength(0);
       expect((await client.query('SELECT * FROM public.admin_workspace_versions')).rows).toHaveLength(0);
@@ -301,18 +342,30 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect(summary).not.toHaveProperty('records');
       expect(summary.head).toBe(head);
       expect(summary.auditCount).toBe(summary.audit.length);
-      for (const commit of Object.values(summary.commits)) expect(commit).not.toHaveProperty('records');
+      // 提交元数据不在摘要里，按分支分页读取：共享分支只有合并提交，任务分支是上传的提交
+      expect(summary).not.toHaveProperty('commits');
       expect(summary.candidates[candidateId]).not.toHaveProperty('records');
-      expect(Object.keys(summary.commits)).toEqual(['commit-1', head]);
-      expect(summary.commits[head]).toMatchObject({ parent: null, mergeSource: 'commit-1', candidateId });
+      const shared = await repository.readHistory(admin, seed.teamId, seed.appId, { branch: 'shared' });
+      expect(shared).toEqual({
+        commits: [
+          { id: head, parent: null, authorId: admin.id, message: 'Merge Review', mergeSource: 'commit-1', candidateId }
+        ],
+        nextBefore: null
+      });
+      for (const query of [{ taskId: 'task' }, { prId: 'pr' }])
+        await expect(repository.readHistory(admin, seed.teamId, seed.appId, query)).resolves.toEqual({
+          commits: [{ id: 'commit-1', parent: null, authorId: admin.id, message: 'First' }],
+          nextBefore: null
+        });
 
-      const records = { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } };
+      const records: Records = { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } };
       await expect(repository.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({ head, records });
       await expect(repository.readCommit(admin, seed.teamId, seed.appId, 'commit-1')).resolves.toEqual({
         id: 'commit-1',
         parent: null,
         authorId: admin.id,
         message: 'First',
+        changes: diffRecords({}, records),
         records
       });
       await expect(repository.readCommit(admin, seed.teamId, seed.appId, head)).resolves.toMatchObject({ records });
@@ -342,6 +395,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         () => repository.readRecords(outsider, seed.teamId, seed.appId),
         () => repository.readCommit(outsider, seed.teamId, seed.appId, 'commit-1'),
         () => repository.readCandidate(outsider, seed.teamId, seed.appId, candidateId),
+        () => repository.readHistory(outsider, seed.teamId, seed.appId, { branch: 'shared' }),
         () => repository.readAudit(outsider, seed.teamId, seed.appId, {})
       ])
         await expect(read()).rejects.toMatchObject({ code: 'forbidden' });
@@ -366,6 +420,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         records: () => repository.readRecords(admin, seed.teamId, seed.appId),
         commit: () => repository.readCommit(admin, seed.teamId, seed.appId, 'commit-1'),
         candidate: () => repository.readCandidate(admin, seed.teamId, seed.appId, candidateId),
+        history: () => repository.readHistory(admin, seed.teamId, seed.appId, { branch: 'shared' }),
         audit: () => repository.readAudit(admin, seed.teamId, seed.appId, { limit: 2 })
       };
       for (const [name, read] of Object.entries(reads))
@@ -419,8 +474,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         await expect(outcomeWithin(heartbeat, 300)).resolves.toBe('pending');
         // 与心跳并发提交的撤权：心跳必须等它提交并按新的成员关系授权，不能凭撤权前读到的状态写入在线记录
         await writer.query(
-          `UPDATE admin_private.workspaces SET state = jsonb_set(state, ARRAY['members', $3::text, 'active'], 'false'::jsonb)
-           WHERE team_id = $1 AND app_id = $2`,
+          'UPDATE admin_private.memberships SET active = false WHERE team_id = $1 AND app_id = $2 AND user_id = $3',
           [seed.teamId, seed.appId, reviewer.id]
         );
         await writer.query('COMMIT');
@@ -458,8 +512,11 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       commands.map(c => repository.operation(admin, input.teamId, input.appId, c))
     );
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
-    const state = await repository.read(admin, input.teamId, input.appId);
-    expect(Object.keys(state.commits)).toHaveLength(1);
+    const history = await repository.readHistory(admin, input.teamId, input.appId, { taskId: 'concurrent' });
+    expect(history.commits).toHaveLength(1);
+    // 负者得到明确的冲突错误（与客户端已有的「任务已分叉」处理一致），并带上胜者推进后的远端头
+    const loser = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+    expect(loser.reason).toMatchObject({ code: 'diverged', details: { remoteHead: history.commits[0].id } });
     const winner = commands[results.findIndex(r => r.status === 'fulfilled')];
     await expect(repository.operation(admin, input.teamId, input.appId, winner)).resolves.toMatchObject({
       taskId: 'concurrent'
@@ -529,6 +586,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       for (const table of [
         'admin_private.workspaces',
         'admin_private.memberships',
+        'admin_private.policies',
+        'admin_private.refs',
         'public.admin_shared',
         'public.admin_audit',
         'public.admin_workspace_versions'
@@ -697,7 +756,10 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const result = await pool.query<{ kind: string; name: string; detail: string }>(
       `WITH tables(schema_name, table_name) AS (
          VALUES ('admin_private','workspaces'),('admin_private','memberships'),('admin_private','commits'),
-           ('admin_private','commit_changes'),('public','admin_shared'),('public','shared_records'),('public','admin_audit'),
+           ('admin_private','commit_changes'),('admin_private','policies'),('admin_private','tasks'),('admin_private','refs'),
+           ('admin_private','prs'),('admin_private','candidates'),('admin_private','reviews'),('admin_private','threads'),
+           ('admin_private','comments'),('admin_private','notifications'),('admin_private','invitations'),
+           ('admin_private','operations'),('public','admin_shared'),('public','shared_records'),('public','admin_audit'),
            ('public','admin_changes'),('public','admin_workspace_versions'),('public','admin_presence')
        )
        SELECT 'column' AS kind, c.table_schema || '.' || c.table_name || '.' || c.column_name AS name,
@@ -725,7 +787,11 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const migrations = await readMigrations();
     expect(migrations.map(migration => migration.name)).toEqual(migrations.map(migration => migration.name).sort());
     expect(migrations.map(migration => migration.name)).toEqual(
-      expect.arrayContaining(['202611160001_collaboration.sql', '202611170001_commit_store.sql'])
+      expect.arrayContaining([
+        '202611160001_collaboration.sql',
+        '202611170001_commit_store.sql',
+        '202611170002_workspace_tables.sql'
+      ])
     );
     const before = await schemaSignature();
     expect(
@@ -737,6 +803,31 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         table
       ).toBe(true);
     expect(before).toContainEqual(expect.objectContaining({ kind: 'index', name: 'admin_private.commits_parent' }));
+    // 治理行只剩治理字段，整行状态列已删除；成员表按用户有索引，审计按写入顺序、PR 与线程有索引
+    expect(
+      before
+        .filter(row => row.kind === 'column' && row.name.startsWith('admin_private.workspaces.'))
+        .map(row => row.name)
+    ).toEqual(
+      ['app_id', 'bootstrap_key', 'initial_admin_id', 'name', 'policy_version', 'schema_version', 'team_id'].map(
+        column => `admin_private.workspaces.${column}`
+      )
+    );
+    for (const index of [
+      'admin_private.memberships_user',
+      'admin_private.prs_task',
+      'admin_private.reviews_pr',
+      'admin_private.threads_pr',
+      'admin_private.comments_thread',
+      'admin_private.notifications_user',
+      'admin_private.operations_age',
+      'public.admin_audit_order',
+      'public.admin_audit_pr',
+      'public.admin_audit_thread'
+    ])
+      expect(before, index).toContainEqual(expect.objectContaining({ kind: 'index', name: index }));
+    for (const table of privateTables)
+      expect(before, table).toContainEqual({ kind: 'rls', name: `admin_private.${table}`, detail: 'true' });
     expect(await applyMigrations(pool)).toEqual(migrations.map(migration => migration.name));
     expect(await schemaSignature()).toEqual(before);
     for (const migration of [...migrations].reverse()) await pool.query(migration.sql);
@@ -774,7 +865,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         'DELETE FROM public.shared_records'
       ])
         await expect(client.query(sql), sql).rejects.toThrow(/permission denied/);
-      for (const table of ['commits', 'commit_changes'])
+      for (const table of privateTables)
         await expect(client.query(`SELECT * FROM admin_private.${table}`), table).rejects.toThrow(/permission denied/);
     } finally {
       await client.query('RESET ROLE');
@@ -788,11 +879,11 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     try {
       const row = async () =>
         (
-          await pool.query<{ state: Record<string, unknown> }>(
-            'SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2',
+          await pool.query<Record<string, unknown>>(
+            'SELECT * FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2',
             [seed.teamId, seed.appId]
           )
-        ).rows[0].state;
+        ).rows[0];
       const rows = async () =>
         Object.fromEntries(
           (
@@ -808,10 +899,20 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect((await pool.query('SELECT head FROM public.admin_shared WHERE team_id = $1', [seed.teamId])).rows).toEqual(
         [{ head }]
       );
-      expect(await row()).toMatchObject({ head });
-      expect(Object.keys(await row())).not.toEqual(expect.arrayContaining(['commits']));
-      expect(await row()).not.toHaveProperty('commits');
-      expect(await row()).not.toHaveProperty('records');
+      // 共享头在引用表里，治理行只剩治理字段，不含状态、提交与记录
+      expect(
+        (await pool.query("SELECT head FROM admin_private.refs WHERE team_id = $1 AND ref = 'shared'", [seed.teamId]))
+          .rows
+      ).toEqual([{ head }]);
+      expect(Object.keys(await row()).sort()).toEqual([
+        'app_id',
+        'bootstrap_key',
+        'initial_admin_id',
+        'name',
+        'policy_version',
+        'schema_version',
+        'team_id'
+      ]);
 
       // 第二次合并只改动一部分记录：共享行随之更新、新增与删除，没有改动的行保持不变
       const first = await repository.readCommit(admin, seed.teamId, seed.appId, head);
@@ -971,17 +1072,22 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     expect(long.filter(sql => /RECURSIVE/i.test(sql))).toEqual([]);
     expect(long.filter(sql => /admin_private\.commits\b/.test(sql))).toHaveLength(2);
   }, 60000);
-  it('keeps the workspace row free of commit content: uploading a thousand changed records adds only an audit event and a receipt', async () => {
+  it('keeps the workspace rows free of commit content: uploading a thousand changed records adds only a small audit event and receipt', async () => {
     const seed = { ...input, teamId: randomUUID(), appId: 'row-size', bootstrapKey: randomUUID() };
     await repository.initialize(seed);
     try {
       const op = (data: Record<string, unknown>) => repository.operation(admin, seed.teamId, seed.appId, command(data));
-      const bytes = async () =>
+      /** 治理行、任务引用、本次的审计事件与回执的落盘字节数。 */
+      const bytes = async (operationId?: string) =>
         Number(
           (
             await pool.query(
-              'SELECT octet_length(state::text) AS bytes FROM admin_private.workspaces WHERE team_id = $1',
-              [seed.teamId]
+              `SELECT (SELECT pg_column_size(w.*) FROM admin_private.workspaces w WHERE team_id = $1)
+                 + (SELECT pg_column_size(r.*) FROM admin_private.refs r WHERE team_id = $1 AND ref = 'tasks/task')
+                 + coalesce((SELECT pg_column_size(o.*) FROM admin_private.operations o WHERE team_id = $1 AND operation_id = $2), 0)
+                 + coalesce((SELECT pg_column_size(a.*) FROM public.admin_audit a
+                     WHERE team_id = $1 AND details->>'operationId' = $2), 0) AS bytes`,
+              [seed.teamId, operationId ?? '']
             )
           ).rows[0].bytes
         );
@@ -993,13 +1099,15 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           { entity: 'AssetCategory' as const, fields: { name: `Record ${index}`, description: 'x'.repeat(200) } }
         ])
       );
-      await op({ type: 'upload', taskId: 'task', expectedHead: null, commits: [await signed('big', null, {}, rows)] });
+      const upload = command({
+        type: 'upload',
+        taskId: 'task',
+        expectedHead: null,
+        commits: [await signed('big', null, {}, rows)]
+      });
+      await repository.operation(admin, seed.teamId, seed.appId, upload);
       expect(JSON.stringify(rows).length).toBeGreaterThan(250_000);
-      expect((await bytes()) - before).toBeLessThan(2000);
-      const row = (await pool.query('SELECT state FROM admin_private.workspaces WHERE team_id = $1', [seed.teamId]))
-        .rows[0].state;
-      expect(row).not.toHaveProperty('commits');
-      expect(row).not.toHaveProperty('records');
+      expect((await bytes(upload.operationId)) - before).toBeLessThan(2000);
       expect((await repository.readCommit(admin, seed.teamId, seed.appId, 'big')).records).toEqual(rows);
     } finally {
       await removeWorkspace(seed);
@@ -1055,7 +1163,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       summary: () => repository.read(historyAdmin, seed.teamId, seed.appId),
       records: () => repository.readRecords(historyAdmin, seed.teamId, seed.appId),
       commit: id => repository.readCommit(historyAdmin, seed.teamId, seed.appId, id),
-      candidate: id => repository.readCandidate(historyAdmin, seed.teamId, seed.appId, id)
+      candidate: id => repository.readCandidate(historyAdmin, seed.teamId, seed.appId, id),
+      history: query => repository.readHistory(historyAdmin, seed.teamId, seed.appId, query)
     };
   }
   it.each([3, 11, 27])(
@@ -1085,4 +1194,520 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     },
     60000
   );
+  /**
+   * 挂起点：在 admin_audit 插入满足 `condition` 的事件时，让写入它的事务等在一把咨询锁上，直到测试释放。
+   * 审计写在命令事务的末尾（业务行与引用已写、版本行未动），所以一条真实命令会停在事务中途、持有它已取得的全部行锁。
+   */
+  async function suspend(name: string, condition: string) {
+    const key = Math.floor(Math.random() * 2 ** 31);
+    const holder = await pool.connect();
+    await holder.query('SELECT pg_advisory_lock($1)', [key]);
+    await pool.query(
+      `CREATE FUNCTION admin_private.${name}() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN PERFORM pg_advisory_xact_lock(${key}); RETURN NEW; END $$`
+    );
+    await pool.query(
+      `CREATE TRIGGER ${name} BEFORE INSERT ON public.admin_audit FOR EACH ROW WHEN (${condition})
+       EXECUTE FUNCTION admin_private.${name}()`
+    );
+    let released = false;
+    const release = async () => {
+      if (released) return;
+      released = true;
+      await holder.query('SELECT pg_advisory_unlock($1)', [key]);
+    };
+    return {
+      release,
+      drop: async () => {
+        await release();
+        holder.release();
+        await pool.query(`DROP TRIGGER IF EXISTS ${name} ON public.admin_audit`);
+        await pool.query(`DROP FUNCTION IF EXISTS admin_private.${name}()`);
+      }
+    };
+  }
+  /** 一个只有初始管理员的新工作区，带便捷的命令入口。 */
+  async function freshWorkspace(appId: string) {
+    const seed = { ...input, teamId: randomUUID(), appId, bootstrapKey: randomUUID() };
+    await repository.initialize(seed);
+    const op = (data: Record<string, unknown>, actor: Identity = admin) =>
+      repository.operation(actor, seed.teamId, seed.appId, command(data));
+    return { seed, op };
+  }
+  /** 一个新任务：建任务并上传一个新增一条分类的提交，返回任务头。 */
+  async function seededTask(op: (data: Record<string, unknown>) => Promise<Record<string, unknown>>, id: string) {
+    await op({ type: 'task', id, name: id, expectedHead: null });
+    const commit = await signed(`${id}-1`, null, {}, { [id]: { entity: 'AssetCategory', fields: { name: id } } });
+    await op({ type: 'upload', taskId: id, expectedHead: null, commits: [commit] });
+    return commit.id;
+  }
+  const comment = (prId: string, body: string) => ({
+    type: 'thread',
+    id: randomUUID(),
+    prId,
+    candidateId: null,
+    recordId: null,
+    field: null,
+    body,
+    required: false,
+    mentions: []
+  });
+
+  it('runs uploads to different tasks and comments on different PRs in parallel, and serializes comments on the same PR', async () => {
+    const { seed, op } = await freshWorkspace('parallel');
+    const uploads = await suspend(
+      'pause_upload',
+      `NEW.action = 'upload' AND NEW.details->'details'->>'taskId' = 'slow'`
+    );
+    try {
+      for (const id of ['slow', 'fast']) await op({ type: 'task', id, name: id, expectedHead: null });
+      const upload = async (taskId: string) =>
+        op({
+          type: 'upload',
+          taskId,
+          expectedHead: null,
+          commits: [
+            await signed(`${taskId}-1`, null, {}, { [taskId]: { entity: 'AssetCategory', fields: { name: taskId } } })
+          ]
+        });
+      const slow = upload('slow');
+      // 上传 slow 停在事务中途，已持有治理行共享锁与 slow 的任务引用排他锁
+      await expect(outcomeWithin(slow, 300)).resolves.toBe('pending');
+      // 另一个任务的上传不排在它后面：只共享治理行，各锁各的任务引用
+      await expect(outcomeWithin(upload('fast'), 3000)).resolves.toBe('resolved');
+      await expect(outcomeWithin(slow, 100)).resolves.toBe('pending');
+      await uploads.release();
+      await expect(slow).resolves.toMatchObject({ taskId: 'slow', head: 'slow-1' });
+    } finally {
+      await uploads.drop();
+    }
+    for (const id of ['slow', 'fast'])
+      await op({ type: 'pr', id: `pr-${id}`, taskId: id, title: id, description: '', target: 'shared' });
+    const comments = await suspend(
+      'pause_comment',
+      `NEW.action = 'thread' AND NEW.details->'details'->>'body' = 'slow'`
+    );
+    try {
+      const slow = op(comment('pr-slow', 'slow'));
+      await expect(outcomeWithin(slow, 300)).resolves.toBe('pending');
+      // 别的 PR 上的评论立即完成；同一个 PR 上的评论排在 PR 行锁后面
+      await expect(outcomeWithin(op(comment('pr-fast', 'fast')), 3000)).resolves.toBe('resolved');
+      const same = op(comment('pr-slow', 'same PR'));
+      await expect(outcomeWithin(same, 500)).resolves.toBe('pending');
+      await comments.release();
+      await expect(slow).resolves.toMatchObject({ threadId: expect.any(String) });
+      await expect(same).resolves.toMatchObject({ threadId: expect.any(String) });
+      const summary = await repository.read(admin, seed.teamId, seed.appId);
+      expect(summary.threads.map(thread => thread.comments[0].body).sort()).toEqual(['fast', 'same PR', 'slow']);
+    } finally {
+      await comments.drop();
+      await removeWorkspace(seed);
+    }
+  });
+
+  it('makes a revocation wait for an in-flight approval, and rejects approvals and comments that wait behind a revocation', async () => {
+    const { seed, op } = await freshWorkspace('governance-locks');
+    const reviewer = { id: randomUUID(), email: 'locks-reviewer@example.test', verified: true };
+    try {
+      await op({
+        type: 'invite',
+        id: 'invite',
+        email: reviewer.email,
+        permissions: ['read', 'review', 'comment'],
+        tokenHash: 'token',
+        expiresAt: Date.now() + 60000,
+        expectedVersion: 0
+      });
+      await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, reviewer);
+      const source = await seededTask(op, 'task');
+      await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
+      await op({ type: 'pr_state', prId: 'pr', status: 'review', expectedRevision: 0 });
+      const { candidateId } = await op({ type: 'candidate', prId: 'pr', expectedRevision: 1, resolutions: [] });
+      const approve = (expectedRevision: number) =>
+        op(
+          {
+            type: 'review',
+            prId: 'pr',
+            candidateId,
+            expectedSource: source,
+            stageId: 'review',
+            decision: 'approve',
+            reason: '',
+            expectedRevision
+          },
+          reviewer
+        );
+      const grant = (permissions: string[], expectedGeneration: number) =>
+        op({ type: 'member', userId: reviewer.id, permissions, active: true, expectedGeneration });
+
+      // 1. 批准停在事务中途（持有治理行共享锁）：撤权要排他锁，必须等批准提交
+      const reviews = await suspend('pause_review', `NEW.action = 'review'`);
+      try {
+        const approval = approve(0);
+        await expect(outcomeWithin(approval, 300)).resolves.toBe('pending');
+        const revoke = grant(['read'], 1);
+        await expect(outcomeWithin(revoke, 500)).resolves.toBe('pending');
+        await reviews.release();
+        await expect(approval).resolves.toMatchObject({ reviewId: expect.any(String) });
+        await expect(revoke).resolves.toMatchObject({ generation: 2 });
+      } finally {
+        await reviews.drop();
+      }
+      const audit = (await repository.read(admin, seed.teamId, seed.appId)).audit.map(event => event.action);
+      expect(audit.indexOf('review')).toBeLessThan(audit.lastIndexOf('member'));
+      // 撤权在批准之后提交，批准随授权代次一起失效
+      await expect(
+        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: null })
+      ).rejects.toMatchObject({ code: 'approval' });
+
+      // 2. 撤权停在事务中途（持有治理行排他锁）：等在它后面的批准与评论，按撤权后的成员关系裁决，一律拒绝
+      await grant(['read', 'review', 'comment'], 2);
+      const members = await suspend('pause_member', `NEW.action = 'member'`);
+      try {
+        const revoked = grant(['read'], 3);
+        await expect(outcomeWithin(revoked, 300)).resolves.toBe('pending');
+        const late = approve(1);
+        const remark = op(comment('pr', 'after revocation'), reviewer);
+        await expect(outcomeWithin(late, 300)).resolves.toBe('pending');
+        await expect(outcomeWithin(remark, 100)).resolves.toBe('pending');
+        await members.release();
+        await expect(revoked).resolves.toMatchObject({ generation: 4 });
+        await expect(late).rejects.toMatchObject({ code: 'forbidden' });
+        await expect(remark).rejects.toMatchObject({ code: 'forbidden' });
+      } finally {
+        await members.drop();
+      }
+      // 撤权已提交：之后的批准、评论与合并同样被拒
+      await expect(approve(1)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(op(comment('pr', 'later'), reviewer)).rejects.toMatchObject({ code: 'forbidden' });
+      await expect(
+        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: null }, reviewer)
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+
+  it('advances a ref only from the expected head, and reports a clear conflict when the compare-and-swap fails', async () => {
+    const { seed, op } = await freshWorkspace('ref-cas');
+    try {
+      const head = await seededTask(op, 'task');
+      const scope: [string, string] = [seed.teamId, seed.appId];
+      expect(await advance(pool, scope, 'tasks/task', { from: null, to: null })).toBe(head);
+      expect(await advance(pool, scope, 'shared', { from: head, to: null })).toBeNull();
+      const refs = await pool.query<{ ref: string; head: string | null; revision: string }>(
+        'SELECT ref, head, revision FROM admin_private.refs WHERE team_id = $1 ORDER BY ref',
+        [seed.teamId]
+      );
+      expect(refs.rows).toEqual([
+        { ref: 'shared', head: null, revision: '0' },
+        { ref: 'tasks/task', head, revision: '1' }
+      ]);
+      const empty = stateChanges(emptyState(seed.teamId, seed.appId), emptyState(seed.teamId, seed.appId));
+      const writer = new PgWorkspaceWriter(pool, seed.teamId, seed.appId);
+      await expect(
+        writer.save({ ...empty, heads: { task: { from: null, to: head } } }, noEffects(), Date.now())
+      ).rejects.toMatchObject({ code: 'diverged', details: { remoteHead: head } });
+      await expect(
+        writer.save({ ...empty, shared: { from: head, to: null } }, noEffects(), Date.now())
+      ).rejects.toMatchObject({ code: 'stale', details: { current: null } });
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+
+  it('re-reads the PRs of a task after locking its ref, so an upload never misses a PR created while it waited', async () => {
+    const { seed, op } = await freshWorkspace('upload-recheck');
+    const holder = await pool.connect();
+    try {
+      const head = await seededTask(op, 'task');
+      await holder.query('BEGIN');
+      await holder.query(
+        "SELECT 1 FROM admin_private.refs WHERE team_id = $1 AND app_id = $2 AND ref = 'tasks/task' FOR UPDATE",
+        [seed.teamId, seed.appId]
+      );
+      const next = await signed(
+        'task-2',
+        head,
+        { task: { entity: 'AssetCategory', fields: { name: 'task' } } },
+        { task: { entity: 'AssetCategory', fields: { name: 'renamed' } } }
+      );
+      // 上传已锁定任务名下（此时为空）的 PR，正等任务引用；等待期间有人在这个任务上建了 PR 并提交
+      const upload = op({ type: 'upload', taskId: 'task', expectedHead: head, commits: [next] });
+      await expect(outcomeWithin(upload, 300)).resolves.toBe('pending');
+      await holder.query(
+        `INSERT INTO admin_private.prs(team_id, app_id, id, task_id, author_id, title, description, target, status, revision)
+         VALUES ($1, $2, 'late-pr', 'task', $3, 'Late', '', 'shared', 'draft', 0)`,
+        [seed.teamId, seed.appId, admin.id]
+      );
+      await holder.query('COMMIT');
+      // 上传发现 PR 集合变了，整体重来：新 PR 同样被锁定并随上传过期，修订号前进
+      await expect(upload).resolves.toMatchObject({ head: 'task-2' });
+      const pr = await pool.query<{ revision: number; candidate_id: string | null }>(
+        "SELECT revision, candidate_id FROM admin_private.prs WHERE team_id = $1 AND id = 'late-pr'",
+        [seed.teamId]
+      );
+      expect(pr.rows).toEqual([{ revision: 1, candidate_id: null }]);
+    } finally {
+      holder.release();
+      await removeWorkspace(seed);
+    }
+  });
+
+  it('builds a candidate only after an in-flight merge has committed, on the merged head', async () => {
+    const { seed, op } = await freshWorkspace('candidate-waits-merge');
+    try {
+      await op({ type: 'policy', stages: [], expectedVersion: 1 });
+      const prepared: Record<string, string> = {};
+      for (const id of ['first', 'second']) {
+        prepared[id] = await seededTask(op, id);
+        await op({ type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
+        await op({ type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
+      }
+      const { candidateId } = await op({ type: 'candidate', prId: 'first', expectedRevision: 1, resolutions: [] });
+      const merges = await suspend('pause_merge', `NEW.action = 'merge'`);
+      try {
+        // 合并停在事务中途：已锁定共享引用、写好共享记录与合并提交，尚未提交
+        const merge = op({
+          type: 'merge',
+          prId: 'first',
+          candidateId,
+          expectedSource: prepared['first'],
+          expectedTarget: null
+        });
+        await expect(outcomeWithin(merge, 300)).resolves.toBe('pending');
+        // 另一个 PR 生成候选要读共享内容：对共享引用加共享锁，等合并提交，不会读到合并到一半的共享分支
+        const candidate = op({ type: 'candidate', prId: 'second', expectedRevision: 1, resolutions: [] });
+        await expect(outcomeWithin(candidate, 500)).resolves.toBe('pending');
+        await merges.release();
+        const { head } = await merge;
+        const made = await candidate;
+        const content = await repository.readCandidate(admin, seed.teamId, seed.appId, String(made['candidateId']));
+        expect(content.target).toBe(head);
+        expect(Object.keys(content.records).sort()).toEqual(['first', 'second']);
+      } finally {
+        await merges.drop();
+      }
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+
+  /** 一条命令产生的 WAL 字节数。 */
+  async function walOf(work: () => Promise<unknown>): Promise<number> {
+    const before = (await pool.query<{ lsn: string }>('SELECT pg_current_wal_lsn() AS lsn')).rows[0].lsn;
+    await work();
+    const after = (await pool.query<{ lsn: string }>('SELECT pg_current_wal_lsn() AS lsn')).rows[0].lsn;
+    return Number((await pool.query('SELECT pg_wal_lsn_diff($1, $2) AS bytes', [after, before])).rows[0].bytes);
+  }
+  const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+
+  it('keeps the WAL of an ordinary command bounded and the touched rows the same size however long the history grows', async () => {
+    const { seed, op } = await freshWorkspace('bounded-wal');
+    try {
+      let head = await seededTask(op, 'task');
+      let content: Records = { task: { entity: 'AssetCategory', fields: { name: 'task' } } };
+      await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
+      const sample = async () => {
+        const values: number[] = [];
+        for (let index = 0; index < 7; index++) values.push(await walOf(() => op(comment('pr', 'measured'))));
+        return median(values);
+      };
+      const governance = async () =>
+        Number(
+          (
+            await pool.query('SELECT pg_column_size(w.*) AS bytes FROM admin_private.workspaces w WHERE team_id = $1', [
+              seed.teamId
+            ])
+          ).rows[0].bytes
+        );
+      const early = await sample();
+      const earlyRow = await governance();
+      // 历史再长 150 条命令：50 次上传与 100 条评论
+      for (let index = 0; index < 50; index++) {
+        const next: Records = { ...content, [`r${index}`]: { entity: 'AssetCategory', fields: { name: `R${index}` } } };
+        const commit = await signed(uuidv7(), head, content, next);
+        await op({ type: 'upload', taskId: 'task', expectedHead: head, commits: [commit] });
+        head = commit.id;
+        content = next;
+      }
+      for (let index = 0; index < 100; index++) await op(comment('pr', `filler ${index}`));
+      const late = await sample();
+      expect(late).toBeLessThan(50_000);
+      expect(late - early).toBeLessThan(3_000);
+      expect(await governance()).toBe(earlyRow);
+      const pr = await pool.query(
+        "SELECT pg_column_size(p.*) AS bytes FROM admin_private.prs p WHERE team_id = $1 AND id = 'pr'",
+        [seed.teamId]
+      );
+      expect(Number(pr.rows[0].bytes)).toBeLessThan(1_000);
+    } finally {
+      await removeWorkspace(seed);
+    }
+  }, 60000);
+
+  it('replays a receipt within the retention period, treats an expired one as a new request without duplicating commits, and sweeps expired receipts in bounded batches', async () => {
+    const { seed, op } = await freshWorkspace('retention');
+    const age = (where: string, params: unknown[] = []) =>
+      pool.query(`UPDATE admin_private.operations SET at = at - $2 WHERE team_id = $1 AND ${where}`, [
+        seed.teamId,
+        receiptRetentionMs + 60_000,
+        ...params
+      ]);
+    const count = async (sql: string) => Number((await pool.query(sql, [seed.teamId])).rows[0].count);
+    try {
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+      const upload = command({
+        type: 'upload',
+        taskId: 'task',
+        expectedHead: null,
+        commits: [await signed('c1', null, {}, { a: { entity: 'AssetCategory', fields: { name: 'A' } } })]
+      });
+      const first = await repository.operation(admin, seed.teamId, seed.appId, upload);
+      const audited = await count('SELECT count(*) FROM public.admin_audit WHERE team_id = $1');
+      // 保留期内：同一操作 ID 原样返回原结果，不再写任何行
+      await expect(repository.operation(admin, seed.teamId, seed.appId, upload)).resolves.toEqual(first);
+      await expect(repository.receipt(admin, seed.teamId, seed.appId, upload.operationId)).resolves.toEqual({
+        status: 'accepted',
+        value: first
+      });
+      expect(await count('SELECT count(*) FROM public.admin_audit WHERE team_id = $1')).toBe(audited);
+      // 过期：回执不再可读，重试按新请求裁决——任务头已前进，报分叉，提交按 ID 去重、没有重复
+      await age('operation_id = $3', [upload.operationId]);
+      await expect(repository.receipt(admin, seed.teamId, seed.appId, upload.operationId)).resolves.toEqual({
+        status: 'unknown'
+      });
+      await expect(repository.operation(admin, seed.teamId, seed.appId, upload)).rejects.toMatchObject({
+        code: 'diverged'
+      });
+      expect(await count("SELECT count(*) FROM admin_private.commits WHERE team_id = $1 AND id = 'c1'")).toBe(1);
+      expect(await count('SELECT count(*) FROM admin_private.commits WHERE team_id = $1')).toBe(1);
+      // 过期回执由之后的普通写事务顺手清掉：下一条命令就删除了上传那条过期回执
+      await op({ type: 'task', id: 't0', name: 'T0', expectedHead: null });
+      expect(
+        await count(
+          `SELECT count(*) FROM admin_private.operations WHERE team_id = $1 AND operation_id = '${upload.operationId}'`
+        )
+      ).toBe(0);
+      // 有界清理：积压 25 条过期回执，每个写事务最多清理 receiptSweepLimit 条，最旧的先清
+      for (let index = 1; index < 24; index++)
+        await op({ type: 'task', id: `t${index}`, name: `T${index}`, expectedHead: null });
+      await age('true');
+      const expired = 'SELECT count(*) FROM admin_private.operations WHERE team_id = $1 AND at <= $2';
+      const expiredCount = async () =>
+        Number((await pool.query(expired, [seed.teamId, Date.now() - receiptRetentionMs])).rows[0].count);
+      expect(await expiredCount()).toBe(25);
+      await op({ type: 'task', id: 'sweep-1', name: 'Sweep', expectedHead: null });
+      expect(await expiredCount()).toBe(25 - receiptSweepLimit);
+      await op({ type: 'task', id: 'sweep-2', name: 'Sweep', expectedHead: null });
+      expect(await expiredCount()).toBe(0);
+      expect(await count('SELECT count(*) FROM admin_private.operations WHERE team_id = $1')).toBe(2);
+    } finally {
+      await removeWorkspace(seed);
+    }
+  }, 60000);
+
+  it('serves a summary whose size does not depend on how many commits the workspace holds', async () => {
+    const summaryBytes = async (commits: number) => {
+      const { seed, op } = await freshWorkspace(`summary-${commits}`);
+      try {
+        await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+        let head: string | null = null;
+        let content: Records = {};
+        let serialNumber = 0;
+        for (const size of [commits / 2, commits / 2]) {
+          const batch: Commit[] = [];
+          for (let index = 0; index < size; index++) {
+            const id = `r${serialNumber++}`;
+            const next: Records = { ...content, [id]: { entity: 'AssetCategory', fields: { name: id } } };
+            batch.push(await signed(uuidv7(), batch.at(-1)?.id ?? head, content, next));
+            content = next;
+          }
+          await op({ type: 'upload', taskId: 'task', expectedHead: head, commits: batch });
+          head = batch.at(-1)!.id;
+        }
+        await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
+        await op(comment('pr', 'Size'));
+        return Buffer.byteLength(JSON.stringify(await repository.read(admin, seed.teamId, seed.appId)));
+      } finally {
+        await removeWorkspace(seed);
+      }
+    };
+    const few = await summaryBytes(10);
+    const many = await summaryBytes(200);
+    expect(many).toBeLessThan(50_000);
+    expect(Math.abs(many - few)).toBeLessThan(100);
+  }, 60000);
+
+  /** 一个记录每条 SQL 与参数的连接池：命令事务与只读查询都经它执行，用来对实际发出的查询做执行计划检查。 */
+  function recordingPool(statements: { sql: string; params: unknown[] }[]): pg.Pool {
+    const recorded =
+      (target: { query: (...values: unknown[]) => unknown }) =>
+      (...args: unknown[]) => {
+        if (typeof args[0] === 'string') statements.push({ sql: args[0], params: (args[1] as unknown[]) ?? [] });
+        return target.query(...args);
+      };
+    return {
+      connect: async () => {
+        const client = await pool.connect();
+        return new Proxy(client, {
+          get(target, property) {
+            if (property === 'query') return recorded(target as never);
+            const value: unknown = Reflect.get(target, property);
+            return typeof value === 'function' ? (value as (...values: unknown[]) => unknown).bind(target) : value;
+          }
+        });
+      },
+      query: recorded(pool as never)
+    } as unknown as pg.Pool;
+  }
+  interface PlanNode {
+    'Node Type': string;
+    'Relation Name'?: string;
+    'Index Name'?: string;
+    Plans?: PlanNode[];
+  }
+  const flatten = (node: PlanNode): PlanNode[] => [node, ...(node.Plans ?? []).flatMap(flatten)];
+  /** 关掉顺序扫描再取执行计划：还剩顺序扫描说明没有能用的索引。 */
+  async function planOf(sql: string, params: unknown[]): Promise<PlanNode[]> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SET LOCAL enable_seqscan = off');
+      const result = await client.query<{ 'QUERY PLAN': { Plan: PlanNode }[] }>(`EXPLAIN (FORMAT JSON) ${sql}`, params);
+      return flatten(result.rows[0]['QUERY PLAN'][0].Plan);
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
+    }
+  }
+
+  it('lists my workspaces and the members of a workspace through indexes, never scanning the membership table', async () => {
+    const { seed } = await freshWorkspace('indexed-members');
+    try {
+      const statements: { sql: string; params: unknown[] }[] = [];
+      const recording = new CollaborationRepository(recordingPool(statements));
+      const mine = await recording.list(admin);
+      expect(mine).toContainEqual({ teamId: seed.teamId, appId: seed.appId, name: input.name });
+      const listing = statements.filter(statement => /admin_private\.memberships\b/.test(statement.sql));
+      expect(listing).toHaveLength(1);
+      const listPlan = await planOf(listing[0].sql, listing[0].params);
+      expect(listPlan.filter(node => node['Node Type'] === 'Seq Scan').map(node => node['Relation Name'])).toEqual([]);
+      expect(listPlan.map(node => node['Index Name'])).toContain('memberships_user');
+
+      statements.length = 0;
+      await recording.read(admin, seed.teamId, seed.appId);
+      const members = statements.filter(statement => /admin_private\.memberships\b/.test(statement.sql));
+      expect(members.length).toBeGreaterThan(0);
+      for (const statement of members) {
+        const plan = await planOf(statement.sql, statement.params);
+        expect(
+          plan.filter(node => node['Node Type'] === 'Seq Scan' && node['Relation Name'] === 'memberships')
+        ).toEqual([]);
+        expect(plan.map(node => node['Index Name'])).toContain('memberships_pkey');
+      }
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
 });

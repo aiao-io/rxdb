@@ -51,21 +51,38 @@ function liveSql(sql) {
     child.stdin.end(sql);
   });
 }
+/**
+ * 把临时库里这个工作区的治理行、成员读取权限与版本行同步到隔离 Supabase CI 数据库，
+ * 让 Realtime 按 RLS 向可读成员推送版本通知；业务数据不同步。
+ */
 async function publishVersion(teamId, appId) {
-  const { rows } = await pool.query('SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2', [
-    teamId,
-    appId
-  ]);
-  const state = rows[0].state;
+  const { rows } = await pool.query(
+    `SELECT w.name,
+       (SELECT json_agg(json_build_object('id', m.user_id, 'email', m.email, 'permissions', m.permissions,
+          'generation', m.generation, 'active', m.active) ORDER BY m.seq)
+        FROM admin_private.memberships m WHERE m.team_id = w.team_id AND m.app_id = w.app_id) AS members,
+       v.revision, v.audit_count
+     FROM admin_private.workspaces w
+     JOIN public.admin_workspace_versions v ON v.team_id = w.team_id AND v.app_id = w.app_id
+     WHERE w.team_id = $1 AND w.app_id = $2`,
+    [teamId, appId]
+  );
   const marker = `$fixture_${randomUUID().replaceAll('-', '')}$`;
-  const data = `${marker}${JSON.stringify(state)}${marker}::jsonb`;
+  const data = `${marker}${JSON.stringify({ teamId, appId, ...rows[0] })}${marker}::jsonb`;
   await liveSql(`BEGIN;
-    INSERT INTO admin_private.workspaces(team_id, app_id, state) SELECT value->>'teamId', value->>'appId', '{}'::jsonb FROM (SELECT ${data} AS value) input ON CONFLICT DO NOTHING;
-    INSERT INTO admin_private.memberships(team_id, app_id, user_id, can_read)
-    SELECT state->>'teamId', state->>'appId', value->>'id', (value->>'active')::boolean AND (value->'permissions' ? 'read') FROM (SELECT ${data} AS state) input, jsonb_each(state->'members')
-    ON CONFLICT (team_id, app_id, user_id) DO UPDATE SET can_read = EXCLUDED.can_read;
-    INSERT INTO public.admin_workspace_versions(team_id, app_id, revision) SELECT value->>'teamId', value->>'appId', (value->>'revision')::bigint FROM (SELECT ${data} AS value) input
-    ON CONFLICT (team_id, app_id) DO UPDATE SET revision = EXCLUDED.revision;
+    INSERT INTO admin_private.workspaces(team_id, app_id, name)
+    SELECT value->>'teamId', value->>'appId', value->>'name' FROM (SELECT ${data} AS value) input ON CONFLICT DO NOTHING;
+    INSERT INTO admin_private.memberships(team_id, app_id, user_id, email, permissions, generation, active)
+    SELECT state->>'teamId', state->>'appId', member->>'id', member->>'email',
+      ARRAY(SELECT jsonb_array_elements_text(member->'permissions')), (member->>'generation')::integer,
+      (member->>'active')::boolean
+    FROM (SELECT ${data} AS state) input, jsonb_array_elements(state->'members') member
+    ON CONFLICT (team_id, app_id, user_id) DO UPDATE SET email = EXCLUDED.email, permissions = EXCLUDED.permissions,
+      generation = EXCLUDED.generation, active = EXCLUDED.active;
+    INSERT INTO public.admin_workspace_versions(team_id, app_id, revision, audit_count)
+    SELECT value->>'teamId', value->>'appId', (value->>'revision')::bigint, (value->>'audit_count')::bigint
+    FROM (SELECT ${data} AS value) input
+    ON CONFLICT (team_id, app_id) DO UPDATE SET revision = EXCLUDED.revision, audit_count = EXCLUDED.audit_count;
     COMMIT;`);
 }
 const servers = [];

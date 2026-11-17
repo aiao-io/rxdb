@@ -64,6 +64,29 @@ describe('authenticated HTTP client', () => {
       '/api/workspaces/team%2Fone/assets/audit?threadId=thread-1'
     ]);
   });
+  it('reads commit history pages for the shared branch, a task or a pull request with only the parameters that are set', async () => {
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ commits: [], nextBefore: null })));
+    vi.stubGlobal('fetch', fetcher);
+    const token = vi.fn().mockResolvedValue('verified-token');
+    const api = new CollaborationApi('/api', token);
+    await expect(api.history(workspace, { branch: 'shared' })).resolves.toEqual({ commits: [], nextBefore: null });
+    await api.history(workspace, { branch: 'shared', before: 'merge/2', limit: 20 });
+    await api.history(workspace, { prId: 'pr 1' });
+    await api.history(workspace, { taskId: 'task-1', before: undefined });
+    expect(fetcher.mock.calls.map(([target]) => target as string)).toEqual([
+      '/api/workspaces/team%2Fone/assets/history?branch=shared',
+      '/api/workspaces/team%2Fone/assets/history?branch=shared&before=merge%2F2&limit=20',
+      '/api/workspaces/team%2Fone/assets/history?prId=pr+1',
+      '/api/workspaces/team%2Fone/assets/history?taskId=task-1'
+    ]);
+    for (const [, options] of fetcher.mock.calls)
+      expect(options).toMatchObject({
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Authorization: 'Bearer verified-token' }
+      });
+    expect(token).toHaveBeenCalledTimes(4);
+  });
   it('surfaces structured read failures such as an unknown id', async () => {
     vi.stubGlobal(
       'fetch',

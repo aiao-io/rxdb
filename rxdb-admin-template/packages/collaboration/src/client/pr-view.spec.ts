@@ -10,6 +10,7 @@ const commit = (id: string, parent: string | null, name: string): CommitContent 
   parent,
   authorId: 'u1',
   message: id,
+  changes: [],
   records: records(name)
 });
 const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
@@ -60,7 +61,12 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
   const failures: unknown[] = [];
   const run = vi.fn().mockResolvedValue({});
   const requested: string[] = [];
+  const branches: unknown[] = [];
+  const calls: string[] = [];
   const store = {
+    // 分页接口按从新到旧返回 PR 来源任务在起点之后的提交
+    history: { commits: [metadata(commit('source', 'base', 'Source'))], hasEarlier: false } as
+      { commits: ReturnType<typeof metadata>[]; hasEarlier: boolean } | undefined,
     commits: {} as Record<string, CommitContent>,
     candidates: {} as Record<string, Candidate>,
     shared: undefined as Records | undefined,
@@ -88,6 +94,13 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
       requested.push(`thread:${id}`);
       return store.threads[id];
     },
+    commitHistory: (branch: unknown) => {
+      branches.push(branch);
+      return store.history;
+    },
+    loadEarlierCommits: vi.fn(async (branch: unknown) => {
+      calls.push(`earlier-commits:${JSON.stringify(branch)}`);
+    }),
     snapshot: {
       head: target,
       policy: { version: 1, stages: [] },
@@ -96,11 +109,6 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
         { id: 'u1', email: 'u1@example.test', permissions: ['read', 'edit', 'merge', 'comment'], generation: 1 }
       ],
       tasks: [{ id: 't', name: 'Task', ownerId: 'u1', base, head: 'source', originTaskId: null }],
-      commits: {
-        base: metadata(commit('base', null, 'Base')),
-        source: metadata(commit('source', 'base', 'Source')),
-        target: metadata(commit('target', 'base', 'Target'))
-      },
       prs: [
         {
           id: 'pr',
@@ -145,7 +153,7 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
     store.shared = records('Target');
     store.candidates = { cand: { ...candidateSummary, base, target, records: records('Final') } };
   };
-  return { view, draw, run, failures, requested, store, open, reveal, buttons, loadAll };
+  return { view, draw, run, failures, requested, branches, calls, store, open, reveal, buttons, loadAll };
 }
 const details = (root: Element, disclosure: string) =>
   [...root.querySelectorAll('details')].find(node => node.dataset['disclosureKey'] === disclosure)!;
@@ -285,6 +293,45 @@ describe('提交历史按展开按需渲染', () => {
     const reveal = vi.fn();
     item.addEventListener('toggle', reveal);
     expect(reveal).not.toHaveBeenCalled();
+  });
+  it('提交页签按 PR 分页读取来源任务的提交，从新到旧列出', () => {
+    const { draw, view, store, branches } = setup();
+    view.tab = 'commits';
+    store.history = {
+      commits: [metadata(commit('second', 'source', 'Second')), metadata(commit('source', 'base', 'Source'))],
+      hasEarlier: false
+    };
+    const keys = [...draw().querySelectorAll('details')]
+      .map(node => node.dataset['disclosureKey'])
+      .filter(key => key?.startsWith('source-commit:'));
+    expect(keys).toEqual(['source-commit:second', 'source-commit:source']);
+    expect(branches).toContainEqual({ prId: 'pr' });
+    expect(branches.every(branch => JSON.stringify(branch) === '{"prId":"pr"}')).toBe(true);
+  });
+  it('提交还没读到时显示占位，历史候选照常显示', () => {
+    const { draw, view, store } = setup();
+    view.tab = 'commits';
+    store.history = undefined;
+    const root = draw();
+    const panel = root.querySelector('#pr-panel')!;
+    expect(panel.querySelector('[data-loading]')).not.toBeNull();
+    expect(panel.querySelector('details[data-disclosure-key^="source-commit:"]')).toBeNull();
+    expect(details(root, 'candidate-history:pr')).toBeDefined();
+  });
+  it('有更早的提交时在提交列表末尾提供「加载更早的提交」，点击读取下一页', async () => {
+    const { draw, view, store, buttons, calls } = setup();
+    view.tab = 'commits';
+    store.history = { ...store.history!, hasEarlier: true };
+    const root = draw();
+    const [load] = buttons(root, '加载更早的提交');
+    expect(load).toBeDefined();
+    expect(load.previousElementSibling).toBe(details(root, 'source-commit:source'));
+    expect(load.nextElementSibling).toBe(details(root, 'candidate-history:pr'));
+    load.click();
+    await flush();
+    expect(calls).toEqual(['earlier-commits:{"prId":"pr"}']);
+    store.history = { ...store.history!, hasEarlier: false };
+    expect(buttons(draw(), '加载更早的提交')).toHaveLength(0);
   });
   it('历史候选折叠时不生成子项；展开后每个候选按各自的展开状态加载内容', () => {
     const { draw, view, open, requested, store, loadAll } = setup({ candidate: true });

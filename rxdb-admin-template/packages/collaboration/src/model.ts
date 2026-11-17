@@ -58,9 +58,30 @@ export interface Commit {
 export type CommitMeta = Omit<Commit, 'changes'>;
 /** 提交摘要：只含元数据，不含变更内容与指纹；内容经 `GET .../commits/:id` 按需读取，提交不可变，客户端可按 ID 长期缓存。 */
 export type CommitSummary = Omit<Commit, 'changes' | 'fingerprint'>;
-/** 提交的完整内容，即 `GET .../commits/:id` 的响应：元数据加上该提交时刻的整份记录（服务端由变更推导）。 */
+/**
+ * 提交的完整内容，即 `GET .../commits/:id` 的响应：元数据、该提交自身的字段级变更（相对父提交，取自变更表），
+ * 以及该提交时刻的整份记录（服务端由变更推导）。合并提交的 `changes` 就是这次合并对共享数据的改动。
+ */
 export interface CommitContent extends CommitSummary {
+  changes: ChangeSet[];
   records: Records;
+}
+/**
+ * 提交历史分页的查询，即 `GET .../history` 的参数：共享分支（`branch: 'shared'`）、某个任务分支（`taskId`）
+ * 或某个 PR 的来源任务（`prId`），三者恰好取一。任务分支从任务头走到它的共同起点（不含）。
+ * `before` 是上一页的 `nextBefore`，从它的父提交接着往前读。
+ */
+export interface HistoryQuery {
+  branch?: 'shared';
+  taskId?: string;
+  prId?: string;
+  before?: string;
+  limit?: number;
+}
+/** 提交历史的一页：`commits` 从新到旧，只含元数据；还有更早的提交时 `nextBefore` 是本页最旧提交的 ID，否则为 null。 */
+export interface CommitPage {
+  commits: CommitSummary[];
+  nextBefore: string | null;
 }
 /** 任务：成员私有的工作分支。`base` 是创建时的共享版本，`head` 是已同步到服务端的最新提交，`originTaskId` 指向另存前的原任务。 */
 export interface Task {
@@ -233,17 +254,26 @@ export interface Audit {
   at: number;
   details: Record<string, unknown>;
 }
-/** 幂等回执：同一 `operationId` 重复提交时原样返回已记录的结果；`fingerprint` 用于拒绝换参数复用同一标识。 */
+/**
+ * 幂等回执：同一 `operationId` 在保留期（{@link receiptRetentionMs}）内重复提交时原样返回已记录的结果；
+ * `fingerprint` 用于拒绝换参数复用同一标识，`at` 是记录回执的时间，过期回执由写事务分批清理。
+ */
 export interface Receipt {
   operationId: string;
   actorId: string;
   fingerprint: string;
   value: Record<string, unknown>;
+  at: number;
 }
 /**
- * 服务端持久化的工作区状态（一个团队下的一个应用）：成员、任务、PR、审核、讨论、回执与审计，
- * 以及共享分支的头提交 `head`。提交与共享记录不在其中：提交（元数据与字段级变更）存在提交表，
- * 共享记录按记录物化在共享记录表，工作区行的体积因此不随提交数与记录数增长。
+ * 幂等回执的保留期：30 天。期内用原操作 ID 重试返回原结果；过期后同一 ID 按新请求处理，
+ * 提交仍按提交 ID 去重，不会重复建提交。客户端超过保留期仍未确认的请求不再自动重试，交给用户确认。
+ */
+export const receiptRetentionMs = 30 * 86_400_000;
+/**
+ * 引擎眼里的工作区状态（一个团队下的一个应用）：成员、任务、PR、审核、讨论、回执与审计，以及共享分支的头提交 `head`。
+ * 它是逻辑视图，不是一行数据：持久化时各集合分表存放，命令只按需加载并加锁它涉及的那几行，
+ * 交给引擎的是只含这些行的局部状态；提交与共享记录另在提交表与共享记录表。
  */
 export interface Workspace {
   teamId: string;
@@ -271,6 +301,8 @@ export interface Workspace {
 export const auditSummarySize = 50;
 /** 审计分页的每页条数：不传 `limit` 时取 `default`，超过 `maximum` 的请求被拒绝。 */
 export const auditPageSize = { default: 50, maximum: 100 } as const;
+/** 提交历史分页的每页条数：不传 `limit` 时取 `default`，超过 `maximum` 的请求被拒绝。 */
+export const historyPageSize = { default: 50, maximum: 100 } as const;
 /** 一个审批阶段的当前进度：已有效批准的人数与是否达到所需人数。 */
 export interface StageProgress {
   id: string;
@@ -289,14 +321,15 @@ export interface Governance {
 export type InvitationSummary = Omit<Invitation, 'tokenHash'>;
 /**
  * 工作区摘要，即 `GET /workspaces/:teamId/:appId` 的响应：只含成员、任务、PR、审核、讨论、通知等元数据，
- * 体积不随记录数增长。提交与候选的记录、共享分支数据与完整审计都不在其中，需分别经
- * `GET .../records`、`.../commits/:id`、`.../candidates/:id`、`.../audit` 按需读取。
+ * 体积不随记录数与提交数增长。提交元数据、提交与候选的记录、共享分支数据与完整审计都不在其中，需分别经
+ * `GET .../history`、`.../records`、`.../commits/:id`、`.../candidates/:id`、`.../audit` 按需读取。
  * 仅返回该用户可见的内容：通知只含本人的，`invitations` 只对有 manage 权限者非空。
  */
 export interface WorkspaceSummary {
   teamId: string;
   appId: string;
   name: string;
+  /** 工作区修订号：每条改变状态的命令提交时加一，与摘要内容取自同一份已提交快照。 */
   revision: number;
   schemaVersion: number;
   /** 共享分支的头提交；共享数据以它为版本，头变化后需重新读取。 */
@@ -304,7 +337,6 @@ export interface WorkspaceSummary {
   policy: Policy;
   members: Member[];
   tasks: Task[];
-  commits: Record<string, CommitSummary>;
   prs: PullRequest[];
   candidates: Record<string, CandidateSummary>;
   reviews: Review[];

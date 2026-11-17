@@ -16,8 +16,7 @@ const data = snapshot(
     { now: 1, id: () => 'id' }
   ),
   user,
-  1,
-  {}
+  1
 );
 const repository: RepositoryApi = {
   list: vi.fn(async () => []),
@@ -25,10 +24,21 @@ const repository: RepositoryApi = {
   operation: vi.fn(async () => ({ head: 'head' })),
   receipt: vi.fn(async () => ({ status: 'unknown' })),
   readRecords: vi.fn(async () => ({ head: null, records: {} })),
-  readCommit: vi.fn(async () => ({ id: 'c1', parent: null, authorId: 'user', message: 'First', records: {} })),
+  readCommit: vi.fn(async () => ({
+    id: 'c1',
+    parent: null,
+    authorId: 'user',
+    message: 'First',
+    changes: [],
+    records: {}
+  })),
   readCandidate: vi.fn(async () => {
     throw new CollaborationError('not_found', '候选不存在');
   }),
+  readHistory: vi.fn(async () => ({
+    commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
+    nextBefore: null
+  })),
   readAudit: vi.fn(async () => ({ events: [], nextBefore: null }))
 };
 const authenticate = vi.fn(async (token: string) => {
@@ -195,6 +205,45 @@ describe('on-demand read routes', () => {
     expect(repository.read).not.toHaveBeenCalled();
     expect(repository.operation).not.toHaveBeenCalled();
   });
+  it('serves commit history pages by branch, task or PR, with paging parameters parsed and validated', async () => {
+    const page = await get('/workspaces/team/assets/history?branch=shared');
+    expect(page.status).toBe(200);
+    expect(await page.json()).toEqual({
+      commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
+      nextBefore: null
+    });
+    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', { branch: 'shared' });
+    await get('/workspaces/team/assets/history?taskId=task-1&before=c9&limit=20');
+    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', {
+      taskId: 'task-1',
+      before: 'c9',
+      limit: 20
+    });
+    await get('/collaboration-api/workspaces/team/assets/history?prId=pr%2D1');
+    expect(repository.readHistory).toHaveBeenLastCalledWith(user, 'team', 'assets', { prId: 'pr-1' });
+    expect(repository.read).not.toHaveBeenCalled();
+    expect(repository.operation).not.toHaveBeenCalled();
+  });
+  it('rejects history queries without exactly one branch selector or with malformed parameters', async () => {
+    for (const query of [
+      '',
+      'branch=main',
+      'branch=shared&taskId=t',
+      'taskId=t&prId=p',
+      'branch=shared&branch=shared',
+      'branch=shared&limit=x',
+      'branch=shared&limit=1000',
+      'taskId=a%20b',
+      'before=c1',
+      'branch=shared&threadId=t'
+    ]) {
+      const response = await get(`/workspaces/team/assets/history?${query}`);
+      expect(response.status, query).toBe(409);
+      expect(await response.json(), query).toEqual({ error: 'invalid', message: '请求字段不合法', details: {} });
+    }
+    expect(repository.readHistory).not.toHaveBeenCalled();
+    expect((await fetch(`${url}/workspaces/team/assets/history?branch=shared`)).status).toBe(401);
+  });
   it('passes audit filters and paging parameters through, parsed and validated', async () => {
     await get('/workspaces/team/assets/audit?before=event-1&limit=20&prId=pr-1&threadId=thread_1');
     expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {
@@ -252,12 +301,21 @@ describe('on-demand read routes', () => {
   });
   it('treats other methods, extra segments and unknown resources as unknown endpoints', async () => {
     const headers = { authorization: 'Bearer valid', 'content-type': 'application/json' };
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history']) {
       const response = await fetch(`${url}/workspaces/team/assets/${path}`, { method: 'POST', headers, body: '{}' });
       expect(response.status, path).toBe(409);
       expect(await response.json(), path).toMatchObject({ error: 'not_found' });
     }
-    for (const path of ['records/x', 'commits', 'commits/c1/x', 'candidates', 'audit/x', 'unknown', 'unknown/x']) {
+    for (const path of [
+      'records/x',
+      'commits',
+      'commits/c1/x',
+      'candidates',
+      'audit/x',
+      'history/x',
+      'unknown',
+      'unknown/x'
+    ]) {
       const response = await get(`/workspaces/team/assets/${path}`);
       expect(response.status, path).toBe(409);
       expect(await response.json(), path).toMatchObject({ error: 'not_found' });
@@ -265,6 +323,7 @@ describe('on-demand read routes', () => {
     expect(repository.readRecords).not.toHaveBeenCalled();
     expect(repository.readCommit).not.toHaveBeenCalled();
     expect(repository.readAudit).not.toHaveBeenCalled();
+    expect(repository.readHistory).not.toHaveBeenCalled();
   });
   it('allows the read methods in CORS preflight', async () => {
     const response = await fetch(`${url}/workspaces/team/assets/records`, {
@@ -285,6 +344,7 @@ function memoryRepository(workspace: MemoryWorkspace): RepositoryApi {
     readRecords: async actor => workspace.records(actor),
     readCommit: async (actor, _team, _app, id) => workspace.commit(actor, id),
     readCandidate: async (actor, _team, _app, id) => workspace.candidate(actor, id),
+    readHistory: async (actor, _team, _app, query) => workspace.history(actor, query),
     readAudit: async (actor, _team, _app, query) => auditPage(workspace.state, actor, query)
   };
 }
@@ -349,8 +409,24 @@ describe('on-demand reads over the engine', () => {
     expect(events.events.map(event => event.action)).toEqual(['upload', 'task']);
     expect(events.nextBefore).not.toBeNull();
   });
+  it('serves the task history to members and paging limits are enforced by the engine', async () => {
+    const history = await fetchAs('user', '/workspaces/team/assets/history?taskId=task');
+    expect(history.status).toBe(200);
+    expect(await history.json()).toEqual({
+      commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
+      nextBefore: null
+    });
+    expect(await (await fetchAs('user', '/workspaces/team/assets/history?branch=shared')).json()).toEqual({
+      commits: [],
+      nextBefore: null
+    });
+    const unknown = await fetchAs('user', '/workspaces/team/assets/history?taskId=missing');
+    expect(await unknown.json()).toMatchObject({ error: 'not_found', message: '任务不存在' });
+    const tooMany = await fetchAs('user', '/workspaces/team/assets/history?taskId=task&limit=101');
+    expect(await tooMany.json()).toMatchObject({ error: 'invalid' });
+  });
   it('answers non-members with 403 and no content for every read', async () => {
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit']) {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history?branch=shared']) {
       const response = await fetchAs(outsider.id, `/workspaces/team/assets/${path}`);
       expect(response.status, path).toBe(403);
       const text = await response.text();

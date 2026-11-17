@@ -5,6 +5,8 @@ import type {
   Candidate,
   Commit,
   CommitContent,
+  CommitPage,
+  HistoryQuery,
   Identity,
   Records,
   Resolution,
@@ -21,6 +23,7 @@ export interface HistoryDriver {
   records(): Promise<SharedRecords>;
   commit(id: string): Promise<CommitContent>;
   candidate(id: string): Promise<Candidate>;
+  history(query: HistoryQuery): Promise<CommitPage>;
 }
 /** 一次回放的统计，供用例确认场景确实覆盖了合并、冲突与长链。 */
 export interface HistoryStats {
@@ -115,6 +118,8 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
   const snapshots = new Map<string, Records>();
   let shared: Records = {};
   let head: string | null = null;
+  /** 共享分支上的合并提交，从新到旧。 */
+  const mergeHeads: string[] = [];
   const content = (id: string | null): Records => (id === null ? {} : snapshots.get(id)!);
   const tasks: Task[] = [];
   const author = (await driver.summary()).members[0].id;
@@ -180,12 +185,19 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
     stats.commits++;
     stats.forks++;
   };
-  /** 任务自共同起点以来的提交 ID，由旧到新。 */
+  /** 任务自共同起点以来的提交 ID，由旧到新：经提交历史分页逐页读取（每页 2 个，顺带覆盖翻页），再与本地记下的父链核对。 */
   const chainOf = async (task: Task) => {
-    const summary = await driver.summary();
     const chain: string[] = [];
-    for (let cursor = task.head; cursor !== null && cursor !== task.base; cursor = summary.commits[cursor].parent)
-      chain.unshift(cursor);
+    let before: string | undefined;
+    do {
+      const page = await driver.history({ taskId: task.id, limit: 2, ...(before ? { before } : {}) });
+      chain.unshift(...page.commits.map(commit => commit.id).reverse());
+      before = page.nextBefore ?? undefined;
+    } while (before);
+    const expected: string[] = [];
+    for (let cursor = task.head; cursor !== null && cursor !== task.base; cursor = sealed.get(cursor)!.parent)
+      expected.unshift(cursor);
+    expect(chain).toEqual(expected);
     return chain;
   };
   const resolutionsFor = (conflicts: Candidate['conflicts']): Resolution[] =>
@@ -243,16 +255,29 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
       expectedTarget: candidate.target
     });
     head = String(merged['head']);
+    mergeHeads.unshift(head);
     shared = structuredClone(candidate.records);
     snapshots.set(head, structuredClone(shared));
     tasks.splice(tasks.indexOf(task), 1);
     stats.merges++;
   };
-  /** 共享记录与已知的每个提交的内容，都必须等于旧实现里各自存的全量快照。 */
+  /** 共享分支的提交历史（逐页读取，每页 3 个），从新到旧。 */
+  const sharedHistory = async () => {
+    const ids: string[] = [];
+    let before: string | undefined;
+    do {
+      const page = await driver.history({ branch: 'shared', limit: 3, ...(before ? { before } : {}) });
+      ids.push(...page.commits.map(commit => commit.id));
+      before = page.nextBefore ?? undefined;
+    } while (before);
+    return ids;
+  };
+  /** 共享记录、共享分支的历史与已知的每个提交的内容，都必须等于旧实现里各自存的全量快照与合并顺序。 */
   const verify = async () => {
     const records = await driver.records();
     expect(records.head).toBe(head);
     expect(canonical(records.records)).toBe(canonical(shared));
+    expect(await sharedHistory()).toEqual(mergeHeads);
     for (const [id, snapshot] of snapshots)
       expect(canonical((await driver.commit(id)).records), `commit ${id}`).toBe(canonical(snapshot));
   };

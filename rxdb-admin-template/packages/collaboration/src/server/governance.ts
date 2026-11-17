@@ -307,6 +307,8 @@ function merge(
   const head = env.id();
   const changedIds = [...new Set(candidate.changes.map(change => change.entityId))];
   const changes = changedIds.map(id => ({ id, before: rowAt(target, id) ?? null, after: rowAt(final, id) ?? null }));
+  // 逐记录的前后值只进变更日志（admin_changes），命令结果、回执与审计详情不再带它们
+  run.effects.log = { head, records: structuredClone(changes) };
   run.effects.commits.push({
     id: head,
     parent: state.head,
@@ -325,7 +327,6 @@ function merge(
   pr.revision++;
   return {
     head,
-    changes,
     prId: pr.id,
     candidateId: candidate.id,
     source: candidate.source,

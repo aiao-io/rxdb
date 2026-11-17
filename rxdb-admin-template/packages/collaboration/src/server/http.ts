@@ -1,11 +1,20 @@
 import { createHash } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { CollaborationError, demand, type Identity } from '../model.js';
-import { parseAuditQuery, parseCommand } from './input.js';
+import { parseAuditQuery, parseCommand, parseHistoryQuery } from './input.js';
 import type { CollaborationRepository } from './repository.js';
+/** HTTP 层用到的仓储接口：命令写入，以及摘要、共享记录、提交、候选、提交历史、审计与回执的只读查询。 */
 export type RepositoryApi = Pick<
   CollaborationRepository,
-  'list' | 'read' | 'readRecords' | 'readCommit' | 'readCandidate' | 'readAudit' | 'receipt' | 'operation'
+  | 'list'
+  | 'read'
+  | 'readRecords'
+  | 'readCommit'
+  | 'readCandidate'
+  | 'readHistory'
+  | 'readAudit'
+  | 'receipt'
+  | 'operation'
 >;
 interface ServerOptions {
   repository: RepositoryApi;
@@ -97,7 +106,7 @@ async function route(request: IncomingMessage, path: string[], user: Identity, r
   return repository.operation(user, teamId, appId, command);
 }
 /**
- * 只读接口：工作区摘要，以及按需读取的共享记录、提交、候选、审计分页与回执。
+ * 只读接口：工作区摘要，以及按需读取的共享记录、提交、候选、提交历史分页、审计分页与回执。
  * 全部不加锁、不写库，授权由仓储按读权限裁决。
  */
 function readRoute(
@@ -107,12 +116,13 @@ function readRoute(
   repository: RepositoryApi
 ): Promise<unknown> {
   const [, teamId, appId, resource, id] = path;
+  const search = () => new URL(request.url ?? '/', 'http://localhost').searchParams;
   if (path.length === 3) return repository.read(user, teamId, appId);
   if (path.length === 4 && resource === 'records') return repository.readRecords(user, teamId, appId);
-  if (path.length === 4 && resource === 'audit') {
-    const query = parseAuditQuery(new URL(request.url ?? '/', 'http://localhost').searchParams);
-    return repository.readAudit(user, teamId, appId, query);
-  }
+  if (path.length === 4 && resource === 'audit')
+    return repository.readAudit(user, teamId, appId, parseAuditQuery(search()));
+  if (path.length === 4 && resource === 'history')
+    return repository.readHistory(user, teamId, appId, parseHistoryQuery(search()));
   if (path.length === 5 && resource === 'commits') return repository.readCommit(user, teamId, appId, id);
   if (path.length === 5 && resource === 'candidates') return repository.readCandidate(user, teamId, appId, id);
   if (path.length === 5 && resource === 'receipts') return repository.receipt(user, teamId, appId, id);

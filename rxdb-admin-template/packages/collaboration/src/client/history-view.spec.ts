@@ -1,6 +1,6 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CollaborationError, type Audit, type CommitContent, type Records } from '../model.js';
+import { CollaborationError, type Audit, type ChangeSet, type CommitContent, type Records } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import type { Disclosures } from './disclosure.js';
 import type { Perform } from './elements.js';
@@ -8,11 +8,20 @@ import { FormDrafts } from './form-drafts.js';
 import { historyView } from './history-view.js';
 
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
+const rename = (id: string): ChangeSet => ({
+  namespace: 'assets',
+  entity: 'AssetCategory',
+  entityId: 'c',
+  operation: 'update',
+  patch: { name: `Name ${id}` },
+  inversePatch: { name: 'Before' }
+});
 const commit = (id: string, parent: string | null): CommitContent => ({
   id,
   parent,
   authorId: 'u1',
   message: `Message ${id}`,
+  changes: [rename(id)],
   records: records(`Name ${id}`)
 });
 const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
@@ -34,20 +43,34 @@ afterEach(() => {
 });
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
-function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boolean } = {}) {
+function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boolean; commitsEarlier?: boolean } = {}) {
   const calls: string[] = [];
   const failures: unknown[] = [];
   const requested: string[] = [];
-  const store = { commits: {} as Record<string, CommitContent>, failure: undefined as unknown };
+  const branches: unknown[] = [];
+  const store = {
+    commits: {} as Record<string, CommitContent>,
+    failure: undefined as unknown,
+    // 分页接口按从新到旧返回：b 的父提交是 a
+    history: { commits: [metadata(commit('b', 'a')), metadata(commit('a', null))], hasEarlier: false } as
+      { commits: ReturnType<typeof metadata>[]; hasEarlier: boolean } | undefined
+  };
+  if (options.commitsEarlier) store.history!.hasEarlier = true;
   const open = new Set<string>();
   const reveal = vi.fn();
   const controller = {
     user: { id: 'u1', email: 'u1@example.test', verified: true },
     snapshot: {
       auditCount: 6,
-      members: [{ id: 'u1', permissions: options.permissions ?? ['read', 'edit'] }],
-      commits: { a: metadata(commit('a', null)), b: metadata(commit('b', 'a')) }
+      members: [{ id: 'u1', permissions: options.permissions ?? ['read', 'edit'] }]
     },
+    commitHistory: (branch: unknown) => {
+      branches.push(branch);
+      return store.history;
+    },
+    loadEarlierCommits: vi.fn(async (branch: unknown) => {
+      calls.push(`earlier-commits:${JSON.stringify(branch)}`);
+    }),
     auditEvents: () => [event(4), event(5), event(6)],
     hasEarlierAudit: () => options.earlier ?? true,
     loadEarlierAudit: vi.fn(async () => {
@@ -83,7 +106,21 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
     [...root.querySelectorAll('details')].find(node => node.dataset['disclosureKey'] === key)!;
   const button = (root: Element, name: string) =>
     [...root.querySelectorAll('button')].find(node => node.textContent === name);
-  return { controller, perform, editor, draw, details, button, open, reveal, requested, store, calls, failures };
+  return {
+    controller,
+    perform,
+    editor,
+    draw,
+    details,
+    button,
+    open,
+    reveal,
+    requested,
+    branches,
+    store,
+    calls,
+    failures
+  };
 }
 
 describe('历史与审计视图', () => {
@@ -164,6 +201,48 @@ describe('历史与审计视图', () => {
     await flush();
     expect(dirty.failures).toEqual([expect.objectContaining({ message: '先保存当前输入' })]);
     expect(dirty.calls).toEqual([]);
+  });
+  it('共享历史按共享分支分页读取，按时间正序列出：旧的在上', () => {
+    const { draw, branches } = setup();
+    const keys = [...draw().querySelectorAll('details')]
+      .map(node => node.dataset['disclosureKey'])
+      .filter(key => key?.startsWith('shared-commit:'));
+    expect(keys).toEqual(['shared-commit:a', 'shared-commit:b']);
+    expect(branches).toEqual([{ branch: 'shared' }]);
+  });
+  it('第一页还没读到时显示占位，不列出任何提交', () => {
+    const { draw, store } = setup();
+    store.history = undefined;
+    const root = draw();
+    expect(root.querySelector('[data-loading]')).not.toBeNull();
+    expect([...root.querySelectorAll('details')].map(node => node.dataset['disclosureKey'])).toEqual(['audit']);
+  });
+  it('有更早的提交时在提交列表最前面提供「加载更早的提交」，点击读取下一页；没有时不显示', async () => {
+    const { draw, details, button, calls } = setup({ commitsEarlier: true });
+    const root = draw();
+    const load = button(root, '加载更早的提交')!;
+    expect(load).toBeDefined();
+    expect(details(root, 'audit').nextElementSibling).toBe(load);
+    expect(load.nextElementSibling).toBe(details(root, 'shared-commit:a'));
+    load.click();
+    await flush();
+    expect(calls).toEqual(['earlier-commits:{"branch":"shared"}']);
+    expect(button(setup().draw(), '加载更早的提交')).toBeUndefined();
+  });
+  it('展开后在记录表之外列出这个提交的字段级变更：变更类型、记录、字段、合并前、合并后', () => {
+    const { draw, details, open, store } = setup();
+    open.add('shared-commit:b');
+    store.commits['b'] = commit('b', 'a');
+    const tables = [...details(draw(), 'shared-commit:b').querySelectorAll('table')];
+    expect(tables).toHaveLength(2);
+    expect(tables[0].textContent).toContain('Name b');
+    const rows = [...tables[1].querySelectorAll('tr')].map(tr =>
+      [...tr.querySelectorAll('th, td')].map(cell => cell.textContent)
+    );
+    expect(rows).toEqual([
+      ['变更类型', '记录', '字段', '合并前', '合并后'],
+      ['修改', 'c', 'name', 'Before', 'Name b']
+    ]);
   });
   it('没有编辑权限的成员看不到恢复按钮', () => {
     const { draw, details, button } = setup({ permissions: ['read'] });

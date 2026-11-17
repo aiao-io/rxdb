@@ -7,6 +7,7 @@ import {
   type Candidate,
   type Command,
   type CommitContent,
+  type CommitPage,
   type Identity,
   type Records,
   type SharedRecords,
@@ -14,15 +15,33 @@ import {
 } from '../model.js';
 import { CollaborationApi, type WorkspaceEntry } from './api.js';
 import { AuditTimeline } from './audit-timeline.js';
+import { CommitHistory, type HistoryBranch, type HistoryView } from './commit-history.js';
 import { ContentCache } from './content-cache.js';
-import { IndexedDraftStorage, LocalTasks, type Draft, type DraftStorage } from './local.js';
+import {
+  IndexedDraftStorage,
+  LocalTasks,
+  retryWindowPassed,
+  uploadCommand,
+  type Context,
+  type Draft,
+  type DraftStorage,
+  type PendingUpload
+} from './local.js';
 import { WorkspaceFeed, type WorkspacePresenceChange } from './workspace-feed.js';
+
+/** 尚未得到确认的云端请求：所属团队、原请求（含幂等键）与首次发出的时间。 */
+export interface PendingRequest {
+  workspace: WorkspaceEntry;
+  command: Command;
+  createdAt: number;
+}
 
 /**
  * 协作界面的状态与动作中枢：持有认证会话、团队与服务端摘要、本机任务草稿，界面监听 `change` 事件重绘。
- * 摘要不含提交、候选与共享数据的记录，也不含完整审计；这些内容按需读取并缓存，
+ * 摘要不含提交元数据，也不含提交、候选与共享数据的记录和完整审计；这些内容按需读取并缓存（提交历史按分支分页），
  * 同步读取入口未命中时返回 undefined 并在后台加载，加载完成后触发 `change`。
  * 所有云端变更都以带幂等键的命令按队列串行提交；账号、团队或任务上下文切换后，在途请求的结果会被丢弃。
+ * 超过自动重试期限（比服务端回执保留期早一天）仍未确认的请求不再自动重发，交给用户确认或放弃。
  */
 export class CollaborationController extends EventTarget {
   private generation = 0;
@@ -54,6 +73,12 @@ export class CollaborationController extends EventTarget {
   /** 讨论线程的处理历史，工作区修订号变化即丢弃。 */
   private readonly threads = new ContentCache<Audit[]>(
     threadId => this.fetchThreadEvents(threadId),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 提交历史按分支与头提交分页缓存：头变化即从第一页重读。 */
+  private readonly history = new CommitHistory(
+    (branch, before) => this.fetchHistory(branch, before),
     () => this.changed(),
     error => this.contentFailed(error)
   );
@@ -248,14 +273,17 @@ export class CollaborationController extends EventTarget {
     }
     this.changed();
   }
-  /** 读取尚未得到确认的云端请求（刷新页面后仍保留在 sessionStorage）；记录损坏时清理并返回 null。 */
-  pending(): { workspace: WorkspaceEntry; command: Command } | null {
+  /**
+   * 读取尚未得到确认的云端请求（刷新页面后仍保留在 sessionStorage），含首次发出的时间；
+   * 记录损坏（含没有有效的首次发出时间）时清理并返回 null。
+   */
+  pending(): PendingRequest | null {
     if (!this.user) return null;
     const key = `admin-collaboration-pending:${this.user.id}`;
     const value = sessionStorage.getItem(key);
     if (!value) return null;
     try {
-      const pending = JSON.parse(value) as { workspace?: unknown; command?: unknown };
+      const pending = JSON.parse(value) as { workspace?: unknown; command?: unknown; createdAt?: unknown };
       const workspace = pending.workspace as Partial<WorkspaceEntry> | undefined;
       const command = pending.command as Partial<Command> | undefined;
       demand(
@@ -265,29 +293,39 @@ export class CollaborationController extends EventTarget {
           typeof workspace.name === 'string' &&
           !!command &&
           typeof command.type === 'string' &&
-          typeof command.operationId === 'string',
+          typeof command.operationId === 'string' &&
+          typeof pending.createdAt === 'number' &&
+          Number.isFinite(pending.createdAt),
         'invalid',
         '上次请求记录损坏，已清理'
       );
-      return { workspace: workspace as WorkspaceEntry, command: command as Command };
+      return { workspace: workspace as WorkspaceEntry, command: command as Command, createdAt: pending.createdAt };
     } catch {
       sessionStorage.removeItem(key);
       return null;
     }
   }
-  /** 用原幂等键确认或重试上次未得到确认的请求。 */
-  async retryPending(): Promise<void> {
+  /**
+   * 上次未确认的请求是否已超过自动重试期限（比服务端回执保留期早一天）：服务端可能已清理它的回执，
+   * 回执查不到时无法再判断它是否生效，不再自动重发，由用户选择重新发送或放弃。
+   */
+  pendingExpired(): boolean {
     const pending = this.pending();
-    demand(pending && this.user, 'missing', '没有待确认请求');
-    if (pending.command.type === 'accept_invite') {
-      await this.executeCommand(pending.command, pending.command.operationId, pending.workspace);
-      this.workspaces = await this.current(this.api.workspaces());
-      await this.selectWorkspace(pending.workspace);
-      return;
-    }
-    await this.selectWorkspace(pending.workspace);
-    await this.run(pending.command, pending.command.operationId);
-    if (pending.command.type === 'fork') await this.openTask(pending.command.id);
+    return !!pending && retryWindowPassed(pending.createdAt);
+  }
+  /** 用原幂等键确认或重试上次未得到确认的请求；已超过自动重试期限且查不到回执时不重发，抛出 `expired`。 */
+  async retryPending(): Promise<void> {
+    await this.replayPending(false);
+  }
+  /** 用户核对后确认重新发送上次请求：同 {@link CollaborationController.retryPending}，但不再检查自动重试期限。 */
+  async resendPending(): Promise<void> {
+    await this.replayPending(true);
+  }
+  /** 放弃上次未确认的请求：只清掉本机记录，不向服务端发送任何内容。 */
+  discardPending(): void {
+    demand(this.user, 'locked', '先登录并选择团队');
+    sessionStorage.removeItem(`admin-collaboration-pending:${this.user.id}`);
+    this.changed();
   }
   /**
    * 提交一条云端命令并返回结果。变更类命令按队列串行，先查回执再执行，同一幂等键不会重复生效；presence、read_notice、subscribe 不排队。
@@ -298,23 +336,7 @@ export class CollaborationController extends EventTarget {
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
     operationId: string = crypto.randomUUID()
   ): Promise<Record<string, unknown>> {
-    if (['presence', 'read_notice', 'subscribe'].includes(String(command.type)))
-      return this.executeCommand(command, operationId);
-    const epoch = this.generation;
-    const previous = this.mutations?.epoch === epoch ? this.mutations.settled : Promise.resolve();
-    const queued = structuredClone(command);
-    const next = previous.then(() => {
-      demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      return this.executeCommand(queued, operationId);
-    });
-    this.mutations = {
-      epoch,
-      settled: next.then(
-        () => undefined,
-        () => undefined
-      )
-    };
-    return next;
+    return this.enqueue(command, operationId, false);
   }
   /** 用邀请令牌加入团队并选中它。 */
   async acceptInvitation(teamId: string, appId: string, id: string, token: string): Promise<void> {
@@ -376,16 +398,28 @@ export class CollaborationController extends EventTarget {
     this.message = '已保存到本机，尚未同步';
     this.changed();
   }
-  /** 把本机改动形成提交并上传；`unsaved` 为 true（仍有未保存输入）时拒绝，离线时只排队。 */
-  async sync(unsaved: boolean): Promise<void> {
+  /**
+   * 把本机改动形成提交并上传；`unsaved` 为 true（仍有未保存输入）时拒绝，离线时只排队。
+   * 队首待上传提交已超过自动重试期限时不再自动发送（见 {@link CollaborationController.uploadExpired}），
+   * 用户核对远端版本后以 `confirmExpired` 为 true 再同步，才按原幂等键与原提交发送。
+   */
+  async sync(unsaved: boolean, confirmExpired = false): Promise<void> {
     if (this.syncing) return;
     this.syncing = true;
     try {
-      await this.current(this.upload(unsaved));
+      await this.current(this.upload(unsaved, confirmExpired));
     } finally {
       this.syncing = false;
       this.changed();
     }
+  }
+  /**
+   * 当前草稿的队首待上传提交是否已超过自动重试期限（比服务端回执保留期早一天）：服务端可能已清理回执，
+   * 同步时先核对远端任务头，确认不了就交给用户确认后再发送。
+   */
+  uploadExpired(): boolean {
+    const first = this.draft?.queue[0];
+    return !!first && retryWindowPassed(first.createdAt);
   }
   /** 把本机提交另存为新任务并打开；原任务与 PR 保持原远端版本。 */
   async fork(name: string, unsaved: boolean): Promise<void> {
@@ -489,6 +523,20 @@ export class CollaborationController extends EventTarget {
   threadEvents(threadId: string): Audit[] | undefined {
     return this.threads.peek(threadId);
   }
+  /**
+   * 读取一条分支的提交历史（同步，从新到旧）：共享分支以摘要的 `head` 为头，PR 以其来源任务在摘要里的头为头；
+   * 头变化后从第一页重新读取。空分支或任务在起点之后还没有提交时直接返回空列表；
+   * 未命中返回 undefined 并在后台读第一页，读完触发 `change`。还没有摘要或 PR 不在摘要里时返回 undefined。
+   */
+  commitHistory(branch: HistoryBranch): HistoryView | undefined {
+    const head = this.historyHead(branch);
+    return head === undefined ? undefined : this.history.peek(branch, head);
+  }
+  /** 读取分支历史的下一页并接在已加载的提交后面；读取期间头变化或团队切换时丢弃这一页。失败时抛出，由用户操作再试。 */
+  async loadEarlierCommits(branch: HistoryBranch): Promise<void> {
+    const head = this.historyHead(branch);
+    if (head) await this.history.loadEarlier(branch, head);
+  }
   /** 等待提交内容加载完成；失败时抛出，用户操作可以再试。 */
   loadCommit(id: string): Promise<CommitContent> {
     return this.commits.load(id);
@@ -523,7 +571,7 @@ export class CollaborationController extends EventTarget {
     const previous = this.snapshot;
     if (previous?.head !== data.head) this.shared.reset();
     if (previous?.revision !== data.revision) this.threads.reset();
-    for (const cache of [this.commits, this.candidates, this.shared, this.threads]) cache.retry();
+    for (const cache of [this.commits, this.candidates, this.shared, this.threads, this.history]) cache.retry();
     this.snapshot = data;
     this.timeline.accept(data.audit, data.auditCount);
   }
@@ -533,7 +581,59 @@ export class CollaborationController extends EventTarget {
     this.candidates.reset();
     this.shared.reset();
     this.threads.reset();
+    this.history.reset();
     this.timeline.reset();
+  }
+  /**
+   * 分支历史的头：共享分支取摘要的 `head`；PR 取其来源任务的头，任务在起点之后还没有提交（头就是起点）时为 null。
+   * 还没有摘要、或 PR 与任务不在摘要里时为 undefined。
+   */
+  private historyHead(branch: HistoryBranch): string | null | undefined {
+    const data = this.snapshot;
+    if (!data) return undefined;
+    if (!('prId' in branch)) return data.head;
+    const pr = data.prs.find(item => item.id === branch.prId);
+    const task = pr && data.tasks.find(item => item.id === pr.taskId);
+    if (!task) return undefined;
+    return task.head === task.base ? null : task.head;
+  }
+  /** 重放上次未确认的请求；`confirmed` 表示用户已核对并确认重发，不再检查自动重试期限。 */
+  private async replayPending(confirmed: boolean): Promise<void> {
+    const pending = this.pending();
+    demand(pending && this.user, 'missing', '没有待确认请求');
+    if (pending.command.type === 'accept_invite') {
+      await this.executeCommand(pending.command, pending.command.operationId, pending.workspace, confirmed);
+      this.workspaces = await this.current(this.api.workspaces());
+      await this.selectWorkspace(pending.workspace);
+      return;
+    }
+    await this.selectWorkspace(pending.workspace);
+    await this.enqueue(pending.command, pending.command.operationId, confirmed);
+    if (pending.command.type === 'fork') await this.openTask(pending.command.id);
+  }
+  /** 变更类命令进入串行队列，presence、read_notice、subscribe 直接执行；`confirmed` 的含义同 executeCommand。 */
+  private enqueue(
+    command: Omit<Command, 'operationId'> | Record<string, unknown>,
+    operationId: string,
+    confirmed: boolean
+  ): Promise<Record<string, unknown>> {
+    if (['presence', 'read_notice', 'subscribe'].includes(String(command.type)))
+      return this.executeCommand(command, operationId);
+    const epoch = this.generation;
+    const previous = this.mutations?.epoch === epoch ? this.mutations.settled : Promise.resolve();
+    const queued = structuredClone(command);
+    const next = previous.then(() => {
+      demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      return this.executeCommand(queued, operationId, undefined, confirmed);
+    });
+    this.mutations = {
+      epoch,
+      settled: next.then(
+        () => undefined,
+        () => undefined
+      )
+    };
+    return next;
   }
   private activeWorkspace(): WorkspaceEntry {
     demand(this.workspace, 'missing', '先选择团队');
@@ -542,6 +642,19 @@ export class CollaborationController extends EventTarget {
   /** 提交头对应的记录：还没有提交时是空记录，否则等待提交内容加载完成。 */
   private async recordsAt(head: string | null): Promise<Records> {
     return head === null ? {} : (await this.loadCommit(head)).records;
+  }
+  /**
+   * 读取分支历史的一页。第一页必须从摘要里的头开始：读摘要之后分支又前进了，服务端给的就是更新的历史，
+   * 与缓存键（摘要的头）对不上，按「版本已变化」处理，不显示也不提示，等下一次刷新换到新头后再读。
+   */
+  private async fetchHistory(branch: HistoryBranch, before: string | undefined): Promise<CommitPage> {
+    const head = this.historyHead(branch);
+    const page = await this.api.history(
+      this.activeWorkspace(),
+      before === undefined ? { ...branch } : { ...branch, before }
+    );
+    demand(before !== undefined || page.commits[0]?.id === head, 'stale', '版本已变化，请刷新后重试');
+    return page;
   }
   /** 读取共享记录；服务端返回的头已不是摘要的头时按「版本已变化」处理，等下一次刷新后再读。 */
   private async fetchShared(head: string): Promise<SharedRecords> {
@@ -566,10 +679,16 @@ export class CollaborationController extends EventTarget {
     if (error instanceof CollaborationError && error.code === 'stale') return;
     void this.failure(error);
   }
+  /**
+   * 执行一条命令：变更类命令先把原请求与首次发出时间记进 sessionStorage，查回执，已接受就用回执结果，否则发送。
+   * 回执查不到、且这个请求已超过自动重试期限时，服务端可能已清理回执，重发可能让它生效两次（例如重复评论），
+   * 所以不再自动发送，保留记录并抛出 `expired`，由用户核对后选择重新发送（`confirmed` 为 true）或放弃。
+   */
   private async executeCommand(
     command: Omit<Command, 'operationId'> | Record<string, unknown>,
     operationId: string,
-    workspaceOverride?: WorkspaceEntry
+    workspaceOverride?: WorkspaceEntry,
+    confirmed = false
   ): Promise<Record<string, unknown>> {
     demand((workspaceOverride ?? this.workspace) && this.user, 'locked', '先登录并选择团队');
     const workspace = workspaceOverride ?? this.workspace!;
@@ -585,7 +704,9 @@ export class CollaborationController extends EventTarget {
       'pending',
       '先确认或重试上次请求，再执行新的云端变更'
     );
-    if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request }));
+    // 重试同一请求时沿用首次发出的时间，自动重试期限从第一次发出算起
+    const createdAt = previous?.command.operationId === operationId ? previous.createdAt : Date.now();
+    if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request, createdAt }));
     let acknowledged = false;
     try {
       const receipt = readsReceipt ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
@@ -595,6 +716,11 @@ export class CollaborationController extends EventTarget {
         acknowledged = true;
         result = receipt.value!;
       } else {
+        demand(
+          confirmed || !retryWindowPassed(createdAt),
+          'expired',
+          '上次请求已超过回执保留期，无法确认是否已生效，请核对团队状态后重新发送或放弃'
+        );
         result = await this.api.command(workspace, request);
         acknowledged = true;
       }
@@ -606,10 +732,11 @@ export class CollaborationController extends EventTarget {
       return result;
     } catch (error) {
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
+      // 结果不确定、已取消或因超过自动重试期限而没有发送的请求保留记录，留给用户确认
       if (
         durable &&
         error instanceof CollaborationError &&
-        !['internal', 'uncertain', 'cancelled'].includes(error.code) &&
+        !['internal', 'uncertain', 'cancelled', 'expired'].includes(error.code) &&
         !acknowledged
       )
         sessionStorage.removeItem(key);
@@ -722,7 +849,7 @@ export class CollaborationController extends EventTarget {
     await this.current(this.local.openVerified(context, task.name, task.base, task.head, records));
     await this.current(this.local.archiveFork(context, command.id, head));
   }
-  private async upload(unsaved: boolean): Promise<void> {
+  private async upload(unsaved: boolean, confirmExpired: boolean): Promise<void> {
     demand(this.draft && this.workspace, 'missing', '先打开任务');
     const context = this.draft.context;
     const workspace = this.workspace;
@@ -746,7 +873,7 @@ export class CollaborationController extends EventTarget {
       const result =
         receipt.status === 'accepted' ?
           receipt.value!
-        : await this.api.command(workspace, { type: 'upload', taskId: context.taskId, ...pending });
+        : await this.sendUpload(workspace, context, uploading.queue, confirmExpired);
       demand(viewEpoch === this.generation, 'cancelled', '上下文已切换');
       demand(typeof result['head'] === 'string', 'invalid', '同步回执缺少版本');
       const acknowledged = await this.current(
@@ -760,5 +887,27 @@ export class CollaborationController extends EventTarget {
     await this.current(this.refresh(), viewEpoch);
     this.message = '当前提交已同步；后续编辑仍需另行同步';
     this.changed();
+  }
+  /**
+   * 发送队首的上传（回执已查不到）。条目未超过自动重试期限、或用户已确认时，按原幂等键与原提交发送。
+   * 已超过期限且未确认时不再自动发送：刚刷新的摘要里任务头已是队列中某个条目（含队首）的最后一个提交，
+   * 说明队首早已被接受（提交按 ID 去重，不会重复建提交），直接按已接受处理；否则抛出 `expired` 交给用户确认。
+   */
+  private async sendUpload(
+    workspace: WorkspaceEntry,
+    context: Context,
+    queue: readonly PendingUpload[],
+    confirmed: boolean
+  ): Promise<Record<string, unknown>> {
+    const [first] = queue;
+    if (confirmed || !retryWindowPassed(first.createdAt))
+      return this.api.command(workspace, uploadCommand(context.taskId, first));
+    const remote = this.snapshot?.tasks.find(task => task.id === context.taskId)?.head;
+    demand(
+      typeof remote === 'string' && queue.some(item => item.commits.at(-1)?.id === remote),
+      'expired',
+      '待上传提交已超过回执保留期，请核对远端版本后确认同步'
+    );
+    return { taskId: context.taskId, head: first.commits.at(-1)?.id };
   }
 }

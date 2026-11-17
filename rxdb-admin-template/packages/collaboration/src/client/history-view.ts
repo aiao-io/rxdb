@@ -1,13 +1,18 @@
 import type { CommitContent, CommitSummary } from '../model.js';
 import type { CollaborationController } from './controller.js';
+import { changeTable } from './diff-table.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
 import { readOnlyRecords, type TaskEditor } from './editor.js';
 import { button, element, loading, section, type Perform } from './elements.js';
 import { tx } from './translate.js';
 
+/** 共享分支：历史只列共享分支上的提交（即各次合并产生的提交）。 */
+const shared = { branch: 'shared' } as const;
+
 /**
- * 「历史与审计」：审计时间线与共享提交历史。每一项的内容都只在它的 details 展开（含恢复为展开）时
- * 才生成：时间线逐条列出已加载的审计事件，提交展开后经控制器按需读取记录，读到之前显示占位。
+ * 「历史与审计」：审计时间线与共享分支的提交历史。提交历史按页从服务端读取，按时间正序列出，
+ * 还有更早的提交时在列表最前面提供加载入口；第一页读到之前显示占位。每一项的内容都只在它的 details 展开
+ * （含恢复为展开）时才生成：时间线逐条列出已加载的审计事件，提交展开后经控制器按需读取内容，读到之前显示占位。
  */
 export function historyView(
   controller: CollaborationController,
@@ -18,8 +23,15 @@ export function historyView(
   const data = controller.snapshot!;
   const view = section('历史与审计');
   view.append(auditTimeline(controller, perform, disclosures));
+  const history = controller.commitHistory(shared);
+  if (!history) {
+    view.append(loading());
+    return view;
+  }
+  if (history.hasEarlier)
+    view.append(button('加载更早的提交', () => perform(() => controller.loadEarlierCommits(shared))));
   const canEdit = data.members.find(m => m.id === controller.user?.id)?.permissions.includes('edit');
-  for (const commit of Object.values(data.commits))
+  for (const commit of [...history.commits].reverse())
     view.append(commitHistory(controller, perform, editor, disclosures, commit, !!canEdit));
   return view;
 }
@@ -45,7 +57,11 @@ function auditTimeline(controller: CollaborationController, perform: Perform, di
   return details;
 }
 
-/** 一个共享提交：摘要与父提交始终显示，记录表只在展开后生成；恢复按钮总是在，点击后先等内容加载完成。 */
+/**
+ * 一个共享提交：摘要与父提交始终显示；展开后才生成内容：该时刻的记录表，以及这个提交自身的字段级变更表
+ * （合并提交就是这次合并对共享数据的改动，取自服务端变更表，不再出现在审计详情里）。
+ * 恢复按钮总是在，点击后先等内容加载完成。
+ */
 function commitHistory(
   controller: CollaborationController,
   perform: Perform,
@@ -61,7 +77,8 @@ function commitHistory(
   );
   if (open) {
     const content = controller.commitContent(commit.id);
-    details.append(content ? readOnlyRecords(content.records) : loading());
+    if (content) details.append(readOnlyRecords(content.records), changeTable(content.changes));
+    else details.append(loading());
   }
   if (canEdit)
     details.append(

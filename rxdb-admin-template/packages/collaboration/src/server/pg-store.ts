@@ -94,6 +94,21 @@ export class PgCommitStore implements CommitStore {
     }
     return { links, reached: cursor === until };
   }
+  async history(from: string | null, until: string | null, limit: number): Promise<CommitSummary[]> {
+    if (from === null || from === until || limit < 1) return [];
+    const result = await this.client.query<Omit<CommitRow, 'fingerprint'>>(
+      `WITH RECURSIVE chain AS (
+         SELECT id, parent_id, author_id, message, merge_source, candidate_id, 1 AS depth FROM admin_private.commits
+         WHERE team_id = $1 AND app_id = $2 AND id = $3
+         UNION ALL
+         SELECT c.id, c.parent_id, c.author_id, c.message, c.merge_source, c.candidate_id, chain.depth + 1 FROM chain
+         JOIN admin_private.commits c ON c.team_id = $1 AND c.app_id = $2 AND c.id = chain.parent_id
+         WHERE chain.depth < $5 AND c.id IS DISTINCT FROM $4::text
+       ) SELECT id, parent_id, author_id, message, merge_source, candidate_id FROM chain ORDER BY depth`,
+      [this.teamId, this.appId, from, until, limit]
+    );
+    return result.rows.map(summaryOf);
+  }
   async lineage(id: string): Promise<Lineage> {
     const result = await this.client.query<LinkRow>(
       `WITH RECURSIVE chain AS (
@@ -153,16 +168,6 @@ export class PgCommitStore implements CommitStore {
     const rows: Records = {};
     for (const row of result.rows) rows[row.record_id] = { entity: row.entity, fields: row.fields };
     return rows;
-  }
-  async summaries(): Promise<Record<string, CommitSummary>> {
-    const result = await this.client.query<Omit<CommitRow, 'fingerprint'>>(
-      `SELECT id, parent_id, author_id, message, merge_source, candidate_id
-       FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 ORDER BY seq`,
-      [this.teamId, this.appId]
-    );
-    const found: Record<string, CommitSummary> = {};
-    for (const row of result.rows) found[row.id] = summaryOf(row);
-    return found;
   }
   async append(commits: readonly Commit[]): Promise<void> {
     if (!commits.length) return;

@@ -3,7 +3,7 @@ import { applyChanges } from '../changes.js';
 import { assertFingerprints, commitFingerprint } from '../commit.js';
 import type { Records } from '../model.js';
 import { parseCommand } from '../server/input.js';
-import { LocalTasks, contextKey, type Context, type Draft, type DraftStorage } from './local.js';
+import { LocalTasks, contextKey, uploadCommand, type Context, type Draft, type DraftStorage } from './local.js';
 class MemoryStorage implements DraftStorage {
   rows = new Map<string, Draft>();
   fail = false;
@@ -115,11 +115,32 @@ describe('local context and commit boundaries', () => {
     const { tasks } = await setup();
     await tasks.save(context, records, 0);
     const { queue } = await tasks.capture(context, 'update', false);
-    const sent = JSON.parse(JSON.stringify({ type: 'upload', taskId: 'task', ...queue[0] })) as Record<string, unknown>;
+    const sent = JSON.parse(JSON.stringify(uploadCommand('task', queue[0]))) as Record<string, unknown>;
     const command = parseCommand(sent);
     expect(command.type).toBe('upload');
     if (command.type !== 'upload') throw new Error('expected an upload');
     await expect(assertFingerprints(command.commits)).resolves.toBeUndefined();
+    expect(command).toEqual({
+      type: 'upload',
+      taskId: 'task',
+      operationId: queue[0].operationId,
+      expectedHead: queue[0].expectedHead,
+      commits: queue[0].commits
+    });
+  });
+  it('records when each queued upload was formed, keeps it on retries and never sends it to the server', async () => {
+    const { tasks } = await setup();
+    await tasks.save(context, records, 0);
+    const before = Date.now();
+    const captured = await tasks.capture(context, 'update', false);
+    const createdAt = captured.queue[0].createdAt;
+    expect(createdAt).toBeGreaterThanOrEqual(before);
+    expect(createdAt).toBeLessThanOrEqual(Date.now());
+    const retried = await tasks.capture(context, 'retry', false);
+    expect(retried.queue[0].createdAt).toBe(createdAt);
+    const sent = uploadCommand('task', retried.queue[0]);
+    expect(sent).not.toHaveProperty('createdAt');
+    expect(() => parseCommand({ ...sent, createdAt })).toThrow(/请求字段不合法/);
   });
   it('gives every commit a fresh UUIDv7 id and keeps the same id and content while it waits for upload', async () => {
     const { tasks } = await setup();

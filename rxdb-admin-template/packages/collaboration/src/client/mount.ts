@@ -163,7 +163,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     host.append(workspacesView(), invitationView());
     if (controller.workspace && controller.online)
       host.append(button('刷新团队状态', () => perform(() => controller.refresh())));
-    if (controller.pending()) host.append(button('确认或重试上次请求', () => perform(() => controller.retryPending())));
+    if (controller.pending()) host.append(pendingView());
     if (controller.snapshot) host.append(workspaceView());
     if (controller.draft) host.append(editor.view());
     if (controller.snapshot) {
@@ -247,6 +247,21 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     );
     if (!controller.workspaces.length && !controller.offlineDrafts.length)
       view.append(element('p', '暂无可访问团队，请接受邀请。登录不会自动成为管理员。'));
+    return view;
+  }
+  /**
+   * 上次未确认的请求：还在自动重试期限内时按原幂等键确认或重试；超过期限后回执可能已被服务端清理，
+   * 无法再确认它是否生效，说明原因并由用户选择重新发送或放弃。
+   */
+  function pendingView() {
+    if (!controller.pendingExpired())
+      return button('确认或重试上次请求', () => perform(() => controller.retryPending()));
+    const view = row();
+    view.append(
+      element('p', '上次请求已超过回执保留期，无法确认是否已生效，请核对团队状态后重新发送或放弃', 'text-sm'),
+      button('重新发送上次请求', () => perform(() => controller.resendPending())),
+      button('放弃上次请求', () => perform(async () => controller.discardPending()))
+    );
     return view;
   }
   function invitationView() {

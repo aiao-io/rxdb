@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { diffRecords } from '../src/changes.js';
 import { sealCommit } from '../src/commit.js';
-import type { Records } from '../src/model.js';
+import type { CommitContent, Records } from '../src/model.js';
 import type { WorkspaceSnapshot } from '../src/server/engine.js';
 interface Account {
   id: string;
@@ -53,6 +53,22 @@ async function state(page: Page, workspace: { teamId: string; appId: string }) {
   const response = await api(page, workspace);
   expect(response.status).toBe(200);
   return response.body as unknown as WorkspaceSnapshot;
+}
+/** 读取一个提交的元数据与内容：提交元数据已不在摘要里，经 `GET .../commits/:id` 读取。 */
+async function commitOf(page: Page, workspace: { teamId: string; appId: string }, id: string) {
+  const body = await page.evaluate(
+    async ({ workspace, id }) => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('admin-collaboration-auth:'));
+      if (!key) throw new Error('Missing authenticated test session');
+      const session = JSON.parse(localStorage.getItem(key)!) as { access_token: string };
+      const path = `/collaboration-api/workspaces/${workspace.teamId}/${workspace.appId}/commits/${encodeURIComponent(id)}`;
+      const response = await fetch(path, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (!response.ok) throw new Error(`Reading commit ${id} failed with ${response.status}`);
+      return (await response.json()) as Record<string, unknown>;
+    },
+    { workspace, id }
+  );
+  return body as unknown as CommitContent;
 }
 /** 邀请令牌只放在 URL fragment（`#join=<转义后的 JSON>`），不进查询参数，避免落入代理日志与 Referer。 */
 function invitationLink(baseURL: string | undefined, fixture: Fixture, id = fixture.invitation, token = fixture.token) {
@@ -227,7 +243,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   expect(otherHistory.head).toBe(finalHistory.head);
   expect(otherHistory.audit).toEqual(finalHistory.audit);
   expect(finalHistory.head).not.toBe(firstHistory.head);
-  expect(finalHistory.commits[finalHistory.head!].parent).toBe(firstHistory.head);
+  expect((await commitOf(page, fixture, finalHistory.head!)).parent).toBe(firstHistory.head);
   const merges = finalHistory.audit.filter(event => event.action === 'merge');
   expect(merges).toHaveLength(2);
   expect(
@@ -237,7 +253,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
     const candidate = finalHistory.candidates[pr.candidateId!];
     expect(candidate.actorId).toBe(fixture.admin.id);
     expect(candidate.policyVersion).toBe(finalHistory.policy.version);
-    expect(finalHistory.commits[candidate.source].authorId).toBe(fixture.admin.id);
+    expect((await commitOf(page, fixture, candidate.source)).authorId).toBe(fixture.admin.id);
     expect(
       merges.some(event => event.actorId === fixture.admin.id && JSON.stringify(event.details).includes(candidate.id))
     ).toBe(true);
@@ -451,7 +467,7 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   const originalTask = forked.tasks.find(task => task.name === '双设备任务')!;
   expect(forkTask.originTaskId).toBe(originalTask.id);
   expect(forked.prs.find(pr => pr.title === '保留设备甲')?.taskId).toBe(forkTask.id);
-  expect(forked.commits[forkTask.head!].authorId).toBe(fixture.admin.id);
+  expect((await commitOf(page, fixture, forkTask.head!)).authorId).toBe(fixture.admin.id);
   expect(forkTask.head).not.toBe(originalTask.head);
   await otherContext.close();
 });

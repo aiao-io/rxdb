@@ -1,7 +1,14 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { commitFingerprint } from '../commit.js';
-import { CollaborationError, type Audit, type CommitContent, type Records, type WorkspaceSummary } from '../model.js';
+import {
+  CollaborationError,
+  type Audit,
+  type CommitContent,
+  type CommitPage,
+  type Records,
+  type WorkspaceSummary
+} from '../model.js';
 import { bootstrap, snapshot } from '../server/engine.js';
 import { CollaborationController } from './controller.js';
 import type { Draft, DraftStorage } from './local.js';
@@ -50,7 +57,7 @@ async function setup() {
   state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: null, head: null, originTaskId: null };
   controller.user = user;
   controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
-  controller.snapshot = snapshot(state, user, 1, {});
+  controller.snapshot = snapshot(state, user, 1);
   await controller.local.login('alice');
   controller.draft = await controller.local.openVerified(
     { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
@@ -234,7 +241,7 @@ describe('client concurrency and recovery', () => {
     vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
     sessionStorage.setItem(
       `admin-collaboration-pending:${controller.user!.id}`,
-      JSON.stringify({ workspace, command })
+      JSON.stringify({ workspace, command, createdAt: Date.now() })
     );
     await controller.retryPending();
     expect(send).toHaveBeenCalledWith(workspace, command);
@@ -473,14 +480,6 @@ describe('client concurrency and recovery', () => {
       head,
       originTaskId: 'task'
     });
-    command.commits.forEach(commit => {
-      controller.snapshot!.commits[commit.id] = {
-        id: commit.id,
-        parent: commit.parent,
-        authorId: commit.authorId,
-        message: commit.message
-      };
-    });
     vi.spyOn(controller.api, 'commit').mockImplementation(async (_workspace, id) => {
       const commit = command.commits.find(item => item.id === id);
       if (!commit) throw new CollaborationError('not_found', '提交不存在');
@@ -489,6 +488,7 @@ describe('client concurrency and recovery', () => {
         parent: commit.parent,
         authorId: commit.authorId,
         message: commit.message,
+        changes: commit.changes,
         records: records('Preserved')
       };
     });
@@ -524,6 +524,7 @@ const commitOf = (id: string, parent: string | null, name: string): CommitConten
   parent,
   authorId: 'alice',
   message: id,
+  changes: [],
   records: records(name)
 });
 const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
@@ -539,7 +540,6 @@ function publish(controller: CollaborationController, change: (summary: Workspac
 function withSharedCommit(controller: CollaborationController) {
   return publish(controller, summary => {
     summary.head = 'c1';
-    summary.commits['c1'] = metadata(commitOf('c1', null, 'One'));
     summary.tasks.push({ id: 'task2', name: 'Second', ownerId: 'alice', base: 'c1', head: 'c1', originTaskId: null });
   });
 }
@@ -756,7 +756,6 @@ describe('operations that need content', () => {
   it('loads the head commit before fast-forwarding the local task to the remote version', async () => {
     const { controller } = await setup();
     publish(controller, summary => {
-      summary.commits['c1'] = metadata(commitOf('c1', null, 'Remote'));
       summary.tasks[0].head = 'c1';
     });
     const request = vi.spyOn(controller.api, 'commit').mockResolvedValue(commitOf('c1', null, 'Remote'));
@@ -768,7 +767,6 @@ describe('operations that need content', () => {
   it('keeps local work when the remote head commit cannot be loaded for a fast-forward', async () => {
     const { controller } = await setup();
     publish(controller, summary => {
-      summary.commits['c1'] = metadata(commitOf('c1', null, 'Remote'));
       summary.tasks[0].head = 'c1';
     });
     vi.spyOn(controller.api, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
@@ -858,5 +856,322 @@ describe('audit timeline', () => {
     expect(controller.threadEvents('t1')).toBeUndefined();
     await vi.waitFor(() => expect(controller.threadEvents('t1')).toHaveLength(4));
     expect(request).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('commit history pages', () => {
+  const page = (ids: string[], nextBefore: string | null): CommitPage => ({
+    commits: ids.map((id, index) => metadata(commitOf(id, ids[index + 1] ?? null, id))),
+    nextBefore
+  });
+  const pullRequest = (id: string, taskId: string) => ({
+    id,
+    taskId,
+    authorId: 'alice',
+    title: id,
+    description: '',
+    target: 'shared' as const,
+    status: 'review' as const,
+    revision: 1,
+    candidateId: null,
+    subscribers: []
+  });
+  const shared = { branch: 'shared' } as const;
+  const ids = (controller: CollaborationController, branch: Parameters<CollaborationController['commitHistory']>[0]) =>
+    controller.commitHistory(branch)?.commits.map(commit => commit.id);
+  it('serves the empty shared branch and a PR whose task has no commits of its own without a request', async () => {
+    const { controller } = await setup();
+    const request = vi.spyOn(controller.api, 'history');
+    expect(controller.commitHistory(shared)).toEqual({ commits: [], hasEarlier: false });
+    publish(controller, summary => {
+      summary.tasks[0] = { ...summary.tasks[0], base: 'c1', head: 'c1' };
+      summary.prs.push(pullRequest('pr', 'task'));
+    });
+    await controller.refresh();
+    expect(controller.commitHistory({ prId: 'pr' })).toEqual({ commits: [], hasEarlier: false });
+    expect(request).not.toHaveBeenCalled();
+  });
+  it('reads the first page of the shared history once, announces it and keys it by the summary head', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.head = 'm2';
+    });
+    await controller.refresh();
+    const request = vi
+      .spyOn(controller.api, 'history')
+      .mockResolvedValueOnce(page(['m2', 'm1'], null))
+      .mockResolvedValueOnce(page(['m3', 'm2', 'm1'], null));
+    const changed = vi.fn();
+    controller.addEventListener('change', changed);
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(controller.workspace, { branch: 'shared' });
+    await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
+    expect(controller.commitHistory(shared)).toEqual({ commits: page(['m2', 'm1'], null).commits, hasEarlier: false });
+    publish(controller, summary => {
+      summary.name = 'Same head';
+    });
+    await controller.refresh();
+    expect(ids(controller, shared)).toEqual(['m2', 'm1']);
+    expect(request).toHaveBeenCalledTimes(1);
+    publish(controller, summary => {
+      summary.head = 'm3';
+    });
+    await controller.refresh();
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await vi.waitFor(() => expect(ids(controller, shared)).toEqual(['m3', 'm2', 'm1']));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('reads a PR history from the head of its source task and loads earlier pages through the cursor', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.tasks[0] = { ...summary.tasks[0], head: 't3' };
+      summary.prs.push(pullRequest('pr', 'task'));
+    });
+    await controller.refresh();
+    const request = vi
+      .spyOn(controller.api, 'history')
+      .mockResolvedValueOnce(page(['t3', 't2'], 't2'))
+      .mockResolvedValueOnce(page(['t1'], null));
+    expect(controller.commitHistory({ prId: 'pr' })).toBeUndefined();
+    await vi.waitFor(() => expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(true));
+    expect(request).toHaveBeenCalledWith(controller.workspace, { prId: 'pr' });
+    await controller.loadEarlierCommits({ prId: 'pr' });
+    expect(request).toHaveBeenLastCalledWith(controller.workspace, { prId: 'pr', before: 't2' });
+    expect(ids(controller, { prId: 'pr' })).toEqual(['t3', 't2', 't1']);
+    expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(false);
+    await controller.loadEarlierCommits({ prId: 'pr' });
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('reports a failed history read once, does not retry by itself and tries again after a refresh', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.head = 'm1';
+    });
+    await controller.refresh();
+    const request = vi
+      .spyOn(controller.api, 'history')
+      .mockRejectedValueOnce(new CollaborationError('internal', '服务暂时不可用，请稍后按原请求重试'))
+      .mockResolvedValue(page(['m1'], null));
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await vi.waitFor(() => expect(controller.message).toBe('服务暂时不可用，请稍后按原请求重试'));
+    for (let index = 0; index < 3; index++) expect(controller.commitHistory(shared)).toBeUndefined();
+    await settle();
+    expect(request).toHaveBeenCalledTimes(1);
+    publish(controller, () => undefined);
+    await controller.refresh();
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await vi.waitFor(() => expect(ids(controller, shared)).toEqual(['m1']));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+  it('does not show a first page that starts above the summary head, and reads it again silently after the next refresh', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.head = 'm1';
+    });
+    await controller.refresh();
+    // 读摘要之后共享分支又合并了一次：服务端返回的第一页从 m2 开始，与摘要的头对不上
+    const request = vi
+      .spyOn(controller.api, 'history')
+      .mockResolvedValueOnce(page(['m2', 'm1'], null))
+      .mockResolvedValue(page(['m2', 'm1'], null));
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await settle();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    expect(controller.message).toBe('');
+    publish(controller, summary => {
+      summary.head = 'm2';
+    });
+    await controller.refresh();
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await vi.waitFor(() => expect(ids(controller, shared)).toEqual(['m2', 'm1']));
+  });
+  it('forgets loaded history when switching team or locking the session', async () => {
+    const { controller } = await setup();
+    publish(controller, summary => {
+      summary.head = 'm1';
+    });
+    await controller.refresh();
+    const request = vi.spyOn(controller.api, 'history').mockResolvedValue(page(['m1'], null));
+    controller.commitHistory(shared);
+    await vi.waitFor(() => expect(controller.commitHistory(shared)).toBeDefined());
+    const other = { teamId: 'other', appId: 'assets', name: 'Other' };
+    await controller.selectWorkspace(other);
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    await vi.waitFor(() => expect(request).toHaveBeenLastCalledWith(other, { branch: 'shared' }));
+    await controller.lock();
+    expect(controller.commitHistory(shared)).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('requests older than the receipt retention period', () => {
+  const day = 86_400_000;
+  const pendingKey = 'admin-collaboration-pending:alice';
+  /** 把待确认请求的首次发出时间改成 `ms` 毫秒之前。 */
+  const age = (ms: number) => {
+    const record = JSON.parse(sessionStorage.getItem(pendingKey)!) as Record<string, unknown>;
+    sessionStorage.setItem(pendingKey, JSON.stringify({ ...record, createdAt: Date.now() - ms }));
+  };
+  /** 发一个结果未知的命令，留下待确认请求。 */
+  async function unconfirmed(controller: CollaborationController) {
+    const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
+    await expect(controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'operation')).rejects.toThrow(
+      'network'
+    );
+    return send;
+  }
+  const expiredMessage = '上次请求已超过回执保留期，无法确认是否已生效，请核对团队状态后重新发送或放弃';
+  it('records when a pending request was first sent, keeps that time across retries and out of the command', async () => {
+    const { controller } = await setup();
+    const before = Date.now();
+    const send = await unconfirmed(controller);
+    expect(controller.pending()!.createdAt).toBeGreaterThanOrEqual(before);
+    age(5 * day);
+    const aged = controller.pending()!.createdAt;
+    send.mockRejectedValueOnce(new TypeError('network again'));
+    await expect(controller.retryPending()).rejects.toThrow('network again');
+    expect(controller.pending()!.createdAt).toBe(aged);
+    expect(controller.pending()!.command).not.toHaveProperty('createdAt');
+    expect(send.mock.calls[1][1]).not.toHaveProperty('createdAt');
+    expect(controller.pendingExpired()).toBe(false);
+  });
+  it('stops automatic retries one day before the server forgets the receipt', async () => {
+    const { controller } = await setup();
+    await unconfirmed(controller);
+    age(29 * day - 60_000);
+    expect(controller.pendingExpired()).toBe(false);
+    age(29 * day);
+    expect(controller.pendingExpired()).toBe(true);
+  });
+  it('does not resend an expired request whose receipt is unknown and keeps it for the user to decide', async () => {
+    const { controller } = await setup();
+    const send = await unconfirmed(controller);
+    age(31 * day);
+    await expect(controller.retryPending()).rejects.toMatchObject({ code: 'expired', message: expiredMessage });
+    expect(controller.api.receipt).toHaveBeenLastCalledWith(controller.workspace, 'operation');
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(controller.pending()?.command.operationId).toBe('operation');
+    await expect(controller.run({ type: 'policy', stages: [], expectedVersion: 1 })).rejects.toMatchObject({
+      code: 'pending'
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('still confirms an expired request from its receipt when the server has kept it', async () => {
+    const { controller } = await setup();
+    const send = await unconfirmed(controller);
+    age(40 * day);
+    vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'accepted', value: { policyVersion: 2 } });
+    await controller.retryPending();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(controller.pending()).toBeNull();
+  });
+  it('resends an expired request only on explicit confirmation, with its original operation ID', async () => {
+    const { controller } = await setup();
+    const send = await unconfirmed(controller);
+    age(31 * day);
+    send.mockResolvedValueOnce({ policyVersion: 2 });
+    await controller.resendPending();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][1]).toEqual({ type: 'policy', stages: [], expectedVersion: 1, operationId: 'operation' });
+    expect(controller.pending()).toBeNull();
+  });
+  it('discards an expired request at the user’s request and then accepts new cloud changes', async () => {
+    const { controller } = await setup();
+    const send = await unconfirmed(controller);
+    age(31 * day);
+    controller.discardPending();
+    expect(controller.pending()).toBeNull();
+    expect(sessionStorage.getItem(pendingKey)).toBeNull();
+    send.mockResolvedValueOnce({ policyVersion: 2 });
+    await controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'next');
+    expect(send.mock.calls.map(([, command]) => command.operationId)).toEqual(['operation', 'next']);
+  });
+  it('treats a pending record without a valid creation time as corrupted', async () => {
+    const { controller } = await setup();
+    const command = { type: 'policy', stages: [], expectedVersion: 1, operationId: 'old' };
+    for (const createdAt of [undefined, 'yesterday', null]) {
+      sessionStorage.setItem(pendingKey, JSON.stringify({ workspace: controller.workspace, command, createdAt }));
+      expect(controller.pending()).toBeNull();
+      expect(sessionStorage.getItem(pendingKey)).toBeNull();
+    }
+  });
+});
+
+describe('queued uploads older than the receipt retention period', () => {
+  const day = 86_400_000;
+  const uploadMessage = '待上传提交已超过回执保留期，请核对远端版本后确认同步';
+  /** 草稿里留下一个上传结果未知的提交。 */
+  async function queued(controller: CollaborationController) {
+    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Queued' } } });
+    const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
+    await expect(controller.sync(false)).rejects.toThrow('network');
+    return send;
+  }
+  /** 把队首上传条目的形成时间改成 `ms` 毫秒之前；`undefined` 模拟切片 D 之前写入、没有形成时间的条目。 */
+  async function ageUpload(controller: CollaborationController, storage: MemoryStorage, ms: number | undefined) {
+    const key = contextKey(controller.draft!.context);
+    const draft = (await storage.read(key))!;
+    const [first, ...rest] = draft.queue;
+    const aged = { ...first, createdAt: ms === undefined ? undefined : Date.now() - ms };
+    if (ms === undefined) delete aged.createdAt;
+    storage.rows.set(key, { ...draft, queue: [aged, ...rest] });
+    controller.draft = (await storage.read(key))!;
+    return first;
+  }
+  it('acknowledges an expired upload locally when the remote task head already is its last commit', async () => {
+    const { controller, storage } = await setup();
+    const send = await queued(controller);
+    const item = await ageUpload(controller, storage, 31 * day);
+    const head = item.commits.at(-1)!.id;
+    publish(controller, summary => {
+      summary.tasks[0].head = head;
+    });
+    await controller.sync(false);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(controller.draft?.queue).toEqual([]);
+    expect(controller.draft?.remoteHead).toBe(head);
+    expect(controller.uploadExpired()).toBe(false);
+  });
+  it('does not resend an expired upload whose outcome is unknown and hands it to the user', async () => {
+    const { controller, storage } = await setup();
+    const send = await queued(controller);
+    await ageUpload(controller, storage, 31 * day);
+    expect(controller.uploadExpired()).toBe(true);
+    await expect(controller.sync(false)).rejects.toMatchObject({ code: 'expired', message: uploadMessage });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(controller.draft?.queue).toHaveLength(1);
+    expect(controller.syncing).toBe(false);
+  });
+  it('treats a queued upload without a creation time as expired', async () => {
+    const { controller, storage } = await setup();
+    const send = await queued(controller);
+    await ageUpload(controller, storage, undefined);
+    expect(controller.uploadExpired()).toBe(true);
+    await expect(controller.sync(false)).rejects.toMatchObject({ code: 'expired' });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it('sends an expired upload on confirmation with the same operation and commits, never its creation time', async () => {
+    const { controller, storage } = await setup();
+    const send = await queued(controller);
+    const first = send.mock.calls[0][1];
+    const item = await ageUpload(controller, storage, 31 * day);
+    send.mockResolvedValueOnce({ head: item.commits.at(-1)!.id });
+    await controller.sync(false, true);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][1]).toEqual(first);
+    expect(send.mock.calls[1][1]).not.toHaveProperty('createdAt');
+    expect(controller.draft?.queue).toEqual([]);
+  });
+  it('keeps uploading fresh queued commits automatically', async () => {
+    const { controller } = await setup();
+    const send = await queued(controller);
+    expect(controller.uploadExpired()).toBe(false);
+    send.mockResolvedValueOnce({ head: controller.draft!.localHead });
+    await controller.sync(false);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(controller.draft?.queue).toEqual([]);
   });
 });

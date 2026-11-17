@@ -385,7 +385,15 @@ export const collaborationEnglish: Record<string, string> = {
   '先确认或重试上次请求，再执行新的云端变更':
     'Confirm or retry the previous request before making another server change.',
   '邀请无效或登录邮箱不匹配，请切换账号': 'Invalid invitation or mismatched email. Switch accounts and try again.',
-  团队协作服务尚未配置或响应格式不正确: 'The collaboration service is not configured or returned an invalid response.'
+  团队协作服务尚未配置或响应格式不正确: 'The collaboration service is not configured or returned an invalid response.',
+  加载更早的提交: 'Load earlier commits',
+  '上次请求已超过回执保留期，无法确认是否已生效，请核对团队状态后重新发送或放弃':
+    'The previous request is older than the receipt retention period, so its outcome cannot be confirmed. Check the team status, then resend or discard it.',
+  重新发送上次请求: 'Resend previous request',
+  放弃上次请求: 'Discard previous request',
+  '待上传提交已超过回执保留期，请核对远端版本后确认同步':
+    'Queued commits are older than the receipt retention period. Check the remote version, then confirm the sync.',
+  确认同步过期提交: 'Confirm syncing expired commits'
 };
 /** 中文消息表，供应用的 i18n 运行时注册：消息键为 `collaboration.<中文原文>`，值就是中文原文。 */
 export const collaborationZhMessages = Object.fromEntries(

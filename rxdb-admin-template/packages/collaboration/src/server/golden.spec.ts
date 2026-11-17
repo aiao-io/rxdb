@@ -12,7 +12,8 @@ function memoryDriver(workspace: MemoryWorkspace): HistoryDriver {
     summary: () => workspace.summary(historyAdmin, Date.now()),
     records: () => workspace.records(historyAdmin),
     commit: id => workspace.commit(historyAdmin, id),
-    candidate: id => workspace.candidate(historyAdmin, id)
+    candidate: id => workspace.candidate(historyAdmin, id),
+    history: query => workspace.history(historyAdmin, query)
   };
 }
 

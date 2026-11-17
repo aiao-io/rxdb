@@ -1,4 +1,6 @@
-import type { ChangeSet, Commit, CommitMeta, CommitSummary, Records } from '../model.js';
+import type { ChangeSet, Commit, CommitMeta, CommitSummary, Records, Workspace } from '../model.js';
+import type { Effects } from './plan.js';
+import type { WorkspaceChanges } from './state-changes.js';
 
 /** 提交图里的一个节点：走图只需要的信息；`merge` 表示它是共享分支上的合并提交。 */
 export interface Link {
@@ -35,18 +37,81 @@ export interface CommitStore {
    * `from` 为 null 时路径为空；`from` 与 `until` 相同时路径为空且已到达。
    */
   path(from: string | null, until: string | null): Promise<Path>;
+  /**
+   * 提交历史的一段：从 `from` 沿父指针向前（含 `from`），到 `until`（不含）或根为止，最多 `limit` 个，从新到旧。
+   * 只读元数据，按 `limit` 截断，成本与工作区的提交总数无关。
+   */
+  history(from: string | null, until: string | null, limit: number): Promise<CommitSummary[]>;
   /** 从 `id` 沿父指针向前走到最近的合并提交（不含）；`id` 不存在时抛出 `not_found`。 */
   lineage(id: string): Promise<Lineage>;
   /** 读取提交的字段级变更，按提交内的顺序；`records` 给出时只取这些记录的变更。没有变更的提交可以不出现在结果里，调用方按空列表处理。 */
   changes(ids: readonly string[], records?: readonly string[]): Promise<Map<string, ChangeSet[]>>;
   /** 共享分支当前的记录；`records` 给出时只取这些记录。 */
   shared(records?: readonly string[]): Promise<Records>;
-  /** 全部提交的摘要，按追加顺序。 */
-  summaries(): Promise<Record<string, CommitSummary>>;
   /** 追加提交（含字段级变更与指纹），只追加、不可修改。 */
   append(commits: readonly Commit[]): Promise<void>;
   /** 应用合并对共享记录的改动。 */
   apply(change: SharedChange): Promise<void>;
+}
+
+/** 引用行的锁：推进前排他（FOR UPDATE）、读取期间不许别人推进（FOR SHARE），或不加锁。 */
+export type RefLock = 'update' | 'share' | 'none';
+/** 治理行的锁：成员、邀请与策略命令排他（FOR UPDATE），其余命令共享（FOR SHARE），只读查询不加锁。 */
+export type GovernanceLock = 'update' | 'share' | 'none';
+
+/**
+ * 命令事务的加载器：按固定的锁顺序把命令涉及的行读进一份局部工作区状态（只含这些行的 {@link Workspace}），
+ * 引擎在这份局部状态上裁决。PostgreSQL 实现按调用加行锁，内存实现（测试用）从完整状态里截取。
+ * 锁顺序由调用顺序保证：先治理行，再 PR 行，再引用行（共享引用先于任务引用）；写回时最后才动版本行。
+ * 治理行之后的读取都发生在取得治理行锁之后，因此一定能看到在此之前提交的成员与策略变更。
+ */
+export interface WorkspaceLoader {
+  /** 局部状态：只含已读取的行；治理字段（名称、策略、数据模式版本）、全部成员与共享头总在其中。 */
+  readonly state: Workspace;
+  /** 治理行（按 `lock` 加锁）、当前策略、全部成员与共享头（不加锁）；工作区不存在时返回 false。必须最先调用。 */
+  governance(lock: GovernanceLock): Promise<boolean>;
+  /** 读取保留期内（`now` 之前 {@link receiptRetentionMs} 以内）的回执；有则返回 true。 */
+  receipt(operationId: string, now: number): Promise<boolean>;
+  /** 锁定（FOR UPDATE，按 ID 升序）并读取这些 PR；不存在的忽略。 */
+  lockPrs(ids: readonly string[]): Promise<void>;
+  /** 锁定（FOR UPDATE，按 ID 升序）并读取某个任务名下的全部 PR，返回它们的 ID（升序）。 */
+  lockTaskPrs(taskId: string): Promise<string[]>;
+  /** 某个任务名下全部 PR 的 ID（升序，不加锁），用来确认锁定之后集合没有变化。 */
+  taskPrIds(taskId: string): Promise<string[]>;
+  /** 读取（不加锁）这些 PR。 */
+  prs(ids: readonly string[]): Promise<void>;
+  /** 读取（不加锁）某个任务名下的全部 PR。 */
+  taskPrs(taskId: string): Promise<void>;
+  /** 按 `lock` 锁定共享引用并重新读取共享头。 */
+  sharedRef(lock: RefLock): Promise<void>;
+  /** 读取任务元数据与任务头，按 `lock` 锁定任务引用；任务不存在时不出现在状态里。 */
+  task(id: string, lock: RefLock): Promise<void>;
+  /** 读取（不加锁）讨论线程，含全部评论。 */
+  threads(ids: readonly string[]): Promise<void>;
+  /** 读取（不加锁）某个 PR 的全部讨论线程，含全部评论。 */
+  prThreads(prId: string): Promise<void>;
+  /** 读取（不加锁）某个 PR 的全部审核记录，按写入顺序。 */
+  prReviews(prId: string): Promise<void>;
+  /** 读取（不加锁）这些候选，含存储的变更。 */
+  candidates(ids: readonly string[]): Promise<void>;
+  /** 读取邀请。 */
+  invitation(id: string): Promise<void>;
+  /** 读取属于 `userId` 的这条通知。 */
+  notification(id: string, userId: string): Promise<void>;
+  /** 讨论线程所属的 PR（不可变，不加锁）；线程不存在时为 undefined。 */
+  threadPr(threadId: string): Promise<string | undefined>;
+  /** PR 所属的任务（不可变，不加锁）；PR 不存在时为 undefined。 */
+  prTask(prId: string): Promise<string | undefined>;
+}
+
+/**
+ * 一个命令事务可用的存储：提交与共享记录、局部状态的加载器，以及把局部状态的改动与命令效果写回的入口。
+ * 写回只改动 `changes` 列出的行，引用按期望头比较交换推进；改动修订号时，版本行是写事务的最后一步。
+ */
+export interface CommandStore {
+  readonly commits: CommitStore;
+  readonly loader: WorkspaceLoader;
+  save(changes: WorkspaceChanges, effects: Effects, now: number): Promise<void>;
 }
 
 /** 提交的摘要：去掉指纹，合并关联只在合并提交上出现。 */

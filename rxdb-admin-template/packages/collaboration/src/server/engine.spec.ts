@@ -884,18 +884,29 @@ describe('workspace summary', () => {
     const { state, candidate } = await merged();
     const summary = await space(state).summary(reviewer, 1000);
     expect(summary).not.toHaveProperty('records');
+    // 提交元数据不在摘要里，改由提交历史分页按分支读取
+    expect(summary).not.toHaveProperty('commits');
     expect(summary.head).toBe(state.head);
-    expect(Object.keys(summary.commits)).toEqual(['commit1', state.head]);
-    expect(summary.commits['commit1']).toEqual({ id: 'commit1', parent: null, authorId: 'admin', message: 'Assets' });
-    expect(summary.commits[state.head!]).toEqual({
-      id: state.head,
-      parent: null,
-      authorId: 'admin',
-      message: 'Merge Asset update',
-      mergeSource: 'commit1',
-      candidateId: candidate.id
+    const shared = await space(state).history(reviewer, { branch: 'shared' });
+    const task = await space(state).history(reviewer, { taskId: 'task1' });
+    expect(task).toEqual({
+      commits: [{ id: 'commit1', parent: null, authorId: 'admin', message: 'Assets' }],
+      nextBefore: null
     });
-    for (const item of Object.values(summary.commits)) {
+    expect(shared).toEqual({
+      commits: [
+        {
+          id: state.head,
+          parent: null,
+          authorId: 'admin',
+          message: 'Merge Asset update',
+          mergeSource: 'commit1',
+          candidateId: candidate.id
+        }
+      ],
+      nextBefore: null
+    });
+    for (const item of [...shared.commits, ...task.commits]) {
       expect(item).not.toHaveProperty('records');
       expect(item).not.toHaveProperty('changes');
       expect(item).not.toHaveProperty('fingerprint');
@@ -998,11 +1009,13 @@ describe('on-demand reads', () => {
     const workspace = space(state);
     expect(await workspace.records(reviewer)).toEqual({ head: state.head, records: records(100) });
     expect((await workspace.records(reviewer)).records['asset'].fields['purchasePrice']).toBe(100);
+    // 提交内容带着它自身相对父提交的字段级变更：任务提交是上传的变更，合并提交是这次合并对共享数据的改动
     expect(await workspace.commit(reviewer, 'commit1')).toEqual({
       id: 'commit1',
       parent: null,
       authorId: 'admin',
       message: 'Assets',
+      changes: diffRecords({}, records(100)),
       records: records(100)
     });
     expect(await workspace.commit(reviewer, state.head!)).toEqual({
@@ -1012,6 +1025,7 @@ describe('on-demand reads', () => {
       message: 'Merge Asset update',
       mergeSource: 'commit1',
       candidateId: candidate.id,
+      changes: diffRecords({}, records(100)),
       records: records(100)
     });
     expect(await workspace.candidate(reviewer, candidate.id)).toEqual({
