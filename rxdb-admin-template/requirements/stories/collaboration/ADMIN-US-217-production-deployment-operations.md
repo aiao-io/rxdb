@@ -7,7 +7,7 @@ epic: ADMIN-EPIC-004
 created: 2026-11-17
 updated: 2026-11-17
 tags: [admin, collaboration, deployment, operations, supabase]
-dependsOn: []
+dependsOn: [ADMIN-US-218, ADMIN-US-219, ADMIN-US-220]
 capabilities: []
 ---
 
@@ -24,7 +24,7 @@ capabilities: []
 ### In Scope
 
 - Supabase 项目与 PostgreSQL 迁移：干净项目上可重复执行，部署流水线先执行迁移再发布。
-- 协作 API 与三端静态产物的部署；环境变量与 secret 集中管理，前端产物不含任何服务端 secret。
+- 命令入口（Edge Function，见 [ADMIN-US-220](ADMIN-US-220-supabase-only-deployment.md)）与三端静态产物的部署；环境变量与 secret 集中管理，前端产物不含任何服务端 secret。
 - staging 与 production 两套环境；邮件发送服务与 passwordless 验证码模板配置。
 - 部署后验收：对部署地址运行三端协作 E2E 与 RLS 验收，补齐 [ADMIN-US-201](ADMIN-US-201-supabase-email-otp-session.md) AC#2 / #3 的真实邮箱证据。
 - 长期运行护栏：工作区状态的保留策略与快照规模预算、健康检查、错误监控、发布记录与回滚预案。
@@ -53,9 +53,9 @@ capabilities: []
 
 ## 技术笔记
 
-- 当前协作状态以每个团队/应用一行 JSONB 保存（`admin_private.workspaces`）：每个命令复制完整状态并整行更新；回执（receipts）、审计（audit）与通知（notifications）没有修剪，快照返回该用户的全部通知与完整审计。首版容量边界见 [协作包说明](../../../packages/collaboration/README.md)，规模扩大前需实现分页快照与历史分区，不能靠跳过校验或截断解决。AC#6 的保留期与预算在实施时确定。
-- `public.admin_audit` 目前只由合并事务写入，应用代码不按时间或操作人查询；归档或审计查询入口落地时，同步补 `(team_id, app_id, created_at)` 等对应索引，避免按时间范围全表扫描。
-- 协作 API 已对请求头与请求体接收设置超时，慢速客户端无法长期占用连接；连接上限、反向代理限流与 TLS 由部署环境负责。
+- 本故事排在协作后端收敛之后（[D-09](../../decisions.md#d-09协作后端收敛方向)）：差量提交、拆表与有界命令成本由 [ADMIN-US-218](ADMIN-US-218-delta-commits-bounded-cost.md) 交付，RLS 读取、Broadcast、Presence 与本地 JWT 校验由 [ADMIN-US-219](ADMIN-US-219-supabase-native-read-realtime.md) 交付，只部署 Supabase 的形态由 [ADMIN-US-220](ADMIN-US-220-supabase-only-deployment.md) 交付。本故事在真实环境中验证它们的预算与保留策略（AC#6），不再在首版整行 JSONB 上治理状态增长。
+- 审计查询入口落地时，同步补 `(team_id, app_id, created_at)` 等对应索引，避免按时间范围全表扫描。
+- 命令入口已对请求头与请求体接收设置超时（10 秒 / 60 秒），慢速客户端无法长期占用连接；连接上限、限流与 TLS 由部署环境负责。
 - 测试 fixture 当前把工作区版本与成员投影同步到隔离 Supabase CI 数据库以覆盖 Realtime；正式部署必须让 `ADMIN_DATABASE_URL` 指向同一 Supabase 项目数据库（见 [协作实现与验收记录](../../plans/collaboration-implementation.md#测试环境与部署差异)）。
 - 本故事完成后，ADMIN-US-201～216 才具备「合入并在真实环境验收」的关闭条件。
 

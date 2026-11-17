@@ -14,6 +14,15 @@ let repository: CollaborationRepository;
 let started = false;
 const input = { teamId: randomUUID(), appId: 'assets', name: 'Isolation test', bootstrapKey: randomUUID(), admin };
 const command = (data: Record<string, unknown>) => ({ operationId: randomUUID(), ...data }) as Command;
+/** 在时限内是否已完成（成功或失败都算完成）；用于断言某个调用是否被行锁挡住。 */
+const settlesWithin = (pending: Promise<unknown>, ms: number) =>
+  Promise.race([
+    pending.then(
+      () => true,
+      () => true
+    ),
+    new Promise<boolean>(resolve => setTimeout(() => resolve(false), ms))
+  ]);
 describe('PostgreSQL transaction and RLS boundary', () => {
   beforeAll(async () => {
     const password = randomUUID();
@@ -214,6 +223,47 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await client.query('RESET ROLE');
       client.release();
     }
+  });
+  it('serves snapshots and receipts without waiting for an in-flight write lock', async () => {
+    const writer = await pool.connect();
+    try {
+      await writer.query('BEGIN');
+      await writer.query('SELECT 1 FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2 FOR UPDATE', [
+        input.teamId,
+        input.appId
+      ]);
+      // 写事务持有行锁期间，读取必须基于已提交版本立即返回，不能排队等待写入结束
+      await expect(settlesWithin(repository.read(admin, input.teamId, input.appId), 1000)).resolves.toBe(true);
+      await expect(
+        settlesWithin(repository.receipt(admin, input.teamId, input.appId, randomUUID()), 1000)
+      ).resolves.toBe(true);
+    } finally {
+      await writer.query('ROLLBACK');
+      writer.release();
+    }
+  });
+  it('makes presence wait for an in-flight membership change instead of racing past it', async () => {
+    const writer = await pool.connect();
+    let heartbeat: Promise<unknown> | undefined;
+    try {
+      await writer.query('BEGIN');
+      await writer.query('SELECT 1 FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2 FOR UPDATE', [
+        input.teamId,
+        input.appId
+      ]);
+      // 撤权等成员变更提交前，在线状态写入必须等它结束并读取新状态，否则被撤成员会短暂残留在线
+      heartbeat = repository.operation(
+        admin,
+        input.teamId,
+        input.appId,
+        command({ type: 'presence', sessionId: randomUUID(), prId: null, recordId: null, leave: false })
+      );
+      await expect(settlesWithin(heartbeat, 300)).resolves.toBe(false);
+    } finally {
+      await writer.query('ROLLBACK');
+      writer.release();
+    }
+    await expect(heartbeat).resolves.toMatchObject({ expiresAt: expect.any(Number) });
   });
   it('serializes concurrent upload heads and preserves the losing branch locally for recovery', async () => {
     await repository.operation(

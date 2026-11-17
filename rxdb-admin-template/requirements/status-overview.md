@@ -9,9 +9,9 @@
 | ✅ Done        |    2 |
 | 🚧 In Progress |    0 |
 | 👀 In Review   |   19 |
-| 📝 Backlog     |    2 |
+| 📝 Backlog     |    6 |
 | 🚫 Blocked     |    0 |
-| **合计**       |   23 |
+| **合计**       |   27 |
 
 ## 进行中（0 条）
 
@@ -43,9 +43,15 @@
 
 - [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 示例实体替换与元数据贯通：缺少真实业务实体、字段、关系和非 `assets` 命名空间，不能自行发明领域完成需求。
 
-## 待排期（1 条）
+## 待排期（5 条）
 
-- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：协作故事关闭所需的部署、真实邮箱与长期运行证据，尚未开始实施。
+按 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md) 的顺序排列：
+
+- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：下一步首先实施，先做基线度量。
+- [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) 协作读取、实时与身份校验改用 Supabase 原生能力：依赖 ADMIN-US-218。
+- [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 协作服务只部署 Supabase 即可运行：依赖 ADMIN-US-218、219。
+- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：协作故事关闭所需的部署、真实邮箱与长期运行证据，排在 218～220 之后。
+- [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：依赖 ADMIN-US-218，并等待平台 working-tree 远端提交交换立项。
 
 ## 按 Epic 索引
 
@@ -80,6 +86,10 @@
 - 👀 [ADMIN-US-215 在线成员与当前查看状态](stories/collaboration/ADMIN-US-215-presence.md)
 - 👀 [ADMIN-US-216 多级审批与可配置合并规则](stories/collaboration/ADMIN-US-216-multi-level-approval.md)
 
-### ADMIN-EPIC-004 协作服务部署与运维
+### ADMIN-EPIC-004 协作后端收敛、部署与运维
 
+- ⬜ [ADMIN-US-218 差量提交与有界命令成本](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)
+- ⬜ [ADMIN-US-219 协作读取、实时与身份校验改用 Supabase 原生能力](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md)
+- ⬜ [ADMIN-US-220 协作服务只部署 Supabase 即可运行](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md)
 - ⬜ [ADMIN-US-217 协作服务生产部署与运维闭环](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)
+- ⬜ [ADMIN-US-221 团队任务草稿落在 RxDB 工作树](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)

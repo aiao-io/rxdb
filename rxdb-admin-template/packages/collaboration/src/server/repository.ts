@@ -4,6 +4,10 @@ import { demand, type Command, type Identity, type Presence, type Workspace } fr
 import { authorize } from './access.js';
 import { bootstrap, execute, snapshot } from './engine.js';
 
+/** 读取工作区行时的锁：命令排他、Presence 共享、只读查询不加锁。 */
+type RowLock = 'update' | 'share' | 'none';
+const rowLockClause: Record<RowLock, string> = { update: ' FOR UPDATE', share: ' FOR SHARE', none: '' };
+
 /** 同一工作区的所有操作先锁相同行，授权与业务变更处于同一个裁决顺序。 */
 export class CollaborationRepository {
   constructor(private readonly pool: Pool) {}
@@ -12,7 +16,7 @@ export class CollaborationRepository {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
         JSON.stringify([input.teamId, input.appId])
       ]);
-      const previous = await this.load(client, input.teamId, input.appId, false);
+      const previous = await this.load(client, input.teamId, input.appId, 'none');
       if (previous) {
         demand(
           previous.bootstrapKey === input.bootstrapKey &&
@@ -44,7 +48,7 @@ export class CollaborationRepository {
   }
   async read(user: Identity, teamId: string, appId: string) {
     return this.transaction(async client => {
-      const state = await this.required(client, teamId, appId);
+      const state = await this.required(client, teamId, appId, 'none');
       const now = Date.now();
       return snapshot(state, user, now, await this.readPresence(client, teamId, appId, now));
     });
@@ -67,22 +71,26 @@ export class CollaborationRepository {
   }
   async receipt(user: Identity, teamId: string, appId: string, operationId: string) {
     return this.transaction(async client => {
-      const state = await this.required(client, teamId, appId);
+      const state = await this.required(client, teamId, appId, 'none');
       authorize(state, user, 'read');
       const receipt = state.receipts[operationId];
       demand(!receipt || receipt.actorId === user.id, 'forbidden', '无权读取此回执');
       return receipt ? { status: 'accepted', value: receipt.value } : { status: 'unknown' };
     });
   }
-  private async load(client: PoolClient, teamId: string, appId: string, lock = true) {
+  /**
+   * 读取工作区状态。命令用排他锁串行裁决；Presence 只需按已提交的成员关系授权，用共享锁等待进行中的
+   * 成员变更、但不与其他读者互斥；快照与回执读取基于已提交版本，不加锁，不会排在写事务后面。
+   */
+  private async load(client: PoolClient, teamId: string, appId: string, lock: RowLock = 'update') {
     const result = await client.query<{ state: Workspace }>(
-      `SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2${lock ? ' FOR UPDATE' : ''}`,
+      `SELECT state FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2${rowLockClause[lock]}`,
       [teamId, appId]
     );
     return result.rows[0]?.state;
   }
-  private async required(client: PoolClient, teamId: string, appId: string) {
-    const state = await this.load(client, teamId, appId);
+  private async required(client: PoolClient, teamId: string, appId: string, lock: RowLock = 'update') {
+    const state = await this.load(client, teamId, appId, lock);
     demand(state, 'forbidden', '当前用户没有操作权限');
     return state;
   }
@@ -93,7 +101,7 @@ export class CollaborationRepository {
     appId: string,
     command: Extract<Command, { type: 'presence' }>
   ): Promise<Record<string, unknown>> {
-    const state = await this.required(client, teamId, appId);
+    const state = await this.required(client, teamId, appId, 'share');
     const now = Date.now();
     const result = execute(state, user, command, { now, id: randomUUID });
     await client.query('DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND expires_at <= $3', [
@@ -117,12 +125,8 @@ export class CollaborationRepository {
     }
     return result;
   }
+  /** 只读：过期会话由查询条件排除，清理留在 Presence 写入路径，读取不写库。 */
   private async readPresence(client: PoolClient, teamId: string, appId: string, now: number): Promise<Presence[]> {
-    await client.query('DELETE FROM public.admin_presence WHERE team_id = $1 AND app_id = $2 AND expires_at <= $3', [
-      teamId,
-      appId,
-      now
-    ]);
     const result = await client.query<{
       user_id: string;
       session_id: string;

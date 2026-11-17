@@ -60,6 +60,15 @@
         "command": "vitest run --config vitest.integration.config.mts"
       }
     },
+    "benchmark-growth": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build-server"],
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node scripts/workspace-growth-benchmark.mjs"
+      }
+    },
     "e2e": {
       "executor": "nx:run-commands",
       "cache": false,

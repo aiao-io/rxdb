@@ -49,6 +49,15 @@ Admin 模板通用能力：
 
 增强与扩展（依赖真实场景或首版闭环稳定）：Webhook 与外部集成（带签名校验）、PR / 记录 / 通知的深链分享、统计口径确认后的报表与图表、富文本评论与附件、组织层级与跨团队共享、移动端完整验收（表单、协作页、离线）。
 
+### 平台能力候选（来自协作后端收敛）
+
+[ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 需要平台 working-tree 补齐以下能力，它们目前是平台 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 的非目标，需在根 requirements 决策并立项（详见 [收敛实施计划](plans/collaboration-convergence-tasks.md) 第 5 节）：
+
+- 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交。
+- 合并类（多父）提交。
+- `discard()` / `restore()` 回写业务表。
+- 三方字段级合并与「停在合并状态由用户裁决」：目前只有产品服务端的 `mergeRecords` 实现；平台需要时再上移，不作为 ADMIN-US-221 的前置。
+
 ### 2026-11-17 代码评审登记的工程收敛
 
 - 三端领域模块下沉产品私有包：`dashboard-model`、`dashboard-activity-query`、`dashboard-activity-source`、`record-search`、`backup-ops`、`entity-labels`、`entity-registry`、`asset-entities`、`workbench-activity-index` 与 `i18n/` 目录在三端逐字节相同，同一修复要改三份。`entity-registry` 与 `workbench-i18n` 读取各端的 `app.config.json`，下沉前需先设计配置注入，并评估对独立仓库启动模板导出的影响。

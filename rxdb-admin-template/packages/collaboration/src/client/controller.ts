@@ -439,6 +439,8 @@ export class CollaborationController extends EventTarget {
     const epoch = this.generation;
     const request = { ...command, operationId } as Command;
     const durable = !['presence', 'read_notice', 'subscribe'].includes(request.type);
+    // 回执接口要求成员读权限；接受邀请时用户还不是成员，只能直接重发，由服务端按 operationId 幂等返回原结果
+    const readsReceipt = durable && request.type !== 'accept_invite';
     const key = `admin-collaboration-pending:${this.user.id}`;
     const previous = this.pending();
     demand(
@@ -449,7 +451,7 @@ export class CollaborationController extends EventTarget {
     if (durable) sessionStorage.setItem(key, JSON.stringify({ workspace, command: request }));
     let acknowledged = false;
     try {
-      const receipt = durable ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
+      const receipt = readsReceipt ? await this.api.receipt(workspace, operationId) : { status: 'unknown' };
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
       let result: Record<string, unknown>;
       if (receipt.status === 'accepted' && 'value' in receipt) {

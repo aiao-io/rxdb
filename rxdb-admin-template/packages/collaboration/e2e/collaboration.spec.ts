@@ -68,6 +68,8 @@ async function accept(
   await page.getByText('接受团队邀请', { exact: true }).click();
   await page.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture, id, token));
   await page.getByRole('button', { name: '接受邀请', exact: true }).click();
+  // 提示出现时服务端已建立成员关系，后续授权与审批策略才能引用该成员
+  await expect(page.getByText('邀请已接受', { exact: true })).toBeVisible();
 }
 test('真实身份、任务保存、离线同步、非作者审批和原子合并', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
@@ -772,8 +774,12 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     active: false,
     expectedGeneration: generation++
   });
-  await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-  await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0);
+  // 撤权会写入版本通知，被撤权方经 Realtime 自动刷新后先一步锁定，刷新按钮随之消失；尚未锁定时再手动刷新
+  await expect(async () => {
+    const refresh = other.getByRole('button', { name: '刷新团队状态', exact: true });
+    if (await refresh.isVisible()) await refresh.click({ timeout: 1000 });
+    await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0, { timeout: 1000 });
+  }).toPass({ timeout: 15000 });
   await expect(other.getByRole('heading', { name: '数据 PR', exact: true })).toHaveCount(0);
   expect((await api(other, fixture)).status).toBe(403);
   await context.close();

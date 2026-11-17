@@ -44,9 +44,18 @@
 - [ADMIN-US-215](stories/collaboration/ADMIN-US-215-presence.md) 在线成员与当前查看状态
 - [ADMIN-US-216](stories/collaboration/ADMIN-US-216-multi-level-approval.md) 多级审批与可配置合并规则
 
-### 部署与运维闭环（Backlog）
+## 下一批：协作后端收敛与上线（Backlog）
 
-- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：迁移与发布流水线、staging / production、真实邮箱验证码证据、部署后三端协作验收、工作区状态保留策略、健康检查与回滚预案。以上协作故事的合入与真实环境验收依赖本故事，归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。
+方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。以上协作故事的用户可见行为不变，保持 In Review；收敛完成后在新实现上整体回归，再统一评审合并。
+
+1. 阶段 0，基线度量：记录现状下命令耗时、快照体积、WAL 与锁等待随提交数增长的曲线，作为对照组。
+2. [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：ChangeSet 提交（对齐平台 working-tree）、拆表、引用 CAS、细粒度锁、元数据驱动校验。
+3. [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) RLS 分页读取、Realtime Broadcast 与 Presence、本地 JWT 校验。
+4. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase。
+5. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏。
+6. [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：不阻塞上线，等待平台立项。
+
+并行事项：在根 requirements 为 working-tree 的「导入远端提交并保留身份」「多父提交」「回写业务表的 discard / restore」立项。这三项目前是平台 epic-006 的非目标，需要先决策。
 
 ## 既有前置
 

@@ -57,4 +57,17 @@
 
 2026-11-16 的实现使用三端共享的产品私有包 `@rxdb-admin-template/collaboration`。团队数据通过产品快照与提交图协议进入 IndexedDB 任务，云端命令由 Supabase 验证身份、Node 服务执行 PostgreSQL 事务；普通客户端只有 RLS 读取权限，不能直写共享业务投影。
 
-团队模式使用共享编辑器和 PR 四页签；既有匿名 RxDB 资产工作台及数据标识保持独立。现有 `rxdb-plugin-working-tree` 没有直接用于团队任务持久化，不以平台插件状态替代产品验收。工作区版本通知通过 Supabase Realtime 触发受授权的 API 读取，通知负载不包含业务内容。完整实现与测试范围见 [协作记录](plans/collaboration-implementation.md)。
+团队模式使用共享编辑器和 PR 四页签；既有匿名 RxDB 资产工作台及数据标识保持独立。现有 `rxdb-plugin-working-tree` 没有直接用于团队任务持久化，不以平台插件状态替代产品验收。工作区版本通知通过 Supabase Realtime 触发受授权的 API 读取，通知负载不包含业务内容。完整实现与测试范围见 [协作记录](plans/collaboration-implementation.md)。存储、传输与部署形态的后续调整见 [D-09](#d-09协作后端收敛方向)。
+
+## D-09：协作后端收敛方向
+
+2026-11-17 评审结论：首版的 Git 式语义（任务分支、不可变提交、绑定候选的审批、原子合并）成立，但「每个提交存全量记录、整个工作区一行 JSONB、读与心跳都锁整行、每次变化全量下发快照」使单次操作成本随历史线性增长，也使命令入口无法放进 Edge Function。协作后端按以下方向收敛：
+
+1. 服务端权威与 D-06 的裁决规则不变：纯 TypeScript 领域引擎、字段级三方合并和全部用例保留；不改写为 PL/pgSQL；客户端不直写任何业务表。
+2. 提交改为字段级 ChangeSet，形状对齐平台 working-tree 的 `CommitChangeSet`，提交 ID 用 UUIDv7，服务端重算内容指纹；工作区拆表，引用以比较交换推进，按固定顺序加细粒度锁；合并只加载改动过的记录（[ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)）。
+3. Supabase 承担它擅长的部分：RLS 分页读取、Realtime Broadcast 通知、Realtime Presence、本地 JWT 校验（[ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md)）；命令入口可只部署为 Edge Function，Node 入口保留为等价运行时（[ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md)）。
+4. 校验由 RxDB 实体元数据生成的 schema 清单驱动，协作包不再写死资产实体。
+5. 客户端团队任务在平台补齐「导入远端提交并保留身份」「多父提交」「回写业务表的 discard / restore」之后改用 working-tree，编辑复用各应用的 `EntityList`（[ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)）。这些平台能力目前是 epic-006 的非目标，需要在根 requirements 另行立项。
+6. 上线验收（[ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)）排在 218～220 之后；产品尚未部署，存储重构不涉及线上数据迁移。
+
+实施切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)。

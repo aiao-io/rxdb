@@ -41,6 +41,17 @@
 
 覆盖率四项均超过产品包采用的 80% 检查线，但统计范围仅为单元实际加载的源码。完整页面、生产启动入口及 PostgreSQL repository 的集成/浏览器执行不计入上述数字，不能作为整个产品的全源码覆盖率。
 
+2026-11-17 代码评审修复后的复验（本地，未合入）：
+
+| 层级                 | 命令或入口                                                                   | 结果                                                                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 产品单元             | `NX_NO_CLOUD=true pnpm nx test admin-collaboration`                          | 158 项通过，17 个测试文件；新增协作词条门禁、邀请链接 fragment、冲突值解析、Service Worker 来源校验与离线外壳、接受邀请不预读回执等用例 |
+| 产品类型与 lint      | `NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration` | 通过，ESLint 零 warning                                                                                                                 |
+| PostgreSQL 集成      | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration`          | 8 项通过；RLS 用例补充五张公开表的直接 INSERT 拒绝                                                                                      |
+| 三端协作浏览器       | `NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e`                       | 30 项同一轮全部通过（三端各 10 项）；修复了评审前一轮引入的「接受邀请先读回执被拒」回归，并消除撤权锁定与接受邀请两处用例竞态           |
+| 原应用单元与静态检查 | 三端 `test` / `lint` / `typecheck`                                           | React 115 项、Angular 130 项、Vue 129 项通过；Angular 接入组件测试环境，三端均有页面级单测                                              |
+| 原应用浏览器         | 三端 `e2e --workers=4`                                                       | React、Angular 各 104 项通过；Vue 103 项通过，1 项（刷新后搜索）在 4 并发下超时，单独串行重复 3 次通过                                  |
+
 三端协作浏览器的九组场景：
 
 1. 真实 OTP、跨实体编辑、保存刷新、离线同步、PR 说明和目标、无候选要求修改、批准/合并权限分离、四页签、阻塞讨论、通知定位、合并、历史恢复草稿再经审批合并、级联删除预览和检查服务失败恢复；编辑器执行 axe 检查。
@@ -66,6 +77,7 @@ Playwright 通过 SIGTERM 关闭 fixture，清理当次用户、投影和临时�
 - 136 条协作 AC 中，134 条已有本地证据；`ADMIN-US-201 #2/#3` 保留 ⚠️：生产 SMTP 投递和验证码自然到期的真实邮箱场景尚未验收。错误验证码、重复使用和缓存会话过期已有测试。
 - `ADMIN-US-101` 保持 `Backlog`：缺少真实的新业务实体、字段、关系和命名空间输入，资产样例不能代替业务定义。
 - 生产 SMTP、正式 Supabase 项目、服务部署、正式迁移执行和 PR 合入证据尚未提供；部署、迁移、真实邮箱证据与长期运行护栏由 [ADMIN-US-217](../stories/collaboration/ADMIN-US-217-production-deployment-operations.md)（Backlog）承接。
+- 首版存储为整行 JSONB、每个提交存全量记录、全量快照下发，单次操作成本随历史增长；收敛方案与 ADMIN-US-218～221 见 [协作后端收敛实施计划](collaboration-convergence-tasks.md)，上线排在收敛之后。
 - `ADMIN-US-201～216` 均保持 `In Review`。✅ AC、本地通过和已合入/已部署是不同状态。
 
 ## 复验与运行入口

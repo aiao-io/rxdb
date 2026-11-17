@@ -34,3 +34,5 @@
 ## 协作实现
 
 [协作实现与验收记录](collaboration-implementation.md) 汇总三端真实身份、IndexedDB 离线任务、双设备分叉、PR、讨论通知、审批、原子事务与 RLS 的实现、测试证据和部署前置。
+
+[协作后端收敛实施计划](collaboration-convergence-tasks.md) 记录 2026-11-17 定下的收敛方向：差量提交与拆表、Supabase 原生读取与实时、只部署 Supabase、与平台 working-tree 的结合评估及平台缺口，对应 ADMIN-US-217～221。

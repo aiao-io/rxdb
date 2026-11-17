@@ -231,9 +231,31 @@ describe('client concurrency and recovery', () => {
     vi.mocked(controller.api.receipt).mockResolvedValue({ status: 'unknown' });
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
     vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
-    sessionStorage.setItem(`admin-collaboration-pending:${controller.user!.id}`, JSON.stringify({ workspace, command }));
+    sessionStorage.setItem(
+      `admin-collaboration-pending:${controller.user!.id}`,
+      JSON.stringify({ workspace, command })
+    );
     await controller.retryPending();
     expect(send).toHaveBeenCalledWith(workspace, command);
+    expect(controller.workspace).toEqual(workspace);
+    expect(controller.pending()).toBeNull();
+  });
+
+  it('accepts an invitation without reading the members-only receipt before membership exists', async () => {
+    const { controller } = await setup();
+    const workspace = { teamId: 'new-team', appId: 'assets', name: 'new-team' };
+    controller.workspace = null;
+    controller.snapshot = null;
+    // 回执接口要求读权限，受邀者在接受之前还不是成员，读回执必然被拒
+    vi.mocked(controller.api.receipt).mockRejectedValue(new CollaborationError('forbidden', '当前用户没有操作权限'));
+    const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
+    vi.spyOn(controller.api, 'workspaces').mockResolvedValue([workspace]);
+    await controller.acceptInvitation('new-team', 'assets', 'invite', 'token');
+    expect(controller.api.receipt).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(
+      workspace,
+      expect.objectContaining({ type: 'accept_invite', id: 'invite', tokenHash: 'token' })
+    );
     expect(controller.workspace).toEqual(workspace);
     expect(controller.pending()).toBeNull();
   });
@@ -409,18 +431,18 @@ describe('client concurrency and recovery', () => {
   it('keeps the original operation when the transport result is uncertain', async () => {
     const { controller } = await setup();
     vi.spyOn(controller.api, 'command').mockRejectedValue(new CollaborationError('uncertain', '请求结果不确定'));
-    await expect(controller.run({ type: 'task', id: 'uncertain', name: 'Uncertain', expectedHead: null }, 'uncertain-op')).rejects.toThrow(
-      '请求结果不确定'
-    );
+    await expect(
+      controller.run({ type: 'task', id: 'uncertain', name: 'Uncertain', expectedHead: null }, 'uncertain-op')
+    ).rejects.toThrow('请求结果不确定');
     expect(controller.pending()?.command.operationId).toBe('uncertain-op');
   });
   it('keeps the original operation when the command was accepted but refresh failed', async () => {
     const { controller } = await setup();
     vi.spyOn(controller.api, 'command').mockResolvedValue({ taskId: 'accepted' });
     vi.spyOn(controller.api, 'snapshot').mockRejectedValue(new CollaborationError('forbidden', '刷新失败'));
-    await expect(controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')).rejects.toThrow(
-      '刷新失败'
-    );
+    await expect(
+      controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')
+    ).rejects.toThrow('刷新失败');
     expect(controller.pending()?.command.operationId).toBe('accepted-op');
   });
 });

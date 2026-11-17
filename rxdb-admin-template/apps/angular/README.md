@@ -44,3 +44,5 @@ Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面�
 三端共用 [浏览器验收](../react-e2e/src/)，每端的 Nx e2e 目标负责构建并启动自己的生产产物。产品级需求与边界参见 [模板需求](../../requirements/README.md)；当前仍在本仓库内孵化，不提供独立仓库导出流程。
 
 Angular 使用独立组件、signals、懒加载路由与 `@angular/build:application`。`prepare-html` 从应用配置生成 `.generated/index.html` 和首屏主题恢复脚本，`serve` / `build` 自动执行；请修改根 `index.html` 模板。
+
+开发服务器会把 `node_modules` 依赖交给 Vite 预打包，并从仓库根目录解析；产品私有包只链接在本应用的 `node_modules` 中，因此 `serve` 的 `prebundle.exclude` 列出了 `@rxdb-admin-template/collaboration`，让它随应用代码直接打包。新增产品私有包时同步加入该列表，否则开发服务器会报 `Failed to resolve import`；生产构建不受影响。
