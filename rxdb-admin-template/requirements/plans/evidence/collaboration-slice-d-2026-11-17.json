@@ -1,0 +1,249 @@
+{
+  "checkpoints": [
+    {
+      "commits": 10,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 4468,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 1,
+        "schemaVersion": 1,
+        "head": 4,
+        "policy": 94,
+        "members": 326,
+        "tasks": 196,
+        "prs": 305,
+        "candidates": 2,
+        "reviews": 2,
+        "threads": 2,
+        "notifications": 2,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 2907,
+        "auditCount": 1,
+        "governance": 75
+      },
+      "sharedRecordsBytes": 26,
+      "historyPageBytes": 1707,
+      "commitRows": 10,
+      "commitChangeRows": 1045,
+      "sharedRows": 0,
+      "tableRows": {
+        "threads": 7,
+        "comments": 7,
+        "reviews": 0,
+        "notifications": 0,
+        "operations": 13,
+        "audit": 14
+      },
+      "commitStoreBytes": 516096,
+      "snapshotMs": 11,
+      "historyMs": 4.6,
+      "commandMs": 11,
+      "commandWalBytes": 3600,
+      "commands": {
+        "thread": {
+          "ms": 10.6,
+          "walBytes": 3600
+        }
+      },
+      "uploadMsPerCommit": 5
+    },
+    {
+      "commits": 50,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 11319,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 4,
+        "policy": 94,
+        "members": 326,
+        "tasks": 196,
+        "prs": 305,
+        "candidates": 2,
+        "reviews": 2,
+        "threads": 2752,
+        "notifications": 2,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 7006,
+        "auditCount": 2,
+        "governance": 75
+      },
+      "sharedRecordsBytes": 26,
+      "historyPageBytes": 8587,
+      "commitRows": 50,
+      "commitChangeRows": 1245,
+      "sharedRows": 0,
+      "tableRows": {
+        "threads": 14,
+        "comments": 14,
+        "reviews": 0,
+        "notifications": 0,
+        "operations": 21,
+        "audit": 22
+      },
+      "commitStoreBytes": 614400,
+      "snapshotMs": 10,
+      "historyMs": 4.9,
+      "commandMs": 10,
+      "commandWalBytes": 3576,
+      "commands": {
+        "thread": {
+          "ms": 10.2,
+          "walBytes": 3576
+        }
+      },
+      "uploadMsPerCommit": 1
+    },
+    {
+      "commits": 100,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 18169,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 4,
+        "policy": 94,
+        "members": 326,
+        "tasks": 196,
+        "prs": 305,
+        "candidates": 2,
+        "reviews": 2,
+        "threads": 5503,
+        "notifications": 2,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 11105,
+        "auditCount": 2,
+        "governance": 75
+      },
+      "sharedRecordsBytes": 26,
+      "historyPageBytes": 8665,
+      "commitRows": 100,
+      "commitChangeRows": 1495,
+      "sharedRows": 0,
+      "tableRows": {
+        "threads": 21,
+        "comments": 21,
+        "reviews": 0,
+        "notifications": 0,
+        "operations": 29,
+        "audit": 30
+      },
+      "commitStoreBytes": 745472,
+      "snapshotMs": 13,
+      "historyMs": 6.3,
+      "commandMs": 9,
+      "commandWalBytes": 3576,
+      "commands": {
+        "thread": {
+          "ms": 9.1,
+          "walBytes": 3576
+        }
+      },
+      "uploadMsPerCommit": 1
+    },
+    {
+      "commits": 200,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 25492,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 4,
+        "policy": 94,
+        "members": 326,
+        "tasks": 196,
+        "prs": 305,
+        "candidates": 2,
+        "reviews": 2,
+        "threads": 8254,
+        "notifications": 2,
+        "presence": 2,
+        "invitations": 265,
+        "audit": 15677,
+        "auditCount": 2,
+        "governance": 75
+      },
+      "sharedRecordsBytes": 26,
+      "historyPageBytes": 8715,
+      "commitRows": 200,
+      "commitChangeRows": 1995,
+      "sharedRows": 0,
+      "tableRows": {
+        "threads": 28,
+        "comments": 28,
+        "reviews": 0,
+        "notifications": 0,
+        "operations": 38,
+        "audit": 39
+      },
+      "commitStoreBytes": 958464,
+      "snapshotMs": 13,
+      "historyMs": 7.4,
+      "commandMs": 12,
+      "commandWalBytes": 3600,
+      "commands": {
+        "thread": {
+          "ms": 11.5,
+          "walBytes": 3600
+        }
+      },
+      "uploadMsPerCommit": 1
+    }
+  ],
+  "contention": {
+    "commits": 200,
+    "idleCommandMs": 12,
+    "readers": 4,
+    "contendedCommandMs": 13
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 1000,
+    "sharedRecords": 0,
+    "changedRecordsPerCommit": 5,
+    "commands": ["thread"],
+    "samples": 7
+  },
+  "generatedAt": "2026-11-17T08:51:10.099Z",
+  "label": "切片 D：其余集合拆表、引用比较交换、细粒度锁、摘要不含提交元数据"
+}

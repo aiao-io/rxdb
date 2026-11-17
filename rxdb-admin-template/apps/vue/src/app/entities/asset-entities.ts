@@ -41,7 +41,14 @@ export class AssetCategory extends EntityBase {
   properties: [
     { name: 'name', type: PropertyType.string, unique: true, required: true, searchable: true, displayName: '名称' },
     { name: 'status', type: PropertyType.string, displayName: '状态', default: '在用', nullable: true },
-    { name: 'purchasePrice', type: PropertyType.number, displayName: '购入价', nullable: true },
+    {
+      name: 'purchasePrice',
+      type: PropertyType.number,
+      // 金额不能为负：协作服务按数据模式清单校验，规则从这里的 format 下界来
+      format: { kind: 'number', min: 0 },
+      displayName: '购入价',
+      nullable: true
+    },
     {
       name: 'purchaseDate',
       type: PropertyType.date,
@@ -82,7 +89,14 @@ export class Asset extends EntityBase {
   displayName: '维护记录',
   properties: [
     { name: 'summary', type: PropertyType.string, required: true, searchable: true, displayName: '事项' },
-    { name: 'cost', type: PropertyType.number, displayName: '费用', nullable: true },
+    {
+      name: 'cost',
+      type: PropertyType.number,
+      // 金额不能为负：协作服务按数据模式清单校验，规则从这里的 format 下界来
+      format: { kind: 'number', min: 0 },
+      displayName: '费用',
+      nullable: true
+    },
     {
       name: 'happenedAt',
       type: PropertyType.date,
