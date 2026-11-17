@@ -15,11 +15,13 @@ import {
   type PullRequest,
   type Receipt,
   type Review,
+  type SchemaManifest,
   type StoredCandidate,
   type Task,
   type Thread,
   type Workspace
 } from '../model.js';
+import { parseSchemaManifest } from '../schema.js';
 import { pageLimit } from './engine.js';
 import type { Effects, MergeLog } from './plan.js';
 import type { HeadMove, RowChanges, ThreadComment, ThreadRow, WorkspaceChanges } from './state-changes.js';
@@ -36,7 +38,10 @@ const sharedRef = 'shared';
 export const taskRef = (taskId: string) => `tasks/${taskId}`;
 const asNumber = (value: string | number) => Number(value);
 
-/** 只含治理字段的空局部状态：其余集合由加载器按需填入。修订号不在治理行里，命令只看它是否前进。 */
+/**
+ * 只含治理字段的空局部状态：其余集合由加载器按需填入。修订号不在治理行里，命令只看它是否前进。
+ * 数据模式在读到治理行之前是没有实体的占位（版本 0），读到之后换成当前版本的清单；引擎只在治理行读到之后运行。
+ */
 export function emptyState(teamId: string, appId: string): Workspace {
   return {
     teamId,
@@ -44,7 +49,8 @@ export function emptyState(teamId: string, appId: string): Workspace {
     name: '',
     bootstrapKey: '',
     initialAdminId: '',
-    schemaVersion: 1,
+    schemaVersion: 0,
+    schema: { schemaVersion: 0, entities: [] },
     revision: 0,
     head: null,
     policy: { version: 1, stages: [] },
@@ -290,21 +296,30 @@ class PgWorkspaceRows {
     );
     const row = found.rows[0];
     if (!row) return false;
-    const rest = await this.query<{ stages: Workspace['policy']['stages']; head: string | null; members: Member[] }>(
+    const rest = await this.query<{
+      stages: Workspace['policy']['stages'];
+      schema: unknown;
+      head: string | null;
+      members: Member[];
+    }>(
       `SELECT
          (SELECT stages FROM admin_private.policies WHERE team_id = $1 AND app_id = $2 AND version = $3) AS stages,
+         (SELECT manifest FROM admin_private.schemas WHERE team_id = $1 AND app_id = $2 AND version = $4) AS schema,
          (SELECT head FROM admin_private.refs WHERE team_id = $1 AND app_id = $2 AND ref = 'shared') AS head,
          (SELECT coalesce(json_agg(json_build_object('id', user_id, 'email', email, 'permissions', permissions,
              'generation', generation, 'active', active) ORDER BY seq), '[]'::json)
           FROM admin_private.memberships WHERE team_id = $1 AND app_id = $2) AS members`,
-      [row.policy_version]
+      [row.policy_version, row.schema_version]
     );
-    const { stages, head, members } = rest.rows[0];
+    const { stages, schema, head, members } = rest.rows[0];
+    // 当前版本的清单随初始化与登记命令写入，缺了说明数据已损坏，按内部错误处理
+    if (schema === null) throw new Error(`The schema ${row.schema_version} of ${this.teamId}/${this.appId} is missing`);
     Object.assign(this.state, {
       name: row.name,
       bootstrapKey: row.bootstrap_key,
       initialAdminId: row.initial_admin_id,
       schemaVersion: row.schema_version,
+      schema: parseSchemaManifest(schema),
       policy: { version: row.policy_version, stages },
       head,
       members: Object.fromEntries(members.map(member => [member.id, member]))
@@ -492,6 +507,14 @@ export class PgWorkspaceReader extends PgWorkspaceRows {
   candidate(id: string): Promise<void> {
     return this.candidates([id]);
   }
+  /** 按版本读取登记过的数据模式清单；没有登记过的版本为 undefined。 */
+  async schema(version: number): Promise<SchemaManifest | undefined> {
+    const found = await this.query<{ manifest: unknown }>(
+      'SELECT manifest FROM admin_private.schemas WHERE team_id = $1 AND app_id = $2 AND version = $3',
+      [version]
+    );
+    return found.rows[0] ? parseSchemaManifest(found.rows[0].manifest) : undefined;
+  }
   /** 读取一个 PR 与它的来源任务。 */
   async prWithTask(prId: string): Promise<void> {
     await this.prs([prId]);
@@ -649,6 +672,7 @@ export class PgWorkspaceWriter {
     await this.members(changes.members);
     await this.invitations(changes.invitations);
     if (changes.policy) await this.policy(changes.policy);
+    if (changes.schema) await this.schema(changes.schema);
     await this.tasks(changes.tasks);
     for (const [taskId, move] of Object.entries(changes.heads)) await this.advanceTask(taskId, move);
     await this.prs(changes.prs);
@@ -733,6 +757,17 @@ export class PgWorkspaceWriter {
     await this.client.query(
       'UPDATE admin_private.workspaces SET policy_version = $3 WHERE team_id = $1 AND app_id = $2',
       [...this.scope, policy.version]
+    );
+  }
+  /** 新的数据模式版本只追加，治理行指向它；只有持治理行排他锁的登记命令会走到这里。 */
+  private async schema(schema: SchemaManifest): Promise<void> {
+    await this.client.query(
+      'INSERT INTO admin_private.schemas(team_id, app_id, version, manifest) VALUES ($1, $2, $3, $4)',
+      [...this.scope, schema.schemaVersion, JSON.stringify(schema)]
+    );
+    await this.client.query(
+      'UPDATE admin_private.workspaces SET schema_version = $3 WHERE team_id = $1 AND app_id = $2',
+      [...this.scope, schema.schemaVersion]
     );
   }
   private async tasks(tasks: Task[]): Promise<void> {

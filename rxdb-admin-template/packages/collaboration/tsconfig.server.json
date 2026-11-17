@@ -5,5 +5,18 @@
     "tsBuildInfoFile": "dist/server.tsbuildinfo"
   },
   "extends": "./tsconfig.lib.json",
-  "include": ["src/server/**/*.ts", "src/model.ts", "src/records.ts", "src/changes.ts", "src/commit.ts"]
+  "include": [
+    "src/server/**/*.ts",
+    "src/model.ts",
+    "src/records.ts",
+    "src/changes.ts",
+    "src/commit.ts",
+    "src/schema.ts",
+    "src/checks.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
 }

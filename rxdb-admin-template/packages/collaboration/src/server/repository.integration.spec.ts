@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffRecords } from '../changes.js';
 import { commitFingerprint, sealCommit, uuidv7 } from '../commit.js';
 import { receiptRetentionMs, type Command, type Commit, type Identity, type Records } from '../model.js';
+import { planningNamespaces, planningSchema } from '../planning.testing.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 import { historyAdmin, replayHistory, type HistoryDriver } from './history.testing.js';
 import { applyMigrations, readMigrations } from './migrate.js';
 import { advance, emptyState, PgWorkspaceWriter, receiptSweepLimit } from './pg-workspace.js';
@@ -18,7 +20,14 @@ const admin: Identity = { id: randomUUID(), email: 'admin@example.test', verifie
 let pool: pg.Pool;
 let repository: CollaborationRepository;
 let started = false;
-const input = { teamId: randomUUID(), appId: 'assets', name: 'Isolation test', bootstrapKey: randomUUID(), admin };
+const input = {
+  teamId: randomUUID(),
+  appId: 'assets',
+  name: 'Isolation test',
+  bootstrapKey: randomUUID(),
+  admin,
+  schema: assetSchema
+};
 /** admin_private 下的全部表：普通登录用户一律不能读写。 */
 const privateTables = [
   'workspaces',
@@ -35,7 +44,9 @@ const privateTables = [
   'invitations',
   'operations',
   'commits',
-  'commit_changes'
+  'commit_changes',
+  'schemas',
+  'record_keys'
 ];
 const command = (data: Record<string, unknown>) => ({ operationId: randomUUID(), ...data }) as Command;
 /** 时限内的结果：成功、失败或仍在等待；用于断言某个调用是否被行锁挡住。 */
@@ -49,7 +60,7 @@ const outcomeWithin = (pending: Promise<unknown>, ms: number) =>
   ]);
 /** 相对 `before` 的内容形成一个已签名的提交：字段级变更加上内容指纹。 */
 const signed = (id: string, parent: string | null, before: Records, after: Records, message = id): Promise<Commit> =>
-  sealCommit({ id, parent, authorId: admin.id, message, changes: diffRecords(before, after) });
+  sealCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
 /** 工作区的全部表，按外键依赖从叶到根排列：删除时依次清空。 */
 const workspaceTables = [
   'public.admin_presence',
@@ -57,6 +68,7 @@ const workspaceTables = [
   'public.admin_audit',
   'public.admin_workspace_versions',
   'public.admin_shared',
+  'admin_private.record_keys',
   'public.shared_records',
   'admin_private.comments',
   'admin_private.notifications',
@@ -71,6 +83,7 @@ const workspaceTables = [
   'admin_private.invitations',
   'admin_private.operations',
   'admin_private.policies',
+  'admin_private.schemas',
   'admin_private.memberships',
   'admin_private.workspaces'
 ];
@@ -317,7 +330,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           parent: null,
           authorId: owner.id,
           message: 'First',
-          changes: diffRecords({}, { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } })
+          changes: diffAssets({}, { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } })
         })
       ]
     });
@@ -365,7 +378,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         parent: null,
         authorId: admin.id,
         message: 'First',
-        changes: diffRecords({}, records),
+        changes: diffAssets({}, records),
         records
       });
       await expect(repository.readCommit(admin, seed.teamId, seed.appId, head)).resolves.toMatchObject({ records });
@@ -759,7 +772,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
            ('admin_private','commit_changes'),('admin_private','policies'),('admin_private','tasks'),('admin_private','refs'),
            ('admin_private','prs'),('admin_private','candidates'),('admin_private','reviews'),('admin_private','threads'),
            ('admin_private','comments'),('admin_private','notifications'),('admin_private','invitations'),
-           ('admin_private','operations'),('public','admin_shared'),('public','shared_records'),('public','admin_audit'),
+           ('admin_private','operations'),('admin_private','schemas'),('admin_private','record_keys'),
+           ('public','admin_shared'),('public','shared_records'),('public','admin_audit'),
            ('public','admin_changes'),('public','admin_workspace_versions'),('public','admin_presence')
        )
        SELECT 'column' AS kind, c.table_schema || '.' || c.table_name || '.' || c.column_name AS name,
@@ -790,7 +804,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect.arrayContaining([
         '202611160001_collaboration.sql',
         '202611170001_commit_store.sql',
-        '202611170002_workspace_tables.sql'
+        '202611170002_workspace_tables.sql',
+        '202611170003_schema_manifests.sql'
       ])
     );
     const before = await schemaSignature();
@@ -823,7 +838,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       'admin_private.operations_age',
       'public.admin_audit_order',
       'public.admin_audit_pr',
-      'public.admin_audit_thread'
+      'public.admin_audit_thread',
+      'admin_private.record_keys_value'
     ])
       expect(before, index).toContainEqual(expect.objectContaining({ kind: 'index', name: index }));
     for (const table of privateTables)
@@ -1001,7 +1017,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await removeWorkspace(seed);
     }
   });
-  it('uploads one more commit onto a 500-commit chain with the same statements as onto a 3-commit chain, none of them walking the chain', async () => {
+  it('uploads one more commit onto a 500-commit chain with the same statements as onto a 3-commit chain; only the task path is walked', async () => {
     const statements: string[] = [];
     const counted = {
       connect: async () => {
@@ -1041,7 +1057,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
             parent,
             authorId: admin.id,
             message: `c${index}`,
-            changes: diffRecords(content, after)
+            changes: diffAssets(content, after)
           });
           parent = commit.id;
           content = after;
@@ -1069,8 +1085,12 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const short = await measure(3);
     const long = await measure(500);
     expect(long).toEqual(short);
-    expect(long.filter(sql => /RECURSIVE/i.test(sql))).toEqual([]);
-    expect(long.filter(sql => /admin_private\.commits\b/.test(sql))).toHaveLength(2);
+    // 不再沿祖先链做环检测；为核对父内容只沿任务自己在共同起点之后的提交走一次，读它们对被改动记录的变更
+    expect(long.filter(sql => /RECURSIVE/i.test(sql))).toHaveLength(1);
+    expect(long.filter(sql => /admin_private\.commit_changes\b/.test(sql) && /entity_id = ANY/.test(sql))).toHaveLength(
+      1
+    );
+    expect(long.filter(sql => /admin_private\.commits\b/.test(sql))).toHaveLength(3);
   }, 60000);
   it('keeps the workspace rows free of commit content: uploading a thousand changed records adds only a small audit event and receipt', async () => {
     const seed = { ...input, teamId: randomUUID(), appId: 'row-size', bootstrapKey: randomUUID() };
@@ -1706,6 +1726,384 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         ).toEqual([]);
         expect(plan.map(node => node['Index Name'])).toContain('memberships_pkey');
       }
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+  /** 非资产清单（项目 / 里程碑 / 标签）的工作区，免审批策略。 */
+  async function planningWorkspace(appId: string) {
+    const seed = { ...input, teamId: randomUUID(), appId, bootstrapKey: randomUUID(), schema: planningSchema };
+    await repository.initialize(seed);
+    const op = (data: Record<string, unknown>, actor: Identity = admin) =>
+      repository.operation(actor, seed.teamId, seed.appId, command(data));
+    return { seed, op };
+  }
+  const planned = (id: string, parent: string | null, before: Records, after: Records) =>
+    sealCommit({
+      id,
+      parent,
+      authorId: admin.id,
+      message: id,
+      changes: diffRecords(before, after, planningNamespaces)
+    });
+  const without = (records: Records, ...ids: string[]): Records =>
+    Object.fromEntries(Object.entries(records).filter(([id]) => !ids.includes(id)));
+  const errorOf = async (work: Promise<unknown>) => {
+    try {
+      await work;
+      return null;
+    } catch (error) {
+      return error as { code?: string; message: string; details?: Record<string, unknown> };
+    }
+  };
+  const project = (title: string, fields: Records[string]['fields'] = {}) => ({
+    entity: 'Project',
+    fields: { title, ...fields }
+  });
+  const milestone = (name: string, projectId: string) => ({
+    entity: 'Milestone',
+    fields: { name, dueOn: '2026-05-01', projectId }
+  });
+  /** 建 PR、请求审核并生成候选（若 PR 已存在只生成候选），返回候选的完整内容。 */
+  async function plannedCandidate(
+    seed: { teamId: string; appId: string },
+    op: (data: Record<string, unknown>) => Promise<Record<string, unknown>>,
+    task: string,
+    revision: number
+  ) {
+    if (revision === 1) {
+      await op({ type: 'pr', id: `pr-${task}`, taskId: task, title: task, description: '', target: 'shared' });
+      await op({ type: 'pr_state', prId: `pr-${task}`, status: 'review', expectedRevision: 0 });
+    }
+    const result = await op({ type: 'candidate', prId: `pr-${task}`, expectedRevision: revision, resolutions: [] });
+    return repository.readCandidate(admin, seed.teamId, seed.appId, String(result['candidateId']));
+  }
+
+  it('walks the whole flow on a non-asset schema: the schema finds the violations, the fixed candidate is approved and merged (AC#7)', async () => {
+    const { seed, op } = await planningWorkspace('planning-flow');
+    const reviewer = { id: randomUUID(), email: 'planning-reviewer@example.test', verified: true };
+    try {
+      expect(await repository.readSchema(admin, seed.teamId, seed.appId, 1)).toEqual(planningSchema);
+      await op({
+        type: 'invite',
+        id: 'invite',
+        email: reviewer.email,
+        permissions: ['read', 'review'],
+        tokenHash: 'token',
+        expiresAt: Date.now() + 60000,
+        expectedVersion: 0
+      });
+      await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, reviewer);
+      await op({ type: 'task', id: 'plan', name: 'Plan', expectedHead: null });
+      const broken: Records = {
+        p1: project('Apollo', { code: 'AP', budget: 10 }),
+        p2: project('Apollo', { code: 'AP', budget: -1, stage: 'late' }),
+        m1: milestone('Kickoff', 'p1'),
+        m2: milestone('Review', 'missing')
+      };
+      await op({
+        type: 'upload',
+        taskId: 'plan',
+        expectedHead: null,
+        commits: [await planned('plan-1', null, {}, broken)]
+      });
+      const first = await plannedCandidate(seed, op, 'plan', 1);
+      expect(first.checks.map(check => `${check.recordId}.${check.field}: ${check.message}`)).toEqual([
+        'm2.projectId: 关联记录不存在',
+        'p2.title: 名称必须唯一',
+        'p2.code: 取值必须唯一',
+        'p2.budget: 必须为非负数',
+        'p2.stage: 取值不在允许范围内'
+      ]);
+      const fixed: Records = {
+        ...broken,
+        p2: project('Gemini', { code: 'GE', budget: 1 }),
+        m2: milestone('Review', 'p2')
+      };
+      await op({
+        type: 'upload',
+        taskId: 'plan',
+        expectedHead: 'plan-1',
+        commits: [await planned('plan-2', 'plan-1', broken, fixed)]
+      });
+      const second = await plannedCandidate(seed, op, 'plan', 3);
+      expect(second.checks).toEqual([]);
+      await op(
+        {
+          type: 'review',
+          prId: 'pr-plan',
+          candidateId: second.id,
+          expectedSource: second.source,
+          stageId: 'review',
+          decision: 'approve',
+          reason: '',
+          expectedRevision: 0
+        },
+        reviewer
+      );
+      await op({
+        type: 'merge',
+        prId: 'pr-plan',
+        candidateId: second.id,
+        expectedSource: 'plan-2',
+        expectedTarget: null
+      });
+      expect((await repository.readRecords(admin, seed.teamId, seed.appId)).records).toEqual(fixed);
+      const keys = await pool.query<{ record_id: string; kind: string; field: string; value: string }>(
+        'SELECT record_id, kind, field, value FROM admin_private.record_keys WHERE team_id = $1 ORDER BY record_id, kind, field',
+        [seed.teamId]
+      );
+      expect(keys.rows).toEqual([
+        { record_id: 'm1', kind: 'reference', field: 'projectId', value: 'p1' },
+        { record_id: 'm2', kind: 'reference', field: 'projectId', value: 'p2' },
+        { record_id: 'p1', kind: 'unique', field: 'code', value: '"AP"' },
+        { record_id: 'p1', kind: 'unique', field: 'title', value: '"Apollo"' },
+        { record_id: 'p2', kind: 'unique', field: 'code', value: '"GE"' },
+        { record_id: 'p2', kind: 'unique', field: 'title', value: '"Gemini"' }
+      ]);
+      // 删除仍被引用的项目：未改动的里程碑经键索引被找出来，报关联记录不存在
+      await op({
+        type: 'task',
+        id: 'drop',
+        name: 'Drop',
+        expectedHead: (await repository.read(admin, seed.teamId, seed.appId)).head
+      });
+      const head = (await repository.read(admin, seed.teamId, seed.appId)).head;
+      await op({
+        type: 'upload',
+        taskId: 'drop',
+        expectedHead: head,
+        commits: [await planned('drop-1', head, fixed, without(fixed, 'p1'))]
+      });
+      const dropped = await plannedCandidate(seed, op, 'drop', 1);
+      expect(dropped.checks.map(check => `${check.recordId}.${check.field}: ${check.message}`)).toEqual([
+        'm1.projectId: 关联记录不存在'
+      ]);
+    } finally {
+      await removeWorkspace(seed);
+    }
+  }, 60000);
+
+  it('rejects an upload whose changes do not fit the parent content, as a whole batch and without writing anything', async () => {
+    const { seed, op } = await planningWorkspace('planning-upload');
+    try {
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+      const first = await planned('c1', null, {}, { p1: project('Apollo', { budget: 10 }) });
+      await op({ type: 'upload', taskId: 'task', expectedHead: null, commits: [first] });
+      const fine = await planned(
+        'c2',
+        'c1',
+        { p1: project('Apollo', { budget: 10 }) },
+        { p1: project('Apollo', { budget: 20 }) }
+      );
+      const forged = await sealCommit({
+        id: 'c3',
+        parent: 'c2',
+        authorId: admin.id,
+        message: 'forged',
+        changes: [
+          {
+            namespace: 'planning',
+            entity: 'Project',
+            entityId: 'p1',
+            operation: 'update',
+            patch: { budget: 30 },
+            inversePatch: { budget: 99 }
+          }
+        ]
+      });
+      const rejected = await errorOf(
+        op({ type: 'upload', taskId: 'task', expectedHead: 'c1', commits: [fine, forged] })
+      );
+      expect(rejected).toMatchObject({ code: 'invalid', message: '提交内容与其父提交不一致' });
+      const stored = await pool.query('SELECT id FROM admin_private.commits WHERE team_id = $1 ORDER BY id', [
+        seed.teamId
+      ]);
+      expect(stored.rows.map(row => row['id'])).toEqual(['c1']);
+      const unknown = await sealCommit({
+        id: 'c4',
+        parent: 'c1',
+        authorId: admin.id,
+        message: 'unknown field',
+        changes: [{ ...forged.changes[0], patch: { owner: 'x' }, inversePatch: {} }]
+      });
+      expect(
+        await errorOf(op({ type: 'upload', taskId: 'task', expectedHead: 'c1', commits: [unknown] }))
+      ).toMatchObject({
+        code: 'invalid',
+        message: '字段不受支持'
+      });
+      await op({ type: 'upload', taskId: 'task', expectedHead: 'c1', commits: [fine] });
+    } finally {
+      await removeWorkspace(seed);
+    }
+  });
+
+  it('builds candidates and merges from the changed records only: the same statements and lookup sizes for 300 and 3000 shared records', async () => {
+    const reads = async (count: number) => {
+      const { seed, op } = await planningWorkspace(`planning-reads-${count}`);
+      try {
+        const records: Records = {};
+        for (let index = 0; index < count; index++) {
+          records[`p${index}`] = project(`Project ${index}`, { code: `C${index}` });
+          records[`m${index}a`] = milestone(`A ${index}`, `p${index}`);
+          records[`m${index}b`] = milestone(`B ${index}`, `p${index}`);
+        }
+        await op({ type: 'policy', stages: [], expectedVersion: 1 });
+        await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: null });
+        await op({
+          type: 'upload',
+          taskId: 'seed',
+          expectedHead: null,
+          commits: [await planned('seed-1', null, {}, records)]
+        });
+        const seedCandidate = await plannedCandidate(seed, op, 'seed', 1);
+        await op({
+          type: 'merge',
+          prId: 'pr-seed',
+          candidateId: seedCandidate.id,
+          expectedSource: 'seed-1',
+          expectedTarget: null
+        });
+        const head = (await repository.read(admin, seed.teamId, seed.appId)).head;
+        const edited: Records = {
+          ...without(records, 'p3'),
+          p1: project('Renamed', { code: 'C1' }),
+          extra: milestone('Extra', 'p2')
+        };
+        await op({ type: 'task', id: 'edit', name: 'Edit', expectedHead: head });
+        await op({
+          type: 'upload',
+          taskId: 'edit',
+          expectedHead: head,
+          commits: [await planned('edit-1', head, records, edited)]
+        });
+        await op({ type: 'pr', id: 'pr-edit', taskId: 'edit', title: 'edit', description: '', target: 'shared' });
+        await op({ type: 'pr_state', prId: 'pr-edit', status: 'review', expectedRevision: 0 });
+        const statements: { sql: string; params: unknown[] }[] = [];
+        const recording = new CollaborationRepository(recordingPool(statements));
+        const result = await recording.operation(
+          admin,
+          seed.teamId,
+          seed.appId,
+          command({ type: 'candidate', prId: 'pr-edit', expectedRevision: 1, resolutions: [] })
+        );
+        const candidate = await repository.readCandidate(admin, seed.teamId, seed.appId, String(result['candidateId']));
+        expect(candidate.checks.map(check => `${check.recordId}.${check.field}`)).toEqual([
+          'm3a.projectId',
+          'm3b.projectId'
+        ]);
+        const candidateReads = statements.filter(statement =>
+          /public\.shared_records|admin_private\.record_keys/.test(statement.sql)
+        );
+        statements.length = 0;
+        // 共享数据还没有改动，仍按同一份候选合并：重新核对同样只读改动过的记录
+        const fixedEdit = { ...edited, m3a: milestone('A 3', 'p2'), m3b: milestone('B 3', 'p2') };
+        await op({
+          type: 'upload',
+          taskId: 'edit',
+          expectedHead: 'edit-1',
+          commits: [await planned('edit-2', 'edit-1', edited, fixedEdit)]
+        });
+        const clean = await plannedCandidate(seed, op, 'edit', 3);
+        expect(clean.checks).toEqual([]);
+        statements.length = 0;
+        await recording.operation(
+          admin,
+          seed.teamId,
+          seed.appId,
+          command({
+            type: 'merge',
+            prId: 'pr-edit',
+            candidateId: clean.id,
+            expectedSource: 'edit-2',
+            expectedTarget: head
+          })
+        );
+        const mergeReads = statements.filter(
+          statement =>
+            /SELECT/.test(statement.sql) && /public\.shared_records|admin_private\.record_keys/.test(statement.sql)
+        );
+        // 每条读取都带记录或键的过滤，从不整表读取共享记录；按键查询走 record_keys 的索引
+        for (const statement of [...candidateReads, ...mergeReads])
+          if (/FROM public\.shared_records/.test(statement.sql) && !/IN \(/.test(statement.sql))
+            expect(statement.params[2], statement.sql).not.toBeNull();
+        for (const statement of candidateReads.filter(item => /admin_private\.record_keys/.test(item.sql))) {
+          const plan = await planOf(statement.sql, statement.params);
+          expect(plan.filter(node => node['Node Type'] === 'Seq Scan').map(node => node['Relation Name'])).toEqual([]);
+        }
+        const shape = (list: typeof statements) =>
+          list.map(statement => [
+            statement.sql.replace(/\s+/g, ' ').trim(),
+            ...statement.params.slice(2).map(param => (Array.isArray(param) ? param.length : typeof param))
+          ]);
+        return { candidate: shape(candidateReads), merge: shape(mergeReads) };
+      } finally {
+        await removeWorkspace(seed);
+      }
+    };
+    const small = await reads(100);
+    const large = await reads(1000);
+    expect(large).toEqual(small);
+    expect(small.candidate.length).toBeGreaterThan(2);
+  }, 120000);
+
+  it('registers a new schema version only for managers and only when every shared record passes it; the key index is rebuilt', async () => {
+    const { seed, op } = await planningWorkspace('planning-schema');
+    try {
+      await op({ type: 'policy', stages: [], expectedVersion: 1 });
+      await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: null });
+      const shared: Records = { p1: project('Apollo'), p2: project('Zeus') };
+      await op({
+        type: 'upload',
+        taskId: 'seed',
+        expectedHead: null,
+        commits: [await planned('seed-1', null, {}, shared)]
+      });
+      const seedCandidate = await plannedCandidate(seed, op, 'seed', 1);
+      await op({
+        type: 'merge',
+        prId: 'pr-seed',
+        candidateId: seedCandidate.id,
+        expectedSource: 'seed-1',
+        expectedTarget: null
+      });
+      const required = structuredClone({ ...planningSchema, schemaVersion: 2 });
+      Object.assign(
+        required.entities[0].fields.find(field => field.field === 'code')!,
+        { required: true }
+      );
+      expect(await errorOf(op({ type: 'schema', schema: required, expectedVersion: 1 }))).toMatchObject({
+        code: 'checks',
+        details: {
+          checks: [
+            { recordId: 'p1', field: 'code', message: '必填文本不能为空' },
+            { recordId: 'p2', field: 'code', message: '必填文本不能为空' }
+          ],
+          total: 2
+        }
+      });
+      const unique = structuredClone({ ...planningSchema, schemaVersion: 2 });
+      Object.assign(
+        unique.entities[0].fields.find(field => field.field === 'stage')!,
+        { unique: true }
+      );
+      expect(await op({ type: 'schema', schema: unique, expectedVersion: 1 })).toEqual({ schemaVersion: 2 });
+      const versions = await pool.query(
+        'SELECT version FROM admin_private.schemas WHERE team_id = $1 ORDER BY version',
+        [seed.teamId]
+      );
+      expect(versions.rows.map(row => row['version'])).toEqual([1, 2]);
+      expect((await repository.read(admin, seed.teamId, seed.appId)).schemaVersion).toBe(2);
+      expect(await repository.readSchema(admin, seed.teamId, seed.appId, 2)).toEqual(unique);
+      expect(await errorOf(repository.readSchema(admin, seed.teamId, seed.appId, 3))).toMatchObject({
+        code: 'not_found'
+      });
+      expect(
+        await errorOf(op({ type: 'schema', schema: { ...unique, schemaVersion: 3 }, expectedVersion: 1 }))
+      ).toMatchObject({
+        code: 'stale'
+      });
     } finally {
       await removeWorkspace(seed);
     }

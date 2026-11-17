@@ -9,6 +9,7 @@ import type {
   PullRequest,
   Receipt,
   Review,
+  SchemaManifest,
   StoredCandidate,
   Task,
   Thread,
@@ -49,6 +50,8 @@ export interface WorkspaceChanges {
   invitations: Invitation[];
   /** 新的审批策略版本；没有变化时为 null。 */
   policy: Policy | null;
+  /** 新登记的数据模式版本（清单只追加，治理行指向它）；没有变化时为 null。 */
+  schema: SchemaManifest | null;
   /** 新建的任务（带创建时的头）。 */
   tasks: Task[];
   /** 已有任务的头推进，键为任务 ID。 */
@@ -146,6 +149,7 @@ export function stateChanges(before: Workspace, after: Workspace): WorkspaceChan
     members: [...members.created, ...members.updated],
     invitations: [...invitations.created, ...invitations.updated],
     policy: canonical(before.policy) === canonical(after.policy) ? null : after.policy,
+    schema: before.schemaVersion === after.schemaVersion ? null : after.schema,
     ...taskChanges(before, after),
     shared: before.head === after.head ? null : { from: before.head, to: after.head },
     prs: keyed(before.prs, after.prs, 'PR'),

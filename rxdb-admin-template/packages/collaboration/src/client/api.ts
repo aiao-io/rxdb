@@ -8,9 +8,11 @@ import {
   type CommitContent,
   type CommitPage,
   type HistoryQuery,
+  type SchemaManifest,
   type SharedRecords,
   type WorkspaceSummary
 } from '../model.js';
+import { parseSchemaManifest } from '../schema.js';
 /** 一个可访问的团队与应用；`name` 是展示名。 */
 export type WorkspaceEntry = { teamId: string; appId: string; name: string };
 /** 把查询条件里已设置的参数拼成查询串（含前导 `?`）；没有参数时为空串。 */
@@ -58,6 +60,10 @@ export class CollaborationApi {
   /** 读取一个合并候选的完整内容；候选不可变，可按 ID 长期缓存。 */
   async candidate(context: WorkspaceEntry, id: string) {
     return this.request<Candidate>(`${this.path(context)}/candidates/${encodeURIComponent(id)}`);
+  }
+  /** 按版本读取工作区登记过的数据模式清单并严格解析；清单只追加、不可修改，可按版本长期缓存。 */
+  async schema(context: WorkspaceEntry, version: number): Promise<SchemaManifest> {
+    return parseSchemaManifest(await this.request<unknown>(`${this.path(context)}/schemas/${version}`));
   }
   /** 读取审计事件的一页，按时间从新到旧；只带已设置的筛选与分页参数。 */
   async audit(context: WorkspaceEntry, query: AuditQuery = {}) {

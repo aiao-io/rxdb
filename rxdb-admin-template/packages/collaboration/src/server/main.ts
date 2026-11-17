@@ -16,8 +16,9 @@ const auth = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 const pool = new pg.Pool({ connectionString: required('ADMIN_DATABASE_URL'), max: 10, statement_timeout: 30000 });
+// 特殊业务检查（`checks`，见 checks.ts 的 RecordCheck）在这里注入；默认没有，只按数据模式清单检查
 const server = collaborationServer({
-  repository: new CollaborationRepository(pool),
+  repository: new CollaborationRepository(pool, {}),
   origins: required('ADMIN_ALLOWED_ORIGINS')
     .split(',')
     .map(value => value.trim()),

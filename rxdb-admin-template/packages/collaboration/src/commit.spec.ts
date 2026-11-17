@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { assertFingerprints, commitFingerprint, sealCommit, uuidv7 } from './commit.js';
-import { diffRecords } from './changes.js';
 import { CollaborationError, type Commit } from './model.js';
+import { diffAssets } from './schema.testing.js';
 
-const changes = diffRecords({}, { c: { entity: 'AssetCategory', fields: { name: 'Computers' } } });
+const changes = diffAssets({}, { c: { entity: 'AssetCategory', fields: { name: 'Computers' } } });
 const draft = { id: 'commit-1', parent: null, authorId: 'alice', message: 'First', changes };
 
 describe('commit fingerprint', () => {

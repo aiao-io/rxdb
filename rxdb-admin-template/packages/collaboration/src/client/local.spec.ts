@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyChanges } from '../changes.js';
 import { assertFingerprints, commitFingerprint } from '../commit.js';
 import type { Records } from '../model.js';
+import { assetSchema } from '../schema.testing.js';
 import { parseCommand } from '../server/input.js';
 import { LocalTasks, contextKey, uploadCommand, type Context, type Draft, type DraftStorage } from './local.js';
 class MemoryStorage implements DraftStorage {
@@ -37,7 +38,7 @@ async function setup() {
   const storage = new MemoryStorage();
   const tasks = new LocalTasks(storage);
   await tasks.login('alice');
-  await tasks.openVerified(context, 'Task', null, null, {});
+  await tasks.openVerified(context, 'Task', null, null, {}, assetSchema);
   return { storage, tasks };
 }
 describe('local context and commit boundaries', () => {
@@ -214,7 +215,7 @@ describe('local context and commit boundaries', () => {
     expect((await storage.read(contextKey(context)))?.queue).toHaveLength(1);
     const cold = new LocalTasks(storage);
     expect(await cold.coldRestore('alice', 300, 200)).toEqual([]);
-    await cold.openVerified(context, 'Task', null, null, {});
+    await cold.openVerified(context, 'Task', null, null, {}, assetSchema);
     expect((await cold.read(context))?.records).toEqual(records);
   });
   it('refuses fast-forward and stale saves while preserving all local work', async () => {

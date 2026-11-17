@@ -1,14 +1,22 @@
+import { applyVerified } from '../changes.js';
 import { demand, type Command, type Commit, type Environment, type Identity, type Workspace } from '../model.js';
+import { assertChangesFit } from '../schema.js';
 import { authorize, editTask, expected, managePr, prFor, taskFor } from './access.js';
 import { preloaded, type Plan, type Run } from './plan.js';
 
-/** 上传与另存分叉需要预加载的数据：命令里已存在的提交，分叉另需原任务头到共同起点的路径；其余任务命令不需要。 */
+/**
+ * 上传与另存分叉需要预加载的数据：命令里已存在的提交、新提交改动到的记录在起点时的内容（只按这些记录推导），
+ * 分叉另需原任务头到共同起点的路径；其余任务命令不需要。
+ */
 export function taskPlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
   if (command.type !== 'upload' && command.type !== 'fork') return undefined;
   const task = taskFor(state, command.taskId);
   editTask(state, user, task);
   const ids = command.commits.map(commit => commit.id);
-  return command.type === 'upload' ? { type: 'upload', ids } : { type: 'fork', ids, head: task.head, base: task.base };
+  const touched = [...new Set(command.commits.flatMap(commit => commit.changes.map(change => change.entityId)))];
+  const content = { shared: state.head, base: task.base, head: task.head, touched: touched.sort() };
+  if (command.type === 'upload') return { type: 'upload', ids, content };
+  return { type: 'fork', ids, chain: command.commits.map(({ id, parent }) => ({ id, parent })), content };
 }
 
 export function taskCommand(
@@ -88,7 +96,7 @@ function upload(state: Workspace, user: Identity, command: Extract<Command, { ty
     '已合并任务请开始新任务'
   );
   // 起点就是任务头，而任务头沿父链必然回到共同起点（建任务与每次上传都保持这一点），无需再回溯整条链
-  const head = acceptChain(user, command.expectedHead, command.commits, run);
+  const head = acceptChain(state, user, command.expectedHead, command.commits, run);
   task.head = head;
   for (const pr of Object.values(state.prs).filter(item => item.taskId === task.id)) {
     pr.revision++;
@@ -108,7 +116,7 @@ function fork(state: Workspace, user: Identity, command: Extract<Command, { type
     'ancestry',
     '无法确认分叉起点'
   );
-  const head = acceptChain(user, command.expectedHead, command.commits, run);
+  const head = acceptChain(state, user, command.expectedHead, command.commits, run);
   state.tasks[command.id] = {
     ...original,
     id: command.id,
@@ -122,12 +130,16 @@ function fork(state: Workspace, user: Identity, command: Extract<Command, { type
 /**
  * 接受一条提交链：每个提交的父指针必须接上前一个（第一个接上 `start`）。已存在的提交只做指纹相等与归属校验，
  * 不重复写入，归属以预加载的路径为准；新提交的作者必须是当前用户。
- * 新 ID 的提交不可能成环（此前没有任何提交引用它），所以不需要沿祖先链回溯，成本只与本次上传的提交数有关。
+ * 新提交的变更必须符合当前的数据模式清单（实体、命名空间、字段），并且能按顺序应用到父内容上：新增的记录原来不存在，
+ * 修改与删除的记录原来存在且 `inversePatch` 与原值一致（见 `applyVerified`），任一项不符整批以 `invalid` 拒绝、不写入。
+ * 父内容只含新提交改动到的记录，由仓储按任务分叉以来的变更推导，成本与历史长度无关。
+ * 新 ID 的提交不可能成环（此前没有任何提交引用它），所以不需要沿祖先链回溯环检测。
  */
-function acceptChain(user: Identity, start: string | null, commits: Commit[], run: Run): string {
+function acceptChain(state: Workspace, user: Identity, start: string | null, commits: Commit[], run: Run): string {
   demand(commits.length > 0 && commits.length <= 100, 'invalid', '一次同步需要 1～100 个提交');
   const known = new Map(preloaded(run.facts.existing, 'existing commits'));
   const path = preloaded(run.facts.path, 'commit ancestry');
+  const content = structuredClone(preloaded(run.facts.content, 'parent content'));
   let head = start;
   for (const commit of commits) {
     demand(commit.parent === head, 'ancestry', '提交父链不连续');
@@ -137,6 +149,9 @@ function acceptChain(user: Identity, start: string | null, commits: Commit[], ru
     demand(!existing || path.has(commit.id), 'ancestry', '不能接管其他任务的提交');
     demand(commit.id !== commit.parent, 'ancestry', '提交图不能包含环');
     if (!existing) {
+      assertChangesFit(state.schema, commit.changes);
+      demand(content, 'ancestry', '找不到可信共同起点');
+      applyVerified(content, commit.changes);
       known.set(commit.id, {
         id: commit.id,
         parent: commit.parent,

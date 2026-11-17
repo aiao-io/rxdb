@@ -9,6 +9,7 @@ import {
   type Environment,
   type HistoryQuery,
   type Identity,
+  type SchemaManifest,
   type SharedRecords,
   type Workspace,
   type WorkspaceSummary
@@ -16,7 +17,15 @@ import {
 import { sortRecords } from '../records.js';
 import { authorize, prFor, taskFor } from './access.js';
 import { candidateRecords, commitRecords, preload } from './content.js';
-import { candidateSummary, execute, pageLimit, plan, snapshot, type SummaryView } from './engine.js';
+import {
+  candidateSummary,
+  execute,
+  pageLimit,
+  plan,
+  snapshot,
+  type EngineOptions,
+  type SummaryView
+} from './engine.js';
 import type { NewCommit } from './plan.js';
 import { gather } from './scope.js';
 import { stateChanges } from './state-changes.js';
@@ -29,25 +38,43 @@ async function sealed(commit: NewCommit) {
 
 /**
  * 执行一条命令：按命令加载并锁定它涉及的行（局部状态），让引擎做授权与状态校验并声明所需的提交数据，
- * 核验上传提交的内容指纹，按声明预加载，交给纯函数的引擎裁决，再把新提交、共享记录改动与局部状态的差异写回。
- * 调用方负责事务：任一步失败时整体回滚；工作区不存在时与无权访问同样拒绝。
+ * 核验上传提交的内容指纹，按声明预加载，交给纯函数的引擎裁决，再把新提交、共享记录改动（连同键索引）
+ * 与局部状态的差异写回。调用方负责事务：任一步失败时整体回滚；工作区不存在时与无权访问同样拒绝。
+ * `options` 是部署入口注入的引擎扩展（特殊业务检查），默认没有。
  */
 export async function runCommand(
   store: CommandStore,
   user: Identity,
   command: Command,
-  env: Environment
+  env: Environment,
+  options: EngineOptions = {}
 ): Promise<Record<string, unknown>> {
   const state = await gather(store.loader, user, command, env.now);
   demand(state, 'forbidden', '当前用户没有操作权限');
   const before = structuredClone(state);
   const planned = plan(state, user, command);
   if (command.type === 'upload' || command.type === 'fork') await assertFingerprints(command.commits);
-  const { result, effects } = execute(state, user, command, env, await preload(store.commits, planned));
+  const { result, effects } = execute(state, user, command, env, await preload(store.commits, planned), options);
   if (effects.commits.length) await store.commits.append(await Promise.all(effects.commits.map(sealed)));
   if (effects.shared) await store.commits.apply(effects.shared);
+  if (effects.reindex) await store.commits.reindex(effects.reindex);
   await store.save(stateChanges(before, state), effects, env.now);
   return result;
+}
+/**
+ * 按版本读取登记过的数据模式清单（版本只追加、不可修改，客户端可按版本长期缓存）；需要 read 权限，
+ * 没有登记过的版本返回 `not_found`。`find` 是存储按版本的查询。
+ */
+export async function readSchema(
+  find: (version: number) => Promise<SchemaManifest | undefined>,
+  state: Workspace,
+  user: Identity,
+  version: number
+): Promise<SchemaManifest> {
+  authorize(state, user, 'read');
+  const schema = await find(version);
+  demand(schema, 'not_found', '数据模式不存在');
+  return schema;
 }
 
 /** 工作区摘要：只含元数据，不含提交元数据、记录与完整审计。需要 read 权限。 */

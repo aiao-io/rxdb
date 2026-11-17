@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { diffRecords } from '../changes.js';
 import { sealCommit } from '../commit.js';
 import {
   CollaborationError,
@@ -9,6 +8,7 @@ import {
   type Records,
   type Workspace
 } from '../model.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 import { auditPage, candidateSummary } from './engine.js';
 import { MemoryWorkspace } from './memory.testing.js';
 
@@ -21,7 +21,7 @@ const spaces = new WeakMap<Workspace, MemoryWorkspace>();
 const space = (state: Workspace) => spaces.get(state)!;
 const create = () => {
   const workspace = MemoryWorkspace.create(
-    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin },
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin, schema: assetSchema },
     env()
   );
   spaces.set(workspace.state, workspace);
@@ -47,7 +47,7 @@ async function commit(
   message = 'Assets',
   authorId = admin.id
 ): Promise<Commit> {
-  return sealCommit({ id, parent, authorId, message, changes: diffRecords(await contentOf(state, parent), after) });
+  return sealCommit({ id, parent, authorId, message, changes: diffAssets(await contentOf(state, parent), after) });
 }
 async function invite(state: Workspace) {
   await act(state, {
@@ -955,7 +955,8 @@ describe('workspace summary', () => {
     });
     expect(JSON.stringify(rows).length).toBeGreaterThan(50_000);
     expect(JSON.stringify(await space(state).summary(admin, 1000)).length).toBeLessThan(4_000);
-    expect(JSON.stringify(state).length).toBeLessThan(6_000);
+    // 数据模式清单是治理字段里体积固定的一部分（按版本存一份），不随记录增长，单独计
+    expect(JSON.stringify({ ...state, schema: null }).length).toBeLessThan(6_000);
   });
   it('returns the latest 50 audit events in chronological order together with the total count', async () => {
     const state = create();
@@ -1015,7 +1016,7 @@ describe('on-demand reads', () => {
       parent: null,
       authorId: 'admin',
       message: 'Assets',
-      changes: diffRecords({}, records(100)),
+      changes: diffAssets({}, records(100)),
       records: records(100)
     });
     expect(await workspace.commit(reviewer, state.head!)).toEqual({
@@ -1025,7 +1026,7 @@ describe('on-demand reads', () => {
       message: 'Merge Asset update',
       mergeSource: 'commit1',
       candidateId: candidate.id,
-      changes: diffRecords({}, records(100)),
+      changes: diffAssets({}, records(100)),
       records: records(100)
     });
     expect(await workspace.candidate(reviewer, candidate.id)).toEqual({

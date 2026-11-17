@@ -1,4 +1,5 @@
 import type { ChangeSet, Commit, CommitMeta, CommitSummary, Records, Workspace } from '../model.js';
+import type { RecordKey } from '../schema.js';
 import type { Effects } from './plan.js';
 import type { WorkspaceChanges } from './state-changes.js';
 
@@ -18,10 +19,16 @@ export interface Lineage {
   links: Link[];
   anchor: string | null;
 }
-/** 合并对共享记录的改动：要写入（新增或覆盖）的整行，与要删除的记录标识。 */
+/** 键索引里的一行：哪条共享记录持有这个键。 */
+export type IndexedKey = RecordKey & { recordId: string };
+/**
+ * 合并对共享记录的改动：要写入（新增或覆盖）的整行、要删除的记录标识，以及写入的记录按清单算出的全部键。
+ * 存储先删掉这些记录（写入与删除的）原有的键，再写入 `keys`，键索引因此总与共享记录一致。
+ */
 export interface SharedChange {
   upsert: Records;
   remove: string[];
+  keys: IndexedKey[];
 }
 
 /**
@@ -48,10 +55,19 @@ export interface CommitStore {
   changes(ids: readonly string[], records?: readonly string[]): Promise<Map<string, ChangeSet[]>>;
   /** 共享分支当前的记录；`records` 给出时只取这些记录。 */
   shared(records?: readonly string[]): Promise<Records>;
+  /**
+   * 键索引里这些唯一键的持有者：键文本（`recordKeyText`）到持有它的共享记录标识，每个问到的键都在结果里（没有持有者时为空列表）。
+   * 走索引，成本只与问到的键数及命中数有关。
+   */
+  holders(keys: readonly RecordKey[]): Promise<Map<string, string[]>>;
+  /** 有单值关联指向这些记录的共享记录（整行），走键索引，不扫全表。 */
+  referencing(ids: readonly string[]): Promise<Records>;
   /** 追加提交（含字段级变更与指纹），只追加、不可修改。 */
   append(commits: readonly Commit[]): Promise<void>;
-  /** 应用合并对共享记录的改动。 */
+  /** 应用合并对共享记录的改动，同时更新这些记录在键索引里的键。 */
   apply(change: SharedChange): Promise<void>;
+  /** 按新清单重建整份键索引：先清空，再写入 `keys`（登记新的数据模式版本时用）。 */
+  reindex(keys: readonly IndexedKey[]): Promise<void>;
 }
 
 /** 引用行的锁：推进前排他（FOR UPDATE）、读取期间不许别人推进（FOR SHARE），或不加锁。 */

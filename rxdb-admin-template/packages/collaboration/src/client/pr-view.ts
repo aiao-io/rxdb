@@ -200,11 +200,13 @@ export class PullRequestView {
   }
   private commitRecords(id: string) {
     const commit = this.controller.commitContent(id);
-    return commit ? readOnlyRecords(commit.records) : loading();
+    const schema = this.controller.schema();
+    return commit && schema ? readOnlyRecords(commit.records, schema) : loading();
   }
   private candidateRecords(id: string) {
     const candidate = this.controller.candidateContent(id);
-    return candidate ? readOnlyRecords(candidate.records) : loading();
+    const schema = this.controller.schema();
+    return candidate && schema ? readOnlyRecords(candidate.records, schema) : loading();
   }
   /** 来源相对起点的记录差异；两个提交都加载完成前先显示占位。 */
   private sourceChanges(task: Task) {
@@ -334,7 +336,8 @@ export class PullRequestView {
     if (this.selectedRecord) view.append(element('p', tx('当前查看记录：{v0}', { v0: this.selectedRecord })));
     const { details, open } = lazyDetails(`candidate-records:${candidate.id}`, this.disclosures);
     details.append(element('summary', '查看最终完整数据'));
-    if (open) details.append(content ? readOnlyRecords(content.records) : loading());
+    const schema = this.controller.schema();
+    if (open) details.append(content && schema ? readOnlyRecords(content.records, schema) : loading());
     view.append(details);
     const actions = row();
     if (this.has('merge') && pr.status === 'review')
@@ -455,14 +458,15 @@ export class PullRequestView {
     details.append(element('summary', '查看评论锚定版本'));
     if (!open) return details;
     const candidate = this.controller.candidateContent(candidateId);
-    if (!candidate) {
+    const schema = this.controller.schema();
+    if (!candidate || !schema) {
       details.append(loading());
       return details;
     }
     const record = candidate.records[recordId];
     details.append(
       element('p', valueText(thread.field ? record?.fields[thread.field] : record), '', true),
-      readOnlyRecords(record ? { [recordId]: record } : {})
+      readOnlyRecords(record ? { [recordId]: record } : {}, schema)
     );
     return details;
   }

@@ -597,7 +597,7 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
           parent: head,
           authorId: fixture.admin.id,
           message: id,
-          changes: diffRecords(current, { category: { entity: 'AssetCategory', fields: { name: id } } })
+          changes: diffRecords(current, { category: { entity: 'AssetCategory', fields: { name: id } } }, () => 'assets')
         })
       ]
     });

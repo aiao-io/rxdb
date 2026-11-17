@@ -1,5 +1,6 @@
 import { demand, permissions, type AuditQuery, type Command, type HistoryQuery } from '../model.js';
 import { assertChanges } from '../records.js';
+import { parseSchemaManifest } from '../schema.js';
 type Rule = (value: unknown) => boolean;
 const text: Rule = value => typeof value === 'string' && value.length <= 10000;
 const label: Rule = value => text(value) && (value as string).trim().length > 0;
@@ -65,6 +66,14 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
   accept_invite: { id, tokenHash: label },
   member: { userId: id, permissions: list(oneOf(...permissions), 6), active: boolean, expectedGeneration: integer },
   policy: { stages: list(stage, 20), expectedVersion: integer },
+  // 新的数据模式清单按格式严格解析（不合法即 invalid）；版本是否递增、共享记录能否通过由引擎裁决
+  schema: {
+    schema: value => {
+      parseSchemaManifest(value);
+      return true;
+    },
+    expectedVersion: integer
+  },
   task: { id, name: label, expectedHead: nullableId },
   upload: { taskId: id, expectedHead: nullableId, commits: list(commit) },
   fork: { id, name: label, taskId: id, expectedHead: nullableId, commits: list(commit) },
@@ -133,6 +142,11 @@ function parsePageQuery(params: URLSearchParams, keys: readonly string[]) {
 export function parseAuditQuery(params: URLSearchParams): AuditQuery {
   const { values, limit } = parsePageQuery(params, ['before', 'prId', 'threadId']);
   return { ...values, ...(limit === undefined ? {} : { limit }) };
+}
+/** 数据模式版本的路径参数：1 起的十进制整数，不超过 9 位。 */
+export function parseSchemaVersion(value: string | undefined): number {
+  demand(value !== undefined && /^[1-9]\d{0,8}$/.test(value), 'invalid', '请求字段不合法');
+  return Number(value);
 }
 /**
  * 提交历史分页的查询参数：branch（只能是 shared）、taskId、prId 三者恰好取一，外加 before、limit，规则见 {@link parsePageQuery}。

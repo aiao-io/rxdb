@@ -1,7 +1,8 @@
 import { diffRecords } from '../changes.js';
 import { sealCommit, uuidv7 } from '../commit.js';
-import { demand, receiptRetentionMs, type Command, type Commit, type Records } from '../model.js';
+import { demand, receiptRetentionMs, type Command, type Commit, type Records, type SchemaManifest } from '../model.js';
 import { canonical } from '../records.js';
+import { namespaceOf } from '../schema.js';
 export interface Context {
   userId: string;
   teamId: string;
@@ -37,8 +38,13 @@ export function uploadCommand(taskId: string, pending: PendingUpload): Extract<C
     commits: pending.commits
   };
 }
+/**
+ * 本机任务草稿。`schema` 是最近一次联网打开任务时工作区的数据模式清单：编辑器按它渲染，
+ * 形成提交时按它填写字段级变更的命名空间；离线打开时同样用它。
+ */
 export interface Draft {
   context: Context;
+  schema: SchemaManifest;
   name: string;
   base: string | null;
   remoteHead: string | null;
@@ -190,12 +196,16 @@ export class LocalTasks {
     drafts.forEach(draft => this.unlocked.add(contextKey(draft.context)));
     return drafts;
   }
+  /**
+   * 联网验证后打开（或新建）任务草稿：已有草稿只解锁并换上当前的数据模式清单，内容保持原样；没有时以 `records` 新建。
+   */
   async openVerified(
     context: Context,
     name: string,
     base: string | null,
     head: string | null,
-    records: Records
+    records: Records,
+    schema: SchemaManifest
   ): Promise<Draft> {
     demand(context.userId === this.userId, 'locked', '账号不匹配');
     const epoch = this.generation;
@@ -203,9 +213,10 @@ export class LocalTasks {
     const draft = await this.storage.write(key, previous => {
       demand(epoch === this.generation && context.userId === this.userId, 'cancelled', '上下文已切换');
       return previous ?
-          { ...previous, locked: false, verifiedAt: Date.now() }
+          { ...previous, schema: structuredClone(schema), locked: false, verifiedAt: Date.now() }
         : {
             context,
+            schema: structuredClone(schema),
             name,
             base,
             remoteHead: head,
@@ -255,7 +266,7 @@ export class LocalTasks {
       parent: read.localHead,
       authorId: context.userId,
       message,
-      changes: diffRecords(read.committed, read.records)
+      changes: diffRecords(read.committed, read.records, namespaceOf(read.schema))
     });
     return this.storage.write(key, current => {
       this.assert(context, epoch);

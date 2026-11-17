@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyChanges, diffRecords, revertChanges } from './changes.js';
+import { applyChanges, applyVerified, diffRecords, revertChanges } from './changes.js';
 import type { ChangeSet, Records } from './model.js';
 import { randomEdit, seeded } from './random.testing.js';
 import { assertChanges, canonical } from './records.js';
+import { diffAssets } from './schema.testing.js';
 
 const category = (name: string, extra: Record<string, string | number | boolean | null> = {}) => ({
   entity: 'AssetCategory' as const,
@@ -11,8 +12,17 @@ const category = (name: string, extra: Record<string, string | number | boolean 
 const same = (a: unknown, b: unknown) => expect(canonical(a)).toBe(canonical(b));
 
 describe('field-level change sets', () => {
+  it('fills each change with the namespace the schema gives its entity', () => {
+    const namespaces = (entity: string) => `${entity.toLowerCase()}-space`;
+    expect(
+      diffRecords({ a: category('A') }, { b: { entity: 'Asset', fields: {} } }, namespaces).map(
+        change => change.namespace
+      )
+    ).toEqual(['assetcategory-space', 'asset-space']);
+    expect(() => diffAssets({}, { x: { entity: 'Project', fields: {} } })).toThrow('实体不受支持');
+  });
   it('describes an insert with the whole row and no inverse', () => {
-    expect(diffRecords({}, { c: category('Computers', { description: null }) })).toEqual([
+    expect(diffAssets({}, { c: category('Computers', { description: null }) })).toEqual([
       {
         namespace: 'assets',
         entity: 'AssetCategory',
@@ -24,7 +34,7 @@ describe('field-level change sets', () => {
     ]);
   });
   it('describes a delete with no patch and the whole row as the inverse', () => {
-    expect(diffRecords({ c: category('Computers') }, {})).toEqual([
+    expect(diffAssets({ c: category('Computers') }, {})).toEqual([
       {
         namespace: 'assets',
         entity: 'AssetCategory',
@@ -38,7 +48,7 @@ describe('field-level change sets', () => {
   it('describes an update by the changed fields only, with their old values as the inverse', () => {
     const before: Records = { c: category('Computers', { description: 'Old' }) };
     const after: Records = { c: category('Computers', { description: 'New' }) };
-    expect(diffRecords(before, after)).toEqual([
+    expect(diffAssets(before, after)).toEqual([
       {
         namespace: 'assets',
         entity: 'AssetCategory',
@@ -52,9 +62,9 @@ describe('field-level change sets', () => {
   it('tells a field that was added or removed apart from one that was set to null', () => {
     const bare: Records = { c: category('Computers') };
     const emptied: Records = { c: category('Computers', { description: null }) };
-    const added = diffRecords(bare, emptied);
+    const added = diffAssets(bare, emptied);
     expect(added).toMatchObject([{ operation: 'update', patch: { description: null }, inversePatch: {} }]);
-    expect(diffRecords(emptied, bare)).toMatchObject([
+    expect(diffAssets(emptied, bare)).toMatchObject([
       { operation: 'update', patch: {}, inversePatch: { description: null } }
     ]);
     same(applyChanges(structuredClone(bare), added), emptied);
@@ -62,13 +72,13 @@ describe('field-level change sets', () => {
   });
   it('emits nothing for equal records and orders changes by record id', () => {
     const rows: Records = { b: category('B'), a: category('A') };
-    expect(diffRecords(rows, structuredClone(rows))).toEqual([]);
-    expect(diffRecords({}, rows).map(change => change.entityId)).toEqual(['a', 'b']);
+    expect(diffAssets(rows, structuredClone(rows))).toEqual([]);
+    expect(diffAssets({}, rows).map(change => change.entityId)).toEqual(['a', 'b']);
   });
   it('replaces a record whose entity changed by a delete followed by an insert', () => {
     const before: Records = { x: category('Same name') };
     const after: Records = { x: { entity: 'Asset', fields: { name: 'Same name' } } };
-    const changes = diffRecords(before, after);
+    const changes = diffAssets(before, after);
     expect(changes.map(change => [change.entityId, change.operation])).toEqual([
       ['x', 'delete'],
       ['x', 'insert']
@@ -81,7 +91,7 @@ describe('field-level change sets', () => {
     const second: Records = { c: category('Two', { description: 'x' }) };
     const third: Records = {};
     const fourth: Records = { c: category('Back') };
-    const steps = [diffRecords(first, second), diffRecords(second, third), diffRecords(third, fourth)];
+    const steps = [diffAssets(first, second), diffAssets(second, third), diffAssets(third, fourth)];
     const forward = applyChanges(structuredClone(first), steps.flat());
     same(forward, fourth);
     same(revertChanges(structuredClone(fourth), steps.flat()), first);
@@ -91,9 +101,8 @@ describe('field-level change sets', () => {
       const next = seeded(seed);
       let serial = 0;
       const snapshots: Records[] = [{}];
-      for (let step = 0; step < 25; step++)
-        snapshots.push(randomEdit(next, snapshots.at(-1)!, () => ++serial));
-      const commits = snapshots.slice(1).map((after, index) => diffRecords(snapshots[index], after));
+      for (let step = 0; step < 25; step++) snapshots.push(randomEdit(next, snapshots.at(-1)!, () => ++serial));
+      const commits = snapshots.slice(1).map((after, index) => diffAssets(snapshots[index], after));
       let replay: Records = {};
       commits.forEach((changes, index) => {
         replay = applyChanges(replay, changes);
@@ -107,9 +116,9 @@ describe('field-level change sets', () => {
     }
   });
   it('refuses to apply a change that does not fit the content it is applied to', () => {
-    const insert = diffRecords({}, { c: category('One') });
-    const update = diffRecords({ c: category('One') }, { c: category('Two') });
-    const remove = diffRecords({ c: category('One') }, {});
+    const insert = diffAssets({}, { c: category('One') });
+    const update = diffAssets({ c: category('One') }, { c: category('Two') });
+    const remove = diffAssets({ c: category('One') }, {});
     expect(() => applyChanges({ c: category('One') }, insert)).toThrow(/父提交/);
     expect(() => applyChanges({}, update)).toThrow(/父提交/);
     expect(() => applyChanges({}, remove)).toThrow(/父提交/);
@@ -118,8 +127,51 @@ describe('field-level change sets', () => {
     expect(() => revertChanges({ c: category('One') }, remove)).toThrow(/父提交/);
   });
   it('treats a row of another entity as a mismatch rather than editing it', () => {
-    const update = diffRecords({ c: category('One') }, { c: category('Two') });
+    const update = diffAssets({ c: category('One') }, { c: category('Two') });
     expect(() => applyChanges({ c: { entity: 'Asset', fields: { name: 'One' } } }, update)).toThrow(/父提交/);
+  });
+});
+
+describe('verified application of uploaded change sets', () => {
+  const parent: Records = { c: category('One', { description: 'Old' }) };
+  const update = (patch: Record<string, string | null>, inversePatch: Record<string, string | null>): ChangeSet => ({
+    namespace: 'assets',
+    entity: 'AssetCategory',
+    entityId: 'c',
+    operation: 'update',
+    patch,
+    inversePatch
+  });
+  it('applies changes that fit the parent content, in order, the same way as applyChanges', () => {
+    const after: Records = { c: category('Two'), d: category('New') };
+    const changes = diffAssets(parent, after);
+    same(applyVerified(structuredClone(parent), changes), after);
+    same(applyVerified(structuredClone(parent), changes), applyChanges(structuredClone(parent), changes));
+    const twice = [...diffAssets(parent, after), ...diffAssets(after, {})];
+    same(applyVerified(structuredClone(parent), twice), {});
+  });
+  it('rejects an insert of an existing record, and an update or delete of a missing one or of another entity', () => {
+    expect(() => applyVerified(structuredClone(parent), diffAssets({}, { c: category('One') }))).toThrow(/父提交/);
+    expect(() => applyVerified({}, [update({ name: 'Two' }, { name: 'One' })])).toThrow(/父提交/);
+    expect(() => applyVerified({}, diffAssets(parent, {}))).toThrow(/父提交/);
+    const asset: Records = { c: { entity: 'Asset', fields: { name: 'One', description: 'Old' } } };
+    expect(() => applyVerified(asset, [update({ name: 'Two' }, { name: 'One' })])).toThrow(/父提交/);
+  });
+  it('requires the inverse of an update to match the old values, and newly added fields to be absent', () => {
+    expect(() => applyVerified(structuredClone(parent), [update({ name: 'Two' }, { name: 'Zero' })])).toThrow(/父提交/);
+    expect(() => applyVerified(structuredClone(parent), [update({}, { status: 'gone' })])).toThrow(/父提交/);
+    expect(() => applyVerified(structuredClone(parent), [update({ description: 'New' }, {})])).toThrow(/父提交/);
+    same(applyVerified(structuredClone(parent), [update({ status: 'added' }, {})]), {
+      c: category('One', { description: 'Old', status: 'added' })
+    });
+    same(applyVerified(structuredClone(parent), [update({}, { description: 'Old' })]), { c: category('One') });
+  });
+  it('requires the inverse of a delete to be the whole old row', () => {
+    const partial: ChangeSet = { ...diffAssets(parent, {})[0], inversePatch: { name: 'One' } };
+    const altered: ChangeSet = { ...diffAssets(parent, {})[0], inversePatch: { name: 'One', description: 'New' } };
+    for (const change of [partial, altered])
+      expect(() => applyVerified(structuredClone(parent), [change])).toThrow(/父提交/);
+    same(applyVerified(structuredClone(parent), diffAssets(parent, {})), {});
   });
 });
 
@@ -148,8 +200,10 @@ describe('change set validation of untrusted input', () => {
       { ...remove, inversePatch: null },
       { ...insert, operation: 'upsert' },
       { ...insert, extra: true },
-      { ...insert, namespace: 'other' },
-      { ...insert, entity: 'Unknown' },
+      { ...insert, namespace: 'not a name' },
+      { ...insert, namespace: 7 },
+      { ...insert, entity: '__proto__' },
+      { ...insert, entity: '1Asset' },
       { ...insert, entityId: '__proto__' },
       { ...insert, entityId: 'a b' },
       { namespace: 'assets', entity: 'AssetCategory', entityId: 'c', operation: 'insert', patch: { name: 'x' } },
@@ -161,12 +215,15 @@ describe('change set validation of untrusted input', () => {
     expect(() => assertChanges('not a list')).toThrow();
     expect(() => assertChanges({ 0: insert })).toThrow();
   });
+  it('checks only the shape here; entities, namespaces and fields are checked against the workspace schema on upload', () => {
+    expect(() => assertChanges([{ ...insert, namespace: 'other', entity: 'Unknown' }])).not.toThrow();
+  });
   it('validates every patched field like a whole row', () => {
-    expect(() => assertChanges([{ ...insert, patch: { unknown: 'x' } }])).toThrow(/字段/);
+    expect(() => assertChanges([{ ...insert, patch: { 'bad-field': 'x' } }])).toThrow(/字段/);
     expect(() => assertChanges([{ ...insert, patch: { name: {} } }])).toThrow(/字段/);
     expect(() => assertChanges([{ ...insert, patch: { name: Number.POSITIVE_INFINITY } }])).toThrow(/有限/);
     expect(() => assertChanges([{ ...insert, patch: { name: 'x'.repeat(10001) } }])).toThrow(/过长/);
-    expect(() => assertChanges([{ ...remove, inversePatch: { unknown: 'x' } }])).toThrow(/字段/);
+    expect(() => assertChanges([{ ...remove, inversePatch: { constructor: 'x' } }])).toThrow(/字段/);
   });
   it('caps the number of changes in one commit', () => {
     expect(() => assertChanges(Array.from({ length: 10000 }, () => insert))).not.toThrow();

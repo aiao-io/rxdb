@@ -1,11 +1,13 @@
+import type { EntityFieldsDescriptor } from '@aiao/rxdb';
+
 /** 成员可被授予的全部权限，顺序即界面展示顺序；新成员默认只给查看。 */
 export const permissions = ['read', 'edit', 'comment', 'review', 'merge', 'manage'] as const;
 /** 单项权限：查看、编辑与提交、评论、审核、合并、成员管理。 */
 export type Permission = (typeof permissions)[number];
 /** 记录字段的取值：文本、数字、布尔，或 null（空值）。 */
 export type Value = string | number | boolean | null;
-/** 一条受管数据记录：所属实体（资产分类、资产、维护记录）与字段取值。 */
-export type DataRow = { entity: 'AssetCategory' | 'Asset' | 'AssetEvent'; fields: Record<string, Value> };
+/** 一条受管数据记录：所属实体（数据模式清单里的实体名）与字段取值。 */
+export type DataRow = { entity: string; fields: Record<string, Value> };
 /** 以记录标识为键的整份数据，是工作树、提交与合并候选的内容。 */
 export type Records = Record<string, DataRow>;
 /** 已认证的用户身份；`verified` 表示认证提供方已确认该邮箱。 */
@@ -28,11 +30,11 @@ export interface Member {
  * - `update`：`patch` 只含变更字段的新值，`inversePatch` 含这些字段的旧值；
  *   只出现在 `patch` 里的字段是新增字段（此前不存在），只出现在 `inversePatch` 里的字段是被移除的字段。
  * - `delete`：`patch` 为 null，`inversePatch` 是被删除记录的整行字段。
- * `namespace` 目前固定为资产实体的命名空间 `assets`。
+ * `namespace` 是实体在数据模式清单里所属的命名空间，服务端按清单核对。
  */
 export interface ChangeSet {
   namespace: string;
-  entity: DataRow['entity'];
+  entity: string;
   entityId: string;
   operation: 'insert' | 'update' | 'delete';
   patch: Record<string, Value> | null;
@@ -271,6 +273,15 @@ export interface Receipt {
  */
 export const receiptRetentionMs = 30 * 86_400_000;
 /**
+ * 数据模式清单：一个版本的协作实体与字段约束，由应用的 RxDB 实体定义经 `describeEntityFields()` 生成。
+ * `schemaVersion` 是从 1 开始的整数，工作区按版本只追加登记，当前版本记在治理行上；
+ * `entities` 是各实体的字段描述（必填、唯一、关系、取值类型、枚举、数值范围等），服务端与客户端都按它校验记录。
+ */
+export interface SchemaManifest {
+  schemaVersion: number;
+  entities: EntityFieldsDescriptor[];
+}
+/**
  * 引擎眼里的工作区状态（一个团队下的一个应用）：成员、任务、PR、审核、讨论、回执与审计，以及共享分支的头提交 `head`。
  * 它是逻辑视图，不是一行数据：持久化时各集合分表存放，命令只按需加载并加锁它涉及的那几行，
  * 交给引擎的是只含这些行的局部状态；提交与共享记录另在提交表与共享记录表。
@@ -281,7 +292,10 @@ export interface Workspace {
   name: string;
   bootstrapKey: string;
   initialAdminId: string;
+  /** 当前数据模式版本，与 `schema.schemaVersion` 相同；候选按它判断是否过期。 */
   schemaVersion: number;
+  /** 当前版本的数据模式清单：上传、候选、合并与新版本登记都按它校验记录。 */
+  schema: SchemaManifest;
   revision: number;
   head: string | null;
   policy: Policy;
@@ -374,7 +388,7 @@ interface Operation {
 }
 /**
  * 浏览器可提交的全部命令，按 `type` 区分，每条都带幂等键 `operationId`。
- * 涵盖邀请与成员管理、审批策略、任务与提交同步、PR 与合并候选、审核、讨论、订阅通知与在线状态。
+ * 涵盖邀请与成员管理、审批策略、数据模式登记、任务与提交同步、PR 与合并候选、审核、讨论、订阅通知与在线状态。
  * `invite` 与 `accept_invite` 的 `tokenHash` 由客户端提交明文令牌，HTTP 层在进入引擎前替换为 SHA-256 摘要。
  */
 export type Command = Operation &
@@ -392,6 +406,7 @@ export type Command = Operation &
     | { type: 'accept_invite'; id: string; tokenHash: string }
     | { type: 'member'; userId: string; permissions: Permission[]; active: boolean; expectedGeneration: number }
     | { type: 'policy'; stages: Stage[]; expectedVersion: number }
+    | { type: 'schema'; schema: SchemaManifest; expectedVersion: number }
     | { type: 'task'; id: string; name: string; expectedHead: string | null }
     | { type: 'upload'; taskId: string; expectedHead: string | null; commits: Commit[] }
     | { type: 'fork'; id: string; name: string; taskId: string; expectedHead: string | null; commits: Commit[] }

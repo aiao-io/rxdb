@@ -1,9 +1,9 @@
 import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { diffRecords } from '../changes.js';
 import { sealCommit } from '../commit.js';
 import { CollaborationError, type Command, type Identity } from '../model.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 import { auditPage, bootstrap, snapshot } from './engine.js';
 import { collaborationServer, type RepositoryApi } from './http.js';
 import { MemoryWorkspace } from './memory.testing.js';
@@ -12,7 +12,7 @@ let server: Server;
 let url: string;
 const data = snapshot(
   bootstrap(
-    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
     { now: 1, id: () => 'id' }
   ),
   user,
@@ -39,6 +39,7 @@ const repository: RepositoryApi = {
     commits: [{ id: 'c1', parent: null, authorId: 'user', message: 'First' }],
     nextBefore: null
   })),
+  readSchema: vi.fn(async () => assetSchema),
   readAudit: vi.fn(async () => ({ events: [], nextBefore: null }))
 };
 const authenticate = vi.fn(async (token: string) => {
@@ -106,7 +107,7 @@ describe('HTTP identity boundary', () => {
       parent: null,
       authorId: user.id,
       message: 'First',
-      changes: diffRecords({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
+      changes: diffAssets({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
     });
     const upload = (commits: unknown[]) =>
       post({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: null, commits });
@@ -202,8 +203,18 @@ describe('on-demand read routes', () => {
     const audit = await get('/workspaces/team/assets/audit');
     expect(await audit.json()).toEqual({ events: [], nextBefore: null });
     expect(repository.readAudit).toHaveBeenLastCalledWith(user, 'team', 'assets', {});
+    const schema = await get('/workspaces/team/assets/schemas/1');
+    expect(await schema.json()).toEqual(assetSchema);
+    expect(repository.readSchema).toHaveBeenCalledWith(user, 'team', 'assets', 1);
     expect(repository.read).not.toHaveBeenCalled();
     expect(repository.operation).not.toHaveBeenCalled();
+  });
+  it('accepts only a positive decimal schema version, without touching the repository otherwise', async () => {
+    for (const version of ['0', '01', '-1', '1.5', 'x', '1234567890']) {
+      const response = await get(`/workspaces/team/assets/schemas/${version}`);
+      expect(await response.json(), version).toMatchObject({ error: 'invalid' });
+    }
+    expect(repository.readSchema).not.toHaveBeenCalled();
   });
   it('serves commit history pages by branch, task or PR, with paging parameters parsed and validated', async () => {
     const page = await get('/workspaces/team/assets/history?branch=shared');
@@ -301,7 +312,7 @@ describe('on-demand read routes', () => {
   });
   it('treats other methods, extra segments and unknown resources as unknown endpoints', async () => {
     const headers = { authorization: 'Bearer valid', 'content-type': 'application/json' };
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history']) {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history', 'schemas/1']) {
       const response = await fetch(`${url}/workspaces/team/assets/${path}`, { method: 'POST', headers, body: '{}' });
       expect(response.status, path).toBe(409);
       expect(await response.json(), path).toMatchObject({ error: 'not_found' });
@@ -313,6 +324,8 @@ describe('on-demand read routes', () => {
       'candidates',
       'audit/x',
       'history/x',
+      'schemas',
+      'schemas/1/x',
       'unknown',
       'unknown/x'
     ]) {
@@ -345,6 +358,7 @@ function memoryRepository(workspace: MemoryWorkspace): RepositoryApi {
     readCommit: async (actor, _team, _app, id) => workspace.commit(actor, id),
     readCandidate: async (actor, _team, _app, id) => workspace.candidate(actor, id),
     readHistory: async (actor, _team, _app, query) => workspace.history(actor, query),
+    readSchema: async (actor, _team, _app, version) => workspace.schema(actor, version),
     readAudit: async (actor, _team, _app, query) => auditPage(workspace.state, actor, query)
   };
 }
@@ -355,7 +369,7 @@ describe('on-demand reads over the engine', () => {
   const fetchAs = (id: string, path: string) => fetch(`${base}${path}`, { headers: { authorization: `Bearer ${id}` } });
   beforeEach(async () => {
     const workspace = MemoryWorkspace.create(
-      { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
+      { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
       { now: 1, id: () => 'bootstrap-event' }
     );
     const api = memoryRepository(workspace);
@@ -377,7 +391,7 @@ describe('on-demand reads over the engine', () => {
           parent: null,
           authorId: user.id,
           message: 'First',
-          changes: diffRecords({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
+          changes: diffAssets({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
         })
       ]
     });
@@ -425,8 +439,13 @@ describe('on-demand reads over the engine', () => {
     const tooMany = await fetchAs('user', '/workspaces/team/assets/history?taskId=task&limit=101');
     expect(await tooMany.json()).toMatchObject({ error: 'invalid' });
   });
+  it('serves registered schema versions to members and an unregistered version as not_found', async () => {
+    expect(await (await fetchAs('user', '/workspaces/team/assets/schemas/1')).json()).toEqual(assetSchema);
+    const missing = await fetchAs('user', '/workspaces/team/assets/schemas/2');
+    expect(await missing.json()).toMatchObject({ error: 'not_found', message: '数据模式不存在' });
+  });
   it('answers non-members with 403 and no content for every read', async () => {
-    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history?branch=shared']) {
+    for (const path of ['records', 'commits/c1', 'candidates/k1', 'audit', 'history?branch=shared', 'schemas/1']) {
       const response = await fetchAs(outsider.id, `/workspaces/team/assets/${path}`);
       expect(response.status, path).toBe(403);
       const text = await response.text();

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from '../commit.js';
-import { historyAdmin, replayHistory, type HistoryDriver, type HistoryStats } from './history.testing.js';
+import {
+  historyAdmin,
+  historySchema,
+  replayHistory,
+  type HistoryDriver,
+  type HistoryStats
+} from './history.testing.js';
 import { MemoryWorkspace } from './memory.testing.js';
 
 /** 内存工作区上的驱动：与 PostgreSQL 集成用例共用同一套随机历史与全量快照对照。 */
@@ -24,7 +30,14 @@ describe('candidates and commit content against the full-snapshot algorithm', ()
     'random history, seed %i: candidates, shared records and every commit equal the snapshots',
     async seed => {
       const workspace = MemoryWorkspace.create(
-        { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: historyAdmin },
+        {
+          teamId: 'team',
+          appId: 'assets',
+          name: 'Team',
+          bootstrapKey: 'seed',
+          admin: historyAdmin,
+          schema: historySchema
+        },
         { now: Date.now(), id: () => uuidv7() }
       );
       const stats = await replayHistory(seed, memoryDriver(workspace));

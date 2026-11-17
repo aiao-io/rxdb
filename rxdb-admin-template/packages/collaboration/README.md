@@ -24,14 +24,14 @@
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:migrate
 ```
 
-然后使用可信服务端环境执行一次初始化，额外提供 `SUPABASE_SERVICE_ROLE_KEY`、`ADMIN_INITIAL_USER_ID`、`ADMIN_TEAM_ID`、`ADMIN_APP_ID`、`ADMIN_TEAM_NAME`、`ADMIN_BOOTSTRAP_KEY`。初始用户必须已在 Supabase 验证邮箱；初始化只创建空共享分支、管理员和默认审批策略，不导入样例数据。
+然后使用可信服务端环境执行一次初始化，额外提供 `SUPABASE_SERVICE_ROLE_KEY`、`ADMIN_INITIAL_USER_ID`、`ADMIN_TEAM_ID`、`ADMIN_APP_ID`、`ADMIN_TEAM_NAME`、`ADMIN_BOOTSTRAP_KEY`，以及 `ADMIN_SCHEMA_FILE`（数据模式清单文件，产品的清单是 `rxdb-admin-template/schema/collaboration-schema.json`，见下文「数据模式清单」）。初始用户必须已在 Supabase 验证邮箱；初始化只创建空共享分支、管理员、默认审批策略和第一个数据模式版本，不导入样例数据。
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:bootstrap
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 ```
 
-初始化参数与稳定键一致时返回既有团队，不重置策略与权限。浏览器没有初始化接口，也不得获得数据库连接或 service role key。
+初始化参数与稳定键一致时返回既有团队，不重置策略、权限与数据模式（新版本经 `schema` 命令登记）。浏览器没有初始化接口，也不得获得数据库连接或 service role key。
 
 ## 状态与事务
 
@@ -49,11 +49,13 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 ## 提交协议与存储
 
-提交是字段级变更的列表，形状对齐平台 working-tree 的 `CommitChangeSet`：`{ namespace, entity, entityId, operation, patch, inversePatch }`。`insert` 的 `patch` 是整行字段、`inversePatch` 为 null；`update` 的 `patch` 只含变更字段的新值、`inversePatch` 含这些字段的旧值（只在 `patch` 里出现的字段是新增字段，只在 `inversePatch` 里出现的是被移除的字段）；`delete` 的 `patch` 为 null、`inversePatch` 是整行。`namespace` 目前固定为 `assets`。
+提交是字段级变更的列表，形状对齐平台 working-tree 的 `CommitChangeSet`：`{ namespace, entity, entityId, operation, patch, inversePatch }`。`insert` 的 `patch` 是整行字段、`inversePatch` 为 null；`update` 的 `patch` 只含变更字段的新值、`inversePatch` 含这些字段的旧值（只在 `patch` 里出现的字段是新增字段，只在 `inversePatch` 里出现的是被移除的字段）；`delete` 的 `patch` 为 null、`inversePatch` 是整行。`namespace` 是实体在数据模式清单里的命名空间，实体、命名空间与字段都按工作区当前的清单核对。
 
 提交 ID 使用 UUIDv7。客户端对规范化（键排序）的 `parent`、`authorId`、`message`、`changes` 用 `crypto.subtle` 计算 SHA-256 指纹随提交上传，服务端重新计算，不一致以 `invalid` 拒绝整批；同一个提交 ID 重传时指纹一致则幂等（已有祖先不重复写入、不能改写作者），不一致或不属于该任务则拒绝。上传的提交不能带合并关联，合并提交由服务端在合并时生成并补算指纹。
 
-存储（迁移 `202611170001_commit_store.sql`、`202611170002_workspace_tables.sql`）。工作区不再是一行 JSONB，各集合分表存放，命令只读写它涉及的行：
+上传时服务端还核对每个新提交都能按顺序应用到它的父内容上：新增的记录原来不存在；修改与删除的记录原来存在、实体相同，`inversePatch` 与原值一致（修改只核对它列出的字段，并要求只出现在 `patch` 里的新增字段原来不存在；删除的 `inversePatch` 必须就是原来的整行）。任一项不符整批以 `invalid`（「提交内容与其父提交不一致」）拒绝，什么都不写。父内容只按新提交改动到的记录推导：共同起点时的共享记录（共享头反向应用之后的合并）加上任务在共同起点之后对这些记录的变更，成本与任务分叉以来的改动有关，与历史长度无关。
+
+存储（迁移 `202611170001_commit_store.sql`、`202611170002_workspace_tables.sql`、`202611170003_schema_manifests.sql`）。工作区不再是一行 JSONB，各集合分表存放，命令只读写它涉及的行：
 
 | 表                                                     | 内容                                                                                 | 写入方式                       |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------ |
@@ -66,18 +68,45 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 | `admin_private.operations`                             | 幂等回执：操作者、请求指纹、结果与时间，保留 30 天                                   | 命令事务，过期按批清理         |
 | `admin_private.commits` / `commit_changes`             | 提交元数据（父指针带索引、作者、说明、合并关联、内容指纹）；按提交与序号的字段级变更 | 只追加                         |
 | `public.shared_records`                                | 共享头的记录，每条记录一行；可读成员经 RLS 只读，客户端角色没有任何写权限            | 只经合并事务                   |
+| `admin_private.schemas`                                | 数据模式清单，按版本只追加；治理行的 `schema_version` 指向当前版本                   | 初始化与 `schema` 命令         |
+| `admin_private.record_keys`                            | 共享记录的键索引：唯一字段的取值与单值关联指向的记录，唯一与关联检查按键查询         | 与共享记录同一合并事务         |
 | `public.admin_shared` / `admin_changes`                | 共享头投影；逐记录变更日志（合并前后的整行），合并改动只由它承载                     | 合并事务                       |
 | `public.admin_audit`                                   | 审计事件：只追加，`seq` 给出写入顺序，`pr_id` / `thread_id` 供分页筛选，均有索引     | 命令事务                       |
 | `public.admin_workspace_versions`                      | 版本行：全局修订号与审计条数，Realtime 经它通知版本变化                              | 每个写事务的最后一步           |
 
-锁顺序（`server/scope.ts`）：治理行（普通命令 `FOR SHARE`，成员、邀请、策略命令 `FOR UPDATE`）→ PR 行（PR 相关命令 `FOR UPDATE`，按 ID 升序；上传锁住任务名下的全部 PR，因为上传要让它们的候选过期）→ 引用行（上传、建 PR、改 PR 状态锁任务引用；合并先锁共享引用再对任务引用加共享锁；生成候选、带记录的评论与在线状态对共享引用加共享锁，读共享内容期间合并不能推进）→ 版本行。所有读取都在取得治理行锁之后发出（读已提交隔离下每条语句取新快照），因此必然看到在此之前提交的撤权。修订号不放在治理行上：普通命令都持治理行共享锁，若再在治理行上加一，两个共享锁持有者都要升级为排他锁，互相等待成死锁；它放在版本行，作为每个写事务提交前的最后一条语句，写事务之间只在这一步排队，持锁时间只覆盖提交本身，其余步骤按各自涉及的行并行（不同任务的上传、不同 PR 的评论互不等待，同一 PR 上的命令按 PR 行串行）。版本行的修订号按提交顺序递增，与摘要内容取自同一份快照。上传锁定任务名下的 PR 之后、取得任务引用之前若有人在这个任务上建了 PR，上传会发现 PR 集合变了，整体回滚重试；死锁、序列化失败与并发插入同一主键同样整体重试（最多 4 次），第二次就按对方已提交的结果裁决。引用推进按期望头比较交换，比较交换失败时任务引用报 `diverged`（附 `remoteHead`，与客户端已有的「任务已分叉」处理一致），共享引用报 `stale`。
+锁顺序（`server/scope.ts`）：治理行（普通命令 `FOR SHARE`，成员、邀请、策略与数据模式命令 `FOR UPDATE`）→ PR 行（PR 相关命令 `FOR UPDATE`，按 ID 升序；上传锁住任务名下的全部 PR，因为上传要让它们的候选过期）→ 引用行（上传、建 PR、改 PR 状态锁任务引用；合并先锁共享引用再对任务引用加共享锁；上传、另存分叉、生成候选、带记录的评论与在线状态对共享引用加共享锁，读共享内容期间合并不能推进）→ 版本行。所有读取都在取得治理行锁之后发出（读已提交隔离下每条语句取新快照），因此必然看到在此之前提交的撤权。修订号不放在治理行上：普通命令都持治理行共享锁，若再在治理行上加一，两个共享锁持有者都要升级为排他锁，互相等待成死锁；它放在版本行，作为每个写事务提交前的最后一条语句，写事务之间只在这一步排队，持锁时间只覆盖提交本身，其余步骤按各自涉及的行并行（不同任务的上传、不同 PR 的评论互不等待，同一 PR 上的命令按 PR 行串行）。版本行的修订号按提交顺序递增，与摘要内容取自同一份快照。上传锁定任务名下的 PR 之后、取得任务引用之前若有人在这个任务上建了 PR，上传会发现 PR 集合变了，整体回滚重试；死锁、序列化失败与并发插入同一主键同样整体重试（最多 4 次），第二次就按对方已提交的结果裁决。引用推进按期望头比较交换，比较交换失败时任务引用报 `diverged`（附 `remoteHead`，与客户端已有的「任务已分叉」处理一致），共享引用报 `stale`。
 
 引擎仍是纯函数，不碰存储：仓储先按命令加载并锁定它涉及的行，拼成只含这些行的局部工作区状态（`scope.ts`），让引擎做授权与状态校验并声明所需提交数据（`plan`），按声明预加载（`content.ts`），再把数据交给引擎裁决，最后把局部状态的差异（`state-changes.ts`）与返回的新提交、共享记录改动写回，全部在同一个事务里。内存实现（测试用）走同一套加载、差异与写回，引擎用例因此也检验每条命令加载的范围是否够用。内容由变更推导，成本只与所问内容有关：
 
-- 上传：只按命令里的提交 ID 查一次已存在的提交（指纹相等与归属校验），新 ID 不可能成环，不再沿祖先链回溯；另存分叉再读一次原任务头到共同起点的路径。
+- 上传：只按命令里的提交 ID 查一次已存在的提交（指纹相等与归属校验），新 ID 不可能成环，不做祖先链的环检测；父内容只按新提交改动到的记录推导（见上），读取任务头到共同起点的路径与这几条记录的变更；另存分叉再读一次原任务头到共同起点的路径。
 - 共享头 T 取自 `shared_records`；合并基 B 由 T 反向应用共享分支上 B 之后各合并提交的 `inversePatch` 得到；任务头 S 由 B 加任务分支在 B 之后的变更得到；任意提交的内容同理（`GET .../commits/:id`）。
-- 候选与合并沿用 `mergeRecords` / `checkRecords`，候选时加载完整的 T，成本与记录数相关、与提交数无关；合并把候选的变更应用到共享头，生成以 T 为父的合并提交，同一事务里推进共享引用、更新 `shared_records` 与 `admin_shared.head`，并把改动记录的前后值写进 `admin_changes`。命令结果、回执与审计详情不再带这些前后值（`result.changes` 已移除），审计因此不随单次合并的改动量增长。
+- 候选与合并只读合并基以来任一侧改动过的记录（`server/merge-inputs.ts`）：共享分支在合并基之后各合并提交的变更、任务分支在合并基之后各提交的变更，涉及的记录就是改动过的记录；T 只读这些记录，B 由 T 反向应用共享分支上的变更得到，S 由 B 加上任务的变更得到，其余记录三方相同、合并结果就是 T。三方合并（`mergeRecords`）只在改动过的记录上进行，检查按清单定向进行（`checks.ts` 的 `checkMerged`），结果与在整份合并结果上检查（`checkRecords`）完全一致，见下文「数据模式清单」。合并把候选的变更应用到共享头，生成以 T 为父的合并提交，同一事务里推进共享引用、更新 `shared_records`、键索引与 `admin_shared.head`，并把改动记录的前后值写进 `admin_changes`。命令结果、回执与审计详情不再带这些前后值（`result.changes` 已移除），审计因此不随单次合并的改动量增长。合并基为空（第一次合并之前起步的任务）时 B 没有记录，T 的每条记录都算改动过。
 - 返回的记录表按记录标识排序，冲突按记录与字段标识排序，结果只取决于内容。
+
+## 数据模式清单
+
+协作包不含任何实体特定的代码：记录的实体与字段白名单、必填、类型、枚举、数值范围、日期、唯一与关联约束都来自工作区的数据模式清单（`SchemaManifest`）。
+
+- **格式**：`{ schemaVersion, entities }`。`schemaVersion` 是从 1 开始的整数；`entities` 是应用实体经平台 `describeEntityFields()` 得到的字段描述（`EntityFieldsDescriptor`，`dtoVersion` 1）。服务端与客户端都用 `parseSchemaManifest()`（`src/schema.ts`）严格解析：顶层只认这两个键，字段描述交给平台的 `parseEntityFieldsDescriptor()`；另要求实体名唯一、实体名与字段名是安全标识、单值关联的目标在清单里、记录字段只用协作能承载的类型（文本、枚举、UUID、数字、整数、布尔、日期；数组、键值、JSON 等类型的字段会让整份清单被拒绝）。
+- **记录字段**：每个实体的普通属性，加上单值关联（1:1、m:1）写在记录里的外键字段（`writeField`，即关联名加 `Id`），按清单顺序；系统字段、计算属性与 1:m / m:n 关联不进记录。
+- **存放**：产品的清单在 `rxdb-admin-template/schema/collaboration-schema.json`，三端应用各有一条一致性用例（`src/app/entities/schema-manifest.spec.ts`）断言它就是本端实体定义的 `describeEntityFields()` 输出。改了实体定义就重新生成这份文件并提高 `schemaVersion`。
+- **登记**：初始化登记第一个版本；之后由有成员管理权限的成员发 `schema` 命令（`{ type: 'schema', schema, expectedVersion }`）登记更高的版本，版本按 `admin_private.schemas` 只追加。新版本必须让共享分支当前的全部记录通过检查，否则以 `checks` 拒绝，`details.checks` 是前 100 条违规明细（实体不在清单里报在 `$record` 上），`details.total` 是总数；登记成功后已有候选随之过期，键索引按新清单重建。审计详情不收录清单全文。
+- **读取**：`GET /workspaces/:teamId/:appId/schemas/:version` 返回登记过的版本；客户端按摘要里的 `schemaVersion` 读取并按版本缓存，打开任务时把清单存进本机草稿，离线时编辑器与形成提交都用草稿里的清单。
+- **检查**（`src/checks.ts`）：每条记录依次查必填 → 唯一 → 关联 → 取值，同一阶段按清单的字段顺序，记录按标识排序。取值交给平台的 `validateFieldValue()`；记录里的日期是 JSON 文本，先按 `YYYY-MM-DD` 开头、能解析、且是真实存在的日子严格解码成 `Date`，其余取值一律判为无效日期。平台规则标识映射到协作词条（中英两份都在 `messages.ts`），平台的中文固定文案不直接显示：
+
+  | 规则                                   | 文案                                                                                                      |
+  | -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+  | 必填（缺失、null、空串或只有空白）     | 文本类「必填文本不能为空」，日期「日期不能为空」，其他「必填项不能为空」                                  |
+  | 唯一                                   | 标题字段（第一个必填文本属性）「名称必须唯一」，其他「取值必须唯一」；按记录标识排在第一的持有者不报      |
+  | 关联（外键缺失或悬空）                 | 「关联记录不存在」；可空（nullable）且非必填的关联允许为空；删除仍被引用的记录，报错落在引用方            |
+  | type / number / integer                | 「必须为文本」「必须为布尔值」「必须为数字」「必须为整数」                                                |
+  | range                                  | 下界为 0 时「必须为非负数」，其余「数值小于允许的最小值」「数值大于允许的最大值」「数值不在允许的刻度上」 |
+  | date / enum                            | 「日期无效」「取值不在允许范围内」                                                                        |
+  | email / phone / url / urlScheme / uuid | 「邮箱格式无效」「电话号码格式无效」「链接格式无效」「链接协议不受支持」「标识格式无效」                  |
+
+- **定向检查**：共享分支 T 总是通过检查（合并只接受检查通过的候选，登记新清单也要求全部通过），所以只有改动过的记录与受它们牵连的未改动记录可能出错：与改动记录共用唯一键的记录，以及引用了可能消失或换了实体的记录的记录。这些按键索引 `admin_private.record_keys` 查询（`kind` 为 `unique` 时 `value` 是规范化取值，为 `reference` 时是目标记录标识，`(team_id, app_id, kind, value)` 有索引），由合并事务与共享记录同步维护，不扫全表。仓储按候选取值的超集预读这些键与记录，检查用到没有预读的键或记录按内部错误处理。
+- **扩展检查**：特殊业务检查由部署入口注入：`new CollaborationRepository(pool, { checks })`（`server/main.ts` 里标出了位置），`checks` 是 `RecordCheck`（`checks.ts`）——拿到这次合并改动过的记录（相对 T 的前后整行）与当前清单，返回追加的检查；候选与合并重新核对时都会执行，结果进候选，任一条都让候选不能批准与合并。默认没有。它不参与登记新清单时的全量校验。
+- **界面**：任务编辑器按草稿的清单逐个实体渲染记录表，字段、输入框类型与关联下拉都来自清单；实体与字段的标签由宿主应用经 `mountCollaboration` 的 `labels` 提供（中文原文，经协作词条表翻译），不提供时实体显示实体名、字段显示清单里声明的显示名。匿名数据导入（`readAnonymousRecords`）只读清单里的实体与记录字段。
 
 ## 读取接口
 
@@ -90,6 +119,7 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 | `GET /workspaces/:teamId/:appId/history`               | `{ commits, nextBefore }`：提交元数据分页（从新到旧，不含变更），参数见下               |
 | `GET /workspaces/:teamId/:appId/commits/:id`           | 提交元数据、它自身的字段级变更 `changes` 与推导出的 `records`；未知 ID 返回 `not_found` |
 | `GET /workspaces/:teamId/:appId/candidates/:id`        | 含 `records` 的合并候选（由 T 加存储的变更推导）；未知 ID 返回 `not_found`              |
+| `GET /workspaces/:teamId/:appId/schemas/:version`      | 登记过的数据模式清单（版本只追加、不可修改）；未登记的版本返回 `not_found`              |
 | `GET /workspaces/:teamId/:appId/audit`                 | `{ events, nextBefore }`：审计事件按时间从新到旧分页，参数见下                          |
 | `GET /workspaces/:teamId/:appId/receipts/:operationId` | 幂等回执：`{ status: 'accepted', value }` 或 `{ status: 'unknown' }`，只能读自己的      |
 
@@ -110,7 +140,7 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e
 NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 ```
 
-容量基准用同一镜像的临时 PostgreSQL，随提交数增长记录普通命令耗时、单次命令 WAL、治理行与各行大小、摘要（含各字段字节数）与提交历史页的体积，以及并发读取时写命令的等待；参数见 [脚本](scripts/workspace-growth-benchmark.mjs) 开头（`BENCH_SHARED=1` 先合并出 `BENCH_RECORDS` 条共享记录，`BENCH_COMMANDS` 选择要测的普通命令），`BENCH_OUT` 指定结果文件，历次结果存于 [需求证据目录](../../requirements/plans/evidence/)：
+容量基准用同一镜像的临时 PostgreSQL，随提交数增长记录普通命令耗时、单次命令 WAL、治理行与各行大小、摘要（含各字段字节数）与提交历史页的体积，以及并发读取时写命令的等待；参数见 [脚本](scripts/workspace-growth-benchmark.mjs) 开头（`BENCH_SHARED=1` 先合并出 `BENCH_RECORDS` 条共享记录，`BENCH_COMMANDS` 选择要测的普通命令，`BENCH_BULK` 是每个测量点「上传一个改动多少条记录的提交」与「生成候选并合并这些改动」的改动条数，默认 100，结果在 `upload100Ms`、`candidateMerge100Ms` 与 `bulkChanges`），`BENCH_OUT` 指定结果文件，历次结果存于 [需求证据目录](../../requirements/plans/evidence/)：
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:benchmark-growth

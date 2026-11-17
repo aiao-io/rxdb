@@ -1,6 +1,7 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CollaborationError, type Audit, type ChangeSet, type CommitContent, type Records } from '../model.js';
+import { assetSchema } from '../schema.testing.js';
 import type { CollaborationController } from './controller.js';
 import type { Disclosures } from './disclosure.js';
 import type { Perform } from './elements.js';
@@ -80,6 +81,7 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
       requested.push(id);
       return store.commits[id];
     },
+    schema: () => assetSchema,
     loadCommit: vi.fn(async (id: string) => {
       calls.push(`load:${id}`);
       if (store.failure) throw store.failure;

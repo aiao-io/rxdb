@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { diffRecords } from '../changes.js';
 import { sealCommit } from '../commit.js';
 import {
   CollaborationError,
@@ -10,6 +9,7 @@ import {
   type Identity,
   type Records
 } from '../model.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 import { MemoryWorkspace, memoryReceiptSweep } from './memory.testing.js';
 import { stateChanges } from './state-changes.js';
 
@@ -18,7 +18,10 @@ let serial = 0;
 const env = (now = 1000) => ({ now, id: () => `generated-${++serial}` });
 const category = (name: string): DataRow => ({ entity: 'AssetCategory', fields: { name } });
 const create = () =>
-  MemoryWorkspace.create({ teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin }, env());
+  MemoryWorkspace.create(
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin, schema: assetSchema },
+    env()
+  );
 const act = (
   workspace: MemoryWorkspace,
   command: Record<string, unknown>,
@@ -48,7 +51,7 @@ async function started(workspace: MemoryWorkspace, id: string, records: Records)
     parent: base,
     authorId: admin.id,
     message: id,
-    changes: diffRecords(before, records)
+    changes: diffAssets(before, records)
   });
   await act(workspace, { type: 'upload', taskId: id, expectedHead: base, commits: [commit] });
   return commit.id;
@@ -138,7 +141,7 @@ describe('commands load only the rows they touch', () => {
       parent: 'c-c1',
       authorId: admin.id,
       message: 'c2',
-      changes: diffRecords(content, { ...content, extra: category('Extra') })
+      changes: diffAssets(content, { ...content, extra: category('Extra') })
     });
     await act(workspace, { type: 'upload', taskId: 'c', expectedHead: 'c-c1', commits: [next] });
     expect(loaded(workspace)).toEqual({
@@ -195,7 +198,7 @@ describe('receipt retention', () => {
       parent: null,
       authorId: admin.id,
       message: 'c1',
-      changes: diffRecords({}, { a: category('A') })
+      changes: diffAssets({}, { a: category('A') })
     });
     const upload = { type: 'upload', taskId: 'task', expectedHead: null, commits: [commit] };
     await act(workspace, upload, { now: 2000, operationId: 'upload' });
@@ -265,7 +268,7 @@ describe('commit history pages', () => {
         parent,
         authorId: admin.id,
         message: `L${index}`,
-        changes: diffRecords(content, next)
+        changes: diffAssets(content, next)
       });
       await act(workspace, { type: 'upload', taskId: 'long', expectedHead: parent, commits: [commit] });
       chain.unshift(commit.id);

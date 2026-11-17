@@ -10,6 +10,7 @@ import {
   type CommitPage,
   type Identity,
   type Records,
+  type SchemaManifest,
   type SharedRecords,
   type WorkspaceSummary
 } from '../model.js';
@@ -67,6 +68,12 @@ export class CollaborationController extends EventTarget {
   /** 共享数据按摘要的头提交缓存，头变化即丢弃。 */
   private readonly shared = new ContentCache<SharedRecords>(
     head => this.fetchShared(head),
+    () => this.changed(),
+    error => this.contentFailed(error)
+  );
+  /** 数据模式清单按版本只追加、不可修改，按版本缓存；只在切换团队或锁定时丢弃（版本号只在一个工作区内有意义）。 */
+  private readonly schemas = new ContentCache<SchemaManifest>(
+    async version => this.api.schema(this.activeWorkspace(), Number(version)),
     () => this.changed(),
     error => this.contentFailed(error)
   );
@@ -370,8 +377,9 @@ export class CollaborationController extends EventTarget {
       taskId: task.id
     };
     const records = await this.current(this.recordsAt(task.head));
+    const schema = await this.current(this.loadSchema());
     const epoch = ++this.generation;
-    const draft = await this.local.openVerified(context, task.name, task.base, task.head, records);
+    const draft = await this.local.openVerified(context, task.name, task.base, task.head, records, schema);
     demand(epoch === this.generation, 'cancelled', '上下文已切换');
     this.draft = draft;
     this.changed();
@@ -519,6 +527,19 @@ export class CollaborationController extends EventTarget {
     if (head === undefined) return undefined;
     return head === null ? {} : this.shared.peek(head)?.records;
   }
+  /**
+   * 读取当前要用的数据模式清单（同步）：联网时取摘要里的当前版本（按版本缓存，未命中返回 undefined 并在后台加载）；
+   * 离线打开任务时没有摘要，取草稿里存着的清单。
+   */
+  schema(): SchemaManifest | undefined {
+    if (!this.snapshot) return this.draft?.schema;
+    return this.schemas.peek(String(this.snapshot.schemaVersion));
+  }
+  /** 等待当前工作区的数据模式清单加载完成（摘要里的当前版本）。 */
+  loadSchema(): Promise<SchemaManifest> {
+    demand(this.snapshot, 'missing', '先选择团队');
+    return this.schemas.load(String(this.snapshot.schemaVersion));
+  }
   /** 读取讨论线程的处理历史（同步，时间正序）；工作区修订号变化后重新读取。 */
   threadEvents(threadId: string): Audit[] | undefined {
     return this.threads.peek(threadId);
@@ -571,7 +592,8 @@ export class CollaborationController extends EventTarget {
     const previous = this.snapshot;
     if (previous?.head !== data.head) this.shared.reset();
     if (previous?.revision !== data.revision) this.threads.reset();
-    for (const cache of [this.commits, this.candidates, this.shared, this.threads, this.history]) cache.retry();
+    for (const cache of [this.commits, this.candidates, this.shared, this.threads, this.history, this.schemas])
+      cache.retry();
     this.snapshot = data;
     this.timeline.accept(data.audit, data.auditCount);
   }
@@ -580,6 +602,7 @@ export class CollaborationController extends EventTarget {
     this.commits.reset();
     this.candidates.reset();
     this.shared.reset();
+    this.schemas.reset();
     this.threads.reset();
     this.history.reset();
     this.timeline.reset();
@@ -846,7 +869,8 @@ export class CollaborationController extends EventTarget {
     const head = command.commits.at(-1)?.id;
     demand(head, 'invalid', '分叉回执缺少版本');
     const records = await this.current(this.recordsAt(task.head));
-    await this.current(this.local.openVerified(context, task.name, task.base, task.head, records));
+    const schema = await this.current(this.loadSchema());
+    await this.current(this.local.openVerified(context, task.name, task.base, task.head, records, schema));
     await this.current(this.local.archiveFork(context, command.id, head));
   }
   private async upload(unsaved: boolean, confirmExpired: boolean): Promise<void> {

@@ -1,6 +1,7 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Audit, Candidate, CommitContent, Records, Thread } from '../model.js';
+import { assetSchema } from '../schema.testing.js';
 import type { CollaborationController } from './controller.js';
 import type { Perform } from './elements.js';
 import { PullRequestView } from './pr-view.js';
@@ -86,6 +87,7 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
       requested.push(`candidate:${id}`);
       return store.candidates[id];
     },
+    schema: () => assetSchema,
     sharedRecords: () => {
       requested.push('shared');
       return store.shared;

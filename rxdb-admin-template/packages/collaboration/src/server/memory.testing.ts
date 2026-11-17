@@ -13,18 +13,29 @@ import {
   type HistoryQuery,
   type Identity,
   type Records,
+  type SchemaManifest,
   type SharedRecords,
   type Workspace,
   type WorkspaceSummary
 } from '../model.js';
-import { bootstrap } from './engine.js';
+import { recordKeyText, type RecordKey } from '../schema.js';
+import { bootstrap, type EngineOptions } from './engine.js';
 import type { Effects, MergeLog } from './plan.js';
-import { readCandidate, readCommit, readHistory, readSharedRecords, readSummary, runCommand } from './service.js';
+import {
+  readCandidate,
+  readCommit,
+  readHistory,
+  readSchema,
+  readSharedRecords,
+  readSummary,
+  runCommand
+} from './service.js';
 import type { WorkspaceChanges } from './state-changes.js';
 import {
   commitSummary,
   type CommandStore,
   type CommitStore,
+  type IndexedKey,
   type Lineage,
   type Link,
   type Path,
@@ -37,13 +48,16 @@ export const memoryReceiptSweep = 20;
 
 /**
  * 纯内存的提交存储：与 PostgreSQL 实现遵守同一份 {@link CommitStore} 约定，用来在不起数据库的情况下测试引擎与内容推导。
- * `stats` 记录读取方法的调用与读到的提交数，用来断言读取成本不随提交总数增长。
+ * 共享记录的键索引与 PostgreSQL 的 `record_keys` 一样随合并维护，唯一与关联查询只按键命中。
+ * `stats` 记录读取方法的调用、读到的提交数与读到的共享记录（含键索引命中）数，用来断言读取成本不随提交总数、共享记录总数增长。
  */
 export class MemoryCommitStore implements CommitStore {
   private readonly rows = new Map<string, Commit>();
   private records: Records = {};
-  /** 读取方法的调用名（按调用顺序）与读到的提交行数。 */
-  readonly stats = { calls: [] as string[], rows: 0 };
+  /** 键索引：每条共享记录的键。 */
+  private readonly keys = new Map<string, IndexedKey[]>();
+  /** 读取方法的调用名（按调用顺序）、读到的提交行数与读到的共享记录及键索引行数。 */
+  readonly stats = { calls: [] as string[], rows: 0, records: 0 };
 
   commits(ids: readonly string[]): Promise<Map<string, CommitMeta>> {
     this.stats.calls.push('commits');
@@ -113,9 +127,34 @@ export class MemoryCommitStore implements CommitStore {
   }
   shared(records?: readonly string[]): Promise<Records> {
     this.stats.calls.push('shared');
-    if (!records) return Promise.resolve(structuredClone(this.records));
+    if (!records) {
+      this.stats.records += Object.keys(this.records).length;
+      return Promise.resolve(structuredClone(this.records));
+    }
     const rows: Records = {};
     for (const id of records) if (Object.hasOwn(this.records, id)) rows[id] = structuredClone(this.records[id]);
+    this.stats.records += Object.keys(rows).length;
+    return Promise.resolve(rows);
+  }
+  holders(keys: readonly RecordKey[]): Promise<Map<string, string[]>> {
+    this.stats.calls.push('holders');
+    const wanted = new Set(keys.filter(key => key.kind === 'unique').map(recordKeyText));
+    const found = new Map([...wanted].map(text => [text, [] as string[]]));
+    for (const [recordId, list] of this.keys)
+      for (const key of list)
+        if (key.kind === 'unique' && wanted.has(recordKeyText(key))) found.get(recordKeyText(key))!.push(recordId);
+    for (const list of found.values()) list.sort();
+    this.stats.records += [...found.values()].reduce((count, list) => count + list.length, 0);
+    return Promise.resolve(found);
+  }
+  referencing(ids: readonly string[]): Promise<Records> {
+    this.stats.calls.push('referencing');
+    const wanted = new Set(ids);
+    const rows: Records = {};
+    for (const [recordId, list] of this.keys)
+      if (list.some(key => key.kind === 'reference' && wanted.has(key.value)))
+        rows[recordId] = structuredClone(this.records[recordId]);
+    this.stats.records += Object.keys(rows).length;
     return Promise.resolve(rows);
   }
   append(commits: readonly Commit[]): Promise<void> {
@@ -127,14 +166,29 @@ export class MemoryCommitStore implements CommitStore {
     return Promise.resolve();
   }
   apply(change: SharedChange): Promise<void> {
+    for (const id of [...change.remove, ...Object.keys(change.upsert)]) this.keys.delete(id);
     for (const id of change.remove) delete this.records[id];
     Object.assign(this.records, structuredClone(change.upsert));
+    this.index(change.keys);
     return Promise.resolve();
+  }
+  reindex(keys: readonly IndexedKey[]): Promise<void> {
+    this.keys.clear();
+    this.index(keys);
+    return Promise.resolve();
+  }
+  /** 键索引的全部行（测试核对索引与共享记录一致用），按记录标识排序。 */
+  indexRows(): IndexedKey[] {
+    return [...this.keys.keys()].sort().flatMap(id => structuredClone(this.keys.get(id)!));
   }
   /** 清零读取统计，用来只统计接下来这一条命令的读取。 */
   resetStats(): void {
     this.stats.calls.length = 0;
     this.stats.rows = 0;
+    this.stats.records = 0;
+  }
+  private index(keys: readonly IndexedKey[]): void {
+    for (const key of keys) this.keys.set(key.recordId, [...(this.keys.get(key.recordId) ?? []), structuredClone(key)]);
   }
   private meta(commit: Commit): CommitMeta {
     const meta: CommitMeta = {
@@ -264,12 +318,23 @@ export class MemoryWorkspace {
   readonly store = new MemoryCommitStore();
   /** 每次合并写进变更日志的内容，按合并顺序。 */
   readonly changeLog: MergeLog[] = [];
+  /** 登记过的全部数据模式版本（只追加）。 */
+  readonly schemas = new Map<number, SchemaManifest>();
   /** 最近一条命令加载的局部状态（引擎执行之后的样子），用来断言命令只读了它涉及的行。 */
   lastLoaded: Workspace | undefined;
-  constructor(readonly state: Workspace) {}
-  /** 用初始管理员建一个空工作区。 */
-  static create(input: Parameters<typeof bootstrap>[0], env: Environment): MemoryWorkspace {
-    return new MemoryWorkspace(bootstrap(input, env));
+  constructor(
+    readonly state: Workspace,
+    private readonly options: EngineOptions = {}
+  ) {
+    this.schemas.set(state.schemaVersion, structuredClone(state.schema));
+  }
+  /** 用初始管理员与第一个数据模式版本建一个空工作区；`options` 是注入引擎的扩展（特殊业务检查），默认没有。 */
+  static create(
+    input: Parameters<typeof bootstrap>[0],
+    env: Environment,
+    options: EngineOptions = {}
+  ): MemoryWorkspace {
+    return new MemoryWorkspace(bootstrap(input, env), options);
   }
   /** 执行一条命令；失败时状态与存储保持原样（只在引擎成功之后才写回）。 */
   async run(user: Identity, command: Command, env: Environment): Promise<Record<string, unknown>> {
@@ -283,7 +348,7 @@ export class MemoryWorkspace {
       }
     };
     try {
-      return await runCommand(store, user, command, env);
+      return await runCommand(store, user, command, env, this.options);
     } finally {
       this.lastLoaded = loader.state;
     }
@@ -304,12 +369,21 @@ export class MemoryWorkspace {
   history(user: Identity, query: HistoryQuery): Promise<CommitPage> {
     return readHistory(this.store, this.state, user, query);
   }
+  schema(user: Identity, version: number): Promise<SchemaManifest> {
+    return readSchema(found => Promise.resolve(structuredClone(this.schemas.get(found))), this.state, user, version);
+  }
   /** 把局部状态的差异写回完整状态：只动差异列出的行，引用按期望头比较交换，与 PostgreSQL 写回的语义一致。 */
   private save(changes: WorkspaceChanges, effects: Effects, now: number): void {
     const state = this.state;
     for (const member of changes.members) state.members[member.id] = structuredClone(member);
     for (const invitation of changes.invitations) state.invitations[invitation.id] = structuredClone(invitation);
     if (changes.policy) state.policy = structuredClone(changes.policy);
+    if (changes.schema) {
+      demand(!this.schemas.has(changes.schema.schemaVersion), 'exists', '数据模式版本必须递增');
+      this.schemas.set(changes.schema.schemaVersion, structuredClone(changes.schema));
+      state.schema = structuredClone(changes.schema);
+      state.schemaVersion = changes.schema.schemaVersion;
+    }
     for (const task of changes.tasks) state.tasks[task.id] = structuredClone(task);
     for (const [taskId, move] of Object.entries(changes.heads)) {
       demand(state.tasks[taskId].head === move.from, 'diverged', '任务已分叉，请另存为新任务', {

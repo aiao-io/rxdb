@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import pg from 'pg';
+import { parseSchemaManifest } from '../dist/server/schema.js';
 import { collaborationServer } from '../dist/server/server/http.js';
 import { applyMigrations, readMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
@@ -35,6 +36,10 @@ const stackId =
 const stackDatabase = `rxdb-supabase-db-${stackId}`;
 // supabase/migrations 下的全部迁移，按文件名顺序；与迁移命令、集成测试、基准共用同一个读取函数
 const migrations = await readMigrations();
+// 产品的数据模式清单：每个测试工作区初始化时登记为第一个数据模式版本，与正式初始化相同
+const schema = parseSchemaManifest(
+  JSON.parse(await readFile(path.join(root, 'rxdb-admin-template/schema/collaboration-schema.json'), 'utf8'))
+);
 function liveSql(sql) {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -217,7 +222,7 @@ async function fixture(repository) {
   teams.push(teamId);
   const appId = 'assets';
   const name = `团队-${suffix.slice(0, 8)}`;
-  await repository.initialize({ teamId, appId, name, bootstrapKey: randomUUID(), admin });
+  await repository.initialize({ teamId, appId, name, bootstrapKey: randomUUID(), admin, schema });
   const invitation = randomUUID();
   const token = randomUUID();
   const tokenHash = createHash('sha256').update(token).digest('hex');
@@ -233,7 +238,7 @@ async function fixture(repository) {
   });
   const secondary = { teamId: randomUUID(), appId, name: `隔离团队-${suffix.slice(0, 8)}` };
   teams.push(secondary.teamId);
-  await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin });
+  await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin, schema });
   return { teamId, appId, name, admin, reviewer, secondReviewer, secondary, invitation, token };
 }
 async function serve(request, response, directory) {

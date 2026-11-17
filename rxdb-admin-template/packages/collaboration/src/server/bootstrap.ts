@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import { demand } from '../model.js';
+import { parseSchemaManifest } from '../schema.js';
 import { applyMigrations } from './migrate.js';
 import { CollaborationRepository } from './repository.js';
 const required = (name: string) => {
@@ -22,13 +24,16 @@ try {
       'forbidden',
       '初始管理员必须是认证提供方确认的已验证用户'
     );
+    // 第一个数据模式版本：应用实体定义生成的清单文件（产品的清单在 rxdb-admin-template/schema/collaboration-schema.json）
+    const schema = parseSchemaManifest(JSON.parse(await readFile(required('ADMIN_SCHEMA_FILE'), 'utf8')));
     console.info(
       await new CollaborationRepository(pool).initialize({
         teamId: required('ADMIN_TEAM_ID'),
         appId: required('ADMIN_APP_ID'),
         name: required('ADMIN_TEAM_NAME'),
         bootstrapKey: required('ADMIN_BOOTSTRAP_KEY'),
-        admin: { id: data.user.id, email: data.user.email, verified: true }
+        admin: { id: data.user.id, email: data.user.email, verified: true },
+        schema
       })
     );
   }

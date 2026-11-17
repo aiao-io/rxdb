@@ -9,6 +9,7 @@ import {
   type Records,
   type WorkspaceSummary
 } from '../model.js';
+import { assetSchema } from '../schema.testing.js';
 import { bootstrap, snapshot } from '../server/engine.js';
 import { CollaborationController } from './controller.js';
 import type { Draft, DraftStorage } from './local.js';
@@ -51,7 +52,7 @@ async function setup() {
   controllers.push(controller);
   const user = { id: 'alice', email: 'alice@example.test', verified: true };
   const state = bootstrap(
-    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user },
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
     { now: 1, id: () => 'id' }
   );
   state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: null, head: null, originTaskId: null };
@@ -64,10 +65,12 @@ async function setup() {
     'Task',
     null,
     null,
-    {}
+    {},
+    assetSchema
   );
   vi.spyOn(controller.api, 'snapshot').mockResolvedValue(controller.snapshot);
   vi.spyOn(controller.api, 'receipt').mockResolvedValue({ status: 'unknown' });
+  vi.spyOn(controller.api, 'schema').mockResolvedValue(assetSchema);
   return { controller, storage };
 }
 afterEach(() => {

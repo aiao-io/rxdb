@@ -1,5 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { assetSchema } from '../schema.testing.js';
 import { contextKey, IndexedDraftStorage, LocalTasks, type Context } from './local.js';
 const context: Context = { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' };
 const stores: IndexedDraftStorage[] = [];
@@ -18,8 +19,8 @@ describe('persistent draft transaction boundaries', () => {
     const store = storage();
     const tasks = new LocalTasks(store);
     await tasks.login('alice');
-    await tasks.openVerified(context, 'Task', null, null, {});
-    await tasks.openVerified({ ...context, teamId: 'other-team' }, 'Other', null, null, {});
+    await tasks.openVerified(context, 'Task', null, null, {}, assetSchema);
+    await tasks.openVerified({ ...context, teamId: 'other-team' }, 'Other', null, null, {}, assetSchema);
     await tasks.save(context, { c: { entity: 'AssetCategory', fields: { name: 'Private' } } }, 0);
     await tasks.capture(context, 'saved', false);
     expect(await store.list('bob')).toEqual([]);
@@ -33,7 +34,7 @@ describe('persistent draft transaction boundaries', () => {
     const store = storage();
     const tasks = new LocalTasks(store);
     await tasks.login('alice');
-    const before = await tasks.openVerified(context, 'Task', null, null, {});
+    const before = await tasks.openVerified(context, 'Task', null, null, {}, assetSchema);
     await expect(
       store.write(contextKey(context), current => {
         if (!current) throw new Error('missing');
@@ -52,8 +53,8 @@ describe('persistent draft transaction boundaries', () => {
     const second = new LocalTasks(storage());
     await first.login('alice');
     await second.login('alice');
-    await first.openVerified(context, 'Task', null, null, {});
-    await second.openVerified(context, 'Task', null, null, {});
+    await first.openVerified(context, 'Task', null, null, {}, assetSchema);
+    await second.openVerified(context, 'Task', null, null, {}, assetSchema);
     const results = await Promise.allSettled([
       first.save(context, { a: { entity: 'AssetCategory', fields: { name: 'A' } } }, 0),
       second.save(context, { b: { entity: 'AssetCategory', fields: { name: 'B' } } }, 0)
@@ -68,7 +69,7 @@ describe('persistent draft transaction boundaries', () => {
     const store = storage();
     const tasks = new LocalTasks(store);
     await tasks.login('alice');
-    await tasks.openVerified(context, 'Task', null, null, {});
+    await tasks.openVerified(context, 'Task', null, null, {}, assetSchema);
     tasks.dispose();
     await expect(store.read(contextKey(context))).rejects.toMatchObject({ code: 'cancelled' });
     expect(await storage().read(contextKey(context))).toBeDefined();

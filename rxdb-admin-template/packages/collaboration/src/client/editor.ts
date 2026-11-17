@@ -1,30 +1,32 @@
-import type { DataRow, Records, Value } from '../model.js';
+import type { DataRow, Records, SchemaManifest, Value } from '../model.js';
 import { canonical } from '../records.js';
+import { schemaModel, type EntityModel, type RecordField } from '../schema.js';
 import type { CollaborationController } from './controller.js';
 import { button, element, input, row, section, select, type Perform } from './elements.js';
+import { entityText, fieldText } from './labels.js';
 import { tx } from './translate.js';
-const labels: Record<string, string> = {
-  AssetCategory: '分类',
-  Asset: '资产',
-  AssetEvent: '维护记录',
-  name: '名称',
-  description: '说明',
-  status: '状态',
-  purchasePrice: '购入价',
-  purchaseDate: '购入日期',
-  categoryId: '分类',
-  summary: '事项',
-  cost: '费用',
-  happenedAt: '日期',
-  assetId: '所属资产'
-};
-const fields: Record<DataRow['entity'], string[]> = {
-  AssetCategory: ['name', 'description'],
-  Asset: ['name', 'status', 'purchasePrice', 'purchaseDate', 'categoryId'],
-  AssetEvent: ['summary', 'cost', 'happenedAt', 'assetId']
-};
+
+/** 数值类字段：输入框用 number，保存时转成数字。 */
+const numeric = (field: RecordField) => ['number', 'integer'].includes(field.descriptor.valueType);
+/** 字段对应的输入框类型：数值、日期，其余为文本。 */
+const inputType = (field: RecordField) =>
+  numeric(field) ? 'number'
+  : field.descriptor.valueType === 'date' ? 'date'
+  : 'text';
+/** 记录在界面上的名称：实体标题字段的取值，没有时用记录标识。 */
+const titleOf = (entity: EntityModel | undefined, id: string, row: DataRow) =>
+  String((entity?.title === undefined ? undefined : row.fields[entity.title]) ?? id);
+
+/**
+ * 任务草稿的编辑器：按草稿的数据模式清单逐个实体列出记录表（清单顺序），字段、输入框类型与关联下拉都来自清单，
+ * 标签由宿主应用提供（见 `labels.ts`）。协作包本身不认识任何具体实体。
+ */
 export class TaskEditor {
   private indicator?: HTMLElement;
+  /** 当前草稿的数据模式清单：编辑器只在草稿打开时渲染。 */
+  private get schema(): SchemaManifest {
+    return this.controller.draft!.schema;
+  }
   buffer: Records = {};
   taskId: string | null = null;
   dirty = false;
@@ -97,7 +99,7 @@ export class TaskEditor {
     if (remote && remote.head !== draft.remoteHead)
       actions.append(button('拉取远端版本', () => this.perform(() => this.controller.fetchRemote(this.dirty))));
     view.append(actions);
-    for (const entity of ['AssetCategory', 'Asset', 'AssetEvent'] as const) view.append(this.entityTable(entity));
+    for (const entity of schemaModel(draft.schema).entities) view.append(this.entityTable(entity));
     return view;
   }
   async save() {
@@ -146,43 +148,44 @@ export class TaskEditor {
     dialog.addEventListener('cancel', () => dialog.remove());
     dialog.showModal();
   }
-  private entityTable(entity: DataRow['entity']) {
-    const view = section(labels[entity]);
+  private entityTable(entity: EntityModel) {
+    const label = entityText(entity.entity);
+    const view = section(label);
     view.append(
-      button(tx('新增{v0}', { v0: tx(labels[entity]) }), () => {
-        this.buffer[crypto.randomUUID()] = { entity, fields: {} };
+      button(tx('新增{v0}', { v0: tx(label) }), () => {
+        this.buffer[crypto.randomUUID()] = { entity: entity.entity, fields: {} };
         this.mark();
         this.render();
       })
     );
     const table = element('table', '', 'table table-sm');
     const head = element('tr');
-    fields[entity].forEach(field => head.append(element('th', labels[field])));
+    entity.fields.forEach(field => head.append(element('th', fieldText(this.schema, entity.entity, field.name))));
     head.append(element('th', '操作'));
     const thead = element('thead');
     thead.append(head);
     const tbody = element('tbody');
     Object.entries(this.buffer)
-      .filter(([, item]) => item.entity === entity)
-      .forEach(([id, item]) => tbody.append(this.recordRow(id, item)));
+      .filter(([, item]) => item.entity === entity.entity)
+      .forEach(([id, item]) => tbody.append(this.recordRow(id, item, entity)));
     table.append(thead, tbody);
     const scroll = element('div', '', 'overflow-x-auto');
     scroll.append(table);
     view.append(scroll);
     return view;
   }
-  private recordRow(id: string, item: DataRow): HTMLTableRowElement {
+  private recordRow(id: string, item: DataRow, entity: EntityModel): HTMLTableRowElement {
     const tr = element('tr');
-    for (const field of fields[item.entity]) {
+    for (const field of entity.fields) {
       const cell = element('td');
-      const control = this.fieldControl(item, field);
+      const control = this.fieldControl(item, entity, field);
       control.control.dataset['recordId'] = id;
       control.control.addEventListener('change', () => {
-        item.fields[field] = fieldValue(field, control.control.value);
+        item.fields[field.name] = fieldValue(field, control.control.value);
         this.mark();
       });
       control.control.addEventListener('input', () => {
-        item.fields[field] = fieldValue(field, control.control.value);
+        item.fields[field.name] = fieldValue(field, control.control.value);
         this.mark();
       });
       cell.append(control.wrapper);
@@ -199,43 +202,43 @@ export class TaskEditor {
     tr.append(action);
     return tr;
   }
+  /** 删除一条记录，连同按单值关联引用它的记录（递归）。 */
   private deleteRecord(id: string): void {
+    const model = schemaModel(this.schema);
     const references = Object.entries(this.buffer)
-      .filter(([, record]) => record.fields['categoryId'] === id || record.fields['assetId'] === id)
+      .filter(([, record]) =>
+        model
+          .entity(record.entity)
+          ?.fields.some(field => field.target !== undefined && record.fields[field.name] === id)
+      )
       .map(([key]) => key);
     delete this.buffer[id];
     references.forEach(key => this.deleteRecord(key));
   }
-  private fieldControl(item: DataRow, field: string) {
-    const value = item.fields[field] == null ? '' : String(item.fields[field]);
-    if (field === 'categoryId' || field === 'assetId') {
-      const target = field === 'categoryId' ? 'AssetCategory' : 'Asset';
-      return select(
-        labels[field],
-        [
-          { value: '', label: tx('请选择') },
-          ...Object.entries(this.buffer)
-            .filter(([, data]) => data.entity === target)
-            .map(([id, data]) => ({ value: id, label: String(data.fields['name'] ?? id) }))
-        ],
-        value
-      );
-    }
-    return input(
-      labels[field],
-      value,
-      ['cost', 'purchasePrice'].includes(field) ? 'number'
-      : ['happenedAt', 'purchaseDate'].includes(field) ? 'date'
-      : 'text'
+  private fieldControl(item: DataRow, entity: EntityModel, field: RecordField) {
+    const value = item.fields[field.name] == null ? '' : String(item.fields[field.name]);
+    const label = fieldText(this.schema, entity.entity, field.name);
+    if (field.target === undefined) return input(label, value, inputType(field));
+    const target = schemaModel(this.schema).entity(field.target);
+    return select(
+      label,
+      [
+        { value: '', label: tx('请选择') },
+        ...Object.entries(this.buffer)
+          .filter(([, data]) => data.entity === field.target)
+          .map(([id, data]) => ({ value: id, label: titleOf(target, id, data) }))
+      ],
+      value
     );
   }
 }
-function fieldValue(field: string, value: string): Value {
+/** 输入框的文本换成记录取值：空输入为 null，数值字段转成数字，其余保持文本。 */
+function fieldValue(field: RecordField, value: string): Value {
   if (!value) return null;
-  if (['cost', 'purchasePrice'].includes(field)) return Number(value);
-  return value;
+  return numeric(field) ? Number(value) : value;
 }
-export function readOnlyRecords(records: Records) {
+/** 只读记录表：类型、记录名称与各字段取值，标签按数据模式清单与宿主应用的标签显示，用户数据原样显示。 */
+export function readOnlyRecords(records: Records, schema: SchemaManifest) {
   const table = element('table', '', 'table table-sm');
   const head = element('thead');
   const header = element('tr');
@@ -243,15 +246,16 @@ export function readOnlyRecords(records: Records) {
   head.append(header);
   table.append(head);
   const body = element('tbody');
+  const model = schemaModel(schema);
   for (const [id, record] of Object.entries(records)) {
     const item = element('tr');
     item.append(
-      element('td', tx(labels[record.entity])),
-      element('td', String(record.fields['name'] ?? record.fields['summary'] ?? id)),
+      element('td', tx(entityText(record.entity))),
+      element('td', titleOf(model.entity(record.entity), id, record)),
       element(
         'td',
         Object.entries(record.fields)
-          .map(([field, value]) => `${tx(labels[field] ?? field)}：${value ?? tx('空')}`)
+          .map(([field, value]) => `${tx(fieldText(schema, record.entity, field))}：${value ?? tx('空')}`)
           .join('；')
       )
     );

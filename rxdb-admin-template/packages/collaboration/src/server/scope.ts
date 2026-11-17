@@ -12,8 +12,18 @@ export class RetryCommand extends Error {
   }
 }
 
-/** 成员、邀请与策略命令对治理行加排他锁；其余命令加共享锁，彼此并行，但都要等在途的成员与策略变更提交。 */
-const exclusive: readonly Command['type'][] = ['invite', 'revoke_invite', 'accept_invite', 'member', 'policy'];
+/**
+ * 成员、邀请、策略与数据模式命令对治理行加排他锁；其余命令加共享锁，彼此并行，但都要等在途的这些变更提交。
+ * 登记数据模式要校验全部共享记录，持排他锁期间合并（共享锁）无法推进共享分支。
+ */
+const exclusive: readonly Command['type'][] = [
+  'invite',
+  'revoke_invite',
+  'accept_invite',
+  'member',
+  'policy',
+  'schema'
+];
 /** 命令对治理行加的锁。 */
 export const governanceLock = (command: Command): GovernanceLock =>
   exclusive.includes(command.type) ? 'update' : 'share';
@@ -28,9 +38,13 @@ const nothing = () => Promise.resolve();
 const sameIds = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, i) => id === b[i]);
 
-/** 上传：锁定任务名下的全部 PR（上传要让它们的候选过期）→ 锁定任务引用 → 确认这期间没有新建 PR。 */
+/**
+ * 上传：锁定任务名下的全部 PR（上传要让它们的候选过期）→ 共享引用加共享锁（推导父内容要读共享记录并沿共享分支回退，
+ * 期间合并不能推进）→ 锁定任务引用 → 确认这期间没有新建 PR。
+ */
 async function upload(loader: WorkspaceLoader, command: Extract<Command, { type: 'upload' }>) {
   const locked = await loader.lockTaskPrs(command.taskId);
+  await loader.sharedRef('share');
   await loader.task(command.taskId, 'update');
   if (!sameIds(locked, await loader.taskPrIds(command.taskId))) throw new RetryCommand('PRs of the task changed');
 }
@@ -104,9 +118,12 @@ const gatherers: Gatherers = {
   accept_invite: (loader, command) => loader.invitation(command.id),
   member: nothing,
   policy: nothing,
+  schema: nothing,
   task: (loader, command) => loader.task(command.id, 'none'),
   upload,
   fork: async (loader, command) => {
+    // 推导父内容要读共享记录并沿共享分支回退，共享引用加共享锁，期间合并不能推进
+    await loader.sharedRef('share');
     await loader.task(command.taskId, 'none');
     await loader.task(command.id, 'none');
   },

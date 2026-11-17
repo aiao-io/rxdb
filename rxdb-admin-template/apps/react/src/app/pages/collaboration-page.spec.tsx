@@ -5,6 +5,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ENTITIES } from '../entities/asset-entities';
+import { collaborationLabels } from '../entities/collaboration-labels';
 import { createWorkbenchI18n } from '../i18n/workbench-i18n';
 import CollaborationPage from './collaboration-page';
 
@@ -13,15 +14,18 @@ const mocks = vi.hoisted(() => ({
   shell: { i18n: undefined as unknown as I18n },
   dispose: vi.fn<() => void>(),
   mount: vi.fn<typeof mountCollaboration>(),
-  readAnonymousAssets: vi.fn()
+  readAnonymousRecords: vi.fn()
 }));
 
 vi.mock('@rxdb-admin-template/collaboration', () => ({
   mountCollaboration: mocks.mount,
-  readAnonymousAssets: mocks.readAnonymousAssets
+  readAnonymousRecords: mocks.readAnonymousRecords
 }));
 vi.mock('../rxdb/setup_rxdb', () => ({ default: () => mocks.database }));
 vi.mock('../shell/workbench-shell', () => ({ workbenchShell: mocks.shell }));
+
+/** 协作界面交给匿名导入的数据模式清单：接线只原样转交，用一个最小的清单即可。 */
+const schema = { schemaVersion: 1, entities: [] };
 
 /** 取最近一次挂载收到的宿主元素与接线选项。 */
 function lastMount(): { host: HTMLElement; options: CollaborationOptions } {
@@ -83,7 +87,7 @@ describe('协作页面接线', () => {
     mocks.shell.i18n = createWorkbenchI18n();
     mocks.mount.mockReset().mockReturnValue(mocks.dispose);
     mocks.dispose.mockReset();
-    mocks.readAnonymousAssets.mockReset();
+    mocks.readAnonymousRecords.mockReset();
   });
 
   afterEach(() => {
@@ -140,24 +144,30 @@ describe('协作页面接线', () => {
 
   it('匿名导入用工作台数据库和全部预置实体读取资产，并原样返回读取结果', async () => {
     const records = { 'asset-1': { entity: 'Asset', fields: { name: '研发笔记本' } } };
-    mocks.readAnonymousAssets.mockResolvedValue(records);
+    mocks.readAnonymousRecords.mockResolvedValue(records);
     render(<CollaborationPage />);
     const { importAnonymous } = lastMount().options;
     if (!importAnonymous) throw new Error('缺少匿名导入接线');
 
-    await expect(importAnonymous()).resolves.toBe(records);
-    expect(mocks.readAnonymousAssets).toHaveBeenCalledTimes(1);
-    const [database, entities] = mocks.readAnonymousAssets.mock.calls[0] ?? [];
+    await expect(importAnonymous(schema)).resolves.toBe(records);
+    expect(mocks.readAnonymousRecords).toHaveBeenCalledTimes(1);
+    const [database, entities, given] = mocks.readAnonymousRecords.mock.calls[0] ?? [];
     expect(database).toBe(mocks.database);
     expect(entities).toBe(ENTITIES);
+    expect(given).toBe(schema);
+  });
+
+  it('把应用的实体与字段标签交给协作界面', () => {
+    render(<CollaborationPage />);
+    expect(lastMount().options.labels).toBe(collaborationLabels);
   });
 
   it('匿名导入读取失败时把原始错误交还协作界面处理', async () => {
     const failure = new Error('匿名库不可用');
-    mocks.readAnonymousAssets.mockRejectedValue(failure);
+    mocks.readAnonymousRecords.mockRejectedValue(failure);
     render(<CollaborationPage />);
 
-    await expect(lastMount().options.importAnonymous?.()).rejects.toBe(failure);
+    await expect(lastMount().options.importAnonymous?.(schema)).rejects.toBe(failure);
   });
 
   it('卸载时释放协作界面，且只释放一次', () => {

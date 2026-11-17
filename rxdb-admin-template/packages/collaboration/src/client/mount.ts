@@ -1,5 +1,5 @@
-import type { Records } from '../model.js';
-import { checkRecords } from '../records.js';
+import { checkRecords } from '../checks.js';
+import type { Records, SchemaManifest } from '../model.js';
 import { adminView } from './admin-view.js';
 import { CollaborationController } from './controller.js';
 import type { Disclosures } from './disclosure.js';
@@ -8,6 +8,7 @@ import { button, element, input, loading, row, section } from './elements.js';
 import { FormDrafts } from './form-drafts.js';
 import { historyView } from './history-view.js';
 import { carriesInvitation, parseInvitationLink } from './invitation-link.js';
+import { useLabels, type CollaborationLabels } from './labels.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
 import { tx, useTranslation, type Translate } from './translate.js';
@@ -19,8 +20,13 @@ export interface CollaborationOptions {
   translate?: Translate;
   /** 订阅应用的语言切换，收到通知后重新渲染；返回取消订阅函数，卸载界面时调用。 */
   subscribeLanguage?: (listener: () => void) => () => void;
-  /** 读取匿名本机库里的全部资产记录，供「预览匿名数据导入」使用；不传则不显示该入口。只读取，不修改匿名库。 */
-  importAnonymous?: () => Promise<Records>;
+  /**
+   * 读取匿名本机库里属于工作区数据模式清单的全部记录，供「预览匿名数据导入」使用；不传则不显示该入口。
+   * `schema` 是当前工作区的清单（决定读哪些实体与字段）。只读取，不修改匿名库。
+   */
+  importAnonymous?: (schema: SchemaManifest) => Promise<Records>;
+  /** 实体与字段在协作界面上的标签（中文原文，经词条表翻译）；不传则实体显示实体名、字段显示清单里声明的显示名。 */
+  labels?: CollaborationLabels;
 }
 
 /**
@@ -31,6 +37,7 @@ export interface CollaborationOptions {
  */
 export function mountCollaboration(host: HTMLElement, options: CollaborationOptions = {}): () => void {
   useTranslation(options.translate);
+  useLabels(options.labels);
   const controller = new CollaborationController(options.apiBase);
   const formDrafts = new FormDrafts(host);
   host.addEventListener('input', formDrafts.remember);
@@ -286,9 +293,10 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const data = controller.snapshot!;
     const view = section(tx('共享数据 · {v0}', { v0: data.name }));
     const shared = controller.sharedRecords();
+    const schema = controller.schema();
     view.append(
       element('p', tx('共享版本：{v0} · 默认只读', { v0: data.head ?? tx('空分支') }), 'text-sm break-all'),
-      shared ? readOnlyRecords(shared) : loading()
+      shared && schema ? readOnlyRecords(shared, schema) : loading()
     );
     const member = data.members.find(m => m.id === controller.user?.id);
     if (!member?.permissions.includes('edit')) return view;
@@ -321,14 +329,15 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     return view;
   }
   async function importPreview() {
-    const records = await options.importAnonymous!();
+    const schema = await controller.loadSchema();
+    const records = await options.importAnonymous!(schema);
     const shared = await controller.loadSharedRecords();
     const data = controller.snapshot!;
     const dialog = element('dialog', '', 'modal');
     const content = element('div', '', 'modal-box max-w-4xl space-y-4');
     const name = input('导入任务名称', '导入本机资产');
     const collisions = Object.keys(records).filter(id => Object.hasOwn(shared, id));
-    const checks = checkRecords({ ...shared, ...records });
+    const checks = checkRecords(schema, { ...shared, ...records });
     content.append(
       element('p', tx('同 ID 记录：{v0}；完整性或唯一性冲突：{v1}', { v0: collisions.length, v1: checks.length }))
     );
@@ -341,7 +350,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
         'font-semibold'
       ),
       element('p', '原匿名库保持原样；导入不会直接同步或修改共享数据。'),
-      readOnlyRecords(records),
+      readOnlyRecords(records, schema),
       name.wrapper
     );
     content.append(

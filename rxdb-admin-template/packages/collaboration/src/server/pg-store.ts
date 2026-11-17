@@ -8,7 +8,8 @@ import {
   type DataRow,
   type Records
 } from '../model.js';
-import type { CommitStore, Lineage, Link, Path, SharedChange } from './store.js';
+import { recordKeyText, type RecordKey } from '../schema.js';
+import type { CommitStore, IndexedKey, Lineage, Link, Path, SharedChange } from './store.js';
 
 interface CommitRow {
   id: string;
@@ -27,7 +28,7 @@ interface LinkRow {
 interface ChangeRow {
   commit_id: string;
   namespace: string;
-  entity: DataRow['entity'];
+  entity: string;
   entity_id: string;
   operation: ChangeSet['operation'];
   patch: ChangeSet['patch'];
@@ -35,7 +36,7 @@ interface ChangeRow {
 }
 interface SharedRow {
   record_id: string;
-  entity: DataRow['entity'];
+  entity: string;
   fields: DataRow['fields'];
 }
 
@@ -47,11 +48,24 @@ const summaryOf = (row: Omit<CommitRow, 'fingerprint'>): CommitSummary => {
 };
 const metaOf = (row: CommitRow): CommitMeta => ({ ...summaryOf(row), fingerprint: row.fingerprint });
 
+/** 键索引的列，与 `admin_private.record_keys` 一致。 */
+const keyColumns = 'record_id text, kind text, entity text, field text, value text';
+const keyRows = (keys: readonly IndexedKey[]) =>
+  JSON.stringify(
+    keys.map(key => ({
+      record_id: key.recordId,
+      kind: key.kind,
+      entity: key.entity,
+      field: key.field,
+      value: key.value
+    }))
+  );
+
 /**
  * 提交与共享记录的 PostgreSQL 存储，绑定一个团队下的一个应用与一个数据库连接，随该连接所在的事务读写：
  * 提交元数据在 `admin_private.commits`，字段级变更在 `admin_private.commit_changes`，
- * 共享记录按记录一行存在 `public.shared_records`。每个读取方法只发一条查询，范围由所问内容决定，
- * 沿父指针走图用递归查询，不会把整段历史读进来。
+ * 共享记录按记录一行存在 `public.shared_records`，它们的唯一键与外键在键索引 `admin_private.record_keys`。
+ * 每个读取方法只发一条查询，范围由所问内容决定，沿父指针走图用递归查询，不会把整段历史读进来。
  */
 export class PgCommitStore implements CommitStore {
   constructor(
@@ -169,6 +183,43 @@ export class PgCommitStore implements CommitStore {
     for (const row of result.rows) rows[row.record_id] = { entity: row.entity, fields: row.fields };
     return rows;
   }
+  async holders(keys: readonly RecordKey[]): Promise<Map<string, string[]>> {
+    const unique = keys.filter(key => key.kind === 'unique');
+    const found = new Map(unique.map(key => [recordKeyText(key), [] as string[]]));
+    if (!unique.length) return found;
+    const result = await this.client.query<{ entity: string; field: string; value: string; record_id: string }>(
+      `SELECT k.entity, k.field, k.value, k.record_id FROM admin_private.record_keys k
+       JOIN unnest($3::text[], $4::text[], $5::text[]) AS q(entity, field, value)
+         ON k.entity = q.entity AND k.field = q.field AND k.value = q.value
+       WHERE k.team_id = $1 AND k.app_id = $2 AND k.kind = 'unique'
+       ORDER BY k.record_id`,
+      [
+        this.teamId,
+        this.appId,
+        unique.map(key => key.entity),
+        unique.map(key => key.field),
+        unique.map(key => key.value)
+      ]
+    );
+    for (const row of result.rows)
+      found
+        .get(recordKeyText({ kind: 'unique', entity: row.entity, field: row.field, value: row.value }))
+        ?.push(row.record_id);
+    return found;
+  }
+  async referencing(ids: readonly string[]): Promise<Records> {
+    if (!ids.length) return {};
+    const result = await this.client.query<SharedRow>(
+      `SELECT s.record_id, s.entity, s.fields FROM public.shared_records s
+       WHERE s.team_id = $1 AND s.app_id = $2 AND s.record_id IN (
+         SELECT k.record_id FROM admin_private.record_keys k
+         WHERE k.team_id = $1 AND k.app_id = $2 AND k.kind = 'reference' AND k.value = ANY($3::text[]))`,
+      [this.teamId, this.appId, [...ids]]
+    );
+    const rows: Records = {};
+    for (const row of result.rows) rows[row.record_id] = { entity: row.entity, fields: row.fields };
+    return rows;
+  }
   async append(commits: readonly Commit[]): Promise<void> {
     if (!commits.length) return;
     const heads = commits.map((commit, ord) => ({
@@ -230,5 +281,28 @@ export class PgCommitStore implements CommitStore {
         'DELETE FROM public.shared_records WHERE team_id = $1 AND app_id = $2 AND record_id = ANY($3::text[])',
         [this.teamId, this.appId, change.remove]
       );
+    // 删除的记录的键随外键级联删除；写入的记录先删旧键再写新键
+    if (rows.length)
+      await this.client.query(
+        'DELETE FROM admin_private.record_keys WHERE team_id = $1 AND app_id = $2 AND record_id = ANY($3::text[])',
+        [this.teamId, this.appId, rows.map(row => row.record_id)]
+      );
+    await this.insertKeys(change.keys);
+  }
+  async reindex(keys: readonly IndexedKey[]): Promise<void> {
+    await this.client.query('DELETE FROM admin_private.record_keys WHERE team_id = $1 AND app_id = $2', [
+      this.teamId,
+      this.appId
+    ]);
+    await this.insertKeys(keys);
+  }
+  private async insertKeys(keys: readonly IndexedKey[]): Promise<void> {
+    if (!keys.length) return;
+    await this.client.query(
+      `INSERT INTO admin_private.record_keys(team_id, app_id, record_id, kind, entity, field, value)
+       SELECT $1, $2, x.record_id, x.kind, x.entity, x.field, x.value
+       FROM jsonb_to_recordset($3::jsonb) AS x(${keyColumns})`,
+      [this.teamId, this.appId, keyRows(keys)]
+    );
   }
 }

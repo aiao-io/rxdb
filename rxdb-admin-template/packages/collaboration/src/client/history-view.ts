@@ -77,7 +77,8 @@ function commitHistory(
   );
   if (open) {
     const content = controller.commitContent(commit.id);
-    if (content) details.append(readOnlyRecords(content.records), changeTable(content.changes));
+    const schema = controller.schema();
+    if (content && schema) details.append(readOnlyRecords(content.records, schema), changeTable(content.changes));
     else details.append(loading());
   }
   if (canEdit)

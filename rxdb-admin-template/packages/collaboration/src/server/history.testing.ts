@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { diffRecords } from '../changes.js';
+import { checkRecords } from '../checks.js';
 import { sealCommit, uuidv7 } from '../commit.js';
 import type {
   Candidate,
@@ -14,7 +14,8 @@ import type {
   WorkspaceSummary
 } from '../model.js';
 import { choose, pick, seeded } from '../random.testing.js';
-import { canonical, checkRecords, mergeRecords } from '../records.js';
+import { canonical, mergeRecords } from '../records.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 
 /** 随机历史测试需要的最小驱动：内存工作区与 PostgreSQL 仓储各自适配，走同一套场景与同一个全量快照对照。 */
 export interface HistoryDriver {
@@ -140,7 +141,7 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
         parent,
         authorId: author,
         message: `提交 ${serial()}`,
-        changes: diffRecords(current, after)
+        changes: diffAssets(current, after)
       });
       snapshots.set(commit.id, structuredClone(after));
       sealed.set(commit.id, commit);
@@ -168,7 +169,7 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
       parent,
       authorId: author,
       message: `分叉 ${serial()}`,
-      changes: diffRecords(before, after)
+      changes: diffAssets(before, after)
     });
     snapshots.set(commit.id, structuredClone(after));
     sealed.set(commit.id, commit);
@@ -218,7 +219,8 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
     const wire = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
     expect(canonical(candidate.records)).toBe(canonical(expected.records));
     expect(canonical(wire(candidate.conflicts))).toBe(canonical(wire(expected.conflicts)));
-    expect(canonical(candidate.checks)).toBe(canonical(checkRecords(expected.records)));
+    // 服务端只读改动过的记录做定向检查，这里在全量快照上按同一份清单检查整份结果，两者必须一致
+    expect(canonical(candidate.checks)).toBe(canonical(checkRecords(assetSchema, expected.records)));
     expect({ base: candidate.base, source: candidate.source, target: candidate.target }).toEqual({
       base: task.base,
       source: task.head,
@@ -300,5 +302,7 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
   return stats;
 }
 
+/** 随机历史用的数据模式：产品的资产清单。 */
+export const historySchema = assetSchema;
 /** 供内存与 PostgreSQL 用例共用的管理员身份。 */
 export const historyAdmin: Identity = { id: 'history-admin', email: 'history-admin@example.test', verified: true };

@@ -11,11 +11,19 @@ import {
   type Workspace
 } from '../model.js';
 import { authorize } from './access.js';
-import { bootstrap } from './engine.js';
+import { bootstrap, type EngineOptions } from './engine.js';
 import { PgCommitStore } from './pg-store.js';
 import { PgWorkspaceLoader, PgWorkspaceReader, PgWorkspaceWriter, type Queryable } from './pg-workspace.js';
 import { RetryCommand } from './scope.js';
-import { readCandidate, readCommit, readHistory, readSharedRecords, readSummary, runCommand } from './service.js';
+import {
+  readCandidate,
+  readCommit,
+  readHistory,
+  readSchema,
+  readSharedRecords,
+  readSummary,
+  runCommand
+} from './service.js';
 import type { CommandStore } from './store.js';
 
 /** 服务端生成的标识（审计事件、候选、合并提交等）一律用 UUIDv7，按生成时间有序。 */
@@ -35,12 +43,20 @@ function retryable(error: unknown): boolean {
 }
 
 /**
- * 协作数据的 PostgreSQL 仓储。工作区不再是一行 JSONB：治理行、成员、策略、任务与引用、PR、候选、审核、讨论、通知、
+ * 协作数据的 PostgreSQL 仓储。工作区不再是一行 JSONB：治理行、成员、策略、数据模式、任务与引用、PR、候选、审核、讨论、通知、
  * 邀请、回执与审计分表存放，命令只加载并锁定它涉及的行（锁顺序见 `scope.ts`），写回只改动差异，
  * 成本因此与工作区的历史长度无关。读接口在只读快照里执行，不加锁、不写库。
+ * `options` 是部署入口注入引擎的扩展：`checks` 为特殊业务检查（见 `checks.ts` 的 `RecordCheck`），默认没有。
  */
 export class CollaborationRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly options: EngineOptions = {}
+  ) {}
+  /**
+   * 初始化工作区（可信服务端部署命令调用）：同一事务里建出治理行、第一版策略、初始管理员与第一个数据模式版本。
+   * 参数与已有团队的稳定键一致时返回既有团队，不重置策略、权限与数据模式（新版本经 `schema` 命令登记）。
+   */
   async initialize(input: Parameters<typeof bootstrap>[0]) {
     return this.transaction(async client => {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [
@@ -115,6 +131,10 @@ export class CollaborationRepository {
       return readHistory(new PgCommitStore(client, teamId, appId), reader.state, user, query);
     });
   }
+  /** 按版本读取登记过的数据模式清单（只追加、不可修改）；不加锁、不写库，未登记的版本返回 `not_found`。 */
+  async readSchema(user: Identity, teamId: string, appId: string, version: number) {
+    return this.view(teamId, appId, reader => readSchema(found => reader.schema(found), reader.state, user, version));
+  }
   /** 审计分页（新到旧），按写入顺序与登记的 PR / 线程归属在索引上分页；不加锁、不写库。 */
   async readAudit(user: Identity, teamId: string, appId: string, query: AuditQuery) {
     return this.view(teamId, appId, reader => {
@@ -149,13 +169,13 @@ export class CollaborationRepository {
       loader: new PgWorkspaceLoader(client, teamId, appId),
       save: (changes, effects, at) => writer.save(changes, effects, at)
     };
-    const result = await runCommand(store, user, command, { now, id: newId });
+    const result = await runCommand(store, user, command, { now, id: newId }, this.options);
     if (command.type === 'presence') await this.writePresence(client, user, teamId, appId, command, result, now);
     return result;
   }
   /**
-   * 新建工作区的全部初始行：治理行、第一版策略、初始管理员、空的共享引用与共享头投影、版本行（修订号 0、一条审计）
-   * 和初始化审计事件，同一个事务里落地，任一步失败整体回滚。
+   * 新建工作区的全部初始行：治理行、第一版策略、第一个数据模式版本、初始管理员、空的共享引用与共享头投影、
+   * 版本行（修订号 0、一条审计）和初始化审计事件，同一个事务里落地，任一步失败整体回滚。
    */
   private async create(client: Queryable, state: Workspace): Promise<void> {
     const scope = [state.teamId, state.appId];
@@ -169,6 +189,10 @@ export class CollaborationRepository {
       state.policy.version,
       JSON.stringify(state.policy.stages)
     ]);
+    await client.query(
+      'INSERT INTO admin_private.schemas(team_id, app_id, version, manifest) VALUES ($1, $2, $3, $4)',
+      [...scope, state.schemaVersion, JSON.stringify(state.schema)]
+    );
     for (const member of Object.values(state.members))
       await client.query(
         `INSERT INTO admin_private.memberships(team_id, app_id, user_id, email, permissions, generation, active)

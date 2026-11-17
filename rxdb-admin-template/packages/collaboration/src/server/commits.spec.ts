@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { diffRecords } from '../changes.js';
 import { commitFingerprint, sealCommit, uuidv7 } from '../commit.js';
 import type { Command, Commit, DataRow, Identity, Records } from '../model.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
 import { execute, plan } from './engine.js';
 import { MemoryWorkspace } from './memory.testing.js';
 
@@ -9,7 +9,10 @@ const admin: Identity = { id: 'admin', email: 'admin@example.test', verified: tr
 let serial = 0;
 const env = () => ({ now: 1000, id: () => `generated-${++serial}` });
 const create = () =>
-  MemoryWorkspace.create({ teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin }, env());
+  MemoryWorkspace.create(
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin, schema: assetSchema },
+    env()
+  );
 const act = (workspace: MemoryWorkspace, command: Omit<Command, 'operationId'> | Record<string, unknown>) =>
   workspace.run(admin, { ...command, operationId: `operation-${++serial}` } as Command, env());
 /** 相对 `parent` 的提交内容换算成字段级变更并封上指纹；`parent` 的内容由服务端推导，所以它必须已经上传。 */
@@ -21,7 +24,7 @@ async function commit(
   message = id
 ): Promise<Commit> {
   const before = parent === null ? {} : (await workspace.commit(admin, parent)).records;
-  return sealCommit({ id, parent, authorId: admin.id, message, changes: diffRecords(before, after) });
+  return sealCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
 }
 const category = (name: string, description?: string): DataRow => ({
   entity: 'AssetCategory',
@@ -40,7 +43,7 @@ async function started(workspace: MemoryWorkspace, task: string, commits: Record
       parent,
       authorId: admin.id,
       message: `${task}-c${index + 1}`,
-      changes: diffRecords(before, records)
+      changes: diffAssets(before, records)
     });
     sealed.push(next);
     parent = next.id;
@@ -93,10 +96,10 @@ describe('content fingerprint verification', () => {
       parent: 'c1',
       authorId: admin.id,
       message: 'Second',
-      changes: diffRecords({ a: category('A') }, { a: category('B') })
+      changes: diffAssets({ a: category('A') }, { a: category('B') })
     });
     const forgeries: Commit[] = [
-      { ...second, changes: diffRecords({ a: category('A') }, { a: category('Other') }) },
+      { ...second, changes: diffAssets({ a: category('A') }, { a: category('Other') }) },
       { ...second, authorId: 'someone-else' },
       { ...second, parent: null },
       { ...second, fingerprint: await commitFingerprint({ ...second, message: 'Different' }) },
@@ -170,7 +173,7 @@ describe('retransmitted commits', () => {
   it('rejects the same commit id with different content or authorship', async () => {
     const workspace = await open();
     const [first] = await started(workspace, 't', [{ a: category('A') }]);
-    const changed = await sealCommit({ ...first, changes: diffRecords({}, { a: category('Other') }) });
+    const changed = await sealCommit({ ...first, changes: diffAssets({}, { a: category('Other') }) });
     const reauthored = await sealCommit({ ...first, authorId: 'mallory' });
     for (const resent of [changed, reauthored, await sealCommit({ ...first, message: 'Renamed' })])
       await expect(
@@ -208,7 +211,11 @@ describe('the engine decides only on data the repository preloaded', () => {
     await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
     const first = await commit(workspace, 'c1', null, { a: category('A') });
     const upload = { type: 'upload', operationId: 'op', taskId: 't', expectedHead: null, commits: [first] } as Command;
-    expect(plan(workspace.state, admin, upload)).toEqual({ type: 'upload', ids: ['c1'] });
+    expect(plan(workspace.state, admin, upload)).toEqual({
+      type: 'upload',
+      ids: ['c1'],
+      content: { shared: null, base: null, head: null, touched: ['a'] }
+    });
     expect(() => plan(workspace.state, { ...admin, id: 'stranger' }, upload)).toThrow(/权限/);
     expect(() => plan(workspace.state, admin, { ...upload, taskId: 'missing' } as Command)).toThrow(/任务不存在/);
     await workspace.run(admin, upload, env());
@@ -231,7 +238,10 @@ describe('the engine decides only on data the repository preloaded', () => {
 });
 
 describe('upload cost', () => {
-  /** 建一条 `length` 个提交的任务链，再统计上传一个新提交时对提交存储的读取。 */
+  /**
+   * 建一条 `length` 个提交的任务链，再统计上传一个新提交时对提交存储的读取。
+   * 新提交要能应用到任务头的内容上，父内容只按它改动的记录推导：沿任务自己在共同起点之后的提交读这几条记录的变更。
+   */
   async function readsForOneMoreCommit(length: number) {
     const workspace = await open();
     await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
@@ -247,7 +257,7 @@ describe('upload cost', () => {
           parent,
           authorId: admin.id,
           message: `c${index}`,
-          changes: diffRecords(content, next)
+          changes: diffAssets(content, next)
         });
         batch.push(sealed);
         parent = sealed.id;
@@ -261,17 +271,22 @@ describe('upload cost', () => {
       parent,
       authorId: admin.id,
       message: 'one more',
-      changes: diffRecords(content, { ...content, extra: category('Extra') })
+      changes: diffAssets(content, { ...content, extra: category('Extra') })
     });
     workspace.store.resetStats();
     await act(workspace, { type: 'upload', taskId: 't', expectedHead: head, commits: [last] });
-    return { calls: [...workspace.store.stats.calls], rows: workspace.store.stats.rows };
+    const { calls, rows, records } = workspace.store.stats;
+    return { calls: [...calls], rows, records };
   }
-  it('uploading one more commit onto a 500-commit chain does a constant number of lookups', async () => {
+  it('uploading one more commit does a constant number of queries; rows grow only with the task chain since its base', async () => {
     const short = await readsForOneMoreCommit(3);
     const long = await readsForOneMoreCommit(500);
-    expect(short).toEqual({ calls: ['commits'], rows: 0 });
-    expect(long).toEqual(short);
+    // 已存在提交一次，任务自己的路径一次、路径上被改动记录的变更一次；没有共享分支可回退，也不读共享记录
+    expect(short).toEqual({ calls: ['commits', 'path', 'changes'], rows: 6, records: 0 });
+    expect(long.calls).toEqual(short.calls);
+    expect(long.records).toBe(0);
+    // 行数只来自任务自己的链（路径 500 行，加上读变更时逐个提交过一遍）
+    expect(long.rows).toBe(1000);
   });
 });
 
@@ -393,7 +408,7 @@ describe('persisted workspace state', () => {
         parent,
         authorId: admin.id,
         message: `c${index}`,
-        changes: diffRecords(content, next)
+        changes: diffAssets(content, next)
       });
       await act(workspace, { type: 'upload', taskId: 't', expectedHead: parent, commits: [sealed] });
       parent = sealed.id;

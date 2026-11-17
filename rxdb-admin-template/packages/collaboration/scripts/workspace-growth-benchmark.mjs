@@ -8,19 +8,26 @@
 // - BENCH_COMMANDS（默认 thread）：要测量的普通命令，逗号分隔，可选 thread、reply、review、read_notice、member；
 //   `commandMs` / `commandWalBytes` 始终是 thread（发一条评论）。多测的命令会新增回复、审核与通知，它们也在摘要里，
 //   这时 `snapshotBytes` 还会随测过的命令数增长（与提交数无关），比较摘要体积请用默认值。
+// - BENCH_BULK（默认 100）：每个测量点再测「上传一个改动这么多条记录的提交」与「生成候选并合并这些改动」，各取 BENCH_SAMPLES 次中位数；
+//   有共享记录时改维护记录的费用（没有维护记录就改资产的价格），没有共享记录时新增分类。每次都是新任务、新 PR，合并推进共享分支，
+//   只动维护记录（主任务只改资产价格），不影响其余字段的测量。
 // - BENCH_LABEL（写进结果的实现说明）、BENCH_OUT（可选，结果 JSON 的写入路径）。
 // 字段语义：切片 D 起工作区不再是一行 JSONB，`stateTextBytes` / `stateStoredBytes` 是治理行（名称、归属、数据模式与策略版本）
 // 的 JSON 文本与落盘字节数；`rowBytes` 另记命令会写到的 PR 行、版本行与任务引用行的落盘字节数；`snapshotParts` 是摘要各字段的字节数，
 // `historyPageBytes` / `historyMs` 是任务分支提交历史第一页（默认 50 个）的体积与读取耗时，`commands` 是各普通命令的耗时与 WAL 中位数。
 // 每个测量点都会再发几条评论，讨论与审计窗口（最近 50 条）随测量点增多，摘要体积随之增长，与提交数无关。
+// 切片 E 起：`bulkChanges` 是改动 BENCH_BULK 条记录的上传（`uploadMs`）、生成候选（`candidateMs`）、合并（`mergeMs`）与
+// 候选加合并（`candidateAndMergeMs`）的服务端耗时中位数（含仓储事务，不含 HTTP）；`upload100Ms` 与 `candidateMerge100Ms`
+// 是其中的上传与候选加合并两项。上传要核对变更能应用到父内容，主任务的 `uploadMsPerCommit` 因此包含按改动记录推导父内容的读取。
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 import pg from 'pg';
 import { diffRecords } from '../dist/server/changes.js';
 import { sealCommit, uuidv7 } from '../dist/server/commit.js';
+import { namespaceOf, parseSchemaManifest } from '../dist/server/schema.js';
 import { applyMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
 
@@ -39,10 +46,23 @@ for (const type of requestedCommands)
 const commandTypes = knownCommands.filter(type => type === 'thread' || requestedCommands.includes(type));
 const changedPerCommit = 5;
 const batchSize = 50;
+const bulkCount = Number(process.env['BENCH_BULK'] ?? 100);
 
+// 产品的数据模式清单：工作区初始化时登记，上传、候选与合并都按它校验
+const schema = parseSchemaManifest(
+  JSON.parse(await readFile(new URL('../../../schema/collaboration-schema.json', import.meta.url), 'utf8'))
+);
+const namespaces = namespaceOf(schema);
 const admin = { id: randomUUID(), email: 'bench@example.test', verified: true };
 const reviewer = { id: randomUUID(), email: 'bench-reviewer@example.test', verified: true };
-const seed = { teamId: randomUUID(), appId: 'assets', name: 'Growth benchmark', bootstrapKey: randomUUID(), admin };
+const seed = {
+  teamId: randomUUID(),
+  appId: 'assets',
+  name: 'Growth benchmark',
+  bootstrapKey: randomUUID(),
+  admin,
+  schema
+};
 
 const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 const command = data => ({ operationId: randomUUID(), ...data });
@@ -89,9 +109,103 @@ async function nextCommit(previous, parent, index) {
     parent,
     authorId: admin.id,
     message: `基准提交 ${index}`,
-    changes: diffRecords(previous, records)
+    changes: diffRecords(previous, records, namespaces)
   });
   return { commit, records };
+}
+
+/**
+ * 改动 `bulkCount` 条记录后的共享记录：有维护记录时把它们的费用加一（没有维护记录就改资产价格），
+ * 没有共享记录时新增分类。第 `round` 轮改的那批记录轮换，名称与标识全局唯一。
+ */
+function bulkEdit(shared, round) {
+  const records = structuredClone(shared);
+  const events = Object.keys(records).filter(id => records[id].entity === 'AssetEvent');
+  const assets = Object.keys(records).filter(id => records[id].entity === 'Asset');
+  const pool = events.length ? events : assets;
+  if (!pool.length) {
+    for (let i = 0; i < bulkCount; i++)
+      records[`bulk-${round}-${i}`] = { entity: 'AssetCategory', fields: { name: `批量分类 ${round}-${i}` } };
+    return records;
+  }
+  const field = events.length ? 'cost' : 'purchasePrice';
+  for (let i = 0; i < bulkCount; i++) {
+    const id = pool[(round * bulkCount + i) % pool.length];
+    records[id].fields[field] = Number(records[id].fields[field] ?? 0) + 1;
+  }
+  return records;
+}
+
+/**
+ * 改动 `bulkCount` 条记录的一轮：新任务从共享头起步，上传一个提交（计时），建 PR 并请求审核，生成候选（计时），
+ * 审核人批准（不计时；免审批策略下这一步同样合法），合并（计时）。每轮推进共享分支，`state.shared` 随之更新。
+ */
+async function bulkRound(context, round) {
+  const { repository, state } = context;
+  const operation = data => repository.operation(admin, seed.teamId, seed.appId, command(data));
+  const head = state.sharedHead;
+  const taskId = `bulk-${round}`;
+  const after = bulkEdit(state.shared, round);
+  await operation({ type: 'task', id: taskId, name: `批量改动 ${round}`, expectedHead: head });
+  const commit = await sealCommit({
+    id: uuidv7(),
+    parent: head,
+    authorId: admin.id,
+    message: `批量改动 ${round}`,
+    changes: diffRecords(state.shared, after, namespaces)
+  });
+  const uploadMs = await timed(() => operation({ type: 'upload', taskId, expectedHead: head, commits: [commit] }));
+  await operation({ type: 'pr', id: taskId, taskId, title: `批量改动 ${round}`, description: '', target: 'shared' });
+  await operation({ type: 'pr_state', prId: taskId, status: 'review', expectedRevision: 0 });
+  let candidateId;
+  const candidateMs = await timed(async () => {
+    candidateId = (await operation({ type: 'candidate', prId: taskId, expectedRevision: 1, resolutions: [] }))[
+      'candidateId'
+    ];
+  });
+  await repository.operation(
+    reviewer,
+    seed.teamId,
+    seed.appId,
+    command({
+      type: 'review',
+      prId: taskId,
+      candidateId,
+      expectedSource: commit.id,
+      stageId: 'review',
+      decision: 'approve',
+      reason: '',
+      expectedRevision: 0
+    })
+  );
+  let merged;
+  const mergeMs = await timed(async () => {
+    merged = await operation({
+      type: 'merge',
+      prId: taskId,
+      candidateId,
+      expectedSource: commit.id,
+      expectedTarget: head
+    });
+  });
+  state.sharedHead = merged['head'];
+  state.shared = after;
+  return { uploadMs, candidateMs, mergeMs };
+}
+
+/** 改动 `bulkCount` 条记录的上传、生成候选与合并的耗时中位数（各 BENCH_SAMPLES 轮）。 */
+async function measureBulk(context) {
+  const rounds = [];
+  for (let i = 0; i < samples; i++) rounds.push(await bulkRound(context, context.state.bulkRounds++));
+  const pick = key => Math.round(median(rounds.map(round => round[key])) * 10) / 10;
+  const candidateAndMergeMs = Math.round(median(rounds.map(round => round.candidateMs + round.mergeMs)) * 10) / 10;
+  return {
+    records: bulkCount,
+    uploadMs: pick('uploadMs'),
+    candidateMs: pick('candidateMs'),
+    mergeMs: pick('mergeMs'),
+    candidateAndMergeMs
+  };
 }
 
 async function startDatabase() {
@@ -215,6 +329,18 @@ async function sample(context, type) {
 }
 
 async function measureCheckpoint(context, commits, lastUploadMsPerCommit) {
+  // 先测普通命令与读取，再测批量改动（批量改动推进共享分支，放在最后不影响前面的测量）
+  const measured = await measureOrdinary(context, commits, lastUploadMsPerCommit);
+  const bulkChanges = await measureBulk(context);
+  return {
+    ...measured,
+    upload100Ms: bulkChanges.uploadMs,
+    candidateMerge100Ms: bulkChanges.candidateAndMergeMs,
+    bulkChanges
+  };
+}
+
+async function measureOrdinary(context, commits, lastUploadMsPerCommit) {
   const { pool, repository, prId, taskId } = context;
   const [stateRow] = (
     await pool.query(
@@ -323,7 +449,7 @@ async function seedSharedBranch(repository) {
     parent: null,
     authorId: admin.id,
     message: '基准共享记录',
-    changes: diffRecords({}, records)
+    changes: diffRecords({}, records, namespaces)
   });
   await operation({ type: 'policy', stages: [], expectedVersion: 1 });
   await operation({ type: 'task', id: 'seed', name: '共享记录种子', expectedHead: null });
@@ -387,8 +513,17 @@ async function main() {
     let head = start.head;
     let committed = 0;
     let lastUploadMsPerCommit = 0;
-    // 审核人接受邀请后的授权代次是 1；每次成员变更加一
-    const state = { thread: null, head: null, reviewRevision: 0, generation: 1, edit: false };
+    // 审核人接受邀请后的授权代次是 1；每次成员变更加一。批量改动从共享头起步，记着共享头与共享记录
+    const state = {
+      thread: null,
+      head: null,
+      reviewRevision: 0,
+      generation: 1,
+      edit: false,
+      sharedHead: start.head,
+      shared: start.records,
+      bulkRounds: 0
+    };
     const results = [];
     for (const target of checkpoints) {
       while (committed < target) {
@@ -435,6 +570,7 @@ async function main() {
         records: recordCount,
         sharedRecords: seedShared ? recordCount : 0,
         changedRecordsPerCommit: changedPerCommit,
+        bulkChangedRecords: bulkCount,
         commands: commandTypes,
         samples
       },

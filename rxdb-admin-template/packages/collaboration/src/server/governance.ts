@@ -1,16 +1,21 @@
 import { applyChanges, diffRecords } from '../changes.js';
+import { checkMerged, type RecordCheck } from '../checks.js';
 import {
   demand,
+  type Check,
   type Command,
   type Environment,
   type Identity,
   type PullRequest,
+  type Records,
   type Review,
+  type SchemaManifest,
   type StageProgress,
   type StoredCandidate,
   type Workspace
 } from '../model.js';
-import { canonical, checkRecords, mergeRecords, rowAt } from '../records.js';
+import { canonical, mergeRecords, rowAt } from '../records.js';
+import { assertRecordsFit, namespaceOf, recordKeys } from '../schema.js';
 import { authorize, expected, managePr, openPr, prFor, taskFor } from './access.js';
 import { preloaded, type Facts, type MergeInputs, type Plan, type Reopen, type Run } from './plan.js';
 
@@ -81,15 +86,53 @@ function validApproval(state: Workspace, pr: PullRequest, candidate: StoredCandi
     member.permissions.includes('review')
   );
 }
-/** 候选与合并需要预加载的数据：B、S、T 的完整记录；候选另需已解决的必须处理线程所锚定的历史候选行。 */
+/**
+ * 候选与合并需要预加载的数据：合并基以来改动过的记录在 B、S、T 三处的取值与跨记录检查要用到的记录；
+ * 候选另需已解决的必须处理线程所锚定的历史候选行。冲突选择里的自定义取值也参与唯一与关联检查。
+ */
 export function governancePlan(state: Workspace, user: Identity, command: Command): Plan | undefined {
   if (command.type === 'candidate') {
     const { pr, task, source } = candidateGuards(state, user, command);
-    return { type: 'inputs', head: state.head, base: task.base, source, reopen: reopenTargets(state, pr) };
+    return {
+      type: 'inputs',
+      head: state.head,
+      base: task.base,
+      source,
+      reopen: reopenTargets(state, pr),
+      resolutions: command.resolutions,
+      schema: state.schema
+    };
   }
   if (command.type !== 'merge') return undefined;
   const { candidate } = mergeGuards(state, user, command);
-  return { type: 'inputs', head: state.head, base: candidate.base, source: candidate.source, reopen: [] };
+  return {
+    type: 'inputs',
+    head: state.head,
+    base: candidate.base,
+    source: candidate.source,
+    reopen: [],
+    resolutions: candidate.resolutions,
+    schema: state.schema
+  };
+}
+/** 扩展检查返回的必须是可存进候选的检查（记录、字段与文案都是文本）；不是说明部署注入的扩展有误，按内部错误处理。 */
+function extensionChecks(hook: RecordCheck, schema: SchemaManifest, inputs: MergeInputs, merged: Records): Check[] {
+  const changed = inputs.touched
+    .filter(id => canonical(rowAt(merged, id)) !== canonical(rowAt(inputs.target, id)))
+    .map(id => ({ id, before: structuredClone(rowAt(inputs.target, id)), after: structuredClone(rowAt(merged, id)) }));
+  const checks = hook({ schema: structuredClone(schema), changed });
+  if (!checks.every(check => [check.recordId, check.field, check.message].every(text => typeof text === 'string')))
+    throw new Error('The record check extension returned malformed checks');
+  return checks.map(({ recordId, field, message }) => ({ recordId, field, message }));
+}
+/**
+ * 合并结果的检查：结构必须符合清单（自定义的整条记录也一样），再按清单定向检查改动过的与受牵连的记录，
+ * 结果与检查整份合并结果相同；部署注入了特殊业务检查时，把它对改动记录的检查追加在后面。
+ */
+function resultChecks(schema: SchemaManifest, inputs: MergeInputs, merged: Records, hook: RecordCheck | undefined) {
+  assertRecordsFit(schema, merged);
+  const checks = checkMerged(schema, { ...inputs, merged });
+  return hook ? [...checks, ...extensionChecks(hook, schema, inputs, merged)] : checks;
 }
 export function governanceCommand(
   state: Workspace,
@@ -162,8 +205,10 @@ function makeCandidate(
   run: Run
 ) {
   const { pr, task, source } = candidateGuards(state, user, command);
-  const { base, source: sourceRecords, target } = mergeInputs(run.facts);
-  const merged = mergeRecords(base, sourceRecords, target, command.resolutions);
+  const inputs = mergeInputs(run.facts);
+  // 三方合并只在改动过的记录上进行：其余记录三方相同，结果就是 T
+  const merged = mergeRecords(inputs.base, inputs.source, inputs.target, command.resolutions);
+  const checks = resultChecks(state.schema, inputs, merged.records, run.checks);
   const id = env.id();
   state.candidates[id] = {
     id,
@@ -175,12 +220,16 @@ function makeCandidate(
     policyVersion: state.policy.version,
     resolutions: structuredClone(command.resolutions),
     conflicts: merged.conflicts,
-    checks: checkRecords(merged.records),
+    checks,
     actorId: user.id,
     at: env.now,
     // 只存最终结果相对目标版本 T 的字段级变更；整份记录在读取时由 T 加变更推导
-    changes: diffRecords(target, merged.records)
+    changes: diffRecords(inputs.target, merged.records, namespaceOf(state.schema))
   };
+  const touched = new Set(inputs.touched);
+  // 锚定的记录没改动时，新结果里的取值就是 T 的（已按需预读）
+  const resultRow = (recordId: string) =>
+    touched.has(recordId) ? rowAt(merged.records, recordId) : rowAt(inputs.related, recordId);
   const reopenedThreads: string[] = [];
   for (const thread of Object.values(state.threads).filter(
     value => value.prId === pr.id && value.required && value.resolved && value.candidateId && value.recordId
@@ -189,7 +238,7 @@ function makeCandidate(
       run.facts.previous[thread.resolvedCandidateId ?? thread.candidateId!] ?? {},
       thread.recordId!
     );
-    const current = rowAt(merged.records, thread.recordId!);
+    const current = resultRow(thread.recordId!);
     const before = thread.field ? original?.fields[thread.field] : original;
     const after = thread.field ? current?.fields[thread.field] : current;
     if (canonical(before) === canonical(after)) continue;
@@ -295,12 +344,16 @@ function merge(
   run: Run
 ) {
   const { pr, candidate } = mergeGuards(state, user, command);
-  const { base, source, target } = mergeInputs(run.facts);
-  // 服务端重算并核对候选：重新得到的结果与候选存储的变更应用到 T 之后必须完全一致，不能在事务里换用新的冲突值
-  const result = mergeRecords(base, source, target, candidate.resolutions);
+  const inputs = mergeInputs(run.facts);
+  const target = inputs.target;
+  // 服务端重算并核对候选：重新得到的结果与候选存储的变更应用到 T 之后必须完全一致，不能在事务里换用新的冲突值。
+  // 两边都只含改动过的记录，其余记录三方相同、都等于 T
+  const result = mergeRecords(inputs.base, inputs.source, target, candidate.resolutions);
   const final = applyChanges(structuredClone(target), candidate.changes);
   demand(
-    !result.conflicts.length && !checkRecords(result.records).length && canonical(result.records) === canonical(final),
+    !result.conflicts.length &&
+      !resultChecks(state.schema, inputs, result.records, run.checks).length &&
+      canonical(result.records) === canonical(final),
     'checks',
     '候选内容与重新检查的结果不一致'
   );
@@ -318,9 +371,14 @@ function merge(
     candidateId: candidate.id,
     changes: structuredClone(candidate.changes)
   });
+  const upsert = Object.fromEntries(changes.filter(change => change.after).map(change => [change.id, change.after!]));
   run.effects.shared = {
-    upsert: Object.fromEntries(changes.filter(change => change.after).map(change => [change.id, change.after!])),
-    remove: changes.filter(change => !change.after).map(change => change.id)
+    upsert,
+    remove: changes.filter(change => !change.after).map(change => change.id),
+    // 键索引随共享记录在同一事务里更新：唯一与关联检查按键查询，不扫全表
+    keys: Object.entries(upsert).flatMap(([recordId, row]) =>
+      recordKeys(state.schema, row).map(key => ({ ...key, recordId }))
+    )
   };
   state.head = head;
   pr.status = 'merged';
