@@ -762,6 +762,9 @@ importers:
       wait-on:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      wrangler:
+        specifier: 4.156.2
+        version: 4.156.2(@types/node@26.6.6)
 
   apps/dev-rxdb-angular-e2e: {}
 
