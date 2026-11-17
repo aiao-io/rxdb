@@ -23,7 +23,7 @@ const note = (patch: Partial<NoteLike> = {}): NoteLike => ({
 });
 
 describe('inFolder / folderCount', () => {
-  it('All iCloud 是除 Recently Deleted 以外的全部笔记，其余文件夹按名字匹配', () => {
+  it('All Notes 是除 Recently Deleted 以外的全部笔记，其余文件夹按名字匹配', () => {
     const notes = [note(), note({ folder: TRASH_FOLDER }), note()];
     expect(notes.map(entry => inFolder(entry, ALL_NOTES))).toEqual([true, false, true]);
     expect(folderCount(notes, ALL_NOTES)).toBe(2);
@@ -53,7 +53,7 @@ describe('visibleNotes', () => {
     expect(input).toEqual([oldest, newest]);
   });
 
-  it('按文件夹过滤：All iCloud 不含废纸篓，废纸篓只含自己的', () => {
+  it('按文件夹过滤：All Notes 不含废纸篓，废纸篓只含自己的', () => {
     const all = [newest, trashed];
     expect(visibleNotes(all, ALL_NOTES, '').map(entry => entry.title)).toEqual(['Newest']);
     expect(visibleNotes(all, TRASH_FOLDER, '').map(entry => entry.title)).toEqual(['Trashed']);

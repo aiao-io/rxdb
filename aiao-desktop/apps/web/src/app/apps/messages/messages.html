@@ -4,33 +4,37 @@
       <div style="display: flex; align-items: center; height: 38px; padding: 0 4px 0 2px">
         <app-traffic-lights />
         <div style="flex: 1"></div>
-        <button class="tbtn" (click)="create()" data-cnew data-nodrag title="New Message">
+        <button class="tbtn" tabindex="0" [disabled]="creating() || win.closePending()" aria-label="New Conversation" (click)="create()" data-cnew data-nodrag title="New Conversation">
           <svg appIcon="g-compose"></svg>
         </button>
       </div>
       <div style="padding: 0 2px 8px">
         <div class="sfield" data-nodrag>
           <span><svg appIcon="g-search"></svg></span>
-          <input #search [value]="query()" (input)="query.set(search.value)" data-csearch placeholder="Search" />
+          <input #search [value]="query()" (input)="query.set(search.value)" aria-label="Search conversations" [disabled]="win.closePending()" data-csearch placeholder="Search" />
         </div>
       </div>
       <div data-clist>
         @for (row of rows(); track row.chat.id) {
-          <div
+          <button
             class="msg-c"
+            type="button"
+            [attr.data-cid]="row.chat.id"
+            [attr.aria-pressed]="row.chat.id === chat()?.id"
+            [disabled]="win.closePending()"
+            style="width: 100%; text-align: left; border: 0"
             [attr.data-ci]="row.index"
             [class.on]="row.chat.id === chat()?.id"
             (click)="select(row.chat.id)"
-            (keydown.enter)="select(row.chat.id)"
-            tabindex="-1"
+            tabindex="0"
           >
             <span class="av" [style.background]="row.chat.color">{{ row.chat.name[0] }}</span>
             <span class="bd">
               <b>{{ row.chat.name }}</b>
-              <p>{{ row.last }}</p>
+              <p>{{ row.draft.trim() ? 'Draft: ' + row.draft : row.last }}</p>
             </span>
             <span class="tm">{{ row.chat.time }}</span>
-          </div>
+          </button>
         } @empty {
           @if (query()) {
             <div style="padding: 22px 10px; text-align: center; font-size: 12px; color: var(--txt-3)">No Results</div>
@@ -40,40 +44,60 @@
     </div>
     <div class="msg-th">
       <div class="msg-hd" data-drag>
-        <span class="who" (click)="details()" (keydown.enter)="details()" data-cdetails tabindex="-1">
+        <button class="who" #who (click)="details(who)" aria-label="Conversation details" data-cdetails tabindex="0" type="button" style="border: 0; background: transparent; text-align: left">
           <span class="av sm" [style.background]="chat()?.color" data-cav>{{ initial() }}</span>
           <span data-cname>{{ chat()?.name }}</span>
           <svg appIcon="g-chev-r"></svg>
-        </span>
+        </button>
         <div style="flex: 1"></div>
-        <button class="tbtn" (click)="call()" data-cft data-nodrag title="FaceTime">
+        <button class="tbtn" disabled aria-label="Calls unavailable" data-cft data-nodrag title="No calling service connected">
           <svg appIcon="g-facetime"></svg>
         </button>
-        <button class="tbtn" (click)="details()" data-cinfo data-nodrag title="Details">
+        <button class="tbtn" #info (click)="details(info)" tabindex="0" aria-label="Local conversation details" data-cinfo data-nodrag title="Details">
           <svg appIcon="g-info"></svg>
         </button>
       </div>
+      <div style="padding: 8px 14px; font-size: 12px; background: var(--win); color: var(--txt)">
+        Local conversations, including sample data. Nothing is sent to other people. Calls and file sending are unavailable.
+      </div>
       <div class="msg-body scroll" #body data-cbody>
-        <div class="msg-day">{{ thread().day }}</div>
-        @for (bubble of thread().bubbles; track $index) {
+        <div class="msg-day">Local conversation</div>
+        @for (bubble of thread(); track $index) {
           <div class="bub" [class.me]="bubble.me" [class.tail]="bubble.tail">{{ bubble.text }}</div>
         }
       </div>
+      <div style="padding: 6px 14px; background: var(--win); color: var(--txt)">
+        <div role="status" aria-live="polite" style="font-size: 12px">
+          {{ currentDraft()?.saving ? 'Saving locally…' : currentDraft()?.text?.trim() ? 'Unsaved draft' : 'Saved locally' }}
+        </div>
+        @if (error()) { <p role="alert" style="margin: 6px 0">{{ error() }}</p> }
+        @if (currentDraft()?.error; as problem) { <p role="alert" style="margin: 6px 0">{{ problem }}</p> }
+        @if (currentDraft()?.text?.trim()) {
+          <div style="display: flex; gap: 6px; margin-top: 6px">
+            <button class="btn" tabindex="0" [disabled]="currentDraft()?.saving || win.closePending()" (click)="saveLocal()">
+              {{ currentDraft()?.error ? 'Retry Local Save' : 'Save Locally' }}
+            </button>
+            <button class="btn" tabindex="0" [disabled]="currentDraft()?.saving || win.closePending()" (click)="discard()">Discard Draft</button>
+          </div>
+        }
+      </div>
       <div class="msg-comp">
-        <button class="tbtn" #attachButton (click)="attach(attachButton)" data-cattach title="Apps">
+        <button class="tbtn" #attachButton (click)="attach(attachButton)" tabindex="0" [disabled]="currentDraft()?.saving || win.closePending()" aria-label="Local conversation actions" data-cattach title="Apps">
           <svg appIcon="g-plus"></svg>
         </button>
         <div class="fld">
           <input
             #field
-            [value]="draft()"
-            (input)="draft.set(field.value)"
+            [value]="currentDraft()?.text ?? ''"
+            (input)="edit(field.value)"
+            [disabled]="currentDraft()?.saving || win.closePending() || !chat()"
+            aria-label="Local message draft"
             (keydown.enter)="enter($event)"
             data-cinput
-            placeholder="iMessage"
+            placeholder="Write a local message"
           />
         </div>
-        <button class="tbtn" (click)="send()" data-send><svg appIcon="g-chev-u"></svg></button>
+        <button class="tbtn" tabindex="0" [disabled]="currentDraft()?.saving || win.closePending() || !currentDraft()?.text?.trim()" aria-label="Save message locally" (click)="saveLocal()" data-send><svg appIcon="g-chev-u"></svg></button>
       </div>
     </div>
   </div>

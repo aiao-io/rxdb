@@ -5,25 +5,28 @@
         <app-traffic-lights />
       }
       <div style="flex: 1"></div>
-      <button class="tbtn" (click)="toggleSidebar()" data-nodrag data-sbtoggle title="Hide Folders">
+      <button class="tbtn" tabindex="0" aria-label="Toggle folders" (click)="toggleSidebar()" data-nodrag data-sbtoggle title="Hide Folders">
         <svg appIcon="g-sidebar"></svg>
       </button>
     </div>
     <div class="grp">
-      <div class="gh">iCloud</div>
+      <div class="gh">On This Browser</div>
       @for (item of folders(); track item.name) {
-        <div
+        <button
           class="si"
+          type="button"
+          [disabled]="busy() || win.closePending()"
+          [attr.aria-pressed]="folder() === item.name"
+          style="width: 100%; text-align: left; border: 0"
           [attr.data-folder]="item.name"
           [class.on]="folder() === item.name"
           (click)="pickFolder(item.name)"
-          (keydown.enter)="pickFolder(item.name)"
-          tabindex="-1"
+          tabindex="0"
         >
           <svg class="ico" [appIcon]="item.icon"></svg>
           <span class="nm">{{ item.name }}</span>
           <span class="tail">{{ item.count }}</span>
-        </div>
+        </button>
       }
     </div>
   </div>
@@ -35,29 +38,32 @@
         }
         <div class="sfield" data-nodrag style="flex: 1">
           <span><svg appIcon="g-search"></svg></span>
-          <input [value]="query()" (input)="search($event)" data-q placeholder="Search" />
+          <input [value]="query()" [disabled]="busy() || win.closePending()" (input)="search($event)" aria-label="Search notes" data-q placeholder="Search" />
         </div>
-        <button class="tbtn" (click)="create()" data-new2 data-nodrag title="New Note">
+        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Note" (click)="create()" data-new2 data-nodrag title="New Note">
           <svg appIcon="g-compose"></svg>
         </button>
       </div>
       <div class="nt-items scroll" data-items>
         @for (row of rows(); track row.id) {
-          <div
+          <button
             class="nt-i"
+            type="button"
+            [disabled]="busy() || win.closePending()"
+            [attr.aria-pressed]="row.id === selected()"
+            style="width: 100%; text-align: left; border: 0"
             [attr.data-id]="row.id"
             [class.on]="row.id === selected()"
             (click)="pick(row.id)"
             (contextmenu)="menu($event, row.id)"
-            (keydown.enter)="pick(row.id)"
-            tabindex="-1"
+            tabindex="0"
           >
             <b>{{ row.title }}</b>
             <div class="mt">
               <span>{{ row.when }}</span>
               <span class="sn">{{ row.snippet }}</span>
             </div>
-          </div>
+          </button>
         } @empty {
           <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No notes</div>
         }
@@ -72,6 +78,10 @@
             [attr.data-f]="item.command"
             [class.on]="active().includes(item.command)"
             [title]="item.title"
+            [attr.aria-label]="item.title"
+            [attr.aria-pressed]="active().includes(item.command)"
+            [disabled]="busy() || win.closePending() || !editor.value()"
+            tabindex="0"
             (click)="format(item.command)"
             data-nodrag
           >
@@ -86,20 +96,39 @@
           data-f="insertUnorderedList"
           data-nodrag
           title="Bulleted list"
+          aria-label="Bulleted list"
+          [attr.aria-pressed]="active().includes('insertUnorderedList')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          tabindex="0"
         >
           <svg appIcon="g-bullets"></svg>
         </button>
-        <button class="tbtn" (click)="checklist()" data-check data-nodrag title="Checklist">
+        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending() || !editor.value()" aria-label="Checklist" (click)="checklist()" data-check data-nodrag title="Checklist">
           <svg appIcon="g-checklist"></svg>
         </button>
-        <button class="tbtn" (click)="table()" data-nodrag data-table title="Table">
+        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending() || !editor.value()" aria-label="Table" (click)="table()" data-nodrag data-table title="Table">
           <svg appIcon="g-table"></svg>
         </button>
         <div class="sep"></div>
-        <button class="tbtn" (click)="create()" data-new data-nodrag title="New note">
+        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Note" (click)="create()" data-new data-nodrag title="New note">
           <svg appIcon="g-plus"></svg>
         </button>
         <div style="flex: 1"></div>
+      </div>
+      <div style="padding: 6px 14px; background: var(--card); color: var(--txt)">
+        <div role="status" aria-live="polite" style="font-size: 12px">
+          {{ busy() || editor.saving() ? 'Saving…' : editor.dirty() ? 'Unsaved changes' : 'Saved' }}
+        </div>
+        @if (failure(); as problem) {
+          <p role="alert" style="margin: 6px 0; overflow-wrap: anywhere">{{ problem }}</p>
+        }
+        @if (editor.dirty() || failure()) {
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px">
+            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()" (click)="retry()">Retry Save</button>
+            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()" (click)="saveCopy()">Save a Copy</button>
+            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.dirty()" (click)="discardChanges()">Discard Changes</button>
+          </div>
+        }
       </div>
       <div
         class="nt-doc selectable"
@@ -110,7 +139,12 @@
         (keydown)="docKey($event)"
         (keyup)="syncFormats()"
         (mouseup)="syncFormats()"
-        contenteditable="true"
+        [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
+        [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
+        role="textbox"
+        aria-label="Note content"
+        aria-multiline="true"
+        tabindex="0"
         data-doc
         spellcheck="false"
       ></div>

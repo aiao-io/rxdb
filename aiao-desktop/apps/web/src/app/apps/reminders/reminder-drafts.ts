@@ -1,5 +1,9 @@
 import { computed, signal } from '@angular/core';
 
+import { localWriteFailureMessage as reminderFailureMessage } from '../../data/local-write-error';
+
+export { reminderFailureMessage };
+
 import type { ReminderDraft } from './reminders-model';
 import type { Reminder } from './reminders.entities';
 
@@ -13,14 +17,6 @@ export interface ReminderWrite {
 export interface ReminderDraftState extends ReminderDraft {
   readonly id: ReminderWrite['id'];
   readonly error: string;
-}
-
-/** 将存储异常转换为可操作的反馈，避免把内部 SQL 显示给用户。 */
-export function reminderFailureMessage(error: unknown): string {
-  const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  if (/QuotaExceededError|SQLITE_FULL|(?:disk|storage) (?:is )?full/i.test(reason))
-    return 'Browser storage is full. Free some space, then retry.';
-  return 'Local storage could not complete this change. Try again.';
 }
 
 /** 记录输入及进行中的写入；成功行由活查询接管，失败内容保留到重试或明确丢弃。 */

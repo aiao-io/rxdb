@@ -1,5 +1,7 @@
 import { computed, signal } from '@angular/core';
 
+import { localWriteFailureMessage } from '../../data/local-write-error';
+
 import type { Note } from './notes.entities';
 
 export type NoteSnapshot = Readonly<Pick<Note, 'id' | 'body' | 'title'>>;
@@ -19,10 +21,7 @@ export class NoteSaveError extends Error {
 /** 用户反馈保留可操作原因，不直接展示数据库异常。 */
 export function noteFailureMessage(error: unknown): string {
   if (error instanceof NoteSaveError) return error.message;
-  const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  if (/QuotaExceededError|SQLITE_FULL|(?:disk|storage) (?:is )?full/i.test(reason))
-    return 'Browser storage is full. Free some space, then retry.';
-  return 'Local storage could not complete this change. Try again.';
+  return localWriteFailureMessage(error);
 }
 
 export const sameNoteContent = (left: NoteSnapshot, right: NoteSnapshot): boolean =>

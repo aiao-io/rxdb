@@ -4,6 +4,7 @@ import {
   ElementRef,
   afterRenderEffect,
   computed,
+  effect,
   inject,
   signal,
   untracked,
@@ -18,6 +19,7 @@ import { PopoverService } from '../../services/popover';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { CHECK_ICON } from './notes-data';
+import { NoteDocument, NoteSaveError, NoteSnapshot, NoteWrite, noteFailureMessage, sameNoteContent } from './note-document';
 import {
   ALL_NOTES,
   NOTES_FOLDER,
@@ -34,7 +36,7 @@ import { Note } from './notes.entities';
 
 /** 侧栏的文件夹；右侧的数量由库里的笔记现数。 */
 const FOLDERS = [
-  { name: ALL_NOTES, icon: 'g-icloud-o' },
+  { name: ALL_NOTES, icon: 'g-folder-g' },
   { name: NOTES_FOLDER, icon: 'g-folder-g' },
   { name: TRASH_FOLDER, icon: 'g-tag' }
 ] as const;
@@ -73,7 +75,6 @@ const commandState = (command: string): boolean => {
   templateUrl: './notes.html'
 })
 export class NotesApp {
-  private readonly win = inject(DesktopWindow);
   private readonly popover = inject(PopoverService);
   private readonly data = inject(DesktopData);
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
@@ -87,11 +88,16 @@ export class NotesApp {
   private timer: ReturnType<typeof setTimeout> | undefined;
   /** 编辑区里现在装的是哪条笔记。 */
   private loaded: string | null = null;
-  /** 编辑区里最近一次与库一致的内容；和它一样就不必写库。 */
-  private clean = '';
+  private operation: Promise<boolean> | null = null;
+  private copyId: Note['id'] | null = null;
   /** 刚新建、等活查询带回来后再选中并聚焦的笔记。 */
   private fresh: string | null = null;
 
+  protected readonly win = inject(DesktopWindow);
+  protected readonly editor = new NoteDocument(change => this.persist(change));
+  protected readonly busy = signal(false);
+  protected readonly actionError = signal('');
+  protected readonly failure = computed(() => this.actionError() || this.editor.error());
   protected readonly folders = computed(() =>
     FOLDERS.map(folder => ({ ...folder, count: folderCount(this.notes(), folder.name) }))
   );
@@ -120,7 +126,9 @@ export class NotesApp {
           {
             File: [
               { id: 'n', label: 'New Note', key: '⌘N', run: () => this.create() },
-              { id: 'f', label: 'New Folder', key: '⇧⌘N' },
+              { id: 's', label: 'Save Note', key: '⌘S', run: () => this.retry() },
+              { id: 'copy', label: 'Save a Copy', run: () => this.saveCopy() },
+              { id: 'f', label: 'New Folder', key: '⇧⌘N', disabled: true },
               '-',
               { id: 'd', label: 'Delete Note', run: () => this.remove() }
             ],
@@ -140,83 +148,143 @@ export class NotesApp {
     /* 库里的笔记到达（首次加载、别的窗口增删、自己写入后回读）时，把编辑区对齐到选中项。 */
     afterRenderEffect(() => {
       this.list();
+      this.busy();
+      this.editor.saving();
       untracked(() => this.show());
     });
-    this.win.beforeClose.subscribe(() => this.save());
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.timer));
+    this.win.confirmClose = async () => {
+      if (this.operation && !(await this.operation)) return false;
+      return this.save();
+    };
+    effect(() => this.win.hasUnsavedChanges.set(this.editor.dirty() || this.editor.saving() || this.busy()));
+    const beforeUnload = (event: BeforeUnloadEvent): void => {
+      if (!this.editor.dirty() && !this.editor.saving() && !this.busy()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.timer);
+      window.removeEventListener('beforeunload', beforeUnload);
+      this.win.confirmClose = null;
+      this.win.hasUnsavedChanges.set(false);
+      this.editor.dispose();
+    });
   }
 
-  protected pickFolder(name: string): void {
-    this.save();
-    this.folder.set(name);
-    this.show(true);
+  protected pickFolder(name: string): Promise<boolean> {
+    return this.operate(() => {
+      this.folder.set(name);
+      this.show(true);
+    });
   }
 
-  protected pick(id: string): void {
-    this.save();
-    this.selected.set(id);
-    this.show(true);
+  protected pick(id: string): Promise<boolean> {
+    return this.operate(() => {
+      this.selected.set(id);
+      this.show(true);
+    });
   }
 
-  /** 右键只选中并弹出菜单；“Pin Note” 与 “Duplicate” 和原版一样没有实现。 */
-  protected menu(event: MouseEvent, id: string): void {
-    this.save();
-    this.selected.set(id);
-    this.show(true);
+  protected async menu(event: MouseEvent, id: string): Promise<void> {
+    event.preventDefault();
+    if (!(await this.pick(id))) return;
     this.popover.contextMenu(event, [
-      { id: 'p', label: 'Pin Note' },
-      { id: 'd', label: 'Duplicate' },
+      { id: 'p', label: 'Pin Note', disabled: true },
+      { id: 'd', label: 'Duplicate', run: () => this.saveCopy() },
       '-',
       { id: 'x', label: 'Delete', run: () => this.remove() }
     ]);
   }
 
   protected search(event: Event): void {
-    this.save();
-    this.query.set((event.target as HTMLInputElement).value);
-    this.show(true);
+    const input = event.target as HTMLInputElement;
+    const query = input.value;
+    void this.operate(() => {
+      this.query.set(query);
+      this.show(true);
+    }).then(() => { input.value = this.query(); });
   }
 
-  /** 隐藏侧栏后，红绿灯搬到搜索栏最前面。 */
   protected toggleSidebar(): void {
     this.sidebar.update(visible => !visible);
   }
 
-  /** 新建一条笔记写进库；等活查询把它带回来之后，选中它并把光标放进标题（见 `show`）。 */
-  protected async create(): Promise<void> {
-    this.save();
-    this.query.set('');
-    const date = new Date();
-    const folder = this.folder();
-    const note = this.data.instantiate(Note, {
-      folder: folder === TRASH_FOLDER || folder === ALL_NOTES ? NOTES_FOLDER : folder,
-      title: 'New Note',
-      date,
-      body: newNoteBody(date),
-      pinned: false
-    });
-    this.fresh = note.id;
-    try {
+  protected create(): Promise<boolean> {
+    return this.operate(async () => {
+      const date = new Date();
+      const folder = this.folder();
+      const note = this.data.instantiate(Note, {
+        folder: folder === TRASH_FOLDER || folder === ALL_NOTES ? NOTES_FOLDER : folder,
+        title: 'New Note', date, body: newNoteBody(date), pinned: false
+      });
       await (await this.data.repository(Note)).create(note);
-    } catch (error) {
-      this.fresh = null;
-      throw error;
-    }
+      this.fresh = note.id;
+      this.folder.set(note.folder);
+      this.query.set('');
+    });
   }
 
-  /** 笔记先移进 Recently Deleted；已经在里面的真正删除。选中项由列表刷新后的 `show` 接上。 */
-  protected async remove(): Promise<void> {
-    const note = this.current();
-    if (!note) return;
-    /* 要删的笔记不再保存编辑区里的内容（防抖定时器可能还没到点）。 */
-    clearTimeout(this.timer);
-    this.clean = this.doc().nativeElement.innerHTML;
-    const repository = await this.data.repository(Note);
-    if (note.folder === TRASH_FOLDER) await repository.remove(note);
-    else await repository.update(note, { folder: TRASH_FOLDER });
+  protected remove(): Promise<boolean> {
+    return this.operate(async () => {
+      const value = this.editor.value();
+      if (!value) return;
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(Note);
+        const [note] = await repository.find({ where: this.whereId(value.id), limit: 1 });
+        if (!note) throw new NoteSaveError('missing');
+        if (!sameNoteContent(note, value)) throw new NoteSaveError('conflict');
+        if (note.folder === TRASH_FOLDER) await repository.remove(note);
+        else await repository.update(note, { folder: TRASH_FOLDER });
+      });
+      this.editor.discard(null);
+      this.loaded = null;
+      this.selected.set(null);
+    });
+  }
+
+  protected retry(): Promise<boolean> {
+    return this.operate(() => undefined);
+  }
+
+  protected discardChanges(): Promise<boolean> {
+    return this.operate(async () => {
+      const id = this.editor.value()?.id;
+      const repository = await this.data.repository(Note);
+      const notes = id ? await repository.find({ where: this.whereId(id), limit: 1 }) : [];
+      this.editor.discard(notes[0] ?? null);
+      this.loaded = notes[0]?.id ?? null;
+      this.selected.set(this.loaded);
+      this.doc().nativeElement.innerHTML = notes[0]?.body ?? '';
+    }, false);
+  }
+
+  protected saveCopy(): Promise<boolean> {
+    return this.operate(async () => {
+      const value = this.editor.value();
+      if (!value) return;
+      this.copyId ??= crypto.randomUUID();
+      const copy = this.data.instantiate(Note, {
+        ...value, id: this.copyId, date: new Date(), folder: NOTES_FOLDER, pinned: false
+      });
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(Note);
+        const [existing] = await repository.find({ where: this.whereId(copy.id), limit: 1 });
+        if (existing && !sameNoteContent(existing, copy)) throw new NoteSaveError('conflict');
+        if (!existing) await repository.create(copy);
+      });
+      this.copyId = null;
+      this.editor.discard(copy);
+      this.loaded = copy.id;
+      this.fresh = copy.id;
+      this.selected.set(copy.id);
+      this.folder.set(NOTES_FOLDER);
+      this.query.set('');
+    }, false);
   }
 
   protected format(command: string): void {
+    if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     const doc = this.doc().nativeElement;
     doc.focus();
     /* execCommand 需要一个落在文本节点里的 range：光标停在最后一个块之后时
@@ -229,6 +297,7 @@ export class NotesApp {
   }
 
   protected checklist(): void {
+    if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     this.doc().nativeElement.focus();
     const tick = `<div class="todo"><i>${CHECK_ICON}</i><span>&nbsp;</span></div>`;
     document.execCommand('insertHTML', false, tick);
@@ -236,6 +305,7 @@ export class NotesApp {
   }
 
   protected table(): void {
+    if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     this.doc().nativeElement.focus();
     const row = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
     const table = `<table><tr><th>&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr>${row}${row}</table><p>&nbsp;</p>`;
@@ -254,12 +324,18 @@ export class NotesApp {
   }
 
   protected saveSoon(): void {
+    this.capture();
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.save(), 420);
+    this.timer = setTimeout(() => { void this.save(); }, 420);
   }
 
   protected docKey(event: KeyboardEvent): void {
     if (!(event.metaKey || event.ctrlKey)) return;
+    if (event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      void this.retry();
+      return;
+    }
     const command = SHORTCUTS[event.key.toLowerCase()];
     if (!command) return;
     event.preventDefault();
@@ -283,10 +359,12 @@ export class NotesApp {
    * `reselect` 是用户刚点了文件夹、笔记或搜索：选中项必须还在列表里。数据刷新引起的对齐（默认）只要求它还在当前文件夹——
    * 边改边存时标题或正文不再匹配搜索词，编辑区不能突然换成别的笔记。
    *
-   * 构造器里的 `afterRenderEffect` 也走这里，所以这里只能写 `selected`，不能写列表依赖的信号（笔记、文件夹、搜索词）：
-   * 渲染后的副作用改了自己依赖的信号，Angular 会把它销毁。
+   * 渲染后的对齐不改变文件夹与搜索词；草稿或在途写入始终保留当前编辑器。
    */
   private show(reselect = false): void {
+    if (this.editor.dirty() || this.editor.saving()) return;
+    if (this.busy() && !reselect) return;
+    if (this.fresh && !this.notes().some(note => note.id === this.fresh)) return;
     const created = this.fresh !== null && this.notes().some(note => note.id === this.fresh) ? this.fresh : null;
     if (created !== null) {
       this.fresh = null;
@@ -300,33 +378,66 @@ export class NotesApp {
     const note = this.current();
     const id = note?.id ?? null;
     if (id === this.loaded) return;
+    if (!this.editor.open(note ?? null)) return;
     this.loaded = id;
     const doc = this.doc().nativeElement;
     doc.innerHTML = note?.body ?? '';
-    this.clean = doc.innerHTML;
     if (created !== null && id === created) this.focusTitle();
   }
 
-  /** 编辑区里的内容有改动就写回库：正文，以及从首个标题取出的标题。 */
-  private save(): void {
-    clearTimeout(this.timer);
-    const note = this.notes().find(item => item.id === this.loaded);
-    if (!note) return;
+  private capture(): void {
+    const value = this.editor.value();
+    if (!value || value.id !== this.loaded) return;
     const doc = this.doc().nativeElement;
     const body = doc.innerHTML;
-    if (body === this.clean) return;
-    this.clean = body;
-    void this.persist(note, { body, title: noteTitle(doc) || note.title });
+    const title = noteTitle(doc) || value.title;
+    if (body !== value.body || title !== value.title) this.editor.edit({ body, title });
   }
 
-  private async persist(note: Note, patch: Partial<Note>): Promise<void> {
+  private save(): Promise<boolean> {
+    clearTimeout(this.timer);
+    this.capture();
+    return this.editor.save();
+  }
+
+  private operate(action: () => void | Promise<void>, saveCurrent = true): Promise<boolean> {
+    if (this.operation || this.win.closePending()) return Promise.resolve(false);
+    clearTimeout(this.timer);
+    this.capture();
+    this.actionError.set('');
+    this.busy.set(true);
+    this.operation = this.perform(action, saveCurrent).finally(() => {
+      this.busy.set(false);
+      this.operation = null;
+    });
+    return this.operation;
+  }
+
+  private async perform(action: () => void | Promise<void>, saveCurrent: boolean): Promise<boolean> {
     try {
-      await (await this.data.repository(Note)).update(note, patch);
+      if (saveCurrent && !(await this.save())) return false;
+      if (!saveCurrent && this.editor.saving()) await this.editor.save();
+      await action();
+      return true;
     } catch (error) {
-      /* 没写成：作废“已与库一致”的记号，下一次保存会重试；错误照常抛出。 */
-      if (this.clean === patch.body) this.clean = '';
-      throw error;
+      this.actionError.set(noteFailureMessage(error));
+      return false;
     }
+  }
+
+  private async persist({ base, value }: NoteWrite): Promise<void> {
+    await this.data.transaction(async executor => {
+      const repository = executor.getRepository(Note);
+      const [note] = await repository.find({ where: this.whereId(value.id), limit: 1 });
+      if (!note) throw new NoteSaveError('missing');
+      if (sameNoteContent(note, value)) return;
+      if (!sameNoteContent(note, base)) throw new NoteSaveError('conflict');
+      await repository.update(note, { body: value.body, title: value.title });
+    });
+  }
+
+  private whereId(id: NoteSnapshot['id']) {
+    return { combinator: 'and' as const, rules: [{ field: 'id' as const, operator: '=' as const, value: id }] };
   }
 
   /** 光标放到标题末尾，新建的笔记可以直接改名。 */

@@ -54,6 +54,8 @@ owner: jimmy
 
 - [ADESK-US-116 备忘录保存与编辑内容保护](../stories/desktop/ADESK-US-116-note-drafts.md) (High)
 
+- [ADESK-US-117 本地会话草稿保护与通讯范围说明](../stories/desktop/ADESK-US-117-local-messages.md) (High)
+
 ## 非目标
 
 - 离线世界地图、离线新天气及远程第三方应用的完整离线运行，仍见 [future-requirements](../future-requirements.md)。壁纸本地化及天气地图的失败恢复已进入 US-113。

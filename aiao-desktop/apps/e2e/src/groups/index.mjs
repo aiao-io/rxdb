@@ -21,6 +21,7 @@ import { integratedApp } from './integrated-app.mjs';
 import { lazyLoading } from './lazy-loading.mjs';
 import { multiTabStartup } from './multi-tab-startup.mjs';
 import { multiTab } from './multi-tab.mjs';
+import { noteDrafts } from './note-drafts.mjs';
 import { narrowScreen } from './narrow-screen.mjs';
 import { offlineResources } from './offline-resources.mjs';
 import { persistence } from './persistence.mjs';
@@ -46,6 +47,7 @@ import { windowLayout } from './window-layout.mjs';
  * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session, server) }`，登记在这里；server 可用于同源切换构建产物。
  */
 export const GROUPS = [
+  { ...noteDrafts, weight: 40 },
   { ...reminderDrafts, weight: 35 },
   { ...contentActions, engines: ['chromium'], weight: 25 },
   { ...aiaoCodeFiles, default: false, engines: ['chromium'], exclusive: true, weight: 80 },

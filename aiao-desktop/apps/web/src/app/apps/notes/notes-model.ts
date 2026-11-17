@@ -1,7 +1,7 @@
 import { DAYS, MONS, time12Plain } from '../../shared/format';
 
 /** 侧栏里的虚拟文件夹：除 Recently Deleted 以外的全部笔记。 */
-export const ALL_NOTES = 'All iCloud';
+export const ALL_NOTES = 'All Notes';
 /** 默认文件夹：新建的笔记放在这里。 */
 export const NOTES_FOLDER = 'Notes';
 /** 删除的笔记先放进这里；已经在里面的再删才是真删除。 */

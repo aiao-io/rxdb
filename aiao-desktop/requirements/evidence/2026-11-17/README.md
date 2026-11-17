@@ -142,3 +142,19 @@ US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/3
 固定侧栏统计和日期筛选不在 US-115 范围，留在 A06 台账中继续。
 
 US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-108 人工读屏保留。
+
+
+## A06 备忘录保存与编辑保护（US-116）
+
+基线 `2a3e46183` 加本次未提交改动，schema `2026111703` 未变；本次未发布。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/note-document.spec.ts`：[红阶段](aiao-note-drafts-red.log)、[模型绿阶段](aiao-note-drafts-model-green.log)。覆盖保存失败、在途新增输入、序列基线、后续失败、冲突/删除后的显式放弃、销毁后结果等十项。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[首次门禁](aiao-note-drafts-first-gates.log)因字段声明顺序 lint 失败；修复后的[最终门禁](aiao-note-drafts-final-gates.log)全绿，120 文件、1554 条单测。[覆盖率](aiao-note-coverage.json)语句 97.87%、分支 94.74%、函数 97.88%、行 99.11%；新模型语句 96.82%、行 100%，原逐文件 80% 门槛通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=note-drafts --report=/tmp/aiao-note-drafts-browser-first.json --output-style=static`：[首次定向报告](aiao-note-drafts-browser-first.json)全部十二项通过，23.0 秒。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=note-drafts,persistence,apps,a11y,document-workflow,multi-tab --report=/tmp/aiao-note-drafts-final-browser.json --output-style=static`：[最终报告](aiao-note-drafts-final-browser.json)、[日志](aiao-note-drafts-final-browser.log)，六组通过、150.2 秒，无页面错误。保留五轮既有文件并发验证。
+- 真实 SQLite UPDATE/INSERT 失败、写锁等待期间继续输入、两个实际页面修改同一笔记、副本失败重试、原记录删除和显式放弃均有证据。关闭与重启等待保存，失败不移除编辑器；保存后真实正文、格式和标题刷新仍在。
+- [失败状态截图](aiao-note-failure.png)已目视核查，错误不暴露 SQL；本地数据说明、可达按钮与编辑器焦点环已补齐。软件键盘、axe 与合成 beforeunload 不冒充人工键盘或 VoiceOver。
+
+Pin 和 New Folder 已禁用，仍属于 A06 后续工作；Duplicate 使用真实保存副本路径。未声称接入 iCloud。
+
+US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 人工读屏保留。

@@ -3165,8 +3165,9 @@ svg {
   user-select: text;
   cursor: var(--cur-text);
 }
-.nt-doc:focus {
-  outline: none;
+.nt-doc:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 .nt-doc h1 {
   font-size: 22px;
