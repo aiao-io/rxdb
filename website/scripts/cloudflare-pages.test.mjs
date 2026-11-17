@@ -195,7 +195,7 @@ function deployment(n, { branch = 'pr-224', environment = 'preview', status = 's
   };
 }
 
-const listEndpoint = page => `/rxdb/deployments?env=preview&per_page=100&page=${page}`;
+const listEndpoint = page => `/rxdb/deployments?env=preview&per_page=25&page=${page}`;
 const deleteEndpoint = n => `/rxdb/deployments/${deployment(n).id}?force=true`;
 
 test('发布后保留本次与上次成功预览，先收集所有分页再删除', async t => {
@@ -292,4 +292,23 @@ test('关闭提示页只包含 404 和禁止缓存、索引的响应头', async 
   assert.match(headers, /Cache-Control: no-store/);
   assert.match(headers, /X-Robots-Tag: noindex/);
   await assert.rejects(createClosedPreview(root, '<script>'), /PR 编号/);
+});
+
+test('Pages 每页请求 25 条，无分页元数据时读完满页后继续下一页', async t => {
+  const calls = apiMock(t, [
+    {
+      endpoint: listEndpoint(1),
+      result: Array.from({ length: 25 }, (_, i) => deployment(i + 3, { branch: 'pr-225' }))
+    },
+    { endpoint: listEndpoint(2), result: [deployment(2), deployment(1)] },
+    { endpoint: deleteEndpoint(1), result: null }
+  ]);
+  assert.deepEqual(
+    await cleanPreviewDeployments(credentials, { branch: 'pr-224', keepUrl: deployment(2).url, keepPrevious: false }),
+    [deployment(1).id]
+  );
+  assert.deepEqual(
+    calls.map(call => call.method),
+    ['GET', 'GET', 'DELETE']
+  );
 });

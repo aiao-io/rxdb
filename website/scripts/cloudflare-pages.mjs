@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const projectName = 'rxdb';
 const domainName = 'rxdb.aiao.io';
 const maxAssetBytes = 25 * 1024 * 1024;
+const deploymentPageSize = 25;
 
 async function request(credentials, suffix, { method = 'GET', body, allowMissing = false } = {}) {
   const { accountId, apiToken } = credentials;
@@ -65,10 +66,13 @@ export async function bindDomain(credentials) {
 async function previewDeployments(credentials, branch) {
   const deployments = [];
   for (let page = 1; ; page++) {
-    const payload = await request(credentials, `/${projectName}/deployments?env=preview&per_page=100&page=${page}`);
+    const payload = await request(
+      credentials,
+      `/${projectName}/deployments?env=preview&per_page=${deploymentPageSize}&page=${page}`
+    );
     deployments.push(...payload.result);
     const lastPage = payload.result_info?.total_pages;
-    if (lastPage ? page >= lastPage : payload.result.length < 100) break;
+    if (lastPage ? page >= lastPage : payload.result.length < deploymentPageSize) break;
   }
   return deployments.filter(
     item => item.environment === 'preview' && item.deployment_trigger?.metadata?.branch === branch
