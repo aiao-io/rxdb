@@ -96,7 +96,7 @@ vi.mock('@visactor/vtable', () => ({
   register: { editor: vi.fn() }
 }));
 let fixture: ComponentFixture<BomGrid>;
-async function mount(count = 12, mode: ViewMode = 'tree', shape: 'balanced' | 'wide' = 'balanced'): Promise<BomIndex> {
+async function mount(count = 12, mode: ViewMode = 'tree', shape: 'balanced' | 'wide' | 'deep' = 'balanced'): Promise<BomIndex> {
   const index = new BomIndex(makeStressDataset(count, shape), 'catalog');
   fixture = TestBed.createComponent(BomGrid);
   fixture.componentRef.setInput('result', index.query({ ...DEFAULT_QUERY, mode }));
@@ -180,6 +180,16 @@ describe('Canvas 表格适配与发生位置身份', () => {
     grid.expandTo(0);
     expect(expanded).toHaveBeenLastCalledWith([]);
     grid.expandTo(2);
+    expect(expanded).toHaveBeenLastCalledWith(['stress:0']);
+  });
+  it('展开全部层级覆盖所有层级的有子节点行', async () => {
+    await mount(12, 'tree', 'deep');
+    const grid = fixture.componentInstance;
+    const expanded = vi.fn();
+    grid.expandedChange.subscribe(expanded);
+    grid.expandTo(-1);
+    expect(expanded).toHaveBeenLastCalledWith(Array.from({ length: 11 }, (_, i) => `stress:${i}`));
+    grid.expandTo(1);
     expect(expanded).toHaveBeenLastCalledWith(['stress:0']);
   });
   it('树转平铺后事件使用新窗口，物料汇总保留成员，绘制就绪可观测', async () => {

@@ -153,7 +153,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     const base = this.result().roots[0]?.depth ?? 0;
     this.expandedChange.emit(
       this.result()
-        .rows.filter(r => r.depth - base < depth && r.hasChildren)
+        .rows.filter(r => (depth < 0 || r.depth - base < depth) && r.hasChildren)
         .map(r => r.key)
     );
   }
