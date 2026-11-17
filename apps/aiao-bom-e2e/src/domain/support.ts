@@ -71,4 +71,4 @@ export const openDetails = async (page: Page, label: string | RegExp): Promise<v
   }).toPass();
 };
 
-export const overviewPath = '/domain';
+export const overviewPath = '/bom';

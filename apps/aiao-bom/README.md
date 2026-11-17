@@ -1,6 +1,6 @@
 # aiao-bom
 
-以结构表为核心的 BOM 与 3D 工作台。主表使用 VTable Canvas，模型使用 Three.js，默认加载 Windrose 公开资料的固定快照。应用处于开发阶段，领域页面与服务由 `modules/bom-workspace` 提供。
+以结构表为核心的 BOM 与 3D 工作台。主表使用 VTable Canvas，模型使用 Three.js，默认加载 Windrose 公开资料的固定快照。应用处于开发阶段，BOM 专项页与统一外壳由 `modules/bom-workspace` 提供。
 
 旧应用 `aiao-bom` 已退役；需求、结构门禁和业务回归统一在本应用维护，见[目录迁移记录](requirements/application-consolidation-2026-11-15.md)。
 
@@ -18,8 +18,8 @@ pnpm nx run aiao-bom:serve-static
 | 三维视图   | 本地整车 GLB、远程独立零件 GLB；Draco / Meshopt；表格与模型选择联动；聚焦、隔离、透明、视角、重试、取消及资源释放                 |
 | 工作草稿   | 建立草稿、批量数量与成本、增删移动、30 步撤销重做、关系和数量校验、需求展开、已知行成本、基线差异                                 |
 | 版本快照   | 完整结构留档、评估日期、基准 / 目标比较、发生位置差异、搜索与分页、快照及完整差异 JSON 导出、预览导入、原子追加与跨标签页覆盖保护 |
-| 领域工作区 | `/domain` 进入原有领域流程；展开、成本、两时点改版核对、ECN、生效域、双图映射、实例换件与追溯；原有领域内核与共享 UI 惰性加载     |
-| 迁移       | `/transfer` 下载完整领域归档、校验后恢复到新库、刷新恢复库身份、保留原库并回退；结构草稿核对后可转入领域草稿并发布                |
+| BOM 概览与专项页 | `/bom` 概览，与 `/` 结构工作台共用同一外壳导航；展开、成本、两时点改版核对、ECN、生效域、双图映射、实例换件与追溯；共享 UI 惰性加载 |
+| 迁移       | `/transfer` 下载完整备份归档、校验后恢复到新库、刷新恢复库身份、保留原库并回退；结构草稿核对后可转入 BOM 草稿并发布                |
 | 数据       | 严格 JSON 导入预览与重入、当前结果 CSV、完整草稿 JSON、来源及哈希记录；草稿和视图保存到独立 IndexedDB                             |
 
 数量使用公共 BOM 包的 Decimal 运算。缺量、歧义量、未经确认的参考量会阻断对应分支计算，界面显示问题。汇总列是直接用量合计；成本是独立行成本合计，各层报价不能重复包含子件价格。
@@ -43,15 +43,15 @@ pnpm nx run aiao-bom:preview
 
 覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom`，Wrangler `4.158.0`，兼容日期固定为运行时支持的 `2026-11-11`。公开预览与最终门禁状态以最新验收记录为准。
 
-结构草稿、版本快照和视图保存在 IndexedDB `aiao-bom-workspace-v1`；领域库使用 `aiao-bom-domain-v1`。共享领域实现位于 `modules/bom-workspace`，通过路由参数隔离库身份。恢复归档使用全新短名称库，成功后才切换活动库指针；不会覆盖旧库。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
+结构草稿、版本快照和视图保存在 IndexedDB `aiao-bom-workspace-v1`；BOM 专项页数据库使用 `aiao-bom-domain-v1`。共享实现位于 `modules/bom-workspace`，通过路由参数隔离库身份。恢复归档使用全新短名称库，成功后才切换活动库指针；不会覆盖旧库。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
 
 [交付及验收记录](requirements/implementation-report-2026-11-13.md)记录了初轮实测与限制；当前目录及验证入口以本 README 为准。原改善方案位于 [计划目录](requirements/plans/aiao-bom-improvement-plan-2026-11-13.md)。
 
-[版本快照说明与验收](requirements/version-snapshots-2026-11-14.md)说明了评估日期、比较身份、数量边界与存储约定；用户标记的快照日期不替代领域 ECN 生效解析。
+[版本快照说明与验收](requirements/version-snapshots-2026-11-14.md)说明了评估日期、比较身份、数量边界与存储约定；用户标记的快照日期不替代 ECN 生效解析。
 
-[领域归档与回退说明](requirements/domain-migration-2026-11-14.md)记录归档范围和历史演练。当前备份恢复回归直接验证新版领域工作区，不依赖旧应用。
+[BOM 库归档与回退说明](requirements/domain-migration-2026-11-14.md)记录归档范围和历史演练。当前备份恢复回归直接验证统一外壳下的 BOM 专项页，不依赖旧应用。
 
-[2026-11-14 最终验收](requirements/completion-verification-2026-11-14.md)与[任务核对表](requirements/completion-tasks-2026-11-14.md)记录领域迁移、性能、跨浏览器和独立部署结果。
+[2026-11-14 最终验收](requirements/completion-verification-2026-11-14.md)与[任务核对表](requirements/completion-tasks-2026-11-14.md)记录旧库迁移、性能、跨浏览器和独立部署结果。
 
 需求与部署预览验证：
 
@@ -61,4 +61,4 @@ pnpm nx run aiao-bom:requirements-test
 pnpm nx run aiao-bom-e2e:e2e-cloudflare
 ```
 
-领域回归位于 `apps/aiao-bom-e2e/src/domain/`；备份恢复回归位于 `src/domain-transfer.spec.ts`。Cloudflare 套件默认在 `4315` 启动本地 Wrangler，设置 `BASE_URL` 可验证指定的开发预览地址。
+BOM 专项页回归位于 `apps/aiao-bom-e2e/src/domain/`；备份恢复回归位于 `src/domain-transfer.spec.ts`。Cloudflare 套件默认在 `4315` 启动本地 Wrangler，设置 `BASE_URL` 可验证指定的开发预览地址。

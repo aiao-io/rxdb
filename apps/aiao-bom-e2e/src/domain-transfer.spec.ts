@@ -12,7 +12,7 @@ async function downloadBytes(download: Download): Promise<Buffer> {
 }
 async function backup(page: Page): Promise<Buffer> {
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: '下载完整领域备份', exact: true }).click();
+  await page.getByRole('button', { name: '下载完整备份', exact: true }).click();
   return downloadBytes(await download);
 }
 async function snapshotArchive(bytes: Buffer) {
@@ -35,9 +35,9 @@ async function snapshotArchive(bytes: Buffer) {
   return { manifest, rows: entries };
 }
 
-test('领域完整库备份恢复，草稿、Decimal、ECN、换件历史不丢失并可回退', async ({ page }, info) => {
+test('BOM 完整库备份恢复，草稿、Decimal、ECN、换件历史不丢失并可回退', async ({ page }, info) => {
   test.setTimeout(180000);
-  await page.goto('/domain');
+  await page.goto('/bom');
   page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('prepare-data').click();
   await expect(page.getByTestId('overview-data-status')).toContainText('已有', { timeout: 30000 });

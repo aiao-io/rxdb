@@ -3,7 +3,7 @@ import { SCOOTER_SEED_ROWS, acceptDialog, overviewPath, revealDetails } from '..
 
 const routes = [
   '/',
-  '/domain',
+  '/bom',
   '/transfer',
   '/review',
   '/explosion',
@@ -24,6 +24,13 @@ test('BOM-US-002 所有入口与深链接返回应用及隔离响应头', async 
     expect(headers?.['cross-origin-embedder-policy'], route).toBe('require-corp');
     await expect(page.locator('bom-root')).toBeVisible();
   }
+});
+
+test('BOM-US-002 旧领域深链 /domain 客户端重定向到概览', async ({ page }) => {
+  const response = await page.goto('/domain');
+  expect(response?.status()).toBe(200);
+  await expect(page).toHaveURL(/\/bom(?:\?|$)/, { timeout: 30000 });
+  await expect(page.locator('bom-root')).toBeVisible();
 });
 
 test('BOM-US-002 SQLite WASM 返回可编译二进制及正确 MIME', async ({ page }) => {

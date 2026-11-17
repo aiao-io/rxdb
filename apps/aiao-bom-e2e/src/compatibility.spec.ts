@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-test('浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口', async ({ page, browserName }, info) => {
+test('浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 备份入口', async ({ page, browserName }, info) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
@@ -15,6 +15,7 @@ test('浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 
   await expect(page.getByTestId('bom-grid')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
   await page.goto('/domain');
+  await expect(page).toHaveURL(/\/bom(?:\?|$)/);
   page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('prepare-data').click();
   await expect(page.getByTestId('overview-data-status')).toContainText('已有', { timeout: 30000 });
@@ -25,7 +26,7 @@ test('浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 
   await page.keyboard.press('Escape');
   await expect(toggle).toBeFocused();
   await page.goto('/transfer');
-  await expect(page.getByRole('button', { name: '下载完整领域备份', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '下载完整备份', exact: true })).toBeEnabled();
   const result = {
     checkedAt: new Date().toISOString(),
     browser: browserName,
