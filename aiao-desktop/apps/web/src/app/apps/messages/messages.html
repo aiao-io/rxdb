@@ -28,7 +28,7 @@
             (click)="select(row.chat.id)"
             tabindex="0"
           >
-            <span class="av" [style.background]="row.chat.color">{{ row.chat.name[0] }}</span>
+            <span aria-hidden="true" class="av" [style.background]="row.chat.color">{{ row.chat.name[0] }}</span>
             <span class="bd">
               <b>{{ row.chat.name }}</b>
               <p>{{ row.draft.trim() ? 'Draft: ' + row.draft : row.last }}</p>
@@ -44,8 +44,8 @@
     </div>
     <div class="msg-th">
       <div class="msg-hd" data-drag>
-        <button class="who" #who (click)="details(who)" aria-label="Conversation details" data-cdetails tabindex="0" type="button" style="border: 0; background: transparent; text-align: left">
-          <span class="av sm" [style.background]="chat()?.color" data-cav>{{ initial() }}</span>
+        <button class="who" #who (click)="details(who)" title="Conversation details" data-cdetails tabindex="0" type="button" style="border: 0; background: transparent; text-align: left">
+          <span aria-hidden="true" class="av sm" [style.background]="chat()?.color" data-cav>{{ initial() }}</span>
           <span data-cname>{{ chat()?.name }}</span>
           <svg appIcon="g-chev-r"></svg>
         </button>
@@ -88,6 +88,7 @@
         <div class="fld">
           <input
             #field
+            [attr.data-message-draft-id]="currentDraft()?.id ?? null"
             [value]="currentDraft()?.text ?? ''"
             (input)="edit(field.value)"
             [disabled]="currentDraft()?.saving || win.closePending() || !chat()"

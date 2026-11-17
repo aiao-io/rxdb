@@ -158,3 +158,17 @@ US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-1
 Pin 和 New Folder 已禁用，仍属于 A06 后续工作；Duplicate 使用真实保存副本路径。未声称接入 iCloud。
 
 US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 人工读屏保留。
+
+
+## A06 本地会话草稿与范围（US-117）
+
+基线仍为 `2a3e46183` 加未提交改动，schema `2026111703` 未变；本轮未发布。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/messages/message-drafts.spec.ts`：[红阶段](aiao-message-drafts-red.log)；加入 Notes 和 Reminders 定向回归的[模型绿阶段](aiao-message-drafts-model-green.log)通过。三个模型复用本地错误映射，不向用户透传 SQL。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-message-drafts-final-gates.log)通过，121 文件/1563 条单测；[覆盖率](aiao-local-messages-coverage.json)及原逐文件 80% 门槛通过。最终模板名称调整后的 [lint/typecheck](aiao-local-messages-aria-gates.log)通过。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-messages --report=/tmp/aiao-local-messages-first.json`：[首次报告](aiao-local-messages-first.json)业务路径通过，但 axe 发现可见联系人名不在按钮无障碍名称中，整体失败。截图检查后补实际对比度测试，发现蓝底白字 3.93 < 4.5：[对比度红阶段](aiao-local-messages-contrast-red.json)。
+- 颜色修复后的[六组联跑](aiao-local-messages-final.json)中 Notes、Reminders、应用、a11y、外壳交互五组通过；Messages 仍因头像首字母与显式名称不匹配失败。改为由真实内容生成按钮名称，未降低 axe 规则。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-messages,content-actions --report=/tmp/aiao-local-messages-green.json --output-style=static`：[最终报告](aiao-local-messages-green.json)、[日志](aiao-local-messages-green.log)两组全绿，19.0 秒。Messages 十四项与复制打印十项通过，无页面错误。无需重复已经通过且不受模板名称改动影响的五组。
+- [最终失败界面截图](aiao-messages-failure.png)已目视检查；真实 SQLite INSERT/会话创建失败、写锁等待、会话删除、恢复单次写入、独立草稿、刷新重开和键盘操作均验证。窗口打开等待超过原随机回复时长后核对真实行数未增加。
+
+未接入真实远程消息、通话、文件发送与回执，不把本地改动当作这些能力已实现；合成 beforeunload、软件键盘和 axe 不替代人工体验。

@@ -131,12 +131,3 @@ export const CHAT_SEED_DATA: readonly ChatSeed[] = [
     ]
   }
 ];
-
-/** 对方的自动回复：发出消息 1.1 秒后随机挑一句。 */
-export const REPLIES: readonly string[] = [
-  "ok that's wild",
-  'send the file',
-  'how is this one HTML file',
-  'screenshotting this',
-  'wait do the windows resize too'
-];

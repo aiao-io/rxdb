@@ -19,6 +19,7 @@ import { hostCapabilities } from './host-capabilities.mjs';
 import { hostFilesystem } from './host-filesystem.mjs';
 import { integratedApp } from './integrated-app.mjs';
 import { lazyLoading } from './lazy-loading.mjs';
+import { localMessages } from './local-messages.mjs';
 import { multiTabStartup } from './multi-tab-startup.mjs';
 import { multiTab } from './multi-tab.mjs';
 import { noteDrafts } from './note-drafts.mjs';
@@ -47,6 +48,7 @@ import { windowLayout } from './window-layout.mjs';
  * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session, server) }`，登记在这里；server 可用于同源切换构建产物。
  */
 export const GROUPS = [
+  { ...localMessages, weight: 40 },
   { ...noteDrafts, weight: 40 },
   { ...reminderDrafts, weight: 35 },
   { ...contentActions, engines: ['chromium'], weight: 25 },
