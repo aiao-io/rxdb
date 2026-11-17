@@ -1,7 +1,7 @@
 ---
 id: epic-014-commit-graph-remote-exchange
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-11-17
 targetDate: TBD
 owner: jimmy
 ---

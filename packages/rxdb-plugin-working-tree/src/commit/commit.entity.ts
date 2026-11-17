@@ -18,8 +18,33 @@ import { Entity, PropertyType, SYSTEM_ENTITY_PERMISSIONS } from '@aiao/rxdb';
  * 种类必须是独立一列，不能从「`author` 为空」反推：那把两种根节点压成同一种，
  * 而 FR-044 的物化屏障要求能单独认出 `branch_baseline`；更要命的是它让「作者恰好没记上的
  * 普通 commit」与系统根节点不可区分，于是空 ChangeSet 的门禁对前者也失效。
+ *
+ * `merge` 是 US-316 加的第四种：**只由导入远端提交写下**（`importCommits()`），本地 `commit()` 从不产出它——
+ * 本地没有合并命令，写路径的父链只取当前 HEAD 一个。它有两个及以上的父，**ChangeSet 是合并结果相对第一父的增量**
+ * （与 `git diff M^1 M` 同义），所以「某个提交的数据 = 第一父的数据 + 它自己的 ChangeSet」对四种提交一律成立：
+ * 导入时把合并提交的 ChangeSet 叠到此刻等于第一父的业务表上，`restore()` 沿第一父链撤销，都靠这一条。
+ * 非第一父那一侧的提交只作为历史节点入库，它们的 ChangeSet 从来没有直接落到本分支的业务表上。
+ * 合并提交允许空 ChangeSet（只记下祖先关系的合并），这是它与 `normal` 在 FR-009 上的唯一区别。
  */
-export type CommitKind = 'normal' | 'baseline' | 'branch_baseline';
+export type CommitKind = 'normal' | 'merge' | 'baseline' | 'branch_baseline';
+
+/**
+ * 两种系统根节点
+ *
+ * @remarks
+ * 单独成名而不是到处写 `Exclude<CommitKind, 'normal'>`：`merge` 进来之后那个写法悄悄多了一种，
+ * 「系统根节点的固定文案」这类只对根节点成立的表就会被要求给合并提交也编一条文案。
+ */
+export type SystemCommitKind = 'baseline' | 'branch_baseline';
+
+/**
+ * 本地写路径（`writeCommit()`）会写下的种类：除了 `merge` 全都是
+ *
+ * @remarks
+ * 本地没有合并命令，`writeCommit()` 的父链又只取当前 HEAD 一个——让它收 `merge` 就是允许写出一个只有一个父的合并提交。
+ * 合并提交只能由导入写下（`working-tree/import-command.ts`），那条路自带完整的父链。
+ */
+export type LocalCommitKind = Exclude<CommitKind, 'merge'>;
 
 /**
  * 不可变提交节点
@@ -103,7 +128,7 @@ export class Commit {
    * 父链数组
    *
    * @remarks
-   * 根 commit 为 `[]`，merge 可多父。
+   * 根 commit 为 `[]`，merge 可多父，顺序有语义：第 0 个是第一父，ChangeSet 就是相对它的增量（见 {@link CommitKind}）。
    */
   parentIds!: string[];
 
@@ -130,7 +155,8 @@ export class Commit {
    *
    * @remarks
    * 普通 commit 要求 trim 后非空且由调用方提供；两种系统根节点写系统生成的固定文案
-   * （列本身 not null，没有「无消息」这种物理状态）。
+   * （列本身 not null，没有「无消息」这种物理状态）。导入的提交原样保存远端那一份（US-316），不 trim、不换文案：
+   * 它参与内容指纹，改一个字节指纹就对不上。
    */
   message!: string;
 
@@ -141,6 +167,9 @@ export class Commit {
 
   /**
    * 创建时间
+   *
+   * @remarks
+   * 本地提交由写入时刻给；导入的提交带远端那一份时间入库（US-316）。它不进内容指纹，也不参与「同 ID 是不是同一个提交」的判定。
    */
   createdAt!: Date;
 

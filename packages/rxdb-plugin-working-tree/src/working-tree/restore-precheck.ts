@@ -18,8 +18,9 @@
  *
  * ## 三件这里刻意不做的事
  *
- * 1. **不只检查目标节点。** 被读取并应用的是 HEAD 到目标之间**每一个**节点的 inverse patch；
- *    中间任何一个引用了不认识的实体，物化结果就已经错了，而目标节点自己可以干干净净。
+ * 1. **不只检查目标节点。** 被读取并应用的是 HEAD 沿第一父链到目标之间**每一个**节点的 inverse patch；
+ *    中间任何一个引用了不认识的实体，物化结果就已经错了，而目标节点自己可以干干净净。合并提交带进来的侧枝
+ *    不在这条路上（它们的 ChangeSet 从没直接落到本分支的业务表上），也就不在预检的范围里。
  * 2. **不边写边检查。** FR-033 的措辞是「拒绝时所有持久状态 MUST 零变化」，而「写了再回滚」
  *    在 revision 与自增序列上留下的痕迹与从未写过不同。
  * 3. **不解码。** 判据只需要「`namespace.entity` 在本进程解析得到吗」，解码要等到真的物化
@@ -28,13 +29,14 @@
 
 import type { EntityMetadata, TransactionExecutor } from '@aiao/rxdb';
 import { RXDB_CHANGE_CODEC_VERSION, RxDBError } from '@aiao/rxdb';
+import { resolveFirstParentReplayPath } from '../commit/commit-ancestry.js';
 import { CommitChangeSet } from '../commit/commit-change-set.entity.js';
-import { loadCommitsByIds, readCommitBranchRef } from '../commit/list-commits.js';
+import { readCommitBranchRef } from '../commit/list-commits.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import type { WorkingTreePatchCodecContext } from './working-tree-patch-codec.js';
 
 /**
- * 恢复目标：要把工作树恢复到哪一个 commit、其中的哪些单元。
+ * 恢复目标：要把业务表恢复到哪一个 commit 的数据、其中的哪些行。
  *
  * @remarks
  * 收成一个对象而不是裸 `commitId: string`：`restore()` 的入参迟早要长出「恢复到某个时间点」
@@ -42,19 +44,22 @@ import type { WorkingTreePatchCodecContext } from './working-tree-patch-codec.js
  *
  * `entities` 与硬裁决 1 不冲突，方向恰好相反：硬裁决 1 禁的是 **`commit()` / `discard()`
  * 挑一部分未提交变更**——工作树里躺着什么，就整棵一起落盘或整棵一起丢。这里挑的是
- * **要往工作树里写什么**，写完之后它们和手写变更一样是整棵工作树的一部分，下一次
+ * **要把哪些行恢复成目标时的样子**，写完之后它们和手写变更一样是整棵工作树的一部分，下一次
  * `commit()` 照样全量提交（FR-015 末句）。
  */
 export interface WorkingTreeRestoreTarget {
-  /** 目标 commit 的 id；必须在当前分支 HEAD 的可达父链上（FR-033） */
+  /** 目标 commit 的 id；必须在当前分支 HEAD 的第一父链上（FR-033）。只经由合并提交的非第一父可达的提交被拒为 `side_branch_target`（US-316） */
   readonly commitId: string;
 
   /**
-   * 只恢复目标 commit 里点名的这些单元；缺省 = 整个 commit 的全部单元
+   * 只把点名的这些行恢复成目标时的数据，别的行留在 HEAD；缺省 = 全部行
    *
    * @remarks
    * 三段全给而不是只给 `entityId`：同一个 id 在两个 namespace 下是两行，
    * 只按 id 过滤会把另一张表里恰好同 id 的那一行也带进来。
+   *
+   * US-317 之前它筛的是「目标节点自己的单元」：点名一行目标节点没碰过、却在之后被改过的数据，恢复出来是空的。
+   * 现在筛的是「HEAD → 目标」的差异：点名的行只要两端不同就会被恢复，与它是在哪一次提交里变的无关。
    */
   readonly entities?: readonly WorkingTreeRestoreEntityRef[];
 }
@@ -154,70 +159,33 @@ export type RestoreCompatibility =
     };
 
 /**
- * 从某个节点出发、沿**全部**父链可达的 commit id，按逐层回溯的顺序。
- *
- * @param executor - 当前事务执行器
- * @param rootId - 起点；它自己排在第一个
- * @returns 可达节点 id，最新在前
- *
- * @remarks
- * 走全部父链而不只走第一父：合并节点有两个父，只沿第一父走会漏掉整条被合并进来的历史，
- * 于是那条历史上的不兼容节点在预检里看不见，却在物化时被真的应用。
- *
- * `seen` 既去重也断环——提交图理论上无环，但被篡改过的库可以有环，逐父递归会栈溢出。
- * 逐层取而不是逐个取：100 个 commit 的线性历史逐个取就是 100 次往返。
- */
-const collectReachableCommitIds = async (executor: TransactionExecutor, rootId: string): Promise<string[]> => {
-  const collected: string[] = [];
-  const seen = new Set<string>([rootId]);
-  let frontier: string[] = [rootId];
-
-  while (frontier.length > 0) {
-    const level = await loadCommitsByIds(executor, frontier);
-    const next: string[] = [];
-    for (const commit of level) {
-      collected.push(commit.id);
-      for (const parentId of commit.parentIds) {
-        if (seen.has(parentId)) continue;
-        seen.add(parentId);
-        next.push(parentId);
-      }
-    }
-    frontier = next;
-  }
-  return collected;
-};
-
-/**
  * 选定「恢复到目标节点」要回退的那条确定性路径。
  *
  * @param executor - 当前事务执行器
  * @param headCommitId - 当前分支 HEAD；空分支为 `null`
  * @param targetCommitId - 目标 commit id
  * @returns 要逐个应用 `inversePatch` 的节点，按重放顺序（HEAD 在前）；
- *   目标不在 HEAD 的可达父链上时返回 `undefined`
+ *   目标不在 HEAD 的**第一父链**上时返回 `undefined`
  *
  * @remarks
- * 路径 = **HEAD 可达集减去目标可达集**，而不是「从 HEAD 往回走到目标为止」。两者在线性历史
- * 上一样，在菱形历史上不一样：目标自己的祖先也在 HEAD 的可达集里，从另一条边绕过去就会把
- * 它们一并算进要回退的节点，于是恢复动作把目标**之前**的历史也退掉了。
+ * 路径 = **从 HEAD 沿第一父链走到目标之前的那些提交**（US-316 起）。每个提交的 ChangeSet 是相对它第一父的增量，
+ * 合并提交也一样，所以业务表在 HEAD 上等于「根 + 第一父链上每个 ChangeSet」——退回目标只要沿这条链倒着撤。
+ * 在此之前这里是「HEAD 可达集减去目标可达集」：线性历史上两者逐个相同，合并图上后者会把侧枝提交也算进撤销路径，
+ * 而侧枝的 ChangeSet 从没直接落到本分支的业务表上（它们的影响已经折进了合并提交那份增量），撤它们就是撤第二遍。
  *
- * 顺序取 HEAD 侧的逐层回溯序，所以它是确定性的：同一张图每次给出同一条路径，
- * 「首个不兼容节点」才可能稳定（FR-050）。
+ * 顺序就是第一父链的回溯序，确定性的：同一张图每次给出同一条路径，「首个不兼容节点」才可能稳定（FR-050）。
  *
- * 返回 `undefined` 而不是抛错：「这个 commit 不在当前分支的历史里」是调用方要转成失败出口的
- * 一种**判定结果**（FR-033 只允许恢复可达节点），不是库坏了。
+ * 返回 `undefined` 而不是抛错：「这个 commit 退不到」是调用方要转成失败出口的一种**判定结果**，不是库坏了。
+ * 侧枝上的目标与不可达的目标在这里都是 `undefined`；要分开两者的调用方（`restore()`、提交视图）直接用
+ * `commit/commit-ancestry.ts` 的 `resolveFirstParentReplayPath()`。
  */
 export const selectRestoreReplayPath = async (
   executor: TransactionExecutor,
   headCommitId: string | null,
   targetCommitId: string
 ): Promise<readonly string[] | undefined> => {
-  if (headCommitId === null) return undefined;
-  const fromHead = await collectReachableCommitIds(executor, headCommitId);
-  if (!fromHead.includes(targetCommitId)) return undefined;
-  const kept = new Set(await collectReachableCommitIds(executor, targetCommitId));
-  return fromHead.filter(commitId => !kept.has(commitId));
+  const resolved = await resolveFirstParentReplayPath(executor, headCommitId, targetCommitId);
+  return resolved.kind === 'path' ? resolved.path : undefined;
 };
 
 /** 一个节点里第一条解析不到目标实体的 ChangeSet；全都解析得到则 `undefined`。 */
@@ -283,16 +251,17 @@ export const findFirstReplayIncompatibility = async (
  * @param codec - 元数据解析上下文，见 {@link WorkingTreePatchCodecContext}
  * @param target - 恢复目标，见 {@link WorkingTreeRestoreTarget}
  * @returns 见 {@link RestoreCompatibility}
- * @throws {@link RxDBError} 目标不在当前分支 HEAD 的可达父链上
+ * @throws {@link RxDBError} 目标不在当前分支 HEAD 的第一父链上（不可达，或只在合并进来的侧枝上）
  *
  * @remarks
  * **本函数一个字节都不写。** 「检查」这个词本身就是只读的承诺；顺手写一行状态的话，它就没法
  * 被 restore 之外的入口（比如 UI 的「这个版本能不能恢复」预览）安全复用，而那个预览正是
  * 把这一段拆成独立函数的理由。
  *
- * 目标不可达时**抛**而不是返回失败出口：那是调用方的前置条件。`restore-command.ts` 先用
- * {@link selectRestoreReplayPath} 判可达性并把它转成自己的失败 `reason`，走到这里时
- * 「可达」已经成立；这条 throw 只会在有人跳过那一步时触发，而那是代码缺陷，不是用户输入。
+ * 目标退不到时**抛**而不是返回失败出口：那是调用方的前置条件。`restore-command.ts` 先用
+ * `resolveFirstParentReplayPath()` 判可达性并把它转成自己的失败 `reason`（`unreachable_target` /
+ * `side_branch_target`），走到这里时「在第一父链上」已经成立；这条 throw 只会在有人跳过那一步时触发，
+ * 而那是代码缺陷，不是用户输入。
  */
 export const checkRestoreCompatibility = async (
   executor: TransactionExecutor,
@@ -304,8 +273,8 @@ export const checkRestoreCompatibility = async (
   const path = await selectRestoreReplayPath(executor, ref.headCommitId, target.commitId);
   if (!path) {
     throw new RxDBError(
-      `Commit '${target.commitId}' is not reachable from branch '${token.branchId}' HEAD; ` +
-        'callers must reject unreachable targets before running the restore precheck.'
+      `Commit '${target.commitId}' is not on the first-parent chain of branch '${token.branchId}' HEAD; ` +
+        'callers must reject unreachable and side-branch targets before running the restore precheck.'
     );
   }
 

@@ -2,8 +2,8 @@
  * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、epic-006「受信调用点登记表」）。
  *
  * @remarks
- * 这个文件守的是**两张表之间的距离**：epic-006「受信调用点登记表」的 12 行表格，与
- * `TRUSTED_CALLSITE_REGISTRY` 的 12 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
+ * 这个文件守的是**两张表之间的距离**：epic-006「受信调用点登记表」的 15 行表格，与
+ * `TRUSTED_CALLSITE_REGISTRY` 的 15 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
  * 在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
  *
  * **US-025 抽包挪走了第三张表。** 9 处真实的 `declareTrustedWrite()` 原本就在
@@ -11,7 +11,9 @@
  * #1~#6 去了 `@aiao/rxdb-plugin-history`、#7~#9 去了 `@aiao/rxdb-plugin-sync`，8 处 QueryCache
  * 批量写去了 `@aiao/rxdb-plugin-querycache` 与 `@aiao/rxdb-plugin-sync`。vitest 的 `import.meta.glob`
  * 进不了兄弟包，于是这份测试对那两半是**结构性失明**——不是少看了几行，是一行都看不见。
- * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，#12 在 `@aiao/rxdb-plugin-sync` 里，同样看不见。
+ * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，#12 在 `@aiao/rxdb-plugin-sync` 里，
+ * US-317 补登的 #13 / #14（discard / restore 回写业务表）与 US-316 补登的 #15（导入远端提交）又在
+ * `@aiao/rxdb-plugin-working-tree` 里，同样看不见。
  *
  * 失明的那两半整个交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066，
  * `pnpm audit:callsite-drift`）：它跑在 node 里，扫整个 `packages/`，双向比对登记键、自报符号、
@@ -68,7 +70,7 @@ import {
 import { WRITE_ENTRANCES } from '../../trusted-write/write-entrance.js';
 
 // ---------------------------------------------------------------------------
-// 源码快照：`src/**` 下的全部核心源码。12 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
+// 源码快照：`src/**` 下的全部核心源码。15 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
 // （文件头），所以这份快照如今只用来证明**核心自己一处都没有**。
 // 负向 glob 与 {@link isScannedSourcePath} 一一对应，下面有一条用例把两者钉在一起。
 // ---------------------------------------------------------------------------
@@ -305,7 +307,7 @@ const backticked = (cell: string): string => {
   return matched[1];
 };
 
-/** 那张表的 12 行，现场从 epic-006 原文解析。 */
+/** 那张表的 15 行，现场从 epic-006 原文解析。 */
 const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(EPIC_MARKDOWN, '#### 受信调用点登记表', '\n### ')
   .split('\n')
   .filter(line => line.trimStart().startsWith('|'))
@@ -332,8 +334,12 @@ const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(EPIC_MARKDOWN, '#### 受
  *
  * @remarks
  * 这是整份测试里唯一一处人工对照，因为契约表格给的是人读的标签、代码给的是枚举名，两边没有
- * 可推导的关系。下面有一条用例断言这张映射对 7 个意图既**全覆盖**又**不重号**——漏一个或把两个
+ * 可推导的关系。下面有一条用例断言这张映射对 9 个意图既**全覆盖**又**不重号**——漏一个或把两个
  * 标签指到同一个枚举，都会在那里红，而不是悄悄让某一行失去比对。
+ *
+ * 「工作树投影」是 US-317 加的：discard / restore 改完逻辑工作树之后把业务表对齐成 HEAD + 条目
+ * （#13 / #14）。两行共用一个标签，与「分支物化」横跨 #1 / #10 / #11 同理——意图说的是「为什么写」，
+ * 「在哪写」已经由文件与符号两列说清楚了。
  */
 const INTENT_BY_CONTRACT_LABEL: Readonly<Record<string, TrustedWriteIntent>> = {
   分支物化: TrustedWriteIntent.branch_materialization,
@@ -342,7 +348,9 @@ const INTENT_BY_CONTRACT_LABEL: Readonly<Record<string, TrustedWriteIntent>> = {
   '撤销 / 重做': TrustedWriteIntent.undo_redo,
   逐条合并: TrustedWriteIntent.merge_per_change,
   压缩合并: TrustedWriteIntent.merge_squash,
-  '`remote_sync`': TrustedWriteIntent.remote_sync
+  '`remote_sync`': TrustedWriteIntent.remote_sync,
+  工作树投影: TrustedWriteIntent.working_tree_projection,
+  远端提交导入: TrustedWriteIntent.remote_commit_import
 };
 
 // ---------------------------------------------------------------------------
@@ -471,10 +479,10 @@ const isScannedSourcePath = (path: string): boolean => {
 // ---------------------------------------------------------------------------
 
 describe('登记表与 epic-006「受信调用点登记表」的表格逐行一致', () => {
-  it('契约表格解析出 12 行，与登记表长度一致', () => {
-    expect(CONTRACT_ROWS).toHaveLength(12);
+  it('契约表格解析出 15 行，与登记表长度一致', () => {
+    expect(CONTRACT_ROWS).toHaveLength(15);
     expect(TRUSTED_CALLSITE_REGISTRY).toHaveLength(CONTRACT_ROWS.length);
-    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   });
 
   it('文件、符号、写原语、存档行号逐格相同，顺序也相同', () => {
@@ -493,7 +501,7 @@ describe('登记表与 epic-006「受信调用点登记表」的表格逐行一�
     expect(fromRegistry).toEqual(fromContract);
   });
 
-  it('意图标签映射对 7 个枚举既全覆盖又不重号', () => {
+  it('意图标签映射对 9 个枚举既全覆盖又不重号', () => {
     const mapped = Object.values(INTENT_BY_CONTRACT_LABEL);
     expect(new Set(mapped).size).toBe(mapped.length);
     expect([...new Set(mapped)].sort()).toEqual(Object.values(TrustedWriteIntent).sort());
@@ -530,11 +538,58 @@ describe('登记表与 epic-006「受信调用点登记表」的表格逐行一�
     // 它发起一次 `switchBranch`（#10），屏障在那次切换的 `prepare` 里经执行器落投影（#11）。
     // `adapter.transaction` 重新出现在这一列，就是有人又给一笔普通事务发了受信票。
   });
+
+  it('工作树投影的两行（US-317）：discard / restore 各一个调用点，都走执行器上的 mergeChanges、都是投影重写', () => {
+    // 两行同一个意图，靠文件与符号分开：命令自己维护条目，回写本身不能再被捕获成单元，
+    // 所以入口是 projection_rewrite 而不是 domain_recompute——后者会让回写被挂载点 2 再记一遍，
+    // 条目翻倍、revision 一次推两格。
+    const projection = TRUSTED_CALLSITE_REGISTRY.filter(
+      row => row.intent === TrustedWriteIntent.working_tree_projection
+    );
+    expect(
+      projection.map(row => ({
+        key: trustedCallsiteKey(row),
+        writePrimitive: row.writePrimitive,
+        entrance: row.entrance
+      }))
+    ).toEqual([
+      {
+        key: 'discard-command.ts·rewriteProjectionToHead·working_tree_projection',
+        writePrimitive: 'executor.mergeChanges',
+        entrance: 'projection_rewrite'
+      },
+      {
+        key: 'restore-command.ts·rewriteProjectionToTarget·working_tree_projection',
+        writePrimitive: 'executor.mergeChanges',
+        entrance: 'projection_rewrite'
+      }
+    ]);
+  });
+
+  it('远端提交导入一行（US-316）：执行器上的 mergeChanges，投影重写，意图与 remote_sync / 工作树投影都分开', () => {
+    // 同步拉取（remote_sync）产生 origin='remote_sync' 的单元、关触发器防回推；导入写的是已经是提交的远端历史，
+    // HEAD 随之前移、工作树保持 clean，所以入口是投影重写。与工作树投影入口相同、意图不同：那两行是业务表跟上条目，
+    // 这一行是业务表跟上新 HEAD——合成一个意图，登记表就说不清「HEAD 会不会动」。
+    const imports = TRUSTED_CALLSITE_REGISTRY.filter(row => row.intent === TrustedWriteIntent.remote_commit_import);
+    expect(
+      imports.map(row => ({
+        key: trustedCallsiteKey(row),
+        writePrimitive: row.writePrimitive,
+        entrance: row.entrance
+      }))
+    ).toEqual([
+      {
+        key: 'import-command.ts·applyImportedCommit·remote_commit_import',
+        writePrimitive: 'executor.mergeChanges',
+        entrance: 'projection_rewrite'
+      }
+    ]);
+  });
 });
 
 describe('核心自身既不受信写，也不批量写', () => {
   it('核心源码里一处 declareTrustedWrite 都没有', () => {
-    // 12 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
+    // 15 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
     // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先在 epic-006 那张表里登记。
     expect(DECLARED_CALLSITES.map(declared => `${declared.path}:${declared.line}`)).toEqual([]);
   });
@@ -587,7 +642,7 @@ describe('核心自身既不受信写，也不批量写', () => {
 });
 
 describe('登记键：文件 + 符号 + 意图', () => {
-  it('12 行 12 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
+  it('15 行 15 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
     const keys = TRUSTED_CALLSITE_REGISTRY.map(trustedCallsiteKey);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys[4]).not.toBe(keys[5]);
@@ -717,7 +772,7 @@ describe('扫描排除（epic-006「受信调用点登记表」的排除段）',
     expect(SCANNED_FILES.filter(file => !isScannedSourcePath(file.path)).map(file => file.path)).toEqual([]);
   });
 
-  it('登记表点名的 9 个文件一个都不在核心的扫描清单里', () => {
+  it('登记表点名的 13 个文件一个都不在核心的扫描清单里', () => {
     // 反过来断言：抽包之后它们**应该**全部不在。哪天有一个回到核心而登记表没跟着改，
     // 这里会红——而 T066 那一侧不会，它按基名找，找得到就算数，不问在哪个包。
     const scanned = new Set(SCANNED_FILES.map(file => file.path.split('/').pop()));

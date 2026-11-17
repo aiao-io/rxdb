@@ -267,6 +267,7 @@ const sidebars: SidebarsConfig = {
         'migration/http-page-token',
         'migration/desktop-split',
         'migration/working-tree-split',
+        'migration/working-tree-discard-restore',
         'migration/tree-split',
         'migration/branch-detree',
         'migration/plugins',

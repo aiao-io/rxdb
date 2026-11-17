@@ -166,6 +166,34 @@
         "kind": "both"
       },
       {
+        "name": "CommitExchangeRecord",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExportOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExportPage",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportEntityProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportOptions",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportResult",
+        "kind": "type"
+      },
+      {
         "name": "CommitKind",
         "kind": "type"
       },
@@ -303,6 +331,10 @@
       },
       {
         "name": "isCommitErrorCode",
+        "kind": "value"
+      },
+      {
+        "name": "isCommitExportPageEmpty",
         "kind": "value"
       },
       {
@@ -872,7 +904,23 @@
         "kind": "value"
       },
       {
+        "name": "exportWith",
+        "kind": "value"
+      },
+      {
+        "name": "IMPORT_OK",
+        "kind": "value"
+      },
+      {
+        "name": "IMPORT_RECORD",
+        "kind": "value"
+      },
+      {
         "name": "logWith",
+        "kind": "value"
+      },
+      {
+        "name": "REJECTED_IMPORTS",
         "kind": "value"
       },
       {

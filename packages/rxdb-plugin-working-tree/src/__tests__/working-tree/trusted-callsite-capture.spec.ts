@@ -16,10 +16,12 @@
  *    那张表改一格两边同时红；抄一份过来的话，改契约只会红在核心那一侧，这一侧照旧全绿——
  *    而全绿的那一侧恰好是判「捕获规则要不要跟着改」的那一侧。
  *
- * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**12 行里恰好 4 行不产生单元**——
- * #1 分支物化、#3 redo 失效，以及 metadata-only 接管路径的 #10（那次切换）与 #11（屏障里落投影的
- * 批量写）。这四行是「受信写不一定进工作树」的全部证据；多出一行意味着某条真实编辑路径的痕迹被
- * 悄悄咽掉了，少一行则意味着库自己的簿记开始落进用户的工作树。
+ * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**15 行里恰好 7 行不产生单元**——
+ * #1 分支物化、#3 redo 失效，metadata-only 接管路径的 #10（那次切换）与 #11（屏障里落投影的
+ * 批量写），US-317 的 #13 / #14（discard / restore 把业务表对齐成 HEAD + 条目：条目由命令自己写，
+ * 回写再被捕获一次就是同一批改动记两遍），以及 US-316 的 #15（导入远端提交：HEAD 快进、工作树保持 clean，
+ * 导入的变化已经是提交了，再落成单元就会被下一次 commit() 当成本地改动再提交一次）。这七行是「受信写不一定进工作树」
+ * 的全部证据；多出一行意味着某条真实编辑路径的痕迹被悄悄咽掉了，少一行则意味着库自己的簿记开始落进用户的工作树。
  */
 
 import { TRUSTED_CALLSITE_REGISTRY } from '@aiao/rxdb';
@@ -60,14 +62,15 @@ const CONTRACT_PRODUCES_ENTRY: readonly boolean[] = sectionOf(EPIC_MARKDOWN, '##
 
 describe('epic-006 受信调用点登记表第 7 列：产生工作树单元', () => {
   it('这一列由矩阵算出，不从登记表字段里读', () => {
-    // 前置：契约那张表确实解析出了 12 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
-    // 全绿——被守住的就从「12 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
+    // 前置：契约那张表确实解析出了 15 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
+    // 全绿——被守住的就从「15 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
+    expect(CONTRACT_PRODUCES_ENTRY).toHaveLength(15);
     expect(CONTRACT_PRODUCES_ENTRY).toHaveLength(TRUSTED_CALLSITE_REGISTRY.length);
     const computed = TRUSTED_CALLSITE_REGISTRY.map(row => producesWorkingTreeEntry(row));
     expect(computed).toEqual(CONTRACT_PRODUCES_ENTRY);
   });
 
-  it('不产生单元的恰好是 #1 分支物化、#3 redo 失效与 #10 / #11 接管路径的分支物化', () => {
+  it('不产生单元的恰好是 #1 / #10 / #11 分支物化、#3 redo 失效、#13 / #14 工作树投影与 #15 远端提交导入', () => {
     const notProducing = TRUSTED_CALLSITE_REGISTRY.filter(row => !producesWorkingTreeEntry(row)).map(
       row => `${row.file}·${row.symbol}`
     );
@@ -75,7 +78,10 @@ describe('epic-006 受信调用点登记表第 7 列：产生工作树单元', (
       'VersionManager.ts·switchBranch',
       'HistoryManager.ts·invalidateRedoStack',
       'materialize-branch.ts·switchWithMaterialization',
-      'materialize-branch.ts·applyMaterializedActions'
+      'materialize-branch.ts·applyMaterializedActions',
+      'discard-command.ts·rewriteProjectionToHead',
+      'restore-command.ts·rewriteProjectionToTarget',
+      'import-command.ts·applyImportedCommit'
     ]);
   });
 });

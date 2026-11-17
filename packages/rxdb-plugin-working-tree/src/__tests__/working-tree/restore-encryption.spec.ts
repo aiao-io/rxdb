@@ -17,8 +17,9 @@
  * ## 这一组防的是四件事
  *
  * 1. **物化时顺手 decode 了加密列。** `change-codec.ts` 对 `encrypted === true` 的列
- *    **一律跳过**编解码，而 restore 的重放链路是「读 ChangeSet → decode → 写条目 → encode」，
- *    中间任何一环把加密列当成普通 `binary` 处理，都会把信封字符串按 hex 解一遍。
+ *    **一律跳过**编解码，而 restore 的重放链路是「读重放路径上的 ChangeSet → decode → 逐个撤销、
+ *    折成相对 HEAD 的差异 → encode 写条目」（US-317：条目是 HEAD → 目标的差异，取自路径上那些节点的
+ *    反向补丁），中间任何一环把加密列当成普通 `binary` 处理，都会把信封字符串按 hex 解一遍。
  *    单看加密列分不出「codec 正确跳过了它」和「codec 压根没跑」——两种实现给出同一个观测。
  *    所以 {@link SceneSecret} 上另有一列 `thumbnail`：**同为 `binary`、只差 `encrypted`**。
  *    加密列必须原样、不加密列必须带 `$rxdbChangeValue` 信封，两条同时成立才排除得掉后者。
@@ -62,23 +63,26 @@ import {
   type WorkingTreeSceneOptions
 } from './fixtures/working-tree-scene.js';
 
-/** 当前 HEAD 的 commit id。 */
+/** 当前 HEAD 的 commit id；承载加密列的就是它（它是重放路径上唯一的节点）。 */
 const HEAD = 'commit-head';
 
-/** 恢复目标；`HEAD~1` 那一个，承载加密列的就是它。 */
+/** 恢复目标；`HEAD~1` 那一个。 */
 const OLDER = 'commit-older';
 
 /**
- * 加密列 `secret` 的**正向**落库值：一段信封字符串。
+ * 加密列 `secret` 在 HEAD 那次提交里的**正向**落库值：一段信封字符串。
  *
  * @remarks
  * 前缀刻意写成 `enc:v1:` 这种一眼可辨的形状，并且与 {@link SECRET_BEFORE} 只差尾巴——
  * 断言失败时能直接看出「串错了方向」还是「被解开了」。它同时是本文件唯一的**泄漏探针**：
  * 除了条目的 `patch` 两列，它不该出现在任何序列化产物里。
+ *
+ * 恢复到 {@link OLDER} 撤销的正是 HEAD 这次提交：条目的 `patch` 取它的**反向**值（目标上的值，
+ * {@link SECRET_BEFORE}），`inversePatch` 取这里的正向值（HEAD 上的值）。
  */
 const SECRET_AFTER = 'enc:v1:9f2c4ae1d0b7__CIPHERTEXT_AFTER__';
 
-/** 加密列 `secret` 的**反向**落库值；与 {@link SECRET_AFTER} 同权。 */
+/** 加密列 `secret` 的**反向**落库值，即目标上的那份；与 {@link SECRET_AFTER} 同权。 */
 const SECRET_BEFORE = 'enc:v1:1a8b30ff62c5__CIPHERTEXT_BEFORE__';
 
 /** 不加密 binary 列 `thumbnail` 的字节，hex 形态；对照组。 */
@@ -123,16 +127,16 @@ const secretUnitOf = (unitId: string): CommitChangeUnit => {
 };
 
 /**
- * 两节点历史，`OLDER` 那一个带加密列。
+ * 两节点历史，`HEAD` 那一个带加密列。
  *
  * @remarks
- * `HEAD` 留成默认的 `app.Note` 单元：恢复目标之外的节点长什么样与本组无关，
- * 保持默认能顺带确认物化只捡了目标那一条。
+ * `OLDER` 留成默认的 `app.Note` 单元：目标节点自己的单元在新语义下一条都不读（物化读的是重放路径），
+ * 保持默认能顺带确认物化没有去捡目标那一条。
  */
 const sceneWithSecret = (options: WorkingTreeSceneOptions = {}): WorkingTreeScene => {
   const scene = createWorkingTreeScene({ headCommitId: HEAD, headRevision: 2, ...options });
-  seedCommit(scene, OLDER, [], [secretUnitOf(`${OLDER}-secret`)]);
-  seedCommit(scene, HEAD, [OLDER]);
+  seedCommit(scene, OLDER);
+  seedCommit(scene, HEAD, [OLDER], [secretUnitOf(`${HEAD}-secret`)]);
   return scene;
 };
 
@@ -204,9 +208,10 @@ describe('物化保持加密 envelope（FR-043 前半）', () => {
 
     // 信封字符串被当成普通 binary 解一遍的话，这里会是一段 Uint8Array 或一次 hexToBytes 抛错；
     // 被 JSON 往返整形过的话会是 `{"0":…}`。两种都不是字符串，所以类型与值一起钉。
+    // 值是目标上的那份密文（HEAD 那次提交的反向值）：恢复写回的是目标的数据。
     expect({ type: typeof patch['secret'], value: patch['secret'] }).toEqual({
       type: 'string',
-      value: SECRET_AFTER
+      value: SECRET_BEFORE
     });
   });
 
@@ -219,7 +224,7 @@ describe('物化保持加密 envelope（FR-043 前半）', () => {
     // 这条是上一条的反面。只看加密列的话，「codec 正确跳过了加密列」与「codec 整个没跑」
     // 给出完全相同的观测；`thumbnail` 与 `secret` 同为 binary、只差 `encrypted`，
     // 它必须带信封，才说明 codec 确实跑了而且是按 `encrypted` 分的流。
-    expect(patch['thumbnail']).toEqual(binaryEnvelope(THUMB_AFTER_HEX));
+    expect(patch['thumbnail']).toEqual(binaryEnvelope(THUMB_BEFORE_HEX));
   });
 
   it('明文列照常穿过，没被顺手动过', async () => {
@@ -227,7 +232,7 @@ describe('物化保持加密 envelope（FR-043 前半）', () => {
 
     await restoreOlder(scene);
 
-    expect((secretEntryOf(scene).patch ?? {})['label']).toBe('标题');
+    expect((secretEntryOf(scene).patch ?? {})['label']).toBe('旧标题');
   });
 
   it('inversePatch 与 patch 同权', async () => {
@@ -238,31 +243,32 @@ describe('物化保持加密 envelope（FR-043 前半）', () => {
 
     // 「反向数据泄漏与正向数据泄漏是同一件事」（commit-codec.ts）。只守正向的实现
     // 会在下一次 discard 重放时以同样的方式坏掉，而那条路径没有第二个守卫。
+    // inversePatch 是 HEAD 上的值：discard 拿它把业务表退回 HEAD（US-317）。
     expect({ secret: inverse['secret'], thumbnail: inverse['thumbnail'], label: inverse['label'] }).toEqual({
-      secret: SECRET_BEFORE,
-      thumbnail: binaryEnvelope(THUMB_BEFORE_HEX),
-      label: '旧标题'
+      secret: SECRET_AFTER,
+      thumbnail: binaryEnvelope(THUMB_AFTER_HEX),
+      label: '标题'
     });
   });
 
-  it('物化出来的 patch 与历史行等值但不共享引用', async () => {
+  it('物化出来的 patch 与历史行的反向值等值但不共享引用', async () => {
     const scene = sceneWithSecret();
     const historic = secretChangeSetOf(scene);
 
     await restoreOlder(scene);
     const entry = secretEntryOf(scene);
 
-    // 等值是内容判据。不共享引用是另一条、而且更要紧：条目在 commit() 之后会被清理，
-    // 与历史行共享同一个对象的话，清理会顺手改掉已经不可变的历史（data-model.md §2.4）——
-    // 而 `structuredClone` 与「直接赋引用」在等值断言下看起来一模一样。
+    // 等值是内容判据：撤销 HEAD 那次提交，条目的两份补丁恰好是它的两份对调。不共享引用是另一条、
+    // 而且更要紧：条目在 commit() 之后会被清理，与历史行共享同一个对象的话，清理会顺手改掉已经不可变的
+    // 历史（data-model.md §2.4）——而 `structuredClone` 与「直接赋引用」在等值断言下看起来一模一样。
     expect({
       patchEqual: entry.patch,
       inverseEqual: entry.inversePatch,
-      sharesPatch: entry.patch === historic.patch,
-      sharesInverse: entry.inversePatch === historic.inversePatch
+      sharesPatch: entry.patch === historic.inversePatch,
+      sharesInverse: entry.inversePatch === historic.patch
     }).toEqual({
-      patchEqual: historic.patch,
-      inverseEqual: historic.inversePatch,
+      patchEqual: historic.inversePatch,
+      inverseEqual: historic.patch,
       sharesPatch: false,
       sharesInverse: false
     });

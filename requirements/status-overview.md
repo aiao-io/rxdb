@@ -9,8 +9,8 @@
 | :------------- | :--- |
 | ✅ Done        | 95   |
 | 🚧 In Progress | 13   |
-| 👀 In Review   | 4    |
-| 📝 Backlog     | 30   |
+| 👀 In Review   | 6    |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 142  |
 
@@ -33,14 +33,16 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 | [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 
-## 待评审（4 条）
+## 待评审（6 条）
 
-| Story                                                                                                  | 剩余范围                                                                            |
-| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                                 | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。 |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)             | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                     |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)          | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。         |
-| [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) | 原 PR 的 BREAKING CHANGE 声明及 Release 文本同步尚待验收，AC#10 保留缺口。          |
+| Story                                                                                                  | 剩余范围                                                                                     |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                                 | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。          |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)             | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                              |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)          | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                  |
+| [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) | 原 PR 的 BREAKING CHANGE 声明及 Release 文本同步尚待验收，AC#10 保留缺口。                   |
+| [US-316 导入远端提交：保留提交身份并快进分支头](stories/collaboration/US-316-remote-commit-import.md)  | 实现、六个适配器一致性套件与三端绑定已验证，待评审合并；本分支的构建与适配器测试待串行复跑。 |
+| [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)              | 同上；升级时进行中的恢复会话是否加代码守卫待 owner 决定。                                    |
 
 ## 阻塞（0 条）
 
@@ -239,8 +241,8 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 owner 于 2026-11-17 授权推进，首个使用方是 Admin 产品的 ADMIN-US-221（团队任务草稿落在工作树）；排期与准入见 [roadmap 批次 8](roadmap.md#批次-8提交图远端交换服务-admin-us-221)。
 
-- ⬜ [US-316 导入远端提交：保留提交身份并快进分支头](stories/collaboration/US-316-remote-commit-import.md)
-- ⬜ [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)
+- 👀 [US-316 导入远端提交：保留提交身份并快进分支头](stories/collaboration/US-316-remote-commit-import.md)
+- 👀 [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

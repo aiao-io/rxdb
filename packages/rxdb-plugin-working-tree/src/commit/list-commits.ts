@@ -17,6 +17,10 @@
  *
  * **`originBranchId` 不参与截断。** 它只用于审计「这个 commit 最初提交在哪个分支」；
  * 拿它截断继承来的历史，等于把 merge 进来的提交从历史里抹掉（FR-012）。
+ *
+ * **顺序：子先于父。** 从 HEAD 逐层回溯（每层内按上一层的顺序展开，每个提交的父按 `parentIds` 顺序，第一父在前），
+ * 再修成拓扑序：一个提交只在它全部可达子提交都列出之后才列出（`orderChildrenFirst`）。线性历史上这就是时间倒序；
+ * 合并提交（US-316 导入）带进来的侧枝排在合并提交之后、与主线交错，同一个祖先不会排到它的任何一个子前面。
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';
@@ -156,15 +160,81 @@ export const nextFrontier = (level: readonly Commit[], seen: Set<string>): strin
 };
 
 /**
+ * 把一张排在 `sorted` 里的升序下标表插进一个新下标，保持升序。
+ *
+ * @remarks
+ * 就绪集合的宽度等于「此刻并行的线有几条」，合并图上通常只有个位数，二分插入比堆更短、也够快。
+ */
+const insertSorted = (sorted: number[], value: number): void => {
+  let low = 0;
+  let high = sorted.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (sorted[middle] < value) low = middle + 1;
+    else high = middle;
+  }
+  sorted.splice(low, 0, value);
+};
+
+/**
+ * 把逐层回溯的发现序修成「子先于父」的拓扑序（US-316）。
+ *
+ * @param discovered - 逐层回溯拿到的全部可达节点，发现序
+ * @returns 同一批节点：每个提交都排在它全部可达子提交之后，在此之上尽量保持发现序
+ *
+ * @remarks
+ * 合并提交进来之前，可达图是一条链，发现序本身就是时间倒序。有了合并，同一个祖先能沿长短不同的两条路到达：
+ * 长主线并进一条从老基线分出来的短侧枝时，老基线在第二层就被侧枝那条边发现了，而它在主线上的子还在更深的层里——
+ * 按发现序列出来，祖先排在了它的子前面。
+ *
+ * 修法是 Kahn：一个提交的全部可达子都列出之后它才就绪，就绪的里面挑**发现序最靠前**的那个。发现序本来就是拓扑序的图上
+ * （线性历史、不出现「两条路到同一祖先」的合并）每一步挑中的恰好就是发现序的下一个，结果逐个不变；只有被长短两条路
+ * 同时够到的祖先会被挪到更深那条路上它的子之后。
+ *
+ * 只数可达集合里的子：读不回来的父（悬挂指针）本来就不在集合里，不占「等它的子」的名额。被篡改出环的库会卡住——
+ * 就绪集合空了、还有节点没列出——这时按发现序取下一个未列出的节点把环断开，与 {@link nextFrontier} 「环本身不判成损坏」同一个口径。
+ */
+const orderChildrenFirst = (discovered: readonly Commit[]): Commit[] => {
+  const indexOf = new Map(discovered.map((commit, index) => [commit.id, index]));
+  const pendingChildren = discovered.map(() => 0);
+  for (const commit of discovered) {
+    for (const parentId of new Set(commit.parentIds)) {
+      const parentIndex = indexOf.get(parentId);
+      if (parentIndex !== undefined) pendingChildren[parentIndex] += 1;
+    }
+  }
+  const emitted = discovered.map(() => false);
+  const ready = discovered.flatMap((_, index) => (pendingChildren[index] === 0 ? [index] : []));
+  const ordered: Commit[] = [];
+  while (ordered.length < discovered.length) {
+    const next = ready.shift() ?? emitted.indexOf(false);
+    if (emitted[next]) continue;
+    emitted[next] = true;
+    ordered.push(discovered[next]);
+    for (const parentId of new Set(discovered[next].parentIds)) {
+      const parentIndex = indexOf.get(parentId);
+      if (parentIndex === undefined || emitted[parentIndex]) continue;
+      pendingChildren[parentIndex] -= 1;
+      if (pendingChildren[parentIndex] === 0) insertSorted(ready, parentIndex);
+    }
+  }
+  return ordered;
+};
+
+/**
  * 从 HEAD 逐层回溯。
  *
  * @param executor - 当前事务执行器
  * @param headCommitId - 起点
  * @param budget - 收够这么多就停；`undefined` 表示走完整条可达图
- * @returns 可达节点，最新在前
+ * @returns 可达节点，最新在前；遇到过合并提交时按 {@link orderChildrenFirst} 修成子先于父
  *
  * @remarks
  * `seen` 既去重也断环：提交图理论上无环，但一个被篡改过的库可以有环，逐父递归会直接栈溢出。
+ *
+ * **`budget` 只在还没见过合并提交时提前收兵。** 没有合并时已收的节点是从 HEAD 出发的一条链，更深的节点只可能是
+ * 链尾的祖先，提前停不会漏掉任何一个该排在前面的子；见过合并之后，更深一层可能冒出已收节点的子（长短两条路），
+ * 不走完全图就排不对，于是这时忽略 `budget`、走完再排、交给调用方截断。线性历史（今天全部的本地历史）上的代价因此一点没变。
  *
  * 逐层取而不是逐个取：100 个 commit 的线性历史逐个取就是 100 次往返。
  *
@@ -185,15 +255,31 @@ const traverseFromHead = async (
   const collected: Commit[] = [];
   const seen = new Set<string>([headCommitId]);
   let frontier: string[] = [headCommitId];
+  let sawMerge = false;
 
   while (frontier.length > 0) {
     const level = await loadCommitsByIds(executor, frontier);
     collected.push(...level);
-    if (budget !== undefined && collected.length >= budget) break;
+    sawMerge ||= level.some(commit => commit.parentIds.length > 1);
+    if (!sawMerge && budget !== undefined && collected.length >= budget) break;
     frontier = nextFrontier(level, seen);
   }
-  return collected;
+  return sawMerge ? orderChildrenFirst(collected) : collected;
 };
+
+/**
+ * 从某个提交出发、沿全部父链可达的提交，子先于父。
+ *
+ * @param executor - 当前事务执行器
+ * @param headCommitId - 起点；它自己排在第一个
+ * @returns 可达节点，顺序与 {@link listCommits} 相同
+ *
+ * @remarks
+ * 导出给导出侧（`commit-exchange.ts`）用：「某个提交之后」的那一段与历史列表必须是同一份遍历、同一个顺序，
+ * 两份各写一遍，迟早在合并图的排序上分叉——而导入那一侧要求批次父先于子，正是把这个顺序倒过来。
+ */
+export const listReachableCommits = (executor: TransactionExecutor, headCommitId: string): Promise<Commit[]> =>
+  traverseFromHead(executor, headCommitId, undefined);
 
 /** 时间窗判定；两端都是闭区间。 */
 const withinRange = (commit: Commit, options: ListCommitsOptions): boolean => {
@@ -237,7 +323,7 @@ const hasPostFilter = (options: ListCommitsOptions): boolean =>
  *
  * @param executor - 当前事务执行器
  * @param options - 见 {@link ListCommitsOptions}
- * @returns 可达节点，最新在前
+ * @returns 可达节点，子先于父（线性历史上即最新在前）
  *
  * @remarks
  * HEAD 为 `null` 时返回空数组而不是报错——刚跑完 `0004`、一次都没提交过的库就是这个状态。

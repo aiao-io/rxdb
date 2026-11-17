@@ -29,19 +29,6 @@ CREATE TABLE IF NOT EXISTS public.admin_workspace_versions (
   team_id text NOT NULL, app_id text NOT NULL, revision bigint NOT NULL,
   PRIMARY KEY(team_id, app_id), FOREIGN KEY(team_id, app_id) REFERENCES admin_private.workspaces(team_id, app_id)
 );
-CREATE TABLE IF NOT EXISTS public.admin_presence (
-  team_id text NOT NULL,
-  app_id text NOT NULL,
-  user_id text NOT NULL,
-  session_id text NOT NULL,
-  pr_id text,
-  record_id text,
-  expires_at bigint NOT NULL,
-  PRIMARY KEY(team_id, app_id, user_id, session_id),
-  FOREIGN KEY(team_id, app_id) REFERENCES admin_private.workspaces(team_id, app_id)
-);
-CREATE INDEX IF NOT EXISTS admin_presence_expiry ON public.admin_presence(team_id, app_id, expires_at);
-ALTER TABLE public.admin_presence REPLICA IDENTITY FULL;
 CREATE OR REPLACE FUNCTION admin_private.can_read(wanted_team text, wanted_app text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM admin_private.memberships m WHERE m.team_id = wanted_team
@@ -54,12 +41,11 @@ REVOKE ALL ON ALL TABLES IN SCHEMA admin_private FROM PUBLIC, anon, authenticate
 ALTER TABLE admin_private.workspaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_private.memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_workspace_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_presence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_shared ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_changes ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.admin_shared, public.admin_audit, public.admin_changes, public.admin_workspace_versions, public.admin_presence FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON public.admin_shared, public.admin_audit, public.admin_changes, public.admin_workspace_versions, public.admin_presence TO authenticated;
+REVOKE ALL ON public.admin_shared, public.admin_audit, public.admin_changes, public.admin_workspace_versions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.admin_shared, public.admin_audit, public.admin_changes, public.admin_workspace_versions TO authenticated;
 DROP POLICY IF EXISTS admin_shared_read ON public.admin_shared;
 CREATE POLICY admin_shared_read ON public.admin_shared FOR SELECT TO authenticated
   USING (admin_private.can_read(team_id, app_id));
@@ -72,17 +58,4 @@ CREATE POLICY admin_changes_read ON public.admin_changes FOR SELECT TO authentic
 DROP POLICY IF EXISTS admin_workspace_versions_read ON public.admin_workspace_versions;
 CREATE POLICY admin_workspace_versions_read ON public.admin_workspace_versions FOR SELECT TO authenticated
   USING (admin_private.can_read(team_id, app_id));
-DROP POLICY IF EXISTS admin_presence_read ON public.admin_presence;
-CREATE POLICY admin_presence_read ON public.admin_presence FOR SELECT TO authenticated
-  USING (admin_private.can_read(team_id, app_id));
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
-    AND NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'admin_workspace_versions') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_workspace_versions;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
-    AND NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'admin_presence') THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_presence;
-  END IF;
-END $$;
 COMMIT;

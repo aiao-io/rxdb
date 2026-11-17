@@ -45,6 +45,14 @@ export * from './commit-conflict.js';
 export * from './diff.js';
 export * from './discard-command.js';
 export * from './external-notify-gate.js';
+// 导入远端提交（US-316）：只出入参与结果类型。命令体 `importWorkingTreeCommits` 要调用方自带事务执行器与导入环境，
+// 那是门面的职责；被拒成因的两个枚举必须在公开面上——调用方不 import 它们，就只能在 `reason` 之后靠字符串比对认成因。
+export type {
+  CommitImportBatchProblem,
+  CommitImportEntityProblem,
+  CommitImportOptions,
+  CommitImportResult
+} from './import-command.js';
 export * from './raw-write-judgment.js';
 // 恢复（US-307）：命令体与它的预检各占一个模块，两个都在公开面上。
 // 预检要导出，是因为 `RestoreIncompatibility` 是 `restore()` 失败出口的**载荷**——调用方不 import

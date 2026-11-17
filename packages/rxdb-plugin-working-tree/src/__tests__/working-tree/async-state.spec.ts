@@ -21,6 +21,7 @@
  */
 
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import type { CommitExportPage } from '../../commit/commit-exchange.js';
 import type { CommitLogPage } from '../../commit/commit-log.js';
 import { CommitValidationError } from '../../commit/write-commit.js';
 import {
@@ -41,6 +42,7 @@ import type {
 } from '../../working-tree/branch-from-commit.js';
 import type { CommitResult } from '../../working-tree/commit-command.js';
 import type { WorkingTreeDiff } from '../../working-tree/diff.js';
+import type { CommitImportResult } from '../../working-tree/import-command.js';
 import type { WorkingTreeRestoreSessionInfo } from '../../working-tree/restore-command.js';
 import type { WorkingTreeStatus } from '../../working-tree/status.js';
 
@@ -318,6 +320,18 @@ describe('三端共用的初始状态', () => {
       | 'switchBranchState'
       | 'checkBranchFromCommitState'
       | 'createBranchFromCommitState'
+      | 'importCommitsState'
+      | 'exportCommitsState'
+    >();
+  });
+
+  // US-316：导入被拒的十种成因与 no-op 都是**结果**，走命令状态；导出的空页是「那个提交之后没有新提交」，走查询状态
+  it('导入走命令状态、导出走查询状态', () => {
+    expectTypeOf<WorkingTreeAsyncStates['importCommitsState']>().toEqualTypeOf<
+      WorkingTreeCommandState<CommitImportResult>
+    >();
+    expectTypeOf<WorkingTreeAsyncStates['exportCommitsState']>().toEqualTypeOf<
+      WorkingTreeQueryState<CommitExportPage>
     >();
   });
 
@@ -356,7 +370,7 @@ describe('三端共用的初始状态', () => {
   });
 
   // restore 与 discard 同理：`restoredCount: 0` 是一次什么都没写的 no-op **结果**
-  // （FR-042），四个被拒成因是可处理的返回值。两者都不是「这里没有内容」。
+  // （FR-042），五个被拒成因是可处理的返回值。两者都不是「这里没有内容」。
   it('restore 用的是命令状态：restoredCount 为零是 no-op，被拒是返回值', () => {
     expectTypeOf<WorkingTreeAsyncStates['restoreState']['phase']>().toEqualTypeOf<
       'idle' | 'loading' | 'success' | 'error'

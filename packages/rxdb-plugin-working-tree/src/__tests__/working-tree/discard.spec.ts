@@ -20,22 +20,28 @@
  * 4. **discard 顺手把 HEAD 也退一格。** discard 不是 reset --hard HEAD~1。
  *    FR-016 的落点是工作树，2.5 一列都不动，也不写任何提交历史。
  *
- * **一条被本文件明确划死的边界：v1 的 discard 只回滚「逻辑工作树」，不在本命令内重写业务投影。**
- * spec.md 的写入口语义矩阵把两件事分成两行——「restore/discard」那行说的是*写入或重算本地工作树*，
- * 「branch switch、baseline/restore **物化**」那行才是底层投影重写，而 discard **不在**后者里；
- * data-model.md §5 给 discard 列出的效果也恰好是三条簿记（`2.6 revision +1、删条目、entryCount 归零`）。
- * 物理上也走不通：投影重写只能经 `mergeChanges` / `switchBranch` 两个原语，而
- * `WorkingTreeCaptureRuntime.#requireEntrance()` 对没有意图声明的调用**直接拒绝**，
- * 而 `TRUSTED_CALLSITE_REGISTRY` 里没有 `discard-command.ts` 的登记行，`TrustedWriteIntent` 里
- * 也没有「丢弃」这一项——这个调用点没有可声明的意图。
- * 哪天 v1 改主意要在同一事务里连投影一起回滚，要同时改的是
- * epic-006「受信调用点登记表」、`TRUSTED_CALLSITE_REGISTRY`、`TrustedWriteIntent` 与 T055 的漂移用例——
- * 本文件那条 `mergeChanges` 断言就是逼着人去改那四处，而不是在这里偷偷加一句 `declareTrustedWrite()`。
+ * **US-317 之后 discard 连业务表一起退回 HEAD。** v1 的 discard 只回滚「逻辑工作树」（data-model.md §5 的
+ * 三条簿记：revision +1、删条目、`entryCount` 归零），业务表停在丢弃前的值——列表与表单读到的数据与
+ * `status()` 报的 clean 从此对不上。跨这条线照当初定下的规矩做：意图枚举加 `working_tree_projection`、
+ * `TRUSTED_CALLSITE_REGISTRY` 与 epic-006「受信调用点登记表」加 #13（`discard-command.ts ·
+ * rewriteProjectionToHead`）、漂移用例跟着改，而不是在这里随手补一句 `declareTrustedWrite()`。
+ * 本文件「回写业务表」一组钉的是这次跨线的形状：一次 `executor.mergeChanges`、触发器照开、
+ * 入口是投影重写（回写不再被捕获成单元），排在删条目与推 revision 之前；clean、冲突、
+ * 认不出的实体三种情形下一次都不调。
  */
 
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { SwitchVersionActions, SwitchVersionChange } from '@aiao/rxdb';
+import {
+  parseRxDBChangeKey,
+  RXDB_CHANGE_CODEC_VERSION,
+  RXDB_CHANGE_SCHEMA_VERSION,
+  RXDB_CHANGE_VALUE_ENVELOPE_KEY,
+  takeDeclaredWrite
+} from '@aiao/rxdb';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import type { CommitWriteContext } from '../../commit/commit-context.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { CommitConflict } from '../../working-tree/commit-conflict.js';
@@ -46,11 +52,13 @@ import {
 } from '../../working-tree/discard-command.js';
 import { readWorkingTreeStatus } from '../../working-tree/status.js';
 import { WorkingTreeEntry } from '../../working-tree/working-tree-entry.entity.js';
+import { UnknownWorkingTreePatchEntityError } from '../../working-tree/working-tree-patch-codec.js';
 import {
   createWorkingTreeScene,
   entryRowsOf,
   refRowOf,
   SCENE_BRANCH_ID,
+  SCENE_SECRET,
   seedCommit,
   stateRowOf,
   type WorkingTreeScene
@@ -71,7 +79,41 @@ const credentialsOf = (
 const discardOnce = (
   scene: WorkingTreeScene,
   overrides: Partial<WorkingTreeDiscardOptions> = {}
-): Promise<WorkingTreeDiscardResult> => discardWorkingTree(scene.probe.executor, credentialsOf(scene, overrides));
+): Promise<WorkingTreeDiscardResult> =>
+  discardWorkingTree(scene.probe.executor, scene.context, credentialsOf(scene, overrides));
+
+/** 把一段 hex 包成 change-codec 的 `$rxdbChangeValue` 信封——不加密 binary 列在条目里的形态。 */
+const binaryEnvelope = (hex: string): Record<string, unknown> => ({
+  [RXDB_CHANGE_VALUE_ENVELOPE_KEY]: {
+    codecVersion: RXDB_CHANGE_CODEC_VERSION,
+    schemaVersion: RXDB_CHANGE_SCHEMA_VERSION,
+    type: 'binary',
+    value: hex
+  }
+});
+
+/** 一个桶按身份摊开成 `namespace:entity:entityId` → 两份补丁，便于整桶 `toEqual`。 */
+const bucketOf = (bucket: ReadonlyMap<string, SwitchVersionChange>): Record<string, unknown> =>
+  Object.fromEntries(
+    [...bucket].map(([key, change]) => {
+      const [namespace, entity, entityId] = parseRxDBChangeKey(key);
+      return [`${namespace}:${entity}:${String(entityId)}`, { patch: change.patch, inversePatch: change.inversePatch }];
+    })
+  );
+
+/** 三个桶一起摊开；断言整份回写而不是挑一个桶看，漏掉的那一桶才会红。 */
+const actionsShapeOf = (actions: SwitchVersionActions): Record<string, unknown> => ({
+  deletes: bucketOf(actions.deletes),
+  updates: bucketOf(actions.updates),
+  inserts: bucketOf(actions.inserts)
+});
+
+/** 那次回写交给 `mergeChanges` 的三个实参；要求恰好调了一次。 */
+const rewriteCallOf = (scene: WorkingTreeScene): Parameters<WorkingTreeScene['probe']['executor']['mergeChanges']> => {
+  const calls = vi.mocked(scene.probe.executor.mergeChanges).mock.calls;
+  expect(calls, '回写应当恰好一次 mergeChanges').toHaveLength(1);
+  return calls[0];
+};
 
 /** 取成功出口，拿到别的就直接炸，免得后续断言在 undefined 上继续。 */
 const expectOk = (result: WorkingTreeDiscardResult): Extract<WorkingTreeDiscardResult, { ok: true }> => {
@@ -97,11 +139,18 @@ describe('范围是整棵工作树，签名里没有 selection（FR-016）', () 
   });
 
   it('凭据是必填的末位参，不是可选的便利入参', () => {
-    // 元组长度恰好是 2：可选末参会让它变成 `1 | 2`，而「可选」等于允许
+    // 元组长度恰好是 3：可选末参会让它变成 `2 | 3`，而「可选」等于允许
     // 「缺省时由本次调用内部读取 revision」——内部读到的值恒等于当前值，
     // CAS 于是永远命中，FR-031 对 discard 的那半句当场失效。
-    expectTypeOf<Parameters<typeof discardWorkingTree>['length']>().toEqualTypeOf<2>();
-    expectTypeOf<Parameters<typeof discardWorkingTree>[1]>().toEqualTypeOf<WorkingTreeDiscardOptions>();
+    expectTypeOf<Parameters<typeof discardWorkingTree>['length']>().toEqualTypeOf<3>();
+    expectTypeOf<Parameters<typeof discardWorkingTree>[2]>().toEqualTypeOf<WorkingTreeDiscardOptions>();
+  });
+
+  it('第二参是写上下文：回写要解码条目补丁，与 commit / restore 同形（US-317）', () => {
+    // 条目里的 bigint / binary 列是 `$rxdbChangeValue` 信封，不解开就交给 mergeChanges 会在适配器的
+    // 类型转换上炸掉；解码要实体元数据，而元数据只在门面握着的那个适配器上——与 commit() / restore()
+    // 同一个来源、同一个形参位置。
+    expectTypeOf<Parameters<typeof discardWorkingTree>[1]>().toEqualTypeOf<CommitWriteContext>();
   });
 
   it('门面上的 discard() 恰好收一个位置参数', () => {
@@ -370,22 +419,178 @@ describe('三个捕获位同样要比，且比在 no-op 判定之前（FR-031/03
   });
 });
 
-describe('v1 的 discard 只回滚逻辑工作树（spec.md 写入口语义矩阵）', () => {
-  it('不经 mergeChanges 重写业务投影', async () => {
+describe('回写业务表：条目的 inversePatch 把业务行退回 HEAD（US-317 AC1）', () => {
+  it('跨实体的插入、修改与删除各自撤回：一次 mergeChanges，触发器照开', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({ entityId: 'note-new', operation: 'insert', patch: { title: '新建' }, inversePatch: null });
+    scene.addEntry({
+      entityId: 'note-edit',
+      operation: 'update',
+      patch: { title: '改后' },
+      inversePatch: { title: '改前' }
+    });
+    scene.addEntry({ entityId: 'note-gone', operation: 'delete', patch: null, inversePatch: { title: '删前' } });
+    scene.addEntry({
+      namespace: SCENE_SECRET.namespace,
+      entity: SCENE_SECRET.name,
+      entityId: 'secret-1',
+      operation: 'update',
+      patch: { label: '改后', secret: 'enc:v1:after', thumbnail: binaryEnvelope('deadbeef') },
+      inversePatch: { label: '改前', secret: 'enc:v1:before', thumbnail: binaryEnvelope('cafebabe') }
+    });
+
+    expectOk(await discardOnce(scene));
+    const [actions, localChanges, disableTriggers] = rewriteCallOf(scene);
+
+    // 插入撤成删除、删除撤成插入（整行取 inversePatch，那是 HEAD 上的那一行）、修改把 inversePatch 写回去。
+    // 不加密的 binary 列解开信封交给适配器，加密列保持信封原样——密文由适配器解锁后重新加密，
+    // 这一层碰不到明文。
+    expect(actionsShapeOf(actions)).toEqual({
+      deletes: { 'app:Note:note-new': { patch: null, inversePatch: { title: '新建' } } },
+      updates: {
+        'app:Note:note-edit': { patch: { title: '改前' }, inversePatch: { title: '改后' } },
+        'app:Secret:secret-1': {
+          patch: { label: '改前', secret: 'enc:v1:before', thumbnail: Uint8Array.of(0xca, 0xfe, 0xba, 0xbe) },
+          inversePatch: { label: '改后', secret: 'enc:v1:after', thumbnail: Uint8Array.of(0xde, 0xad, 0xbe, 0xef) }
+        }
+      },
+      inserts: { 'app:Note:note-gone': { patch: { title: '删前' }, inversePatch: null } }
+    });
+    // 触发器开着写（`disableTriggers = false`）：回写是当前分支上的一次新写入，变更日志要跟着它走——
+    // 切分支按变更日志撤投影、同步按它推送、撤销栈也读它。关掉的话日志里只剩被丢弃的那批编辑，
+    // 切走再切回来它们会被重放回业务表，而工作树报 clean。
+    expect({ localChanges, disableTriggers }).toEqual({ localChanges: undefined, disableTriggers: false });
+  });
+
+  it('声明在 mergeChanges 被调到的那一刻挂在执行器上：登记表 #13，入口是投影重写', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry();
+    const executor = scene.probe.executor;
+    let declared: ReturnType<typeof takeDeclaredWrite>;
+    vi.mocked(executor.mergeChanges).mockImplementation(async () => {
+      declared = takeDeclaredWrite(executor);
+    });
+
+    expectOk(await discardOnce(scene));
+
+    // 投影重写（projection_rewrite）而不是领域重算（domain_recompute）：条目由命令自己删，回写要是
+    // 被挂载点 2 当成一次新编辑捕获下来，刚丢掉的工作树立刻又多出一批条目。
+    expect(declared).toEqual({
+      file: 'discard-command.ts',
+      symbol: 'rewriteProjectionToHead',
+      intent: 'working_tree_projection',
+      entrance: 'projection_rewrite'
+    });
+  });
+
+  it('先回写业务表，再删条目、推 revision：同一笔事务里两件事一起成败', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry();
 
     expectOk(await discardOnce(scene));
 
-    // 见文件头：投影重写只能经 mergeChanges / switchBranch 两个原语，而这两个原语
-    // 都要求调用点在 TRUSTED_CALLSITE_REGISTRY 里——discard-command.ts 没有登记行，
-    // 意图枚举里也没有「丢弃」。
-    // 要跨这条线，就得连同 epic-006「受信调用点登记表」、登记表、意图枚举与 T055 的漂移用例
-    // 一起改；这条断言的作用是让那件事必须被显式做掉，而不是在这里加一句声明了事。
+    // 顺序本身不是原子性的来源（那是调用方的事务），但它决定了回写抛错时手上还剩什么：排在前面的话，
+    // 一条簿记语句都还没发；排在后面的话，失败前条目已经删了、revision 已经推了，全靠回滚兜着。
+    const writes = scene.probe.trace.filter(step => ['mergeChanges', 'removeMany', 'query'].includes(step));
+    expect(writes).toEqual(['mergeChanges', 'removeMany', 'query']);
+  });
+
+  it('簿记字段不跟着回写：UPDATE 撤回时 remoteId 与审计时间保持现值', async () => {
+    const scene = createWorkingTreeScene();
+    scene.addEntry({
+      entityId: 'note-synced',
+      operation: 'update',
+      patch: { title: '改后', remoteId: 'remote-1', updatedAt: '2026-11-17T02:00:00.000Z' },
+      inversePatch: { title: '改前', remoteId: null, updatedAt: '2026-11-17T01:00:00.000Z' }
+    });
+
+    expectOk(await discardOnce(scene));
+    const [actions] = rewriteCallOf(scene);
+
+    // 簿记字段不进版本控制（epic-006「版本化域」第 2 类）：把 remoteId 退回旧值会断开本地行与远端行的对应，
+    // 审计时间则本来就由适配器按「此刻」重写。回写只退 tracked 字段。
+    expect(bucketOf(actions.updates)).toEqual({
+      'app:Note:note-synced': { patch: { title: '改前' }, inversePatch: { title: '改后' } }
+    });
+  });
+
+  it('只剩簿记字段可撤的 UPDATE 不发写；条目照样清掉', async () => {
+    const scene = createWorkingTreeScene({ workingTreeRevision: 2 });
+    scene.addEntry({
+      operation: 'update',
+      patch: { updatedAt: '2026-11-17T02:00:00.000Z' },
+      inversePatch: { updatedAt: '2026-11-17T01:00:00.000Z' }
+    });
+
+    const result = expectOk(await discardOnce(scene));
+
+    // 没有可写的 tracked 字段就没有回写：照样调一次空的 mergeChanges 会白白取走一张声明、什么都不落。
+    expect(scene.probe.executor.mergeChanges).not.toHaveBeenCalled();
+    expect({ result, rows: entryRowsOf(scene).length }).toEqual({
+      result: { ok: true, discardedCount: 1, workingTreeRevision: 3 },
+      rows: 0
+    });
+  });
+
+  it('clean 时一次 mergeChanges 都不调（AC2）', async () => {
+    const scene = createWorkingTreeScene({ workingTreeRevision: 4 });
+
+    expectOk(await discardOnce(scene));
+
     expect(scene.probe.executor.mergeChanges).not.toHaveBeenCalled();
   });
 
-  it('删的是工作树条目表，不是业务实体表', async () => {
+  it('凭据过期时一次 mergeChanges 都不调', async () => {
+    const scene = createWorkingTreeScene({ workingTreeRevision: 5 });
+    scene.addEntry();
+
+    expectConflict(await discardOnce(scene, { expectedWorkingTreeRevision: 4 }));
+
+    // 冲突出口排在任何写之前：业务表若先被退回 HEAD，用户拿到的是「冲突」，库里却已经丢了一半。
+    expect(scene.probe.executor.mergeChanges).not.toHaveBeenCalled();
+  });
+
+  it('条目指向本客户端认不出的实体：回写之前就抛，条目与 revision 一格不动', async () => {
+    const scene = createWorkingTreeScene({ workingTreeRevision: 3 });
+    scene.addEntry({ entityId: 'note-known' });
+    scene.addEntry({ namespace: 'app', entity: 'Ghost', entityId: 'ghost-1' });
+
+    const error = await discardOnce(scene).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+
+    // 没有元数据就写不了那张表。只退认得的那一半再报成功，等于把「回到 HEAD」悄悄降级成「大部分回到 HEAD」——
+    // 而 status() 会报 clean。宁可整次拒绝。
+    expect(error).toBeInstanceOf(UnknownWorkingTreePatchEntityError);
+    expect(scene.probe.executor.mergeChanges).not.toHaveBeenCalled();
+    expect({ rows: entryRowsOf(scene).length, revision: stateRowOf(scene).workingTreeRevision }).toEqual({
+      rows: 2,
+      revision: 3
+    });
+  });
+
+  it('回写抛错原样上抛，后面的簿记一条都不发（AC4 的命令侧半边）', async () => {
+    const scene = createWorkingTreeScene({ workingTreeRevision: 6 });
+    scene.addEntry();
+    const injected = new Error('注入：回写失败');
+    vi.mocked(scene.probe.executor.mergeChanges).mockRejectedValueOnce(injected);
+
+    const error = await discardOnce(scene).then(
+      () => null,
+      (caught: unknown) => caught
+    );
+
+    // 真实后端上整笔回滚由一致性套件在六个后端上证（worktree.suite.ts「回写中途失败」）；这里证的是
+    // 命令没有吞掉它、也没有在失败之后接着删条目。
+    expect(error).toBe(injected);
+    expect({ rows: entryRowsOf(scene).length, revision: stateRowOf(scene).workingTreeRevision }).toEqual({
+      rows: 1,
+      revision: 6
+    });
+  });
+
+  it('删的是工作树条目表；业务表只经那一次受信回写', async () => {
     const scene = createWorkingTreeScene();
     scene.addEntry();
 
@@ -394,6 +599,8 @@ describe('v1 的 discard 只回滚逻辑工作树（spec.md 写入口语义矩�
     const entryReads = scene.probe.finds.filter(call => call.entity === 'WorkingTreeEntry');
     expect(entryReads.length).toBeGreaterThan(0);
     expect(scene.probe.rowsOf(WorkingTreeEntry)).toEqual([]);
+    // 业务实体一次 save / remove 都没有：回写不走仓库，走的是登记过的那一个写原语。
+    expect(scene.probe.saved).toEqual([]);
   });
 });
 

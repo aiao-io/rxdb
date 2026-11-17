@@ -39,6 +39,12 @@
 下一次说明明确写 **7→8**：新客户端可以升级旧库，旧客户端不能重新打开已升到 8 的库，用户须升级客户端。
 迁移说明还要覆盖 table-set 参数等公开 API 变化，清单以 `requirements/api-baseline/` 对 `v0.0.28` 的差异为准。
 
+### ④ discard / restore 改写业务表：签名不变、语义变了
+
+`workingTree.discard()` / `restore()` 从这一版起连业务表一起改，api-baseline 看不出这次变化（名字与形状都没动），发布说明要单列。
+0.0.28 留下的进行中恢复会话必须在升级前用旧版本 `discard()` 掉：它们的条目不是相对 HEAD 的差异，新版本照着回写会退到别处。
+说明与迁移步骤见 CHANGELOG Unreleased 与 [working-tree-discard-restore](../website/docs/migration/working-tree-discard-restore.md)。
+
 ## 下一次发布：迁移发布（schema 7→8）
 
 | 字段                                          | 要求                                                                                                  |
