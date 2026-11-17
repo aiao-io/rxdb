@@ -40,7 +40,8 @@
       "options": {
         "command": "node website/scripts/build-website.mjs"
       },
-      "inputs": ["production", "^production", "{workspaceRoot}/requirements/generated/package-knowledge.json"]
+      "inputs": ["production", "^production", "{workspaceRoot}/requirements/generated/package-knowledge.json"],
+      "outputs": ["{projectRoot}/build"]
     },
     "check-doc-code": {
       "executor": "nx:run-commands",
@@ -61,6 +62,27 @@
       "options": {
         "cwd": "website",
         "command": "pnpm docusaurus build"
+      }
+    },
+    "pages-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node website/scripts/cloudflare-pages.mjs check-assets"
+      }
+    },
+    "pages-project": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node website/scripts/cloudflare-pages.mjs ensure-project"
+      }
+    },
+    "pages-domain": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node website/scripts/cloudflare-pages.mjs bind-domain"
       }
     }
   }
