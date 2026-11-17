@@ -5,6 +5,7 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
   viewChild
@@ -19,6 +20,7 @@ import { DAYS, DAYS3, MONS, MONS3, clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { CalendarEventEditor } from './calendar-event-editor';
+import { CalendarDraftEditor } from './calendar-draft';
 import {
   CalendarView,
   EventDate,
@@ -122,6 +124,7 @@ export class CalendarApp {
   private readonly start = new Date();
   private drag: PointerDrag | null = null;
   private dragAbort: AbortController | null = null;
+  private readonly editor: CalendarDraftEditor;
 
   protected readonly store = inject(CalendarStore);
   protected readonly views = VIEWS;
@@ -213,6 +216,10 @@ export class CalendarApp {
   protected readonly hasBand = computed(() => this.band().some(cell => cell.length > 0));
 
   constructor() {
+    this.editor = new CalendarDraftEditor(
+      change => this.store.saveEditor(change.id, change.fields, change.base),
+      event => this.store.removeEditor(event)
+    );
     const menus = inject(DesktopMenus);
     this.win.setMenus(
       computed(() =>
@@ -228,7 +235,27 @@ export class CalendarApp {
         })
       )
     );
-    this.destroyRef.onDestroy(() => this.stopDrag());
+    this.win.confirmClose = async () => {
+      await this.editor.settle();
+      if (!this.editor.dirty()) return true;
+      this.showEditor();
+      this.toast.show('Calendar has unsaved changes. Save or cancel the event before closing.');
+      return false;
+    };
+    effect(() => this.win.hasUnsavedChanges.set(this.editor.dirty() || this.editor.saving()));
+    const beforeUnload = (event: BeforeUnloadEvent): void => {
+      if (!this.editor.dirty() && !this.editor.saving()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    this.destroyRef.onDestroy(() => {
+      this.stopDrag();
+      window.removeEventListener('beforeunload', beforeUnload);
+      this.win.confirmClose = null;
+      this.win.hasUnsavedChanges.set(false);
+      this.editor.dispose();
+    });
   }
 
   /** 箭头按当前视图的跨度翻页。 */
@@ -353,6 +380,10 @@ export class CalendarApp {
 
   /** 新建与编辑共用一个编辑器；保存后窗口跳到事件所在的那一天。 */
   private openEditor(event: CalendarEvent | null, seed: EditorSeed): void {
+    if (this.editor.dirty() || this.editor.saving()) {
+      this.showEditor();
+      return;
+    }
     const hour = new Date().getHours();
     const draft: CalendarEventDraft = event ?? {
       d: [seed.y ?? this.year(), seed.m ?? this.month(), seed.d ?? (this.day() || 1)],
@@ -363,11 +394,28 @@ export class CalendarApp {
       loc: '',
       notes: ''
     };
+    if (!this.editor.open(draft, event)) return;
+    this.showEditor();
+  }
+
+  private showEditor(): void {
     const rect = (this.frame.nativeElement.closest('.win') ?? this.frame.nativeElement).getBoundingClientRect();
     this.popover.openComponent(
       CalendarEventEditor,
-      { x: Math.min(rect.right - 356, innerWidth - 356), y: rect.top + 64, origin: 'top right' },
-      { event, draft, done: (saved: EventDate | null) => this.afterEdit(saved) }
+      {
+        x: Math.min(rect.right - 356, innerWidth - 356),
+        y: rect.top + 64,
+        origin: 'top right',
+        focus: true,
+        onClose: reason => {
+          if (reason === 'escape' || reason === 'tab') this.frame.nativeElement.focus();
+        }
+      },
+      {
+        editor: this.editor,
+        calendars: this.store.calendars(),
+        done: (saved: EventDate | null) => this.afterEdit(saved)
+      }
     );
   }
 

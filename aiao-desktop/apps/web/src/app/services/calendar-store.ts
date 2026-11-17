@@ -2,7 +2,7 @@ import { Service, computed, inject } from '@angular/core';
 
 import { DesktopData } from '../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../data/live-query';
-import { eventOf, fieldsOf, listOf, patchOf } from './calendar-records';
+import { CalendarChangeError, eventOf, fieldsOf, listOf, patchOf, sameCalendarEvent } from './calendar-records';
 import { CalendarEventRow, CalendarListRow } from './calendar.entities';
 
 /** 日历既是筛选器也是颜色来源：事件自身没有颜色，继承所属日历。`id` 是库里日历行的稳定 `key`。 */
@@ -134,6 +134,38 @@ export class CalendarStore {
   async remove(id: string): Promise<void> {
     const row = this.eventRow(id);
     await (await this.data.repository(CalendarEventRow)).remove(row);
+  }
+
+  /** 编辑器保存采用稳定 ID，并在同一事务内核对原基线。 */
+  async saveEditor(id: CalendarEventRow['id'], fields: CalendarEventDraft, base: CalendarEvent | null): Promise<void> {
+    await this.data.ensureSeeded(CalendarEventRow);
+    await this.data.transaction(async executor => {
+      const lists = executor.getRepository(CalendarListRow);
+      const [calendar] = await lists.find({ where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: fields.cal }] }, limit: 1 });
+      if (!calendar) throw new CalendarChangeError('calendar');
+      const events = executor.getRepository(CalendarEventRow);
+      const [row] = await events.find({ where: this.whereId(id), limit: 1 });
+      if (row && sameCalendarEvent(eventOf(row), fields)) return;
+      if (base && !row) throw new CalendarChangeError('missing');
+      if (row && (!base || !sameCalendarEvent(eventOf(row), base))) throw new CalendarChangeError('conflict');
+      if (row) await events.update(row, fieldsOf(fields));
+      else await events.create(this.data.instantiate(CalendarEventRow, { ...fieldsOf(fields), id }));
+    });
+  }
+
+  /** 删除前核对编辑器打开时的记录，避免删除其他窗口修改后的事件。 */
+  async removeEditor(base: CalendarEvent): Promise<void> {
+    await this.data.transaction(async executor => {
+      const events = executor.getRepository(CalendarEventRow);
+      const [row] = await events.find({ where: this.whereId(base.id), limit: 1 });
+      if (!row) throw new CalendarChangeError('missing');
+      if (!sameCalendarEvent(eventOf(row), base)) throw new CalendarChangeError('conflict');
+      await events.remove(row);
+    });
+  }
+
+  private whereId(id: string) {
+    return { combinator: 'and' as const, rules: [{ field: 'id' as const, operator: '=' as const, value: id }] };
   }
 
   private eventRow(id: string): CalendarEventRow {

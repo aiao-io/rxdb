@@ -7,6 +7,7 @@ import { applications } from './applications.mjs';
 import { approvedCatalog } from './approved-catalog.mjs';
 import { apps } from './apps.mjs';
 import { backupStorage } from './backup-storage.mjs';
+import { calendarDrafts } from './calendar-drafts.mjs';
 import { contentActions } from './content-actions.mjs';
 import { diskTerminal } from './disk-terminal.mjs';
 import { dock } from './dock.mjs';
@@ -49,6 +50,7 @@ import { windowLayout } from './window-layout.mjs';
  * 新增检查组：在 `groups/` 下加一个文件，导出 `{ name, description, keys, run(session, server) }`，登记在这里；server 可用于同源切换构建产物。
  */
 export const GROUPS = [
+  { ...calendarDrafts, weight: 40 },
   { ...localMail, weight: 45 },
   { ...localMessages, weight: 40 },
   { ...noteDrafts, weight: 40 },

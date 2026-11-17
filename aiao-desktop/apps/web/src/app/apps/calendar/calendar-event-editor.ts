@@ -1,175 +1,233 @@
-import {
-  Component,
-  ElementRef,
-  afterNextRender,
-  computed,
-  inject,
-  input,
-  linkedSignal,
-  viewChild
-} from '@angular/core';
+import { Component, afterNextRender, inject, input } from '@angular/core';
 
-import { CalendarEvent, CalendarEventDraft, CalendarStore, clockLabel } from '../../services/calendar-store';
+import { CalendarDraftEditor, parseCalendarInput } from './calendar-draft';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { MONS3 } from '../../shared/format';
 import { Icon } from '../../shared/icon';
-import { EventDate, dateLabel, parseClock, parseDate } from './calendar-model';
+import { EventDate } from './calendar-model';
 
 /** 编辑器收尾后回给日历窗口的结果：保存时是事件的新日期，删除时是 `null`。 */
 export type EditorResult = (saved: EventDate | null) => void;
 
-/** 事件编辑器：新建与编辑共用一个面板，形态上是 Calendar 的检查器浮层。 */
+/** 事件编辑器：草稿模型由日历窗口持有，面板关闭后仍能恢复。 */
 @Component({
   selector: 'app-calendar-event-editor',
   imports: [Icon],
-  host: { class: 'pop ce', style: 'width: 340px', '(keydown)': 'key($event)' },
+  host: { class: 'pop ce', role: 'dialog', 'aria-label': 'Calendar event editor', style: 'width: 340px', '(keydown)': 'key($event)' },
   template: `
     <div class="ce-top">
-      <div class="ce-title">{{ event() ? 'Event' : 'New Event' }}</div>
-      @if (event()) {
-        <button class="tbtn" (click)="remove()" data-del title="Delete"><svg appIcon="g-trash"></svg></button>
+      <div class="ce-title">{{ editor().base() ? 'Event' : 'New Event' }}</div>
+      @if (editor().base(); as event) {
+        <button
+          class="tbtn"
+          tabindex="0"
+          [disabled]="editor().saving()"
+          (click)="remove()"
+          aria-label="Delete event"
+          data-del
+          title="Delete"
+        ><svg appIcon="g-trash"></svg></button>
       }
     </div>
-    <input class="ce-name" #name [value]="draft().t" data-f="t" placeholder="New Event" spellcheck="false" />
-    <input class="ce-loc" #location [value]="draft().loc" data-f="loc" placeholder="Add Location" spellcheck="false" />
-    <div class="ce-body">
-      <div class="ce-row">
-        <span>all-day</span>
-        <div
-          class="sw"
-          [class.on]="allDay()"
-          (click)="allDay.set(!allDay())"
-          (keydown.enter)="allDay.set(!allDay())"
-          data-allday
-          style="margin-left: auto; transform: scale(0.82); transform-origin: left center"
-          tabindex="-1"
-        ></div>
-      </div>
-      <div class="ce-row"><span>date</span><input #date [value]="dateText()" data-f="date" spellcheck="false" /></div>
-      <div [style.display]="allDay() ? 'none' : null" data-times>
-        <div class="ce-row"><span>from</span><input #from [value]="fromText()" data-f="from" spellcheck="false" /></div>
-        <div class="ce-row"><span>to</span><input #to [value]="toText()" data-f="to" spellcheck="false" /></div>
-      </div>
-      <div class="ce-row">
-        <span>calendar</span>
-        <div class="ce-cals" style="margin-left: auto">
-          @for (cal of store.calendars(); track cal.id) {
-            <span
-              class="acc"
-              [attr.data-pickcal]="cal.id"
-              [class.on]="calendar() === cal.id"
-              [style.background]="cal.c"
-              [title]="cal.name"
-              (click)="calendar.set(cal.id)"
-              (keydown.enter)="calendar.set(cal.id)"
-              style="width: 15px; height: 15px"
-              tabindex="-1"
-            ></span>
-          }
+    @if (editor().value(); as value) {
+      <input
+        class="ce-name"
+        #name
+        [value]="value.title"
+        [disabled]="editor().saving()"
+        (input)="editor().edit({ title: name.value })"
+        data-f="t"
+        aria-label="Event title"
+        placeholder="New Event"
+        spellcheck="false"
+        tabindex="0"
+      />
+      <input
+        class="ce-loc"
+        #location
+        [value]="value.location"
+        [disabled]="editor().saving()"
+        (input)="editor().edit({ location: location.value })"
+        data-f="loc"
+        aria-label="Location"
+        placeholder="Add Location"
+        spellcheck="false"
+        tabindex="0"
+      />
+      <div class="ce-body">
+        <div class="ce-row">
+          <span>all-day</span>
+          <button
+            class="sw"
+            type="button"
+            [class.on]="value.allDay"
+            [attr.aria-checked]="value.allDay"
+            [disabled]="editor().saving()"
+            (click)="toggleAllDay(value.allDay)"
+            aria-label="All-day event"
+            data-allday
+            style="margin-left: auto; transform: scale(0.82); transform-origin: left center"
+            role="switch"
+            tabindex="0"
+          ><i></i></button>
+        </div>
+        <div class="ce-row">
+          <span>date</span>
+          <input
+            #date
+            [value]="value.date"
+            [disabled]="editor().saving()"
+            (input)="editor().edit({ date: date.value })"
+            data-f="date"
+            aria-label="Date"
+            spellcheck="false"
+            tabindex="0"
+          />
+        </div>
+        @if (!value.allDay) {
+          <div data-times>
+            <div class="ce-row">
+              <span>from</span>
+              <input
+                #from
+                [value]="value.from"
+                [disabled]="editor().saving()"
+                (input)="editor().edit({ from: from.value })"
+                data-f="from"
+                aria-label="Start time"
+                spellcheck="false"
+                tabindex="0"
+              />
+            </div>
+            <div class="ce-row">
+              <span>to</span>
+              <input
+                #to
+                [value]="value.to"
+                [disabled]="editor().saving()"
+                (input)="editor().edit({ to: to.value })"
+                data-f="to"
+                aria-label="End time"
+                spellcheck="false"
+                tabindex="0"
+              />
+            </div>
+          </div>
+        }
+        <div class="ce-row">
+          <span>calendar</span>
+          <div class="ce-cals" style="margin-left: auto">
+            @for (cal of calendars(); track cal.id) {
+              <button
+                class="acc"
+                type="button"
+                [attr.data-pickcal]="cal.id"
+                [class.on]="value.calendar === cal.id"
+                [style.background]="cal.c"
+                [attr.aria-label]="cal.name"
+                [attr.aria-pressed]="value.calendar === cal.id"
+                [disabled]="editor().saving()"
+                [title]="cal.name"
+                (click)="editor().edit({ calendar: cal.id })"
+                style="width: 15px; height: 15px"
+                tabindex="0"
+              ></button>
+            }
+          </div>
         </div>
       </div>
-    </div>
-    <textarea
-      class="ce-notes"
-      #notes
-      [value]="draft().notes"
-      data-f="notes"
-      placeholder="Add Notes"
-      spellcheck="false"
-    ></textarea>
-    <div class="ce-foot">
-      <button class="btn" (click)="cancel()" data-cancel>Cancel</button>
-      <button class="btn pri" (click)="save()" data-save>{{ event() ? 'Done' : 'Add' }}</button>
-    </div>
+      <textarea
+        class="ce-notes"
+        #notes
+        [value]="value.notes"
+        [disabled]="editor().saving()"
+        (input)="editor().edit({ notes: notes.value })"
+        data-f="notes"
+        aria-label="Notes"
+        placeholder="Add Notes"
+        spellcheck="false"
+        tabindex="0"
+      ></textarea>
+      <div role="status" aria-live="polite" style="padding: 6px 14px; font-size: 12px">
+        {{ editor().saving() ? 'Saving…' : editor().dirty() ? 'Unsaved changes' : 'Saved' }}
+      </div>
+      @if (editor().error(); as problem) {
+        <p role="alert" style="margin: 6px 14px; overflow-wrap: anywhere">{{ problem }}</p>
+      }
+      <div class="ce-foot">
+        <button class="btn" tabindex="0" (click)="cancel()" data-cancel>Close</button>
+        @if (editor().dirty()) {
+          <button class="btn" tabindex="0" [disabled]="editor().saving()" (click)="discard()">Discard Changes</button>
+        }
+        @if (editor().error()) {
+          <button class="btn" tabindex="0" [disabled]="editor().saving()" (click)="saveCopy()">Save a Copy</button>
+        }
+        <button class="btn pri" tabindex="0" [disabled]="editor().saving()" (click)="save()" data-save>
+          {{ editor().base() ? 'Done' : 'Add' }}
+        </button>
+      </div>
+    }
   `
 })
 export class CalendarEventEditor {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
-  private readonly nameField = viewChild.required<ElementRef<HTMLInputElement>>('name');
-  private readonly locationField = viewChild.required<ElementRef<HTMLInputElement>>('location');
-  private readonly dateField = viewChild.required<ElementRef<HTMLInputElement>>('date');
-  private readonly fromField = viewChild.required<ElementRef<HTMLInputElement>>('from');
-  private readonly toField = viewChild.required<ElementRef<HTMLInputElement>>('to');
-  private readonly notesField = viewChild.required<ElementRef<HTMLTextAreaElement>>('notes');
-  /** 写库期间为 `true`：连按回车或连点按钮不会写两次。 */
-  private saving = false;
-
-  protected readonly store = inject(CalendarStore);
-  protected readonly allDay = linkedSignal(() => this.draft().s === null);
-  protected readonly calendar = linkedSignal(() => this.draft().cal);
-  protected readonly dateText = computed(() => dateLabel(this.draft().d));
-  protected readonly fromText = computed(() => clockLabel(this.draft().s ?? 540));
-  protected readonly toText = computed(() => clockLabel((this.draft().s ?? 540) + (this.draft().dur || 60)));
-
-  /** 正在编辑的事件；新建时为 `null`。 */
-  readonly event = input<CalendarEvent | null>(null);
-  /** 面板初始值：编辑时是事件本身的字段，新建时是按点击位置推出的默认值。 */
-  readonly draft = input.required<CalendarEventDraft>();
+  readonly editor = input.required<CalendarDraftEditor>();
+  readonly calendars = input.required<readonly { readonly id: string; readonly name: string; readonly c: string }[]>();
   readonly done = input.required<EditorResult>();
 
   constructor() {
-    afterNextRender(() => setTimeout(() => this.nameField().nativeElement.focus(), 60));
+    afterNextRender(() => {
+      setTimeout(() => document.querySelector<HTMLElement>('.ce-name')?.focus(), 60);
+    });
+  }
+
+  protected toggleAllDay(allDay: boolean): void {
+    this.editor().edit({ allDay: !allDay });
   }
 
   protected cancel(): void {
-    this.popover.close();
+    this.popover.close(false, 'command');
+  }
+
+  protected discard(): void {
+    if (!this.editor().discard()) return;
+    this.popover.close(false, 'command');
   }
 
   protected async remove(): Promise<void> {
-    const event = this.event();
-    if (!event || this.saving) return;
-    this.saving = true;
-    try {
-      await this.store.remove(event.id);
-    } finally {
-      this.saving = false;
-    }
-    this.popover.close();
+    const event = this.editor().base();
+    if (!event || !(await this.editor().remove())) return;
+    this.popover.close(false, 'command');
     this.done()(null);
     this.toast.show('Event deleted');
   }
 
-  protected async save(): Promise<void> {
-    if (this.saving) return;
-    const draft = this.draft();
-    const event = this.event();
-    const d = parseDate(this.dateField().nativeElement.value, draft.d);
-    const s = this.allDay() ? null : parseClock(this.fromField().nativeElement.value, draft.s ?? 540);
-    /* 结束早于开始在 Calendar 里表示次日；一张网格里只有夹到最少 15 分钟才说得通。 */
-    const dur = s === null ? 0 : Math.max(15, parseClock(this.toField().nativeElement.value, s + 60) - s);
-    const t = this.nameField().nativeElement.value.trim() || 'New Event';
-    const fields: CalendarEventDraft = {
-      d,
-      t,
-      s,
-      dur,
-      cal: this.calendar(),
-      loc: this.locationField().nativeElement.value.trim(),
-      notes: this.notesField().nativeElement.value
-    };
-    this.saving = true;
-    try {
-      if (event) await this.store.update(event.id, fields);
-      else await this.store.add(fields);
-    } finally {
-      this.saving = false;
-    }
-    this.popover.close();
-    this.done()(d);
-    this.toast.show(event ? 'Event updated' : `Added “${t}” on ${MONS3[d[1]]} ${d[2]}`);
+  protected async saveCopy(): Promise<void> {
+    if (!this.editor().makeCopy()) return;
+    await this.save();
   }
 
-  /** 回车保存（文本框除外），Esc 关闭。 */
+  protected async save(): Promise<void> {
+    if (!(await this.editor().save())) return;
+    const value = this.editor().value();
+    if (!value) return;
+    const date = parseCalendarInput(value).d;
+    const title = value.title.trim();
+    this.popover.close(false, 'command');
+    this.done()(date);
+    this.toast.show(this.editor().base() ? `Saved “${title}”` : `Added “${title}” on ${MONS3[date[1]]} ${date[2]}`);
+  }
+
   protected key(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && (event.target as Element).tagName !== 'TEXTAREA') {
+    if (event.key === 'Enter' && (event.target as Element).tagName !== 'TEXTAREA' && (event.target as Element).tagName !== 'BUTTON') {
       event.preventDefault();
-      this.save();
+      void this.save();
     }
     if (event.key === 'Escape') {
       event.preventDefault();
-      this.popover.close();
+      this.cancel();
     }
   }
 }

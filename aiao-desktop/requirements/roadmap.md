@@ -37,4 +37,4 @@ A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 
 
 [US-117 本地会话与草稿保护](stories/desktop/ADESK-US-117-local-messages.md)已完成自动验收；真实远程通讯仍未接入。
 
-[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)实施中，真实邮件收发仍未接入。
+[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)已完成自动验收，真实邮件收发仍未接入。

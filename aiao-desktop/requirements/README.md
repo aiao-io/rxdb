@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[33/35 已交付]；1 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[34/35 已交付]；0 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -115,4 +115,4 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 [US-117 本地会话与草稿保护](stories/desktop/ADESK-US-117-local-messages.md)已完成；真实远程通讯未接入，继续 Mail 等主要写入流程。
 
-[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)实施中，真实邮件收发服务仍未接入。
+[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)已完成自动验收；真实邮件收发服务仍未接入，继续 Calendar 等主要流程。

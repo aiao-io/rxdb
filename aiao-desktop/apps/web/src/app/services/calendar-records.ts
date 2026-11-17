@@ -90,3 +90,20 @@ export const listOf = (row: ListRecord): CalendarList => ({
   c: row.color,
   on: row.visible
 });
+
+
+/** 并发或删除造成的编辑冲突，只显示用户可理解的原因。 */
+export class CalendarChangeError extends Error {
+  constructor(kind: 'conflict' | 'missing' | 'calendar') {
+    const messages = {
+      conflict: 'This event changed in another window. Save a copy or discard your changes before reopening it.',
+      missing: 'This event is no longer available. Save a copy to keep your changes.',
+      calendar: 'This calendar is no longer available. Choose another calendar before saving.'
+    };
+    super(messages[kind]);
+  }
+}
+
+export const sameCalendarEvent = (a: CalendarEventDraft, b: CalendarEventDraft): boolean =>
+  a.d.join() === b.d.join() && a.t === b.t && a.s === b.s && a.dur === b.dur &&
+  a.cal === b.cal && a.loc === b.loc && a.notes === b.notes;

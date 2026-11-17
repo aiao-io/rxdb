@@ -174,3 +174,17 @@ US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 �
 未接入真实远程消息、通话、文件发送与回执，不把本地改动当作这些能力已实现；合成 beforeunload、软件键盘和 axe 不替代人工体验。
 
 US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-108 人工读屏保留。
+
+
+## A06 本地邮件草稿（US-118）
+
+基线 `2a3e46183` 加当前未提交改动，schema `2026111703` 不变；没有发布。
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/mail/mail-draft.spec.ts`：[草稿红阶段](aiao-mail-draft-red.log)、[草稿绿阶段](aiao-mail-draft-green.log)。搜索和草稿对象识别另有[模型红阶段](aiao-mail-model-red.log)，最终全量单测验证。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-mail-final-gates.log)全绿，122 文件/1573 条单测，[覆盖率](aiao-local-mail-coverage.json)及原逐文件 80% 门槛通过。草稿模型已显式加入统计范围。
+- 定向检查[第一份报告](aiao-local-mail-first.json)在回复断言失败：点击邮箱后尚未渲染完成即读取旧标题；改为等 Inbox 选中状态。第二次[报告](aiao-local-mail-second.json)在图片地址断言失败：同一图片 500px 与 1280px 缩略图地址被认作不同；改为比较同一图片路径，与已有复制地址检查一致。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-mail,content-actions,local-messages,note-drafts,apps,a11y,shell-interaction --report=/tmp/aiao-local-mail-final.json --output-style=static`：[七组报告](aiao-local-mail-final.json)中 Mail 和其他五组通过，复制打印组仍查旧菜单名 Mail 而失败，已同步为 Mail Draft。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-mail,content-actions --report=/tmp/aiao-local-mail-green.json --output-style=static`：[最终报告](aiao-local-mail-green.json)、[日志](aiao-local-mail-green.log)，两组全绿、26.8 秒，无页面错误。Mail 十五项和复制打印十项通过，未无故重跑已通过的五组。
+- 真实 SQLite INSERT/UPDATE 拒绝与恢复、真实写锁关闭等待、两个实际页面的草稿冲突、副本失败重试、原记录删除、面板替换后恢复、刷新可编辑、搜索和实际内容均检查。[失败截图](aiao-mail-failure.png)已目视核查，输入与操作提示可见，无 SQL 泄露。
+
+未接入邮件账号、远程投递或附件传输；历史 Sent 数据保留并标明本地存档。beforeunload 为合成事件，软件键盘和 axe 不替代物理输入或读屏。
