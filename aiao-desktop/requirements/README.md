@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[31/32 已交付]；0 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[31/33 已交付]；1 条进行中、1 条待评审。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -110,3 +110,5 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 | 冒烟               | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败                                                                                                                                                                                                                                                       |
 
 当前实施 [US-208 Aiao Code 文件复制与嵌入边界](stories/application/ADESK-US-208-aiao-code-file-copy.md)，复用现有文件授权，不扩展共享目录或自动同步。
+
+[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)实施中，解决保存失败、导航与并发覆盖问题。

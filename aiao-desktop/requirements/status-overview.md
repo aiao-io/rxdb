@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-17 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前31条Done、0条In Progress、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-17 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前31条Done、1条In Progress、1条In Review。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
@@ -9,19 +9,19 @@
 | 状态           | 数量 |
 | -------------- | ---- |
 | ✅ Done        | 31   |
-| 🚧 In Progress | 0    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 32   |
+| **合计**       | 33   |
 
 ## 自动完成计划
 
 A01～A05 已完成并归档，包括 US-112、US-113 与 US-208；继续 A06 内置应用核查及后续自动任务，见[计划](plans/2026-11-17-autonomous-completion.md)。
 
-## 进行中（0 条）
+## 进行中（1 条）
 
-US-115 已完成，A06 的 Notes 等后续工作继续按[台账](plans/2026-11-17-builtin-workflows.md)推进。
+- [US-116 备忘录保存与编辑内容保护](stories/desktop/ADESK-US-116-note-drafts.md)：保存、导航和并发冲突保护；A06 其余工作见[台账](plans/2026-11-17-builtin-workflows.md)。
 
 ## 待评审（1 条）
 
@@ -65,6 +65,8 @@ US-115 已完成，A06 的 Notes 等后续工作继续按[台账](plans/2026-11-
 - ✅ [ADESK-US-114 内置内容复制与打印](stories/desktop/ADESK-US-114-content-actions.md)
 
 - ✅ [ADESK-US-115 提醒事项草稿与写入失败保护](stories/desktop/ADESK-US-115-reminder-drafts.md)
+
+- 🚧 [ADESK-US-116 备忘录保存与编辑内容保护](stories/desktop/ADESK-US-116-note-drafts.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 

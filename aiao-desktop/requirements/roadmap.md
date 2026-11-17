@@ -32,3 +32,5 @@
 A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 内置内容复制与打印](stories/desktop/ADESK-US-114-content-actions.md)已完成，继续处理草稿保护及其余主要任务。
 
 [US-115 提醒事项草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)已完成：失败保留输入、稳定 ID 重试、关闭等待及五组关联回归通过；继续 Notes 等其余写入流程。
+
+[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)实施中：保存成功基线、导航等待和并发冲突恢复。

@@ -140,3 +140,5 @@ US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/3
 - 前三次浏览器检查均未通过，保留完整报告和日志：第一、二次为新输入尚未渲染时测试选中旧输入，修复为等待唯一新 ID；[第二次](aiao-reminder-drafts-browser-second.json)明确显示两个变量曾指向同一条。第三次 reload helper 主动关窗后测试未重开，已补重开；[第三次](aiao-reminder-drafts-browser-third.json)。最终联跑验证这些修复，不将前次失败算作通过。
 
 固定侧栏统计和日期筛选不在 US-115 范围，留在 A06 台账中继续。
+
+US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-108 人工读屏保留。
