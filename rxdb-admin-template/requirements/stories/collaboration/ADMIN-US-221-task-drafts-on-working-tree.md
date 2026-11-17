@@ -8,7 +8,7 @@ created: 2026-11-17
 updated: 2026-11-17
 tags: [admin, collaboration, working-tree, rxdb, model-driven]
 dependsOn: [ADMIN-US-218]
-capabilities: []
+capabilities: [rxdb:US-316, rxdb:US-317]
 ---
 
 # 用户故事：团队任务草稿落在 RxDB 工作树
@@ -35,11 +35,10 @@ capabilities: []
 
 ### 前置的平台能力
 
-以下能力目前是平台 epic-006 的非目标，需要在根 requirements 立项并完成后，本故事才能开始。立项前 `capabilities` 留空：
+以下能力是平台 epic-006 的非目标，已在根 requirements 以 [epic-014](../../../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项（2026-11-17），完成后本故事才能开始：
 
-1. 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交。
-2. 合并类（多父）提交可以导入。
-3. `discard()` / `restore()` 同步回写业务表，放弃的编辑不再被查询读到。
+1. 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交；合并类（多父）提交可以导入——[US-316](../../../../requirements/stories/collaboration/US-316-remote-commit-import.md)。
+2. `discard()` / `restore()` 同步回写业务表，放弃的编辑不再被查询读到——[US-317](../../../../requirements/stories/collaboration/US-317-discard-restore-projection.md)。
 
 ## 验收标准
 

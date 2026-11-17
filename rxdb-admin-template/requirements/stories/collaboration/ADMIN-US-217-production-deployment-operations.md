@@ -40,7 +40,7 @@ capabilities: []
 | --- | -------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ---- |
 | 1   | 干净的 Supabase 项目                   | 连续执行两次产品迁移                                   | 第二次不报错、不产生变更；表、RLS、授权与 Realtime publication 与仓库迁移一致            | ⬜   |
 | 2   | 部署流水线已配置                       | 发布到 staging 或 production                           | 先执行迁移，再发布协作 API 与三端产物；任一步失败即停止发布，线上保留上一版本            | ⬜   |
-| 3   | 构建产物与部署配置                     | 运行密钥扫描并检查部署环境变量                         | 前端产物与仓库不含 service role key、数据库连接串等 secret；服务端 secret 只来自部署环境 | ⬜   |
+| 3   | 构建产物与部署配置                     | 运行密钥扫描并检查部署环境变量                         | 前端产物与仓库不含 service role key、数据库连接串等 secret；服务端 secret 只来自部署环境 |      | ⚠️  |
 | 4   | staging 已配置邮件服务与验证码模板     | 用真实邮箱请求并使用验证码；另取一码等其自然过期再提交 | 真实邮箱收到验证码并完成登录；过期验证码被拒绝且可重新请求                               | ⬜   |
 | 5   | staging 部署完成                       | 对部署地址运行三端协作 E2E 与 RLS 验收                 | 全部通过，结果与该次发布记录关联                                                         | ⬜   |
 | 6   | 工作区累积了预设规模的回执、审计与通知 | 执行普通命令并读取团队快照                             | 单次命令耗时与快照体积在预算内；保留期内的幂等重试仍返回原结果；审计按策略归档且仍可查询 | ⬜   |
@@ -50,6 +50,10 @@ capabilities: []
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 验收证据：尚无。本故事的证据必须来自真实部署环境；本地临时 PostgreSQL 与隔离 Supabase 测试栈的结果不能替代。
+
+部署前准备（不构成验收证据）：
+
+- AC#3：2026-11-17 新增密钥扫描门禁 `pnpm nx run rxdb-admin-template:secrets-check`（先构建三端，再扫产品根被跟踪的文件与三端产物）。规则：服务端角色 JWT、`sb_secret_` 密钥、带密码的数据库连接串、PEM 私钥；产物里另禁服务端变量名（出现即说明服务端模块被打进前端包）；报告只带打码前缀。规则用例 7 条（`secrets-test`，并入产品根 `test`）。真实发布流水线接入与部署环境变量核对仍待完成。
 
 ## 技术笔记
 
@@ -61,7 +65,8 @@ capabilities: []
 
 ## 实现文件
 
-尚未实施。预计涉及 `rxdb-admin-template/supabase/migrations/`、`rxdb-admin-template/packages/collaboration/src/server/` 与部署流水线配置。
+- 密钥扫描：[check-secrets.mjs](../../../scripts/check-secrets.mjs)、[check-secrets.spec.mjs](../../../scripts/check-secrets.spec.mjs)，目标定义在 [project.json](../../../project.json)。
+- 其余尚未实施。预计涉及 `rxdb-admin-template/supabase/migrations/`、`rxdb-admin-template/packages/collaboration/src/server/` 与部署流水线配置。
 
 ## References
 

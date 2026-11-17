@@ -1,4 +1,18 @@
-import { demand, type Check, type Conflict, type DataRow, type Records, type Resolution, type Value } from './model.js';
+import {
+  demand,
+  type ChangeSet,
+  type Check,
+  type Conflict,
+  type DataRow,
+  type Records,
+  type Resolution,
+  type Value
+} from './model.js';
+
+/** 资产实体的命名空间；字段级变更的 `namespace` 目前只能是它，元数据清单落地后改由清单决定。 */
+export const assetNamespace = 'assets';
+/** 单个提交最多包含的变更数，与单个任务的记录数上限一致。 */
+const maxChanges = 10000;
 
 export function canonical(value: unknown): string {
   if (value === undefined) return 'undefined';
@@ -32,17 +46,46 @@ function assertRow(value: unknown): asserts value is DataRow {
   demand(value !== null && typeof value === 'object' && !Array.isArray(value), 'invalid', '记录格式错误');
   const row = value as DataRow;
   demand(Object.hasOwn(entityFields, row.entity), 'invalid', '实体不受支持');
-  demand(
-    row.fields !== null && typeof row.fields === 'object' && !Array.isArray(row.fields),
-    'invalid',
-    '字段格式错误'
-  );
-  for (const [field, item] of Object.entries(row.fields)) {
-    demand(entityFields[row.entity].includes(field), 'invalid', '字段不受支持');
+  assertFields(row.entity, row.fields);
+}
+/** 校验某个实体的字段取值：字段必须在白名单里，取值只能是有限数字、不超长的文本、布尔或 null。 */
+function assertFields(entity: DataRow['entity'], fields: unknown): asserts fields is Record<string, Value> {
+  demand(fields !== null && typeof fields === 'object' && !Array.isArray(fields), 'invalid', '字段格式错误');
+  for (const [field, item] of Object.entries(fields)) {
+    demand(entityFields[entity].includes(field), 'invalid', '字段不受支持');
     demand(item === null || ['string', 'number', 'boolean'].includes(typeof item), 'invalid', '字段值格式错误');
     demand(typeof item !== 'number' || Number.isFinite(item), 'invalid', '数字必须有限');
     demand(typeof item !== 'string' || item.length <= 10000, 'limit', '字段内容过长');
   }
+}
+const changeKeys = ['namespace', 'entity', 'entityId', 'operation', 'patch', 'inversePatch'];
+/** 各操作要求 `patch` 与 `inversePatch` 是否存在：新增只有 patch，修改两者都有，删除只有 inversePatch。 */
+const changeShapes: Record<ChangeSet['operation'], [patch: boolean, inversePatch: boolean]> = {
+  insert: [true, false],
+  update: [true, true],
+  delete: [false, true]
+};
+
+/** 验证网络输入的字段级变更列表：形状、命名空间、实体、记录标识、操作与各字段取值；是否与父提交内容相符由推导内容时裁决。 */
+export function assertChanges(input: unknown): asserts input is ChangeSet[] {
+  demand(Array.isArray(input), 'invalid', '变更格式错误');
+  demand(input.length <= maxChanges, 'limit', '单个提交最多包含 10000 项变更');
+  for (const change of input) assertChange(change);
+}
+function assertChange(value: unknown): asserts value is ChangeSet {
+  demand(value !== null && typeof value === 'object' && !Array.isArray(value), 'invalid', '变更格式错误');
+  const change = value as Record<string, unknown>;
+  const keys = Object.keys(change);
+  demand(keys.length === changeKeys.length && changeKeys.every(key => keys.includes(key)), 'invalid', '变更格式错误');
+  demand(change['namespace'] === assetNamespace, 'invalid', '实体不受支持');
+  demand(typeof change['entity'] === 'string' && Object.hasOwn(entityFields, change['entity']), 'invalid', '实体不受支持');
+  demand(typeof change['entityId'] === 'string' && safeKey(change['entityId']), 'invalid', '记录标识格式错误');
+  const operation = change['operation'];
+  demand(typeof operation === 'string' && Object.hasOwn(changeShapes, operation), 'invalid', '变更格式错误');
+  const [patch, inversePatch] = changeShapes[operation as ChangeSet['operation']];
+  demand((change['patch'] !== null) === patch && (change['inversePatch'] !== null) === inversePatch, 'invalid', '变更格式错误');
+  for (const fields of [change['patch'], change['inversePatch']])
+    if (fields !== null) assertFields(change['entity'] as DataRow['entity'], fields);
 }
 
 /**

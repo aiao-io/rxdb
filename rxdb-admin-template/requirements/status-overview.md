@@ -15,7 +15,7 @@
 
 ## 进行中（1 条）
 
-- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：阶段 0 基线已度量；切片 A（读路径不加锁、Presence 共享锁）已落地，后续切片见 [收敛实施计划](plans/collaboration-convergence-tasks.md)。
+- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：阶段 0 基线已度量；切片 A（读路径不加锁、Presence 共享锁）与切片 B（摘要瘦身、按需读取）已落地，200 个提交时摘要由 26.8 MB 降到 66 KB，后续切片见 [收敛实施计划](plans/collaboration-convergence-tasks.md)。
 
 ## 待评审（19 条）
 
@@ -50,7 +50,7 @@
 - [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) 协作读取、实时与身份校验改用 Supabase 原生能力：依赖 ADMIN-US-218。
 - [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 协作服务只部署 Supabase 即可运行：依赖 ADMIN-US-218、219。
 - [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：协作故事关闭所需的部署、真实邮箱与长期运行证据，排在 218～220 之后。
-- [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：依赖 ADMIN-US-218，并等待平台 working-tree 远端提交交换立项。
+- [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：依赖 ADMIN-US-218 与平台 [US-316](../../requirements/stories/collaboration/US-316-remote-commit-import.md)、[US-317](../../requirements/stories/collaboration/US-317-discard-restore-projection.md)（epic-014，已立项）。
 
 ## 按 Epic 索引
 

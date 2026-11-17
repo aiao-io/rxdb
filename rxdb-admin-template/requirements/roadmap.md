@@ -53,9 +53,9 @@
 3. [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) RLS 分页读取、Realtime Broadcast 与 Presence、本地 JWT 校验。
 4. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase。
 5. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏。
-6. [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：不阻塞上线，等待平台立项。
+6. [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：不阻塞上线，前置为平台 US-316、US-317。
 
-并行事项：在根 requirements 为 working-tree 的「导入远端提交并保留身份」「多父提交」「回写业务表的 discard / restore」立项。这三项目前是平台 epic-006 的非目标，需要先决策。
+并行事项：平台 working-tree 的「导入远端提交并保留身份（含多父提交）」「回写业务表的 discard / restore」已在根 requirements 以 [epic-014](../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项（[US-316](../../requirements/stories/collaboration/US-316-remote-commit-import.md)、[US-317](../../requirements/stories/collaboration/US-317-discard-restore-projection.md)，根 roadmap 批次 8）。
 
 ## 既有前置
 

@@ -51,11 +51,8 @@ Admin 模板通用能力：
 
 ### 平台能力候选（来自协作后端收敛）
 
-[ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 需要平台 working-tree 补齐以下能力，它们目前是平台 [epic-006](../../requirements/epics/epic-006-working-tree-commits.md) 的非目标，需在根 requirements 决策并立项（详见 [收敛实施计划](plans/collaboration-convergence-tasks.md) 第 5 节）：
+[ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 需要的平台能力已于 2026-11-17 在根 requirements 以 [epic-014](../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项，不再是候选：导入远端提交与多父提交见 [US-316](../../requirements/stories/collaboration/US-316-remote-commit-import.md)，`discard()` / `restore()` 回写业务表见 [US-317](../../requirements/stories/collaboration/US-317-discard-restore-projection.md)。仍留作候选的只有：
 
-- 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交。
-- 合并类（多父）提交。
-- `discard()` / `restore()` 回写业务表。
 - 三方字段级合并与「停在合并状态由用户裁决」：目前只有产品服务端的 `mergeRecords` 实现；平台需要时再上移，不作为 ADMIN-US-221 的前置。
 
 ### 2026-11-17 代码评审登记的工程收敛

@@ -23,20 +23,45 @@ export interface Member {
   active: boolean;
 }
 /**
- * 一次提交：任务在某一时刻的整单记录快照。`parent` 串成提交图；
+ * 字段级变更：一次提交里对一条记录的改动，形状对齐平台 working-tree 的 `CommitChangeSet`。
+ * - `insert`：`patch` 是整行字段，`inversePatch` 为 null。
+ * - `update`：`patch` 只含变更字段的新值，`inversePatch` 含这些字段的旧值；
+ *   只出现在 `patch` 里的字段是新增字段（此前不存在），只出现在 `inversePatch` 里的字段是被移除的字段。
+ * - `delete`：`patch` 为 null，`inversePatch` 是被删除记录的整行字段。
+ * `namespace` 目前固定为资产实体的命名空间 `assets`。
+ */
+export interface ChangeSet {
+  namespace: string;
+  entity: DataRow['entity'];
+  entityId: string;
+  operation: 'insert' | 'update' | 'delete';
+  patch: Record<string, Value> | null;
+  inversePatch: Record<string, Value> | null;
+}
+/**
+ * 一次提交：任务在某一时刻相对其父提交的字段级变更。`parent` 串成提交图；
  * `mergeSource` 与 `candidateId` 只在合并产生的提交上出现。
+ * `fingerprint` 是对 `parent`、`authorId`、`message` 与 `changes` 规范化后的 SHA-256 十六进制摘要，
+ * 客户端随提交上传，服务端重新计算，不一致即拒绝；提交 ID 不再承担内容寻址。
  */
 export interface Commit {
   id: string;
   parent: string | null;
   authorId: string;
   message: string;
-  records: Records;
+  changes: ChangeSet[];
+  fingerprint: string;
   mergeSource?: string;
   candidateId?: string;
 }
-/** 提交摘要：只含元数据，不含记录内容；内容经 `GET .../commits/:id` 按需读取，提交不可变，客户端可按 ID 长期缓存。 */
-export type CommitSummary = Omit<Commit, 'records'>;
+/** 提交的元数据：不含变更内容，含内容指纹；服务端按提交 ID 去重、核对重传时只读这一部分。 */
+export type CommitMeta = Omit<Commit, 'changes'>;
+/** 提交摘要：只含元数据，不含变更内容与指纹；内容经 `GET .../commits/:id` 按需读取，提交不可变，客户端可按 ID 长期缓存。 */
+export type CommitSummary = Omit<Commit, 'changes' | 'fingerprint'>;
+/** 提交的完整内容，即 `GET .../commits/:id` 的响应：元数据加上该提交时刻的整份记录（服务端由变更推导）。 */
+export interface CommitContent extends CommitSummary {
+  records: Records;
+}
 /** 任务：成员私有的工作分支。`base` 是创建时的共享版本，`head` 是已同步到服务端的最新提交，`originTaskId` 指向另存前的原任务。 */
 export interface Task {
   id: string;
@@ -97,10 +122,11 @@ export interface Check {
   message: string;
 }
 /**
- * 合并候选：针对某个来源与目标版本，在指定的策略与数据模式版本下生成的最终合并结果，
- * 附带未解决的冲突与检查结果。来源、目标、策略或模式任一变化后即过期，必须重新生成并审核。
+ * 候选摘要：针对某个来源与目标版本，在指定的策略与数据模式版本下生成的最终合并结果的元数据，
+ * 附带未解决的冲突与检查结果；最终记录经 `GET .../candidates/:id` 按需读取，候选不可变，客户端可按 ID 长期缓存。
+ * 来源、目标、策略或模式任一变化后即过期，必须重新生成并审核。
  */
-export interface Candidate {
+export interface CandidateSummary {
   id: string;
   prId: string;
   base: string | null;
@@ -109,17 +135,22 @@ export interface Candidate {
   schemaVersion: number;
   policyVersion: number;
   resolutions: Resolution[];
-  records: Records;
   conflicts: Conflict[];
   checks: Check[];
   actorId: string;
   at: number;
 }
+/** 合并候选的完整内容，即 `GET .../candidates/:id` 的响应：摘要加上最终合并结果的整份记录（服务端由存储的变更推导）。 */
+export interface Candidate extends CandidateSummary {
+  records: Records;
+}
 /**
- * 候选摘要：保留来源、目标、冲突选择、冲突与检查结果，去掉最终记录；记录经 `GET .../candidates/:id` 按需读取，
- * 候选不可变，客户端可按 ID 长期缓存。
+ * 服务端存储的合并候选：摘要加上最终结果相对目标版本 T 的字段级变更；
+ * 把 `changes` 应用到 T 的记录上就得到 {@link Candidate.records}。
  */
-export type CandidateSummary = Omit<Candidate, 'records'>;
+export interface StoredCandidate extends CandidateSummary {
+  changes: ChangeSet[];
+}
 /**
  * 一条审核记录：批准、要求修改，或撤销他人的阻塞意见（dismiss）。
  * `generation` 记录审核者当时的授权代次，授权变更后旧批准不再有效；`revision` 是同一审核者记录的版本。
@@ -209,7 +240,11 @@ export interface Receipt {
   fingerprint: string;
   value: Record<string, unknown>;
 }
-/** 服务端持久化的完整工作区状态（一个团队下的一个应用）：成员、任务、提交、PR、审核、讨论、回执与审计。 */
+/**
+ * 服务端持久化的工作区状态（一个团队下的一个应用）：成员、任务、PR、审核、讨论、回执与审计，
+ * 以及共享分支的头提交 `head`。提交与共享记录不在其中：提交（元数据与字段级变更）存在提交表，
+ * 共享记录按记录物化在共享记录表，工作区行的体积因此不随提交数与记录数增长。
+ */
 export interface Workspace {
   teamId: string;
   appId: string;
@@ -219,13 +254,11 @@ export interface Workspace {
   schemaVersion: number;
   revision: number;
   head: string | null;
-  records: Records;
   policy: Policy;
   members: Record<string, Member>;
   tasks: Record<string, Task>;
-  commits: Record<string, Commit>;
   prs: Record<string, PullRequest>;
-  candidates: Record<string, Candidate>;
+  candidates: Record<string, StoredCandidate>;
   invitations: Record<string, Invitation>;
   reviews: Review[];
   threads: Record<string, Thread>;

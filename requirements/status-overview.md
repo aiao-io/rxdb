@@ -10,9 +10,9 @@
 | ✅ Done        | 95   |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 4    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 30   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 140  |
+| **合计**       | 142  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -234,6 +234,13 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ⬜ [US-710 实时信号：在线状态、编辑标记与变更提示](stories/future/US-710-p2p-live-signals.md)
 - ⬜ [US-711 远程 DevTools：经 P2P 会话检查另一台设备上的库](stories/future/US-711-p2p-remote-devtools.md)
 - ⬜ [US-712 局域网枢纽：一台设备充当远端](stories/future/US-712-p2p-lan-hub.md)
+
+### [提交图远端交换与草稿回写](epics/epic-014-commit-graph-remote-exchange.md)
+
+owner 于 2026-11-17 授权推进，首个使用方是 Admin 产品的 ADMIN-US-221（团队任务草稿落在工作树）；排期与准入见 [roadmap 批次 8](roadmap.md#批次-8提交图远端交换服务-admin-us-221)。
+
+- ⬜ [US-316 导入远端提交：保留提交身份并快进分支头](stories/collaboration/US-316-remote-commit-import.md)
+- ⬜ [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

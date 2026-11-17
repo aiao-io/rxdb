@@ -20,9 +20,31 @@
         "command": "node --test scripts/check-requirements.spec.mjs"
       }
     },
+    "secrets-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node --test scripts/check-secrets.spec.mjs"
+      }
+    },
+    "secrets-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["rxdb-admin-template-angular", "rxdb-admin-template-react", "rxdb-admin-template-vue"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node scripts/check-secrets.mjs --tracked --artifact ../dist/apps/rxdb-admin-template-angular --artifact apps/react/dist --artifact apps/vue/dist"
+      }
+    },
     "test": {
       "executor": "nx:noop",
-      "dependsOn": ["requirements-check", "requirements-test"]
+      "dependsOn": ["requirements-check", "requirements-test", "secrets-test"]
     },
     "lint": {
       "executor": "nx:run-commands",

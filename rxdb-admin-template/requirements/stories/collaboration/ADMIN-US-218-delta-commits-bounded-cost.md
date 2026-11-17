@@ -52,7 +52,7 @@ capabilities: []
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：阶段 0 基线见 [收敛实施计划 3.1 节](../../plans/collaboration-convergence-tasks.md#31-阶段-0-基线与切片进度)，#1、#6 的预算以同一脚本 `admin-collaboration:benchmark-growth` 前后对照关闭。#6 已完成「读取不加排他锁、不在读路径写库」（切片 A）：`repository.integration.spec.ts` 的「写锁期间读取立即返回」与「心跳不能越过并发撤权」两例，分别用改动前实现（`111f7a6ce`）与 Presence 无锁变异验证会红；「只获取摘要与当前 PR 详情」待切片 B，故保持 ⚠️。
+验收证据：阶段 0 基线见 [收敛实施计划 3.1 节](../../plans/collaboration-convergence-tasks.md#31-阶段-0-基线与切片进度)，#1、#6 的预算以同一脚本 `admin-collaboration:benchmark-growth` 前后对照关闭。#6 已完成「读取不加排他锁、不在读路径写库」（切片 A）：`repository.integration.spec.ts` 的「写锁期间读取立即返回」与「心跳不能越过并发撤权」两例，分别用改动前实现（`111f7a6ce`）与 Presence 无锁变异验证会红；切片 B 已让版本通知后只拉摘要，提交与候选内容、共享数据和更早审计按需读取（`engine.spec`、`http.spec`、`controller.spec`、`pr-view.spec`、`history-view.spec` 与集成用例，30 个协作 E2E 同轮通过）；200 个提交时摘要 66 KB（基线快照 26.8 MB），但仍按约 0.3 KB/提交线性增长、超出 50 KB 预算，提交元数据分页在切片 D 完成，故保持 ⚠️。
 
 ## 技术笔记
 
