@@ -1,124 +1,186 @@
-import { Component, ElementRef, Service, afterNextRender, inject, input, viewChild } from '@angular/core';
+import { Component, DestroyRef, Service, effect, inject, signal } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS } from '../../data/live-query';
+import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { time12Plain } from '../../shared/format';
-import { SENT_COLOR, SENT_MAILBOX } from './mail-model';
+import { MailDraftEditor, MailDraftError, MailDraftWrite, sameMailDraft } from './mail-draft';
+import { DRAFTS_MAILBOX, SENT_COLOR } from './mail-model';
 import { MailMessage } from './mail.entities';
 
-/** 写好的一封邮件。 */
-export interface MailDraft {
-  readonly to: string;
-  readonly subject: string;
-  readonly body: string;
-}
-
-/** 写邮件的面板：新邮件按钮、回复、转发与各应用的「通过邮件共享」都用它。 */
+/** 编辑器只负责展示共享草稿；Esc、点外面或隐藏面板不会丢弃输入。 */
 @Component({
   selector: 'app-mail-compose',
-  host: { class: 'pop', style: 'padding: 0; width: min(600px, 84vw); border-radius: 12px; overflow: hidden' },
+  host: {
+    class: 'pop', role: 'dialog', 'aria-label': 'Local mail draft', '[attr.data-draft-id]': 'editor.value()?.id',
+    style: 'padding: 14px; width: min(600px, 84vw); max-height: 80vh; overflow: auto; border-radius: 12px; background: var(--win); color: var(--txt)'
+  },
   template: `
-    <div class="fx-tb" style="height: 46px; padding: 0 12px; gap: 8px; border-bottom: 0.5px solid var(--line)">
-      <div class="fx-title" style="position: static; flex: 1; text-align: left">New Message</div>
-      <button class="btn" (click)="popover.close()" data-cancel style="height: 22px">Cancel</button>
-      <button class="btn pri" (click)="send()" data-send style="height: 22px">Send</button>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px">
+      <strong style="flex: 1">Local Mail Draft</strong>
+      <button class="btn" tabindex="0" (click)="composer.hide()">Hide Draft</button>
     </div>
-    <div style="padding: 0 14px">
-      <div style="display: flex; align-items: center; gap: 8px; height: 34px; border-bottom: 0.5px solid var(--line)">
-        <span style="width: 54px; font-size: 12px; color: var(--txt-2)">To:</span>
-        <input
-          #toField
-          [value]="to()"
-          data-f="To"
-          style="flex: 1; border: 0; background: none; font-size: 13px; outline: none; color: var(--txt)"
-        />
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px; height: 34px; border-bottom: 0.5px solid var(--line)">
-        <span style="width: 54px; font-size: 12px; color: var(--txt-2)">Subject:</span>
-        <input
-          #subjectField
-          [value]="subject()"
-          data-f="Subject"
-          style="flex: 1; border: 0; background: none; font-size: 13px; outline: none; color: var(--txt)"
-        />
-      </div>
+    <p style="font-size: 12px; margin: 8px 0">Saved only in this browser. No email service is connected and nothing will be sent.</p>
+    @if (composer.notice()) { <p role="alert" style="margin: 8px 0">{{ composer.notice() }}</p> }
+    @if (editor.error()) { <p role="alert" style="margin: 8px 0">{{ editor.error() }}</p> }
+    <label style="display: block; margin-top: 8px">
+      To
+      <input #toField [value]="editor.value()?.to ?? ''" [disabled]="editor.saving()"
+        (input)="editor.edit({ to: toField.value })" data-f="To" aria-label="To"
+        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)" />
+    </label>
+    <label style="display: block; margin-top: 8px">
+      Subject
+      <input #subjectField [value]="editor.value()?.subject ?? ''" [disabled]="editor.saving()"
+        (input)="editor.edit({ subject: subjectField.value })" data-f="Subject" aria-label="Subject"
+        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)" />
+    </label>
+    <label style="display: block; margin-top: 8px">
+      Message
+      <textarea #bodyField [value]="editor.value()?.body ?? ''" [disabled]="editor.saving()"
+        (input)="editor.edit({ body: bodyField.value })" data-body aria-label="Message" rows="7"
+        style="display: block; width: 100%; box-sizing: border-box; resize: vertical; color: var(--txt); background: var(--field); border: 1px solid var(--line)"></textarea>
+    </label>
+    <p role="status" aria-live="polite">{{ editor.saving() ? 'Saving draft…' : editor.dirty() ? 'Unsaved draft' : 'No unsaved changes' }}</p>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <button class="btn" tabindex="0" [disabled]="editor.saving() || !editor.dirty()" (click)="composer.save()" data-save-draft>
+        {{ editor.error() ? 'Retry Save Draft' : 'Save Draft' }}
+      </button>
+      @if (editor.error()) {
+        <button class="btn" tabindex="0" [disabled]="editor.saving()" (click)="composer.saveCopy()">Save a Copy</button>
+      }
+      <button class="btn" tabindex="0" [disabled]="editor.saving()" (click)="composer.discard()" data-discard-draft>Discard Changes</button>
     </div>
-    <div
-      #body
-      contenteditable="true"
-      data-body
-      style="min-height: 180px; padding: 14px; font-size: 13.5px; line-height: 1.6; outline: none"
-    ></div>
   `
 })
 export class MailCompose {
-  private readonly toast = inject(Toast);
-  private readonly composer = inject(MailComposer);
-  private readonly toInput = viewChild.required<ElementRef<HTMLInputElement>>('toField');
-  private readonly subjectInput = viewChild.required<ElementRef<HTMLInputElement>>('subjectField');
-  private readonly bodyField = viewChild.required<ElementRef<HTMLElement>>('body');
-  private sending = false;
-
-  protected readonly popover = inject(PopoverService);
-  readonly subject = input('');
-  readonly to = input('');
-
-  constructor() {
-    afterNextRender(() =>
-      setTimeout(() => (this.subject() ? this.bodyField() : this.toInput()).nativeElement.focus(), 60)
-    );
-  }
-
-  /** 先存进 Sent 邮箱再关面板；正在存的时候再点发送不会重复，存失败了可以再点。 */
-  protected async send(): Promise<void> {
-    if (this.sending) return;
-    this.sending = true;
-    const recipient = this.toInput().nativeElement.value.trim();
-    const subject = this.subjectInput().nativeElement.value.trim();
-    const body = this.bodyField().nativeElement.innerText.trim();
-    try {
-      await this.composer.send({ to: recipient, subject, body });
-    } finally {
-      this.sending = false;
-    }
-    this.popover.close();
-    this.toast.show(recipient ? `Message sent to ${recipient}` : 'Message sent');
-  }
+  protected readonly composer = inject(MailComposer);
+  protected readonly editor = this.composer.editor;
 }
 
-/** 打开写邮件面板（原 `Mail.compose`），并把发出的邮件存进 Sent 邮箱。 */
+/** 本地邮件草稿贯穿面板生命周期；唯一所属 Mail 窗口负责关闭与重启保护。 */
 @Service({ autoProvided: false })
 export class MailComposer {
   private readonly popover = inject(PopoverService);
   private readonly data = inject(DesktopData);
   private readonly system = inject(SystemState);
+  private readonly wm = inject(WindowManager);
+  private readonly toast = inject(Toast);
+  private readonly owner = signal<DesktopWindow | null>(null);
 
-  compose(subject = '', to = ''): void {
-    this.popover.openComponent(MailCompose, { x: innerWidth / 2 - 300, y: 96, origin: 'top center' }, { subject, to });
+  readonly editor = new MailDraftEditor(change => this.persist(change));
+  readonly notice = signal('');
+
+  constructor() {
+    effect(() => this.owner()?.hasUnsavedChanges.set(this.editor.dirty() || this.editor.saving()));
+    const beforeUnload = (event: BeforeUnloadEvent): void => {
+      if (!this.editor.dirty() && !this.editor.saving()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    inject(DestroyRef).onDestroy(() => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      this.editor.dispose();
+    });
   }
 
-  /** 把写好的邮件存进 Sent 邮箱，排在最前面。 */
-  async send(draft: MailDraft): Promise<void> {
+  bindWindow(win: DesktopWindow): void {
+    if (this.owner() === win) return;
+    this.owner.set(win);
+    win.confirmClose = async () => {
+      await this.editor.settle();
+      if (!this.editor.dirty()) return true;
+      this.notice.set('There is an unsaved mail draft. Save it locally or discard your changes before closing Mail.');
+      this.show();
+      return false;
+    };
+    win.beforeClose.subscribe(() => {
+      const active = this.popover.active();
+      if (active?.content.kind === 'component' && active.content.component === MailCompose) this.popover.close();
+      this.editor.discard();
+      this.owner.set(null);
+    });
+  }
+
+  compose(subject = '', to = '', body = ''): void {
+    this.notice.set('');
+    if (!this.editor.start({ subject, to, body }))
+      this.notice.set('Finish the current draft before starting another one. Your original content is still here.');
+    this.resume();
+  }
+
+  edit(mail: MailMessage): void {
+    if (mail.mailbox !== DRAFTS_MAILBOX) return;
+    this.notice.set('');
+    if (!this.editor.open({ id: mail.id, to: mail.recipient, subject: mail.subject, body: mail.body }))
+      this.notice.set('Finish the current draft before opening another one. Your original content is still here.');
+    this.resume();
+  }
+
+  resume(): void {
+    const win = this.wm.open('mail');
+    if (win) this.bindWindow(win);
+    this.show();
+  }
+
+  hide(): void {
+    this.popover.close(false, 'command');
+  }
+
+  discard(): void {
+    if (!this.editor.discard()) return;
+    this.notice.set('');
+    this.hide();
+  }
+
+  async save(): Promise<void> {
+    const active = this.popover.active();
+    this.notice.set('');
+    if (!(await this.editor.save())) return;
+    if (active?.id === this.popover.active()?.id) this.hide();
+    this.toast.show('Draft saved locally. No email was sent.');
+  }
+
+  async saveCopy(): Promise<void> {
+    if (this.editor.makeCopy()) await this.save();
+  }
+
+  private show(): void {
+    this.popover.openComponent(MailCompose, {
+      x: innerWidth / 2 - 300, y: 70, origin: 'top center', focus: true,
+      onClose: reason => {
+        if (reason === 'escape' || reason === 'command') document.querySelector<HTMLElement>('[data-resume-mail]')?.focus();
+      }
+    });
+  }
+
+  private async persist({ base, value }: MailDraftWrite): Promise<void> {
+    await this.data.ensureSeeded(MailMessage);
     await this.data.transaction(async executor => {
       const messages = executor.getRepository(MailMessage);
+      const [existing] = await messages.find({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: value.id }] }, limit: 1
+      });
+      const saved = existing ? { to: existing.recipient, subject: existing.subject, body: existing.body } : null;
+      if (existing && saved && existing.mailbox === DRAFTS_MAILBOX && sameMailDraft(saved, value)) return;
+      if (base && !existing) throw new MailDraftError('missing');
+      if (existing && (!base || !saved || existing.mailbox !== DRAFTS_MAILBOX || !sameMailDraft(saved, base)))
+        throw new MailDraftError('conflict');
+      const fields = { recipient: value.to, subject: value.subject, body: value.body, timeLabel: time12Plain(new Date()) };
+      if (existing) {
+        await messages.update(existing, fields);
+        return;
+      }
       const [first] = await messages.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 1 });
-      await messages.create(
-        this.data.instantiate(MailMessage, {
-          mailbox: SENT_MAILBOX,
-          sender: this.system.user,
-          recipient: draft.to,
-          subject: draft.subject,
-          body: draft.body,
-          timeLabel: time12Plain(new Date()),
-          color: SENT_COLOR,
-          unread: false,
-          flagged: false,
-          position: first ? first.position - 1 : 0
-        })
-      );
+      await messages.create(this.data.instantiate(MailMessage, {
+        ...fields, id: value.id, mailbox: DRAFTS_MAILBOX, sender: this.system.user,
+        color: SENT_COLOR, unread: false, flagged: false, position: first ? first.position - 1 : 0
+      }));
     });
   }
 }

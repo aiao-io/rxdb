@@ -172,3 +172,5 @@ US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 �
 - [最终失败界面截图](aiao-messages-failure.png)已目视检查；真实 SQLite INSERT/会话创建失败、写锁等待、会话删除、恢复单次写入、独立草稿、刷新重开和键盘操作均验证。窗口打开等待超过原随机回复时长后核对真实行数未增加。
 
 未接入真实远程消息、通话、文件发送与回执，不把本地改动当作这些能力已实现；合成 beforeunload、软件键盘和 axe 不替代人工体验。
+
+US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-108 人工读屏保留。

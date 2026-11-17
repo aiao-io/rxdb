@@ -90,7 +90,7 @@ export const contentActions = {
     const stop = await pressUntil(page, focus => focus.app === 'preview' && focus.name === 'Share');
     expect(stop.found).toBe(true);
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('menuitem', { name: 'Mail', exact: true })).toBeFocused();
+    await expect(page.getByRole('menuitem', { name: 'Mail Draft', exact: true })).toBeFocused();
     await page.keyboard.press('c');
     await expect(page.getByRole('menuitem', { name: 'Copy Text', exact: true })).toBeFocused();
     const accessibility = await new AxeBuilder({ page }).include('app-menu-list').analyze();

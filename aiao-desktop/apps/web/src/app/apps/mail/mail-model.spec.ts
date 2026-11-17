@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { FLAGGED_MAILBOX, SENT_MAILBOX, counterpartOf, mailsIn, partyOf } from './mail-model';
+import { DRAFTS_MAILBOX, FLAGGED_MAILBOX, SENT_MAILBOX, counterpartOf, mailMatches, mailsIn, partyOf } from './mail-model';
 
 const mail = (id: string, mailbox: string, flagged = false) => ({ id, mailbox, flagged });
 
@@ -47,5 +47,18 @@ describe('counterpartOf', () => {
 
   it('发出的邮件没填收件人时保持为空，不写占位文字', () => {
     expect(counterpartOf({ mailbox: SENT_MAILBOX, sender: 'Prasenjit', recipient: '' })).toBe('');
+  });
+});
+
+
+describe('本地草稿和搜索', () => {
+  it('草稿以收件人为对象；本地保存不会认作发给自己', () => {
+    expect(partyOf({ mailbox: DRAFTS_MAILBOX, sender: 'Me', recipient: 'reader@example.invalid' }))
+      .toBe('reader@example.invalid');
+  });
+  it('关键词匹配发件人、收件人、主题和正文，不区分大小写', () => {
+    const item = { sender: 'Alice', recipient: 'Bob', subject: 'Local', body: 'Body 🌏' };
+    for (const query of ['ALICE', 'bob', 'local', 'body', '🌏', '   ']) expect(mailMatches(item, query)).toBe(true);
+    expect(mailMatches(item, 'nothing matches')).toBe(false);
   });
 });

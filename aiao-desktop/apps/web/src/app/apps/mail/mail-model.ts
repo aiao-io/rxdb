@@ -1,5 +1,7 @@
-/** 发出的邮件放进这个邮箱。 */
+/** 历史本地 Sent 记录保留原键，不代表真正发送。 */
 export const SENT_MAILBOX = 'Sent';
+/** 新写入的邮件只作为本地草稿保存。 */
+export const DRAFTS_MAILBOX = 'Drafts';
 /** 汇集所有邮箱里打了旗的邮件。 */
 export const FLAGGED_MAILBOX = 'Flagged';
 /** 发出的邮件的头像底色：灰色，和信息 App 的新会话同色。 */
@@ -25,10 +27,19 @@ export function mailsIn<T extends MailboxFields>(mails: readonly T[], box: strin
 
 /** 对方是谁：发出的邮件是收件人，其余是发件人。回复就发给他。 */
 export function counterpartOf(mail: PartyFields): string {
-  return mail.mailbox === SENT_MAILBOX ? mail.recipient : mail.sender;
+  return mail.mailbox === SENT_MAILBOX || mail.mailbox === DRAFTS_MAILBOX ? mail.recipient : mail.sender;
 }
 
 /** 列表与阅读区里显示的对方；发出的邮件没填收件人时写明。 */
 export function partyOf(mail: PartyFields): string {
   return counterpartOf(mail) || 'No Recipient';
 }
+
+
+/** 邮箱内的关键词搜索覆盖往来人、主题和完整正文。 */
+export function mailMatches(mail: Pick<PartyFields, 'sender' | 'recipient'> & { readonly subject: string; readonly body: string }, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  return !needle || `${mail.sender} ${mail.recipient} ${mail.subject} ${mail.body}`.toLowerCase().includes(needle);
+}
+
+export const mailboxLabel = (name: string): string => name === SENT_MAILBOX ? 'Local Sent Archive' : name;

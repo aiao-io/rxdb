@@ -37,7 +37,8 @@ export default defineConfig({
         'src/app/apps/textedit/text-document.ts',
         'src/app/apps/reminders/reminder-drafts.ts',
         'src/app/apps/notes/note-document.ts',
-        'src/app/apps/messages/message-drafts.ts'
+        'src/app/apps/messages/message-drafts.ts',
+        'src/app/apps/mail/mail-draft.ts'
       ],
       /*
        * 范围内放不进 80% 的胶水文件，一条一个文件、一个理由；不得整目录排除，新增排除项必须在这里写明理由。
