@@ -71,11 +71,16 @@ const workspaceTables = [
   'admin_private.workspaces'
 ];
 
-/** 本机端口到隔离栈数据库的字节转发：每个连接一条 `docker exec -i … nc`，连接结束随之退出。 */
+/**
+ * 本机端口到隔离栈数据库的字节转发：每个连接一条 `docker exec -i … nc`，连接结束随之退出。
+ * 转发进程各自成组（detached）：Playwright 停服务时向整个进程组发信号，转发进程若同组会先于清理被杀；
+ * 本进程退出时它们的标准输入随之关闭，`nc` 收到 EOF 即断开。
+ */
 function databaseRelay() {
   const relay = net.createServer(socket => {
     const tunnel = spawn('docker', ['exec', '-i', stackDatabase, 'nc', '127.0.0.1', '5432'], {
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['pipe', 'pipe', 'ignore'],
+      detached: true
     });
     socket.pipe(tunnel.stdin);
     tunnel.stdout.pipe(socket);
@@ -126,6 +131,11 @@ async function stop() {
         await client.query('BEGIN');
         for (const table of workspaceTables)
           await client.query(`DELETE FROM ${table} WHERE team_id = ANY($1::text[])`, [teams]);
+        // 这些团队频道上的 Broadcast 消息：Realtime 只按天分区定期清理，测试数据随团队一起删掉
+        await client.query(
+          "DELETE FROM realtime.messages WHERE topic LIKE 'collab:%' AND split_part(topic, ':', 2) = ANY($1::text[])",
+          [teams]
+        );
         await client.query('COMMIT');
       }
     } catch (error) {
@@ -155,6 +165,8 @@ try {
     ADMIN_DATABASE_URL: database,
     ADMIN_ALLOWED_ORIGINS: [8306, 8307, 8308].map(port => `http://127.0.0.1:${port}`).join(',')
   });
+  // 连接池里空闲连接的断开（例如停服务时）只记一行，不让进程在清理之前崩溃
+  service.pool.on('error', error => console.error(`Idle database connection closed: ${error.message}`));
   await applyMigrations(service.pool);
   await waitForProjections();
   const repository = new CollaborationRepository(service.pool);

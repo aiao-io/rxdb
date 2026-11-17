@@ -8,16 +8,18 @@
 // - BENCH_SAMPLES（默认 7）：每项取中位数的样本数；BENCH_READERS（默认 4）：并发读摘要的读者数。
 // - BENCH_SHARED（默认 0）：为 1 时先把初始记录合并进共享分支，共享记录表有 BENCH_RECORDS 行，任务从共享头起步（AC#1 的规模用它）。
 // - BENCH_COMMANDS（默认 thread）：要测量的普通命令，逗号分隔，可选 thread、reply、review、read_notice、member；
-//   `commandMs` / `commandWalBytes` 始终是 thread（发一条评论）。多测的命令会新增回复、审核与通知，它们也在摘要里，
-//   这时 `snapshotBytes` 还会随测过的命令数增长（与提交数无关），比较摘要体积请用默认值。
+//   `commandMs` / `commandWalBytes` 始终是 thread（发一条评论）。多测的命令会新增回复、审核与通知：团队页不含讨论与审核，
+//   只有本人的通知窗口随通知增多，到窗口上限（50 条）为止。
 // - BENCH_BULK（默认 100）：每个测量点再测「上传一个改动这么多条记录的提交」与「生成候选并合并这些改动」，各取 BENCH_SAMPLES 次中位数；
 //   有共享记录时改维护记录的费用（没有维护记录就改资产的价格），没有共享记录时新增分类。每次都是新任务、新 PR，合并推进共享分支，
 //   只动维护记录（主任务只改资产价格），不影响其余字段的测量。
+// - BENCH_VACUUM（默认 0）：为 1 时每个测量点在长出提交之后、测量之前先 `VACUUM ANALYZE`，测稳态而不是批量写入刚结束、
+//   统计信息过期或 autovacuum 正在后台跑的那一刻（毫秒级命令的耗时差异会被它主导）。
 // - BENCH_LABEL（写进结果的实现说明）、BENCH_OUT（可选，结果 JSON 的写入路径）。
 // 字段语义：切片 D 起工作区不再是一行 JSONB，`stateTextBytes` / `stateStoredBytes` 是治理行（名称、归属、数据模式与策略版本）
 // 的 JSON 文本与落盘字节数；`rowBytes` 另记命令会写到的 PR 行、版本行与任务引用行的落盘字节数；`snapshotParts` 是摘要各字段的字节数，
 // `historyPageBytes` / `historyMs` 是任务分支提交历史第一页（默认 50 个）的体积与读取耗时，`commands` 是各普通命令的耗时与 WAL 中位数。
-// 每个测量点都会再发几条评论，讨论与审计窗口（最近 50 条）随测量点增多，摘要体积随之增长，与提交数无关。
+// 每个测量点都会再发几条评论：讨论与审计只在 PR 详情与审计里按需读取，团队页（`snapshot*`）不随它们增长（ADMIN-US-219）。
 // 切片 E 起：`bulkChanges` 是改动 BENCH_BULK 条记录的上传（`uploadMs`）、生成候选（`candidateMs`）、合并（`mergeMs`）与
 // 候选加合并（`candidateAndMergeMs`）的服务端耗时中位数（含仓储事务，不含 HTTP）；`upload100Ms` 与 `candidateMerge100Ms`
 // 是其中的上传与候选加合并两项。上传要核对变更能应用到父内容，主任务的 `uploadMsPerCommit` 因此包含按改动记录推导父内容的读取。
@@ -52,6 +54,7 @@ const commandTypes = knownCommands.filter(type => type === 'thread' || requested
 const changedPerCommit = 5;
 const batchSize = 50;
 const bulkCount = Number(process.env['BENCH_BULK'] ?? 100);
+const vacuumBeforeMeasure = process.env['BENCH_VACUUM'] === '1';
 
 // 产品的数据模式清单：工作区初始化时登记，上传、候选与合并都按它校验
 const schema = parseSchemaManifest(
@@ -566,6 +569,7 @@ async function main() {
         }
       }
       state.head = head;
+      if (vacuumBeforeMeasure) await pool.query('VACUUM ANALYZE');
       const result = await measureCheckpoint(
         { pool, repository, reader, prId, taskId, state },
         committed,

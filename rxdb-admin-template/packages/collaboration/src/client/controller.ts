@@ -55,6 +55,12 @@ const detailKinds: readonly SignalKind[] = ['members', 'policy', 'schema', 'shar
 /** 只在上下文内生效、不入队列的命令：标记已读与订阅通知。 */
 const lightweight = ['read_notice', 'subscribe'];
 const realtimeUnavailable = '实时连接暂不可用，可刷新团队状态';
+/** 一组在线会话的比较键：与顺序无关，会话、成员或查看位置任一变化都会改变它。 */
+const presenceKey = (sessions: readonly Presence[]) =>
+  sessions
+    .map(session => JSON.stringify([session.sessionId, session.userId, session.prId, session.recordId]))
+    .sort()
+    .join('\n');
 
 /**
  * 协作界面的状态与动作中枢：持有认证会话、团队页、本机任务草稿与实时频道，界面监听 `change` 事件重绘。
@@ -818,10 +824,16 @@ export class CollaborationController extends EventTarget {
     if (this.snapshot) this.snapshot = { ...this.snapshot, presence: this.visibleSessions(this.snapshot) };
     this.changed();
   }
-  /** 频道上 Presence 的最新全集：按当前成员过滤后显示。 */
+  /**
+   * 频道上 Presence 的最新全集：按当前成员过滤后显示。可见的在线列表没变（重复同步、非成员会话进出）时不重绘，
+   * 免得别人的连接抖动打断本页面的输入。
+   */
   private onPresence(sessions: Presence[]): void {
     this.sessions = sessions;
-    if (this.snapshot) this.snapshot = { ...this.snapshot, presence: this.visibleSessions(this.snapshot) };
+    if (!this.snapshot) return;
+    const presence = this.visibleSessions(this.snapshot);
+    if (presenceKey(presence) === presenceKey(this.snapshot.presence)) return;
+    this.snapshot = { ...this.snapshot, presence };
     this.changed();
   }
   /**

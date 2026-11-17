@@ -1387,6 +1387,22 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     });
     expect(controller.snapshot!.presence).toEqual([{ userId: 'alice', sessionId: 's1', prId: 'pr', recordId: null }]);
   });
+  it('Presence 同步只在可见的在线列表变化时重绘：重复同步与非成员会话进出不重绘', async () => {
+    const { controller, presence } = await joined();
+    const redraws = vi.fn();
+    controller.addEventListener('change', redraws);
+    presence({ s1: [{ userId: 'alice', prId: 'pr', recordId: null }] });
+    expect(redraws).toHaveBeenCalledTimes(1);
+    presence({ s1: [{ userId: 'alice', prId: 'pr', recordId: null }] });
+    presence({
+      s1: [{ userId: 'alice', prId: 'pr', recordId: null }],
+      s2: [{ userId: 'stranger', prId: null, recordId: null }]
+    });
+    expect(redraws).toHaveBeenCalledTimes(1);
+    presence({ s1: [{ userId: 'alice', prId: 'pr', recordId: 'r1' }] });
+    expect(redraws).toHaveBeenCalledTimes(2);
+    expect(controller.snapshot!.presence).toEqual([{ userId: 'alice', sessionId: 's1', prId: 'pr', recordId: 'r1' }]);
+  });
   it('他人被撤权时立即移出在线列表；自己被撤权时立即锁定并离开频道', async () => {
     const { controller, presence, revoke, auth } = await joined();
     controller.snapshot = {

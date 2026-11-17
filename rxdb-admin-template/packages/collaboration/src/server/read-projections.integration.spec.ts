@@ -487,14 +487,16 @@ describe('ADMIN-US-219 public read projections and private channel authorization
 
 describe('ADMIN-US-219 broadcast invalidation in the command transaction', () => {
   /** 某个频道上全部广播的事件名与载荷，按写入顺序。 */
-  const messages = async (workspace: { teamId: string; appId: string }) =>
-    (
-      await pool.query<{ event: string; payload: Record<string, unknown> }>(
-        `SELECT event, payload FROM realtime.messages WHERE topic = $1 AND extension = 'broadcast' AND event <> 'probe'
-         ORDER BY inserted_at, id`,
-        [topic(workspace)]
-      )
-    ).rows;
+  /** 工作区频道上的广播（按写入顺序）。每一条都必须是私有消息：公开频道不经 RLS 鉴权，任何人都能订阅同名频道。 */
+  const messages = async (workspace: { teamId: string; appId: string }) => {
+    const { rows } = await pool.query<{ event: string; payload: Record<string, unknown>; private: boolean }>(
+      `SELECT event, payload, private FROM realtime.messages
+       WHERE topic = $1 AND extension = 'broadcast' AND event <> 'probe' ORDER BY inserted_at, id`,
+      [topic(workspace)]
+    );
+    expect(rows.filter(row => !row.private)).toEqual([]);
+    return rows.map(({ event, payload }) => ({ event, payload }));
+  };
   const revision = async () =>
     Number(
       (

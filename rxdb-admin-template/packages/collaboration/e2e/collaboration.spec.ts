@@ -531,7 +531,7 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '同步', exact: true }).click();
   await expect(page.getByRole('button', { name: '拉取远端版本', exact: true })).toBeVisible();
-  await page.getByLabel('另存任务名称', { exact: true }).fill('保留设备甲');
+  await fillSettled(page.getByLabel('另存任务名称', { exact: true }), '保留设备甲');
   await page.getByRole('button', { name: '另存为新任务', exact: true }).click();
   await expect(page.getByRole('heading', { name: '任务：保留设备甲', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备甲版本');
@@ -1009,11 +1009,14 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
   });
   const signedIn = await client.auth.verifyOtp({ email: fixture.reviewer.email, token: otp, type: 'email' });
   expect(signedIn.error).toBeNull();
+  const subscribedToken = signedIn.data.session!.access_token;
   const topic = `collab:${fixture.teamId}:${fixture.appId}`;
   const statuses: string[] = [];
-  client.channel(topic, { config: { private: true } }).subscribe(status => statuses.push(status));
+  client
+    .channel(topic, { config: { private: true } })
+    .subscribe((status, error) => statuses.push(`${status}:${error?.message ?? ''}`));
   try {
-    await expect.poll(() => statuses, { timeout: 20000 }).toContain('SUBSCRIBED');
+    await expect.poll(() => statuses.join('|'), { timeout: 20000 }).toContain('SUBSCRIBED:');
     await act(page, fixture, {
       type: 'member',
       userId: fixture.reviewer.id,
@@ -1025,12 +1028,16 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
     await expect(online(page)).not.toContainText(fixture.reviewer.email);
     await expect(other.getByRole('button', { name: '登录', exact: true })).toBeVisible();
     await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0);
-    // 令牌刷新：Realtime 按 realtime.messages 的 RLS 重新鉴权，频道被服务端关闭
+    // 令牌刷新：Realtime 按 realtime.messages 的 RLS 重新鉴权，频道被服务端关闭。
+    // GoTrue 的访问令牌按秒记 iat、不带 jti：与上一枚同一秒内刷新拿到的是逐字节相同的令牌，supabase-js 与 realtime-js
+    // 都当作令牌没变、不推给 Realtime，频道也就不重新鉴权。所以等过上一枚的签发秒再刷新，并确认换到了新令牌
+    const issuedAt = (JSON.parse(Buffer.from(subscribedToken.split('.')[1], 'base64url').toString()) as { iat: number })
+      .iat;
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, (issuedAt + 1) * 1000 - Date.now())));
     const refreshed = await client.auth.refreshSession();
     expect(refreshed.error).toBeNull();
-    await expect
-      .poll(() => statuses.some(status => status === 'CLOSED' || status === 'CHANNEL_ERROR'), { timeout: 20000 })
-      .toBe(true);
+    expect(refreshed.data.session!.access_token).not.toBe(subscribedToken);
+    await expect.poll(() => statuses.join('|'), { timeout: 20000 }).toMatch(/(^|\|)(CLOSED|CHANNEL_ERROR):/);
     // 重新加入：被拒
     const rejoined: string[] = [];
     client
