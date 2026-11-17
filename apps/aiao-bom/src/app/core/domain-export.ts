@@ -26,7 +26,7 @@ export function prepareDomainDraft(draft: DraftState, options: DomainDraftOption
   if (!options.revisionNo.trim() || !options.orgId.trim()) throw new Error('修订号与组织不能为空');
   const byKey = new Map(draft.nodes.map(node => [node.key, node]));
   const root = byKey.get(options.rootKey);
-  if (!root) throw new Error('请选择实际装配作为领域 BOM 根项');
+  if (!root) throw new Error('请选择实际装配作为 BOM 根项');
   const children = new Map<string, Occurrence[]>();
   for (const node of draft.nodes) {
     if (!node.parentKey) continue;
@@ -48,7 +48,7 @@ export function prepareDomainDraft(draft: DraftState, options: DomainDraftOption
     throw new Error('系统分类不能转换为制造关系，请选择实际装配并整理草稿');
   if (!children.get(root.key)?.length) throw new Error('所选根项没有子项');
   if (nodes.some(node => node.quantityState !== 'confirmed' || node.quantity === null))
-    throw new Error('范围内存在未确认用量，不能进入领域库');
+    throw new Error('范围内存在未确认用量，不能进入 BOM 库');
   const issues = validateDraft({
     ...draft,
     nodes: nodes.map(node => (node === root ? { ...node, parentKey: null } : node))

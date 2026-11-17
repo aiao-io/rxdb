@@ -4,16 +4,21 @@ import { WorkspaceRepository } from './core/storage';
 const repository = new WorkspaceRepository();
 
 export const appRoutes: Routes = [
-  { path: '', pathMatch: 'full', loadComponent: () => import('./app').then(m => m.App) },
   {
     path: '',
     loadChildren: () =>
       import('@modules/bom-workspace').then(m =>
         m.domainRoutes({
           databaseName: 'aiao-bom-domain-v1',
-          overviewPath: '/domain',
+          overviewPath: '/bom',
           workbenchPath: '/',
-          label: 'aiao BOM · 领域工作区',
+          label: 'aiao BOM',
+          workbenchRoute: {
+            path: '',
+            pathMatch: 'full',
+            title: 'BOM 工作台',
+            loadComponent: () => import('./app').then(m => m.App)
+          },
           readPending: () => repository.read<DomainDraftEnvelope>('domain:pending'),
           completePending: async envelope => {
             await repository.write(`domain:receipt:${envelope.datasetId}:${envelope.revisionNo}`, envelope);
