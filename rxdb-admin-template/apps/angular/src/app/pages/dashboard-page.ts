@@ -48,9 +48,9 @@ function errorMessage(cause: unknown): string {
         <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.loading') }}
       </p>
     }
-    @if (errorMessageValue(); as message) {
+    @if (countError(); as error) {
       <p class="text-error" data-testid="dashboard-load-failed" role="alert">
-        {{ t('dashboard.loadFailed', { message }) }}
+        {{ t('dashboard.loadFailed', { message: error.message }) }}
       </p>
     }
     @if (empty()) {
@@ -74,9 +74,9 @@ function errorMessage(cause: unknown): string {
         <p class="text-sm opacity-70" aria-live="polite" data-testid="dashboard-recent-activity-loading">
           <span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.activity.loading') }}
         </p>
-      } @else if (activityError(); as message) {
+      } @else if (activityError() !== null) {
         <p class="text-error text-sm" data-testid="dashboard-recent-activity-failed" role="alert">
-          {{ t('dashboard.activity.failed', { message }) }}
+          {{ t('dashboard.activity.failed', { message: activityError() }) }}
         </p>
       } @else if (activities().length === 0) {
         <p class="bg-base-200 rounded-box p-5 text-sm opacity-70" data-testid="dashboard-recent-activity-empty">
@@ -138,7 +138,7 @@ class DashboardContent {
   readonly activityLimit = DASHBOARD_ACTIVITY_LIMIT;
   readonly activities = signal<readonly DashboardActivity[]>([]);
   readonly activityLoading = signal(true);
-  readonly activityError = signal('');
+  readonly activityError = signal<string | null>(null);
   readonly counts = computed<DashboardCounts>(() => ({
     categories: this.categoryCount.value(),
     assets: this.assetCount.value(),
@@ -148,17 +148,17 @@ class DashboardContent {
   readonly loading = computed(
     () => this.categoryCount.isLoading() || this.assetCount.isLoading() || this.eventCount.isLoading()
   );
-  readonly errorMessageValue = computed(() => {
-    const error = this.categoryCount.error() ?? this.assetCount.error() ?? this.eventCount.error();
-    return error?.message ?? '';
-  });
-  readonly empty = computed(() => !this.loading() && !this.errorMessageValue() && isDashboardEmpty(this.counts()));
+  // 失败按 Error 对象是否存在判断，不看消息文本：空消息的错误同样是失败。
+  readonly countError = computed(
+    () => this.categoryCount.error() ?? this.assetCount.error() ?? this.eventCount.error()
+  );
+  readonly empty = computed(() => !this.loading() && !this.countError() && isDashboardEmpty(this.counts()));
 
   constructor() {
     const subscription = observeDashboardActivities(this.db).subscribe(state => {
       this.activities.set(state.activities);
       this.activityLoading.set(state.loading);
-      this.activityError.set(state.error ?? '');
+      this.activityError.set(state.error);
     });
     this.destroyRef.onDestroy(() => subscription.unsubscribe());
   }

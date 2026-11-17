@@ -35,7 +35,7 @@ function DashboardContent() {
   const eventCount = useCount(AssetEvent, COUNT_OPTIONS);
   const [activities, setActivities] = useState<readonly DashboardActivity[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
-  const [activityError, setActivityError] = useState('');
+  const [activityError, setActivityError] = useState<string | null>(null);
   const counts = useMemo<DashboardCounts>(
     () => ({
       categories: categoryCount.value,
@@ -52,7 +52,7 @@ function DashboardContent() {
     const subscription = observeDashboardActivities(db).subscribe(state => {
       setActivities(state.activities);
       setActivityLoading(state.loading);
-      setActivityError(state.error ?? '');
+      setActivityError(state.error);
     });
     return () => subscription.unsubscribe();
   }, [db]);
@@ -114,17 +114,17 @@ function DashboardContent() {
             {t('dashboard.activity.loading')}
           </p>
         )}
-        {!activityLoading && activityError && (
+        {!activityLoading && activityError !== null && (
           <p className='text-error text-sm' data-testid='dashboard-recent-activity-failed' role='alert'>
             {t('dashboard.activity.failed', { message: activityError })}
           </p>
         )}
-        {!activityLoading && !activityError && activities.length === 0 && (
+        {!activityLoading && activityError === null && activities.length === 0 && (
           <p className='bg-base-200 rounded-box p-5 text-sm opacity-70' data-testid='dashboard-recent-activity-empty'>
             {t('dashboard.activity.empty')}
           </p>
         )}
-        {!activityLoading && !activityError && activities.length > 0 && (
+        {!activityLoading && activityError === null && activities.length > 0 && (
           <ol
             className='divide-base-300 rounded-box border-base-300 divide-y border'
             aria-label={t('dashboard.activity.title')}

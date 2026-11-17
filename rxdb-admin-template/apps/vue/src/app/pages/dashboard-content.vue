@@ -25,7 +25,7 @@ const assetCount = useCount(Asset, COUNT_OPTIONS);
 const eventCount = useCount(AssetEvent, COUNT_OPTIONS);
 const activities = ref<readonly DashboardActivity[]>([]);
 const activityLoading = ref(true);
-const activityError = ref('');
+const activityError = ref<string | null>(null);
 const counts = computed<DashboardCounts>(() => ({
   categories: categoryCount.value,
   assets: assetCount.value,
@@ -33,10 +33,9 @@ const counts = computed<DashboardCounts>(() => ({
 }));
 const total = computed(() => dashboardTotal(counts.value));
 const loading = computed(() => categoryCount.isLoading || assetCount.isLoading || eventCount.isLoading);
-const errorMessage = computed(
-  () => categoryCount.error?.message ?? assetCount.error?.message ?? eventCount.error?.message ?? ''
-);
-const empty = computed(() => !loading.value && !errorMessage.value && isDashboardEmpty(counts.value));
+// 失败按 Error 对象是否存在判断，不看消息文本：空消息的错误同样是失败。
+const countError = computed(() => categoryCount.error ?? assetCount.error ?? eventCount.error);
+const empty = computed(() => !loading.value && !countError.value && isDashboardEmpty(counts.value));
 
 function activityTypeKey(type: DashboardActivity['type']): string {
   return `dashboard.activity.type.${type.toLowerCase()}`;
@@ -49,7 +48,7 @@ function formatActivityTime(activity: DashboardActivity): string {
 const subscription = observeDashboardActivities(db).subscribe(state => {
   activities.value = state.activities;
   activityLoading.value = state.loading;
-  activityError.value = state.error ?? '';
+  activityError.value = state.error;
 });
 onScopeDispose(() => subscription.unsubscribe());
 </script>
@@ -86,11 +85,11 @@ onScopeDispose(() => subscription.unsubscribe());
     ><span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.loading') }}</p
   >
   <p
-    v-if="errorMessage"
+    v-if="countError"
     class="text-error"
     data-testid="dashboard-load-failed"
     role="alert"
-    >{{ t('dashboard.loadFailed', { message: errorMessage }) }}</p
+    >{{ t('dashboard.loadFailed', { message: countError.message }) }}</p
   >
   <section
     v-if="empty"
@@ -121,7 +120,7 @@ onScopeDispose(() => subscription.unsubscribe());
       ><span class="loading loading-spinner loading-sm"></span>{{ t('dashboard.activity.loading') }}</p
     >
     <p
-      v-else-if="activityError"
+      v-else-if="activityError !== null"
       class="text-error text-sm"
       data-testid="dashboard-recent-activity-failed"
       role="alert"

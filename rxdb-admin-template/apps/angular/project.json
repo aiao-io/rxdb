@@ -99,6 +99,9 @@
       "options": {
         "port": 4207,
         "host": "127.0.0.1",
+        "prebundle": {
+          "exclude": ["@rxdb-admin-template/collaboration"]
+        },
         "proxyConfig": "rxdb-admin-template/apps/angular/proxy.conf.cjs"
       },
       "configurations": {

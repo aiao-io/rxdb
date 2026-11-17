@@ -1,4 +1,4 @@
-import type { EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import type { I18n } from '@aiao/rxdb-i18n';
 import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { provideZonelessChangeDetection, signal, type Signal } from '@angular/core';
@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb-angular', async () => {
   // 实体类经装饰器包装后 class.name 为空，统计结果按实体元数据里的名称取
-  const { getEntityMetadata } = await import('@aiao/rxdb');
   return {
     useRxDB: () => mocks.database,
     useCount: (entity: EntityType) => mocks.counts[getEntityMetadata(entity).name]
