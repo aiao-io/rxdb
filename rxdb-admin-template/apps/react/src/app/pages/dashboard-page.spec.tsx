@@ -1,4 +1,4 @@
-import type { EntityType } from '@aiao/rxdb';
+import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import type { I18n } from '@aiao/rxdb-i18n';
 import { I18nProvider } from '@aiao/rxdb-i18n-react';
 import { act, cleanup, render, within } from '@testing-library/react';
@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb-react', async () => {
   // 实体类经装饰器包装后 class.name 为空，统计结果按实体元数据里的名称取
-  const { getEntityMetadata } = await import('@aiao/rxdb');
   return {
     useRxDB: () => mocks.database,
     useCount: (entity: EntityType) => mocks.counts[getEntityMetadata(entity).name]
