@@ -39,6 +39,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      pull-requests: read
     with:
       deployment-branch: main
     secrets:

@@ -7,6 +7,11 @@ on:
         description: main 发布正式站；pr-编号发布独立预览
         required: true
         type: string
+    outputs:
+      alias-url:
+        value: ${{ jobs.website.outputs.alias-url }}
+      deployment-url:
+        value: ${{ jobs.website.outputs.deployment-url }}
     secrets:
       CLOUDFLARE_ACCOUNT_ID:
         required: false
@@ -16,14 +21,18 @@ on:
 permissions:
   contents: read
   deployments: write
+  pull-requests: read
 
 jobs:
   website:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment:
-      name: ${{ inputs.deployment-branch == 'main' && 'production' || inputs.deployment-branch }}
-      url: ${{ inputs.deployment-branch == 'main' && 'https://rxdb.aiao.io' || steps.deploy.outputs.pages-deployment-alias-url }}
+    concurrency:
+      group: website-pages-${{ inputs.deployment-branch }}
+      cancel-in-progress: false
+    outputs:
+      alias-url: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+      deployment-url: ${{ steps.deploy.outputs.deployment-url }}
     env:
       NX_NO_CLOUD: 'true'
       NODE_OPTIONS: --max-old-space-size=4096
@@ -60,22 +69,29 @@ jobs:
       - name: Check Pages asset limits
         run: pnpm exec nx run website:pages-check --output-style=stream
 
+      - name: Check current PR before deployment
+        id: current-pr
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_STATE: open
+        run: pnpm exec nx run website:preview-state --output-style=stream
+
       - name: Check deployment credentials
         id: credentials
-        if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+        if: github.event_name != 'pull_request' || steps.current-pr.outputs.eligible == 'true'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          DEPLOYMENT_BRANCH: ${{ inputs.deployment-branch }}
         run: |
           if [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]; then
             echo 'enabled=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo '::warning::缺少 CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN，网站已构建，尚未发布。'
-          if [ "$DEPLOYMENT_BRANCH" = main ]; then
-            exit 1
-          fi
+          echo '::error::缺少 CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN，无法发布网站。'
+          exit 1
 
       - name: Ensure Pages project
         id: project
@@ -94,7 +110,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           wranglerVersion: '4.156.2'
-          command: pages deploy website/build --project-name=rxdb --branch=${{ inputs.deployment-branch }} --commit-hash=${{ github.sha }} --commit-dirty=false
+          command: pages deploy website/build --project-name=rxdb --branch=${{ inputs.deployment-branch }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }} --commit-dirty=false
 
       - name: Bind production domain
         if: steps.credentials.outputs.enabled == 'true' && inputs.deployment-branch == 'main'
@@ -111,7 +127,7 @@ jobs:
           SUBDOMAIN: ${{ steps.project.outputs.subdomain }}
         run: |
           if [ -z "$DEPLOYMENT_URL" ]; then
-            echo '网站构建成功；未发布预览：fork / Dependabot PR 不使用部署凭据，其他 PR 需配置 Cloudflare secrets。' >> "$GITHUB_STEP_SUMMARY"
+            echo '网站构建成功；未发布预览：fork / Dependabot PR 不使用部署凭据，过时或已关闭的 PR 跳过发布。' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           {
@@ -126,3 +142,12 @@ jobs:
               echo "PR 固定预览：$ALIAS_URL"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prune older PR deployments
+        if: steps.deploy.outputs.deployment-url != '' && inputs.deployment-branch != 'main'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DEPLOYMENT_BRANCH: ${{ inputs.deployment-branch }}
+          KEEP_DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: pnpm exec nx run website:pages-clean-preview --output-style=stream
