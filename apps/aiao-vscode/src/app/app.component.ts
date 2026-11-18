@@ -28,6 +28,7 @@ import { mountSwitchableEditor } from '../workbench/editor-switcher.js';
 import type { WorkbenchEditorMount } from '../workbench/editor.js';
 import { createGitBackend } from '../workbench/git-backend.js';
 import { createRouterBackend } from '../workbench/git/git-router-backend.js';
+import { desktopGitHubOAuth } from '../workbench/git/github/github-desktop-oauth.js';
 import { completeOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
 import type { GitHubService } from '../workbench/git/github/github-service.js';
 import { createGitHubService } from '../workbench/git/github/github-service.js';
@@ -290,7 +291,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           github: github.createBackend()
         }),
         githubApi: github.api,
-        githubAuth: github.auth
+        githubAuth: github.auth,
+        githubDesktopOAuth: this.orbit && desktopGitHubOAuth(this.orbit)
       },
       (element, initial) =>
         mountSwitchableEditor(element, initial, async engine => {

@@ -60,6 +60,42 @@ await check('redirect: 拒绝跨源与非法 state（开放重定向防护）', 
   assert.equal((await get('/redirect?code=abc&state=not-a-url')).status, 400);
 });
 
+await check('redirect: 桌面回调只把授权结果放入受信桌面的 URL 片段', async () => {
+  for (const desktop of ['https://desktop.aiao.io', 'https://aiao-desktop.pages.dev', 'http://127.0.0.1:4411']) {
+    const state = `${ORIGIN}/github-callback?${new URLSearchParams({ nonce: 'a'.repeat(32), desktop })}`;
+    const response = await get('/redirect?' + new URLSearchParams({ code: 'code-1', state }));
+    assert.equal(response.status, 302);
+    const target = new URL(response.headers.get('location'));
+    assert.equal(target.origin, desktop);
+    assert.equal(target.pathname, '/github-oauth-return.html');
+    assert.equal(target.search, '');
+    assert.deepEqual(Object.fromEntries(new URLSearchParams(target.hash.slice(1))), { state, code: 'code-1' });
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+  }
+});
+
+await check('redirect: 桌面授权取消可返回；禁止伪造桌面、回调路径与 nonce', async () => {
+  const state = `${ORIGIN}/github-callback?${new URLSearchParams({
+    nonce: 'a'.repeat(32),
+    desktop: 'https://desktop.aiao.io'
+  })}`;
+  const denied = await get('/redirect?' + new URLSearchParams({ state, error: 'access_denied' }));
+  assert.equal(denied.status, 302);
+  const target = new URL(denied.headers.get('location'));
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(target.hash.slice(1))), { state, error: 'access_denied' });
+  for (const invalid of [
+    state.replace('desktop.aiao.io', 'desktop.aiao.io.evil.example'),
+    state.replace('desktop.aiao.io', 'desktop.aiao.io%2Felsewhere'),
+    state.replace('desktop.aiao.io', 'user%40desktop.aiao.io'),
+    state.replace('https%3A%2F%2Fdesktop.aiao.io', 'http%3A%2F%2F127.0.0.1%3A99999'),
+    state.replace('github-callback?', 'github-callback-extra?'),
+    state.replace('a'.repeat(32), 'bad-nonce')
+  ]) {
+    assert.equal((await get('/redirect?' + new URLSearchParams({ code: 'abc', state: invalid }))).status, 400);
+  }
+});
+
 await check('config: 仅公开 clientId，禁用缓存且不泄漏 secret', async () => {
   const response = await getConfig();
   assert.equal(response.status, 200);

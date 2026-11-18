@@ -13,7 +13,7 @@
 - **运营批准应用目录已立项**：[US-207](stories/application/ADESK-US-207-approved-app-catalog.md) 已完成源码与本地正式构建验收，完整性、版本化入口、精确来源与卸载范围见 [D-22](decisions.md#d-22运营批准目录与版本切换)。初始正式目录为空；真实版本条目仍需运营和发布方提供。
 
 - **用户安装任意 Web 应用**：用户输入网址安装、应用商店、代码签名和批准流程。批准边界仍是 [D-10](decisions.md#d-10应用分三类登记在同一张表里)；这需要独立的安全模型，不是上一条的扩展。
-- **Aiao Code 显式复制已毕业**：[US-208](stories/application/ADESK-US-208-aiao-code-file-copy.md) 使用现有 Orbit 文件面板完成单文件/项目 ZIP 复制，单次 512 KiB，两个存储域独立；嵌入本机文件夹输入与取消失败路径已验收。OAuth 弹窗、持续目录句柄、多选和拖放等新增协议仍是候选，需单独定权限与失败语义；本轮不扩大 sandbox，真实账号授权不在自动证据内。
+- **Aiao Code 显式复制已毕业**：[US-208](stories/application/ADESK-US-208-aiao-code-file-copy.md) 使用现有 Orbit 文件面板完成单文件/项目 ZIP 复制，单次 512 KiB，两个存储域独立；嵌入本机文件夹输入与取消失败路径已验收。通用弹窗、持续目录句柄、多选和拖放等仍是候选；GitHub 授权另走 [US-203 #7](stories/application/ADESK-US-203-aiao-code.md#验收标准) 的专用回跳，不扩大 sandbox。
 - **外网内容本地化已毕业**：[US-113](stories/desktop/ADESK-US-113-offline-resources.md) 已完成本地壁纸预缓存、实际断网切换及天气地图真实失败、陈旧状态与重试。远程应用与离线世界地图不在本次范围。
 - **各内置应用的内部功能逐项验收**：各内置应用目前只验「能打开」，内部功能没有逐项验收（[ADESK-US-107](stories/desktop/ADESK-US-107-shell-interaction-coverage.md) 只补外壳交互）。立项时不要先铺全部应用：先验 Finder、TextEdit、Notes、Terminal、Preview，逐个定义新建 / 编辑 / 保存 / 失败 / 重开的闭环。
 

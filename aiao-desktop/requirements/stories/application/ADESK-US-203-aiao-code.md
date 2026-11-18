@@ -27,11 +27,12 @@ capabilities: []
 - 用线上发布版本（[D-13](../../decisions.md#d-13aiao-code-用线上发布版本)）：桌面不打包、不固定 Aiao Code 的版本，vscode.aiao.io 发布即生效。
 - Aiao Code 一侧的配合由它自己的 [US-410](../../../../apps/aiao-vscode/requirements/stories/US-410-desktop-embedding.md) 承接：启动前与桌面握手、工作台挂载后报告就绪、启动失败报告原因、托管响应头补 `Cross-Origin-Resource-Policy: cross-origin`；独立打开时行为不变。
 - 线上验收脚本：本地起桌面的正式构建，对真实的 vscode.aiao.io 跑（要外网，不进 CI）；也能把 vscode.aiao.io 指到本地构建的产物，用于 Aiao Code 发布前的验证。
+- 嵌入 GitHub 登录：仅为前台的预装 Aiao Code 代开 GitHub 授权窗口。授权结果回到原工作台，桌面不保存令牌，不放宽 iframe sandbox。取消、超时或关窗后可重新登录；PAT 与独立页面不变。
 
 ### Out of Scope
 
 - 「导入文件夹（副本）」：Aiao Code 用 `showDirectoryPicker()` 取目录句柄，跨源 sandbox iframe 里浏览器拒绝它（`SecurityError`）。这只说明目录句柄这条路径不可用，不等于所有文件导入都行不通：`<input type="file">` 一类普通入口没有验收过，是另一条待评估的路径。桌面这边的目录选择不在 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 第一批的 `filesystem` 能力里，见 [future-requirements](../../future-requirements.md)。
-- 「登录 GitHub」：OAuth 弹窗被 sandbox 拦下；桌面与 vscode.aiao.io 不同站点时存储分区，登录状态也不共享。在桌面里完成登录需要「OAuth 弹窗」这类扩展宿主能力（见 [future-requirements](../../future-requirements.md)）；与直接访问共用已有的登录状态由 [ADESK-US-004](../platform/ADESK-US-004-custom-domain.md) 验收。
+- 不新增通用弹窗能力，不同步跨站登录状态；与直接访问共用已有登录状态的同站对照由 [ADESK-US-004](../platform/ADESK-US-004-custom-domain.md) 验收。
 - 与直接访问 vscode.aiao.io 共用项目：桌面部署在 aiao.io 之外（包括本地开发）时，浏览器按顶层站点分区存储，桌面里的 Aiao Code 是另一份项目数据。
 - 桌面的浅色 / 深色外观与 Aiao Code 主题联动、窗口标题跟随项目名。外观联动可在 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的 `appearance` 能力交付后重新评估。
 - Aiao Code 窗口跨刷新恢复。
@@ -46,6 +47,7 @@ capabilities: []
 | 4   | 已新建项目                             | 最小化再还原                                             | 工作台没有重新加载，当前项目与终端输出还在                    | ✅   |
 | 5   | 已新建项目                             | 关闭窗口，再从启动台打开                                 | 重新就绪，刚才新建的项目还在（数据在 Aiao Code 自己的来源里） | ✅   |
 | 6   | Aiao Code 已就绪                       | 依次完成 #1～#5                                          | 桌面页面没有错误                                              | ✅   |
+| 7   | 两个应用的新构建、未登录               | 键盘打开 GitHub 授权，拒绝后重试并同意，再重开工作台     | 原窗口显示账户，重开保留登录；跨源隔离与 sandbox 保持         | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -53,7 +55,9 @@ capabilities: []
 
 ## 技术笔记
 
-- vscode.aiao.io 原来只有 COOP / COEP，文档响应没有 CORP，带 COEP 的宿主页嵌不进去（2026-11-13 实测 `ERR_BLOCKED_BY_RESPONSE`）。补上 CORP 后在 Orbit 同款 sandbox 里实测：工作台约 1.5 秒出现，`crossOriginIsolated` 为 true，Service Worker 正常接管；`window.open` 被 sandbox 拦下，`showDirectoryPicker` 报 `SecurityError`，即上面两条已知限制。
+- vscode.aiao.io 原来只有 COOP / COEP，文档响应没有 CORP，带 COEP 的宿主页嵌不进去（2026-11-13 实测 `ERR_BLOCKED_BY_RESPONSE`）。补上 CORP 后在 Orbit 同款 sandbox 里实测：工作台约 1.5 秒出现，`crossOriginIsolated` 为 true，Service Worker 正常接管。iframe 直接调用 `window.open` 仍会被 sandbox 拦下，`showDirectoryPicker` 仍会报 `SecurityError`。
+- #7 自动验收用 `aiao-desktop-e2e:e2e-aiao-code-files` 的 `embeddedLoginBoundary` 与 `standaloneFlowsPreserved`：真实桌面与工作台构建，模拟 GitHub 授权与 Pages API；不代表已上线或通过真实 GitHub 账户验收。发布时先更新桌面，再发布 Aiao Code 与 `/redirect` Functions。
+- 桌面经专用 Orbit 请求打开指定 GitHub 地址；现有 `/redirect` 只向受信桌面的固定回跳页转交 PKCE 授权码。回跳页不依赖 `window.opener` 或与 iframe 共享存储；工作台自己完成换码、保存会话。
 - 就绪的定义：Aiao Code 的工作台已经挂载到页面上（与它自己的 `ready` 信号同一时刻），不是 iframe 的 `load`。
 - Aiao Code 的发布流程（[deploy/README](../../../../apps/aiao-vscode/deploy/README.md)）发布后要跑一次本故事的线上验收，握手或响应头被改坏时桌面会第一个发现。
 

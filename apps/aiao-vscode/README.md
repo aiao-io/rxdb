@@ -63,7 +63,7 @@ WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`，CSS 使用 
 工作台还是 [Aiao Desktop](../../aiao-desktop/README.md#接入集成应用) 的集成应用（[US-410](requirements/stories/US-410-desktop-embedding.md)）：
 `main.ts` 先用 `@aiao/orbit/client` 与桌面握手再启动 Angular，工作台挂载后报告就绪；直接访问时不握手，启动流程不变。
 桌面带 COEP，所以文档响应必须带 `Cross-Origin-Resource-Policy: cross-origin`（`public/_headers` 与本地 `serve` 已配置），
-否则浏览器直接拦下嵌入。被嵌入时「导入文件夹（副本）」与「登录 GitHub」不可用：跨源 iframe 不能弹文件选择器，弹窗被桌面的 sandbox 拦下。
+否则浏览器直接拦下嵌入。嵌入时通过文件输入导入文件夹副本，不请求跨源目录句柄。GitHub 授权由支持回跳的桌面代开，完成后在原工作台登录；独立访问与 PAT 路径保持不变。
 
 资产里的 `.html`（Markdown 扩展宿主、VS Code webview 的 index / fake 页）由 iframe 直接导航，托管方必须原样返回，
 不能重定向到去掉扩展名的地址：Service Worker 接管导航时不跟随这类重定向。Cloudflare Pages 默认会做这种重定向，

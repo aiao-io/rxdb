@@ -5,6 +5,12 @@ import { requestGitHubLogin } from './github-login.js';
 import { oauthDoneKey } from './github-oauth-bridge.js';
 
 const SESSION: GitHubSession = { token: 'ghp_abc', login: 'octo', avatarUrl: null, provider: 'pat' };
+const DESKTOP = 'https://desktop.aiao.io';
+const OAUTH = {
+  authorizeUrl: 'https://github.com/login/oauth/authorize?client_id=x',
+  state: 'https://ide.example/github-callback?nonce=abcd1234abcd1234',
+  verifier: 'verifier-1'
+};
 
 const pendingStorage = vi.hoisted(() => ({ save: vi.fn(async () => undefined) }));
 vi.mock('./github-session-store.js', () => ({ createIndexedDbSecretStore: () => pendingStorage }));
@@ -76,6 +82,42 @@ describe('requestGitHubLogin', () => {
     expect(auth.loginWithPat).toHaveBeenCalledWith('ghp_abc');
     [...dialog().querySelectorAll('button')].find(button => button.textContent === '关闭')!.click();
     await pending;
+  });
+
+  it('桌面 OAuth 在授权按钮的点击中请宿主打开，并在原窗口交换授权码', async () => {
+    const authorize = vi.fn(async () => 'returned-code');
+    const open = vi.spyOn(window, 'open');
+    auth.beginOAuth.mockResolvedValue(OAUTH);
+    auth.completeOAuth.mockResolvedValue({ ...SESSION, provider: 'oauth' });
+    const pending = requestGitHubLogin(host, { auth, desktopOAuth: { origin: DESKTOP, authorize } });
+    const button = () => [...dialog().querySelectorAll('button')].find(b => b.textContent === '使用 GitHub 账号登录');
+    await vi.waitFor(() => expect(button()?.disabled).toBe(false));
+    expect(auth.beginOAuth).toHaveBeenCalledWith(DESKTOP);
+    button()!.click();
+    expect(authorize).toHaveBeenCalledWith(OAUTH.authorizeUrl, expect.any(AbortSignal));
+    await vi.waitFor(() => expect(dialog().textContent).toContain('已连接 GitHub（OAuth）'));
+    expect(auth.completeOAuth).toHaveBeenCalledWith('returned-code', OAUTH.verifier, expect.any(AbortSignal));
+    expect(pendingStorage.save).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+    dialog().querySelector<HTMLButtonElement>('.wb-dialog-actions button:last-child')!.click();
+    await pending;
+    open.mockRestore();
+  });
+
+  it('关闭登录框取消宿主请求，迟到的授权码不建立会话', async () => {
+    const result = Promise.withResolvers<string>();
+    const authorize = vi.fn((_url: string, _signal: AbortSignal) => result.promise);
+    auth.beginOAuth.mockResolvedValue(OAUTH);
+    const pending = requestGitHubLogin(host, { auth, desktopOAuth: { origin: DESKTOP, authorize } });
+    const button = () => [...dialog().querySelectorAll('button')].find(b => b.textContent === '使用 GitHub 账号登录');
+    await vi.waitFor(() => expect(button()?.disabled).toBe(false));
+    button()!.click();
+    dialog().querySelector<HTMLButtonElement>('.wb-dialog-actions button')!.click();
+    await pending;
+    expect(authorize.mock.calls[0][1].aborted).toBe(true);
+    result.resolve('late-code');
+    await flush();
+    expect(auth.completeOAuth).not.toHaveBeenCalled();
   });
 
   it('shows login failures inside the dialog', async () => {

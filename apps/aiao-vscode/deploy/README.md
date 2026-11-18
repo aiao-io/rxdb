@@ -6,7 +6,7 @@ GitHub 认证链路与 [vscode.dev](../../../requirements/domain-research/vscode
 
 | 路由                            | 作用                                                             |
 | ------------------------------- | ---------------------------------------------------------------- |
-| `GET /redirect`                 | GitHub OAuth 回跳落点：校验 state 后 302 回 `/github-callback`   |
+| `GET /redirect`                 | GitHub OAuth 回跳落点：校验 state 后返回独立回调或受信桌面回跳页 |
 | `GET /api/github-token`         | 返回公开的 OAuth Client ID，供前端发起授权                       |
 | `POST /api/github-token`        | 授权码 → access_token（PKCE code_verifier + client secret 交换） |
 | `POST /api/github-token/delete` | 服务端撤销 OAuth token（登出时调用）                             |
@@ -69,6 +69,7 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
   应 302 回同域 `/github-callback`；完整 OAuth 走查在工作台登录入口进行。
 - 完整登录成功后，授权弹窗应自动关闭，原工作台更新登录状态；失败时保留回调页显示错误。
   工作台启用 `COOP: same-origin`，跨域授权后 `window.opener` 可能为空，回调关闭不能依赖它。
+- 桌面登录发布顺序：先发布 `aiao-desktop`（含 `/github-oauth-return.html`），再发布 `aiao-vscode` 的静态站点和 Functions。复用已有 OAuth App 和 `/redirect`，无需新增回调或凭据。发布后刷新桌面，分别在 `desktop.aiao.io` 和 `aiao-desktop.pages.dev` 用测试账号验证授权、拒绝与重开恢复；发布前运行 `pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files`。
 - 跨域隔离响应头（COOP / COEP）与 Service Worker 是工作台自身要求，配置见应用 README 的部署小节。
 - 集成到 Aiao Desktop（US-410）：入口还要带 `Cross-Origin-Resource-Policy: cross-origin`，`verify-pages-routing` 会检查它恰好一个值
   （`_headers` 里同一响应头写两次会被 Pages 用逗号拼成无效值）。发布后在仓库根跑桌面的线上验收
@@ -110,6 +111,6 @@ vivari 写死的，要让 `no-cache` 生效，得在 zone 上给 `vscode-vivari.
 
 - client secret 只存在于 Pages secret / `.dev.vars`，不进仓库、不进前端。
 - 公开配置端点只返回 Client ID，并禁用缓存。
-- `/redirect` 拒绝非同源或非 `/github-callback` 的 state，防开放重定向。
+- `/redirect` 拒绝非同源或非 `/github-callback` 的 state；桌面回跳仅允许两个生产域、固定 Preview 别名及本机回环地址。桌面收到的只有授权结果，不接收 PKCE verifier 或令牌。
 - token 端点提供公开 Client ID、「code → token」与「token 撤销」，不代理其他 API 流量；
   其余 GitHub 请求由浏览器直连 `api.github.com`（CORS 实测可用）。

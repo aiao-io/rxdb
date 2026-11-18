@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { isolationHeaders, startArtifactServer } from '../fixtures/artifact-server.mjs';
+import { installGitHubOAuth } from '../fixtures/github-oauth.mjs';
 import { grantCapabilities } from '../harness/capabilities.mjs';
 import { diskCount, diskRow, diskText, filePanel, traced } from '../harness/host-calls.mjs';
 
@@ -92,6 +93,7 @@ export const aiaoCodeFiles = {
         )
       );
       await context.route(isCode, routeCode);
+      const oauth = await installGitHubOAuth(context, APP_ORIGIN, session.origin);
       await context.addInitScript(origin => {
         if (location.protocol !== 'https:' || location.origin !== origin) return;
         const url = new URL(location.href);
@@ -260,12 +262,6 @@ export const aiaoCodeFiles = {
       expect(await frame.evaluate(() => window.workbench.session.state.files['large.txt'].length)).toBe(524_289);
       await frame.evaluate(() => window.workbench.session.discard());
       result.invalidAndOversizeRejected = true;
-      await frame.locator('[data-action="github-account"]').click();
-      await expect(frame.getByRole('dialog')).toContainText('桌面窗口暂不支持 OAuth');
-      await expect(frame.getByRole('button', { name: '使用 GitHub 账号登录' })).toBeDisabled();
-      await expect(frame.getByRole('textbox', { name: '个人访问令牌' })).toBeVisible();
-      await frame.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
-      result.embeddedLoginBoundary = true;
       const standalone = await session.openPage();
       await standalone.goto(`${APP_ORIGIN}/?workbench-verify`, { waitUntil: 'load' });
       await standalone.waitForFunction(() => window.ready && window.workbench);
@@ -280,6 +276,32 @@ export const aiaoCodeFiles = {
       await standalone.close();
       await page.bringToFront();
       result.standaloneFlowsPreserved = true;
+      await frame.locator('[data-action="github-account"]').click();
+      const login = frame.getByRole('dialog', { name: 'GitHub 登录' });
+      const authorize = login.getByRole('button', { name: '使用 GitHub 账号登录' });
+      await expect(login.getByLabel('个人访问令牌')).toBeVisible();
+      const authorizeAtGitHub = async choice => {
+        await expect(authorize).toBeEnabled();
+        const opened = context.waitForEvent('page', { timeout: 10_000 });
+        await authorize.press('Enter');
+        const popup = session.observePage(await opened);
+        await expect(popup).toHaveURL(/^https:\/\/github\.com\/login\/oauth\/authorize\?/);
+        expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+        const closed = popup.waitForEvent('close', { timeout: 10_000 });
+        await popup.getByRole('link', { name: choice }).click();
+        await closed;
+        await page.bringToFront();
+      };
+      await authorizeAtGitHub('Deny');
+      await expect(login.getByRole('alert')).toHaveText('已取消 GitHub 授权');
+      expect(oauth.exchanges()).toBe(0);
+      await authorizeAtGitHub('Authorize');
+      await expect(login).toContainText('已连接 GitHub（OAuth）');
+      await expect(login).toContainText('desktop-octo');
+      await login.getByRole('button', { name: '关闭', exact: true }).click();
+      await expect(frame.locator('[data-action="github-account"]')).toHaveAttribute('title', /desktop-octo/);
+      expect(oauth.exchanges()).toBe(1);
+      expect(await frame.evaluate(() => crossOriginIsolated)).toBe(true);
       await menu('desktop-export-project');
       await expect(panel.panel).toBeVisible();
       await frame.locator('[data-window-action="close"]').dispatchEvent('click');
@@ -291,6 +313,8 @@ export const aiaoCodeFiles = {
       await grantCapabilities(session, ['window', 'clipboard:read', 'clipboard:write']);
       await session.reloadDesktop(page, { finder: false });
       frame = await launchCode();
+      await expect(frame.locator('[data-action="github-account"]')).toHaveAttribute('title', /desktop-octo/);
+      result.embeddedLoginBoundary = true;
       await frame.locator('[data-action="title-menu"]').click();
       await expect(frame.locator('[data-menu-id="desktop-import-project"]')).toBeDisabled();
       await expect(frame.locator('[data-menu-id="desktop-import-project"]')).toContainText('未授予读取权限');

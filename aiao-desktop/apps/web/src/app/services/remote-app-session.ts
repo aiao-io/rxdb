@@ -13,6 +13,7 @@ import type { ApplicationRuntime } from './application-runtime';
 import type { AppCapabilityRestriction } from './browser-app-support';
 import { WebAppManifest, orbitAllow } from './desktop-apps';
 import type { DesktopWindow } from './desktop-window';
+import { serveGitHubOAuth, supportsGitHubOAuth } from './github-oauth';
 
 /** 窗口里的提示条停留多久（毫秒）。 */
 const NOTICE_MS = 4_500;
@@ -137,7 +138,11 @@ export class RemoteAppSession {
       title: app.name,
       allow: orbitAllow(app.web),
       timeout: app.web.readyTimeout,
-      props: { ...this.windowProps(context, capabilities), ...desktopProps(capabilities) }
+      props: {
+        ...this.windowProps(context, capabilities),
+        ...desktopProps(capabilities),
+        ...(supportsGitHubOAuth(app) ? { 'aiao-code.github-oauth-origin': location.origin } : {})
+      }
     });
     this.binding = binding;
     let mounting: Promise<void>;
@@ -179,6 +184,9 @@ export class RemoteAppSession {
     this.servers.push(
       serveDesktop(instance, context, { capabilities, onError: (error, method) => context.report(error, method) })
     );
+    if (supportsGitHubOAuth(this.options.app)) {
+      context.onDispose(serveGitHubOAuth(instance, () => context.windowState().focused).dispose);
+    }
     if (!capabilities.includes('window')) return;
     const legacy = serveWindow(instance, this.windowHost(context));
     this.servers.push(legacy);

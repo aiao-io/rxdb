@@ -1,5 +1,6 @@
 import { GitHubApiError } from './github-api.js';
-import type { GitHubAuth, GitHubSession } from './github-auth.js';
+import type { GitHubAuth, GitHubOAuthRequest, GitHubSession } from './github-auth.js';
+import type { GitHubDesktopOAuth } from './github-desktop-oauth.js';
 import { oauthDoneKey, savePendingOAuth } from './github-oauth-bridge.js';
 import { ensureGithubStyle } from './github-style.js';
 
@@ -9,15 +10,19 @@ export interface GitHubLoginRequest {
   readonly oauthUnavailable?: string;
   /** 打开授权页；默认弹窗，测试可注入。 */
   readonly openAuthorize?: (url: string) => void;
+  /** 桌面代办，避免 iframe 弹窗和跨站存储。 */
+  readonly desktopOAuth?: GitHubDesktopOAuth;
+  readonly signal?: AbortSignal;
 }
 
 const POLL_INTERVAL_MS = 2000;
 
 /**
  * GitHub 登录对话框：已登录显示账户与登出；未登录提供 PAT 输入与 OAuth 弹窗授权。
- * OAuth 在独立弹窗完成，PKCE 请求经密封存储桥接，storage 事件与轮询同步回本标签页。
+ * 独立页面用密封存储桥接；嵌入桌面时在原窗口换码并建立会话。
  */
 export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginRequest): Promise<void> {
+  if (request.signal?.aborted) return Promise.resolve();
   return new Promise(resolve => {
     const { auth } = request;
     const openAuthorize =
@@ -29,6 +34,7 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
     ensureGithubStyle();
     const dialog = document.createElement('dialog');
     dialog.className = 'wb-dialog wb-github-dialog wb-github-login';
+    dialog.setAttribute('aria-label', 'GitHub 登录');
     const heading = document.createElement('h3');
     heading.textContent = 'GitHub 登录';
     const content = document.createElement('div');
@@ -43,10 +49,13 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
 
     let settled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
+    const lifetime = new AbortController();
 
     const settle = (): void => {
       if (settled) return;
       settled = true;
+      request.signal?.removeEventListener('abort', settle);
+      lifetime.abort();
       stopWatching();
       dialog.close();
       resolve();
@@ -54,12 +63,50 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
     close.onclick = () => settle();
     dialog.oncancel = () => settle();
     dialog.onclose = () => dialog.remove();
+    request.signal?.addEventListener('abort', settle, { once: true });
 
     const error = (value: string): void => {
+      content.querySelector('.wb-github-error')?.remove();
       const line = document.createElement('p');
       line.className = 'wb-github-message wb-github-error';
+      line.setAttribute('role', 'alert');
       line.textContent = value;
       content.append(line);
+    };
+
+    const loginInDesktop = async (desktop: GitHubDesktopOAuth, pending: GitHubOAuthRequest): Promise<void> => {
+      const { signal } = lifetime;
+      try {
+        const result = desktop.authorize(pending.authorizeUrl, signal);
+        renderWaiting(true);
+        const code = await result;
+        signal.throwIfAborted();
+        const session = await auth.completeOAuth(code, pending.verifier, signal);
+        if (!settled) renderLoggedIn(session);
+      } catch (cause) {
+        if (settled) return;
+        renderLoggedOut();
+        error(cause instanceof Error ? cause.message : String(cause));
+      }
+    };
+
+    const bindDesktopOAuth = (button: HTMLButtonElement, desktop: GitHubDesktopOAuth): void => {
+      let pending: GitHubOAuthRequest | undefined;
+      const prepare = async (): Promise<void> => {
+        button.disabled = true;
+        try {
+          pending = await auth.beginOAuth(desktop.origin);
+        } catch (cause) {
+          if (!settled) error(cause instanceof Error ? cause.message : String(cause));
+        } finally {
+          button.disabled = false;
+        }
+      };
+      button.onclick = () => {
+        if (pending) void loginInDesktop(desktop, pending);
+        else void prepare();
+      };
+      void prepare();
     };
 
     const renderLoggedOut = (): void => {
@@ -105,24 +152,28 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       const oauthButton = document.createElement('button');
       oauthButton.type = 'button';
       oauthButton.textContent = '使用 GitHub 账号登录';
+      oauthButton.setAttribute('tabindex', '0');
       oauthButton.disabled = !!request.oauthUnavailable;
       oauthButton.onclick = () => {
         void (async () => {
           try {
             const pending = await auth.beginOAuth();
+            if (settled) return;
             await savePendingOAuth({
               verifier: pending.verifier,
               nonce: new URL(pending.state).searchParams.get('nonce') ?? '',
               state: pending.state,
               at: Date.now()
             });
+            if (settled) return;
             openAuthorize(pending.authorizeUrl);
-            renderWaiting();
+            renderWaiting(false);
           } catch (cause) {
             error(cause instanceof Error ? cause.message : String(cause));
           }
         })();
       };
+      if (request.desktopOAuth) bindDesktopOAuth(oauthButton, request.desktopOAuth);
       content.append(oauthButton);
       if (request.oauthUnavailable)
         content.append(
@@ -139,14 +190,16 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       );
     };
 
-    const renderWaiting = (): void => {
+    const renderWaiting = (desktop: boolean): void => {
       content.replaceChildren();
       actions.replaceChildren(close);
       const waiting = document.createElement('p');
       waiting.className = 'wb-github-waiting';
-      waiting.textContent = '等待 GitHub 授权完成…（在弹窗中操作）';
+      waiting.setAttribute('role', 'status');
+      waiting.textContent = desktop ? '等待 GitHub 授权完成…' : '等待 GitHub 授权完成…（在弹窗中操作）';
       content.append(waiting);
-      startWatching();
+      if (desktop) close.focus();
+      else startWatching();
     };
 
     const renderLoggedIn = (session: GitHubSession): void => {

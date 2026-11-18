@@ -21,7 +21,7 @@ tags: [aiao-vscode, orbit, micro-frontend, deploy]
 - 托管响应头：`public/_headers` 给全部路径加 `Cross-Origin-Resource-Policy: cross-origin`。宿主页带 COEP 时，没有它的文档会被浏览器拦下（2026-11-13 实测线上 `ERR_BLOCKED_BY_RESPONSE`）。不加 `frame-ancestors`，嵌入范围与现在一致。
 - 发布：发布流程（[deploy/README](../../deploy/README.md)）发布后加一步桌面线上验收 `aiao-desktop-e2e:verify-aiao-code`。
 
-不在范围：被嵌入时的「导入文件夹（副本）」（跨源 iframe 不能弹文件选择器）、「登录 GitHub」（弹窗被宿主的 sandbox 拦下）、与桌面的主题联动和窗口标题同步。
+不在范围：跨源 iframe 的目录句柄、与桌面的主题联动和窗口标题同步。文件输入由 US-412 承接；嵌入 GitHub 登录由 [ADESK-US-203 #7](../../../../aiao-desktop/requirements/stories/application/ADESK-US-203-aiao-code.md#验收标准) 验收，不放宽 iframe sandbox。
 
 ## 验收
 

@@ -26,6 +26,7 @@ import { decodeFileBytes, encodeFileBytes } from './git/file-encoding.js';
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
+import type { GitHubDesktopOAuth } from './git/github/github-desktop-oauth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
 import { requestGitHubRepository } from './git/github/github-picker.js';
 import type { GitHubSession } from './git/github/github-types.js';
@@ -88,8 +89,9 @@ export interface BrowserWorkbenchOptions {
   readonly hostWindow?: WorkbenchHostWindow;
   /** 桌面文件是显式副本，保存工作台项目不会自动写回桌面。 */
   readonly desktopFiles?: WorkbenchDesktopFiles;
-  /** 嵌入时使用文件输入并明确 OAuth 弹窗限制。 */
+  /** 嵌入时使用文件输入与桌面授权桥。 */
   readonly embedded?: boolean;
+  readonly githubDesktopOAuth?: GitHubDesktopOAuth;
   /** 可注入正式扩展宿主加载器，默认运行独立同源页面。 */
   readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
@@ -1171,11 +1173,10 @@ export function mountWorkbench(
     if (!options.githubAuth) return Promise.resolve();
     return requestGitHubLogin(root, {
       auth: options.githubAuth,
-      ...(options.embedded ?
-        {
-          oauthUnavailable:
-            '桌面窗口暂不支持 OAuth 登录弹窗，请在此窗口使用个人访问令牌（PAT）。独立页面的登录状态可能不与桌面共享。'
-        }
+      ...(options.embedded ? { signal: lifetime.signal } : {}),
+      ...(options.githubDesktopOAuth ? { desktopOAuth: options.githubDesktopOAuth } : {}),
+      ...(options.embedded && !options.githubDesktopOAuth ?
+        { oauthUnavailable: '当前桌面不支持 GitHub 账号授权，请更新桌面或使用个人访问令牌（PAT）。' }
       : {})
     });
   }

@@ -111,6 +111,21 @@ describe('GitHub authentication', () => {
     await expect(store.load()).resolves.toBeNull();
   });
 
+  it('桌面关闭后丢弃正在验证的 OAuth 会话', async () => {
+    const controller = new AbortController();
+    const user = Promise.withResolvers<Response>();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'uncommitted-token' }))
+      .mockReturnValueOnce(user.promise);
+    const outcome = auth.completeOAuth('code', 'verifier', controller.signal);
+    const rejected = expect(outcome).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    controller.abort();
+    user.resolve(jsonResponse({ login: 'octo' }));
+    await rejected;
+    await expect(store.load()).resolves.toBeNull();
+  });
+
   it('logs out an OAuth session through the exchange endpoint and clears storage', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'gho_oauth' }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ login: 'octo', avatar_url: null }));

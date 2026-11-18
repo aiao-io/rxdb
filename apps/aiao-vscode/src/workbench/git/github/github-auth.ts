@@ -26,7 +26,7 @@ export interface GitHubAuthOptions {
 
 export interface GitHubOAuthRequest {
   readonly authorizeUrl: string;
-  /** /redirect 中转页 302 的目标；GitHub 回跳的 code 会附加到该 URL。 */
+  /** 发起方回调地址与随机标识；桌面授权还带受信宿主来源。 */
   readonly state: string;
   /** PKCE verifier，仅内存持有，completeOAuth 时传回。 */
   readonly verifier: string;
@@ -35,8 +35,8 @@ export interface GitHubOAuthRequest {
 export interface GitHubAuth {
   getSession(): Promise<GitHubSession | null>;
   loginWithPat(token: string): Promise<GitHubSession>;
-  beginOAuth(): Promise<GitHubOAuthRequest>;
-  completeOAuth(code: string, verifier: string): Promise<GitHubSession>;
+  beginOAuth(desktopOrigin?: string): Promise<GitHubOAuthRequest>;
+  completeOAuth(code: string, verifier: string, signal?: AbortSignal): Promise<GitHubSession>;
   /** 丢弃内存会话缓存并从持久化存储重载；用于其他标签页完成登录后的同步。 */
   refresh(): Promise<GitHubSession | null>;
   logout(): Promise<void>;
@@ -135,12 +135,14 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       return next;
     },
 
-    async beginOAuth(): Promise<GitHubOAuthRequest> {
+    async beginOAuth(desktopOrigin): Promise<GitHubOAuthRequest> {
       const clientId = typeof options.clientId === 'function' ? await options.clientId() : options.clientId;
       const verifier = randomHex(32);
       const challenge = await pkceChallenge(verifier);
-      const nonce = randomHex(8);
-      const state = `${options.origin}${callbackPath}?nonce=${nonce}`;
+      const callback = new URL(callbackPath, options.origin);
+      callback.searchParams.set('nonce', randomHex(desktopOrigin ? 16 : 8));
+      if (desktopOrigin) callback.searchParams.set('desktop', desktopOrigin);
+      const state = callback.href;
       const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: options.redirectUri,
@@ -153,13 +155,15 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       return { authorizeUrl: `${AUTHORIZE_URL}?${params.toString()}`, state, verifier };
     },
 
-    async completeOAuth(code: string, verifier: string): Promise<GitHubSession> {
+    async completeOAuth(code, verifier, signal): Promise<GitHubSession> {
+      signal?.throwIfAborted();
       let token: string;
       try {
         const response = await fetchFn(options.exchangeUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: options.redirectUri })
+          body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: options.redirectUri }),
+          signal
         });
         if (!response.ok) {
           throw new GitHubApiError('auth_required', `登录服务返回 ${response.status}`, response.status);
@@ -178,7 +182,9 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
         if (cause instanceof GitHubApiError) throw loginError(cause);
         throw cause;
       }
+      signal?.throwIfAborted();
       const user = await fetchUser(token);
+      signal?.throwIfAborted();
       const next: GitHubSession = { token, login: user.login, avatarUrl: user.avatarUrl, provider: 'oauth' };
       await setSession(next);
       return next;
