@@ -1,5 +1,7 @@
 # 2026-11-17 自动完成工作证据
 
+文中的等宽 `.log` 文件名指向当时保留在本地、未随 Git 提交的日志。已归档的报告、覆盖率摘要、截图和 `.txt` 日志可通过链接查看。
+
 ## A01 文档保存与内容保护（ADESK-US-109）
 
 基线：`2a3e4618369c325d2ea3d2fef8b95cbba697677f` 加本次未提交改动；浏览器报告记录了 dirty 工作区与产物 index SHA-256。北京时间 2026-11-17；JSON 的 measuredAt 使用 UTC 2026-11-16。环境：macOS darwin 27.2.0 arm64，Apple M1 Max，Node 26.12.0，headless Chromium 158.0.8127.18。
@@ -95,46 +97,46 @@ US-112 与 US-113 关闭后，Angular 当前 28/29 Done，唯一 In Review 为 U
 
 2026-11-17，基线 `2a3e46183` 加未提交工作区，未发布。复用现有 Orbit 协议，不共享存储，也不扩大 sandbox。单文件和项目 ZIP 每次最多 512 KiB，导出每次经过保存面板；普通工作台保存不写回桌面原文件。桌面故事按产品约定完成 AC；应用侧 US-412 按根规范保持 In Review，等待评审合并。
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-vscode:coverage --output-style=static -- --maxWorkers=2`：[完整单测日志](aiao-code-copy-coverage.log)，84 文件、1295 条通过；[覆盖率摘要](aiao-code-copy-coverage-summary.json) statements 91.29%、branches 83.21%、functions 91.28%、lines 94.20%。复制适配器和项目归档均四项 100%。
-- `NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck -p aiao-vscode --parallel=1 --output-style=static`：[最新 lint/typecheck](aiao-code-copy-lint-types-final.log)通过。`NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck test requirements-check -p aiao-desktop-web aiao-desktop-e2e aiao-desktop --parallel=1 --output-style=static`：[桌面门禁](aiao-code-copy-desktop-gates-final.log)通过，web 1519 条；旧白名单与派生视图的[失败日志](aiao-code-copy-desktop-gates.log)保留。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files --report=/tmp/aiao-code-copy-browser-final.json --output-style=static`：[最终报告](aiao-code-copy-browser-final.json)、[日志](aiao-code-copy-browser-final.log)，10 项全部通过、无页面错误、16.8 秒。覆盖真实构建与独立存储、本机文件夹输入、单文件字节与草稿保留、取消和重名、项目 ZIP 往返、坏包和超限、嵌入登录限制、独立访问回归、关闭取消面板、未授权提示。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=host-capabilities,host-filesystem,integrated-app,transparent-window,window-layout,lazy-loading --report=/tmp/aiao-code-copy-regression.json --output-style=static`：[6 组关联报告](aiao-code-copy-regression.json)、[日志](aiao-code-copy-regression.log)全部通过，无页面错误，76.7 秒。
+- `NX_NO_CLOUD=true pnpm nx run aiao-vscode:coverage --output-style=static -- --maxWorkers=2`：完整单测日志（`aiao-code-copy-coverage.log`），84 文件、1295 条通过；[覆盖率摘要](aiao-code-copy-coverage-summary.json) statements 91.29%、branches 83.21%、functions 91.28%、lines 94.20%。复制适配器和项目归档均四项 100%。
+- `NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck -p aiao-vscode --parallel=1 --output-style=static`：最新 lint/typecheck（`aiao-code-copy-lint-types-final.log`）通过。`NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck test requirements-check -p aiao-desktop-web aiao-desktop-e2e aiao-desktop --parallel=1 --output-style=static`：桌面门禁（`aiao-code-copy-desktop-gates-final.log`）通过，web 1519 条；旧白名单与派生视图的失败日志（`aiao-code-copy-desktop-gates.log`）保留。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files --report=/tmp/aiao-code-copy-browser-final.json --output-style=static`：[最终报告](aiao-code-copy-browser-final.json)、日志（`aiao-code-copy-browser-final.log`），10 项全部通过、无页面错误、16.8 秒。覆盖真实构建与独立存储、本机文件夹输入、单文件字节与草稿保留、取消和重名、项目 ZIP 往返、坏包和超限、嵌入登录限制、独立访问回归、关闭取消面板、未授权提示。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=host-capabilities,host-filesystem,integrated-app,transparent-window,window-layout,lazy-loading --report=/tmp/aiao-code-copy-regression.json --output-style=static`：[6 组关联报告](aiao-code-copy-regression.json)、日志（`aiao-code-copy-regression.log`）全部通过，无页面错误，76.7 秒。
 - 两个应用都使用本地正式产物；浏览器把 `https://vscode.aiao.io` 请求转到本地产物服务器，[工作台构建摘要](aiao-code-copy-build.json)。不是线上发布验证。菜单和面板通过浏览器操作，项目及字节检查部分由既有 workbench-verify 入口访问真实 session/OPFS 后端。关闭等待中面板用应用按钮的 DOM 事件验证，不冒充物理点击或人工键盘。[正常菜单](aiao-code-copy-enabled-ui.png)、[拒绝状态](aiao-code-copy-ui.png)已目视检查。
-- TDD 原始记录：[适配器完整红日志](aiao-code-copy-unit-red-full.log)、[绿日志](aiao-code-copy-unit-green.log)；[UI 红日志](aiao-code-copy-ui-red.log)、[后续 177 条通过](aiao-code-copy-ui-rerun.log)；文件名带 green 的 [UI 中间日志](aiao-code-copy-ui-green.log)实际失败，原因是无效 ZIP 夹具及未等 busy 结束，不能当成功证据；[目录选择器清理红日志](aiao-code-folder-picker-red.log)、[嵌入后台焦点红日志](aiao-code-copy-focus-red.log)的失败均已修复。
-- 浏览器迭代失败保留：[关闭选择器不唯一](aiao-code-copy-browser-first.json)、[清理中在途请求被中断](aiao-code-copy-browser-second.log)、[重开焦点/宿主遮罩失败](aiao-code-copy-browser-third.json)。正式代码修复后台 iframe 恢复时抢焦点；夹具等待真实工作台 ready 并先关闭页面、再结束路由及服务器，不放宽运行时错误检查。[早期 9 项绿报告](aiao-code-copy-browser-fourth.json)由最终 10 项报告补充。
+- TDD 原始记录：适配器完整红日志（`aiao-code-copy-unit-red-full.log`）、绿日志（`aiao-code-copy-unit-green.log`）；UI 红日志（`aiao-code-copy-ui-red.log`）、后续 177 条通过（`aiao-code-copy-ui-rerun.log`）；文件名带 green 的 UI 中间日志（`aiao-code-copy-ui-green.log`）实际失败，原因是无效 ZIP 夹具及未等 busy 结束，不能当成功证据；目录选择器清理红日志（`aiao-code-folder-picker-red.log`）、嵌入后台焦点红日志（`aiao-code-copy-focus-red.log`）的失败均已修复。
+- 浏览器迭代失败保留：[关闭选择器不唯一](aiao-code-copy-browser-first.json)、清理中在途请求被中断（`aiao-code-copy-browser-second.log`）、[重开焦点/宿主遮罩失败](aiao-code-copy-browser-third.json)。正式代码修复后台 iframe 恢复时抢焦点；夹具等待真实工作台 ready 并先关闭页面、再结束路由及服务器，不放宽运行时错误检查。[早期 9 项绿报告](aiao-code-copy-browser-fourth.json)由最终 10 项报告补充。
 
 真实 GitHub 账号授权与线上发布没有验收；嵌入只承诺 PAT 路径的受控客户端成功/失败、OAuth 不可用提示。构建仍有 initial 预算及 ms CommonJS 警告，留给 A08 核查，不称构建零警告。US-108 人工读屏和 GPU 鼠标锁定边界保持。A06～A09 仍未完成。
 
-A05 收尾后的[需求门禁](aiao-code-copy-closure-requirements.log)通过：29/30 Done，剩余 US-108 人工读屏。
+A05 收尾后的需求门禁（`aiao-code-copy-closure-requirements.log`）通过：29/30 Done，剩余 US-108 人工读屏。
 
 ## A06 内置内容复制与打印（US-114）
 
 基线 `2a3e46183` 加未提交工作区，未发布。Preview 的文本 PDF 复制全文、图片复制文件名，Mail 复制实际邮件文本，Photos 复制图片地址；入口明确复制对象。Preview 与 Mail 请求浏览器打印所选内容，不声称已经输出纸张。
 
-- [最初红阶段](aiao-content-actions-red.log)与[14 条定向通过](aiao-content-actions-unit.log)。[第一次类型/lint失败](aiao-content-actions-types-lint.log)来自测试替身 Promise 返回类型及未用参数，已修正，没有放宽规则。
+- 最初红阶段（`aiao-content-actions-red.log`）与14 条定向通过（`aiao-content-actions-unit.log`）。第一次类型/lint失败（`aiao-content-actions-types-lint.log`）来自测试替身 Promise 返回类型及未用参数，已修正，没有放宽规则。
 - [第一次浏览器失败](aiao-content-actions-browser-first.json)暴露图标按钮缺显式 aria-label；[第二次失败](aiao-content-actions-browser-second.json)中实际剪贴板与键盘菜单已通过，但 Enter 执行命令后会再次激活归还焦点的按钮。MenuList 的 Enter 改用已有的 preventDefault 路径，随后 [10 项通过](aiao-content-actions-browser-third.json)。
-- 目视发现旧成功 toast 在后一次失败时残留、错误栏透明。[反馈红阶段](aiao-content-actions-feedback-red.log)保留 3 条失败，修复为立即显示失败 toast 与实色错误栏；最终[菜单](aiao-content-actions-menu.png)及[失败状态](aiao-content-actions-error.png)已目视核对。
-- `NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck test requirements-check -p aiao-desktop-web aiao-desktop-e2e aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-content-actions-gates-final.log)通过，118 文件 1534 条；[覆盖率](aiao-content-actions-coverage.json)语句 97.89%、分支 94.74%、函数 97.88%、行 99.09%，原逐文件 80% 门槛保持。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=content-actions,apps,host-capabilities,host-filesystem,a11y,shell-interaction --report=/tmp/aiao-content-actions-browser-final.json --output-style=static`：[最终报告](aiao-content-actions-browser-final.json)、[日志](aiao-content-actions-browser-final.log)，6 组全绿、无页面错误，85.4 秒。包括新增 10 项、全部应用启动、宿主能力/文件面板与共享菜单键盘回归。
+- 目视发现旧成功 toast 在后一次失败时残留、错误栏透明。反馈红阶段（`aiao-content-actions-feedback-red.log`）保留 3 条失败，修复为立即显示失败 toast 与实色错误栏；最终[菜单](aiao-content-actions-menu.png)及[失败状态](aiao-content-actions-error.png)已目视核对。
+- `NX_NO_CLOUD=true pnpm nx run-many -t lint typecheck test requirements-check -p aiao-desktop-web aiao-desktop-e2e aiao-desktop --parallel=1 --output-style=static`：最终门禁（`aiao-content-actions-gates-final.log`）通过，118 文件 1534 条；[覆盖率](aiao-content-actions-coverage.json)语句 97.89%、分支 94.74%、函数 97.88%、行 99.09%，原逐文件 80% 门槛保持。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=content-actions,apps,host-capabilities,host-filesystem,a11y,shell-interaction --report=/tmp/aiao-content-actions-browser-final.json --output-style=static`：[最终报告](aiao-content-actions-browser-final.json)、日志（`aiao-content-actions-browser-final.log`），6 组全绿、无页面错误，85.4 秒。包括新增 10 项、全部应用启动、宿主能力/文件面板与共享菜单键盘回归。
 
 复制成功路径实际读回浏览器系统剪贴板。拒绝路径用受控 NotAllowedError，打印失败也受控注入；成功打印调用原生 print 并确认真实 beforeprint 事件，同时检查隔离文档内容和资源释放。未验证系统打印机、纸张、真实权限提示交互或物理键盘。Mail 的真实发送、Photos 二进制图片复制、Preview 视频与 A06 其余工作仍未完成。
 
-US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/31 Done，US-108 人工读屏保留。
+US-114 收尾后的需求门禁（`aiao-content-actions-closure.log`）通过：30/31 Done，US-108 人工读屏保留。
 
 ## A06 提醒事项草稿保护（US-115）
 
 基线仍为 `2a3e46183` 加本次未提交工作区；schema `2026111703` 未变。本轮未发布。
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/reminders/reminder-drafts.spec.ts`：[初始红阶段](aiao-reminder-drafts-red.log)、[原模型绿阶段](aiao-reminder-drafts-unit.log)、[错误文案红阶段](aiao-reminder-feedback-red.log)、[最终十条绿阶段](aiao-reminder-feedback-green.log)。
-- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-reminder-drafts-final-gates.log)全绿，119 文件/1544 条单测。[覆盖率](aiao-reminder-coverage.json)：语句 97.88%、分支 94.74%、函数 97.86%、行 99.10%；逐文件 80% 门槛通过。此前 UUID 类型错误的[失败日志](aiao-reminder-drafts-gates.log)与[修复复跑](aiao-reminder-drafts-types.log)保留。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=reminder-drafts,persistence,apps,shell-interaction,document-workflow --report=/tmp/aiao-reminder-drafts-browser-fourth.json --output-style=static`：[最终报告](aiao-reminder-drafts-browser-fourth.json)、[日志](aiao-reminder-drafts-browser-fourth.log)。五组通过，51.9 秒，无页面错误；新增九项检查通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/reminders/reminder-drafts.spec.ts`：初始红阶段（`aiao-reminder-drafts-red.log`）、原模型绿阶段（`aiao-reminder-drafts-unit.log`）、错误文案红阶段（`aiao-reminder-feedback-red.log`）、最终十条绿阶段（`aiao-reminder-feedback-green.log`）。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：最终门禁（`aiao-reminder-drafts-final-gates.log`）全绿，119 文件/1544 条单测。[覆盖率](aiao-reminder-coverage.json)：语句 97.88%、分支 94.74%、函数 97.86%、行 99.10%；逐文件 80% 门槛通过。此前 UUID 类型错误的失败日志（`aiao-reminder-drafts-gates.log`）与修复复跑（`aiao-reminder-drafts-types.log`）保留。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=reminder-drafts,persistence,apps,shell-interaction,document-workflow --report=/tmp/aiao-reminder-drafts-browser-fourth.json --output-style=static`：[最终报告](aiao-reminder-drafts-browser-fourth.json)、日志（`aiao-reminder-drafts-browser-fourth.log`）。五组通过，51.9 秒，无页面错误；新增九项检查通过。
 - 真实 SQLite INSERT/UPDATE 触发器失败、持有真实写锁、恢复后稳定 ID 单条记录、关闭/重启阻止丢草稿、显式丢弃与软件键盘重开均有证据。beforeunload 为合成事件；axe 与自动键盘不替代物理输入或 VoiceOver。
 - [失败界面截图](aiao-reminder-failure.png)已目视检查；原始 SQL 改为简短操作提示，未横向溢出。
 - 前三次浏览器检查均未通过，保留完整报告和日志：第一、二次为新输入尚未渲染时测试选中旧输入，修复为等待唯一新 ID；[第二次](aiao-reminder-drafts-browser-second.json)明确显示两个变量曾指向同一条。第三次 reload helper 主动关窗后测试未重开，已补重开；[第三次](aiao-reminder-drafts-browser-third.json)。最终联跑验证这些修复，不将前次失败算作通过。
 
 固定侧栏统计和日期筛选不在 US-115 范围，留在 A06 台账中继续。
 
-US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-108 人工读屏保留。
+US-115 收尾需求门禁（`aiao-reminder-closure.log`）通过：31/32 Done，US-108 人工读屏保留。
 
 ## A06 提醒事项列表筛选与动态统计（US-122）
 
@@ -158,41 +160,41 @@ US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-1
 
 基线 `2a3e46183` 加本次未提交改动，schema `2026111703` 未变；本次未发布。
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/note-document.spec.ts`：[红阶段](aiao-note-drafts-red.log)、[模型绿阶段](aiao-note-drafts-model-green.log)。覆盖保存失败、在途新增输入、序列基线、后续失败、冲突/删除后的显式放弃、销毁后结果等十项。
-- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[首次门禁](aiao-note-drafts-first-gates.log)因字段声明顺序 lint 失败；修复后的[最终门禁](aiao-note-drafts-final-gates.log)全绿，120 文件、1554 条单测。[覆盖率](aiao-note-coverage.json)语句 97.87%、分支 94.74%、函数 97.88%、行 99.11%；新模型语句 96.82%、行 100%，原逐文件 80% 门槛通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/notes/note-document.spec.ts`：红阶段（`aiao-note-drafts-red.log`）、模型绿阶段（`aiao-note-drafts-model-green.log`）。覆盖保存失败、在途新增输入、序列基线、后续失败、冲突/删除后的显式放弃、销毁后结果等十项。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：首次门禁（`aiao-note-drafts-first-gates.log`）因字段声明顺序 lint 失败；修复后的最终门禁（`aiao-note-drafts-final-gates.log`）全绿，120 文件、1554 条单测。[覆盖率](aiao-note-coverage.json)语句 97.87%、分支 94.74%、函数 97.88%、行 99.11%；新模型语句 96.82%、行 100%，原逐文件 80% 门槛通过。
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=note-drafts --report=/tmp/aiao-note-drafts-browser-first.json --output-style=static`：[首次定向报告](aiao-note-drafts-browser-first.json)全部十二项通过，23.0 秒。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=note-drafts,persistence,apps,a11y,document-workflow,multi-tab --report=/tmp/aiao-note-drafts-final-browser.json --output-style=static`：[最终报告](aiao-note-drafts-final-browser.json)、[日志](aiao-note-drafts-final-browser.log)，六组通过、150.2 秒，无页面错误。保留五轮既有文件并发验证。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=note-drafts,persistence,apps,a11y,document-workflow,multi-tab --report=/tmp/aiao-note-drafts-final-browser.json --output-style=static`：[最终报告](aiao-note-drafts-final-browser.json)、日志（`aiao-note-drafts-final-browser.log`），六组通过、150.2 秒，无页面错误。保留五轮既有文件并发验证。
 - 真实 SQLite UPDATE/INSERT 失败、写锁等待期间继续输入、两个实际页面修改同一笔记、副本失败重试、原记录删除和显式放弃均有证据。关闭与重启等待保存，失败不移除编辑器；保存后真实正文、格式和标题刷新仍在。
 - [失败状态截图](aiao-note-failure.png)已目视核查，错误不暴露 SQL；本地数据说明、可达按钮与编辑器焦点环已补齐。软件键盘、axe 与合成 beforeunload 不冒充人工键盘或 VoiceOver。
 
 Pin 和 New Folder 已分别由 US-121、US-123 补齐；Duplicate 使用真实保存副本路径。未声称接入 iCloud。
 
-US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 人工读屏保留。
+US-116 收尾需求门禁（`aiao-note-closure.log`）通过：32/33 Done，US-108 人工读屏保留。
 
 ## A06 本地会话草稿与范围（US-117）
 
 基线仍为 `2a3e46183` 加未提交改动，schema `2026111703` 未变；本轮未发布。
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/messages/message-drafts.spec.ts`：[红阶段](aiao-message-drafts-red.log)；加入 Notes 和 Reminders 定向回归的[模型绿阶段](aiao-message-drafts-model-green.log)通过。三个模型复用本地错误映射，不向用户透传 SQL。
-- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-message-drafts-final-gates.log)通过，121 文件/1563 条单测；[覆盖率](aiao-local-messages-coverage.json)及原逐文件 80% 门槛通过。最终模板名称调整后的 [lint/typecheck](aiao-local-messages-aria-gates.log)通过。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/messages/message-drafts.spec.ts`：红阶段（`aiao-message-drafts-red.log`）；加入 Notes 和 Reminders 定向回归的模型绿阶段（`aiao-message-drafts-model-green.log`）通过。三个模型复用本地错误映射，不向用户透传 SQL。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：最终门禁（`aiao-message-drafts-final-gates.log`）通过，121 文件/1563 条单测；[覆盖率](aiao-local-messages-coverage.json)及原逐文件 80% 门槛通过。最终模板名称调整后的 lint/typecheck（`aiao-local-messages-aria-gates.log`）通过。
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-messages --report=/tmp/aiao-local-messages-first.json`：[首次报告](aiao-local-messages-first.json)业务路径通过，但 axe 发现可见联系人名不在按钮无障碍名称中，整体失败。截图检查后补实际对比度测试，发现蓝底白字 3.93 < 4.5：[对比度红阶段](aiao-local-messages-contrast-red.json)。
 - 颜色修复后的[六组联跑](aiao-local-messages-final.json)中 Notes、Reminders、应用、a11y、外壳交互五组通过；Messages 仍因头像首字母与显式名称不匹配失败。改为由真实内容生成按钮名称，未降低 axe 规则。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-messages,content-actions --report=/tmp/aiao-local-messages-green.json --output-style=static`：[最终报告](aiao-local-messages-green.json)、[日志](aiao-local-messages-green.log)两组全绿，19.0 秒。Messages 十四项与复制打印十项通过，无页面错误。无需重复已经通过且不受模板名称改动影响的五组。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-messages,content-actions --report=/tmp/aiao-local-messages-green.json --output-style=static`：[最终报告](aiao-local-messages-green.json)、日志（`aiao-local-messages-green.log`）两组全绿，19.0 秒。Messages 十四项与复制打印十项通过，无页面错误。无需重复已经通过且不受模板名称改动影响的五组。
 - [最终失败界面截图](aiao-messages-failure.png)已目视检查；真实 SQLite INSERT/会话创建失败、写锁等待、会话删除、恢复单次写入、独立草稿、刷新重开和键盘操作均验证。窗口打开等待超过原随机回复时长后核对真实行数未增加。
 
 未接入真实远程消息、通话、文件发送与回执，不把本地改动当作这些能力已实现；合成 beforeunload、软件键盘和 axe 不替代人工体验。
 
-US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-108 人工读屏保留。
+US-117 收尾需求门禁（`aiao-messages-closure.log`）通过：33/34 Done，US-108 人工读屏保留。
 
 ## A06 本地邮件草稿（US-118）
 
 基线 `2a3e46183` 加当前未提交改动，schema `2026111703` 不变；没有发布。
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/mail/mail-draft.spec.ts`：[草稿红阶段](aiao-mail-draft-red.log)、[草稿绿阶段](aiao-mail-draft-green.log)。搜索和草稿对象识别另有[模型红阶段](aiao-mail-model-red.log)，最终全量单测验证。
-- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：[最终门禁](aiao-mail-final-gates.log)全绿，122 文件/1573 条单测，[覆盖率](aiao-local-mail-coverage.json)及原逐文件 80% 门槛通过。草稿模型已显式加入统计范围。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --coverage.enabled=false src/app/apps/mail/mail-draft.spec.ts`：草稿红阶段（`aiao-mail-draft-red.log`）、草稿绿阶段（`aiao-mail-draft-green.log`）。搜索和草稿对象识别另有模型红阶段（`aiao-mail-model-red.log`），最终全量单测验证。
+- `NX_NO_CLOUD=true pnpm nx run-many -t test lint typecheck requirements-check -p aiao-desktop-web aiao-desktop --parallel=1 --output-style=static`：最终门禁（`aiao-mail-final-gates.log`）全绿，122 文件/1573 条单测，[覆盖率](aiao-local-mail-coverage.json)及原逐文件 80% 门槛通过。草稿模型已显式加入统计范围。
 - 定向检查[第一份报告](aiao-local-mail-first.json)在回复断言失败：点击邮箱后尚未渲染完成即读取旧标题；改为等 Inbox 选中状态。第二次[报告](aiao-local-mail-second.json)在图片地址断言失败：同一图片 500px 与 1280px 缩略图地址被认作不同；改为比较同一图片路径，与已有复制地址检查一致。
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-mail,content-actions,local-messages,note-drafts,apps,a11y,shell-interaction --report=/tmp/aiao-local-mail-final.json --output-style=static`：[七组报告](aiao-local-mail-final.json)中 Mail 和其他五组通过，复制打印组仍查旧菜单名 Mail 而失败，已同步为 Mail Draft。
-- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-mail,content-actions --report=/tmp/aiao-local-mail-green.json --output-style=static`：[最终报告](aiao-local-mail-green.json)、[日志](aiao-local-mail-green.log)，两组全绿、26.8 秒，无页面错误。Mail 十五项和复制打印十项通过，未无故重跑已通过的五组。
+- `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=local-mail,content-actions --report=/tmp/aiao-local-mail-green.json --output-style=static`：[最终报告](aiao-local-mail-green.json)、日志（`aiao-local-mail-green.log`），两组全绿、26.8 秒，无页面错误。Mail 十五项和复制打印十项通过，未无故重跑已通过的五组。
 - 真实 SQLite INSERT/UPDATE 拒绝与恢复、真实写锁关闭等待、两个实际页面的草稿冲突、副本失败重试、原记录删除、面板替换后恢复、刷新可编辑、搜索和实际内容均检查。[失败截图](aiao-mail-failure.png)已目视核查，输入与操作提示可见，无 SQL 泄露。
 
 未接入邮件账号、远程投递或附件传输；历史 Sent 数据保留并标明本地存档。beforeunload 为合成事件，软件键盘和 axe 不替代物理输入或读屏。
