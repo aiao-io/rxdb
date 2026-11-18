@@ -277,6 +277,9 @@
       "path": "./packages/rxdb-i18n-vue"
     },
     {
+      "path": "./packages/orbit"
+    },
+    {
       "path": "./packages/rxdb-admin"
     },
     {
