@@ -74,6 +74,8 @@ tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
 
 ## 已知边界与遗留风险
 
+- 2026-11-18 评审修复：当前分支 HEAD 为 null 时，从根开始的链与系统根 HEAD 同样先检查受版本控制的业务表，有数据就返回 `not_fast_forward`（`headCommitId: null`）、零写入，表为空才照常导入；只有旧版本 `createBranch()` 留下、尚未经 `enable()` 补根的空 ref 会走到这一支，`enable()` 写下的基线 / 分支基线上的换根导入、第一父链快进、恢复路径与前像核对都不变。新增 2 条单测（先红后绿），working-tree 插件 1513 例、PGlite 一致性 62/62 通过；登记表 #14 / #15 的存档行号随之刷新。
+
 - 只按第一父链快进：头在合并提交非第一父一侧的设备直接导入得到 `not_fast_forward`，需按文档的恢复路径（从分叉提交建分支、切过去再导入）收敛。
 - 加密列不能跨设备交换（各库密钥环不同，叠业务表时整笔回滚）；交换的实体须配 `SyncType.None`，导入在入口拒绝走通用同步的实体。
 - 只测了同后端两台设备之间的交换，没测 PGlite 与 SQLite 之间。

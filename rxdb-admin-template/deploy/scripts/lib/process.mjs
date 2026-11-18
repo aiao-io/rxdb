@@ -6,10 +6,11 @@ import { spawn } from 'node:child_process';
 import { composeFile, composeProject, envFile, workspaceRoot } from './paths.mjs';
 
 /**
- * 运行一个命令；`capture` 为 true 时收集标准输出并返回，否则直接继承终端。退出码非 0 时抛错。
+ * 运行一个命令；`capture` 为 true 时收集标准输出并返回（`combined` 时连同标准错误，例如 `docker logs` 把容器的标准错误
+ * 原样写到自己的标准错误），否则直接继承终端。退出码非 0 时抛错。
  * @param {string} command
  * @param {string[]} args
- * @param {{ env?: Record<string, string | undefined>, cwd?: string, input?: string, capture?: boolean, quiet?: boolean }} [options]
+ * @param {{ env?: Record<string, string | undefined>, cwd?: string, input?: string, capture?: boolean, quiet?: boolean, combined?: boolean }} [options]
  * @returns {Promise<string>} 标准输出（`capture` 时）
  */
 export function run(command, args, options = {}) {
@@ -30,7 +31,7 @@ export function run(command, args, options = {}) {
     if (options.input !== undefined) child.stdin.end(options.input);
     child.on('error', reject);
     child.on('exit', (code, signal) => {
-      if (code === 0) resolve(stdout);
+      if (code === 0) resolve(options.combined ? `${stdout}${stderr}` : stdout);
       else {
         const detail = options.quiet && stderr.trim() ? `：${stderr.trim().split('\n').slice(-3).join(' / ')}` : '';
         reject(new Error(`${command} ${args.slice(0, 3).join(' ')} 退出码 ${code ?? signal}${detail}`));

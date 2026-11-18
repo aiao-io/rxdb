@@ -114,8 +114,10 @@ async function main() {
     });
     const logs = await run('docker', ['logs', '--since', started.toISOString(), `${composeProject}-functions-1`], {
       capture: true,
-      quiet: true
-    }).then(stdout => stdout);
+      quiet: true,
+      // 函数日志写在容器的标准错误里，docker logs 原样写到自己的标准错误
+      combined: true
+    });
     const logLines = logs
       .split('\n')
       .filter(line => line.includes('ADMIN_ERROR '))

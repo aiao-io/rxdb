@@ -8,7 +8,8 @@
  * 数据经迁移所有者连接批量写入（只造历史规模，不经命令），审计总数随之调整。
  *
  * 验收：
- * 1. 普通命令（发评论、标记通知已读、订阅 PR）经网关的函数各执行若干次，耗时（含网关与函数，热 worker）对照预算 50 ms；
+ * 1. 普通命令（发评论、标记通知已读、订阅 PR）经网关的函数各执行 100 次，p95 耗时（含网关、函数与连接池）对照预算 50 ms，
+ *    另记中位数与最大值（worker 按 CPU 限额回收后的第一个请求含冷启动）；
  * 2. 团队页经 PostgREST 读取（浏览器同一个 CollaborationReader），体积对照预算 50 KB；
  * 3. 保留期内用原操作 ID 重试返回原结果、不重复执行；超出保留期（31 天前）的同一 ID 按新请求裁决；
  * 4. 过期回执由写事务顺手清理（每个写事务至多 20 条）；
@@ -18,6 +19,7 @@
  * 结果写到 `.state/acceptance/retention-<时刻>.json`；默认结束时删除这个工作区（`--keep` 保留）。
  */
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
@@ -40,36 +42,40 @@ const policy = {
   keepLatest: setting('RETENTION_KEEP_LATEST', 20000)
 };
 const budgets = { commandMs: 50, teamPageBytes: 50 * 1024 };
-const rounds = 20;
+/** 每种普通命令执行的次数：100 次时 p95 不会被个别 worker 回收后的冷启动左右（最大值另列）。 */
+const rounds = 100;
 const day = 86_400_000;
 
 async function seed(owner, workspace, userId, prId) {
   const now = Date.now();
+  // 参数一律显式标注类型：INSERT … SELECT 的选择列表与 jsonb_build_object 的参数推不出类型
   // 回执：保留期内的分布在 0～29 天前，过期的在 31～60 天前；结果只是占位（这些操作 ID 不会被重试）
   await owner.query(
     `INSERT INTO admin_private.operations(team_id, app_id, operation_id, actor_id, fingerprint, result, at)
-     SELECT $1, $2, 'seed-receipt-' || i, $3, md5(i::text), '{"seed":true}'::jsonb,
-       $4::bigint - (CASE WHEN i <= $5 THEN (i % 29) ELSE 31 + (i % 29) END) * ${day}::bigint - (i % 1000)
-     FROM generate_series(1, $5 + $6) AS i`,
+     SELECT $1::text, $2::text, 'seed-receipt-' || i, $3::text, md5(i::text), '{"seed":true}'::jsonb,
+       $4::bigint - (CASE WHEN i <= $5::int THEN (i % 29) ELSE 31 + (i % 29) END) * ${day}::bigint - (i % 1000)
+     FROM generate_series(1, $5::int + $6::int) AS i`,
     [workspace.teamId, workspace.appId, userId, now, scale.receipts, scale.expired]
   );
+  // 审计：时间均匀分布在最近 180 天，三成带 PR 归属
   await owner.query(
     `INSERT INTO public.admin_audit(team_id, app_id, id, actor_id, action, details, created_at, pr_id)
-     SELECT $1, $2, 'seed-audit-' || i, $3, 'reply',
-       jsonb_build_object('id', 'seed-audit-' || i, 'actorId', $3, 'action', 'reply', 'operationId', 'seed-op-' || i,
-         'at', (extract(epoch FROM ts) * 1000)::bigint, 'details', '{}'::jsonb), ts,
-       CASE WHEN i % 10 < 3 THEN $4 END
-     FROM generate_series(1, $5) AS i, LATERAL (SELECT now() - make_interval(secs => (180.0 * 86400 * ($5 - i) / $5))) AS t(ts)`,
+     SELECT $1::text, $2::text, 'seed-audit-' || i, $3::text, 'reply',
+       jsonb_build_object('id', 'seed-audit-' || i, 'actorId', $3::text, 'action', 'reply', 'operationId', 'seed-op-' || i,
+         'at', (extract(epoch FROM t.ts) * 1000)::bigint, 'details', '{}'::jsonb), t.ts,
+       CASE WHEN i % 10 < 3 THEN $4::text END
+     FROM generate_series(1, $5::int) AS i,
+       LATERAL (SELECT now() - make_interval(secs => 180.0 * 86400 * ($5::int - i) / $5::int)) AS t(ts)`,
     [workspace.teamId, workspace.appId, userId, prId, scale.audit]
   );
   await owner.query(
-    'UPDATE public.admin_workspace_versions SET audit_count = audit_count + $3 WHERE team_id = $1 AND app_id = $2',
+    'UPDATE public.admin_workspace_versions SET audit_count = audit_count + $3::int WHERE team_id = $1 AND app_id = $2',
     [workspace.teamId, workspace.appId, scale.audit]
   );
   await owner.query(
     `INSERT INTO admin_private.notifications(team_id, app_id, id, user_id, pr_id, thread_id, candidate_id, read, at)
-     SELECT $1, $2, 'seed-notice-' || i, $3, $4, NULL, NULL, i % 2 = 0, $5::bigint - i * 1000
-     FROM generate_series(1, $6) AS i`,
+     SELECT $1::text, $2::text, 'seed-notice-' || i, $3::text, $4::text, NULL, NULL, i % 2 = 0, $5::bigint - i * 1000
+     FROM generate_series(1, $6::int) AS i`,
     [workspace.teamId, workspace.appId, userId, prId, now, scale.notices]
   );
   await owner.query('ANALYZE admin_private.operations, public.admin_audit, admin_private.notifications');
@@ -235,10 +241,8 @@ async function main() {
     });
     result.idempotency = {
       original: { status: original.status, body: original.body },
-      within29Days: {
-        status: within.status,
-        sameResult: JSON.stringify(within.body) === JSON.stringify(original.body)
-      },
+      // 回执存在 JSONB 里，重放时键的顺序可能不同：按值比较
+      within29Days: { status: within.status, body: within.body, sameResult: isDeepStrictEqual(within.body, original.body) },
       tasksAfterRetry,
       beyond31Days: { status: beyond.status, error: beyond.body.error ?? null, message: beyond.body.message ?? null }
     };
@@ -289,7 +293,7 @@ async function main() {
         Math.max(result.teamPageBefore.responseBytes, result.teamPageAfter.responseBytes) <= budgets.teamPageBytes,
       retryReturnsOriginal:
         within.status === 200 && result.idempotency.within29Days.sameResult && tasksAfterRetry === 1,
-      expiredRetryIsNewRequest: beyond.status !== 200 || JSON.stringify(beyond.body) !== JSON.stringify(original.body),
+      expiredRetryIsNewRequest: beyond.status !== 200 || !isDeepStrictEqual(beyond.body, original.body),
       expiredReceiptsCleaned: result.expiredAfter < result.expiredBefore,
       archiveMovedEvents: archived > 0 && hotAfter + archived === hotBefore,
       archivedStillQueryable:
