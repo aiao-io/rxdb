@@ -20,6 +20,8 @@ async function latest(prefix) {
 }
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 const note = '本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据';
+/** 回滚演练里的浏览器冒烟（`smoke-<端>` 项目）：归到 AC#8。 */
+const isSmoke = run => run.kind === 'smoke' || run.args.some(arg => String(arg).startsWith('smoke-'));
 
 async function main() {
   const index = process.argv.indexOf('--out');
@@ -42,10 +44,14 @@ async function main() {
       note: `${note}；验证码邮件经本地收件服务（inbucket）读取，不是真实邮箱`,
       runs: runs.filter(run => run.kind === 'otp')
     },
-    'ac5-e2e.json': { note, runs: runs.filter(run => run.kind === 'e2e') },
+    'ac5-e2e.json': { note, runs: runs.filter(run => run.kind === 'e2e' && !isSmoke(run)) },
     'ac6-retention.json': { note, ...(await readJson(await latest('retention-'))) },
     'ac7-monitor.json': { note, ...(await readJson(await latest('monitor-'))) },
-    'ac8-rollback-drill.json': { note, ...(await readJson(await latest('rollback-drill-'))) }
+    'ac8-rollback-drill.json': {
+      note,
+      ...(await readJson(await latest('rollback-drill-'))),
+      smokeRuns: runs.filter(isSmoke)
+    }
   };
   for (const [name, content] of Object.entries(files))
     await writeFile(path.join(out, name), `${JSON.stringify(content, null, 2)}\n`);

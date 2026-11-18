@@ -106,7 +106,10 @@ async function main() {
   }
   const summary = summarize(JSON.parse(await readFile(report, 'utf8')));
   const record = {
-    kind: otpSeconds ? 'otp' : 'e2e',
+    kind:
+      otpSeconds ? 'otp'
+      : playwrightArgs.some(arg => arg.startsWith('smoke-')) ? 'smoke'
+      : 'e2e',
     release,
     functions,
     startedAt: started.toISOString(),

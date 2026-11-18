@@ -1,0 +1,176 @@
+{
+  "at": "2026-11-18T08:13:11.588Z",
+  "catalog": {
+    "productTables": 23,
+    "productViews": 14,
+    "policies": 29,
+    "grants": 201,
+    "columnGrants": 439,
+    "functions": 12,
+    "publication": [],
+    "role": {
+      "rolname": "admin_collaboration",
+      "rolsuper": false,
+      "rolinherit": false,
+      "rolcreaterole": false,
+      "rolcreatedb": false,
+      "rolreplication": false,
+      "rolbypassrls": false
+    }
+  },
+  "checks": {
+    "secondRunSucceeded": true,
+    "fullDumpIdentical": true,
+    "productDumpIdentical": true,
+    "catalogIdentical": true,
+    "dataUnchanged": true,
+    "rlsOnEveryProductTable": true,
+    "noProductTableInRealtimePublication": true,
+    "realtimeMessagePolicies": true,
+    "serviceRoleIsRestricted": true
+  },
+  "data": {
+    "admin_private.audit_archive": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.candidates": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.comments": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.commit_changes": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.commits": {
+      "rows": 1,
+      "md5": "9d093375f0ec02e7667a48a9450da39e"
+    },
+    "admin_private.invitations": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.memberships": {
+      "rows": 1,
+      "md5": "842cbf04ac3b924f724d338f542535a8"
+    },
+    "admin_private.notifications": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.operations": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.policies": {
+      "rows": 1,
+      "md5": "418b1da6871f7d89bb35f8aea61312d2"
+    },
+    "admin_private.prs": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.record_keys": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.refs": {
+      "rows": 1,
+      "md5": "2e4c7964be8fb0c0b0e3156450b770b0"
+    },
+    "admin_private.reviews": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.schemas": {
+      "rows": 1,
+      "md5": "0175c1ee304325ad005cbd0e9639be04"
+    },
+    "admin_private.tasks": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.threads": {
+      "rows": 0,
+      "md5": ""
+    },
+    "admin_private.workspaces": {
+      "rows": 1,
+      "md5": "78554d749a4c1bf09c18f92c695f9a2e"
+    },
+    "public.admin_audit": {
+      "rows": 1,
+      "md5": "63a17ff8e56d544c0fcf05cae814982b"
+    },
+    "public.admin_changes": {
+      "rows": 0,
+      "md5": ""
+    },
+    "public.admin_shared": {
+      "rows": 1,
+      "md5": "cdcd56624ce4bc1600d0b3d66acd97c7"
+    },
+    "public.admin_workspace_versions": {
+      "rows": 1,
+      "md5": "1e36ee9ed3c563b66f418bae554830e7"
+    },
+    "public.shared_records": {
+      "rows": 0,
+      "md5": ""
+    }
+  },
+  "directory": "acceptance/migration-check-20261118T081252",
+  "dumps": {
+    "full": {
+      "sha256": "7f2438a535852d5820466d46f0d03a09203401543ff04a08c40f0c3be6d41f7f",
+      "bytes": 246902,
+      "lines": 7454
+    },
+    "product": {
+      "sha256": "7324d2b0764f7d8e030468f8312b404e44225a04d874269f6964a44f4bcc6af5",
+      "bytes": 86540
+    }
+  },
+  "kind": "migration-check",
+  "migrations": [
+    {
+      "name": "202611160001_collaboration.sql",
+      "sha256": "f55609aaca2ba1a0d0c1ae4d41532fe6884044a96c93bfa04b1ac029d724059e"
+    },
+    {
+      "name": "202611170001_commit_store.sql",
+      "sha256": "931c5265211b7af32015466cf5701bb63def6b5ace97ffdec0e06fc6fb71a35f"
+    },
+    {
+      "name": "202611170002_workspace_tables.sql",
+      "sha256": "c68a191adabe95c580d86e59bf5212eec83d67903351cab0419ea3491966669d"
+    },
+    {
+      "name": "202611170003_schema_manifests.sql",
+      "sha256": "19c2a81c68bc4ae8224127e8a6a8160867f6222767db7edbfeea266a41850090"
+    },
+    {
+      "name": "202611170004_supabase_native.sql",
+      "sha256": "907d055ed910fc5fec096cb9964d243db99bc1f76c1a787c2c32fb4caf5a8ce4"
+    },
+    {
+      "name": "202611180001_service_role.sql",
+      "sha256": "ca94d350998ce0642a56bab3b9c5c0de9b0159f5c46ddf80901c20d98dfb7b16"
+    },
+    {
+      "name": "202611180002_exchange_commits.sql",
+      "sha256": "2c77c3f595ff7f415a1f3d5d7205d6af5e0c6ded99dab6501dfd93c1959d2167"
+    },
+    {
+      "name": "202611180003_audit_archive.sql",
+      "sha256": "7429a1fb784bed196b8433a9513a4bc503df3ebc9f873cfed454e4f1d3a5992d"
+    }
+  ],
+  "migrationsRoot": "../../supabase/migrations",
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "secondRun": "ok"
+}

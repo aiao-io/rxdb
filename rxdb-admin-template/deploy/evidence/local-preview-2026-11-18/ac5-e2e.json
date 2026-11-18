@@ -1,0 +1,53 @@
+{
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "runs": [
+    {
+      "kind": "e2e",
+      "release": "r20261118-065714-121bbf2",
+      "functions": "r20261118-065714-121bbf2",
+      "startedAt": "2026-11-18T07:12:33.594Z",
+      "finishedAt": "2026-11-18T07:25:00.679Z",
+      "args": ["--project", "react", "--project", "angular", "--project", "vue", "--project", "rls"],
+      "otpExpirySeconds": null,
+      "report": "acceptance/e2e-r20261118-065714-121bbf2-20261118T071233.json",
+      "expected": 54,
+      "unexpected": 1,
+      "skipped": 0,
+      "flaky": 0,
+      "durationMs": 737165,
+      "failures": ["angular › Presence 显示在线成员与查看位置，离开后消失，不写数据库（ADMIN-US-219）"]
+    },
+    {
+      "kind": "e2e",
+      "release": "r20261118-065714-121bbf2",
+      "functions": "r20261118-065714-121bbf2",
+      "startedAt": "2026-11-18T07:26:28.302Z",
+      "finishedAt": "2026-11-18T07:27:01.345Z",
+      "args": ["--project", "angular", "--grep", "Presence 显示在线成员"],
+      "otpExpirySeconds": null,
+      "report": "acceptance/e2e-r20261118-065714-121bbf2-20261118T072628.json",
+      "expected": 1,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "durationMs": 5478,
+      "failures": []
+    },
+    {
+      "kind": "e2e",
+      "release": "r20261118-080053-3ab4041",
+      "functions": "r20261118-080053-3ab4041",
+      "startedAt": "2026-11-18T08:03:28.507Z",
+      "finishedAt": "2026-11-18T08:11:30.025Z",
+      "args": ["--project", "react", "--project", "angular", "--project", "vue", "--project", "rls"],
+      "otpExpirySeconds": null,
+      "report": "acceptance/e2e-r20261118-080053-3ab4041-20261118T080328.json",
+      "expected": 55,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "durationMs": 474134,
+      "failures": []
+    }
+  ]
+}
