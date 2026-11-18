@@ -16,11 +16,11 @@ test('回滚之后：登录、打开团队，共享数据里回滚前后合并�
   const { otp } = (await (await request.get(`${fixtures}/__otp?email=${encodeURIComponent(email!)}`)).json()) as {
     otp: string;
   };
-  await page.goto('/collaboration');
+  await page.goto(`/login?redirect=${encodeURIComponent('/collaboration')}`);
   await page.getByLabel('邮箱', { exact: true }).fill(email!);
   await page.getByLabel('验证码', { exact: true }).fill(otp);
   await page.getByRole('button', { name: '登录', exact: true }).click();
-  await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
   await page.getByRole('button', { name: team!, exact: true }).click();
   const shared = page
     .locator('section')

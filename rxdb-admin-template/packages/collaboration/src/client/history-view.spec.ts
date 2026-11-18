@@ -75,7 +75,7 @@ function setup(options: { permissions?: string[]; earlier?: boolean; commitsEarl
     snapshot: {
       auditCount: 6,
       root: 'root',
-      members: [{ id: 'u1', permissions: options.permissions ?? ['read', 'edit'] }]
+      members: [{ id: 'u1', email: 'u1@example.test', permissions: options.permissions ?? ['read', 'edit'] }]
     },
     commitHistory: (branch: unknown) => {
       branches.push(branch);
@@ -137,31 +137,40 @@ describe('历史与审计视图', () => {
   it('折叠时只显示审计总数与提交摘要：不渲染事件，也不请求或渲染任何提交内容', () => {
     const { draw, details, requested, reveal } = setup();
     const root = draw();
-    expect(root.querySelector('h2')?.textContent).toBe('历史与审计');
+    expect(root.querySelector('h2')?.textContent).toBe('共享分支历史');
     const audit = details(root, 'audit');
-    expect(audit.querySelector('summary')?.textContent).toBe('6 条审计事件');
-    expect(audit.querySelectorAll('p')).toHaveLength(0);
+    expect(audit.querySelector('summary')?.textContent).toContain('6 条审计事件');
+    expect(audit.querySelector('table')).toBeNull();
     expect(audit.querySelectorAll('button')).toHaveLength(0);
     for (const id of ['a', 'b']) {
       const item = details(root, `shared-commit:${id}`);
-      expect(item.querySelector('summary')?.textContent).toBe(`Message ${id} · u1 · ${id}`);
+      expect(item.dataset['commitId']).toBe(id);
+      // 摘要：提交消息、作者（成员邮箱）与短 ID；父提交是根时显示「空」
+      const summary = item.querySelector('summary')?.textContent ?? '';
+      expect(summary).toContain(`Message ${id}`);
+      expect(summary).toContain('u1@example.test');
+      expect(item.querySelector('summary code')?.textContent).toBe(id);
       expect(item.querySelector('table')).toBeNull();
       expect(item.querySelector('[data-loading]')).toBeNull();
     }
+    expect(details(root, 'shared-commit:a').querySelector('summary')?.textContent).toContain('父提交：空');
+    expect(details(root, 'shared-commit:b').querySelector('summary')?.textContent).toContain('父提交：a');
     expect(requested).toEqual([]);
     expect(root.querySelectorAll('table')).toHaveLength(0);
     expect(reveal).not.toHaveBeenCalled();
   });
-  it('展开审计时间线后按时间正序列出事件，并在有更早事件时提供「加载更早的审计事件」', async () => {
+  it('展开审计时间线后按时间正序列成表：操作者显示邮箱、动作显示中文名、详情原文可展开；有更早事件时提供「加载更早的审计事件」', async () => {
     const { draw, details, button, open, calls } = setup();
     open.add('audit');
     const audit = details(draw(), 'audit');
-    const lines = [...audit.querySelectorAll('p')].map(node => node.textContent ?? '');
-    expect(lines).toHaveLength(3);
-    expect(lines[0]).toContain('u1 · task · {"id":"task-4"}');
-    expect(lines[2]).toContain('u1 · task · {"id":"task-6"}');
+    const rows = [...audit.querySelectorAll<HTMLTableRowElement>('tbody tr')];
+    expect(rows.map(row => row.dataset['auditId'])).toEqual(['e4', 'e5', 'e6']);
+    expect(rows[0].children[1].textContent).toBe('u1@example.test');
+    expect(rows[0].children[2].textContent).toBe('新建任务');
+    expect(rows[0].querySelector('pre')?.textContent).toContain('"id": "task-4"');
+    expect(rows[2].querySelector('pre')?.textContent).toContain('"id": "task-6"');
     const load = button(audit, '加载更早的审计事件')!;
-    expect(audit.querySelector('summary')?.nextElementSibling).toBe(load);
+    expect(audit.querySelector('summary')?.nextElementSibling?.firstElementChild).toBe(load);
     load.click();
     await flush();
     expect(calls).toEqual(['earlier']);
@@ -207,12 +216,12 @@ describe('历史与审计视图', () => {
     ]);
     expect(failed.calls).toEqual(['restore:a:恢复 Message a']);
   });
-  it('共享历史按共享分支分页读取，按时间正序列出：旧的在上', () => {
+  it('共享历史按共享分支分页读取，新的在上', () => {
     const { draw, branches } = setup();
     const keys = [...draw().querySelectorAll('details')]
       .map(node => node.dataset['disclosureKey'])
       .filter(key => key?.startsWith('shared-commit:'));
-    expect(keys).toEqual(['shared-commit:a', 'shared-commit:b']);
+    expect(keys).toEqual(['shared-commit:b', 'shared-commit:a']);
     expect(branches).toEqual([{ branch: 'shared' }]);
   });
   it('第一页还没读到时显示占位，不列出任何提交', () => {
@@ -222,13 +231,12 @@ describe('历史与审计视图', () => {
     expect(root.querySelector('[data-loading]')).not.toBeNull();
     expect([...root.querySelectorAll('details')].map(node => node.dataset['disclosureKey'])).toEqual(['audit']);
   });
-  it('有更早的提交时在提交列表最前面提供「加载更早的提交」，点击读取下一页；没有时不显示', async () => {
+  it('有更早的提交时在提交列表末尾提供「加载更早的提交」，点击读取下一页；没有时不显示', async () => {
     const { draw, details, button, calls } = setup({ commitsEarlier: true });
     const root = draw();
     const load = button(root, '加载更早的提交')!;
     expect(load).toBeDefined();
-    expect(details(root, 'audit').nextElementSibling).toBe(load);
-    expect(load.nextElementSibling).toBe(details(root, 'shared-commit:a'));
+    expect(load.previousElementSibling?.lastElementChild).toBe(details(root, 'shared-commit:a'));
     load.click();
     await flush();
     expect(calls).toEqual(['earlier-commits:{"branch":"shared"}']);
@@ -240,14 +248,15 @@ describe('历史与审计视图', () => {
     store.commits['b'] = commit('b', 'a');
     const tables = [...details(draw(), 'shared-commit:b').querySelectorAll('table')];
     expect(tables).toHaveLength(2);
-    expect(tables[0].textContent).toContain('Name b');
-    const rows = [...tables[1].querySelectorAll('tr')].map(tr =>
+    // 先是这个提交自身的变更（记录显示名称、字段显示清单里的标签），再是这个版本的完整数据
+    const rows = [...tables[0].querySelectorAll('tr')].map(tr =>
       [...tr.querySelectorAll('th, td')].map(cell => cell.textContent)
     );
     expect(rows).toEqual([
       ['变更类型', '记录', '字段', '合并前', '合并后'],
-      ['修改', 'c', 'name', 'Before', 'Name b']
+      ['修改', 'Name b', '分类名', 'Before', 'Name b']
     ]);
+    expect(tables[1].textContent).toContain('Name b');
   });
   it('没有编辑权限的成员看不到恢复按钮', () => {
     const { draw, details, button } = setup({ permissions: ['read'] });

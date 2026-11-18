@@ -1,3 +1,6 @@
+/** 表单草稿管理的控件：输入框、多行文本框与下拉选择。 */
+type DraftControl = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
 /**
  * 协作面板重绘时保留面板里尚未提交的输入（任务名称、评论、回复、冲突处理选择等）与 details 的展开状态；跨账号或任务不复用。
  * 团队任务的记录编辑在应用的模型驱动编辑界面里，不经过这里。
@@ -12,7 +15,12 @@ export class FormDrafts {
   constructor(private readonly host: HTMLElement) {}
   remember = (event: Event): void => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+    if (!(
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ))
+      return;
     if (!target.dataset['formKey']) return;
     const key = this.key(target);
     const value = { value: target.value, checked: target instanceof HTMLInputElement && target.checked };
@@ -62,17 +70,17 @@ export class FormDrafts {
       const key = this.key(control);
       const draft = control.dataset['persistentDraft'] ? this.persistent.get(key) : this.values.get(key);
       if (!draft) continue;
-      if (control instanceof HTMLInputElement && control.readOnly) continue;
+      if (!(control instanceof HTMLSelectElement) && control.readOnly) continue;
       if (control instanceof HTMLSelectElement && ![...control.options].some(option => option.value === draft.value))
         continue;
       control.value = draft.value;
       if (control instanceof HTMLInputElement) control.checked = draft.checked;
     }
   }
-  private controls(): (HTMLInputElement | HTMLSelectElement)[] {
-    return [...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]')];
+  private controls(): DraftControl[] {
+    return [...this.host.querySelectorAll<DraftControl>('[data-form-key]')];
   }
-  private key(control: HTMLInputElement | HTMLSelectElement): string {
+  private key(control: DraftControl): string {
     const label = control.dataset['formKey'];
     return `${label}:${this.controls()
       .filter(other => other.dataset['formKey'] === label)

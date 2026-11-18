@@ -31,7 +31,12 @@ test('review-date-import: anonymous records with persisted dates can be previewe
     name: string;
     admin: { email: string; otp: string };
   };
-  await page.goto('/entities/assets/AssetCategory');
+  // 全站都要登录：先经登录页登录，回到本机工作台录入
+  await page.goto(`/login?redirect=${encodeURIComponent('/entities/assets/AssetCategory')}`);
+  await page.getByLabel('邮箱', { exact: true }).fill(fixture.admin.email);
+  await page.getByLabel('验证码', { exact: true }).fill(fixture.admin.otp);
+  await page.getByRole('button', { name: '登录', exact: true }).click();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
   await createCategory(page, '日期导入分类');
   await page.goto('/entities/assets/Asset');
   await createAsset(page, '日期导入资产', '日期导入分类');
@@ -44,10 +49,6 @@ test('review-date-import: anonymous records with persisted dates can be previewe
   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
   await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
   await page.goto('/collaboration');
-  await page.getByLabel('邮箱', { exact: true }).fill(fixture.admin.email);
-  await page.getByLabel('验证码', { exact: true }).fill(fixture.admin.otp);
-  await page.getByRole('button', { name: '登录', exact: true }).click();
-  await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '预览匿名数据导入', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('3 条本机记录');

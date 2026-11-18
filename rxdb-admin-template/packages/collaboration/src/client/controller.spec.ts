@@ -1757,7 +1757,7 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     expect(redraws).toHaveBeenCalledTimes(2);
     expect(controller.snapshot!.presence).toEqual([{ userId: 'alice', sessionId: 's1', prId: 'pr', recordId: 'r1' }]);
   });
-  it('他人被撤权时立即移出在线列表；自己被撤权时立即锁定并离开频道', async () => {
+  it('他人被撤权时立即移出在线列表；自己被撤权时立即锁定团队并离开频道，账号保持登录（不退出全局会话）', async () => {
     const { controller, presence, revoke, auth } = await joined();
     controller.snapshot = {
       ...controller.snapshot!,
@@ -1776,12 +1776,16 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     expect(controller.user?.id).toBe('alice');
     const client = vi.mocked(createClient).mock.results.at(-1)!.value as { removeChannel: ReturnType<typeof vi.fn> };
     revoke(['alice']);
-    await vi.waitFor(() => expect(controller.user).toBeNull());
+    await vi.waitFor(() => expect(controller.message).toBe('你已不是这个团队的成员，团队草稿已锁定'));
     expect(controller.snapshot).toBeNull();
+    expect(controller.workspace).toBeNull();
+    expect(controller.task).toBeNull();
+    expect(controller.user?.id).toBe('alice');
+    expect(controller.session.user?.id).toBe('alice');
     expect(client.removeChannel).toHaveBeenCalled();
     expect(auth.signOut).not.toHaveBeenCalled();
   });
-  it('频道重连或掉线时按修订号补齐；工作区行已读不到（撤权后频道被关闭）即锁定', async () => {
+  it('频道重连或掉线时按修订号补齐；工作区行已读不到（撤权后频道被关闭）即锁定团队，账号保持登录', async () => {
     const { controller, status, revision, team } = await joined();
     const version = vi
       .spyOn(controller.reader, 'version')
@@ -1798,6 +1802,8 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     expect(version).toHaveBeenCalledTimes(2);
     version.mockRejectedValue(new CollaborationError('forbidden', '当前用户没有操作权限'));
     status('SUBSCRIBED');
-    await vi.waitFor(() => expect(controller.user).toBeNull());
+    await vi.waitFor(() => expect(controller.snapshot).toBeNull());
+    expect(controller.workspace).toBeNull();
+    expect(controller.user?.id).toBe('alice');
   });
 });

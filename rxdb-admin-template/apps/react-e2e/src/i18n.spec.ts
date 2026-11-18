@@ -246,7 +246,8 @@ test.describe('工作台完整国际化', () => {
     await createCategory(page, '恢复后保留的中文内容');
     await page.goto('/backup');
     const archive = await downloadBackup(page);
-    const freshContext = await browser.newContext();
+    // 全新的浏览器上下文也要带上登录状态：全站都要登录
+    const freshContext = await browser.newContext({ storageState: process.env['ADMIN_E2E_AUTH_STATE'] });
     const fresh = await freshContext.newPage();
     try {
       await resetE2eState(fresh);

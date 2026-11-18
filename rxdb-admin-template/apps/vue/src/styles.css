@@ -2,6 +2,7 @@
 @import '@aiao/rxdb-model-vue/tailwind.css';
 @import '@aiao/rxdb-admin-vue/tailwind.css';
 @import '@aiao/rxdb-admin/admin.css';
+@import '@rxdb-admin-template/collaboration/tailwind.css';
 
 @plugin 'daisyui/index.js' {
   themes:

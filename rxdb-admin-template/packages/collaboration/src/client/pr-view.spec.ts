@@ -183,8 +183,10 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
 }
 const details = (root: Element, disclosure: string) =>
   [...root.querySelectorAll('details')].find(node => node.dataset['disclosureKey'] === disclosure)!;
-const section = (root: Element, title: string) =>
-  [...root.querySelectorAll('section')].find(node => node.querySelector('h2')?.textContent === title)!;
+/** 「数据变更」页签里最终候选的内容区（差异表、记录定位与完整数据）。 */
+const content = (root: Element) => root.querySelector<HTMLElement>('[data-candidate]')!;
+/** 记录定位的下拉：候选内容到齐之前不出现。 */
+const picker = (root: Element) => root.querySelector<HTMLSelectElement>('select[aria-label="查看记录"]');
 const candidate = (resolutions: unknown[]) => ({
   type: 'candidate',
   prId: 'pr',
@@ -284,7 +286,10 @@ describe('提交历史按展开按需渲染', () => {
     view.tab = 'commits';
     const root = draw();
     const item = details(root, key);
-    expect(item.querySelector('summary')?.textContent).toBe('source · u1 · source');
+    // 摘要：提交消息、作者（成员邮箱）与短 ID
+    expect(item.dataset['commitId']).toBe('source');
+    expect(item.querySelector('summary')?.textContent).toContain('u1@example.test');
+    expect(item.querySelector('summary code')?.textContent).toBe('source');
     expect(item.textContent).toContain('父提交：base');
     expect(item.querySelector('table')).toBeNull();
     expect(item.querySelector('[data-loading]')).toBeNull();
@@ -351,7 +356,7 @@ describe('提交历史按展开按需渲染', () => {
     const root = draw();
     const [load] = buttons(root, '加载更早的提交');
     expect(load).toBeDefined();
-    expect(load.previousElementSibling).toBe(details(root, 'source-commit:source'));
+    expect(load.previousElementSibling?.lastElementChild).toBe(details(root, 'source-commit:source'));
     expect(load.nextElementSibling).toBe(details(root, 'candidate-history:pr'));
     load.click();
     await flush();
@@ -389,29 +394,30 @@ describe('最终候选与讨论的按需内容', () => {
     expect(root.textContent).toContain('未解决冲突：0 · 检查错误：0');
     expect(buttons(root, '合并到共享数据')).toHaveLength(1);
     expect(requested).toEqual(expect.arrayContaining(['candidate:cand', 'commit:target']));
-    expect(section(root, '最终合并候选').querySelector('[data-loading]')).not.toBeNull();
-    expect(buttons(root, '查看记录 c')).toHaveLength(0);
+    expect(content(root).querySelector('[data-loading]')).not.toBeNull();
+    expect(picker(root)).toBeNull();
     store.candidates['cand'] = { ...candidateSummary, records: records('Final') };
     root = draw();
-    expect(section(root, '最终合并候选').querySelector('[data-loading]')).not.toBeNull();
+    expect(content(root).querySelector('[data-loading]')).not.toBeNull();
     store.commits['target'] = commit('target', 'base', 'Target');
     root = draw();
-    expect(section(root, '最终合并候选').querySelector('[data-loading]')).toBeNull();
-    expect(buttons(root, '查看记录 c')).toHaveLength(1);
+    expect(content(root).querySelector('[data-loading]')).toBeNull();
+    expect([...picker(root)!.options].map(option => option.value)).toEqual(['', 'c']);
     const diff = [...root.querySelectorAll('table')].find(table => table.textContent?.includes('合并前'))!;
     expect(diff.textContent).toContain('Target');
     expect(diff.textContent).toContain('Final');
   });
   it('检查页同样先显示检查结果，再等内容加载出记录导航', () => {
-    const { draw, view, store, buttons } = setup({ candidate: true });
+    const { draw, view, store } = setup({ candidate: true });
     view.tab = 'checks';
     let root = draw();
     expect(root.textContent).toContain('未解决冲突：0 · 检查错误：0');
-    expect(buttons(root, '查看记录 c')).toHaveLength(0);
+    expect(root.textContent).toContain('检查全部通过');
+    expect(picker(root)).toBeNull();
     store.candidates['cand'] = { ...candidateSummary, records: records('Final') };
     store.commits['target'] = commit('target', 'base', 'Target');
     root = draw();
-    expect(buttons(root, '查看记录 c')).toHaveLength(1);
+    expect(picker(root)).not.toBeNull();
   });
   it('候选的目标是空分支时不请求目标提交，候选内容到齐即渲染', () => {
     const { draw, store, requested, buttons } = setup({ candidate: true, target: null });
@@ -419,11 +425,12 @@ describe('最终候选与讨论的按需内容', () => {
     expect(requested).toContain('candidate:cand');
     expect(requested).not.toContain('commit:target');
     expect(requested).not.toContain('commit:root');
-    expect(section(root, '最终合并候选').querySelector('[data-loading]')).not.toBeNull();
+    expect(content(root).querySelector('[data-loading]')).not.toBeNull();
     store.candidates['cand'] = { ...candidateSummary, target: 'root', records: records('Final') };
     root = draw();
-    expect(section(root, '最终合并候选').querySelector('[data-loading]')).toBeNull();
-    expect(buttons(root, '查看记录 c')).toHaveLength(1);
+    expect(content(root).querySelector('[data-loading]')).toBeNull();
+    expect(picker(root)).not.toBeNull();
+    expect(buttons(root, '合并到共享数据')).toHaveLength(1);
   });
   it('「查看最终完整数据」只在展开后渲染记录表', () => {
     const { draw, open, store, loadAll } = setup({ candidate: true });
@@ -441,7 +448,7 @@ describe('最终候选与讨论的按需内容', () => {
     let root = draw();
     expect(requested.filter(entry => entry.startsWith('thread:') || entry.startsWith('candidate:'))).toEqual([]);
     expect(details(root, 'thread-version:thread').querySelector('table')).toBeNull();
-    expect(details(root, 'thread-history:thread').querySelector('p')).toBeNull();
+    expect(details(root, 'thread-history:thread').querySelector('li')).toBeNull();
     open.add('thread-version:thread');
     open.add('thread-history:thread');
     root = draw();
@@ -452,10 +459,11 @@ describe('最终候选与讨论的按需内容', () => {
     store.threads['thread'] = [event, { ...event, id: 'second', action: 'resolve_thread' }];
     root = draw();
     expect(details(root, 'thread-version:thread').textContent).toContain('Final');
-    const history = [...details(root, 'thread-history:thread').querySelectorAll('p')].map(node => node.textContent);
+    const history = [...details(root, 'thread-history:thread').querySelectorAll('li')].map(node => node.textContent);
     expect(history).toHaveLength(2);
-    expect(history[0]).toContain('u1 · reply');
-    expect(history[1]).toContain('u1 · resolve_thread');
+    // 操作者显示成员邮箱，动作显示中文名
+    expect(history[0]).toContain('u1@example.test · 回复讨论');
+    expect(history[1]).toContain('u1@example.test · 处理讨论');
   });
 });
 
@@ -483,5 +491,78 @@ describe('PR 详情按 PR 读取（ADMIN-US-219）', () => {
     load.click();
     await flush();
     expect(calls).toContain('earlier-prs');
+  });
+});
+
+describe('PR 列表、创建与审核区', () => {
+  it('列表里新的在上，每项的文字是「标题 · 状态」，选中的那项标为当前', () => {
+    const { draw, view } = setup();
+    const snapshot = (view as unknown as { controller: { snapshot: { prs: object[] } } }).controller.snapshot;
+    snapshot.prs.push({ ...(snapshot.prs[0] as object), id: 'later', title: 'Later', status: 'draft' });
+    const items = [...draw().querySelectorAll('ul.menu button')];
+    expect(items.map(node => node.textContent)).toEqual(['Later · 草稿', 'Rename · 待审核']);
+    expect(items.map(node => node.getAttribute('aria-current'))).toEqual([null, 'true']);
+  });
+  it('没有选中的 PR 时右侧提示先选一个', () => {
+    const { draw, view } = setup();
+    view.selected = null;
+    expect(draw().textContent).toContain('选择一个数据 PR 查看详情');
+  });
+  it('创建 PR 对话框：按填写的标题、说明与目标分支建 PR，成功后关闭对话框并选中新 PR', async () => {
+    const { view, run } = setup();
+    const created = vi.fn();
+    view.openCreate({ id: 't', name: 'Task', remoteHead: 'source' }, created);
+    const dialog = document.querySelector('dialog')!;
+    expect(dialog.querySelector<HTMLInputElement>('input[aria-label="PR 标题"]')!.value).toBe('Task');
+    dialog.querySelector<HTMLTextAreaElement>('textarea[aria-label="PR 说明"]')!.value = 'Why';
+    expect(dialog.querySelector<HTMLSelectElement>('select[aria-label="目标分支"]')!.value).toBe('shared');
+    [...dialog.querySelectorAll('button')].find(node => node.textContent === '创建 PR')!.click();
+    await vi.waitFor(() => expect(created).toHaveBeenCalledTimes(1));
+    const command = run.mock.calls[0][0] as { id: string };
+    expect(command).toMatchObject({ type: 'pr', title: 'Task', description: 'Why', target: 'shared', taskId: 't' });
+    expect(created).toHaveBeenCalledWith(command.id);
+    expect(view.selected).toBe(command.id);
+    expect(document.querySelector('dialog')).toBeNull();
+  });
+  it('创建 PR 失败时对话框不关，原因显示在对话框里，同时交给统一的报错路径', async () => {
+    const { view, run, failures } = setup();
+    run.mockRejectedValueOnce(new Error('先同步任务变更再创建 PR'));
+    const created = vi.fn();
+    view.openCreate({ id: 't', name: 'Task', remoteHead: 'source' }, created);
+    const dialog = document.querySelector('dialog')!;
+    [...dialog.querySelectorAll('button')].find(node => node.textContent === '创建 PR')!.click();
+    await vi.waitFor(() => expect(failures).toHaveLength(1));
+    expect(dialog.isConnected).toBe(true);
+    expect(dialog.querySelector('[role="status"]')?.textContent).toContain('先同步任务变更再创建 PR');
+    expect(created).not.toHaveBeenCalled();
+  });
+  it('审核区的阻塞意见显示审核者的邮箱；阶段进度逐项列出', () => {
+    const { draw, store, view } = setup({ candidate: true });
+    const snapshot = (
+      view as unknown as {
+        controller: { snapshot: { members: { id: string; email: string; permissions: string[] }[] } };
+      }
+    ).controller.snapshot;
+    snapshot.members.push({ id: 'r1', email: 'r1@example.test', permissions: ['read', 'review'] });
+    store.detail = {
+      ...store.detail!,
+      governance: {
+        prId: 'pr',
+        blockers: [{ reviewerId: 'r1', reason: '请先确认采购范围' }],
+        stages: [{ id: 'review', name: '审核', minimum: 1, approved: 0, complete: false }]
+      } as unknown as PullRequestDetail['governance']
+    };
+    const root = draw();
+    expect(root.textContent).toContain('要求修改：r1@example.test — 请先确认采购范围');
+    expect(root.textContent).toContain('审核：0/1 待批准');
+  });
+  it('评论显示作者邮箱与正文；自己的评论可以展开编辑', () => {
+    const { draw, view } = setup({ candidate: true });
+    view.tab = 'discussion';
+    const comment = draw().querySelector<HTMLElement>('[data-comment-id="comment"]')!;
+    expect(comment.dataset['authorId']).toBe('u1');
+    expect(comment.textContent).toContain('u1@example.test');
+    expect(comment.textContent).toContain('Check the name');
+    expect(comment.querySelector('details input[aria-label="编辑我的评论"]')).not.toBeNull();
   });
 });

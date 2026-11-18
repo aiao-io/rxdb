@@ -2,6 +2,7 @@ import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
 import setup_rxdb from './rxdb/setup_rxdb';
+import { requireLogin } from './shell/auth-gate';
 
 interface RouteModule {
   default: React.ComponentType;
@@ -27,9 +28,12 @@ const lazyRoute =
   };
 
 export const routes: RouteObject[] = [
+  // 登录页在后台外壳之外；其余页面都要先登录（布局路由的 loader 是全站登录门禁）
+  { path: '/login', lazy: lazyRoute(() => import('./pages/login-page')) },
   {
     path: '/',
     element: <AppLayout />,
+    loader: requireLogin,
     children: [
       { index: true, lazy: lazyRoute(() => import('./pages/start-page')) },
       { path: 'dashboard', lazy: lazyRoute(() => import('./pages/dashboard-page')) },

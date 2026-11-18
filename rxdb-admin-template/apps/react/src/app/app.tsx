@@ -3,11 +3,14 @@ import type { MenuNode } from '@aiao/rxdb-admin';
 import { AdminLayout, AdminShellProvider } from '@aiao/rxdb-admin-react';
 import { I18nProvider, useI18n } from '@aiao/rxdb-i18n-react';
 import { RxDBProvider, useCount, useRxDB } from '@aiao/rxdb-react';
+import { authSession } from '@rxdb-admin-template/collaboration/auth';
 import { Database } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigation } from 'react-router-dom';
 import { findWorkbenchEntity, visibleEntityEntries, type WorkbenchEntityEntry } from './entities/entity-registry';
 import setup_rxdb from './rxdb/setup_rxdb';
+import { AccountMenu } from './shell/account-menu';
+import { loginUrl } from './shell/auth-gate';
 import { createRecordSearchSource } from './shell/record-search';
 import { buildWorkbenchMenu, entryOfMenuId } from './shell/workbench-menu';
 import { workbenchShell } from './shell/workbench-shell';
@@ -52,12 +55,24 @@ function AppLayout() {
     [rxdb, navigate, t, locale]
   );
 
+  // 退出账号或会话失效：带着当前地址回到登录页
+  useEffect(() => {
+    const session = authSession();
+    const follow = () => {
+      if (!session.user)
+        void navigate(loginUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`));
+    };
+    session.addEventListener('identity', follow);
+    return () => session.removeEventListener('identity', follow);
+  }, [navigate]);
+
   return (
     <AdminLayout
       menu={menu}
       url={`${location.pathname}${location.search}`}
       navigating={navigation.state !== 'idle'}
       brandIcon={<Database size={16} />}
+      headerEnd={<AccountMenu />}
       renderMenuExtra={node => {
         const entry = entryOfMenuId(entries, node.id);
         return entry ? <EntityCountBadge entry={entry} /> : null;

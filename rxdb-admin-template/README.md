@@ -66,7 +66,7 @@ pnpm nx dev rxdb-admin-template
 
 ## 启动与验证
 
-只开发前端、不需要 Docker 时，在仓库根目录使用现有 Nx 名称单独启动三端；端口、存储标识和框架配置见各应用 README：
+全站都要先登录（见 [D-10](requirements/decisions.md#d-10全站登录与全局会话)）：未登录访问任何页面都进入全局登录页 `/login`，登录需要协作命令入口与 Supabase Auth，所以日常开发用上面的 `pnpm nx dev rxdb-admin-template`。只起前端时页面能打开，但登录页会提示认证服务不可用；端口、存储标识和框架配置见各应用 README：
 
 ```bash
 pnpm nx serve rxdb-admin-template-react
@@ -101,6 +101,6 @@ pnpm nx run rxdb-admin-template-vue:requirements-check
 
 ## 团队协作
 
-三个应用的 `/collaboration` 页面使用同一个产品私有包，支持邮箱验证码登录、团队邀请、任务草稿、离线排队、双设备分叉恢复、PR、字段讨论、候选审批和原子合并。既有匿名资产工作台及连接前恢复入口继续独立运行。
+三个应用的 `/collaboration` 页面使用同一个产品私有包，支持团队邀请、任务草稿、离线排队、双设备分叉恢复、PR、字段讨论、候选审批和原子合并。登录是全局的：全局登录页、路由守卫与外壳顶栏的账号菜单共用协作包的全局会话（`@rxdb-admin-template/collaboration/auth`），团队协作只跟随它的身份；本机资产工作台与连接前恢复入口登录后照常使用，本机库仍按设备共用。
 
 协作 API 需要 Supabase Auth 与 PostgreSQL。服务配置、迁移、可信初始化、测试入口和当前容量边界见 [协作包运行说明](packages/collaboration/README.md)，实现与验收边界见 [协作记录](requirements/plans/collaboration-implementation.md)。

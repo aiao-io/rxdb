@@ -9,6 +9,7 @@ beforeEach(() => {
   vi.stubGlobal('sessionStorage', window.sessionStorage);
   vi.stubGlobal('HTMLInputElement', window.HTMLInputElement);
   vi.stubGlobal('HTMLSelectElement', window.HTMLSelectElement);
+  vi.stubGlobal('HTMLTextAreaElement', window.HTMLTextAreaElement);
   vi.stubGlobal('Event', window.Event);
 });
 afterEach(() => {

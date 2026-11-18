@@ -29,12 +29,23 @@ interface Fixture {
   supabaseUrl: string;
   supabaseKey: string;
 }
-async function login(page: Page, account: Account) {
-  await page.goto('/collaboration');
+/**
+ * 经全局登录页登录（全站都要登录），登录后回到 `target`（默认团队协作页）；顶栏出现这个账号的账号菜单即登录完成。
+ */
+async function login(page: Page, account: Account, target = '/collaboration') {
+  await page.goto(`/login?redirect=${encodeURIComponent(target)}`);
   await page.getByLabel('邮箱', { exact: true }).fill(account.email);
   await page.getByLabel('验证码', { exact: true }).fill(account.otp);
   await page.getByRole('button', { name: '登录', exact: true }).click();
-  await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
+  await expect(accountMenu(page)).toContainText(account.email);
+}
+/** 外壳顶栏的全局账号菜单（展开它的开关）。 */
+const accountMenu = (page: Page) => page.getByTestId('account-menu').locator('summary');
+/** 经顶栏账号菜单退出账号，回到登录页。 */
+async function logout(page: Page) {
+  await accountMenu(page).click();
+  await page.getByTestId('account-menu').getByRole('button', { name: '退出账号', exact: true }).click();
+  await expect(page).toHaveURL(/\/login\?redirect=/);
 }
 /** 以页面里的会话向协作命令入口提交一条命令（唯一的写路径）。 */
 async function api(page: Page, workspace: { teamId: string; appId: string }, command: Record<string, unknown>) {
@@ -404,12 +415,54 @@ async function anotherDevice(browser: Browser, page: Page, baseURL: string | und
   }));
   return browser.newContext({ baseURL, storageState: { ...state, origins } });
 }
-/** 本机提交历史（任务视图里的折叠项）：展开后逐个提交的「消息 · 作者 · ID」。 */
+/** 本机提交历史（任务状态条下方的折叠项）：展开后逐个提交的「消息 · 作者 ID · 提交 ID」（ID 取自 data 属性，界面上只显示短 ID 与邮箱）。 */
 async function localCommits(page: Page) {
   const history = page.locator('details').filter({ has: page.locator('summary', { hasText: /^本机提交历史/ }) });
   if ((await history.getAttribute('open')) === null) await history.locator(':scope > summary').click();
-  return history.locator('[data-commit-id]').allTextContents();
+  return history.locator('[data-commit-id]').evaluateAll(nodes =>
+    nodes.map(node => {
+      const item = node as HTMLElement;
+      return `${item.querySelector('p')?.textContent} · ${item.dataset['authorId']} · ${item.dataset['commitId']}`;
+    })
+  );
 }
+/**
+ * 进入团队：还没进团队时点团队卡片；已经在团队里时经顶栏的团队切换菜单——与重新进入同一个团队一样，会关闭打开着的任务、回到工作区。
+ */
+async function selectTeam(page: Page, name: string) {
+  const switcher = page.getByTestId('team-switcher');
+  if (await switcher.count()) await switcher.locator('summary').click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
+/** 切到顶栏下方的分区页签；页签名后面可能带计数（「数据 PR 2」「通知 1」），按前缀匹配。 */
+async function openView(page: Page, name: '工作区' | '数据 PR' | '历史与审计' | '通知' | '成员与权限') {
+  const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+/** 在工作区的「我的任务」里新建任务（基于当前共享版本），等它打开。 */
+async function createTask(page: Page, name: string) {
+  await openView(page, '工作区');
+  await fillSettled(page.getByLabel('任务名称', { exact: true }), name);
+  await page.getByRole('button', { name: '新建任务', exact: true }).click();
+  await expect(page.getByRole('heading', { name: `任务：${name}`, exact: true })).toBeVisible();
+}
+/** 在数据 PR 分区里打开一个 PR：列表项的名称是「标题 · 状态」。 */
+async function openPr(page: Page, name: string | RegExp) {
+  await openView(page, '数据 PR');
+  await page.getByRole('button', { name, exact: true }).click();
+}
+/** 在任务状态条上发起数据 PR：对话框里标题默认是任务名，可选地填说明；创建后页面切到这个 PR。 */
+async function createPr(page: Page, description?: string) {
+  await page.getByRole('button', { name: '创建 PR…', exact: true }).click();
+  if (description !== undefined) await fillSettled(page.getByLabel('PR 说明', { exact: true }), description);
+  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+/** 顶栏「在线成员」下拉里的列表（Realtime Presence）；下拉收起时内容仍在文档里。 */
+const presence = (page: Page) => page.getByTestId('presence');
+/** 在线成员列表里某个成员的那一项（含他正在查看的位置）。 */
+const presenceOf = (page: Page, userId: string) => presence(page).locator(`li[data-user-id="${userId}"]`);
 function invitationLink(baseURL: string | undefined, fixture: Fixture, id = fixture.invitation, token = fixture.token) {
   const link = new URL('/collaboration', baseURL);
   const ticket = { teamId: fixture.teamId, appId: fixture.appId, id, token };
@@ -432,9 +485,8 @@ async function accept(
 test('真实身份、任务保存、离线同步、非作者审批和原子合并', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('采购电脑');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '采购电脑');
   await expect(editor(page)).toBeVisible();
   await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
   // 经模型驱动的实体列表与表单连续录入三种关联记录：每次保存都进任务工作树，不逐条提交
@@ -452,7 +504,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
   await expectList(page, '资产分类', 'name', ['电脑']);
   await page.reload();
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   await page.getByRole('button', { name: '打开任务：采购电脑', exact: true }).click();
   await expect(taskState(page)).toHaveText('有已保存未提交的改动（3 项）');
   expect(await recordValue(page, '资产', ['name', '工作站'], '购入价')).toBe('120');
@@ -465,11 +517,14 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.context().setOffline(false);
   await syncTask(page);
   await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
+  // 「创建 PR…」打开对话框：标题默认是任务名，目标是团队共享分支
+  await page.getByRole('button', { name: '创建 PR…', exact: true }).click();
+  await expect(page.getByLabel('PR 标题', { exact: true })).toHaveValue('采购电脑');
   await fillSettled(page.getByLabel('PR 说明', { exact: true }), '整单采购与安装');
   await expect(page.getByLabel('目标分支', { exact: true })).toHaveValue('shared');
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
-  await expect(page.getByRole('button', { name: '采购电脑 · review', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '采购电脑 · 待审核', exact: true })).toBeVisible();
   await expect(page.getByText('整单采购与安装', { exact: true })).toBeVisible();
   const reviewContext = await browser.newContext({ baseURL });
   const reviewPage = await reviewContext.newPage();
@@ -477,12 +532,13 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await reviewPage.getByText('接受团队邀请', { exact: true }).click();
   await reviewPage.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture));
   await reviewPage.getByRole('button', { name: '接受邀请', exact: true }).click();
-  await reviewPage.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
+  await openPr(reviewPage, '采购电脑 · 待审核');
   await expect(reviewPage.getByRole('button', { name: '批准当前候选', exact: true })).toBeDisabled();
   await fillSettled(reviewPage.getByLabel('审核或撤销理由', { exact: true }), '请先确认采购范围');
   await reviewPage.getByRole('button', { name: '要求修改', exact: true }).click();
+  // 阻塞意见显示审核者的邮箱，不显示账号 ID
   await expect(
-    reviewPage.getByText(`要求修改：${fixture.reviewer.id} — 请先确认采购范围`, { exact: true })
+    reviewPage.getByText(`要求修改：${fixture.reviewer.email} — 请先确认采购范围`, { exact: true })
   ).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
@@ -498,48 +554,56 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await reviewPage.getByRole('button', { name: '批准当前候选', exact: true }).click();
   await expect(reviewPage.getByText('审核：1/1 已满足', { exact: true })).toBeVisible();
   await expect(reviewPage.getByRole('button', { name: '合并到共享数据', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByRole('button', { name: '采购电脑 · review', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await openPr(page, '采购电脑 · 待审核');
   await page.getByRole('tab', { name: '讨论', exact: true }).click();
   await fillSettled(page.getByLabel('新评论', { exact: true }), '请核对整单采购');
   await page.getByLabel('必须处理', { exact: true }).check();
   await page.getByLabel('提及成员', { exact: true }).selectOption(fixture.reviewer.id);
   await page.getByRole('button', { name: '发表评论', exact: true }).click();
-  await expect(page.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toBeVisible();
+  // 评论按作者分行显示：作者是成员邮箱，正文单独一段
+  const adminComment = page.locator(`[data-author-id="${fixture.admin.id}"]`).filter({ hasText: '请核对整单采购' });
+  await expect(adminComment).toContainText(fixture.admin.email);
+  await expect(page.getByText('请核对整单采购', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: '数据变更', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
   await expect(page.getByText('必须处理的讨论尚未解决', { exact: true })).toBeVisible();
   await reviewPage.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  // 通知分区里新的在上：最新一条是被提及的那条讨论，点开即切到 PR 的讨论页签
+  await openView(reviewPage, '通知');
   await reviewPage
-    .getByRole('heading', { name: /通知（/ })
-    .locator('..')
+    .getByRole('tabpanel', { name: /^通知/ })
     .getByRole('button')
     .filter({ hasText: '采购电脑' })
-    .last()
+    .first()
     .click();
   await expect(reviewPage.getByRole('tab', { name: '讨论', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const adminText = reviewPage.getByText('请核对整单采购', { exact: true });
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('required');
-  await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toBeVisible();
+  await expect(adminText).toBeVisible();
   for (const filter of ['open', 'current']) {
     await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption(filter);
-    await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toBeVisible();
+    await expect(adminText).toBeVisible();
   }
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('mine');
-  await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toHaveCount(0);
+  await expect(adminText).toHaveCount(0);
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('all');
   await fillSettled(reviewPage.getByLabel('回复', { exact: true }), '已核对采购范围');
   await reviewPage.getByRole('button', { name: '发送回复', exact: true }).click();
-  await expect(reviewPage.getByText(`${fixture.reviewer.id}：已核对采购范围`, { exact: true })).toBeVisible();
+  await expect(
+    reviewPage.locator(`[data-author-id="${fixture.reviewer.id}"]`).filter({ hasText: '已核对采购范围' })
+  ).toContainText(fixture.reviewer.email);
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('mine');
   await reviewPage.getByRole('button', { name: '标记已解决', exact: true }).click();
   await expect(reviewPage.getByRole('button', { name: '重新打开讨论', exact: true })).toBeVisible();
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('open');
-  await expect(reviewPage.getByText(`${fixture.admin.id}：请核对整单采购`, { exact: true })).toHaveCount(0);
+  await expect(adminText).toHaveCount(0);
   await reviewPage.getByLabel('讨论筛选', { exact: true }).selectOption('current');
   await expect(reviewPage.getByRole('button', { name: '重新打开讨论', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
-  await expect(page.getByRole('button', { name: '采购电脑 · merged', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '采购电脑 · 已合并', exact: true })).toBeVisible();
+  await openView(page, '工作区');
   const shared = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: `共享数据 · ${fixture.name}`, exact: true }) })
@@ -547,10 +611,12 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(shared).toContainText('工作站');
   await expect(shared).toContainText('130');
   await expect(shared).toContainText('安装系统');
+  // 历史与审计里新的在上：最新一次合并
+  await openView(page, '历史与审计');
   const restore = page
     .locator('details')
     .filter({ has: page.getByRole('button', { name: '从此版本创建恢复草稿', exact: true, includeHidden: true }) })
-    .last();
+    .first();
   await restore.locator(':scope > summary').click();
   await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await expect(restore).toHaveAttribute('open', '');
@@ -563,19 +629,19 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await editRecord(page, '资产', ['name', '工作站'], { 购入价: ['130', '125'] });
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await syncTask(page);
-  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await createPr(page);
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^恢复 .* · review$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^恢复 .* · 待审核$/ })).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
   await expect(page.getByText('缺少当前候选的有效批准', { exact: true })).toBeVisible();
   await reviewPage.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-  await reviewPage.getByRole('button', { name: /^恢复 .* · review$/ }).click();
+  await openPr(reviewPage, /^恢复 .* · 待审核$/);
   await reviewPage.getByRole('button', { name: '批准当前候选', exact: true }).click();
   await expect(reviewPage.getByText('审核：1/1 已满足', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^恢复 .* · merged$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^恢复 .* · 已合并$/ })).toBeVisible();
   const finalHistory = await state(page, fixture);
   const otherHistory = await state(reviewPage, fixture);
   expect(otherHistory.head).toBe(finalHistory.head);
@@ -623,9 +689,7 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
       merges.some(event => event.actorId === fixture.admin.id && JSON.stringify(event.details).includes(candidate.id))
     ).toBe(true);
   }
-  await page.getByLabel('任务名称', { exact: true }).fill('级联删除预览');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '任务：级联删除预览', exact: true })).toBeVisible();
+  await createTask(page, '级联删除预览');
   await expect(page.locator('.collaboration')).toHaveAttribute('aria-busy', 'false');
   // 删除分类连同引用它的资产与维护记录：外键在团队库里是 RESTRICT，按引用顺序从维护记录删起
   await deleteRecord(page, '维护记录', ['summary', '安装系统']);
@@ -634,9 +698,9 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expectList(page, '资产分类', 'name', []);
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await syncTask(page);
-  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await createPr(page);
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
-  await expect(page.getByRole('button', { name: '级联删除预览 · review', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '级联删除预览 · 待审核', exact: true })).toBeVisible();
   const candidateRequests: string[] = [];
   await page.route('**/collaboration-api/workspaces/*/*/commands', async route => {
     const command = route.request().postDataJSON() as { type: string; operationId: string };
@@ -672,9 +736,8 @@ test('对话框里没保存的输入：面板单独标出、同步被拦下、�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('未保存输入');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '未保存输入');
   await expect(editor(page)).toBeVisible();
   await expect(unsavedInput(page)).toHaveCount(0);
   // 对话框里填了值、没点保存：面板在三种状态之外另起一行标出，已保存的工作树仍是已同步
@@ -710,9 +773,8 @@ test('对话框里没保存的输入：面板单独标出、同步被拦下、�
 test('离线冷启动只恢复有效授权上下文；过期和退出会锁定保留的草稿', async ({ page, request }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('离线保留');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '离线保留');
   await createRecord(page, '资产分类', { 分类名: '离线机密草稿' });
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   // 打开任务时团队库才懒加载 sqlite-wasm：离线外壳在那之后重新缓存一次，冷启动才打得开团队库
@@ -727,16 +789,20 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
     grant.expiresAt = 1;
     localStorage.setItem(key, JSON.stringify(grant));
   });
+  // 缓存授权过期：全站登录门禁把页面带到登录页，草稿内容不显示
   await page.reload();
+  await expect(page).toHaveURL(/\/login\?redirect=/);
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(page.getByText('离线机密草稿', { exact: true })).toHaveCount(0);
   await expect(editor(page)).toHaveCount(0);
+  // 联网后本机会话仍有效：登录页确认身份后直接回到团队协作
   await page.context().setOffline(false);
   await page.reload();
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await expect(page).toHaveURL(/\/collaboration$/);
+  await selectTeam(page, fixture.name);
   await page.getByRole('button', { name: '打开任务：离线保留', exact: true }).click();
   await expectList(page, '资产分类', 'name', ['离线机密草稿']);
-  await page.getByRole('button', { name: '退出账号', exact: true }).click();
+  await logout(page);
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(editor(page)).toHaveCount(0);
   // 退出只锁定、不删除：团队库（按用户 × 团队 × 应用散列命名的 sqlite-wasm IndexedDB 库）与本机任务账本都还在，账本里的任务已锁定
@@ -752,7 +818,8 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
     };
   }, fixture.admin.id);
   expect(kept).toEqual({ team: true, tasks: [['离线保留', true]] });
-  await page.reload();
+  await page.goto('/collaboration');
+  await expect(page).toHaveURL(/\/login\?redirect=/);
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(page.getByText('离线机密草稿', { exact: true })).toHaveCount(0);
   await expect(editor(page)).toHaveCount(0);
@@ -773,25 +840,28 @@ test('错误账号不能消费邀请；验证码不可重复登录', async ({ pa
   await other.getByLabel('邀请链接', { exact: true }).fill(link);
   await other.getByRole('button', { name: '接受邀请', exact: true }).click();
   await expect(other.getByText('邀请已接受', { exact: true })).toBeVisible();
-  await other.getByRole('button', { name: '退出账号', exact: true }).click();
+  await logout(other);
   await expect(other.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await other.getByLabel('邮箱', { exact: true }).fill(fixture.reviewer.email);
   await other.getByLabel('验证码', { exact: true }).fill(fixture.reviewer.otp);
   await other.getByRole('button', { name: '登录', exact: true }).click();
-  await expect(other.getByRole('button', { name: '退出账号' })).toHaveCount(0);
+  // 用过的验证码登录失败：留在登录页并说明原因，顶栏没有账号菜单
   await expect(other.getByRole('status').filter({ hasText: /expired|invalid|过期|无效/i })).toBeVisible();
+  await expect(other).toHaveURL(/\/login\?redirect=/);
+  await expect(other.getByTestId('account-menu')).toHaveCount(0);
   await context.close();
 });
 
 test('匿名资产只在预览确认后复制到任务，原库与共享分支均保持原样', async ({ page, request }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
-  await page.goto('/entities/assets/AssetCategory');
+  // 全站都要登录：先登录，再在本机工作台录入（本机库按设备共用）
+  await login(page, fixture.admin, '/entities/assets/AssetCategory');
   await page.getByRole('button', { name: '+ 新增', exact: true }).click();
   await page.getByRole('group', { name: '分类名' }).getByRole('textbox').fill('匿名保留分类');
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
-  await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.goto('/collaboration');
+  await selectTeam(page, fixture.name);
   await expect(page.getByRole('heading', { name: '任务：导入本机资产', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '预览匿名数据导入', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('1 条本机记录');
@@ -801,7 +871,6 @@ test('匿名资产只在预览确认后复制到任务，原库与共享分支�
   await expectList(page, '资产分类', 'name', ['匿名保留分类']);
   await expect(taskState(page)).toHaveText('有已保存未提交的改动（1 项）');
   await expect(page.getByText('共享版本：空分支 · 默认只读', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '匿名本机工作台', exact: true }).click();
   await page.goto('/entities/assets/AssetCategory');
   await expect
     .poll(() =>
@@ -820,29 +889,30 @@ test('匿名资产只在预览确认后复制到任务，原库与共享分支�
 test('语言切换保留未保存输入，产品文案与用户数据分离', async ({ page, request }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('语言草稿');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '语言草稿');
   // 用户数据恰好与产品文案同名：语言切换只翻译产品文案，记录原样显示
   await createRecord(page, '资产分类', { 分类名: '同步' });
   // 协作面板里还没提交的输入在语言切换重绘之后保留
-  await fillSettled(page.getByLabel('另存任务名称', { exact: true }), '保留的另存名');
+  await fillSettled(page.getByLabel('任务名称', { exact: true }), '保留的输入');
   await page.getByTestId('admin-widget-language').click();
   await page.getByRole('menuitemradio', { name: 'English', exact: true }).click();
   await expect(
     page.locator('.collaboration').getByRole('heading', { name: 'Team collaboration', exact: true })
   ).toBeVisible();
-  await expect(page.getByLabel('New task name', { exact: true })).toHaveValue('保留的另存名');
+  await expect(page.getByLabel('Task name', { exact: true })).toHaveValue('保留的输入');
   await expect(taskState(page)).toHaveText('Saved but uncommitted changes (1)');
   // 编辑界面的实体与字段标签来自实体元数据，随应用语言切换
   await expectList(page, 'Asset categories', 'name', ['同步']);
   await page.getByRole('button', { name: 'Sync', exact: true }).click();
   await expect(page.getByText('Current commits synced; later edits still need syncing', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Create PR…', exact: true }).click();
   await page.getByLabel('PR title', { exact: true }).fill('同步');
   await page.getByRole('button', { name: 'Create PR', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同步', exact: true })).toBeVisible();
   await page.getByTestId('admin-widget-language').click();
   await page.getByRole('menuitemradio', { name: /简体中文/ }).click();
+  await openView(page, '工作区');
   await expect(page.getByRole('button', { name: '同步', exact: true })).toBeVisible();
   await expectList(page, '资产分类', 'name', ['同步']);
 });
@@ -850,15 +920,14 @@ test('语言切换保留未保存输入，产品文案与用户数据分离', as
 test('跨设备分叉另存后可恢复原任务远端，两个版本均保留', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('双设备任务');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '双设备任务');
   await createRecord(page, '资产分类', { 分类名: '共同起点' });
   await syncTask(page);
   const otherContext = await anotherDevice(browser, page, baseURL);
   const other = await otherContext.newPage();
   await other.goto('/collaboration');
-  await other.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(other, fixture.name);
   await other.getByRole('button', { name: '打开任务：双设备任务', exact: true }).click();
   await expect(other.getByRole('heading', { name: '任务：双设备任务', exact: true })).toBeVisible(firstOpenOnNewDevice);
   await editRecord(other, '资产分类', ['name', '共同起点'], { 分类名: ['共同起点', '设备乙版本'] });
@@ -867,6 +936,9 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await page.getByRole('button', { name: '同步', exact: true }).click();
   await expect(page.getByText('任务已分叉，请另存为新任务', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '拉取远端版本', exact: true })).toBeVisible();
+  // 「另存为新任务…」打开对话框，名称默认是「原任务名（分叉）」
+  await page.getByRole('button', { name: '另存为新任务…', exact: true }).click();
+  await expect(page.getByLabel('另存任务名称', { exact: true })).toHaveValue('双设备任务（分叉）');
   await fillSettled(page.getByLabel('另存任务名称', { exact: true }), '保留设备甲');
   await page.getByRole('button', { name: '另存为新任务', exact: true }).click();
   await expect(page.getByRole('heading', { name: '任务：保留设备甲', exact: true })).toBeVisible();
@@ -878,8 +950,8 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await page.getByRole('button', { name: '打开任务：保留设备甲', exact: true }).click();
   await expect(page.getByRole('heading', { name: '任务：保留设备甲', exact: true })).toBeVisible();
   await expectList(page, '资产分类', 'name', ['设备甲版本']);
-  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
-  await expect(page.getByRole('button', { name: '保留设备甲 · draft', exact: true })).toBeVisible();
+  await createPr(page);
+  await expect(page.getByRole('button', { name: '保留设备甲 · 草稿', exact: true })).toBeVisible();
   const forked = await state(page, fixture);
   const forkTask = forked.tasks.find(task => task.name === '保留设备甲')!;
   const originalTask = forked.tasks.find(task => task.name === '双设备任务')!;
@@ -893,20 +965,20 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
 test('两阶段审批、在线成员和越权合并拒绝', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await openView(page, '成员与权限');
   await page.getByRole('button', { name: '添加审批阶段', exact: true }).click();
   await page.getByLabel('阶段名称', { exact: true }).nth(1).fill('财务复核');
   await page.getByLabel('等待前面所有阶段', { exact: true }).nth(1).check();
   await page.getByRole('button', { name: '保存审批策略', exact: true }).click();
   await expect(page.getByRole('heading', { name: '审批策略 v2', exact: true })).toBeVisible();
-  await page.getByLabel('任务名称', { exact: true }).fill('分级采购');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await createTask(page, '分级采购');
   await createRecord(page, '资产分类', { 分类名: '已核对分类' });
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await syncTask(page);
-  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await createPr(page);
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
-  await expect(page.getByRole('button', { name: '分级采购 · review', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '分级采购 · 待审核', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await expect(page.getByText('财务复核：0/1 待批准', { exact: true })).toBeVisible();
   const context = await browser.newContext({ baseURL });
@@ -915,7 +987,7 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
   await other.getByText('接受团队邀请', { exact: true }).click();
   await other.getByLabel('邀请链接', { exact: true }).fill(invitationLink(baseURL, fixture));
   await other.getByRole('button', { name: '接受邀请', exact: true }).click();
-  await other.getByRole('button', { name: '分级采购 · review', exact: true }).click();
+  await openPr(other, '分级采购 · 待审核');
   await other.getByLabel('审批阶段', { exact: true }).selectOption({ label: '财务复核' });
   await other.getByRole('button', { name: '批准当前候选', exact: true }).click();
   await expect(other.getByText('前置审批阶段尚未完成', { exact: true })).toBeVisible();
@@ -933,35 +1005,33 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
     .poll(
       async () => {
         await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-        return page.getByText(/在线成员：/).textContent();
+        return presence(page).textContent();
       },
       { timeout: 20000, intervals: [1000] }
     )
     .toContain(fixture.reviewer.email);
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
-  await expect(page.getByRole('button', { name: '分级采购 · merged', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '分级采购 · 已合并', exact: true })).toBeVisible();
   await context.close();
 });
 
 test('双团队切换保留本机任务并隔离查询、通知与在线成员', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('甲团队草稿');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '甲团队草稿');
   await createRecord(page, '资产分类', { 分类名: '仅甲团队可见' });
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
-  await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
+  await selectTeam(page, fixture.secondary.name);
   await expect(page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true })).toHaveCount(0);
   await expect(editor(page)).toHaveCount(0);
-  await page.getByLabel('任务名称', { exact: true }).fill('乙团队任务');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await createTask(page, '乙团队任务');
   // 乙团队是另一个团队库：甲团队的草稿不在这里
   await expectList(page, '资产分类', 'name', []);
   await createRecord(page, '资产分类', { 分类名: '仅乙团队可见' });
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await syncTask(page);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   await page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true }).click();
   await expectList(page, '资产分类', 'name', ['仅甲团队可见']);
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
@@ -990,9 +1060,9 @@ test('双团队切换保留本机任务并隔离查询、通知与在线成员',
     (await api(other, fixture, { type: 'presence', sessionId: 'scoped', prId: null, recordId: null, leave: false }))
       .status
   ).toBe(409);
-  await expect(page.getByText(/在线成员：/)).toContainText(fixture.reviewer.email);
-  await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
-  await expect(page.getByText(/在线成员：/)).not.toContainText(fixture.reviewer.email);
+  await expect(presence(page)).toContainText(fixture.reviewer.email);
+  await selectTeam(page, fixture.secondary.name);
+  await expect(presence(page)).not.toContainText(fixture.reviewer.email);
   await page.getByRole('button', { name: '打开任务：乙团队任务', exact: true }).click();
   await expectList(page, '资产分类', 'name', ['仅乙团队可见']);
   expect((await state(page, fixture)).tasks.map(task => task.name)).toEqual(['甲团队草稿']);
@@ -1003,7 +1073,7 @@ test('双团队切换保留本机任务并隔离查询、通知与在线成员',
 test('六项权限独立生效，指定审核人与并行人数门槛不能绕过', async ({ page, request, browser, baseURL }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   // 新工作区还没有合并：共享头就是根
   const { root } = await state(page, fixture);
   /** 以 `current`（共享头 `head` 时的记录）为起点，提交一份把分类改名为 `id` 的字段级变更（平台交换记录）。 */
@@ -1050,20 +1120,16 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
       expectedGeneration: generation++
     });
     await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-    await other.getByRole('button', { name: 'permission · review', exact: true }).click();
+    await openPr(other, 'permission · 待审核');
   };
   await grants(['read']);
   await other.getByRole('tab', { name: '讨论', exact: true }).click();
-  for (const label of [
-    '开始修改',
-    '发表评论',
-    '发送回复',
-    '标记已解决',
-    '批准当前候选',
-    '合并到共享数据',
-    '创建邀请链接'
-  ])
+  for (const label of ['发表评论', '发送回复', '标记已解决', '批准当前候选', '合并到共享数据'])
     await expect(other.getByRole('button', { name: label, exact: true })).toHaveCount(0);
+  // 只读：工作区没有「我的任务」与新建任务，也没有成员与权限分区
+  await openView(other, '工作区');
+  await expect(other.getByRole('button', { name: '新建任务', exact: true })).toHaveCount(0);
+  await expect(other.getByRole('tab', { name: /^成员与权限/ })).toHaveCount(0);
   const operations: Record<string, Record<string, unknown>> = {
     edit: { type: 'task', id: 'reviewer-task', name: 'Reviewer task', expectedHead: root },
     comment: { type: 'reply', threadId: 'thread', body: 'Permitted reply', mentions: [] },
@@ -1114,10 +1180,16 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     (await api(other, fixture, { type: 'resolve_thread', threadId: 'thread', resolved: true, expectedRevision: 0 }))
       .status
   ).toBe(403);
-  const buttons = { edit: '开始修改', comment: '发送回复', review: '批准当前候选', manage: '创建邀请链接' };
-  for (const [permission, label] of Object.entries(buttons)) {
+  /** 每项权限对应的界面入口：按钮与它所在的分区（PR 详情里的讨论页签，或工作区、成员与权限分区）。 */
+  const buttons: Record<string, { label: string; where: () => Promise<void> }> = {
+    edit: { label: '新建任务', where: () => openView(other, '工作区') },
+    comment: { label: '发送回复', where: () => other.getByRole('tab', { name: '讨论', exact: true }).click() },
+    review: { label: '批准当前候选', where: async () => undefined },
+    manage: { label: '创建邀请链接', where: () => openView(other, '成员与权限') }
+  };
+  for (const [permission, { label, where }] of Object.entries(buttons)) {
     await grants(['read', permission]);
-    if (permission === 'comment') await other.getByRole('tab', { name: '讨论', exact: true }).click();
+    await where();
     await expect(other.getByRole('button', { name: label, exact: true })).toBeVisible();
     await act(other, fixture, operations[permission]);
   }
@@ -1173,7 +1245,7 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     category: { entity: 'AssetCategory', fields: { name: 'permission' } }
   });
   await other.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-  await other.getByRole('button', { name: 'parallel · review', exact: true }).click();
+  await openPr(other, 'parallel · 待审核');
   await expect(other.getByLabel('审批阶段', { exact: true }).locator('option')).toHaveText(['两人会签']);
   expect(
     (
@@ -1190,7 +1262,7 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     ).status
   ).toBe(403);
   await second.getByRole('button', { name: '刷新团队状态', exact: true }).click();
-  await second.getByRole('button', { name: 'parallel · review', exact: true }).click();
+  await openPr(second, 'parallel · 待审核');
   await second.getByLabel('审批阶段', { exact: true }).selectOption('risk');
   await second.getByRole('button', { name: '批准当前候选', exact: true }).click();
   await expect(second.getByText('指定复核：1/1 已满足', { exact: true })).toBeVisible();
@@ -1215,13 +1287,16 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
     active: false,
     expectedGeneration: generation++
   });
-  // 撤权事务里广播撤权事件，被撤权方的页面收到即锁定，刷新按钮随之消失；尚未锁定时再手动刷新
+  // 撤权事务里广播撤权事件，被撤权方的页面收到即锁定团队（回到团队列表），刷新按钮随之消失；尚未锁定时再手动刷新。
+  // 账号保持登录：顶栏账号菜单还在
   await expect(async () => {
     const refresh = other.getByRole('button', { name: '刷新团队状态', exact: true });
     if (await refresh.isVisible()) await refresh.click({ timeout: 1000 });
-    await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0, { timeout: 1000 });
+    await expect(other.getByRole('heading', { name: '选择团队', exact: true })).toBeVisible({ timeout: 1000 });
   }).toPass({ timeout: 15000 });
   await expect(other.getByRole('heading', { name: '数据 PR', exact: true })).toHaveCount(0);
+  await expect(other.getByRole('button', { name: fixture.name, exact: true })).toHaveCount(0);
+  await expect(accountMenu(other)).toContainText(fixture.reviewer.email);
   // 被撤成员的令牌仍在本机，但只读投影按成员资格裁决：什么也读不到
   expect(await rest(other, fixture, `admin_workspaces?${scope(fixture)}&select=*`)).toEqual({ status: 200, body: [] });
   await context.close();
@@ -1246,7 +1321,6 @@ async function preparePr(page: Page, fixture: Fixture, id: string) {
   await act(page, fixture, { type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
   await act(page, fixture, { type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
 }
-const online = (page: Page) => page.getByText(/在线成员：/);
 
 test('Broadcast 驱动刷新：他人的 PR、成员、讨论与通知不点刷新即出现（ADMIN-US-219）', async ({
   page,
@@ -1256,20 +1330,22 @@ test('Broadcast 驱动刷新：他人的 PR、成员、讨论与通知不点刷�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await openView(page, '数据 PR');
   await expect(page.getByRole('heading', { name: '数据 PR', exact: true })).toBeVisible();
   // 页面打开之后才经命令入口建出的 PR：失效通知（prs 类别）到达即重读团队页
   await preparePr(page, fixture, 'live');
-  await expect(page.getByRole('button', { name: 'live · review', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'live · 待审核', exact: true })).toBeVisible();
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await accept(other, fixture, baseURL);
   // 成员变化（members 类别）：管理者的成员列表出现新成员
+  await openView(page, '成员与权限');
   await expect(
     page.locator('section').filter({ has: page.getByRole('heading', { name: '成员与权限', exact: true }) })
   ).toContainText(fixture.reviewer.email);
-  await page.getByRole('button', { name: 'live · review', exact: true }).click();
+  await openPr(page, 'live · 待审核');
   await page.getByRole('tab', { name: '讨论', exact: true }).click();
   await act(other, fixture, {
     type: 'thread',
@@ -1282,8 +1358,10 @@ test('Broadcast 驱动刷新：他人的 PR、成员、讨论与通知不点刷�
     required: false,
     mentions: []
   });
-  // 讨论（details 类别，点到这个 PR）只重读打开着的 PR 详情；作者订阅了 PR，通知（点名本人）同时到达
-  await expect(page.getByText(`${fixture.reviewer.id}：广播推来的评论`, { exact: true })).toBeVisible();
+  // 讨论（details 类别，点到这个 PR）只重读打开着的 PR 详情；作者订阅了 PR，通知（点名本人）同时到达：通知页签出现未读数
+  await expect(page.getByText('广播推来的评论', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: '通知 1', exact: true })).toBeVisible();
+  await openView(page, '通知');
   await expect(page.getByRole('heading', { name: '通知（1 条未读）', exact: true })).toBeVisible();
   await context.close();
 });
@@ -1296,20 +1374,21 @@ test('Presence 显示在线成员与查看位置，离开后消失，不写数�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   await preparePr(page, fixture, 'seen');
   const before = (await state(page, fixture)).audit.length;
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await accept(other, fixture, baseURL);
-  await expect(online(page)).toContainText(fixture.reviewer.email);
-  await other.getByRole('button', { name: 'seen · review', exact: true }).click();
-  await expect(online(page)).toContainText(`${fixture.reviewer.email}（PR seen）`);
+  await expect(presence(page)).toContainText(fixture.reviewer.email);
+  await openPr(other, 'seen · 待审核');
+  // 在线成员面板里，这个成员的那一项显示他正在查看的 PR（显示 PR 标题）
+  await expect(presenceOf(page, fixture.reviewer.id)).toContainText('正在查看 PR：seen');
   // 在线状态只在 Realtime 里：没有命令、没有审计、没有任何表的写入（审计里只多了接受邀请一条）
   expect((await state(page, fixture)).audit.length).toBe(before + 1);
   await context.close();
-  await expect(online(page)).not.toContainText(fixture.reviewer.email, { timeout: 20000 });
+  await expect(presence(page)).not.toContainText(fixture.reviewer.email, { timeout: 20000 });
 });
 
 test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新与重新加入时频道被 Realtime 拒绝（ADMIN-US-219）', async ({
@@ -1320,12 +1399,12 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await accept(other, fixture, baseURL);
-  await expect(online(page)).toContainText(fixture.reviewer.email);
+  await expect(presence(page)).toContainText(fixture.reviewer.email);
   // 测试进程里同一账号的另一个会话，直接在真栈上订阅团队的私有频道
   const { otp } = (await (
     await request.get(`${fixtures}/__otp?email=${encodeURIComponent(fixture.reviewer.email)}`)
@@ -1350,10 +1429,11 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
       active: false,
       expectedGeneration: 1
     });
-    // 撤权事件：管理者的在线列表立即移除该成员；被撤成员的页面不点刷新即锁定
-    await expect(online(page)).not.toContainText(fixture.reviewer.email);
-    await expect(other.getByRole('button', { name: '登录', exact: true })).toBeVisible();
-    await expect(other.getByRole('button', { name: '退出账号', exact: true })).toHaveCount(0);
+    // 撤权事件：管理者的在线列表立即移除该成员；被撤成员的页面不点刷新即锁定团队、回到团队列表并说明，账号保持登录
+    await expect(presence(page)).not.toContainText(fixture.reviewer.email);
+    await expect(other.getByText('你已不是这个团队的成员，团队草稿已锁定', { exact: true })).toBeVisible();
+    await expect(other.getByRole('heading', { name: '选择团队', exact: true })).toBeVisible();
+    await expect(accountMenu(other)).toContainText(fixture.reviewer.email);
     // 令牌刷新：Realtime 按 realtime.messages 的 RLS 重新鉴权，频道被服务端关闭。
     // GoTrue 的访问令牌按秒记 iat、不带 jti：与上一枚同一秒内刷新拿到的是逐字节相同的令牌，supabase-js 与 realtime-js
     // 都当作令牌没变、不推给 Realtime，频道也就不重新鉴权。所以等过上一枚的签发秒再刷新，并确认换到了新令牌
@@ -1396,19 +1476,21 @@ test('Realtime 断开期间页面照常可用，恢复后按修订号补齐变�
     sockets.push(ws);
   });
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   await preparePr(page, fixture, 'gap');
-  await page.getByRole('button', { name: 'gap · review', exact: true }).click();
+  await openPr(page, 'gap · 待审核');
   await page.getByRole('tab', { name: '讨论', exact: true }).click();
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
   await login(other, fixture.reviewer);
   await accept(other, fixture, baseURL);
-  await expect(page.getByText(`${fixture.reviewer.id}：`)).toHaveCount(0);
+  await expect(page.locator(`[data-author-id="${fixture.reviewer.id}"]`)).toHaveCount(0);
   // 先等接受邀请的通知处理完（成员列表出现受邀者），之后工作区行的读取只会来自掉线补齐
+  await openView(page, '成员与权限');
   await expect(
     page.locator('section').filter({ has: page.getByRole('heading', { name: '成员与权限', exact: true }) })
   ).toContainText(fixture.reviewer.email);
+  await openView(page, '数据 PR');
   // 断开：掉线时页面按修订号补齐一次（读一次工作区行），等这次读取结束再让别人发评论
   const caughtUp = page.waitForResponse(response => response.url().includes('/rest/v1/admin_workspaces'));
   blocked = true;
@@ -1427,7 +1509,7 @@ test('Realtime 断开期间页面照常可用，恢复后按修订号补齐变�
     mentions: []
   });
   // 断线期间没有通知可收：页面停在断开前的版本，界面照常可用（切换页签不报错）
-  const missed = page.getByText(`${fixture.reviewer.id}：断线期间的评论`, { exact: true });
+  const missed = page.getByText('断线期间的评论', { exact: true });
   await page.getByRole('tab', { name: '提交', exact: true }).click();
   await page.getByRole('tab', { name: '讨论', exact: true }).click();
   await expect(missed).toHaveCount(0);
@@ -1446,9 +1528,8 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('续作任务');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '续作任务');
   await createRecord(page, '资产分类', { 分类名: '设备甲录入' });
   await syncTask(page);
   const synced = await state(page, fixture);
@@ -1462,15 +1543,14 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
   const otherContext = await anotherDevice(browser, page, baseURL);
   const other = await otherContext.newPage();
   await other.goto('/collaboration');
-  await other.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(other, fixture.name);
   await other.getByRole('button', { name: '打开任务：续作任务', exact: true }).click();
   await expect(other.getByRole('heading', { name: '任务：续作任务', exact: true })).toBeVisible(firstOpenOnNewDevice);
   // 导入的就是服务端那个提交：本机头、远端确认与本机提交历史都是原提交 ID 与原作者；工作树干净，没有记成拉取者的新提交
-  await expect(
-    other.getByText(`本地版本：${task.head} · 远端确认：${task.head} · 待上传提交：0 · 已保存未提交：无`, {
-      exact: true
-    })
-  ).toBeVisible();
+  const versions = other.locator('[data-local-head]');
+  await expect(versions).toHaveAttribute('data-local-head', task.head);
+  await expect(versions).toHaveAttribute('data-remote-head', task.head);
+  await expect(versions).toContainText('待上传提交：0 · 已保存未提交：无');
   await expect(taskState(other)).toHaveText('已同步：本机与远端确认的版本一致');
   // 提交历史展开后异步渲染：轮询到列表出现为止，比对的内容不变
   await expect.poll(() => localCommits(other)).toEqual([`续作任务 · ${fixture.admin.id} · ${task.head}`]);
@@ -1504,9 +1584,8 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
 test('放弃草稿：列表与表单立即回到任务头的数据，不残留已放弃的编辑（ADMIN-US-221 AC#3）', async ({ page, request }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  await page.getByLabel('任务名称', { exact: true }).fill('放弃草稿');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await selectTeam(page, fixture.name);
+  await createTask(page, '放弃草稿');
   await createRecord(page, '资产分类', { 分类名: '已提交的分类' });
   await syncTask(page);
   await editRecord(page, '资产分类', ['name', '已提交的分类'], { 分类名: ['已提交的分类', '放弃前的改名'] });
@@ -1521,7 +1600,7 @@ test('放弃草稿：列表与表单立即回到任务头的数据，不残留�
   expect(await recordValue(page, '资产分类', ['name', '已提交的分类'], '分类名')).toBe('已提交的分类');
   await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
   await page.reload();
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   await page.getByRole('button', { name: '打开任务：放弃草稿', exact: true }).click();
   await expectList(page, '资产分类', 'name', ['已提交的分类']);
   await expect(page.getByText(/待上传提交：0 · 已保存未提交：无/)).toBeVisible();
@@ -1535,29 +1614,25 @@ test('恢复历史版本：形成未提交改动，同步、审批后合并，�
 }) => {
   const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
-  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await selectTeam(page, fixture.name);
   // 先免审批合出两个共享版本，再恢复成第一个版本的数据并走审批
   await act(page, fixture, { type: 'policy', stages: [], expectedVersion: 1 });
   /** 在当前任务上同步、建 PR、请求审核、生成候选并合并（免审批）。 */
   const syncAndMerge = async (title: string) => {
     await syncTask(page);
-    await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+    await createPr(page);
     await page.getByRole('button', { name: '请求审核', exact: true }).click();
-    await expect(page.getByRole('button', { name: `${title} · review`, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: `${title} · 待审核`, exact: true })).toBeVisible();
     await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
     await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
-    await expect(page.getByRole('button', { name: `${title} · merged`, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: `${title} · 已合并`, exact: true })).toBeVisible();
   };
-  await page.getByLabel('任务名称', { exact: true }).fill('第一版');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '任务：第一版', exact: true })).toBeVisible();
+  await createTask(page, '第一版');
   await createRecord(page, '资产分类', { 分类名: '第一版名称' });
   await syncAndMerge('第一版');
   const first = (await state(page, fixture)).head;
-  await page.getByLabel('任务名称', { exact: true }).fill('第二版');
-  await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '任务：第二版', exact: true })).toBeVisible();
+  await createTask(page, '第二版');
   await editRecord(page, '资产分类', ['name', '第一版名称'], { 分类名: ['第一版名称', '第二版名称'] });
   await syncAndMerge('第二版');
   const second = await state(page, fixture);
@@ -1566,8 +1641,9 @@ test('恢复历史版本：形成未提交改动，同步、审批后合并，�
     stages: [{ id: 'review', name: '审核', minimum: 1, reviewers: [], after: [] }],
     expectedVersion: 2
   });
-  // 历史与审计里第一次合并的那个版本：从它创建恢复草稿
-  const version = page.locator('details').filter({ has: page.locator('summary', { hasText: first }) });
+  // 历史与审计里第一次合并的那个版本（界面上显示短 ID，完整 ID 在 data 属性里）：从它创建恢复草稿
+  await openView(page, '历史与审计');
+  const version = page.locator(`details[data-commit-id="${first}"]`);
   await version.locator(':scope > summary').click();
   await version.getByRole('button', { name: '从此版本创建恢复草稿', exact: true }).click();
   await expect(page.getByRole('heading', { name: /^任务：恢复 Merge 第一版/ })).toBeVisible();
@@ -1583,9 +1659,9 @@ test('恢复历史版本：形成未提交改动，同步、审批后合并，�
     kind: 'normal',
     authorId: fixture.admin.id
   });
-  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await createPr(page);
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · review$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · 待审核$/ })).toBeVisible();
   await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
   await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
@@ -1594,13 +1670,14 @@ test('恢复历史版本：形成未提交改动，同步、审批后合并，�
   const reviewer = await reviewContext.newPage();
   await login(reviewer, fixture.reviewer);
   await accept(reviewer, fixture, baseURL);
-  await reviewer.getByRole('button', { name: /^恢复 Merge 第一版.* · review$/ }).click();
+  await openPr(reviewer, /^恢复 Merge 第一版.* · 待审核$/);
   await reviewer.getByRole('button', { name: '批准当前候选', exact: true }).click();
   await expect(reviewer.getByText('审核：1/1 已满足', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
   await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · merged$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · 已合并$/ })).toBeVisible();
   const merged = await state(page, fixture);
+  await openView(page, '工作区');
   const shared = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: `共享数据 · ${fixture.name}`, exact: true }) })
