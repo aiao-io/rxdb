@@ -177,7 +177,7 @@ export const storageFaults = {
       (await page.evaluate(key => localStorage.getItem(key), pending)) === null;
     await stopQuota();
     const stopCrash = await injectWorker(
-      `self.addEventListener('message', event => { if (event.data.action === 'prepare') { event.stopImmediatePropagation(); throw new Error('Injected restore Worker crash'); } });`
+      `if (self.name === 'aiao-desktop-restore') self.addEventListener('message', event => { event.stopImmediatePropagation(); throw new Error('Injected restore Worker crash'); }, { once: true });`
     );
     await disk().getByRole('button', { name: 'Restore Desktop', exact: true }).click();
     await expect(disk().getByRole('alert')).toContainText('Injected restore Worker crash');

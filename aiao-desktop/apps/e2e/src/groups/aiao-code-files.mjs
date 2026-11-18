@@ -12,6 +12,7 @@ import { diskCount, diskRow, diskText, filePanel, traced } from '../harness/host
 const expect = playwrightExpect.configure({ timeout: 30_000 });
 const APP_ORIGIN = 'https://vscode.aiao.io';
 const codeRoot = resolve(import.meta.dirname, '../../../../../apps/aiao-vscode/dist/browser');
+const outputRoot = resolve(import.meta.dirname, '../../test-output');
 const binary = Buffer.from([0, 255, 128, 1, 42]);
 
 async function diskBytes(session, name) {
@@ -77,9 +78,12 @@ export const aiaoCodeFiles = {
     };
     const isCode = url => url.origin === APP_ORIGIN;
     try {
+      await mkdir(outputRoot, { recursive: true });
+      const evidence = await mkdtemp(join(outputRoot, 'aiao-code-copy-'));
+      console.error(`Aiao Code artifacts: ${evidence}`);
       const index = await readFile(join(codeRoot, 'index.html'));
       await writeFile(
-        '/tmp/aiao-code-copy-build.json',
+        join(evidence, 'aiao-code-copy-build.json'),
         JSON.stringify(
           {
             root: codeRoot,
@@ -124,7 +128,7 @@ export const aiaoCodeFiles = {
         await helpers.launch('Aiao Code');
         const win = helpers.win('vscode');
         await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({ timeout: 90_000 });
-        const frame = page.frames().find(candidate => candidate.url().startsWith(APP_ORIGIN));
+        const frame = page.frames().find(candidate => URL.parse(candidate.url())?.origin === APP_ORIGIN);
         if (!frame) throw new Error('Actual Aiao Code frame missing');
         expect(new URL(frame.url()).searchParams.has('ngsw-bypass')).toBe(true);
         await frame.waitForFunction(() => window.ready && window.workbench, null, { timeout: 60_000 });
@@ -322,7 +326,7 @@ export const aiaoCodeFiles = {
       await expect(frame.locator('[data-menu-id="desktop-export-project"]')).toBeDisabled();
       await expect(frame.locator('[data-menu-id="desktop-export-project"]')).toContainText('未授予写入权限');
       result.deniedCapabilitiesVisible = true;
-      await page.screenshot({ path: '/tmp/aiao-code-copy-ui.png' });
+      await page.screenshot({ path: join(evidence, 'aiao-code-copy-ui.png') });
       return { aiaoCodeFiles: result };
     } finally {
       closing = true;

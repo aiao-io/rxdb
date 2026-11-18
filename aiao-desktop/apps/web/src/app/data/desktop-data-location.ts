@@ -28,6 +28,12 @@ export function dataLocation(generation: string | null): DesktopDataLocation {
   return { generation, databaseName: `aiao-desktop${suffix}`, filesRoot: `aiao-desktop-files${suffix}` };
 }
 
+/** 恢复只写新代际，默认库（null）不是合法目标。 */
+export function requireRestoreGeneration(value: unknown): string {
+  if (typeof value !== 'string' || !validGeneration(value)) throw new Error('The desktop restore target is invalid.');
+  return value;
+}
+
 /** 无记录表示已发布版本的默认位置；存在但读不懂时明确失败。 */
 export function readDataSelection(storage: Pick<DataSelectionStorage, 'getItem'>): DesktopDataSelection {
   const raw = storage.getItem(DATA_LOCATION_KEY);
@@ -48,7 +54,7 @@ export function readDataSelection(storage: Pick<DataSelectionStorage, 'getItem'>
 
 /** 调用方已持有恢复锁且新目标完整；一次指针写入保留上一代，失败不切换。 */
 export function commitDataLocation(storage: DataSelectionStorage, expected: string | null, generation: string): void {
-  dataLocation(generation);
+  requireRestoreGeneration(generation);
   const selection = readDataSelection(storage);
   if (selection.active !== expected)
     throw new Error('The desktop data changed in another tab. Reload before restoring.');

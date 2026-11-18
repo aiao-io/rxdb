@@ -198,14 +198,20 @@ describe('桌面完整备份服务', () => {
 
   it('恢复先校验再起 Worker，成功后切换代际，清理中断只针对临时目标', async () => {
     const { backup, localStorage } = setup();
-    const messages: unknown[] = [];
+    const messages: { worker?: string; data: unknown }[] = [];
     class WorkerStub {
       onMessage?: (event: MessageEvent) => void;
+
+      constructor(
+        _url: URL,
+        private readonly options: WorkerOptions
+      ) {}
+
       addEventListener(type: string, listener: (event: MessageEvent) => void) {
         if (type === 'message') this.onMessage = listener;
       }
       postMessage(message: unknown) {
-        messages.push(message);
+        messages.push({ worker: this.options.name, data: message });
         queueMicrotask(() => this.onMessage?.({ data: { ok: true } } as MessageEvent));
       }
       terminate() {
@@ -223,11 +229,13 @@ describe('桌面完整备份服务', () => {
       files: []
     });
     await backup.restore(archive);
-    expect(messages[0]).toMatchObject({ action: 'prepare', baseHref: '/', archive });
     const active = JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? '{}').active;
     expect(active).toMatch(/^[a-f0-9]{12}$/);
     localStorage.setItem('aiao-desktop:restore-pending', JSON.stringify({ version: 1, generation: 'abcdef123456' }));
     await backup.cleanupInterruptedRestore();
-    expect(messages[1]).toMatchObject({ action: 'discard', generation: 'abcdef123456' });
+    expect(messages).toEqual([
+      { worker: 'aiao-desktop-restore', data: { generation: active, baseHref: '/', archive } },
+      { worker: 'aiao-desktop-restore-discard', data: { generation: 'abcdef123456', baseHref: '/' } }
+    ]);
   });
 });

@@ -87,6 +87,19 @@ describe('完整恢复的两阶段切换', () => {
     expect(prepare).not.toHaveBeenCalled();
   });
 
+  it('拒绝把默认库当作临时恢复目标，即使活动和保留代际都不是默认库', async () => {
+    const { host, storage, prepare, discard } = setup();
+    commitDataLocation(storage, null, 'abcdef123456');
+    commitDataLocation(storage, 'abcdef123456', 'fedcba654321');
+    host.generation = () => null as unknown as string;
+
+    await expect(restoreDesktopData(host, 'fedcba654321')).rejects.toThrow('invalid');
+    expect(prepare).not.toHaveBeenCalled();
+    expect(discard).not.toHaveBeenCalled();
+    expect(storage.getItem(RESTORE_PENDING_KEY)).toBeNull();
+    expect(readDataSelection(storage)).toEqual({ active: 'fedcba654321', previous: 'abcdef123456' });
+  });
+
   it('准备期间切换数据则拒绝；指针成功后的日志删除失败不伪报恢复失败', async () => {
     const first = setup();
     first.host.exclusiveWrite = async task => {

@@ -2,8 +2,8 @@ import {
   DataSelectionStorage,
   RESTORE_PENDING_KEY,
   commitDataLocation,
-  dataLocation,
-  readDataSelection
+  readDataSelection,
+  requireRestoreGeneration
 } from './desktop-data-location';
 
 export const RESTORE_LOCK = 'aiao-desktop-restore';
@@ -22,7 +22,7 @@ function pendingGeneration(raw: string): string {
   const record = pending as Record<string, unknown>;
   if (record['version'] !== 1 || typeof record['generation'] !== 'string')
     throw new Error('The pending restore record is damaged.');
-  return dataLocation(record['generation']).generation as string;
+  return requireRestoreGeneration(record['generation']);
 }
 
 /** 调用方持有恢复锁；不清理活动代际和用户保留的上一代。 */
@@ -40,8 +40,7 @@ export async function restoreDesktopData(host: DesktopRestoreHost, expected: str
   await recoverPendingRestore(host);
   const selection = readDataSelection(host.storage);
   if (selection.active !== expected) throw new Error('Desktop data changed in another tab. Reload before restoring.');
-  const generation = host.generation();
-  dataLocation(generation);
+  const generation = requireRestoreGeneration(host.generation());
   if (generation === selection.active || generation === selection.previous)
     throw new Error('The restore target is already in use.');
   host.storage.setItem(RESTORE_PENDING_KEY, JSON.stringify({ version: 1, generation }));

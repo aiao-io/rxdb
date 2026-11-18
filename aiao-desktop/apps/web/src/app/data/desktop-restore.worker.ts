@@ -3,7 +3,7 @@ import { createOpfsStorageFilesystem } from '@aiao/rxdb-plugin-storage';
 
 import { DesktopFile } from '../disk/desktop-file.entity';
 import { MAX_DESKTOP_BACKUP_BYTES, decodeDesktopBackup } from './desktop-backup-archive';
-import { dataLocation } from './desktop-data-location';
+import { dataLocation, requireRestoreGeneration } from './desktop-data-location';
 import { DESKTOP_ADAPTER, createDesktopDatabase } from './desktop-database';
 import { assertCompletedDiskState, auditDesktopStorage } from './desktop-storage-audit';
 import { collectDesktopBodies, matchDesktopBodies, writeDesktopBodies } from './desktop-storage-io';
@@ -13,7 +13,6 @@ import { DESKTOP_SCHEMA_VERSION, planSchema } from './schema-version';
 import { SystemPreference } from './system-preference.entity';
 
 export interface DesktopRestoreRequest {
-  readonly action: 'prepare' | 'discard';
   readonly generation: string;
   readonly baseHref: string;
   readonly archive?: Blob;
@@ -21,22 +20,32 @@ export interface DesktopRestoreRequest {
 
 export type DesktopRestoreReply = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
-async function execute(request: DesktopRestoreRequest): Promise<void> {
-  const location = dataLocation(request.generation);
-  const database = createDesktopDatabase(request.baseHref, { location, inWorker: true });
+async function execute(scope: DedicatedWorkerGlobalScope, data: unknown): Promise<void> {
+  const discard = scope.name === 'aiao-desktop-restore-discard';
+  if (!discard && scope.name !== 'aiao-desktop-restore') throw new Error('Unknown restore worker.');
+  if (!data || typeof data !== 'object') throw new Error('Invalid restore request.');
+  const { generation, baseHref, archive } = data as Record<string, unknown>;
+  const location = dataLocation(requireRestoreGeneration(generation));
+  if (
+    typeof baseHref !== 'string' ||
+    new URL(`${baseHref}sqlite-wasm/wa-sqlite.wasm`, scope.location.href).origin !== scope.location.origin
+  )
+    throw new Error('Invalid restore base URL.');
+
+  const database = createDesktopDatabase(baseHref, { location, inWorker: true });
   const filesystem = createOpfsStorageFilesystem(location.filesRoot, { localAdapterName: DESKTOP_ADAPTER });
   try {
     const adapter = await database.getAdapter(DESKTOP_ADAPTER);
     if (!(adapter instanceof RxDBAdapterSqlite)) throw new Error('The restore adapter is unavailable.');
-    if (request.action === 'discard') {
+    if (discard) {
       await adapter.cleanupIncompleteRestore();
       await adapter.disconnect();
       await adapter.dropStorage();
       await removeFilesRoot(location.filesRoot);
       return;
     }
-    if (!request.archive) throw new Error('No backup was selected.');
-    const backup = await decodeDesktopBackup(request.archive, DESKTOP_SCHEMA_VERSION);
+    if (!(archive instanceof Blob)) throw new Error('No backup was selected.');
+    const backup = await decodeDesktopBackup(archive, DESKTOP_SCHEMA_VERSION);
     await adapter.restore(backup.database.stream());
     await adapter.connect();
     const plan = planSchema(await probeSchema(adapterInspector(adapter), DESKTOP_ENTITIES));
@@ -87,13 +96,19 @@ async function removeFilesRoot(name: string): Promise<void> {
   }
 }
 
-self.onmessage = (event: MessageEvent<DesktopRestoreRequest>) => {
-  void execute(event.data).then(
-    () => self.postMessage({ ok: true } satisfies DesktopRestoreReply),
-    (error: unknown) =>
-      self.postMessage({
-        ok: false,
-        message: error instanceof Error ? error.message : String(error)
-      } satisfies DesktopRestoreReply)
-  );
-};
+if (self instanceof DedicatedWorkerGlobalScope) {
+  const scope = self;
+  scope.onmessage = (event: MessageEvent<unknown>) => {
+    // 专用 Worker 只从创建者持有的端口接收消息，浏览器投递时 origin 为空、source 为 null。
+    if (!event.isTrusted || event.origin !== '' || event.source !== null) return;
+    scope.onmessage = null;
+    void execute(scope, event.data).then(
+      () => scope.postMessage({ ok: true } satisfies DesktopRestoreReply),
+      (error: unknown) =>
+        scope.postMessage({
+          ok: false,
+          message: error instanceof Error ? error.message : String(error)
+        } satisfies DesktopRestoreReply)
+    );
+  };
+}

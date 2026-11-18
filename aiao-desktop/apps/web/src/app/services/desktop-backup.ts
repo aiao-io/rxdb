@@ -14,7 +14,6 @@ import { DESKTOP_ADAPTER } from '../data/desktop-database';
 import { DATA_WRITE_LOCK } from '../data/desktop-location-guard';
 import { RESTORE_LOCK, recoverPendingRestore, restoreDesktopData } from '../data/desktop-restore';
 import { runRestoreWorker } from '../data/desktop-restore-client';
-import type { DesktopRestoreRequest } from '../data/desktop-restore.worker';
 import { DesktopStorageAudit, assertCompletedDiskState, auditDesktopStorage } from '../data/desktop-storage-audit';
 import { collectDesktopBodies, storageInventory } from '../data/desktop-storage-io';
 import { DESKTOP_SCHEMA_VERSION } from '../data/schema-version';
@@ -94,8 +93,8 @@ export class DesktopBackup {
             storage: localStorage,
             generation: () =>
               [...crypto.getRandomValues(new Uint8Array(6))].map(byte => byte.toString(16).padStart(2, '0')).join(''),
-            prepare: generation => this.worker({ action: 'prepare', generation, archive }),
-            discard: generation => this.worker({ action: 'discard', generation }),
+            prepare: generation => this.prepareRestore(generation, archive),
+            discard: generation => this.discardRestore(generation),
             exclusiveWrite: task =>
               this.fs.run(() => navigator.locks.request(DATA_WRITE_LOCK, { mode: 'exclusive' }, task))
           },
@@ -110,7 +109,7 @@ export class DesktopBackup {
       () =>
         recoverPendingRestore({
           storage: localStorage,
-          discard: generation => this.worker({ action: 'discard', generation })
+          discard: generation => this.discardRestore(generation)
         }),
       RESTORE_LOCK
     );
@@ -168,13 +167,23 @@ export class DesktopBackup {
     );
   }
 
-  private worker(request: Omit<DesktopRestoreRequest, 'baseHref'>): Promise<void> {
+  private prepareRestore(generation: string, archive: Blob): Promise<void> {
     return runRestoreWorker(
       new Worker(new URL('../data/desktop-restore.worker', import.meta.url), {
         type: 'module',
         name: 'aiao-desktop-restore'
       }),
-      { ...request, baseHref: this.baseHref }
+      { generation, archive, baseHref: this.baseHref }
+    );
+  }
+
+  private discardRestore(generation: string): Promise<void> {
+    return runRestoreWorker(
+      new Worker(new URL('../data/desktop-restore.worker', import.meta.url), {
+        type: 'module',
+        name: 'aiao-desktop-restore-discard'
+      }),
+      { generation, baseHref: this.baseHref }
     );
   }
 }

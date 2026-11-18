@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { runRestoreWorker } from './desktop-restore-client';
 
-const request = { action: 'discard' as const, generation: 'abcdef123456', baseHref: '/' };
+const request = { generation: 'abcdef123456', baseHref: '/' };
 
 function fakeWorker() {
   const listeners = new Map<string, (event: MessageEvent | ErrorEvent) => void>();
