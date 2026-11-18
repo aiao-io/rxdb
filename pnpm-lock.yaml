@@ -233,7 +233,7 @@ overrides:
   yaml@1: ^1.10.3
 
 patchedDependencies:
-  '@easyops-cn/docusaurus-search-local@0.55.3': 428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0
+  '@easyops-cn/docusaurus-search-local@0.55.3': be2e80b8d486b0a0b1ce8de58350dd6de75ad5d3185492109e068701f818584e
   '@tarojs/vite-runner@4.3.2': 1d5e2cce4dac325b58c75b865953f92daf0e2aeeecb557c22f2c36bc6badf71d
   typescript@6.0.3: ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb
 
@@ -800,6 +800,9 @@ importers:
       wait-on:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
+      wrangler:
+        specifier: 4.156.2
+        version: 4.156.2(@types/node@26.6.6)
 
   aiao-media:
     devDependencies:
@@ -3526,7 +3529,7 @@ importers:
         version: 3.10.2(79ce019b1bbc62c9c9641e29fa36e628)
       '@easyops-cn/docusaurus-search-local':
         specifier: ^0.55.3
-        version: 0.55.3(patch_hash=428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0)(ed93c85607f66ce02c41c6ca00297995)
+        version: 0.55.3(patch_hash=be2e80b8d486b0a0b1ce8de58350dd6de75ad5d3185492109e068701f818584e)(ed93c85607f66ce02c41c6ca00297995)
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.3.0)(react@19.3.1)
@@ -25540,7 +25543,7 @@ snapshots:
       cssesc: 3.0.0
       immediate: 3.3.0
 
-  '@easyops-cn/docusaurus-search-local@0.55.3(patch_hash=428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0)(ed93c85607f66ce02c41c6ca00297995)':
+  '@easyops-cn/docusaurus-search-local@0.55.3(patch_hash=be2e80b8d486b0a0b1ce8de58350dd6de75ad5d3185492109e068701f818584e)(ed93c85607f66ce02c41c6ca00297995)':
     dependencies:
       '@docusaurus/plugin-content-docs': 3.10.2(a42828ec0575682ec25626e88bff43ea)
       '@docusaurus/theme-common': 3.10.2(@docusaurus/plugin-content-docs@3.10.2(a42828ec0575682ec25626e88bff43ea))(@swc/core@1.16.22(@swc/helpers@0.5.24))(@swc/html@1.16.22)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))(supports-color@8.1.1)(svgo@3.3.5)(uglify-js@3.19.3)
