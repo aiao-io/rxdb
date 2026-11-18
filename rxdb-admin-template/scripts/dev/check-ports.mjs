@@ -42,7 +42,11 @@ export function assertPortAvailable(name, port, address) {
         detail => `（${detail}）`,
         () => ''
       );
-      reject(new Error(`${name}的固定端口 ${address}:${port} 无法使用${owner}，请停止占用它的服务后重试；不会切换端口。`, { cause }));
+      reject(
+        new Error(`${name}的固定端口 ${address}:${port} 无法使用${owner}，请停止占用它的服务后重试；不会切换端口。`, {
+          cause
+        })
+      );
     });
     server.listen(port, address, () => server.close(error => (error ? reject(error) : resolveCheck())));
   });

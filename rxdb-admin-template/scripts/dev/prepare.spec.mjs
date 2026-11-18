@@ -4,7 +4,12 @@ import { deployedWorkspace, ownerEmail } from '../../deploy/scripts/lib/paths.mj
 import { memberAccounts } from './accounts.mjs';
 import { prepareDevelopment } from './prepare.mjs';
 
-const secrets = { ANON_KEY: 'anon', SERVICE_ROLE_KEY: 'service', ADMIN_SERVICE_PASSWORD: 'pw', ADMIN_BOOTSTRAP_KEY: 'key' };
+const secrets = {
+  ANON_KEY: 'anon',
+  SERVICE_ROLE_KEY: 'service',
+  ADMIN_SERVICE_PASSWORD: 'pw',
+  ADMIN_BOOTSTRAP_KEY: 'key'
+};
 const owner = { id: 'owner-id', email: ownerEmail, verified: true };
 
 /** 每一步都只记录调用顺序与参数的替身。 */
@@ -27,7 +32,10 @@ function steps(overrides = {}) {
       setServicePassword: record('servicePassword'),
       waitForProjections: record('projections'),
       initialize: record('initialize'),
-      ensureAuthUsers: record('authUsers', new Map(memberAccounts.map(account => [account.email, `${account.key}-id`]))),
+      ensureAuthUsers: record(
+        'authUsers',
+        new Map(memberAccounts.map(account => [account.email, `${account.key}-id`]))
+      ),
       activeMembers: record('members', new Set(['owner-id'])),
       ensureMemberships: record('memberships', ['editor@admin-template.local']),
       ...overrides
@@ -87,7 +95,11 @@ describe('nx dev 的本地栈准备', () => {
     assert.deepEqual(input.activeMembers, new Set(['owner-id']));
     assert.deepEqual(
       input.members,
-      memberAccounts.map(account => ({ id: `${account.key}-id`, email: account.email, permissions: account.permissions }))
+      memberAccounts.map(account => ({
+        id: `${account.key}-id`,
+        email: account.email,
+        permissions: account.permissions
+      }))
     );
     assert.deepEqual(summary, { migrations: ['0001.sql'], added: ['editor@admin-template.local'] });
   });

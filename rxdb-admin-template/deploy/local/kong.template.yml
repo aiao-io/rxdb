@@ -21,7 +21,8 @@ consumers:
 plugins:
   - name: cors
     config:
-      # 三端工作台：当前版本 4510～4512，发布前的预览 4513～4515
+      # 三端工作台：当前版本 4510～4512，发布前的预览 4513～4515；
+      # 本地开发（pnpm nx dev rxdb-admin-template）的三端开发服务器 4206～4208 直连本栈，来源见 scripts/dev/services.mjs
       origins:
         - http://127.0.0.1:4510
         - http://127.0.0.1:4511
@@ -32,6 +33,12 @@ plugins:
         - http://localhost:4510
         - http://localhost:4511
         - http://localhost:4512
+        - http://127.0.0.1:4206
+        - http://localhost:4206
+        - http://127.0.0.1:4207
+        - http://localhost:4207
+        - http://127.0.0.1:4208
+        - http://localhost:4208
       methods: [GET, HEAD, PUT, PATCH, POST, DELETE, OPTIONS]
       headers:
         [

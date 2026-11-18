@@ -29,7 +29,10 @@ describe('测试账号的定义', () => {
   it('权限表与协作包的权限一致，每个账号都有查看权限', async () => {
     const model = await readFile(path.join(product, 'packages/collaboration/src/model.ts'), 'utf8');
     const declared = /export const permissions = \[([^\]]+)\] as const;/.exec(model)?.[1];
-    assert.deepEqual(allPermissions, [...declared.matchAll(/'(\w+)'/g)].map(match => match[1]));
+    assert.deepEqual(
+      allPermissions,
+      [...declared.matchAll(/'(\w+)'/g)].map(match => match[1])
+    );
     for (const account of developmentAccounts) {
       assert.ok(account.permissions.includes('read'), account.email);
       assert.ok(
@@ -80,11 +83,7 @@ describe('在 Auth 里准备测试账号', () => {
     );
     assert.deepEqual(
       requests.map(({ method, path: target }) => `${method} ${target}`),
-      [
-        'GET /auth/v1/admin/users?per_page=1000',
-        'PUT /auth/v1/admin/users/existing-owner',
-        'POST /auth/v1/admin/users'
-      ]
+      ['GET /auth/v1/admin/users?per_page=1000', 'PUT /auth/v1/admin/users/existing-owner', 'POST /auth/v1/admin/users']
     );
     assert.deepEqual(JSON.parse(requests[1].body), { email_confirm: true });
     assert.deepEqual(JSON.parse(requests[2].body), { email: 'editor@admin-template.local', email_confirm: true });

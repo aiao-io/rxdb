@@ -17,6 +17,8 @@ pnpm nx run rxdb-admin-template:local-up -- --studio     # 另起 Studio（4503�
 
 `deploy-local` 依赖 `local-up`，所以停栈之后一条 `pnpm nx run rxdb-admin-template:deploy-local` 就能把栈拉起并发布；`local-down -- --volumes` 之后再执行同一条命令即从零重建。看 Nx 任务的完整输出加 `--output-style=stream`。
 
+本地开发（`pnpm nx dev rxdb-admin-template`，见[产品 README](../README.md#本地整套开发环境)）复用同一套栈：以 `local-up -- --studio` 起栈，再执行迁移、设专用角色口令、按同一稳定键初始化「本地预演团队」并预置测试账号，三端开发服务器（4206～4208）直连网关，命令经本机 Node 协作服务（8088）。网关 CORS 因此另外放行这三个开发来源。做 AC#1 等需要干净栈的验收前，先 `local-down -- --volumes`。
+
 compose 项目名 `admin-template-local`：容器、网络与卷都带这个前缀，不与 CI 隔离栈（`rxdb-supabase-*`）或其他产品的栈共用任何资源。端口只发布到 `127.0.0.1`，本预演独占 4500～4529：
 
 | 端口       | 服务                     | 生产对应                                                                               |

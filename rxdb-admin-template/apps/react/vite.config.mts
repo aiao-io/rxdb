@@ -37,6 +37,8 @@ export default defineConfig(() => ({
   server: {
     port: 4206,
     host: '127.0.0.1',
+    // 固定端口（nx dev rxdb-admin-template 的登记见产品根 scripts/dev/services.mjs）：被占时直接失败，不顺延到其他端的端口
+    strictPort: true,
     proxy: {
       '/collaboration-api': { target: process.env['ADMIN_API_URL'] ?? 'http://127.0.0.1:8088', changeOrigin: true }
     }

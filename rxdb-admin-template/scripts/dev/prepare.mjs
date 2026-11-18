@@ -103,7 +103,8 @@ async function main() {
         return { id: ownerId, email: ownerEmail, verified: true };
       },
       migrate: () => server.applyMigrations(database()),
-      setServicePassword: async password => void (await database().query(await server.servicePasswordStatement(password))),
+      setServicePassword: async password =>
+        void (await database().query(await server.servicePasswordStatement(password))),
       waitForProjections,
       initialize: async input => {
         const schema = server.parseSchemaManifest(JSON.parse(await readFile(schemaFile, 'utf8')));

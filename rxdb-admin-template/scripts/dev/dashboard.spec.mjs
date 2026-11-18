@@ -197,7 +197,10 @@ describe('服务状态探测', () => {
   });
 
   it('TCP：能连上即运行中', async t => {
-    const open = await listen(t, createTcpServer(socket => socket.end()));
+    const open = await listen(
+      t,
+      createTcpServer(socket => socket.end())
+    );
     assert.deepEqual(await probeTcp(open), { state: 'up' });
     assert.deepEqual(await probeTcp(await freePort()), { state: 'down' });
   });
@@ -234,7 +237,10 @@ describe('测试账号的最新验证码', () => {
   it('逐个账号读收件服务，按邮箱汇总', async () => {
     const read = async email => (email.startsWith('reviewer') ? { code: '654321', receivedAt: 't' } : null);
     const result = await accountCodes({ read });
-    assert.deepEqual(Object.keys(result), developmentAccounts.map(account => account.email));
+    assert.deepEqual(
+      Object.keys(result),
+      developmentAccounts.map(account => account.email)
+    );
     assert.deepEqual(result['reviewer@admin-template.local'], { code: '654321', receivedAt: 't' });
     assert.equal(result['owner@admin-template.local'], null);
   });

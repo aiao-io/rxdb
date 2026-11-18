@@ -33,9 +33,40 @@ rxdb-admin-template/
 
 本产品目录位于仓库根，与根 `apps/`、`packages/`、`requirements/` 同级。本产品使用仓库现有的唯一 Nx workspace；产品内不另建 `nx.json` 或包管理器锁文件。三端协作功能共用私有包 `@rxdb-admin-template/collaboration`，位于产品 `packages/` 并设为 `private: true`；仓库根 `packages/` 继续承载 `@aiao/*` 平台公共能力。
 
+## 本地整套开发环境
+
+在仓库根目录执行，需要 Node.js 26+、pnpm 和已启动的 Docker：
+
+```bash
+pnpm nx dev rxdb-admin-template
+```
+
+一条命令依次完成：检查固定端口 → 起本地 Supabase 栈（与[发布预演](deploy/README.md)共用，含 Studio 与本地收件服务）→ 执行迁移、设协作专用角色口令、初始化团队「本地预演团队」并预置测试账号 → 起协作命令服务与三端开发服务器 → 全部就绪后自动打开[开发导航](http://127.0.0.1:4209/)。每一步都幂等，再次启动保留已有数据。
+
+开发导航集中展示各服务的入口与运行状态、测试账号与每个账号收到的最新验证码、数据库连接信息、常用命令与文档入口，只监听 `127.0.0.1`，不进入任何构建产物。登录是邮箱验证码，没有密码；验证码邮件发到本地收件服务，不会发出真实邮件：
+
+| 测试账号 | 邮箱                            | 权限                                 |
+| -------- | ------------------------------- | ------------------------------------ |
+| 管理员   | `owner@admin-template.local`    | 全部（成员、审批策略、合并）         |
+| 编辑者   | `editor@admin-template.local`   | `read`、`edit`、`comment`（发起 PR） |
+| 审核者   | `reviewer@admin-template.local` | `read`、`comment`、`review`（批准）  |
+| 只读成员 | `viewer@admin-template.local`   | `read`                               |
+
+| 服务                   | 地址                                                                      |
+| ---------------------- | ------------------------------------------------------------------------- |
+| React / Angular / Vue  | <http://127.0.0.1:4206>、<http://127.0.0.1:4207>、<http://127.0.0.1:4208> |
+| 开发导航               | <http://127.0.0.1:4209/>                                                  |
+| 协作命令服务（Node）   | <http://127.0.0.1:8088/health>                                            |
+| Supabase 网关          | <http://127.0.0.1:4500>                                                   |
+| Supabase Studio        | <http://127.0.0.1:4503>                                                   |
+| 本地收件服务           | <http://127.0.0.1:4502>                                                   |
+| PostgreSQL / PgBouncer | `127.0.0.1:4501` / `127.0.0.1:4504`                                       |
+
+端口固定，被占用时直接报错、不换号，登记在 [scripts/dev/services.mjs](scripts/dev/services.mjs)，测试账号定义在 [scripts/dev/accounts.mjs](scripts/dev/accounts.mjs)。Ctrl-C 停止三端、协作命令服务与开发导航，Docker 容器继续运行并保留数据；停栈用 `pnpm nx run rxdb-admin-template:local-down`，加 `-- --volumes` 连数据一起清空。`AIAO_DEV_OPEN=false` 不自动打开浏览器，`--tui=false` 输出普通日志。改了协作包的服务端代码（`packages/collaboration/src/server`）要重启。
+
 ## 启动与验证
 
-在仓库根目录使用现有 Nx 名称启动三端；端口、存储标识和框架配置见各应用 README：
+只开发前端、不需要 Docker 时，在仓库根目录使用现有 Nx 名称单独启动三端；端口、存储标识和框架配置见各应用 README：
 
 ```bash
 pnpm nx serve rxdb-admin-template-react

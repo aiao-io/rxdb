@@ -32,7 +32,7 @@ function accountRows(accounts) {
       return [
         '<tr>',
         `<td><strong>${escapeHtml(account.role)}</strong><span class="hint">${escapeHtml(account.duty)}</span></td>`,
-        `<td><code>${email}</code> <button data-copy="${email}" type="button">复制</button></td>`,
+        `<td><code>${email}</code> <button aria-label="复制邮箱 ${email}" data-copy="${email}" type="button">复制</button></td>`,
         `<td class="permissions">${permissions}</td>`,
         `<td><span class="code" data-code="${email}">读取中</span></td>`,
         '</tr>'
