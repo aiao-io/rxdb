@@ -3,7 +3,9 @@ import { useEffect, useRef } from 'react';
 import { ENTITIES } from '../entities/asset-entities';
 import { collaborationLabels } from '../entities/collaboration-labels';
 import setupRxdb from '../rxdb/setup_rxdb';
+import { createTeamDatabase } from '../rxdb/team-database';
 import { workbenchShell } from '../shell/workbench-shell';
+import { renderTeamEditor } from './team-editor-renderer';
 export default function CollaborationPage() {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -15,7 +17,9 @@ export default function CollaborationPage() {
         return () => sub.unsubscribe();
       },
       importAnonymous: schema => readAnonymousRecords(setupRxdb(), ENTITIES, schema),
-      labels: collaborationLabels
+      labels: collaborationLabels,
+      createTeamDatabase,
+      renderEditor: renderTeamEditor
     });
   }, []);
   return <div ref={host} />;

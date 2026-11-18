@@ -106,6 +106,7 @@
       "@aiao/rxdb-plugin-working-tree-angular": ["./packages/rxdb-plugin-working-tree-angular/src/index.ts"],
       "@aiao/rxdb-plugin-working-tree-react": ["./packages/rxdb-plugin-working-tree-react/src/index.ts"],
       "@aiao/rxdb-plugin-working-tree-vue": ["./packages/rxdb-plugin-working-tree-vue/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree/exchange": ["./packages/rxdb-plugin-working-tree/src/exchange.ts"],
       "@aiao/rxdb-plugin-working-tree/testing": [
         "./packages/rxdb-plugin-working-tree/src/working-tree/testing/index.ts"
       ],

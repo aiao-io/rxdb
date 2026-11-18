@@ -3108,6 +3108,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../../../packages/rxdb
+      '@aiao/rxdb-plugin-working-tree':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-working-tree
       '@supabase/supabase-js':
         specifier: ^2.119.0
         version: 2.119.0
@@ -3118,6 +3121,12 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-plugin-history
       fake-indexeddb:
         specifier: ^6.2.8
         version: 6.2.8

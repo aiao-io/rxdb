@@ -5,9 +5,14 @@
  * 从 `import-command.ts` 拆出来，只因为它全是对一份不可信输入的逐字段核对，与命令体的读写顺序无关。
  * 判定的口径与本地写路径同形——普通提交要作者、消息与至少一个单元（FR-008/009），系统根节点一样都不带，
  * 单元的两份补丁按操作区分有无——于是导入落下的节点与本地 `commit()` 写下的节点在损坏守卫眼里是同一种东西。
+ *
+ * **它也是 `./exchange` 子路径上的 {@link checkCommitExchangeBatch}。** 服务端收上传批次时按这一份判形状：
+ * 服务端认可的批次要原样下发给别的设备去导入，它收下一个导入会拒的形状，坏的就不是这一次上传，而是之后每一台来拉的设备。
+ * 两端各写一份规则的话，分岔的那天两边的单测都是绿的。代价是本文件在那个子路径的模块闭包里：它的值导入只能指向纯模块，
+ * 一条指向实体或运行时的值导入就把它们带进了服务端（`__tests__/exchange/exchange-entry-isolation.spec.ts` 守着）。
  */
 
-import type { CommitChangeUnitOperation } from '../commit/change-unit.js';
+import type { CommitChangeUnitOperation, CommitChangeUnitOrigin } from '../commit/change-unit.js';
 import type { CommitExchangeRecord } from '../commit/commit-exchange.js';
 import type { CommitKind } from '../commit/commit.entity.js';
 
@@ -47,8 +52,19 @@ export type CommitImportBatchProblem =
   | 'not_topological'
   | 'unreachable_from_head';
 
-/** 四种提交种类。 */
-const COMMIT_KINDS: ReadonlySet<string> = new Set<CommitKind>(['normal', 'merge', 'baseline', 'branch_baseline']);
+/**
+ * 四种提交种类：交换记录 `kind` 的取值域。
+ *
+ * @remarks
+ * 交换记录的 JSON 解析（`commit/commit-exchange-json.ts`）按同一份判 `kind`：两边各写一份，加第五种的那天只会有一边记得，
+ * 于是一边收、一边拒。只在包内共享，不在公开面上。
+ */
+export const COMMIT_KINDS: ReadonlySet<string> = new Set<CommitKind>([
+  'normal',
+  'merge',
+  'baseline',
+  'branch_baseline'
+]);
 
 /** 一种提交对父个数、作者与单元个数的要求。 */
 interface KindRule {
@@ -74,11 +90,18 @@ const KIND_RULES: Readonly<Record<CommitKind, KindRule>> = {
   branch_baseline: { parents: count => count === 0, authored: false, units: count => count === 0 }
 };
 
-/** 单元操作的取值域。 */
-const OPERATIONS: ReadonlySet<string> = new Set<CommitChangeUnitOperation>(['insert', 'update', 'delete']);
+/** 单元操作的取值域；JSON 解析共用这一份（理由见 {@link COMMIT_KINDS}）。 */
+export const COMMIT_CHANGE_UNIT_OPERATIONS: ReadonlySet<string> = new Set<CommitChangeUnitOperation>([
+  'insert',
+  'update',
+  'delete'
+]);
 
-/** 单元来源的取值域。 */
-const ORIGINS: ReadonlySet<string> = new Set(['local', 'remote_sync']);
+/** 单元来源的取值域；JSON 解析共用这一份（理由见 {@link COMMIT_KINDS}）。 */
+export const COMMIT_CHANGE_UNIT_ORIGINS: ReadonlySet<string> = new Set<CommitChangeUnitOrigin>([
+  'local',
+  'remote_sync'
+]);
 
 /**
  * 每种操作的两份补丁该不该有。
@@ -118,13 +141,13 @@ const hasPatchShape = (value: unknown, present: boolean): boolean => (present ? 
 const isValidUnit = (raw: unknown): boolean => {
   if (!isPlainRecord(raw)) return false;
   const { operation, transactionId, origin } = raw;
-  if (typeof operation !== 'string' || !OPERATIONS.has(operation)) return false;
+  if (typeof operation !== 'string' || !COMMIT_CHANGE_UNIT_OPERATIONS.has(operation)) return false;
   const presence = PATCH_PRESENCE[operation as CommitChangeUnitOperation];
   return (
     [raw['unitId'], raw['namespace'], raw['entity'], raw['entityId']].every(isNonBlankString) &&
     (transactionId === null || (typeof transactionId === 'string' && UUID_PATTERN.test(transactionId))) &&
     typeof origin === 'string' &&
-    ORIGINS.has(origin) &&
+    COMMIT_CHANGE_UNIT_ORIGINS.has(origin) &&
     hasPatchShape(raw['patch'], presence.patch) &&
     hasPatchShape(raw['inversePatch'], presence.inversePatch)
   );
@@ -175,6 +198,9 @@ const commitIdOf = (record: unknown): string | null =>
  *
  * @remarks
  * 只带 id 与枚举，不带记录里的任何内容（消息、作者、补丁）：它会原样进 `invalid_batch` 那个返回值，而返回值常被整个打进日志（FR-043）。
+ * 服务端拿它回给上传方也是同一个理由。
+ *
+ * @public
  */
 export interface CommitImportBatchFinding {
   /** 哪一种毛病 */
@@ -215,17 +241,33 @@ const firstUnreachableFromHead = (
 };
 
 /**
- * 批次形状上的第一处毛病（纯函数，不读库）；没有毛病时为 `undefined`。
+ * 按平台规则判一批交换记录的形状（纯函数，不读库）：交出第一处毛病，没有毛病时为 `undefined`。
  *
- * @param commits - 调用方给的批次
- * @returns 见 {@link CommitImportBatchFinding}
+ * @param commits - 一批交换记录，按导入要求的顺序：父先于子，最后一个是新头
+ * @returns 第一处毛病，见 {@link CommitImportBatchFinding}；形状合格时为 `undefined`
  *
  * @remarks
- * 入参按 `unknown` 逐层读：类型上它是一组 {@link CommitExchangeRecord}，可它多半刚从服务端的 JSON 里解析出来，
- * 类型只是调用方的一句承诺。检查的先后就是报告的优先级——先逐条验形状与重复 id，再验批内的父是否排在前面，
- * 最后验每个提交都是新头的祖先。
+ * **`importCommits()` 的 `invalid_batch` 就是它判的**：导入命令在第一条写语句之前调这一个函数，被拒时把它交出的
+ * `problem` / `commitId` 原样放进返回值。服务端经 `@aiao/rxdb-plugin-working-tree/exchange` 拿到的也是这一个——
+ * 上传批次过了这一关，原样下发给别的设备时就不会在形状上被拒。
+ *
+ * 判的只是形状：父的个数与种类、作者与消息、单元个数、单元九列与补丁按操作的有无、拓扑序、都是新头的祖先。
+ * **不判**内容指纹（`computeCommitExchangeRecordFingerprint()` 复算后自己比）、本库有没有这些父、同 id 的提交是不是同一个——
+ * 那些要读库，是导入命令（或服务端自己的存储）的事。
+ *
+ * 入参按 `unknown` 逐层读：类型上它是一组 {@link CommitExchangeRecord}，可它多半刚从 JSON 里解析出来，类型只是调用方的一句承诺。
+ * 所以 JSON 要先过 `parseCommitExchangeRecord()`：直接拿 `JSON.parse` 的结果来判，`createdAt` 还是串，报的是 `invalid_created_at`。
+ * 检查的先后就是报告的优先级——先逐条验形状与重复 id，再验批内的父是否排在前面，最后验每个提交都是新头的祖先。
+ *
+ * @example
+ * ```ts
+ * const finding = checkCommitExchangeBatch(commits);
+ * if (finding) return reject(422, finding); // { problem: 'invalid_parents', commitId: '…' }
+ * ```
+ *
+ * @public
  */
-export const findCommitImportBatchProblem = (
+export const checkCommitExchangeBatch = (
   commits: readonly CommitExchangeRecord[]
 ): CommitImportBatchFinding | undefined => {
   // 另起一个 `unknown` 变量去判「是不是数组」：直接对入参 `Array.isArray`，TS 会把只读数组收窄成 `any[]`，后面的判定全成了无类型代码

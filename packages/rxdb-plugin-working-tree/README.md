@@ -34,7 +34,7 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 
 另外一条常被漏掉的：**远端同步拉下来的变更和用户的编辑一样进工作树**，在 `status().byOrigin` 里计为 `origin = 'remote_sync'`、**不豁免**，会让 `clean` 变成 `false`，并被下一次 `commit()` 一并提交（提交者是这次 `commit()` 的 `authorId`，v1 不伪造远端作者）。「同步之后工作树突然脏了」是正常行为。
 
-**导入远端提交（`importCommits()`）有三条边界**：快进只沿第一父链判定（服务端要以本机当前头为第一父建合并提交；头落在合并另一侧的设备从两条线的分叉点 `createBranchFromCommit()` 另起一条分支、切过去再导入）；叠业务表之前逐个单元核对前像（插入时这一行不在、修改与删除时这一行在且 `inversePatch` 覆盖的跟踪业务列与当前值相等），对不上即零写入的 `precondition_mismatch`——服务端的增量不是相对本机这份数据算的时，两台设备不会静默分叉；导入开着触发器写、进变更日志，所以**不能与通用实体同步同时用在同一批实体上**——走 changelog 推送的实体直接被拒（`unsupported_entity` / `synced`）；加密列的信封绑在写下它的那个库的密钥环身份上，另一台设备解不开、整笔回滚。内容指纹的规范化规则（服务端照着复算）见文档站插件页「内容指纹的规范化规则」。
+**导入远端提交（`importCommits()`）有三条边界**：快进只沿第一父链判定（服务端要以本机当前头为第一父建合并提交；头落在合并另一侧的设备从两条线的分叉点 `createBranchFromCommit()` 另起一条分支、切过去再导入）；叠业务表之前逐个单元核对前像（插入时这一行不在、修改与删除时这一行在且 `inversePatch` 覆盖的跟踪业务列与当前值相等），对不上即零写入的 `precondition_mismatch`——服务端的增量不是相对本机这份数据算的时，两台设备不会静默分叉；导入开着触发器写、进变更日志，所以**不能与通用实体同步同时用在同一批实体上**——走 changelog 推送的实体直接被拒（`unsupported_entity` / `synced`）；加密列的信封绑在写下它的那个库的密钥环身份上，另一台设备解不开、整笔回滚。服务端校验批次、复算指纹用 `./exchange` 子路径（见下文「服务端」）；别的语言照文档站插件页「内容指纹的规范化规则」复算。
 
 **`discard()` / `restore()` 会改业务表。** 两者都在同一个事务里把业务表对齐成「HEAD + 工作树条目」：回写是一次普通的本地写入，进变更日志——切分支、同步推送与撤销栈都看得见它（撤销一次丢弃就是把草稿取回来），远端同步来的条目被丢弃时，退回的值同样会推上远端；回写本身不会再被捕获成工作树单元。`remoteId` 与审计时间不跟着回写，`createdBy` / `updatedBy` 在 UPDATE 回写上写不回去。0.0.28 及更早版本只改工作树、不改业务表，升级说明见[迁移指南](https://rxdb.aiao.io/docs/migration/working-tree-discard-restore)。
 
@@ -94,6 +94,39 @@ db.use(rxDBPluginHistory);
 `db.workingTree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来：装了本包才存在这个入口，
 没装时 `db.workingTree` 是编译错误，而不是运行期的 `undefined`。能力未启用时它照样在，
 但每个方法以 `commit_capability_disabled` 拒绝。
+
+## 服务端：`@aiao/rxdb-plugin-working-tree/exchange`
+
+`importCommits()` / `exportCommits()` 交换的记录要经过服务端：它按平台规则校验上传批次的形状、复算内容指纹核对、给自己合成的合并提交算指纹。
+JavaScript / TypeScript 的服务端（Node、Supabase Edge Function 里的 Deno）用 `./exchange` 子路径，拿到的就是导入命令自己用的那几个函数，
+不必照文档另写一份、迟早分岔。它只加载三个纯模块，**不加载**实体类、插件类与捕获运行时，运行时只依赖 peer `@aiao/rxdb`；
+主入口是插件本身，服务端不要导入它。
+
+```ts
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  parseCommitExchangeRecord
+} from '@aiao/rxdb-plugin-working-tree/exchange';
+
+function acceptUpload(body: { readonly commits: readonly unknown[] }) {
+  const commits = body.commits.map(json => parseCommitExchangeRecord(json)); // createdAt：ISO 串 → Date
+  const finding = checkCommitExchangeBatch(commits); // 与 importCommits() 的 invalid_batch 同一个判定
+  if (finding) return { status: 422, body: finding };
+  const forged = commits.find(commit => computeCommitExchangeRecordFingerprint(commit) !== commit.contentFingerprint);
+  if (forged) return { status: 422, body: { problem: 'fingerprint_mismatch', commitId: forged.commitId } };
+  return { status: 200, commits };
+}
+```
+
+- 指纹：`computeCommitExchangeRecordFingerprint(record)`（按交换记录算，`authorId` 进 `author` 那一格、消息原样不 trim）、
+  `computeChangeUnitFingerprint(unit)`、`computeCommitContentFingerprint(input)`；
+- 批次形状：`checkCommitExchangeBatch(commits)`，交出第一处毛病 `{ problem, commitId }`，合格时为 `undefined`；只判形状，指纹要自己复算核对；
+- JSON：`parseCommitExchangeRecord(json)` / `serializeCommitExchangeRecord(record)`，`createdAt` 在 JSON 里是 `toISOString()` 的串。
+  解析严格：缺字段、多字段、类型或取值不对、`createdAt` 换了写法、补丁里有 JSON 表示不了的值，都抛 `CommitExchangeJsonError`（`problem` / `path` / `commitId`），不修正；
+- 类型：`CommitExchangeRecord`、`CommitExchangeRecordJson`、`CommitChangeUnitContent` 等交换格式的全部类型。
+
+完整说明（严格解析的理由、合成合并提交的写法）见文档站插件页「导入与导出远端提交」的「服务端：`./exchange` 子路径」。
 
 ## 未认领能力守卫
 

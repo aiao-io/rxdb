@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { applyChanges, applyVerified, diffRecords, revertChanges } from './changes.js';
 import type { ChangeSet, Records } from './model.js';
 import { randomEdit, seeded } from './random.testing.js';
-import { assertChanges, canonical } from './records.js';
-import { diffAssets } from './schema.testing.js';
+import { canonical } from './records.js';
+import { schemaModel } from './schema.js';
+import { assetSchema, diffAssets } from './schema.testing.js';
 
 const category = (name: string, extra: Record<string, string | number | boolean | null> = {}) => ({
   entity: 'AssetCategory' as const,
@@ -133,6 +134,7 @@ describe('field-level change sets', () => {
 });
 
 describe('verified application of uploaded change sets', () => {
+  const model = schemaModel(assetSchema);
   const parent: Records = { c: category('One', { description: 'Old' }) };
   const update = (patch: Record<string, string | null>, inversePatch: Record<string, string | null>): ChangeSet => ({
     namespace: 'assets',
@@ -145,88 +147,86 @@ describe('verified application of uploaded change sets', () => {
   it('applies changes that fit the parent content, in order, the same way as applyChanges', () => {
     const after: Records = { c: category('Two'), d: category('New') };
     const changes = diffAssets(parent, after);
-    same(applyVerified(structuredClone(parent), changes), after);
-    same(applyVerified(structuredClone(parent), changes), applyChanges(structuredClone(parent), changes));
+    same(applyVerified(structuredClone(parent), changes, model), after);
+    same(applyVerified(structuredClone(parent), changes, model), applyChanges(structuredClone(parent), changes));
     const twice = [...diffAssets(parent, after), ...diffAssets(after, {})];
-    same(applyVerified(structuredClone(parent), twice), {});
+    same(applyVerified(structuredClone(parent), twice, model), {});
   });
   it('rejects an insert of an existing record, and an update or delete of a missing one or of another entity', () => {
-    expect(() => applyVerified(structuredClone(parent), diffAssets({}, { c: category('One') }))).toThrow(/父提交/);
-    expect(() => applyVerified({}, [update({ name: 'Two' }, { name: 'One' })])).toThrow(/父提交/);
-    expect(() => applyVerified({}, diffAssets(parent, {}))).toThrow(/父提交/);
+    expect(() => applyVerified(structuredClone(parent), diffAssets({}, { c: category('One') }), model)).toThrow(
+      /父提交/
+    );
+    expect(() => applyVerified({}, [update({ name: 'Two' }, { name: 'One' })], model)).toThrow(/父提交/);
+    expect(() => applyVerified({}, diffAssets(parent, {}), model)).toThrow(/父提交/);
     const asset: Records = { c: { entity: 'Asset', fields: { name: 'One', description: 'Old' } } };
-    expect(() => applyVerified(asset, [update({ name: 'Two' }, { name: 'One' })])).toThrow(/父提交/);
+    expect(() => applyVerified(asset, [update({ name: 'Two' }, { name: 'One' })], model)).toThrow(/父提交/);
   });
   it('requires the inverse of an update to match the old values, and newly added fields to be absent', () => {
-    expect(() => applyVerified(structuredClone(parent), [update({ name: 'Two' }, { name: 'Zero' })])).toThrow(/父提交/);
-    expect(() => applyVerified(structuredClone(parent), [update({}, { status: 'gone' })])).toThrow(/父提交/);
-    expect(() => applyVerified(structuredClone(parent), [update({ description: 'New' }, {})])).toThrow(/父提交/);
-    same(applyVerified(structuredClone(parent), [update({ status: 'added' }, {})]), {
+    expect(() => applyVerified(structuredClone(parent), [update({ name: 'Two' }, { name: 'Zero' })], model)).toThrow(
+      /父提交/
+    );
+    expect(() => applyVerified(structuredClone(parent), [update({}, { status: 'gone' })], model)).toThrow(/父提交/);
+    expect(() => applyVerified(structuredClone(parent), [update({ description: 'New' }, {})], model)).toThrow(/父提交/);
+    same(applyVerified(structuredClone(parent), [update({ status: 'added' }, {})], model), {
       c: category('One', { description: 'Old', status: 'added' })
     });
-    same(applyVerified(structuredClone(parent), [update({}, { description: 'Old' })]), { c: category('One') });
+    same(applyVerified(structuredClone(parent), [update({}, { description: 'Old' })], model), { c: category('One') });
   });
   it('requires the inverse of a delete to be the whole old row', () => {
     const partial: ChangeSet = { ...diffAssets(parent, {})[0], inversePatch: { name: 'One' } };
     const altered: ChangeSet = { ...diffAssets(parent, {})[0], inversePatch: { name: 'One', description: 'New' } };
     for (const change of [partial, altered])
-      expect(() => applyVerified(structuredClone(parent), [change])).toThrow(/父提交/);
-    same(applyVerified(structuredClone(parent), diffAssets(parent, {})), {});
+      expect(() => applyVerified(structuredClone(parent), [change], model)).toThrow(/父提交/);
+    same(applyVerified(structuredClone(parent), diffAssets(parent, {}), model), {});
   });
 });
 
-describe('change set validation of untrusted input', () => {
-  const insert: ChangeSet = {
-    namespace: 'assets',
-    entity: 'AssetCategory',
-    entityId: 'c',
-    operation: 'insert',
-    patch: { name: 'x' },
-    inversePatch: null
+describe('verification reads the stored form of working-tree units (sqlite-wasm)', () => {
+  const model = schemaModel(assetSchema);
+  /** 服务端记录：IndexedDB 客户端写下的，没有系统字段，也没有写过的可空字段（说明）。 */
+  const server: Records = { c: category('电脑') };
+  /** 另一台设备导入后在本机业务表上的那一行：每一列都在，审计时间与主体是那台设备自己的。 */
+  const device = {
+    name: '电脑',
+    description: null,
+    createdAt: '2026-11-18T01:00:00.000Z',
+    updatedAt: '2026-11-18T01:00:00.000Z',
+    createdBy: null,
+    updatedBy: null
   };
-  const update: ChangeSet = { ...insert, operation: 'update', patch: { name: 'y' }, inversePatch: { name: 'x' } };
-  const remove: ChangeSet = { ...insert, operation: 'delete', patch: null, inversePatch: { name: 'x' } };
-  it('accepts the three well-formed operations', () => {
-    expect(() => assertChanges([insert, update, remove])).not.toThrow();
-    expect(() => assertChanges([])).not.toThrow();
+  const unit = (
+    operation: ChangeSet['operation'],
+    patch: ChangeSet['patch'],
+    inversePatch: ChangeSet['inversePatch']
+  ) => ({ namespace: 'assets', entity: 'AssetCategory', entityId: 'c', operation, patch, inversePatch }) as ChangeSet;
+  it('does not compare system fields: bookkeeping differs between devices and the server keeps what the unit says', () => {
+    const edited = unit(
+      'update',
+      { description: '台式机', updatedAt: '2026-11-18T02:00:00.000Z', updatedBy: 'user-2' },
+      { description: null, updatedAt: '2026-11-18T01:00:00.000Z', updatedBy: null }
+    );
+    same(applyVerified(structuredClone(server), [edited], model), {
+      c: category('电脑', { description: '台式机', updatedAt: '2026-11-18T02:00:00.000Z', updatedBy: 'user-2' })
+    });
   });
-  it('requires the exact shape of each operation', () => {
-    const bad: unknown[] = [
-      { ...insert, patch: null },
-      { ...insert, inversePatch: { name: 'x' } },
-      { ...update, patch: null },
-      { ...update, inversePatch: null },
-      { ...remove, patch: { name: 'x' } },
-      { ...remove, inversePatch: null },
-      { ...insert, operation: 'upsert' },
-      { ...insert, extra: true },
-      { ...insert, namespace: 'not a name' },
-      { ...insert, namespace: 7 },
-      { ...insert, entity: '__proto__' },
-      { ...insert, entity: '1Asset' },
-      { ...insert, entityId: '__proto__' },
-      { ...insert, entityId: 'a b' },
-      { namespace: 'assets', entity: 'AssetCategory', entityId: 'c', operation: 'insert', patch: { name: 'x' } },
-      'text',
-      null,
-      [insert]
-    ];
-    for (const change of bad) expect(() => assertChanges([change]), JSON.stringify(change)).toThrow();
-    expect(() => assertChanges('not a list')).toThrow();
-    expect(() => assertChanges({ 0: insert })).toThrow();
+  it('reads a field the record does not have as NULL, like the column it is on a device', () => {
+    same(applyVerified(structuredClone(server), [unit('delete', null, device)], model), {});
+    expect(() =>
+      applyVerified(structuredClone(server), [unit('delete', null, { ...device, description: '别的' })], model)
+    ).toThrow(/父提交/);
+    expect(() =>
+      applyVerified(
+        structuredClone(server),
+        [unit('update', { name: '笔记本' }, { name: '台式机', updatedAt: device.updatedAt })],
+        model
+      )
+    ).toThrow(/父提交/);
   });
-  it('checks only the shape here; entities, namespaces and fields are checked against the workspace schema on upload', () => {
-    expect(() => assertChanges([{ ...insert, namespace: 'other', entity: 'Unknown' }])).not.toThrow();
-  });
-  it('validates every patched field like a whole row', () => {
-    expect(() => assertChanges([{ ...insert, patch: { 'bad-field': 'x' } }])).toThrow(/字段/);
-    expect(() => assertChanges([{ ...insert, patch: { name: {} } }])).toThrow(/字段/);
-    expect(() => assertChanges([{ ...insert, patch: { name: Number.POSITIVE_INFINITY } }])).toThrow(/有限/);
-    expect(() => assertChanges([{ ...insert, patch: { name: 'x'.repeat(10001) } }])).toThrow(/过长/);
-    expect(() => assertChanges([{ ...remove, inversePatch: { constructor: 'x' } }])).toThrow(/字段/);
-  });
-  it('caps the number of changes in one commit', () => {
-    expect(() => assertChanges(Array.from({ length: 10000 }, () => insert))).not.toThrow();
-    expect(() => assertChanges(Array.from({ length: 10001 }, () => insert))).toThrow(/10000/);
+  it('keeps the new value of every field, system fields included, when inserting a whole captured row', () => {
+    const inserted = { ...unit('insert', device, null), entityId: 'd' };
+    same(applyVerified(structuredClone(server), [inserted], model), {
+      ...server,
+      d: { entity: 'AssetCategory', fields: device }
+    });
   });
 });

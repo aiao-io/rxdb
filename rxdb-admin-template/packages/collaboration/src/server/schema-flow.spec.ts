@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { diffRecords } from '../changes.js';
 import { checkRecords, type RecordCheck } from '../checks.js';
-import { sealCommit } from '../commit.js';
+import { taskCommit } from '../commit.testing.js';
 import type { ChangeSet, Command, Commit, DataRow, Identity, Records, SchemaManifest } from '../model.js';
 import { manifestOf, Milestone, planningSchema, Project, Tag } from '../planning.testing.js';
 import { namespaceOf, recordKeys } from '../schema.js';
@@ -38,8 +38,8 @@ const codeOf = async (work: Promise<unknown>) => {
   }
 };
 /** 提交内容 `after` 相对 `before` 的整单提交。 */
-const sealed = (workspace: MemoryWorkspace, id: string, parent: string | null, before: Records, after: Records) =>
-  sealCommit({
+const sealed = (workspace: MemoryWorkspace, id: string, parent: string, before: Records, after: Records) =>
+  taskCommit({
     id,
     parent,
     authorId: admin.id,
@@ -50,12 +50,12 @@ const sealed = (workspace: MemoryWorkspace, id: string, parent: string | null, b
 async function started(workspace: MemoryWorkspace, task: string, contents: Records[]) {
   const base = workspace.state.head;
   await act(workspace, { type: 'task', id: task, name: task, expectedHead: base });
-  let before = base === null ? {} : (await workspace.commit(admin, base)).records;
+  let before = (await workspace.commit(admin, base)).records;
   let parent = base;
   const commits: Commit[] = [];
   for (const [index, after] of contents.entries()) {
-    commits.push(await sealed(workspace, `${task}-c${index + 1}`, parent, before, after));
-    parent = commits.at(-1)!.id;
+    commits.push(sealed(workspace, `${task}-c${index + 1}`, parent, before, after));
+    parent = commits.at(-1)!.commitId;
     before = after;
   }
   await act(workspace, { type: 'upload', taskId: task, expectedHead: base, commits });
@@ -164,7 +164,7 @@ describe('非资产清单走完整流程（AC#7）', () => {
       type: 'upload',
       taskId: 'plan',
       expectedHead: 'plan-c1',
-      commits: [await sealed(workspace, 'plan-c2', 'plan-c1', broken, fixed)]
+      commits: [sealed(workspace, 'plan-c2', 'plan-c1', broken, fixed)]
     });
     const second = await candidateOf(workspace, 'plan');
     expect(second.checks).toEqual([]);
@@ -255,12 +255,12 @@ describe('上传时校验变更能应用到父内容', () => {
   });
   const upload = async (workspace: MemoryWorkspace, changes: ChangeSet[][]) => {
     const commits: Commit[] = [];
-    let parent: string | null = 'task-c1';
+    let parent = 'task-c1';
     for (const [index, list] of changes.entries()) {
       commits.push(
-        await sealCommit({ id: `next-${index}`, parent, authorId: admin.id, message: `next-${index}`, changes: list })
+        taskCommit({ id: `next-${index}`, parent, authorId: admin.id, message: `next-${index}`, changes: list })
       );
-      parent = commits.at(-1)!.id;
+      parent = commits.at(-1)!.commitId;
     }
     return act(workspace, { type: 'upload', taskId: 'task', expectedHead: 'task-c1', commits });
   };
@@ -296,10 +296,26 @@ describe('上传时校验变更能应用到父内容', () => {
     ['实体不在清单里', change({ entity: 'Asset' }), '实体不受支持'],
     ['命名空间与清单不符', change({ namespace: 'assets' }), '实体不受支持'],
     ['字段不在清单里', change({ patch: { owner: 'x' }, inversePatch: {} }), '字段不受支持'],
-    ['系统字段不进记录', change({ patch: { createdAt: '2026-01-01' }, inversePatch: {} }), '字段不受支持']
+    ['主键不进补丁（它是单元的 entityId）', change({ patch: { id: 'x' }, inversePatch: {} }), '字段不受支持']
   ])('网络输入的实体与字段按清单白名单拒绝：%s', async (_name, wrong, message) => {
     const { workspace } = await seeded();
     await expect(upload(workspace, [[wrong]])).rejects.toMatchObject({ code: 'invalid', message });
+  });
+  it('系统字段按落库形态收下：working-tree 的修改单元带着这一刻的 updatedAt，与服务端记录里的值不比', async () => {
+    const { workspace } = await seeded();
+    await upload(workspace, [
+      [
+        change({
+          patch: { budget: 20, updatedAt: '2026-11-18T02:00:00.000Z', updatedBy: admin.id },
+          inversePatch: { budget: 10, updatedAt: '2026-11-18T01:00:00.000Z', updatedBy: null }
+        })
+      ]
+    ]);
+    expect((await workspace.commit(admin, 'next-0')).records['p1'].fields).toMatchObject({
+      budget: 20,
+      updatedAt: '2026-11-18T02:00:00.000Z',
+      updatedBy: admin.id
+    });
   });
   it('任务在共享分支推进之前起步：父内容由共享头反向应用之后的合并得到，按起步时的值核对', async () => {
     const workspace = await open();
@@ -310,7 +326,7 @@ describe('上传时校验变更能应用到父内容', () => {
     await merge(workspace, 'bump');
     const base = workspace.state.tasks['early'].base;
     const commit = (inverse: number) =>
-      sealCommit({
+      taskCommit({
         id: `early-${inverse}`,
         parent: base,
         authorId: admin.id,
@@ -318,21 +334,20 @@ describe('上传时校验变更能应用到父内容', () => {
         changes: [change({ inversePatch: { budget: inverse } })]
       });
     const send = async (inverse: number) =>
-      act(workspace, { type: 'upload', taskId: 'early', expectedHead: base, commits: [await commit(inverse)] });
+      act(workspace, { type: 'upload', taskId: 'early', expectedHead: base, commits: [commit(inverse)] });
     expect(await codeOf(send(30))).toBe('invalid');
     expect(await codeOf(send(10))).toBe('ok');
   });
   it('另存分叉：新提交按原任务路径上它的父提交时的内容核对', async () => {
     const { workspace, edited } = await seeded();
-    const second = await sealed(workspace, 'task-c2', 'task-c1', edited, {
+    const second = sealed(workspace, 'task-c2', 'task-c1', edited, {
       ...edited,
       p1: project('Apollo', { budget: 50 })
     });
     await act(workspace, { type: 'upload', taskId: 'task', expectedHead: 'task-c1', commits: [second] });
-    const original = (await workspace.store.commits(['task-c1'])).get('task-c1')!;
-    const carried = { ...original, changes: (await workspace.commit(admin, 'task-c1')).changes };
+    const carried = workspace.store.record('task-c1')!;
     const fork = (inverse: number) =>
-      sealCommit({
+      taskCommit({
         id: `fork-${inverse}`,
         parent: 'task-c1',
         authorId: admin.id,
@@ -346,7 +361,7 @@ describe('上传时校验变更能应用到父内容', () => {
         name: 'forked',
         taskId: 'task',
         expectedHead: workspace.state.tasks['task'].base,
-        commits: [carried, await fork(inverse)]
+        commits: [carried, fork(inverse)]
       });
     expect(await codeOf(send(50))).toBe('invalid');
     expect(await codeOf(send(10))).toBe('ok');
@@ -433,10 +448,10 @@ describe('读取量只与改动有关', () => {
     const reads = async (merges: number) => {
       const { workspace, records } = await populated(20, merges);
       const [first] = await started(workspace, 'mine', [{ ...records, p5: project('Five', { code: 'C5' }) }]);
-      const next = await sealed(
+      const next = sealed(
         workspace,
         'mine-c2',
-        first.id,
+        first.commitId,
         { ...records, p5: project('Five', { code: 'C5' }) },
         {
           ...records,
@@ -444,7 +459,7 @@ describe('读取量只与改动有关', () => {
         }
       );
       workspace.store.resetStats();
-      await act(workspace, { type: 'upload', taskId: 'mine', expectedHead: first.id, commits: [next] });
+      await act(workspace, { type: 'upload', taskId: 'mine', expectedHead: first.commitId, commits: [next] });
       return { ...workspace.store.stats, calls: [...workspace.store.stats.calls] };
     };
     const few = await reads(2);

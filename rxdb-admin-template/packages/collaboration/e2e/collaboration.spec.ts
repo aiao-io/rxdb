@@ -1,9 +1,14 @@
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  parseCommitExchangeRecord,
+  type CommitExchangeRecordJson
+} from '@aiao/rxdb-plugin-working-tree/exchange';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type WebSocketRoute } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { diffRecords } from '../src/changes.js';
-import { sealCommit } from '../src/commit.js';
-import type { Audit, Records } from '../src/model.js';
+import type { Audit, ChangeSet, Commit, Records } from '../src/model.js';
 interface Account {
   id: string;
   email: string;
@@ -70,6 +75,39 @@ async function rest(page: Page, fixture: Fixture, path: string) {
     { url: fixture.supabaseUrl, key: fixture.supabaseKey, path }
   );
 }
+/** 以页面里的会话调用一个读取函数（与浏览器的读取同样经 PostgREST 的 `rpc`，POST 带 JSON 参数）。 */
+async function rpc(page: Page, fixture: Fixture, fn: string, args: Record<string, unknown>) {
+  return page.evaluate(
+    async ({ url, key, fn, args }) => {
+      const storage = Object.keys(localStorage).find(item => item.startsWith('admin-collaboration-auth:'));
+      if (!storage) throw new Error('Missing authenticated test session');
+      const session = JSON.parse(localStorage.getItem(storage)!) as { access_token: string };
+      const response = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(args)
+      });
+      return { status: response.status, body: (await response.json()) as unknown };
+    },
+    { url: fixture.supabaseUrl, key: fixture.supabaseKey, fn, args }
+  );
+}
+/**
+ * 手工形成一个任务提交（平台 working-tree 的交换记录）：普通提交，唯一的父是 `parent`，全部单元共用提交 ID、
+ * 不属于任何事务、来源 local，内容指纹由平台的 `computeCommitExchangeRecordFingerprint()` 计算——与客户端形成提交的做法相同。
+ */
+function exchangeCommit(id: string, parent: string, authorId: string, message: string, changes: ChangeSet[]): Commit {
+  const draft = {
+    commitId: id,
+    parentIds: [parent],
+    kind: 'normal' as const,
+    message,
+    authorId,
+    createdAt: new Date().toISOString(),
+    units: changes.map(change => ({ ...change, unitId: id, transactionId: null, origin: 'local' as const }))
+  };
+  return { ...draft, contentFingerprint: computeCommitExchangeRecordFingerprint(draft) };
+}
 async function rows<T>(page: Page, fixture: Fixture, path: string): Promise<T[]> {
   const response = await rest(page, fixture, path);
   expect(response.status, JSON.stringify(response.body)).toBe(200);
@@ -77,15 +115,15 @@ async function rows<T>(page: Page, fixture: Fixture, path: string): Promise<T[]>
 }
 const scope = (workspace: { teamId: string; appId: string }) =>
   `team_id=eq.${workspace.teamId}&app_id=eq.${workspace.appId}`;
-/** 断言用的工作区状态：经只读投影读出的共享头、策略、任务、PR、审核、候选与全部审计（时间正序）。 */
+/** 断言用的工作区状态：经只读投影读出的共享头与根、策略、任务、PR、审核、候选与全部审计（时间正序）。 */
 async function state(page: Page, fixture: Fixture, workspace: { teamId: string; appId: string } = fixture) {
   const where = scope(workspace);
-  const [row] = await rows<{ head: string | null; policy_version: number }>(
+  const [row] = await rows<{ head: string; root: string; policy_version: number }>(
     page,
     fixture,
-    `admin_workspaces?${where}&select=head,policy_version`
+    `admin_workspaces?${where}&select=head,root,policy_version`
   );
-  const tasks = await rows<{ id: string; name: string; origin_task_id: string | null; head: string | null }>(
+  const tasks = await rows<{ id: string; name: string; origin_task_id: string | null; head: string }>(
     page,
     fixture,
     `admin_tasks?${where}&select=id,name,origin_task_id,head&order=seq`
@@ -108,6 +146,7 @@ async function state(page: Page, fixture: Fixture, workspace: { teamId: string; 
   const audit = await rows<{ details: Audit }>(page, fixture, `admin_audit?${where}&select=details&order=seq`);
   return {
     head: row.head,
+    root: row.root,
     policy: { version: row.policy_version },
     tasks: tasks.map(task => ({ id: task.id, name: task.name, originTaskId: task.origin_task_id, head: task.head })),
     prs: prs.map(pr => ({
@@ -127,15 +166,15 @@ async function state(page: Page, fixture: Fixture, workspace: { teamId: string; 
     audit: audit.map(event => event.details)
   };
 }
-/** 读取一个提交的元数据：经只读投影 `admin_commits`。 */
+/** 读取一个提交的元数据：经只读投影 `admin_commits`（交换记录去掉单元与内容指纹）。 */
 async function commitOf(page: Page, fixture: Fixture, id: string) {
-  const [row] = await rows<{ parent_id: string | null; author_id: string }>(
+  const [row] = await rows<{ parent_ids: string[]; kind: string; author_id: string }>(
     page,
     fixture,
-    `admin_commits?${scope(fixture)}&id=eq.${encodeURIComponent(id)}&select=parent_id,author_id`
+    `admin_commits?${scope(fixture)}&id=eq.${encodeURIComponent(id)}&select=parent_ids,kind,author_id`
   );
   expect(row, `commit ${id}`).toBeDefined();
-  return { parent: row.parent_id, authorId: row.author_id };
+  return { parentIds: row.parent_ids, kind: row.kind, authorId: row.author_id };
 }
 /** 邀请令牌只放在 URL fragment（`#join=<转义后的 JSON>`），不进查询参数，避免落入代理日志与 Referer。 */
 /**
@@ -323,7 +362,34 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   expect(otherHistory.head).toBe(finalHistory.head);
   expect(otherHistory.audit).toEqual(finalHistory.audit);
   expect(finalHistory.head).not.toBe(firstHistory.head);
-  expect((await commitOf(page, fixture, finalHistory.head!)).parent).toBe(firstHistory.head);
+  // 合并提交有两个父：第一父是合并前的共享头，第二父是任务头
+  const finalMerge = await commitOf(page, fixture, finalHistory.head);
+  expect(finalMerge.kind).toBe('merge');
+  expect(finalMerge.parentIds).toHaveLength(2);
+  expect(finalMerge.parentIds[0]).toBe(firstHistory.head);
+  // 下发接口经 PostgREST：共享分支从零下发的一页交换记录能原样交给平台导入（批次形状合格、每个提交的指纹复算一致），
+  // 从根起步、以共享头结束，两次合并带进来的任务提交都在
+  const download = await rpc(page, fixture, 'admin_commit_exchange', {
+    p_team_id: fixture.teamId,
+    p_app_id: fixture.appId,
+    p_ref: 'shared',
+    p_known: [],
+    p_limit: 100
+  });
+  expect(download.status, JSON.stringify(download.body)).toBe(200);
+  const exchange = download.body as { head: string; more: boolean; commits: CommitExchangeRecordJson[] };
+  const exchanged = exchange.commits.map(json => parseCommitExchangeRecord(json));
+  expect(checkCommitExchangeBatch(exchanged)).toBeUndefined();
+  for (const commit of exchanged)
+    expect(computeCommitExchangeRecordFingerprint(commit), commit.commitId).toBe(commit.contentFingerprint);
+  expect(exchange).toMatchObject({ head: finalHistory.head, more: false });
+  expect(exchanged.map(commit => commit.kind).filter(kind => kind !== 'normal')).toEqual([
+    'baseline',
+    'merge',
+    'merge'
+  ]);
+  expect(exchanged[0].commitId).toBe(finalHistory.root);
+  expect(exchanged.at(-1)?.commitId).toBe(finalHistory.head);
   const merges = finalHistory.audit.filter(event => event.action === 'merge');
   expect(merges).toHaveLength(2);
   expect(
@@ -413,7 +479,8 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
   await page.getByRole('button', { name: '退出账号', exact: true }).click();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   const contexts = await page.evaluate(() => indexedDB.databases());
-  expect(contexts.some(database => database.name?.includes('rxdb-admin-collaboration-v1:['))).toBe(true);
+  // 本机库名带格式版本：v2 起待上传提交是平台交换记录（ADMIN-US-221）
+  expect(contexts.some(database => database.name?.includes('rxdb-admin-collaboration-v2:['))).toBe(true);
   await page.reload();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(page.getByText('离线机密草稿', { exact: true })).toHaveCount(0);
@@ -547,7 +614,7 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   const originalTask = forked.tasks.find(task => task.name === '双设备任务')!;
   expect(forkTask.originTaskId).toBe(originalTask.id);
   expect(forked.prs.find(pr => pr.title === '保留设备甲')?.taskId).toBe(forkTask.id);
-  expect((await commitOf(page, fixture, forkTask.head!)).authorId).toBe(fixture.admin.id);
+  expect((await commitOf(page, fixture, forkTask.head)).authorId).toBe(fixture.admin.id);
   expect(forkTask.head).not.toBe(originalTask.head);
   await otherContext.close();
 });
@@ -671,28 +738,27 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
   const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
-  /** 以 `current`（共享头 `head` 时的记录）为起点，提交一份把分类改名为 `id` 的字段级变更，并带上内容指纹。 */
-  const prepare = async (id: string, head: string | null, current: Records) => {
+  // 新工作区还没有合并：共享头就是根
+  const { root } = await state(page, fixture);
+  /** 以 `current`（共享头 `head` 时的记录）为起点，提交一份把分类改名为 `id` 的字段级变更（平台交换记录）。 */
+  const prepare = async (id: string, head: string, current: Records) => {
     await act(page, fixture, { type: 'task', id, name: id, expectedHead: head });
+    const changes = diffRecords(
+      current,
+      { category: { entity: 'AssetCategory', fields: { name: id } } },
+      () => 'assets'
+    );
     await act(page, fixture, {
       type: 'upload',
       taskId: id,
       expectedHead: head,
-      commits: [
-        await sealCommit({
-          id: `commit-${id}`,
-          parent: head,
-          authorId: fixture.admin.id,
-          message: id,
-          changes: diffRecords(current, { category: { entity: 'AssetCategory', fields: { name: id } } }, () => 'assets')
-        })
-      ]
+      commits: [exchangeCommit(`commit-${id}`, head, fixture.admin.id, id, changes)]
     });
     await act(page, fixture, { type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
     await act(page, fixture, { type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
     return act(page, fixture, { type: 'candidate', prId: id, expectedRevision: 1, resolutions: [] });
   };
-  const candidate = await prepare('permission', null, {});
+  const candidate = await prepare('permission', root, {});
   await act(page, fixture, {
     type: 'thread',
     id: 'thread',
@@ -733,7 +799,7 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
   ])
     await expect(other.getByRole('button', { name: label, exact: true })).toHaveCount(0);
   const operations: Record<string, Record<string, unknown>> = {
-    edit: { type: 'task', id: 'reviewer-task', name: 'Reviewer task', expectedHead: null },
+    edit: { type: 'task', id: 'reviewer-task', name: 'Reviewer task', expectedHead: root },
     comment: { type: 'reply', threadId: 'thread', body: 'Permitted reply', mentions: [] },
     review: {
       type: 'review',
@@ -750,7 +816,7 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
       prId: 'permission',
       candidateId: candidate['candidateId'],
       expectedSource: 'commit-permission',
-      expectedTarget: null
+      expectedTarget: root
     },
     manage: {
       type: 'invite',
@@ -896,26 +962,20 @@ test('六项权限独立生效，指定审核人与并行人数门槛不能绕�
   await secondContext.close();
 });
 
-/** 经命令建一个待审核的 PR：任务、一个新增分类的提交、PR、请求审核（共享分支为空时）。 */
+/** 经命令建一个待审核的 PR：任务、一个新增分类的提交（平台交换记录）、PR、请求审核（共享分支还是空的，头就是根）。 */
 async function preparePr(page: Page, fixture: Fixture, id: string) {
-  await act(page, fixture, { type: 'task', id, name: id, expectedHead: null });
+  const { head } = await state(page, fixture);
+  await act(page, fixture, { type: 'task', id, name: id, expectedHead: head });
+  const changes = diffRecords(
+    {},
+    { [`category-${id}`]: { entity: 'AssetCategory', fields: { name: id } } },
+    () => 'assets'
+  );
   await act(page, fixture, {
     type: 'upload',
     taskId: id,
-    expectedHead: null,
-    commits: [
-      await sealCommit({
-        id: `commit-${id}`,
-        parent: null,
-        authorId: fixture.admin.id,
-        message: id,
-        changes: diffRecords(
-          {},
-          { [`category-${id}`]: { entity: 'AssetCategory', fields: { name: id } } },
-          () => 'assets'
-        )
-      })
-    ]
+    expectedHead: head,
+    commits: [exchangeCommit(`commit-${id}`, head, fixture.admin.id, id, changes)]
   });
   await act(page, fixture, { type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
   await act(page, fixture, { type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });

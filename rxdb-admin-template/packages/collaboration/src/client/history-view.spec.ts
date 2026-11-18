@@ -1,5 +1,6 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { unitsOf } from '../commit.testing.js';
 import { CollaborationError, type Audit, type ChangeSet, type CommitContent, type Records } from '../model.js';
 import { assetSchema } from '../schema.testing.js';
 import type { CollaborationController } from './controller.js';
@@ -17,15 +18,25 @@ const rename = (id: string): ChangeSet => ({
   patch: { name: `Name ${id}` },
   inversePatch: { name: 'Before' }
 });
-const commit = (id: string, parent: string | null): CommitContent => ({
+/** 共享分支上的合并提交：第一父是上一个共享头（第一次合并是根），第二父是被合并的任务头。 */
+const commit = (id: string, parent: string): CommitContent => ({
   id,
-  parent,
+  parentIds: [parent, `task-${id}`],
+  kind: 'merge',
   authorId: 'u1',
   message: `Message ${id}`,
-  changes: [rename(id)],
+  createdAt: '2026-11-18T00:00:00.000Z',
+  changes: unitsOf([rename(id)], id),
   records: records(`Name ${id}`)
 });
-const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
+const metadata = ({ id, parentIds, kind, authorId, message, createdAt }: CommitContent) => ({
+  id,
+  parentIds,
+  kind,
+  authorId,
+  message,
+  createdAt
+});
 const event = (id: number): Audit => ({
   id: `e${id}`,
   actorId: 'u1',
@@ -44,7 +55,7 @@ afterEach(() => {
 });
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
-function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boolean; commitsEarlier?: boolean } = {}) {
+function setup(options: { permissions?: string[]; earlier?: boolean; commitsEarlier?: boolean } = {}) {
   const calls: string[] = [];
   const failures: unknown[] = [];
   const requested: string[] = [];
@@ -53,7 +64,7 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
     commits: {} as Record<string, CommitContent>,
     failure: undefined as unknown,
     // 分页接口按从新到旧返回：b 的父提交是 a
-    history: { commits: [metadata(commit('b', 'a')), metadata(commit('a', null))], hasEarlier: false } as
+    history: { commits: [metadata(commit('b', 'a')), metadata(commit('a', 'root'))], hasEarlier: false } as
       { commits: ReturnType<typeof metadata>[]; hasEarlier: boolean } | undefined
   };
   if (options.commitsEarlier) store.history!.hasEarlier = true;
@@ -63,6 +74,7 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
     user: { id: 'u1', email: 'u1@example.test', verified: true },
     snapshot: {
       auditCount: 6,
+      root: 'root',
       members: [{ id: 'u1', permissions: options.permissions ?? ['read', 'edit'] }]
     },
     commitHistory: (branch: unknown) => {
@@ -85,13 +97,11 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
     loadCommit: vi.fn(async (id: string) => {
       calls.push(`load:${id}`);
       if (store.failure) throw store.failure;
-      return store.commits[id] ?? commit(id, null);
+      return store.commits[id] ?? commit(id, 'root');
     }),
-    createTask: vi.fn(async (name: string) => {
-      calls.push(`create:${name}`);
-    }),
-    save: vi.fn(async (saved: Records) => {
-      calls.push(`save:${JSON.stringify(saved)}`);
+    restoreVersion: vi.fn(async (id: string, name: string) => {
+      calls.push(`restore:${id}:${name}`);
+      if (store.failure) throw store.failure;
     })
   } as unknown as CollaborationController;
   const perform: Perform = async work => {
@@ -101,9 +111,8 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
       failures.push(error);
     }
   };
-  const editor = { dirty: options.dirty ?? false, clear: vi.fn(() => calls.push('clear')) };
   const draw = (disclosures: Disclosures = { isOpen: key => open.has(key), reveal }) =>
-    historyView(controller, perform, editor, disclosures);
+    historyView(controller, perform, disclosures);
   const details = (root: Element, key: string) =>
     [...root.querySelectorAll('details')].find(node => node.dataset['disclosureKey'] === key)!;
   const button = (root: Element, name: string) =>
@@ -111,7 +120,6 @@ function setup(options: { permissions?: string[]; earlier?: boolean; dirty?: boo
   return {
     controller,
     perform,
-    editor,
     draw,
     details,
     button,
@@ -174,35 +182,30 @@ describe('历史与审计视图', () => {
     expect(details(root, 'shared-commit:a').querySelector('[data-loading]')).not.toBeNull();
     expect(details(root, 'shared-commit:b').querySelector('[data-loading]')).toBeNull();
     expect(requested).toEqual(['a']);
-    store.commits['a'] = commit('a', null);
+    store.commits['a'] = commit('a', 'root');
     root = draw();
     expect(details(root, 'shared-commit:a').querySelector('[data-loading]')).toBeNull();
     expect(details(root, 'shared-commit:a').querySelector('table')?.textContent).toContain('Name a');
     expect(details(root, 'shared-commit:b').querySelector('table')).toBeNull();
   });
-  it('折叠的提交里也有恢复按钮；点击先加载内容，再新建任务并保存该版本的记录', async () => {
-    const { draw, details, button, calls, failures, editor, store } = setup();
-    store.commits['b'] = commit('b', 'a');
+  it('折叠的提交里也有恢复按钮；点击按这个提交恢复到新任务（平台 restore()），任务名取提交消息，不先读提交内容', async () => {
+    const { draw, details, button, calls, failures } = setup();
     const restore = button(details(draw(), 'shared-commit:b'), '从此版本创建恢复草稿')!;
     expect(restore).toBeDefined();
     restore.click();
     await flush();
     expect(failures).toEqual([]);
-    expect(calls).toEqual(['load:b', 'create:恢复 Message b', `save:${JSON.stringify(records('Name b'))}`, 'clear']);
-    expect(editor.clear).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(['restore:b:恢复 Message b']);
   });
-  it('内容加载失败时不新建任务；编辑器有未保存输入时同样拒绝，且不发请求', async () => {
+  it('恢复被拒（例如侧枝上的版本）时把原因交给统一的报错路径', async () => {
     const failed = setup();
-    failed.store.failure = new CollaborationError('internal', '读取失败');
+    failed.store.failure = new CollaborationError('restore', '所选版本只在合并带进来的侧枝上，无法直接恢复');
     failed.button(failed.details(failed.draw(), 'shared-commit:a'), '从此版本创建恢复草稿')!.click();
     await flush();
-    expect(failed.failures).toEqual([expect.objectContaining({ message: '读取失败' })]);
-    expect(failed.calls).toEqual(['load:a']);
-    const dirty = setup({ dirty: true });
-    dirty.button(dirty.details(dirty.draw(), 'shared-commit:a'), '从此版本创建恢复草稿')!.click();
-    await flush();
-    expect(dirty.failures).toEqual([expect.objectContaining({ message: '先保存当前输入' })]);
-    expect(dirty.calls).toEqual([]);
+    expect(failed.failures).toEqual([
+      expect.objectContaining({ message: '所选版本只在合并带进来的侧枝上，无法直接恢复' })
+    ]);
+    expect(failed.calls).toEqual(['restore:a:恢复 Message a']);
   });
   it('共享历史按共享分支分页读取，按时间正序列出：旧的在上', () => {
     const { draw, branches } = setup();
@@ -289,7 +292,7 @@ describe('与重绘循环的配合', () => {
     second.dispatchEvent(new Event('toggle'));
     second.dispatchEvent(new Event('toggle'));
     expect(renders()).toBe(2);
-    store.commits['a'] = commit('a', null);
+    store.commits['a'] = commit('a', 'root');
     render();
     const third = item(host, 'shared-commit:a');
     expect(third.open).toBe(true);

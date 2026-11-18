@@ -35,7 +35,9 @@ export interface ReferenceSummary {
   name: string;
   revision: number;
   schemaVersion: number;
-  head: string | null;
+  head: string;
+  /** 共享分支的根。 */
+  root: string;
   policy: Policy;
   members: Member[];
   tasks: Task[];
@@ -62,6 +64,7 @@ export function referenceSummary(state: Workspace, user: Identity): ReferenceSum
     revision: state.revision,
     schemaVersion: state.schemaVersion,
     head: state.head,
+    root: state.root,
     policy: state.policy,
     members: Object.values(state.members).filter(m => m.active),
     tasks: Object.values(state.tasks),

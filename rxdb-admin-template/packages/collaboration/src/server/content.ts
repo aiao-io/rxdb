@@ -10,12 +10,12 @@ import type { CommitStore } from './store.js';
  * 上传起点的内容：任务在提交 `from` 时，被新提交改动到的那几条记录（共同起点时的共享记录加上任务在起点之后的变更）。
  * 只按这些记录推导，成本与任务分叉以来的改动有关，与历史长度无关；找不到可信共同起点时为 null。
  */
-async function parentContent(store: CommitStore, content: ParentContent, from: string | null): Promise<Records | null> {
+async function parentContent(store: CommitStore, content: ParentContent, from: string): Promise<Records | null> {
   if (!content.touched.length) return {};
   return taskRecordsAt(store, content.shared, content.base, from, content.touched);
 }
 /**
- * 另存分叉的父内容：第一个新提交的父提交必须落在原任务头到共同起点（含）的路径上，取它那一刻的内容；
+ * 另存分叉的父内容：第一个新提交的第一父必须落在原任务头到共同起点（含）的路径上，取它那一刻的内容；
  * 不在路径上（链不合法，引擎会拒绝）时为 null，不沿着客户端声明的任意提交回溯。
  */
 async function forkContent(
@@ -26,8 +26,7 @@ async function forkContent(
 ): Promise<Records | null> {
   const first = plan.chain.find(link => !existing.has(link.id));
   if (!first) return {};
-  const trusted = first.parent === null ? plan.content.base === null : path.has(first.parent);
-  return trusted ? parentContent(store, plan.content, first.parent) : null;
+  return first.parent !== null && path.has(first.parent) ? parentContent(store, plan.content, first.parent) : null;
 }
 
 /** 按 {@link Plan} 读取命令需要的数据；每种命令只做它声明过的读取。 */
@@ -45,7 +44,7 @@ export async function preload(store: CommitStore, plan: Plan): Promise<Facts> {
     const existing = await store.commits(plan.ids);
     const path = await store.path(plan.content.head, plan.content.base);
     const ids = path.links.map(link => link.id);
-    if (path.reached && plan.content.base !== null) ids.push(plan.content.base);
+    if (path.reached) ids.push(plan.content.base);
     const set = new Set(ids);
     return { ...noFacts, existing, path: set, content: await forkContent(store, plan, existing, set) };
   }
@@ -53,7 +52,7 @@ export async function preload(store: CommitStore, plan: Plan): Promise<Facts> {
     const inputs = await mergeInputs(store, plan);
     const previous: Record<string, Records> = {};
     for (const { candidate, recordIds } of plan.reopen)
-      previous[candidate.id] = await candidateRecords(store, plan.head, candidate, recordIds);
+      previous[candidate.id] = await candidateRecords(store, plan.shared, candidate, recordIds);
     return { ...noFacts, inputs, previous };
   }
   if (plan.type === 'records') return { ...noFacts, records: await store.shared() };
@@ -61,10 +60,10 @@ export async function preload(store: CommitStore, plan: Plan): Promise<Facts> {
   return noFacts;
 }
 async function anchorRows(store: CommitStore, plan: Extract<Plan, { type: 'anchor' }>) {
-  const { candidate, recordId, head } = plan;
+  const { candidate, recordId, shared } = plan;
   const ids = [recordId];
-  const target = await sharedRecordsAt(store, head, candidate.target, ids);
-  const source = await taskRecordsAt(store, head, candidate.base, candidate.source, ids);
+  const target = await sharedRecordsAt(store, shared, candidate.target, ids);
+  const source = await taskRecordsAt(store, shared, candidate.base, candidate.source, ids);
   demand(target && source, 'ancestry', '找不到可信共同起点');
   const result = applyChanges(
     structuredClone(target),

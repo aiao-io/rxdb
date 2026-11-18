@@ -1,9 +1,9 @@
-import type { CommitContent, CommitSummary } from '../model.js';
+import type { CommitSummary } from '../model.js';
 import type { CollaborationController } from './controller.js';
 import { changeTable } from './diff-table.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
-import { readOnlyRecords, type TaskEditor } from './editor.js';
 import { button, element, loading, section, type Perform } from './elements.js';
+import { readOnlyRecords } from './records-view.js';
 import { tx } from './translate.js';
 
 /** 共享分支：历史只列共享分支上的提交（即各次合并产生的提交）。 */
@@ -17,7 +17,6 @@ const shared = { branch: 'shared' } as const;
 export function historyView(
   controller: CollaborationController,
   perform: Perform,
-  editor: Pick<TaskEditor, 'dirty' | 'clear'>,
   disclosures: Disclosures
 ): HTMLElement {
   const data = controller.snapshot!;
@@ -32,7 +31,7 @@ export function historyView(
     view.append(button('加载更早的提交', () => perform(() => controller.loadEarlierCommits(shared))));
   const canEdit = data.members.find(m => m.id === controller.user?.id)?.permissions.includes('edit');
   for (const commit of [...history.commits].reverse())
-    view.append(commitHistory(controller, perform, editor, disclosures, commit, !!canEdit));
+    view.append(commitHistory(controller, perform, disclosures, commit, !!canEdit));
   return view;
 }
 
@@ -62,15 +61,20 @@ function auditTimeline(controller: CollaborationController, perform: Perform, di
   return details;
 }
 
+/** 提交的第一父在界面上的写法：共享分支根（以及没有父的提交）显示为「空」。 */
+function parentText(controller: CollaborationController, commit: CommitSummary): string {
+  const parent = commit.parentIds[0];
+  return parent === undefined || parent === controller.snapshot?.root ? tx('空') : parent;
+}
 /**
  * 一个共享提交：摘要与父提交始终显示；展开后才生成内容：该时刻的记录表，以及这个提交自身的字段级变更表
  * （合并提交就是这次合并对共享数据的改动，取自服务端变更表，不再出现在审计详情里）。
- * 恢复按钮总是在，点击后先等内容加载完成。
+ * 恢复按钮总是在：从当前共享版本新建任务，在它的分支上把业务表恢复成这个提交的数据（平台 `restore()`），
+ * 差异成为未提交改动；共享头与历史都不动（ADMIN-US-213 AC#4）。
  */
 function commitHistory(
   controller: CollaborationController,
   perform: Perform,
-  editor: Pick<TaskEditor, 'dirty' | 'clear'>,
   disclosures: Disclosures,
   commit: CommitSummary,
   canEdit: boolean
@@ -78,24 +82,20 @@ function commitHistory(
   const { details, open } = lazyDetails(`shared-commit:${commit.id}`, disclosures);
   details.append(
     element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`),
-    element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') }), 'text-xs')
+    // 第一父是上一个共享头；第一次合并的第一父是共享分支根，显示为「空」，与没有任何合并时一致
+    element('p', tx('父提交：{v0}', { v0: parentText(controller, commit) }), 'text-xs')
   );
   if (open) {
     const content = controller.commitContent(commit.id);
     const schema = controller.schema();
-    if (content && schema) details.append(readOnlyRecords(content.records, schema), changeTable(content.changes));
+    if (content && schema)
+      details.append(readOnlyRecords(content.records, schema), changeTable(content.changes, schema));
     else details.append(loading());
   }
   if (canEdit)
     details.append(
       button('从此版本创建恢复草稿', () =>
-        perform(async () => {
-          if (editor.dirty) throw new Error('先保存当前输入');
-          const content: CommitContent = await controller.loadCommit(commit.id);
-          await controller.createTask(tx('恢复 {v0}', { v0: commit.message }));
-          await controller.save(content.records);
-          editor.clear();
-        })
+        perform(() => controller.restoreVersion(commit.id, tx('恢复 {v0}', { v0: commit.message })))
       )
     );
   return details;

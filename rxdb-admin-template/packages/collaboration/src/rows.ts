@@ -30,22 +30,22 @@ export interface PrRow {
   candidate_id: string | null;
   subscribers: string[];
 }
-/** 任务行（含引用表里的任务头）。 */
+/** 任务行（含引用表里的任务头；共享分支有根，共同起点与任务头都不为空）。 */
 export interface TaskRow {
   id: string;
   name: string;
   owner_id: string;
-  base: string | null;
+  base: string;
   origin_task_id: string | null;
-  head: string | null;
+  head: string;
 }
 /** 候选行；摘要读取时 `changes` 为空数组。 */
 export interface CandidateRow {
   id: string;
   pr_id: string;
-  base: string | null;
+  base: string;
   source: string;
-  target: string | null;
+  target: string;
   schema_version: number;
   policy_version: number;
   resolutions: StoredCandidate['resolutions'];

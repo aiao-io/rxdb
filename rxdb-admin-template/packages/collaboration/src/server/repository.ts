@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { uuidv7 } from '../commit.js';
-import { CollaborationError, demand, type Command, type Identity, type Workspace } from '../model.js';
+import { CollaborationError, demand, type Command, type Commit, type Identity, type Workspace } from '../model.js';
+import { unavailable, unavailableReason } from './availability.js';
 import { bootstrap, type EngineOptions } from './engine.js';
 import { PgCommitStore } from './pg-store.js';
 import { PgWorkspaceLoader, PgWorkspaceWriter, type Queryable } from './pg-workspace.js';
@@ -23,6 +24,28 @@ function retryable(error: unknown): boolean {
   const code = (error as Error & { code?: unknown }).code;
   return code === '40P01' || code === '40001' || code === '23505';
 }
+/**
+ * 每个事务的时限，与事务一起开启（`SET LOCAL`，随事务结束失效）：Supavisor / PgBouncer 的 transaction 模式下连接不保留会话状态，
+ * 也不转发 statement_timeout 之类的启动参数，所以不靠会话级设置。等锁超过 10 秒、单条语句超过 30 秒、事务中途空闲超过 15 秒
+ * （例如入口进程在事务中途被平台终止）都会让数据库回滚这个事务，命令按「暂时不可用」返回，客户端稍后用原幂等键重发。
+ */
+export const transactionLimits = { statementTimeoutMs: 30_000, lockTimeoutMs: 10_000, idleTimeoutMs: 15_000 };
+/** 开启命令事务并设置时限：一条简单查询，与单独的 BEGIN 同样只有一次往返。 */
+const begin = [
+  'BEGIN',
+  `SET LOCAL statement_timeout = ${transactionLimits.statementTimeoutMs}`,
+  `SET LOCAL lock_timeout = ${transactionLimits.lockTimeoutMs}`,
+  `SET LOCAL idle_in_transaction_session_timeout = ${transactionLimits.idleTimeoutMs}`
+].join('; ');
+/**
+ * 重试用尽或不能重试的失败交给调用方之前：连接池耗尽、连接中断、数据库超时与重试用尽的并发冲突转成可重试的 `unavailable`
+ * （见 `availability.ts`，HTTP 层回 503 加 Retry-After），其余原样抛出。
+ */
+function surfaced(error: unknown): unknown {
+  if (error instanceof RetryCommand) return unavailable('conflict');
+  const reason = unavailableReason(error);
+  return reason ? unavailable(reason) : error;
+}
 
 /**
  * 协作数据的 PostgreSQL 仓储，只负责写：初始化与命令。工作区不是一行 JSONB：治理行、成员、策略、数据模式、任务与引用、PR、
@@ -37,8 +60,9 @@ export class CollaborationRepository {
     private readonly options: EngineOptions = {}
   ) {}
   /**
-   * 初始化工作区（可信服务端部署命令调用）：同一事务里建出治理行、第一版策略、初始管理员与第一个数据模式版本。
-   * 参数与已有团队的稳定键一致时返回既有团队，不重置策略、权限与数据模式（新版本经 `schema` 命令登记）。
+   * 初始化工作区（可信服务端部署命令调用）：同一事务里建出治理行、第一版策略、初始管理员、第一个数据模式版本，
+   * 以及共享分支的根（`baseline` 提交，共享头的初值）。参数与已有团队的稳定键一致时返回既有团队，
+   * 不重置策略、权限与数据模式，也不再写根（新版本经 `schema` 命令登记）。
    */
   async initialize(input: Parameters<typeof bootstrap>[0]) {
     return this.transaction(async client => {
@@ -60,17 +84,22 @@ export class CollaborationRepository {
         );
         return { teamId: input.teamId, appId: input.appId };
       }
-      await this.create(client, bootstrap(input, { now: Date.now(), id: newId }));
+      const { state, root } = bootstrap(input, { now: Date.now(), id: newId });
+      await this.create(client, state, root);
       return { teamId: input.teamId, appId: input.appId };
     });
   }
-  /** 执行一条命令：命令只锁它涉及的行；遇到需要重来的并发情形时整体回滚并重试（最多 {@link attempts} 次）。 */
+  /**
+   * 执行一条命令：命令只锁它涉及的行；遇到需要重来的并发情形时整体回滚并重试（最多 {@link attempts} 次）。
+   * 连接池耗尽、连接中断、数据库超时以及重试用尽的并发冲突以 `unavailable` 抛出（可重试的明确错误），事务已整体回滚，
+   * 客户端用同一个操作 ID 重发时按回执裁决，不会重复执行。
+   */
   async operation(user: Identity, teamId: string, appId: string, command: Command) {
     for (let attempt = 1; ; attempt++) {
       try {
         return await this.transaction(client => this.execute(client, user, teamId, appId, command));
       } catch (error) {
-        if (attempt >= attempts || !retryable(error)) throw error;
+        if (attempt >= attempts || !retryable(error)) throw surfaced(error);
       }
     }
   }
@@ -84,10 +113,10 @@ export class CollaborationRepository {
     return runCommand(store, user, command, { now: Date.now(), id: newId }, this.options);
   }
   /**
-   * 新建工作区的全部初始行：治理行、第一版策略、第一个数据模式版本、初始管理员、空的共享引用与共享头投影、
+   * 新建工作区的全部初始行：治理行、第一版策略、第一个数据模式版本、初始管理员、共享分支的根提交、指向根的共享引用与共享头投影、
    * 版本行（修订号 0、一条审计）和初始化审计事件，同一个事务里落地，任一步失败整体回滚。
    */
-  private async create(client: Queryable, state: Workspace): Promise<void> {
+  private async create(client: Queryable, state: Workspace, root: Commit): Promise<void> {
     const scope = [state.teamId, state.appId];
     await client.query(
       `INSERT INTO admin_private.workspaces(team_id, app_id, name, bootstrap_key, initial_admin_id, schema_version, policy_version)
@@ -109,11 +138,15 @@ export class CollaborationRepository {
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [...scope, member.id, member.email, member.permissions, member.generation, member.active]
       );
-    await client.query(
-      `INSERT INTO admin_private.refs(team_id, app_id, ref, head) VALUES ($1, $2, 'shared', NULL)`,
-      scope
-    );
-    await client.query('INSERT INTO public.admin_shared(team_id, app_id, head) VALUES ($1, $2, NULL)', scope);
+    await new PgCommitStore(client, state.teamId, state.appId).append([{ record: root, candidateId: null }]);
+    await client.query(`INSERT INTO admin_private.refs(team_id, app_id, ref, head) VALUES ($1, $2, 'shared', $3)`, [
+      ...scope,
+      root.commitId
+    ]);
+    await client.query('INSERT INTO public.admin_shared(team_id, app_id, head) VALUES ($1, $2, $3)', [
+      ...scope,
+      root.commitId
+    ]);
     await client.query(
       'INSERT INTO public.admin_workspace_versions(team_id, app_id, revision, audit_count) VALUES ($1, $2, $3, $4)',
       [...scope, state.revision, state.audit.length]
@@ -125,18 +158,32 @@ export class CollaborationRepository {
         [...scope, event.id, event.actorId, event.action, event, event.at]
       );
   }
+  /**
+   * 在一个事务里执行 `work`：开启时设置时限（{@link transactionLimits}），失败时回滚。
+   * 连接在借出期间被对端断开（例如 Supavisor / PgBouncer 排队超时后关闭连接）时，pg 在这个连接上发出 error 事件；
+   * 借出期间连接池不替它监听，没有监听者的 error 事件会让 Node 进程或 Edge Function 的 worker 直接崩溃，所以这里接住它、
+   * 把连接记为已损坏，归还时从连接池里销毁（回滚失败时同样处理）。抛出的仍是原始错误，由 {@link surfaced} 归类。
+   */
   private async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
+    let broken: Error | undefined;
+    const lost = (error: Error) => {
+      broken ??= error;
+    };
+    client.on('error', lost);
     try {
-      await client.query('BEGIN');
+      await client.query(begin);
       const result = await work(client);
       await client.query('COMMIT');
       return result;
     } catch (error) {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK').catch((failure: unknown) => {
+        broken = failure instanceof Error ? failure : new Error(String(failure));
+      });
       throw error;
     } finally {
-      client.release();
+      client.off('error', lost);
+      client.release(broken);
     }
   }
 }

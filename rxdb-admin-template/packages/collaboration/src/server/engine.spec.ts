@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sealCommit } from '../commit.js';
+import { taskCommit, unitsOf } from '../commit.testing.js';
 import { candidateSummary } from '../derive.js';
 import {
   CollaborationError,
@@ -37,18 +37,17 @@ const act = (
 /** 共享分支当前的全部记录。 */
 const shared = async (state: Workspace) => (await space(state).records(admin)).records;
 /** 一个提交（含任务提交与合并提交）的完整记录。 */
-const contentOf = async (state: Workspace, id: string | null) =>
-  id === null ? {} : (await space(state).commit(admin, id)).records;
+const contentOf = async (state: Workspace, id: string) => (await space(state).commit(admin, id)).records;
 /** 相对父提交内容的整单提交：把「这个提交之后的记录」换算成字段级变更并封上指纹。 */
 async function commit(
   state: Workspace,
   id: string,
-  parent: string | null,
+  parent: string,
   after: Records,
   message = 'Assets',
   authorId = admin.id
 ): Promise<Commit> {
-  return sealCommit({ id, parent, authorId, message, changes: diffAssets(await contentOf(state, parent), after) });
+  return taskCommit({ id, parent, authorId, message, changes: diffAssets(await contentOf(state, parent), after) });
 }
 async function invite(state: Workspace) {
   await act(state, {
@@ -102,13 +101,26 @@ function approve(state: Workspace, prId: string, candidateId: string, actor = re
     actor
   );
 }
+describe('初始化不泄露初始化密钥', () => {
+  it('审计事件不含初始化密钥：成员可经审计投影读到每一条审计', () => {
+    const key = `bootstrap-key-${crypto.randomUUID()}`;
+    const workspace = MemoryWorkspace.create(
+      { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: key, admin, schema: assetSchema },
+      env()
+    );
+    expect(workspace.state.audit).toHaveLength(1);
+    expect(JSON.stringify(workspace.state.audit)).not.toContain(key);
+  });
+});
+
 describe('authoritative collaboration transactions', () => {
   it('bootstraps an empty workspace; uninvited users cannot read or claim admin', async () => {
     const state = create();
     expect(await shared(state)).toEqual({});
-    expect(state.head).toBeNull();
+    // 共享分支从初始化写下的 baseline 根起步：头就是根
+    expect(state.head).toBe(state.root);
     await expect(space(state).summary(reviewer)).rejects.toThrow(/权限/);
-    await expect(act(state, { type: 'task', id: 'x', name: 'x', expectedHead: null }, reviewer)).rejects.toThrow(
+    await expect(act(state, { type: 'task', id: 'x', name: 'x', expectedHead: state.root }, reviewer)).rejects.toThrow(
       /权限/
     );
   });
@@ -141,12 +153,12 @@ describe('authoritative collaboration transactions', () => {
   });
   it('retries preserve the original receipt after the remote head advances, without accepting a fork or forged authors', async () => {
     const state = create();
-    await act(state, { type: 'task', id: 't', name: 't', expectedHead: null });
+    await act(state, { type: 'task', id: 't', name: 't', expectedHead: state.root });
     const command = {
       type: 'upload',
       taskId: 't',
-      expectedHead: null,
-      commits: [await commit(state, 'a', null, records(), 'first')]
+      expectedHead: state.root,
+      commits: [await commit(state, 'a', state.root, records(), 'first')]
     };
     await act(state, command, admin, 'upload');
     await act(state, {
@@ -157,7 +169,7 @@ describe('authoritative collaboration transactions', () => {
     expect((await act(state, command, admin, 'upload'))['head']).toBe('a');
     expect(state.tasks.t.head).toBe('b');
     await expect(
-      act(state, { ...command, commits: [await commit(state, 'c', null, records(), 'first')] })
+      act(state, { ...command, commits: [await commit(state, 'c', state.root, records(), 'first')] })
     ).rejects.toThrow(/分叉/);
     await expect(
       act(state, {
@@ -177,7 +189,7 @@ describe('authoritative collaboration transactions', () => {
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: 'commit1',
-      expectedTarget: null
+      expectedTarget: state.root
     };
     await expect(act(state, merge)).rejects.toThrow(/批准/);
     await approve(state, 'pr1', candidate.id);
@@ -208,7 +220,13 @@ describe('authoritative collaboration transactions', () => {
     await act(state, { type: 'policy', stages: [], expectedVersion: 1 });
     await act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
     const current = state.prs.pr1.candidateId!;
-    const merge = { type: 'merge', prId: 'pr1', candidateId: current, expectedSource: 'commit1', expectedTarget: null };
+    const merge = {
+      type: 'merge',
+      prId: 'pr1',
+      candidateId: current,
+      expectedSource: 'commit1',
+      expectedTarget: state.root
+    };
     await expect(act(state, merge)).rejects.toThrow(/要求修改/);
     await act(state, {
       type: 'dismiss',
@@ -245,7 +263,7 @@ describe('authoritative collaboration transactions', () => {
         prId: 'pr1',
         candidateId: candidate.id,
         expectedSource: 'commit1',
-        expectedTarget: null
+        expectedTarget: state.root
       })
     ).rejects.toThrow(/批准/);
   });
@@ -259,7 +277,7 @@ describe('authoritative collaboration transactions', () => {
       prId: 'pr1',
       candidateId: c.id,
       expectedSource: 'commit1',
-      expectedTarget: null
+      expectedTarget: state.root
     });
     const base = state.head;
     await ready(state, '2', 120);
@@ -340,7 +358,7 @@ describe('governance, discussion and identity regressions', () => {
     expect(state.reviews[0]).toMatchObject({ candidateId: null, source: 'commit1', decision: 'request_changes' });
     await act(state, { type: 'candidate', prId: 'pr1', expectedRevision: state.prs.pr1.revision, resolutions: [] });
     const candidateId = state.prs.pr1.candidateId!;
-    const merge = { type: 'merge', prId: 'pr1', candidateId, expectedSource: 'commit1', expectedTarget: null };
+    const merge = { type: 'merge', prId: 'pr1', candidateId, expectedSource: 'commit1', expectedTarget: state.root };
     await expect(act(state, merge)).rejects.toThrow(/要求修改/);
     await approve(state, 'pr1', candidateId, reviewer, 1);
     await act(state, merge);
@@ -429,8 +447,8 @@ describe('governance, discussion and identity regressions', () => {
       id: 'fork',
       name: 'Fork',
       taskId: 'task1',
-      expectedHead: null,
-      commits: [await commit(state, 'local', null, records(999), 'Local fork')]
+      expectedHead: state.root,
+      commits: [await commit(state, 'local', state.root, records(999), 'Local fork')]
     });
     expect(state.tasks.task1.head).toBe(candidate.source);
     expect(state.tasks.fork.head).toBe('local');
@@ -475,7 +493,7 @@ describe('governance, discussion and identity regressions', () => {
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: 'commit1',
-      expectedTarget: null
+      expectedTarget: state.root
     };
     await expect(act(state, merge)).rejects.toThrow(/讨论/);
     await act(state, { type: 'resolve_thread', threadId: 'thread', resolved: true, expectedRevision: 0 }, reviewer);
@@ -604,7 +622,7 @@ describe('governance, discussion and identity regressions', () => {
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: 'commit1',
-      expectedTarget: null
+      expectedTarget: state.root
     };
     await expect(act(state, merge)).rejects.toThrow(/批准/);
     await act(state, { ...review, expectedRevision: 1 }, reviewer);
@@ -635,7 +653,7 @@ describe('governance, discussion and identity regressions', () => {
       target: 'shared'
     });
     expect(state.prs.intent).toMatchObject({ description: 'Approved procurement scope', target: 'shared' });
-    expect(state.head).toBeNull();
+    expect(state.head).toBe(state.root);
     await expect(
       act(state, {
         type: 'pr',
@@ -734,7 +752,7 @@ describe('cross-feature acceptance boundaries', () => {
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: candidate.source,
-      expectedTarget: null
+      expectedTarget: state.root
     };
     await expect(act(state, merge)).rejects.toThrow(/要求修改/);
     await expect(
@@ -783,7 +801,7 @@ describe('cross-feature acceptance boundaries', () => {
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: candidate.source,
-      expectedTarget: null
+      expectedTarget: state.root
     };
     await expect(act(state, merge)).rejects.toThrow(/批准/);
     await act(state, { ...review, stageId: 'cost', expectedRevision: 1 }, reviewer);
@@ -803,14 +821,14 @@ describe('cross-feature acceptance boundaries', () => {
     expect(state.candidates[original.id]).toEqual(original);
     state.tasks.task1.base = 'missing';
     await expect(act(state, { ...make, expectedRevision: state.prs.pr1.revision })).rejects.toThrow(/共同起点/);
-    state.tasks.task1.base = null;
+    state.tasks.task1.base = state.root;
     await approve(state, 'pr1', candidate.id);
     await act(state, {
       type: 'merge',
       prId: 'pr1',
       candidateId: candidate.id,
       expectedSource: candidate.source,
-      expectedTarget: null
+      expectedTarget: state.root
     });
     const before = structuredClone(state);
     await expect(
@@ -848,7 +866,7 @@ async function merged() {
     prId: 'pr1',
     candidateId: candidate.id,
     expectedSource: 'commit1',
-    expectedTarget: null
+    expectedTarget: state.root
   });
   return { state, candidate };
 }
@@ -864,17 +882,28 @@ describe('workspace summary', () => {
     const shared = await space(state).history(reviewer, { branch: 'shared' });
     const task = await space(state).history(reviewer, { taskId: 'task1' });
     expect(task).toEqual({
-      commits: [{ id: 'commit1', parent: null, authorId: 'admin', message: 'Assets' }],
+      commits: [
+        {
+          id: 'commit1',
+          parentIds: [state.root],
+          kind: 'normal',
+          authorId: 'admin',
+          message: 'Assets',
+          createdAt: expect.any(String)
+        }
+      ],
       nextBefore: null
     });
+    // 合并提交有两个父：第一父是合并时的共享头（这里是根），第二父是任务头；根本身不列在历史里
     expect(shared).toEqual({
       commits: [
         {
           id: state.head,
-          parent: null,
+          parentIds: [state.root, 'commit1'],
+          kind: 'merge',
           authorId: 'admin',
           message: 'Merge Asset update',
-          mergeSource: 'commit1',
+          createdAt: expect.any(String),
           candidateId: candidate.id
         }
       ],
@@ -883,7 +912,8 @@ describe('workspace summary', () => {
     for (const item of [...shared.commits, ...task.commits]) {
       expect(item).not.toHaveProperty('records');
       expect(item).not.toHaveProperty('changes');
-      expect(item).not.toHaveProperty('fingerprint');
+      expect(item).not.toHaveProperty('units');
+      expect(item).not.toHaveProperty('contentFingerprint');
     }
     expect(Object.keys(summary.candidates)).toEqual([candidate.id]);
     expect(summary.candidates[candidate.id]).not.toHaveProperty('records');
@@ -910,11 +940,11 @@ describe('workspace summary', () => {
     expect(summary.checks).toEqual(current.checks);
     expect(summary.conflicts).toEqual(current.conflicts);
     expect(summary.resolutions).toEqual(current.resolutions);
-    expect(summary).toMatchObject({ source: 'dangling', target: null, base: null, prId: 'pr1' });
+    expect(summary).toMatchObject({ source: 'dangling', target: state.root, base: state.root, prId: 'pr1' });
   });
   it('does not grow with the number of records in a commit', async () => {
     const state = create();
-    await act(state, { type: 'task', id: 'big', name: 'Big', expectedHead: null });
+    await act(state, { type: 'task', id: 'big', name: 'Big', expectedHead: state.root });
     const rows = Object.fromEntries(
       Array.from({ length: 1000 }, (_, index) => [
         `c${index}`,
@@ -924,8 +954,8 @@ describe('workspace summary', () => {
     await act(state, {
       type: 'upload',
       taskId: 'big',
-      expectedHead: null,
-      commits: [await commit(state, 'huge', null, rows, 'Huge')]
+      expectedHead: state.root,
+      commits: [await commit(state, 'huge', state.root, rows, 'Huge')]
     });
     expect(JSON.stringify(rows).length).toBeGreaterThan(50_000);
     expect(JSON.stringify(await space(state).summary(admin)).length).toBeLessThan(4_000);
@@ -935,7 +965,7 @@ describe('workspace summary', () => {
   it('returns the latest 50 audit events in chronological order together with the total count', async () => {
     const state = create();
     for (let index = 0; index < 60; index++)
-      await act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: null });
+      await act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: state.root });
     const summary = await space(state).summary(admin);
     expect(state.audit).toHaveLength(61);
     expect(summary.auditCount).toBe(61);
@@ -984,24 +1014,36 @@ describe('on-demand reads', () => {
     const workspace = space(state);
     expect(await workspace.records(reviewer)).toEqual({ head: state.head, records: records(100) });
     expect((await workspace.records(reviewer)).records['asset'].fields['purchasePrice']).toBe(100);
-    // 提交内容带着它自身相对父提交的字段级变更：任务提交是上传的变更，合并提交是这次合并对共享数据的改动
+    // 提交内容带着它自身相对第一父的单元：任务提交是上传的单元，合并提交是这次合并对共享数据的改动
+    const units = (unitId: string) => unitsOf(diffAssets({}, records(100)), unitId);
     expect(await workspace.commit(reviewer, 'commit1')).toEqual({
       id: 'commit1',
-      parent: null,
+      parentIds: [state.root],
+      kind: 'normal',
       authorId: 'admin',
       message: 'Assets',
-      changes: diffAssets({}, records(100)),
+      createdAt: expect.any(String),
+      changes: units('commit1'),
       records: records(100)
     });
-    expect(await workspace.commit(reviewer, state.head!)).toEqual({
+    expect(await workspace.commit(reviewer, state.head)).toEqual({
       id: state.head,
-      parent: null,
+      parentIds: [state.root, 'commit1'],
+      kind: 'merge',
       authorId: 'admin',
       message: 'Merge Asset update',
-      mergeSource: 'commit1',
+      createdAt: expect.any(String),
       candidateId: candidate.id,
-      changes: diffAssets({}, records(100)),
+      changes: units(state.head),
       records: records(100)
+    });
+    // 共享分支根：没有父、没有作者、没有单元，内容为空记录
+    expect(await workspace.commit(reviewer, state.root)).toMatchObject({
+      parentIds: [],
+      kind: 'baseline',
+      authorId: null,
+      changes: [],
+      records: {}
     });
     expect(await workspace.candidate(reviewer, candidate.id)).toEqual({
       ...candidateSummary(state.candidates[candidate.id]),
@@ -1011,13 +1053,13 @@ describe('on-demand reads', () => {
   });
   it('serves an empty shared branch before the first merge', async () => {
     const state = create();
-    expect(await space(state).records(admin)).toEqual({ head: null, records: {} });
+    expect(await space(state).records(admin)).toEqual({ head: state.root, records: {} });
   });
   it('answers unknown, inherited and cross-kind ids with not_found', async () => {
     const { state, candidate } = await merged();
     for (const id of ['missing', 'constructor', '__proto__', 'toString', candidate.id])
       expect(await codeOf(() => space(state).commit(admin, id)), `commit ${id}`).toBe('not_found');
-    for (const id of ['missing', 'constructor', '__proto__', 'commit1', state.head!])
+    for (const id of ['missing', 'constructor', '__proto__', 'commit1', state.head])
       expect(await codeOf(() => space(state).candidate(admin, id)), `candidate ${id}`).toBe('not_found');
   });
   it('requires an active, verified member with read permission for every read', async () => {
@@ -1112,7 +1154,7 @@ describe('audit pages', () => {
   it('defaults to 50 events and returns the stored events unchanged', async () => {
     const state = create();
     for (let index = 0; index < 60; index++)
-      await act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: null });
+      await act(state, { type: 'task', id: `task-${index}`, name: `Task ${index}`, expectedHead: state.root });
     const page = auditPage(state, admin, {});
     expect(page.events).toHaveLength(50);
     expect(page.events[0]).toEqual(state.audit.at(-1));

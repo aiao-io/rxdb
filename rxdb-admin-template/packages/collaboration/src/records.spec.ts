@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { checkRecords } from './checks.js';
-import { sealCommit } from './commit.js';
-import type { Records } from './model.js';
-import { assertRecords, canonical, mergeRecords, sortRecords } from './records.js';
-import { assertRecordsFit } from './schema.js';
+import { taskCommit } from './commit.testing.js';
+import type { Records, Resolution } from './model.js';
+import { assertRecords, canonical, mergeRecords as merge3, sortRecords } from './records.js';
+import { assertRecordsFit, systemFieldOf } from './schema.js';
 import { assetSchema, diffAssets } from './schema.testing.js';
 import { parseCommand } from './server/input.js';
+/** 资产清单下的三方合并：系统字段按清单认出。 */
+const mergeRecords = (base: Records, source: Records, target: Records, resolutions: Resolution[]) =>
+  merge3(base, source, target, resolutions, systemFieldOf(assetSchema));
 const base: Records = { c: { entity: 'AssetCategory', fields: { name: 'Category', description: 'Old' } } };
 describe('three-way data contract', () => {
   it('exposes deletion of a parent against a concurrent child edit and checks the chosen final references', () => {
@@ -77,64 +80,110 @@ describe('three-way data contract', () => {
     expect(Object.keys(forward.records)).toEqual(['a', 'b', 'm', 'z']);
     expect(Object.keys(sortRecords({ b: row('B', ''), a: row('A', '') }))).toEqual(['a', 'b']);
   });
-  it('accepts an upload of field-level changes with a SHA-256 fingerprint and rejects anything else', async () => {
-    const commit = await sealCommit({
+  it('system fields never conflict: each side keeps its own bookkeeping, the merge takes the changed side', () => {
+    const row = (name: string, description: string, updatedAt: string, updatedBy: string) => ({
+      entity: 'AssetCategory' as const,
+      fields: { name, description, createdAt: 't0', updatedAt, createdBy: 'u0', updatedBy }
+    });
+    const original = { c: row('电脑', '旧', 't0', 'u0') };
+    // 两台设备各改一个字段，working-tree 的单元都带着自己那一刻的 updatedAt / updatedBy
+    const result = mergeRecords(
+      original,
+      { c: row('台式机', '旧', 't1', 'u1') },
+      { c: row('电脑', '新', 't2', 'u2') },
+      []
+    );
+    expect(result.conflicts).toEqual([]);
+    expect(result.records.c.fields).toEqual({
+      name: '台式机',
+      description: '新',
+      createdAt: 't0',
+      updatedAt: 't1',
+      createdBy: 'u0',
+      updatedBy: 'u1'
+    });
+    // 记录级判断只看业务字段：目标只动了簿记字段时，来源的删除不算冲突
+    expect(mergeRecords(original, {}, { c: row('电脑', '旧', 't2', 'u2') }, [])).toEqual({
+      records: {},
+      conflicts: []
+    });
+    // 同一个业务字段两边改得不一样，照旧是冲突
+    expect(
+      mergeRecords(
+        original,
+        { c: row('台式机', '旧', 't1', 'u1') },
+        { c: row('笔记本', '旧', 't2', 'u2') },
+        []
+      ).conflicts.map(conflict => conflict.key)
+    ).toEqual(['c/name']);
+  });
+  it('accepts an upload of exchange records with the platform content fingerprint and rejects anything else', () => {
+    const commit = taskCommit({
       id: 'c',
-      parent: null,
+      parent: 'root',
       authorId: 'user',
       message: 'Message',
       changes: diffAssets({}, { c: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
     });
     const upload = (value: unknown) =>
-      parseCommand({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: null, commits: [value] });
+      parseCommand({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: 'root', commits: [value] });
     expect(upload(commit).type).toBe('upload');
     for (const invalid of [
-      { ...commit, fingerprint: 'abc' },
-      { ...commit, fingerprint: commit.fingerprint.toUpperCase() },
-      { ...commit, fingerprint: undefined },
-      { ...commit, changes: undefined },
-      { ...commit, changes: [{ ...commit.changes[0], patch: { name: {} } }] },
-      { ...commit, changes: [{ ...commit.changes[0], operation: 'upsert' }] },
+      { ...commit, contentFingerprint: 'abc' },
+      { ...commit, contentFingerprint: commit.contentFingerprint.toUpperCase() },
+      { ...commit, contentFingerprint: undefined },
+      { ...commit, units: undefined },
+      { ...commit, units: [{ ...commit.units[0], patch: { name: {} } }] },
+      { ...commit, units: [{ ...commit.units[0], operation: 'upsert' }] },
       { ...commit, records: { c: { entity: 'AssetCategory', fields: { name: 'Laptops' } } } },
-      { ...commit, mergeSource: 'source', candidateId: 'candidate' }
+      { ...commit, candidateId: 'candidate' }
     ])
       expect(() => upload(invalid), JSON.stringify(invalid)).toThrow();
   });
   it('strictly rejects untrusted command shapes, forged subjects and prototype keys', () => {
     expect(() =>
-      parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: null, userId: 'admin' })
+      parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: 'root', userId: 'admin' })
     ).toThrow();
     expect(() =>
-      parseCommand({ type: 'task', operationId: 'op', id: '__proto__', name: 'Task', expectedHead: null })
+      parseCommand({ type: 'task', operationId: 'op', id: '__proto__', name: 'Task', expectedHead: 'root' })
+    ).toThrow();
+    // 共享分支有根之后头不会为空：期望的头必须是提交标识
+    expect(() =>
+      parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: null })
     ).toThrow();
     expect(() =>
       parseCommand({
         type: 'upload',
         operationId: 'op',
         taskId: 'task',
-        expectedHead: null,
+        expectedHead: 'root',
         commits: [
           {
-            id: 'c',
-            parent: null,
+            commitId: 'c',
+            parentIds: ['root'],
+            kind: 'normal',
             authorId: 'user',
             message: 'Message',
-            fingerprint: 'f'.repeat(64),
-            changes: [
+            createdAt: '2026-11-18T00:00:00.000Z',
+            contentFingerprint: 'f'.repeat(64),
+            units: [
               {
+                unitId: 'u',
+                transactionId: null,
                 namespace: 'assets',
                 entity: 'AssetCategory',
                 entityId: 'c',
                 operation: 'insert',
                 patch: { name: {} },
-                inversePatch: null
+                inversePatch: null,
+                origin: 'local'
               }
             ]
           }
         ]
       })
     ).toThrow();
-    expect(parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: null }).type).toBe(
+    expect(parseCommand({ type: 'task', operationId: 'op', id: 'id', name: 'Task', expectedHead: 'root' }).type).toBe(
       'task'
     );
   });

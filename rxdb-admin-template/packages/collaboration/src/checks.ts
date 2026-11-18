@@ -113,10 +113,22 @@ export function decodeDate(value: Value): Date | null {
   return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === day ? new Date(time) : null;
 }
 
-/** 属性取值的规则：日期先解码，再交给平台的 `validateFieldValue()`；通过返回 null。 */
+/**
+ * 记录里的布尔按落库形态解读：SQLite 系后端（三端应用用的 sqlite-wasm）的变更日志把布尔列写成 0 / 1，
+ * JSON 原生的 true / false 照收；其余取值原样交给平台校验（报「必须为布尔值」）。只用于检查，记录里的取值不改写。
+ */
+export function decodeBoolean(value: Value): Value {
+  if (value === 0) return false;
+  return value === 1 ? true : value;
+}
+
+/** 属性取值的规则：日期与布尔先按落库形态解码，再交给平台的 `validateFieldValue()`；通过返回 null。 */
 function valueRule(field: RecordField, value: Value): CheckRule | null {
   const descriptor = field.descriptor;
-  const decoded = descriptor.valueType === 'date' ? decodeDate(value) : value;
+  const decoded =
+    descriptor.valueType === 'date' ? decodeDate(value)
+    : descriptor.valueType === 'boolean' ? decodeBoolean(value)
+    : value;
   if (decoded === null) return 'date';
   const failure = validateFieldValue(descriptor, decoded);
   if (!failure) return null;

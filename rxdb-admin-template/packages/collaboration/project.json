@@ -28,6 +28,17 @@
         "command": "tsc -p tsconfig.server.json"
       }
     },
+    "build-edge": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/rxdb-admin-template/supabase/functions/admin-collaboration/dist"],
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node scripts/build-edge.mjs"
+      }
+    },
     "serve-api": {
       "executor": "nx:run-commands",
       "options": {
@@ -37,11 +48,28 @@
       "dependsOn": ["build-server"],
       "continuous": true
     },
+    "serve-edge": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node scripts/serve-edge.mjs"
+      },
+      "dependsOn": ["build-server", "build-edge"],
+      "continuous": true
+    },
     "migrate": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "rxdb-admin-template/packages/collaboration",
         "command": "node dist/server/server/bootstrap.js --migrate"
+      },
+      "dependsOn": ["build-server"]
+    },
+    "service-role": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node dist/server/server/bootstrap.js --service-password"
       },
       "dependsOn": ["build-server"]
     },
@@ -59,6 +87,16 @@
       "options": {
         "cwd": "rxdb-admin-template/packages/collaboration",
         "command": "vitest run --config vitest.integration.config.mts"
+      },
+      "dependsOn": ["build-edge"]
+    },
+    "test-deno": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build-server"],
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node scripts/deno-identity.mjs"
       }
     },
     "benchmark-growth": {
@@ -70,11 +108,21 @@
         "command": "node scripts/workspace-growth-benchmark.mjs"
       }
     },
+    "benchmark-edge": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build-server", "build-edge"],
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node scripts/edge-resource-benchmark.mjs"
+      }
+    },
     "e2e": {
       "executor": "nx:run-commands",
       "cache": false,
       "dependsOn": [
         "build-server",
+        "build-edge",
         {
           "target": "test-env",
           "projects": ["rxdb-adapter-supabase"]
@@ -87,6 +135,13 @@
       "options": {
         "cwd": "rxdb-admin-template/packages/collaboration",
         "command": "playwright test --config playwright.config.ts"
+      },
+      "configurations": {
+        "edge": {
+          "env": {
+            "ADMIN_E2E_COMMANDS": "edge"
+          }
+        }
       }
     }
   }

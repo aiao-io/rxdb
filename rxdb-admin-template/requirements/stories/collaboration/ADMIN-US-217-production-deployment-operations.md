@@ -62,6 +62,12 @@ capabilities: []
 - 命令入口已对请求头与请求体接收设置超时（10 秒 / 60 秒），慢速客户端无法长期占用连接；连接上限、限流与 TLS 由部署环境负责。
 - 测试 fixture 当前把工作区版本与成员投影同步到隔离 Supabase CI 数据库以覆盖 Realtime；正式部署必须让 `ADMIN_DATABASE_URL` 指向同一 Supabase 项目数据库（见 [协作实现与验收记录](../../plans/collaboration-implementation.md#测试环境与部署差异)）。
 - 本故事完成后，ADMIN-US-201～216 才具备「合入并在真实环境验收」的关闭条件。
+- 前置故事留下的部署事项（2026-11-18 汇总）：
+  - 部署顺序见协作包 README「只部署 Supabase」：迁移 → 用 `nx run admin-collaboration:service-role` 设专用角色口令 → `build-edge` 后 `supabase functions deploy admin-collaboration --no-verify-jwt` → 设函数密钥（`ADMIN_DATABASE_URL` 经 Supavisor 6543 端口、`ADMIN_JWKS_URL`、`ADMIN_JWT_ISSUER`、`ADMIN_ALLOWED_ORIGINS`）→ `bootstrap`（读 `ADMIN_OWNER_DATABASE_URL`）→ 三端静态站点把 `/collaboration-api/*` 改写到函数地址。
+  - 身份：在项目上启用非对称 JWT 签名密钥；access token 有效期缩短到 10～15 分钟。
+  - PostgREST `db-max-rows` 设为 ≥ 500；评估开启 Realtime「只允许私有频道」；监控 `realtime.send` 的 WARNING（它不抛错，靠跳号补齐兜底），确认 `realtime.messages` 的分区清理。
+  - Supavisor 连接的 SSL 与 CA 配置；本地是用 PgBouncer 代测 transaction 模式的约束。托管环境的冷启动与 CPU 计量要复测。
+  - CI 需要能拉取 `supabase/edge-runtime:v1.74.0` 与固定摘要的 PgBouncer 镜像。
 
 ## 实现文件
 

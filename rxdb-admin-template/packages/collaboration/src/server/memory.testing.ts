@@ -1,9 +1,10 @@
-import { candidateContent, commitContent, commitSummary, historyPage } from '../derive.js';
+import { candidateContent, commitContent, historyPage, isSharedKind, type SharedBranch } from '../derive.js';
 import {
+  CollaborationError,
   demand,
   receiptRetentionMs,
   type Candidate,
-  type ChangeSet,
+  type ChangeUnit,
   type Command,
   type Comment,
   type Commit,
@@ -23,7 +24,7 @@ import { sortRecords } from '../records.js';
 import { recordKeyText, type RecordKey } from '../schema.js';
 import { authorize, prFor, taskFor } from './access.js';
 import { bootstrap, type EngineOptions } from './engine.js';
-import type { Effects, MergeLog } from './plan.js';
+import type { Effects, MergeLog, NewCommit } from './plan.js';
 import { referenceSummary, type ReferenceSummary } from './reference.testing.js';
 import { runCommand } from './service.js';
 import type { ThreadComment, WorkspaceChanges } from './state-changes.js';
@@ -57,7 +58,7 @@ export const memoryReceiptSweep = 20;
  * `stats` 记录读取方法的调用、读到的提交数与读到的共享记录（含键索引命中）数，用来断言读取成本不随提交总数、共享记录总数增长。
  */
 export class MemoryCommitStore implements CommitStore {
-  private readonly rows = new Map<string, Commit>();
+  private readonly rows = new Map<string, NewCommit>();
   private records: Records = {};
   /** 键索引：每条共享记录的键。 */
   private readonly keys = new Map<string, IndexedKey[]>();
@@ -68,36 +69,36 @@ export class MemoryCommitStore implements CommitStore {
     this.stats.calls.push('commits');
     const found = new Map<string, CommitMeta>();
     for (const id of ids) {
-      const commit = this.rows.get(id);
-      if (!commit) continue;
+      const row = this.rows.get(id);
+      if (!row) continue;
       this.stats.rows++;
-      found.set(id, this.meta(commit));
+      found.set(id, this.meta(row));
     }
     return Promise.resolve(found);
   }
-  path(from: string | null, until: string | null): Promise<Path> {
+  path(from: string, until: string | null): Promise<Path> {
     this.stats.calls.push('path');
     const links: Link[] = [];
-    let cursor = from;
+    let cursor: string | null = from;
     while (cursor !== null && cursor !== until) {
-      const commit = this.rows.get(cursor);
-      if (!commit) return Promise.resolve({ links, reached: false });
+      const row = this.rows.get(cursor);
+      if (!row) return Promise.resolve({ links, reached: false });
       this.stats.rows++;
-      links.push(this.link(commit));
-      cursor = commit.parent;
+      links.push(this.link(row.record));
+      cursor = row.record.parentIds[0] ?? null;
     }
     return Promise.resolve({ links, reached: cursor === until });
   }
-  history(from: string | null, until: string | null, limit: number): Promise<CommitSummary[]> {
+  history(from: string, until: string | null, limit: number): Promise<CommitSummary[]> {
     this.stats.calls.push('history');
     const found: CommitSummary[] = [];
-    let cursor = from;
+    let cursor: string | null = from;
     while (cursor !== null && cursor !== until && found.length < limit) {
-      const commit = this.rows.get(cursor);
-      if (!commit) break;
+      const row = this.rows.get(cursor);
+      if (!row) break;
       this.stats.rows++;
-      found.push(commitSummary(this.meta(commit)));
-      cursor = commit.parent;
+      found.push(this.summary(row));
+      cursor = row.record.parentIds[0] ?? null;
     }
     return Promise.resolve(found);
   }
@@ -106,27 +107,26 @@ export class MemoryCommitStore implements CommitStore {
     const links: Link[] = [];
     let cursor: string | null = id;
     while (cursor !== null) {
-      const commit = this.rows.get(cursor);
-      demand(commit, 'not_found', '提交不存在');
+      const row = this.rows.get(cursor);
+      demand(row, 'not_found', '提交不存在');
       this.stats.rows++;
-      if (commit.mergeSource !== undefined) return Promise.resolve({ links, anchor: commit.id });
-      links.push(this.link(commit));
-      cursor = commit.parent;
+      const link = this.link(row.record);
+      if (isSharedKind(link.kind)) return Promise.resolve({ links, anchor: link });
+      links.push(link);
+      cursor = link.parent;
     }
-    return Promise.resolve({ links, anchor: null });
+    throw new CollaborationError('ancestry', '找不到可信共同起点');
   }
-  changes(ids: readonly string[], records?: readonly string[]): Promise<Map<string, ChangeSet[]>> {
+  changes(ids: readonly string[], records?: readonly string[]): Promise<Map<string, ChangeUnit[]>> {
     this.stats.calls.push('changes');
     const wanted = records && new Set(records);
-    const found = new Map<string, ChangeSet[]>();
+    const found = new Map<string, ChangeUnit[]>();
     for (const id of ids) {
-      const commit = this.rows.get(id);
-      if (!commit) continue;
+      const row = this.rows.get(id);
+      if (!row) continue;
       this.stats.rows++;
-      found.set(
-        id,
-        structuredClone(wanted ? commit.changes.filter(change => wanted.has(change.entityId)) : commit.changes)
-      );
+      const units = row.record.units;
+      found.set(id, structuredClone(wanted ? units.filter(unit => wanted.has(unit.entityId)) : [...units]));
     }
     return Promise.resolve(found);
   }
@@ -162,13 +162,25 @@ export class MemoryCommitStore implements CommitStore {
     this.stats.records += Object.keys(rows).length;
     return Promise.resolve(rows);
   }
-  append(commits: readonly Commit[]): Promise<void> {
-    for (const commit of commits) {
-      demand(!this.rows.has(commit.id), 'exists', '提交已存在');
-      demand(commit.parent === null || this.rows.has(commit.parent), 'ancestry', '提交父链不连续');
-      this.rows.set(commit.id, structuredClone(commit));
-    }
+  append(commits: readonly NewCommit[]): Promise<void> {
+    for (const commit of commits) this.add(commit);
     return Promise.resolve();
+  }
+  /** 追加一个提交（同步）：同 ID 已存在、或有父不在存储里都拒绝，与提交表的主键与父外键一致。 */
+  add(commit: NewCommit): void {
+    const { record } = commit;
+    demand(!this.rows.has(record.commitId), 'exists', '提交已存在');
+    demand(
+      record.parentIds.every(parent => this.rows.has(parent)),
+      'ancestry',
+      '提交父链不连续'
+    );
+    this.rows.set(record.commitId, structuredClone(commit));
+  }
+  /** 存储里的交换记录（测试核对「原样存下、原样下发」用）；不存在时为 undefined。 */
+  record(id: string): Commit | undefined {
+    const row = this.rows.get(id);
+    return row && structuredClone(row.record);
   }
   apply(change: SharedChange): Promise<void> {
     for (const id of [...change.remove, ...Object.keys(change.upsert)]) this.keys.delete(id);
@@ -195,20 +207,23 @@ export class MemoryCommitStore implements CommitStore {
   private index(keys: readonly IndexedKey[]): void {
     for (const key of keys) this.keys.set(key.recordId, [...(this.keys.get(key.recordId) ?? []), structuredClone(key)]);
   }
-  private meta(commit: Commit): CommitMeta {
-    const meta: CommitMeta = {
-      id: commit.id,
-      parent: commit.parent,
-      authorId: commit.authorId,
-      message: commit.message,
-      fingerprint: commit.fingerprint
+  private summary({ record, candidateId }: NewCommit): CommitSummary {
+    const summary: CommitSummary = {
+      id: record.commitId,
+      parentIds: [...record.parentIds],
+      kind: record.kind,
+      authorId: record.authorId,
+      message: record.message,
+      createdAt: record.createdAt
     };
-    if (commit.mergeSource !== undefined) meta.mergeSource = commit.mergeSource;
-    if (commit.candidateId !== undefined) meta.candidateId = commit.candidateId;
-    return meta;
+    if (candidateId !== null) summary.candidateId = candidateId;
+    return summary;
   }
-  private link(commit: Commit): Link {
-    return { id: commit.id, parent: commit.parent, merge: commit.mergeSource !== undefined };
+  private meta(row: NewCommit): CommitMeta {
+    return { ...this.summary(row), contentFingerprint: row.record.contentFingerprint };
+  }
+  private link(record: Commit): Link {
+    return { id: record.commitId, parent: record.parentIds[0] ?? null, kind: record.kind };
   }
 }
 
@@ -339,7 +354,10 @@ export class MemoryWorkspace {
     env: Environment,
     options: EngineOptions = {}
   ): MemoryWorkspace {
-    return new MemoryWorkspace(bootstrap(input, env), options);
+    const { state, root } = bootstrap(input, env);
+    const workspace = new MemoryWorkspace(state, options);
+    workspace.store.add({ record: root, candidateId: null });
+    return workspace;
   }
   /** 执行一条命令；失败时状态与存储保持原样（只在引擎成功之后才写回）。 */
   async run(user: Identity, command: Command, env: Environment): Promise<Record<string, unknown>> {
@@ -370,13 +388,13 @@ export class MemoryWorkspace {
   /** 一个提交的完整内容，推导与浏览器读取同一份 `derive.ts`；需要 read 权限。 */
   async commit(user: Identity, id: string): Promise<CommitContent> {
     authorize(this.state, user, 'read');
-    return commitContent(this.store, this.state.head, id);
+    return commitContent(this.store, this.branch(), id);
   }
   /** 一个合并候选的完整内容；需要 read 权限，未知 ID 返回 `not_found`。 */
   async candidate(user: Identity, id: string): Promise<Candidate> {
     authorize(this.state, user, 'read');
     demand(Object.hasOwn(this.state.candidates, id), 'not_found', '候选不存在');
-    return structuredClone(await candidateContent(this.store, this.state.head, this.state.candidates[id]));
+    return structuredClone(await candidateContent(this.store, this.branch(), this.state.candidates[id]));
   }
   /** 提交历史的一页：共享分支、任务分支或 PR 的来源任务三者恰好取一；需要 read 权限。 */
   async history(user: Identity, query: HistoryQuery): Promise<CommitPage> {
@@ -385,7 +403,7 @@ export class MemoryWorkspace {
     demand(selectors.length === 1, 'invalid', '请求字段不合法');
     if (query.branch !== undefined) {
       demand(query.branch === 'shared', 'invalid', '请求字段不合法');
-      return historyPage(this.store, { head: this.state.head, until: null }, query);
+      return historyPage(this.store, { head: this.state.head, until: this.state.root }, query);
     }
     const task = taskFor(this.state, query.taskId ?? prFor(this.state, query.prId!).taskId);
     return historyPage(this.store, { head: task.head, until: task.base }, query);
@@ -398,6 +416,10 @@ export class MemoryWorkspace {
     return structuredClone(schema);
   }
   /** 把局部状态的差异写回完整状态：只动差异列出的行，引用按期望头比较交换，与 PostgreSQL 写回的语义一致。 */
+  /** 共享分支的头与根：推导内容用。 */
+  private branch(): SharedBranch {
+    return { head: this.state.head, root: this.state.root };
+  }
   private save(changes: WorkspaceChanges, effects: Effects, now: number): void {
     const state = this.state;
     for (const member of changes.members) state.members[member.id] = structuredClone(member);

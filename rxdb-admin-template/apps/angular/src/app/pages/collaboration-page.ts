@@ -3,11 +3,14 @@ import { afterNextRender, Component, DestroyRef, ElementRef, inject, viewChild }
 import { mountCollaboration, readAnonymousRecords } from '@rxdb-admin-template/collaboration';
 import { ENTITIES } from '../entities/asset-entities';
 import { collaborationLabels } from '../entities/collaboration-labels';
+import { createTeamDatabase } from '../rxdb/team-database';
 import { workbenchShell } from '../shell/workbench-shell';
+import { useRenderTeamEditor } from './team-editor-renderer';
 @Component({ selector: 'app-collaboration-page', template: '<div #host></div>', host: { style: 'display: contents' } })
 export default class CollaborationPage {
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly database = useRxDB();
+  private readonly renderEditor = useRenderTeamEditor();
   constructor() {
     const destroy = inject(DestroyRef);
     afterNextRender(() => {
@@ -18,7 +21,9 @@ export default class CollaborationPage {
           return () => sub.unsubscribe();
         },
         importAnonymous: schema => readAnonymousRecords(this.database, ENTITIES, schema),
-        labels: collaborationLabels
+        labels: collaborationLabels,
+        createTeamDatabase,
+        renderEditor: this.renderEditor
       });
       destroy.onDestroy(dispose);
     });

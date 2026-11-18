@@ -1,10 +1,11 @@
 import { reviewRevision } from '../approval.js';
 import type { Command, PullRequest, PullRequestDetail, Records, Resolution, Task, Thread } from '../model.js';
 import { mergeRecords } from '../records.js';
+import { systemFieldOf } from '../schema.js';
 import type { CollaborationController } from './controller.js';
 import { diffTable } from './diff-table.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
-import { readOnlyRecords } from './editor.js';
+import { readOnlyRecords } from './records-view.js';
 import {
   button,
   checkbox,
@@ -54,9 +55,10 @@ export class PullRequestView {
     if (data.earlier.prs)
       list.append(button('加载更早的 PR', () => this.perform(() => this.controller.loadEarlierPrs())));
     view.append(list);
-    if (this.controller.draft && this.controller.draft.remoteHead && this.has('edit')) {
-      const title = input('PR 标题', this.controller.draft.name);
-      const task = this.controller.draft;
+    // 任务已有同步到服务端的提交时才可建 PR；远端头还是共享分支根，就是从空分支起步、一次都没同步过
+    if (this.controller.task && this.controller.task.remoteHead !== data.root && this.has('edit')) {
+      const title = input('PR 标题', this.controller.task.name);
+      const task = this.controller.task;
       const description = input('PR 说明');
       const target = select('目标分支', [{ value: 'shared', label: tx('团队共享分支') }], 'shared');
       view.append(
@@ -176,7 +178,7 @@ export class PullRequestView {
       const { details, open } = lazyDetails(`source-commit:${commit.id}`, this.disclosures);
       details.append(
         element('summary', `${commit.message} · ${commit.authorId} · ${commit.id}`, '', true),
-        element('p', tx('父提交：{v0}', { v0: commit.parent ?? tx('空') }))
+        element('p', tx('父提交：{v0}', { v0: this.versionText(commit.parentIds[0]) }))
       );
       if (open) details.append(this.commitRecords(commit.id));
       view.append(details);
@@ -203,9 +205,13 @@ export class PullRequestView {
       });
     return history;
   }
-  /** 提交头对应的记录：没有提交（null）就没有记录；内容未加载时返回 undefined，并触发加载。 */
-  private recordsAt(id: string | null): Records | undefined {
-    return id === null ? {} : this.controller.commitContent(id)?.records;
+  /** 提交头对应的记录：共享分支根没有记录（不请求）；内容未加载时返回 undefined，并触发加载。 */
+  private recordsAt(id: string): Records | undefined {
+    return id === this.controller.snapshot?.root ? {} : this.controller.commitContent(id)?.records;
+  }
+  /** 版本在界面上的写法：共享分支根（以及没有父的提交）显示为「空」，与没有任何合并时一致；其余显示提交 ID。 */
+  private versionText(id: string | undefined): string {
+    return id === undefined || id === this.controller.snapshot?.root ? tx('空') : id;
   }
   private commitRecords(id: string) {
     const commit = this.controller.commitContent(id);
@@ -217,11 +223,12 @@ export class PullRequestView {
     const schema = this.controller.schema();
     return candidate && schema ? readOnlyRecords(candidate.records, schema) : loading();
   }
-  /** 来源相对起点的记录差异；两个提交都加载完成前先显示占位。 */
+  /** 来源相对起点的记录差异；两个提交与数据模式都加载完成前先显示占位。 */
   private sourceChanges(task: Task) {
     const before = this.recordsAt(task.base);
     const after = this.recordsAt(task.head);
-    return before && after ? diffTable(before, after) : loading();
+    const schema = this.controller.schema();
+    return before && after && schema ? diffTable(before, after, schema) : loading();
   }
   private run(command: Omit<Command, 'operationId'> | Record<string, unknown>) {
     return this.runLazily(() => command);
@@ -244,19 +251,20 @@ export class PullRequestView {
     const source = this.recordsAt(task.head);
     const base = this.recordsAt(task.base);
     const target = this.controller.sharedRecords();
-    if (!source || !base || !target) {
+    const schema = this.controller.schema();
+    if (!source || !base || !target || !schema) {
       view.append(loading());
       return view;
     }
-    const preview = mergeRecords(base, source, target, []);
+    const preview = mergeRecords(base, source, target, [], systemFieldOf(schema));
     const selections: (() => Resolution | null)[] = [];
     view.append(
       element(
         'p',
         tx('共同起点 B：{v0} · 来源 S：{v1} · 目标 T：{v2}', {
-          v0: task.base ?? tx('空'),
-          v1: task.head ?? tx('空'),
-          v2: data.head ?? tx('空')
+          v0: this.versionText(task.base),
+          v1: this.versionText(task.head),
+          v2: this.versionText(data.head)
         }),
         'text-xs break-all'
       )
@@ -338,14 +346,14 @@ export class PullRequestView {
       );
     const content = this.controller.candidateContent(candidate.id);
     const target = this.recordsAt(candidate.target);
-    if (content && target) {
-      if (this.tab === 'changes') view.append(diffTable(target, content.records));
+    const schema = this.controller.schema();
+    if (content && target && schema) {
+      if (this.tab === 'changes') view.append(diffTable(target, content.records, schema));
       view.append(this.recordNavigation(target, content.records));
     } else view.append(loading());
     if (this.selectedRecord) view.append(element('p', tx('当前查看记录：{v0}', { v0: this.selectedRecord })));
     const { details, open } = lazyDetails(`candidate-records:${candidate.id}`, this.disclosures);
     details.append(element('summary', '查看最终完整数据'));
-    const schema = this.controller.schema();
     if (open) details.append(content && schema ? readOnlyRecords(content.records, schema) : loading());
     view.append(details);
     const actions = row();

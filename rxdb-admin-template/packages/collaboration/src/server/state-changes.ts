@@ -27,10 +27,10 @@ export interface AuditEntry {
 export type ThreadComment = Comment & { threadId: string; prId: string };
 /** 讨论线程自身的字段（不含评论），写回线程表时用。 */
 export type ThreadRow = Omit<Thread, 'comments'>;
-/** 引用的一次推进：期望的旧头与新头，写回时按旧头比较交换。 */
+/** 引用的一次推进：期望的旧头与新头，写回时按旧头比较交换。共享分支有根，头从不为空。 */
 export interface HeadMove {
-  from: string | null;
-  to: string | null;
+  from: string;
+  to: string;
 }
 /** 新增与改动的一组行。 */
 export interface RowChanges<T> {

@@ -154,6 +154,23 @@ describe('非资产清单（项目 / 里程碑 / 标签）的检查', () => {
       't2.color: 必须为文本'
     ]);
   });
+
+  it('按落库形态解读取值：SQLite 上的布尔是 0 / 1，日期是 ISO 时刻文本，都照常通过；其余取值照旧报错', () => {
+    expect(
+      describeChecks(planningSchema, {
+        ...valid,
+        m3: {
+          entity: 'Milestone',
+          fields: { name: 'M3', dueOn: '2026-03-01T00:00:00.000Z', projectId: 'p1', done: 1 }
+        },
+        m4: {
+          entity: 'Milestone',
+          fields: { name: 'M4', dueOn: '2026-03-01T08:30:00.000Z', projectId: 'p1', done: 0 }
+        },
+        m5: { entity: 'Milestone', fields: { name: 'M5', dueOn: '2026-03-01', projectId: 'p1', done: 2 } }
+      })
+    ).toEqual(['m5.done: 必须为布尔值']);
+  });
 });
 
 describe('规则到词条的映射', () => {

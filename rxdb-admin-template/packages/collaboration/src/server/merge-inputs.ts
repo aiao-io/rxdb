@@ -144,26 +144,27 @@ async function crossRecord(store: CommitStore, model: SchemaModel, sides: Sides,
 }
 
 /**
- * 三方合并输入，只读合并基以来任一侧改动过的记录：共享分支在 `base` 之后各合并提交的变更、任务分支在 `base` 之后各提交的变更，
- * 它们涉及的记录就是 `touched`。T 只读这些记录；B 由 T 反向应用共享分支上的变更得到，S 由 B 加上任务分支的变更得到；
- * 其余记录三方相同，合并结果就是 T，不必读取。合并基为空（第一次合并之前）时 B 没有记录，T 的每条记录都算改动过。
+ * 三方合并输入，只读合并基以来任一侧改动过的记录：共享分支在 `base` 之后各合并提交的单元、任务分支在 `base` 之后各提交的单元，
+ * 它们涉及的记录就是 `touched`。T 只读这些记录；B 由 T 反向应用共享分支上的单元得到，S 由 B 加上任务分支的单元得到；
+ * 其余记录三方相同，合并结果就是 T，不必读取。合并基是共享分支根（第一次合并之前起步的任务）时 B 没有记录，T 的每条记录都算改动过。
  * 另按清单读取跨记录检查要用到的记录与唯一键（见 {@link crossRecord}）。
  * 成本与「合并基以来双方改动的记录数」有关，与共享记录总数、提交总数无关。`base` 不在共享分支上、或 `source` 不经过 `base` 时返回 null。
  */
 export async function mergeInputs(store: CommitStore, plan: InputsPlan): Promise<MergeInputs | null> {
-  const shared = plan.base === null ? undefined : await store.path(plan.head, plan.base);
+  const fromRoot = plan.base === plan.shared.root;
+  const shared = fromRoot ? undefined : await store.path(plan.shared.head, plan.base);
   if (shared && !shared.reached) return null;
   const task = await store.path(plan.source, plan.base);
   if (!task.reached) return null;
   const sharedChanges = shared ? await store.changes(ids(shared.links)) : new Map<string, ChangeSet[]>();
   const taskChanges = await store.changes(ids(task.links));
-  const target = await (plan.base === null ?
+  const target = await (fromRoot ?
     store.shared()
   : store.shared([...new Set([...entityIds(sharedChanges), ...entityIds(taskChanges)])]));
   const touched = [
-    ...new Set([...(plan.base === null ? Object.keys(target) : entityIds(sharedChanges)), ...entityIds(taskChanges)])
+    ...new Set([...(fromRoot ? Object.keys(target) : entityIds(sharedChanges)), ...entityIds(taskChanges)])
   ].sort();
-  const base = plan.base === null ? {} : revert(structuredClone(target), shared!.links, sharedChanges);
+  const base = fromRoot ? {} : revert(structuredClone(target), shared!.links, sharedChanges);
   const source = forward(structuredClone(base), task.links, taskChanges);
   const sides = { touched, base, source, target };
   return { ...sides, ...(await crossRecord(store, schemaModel(plan.schema), sides, plan)) };

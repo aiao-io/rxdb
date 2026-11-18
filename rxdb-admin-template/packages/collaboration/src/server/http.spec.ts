@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { request, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sealCommit } from '../commit.js';
+import { taskCommit } from '../commit.testing.js';
 import { CollaborationError, type Identity } from '../model.js';
 import { diffAssets } from '../schema.testing.js';
 import { collaborationServer, type RepositoryApi } from './http.js';
@@ -43,7 +43,7 @@ const post = (body: unknown, headers: Record<string, string> = {}, path = '/work
     headers: { authorization: 'Bearer valid', 'content-type': 'application/json', ...headers },
     body: JSON.stringify(body)
   });
-const task = { type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: null };
+const task = { type: 'task', operationId: 'op', id: 'task', name: 'Task', expectedHead: 'root' };
 describe('HTTP identity boundary', () => {
   it('verifies every command locally and answers a bad token as unauthenticated without detail', async () => {
     expect((await post(task, { authorization: '' })).status).toBe(401);
@@ -78,16 +78,16 @@ describe('HTTP identity boundary', () => {
       expect.objectContaining({ tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) })
     );
   });
-  it('hands an upload of field-level changes to the repository and refuses the old whole-record commits before it', async () => {
-    const commit = await sealCommit({
+  it('hands an upload of exchange records to the repository and refuses old-protocol commits before it', async () => {
+    const commit = taskCommit({
       id: 'c1',
-      parent: null,
+      parent: 'root',
       authorId: user.id,
       message: 'First',
       changes: diffAssets({}, { cat: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
     });
     const upload = (commits: unknown[]) =>
-      post({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: null, commits });
+      post({ type: 'upload', operationId: 'op', taskId: 'task', expectedHead: 'root', commits });
     expect((await upload([commit])).status).toBe(200);
     expect(repository.operation).toHaveBeenCalledWith(
       user,
@@ -96,8 +96,29 @@ describe('HTTP identity boundary', () => {
       expect.objectContaining({ type: 'upload', commits: [commit] })
     );
     vi.mocked(repository.operation).mockClear();
+    // 全量记录的旧提交、切片 C 的 ChangeSet 提交（parent / changes / fingerprint）、带合并关联的提交，都在解析时被拒
     const legacy = { id: 'c1', parent: null, authorId: user.id, message: 'First', records: {} };
-    for (const invalid of [legacy, { ...commit, fingerprint: 'not-a-digest' }, { ...commit, mergeSource: 'x' }]) {
+    const changeSet = {
+      id: 'c1',
+      parent: 'root',
+      authorId: user.id,
+      message: 'First',
+      changes: commit.units.map(({ namespace, entity, entityId, operation, patch, inversePatch }) => ({
+        namespace,
+        entity,
+        entityId,
+        operation,
+        patch,
+        inversePatch
+      })),
+      fingerprint: commit.contentFingerprint
+    };
+    for (const invalid of [
+      legacy,
+      changeSet,
+      { ...commit, contentFingerprint: 'not-a-digest' },
+      { ...commit, mergeSource: 'x' }
+    ]) {
       const response = await upload([invalid]);
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ error: 'invalid' });
@@ -193,7 +214,8 @@ describe('HTTP request hygiene', () => {
     expect(server.headersTimeout).toBeGreaterThan(0);
     expect(server.headersTimeout).toBeLessThanOrEqual(10_000);
     expect(server.requestTimeout).toBeGreaterThan(0);
-    expect(server.requestTimeout).toBeLessThanOrEqual(60_000);
+    // 4 MiB 请求上限下保留约 35 KB/s 的最低上行速率（见 http.ts），仍远低于 Node 默认的 300 秒。
+    expect(server.requestTimeout).toBeLessThanOrEqual(120_000);
     expect(server.headersTimeout).toBeLessThanOrEqual(server.requestTimeout);
     expect(checking).toBeGreaterThan(0);
     expect(checking).toBeLessThanOrEqual(5_000);

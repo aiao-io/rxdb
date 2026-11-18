@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { checkRecords } from '../checks.js';
-import { sealCommit, uuidv7 } from '../commit.js';
+import { uuidv7 } from '../commit.js';
+import { taskCommit } from '../commit.testing.js';
 import type {
   Candidate,
   Commit,
@@ -14,14 +15,15 @@ import type {
 } from '../model.js';
 import { choose, pick, seeded } from '../random.testing.js';
 import { canonical, mergeRecords } from '../records.js';
+import { systemFieldOf } from '../schema.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
 import type { ReferenceSummary } from './reference.testing.js';
 
 /** 随机历史测试需要的最小驱动：内存工作区与 PostgreSQL 仓储各自适配，走同一套场景与同一个全量快照对照。 */
 export interface HistoryDriver {
   run(command: Record<string, unknown>): Promise<Record<string, unknown>>;
-  /** 当前的整页读取结果（成员与 PR 用于驱动场景）。 */
-  summary(): Promise<Pick<ReferenceSummary, 'members' | 'prs'>>;
+  /** 当前的整页读取结果（成员与 PR 用于驱动场景，共享头在开始时就是共享分支根）。 */
+  summary(): Promise<Pick<ReferenceSummary, 'members' | 'prs' | 'head'>>;
   records(): Promise<SharedRecords>;
   commit(id: string): Promise<CommitContent>;
   candidate(id: string): Promise<Candidate>;
@@ -99,8 +101,8 @@ function validEdit(next: () => number, records: Records, serial: () => number): 
 
 interface Task {
   id: string;
-  base: string | null;
-  head: string | null;
+  base: string;
+  head: string;
   content: Records;
   pr: string | null;
 }
@@ -116,15 +118,17 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
   let counter = 0;
   const serial = () => ++counter;
   const stats: HistoryStats = { commits: 0, merges: 0, conflicts: 0, resolved: 0, forks: 0, checks: 0 };
-  /** 旧实现：每个提交一份全量记录。 */
+  /** 旧实现：每个提交一份全量记录；共享分支根是空记录。 */
   const snapshots = new Map<string, Records>();
   let shared: Records = {};
-  let head: string | null = null;
-  /** 共享分支上的合并提交，从新到旧。 */
+  const initial = await driver.summary();
+  let head: string = initial.head;
+  snapshots.set(head, {});
+  /** 共享分支上的合并提交，从新到旧（根不在其中）。 */
   const mergeHeads: string[] = [];
-  const content = (id: string | null): Records => (id === null ? {} : snapshots.get(id)!);
+  const content = (id: string): Records => snapshots.get(id)!;
   const tasks: Task[] = [];
-  const author = (await driver.summary()).members[0].id;
+  const author = initial.members[0].id;
   /** 客户端上传过的每个提交，另存分叉时原样重传其中的已有祖先。 */
   const sealed = new Map<string, Commit>();
 
@@ -137,17 +141,17 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
         records => validEdit(next, records, serial),
         current
       );
-      const commit = await sealCommit({
+      const commit = taskCommit({
         id: uuidv7(),
         parent,
         authorId: author,
         message: `提交 ${serial()}`,
         changes: diffAssets(current, after)
       });
-      snapshots.set(commit.id, structuredClone(after));
-      sealed.set(commit.id, commit);
+      snapshots.set(commit.commitId, structuredClone(after));
+      sealed.set(commit.commitId, commit);
       commits.push(commit);
-      parent = commit.id;
+      parent = commit.commitId;
       current = after;
     }
     await driver.run({ type: 'upload', taskId: task.id, expectedHead: task.head, commits });
@@ -165,16 +169,16 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
     const parent = carried.at(-1) ?? origin.base;
     const before = content(parent);
     const after = validEdit(next, before, serial);
-    const commit = await sealCommit({
+    const commit = taskCommit({
       id: uuidv7(),
       parent,
       authorId: author,
       message: `分叉 ${serial()}`,
       changes: diffAssets(before, after)
     });
-    snapshots.set(commit.id, structuredClone(after));
-    sealed.set(commit.id, commit);
-    const task: Task = { id: `t${serial()}`, base: origin.base, head: commit.id, content: after, pr: null };
+    snapshots.set(commit.commitId, structuredClone(after));
+    sealed.set(commit.commitId, commit);
+    const task: Task = { id: `t${serial()}`, base: origin.base, head: commit.commitId, content: after, pr: null };
     await driver.run({
       type: 'fork',
       id: task.id,
@@ -197,7 +201,7 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
       before = page.nextBefore ?? undefined;
     } while (before);
     const expected: string[] = [];
-    for (let cursor = task.head; cursor !== null && cursor !== task.base; cursor = sealed.get(cursor)!.parent)
+    for (let cursor = task.head; cursor !== task.base; cursor = sealed.get(cursor)!.parentIds[0])
       expected.unshift(cursor);
     expect(chain).toEqual(expected);
     return chain;
@@ -215,7 +219,13 @@ export async function replayHistory(seed: number, driver: HistoryDriver, rounds 
     const revision = (await driver.summary()).prs.find(pr => pr.id === task.pr)!.revision;
     const result = await driver.run({ type: 'candidate', prId: task.pr, expectedRevision: revision, resolutions });
     const candidate = await driver.candidate(String(result['candidateId']));
-    const expected = mergeRecords(content(task.base), content(task.head), shared, resolutions);
+    const expected = mergeRecords(
+      content(task.base),
+      content(task.head),
+      shared,
+      resolutions,
+      systemFieldOf(assetSchema)
+    );
     // 经 HTTP 或 JSONB 往返的结果没有值为 undefined 的键，两边都按 JSON 形态比较
     const wire = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
     expect(canonical(candidate.records)).toBe(canonical(expected.records));

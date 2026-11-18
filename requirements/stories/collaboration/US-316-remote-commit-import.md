@@ -35,17 +35,18 @@ tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
 
 ## 验收标准
 
-| #   | 前置条件                                 | 操作                         | 预期结果                                                                              | 状态 |
-| --- | ---------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------- | ---- |
-| 1   | 空分支                                   | 导入一段远端提交链           | 提交 ID、父链、作者、消息与指纹和输入一致；业务表等于链末提交的数据；工作树保持 clean | ✅   |
-| 2   | 分支头为 X，工作树 clean                 | 导入以 X 为父的提交          | 分支头快进，`listCommits()` 的顺序与父链一致                                          | ✅   |
-| 3   | 工作树有未提交改动，或链首的父不是当前头 | 导入                         | 拒绝，且不写入任何提交或业务数据                                                      | ✅   |
-| 4   | 某个提交的指纹与内容不符                 | 导入                         | 整批拒绝，不写入                                                                      | ✅   |
-| 5   | 同一批提交再次导入                       | 导入                         | 幂等：不重复建提交、业务表不变；同 ID 不同内容拒绝                                    | ✅   |
-| 6   | 有两个父的合并提交                       | 导入                         | 以合并种类写入，第一父为当前头；`listCommits()`、`restore()` 与分支对比都能正确遍历   | ✅   |
-| 7   | 导入完成后本地继续编辑                   | `commit()`                   | 新提交以导入的头为父；`commitChanges()` 只含本地变化，作者为本次提交者                | ✅   |
-| 8   | 六个支持 working-tree 的适配器           | 运行导入一致性套件           | 结果一致                                                                              | ✅   |
-| 9   | 三端绑定                                 | 经 `useWorkingTree` 调用导入 | 三端 API 对称，类型与行为一致                                                         | ✅   |
+| #   | 前置条件                                 | 操作                                             | 预期结果                                                                                                            | 状态 |
+| --- | ---------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 空分支                                   | 导入一段远端提交链                               | 提交 ID、父链、作者、消息与指纹和输入一致；业务表等于链末提交的数据；工作树保持 clean                               | ✅   |
+| 2   | 分支头为 X，工作树 clean                 | 导入以 X 为父的提交                              | 分支头快进，`listCommits()` 的顺序与父链一致                                                                        | ✅   |
+| 3   | 工作树有未提交改动，或链首的父不是当前头 | 导入                                             | 拒绝，且不写入任何提交或业务数据                                                                                    | ✅   |
+| 4   | 某个提交的指纹与内容不符                 | 导入                                             | 整批拒绝，不写入                                                                                                    | ✅   |
+| 5   | 同一批提交再次导入                       | 导入                                             | 幂等：不重复建提交、业务表不变；同 ID 不同内容拒绝                                                                  | ✅   |
+| 6   | 有两个父的合并提交                       | 导入                                             | 以合并种类写入，第一父为当前头；`listCommits()`、`restore()` 与分支对比都能正确遍历                                 | ✅   |
+| 7   | 导入完成后本地继续编辑                   | `commit()`                                       | 新提交以导入的头为父；`commitChanges()` 只含本地变化，作者为本次提交者                                              | ✅   |
+| 8   | 六个支持 working-tree 的适配器           | 运行导入一致性套件                               | 结果一致                                                                                                            | ✅   |
+| 9   | 三端绑定                                 | 经 `useWorkingTree` 调用导入                     | 三端 API 对称，类型与行为一致                                                                                       | ✅   |
+| 10  | 使用方服务端（含 Deno Edge Function）    | 只导入 `@aiao/rxdb-plugin-working-tree/exchange` | 拿到与 `importCommits()` 同一份的批次形状校验、单元与提交指纹函数及严格的 JSON 编解码；不加载实体类、不安装捕获钩子 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -54,6 +55,7 @@ tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
 - 一致性套件 `src/working-tree/testing/worktree.suite.ts` 的「导入远端提交（US-316）」一节：AC#1 空分支导入整条链（提交身份与指纹逐字相同）、AC#2 从当前头延续并快进、AC#3 脏工作树与链首父不对时零写入、AC#4 指纹不符整批拒绝、AC#5 重复导入为 no-op 且同 ID 不同内容被拒、AC#6 合并提交入库后 `listCommits()` / `restore()` / 提交视图 / 从提交建分支 / 分支对比与切分支都走对、AC#7 导入后本地提交以导入的头为父；另有前像核对（服务端增量与本机业务行对不上时整批 `precondition_mismatch`、零写入）。六个适配器（electron / pglite / sqlite-wasm / sqlite / sqliteai / wa-sqlite）同一份套件均 62/62（AC#8）。
 - 单测：`import-commits.spec.ts`、`import-precondition.spec.ts`、`commit-graph-merge.spec.ts`、`facade-import-export.spec.ts`、`fingerprint-normalization-doc.spec.ts`（按文档手拼规范串逐字核对指纹）；working-tree 包 87 个文件 1414 例通过，分支覆盖率 91.3%。
 - AC#9：三端 `useWorkingTree()` 对称新增 `importCommits` / `exportCommits` 与对应状态，三端绑定测试 React 89 例、Vue 86 例、Angular 95 例通过。
+- AC#10（2026-11-18）：子路径 `./exchange` 导出 `checkCommitExchangeBatch`（`importCommits()` 判 `invalid_batch` 用的就是它）、`computeChangeUnitFingerprint` / `computeCommitContentFingerprint` / `computeCommitExchangeRecordFingerprint`、`parseCommitExchangeRecord` / `serializeCommitExchangeRecord`；`exchange-entry.spec.ts` 94 例（含文档两个示例哈希逐字相同），`exchange-entry-isolation.spec.ts` 用资源计时证明只加载入口与三个纯模块（往入口加一条非纯导出的变异使其变红）；dist 在 Node 26 与 Deno 2.8 下复算示例哈希一致；`pnpm audit:build-entries` 通过。
 - 受信写登记表 #15（`import-command.ts · applyImportedCommit`，意图 `remote_commit_import`）与 epic-006 登记表、写入口矩阵、漂移扫描同步；`pnpm nx run website:check-doc-code` 481 个代码块零错误；React working-tree e2e 15 例通过。
 
 ## 技术笔记

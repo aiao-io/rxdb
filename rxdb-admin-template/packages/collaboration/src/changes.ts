@@ -1,5 +1,6 @@
 import { demand, type ChangeSet, type DataRow, type Records, type Value } from './model.js';
 import { canonical, rowAt } from './records.js';
+import type { EntityModel, SchemaModel } from './schema.js';
 
 type Fields = Record<string, Value>;
 /** 实体名到命名空间（由数据模式清单给出，见 `schema.ts` 的 `namespaceOf`）：字段级变更的 `namespace` 按它填写。 */
@@ -116,35 +117,56 @@ export function applyChanges(records: Records, changes: readonly ChangeSet[]): R
   return records;
 }
 /**
- * 核对一项修改的 `inversePatch` 与原记录一致：`inversePatch` 里的每个字段原记录都有且取值相同，
- * 只出现在 `patch` 里的字段（新增字段）原记录没有。不一致时撤销这项修改就回不到原记录，说明提交与父提交不符。
+ * 核对时这个字段的取值：记录里没有的字段按 NULL 读。单元是写下它的那台设备的落库形态，业务表上每一列都在，
+ * 没写过的可空列就是 NULL；服务端记录里没有这个键（IndexedDB 客户端没写过它、或清单后来才加了它）与设备上的 NULL 是同一个值。
  */
-function verifyUpdate(row: DataRow, change: ChangeSet): void {
+const storedValue = (fields: Record<string, Value>, field: string): Value =>
+  Object.hasOwn(fields, field) ? fields[field] : null;
+/** 两边在这个字段上取值相同（缺失按 NULL）。 */
+const sameStored = (row: DataRow, fields: Record<string, Value>, field: string) =>
+  canonical(storedValue(row.fields, field)) === canonical(storedValue(fields, field));
+/** 记录所属实体的模型：核对前 `assertChangesFit` 已保证单元的实体在清单里，这里取不到说明调用方漏了那一步。 */
+function entityOf(model: SchemaModel, change: ChangeSet): EntityModel {
+  const entity = model.entity(change.entity);
+  if (!entity) throw new Error(`The entity ${change.entity} was not checked against the schema`);
+  return entity;
+}
+/**
+ * 核对一项修改的 `inversePatch` 与原记录一致：`inversePatch` 里的每个业务字段与原值相同，
+ * 只出现在 `patch` 里的业务字段（新增字段）原来为空。系统字段不比：审计时间与主体是每台设备自己的簿记，
+ * 平台导入时也不比、不回写，设备上的值与服务端记录本就不一致。
+ */
+function verifyUpdate(row: DataRow, change: ChangeSet, entity: EntityModel): void {
   const patch = fieldsOf(change.patch);
   const inverse = fieldsOf(change.inversePatch);
-  for (const [field, value] of Object.entries(inverse))
-    demand(Object.hasOwn(row.fields, field) && sameValue(row.fields[field], value), 'invalid', mismatch);
-  for (const field of Object.keys(patch))
-    demand(Object.hasOwn(inverse, field) || !Object.hasOwn(row.fields, field), 'invalid', mismatch);
+  const tracked = (field: string) => !entity.system.includes(field);
+  for (const field of Object.keys(inverse).filter(tracked))
+    demand(sameStored(row, inverse, field), 'invalid', mismatch);
+  for (const field of Object.keys(patch).filter(tracked))
+    demand(Object.hasOwn(inverse, field) || storedValue(row.fields, field) === null, 'invalid', mismatch);
 }
-function verifyOne(records: Records, change: ChangeSet): void {
-  if (change.operation === 'update') verifyUpdate(existing(records, change), change);
-  if (change.operation === 'delete')
-    demand(
-      canonical(existing(records, change).fields) === canonical(fieldsOf(change.inversePatch)),
-      'invalid',
-      mismatch
-    );
+/** 核对删除的 `inversePatch` 就是原来的整行：两边出现过的每个业务字段取值相同（缺失按 NULL），系统字段不比。 */
+function verifyDelete(row: DataRow, change: ChangeSet, entity: EntityModel): void {
+  const inverse = fieldsOf(change.inversePatch);
+  const fields = new Set([...Object.keys(row.fields), ...Object.keys(inverse)]);
+  for (const field of [...fields].filter(name => !entity.system.includes(name)))
+    demand(sameStored(row, inverse, field), 'invalid', mismatch);
+}
+function verifyOne(records: Records, change: ChangeSet, model: SchemaModel): void {
+  if (change.operation === 'update') verifyUpdate(existing(records, change), change, entityOf(model, change));
+  if (change.operation === 'delete') verifyDelete(existing(records, change), change, entityOf(model, change));
   applyOne(records, change);
 }
 /**
  * 上传时用：把变更按顺序应用到记录上，并核对每一项都与当时的内容相符，**就地修改**并返回同一个对象。
  * 新增要求原记录不存在；修改与删除要求原记录存在、实体相同，且 `inversePatch` 与原值一致——修改只核对它列出的字段，
- * 并要求只出现在 `patch` 里的字段原来不存在；删除的 `inversePatch` 必须正好是原记录的整行。任一项不符即抛出 `invalid`。
- * `records` 只需含这些变更涉及的记录。
+ * 并要求只出现在 `patch` 里的字段原来为空；删除的 `inversePatch` 必须正是原记录的整行。任一项不符即抛出 `invalid`。
+ * 核对按落库形态解读（见 {@link storedValue}）、只比业务字段（记录字段），与平台导入时的前像核对同一口径；
+ * 取值本身原样写入，不做归一化——内容指纹覆盖的就是这一份落库形态。`records` 只需含这些变更涉及的记录，
+ * 变更的实体与字段须先经 `assertChangesFit` 按同一份清单核对。
  */
-export function applyVerified(records: Records, changes: readonly ChangeSet[]): Records {
-  for (const change of changes) verifyOne(records, change);
+export function applyVerified(records: Records, changes: readonly ChangeSet[], model: SchemaModel): Records {
+  for (const change of changes) verifyOne(records, change, model);
   return records;
 }
 /**

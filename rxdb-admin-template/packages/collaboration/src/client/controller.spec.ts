@@ -1,42 +1,32 @@
+import { computeCommitExchangeRecordFingerprint } from '@aiao/rxdb-plugin-working-tree/exchange';
 import { createClient, type Session } from '@supabase/supabase-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { commitFingerprint } from '../commit.js';
+import { taskCommit } from '../commit.testing.js';
 import {
   CollaborationError,
   type Audit,
+  type Command,
   type CommitContent,
   type CommitPage,
+  type Identity,
   type PullRequestDetail,
   type Records,
   type WorkspaceSummary
 } from '../model.js';
-import { assetSchema } from '../schema.testing.js';
-import { bootstrap } from '../server/engine.js';
+import { assetSchema, diffAssets } from '../schema.testing.js';
+import { MemoryWorkspace } from '../server/memory.testing.js';
 import { CollaborationController } from './controller.js';
-import type { Draft, DraftStorage } from './local.js';
-import { contextKey } from './local.js';
+import { TaskLedger, type Context } from './task-ledger.js';
+import type { TeamScope } from './team-database.js';
+import { memoryDownload } from './team-server.testing.js';
+import { MemoryTeamDatabase, memoryStorage } from './team.testing.js';
 import { teamPageOf, teamSummary } from './view.testing.js';
 vi.mock('@supabase/supabase-js', () => ({ createClient: vi.fn() }));
-class MemoryStorage implements DraftStorage {
-  rows = new Map<string, Draft>();
-  async read(key: string) {
-    return structuredClone(this.rows.get(key));
-  }
-  async write(key: string, change: (current: Draft | undefined) => Draft) {
-    const next = change(await this.read(key));
-    this.rows.set(key, structuredClone(next));
-    return next;
-  }
-  async list(id: string) {
-    return [...this.rows.values()].filter(d => d.context.userId === id);
-  }
-  async lock(id: string) {
-    this.rows.forEach(d => {
-      if (d.context.userId === id) d.locked = true;
-    });
-  }
-}
 const controllers: CollaborationController[] = [];
+/** 夹具工作区的共享分支根（共享头的初值）：初始化时的标识生成器恒给 'id'。 */
+const root = 'id';
+const alice: Identity = { id: 'alice', email: 'alice@example.test', verified: true };
+const aliceTask: Context = { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' };
 function browserStorage() {
   const map = new Map<string, string>();
   return {
@@ -45,41 +35,87 @@ function browserStorage() {
     removeItem: (key: string) => map.delete(key)
   };
 }
+/** 每个作用域一个内存团队库：同一作用域重开拿到同一个（像浏览器里同名的 IndexedDB 库），关闭只做记号。 */
+function teamDatabases() {
+  const opened = new Map<string, MemoryTeamDatabase>();
+  const open = async (scope: TeamScope) => {
+    const key = JSON.stringify([scope.userId, scope.teamId, scope.appId]);
+    const database = opened.get(key) ?? new MemoryTeamDatabase(scope);
+    database.closed = false;
+    opened.set(key, database);
+    return database;
+  };
+  const of = (userId = 'alice', teamId = 'team') => opened.get(JSON.stringify([userId, teamId, 'assets']))!;
+  return { open, of };
+}
+/**
+ * 已登录、选中团队并打开了自己的任务 `task` 的控制器。服务端是内存工作区（与 PostgreSQL 同一个引擎），下发接口经
+ * {@link memoryDownload}；团队页、回执与数据模式的读取各有替身；团队库是内存桩，任务分支从共享分支根建出。
+ */
 async function setup() {
   vi.stubGlobal('navigator', { onLine: true });
   vi.stubGlobal('localStorage', browserStorage());
   vi.stubGlobal('sessionStorage', browserStorage());
-  const storage = new MemoryStorage();
-  const controller = new CollaborationController('/test', storage);
+  const storage = memoryStorage();
+  const databases = teamDatabases();
+  const ledger = new TaskLedger(storage);
+  const controller = new CollaborationController('/test', databases.open, ledger);
   controllers.push(controller);
-  const user = { id: 'alice', email: 'alice@example.test', verified: true };
-  const state = bootstrap(
-    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: user, schema: assetSchema },
+  // 标识生成器恒给 'id'：共享分支根（也是共享头）就是 'id'
+  const space = MemoryWorkspace.create(
+    { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: alice, schema: assetSchema },
     { now: 1, id: () => 'id' }
   );
-  state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: null, head: null, originTaskId: null };
-  controller.user = user;
+  space.state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: root, head: root, originTaskId: null };
+  controller.user = alice;
   controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
-  controller.snapshot = teamSummary(state, user);
-  await controller.local.login('alice');
-  controller.draft = await controller.local.openVerified(
-    { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
-    'Task',
-    null,
-    null,
-    {},
-    assetSchema
-  );
+  controller.snapshot = teamSummary(space.state, alice);
+  await controller.tasks.login('alice');
   vi.spyOn(controller.reader, 'team').mockResolvedValue(teamPageOf(controller.snapshot));
   vi.spyOn(controller.reader, 'receipt').mockResolvedValue({ status: 'unknown' });
   vi.spyOn(controller.reader, 'schema').mockResolvedValue(assetSchema);
-  return { controller, storage };
+  const download = memoryDownload(space);
+  const exchange = vi
+    .spyOn(controller.reader, 'exchange')
+    .mockImplementation(async (_workspace, branch, known) => download(branch, known));
+  await controller.openTask('task');
+  return { controller, storage, ledger, space, exchange, databases, database: databases.of() };
 }
 afterEach(() => {
   controllers.splice(0).forEach(c => c.dispose());
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
+let serial = 0;
+/**
+ * 让命令与团队页都走内存服务端：命令由引擎执行（建任务、上传、另存、合并都按真实规则裁决），团队页每次从服务端状态重新算出，
+ * 用于新建任务、恢复、导入与分叉这类要服务端配合的流程。
+ */
+function live(controller: CollaborationController, space: MemoryWorkspace) {
+  const send = vi
+    .spyOn(controller.api, 'command')
+    .mockImplementation(async (_workspace, command) =>
+      space.run(alice, command, { now: Date.now(), id: () => `server-${++serial}` })
+    );
+  vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+  return send;
+}
+/** 以另一台设备的身份直接向服务端上传任务 `task` 的一个提交（改分类名），返回提交 ID。 */
+async function uploadFromAnotherDevice(space: MemoryWorkspace, taskId = 'task', name = '另一台设备') {
+  const parent = space.state.tasks[taskId].head;
+  const commit = taskCommit({
+    id: `remote-${++serial}`,
+    parent,
+    authorId: 'alice',
+    message: name,
+    changes: diffAssets({}, { [`category-${serial}`]: { entity: 'AssetCategory', fields: { name } } })
+  });
+  await space.run(alice, { type: 'upload', taskId, expectedHead: parent, commits: [commit], operationId: `op-${serial}` } as Command, {
+    now: Date.now(),
+    id: () => `server-${++serial}`
+  });
+  return commit.commitId;
+}
 function authFixture(userId = 'alice') {
   const session: Session = {
     access_token: 'access',
@@ -136,6 +172,9 @@ async function initialized(userId = 'alice') {
   await setupValue.controller.initialize();
   return { ...setupValue, ...fixture };
 }
+/** 待确认的上传（账本里任务 `task` 的那一条）。 */
+const pendingUpload = (ledger: TaskLedger) => ledger.read(aliceTask)!.uploads[0];
+
 describe('session verification and access recovery', () => {
   it('verifies online identity, caches a bounded offline grant and uses provider OTP APIs', async () => {
     const { controller, auth } = await initialized();
@@ -178,65 +217,77 @@ describe('session verification and access recovery', () => {
     expect(controller.user).toBeNull();
   });
   it('keeps a verified warm task editable when the provider expires its offline session, but explicit logout locks it', async () => {
-    const { controller, emit } = await initialized();
+    const { controller, emit, database } = await initialized();
+    await controller.openTask('task');
     vi.stubGlobal('navigator', { onLine: false });
     emit('SIGNED_OUT', null);
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'After expiry' } } });
-    await controller.sync(false);
+    database.edit();
+    await controller.sync();
     expect(controller.user?.id).toBe('alice');
-    expect(controller.draft?.queue).toHaveLength(1);
+    expect(controller.task).toMatchObject({ saved: 0, unpushed: 1 });
+    expect(controller.message).toBe('已形成提交，联网验证后可同步');
     await controller.logout();
     expect(controller.user).toBeNull();
-    expect(controller.draft).toBeNull();
+    expect(controller.task).toBeNull();
+    expect(database.closed).toBe(true);
   });
-  it('locks original user data before adopting another verified session', async () => {
-    const { controller, storage } = await initialized('bob');
+  it('locks original user data and closes its team database before adopting another verified session', async () => {
+    const { controller, ledger, database } = await initialized('bob');
     expect(controller.user?.id).toBe('bob');
-    expect(controller.draft).toBeNull();
-    expect((await storage.list('alice'))[0].locked).toBe(true);
-    expect(controller.local.actor).toBe('bob');
+    expect(controller.task).toBeNull();
+    expect(ledger.list('alice')[0].locked).toBe(true);
+    expect(database.closed).toBe(true);
+    expect(controller.tasks.database).toBeUndefined();
+    expect(() => controller.tasks.assert(aliceTask)).toThrow('团队草稿已锁定');
   });
   it('restores a cached offline context without issuing requests and rejects an expired grant', async () => {
-    const { controller, storage } = await initialized();
+    const { controller, storage, databases, database } = await initialized();
+    database.edit();
     controller.dispose();
     vi.stubGlobal('navigator', { onLine: false });
-    const cold = new CollaborationController('/test', storage);
+    const cold = new CollaborationController('/test', databases.open, new TaskLedger(storage));
     controllers.push(cold);
     await cold.initialize();
     expect(vi.mocked(createClient).mock.calls.at(-1)?.[2]).toMatchObject({ auth: { autoRefreshToken: true } });
     expect(cold.user?.id).toBe('alice');
-    expect(cold.offlineDrafts).toHaveLength(1);
+    expect(cold.offlineDrafts.map(entry => entry.context.taskId)).toEqual(['task']);
+    const exchange = vi.spyOn(cold.reader, 'exchange');
     await cold.openOffline(cold.offlineDrafts[0]);
+    expect(cold.task).toMatchObject({ saved: 1, branchId: database.active });
+    expect(cold.teamDatabase()).toBe(database);
+    expect(exchange).not.toHaveBeenCalled();
     await cold.refresh();
     expect(cold.online).toBe(false);
     const grant = JSON.parse(localStorage.getItem('admin-collaboration-grant:/test')!);
     localStorage.setItem('admin-collaboration-grant:/test', JSON.stringify({ ...grant, expiresAt: 1 }));
-    const expired = new CollaborationController('/test', storage);
+    const expired = new CollaborationController('/test', databases.open, new TaskLedger(storage));
     controllers.push(expired);
     await expect(expired.initialize()).rejects.toMatchObject({ code: 'locked' });
     expect(expired.user).toBeNull();
     expect(expired.offlineDrafts).toEqual([]);
   });
   it('refuses a revoked editing grant while retaining local work for future authorized recovery', async () => {
-    const { controller, storage } = await setup();
-    const context = controller.draft!.context;
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Retain' } } });
+    const { controller, ledger, database } = await setup();
+    database.edit();
+    const branchId = controller.task!.branchId;
     const revoked = structuredClone(controller.snapshot!);
     revoked.members[0].permissions = ['read'];
     vi.mocked(controller.reader.team).mockResolvedValue(teamPageOf(revoked));
     await controller.refresh().catch(error => controller.failure(error));
-    expect(controller.draft).toBeNull();
-    expect((await storage.read(contextKey(context)))?.records.c.fields['name']).toBe('Retain');
-    expect((await storage.read(contextKey(context)))?.locked).toBe(true);
+    expect(controller.task).toBeNull();
+    expect(database.branches.get(branchId)?.entries).toHaveLength(1);
+    expect(ledger.read(aliceTask)?.locked).toBe(true);
+    expect(database.closed).toBe(true);
   });
 });
 describe('client concurrency and recovery', () => {
-  it('checkpoints the editor before locking a session', async () => {
-    const { controller } = await setup();
-    const checkpoint = vi.fn().mockResolvedValue(undefined);
-    controller.registerCheckpoint(checkpoint);
+  it('closes the team database only after the editor has been told to unmount when the session locks', async () => {
+    const { controller, database } = await setup();
+    const seen: { task: unknown; closed: boolean }[] = [];
+    controller.addEventListener('change', () => seen.push({ task: controller.task, closed: database.closed }));
     await controller.lock();
-    expect(checkpoint).toHaveBeenCalledTimes(1);
+    expect(seen[0]).toEqual({ task: null, closed: false });
+    expect(database.closed).toBe(true);
     expect(controller.user).toBeNull();
   });
 
@@ -292,7 +343,7 @@ describe('client concurrency and recovery', () => {
     vi.mocked(controller.reader.team).mockReturnValueOnce(delayed.promise.then(teamPageOf));
     const send = vi.spyOn(controller.api, 'command').mockResolvedValue({});
     const first = controller.run({ type: 'policy', stages: [], expectedVersion: 1 }, 'first');
-    await vi.waitFor(() => expect(controller.reader.team).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(controller.reader.team).toHaveBeenCalledTimes(2));
     const second = controller.run({ type: 'policy', stages: [], expectedVersion: 2 }, 'second');
     const completed = Promise.all([first, second]);
     delayed.resolve(controller.snapshot!);
@@ -328,10 +379,9 @@ describe('client concurrency and recovery', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(controller.pending()).toBeNull();
   });
-  it('does not assign a late upload receipt to the next user or erase the original queue', async () => {
-    const { controller, storage } = await setup();
-    const context = controller.draft!.context;
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Local' } } });
+  it('does not assign a late upload receipt to the next user or erase the original upload', async () => {
+    const { controller, ledger, database } = await setup();
+    database.edit();
     let finish: (value: Record<string, unknown>) => void = () => undefined;
     const send = vi.spyOn(controller.api, 'command').mockImplementation(
       () =>
@@ -339,21 +389,21 @@ describe('client concurrency and recovery', () => {
           finish = resolve;
         })
     );
-    const syncing = controller.sync(false);
+    const syncing = controller.sync();
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
-    const head = controller.draft!.localHead;
+    const { head } = pendingUpload(ledger);
     await controller.logout();
     controller.user = { id: 'bob', email: 'bob@example.test', verified: true };
-    await controller.local.login('bob');
+    await controller.tasks.login('bob');
     finish({ head });
     await expect(syncing).rejects.toMatchObject({ code: 'cancelled' });
     expect(controller.user.id).toBe('bob');
-    expect(controller.draft).toBeNull();
-    expect((await storage.read(contextKey(context)))?.queue).toHaveLength(1);
+    expect(controller.task).toBeNull();
+    expect(ledger.read(aliceTask)).toMatchObject({ remoteHead: root, uploads: [{ head }] });
   });
-  it('preserves saved edits made while an upload is in flight', async () => {
-    const { controller } = await setup();
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Original' } } });
+  it('preserves saved edits made while an upload is in flight in the next working tree', async () => {
+    const { controller, ledger, database } = await setup();
+    database.edit('original');
     let finish: (value: Record<string, unknown>) => void = () => undefined;
     const send = vi.spyOn(controller.api, 'command').mockImplementation(
       () =>
@@ -361,69 +411,76 @@ describe('client concurrency and recovery', () => {
           finish = resolve;
         })
     );
-    const syncing = controller.sync(false);
+    const syncing = controller.sync();
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
-    const head = controller.draft!.localHead;
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Newer' } } });
+    const { head } = pendingUpload(ledger);
+    database.edit('newer');
     finish({ head });
     await syncing;
-    expect(controller.draft!.records.c.fields['name']).toBe('Newer');
-    expect(controller.draft!.committed.c.fields['name']).toBe('Original');
+    expect(controller.task).toMatchObject({ saved: 1, unpushed: 0, remoteHead: head, localHead: head });
+    expect(database.branch().entries.map(unit => unit.entityId)).toEqual(['newer']);
+    expect(database.commits.get(head)?.units.map(unit => unit.entityId)).toEqual(['original']);
   });
-  it('uploads the queued commit as field-level changes with its fingerprint and resends the very same commit on retry', async () => {
-    const { controller } = await setup();
-    await controller.save({
-      c: { entity: 'AssetCategory', fields: { name: 'Computers', description: null } },
-      d: { entity: 'AssetCategory', fields: { name: 'Desks' } }
-    });
+  it('commits the whole working tree as one normal commit authored by the user and resends the very same commit on retry', async () => {
+    const { controller, database } = await setup();
+    database.edit('c');
+    database.edit('d');
+    const units = structuredClone(database.branch().entries);
     const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
-    await expect(controller.sync(false)).rejects.toThrow('network');
+    await expect(controller.sync()).rejects.toThrow('network');
     const first = send.mock.calls[0][1];
     if (first.type !== 'upload') throw new Error('expected an upload');
-    expect(first).toMatchObject({ taskId: 'task', expectedHead: null });
+    expect(first).toMatchObject({ taskId: 'task', expectedHead: root });
     expect(first.commits).toHaveLength(1);
     const [commit] = first.commits;
-    expect(commit.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(commit).toMatchObject({ parent: null, authorId: 'alice' });
-    expect(commit).not.toHaveProperty('records');
-    expect(commit.changes).toEqual([
-      {
-        namespace: 'assets',
-        entity: 'AssetCategory',
-        entityId: 'c',
-        operation: 'insert',
-        patch: { name: 'Computers', description: null },
-        inversePatch: null
-      },
-      {
-        namespace: 'assets',
-        entity: 'AssetCategory',
-        entityId: 'd',
-        operation: 'insert',
-        patch: { name: 'Desks' },
-        inversePatch: null
-      }
-    ]);
-    expect(commit.fingerprint).toBe(await commitFingerprint(commit));
-    send.mockResolvedValueOnce({ head: commit.id });
-    await controller.sync(false);
+    expect(commit).toMatchObject({ kind: 'normal', parentIds: [root], authorId: 'alice', message: 'Task' });
+    expect(commit.units).toEqual(units);
+    expect(commit.contentFingerprint).toBe(computeCommitExchangeRecordFingerprint(commit));
+    expect(controller.task).toMatchObject({ saved: 0, unpushed: 1 });
+    send.mockResolvedValueOnce({ head: commit.commitId });
+    await controller.sync();
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[1][1]).toEqual(first);
-    expect(controller.draft?.queue).toEqual([]);
-    expect(controller.draft?.remoteHead).toBe(commit.id);
+    expect(controller.task).toMatchObject({ uploads: [], remoteHead: commit.commitId, unpushed: 0 });
+    expect(controller.message).toBe('当前提交已同步；后续编辑仍需另行同步');
+  });
+  it('uploads every unsynced local commit in order after offline commits, not only the latest', async () => {
+    const { controller, database } = await setup();
+    vi.stubGlobal('navigator', { onLine: false });
+    database.edit('a');
+    await controller.sync();
+    database.edit('b');
+    await controller.sync();
+    expect(controller.task?.unpushed).toBe(2);
+    vi.stubGlobal('navigator', { onLine: true });
+    const send = vi.spyOn(controller.api, 'command').mockImplementation(async (_workspace, command) => ({
+      head: command.type === 'upload' ? command.commits.at(-1)?.commitId : undefined
+    }));
+    await controller.sync();
+    const [upload] = send.mock.calls.map(([, command]) => command);
+    if (upload.type !== 'upload') throw new Error('expected an upload');
+    expect(upload.commits.map(commit => commit.parentIds[0])).toEqual([root, upload.commits[0].commitId]);
+    expect(controller.task).toMatchObject({ unpushed: 0, remoteHead: upload.commits[1].commitId });
   });
   it('queues offline commits without attempting a cloud request', async () => {
-    const { controller } = await setup();
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Offline' } } });
+    const { controller, database } = await setup();
+    database.edit();
     vi.stubGlobal('navigator', { onLine: false });
     const send = vi.spyOn(controller.api, 'command');
-    await controller.sync(false);
+    await controller.sync();
     expect(send).not.toHaveBeenCalled();
-    expect(controller.draft?.queue).toHaveLength(1);
+    expect(controller.task).toMatchObject({ saved: 0, unpushed: 1, uploads: [] });
+  });
+  it('syncs nothing for an empty working tree without unsynced commits and never forms an empty commit', async () => {
+    const { controller, database } = await setup();
+    const send = vi.spyOn(controller.api, 'command');
+    await controller.sync();
+    expect(send).not.toHaveBeenCalled();
+    expect(database.log.filter(entry => entry.startsWith('commit:'))).toEqual([]);
   });
   it('ignores an old upload rejection after changing accounts', async () => {
-    const { controller } = await setup();
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Local' } } });
+    const { controller, database } = await setup();
+    database.edit();
     let reject: (reason: unknown) => void = () => undefined;
     const send = vi.spyOn(controller.api, 'command').mockImplementation(
       () =>
@@ -431,89 +488,64 @@ describe('client concurrency and recovery', () => {
           reject = failure;
         })
     );
-    const syncing = controller.sync(false).catch(error => controller.failure(error));
+    const syncing = controller.sync().catch(error => controller.failure(error));
     await vi.waitFor(() => expect(send).toHaveBeenCalled());
     await controller.logout();
     controller.user = { id: 'bob', email: 'bob@example.test', verified: true };
-    await controller.local.login('bob');
+    await controller.tasks.login('bob');
     reject(new CollaborationError('forbidden', 'old account revoked'));
     await syncing;
     expect(controller.user?.id).toBe('bob');
     expect(controller.message).not.toBe('old account revoked');
   });
-  it('does not resurrect an offline draft after logout during its read', async () => {
-    const { controller, storage } = await setup();
-    const original = controller.draft!;
-    let finish: (value: Draft | undefined) => void = () => undefined;
-    vi.spyOn(storage, 'read').mockImplementationOnce(
-      () =>
-        new Promise(resolve => {
-          finish = resolve;
-        })
-    );
-    const opening = controller.openOffline(original).catch(error => controller.failure(error));
-    await controller.logout();
-    finish(original);
+  it('does not resurrect an offline task after logout during its opening', async () => {
+    const { controller, ledger, database } = await setup();
+    const entry = ledger.read(aliceTask)!;
+    const gate = Promise.withResolvers<void>();
+    const switching = vi.spyOn(database, 'switchBranch').mockImplementationOnce(async () => gate.promise);
+    const opening = controller.openOffline(entry).catch(error => controller.failure(error));
+    await vi.waitFor(() => expect(switching).toHaveBeenCalled());
+    const out = controller.logout();
+    gate.resolve();
     await opening;
+    await out;
     expect(controller.user).toBeNull();
-    expect(controller.draft).toBeNull();
+    expect(controller.task).toBeNull();
     expect(controller.workspace).toBeNull();
   });
-  it('recovers an accepted fork receipt and unlocks fetching the original task', async () => {
-    const { controller } = await setup();
-    const context = controller.draft!.context;
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Preserved' } } });
+  it('recovers an accepted fork receipt, opens the fork on its own branch and lets the original follow the remote', async () => {
+    const { controller, ledger, space, database } = await setup();
+    database.edit('preserved');
     const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
-    await expect(controller.fork('Saved fork', false)).rejects.toThrow('network');
+    await expect(controller.fork('Saved fork')).rejects.toThrow('network');
     const pending = controller.pending()!;
-    expect(pending.command.type).toBe('fork');
     if (pending.command.type !== 'fork') throw new Error('expected fork');
     const command = pending.command;
+    expect(command).toMatchObject({ taskId: 'task', expectedHead: root, name: 'Saved fork' });
     expect(command.commits).toHaveLength(1);
-    expect(command.commits[0].changes).toEqual([
-      {
-        namespace: 'assets',
-        entity: 'AssetCategory',
-        entityId: 'c',
-        operation: 'insert',
-        patch: { name: 'Preserved' },
-        inversePatch: null
-      }
-    ]);
-    expect(command.commits[0].fingerprint).toBe(await commitFingerprint(command.commits[0]));
-    const head = command.commits.at(-1)!.id;
-    controller.snapshot!.tasks.push({
-      id: command.id,
-      name: command.name,
-      ownerId: 'alice',
-      base: null,
-      head,
-      originTaskId: 'task'
-    });
-    vi.spyOn(controller.reader, 'commit').mockImplementation(async (_workspace, _head, id) => {
-      const commit = command.commits.find(item => item.id === id);
-      if (!commit) throw new CollaborationError('not_found', '提交不存在');
-      return {
-        id: commit.id,
-        parent: commit.parent,
-        authorId: commit.authorId,
-        message: commit.message,
-        changes: commit.changes,
-        records: records('Preserved')
-      };
-    });
+    expect(command.commits[0]).toMatchObject({ parentIds: [root], authorId: 'alice' });
+    expect(command.commits[0].units.map(unit => unit.entityId)).toEqual(['preserved']);
+    expect(command.commits[0].contentFingerprint).toBe(computeCommitExchangeRecordFingerprint(command.commits[0]));
+    const head = command.commits.at(-1)!.commitId;
+    // 服务端其实已经接受了这次另存：回执查得到，新任务在团队页里
+    space.state.tasks[command.id] = { id: command.id, name: command.name, ownerId: 'alice', base: root, head, originTaskId: 'task' };
+    vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
     vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(controller.draft?.context.taskId).toBe(command.id);
-    expect((await controller.local.read(context))?.forkArchive).toEqual({ taskId: command.id, head });
-    expect((await controller.local.fastForward(context, 'remote', {}, false)).queue).toEqual([]);
+    expect(controller.task).toMatchObject({ context: { taskId: command.id }, localHead: head, remoteHead: head, unpushed: 0 });
+    expect(controller.task!.branchId).not.toBe(ledger.read(aliceTask)!.branchId);
+    expect(ledger.read(aliceTask)?.forkArchive).toEqual({ taskId: command.id, head });
+    await controller.openTask('task');
+    await controller.fetchRemote();
+    expect(controller.task).toMatchObject({ localHead: root, remoteHead: root, unpushed: 0, uploads: [] });
+    expect(controller.task!.forkArchive).toBeUndefined();
   });
   it('keeps the original operation when the transport result is uncertain', async () => {
     const { controller } = await setup();
     vi.spyOn(controller.api, 'command').mockRejectedValue(new CollaborationError('uncertain', '请求结果不确定'));
     await expect(
-      controller.run({ type: 'task', id: 'uncertain', name: 'Uncertain', expectedHead: null }, 'uncertain-op')
+      controller.run({ type: 'task', id: 'uncertain', name: 'Uncertain', expectedHead: root }, 'uncertain-op')
     ).rejects.toThrow('请求结果不确定');
     expect(controller.pending()?.command.operationId).toBe('uncertain-op');
   });
@@ -522,22 +554,31 @@ describe('client concurrency and recovery', () => {
     vi.spyOn(controller.api, 'command').mockResolvedValue({ taskId: 'accepted' });
     vi.spyOn(controller.reader, 'team').mockRejectedValue(new CollaborationError('forbidden', '刷新失败'));
     await expect(
-      controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: null }, 'accepted-op')
+      controller.run({ type: 'task', id: 'accepted', name: 'Accepted', expectedHead: root }, 'accepted-op')
     ).rejects.toThrow('刷新失败');
     expect(controller.pending()?.command.operationId).toBe('accepted-op');
   });
 });
-
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
+/** 一个提交的内容：父为 null 时是从共享分支根起步的第一个提交。 */
 const commitOf = (id: string, parent: string | null, name: string): CommitContent => ({
   id,
-  parent,
+  parentIds: [parent ?? root],
+  kind: 'normal',
   authorId: 'alice',
   message: id,
+  createdAt: '2026-11-18T00:00:00.000Z',
   changes: [],
   records: records(name)
 });
-const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
+const metadata = ({ id, parentIds, kind, authorId, message, createdAt }: CommitContent) => ({
+  id,
+  parentIds,
+  kind,
+  authorId,
+  message,
+  createdAt
+});
 /** 在当前团队页上叠加改动并让读取返回它（修订号加一），模拟别人推进了工作区。 */
 function publish(controller: CollaborationController, change: (summary: WorkspaceSummary) => void) {
   const next = structuredClone(controller.snapshot!);
@@ -545,13 +586,6 @@ function publish(controller: CollaborationController, change: (summary: Workspac
   next.revision += 1;
   vi.mocked(controller.reader.team).mockResolvedValue(teamPageOf(next));
   return next;
-}
-/** 共享分支头指向提交 c1、另有一个头在 c1 的自己的任务 task2 的摘要。 */
-function withSharedCommit(controller: CollaborationController) {
-  return publish(controller, summary => {
-    summary.head = 'c1';
-    summary.tasks.push({ id: 'task2', name: 'Second', ownerId: 'alice', base: 'c1', head: 'c1', originTaskId: null });
-  });
 }
 const settle = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
@@ -564,7 +598,7 @@ describe('on-demand content', () => {
     expect(controller.commitContent('c1')).toBeUndefined();
     expect(controller.commitContent('c1')).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'c1');
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: root, root }, 'c1');
     await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
     expect(controller.commitContent('c1')?.records).toEqual(records('One'));
     expect(request).toHaveBeenCalledTimes(1);
@@ -592,7 +626,7 @@ describe('on-demand content', () => {
     await expect(controller.loadCandidate('k1')).resolves.toBe(content);
     expect(controller.candidateContent('k1')).toBe(content);
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'k1');
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: root, root }, 'k1');
   });
   it('keeps immutable commits across refreshes', async () => {
     const { controller } = await setup();
@@ -648,7 +682,8 @@ describe('on-demand content', () => {
   it('serves the empty shared branch without a request', async () => {
     const { controller } = await setup();
     const request = vi.spyOn(controller.reader, 'records');
-    expect(controller.snapshot!.head).toBeNull();
+    // 头还是共享分支根：没有任何合并，不发请求
+    expect(controller.snapshot!.head).toBe(controller.snapshot!.root);
     expect(controller.sharedRecords()).toEqual({});
     await expect(controller.loadSharedRecords()).resolves.toEqual({});
     expect(request).not.toHaveBeenCalled();
@@ -721,7 +756,11 @@ describe('on-demand content', () => {
     expect(controller.commitContent('c1')).toBeUndefined();
     await vi.waitFor(() => expect(controller.commitContent('c1')?.records).toEqual(records('Other team')));
     expect(request).toHaveBeenCalledTimes(2);
-    expect(request).toHaveBeenLastCalledWith({ teamId: 'other', appId: 'assets', name: 'Other' }, null, 'c1');
+    expect(request).toHaveBeenLastCalledWith(
+      { teamId: 'other', appId: 'assets', name: 'Other' },
+      { head: root, root },
+      'c1'
+    );
   });
   it('forgets all content when the session locks', async () => {
     const { controller } = await setup();
@@ -734,59 +773,166 @@ describe('on-demand content', () => {
   });
 });
 
-describe('operations that need content', () => {
-  it('loads the head commit before opening a task and opens the draft from its records', async () => {
-    const { controller } = await setup();
-    withSharedCommit(controller);
-    const reply = Promise.withResolvers<CommitContent>();
-    const request = vi.spyOn(controller.reader, 'commit').mockReturnValue(reply.promise);
-    const opening = controller.openTask('task2');
-    await vi.waitFor(() => expect(request).toHaveBeenCalledWith(controller.workspace, 'c1', 'c1'));
-    expect(controller.draft?.context.taskId).toBe('task');
-    reply.resolve(commitOf('c1', null, 'One'));
-    await opening;
-    expect(controller.draft?.context.taskId).toBe('task2');
-    expect(controller.draft?.records).toEqual(records('One'));
-    expect(controller.draft?.remoteHead).toBe('c1');
+describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', () => {
+  it('新设备打开任务：镜像共享分支、从共同起点建分支，再导入任务已有的提交，提交 ID、父链与作者与服务端一致（AC#1）', async () => {
+    const { controller, space, exchange, databases } = await setup();
+    const remote = await uploadFromAnotherDevice(space);
+    space.state.tasks['task2'] = { id: 'task2', name: 'Second', ownerId: 'alice', base: root, head: root, originTaskId: null };
+    const second = await uploadFromAnotherDevice(space, 'task2', '第二个任务');
+    vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+    exchange.mockClear();
+    await controller.openTask('task2');
+    expect(controller.task).toMatchObject({ localHead: second, remoteHead: second, saved: 0, unpushed: 0 });
+    expect(controller.task!.commits).toEqual([
+      { id: second, parentId: root, authorId: 'alice', message: '第二个任务', synced: true }
+    ]);
+    expect(exchange.mock.calls.map(([, branch, known]) => [branch, known])).toEqual([
+      [{ branch: 'shared' }, [root]],
+      [{ taskId: 'task2' }, [root]]
+    ]);
+    const log = databases.of().log;
+    expect(log.slice(-3)).toEqual([`branch:${controller.task!.branchId}@${root}`, `switch:${controller.task!.branchId}`, `import:${second}`]);
+    expect(remote).not.toBe(second);
   });
-  it('does not open the task when its head commit cannot be loaded', async () => {
-    const { controller } = await setup();
-    withSharedCommit(controller);
-    vi.spyOn(controller.reader, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
-    await expect(controller.openTask('task2')).rejects.toMatchObject({ message: 'down' });
-    expect(controller.draft?.context.taskId).toBe('task');
-    expect((await controller.local.storage.list('alice')).map(draft => draft.context.taskId)).toEqual(['task']);
-  });
-  it('needs no commit request for a task that has no commits yet', async () => {
-    const { controller } = await setup();
-    const request = vi.spyOn(controller.reader, 'commit');
+  it('已有本机分支的任务只切过去，内容原样保留，不下发也不覆盖', async () => {
+    const { controller, exchange, database } = await setup();
+    database.edit('kept');
+    const branchId = controller.task!.branchId;
+    await controller.selectWorkspace({ teamId: 'team', appId: 'assets', name: 'Team' });
+    expect(controller.task).toBeNull();
+    exchange.mockClear();
     await controller.openTask('task');
-    expect(request).not.toHaveBeenCalled();
-    expect(controller.draft?.records).toEqual({});
+    expect(exchange).not.toHaveBeenCalled();
+    expect(controller.task).toMatchObject({ branchId, saved: 1 });
   });
-  it('loads the head commit before fast-forwarding the local task to the remote version', async () => {
-    const { controller } = await setup();
-    publish(controller, summary => {
-      summary.tasks[0].head = 'c1';
-    });
-    const request = vi.spyOn(controller.reader, 'commit').mockResolvedValue(commitOf('c1', null, 'Remote'));
-    await controller.fetchRemote(false);
-    expect(request).toHaveBeenCalledWith(controller.workspace, null, 'c1');
-    expect(controller.draft?.remoteHead).toBe('c1');
-    expect(controller.draft?.records).toEqual(records('Remote'));
+  it('下发失败时任务不打开，账本里没有它', async () => {
+    const { controller, space, exchange, ledger } = await setup();
+    space.state.tasks['task2'] = { id: 'task2', name: 'Second', ownerId: 'alice', base: root, head: root, originTaskId: null };
+    vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+    exchange.mockRejectedValue(new CollaborationError('unavailable', '读取团队数据失败，请稍后重试'));
+    await expect(controller.openTask('task2')).rejects.toMatchObject({ message: '读取团队数据失败，请稍后重试' });
+    expect(controller.task).toBeNull();
+    expect(ledger.list('alice').map(entry => entry.context.taskId)).toEqual(['task']);
   });
-  it('keeps local work when the remote head commit cannot be loaded for a fast-forward', async () => {
-    const { controller } = await setup();
-    publish(controller, summary => {
-      summary.tasks[0].head = 'c1';
+  it('拉取远端版本：本机干净时快进到另一台设备上传的提交；本机有已保存或未同步的改动时拒绝（ADMIN-US-206 AC#6）', async () => {
+    const { controller, space, database } = await setup();
+    const remote = await uploadFromAnotherDevice(space);
+    vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+    database.edit();
+    await expect(controller.fetchRemote()).rejects.toMatchObject({ code: 'dirty' });
+    expect(controller.task).toMatchObject({ remoteHead: root, saved: 1 });
+    await controller.discardDraft();
+    await controller.fetchRemote();
+    expect(controller.task).toMatchObject({ localHead: remote, remoteHead: remote, saved: 0, unpushed: 0 });
+  });
+  it('拉取远端版本下发失败时保留本机任务', async () => {
+    const { controller, space, exchange } = await setup();
+    await uploadFromAnotherDevice(space);
+    vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+    exchange.mockRejectedValue(new CollaborationError('internal', 'down'));
+    await expect(controller.fetchRemote()).rejects.toMatchObject({ message: 'down' });
+    expect(controller.task).toMatchObject({ remoteHead: root, localHead: root });
+  });
+  it('放弃草稿：工作树退回任务头，界面随即显示没有已保存未提交的改动（AC#3）', async () => {
+    const { controller, database } = await setup();
+    database.edit();
+    database.edit();
+    await controller.refreshTask();
+    expect(controller.task?.saved).toBe(2);
+    await controller.discardDraft();
+    expect(database.log.at(-1)).toBe('discard');
+    expect(controller.task).toMatchObject({ saved: 0, restoring: false });
+    expect(controller.message).toBe('已放弃草稿，任务回到上次提交的版本');
+  });
+  it('保存之后自动重读任务状态：团队库的本地写入触发一次重读，同一轮里的多次写入合并成一次', async () => {
+    const { controller, database } = await setup();
+    const view = vi.spyOn(controller.tasks, 'view');
+    database.edit();
+    database.edit();
+    await vi.waitFor(() => expect(controller.task?.saved).toBe(2));
+    expect(view).toHaveBeenCalledTimes(1);
+  });
+  it('从历史版本创建恢复草稿：新任务从当前共享头起步，恢复成所选提交的数据，差异是未提交改动（AC#5）', async () => {
+    const { controller, space } = await setup();
+    const send = live(controller, space);
+    const merged = await mergedShared(space);
+    await controller.refresh();
+    await controller.restoreVersion(root, '恢复 起点');
+    expect(controller.task).toMatchObject({ name: '恢复 起点', base: merged, localHead: merged, saved: 1, restoring: true });
+    expect(controller.message).toBe('已从历史版本形成未提交改动，同步后进入审核');
+    expect(space.state.head).toBe(merged);
+    expect(send.mock.calls.map(([, command]) => command.type)).toEqual(['task']);
+    await controller.restoreVersion(merged, '恢复 当前');
+    expect(controller.task).toMatchObject({ saved: 0, restoring: false });
+    expect(controller.message).toBe('所选版本与当前共享版本相同，没有需要恢复的改动');
+  });
+  it('恢复只在合并带进来的侧枝上的提交被拒，提示走词条，不改任何东西', async () => {
+    const { controller, space } = await setup();
+    live(controller, space);
+    await mergedShared(space);
+    await controller.refresh();
+    const side = space.store.record(space.state.head)!.parentIds[1];
+    await expect(controller.restoreVersion(side, '恢复 侧枝')).rejects.toMatchObject({
+      code: 'restore',
+      message: '所选版本只在合并带进来的侧枝上，无法直接恢复',
+      details: { reason: 'side_branch_target' }
     });
-    vi.spyOn(controller.reader, 'commit').mockRejectedValue(new CollaborationError('internal', 'down'));
-    await expect(controller.fetchRemote(false)).rejects.toMatchObject({ message: 'down' });
-    expect(controller.draft?.remoteHead).toBeNull();
-    expect(controller.draft?.records).toEqual({});
+    expect(controller.task).toMatchObject({ saved: 0, restoring: false });
+  });
+  it('导入匿名数据：新建任务，按引用顺序把记录写进任务分支的工作树，不提交、不上传（ADMIN-US-204 AC#2）', async () => {
+    const { controller, space, databases } = await setup();
+    const send = live(controller, space);
+    const records: Records = {
+      asset: { entity: 'Asset', fields: { name: '本机电脑', categoryId: 'category' } },
+      category: { entity: 'AssetCategory', fields: { name: '本机分类' } }
+    };
+    await controller.importRecords('导入本机资产', records, assetSchema);
+    expect(databases.of().writes).toEqual([{ records, order: ['AssetCategory', 'Asset', 'AssetEvent'] }]);
+    expect(controller.task).toMatchObject({ name: '导入本机资产', saved: 2, unpushed: 0 });
+    expect(send.mock.calls.map(([, command]) => command.type)).toEqual(['task']);
+    expect(controller.message).toBe('已复制到任务工作树，尚未提交或同步');
+  });
+  it('切换到另一个团队：先关闭任务（编辑界面卸载），再关上一个团队库；回到原团队重开同一个库', async () => {
+    const { controller, database } = await setup();
+    vi.mocked(controller.reader.team).mockResolvedValue({
+      ...teamPageOf(controller.snapshot!),
+      teamId: 'other',
+      name: 'Other'
+    });
+    await controller.selectWorkspace({ teamId: 'other', appId: 'assets', name: 'Other' });
+    expect(controller.task).toBeNull();
+    expect(database.closed).toBe(true);
+    expect(controller.tasks.database).toBeUndefined();
   });
 });
 
+/** 服务端合并一个任务（免审批）：任务从当前共享头起步、上传一个新增分类的提交、建 PR、生成候选并合并；返回新的共享头。 */
+async function mergedShared(space: MemoryWorkspace) {
+  const env = () => ({ now: Date.now(), id: () => `server-${++serial}` });
+  const run = (command: Record<string, unknown>) => space.run(alice, { operationId: `op-${++serial}`, ...command } as Command, env());
+  await run({ type: 'policy', stages: [], expectedVersion: 1 });
+  const base = space.state.head;
+  await run({ type: 'task', id: 'merged', name: 'merged', expectedHead: base });
+  const commit = taskCommit({
+    id: `merged-${++serial}`,
+    parent: base,
+    authorId: 'alice',
+    message: 'merged',
+    changes: diffAssets({}, { mergedCategory: { entity: 'AssetCategory', fields: { name: '已合并' } } })
+  });
+  await run({ type: 'upload', taskId: 'merged', expectedHead: base, commits: [commit] });
+  await run({ type: 'pr', id: 'merged-pr', taskId: 'merged', title: 'merged', description: '', target: 'shared' });
+  await run({ type: 'pr_state', prId: 'merged-pr', status: 'review', expectedRevision: 0 });
+  const candidate = await run({ type: 'candidate', prId: 'merged-pr', expectedRevision: 1, resolutions: [] });
+  await run({
+    type: 'merge',
+    prId: 'merged-pr',
+    candidateId: candidate['candidateId'],
+    expectedSource: commit.commitId,
+    expectedTarget: base
+  });
+  return space.state.head;
+}
 describe('audit timeline', () => {
   const event = (id: number): Audit => ({
     id: `e${id}`,
@@ -925,7 +1071,7 @@ describe('commit history pages', () => {
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 'm2', until: null }, {});
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 'm2', until: root }, {});
     await vi.waitFor(() => expect(changed).toHaveBeenCalledTimes(1));
     expect(controller.commitHistory(shared)).toEqual({ commits: page(['m2', 'm1'], null).commits, hasEarlier: false });
     publish(controller, summary => {
@@ -955,9 +1101,9 @@ describe('commit history pages', () => {
       .mockResolvedValueOnce(page(['t1'], null));
     expect(controller.commitHistory({ prId: 'pr' })).toBeUndefined();
     await vi.waitFor(() => expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(true));
-    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 't3', until: null }, {});
+    expect(request).toHaveBeenCalledWith(controller.workspace, { head: 't3', until: root }, {});
     await controller.loadEarlierCommits({ prId: 'pr' });
-    expect(request).toHaveBeenLastCalledWith(controller.workspace, { head: 't3', until: null }, { before: 't2' });
+    expect(request).toHaveBeenLastCalledWith(controller.workspace, { head: 't3', until: root }, { before: 't2' });
     expect(ids(controller, { prId: 'pr' })).toEqual(['t3', 't2', 't1']);
     expect(controller.commitHistory({ prId: 'pr' })?.hasEarlier).toBe(false);
     await controller.loadEarlierCommits({ prId: 'pr' });
@@ -1019,7 +1165,7 @@ describe('commit history pages', () => {
     const other = { teamId: 'other', appId: 'assets', name: 'Other' };
     await controller.selectWorkspace(other);
     expect(controller.commitHistory(shared)).toBeUndefined();
-    await vi.waitFor(() => expect(request).toHaveBeenLastCalledWith(other, { head: 'm1', until: null }, {}));
+    await vi.waitFor(() => expect(request).toHaveBeenLastCalledWith(other, { head: 'm1', until: root }, {}));
     await controller.lock();
     expect(controller.commitHistory(shared)).toBeUndefined();
     expect(request).toHaveBeenCalledTimes(2);
@@ -1122,79 +1268,76 @@ describe('requests older than the receipt retention period', () => {
 describe('queued uploads older than the receipt retention period', () => {
   const day = 86_400_000;
   const uploadMessage = '待上传提交已超过回执保留期，请核对远端版本后确认同步';
-  /** 草稿里留下一个上传结果未知的提交。 */
-  async function queued(controller: CollaborationController) {
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Queued' } } });
+  /** 任务里留下一个上传结果未知的提交。 */
+  async function queued(controller: CollaborationController, database: MemoryTeamDatabase) {
+    database.edit('queued');
     const send = vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
-    await expect(controller.sync(false)).rejects.toThrow('network');
+    await expect(controller.sync()).rejects.toThrow('network');
     return send;
   }
-  /** 把队首上传条目的形成时间改成 `ms` 毫秒之前；`undefined` 模拟切片 D 之前写入、没有形成时间的条目。 */
-  async function ageUpload(controller: CollaborationController, storage: MemoryStorage, ms: number | undefined) {
-    const key = contextKey(controller.draft!.context);
-    const draft = (await storage.read(key))!;
-    const [first, ...rest] = draft.queue;
-    const aged = { ...first, createdAt: ms === undefined ? undefined : Date.now() - ms };
-    if (ms === undefined) delete aged.createdAt;
-    storage.rows.set(key, { ...draft, queue: [aged, ...rest] });
-    controller.draft = (await storage.read(key))!;
-    return first;
+  /** 把待确认上传的形成时间改成 `ms` 毫秒之前；`undefined` 模拟没有有效形成时间的记录。 */
+  async function ageUpload(controller: CollaborationController, ledger: TaskLedger, ms: number | undefined) {
+    const entry = ledger.write(aliceTask, current => {
+      const [first] = current!.uploads;
+      const aged = { ...first, createdAt: ms === undefined ? Number.NaN : Date.now() - ms };
+      return { ...current!, uploads: [aged] };
+    });
+    await controller.refreshTask();
+    return entry.uploads[0];
   }
   it('acknowledges an expired upload locally when the remote task head already is its last commit', async () => {
-    const { controller, storage } = await setup();
-    const send = await queued(controller);
-    const item = await ageUpload(controller, storage, 31 * day);
-    const head = item.commits.at(-1)!.id;
+    const { controller, ledger, database } = await setup();
+    const send = await queued(controller, database);
+    const item = await ageUpload(controller, ledger, 31 * day);
     publish(controller, summary => {
-      summary.tasks[0].head = head;
+      summary.tasks[0].head = item.head;
     });
-    await controller.sync(false);
+    await controller.sync();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(controller.draft?.queue).toEqual([]);
-    expect(controller.draft?.remoteHead).toBe(head);
+    expect(controller.task).toMatchObject({ uploads: [], remoteHead: item.head, unpushed: 0 });
     expect(controller.uploadExpired()).toBe(false);
   });
   it('does not resend an expired upload whose outcome is unknown and hands it to the user', async () => {
-    const { controller, storage } = await setup();
-    const send = await queued(controller);
-    await ageUpload(controller, storage, 31 * day);
+    const { controller, ledger, database } = await setup();
+    const send = await queued(controller, database);
+    await ageUpload(controller, ledger, 31 * day);
     expect(controller.uploadExpired()).toBe(true);
-    await expect(controller.sync(false)).rejects.toMatchObject({ code: 'expired', message: uploadMessage });
+    await expect(controller.sync()).rejects.toMatchObject({ code: 'expired', message: uploadMessage });
     expect(send).toHaveBeenCalledTimes(1);
-    expect(controller.draft?.queue).toHaveLength(1);
+    expect(controller.task?.uploads).toHaveLength(1);
     expect(controller.syncing).toBe(false);
   });
-  it('treats a queued upload without a creation time as expired', async () => {
-    const { controller, storage } = await setup();
-    const send = await queued(controller);
-    await ageUpload(controller, storage, undefined);
+  it('treats a queued upload without a valid creation time as expired', async () => {
+    const { controller, ledger, database } = await setup();
+    const send = await queued(controller, database);
+    await ageUpload(controller, ledger, undefined);
     expect(controller.uploadExpired()).toBe(true);
-    await expect(controller.sync(false)).rejects.toMatchObject({ code: 'expired' });
+    await expect(controller.sync()).rejects.toMatchObject({ code: 'expired' });
     expect(send).toHaveBeenCalledTimes(1);
   });
   it('sends an expired upload on confirmation with the same operation and commits, never its creation time', async () => {
-    const { controller, storage } = await setup();
-    const send = await queued(controller);
+    const { controller, ledger, database } = await setup();
+    const send = await queued(controller, database);
     const first = send.mock.calls[0][1];
-    const item = await ageUpload(controller, storage, 31 * day);
-    send.mockResolvedValueOnce({ head: item.commits.at(-1)!.id });
-    await controller.sync(false, true);
+    const item = await ageUpload(controller, ledger, 31 * day);
+    send.mockResolvedValueOnce({ head: item.head });
+    await controller.sync(true);
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[1][1]).toEqual(first);
     expect(send.mock.calls[1][1]).not.toHaveProperty('createdAt');
-    expect(controller.draft?.queue).toEqual([]);
+    expect(send.mock.calls[1][1]).not.toHaveProperty('head');
+    expect(controller.task?.uploads).toEqual([]);
   });
   it('keeps uploading fresh queued commits automatically', async () => {
-    const { controller } = await setup();
-    const send = await queued(controller);
+    const { controller, ledger, database } = await setup();
+    const send = await queued(controller, database);
     expect(controller.uploadExpired()).toBe(false);
-    send.mockResolvedValueOnce({ head: controller.draft!.localHead });
-    await controller.sync(false);
+    send.mockResolvedValueOnce({ head: pendingUpload(ledger).head });
+    await controller.sync();
     expect(send).toHaveBeenCalledTimes(2);
-    expect(controller.draft?.queue).toEqual([]);
+    expect(controller.task?.uploads).toEqual([]);
   });
 });
-
 type Listener = (message: Record<string, unknown>) => void;
 /**
  * 已登录并加入了团队频道的控制器：从假频道上取出 Broadcast、Presence 与状态回调，用例直接驱动它们，
@@ -1238,9 +1381,9 @@ const detailFor = (prId: string, candidates: string[] = []): PullRequestDetail =
       {
         id,
         prId,
-        base: null,
+        base: root,
         source: 's',
-        target: null,
+        target: root,
         schemaVersion: 1,
         policyVersion: 1,
         resolutions: [],
@@ -1273,7 +1416,7 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
     const { controller, signal, revision, team } = await joined();
     const version = vi
       .spyOn(controller.reader, 'version')
-      .mockResolvedValue({ revision: revision + 1, auditCount: 9, head: null });
+      .mockResolvedValue({ revision: revision + 1, auditCount: 9, head: root });
     signal({ revision: revision + 1, kinds: ['details', 'audit'], prIds: ['pr'] });
     await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
     expect(controller.snapshot!.auditCount).toBe(9);
@@ -1291,7 +1434,7 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
   });
   it('只有被点名的成员重读通知窗口', async () => {
     const { controller, signal, revision, team } = await joined();
-    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 2, auditCount: 3, head: null });
+    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 2, auditCount: 3, head: root });
     const notices = vi.spyOn(controller.reader, 'notices').mockResolvedValue({
       notices: [{ id: 'n1', userId: 'alice', prId: 'pr', threadId: null, candidateId: null, read: false, at: 1 }],
       earlier: false,
@@ -1328,7 +1471,7 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
       .mockResolvedValue(detailFor('pr', ['cand']));
     expect(controller.prDetail('pr')).toBeUndefined();
     await vi.waitFor(() => expect(controller.prDetail('pr')).toEqual(detailFor('pr')));
-    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 1, auditCount: 1, head: null });
+    vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 1, auditCount: 1, head: root });
     signal({ revision: revision + 1, kinds: ['details', 'audit'], prIds: ['pr'] });
     await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
     expect(controller.prDetail('pr')).toEqual(detailFor('pr'));
@@ -1343,29 +1486,22 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
     detail.mockResolvedValue(detailFor('pr', ['cand', 'newer']));
     await vi.waitFor(() => expect(controller.prDetail('pr')?.candidates).toHaveProperty('newer'));
   });
-  it('Supabase 查询暂不可用时提示并保留会话、草稿与队列，恢复后补齐，不伪报同步成功', async () => {
-    const { controller, team } = await joined();
+  it('Supabase 查询暂不可用时提示并保留会话、任务与待上传的提交，恢复后补齐，不伪报同步成功', async () => {
+    const { controller, team, ledger, database } = await joined();
+    await controller.openTask('task');
     team.mockRejectedValue(new CollaborationError('unavailable', '读取团队数据失败，请稍后重试'));
     const send = vi.spyOn(controller.api, 'command');
-    controller.draft = await controller.local.openVerified(
-      { userId: 'alice', teamId: 'team', appId: 'assets', taskId: 'task' },
-      'Task',
-      null,
-      null,
-      {},
-      assetSchema
-    );
-    await controller.save({ c: { entity: 'AssetCategory', fields: { name: 'Queued' } } });
-    await controller.sync(false).catch(error => controller.failure(error));
+    database.edit();
+    await controller.sync().catch(error => controller.failure(error));
     expect(controller.message).toBe('读取团队数据失败，请稍后重试');
     expect(controller.user?.id).toBe('alice');
-    expect(controller.draft?.queue).toHaveLength(1);
+    expect(controller.task).toMatchObject({ saved: 0, unpushed: 1 });
     expect(send).not.toHaveBeenCalled();
     team.mockResolvedValue(teamPageOf(controller.snapshot!));
-    send.mockResolvedValue({ taskId: 'task', head: controller.draft!.queue[0].commits.at(-1)!.id });
-    await controller.sync(false);
+    send.mockImplementation(async () => ({ taskId: 'task', head: pendingUpload(ledger).head }));
+    await controller.sync();
     expect(controller.message).toBe('当前提交已同步；后续编辑仍需另行同步');
-    expect(controller.draft?.queue).toHaveLength(0);
+    expect(controller.task).toMatchObject({ uploads: [], unpushed: 0 });
   });
 });
 
@@ -1377,7 +1513,7 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     vi.spyOn(controller.reader, 'version').mockResolvedValue({
       revision: controller.snapshot!.revision,
       auditCount: 1,
-      head: null
+      head: root
     });
     status('SUBSCRIBED');
     expect(channel.track).toHaveBeenCalledWith({ userId: 'alice', prId: 'pr', recordId: null });
@@ -1431,8 +1567,8 @@ describe('Realtime Presence 与撤权（ADMIN-US-219 AC#3、AC#4）', () => {
     const { controller, status, revision, team } = await joined();
     const version = vi
       .spyOn(controller.reader, 'version')
-      .mockResolvedValueOnce({ revision, auditCount: 1, head: null })
-      .mockResolvedValueOnce({ revision: revision + 4, auditCount: 1, head: null });
+      .mockResolvedValueOnce({ revision, auditCount: 1, head: root })
+      .mockResolvedValueOnce({ revision: revision + 4, auditCount: 1, head: root });
     status('SUBSCRIBED');
     await vi.waitFor(() => expect(version).toHaveBeenCalledTimes(1));
     expect(team).not.toHaveBeenCalled();

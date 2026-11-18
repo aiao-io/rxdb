@@ -20,6 +20,9 @@ import { pathToFileURL } from 'node:url';
 /** 服务端才读的变量名；出现在前端产物里即判违规。 */
 export const SERVER_ONLY_VARIABLES = [
   'ADMIN_DATABASE_URL',
+  'ADMIN_OWNER_DATABASE_URL',
+  'ADMIN_SERVICE_PASSWORD',
+  'ADMIN_JWT_SECRET',
   'ADMIN_BOOTSTRAP_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_SECRET_KEY',

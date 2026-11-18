@@ -1,6 +1,7 @@
 import { activeBlockers, reviewRevision as sharedReviewRevision, stageProgress } from '../approval.js';
 import { applyChanges, diffRecords } from '../changes.js';
 import { checkMerged, type RecordCheck } from '../checks.js';
+import { withFingerprint } from '../commit.js';
 import {
   demand,
   type Check,
@@ -16,7 +17,7 @@ import {
   type Workspace
 } from '../model.js';
 import { canonical, mergeRecords, rowAt } from '../records.js';
-import { assertRecordsFit, namespaceOf, recordKeys } from '../schema.js';
+import { assertRecordsFit, namespaceOf, recordKeys, systemFieldOf } from '../schema.js';
 import { authorize, expected, managePr, openPr, prFor, taskFor } from './access.js';
 import { preloaded, type Facts, type MergeInputs, type Plan, type Reopen, type Run } from './plan.js';
 
@@ -63,7 +64,7 @@ export function governancePlan(state: Workspace, user: Identity, command: Comman
     const { pr, task, source } = candidateGuards(state, user, command);
     return {
       type: 'inputs',
-      head: state.head,
+      shared: { head: state.head, root: state.root },
       base: task.base,
       source,
       reopen: reopenTargets(state, pr),
@@ -75,7 +76,7 @@ export function governancePlan(state: Workspace, user: Identity, command: Comman
   const { candidate } = mergeGuards(state, user, command);
   return {
     type: 'inputs',
-    head: state.head,
+    shared: { head: state.head, root: state.root },
     base: candidate.base,
     source: candidate.source,
     reopen: [],
@@ -142,13 +143,13 @@ export function governanceCommand(
   if (command.type === 'merge') return merge(state, user, command, env, run);
   return undefined;
 }
-/** 生成候选前的授权与状态校验：PR 打开且可管理、修订号一致、任务已有同步的提交。 */
+/** 生成候选前的授权与状态校验：PR 打开且可管理、修订号一致、任务已有同步的提交（任务头不是共同起点）。 */
 function candidateGuards(state: Workspace, user: Identity, command: Extract<Command, { type: 'candidate' }>) {
   const pr = openPr(state, command.prId);
   managePr(state, user, pr);
   expected(pr.revision, command.expectedRevision);
   const task = taskFor(state, pr.taskId);
-  demand(task.head, 'empty', '任务没有已同步提交');
+  demand(task.head !== task.base, 'empty', '任务没有已同步提交');
   return { pr, task, source: task.head };
 }
 /** 已解决的必须处理线程所锚定的记录，按它们当时对应的候选归并；新候选里这些记录变化了线程才会重新打开。 */
@@ -175,7 +176,13 @@ function makeCandidate(
   const { pr, task, source } = candidateGuards(state, user, command);
   const inputs = mergeInputs(run.facts);
   // 三方合并只在改动过的记录上进行：其余记录三方相同，结果就是 T
-  const merged = mergeRecords(inputs.base, inputs.source, inputs.target, command.resolutions);
+  const merged = mergeRecords(
+    inputs.base,
+    inputs.source,
+    inputs.target,
+    command.resolutions,
+    systemFieldOf(state.schema)
+  );
   const checks = resultChecks(state.schema, inputs, merged.records, run.checks);
   const id = env.id();
   state.candidates[id] = {
@@ -304,6 +311,38 @@ function mergeGuards(state: Workspace, user: Identity, command: Extract<Command,
   );
   return { pr, candidate };
 }
+/**
+ * 服务端合成的合并提交（平台交换记录）：种类 `merge`，第一父是共享头、第二父是任务头（两者总是不同：建 PR 与生成候选
+ * 都要求任务头不是它的共同起点，任务头因此是任务提交，不会是共享分支上的提交）；作者是合并人，消息 `Merge <PR 标题>`。
+ * 单元就是候选存储的变更——合并结果相对第一父（目标版本 T，即此刻的共享头）的增量；整次合并是一笔原子写，
+ * 全部单元共用 `unitId`（取合并提交 ID，生产环境是 UUIDv7），`transactionId` 为 null，来源 `local`。
+ * 任务的改动已全部在共享分支上时候选没有变更，合并提交就没有单元（平台允许只记祖先关系的合并）。
+ * 内容指纹用平台的 `computeCommitExchangeRecordFingerprint()` 计算。
+ */
+function mergeCommit(
+  state: Workspace,
+  user: Identity,
+  pr: PullRequest,
+  candidate: StoredCandidate,
+  head: string,
+  env: Environment
+) {
+  demand(candidate.source !== state.head, 'empty', '任务没有已同步提交');
+  return withFingerprint({
+    commitId: head,
+    parentIds: [state.head, candidate.source],
+    kind: 'merge',
+    message: `Merge ${pr.title}`,
+    authorId: user.id,
+    createdAt: new Date(env.now).toISOString(),
+    units: candidate.changes.map(change => ({
+      ...structuredClone(change),
+      unitId: head,
+      transactionId: null,
+      origin: 'local' as const
+    }))
+  });
+}
 function merge(
   state: Workspace,
   user: Identity,
@@ -316,7 +355,7 @@ function merge(
   const target = inputs.target;
   // 服务端重算并核对候选：重新得到的结果与候选存储的变更应用到 T 之后必须完全一致，不能在事务里换用新的冲突值。
   // 两边都只含改动过的记录，其余记录三方相同、都等于 T
-  const result = mergeRecords(inputs.base, inputs.source, target, candidate.resolutions);
+  const result = mergeRecords(inputs.base, inputs.source, target, candidate.resolutions, systemFieldOf(state.schema));
   const final = applyChanges(structuredClone(target), candidate.changes);
   demand(
     !result.conflicts.length &&
@@ -330,15 +369,7 @@ function merge(
   const changes = changedIds.map(id => ({ id, before: rowAt(target, id) ?? null, after: rowAt(final, id) ?? null }));
   // 逐记录的前后值只进变更日志（admin_changes），命令结果、回执与审计详情不再带它们
   run.effects.log = { head, records: structuredClone(changes) };
-  run.effects.commits.push({
-    id: head,
-    parent: state.head,
-    authorId: user.id,
-    message: `Merge ${pr.title}`,
-    mergeSource: candidate.source,
-    candidateId: candidate.id,
-    changes: structuredClone(candidate.changes)
-  });
+  run.effects.commits.push({ record: mergeCommit(state, user, pr, candidate, head, env), candidateId: candidate.id });
   const upsert = Object.fromEntries(changes.filter(change => change.after).map(change => [change.id, change.after!]));
   run.effects.shared = {
     upsert,

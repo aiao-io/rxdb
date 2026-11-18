@@ -1,4 +1,7 @@
-/** 页面刷新数据时保留用户尚未提交的表单输入；跨账号或任务不复用。 */
+/**
+ * 协作面板重绘时保留面板里尚未提交的输入（任务名称、评论、回复、冲突处理选择等）与 details 的展开状态；跨账号或任务不复用。
+ * 团队任务的记录编辑在应用的模型驱动编辑界面里，不经过这里。
+ */
 export class FormDrafts {
   private context = '';
   private readonly disclosures = new Map<string, boolean>();
@@ -10,7 +13,7 @@ export class FormDrafts {
   remember = (event: Event): void => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
-    if (target.dataset['recordId'] || !target.dataset['formKey']) return;
+    if (!target.dataset['formKey']) return;
     const key = this.key(target);
     const value = { value: target.value, checked: target instanceof HTMLInputElement && target.checked };
     this.values.set(key, value);
@@ -68,7 +71,7 @@ export class FormDrafts {
   }
   private controls(): (HTMLInputElement | HTMLSelectElement)[] {
     return [
-      ...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]:not([data-record-id])')
+      ...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]')
     ];
   }
   private key(control: HTMLInputElement | HTMLSelectElement): string {

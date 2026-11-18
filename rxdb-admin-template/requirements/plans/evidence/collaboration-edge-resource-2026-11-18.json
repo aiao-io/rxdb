@@ -1,0 +1,1143 @@
+{
+  "baseline": {
+    "label": "task(baseline)",
+    "status": 200,
+    "requestBytes": 154,
+    "wallMs": 1328,
+    "cpuMs": 44,
+    "reason": "EarlyDrop",
+    "memoryTotalMb": 12.6,
+    "memoryHeapMb": 9.6
+  },
+  "cpuHeadroom": 1.54,
+  "environment": {
+    "edgeRuntime": "supabase/edge-runtime:v1.74.0",
+    "limits": {
+      "cpuSoftMs": 1000,
+      "cpuHardMs": 2000,
+      "memoryMb": 256
+    },
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "workspace": {
+      "shared": 10000,
+      "commits": 1002
+    }
+  },
+  "generatedAt": "2026-11-17T18:27:48.938Z",
+  "hundredCommits": {
+    "label": "upload(100 commits)",
+    "status": 200,
+    "requestBytes": 100549,
+    "wallMs": 380,
+    "cpuMs": 116,
+    "reason": "EarlyDrop",
+    "memoryTotalMb": 13,
+    "memoryHeapMb": 10
+  },
+  "margins": [
+    {
+      "memoryLimitMb": 128,
+      "samples": [
+        {
+          "label": "task(10000)",
+          "status": 200,
+          "requestBytes": 168,
+          "wallMs": 1309,
+          "cpuMs": 50,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "upload(10000)",
+          "status": 200,
+          "requestBytes": 1525148,
+          "wallMs": 733,
+          "cpuMs": 289,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.9,
+          "memoryHeapMb": 9.9
+        },
+        {
+          "label": "pr(10000)",
+          "status": 200,
+          "requestBytes": 174,
+          "wallMs": 112,
+          "cpuMs": 48,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "pr_state(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 91,
+          "cpuMs": 42,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.7,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "candidate(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 774,
+          "cpuMs": 646,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 13.2,
+          "memoryHeapMb": 10.1
+        },
+        {
+          "label": "merge(10000)",
+          "status": 200,
+          "requestBytes": 258,
+          "wallMs": 2033,
+          "cpuMs": 1086,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 47.5,
+          "memoryHeapMb": 37.6
+        }
+      ]
+    },
+    {
+      "memoryLimitMb": 96,
+      "samples": [
+        {
+          "label": "task(10000)",
+          "status": 200,
+          "requestBytes": 168,
+          "wallMs": 1266,
+          "cpuMs": 45,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "upload(10000)",
+          "status": 200,
+          "requestBytes": 1527433,
+          "wallMs": 478,
+          "cpuMs": 271,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.9,
+          "memoryHeapMb": 9.9
+        },
+        {
+          "label": "pr(10000)",
+          "status": 200,
+          "requestBytes": 174,
+          "wallMs": 91,
+          "cpuMs": 39,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "pr_state(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 94,
+          "cpuMs": 43,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.7,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "candidate(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 764,
+          "cpuMs": 643,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 13.2,
+          "memoryHeapMb": 10.1
+        },
+        {
+          "label": "merge(10000)",
+          "status": 200,
+          "requestBytes": 258,
+          "wallMs": 2162,
+          "cpuMs": 1067,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 47.5,
+          "memoryHeapMb": 37.7
+        }
+      ]
+    },
+    {
+      "cpuLimitMs": 1500,
+      "samples": [
+        {
+          "label": "task(10000)",
+          "status": 200,
+          "requestBytes": 168,
+          "wallMs": 1615,
+          "cpuMs": 45,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "upload(10000)",
+          "status": 200,
+          "requestBytes": 1527636,
+          "wallMs": 442,
+          "cpuMs": 245,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.9,
+          "memoryHeapMb": 9.9
+        },
+        {
+          "label": "pr(10000)",
+          "status": 200,
+          "requestBytes": 174,
+          "wallMs": 91,
+          "cpuMs": 43,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.6,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "pr_state(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 93,
+          "cpuMs": 42,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.7,
+          "memoryHeapMb": 9.6
+        },
+        {
+          "label": "candidate(10000)",
+          "status": 200,
+          "requestBytes": 135,
+          "wallMs": 1018,
+          "cpuMs": 677,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 13.2,
+          "memoryHeapMb": 10.1
+        },
+        {
+          "label": "merge(10000)",
+          "status": 200,
+          "requestBytes": 258,
+          "wallMs": 2902,
+          "cpuMs": 1300,
+          "reason": "EarlyDrop",
+          "memoryTotalMb": 12.7,
+          "memoryHeapMb": 9.7
+        }
+      ]
+    }
+  ],
+  "method": "每个请求由新建的 worker 处理并在响应后回收，cpuMs 是该 worker 的 cpu_time_used（含冷启动、建连与 SCRAM 认证），memory 是关闭时的占用",
+  "peakCpuMs": 1299,
+  "rounds": {
+    "100": [
+      {
+        "label": "task(100)",
+        "status": 200,
+        "requestBytes": 160,
+        "wallMs": 100,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(100)",
+        "status": 200,
+        "requestBytes": 15307,
+        "wallMs": 103,
+        "cpuMs": 49,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr(100)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 94,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 93,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 117,
+        "cpuMs": 61,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "merge(100)",
+        "status": 200,
+        "requestBytes": 254,
+        "wallMs": 138,
+        "cpuMs": 69,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 10
+      },
+      {
+        "label": "task(100)",
+        "status": 200,
+        "requestBytes": 160,
+        "wallMs": 91,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(100)",
+        "status": 200,
+        "requestBytes": 15307,
+        "wallMs": 104,
+        "cpuMs": 47,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr(100)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 94,
+        "cpuMs": 43,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 94,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 132,
+        "cpuMs": 69,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "merge(100)",
+        "status": 200,
+        "requestBytes": 254,
+        "wallMs": 294,
+        "cpuMs": 76,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 10
+      },
+      {
+        "label": "task(100)",
+        "status": 200,
+        "requestBytes": 160,
+        "wallMs": 101,
+        "cpuMs": 46,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(100)",
+        "status": 200,
+        "requestBytes": 15307,
+        "wallMs": 106,
+        "cpuMs": 49,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr(100)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 98,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 93,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 134,
+        "cpuMs": 74,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "merge(100)",
+        "status": 200,
+        "requestBytes": 254,
+        "wallMs": 151,
+        "cpuMs": 73,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 10
+      }
+    ],
+    "1000": [
+      {
+        "label": "task(1000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 94,
+        "cpuMs": 43,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(1000)",
+        "status": 200,
+        "requestBytes": 149312,
+        "wallMs": 152,
+        "cpuMs": 80,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(1000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 95,
+        "cpuMs": 46,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 94,
+        "cpuMs": 45,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 199,
+        "cpuMs": 131,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(1000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 324,
+        "cpuMs": 177,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      },
+      {
+        "label": "task(1000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 93,
+        "cpuMs": 40,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(1000)",
+        "status": 200,
+        "requestBytes": 149312,
+        "wallMs": 144,
+        "cpuMs": 77,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(1000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 91,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 92,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 195,
+        "cpuMs": 131,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(1000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 311,
+        "cpuMs": 175,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      },
+      {
+        "label": "task(1000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 90,
+        "cpuMs": 50,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(1000)",
+        "status": 200,
+        "requestBytes": 149312,
+        "wallMs": 163,
+        "cpuMs": 75,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(1000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 94,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 90,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 196,
+        "cpuMs": 129,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(1000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 314,
+        "cpuMs": 176,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      }
+    ],
+    "5000": [
+      {
+        "label": "task(5000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 96,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(5000)",
+        "status": 200,
+        "requestBytes": 744868,
+        "wallMs": 288,
+        "cpuMs": 148,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(5000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 96,
+        "cpuMs": 45,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 92,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 473,
+        "cpuMs": 380,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(5000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 1074,
+        "cpuMs": 581,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.8,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "task(5000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 97,
+        "cpuMs": 52,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(5000)",
+        "status": 200,
+        "requestBytes": 744868,
+        "wallMs": 331,
+        "cpuMs": 161,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(5000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 94,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 92,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 462,
+        "cpuMs": 371,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(5000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 1060,
+        "cpuMs": 591,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.8,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "task(5000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 95,
+        "cpuMs": 45,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(5000)",
+        "status": 200,
+        "requestBytes": 744868,
+        "wallMs": 276,
+        "cpuMs": 152,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(5000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 91,
+        "cpuMs": 43,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 90,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 486,
+        "cpuMs": 383,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(5000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 1121,
+        "cpuMs": 650,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      }
+    ],
+    "10000": [
+      {
+        "label": "task(10000)",
+        "status": 200,
+        "requestBytes": 164,
+        "wallMs": 93,
+        "cpuMs": 40,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(10000)",
+        "status": 200,
+        "requestBytes": 1514940,
+        "wallMs": 653,
+        "cpuMs": 378,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(10000)",
+        "status": 200,
+        "requestBytes": 168,
+        "wallMs": 93,
+        "cpuMs": 45,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 110,
+        "cpuMs": 47,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 754,
+        "cpuMs": 636,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(10000)",
+        "status": 200,
+        "requestBytes": 256,
+        "wallMs": 2185,
+        "cpuMs": 1129,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "task(10000)",
+        "status": 200,
+        "requestBytes": 164,
+        "wallMs": 150,
+        "cpuMs": 68,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(10000)",
+        "status": 200,
+        "requestBytes": 1522946,
+        "wallMs": 767,
+        "cpuMs": 453,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(10000)",
+        "status": 200,
+        "requestBytes": 168,
+        "wallMs": 102,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 121,
+        "cpuMs": 46,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.8,
+        "memoryHeapMb": 9.8
+      },
+      {
+        "label": "candidate(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 1151,
+        "cpuMs": 859,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(10000)",
+        "status": 200,
+        "requestBytes": 256,
+        "wallMs": 2610,
+        "cpuMs": 1299,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 47.4,
+        "memoryHeapMb": 37.6
+      },
+      {
+        "label": "task(10000)",
+        "status": 200,
+        "requestBytes": 164,
+        "wallMs": 110,
+        "cpuMs": 48,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(10000)",
+        "status": 200,
+        "requestBytes": 1522956,
+        "wallMs": 618,
+        "cpuMs": 242,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      },
+      {
+        "label": "pr(10000)",
+        "status": 200,
+        "requestBytes": 168,
+        "wallMs": 99,
+        "cpuMs": 44,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "pr_state(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 90,
+        "cpuMs": 42,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "candidate(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 933,
+        "cpuMs": 689,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "merge(10000)",
+        "status": 200,
+        "requestBytes": 256,
+        "wallMs": 2164,
+        "cpuMs": 1111,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 47.4,
+        "memoryHeapMb": 37.6
+      }
+    ]
+  },
+  "statistics": {
+    "task(100)": {
+      "runs": 3,
+      "cpuMedianMs": 44,
+      "cpuMaxMs": 46,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 100
+    },
+    "upload(100)": {
+      "runs": 3,
+      "cpuMedianMs": 49,
+      "cpuMaxMs": 49,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 104
+    },
+    "pr(100)": {
+      "runs": 3,
+      "cpuMedianMs": 43,
+      "cpuMaxMs": 44,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 94
+    },
+    "pr_state(100)": {
+      "runs": 3,
+      "cpuMedianMs": 42,
+      "cpuMaxMs": 44,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 93
+    },
+    "candidate(100)": {
+      "runs": 3,
+      "cpuMedianMs": 69,
+      "cpuMaxMs": 74,
+      "memoryMaxMb": 13,
+      "wallMedianMs": 132
+    },
+    "merge(100)": {
+      "runs": 3,
+      "cpuMedianMs": 73,
+      "cpuMaxMs": 76,
+      "memoryMaxMb": 13,
+      "wallMedianMs": 151
+    },
+    "task(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 43,
+      "cpuMaxMs": 50,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 93
+    },
+    "upload(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 77,
+      "cpuMaxMs": 80,
+      "memoryMaxMb": 12.9,
+      "wallMedianMs": 152
+    },
+    "pr(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 42,
+      "cpuMaxMs": 46,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 94
+    },
+    "pr_state(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 42,
+      "cpuMaxMs": 45,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 92
+    },
+    "candidate(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 131,
+      "cpuMaxMs": 131,
+      "memoryMaxMb": 13.1,
+      "wallMedianMs": 196
+    },
+    "merge(1000)": {
+      "runs": 3,
+      "cpuMedianMs": 176,
+      "cpuMaxMs": 177,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 314
+    },
+    "task(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 45,
+      "cpuMaxMs": 52,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 96
+    },
+    "upload(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 152,
+      "cpuMaxMs": 161,
+      "memoryMaxMb": 12.9,
+      "wallMedianMs": 288
+    },
+    "pr(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 43,
+      "cpuMaxMs": 45,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 94
+    },
+    "pr_state(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 41,
+      "cpuMaxMs": 44,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 92
+    },
+    "candidate(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 380,
+      "cpuMaxMs": 383,
+      "memoryMaxMb": 13.1,
+      "wallMedianMs": 473
+    },
+    "merge(5000)": {
+      "runs": 3,
+      "cpuMedianMs": 591,
+      "cpuMaxMs": 650,
+      "memoryMaxMb": 12.8,
+      "wallMedianMs": 1074
+    },
+    "task(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 48,
+      "cpuMaxMs": 68,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 110
+    },
+    "upload(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 378,
+      "cpuMaxMs": 453,
+      "memoryMaxMb": 12.9,
+      "wallMedianMs": 653
+    },
+    "pr(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 44,
+      "cpuMaxMs": 45,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 99
+    },
+    "pr_state(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 46,
+      "cpuMaxMs": 47,
+      "memoryMaxMb": 12.8,
+      "wallMedianMs": 110
+    },
+    "candidate(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 689,
+      "cpuMaxMs": 859,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 933
+    },
+    "merge(10000)": {
+      "runs": 3,
+      "cpuMedianMs": 1129,
+      "cpuMaxMs": 1299,
+      "memoryMaxMb": 47.4,
+      "wallMedianMs": 2185
+    },
+    "upload(100 commits)": {
+      "runs": 1,
+      "cpuMedianMs": 116,
+      "cpuMaxMs": 116,
+      "memoryMaxMb": 13,
+      "wallMedianMs": 380
+    }
+  }
+}

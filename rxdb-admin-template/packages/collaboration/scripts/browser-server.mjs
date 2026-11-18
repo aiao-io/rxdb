@@ -1,21 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 import { execFile, spawn } from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import pg from 'pg';
 import { parseSchemaManifest } from '../dist/server/schema.js';
+import { containerNetwork, startEdgeFunction } from '../dist/server/server/edge-fixture.js';
 import { applyMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
+import { servicePasswordStatement, serviceRole } from '../dist/server/server/service-role.js';
 import { collaborationService } from '../dist/server/server/start.js';
 
 /**
- * 三端协作 E2E 的测试服务，拓扑与生产一致：协作命令服务直接连本机隔离 Supabase 栈自己的 PostgreSQL（与 Auth、PostgREST、
- * Realtime 同一个库），浏览器经 PostgREST 读只读投影、经 Realtime 收私有频道的广播与在线状态，命令经本服务写入。
- * - 迁移按文件名顺序在隔离栈的库上执行；身份按隔离栈的 HS256 共享密钥本地验签（SUPABASE_JWT_SECRET），与生产只差密钥类型。
+ * 三端协作 E2E 的测试服务，拓扑与生产一致：命令入口直接连本机隔离 Supabase 栈自己的 PostgreSQL（与 Auth、PostgREST、
+ * Realtime 同一个库），浏览器经 PostgREST 读只读投影、经 Realtime 收私有频道的广播与在线状态，命令经命令入口写入。
+ * - 命令入口有两种运行模式，由 `ADMIN_E2E_COMMANDS` 显式选择（ADMIN-US-220）：
+ *   - `node`（默认）：本进程里的 Node 协作服务；
+ *   - `edge`：本机 `supabase/edge-runtime` 容器里的 Edge Function（esbuild 产物，限额同线上），加入隔离栈的 docker 网络直连数据库，
+ *     经隔离栈的网关向 Auth 确认邮箱；这时没有任何 Node 协作服务在运行，本进程只托管三端静态页面与测试夹具。
+ *   两种模式下入口都以协作专用数据库角色连库（口令每轮随机，由迁移所有者在迁移之后设置），身份按隔离栈的 HS256 共享密钥本地验签。
+ * - 迁移、初始化工作区（部署期的初始化步骤）与结束时的清理以迁移所有者（postgres）执行；夹具里的邀请也经命令入口发出。
  * - 隔离栈的数据库端口没有发布到宿主机（docker/docker-compose.ci.yml 共用，不改），这里在本机开一个 TCP 端口，
  *   每个连接经 `docker exec -i <db> nc 127.0.0.1 5432` 原样转发字节：只是传输，不改写任何 SQL。
  * - 每个用例的团队 ID 都是随机 UUID，数据按团队隔离；结束时删除本轮建的全部团队的行与测试账号。
@@ -41,6 +49,10 @@ const teams = [];
 const stackId =
   process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
 const stackDatabase = `rxdb-supabase-db-${stackId}`;
+const stackGateway = `rxdb-supabase-kong-${stackId}`;
+const mode = process.env['ADMIN_E2E_COMMANDS'] ?? 'node';
+if (mode !== 'node' && mode !== 'edge') throw new Error(`ADMIN_E2E_COMMANDS must be node or edge, got ${mode}`);
+const origins = [8306, 8307, 8308].map(port => `http://127.0.0.1:${port}`).join(',');
 // 产品的数据模式清单：每个测试工作区初始化时登记为第一个数据模式版本，与正式初始化相同
 const schema = parseSchemaManifest(
   JSON.parse(await readFile(path.join(root, 'rxdb-admin-template/schema/collaboration-schema.json'), 'utf8'))
@@ -90,12 +102,24 @@ function databaseRelay() {
   });
   return new Promise(resolve => relay.listen(0, '127.0.0.1', () => resolve(relay)));
 }
-/** 隔离栈库的连接串：口令来自共用的 compose 文件，运行时拼出，不在源码里写死。 */
-function databaseUrl(port) {
-  const url = new URL(`postgres://127.0.0.1:${port}/postgres`);
-  url.username = 'postgres';
-  url.password = key('POSTGRES_PASSWORD');
+/** 隔离栈库的连接串：迁移所有者的口令来自共用的 compose 文件，专用角色的口令每轮随机，都在运行时拼出，不在源码里写死。 */
+function databaseUrl(host, port, user, password) {
+  const url = new URL(`postgres://${host}:${port}/postgres`);
+  url.username = user;
+  url.password = password;
   return url.href;
+}
+/** 以隔离栈的 HS256 共享密钥签一个已登录用户的 access token：夹具经命令入口发邀请时用（与 GoTrue 签发的令牌同形）。 */
+function accessToken(account) {
+  const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const input = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({
+    sub: account.id,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: account.email,
+    exp: Math.floor(Date.now() / 1000) + 600
+  })}`;
+  return `${input}.${createHmac('sha256', key('JWT_SECRET')).update(input).digest('base64url')}`;
 }
 /** 迁移会通知 PostgREST 重新加载结构缓存；等新的只读投影出现在缓存里再开始用例。 */
 async function waitForProjections() {
@@ -113,7 +137,11 @@ async function waitForProjections() {
 
 const servers = [];
 let relay;
+let owner;
 let service;
+let edge;
+/** 命令入口的地址：Node 模式是本进程的协作服务，Edge 模式是函数地址；三端静态服务器把 /collaboration-api 转发到这里。 */
+let commandBase;
 async function stop() {
   await Promise.allSettled(
     servers.map(
@@ -124,8 +152,8 @@ async function stop() {
         })
     )
   );
-  if (service && teams.length) {
-    const client = await service.pool.connect().catch(() => undefined);
+  if (owner && teams.length) {
+    const client = await owner.connect().catch(() => undefined);
     try {
       if (client) {
         await client.query('BEGIN');
@@ -146,6 +174,8 @@ async function stop() {
     }
   }
   await service?.pool.end().catch(() => undefined);
+  await edge?.stop().catch(() => undefined);
+  await owner?.end().catch(() => undefined);
   await new Promise(resolve => (relay ? relay.close(resolve) : resolve()));
   await Promise.allSettled(users.map(id => auth.auth.admin.deleteUser(id)));
 }
@@ -157,28 +187,56 @@ process.once('SIGINT', () => {
 });
 try {
   relay = await databaseRelay();
-  const database = databaseUrl(relay.address().port);
-  service = collaborationService({
-    SUPABASE_URL: supabaseUrl,
-    SUPABASE_ANON_KEY: supabaseKey,
-    SUPABASE_JWT_SECRET: key('JWT_SECRET'),
-    ADMIN_DATABASE_URL: database,
-    ADMIN_ALLOWED_ORIGINS: [8306, 8307, 8308].map(port => `http://127.0.0.1:${port}`).join(',')
+  const relayPort = relay.address().port;
+  owner = new pg.Pool({
+    connectionString: databaseUrl('127.0.0.1', relayPort, 'postgres', key('POSTGRES_PASSWORD')),
+    max: 4
   });
   // 连接池里空闲连接的断开（例如停服务时）只记一行，不让进程在清理之前崩溃
-  service.pool.on('error', error => console.error(`Idle database connection closed: ${error.message}`));
-  await applyMigrations(service.pool);
+  owner.on('error', error => console.error(`Idle database connection closed: ${error.message}`));
+  await applyMigrations(owner);
+  // 部署步骤：给协作专用角色设一个本轮随机的口令并允许登录，命令入口只用这个角色连库
+  const servicePassword = randomUUID();
+  await owner.query(await servicePasswordStatement(servicePassword));
   await waitForProjections();
-  const repository = new CollaborationRepository(service.pool);
-  const apiHandler = service.server.listeners('request')[0];
-  service.server.removeAllListeners('request');
-  service.server.on('request', (request, response) => {
+  if (mode === 'edge') {
+    edge = await startEdgeFunction({
+      network: await containerNetwork(stackDatabase),
+      env: {
+        // 函数经隔离栈的网关（docker 网络内）向 Auth 确认邮箱；浏览器拿到的公开地址仍是宿主机上的网关端口
+        SUPABASE_URL: `http://${stackGateway}:8000`,
+        ADMIN_PUBLIC_SUPABASE_URL: supabaseUrl,
+        SUPABASE_ANON_KEY: supabaseKey,
+        ADMIN_JWT_SECRET: key('JWT_SECRET'),
+        ADMIN_DATABASE_URL: databaseUrl(stackDatabase, 5432, serviceRole, servicePassword),
+        ADMIN_ALLOWED_ORIGINS: origins
+      }
+    });
+    commandBase = edge.url;
+  } else {
+    service = collaborationService(
+      {
+        SUPABASE_URL: supabaseUrl,
+        SUPABASE_ANON_KEY: supabaseKey,
+        SUPABASE_JWT_SECRET: key('JWT_SECRET'),
+        ADMIN_DATABASE_URL: databaseUrl('127.0.0.1', relayPort, serviceRole, servicePassword),
+        ADMIN_ALLOWED_ORIGINS: origins
+      },
+      { onError: error => console.error(`Collaboration API internal error: ${error.message}`) }
+    );
+    servers.push(service.server);
+    await listen(service.server, 8310);
+    commandBase = 'http://127.0.0.1:8310';
+  }
+  const repository = new CollaborationRepository(owner);
+  // 测试夹具：建账号与工作区、签发验证码；两种模式都由本进程提供，命令入口不在这里
+  const fixtures = createServer((request, response) => {
     const fixtureRoute =
       request.url === '/__fixture' ? fixture(repository)
       : request.url?.startsWith('/__otp?') ? otp(request.url)
       : undefined;
     if (!fixtureRoute) {
-      apiHandler(request, response);
+      response.writeHead(404).end();
       return;
     }
     void fixtureRoute
@@ -191,8 +249,8 @@ try {
         response.writeHead(500).end('fixture error');
       });
   });
-  servers.push(service.server);
-  await listen(service.server, 8309);
+  servers.push(fixtures);
+  await listen(fixtures, 8309);
   for (const [framework, port] of [
     ['react', 8306],
     ['angular', 8307],
@@ -208,7 +266,7 @@ try {
     servers.push(server);
     await listen(server, port);
   }
-  console.info('Collaboration browser fixtures ready');
+  console.info(`Collaboration browser fixtures ready (commands: ${mode} at ${commandBase})`);
 } catch (error) {
   console.error(error.message);
   await stop();
@@ -244,17 +302,22 @@ async function fixture(repository) {
   await repository.initialize({ teamId, appId, name, bootstrapKey: randomUUID(), admin, schema });
   const invitation = randomUUID();
   const token = randomUUID();
-  const tokenHash = createHash('sha256').update(token).digest('hex');
-  await repository.operation(admin, teamId, appId, {
-    type: 'invite',
-    id: invitation,
-    email: reviewer.email,
-    permissions: ['read', 'review', 'comment'],
-    tokenHash,
-    expiresAt: Date.now() + 3600000,
-    expectedVersion: 0,
-    operationId: randomUUID()
+  // 邀请经命令入口发出（入口在服务端对令牌取摘要），与管理员在页面上发邀请走同一条写路径
+  const invited = await fetch(`${commandBase}/workspaces/${teamId}/${appId}/commands`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken(admin)}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'invite',
+      id: invitation,
+      email: reviewer.email,
+      permissions: ['read', 'review', 'comment'],
+      tokenHash: token,
+      expiresAt: Date.now() + 3600000,
+      expectedVersion: 0,
+      operationId: randomUUID()
+    })
   });
+  if (!invited.ok) throw new Error(`Fixture invitation failed: ${invited.status} ${await invited.text()}`);
   const secondary = { teamId: randomUUID(), appId, name: `隔离团队-${suffix.slice(0, 8)}` };
   teams.push(secondary.teamId);
   await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin, schema });
@@ -277,7 +340,7 @@ async function serve(request, response, directory) {
     if (request.url.startsWith('/collaboration-api')) {
       const chunks = [];
       for await (const chunk of request) chunks.push(chunk);
-      const upstream = await fetch(`http://127.0.0.1:8309${request.url}`, {
+      const upstream = await fetch(`${commandBase}${request.url}`, {
         method: request.method,
         headers: Object.fromEntries(
           Object.entries(request.headers).filter(([key]) => !['host', 'connection', 'content-length'].includes(key))
@@ -285,7 +348,8 @@ async function serve(request, response, directory) {
         body: ['GET', 'HEAD'].includes(request.method) ? undefined : Buffer.concat(chunks)
       });
       response.writeHead(upstream.status, {
-        'content-type': upstream.headers.get('content-type') ?? 'application/json'
+        'content-type': upstream.headers.get('content-type') ?? 'application/json',
+        ...(upstream.headers.has('retry-after') ? { 'retry-after': upstream.headers.get('retry-after') } : {})
       });
       response.end(Buffer.from(await upstream.arrayBuffer()));
       return;

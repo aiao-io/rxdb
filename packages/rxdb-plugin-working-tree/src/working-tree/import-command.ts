@@ -73,7 +73,7 @@
 import type { EntitySyncResolver, EntityType, SwitchVersionActions, TransactionExecutor } from '@aiao/rxdb';
 import { declareTrustedWrite, getEntityMetadata, needsPush, TrustedWriteIntent } from '@aiao/rxdb';
 import type { CommitChangeUnitContent, CommitChangeUnitOperation } from '../commit/change-unit.js';
-import { computeCommitContentFingerprint } from '../commit/change-unit.js';
+import { computeCommitExchangeRecordFingerprint } from '../commit/change-unit.js';
 import { isCommitReachable } from '../commit/commit-ancestry.js';
 import { CommitBranchRef } from '../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../commit/commit-change-set.entity.js';
@@ -88,7 +88,7 @@ import { loadCommitsByIds, readCommitBranchRef } from '../commit/list-commits.js
 import { buildAdvanceHeadCas, buildCommitRows } from '../commit/write-commit.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { findCommitConflict, type CommitConflict, type WorkingTreeCredentials } from './commit-conflict.js';
-import { findCommitImportBatchProblem, type CommitImportBatchProblem } from './import-batch.js';
+import { checkCommitExchangeBatch, type CommitImportBatchProblem } from './import-batch.js';
 import { findImportPreconditionMismatch, type ImportApplyingCommit } from './import-precondition.js';
 import { hasProjectionWrites, projectionActionsOf } from './projection-actions.js';
 import { readActiveRestoreSessionRow } from './restore-session-transitions.js';
@@ -298,22 +298,6 @@ const findUnregisteredEntity = (
 };
 
 /**
- * 按内容复算一条记录的指纹。
- *
- * @remarks
- * 与写路径、损坏守卫同一个函数（`change-unit.ts` 是指纹的唯一口径）；入参取记录的**原样**消息与作者，
- * 不 trim——落库的就是这一份，守卫日后按落库值复算出的也是这一个。
- */
-const fingerprintOf = (record: CommitExchangeRecord): string =>
-  computeCommitContentFingerprint({
-    kind: record.kind,
-    parentIds: record.parentIds,
-    message: record.message,
-    author: record.authorId,
-    units: record.units
-  });
-
-/**
  * 内容上的判定：实体认不认得、加密列是不是信封、指纹对不对、同 id 的提交是不是同一个、父都在不在。
  *
  * @returns 第一处被拒的原因，与本库已有的那些提交
@@ -321,6 +305,10 @@ const fingerprintOf = (record: CommitExchangeRecord): string =>
  *
  * @remarks
  * at-rest 断言必须排在复算指纹之前（FR-038）：先算指纹再查，一个明文落进加密列的记录会让这次复算成为明文的确认预言机。
+ *
+ * 复算走 `computeCommitExchangeRecordFingerprint()`：与写路径、损坏守卫同一套摘要（`change-unit.ts` 是唯一口径），
+ * 取记录的**原样**消息与作者、不 trim——落库的就是这一份，守卫日后按落库值复算出的也是这一个。服务端经 `./exchange`
+ * 复算用的也是它，两端对「这条记录的指纹是多少」只有一个答案。
  */
 const verifyContent = async (
   executor: TransactionExecutor,
@@ -334,7 +322,7 @@ const verifyContent = async (
     context.codec,
     commits.flatMap(record => record.units)
   );
-  const mismatch = commits.find(record => fingerprintOf(record) !== record.contentFingerprint);
+  const mismatch = commits.find(record => computeCommitExchangeRecordFingerprint(record) !== record.contentFingerprint);
   if (mismatch)
     return { rejection: { ok: false, reason: 'fingerprint_mismatch', commitId: mismatch.commitId }, existing: none };
 
@@ -790,7 +778,7 @@ export const importWorkingTreeCommits = async (
     return { ok: false, reason: 'dirty_working_tree' };
   }
 
-  const malformed = findCommitImportBatchProblem(commits);
+  const malformed = checkCommitExchangeBatch(commits);
   if (malformed) return { ok: false, reason: 'invalid_batch', ...malformed };
   const { rejection, existing } = await verifyContent(executor, context, commits);
   if (rejection) return rejection;

@@ -1,5 +1,11 @@
+import { RxDB, SyncType } from '@aiao/rxdb';
 import type { I18n } from '@aiao/rxdb-i18n';
-import type { CollaborationOptions, mountCollaboration } from '@rxdb-admin-template/collaboration';
+import type {
+  CollaborationOptions,
+  TeamDatabaseFactory,
+  TeamEditorContext,
+  mountCollaboration
+} from '@rxdb-admin-template/collaboration';
 import { collaborationEnglish } from '@rxdb-admin-template/collaboration/messages';
 import { act, cleanup, render } from '@testing-library/react';
 import { StrictMode } from 'react';
@@ -14,7 +20,8 @@ const mocks = vi.hoisted(() => ({
   shell: { i18n: undefined as unknown as I18n },
   dispose: vi.fn<() => void>(),
   mount: vi.fn<typeof mountCollaboration>(),
-  readAnonymousRecords: vi.fn()
+  readAnonymousRecords: vi.fn(),
+  createTeamDatabase: vi.fn<TeamDatabaseFactory>()
 }));
 
 vi.mock('@rxdb-admin-template/collaboration', () => ({
@@ -22,7 +29,13 @@ vi.mock('@rxdb-admin-template/collaboration', () => ({
   readAnonymousRecords: mocks.readAnonymousRecords
 }));
 vi.mock('../rxdb/setup_rxdb', () => ({ default: () => mocks.database }));
+vi.mock('../rxdb/team-database', () => ({ createTeamDatabase: mocks.createTeamDatabase }));
 vi.mock('../shell/workbench-shell', () => ({ workbenchShell: mocks.shell }));
+// 编辑组件本身由 team-editor.spec 覆盖，这里只看渲染回调把它渲染进容器
+vi.mock('./team-editor', async () => {
+  const { createElement } = await import('react');
+  return { default: () => createElement('p', { 'data-testid': 'team-editor-stub' }) };
+});
 
 /** 协作界面交给匿名导入的数据模式清单：接线只原样转交，用一个最小的清单即可。 */
 const schema = { schemaVersion: 1, entities: [] };
@@ -31,7 +44,8 @@ const schema = { schemaVersion: 1, entities: [] };
 function lastMount(): { host: HTMLElement; options: CollaborationOptions } {
   const call = mocks.mount.mock.lastCall;
   if (!call) throw new Error('协作界面尚未挂载');
-  const [host, options = {}] = call;
+  const [host, options] = call;
+  if (!options) throw new Error('协作界面挂载时没有收到选项');
   return { host, options };
 }
 
@@ -160,6 +174,36 @@ describe('协作页面接线', () => {
   it('把应用的实体与字段标签交给协作界面', () => {
     render(<CollaborationPage />);
     expect(lastMount().options.labels).toBe(collaborationLabels);
+  });
+
+  it('把本端的团队库工厂交给协作界面', () => {
+    render(<CollaborationPage />);
+    expect(lastMount().options.createTeamDatabase).toBe(mocks.createTeamDatabase);
+  });
+
+  it('编辑界面经协作界面给出的渲染回调进入容器，卸载函数卸干净', async () => {
+    render(<CollaborationPage />);
+    const { renderEditor } = lastMount().options;
+    const database = new RxDB({
+      dbName: 'collaboration-page-spec-team',
+      entities: [],
+      sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
+    });
+    const context: TeamEditorContext = { database, task: { id: 'task-1', name: '年度盘点' } };
+    const container = document.body.appendChild(document.createElement('div'));
+    try {
+      let unmount: () => void = () => undefined;
+      await act(async () => {
+        unmount = renderEditor(container, context);
+      });
+      expect(container.querySelectorAll('[data-testid="team-editor-stub"]')).toHaveLength(1);
+
+      await act(async () => unmount());
+      expect(container.childElementCount).toBe(0);
+    } finally {
+      container.remove();
+      await database.destroy();
+    }
   });
 
   it('匿名导入读取失败时把原始错误交还协作界面处理', async () => {

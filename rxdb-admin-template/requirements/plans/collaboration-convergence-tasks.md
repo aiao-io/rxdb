@@ -132,6 +132,8 @@ RETURNING revision;
 - 网络中断（无 FIN）时，在线成员由 Realtime 空闲超时移除，本机实测约 59 秒，原实现是 45 秒心跳过期。
 - 本地验签用 `node:crypto`，ADMIN-US-220 做 Edge Function 时需确认 Deno 兼容或改用 WebCrypto。
 
+**部署形态实施状态（2026-11-18）：** [ADMIN-US-220](../stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 已在本地落地：fetch 风格的处理函数由 Node 与 Edge 两个入口共用；Edge 产物以 esbuild 打成自包含 ESM，驱动用打进产物的 `pg`；所有事务以 `SET LOCAL` 设时限，不依赖会话级状态；专用角色 `admin_collaboration` 只授协作所需权限，广播经 SECURITY DEFINER 函数。Edge 侧的身份变量改名为 `ADMIN_JWKS_URL` / `ADMIN_JWT_SECRET` / `ADMIN_JWT_ISSUER`，因为 Supabase 不接受 `SUPABASE_` 前缀的函数密钥。最坏情形（一个 PR 改动全部 10000 条记录后合并）CPU 为限额的 71%，超限时改用 Node 入口，或把批改拆成多个 PR。
+
 ## 5. 与 rxdb-plugin-working-tree 结合（ADMIN-US-221）
 
 平台的 [working-tree](../../../packages/rxdb-plugin-working-tree/README.md)（[epic-006](../../../requirements/epics/epic-006-working-tree-commits.md)）把「未提交改动」和「提交历史」做成了数据库内的一等概念，三端绑定对称（`useWorkingTree` / `useWorktrees`）。2026-11-17 核对源码的结论：**客户端可以结合，服务端不能直接复用**。
@@ -174,7 +176,7 @@ RETURNING revision;
 | 0    | ✅ 基线度量：现状下命令耗时、快照体积、WAL 与锁等待随提交数增长的曲线（见 3.1 节） | 无                    | 小   |
 | 1    | ✅ ADMIN-US-218 切片 A～E（AC#1 空闲复测与 AC#8 整体回归收尾）                     | 阶段 0                | 大   |
 | 2    | ✅ ADMIN-US-219 RLS 读取、Broadcast、Presence、本地 JWT 校验                       | 218                   | 中   |
-| 3    | ADMIN-US-220 Edge Function 命令入口，只部署 Supabase                               | 218、219              | 中   |
+| 3    | ✅ ADMIN-US-220 Edge Function 命令入口，只部署 Supabase                            | 218、219              | 中   |
 | 4    | ADMIN-US-217 staging / production 部署、真实邮箱证据与运维护栏                     | 218～220              | 中   |
 | 并行 | ✅ 平台 epic-014：US-316 导入远端提交（含多父）、US-317 回写式 discard/restore     | In Review（根批次 8） | 大   |
 | 5    | ADMIN-US-221 团队任务草稿落在 working-tree                                         | 218 + US-316、US-317  | 大   |

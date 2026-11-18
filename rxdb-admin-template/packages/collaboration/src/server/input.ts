@@ -1,5 +1,5 @@
+import { parseCommits } from '../commit.js';
 import { demand, permissions, type AuditQuery, type Command, type HistoryQuery } from '../model.js';
-import { assertChanges } from '../records.js';
 import { parseSchemaManifest } from '../schema.js';
 type Rule = (value: unknown) => boolean;
 const text: Rule = value => typeof value === 'string' && value.length <= 10000;
@@ -29,19 +29,14 @@ const object =
       Object.entries(rules).every(([key, rule]) => rule(record[key]))
     );
   };
-const fingerprint: Rule = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
-/** 上传的提交：字段级变更与客户端计算的内容指纹；合并关联只由服务端在合并时写入，不接受客户端提供。 */
-const commit: Rule = object({
-  id,
-  parent: nullableId,
-  authorId: id,
-  message: label,
-  changes: value => {
-    assertChanges(value);
-    return true;
-  },
-  fingerprint
-});
+/**
+ * 上传与另存分叉携带的提交：平台交换记录的 JSON 形态，按 `parseCommits()` 严格解析并按平台规则判批次形状
+ * （不合格时直接抛出带问题枚举的 `invalid`）；合并提交只由服务端在合并时生成，客户端上传的种类、父链与作者由引擎裁决。
+ */
+const commits: Rule = value => {
+  parseCommits(value);
+  return true;
+};
 const stage = object({ id, name: label, minimum: integer, reviewers: list(id), after: list(id) });
 const resolution: Rule = value => {
   if (!value || typeof value !== 'object') return false;
@@ -74,9 +69,10 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
     },
     expectedVersion: integer
   },
-  task: { id, name: label, expectedHead: nullableId },
-  upload: { taskId: id, expectedHead: nullableId, commits: list(commit) },
-  fork: { id, name: label, taskId: id, expectedHead: nullableId, commits: list(commit) },
+  // 共享分支有根（初始化时写下的 baseline 提交），任务与共享分支的头因此从不为空，期望的头都是提交标识
+  task: { id, name: label, expectedHead: id },
+  upload: { taskId: id, expectedHead: id, commits },
+  fork: { id, name: label, taskId: id, expectedHead: id, commits },
   pr: { id, taskId: id, title: label, description: text, target: oneOf('shared') },
   pr_state: { prId: id, status: oneOf('draft', 'review', 'closed'), expectedRevision: integer },
   candidate: { prId: id, expectedRevision: integer, resolutions: list(resolution, 10000) },
@@ -105,7 +101,7 @@ const shapes: Record<Command['type'], Record<string, Rule>> = {
   resolve_thread: { threadId: id, resolved: boolean, expectedRevision: integer },
   subscribe: { prId: id, subscribed: boolean },
   read_notice: { id },
-  merge: { prId: id, candidateId: id, expectedSource: id, expectedTarget: nullableId }
+  merge: { prId: id, candidateId: id, expectedSource: id, expectedTarget: id }
 };
 /** 对不可信 JSON 完整校验，拒绝客户端主体、任意表名和额外属性。 */
 export function parseCommand(value: unknown): Command {

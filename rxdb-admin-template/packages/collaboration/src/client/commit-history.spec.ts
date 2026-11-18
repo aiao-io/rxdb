@@ -2,9 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CommitPage, CommitSummary } from '../model.js';
 import { CommitHistory, type HistoryBranch } from './commit-history.js';
 
-const commit = (id: string, parent: string | null): CommitSummary => ({ id, parent, authorId: 'u1', message: id });
+const commit = (id: string, parent: string): CommitSummary => ({
+  id,
+  parentIds: [parent],
+  kind: 'normal',
+  authorId: 'u1',
+  message: id,
+  createdAt: '2026-11-18T00:00:00.000Z'
+});
 const page = (ids: string[], nextBefore: string | null): CommitPage => ({
-  commits: ids.map((id, index) => commit(id, ids[index + 1] ?? null)),
+  commits: ids.map((id, index) => commit(id, ids[index + 1] ?? 'root')),
   nextBefore
 });
 const shared: HistoryBranch = { branch: 'shared' };

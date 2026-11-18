@@ -2,7 +2,7 @@ import type { EntityType, RxDB } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assetSchema } from '../schema.testing.js';
-import { readAnonymousRecords } from './import-anonymous.js';
+import { importLimit, importOrder, readAnonymousRecords } from './import-anonymous.js';
 import { useTranslation } from './translate.js';
 // 只替换实体元数据的读取（测试用的空类没有装饰器），清单解析仍用平台的真实实现
 vi.mock('@aiao/rxdb', async importOriginal => ({
@@ -41,12 +41,12 @@ describe('explicit anonymous import boundary', () => {
       code: 'conflict'
     });
   });
-  it('serializes runtime Date values as date-only contract values', async () => {
+  it('serializes runtime Date values in the stored form of sqlite-wasm: the toISOString() instant, even for date-only fields', async () => {
     const { database: source } = database(
       new Map([[Asset, [{ id: 'asset', name: 'Asset', purchaseDate: new Date('2026-11-16T12:34:56.000Z') }]]])
     );
     await expect(readAnonymousRecords(source, [Asset] as EntityType[], assetSchema)).resolves.toEqual({
-      asset: { entity: 'Asset', fields: { name: 'Asset', purchaseDate: '2026-11-16' } }
+      asset: { entity: 'Asset', fields: { name: 'Asset', purchaseDate: '2026-11-16T12:34:56.000Z' } }
     });
   });
   it('reports an invalid runtime Date by field through the translation catalog', async () => {
@@ -57,5 +57,16 @@ describe('explicit anonymous import boundary', () => {
     await expect(read()).rejects.toMatchObject({ code: 'invalid', message: 'purchaseDate 日期格式错误' });
     useTranslation((key, values) => `${key}|${values['v0']}`);
     await expect(read()).rejects.toMatchObject({ message: 'collaboration.{v0} 日期格式错误|purchaseDate' });
+  });
+});
+
+describe('导入团队库的写入顺序与上限（ADMIN-US-221）', () => {
+  it('被单值关联引用的实体排在引用方前面：资产清单是分类、资产、维护记录，与清单里的顺序无关', () => {
+    expect(importOrder(assetSchema)).toEqual(['AssetCategory', 'Asset', 'AssetEvent']);
+    const reversed = { ...assetSchema, entities: [...assetSchema.entities].reverse() };
+    expect(importOrder(reversed)).toEqual(['AssetCategory', 'Asset', 'AssetEvent']);
+  });
+  it('一次导入的记录数不超过单个提交的变更上限：工作树的一次提交装下全部导入，超过的在预览时拒绝', () => {
+    expect(importLimit).toBe(10000);
   });
 });

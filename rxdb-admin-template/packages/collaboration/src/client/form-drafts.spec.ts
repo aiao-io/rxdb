@@ -112,26 +112,20 @@ describe('pending form inputs across asynchronous refresh', () => {
     state.restore('bob/task');
     expect(other.control.value).toBe('Other task');
   });
-  it('never replaces current record buffers, readonly outputs, or a removed select choice', () => {
+  it('never replaces readonly outputs or a removed select choice', () => {
     const host = document.createElement('div');
     const state = new FormDrafts(host);
     host.addEventListener('input', state.remember);
     state.restore('alice');
-    const name = input('名称', 'Old');
-    name.control.dataset['recordId'] = 'record';
     const choice = select('阶段', [{ value: 'old', label: 'Old' }], 'old');
     const link = input('邀请链接', 'secret');
-    host.append(name.wrapper, choice.wrapper, link.wrapper);
-    [name.control, choice.control, link.control].forEach(control =>
-      control.dispatchEvent(new Event('input', { bubbles: true }))
-    );
-    name.control.value = 'New';
+    host.append(choice.wrapper, link.wrapper);
+    [choice.control, link.control].forEach(control => control.dispatchEvent(new Event('input', { bubbles: true })));
     link.control.value = 'New link';
     link.control.readOnly = true;
     const updated = select('阶段', [{ value: 'new', label: 'New' }], 'new');
     choice.wrapper.replaceWith(updated.wrapper);
     state.restore('alice');
-    expect(name.control.value).toBe('New');
     expect(link.control.value).toBe('New link');
     expect(updated.control.value).toBe('new');
   });

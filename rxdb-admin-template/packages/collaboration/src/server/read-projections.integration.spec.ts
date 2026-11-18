@@ -1,11 +1,17 @@
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  serializeCommitExchangeRecord,
+  type CommitExchangeRecord
+} from '@aiao/rxdb-plugin-working-tree/exchange';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { sealCommit } from '../commit.js';
-import type { Command, Identity, Records } from '../model.js';
-import { CollaborationReader } from '../reader.js';
+import { taskCommit } from '../commit.testing.js';
+import type { Command, Commit, Identity, Records } from '../model.js';
+import { CollaborationReader, type ExchangeBranch } from '../reader.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
 import { applyMigrations } from './migrate.js';
 import { pgReadSource } from './pg-read.js';
@@ -112,9 +118,14 @@ const functions: [name: string, args: (head: string) => string][] = [
   ['admin_commit_path', head => `'${head}', NULL`],
   ['admin_commit_lineage', () => `'commit-2'`],
   ['admin_commit_history', head => `'${head}', NULL, 10`],
-  ['admin_commit_changes', () => `ARRAY['commit-1', 'commit-2']`]
+  ['admin_commit_changes', () => `ARRAY['commit-1', 'commit-2']`],
+  ['admin_commit_exchange', () => `'shared', NULL, 10`]
 ];
 let sharedHead = '';
+/** 共享分支的根（初始化时写下的 baseline 提交）。 */
+let root = '';
+/** 上传的两个任务提交（JSON 形态），用来核对下发接口原样交回。 */
+const uploaded: Record<string, Commit> = {};
 
 beforeAll(async () => {
   const password = randomUUID();
@@ -177,21 +188,21 @@ beforeAll(async () => {
   await op(revoked, { type: 'accept_invite', id: 'revoked', tokenHash: 'token-hash-revoked' });
   await invite('pending', person('matrix-pending'), ['read']);
   const category: Records = { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } };
-  await op(admin, { type: 'task', id: 'task', name: 'Task', expectedHead: null });
-  await op(admin, {
-    type: 'upload',
-    taskId: 'task',
-    expectedHead: null,
-    commits: [
-      await sealCommit({
-        id: 'commit-1',
-        parent: null,
-        authorId: admin.id,
-        message: 'First',
-        changes: diffAssets({}, category)
-      })
-    ]
+  root = (
+    await pool.query<{ id: string }>(
+      "SELECT id FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 AND kind = 'baseline'",
+      [own.teamId, own.appId]
+    )
+  ).rows[0].id;
+  await op(admin, { type: 'task', id: 'task', name: 'Task', expectedHead: root });
+  uploaded['commit-1'] = taskCommit({
+    id: 'commit-1',
+    parent: root,
+    authorId: admin.id,
+    message: 'First',
+    changes: diffAssets({}, category)
   });
+  await op(admin, { type: 'upload', taskId: 'task', expectedHead: root, commits: [uploaded['commit-1']] });
   await op(admin, { type: 'pr', id: 'pr', taskId: 'task', title: 'First', description: '', target: 'shared' });
   await op(admin, { type: 'pr_state', prId: 'pr', status: 'review', expectedRevision: 0 });
   const first = await op(admin, { type: 'candidate', prId: 'pr', expectedRevision: 1, resolutions: [] });
@@ -200,24 +211,18 @@ beforeAll(async () => {
     prId: 'pr',
     candidateId: first['candidateId'],
     expectedSource: 'commit-1',
-    expectedTarget: null
+    expectedTarget: root
   });
   sharedHead = String(merged['head']);
   await op(admin, { type: 'task', id: 'task-2', name: 'Second', expectedHead: sharedHead });
-  await op(admin, {
-    type: 'upload',
-    taskId: 'task-2',
-    expectedHead: sharedHead,
-    commits: [
-      await sealCommit({
-        id: 'commit-2',
-        parent: sharedHead,
-        authorId: admin.id,
-        message: 'Second',
-        changes: diffAssets(category, { category: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
-      })
-    ]
+  uploaded['commit-2'] = taskCommit({
+    id: 'commit-2',
+    parent: sharedHead,
+    authorId: admin.id,
+    message: 'Second',
+    changes: diffAssets(category, { category: { entity: 'AssetCategory', fields: { name: 'Laptops' } } })
   });
+  await op(admin, { type: 'upload', taskId: 'task-2', expectedHead: sharedHead, commits: [uploaded['commit-2']] });
   await op(admin, { type: 'pr', id: 'pr-2', taskId: 'task-2', title: 'Second', description: '', target: 'shared' });
   await op(admin, { type: 'pr_state', prId: 'pr-2', status: 'review', expectedRevision: 0 });
   const second = await op(admin, { type: 'candidate', prId: 'pr-2', expectedRevision: 1, resolutions: [] });
@@ -343,7 +348,7 @@ describe('ADMIN-US-219 public read projections and private channel authorization
     );
     const exposed = columns.rows.map(row => `${row.table_name}.${row.column_name}`);
     expect(exposed.length).toBeGreaterThan(projections.length);
-    for (const secret of ['token_hash', 'fingerprint', 'bootstrap_key', 'initial_admin_id'])
+    for (const secret of ['token_hash', 'fingerprint', 'content_fingerprint', 'bootstrap_key', 'initial_admin_id'])
       expect(
         exposed.filter(name => name.endsWith(`.${secret}`)),
         secret
@@ -375,6 +380,8 @@ describe('ADMIN-US-219 public read projections and private channel authorization
       ])
     ).rows)
       expect(text).not.toContain(fingerprint.fingerprint);
+    // 提交的内容指纹不在投影里：它只随下发接口（admin_commit_exchange）交出，供导入方复算核对
+    for (const commit of Object.values(uploaded)) expect(text).not.toContain(commit.contentFingerprint);
   });
 
   it('denies every write to the projections, even to a manager of the team', async () => {
@@ -433,6 +440,59 @@ describe('ADMIN-US-219 public read projections and private channel authorization
       head: sharedHead,
       records: [{ record_id: 'category', entity: 'AssetCategory', fields: { name: 'Computers' } }]
     });
+  });
+
+  it('downloads exchange records that pass the platform batch rules and fingerprints, in bounded pages, for members only', async () => {
+    const entry = { ...own, name: 'Matrix' };
+    const download = (who: Identity, branch: ExchangeBranch, known: readonly string[], limit?: number) =>
+      new CollaborationReader(() => pgReadSource(pool, who.id)).exchange(entry, branch, known, limit);
+    /** 一页能原样交给平台导入：批次形状合格（父先于子、最后一个是头、都是头的祖先），每个提交的内容指纹复算一致。 */
+    const importable = (commits: readonly CommitExchangeRecord[]) => {
+      expect(checkCommitExchangeBatch(commits)).toBeUndefined();
+      for (const commit of commits)
+        expect(computeCommitExchangeRecordFingerprint(commit), commit.commitId).toBe(commit.contentFingerprint);
+      return commits.map(commit => commit.commitId);
+    };
+    // 共享分支从零下发：根、合并经第二父带进来的任务提交、合并提交——侧枝提交排在把它带进来的合并提交前面
+    const shared = await download(admin, { branch: 'shared' }, []);
+    expect(shared).toMatchObject({ head: sharedHead, more: false });
+    expect(importable(shared.commits)).toEqual([root, 'commit-1', sharedHead]);
+    expect(shared.commits.map(commit => commit.kind)).toEqual(['baseline', 'normal', 'merge']);
+    expect(shared.commits[2].parentIds).toEqual([root, 'commit-1']);
+    // 上传的任务提交原样交回：时间、作者、单元九列与指纹都是上传时的那一份
+    expect(serializeCommitExchangeRecord(shared.commits[1])).toEqual(uploaded['commit-1']);
+    // 已知的提交连同祖先都不再下发；不认识的已知提交忽略（只可能是客户端还没上传的）
+    expect(importable((await download(admin, { branch: 'shared' }, [root])).commits)).toEqual(['commit-1', sharedHead]);
+    expect((await download(admin, { branch: 'shared' }, [sharedHead])).commits).toEqual([]);
+    expect(importable((await download(admin, { branch: 'shared' }, ['unknown'])).commits)).toEqual(
+      importable(shared.commits)
+    );
+    // 任务分支：从共享头之后到任务头；从零下发时带上整条共享历史
+    const task = await download(admin, { taskId: 'task-2' }, [sharedHead]);
+    expect(task).toMatchObject({ head: 'commit-2', more: false });
+    expect(importable(task.commits)).toEqual(['commit-2']);
+    expect(serializeCommitExchangeRecord(task.commits[0])).toEqual(uploaded['commit-2']);
+    expect(importable((await download(admin, { taskId: 'task-2' }, [])).commits)).toEqual([
+      root,
+      'commit-1',
+      sharedHead,
+      'commit-2'
+    ]);
+    // 分页：只在第一父链上的提交处断开，合并提交与它的侧枝不拆开（一组超过上限时这一页就是这一组）
+    const first = await download(admin, { branch: 'shared' }, [], 1);
+    expect(first.more).toBe(true);
+    expect(importable(first.commits)).toEqual([root]);
+    const rest = await download(admin, { branch: 'shared' }, importable(first.commits), 1);
+    expect(rest.more).toBe(false);
+    expect(importable(rest.commits)).toEqual(['commit-1', sharedHead]);
+    // 页大小越界、不存在的任务、非成员与被撤成员
+    for (const limit of [0, 101, 1.5])
+      await expect(download(admin, { branch: 'shared' }, [], limit), String(limit)).rejects.toMatchObject({
+        code: 'invalid'
+      });
+    await expect(download(admin, { taskId: 'missing' }, [])).rejects.toMatchObject({ code: 'not_found' });
+    for (const who of [outsider, sideApp, revoked])
+      await expect(download(who, { branch: 'shared' }, []), who.email).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('lets only readable members receive broadcasts and presence, and only report presence, on their private channel', async () => {

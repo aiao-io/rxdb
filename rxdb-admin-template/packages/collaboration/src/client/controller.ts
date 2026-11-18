@@ -1,4 +1,5 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import type { SharedBranch } from '../derive.js';
 import {
   auditPageSize,
   CollaborationError,
@@ -6,6 +7,7 @@ import {
   type Audit,
   type Candidate,
   type Command,
+  type Commit,
   type CommitContent,
   type CommitPage,
   type Identity,
@@ -25,16 +27,17 @@ import { CollaborationApi } from './api.js';
 import { AuditTimeline } from './audit-timeline.js';
 import { CommitHistory, type HistoryBranch, type HistoryView } from './commit-history.js';
 import { ContentCache } from './content-cache.js';
+import { importOrder } from './import-anonymous.js';
 import {
-  IndexedDraftStorage,
-  LocalTasks,
   retryWindowPassed,
+  TaskLedger,
   uploadCommand,
   type Context,
-  type Draft,
-  type DraftStorage,
-  type PendingUpload
-} from './local.js';
+  type PendingUpload,
+  type TaskEntry
+} from './task-ledger.js';
+import type { TeamDatabase } from './team-database.js';
+import { TeamTasks, type ExchangeDownload, type TaskView, type TeamOpener } from './team-tasks.js';
 import { WorkspaceFeed, type FeedStatus } from './workspace-feed.js';
 
 export type { WorkspaceEntry } from '../reader.js';
@@ -62,8 +65,17 @@ const presenceKey = (sessions: readonly Presence[]) =>
     .sort()
     .join('\n');
 
+/** 历史恢复被平台拒绝的成因到协作词条（平台的 `WorkingTreeRestoreResult`）。 */
+const restoreRejections: Readonly<Record<string, string>> = {
+  conflict: '其他页面已修改草稿，请保留输入后重新打开',
+  dirty_working_tree: '先提交或放弃当前改动再恢复',
+  incompatible_schema: '所选版本含有本应用不认识的数据，无法恢复',
+  unreachable_target: '所选版本不在这个任务的历史里，无法恢复',
+  side_branch_target: '所选版本只在合并带进来的侧枝上，无法直接恢复'
+};
+
 /**
- * 协作界面的状态与动作中枢：持有认证会话、团队页、本机任务草稿与实时频道，界面监听 `change` 事件重绘。
+ * 协作界面的状态与动作中枢：持有认证会话、团队页、团队库（团队任务落在平台 working-tree 上）与实时频道，界面监听 `change` 事件重绘。
  * 读取全部经 Supabase 的只读投影（{@link CollaborationReader}，PostgREST + RLS）：团队页只含成员、策略、引用与 PR 列表元数据
  * 与本人的通知窗口；PR 详情、提交历史、提交与候选内容、共享数据、审计都按需读取并缓存，同步读取入口未命中时返回 undefined
  * 并在后台加载，加载完成后触发 `change`。写入只经命令入口：所有云端变更都以带幂等键的命令按队列串行提交；
@@ -81,7 +93,10 @@ export class CollaborationController extends EventTarget {
   private authGeneration = 0;
   private mutations?: { epoch: number; settled: Promise<void> };
   private unsubscribe?: () => void;
-  private checkpoint?: () => Promise<void>;
+  /** 取消订阅团队库的本地写入（打开着的任务）。 */
+  private unwatch?: () => void;
+  /** 合并同一轮里多次本地写入触发的任务状态重读。 */
+  private taskRefresh?: Promise<void>;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
   /** 本页面的 Presence 会话标识。 */
   private readonly sessionId = crypto.randomUUID();
@@ -98,13 +113,13 @@ export class CollaborationController extends EventTarget {
   private live = false;
   /** 提交不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
   private readonly commits = new ContentCache<CommitContent>(
-    async id => this.reader.commit(this.activeWorkspace(), this.sharedHead(), id),
+    async id => this.reader.commit(this.activeWorkspace(), this.sharedBranch(), id),
     () => this.changed(),
     error => this.contentFailed(error)
   );
   /** 候选不可变，按 ID 缓存；只在切换团队或锁定时丢弃。 */
   private readonly candidates = new ContentCache<Candidate>(
-    async id => this.reader.candidate(this.activeWorkspace(), this.sharedHead(), id),
+    async id => this.reader.candidate(this.activeWorkspace(), this.sharedBranch(), id),
     () => this.changed(),
     error => this.contentFailed(error)
   );
@@ -145,8 +160,8 @@ export class CollaborationController extends EventTarget {
     error => this.contentFailed(error)
   );
   private readonly timeline = new AuditTimeline();
-  /** 本机任务草稿：按账号与团队隔离，退出或会话失效时锁定。 */
-  readonly local: LocalTasks;
+  /** 团队库里的任务：按「用户 × 团队 × 应用」一个团队库，任务是其中的分支；退出或会话失效时锁定并关库。 */
+  readonly tasks: TeamTasks;
   /** 公开配置与命令的 HTTP 客户端：命令携带当前会话令牌，由服务端本地验签。 */
   readonly api: CollaborationApi;
   /** 只读访问：经 Supabase 的只读投影读取，可见范围由 RLS 按当前会话裁决。 */
@@ -161,10 +176,10 @@ export class CollaborationController extends EventTarget {
   workspace: WorkspaceEntry | null = null;
   /** 当前工作区的团队页；尚未选择团队或处于离线任务模式时为 null。 */
   snapshot: WorkspaceSummary | null = null;
-  /** 当前打开的本机任务草稿。 */
-  draft: Draft | null = null;
-  /** 离线冷启动时按缓存授权恢复出的可解锁草稿。 */
-  offlineDrafts: Draft[] = [];
+  /** 当前打开的团队任务：团队库已切到它的分支，编辑界面读写它。 */
+  task: TaskView | null = null;
+  /** 离线冷启动时按缓存授权恢复出的可解锁任务。 */
+  offlineDrafts: TaskEntry[] = [];
   /** 是否在线：随浏览器网络状态与最近一次云端请求更新。 */
   online = navigator.onLine;
   /** 最近一条提示，通常是中文词条原文，由界面经词条表翻译后显示。 */
@@ -174,14 +189,16 @@ export class CollaborationController extends EventTarget {
   /**
    * 创建控制器；此时尚未联网，需继续调用 {@link CollaborationController.initialize}。
    * @param base 协作 HTTP 接口的路径前缀。
-   * @param storage 本机草稿存储，默认使用 IndexedDB。
+   * @param open 打开团队库（`scope => openTeamDatabase(应用的工厂, scope)`）。
+   * @param ledger 本机任务账本，默认存在 `localStorage`。
    */
   constructor(
-    readonly base = '/collaboration-api',
-    storage: DraftStorage = new IndexedDraftStorage()
+    readonly base: string,
+    open: TeamOpener,
+    ledger: TaskLedger = new TaskLedger(localStorage)
   ) {
     super();
-    this.local = new LocalTasks(storage);
+    this.tasks = new TeamTasks(ledger, open);
     this.api = new CollaborationApi(
       base,
       async () => {
@@ -204,14 +221,11 @@ export class CollaborationController extends EventTarget {
   changed() {
     this.dispatchEvent(new Event('change'));
   }
-  /** 注册锁定前的本地编辑保存钩子，避免会话恢复失败时丢失输入。 */
-  registerCheckpoint(checkpoint: () => Promise<void>): () => void {
-    this.checkpoint = checkpoint;
-    return () => {
-      if (this.checkpoint === checkpoint) this.checkpoint = undefined;
-    };
+  /** 当前打开着的任务所在的团队库（编辑界面读写它）；没有打开任务时为 undefined。 */
+  teamDatabase(): TeamDatabase | undefined {
+    return this.task ? this.tasks.database : undefined;
   }
-  /** 读取公开配置（离线时用缓存）、创建认证客户端并恢复会话；离线时只按缓存授权恢复可解锁的本机草稿。 */
+  /** 读取公开配置（离线时用缓存）、创建认证客户端并恢复会话；离线时只按缓存授权恢复可解锁的本机任务。 */
   async initialize(): Promise<void> {
     const epoch = ++this.authGeneration;
     const configKey = `admin-collaboration-config:${this.base}`;
@@ -247,7 +261,7 @@ export class CollaborationController extends EventTarget {
       demand(cached, 'locked', '请联网验证身份后再使用团队草稿');
       const grant = JSON.parse(cached) as { user: Identity; expiresAt: number };
       const drafts = await this.current(
-        this.local.coldRestore(grant.user.id, grant.expiresAt, Date.now()),
+        this.tasks.coldRestore(grant.user.id, grant.expiresAt, Date.now()),
         this.generation,
         epoch
       );
@@ -285,7 +299,10 @@ export class CollaborationController extends EventTarget {
     if (error) throw error;
     await this.acceptSession(data.session);
   }
-  /** 切换到指定团队：读取团队页并加入它的私有频道，丢弃上一个团队的已加载内容与在线状态。 */
+  /**
+   * 切换到指定团队：读取团队页并加入它的私有频道，丢弃上一个团队的已加载内容与在线状态；关闭打开着的任务，
+   * 换了团队或应用时关闭上一个团队库（编辑界面先卸载，之后才关库）。
+   */
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
     demand(this.user, 'locked', '先登录并选择团队');
     const user = this.user;
@@ -295,14 +312,16 @@ export class CollaborationController extends EventTarget {
     this.revokedUsers.clear();
     this.signals = [];
     this.windows = { prs: teamWindowSize, tasks: teamWindowSize, notices: teamWindowSize };
+    this.closeTask();
     const data = await this.current(this.loadTeam(workspace), epoch);
     if (epoch !== this.generation) return;
     this.workspace = workspace;
     this.resetContents();
     this.adopt(data);
-    this.draft = null;
     this.feed?.start(workspace, { userId: user.id, sessionId: this.sessionId });
     this.changed();
+    const open = this.tasks.database?.scope;
+    if (open && (open.teamId !== workspace.teamId || open.appId !== workspace.appId)) await this.tasks.detach();
   }
   /** 网络恢复后刷新会话与团队页（按修订号补齐离线期间的变化）；离线时只更新在线状态。 */
   async reconnect(): Promise<void> {
@@ -436,92 +455,122 @@ export class CollaborationController extends EventTarget {
   }
   /** 基于当前共享版本新建任务并打开。 */
   async createTask(name: string): Promise<void> {
+    demand(this.snapshot, 'locked', '先选择团队');
     const id = crypto.randomUUID();
-    await this.run({ type: 'task', id, name, expectedHead: this.snapshot?.head ?? null });
+    await this.run({ type: 'task', id, name, expectedHead: this.snapshot.head });
     await this.openTask(id);
   }
-  /** 打开自己的任务：校验编辑权限后建立或解锁对应的本机草稿。 */
+  /**
+   * 打开自己的任务：校验编辑权限后在团队库里切到它的分支。本机还没有这个任务的分支时，先镜像共享分支、从任务的共同起点建分支，
+   * 再导入任务在服务端已有的提交（跨设备续作，提交 ID、父链与作者与服务端一致）。编辑界面先卸载，切好分支之后再渲染。
+   */
   async openTask(id: string): Promise<void> {
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     await this.current(this.refresh());
     const task = this.snapshot.tasks.find(t => t.id === id);
     const member = this.snapshot.members.find(m => m.id === this.user?.id);
     demand(task?.ownerId === this.user.id && member?.permissions.includes('edit'), 'forbidden', '没有此任务编辑权限');
-    const context = {
-      userId: this.user.id,
-      teamId: this.workspace.teamId,
-      appId: this.workspace.appId,
-      taskId: task.id
-    };
-    const records = await this.current(this.recordsAt(task.head));
-    const schema = await this.current(this.loadSchema());
-    const epoch = ++this.generation;
-    const draft = await this.local.openVerified(context, task.name, task.base, task.head, records, schema);
-    demand(epoch === this.generation, 'cancelled', '上下文已切换');
-    this.draft = draft;
+    const workspace = this.workspace;
+    const context = { userId: this.user.id, teamId: workspace.teamId, appId: workspace.appId, taskId: task.id };
+    this.closeTask();
     this.changed();
-  }
-  /** 离线时打开一个已解锁的本机草稿。 */
-  async openOffline(draft: Draft) {
-    this.feed?.stop();
     const epoch = ++this.generation;
-    this.local.assert(draft.context);
-    const restored = await this.current(this.local.read(draft.context), epoch);
-    this.draft = restored ?? null;
+    const view = await this.current(this.tasks.prepare(context, task, this.download(workspace)), epoch);
+    this.showTask(view);
+  }
+  /** 离线时打开一个已解锁的本机任务：团队库切到它的分支，不读服务端内容。 */
+  async openOffline(entry: TaskEntry) {
+    this.feed?.stop();
+    this.closeTask();
+    this.changed();
+    const epoch = ++this.generation;
+    this.tasks.assert(entry.context);
+    const view = await this.current(this.tasks.resume(entry.context), epoch);
     this.snapshot = null;
     this.resetContents();
-    this.workspace = { ...draft.context, name: draft.context.teamId };
-    this.changed();
+    this.workspace = { teamId: entry.context.teamId, appId: entry.context.appId, name: entry.context.teamId };
+    this.showTask(view);
   }
-  /** 把全部输入保存到本机草稿；只落盘，不形成提交也不同步。 */
-  async save(records: Records): Promise<void> {
-    demand(this.draft, 'missing', '先打开任务');
+  /** 重读打开着的任务的状态（工作树、本机提交与同步元数据）；读取期间换了任务就丢弃结果。 */
+  async refreshTask(): Promise<void> {
+    const open = this.task;
+    if (!open) return;
     const epoch = this.generation;
-    const saved = await this.current(this.local.save(this.draft.context, records, this.draft.revision), epoch);
-    if (epoch !== this.generation) return;
-    this.draft = saved;
-    this.message = '已保存到本机，尚未同步';
+    const view = await this.current(this.tasks.view(open.context), epoch);
+    if (this.task?.context.taskId !== open.context.taskId) return;
+    this.task = view;
     this.changed();
   }
   /**
-   * 把本机改动形成提交并上传；`unsaved` 为 true（仍有未保存输入）时拒绝，离线时只排队。
-   * 队首待上传提交已超过自动重试期限时不再自动发送（见 {@link CollaborationController.uploadExpired}），
-   * 用户核对远端版本后以 `confirmExpired` 为 true 再同步，才按原幂等键与原提交发送。
+   * 把已保存的改动形成提交并上传：工作树有条目时先 `commit()`（作者是当前用户），再把远端头之后的本机提交按批上传，
+   * 离线时只形成提交、排队等联网。待确认的上传已超过自动重试期限时不再自动发送（见 {@link CollaborationController.uploadExpired}），
+   * 用户核对远端版本后以 `confirmExpired` 为 true 再同步，才按原幂等键与原提交发送。表单里尚未保存的输入不在工作树里，不会被提交。
    */
-  async sync(unsaved: boolean, confirmExpired = false): Promise<void> {
+  async sync(confirmExpired = false): Promise<void> {
     if (this.syncing) return;
     this.syncing = true;
     try {
-      await this.current(this.upload(unsaved, confirmExpired));
+      await this.current(this.upload(confirmExpired));
     } finally {
       this.syncing = false;
       this.changed();
     }
   }
   /**
-   * 当前草稿的队首待上传提交是否已超过自动重试期限（比服务端回执保留期早一天）：服务端可能已清理回执，
+   * 打开着的任务的待确认上传是否已超过自动重试期限（比服务端回执保留期早一天）：服务端可能已清理回执，
    * 同步时先核对远端任务头，确认不了就交给用户确认后再发送。
    */
   uploadExpired(): boolean {
-    const first = this.draft?.queue[0];
+    const first = this.task?.uploads[0];
     return !!first && retryWindowPassed(first.createdAt);
   }
-  /** 把本机提交另存为新任务并打开；原任务与 PR 保持原远端版本。 */
-  async fork(name: string, unsaved: boolean): Promise<void> {
-    demand(this.draft, 'missing', '先打开任务');
-    const original = await this.current(this.local.capture(this.draft.context, name, unsaved));
-    demand(original.queue.length, 'empty', '没有本机分叉提交');
+  /**
+   * 把本机提交另存为新任务并打开（ADMIN-US-206 AC#9）：先把已保存的改动形成提交，再以远端头为分叉起点发出 `fork` 命令；
+   * 新任务在本机从原任务分支的头另起一条分支。原任务与 PR 保持原远端版本，之后可以拉取远端版本跟随它。
+   */
+  async fork(name: string): Promise<void> {
+    demand(this.task, 'missing', '先打开任务');
+    const original = this.task;
+    await this.current(this.tasks.commit(original.context, original.name));
+    const plan = await this.current(this.tasks.forkPlan(original.context));
     const id = crypto.randomUUID();
-    await this.run({
-      type: 'fork',
-      id,
-      name,
-      taskId: original.context.taskId,
-      expectedHead: original.remoteHead,
-      commits: original.queue.flatMap(item => item.commits)
-    });
+    await this.run({ type: 'fork', id, name, taskId: original.context.taskId, ...plan });
     await this.openTask(id);
     this.message = '已另存为新任务，原任务与 PR 保持原远端版本';
+    this.changed();
+  }
+  /** 放弃草稿（ADMIN-US-221 AC#3）：工作树退回任务头，业务表一起退回，列表与表单随即读到任务头的数据。 */
+  async discardDraft(): Promise<void> {
+    demand(this.task, 'missing', '先打开任务');
+    const context = this.task.context;
+    await this.current(this.tasks.discard(context));
+    await this.refreshTask();
+    this.message = '已放弃草稿，任务回到上次提交的版本';
+    this.changed();
+  }
+  /**
+   * 从一个历史版本创建恢复草稿（ADMIN-US-213 AC#4、ADMIN-US-221 AC#5）：从当前共享版本新建任务，在它的分支上 `restore()`
+   * 到所选提交，旧内容成为未提交改动；共享头与历史都不动，之后照常同步、审核与合并。平台拒绝时按成因提示。
+   */
+  async restoreVersion(commitId: string, name: string): Promise<void> {
+    await this.createTask(name);
+    demand(this.task, 'missing', '先打开任务');
+    const result = await this.current(this.tasks.restore(this.task.context, commitId));
+    await this.refreshTask();
+    if (!result.ok) throw new CollaborationError('restore', restoreRejections[result.reason], { reason: result.reason });
+    this.message = result.restoredCount ? '已从历史版本形成未提交改动，同步后进入审核' : '所选版本与当前共享版本相同，没有需要恢复的改动';
+    this.changed();
+  }
+  /**
+   * 把预览确认过的匿名记录复制到新任务（ADMIN-US-204 AC#2）：新建任务，按引用顺序把记录作为普通编辑写进它的分支，
+   * 经捕获进入工作树；不提交、不上传，也不改共享数据。
+   */
+  async importRecords(name: string, records: Records, schema: SchemaManifest): Promise<void> {
+    await this.createTask(name);
+    demand(this.task, 'missing', '先打开任务');
+    await this.current(this.tasks.write(this.task.context, records, importOrder(schema)));
+    await this.refreshTask();
+    this.message = '已复制到任务工作树，尚未提交或同步';
     this.changed();
   }
   /** 退出账号：先锁定本机草稿，再通知其他页面并清除本机会话。 */
@@ -532,15 +581,11 @@ export class CollaborationController extends EventTarget {
     this.channel.postMessage({ type: 'logout', userId });
     if (auth) await auth.auth.signOut({ scope: 'local' });
   }
-  /** 锁定会话：先保存未保存输入，离开实时频道，清空账号与团队状态并锁定本机草稿。 */
+  /**
+   * 锁定会话：离开实时频道，清空账号与团队状态，锁定本机任务并关闭团队库（编辑界面先卸载，之后才关库）。
+   * 团队库里的已保存改动与提交保留，联网重新验证后可再打开。
+   */
   async lock(): Promise<void> {
-    if (this.user && this.checkpoint) {
-      try {
-        await this.checkpoint();
-      } catch {
-        this.message = '会话即将锁定，未保存输入无法落盘';
-      }
-    }
     this.feed?.stop();
     this.generation++;
     this.authGeneration++;
@@ -548,7 +593,7 @@ export class CollaborationController extends EventTarget {
     this.user = null;
     this.snapshot = null;
     this.resetContents();
-    this.draft = null;
+    this.closeTask();
     this.workspace = null;
     this.offlineDrafts = [];
     this.workspaces = [];
@@ -556,7 +601,7 @@ export class CollaborationController extends EventTarget {
     this.signals = [];
     this.live = false;
     this.changed();
-    await this.local.logout();
+    await this.tasks.logout();
   }
   /** 统一处理失败：上下文切换造成的取消静默忽略；权限或身份失效类错误先锁定会话；其余显示为提示。 */
   async failure(error: unknown): Promise<void> {
@@ -566,27 +611,30 @@ export class CollaborationController extends EventTarget {
     this.message = error instanceof Error ? error.message : '操作失败';
     this.changed();
   }
-  /** 把本机任务快进到远端最新版本；本机有未提交修改、排队提交或未保存输入时拒绝。 */
-  async fetchRemote(unsaved: boolean): Promise<void> {
-    demand(this.draft, 'missing', '先打开任务');
-    const context = this.draft.context;
+  /**
+   * 把本机任务快进到远端最新版本（ADMIN-US-206 AC#6）：本机有已保存未提交、未同步或待确认的提交时拒绝，
+   * 除非这些提交已另存为新任务；那时原任务从远端头另起一条分支跟随远端。
+   */
+  async fetchRemote(): Promise<void> {
+    demand(this.task && this.workspace, 'missing', '先打开任务');
+    const context = this.task.context;
+    const workspace = this.workspace;
     const epoch = this.generation;
     await this.current(this.refresh(), epoch);
-    const task = this.snapshot?.tasks.find(value => value.id === context.taskId);
-    demand(task, 'missing', '任务不存在');
-    const records = await this.current(this.recordsAt(task.head), epoch);
-    const draft = await this.current(this.local.fastForward(context, task.head, records, unsaved), epoch);
-    this.draft = draft;
+    demand(this.snapshot?.tasks.some(value => value.id === context.taskId), 'missing', '任务不存在');
+    const view = await this.current(this.tasks.fastForward(context, this.download(workspace)), epoch);
+    this.task = view;
     this.changed();
   }
-  /** 释放实时频道、广播频道与本机存储；之后控制器不再响应任何结果。 */
+  /** 释放实时频道、广播频道与团队库；之后控制器不再响应任何结果。 */
   dispose() {
     this.disposed = true;
     this.generation++;
     this.authGeneration++;
     this.feed?.stop();
     this.resetContents();
-    this.local.dispose();
+    this.closeTask();
+    this.tasks.dispose();
     this.unsubscribe?.();
     this.channel.close();
   }
@@ -612,20 +660,20 @@ export class CollaborationController extends EventTarget {
     return undefined;
   }
   /**
-   * 读取共享分支的记录（同步）：按摘要的头缓存，头变化后重新读取；空分支没有记录，直接返回空记录。
+   * 读取共享分支的记录（同步）：按摘要的头缓存，头变化后重新读取；头还是共享分支根（没有任何合并）时没有记录，直接返回空记录。
    * 未命中时返回 undefined 并在后台加载。
    */
   sharedRecords(): Records | undefined {
-    const head = this.snapshot?.head;
-    if (head === undefined) return undefined;
-    return head === null ? {} : this.shared.peek(head)?.records;
+    const data = this.snapshot;
+    if (!data) return undefined;
+    return data.head === data.root ? {} : this.shared.peek(data.head)?.records;
   }
   /**
-   * 读取当前要用的数据模式清单（同步）：联网时取摘要里的当前版本（按版本缓存，未命中返回 undefined 并在后台加载）；
-   * 离线打开任务时没有摘要，取草稿里存着的清单。
+   * 读取当前要用的数据模式清单（同步）：取摘要里的当前版本（按版本缓存，未命中返回 undefined 并在后台加载）；
+   * 还没有摘要（离线打开任务）时为 undefined——离线只编辑团队库，只读的共享数据、PR 与历史面板不显示。
    */
   schema(): SchemaManifest | undefined {
-    if (!this.snapshot) return this.draft?.schema;
+    if (!this.snapshot) return undefined;
     return this.schemas.peek(String(this.snapshot.schemaVersion));
   }
   /** 等待当前工作区的数据模式清单加载完成（摘要里的当前版本）。 */
@@ -659,11 +707,11 @@ export class CollaborationController extends EventTarget {
   loadCandidate(id: string): Promise<Candidate> {
     return this.candidates.load(id);
   }
-  /** 等待共享分支的记录加载完成；空分支没有记录，直接返回空记录。 */
+  /** 等待共享分支的记录加载完成；头还是共享分支根时没有记录，直接返回空记录。 */
   async loadSharedRecords(): Promise<Records> {
     demand(this.snapshot, 'missing', '先选择团队');
-    const head = this.snapshot.head;
-    return head === null ? {} : (await this.shared.load(head)).records;
+    const { head, root } = this.snapshot;
+    return head === root ? {} : (await this.shared.load(head)).records;
   }
   /**
    * 审计时间线（同步，时间正序）：最近一窗事件加上已加载的更早事件。最近一窗在第一次读取时（展开时间线）才加载，
@@ -687,10 +735,10 @@ export class CollaborationController extends EventTarget {
     const page = await this.current(this.reader.audit(this.activeWorkspace(), { before: cursor }));
     if (this.timeline.prepend(cursor, page.events)) this.changed();
   }
-  /** 读取团队页：窗口之外还要带上当前草稿的任务，免得编辑权限校验看不到它。 */
+  /** 读取团队页：窗口之外还要带上打开着的任务，免得编辑权限校验看不到它。 */
   private async loadTeam(workspace: WorkspaceEntry): Promise<WorkspaceSummary> {
     demand(this.user, 'locked', '先登录并选择团队');
-    const taskIds = this.draft ? [this.draft.context.taskId] : [];
+    const taskIds = this.task ? [this.task.context.taskId] : [];
     return this.compose(await this.reader.team(workspace, this.user.id, { ...this.windows, taskIds }));
   }
   /** 团队页的读取结果转成界面用的视图；在线状态由频道另行提供。 */
@@ -702,6 +750,7 @@ export class CollaborationController extends EventTarget {
       revision: team.revision,
       schemaVersion: team.schemaVersion,
       head: team.head,
+      root: team.root,
       policy: team.policy,
       members: team.members,
       tasks: team.tasks,
@@ -745,8 +794,8 @@ export class CollaborationController extends EventTarget {
   }
   /** 已打开的任务必须仍属于本人且本人仍有编辑权限，否则锁定（撤权、移交或降权之后）。 */
   private assertDraftAccess(): void {
-    if (!this.draft || !this.snapshot) return;
-    const task = this.snapshot.tasks.find(t => t.id === this.draft?.context.taskId);
+    if (!this.task || !this.snapshot) return;
+    const task = this.snapshot.tasks.find(t => t.id === this.task?.context.taskId);
     const member = this.snapshot.members.find(m => m.id === this.user?.id);
     demand(task?.ownerId === this.user?.id && member?.permissions.includes('edit'), 'forbidden', '任务编辑权限已撤销');
   }
@@ -869,24 +918,25 @@ export class CollaborationController extends EventTarget {
     this.history.reset();
     this.timeline.reset();
   }
-  /** 推导内容时所依据的共享头：团队页里的头；还没有团队页时为 null。 */
-  private sharedHead(): string | null {
-    return this.snapshot?.head ?? null;
+  /** 推导内容时所依据的共享分支：团队页里的头与根；还没有团队页时不能推导（离线打开任务不读服务端内容）。 */
+  private sharedBranch(): SharedBranch {
+    demand(this.snapshot, 'stale', '版本已变化，请刷新后重试');
+    return { head: this.snapshot.head, root: this.snapshot.root };
   }
   /**
-   * 分支历史的头：共享分支取摘要的 `head`；PR 取其来源任务的头，任务在起点之后还没有提交（头就是起点）时为 null。
-   * 还没有摘要、或 PR 与任务不在摘要里时为 undefined。
+   * 分支历史的头：共享分支取摘要的 `head`，还没有任何合并（头就是根）时为 null；PR 取其来源任务的头，
+   * 任务在起点之后还没有提交（头就是起点）时为 null。还没有摘要、或 PR 与任务不在摘要里时为 undefined。
    */
   private historyHead(branch: HistoryBranch): string | null | undefined {
     const range = this.historyRange(branch);
     if (!range) return undefined;
     return range.head === range.until ? null : range.head;
   }
-  /** 分支历史的范围：共享分支从共享头走到根，PR 从来源任务的头走到它的共同起点（不含）。 */
-  private historyRange(branch: HistoryBranch): { head: string | null; until: string | null } | undefined {
+  /** 分支历史的范围：共享分支从共享头走到根（根不列出），PR 从来源任务的头走到它的共同起点（不含）。 */
+  private historyRange(branch: HistoryBranch): { head: string; until: string } | undefined {
     const data = this.snapshot;
     if (!data) return undefined;
-    if (!('prId' in branch)) return { head: data.head, until: null };
+    if (!('prId' in branch)) return { head: data.head, until: data.root };
     const pr = data.prs.find(item => item.id === branch.prId);
     const task = pr && data.tasks.find(item => item.id === pr.taskId);
     return task ? { head: task.head, until: task.base } : undefined;
@@ -931,10 +981,6 @@ export class CollaborationController extends EventTarget {
   private activeWorkspace(): WorkspaceEntry {
     demand(this.workspace, 'missing', '先选择团队');
     return this.workspace;
-  }
-  /** 提交头对应的记录：还没有提交时是空记录，否则等待提交内容加载完成。 */
-  private async recordsAt(head: string | null): Promise<Records> {
-    return head === null ? {} : (await this.loadCommit(head)).records;
   }
   /** 读取一个 PR 的详情：以团队页里的 PR、成员与策略推导审批进度；PR 已不在团队页里时按版本已变化处理。 */
   private async fetchDetail(prId: string): Promise<PullRequestDetail> {
@@ -1048,7 +1094,7 @@ export class CollaborationController extends EventTarget {
     if (this.user && this.user.id !== session.user.id) await this.lock();
     const epoch = ++this.authGeneration;
     if (!navigator.onLine) {
-      const drafts = await this.local.coldRestore(session.user.id, (session.expires_at ?? 0) * 1000, Date.now());
+      const drafts = await this.tasks.coldRestore(session.user.id, (session.expires_at ?? 0) * 1000, Date.now());
       if (epoch !== this.authGeneration) return;
       this.offlineDrafts = drafts;
       this.user = { id: session.user.id, email: session.user.email ?? '', verified: true };
@@ -1061,7 +1107,7 @@ export class CollaborationController extends EventTarget {
     if (epoch !== this.authGeneration) return;
     demand(!error && data.user?.email && data.user.email_confirmed_at, 'unauthenticated', '请重新验证邮箱');
     this.user = { id: data.user.id, email: data.user.email, verified: true };
-    await this.local.login(data.user.id);
+    await this.tasks.login(data.user.id);
     if (epoch !== this.authGeneration) return;
     localStorage.setItem(
       `admin-collaboration-grant:${this.base}`,
@@ -1091,31 +1137,28 @@ export class CollaborationController extends EventTarget {
       throw error;
     }
   }
+  /**
+   * 服务端接受了另存分叉（含按原幂等键重放的那一次）之后在本机落地：新任务从原任务分支的头另起分支，原任务记下被带走的头。
+   */
   private async archiveFork(command: Extract<Command, { type: 'fork' }>): Promise<void> {
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     const task = this.snapshot.tasks.find(value => value.id === command.taskId);
     demand(task?.ownerId === this.user.id, 'forbidden', '没有此任务编辑权限');
-    const context = {
-      userId: this.user.id,
-      teamId: this.workspace.teamId,
-      appId: this.workspace.appId,
-      taskId: task.id
-    };
-    const head = command.commits.at(-1)?.id;
+    const head = command.commits.at(-1)?.commitId;
     demand(head, 'invalid', '分叉回执缺少版本');
-    const records = await this.current(this.recordsAt(task.head));
-    const schema = await this.current(this.loadSchema());
-    await this.current(this.local.openVerified(context, task.name, task.base, task.head, records, schema));
-    await this.current(this.local.archiveFork(context, command.id, head));
+    const context = { userId: this.user.id, teamId: this.workspace.teamId, appId: this.workspace.appId, taskId: task.id };
+    if (!this.tasks.ledger.read(context))
+      await this.current(this.tasks.prepare(context, task, this.download(this.workspace)));
+    await this.current(this.tasks.adoptFork(context, { id: command.id, name: command.name }, head));
   }
-  private async upload(unsaved: boolean, confirmExpired: boolean): Promise<void> {
-    demand(this.draft && this.workspace, 'missing', '先打开任务');
-    const context = this.draft.context;
+  private async upload(confirmExpired: boolean): Promise<void> {
+    demand(this.task && this.workspace, 'missing', '先打开任务');
+    const context = this.task.context;
     const workspace = this.workspace;
-    const epoch = this.local.epoch;
+    const epoch = this.tasks.epoch;
     const viewEpoch = this.generation;
-    const captured = await this.current(this.local.capture(context, this.draft.name, unsaved), viewEpoch);
-    this.draft = captured;
+    await this.current(this.tasks.commit(context, this.task.name), viewEpoch);
+    this.task = await this.current(this.tasks.view(context), viewEpoch);
     this.changed();
     if (!navigator.onLine) {
       this.message = '已形成提交，联网验证后可同步';
@@ -1123,24 +1166,22 @@ export class CollaborationController extends EventTarget {
       return;
     }
     await this.current(this.refresh(), viewEpoch);
-    let uploading = captured;
-    while (uploading.queue.length) {
-      this.local.assert(context, epoch);
-      const pending = uploading.queue[0];
-      const receipt = await this.reader.receipt(workspace, pending.operationId);
+    for (;;) {
+      this.tasks.assert(context, epoch);
+      const next = await this.current(this.tasks.nextUpload(context), viewEpoch);
+      if (!next) break;
+      const receipt = await this.reader.receipt(workspace, next.upload.operationId);
       demand(viewEpoch === this.generation, 'cancelled', '上下文已切换');
       const result =
         receipt.status === 'accepted' ?
           receipt.value!
-        : await this.sendUpload(workspace, context, uploading.queue, confirmExpired);
+        : await this.sendUpload(workspace, context, next, confirmExpired);
       demand(viewEpoch === this.generation, 'cancelled', '上下文已切换');
       demand(typeof result['head'] === 'string', 'invalid', '同步回执缺少版本');
-      const acknowledged = await this.current(
-        this.local.acknowledge(context, pending.operationId, result['head'], epoch),
+      this.task = await this.current(
+        this.tasks.acknowledge(context, next.upload.operationId, result['head'], epoch),
         viewEpoch
       );
-      uploading = acknowledged;
-      this.draft = acknowledged;
       this.changed();
     }
     await this.current(this.refresh(), viewEpoch);
@@ -1148,25 +1189,43 @@ export class CollaborationController extends EventTarget {
     this.changed();
   }
   /**
-   * 发送队首的上传（回执已查不到）。条目未超过自动重试期限、或用户已确认时，按原幂等键与原提交发送。
-   * 已超过期限且未确认时不再自动发送：刚刷新的摘要里任务头已是队列中某个条目（含队首）的最后一个提交，
-   * 说明队首早已被接受（提交按 ID 去重，不会重复建提交），直接按已接受处理；否则抛出 `expired` 交给用户确认。
+   * 发送待确认的上传（回执已查不到）。未超过自动重试期限、或用户已确认时，按原幂等键与同一批提交发送。
+   * 已超过期限且未确认时不再自动发送：刚刷新的摘要里任务头已是这次上传的最后一个提交，说明它早已被接受
+   * （提交按 ID 去重，不会重复建提交），直接按已接受处理；否则抛出 `expired` 交给用户确认。
    */
   private async sendUpload(
     workspace: WorkspaceEntry,
     context: Context,
-    queue: readonly PendingUpload[],
+    next: { upload: PendingUpload; commits: Commit[] },
     confirmed: boolean
   ): Promise<Record<string, unknown>> {
-    const [first] = queue;
-    if (confirmed || !retryWindowPassed(first.createdAt))
-      return this.api.command(workspace, uploadCommand(context.taskId, first));
+    const { upload, commits } = next;
+    if (confirmed || !retryWindowPassed(upload.createdAt))
+      return this.api.command(workspace, uploadCommand(context.taskId, upload, commits));
     const remote = this.snapshot?.tasks.find(task => task.id === context.taskId)?.head;
-    demand(
-      typeof remote === 'string' && queue.some(item => item.commits.at(-1)?.id === remote),
-      'expired',
-      '待上传提交已超过回执保留期，请核对远端版本后确认同步'
-    );
-    return { taskId: context.taskId, head: first.commits.at(-1)?.id };
+    demand(remote === upload.head, 'expired', '待上传提交已超过回执保留期，请核对远端版本后确认同步');
+    return { taskId: context.taskId, head: upload.head };
+  }
+  /** 下发接口绑定到一个团队：读这个团队的共享分支或某个任务分支。 */
+  private download(workspace: WorkspaceEntry): ExchangeDownload {
+    return (branch, known) => this.reader.exchange(workspace, branch, known);
+  }
+  /** 显示打开着的任务，并订阅团队库的本地写入：实体列表每次保存之后重读任务状态（工作树没有变更流）。 */
+  private showTask(view: TaskView): void {
+    this.closeTask();
+    this.task = view;
+    this.unwatch = this.tasks.database?.onWrite(() => {
+      this.taskRefresh ??= Promise.resolve().then(async () => {
+        this.taskRefresh = undefined;
+        await this.refreshTask().catch(error => this.failure(error));
+      });
+    });
+    this.changed();
+  }
+  /** 不再显示打开着的任务：取消写入订阅。调用方随后派发 `change`，界面据此先卸载编辑界面。 */
+  private closeTask(): void {
+    this.unwatch?.();
+    this.unwatch = undefined;
+    this.task = null;
   }
 }

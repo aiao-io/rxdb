@@ -870,6 +870,76 @@
         "kind": "type"
       }
     ],
+    "./exchange": [
+      {
+        "name": "checkCommitExchangeBatch",
+        "kind": "value"
+      },
+      {
+        "name": "CommitChangeUnitContent",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOperation",
+        "kind": "type"
+      },
+      {
+        "name": "CommitChangeUnitOrigin",
+        "kind": "type"
+      },
+      {
+        "name": "CommitContentFingerprintInput",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeJsonError",
+        "kind": "both"
+      },
+      {
+        "name": "CommitExchangeJsonProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeRecord",
+        "kind": "type"
+      },
+      {
+        "name": "CommitExchangeRecordJson",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchFinding",
+        "kind": "type"
+      },
+      {
+        "name": "CommitImportBatchProblem",
+        "kind": "type"
+      },
+      {
+        "name": "CommitKind",
+        "kind": "type"
+      },
+      {
+        "name": "computeChangeUnitFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "computeCommitContentFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "computeCommitExchangeRecordFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "parseCommitExchangeRecord",
+        "kind": "value"
+      },
+      {
+        "name": "serializeCommitExchangeRecord",
+        "kind": "value"
+      }
+    ],
     "./testing": [
       {
         "name": "ConformanceCache",

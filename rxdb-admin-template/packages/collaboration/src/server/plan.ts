@@ -1,4 +1,5 @@
 import type { MergeView, RecordCheck } from '../checks.js';
+import type { SharedBranch } from '../derive.js';
 import type { Commit, CommitMeta, DataRow, Records, Resolution, SchemaManifest, StoredCandidate } from '../model.js';
 import type { IndexedKey, SharedChange } from './store.js';
 
@@ -8,19 +9,19 @@ export interface Reopen {
   recordIds: string[];
 }
 
-/** 上传的提交链里推导父内容要用的部分：每个提交的 ID 与声明的父提交。 */
+/** 上传的提交链里推导父内容要用的部分：每个提交的 ID 与声明的第一父（没有父时为 null，引擎会拒绝）。 */
 export interface ChainLink {
   id: string;
   parent: string | null;
 }
 /**
- * 上传与另存分叉要核对的父内容：任务的共同起点 `base`、任务头 `head`、共享头 `shared`，
+ * 上传与另存分叉要核对的父内容：任务的共同起点 `base`、任务头 `head`、共享分支 `shared`（头与根），
  * 以及新提交改动到的记录 `touched`——只按这些记录推导父内容，成本只与任务分叉以来的改动有关。
  */
 export interface ParentContent {
-  shared: string | null;
-  base: string | null;
-  head: string | null;
+  shared: SharedBranch;
+  base: string;
+  head: string;
   touched: string[];
 }
 
@@ -44,8 +45,8 @@ export type Plan =
    */
   | {
       type: 'inputs';
-      head: string | null;
-      base: string | null;
+      shared: SharedBranch;
+      base: string;
       source: string;
       reopen: Reopen[];
       resolutions: Resolution[];
@@ -54,7 +55,7 @@ export type Plan =
   /** 登记新的数据模式版本：共享分支当前的全部记录，新清单必须让它们全部通过检查。 */
   | { type: 'records' }
   /** 评论锚点：某条记录在候选结果、来源与目标三处的取值。 */
-  | { type: 'anchor'; head: string | null; candidate: StoredCandidate; recordId: string };
+  | { type: 'anchor'; shared: SharedBranch; candidate: StoredCandidate; recordId: string };
 
 /**
  * 合并的三方输入，只含合并基以来任一侧改动过的记录（`touched`）：共同起点 B、来源 S 与目标 T 在这些记录上的取值；
@@ -103,8 +104,14 @@ export const noFacts: Facts = {
   anchor: undefined
 };
 
-/** 引擎新建的提交：上传的提交已带核验过的指纹，服务端生成的合并提交没有，由仓储在写入前补算。 */
-export type NewCommit = Omit<Commit, 'fingerprint'> & { fingerprint?: string };
+/**
+ * 引擎新建、要追加进提交表的提交：交换记录本身（上传的提交原样、带核验过的指纹；服务端合成的合并提交由引擎用平台函数算好指纹），
+ * 加上产品附加的合并元数据——合并提交依据的候选，任务提交为 null。候选不在交换记录里，下发时也不带。
+ */
+export interface NewCommit {
+  record: Commit;
+  candidateId: string | null;
+}
 /** 合并改动的一条记录：合并前后的整行，新增时 `before` 为 null、删除时 `after` 为 null。 */
 export interface MergedRecord {
   id: string;

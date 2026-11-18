@@ -1,13 +1,16 @@
+import { computeCommitExchangeRecordFingerprint } from '@aiao/rxdb-plugin-working-tree/exchange';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { diffRecords } from '../changes.js';
-import { commitFingerprint, sealCommit, uuidv7 } from '../commit.js';
+import { uuidv7 } from '../commit.js';
+import { taskCommit, testCreatedAt, unitsOf } from '../commit.testing.js';
 import { receiptRetentionMs, type Command, type Commit, type Identity, type Records } from '../model.js';
 import { planningNamespaces, planningSchema } from '../planning.testing.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
+import { rootMessage } from './engine.js';
 import { historyAdmin, replayHistory, type HistoryDriver } from './history.testing.js';
 import { applyMigrations, readMigrations } from './migrate.js';
 import { advance, emptyState, PgWorkspaceWriter, receiptSweepLimit } from './pg-workspace.js';
@@ -62,9 +65,17 @@ const outcomeWithin = (pending: Promise<unknown>, ms: number) =>
     ),
     new Promise<'pending'>(resolve => setTimeout(() => resolve('pending'), ms))
   ]);
-/** 相对 `before` 的内容形成一个已签名的提交：字段级变更加上内容指纹。 */
-const signed = (id: string, parent: string | null, before: Records, after: Records, message = id): Promise<Commit> =>
-  sealCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
+/** 相对 `before` 的内容形成一个任务提交：唯一的父是 `parent`，字段级变更加上平台算的内容指纹。 */
+const signed = (id: string, parent: string, before: Records, after: Records, message = id): Commit =>
+  taskCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
+/** 工作区共享分支的根（初始化时写下的 baseline 提交）：新任务从它起步，第一次合并之前共享头就是它。 */
+async function rootOf(workspace: { teamId: string; appId: string }): Promise<string> {
+  const found = await pool.query<{ id: string }>(
+    "SELECT id FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 AND kind = 'baseline'",
+    [workspace.teamId, workspace.appId]
+  );
+  return found.rows[0].id;
+}
 /** 工作区的全部表，按外键依赖从叶到根排列：删除时依次清空。 */
 const workspaceTables = [
   'public.admin_changes',
@@ -140,8 +151,49 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     if (started) await run('docker', ['stop', container]);
   }, 20000);
   it('initializes once without resetting permissions, and rejects mismatched seed ownership', async () => {
+    const root = await rootOf(input);
     await expect(repository.initialize(input)).resolves.toMatchObject({ teamId: input.teamId });
     await expect(repository.initialize({ ...input, bootstrapKey: 'wrong' })).rejects.toThrow(/初始化/);
+    // 重复初始化不再写根：仍是第一次初始化写下的那一个 baseline 提交
+    const roots = await pool.query(
+      "SELECT id FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 AND kind = 'baseline'",
+      [input.teamId, input.appId]
+    );
+    expect(roots.rows).toEqual([{ id: root }]);
+  });
+  it('writes the shared branch root at initialization: one baseline commit without parents, author or units', async () => {
+    const root = await rootOf(input);
+    const stored = await pool.query(
+      `SELECT c.id, c.parent_ids, c.kind, c.author_id, c.message, c.candidate_id, c.content_fingerprint,
+         (SELECT count(*)::int FROM admin_private.commit_changes x
+           WHERE x.team_id = c.team_id AND x.app_id = c.app_id AND x.commit_id = c.id) AS units
+       FROM admin_private.commits c WHERE c.team_id = $1 AND c.app_id = $2 AND c.id = $3`,
+      [input.teamId, input.appId, root]
+    );
+    const record = { kind: 'baseline', parentIds: [], message: rootMessage, authorId: null, units: [] } as const;
+    expect(stored.rows).toEqual([
+      {
+        id: root,
+        parent_ids: [],
+        kind: 'baseline',
+        author_id: null,
+        message: rootMessage,
+        candidate_id: null,
+        content_fingerprint: computeCommitExchangeRecordFingerprint(record),
+        units: 0
+      }
+    ]);
+    // 共享头的初值就是根；工作区行带上根，界面据此显示「空分支」
+    await expect(projected.branch(admin, input.teamId, input.appId)).resolves.toEqual({ head: root, root });
+    await expect(projected.readRecords(admin, input.teamId, input.appId)).resolves.toEqual({ head: root, records: {} });
+    // 一个工作区只有一个根：再写一个 baseline 提交被部分唯一索引拒绝
+    await expect(
+      pool.query(
+        `INSERT INTO admin_private.commits(team_id, app_id, id, parent_ids, kind, author_id, message, created_at, content_fingerprint)
+         VALUES ($1, $2, 'second-root', '{}', 'baseline', NULL, 'Second root', now(), repeat('a', 64))`,
+        [input.teamId, input.appId]
+      )
+    ).rejects.toThrow(/commits_root/);
   });
   it('denies ordinary authenticated admins direct writes and cross-team reads', async () => {
     const client = await pool.connect();
@@ -233,15 +285,16 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const op = (data: Record<string, unknown>, actor = owner) =>
       repository.operation(actor, seed.teamId, seed.appId, command(data));
     await op({ type: 'policy', stages: [], expectedVersion: 1 });
-    await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+    const root = await rootOf(seed);
+    await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
     await op({
       type: 'upload',
       taskId: 'task',
-      expectedHead: null,
+      expectedHead: root,
       commits: [
-        await sealCommit({
+        taskCommit({
           id: 'commit-1',
-          parent: null,
+          parent: root,
           authorId: owner.id,
           message: 'First',
           changes: diffAssets({}, { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } })
@@ -258,12 +311,12 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       prId: 'pr',
       candidateId,
       expectedSource: 'commit-1',
-      expectedTarget: null
+      expectedTarget: root
     });
-    return { seed, candidateId, head: String(merged['head']) };
+    return { seed, candidateId, root, head: String(merged['head']) };
   }
   it('serves a metadata-only summary and the heavy content through on-demand reads with the same authorization', async () => {
-    const { seed, candidateId, head } = await mergedWorkspace('on-demand');
+    const { seed, candidateId, root, head } = await mergedWorkspace('on-demand');
     try {
       const summary = await projected.read(admin, seed.teamId, seed.appId);
       expect(summary).not.toHaveProperty('records');
@@ -273,26 +326,40 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect(summary).not.toHaveProperty('commits');
       expect(summary.candidates[candidateId]).not.toHaveProperty('records');
       const shared = await projected.readHistory(admin, seed.teamId, seed.appId, { branch: 'shared' });
+      // 共享分支的历史走到根为止（不含根）；合并提交的父是共享头与任务头，带上它依据的候选
       expect(shared).toEqual({
         commits: [
-          { id: head, parent: null, authorId: admin.id, message: 'Merge Review', mergeSource: 'commit-1', candidateId }
+          {
+            id: head,
+            parentIds: [root, 'commit-1'],
+            kind: 'merge',
+            authorId: admin.id,
+            message: 'Merge Review',
+            createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+            candidateId
+          }
         ],
         nextBefore: null
       });
+      const uploaded = {
+        id: 'commit-1',
+        parentIds: [root],
+        kind: 'normal',
+        authorId: admin.id,
+        message: 'First',
+        createdAt: testCreatedAt
+      };
       for (const query of [{ taskId: 'task' }, { prId: 'pr' }])
         await expect(projected.readHistory(admin, seed.teamId, seed.appId, query)).resolves.toEqual({
-          commits: [{ id: 'commit-1', parent: null, authorId: admin.id, message: 'First' }],
+          commits: [uploaded],
           nextBefore: null
         });
 
       const records: Records = { category: { entity: 'AssetCategory', fields: { name: 'Computers' } } };
       await expect(projected.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({ head, records });
       await expect(projected.readCommit(admin, seed.teamId, seed.appId, 'commit-1')).resolves.toEqual({
-        id: 'commit-1',
-        parent: null,
-        authorId: admin.id,
-        message: 'First',
-        changes: diffAssets({}, records),
+        ...uploaded,
+        changes: unitsOf(diffAssets({}, records), 'commit-1'),
         records
       });
       await expect(projected.readCommit(admin, seed.teamId, seed.appId, head)).resolves.toMatchObject({ records });
@@ -366,20 +433,21 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     }
   });
   it('serializes concurrent upload heads and preserves the losing branch locally for recovery', async () => {
+    const root = await rootOf(input);
     await repository.operation(
       admin,
       input.teamId,
       input.appId,
-      command({ type: 'task', id: 'concurrent', name: 'Concurrent', expectedHead: null })
+      command({ type: 'task', id: 'concurrent', name: 'Concurrent', expectedHead: root })
     );
-    const upload = async (id: string) =>
+    const upload = (id: string) =>
       command({
         type: 'upload',
         taskId: 'concurrent',
-        expectedHead: null,
-        commits: [await signed(id, null, {}, { category: { entity: 'AssetCategory', fields: { name: id } } })]
+        expectedHead: root,
+        commits: [signed(id, root, {}, { category: { entity: 'AssetCategory', fields: { name: id } } })]
       });
-    const commands = [await upload('first'), await upload('second')];
+    const commands = [upload('first'), upload('second')];
     const results = await Promise.allSettled(
       commands.map(c => repository.operation(admin, input.teamId, input.appId, c))
     );
@@ -426,7 +494,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       prId: 'pr',
       candidateId: candidate,
       expectedSource: before.candidates[candidate].source,
-      expectedTarget: null
+      expectedTarget: before.root
     });
     await pool.query(
       `CREATE FUNCTION admin_private.fail_merge() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action = 'merge' THEN RAISE EXCEPTION 'injected failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_merge BEFORE INSERT ON public.admin_audit FOR EACH ROW EXECUTE FUNCTION admin_private.fail_merge();`
@@ -434,11 +502,10 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     await expect(repository.operation(admin, input.teamId, input.appId, merge)).rejects.toThrow(/injected failure/);
     const after = await projected.read(admin, input.teamId, input.appId);
     expect(after).toEqual(before);
-    expect((await pool.query('SELECT head FROM public.admin_shared')).rows).toEqual([{ head: null }]);
+    expect((await pool.query('SELECT head FROM public.admin_shared')).rows).toEqual([{ head: before.root }]);
     expect((await pool.query('SELECT count(*)::int AS count FROM public.shared_records')).rows[0].count).toBe(0);
     expect(
-      (await pool.query('SELECT count(*)::int AS count FROM admin_private.commits WHERE merge_source IS NOT NULL'))
-        .rows[0].count
+      (await pool.query("SELECT count(*)::int AS count FROM admin_private.commits WHERE kind = 'merge'")).rows[0].count
     ).toBe(0);
     await expect(projected.receipt(admin, input.teamId, input.appId, merge.operationId)).resolves.toEqual({
       status: 'unknown'
@@ -460,6 +527,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         'admin_private.memberships',
         'admin_private.policies',
         'admin_private.refs',
+        'admin_private.commits',
         'public.admin_shared',
         'public.admin_audit',
         'public.admin_workspace_versions'
@@ -470,8 +538,13 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     }
     await repository.initialize(seed);
     const state = await projected.read(admin, seed.teamId, seed.appId);
-    expect(state.head).toBeNull();
-    await expect(projected.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({ head: null, records: {} });
+    // 重试写下恰好一个根，共享头就是它
+    expect(state.head).toBe(await rootOf(seed));
+    expect(state.root).toBe(state.head);
+    await expect(projected.readRecords(admin, seed.teamId, seed.appId)).resolves.toEqual({
+      head: state.root,
+      records: {}
+    });
     expect(state.policy.stages).toMatchObject([{ minimum: 1 }]);
     expect(state.members).toMatchObject([{ id: admin.id, permissions: expect.arrayContaining(['manage']) }]);
   });
@@ -528,16 +601,17 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       });
       await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, user);
       await op({ type: 'policy', stages: [], expectedVersion: 1 });
+      const root = await rootOf(seed);
       const readyPr = async (suffix: string) => {
-        await op({ type: 'task', id: suffix, name: suffix, expectedHead: null });
+        await op({ type: 'task', id: suffix, name: suffix, expectedHead: root });
         await op({
           type: 'upload',
           taskId: suffix,
-          expectedHead: null,
+          expectedHead: root,
           commits: [
-            await signed(
+            signed(
               `commit-${suffix}`,
-              null,
+              root,
               {},
               { category: { entity: 'AssetCategory', fields: { name: suffix } } },
               suffix
@@ -552,7 +626,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           prId: suffix,
           candidateId: result['candidateId'],
           expectedSource: `commit-${suffix}`,
-          expectedTarget: null
+          expectedTarget: root
         };
       };
       const merge = await readyPr('main');
@@ -572,7 +646,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       );
       await op({ type: 'resolve_thread', threadId: 'required', resolved: true, expectedRevision: 0 }, user);
       const target = await readyPr('target');
-      const update = await signed(
+      const update = signed(
         'updated',
         'commit-main',
         { category: { entity: 'AssetCategory', fields: { name: 'main' } } },
@@ -669,7 +743,9 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         '202611170001_commit_store.sql',
         '202611170002_workspace_tables.sql',
         '202611170003_schema_manifests.sql',
-        '202611170004_supabase_native.sql'
+        '202611170004_supabase_native.sql',
+        '202611180001_service_role.sql',
+        '202611180002_exchange_commits.sql'
       ])
     );
     const before = await schemaSignature();
@@ -681,7 +757,51 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         before.some(row => row.kind === 'column' && row.name.startsWith(`${table}.`)),
         table
       ).toBe(true);
-    expect(before).toContainEqual(expect.objectContaining({ kind: 'index', name: 'admin_private.commits_parent' }));
+    // 提交表是交换格式：有序的父与按位置展开的两列（各带外键），种类、可空的作者与内容指纹；每个工作区一个根
+    const columns = (table: string) =>
+      before
+        .filter(row => row.kind === 'column' && row.name.startsWith(`${table}.`))
+        .map(row => row.name.slice(table.length + 1))
+        .sort();
+    expect(columns('admin_private.commits')).toEqual([
+      'app_id',
+      'author_id',
+      'candidate_id',
+      'content_fingerprint',
+      'created_at',
+      'first_parent',
+      'id',
+      'kind',
+      'merge_parent',
+      'message',
+      'parent_ids',
+      'seq',
+      'team_id'
+    ]);
+    expect(columns('admin_private.commit_changes')).toEqual([
+      'app_id',
+      'commit_id',
+      'entity',
+      'entity_id',
+      'inverse_patch',
+      'namespace',
+      'operation',
+      'origin',
+      'patch',
+      'sequence',
+      'team_id',
+      'transaction_id',
+      'unit_id'
+    ]);
+    for (const constraint of [
+      'admin_private.commits.commits_first_parent_fkey',
+      'admin_private.commits.commits_merge_parent_fkey',
+      'admin_private.commits.commits_exchange_shape',
+      'admin_private.commits.commits_message_present',
+      'admin_private.commit_changes.commit_changes_origin'
+    ])
+      expect(before, constraint).toContainEqual(expect.objectContaining({ kind: 'constraint', name: constraint }));
+    expect(before).toContainEqual(expect.objectContaining({ kind: 'index', name: 'admin_private.commits_root' }));
     // 治理行只剩治理字段，整行状态列已删除；成员表按用户有索引，审计按写入顺序、PR 与线程有索引
     expect(
       before
@@ -805,7 +925,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         type: 'upload',
         taskId: 'edit',
         expectedHead: head,
-        commits: [await signed('edit-1', head, first.records, edited, 'Edit')]
+        commits: [signed('edit-1', head, first.records, edited, 'Edit')]
       });
       await op({ type: 'pr', id: 'edit-pr', taskId: 'edit', title: 'Edit', description: '', target: 'shared' });
       await op({ type: 'pr_state', prId: 'edit-pr', status: 'review', expectedRevision: 0 });
@@ -825,14 +945,16 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       expect((await pool.query('SELECT head FROM public.admin_shared WHERE team_id = $1', [seed.teamId])).rows).toEqual(
         [{ head: merged['head'] }]
       );
-      const stored = await pool.query<{ operation: string; patch: unknown; inverse_patch: unknown }>(
-        `SELECT operation, patch, inverse_patch FROM admin_private.commit_changes
-         WHERE team_id = $1 AND app_id = $2 AND commit_id = $3 ORDER BY seq`,
+      // 合并提交的单元相对第一父（合并前的共享头）：单元 ID 都是合并提交的 ID，不属于任何事务，来源 local
+      const stored = await pool.query(
+        `SELECT sequence, unit_id, transaction_id, operation, patch, inverse_patch, origin FROM admin_private.commit_changes
+         WHERE team_id = $1 AND app_id = $2 AND commit_id = $3 ORDER BY sequence`,
         [seed.teamId, seed.appId, merged['head']]
       );
+      const unit = { unit_id: merged['head'], transaction_id: null, origin: 'local' };
       expect(stored.rows).toEqual([
-        { operation: 'update', patch: { description: 'Edited' }, inverse_patch: {} },
-        { operation: 'insert', patch: { name: 'Extra' }, inverse_patch: null }
+        { sequence: 0, ...unit, operation: 'update', patch: { description: 'Edited' }, inverse_patch: {} },
+        { sequence: 1, ...unit, operation: 'insert', patch: { name: 'Extra' }, inverse_patch: null }
       ]);
       expect((await projected.readCommit(admin, seed.teamId, seed.appId, head)).records).toEqual(first.records);
       // 逐记录变更日志投影照旧：每次合并改动到的记录各一行，带合并前后的整行
@@ -862,21 +984,25 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     await repository.initialize(seed);
     try {
       const op = (data: Record<string, unknown>) => repository.operation(admin, seed.teamId, seed.appId, command(data));
-      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
-      const honest = await signed('c1', null, {}, { a: { entity: 'AssetCategory', fields: { name: 'A' } } });
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
+      const honest = signed('c1', root, {}, { a: { entity: 'AssetCategory', fields: { name: 'A' } } });
       await expect(
-        op({ type: 'upload', taskId: 'task', expectedHead: null, commits: [{ ...honest, message: 'Tampered' }] })
+        op({ type: 'upload', taskId: 'task', expectedHead: root, commits: [{ ...honest, message: 'Tampered' }] })
       ).rejects.toMatchObject({ code: 'invalid', message: '提交指纹与内容不一致' });
-      expect(
-        (await pool.query('SELECT count(*)::int AS count FROM admin_private.commits WHERE team_id = $1', [seed.teamId]))
-          .rows[0].count
-      ).toBe(0);
-      await op({ type: 'upload', taskId: 'task', expectedHead: null, commits: [honest] });
-      const stored = await pool.query<{ fingerprint: string }>(
-        'SELECT fingerprint FROM admin_private.commits WHERE team_id = $1',
+      const taskCommits = 'SELECT count(*)::int AS count FROM admin_private.commits WHERE team_id = $1 AND kind = $2';
+      expect((await pool.query(taskCommits, [seed.teamId, 'normal'])).rows[0].count).toBe(0);
+      await op({ type: 'upload', taskId: 'task', expectedHead: root, commits: [honest] });
+      // 存下的是交换记录本身：记录里的时间与平台算的内容指纹原样落库
+      const stored = await pool.query(
+        `SELECT content_fingerprint, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at
+         FROM admin_private.commits WHERE team_id = $1 AND kind = 'normal'`,
         [seed.teamId]
       );
-      expect(stored.rows).toEqual([{ fingerprint: await commitFingerprint(honest) }]);
+      expect(stored.rows).toEqual([
+        { content_fingerprint: computeCommitExchangeRecordFingerprint(honest), created_at: honest.createdAt }
+      ]);
+      expect(honest.contentFingerprint).toBe(computeCommitExchangeRecordFingerprint(honest));
     } finally {
       await removeWorkspace(seed);
     }
@@ -907,33 +1033,28 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       try {
         const op = (data: Record<string, unknown>) =>
           repository.operation(admin, seed.teamId, seed.appId, command(data));
-        await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
-        let parent: string | null = null;
-        let head: string | null = null;
+        const root = await rootOf(seed);
+        await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
+        let parent = root;
+        let head = root;
         let content: Records = {};
-        const next = async (index: number) => {
+        const next = (index: number) => {
           const after: Records = {
             ...content,
             [`r${index}`]: { entity: 'AssetCategory', fields: { name: `R${index}` } }
           };
-          const commit = await sealCommit({
-            id: uuidv7(),
-            parent,
-            authorId: admin.id,
-            message: `c${index}`,
-            changes: diffAssets(content, after)
-          });
-          parent = commit.id;
+          const commit = signed(uuidv7(), parent, content, after, `c${index}`);
+          parent = commit.commitId;
           content = after;
           return commit;
         };
         for (let offset = 0; offset < length; offset += 100) {
           const batch: Commit[] = [];
-          for (let index = offset; index < Math.min(length, offset + 100); index++) batch.push(await next(index));
+          for (let index = offset; index < Math.min(length, offset + 100); index++) batch.push(next(index));
           await op({ type: 'upload', taskId: 'task', expectedHead: head, commits: batch });
           head = parent;
         }
-        const last = await next(length);
+        const last = next(length);
         statements.length = 0;
         await counting.operation(
           admin,
@@ -954,7 +1075,9 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     expect(long.filter(sql => /admin_private\.commit_changes\b/.test(sql) && /entity_id = ANY/.test(sql))).toHaveLength(
       1
     );
-    expect(long.filter(sql => /admin_private\.commits\b/.test(sql))).toHaveLength(3);
+    // 提交表上的四条：治理行读取时按部分唯一索引取共享分支根、已存在提交的查重、任务路径、追加新提交
+    expect(long.filter(sql => /admin_private\.commits\b/.test(sql))).toHaveLength(4);
+    expect(long.filter(sql => /kind = 'baseline'/.test(sql))).toHaveLength(1);
   }, 60000);
   it('keeps the workspace rows free of commit content: uploading a thousand changed records adds only a small audit event and receipt', async () => {
     const seed = { ...input, teamId: randomUUID(), appId: 'row-size', bootstrapKey: randomUUID() };
@@ -975,7 +1098,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
             )
           ).rows[0].bytes
         );
-      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
       const before = await bytes();
       const rows: Records = Object.fromEntries(
         Array.from({ length: 1000 }, (_, index) => [
@@ -986,8 +1110,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       const upload = command({
         type: 'upload',
         taskId: 'task',
-        expectedHead: null,
-        commits: [await signed('big', null, {}, rows)]
+        expectedHead: root,
+        commits: [signed('big', root, {}, rows)]
       });
       await repository.operation(admin, seed.teamId, seed.appId, upload);
       expect(JSON.stringify(rows).length).toBeGreaterThan(250_000);
@@ -1008,7 +1132,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         type: 'upload',
         taskId: 'next',
         expectedHead: head,
-        commits: [await signed('next-1', head, content.records, added)]
+        commits: [signed('next-1', head, content.records, added)]
       });
       await op({ type: 'pr', id: 'next-pr', taskId: 'next', title: 'Next', description: '', target: 'shared' });
       await op({ type: 'pr_state', prId: 'next-pr', status: 'review', expectedRevision: 0 });
@@ -1113,11 +1237,16 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     return { seed, op };
   }
   /** 一个新任务：建任务并上传一个新增一条分类的提交，返回任务头。 */
-  async function seededTask(op: (data: Record<string, unknown>) => Promise<Record<string, unknown>>, id: string) {
-    await op({ type: 'task', id, name: id, expectedHead: null });
-    const commit = await signed(`${id}-1`, null, {}, { [id]: { entity: 'AssetCategory', fields: { name: id } } });
-    await op({ type: 'upload', taskId: id, expectedHead: null, commits: [commit] });
-    return commit.id;
+  async function seededTask(
+    seed: { teamId: string; appId: string },
+    op: (data: Record<string, unknown>) => Promise<Record<string, unknown>>,
+    id: string
+  ) {
+    const root = await rootOf(seed);
+    await op({ type: 'task', id, name: id, expectedHead: root });
+    const commit = signed(`${id}-1`, root, {}, { [id]: { entity: 'AssetCategory', fields: { name: id } } });
+    await op({ type: 'upload', taskId: id, expectedHead: root, commits: [commit] });
+    return commit.commitId;
   }
   const comment = (prId: string, body: string) => ({
     type: 'thread',
@@ -1138,14 +1267,15 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       `NEW.action = 'upload' AND NEW.details->'details'->>'taskId' = 'slow'`
     );
     try {
-      for (const id of ['slow', 'fast']) await op({ type: 'task', id, name: id, expectedHead: null });
-      const upload = async (taskId: string) =>
+      const root = await rootOf(seed);
+      for (const id of ['slow', 'fast']) await op({ type: 'task', id, name: id, expectedHead: root });
+      const upload = (taskId: string) =>
         op({
           type: 'upload',
           taskId,
-          expectedHead: null,
+          expectedHead: root,
           commits: [
-            await signed(`${taskId}-1`, null, {}, { [taskId]: { entity: 'AssetCategory', fields: { name: taskId } } })
+            signed(`${taskId}-1`, root, {}, { [taskId]: { entity: 'AssetCategory', fields: { name: taskId } } })
           ]
         });
       const slow = upload('slow');
@@ -1197,7 +1327,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         expectedVersion: 0
       });
       await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, reviewer);
-      const source = await seededTask(op, 'task');
+      const source = await seededTask(seed, op, 'task');
       await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
       await op({ type: 'pr_state', prId: 'pr', status: 'review', expectedRevision: 0 });
       const { candidateId } = await op({ type: 'candidate', prId: 'pr', expectedRevision: 1, resolutions: [] });
@@ -1234,8 +1364,9 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       const audit = (await projected.read(admin, seed.teamId, seed.appId)).audit.map(event => event.action);
       expect(audit.indexOf('review')).toBeLessThan(audit.lastIndexOf('member'));
       // 撤权在批准之后提交，批准随授权代次一起失效
+      const root = await rootOf(seed);
       await expect(
-        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: null })
+        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: root })
       ).rejects.toMatchObject({ code: 'approval' });
 
       // 2. 撤权停在事务中途（持有治理行排他锁）：等在它后面的批准与评论，按撤权后的成员关系裁决，一律拒绝
@@ -1259,7 +1390,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await expect(approve(1)).rejects.toMatchObject({ code: 'forbidden' });
       await expect(op(comment('pr', 'later'), reviewer)).rejects.toMatchObject({ code: 'forbidden' });
       await expect(
-        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: null }, reviewer)
+        op({ type: 'merge', prId: 'pr', candidateId, expectedSource: source, expectedTarget: root }, reviewer)
       ).rejects.toMatchObject({ code: 'forbidden' });
     } finally {
       await removeWorkspace(seed);
@@ -1269,26 +1400,28 @@ describe('PostgreSQL transaction and RLS boundary', () => {
   it('advances a ref only from the expected head, and reports a clear conflict when the compare-and-swap fails', async () => {
     const { seed, op } = await freshWorkspace('ref-cas');
     try {
-      const head = await seededTask(op, 'task');
+      const head = await seededTask(seed, op, 'task');
+      const root = await rootOf(seed);
       const scope: [string, string] = [seed.teamId, seed.appId];
-      expect(await advance(pool, scope, 'tasks/task', { from: null, to: null })).toBe(head);
-      expect(await advance(pool, scope, 'shared', { from: head, to: null })).toBeNull();
+      expect(await advance(pool, scope, 'tasks/task', { from: root, to: root })).toBe(head);
+      expect(await advance(pool, scope, 'shared', { from: head, to: root })).toBe(root);
+      expect(await advance(pool, scope, 'tasks/missing', { from: root, to: head })).toBeNull();
       const refs = await pool.query<{ ref: string; head: string | null; revision: string }>(
         'SELECT ref, head, revision FROM admin_private.refs WHERE team_id = $1 ORDER BY ref',
         [seed.teamId]
       );
       expect(refs.rows).toEqual([
-        { ref: 'shared', head: null, revision: '0' },
+        { ref: 'shared', head: root, revision: '0' },
         { ref: 'tasks/task', head, revision: '1' }
       ]);
       const empty = stateChanges(emptyState(seed.teamId, seed.appId), emptyState(seed.teamId, seed.appId));
       const writer = new PgWorkspaceWriter(pool, seed.teamId, seed.appId);
       await expect(
-        writer.save({ ...empty, heads: { task: { from: null, to: head } } }, noEffects(), Date.now())
+        writer.save({ ...empty, heads: { task: { from: root, to: head } } }, noEffects(), Date.now())
       ).rejects.toMatchObject({ code: 'diverged', details: { remoteHead: head } });
       await expect(
-        writer.save({ ...empty, shared: { from: head, to: null } }, noEffects(), Date.now())
-      ).rejects.toMatchObject({ code: 'stale', details: { current: null } });
+        writer.save({ ...empty, shared: { from: head, to: root } }, noEffects(), Date.now())
+      ).rejects.toMatchObject({ code: 'stale', details: { current: root } });
     } finally {
       await removeWorkspace(seed);
     }
@@ -1298,13 +1431,13 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const { seed, op } = await freshWorkspace('upload-recheck');
     const holder = await pool.connect();
     try {
-      const head = await seededTask(op, 'task');
+      const head = await seededTask(seed, op, 'task');
       await holder.query('BEGIN');
       await holder.query(
         "SELECT 1 FROM admin_private.refs WHERE team_id = $1 AND app_id = $2 AND ref = 'tasks/task' FOR UPDATE",
         [seed.teamId, seed.appId]
       );
-      const next = await signed(
+      const next = signed(
         'task-2',
         head,
         { task: { entity: 'AssetCategory', fields: { name: 'task' } } },
@@ -1338,11 +1471,12 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await op({ type: 'policy', stages: [], expectedVersion: 1 });
       const prepared: Record<string, string> = {};
       for (const id of ['first', 'second']) {
-        prepared[id] = await seededTask(op, id);
+        prepared[id] = await seededTask(seed, op, id);
         await op({ type: 'pr', id, taskId: id, title: id, description: '', target: 'shared' });
         await op({ type: 'pr_state', prId: id, status: 'review', expectedRevision: 0 });
       }
       const { candidateId } = await op({ type: 'candidate', prId: 'first', expectedRevision: 1, resolutions: [] });
+      const root = await rootOf(seed);
       const merges = await suspend('pause_merge', `NEW.action = 'merge'`);
       try {
         // 合并停在事务中途：已锁定共享引用、写好共享记录与合并提交，尚未提交
@@ -1351,7 +1485,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           prId: 'first',
           candidateId,
           expectedSource: prepared['first'],
-          expectedTarget: null
+          expectedTarget: root
         });
         await expect(outcomeWithin(merge, 300)).resolves.toBe('pending');
         // 另一个 PR 生成候选要读共享内容：对共享引用加共享锁，等合并提交，不会读到合并到一半的共享分支
@@ -1383,7 +1517,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
   it('keeps the WAL of an ordinary command bounded and the touched rows the same size however long the history grows', async () => {
     const { seed, op } = await freshWorkspace('bounded-wal');
     try {
-      let head = await seededTask(op, 'task');
+      let head = await seededTask(seed, op, 'task');
       let content: Records = { task: { entity: 'AssetCategory', fields: { name: 'task' } } };
       await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
       const sample = async () => {
@@ -1404,9 +1538,9 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       // 历史再长 150 条命令：50 次上传与 100 条评论
       for (let index = 0; index < 50; index++) {
         const next: Records = { ...content, [`r${index}`]: { entity: 'AssetCategory', fields: { name: `R${index}` } } };
-        const commit = await signed(uuidv7(), head, content, next);
+        const commit = signed(uuidv7(), head, content, next);
         await op({ type: 'upload', taskId: 'task', expectedHead: head, commits: [commit] });
-        head = commit.id;
+        head = commit.commitId;
         content = next;
       }
       for (let index = 0; index < 100; index++) await op(comment('pr', `filler ${index}`));
@@ -1434,12 +1568,13 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       ]);
     const count = async (sql: string) => Number((await pool.query(sql, [seed.teamId])).rows[0].count);
     try {
-      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
       const upload = command({
         type: 'upload',
         taskId: 'task',
-        expectedHead: null,
-        commits: [await signed('c1', null, {}, { a: { entity: 'AssetCategory', fields: { name: 'A' } } })]
+        expectedHead: root,
+        commits: [signed('c1', root, {}, { a: { entity: 'AssetCategory', fields: { name: 'A' } } })]
       });
       const first = await repository.operation(admin, seed.teamId, seed.appId, upload);
       const audited = await count('SELECT count(*) FROM public.admin_audit WHERE team_id = $1');
@@ -1459,9 +1594,10 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         code: 'diverged'
       });
       expect(await count("SELECT count(*) FROM admin_private.commits WHERE team_id = $1 AND id = 'c1'")).toBe(1);
-      expect(await count('SELECT count(*) FROM admin_private.commits WHERE team_id = $1')).toBe(1);
+      // 根与上传的那一个提交
+      expect(await count('SELECT count(*) FROM admin_private.commits WHERE team_id = $1')).toBe(2);
       // 过期回执由之后的普通写事务顺手清掉：下一条命令就删除了上传那条过期回执
-      await op({ type: 'task', id: 't0', name: 'T0', expectedHead: null });
+      await op({ type: 'task', id: 't0', name: 'T0', expectedHead: root });
       expect(
         await count(
           `SELECT count(*) FROM admin_private.operations WHERE team_id = $1 AND operation_id = '${upload.operationId}'`
@@ -1469,15 +1605,15 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       ).toBe(0);
       // 有界清理：积压 25 条过期回执，每个写事务最多清理 receiptSweepLimit 条，最旧的先清
       for (let index = 1; index < 24; index++)
-        await op({ type: 'task', id: `t${index}`, name: `T${index}`, expectedHead: null });
+        await op({ type: 'task', id: `t${index}`, name: `T${index}`, expectedHead: root });
       await age('true');
       const expired = 'SELECT count(*) FROM admin_private.operations WHERE team_id = $1 AND at <= $2';
       const expiredCount = async () =>
         Number((await pool.query(expired, [seed.teamId, Date.now() - receiptRetentionMs])).rows[0].count);
       expect(await expiredCount()).toBe(25);
-      await op({ type: 'task', id: 'sweep-1', name: 'Sweep', expectedHead: null });
+      await op({ type: 'task', id: 'sweep-1', name: 'Sweep', expectedHead: root });
       expect(await expiredCount()).toBe(25 - receiptSweepLimit);
-      await op({ type: 'task', id: 'sweep-2', name: 'Sweep', expectedHead: null });
+      await op({ type: 'task', id: 'sweep-2', name: 'Sweep', expectedHead: root });
       expect(await expiredCount()).toBe(0);
       expect(await count('SELECT count(*) FROM admin_private.operations WHERE team_id = $1')).toBe(2);
     } finally {
@@ -1489,8 +1625,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const summaryBytes = async (commits: number) => {
       const { seed, op } = await freshWorkspace(`summary-${commits}`);
       try {
-        await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
-        let head: string | null = null;
+        let head = await rootOf(seed);
+        await op({ type: 'task', id: 'task', name: 'Task', expectedHead: head });
         let content: Records = {};
         let serialNumber = 0;
         for (const size of [commits / 2, commits / 2]) {
@@ -1498,11 +1634,11 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           for (let index = 0; index < size; index++) {
             const id = `r${serialNumber++}`;
             const next: Records = { ...content, [id]: { entity: 'AssetCategory', fields: { name: id } } };
-            batch.push(await signed(uuidv7(), batch.at(-1)?.id ?? head, content, next));
+            batch.push(signed(uuidv7(), batch.at(-1)?.commitId ?? head, content, next));
             content = next;
           }
           await op({ type: 'upload', taskId: 'task', expectedHead: head, commits: batch });
-          head = batch.at(-1)!.id;
+          head = batch.at(-1)!.commitId;
         }
         await op({ type: 'pr', id: 'pr', taskId: 'task', title: 'PR', description: '', target: 'shared' });
         await op(comment('pr', 'Size'));
@@ -1599,8 +1735,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       repository.operation(actor, seed.teamId, seed.appId, command(data));
     return { seed, op };
   }
-  const planned = (id: string, parent: string | null, before: Records, after: Records) =>
-    sealCommit({
+  const planned = (id: string, parent: string, before: Records, after: Records) =>
+    taskCommit({
       id,
       parent,
       authorId: admin.id,
@@ -1655,7 +1791,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         expectedVersion: 0
       });
       await op({ type: 'accept_invite', id: 'invite', tokenHash: 'token' }, reviewer);
-      await op({ type: 'task', id: 'plan', name: 'Plan', expectedHead: null });
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'plan', name: 'Plan', expectedHead: root });
       const broken: Records = {
         p1: project('Apollo', { code: 'AP', budget: 10 }),
         p2: project('Apollo', { code: 'AP', budget: -1, stage: 'late' }),
@@ -1665,8 +1802,8 @@ describe('PostgreSQL transaction and RLS boundary', () => {
       await op({
         type: 'upload',
         taskId: 'plan',
-        expectedHead: null,
-        commits: [await planned('plan-1', null, {}, broken)]
+        expectedHead: root,
+        commits: [planned('plan-1', root, {}, broken)]
       });
       const first = await plannedCandidate(seed, op, 'plan', 1);
       expect(first.checks.map(check => `${check.recordId}.${check.field}: ${check.message}`)).toEqual([
@@ -1685,7 +1822,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         type: 'upload',
         taskId: 'plan',
         expectedHead: 'plan-1',
-        commits: [await planned('plan-2', 'plan-1', broken, fixed)]
+        commits: [planned('plan-2', 'plan-1', broken, fixed)]
       });
       const second = await plannedCandidate(seed, op, 'plan', 3);
       expect(second.checks).toEqual([]);
@@ -1707,7 +1844,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         prId: 'pr-plan',
         candidateId: second.id,
         expectedSource: 'plan-2',
-        expectedTarget: null
+        expectedTarget: root
       });
       expect((await projected.readRecords(admin, seed.teamId, seed.appId)).records).toEqual(fixed);
       const keys = await pool.query<{ record_id: string; kind: string; field: string; value: string }>(
@@ -1734,7 +1871,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         type: 'upload',
         taskId: 'drop',
         expectedHead: head,
-        commits: [await planned('drop-1', head, fixed, without(fixed, 'p1'))]
+        commits: [planned('drop-1', head, fixed, without(fixed, 'p1'))]
       });
       const dropped = await plannedCandidate(seed, op, 'drop', 1);
       expect(dropped.checks.map(check => `${check.recordId}.${check.field}: ${check.message}`)).toEqual([
@@ -1748,16 +1885,17 @@ describe('PostgreSQL transaction and RLS boundary', () => {
   it('rejects an upload whose changes do not fit the parent content, as a whole batch and without writing anything', async () => {
     const { seed, op } = await planningWorkspace('planning-upload');
     try {
-      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: null });
-      const first = await planned('c1', null, {}, { p1: project('Apollo', { budget: 10 }) });
-      await op({ type: 'upload', taskId: 'task', expectedHead: null, commits: [first] });
-      const fine = await planned(
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'task', name: 'Task', expectedHead: root });
+      const first = planned('c1', root, {}, { p1: project('Apollo', { budget: 10 }) });
+      await op({ type: 'upload', taskId: 'task', expectedHead: root, commits: [first] });
+      const fine = planned(
         'c2',
         'c1',
         { p1: project('Apollo', { budget: 10 }) },
         { p1: project('Apollo', { budget: 20 }) }
       );
-      const forged = await sealCommit({
+      const forged = taskCommit({
         id: 'c3',
         parent: 'c2',
         authorId: admin.id,
@@ -1777,16 +1915,17 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         op({ type: 'upload', taskId: 'task', expectedHead: 'c1', commits: [fine, forged] })
       );
       expect(rejected).toMatchObject({ code: 'invalid', message: '提交内容与其父提交不一致' });
-      const stored = await pool.query('SELECT id FROM admin_private.commits WHERE team_id = $1 ORDER BY id', [
-        seed.teamId
-      ]);
+      const stored = await pool.query(
+        "SELECT id FROM admin_private.commits WHERE team_id = $1 AND kind = 'normal' ORDER BY id",
+        [seed.teamId]
+      );
       expect(stored.rows.map(row => row['id'])).toEqual(['c1']);
-      const unknown = await sealCommit({
+      const unknown = taskCommit({
         id: 'c4',
         parent: 'c1',
         authorId: admin.id,
         message: 'unknown field',
-        changes: [{ ...forged.changes[0], patch: { owner: 'x' }, inversePatch: {} }]
+        changes: [{ ...forged.units[0], patch: { owner: 'x' }, inversePatch: {} }]
       });
       expect(
         await errorOf(op({ type: 'upload', taskId: 'task', expectedHead: 'c1', commits: [unknown] }))
@@ -1811,12 +1950,13 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           records[`m${index}b`] = milestone(`B ${index}`, `p${index}`);
         }
         await op({ type: 'policy', stages: [], expectedVersion: 1 });
-        await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: null });
+        const root = await rootOf(seed);
+        await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: root });
         await op({
           type: 'upload',
           taskId: 'seed',
-          expectedHead: null,
-          commits: [await planned('seed-1', null, {}, records)]
+          expectedHead: root,
+          commits: [planned('seed-1', root, {}, records)]
         });
         const seedCandidate = await plannedCandidate(seed, op, 'seed', 1);
         await op({
@@ -1824,7 +1964,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           prId: 'pr-seed',
           candidateId: seedCandidate.id,
           expectedSource: 'seed-1',
-          expectedTarget: null
+          expectedTarget: root
         });
         const head = (await projected.read(admin, seed.teamId, seed.appId)).head;
         const edited: Records = {
@@ -1837,7 +1977,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           type: 'upload',
           taskId: 'edit',
           expectedHead: head,
-          commits: [await planned('edit-1', head, records, edited)]
+          commits: [planned('edit-1', head, records, edited)]
         });
         await op({ type: 'pr', id: 'pr-edit', taskId: 'edit', title: 'edit', description: '', target: 'shared' });
         await op({ type: 'pr_state', prId: 'pr-edit', status: 'review', expectedRevision: 0 });
@@ -1864,7 +2004,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
           type: 'upload',
           taskId: 'edit',
           expectedHead: 'edit-1',
-          commits: [await planned('edit-2', 'edit-1', edited, fixedEdit)]
+          commits: [planned('edit-2', 'edit-1', edited, fixedEdit)]
         });
         const clean = await plannedCandidate(seed, op, 'edit', 3);
         expect(clean.checks).toEqual([]);
@@ -1913,13 +2053,14 @@ describe('PostgreSQL transaction and RLS boundary', () => {
     const { seed, op } = await planningWorkspace('planning-schema');
     try {
       await op({ type: 'policy', stages: [], expectedVersion: 1 });
-      await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: null });
+      const root = await rootOf(seed);
+      await op({ type: 'task', id: 'seed', name: 'Seed', expectedHead: root });
       const shared: Records = { p1: project('Apollo'), p2: project('Zeus') };
       await op({
         type: 'upload',
         taskId: 'seed',
-        expectedHead: null,
-        commits: [await planned('seed-1', null, {}, shared)]
+        expectedHead: root,
+        commits: [planned('seed-1', root, {}, shared)]
       });
       const seedCandidate = await plannedCandidate(seed, op, 'seed', 1);
       await op({
@@ -1927,7 +2068,7 @@ describe('PostgreSQL transaction and RLS boundary', () => {
         prId: 'pr-seed',
         candidateId: seedCandidate.id,
         expectedSource: 'seed-1',
-        expectedTarget: null
+        expectedTarget: root
       });
       const required = structuredClone({ ...planningSchema, schemaVersion: 2 });
       Object.assign(

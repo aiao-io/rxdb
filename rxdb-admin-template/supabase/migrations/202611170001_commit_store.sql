@@ -1,6 +1,7 @@
 BEGIN;
 -- 提交存储与共享记录物化：提交只存元数据加字段级变更，共享数据按记录一行，工作区 JSONB 不再含 commits 与 records。
 -- 全部语句幂等：可在已迁移的库上重复执行，结果不变。依赖 202611160001_collaboration.sql 建好的 workspaces 与 can_read。
+-- 提交表与变更表在 202611180002 改成平台 working-tree 的交换格式；这里建的是改造前的结构（表已存在时整句跳过）。
 
 -- 提交元数据：只追加。父指针与指纹由服务端写入；合并提交带 merge_source 与 candidate_id，任务提交两者皆空。
 CREATE TABLE IF NOT EXISTS admin_private.commits (
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS admin_private.commits (
   CHECK (fingerprint ~ '^[0-9a-f]{64}$'),
   CHECK ((merge_source IS NULL) = (candidate_id IS NULL))
 );
-CREATE INDEX IF NOT EXISTS commits_parent ON admin_private.commits (team_id, app_id, parent_id);
+-- 父指针的索引不再建：202611180002 把提交表改成交换格式（有序的 parent_ids），parent_id 列随之删除，
+-- 在新结构上重跑本文件时这条索引语句会因为列不存在而失败。
 
 -- 提交的字段级变更：按提交与序号存放，形状对齐平台 working-tree 的 CommitChangeSet。
 -- 新增只有 patch，修改两者都有，删除只有 inverse_patch。

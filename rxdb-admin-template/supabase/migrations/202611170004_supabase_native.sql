@@ -44,16 +44,8 @@ GRANT EXECUTE ON FUNCTION admin_private.can_manage(text, text), admin_private.ca
 -- 只读投影：视图以所有者身份读私有表，可见范围写在视图条件里（等价于 RLS：can_read 成员资格，通知与回执另限本人，
 -- 邀请另限管理者）；security_barrier 保证调用方的筛选条件不会先于这些条件求值而泄露行。
 -- 不暴露的列：邀请令牌摘要、请求指纹、初始化密钥、提交内容指纹。
--- 工作区行从当前用户的可读成员行出发（memberships_user 索引）：「我的工作区」只读本人的成员行，不扫其他团队
-CREATE OR REPLACE VIEW public.admin_workspaces WITH (security_barrier = true) AS
-  SELECT w.team_id, w.app_id, w.name, w.schema_version, w.policy_version, p.stages AS policy_stages, r.head,
-    v.revision, v.audit_count
-  FROM admin_private.memberships m
-  JOIN admin_private.workspaces w ON w.team_id = m.team_id AND w.app_id = m.app_id
-  JOIN admin_private.policies p ON p.team_id = w.team_id AND p.app_id = w.app_id AND p.version = w.policy_version
-  JOIN admin_private.refs r ON r.team_id = w.team_id AND r.app_id = w.app_id AND r.ref = 'shared'
-  JOIN public.admin_workspace_versions v ON v.team_id = w.team_id AND v.app_id = w.app_id
-  WHERE m.user_id = auth.uid()::text AND m.can_read;
+-- 工作区行（public.admin_workspaces）与提交元数据（public.admin_commits）、沿提交图的读取函数在 202611180002 里按交换格式定义：
+-- 它们引用的提交表列在那里才有，放在这里的话，新结构的库上重跑本文件会因为列不存在或视图删列而失败。
 CREATE OR REPLACE VIEW public.admin_members WITH (security_barrier = true) AS
   SELECT m.team_id, m.app_id, m.user_id, m.email, m.permissions, m.generation, m.seq
   FROM admin_private.memberships m
@@ -103,85 +95,11 @@ CREATE OR REPLACE VIEW public.admin_receipts WITH (security_barrier = true) AS
   FROM admin_private.operations o
   WHERE o.actor_id = auth.uid()::text AND o.at > (extract(epoch FROM now()) * 1000)::bigint - 2592000000
     AND admin_private.can_read(o.team_id, o.app_id);
-CREATE OR REPLACE VIEW public.admin_commits WITH (security_barrier = true) AS
-  SELECT c.team_id, c.app_id, c.id, c.parent_id, c.author_id, c.message, c.merge_source, c.candidate_id,
-    c.created_at, c.seq
-  FROM admin_private.commits c
-  WHERE admin_private.can_read(c.team_id, c.app_id);
 CREATE OR REPLACE VIEW public.admin_schemas WITH (security_barrier = true) AS
   SELECT s.team_id, s.app_id, s.version, s.manifest, s.created_at
   FROM admin_private.schemas s
   WHERE admin_private.can_read(s.team_id, s.app_id);
 
--- 沿父指针走提交图的读取（一条语句、一份快照，返回 JSON 以免受 PostgREST 行数上限截断）：
--- 不可读的工作区返回 NULL；只读、不加锁。行形状与 server/pg-store.ts 的查询一致，由同一段 TypeScript 还原路径。
-CREATE OR REPLACE FUNCTION public.admin_commit_path(p_team_id text, p_app_id text, p_from text, p_until text)
-RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT (
-    WITH RECURSIVE chain AS (
-      SELECT c.id, c.parent_id, c.merge_source IS NOT NULL AS merge FROM admin_private.commits c
-      WHERE c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = p_from AND c.id IS DISTINCT FROM p_until
-      UNION
-      SELECT c.id, c.parent_id, c.merge_source IS NOT NULL FROM chain
-      JOIN admin_private.commits c ON c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = chain.parent_id
-      WHERE c.id IS DISTINCT FROM p_until
-    )
-    SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'parent_id', parent_id, 'merge', merge)), '[]'::jsonb)
-    FROM chain
-  )
-  WHERE admin_private.can_read(p_team_id, p_app_id)
-$$;
-CREATE OR REPLACE FUNCTION public.admin_commit_lineage(p_team_id text, p_app_id text, p_id text)
-RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT (
-    WITH RECURSIVE chain AS (
-      SELECT c.id, c.parent_id, c.merge_source IS NOT NULL AS merge FROM admin_private.commits c
-      WHERE c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = p_id
-      UNION
-      SELECT c.id, c.parent_id, c.merge_source IS NOT NULL FROM chain
-      JOIN admin_private.commits c ON c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = chain.parent_id
-      WHERE NOT chain.merge
-    )
-    SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'parent_id', parent_id, 'merge', merge)), '[]'::jsonb)
-    FROM chain
-  )
-  WHERE admin_private.can_read(p_team_id, p_app_id)
-$$;
-CREATE OR REPLACE FUNCTION public.admin_commit_history(
-  p_team_id text, p_app_id text, p_from text, p_until text, p_limit integer
-)
-RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT (
-    WITH RECURSIVE chain AS (
-      SELECT c.id, c.parent_id, c.author_id, c.message, c.merge_source, c.candidate_id, 1 AS depth
-      FROM admin_private.commits c
-      WHERE c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = p_from AND p_limit >= 1
-        AND c.id IS DISTINCT FROM p_until
-      UNION ALL
-      SELECT c.id, c.parent_id, c.author_id, c.message, c.merge_source, c.candidate_id, chain.depth + 1 FROM chain
-      JOIN admin_private.commits c ON c.team_id = p_team_id AND c.app_id = p_app_id AND c.id = chain.parent_id
-      WHERE chain.depth < least(p_limit, 101) AND c.id IS DISTINCT FROM p_until
-    )
-    SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'parent_id', parent_id, 'author_id', author_id,
-        'message', message, 'merge_source', merge_source, 'candidate_id', candidate_id) ORDER BY depth), '[]'::jsonb)
-    FROM chain
-  )
-  WHERE admin_private.can_read(p_team_id, p_app_id)
-$$;
-CREATE OR REPLACE FUNCTION public.admin_commit_changes(
-  p_team_id text, p_app_id text, p_commit_ids text[], p_record_ids text[] DEFAULT NULL
-)
-RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
-  SELECT (
-    SELECT coalesce(jsonb_agg(jsonb_build_object('commit_id', x.commit_id, 'namespace', x.namespace,
-        'entity', x.entity, 'entity_id', x.entity_id, 'operation', x.operation, 'patch', x.patch,
-        'inverse_patch', x.inverse_patch) ORDER BY x.commit_id, x.seq), '[]'::jsonb)
-    FROM admin_private.commit_changes x
-    WHERE x.team_id = p_team_id AND x.app_id = p_app_id AND x.commit_id = ANY (p_commit_ids)
-      AND (p_record_ids IS NULL OR x.entity_id = ANY (p_record_ids))
-  )
-  WHERE admin_private.can_read(p_team_id, p_app_id)
-$$;
 -- 共享记录连同共享头：同一条语句读出，客户端据头判断记录与它手里的版本是否一致
 CREATE OR REPLACE FUNCTION public.admin_shared_records(p_team_id text, p_app_id text, p_record_ids text[] DEFAULT NULL)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
@@ -197,22 +115,16 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
 $$;
 
 -- 授权：Supabase 给 public 下新建的视图与函数默认授予 anon / authenticated 全部权限，这里收回，只给登录用户读。
-REVOKE ALL ON public.admin_workspaces, public.admin_members, public.admin_invitations, public.admin_tasks,
+REVOKE ALL ON public.admin_members, public.admin_invitations, public.admin_tasks,
   public.admin_prs, public.admin_candidates, public.admin_reviews, public.admin_threads, public.admin_comments,
-  public.admin_notifications, public.admin_receipts, public.admin_commits, public.admin_schemas
+  public.admin_notifications, public.admin_receipts, public.admin_schemas
   FROM PUBLIC, anon, authenticated;
-GRANT SELECT ON public.admin_workspaces, public.admin_members, public.admin_invitations, public.admin_tasks,
+GRANT SELECT ON public.admin_members, public.admin_invitations, public.admin_tasks,
   public.admin_prs, public.admin_candidates, public.admin_reviews, public.admin_threads, public.admin_comments,
-  public.admin_notifications, public.admin_receipts, public.admin_commits, public.admin_schemas
+  public.admin_notifications, public.admin_receipts, public.admin_schemas
   TO authenticated;
-REVOKE ALL ON FUNCTION public.admin_commit_path(text, text, text, text),
-  public.admin_commit_lineage(text, text, text), public.admin_commit_history(text, text, text, text, integer),
-  public.admin_commit_changes(text, text, text[], text[]), public.admin_shared_records(text, text, text[])
-  FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_commit_path(text, text, text, text),
-  public.admin_commit_lineage(text, text, text), public.admin_commit_history(text, text, text, text, integer),
-  public.admin_commit_changes(text, text, text[], text[]), public.admin_shared_records(text, text, text[])
-  TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_shared_records(text, text, text[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_shared_records(text, text, text[]) TO authenticated;
 
 -- 私有频道的授权（Realtime 在加入频道与令牌刷新时以登录用户身份对 realtime.messages 试读、试写）：
 -- 只有该团队与应用的可读成员能接收广播与在线状态，也只能上报在线状态；广播只由命令事务经 realtime.send() 写入。

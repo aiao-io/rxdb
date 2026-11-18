@@ -4,20 +4,30 @@
 
 ## 运行方式
 
-浏览器直接使用 Supabase：经 supabase-js 登录、经 PostgREST 读 public 下的只读投影（RLS 按成员资格裁决）、经 Realtime 的私有频道收失效通知与在线状态。写入只有一条路径：协作命令服务（Node.js），它在本进程里校验 access token，在 PostgreSQL 事务里执行命令，并在同一事务里经 `realtime.send()` 广播失效通知。部署时将 `/collaboration-api/*` 转发到协作服务；开发时三个应用已有代理，默认指向 `127.0.0.1:8088`，可用 `ADMIN_API_URL` 更改开发代理目标。
+浏览器直接使用 Supabase：经 supabase-js 登录、经 PostgREST 读 public 下的只读投影（RLS 按成员资格裁决）、经 Realtime 的私有频道收失效通知与在线状态。写入只有一条路径：协作命令入口，它在本进程里校验 access token，在 PostgreSQL 事务里执行命令，并在同一事务里向私有频道广播失效通知。
 
-服务端环境变量（只在协作服务的进程里，前端产物不得出现这些名字与值）：
+命令入口是一个 fetch 风格的处理函数（`server/handler.ts`），同一套领域引擎与仓储有两个部署入口（ADMIN-US-220）：
 
-| 变量                                | 用途                                                                                                                                                                               |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SUPABASE_URL`                      | Supabase 项目地址                                                                                                                                                                  |
-| `SUPABASE_ANON_KEY`                 | 公开 anon / publishable key；服务端启动时拒绝 service role key                                                                                                                     |
-| `SUPABASE_JWKS_URL`                 | 生产：非对称签名密钥的 JWKS 地址（`<SUPABASE_URL>/auth/v1/.well-known/jwks.json`），与下一项**恰好配置一个**                                                                       |
-| `SUPABASE_JWT_SECRET`               | 本机隔离栈：GoTrue 的 HS256 共享密钥，与上一项恰好配置一个；两项都缺或都给时服务启动即失败，运行中不在两种方式之间回退                                                             |
-| `SUPABASE_JWT_ISSUER`               | 令牌的签发者（`iss`），必须完全一致。用 JWKS 时必填（托管 Supabase 为 `<SUPABASE_URL>/auth/v1`）；用共享密钥时可选，不配置即要求令牌不带 `iss`（本机隔离栈的 GoTrue 不签发 `iss`） |
-| `ADMIN_DATABASE_URL`                | 仅服务端使用的连接，指向**同一个 Supabase 项目的 PostgreSQL**（广播写在它的 `realtime.messages`，读取投影也在这里）                                                                |
-| `ADMIN_ALLOWED_ORIGINS`             | 允许的工作台来源，逗号分隔，含协议与端口                                                                                                                                           |
-| `ADMIN_API_PORT` / `ADMIN_API_HOST` | 默认 `8088` / `127.0.0.1`                                                                                                                                                          |
+- **Supabase Edge Function**（`rxdb-admin-template/supabase/functions/admin-collaboration`，推荐）：只部署 Supabase 即可上线，不另外托管服务，步骤见下文「只部署 Supabase」；
+- **Node 服务**（`server/main.ts`，`nx run admin-collaboration:serve-api`）：等价的部署选项，与 Edge Function 跑同一套命令契约测试。
+
+两种入口都只以协作专用数据库角色 `admin_collaboration` 连库（迁移 `202611180001_service_role.sql`），不用超级用户、postgres 或 service role。前端把 `/collaboration-api/*` 交给命令入口：开发时三个应用已有代理，默认指向 `127.0.0.1:8088`（Node 服务），可用 `ADMIN_API_URL` 改指向别处，例如本机 Edge Function 的 `http://127.0.0.1:54329/admin-collaboration`；部署时由静态站点把 `/collaboration-api/*` 改写到命令入口（见「只部署 Supabase」第 6 步）。
+
+命令入口的环境变量（只在命令入口里，前端产物不得出现这些名字与值；Edge Function 与 Node 服务读同样的设置，只有身份校验的三个变量名不同）：
+
+| 变量（Node 服务 / Edge Function）          | 用途                                                                                                                                                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPABASE_URL`                             | 命令入口访问 Supabase 的地址（接受邀请时向 Auth 确认邮箱），也是下发给浏览器的地址。Edge Function 里由平台注入                                                                                                                |
+| `SUPABASE_ANON_KEY`                        | 公开 anon / publishable key；启动时拒绝 service role key。Edge Function 里由平台注入                                                                                                                                          |
+| `ADMIN_PUBLIC_SUPABASE_URL`                | 可选：只有命令入口访问 Supabase 的地址与浏览器不同（自托管时函数经内部网络访问网关）才设置，作为下发给浏览器的地址                                                                                                            |
+| `SUPABASE_JWKS_URL` / `ADMIN_JWKS_URL`     | 生产：非对称签名密钥的 JWKS 地址（`<SUPABASE_URL>/auth/v1/.well-known/jwks.json`），与下一项**恰好配置一个**                                                                                                                  |
+| `SUPABASE_JWT_SECRET` / `ADMIN_JWT_SECRET` | 本机隔离栈：GoTrue 的 HS256 共享密钥，与上一项恰好配置一个；两项都缺或都给时入口启动即失败，运行中不在两种方式之间回退                                                                                                        |
+| `SUPABASE_JWT_ISSUER` / `ADMIN_JWT_ISSUER` | 令牌的签发者（`iss`），必须完全一致。用 JWKS 时必填（托管 Supabase 为 `<SUPABASE_URL>/auth/v1`）；用共享密钥时可选，不配置即要求令牌不带 `iss`（本机隔离栈的 GoTrue 不签发 `iss`）                                            |
+| `ADMIN_DATABASE_URL`                       | 协作专用数据库角色的连接，指向**同一个 Supabase 项目的 PostgreSQL**（广播写在它的 `realtime.messages`，读取投影也在这里）；用户名不是 `admin_collaboration`（经 Supavisor 时为 `admin_collaboration.<项目 ref>`）时启动即失败 |
+| `ADMIN_ALLOWED_ORIGINS`                    | 允许的工作台来源，逗号分隔，含协议与端口                                                                                                                                                                                      |
+| `ADMIN_API_PORT` / `ADMIN_API_HOST`        | 只用于 Node 服务：默认 `8088` / `127.0.0.1`                                                                                                                                                                                   |
+
+Edge Function 的三个身份校验变量用 `ADMIN_` 前缀：Supabase 不接受 `SUPABASE_` 开头的函数密钥（CLI 设置时直接跳过），平台还会自行注入这个前缀的变量；函数只读自己的三个变量，平台注入的 `SUPABASE_SERVICE_ROLE_KEY` 与 `SUPABASE_DB_URL`（以 postgres 角色连库）一概不读（`runtime.spec.ts` 以环境访问记录证明）。
 
 邮箱登录需要在 Supabase 配置邮件发送服务，并将 passwordless 邮件模板配置为显示 `{{ .Token }}` 验证码。允许创建认证账号不等于授予团队成员关系；新用户必须接受匹配其已验证邮箱的邀请。邀请链接把团队、应用、邀请标识与一次性令牌放在 URL fragment（`#join=…`）里，浏览器不会把它发给服务器，也不会写进代理日志或 Referer；服务端只保存令牌摘要，审计详情不含受邀邮箱。团队与应用标识不能含冒号（私有频道名以冒号分隔，迁移与初始化都会拒绝）。
 
@@ -31,24 +41,67 @@
 2. **账号删除后的残留窗口**：在 Auth 里删除账号不会让已签发的 access token 失效。它在过期前仍能通过本服务、PostgREST 与 Realtime 的本地验签，残留窗口最长等于 access token 有效期；缩短有效期即收窄窗口。需要立即切断时，先在团队里撤销该成员（见下一条）。
 3. **团队级撤权即时生效**：撤权命令提交后，下一条命令的成员校验、PostgREST 的每次读取（投影条件按成员行判定）立即拒绝；同一事务广播撤权事件，其他成员的页面立即把他移出在线列表，他自己的页面立即锁定；他若绕过页面继续监听频道，Realtime 在他下次刷新令牌或重连时按 RLS 重新鉴权并关闭频道，最迟到令牌过期为止，期间频道里只有修订号、类别与标识，没有业务内容。
 
-先应用迁移（按文件名顺序执行 `supabase/migrations/` 下的全部文件，每个文件幂等，可重复执行）：
+迁移、设置专用角色口令与初始化是部署期的一次性步骤，以迁移所有者（Supabase 的 postgres 角色）的连接 `ADMIN_OWNER_DATABASE_URL` 在可信环境里执行，命令入口拿不到这个连接。先应用迁移（按文件名顺序执行 `supabase/migrations/` 下的全部文件，每个文件幂等，可重复执行；托管 Supabase 也可用 `supabase db push`）：
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:migrate
 ```
 
-然后使用可信服务端环境执行一次初始化，额外提供 `SUPABASE_SERVICE_ROLE_KEY`、`ADMIN_INITIAL_USER_ID`、`ADMIN_TEAM_ID`、`ADMIN_APP_ID`、`ADMIN_TEAM_NAME`、`ADMIN_BOOTSTRAP_KEY`，以及 `ADMIN_SCHEMA_FILE`（数据模式清单文件，产品的清单是 `rxdb-admin-template/schema/collaboration-schema.json`，见下文「数据模式清单」）。初始用户必须已在 Supabase 验证邮箱；初始化只创建空共享分支、管理员、默认审批策略和第一个数据模式版本，不导入样例数据。
+迁移只建 NOLOGIN、无口令的专用角色；部署步骤设置它的口令并允许登录（口令取自 `ADMIN_SERVICE_PASSWORD`，只以 SCRAM-SHA-256 校验值发给数据库，明文不进 SQL 与数据库日志；也可以在 Supabase 的 SQL 编辑器里执行 `ALTER ROLE admin_collaboration WITH LOGIN PASSWORD '<口令>'`）：
+
+```bash
+NX_NO_CLOUD=true pnpm nx run admin-collaboration:service-role
+```
+
+然后执行一次初始化，额外提供 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`ADMIN_INITIAL_USER_ID`、`ADMIN_TEAM_ID`、`ADMIN_APP_ID`、`ADMIN_TEAM_NAME`、`ADMIN_BOOTSTRAP_KEY`，以及 `ADMIN_SCHEMA_FILE`（数据模式清单文件，产品的清单是 `rxdb-admin-template/schema/collaboration-schema.json`，见下文「数据模式清单」）。初始用户必须已在 Supabase 验证邮箱；初始化只创建空共享分支、管理员、默认审批策略和第一个数据模式版本，不导入样例数据。之后起命令入口（Node 服务如下，Edge Function 见「只部署 Supabase」）：
 
 ```bash
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:bootstrap
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 ```
 
-初始化参数与稳定键一致时返回既有团队，不重置策略、权限与数据模式（新版本经 `schema` 命令登记）。浏览器没有初始化接口，也不得获得数据库连接或 service role key。
+初始化参数与稳定键一致时返回既有团队，不重置策略、权限与数据模式（新版本经 `schema` 命令登记）。浏览器没有初始化接口，也不得获得数据库连接或 service role key；命令入口的专用角色读不到初始化密钥，也不能新建工作区。
+
+## 只部署 Supabase（Edge Function）
+
+命令入口打包成 Supabase Edge Function，与 Node 服务共用同一个处理函数、领域引擎与仓储（ADMIN-US-220）。`src/server/edge.ts` 是 Deno 入口，`nx run admin-collaboration:build-edge` 用 esbuild 把它连同所需的 `@aiao/rxdb`、`@aiao/rxdb-plugin-working-tree/exchange`（交换格式的纯函数，见「提交协议与存储」）与 `pg` 打成自包含的 ESM 产物 `rxdb-admin-template/supabase/functions/admin-collaboration/dist/collaboration.js`（约 430 KiB），两个平台包都按包的 `exports` 解析到各自的 dist（不读 tsconfig 的 paths），函数目录的 `index.ts` 只导入它。产物不进仓库：随时可由构建重现，部署与本地起函数的 Nx 目标都先依赖构建，避免仓库里留一份与源码不一致的生成物。
+
+部署步骤（在 `rxdb-admin-template/` 目录执行 Supabase CLI；真实项目上的发布流水线与证据由 ADMIN-US-217 承接）：
+
+1. **迁移**：`supabase db push`（或上文的 `admin-collaboration:migrate`）。
+2. **专用角色口令**：`ADMIN_OWNER_DATABASE_URL=… ADMIN_SERVICE_PASSWORD=<随机长口令> pnpm nx run admin-collaboration:service-role`。
+3. **构建并部署函数**：`pnpm nx run admin-collaboration:build-edge`，然后 `supabase functions deploy admin-collaboration --no-verify-jwt --project-ref <ref>`。不在网关校验 JWT：`GET /config` 不带令牌，命令入口自己按 JWKS 本地验签（比网关多校验 `role` 与 `aud`），预检请求也直接交给函数。
+4. **函数密钥**：`supabase secrets set --project-ref <ref> ADMIN_DATABASE_URL='postgres://admin_collaboration.<ref>:<口令>@<Supavisor 主机>:6543/postgres' ADMIN_JWKS_URL=https://<ref>.supabase.co/auth/v1/.well-known/jwks.json ADMIN_JWT_ISSUER=https://<ref>.supabase.co/auth/v1 ADMIN_ALLOWED_ORIGINS=https://<工作台域名>`。`SUPABASE_URL` 与 `SUPABASE_ANON_KEY` 由平台注入，不用设置。
+5. **初始化**：同上文 `admin-collaboration:bootstrap`。
+6. **前端**：三端静态产物部署在任意静态站点，把 `/collaboration-api/*` 改写到 `https://<ref>.supabase.co/functions/v1/admin-collaboration/:splat`（例如 Netlify 的 `_redirects` 写 `/collaboration-api/* https://<ref>.supabase.co/functions/v1/admin-collaboration/:splat 200`）；不能改写的站点可在 `mountCollaboration` 的 `apiBase` 直接给函数地址（跨源调用，来源须在 `ADMIN_ALLOWED_ORIGINS` 里，函数会暴露 `Retry-After` 头）。
+
+**Supavisor 连接串**：用控制台 Connect → Transaction pooler 的地址（端口 6543），把用户名前缀 `postgres.` 换成 `admin_collaboration.`，即 `postgres://admin_collaboration.<项目 ref>:<口令>@aws-<n>-<区域>.pooler.supabase.com:6543/postgres`；口令里的特殊字符须百分号编码。不用平台注入的 `SUPABASE_DB_URL`：它以 postgres 角色连库，权限远超协作所需。transaction 模式下每个事务可能落在不同的服务端连接上，命令入口因此遵守这些约束（集成测试以 transaction 模式的 PgBouncer 验证）：
+
+- 不用命名的预编译语句：`pg` 的参数化查询走无名语句，与 Parse/Bind/Execute 在同一事务里完成；
+- 不用会话级设置与启动参数：连接参数里不带 `statement_timeout` 等（连接池会拒绝或丢弃它们），每个事务开头以 `SET LOCAL` 设语句超时 30 秒、等锁超时 10 秒、事务空闲超时 15 秒，随事务结束失效；
+- 不用 LISTEN / NOTIFY、会话级咨询锁、临时表与跨事务游标：广播是事务里的一次插入（经定义者函数 `admin_private.broadcast()` 调 `realtime.send()`），并发靠行锁与比较交换；只有初始化用到事务级的 `pg_advisory_xact_lock`，事务结束即释放，且初始化以迁移所有者直连执行；
+- 连接在借出期间被连接池断开（排队超时等）时，仓储接住连接上的 error 事件、把连接从池里销毁，返回可重试错误，不让进程或 worker 崩溃。
+
+**专用角色的权限**（迁移 `202611180001_service_role.sql`，`service-role.integration.spec.ts` 验证）：只有命令事务用到的表与列权限——治理行只读名称、初始化归属与两个版本号、只改两个版本号，读不到也改不了 `bootstrap_key`，不能新建或删除工作区；策略、数据模式、任务元数据、候选、审核、提交与字段级变更只读与追加；审计与逐记录变更日志只追加、不可读；每张表上只对它生效的 RLS 策略；广播只能经 `admin_private.broadcast()` 发往 `collab:<团队>:<应用>` 的 `changed` / `revoked` 事件。它不是超级用户，不能绕过 RLS，没有 auth、storage、vault、realtime 的权限，不能建表、改表、改 RLS 策略，也不能 `SET ROLE` 成别的角色。
+
+**本机起函数**：`pnpm nx run admin-collaboration:serve-edge` 在 `supabase/edge-runtime:v1.74.0` 容器里加载函数目录，主服务（`scripts/edge-runtime/main`）按线上限额创建 worker（每个请求 CPU 软限 1 秒、硬限 2 秒，内存 256 MB），平台层的失败按线上的状态码回应（启动失败 503 `BOOT_ERROR`、资源上限 546 `WORKER_LIMIT`）。环境变量取自当前进程（同上表的 Edge Function 一栏），`EDGE_PORT`（默认 54329）与 `EDGE_NETWORK`（数据库在 docker 网络里时设置）只给脚本用。
+
+**可重试错误**：冷启动失败、等锁或语句超时、连接池耗尽（取连接超过 5 秒、Supavisor / PgBouncer 排队超时、数据库连接数用尽）、连接中断与重试用尽的并发冲突，命令入口一律回 503、`Retry-After` 与稳定的错误码 `unavailable`（`details.reason` 为 `pool` / `timeout` / `connection` / `conflict`），事务已整体回滚。浏览器端 `CollaborationApi` 对 503、504 与 546 用同一个请求（同一个操作 ID）自动重发，最多 4 次，按 `Retry-After` 等待（没有时 0.5、1、2 秒，单次不超过 10 秒）；仍不可用时报 `unavailable` 并保留待确认的请求，之后按原操作 ID 重试，回执保证同一操作只执行一次。502 等其他失败只发一次，按「结果不确定」处理。
+
+**资源余量**（AC#3，`nx run admin-collaboration:benchmark-edge`）：在 10000 条共享记录、1000 个提交的工作区上，经本机 Edge Function（线上限额）执行批量上传、生成候选与合并，每个请求由新建的 worker 处理，CPU 取该 worker 的 `cpu_time_used`（含冷启动、建连与 SCRAM 认证，约 44 ms，所以是单个请求的上界）。2026-11-18 两轮实测（第二轮每档 3 次）的最大值：
+
+|                 一个 PR 改动的记录数 |   上传 | 生成候选 |    合并 | 合并时的内存（关闭时） |
+| -----------------------------------: | -----: | -------: | ------: | ---------------------: |
+|                                  100 |  51 ms |    74 ms |   76 ms |                  13 MB |
+|                                 1000 |  80 ms |   145 ms |  297 ms |                  13 MB |
+|                                 5000 | 161 ms |   383 ms |  650 ms |                  13 MB |
+| 10000（全部共享记录，请求 1.44 MiB） | 453 ms |   859 ms | 1423 ms |                  48 MB |
+
+上表在提交改成交换格式（ADMIN-US-221）之前测得。交换格式的单元多了 `unitId`、`transactionId` 与 `origin` 三列，同样改动全部 10000 条记录的上传请求从 1.44 MiB 涨到 2.26 MiB；请求上限因此由 2 MiB 放宽到 4 MiB，让「单个提交最多 10000 项变更」在资产这种体量的记录上先生效（工作树一次提交整棵工作树，客户端无法拆分）。交换格式下的复测（2026-11-18，[结果](../../requirements/plans/evidence/collaboration-edge-resource-exchange-2026-11-18.json)）：改动一万条的上传 2.26 MiB、CPU 318 ms，生成候选 572 ms，合并 1068 ms（2 秒硬限的 53%，余量 1.87 倍）；内存限额收紧到 64 MB 时一万条的合并不通过，与改造前相同。普通命令（建任务、建 PR、改状态等）41～68 ms，带 100 个提交（单次上限）的上传 116 ms。最坏情形是一次合并改动全部 10000 条共享记录：CPU 最大 1423 ms，是 2 秒上限的 71%（余量 1.41 倍）；把限额收紧重跑，CPU 1.5 秒仍通过、1 秒不通过，内存 96 MB 仍通过、64 MB 不通过，即峰值内存在 64～96 MB 之间（余量至少 2.7 倍）。改动 5000 条以内的 PR，CPU 不超过 650 ms（余量 3 倍以上）、内存 13 MB；改动 100 条（预算的度量口径）不超过 76 ms（余量 26 倍）。取舍：单个 PR 一次改动接近全部 10000 条记录时余量最薄；如果业务的特殊检查（`checks`）或更宽的记录让这类整库批改超出 2 秒，就改用 Node 入口部署（同一套代码与契约测试），或把整库批改拆成几个 PR。
 
 ## 状态与事务
 
-本地数据库名和索引均包含用户、团队、应用、任务。编辑器输入先保存到任务工作树；点击同步时，不可变提交与 outbox 在同一 IndexedDB 事务里写入。提交只含「上次提交的内容」到「当前已保存内容」之间逐字段的差异（`ChangeSet`，见下），带 UUIDv7 提交 ID 与内容指纹；上传期间的后续保存留在下一份工作树中。任务同步保留提交 ID、父链与作者，不把通用实体推拉当成提交图复制，失败与超时重试复用同一个提交 ID 与内容。
+本地数据库名和索引均包含用户、团队、应用、任务；库名带格式版本（`rxdb-admin-collaboration-v2`：待上传提交是平台交换记录，此前 v1 格式的本机草稿不再读取——服务端的协作数据在同一次改造里清空，旧草稿的远端头已不存在）。编辑器输入先保存到任务工作树；点击同步时，不可变提交与 outbox 在同一 IndexedDB 事务里写入。提交是平台 working-tree 的交换记录（见「提交协议与存储」）：单元只含「上次提交的内容」到「当前已保存内容」之间逐字段的差异，带 UUIDv7 提交 ID 与平台函数算的内容指纹；上传期间的后续保存留在下一份工作树中。任务同步保留提交 ID、父链与作者，不把通用实体推拉当成提交图复制，失败与超时重试复用同一个提交 ID 与内容。
 
 服务端按固定顺序只锁命令涉及的行（见「提交协议与存储」的锁顺序），先校验当前身份与权限，再执行命令。提交、候选、审批、阻塞讨论、成员与策略变更共享这一裁决顺序：成员、邀请与策略命令对治理行加排他锁，其余命令加共享锁，撤权因此要等在途的批准、合并与评论提交，撤权提交之后的命令一律按撤权后的成员关系裁决。只有 `merge` 能更新共享业务数据；共享头、数据、逐记录变更日志、PR、合并提交、候选关联、策略快照和审计在同一个 PostgreSQL 事务中落地。所有普通客户端角色都只能按 RLS 读取公开投影，不能直接写入。
 
@@ -71,38 +124,63 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 ## 提交协议与存储
 
-提交是字段级变更的列表，形状对齐平台 working-tree 的 `CommitChangeSet`：`{ namespace, entity, entityId, operation, patch, inversePatch }`。`insert` 的 `patch` 是整行字段、`inversePatch` 为 null；`update` 的 `patch` 只含变更字段的新值、`inversePatch` 含这些字段的旧值（只在 `patch` 里出现的字段是新增字段，只在 `inversePatch` 里出现的是被移除的字段）；`delete` 的 `patch` 为 null、`inversePatch` 是整行。`namespace` 是实体在数据模式清单里的命名空间，实体、命名空间与字段都按工作区当前的清单核对。
+提交就是平台 working-tree 的交换记录（`CommitExchangeRecord`，ADMIN-US-221）：上传、另存分叉与下发传的都是它的 JSON 形态（`serializeCommitExchangeRecord()` 的输出，`createdAt` 是 ISO 串），服务端存的也是它，221-B 的客户端换成平台 working-tree 时不需要再改服务端协议或已存数据。
 
-提交 ID 使用 UUIDv7。客户端对规范化（键排序）的 `parent`、`authorId`、`message`、`changes` 用 `crypto.subtle` 计算 SHA-256 指纹随提交上传，服务端重新计算，不一致以 `invalid` 拒绝整批；同一个提交 ID 重传时指纹一致则幂等（已有祖先不重复写入、不能改写作者），不一致或不属于该任务则拒绝。上传的提交不能带合并关联，合并提交由服务端在合并时生成并补算指纹。
+```ts
+{ commitId, parentIds, kind, message, authorId, createdAt, contentFingerprint,
+  units: [{ unitId, transactionId, namespace, entity, entityId, operation, patch, inversePatch, origin }] }
+```
 
-上传时服务端还核对每个新提交都能按顺序应用到它的父内容上：新增的记录原来不存在；修改与删除的记录原来存在、实体相同，`inversePatch` 与原值一致（修改只核对它列出的字段，并要求只出现在 `patch` 里的新增字段原来不存在；删除的 `inversePatch` 必须就是原来的整行）。任一项不符整批以 `invalid`（「提交内容与其父提交不一致」）拒绝，什么都不写。父内容只按新提交改动到的记录推导：共同起点时的共享记录（共享头反向应用之后的合并）加上任务在共同起点之后对这些记录的变更，成本与任务分叉以来的改动有关，与历史长度无关。
+- **形状与指纹只用平台函数**（`@aiao/rxdb-plugin-working-tree/exchange`：纯函数，不加载实体与运行时，Node 与 Deno 都能跑；Edge 产物经包的 dist 把它打进去）。命令输入逐条经 `parseCommitExchangeRecord()` 严格解析，整批经 `checkCommitExchangeBatch()` 判形状——父先于子、最后一个是新头、都是新头的祖先，父的个数、作者与单元个数合种类，单元九列与两份补丁按操作的有无（插入只有 `patch`，删除只有 `inversePatch`，修改两份都有）；每个提交的内容指纹经 `computeCommitExchangeRecordFingerprint()` 复算，不一致以 `invalid`（「提交指纹与内容不一致」）拒绝整批。平台报的毛病映射到稳定的错误码与中英两份文案（`src/commit.ts`），`details.problem` 原样带上平台的枚举：`empty_batch` 为「一次同步需要 1～100 个提交」，`invalid_parents` / `not_topological` / `unreachable_from_head` 为「提交父链不连续」，`invalid_unit` 为「变更格式错误」，其余（含 JSON 解析的毛病，另带 `path` 与 `commitId`）为「请求字段不合法」。客户端形成提交、服务端合成合并提交与根提交都经 `withFingerprint()` 调平台函数，产品不再有自己的指纹算法。
+- **产品规则**（`server/tasks.ts` 的 `acceptChain`）：任务提交必须是 `normal`；第一个新提交的唯一父是任务头（另存分叉是分叉起点），之后每个接上前一个，否则以 `ancestry`（「提交父链不连续」）拒绝；新提交的作者必须是当前用户；同一个提交 ID 重传时指纹一致即幂等（已有祖先不重复写入），指纹不一致（内容或作者变了）以 `idempotency` 拒绝，属于别的任务以 `ancestry` 拒绝。提交 ID、父、作者与单元 ID 用标识字符集（1～128 个字母、数字、下划线或连字符，UUID 都在其中），命名空间与实体是安全标识，消息不超过 10000 字，`createdAt` 是 PostgreSQL 存得下的时刻。合并提交与根提交只由服务端生成。
+- **单元能应用到父内容**（`applyVerified`，`src/changes.ts`）：单元的命名空间、实体与字段先按工作区当前清单核对（`assertChangesFit`）；插入的记录原来不存在；修改与删除的记录原来存在、实体相同，修改的 `inversePatch` 里的每个业务字段与原值相同、只出现在 `patch` 里的业务字段原来为空，删除的 `inversePatch` 与原来的整行在两边出现过的每个业务字段上取值相同。核对按落库形态解读（见下）：记录里没有的字段按 NULL 读，系统字段不比。任一项不符整批以 `invalid`（「提交内容与其父提交不一致」）拒绝，什么都不写。父内容只按新提交改动到的记录推导：共同起点时的共享记录加上任务在共同起点之后对这些记录的变更，成本与任务分叉以来的改动有关，与历史长度无关。
 
-存储（迁移 `202611170001_commit_store.sql`、`202611170002_workspace_tables.sql`、`202611170003_schema_manifests.sql`；只读投影、读取函数与频道策略在 `202611170004_supabase_native.sql`）。工作区不再是一行 JSONB，各集合分表存放，命令只读写它涉及的行：
+**共享分支的根**：初始化在同一个事务里写下一个 `baseline` 提交——没有父、没有作者、没有单元，消息「共享分支起点」，指纹同样由平台函数计算——共享头的初值就是它，工作区行带上它（`admin_workspaces.root`），每个工作区只有一个（部分唯一索引 `commits_root`），重复初始化不再写。任务从根或之后的合并提交起步，提交图里不再有「没有父」的任务提交；还没有合并时头等于根，界面按「空」「空分支」显示，根的内容是空记录表。第二台设备第一次导入共享分支时，链就从这个根开始。
 
-| 表                                                     | 内容                                                                                 | 写入方式                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------ |
-| `admin_private.workspaces`                             | 治理行：名称、初始化归属、数据模式版本、当前策略版本                                 | 只有成员、邀请、策略命令改写   |
-| `admin_private.memberships`                            | 成员：权限、授权代次、启用状态；`can_read` 由权限推导，RLS 的 `can_read()` 读它      | 成员命令（治理行排他锁）       |
-| `admin_private.policies` / `invitations`               | 按版本只追加的审批策略；邀请（令牌只存摘要）                                         | 策略、邀请命令（治理行排他锁） |
-| `admin_private.tasks` / `refs`                         | 任务的不可变元数据；共享分支（`shared`）与任务分支（`tasks/<ID>`）的头及修订号       | 引用只经比较交换推进           |
-| `admin_private.prs` / `candidates` / `reviews`         | PR 状态与修订号；不可变候选（含相对 T 的变更）；只追加的审核记录                     | PR 命令（PR 行排他锁）         |
-| `admin_private.threads` / `comments` / `notifications` | 讨论线程与定位；评论；按接收者的站内通知与已读标记                                   | 讨论命令；通知只追加加已读标记 |
-| `admin_private.operations`                             | 幂等回执：操作者、请求指纹、结果与时间，保留 30 天                                   | 命令事务，过期按批清理         |
-| `admin_private.commits` / `commit_changes`             | 提交元数据（父指针带索引、作者、说明、合并关联、内容指纹）；按提交与序号的字段级变更 | 只追加                         |
-| `public.shared_records`                                | 共享头的记录，每条记录一行；可读成员经 RLS 只读，客户端角色没有任何写权限            | 只经合并事务                   |
-| `admin_private.schemas`                                | 数据模式清单，按版本只追加；治理行的 `schema_version` 指向当前版本                   | 初始化与 `schema` 命令         |
-| `admin_private.record_keys`                            | 共享记录的键索引：唯一字段的取值与单值关联指向的记录，唯一与关联检查按键查询         | 与共享记录同一合并事务         |
-| `public.admin_shared` / `admin_changes`                | 共享头投影；逐记录变更日志（合并前后的整行），合并改动只由它承载                     | 合并事务                       |
-| `public.admin_audit`                                   | 审计事件：只追加，`seq` 给出写入顺序，`pr_id` / `thread_id` 供分页筛选，均有索引     | 命令事务                       |
-| `public.admin_workspace_versions`                      | 版本行：全局修订号与审计条数；加一与失效通知广播在同一条语句里                       | 每个写事务的最后一步           |
+**合并提交**（`server/governance.ts` 的 `mergeCommit`）：`kind: 'merge'`，`parentIds: [合并前的共享头 T, 任务头 S]`，作者是执行合并的成员，消息 `Merge <PR 标题>`，`createdAt` 是合并时刻；单元是候选相对第一父 T 的变更，全部单元共用合并提交的 ID 作 `unitId`（一次合并是一个原子边界），`transactionId` 为 null，`origin` 为 `local`；内容指纹由 `computeCommitExchangeRecordFingerprint()` 计算。合并提交另存它依据的候选（`candidate_id`，产品自己的元数据，不进交换记录与指纹）。两个父必不相同：任务头要么是任务的共同起点（还没有提交，建不了 PR），要么是普通提交，而共享头总是合并提交或根，所以任务头不会等于共享头；合并前仍按 `empty`（「任务没有已同步提交」）守住这一条（平台要求合并提交的父互不相同）。内容推导只沿第一父走：任意提交的内容是根加上第一父链上各提交的单元。
+
+**落库形态**（单元与记录里的取值）：单元是写下它的那台设备的落库形态，服务端原样保存、原样下发，内容指纹覆盖的就是这一份，检查与推导只解读、不归一化。221-B 起团队任务的提交来自平台 working-tree 在 sqlite-wasm 上的捕获，它的形态由代码确定：
+
+| 清单类型                         | SQLite 列（`rxDBColumnTypeToSqliteType`） | 补丁里的取值                                                                                                                                             |
+| -------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 文本、枚举、UUID、单值关联外键列 | TEXT                                      | 字符串原样；写入时空串转成 NULL（`transformValueJsToSqlite`）                                                                                            |
+| 数字 / 整数                      | REAL / INTEGER                            | JSON 数字                                                                                                                                                |
+| 布尔                             | INTEGER                                   | `0` / `1`（变更日志触发器 `CASE WHEN col = 1 THEN 1 ELSE 0 END`），NULL 保持 null                                                                        |
+| 日期（`PropertyType.date`）      | TEXT                                      | `Date.toISOString()` 的串，例如 `2026-03-01T00:00:00.000Z`；模型驱动表单的日期输入框（`YYYY-MM-DD`）经 rxdb-model 的 `parseDate()` 写成 UTC 零点的这种串 |
+
+代码位置：列类型与写入转换在 `packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts`，变更日志触发器在 `packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts`（补丁取列的原值，布尔与 JSON 列另有表达式，主键不进补丁、单元的 `entityId` 就是它；插入的 `patch` 是整行，含为 NULL 的列；修改只带变化了的列；删除的 `inversePatch` 是整行），日期解析在 `packages/rxdb-model/src/entity-value.utils.ts`；working-tree 的捕获把变更日志的补丁原样放进单元，不剔除簿记字段（`ENTITY_BOOKKEEPING_FIELDS`，`packages/rxdb/src/entity/entity-bookkeeping.ts`），导入时修改不回写簿记字段（`packages/rxdb-plugin-working-tree/src/working-tree/projection-actions.ts`）。协作据此这样解读：
+
+- 日期：检查接受以真实存在的 `YYYY-MM-DD` 开头、能解析的串（`decodeDate`），平台的 ISO 串与此前的纯日期都通过；IndexedDB 客户端此后也写平台的形态——日期输入框的 `YYYY-MM-DD` 写成 `YYYY-MM-DDT00:00:00.000Z`（`client/editor.ts`），显示时取日期部分（`client/labels.ts`），匿名数据导入里的 `Date` 同样写成 `toISOString()`，两种客户端写下的同一个日期因此是同一个取值。
+- 布尔：检查把 `0` / `1` 解码成假 / 真（`decodeBoolean`，`src/checks.ts`），`true` / `false` 照常通过；取值原样保存。
+- 缺失与 NULL：设备上每一列都在，没写过的可空列就是 NULL；服务端记录里没有这个键（IndexedDB 客户端没写过它、清单后来才加了它）与 NULL 是同一个值，前像核对按此比较（`storedValue`）。
+- 系统字段（清单里 `source: 'system'` 的非主键字段，资产实体是 `createdAt`、`updatedAt`、`createdBy`、`updatedBy`）：允许出现在单元与记录里，原样保存与下发；不检查、不进键索引、不参与前像核对，三方合并里从不冲突——来源改过就取来源的，否则取目标的（`mergeRecords`）。记录级的「两边相同」也只看业务字段。
+
+存储（迁移 `202611170001_commit_store.sql`、`202611170002_workspace_tables.sql`、`202611170003_schema_manifests.sql`；只读投影、读取函数与频道策略在 `202611170004_supabase_native.sql`；专用角色在 `202611180001_service_role.sql`；提交表与变更表改成交换格式、提交相关的投影与读取函数、下发接口在 `202611180002_exchange_commits.sql`）。迁移全部幂等，可在新结构上整套重跑；`202611180002` 遇到旧结构（提交表还有 `parent_id`）时先清空全部协作数据再改表——产品尚未部署，旧结构的工作区没有根，在新结构下无法继续。工作区不再是一行 JSONB，各集合分表存放，命令只读写它涉及的行：
+
+| 表                                                     | 内容                                                                                                                                                                                                                                                                                                     | 写入方式                       |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `admin_private.workspaces`                             | 治理行：名称、初始化归属、数据模式版本、当前策略版本                                                                                                                                                                                                                                                     | 只有成员、邀请、策略命令改写   |
+| `admin_private.memberships`                            | 成员：权限、授权代次、启用状态；`can_read` 由权限推导，RLS 的 `can_read()` 读它                                                                                                                                                                                                                          | 成员命令（治理行排他锁）       |
+| `admin_private.policies` / `invitations`               | 按版本只追加的审批策略；邀请（令牌只存摘要）                                                                                                                                                                                                                                                             | 策略、邀请命令（治理行排他锁） |
+| `admin_private.tasks` / `refs`                         | 任务的不可变元数据；共享分支（`shared`）与任务分支（`tasks/<ID>`）的头及修订号                                                                                                                                                                                                                           | 引用只经比较交换推进           |
+| `admin_private.prs` / `candidates` / `reviews`         | PR 状态与修订号；不可变候选（含相对 T 的变更）；只追加的审核记录                                                                                                                                                                                                                                         | PR 命令（PR 行排他锁）         |
+| `admin_private.threads` / `comments` / `notifications` | 讨论线程与定位；评论；按接收者的站内通知与已读标记                                                                                                                                                                                                                                                       | 讨论命令；通知只追加加已读标记 |
+| `admin_private.operations`                             | 幂等回执：操作者、请求指纹、结果与时间，保留 30 天                                                                                                                                                                                                                                                       | 命令事务，过期按批清理         |
+| `admin_private.commits` / `commit_changes`             | 完整的交换记录：有序的父（`parent_ids`，按位置展开成 `first_parent` / `merge_parent` 两列，各带外键）、种类、消息、作者（根为 NULL）、记录里的时间与内容指纹，合并提交另带候选；变更表按提交与序号存单元的九列。检查约束：任务提交恰好一个父，合并提交恰好两个不同的父且带候选，根没有父与作者，消息非空 | 只追加                         |
+| `public.shared_records`                                | 共享头的记录，每条记录一行；可读成员经 RLS 只读，客户端角色没有任何写权限                                                                                                                                                                                                                                | 只经合并事务                   |
+| `admin_private.schemas`                                | 数据模式清单，按版本只追加；治理行的 `schema_version` 指向当前版本                                                                                                                                                                                                                                       | 初始化与 `schema` 命令         |
+| `admin_private.record_keys`                            | 共享记录的键索引：唯一字段的取值与单值关联指向的记录，唯一与关联检查按键查询                                                                                                                                                                                                                             | 与共享记录同一合并事务         |
+| `public.admin_shared` / `admin_changes`                | 共享头投影；逐记录变更日志（合并前后的整行），合并改动只由它承载                                                                                                                                                                                                                                         | 合并事务                       |
+| `public.admin_audit`                                   | 审计事件：只追加，`seq` 给出写入顺序，`pr_id` / `thread_id` 供分页筛选，均有索引                                                                                                                                                                                                                         | 命令事务                       |
+| `public.admin_workspace_versions`                      | 版本行：全局修订号与审计条数；加一与失效通知广播在同一条语句里                                                                                                                                                                                                                                           | 每个写事务的最后一步           |
 
 锁顺序（`server/scope.ts`）：治理行（普通命令 `FOR SHARE`，成员、邀请、策略与数据模式命令 `FOR UPDATE`）→ PR 行（PR 相关命令 `FOR UPDATE`，按 ID 升序；上传锁住任务名下的全部 PR，因为上传要让它们的候选过期）→ 引用行（上传、建 PR、改 PR 状态锁任务引用；合并先锁共享引用再对任务引用加共享锁；上传、另存分叉、生成候选与带记录的评论对共享引用加共享锁，读共享内容期间合并不能推进）→ 版本行（与广播同一条语句）。所有读取都在取得治理行锁之后发出（读已提交隔离下每条语句取新快照），因此必然看到在此之前提交的撤权。修订号不放在治理行上：普通命令都持治理行共享锁，若再在治理行上加一，两个共享锁持有者都要升级为排他锁，互相等待成死锁；它放在版本行，作为每个写事务提交前的最后一条语句，写事务之间只在这一步排队，持锁时间只覆盖提交本身，其余步骤按各自涉及的行并行（不同任务的上传、不同 PR 的评论互不等待，同一 PR 上的命令按 PR 行串行）。版本行的修订号按提交顺序递增，随失效通知广播（见「实时」）。上传锁定任务名下的 PR 之后、取得任务引用之前若有人在这个任务上建了 PR，上传会发现 PR 集合变了，整体回滚重试；死锁、序列化失败与并发插入同一主键同样整体重试（最多 4 次），第二次就按对方已提交的结果裁决。引用推进按期望头比较交换，比较交换失败时任务引用报 `diverged`（附 `remoteHead`，与客户端已有的「任务已分叉」处理一致），共享引用报 `stale`。
 
 引擎仍是纯函数，不碰存储：仓储先按命令加载并锁定它涉及的行，拼成只含这些行的局部工作区状态（`scope.ts`），让引擎做授权与状态校验并声明所需提交数据（`plan`），按声明预加载（`content.ts`），再把数据交给引擎裁决，最后把局部状态的差异（`state-changes.ts`）与返回的新提交、共享记录改动写回，全部在同一个事务里。内存实现（测试用）走同一套加载、差异与写回，引擎用例因此也检验每条命令加载的范围是否够用。内容由变更推导，成本只与所问内容有关：
 
-- 上传：只按命令里的提交 ID 查一次已存在的提交（指纹相等与归属校验），新 ID 不可能成环，不做祖先链的环检测；父内容只按新提交改动到的记录推导（见上），读取任务头到共同起点的路径与这几条记录的变更；另存分叉再读一次原任务头到共同起点的路径。
+- 上传：只按命令里的提交 ID 查一次已存在的提交（指纹相等与归属校验），新 ID 不可能成环（父必须已存在，外键也守着），不做祖先链的环检测；父内容只按新提交改动到的记录推导（见上），读取任务头到共同起点的路径与这几条记录的变更；另存分叉再读一次原任务头到共同起点的路径。
 - 共享头 T 取自 `shared_records`；合并基 B 由 T 反向应用共享分支上 B 之后各合并提交的 `inversePatch` 得到；任务头 S 由 B 加任务分支在 B 之后的变更得到；任意提交的内容同理（浏览器经读取函数走提交图，用同一份 `src/derive.ts` 推导）。
-- 候选与合并只读合并基以来任一侧改动过的记录（`server/merge-inputs.ts`）：共享分支在合并基之后各合并提交的变更、任务分支在合并基之后各提交的变更，涉及的记录就是改动过的记录；T 只读这些记录，B 由 T 反向应用共享分支上的变更得到，S 由 B 加上任务的变更得到，其余记录三方相同、合并结果就是 T。三方合并（`mergeRecords`）只在改动过的记录上进行，检查按清单定向进行（`checks.ts` 的 `checkMerged`），结果与在整份合并结果上检查（`checkRecords`）完全一致，见下文「数据模式清单」。合并把候选的变更应用到共享头，生成以 T 为父的合并提交，同一事务里推进共享引用、更新 `shared_records`、键索引与 `admin_shared.head`，并把改动记录的前后值写进 `admin_changes`。命令结果、回执与审计详情不再带这些前后值（`result.changes` 已移除），审计因此不随单次合并的改动量增长。合并基为空（第一次合并之前起步的任务）时 B 没有记录，T 的每条记录都算改动过。
+- 候选与合并只读合并基以来任一侧改动过的记录（`server/merge-inputs.ts`）：共享分支在合并基之后各合并提交的变更、任务分支在合并基之后各提交的变更，涉及的记录就是改动过的记录；T 只读这些记录，B 由 T 反向应用共享分支上的变更得到，S 由 B 加上任务的变更得到，其余记录三方相同、合并结果就是 T。三方合并（`mergeRecords`）只在改动过的记录上进行，检查按清单定向进行（`checks.ts` 的 `checkMerged`），结果与在整份合并结果上检查（`checkRecords`）完全一致，见下文「数据模式清单」。合并把候选的变更应用到共享头，生成以 T 为第一父、S 为第二父的合并提交，同一事务里推进共享引用、更新 `shared_records`、键索引与 `admin_shared.head`，并把改动记录的前后值写进 `admin_changes`。命令结果、回执与审计详情不再带这些前后值（`result.changes` 已移除），审计因此不随单次合并的改动量增长。合并基是根（第一次合并之前起步的任务）时 B 没有记录，T 的每条记录都算改动过。
 - 返回的记录表按记录标识排序，冲突按记录与字段标识排序，结果只取决于内容。
 
 ## 数据模式清单
@@ -132,21 +210,23 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 ## 读取：public 下的只读投影
 
-浏览器不经协作服务读取。迁移 `202611170004_supabase_native.sql` 在 public 下建只读投影（视图以所有者身份读私有表，可见条件写在视图里：`admin_private.can_read()` 成员资格，通知与回执另限本人，邀请另限管理者；`security_barrier` 防止调用方的筛选先于这些条件求值），浏览器经 PostgREST 按团队与应用筛选、按写入顺序分页读取（`src/reader.ts`、`src/read-source.ts`）。只授予 authenticated 的 SELECT；anon 无权，任何写入都被拒；不暴露邀请令牌摘要、请求指纹、初始化密钥与提交内容指纹。跨团队、跨应用、被撤权的读取返回空。
+浏览器不经协作服务读取。迁移 `202611170004_supabase_native.sql` 与 `202611180002_exchange_commits.sql` 在 public 下建只读投影（视图以所有者身份读私有表，可见条件写在视图里：`admin_private.can_read()` 成员资格，通知与回执另限本人，邀请另限管理者；`security_barrier` 防止调用方的筛选先于这些条件求值），浏览器经 PostgREST 按团队与应用筛选、按写入顺序分页读取（`src/reader.ts`、`src/read-source.ts`）。只授予 authenticated 的 SELECT；anon 无权，任何写入都被拒；不暴露邀请令牌摘要、请求指纹与初始化密钥；提交的内容指纹不在投影里，只随下发接口交出（导入方要复算核对）。跨团队、跨应用、被撤权的读取返回空。
 
 | 投影 / 函数                                                                                                                   | 内容                                                                                                                     |
 | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `admin_workspaces`                                                                                                            | 本人可读的工作区：名称、数据模式版本、当前策略（版本与阶段）、共享头、修订号、审计总数                                   |
+| `admin_workspaces`                                                                                                            | 本人可读的工作区：名称、数据模式版本、当前策略（版本与阶段）、共享头、修订号、审计总数、共享分支的根                     |
 | `admin_members` / `admin_invitations`                                                                                         | 有效成员；邀请（只对管理者，无令牌摘要）                                                                                 |
 | `admin_tasks` / `admin_prs`                                                                                                   | 任务与任务头；PR 列表元数据                                                                                              |
 | `admin_candidates` / `admin_reviews` / `admin_threads` / `admin_comments`                                                     | PR 详情：候选（摘要与相对目标版本的变更）、审核、讨论与评论                                                              |
 | `admin_notifications` / `admin_receipts`                                                                                      | 本人的通知；本人的、保留期内的幂等回执（只有操作 ID 与结果）                                                             |
-| `admin_commits` / `admin_schemas`                                                                                             | 提交元数据；登记过的数据模式清单                                                                                         |
+| `admin_commits` / `admin_schemas`                                                                                             | 提交元数据（交换记录去掉单元与内容指纹：父、种类、作者、消息、时间，合并提交另带候选）；登记过的数据模式清单             |
 | `shared_records`、`admin_shared`、`admin_audit`、`admin_changes`、`admin_workspace_versions`                                  | 此前已有的 RLS 公开表                                                                                                    |
-| `admin_shared_records()`、`admin_commit_path()`、`admin_commit_lineage()`、`admin_commit_history()`、`admin_commit_changes()` | 读取函数：同一条语句读出共享头与共享记录、沿父指针走提交图、按提交读变更；返回 JSON，不受行数上限截断，不可读时返回 NULL |
+| `admin_shared_records()`、`admin_commit_path()`、`admin_commit_lineage()`、`admin_commit_history()`、`admin_commit_changes()` | 读取函数：同一条语句读出共享头与共享记录、沿第一父走提交图、按提交读单元；返回 JSON，不受行数上限截断，不可读时返回 NULL |
+| `admin_commit_exchange()`                                                                                                     | 下发接口：已知提交之后到分支头的交换记录（见下），可见范围与其余读取函数相同                                             |
 
 - **团队页**只读工作区行、成员、邀请、最近 50 个 PR、本人最近 50 个任务（另带这些 PR 的来源任务与当前草稿的任务）与本人最近 50 条通知（另读未读总数），体积不随讨论、审核、通知与提交的条数增长，更早的 PR、任务与通知各有「加载更早的…」入口。读取先发工作区行，其余部分都不早于其中的修订号。
 - **PR 详情**（候选、冲突、检查、审核、讨论与评论，阻塞意见与阶段进度按 `src/approval.ts` 的同一份规则推导）在打开 PR 时才读，失效通知点到它时重读；**审计时间线**在展开时才读最近 50 条，更早的按游标分页；**提交与候选内容**由提交图在浏览器里推导（与服务端同一份 `src/derive.ts`），推导时核对共享头，已变化即按「版本已变化」等下一次刷新。
+- **下发接口** `admin_commit_exchange(p_team_id, p_app_id, p_ref, p_known, p_limit)`（浏览器经 `CollaborationReader.exchange(workspace, branch, known, limit?)` 调用，`branch` 是 `{ branch: 'shared' }` 或 `{ taskId }`）：`p_ref` 是 `shared` 或 `tasks/<任务 ID>`，`p_known` 是客户端已有的提交（它们连同全部祖先都不再下发，不认识的忽略——只可能是还没上传的本地提交），返回 `{ head, more, commits }`：`head` 是分支此刻的头，`commits` 是这一页的交换记录 JSON，顺序就是平台 `importCommits()` 收的批次——父先于子，最后一个是这一页的头，合并提交经第二父带进来的任务提交（侧枝）排在它前面，侧枝归到最早把它带进来的那个合并提交。每页 1～100 个提交（默认 100），只在分支第一父链上的提交处断开，合并提交与它的侧枝不拆开（一组本身超过上限时这一页就是这一组）；`more` 为 true 时把这一页的头加进已知提交接着读。`reader.exchange` 逐条经平台的 `parseCommitExchangeRecord()` 解析，不可读报 `forbidden`，任务不存在报 `not_found`。集成测试把它的输出原样交给 `checkCommitExchangeBatch()` 并逐个复算指纹（`read-projections.integration.spec.ts`），三端浏览器测试经 PostgREST 再验一次（`e2e/collaboration.spec.ts`）。
 - PostgREST 的 `max-rows` 不得小于 500（Supabase 默认 1000）：读取按 500 行一页，不足一页即认为读完。
 - 读取全部不加锁、不写库：投影与读取函数都是 STABLE 的只读查询。PostgREST 或 Realtime 暂不可用时，已解锁的任务照常本地编辑与排队，同步在读取失败时停止并提示，不伪报成功；恢复后按修订号补齐。
 
@@ -160,8 +240,12 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:test
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:test-integration
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e
+NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e -c edge
+NX_NO_CLOUD=true DENO_BIN=~/.deno/bin/deno pnpm nx run admin-collaboration:test-deno
 NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 ```
+
+`test-integration` 里的命令契约测试（`contract.integration.spec.ts`）对 Node 入口与 Edge Function 入口各跑一遍同一套用例并要求结果逐项一致：两个入口都以专用角色经 transaction 模式的 PgBouncer 连一个干净的临时库，Edge Function 跑在按线上限额起的 `supabase/edge-runtime` 容器里。`e2e -c edge`（即 `ADMIN_E2E_COMMANDS=edge`）让三端的命令改打本机 Edge Function，不起任何 Node 协作服务。`test-deno` 把 `identity.spec.ts` 原样打包，先用 `deno test`、再在 Edge Runtime 的 worker 里各跑一遍。
 
 容量基准用同一镜像的临时 PostgreSQL，随提交数增长记录普通命令耗时、单次命令 WAL、治理行与各行大小、团队页（经只读投影读取，含各部分字节数）与提交历史页的体积，以及并发读取时写命令的等待；参数见 [脚本](scripts/workspace-growth-benchmark.mjs) 开头（`BENCH_SHARED=1` 先合并出 `BENCH_RECORDS` 条共享记录，`BENCH_COMMANDS` 选择要测的普通命令，`BENCH_BULK` 是每个测量点「上传一个改动多少条记录的提交」与「生成候选并合并这些改动」的改动条数，默认 100，结果在 `upload100Ms`、`candidateMerge100Ms` 与 `bulkChanges`），`BENCH_OUT` 指定结果文件，历次结果存于 [需求证据目录](../../requirements/plans/evidence/)：
 
@@ -169,9 +253,9 @@ NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 NX_NO_CLOUD=true pnpm nx run admin-collaboration:benchmark-growth
 ```
 
-数据库集成测试使用临时 Docker PostgreSQL（`supabase/postgres` 镜像），先按本机隔离栈里 Realtime v2.102.3 建出的定义装上 `realtime.messages`、`realtime.topic()` 与 `realtime.send()`（`server/realtime-fixture.ts`），再执行全部迁移，验证 RLS 矩阵、广播、并发头比较与事务失败回滚；读取以 authenticated 角色加 JWT 声明经与 PostgREST 等价的读取源（`server/pg-read.ts`）走浏览器同一个 `CollaborationReader`。三端浏览器测试的拓扑与生产一致：协作命令服务直接连本机隔离 Supabase 栈自己的 PostgreSQL（迁移由测试服务按顺序执行），浏览器经该栈的 PostgREST 读取、经它的 Realtime 收私有频道的广播与在线状态，身份按该栈的 HS256 共享密钥本地验签。隔离栈的数据库端口没有发布到宿主机，测试服务在本机开一个 TCP 端口，经 `docker exec … nc` 原样转发字节（只是传输）。验证码由 Auth 的管理测试接口生成，再由真实 `verifyOtp` 验证，因此不代表生产 SMTP 投递已验收。每个用例的团队 ID 随机，结束时删除本轮建的团队的全部行与测试账号；共享 Supabase 测试栈可用 `rxdb-adapter-supabase:test-env-down` 关闭。
+数据库集成测试使用临时 Docker PostgreSQL（`supabase/postgres` 镜像），先按本机隔离栈里 Realtime v2.102.3 建出的定义装上 `realtime.messages`、`realtime.topic()` 与 `realtime.send()`（`server/realtime-fixture.ts`），再执行全部迁移，验证 RLS 矩阵、广播、并发头比较与事务失败回滚；读取以 authenticated 角色加 JWT 声明经与 PostgREST 等价的读取源（`server/pg-read.ts`）走浏览器同一个 `CollaborationReader`。三端浏览器测试的拓扑与生产一致：命令入口（默认 Node 协作服务，`edge` 模式为 Edge Function 容器）以专用角色直接连本机隔离 Supabase 栈自己的 PostgreSQL（迁移、专用角色口令与初始化由测试服务以迁移所有者执行），浏览器经该栈的 PostgREST 读取、经它的 Realtime 收私有频道的广播与在线状态，身份按该栈的 HS256 共享密钥本地验签。隔离栈的数据库端口没有发布到宿主机，测试服务在本机开一个 TCP 端口，经 `docker exec … nc` 原样转发字节（只是传输）。验证码由 Auth 的管理测试接口生成，再由真实 `verifyOtp` 验证，因此不代表生产 SMTP 投递已验收。每个用例的团队 ID 随机，结束时删除本轮建的团队的全部行与测试账号；共享 Supabase 测试栈可用 `rxdb-adapter-supabase:test-env-down` 关闭。
 
-每次请求最多 2 MiB、单任务最多 10000 条记录、单次最多 100 个提交。超限明确拒绝。协作 API 收完请求头最多等 10 秒、收完整个请求最多等 60 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责。
+每次请求最多 4 MiB、单任务最多 10000 条记录、单次最多 100 个提交、单个提交最多 10000 个单元。超限明确拒绝；资产体量的记录改动一万条约 2.3 MiB，更宽的记录可能先撞到字节上限。Node 服务收完请求头最多等 10 秒、收完整个请求最多等 120 秒，超时返回 408 并断开连接；连接数上限、限流与 TLS 由部署环境的反向代理负责（Edge Function 由 Supabase 平台负责）。
 
 命令只加载、锁定并写回它涉及的行，单条命令的耗时与 WAL 不随工作区的历史长度增长；回执保留 30 天并在写事务中按批清理。审计只追加、不删除，按 `seq` 分页读取，归档另行设计；通知不修剪，按用户分页读取（团队页只带最近 50 条与未读总数）；审计归档与运维护栏由 [ADMIN-US-217](../../requirements/stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 承接。
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sealCommit } from '../commit.js';
+import { taskCommit } from '../commit.testing.js';
 import {
   CollaborationError,
   receiptRetentionMs,
@@ -45,8 +45,8 @@ const codeOf = async (work: () => Promise<unknown>) => {
 async function started(workspace: MemoryWorkspace, id: string, records: Records) {
   const base = workspace.state.head;
   await act(workspace, { type: 'task', id, name: id, expectedHead: base });
-  const before = base === null ? {} : (await workspace.commit(admin, base)).records;
-  const commit = await sealCommit({
+  const before = (await workspace.commit(admin, base)).records;
+  const commit = taskCommit({
     id: `${id}-c1`,
     parent: base,
     authorId: admin.id,
@@ -54,7 +54,7 @@ async function started(workspace: MemoryWorkspace, id: string, records: Records)
     changes: diffAssets(before, records)
   });
   await act(workspace, { type: 'upload', taskId: id, expectedHead: base, commits: [commit] });
-  return commit.id;
+  return commit.commitId;
 }
 /** 给任务开一个进入审核、已生成候选的 PR。 */
 async function reviewed(workspace: MemoryWorkspace, taskId: string) {
@@ -125,7 +125,7 @@ describe('commands load only the rows they touch', () => {
       prId: 'pr-b',
       candidateId: candidate.id,
       expectedSource: candidate.source,
-      expectedTarget: null
+      expectedTarget: workspace.state.root
     });
     expect(loaded(workspace)).toEqual({
       prs: ['pr-b'],
@@ -136,7 +136,7 @@ describe('commands load only the rows they touch', () => {
       invitations: []
     });
     const content = (await workspace.commit(admin, 'c-c1')).records;
-    const next = await sealCommit({
+    const next = taskCommit({
       id: 'c-c2',
       parent: 'c-c1',
       authorId: admin.id,
@@ -182,7 +182,7 @@ describe('commands load only the rows they touch', () => {
 describe('receipt retention', () => {
   it('replays a receipt within the retention period and treats an expired one as a new request', async () => {
     const workspace = create();
-    const command = { type: 'task', id: 'task', name: 'Task', expectedHead: null };
+    const command = { type: 'task', id: 'task', name: 'Task', expectedHead: workspace.state.root };
     const first = await act(workspace, command, { now: 1000, operationId: 'op' });
     expect(await act(workspace, command, { now: 1000 + receiptRetentionMs - 1, operationId: 'op' })).toEqual(first);
     // 过期后同一操作 ID 按新请求裁决：任务已存在
@@ -192,15 +192,15 @@ describe('receipt retention', () => {
   });
   it('does not create a commit twice when an expired upload is retried', async () => {
     const workspace = create();
-    await act(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: null });
-    const commit = await sealCommit({
+    await act(workspace, { type: 'task', id: 'task', name: 'Task', expectedHead: workspace.state.root });
+    const commit = taskCommit({
       id: 'c1',
-      parent: null,
+      parent: workspace.state.root,
       authorId: admin.id,
       message: 'c1',
       changes: diffAssets({}, { a: category('A') })
     });
-    const upload = { type: 'upload', taskId: 'task', expectedHead: null, commits: [commit] };
+    const upload = { type: 'upload', taskId: 'task', expectedHead: workspace.state.root, commits: [commit] };
     await act(workspace, upload, { now: 2000, operationId: 'upload' });
     expect(await codeOf(() => act(workspace, upload, { now: 2000 + receiptRetentionMs, operationId: 'upload' }))).toBe(
       'diverged'
@@ -213,13 +213,13 @@ describe('receipt retention', () => {
     for (let index = 0; index < 25; index++)
       await act(
         workspace,
-        { type: 'task', id: `t${index}`, name: `T${index}`, expectedHead: null },
+        { type: 'task', id: `t${index}`, name: `T${index}`, expectedHead: workspace.state.root },
         { now: 1000 + index, operationId: `op-${index}` }
       );
     const later = 1000 + receiptRetentionMs + 100;
     await act(
       workspace,
-      { type: 'task', id: 'late-1', name: 'Late', expectedHead: null },
+      { type: 'task', id: 'late-1', name: 'Late', expectedHead: workspace.state.root },
       { now: later, operationId: 'late-1' }
     );
     expect(Object.keys(workspace.state.receipts).sort()).toEqual(
@@ -227,7 +227,7 @@ describe('receipt retention', () => {
     );
     await act(
       workspace,
-      { type: 'task', id: 'late-2', name: 'Late', expectedHead: null },
+      { type: 'task', id: 'late-2', name: 'Late', expectedHead: workspace.state.root },
       { now: later, operationId: 'late-2' }
     );
     expect(Object.keys(workspace.state.receipts).sort()).toEqual(['late-1', 'late-2']);
@@ -263,7 +263,7 @@ describe('commit history pages', () => {
     const chain: string[] = [];
     for (let index = 0; index < 3; index++) {
       const next = { ...content, [`l${index}`]: category(`L${index}`) };
-      const commit = await sealCommit({
+      const commit = taskCommit({
         id: `long-${index}`,
         parent,
         authorId: admin.id,
@@ -271,8 +271,8 @@ describe('commit history pages', () => {
         changes: diffAssets(content, next)
       });
       await act(workspace, { type: 'upload', taskId: 'long', expectedHead: parent, commits: [commit] });
-      chain.unshift(commit.id);
-      parent = commit.id;
+      chain.unshift(commit.commitId);
+      parent = commit.commitId;
       content = next;
     }
     await act(workspace, {
@@ -289,9 +289,11 @@ describe('commit history pages', () => {
     expect(ids(await page({ prId: 'pr-long', before: narrow.nextBefore! }))).toEqual([chain[2]]);
     expect((await page({ taskId: 'long' })).commits[0]).toEqual({
       id: 'long-2',
-      parent: 'long-1',
+      parentIds: ['long-1'],
+      kind: 'normal',
       authorId: admin.id,
-      message: 'L2'
+      message: 'L2',
+      createdAt: expect.any(String)
     });
   });
   it('rejects a missing or doubled selector, unknown branches or cursors, limits outside 1 to 100 and non-members', async () => {

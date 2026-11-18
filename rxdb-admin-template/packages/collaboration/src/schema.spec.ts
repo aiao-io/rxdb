@@ -7,7 +7,8 @@ import {
   namespaceOf,
   parseSchemaManifest,
   recordKeys,
-  schemaModel
+  schemaModel,
+  systemFieldOf
 } from './schema.js';
 import { assetSchema } from './schema.testing.js';
 
@@ -94,9 +95,61 @@ describe('数据模式清单', () => {
       { ...change, namespace: 'assets' },
       { ...change, entity: 'Unknown' },
       { ...change, patch: { project: 'p' } },
-      { ...change, inversePatch: { createdAt: '2026-01-01' } }
+      { ...change, inversePatch: { id: 'm' } }
     ])
       expect(() => assertChangesFit(planningSchema, [wrong]), JSON.stringify(wrong)).toThrow();
+  });
+
+  it('系统字段（主键除外）随 working-tree 的落库形态出现在单元与记录里：按清单接受，但不是记录字段，不参与检查与键索引', () => {
+    const asset = schemaModel(assetSchema).entity('Asset')!;
+    expect(asset.system).toEqual(['createdAt', 'updatedAt', 'createdBy', 'updatedBy']);
+    expect(['name', 'categoryId', 'createdAt', 'updatedBy'].map(name => asset.accepts(name))).toEqual([
+      true,
+      true,
+      true,
+      true
+    ]);
+    expect(['id', 'category', 'events', 'unknown'].map(name => asset.accepts(name))).toEqual([
+      false,
+      false,
+      false,
+      false
+    ]);
+    expect(asset.field('createdAt')).toBeUndefined();
+    const system = systemFieldOf(assetSchema);
+    expect([system('Asset', 'updatedAt'), system('Asset', 'name'), system('Tag', 'updatedAt')]).toEqual([
+      true,
+      false,
+      false
+    ]);
+    // sqlite-wasm 上 working-tree 捕获的插入单元：整行字段，含审计时间（ISO 文本）与审计主体
+    const captured: ChangeSet = {
+      namespace: 'assets',
+      entity: 'Asset',
+      entityId: 'a1',
+      operation: 'insert',
+      patch: {
+        name: '工作站',
+        status: '在用',
+        purchasePrice: 120,
+        purchaseDate: '2026-11-16T00:00:00.000Z',
+        createdAt: '2026-11-18T03:04:05.678Z',
+        updatedAt: '2026-11-18T03:04:05.678Z',
+        createdBy: 'user-1',
+        updatedBy: 'user-1',
+        categoryId: 'c1'
+      },
+      inversePatch: null
+    };
+    expect(() => assertChangesFit(assetSchema, [captured])).not.toThrow();
+    expect(() => assertRecordsFit(assetSchema, { a1: { entity: 'Asset', fields: captured.patch! } })).not.toThrow();
+    expect(() => assertChangesFit(assetSchema, [{ ...captured, patch: { ...captured.patch, id: 'a1' } }])).toThrow(
+      '字段不受支持'
+    );
+    expect(recordKeys(assetSchema, { entity: 'Asset', fields: captured.patch! })).toEqual([
+      { kind: 'unique', entity: 'Asset', field: 'name', value: '"工作站"' },
+      { kind: 'reference', entity: 'Asset', field: 'categoryId', value: 'c1' }
+    ]);
   });
 
   it('键索引收唯一字段的非缺失取值与单值关联指向的标识', () => {

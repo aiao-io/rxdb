@@ -298,39 +298,28 @@ describe('PR 详情与内容推导', () => {
     await expect(denied.records(workspace, 'merge-1')).rejects.toMatchObject({ code: 'forbidden' });
   });
   it('提交内容由提交图推导：合并提交取共享头反向应用其后的合并，任务提交在锚点上正向应用任务变更', async () => {
+    // 共享分支：根 r → 合并 m1（第二父 s1）→ 合并 m2（第二父 s2）；任务提交 t1 从 m1 起步
+    const commit = (id: string, parents: string[], kind: string, author: string | null, candidate: string | null) => ({
+      ...scope,
+      id,
+      parent_ids: parents,
+      kind,
+      author_id: author,
+      message: id,
+      candidate_id: candidate,
+      created_at: '2026-11-18T00:00:00.000Z'
+    });
     const commits = [
-      {
-        ...scope,
-        id: 'm1',
-        parent_id: null,
-        author_id: 'alice',
-        message: 'merge 1',
-        merge_source: 's1',
-        candidate_id: 'k1'
-      },
-      {
-        ...scope,
-        id: 'm2',
-        parent_id: 'm1',
-        author_id: 'alice',
-        message: 'merge 2',
-        merge_source: 's2',
-        candidate_id: 'k2'
-      },
-      {
-        ...scope,
-        id: 't1',
-        parent_id: 'm1',
-        author_id: 'bob',
-        message: 'task 1',
-        merge_source: null,
-        candidate_id: null
-      }
+      commit('r', [], 'baseline', null, null),
+      commit('m1', ['r', 's1'], 'merge', 'alice', 'k1'),
+      commit('m2', ['m1', 's2'], 'merge', 'alice', 'k2'),
+      commit('t1', ['m1'], 'normal', 'bob', null)
     ];
-    const links: Record<string, { id: string; parent_id: string | null; merge: boolean }> = {
-      m1: { id: 'm1', parent_id: null, merge: true },
-      m2: { id: 'm2', parent_id: 'm1', merge: true },
-      t1: { id: 't1', parent_id: 'm1', merge: false }
+    const links: Record<string, { id: string; parent_id: string | null; kind: string }> = {
+      r: { id: 'r', parent_id: null, kind: 'baseline' },
+      m1: { id: 'm1', parent_id: 'r', kind: 'merge' },
+      m2: { id: 'm2', parent_id: 'm1', kind: 'merge' },
+      t1: { id: 't1', parent_id: 'm1', kind: 'normal' }
     };
     const walk = (from: string, until: string | null) => {
       const rows = [];
@@ -338,8 +327,10 @@ describe('PR 详情与内容推导', () => {
         rows.push(links[cursor]);
       return rows;
     };
+    const unit = { unit_id: 'u', transaction_id: null, origin: 'local', sequence: 0 };
     const changes = [
       {
+        ...unit,
         commit_id: 'm2',
         namespace: 'assets',
         entity: 'AssetCategory',
@@ -349,6 +340,7 @@ describe('PR 详情与内容推导', () => {
         inverse_patch: { name: 'A1' }
       },
       {
+        ...unit,
         commit_id: 't1',
         namespace: 'assets',
         entity: 'AssetCategory',
@@ -372,13 +364,16 @@ describe('PR 详情与内容推导', () => {
       }
     );
     const reader = new CollaborationReader(() => source);
-    await expect(reader.commit(workspace, 'm2', 'm1')).resolves.toMatchObject({
+    const shared = { head: 'm2', root: 'r' };
+    await expect(reader.commit(workspace, shared, 'm1')).resolves.toMatchObject({
       id: 'm1',
-      mergeSource: 's1',
+      parentIds: ['r', 's1'],
+      kind: 'merge',
+      candidateId: 'k1',
       changes: [],
       records: { a: { entity: 'AssetCategory', fields: { name: 'A1' } } }
     });
-    await expect(reader.commit(workspace, 'm2', 't1')).resolves.toMatchObject({
+    await expect(reader.commit(workspace, shared, 't1')).resolves.toMatchObject({
       id: 't1',
       authorId: 'bob',
       records: {
@@ -386,7 +381,9 @@ describe('PR 详情与内容推导', () => {
         b: { entity: 'AssetCategory', fields: { name: 'B' } }
       }
     });
-    await expect(reader.commit(workspace, 'm2', 'missing')).rejects.toMatchObject({ code: 'not_found' });
+    // 根的内容是空记录，不沿共享分支回退
+    await expect(reader.commit(workspace, shared, 'r')).resolves.toMatchObject({ kind: 'baseline', records: {} });
+    await expect(reader.commit(workspace, shared, 'missing')).rejects.toMatchObject({ code: 'not_found' });
   });
 });
 

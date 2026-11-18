@@ -826,6 +826,10 @@
         "kind": "value"
       },
       {
+        "name": "preserveActionsColumnWidthOnResize",
+        "kind": "value"
+      },
+      {
         "name": "PropertyColumnConfig",
         "kind": "type"
       },

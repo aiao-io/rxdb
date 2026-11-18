@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-221
 title: 团队任务草稿落在 RxDB 工作树
-status: Backlog
+status: In Progress
 priority: Medium
 epic: ADMIN-EPIC-004
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 tags: [admin, collaboration, working-tree, rxdb, model-driven]
 dependsOn: [ADMIN-US-218]
 capabilities: [rxdb:US-316, rxdb:US-317]
@@ -54,6 +54,12 @@ capabilities: [rxdb:US-316, rxdb:US-317]
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 验收证据：尚无。
+
+实施拆为两步（2026-11-18 起）：
+
+1. 221-A 协议切换：服务端提交存储与线上格式改为平台 `CommitExchangeRecord`，用 `@aiao/rxdb-plugin-working-tree/exchange` 校验批次、复算指纹；共享分支以 `baseline` 根提交起步，合并提交为 `merge` 种类、第一父为共享头；提供按「已知提交 → 分支头」下发交换记录的只读接口。现有界面不变，全部用例保持通过。
+   - ✅ 2026-11-18 完成：提交表存完整交换记录（有序 `parent_ids`、`kind`、可空作者、记录自带的 `created_at`、平台内容指纹），单元存九列；上传与另存经平台的严格解析、`checkCommitExchangeBatch` 与指纹复算；初始化建 `baseline` 根提交，合并提交为 `[共享头, 任务头]` 两个父、单元相对第一父；新增只读函数 `admin_commit_exchange()`，按「已知提交 → 分支头」分页下发、父先于子。落库形态以 sqlite-wasm 捕获为准：日期为 `toISOString()` 串，布尔为 0 / 1，服务端不归一化。单测 545、集成 76，Node 与 Edge 两种模式的协作 e2e 各 42 例通过；请求上限随之由 2 MiB 放宽到 4 MiB（见 ADMIN-US-220 AC#3）。
+2. 221-B 客户端切换：每个「用户 × 团队 × 应用」一个启用 working-tree 的团队库，共享分支与任务分支经 `importCommits()` / `exportCommits()` 与服务端交换；三端在协作页用模型驱动的实体界面编辑团队库；保存、同步、放弃、恢复与另存走平台 API。
 
 ## 技术笔记
 

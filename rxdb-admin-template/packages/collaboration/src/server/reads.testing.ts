@@ -47,6 +47,7 @@ export function pgReads(pool: Pool) {
         revision: team.revision,
         schemaVersion: team.schemaVersion,
         head: team.head,
+        root: team.root,
         policy: team.policy,
         members: team.members,
         tasks: await allTasks(user, teamId, appId),
@@ -66,13 +67,32 @@ export function pgReads(pool: Pool) {
       return reader(user).records(entry(teamId, appId), head);
     },
     async readCommit(user: Identity, teamId: string, appId: string, id: string) {
-      const { head } = await reader(user).version(entry(teamId, appId));
-      return reader(user).commit(entry(teamId, appId), head, id);
+      const { head, root } = await reads.branch(user, teamId, appId);
+      return reader(user).commit(entry(teamId, appId), { head, root }, id);
     },
     async readCandidate(user: Identity, teamId: string, appId: string, id: string) {
-      const { head } = await reader(user).version(entry(teamId, appId));
-      return reader(user).candidate(entry(teamId, appId), head, id);
+      const { head, root } = await reads.branch(user, teamId, appId);
+      return reader(user).candidate(entry(teamId, appId), { head, root }, id);
     },
+    /** 共享分支的头与根（团队页里的工作区行）。 */
+    async branch(user: Identity, teamId: string, appId: string) {
+      const team = await reader(user).team(entry(teamId, appId), user.id, {
+        prs: 1,
+        tasks: 1,
+        notices: 1,
+        taskIds: []
+      });
+      return { head: team.head, root: team.root };
+    },
+    /** 下发接口：客户端已知的提交之后到分支头的交换记录（与浏览器同一个读取函数）。 */
+    exchange: (
+      user: Identity,
+      teamId: string,
+      appId: string,
+      branch: Parameters<CollaborationReader['exchange']>[1],
+      known: readonly string[],
+      limit?: number
+    ) => reader(user).exchange(entry(teamId, appId), branch, known, limit),
     /** 提交历史的一页：分支范围按查询取共享头、任务或 PR 来源任务的头与共同起点，与改造前的服务端规则一致。 */
     async readHistory(user: Identity, teamId: string, appId: string, query: HistoryQuery) {
       const view = await reads.read(user, teamId, appId);
@@ -82,7 +102,7 @@ export function pgReads(pool: Pool) {
       const task = view.tasks.find(item => item.id === taskId);
       demand(query.branch !== undefined || task, 'not_found', '任务不存在');
       const range =
-        query.branch !== undefined ? { head: view.head, until: null } : { head: task!.head, until: task!.base };
+        query.branch !== undefined ? { head: view.head, until: view.root } : { head: task!.head, until: task!.base };
       return reader(user).history(entry(teamId, appId), range, { before: query.before, limit: query.limit });
     },
     readSchema: (user: Identity, teamId: string, appId: string, version: number) =>

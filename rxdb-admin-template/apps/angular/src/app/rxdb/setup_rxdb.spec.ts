@@ -12,6 +12,9 @@ describe('工作台数据库启动', () => {
       expect(setupRxdb()).toBe(database);
       expect(init).toHaveBeenCalledTimes(1);
       expect(await firstValueFrom(database.adapterConnected$('sqlite-wasm'))).toBe(false);
+      // 本应用的测试环境里 import.meta.env.DEV 打桩无效（恒为 true），setupRxdb() 会不等待地启动开发工具的懒加载；
+      // 不等它加载完，文件结束、环境销毁时模块链还在加载，全量并行跑偶发 EnvironmentTeardownError
+      await vi.dynamicImportSettled();
     } finally {
       await database.destroy();
       init.mockRestore();

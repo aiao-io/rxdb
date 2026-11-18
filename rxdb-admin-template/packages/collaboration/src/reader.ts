@@ -1,3 +1,4 @@
+import { parseCommitExchangeRecord, type CommitExchangeRecord } from '@aiao/rxdb-plugin-working-tree/exchange';
 import { activeBlockers, stageProgress } from './approval.js';
 import {
   candidateContent,
@@ -13,7 +14,8 @@ import {
   type CommitRow,
   type ContentSource,
   type HistoryBranchRange,
-  type LinkRow
+  type LinkRow,
+  type SharedBranch
 } from './derive.js';
 import {
   auditPageSize,
@@ -25,6 +27,7 @@ import {
   type Candidate,
   type CandidateSummary,
   type CommitContent,
+  type CommitExchangePage,
   type CommitPage,
   type CommitSummary,
   type DataRow,
@@ -82,7 +85,9 @@ export interface TeamPage {
   name: string;
   revision: number;
   schemaVersion: number;
-  head: string | null;
+  head: string;
+  /** 共享分支的根（初始化写下的 `baseline` 提交）。 */
+  root: string;
   policy: Policy;
   members: Member[];
   invitations: InvitationSummary[];
@@ -106,7 +111,8 @@ interface WorkspaceRow {
   schema_version: number;
   policy_version: number;
   policy_stages: Policy['stages'];
-  head: string | null;
+  head: string;
+  root: string;
   revision: string | number;
   audit_count: string | number;
 }
@@ -121,6 +127,18 @@ interface SharedRows {
   head: string | null;
   records: { record_id: string; entity: string; fields: DataRow['fields'] }[];
 }
+/** 读取函数 `admin_commit_exchange` 的结果：分支此刻的头（分支不存在时为 null）、这一页的交换记录（JSON 形态）与是否还有。 */
+interface ExchangeRows {
+  head: string | null;
+  more: boolean;
+  commits: unknown[];
+}
+/**
+ * 下发接口要读的分支：共享分支，或某个任务分支。每页最多 {@link exchangePageSize}.maximum 个提交。
+ */
+export type ExchangeBranch = { branch: 'shared' } | { taskId: string };
+/** 下发接口的每页提交数：不传时取 `default`，超过 `maximum` 的请求被拒绝。 */
+export const exchangePageSize = { default: 100, maximum: 100 } as const;
 
 const workspaceColumns = [
   'team_id',
@@ -131,10 +149,11 @@ const workspaceColumns = [
   'policy_stages',
   'head',
   'revision',
-  'audit_count'
+  'audit_count',
+  'root'
 ];
 const taskColumns = ['id', 'name', 'owner_id', 'base', 'origin_task_id', 'head', 'seq'];
-const commitColumns = ['id', 'parent_id', 'author_id', 'message', 'merge_source', 'candidate_id'];
+const commitColumns = ['id', 'parent_ids', 'kind', 'author_id', 'message', 'candidate_id', 'created_at'];
 const threadColumns = [
   'id',
   'pr_id',
@@ -217,6 +236,7 @@ export class CollaborationReader {
       revision: Number(row.revision),
       schemaVersion: row.schema_version,
       head: row.head,
+      root: row.root,
       policy: { version: row.policy_version, stages: row.policy_stages },
       members: members.map(member => ({
         id: member.user_id,
@@ -234,7 +254,7 @@ export class CollaborationReader {
     };
   }
   /** 工作区行里的修订号、审计总数与共享头：失效通知只改动了通知、审计或讨论时，团队页只需重读这一行。 */
-  async version(workspace: WorkspaceEntry): Promise<{ revision: number; auditCount: number; head: string | null }> {
+  async version(workspace: WorkspaceEntry): Promise<{ revision: number; auditCount: number; head: string }> {
     const row = await this.workspaceRow(workspace);
     return { revision: Number(row.revision), auditCount: Number(row.audit_count), head: row.head };
   }
@@ -339,21 +359,45 @@ export class CollaborationReader {
     return parseSchemaManifest(row.manifest);
   }
   /** 共享分支在 `head` 时的全部记录；服务端的共享头已不是 `head` 时按「版本已变化」拒绝。 */
-  async records(workspace: WorkspaceEntry, head: string | null): Promise<SharedRecords> {
+  async records(workspace: WorkspaceEntry, head: string): Promise<SharedRecords> {
     return { head, records: sortRecords(await this.content(workspace, head).shared()) };
   }
-  /** 一个提交的完整内容（元数据、自身的变更与推导出的整份记录）；`head` 是当前共享头。未知 ID 返回 `not_found`。 */
-  commit(workspace: WorkspaceEntry, head: string | null, id: string): Promise<CommitContent> {
-    return commitContent(this.content(workspace, head), head, id);
+  /** 一个提交的完整内容（元数据、自身的单元与推导出的整份记录）；`shared` 是当前共享头与根。未知 ID 返回 `not_found`。 */
+  commit(workspace: WorkspaceEntry, shared: SharedBranch, id: string): Promise<CommitContent> {
+    return commitContent(this.content(workspace, shared.head), shared, id);
   }
-  /** 一个合并候选的完整内容（由它的目标版本加存储的变更推导）；`head` 是当前共享头。未知 ID 返回 `not_found`。 */
-  async candidate(workspace: WorkspaceEntry, head: string | null, id: string): Promise<Candidate> {
+  /** 一个合并候选的完整内容（由它的目标版本加存储的变更推导）；`shared` 是当前共享头与根。未知 ID 返回 `not_found`。 */
+  async candidate(workspace: WorkspaceEntry, shared: SharedBranch, id: string): Promise<Candidate> {
     const [row] = await this.source().rows<CandidateRow>('admin_candidates', {
       columns: [...candidateSummaryColumns, 'changes'],
       where: { ...this.scope(workspace), id: { eq: id } }
     });
     demand(row, 'not_found', '候选不存在');
-    return candidateContent(this.content(workspace, head), head, candidateOf(row));
+    return candidateContent(this.content(workspace, shared.head), shared, candidateOf(row));
+  }
+  /**
+   * 下发接口（只读函数 `admin_commit_exchange`）：`known` 是客户端已有的提交（连同它们的全部祖先都不再下发），返回其后到分支头
+   * 为止要导入的交换记录，按平台 `importCommits()` 收的批次排好——父先于子，最后一个是这一页的头，合并提交带进来的侧枝提交排在它前面；
+   * 每条都经平台的 `parseCommitExchangeRecord()` 严格解析（`createdAt` 还原成 `Date`），可以原样交给 `importCommits()`。
+   * 分页只在分支第一父链上的提交处断开（合并提交与它的侧枝不拆开）；`more` 为 true 时以这一页的头为 `known` 接着读。
+   * 可见范围与其余投影相同（可读成员）；不可读时 `forbidden`，任务不存在时 `not_found`，`limit` 须是 1～100 的整数。
+   */
+  async exchange(
+    workspace: WorkspaceEntry,
+    branch: ExchangeBranch,
+    known: readonly string[],
+    limit?: number
+  ): Promise<CommitExchangePage<CommitExchangeRecord>> {
+    const found = await this.source().call<ExchangeRows>('admin_commit_exchange', {
+      p_team_id: workspace.teamId,
+      p_app_id: workspace.appId,
+      p_ref: 'taskId' in branch ? `tasks/${branch.taskId}` : 'shared',
+      p_known: [...known],
+      p_limit: pageLimit(limit, exchangePageSize)
+    });
+    demand(found !== null, 'forbidden', '当前用户没有操作权限');
+    demand(found.head !== null, 'not_found', '任务不存在');
+    return { head: found.head, more: found.more, commits: found.commits.map(json => parseCommitExchangeRecord(json)) };
   }
   /** 提交历史的一页（从新到旧，只含元数据）：分支从 `range.head` 走到 `range.until`（不含），`before` 接着上一页往前读。 */
   history(
@@ -441,7 +485,7 @@ export class CollaborationReader {
     return found;
   }
   /** 推导提交与候选内容用的读取：`expected` 是调用方手里的共享头，读到的共享记录必须正是这个版本。 */
-  private content(workspace: WorkspaceEntry, expected: string | null): ContentSource {
+  private content(workspace: WorkspaceEntry, expected: string): ContentSource {
     const source = this.source();
     const args = { p_team_id: workspace.teamId, p_app_id: workspace.appId };
     const readable = <T>(value: T | null): T => {
@@ -454,14 +498,14 @@ export class CollaborationReader {
         return new Map<string, CommitSummary>(rows.map(row => [row.id, commitSummaryOf(row)]));
       },
       path: async (from, until) => {
-        if (from === null || from === until) return { links: [], reached: from === until };
+        if (from === until) return { links: [], reached: true };
         const rows = readable(
           await source.call<LinkRow[]>('admin_commit_path', { ...args, p_from: from, p_until: until })
         );
         return pathOf(rows, from, until);
       },
       history: async (from, until, limit) => {
-        if (from === null || from === until || limit < 1) return [];
+        if (from === until || limit < 1) return [];
         const rows = readable(
           await source.call<CommitRow[]>('admin_commit_history', {
             ...args,

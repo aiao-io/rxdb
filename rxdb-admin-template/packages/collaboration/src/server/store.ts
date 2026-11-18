@@ -1,7 +1,7 @@
 import type { ContentSource } from '../derive.js';
-import type { Commit, CommitMeta, Records, Workspace } from '../model.js';
+import type { CommitMeta, Records, Workspace } from '../model.js';
 import type { RecordKey } from '../schema.js';
-import type { Effects } from './plan.js';
+import type { Effects, NewCommit } from './plan.js';
 import type { WorkspaceChanges } from './state-changes.js';
 
 export type { Lineage, Link, Path } from '../derive.js';
@@ -32,8 +32,8 @@ export interface CommitStore extends ContentSource {
   holders(keys: readonly RecordKey[]): Promise<Map<string, string[]>>;
   /** 有单值关联指向这些记录的共享记录（整行），走键索引，不扫全表。 */
   referencing(ids: readonly string[]): Promise<Records>;
-  /** 追加提交（含字段级变更与指纹），只追加、不可修改。 */
-  append(commits: readonly Commit[]): Promise<void>;
+  /** 追加提交：交换记录原样存下（父、种类、作者、时间、指纹与全部单元），另记合并提交依据的候选；只追加、不可修改。 */
+  append(commits: readonly NewCommit[]): Promise<void>;
   /** 应用合并对共享记录的改动，同时更新这些记录在键索引里的键。 */
   apply(change: SharedChange): Promise<void>;
   /** 按新清单重建整份键索引：先清空，再写入 `keys`（登记新的数据模式版本时用）。 */
@@ -54,7 +54,7 @@ export type GovernanceLock = 'update' | 'share' | 'none';
 export interface WorkspaceLoader {
   /** 局部状态：只含已读取的行；治理字段（名称、策略、数据模式版本）、全部成员与共享头总在其中。 */
   readonly state: Workspace;
-  /** 治理行（按 `lock` 加锁）、当前策略、全部成员与共享头（不加锁）；工作区不存在时返回 false。必须最先调用。 */
+  /** 治理行（按 `lock` 加锁）、当前策略、全部成员、共享头与共享分支的根（不加锁）；工作区不存在时返回 false。必须最先调用。 */
   governance(lock: GovernanceLock): Promise<boolean>;
   /** 读取保留期内（`now` 之前 {@link receiptRetentionMs} 以内）的回执；有则返回 true。 */
   receipt(operationId: string, now: number): Promise<boolean>;

@@ -1,5 +1,5 @@
-import type { SchemaManifest } from '../model.js';
-import { schemaModel } from '../schema.js';
+import type { SchemaManifest, Value } from '../model.js';
+import { schemaModel, type RecordField } from '../schema.js';
 
 /**
  * 协作界面里实体与字段的标签，由宿主应用提供；返回中文原文，界面经协作词条表翻译后显示（词条表里没有的原样显示）。
@@ -25,4 +25,22 @@ export function entityText(entity: string): string {
 export function fieldText(schema: SchemaManifest, entity: string, field: string): string {
   const declared = schemaModel(schema).entity(entity)?.field(field)?.descriptor.displayName ?? field;
   return labels ? labels.field(entity, field, declared) : declared;
+}
+
+/** 只显示日期的日期字段：清单里取值类型是日期、格式是 `dateTime` 且 `display: 'date'`（资产的购入日期、维护记录的日期）。 */
+export function isDateOnly(field: RecordField | undefined): boolean {
+  if (!field || field.target !== undefined || field.descriptor.valueType !== 'date') return false;
+  const format = field.descriptor.format;
+  return format?.kind === 'dateTime' && format.display === 'date';
+}
+/** ISO 时刻文本里的日期部分（`YYYY-MM-DD`）；不是以日期开头的文本原样交回。 */
+export const datePart = (value: string): string => (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : value);
+/**
+ * 记录取值在界面上的写法：只显示日期的日期字段（{@link isDateOnly}）取日期部分，与日期输入框一致；其余原样。
+ * 记录里存的是落库形态（日期是 ISO 时刻文本），这里只换显示，不改写取值。
+ */
+export function displayValue(schema: SchemaManifest, entity: string, field: string, value: Value | undefined) {
+  return typeof value === 'string' && isDateOnly(schemaModel(schema).entity(entity)?.field(field)) ?
+      datePart(value)
+    : value;
 }

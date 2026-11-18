@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CollaborationApi } from './api.js';
 const workspace = { teamId: 'team/one', appId: 'assets', name: 'Team' };
-const task = { type: 'task' as const, id: 'task', name: 'Task', expectedHead: null, operationId: 'op' };
+const task = { type: 'task' as const, id: 'task', name: 'Task', expectedHead: 'root', operationId: 'op' };
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -105,5 +105,151 @@ describe('command HTTP client', () => {
     finish('new-account-token');
     await expect(pending).rejects.toMatchObject({ code: 'cancelled' });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('retryable unavailability (ADMIN-US-220 AC#5)', () => {
+  const unavailable = (retryAfter?: string) =>
+    Response.json(
+      {
+        error: 'unavailable',
+        message: '服务暂时不可用，请稍后按原请求重试',
+        details: { reason: 'pool', retryAfter: 1 }
+      },
+      { status: 503, headers: retryAfter === undefined ? {} : { 'Retry-After': retryAfter } }
+    );
+  const waits = () => {
+    const delays: number[] = [];
+    return { delays, sleep: async (ms: number) => void delays.push(ms) };
+  };
+
+  it('resends the same command with the same idempotency key after the Retry-After the service asked for', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(unavailable('2'))
+      .mockResolvedValueOnce(unavailable('1'))
+      .mockResolvedValueOnce(Response.json({ head: 'head' }));
+    vi.stubGlobal('fetch', fetcher);
+    const token = vi.fn().mockResolvedValue('token');
+    const { delays, sleep } = waits();
+    const api = new CollaborationApi('/api', token, () => undefined, sleep);
+    await expect(api.command(workspace, task)).resolves.toEqual({ head: 'head' });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    for (const call of fetcher.mock.calls) expect(call[1].body).toBe(JSON.stringify(task));
+    expect(delays).toEqual([2000, 1000]);
+    // 每次重发都重新取会话令牌：等待期间令牌可能已刷新
+    expect(token).toHaveBeenCalledTimes(3);
+  });
+  it('treats platform cold-start, gateway and worker-limit failures as retryable, backing off when no Retry-After is given', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ code: 'BOOT_ERROR', message: 'Worker failed to boot' }, { status: 503 }))
+      .mockResolvedValueOnce(new Response('<html>Gateway Timeout</html>', { status: 504 }))
+      .mockResolvedValueOnce(Response.json({ code: 'WORKER_LIMIT' }, { status: 546 }))
+      .mockResolvedValueOnce(Response.json({ head: 'head' }));
+    vi.stubGlobal('fetch', fetcher);
+    const { delays, sleep } = waits();
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => undefined,
+      sleep
+    );
+    await expect(api.command(workspace, task)).resolves.toEqual({ head: 'head' });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(delays).toEqual([500, 1000, 2000]);
+  });
+  it('gives up after a bounded number of attempts with the stable unavailable code, keeping the request for a later retry', async () => {
+    const fetcher = vi.fn().mockImplementation(async () => unavailable('30'));
+    vi.stubGlobal('fetch', fetcher);
+    const { delays, sleep } = waits();
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => undefined,
+      sleep
+    );
+    await expect(api.command(workspace, task)).rejects.toMatchObject({
+      code: 'unavailable',
+      message: '服务暂时不可用，请稍后按原请求重试',
+      details: { reason: 'pool' }
+    });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    // 等待时间有上限：服务端给出过长的 Retry-After 也不会让页面一直挂着
+    expect(delays).toEqual([10000, 10000, 10000]);
+  });
+  it('reports a platform failure that never recovers as unavailable, and leaves other gateway errors uncertain', async () => {
+    const fetcher = vi
+      .fn()
+      .mockImplementation(async () => new Response('<html>Gateway Timeout</html>', { status: 504 }));
+    vi.stubGlobal('fetch', fetcher);
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => undefined,
+      async () => undefined
+    );
+    await expect(api.command(workspace, task)).rejects.toMatchObject({
+      code: 'unavailable',
+      message: '服务暂时不可用，请稍后按原请求重试'
+    });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    // 502 不在可重试之列：结果不确定，只发一次，交给调用方按原幂等键确认或重试（见上面的「uncertain」用例）
+    fetcher.mockImplementation(async () => new Response('<html>Bad Gateway</html>', { status: 502 }));
+    fetcher.mockClear();
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'uncertain' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('shows a platform error that is not in the service format (Edge Runtime WORKER_ERROR) as a plain failure, without retrying', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { code: 'WORKER_ERROR', message: 'Function exited due to an error (please check logs)' },
+          { status: 500 }
+        )
+      );
+    vi.stubGlobal('fetch', fetcher);
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => undefined,
+      async () => undefined
+    );
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'http', message: '请求失败' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('does not retry ordinary failures: business errors, internal errors and unknown non-JSON responses', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: 'forbidden', message: 'no', details: {} }, { status: 403 }))
+      .mockResolvedValueOnce(Response.json({ error: 'internal', message: 'x', details: {} }, { status: 500 }))
+      .mockResolvedValueOnce(new Response('<html>Teapot</html>', { status: 418 }));
+    vi.stubGlobal('fetch', fetcher);
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => undefined,
+      async () => undefined
+    );
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'internal' });
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'uncertain' });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+  it('stops retrying when the account or workspace changes while waiting', async () => {
+    const fetcher = vi.fn().mockImplementation(async () => unavailable('1'));
+    vi.stubGlobal('fetch', fetcher);
+    let generation = 1;
+    const api = new CollaborationApi(
+      '/api',
+      async () => 'token',
+      () => generation,
+      async () => {
+        generation++;
+      }
+    );
+    await expect(api.command(workspace, task)).rejects.toMatchObject({ code: 'cancelled' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

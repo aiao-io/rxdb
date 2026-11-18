@@ -1,6 +1,8 @@
+import { computeCommitExchangeRecordFingerprint } from '@aiao/rxdb-plugin-working-tree/exchange';
 import { describe, expect, it, vi } from 'vitest';
-import { commitFingerprint, sealCommit, uuidv7 } from '../commit.js';
-import type { Command, Commit, DataRow, Identity, Records } from '../model.js';
+import { uuidv7 } from '../commit.js';
+import { taskCommit, unitsOf } from '../commit.testing.js';
+import type { ChangeSet, Command, Commit, DataRow, Identity, Records } from '../model.js';
 import { assetSchema, diffAssets } from '../schema.testing.js';
 import { execute, plan } from './engine.js';
 import { MemoryWorkspace } from './memory.testing.js';
@@ -15,16 +17,16 @@ const create = () =>
   );
 const act = (workspace: MemoryWorkspace, command: Omit<Command, 'operationId'> | Record<string, unknown>) =>
   workspace.run(admin, { ...command, operationId: `operation-${++serial}` } as Command, env());
-/** 相对 `parent` 的提交内容换算成字段级变更并封上指纹；`parent` 的内容由服务端推导，所以它必须已经上传。 */
+/** 相对 `parent` 的提交内容换算成单元并封上指纹；`parent` 的内容由服务端推导，所以它必须已经上传（根是空记录）。 */
 async function commit(
   workspace: MemoryWorkspace,
   id: string,
-  parent: string | null,
+  parent: string,
   after: Records,
   message = id
 ): Promise<Commit> {
-  const before = parent === null ? {} : (await workspace.commit(admin, parent)).records;
-  return sealCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
+  const before = (await workspace.commit(admin, parent)).records;
+  return taskCommit({ id, parent, authorId: admin.id, message, changes: diffAssets(before, after) });
 }
 const category = (name: string, description?: string): DataRow => ({
   entity: 'AssetCategory',
@@ -36,9 +38,9 @@ async function started(workspace: MemoryWorkspace, task: string, commits: Record
   await act(workspace, { type: 'task', id: task, name: task, expectedHead: base });
   const sealed: Commit[] = [];
   let parent = base;
-  let before: Records = base === null ? {} : (await workspace.commit(admin, base)).records;
+  let before: Records = (await workspace.commit(admin, base)).records;
   for (const [index, records] of commits.entries()) {
-    const next = await sealCommit({
+    const next = taskCommit({
       id: `${task}-c${index + 1}`,
       parent,
       authorId: admin.id,
@@ -46,7 +48,7 @@ async function started(workspace: MemoryWorkspace, task: string, commits: Record
       changes: diffAssets(before, records)
     });
     sealed.push(next);
-    parent = next.id;
+    parent = next.commitId;
     before = records;
   }
   await act(workspace, { type: 'upload', taskId: task, expectedHead: base, commits: sealed });
@@ -77,21 +79,21 @@ async function open() {
 describe('content fingerprint verification', () => {
   it('rejects an upload whose fingerprint does not match its content and stores nothing', async () => {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    const honest = await commit(workspace, 'c1', null, { a: category('A') });
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    const honest = await commit(workspace, 'c1', workspace.state.root, { a: category('A') });
     const forged = { ...honest, message: 'Tampered after signing' };
     const before = structuredClone(workspace.state);
     await expect(
-      act(workspace, { type: 'upload', taskId: 't', expectedHead: null, commits: [forged] })
+      act(workspace, { type: 'upload', taskId: 't', expectedHead: workspace.state.root, commits: [forged] })
     ).rejects.toMatchObject({ code: 'invalid', message: '提交指纹与内容不一致' });
     expect(workspace.state).toEqual(before);
     expect((await workspace.store.commits(['c1'])).size).toBe(0);
   });
   it('rejects the whole batch when any one commit is forged, whichever content part was altered', async () => {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    const first = await commit(workspace, 'c1', null, { a: category('A') });
-    const second = await sealCommit({
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    const first = await commit(workspace, 'c1', workspace.state.root, { a: category('A') });
+    const second = taskCommit({
       id: 'c2',
       parent: 'c1',
       authorId: admin.id,
@@ -99,46 +101,49 @@ describe('content fingerprint verification', () => {
       changes: diffAssets({ a: category('A') }, { a: category('B') })
     });
     const forgeries: Commit[] = [
-      { ...second, changes: diffAssets({ a: category('A') }, { a: category('Other') }) },
+      { ...second, units: unitsOf(diffAssets({ a: category('A') }, { a: category('Other') }), 'c2') },
       { ...second, authorId: 'someone-else' },
-      { ...second, parent: null },
-      { ...second, fingerprint: await commitFingerprint({ ...second, message: 'Different' }) },
-      { ...second, fingerprint: 'f'.repeat(64) }
+      { ...second, parentIds: [workspace.state.root] },
+      { ...second, kind: 'merge' },
+      {
+        ...second,
+        contentFingerprint: computeCommitExchangeRecordFingerprint({ ...second, message: 'Different' })
+      },
+      { ...second, contentFingerprint: 'f'.repeat(64) }
     ];
     for (const forged of forgeries)
       await expect(
-        act(workspace, { type: 'upload', taskId: 't', expectedHead: null, commits: [first, forged] })
+        act(workspace, { type: 'upload', taskId: 't', expectedHead: workspace.state.root, commits: [first, forged] })
       ).rejects.toMatchObject({ code: 'invalid', message: '提交指纹与内容不一致' });
     expect((await workspace.store.commits(['c1', 'c2'])).size).toBe(0);
-    expect(workspace.state.tasks['t'].head).toBeNull();
+    expect(workspace.state.tasks['t'].head).toBe(workspace.state.root);
   });
   it('verifies the commits of a fork as well', async () => {
     const workspace = await open();
     await started(workspace, 't', [{ a: category('A') }]);
-    const honest = await commit(workspace, 'x1', null, { a: category('Fork') });
+    const honest = await commit(workspace, 'x1', workspace.state.root, { a: category('Fork') });
     await expect(
       act(workspace, {
         type: 'fork',
         id: 'f',
         name: 'f',
         taskId: 't',
-        expectedHead: null,
-        commits: [{ ...honest, changes: [] }]
+        expectedHead: workspace.state.root,
+        commits: [{ ...honest, units: [] }]
       })
     ).rejects.toMatchObject({ code: 'invalid' });
     expect(workspace.state.tasks['f']).toBeUndefined();
   });
-  it('lets the server-made merge commit carry its own fingerprint over parent, author, message and changes', async () => {
+  it('lets the server-made merge commit carry the platform fingerprint over its kind, parents, author, message and units', async () => {
     const workspace = await open();
     await started(workspace, 't', [{ a: category('A') }]);
+    const root = workspace.state.root;
     const merged = await merge(workspace, 't');
     const head = String(merged['head']);
-    const stored = (await workspace.store.commits([head])).get(head)!;
-    const [changes] = (await workspace.store.changes([head])).values();
-    expect(stored.fingerprint).toBe(
-      await commitFingerprint({ parent: null, authorId: admin.id, message: 'Merge t', changes })
-    );
-    expect(stored).toMatchObject({ mergeSource: 't-c1', parent: null, authorId: 'admin' });
+    const stored = workspace.store.record(head)!;
+    expect(stored.contentFingerprint).toBe(computeCommitExchangeRecordFingerprint(stored));
+    expect(stored).toMatchObject({ kind: 'merge', parentIds: [root, 't-c1'], authorId: 'admin', message: 'Merge t' });
+    expect((await workspace.store.commits([head])).get(head)).toMatchObject({ candidateId: expect.any(String) });
   });
 });
 
@@ -149,21 +154,25 @@ describe('retransmitted commits', () => {
       { a: category('A') },
       { a: category('A'), b: category('B') }
     ]);
-    const stored = (await workspace.store.commits([first.id, second.id])).get(first.id)!;
-    const extra = await commit(workspace, 'x3', second.id, { a: category('A'), b: category('B'), c: category('C') });
+    const stored = (await workspace.store.commits([first.commitId, second.commitId])).get(first.commitId)!;
+    const extra = await commit(workspace, 'x3', second.commitId, {
+      a: category('A'),
+      b: category('B'),
+      c: category('C')
+    });
     const append = vi.spyOn(workspace.store, 'append');
     await act(workspace, {
       type: 'fork',
       id: 'f',
       name: 'f',
       taskId: 't',
-      expectedHead: null,
+      expectedHead: workspace.state.root,
       commits: [first, second, extra]
     });
     expect(workspace.state.tasks['f'].head).toBe('x3');
     expect(append).toHaveBeenCalledTimes(1);
-    expect(append.mock.calls[0][0].map(item => item.id)).toEqual(['x3']);
-    expect((await workspace.store.commits([first.id])).get(first.id)).toEqual(stored);
+    expect(append.mock.calls[0][0].map(item => item.record.commitId)).toEqual(['x3']);
+    expect((await workspace.store.commits([first.commitId])).get(first.commitId)).toEqual(stored);
     expect((await workspace.commit(admin, 'x3')).records).toEqual({
       a: category('A'),
       b: category('B'),
@@ -173,11 +182,26 @@ describe('retransmitted commits', () => {
   it('rejects the same commit id with different content or authorship', async () => {
     const workspace = await open();
     const [first] = await started(workspace, 't', [{ a: category('A') }]);
-    const changed = await sealCommit({ ...first, changes: diffAssets({}, { a: category('Other') }) });
-    const reauthored = await sealCommit({ ...first, authorId: 'mallory' });
-    for (const resent of [changed, reauthored, await sealCommit({ ...first, message: 'Renamed' })])
+    const again = (change: Partial<{ authorId: string; message: string; changes: readonly ChangeSet[] }>) =>
+      taskCommit({
+        id: first.commitId,
+        parent: first.parentIds[0],
+        authorId: change.authorId ?? admin.id,
+        message: change.message ?? first.message,
+        changes: change.changes ?? first.units
+      });
+    const changed = again({ changes: diffAssets({}, { a: category('Other') }) });
+    const reauthored = again({ authorId: 'mallory' });
+    for (const resent of [changed, reauthored, again({ message: 'Renamed' })])
       await expect(
-        act(workspace, { type: 'fork', id: 'f', name: 'f', taskId: 't', expectedHead: null, commits: [resent] })
+        act(workspace, {
+          type: 'fork',
+          id: 'f',
+          name: 'f',
+          taskId: 't',
+          expectedHead: workspace.state.root,
+          commits: [resent]
+        })
       ).rejects.toThrow(/不能修改内容或作者/);
     expect(workspace.state.tasks['f']).toBeUndefined();
   });
@@ -186,7 +210,14 @@ describe('retransmitted commits', () => {
     await started(workspace, 't', [{ a: category('A') }]);
     const [foreign] = await started(workspace, 'other', [{ z: category('Z') }]);
     await expect(
-      act(workspace, { type: 'fork', id: 'f', name: 'f', taskId: 't', expectedHead: null, commits: [foreign] })
+      act(workspace, {
+        type: 'fork',
+        id: 'f',
+        name: 'f',
+        taskId: 't',
+        expectedHead: workspace.state.root,
+        commits: [foreign]
+      })
     ).rejects.toThrow(/不能接管/);
     await expect(
       act(workspace, { type: 'upload', taskId: 't', expectedHead: 't-c1', commits: [foreign] })
@@ -194,13 +225,15 @@ describe('retransmitted commits', () => {
   });
   it('rejects a chain that repeats a commit id, loops onto itself or skips its parent', async () => {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    const first = await commit(workspace, 'c1', null, { a: category('A') });
-    const again = await sealCommit({ id: 'c1', parent: 'c1', authorId: admin.id, message: 'c1', changes: [] });
-    const loop = await sealCommit({ id: 'c2', parent: 'c2', authorId: admin.id, message: 'c2', changes: [] });
-    const orphan = await sealCommit({ id: 'c3', parent: 'nowhere', authorId: admin.id, message: 'c3', changes: [] });
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    const first = await commit(workspace, 'c1', workspace.state.root, { a: category('A') });
+    const again = taskCommit({ id: 'c1', parent: 'c1', authorId: admin.id, message: 'c1', changes: [] });
+    const loop = taskCommit({ id: 'c2', parent: 'c2', authorId: admin.id, message: 'c2', changes: [] });
+    const orphan = taskCommit({ id: 'c3', parent: 'nowhere', authorId: admin.id, message: 'c3', changes: [] });
     for (const commits of [[first, again], [loop], [orphan]])
-      await expect(act(workspace, { type: 'upload', taskId: 't', expectedHead: null, commits })).rejects.toThrow();
+      await expect(
+        act(workspace, { type: 'upload', taskId: 't', expectedHead: workspace.state.root, commits })
+      ).rejects.toThrow();
     expect((await workspace.store.commits(['c1', 'c2', 'c3'])).size).toBe(0);
   });
 });
@@ -208,13 +241,20 @@ describe('retransmitted commits', () => {
 describe('the engine decides only on data the repository preloaded', () => {
   it('declares what a command needs after its own checks, and nothing for a retried operation', async () => {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    const first = await commit(workspace, 'c1', null, { a: category('A') });
-    const upload = { type: 'upload', operationId: 'op', taskId: 't', expectedHead: null, commits: [first] } as Command;
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    const first = await commit(workspace, 'c1', workspace.state.root, { a: category('A') });
+    const upload = {
+      type: 'upload',
+      operationId: 'op',
+      taskId: 't',
+      expectedHead: workspace.state.root,
+      commits: [first]
+    } as Command;
+    const root = workspace.state.root;
     expect(plan(workspace.state, admin, upload)).toEqual({
       type: 'upload',
       ids: ['c1'],
-      content: { shared: null, base: null, head: null, touched: ['a'] }
+      content: { shared: { head: root, root }, base: root, head: root, touched: ['a'] }
     });
     expect(() => plan(workspace.state, { ...admin, id: 'stranger' }, upload)).toThrow(/权限/);
     expect(() => plan(workspace.state, admin, { ...upload, taskId: 'missing' } as Command)).toThrow(/任务不存在/);
@@ -244,15 +284,15 @@ describe('upload cost', () => {
    */
   async function readsForOneMoreCommit(length: number) {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    let parent: string | null = null;
-    let head: string | null = null;
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    let parent = workspace.state.root;
+    let head = workspace.state.root;
     let content: Records = {};
     for (let offset = 0; offset < length; offset += 100) {
       const batch: Commit[] = [];
       for (let index = offset; index < Math.min(length, offset + 100); index++) {
         const next: Records = { ...content, [`r${index}`]: category(`Record ${index}`) };
-        const sealed = await sealCommit({
+        const sealed = taskCommit({
           id: uuidv7(),
           parent,
           authorId: admin.id,
@@ -260,13 +300,13 @@ describe('upload cost', () => {
           changes: diffAssets(content, next)
         });
         batch.push(sealed);
-        parent = sealed.id;
+        parent = sealed.commitId;
         content = next;
       }
       await act(workspace, { type: 'upload', taskId: 't', expectedHead: head, commits: batch });
       head = parent;
     }
-    const last = await sealCommit({
+    const last = taskCommit({
       id: uuidv7(),
       parent,
       authorId: admin.id,
@@ -281,7 +321,7 @@ describe('upload cost', () => {
   it('uploading one more commit does a constant number of queries; rows grow only with the task chain since its base', async () => {
     const short = await readsForOneMoreCommit(3);
     const long = await readsForOneMoreCommit(500);
-    // 已存在提交一次，任务自己的路径一次、路径上被改动记录的变更一次；没有共享分支可回退，也不读共享记录
+    // 已存在提交一次，任务自己的路径一次、路径上被改动记录的变更一次；任务从共享分支根起步，根是空记录，不回退也不读共享记录
     expect(short).toEqual({ calls: ['commits', 'path', 'changes'], rows: 6, records: 0 });
     expect(long.calls).toEqual(short.calls);
     expect(long.records).toBe(0);
@@ -331,7 +371,8 @@ describe('candidates and merges are stored as changes relative to the target', (
     expect(apply.mock.calls[0][0].remove).toEqual(['c4']);
     const head = String(merged['head']);
     const [changes] = (await workspace.store.changes([head])).values();
-    expect(changes).toEqual(stored.changes);
+    // 合并提交的单元就是候选的变更（相对共享头），整次合并是一笔原子写，单元共用合并提交的 ID
+    expect(changes).toEqual(unitsOf(stored.changes, head));
     expect((await workspace.records(admin)).records).toEqual(edited);
     expect((await workspace.candidate(admin, stored.id)).records).toEqual(edited);
     // 改动记录的前后值只进变更日志，不进命令结果（也就不进回执与审计详情）
@@ -397,13 +438,13 @@ describe('persisted workspace state', () => {
   /** 上传 `count` 个提交、每个提交改 `width` 条记录、每条记录带 `payload` 长度的文本后，工作区状态序列化的字节数。 */
   async function stateBytes(count: number, width: number, payload: number) {
     const workspace = await open();
-    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: null });
-    let parent: string | null = null;
+    await act(workspace, { type: 'task', id: 't', name: 't', expectedHead: workspace.state.root });
+    let parent = workspace.state.root;
     let content: Records = {};
     for (let index = 0; index < count; index++) {
       const next: Records = { ...content };
       for (let row = 0; row < width; row++) next[`r${row}`] = category(`N${row}`, `${index}`.padEnd(payload, 'x'));
-      const sealed = await sealCommit({
+      const sealed = taskCommit({
         id: uuidv7(),
         parent,
         authorId: admin.id,
@@ -411,7 +452,7 @@ describe('persisted workspace state', () => {
         changes: diffAssets(content, next)
       });
       await act(workspace, { type: 'upload', taskId: 't', expectedHead: parent, commits: [sealed] });
-      parent = sealed.id;
+      parent = sealed.commitId;
       content = next;
     }
     return JSON.stringify(workspace.state).length;

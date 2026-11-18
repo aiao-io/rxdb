@@ -41,6 +41,7 @@ import { deriveImportedCommitOperationId } from '../../commit/commit-idempotency
 import type { CommitKind } from '../../commit/commit.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { buildCommitRows } from '../../commit/write-commit.js';
+import { checkCommitExchangeBatch } from '../../exchange.js';
 import { buildDatabaseVersionedDomain, businessEntitiesOf } from '../../working-tree/database-versioned-domain.js';
 import {
   importWorkingTreeCommits,
@@ -692,10 +693,13 @@ describe('批次形状（invalid_batch）', () => {
     ]
   ] as const)('%s', async (problem, build, commitId) => {
     const scene = sceneAtH();
+    const batch = build();
 
-    const result = await at(scene, build());
+    const result = await at(scene, batch);
 
     expect(result).toEqual({ ok: false, reason: 'invalid_batch', problem, commitId });
+    // 服务端从 `./exchange` 拿到的就是导入命令用的那一个判定：判出的毛病与 invalid_batch 逐字相同
+    expect(checkCommitExchangeBatch(batch as readonly CommitExchangeRecord[])).toEqual({ problem, commitId });
     expect(writesOf(scene)).toEqual([]);
   });
 });

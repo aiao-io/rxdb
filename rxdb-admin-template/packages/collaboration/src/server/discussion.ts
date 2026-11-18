@@ -32,7 +32,7 @@ export function discussionPlan(state: Workspace, user: Identity, command: Comman
     return command.recordId ?
         {
           type: 'anchor',
-          head: state.head,
+          shared: { head: state.head, root: state.root },
           candidate: state.candidates[command.candidateId!],
           recordId: command.recordId
         }

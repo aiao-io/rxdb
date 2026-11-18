@@ -49,6 +49,7 @@ export const pageZhMessages = {
   'entity.loadFailed': '加载失败',
   'entity.notFound': '未找到实体 {namespace}/{name}，请从左侧导航选择可见实体。',
   'entity.none': '没有可见实体',
+  'teamEditor.entities': '任务数据',
   'backup.title': '备份',
   'backup.description':
     '把工作台的全部数据导出为一致性归档文件。换设备或浏览器清数据后，可在空工作台用下方「恢复」导入。',
@@ -136,6 +137,7 @@ export const pageEnMessages: Record<keyof typeof pageZhMessages, string> = {
   'entity.loadFailed': 'Loading failed',
   'entity.notFound': 'Entity {namespace}/{name} was not found. Choose a visible entity from the navigation.',
   'entity.none': 'No visible entities',
+  'teamEditor.entities': 'Task data',
   'backup.title': 'Backup',
   'backup.description':
     'Export all workbench data as a consistent archive. Restore it into an unused workbench after changing devices or clearing browser data.',

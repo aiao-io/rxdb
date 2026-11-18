@@ -14,9 +14,10 @@ const placeholders = (text: string) => [...text.matchAll(/\{v\d+\}/g)].map(match
  */
 const interpolatedAllowlist: readonly { file: string; source: string; reason: string }[] = [
   {
-    file: 'server/start.ts',
+    file: 'server/runtime.ts',
     source: '`缺少环境变量 ${name}`',
-    reason: '服务进程启动时缺少环境变量的运维报错，只写入进程日志，不进入任何 HTTP 响应'
+    reason:
+      '命令入口（Node 进程或 Edge Function）启动时缺少环境变量的运维报错，只写入进程或函数日志，不进入任何 HTTP 响应'
   },
   {
     file: 'server/bootstrap.ts',
@@ -93,7 +94,7 @@ describe('协作界面词条门禁', () => {
   it('白名单里的模板只对指定文件生效，且每条都写明了理由', () => {
     expect(interpolatedAllowlist.every(item => item.reason.length > 0)).toBe(true);
     const code = 'export const message = `缺少环境变量 ${name}`;';
-    expect(findProblems('server/start.ts', code, {})).toEqual([]);
+    expect(findProblems('server/runtime.ts', code, {})).toEqual([]);
     expect(findProblems('client/mount.ts', code, {})).toEqual([expect.stringContaining('client/mount.ts:1')]);
   });
 

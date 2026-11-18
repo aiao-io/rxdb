@@ -6,15 +6,25 @@ import type { CollaborationController } from './controller.js';
 import type { Perform } from './elements.js';
 import { PullRequestView } from './pr-view.js';
 const records = (name: string): Records => ({ c: { entity: 'AssetCategory', fields: { name } } });
-const commit = (id: string, parent: string | null, name: string): CommitContent => ({
+/** 任务提交：唯一的父；`root` 是共享分支根（空分支时的共同起点）。 */
+const commit = (id: string, parent: string, name: string): CommitContent => ({
   id,
-  parent,
+  parentIds: [parent],
+  kind: 'normal',
   authorId: 'u1',
   message: id,
+  createdAt: '2026-11-18T00:00:00.000Z',
   changes: [],
   records: records(name)
 });
-const metadata = ({ id, parent, authorId, message }: CommitContent) => ({ id, parent, authorId, message });
+const metadata = ({ id, parentIds, kind, authorId, message, createdAt }: CommitContent) => ({
+  id,
+  parentIds,
+  kind,
+  authorId,
+  message,
+  createdAt
+});
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 beforeEach(() => {
   const window = new Window();
@@ -57,8 +67,9 @@ const event: Audit = { id: 'event', actorId: 'u1', action: 'reply', operationId:
  * 内容由 `store` 提供：没放进去的就是「尚未加载」，控制器的同步读取此时返回 undefined。
  */
 function setup(options: { candidate?: boolean; base?: string | null; target?: string | null } = {}) {
-  const base = options.base === undefined ? 'base' : options.base;
-  const target = options.target === undefined ? 'target' : options.target;
+  // null 表示空分支：共享分支根
+  const base = options.base === undefined ? 'base' : (options.base ?? 'root');
+  const target = options.target === undefined ? 'target' : (options.target ?? 'root');
   const failures: unknown[] = [];
   const run = vi.fn().mockResolvedValue({});
   const requested: string[] = [];
@@ -115,6 +126,7 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
     }),
     snapshot: {
       head: target,
+      root: 'root',
       policy: { version: 1, stages: [] },
       schemaVersion: 1,
       members: [
@@ -160,7 +172,7 @@ function setup(options: { candidate?: boolean; base?: string | null; target?: st
     [...root.querySelectorAll('button')].filter(node => node.textContent === name);
   const loadAll = () => {
     store.commits = {
-      base: commit('base', null, 'Base'),
+      base: commit('base', 'root', 'Base'),
       source: commit('source', 'base', 'Source'),
       target: commit('target', 'base', 'Target')
     };
@@ -235,7 +247,7 @@ describe('合并预览等内容加载完成再显示', () => {
     expect(root.querySelector('[data-loading]')).not.toBeNull();
     expect(root.textContent).toContain('正在加载…');
     expect(buttons(root, '生成合并候选并检查')).toHaveLength(0);
-    store.commits['base'] = commit('base', null, 'Base');
+    store.commits['base'] = commit('base', 'root', 'Base');
     store.commits['source'] = commit('source', 'base', 'Source');
     root = draw();
     expect(buttons(root, '生成合并候选并检查')).toHaveLength(0);
@@ -247,7 +259,7 @@ describe('合并预览等内容加载完成再显示', () => {
   it('尚无最终候选时，来源提交变化先显示占位，两个提交都加载后才画出差异表', () => {
     const { draw, store } = setup();
     expect(draw().querySelectorAll('table')).toHaveLength(0);
-    store.commits['base'] = commit('base', null, 'Base');
+    store.commits['base'] = commit('base', 'root', 'Base');
     store.commits['source'] = commit('source', 'base', 'Source');
     store.shared = records('Target');
     const root = draw();
@@ -257,7 +269,7 @@ describe('合并预览等内容加载完成再显示', () => {
   });
   it('起点是空分支（没有任何提交）时不请求起点内容，直接按空记录比较', () => {
     const { draw, store, requested } = setup({ base: null });
-    store.commits['source'] = commit('source', null, 'Source');
+    store.commits['source'] = commit('source', 'root', 'Source');
     const root = draw();
     expect([...new Set(requested.filter(entry => entry.startsWith('commit:')))]).toEqual(['commit:source']);
     expect(root.querySelectorAll('table')).toHaveLength(1);
@@ -406,9 +418,9 @@ describe('最终候选与讨论的按需内容', () => {
     let root = draw();
     expect(requested).toContain('candidate:cand');
     expect(requested).not.toContain('commit:target');
-    expect(requested).not.toContain('commit:null');
+    expect(requested).not.toContain('commit:root');
     expect(section(root, '最终合并候选').querySelector('[data-loading]')).not.toBeNull();
-    store.candidates['cand'] = { ...candidateSummary, target: null, records: records('Final') };
+    store.candidates['cand'] = { ...candidateSummary, target: 'root', records: records('Final') };
     root = draw();
     expect(section(root, '最终合并候选').querySelector('[data-loading]')).toBeNull();
     expect(buttons(root, '查看记录 c')).toHaveLength(1);

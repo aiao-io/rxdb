@@ -10,10 +10,22 @@ const hs256 =
   (secret: string): Signer =>
   input =>
     createHmac('sha256', secret).update(input).digest();
+/**
+ * JWS 的 ES256 签名是 r‖s 各 32 字节。Supabase Edge Runtime 1.74（Deno 2.1.4）的 node:crypto 不认 `dsaEncoding`，仍给出 DER，
+ * 在那里跑同一组用例时把 DER 解开换成 r‖s；Node 与新版 Deno 给出的已是 64 字节，原样使用。
+ */
+function joseSignature(signature: Buffer): Buffer {
+  if (signature.length === 64) return signature;
+  const integer = (offset: number) => signature.subarray(offset + 2, offset + 2 + signature[offset + 1]);
+  const r = integer(2);
+  const s = integer(4 + r.length);
+  const fixed = (value: Buffer) => Buffer.concat([Buffer.alloc(32), value]).subarray(-32);
+  return Buffer.concat([fixed(r), fixed(s)]);
+}
 const es256 =
   (key: KeyObject): Signer =>
   input =>
-    signBytes('sha256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' });
+    joseSignature(signBytes('sha256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' }));
 const rs256 =
   (key: KeyObject): Signer =>
   input =>

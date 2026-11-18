@@ -35,16 +35,25 @@ export interface RecordField {
   /** 单值关联指向的实体名；属性字段为 undefined。 */
   readonly target: string | undefined;
 }
-/** 一个实体在协作记录里的模型：清单顺序的记录字段（先属性、后单值关联）与标题字段。 */
+/** 一个实体在协作记录里的模型：清单顺序的记录字段（先属性、后单值关联）、系统字段与标题字段。 */
 export interface EntityModel {
   readonly entity: string;
   readonly namespace: string;
   /** 记录里允许出现的字段，按清单顺序：普通属性在前，单值关联的外键字段在后；系统字段、计算属性与 1:m / m:n 关联不在其中。 */
   readonly fields: readonly RecordField[];
+  /**
+   * 系统字段：清单里 `source: 'system'` 的字段，主键除外（主键是单元的 `entityId`，平台的变更日志触发器从不把它写进补丁）。
+   * 资产实体是 `createdAt`、`updatedAt`、`createdBy`、`updatedBy`。平台 working-tree 在 sqlite-wasm 上捕获的单元带着它们：
+   * 插入是整行（含审计时间与审计主体），修改带着这一刻的 `updatedAt`（主体变了还有 `updatedBy`）。协作只原样保存、原样下发，
+   * 不检查、不进键索引、不参与前像核对与合并冲突——它们是每台设备自己的簿记，平台导入时也不比、不回写。
+   */
+  readonly system: readonly string[];
   /** 标题字段：第一个必填的文本属性，界面以它的取值作记录名称；没有时为 undefined。 */
   readonly title: string | undefined;
   /** 按记录里的字段名取字段模型；不是记录字段时为 undefined。 */
   field(name: string): RecordField | undefined;
+  /** 这个字段能不能出现在记录与单元的补丁里：记录字段或系统字段。 */
+  accepts(name: string): boolean;
 }
 /** 一份清单的模型：清单本身与按清单顺序排列的实体模型。 */
 export interface SchemaModel {
@@ -120,6 +129,10 @@ function recordField(descriptor: EntityFieldDescriptor): RecordField | undefined
   return { name: descriptor.relation.writeField, descriptor, target: descriptor.relation.entity };
 }
 
+/** 系统字段的字段名：`source: 'system'` 且不是主键。 */
+const systemName = (descriptor: EntityFieldDescriptor): string | undefined =>
+  descriptor.source === 'system' && descriptor.primary !== true ? descriptor.field : undefined;
+
 function entityModel(descriptor: EntityFieldsDescriptor): EntityModel {
   const location = { entity: descriptor.entity };
   demand(
@@ -129,6 +142,8 @@ function entityModel(descriptor: EntityFieldsDescriptor): EntityModel {
     location
   );
   const fields = descriptor.fields.map(recordField).filter(field => field !== undefined);
+  const system = descriptor.fields.map(systemName).filter(name => name !== undefined);
+  for (const name of system) demand(isIdentifier(name), 'invalid', formatError, { ...location, field: name });
   const byName = new Map<string, RecordField>();
   for (const field of fields) {
     demand(isIdentifier(field.name) && !byName.has(field.name), 'invalid', formatError, {
@@ -147,12 +162,15 @@ function entityModel(descriptor: EntityFieldsDescriptor): EntityModel {
     field =>
       field.target === undefined && field.descriptor.required && ['string', 'enum'].includes(field.descriptor.valueType)
   );
+  const systemNames = new Set(system);
   return {
     entity: descriptor.entity,
     namespace: descriptor.namespace,
     fields,
+    system,
     title: title?.name,
-    field: name => byName.get(name)
+    field: name => byName.get(name),
+    accepts: name => byName.has(name) || systemNames.has(name)
   };
 }
 
@@ -194,21 +212,32 @@ export function namespaceOf(manifest: SchemaManifest): (entity: string) => strin
   };
 }
 
-/** 一条记录在清单里的实体，记录的每个字段都必须是该实体的记录字段；否则抛出 `invalid`。 */
+/**
+ * 某个实体的某个字段是不是系统字段（见 {@link EntityModel.system}）：三方合并按它认出不参与冲突的簿记字段。
+ * 不在清单里的实体与字段都不是。
+ */
+export type SystemField = (entity: string, field: string) => boolean;
+/** 按清单认出系统字段的判定函数，见 {@link SystemField}。 */
+export function systemFieldOf(manifest: SchemaManifest): SystemField {
+  const model = schemaModel(manifest);
+  return (entity, field) => model.entity(entity)?.system.includes(field) ?? false;
+}
+
+/** 一条记录在清单里的实体，记录的每个字段都必须是该实体的记录字段或系统字段；否则抛出 `invalid`。 */
 export function fitRow(model: SchemaModel, row: DataRow): EntityModel {
   const entity = model.entity(row.entity);
   demand(entity, 'invalid', '实体不受支持');
-  for (const field of Object.keys(row.fields)) demand(entity.field(field), 'invalid', '字段不受支持');
+  for (const field of Object.keys(row.fields)) demand(entity.accepts(field), 'invalid', '字段不受支持');
   return entity;
 }
-/** 记录表的每条记录都必须属于清单里的实体、只含该实体的记录字段（网络输入与合并结果的结构核对）。 */
+/** 记录表的每条记录都必须属于清单里的实体、只含该实体的记录字段与系统字段（网络输入与合并结果的结构核对）。 */
 export function assertRecordsFit(manifest: SchemaManifest, records: Records): void {
   const model = schemaModel(manifest);
   for (const row of Object.values(records)) fitRow(model, row);
 }
 /**
- * 字段级变更必须属于清单里的实体、命名空间与清单一致，`patch` 与 `inversePatch` 只含该实体的记录字段；否则抛出 `invalid`。
- * 只核对结构，必填、类型与跨记录约束由最终结果检查负责，未完成的草稿因此可以同步。
+ * 字段级变更必须属于清单里的实体、命名空间与清单一致，`patch` 与 `inversePatch` 只含该实体的记录字段与系统字段；
+ * 否则抛出 `invalid`。只核对结构，必填、类型与跨记录约束由最终结果检查负责，未完成的草稿因此可以同步。
  */
 export function assertChangesFit(manifest: SchemaManifest, changes: readonly ChangeSet[]): void {
   const model = schemaModel(manifest);
@@ -216,7 +245,7 @@ export function assertChangesFit(manifest: SchemaManifest, changes: readonly Cha
     const entity = model.entity(change.entity);
     demand(entity && entity.namespace === change.namespace, 'invalid', '实体不受支持');
     for (const fields of [change.patch, change.inversePatch])
-      for (const field of Object.keys(fields ?? {})) demand(entity.field(field), 'invalid', '字段不受支持');
+      for (const field of Object.keys(fields ?? {})) demand(entity.accepts(field), 'invalid', '字段不受支持');
   }
 }
 

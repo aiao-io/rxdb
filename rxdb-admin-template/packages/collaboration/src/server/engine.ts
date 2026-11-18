@@ -1,9 +1,11 @@
 import type { RecordCheck } from '../checks.js';
+import { withFingerprint } from '../commit.js';
 import {
   demand,
   permissions,
   type Audit,
   type Command,
+  type Commit,
   type Environment,
   type Identity,
   type SchemaManifest,
@@ -19,9 +21,28 @@ import { noEffects, noFacts, type Effects, type Facts, type Plan } from './plan.
 import { schemaCommand, schemaPlan } from './schemas.js';
 import { taskCommand, taskPlan } from './tasks.js';
 
+/** 共享分支根的提交消息：平台要求系统根节点的消息非空，界面不列出根。 */
+export const rootMessage = '共享分支起点';
 /**
- * 新建工作区的初始状态，仅由可信服务端部署命令调用，普通会话没有初始化入口。
- * 同时登记 `schema` 作为第一个数据模式版本（清单重新解析一遍，只保留已知键），工作区的数据模式版本取清单的版本号。
+ * 共享分支的根：平台交换记录的 `baseline` 种类——没有父、没有作者、没有单元，消息非空，内容指纹由平台函数计算。
+ * 初始化时写下一次，此后不变；任务都从真实提交分叉，每次合并因此都有两个父，第二台设备第一次导入共享分支时链就从它开始。
+ */
+export function rootCommit(env: Environment): Commit {
+  return withFingerprint({
+    commitId: env.id(),
+    parentIds: [],
+    kind: 'baseline',
+    message: rootMessage,
+    authorId: null,
+    createdAt: new Date(env.now).toISOString(),
+    units: []
+  });
+}
+
+/**
+ * 新建工作区的初始状态与共享分支的根提交，仅由可信服务端部署命令调用，普通会话没有初始化入口。
+ * 共享头的初值就是根（{@link rootCommit}）。同时登记 `schema` 作为第一个数据模式版本（清单重新解析一遍，只保留已知键），
+ * 工作区的数据模式版本取清单的版本号。
  * 团队与应用标识不能含冒号：私有频道名 `collab:<团队>:<应用>` 以冒号分隔，含冒号会让两个工作区共用一个频道。
  */
 export function bootstrap(
@@ -34,11 +55,12 @@ export function bootstrap(
     schema: SchemaManifest;
   },
   env: Environment
-): Workspace {
+): { state: Workspace; root: Commit } {
   demand(input.admin.verified, 'forbidden', '初始管理员必须有已验证邮箱');
   demand(!input.teamId.includes(':') && !input.appId.includes(':'), 'invalid', '团队与应用标识不能包含冒号');
   const schema = parseSchemaManifest(input.schema);
-  return {
+  const root = rootCommit(env);
+  const state: Workspace = {
     teamId: input.teamId,
     appId: input.appId,
     name: input.name,
@@ -47,7 +69,8 @@ export function bootstrap(
     schemaVersion: schema.schemaVersion,
     schema,
     revision: 0,
-    head: null,
+    head: root.commitId,
+    root: root.commitId,
     policy: { version: 1, stages: [{ id: 'review', name: '审核', minimum: 1, reviewers: [], after: [] }] },
     members: { [input.admin.id]: { ...input.admin, permissions: [...permissions], generation: 1, active: true } },
     tasks: {},
@@ -63,12 +86,15 @@ export function bootstrap(
         id: env.id(),
         actorId: input.admin.id,
         action: 'bootstrap',
-        operationId: input.bootstrapKey,
+        // 审计经只读投影对全体可读成员开放，不能把初始化密钥当操作 ID 写进来；
+        // 初始化的幂等比对用的是治理行的 bootstrap_key 列（成员与专用角色都读不到），不靠这里。
+        operationId: env.id(),
         at: env.now,
         details: { initialAdminId: input.admin.id }
       }
     ]
   };
+  return { state, root };
 }
 
 /** 命令的执行结果：返回给调用方的 `result`，以及除工作区状态变化之外要落到存储的 `effects`（新提交、共享记录改动、合并变更日志）。 */
@@ -157,11 +183,14 @@ function receipt(state: Workspace, user: Identity, command: Command, previous: W
 }
 /**
  * 请求指纹：回执用它拒绝「换参数复用同一幂等键」。上传与分叉的提交内容可能很大，且每个提交已带核验过的内容指纹，
- * 所以只取提交 ID 与指纹，回执体积不随提交内容增长；其余命令用规范化后的整个命令。
+ * 所以只取提交 ID 与内容指纹，回执体积不随提交内容增长；其余命令用规范化后的整个命令。
  */
 function requestFingerprint(command: Command): string {
   if (command.type !== 'upload' && command.type !== 'fork') return canonical(command);
-  return canonical({ ...command, commits: command.commits.map(({ id, fingerprint }) => ({ id, fingerprint })) });
+  return canonical({
+    ...command,
+    commits: command.commits.map(({ commitId, contentFingerprint }) => ({ commitId, contentFingerprint }))
+  });
 }
 /**
  * 审计详情会随摘要与审计分页发给所有可读成员，并写入成员可读的 admin_audit，因此不收录：

@@ -2,7 +2,8 @@
 // 团队页与共享数据的体积和读取耗时、提交表与变更表的规模，以及并发读取团队页时写命令的等待。
 // ADMIN-US-219 起读取经 public 下的只读投影：团队页、提交历史与共享记录都用浏览器同一个 CollaborationReader，
 // 以 authenticated 角色经与 PostgREST 等价的读取源读取（server/pg-read.ts）；`snapshot*` 字段即团队页。
-// 提交按字段级变更协议上传（每个提交只含改动的 5 条记录，带内容指纹）。用临时 Docker PostgreSQL，与集成测试同一镜像。
+// 提交按平台 working-tree 的交换记录上传（每个提交只含改动的 5 条记录的单元，内容指纹由平台函数计算；ADMIN-US-221），
+// 任务与共享分支都从初始化写下的根（baseline 提交）起步。用临时 Docker PostgreSQL，与集成测试同一镜像。
 // 环境变量：
 // - BENCH_RECORDS（默认 1000）：记录条数；BENCH_CHECKPOINTS（默认 10,50,100,200）：在这些提交数上测量。
 // - BENCH_SAMPLES（默认 7）：每项取中位数的样本数；BENCH_READERS（默认 4）：并发读摘要的读者数。
@@ -30,7 +31,7 @@ import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 import pg from 'pg';
 import { diffRecords } from '../dist/server/changes.js';
-import { sealCommit, uuidv7 } from '../dist/server/commit.js';
+import { uuidv7, withFingerprint } from '../dist/server/commit.js';
 import { CollaborationReader } from '../dist/server/reader.js';
 import { namespaceOf, parseSchemaManifest } from '../dist/server/schema.js';
 import { applyMigrations } from '../dist/server/server/migrate.js';
@@ -105,23 +106,34 @@ function initialRecords() {
 }
 
 /**
- * 现行协议：每个提交只携带相对上一个提交的字段级变更（改动 5 条资产的价格）与内容指纹；
+ * 一个任务提交（平台交换记录）：普通提交，唯一的父是 `parent`，全部单元共用提交 ID、不属于任何事务、来源 local，
+ * 内容指纹由平台的 `computeCommitExchangeRecordFingerprint()` 计算（经 `withFingerprint`，与客户端形成提交的做法相同）。
+ */
+function taskCommit(parent, message, changes) {
+  const commitId = uuidv7();
+  return withFingerprint({
+    commitId,
+    parentIds: [parent],
+    kind: 'normal',
+    message,
+    authorId: admin.id,
+    createdAt: new Date().toISOString(),
+    units: changes.map(change => ({ ...change, unitId: commitId, transactionId: null, origin: 'local' }))
+  });
+}
+
+/**
+ * 现行协议：每个提交只携带相对上一个提交的单元（改动 5 条资产的价格）与内容指纹；
  * 任务从空内容起步时，第一个提交新增全部初始记录；从共享头起步时，每个提交都只改 5 条。返回新记录供下一个提交比较。
  */
-async function nextCommit(previous, parent, index) {
+function nextCommit(previous, parent, index) {
   const records = index === 0 && !Object.keys(previous).length ? initialRecords() : structuredClone(previous);
   const assetIds = Object.keys(records).filter(key => key.startsWith('a'));
   for (let i = 0; i < changedPerCommit; i++) {
     const id = assetIds[(index * changedPerCommit + i) % assetIds.length];
     records[id].fields.purchasePrice = Number(records[id].fields.purchasePrice) + 1;
   }
-  const commit = await sealCommit({
-    id: uuidv7(),
-    parent,
-    authorId: admin.id,
-    message: `基准提交 ${index}`,
-    changes: diffRecords(previous, records, namespaces)
-  });
+  const commit = taskCommit(parent, `基准提交 ${index}`, diffRecords(previous, records, namespaces));
   return { commit, records };
 }
 
@@ -158,13 +170,7 @@ async function bulkRound(context, round) {
   const taskId = `bulk-${round}`;
   const after = bulkEdit(state.shared, round);
   await operation({ type: 'task', id: taskId, name: `批量改动 ${round}`, expectedHead: head });
-  const commit = await sealCommit({
-    id: uuidv7(),
-    parent: head,
-    authorId: admin.id,
-    message: `批量改动 ${round}`,
-    changes: diffRecords(state.shared, after, namespaces)
-  });
+  const commit = taskCommit(head, `批量改动 ${round}`, diffRecords(state.shared, after, namespaces));
   const uploadMs = await timed(() => operation({ type: 'upload', taskId, expectedHead: head, commits: [commit] }));
   await operation({ type: 'pr', id: taskId, taskId, title: `批量改动 ${round}`, description: '', target: 'shared' });
   await operation({ type: 'pr_state', prId: taskId, status: 'review', expectedRevision: 0 });
@@ -182,7 +188,7 @@ async function bulkRound(context, round) {
       type: 'review',
       prId: taskId,
       candidateId,
-      expectedSource: commit.id,
+      expectedSource: commit.commitId,
       stageId: 'review',
       decision: 'approve',
       reason: '',
@@ -195,7 +201,7 @@ async function bulkRound(context, round) {
       type: 'merge',
       prId: taskId,
       candidateId,
-      expectedSource: commit.id,
+      expectedSource: commit.commitId,
       expectedTarget: head
     });
   });
@@ -461,20 +467,14 @@ async function measureContention(context) {
   return { readers, contendedCommandMs: Math.round(median(contended)) };
 }
 
-/** BENCH_SHARED=1：免审批策略下把初始记录经一个种子任务合并进共享分支，返回共享头与共享记录。 */
-async function seedSharedBranch(repository) {
+/** BENCH_SHARED=1：免审批策略下把初始记录经一个种子任务从根合并进共享分支，返回共享头与共享记录。 */
+async function seedSharedBranch(repository, root) {
   const operation = data => repository.operation(admin, seed.teamId, seed.appId, command(data));
   const records = initialRecords();
-  const commit = await sealCommit({
-    id: uuidv7(),
-    parent: null,
-    authorId: admin.id,
-    message: '基准共享记录',
-    changes: diffRecords({}, records, namespaces)
-  });
+  const commit = taskCommit(root, '基准共享记录', diffRecords({}, records, namespaces));
   await operation({ type: 'policy', stages: [], expectedVersion: 1 });
-  await operation({ type: 'task', id: 'seed', name: '共享记录种子', expectedHead: null });
-  await operation({ type: 'upload', taskId: 'seed', expectedHead: null, commits: [commit] });
+  await operation({ type: 'task', id: 'seed', name: '共享记录种子', expectedHead: root });
+  await operation({ type: 'upload', taskId: 'seed', expectedHead: root, commits: [commit] });
   await operation({
     type: 'pr',
     id: 'seed-pr',
@@ -489,8 +489,8 @@ async function seedSharedBranch(repository) {
     type: 'merge',
     prId: 'seed-pr',
     candidateId,
-    expectedSource: commit.id,
-    expectedTarget: null
+    expectedSource: commit.commitId,
+    expectedTarget: root
   });
   return { head: merged['head'], records };
 }
@@ -526,7 +526,9 @@ async function main() {
     const reader = new CollaborationReader(() => pgReadSource(pool, admin.id));
     await repository.initialize(seed);
     const operation = data => repository.operation(admin, seed.teamId, seed.appId, command(data));
-    const start = seedShared ? await seedSharedBranch(repository) : { head: null, records: {} };
+    // 共享分支的根：初始化时写下的 baseline 提交，还没有合并时共享头就是它
+    const { root } = await reader.team(workspace, admin.id, teamWindow);
+    const start = seedShared ? await seedSharedBranch(repository, root) : { head: root, records: {} };
     await inviteReviewer(repository);
     const taskId = randomUUID();
     const prId = randomUUID();
@@ -553,10 +555,10 @@ async function main() {
         const size = Math.min(batchSize, target - committed);
         let parent = head;
         for (let i = 0; i < size; i++) {
-          const next = await nextCommit(records, parent, committed + i);
+          const next = nextCommit(records, parent, committed + i);
           batch.push(next.commit);
           records = next.records;
-          parent = next.commit.id;
+          parent = next.commit.commitId;
         }
         const upload = command({ type: 'upload', taskId, expectedHead: head, commits: batch });
         const ms = await timed(() => repository.operation(admin, seed.teamId, seed.appId, upload));

@@ -513,7 +513,7 @@ if (result.ok) {
 
 ## 导入与导出远端提交
 
-把服务端下发的提交**原样**写进本地分支：提交 id、父链、种类、作者、消息、时间与内容指纹都不变，分支头快进到最后一个导入的提交；之后本地的 `commit()` 以它为父继续（US-316）。导出侧交出同一种记录，一台设备导出、服务端认可之后，原样交给另一台设备导入。推送协议、服务端与权威裁决由使用方负责。
+把服务端下发的提交**原样**写进本地分支：提交 id、父链、种类、作者、消息、时间与内容指纹都不变，分支头快进到最后一个导入的提交；之后本地的 `commit()` 以它为父继续（US-316）。导出侧交出同一种记录，一台设备导出、服务端认可之后，原样交给另一台设备导入。推送协议、服务端与权威裁决由使用方负责；服务端要的校验与指纹复算不必自己写，见下文「服务端：`./exchange` 子路径」。
 
 ### `importCommits(commits, options)`
 
@@ -599,15 +599,77 @@ if (page.commits.length > 0) await uploadToServer(page.commits);
 | `kind`               | `'normal' \| 'merge' \| 'baseline' \| 'branch_baseline'`                                                                                        |
 | `message`            | 原样保存，不 trim                                                                                                                               |
 | `authorId`           | 普通与合并提交必填；系统根节点为 `null`                                                                                                         |
-| `createdAt`          | `Date`；不进指纹，也不参与同一性判定。经 JSON 传输时写成 ISO 串、收到后还原成 `Date`                                                            |
+| `createdAt`          | `Date`；不进指纹，也不参与同一性判定。经 JSON 传输时写成 ISO 串、收到后还原成 `Date`（编解码见下一节）                                          |
 | `contentFingerprint` | 64 位小写 hex，规则见下                                                                                                                         |
 | `units`              | 全部变更单元，按 `sequence` 升序，**落库形态**：`bigint` / `binary` 列是 `{ $rxdbChangeValue: … }` 包装，加密列是信封字符串；每个值都是 JSON 值 |
 
 每个单元九个字段：`unitId`、`transactionId`（uuid 或 `null`）、`namespace`、`entity`、`entityId`、`operation`（`insert` 只有 `patch`、`delete` 只有 `inversePatch`、`update` 两份都有）、`patch`、`inversePatch`、`origin`（`local` / `remote_sync`）。
 
+### 服务端：`./exchange` 子路径
+
+交换的另一端要做三件事：按平台规则校验上传批次的形状、复算内容指纹核对、给自己合成的合并提交算指纹。JavaScript / TypeScript 的服务端（Node、Supabase Edge Function 里的 Deno）不必照下一节的规则另写一份——子路径 `@aiao/rxdb-plugin-working-tree/exchange` 交出的就是导入命令自己用的那几个函数，两端对「这个批次收不收」「这条记录的指纹是多少」只有一个答案。
+
+它只加载三个纯模块（指纹、批次形状判定、JSON 编解码），**不加载**实体类、插件类与捕获运行时，运行时只依赖 peer `@aiao/rxdb`。主入口是插件本身，导入它会把十二个系统实体类与捕获运行时全部求值一遍——服务端不要导入主入口。Deno 里写成 `npm:@aiao/rxdb-plugin-working-tree/exchange`。
+
+```typescript
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  parseCommitExchangeRecord,
+  serializeCommitExchangeRecord,
+  type CommitExchangeRecord
+} from '@aiao/rxdb-plugin-working-tree/exchange';
+
+/** 收上传：先解析 JSON（createdAt 从 ISO 串还原成 Date；不合格抛 CommitExchangeJsonError），再判形状，最后逐个复算指纹。 */
+function acceptUpload(body: { readonly commits: readonly unknown[] }) {
+  const commits = body.commits.map(json => parseCommitExchangeRecord(json));
+  const finding = checkCommitExchangeBatch(commits); // { problem, commitId } 或 undefined
+  if (finding) return { status: 422, body: finding };
+  const forged = commits.find(commit => computeCommitExchangeRecordFingerprint(commit) !== commit.contentFingerprint);
+  if (forged) return { status: 422, body: { problem: 'fingerprint_mismatch', commitId: forged.commitId } };
+  return { status: 200, commits };
+}
+
+/** 合成合并提交：指纹用同一个函数算，下发前写回 JSON。 */
+function mergeCommitJson(merge: Omit<CommitExchangeRecord, 'contentFingerprint'>) {
+  const record: CommitExchangeRecord = { ...merge, contentFingerprint: computeCommitExchangeRecordFingerprint(merge) };
+  return serializeCommitExchangeRecord(record);
+}
+
+const json = mergeCommitJson({
+  commitId: mergeId,
+  parentIds: [deviceHeadId, taskHeadId], // 第一父是那台设备的当前头：ChangeSet 是合并结果相对它的增量
+  kind: 'merge',
+  message: '合并任务',
+  authorId: 'server',
+  createdAt: new Date(),
+  units
+});
+```
+
+| 导出                                                                            | 说明                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `computeCommitExchangeRecordFingerprint(record)`                                | 按交换记录算提交指纹：`authorId` 进摘要里 `author` 那一格，消息原样、不 trim。复算上传的记录、给合并提交算指纹都用它——这两处对应是自己拼时最容易写岔的，岔了不报错，只会让每一次核对都对不上                                                                             |
+| `computeChangeUnitFingerprint(unit)` / `computeCommitContentFingerprint(input)` | 单元指纹与提交指纹，规则见下一节；后者的入参跟 `Commit` 实体的列（`author`），手上是交换记录时用上一行                                                                                                                                                                   |
+| `checkCommitExchangeBatch(commits)`                                             | 批次形状的第一处毛病 `{ problem, commitId }`，合格时为 `undefined`。`importCommits()` 的 `invalid_batch` 就是它判的，`problem` 取值见上文出口表。只判形状：指纹、父在不在、同 id 是不是同一个提交，要读服务端自己的存储                                                  |
+| `parseCommitExchangeRecord(json)` / `serializeCommitExchangeRecord(record)`     | JSON 编解码：`createdAt` 在 JSON 里是 `toISOString()` 的串，其余字段原样。收的是 JSON 值（`JSON.parse` / `request.json()` 的结果），交出的也是 JSON 值（交给 `JSON.stringify` 或会自己序列化的客户端）                                                                   |
+| `CommitExchangeJsonError`                                                       | 编解码的唯一失败出口：`problem`（`not_object` / `missing_field` / `unknown_field` / `invalid_field` / `invalid_created_at` / `not_json_value`）、`path`（如 `$.units[0].patch.title`）、`commitId`。只带枚举、位置与 id，不带消息、作者与补丁的值                        |
+| 类型                                                                            | `CommitExchangeRecord`、`CommitExchangeRecordJson`、`CommitChangeUnitContent`、`CommitChangeUnitOperation`、`CommitChangeUnitOrigin`、`CommitKind`、`CommitContentFingerprintInput`、`CommitImportBatchProblem`、`CommitImportBatchFinding`、`CommitExchangeJsonProblem` |
+
+**先解析、再判形状。** `checkCommitExchangeBatch()` 要的是 `Date`：拿 `JSON.parse` 的结果直接去判，`createdAt` 还是串，报的是 `invalid_created_at`。
+
+**解析是严格的**，失败就抛，不修正：
+
+- **多出来的字段**拒（`unknown_field`）：丢掉它，发送方以为它被传达了；多出来的常是协议漂移的第一个信号（捕获期的 `fingerprint` / `baseFingerprint`、`CommitChangeSet` 的 `sequence` 被一并带了过来），而它们都不进指纹，收下也核对不了；
+- **缺了的字段**拒（`missing_field`）：没有能补的默认值——`authorId` 补成 `null` 就成了缺作者的提交，`transactionId` 补成 `null` 就把一笔事务拆成了几笔，两者都改变指纹；
+- **`createdAt`** 只收 `toISOString()` 写得出来的那一种（`2026-11-18T03:04:05.678Z`，再写一遍逐字相同）。只有日期、没有毫秒、带时区偏移的写法都拒：`Date` 的构造器认得它们，有的按本地时区解读，有的把不存在的日子顺延（`2026-02-30` 成了 3 月 2 日）。时间不进指纹，这里放过去的错，指纹核对兜不住；
+- **补丁里有 JSON 表示不了的值**拒（`not_json_value`）：`undefined`、`NaN` 与无穷、`bigint`、函数、`Date`、`Map`、字节数组、类实例、循环引用、稀疏数组的空位——`JSON.stringify` 会把它们丢掉或改写成别的值。
+
+序列化逐字段挑出交换格式的字段（单元可以是带着捕获期指纹的对象，那两列不上线），再按解析的规则把产物过一遍：`serializeCommitExchangeRecord()` 交得出来的，对面的 `parseCommitExchangeRecord()` 一定收得下，收回来与原记录逐字段相等。
+
 ### 内容指纹的规范化规则
 
-服务端要按这里的规则**自己复算**指纹并核对；实现只有一份（`change-unit.ts`），这一节的示例由单测逐字核对。
+JavaScript / TypeScript 的服务端直接用上一节的 `./exchange`；别的语言按这里的规则**自己复算**指纹并核对。实现只有一份（`change-unit.ts`，`./exchange` 交出的就是它），这一节的示例由单测逐字核对。
 
 **摘要**：`hex(SHA-256(UTF-8(域串 + " " + 规范串)))`，小写 hex。两个域串：单元 `rxdb.commit.change-unit.v1`，提交 `rxdb.commit.content.v1`——`v1` 就是算法版本，换算法必换域串。
 

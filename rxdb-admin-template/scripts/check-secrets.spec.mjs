@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { scanArtifacts, scanFiles } from './check-secrets.mjs';
+import { scanArtifacts, scanFiles, SERVER_ONLY_VARIABLES } from './check-secrets.mjs';
 
 // 假密钥一律在运行时拼出来：本文件被 git 跟踪，`--tracked` 扫描会扫到它自己，
 // 字面量写在源码里就会让门禁永远红（也会招来托管平台的密钥扫描告警）。
@@ -63,6 +63,15 @@ test('flags server-only variable names in artifacts but allows them in tracked s
   await withFixture({ 'server.js': content }, async dir => {
     assert.deepEqual(rules(await scanArtifacts([dir])), ['server-variable']);
     assert.deepEqual(await scanFiles([path.join(dir, 'server.js')]), []);
+  });
+});
+
+test('flags every server-only variable name listed for artifacts', async () => {
+  const files = Object.fromEntries(SERVER_ONLY_VARIABLES.map((name, index) => [`f${index}.js`, `read("${name}")`]));
+  await withFixture(files, async dir => {
+    const findings = await scanArtifacts([dir]);
+    assert.equal(findings.length, SERVER_ONLY_VARIABLES.length);
+    assert.ok(findings.every(finding => finding.rule === 'server-variable'));
   });
 });
 

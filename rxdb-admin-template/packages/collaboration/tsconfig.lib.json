@@ -26,6 +26,15 @@
   "references": [
     {
       "path": "../../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-pglite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     }
   ]
 }

@@ -13,7 +13,8 @@
  *
  * **内容指纹在这里是跨系统契约。** 服务端按同一套规范化规则复算、核对（规则写在插件文档「指纹规范化」一节，
  * 实现只有 `change-unit.ts` 那一份）；稳定性由摘要域串里的版本号承诺：`rxdb.commit.content.v1` 不变，规则就不变，
- * 换算法必换域串。
+ * 换算法必换域串。JavaScript 的服务端不照文档另写：`@aiao/rxdb-plugin-working-tree/exchange` 交出指纹、批次形状判定与
+ * 本记录的 JSON 编解码（`commit-exchange-json.ts`）。本文件要读库，不在那个子路径的模块闭包里——那里只 `export type` 本记录。
  */
 
 import type { TransactionExecutor } from '@aiao/rxdb';

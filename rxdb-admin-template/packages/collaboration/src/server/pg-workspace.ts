@@ -51,7 +51,8 @@ export const taskRef = (taskId: string) => `tasks/${taskId}`;
 
 /**
  * 只含治理字段的空局部状态：其余集合由加载器按需填入。修订号不在治理行里，命令只看它是否前进。
- * 数据模式在读到治理行之前是没有实体的占位（版本 0），读到之后换成当前版本的清单；引擎只在治理行读到之后运行。
+ * 数据模式在读到治理行之前是没有实体的占位（版本 0），共享头与根是空串占位，读到治理行之后都换成真实的值；
+ * 引擎只在治理行读到之后运行。
  */
 export function emptyState(teamId: string, appId: string): Workspace {
   return {
@@ -63,7 +64,8 @@ export function emptyState(teamId: string, appId: string): Workspace {
     schemaVersion: 0,
     schema: { schemaVersion: 0, entities: [] },
     revision: 0,
-    head: null,
+    head: '',
+    root: '',
     policy: { version: 1, stages: [] },
     members: {},
     tasks: {},
@@ -78,9 +80,9 @@ export function emptyState(teamId: string, appId: string): Workspace {
   };
 }
 
+/** 治理行里命令路径读的列：不含初始化密钥（专用数据库角色没有读它的权限，命令也用不到它）。 */
 interface GovernanceRow {
   name: string;
-  bootstrap_key: string;
   initial_admin_id: string;
   schema_version: number;
   policy_version: number;
@@ -140,7 +142,7 @@ class PgWorkspaceRows {
   async governance(lock: GovernanceLock): Promise<boolean> {
     // 治理行单独加锁：锁等待之后的读取都是新语句，必然看到在此之前提交的成员与策略变更
     const found = await this.query<GovernanceRow>(
-      `SELECT name, bootstrap_key, initial_admin_id, schema_version, policy_version
+      `SELECT name, initial_admin_id, schema_version, policy_version
        FROM admin_private.workspaces WHERE team_id = $1 AND app_id = $2${lockClause[lock]}`
     );
     const row = found.rows[0];
@@ -149,28 +151,32 @@ class PgWorkspaceRows {
       stages: Workspace['policy']['stages'];
       schema: unknown;
       head: string | null;
+      root: string | null;
       members: Member[];
     }>(
       `SELECT
          (SELECT stages FROM admin_private.policies WHERE team_id = $1 AND app_id = $2 AND version = $3) AS stages,
          (SELECT manifest FROM admin_private.schemas WHERE team_id = $1 AND app_id = $2 AND version = $4) AS schema,
          (SELECT head FROM admin_private.refs WHERE team_id = $1 AND app_id = $2 AND ref = 'shared') AS head,
+         (SELECT id FROM admin_private.commits WHERE team_id = $1 AND app_id = $2 AND kind = 'baseline') AS root,
          (SELECT coalesce(json_agg(json_build_object('id', user_id, 'email', email, 'permissions', permissions,
              'generation', generation, 'active', active) ORDER BY seq), '[]'::json)
           FROM admin_private.memberships WHERE team_id = $1 AND app_id = $2) AS members`,
       [row.policy_version, row.schema_version]
     );
-    const { stages, schema, head, members } = rest.rows[0];
-    // 当前版本的清单随初始化与登记命令写入，缺了说明数据已损坏，按内部错误处理
+    const { stages, schema, head, root, members } = rest.rows[0];
+    // 当前版本的清单、共享引用与共享分支根都随初始化写入，缺了说明数据已损坏，按内部错误处理
     if (schema === null) throw new Error(`The schema ${row.schema_version} of ${this.teamId}/${this.appId} is missing`);
+    if (head === null || root === null)
+      throw new Error(`The shared branch of ${this.teamId}/${this.appId} has no head or root`);
     Object.assign(this.state, {
       name: row.name,
-      bootstrapKey: row.bootstrap_key,
       initialAdminId: row.initial_admin_id,
       schemaVersion: row.schema_version,
       schema: parseSchemaManifest(schema),
       policy: { version: row.policy_version, stages },
       head,
+      root,
       members: Object.fromEntries(members.map(member => [member.id, member]))
     });
     return true;
@@ -252,9 +258,9 @@ export class PgWorkspaceLoader extends PgWorkspaceRows implements WorkspaceLoade
     const found = await this.query<{ head: string | null }>(
       `SELECT head FROM admin_private.refs WHERE team_id = $1 AND app_id = $2 AND ref = '${sharedRef}'${lockClause[lock]}`
     );
-    // 共享引用随工作区初始化建立，缺了说明数据已损坏，按内部错误处理，不当作空分支
+    // 共享引用随工作区初始化建立、头从根开始，缺了或为空说明数据已损坏，按内部错误处理，不当作空分支
     const row = found.rows[0];
-    if (!row) throw new Error(`The shared ref of ${this.teamId}/${this.appId} is missing`);
+    if (!row || row.head === null) throw new Error(`The shared ref of ${this.teamId}/${this.appId} is missing`);
     this.state.head = row.head;
   }
   threads(ids: readonly string[]): Promise<void> {
@@ -401,8 +407,9 @@ const commentRow = (comment: ThreadComment) => ({
 /**
  * 把一条命令的结果写回 PostgreSQL：只写局部状态差异列出的行与命令效果，顺序固定——业务行 → 引用（比较交换）→
  * 审计 → 回执 → 有界清理过期回执 → 版本行与广播。版本行是最后一条语句：所有写事务只在这一步排队，持锁时间只覆盖提交本身。
- * 同一条语句经 `realtime.send()` 向私有频道 `collab:<团队>:<应用>` 写入失效通知（撤权时另加撤权事件）：通知是事务的一部分，
- * 提交后 Realtime 才从 WAL 读到并广播，回滚则不发；载荷只含修订号、类别与标识（见 `signal.ts`）。
+ * 同一条语句经 `admin_private.broadcast()`（定义者函数，内部调用 `realtime.send()`）向私有频道 `collab:<团队>:<应用>`
+ * 写入失效通知（撤权时另加撤权事件）：通知是事务的一部分，提交后 Realtime 才从 WAL 读到并广播，回滚则不发；
+ * 载荷只含修订号、类别与标识（见 `signal.ts`）。专用数据库角色没有 realtime schema 的权限，只能经这个函数向协作频道广播。
  */
 export class PgWorkspaceWriter {
   private readonly scope: [string, string];
@@ -445,10 +452,10 @@ export class PgWorkspaceWriter {
          UPDATE public.admin_workspace_versions SET revision = revision + 1, audit_count = audit_count + $3
          WHERE team_id = $1 AND app_id = $2 RETURNING revision
        )
-       SELECT realtime.send(jsonb_build_object('revision', version.revision) || $4::jsonb, 'changed', $5, true)${
+       SELECT admin_private.broadcast(jsonb_build_object('revision', version.revision) || $4::jsonb, 'changed', $5)${
          revoked.length ?
            `,
-         realtime.send(jsonb_build_object('revision', version.revision, 'userIds', $6::jsonb), 'revoked', $5, true)`
+         admin_private.broadcast(jsonb_build_object('revision', version.revision, 'userIds', $6::jsonb), 'revoked', $5)`
          : ''
        }
        FROM version`,
