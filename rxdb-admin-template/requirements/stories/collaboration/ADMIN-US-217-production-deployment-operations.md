@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-217
 title: 协作服务生产部署与运维闭环
-status: Backlog
+status: In Progress
 priority: High
 epic: ADMIN-EPIC-004
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 tags: [admin, collaboration, deployment, operations, supabase]
 dependsOn: [ADMIN-US-218, ADMIN-US-219, ADMIN-US-220]
 capabilities: []
@@ -50,6 +50,8 @@ capabilities: []
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 验收证据：尚无。本故事的证据必须来自真实部署环境；本地临时 PostgreSQL 与隔离 Supabase 测试栈的结果不能替代。
+
+owner 2026-11-18 决定先用本机 Docker 搭完整的自托管 Supabase 做预演：按生产步骤部署并跑 AC#1～#8，本条「证据必须来自真实部署环境」不变，预演证据一律标 ⚠️，上线前在真实环境复验。
 
 部署前准备（不构成验收证据）：
 

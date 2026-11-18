@@ -7,18 +7,17 @@
 | 状态           | 数量 |
 | -------------- | ---: |
 | ✅ Done        |    2 |
-| 🚧 In Progress |    2 |
-| 👀 In Review   |   21 |
-| 📝 Backlog     |    2 |
+| 🚧 In Progress |    1 |
+| 👀 In Review   |   23 |
+| 📝 Backlog     |    1 |
 | 🚫 Blocked     |    0 |
 | **合计**       |   27 |
 
-## 进行中（2 条）
+## 进行中（1 条）
 
-- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：切片 A～E 全部落地，AC#1～#7 已关闭（AC#1 经空闲机器复测与两组对照确认命令耗时与提交数无关，AC#6 随 ADMIN-US-219 关闭）；一条评论由基线 2.74 s / 6.77 MB WAL 降到约 7 ms / 4 KB。剩 AC#8：ADMIN-US-201～216 在新实现上的整体回归。
-- [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：平台 US-316 / US-317 与 exchange 子路径已就绪；正在做 221-A（提交协议切换为平台交换格式），之后 221-B（客户端改用工作树与模型驱动界面）。
+- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：按 owner 决定先在本机 Docker 上做完整的自托管 Supabase 预演（证据标 ⚠️），上线前在真实环境复验。
 
-## 待评审（21 条）
+## 待评审（23 条）
 
 - [ADMIN-US-003](stories/platform/ADMIN-US-003-client-i18n.md) 完整客户端国际化
 - [ADMIN-US-004](stories/platform/ADMIN-US-004-product-requirements.md) 三端共用产品根需求与统一门禁
@@ -41,16 +40,16 @@
 - [ADMIN-US-216](stories/collaboration/ADMIN-US-216-multi-level-approval.md) 多级审批与可配置合并规则
 - [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) 协作读取、实时与身份校验改用 Supabase 原生能力：RLS 只读投影、私有频道 Broadcast 与 Presence、本地验签已在本地隔离 Supabase 栈验收，待评审合并
 - [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 协作服务只部署 Supabase 即可运行：Edge Function 与 Node 两个入口共用一套引擎，专用数据库角色、可重试错误与资源余量已在本地验收；全新真实项目上的部署由 ADMIN-US-217 承接
+- [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：切片 A～E 落地，AC#1～#8 均有本地证据；一条评论由基线 2.74 s / 6.77 MB WAL 降到约 7 ms / 4 KB，且不随提交数增长
+- [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：提交协议切到平台交换格式，三端在团队库的工作树分支上用模型驱动界面编辑，AC#1～#6 均有本地证据
 
 ## 待输入（1 条）
 
 - [ADMIN-US-101](stories/domain/ADMIN-US-101-replace-sample-domain.md) 示例实体替换与元数据贯通：缺少真实业务实体、字段、关系和非 `assets` 命名空间，不能自行发明领域完成需求。
 
-## 待排期（1 条）
+## 待排期（0 条）
 
-按 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md) 的顺序排列：
-
-- [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) 协作服务生产部署与运维闭环：协作故事关闭所需的部署、真实邮箱与长期运行证据，排在 218～220 之后。
+当前没有待排期的故事。
 
 ## 按 Epic 索引
 
@@ -87,8 +86,8 @@
 
 ### ADMIN-EPIC-004 协作后端收敛、部署与运维
 
-- 🚧 [ADMIN-US-218 差量提交与有界命令成本](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)
+- 👀 [ADMIN-US-218 差量提交与有界命令成本](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)
 - 👀 [ADMIN-US-219 协作读取、实时与身份校验改用 Supabase 原生能力](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md)
 - 👀 [ADMIN-US-220 协作服务只部署 Supabase 即可运行](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md)
-- ⬜ [ADMIN-US-217 协作服务生产部署与运维闭环](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)
-- 🚧 [ADMIN-US-221 团队任务草稿落在 RxDB 工作树](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)
+- 🚧 [ADMIN-US-217 协作服务生产部署与运维闭环](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)
+- 👀 [ADMIN-US-221 团队任务草稿落在 RxDB 工作树](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)

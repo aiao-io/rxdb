@@ -65,7 +65,7 @@ tags: [collaboration, working-tree, trusted-write, tri-framework]
 
 ## 已知边界与遗留风险
 
-- **升级时进行中的恢复会话（待 owner 决定是否加守卫）**：0.0.28 的 `restore()` 只写条目、不改业务表，那批条目的 `inversePatch` 不是 HEAD 上的值。升级之后对这样的会话调 `discard()`，会把业务表退到错误的版本。目前只在迁移指南里要求升级前先用旧版本 discard，代码里没有守卫。
+- **升级时进行中的恢复会话（owner 2026-11-18 决定维持现状：只靠迁移指南，不加代码守卫）**：0.0.28 的 `restore()` 只写条目、不改业务表，那批条目的 `inversePatch` 不是 HEAD 上的值。升级之后对这样的会话调 `discard()`，会把业务表退到错误的版本。目前只在迁移指南里要求升级前先用旧版本 discard，代码里没有守卫。
 - 0.0.28 丢弃留下的业务表残留不会被追溯清理（迁移指南有说明）。
 - discard 现在是撤销栈上的一步，撤销它会把草稿取回工作树；三个 demo 的确认框仍写「无法撤销」。
 - 签名变化：底层 `discardWorkingTree(executor, context, options)` 与 `restoreWorkingTree()` 同形；门面与三端 `useWorkingTree()` 签名不变。

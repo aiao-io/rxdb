@@ -42,7 +42,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)          | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                  |
 | [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) | 原 PR 的 BREAKING CHANGE 声明及 Release 文本同步尚待验收，AC#10 保留缺口。                   |
 | [US-316 导入远端提交：保留提交身份并快进分支头](stories/collaboration/US-316-remote-commit-import.md)  | 实现、六个适配器一致性套件与三端绑定已验证，待评审合并；本分支的构建与适配器测试待串行复跑。 |
-| [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)              | 同上；升级时进行中的恢复会话是否加代码守卫待 owner 决定。                                    |
+| [US-317 放弃与恢复回写业务表](stories/collaboration/US-317-discard-restore-projection.md)              | 同上；升级时进行中的恢复会话由迁移指南处理（owner 决定不加代码守卫）。                       |
 
 ## 阻塞（0 条）
 
