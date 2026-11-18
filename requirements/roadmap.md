@@ -154,6 +154,8 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 3. 23505 / 23502 / 23514 仍整批失败，不作为逐实体 rejected；只有真实部署反馈出现后才评估改判。
 4. 被拒变更与 undo/redo 的交互：现有 `undo-redo-rejected-change.spec.ts` 固定了水位线行为；redo 后可能本地重放而不再推送、待推计数缺显式 rejected 过滤，仍待评估，不宣称已修复。
 5. `@aiao/rxdb-model@0.0.26` 坏产物的处置与 GitHub Release 正文同步，见 [发布计划](release-plan.md#开项版本漂移)。
+6. sqlite-wasm 的 idb VFS 路径上限：`mxPathname` 为 64，库名连同 `@0_1.sqlite.db-journal` 后缀超过约 63 字节时 `sqlite3_open_v2` 报不透明的失败（实测 62 字节通过、65 字节失败）；库名里出现 `x:` 还会被 `new URL(name, 'file://')` 当成协议。复现：浏览器里用 45 字符的 `dbName` 配 `{ vfs: 'idb' }` 连接。至少应在连接时给出明确报错；Admin 团队库已用散列库名规避（ADMIN-US-221）。
+7. working-tree 的分支清理与读取成本：`removeBranch` 不能删除当前分支与有子分支的分支，另存、快进之后的旧任务分支会一直留在库里；`listCommits` / `exportCommits` 每次都读完整的第一父链，状态读取的成本随历史增长，缺按范围读取的选项（US-316 已登记有合并时同类成本）。待出现长期使用的真实团队库后评估。
 
 US-603 已有独立故事，不在这里另建一份待办。
 

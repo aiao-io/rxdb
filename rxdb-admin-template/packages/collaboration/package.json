@@ -20,14 +20,13 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@supabase/supabase-js": "^2.119.0",
     "pg": "^8.23.1",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@aiao/rxdb-adapter-pglite": "workspace:*",
-    "@aiao/rxdb-plugin-history": "workspace:*",
-    "fake-indexeddb": "^6.2.8"
+    "@aiao/rxdb-adapter-pglite": "workspace:*"
   }
 }

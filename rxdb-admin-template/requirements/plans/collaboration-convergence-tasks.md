@@ -14,7 +14,7 @@
 | 读快照、读回执、Presence 心跳都锁整个工作区行  | [repository.ts](../../packages/collaboration/src/server/repository.ts) 的 `load()` 默认 `FOR UPDATE`；Presence 每 15 秒一条命令                                                      | 读与写、心跳全部串行              |
 | 投影每次全量重建，成员列表扫描所有工作区 JSONB | `repository.project()` / `list()`                                                                                                                                                    | 每条评论的成本随历史长度增长      |
 | 每个请求回源 Auth                              | [main.ts](../../packages/collaboration/src/server/main.ts) 的 `auth.getUser()`                                                                                                       | 多一次网络往返，并受 Auth 限流    |
-| 校验与编辑器写死资产实体                       | `DataRow.entity`、[records.ts](../../packages/collaboration/src/records.ts)、[editor.ts](../../packages/collaboration/src/client/editor.ts)                                          | 换业务就要改协作包                |
+| 校验与编辑器写死资产实体                       | `DataRow.entity`、`records.ts`、`client/editor.ts`（均已由 ADMIN-US-218 切片 E 与 ADMIN-US-221 移除或改写）                                                                          | 换业务就要改协作包                |
 | 客户端草稿、提交与编辑器自成一套               | `client/local.ts`、`editor.ts`、`form-drafts.ts`（约 600 行），与平台 working-tree 的 ChangeSet 模型不一致                                                                           | 仓库里存在两套 Git 式模型         |
 
 量级示例：2000 条记录、每条约 300 字节，一个提交约 600 KB；到第 100 个提交，工作区行约 60 MB。此后每条评论都要克隆并整值重写约 60 MB（JSONB 无法局部更新，WAL 也按整值产生），每个在线成员每次刷新都要下载 60 MB 以上。现有的 2 MiB 上限只约束上传，不约束快照下发。整行状态也使命令入口无法放进 Edge Function（每个请求 2 秒 CPU、256 MB 内存）。

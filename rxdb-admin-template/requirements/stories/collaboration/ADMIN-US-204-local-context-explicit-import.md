@@ -53,7 +53,7 @@ capabilities: [rxdb:US-203]
 
 ## 实现文件
 
-本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口：`rxdb-admin-template/packages/collaboration/src/client/local.ts`、`src/client/import-anonymous.ts`、`src/client/indexed-storage.spec.ts`、`e2e/collaboration.spec.ts`。
+本故事的产品实现位于私有包 `rxdb-admin-template/packages/collaboration/`，三端通过 `/collaboration` 路由接入同一共享 UI。具体入口（2026-11-18 起，ADMIN-US-221）：团队库按「用户 × 团队 × 应用」分库，见 `rxdb-admin-template/packages/collaboration/src/client/team-database.ts`、`task-ledger.ts`；匿名导入见 `src/client/import-anonymous.ts`；回归用例在 `e2e/collaboration.spec.ts`。
 
 验收记录与未关闭边界见 [协作实现与验收记录](../../plans/collaboration-implementation.md)。故事保持 `In Review`，不把本地实现或测试结果直接等同于已合入、已部署的 `Done`。
 

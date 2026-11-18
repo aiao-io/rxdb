@@ -12,7 +12,7 @@
 | -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 真实身份与每请求授权 | `src/client/controller.ts`、`src/server/http.ts`、`src/server/access.ts`                     | Supabase OTP 建立会话，服务端逐请求验证用户；浏览器不持有 service role key                                             |
 | 团队、邀请和权限     | `src/server/membership.ts`、`src/client/admin-view.ts`                                       | 邀请版本、邮箱匹配、权限代次、六项权限和撤权失效；管理员复制邀请链接交付目标用户                                       |
-| 任务工作树与提交图   | `src/client/local.ts`、`src/server/tasks.ts`                                                 | IndexedDB 按用户/团队/应用/任务隔离；保存、提交、outbox 和回执分开；提交 ID、父链、作者不可重写                        |
+| 任务工作树与提交图   | `src/client/team-tasks.ts`、`src/server/tasks.ts`                                            | 2026-11-18 起改为团队库的 working-tree 分支（ADMIN-US-221），按用户/团队/应用分库；提交 ID、父链、作者与服务端一致     |
 | 离线与分叉恢复       | `src/client/controller.ts`、`src/client/offline-shell.ts`、三端 `public/collaboration-sw.js` | 热续作、冷启动判定、退出锁定、未知结果查询；分叉另存后可拉取原任务，后续新编辑仍受保护                                 |
 | 实时刷新             | `src/client/workspace-feed.ts`、`src/server/repository.ts`                                   | 订阅工作区版本通知后重新通过 API 授权读取；重连刷新、退出/切团队取消订阅、迟到回调隔离；同一上下文云端变更顺序执行     |
 | PR、差异与候选       | `src/client/pr-view.ts`、`src/records.ts`、`src/server/governance.ts`                        | 四页签、显式 shared 目标、三方字段合并、冲突选择、最终完整性检查及版本失效                                             |

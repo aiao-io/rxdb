@@ -9,6 +9,7 @@ import { historyView } from './history-view.js';
 import { importLimit } from './import-anonymous.js';
 import { carriesInvitation, parseInvitationLink } from './invitation-link.js';
 import { useLabels, type CollaborationLabels } from './labels.js';
+import { loginView, type LoginDraft } from './login-view.js';
 import { prepareOfflineShell } from './offline-shell.js';
 import { PullRequestView } from './pr-view.js';
 import { readOnlyRecords } from './records-view.js';
@@ -70,8 +71,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   let editor: { key: string; dispose: () => void } | undefined;
   let busy = 0;
   let disposed = false;
-  let emailValue = '';
-  let tokenValue = '';
+  /** 登录表单里还没提交的输入，整块重绘之间保留。 */
+  const loginDraft: LoginDraft = { email: '', token: '' };
   const render = () => {
     if (!disposed) renderPage();
   };
@@ -182,7 +183,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       panels.push(alert);
     }
     if (!controller.user) {
-      panels.push(loginView());
+      panels.push(loginView(controller, perform, loginDraft));
       return panels;
     }
     panels.push(workspacesView(), invitationView());
@@ -220,31 +221,6 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       .catch(error => {
         if (!disposed) void controller.failure(error);
       });
-  }
-  function loginView() {
-    const view = section('邮箱验证码登录');
-    const email = input('邮箱', emailValue, 'email');
-    const token = input('验证码', tokenValue);
-    email.control.autocomplete = 'email';
-    token.control.autocomplete = 'one-time-code';
-    email.control.oninput = () => {
-      emailValue = email.control.value;
-    };
-    token.control.oninput = () => {
-      tokenValue = token.control.value;
-    };
-    view.append(
-      email.wrapper,
-      button('发送验证码', () => perform(() => controller.sendCode(email.control.value)), !controller.online),
-      token.wrapper,
-      button(
-        '登录',
-        () => perform(() => controller.verify(email.control.value, token.control.value)),
-        !controller.online
-      )
-    );
-    view.append(element('p', '登录不会上传匿名数据。团队草稿在会话确认前保持锁定。', 'text-sm'));
-    return view;
   }
   function workspacesView() {
     const view = section('选择团队');

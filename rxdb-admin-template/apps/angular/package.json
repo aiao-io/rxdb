@@ -18,6 +18,7 @@
     "@aiao/rxdb-plugin-search": "workspace:*",
     "@aiao/rxdb-plugin-search-angular": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
+    "@angular/cdk": "22.2.6",
     "@angular/common": "22.2.4",
     "@angular/core": "22.2.4",
     "@angular/platform-browser": "22.2.4",
