@@ -190,6 +190,11 @@ const mutations = [
     f => f.edit('status-overview.md', text => text.replace('- ⬜ [ADMIN-US-002', '- ✅ [ADMIN-US-002')),
     /ADMIN-US-002.*⬜/
   ],
+  [
+    'AC 行多出空单元格（状态被挤出状态列）',
+    f => f.edit(SECOND, text => text.replace(/\| 可用 \| (⬜|✅) \|/, '| 可用 |  | $1 |')),
+    /AC#1 有 6 列，与表头的 5 列不一致/
+  ],
   ['排期遗漏', f => f.put('roadmap.md', '# 排期\n'), /roadmap.*ADMIN-US-002/],
   ['本地死链', f => f.edit('README.md', text => `${text}\n[失效](missing.md)\n`), /链接目标不存在/],
   ['失效标题锚点', f => f.edit('README.md', text => `${text}\n[锚点](roadmap.md#不存在)\n`), /标题锚点/],

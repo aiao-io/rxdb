@@ -124,20 +124,28 @@ function section(text, heading) {
   return text.split(new RegExp(`^## ${heading}[ \\t]*$`, 'm'))[1]?.split(/^## /m)[0] ?? '';
 }
 
+function cellsOf(row) {
+  return row
+    .trim()
+    .replace(/^\||\|$/g, '')
+    .split('|')
+    .map(cell => cell.trim());
+}
+
 function checkAcs(story, errors) {
   const ids = acIdsOf(story.text);
   if (!ids.length) errors.push(`${story.rel}: 缺少编号 AC`);
   if (ids.some((id, index) => id !== index + 1)) errors.push(`${story.rel}: AC 必须从 1 连续编号，不得重复`);
-  const rows = section(story.text, '验收标准')
+  const lines = section(story.text, '验收标准')
     .split('\n')
-    .map(line => line.trim())
-    .filter(line => /^\|\s*\d+\s*\|/.test(line));
-  for (const row of rows) {
-    const cells = row
-      .trim()
-      .replace(/^\||\|$/g, '')
-      .split('|')
-      .map(cell => cell.trim());
+    .map(line => line.trim());
+  // 状态取每行最后一格：多出或少了一格时状态照样取得到，渲染出的表格却会把状态挤出状态列，所以列数要与表头逐行核对。
+  const header = lines.find(line => /^\|\s*#\s*\|/.test(line));
+  const width = header === undefined ? undefined : cellsOf(header).length;
+  for (const row of lines.filter(line => /^\|\s*\d+\s*\|/.test(line))) {
+    const cells = cellsOf(row);
+    if (width !== undefined && cells.length !== width)
+      errors.push(`${story.rel}: AC#${cells[0]} 有 ${cells.length} 列，与表头的 ${width} 列不一致`);
     const status = cells.at(-1);
     if (!['⬜', '⚠️', '✅'].includes(status)) errors.push(`${story.rel}: AC#${cells[0]} 状态无效`);
     if (story.fm.status === 'Done' && status !== '✅')
