@@ -47,7 +47,8 @@ plugins:
           Content-Profile,
           X-Retry-Count
         ]
-      exposed_headers: [Content-Range, X-Supabase-Api-Version, Accept-Profile, Content-Profile, Retry-After]
+      exposed_headers:
+        [Content-Range, X-Supabase-Api-Version, Accept-Profile, Content-Profile, Retry-After, Server-Timing]
       credentials: false
       max_age: 3600
 

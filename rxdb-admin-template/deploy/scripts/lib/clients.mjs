@@ -36,7 +36,8 @@ export async function signIn(secrets, email) {
 }
 
 /**
- * 向部署出的命令入口（经网关的函数地址）提交一条命令，返回状态、响应体与耗时（毫秒）。
+ * 向部署出的命令入口（经网关的函数地址）提交一条命令，返回状态、响应体、端到端耗时与命令入口自报的服务端耗时（毫秒，
+ * 取自 `Server-Timing: app;dur=…`，不含网关、Edge Function 冷启动与网络）。
  * @param {string} token
  * @param {{ teamId: string, appId: string }} workspace
  * @param {Record<string, unknown>} command 须带 operationId
@@ -49,7 +50,13 @@ export async function command(token, workspace, command) {
     body: JSON.stringify(command)
   });
   const body = await response.json();
-  return { status: response.status, body, ms: performance.now() - started };
+  const server = /(?:^|,)\s*app;dur=([\d.]+)/.exec(response.headers.get('server-timing') ?? '')?.[1];
+  return {
+    status: response.status,
+    body,
+    ms: performance.now() - started,
+    serverMs: server === undefined ? null : Number(server)
+  };
 }
 
 /** 一个计数响应字节的 fetch：团队页经 PostgREST 读取时，统计浏览器实际收到的字节数。 */

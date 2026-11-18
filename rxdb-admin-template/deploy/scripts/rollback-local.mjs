@@ -9,10 +9,9 @@
  * 5. 健康检查（函数、数据库与 Auth）通过后写发布记录（`result: rolled_back`）。
  * 任一步失败即停止并报错，已经切回的部分保持切回（回滚本身就是让线上回到旧版本）。
  */
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadEnv } from './lib/env.mjs';
-import { deploymentsFile, frameworks, local, productRoot, releasesRoot, siteRoot } from './lib/paths.mjs';
+import { deploymentsFile, frameworks, local, releasesRoot, siteRoot } from './lib/paths.mjs';
 import { waitFor } from './lib/process.mjs';
 import {
   appendRecord,
@@ -23,19 +22,7 @@ import {
   readRecords,
   releasePattern
 } from './lib/releases.mjs';
-import { activateFunction, functionHealth, servesRelease } from './lib/stack.mjs';
-
-/** 目标发布有、当前发布也有的迁移不用提；当前发布新加的（目标发布没有的）迁移连同回滚说明一起列出。 */
-async function migrationNotes(current, target) {
-  const notes = JSON.parse(await readFile(path.join(productRoot, 'deploy', 'migrations.json'), 'utf8')).migrations;
-  const known = new Set((target?.migrations ?? []).map(migration => migration.name));
-  return (current?.migrations ?? [])
-    .filter(migration => !known.has(migration.name))
-    .map(
-      migration =>
-        notes.find(note => note.name === migration.name) ?? { name: migration.name, rollback: '没有登记回滚说明' }
-    );
-}
+import { activateFunction, functionHealth, migrationNotes, servesRelease } from './lib/stack.mjs';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -69,7 +56,9 @@ async function main() {
   if (migrations.length) {
     console.info('  以下迁移比目标发布新，保留不回退（对上一版代码兼容），回滚与前向修复说明：');
     for (const note of migrations)
-      console.info(`    - ${note.name}：${note.rollback}；前向修复：${note.forwardFix ?? '见 deploy/README.md'}`);
+      console.info(
+        `    - ${note.name}（${note.change === 'added' ? '目标发布没有' : '内容与目标发布不同'}）：${note.rollback}；前向修复：${note.forwardFix ?? '见 deploy/README.md'}`
+      );
   } else console.info('  两个发布的迁移相同，没有需要说明的迁移');
   await appendRecord(deploymentsFile, {
     release: target,

@@ -8,8 +8,8 @@
  * 数据经迁移所有者连接批量写入（只造历史规模，不经命令），审计总数随之调整。
  *
  * 验收：
- * 1. 普通命令（发评论、标记通知已读、订阅 PR）经网关的函数各执行 100 次，p95 耗时（含网关、函数与连接池）对照预算 50 ms，
- *    另记中位数与最大值（worker 按 CPU 限额回收后的第一个请求含冷启动）；
+ * 1. 普通命令（发评论、标记通知已读、订阅 PR）经网关的函数各执行 100 次：服务端耗时（命令入口自报的 `Server-Timing`，计划的
+ *    预算口径）的 p95 对照预算 50 ms；端到端耗时（含网关、worker 按 CPU 限额回收后的冷启动与本机负载）另记中位数、p95 与最大值；
  * 2. 团队页经 PostgREST 读取（浏览器同一个 CollaborationReader），体积对照预算 50 KB；
  * 3. 保留期内用原操作 ID 重试返回原结果、不重复执行；超出保留期（31 天前）的同一 ID 按新请求裁决；
  * 4. 过期回执由写事务顺手清理（每个写事务至多 20 条）；
@@ -19,9 +19,9 @@
  * 结果写到 `.state/acceptance/retention-<时刻>.json`；默认结束时删除这个工作区（`--keep` 保留）。
  */
 import { randomUUID } from 'node:crypto';
-import { isDeepStrictEqual } from 'node:util';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import pg from 'pg';
 import { workspaceTables } from '../../packages/collaboration/scripts/e2e-fixtures.mjs';
 import { command, countingFetch, readerFor, signIn, stats, taskCommit } from './lib/clients.mjs';
@@ -106,12 +106,15 @@ async function ordinaryCommands(token, workspace, prId, label, offset) {
     const warm = await command(token, workspace, { ...build(offset + rounds), operationId: randomUUID() });
     if (warm.status !== 200) throw new Error(`${kind} 热身失败：${warm.status} ${JSON.stringify(warm.body)}`);
     const times = [];
+    const server = [];
     for (let index = 0; index < rounds; index += 1) {
       const response = await command(token, workspace, { ...build(offset + index), operationId: randomUUID() });
       if (response.status !== 200) throw new Error(`${kind} 失败：${response.status} ${JSON.stringify(response.body)}`);
+      if (response.serverMs === null) throw new Error(`${kind} 的响应没有 Server-Timing`);
       times.push(response.ms);
+      server.push(response.serverMs);
     }
-    result[kind] = stats(times);
+    result[kind] = { server: stats(server), endToEnd: stats(times) };
   }
   return result;
 }
@@ -242,7 +245,11 @@ async function main() {
     result.idempotency = {
       original: { status: original.status, body: original.body },
       // 回执存在 JSONB 里，重放时键的顺序可能不同：按值比较
-      within29Days: { status: within.status, body: within.body, sameResult: isDeepStrictEqual(within.body, original.body) },
+      within29Days: {
+        status: within.status,
+        body: within.body,
+        sameResult: isDeepStrictEqual(within.body, original.body)
+      },
       tasksAfterRetry,
       beyond31Days: { status: beyond.status, error: beyond.body.error ?? null, message: beyond.body.message ?? null }
     };
@@ -284,8 +291,9 @@ async function main() {
     result.teamPageAfter = await teamPage(secrets, token, workspace, userId);
     result.auditCountUnchanged = result.teamPageAfter.auditCount >= result.teamPageBefore.auditCount;
 
+    // 预算按服务端耗时（命令入口自报的 Server-Timing，与计划里的口径一致）；端到端耗时另列，含网关、冷启动与本机负载
     const worst = [result.commandsBefore, result.commandsAfter].flatMap(group =>
-      Object.values(group).map(item => item.p95)
+      Object.values(group).map(item => item.server.p95)
     );
     result.checks = {
       commandsWithinBudget: Math.max(...worst) <= budgets.commandMs,

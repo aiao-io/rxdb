@@ -38,7 +38,10 @@ async function exists(target) {
   );
 }
 
-/** 准备 `.state/`：目录、函数链接、Kong 配置与 PgBouncer 口令文件。生成的含密钥文件只放在 700 的 private/ 下。 */
+/**
+ * 准备 `.state/`：目录、函数链接、Kong 配置与 PgBouncer 口令文件。生成的含密钥文件只放在 700 的 private/ 下。
+ * 返回 Kong 的声明式配置是否变了：Kong 只在启动时读它，栈已在运行时要重启 Kong 才生效。
+ */
 async function prepareState(secrets) {
   await mkdir(releasesRoot, { recursive: true });
   await mkdir(emptyFunctions, { recursive: true });
@@ -52,7 +55,9 @@ async function prepareState(secrets) {
     .replaceAll('${ANON_KEY}', secrets.ANON_KEY)
     .replaceAll('${SERVICE_ROLE_KEY}', secrets.SERVICE_ROLE_KEY);
   // 容器里 Kong 与 PgBouncer 以非 root 用户读取挂载的文件：文件 644，宿主机上由 700 的 private/ 挡住其他用户
-  await writeFile(path.join(privateRoot, 'kong.yml'), kong, { mode: 0o644 });
+  const kongFile = path.join(privateRoot, 'kong.yml');
+  const previous = await readFile(kongFile, 'utf8').catch(() => null);
+  await writeFile(kongFile, kong, { mode: 0o644 });
   const pooler = path.join(privateRoot, 'pgbouncer');
   await mkdir(pooler, { recursive: true });
   await chmod(pooler, 0o755);
@@ -62,6 +67,7 @@ async function prepareState(secrets) {
   });
   for (const file of ['kong.yml', 'pgbouncer/pgbouncer.ini', 'pgbouncer/userlist.txt'])
     await chmod(path.join(privateRoot, file), 0o644);
+  return previous !== null && previous !== kong;
 }
 
 /** 本栈已经发布出去的宿主机端口（栈已在运行时，这些端口的监听者就是本栈）。 */
@@ -120,13 +126,18 @@ async function ensureOwner(secrets) {
 async function up(studio) {
   if (await ensureEnvFile()) console.info('已生成 deploy/local/.env.local（随机密钥，权限 600）');
   const secrets = await loadEnv();
-  await prepareState(secrets);
+  const kongChanged = await prepareState(secrets);
   const release = (await linkedRelease(siteRoot, 'functions')) ?? 'none';
   await checkPorts(secrets, release);
   const profile = studio ? ['--profile', 'studio'] : [];
   await compose([...profile, 'up', '-d', '--wait', '--wait-timeout', '180', 'db', 'mail'], { secrets, release });
   await syncRolePasswords(secrets, release);
   await compose([...profile, 'up', '-d', '--wait', '--wait-timeout', '300'], { secrets, release });
+  if (kongChanged) {
+    // 声明式配置只在 Kong 启动时读取：配置变了（例如改了 CORS）就重启 Kong 并等它恢复健康
+    await compose(['restart', 'kong'], { secrets, release });
+    await compose(['up', '-d', '--wait', '--wait-timeout', '120', 'kong'], { secrets, release });
+  }
   const ownerId = await waitFor('Auth 可用', () => ensureOwner(secrets), { timeoutMs: 60_000, intervalMs: 1000 });
   const stack = { ownerEmail, ownerId, updatedAt: new Date().toISOString() };
   await writeFile(stackFile, `${JSON.stringify(stack, null, 2)}\n`);

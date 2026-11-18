@@ -68,7 +68,7 @@ describe('fetch 风格的命令处理函数', () => {
     expect(response.status).toBe(503);
     expect(response.headers.get('retry-after')).toBe('1');
     expect(response.headers.get('access-control-allow-origin')).toBe('https://product.example');
-    expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After');
+    expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After, Server-Timing');
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(await response.json()).toEqual({
       error: 'unavailable',
@@ -130,6 +130,23 @@ describe('fetch 风格的命令处理函数', () => {
     const denied = await handle(command('http://edge.test/workspaces/team/assets/commands', task));
     expect(denied.status).toBe(403);
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+  it('每个响应都带 Server-Timing（命令入口自己的处理耗时，不含网关、冷启动与网络），监控与预算核对据此区分服务端耗时（ADMIN-US-217 AC#6）', async () => {
+    const handle = setup(async () => {
+      await new Promise(resolve => setTimeout(resolve, 20));
+      return { head: 'h' };
+    });
+    const timed = (response: Response) =>
+      Number(/^app;dur=(\d+(?:\.\d)?)$/.exec(response.headers.get('server-timing') ?? '')?.[1] ?? Number.NaN);
+    const ok = await handle(command('http://edge.test/workspaces/team/assets/commands', task));
+    expect(timed(ok)).toBeGreaterThanOrEqual(15);
+    const denied = await handle(
+      command('http://edge.test/workspaces/team/assets/commands', task, { authorization: '' })
+    );
+    expect(denied.status).toBe(401);
+    expect(timed(denied)).toBeGreaterThanOrEqual(0);
+    const config = await handle(new Request('http://edge.test/config'));
+    expect(timed(config)).toBeGreaterThanOrEqual(0);
   });
   it('上限装得下一个改动一万条资产记录的提交（交换格式约 2.3 MiB）', async () => {
     const operation = vi.fn(async () => ({}));

@@ -66,12 +66,12 @@
     },
     {
       "name": "202611180003_audit_archive.sql",
-      "summary": "审计归档：归档表 admin_private.audit_archive、热表时间索引、合并两表的只读投影 admin_audit_events 与归档函数 admin_private.archive_audit()",
+      "summary": "审计归档：归档表 admin_private.audit_archive、热表时间索引、合并两表的只读投影 admin_audit_events、审计分页的读取函数 admin_audit_page() 与归档函数 admin_private.archive_audit()",
       "reversible": true,
       "previousRelease": "兼容：只新增对象；上一版前端只读热表 admin_audit，归档过的事件在上一版里看不到（数据仍在归档表）",
       "dataImpact": "归档只搬家不删除；撤销前必须先把归档表的行移回热表，否则直接 DROP 会丢失已归档的审计",
-      "rollback": "可以回滚：先按原 seq 把归档移回热表（INSERT INTO public.admin_audit(team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id) OVERRIDING SYSTEM VALUE SELECT team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id FROM admin_private.audit_archive），再 DROP VIEW public.admin_audit_events、DROP FUNCTION admin_private.archive_audit、DROP TABLE admin_private.audit_archive、DROP INDEX public.admin_audit_age。应用回滚到上一版之前先停掉定期归档",
-      "forwardFix": "归档策略过激时调大 ADMIN_AUDIT_ARCHIVE_AFTER_DAYS / ADMIN_AUDIT_KEEP_LATEST；归档函数有误时 CREATE OR REPLACE 修正"
+      "rollback": "可以回滚：先按原 seq 把归档移回热表（INSERT INTO public.admin_audit(team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id) OVERRIDING SYSTEM VALUE SELECT team_id, app_id, id, actor_id, action, details, created_at, seq, pr_id, thread_id FROM admin_private.audit_archive），再 DROP FUNCTION public.admin_audit_page、DROP VIEW public.admin_audit_events、DROP FUNCTION admin_private.archive_audit、DROP TABLE admin_private.audit_archive、DROP INDEX public.admin_audit_age。应用回滚到上一版之前先停掉定期归档",
+      "forwardFix": "归档策略过激时调大 ADMIN_AUDIT_ARCHIVE_AFTER_DAYS / ADMIN_AUDIT_KEEP_LATEST；归档或分页函数有误时 CREATE OR REPLACE 修正"
     }
   ]
 }

@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { frameworks, local, migrationsRoot, releasesRoot, siteRoot } from './paths.mjs';
+import { frameworks, local, migrationsRoot, productRoot, releasesRoot, siteRoot } from './paths.mjs';
 import { compose, request, run, waitFor } from './process.mjs';
 import { pointLink, pointToRelease } from './releases.mjs';
 
@@ -38,6 +38,21 @@ export async function migrationManifest() {
         .digest('hex')
     }))
   );
+}
+
+/**
+ * 当前发布执行过、而目标发布没有执行过的迁移：目标发布里没有这个文件，或者同名文件的内容不同（sha256 不一致）。
+ * 它们都保留不回退，连同 `deploy/migrations.json` 里的回滚与前向修复说明一起列出；两个发布执行的迁移逐个相同时为空。
+ */
+export async function migrationNotes(current, target, notesFile = path.join(productRoot, 'deploy', 'migrations.json')) {
+  const notes = JSON.parse(await readFile(notesFile, 'utf8')).migrations;
+  const known = new Map((target?.migrations ?? []).map(migration => [migration.name, migration.sha256]));
+  return (current?.migrations ?? [])
+    .filter(migration => known.get(migration.name) !== migration.sha256)
+    .map(migration => ({
+      ...(notes.find(note => note.name === migration.name) ?? { name: migration.name, rollback: '没有登记回滚说明' }),
+      change: known.has(migration.name) ? 'changed' : 'added'
+    }));
 }
 
 /** 读函数经网关的健康检查（可能是 200 或 503；函数没起来时是平台的错误 JSON）。 */

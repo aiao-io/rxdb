@@ -175,7 +175,7 @@ pnpm nx run rxdb-admin-template:migration-check
 
 - **回执**保留 30 天：期内用原操作 ID 重试返回原结果；过期回执由之后的写事务顺手清理（每个写事务至多 20 条，最旧的先清），过期后同一 ID 按新请求裁决。
 - **通知**不修剪，按用户分页读取（团队页只带最近 50 条与未读总数）。
-- **审计归档**（迁移 `202611180003_audit_archive.sql`）：热表 `public.admin_audit` 里满足策略的事件由迁移所有者分批移入归档表 `admin_private.audit_archive`（每列原样保留，含原 seq），只读投影 `public.admin_audit_events` 合并两张表，审计分页、最近一窗与按 PR / 线程筛选照常读得到归档的事件，审计总数不变。策略二选一或同时给出，满足任一条件即归档：
+- **审计归档**（迁移 `202611180003_audit_archive.sql`）：热表 `public.admin_audit` 里满足策略的事件由迁移所有者分批移入归档表 `admin_private.audit_archive`（每列原样保留，含原 seq），只读投影 `public.admin_audit_events` 合并两张表（审计游标按它查），分页与最近一窗经读取函数 `public.admin_audit_page()`：两张表各自按 seq 倒序、带上限地取再合并，每页读的行数只与页大小有关。审计分页、最近一窗与按 PR / 线程筛选照常读得到归档的事件，审计总数不变。（预演发现：直接经 security_barrier 投影分页时排序与上限推不进 UNION ALL 的两支，5 万条审计每页约 0.2 秒并随总量线性增长，因此改走读取函数；集成测试以 auto_explain 数出每页扫描的行数不超过两页。）策略二选一或同时给出，满足任一条件即归档：
 
   ```bash
   ADMIN_OWNER_DATABASE_URL=… ADMIN_AUDIT_ARCHIVE_AFTER_DAYS=90 ADMIN_AUDIT_KEEP_LATEST=20000 \
@@ -184,7 +184,7 @@ pnpm nx run rxdb-admin-template:migration-check
 
   每批至多 `ADMIN_AUDIT_ARCHIVE_BATCH`（默认 5000）行、一个短事务，重复到一批不满为止，重跑幂等。生产可在 Supabase 上用 pg_cron 定期执行同一个函数：`SELECT cron.schedule('admin-audit-archive', '17 3 * * *', $$SELECT admin_private.archive_audit(interval '90 days', 20000, 5000)$$);`（一次调用一批；积压时按批多跑几次）。上一版前端只读热表，**归档要在读 `admin_audit_events` 的前端上线之后再启用**。
 
-`pnpm nx run rxdb-admin-template:retention-check`（AC#6）在一个工作区里写入预设规模（回执 2 万条在保留期内、5 千条已过期，审计 5 万条分布在 180 天，通知 1 万条；可用 `RETENTION_*` 环境变量调整），测普通命令（发评论、标记已读、订阅）经网关的耗时（预算 50 ms）与团队页经 PostgREST 的体积（预算 50 KB），验证保留期内重试返回原结果、超期按新请求裁决、过期回执被清理，再按策略归档并断言归档前后全部审计分页、最近一窗与按 PR 筛选逐条相同，归档后再测一次。
+`pnpm nx run rxdb-admin-template:retention-check`（AC#6）在一个工作区里写入预设规模（回执 2 万条在保留期内、5 千条已过期，审计 5 万条分布在 180 天，通知 1 万条；可用 `RETENTION_*` 环境变量调整），测普通命令（发评论、标记已读、订阅，各 100 次）经网关的 p95 耗时（预算 50 ms，另记中位数与最大值）与团队页经 PostgREST 的体积（预算 50 KB），验证保留期内重试返回原结果、超期按新请求裁决、过期回执被清理，再按策略归档并断言归档前后全部审计分页、最近一窗与按 PR 筛选逐条相同，归档后再测一次。
 
 ## 8. 验收脚本一览
 
