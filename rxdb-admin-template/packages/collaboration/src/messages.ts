@@ -399,6 +399,8 @@ export const collaborationEnglish: Record<string, string> = {
   身份校验必须且只能配置一种签名密钥: 'Configure exactly one token signing key source',
   签名密钥地址格式错误: 'The signing key URL is invalid',
   '使用 JWKS 校验令牌时必须配置签发者': 'Configure the token issuer when verifying with JWKS',
+  审计归档策略至少要按天数或按条数之一: 'An audit archive policy needs an age in days, a per-workspace count, or both',
+  审计归档策略的取值不合法: 'An audit archive policy setting is invalid',
   '读取团队数据失败，请稍后重试': 'Could not read team data. Try again later',
   先提交或放弃当前改动再恢复: 'Commit or discard your current changes before restoring',
   团队库配置不正确: 'The team database is not configured correctly',

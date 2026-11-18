@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CollaborationError } from '../model.js';
+import type { ErrorReport } from './monitor.js';
 import { collaborationRuntime, edgeEntry, nodeEntry, type CollaborationRuntime } from './runtime.js';
 
 /** 公开 anon key 的形状（载荷 role 为 anon），签名与测试无关。 */
@@ -98,10 +99,12 @@ describe('两个入口共用一份装配，只是变量名与连接池不同（A
       [
         'ADMIN_ALLOWED_ORIGINS',
         'ADMIN_DATABASE_URL',
+        'ADMIN_ERROR_REPORT_URL',
         'ADMIN_JWKS_URL',
         'ADMIN_JWT_ISSUER',
         'ADMIN_JWT_SECRET',
         'ADMIN_PUBLIC_SUPABASE_URL',
+        'ADMIN_RELEASE',
         'SUPABASE_ANON_KEY',
         'SUPABASE_URL'
       ].sort()
@@ -120,6 +123,53 @@ describe('两个入口共用一份装配，只是变量名与连接池不同（A
       (await (await runtime.handler(new Request('https://edge.test/admin-collaboration/config'))).json()) as unknown;
     expect(await config(internal)).toMatchObject({ supabaseUrl: 'http://kong:8000' });
     expect(await config(split)).toMatchObject({ supabaseUrl: 'https://api.example' });
+  });
+  it('GET /health 探数据库与 Auth：Auth 经公开 key 访问 GoTrue 健康接口，数据库不可达时 503，报告带入口与发布标识（ADMIN-US-217 AC#7）', async () => {
+    const requests: Request[] = [];
+    const { handler } = build(
+      {
+        ...edgeEnvironment,
+        SUPABASE_URL: 'http://kong:8000',
+        ADMIN_RELEASE: 'r-20261118-7',
+        // 不可达的数据库：本机 1 号端口没有服务，连接立即被拒
+        ADMIN_DATABASE_URL: 'postgres://admin_collaboration:not-a-real-password@127.0.0.1:1/postgres'
+      },
+      edgeEntry,
+      {
+        fetch: async (input, init) => {
+          requests.push(new Request(input, init));
+          return new Response('{}', { status: 200 });
+        }
+      }
+    );
+    const response = await handler(new Request('https://edge.test/admin-collaboration/health'));
+    expect(response.status).toBe(503);
+    const report = (await response.json()) as Record<string, unknown>;
+    expect(report).toMatchObject({
+      status: 'unavailable',
+      entry: 'edge',
+      release: 'r-20261118-7',
+      checks: { database: { status: 'unavailable', reason: 'error' }, auth: { status: 'ok' } }
+    });
+    expect(JSON.stringify(report)).not.toContain('not-a-real-password');
+    expect(requests.map(request => [request.url, request.headers.get('apikey')])).toEqual([
+      ['http://kong:8000/auth/v1/health', anonKey]
+    ]);
+  });
+  it('未处理错误交给注入的上报器：连接池里空闲连接的错误同样上报，报告已脱敏（ADMIN-US-217 AC#7）', async () => {
+    const reports: ErrorReport[] = [];
+    const { pool } = build({ ...edgeEnvironment, ADMIN_RELEASE: 'r-9' }, edgeEntry, {
+      reporter: { report: async report => void reports.push(report) }
+    });
+    pool.emit('error', new Error('terminating connection for invitee@example.com'));
+    await vi.waitFor(() => expect(reports).toHaveLength(1));
+    expect(reports[0]).toMatchObject({
+      entry: 'edge',
+      release: 'r-9',
+      source: 'pool',
+      request: null,
+      error: { message: 'terminating connection for [email]' }
+    });
   });
   it('缺少任何一项必需的变量时启动即失败', () => {
     for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'ADMIN_DATABASE_URL', 'ADMIN_ALLOWED_ORIGINS']) {

@@ -180,6 +180,11 @@ const invitationColumns = [
 ];
 /** 按标识读取时每次带多少个标识：PostgREST 的筛选写在 URL 里，过长会被网关拒绝。 */
 const idsPerRequest = 50;
+/**
+ * 审计事件的只读投影：热表 `admin_audit` 与归档表合在一起（迁移 `202611180003_audit_archive.sql`，ADMIN-US-217 AC#6），
+ * 按策略归档之后，审计分页与最近一窗照常读得到归档的事件，顺序与游标都不变。
+ */
+const auditView = 'admin_audit_events';
 type Sequenced = { seq: string | number };
 
 /**
@@ -302,10 +307,10 @@ export class CollaborationReader {
     ]);
     return { notices: page.rows.map(noticeOf), earlier: page.earlier, unread };
   }
-  /** 最近的一窗审计事件（{@link auditSummarySize} 条，时间正序）。 */
+  /** 最近的一窗审计事件（{@link auditSummarySize} 条，时间正序），含已归档的事件（读 {@link auditView}）。 */
   async recentAudit(workspace: WorkspaceEntry): Promise<Audit[]> {
     const page = await this.window<{ details: Audit } & Sequenced>(
-      'admin_audit',
+      auditView,
       this.scope(workspace),
       ['details', 'seq'],
       auditSummarySize
@@ -315,12 +320,13 @@ export class CollaborationReader {
   /**
    * 审计分页（新到旧）：`before` 是游标事件 ID，只返回比它更早（按写入顺序）的事件；`prId` / `threadId` 按写入时登记的归属筛选。
    * 还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID。未知游标返回 `not_found`，`limit` 须是 1～100 的整数。
+   * 游标与各页都读 {@link auditView}：已归档的事件照常出现在分页里，游标落在归档的事件上也能接着往前读。
    */
   async audit(workspace: WorkspaceEntry, query: AuditQuery): Promise<AuditPage> {
     const limit = pageLimit(query.limit, auditPageSize);
     const where: Record<string, Filter> = { ...this.scope(workspace) };
     if (query.before !== undefined) {
-      const [cursor] = await this.source().rows<Sequenced>('admin_audit', {
+      const [cursor] = await this.source().rows<Sequenced>(auditView, {
         columns: ['seq'],
         where: { ...this.scope(workspace), id: { eq: query.before } }
       });
@@ -329,7 +335,7 @@ export class CollaborationReader {
     }
     if (query.prId !== undefined) where['pr_id'] = { eq: query.prId };
     if (query.threadId !== undefined) where['thread_id'] = { eq: query.threadId };
-    const rows = await this.source().rows<{ details: Audit }>('admin_audit', {
+    const rows = await this.source().rows<{ details: Audit }>(auditView, {
       columns: ['details'],
       where,
       order: [['seq', 'desc']],

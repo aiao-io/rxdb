@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CollaborationError, type Identity } from '../model.js';
 import { unavailable } from './availability.js';
-import { bodyLimit, commandHandler, errorResponse, type RepositoryApi } from './handler.js';
+import { bodyLimit, commandHandler, errorResponse, type HandlerOptions, type RepositoryApi } from './handler.js';
+import type { HealthReport } from './health.js';
 import type { Identities } from './identity.js';
 
 /**
@@ -16,7 +17,10 @@ const identities: Identities = {
   }),
   confirm: vi.fn(async () => user)
 };
-const setup = (operation: RepositoryApi['operation'], options: { basePath?: string; onError?: () => void } = {}) =>
+const setup = (
+  operation: RepositoryApi['operation'],
+  options: Pick<HandlerOptions, 'basePath' | 'onError' | 'health'> = {}
+) =>
   commandHandler({
     repository: { operation: vi.fn(operation) },
     identities,
@@ -77,6 +81,33 @@ describe('fetch 风格的命令处理函数', () => {
     const plain = errorResponse(new CollaborationError('unavailable', '服务暂时不可用，请稍后按原请求重试'));
     expect(plain.headers.get('retry-after')).toBe('1');
   });
+  it('GET /health 不要求令牌：全部可用回 200，任一组件不可用回 503，响应体就是健康报告（ADMIN-US-217 AC#7）', async () => {
+    const report = (status: HealthReport['status']): HealthReport => ({
+      status,
+      entry: 'edge',
+      release: 'r-1',
+      checks: {
+        database: { status, latencyMs: 3 },
+        auth: { status: 'ok', latencyMs: 2 }
+      }
+    });
+    let current = report('ok');
+    const health = vi.fn(async () => current);
+    const handle = setup(async () => ({}), { basePath: '/admin-collaboration', health });
+    const healthy = await handle(new Request('http://edge.test/admin-collaboration/health'));
+    expect(healthy.status).toBe(200);
+    expect(healthy.headers.get('cache-control')).toBe('no-store');
+    expect(await healthy.json()).toEqual(report('ok'));
+    current = report('unavailable');
+    // 静态站点把 /collaboration-api/* 改写到函数时，路径带着这个前缀
+    const degraded = await handle(new Request('http://edge.test/admin-collaboration/collaboration-api/health'));
+    expect(degraded.status).toBe(503);
+    expect(await degraded.json()).toEqual(report('unavailable'));
+    expect(health).toHaveBeenCalledTimes(2);
+    // 没有装配健康检查的处理函数不认这个路径
+    const bare = await setup(async () => ({}))(new Request('http://edge.test/health'));
+    expect(await bare.json()).toMatchObject({ error: 'unauthenticated' });
+  });
   it('内部错误一律 500、不透露细节，只交给记录钩子写运维日志；业务错误不进日志', async () => {
     const onError = vi.fn();
     const failure = new Error('relation "admin_private.secret" does not exist');
@@ -94,7 +125,8 @@ describe('fetch 风格的命令处理函数', () => {
       message: '服务暂时不可用，请稍后按原请求重试',
       details: {}
     });
-    expect(onError).toHaveBeenCalledWith(failure);
+    // 记录钩子拿到错误与请求的方法、路径（不含查询串、请求头与请求体），由上报器脱敏后写运维日志
+    expect(onError).toHaveBeenCalledWith(failure, { method: 'POST', path: '/workspaces/team/broken/commands' });
     const denied = await handle(command('http://edge.test/workspaces/team/assets/commands', task));
     expect(denied.status).toBe(403);
     expect(onError).toHaveBeenCalledTimes(1);

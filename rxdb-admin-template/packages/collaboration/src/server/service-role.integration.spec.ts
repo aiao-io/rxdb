@@ -172,6 +172,11 @@ describe('协作专用数据库角色只拥有协作所需的权限（ADMIN-US-2
       'SELECT * FROM public.admin_workspaces',
       'SELECT * FROM public.admin_receipts',
       'SELECT * FROM public.admin_commits',
+      // 审计归档（ADMIN-US-217 AC#6）：归档表、合并冷热两表的投影与归档函数都只属于迁移所有者与登录成员
+      'SELECT * FROM admin_private.audit_archive',
+      'DELETE FROM admin_private.audit_archive',
+      'SELECT * FROM public.admin_audit_events',
+      "SELECT admin_private.archive_audit(interval '1 day', NULL, 10)",
       "SELECT public.admin_shared_records('t', 'a')",
       "SELECT public.admin_commit_exchange('t', 'a', 'shared', NULL, 10)",
       'SELECT * FROM public.app_private_data'

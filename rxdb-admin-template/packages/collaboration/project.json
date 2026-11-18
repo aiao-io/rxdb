@@ -81,6 +81,14 @@
       },
       "dependsOn": ["build-server"]
     },
+    "audit-archive": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "node dist/server/server/bootstrap.js --archive-audit"
+      },
+      "dependsOn": ["build-server"]
+    },
     "test-integration": {
       "executor": "nx:run-commands",
       "cache": false,

@@ -1,8 +1,10 @@
 import { requestBodyLimit } from '../commit.js';
 import { CollaborationError, demand, type Identity } from '../model.js';
 import { fromUtf8, sha256Hex } from './encoding.js';
+import type { HealthReport } from './health.js';
 import type { Identities } from './identity.js';
 import { parseCommand } from './input.js';
+import type { RequestContext } from './monitor.js';
 import type { CollaborationRepository } from './repository.js';
 
 /** HTTP 层用到的仓储接口：只有命令写入。读取经 Supabase 的只读投影，不经本服务。 */
@@ -23,8 +25,13 @@ export interface HandlerOptions {
    * 去掉它之后，开发代理带来的 `/collaboration-api` 前缀同样可有可无。
    */
   basePath?: string;
-  /** 内部错误（500）的记录钩子：只写运维日志，不进入响应。 */
-  onError?: (error: unknown) => void;
+  /**
+   * 内部错误（500）的记录钩子：拿到错误与请求的方法和路径，交给上报器脱敏后写运维日志（见 `monitor.ts`），不进入响应。
+   * 处理函数等它完成再回 500（上报器自带超时）。
+   */
+  onError?: (error: unknown, request: RequestContext) => void | Promise<void>;
+  /** 健康检查（`GET /health`，不要求令牌）：报告 ok 回 200，否则 503（见 `health.ts`）；不装配时没有这个接口。 */
+  health?: () => Promise<HealthReport>;
 }
 /** 单个请求体的上限：与客户端分批上传用的是同一个常量（`requestBodyLimit`，取值理由见那里）。 */
 export const bodyLimit = requestBodyLimit;
@@ -139,7 +146,7 @@ async function route(request: Request, path: string[], token: string, user: Iden
 }
 
 /**
- * 协作命令入口的处理函数：浏览器只能读取公开配置与提交命令。用户身份来自每个请求本地验签的 Supabase access token，
+ * 协作命令入口的处理函数：浏览器只能读取公开配置与提交命令，监控另可访问健康检查（`GET /health`）。用户身份来自每个请求本地验签的 Supabase access token，
  * 稳态下不访问 Auth；接受邀请时才向 Auth 确认邮箱已验证并与邀请匹配。来源不在白名单里的请求一律拒绝；
  * 跨源调用时额外暴露 `Retry-After`，浏览器脚本才能读到可重试错误的等待时间。
  */
@@ -161,12 +168,17 @@ export function commandHandler(options: HandlerOptions): CommandHandler {
       }
       const path = pathSegments(new URL(request.url).pathname, options.basePath ?? '');
       if (request.method === 'GET' && path.join('/') === 'config') return json(options.publicConfig, 200, headers);
+      if (request.method === 'GET' && path.join('/') === 'health' && options.health) {
+        const report = await options.health();
+        return json(report, report.status === 'ok' ? 200 : 503, headers);
+      }
       const token = request.headers.get('authorization')?.match(/^Bearer (\S+)$/)?.[1];
       demand(token, 'unauthenticated', '请登录');
       const user = await options.identities.verify(token);
       return json(await route(request, path, token, user, options), 200, headers);
     } catch (error) {
-      if (!(error instanceof CollaborationError)) options.onError?.(error);
+      if (!(error instanceof CollaborationError))
+        await options.onError?.(error, { method: request.method, path: new URL(request.url).pathname });
       return errorResponse(error, headers);
     }
   };

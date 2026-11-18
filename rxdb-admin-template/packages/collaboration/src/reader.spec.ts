@@ -397,11 +397,14 @@ describe('审计、回执与数据模式', () => {
       thread_id: null,
       details: { id: `e${index}`, actorId: 'alice', action: 'reply', operationId: `o${index}`, at: index, details: {} }
     }));
-    const { source } = memorySource({
-      admin_audit: events,
+    // 审计读含归档的投影 admin_audit_events（热表与归档表合在一起）；只读热表 admin_audit 会漏掉归档的事件
+    const { source, queries } = memorySource({
+      admin_audit_events: events,
+      admin_audit: events.slice(3),
       admin_receipts: [{ ...scope, operation_id: 'mine', result: { head: 'h' } }]
     });
     const reader = new CollaborationReader(() => source);
+    expect((await reader.recentAudit(workspace)).map(event => event.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4']);
     const first = await reader.audit(workspace, { limit: 2 });
     expect(first.events.map(event => event.id)).toEqual(['e4', 'e3']);
     const second = await reader.audit(workspace, { limit: 2, before: first.nextBefore! });
@@ -409,6 +412,9 @@ describe('审计、回执与数据模式', () => {
     expect((await reader.audit(workspace, { prId: 'pr' })).events.map(event => event.id)).toEqual(['e3', 'e1']);
     await expect(reader.audit(workspace, { before: 'missing' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(reader.audit(workspace, { limit: 101 })).rejects.toMatchObject({ code: 'invalid' });
+    expect(new Set(queries.filter(query => query.view.startsWith('admin_audit')).map(query => query.view))).toEqual(
+      new Set(['admin_audit_events'])
+    );
     await expect(reader.receipt(workspace, 'mine')).resolves.toEqual({ status: 'accepted', value: { head: 'h' } });
     await expect(reader.receipt(workspace, 'theirs')).resolves.toEqual({ status: 'unknown' });
     await expect(reader.schema(workspace, 1)).rejects.toMatchObject({ code: 'not_found' });

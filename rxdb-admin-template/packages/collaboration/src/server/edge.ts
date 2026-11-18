@@ -5,13 +5,12 @@ import { collaborationRuntime, edgeEntry } from './runtime.js';
  * （见 `runtime.ts` 的 `edgeEntry`）。`nx run admin-collaboration:build-edge` 用 esbuild 把它连同所需的 `@aiao/rxdb` 与 `pg`
  * 打成自包含的 ESM 产物 `supabase/functions/admin-collaboration/dist/collaboration.js`，函数目录的 `index.ts` 只导入这个产物。
  * 配置不全时模块求值即失败，平台按启动失败（503 BOOT_ERROR）回应，客户端按可重试错误处理。
+ * 未处理错误经脱敏后写函数日志（`ADMIN_ERROR <JSON>`），配置了 `ADMIN_ERROR_REPORT_URL` 时另发给收集器（见 `monitor.ts`）。
  */
 declare const Deno: {
   env: { toObject(): Record<string, string> };
   serve(handler: (request: Request) => Promise<Response>): unknown;
 };
 
-const { handler } = collaborationRuntime(Deno.env.toObject(), edgeEntry, {
-  onError: error => console.error('Collaboration function internal error:', error)
-});
+const { handler } = collaborationRuntime(Deno.env.toObject(), edgeEntry);
 Deno.serve(handler);

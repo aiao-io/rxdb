@@ -4,6 +4,7 @@ import { authLookup } from './auth.js';
 import { assertPublicKey, assertServiceConnection } from './config.js';
 import type { EngineOptions } from './engine.js';
 import { commandHandler, type CommandHandler } from './handler.js';
+import { authProbe, databaseProbe, healthCheck } from './health.js';
 import {
   createIdentities,
   edgeTokenVariables,
@@ -12,6 +13,7 @@ import {
   type TokenRules,
   type TokenVariables
 } from './identity.js';
+import { errorReport, reporterFromEnv, type ErrorReporter, type ErrorSource, type RequestContext } from './monitor.js';
 import { CollaborationRepository } from './repository.js';
 
 /**
@@ -24,8 +26,9 @@ export interface PoolSettings {
   connectionTimeoutMillis: number;
   idleTimeoutMillis: number;
 }
-/** 一个部署入口的固定设置：身份校验的变量名、入口自身的路径前缀与连接池。 */
+/** 一个部署入口的固定设置：入口名（健康检查与错误报告里的 `entry`）、身份校验的变量名、入口自身的路径前缀与连接池。 */
 export interface EntrySettings {
+  name: 'node' | 'edge';
   variables: TokenVariables;
   basePath: string;
   pool: PoolSettings;
@@ -34,6 +37,7 @@ export interface EntrySettings {
 export const edgeFunctionName = 'admin-collaboration';
 /** Node 入口：常驻进程，连接池可以大一些。 */
 export const nodeEntry: EntrySettings = {
+  name: 'node',
   variables: nodeTokenVariables,
   basePath: '',
   pool: { max: 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 30000 }
@@ -43,6 +47,7 @@ export const nodeEntry: EntrySettings = {
  * worker 可能随时被回收，空闲连接早一点关闭。
  */
 export const edgeEntry: EntrySettings = {
+  name: 'edge',
   variables: edgeTokenVariables,
   basePath: `/${edgeFunctionName}`,
   pool: { max: 3, connectionTimeoutMillis: 5000, idleTimeoutMillis: 10000 }
@@ -54,11 +59,14 @@ export interface CollaborationRuntime {
   pool: pg.Pool;
   rules: TokenRules;
 }
-/** 装配时的扩展：引擎扩展（特殊业务检查）、取 JWKS 与访问 Auth 用的 fetch（测试注入），以及内部错误的记录钩子。 */
+/**
+ * 装配时的扩展：引擎扩展（特殊业务检查）、取 JWKS、访问 Auth 与投递错误报告用的 fetch（测试注入），以及错误上报器。
+ * 不给 `reporter` 时按环境建（`reporterFromEnv`：控制台日志汇，配置了 `ADMIN_ERROR_REPORT_URL` 时另发 HTTP 收集器）。
+ */
 export interface RuntimeOptions {
   engine?: EngineOptions;
   fetch?: typeof globalThis.fetch;
-  onError?: (error: unknown) => void;
+  reporter?: ErrorReporter;
 }
 
 /**
@@ -69,8 +77,10 @@ export interface RuntimeOptions {
  * - 身份校验：JWKS 地址或 HS256 共享密钥恰好一个，以及签发者，变量名见 `entry.variables`；
  * - `ADMIN_DATABASE_URL`：协作专用数据库角色的连接（生产经 Supavisor transaction 模式），不是 postgres / service_role，
  *   也不用平台注入的 `SUPABASE_DB_URL`（它以 postgres 角色连接）；
- * - `ADMIN_ALLOWED_ORIGINS`：允许的工作台来源，逗号分隔。
+ * - `ADMIN_ALLOWED_ORIGINS`：允许的工作台来源，逗号分隔；
+ * - 可选的 `ADMIN_RELEASE`（发布标识，出现在健康检查与错误报告里，不是密钥）与 `ADMIN_ERROR_REPORT_URL`（错误收集器地址）。
  * 只读取这些变量，平台注入的 service role key 与数据库连接串一概不读。缺少或配置矛盾时抛出配置错误，入口不启动。
+ * 处理函数另带健康检查（`GET /health`：数据库与 Auth，见 `health.ts`）；未处理错误与连接池错误经上报器脱敏后上报（见 `monitor.ts`）。
  */
 export function collaborationRuntime(
   env: Readonly<Record<string, string | undefined>>,
@@ -92,9 +102,13 @@ export function collaborationRuntime(
   const origins = required('ADMIN_ALLOWED_ORIGINS')
     .split(',')
     .map(value => value.trim());
+  const release = env['ADMIN_RELEASE'] || null;
+  const reporter = options.reporter ?? reporterFromEnv(env, options.fetch);
+  const report = (error: unknown, source: ErrorSource, request: RequestContext | null) =>
+    reporter.report(errorReport(error, { entry: entry.name, release, source, request }));
   const pool = new pg.Pool({ connectionString: connection, ...entry.pool });
-  // 空闲连接被对端断开（数据库重启、连接池回收空闲连接）只交给记录钩子：下一次取连接时自动新建，不让进程或 worker 崩溃
-  pool.on('error', error => options.onError?.(error));
+  // 空闲连接被对端断开（数据库重启、连接池回收空闲连接）只上报：下一次取连接时自动新建，不让进程或 worker 崩溃
+  pool.on('error', error => void report(error, 'pool', null));
   const handler = commandHandler({
     repository: new CollaborationRepository(pool, options.engine),
     identities: createIdentities({
@@ -105,7 +119,12 @@ export function collaborationRuntime(
     origins,
     publicConfig: { supabaseUrl: publicUrl, supabaseKey },
     basePath: entry.basePath,
-    onError: options.onError
+    onError: (error, request) => report(error, 'request', request),
+    health: healthCheck({
+      entry: entry.name,
+      release,
+      probes: { database: databaseProbe(pool), auth: authProbe({ url: supabaseUrl, key: supabaseKey, fetch: options.fetch }) }
+    })
   });
   return { handler, pool, rules };
 }

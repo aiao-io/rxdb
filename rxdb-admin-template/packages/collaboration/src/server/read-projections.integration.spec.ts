@@ -106,6 +106,8 @@ const projections = [
   'admin_receipts',
   'admin_commits',
   'admin_schemas',
+  // 审计事件（热表与归档表合在一起，ADMIN-US-217 AC#6）：审计分页与最近一窗读它
+  'admin_audit_events',
   'shared_records',
   'admin_shared',
   'admin_audit',

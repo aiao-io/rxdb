@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import { demand } from '../model.js';
 import { parseSchemaManifest } from '../schema.js';
+import { archiveAudit, auditArchivePolicy } from './audit-archive.js';
 import { applyMigrations } from './migrate.js';
 import { CollaborationRepository } from './repository.js';
 import { servicePasswordStatement } from './service-role.js';
@@ -12,6 +13,8 @@ import { servicePasswordStatement } from './service-role.js';
  * 不在命令入口里运行：
  * - `--migrate`：按文件名顺序执行全部迁移；
  * - `--service-password`：设置协作专用数据库角色的口令并允许它登录（口令取自 `ADMIN_SERVICE_PASSWORD`，只以 SCRAM 校验值发给数据库）；
+ * - `--archive-audit`：按策略把审计热表里的旧事件分批移入归档表（`ADMIN_AUDIT_ARCHIVE_AFTER_DAYS` / `ADMIN_AUDIT_KEEP_LATEST`，
+ *   至少给一个，`ADMIN_AUDIT_ARCHIVE_BATCH` 可选，见 `audit-archive.ts`），可定期执行，重跑幂等；
  * - 不带参数：初始化一个团队工作区（还需要 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY` 等，见协作包 README）。
  * 命令入口本身只用专用角色的连接（`ADMIN_DATABASE_URL`），读不到初始化密钥，也不能新建工作区。
  */
@@ -27,6 +30,9 @@ try {
   } else if (process.argv.includes('--service-password')) {
     await pool.query(await servicePasswordStatement(required('ADMIN_SERVICE_PASSWORD')));
     console.info('Collaboration service role can log in with the new password');
+  } else if (process.argv.includes('--archive-audit')) {
+    const policy = auditArchivePolicy(process.env);
+    console.info(`Collaboration audit events archived: ${await archiveAudit(pool, policy)}`, policy);
   } else {
     const auth = createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), {
       auth: { persistSession: false, autoRefreshToken: false }

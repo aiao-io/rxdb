@@ -1,0 +1,7 @@
+# 本地预演栈（ADMIN-US-217）：密钥与运行状态只在本机，不进仓库。
+# .env.local 由 `nx run rxdb-admin-template:local-up` 生成（随机密钥，权限 600）。
+.env.local
+# .state/：发布目录、current / staged 链接、发布记录、Kong 与 PgBouncer 的生成配置、收集到的错误报告。
+.state/
+# 根 .gitignore 忽略全部 .env*；示例文件不含任何密钥，需要入库。
+!.env.example
