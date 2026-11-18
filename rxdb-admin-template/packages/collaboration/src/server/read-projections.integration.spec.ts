@@ -121,7 +121,9 @@ const functions: [name: string, args: (head: string) => string][] = [
   ['admin_commit_lineage', () => `'commit-2'`],
   ['admin_commit_history', head => `'${head}', NULL, 10`],
   ['admin_commit_changes', () => `ARRAY['commit-1', 'commit-2']`],
-  ['admin_commit_exchange', () => `'shared', NULL, 10`]
+  ['admin_commit_exchange', () => `'shared', NULL, 10`],
+  // 审计分页（迁移 202611180003，ADMIN-US-217 AC#6）：热表与归档表各自带上限地取再合并
+  ['admin_audit_page', () => 'NULL, 10']
 ];
 let sharedHead = '';
 /** 共享分支的根（初始化时写下的 baseline 提交）。 */

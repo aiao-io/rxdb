@@ -484,4 +484,89 @@ describe('ADMIN-US-217 AC#6：审计按策略归档且仍可查询', () => {
     for (const migration of [...(await readMigrations())].reverse()) await pool.query(migration.sql);
     expect(await signature()).toEqual(before);
   });
+  it('审计分页每页只读一页附近的行：读的行数只与页大小有关，与审计总量、冷热两边各有多少条无关', async () => {
+    // AC#6 的部署预演里发现：经 security_barrier 的合并投影分页时，排序与上限推不进 UNION ALL 的两支，每页都要读出游标之前的
+    // 全部事件再排序（5 万条审计上每页约 0.2 秒）。这里以 auto_explain 收集每条语句（含读取函数里的嵌套语句）的实际执行计划，
+    // 数出扫描热表与归档表读出的行数
+    const bulky = workspace();
+    await repository.initialize({ ...bulky, name: 'Archive', bootstrapKey: randomUUID(), admin, schema: assetSchema });
+    await seed(
+      bulky,
+      events('bulky', 3000, index => 3000 - index, { pr: 9, thread: 11 })
+    );
+    // 只有这个工作区超过 1000 条：最旧的 2000 多条移入归档，热表留最新的 1000 条
+    while ((await archive(null, 1000, 1000)) === 1000);
+    expect((await ids('public.admin_audit', bulky)).length).toBe(1000);
+    const scanned = await scanCounter();
+    try {
+      const measured = new CollaborationReader(() => pgReadSource(scanned.pool, admin.id));
+      const limit = 100;
+      const bound = 2 * (limit + 1) + 4;
+      let before: string | null = null;
+      const perPage: number[] = [];
+      do {
+        scanned.reset();
+        const page = await measured.audit(entry(bulky), before === null ? { limit } : { limit, before });
+        perPage.push(scanned.rows());
+        before = page.nextBefore;
+      } while (before !== null);
+      expect(perPage.length).toBeGreaterThan(30);
+      expect(Math.max(...perPage), JSON.stringify(perPage)).toBeLessThanOrEqual(bound);
+      for (const query of [{ prId: 'pr-bulky' }, { threadId: 'thread-bulky' }]) {
+        scanned.reset();
+        await measured.audit(entry(bulky), { ...query, limit });
+        expect(scanned.rows(), JSON.stringify(query)).toBeLessThanOrEqual(bound);
+      }
+      scanned.reset();
+      expect(await measured.recentAudit(entry(bulky))).toHaveLength(50);
+      expect(scanned.rows()).toBeLessThanOrEqual(2 * 50 + 4);
+    } finally {
+      await scanned.pool.end();
+    }
+  });
 });
+
+/** 计划树里扫描审计热表与归档表的节点读出的行数之和（实际行数乘以循环次数）。 */
+function auditRowsIn(plan: Record<string, unknown>): number {
+  const own =
+    ['admin_audit', 'audit_archive'].includes(String(plan['Relation Name'])) ?
+      Number(plan['Actual Rows']) * Number(plan['Actual Loops'])
+    : 0;
+  const children = (plan['Plans'] as Record<string, unknown>[] | undefined) ?? [];
+  return own + children.reduce((total, child) => total + auditRowsIn(child), 0);
+}
+/**
+ * 一个只有一条连接的读取池：以超级用户连接并加载 auto_explain，每条语句（含读取函数里的嵌套语句）的实际执行计划以 NOTICE 发回；
+ * pgReadSource 在这条连接上照常切换成 authenticated 角色执行浏览器的查询。`rows()` 是上次 `reset()` 以来扫描审计两张表读出的行数。
+ */
+async function scanCounter() {
+  const plans: Record<string, unknown>[] = [];
+  const counted = new pg.Pool({ ...connection, user: 'supabase_admin', max: 1 });
+  counted.on('connect', client => {
+    client.on('notice', notice => {
+      const text = notice.message ?? '';
+      const start = text.indexOf('{');
+      if (text.startsWith('duration:') && start >= 0)
+        plans.push(JSON.parse(text.slice(start)) as Record<string, unknown>);
+    });
+  });
+  const client = await counted.connect();
+  try {
+    await client.query("LOAD 'auto_explain'");
+    for (const setting of [
+      'auto_explain.log_min_duration = 0',
+      'auto_explain.log_analyze = on',
+      'auto_explain.log_nested_statements = on',
+      'auto_explain.log_level = notice',
+      'auto_explain.log_format = json'
+    ])
+      await client.query(`SET ${setting}`);
+  } finally {
+    client.release();
+  }
+  return {
+    pool: counted,
+    reset: () => void plans.splice(0),
+    rows: () => plans.reduce((total, entry) => total + auditRowsIn(entry['Plan'] as Record<string, unknown>), 0)
+  };
+}

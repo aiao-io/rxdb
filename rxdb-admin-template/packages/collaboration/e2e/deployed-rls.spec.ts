@@ -247,7 +247,8 @@ test('PostgREST 与 Realtime 上的 RLS：只读投影、读取函数、写入�
     [
       'admin_commit_exchange',
       { p_team_id: own.teamId, p_app_id: own.appId, p_ref: 'shared', p_known: null, p_limit: 10 }
-    ]
+    ],
+    ['admin_audit_page', { p_team_id: own.teamId, p_app_id: own.appId, p_before: null, p_limit: 10 }]
   ];
   for (const [fn, args] of calls) {
     const mine = await rest(identities.member, `rpc/${fn}`, { method: 'POST', body: args });

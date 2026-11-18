@@ -397,12 +397,27 @@ describe('审计、回执与数据模式', () => {
       thread_id: null,
       details: { id: `e${index}`, actorId: 'alice', action: 'reply', operationId: `o${index}`, at: index, details: {} }
     }));
-    // 审计读含归档的投影 admin_audit_events（热表与归档表合在一起）；只读热表 admin_audit 会漏掉归档的事件
-    const { source, queries } = memorySource({
-      admin_audit_events: events,
-      admin_audit: events.slice(3),
-      admin_receipts: [{ ...scope, operation_id: 'mine', result: { head: 'h' } }]
-    });
+    // 审计含归档的事件：游标按投影 admin_audit_events 查（事件 ID → 写入顺序），各页经读取函数 admin_audit_page 读
+    // （热表与归档表各自带上限地取再合并，每页读的行数只与页大小有关）；只读热表 admin_audit 会漏掉归档的事件
+    const calls: Record<string, unknown>[] = [];
+    const page = (args: Record<string, unknown>) => {
+      calls.push(args);
+      return events
+        .filter(event => args['p_before'] === null || event.seq < Number(args['p_before']))
+        .filter(event => args['p_pr_id'] === null || event.pr_id === args['p_pr_id'])
+        .filter(event => args['p_thread_id'] === null || event.thread_id === args['p_thread_id'])
+        .sort((a, b) => b.seq - a.seq)
+        .slice(0, Number(args['p_limit']))
+        .map(event => ({ id: event.id, seq: event.seq, details: event.details }));
+    };
+    const { source, queries } = memorySource(
+      {
+        admin_audit_events: events,
+        admin_audit: events.slice(3),
+        admin_receipts: [{ ...scope, operation_id: 'mine', result: { head: 'h' } }]
+      },
+      { admin_audit_page: page }
+    );
     const reader = new CollaborationReader(() => source);
     expect((await reader.recentAudit(workspace)).map(event => event.id)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4']);
     const first = await reader.audit(workspace, { limit: 2 });
@@ -413,8 +428,18 @@ describe('审计、回执与数据模式', () => {
     await expect(reader.audit(workspace, { before: 'missing' })).rejects.toMatchObject({ code: 'not_found' });
     await expect(reader.audit(workspace, { limit: 101 })).rejects.toMatchObject({ code: 'invalid' });
     expect(new Set(queries.filter(query => query.view.startsWith('admin_audit')).map(query => query.view))).toEqual(
-      new Set(['admin_audit_events'])
+      new Set(['admin_audit_events', 'admin_audit_page'])
     );
+    // 多取一条判断还有没有更早的；游标换成它的写入顺序交给读取函数
+    expect(calls.slice(0, 3)).toEqual([
+      { p_team_id: 'team', p_app_id: 'assets', p_before: null, p_limit: 50, p_pr_id: null, p_thread_id: null },
+      { p_team_id: 'team', p_app_id: 'assets', p_before: null, p_limit: 3, p_pr_id: null, p_thread_id: null },
+      { p_team_id: 'team', p_app_id: 'assets', p_before: 4, p_limit: 3, p_pr_id: null, p_thread_id: null }
+    ]);
+    // 读取函数对不可读的工作区返回 null：与经投影读取时一样，没有任何可见的事件
+    const hidden = new CollaborationReader(() => memorySource({}, { admin_audit_page: () => null }).source);
+    await expect(hidden.audit(workspace, { limit: 2 })).resolves.toEqual({ events: [], nextBefore: null });
+    await expect(hidden.recentAudit(workspace)).resolves.toEqual([]);
     await expect(reader.receipt(workspace, 'mine')).resolves.toEqual({ status: 'accepted', value: { head: 'h' } });
     await expect(reader.receipt(workspace, 'theirs')).resolves.toEqual({ status: 'unknown' });
     await expect(reader.schema(workspace, 1)).rejects.toMatchObject({ code: 'not_found' });

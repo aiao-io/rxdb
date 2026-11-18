@@ -182,9 +182,27 @@ const invitationColumns = [
 const idsPerRequest = 50;
 /**
  * 审计事件的只读投影：热表 `admin_audit` 与归档表合在一起（迁移 `202611180003_audit_archive.sql`，ADMIN-US-217 AC#6），
- * 按策略归档之后，审计分页与最近一窗照常读得到归档的事件，顺序与游标都不变。
+ * 按策略归档之后照常读得到归档的事件。游标（事件 ID → 写入顺序）按它查，每张表一次主键查找。
  */
 const auditView = 'admin_audit_events';
+/**
+ * 审计分页的读取函数（同一个迁移）：热表与归档表各自带上限地按写入顺序倒序取，再合并取前若干条，读的行数只与页大小有关。
+ * 投影是 security_barrier 视图，经它分页时排序与上限推不进两张表，每页都要读出游标之前的全部事件（AC#6 部署预演发现）。
+ */
+const auditPageFunction = 'admin_audit_page';
+/** 读取函数返回的一条审计事件（按写入顺序倒序）。 */
+interface AuditRow {
+  id: string;
+  seq: number;
+  details: Audit;
+}
+/** 一次审计读取：游标之前（写入顺序，不含）最新的 `limit` 条，可按 PR 或线程筛选。 */
+interface AuditSlice {
+  before: number | null;
+  limit: number;
+  prId: string | null;
+  threadId: string | null;
+}
 type Sequenced = { seq: string | number };
 
 /**
@@ -307,39 +325,33 @@ export class CollaborationReader {
     ]);
     return { notices: page.rows.map(noticeOf), earlier: page.earlier, unread };
   }
-  /** 最近的一窗审计事件（{@link auditSummarySize} 条，时间正序），含已归档的事件（读 {@link auditView}）。 */
+  /** 最近的一窗审计事件（{@link auditSummarySize} 条，时间正序），含已归档的事件（经 {@link auditPageFunction}）。 */
   async recentAudit(workspace: WorkspaceEntry): Promise<Audit[]> {
-    const page = await this.window<{ details: Audit } & Sequenced>(
-      auditView,
-      this.scope(workspace),
-      ['details', 'seq'],
-      auditSummarySize
-    );
-    return page.rows.map(row => row.details);
+    const rows = await this.auditRows(workspace, { before: null, limit: auditSummarySize, prId: null, threadId: null });
+    return rows.map(row => row.details).reverse();
   }
   /**
    * 审计分页（新到旧）：`before` 是游标事件 ID，只返回比它更早（按写入顺序）的事件；`prId` / `threadId` 按写入时登记的归属筛选。
    * 还有更早的匹配事件时 `nextBefore` 是本页最旧事件的 ID。未知游标返回 `not_found`，`limit` 须是 1～100 的整数。
-   * 游标与各页都读 {@link auditView}：已归档的事件照常出现在分页里，游标落在归档的事件上也能接着往前读。
+   * 游标按 {@link auditView} 查、各页经 {@link auditPageFunction} 读：已归档的事件照常出现在分页里，游标落在归档的事件上也能接着往前读，
+   * 每页读的行数只与页大小有关。
    */
   async audit(workspace: WorkspaceEntry, query: AuditQuery): Promise<AuditPage> {
     const limit = pageLimit(query.limit, auditPageSize);
-    const where: Record<string, Filter> = { ...this.scope(workspace) };
+    let before: number | null = null;
     if (query.before !== undefined) {
       const [cursor] = await this.source().rows<Sequenced>(auditView, {
         columns: ['seq'],
         where: { ...this.scope(workspace), id: { eq: query.before } }
       });
       demand(cursor, 'not_found', '审计事件不存在');
-      where['seq'] = { lt: Number(cursor.seq) };
+      before = Number(cursor.seq);
     }
-    if (query.prId !== undefined) where['pr_id'] = { eq: query.prId };
-    if (query.threadId !== undefined) where['thread_id'] = { eq: query.threadId };
-    const rows = await this.source().rows<{ details: Audit }>(auditView, {
-      columns: ['details'],
-      where,
-      order: [['seq', 'desc']],
-      limit: limit + 1
+    const rows = await this.auditRows(workspace, {
+      before,
+      limit: limit + 1,
+      prId: query.prId ?? null,
+      threadId: query.threadId ?? null
     });
     const events = rows.slice(0, limit).map(row => row.details);
     return { events, nextBefore: rows.length > limit ? events[events.length - 1].id : null };
@@ -414,6 +426,21 @@ export class CollaborationReader {
     return historyPage(this.content(workspace, range.head), range, query);
   }
 
+  /**
+   * 经 {@link auditPageFunction} 读一段审计（按写入顺序倒序）。读取函数对不可读的工作区返回 null：与经投影读取时一样，
+   * 这时没有任何可见的事件，按空处理。
+   */
+  private async auditRows(workspace: WorkspaceEntry, slice: AuditSlice): Promise<AuditRow[]> {
+    const rows = await this.source().call<AuditRow[]>(auditPageFunction, {
+      p_team_id: workspace.teamId,
+      p_app_id: workspace.appId,
+      p_before: slice.before,
+      p_limit: slice.limit,
+      p_pr_id: slice.prId,
+      p_thread_id: slice.threadId
+    });
+    return rows ?? [];
+  }
   private scope(workspace: WorkspaceEntry): Record<string, Filter> {
     return { team_id: { eq: workspace.teamId }, app_id: { eq: workspace.appId } };
   }

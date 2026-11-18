@@ -48,6 +48,75 @@ CREATE OR REPLACE VIEW public.admin_audit_events WITH (security_barrier = true) 
 REVOKE ALL ON public.admin_audit_events FROM PUBLIC, anon, authenticated, admin_collaboration;
 GRANT SELECT ON public.admin_audit_events TO authenticated;
 
+-- 审计分页的读取函数：投影 admin_audit_events 是 security_barrier 视图，外层的排序与上限推不进 UNION ALL 的两支，
+-- 经它分页时每页都要读出游标之前的全部事件再排序（AC#6 部署预演：5 万条审计每页约 0.2 秒，随总量线性增长）。
+-- 这里热表与归档表各自按 seq 倒序、带上限地取（索引逆序扫描，读的行数只与页大小有关），再合并取前 p_limit 条。
+-- p_before 是游标事件的 seq（不含，为空时从最新的读起）；p_pr_id / p_thread_id 按写入时登记的归属筛选，各走自己的部分索引
+-- （两项都给时按 PR 的索引取、再按线程筛）。返回按 seq 倒序的 [{ id, seq, details }]；工作区不可读时返回 NULL（与其余读取函数一致）。
+CREATE OR REPLACE FUNCTION public.admin_audit_page(
+  p_team_id text, p_app_id text, p_before bigint, p_limit integer, p_pr_id text DEFAULT NULL, p_thread_id text DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_before bigint := coalesce(p_before, 9223372036854775807);
+  v_page jsonb;
+BEGIN
+  IF NOT admin_private.can_read(p_team_id, p_app_id) THEN
+    RETURN NULL;
+  END IF;
+  IF p_limit IS NULL OR p_limit < 1 OR p_limit > 101 THEN
+    RAISE EXCEPTION 'admin_audit_page reads 1 to 101 events per page' USING ERRCODE = '22023';
+  END IF;
+  IF p_pr_id IS NOT NULL THEN
+    SELECT coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'seq', e.seq, 'details', e.details) ORDER BY e.seq DESC), '[]')
+    INTO v_page
+    FROM (
+      SELECT u.id, u.seq, u.details FROM (
+        (SELECT a.id, a.seq, a.details FROM public.admin_audit a
+          WHERE a.team_id = p_team_id AND a.app_id = p_app_id AND a.pr_id = p_pr_id AND a.seq < v_before
+            AND (p_thread_id IS NULL OR a.thread_id = p_thread_id)
+          ORDER BY a.seq DESC LIMIT p_limit)
+        UNION ALL
+        (SELECT r.id, r.seq, r.details FROM admin_private.audit_archive r
+          WHERE r.team_id = p_team_id AND r.app_id = p_app_id AND r.pr_id = p_pr_id AND r.seq < v_before
+            AND (p_thread_id IS NULL OR r.thread_id = p_thread_id)
+          ORDER BY r.seq DESC LIMIT p_limit)
+      ) u ORDER BY u.seq DESC LIMIT p_limit
+    ) e;
+  ELSIF p_thread_id IS NOT NULL THEN
+    SELECT coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'seq', e.seq, 'details', e.details) ORDER BY e.seq DESC), '[]')
+    INTO v_page
+    FROM (
+      SELECT u.id, u.seq, u.details FROM (
+        (SELECT a.id, a.seq, a.details FROM public.admin_audit a
+          WHERE a.team_id = p_team_id AND a.app_id = p_app_id AND a.thread_id = p_thread_id AND a.seq < v_before
+          ORDER BY a.seq DESC LIMIT p_limit)
+        UNION ALL
+        (SELECT r.id, r.seq, r.details FROM admin_private.audit_archive r
+          WHERE r.team_id = p_team_id AND r.app_id = p_app_id AND r.thread_id = p_thread_id AND r.seq < v_before
+          ORDER BY r.seq DESC LIMIT p_limit)
+      ) u ORDER BY u.seq DESC LIMIT p_limit
+    ) e;
+  ELSE
+    SELECT coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'seq', e.seq, 'details', e.details) ORDER BY e.seq DESC), '[]')
+    INTO v_page
+    FROM (
+      SELECT u.id, u.seq, u.details FROM (
+        (SELECT a.id, a.seq, a.details FROM public.admin_audit a
+          WHERE a.team_id = p_team_id AND a.app_id = p_app_id AND a.seq < v_before
+          ORDER BY a.seq DESC LIMIT p_limit)
+        UNION ALL
+        (SELECT r.id, r.seq, r.details FROM admin_private.audit_archive r
+          WHERE r.team_id = p_team_id AND r.app_id = p_app_id AND r.seq < v_before
+          ORDER BY r.seq DESC LIMIT p_limit)
+      ) u ORDER BY u.seq DESC LIMIT p_limit
+    ) e;
+  END IF;
+  RETURN v_page;
+END $$;
+REVOKE ALL ON FUNCTION public.admin_audit_page(text, text, bigint, integer, text, text)
+  FROM PUBLIC, anon, authenticated, admin_collaboration;
+GRANT EXECUTE ON FUNCTION public.admin_audit_page(text, text, bigint, integer, text, text) TO authenticated;
+
 -- 归档函数（只给迁移所有者，以所有者身份执行，不是定义者函数）：事件满足任一条件即归档——
 --   p_older_than 非空且 created_at 早于 now() - p_older_than；
 --   p_keep_latest 非空且它不在本工作区热表里按 seq 最新的 p_keep_latest 条之内（0 表示一条不留）。
