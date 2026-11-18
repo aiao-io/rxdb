@@ -6,14 +6,24 @@ import { tx } from './translate.js';
 /** 任务视图用到的控制器部分。 */
 export type TaskViewController = Pick<
   CollaborationController,
-  'task' | 'snapshot' | 'syncing' | 'online' | 'uploadExpired' | 'sync' | 'discardDraft' | 'fork' | 'fetchRemote'
+  | 'task'
+  | 'snapshot'
+  | 'syncing'
+  | 'online'
+  | 'unsavedInput'
+  | 'uploadExpired'
+  | 'sync'
+  | 'discardDraft'
+  | 'fork'
+  | 'fetchRemote'
 >;
 
 /**
  * 打开着的团队任务的状态与动作（ADMIN-US-205 AC#3～5、ADMIN-US-206）。记录的新增、修改与删除在应用渲染的模型驱动编辑界面里，
  * 每次保存都进入任务工作树；这里把三种可见状态分开显示——已保存未提交（工作树有条目）、已提交未同步（远端头之后有本机提交）、
  * 已同步——并提供同步、确认过期上传、放弃草稿、另存为新任务、拉取远端版本，以及共同起点之后的本机提交历史。
- * 表单里还没点保存的输入属于编辑界面，不在工作树里，同步也不会带上它。
+ * 表单里还没点保存的输入属于编辑界面，不在工作树里，同步也不会带上它：编辑界面报告有这样的输入时（ADMIN-US-205 AC#5），
+ * 在三种状态之外另起一行标出，与已保存的工作树分开；这时同步与切换都会被控制器拦下，要先在编辑界面里保存或取消。
  */
 export function taskView(controller: TaskViewController, perform: Perform, disclosures: Disclosures): HTMLElement {
   const task = controller.task!;
@@ -21,8 +31,9 @@ export function taskView(controller: TaskViewController, perform: Perform, discl
   const state = element('p', stateText(controller), 'font-medium');
   state.setAttribute('role', 'status');
   state.dataset['taskState'] = stateKind(controller);
+  view.append(state);
+  if (controller.unsavedInput) view.append(unsavedLine());
   view.append(
-    state,
     element(
       'p',
       tx('本地版本：{v0} · 远端确认：{v1} · 待上传提交：{v2} · 已保存未提交：{v3}', {
@@ -40,6 +51,13 @@ export function taskView(controller: TaskViewController, perform: Perform, discl
   return view;
 }
 
+/** 「有未保存的输入」那一行：与状态行同为 `status`，屏幕阅读器在它出现、消失时同样会读出。 */
+function unsavedLine(): HTMLElement {
+  const line = element('p', '有未保存的输入：先在编辑界面里保存或取消，才能同步或切换任务', 'font-medium');
+  line.setAttribute('role', 'status');
+  line.dataset['unsavedInput'] = 'true';
+  return line;
+}
 /** 三种状态之一：已保存未提交（`saved`）优先，其次已提交未同步（`committed`），否则已同步（`synced`）。 */
 function stateKind(controller: TaskViewController): 'saved' | 'committed' | 'synced' {
   const task = controller.task!;

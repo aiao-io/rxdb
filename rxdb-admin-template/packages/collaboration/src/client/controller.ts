@@ -187,6 +187,13 @@ export class CollaborationController extends EventTarget {
   /** 是否正在上传任务提交。 */
   syncing = false;
   /**
+   * 编辑界面里有没有未保存的输入（ADMIN-US-205 AC#5），挂载方按应用的报告更新：对话框里还没点保存的表单取值不在任务工作树里，
+   * 同步带不上它，编辑界面一卸载它就丢了，而协作包没法替用户保存它。为 true 时，会卸载编辑界面或改写任务的动作一律拒绝并说明
+   * （`unsaved`）：切换团队、接受邀请、重放上次请求、打开或新建任务、离线任务、导入、恢复、同步、另存、拉取远端、放弃草稿与退出。
+   * 会话失效引起的锁定不受它拦（安全优先），挂载方另外说明输入已随编辑界面丢弃。
+   */
+  unsavedInput = false;
+  /**
    * 创建控制器；此时尚未联网，需继续调用 {@link CollaborationController.initialize}。
    * @param base 协作 HTTP 接口的路径前缀。
    * @param open 打开团队库（`scope => openTeamDatabase(应用的工厂, scope)`）。
@@ -304,6 +311,7 @@ export class CollaborationController extends EventTarget {
    * 换了团队或应用时关闭上一个团队库（编辑界面先卸载，之后才关库）。
    */
   async selectWorkspace(workspace: WorkspaceEntry): Promise<void> {
+    this.assertSaved();
     demand(this.user, 'locked', '先登录并选择团队');
     const user = this.user;
     const epoch = ++this.generation;
@@ -443,6 +451,8 @@ export class CollaborationController extends EventTarget {
   }
   /** 用邀请令牌加入团队并选中它。 */
   async acceptInvitation(teamId: string, appId: string, id: string, token: string): Promise<void> {
+    // 接受之后会切到新团队：先拦下，不能邀请已经消费了才发现切不过去
+    this.assertSaved();
     const workspace = { teamId, appId, name: teamId };
     const epoch = this.generation;
     await this.current(
@@ -455,6 +465,7 @@ export class CollaborationController extends EventTarget {
   }
   /** 基于当前共享版本新建任务并打开。 */
   async createTask(name: string): Promise<void> {
+    this.assertSaved();
     demand(this.snapshot, 'locked', '先选择团队');
     const id = crypto.randomUUID();
     await this.run({ type: 'task', id, name, expectedHead: this.snapshot.head });
@@ -465,6 +476,7 @@ export class CollaborationController extends EventTarget {
    * 再导入任务在服务端已有的提交（跨设备续作，提交 ID、父链与作者与服务端一致）。编辑界面先卸载，切好分支之后再渲染。
    */
   async openTask(id: string): Promise<void> {
+    this.assertSaved();
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     await this.current(this.refresh());
     const task = this.snapshot.tasks.find(t => t.id === id);
@@ -480,6 +492,7 @@ export class CollaborationController extends EventTarget {
   }
   /** 离线时打开一个已解锁的本机任务：团队库切到它的分支，不读服务端内容。 */
   async openOffline(entry: TaskEntry) {
+    this.assertSaved();
     this.feed?.stop();
     this.closeTask();
     this.changed();
@@ -507,6 +520,7 @@ export class CollaborationController extends EventTarget {
    * 用户核对远端版本后以 `confirmExpired` 为 true 再同步，才按原幂等键与原提交发送。表单里尚未保存的输入不在工作树里，不会被提交。
    */
   async sync(confirmExpired = false): Promise<void> {
+    this.assertSaved();
     if (this.syncing) return;
     this.syncing = true;
     try {
@@ -529,6 +543,7 @@ export class CollaborationController extends EventTarget {
    * 新任务在本机从原任务分支的头另起一条分支。原任务与 PR 保持原远端版本，之后可以拉取远端版本跟随它。
    */
   async fork(name: string): Promise<void> {
+    this.assertSaved();
     demand(this.task, 'missing', '先打开任务');
     const original = this.task;
     await this.current(this.tasks.commit(original.context, original.name));
@@ -541,6 +556,7 @@ export class CollaborationController extends EventTarget {
   }
   /** 放弃草稿（ADMIN-US-221 AC#3）：工作树退回任务头，业务表一起退回，列表与表单随即读到任务头的数据。 */
   async discardDraft(): Promise<void> {
+    this.assertSaved();
     demand(this.task, 'missing', '先打开任务');
     const context = this.task.context;
     await this.current(this.tasks.discard(context));
@@ -579,6 +595,7 @@ export class CollaborationController extends EventTarget {
   }
   /** 退出账号：先锁定本机草稿，再通知其他页面并清除本机会话。 */
   async logout(): Promise<void> {
+    this.assertSaved();
     const auth = this.auth;
     const userId = this.user?.id;
     await this.lock();
@@ -620,6 +637,7 @@ export class CollaborationController extends EventTarget {
    * 除非这些提交已另存为新任务；那时原任务从远端头另起一条分支跟随远端。
    */
   async fetchRemote(): Promise<void> {
+    this.assertSaved();
     demand(this.task && this.workspace, 'missing', '先打开任务');
     const context = this.task.context;
     const workspace = this.workspace;
@@ -951,6 +969,8 @@ export class CollaborationController extends EventTarget {
   }
   /** 重放上次未确认的请求；`confirmed` 表示用户已核对并确认重发，不再检查自动重试期限。 */
   private async replayPending(confirmed: boolean): Promise<void> {
+    // 重放会切到请求所属的团队（关闭打开着的任务）：编辑界面里有未保存的输入时先拦下，不能接受邀请之后才发现切不过去
+    this.assertSaved();
     const pending = this.pending();
     demand(pending && this.user, 'missing', '没有待确认请求');
     if (pending.command.type === 'accept_invite') {
@@ -1225,6 +1245,10 @@ export class CollaborationController extends EventTarget {
   /** 下发接口绑定到一个团队：读这个团队的共享分支或某个任务分支。 */
   private download(workspace: WorkspaceEntry): ExchangeDownload {
     return (branch, known) => this.reader.exchange(workspace, branch, known);
+  }
+  /** 编辑界面里还有未保存的输入时拒绝（见 {@link CollaborationController.unsavedInput}）。 */
+  private assertSaved(): void {
+    demand(!this.unsavedInput, 'unsaved', '先在编辑界面里保存或取消未保存的输入');
   }
   /** 显示打开着的任务，并订阅团队库的本地写入：实体列表每次保存之后重读任务状态（工作树没有变更流）。 */
   private showTask(view: TaskView): void {

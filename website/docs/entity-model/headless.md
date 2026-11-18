@@ -84,6 +84,28 @@ Vue 的同名 `use*` composable 返回 `{ controller, snapshot }`，`snapshot` �
 
 详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、继续编辑、取消或关闭后，迟到的成功不会覆盖新草稿或重新关闭新会话，迟到的失败只拒绝原 Promise，不写入新会话的 `snapshot.error`。当前会话的保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。对话框的 `setData` 按内容比较，与最近一次数据结构相同时不发布 `dataChanged`：宿主每次渲染重建同样内容的 `data`（如 React 里的内联对象）不会引发重渲染循环，数据里的函数按引用比较，需保持引用稳定。
 
+## 未保存输入
+
+`createEntityDirtyTracker()`（`EntityDirtyTracker`）汇总「有没有未保存输入」，三端默认 `EntityList` / `EntityDetail` 的 `onDirtyChange` / `dirtyChange` / `dirty-change` 都由它判定，自建表单与弹窗也可以直接用：
+
+```ts
+import { createEntityDirtyTracker } from '@aiao/rxdb-model/headless';
+
+const dirty = createEntityDirtyTracker();
+const stop = dirty.subscribe(value => setLeaveGuard(value));
+
+form.subscribe((_snapshot, event) => {
+  if (event.type === 'fieldChanged') dirty.recordField(event.event);
+});
+dirty.setSource('children', childList.hasDrafts); // 嵌套部件的状态
+dirty.reset(); // 保存成功、交给宿主、取消、关闭时
+stop();
+```
+
+- `recordField(event)` 记下表单的字段变化：每个字段在一次编辑里第一次变化时的 `previousValue` 是基线，之后取值与基线结构相同就不算未保存；`null`、`undefined` 与空串都算空值、彼此相等（表单把清空的输入解析成 `null`）。它不读表单控制器的 `dirty`：默认详情把用户输入回灌成表单的 `data`，每次回灌都把表单基线挪到最新输入。
+- `setSource(key, dirty)` 报告具名子来源（对话框里的详情、关系 Tab 里的嵌套列表、随父实体保存的本地草稿），任一来源为 `true` 即为 `true`；`reset()` 结束一次编辑，字段与子来源一起清空。
+- 只在状态真正变化时通知。订阅即对齐：订阅时已有未保存输入立即通知 `true`；取消订阅时这个监听最近收到的是 `true`，就补发 `false`。每个监听看到的都是从 `false` 开始、以 `false` 收尾的交替序列，组件卸载时取消订阅，宿主就不会停在 `true`。
+
 ## 接入真实应用
 
 三个演示应用各有一个只经 headless 入口驱动的示例页 `/headless`（`apps/dev-rxdb-{angular,react,vue}/` 的 `pages/headless/`）：表单、筛选、列表、详情与弹窗的 DOM、控件和样式都是页面自己的，不渲染默认组件。`apps/dev-rxdb-*-e2e/src/headless-entity.spec.ts` 是三端同一份用例，在生产构建上跑。下面是接入时需要留意的点。

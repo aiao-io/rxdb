@@ -31,6 +31,7 @@ import {
   canReorderEntityList,
   cn,
   commitRowMove,
+  createEntityDirtyTracker,
   createListViewState,
   deriveEntityCapabilities,
   describeHistoryBarrier,
@@ -191,6 +192,17 @@ export interface EntityListProps {
   onSelectionConfirmed?: (entities: EntityInstance[]) => void;
   /** 选择模式：取消选择时触发。 */
   onSelectionCancelled?: () => void;
+  /**
+   * 列表打开的新增 / 编辑表单是否有未保存输入，状态变化时触发。
+   *
+   * @remarks
+   * 未保存输入指对话框里还没点保存的表单取值（改回原值就不算），以及关系页签里嵌套列表的同类输入、
+   * 随父实体一起保存的本地草稿；判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`，三端同一套规则。
+   * 只在状态真正变化时触发：保存成功、取消与关闭对话框都回到 `false`；组件卸载（含 StrictMode 回放、`<Activity>` 隐藏）时
+   * 仍是 `true` 就补发一次 `false`，重显时若仍有未保存输入再报 `true`，宿主不会停在 `true`。
+   * 宿主据此在离开页面前提示、在同步或切换前拦下，Angular / Vue 端对应 `dirtyChange` 输出与 `dirty-change` 事件。
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -213,7 +225,8 @@ export function EntityList({
   alreadyLinkedIds = new Set(),
   onViewEntity,
   onSelectionConfirmed,
-  onSelectionCancelled
+  onSelectionCancelled,
+  onDirtyChange
 }: EntityListProps): JSX.Element {
   const { t, runtime: modelI18n } = useModelI18n();
 
@@ -294,6 +307,21 @@ export function EntityList({
   const reorderPendingRef = useRef(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
   const queryTableRef = useRef<QueryTableHandle>(null);
+
+  // ── 未保存输入（onDirtyChange）────────────────────────────────────────
+  // 判定全在共享的 EntityDirtyTracker：对话框里的详情与本地草稿各报一个子来源，这里只接线。
+  // 宿主的回调经 ref 读最新值；订阅随 effect 建立与清理，卸载、StrictMode 回放与 <Activity> 隐藏时
+  // 仍有未保存输入就补发 false，重显时再报 true
+  const [dirtyTracker] = useState(createEntityDirtyTracker);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
+  useEffect(() => dirtyTracker.subscribe(dirty => onDirtyChangeRef.current?.(dirty)), [dirtyTracker]);
+  // 级联新增与多对多选择进本地草稿的记录随父实体一起保存，父实体保存之前同样是未保存内容
+  useEffect(() => {
+    dirtyTracker.setSource('drafts', localDraftItems.length > 0);
+  }, [dirtyTracker, localDraftItems]);
 
   // namespace/name 变化时重置排序与筛选（对应 Angular 侧 linkedSignal；渲染期调整状态）
   const [prevEntityInputs, setPrevEntityInputs] = useState({ namespace, name });
@@ -1182,12 +1210,13 @@ export function EntityList({
         </div>
       )}
 
-      {/* 新建对话框 */}
+      {/* 新建对话框：关闭（保存、取消、Escape、遮罩）即结束这次输入，详情卸载时也会补报 false */}
       {openDialog?.kind === 'create' && (
         <Dialog
           open
           onClose={result => {
             setOpenDialog(null);
+            dirtyTracker.setSource('create', false);
             if (result === 'saved') {
               refreshCurrentList();
               showSaveToast();
@@ -1202,9 +1231,11 @@ export function EntityList({
           <EntityDetail
             {...openDialog.data}
             relatedEntityProvider={createDialogRelatedEntityProvider}
+            onDirtyChange={dirty => dirtyTracker.setSource('create', dirty)}
             onFormSubmitted={data => {
               void handleCreateSubmit(data);
               setOpenDialog(null);
+              dirtyTracker.setSource('create', false);
             }}
           />
         </Dialog>
@@ -1216,6 +1247,7 @@ export function EntityList({
           open
           onClose={result => {
             setOpenDialog(null);
+            dirtyTracker.setSource('view', false);
             if (result === 'saved') {
               refreshCurrentList();
               showSaveToast();
@@ -1227,7 +1259,11 @@ export function EntityList({
           minHeight='300px'
           className='entity-detail-dialog'
         >
-          <EntityDetail {...openDialog.data} relatedEntityProvider={viewDialogRelatedEntityProvider} />
+          <EntityDetail
+            {...openDialog.data}
+            relatedEntityProvider={viewDialogRelatedEntityProvider}
+            onDirtyChange={dirty => dirtyTracker.setSource('view', dirty)}
+          />
         </Dialog>
       )}
 

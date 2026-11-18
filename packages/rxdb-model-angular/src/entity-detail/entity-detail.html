@@ -45,6 +45,7 @@
             [parentEntity]="parentEntityForRelation()"
             [parentRelationName]="$any(tab).relationName"
             [relationKind]="$any(tab).relationKind"
+            (dirtyChange)="onRelationDirtyChange(tab.key, $event)"
           />
         }
       </div>

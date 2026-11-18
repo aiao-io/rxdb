@@ -199,7 +199,7 @@ describe('协作页面接线', () => {
       entities: [],
       sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
     });
-    const context: TeamEditorContext = { database, task: { id: 'task-1', name: '年度盘点' } };
+    const context: TeamEditorContext = { database, task: { id: 'task-1', name: '年度盘点' }, reportDirty: vi.fn() };
     const container = document.body.appendChild(document.createElement('div'));
     try {
       const unmount = renderEditor(container, context);

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createEntityDirtyTracker, EntityDirtyTracker } from '../../entity-form/dirty-tracker.js';
 import * as headless from '../../headless.js';
 import * as root from '../../index.js';
-import { createEntityDirtyTracker, EntityDirtyTracker } from '../../entity-form/dirty-tracker.js';
 
 /** 一次表单字段变化（只取判定用到的三项）。 */
 const change = (field: string, previousValue: unknown, value: unknown) => ({ field, previousValue, value });
@@ -20,9 +20,10 @@ describe('EntityDirtyTracker：表单字段', () => {
     expect(tracker.dirty).toBe(false);
 
     tracker.recordField(change('tags', ['a'], ['a', 'b']));
+    expect(tracker.dirty).toBe(true);
     tracker.recordField(change('tags', ['a', 'b'], ['a']));
     expect(tracker.dirty).toBe(false);
-    expect(listener.mock.calls).toEqual([[true], [false]]);
+    expect(listener.mock.calls).toEqual([[true], [false], [true], [false]]);
   });
 
   it('只在状态真正变化时通知：同一状态下的后续输入、重复报告都不再通知', () => {
@@ -41,6 +42,18 @@ describe('EntityDirtyTracker：表单字段', () => {
     tracker.reset();
     tracker.setSource('relation', false);
     expect(listener.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('null、undefined 与空串都算空值：原值是空串的字段，清空输入（解析为 null）不算改动', () => {
+    const tracker = createEntityDirtyTracker();
+    tracker.recordField(change('note', '', '写了点'));
+    tracker.recordField(change('note', '写了点', null));
+    expect(tracker.dirty).toBe(false);
+    tracker.recordField(change('memo', undefined, ''));
+    expect(tracker.dirty).toBe(false);
+    // 0、false 与空数组都是真实取值，不算空值
+    tracker.recordField(change('count', null, 0));
+    expect(tracker.dirty).toBe(true);
   });
 
   it('多个字段各自对照自己的基线：任一字段仍偏离即为未保存', () => {

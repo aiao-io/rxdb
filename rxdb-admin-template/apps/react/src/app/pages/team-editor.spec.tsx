@@ -16,6 +16,8 @@ interface ListProbe {
   readonly i18n: unknown;
   mounted: boolean;
   openDialog(): void;
+  /** 像真实列表那样交出未保存状态（`onDirtyChange`）。 */
+  reportDirty(dirty: boolean): void;
 }
 
 /** 对话框内容替身渲染时 `useRxDB()` 读到的库。 */
@@ -28,7 +30,9 @@ const mocks = vi.hoisted(() => ({
   shell: { i18n: undefined as unknown as I18n },
   setup: vi.fn(),
   lists: [] as ListProbe[],
-  dialogs: [] as DialogProbe[]
+  dialogs: [] as DialogProbe[],
+  /** 协作包的 `reportDirty` 收到的报告，按顺序。 */
+  reports: [] as boolean[]
 }));
 
 vi.mock('../shell/workbench-shell', () => ({ workbenchShell: mocks.shell }));
@@ -47,7 +51,7 @@ vi.mock('@aiao/rxdb-model-react', async () => {
     }, [database]);
     return createElement('p', { 'data-testid': 'dialog-probe' });
   };
-  const EntityList = (props: { namespace: string; name: string }) => {
+  const EntityList = (props: { namespace: string; name: string; onDirtyChange?: (dirty: boolean) => void }) => {
     const database = useRxDB();
     const i18n = useI18nRuntime();
     const [open, setOpen] = useState(false);
@@ -59,7 +63,8 @@ vi.mock('@aiao/rxdb-model-react', async () => {
         database,
         i18n,
         mounted: true,
-        openDialog: () => setOpen(true)
+        openDialog: () => setOpen(true),
+        reportDirty: dirty => props.onDirtyChange?.(dirty)
       };
       mocks.lists.push(created);
       return created;
@@ -124,7 +129,11 @@ async function show(database: RxDB = teamDatabase(), container?: HTMLElement): P
   const target = container ?? document.body.appendChild(document.createElement('div'));
   containers.push(target);
   await act(async () => {
-    dispose = renderTeamEditor(target, { database, task: { id: 'task-1', name: '年度盘点' } });
+    dispose = renderTeamEditor(target, {
+      database,
+      task: { id: 'task-1', name: '年度盘点' },
+      reportDirty: dirty => mocks.reports.push(dirty)
+    });
   });
   return target;
 }
@@ -163,6 +172,7 @@ describe('团队任务编辑界面', () => {
     mocks.setup.mockReset().mockReturnValue(mocks.anonymous);
     mocks.lists.length = 0;
     mocks.dialogs.length = 0;
+    mocks.reports.length = 0;
   });
 
   afterEach(async () => {
@@ -293,6 +303,18 @@ describe('团队任务编辑界面', () => {
 
     await hide();
     expect(document.querySelectorAll('[data-testid="dialog-probe"]')).toHaveLength(0);
+  });
+
+  it('列表交出的未保存状态原样转给协作包的 reportDirty；换了实体页签，新列表接着报告（ADMIN-US-205 AC#5）', async () => {
+    const container = await show();
+    await act(async () => lastList().reportDirty(true));
+    await act(async () => lastList().reportDirty(false));
+    expect(mocks.reports).toEqual([true, false]);
+
+    await act(async () => tabs(container)[1]?.click());
+    await act(async () => lastList().reportDirty(true));
+    expect(lastList()).toMatchObject({ name: 'AssetCategory' });
+    expect(mocks.reports).toEqual([true, false, true]);
   });
 
   it('列表拿到工作台的国际化运行时：实体与字段标签随工作台语言切换', async () => {

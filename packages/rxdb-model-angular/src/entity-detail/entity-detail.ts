@@ -13,6 +13,7 @@ import type {
 import {
   buildDetailTabs,
   buildFormFields,
+  createEntityDirtyTracker,
   entityToFormData,
   formDataToEntityChanges,
   localizeEntityFormFields,
@@ -34,7 +35,8 @@ import {
   signal,
   untracked,
   type EffectCleanupRegisterFn,
-  type InputSignal
+  type InputSignal,
+  type OnDestroy
 } from '@angular/core';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { EntityFormComponent } from '../entity-form/rxdb-entity-form-angular';
@@ -95,7 +97,7 @@ const loadErrorMessage = (error: unknown): string =>
   styleUrl: './entity-detail.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class EntityDetailComponent {
+export class EntityDetailComponent implements OnDestroy {
   readonly #modelBinding = useModelI18n();
 
   readonly #dialogRef = inject(DialogRef, { optional: true });
@@ -105,6 +107,10 @@ export class EntityDetailComponent {
 
   /** 创建模式下的草稿实体实例（立即创建，不保存） */
   #draftEntity: EntityInstance | null = null;
+
+  /** 未保存输入（`dirtyChange`）的判定：表单字段变化、关系列表的报告与会话边界交给它，这里只接线。 */
+  readonly #dirty = createEntityDirtyTracker();
+  readonly #releaseDirty = this.#dirty.subscribe(dirty => this.dirtyChange.emit(dirty));
 
   // 根据 namespace + name 查找对应实体类
   readonly #entityCls = computed<EntityType | null>(() => {
@@ -249,6 +255,17 @@ export class EntityDetailComponent {
   readonly fieldChanged = output<FormFieldChangeEvent>();
   readonly validationErrors = output<FormValidationResult>();
 
+  /**
+   * 是否有未保存输入，状态变化时输出。
+   *
+   * @remarks
+   * 未保存输入指表单里还没保存的取值（改回原值就不算），以及关系页签里嵌套列表报告的同类输入与本地草稿；
+   * 判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`。表单在 `change`（失焦或回车）时才提交取值。
+   * 保存成功、把输入交给宿主（`formSubmitted`）、取消，以及编辑目标换了（旧目标上的输入随表单一起作废）都回到 `false`；
+   * 销毁时仍是 `true` 就在 `ngOnDestroy` 里补发 `false`。实体列表据此汇总成自己的 `dirtyChange`。
+   */
+  readonly dirtyChange = output<boolean>();
+
   /** 是否使用外部保存模式（create 模式下，保存/取消按钮在 tabs 下面，而非 form 内） */
   readonly isCreateMode = computed(() => this.formModeValue === 'create');
 
@@ -387,6 +404,15 @@ export class EntityDetailComponent {
     });
   }
 
+  /**
+   * 取消未保存输入的订阅：仍是 `true` 就补发 `false`。
+   * @remarks 放在 `ngOnDestroy` 而不是 `DestroyRef` 回调：Angular 先调 `ngOnDestroy`，再清理模板监听与输出，
+   * 这时发出的 `false` 宿主还收得到。
+   */
+  ngOnDestroy(): void {
+    this.#releaseDirty();
+  }
+
   selectTab(key: string): void {
     const targetTab = this.tabs().find(t => t.key === key);
     if (this.isCreateMode() && targetTab?.type === 'table') {
@@ -411,13 +437,15 @@ export class EntityDetailComponent {
   onFormSubmitted(data: EntityFormData): void {
     // 表单内部动作已隐藏，回车仍会提交：目标未就绪时既不能写旧实例，也不能当成透传成功
     if (this.isEditPending()) return;
-    // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理
+    // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理；输入交给宿主即不再算未保存
     if (this.isCreateMode()) {
+      this.#dirty.reset();
       this.formSubmitted.emit(data);
       return;
     }
     const inst = this.#entityInstance();
     if (!inst) {
+      this.#dirty.reset();
       this.formSubmitted.emit(data);
       return;
     }
@@ -431,6 +459,7 @@ export class EntityDetailComponent {
       .save()
       .then(() => {
         if (!isCurrent()) return;
+        this.#dirty.reset();
         this.#dialogRef?.close('saved');
         this.formSubmitted.emit(data);
       })
@@ -443,6 +472,7 @@ export class EntityDetailComponent {
   onFormCancelled(): void {
     this.#editGeneration++;
     this.#cleanupDraftEntity();
+    this.#dirty.reset();
     this.formCancelled.emit();
     this.#dialogRef?.close();
   }
@@ -453,6 +483,7 @@ export class EntityDetailComponent {
     }
     this.formErrors.set(null);
     this.saveError.set(null);
+    this.#dirty.recordField(event);
     this.fieldChanged.emit(event);
   }
 
@@ -485,6 +516,7 @@ export class EntityDetailComponent {
           if (!isCurrent()) return;
           this.#draftEntity = null;
           this.draftEntitySignal.set(null);
+          this.#dirty.reset();
           this.#dialogRef?.close('saved');
         })
         .catch(e => {
@@ -492,6 +524,7 @@ export class EntityDetailComponent {
           this.saveError.set(this.#saveErrorMessage(e));
         });
     } else {
+      this.#dirty.reset();
       this.formSubmitted.emit(merged);
       this.#dialogRef?.close();
     }
@@ -527,6 +560,11 @@ export class EntityDetailComponent {
     return undefined;
   }
 
+  /** 关系页签里的嵌套列表报告它的未保存输入（对话框里的表单、随父实体保存的本地草稿），按页签各记一个来源。 */
+  protected onRelationDirtyChange(tabKey: string, dirty: boolean): void {
+    this.#dirty.setSource(`relation:${tabKey}`, dirty);
+  }
+
   /**
    * create 模式按需建内存草稿实体（不落库）。
    *
@@ -552,7 +590,11 @@ export class EntityDetailComponent {
    * 原因进错误面板。
    */
   #loadEditTarget(target: EditTarget, onCleanup: EffectCleanupRegisterFn): void {
-    onCleanup(() => this.#editGeneration++);
+    // 目标换了（或销毁）：旧目标上的输入随表单一起作废，未保存状态跟着清空
+    onCleanup(() => {
+      this.#editGeneration++;
+      this.#dirty.reset();
+    });
     const rxdb = this.#rxdb;
     const { cls, id } = target;
     if (!rxdb || !cls || !id) return;

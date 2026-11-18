@@ -17,6 +17,15 @@ function movedPosition(key: string, position: number, count: number): number | u
   return undefined;
 }
 
+/** {@link TeamEditor} 的 props。 */
+export interface TeamEditorProps {
+  /**
+   * 实体列表的未保存状态（`onDirtyChange`）原样交给协作包（渲染回调上下文里的 `reportDirty`，ADMIN-US-205 AC#5）：
+   * 对话框里还没点保存的输入不在任务工作树里，协作面板据此标出、离开前提示，并拦下同步与切换。
+   */
+  reportDirty: (dirty: boolean) => void;
+}
+
 /**
  * 团队任务编辑界面（ADMIN-US-221 AC#4）：用模型驱动的实体列表编辑任务所在的团队库。
  *
@@ -24,9 +33,9 @@ function movedPosition(key: string, position: number, count: number): number | u
  * 实体页签与列表都来自团队库（最近的 `RxDBProvider`）注册的实体元数据，标签是随语言切换的实体显示名，
  * 组件里不写任何具体实体名；换一套业务实体，这里不需要改。每次保存都由团队库的 working-tree 捕获进任务工作树。
  * 页签遵循 WAI-ARIA 页签模式：只有选中的页签在 Tab 序列里，左右方向键与 Home / End 在页签间移动。
- * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去。
+ * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去；旧列表卸载时若还有未保存的输入，会先补报 false。
  */
-export default function TeamEditor() {
+export default function TeamEditor({ reportDirty }: TeamEditorProps) {
   const { t } = useI18n();
   const database = useRxDB();
   const entries = useMemo(() => visibleEntityEntries(database.config.entities), [database]);
@@ -78,7 +87,12 @@ export default function TeamEditor() {
         ))}
       </div>
       <div aria-labelledby={tabId(position)} className='page-host min-h-0 flex-1' id={panelId} role='tabpanel'>
-        <EntityList key={`${current.namespace}/${current.name}`} name={current.name} namespace={current.namespace} />
+        <EntityList
+          key={`${current.namespace}/${current.name}`}
+          name={current.name}
+          namespace={current.namespace}
+          onDirtyChange={reportDirty}
+        />
       </div>
     </div>
   );

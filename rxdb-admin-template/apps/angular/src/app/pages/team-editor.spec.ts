@@ -17,6 +17,8 @@ interface ListProbe {
   readonly i18n: unknown;
   mounted: boolean;
   openDialog(): void;
+  /** 像真实列表那样交出未保存状态（`dirtyChange` 输出）。 */
+  reportDirty(dirty: boolean): void;
 }
 
 /** 对话框内容替身创建时读到的库。 */
@@ -27,11 +29,20 @@ interface DialogProbe {
 const mocks = vi.hoisted(() => ({
   anonymous: { name: 'anonymous-workbench' },
   lists: [] as ListProbe[],
-  dialogs: [] as DialogProbe[]
+  dialogs: [] as DialogProbe[],
+  /** 协作包的 `reportDirty` 收到的报告，按顺序。 */
+  reports: [] as boolean[]
 }));
 
 vi.mock('@aiao/rxdb-model-angular', async () => {
-  const { Component: component, DestroyRef, Input: input, inject } = await import('@angular/core');
+  const {
+    Component: component,
+    DestroyRef,
+    EventEmitter: eventEmitter,
+    Input: input,
+    Output: output,
+    inject
+  } = await import('@angular/core');
   const { Dialog: dialog } = await import('@angular/cdk/dialog');
   const { RxDB: rxdb } = await vi.importActual<{ RxDB: typeof RxDB }>('@aiao/rxdb');
   const { useI18nRuntime } = await vi.importActual<{ useI18nRuntime: () => I18n | undefined }>(
@@ -50,6 +61,7 @@ vi.mock('@aiao/rxdb-model-angular', async () => {
     private readonly dialogs = inject(dialog);
     @input() namespace = '';
     @input() name = '';
+    @output() readonly dirtyChange = new eventEmitter<boolean>();
     readonly database = inject(rxdb);
     readonly i18n = useI18nRuntime();
     mounted = true;
@@ -61,6 +73,9 @@ vi.mock('@aiao/rxdb-model-angular', async () => {
     }
     openDialog(): void {
       this.dialogs.open(DialogProbeComponent);
+    }
+    reportDirty(dirty: boolean): void {
+      this.dirtyChange.emit(dirty);
     }
   }
   return { EntityListComponent };
@@ -117,7 +132,11 @@ async function show(database: RxDB = teamDatabase(), container?: HTMLElement): P
   const target = container ?? document.body.appendChild(document.createElement('div'));
   containers.push(target);
   const render = TestBed.runInInjectionContext(() => useRenderTeamEditor());
-  dispose = render(target, { database, task: { id: 'task-1', name: '年度盘点' } });
+  dispose = render(target, {
+    database,
+    task: { id: 'task-1', name: '年度盘点' },
+    reportDirty: dirty => mocks.reports.push(dirty)
+  });
   await settle();
   return target;
 }
@@ -182,6 +201,7 @@ describe('团队任务编辑界面', () => {
     runtime = createWorkbenchI18n();
     mocks.lists.length = 0;
     mocks.dialogs.length = 0;
+    mocks.reports.length = 0;
     TestBed.configureTestingModule({
       providers: [provideZonelessChangeDetection(), provideI18n(runtime), { provide: RxDB, useValue: mocks.anonymous }]
     });
@@ -298,6 +318,18 @@ describe('团队任务编辑界面', () => {
       expect(list.database).toBe(database);
       expect(list.database).not.toBe(mocks.anonymous);
     }
+  });
+
+  it('列表交出的未保存状态原样转给协作包的 reportDirty；换了实体页签，新列表接着报告（ADMIN-US-205 AC#5）', async () => {
+    const container = await show();
+    lastList().reportDirty(true);
+    lastList().reportDirty(false);
+    expect(mocks.reports).toEqual([true, false]);
+
+    await click(tabs(container)[1]);
+    lastList().reportDirty(true);
+    expect(lastList()).toMatchObject({ name: 'AssetCategory' });
+    expect(mocks.reports).toEqual([true, false, true]);
   });
 
   it('列表拿到工作台的国际化运行时：实体与字段标签随工作台语言切换', async () => {

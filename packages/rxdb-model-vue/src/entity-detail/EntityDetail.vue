@@ -28,6 +28,7 @@ import type {
 import {
   buildDetailTabs,
   buildFormFields,
+  createEntityDirtyTracker,
   entityToFormData,
   formDataToEntityChanges,
   localizeEntityFormFields,
@@ -97,7 +98,21 @@ const emit = defineEmits<{
   fieldChanged: [event: FormFieldChangeEvent];
   /** 校验错误 */
   validationErrors: [result: FormValidationResult];
+  /**
+   * 是否有未保存输入，状态变化时触发（模板里写作 `@dirty-change`）。
+   *
+   * 未保存输入指表单里还没保存的取值（改回原值就不算），以及关系页签里嵌套列表报告的同类输入与本地草稿；
+   * 判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`。保存成功、把输入交给宿主（`formSubmitted`）、取消，
+   * 以及编辑目标换了（换记录、换库，旧目标上的输入随之作废）都回到 `false`；卸载时仍是 `true` 就在 `onBeforeUnmount` 里补发 `false`。
+   * 实体列表据此汇总成自己的 `dirty-change`。
+   */
+  dirtyChange: [dirty: boolean];
 }>();
+
+// ── 未保存输入（dirty-change）：判定在共享的 EntityDirtyTracker，表单字段变化、关系列表的报告与会话边界交给它，这里只接线 ──
+const dirtyTracker = createEntityDirtyTracker();
+const releaseDirty = dirtyTracker.subscribe(dirty => emit('dirtyChange', dirty));
+onBeforeUnmount(releaseDirty);
 
 const dialogContext = inject(ENTITY_DIALOG_CONTEXT, undefined);
 
@@ -116,6 +131,7 @@ watch(
     editFormChanges.value = {};
     formErrors.value = null;
     saveError.value = null;
+    dirtyTracker.reset();
   },
   { flush: 'sync' }
 );
@@ -149,6 +165,8 @@ watch(
   () => {
     editGeneration++;
     editFormChanges.value = {};
+    // 换了编辑目标：旧目标上的输入随之作废，未保存状态跟着清空
+    dirtyTracker.reset();
   },
   { flush: 'sync' }
 );
@@ -378,13 +396,15 @@ const settleEditChanges = (submitted: EntityFormData): void => {
 
 const onFormSubmitted = (data: EntityFormData): void => {
   if (isEditPending.value) return;
-  // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理
+  // create 模式与无实例（纯表单数据透传）保持 delegate 语义：只 emit 由宿主处理；输入交给宿主即不再算未保存
   if (isCreateMode.value) {
+    dirtyTracker.reset();
     emit('formSubmitted', data);
     return;
   }
   const inst = entityInstance.value;
   if (!inst) {
+    dirtyTracker.reset();
     emit('formSubmitted', data);
     return;
   }
@@ -401,6 +421,7 @@ const onFormSubmitted = (data: EntityFormData): void => {
     .then(() => {
       if (!isCurrent()) return;
       settleEditChanges(submitted);
+      dirtyTracker.reset();
       dialogContext?.close('saved');
       emit('formSubmitted', data);
     })
@@ -414,6 +435,7 @@ const onFormCancelled = (): void => {
   editGeneration++;
   editFormChanges.value = {};
   cleanupDraftEntity();
+  dirtyTracker.reset();
   emit('formCancelled');
   dialogContext?.close();
 };
@@ -426,6 +448,7 @@ const onFieldChanged = (event: FormFieldChangeEvent): void => {
   }
   formErrors.value = null;
   saveError.value = null;
+  dirtyTracker.recordField(event);
   emit('fieldChanged', event);
 };
 
@@ -457,6 +480,7 @@ const onSave = (): void => {
         if (!isCurrent()) return;
         draftEntity.value = null;
         draftDatabase = undefined;
+        dirtyTracker.reset();
         dialogContext?.close('saved');
       })
       .catch(e => {
@@ -464,6 +488,7 @@ const onSave = (): void => {
         saveError.value = saveErrorMessage(e);
       });
   } else {
+    dirtyTracker.reset();
     emit('formSubmitted', merged);
     dialogContext?.close();
   }
@@ -606,6 +631,7 @@ defineExpose({
               :parent-entity="parentEntityForRelation"
               :parent-relation-name="(tab as DetailTableTab).relationName"
               :relation-kind="(tab as DetailTableTab).relationKind"
+              @dirty-change="(dirty: boolean) => dirtyTracker.setSource(`relation:${tab.key}`, dirty)"
             />
           </div>
         </template>

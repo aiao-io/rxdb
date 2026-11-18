@@ -17,6 +17,7 @@ import { taskView } from './task-view.js';
 import { openTeamDatabase, type TeamDatabaseFactory } from './team-database.js';
 import type { RenderTeamEditor } from './team-editor.js';
 import { tx, useTranslation, type Translate } from './translate.js';
+import { UnsavedInput } from './unsaved-input.js';
 /** 挂载协作界面时的选项；三端应用传入的内容对称。 */
 export interface CollaborationOptions {
   /** 协作 HTTP 接口的路径前缀，默认 `/collaboration-api`（开发与预览服务器把它代理到真实服务端）。 */
@@ -48,6 +49,9 @@ export interface CollaborationOptions {
  * 宿主元素分三块：上方的面板（登录、团队、共享数据、任务状态与动作）与下方的面板（PR、历史、通知、管理）每次变化整块重绘；
  * 中间的编辑区交给应用的 `renderEditor`，在同一个任务打开期间保持不动，不随面板重绘而重建。任务切换、关闭或会话锁定时，
  * 先卸载编辑界面，控制器才切分支或关库。
+ *
+ * 编辑界面经 `reportDirty` 报告对话框里还没保存的输入（ADMIN-US-205 AC#5）：有的时候任务状态里另起一行标出，离开页面前浏览器提示，
+ * 控制器拦下同步、切换与退出；会话失效引起的锁定拦不住，编辑界面随之卸载、输入丢弃，面板上说明这一点。
  * @param host 承载界面的容器元素；卸载时会清空其内容。
  * @param options 团队库工厂、编辑界面，以及接口前缀、翻译与匿名数据导入等可选项。
  * @returns 卸载函数：移除全部监听、卸载编辑界面、离开实时频道、释放控制器并清空容器。
@@ -76,6 +80,13 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   const render = () => {
     if (!disposed) renderPage();
   };
+  /** 编辑界面里未保存的输入：报告改变状态时同步给控制器（它据此拦下同步与切换）并重绘任务状态。 */
+  const unsaved = new UnsavedInput(window, dirty => {
+    controller.unsavedInput = dirty;
+    render();
+  });
+  /** 上一个编辑界面卸载时还有没保存的输入、随之丢弃了（会话失效引起的锁定拦不住）：面板上说明，直到再打开一个编辑界面。 */
+  let discardedInput = false;
   const perform = async (work: () => Promise<unknown>) => {
     busy++;
     host.setAttribute('aria-busy', 'true');
@@ -97,18 +108,23 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     const database = controller.teamDatabase();
     const key = task && database ? JSON.stringify([database.scope, task.context.taskId, task.branchId]) : '';
     if (editor?.key === key) return;
+    // 先作废旧编辑界面的报告入口再卸载它：卸载时实体列表补报的 false 不再触发重绘，重绘会再走到这里
+    if (unsaved.close()) discardedInput = true;
+    controller.unsavedInput = false;
     editor?.dispose();
     editor = undefined;
     editorHost.replaceChildren();
     editorHost.hidden = !key;
     if (!task || !database) return;
+    discardedInput = false;
     const container = element('div');
     editorHost.append(element('h2', '编辑任务数据', 'text-lg font-semibold'), container);
     editor = {
       key,
       dispose: options.renderEditor(container, {
         database: database.rxdb,
-        task: { id: task.context.taskId, name: task.name }
+        task: { id: task.context.taskId, name: task.name },
+        reportDirty: unsaved.open()
       })
     };
     // 团队库打开之后才懒加载的资源（sqlite-wasm 等）也交给离线外壳缓存，离线冷启动才能打开这个任务
@@ -181,6 +197,12 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
       const alert = element('p', controller.message, 'rounded border border-base-300 p-3');
       alert.setAttribute('role', 'status');
       panels.push(alert);
+    }
+    if (discardedInput) {
+      const notice = element('p', '编辑界面已关闭，其中还没保存的输入已丢弃', 'rounded border border-base-300 p-3');
+      notice.setAttribute('role', 'status');
+      notice.dataset['discardedInput'] = 'true';
+      panels.push(notice);
     }
     if (!controller.user) {
       panels.push(loginView(controller, perform, loginDraft));
@@ -408,6 +430,8 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     controller.removeEventListener('change', change);
     host.removeEventListener('input', formDrafts.remember);
     host.removeEventListener('change', formDrafts.remember);
+    // 撤下离开提示：协作界面整个卸载了，编辑界面随之卸载
+    unsaved.close();
     editor?.dispose();
     editor = undefined;
     controller.dispose();

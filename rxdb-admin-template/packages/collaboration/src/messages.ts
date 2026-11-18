@@ -423,6 +423,10 @@ export const collaborationEnglish: Record<string, string> = {
   放弃草稿: 'Discard draft',
   无法在本机建立任务分支: 'Could not create the task branch on this device',
   '有已保存未提交的改动（{v0} 项）': 'Saved but uncommitted changes ({v0})',
+  '有未保存的输入：先在编辑界面里保存或取消，才能同步或切换任务':
+    'Unsaved input: save or cancel it in the editor before syncing or switching tasks',
+  先在编辑界面里保存或取消未保存的输入: 'Save or cancel the unsaved input in the editor first',
+  '编辑界面已关闭，其中还没保存的输入已丢弃': 'The editor was closed and its unsaved input was discarded',
   '有已提交未同步的提交（{v0} 个）': 'Committed but unsynced commits ({v0})',
   '本机历史与服务端不一致，无法导入远端提交':
     'The local history does not match the server, so remote commits cannot be imported',

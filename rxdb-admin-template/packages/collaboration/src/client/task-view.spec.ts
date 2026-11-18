@@ -38,7 +38,7 @@ function open(overrides: Partial<TaskView> = {}): TaskView {
 }
 function setup(
   task: TaskView,
-  options: { expired?: boolean; online?: boolean; remoteHead?: string; open?: boolean } = {}
+  options: { expired?: boolean; online?: boolean; remoteHead?: string; open?: boolean; unsaved?: boolean } = {}
 ) {
   const controller = {
     task,
@@ -57,6 +57,7 @@ function setup(
     } as unknown as WorkspaceSummary,
     syncing: false,
     online: options.online ?? true,
+    unsavedInput: options.unsaved ?? false,
     uploadExpired: () => options.expired ?? false,
     sync: vi.fn(async () => undefined),
     discardDraft: vi.fn(async () => undefined),
@@ -98,6 +99,21 @@ describe('任务视图把已保存未提交、已提交未同步与已同步分�
     const { texts, buttons } = setup(open({ saved: 1, restoring: true }));
     expect(texts()).toContain('工作树来自历史版本的恢复，同步后形成新的提交');
     expect(buttons('放弃草稿')).toHaveLength(1);
+  });
+  it('编辑界面里有未保存的输入时另起一行标出，三种状态照常显示：未保存的输入与已保存的工作树分开（AC#5）', () => {
+    const { view } = setup(open({ saved: 2 }), { unsaved: true });
+    const unsaved = view.querySelector<HTMLElement>('[data-unsaved-input]');
+    expect(unsaved?.textContent).toBe('有未保存的输入：先在编辑界面里保存或取消，才能同步或切换任务');
+    expect(unsaved?.getAttribute('role')).toBe('status');
+    expect(view.querySelector<HTMLElement>('[data-task-state]')?.textContent).toBe('有已保存未提交的改动（2 项）');
+    expect(view.querySelector<HTMLElement>('[data-task-state]')?.dataset['taskState']).toBe('saved');
+
+    const synced = setup(open({ localHead: 'c1', remoteHead: 'c1' }), { unsaved: true });
+    expect(synced.view.querySelector('[data-unsaved-input]')).not.toBeNull();
+    expect(synced.view.querySelector<HTMLElement>('[data-task-state]')?.dataset['taskState']).toBe('synced');
+  });
+  it('没有未保存的输入时不显示那一行', () => {
+    expect(setup(open({ saved: 1 })).view.querySelector('[data-unsaved-input]')).toBeNull();
   });
   it('产品文案经词条表翻译，任务名与提交 ID 原样显示', () => {
     useTranslation(key => `<${key.replace('collaboration.', '')}>`);

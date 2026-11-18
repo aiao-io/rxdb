@@ -1,7 +1,7 @@
 import { useRxDB } from '@aiao/rxdb-angular';
 import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { EntityListComponent } from '@aiao/rxdb-model-angular';
-import { ChangeDetectionStrategy, Component, computed, ElementRef, signal, viewChildren } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, input, signal, viewChildren } from '@angular/core';
 import { entityDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries, type WorkbenchEntityEntry } from '../entities/entity-registry';
 
@@ -24,7 +24,7 @@ let created = 0;
  * 实体页签与列表都来自团队库（注入器里的 `RxDB`）注册的实体元数据，标签是随语言切换的实体显示名，
  * 组件里不写任何具体实体名；换一套业务实体，这里不需要改。每次保存都由团队库的 working-tree 捕获进任务工作树。
  * 页签遵循 WAI-ARIA 页签模式：只有选中的页签在 Tab 序列里，左右方向键与 Home / End 在页签间移动。
- * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去。
+ * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去；旧列表销毁时若还有未保存的输入，会先补报 false。
  *
  * 组件由协作页用 `createComponent` 动态创建，宿主元素就是协作界面的容器里新建的元素：固定高度与纵向排布写在宿主上。
  */
@@ -61,7 +61,7 @@ let created = 0;
       <div class="page-host min-h-0 flex-1" [attr.aria-labelledby]="tabId(position())" [id]="panelId" role="tabpanel">
         <!-- 单元素循环按实体身份跟踪：切换实体就销毁旧列表、重建新列表 -->
         @for (shown of [entry]; track shown.namespace + '/' + shown.name) {
-          <rxdb-entity-list [name]="shown.name" [namespace]="shown.namespace" />
+          <rxdb-entity-list [name]="shown.name" [namespace]="shown.namespace" (dirtyChange)="reportDirty()($event)" />
         }
       </div>
     } @else {
@@ -74,6 +74,11 @@ export default class TeamEditor {
   private readonly tabs = viewChildren<ElementRef<HTMLButtonElement>>('tab');
   /** 翻译函数：随工作台语言切换。 */
   readonly t = useI18n().t;
+  /**
+   * 实体列表的未保存状态（`dirtyChange`）原样交给协作包（渲染回调上下文里的 `reportDirty`，ADMIN-US-205 AC#5）：
+   * 对话框里还没点保存的输入不在任务工作树里，协作面板据此标出、离开前提示，并拦下同步与切换。由渲染回调经 `setInput` 设置。
+   */
+  readonly reportDirty = input.required<(dirty: boolean) => void>();
   /** 可见实体条目：来自团队库注册的实体元数据，按命名空间与名称排序。 */
   readonly entries: readonly WorkbenchEntityEntry[] = visibleEntityEntries(useRxDB().config.entities);
   /** 当前选中的页签位置，默认第一项。 */

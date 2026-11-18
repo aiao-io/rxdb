@@ -13,6 +13,8 @@ import TeamEditor from './team-editor';
  * - 对话框服务 `Dialog` 重新提供一份。列表用它打开记录详情对话框，对话框内容的注入器以服务所在的注入器为父：
  *   不重新提供的话，详情对话框读到的是根注入器里匿名工作台的库，在团队任务里编辑记录就会读写错库。
  *
+ * 实体列表的未保存状态经上下文里的 `reportDirty` 交回协作包：创建组件之后、附着到应用之前经 `setInput` 交给它。
+ *
  * 应用是零 Zone 的：组件的视图要附着到 `ApplicationRef`，才会随 signal 变化（切换页签、切换语言）被检查。
  * 对话框不随创建它的列表销毁，所以卸载时先关掉对话框服务里仍然打开的对话框；随后销毁组件（视图随之脱离应用、
  * 宿主元素移出容器，容器即被清空）并销毁子注入器。协作包在切分支或关库之前调用返回的卸载函数。
@@ -28,6 +30,7 @@ export function useRenderTeamEditor(): RenderTeamEditor {
     const hostElement = container.ownerDocument.createElement('div');
     container.append(hostElement);
     const ref = createComponent(TeamEditor, { environmentInjector, hostElement });
+    ref.setInput('reportDirty', context.reportDirty);
     appRef.attachView(ref.hostView);
     return () => {
       environmentInjector.get(Dialog).closeAll();

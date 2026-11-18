@@ -5,7 +5,7 @@
  * 实体页签与列表都来自团队库注册的实体元数据，标签是随语言切换的实体显示名，组件里不写任何具体实体名；
  * 换一套业务实体，这里不需要改。每次保存都由团队库的 working-tree 捕获进任务工作树。
  * 页签遵循 WAI-ARIA 页签模式：只有选中的页签在 Tab 序列里，左右方向键与 Home / End 在页签间移动。
- * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去。
+ * 切换实体时按实体重建列表，不把上一个实体的筛选与排序状态带过去；旧列表卸载时若还有未保存的输入，会先补报 false。
  *
  * 它是协作包渲染回调创建的独立 Vue 应用的根组件，继承不到主应用的 provide：这里把团队库与工作台的国际化运行时
  * 提供给后代的实体列表。组件读不到自己 provide 的值，所以翻译显式取工作台的运行时。团队库在应用的整个生命周期内不变
@@ -24,6 +24,11 @@ import { workbenchShell } from '../shell/workbench-shell';
 const props = defineProps<{
   /** 任务所在的团队库：已连接、已启用 working-tree，实例归协作包所有。 */
   database: RxDB;
+  /**
+   * 实体列表的未保存状态（`dirty-change`）原样交给协作包（渲染回调上下文里的 `reportDirty`，ADMIN-US-205 AC#5）：
+   * 对话框里还没点保存的输入不在任务工作树里，协作面板据此标出、离开前提示，并拦下同步与切换。
+   */
+  reportDirty: (dirty: boolean) => void;
 }>();
 
 provideRxDB(props.database);
@@ -91,6 +96,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
         ><EntityList
           :key="`${current.namespace}/${current.name}`"
           :name="current.name"
-          :namespace="current.namespace" /></div></template
+          :namespace="current.namespace"
+          @dirty-change="props.reportDirty" /></div></template
   ></div>
 </template>

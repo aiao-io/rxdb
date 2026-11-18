@@ -1034,6 +1034,64 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
   });
 });
 
+describe('编辑界面里有未保存的输入时，会卸载编辑界面或改写任务的动作一律拦下（ADMIN-US-205 AC#5）', () => {
+  const unsaved = { code: 'unsaved', message: '先在编辑界面里保存或取消未保存的输入' };
+  it('同步、另存为新任务、拉取远端版本与放弃草稿被拒：不形成提交、不发请求，工作树原样保留', async () => {
+    const { controller, space, database } = await setup();
+    const send = live(controller, space);
+    database.edit();
+    await controller.refreshTask();
+    controller.unsavedInput = true;
+    await expect(controller.sync()).rejects.toMatchObject(unsaved);
+    await expect(controller.sync(true)).rejects.toMatchObject(unsaved);
+    await expect(controller.fork('保留本机')).rejects.toMatchObject(unsaved);
+    await expect(controller.fetchRemote()).rejects.toMatchObject(unsaved);
+    await expect(controller.discardDraft()).rejects.toMatchObject(unsaved);
+    expect(controller.syncing).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    expect(database.log).not.toContain('discard');
+    expect(controller.task).toMatchObject({ context: aliceTask, saved: 1, unpushed: 0 });
+  });
+  it('切换团队、打开或新建任务、导入、恢复、重放上次请求与退出被拒：任务保持打开，编辑界面不卸载', async () => {
+    const { controller, space, databases, ledger } = await setup();
+    const send = live(controller, space);
+    controller.unsavedInput = true;
+    const other = { teamId: 'other', appId: 'assets', name: 'Other' };
+    await expect(controller.selectWorkspace(other)).rejects.toMatchObject(unsaved);
+    await expect(controller.acceptInvitation('other', 'assets', 'invite', 'token')).rejects.toMatchObject(unsaved);
+    await expect(controller.createTask('新任务')).rejects.toMatchObject(unsaved);
+    await expect(controller.openTask('task')).rejects.toMatchObject(unsaved);
+    await expect(controller.importRecords('导入', {}, assetSchema)).rejects.toMatchObject(unsaved);
+    await expect(controller.restoreVersion(root, '恢复')).rejects.toMatchObject(unsaved);
+    await expect(controller.retryPending()).rejects.toMatchObject(unsaved);
+    await expect(controller.resendPending()).rejects.toMatchObject(unsaved);
+    await expect(controller.openOffline(ledger.read(aliceTask)!)).rejects.toMatchObject(unsaved);
+    await expect(controller.logout()).rejects.toMatchObject(unsaved);
+    expect(send).not.toHaveBeenCalled();
+    expect(controller.user).toEqual(alice);
+    expect(controller.workspace).toMatchObject({ teamId: 'team' });
+    expect(controller.task).toMatchObject({ context: aliceTask });
+    expect(databases.of().closed).toBe(false);
+  });
+  it('会话失效引起的锁定不受它拦：照常锁定并关闭任务（安全优先，输入随编辑界面一起丢弃）', async () => {
+    const { controller } = await setup();
+    controller.unsavedInput = true;
+    await controller.lock();
+    expect(controller.user).toBeNull();
+    expect(controller.task).toBeNull();
+  });
+  it('输入保存或取消之后照常执行', async () => {
+    const { controller, database } = await setup();
+    database.edit();
+    await controller.refreshTask();
+    controller.unsavedInput = true;
+    await expect(controller.discardDraft()).rejects.toMatchObject(unsaved);
+    controller.unsavedInput = false;
+    await controller.discardDraft();
+    expect(controller.task).toMatchObject({ saved: 0 });
+  });
+});
+
 /** 服务端合并一个任务（免审批）：任务从当前共享头起步、上传一个新增分类的提交、建 PR、生成候选并合并；返回新的共享头。 */
 async function mergedShared(space: MemoryWorkspace) {
   const env = () => ({ now: Date.now(), id: () => `server-${++serial}` });

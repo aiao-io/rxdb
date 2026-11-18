@@ -374,6 +374,8 @@ async function deleteRecord(page: Page, entity: string, find: [string, unknown])
 }
 /** 任务状态：已保存未提交、已提交未同步与已同步三种之一（任务视图里的状态行，`data-task-state` 标出是哪一种）。 */
 const taskState = (page: Page) => page.locator('[data-task-state]');
+/** 任务视图里「有未保存的输入」那一行：编辑界面的对话框里有还没保存的表单输入时才出现（ADMIN-US-205 AC#5）。 */
+const unsavedInput = (page: Page) => page.locator('[data-unsaved-input]');
 /**
  * 点「同步」并等它真的完成：提示可能还停在上一次同步的「当前提交已同步」，所以另外等任务状态变成已同步
  * （本机没有已保存未提交的改动，也没有远端头之后的本机提交）。
@@ -655,6 +657,47 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(changes).toContainText('安装系统');
   expect(await changes.getByRole('cell', { name: '删除', exact: true }).count()).toBeGreaterThanOrEqual(3);
   await reviewContext.close();
+});
+
+test('对话框里没保存的输入：面板单独标出、同步被拦下、离开页面前提示，取消对话框后消失（ADMIN-US-205 AC#5）', async ({
+  page,
+  request
+}) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByLabel('任务名称', { exact: true }).fill('未保存输入');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await expect(editor(page)).toBeVisible();
+  await expect(unsavedInput(page)).toHaveCount(0);
+  // 对话框里填了值、没点保存：面板在三种状态之外另起一行标出，已保存的工作树仍是已同步
+  await entityTab(page, '资产分类');
+  await editor(page).getByRole('button', { name: '+ 新增', exact: true }).click();
+  await fillField(page, '分类名', '还没保存的分类');
+  await expect(unsavedInput(page)).toHaveText('有未保存的输入：先在编辑界面里保存或取消，才能同步或切换任务');
+  await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
+  // 同步被拦下并说明：对话框是模态的，鼠标点不到面板，键盘仍可能把焦点移过去，这里直接派发点击
+  await page.getByRole('button', { name: '同步', exact: true, includeHidden: true }).dispatchEvent('click');
+  await expect(page.getByText('先在编辑界面里保存或取消未保存的输入', { exact: true })).toBeVisible();
+  await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
+  // 离开页面：浏览器先问一句（beforeunload），选择留下，页面与输入都还在
+  const prompts: string[] = [];
+  page.on('dialog', async dialog => {
+    prompts.push(dialog.type());
+    await dialog.dismiss();
+  });
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => prompts).toEqual(['beforeunload']);
+  expect(page.isClosed()).toBe(false);
+  await expect(field(page, '分类名').locator('input')).toHaveValue('还没保存的分类');
+  // 取消对话框：输入随之作废，那一行消失，列表里没有这条记录，离开页面不再提示
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
+  await expect(unsavedInput(page)).toHaveCount(0);
+  await expectList(page, '资产分类', 'name', []);
+  await page.close({ runBeforeUnload: true });
+  await expect.poll(() => page.isClosed()).toBe(true);
+  expect(prompts).toEqual(['beforeunload']);
 });
 
 test('离线冷启动只恢复有效授权上下文；过期和退出会锁定保留的草稿', async ({ page, request }) => {
