@@ -235,12 +235,15 @@ export class AuthSession extends EventTarget {
     this.unsubscribe = () => data.subscription.unsubscribe();
   }
 
-  /** 离线冷启动：只信任未过期的缓存授权；没有或已过期时保持未登录。 */
-  private restoreGrant(): void {
+  /**
+   * 离线时恢复身份：只信任上次在线确认过、未过期的缓存授权；没有、已过期，或不属于给定账号时保持原样（冷启动即未登录）。
+   * @param userId supabase-js 离线恢复出的本机会话所属的账号；冷启动时不传。
+   */
+  private restoreGrant(userId?: string): void {
     const cached = localStorage.getItem(this.grantKey());
     const grant = cached ? (JSON.parse(cached) as Grant) : null;
     this.online = false;
-    if (grant && grant.expiresAt > Date.now()) {
+    if (grant && grant.expiresAt > Date.now() && (userId === undefined || grant.user.id === userId)) {
       this.user = grant.user;
       this.expiresAt = grant.expiresAt;
       this.dispatchEvent(new Event('identity'));
@@ -249,7 +252,8 @@ export class AuthSession extends EventTarget {
   }
 
   /**
-   * 接受一份会话：没有会话即退出；离线时信任本机会话，不访问 Auth；在线时经 `getUser` 确认账号仍存在、邮箱已验证，
+   * 接受一份会话：没有会话即退出；离线时不访问 Auth，也不信任本机存着的会话——supabase-js 启动时会从本机存储恢复会话并发出
+   * `SIGNED_IN`，只按缓存授权恢复同一账号（见 `restoreGrant`）；在线时经 `getUser` 确认账号仍存在、邮箱已验证，
    * 确认后写下缓存授权。确认失败按会话失效处理（退出）并抛出 `unauthenticated`。期间又有新的会话到达时丢弃旧结果。
    */
   private async accept(session: Session | null): Promise<void> {
@@ -259,11 +263,7 @@ export class AuthSession extends EventTarget {
       return;
     }
     if (!navigator.onLine) {
-      this.user = { id: session.user.id, email: session.user.email ?? '', verified: true };
-      this.expiresAt = (session.expires_at ?? 0) * 1000;
-      this.online = false;
-      this.dispatchEvent(new Event('identity'));
-      this.changed();
+      this.restoreGrant(session.user.id);
       return;
     }
     demand(this.auth, 'configuration', '认证未配置');

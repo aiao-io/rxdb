@@ -165,6 +165,28 @@ describe('全局登录会话', () => {
     await expired.session.initialize();
     expect(expired.session.user).toBeNull();
   });
+  it('离线时 supabase-js 恢复出本机会话（SIGNED_IN）也绕不过缓存授权：授权过期仍未登录，有效时到期时间以授权为准', async () => {
+    const { session: stored, emit } = authClient();
+    await create().session.initialize();
+    vi.stubGlobal('navigator', { onLine: false });
+    const key = 'admin-collaboration-grant:/test';
+    const grant = JSON.parse(localStorage.getItem(key)!) as { expiresAt: number };
+    const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+    localStorage.setItem(key, JSON.stringify({ ...grant, expiresAt: 1 }));
+    const expired = create();
+    await expired.session.initialize();
+    emit('SIGNED_IN', stored);
+    await settle();
+    expect(expired.session.user).toBeNull();
+    expect(expired.events).toEqual([]);
+    localStorage.setItem(key, JSON.stringify(grant));
+    const valid = create();
+    await valid.session.initialize();
+    emit('SIGNED_IN', { ...stored, expires_at: Math.floor((Date.now() + 5 * hour) / 1000) } as Session);
+    await settle();
+    expect(valid.session.user?.id).toBe('alice');
+    expect(valid.session.expiresAt).toBe(grant.expiresAt);
+  });
   it('首次使用（没有缓存的公开配置）离线时拒绝', async () => {
     vi.stubGlobal('navigator', { onLine: false });
     await expect(create().session.initialize()).rejects.toMatchObject({ code: 'offline' });

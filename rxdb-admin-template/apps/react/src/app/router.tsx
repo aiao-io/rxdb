@@ -20,6 +20,14 @@ function SearchLoadError() {
   );
 }
 
+/**
+ * 首次进入时，登录门禁（布局路由的 loader）与懒加载页面就绪之前不渲染任何内容：未登录的人不会先看到后台外壳，
+ * 与 Angular（阻塞式首次导航）、Vue（首次导航结束后才挂载）一致。
+ */
+function InitialLoad() {
+  return null;
+}
+
 const lazyRoute =
   (importFn: () => Promise<RouteModule>): LazyRouteFunction<RouteObject> =>
   async () => {
@@ -33,6 +41,7 @@ export const routes: RouteObject[] = [
   {
     path: '/',
     element: <AppLayout />,
+    HydrateFallback: InitialLoad,
     loader: requireLogin,
     children: [
       { index: true, lazy: lazyRoute(() => import('./pages/start-page')) },

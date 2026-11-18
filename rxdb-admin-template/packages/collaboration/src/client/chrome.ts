@@ -1,6 +1,16 @@
 import type { Presence } from '../model.js';
 import type { CollaborationController, WorkspaceEntry } from './controller.js';
-import { avatar, button, dropdown, element, iconTile, statusDot, tabList, type Perform, type TabItem } from './elements.js';
+import {
+  avatar,
+  button,
+  dropdown,
+  element,
+  iconTile,
+  statusDot,
+  tabList,
+  type Perform,
+  type TabItem
+} from './elements.js';
 import { personName } from './format.js';
 import { icon, type IconName } from './icons.js';
 import { tx } from './translate.js';
@@ -115,7 +125,7 @@ function closeDropdown(node: HTMLElement): void {
 /** 团队切换：当前团队名 + 下拉，列出可访问的团队与「接受团队邀请…」。 */
 function teamSwitcher(controller: CollaborationController, actions: HeaderActions): HTMLElement {
   const current = controller.workspace;
-  const { details, summary, panel: menu } = dropdown(
+  const { details, summary, panel } = dropdown(
     'btn btn-ghost btn-sm gap-1.5 text-sm font-medium',
     'ul',
     'menu z-30 w-72 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg'
@@ -125,7 +135,7 @@ function teamSwitcher(controller: CollaborationController, actions: HeaderAction
   const label = current?.name ?? tx('选择团队');
   summary.setAttribute('aria-label', tx('切换团队：{v0}', { v0: label }));
   summary.append(element('span', label, 'max-w-48 truncate', true), icon('chevron-down', 'size-3.5'));
-  menu.append(element('li', '团队', 'menu-title text-base-content/70'));
+  panel.append(element('li', '团队', 'menu-title text-base-content/70'));
   for (const workspace of controller.workspaces) {
     const same = workspace.teamId === current?.teamId && workspace.appId === current?.appId;
     const item = menuButton(
@@ -136,11 +146,11 @@ function teamSwitcher(controller: CollaborationController, actions: HeaderAction
       },
       { icon: 'users', literal: true, current: same }
     );
-    menu.append(item);
+    panel.append(item);
   }
   const divider = element('li', '', 'my-1 h-px bg-base-300');
   divider.setAttribute('aria-hidden', 'true');
-  menu.append(
+  panel.append(
     divider,
     menuButton(
       '接受团队邀请…',
