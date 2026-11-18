@@ -457,6 +457,22 @@ describe('EntityDetail（真实组件）', () => {
     expect(detail.emitted('formSubmitted')).toEqual([[{ title: '已编辑', count: 2 }]]);
   });
 
+  it('edit 对话框模式内部保存：先 emit formSubmitted 再关闭——对话框关闭会卸载组件，卸载后的 emit 被 Vue 丢弃', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+
+    const { detail, component } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+    const deliveredAtClose: number[] = [];
+    closeSpy.mockImplementation(() => {
+      deliveredAtClose.push(detail.emitted('formSubmitted')?.length ?? 0);
+    });
+
+    component.onFormSubmitted({ title: '已编辑', count: 2 });
+    await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {
     const { detail, component } = createWithDialog(dialogData({ formMode: 'edit' }));
     await FLUSH();

@@ -129,7 +129,7 @@ export class FakeListTable {
   }
 
   /** 读取列头字段；第 0 列是行号列，没有业务字段。 */
-  getHeaderField(col: number, _row: number): unknown {
+  getHeaderField(col: number): unknown {
     return this.#columns[col - 1]?.['field'];
   }
 

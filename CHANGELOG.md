@@ -84,6 +84,7 @@
 
 ### 🩹 Fixes
 
+- **rxdb-model-angular / -vue / -react:** `EntityDetail` 在对话框里以编辑模式保存成功后，改为先通知 `formSubmitted` 再关闭对话框。此前先关闭：Angular 的 CDK 对话框关闭即销毁组件，之后的输出触发 NG0953 并被丢弃；Vue 对已卸载实例的 `emit` 直接丢弃；宿主因此收不到这次保存。React 不受影响，一并调成同一顺序。
 - **rxdb-model:** 数字列只带取值边界的 `number` format（`{ kind: 'number', min / max / step }`）时，表格仍按语言格式化显示（如 `1,200`）；此前只要声明了任何 format 就改显示原值。货币、百分比等带显示语义的 format 不受影响。
 - **rxdb-adapter-supabase:** `mutations()` 的修改改走普通 UPDATE，修复 owner 型与共享编辑型 RLS 下被 INSERT 策略误拒的问题；批量直写仍按序列化整实体更新，不引入逐列脏追踪，`createdBy` 保持不变。`mutations()` 返回服务器实际写入的行，供调用方读取 `updatedAt` 等字段；推送保留原计数模式。本次不改变普通单实体 `save()` 的 PostgREST UPDATE 路径，也不将批量 RPC 返回值自动合并到 `save()` 的原实体。被拒与目标已删除分别报 `42501` / `RX001`，直写失败整批回滚（US-223）
 - **rxdb-adapter-supabase:** 推送父行删除时，触发器捕获实际级联删除，RPC 在源日志之后统一写入完整隐式 DELETE，所有客户端（包括推送端）均可拉取；同批 INSERT / UPDATE 子行后删除父行，拉取不再因日志顺序把子行复活。显式删除保留原映射并去重（与实际删除按 id 列类型的等值关系配对、按分区根表归并：uuid 大小写、`numeric` 的 `1` 与 `1.00`、分区表都只记一条），最终回执按实际删除结果修正，最后一条显式 DELETE 的快照取实际删除的 `OLD`。日志沿用触发器模式现有的读取边界，业务表 RLS 不提供日志的逐行授权隔离（US-224）

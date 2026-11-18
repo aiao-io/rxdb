@@ -496,8 +496,9 @@ export function EntityDetail({
         .then(() => {
           if (!isCurrent()) return;
           dirtyTracker.reset();
-          dialog?.close('saved');
+          // 先通知再关闭，与 Angular / Vue 同序：那两端关闭即卸载组件，之后的输出会被丢弃；三端的宿主看到同一个先后。
           onFormSubmitted?.(data);
+          dialog?.close('saved');
         })
         .catch(error => {
           if (!isCurrent()) return;

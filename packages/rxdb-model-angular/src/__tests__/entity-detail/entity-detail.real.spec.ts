@@ -590,6 +590,20 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(submitted).toEqual([{ title: '已编辑', count: 2 }]);
   });
 
+  it('edit 对话框模式内部保存：先 emit formSubmitted 再关闭——真实 CDK 对话框关闭即销毁组件，之后的 emit 会被丢弃（NG0953）', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+
+    const { component, submitted } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+    const deliveredAtClose: number[] = [];
+    closeSpy.mockImplementation(() => deliveredAtClose.push(submitted.length));
+
+    component.onFormSubmitted({ title: '已编辑', count: 2 });
+    await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   /** 把表单里当前显示为 `from` 的文本框改成 `to`：EntityForm 的文本框按 change 收值。 */
   const changeTextInput = (fixture: ComponentFixture<EntityDetailComponent>, from: string, to: string): void => {
     const input = fixture.debugElement

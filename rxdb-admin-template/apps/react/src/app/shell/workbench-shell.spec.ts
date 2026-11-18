@@ -4,12 +4,12 @@ import { resolve } from 'node:path';
 import { createServer } from 'vite';
 import { describe, expect, it } from 'vitest';
 import {
-  normalizeSearchPageSize,
-  SEARCH_PAGE_SIZE_KEY,
-  WORKBENCH_STORAGE_PREFIX,
   bindWorkbenchNavigator,
   createWorkbenchShell,
+  normalizeSearchPageSize,
   readLegacyPreferences,
+  SEARCH_PAGE_SIZE_KEY,
+  WORKBENCH_STORAGE_PREFIX,
   workbenchShell
 } from './workbench-shell';
 

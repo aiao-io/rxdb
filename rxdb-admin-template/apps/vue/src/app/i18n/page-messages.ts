@@ -96,7 +96,8 @@ export const pageEnMessages: Record<keyof typeof pageZhMessages, string> = {
   'start.warning':
     'To restore data, choose “Restore from backup” first. Restore only accepts an unused workbench and never overwrites existing data.',
   'dashboard.title': 'Asset workbench overview',
-  'dashboard.description': 'Review local assets, categories, and maintenance records from one place, then jump to common actions.',
+  'dashboard.description':
+    'Review local assets, categories, and maintenance records from one place, then jump to common actions.',
   'dashboard.status.connecting': 'Connecting to database…',
   'dashboard.status.ready': 'Database connected',
   'dashboard.status.error': 'Database connection failed',
@@ -106,7 +107,8 @@ export const pageEnMessages: Record<keyof typeof pageZhMessages, string> = {
   'dashboard.metric.events': 'Maintenance records',
   'dashboard.total': 'Total records: {count}',
   'dashboard.empty.title': 'Your workbench is empty',
-  'dashboard.empty.description': 'Create an asset category or asset first. Dashboard updates automatically when data changes.',
+  'dashboard.empty.description':
+    'Create an asset category or asset first. Dashboard updates automatically when data changes.',
   'dashboard.loading': 'Reading statistics…',
   'dashboard.loadFailed': 'Could not read statistics: {message}',
   'dashboard.quick.title': 'Quick actions',

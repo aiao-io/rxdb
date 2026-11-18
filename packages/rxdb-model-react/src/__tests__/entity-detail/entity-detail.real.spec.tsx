@@ -584,6 +584,33 @@ describe('EntityDetail（真实组件）', () => {
     });
   });
 
+  it('edit 对话框模式内部保存：先通知 onFormSubmitted 再关闭，与 Angular / Vue 同序', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+    const submitted: EntityFormData[] = [];
+    const deliveredAtClose: number[] = [];
+    render(
+      <Dialog open onClose={() => deliveredAtClose.push(submitted.length)} width='720px' height='80vh'>
+        <RxDBProvider db={rxdb}>
+          <EntityDetail
+            {...dialogData({ formMode: 'edit', entityId: inst.id })}
+            onFormSubmitted={e => submitted.push(e)}
+          />
+        </RxDBProvider>
+      </Dialog>
+    );
+    const pane = document.querySelector('.rxdb-dialog-pane') as HTMLDivElement;
+    await waitFor(() => {
+      expect((pane.querySelector('[data-field="title"] input') as HTMLInputElement).value).toBe('待编辑');
+    });
+    fireEvent.change(pane.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '已编辑' }
+    });
+    fireEvent.click([...pane.querySelectorAll('button')].find(b => b.textContent?.trim() === '保存')!);
+    await waitFor(() => expect(deliveredAtClose).toHaveLength(1));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {
     const { container, submitted } = renderWithDialog(dialogData({ formMode: 'edit' }));
 

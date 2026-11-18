@@ -386,6 +386,12 @@ async function syncTask(page: Page) {
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
 }
 /**
+ * 新设备上第一次打开任务的时限：要先把服务端共享分支镜像进全新的团队库，再从任务起点建分支、导入任务已有的提交并切过去，
+ * 是一串串行的下发与本地写入；Edge 模式下每个请求还可能碰上函数冷启动。单跑约 1～2 秒，整轮负载下偶尔超过默认的 5 秒。
+ * 只放宽「等它打开」的时间，打开之后的断言一条不变。
+ */
+const firstOpenOnNewDevice = { timeout: 20_000 };
+/**
  * 另一台设备：带上同一个登录会话（Supabase 的会话在 localStorage），但不带本机任务账本——真实的另一台设备上没有它，
  * 团队库（IndexedDB）也不随 storageState 复制。
  */
@@ -853,7 +859,7 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await other.goto('/collaboration');
   await other.getByRole('button', { name: fixture.name, exact: true }).click();
   await other.getByRole('button', { name: '打开任务：双设备任务', exact: true }).click();
-  await expect(other.getByRole('heading', { name: '任务：双设备任务', exact: true })).toBeVisible();
+  await expect(other.getByRole('heading', { name: '任务：双设备任务', exact: true })).toBeVisible(firstOpenOnNewDevice);
   await editRecord(other, '资产分类', ['name', '共同起点'], { 分类名: ['共同起点', '设备乙版本'] });
   await syncTask(other);
   await editRecord(page, '资产分类', ['name', '共同起点'], { 分类名: ['共同起点', '设备甲版本'] });
@@ -1457,7 +1463,7 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
   await other.goto('/collaboration');
   await other.getByRole('button', { name: fixture.name, exact: true }).click();
   await other.getByRole('button', { name: '打开任务：续作任务', exact: true }).click();
-  await expect(other.getByRole('heading', { name: '任务：续作任务', exact: true })).toBeVisible();
+  await expect(other.getByRole('heading', { name: '任务：续作任务', exact: true })).toBeVisible(firstOpenOnNewDevice);
   // 导入的就是服务端那个提交：本机头、远端确认与本机提交历史都是原提交 ID 与原作者；工作树干净，没有记成拉取者的新提交
   await expect(
     other.getByText(`本地版本：${task.head} · 远端确认：${task.head} · 待上传提交：0 · 已保存未提交：无`, {
@@ -1465,7 +1471,8 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
     })
   ).toBeVisible();
   await expect(taskState(other)).toHaveText('已同步：本机与远端确认的版本一致');
-  expect(await localCommits(other)).toEqual([`续作任务 · ${fixture.admin.id} · ${task.head}`]);
+  // 提交历史展开后异步渲染：轮询到列表出现为止，比对的内容不变
+  await expect.poll(() => localCommits(other)).toEqual([`续作任务 · ${fixture.admin.id} · ${task.head}`]);
   await expectList(other, '资产分类', 'name', ['设备甲录入']);
   // 经下发接口核对：服务端这个任务的交换记录就是本机历史里的那一个
   const download = await rpc(other, fixture, 'admin_commit_exchange', {

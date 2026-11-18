@@ -26,7 +26,10 @@ async function createAsset(page: Page, name: string, category: string) {
 }
 
 test('review-date-import: anonymous records with persisted dates can be previewed', async ({ page, request }) => {
-  const fixture = await (await request.get('http://127.0.0.1:8309/__fixture')).json() as { name: string; admin: { email: string; otp: string } };
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as {
+    name: string;
+    admin: { email: string; otp: string };
+  };
   await page.goto('/entities/assets/AssetCategory');
   await createCategory(page, '日期导入分类');
   await page.goto('/entities/assets/Asset');

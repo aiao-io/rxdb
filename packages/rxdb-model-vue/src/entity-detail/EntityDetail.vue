@@ -422,8 +422,9 @@ const onFormSubmitted = (data: EntityFormData): void => {
       if (!isCurrent()) return;
       settleEditChanges(submitted);
       dirtyTracker.reset();
-      dialogContext?.close('saved');
+      // 先通知再关闭：对话框关闭会卸载本组件，Vue 对已卸载实例的 emit 直接丢弃，宿主就收不到这次保存。
       emit('formSubmitted', data);
+      dialogContext?.close('saved');
     })
     .catch(e => {
       if (!isCurrent()) return;

@@ -460,8 +460,9 @@ export class EntityDetailComponent implements OnDestroy {
       .then(() => {
         if (!isCurrent()) return;
         this.#dirty.reset();
-        this.#dialogRef?.close('saved');
+        // 先通知再关闭：CDK 对话框关闭即销毁组件，之后的 emit 落在已销毁的 OutputRef 上（NG0953）、宿主收不到。
         this.formSubmitted.emit(data);
+        this.#dialogRef?.close('saved');
       })
       .catch(e => {
         if (!isCurrent()) return;
