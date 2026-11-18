@@ -42,15 +42,146 @@
         "command": "node scripts/check-secrets.mjs --tracked --artifact ../dist/apps/rxdb-admin-template-angular --artifact apps/react/dist --artifact apps/vue/dist"
       }
     },
+    "local-up": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/local-stack.mjs up"
+      }
+    },
+    "local-down": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/local-stack.mjs down"
+      }
+    },
+    "local-status": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/local-stack.mjs status"
+      }
+    },
+    "deploy-local": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/deploy-local.mjs"
+      },
+      "dependsOn": ["local-up"]
+    },
+    "rollback-local": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/rollback-local.mjs"
+      }
+    },
+    "e2e-local": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/e2e-deployed.mjs"
+      }
+    },
+    "migration-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/migration-check.mjs"
+      }
+    },
+    "failure-drill": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/failure-drill.mjs"
+      }
+    },
+    "env-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/env-check.mjs"
+      }
+    },
+    "monitor-drill": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/monitor-drill.mjs"
+      },
+      "dependsOn": [
+        {
+          "projects": ["admin-collaboration"],
+          "target": "build-server"
+        }
+      ]
+    },
+    "retention-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/retention-check.mjs"
+      },
+      "dependsOn": [
+        {
+          "projects": ["admin-collaboration"],
+          "target": "build-server"
+        }
+      ]
+    },
+    "rollback-drill": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/rollback-drill.mjs"
+      },
+      "dependsOn": [
+        {
+          "projects": ["admin-collaboration"],
+          "target": "build-server"
+        }
+      ]
+    },
+    "collect-evidence": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node deploy/scripts/collect-evidence.mjs"
+      }
+    },
+    "deploy-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "rxdb-admin-template",
+        "command": "node --test deploy/scripts/*.spec.mjs"
+      }
+    },
     "test": {
       "executor": "nx:noop",
-      "dependsOn": ["requirements-check", "requirements-test", "secrets-test"]
+      "dependsOn": ["requirements-check", "requirements-test", "secrets-test", "deploy-test"]
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "rxdb-admin-template",
-        "command": "eslint scripts --max-warnings=0"
+        "command": "eslint scripts deploy --ignore-pattern 'deploy/local/.state/**' --max-warnings=0"
       }
     }
   }

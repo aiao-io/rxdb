@@ -23,6 +23,24 @@ let connection: { host: string; port: number; database: string };
 let password: string;
 /** 部署步骤设置口令之前角色的属性与登录结果（beforeAll 里记下，第一个用例断言）。 */
 let initial: { attributes: Record<string, unknown>; login: string };
+/** 第一次执行迁移之后产品对象的 ACL 原文（含顺序），重复执行之后与它比对。 */
+let firstAcls: { name: string; acl: string }[];
+/** admin_private schema、产品的表与视图、产品函数的 ACL 原文：顺序也算，pg_dump 按这个顺序写 GRANT。 */
+const acls = async () =>
+  (
+    await owner.query<{ name: string; acl: string }>(
+      `SELECT 'schema ' || n.nspname AS name, coalesce(n.nspacl::text, '') AS acl FROM pg_namespace n
+       WHERE n.nspname = 'admin_private'
+       UNION ALL SELECT 'relation ' || c.oid::regclass::text, coalesce(c.relacl::text, '')
+       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE c.relkind IN ('r', 'v', 'p')
+         AND (n.nspname = 'admin_private' OR (n.nspname = 'public' AND (c.relname LIKE 'admin\\_%' OR c.relname = 'shared_records')))
+       UNION ALL SELECT 'function ' || p.oid::regprocedure::text, coalesce(p.proacl::text, '')
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'admin_private' OR (n.nspname = 'public' AND p.proname LIKE 'admin\\_%')
+       ORDER BY 1`
+    )
+  ).rows;
 const workspace = { teamId: randomUUID(), appId: 'assets' };
 const attributesOf = async () =>
   (
@@ -79,6 +97,7 @@ beforeAll(async () => {
     await superuser.end();
   }
   await applyMigrations(owner);
+  firstAcls = await acls();
   await new CollaborationRepository(owner).initialize({
     ...workspace,
     name: '权限边界',
@@ -258,5 +277,12 @@ describe('协作专用数据库角色只拥有协作所需的权限（ADMIN-US-2
       "SELECT count(*)::int AS count FROM pg_policies WHERE policyname = 'admin_collaboration_service'"
     );
     expect(policies.rows[0]).toEqual({ count: 22 });
+  });
+  it('第一次迁移之后再重复执行，schema、表与函数的 ACL 逐项相同（含顺序），结构导出因此逐字节一致（ADMIN-US-217 AC#1）', async () => {
+    // pg_dump 按 ACL 数组的顺序逐条写 GRANT：语义相同但顺序变了，两次导出就不一样。上一个用例已经重跑过一次，这里再跑一次，
+    // 两次重跑之后都与第一次执行之后（beforeAll 里记下）逐项相同
+    await applyMigrations(owner);
+    expect(await acls()).toEqual(firstAcls);
+    expect(firstAcls.find(row => row.name === 'schema admin_private')?.acl).toContain('admin_collaboration=U/');
   });
 });

@@ -132,7 +132,7 @@ describe('两个入口共用一份装配，只是变量名与连接池不同（A
         SUPABASE_URL: 'http://kong:8000',
         ADMIN_RELEASE: 'r-20261118-7',
         // 不可达的数据库：本机 1 号端口没有服务，连接立即被拒
-        ADMIN_DATABASE_URL: 'postgres://admin_collaboration:not-a-real-password@127.0.0.1:1/postgres'
+        ADMIN_DATABASE_URL: database('admin_collaboration').replace('db.internal:6543', '127.0.0.1:1')
       },
       edgeEntry,
       {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { fixtures } from './fixtures.js';
 async function openCreateDialog(page: Page) {
   await page.getByRole('button', { name: '+ 新增', exact: true }).click();
   await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toBeVisible();
@@ -26,7 +27,7 @@ async function createAsset(page: Page, name: string, category: string) {
 }
 
 test('review-date-import: anonymous records with persisted dates can be previewed', async ({ page, request }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as {
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as {
     name: string;
     admin: { email: string; otp: string };
   };

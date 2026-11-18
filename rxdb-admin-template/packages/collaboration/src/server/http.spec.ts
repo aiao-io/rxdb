@@ -189,6 +189,37 @@ const rawGet = (path: string) =>
       .on('error', reject)
       .end();
   });
+describe('Node 入口的健康检查（ADMIN-US-217 AC#7）', () => {
+  it('GET /health 经 node:http 原样返回健康报告：全部可用 200，任一不可用 503，不要求令牌', async () => {
+    const report = (status: 'ok' | 'unavailable') => ({
+      status,
+      entry: 'node',
+      release: 'r-node',
+      checks: { database: { status, latencyMs: 2 }, auth: { status: 'ok' as const, latencyMs: 1 } }
+    });
+    let current = report('ok');
+    const node = collaborationServer({
+      repository,
+      identities,
+      origins: ['https://product.example'],
+      publicConfig: { supabaseUrl: 'https://auth.example', supabaseKey: 'public-key' },
+      health: async () => current
+    });
+    await new Promise<void>(resolve => node.listen(0, '127.0.0.1', resolve));
+    try {
+      const base = `http://127.0.0.1:${(node.address() as AddressInfo).port}`;
+      const healthy = await fetch(`${base}/health`);
+      expect([healthy.status, await healthy.json()]).toEqual([200, report('ok')]);
+      current = report('unavailable');
+      const degraded = await fetch(`${base}/collaboration-api/health`);
+      expect([degraded.status, await degraded.json()]).toEqual([503, report('unavailable')]);
+      expect(identities.verify).not.toHaveBeenCalled();
+    } finally {
+      await new Promise<void>(resolve => node.close(() => resolve()));
+    }
+  });
+});
+
 describe('HTTP request hygiene', () => {
   it('answers a malformed percent-encoding as an invalid request, not an internal error', async () => {
     for (const path of ['/workspaces/%zz/assets', '/workspaces/team/%', '/collaboration-api/workspaces/%E0%A4%A']) {

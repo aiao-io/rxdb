@@ -43,7 +43,8 @@ export class InjectedFailure extends Error {
 export function parseFailStep(value, steps) {
   if (value === undefined || value === '') return null;
   const step = Number(value);
-  if (!Number.isInteger(step) || step < 1 || step > steps) throw new Error(`ADMIN_DEPLOY_FAIL_STEP 必须是 1～${steps} 的整数`);
+  if (!Number.isInteger(step) || step < 1 || step > steps)
+    throw new Error(`ADMIN_DEPLOY_FAIL_STEP 必须是 1～${steps} 的整数`);
   return step;
 }
 

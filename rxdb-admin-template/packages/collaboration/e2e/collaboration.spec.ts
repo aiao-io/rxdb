@@ -9,6 +9,7 @@ import { expect, test, type Browser, type Locator, type Page, type WebSocketRout
 import { createClient } from '@supabase/supabase-js';
 import { diffRecords } from '../src/changes.js';
 import type { Audit, ChangeSet, Commit, Records } from '../src/model.js';
+import { fixtures } from './fixtures.js';
 interface Account {
   id: string;
   email: string;
@@ -429,7 +430,7 @@ async function accept(
   await expect(page.getByText('邀请已接受', { exact: true })).toBeVisible();
 }
 test('真实身份、任务保存、离线同步、非作者审批和原子合并', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('采购电脑');
@@ -669,7 +670,7 @@ test('对话框里没保存的输入：面板单独标出、同步被拦下、�
   page,
   request
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('未保存输入');
@@ -707,7 +708,7 @@ test('对话框里没保存的输入：面板单独标出、同步被拦下、�
 });
 
 test('离线冷启动只恢复有效授权上下文；过期和退出会锁定保留的草稿', async ({ page, request }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('离线保留');
@@ -758,7 +759,7 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
 });
 
 test('错误账号不能消费邀请；验证码不可重复登录', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByText('接受团队邀请', { exact: true }).click();
   const link = invitationLink(baseURL, fixture);
@@ -783,7 +784,7 @@ test('错误账号不能消费邀请；验证码不可重复登录', async ({ pa
 });
 
 test('匿名资产只在预览确认后复制到任务，原库与共享分支均保持原样', async ({ page, request }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await page.goto('/entities/assets/AssetCategory');
   await page.getByRole('button', { name: '+ 新增', exact: true }).click();
   await page.getByRole('group', { name: '分类名' }).getByRole('textbox').fill('匿名保留分类');
@@ -817,7 +818,7 @@ test('匿名资产只在预览确认后复制到任务，原库与共享分支�
 });
 
 test('语言切换保留未保存输入，产品文案与用户数据分离', async ({ page, request }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('语言草稿');
@@ -847,7 +848,7 @@ test('语言切换保留未保存输入，产品文案与用户数据分离', as
 });
 
 test('跨设备分叉另存后可恢复原任务远端，两个版本均保留', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('双设备任务');
@@ -890,7 +891,7 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
 });
 
 test('两阶段审批、在线成员和越权合并拒绝', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '添加审批阶段', exact: true }).click();
@@ -943,7 +944,7 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
 });
 
 test('双团队切换保留本机任务并隔离查询、通知与在线成员', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('甲团队草稿');
@@ -1000,7 +1001,7 @@ test('双团队切换保留本机任务并隔离查询、通知与在线成员',
 });
 
 test('六项权限独立生效，指定审核人与并行人数门槛不能绕过', async ({ page, request, browser, baseURL }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   // 新工作区还没有合并：共享头就是根
@@ -1253,7 +1254,7 @@ test('Broadcast 驱动刷新：他人的 PR、成员、讨论与通知不点刷�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await expect(page.getByRole('heading', { name: '数据 PR', exact: true })).toBeVisible();
@@ -1293,7 +1294,7 @@ test('Presence 显示在线成员与查看位置，离开后消失，不写数�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await preparePr(page, fixture, 'seen');
@@ -1317,7 +1318,7 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   const context = await browser.newContext({ baseURL });
@@ -1327,7 +1328,7 @@ test('撤权：被撤成员立即从在线列表消失并锁定，令牌刷新�
   await expect(online(page)).toContainText(fixture.reviewer.email);
   // 测试进程里同一账号的另一个会话，直接在真栈上订阅团队的私有频道
   const { otp } = (await (
-    await request.get(`http://127.0.0.1:8309/__otp?email=${encodeURIComponent(fixture.reviewer.email)}`)
+    await request.get(`${fixtures}/__otp?email=${encodeURIComponent(fixture.reviewer.email)}`)
   ).json()) as { otp: string };
   const client = createClient(fixture.supabaseUrl, fixture.supabaseKey, {
     auth: { persistSession: false, autoRefreshToken: false }
@@ -1382,7 +1383,7 @@ test('Realtime 断开期间页面照常可用，恢复后按修订号补齐变�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   // 经 Playwright 转发 Realtime 的 WebSocket：断开时关掉现有连接，恢复之前的重连一律立刻关闭
   let blocked = false;
   const sockets: WebSocketRoute[] = [];
@@ -1443,7 +1444,7 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('续作任务');
@@ -1501,7 +1502,7 @@ test('跨设备续作：第二台设备导入同一任务，提交 ID、父链�
 });
 
 test('放弃草稿：列表与表单立即回到任务头的数据，不残留已放弃的编辑（ADMIN-US-221 AC#3）', async ({ page, request }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('放弃草稿');
@@ -1532,7 +1533,7 @@ test('恢复历史版本：形成未提交改动，同步、审批后合并，�
   browser,
   baseURL
 }) => {
-  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  const fixture = (await (await request.get(`${fixtures}/__fixture`)).json()) as Fixture;
   await login(page, fixture.admin);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   // 先免审批合出两个共享版本，再恢复成第一个版本的数据并走审批

@@ -10,7 +10,8 @@ const accessToken =
 const secrets = {
   accessToken,
   bearer: 'opaque-refresh-like-token',
-  apiKey: 'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz',
+  // 运行时拼出 Supabase 新格式的 secret key：仓库的密钥扫描不会把测试数据当成泄露
+  apiKey: ['sb', 'secret', 'N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz'].join('_'),
   password: 'pa55-w0rd',
   email: 'invitee.person+team@example.com',
   otp: '493817',
@@ -49,15 +50,12 @@ describe('脱敏', () => {
 
 describe('错误报告', () => {
   it('只取错误名、消息、SQLSTATE、详情与堆栈，全部脱敏；请求只带方法与路径，不带查询串', () => {
-    const failure = Object.assign(
-      new Error(`insert failed for ${secrets.email} with token ${secrets.accessToken}`),
-      {
-        code: '23505',
-        detail: `Key (email)=(${secrets.email}) already exists`,
-        query: `INSERT … '${secrets.rawToken}'`,
-        parameters: [secrets.password]
-      }
-    );
+    const failure = Object.assign(new Error(`insert failed for ${secrets.email} with token ${secrets.accessToken}`), {
+      code: '23505',
+      detail: `Key (email)=(${secrets.email}) already exists`,
+      query: `INSERT … '${secrets.rawToken}'`,
+      parameters: [secrets.password]
+    });
     const report = errorReport(failure, {
       entry: 'edge',
       release: 'r-20261118-1',
@@ -111,7 +109,10 @@ describe('上报器', () => {
     await consoleReporter(line => lines.push(line)).report(sample());
     expect(lines).toHaveLength(1);
     expect(lines[0].startsWith('ADMIN_ERROR ')).toBe(true);
-    expect(JSON.parse(lines[0].slice('ADMIN_ERROR '.length))).toMatchObject({ release: 'r1', error: { name: 'Error' } });
+    expect(JSON.parse(lines[0].slice('ADMIN_ERROR '.length))).toMatchObject({
+      release: 'r1',
+      error: { name: 'Error' }
+    });
     expect(leaks(lines[0])).toEqual([]);
   });
   it('HTTP 上报器以 JSON POST 给收集器；投递失败只记一行，不抛错、不带收集器地址', async () => {

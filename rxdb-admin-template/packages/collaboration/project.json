@@ -151,6 +151,18 @@
           }
         }
       }
+    },
+    "e2e-deployed": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build-server"],
+      "options": {
+        "cwd": "rxdb-admin-template/packages/collaboration",
+        "command": "playwright test --config playwright.config.ts",
+        "env": {
+          "ADMIN_E2E_TARGET": "deployed"
+        }
+      }
     }
   }
 }

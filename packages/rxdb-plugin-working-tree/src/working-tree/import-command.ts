@@ -27,8 +27,8 @@
  * 从新头沿第一父链往回走：
  *
  * 1. 走到当前头——当前头之后、新头为止的那一段就是要叠上去的提交，分支头快进到新头；
- * 2. 走到根也没碰到当前头——只有当前分支是**空分支**时才接受（链从根开始）：HEAD 为 `null`，或 HEAD 是一个系统根节点
- *    （启用时写下的基线 / 建分支写下的分支基线，没有任何用户提交），且这条分支的受版本控制的业务表一行都没有。
+ * 2. 走到根也没碰到当前头——只有当前分支是**空分支**时才接受（链从根开始）：HEAD 为 `null`（还没有根），或 HEAD 是一个
+ *    系统根节点（启用时写下的基线 / 建分支写下的分支基线，没有任何用户提交）；两种都还要这条分支的受版本控制的业务表一行都没有。
  *    第二台设备第一次导入就是这个形状：它启用时写下的是它自己的基线，服务端不认识，链从服务端那一份根开始。
  *    业务表必须是空的，因为链根代表空状态——本地基线下压着的那批存量数据不在任何提交里，换根之后就成了说不清来历的数据；
  * 3. 都不是——新头已经在当前分支的历史里（同一批再导入一次、或导入之后又本地提交过）就是什么都不做的成功；否则拒绝
@@ -389,7 +389,7 @@ const firstParentOf = async (
 interface FirstParentWalk {
   /** 走过的提交，新头在前；不含停下的那一个 */
   readonly walked: readonly string[];
-  /** `head`：碰到了当前头（空 HEAD 时走到根就算碰到）；`root`：走到根也没碰到；`broken`：读不回来或成环 */
+  /** `head`：碰到了当前头；`root`：走到根也没碰到（空 HEAD 时走到根就是这一种）；`broken`：读不回来或成环 */
   readonly end: 'head' | 'root' | 'broken';
 }
 
@@ -399,6 +399,9 @@ interface FirstParentWalk {
  * @remarks
  * 链的下半段可能落在本库已有的提交上（一个在别的分支上提交过、被服务端快进进主线的提交），所以每一步先查批次、
  * 再查本库。读不回来或成环就停下，交给调用方按「不是快进」处理——不在这里判损坏，那是 `assertCommitGraphIntact()` 的事。
+ *
+ * 空 HEAD 时走到根不算「碰到当前头」：空 HEAD 只说明这条分支还没有根，不说明它是空状态，要与系统根节点一样交给
+ * {@link isEmptyBranch} 去数业务表。
  */
 const walkFirstParents = async (
   executor: TransactionExecutor,
@@ -409,8 +412,8 @@ const walkFirstParents = async (
   const walked: string[] = [];
   const seen = new Set<string>();
   let cursor: string | null = headCommitId;
-  while (cursor !== currentHead) {
-    if (cursor === null) return { walked, end: 'root' };
+  while (cursor !== null) {
+    if (cursor === currentHead) return { walked, end: 'head' };
     if (seen.has(cursor)) return { walked, end: 'broken' };
     seen.add(cursor);
     walked.push(cursor);
@@ -418,7 +421,7 @@ const walkFirstParents = async (
     if (next === undefined) return { walked, end: 'broken' };
     cursor = next;
   }
-  return { walked, end: 'head' };
+  return { walked, end: 'root' };
 };
 
 /** 这个提交是不是系统根节点：系统种类、没有父、没有单元。 */
@@ -427,21 +430,28 @@ const isSystemRoot = (commit: Commit): boolean =>
   commit.parentIds.length === 0 &&
   commit.changeSetCount === 0;
 
+/** HEAD 上还没有任何用户提交：为 `null`（还没有根），或是一个系统根节点。 */
+const isEmptyHead = async (executor: TransactionExecutor, headCommitId: string | null): Promise<boolean> => {
+  if (headCommitId === null) return true;
+  const [head] = await loadCommitsByIds(executor, [headCommitId]);
+  return head !== undefined && isSystemRoot(head);
+};
+
 /**
- * 当前分支是不是空分支：HEAD 是系统根节点，且受版本控制的业务表一行都没有。
+ * 当前分支是不是空分支：HEAD 为 `null` 或是系统根节点，且受版本控制的业务表一行都没有。
  *
  * @remarks
- * 只在「新头的第一父链走到根也没碰到当前头」时问（HEAD 为 `null` 时走到根就算碰到，不进这里）。逐张表数行，
+ * 只在「新头的第一父链走到根也没碰到当前头」时问。HEAD 为 `null` 也要数行：旧版本 `createBranch()` 留下的空 ref
+ * 要等再一次 `enable()` 才补根，这期间业务表里的行同样不在任何提交里，链根接上去它们就成了说不清来历的数据。逐张表数行，
  * 一张表一次 `count`——表的个数是实体注册数，不随数据量涨，而这个判定一台设备一生只走一次（第一次导入）。
  * 数的是受版本控制的那些：QueryCache 实体与关闭变更日志的实体本就不进提交，它们有没有行与链根代表什么无关。
  */
 const isEmptyBranch = async (
   executor: TransactionExecutor,
   environment: CommitImportEnvironment,
-  headCommitId: string
+  headCommitId: string | null
 ): Promise<boolean> => {
-  const [head] = await loadCommitsByIds(executor, [headCommitId]);
-  if (!head || !isSystemRoot(head)) return false;
+  if (!(await isEmptyHead(executor, headCommitId))) return false;
   const tracked = environment.businessEntities.filter(EntityType => {
     const { name, namespace } = getEntityMetadata(EntityType);
     return environment.domain.classifyEntity(name, namespace) === 'tracked';
@@ -488,7 +498,7 @@ const planFastForward = async (
   const walk = await walkFirstParents(executor, batchById, head.commitId, currentHead);
   const chain = [...walk.walked].reverse();
   if (walk.end === 'head') return { kind: 'advance', commitIds: chain };
-  if (walk.end === 'root' && currentHead !== null && (await isEmptyBranch(executor, environment, currentHead))) {
+  if (walk.end === 'root' && (await isEmptyBranch(executor, environment, currentHead))) {
     return { kind: 'advance', commitIds: chain };
   }
   if (await isCommitReachable(executor, currentHead, head.commitId)) return { kind: 'contained' };

@@ -113,13 +113,21 @@ export function previousRelease(records, current) {
 }
 
 /**
- * 清理旧发布：按 ID 倒序保留最近 `keep` 个，`protect` 里的（当前、上一个在线、正在预览的）无论多旧都保留。返回删除的 ID。
+ * 清理旧发布：没上线过的（失败的）发布目录全部删除，上线过的按 ID 倒序保留最近 `keep` 个；`protect` 里的（当前、上一个在线、
+ * 函数正在用的）无论多旧都保留。返回删除的 ID。
  * @param {string} releases
- * @param {{ keep: number, protect: (string | null)[] }} options
+ * @param {{ keep: number, released: Iterable<string>, protect: (string | null)[] }} options
  */
 export async function pruneReleases(releases, options) {
-  const ids = (await readdir(releases).catch(() => [])).filter(id => releasePattern.test(id)).sort().reverse();
-  const removed = ids.slice(options.keep).filter(id => !options.protect.includes(id));
+  const released = new Set(options.released);
+  const ids = (await readdir(releases).catch(() => []))
+    .filter(id => releasePattern.test(id))
+    .sort()
+    .reverse();
+  const live = ids.filter(id => released.has(id));
+  const removed = [...ids.filter(id => !released.has(id)), ...live.slice(options.keep)].filter(
+    id => !options.protect.includes(id)
+  );
   for (const id of removed) await rm(path.join(releases, id), { recursive: true, force: true });
-  return removed;
+  return removed.sort();
 }

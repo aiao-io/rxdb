@@ -17,7 +17,11 @@ export function run(command, args, options = {}) {
     const child = spawn(command, args, {
       cwd: options.cwd ?? workspaceRoot,
       env: options.env ?? process.env,
-      stdio: [options.input === undefined ? 'ignore' : 'pipe', options.capture ? 'pipe' : 'inherit', options.quiet ? 'pipe' : 'inherit']
+      stdio: [
+        options.input === undefined ? 'ignore' : 'pipe',
+        options.capture ? 'pipe' : 'inherit',
+        options.quiet ? 'pipe' : 'inherit'
+      ]
     });
     let stdout = '';
     let stderr = '';
@@ -76,8 +80,8 @@ export function request(url, init = {}, timeoutMs = 10_000) {
  */
 export async function waitFor(what, probe, options = {}) {
   const deadline = Date.now() + (options.timeoutMs ?? 60_000);
-  let last = '';
   for (;;) {
+    let last;
     try {
       const value = await probe();
       if (value) return value;

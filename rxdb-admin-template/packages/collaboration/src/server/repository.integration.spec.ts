@@ -80,6 +80,8 @@ async function rootOf(workspace: { teamId: string; appId: string }): Promise<str
 const workspaceTables = [
   'public.admin_changes',
   'public.admin_audit',
+  // 归档表同样指向治理行（迁移 202611180003），归档过的工作区要先清它
+  'admin_private.audit_archive',
   'public.admin_workspace_versions',
   'public.admin_shared',
   'admin_private.record_keys',

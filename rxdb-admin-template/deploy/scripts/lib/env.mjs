@@ -43,11 +43,12 @@ export function generateSecrets() {
   const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
   const { kty, crv, x, y, d } = privateKey.export({ format: 'jwk' });
   const signing = { kty, crv, x, y, d, kid, alg: 'ES256', use: 'sig', key_ops: ['sign', 'verify'] };
+  // 对称密钥按原始字节编码：GoTrue 以密钥字符串的 UTF-8 字节签 HS256
+  const legacy = { kty: 'oct', k: Buffer.from(jwtSecret, 'utf8').toString('base64url'), alg: 'HS256', use: 'sig' };
   const jwks = {
     keys: [
       { kty, crv, x, y, kid, alg: 'ES256', use: 'sig', key_ops: ['verify'] },
-      // 对称密钥按原始字节编码：GoTrue 以密钥字符串的 UTF-8 字节签 HS256
-      { kty: 'oct', k: Buffer.from(jwtSecret, 'utf8').toString('base64url'), alg: 'HS256', use: 'sig', key_ops: ['verify'] }
+      { ...legacy, key_ops: ['verify'] }
     ]
   };
   return {
@@ -55,7 +56,9 @@ export function generateSecrets() {
     JWT_SECRET: jwtSecret,
     ANON_KEY: apiKey('anon', jwtSecret),
     SERVICE_ROLE_KEY: apiKey('service_role', jwtSecret),
-    JWT_KEYS: JSON.stringify([signing]),
+    // GoTrue 只接受 JWT_KEYS 里出现过的算法：带上只验签的对称密钥，anon / service role key（HS256）才能调用管理接口；
+    // 签名密钥只有 ES256 这一把（GoTrue 要求恰好一把），JWKS 接口也不公开对称密钥
+    JWT_KEYS: JSON.stringify([signing, { ...legacy, kid: 'legacy-hs256', key_ops: ['verify'] }]),
     JWT_JWKS: JSON.stringify(jwks),
     // Realtime 以 AES-128 加密租户配置：恰好 16 个字符
     REALTIME_DB_ENC_KEY: randomBytes(8).toString('hex'),
@@ -96,7 +99,9 @@ export async function loadEnv(file = envFile) {
     text = await readFile(file, 'utf8');
   } catch (error) {
     if (error.code === 'ENOENT')
-      throw new Error('缺少 deploy/local/.env.local：先运行 pnpm nx run rxdb-admin-template:local-up', { cause: error });
+      throw new Error('缺少 deploy/local/.env.local：先运行 pnpm nx run rxdb-admin-template:local-up', {
+        cause: error
+      });
     throw error;
   }
   const env = parseEnv(text);

@@ -14,6 +14,7 @@ import { applyMigrations } from '../dist/server/server/migrate.js';
 import { CollaborationRepository } from '../dist/server/server/repository.js';
 import { servicePasswordStatement, serviceRole } from '../dist/server/server/service-role.js';
 import { collaborationService } from '../dist/server/server/start.js';
+import { fixtureService } from './e2e-fixtures.mjs';
 
 /**
  * 三端协作 E2E 的测试服务，拓扑与生产一致：命令入口直接连本机隔离 Supabase 栈自己的 PostgreSQL（与 Auth、PostgREST、
@@ -26,7 +27,8 @@ import { collaborationService } from '../dist/server/server/start.js';
  * - 迁移、初始化工作区（部署期的初始化步骤）与结束时的清理以迁移所有者（postgres）执行；夹具里的邀请也经命令入口发出。
  * - 隔离栈的数据库端口没有发布到宿主机（docker/docker-compose.ci.yml 共用，不改），这里在本机开一个 TCP 端口，
  *   每个连接经 `docker exec -i <db> nc 127.0.0.1 5432` 原样转发字节：只是传输，不改写任何 SQL。
- * - 每个用例的团队 ID 都是随机 UUID，数据按团队隔离；结束时删除本轮建的全部团队的行与测试账号。
+ * - 每个用例的团队 ID 都是随机 UUID，数据按团队隔离；结束时删除本轮建的全部团队的行与测试账号（夹具见 `e2e-fixtures.mjs`，
+ *   与对已部署目标跑的 `deployed-fixtures.mjs` 共用）。
  */
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -44,8 +46,6 @@ const supabaseKey = key('SUPABASE_ANON_KEY');
 const auth = createClient(supabaseUrl, key('SUPABASE_SERVICE_KEY'), {
   auth: { persistSession: false, autoRefreshToken: false }
 });
-const users = [];
-const teams = [];
 const stackId =
   process.env['SUPABASE_CI_ID'] ?? createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 10);
 const stackDatabase = `rxdb-supabase-db-${stackId}`;
@@ -57,32 +57,6 @@ const origins = [8306, 8307, 8308].map(port => `http://127.0.0.1:${port}`).join(
 const schema = parseSchemaManifest(
   JSON.parse(await readFile(path.join(root, 'rxdb-admin-template/schema/collaboration-schema.json'), 'utf8'))
 );
-/** 本轮建过的团队的全部行，按外键从叶到根删除。 */
-const workspaceTables = [
-  'public.admin_changes',
-  'public.admin_audit',
-  'public.admin_workspace_versions',
-  'public.admin_shared',
-  'admin_private.record_keys',
-  'public.shared_records',
-  'admin_private.comments',
-  'admin_private.notifications',
-  'admin_private.threads',
-  'admin_private.reviews',
-  'admin_private.candidates',
-  'admin_private.prs',
-  'admin_private.refs',
-  'admin_private.tasks',
-  'admin_private.commit_changes',
-  'admin_private.commits',
-  'admin_private.invitations',
-  'admin_private.operations',
-  'admin_private.policies',
-  'admin_private.schemas',
-  'admin_private.memberships',
-  'admin_private.workspaces'
-];
-
 /**
  * 本机端口到隔离栈数据库的字节转发：每个连接一条 `docker exec -i … nc`，连接结束随之退出。
  * 转发进程各自成组（detached）：Playwright 停服务时向整个进程组发信号，转发进程若同组会先于清理被杀；
@@ -140,6 +114,8 @@ let relay;
 let owner;
 let service;
 let edge;
+/** 测试夹具（建账号、工作区与邀请，签验证码，结束时清理）。 */
+let fixtures;
 /** 命令入口的地址：Node 模式是本进程的协作服务，Edge 模式是函数地址；三端静态服务器把 /collaboration-api 转发到这里。 */
 let commandBase;
 async function stop() {
@@ -152,32 +128,11 @@ async function stop() {
         })
     )
   );
-  if (owner && teams.length) {
-    const client = await owner.connect().catch(() => undefined);
-    try {
-      if (client) {
-        await client.query('BEGIN');
-        for (const table of workspaceTables)
-          await client.query(`DELETE FROM ${table} WHERE team_id = ANY($1::text[])`, [teams]);
-        // 这些团队频道上的 Broadcast 消息：Realtime 只按天分区定期清理，测试数据随团队一起删掉
-        await client.query(
-          "DELETE FROM realtime.messages WHERE topic LIKE 'collab:%' AND split_part(topic, ':', 2) = ANY($1::text[])",
-          [teams]
-        );
-        await client.query('COMMIT');
-      }
-    } catch (error) {
-      console.error(`Fixture cleanup failed: ${error.message}`);
-      await client?.query('ROLLBACK').catch(() => undefined);
-    } finally {
-      client?.release();
-    }
-  }
+  await fixtures?.cleanup(owner);
   await service?.pool.end().catch(() => undefined);
   await edge?.stop().catch(() => undefined);
   await owner?.end().catch(() => undefined);
   await new Promise(resolve => (relay ? relay.close(resolve) : resolve()));
-  await Promise.allSettled(users.map(id => auth.auth.admin.deleteUser(id)));
 }
 process.once('SIGTERM', () => {
   void stop().finally(() => process.exit());
@@ -221,36 +176,26 @@ try {
         SUPABASE_JWT_SECRET: key('JWT_SECRET'),
         ADMIN_DATABASE_URL: databaseUrl('127.0.0.1', relayPort, serviceRole, servicePassword),
         ADMIN_ALLOWED_ORIGINS: origins
-      },
-      { onError: error => console.error(`Collaboration API internal error: ${error.message}`) }
+      }
+      // 内部错误由默认的上报器脱敏后写标准错误（ADMIN_ERROR <JSON>），进测试日志
     );
     servers.push(service.server);
     await listen(service.server, 8310);
     commandBase = 'http://127.0.0.1:8310';
   }
-  const repository = new CollaborationRepository(owner);
-  // 测试夹具：建账号与工作区、签发验证码；两种模式都由本进程提供，命令入口不在这里
-  const fixtures = createServer((request, response) => {
-    const fixtureRoute =
-      request.url === '/__fixture' ? fixture(repository)
-      : request.url?.startsWith('/__otp?') ? otp(request.url)
-      : undefined;
-    if (!fixtureRoute) {
-      response.writeHead(404).end();
-      return;
-    }
-    void fixtureRoute
-      .then(value => {
-        response.setHeader('Content-Type', 'application/json');
-        response.end(JSON.stringify(value));
-      })
-      .catch(error => {
-        console.error(error.message);
-        response.writeHead(500).end('fixture error');
-      });
+  fixtures = fixtureService({
+    auth,
+    repository: new CollaborationRepository(owner),
+    commandBase,
+    schema,
+    supabaseUrl,
+    supabaseKey,
+    accessToken: async account => accessToken(account)
   });
-  servers.push(fixtures);
-  await listen(fixtures, 8309);
+  // 测试夹具：建账号与工作区、签发验证码；两种模式都由本进程提供，命令入口不在这里
+  const fixtureServer = createServer((request, response) => fixtures.handle(request, response));
+  servers.push(fixtureServer);
+  await listen(fixtureServer, 8309);
   for (const [framework, port] of [
     ['react', 8306],
     ['angular', 8307],
@@ -274,66 +219,6 @@ try {
 }
 function listen(server, port) {
   return new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
-}
-/** 为一个测试账号签出新的一次性验证码（同一账号的旧验证码随之作废），供测试进程自己登录。 */
-async function otp(url) {
-  const email = new URL(url, 'http://localhost').searchParams.get('email');
-  const link = await auth.auth.admin.generateLink({ type: 'magiclink', email });
-  if (link.error) throw link.error;
-  return { otp: link.data.properties.email_otp };
-}
-async function fixture(repository) {
-  const suffix = randomUUID();
-  const accounts = [];
-  for (const role of ['admin', 'reviewer', 'second']) {
-    const email = `${role}-${suffix}@example.test`;
-    const created = await auth.auth.admin.createUser({ email, email_confirm: true });
-    if (created.error) throw created.error;
-    users.push(created.data.user.id);
-    const link = await auth.auth.admin.generateLink({ type: 'magiclink', email });
-    if (link.error) throw link.error;
-    accounts.push({ id: created.data.user.id, email, verified: true, otp: link.data.properties.email_otp });
-  }
-  const [admin, reviewer, secondReviewer] = accounts;
-  const teamId = randomUUID();
-  teams.push(teamId);
-  const appId = 'assets';
-  const name = `团队-${suffix.slice(0, 8)}`;
-  await repository.initialize({ teamId, appId, name, bootstrapKey: randomUUID(), admin, schema });
-  const invitation = randomUUID();
-  const token = randomUUID();
-  // 邀请经命令入口发出（入口在服务端对令牌取摘要），与管理员在页面上发邀请走同一条写路径
-  const invited = await fetch(`${commandBase}/workspaces/${teamId}/${appId}/commands`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${accessToken(admin)}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      type: 'invite',
-      id: invitation,
-      email: reviewer.email,
-      permissions: ['read', 'review', 'comment'],
-      tokenHash: token,
-      expiresAt: Date.now() + 3600000,
-      expectedVersion: 0,
-      operationId: randomUUID()
-    })
-  });
-  if (!invited.ok) throw new Error(`Fixture invitation failed: ${invited.status} ${await invited.text()}`);
-  const secondary = { teamId: randomUUID(), appId, name: `隔离团队-${suffix.slice(0, 8)}` };
-  teams.push(secondary.teamId);
-  await repository.initialize({ ...secondary, bootstrapKey: randomUUID(), admin, schema });
-  return {
-    teamId,
-    appId,
-    name,
-    admin,
-    reviewer,
-    secondReviewer,
-    secondary,
-    invitation,
-    token,
-    supabaseUrl,
-    supabaseKey
-  };
 }
 async function serve(request, response, directory) {
   try {

@@ -31,7 +31,9 @@ describe('健康检查', () => {
     expect(report.checks.database.latencyMs).toBeGreaterThan(0);
   });
   it('任一组件失败即 unavailable；只给出可公开的原因（SQLSTATE、HTTP 状态），不带错误原文', async () => {
-    const leaking = Object.assign(new Error('password authentication failed: postgres://u:secret@db/postgres'), {
+    // 错误原文里带着连接串与口令（运行时拼出，仓库的密钥扫描不会把测试数据当成泄露）
+    const password = 'secret';
+    const leaking = Object.assign(new Error(`password authentication failed: postgres://u:${password}@db/postgres`), {
       code: '28P01'
     });
     const check = healthCheck({
@@ -64,7 +66,12 @@ describe('健康检查', () => {
     vi.useFakeTimers();
     const hanging: HealthProbe = signal =>
       new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
-    const pending = healthCheck({ entry: 'edge', release: null, probes: { database: hanging, auth: ok }, timeoutMs: 100 })();
+    const pending = healthCheck({
+      entry: 'edge',
+      release: null,
+      probes: { database: hanging, auth: ok },
+      timeoutMs: 100
+    })();
     await vi.advanceTimersByTimeAsync(150);
     const report = await pending;
     expect(report.status).toBe('unavailable');

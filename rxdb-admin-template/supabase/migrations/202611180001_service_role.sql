@@ -16,6 +16,9 @@ END $$;
 REVOKE ALL ON ALL TABLES IN SCHEMA admin_private FROM admin_collaboration;
 REVOKE ALL ON public.shared_records, public.admin_shared, public.admin_audit, public.admin_changes,
   public.admin_workspace_versions FROM admin_collaboration;
+-- schema 的使用权同样先收回再授予：202611160001 重跑时会先收回再授予 authenticated 的使用权，ACL 里的顺序随之变化；
+-- 这里收回再授予，重跑后的 ACL 与第一次执行逐项相同（ADMIN-US-217 AC#1 的结构导出比对发现）
+REVOKE ALL ON SCHEMA admin_private FROM admin_collaboration;
 GRANT USAGE ON SCHEMA admin_private TO admin_collaboration;
 
 -- 治理行：命令只读名称、初始化归属与两个版本号，只改两个版本号（行锁 FOR SHARE / FOR UPDATE 要求对至少一列有 UPDATE 权限）；

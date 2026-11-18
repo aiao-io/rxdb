@@ -78,10 +78,7 @@ describe('发布流水线执行器', () => {
       assert.equal(result.failed.n, failStep);
       assert.equal(result.failed.injected, true);
       assert.match(result.failed.error, new RegExp(`ADMIN_DEPLOY_FAIL_STEP=${failStep}`));
-      assert.deepEqual(
-        calls,
-        ['run:a', 'run:b', 'run:c'].slice(0, failStep)
-      );
+      assert.deepEqual(calls, ['run:a', 'run:b', 'run:c'].slice(0, failStep));
     }
   });
   it('补偿本身失败时记下来，其余补偿照常执行', async () => {

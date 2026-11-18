@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, readlink, rm, stat, writeFile } from 'node:fs
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, it } from 'node:test';
-import { formatEnv, generateSecrets, ensureEnvFile, loadEnv, secretNames } from './lib/env.mjs';
+import { ensureEnvFile, formatEnv, generateSecrets, loadEnv, secretNames } from './lib/env.mjs';
 import {
   appendRecord,
   linkedRelease,
@@ -48,10 +48,16 @@ describe('发布 ID 与目录', () => {
     assert.equal(await linkedRelease(root, 'current'), null);
     await pointToRelease(root, 'current', ids[0]);
     assert.equal(await readlink(path.join(root, 'current')), `releases/${ids[0]}`);
-    assert.equal(await readFile(path.join(root, 'current', 'web', 'react', 'index.html'), 'utf8'), `<html>${ids[0]}</html>`);
+    assert.equal(
+      await readFile(path.join(root, 'current', 'web', 'react', 'index.html'), 'utf8'),
+      `<html>${ids[0]}</html>`
+    );
     await pointToRelease(root, 'current', ids[1]);
     assert.equal(await linkedRelease(root, 'current'), ids[1]);
-    assert.equal(await readFile(path.join(root, 'current', 'web', 'react', 'index.html'), 'utf8'), `<html>${ids[1]}</html>`);
+    assert.equal(
+      await readFile(path.join(root, 'current', 'web', 'react', 'index.html'), 'utf8'),
+      `<html>${ids[1]}</html>`
+    );
     await pointToRelease(root, 'functions', ids[1]);
     assert.equal(await readlink(path.join(root, 'functions')), `releases/${ids[1]}/functions`);
     assert.equal(await linkedRelease(root, 'functions'), ids[1]);
@@ -78,11 +84,16 @@ describe('发布 ID 与目录', () => {
     await writeFile(path.join(tree, 'react', 'index.html'), '<html>changed</html>');
     assert.notEqual((await treeDigest(tree)).sha256, first.sha256);
   });
-  it('清理旧发布：保留最近的若干个，当前与上一个在线的发布无论多旧都保留', async () => {
+  it('清理旧发布：失败的发布全部删除，上线过的保留最近的若干个，受保护的无论多旧都保留', async () => {
     const root = await sandbox();
-    for (const id of ids) await release(root, id);
-    const removed = await pruneReleases(path.join(root, 'releases'), { keep: 1, protect: [ids[0], null] });
-    assert.deepEqual(removed, [ids[1]]);
+    const failed = 'r20261118-040000-ddddddd';
+    for (const id of [...ids, failed]) await release(root, id);
+    const removed = await pruneReleases(path.join(root, 'releases'), {
+      keep: 1,
+      released: ids,
+      protect: [ids[0], null]
+    });
+    assert.deepEqual(removed, [ids[1], failed]);
     assert.ok((await stat(path.join(root, 'releases', ids[0]))).isDirectory());
     assert.ok((await stat(path.join(root, 'releases', ids[2]))).isDirectory());
   });

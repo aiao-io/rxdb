@@ -26,6 +26,8 @@
 | `ADMIN_DATABASE_URL`                       | 协作专用数据库角色的连接，指向**同一个 Supabase 项目的 PostgreSQL**（广播写在它的 `realtime.messages`，读取投影也在这里）；用户名不是 `admin_collaboration`（经 Supavisor 时为 `admin_collaboration.<项目 ref>`）时启动即失败 |
 | `ADMIN_ALLOWED_ORIGINS`                    | 允许的工作台来源，逗号分隔，含协议与端口                                                                                                                                                                                      |
 | `ADMIN_API_PORT` / `ADMIN_API_HOST`        | 只用于 Node 服务：默认 `8088` / `127.0.0.1`                                                                                                                                                                                   |
+| `ADMIN_RELEASE`                            | 可选：发布标识（不是密钥），出现在健康检查与错误报告里，发布流水线据此确认在线的是哪一次发布                                                                                                                                  |
+| `ADMIN_ERROR_REPORT_URL`                   | 可选：错误收集器地址，未处理错误脱敏后另以 JSON POST 给它（控制台日志总是写）；地址可能带收集器自己的密钥，按服务端密钥对待                                                                                                   |
 
 Edge Function 的三个身份校验变量用 `ADMIN_` 前缀：Supabase 不接受 `SUPABASE_` 开头的函数密钥（CLI 设置时直接跳过），平台还会自行注入这个前缀的变量；函数只读自己的三个变量，平台注入的 `SUPABASE_SERVICE_ROLE_KEY` 与 `SUPABASE_DB_URL`（以 postgres 角色连库）一概不读（`runtime.spec.ts` 以环境访问记录证明）。
 
@@ -66,7 +68,7 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 命令入口打包成 Supabase Edge Function，与 Node 服务共用同一个处理函数、领域引擎与仓储（ADMIN-US-220）。`src/server/edge.ts` 是 Deno 入口，`nx run admin-collaboration:build-edge` 用 esbuild 把它连同所需的 `@aiao/rxdb`、`@aiao/rxdb-plugin-working-tree/exchange`（交换格式的纯函数，见「提交协议与存储」）与 `pg` 打成自包含的 ESM 产物 `rxdb-admin-template/supabase/functions/admin-collaboration/dist/collaboration.js`（约 430 KiB），两个平台包都按包的 `exports` 解析到各自的 dist（不读 tsconfig 的 paths），函数目录的 `index.ts` 只导入它。产物不进仓库：随时可由构建重现，部署与本地起函数的 Nx 目标都先依赖构建，避免仓库里留一份与源码不一致的生成物。
 
-部署步骤（在 `rxdb-admin-template/` 目录执行 Supabase CLI；真实项目上的发布流水线与证据由 ADMIN-US-217 承接）：
+部署步骤（在 `rxdb-admin-template/` 目录执行 Supabase CLI；按这个顺序编排的发布流水线、失败即停、回滚与本地预演栈见 [部署与运维手册](../../deploy/README.md)，真实项目上的证据由 ADMIN-US-217 承接）：
 
 1. **迁移**：`supabase db push`（或上文的 `admin-collaboration:migrate`）。
 2. **专用角色口令**：`ADMIN_OWNER_DATABASE_URL=… ADMIN_SERVICE_PASSWORD=<随机长口令> pnpm nx run admin-collaboration:service-role`。
@@ -246,7 +248,13 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 - PostgREST 的 `max-rows` 不得小于 500（Supabase 默认 1000）：读取按 500 行一页，不足一页即认为读完。
 - 读取全部不加锁、不写库：投影与读取函数都是 STABLE 的只读查询。PostgREST 或 Realtime 暂不可用时，已解锁的任务照常本地编辑与排队，同步在读取失败时停止并提示，不伪报成功；恢复后按修订号补齐。
 
-协作服务只保留两个接口：`GET /config`（公开配置）与 `POST /workspaces/:teamId/:appId/commands`（命令）；此前的摘要、记录、提交、候选、历史、审计、数据模式与回执读接口都已删除。
+协作服务只保留三个接口：`GET /config`（公开配置）、`GET /health`（健康检查，见下文「健康检查与错误监控」）与 `POST /workspaces/:teamId/:appId/commands`（命令）；此前的摘要、记录、提交、候选、历史、审计、数据模式与回执读接口都已删除。
+
+### 健康检查与错误监控
+
+两个入口都有 `GET /health`（不要求令牌，`server/health.ts`）：并行探测数据库（以命令入口自己的连接池、专用角色读一行治理表，连通、认证与授权都在其中）与 Auth（带公开 key 访问 `<SUPABASE_URL>/auth/v1/health`），每项 3 秒时限；全部可用回 200，任一不可用回 503。响应是 `{ status, entry, release, checks: { database, auth } }`，每项只有状态、耗时与可公开的原因（`timeout` / `error` / `status`，以及 SQLSTATE、系统错误码或 HTTP 状态），不带连接串、密钥、令牌或错误原文。
+
+未处理错误（请求处理中抛出的非业务错误，回 500 `internal`）与连接池里空闲连接的错误交给可插拔的上报器（`server/monitor.ts`，装配时可经 `collaborationRuntime(env, entry, { reporter })` 注入）：默认总是写一行 `ADMIN_ERROR <JSON>` 到函数日志 / 标准错误，配置了 `ADMIN_ERROR_REPORT_URL` 时另 POST 给收集器（2 秒超时，投递失败只记一行原因）。报告只带时刻、入口、发布标识、来源、请求的方法与路径（不含查询串、请求头与请求体）、错误名、消息、SQLSTATE、详情与堆栈，全部先脱敏：去掉 JWT、`Bearer` / `Basic` 凭据、Supabase API key、URL 里的口令、`token` / `password` / `secret` / `apikey` / `otp` 等键值、邮箱（含受邀邮箱）、32 位以上的十六进制串与 6～10 位数字（验证码），保留 UUID 标识、SQLSTATE 与堆栈行列号；SQL 文本与绑定参数从不进入报告（`monitor.spec.ts`）。部署、监控接入与演练见 [部署与运维手册](../../deploy/README.md)。
 
 浏览器端的 `CollaborationController` 按需读取并缓存这些内容：提交与候选不可变，按 ID 缓存；共享数据按团队页的 `head` 缓存，`head` 变化即失效；提交历史（`commitHistory`，共享分支或 PR 的来源任务）按分支与头缓存已读的页，头变化即从第一页重读，`loadEarlierCommits` 读更早的一页；讨论线程的处理历史随工作区修订号失效；同一 ID 的并发读取只发一次请求。同步读取（`commitContent`、`candidateContent`、`prDetail`、`sharedRecords`、`commitHistory`、`threadEvents`、`auditEvents`）未命中时返回 `undefined` 并在后台加载，加载完成后派发 `change`，界面先显示「正在加载」占位；预览匿名数据导入用 `loadSharedRecords` 与 `loadSchema` 先等内容加载完成；打开任务、拉取远端版本、另存分叉与恢复历史版本不读提交内容，而是经下发接口把提交导入团队库（见「团队任务：团队库与 working-tree」）。失败会提示一次，之后不自动重试，下一次刷新或用户操作再试。「历史与审计」按时间正序分页列出共享分支的合并提交（每页 50 个，最前面可加载更早的提交），PR「提交」页签从新到旧分页列出来源任务的提交；每个提交、候选和审计时间线都只在 `<details>` 展开时才生成并加载内容，共享提交展开后另显示它的字段级变更表；尚未打开过的内容离线时不可用。
 
@@ -260,6 +268,8 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:e2e -c edge
 NX_NO_CLOUD=true DENO_BIN=~/.deno/bin/deno pnpm nx run admin-collaboration:test-deno
 NX_NO_CLOUD=true pnpm nx run-many -t typecheck,lint -p admin-collaboration
 ```
+
+**已部署目标**（ADMIN-US-217 AC#5）：`ADMIN_E2E_TARGET=deployed` 时（Nx 目标 `admin-collaboration:e2e-deployed`），三端都打部署出的前端地址（`ADMIN_E2E_WEB_URLS`），不起 `browser-server.mjs`，只起 `scripts/deployed-fixtures.mjs`：账号与验证码经部署栈的 Auth 管理接口（service key），工作区经初始化步骤（迁移所有者连接），邀请经部署出的命令入口、令牌来自真实的验证码登录；两种目标的夹具是同一份实现（`scripts/e2e-fixtures.mjs`）。这个目标下另有 `rls`（PostgREST 与 Realtime 层的 RLS 矩阵，`e2e/deployed-rls.spec.ts`）、`otp-<端>`（真实发信的验证码登录与过期）与 `smoke-<端>`（回滚后的冒烟）几个项目。对本地预演栈跑用 `pnpm nx run rxdb-admin-template:e2e-local`（见 [部署与运维手册](../../deploy/README.md)）。
 
 `test-integration` 里的命令契约测试（`contract.integration.spec.ts`）对 Node 入口与 Edge Function 入口各跑一遍同一套用例并要求结果逐项一致：两个入口都以专用角色经 transaction 模式的 PgBouncer 连一个干净的临时库，Edge Function 跑在按线上限额起的 `supabase/edge-runtime` 容器里。`e2e -c edge`（即 `ADMIN_E2E_COMMANDS=edge`）让三端的命令改打本机 Edge Function，不起任何 Node 协作服务。`test-deno` 把 `identity.spec.ts` 原样打包，先用 `deno test`、再在 Edge Runtime 的 worker 里各跑一遍。
 

@@ -123,7 +123,10 @@ export function collaborationRuntime(
     health: healthCheck({
       entry: entry.name,
       release,
-      probes: { database: databaseProbe(pool), auth: authProbe({ url: supabaseUrl, key: supabaseKey, fetch: options.fetch }) }
+      probes: {
+        database: databaseProbe(pool),
+        auth: authProbe({ url: supabaseUrl, key: supabaseKey, fetch: options.fetch })
+      }
     })
   });
   return { handler, pool, rules };

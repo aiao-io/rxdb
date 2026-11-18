@@ -384,8 +384,8 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
 | 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
 | 13  | `discard-command.ts`    | `rewriteProjectionToHead`   | `executor.mergeChanges(…, false)` | 139  | 工作树投影    | **不产生**     |
-| 14  | `restore-command.ts`    | `rewriteProjectionToTarget` | `executor.mergeChanges(…, false)` | 395  | 工作树投影    | **不产生**     |
-| 15  | `import-command.ts`     | `applyImportedCommit`       | `executor.mergeChanges(…, false)` | 620  | 远端提交导入  | **不产生**     |
+| 14  | `restore-command.ts`    | `rewriteProjectionToTarget` | `executor.mergeChanges(…, false)` | 415  | 工作树投影    | **不产生**     |
+| 15  | `import-command.ts`     | `applyImportedCommit`       | `executor.mergeChanges(…, false)` | 618  | 远端提交导入  | **不产生**     |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
 `pull-batch.ts` 与 `pull-repository.ts` 是两个不同文件里的两个独立调用点，不得合并成一行。

@@ -7,8 +7,8 @@
 # 不与 CI 隔离栈（rxdb-supabase-*）和其他产品的栈共用任何资源。
 name: admin-template-local
 
-x-function-env: &function-env
-  # 命令入口访问 Supabase（接受邀请时向 Auth 确认邮箱、健康检查）经内部网关；浏览器拿到的公开地址另给
+x-function-env:
+  &function-env # 命令入口访问 Supabase（接受邀请时向 Auth 确认邮箱、健康检查）经内部网关；浏览器拿到的公开地址另给
   SUPABASE_URL: http://kong:8000
   SUPABASE_ANON_KEY: ${ANON_KEY:?先运行 local-up 生成 .env.local}
   ADMIN_PUBLIC_SUPABASE_URL: http://127.0.0.1:4500
@@ -99,10 +99,10 @@ services:
       # access token 有效期 15 分钟（生产计划 10～15 分钟）
       GOTRUE_JWT_EXP: ${AUTH_JWT_EXP:-900}
       # 非对称签名：用户令牌以 ES256 私钥签发（JWKS 公开在 /auth/v1/.well-known/jwks.json）；
-      # anon / service role 这两个 API key 仍是旧的 HS256 共享密钥签的，GoTrue 以 GOTRUE_JWT_SECRET 校验它们
+      # anon / service role 这两个 API key 仍是旧的 HS256 共享密钥签的：JWT_KEYS 另带这把只验签的对称密钥，
+      # GoTrue 据此接受 HS256（不带 kid 的令牌按 GOTRUE_JWT_SECRET 校验），JWKS 接口不公开对称密钥
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_JWT_KEYS: ${JWT_KEYS:?先运行 local-up}
-      GOTRUE_JWT_VALIDMETHODS: HS256,ES256
       GOTRUE_JWT_ISSUER: http://127.0.0.1:4500/auth/v1
       # 邮箱验证码：SMTP 发往本地收件服务；验证码有效期默认 1 小时，AC#4 预演时临时调短（AUTH_MAILER_OTP_EXP）
       GOTRUE_MAILER_AUTOCONFIRM: 'false'

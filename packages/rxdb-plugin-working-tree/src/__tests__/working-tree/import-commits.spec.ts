@@ -14,7 +14,7 @@
  * 3. **只叠第一父链**：合并提交以 `merge` 入库、可以有多个父；侧枝提交只作为节点入库，它的 ChangeSet 不落业务表（AC#6）。
  * 4. **登记表 #15**：每个新到的第一父链提交一次 `mergeChanges`，触发器开着，入口是投影重写。
  * 5. **幂等**：同一批再导入一次、新头已在历史里，都是一个字节都不写的成功（AC#5）。
- * 6. **空分支起步**：HEAD 是系统根节点、受版本控制的业务表一行都没有时，链可以从另一个根开始（AC#1）。
+ * 6. **空分支起步**：HEAD 为空或是系统根节点、且受版本控制的业务表一行都没有时，链可以从另一个根开始（AC#1）。
  * 7. **前像核对**：叠业务表之前，第一父链上每个单元写之前的那一行都要与叠到它时的业务行对得上（插入时不存在、
  *    修改与删除时存在且 `inversePatch` 覆盖的跟踪字段逐个相等），对不上就是零写入的 `precondition_mismatch`。
  *    替身仍不执行 SQL：业务表的 `SELECT … IN (…)` 由 {@link answerBusinessSelect} 按布景塞进去的行应答。
@@ -199,6 +199,10 @@ const sceneAtEmptyBaseline = (): WorkingTreeScene => {
   seedLocalCommit(scene, { commitId: ROOT, parentIds: [], kind: 'baseline' });
   return scene;
 };
+
+/** 分支还没有根：ref 的 HEAD 为空（旧版本 `createBranch()` 留下、还没等到再一次 `enable()` 补根的那一行）。 */
+const sceneAtNullHead = (): WorkingTreeScene =>
+  createWorkingTreeScene({ headCommitId: null, headRevision: 0, onQuery: answerBusinessSelect });
 
 /** 与捕获运行时同一个构造：版本化域、业务实体、同步配置解析器。 */
 const environmentOf = (scene: WorkingTreeScene): CommitImportEnvironment => ({
@@ -1005,6 +1009,31 @@ describe('空分支起步（AC#1）', () => {
     ]);
 
     expect(result).toEqual({ ok: false, reason: 'not_fast_forward', headCommitId: ROOT });
+    expect(writesOf(scene)).toEqual([]);
+  });
+
+  it('HEAD 为空、业务表没有行：与系统根节点同样是空分支，链从根开始整条入库', async () => {
+    const scene = sceneAtNullHead();
+    const remoteRoot = recordOf({ commitId: REMOTE_ROOT, parentIds: [], kind: 'baseline' });
+    const first = recordOf({ commitId: R1, parentIds: [REMOTE_ROOT] });
+
+    const result = expectOk(await importOnce(scene, [remoteRoot, first]));
+
+    expect(result).toEqual({ ok: true, headCommitId: R1, headRevision: 1, importedCount: 2, appliedCount: 2 });
+    expect(mergeCallsOf(scene)).toHaveLength(1);
+  });
+
+  it('HEAD 为空、业务表里已经有行：同样不是空分支，not_fast_forward，零写入', async () => {
+    // 空 HEAD 不等于空状态：这些行同样不在任何提交里，从链根接上去它们就成了说不清来历的数据
+    const scene = sceneAtNullHead();
+    scene.probe.seed(SceneNote, [{ id: 'note-legacy', title: '存量' }]);
+
+    const result = await importOnce(scene, [
+      recordOf({ commitId: REMOTE_ROOT, parentIds: [], kind: 'baseline' }),
+      recordOf({ commitId: R1, parentIds: [REMOTE_ROOT] })
+    ]);
+
+    expect(result).toEqual({ ok: false, reason: 'not_fast_forward', headCommitId: null });
     expect(writesOf(scene)).toEqual([]);
   });
 

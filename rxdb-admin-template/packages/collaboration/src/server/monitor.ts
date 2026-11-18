@@ -100,7 +100,13 @@ export function errorReport(error: unknown, context: ReportContext): ErrorReport
   if (!(error instanceof Error))
     return {
       ...base,
-      error: { name: 'NonError', message: clip(redact(String(error)), limits.message), code: null, detail: null, stack: null }
+      error: {
+        name: 'NonError',
+        message: clip(redact(String(error)), limits.message),
+        code: null,
+        detail: null,
+        stack: null
+      }
     };
   const fields = error as Error & { code?: unknown; detail?: unknown };
   return {

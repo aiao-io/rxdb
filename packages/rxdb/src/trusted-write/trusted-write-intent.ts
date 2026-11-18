@@ -192,6 +192,10 @@ export interface TrustedCallsite {
  *
  * 2026-11-17 新增 #15（US-316）：导入远端提交时，第一父链上新到的每个提交各走一次 `executor.mergeChanges(…, false)`，
  * 把它的 ChangeSet 叠到业务表上（理由见 {@link TrustedWriteIntent.remote_commit_import}）。只核对了新增的这一行，表头日期照旧。
+ *
+ * 2026-11-18 只刷新了 #14 / #15 两行：两处声明在登记之后的改动里各自挪了位置（`restore-command.ts` 下移 20 行，
+ * `import-command.ts` 先上移 12 行、补上空 HEAD 的空分支判定后又下移 10 行），漂移都在容差之内、门禁没报，
+ * 是评审逐行比对时发现的。其余行没有重新核对，表头日期照旧。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -304,7 +308,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.working_tree_projection,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 395
+    verifiedAtLine: 415
   },
   {
     file: 'import-command.ts',
@@ -312,7 +316,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_commit_import,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 620
+    verifiedAtLine: 618
   }
 ];
 
