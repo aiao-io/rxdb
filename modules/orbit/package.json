@@ -1,7 +1,7 @@
 {
-  "name": "@modules/wujie",
+  "name": "@modules/orbit",
   "version": "0.0.1",
-  "description": "文档站宿主与无界演示子应用之间的主题 / 路由 / 样式协议（内部模块，不发布）。",
+  "description": "文档站宿主与 Orbit 演示子应用之间的主题 / 路由 / 样式协议（内部模块，不发布）。",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -24,7 +24,7 @@
   },
   "sideEffects": false,
   "nx": {
-    "name": "wujie",
+    "name": "orbit-protocol",
     "tags": [
       "js-lib"
     ]

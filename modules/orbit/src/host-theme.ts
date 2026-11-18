@@ -1,34 +1,33 @@
 /**
  * 文档站宿主与演示子应用之间的主题协议。
  *
- * 优先走无界 `eventBus`；独立打开子应用时仍兼容旧的 `postMessage({ type: 'setTheme' })`，
+ * 优先走Orbit `eventBus`；独立打开子应用时仍兼容旧的 `postMessage({ type: 'setTheme' })`，
  * 该兼容通道只接受同源消息。
  */
 
-/** 无界 bus 上的主题事件名：宿主下发已解析主题。 */
-export const WUJIE_THEME_EVENT = 'aiao:theme';
+/** Orbit bus 上的主题事件名：宿主下发已解析主题。 */
+export const ORBIT_THEME_EVENT = 'aiao:theme';
 
 /**
- * 无界 bus 上的主题请求事件名：子应用请求宿主切换主题。
+ * Orbit bus 上的主题请求事件名：子应用请求宿主切换主题。
  *
- * 刻意与 {@link WUJIE_THEME_EVENT} 分开 —— 无界的 `$emit` 会遍历所有 bus，
- * 两个方向共用一个事件名会让宿主收到自己发出的广播，绕成回环。
+ * 两个方向各占一个事件名，避免宿主下发与子应用回请互相触发。
  */
-export const WUJIE_THEME_REQUEST_EVENT = 'aiao:theme-request';
+export const ORBIT_THEME_REQUEST_EVENT = 'aiao:theme-request';
 
 /** 已经解析成可直接写到 `data-theme` 的主题。 */
 export type ResolvedTheme = 'light' | 'dark';
 
-/** 无界 EventBus 的最小订阅面，避免把 `wujie` 打进工具库依赖。 */
-export interface WujieBus {
+/** Orbit EventBus 的最小订阅面，避免把 `orbit` 打进工具库依赖。 */
+export interface OrbitBus {
   $on?(event: string, fn: (...args: unknown[]) => void): unknown;
   $off?(event: string, fn: (...args: unknown[]) => void): unknown;
   $emit?(event: string, ...args: unknown[]): unknown;
 }
 
-/** 注入到子应用的 `$wujie` 对象。 */
-export interface WujieHost {
-  bus?: WujieBus;
+/** 注入到子应用的 `$orbit` 对象。 */
+export interface OrbitHost {
+  bus?: OrbitBus;
   props?: {
     [key: string]: unknown;
     theme?: unknown;
@@ -36,8 +35,8 @@ export interface WujieHost {
 }
 
 export interface HostThemeScope {
-  $wujie?: WujieHost;
-  window?: { $wujie?: WujieHost };
+  $orbit?: OrbitHost;
+  window?: { $orbit?: OrbitHost };
   location?: { origin?: string };
   addEventListener?(type: string, listener: EventListener): void;
   removeEventListener?(type: string, listener: EventListener): void;
@@ -45,13 +44,13 @@ export interface HostThemeScope {
 
 declare global {
   interface Window {
-    $wujie?: WujieHost;
+    $orbit?: OrbitHost;
   }
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
-const isWujieHost = (value: unknown): value is WujieHost => isRecord(value);
+const isOrbitHost = (value: unknown): value is OrbitHost => isRecord(value);
 
 /**
  * 把宿主传来的任意载荷收成 `light` / `dark`。
@@ -69,24 +68,24 @@ export function parseResolvedTheme(value: unknown): ResolvedTheme {
 }
 
 /**
- * 从当前执行上下文取出无界注入的 `$wujie`。
+ * 从当前执行上下文取出Orbit 注入的 `$orbit`。
  *
  * @param target - 默认 `globalThis`；测试里可传入假 window
  */
-export function getWujieHost(target: unknown = globalThis): WujieHost | undefined {
+export function getOrbitHost(target: unknown = globalThis): OrbitHost | undefined {
   if (!isRecord(target)) return undefined;
-  const direct = target['$wujie'];
-  if (isWujieHost(direct)) return direct;
+  const direct = target['$orbit'];
+  if (isOrbitHost(direct)) return direct;
 
   const nested = target['window'];
   if (isRecord(nested)) {
-    const nestedHost = nested['$wujie'];
-    if (isWujieHost(nestedHost)) return nestedHost;
+    const nestedHost = nested['$orbit'];
+    if (isOrbitHost(nestedHost)) return nestedHost;
   }
   return undefined;
 }
 
-const hasOwnTheme = (host: WujieHost | undefined): boolean => !!host?.props && Object.hasOwn(host.props, 'theme');
+const hasOwnTheme = (host: OrbitHost | undefined): boolean => !!host?.props && Object.hasOwn(host.props, 'theme');
 
 /**
  * 取当前执行上下文自身的 origin，用来校验 `message` 事件来源。
@@ -104,7 +103,7 @@ function getScopeOrigin(target: unknown): string | undefined {
 /**
  * 订阅宿主主题。
  *
- * 在无界里先应用 `props.theme`，再听 {@link WUJIE_THEME_EVENT}；
+ * 在 Orbit 中先应用 `props.theme`，再听 {@link ORBIT_THEME_EVENT}；
  * 独立运行时退回 `message` 事件上的 `{ type: 'setTheme', theme }`。
  *
  * `message` 通道只接受与自身 origin 严格相同的消息；跨域窗口、空 origin 的
@@ -116,16 +115,16 @@ export function subscribeHostTheme(
   onTheme: (theme: ResolvedTheme) => void,
   target: unknown = typeof globalThis === 'object' ? globalThis : undefined
 ): () => void {
-  const host = getWujieHost(target);
+  const host = getOrbitHost(target);
   if (host) {
     if (hasOwnTheme(host)) onTheme(parseResolvedTheme(host.props?.theme));
 
     const bus = host.bus;
     if (bus?.$on) {
       const handler = (payload: unknown) => onTheme(parseResolvedTheme(payload));
-      bus.$on(WUJIE_THEME_EVENT, handler);
+      bus.$on(ORBIT_THEME_EVENT, handler);
       return () => {
-        bus.$off?.(WUJIE_THEME_EVENT, handler);
+        bus.$off?.(ORBIT_THEME_EVENT, handler);
       };
     }
     return () => undefined;
@@ -154,38 +153,38 @@ export function subscribeHostTheme(
 /**
  * 主应用向所有子应用广播已解析主题。
  *
- * @param bus - 无界主应用 `bus`；缺省时静默跳过
+ * @param bus - Orbit主应用 `bus`；缺省时静默跳过
  */
-export function emitHostTheme(bus: WujieBus | undefined, theme: ResolvedTheme): void {
-  bus?.$emit?.(WUJIE_THEME_EVENT, { theme });
+export function emitHostTheme(bus: OrbitBus | undefined, theme: ResolvedTheme): void {
+  bus?.$emit?.(ORBIT_THEME_EVENT, { theme });
 }
 
 /**
  * 子应用请求宿主切换主题。
  *
  * 只该在**用户主动切换**时调用；{@link subscribeHostTheme} 回调里收到宿主下发的主题后
- * 不要回推，否则两端互相触发。独立运行（拿不到 `$wujie`）时静默跳过。
+ * 不要回推，否则两端互相触发。独立运行（拿不到 `$orbit`）时静默跳过。
  *
  * @param theme - 已解析主题；子应用的 `auto` 要先落到 `light` / `dark`
  * @param target - 默认 `globalThis`；测试里可传入假 window
  */
 export function requestHostTheme(theme: ResolvedTheme, target: unknown = globalThis): void {
-  getWujieHost(target)?.bus?.$emit?.(WUJIE_THEME_REQUEST_EVENT, { theme });
+  getOrbitHost(target)?.bus?.$emit?.(ORBIT_THEME_REQUEST_EVENT, { theme });
 }
 
 /**
  * 宿主订阅子应用发来的主题切换请求。
  *
  * @param onTheme - 收到请求时的回调，参数已收敛成 `light` / `dark`
- * @param bus - 无界主应用 `bus`；缺省时返回空退订函数
+ * @param bus - Orbit主应用 `bus`；缺省时返回空退订函数
  * @returns 取消订阅
  */
-export function subscribeThemeRequest(onTheme: (theme: ResolvedTheme) => void, bus: WujieBus | undefined): () => void {
+export function subscribeThemeRequest(onTheme: (theme: ResolvedTheme) => void, bus: OrbitBus | undefined): () => void {
   if (!bus?.$on) return () => undefined;
 
   const handler = (payload: unknown) => onTheme(parseResolvedTheme(payload));
-  bus.$on(WUJIE_THEME_REQUEST_EVENT, handler);
+  bus.$on(ORBIT_THEME_REQUEST_EVENT, handler);
   return () => {
-    bus.$off?.(WUJIE_THEME_REQUEST_EVENT, handler);
+    bus.$off?.(ORBIT_THEME_REQUEST_EVENT, handler);
   };
 }

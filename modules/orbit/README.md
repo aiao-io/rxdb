@@ -1,6 +1,6 @@
-# @modules/wujie
+# @modules/orbit
 
-文档站宿主（Docusaurus）与无界演示子应用（Angular / React / Vue）之间的共享协议。
+文档站宿主（Docusaurus）与 Orbit 演示子应用（Angular / React / Vue）之间的共享协议。
 
 | 文件            | 内容                                                             |
 | --------------- | ---------------------------------------------------------------- |
@@ -16,6 +16,8 @@
 
 ## 消费方式
 
-- 三个 demo 应用与 `modules/angular`：走 `tsconfig.base.json` 的 `@modules/wujie` path，直接吃 `src/`
+- 三个 demo 应用与 `modules/angular`：走 `tsconfig.base.json` 的 `@modules/orbit` path，直接吃 `src/`
 - `website`：Docusaurus 的 webpack 不认 tsconfig paths，走 pnpm workspace 软链读 `dist/`，
-  所以整站构建前必须先 `nx build wujie`（已接进 `website/scripts/build-website.mjs`）
+  所以整站构建前必须先 `pnpm nx build orbit-protocol`（已接进 `website/scripts/build-website.mjs`）
+
+运行内核为 [`@aiao/orbit`](../../packages/orbit/README.md)。本模块只维护文档站的主题与路由接线；`shadow-css.ts` 保留给直接渲染到 Shadow DOM 的消费方，Orbit 原生 iframe 不使用它。

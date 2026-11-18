@@ -1,22 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  bindWujieRoute,
+  bindOrbitRoute,
   emitHostRoute,
-  getWujieAppId,
+  getOrbitAppId,
   HostRouteSync,
   normalizeRoutePath,
+  ORBIT_ROUTE_CHANGE_EVENT,
+  ORBIT_ROUTE_EVENT,
   reportSubRoute,
   subscribeHostRoute,
   subscribeSubRoute,
-  WUJIE_ROUTE_CHANGE_EVENT,
-  WUJIE_ROUTE_EVENT,
-  type WujieRouteAdapter
+  type OrbitRouteAdapter
 } from '../host-route.js';
-import { createFakeWujieBus, type FakeWujieBus } from '../testing/index.js';
+import { createFakeOrbitBus, type FakeOrbitBus } from '../testing/index.js';
 
-/** 模拟子应用侧的沙箱 window：`$wujie` 由无界注入，`__WUJIE.id` 即宿主给的 name。 */
-function createSubWindow(bus: FakeWujieBus, id = 'rxdb-demo-vue', props: Record<string, unknown> = {}) {
-  return { $wujie: { bus, props }, __WUJIE: { id } };
+/** 模拟子应用侧的沙箱 window：`$orbit` 由Orbit 注入，`__ORBIT.id` 即宿主给的 name。 */
+function createSubWindow(bus: FakeOrbitBus, id = 'rxdb-demo-vue', props: Record<string, unknown> = {}) {
+  return { $orbit: { bus, props }, __ORBIT: { id } };
 }
 
 /** 记录 navigate 调用、并允许手工触发子应用自身的路由变化。 */
@@ -25,7 +25,7 @@ function createAdapter() {
   const unsubscribe = vi.fn();
   let emitChange: ((path: string) => void) | undefined;
 
-  const adapter: WujieRouteAdapter = {
+  const adapter: OrbitRouteAdapter = {
     navigate,
     subscribe(onChange) {
       emitChange = onChange;
@@ -68,25 +68,25 @@ describe('host-route', () => {
     });
   });
 
-  describe('getWujieAppId', () => {
-    it('读子应用沙箱里无界注入的 __WUJIE.id', () => {
-      expect(getWujieAppId({ __WUJIE: { id: 'rxdb-demo-react' } })).toBe('rxdb-demo-react');
+  describe('getOrbitAppId', () => {
+    it('读子应用沙箱里Orbit 注入的 __ORBIT.id', () => {
+      expect(getOrbitAppId({ __ORBIT: { id: 'rxdb-demo-react' } })).toBe('rxdb-demo-react');
     });
 
     it('兼容嵌套的 window', () => {
-      expect(getWujieAppId({ window: { __WUJIE: { id: 'rxdb-demo-vue' } } })).toBe('rxdb-demo-vue');
+      expect(getOrbitAppId({ window: { __ORBIT: { id: 'rxdb-demo-vue' } } })).toBe('rxdb-demo-vue');
     });
 
     it('独立运行时拿不到 id', () => {
-      expect(getWujieAppId({})).toBeUndefined();
+      expect(getOrbitAppId({})).toBeUndefined();
     });
   });
 
   describe('emitHostRoute', () => {
     it('宿主把归一化后的期望路径带 name 发到 bus 上', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
-      bus.$on(WUJIE_ROUTE_EVENT, onRoute);
+      bus.$on(ORBIT_ROUTE_EVENT, onRoute);
 
       emitHostRoute(bus, 'rxdb-demo-vue', 'todo/');
       expect(onRoute).toHaveBeenCalledWith({ name: 'rxdb-demo-vue', path: '/todo' });
@@ -99,30 +99,30 @@ describe('host-route', () => {
 
   describe('subscribeSubRoute', () => {
     it('宿主收到同名子应用的回传', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
 
       subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
-      bus.$emit(WUJIE_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-vue', path: '/todo?x=1' });
+      bus.$emit(ORBIT_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-vue', path: '/todo?x=1' });
       expect(onRoute).toHaveBeenCalledWith('/todo');
     });
 
     it('同屏多子应用时丢掉别人的回传', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
 
       subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
-      bus.$emit(WUJIE_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-react', path: '/todo' });
+      bus.$emit(ORBIT_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-react', path: '/todo' });
       expect(onRoute).not.toHaveBeenCalled();
     });
 
     it('退订之后不再收到回传', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
 
       const stop = subscribeSubRoute('rxdb-demo-vue', onRoute, bus);
       stop();
-      bus.$emit(WUJIE_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-vue', path: '/todo' });
+      bus.$emit(ORBIT_ROUTE_CHANGE_EVENT, { name: 'rxdb-demo-vue', path: '/todo' });
       expect(onRoute).not.toHaveBeenCalled();
     });
 
@@ -133,36 +133,36 @@ describe('host-route', () => {
 
   describe('subscribeHostRoute', () => {
     it('先应用 props.route，再听 bus 上的后续下发', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
       const stop = subscribeHostRoute(onRoute, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
 
       expect(onRoute).toHaveBeenCalledWith('/todo');
 
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
       expect(onRoute).toHaveBeenLastCalledWith('/search');
 
       stop();
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/home' });
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/home' });
       expect(onRoute).toHaveBeenCalledTimes(2);
     });
 
     it('props 上没有 route 时不给初始值', () => {
       const onRoute = vi.fn();
-      subscribeHostRoute(onRoute, createSubWindow(createFakeWujieBus()));
+      subscribeHostRoute(onRoute, createSubWindow(createFakeOrbitBus()));
       expect(onRoute).not.toHaveBeenCalled();
     });
 
     it('丢掉发给别的子应用的下发', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onRoute = vi.fn();
       subscribeHostRoute(onRoute, createSubWindow(bus, 'rxdb-demo-vue'));
 
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-react', path: '/todo' });
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-react', path: '/todo' });
       expect(onRoute).not.toHaveBeenCalled();
     });
 
-    it('独立运行（没有 $wujie）时返回可安全调用的退订函数', () => {
+    it('独立运行（没有 $orbit）时返回可安全调用的退订函数', () => {
       const onRoute = vi.fn();
       expect(() => subscribeHostRoute(onRoute, {})()).not.toThrow();
       expect(onRoute).not.toHaveBeenCalled();
@@ -170,19 +170,19 @@ describe('host-route', () => {
   });
 
   describe('reportSubRoute', () => {
-    it('子应用带自己的 __WUJIE.id 上报归一化路径', () => {
-      const bus = createFakeWujieBus();
+    it('子应用带自己的 __ORBIT.id 上报归一化路径', () => {
+      const bus = createFakeOrbitBus();
       const onChange = vi.fn();
-      bus.$on(WUJIE_ROUTE_CHANGE_EVENT, onChange);
+      bus.$on(ORBIT_ROUTE_CHANGE_EVENT, onChange);
 
       reportSubRoute('todo?x=1', createSubWindow(bus, 'rxdb-demo-angular'));
       expect(onChange).toHaveBeenCalledWith({ name: 'rxdb-demo-angular', path: '/todo' });
     });
 
     it('走独立事件名，不会触发宿主下发通道', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onHostRoute = vi.fn();
-      bus.$on(WUJIE_ROUTE_EVENT, onHostRoute);
+      bus.$on(ORBIT_ROUTE_EVENT, onHostRoute);
 
       reportSubRoute('/todo', createSubWindow(bus));
       expect(onHostRoute).not.toHaveBeenCalled();
@@ -224,11 +224,11 @@ describe('host-route', () => {
     });
   });
 
-  describe('bindWujieRoute', () => {
+  describe('bindOrbitRoute', () => {
     it('先消化宿主初始路径，再注册上报 —— 首屏不会误报', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const reported = vi.fn();
-      bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
+      bus.$on(ORBIT_ROUTE_CHANGE_EVENT, reported);
       const target = createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' });
       const io = createAdapter();
 
@@ -237,7 +237,7 @@ describe('host-route', () => {
         subscribedAtNavigate = io.subscribed;
       });
 
-      bindWujieRoute(io.adapter, target);
+      bindOrbitRoute(io.adapter, target);
 
       expect(io.navigate).toHaveBeenCalledWith('/todo', true);
       expect(subscribedAtNavigate).toBe(false);
@@ -245,53 +245,53 @@ describe('host-route', () => {
     });
 
     it('子应用自身导航回写宿主', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const reported = vi.fn();
-      bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
+      bus.$on(ORBIT_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();
 
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
       io.change('/search?q=1');
 
       expect(reported).toHaveBeenCalledWith({ name: 'rxdb-demo-vue', path: '/search' });
     });
 
     it('宿主后续下发走 push 语义', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const io = createAdapter();
 
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
 
       expect(io.navigate).toHaveBeenLastCalledWith('/search', false);
     });
 
     it('宿主下发引起的路由变化不再回传，避免绕成回环', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const reported = vi.fn();
-      bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
+      bus.$on(ORBIT_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();
 
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
       io.change('/search');
 
       expect(reported).not.toHaveBeenCalled();
     });
 
     it('路径没变时不重复下发导航', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const io = createAdapter();
 
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/todo' });
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route: '/todo' }));
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/todo' });
 
       expect(io.navigate).toHaveBeenCalledTimes(1);
     });
 
     it('独立运行时完全不接线', () => {
       const io = createAdapter();
-      const stop = bindWujieRoute(io.adapter, {});
+      const stop = bindOrbitRoute(io.adapter, {});
 
       expect(io.subscribed).toBe(false);
       expect(io.navigate).not.toHaveBeenCalled();
@@ -299,16 +299,16 @@ describe('host-route', () => {
     });
 
     it('退订同时摘掉两个方向', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const reported = vi.fn();
-      bus.$on(WUJIE_ROUTE_CHANGE_EVENT, reported);
+      bus.$on(ORBIT_ROUTE_CHANGE_EVENT, reported);
       const io = createAdapter();
 
-      const stop = bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
+      const stop = bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue'));
       stop();
 
       expect(io.unsubscribe).toHaveBeenCalled();
-      bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
+      bus.$emit(ORBIT_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
       expect(io.navigate).not.toHaveBeenCalled();
     });
   });
@@ -321,7 +321,7 @@ describe('host-route', () => {
 
     const connect = (route: string) => {
       vi.useFakeTimers();
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const sync = new HostRouteSync({ ttlMs: 600 });
       const host = { path: route };
       subscribeSubRoute(
@@ -334,7 +334,7 @@ describe('host-route', () => {
       );
       sync.expect(route);
       const io = createAdapter();
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route }));
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route }));
       return { host, io, sync };
     };
 

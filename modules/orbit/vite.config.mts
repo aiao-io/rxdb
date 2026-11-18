@@ -5,7 +5,7 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/modules/wujie',
+  cacheDir: '../../node_modules/.vite/modules/orbit',
   plugins: [
     dts({
       entryRoot: 'src',
@@ -23,13 +23,13 @@ export default defineConfig(() => ({
     sourcemap: false,
     lib: {
       entry: 'src/index.ts',
-      name: '@modules/wujie',
+      name: '@modules/orbit',
       fileName: 'index',
       formats: ['es' as const]
     }
   },
   test: {
-    name: 'wujie',
+    name: 'orbit-protocol',
     watch: false,
     globals: true,
     environment: 'happy-dom',
@@ -38,11 +38,11 @@ export default defineConfig(() => ({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default', 'junit'],
     outputFile: {
-      junit: '../../coverage/modules/wujie/junit.xml'
+      junit: '../../coverage/modules/orbit/junit.xml'
     },
     coverage: {
       enabled: true,
-      reportsDirectory: '../../coverage/modules/wujie',
+      reportsDirectory: '../../coverage/modules/orbit',
       provider: 'v8' as const,
       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
       include: ['src/**/*']

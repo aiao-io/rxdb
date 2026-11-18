@@ -2,31 +2,29 @@
  * 文档站宿主与演示子应用之间的路由协议。
  *
  * 与 {@link ./host-theme.ts | 主题协议} 同构：两个方向各占一个事件名，宿主侧下发期望路径，
- * 子应用侧回传自身路径。刻意不用无界内置的 `sync` —— 它把子应用的**完整** URL（含 base）
- * 塞进宿主 query，宿主拿不到语义化路径，也没法反过来驱动子应用跳转。
+ * 子应用侧回传自身路径。协议只传语义化路径，宿主负责保持文档站地址栏与子应用同步。
  */
 
-import { getWujieHost, type WujieBus } from './host-theme.js';
+import { getOrbitHost, type OrbitBus } from './host-theme.js';
 
-/** 无界 bus 上的路由下发事件名：宿主 → 子应用。 */
-export const WUJIE_ROUTE_EVENT = 'aiao:route';
+/** Orbit bus 上的路由下发事件名：宿主 → 子应用。 */
+export const ORBIT_ROUTE_EVENT = 'aiao:route';
 
 /**
- * 无界 bus 上的路由回传事件名：子应用 → 宿主。
+ * Orbit bus 上的路由回传事件名：子应用 → 宿主。
  *
- * 与 {@link WUJIE_ROUTE_EVENT} 分开，理由同主题协议：无界的 `$emit` 会遍历所有 bus，
- * 两个方向共用一个事件名会让发送方收到自己的广播，绕成回环。
+ * 两个方向各占一个事件名，避免路径同步互相触发。
  */
-export const WUJIE_ROUTE_CHANGE_EVENT = 'aiao:route-change';
+export const ORBIT_ROUTE_CHANGE_EVENT = 'aiao:route-change';
 
-/** 路由事件载荷。`name` 即宿主给子应用起的无界实例名，用于同屏多子应用时定向。 */
-export interface WujieRoutePayload {
+/** 路由事件载荷。`name` 即宿主给子应用起的 Orbit 实例名，用于同屏多子应用时定向。 */
+export interface OrbitRoutePayload {
   name: string;
   path: string;
 }
 
-/** {@link bindWujieRoute} 需要的框架适配面，三端各自实现。 */
-export interface WujieRouteAdapter {
+/** {@link bindOrbitRoute} 需要的框架适配面，三端各自实现。 */
+export interface OrbitRouteAdapter {
   /**
    * 导航到宿主期望的路径。
    *
@@ -44,7 +42,7 @@ export interface WujieRouteAdapter {
 
 declare global {
   interface Window {
-    __WUJIE?: { id?: string };
+    __ORBIT?: { id?: string };
   }
 }
 
@@ -67,20 +65,20 @@ export function normalizeRoutePath(value: unknown): string {
 }
 
 /**
- * 读取当前子应用的无界实例名。
+ * 读取当前子应用的 Orbit 实例名。
  *
- * 无界会往子应用沙箱注入 `__WUJIE.id`，值就是宿主 `startApp` 时给的 `name`。
+ * Orbit SDK 注入 `__ORBIT.id`，值为宿主创建实例时声明的 `instanceId`。
  * 子应用因此不必硬编码自己的名字，宿主改名也不用同步改子应用。
  *
  * @param target - 默认 `globalThis`；测试里可传入假 window
  * @returns 独立运行时返回 `undefined`
  */
-export function getWujieAppId(target: unknown = globalThis): string | undefined {
+export function getOrbitAppId(target: unknown = globalThis): string | undefined {
   const scope = isRecord(target) ? target : undefined;
   const nested = isRecord(scope?.['window']) ? (scope['window'] as Record<string, unknown>) : undefined;
-  const wujie = scope?.['__WUJIE'] ?? nested?.['__WUJIE'];
-  if (!isRecord(wujie)) return undefined;
-  return typeof wujie['id'] === 'string' ? wujie['id'] : undefined;
+  const orbit = scope?.['__ORBIT'] ?? nested?.['__ORBIT'];
+  if (!isRecord(orbit)) return undefined;
+  return typeof orbit['id'] === 'string' ? orbit['id'] : undefined;
 }
 
 /**
@@ -101,24 +99,24 @@ const readPath = (payload: unknown): string => normalizeRoutePath(isRecord(paylo
 /**
  * 宿主向指定子应用下发期望路径。
  *
- * @param bus - 无界主应用 `bus`；缺省时静默跳过
+ * @param bus - Orbit主应用 `bus`；缺省时静默跳过
  */
-export function emitHostRoute(bus: WujieBus | undefined, name: string, path: string): void {
-  bus?.$emit?.(WUJIE_ROUTE_EVENT, { name, path: normalizeRoutePath(path) } satisfies WujieRoutePayload);
+export function emitHostRoute(bus: OrbitBus | undefined, name: string, path: string): void {
+  bus?.$emit?.(ORBIT_ROUTE_EVENT, { name, path: normalizeRoutePath(path) } satisfies OrbitRoutePayload);
 }
 
 /**
  * 宿主订阅子应用回传的当前路径。
  *
- * @param name - 宿主给该子应用起的无界实例名，用于过滤同屏其它子应用的回传
+ * @param name - 宿主给该子应用起的 Orbit 实例名，用于过滤同屏其它子应用的回传
  * @param onRoute - 收到回传时的回调，参数已归一化
- * @param bus - 无界主应用 `bus`；缺省时返回空退订函数
+ * @param bus - Orbit主应用 `bus`；缺省时返回空退订函数
  * @returns 取消订阅
  */
 export function subscribeSubRoute(
   name: string,
   onRoute: (path: string) => void,
-  bus: WujieBus | undefined
+  bus: OrbitBus | undefined
 ): () => void {
   if (!bus?.$on) return () => undefined;
 
@@ -126,24 +124,23 @@ export function subscribeSubRoute(
     if (!isForApp(payload, name)) return;
     onRoute(readPath(payload));
   };
-  bus.$on(WUJIE_ROUTE_CHANGE_EVENT, handler);
+  bus.$on(ORBIT_ROUTE_CHANGE_EVENT, handler);
   return () => {
-    bus.$off?.(WUJIE_ROUTE_CHANGE_EVENT, handler);
+    bus.$off?.(ORBIT_ROUTE_CHANGE_EVENT, handler);
   };
 }
 
 /**
  * 子应用订阅宿主下发的路径。
  *
- * 先应用 `props.route` 再听 bus —— 子应用起来之前 bus 上没有订阅者，宿主抢跑的 `$emit`
- * 只会换来无界的「事件订阅数量为空」告警，所以初始路径必须搭 `props` 进来。
+ * 先应用 `props.route` 再听 bus；初始路径通过属性传递，避免订阅建立前的事件丢失。
  *
  * @param onRoute - 收到路径时的回调，参数已归一化
  * @param target - 默认 `globalThis`；测试里可传入假 window
- * @returns 取消订阅；独立运行（拿不到 `$wujie`）时返回空函数
+ * @returns 取消订阅；独立运行（拿不到 `$orbit`）时返回空函数
  */
 export function subscribeHostRoute(onRoute: (path: string) => void, target: unknown = globalThis): () => void {
-  const host = getWujieHost(target);
+  const host = getOrbitHost(target);
   if (!host) return () => undefined;
 
   if (host.props && Object.hasOwn(host.props, 'route')) onRoute(normalizeRoutePath(host.props['route']));
@@ -151,30 +148,30 @@ export function subscribeHostRoute(onRoute: (path: string) => void, target: unkn
   const bus = host.bus;
   if (!bus?.$on) return () => undefined;
 
-  const name = getWujieAppId(target);
+  const name = getOrbitAppId(target);
   const handler = (payload: unknown) => {
     if (!isForApp(payload, name)) return;
     onRoute(readPath(payload));
   };
-  bus.$on(WUJIE_ROUTE_EVENT, handler);
+  bus.$on(ORBIT_ROUTE_EVENT, handler);
   return () => {
-    bus.$off?.(WUJIE_ROUTE_EVENT, handler);
+    bus.$off?.(ORBIT_ROUTE_EVENT, handler);
   };
 }
 
 /**
  * 子应用上报自身当前路径。
  *
- * 独立运行（拿不到 `$wujie`）时静默跳过。
+ * 独立运行（拿不到 `$orbit`）时静默跳过。
  *
  * @param target - 默认 `globalThis`；测试里可传入假 window
  */
 export function reportSubRoute(path: string, target: unknown = globalThis): void {
-  const host = getWujieHost(target);
+  const host = getOrbitHost(target);
   if (!host) return;
 
-  const payload: WujieRoutePayload = { name: getWujieAppId(target) ?? '', path: normalizeRoutePath(path) };
-  host.bus?.$emit?.(WUJIE_ROUTE_CHANGE_EVENT, payload);
+  const payload: OrbitRoutePayload = { name: getOrbitAppId(target) ?? '', path: normalizeRoutePath(path) };
+  host.bus?.$emit?.(ORBIT_ROUTE_CHANGE_EVENT, payload);
 }
 
 /** {@link HostRouteSync} 的构造参数。 */
@@ -219,7 +216,7 @@ export class HostRouteSync {
   /**
    * 收下一条子应用回传：闸门放行就立刻交给 `apply`，被挡下的等期望路径到期后再补交。
    *
-   * 被挡下的不一定是首屏回弹：宿主下发的路径到位时子应用并不回传（{@link bindWujieRoute} 只上报自身导航），
+   * 被挡下的不一定是首屏回弹：宿主下发的路径到位时子应用并不回传（{@link bindOrbitRoute} 只上报自身导航），
    * 闸门因此一直等到 TTL，期间用户已完成的导航同样被挡；只靠 {@link accept} 丢掉它，之后没有新回传，
    * 宿主地址栏就一直停在旧页。期望路径在等待期内到位、更新的回传到来、或宿主重新下发期望路径，待补写的都作废。
    *
@@ -273,12 +270,12 @@ export class HostRouteSync {
  * 时序上先消化宿主初始路径、再注册回传，因此首屏不会把子应用的默认路由误报给宿主。
  * 两个方向共享同一个「当前路径」，宿主下发引起的路由变化不会再被回传，天然不成环。
  *
- * @param adapter - 框架侧的导航与订阅实现，见 {@link WujieRouteAdapter}
+ * @param adapter - 框架侧的导航与订阅实现，见 {@link OrbitRouteAdapter}
  * @param target - 默认 `globalThis`；测试里可传入假 window
- * @returns 取消接线；独立运行（拿不到 `$wujie`）时不接线并返回空函数
+ * @returns 取消接线；独立运行（拿不到 `$orbit`）时不接线并返回空函数
  */
-export function bindWujieRoute(adapter: WujieRouteAdapter, target: unknown = globalThis): () => void {
-  if (!getWujieHost(target)) return () => undefined;
+export function bindOrbitRoute(adapter: OrbitRouteAdapter, target: unknown = globalThis): () => void {
+  if (!getOrbitHost(target)) return () => undefined;
 
   let current: string | undefined;
 

@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentType, type ReactElement } from 'reac
 import styles from '@site/src/pages/demos/demo.module.css';
 
 export interface DemoMicroAppProps {
-  /** 无界子应用唯一 id。 */
+  /** 桌面子应用唯一 id。 */
   name: string;
   /** 子应用入口，例如 `/demo/angular/`。 */
   url: string;
@@ -39,7 +39,7 @@ function ClientHost(props: DemoMicroAppProps): ReactElement | null {
 }
 
 /**
- * 文档站无界宿主：在客户端加载子应用，并把 Docusaurus `data-theme` 同步进去。
+ * 文档站桌面应用宿主：在客户端加载子应用，并把 Docusaurus `data-theme` 同步进去。
  */
 export function DemoMicroApp(props: DemoMicroAppProps): ReactElement {
   return (

@@ -1,5 +1,5 @@
 /**
- * 无界 Shadow DOM 的 daisyUI 样式改写。
+ * Shadow DOM 的 daisyUI 样式改写。
  *
  * 子应用在 Shadow DOM 里跑时有两个错位：
  *
@@ -11,7 +11,7 @@
  *    这里给每条具名主题规则补一份 `:host([data-theme=X])`，由宿主给自己打 `data-theme`
  *    把主题从外往内推。
  *
- * 原选择器一律保留，独立打开子应用（非无界）时的 `:root` / `<html>` 路径不受影响。
+ * 原选择器一律保留，独立打开子应用（非Orbit）时的 `:root` / `<html>` 路径不受影响。
  */
 
 /** 宿主元素上承载主题的属性名，与 daisyUI 具名主题选择器一致。 */
@@ -132,9 +132,9 @@ function rewritePrelude(prelude: string): string {
 }
 
 /**
- * 改写子应用 CSS，使其在无界 Shadow DOM 中正确响应宿主下发的主题。
+ * 改写子应用 CSS，使其在Shadow DOM 中正确响应宿主下发的主题。
  *
- * 作为无界 `plugins[].cssLoader` 使用。函数是幂等的。
+ * 供直接在 Shadow DOM 渲染的消费方使用；Orbit 的原生 iframe 不需要此改写。函数是幂等的。
  *
  * `:root` 只在选择器位置改写 —— 全文替换会顺手改坏声明值里的 `:root` 字面量
  * （`content:":root"`、`url("…/:root.css")`），那些位置的 `:root` 是数据不是选择器。

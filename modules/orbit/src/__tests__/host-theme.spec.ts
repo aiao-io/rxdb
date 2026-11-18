@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   emitHostTheme,
-  getWujieHost,
+  getOrbitHost,
+  ORBIT_THEME_EVENT,
+  ORBIT_THEME_REQUEST_EVENT,
   parseResolvedTheme,
   requestHostTheme,
   subscribeHostTheme,
-  subscribeThemeRequest,
-  WUJIE_THEME_EVENT,
-  WUJIE_THEME_REQUEST_EVENT
+  subscribeThemeRequest
 } from '../host-theme.js';
-import { createFakeWujieBus } from '../testing/index.js';
+import { createFakeOrbitBus } from '../testing/index.js';
 
 const SCOPE_ORIGIN = 'https://docs.example';
 
@@ -35,7 +35,7 @@ function createMessageTarget(location: object = { origin: SCOPE_ORIGIN }) {
 describe('host-theme', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-    Reflect.deleteProperty(globalThis as typeof globalThis & { $wujie?: unknown }, '$wujie');
+    Reflect.deleteProperty(globalThis as typeof globalThis & { $orbit?: unknown }, '$orbit');
   });
 
   describe('parseResolvedTheme', () => {
@@ -53,58 +53,58 @@ describe('host-theme', () => {
     });
   });
 
-  describe('getWujieHost', () => {
-    it('reads $wujie from the provided target', () => {
+  describe('getOrbitHost', () => {
+    it('reads $orbit from the provided target', () => {
       const host = { props: { theme: 'dark' } };
-      expect(getWujieHost({ $wujie: host })).toBe(host);
+      expect(getOrbitHost({ $orbit: host })).toBe(host);
     });
 
-    it('falls back to window.$wujie', () => {
+    it('falls back to window.$orbit', () => {
       const host = { props: { theme: 'light' } };
-      expect(getWujieHost({ window: { $wujie: host } })).toBe(host);
+      expect(getOrbitHost({ window: { $orbit: host } })).toBe(host);
     });
 
     it('returns undefined when the host is absent', () => {
-      expect(getWujieHost({})).toBeUndefined();
+      expect(getOrbitHost({})).toBeUndefined();
     });
   });
 
   describe('subscribeHostTheme', () => {
     it('applies the initial props theme and later bus events', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onTheme = vi.fn();
       const stop = subscribeHostTheme(onTheme, {
-        $wujie: { bus, props: { theme: 'dark' } }
+        $orbit: { bus, props: { theme: 'dark' } }
       });
 
       expect(onTheme).toHaveBeenCalledWith('dark');
 
-      bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' });
+      bus.$emit(ORBIT_THEME_EVENT, { theme: 'light' });
       expect(onTheme).toHaveBeenCalledWith('light');
 
       stop();
-      bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+      bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
       expect(onTheme).toHaveBeenCalledTimes(2);
     });
 
     it('宿主只给 props 没给可用 bus 时，初始主题照样生效', () => {
       const onTheme = vi.fn();
 
-      // 无界注入 $wujie 与 bus 之间存在时间差，早于 bus 就绪挂载的子应用会走到这条路径。
-      const stop = subscribeHostTheme(onTheme, { $wujie: { props: { theme: 'dark' } } });
+      // Orbit 注入 $orbit 与 bus 之间存在时间差，早于 bus 就绪挂载的子应用会走到这条路径。
+      const stop = subscribeHostTheme(onTheme, { $orbit: { props: { theme: 'dark' } } });
       expect(onTheme).toHaveBeenCalledWith('dark');
       expect(() => stop()).not.toThrow();
 
-      // bus 只有 $emit 没有 $on（旧版本无界）时同样不该炸，也不该退回 postMessage 通道
+      // bus 只有 $emit 没有 $on（旧版本Orbit）时同样不该炸，也不该退回 postMessage 通道
       const emitOnly = { $emit: vi.fn() };
       onTheme.mockClear();
       expect(() =>
-        subscribeHostTheme(onTheme, { $wujie: { bus: emitOnly, props: { theme: 'light' } } })()
+        subscribeHostTheme(onTheme, { $orbit: { bus: emitOnly, props: { theme: 'light' } } })()
       ).not.toThrow();
       expect(onTheme).toHaveBeenCalledExactlyOnceWith('light');
     });
 
-    it('falls back to postMessage when the app is not hosted by wujie', () => {
+    it('falls back to postMessage when the app is not hosted by orbit', () => {
       const { target, dispatch } = createMessageTarget();
       const onTheme = vi.fn();
       const stop = subscribeHostTheme(onTheme, target);
@@ -155,9 +155,9 @@ describe('host-theme', () => {
 
   describe('emitHostTheme', () => {
     it('emits the namespaced payload on the bus', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onTheme = vi.fn();
-      bus.$on(WUJIE_THEME_EVENT, onTheme);
+      bus.$on(ORBIT_THEME_EVENT, onTheme);
 
       emitHostTheme(bus, 'dark');
       expect(onTheme).toHaveBeenCalledWith({ theme: 'dark' });
@@ -169,46 +169,46 @@ describe('host-theme', () => {
   });
 
   describe('requestHostTheme', () => {
-    it('子应用把切换请求发到 $wujie.bus 上', () => {
-      const bus = createFakeWujieBus();
+    it('子应用把切换请求发到 $orbit.bus 上', () => {
+      const bus = createFakeOrbitBus();
       const onRequest = vi.fn();
-      bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+      bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
-      requestHostTheme('dark', { $wujie: { bus } });
+      requestHostTheme('dark', { $orbit: { bus } });
       expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
     });
 
     it('走独立的事件名，不会触发宿主下发通道', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onHostTheme = vi.fn();
-      bus.$on(WUJIE_THEME_EVENT, onHostTheme);
+      bus.$on(ORBIT_THEME_EVENT, onHostTheme);
 
-      requestHostTheme('dark', { $wujie: { bus } });
+      requestHostTheme('dark', { $orbit: { bus } });
       expect(onHostTheme).not.toHaveBeenCalled();
     });
 
-    it('独立运行（没有 $wujie）时静默跳过', () => {
+    it('独立运行（没有 $orbit）时静默跳过', () => {
       expect(() => requestHostTheme('dark', {})).not.toThrow();
     });
   });
 
   describe('subscribeThemeRequest', () => {
     it('宿主收到子应用请求并解析成已解析主题', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onTheme = vi.fn();
 
       subscribeThemeRequest(onTheme, bus);
-      bus.$emit(WUJIE_THEME_REQUEST_EVENT, { theme: 'dark' });
+      bus.$emit(ORBIT_THEME_REQUEST_EVENT, { theme: 'dark' });
       expect(onTheme).toHaveBeenCalledWith('dark');
     });
 
     it('退订之后不再收到请求', () => {
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const onTheme = vi.fn();
 
       const stop = subscribeThemeRequest(onTheme, bus);
       stop();
-      bus.$emit(WUJIE_THEME_REQUEST_EVENT, { theme: 'dark' });
+      bus.$emit(ORBIT_THEME_REQUEST_EVENT, { theme: 'dark' });
       expect(onTheme).not.toHaveBeenCalled();
     });
 

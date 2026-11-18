@@ -2,9 +2,9 @@
 
 Orbit 是仓内独立维护的 Web 应用隔离运行内核。名称取自“轨道”：桌面承载多个独立运行的应用。代码、协议、构建和 Angular / React / Vue 适配均由本仓维护，当前包为 private。
 
-设计灵感与起始基线来自 [Wujie](https://github.com/Tencent/wujie)，固定参考提交为 `c45932998c0602f34454df8d3e29f4d33a38446a`。本实现按桌面需求重构职责与协议，不依赖上游 npm 包，也不承诺上游 API 兼容；后续以 Orbit 的契约独立演进。
+Orbit 使用仓内独立维护的协议和实现，不依赖第三方微前端运行时，也不承诺兼容其他运行时的 API；后续以 Orbit 的契约独立演进。
 
-每个应用使用独立的原生 iframe 文档；Web Component 只承载窗口视口。应用必须接入协作 SDK，并在框架实际完成渲染后报告就绪。来源、上游许可、保留/删除清单和兼容边界见 [UPSTREAM.md](UPSTREAM.md)。
+每个应用使用独立的原生 iframe 文档；Web Component 只承载窗口视口。应用必须接入协作 SDK，并在框架实际完成渲染后报告就绪。设计约束与安全边界见[架构说明](ARCHITECTURE.md)。
 
 ## 宿主
 

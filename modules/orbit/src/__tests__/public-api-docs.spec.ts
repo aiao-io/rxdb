@@ -25,25 +25,25 @@ const documented = (source: string, declaration: string): boolean => {
 
 // 这三个文件整体经 src/index.ts 的 `export *` 出去，是四个消费方（website + 三端 demo）
 // 唯一的接线契约。虽然不进 npm 公开面，跨四个项目的签名同样只能靠文档对齐。
-describe('@modules/wujie 公开 API 的 TSDoc 与类型导出', () => {
+describe('@modules/orbit 公开 API 的 TSDoc 与类型导出', () => {
   describe('host-route.ts', () => {
     const source = read('host-route.ts');
 
     it('公开类型可具名导入', () => {
-      expect(source).toContain('export interface WujieRoutePayload');
-      expect(source).toContain('export interface WujieRouteAdapter');
+      expect(source).toContain('export interface OrbitRoutePayload');
+      expect(source).toContain('export interface OrbitRouteAdapter');
       expect(source).toContain('export interface HostRouteSyncOptions');
     });
 
     it('公开函数与类都有 TSDoc', () => {
       const declarations = [
         'export function normalizeRoutePath',
-        'export function getWujieAppId',
+        'export function getOrbitAppId',
         'export function emitHostRoute',
         'export function subscribeSubRoute',
         'export function subscribeHostRoute',
         'export function reportSubRoute',
-        'export function bindWujieRoute',
+        'export function bindOrbitRoute',
         'export class HostRouteSync',
         'expect(',
         'accept('
@@ -57,14 +57,14 @@ describe('@modules/wujie 公开 API 的 TSDoc 与类型导出', () => {
 
     it('公开类型可具名导入', () => {
       expect(source).toContain('export type ResolvedTheme');
-      expect(source).toContain('export interface WujieBus');
-      expect(source).toContain('export interface WujieHost');
+      expect(source).toContain('export interface OrbitBus');
+      expect(source).toContain('export interface OrbitHost');
     });
 
     it('公开函数都有 TSDoc', () => {
       const declarations = [
         'export function parseResolvedTheme',
-        'export function getWujieHost',
+        'export function getOrbitHost',
         'export function subscribeHostTheme',
         'export function emitHostTheme',
         'export function requestHostTheme',

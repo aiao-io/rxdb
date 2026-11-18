@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "wujie",
+  "name": "orbit-protocol",
   "tags": ["js-lib"],
   "targets": {
     "typecheck": {
@@ -9,7 +9,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "modules/wujie",
+        "cwd": "modules/orbit",
         "command": "eslint . --max-warnings=0"
       }
     }
