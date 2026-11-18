@@ -377,6 +377,11 @@ export const collaborationEnglish: Record<string, string> = {
   '已形成提交，联网验证后可同步': 'Commit queued; reconnect and verify your session to sync',
   '当前提交已同步；后续编辑仍需另行同步': 'Current commits synced; later edits still need syncing',
   '验证码已发送，请检查邮箱': 'Code sent. Check your email.',
+  '验证码已过期或无效，请重新获取': 'The code has expired or is invalid. Request a new one.',
+  邮箱地址无效: 'The email address is invalid',
+  '发送过于频繁，请稍后再试': 'Codes are being sent too often. Try again later.',
+  '请求过于频繁，请稍后再试': 'Too many requests. Try again later.',
+  '登录失败，请稍后重试': 'Sign-in failed. Try again later.',
   '已另存为新任务，原任务与 PR 保持原远端版本':
     'Saved as a new task. The original task and PR retain their remote version.',
   '会话已过期，请联网登录': 'Session expired. Connect to sign in.',

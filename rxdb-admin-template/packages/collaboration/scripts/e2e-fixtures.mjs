@@ -160,10 +160,10 @@ export function fixtureService(options) {
       });
   }
   /**
-   * 删除本轮建的团队的全部行（迁移所有者连接）与这些团队频道上的 Broadcast 消息，再删测试账号。
+   * 删除本轮建的团队的全部行（迁移所有者连接）与这些团队频道上的 Broadcast 消息。
    * @param {import('pg').Pool | undefined} owner
    */
-  async function cleanup(owner) {
+  async function removeRows(owner) {
     if (owner && teams.length) {
       const client = await owner.connect().catch(() => undefined);
       try {
@@ -185,7 +185,13 @@ export function fixtureService(options) {
         client?.release();
       }
     }
+  }
+  /**
+   * 删除本轮建的测试账号（Auth 管理接口逐个删除，一轮上百个，耗时较长）：调用方先停掉容器等快的资源再删账号，
+   * 免得停服务的宽限期耗在这里，后面的资源来不及释放。
+   */
+  async function removeUsers() {
     await Promise.allSettled(users.map(id => options.auth.auth.admin.deleteUser(id)));
   }
-  return { fixture, otp, handle, cleanup, teams, users };
+  return { fixture, otp, handle, removeRows, removeUsers, teams, users };
 }

@@ -128,11 +128,13 @@ async function stop() {
         })
     )
   );
-  await fixtures?.cleanup(owner);
+  await fixtures?.removeRows(owner);
   await service?.pool.end().catch(() => undefined);
   await edge?.stop().catch(() => undefined);
   await owner?.end().catch(() => undefined);
   await new Promise(resolve => (relay ? relay.close(resolve) : resolve()));
+  // 删测试账号最慢（一轮上百个），放在最后：函数容器与连接都已释放，宽限期用尽也不会留下它们
+  await fixtures?.removeUsers();
 }
 process.once('SIGTERM', () => {
   void stop().finally(() => process.exit());

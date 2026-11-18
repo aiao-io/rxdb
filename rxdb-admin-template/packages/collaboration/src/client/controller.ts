@@ -75,6 +75,34 @@ const restoreRejections: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Supabase Auth（GoTrue）的错误码到协作词条与错误类别。
+ *
+ * @remarks
+ * GoTrue 的 `message` 是英文、随版本变化，直接显示会让中文界面冒出一句英文原文；错误码才是稳定的契约。
+ * 类别刻意不用 `unauthenticated`：{@link CollaborationController.failure} 遇到它会锁定会话，而这里是登录之前的输入错误。
+ */
+const authFailures: Readonly<Record<string, { code: string; message: string }>> = {
+  otp_expired: { code: 'invalid', message: '验证码已过期或无效，请重新获取' },
+  email_address_invalid: { code: 'invalid', message: '邮箱地址无效' },
+  over_email_send_rate_limit: { code: 'limit', message: '发送过于频繁，请稍后再试' },
+  over_request_rate_limit: { code: 'limit', message: '请求过于频繁，请稍后再试' }
+};
+
+/**
+ * 把 Supabase Auth 返回的错误换成带协作词条的 {@link CollaborationError}；不认识的错误码统一提示「登录失败」，
+ * 原始错误码与 HTTP 状态留在 `details` 里，供运维排查。
+ */
+function authFailure(error: Error & { code?: unknown; status?: unknown }): CollaborationError {
+  const authCode = typeof error.code === 'string' ? error.code : null;
+  const known = authCode !== null && Object.hasOwn(authFailures, authCode) ? authFailures[authCode] : undefined;
+  const { code, message } = known ?? { code: 'unavailable', message: '登录失败，请稍后重试' };
+  return new CollaborationError(code, message, {
+    authCode,
+    status: typeof error.status === 'number' ? error.status : null
+  });
+}
+
+/**
  * 协作界面的状态与动作中枢：持有认证会话、团队页、团队库（团队任务落在平台 working-tree 上）与实时频道，界面监听 `change` 事件重绘。
  * 读取全部经 Supabase 的只读投影（{@link CollaborationReader}，PostgREST + RLS）：团队页只含成员、策略、引用与 PR 列表元数据
  * 与本人的通知窗口；PR 详情、提交历史、提交与候选内容、共享数据、审计都按需读取并缓存，同步读取入口未命中时返回 undefined
@@ -295,7 +323,7 @@ export class CollaborationController extends EventTarget {
   async sendCode(email: string): Promise<void> {
     demand(this.auth, 'configuration', '认证未配置');
     const { error } = await this.current(this.auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
-    if (error) throw error;
+    if (error) throw authFailure(error);
     this.message = '验证码已发送，请检查邮箱';
     this.changed();
   }
@@ -303,7 +331,7 @@ export class CollaborationController extends EventTarget {
   async verify(email: string, token: string): Promise<void> {
     demand(this.auth, 'configuration', '认证未配置');
     const { data, error } = await this.current(this.auth.auth.verifyOtp({ email, token, type: 'email' }));
-    if (error) throw error;
+    if (error) throw authFailure(error);
     await this.acceptSession(data.session);
   }
   /**

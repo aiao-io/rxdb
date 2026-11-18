@@ -67,8 +67,9 @@ async function stop() {
     server.close(resolve);
     server.closeAllConnections();
   });
-  await fixtures.cleanup(owner);
+  await fixtures.removeRows(owner);
   await owner.end().catch(() => undefined);
+  await fixtures.removeUsers();
 }
 process.once('SIGTERM', () => {
   void stop().finally(() => process.exit());

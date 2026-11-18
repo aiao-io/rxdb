@@ -243,12 +243,43 @@ describe('session verification and access recovery', () => {
     const { controller, auth } = await initialized();
     await controller.lock();
     auth.verifyOtp.mockResolvedValueOnce({ data: { session: null }, error: new Error('invalid code') });
-    await expect(controller.verify('alice@example.test', 'bad')).rejects.toThrow('invalid code');
+    await expect(controller.verify('alice@example.test', 'bad')).rejects.toThrow('登录失败，请稍后重试');
     auth.signInWithOtp.mockResolvedValueOnce({ error: new Error('rate limited') });
-    await expect(controller.sendCode('alice@example.test')).rejects.toThrow('rate limited');
+    await expect(controller.sendCode('alice@example.test')).rejects.toThrow('登录失败，请稍后重试');
     auth.getUser.mockResolvedValueOnce({ data: { user: { id: 'alice', email: 'alice@example.test' } }, error: null });
     await expect(controller.verify('alice@example.test', '123456')).rejects.toMatchObject({ code: 'unauthenticated' });
     expect(controller.user).toBeNull();
+  });
+  it('把 Supabase Auth 的错误换成产品词条：GoTrue 的英文原文不直接显示给用户，也不锁会话', async () => {
+    const { controller, auth } = await initialized();
+    await controller.lock();
+    const authError = (message: string, code: string, status: number) =>
+      Object.assign(new Error(message), { code, status });
+    auth.verifyOtp.mockResolvedValueOnce({
+      data: { session: null },
+      error: authError('Token has expired or is invalid', 'otp_expired', 403)
+    });
+    await expect(controller.verify('alice@example.test', '000000')).rejects.toMatchObject({
+      code: 'invalid',
+      message: '验证码已过期或无效，请重新获取',
+      details: { authCode: 'otp_expired', status: 403 }
+    });
+    auth.signInWithOtp.mockResolvedValueOnce({
+      error: authError('email rate limit exceeded', 'over_email_send_rate_limit', 429)
+    });
+    await expect(controller.sendCode('alice@example.test')).rejects.toMatchObject({
+      code: 'limit',
+      message: '发送过于频繁，请稍后再试'
+    });
+    auth.verifyOtp.mockResolvedValueOnce({
+      data: { session: null },
+      error: authError('brand new', 'brand_new_code', 400)
+    });
+    await expect(controller.verify('alice@example.test', '000000')).rejects.toMatchObject({
+      code: 'unavailable',
+      message: '登录失败，请稍后重试',
+      details: { authCode: 'brand_new_code', status: 400 }
+    });
   });
   it('keeps a verified warm task editable when the provider expires its offline session, but explicit logout locks it', async () => {
     const { controller, emit, database } = await initialized();
