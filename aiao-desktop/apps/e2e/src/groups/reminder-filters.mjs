@@ -64,14 +64,15 @@ export const reminderFilters = {
 
     await target.locator('[data-rflag]').click();
     await expect(count('flagged')).toHaveText('1');
+    await expect(target).toHaveCount(0);
     result.unflagPersists =
       (await surgery(session, db => db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])))?.[0]?.[0] === 0;
 
     await list('all').click();
-    await target.waitFor({ state: 'detached' });
-    const unflagged = rows().filter({ hasText: 'Pick up dry cleaning' });
-    await expect(unflagged.locator('[data-rflag]')).toHaveAttribute('aria-label', 'Flag Pick up dry cleaning');
-    await unflagged.locator('[data-rflag]').click();
+    const flag = target.locator('[data-rflag]');
+    await expect(flag).toHaveAttribute('aria-label', 'Flag Pick up dry cleaning');
+    await flag.click();
+    await expect(flag).toHaveAttribute('aria-label', 'Unflag Pick up dry cleaning');
     result.flagPersists =
       (await surgery(session, db => db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])))?.[0]?.[0] === 1;
 

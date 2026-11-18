@@ -6,8 +6,6 @@ import { ensureGithubStyle } from './github-style.js';
 
 export interface GitHubLoginRequest {
   readonly auth: GitHubAuth;
-  /** 当前环境不支持 OAuth 时的用户说明；保留 PAT 登录。 */
-  readonly oauthUnavailable?: string;
   /** 打开授权页；默认弹窗，测试可注入。 */
   readonly openAuthorize?: (url: string) => void;
   /** 桌面代办，避免 iframe 弹窗和跨站存储。 */
@@ -24,7 +22,8 @@ const POLL_INTERVAL_MS = 2000;
 export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginRequest): Promise<void> {
   if (request.signal?.aborted) return Promise.resolve();
   return new Promise(resolve => {
-    const { auth } = request;
+    const { auth, desktopOAuth } = request;
+    const oauthUnavailable = !desktopOAuth && window.parent !== window;
     const openAuthorize =
       request.openAuthorize ??
       (url => {
@@ -109,6 +108,24 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       void prepare();
     };
 
+    const loginStandalone = async (): Promise<void> => {
+      try {
+        const pending = await auth.beginOAuth();
+        if (settled) return;
+        await savePendingOAuth({
+          verifier: pending.verifier,
+          nonce: new URL(pending.state).searchParams.get('nonce') ?? '',
+          state: pending.state,
+          at: Date.now()
+        });
+        if (settled) return;
+        openAuthorize(pending.authorizeUrl);
+        renderWaiting(false);
+      } catch (cause) {
+        error(cause instanceof Error ? cause.message : String(cause));
+      }
+    };
+
     const renderLoggedOut = (): void => {
       content.replaceChildren();
       actions.replaceChildren(close);
@@ -153,33 +170,15 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
       oauthButton.type = 'button';
       oauthButton.textContent = '使用 GitHub 账号登录';
       oauthButton.setAttribute('tabindex', '0');
-      oauthButton.disabled = !!request.oauthUnavailable;
-      oauthButton.onclick = () => {
-        void (async () => {
-          try {
-            const pending = await auth.beginOAuth();
-            if (settled) return;
-            await savePendingOAuth({
-              verifier: pending.verifier,
-              nonce: new URL(pending.state).searchParams.get('nonce') ?? '',
-              state: pending.state,
-              at: Date.now()
-            });
-            if (settled) return;
-            openAuthorize(pending.authorizeUrl);
-            renderWaiting(false);
-          } catch (cause) {
-            error(cause instanceof Error ? cause.message : String(cause));
-          }
-        })();
-      };
-      if (request.desktopOAuth) bindDesktopOAuth(oauthButton, request.desktopOAuth);
+      oauthButton.disabled = oauthUnavailable;
+      if (desktopOAuth) bindDesktopOAuth(oauthButton, desktopOAuth);
+      else if (!oauthUnavailable) oauthButton.onclick = () => void loginStandalone();
       content.append(oauthButton);
-      if (request.oauthUnavailable)
+      if (oauthUnavailable)
         content.append(
           Object.assign(document.createElement('p'), {
             className: 'wb-github-message wb-github-hint',
-            textContent: request.oauthUnavailable
+            textContent: '此窗口未连接 GitHub 授权服务。请刷新桌面后重试，或使用个人访问令牌（PAT）。'
           })
         );
       content.append(

@@ -1,3 +1,4 @@
+import { grantCapabilities } from '../harness/capabilities.mjs';
 import { STANDIN_ORIGIN, standinProbe } from '../harness/standin.mjs';
 
 /** 替身页里的实例已经握手：拿到桌面给它的实例 ID。 */
@@ -13,8 +14,8 @@ const NOT_YET = Symbol('not yet');
  * （它的 frame 已分离，对它求值只会失败）。「按实例 ID 丢弃」本身由单测覆盖：`application-runtime.spec.ts`、
  * `remote-app-session.spec.ts`（假的 Orbit 实例模拟旧实例的迟到回调）与 Orbit 包的 `desktop.spec.ts`。
  *
- * **关于 AC#9**：Aiao Code 的清单按它现在实际用到的能力最小化声明（window 与剪贴板），没有声明 menu，所以对真实产物
- * 只能验证「未声明时 `menu.set` 被拒绝、菜单栏仍是标准菜单」与菜单栏随前台窗口切换；登记菜单成功、命令回调与关闭后解绑
+ * **关于 AC#9**：本组把替身应用的能力收窄到 window 与剪贴板，验证「未声明时 `menu.set` 被拒绝、菜单栏仍是标准菜单」
+ * 与菜单栏随前台窗口切换；登记菜单成功、命令回调与关闭后解绑
  * 由单测覆盖（`app-context.spec.ts`）与 Orbit 的浏览器用例（真实 iframe）。
  *
  * 超时用 Playwright 的 `page.clock` 快进，不真等 60 秒。
@@ -56,6 +57,7 @@ export const appLifecycle = {
     const { page, aiaoCode: standin } = session;
     const { win, closeAll, shows, appears, disappears } = session.helpers;
     const { frame: standinFrame, frameHandle: probeFrame, waitInFrame } = standinProbe(page);
+    await grantCapabilities(session, ['window', 'clipboard:read', 'clipboard:write']);
     await session.openDesktop();
     await closeAll();
     /* 时间照常流逝，需要时用 fastForward 跳过 Orbit 的 60 秒就绪时限，不真等。 */

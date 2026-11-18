@@ -126,6 +126,7 @@ export const aiaoCodeFiles = {
         await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({ timeout: 90_000 });
         const frame = page.frames().find(candidate => candidate.url().startsWith(APP_ORIGIN));
         if (!frame) throw new Error('Actual Aiao Code frame missing');
+        expect(new URL(frame.url()).searchParams.has('ngsw-bypass')).toBe(true);
         await frame.waitForFunction(() => window.ready && window.workbench, null, { timeout: 60_000 });
         await frame.evaluate(() => window.workbench.ready);
         await expect(win).toHaveClass(/front/);

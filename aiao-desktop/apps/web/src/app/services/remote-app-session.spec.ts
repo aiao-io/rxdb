@@ -5,6 +5,7 @@ import type { DesktopCapability } from '@aiao/orbit/desktop';
 import { WINDOW_PROP } from '@aiao/orbit/window';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import { StubApp, testApps } from '../testing/desktop-apps';
 import { fakeHostServices } from '../testing/fake-host-services';
 import { FakeOrbitRuntime } from '../testing/fake-orbit';
@@ -23,28 +24,38 @@ const abort = new AbortController().signal;
 const CODE = ['window', 'clipboard:read', 'clipboard:write'] as const;
 
 interface Setup {
+  readonly appId?: 'notes' | 'vscode';
   readonly capabilities?: readonly DesktopCapability[];
   readonly frame?: 'standard' | 'transparent';
   readonly effectiveCapabilities?: readonly DesktopCapability[];
   readonly restrictions?: readonly AppCapabilityRestriction[];
 }
 
-function setup({ capabilities = CODE, frame = 'transparent', effectiveCapabilities, restrictions }: Setup = {}) {
-  const registry = testApps({
-    notes: {
-      kind: 'web',
-      name: 'Aiao Code',
-      capabilities,
-      web: {
-        url: 'https://code.example/app/',
-        version: 'online',
-        allow: ['cross-origin-isolated', 'clipboard-read', 'clipboard-write'],
-        readyTimeout: 60_000,
-        frame
-      }
-    } as never
-  });
-  const win = new DesktopWindow('w1', registry.notes, {}, { left: 0, top: 0, width: 800, height: 600 });
+function setup({
+  appId = 'notes',
+  capabilities = CODE,
+  frame = 'transparent',
+  effectiveCapabilities,
+  restrictions
+}: Setup = {}) {
+  const registry = {
+    ...testApps({
+      notes: {
+        kind: 'web',
+        name: 'Aiao Code',
+        capabilities,
+        web: {
+          url: 'https://code.example/app/',
+          version: 'online',
+          allow: ['cross-origin-isolated', 'clipboard-read', 'clipboard-write'],
+          readyTimeout: 60_000,
+          frame
+        }
+      } as never
+    }),
+    vscode: DESKTOP_APP_MANIFESTS.vscode
+  };
+  const win = new DesktopWindow('w1', registry[appId], {}, { left: 0, top: 0, width: 800, height: 600 });
   win.attempt = 1;
   win.state.set('ready');
   win.content.set(StubApp);
@@ -97,6 +108,18 @@ afterEach(() => {
 });
 
 describe('RemoteAppSession：一次启动', () => {
+  it.each([true, false])('预装 Aiao Code 仅在联网时绕过旧外壳缓存（online=%s）', online => {
+    vi.stubGlobal('navigator', { onLine: online });
+    vi.stubGlobal('location', { origin: 'https://desktop.aiao.io' });
+    const { session, orbit, container } = setup({ appId: 'vscode' });
+    void session.start(container);
+
+    const entry = new URL(orbit.last.options.url);
+    expect(entry.origin).toBe('https://vscode.aiao.io');
+    expect(entry.searchParams.has('ngsw-bypass')).toBe(online);
+    expect(orbit.last.options.props?.['aiao-code.github-oauth-origin']).toBe('https://desktop.aiao.io');
+  });
+
   it('创建会话就进入 loading（窗口组件已装载、应用实例还没就绪）：第一屏就是加载状态，不闪空白', () => {
     const { win } = setup();
     expect(win.state()).toBe('loading');

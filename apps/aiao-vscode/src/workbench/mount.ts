@@ -1174,10 +1174,7 @@ export function mountWorkbench(
     return requestGitHubLogin(root, {
       auth: options.githubAuth,
       ...(options.embedded ? { signal: lifetime.signal } : {}),
-      ...(options.githubDesktopOAuth ? { desktopOAuth: options.githubDesktopOAuth } : {}),
-      ...(options.embedded && !options.githubDesktopOAuth ?
-        { oauthUnavailable: '当前桌面不支持 GitHub 账号授权，请更新桌面或使用个人访问令牌（PAT）。' }
-      : {})
+      ...(options.githubDesktopOAuth ? { desktopOAuth: options.githubDesktopOAuth } : {})
     });
   }
 

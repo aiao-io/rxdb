@@ -11,9 +11,7 @@ const started = async (page, timeout = 60_000) => {
   const iconShown = await passes(
     page.locator('.dicon[data-id="file:prasenx.txt"]').waitFor({ state: 'attached', timeout })
   );
-  const unavailable = await page.evaluate(() =>
-    /is unavailable|Local storage is unavailable/.test(document.body.innerText)
-  );
+  const unavailable = await page.getByText(/^(Macintosh HD|Local storage) is unavailable\b/).count();
   return iconShown && !unavailable;
 };
 

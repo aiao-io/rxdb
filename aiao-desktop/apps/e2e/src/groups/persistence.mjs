@@ -52,12 +52,13 @@ export const persistence = {
     await page.waitForTimeout(1_000);
     await closeAll();
     await launch('Reminders');
-    await win('reminders').waitFor();
-    await win('reminders').locator('[data-radd]').click();
-    await win('reminders').locator('[data-rnew]').click();
+    const reminders = win('reminders');
+    const savedReminder = reminders.locator('[data-ri]').filter({ hasText: 'smoke-reminder' });
+    await reminders.locator('[data-radd]').click();
+    await reminders.locator('[data-rnew]').click();
     await page.keyboard.type('smoke-reminder');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(600);
+    await savedReminder.waitFor();
     await closeAll();
 
     /* 系统设置也在库里：用聚焦搜索切到深色外观，设置在停手 0.4 秒后写回。 */
@@ -83,7 +84,7 @@ export const persistence = {
     persistence.noteSurvivesReload = await windowShowsText('notes', '[data-items]', 'smoke-note-body');
     await closeAll();
     await launch('Reminders');
-    persistence.reminderSurvivesReload = await windowShowsText('reminders', '[data-rlist]', 'smoke-reminder');
+    persistence.reminderSurvivesReload = await appears(savedReminder);
     await closeAll();
     await launch('Disk Utility');
     await win('diskutil').waitFor();

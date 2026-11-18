@@ -70,6 +70,7 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
 - 完整登录成功后，授权弹窗应自动关闭，原工作台更新登录状态；失败时保留回调页显示错误。
   工作台启用 `COOP: same-origin`，跨域授权后 `window.opener` 可能为空，回调关闭不能依赖它。
 - 桌面登录发布顺序：先发布 `aiao-desktop`（含 `/github-oauth-return.html`），再发布 `aiao-vscode` 的静态站点和 Functions。复用已有 OAuth App 和 `/redirect`，无需新增回调或凭据。发布后刷新桌面，分别在 `desktop.aiao.io` 和 `aiao-desktop.pages.dev` 用测试账号验证授权、拒绝与重开恢复；发布前运行 `pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files`。
+- 线上升级需额外验证已有 Service Worker 的浏览器：刷新桌面再重开 Aiao Code，联网入口应走网络，不能继续加载旧工作台。已打开的工作台不会被强制刷新；不要求清除站点数据。
 - 跨域隔离响应头（COOP / COEP）与 Service Worker 是工作台自身要求，配置见应用 README 的部署小节。
 - 集成到 Aiao Desktop（US-410）：入口还要带 `Cross-Origin-Resource-Policy: cross-origin`，`verify-pages-routing` 会检查它恰好一个值
   （`_headers` 里同一响应头写两次会被 Pages 用逗号拼成无效值）。发布后在仓库根跑桌面的线上验收

@@ -57,6 +57,7 @@ capabilities: []
 
 - vscode.aiao.io 原来只有 COOP / COEP，文档响应没有 CORP，带 COEP 的宿主页嵌不进去（2026-11-13 实测 `ERR_BLOCKED_BY_RESPONSE`）。补上 CORP 后在 Orbit 同款 sandbox 里实测：工作台约 1.5 秒出现，`crossOriginIsolated` 为 true，Service Worker 正常接管。iframe 直接调用 `window.open` 仍会被 sandbox 拦下，`showDirectoryPicker` 仍会报 `SecurityError`。
 - #7 自动验收用 `aiao-desktop-e2e:e2e-aiao-code-files` 的 `embeddedLoginBoundary` 与 `standaloneFlowsPreserved`：真实桌面与工作台构建，模拟 GitHub 授权与 Pages API；不代表已上线或通过真实 GitHub 账户验收。发布时先更新桌面，再发布 Aiao Code 与 `/redirect` Functions。
+- 联网打开预装 Aiao Code 时，Orbit 的入口导航带 `ngsw-bypass`，避免工作台的旧版 Service Worker 返回仍会在 iframe 内开弹窗的应用外壳。只绕过该次文档请求；离线入口、独立页、资源缓存与本地数据不变。冒烟校验入口参数、沙箱与授权链路。
 - 桌面经专用 Orbit 请求打开指定 GitHub 地址；现有 `/redirect` 只向受信桌面的固定回跳页转交 PKCE 授权码。回跳页不依赖 `window.opener` 或与 iframe 共享存储；工作台自己完成换码、保存会话。
 - 就绪的定义：Aiao Code 的工作台已经挂载到页面上（与它自己的 `ready` 信号同一时刻），不是 iframe 的 `load`。
 - Aiao Code 的发布流程（[deploy/README](../../../../apps/aiao-vscode/deploy/README.md)）发布后要跑一次本故事的线上验收，握手或响应头被改坏时桌面会第一个发现。

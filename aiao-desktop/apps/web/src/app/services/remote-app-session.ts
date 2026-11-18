@@ -130,18 +130,22 @@ export class RemoteAppSession {
     this.current = context;
     const capabilities = context.capabilities;
     this.restrictions.set(context.restrictions);
+    const githubOAuth = supportsGitHubOAuth(app);
+    // 联网时只绕过工作台入口的 Service Worker 缓存，避免旧外壳在 iframe 内尝试授权。
+    const onlineEntry = githubOAuth && navigator.onLine ? new URL(app.web.url) : undefined;
+    onlineEntry?.searchParams.set('ngsw-bypass', '1');
     const binding = createOrbitBinding(orbit, {
       appId: app.id,
       instanceId,
       version: app.web.version,
-      url: app.web.url,
+      url: onlineEntry?.href ?? app.web.url,
       title: app.name,
       allow: orbitAllow(app.web),
       timeout: app.web.readyTimeout,
       props: {
         ...this.windowProps(context, capabilities),
         ...desktopProps(capabilities),
-        ...(supportsGitHubOAuth(app) ? { 'aiao-code.github-oauth-origin': location.origin } : {})
+        ...(githubOAuth ? { 'aiao-code.github-oauth-origin': location.origin } : {})
       }
     });
     this.binding = binding;

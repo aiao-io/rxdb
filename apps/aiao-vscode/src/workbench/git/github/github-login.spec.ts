@@ -43,6 +43,7 @@ describe('requestGitHubLogin', () => {
   afterEach(() => {
     host.remove();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   const dialog = (): HTMLDialogElement => host.querySelector('dialog')!;
@@ -67,16 +68,26 @@ describe('requestGitHubLogin', () => {
     await expect(pending).resolves.toBeUndefined();
   });
 
-  it('嵌入环境说明 OAuth 限制，同时保留 PAT 登录', async () => {
-    const pending = requestGitHubLogin(host, { auth, oauthUnavailable: '桌面窗口暂不支持 OAuth，请使用 PAT' });
+  it('没有授权桥的 iframe 不尝试打开弹窗，同时保留 PAT 登录', async () => {
+    const openAuthorize = vi.fn();
+    const frameWindow = Object.create(window) as Window;
+    Object.defineProperties(frameWindow, {
+      parent: { configurable: true, value: {} },
+      addEventListener: { value: window.addEventListener.bind(window) },
+      removeEventListener: { value: window.removeEventListener.bind(window) },
+      open: { value: window.open.bind(window) }
+    });
+    vi.stubGlobal('window', frameWindow);
+    const pending = requestGitHubLogin(host, { auth, openAuthorize });
     await flush();
-    expect(dialog().textContent).toContain('桌面窗口暂不支持 OAuth');
+    expect(dialog().textContent).toContain('刷新桌面');
     const oauth = [...dialog().querySelectorAll('button')].find(
       button => button.textContent === '使用 GitHub 账号登录'
     )!;
     expect(oauth.disabled).toBe(true);
     oauth.click();
     expect(auth.beginOAuth).not.toHaveBeenCalled();
+    expect(openAuthorize).not.toHaveBeenCalled();
     dialog().querySelector<HTMLInputElement>('input')!.value = 'ghp_abc';
     [...dialog().querySelectorAll('button')].find(button => button.textContent === '登录')!.click();
     await flush();
