@@ -1,5 +1,5 @@
-/** 地名搜索会发送搜索词，说明页里必须列出对应主机。 */
-const NAMED_HOSTS = ['nominatim.openstreetmap.org'];
+/** 地名搜索和 GitHub 授权由用户触发，说明页里必须列出对应主机。 */
+const NAMED_HOSTS = ['nominatim.openstreetmap.org', 'github.com'];
 
 /** 触发方式的两种取值：打开就请求，或用户操作后才请求。 */
 const TRIGGERS = ['on-open', 'on-action'];

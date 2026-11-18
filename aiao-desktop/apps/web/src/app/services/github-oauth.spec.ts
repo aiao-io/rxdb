@@ -18,7 +18,7 @@ describe('桌面的 GitHub 授权桥', () => {
   const replace = vi.fn();
   const popup = { opener: {}, location: { replace } };
   const open = vi.fn(() => popup);
-  const channel = { onmessage: (_event: { data: unknown }) => undefined, close: vi.fn() };
+  const channel = { onmessage: vi.fn<(event: { data: unknown }) => void>(), close: vi.fn() };
   const broadcast = vi.fn(function () {
     return channel;
   });

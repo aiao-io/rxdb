@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-003
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-18
 tags: [application, orbit, aiao-vscode, online]
 dependsOn: [ADESK-US-201, ADESK-US-202]
 capabilities: []
@@ -47,7 +47,7 @@ capabilities: []
 | 4   | 已新建项目                             | 最小化再还原                                             | 工作台没有重新加载，当前项目与终端输出还在                    | ✅   |
 | 5   | 已新建项目                             | 关闭窗口，再从启动台打开                                 | 重新就绪，刚才新建的项目还在（数据在 Aiao Code 自己的来源里） | ✅   |
 | 6   | Aiao Code 已就绪                       | 依次完成 #1～#5                                          | 桌面页面没有错误                                              | ✅   |
-| 7   | 两个应用的新构建、未登录               | 键盘打开 GitHub 授权，拒绝后重试并同意，再重开工作台     | 原窗口显示账户，重开保留登录；跨源隔离与 sandbox 保持         | ⚠️   |
+| 7   | 两个应用的本地正式构建、模拟 GitHub    | 键盘打开 GitHub 授权，拒绝后重试并同意，再重开工作台     | 原窗口显示账户，重开保留登录；跨源隔离与 sandbox 保持         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

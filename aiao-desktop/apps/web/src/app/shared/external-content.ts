@@ -140,9 +140,18 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
     host: 'vscode.aiao.io',
     purpose: 'Aiao Code, a code editor hosted as a separate site and shown inside its own window.',
     sends:
-      'Only the page request, plus whether its window is in front or maximised, shared over Orbit. Whatever you do inside Aiao Code is handled by that site.',
+      'The page request and window state. Aiao Code handles its own account session and exchanges the one-time code after GitHub authorization.',
     trigger: 'on-open',
     when: 'When you open Aiao Code.',
+    apps: ['Aiao Code']
+  },
+  {
+    host: 'github.com',
+    purpose: 'GitHub account authorization for Aiao Code.',
+    sends:
+      'The public client ID, requested permissions, the return address and a one-time challenge. You sign in on GitHub; the desktop does not store your credentials or access token.',
+    trigger: 'on-action',
+    when: 'When you choose to sign in with GitHub in Aiao Code.',
     apps: ['Aiao Code']
   }
 ];

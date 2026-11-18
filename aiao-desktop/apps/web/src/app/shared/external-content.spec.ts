@@ -171,6 +171,13 @@ describe('外网内容清单本身', () => {
     expect(nominatim.trigger).toBe('on-action');
   });
 
+  it('GitHub 授权只由账户登录操作触发，并说明桌面不保存令牌', () => {
+    const github = entryOf('github.com');
+    expect(github.trigger).toBe('on-action');
+    expect(github.apps).toEqual(['Aiao Code']);
+    expect(github.sends).toContain('does not store your credentials or access token');
+  });
+
   it('统一写明所有请求至少让第三方看到用户的 IP，也写明了 Safari 里用户输入的站点', () => {
     expect(EXTERNAL_CONTENT_NOTICE.join(' ')).toMatch(/IP address/);
     expect(SAFARI_ENTERED_SITES).toMatch(/directly/i);

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GitHubAuth, GitHubSession } from './github-auth.js';
+import type { GitHubDesktopOAuth } from './github-desktop-oauth.js';
 import { requestGitHubLogin } from './github-login.js';
 import { oauthDoneKey } from './github-oauth-bridge.js';
 
@@ -106,7 +107,7 @@ describe('requestGitHubLogin', () => {
 
   it('关闭登录框取消宿主请求，迟到的授权码不建立会话', async () => {
     const result = Promise.withResolvers<string>();
-    const authorize = vi.fn((_url: string, _signal: AbortSignal) => result.promise);
+    const authorize = vi.fn<GitHubDesktopOAuth['authorize']>(() => result.promise);
     auth.beginOAuth.mockResolvedValue(OAUTH);
     const pending = requestGitHubLogin(host, { auth, desktopOAuth: { origin: DESKTOP, authorize } });
     const button = () => [...dialog().querySelectorAll('button')].find(b => b.textContent === '使用 GitHub 账号登录');
