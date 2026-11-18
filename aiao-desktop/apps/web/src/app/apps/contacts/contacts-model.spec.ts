@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SEED_CONTACTS, emailOf, HOME_ADDRESS } from './contacts-data';
-import { Contact } from './contacts.entities';
+import { emailOf, HOME_ADDRESS, SEED_CONTACTS } from './contacts-data';
 import {
   contactValidationMessage,
   draftOf,
@@ -10,6 +9,7 @@ import {
   normalizeDraft,
   sameContact
 } from './contacts-model';
+import { Contact } from './contacts.entities';
 
 const contact = (index: number): Contact =>
   ({
@@ -56,7 +56,13 @@ describe('contact drafts', () => {
   });
 
   it('保存前去掉首尾空格并拒绝不完整表单', () => {
-    const value = normalizeDraft({ ...newDraft(0), name: ' Anna ', role: ' Design ', email: ' anna@example.com ', address: ' Home ' });
+    const value = normalizeDraft({
+      ...newDraft(0),
+      name: ' Anna ',
+      role: ' Design ',
+      email: ' anna@example.com ',
+      address: ' Home '
+    });
     expect(value.name).toBe('Anna');
     expect(value.email).toBe('anna@example.com');
     expect(contactValidationMessage(value)).toBeNull();

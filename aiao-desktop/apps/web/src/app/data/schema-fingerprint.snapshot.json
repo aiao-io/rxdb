@@ -1,6 +1,4 @@
 {
-  "version": 2026111802,
-  "entityFingerprint": "661fe3dfc7162badb5b1dc1a3410203005682865bfbfd87528ee6d152172279d",
   "domains": [
     {
       "domain": "calendar",
@@ -70,5 +68,7 @@
       "domain": "weather",
       "version": 1
     }
-  ]
+  ],
+  "entityFingerprint": "661fe3dfc7162badb5b1dc1a3410203005682865bfbfd87528ee6d152172279d",
+  "version": 2026111802
 }

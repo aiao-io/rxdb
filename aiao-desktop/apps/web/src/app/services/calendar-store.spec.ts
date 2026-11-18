@@ -248,13 +248,24 @@ describe('日历的初始数据', () => {
 describe('CalendarStore 编辑器写入保护', () => {
   const id = '00000000-0000-4000-8000-000000000001' as const;
   const fields: CalendarEventDraft = {
-    d: [2026, 10, 17], t: 'Draft', s: 540, dur: 30, cal: 'work', loc: 'Office', notes: 'Keep'
+    d: [2026, 10, 17],
+    t: 'Draft',
+    s: 540,
+    dur: 30,
+    cal: 'work',
+    loc: 'Office',
+    notes: 'Keep'
   };
   async function editing(events: EventRow[] = []) {
     const context = await setup(events);
     Object.assign(context.data, {
-      transaction: async (work: (executor: { getRepository: (type: typeof CalendarEventRow | typeof CalendarListRow) => ReturnType<FakeDesktopData['table']> }) => Promise<unknown>) =>
-        work({ getRepository: type => context.data.table(type) })
+      transaction: async (
+        work: (executor: {
+          getRepository: (
+            type: typeof CalendarEventRow | typeof CalendarListRow
+          ) => ReturnType<FakeDesktopData['table']>;
+        }) => Promise<unknown>
+      ) => work({ getRepository: type => context.data.table(type) })
     });
     return context;
   }
@@ -264,8 +275,9 @@ describe('CalendarStore 编辑器写入保护', () => {
     await store.saveEditor(id, fields, null);
     expect(rows.rows).toHaveLength(1);
     expect(rows.rows[0]).toMatchObject({ id, title: 'Draft', durationMinutes: 30 });
-    await expect(store.saveEditor('00000000-0000-4000-8000-000000000002', { ...fields, cal: 'missing' }, null))
-      .rejects.toThrow('calendar is no longer available');
+    await expect(
+      store.saveEditor('00000000-0000-4000-8000-000000000002', { ...fields, cal: 'missing' }, null)
+    ).rejects.toThrow('calendar is no longer available');
   });
   it('更新只接受原基线或已经写入的相同内容，不覆盖远端变化', async () => {
     const { store, rows } = await editing([event({ id })]);
@@ -273,8 +285,12 @@ describe('CalendarStore 编辑器写入保护', () => {
     await store.saveEditor(id, fields, base);
     await store.saveEditor(id, fields, base);
     expect(rows.rows[0].title).toBe('Draft');
-    await expect(store.saveEditor(id, { ...fields, t: 'Overwrite' }, base)).rejects.toThrow('changed in another window');
-    await expect(store.saveEditor(id, { ...fields, t: 'Overwrite' }, null)).rejects.toThrow('changed in another window');
+    await expect(store.saveEditor(id, { ...fields, t: 'Overwrite' }, base)).rejects.toThrow(
+      'changed in another window'
+    );
+    await expect(store.saveEditor(id, { ...fields, t: 'Overwrite' }, null)).rejects.toThrow(
+      'changed in another window'
+    );
   });
   it('原事件已删除时不重新创建；删除前同样检查基线', async () => {
     const { store, rows } = await editing([event({ id })]);

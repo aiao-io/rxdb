@@ -82,7 +82,13 @@ export class PreviewApp {
     this.popover.menuUnder(
       anchor,
       [
-        { id: 'm', label: 'Mail Draft', icon: 'g-compose', disabled: !content, run: () => content && this.mail.compose(this.name, '', printableText(content)) },
+        {
+          id: 'm',
+          label: 'Mail Draft',
+          icon: 'g-compose',
+          disabled: !content,
+          run: () => content && this.mail.compose(this.name, '', printableText(content))
+        },
         { id: 'g', label: 'Open Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
         '-',
         {

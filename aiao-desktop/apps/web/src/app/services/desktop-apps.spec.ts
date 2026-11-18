@@ -247,8 +247,20 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
     });
 
   it('Aiao Code 只授予窗口、剪贴板与 US-208 显式文件复制能力', () => {
-    expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']);
-    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']);
+    expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual([
+      'window',
+      'clipboard:read',
+      'clipboard:write',
+      'filesystem:read',
+      'filesystem:write'
+    ]);
+    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual([
+      'window',
+      'clipboard:read',
+      'clipboard:write',
+      'filesystem:read',
+      'filesystem:write'
+    ]);
   });
 
   it('清单可声明的能力名与 Orbit 的能力协议逐项一致（桌面首屏不引入 Orbit 的桌面能力模块，靠这条断言防漂移）', () => {
@@ -260,7 +272,9 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
     expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.launchpad)).toEqual([]);
     expect(grantedCapabilities(web('plain', []) as unknown as DesktopAppManifest)).toEqual([]);
     const everything = Object.values(DESKTOP_APP_MANIFESTS).flatMap(app => grantedCapabilities(app));
-    expect(new Set(everything)).toEqual(new Set(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write']));
+    expect(new Set(everything)).toEqual(
+      new Set(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write'])
+    );
   });
 
   it('capabilities 不合规逐项报出：不是数组、不认识的能力、重复、写外观没有同时读外观、系统入口不能声明', () => {

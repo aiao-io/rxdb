@@ -47,18 +47,29 @@ export const contacts = {
     await form.locator('[data-contact-email]').fill('grace@example.com');
     await form.locator('[data-contact-save]').click();
     await expect(rows().filter({ hasText: 'Grace Hopper' })).toHaveCount(1);
-    result.createPersists = (await surgery(session, db => db.shell.rows(`SELECT name, email FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper'])))?.[0]?.join('|') === 'Grace Hopper|grace@example.com';
+    result.createPersists =
+      (
+        await surgery(session, db =>
+          db.shell.rows(`SELECT name, email FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper'])
+        )
+      )?.[0]?.join('|') === 'Grace Hopper|grace@example.com';
 
     await rows().filter({ hasText: 'Grace Hopper' }).click();
     await window.locator('[data-contact-edit]').click();
     await form.locator('[data-contact-role]').fill('Computer scientist');
     await form.locator('[data-contact-save]').click();
     await expect(window.locator('[data-contact-id]').filter({ hasText: 'Grace Hopper' })).toHaveCount(1);
-    result.updatePersists = (await surgery(session, db => db.shell.rows(`SELECT role FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper'])))?.[0]?.[0] === 'Computer scientist';
+    result.updatePersists =
+      (
+        await surgery(session, db => db.shell.rows(`SELECT role FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper']))
+      )?.[0]?.[0] === 'Computer scientist';
 
     await window.locator('[data-contact-delete]').click();
     await expect(rows().filter({ hasText: 'Grace Hopper' })).toHaveCount(0);
-    result.deletePersists = (await surgery(session, db => db.shell.rows(`SELECT COUNT(*) FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper'])))?.[0]?.[0] === 0;
+    result.deletePersists =
+      (
+        await surgery(session, db => db.shell.rows(`SELECT COUNT(*) FROM "${TABLE}" WHERE name = ?`, ['Grace Hopper']))
+      )?.[0]?.[0] === 0;
 
     await closeAll();
     return { contacts: result };

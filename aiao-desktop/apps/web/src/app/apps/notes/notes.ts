@@ -18,9 +18,16 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { CHECK_ICON } from './notes-data';
-import { NoteDocument, NoteSaveError, NoteSnapshot, NoteWrite, noteFailureMessage, sameNoteContent } from './note-document';
+import {
+  NoteDocument,
+  NoteSaveError,
+  NoteSnapshot,
+  NoteWrite,
+  noteFailureMessage,
+  sameNoteContent
+} from './note-document';
 import { NoteFolderEditor } from './note-folder-editor';
+import { CHECK_ICON } from './notes-data';
 import {
   ALL_NOTES,
   NOTES_FOLDER,
@@ -108,7 +115,11 @@ export class NotesApp {
   protected readonly failure = computed(() => this.actionError() || this.editor.error());
   protected readonly folders = computed(() => [
     ...FOLDERS.map(folder => ({ ...folder, count: folderCount(this.notes(), folder.name) })),
-    ...this.noteFolders().map(folder => ({ name: folder.name, icon: 'g-folder-g', count: folderCount(this.notes(), folder.name) }))
+    ...this.noteFolders().map(folder => ({
+      name: folder.name,
+      icon: 'g-folder-g',
+      count: folderCount(this.notes(), folder.name)
+    }))
   ]);
   protected readonly textFormats = TEXT_FORMATS;
   protected readonly folder = signal<string>(NOTES_FOLDER);
@@ -137,7 +148,12 @@ export class NotesApp {
               { id: 'n', label: 'New Note', key: '⌘N', run: () => this.create() },
               { id: 's', label: 'Save Note', key: '⌘S', run: () => this.retry() },
               { id: 'copy', label: 'Save a Copy', run: () => this.saveCopy() },
-              { id: 'p', label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin(), disabled: !this.current() },
+              {
+                id: 'p',
+                label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note',
+                run: () => this.togglePin(),
+                disabled: !this.current()
+              },
               { id: 'f', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() },
               '-',
               { id: 'd', label: 'Delete Note', run: () => this.remove() }
@@ -213,7 +229,9 @@ export class NotesApp {
     void this.operate(() => {
       this.query.set(query);
       this.show(true);
-    }).then(() => { input.value = this.query(); });
+    }).then(() => {
+      input.value = this.query();
+    });
   }
 
   protected toggleSidebar(): void {
@@ -239,7 +257,10 @@ export class NotesApp {
 
   protected createFolder(name: string): Promise<string> {
     const trimmed = name.trim();
-    const problem = noteFolderNameError(trimmed, this.noteFolders().map(folder => folder.name));
+    const problem = noteFolderNameError(
+      trimmed,
+      this.noteFolders().map(folder => folder.name)
+    );
     if (problem) return Promise.resolve(problem);
     return this.operate(async () => {
       const folder = this.data.instantiate(NoteFolder, { name: trimmed });
@@ -252,7 +273,7 @@ export class NotesApp {
       });
       this.folder.set(trimmed);
       this.query.set('');
-    }).then(ok => ok ? '' : this.actionError() || 'The folder could not be created.');
+    }).then(ok => (ok ? '' : this.actionError() || 'The folder could not be created.'));
   }
 
   protected create(): Promise<boolean> {
@@ -261,7 +282,10 @@ export class NotesApp {
       const folder = this.folder();
       const note = this.data.instantiate(Note, {
         folder: folder === TRASH_FOLDER || folder === ALL_NOTES ? NOTES_FOLDER : folder,
-        title: 'New Note', date, body: newNoteBody(date), pinned: false
+        title: 'New Note',
+        date,
+        body: newNoteBody(date),
+        pinned: false
       });
       await (await this.data.repository(Note)).create(note);
       this.fresh = note.id;
@@ -324,7 +348,11 @@ export class NotesApp {
       if (!value) return;
       this.copyId ??= crypto.randomUUID();
       const copy = this.data.instantiate(Note, {
-        ...value, id: this.copyId, date: new Date(), folder: NOTES_FOLDER, pinned: false
+        ...value,
+        id: this.copyId,
+        date: new Date(),
+        folder: NOTES_FOLDER,
+        pinned: false
       });
       await this.data.transaction(async executor => {
         const repository = executor.getRepository(Note);
@@ -385,7 +413,9 @@ export class NotesApp {
   protected saveSoon(): void {
     this.capture();
     clearTimeout(this.timer);
-    this.timer = setTimeout(() => { void this.save(); }, 420);
+    this.timer = setTimeout(() => {
+      void this.save();
+    }, 420);
   }
 
   protected docKey(event: KeyboardEvent): void {

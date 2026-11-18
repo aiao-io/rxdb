@@ -59,3 +59,6 @@ aiao-desktop/apps/web/public/saltline.html
 
 # Python 运行时锁文件由 runtimes.json 的 SHA-256 逐字节校验，随产物原样发布。
 aiao-desktop/scripts/vivari/python-lock.json
+
+# 保留原始浏览器报告的字节；证据目录中的手写说明仍检查格式。
+/aiao-desktop/requirements/evidence/**/*.json

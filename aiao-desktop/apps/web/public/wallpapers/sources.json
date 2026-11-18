@@ -1,9 +1,4 @@
 {
-  "format": "aiao-desktop.wallpaper-sources",
-  "version": 1,
-  "retrievedAt": "2026-11-17T04:36:01.469321+00:00",
-  "license": "https://unsplash.com/license",
-  "purpose": "Local distribution of the six existing desktop wallpaper choices. No new photographs or renamed choices.",
   "assets": [
     {
       "file": "tahoe.jpg",
@@ -113,5 +108,10 @@
       "bytes": 73078,
       "widthRequested": 640
     }
-  ]
+  ],
+  "format": "aiao-desktop.wallpaper-sources",
+  "license": "https://unsplash.com/license",
+  "purpose": "Local distribution of the six existing desktop wallpaper choices. No new photographs or renamed choices.",
+  "retrievedAt": "2026-11-17T04:36:01.469321+00:00",
+  "version": 1
 }

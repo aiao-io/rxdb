@@ -17,7 +17,7 @@ import { PrivacyPane } from './panes/privacy-pane';
 import { SoundPane } from './panes/sound-pane';
 import { WallpaperPane } from './panes/wallpaper-pane';
 import { WifiPane } from './panes/wifi-pane';
-import { filterSettingsGroups, SETTINGS_GROUPS, findSection } from './settings-data';
+import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-data';
 
 /** 系统设置：侧栏选分区，右侧按分区换面板。 */
 @Component({

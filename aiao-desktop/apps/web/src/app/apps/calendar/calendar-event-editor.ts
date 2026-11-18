@@ -1,10 +1,10 @@
 import { Component, afterNextRender, inject, input } from '@angular/core';
 
-import { CalendarDraftEditor, parseCalendarInput } from './calendar-draft';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { MONS3 } from '../../shared/format';
 import { Icon } from '../../shared/icon';
+import { CalendarDraftEditor, parseCalendarInput } from './calendar-draft';
 import { EventDate } from './calendar-model';
 
 /** 编辑器收尾后回给日历窗口的结果：保存时是事件的新日期，删除时是 `null`。 */
@@ -14,31 +14,39 @@ export type EditorResult = (saved: EventDate | null) => void;
 @Component({
   selector: 'app-calendar-event-editor',
   imports: [Icon],
-  host: { class: 'pop ce', role: 'dialog', 'aria-label': 'Calendar event editor', style: 'width: 340px', '(keydown)': 'key($event)' },
+  host: {
+    class: 'pop ce',
+    role: 'dialog',
+    'aria-label': 'Calendar event editor',
+    style: 'width: 340px',
+    '(keydown)': 'key($event)'
+  },
   template: `
     <div class="ce-top">
       <div class="ce-title">{{ editor().base() ? 'Event' : 'New Event' }}</div>
       @if (editor().base(); as event) {
         <button
           class="tbtn"
-          tabindex="0"
           [disabled]="editor().saving()"
           (click)="remove()"
           aria-label="Delete event"
           data-del
+          tabindex="0"
           title="Delete"
-        ><svg appIcon="g-trash"></svg></button>
+        >
+          <svg appIcon="g-trash"></svg>
+        </button>
       }
     </div>
     @if (editor().value(); as value) {
       <input
         class="ce-name"
         #name
-        [value]="value.title"
         [disabled]="editor().saving()"
+        [value]="value.title"
         (input)="editor().edit({ title: name.value })"
-        data-f="t"
         aria-label="Event title"
+        data-f="t"
         placeholder="New Event"
         spellcheck="false"
         tabindex="0"
@@ -46,11 +54,11 @@ export type EditorResult = (saved: EventDate | null) => void;
       <input
         class="ce-loc"
         #location
-        [value]="value.location"
         [disabled]="editor().saving()"
+        [value]="value.location"
         (input)="editor().edit({ location: location.value })"
-        data-f="loc"
         aria-label="Location"
+        data-f="loc"
         placeholder="Add Location"
         spellcheck="false"
         tabindex="0"
@@ -60,27 +68,29 @@ export type EditorResult = (saved: EventDate | null) => void;
           <span>all-day</span>
           <button
             class="sw"
-            type="button"
-            [class.on]="value.allDay"
             [attr.aria-checked]="value.allDay"
+            [class.on]="value.allDay"
             [disabled]="editor().saving()"
             (click)="toggleAllDay(value.allDay)"
             aria-label="All-day event"
             data-allday
-            style="margin-left: auto; transform: scale(0.82); transform-origin: left center"
             role="switch"
+            style="margin-left: auto; transform: scale(0.82); transform-origin: left center"
             tabindex="0"
-          ><i></i></button>
+            type="button"
+          >
+            <i></i>
+          </button>
         </div>
         <div class="ce-row">
           <span>date</span>
           <input
             #date
-            [value]="value.date"
             [disabled]="editor().saving()"
+            [value]="value.date"
             (input)="editor().edit({ date: date.value })"
-            data-f="date"
             aria-label="Date"
+            data-f="date"
             spellcheck="false"
             tabindex="0"
           />
@@ -91,11 +101,11 @@ export type EditorResult = (saved: EventDate | null) => void;
               <span>from</span>
               <input
                 #from
-                [value]="value.from"
                 [disabled]="editor().saving()"
+                [value]="value.from"
                 (input)="editor().edit({ from: from.value })"
-                data-f="from"
                 aria-label="Start time"
+                data-f="from"
                 spellcheck="false"
                 tabindex="0"
               />
@@ -104,11 +114,11 @@ export type EditorResult = (saved: EventDate | null) => void;
               <span>to</span>
               <input
                 #to
-                [value]="value.to"
                 [disabled]="editor().saving()"
+                [value]="value.to"
                 (input)="editor().edit({ to: to.value })"
-                data-f="to"
                 aria-label="End time"
+                data-f="to"
                 spellcheck="false"
                 tabindex="0"
               />
@@ -121,17 +131,17 @@ export type EditorResult = (saved: EventDate | null) => void;
             @for (cal of calendars(); track cal.id) {
               <button
                 class="acc"
-                type="button"
-                [attr.data-pickcal]="cal.id"
-                [class.on]="value.calendar === cal.id"
-                [style.background]="cal.c"
                 [attr.aria-label]="cal.name"
                 [attr.aria-pressed]="value.calendar === cal.id"
+                [attr.data-pickcal]="cal.id"
+                [class.on]="value.calendar === cal.id"
                 [disabled]="editor().saving()"
+                [style.background]="cal.c"
                 [title]="cal.name"
                 (click)="editor().edit({ calendar: cal.id })"
                 style="width: 15px; height: 15px"
                 tabindex="0"
+                type="button"
               ></button>
             }
           </div>
@@ -140,30 +150,34 @@ export type EditorResult = (saved: EventDate | null) => void;
       <textarea
         class="ce-notes"
         #notes
-        [value]="value.notes"
         [disabled]="editor().saving()"
+        [value]="value.notes"
         (input)="editor().edit({ notes: notes.value })"
-        data-f="notes"
         aria-label="Notes"
+        data-f="notes"
         placeholder="Add Notes"
         spellcheck="false"
         tabindex="0"
       ></textarea>
-      <div role="status" aria-live="polite" style="padding: 6px 14px; font-size: 12px">
-        {{ editor().saving() ? 'Saving…' : editor().dirty() ? 'Unsaved changes' : 'Saved' }}
+      <div aria-live="polite" role="status" style="padding: 6px 14px; font-size: 12px">
+        {{
+          editor().saving() ? 'Saving…'
+          : editor().dirty() ? 'Unsaved changes'
+          : 'Saved'
+        }}
       </div>
       @if (editor().error(); as problem) {
         <p role="alert" style="margin: 6px 14px; overflow-wrap: anywhere">{{ problem }}</p>
       }
       <div class="ce-foot">
-        <button class="btn" tabindex="0" (click)="cancel()" data-cancel>Close</button>
+        <button class="btn" (click)="cancel()" data-cancel tabindex="0">Close</button>
         @if (editor().dirty()) {
-          <button class="btn" tabindex="0" [disabled]="editor().saving()" (click)="discard()">Discard Changes</button>
+          <button class="btn" [disabled]="editor().saving()" (click)="discard()" tabindex="0">Discard Changes</button>
         }
         @if (editor().error()) {
-          <button class="btn" tabindex="0" [disabled]="editor().saving()" (click)="saveCopy()">Save a Copy</button>
+          <button class="btn" [disabled]="editor().saving()" (click)="saveCopy()" tabindex="0">Save a Copy</button>
         }
-        <button class="btn pri" tabindex="0" [disabled]="editor().saving()" (click)="save()" data-save>
+        <button class="btn pri" [disabled]="editor().saving()" (click)="save()" data-save tabindex="0">
           {{ editor().base() ? 'Done' : 'Add' }}
         </button>
       </div>
@@ -221,7 +235,11 @@ export class CalendarEventEditor {
   }
 
   protected key(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && (event.target as Element).tagName !== 'TEXTAREA' && (event.target as Element).tagName !== 'BUTTON') {
+    if (
+      event.key === 'Enter' &&
+      (event.target as Element).tagName !== 'TEXTAREA' &&
+      (event.target as Element).tagName !== 'BUTTON'
+    ) {
       event.preventDefault();
       void this.save();
     }

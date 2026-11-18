@@ -25,7 +25,6 @@
 
 红阶段：[操作模型](finder-operations-red.txt)、[持久原位置与迁移](finder-migration-red.txt)、[服务入口](finder-service-red.txt)、[应用选择](finder-open-with-red.txt)、[导入上限](finder-import-limit-red.txt)。本轮未发布。整批导入/复制遭遇进程中断的恢复仍属于 A03，当前已证明的是普通 I/O 失败撤回及源数据保留。
 
-
 ## A03 完整备份、恢复与存储健康（ADESK-US-111）
 
 当前 schema `2026111702`，包含批次写协议门禁；基线仍为 `2a3e46183` 加未提交工作区。归档只接受相同 schema，历史版本先用匹配构建恢复再升级。旧构建 `2026111301` 的正式产物继续保留并用于真实升级验证。本轮未部署。
@@ -38,14 +37,11 @@
 
 归档上限 256 MiB。备份和完整桌面抹除均不包含远程 Origin 应用、游戏 localStorage、终端运行时镜像、第三方凭据或已下载备份；完整抹除覆盖本产品全部保留代际，卷抹除保留应用记录和偏好。合成键盘和 axe 不证明真实物理键盘、读屏或人工 IME。
 
-
 A03 关联回归：`document-workflow,file-management,multi-tab,host-filesystem,a11y,disk-terminal,window-layout` 中六组通过；Finder 在画廊快捷键处超时，见[原始报告](backup-related-before-finder-rerun.json)、[日志](backup-related-before-finder-rerun.txt)。同一产物单独复跑 `file-management` 15 项通过，见[报告](backup-finder-rerun.json)、[日志](backup-finder-rerun-green.txt)。`pnpm nx` 消费了本轮的 `--parallel=2`，实际 smoke 仍按默认 3 组并行；没有声称这轮为 2 组并行。
 
 [最终门禁首次日志](backup-final-gates-before-adapter-serial.txt)保留公共适配器 4 文件 7 条 5000ms 超时，其余 1079 条通过；web 与 lint/typecheck/需求检查均通过。随后以 `--browser.fileParallelism=false` 复验公共包，结果另行归档，不改业务、不增加超时或降低门槛。
 
-
 公共包串行复验通过：`NX_NO_CLOUD=true pnpm nx run rxdb-adapter-sqlite-wasm:test --browser.fileParallelism=false --output-style=static`，35 文件 1086 passed、26 不适用 skipped、原覆盖率门槛通过，见[日志](backup-adapter-serial-green.txt)。A03 已完成；后续应用目录与其他产品任务不由本节证明。
-
 
 ## A04 批准应用目录与版本管理（ADESK-US-207）
 
@@ -95,7 +91,6 @@ US-112 与 US-113 关闭后，Angular 当前 28/29 Done，唯一 In Review 为 U
 
 状态关闭后的需求门禁与 e2e lint 通过，见[收尾日志](runtime-offline-closure-green.txt)。
 
-
 ## A05 Aiao Code 显式文件复制（ADESK-US-208 / US-412）
 
 2026-11-17，基线 `2a3e46183` 加未提交工作区，未发布。复用现有 Orbit 协议，不共享存储，也不扩大 sandbox。单文件和项目 ZIP 每次最多 512 KiB，导出每次经过保存面板；普通工作台保存不写回桌面原文件。桌面故事按产品约定完成 AC；应用侧 US-412 按根规范保持 In Review，等待评审合并。
@@ -112,7 +107,6 @@ US-112 与 US-113 关闭后，Angular 当前 28/29 Done，唯一 In Review 为 U
 
 A05 收尾后的[需求门禁](aiao-code-copy-closure-requirements.log)通过：29/30 Done，剩余 US-108 人工读屏。
 
-
 ## A06 内置内容复制与打印（US-114）
 
 基线 `2a3e46183` 加未提交工作区，未发布。Preview 的文本 PDF 复制全文、图片复制文件名，Mail 复制实际邮件文本，Photos 复制图片地址；入口明确复制对象。Preview 与 Mail 请求浏览器打印所选内容，不声称已经输出纸张。
@@ -126,7 +120,6 @@ A05 收尾后的[需求门禁](aiao-code-copy-closure-requirements.log)通过：
 复制成功路径实际读回浏览器系统剪贴板。拒绝路径用受控 NotAllowedError，打印失败也受控注入；成功打印调用原生 print 并确认真实 beforeprint 事件，同时检查隔离文档内容和资源释放。未验证系统打印机、纸张、真实权限提示交互或物理键盘。Mail 的真实发送、Photos 二进制图片复制、Preview 视频与 A06 其余工作仍未完成。
 
 US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/31 Done，US-108 人工读屏保留。
-
 
 ## A06 提醒事项草稿保护（US-115）
 
@@ -142,7 +135,6 @@ US-114 收尾后的[需求门禁](aiao-content-actions-closure.log)通过：30/3
 固定侧栏统计和日期筛选不在 US-115 范围，留在 A06 台账中继续。
 
 US-115 收尾[需求门禁](aiao-reminder-closure.log)通过：31/32 Done，US-108 人工读屏保留。
-
 
 ## A06 提醒事项列表筛选与动态统计（US-122）
 
@@ -177,7 +169,6 @@ Pin 和 New Folder 已分别由 US-121、US-123 补齐；Duplicate 使用真实�
 
 US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 人工读屏保留。
 
-
 ## A06 本地会话草稿与范围（US-117）
 
 基线仍为 `2a3e46183` 加未提交改动，schema `2026111703` 未变；本轮未发布。
@@ -193,7 +184,6 @@ US-116 收尾[需求门禁](aiao-note-closure.log)通过：32/33 Done，US-108 �
 
 US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-108 人工读屏保留。
 
-
 ## A06 本地邮件草稿（US-118）
 
 基线 `2a3e46183` 加当前未提交改动，schema `2026111703` 不变；没有发布。
@@ -206,7 +196,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 - 真实 SQLite INSERT/UPDATE 拒绝与恢复、真实写锁关闭等待、两个实际页面的草稿冲突、副本失败重试、原记录删除、面板替换后恢复、刷新可编辑、搜索和实际内容均检查。[失败截图](aiao-mail-failure.png)已目视核查，输入与操作提示可见，无 SQL 泄露。
 
 未接入邮件账号、远程投递或附件传输；历史 Sent 数据保留并标明本地存档。beforeunload 为合成事件，软件键盘和 axe 不替代物理输入或读屏。
-
 
 ## A06 Contacts 联系人搜索与本地编辑（US-120）
 
@@ -239,7 +228,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-folders --parallel=1 --report=/tmp/aiao-notes-folders-green.json --output-style=static`：`folderPersists`、`noteUsesFolder`、`duplicateNameIsRejected` 和 `folderSurvivesReload` 均为 `true`，无页面错误；原始报告见 [aiao-notes-folders-green.json](aiao-notes-folders-green.json)。
 - `AIAO_DESKTOP_PREVIOUS_DIST=/tmp/aiao-pre-file-management-2026111301 E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=upgrade-previous --parallel=1 --report=/tmp/aiao-upgrade-previous-after-notes-folders-green.json --output-style=static`：旧库内容、文件体、版本记录和同源地址均保留；原始报告见 [aiao-upgrade-previous-after-notes-folders-green.json](aiao-upgrade-previous-after-notes-folders-green.json)。
 
-
 ## A06 Freeform 笔迹保存与失败保护（US-124）
 
 基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Freeform 的正式构建验收覆盖真实 canvas 绘制、本地 SQLite 持久化、INSERT/DELETE 失败保留、Retry 和刷新恢复。
@@ -251,7 +239,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 
 触发器只用于浏览器验收注入受控失败；生产界面显示局部操作提示，不把 SQL 错误泄露给用户。
 
-
 ## A06 Stocks 本地搜索与演示数据声明（US-125）
 
 基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Stocks 的本地自选股搜索、空结果、清空恢复、详情联动和演示数据边界已在正式构建上验证。
@@ -261,7 +248,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 - `pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-stocks-workflow-green.json'`：7 项全绿，代码搜索、公司名搜索、空结果、清空恢复、详情跟随选择和演示数据提示均为 `true`，无页面错误；原始报告见 [aiao-stocks-workflow-green.json](aiao-stocks-workflow-green.json)。
 
 页面现已明确无实时行情源；本故事不关闭实时行情、交易、账户、远程同步或真实指标能力。
-
 
 ## A06 Font Book 字体族搜索（US-126）
 
@@ -273,7 +259,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 
 本故事不关闭系统字体安装、删除、冲突处理、收藏和最近使用能力。
 
-
 ## A06 Settings 分区搜索（US-127）
 
 基线 `19a839ff0` 加当前未提交工作区；本轮未发布。Settings 的本地分区搜索、空结果、清空恢复和面板联动已在正式构建上验证。
@@ -283,7 +268,6 @@ US-117 收尾[需求门禁](aiao-messages-closure.log)通过：33/34 Done，US-1
 - `pnpm nx run aiao-desktop-e2e:e2e --args='--group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-settings-workflow-green.json'`：5 项全绿，分区搜索、空结果、清空恢复和面板跟随选择均为 `true`，无页面错误；原始报告见 [aiao-settings-workflow-green.json](aiao-settings-workflow-green.json)。
 
 本故事不关闭设置面板内部完整系统 API、权限中心、远程账号和跨设备同步能力。
-
 
 ## A06 三组搜索最终回归
 

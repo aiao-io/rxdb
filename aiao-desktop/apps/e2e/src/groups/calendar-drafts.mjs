@@ -77,7 +77,9 @@ export const calendarDrafts = {
     await expect(field('Notes')).toHaveValue('Keep this draft 🌏');
     expect(await rows(`SELECT id FROM "${TABLE}" WHERE title = ?`, ['failed-calendar'])).toEqual([]);
     result.failedCreateKeepsFields = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(false);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      false
+    );
     result.beforeUnloadGuard = true;
     const axe = await new AxeBuilder({ page }).include('app-calendar-event-editor').analyze();
     result.noViolations = axe.violations;
@@ -99,7 +101,11 @@ export const calendarDrafts = {
     expect(await retry.evaluate(element => element === document.activeElement)).toBe(true);
     await page.keyboard.press('Enter');
     await expect(panel()).toHaveCount(0);
-    const created = (await rows(`SELECT id, title, start_minutes, duration_minutes FROM "${TABLE}" WHERE title = ?`, ['failed-calendar']))[0];
+    const created = (
+      await rows(`SELECT id, title, start_minutes, duration_minutes FROM "${TABLE}" WHERE title = ?`, [
+        'failed-calendar'
+      ])
+    )[0];
     expect(created).toEqual([expect.any(String), 'failed-calendar', 540, 60]);
     result.retryCreatesOneEvent = true;
 
@@ -107,12 +113,19 @@ export const calendarDrafts = {
     await field('Date').fill('2026-11-17');
     await field('Start time').fill('11:00 AM');
     await field('End time').fill('12:00 PM');
-    await page.evaluate(() => new Promise(resolve => {
-      globalThis.__calendarLock = navigator.locks.request('aiao-desktop-data-write', () => new Promise(release => {
-        globalThis.__releaseCalendarLock = release;
-        resolve();
-      }));
-    }));
+    await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          globalThis.__calendarLock = navigator.locks.request(
+            'aiao-desktop-data-write',
+            () =>
+              new Promise(release => {
+                globalThis.__releaseCalendarLock = release;
+                resolve();
+              })
+          );
+        })
+    );
     await panel().getByRole('button', { name: 'Add', exact: true }).click();
     await expect(panel().getByRole('status')).toHaveText('Saving…');
     await expect(field('Event title')).toBeDisabled();
@@ -121,7 +134,9 @@ export const calendarDrafts = {
     closeWindow();
     await expect(win()).not.toHaveClass(/closing/);
     await page.evaluate(() => globalThis.__releaseCalendarLock());
-    await expect.poll(async () => (await rows(`SELECT count(*) FROM "${TABLE}" WHERE title = ?`, ['pending-calendar']))[0][0]).toBe(1);
+    await expect
+      .poll(async () => (await rows(`SELECT count(*) FROM "${TABLE}" WHERE title = ?`, ['pending-calendar']))[0][0])
+      .toBe(1);
     await expect(win()).toHaveCount(0);
     result.pendingSaveBlocksClose = true;
     await open();
@@ -190,7 +205,9 @@ export const calendarDrafts = {
     await field('End time').fill('3:15 PM');
     await page.keyboard.press('Enter');
     await expect(panel()).toHaveCount(0);
-    expect(await rows(`SELECT duration_minutes FROM "${TABLE}" WHERE title = ?`, ['keyboard-calendar'])).toEqual([[75]]);
+    expect(await rows(`SELECT duration_minutes FROM "${TABLE}" WHERE title = ?`, ['keyboard-calendar'])).toEqual([
+      [75]
+    ]);
     await session.reloadDesktop(page, { finder: false });
     await open();
     expect(await win().locator('.cal-ev[data-ev]').filter({ hasText: 'keyboard-calendar' })).toHaveCount(1);

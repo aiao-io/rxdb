@@ -73,7 +73,9 @@ export const localMail = {
     const axe = await new AxeBuilder({ page }).include('app-mail-compose').analyze();
     result.noViolations = axe.violations;
     await page.screenshot({ path: '/tmp/aiao-mail-failure.png' });
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(false);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      false
+    );
     result.beforeUnloadGuard = true;
     await panel().getByRole('button', { name: 'Hide Draft' }).click();
     await expect(panel()).toHaveCount(0);
@@ -105,8 +107,9 @@ export const localMail = {
     expect(reached.found).toBe(true);
     await page.keyboard.press('Enter');
     await expect(panel()).toHaveCount(0);
-    expect(await rows(`SELECT mailbox, recipient, subject, body FROM "${TABLE}" WHERE id = ?`, [id]))
-      .toEqual([['Drafts', 'local@example.invalid', 'failed-mail title', 'Local draft 🌏\nSecond line']]);
+    expect(await rows(`SELECT mailbox, recipient, subject, body FROM "${TABLE}" WHERE id = ?`, [id])).toEqual([
+      ['Drafts', 'local@example.invalid', 'failed-mail title', 'Local draft 🌏\nSecond line']
+    ]);
     expect(await rows(`SELECT count(*) FROM "${TABLE}" WHERE mailbox = 'Sent'`)).toEqual(sentCount);
     result.retrySavesOneLocalDraft = true;
     result.keyboardRecovery = true;
@@ -115,12 +118,19 @@ export const localMail = {
     await win().getByRole('button', { name: 'Edit Draft', exact: true }).click();
     await expect(field('Message')).toHaveValue('Local draft 🌏\nSecond line');
     await field('Message').fill('Edited saved draft\nPreserved newline');
-    await page.evaluate(() => new Promise(resolve => {
-      globalThis.__mailLock = navigator.locks.request('aiao-desktop-data-write', () => new Promise(release => {
-        globalThis.__releaseMailLock = release;
-        resolve();
-      }));
-    }));
+    await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          globalThis.__mailLock = navigator.locks.request(
+            'aiao-desktop-data-write',
+            () =>
+              new Promise(release => {
+                globalThis.__releaseMailLock = release;
+                resolve();
+              })
+          );
+        })
+    );
     await panel().getByRole('button', { name: 'Save Draft', exact: true }).click();
     await expect(panel().getByRole('status')).toHaveText('Saving draft…');
     await expect(field('Message')).toBeDisabled();
@@ -130,7 +140,9 @@ export const localMail = {
     await expect(win()).not.toHaveClass(/closing/);
     await page.evaluate(() => globalThis.__releaseMailLock());
     await expect(win()).toHaveCount(0);
-    expect(await rows(`SELECT body FROM "${TABLE}" WHERE id = ?`, [id])).toEqual([['Edited saved draft\nPreserved newline']]);
+    expect(await rows(`SELECT body FROM "${TABLE}" WHERE id = ?`, [id])).toEqual([
+      ['Edited saved draft\nPreserved newline']
+    ]);
     result.pendingSaveBlocksClose = true;
     await session.reloadDesktop(page, { finder: false });
     await open();
@@ -233,7 +245,9 @@ export const localMail = {
     expect((await field('Message').inputValue()).replace(/\/\d+px-/, '/')).toBe(url.replace(/\/\d+px-/, '/'));
     await panel().getByRole('button', { name: 'Discard Changes', exact: true }).click();
     result.sharedContentDrafts = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(true);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      true
+    );
     await helpers.closeAll();
     return { localMail: result };
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { MailDraftEditor, MailDraftSnapshot, MailDraftWrite, MailDraftError } from './mail-draft';
+import { MailDraftEditor, MailDraftError, MailDraftSnapshot, MailDraftWrite } from './mail-draft';
 
 const content = { to: 'person@example.invalid', subject: 'Local draft', body: 'Keep this 🌏\nSecond line' };
 const stored: MailDraftSnapshot = { ...content, id: '00000000-0000-4000-8000-000000000007' };
@@ -13,7 +13,10 @@ function setup() {
 function deferred() {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 
@@ -60,7 +63,9 @@ describe('MailDraftEditor', () => {
     expect(editor.value()).toMatchObject(content);
     await Promise.resolve();
     let settled = false;
-    const pending = editor.settle().then(result => { settled = result; });
+    const pending = editor.settle().then(result => {
+      settled = result;
+    });
     expect(settled).toBe(false);
     wait.resolve();
     await pending;

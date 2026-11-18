@@ -35,9 +35,18 @@ export const reminderDrafts = {
       await expect(window().locator('[data-ri]').first()).toBeVisible();
     };
     const add = async text => {
-      const before = new Set(await window().locator('[data-draft-id]').evaluateAll(rows => rows.map(row => row.dataset.draftId)));
+      const before = new Set(
+        await window()
+          .locator('[data-draft-id]')
+          .evaluateAll(rows => rows.map(row => row.dataset.draftId))
+      );
       await window().getByRole('button', { name: 'New Reminder', exact: true }).click();
-      const newIds = async () => (await window().locator('[data-draft-id]').evaluateAll(rows => rows.map(row => row.dataset.draftId))).filter(id => !before.has(id));
+      const newIds = async () =>
+        (
+          await window()
+            .locator('[data-draft-id]')
+            .evaluateAll(rows => rows.map(row => row.dataset.draftId))
+        ).filter(id => !before.has(id));
       await expect.poll(newIds).toHaveLength(1);
       const [id] = await newIds();
       await expect(draft(id).getByRole('textbox')).toBeFocused();
@@ -72,7 +81,9 @@ export const reminderDrafts = {
     result.failedCloseAndRestartKeepDraft = true;
     const axe = await new AxeBuilder({ page }).include('.win[data-app="reminders"]').analyze();
     result.noViolations = axe.violations;
-    await expect(draft(id).getByRole('alert')).toContainText('Local storage could not complete this change. Try again.');
+    await expect(draft(id).getByRole('alert')).toContainText(
+      'Local storage could not complete this change. Try again.'
+    );
     await expect(draft(id).getByRole('alert')).not.toContainText('desktop$reminder');
     await page.screenshot({ path: '/tmp/aiao-reminder-failure.png' });
     await sql('DROP TRIGGER fail_reminder_insert');

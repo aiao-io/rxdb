@@ -2935,7 +2935,9 @@ describe('扩展安装与卸载的工作台集成', () => {
 describe('桌面文件复制菜单', () => {
   it.each([false, true])('嵌入项目恢复只在文档已经获得焦点时聚焦编辑器：%s', async focused => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(focused);
-    const { handle, editorHandle } = fixture(true, undefined, undefined, [], files, undefined, null, undefined, { embedded: true });
+    const { handle, editorHandle } = fixture(true, undefined, undefined, [], files, undefined, null, undefined, {
+      embedded: true
+    });
     await handle.ready;
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));

@@ -91,7 +91,6 @@ export const listOf = (row: ListRecord): CalendarList => ({
   on: row.visible
 });
 
-
 /** 并发或删除造成的编辑冲突，只显示用户可理解的原因。 */
 export class CalendarChangeError extends Error {
   constructor(kind: 'conflict' | 'missing' | 'calendar') {
@@ -105,5 +104,10 @@ export class CalendarChangeError extends Error {
 }
 
 export const sameCalendarEvent = (a: CalendarEventDraft, b: CalendarEventDraft): boolean =>
-  a.d.join() === b.d.join() && a.t === b.t && a.s === b.s && a.dur === b.dur &&
-  a.cal === b.cal && a.loc === b.loc && a.notes === b.notes;
+  a.d.join() === b.d.join() &&
+  a.t === b.t &&
+  a.s === b.s &&
+  a.dur === b.dur &&
+  a.cal === b.cal &&
+  a.loc === b.loc &&
+  a.notes === b.notes;

@@ -5,14 +5,20 @@ import { LocalMessage, MessageDrafts, MessageSaveError } from './message-drafts'
 function setup() {
   const write = vi.fn<(message: LocalMessage) => Promise<void>>(async () => undefined);
   let index = 0;
-  const drafts = new MessageDrafts(write, () => `00000000-0000-4000-8000-${String(++index).padStart(12, '0')}` as const);
+  const drafts = new MessageDrafts(
+    write,
+    () => `00000000-0000-4000-8000-${String(++index).padStart(12, '0')}` as const
+  );
   return { drafts, write };
 }
 
 function deferred() {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 
@@ -36,11 +42,16 @@ describe('MessageDrafts', () => {
     const id = drafts.get('A')?.id;
     write.mockRejectedValueOnce('INSERT INTO desktop$chat_message failed');
     expect(await drafts.save('A')).toBe(false);
-    expect(drafts.get('A')).toMatchObject({ id, text: 'original', saving: false,
-      error: 'Local storage could not complete this change. Try again.' });
+    expect(drafts.get('A')).toMatchObject({
+      id,
+      text: 'original',
+      saving: false,
+      error: 'Local storage could not complete this change. Try again.'
+    });
     expect(await drafts.save('A')).toBe(true);
     expect(write.mock.calls).toEqual([
-      [{ id, threadId: 'A', text: 'original' }], [{ id, threadId: 'A', text: 'original' }]
+      [{ id, threadId: 'A', text: 'original' }],
+      [{ id, threadId: 'A', text: 'original' }]
     ]);
     expect(drafts.dirty()).toBe(false);
   });
@@ -58,7 +69,9 @@ describe('MessageDrafts', () => {
     expect(drafts.pending()).toBe(true);
     await Promise.resolve();
     let settled = false;
-    const close = drafts.settle().then(result => { settled = result; });
+    const close = drafts.settle().then(result => {
+      settled = result;
+    });
     expect(settled).toBe(false);
     wait.resolve();
     await close;

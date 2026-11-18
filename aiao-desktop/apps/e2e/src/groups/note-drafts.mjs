@@ -60,7 +60,9 @@ export const noteDrafts = {
     await expect(win().getByRole('status')).toHaveText('Unsaved changes');
     expect(await rows(`SELECT body FROM "${TABLE}" WHERE id = ?`, [initialId])).not.toEqual([[failedBody]]);
     result.failedWriteKeepsContent = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(false);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      false
+    );
     result.beforeUnloadGuard = true;
     await win().locator('.nt-i:not(.on)').first().click();
     await expect(win().getByRole('alert')).toBeVisible();
@@ -97,12 +99,19 @@ export const noteDrafts = {
     await expect(doc()).toHaveJSProperty('innerHTML', failedBody);
     result.retryAndPersistence = true;
 
-    await page.evaluate(() => new Promise(resolve => {
-      globalThis.__noteLock = navigator.locks.request('aiao-desktop-data-write', () => new Promise(release => {
-        globalThis.__releaseNoteLock = release;
-        resolve();
-      }));
-    }));
+    await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          globalThis.__noteLock = navigator.locks.request(
+            'aiao-desktop-data-write',
+            () =>
+              new Promise(release => {
+                globalThis.__releaseNoteLock = release;
+                resolve();
+              })
+          );
+        })
+    );
     await doc().fill('pending-note first');
     await expect(win().getByRole('status')).toHaveText('Saving…');
     await doc().fill('pending-note newest');
@@ -178,7 +187,9 @@ export const noteDrafts = {
     await expect(win().getByRole('alert')).toHaveCount(0);
     expect(await rows(`SELECT id FROM "${TABLE}" WHERE id = ?`, [copyId])).toEqual([]);
     result.deletedNoteAndDiscard = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(true);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      true
+    );
     await helpers.closeAll();
     return { noteDrafts: result };
   }

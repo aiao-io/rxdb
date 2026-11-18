@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { DRAFTS_MAILBOX, FLAGGED_MAILBOX, SENT_MAILBOX, counterpartOf, mailMatches, mailsIn, partyOf } from './mail-model';
+import {
+  DRAFTS_MAILBOX,
+  FLAGGED_MAILBOX,
+  SENT_MAILBOX,
+  counterpartOf,
+  mailMatches,
+  mailsIn,
+  partyOf
+} from './mail-model';
 
 const mail = (id: string, mailbox: string, flagged = false) => ({ id, mailbox, flagged });
 
@@ -50,11 +58,11 @@ describe('counterpartOf', () => {
   });
 });
 
-
 describe('本地草稿和搜索', () => {
   it('草稿以收件人为对象；本地保存不会认作发给自己', () => {
-    expect(partyOf({ mailbox: DRAFTS_MAILBOX, sender: 'Me', recipient: 'reader@example.invalid' }))
-      .toBe('reader@example.invalid');
+    expect(partyOf({ mailbox: DRAFTS_MAILBOX, sender: 'Me', recipient: 'reader@example.invalid' })).toBe(
+      'reader@example.invalid'
+    );
   });
   it('关键词匹配发件人、收件人、主题和正文，不区分大小写', () => {
     const item = { sender: 'Alice', recipient: 'Bob', subject: 'Local', body: 'Body 🌏' };

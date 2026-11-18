@@ -4,14 +4,14 @@
 
 ## 确认仍需开发
 
-| 范围 | 当前缺口 | 代码依据 | 执行项 |
-| --- | --- | --- | --- |
-| 天气的真实失败与旧读数 | 请求失败仍返回固定温度、小时和七日预报；界面将其标成上次读数。缺少完整响应校验、刷新/重试、读数时间与陈旧状态、城市切换防串数据 | `apps/web/src/app/services/weather-store.ts`、`apps/web/src/app/apps/weather/weather.html`、`apps/web/src/app/components/widgets/widgets.ts` | A05 |
-| 壁纸离线 | 六张壁纸及缩略图仍请求 Unsplash，未随构建分发，也没有断网后首次逐张切换的验收 | `apps/web/src/app/services/wallpaper.ts`、`apps/web/ngsw-config.json` | A05 |
-| 地图失败恢复 | 瓦片失败提示把资源不可用说成无网络；搜索没有完整响应校验与显式重试 | `apps/web/src/app/apps/maps/maps.ts`、`maps.html` | A05 |
-| Aiao Code 文件协作 | 已有 Orbit 握手与窗口接入，工作台仍维护独立 OPFS 项目；桌面磁盘与工作台之间缺少可见的复制导入/导出闭环 | 仓库根 `apps/aiao-vscode/src/app/orbit-embedding.ts`、`src/workbench/mount.ts`；`packages/orbit/src/desktop.ts` | A05 |
-| Aiao Code 必要宿主能力 | 目录选择和 OAuth 直接使用浏览器 API，嵌入权限与存储分区下的成功/失败语义尚未闭环；真实账户授权不能靠自动测试虚构 | 仓库根 `apps/aiao-vscode/src/workbench/git/github/github-login.ts`、`packages/orbit/src/frame.ts` | A05 |
-| 帮助、数据与能力说明 | 仍需把本站数据、远程应用数据、备份/清理范围、权限失败和快捷键替代路径整合成用户可达的说明入口 | [候选方向](../future-requirements.md)、[总计划 A06](2026-11-17-autonomous-completion.md) | A06 |
+| 范围                   | 当前缺口                                                                                                                        | 代码依据                                                                                                                                     | 执行项 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 天气的真实失败与旧读数 | 请求失败仍返回固定温度、小时和七日预报；界面将其标成上次读数。缺少完整响应校验、刷新/重试、读数时间与陈旧状态、城市切换防串数据 | `apps/web/src/app/services/weather-store.ts`、`apps/web/src/app/apps/weather/weather.html`、`apps/web/src/app/components/widgets/widgets.ts` | A05    |
+| 壁纸离线               | 六张壁纸及缩略图仍请求 Unsplash，未随构建分发，也没有断网后首次逐张切换的验收                                                   | `apps/web/src/app/services/wallpaper.ts`、`apps/web/ngsw-config.json`                                                                        | A05    |
+| 地图失败恢复           | 瓦片失败提示把资源不可用说成无网络；搜索没有完整响应校验与显式重试                                                              | `apps/web/src/app/apps/maps/maps.ts`、`maps.html`                                                                                            | A05    |
+| Aiao Code 文件协作     | 已有 Orbit 握手与窗口接入，工作台仍维护独立 OPFS 项目；桌面磁盘与工作台之间缺少可见的复制导入/导出闭环                          | 仓库根 `apps/aiao-vscode/src/app/orbit-embedding.ts`、`src/workbench/mount.ts`；`packages/orbit/src/desktop.ts`                              | A05    |
+| Aiao Code 必要宿主能力 | 目录选择和 OAuth 直接使用浏览器 API，嵌入权限与存储分区下的成功/失败语义尚未闭环；真实账户授权不能靠自动测试虚构                | 仓库根 `apps/aiao-vscode/src/workbench/git/github/github-login.ts`、`packages/orbit/src/frame.ts`                                            | A05    |
+| 帮助、数据与能力说明   | 仍需把本站数据、远程应用数据、备份/清理范围、权限失败和快捷键替代路径整合成用户可达的说明入口                                   | [候选方向](../future-requirements.md)、[总计划 A06](2026-11-17-autonomous-completion.md)                                                     | A06    |
 
 A06 还需逐应用检查主要任务和失败路径；未经核对的界面不能直接判成未开发，也不能仅凭能打开应用认定完整可用。
 

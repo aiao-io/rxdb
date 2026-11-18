@@ -13,8 +13,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { DesktopData } from '../../data/desktop-data';
-import { localWriteFailureMessage } from '../../data/local-write-error';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
+import { localWriteFailureMessage } from '../../data/local-write-error';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { SystemState } from '../../services/system-state';
@@ -56,7 +56,15 @@ interface PenStroke extends Stroke {
             </button>
           }
         </div>
-        <button class="tbtn" [disabled]="busy() || inking()" (click)="clear()" data-clear data-nodrag title="Clear" aria-label="Clear board">
+        <button
+          class="tbtn"
+          [disabled]="busy() || inking()"
+          (click)="clear()"
+          aria-label="Clear board"
+          data-clear
+          data-nodrag
+          title="Clear"
+        >
           <svg appIcon="g-x"></svg>
         </button>
       </div>
@@ -84,9 +92,15 @@ interface PenStroke extends Stroke {
         Drag to draw
       </div>
       @if (failure(); as problem) {
-        <div role="alert" data-fferror style="position: relative; z-index: 1; padding: 5px 10px; color: var(--red); font-size: 12px; pointer-events: auto">
+        <div
+          data-fferror
+          role="alert"
+          style="position: relative; z-index: 1; padding: 5px 10px; color: var(--red); font-size: 12px; pointer-events: auto"
+        >
           <span>{{ problem }}</span>
-          <button class="btn" type="button" [disabled]="busy()" (click)="retry()" data-retry style="margin-left: 8px">Retry</button>
+          <button class="btn" [disabled]="busy()" (click)="retry()" data-retry style="margin-left: 8px" type="button">
+            Retry
+          </button>
         </div>
       }
     </div>
@@ -123,7 +137,11 @@ export class FreeformApp {
   /** 提示语在有笔迹（或正落笔）时淡出，清空后再回来；库读到之前先藏着。 */
   protected readonly hint = computed<'0' | '1'>(() => {
     const saved = this.saved();
-    return saved === null || saved.length > 0 || this.settling().length > 0 || this.failed().length > 0 || this.inking() ? '0' : '1';
+    return (
+        saved === null || saved.length > 0 || this.settling().length > 0 || this.failed().length > 0 || this.inking()
+      ) ?
+        '0'
+      : '1';
   });
   protected readonly failure = computed(() => this.actionError());
 
@@ -178,16 +196,18 @@ export class FreeformApp {
       return;
     }
     this.busy.set(true);
-    void this.erase(strokes).then(
-      () => {
-        this.settling.set([]);
-        this.failed.set([]);
-      },
-      error => {
-        this.clearFailed.set(true);
-        this.actionError.set(localWriteFailureMessage(error));
-      }
-    ).finally(() => this.busy.set(false));
+    void this.erase(strokes)
+      .then(
+        () => {
+          this.settling.set([]);
+          this.failed.set([]);
+        },
+        error => {
+          this.clearFailed.set(true);
+          this.actionError.set(localWriteFailureMessage(error));
+        }
+      )
+      .finally(() => this.busy.set(false));
   }
 
   protected retry(): void {
@@ -253,7 +273,7 @@ export class FreeformApp {
       this.actionError.set('');
     } catch (error) {
       this.settling.update(list => list.filter(item => item.id !== ink.id));
-      this.failed.update(list => list.some(item => item.id === ink.id) ? list : [...list, ink]);
+      this.failed.update(list => (list.some(item => item.id === ink.id) ? list : [...list, ink]));
       this.actionError.set(localWriteFailureMessage(error));
     }
   }

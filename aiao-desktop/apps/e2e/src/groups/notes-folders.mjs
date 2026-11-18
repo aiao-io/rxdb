@@ -38,13 +38,15 @@ export const notesFolders = {
     await dialog.locator('[data-folder-create]').click();
     await expect(dialog).toBeHidden();
     await expect(window.locator('[data-folder="Projects"]')).toBeVisible();
-    result.folderPersists = JSON.stringify(await rows(`SELECT name FROM "${FOLDER_TABLE}" WHERE name = ?`, ['Projects'])) ===
+    result.folderPersists =
+      JSON.stringify(await rows(`SELECT name FROM "${FOLDER_TABLE}" WHERE name = ?`, ['Projects'])) ===
       JSON.stringify([['Projects']]);
 
     await window.locator('[data-folder="Projects"]').click();
     await window.locator('[data-new]').click();
     await expect(window.locator('[data-id]').filter({ hasText: 'New Note' })).toHaveCount(1);
-    result.noteUsesFolder = JSON.stringify(await rows(`SELECT folder FROM "${NOTE_TABLE}" WHERE title = ?`, ['New Note'])) ===
+    result.noteUsesFolder =
+      JSON.stringify(await rows(`SELECT folder FROM "${NOTE_TABLE}" WHERE title = ?`, ['New Note'])) ===
       JSON.stringify([['Projects']]);
 
     await window.locator('[data-new-folder]').click();

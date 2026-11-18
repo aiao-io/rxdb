@@ -78,7 +78,9 @@
           ></button>
         }
       </div>
-      <button class="tbtn" (click)="newEvent()" data-new data-nodrag aria-label="New Event" title="New Event"><svg appIcon="g-plus"></svg></button>
+      <button class="tbtn" (click)="newEvent()" aria-label="New Event" data-new data-nodrag title="New Event">
+        <svg appIcon="g-plus"></svg>
+      </button>
     </div>
     <div class="cal-dows" data-dows>
       @switch (view()) {

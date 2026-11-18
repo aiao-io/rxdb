@@ -48,9 +48,17 @@ export class MessagesApp {
     const chats = this.store.chats();
     const ids = new Set(chats.map(chat => chat.id));
     const missing = this.drafts.rows().filter(draft => !ids.has(draft.threadId));
-    return [...chats, ...missing.map(draft => ({
-      id: draft.threadId, name: 'Unavailable conversation', color: '#626267', time: '', group: false, messages: []
-    }))];
+    return [
+      ...chats,
+      ...missing.map(draft => ({
+        id: draft.threadId,
+        name: 'Unavailable conversation',
+        color: '#626267',
+        time: '',
+        group: false,
+        messages: []
+      }))
+    ];
   });
   protected readonly chat = computed<Chat | undefined>(() => {
     const chats = this.conversations();
@@ -60,10 +68,19 @@ export class MessagesApp {
   protected readonly initial = computed(() => this.chat()?.name[0] ?? '');
   protected readonly rows = computed(() => {
     const query = this.query().toLowerCase();
-    return this.conversations().map((chat, index) => ({
-      chat, index, last: chat.messages.at(-1)?.text ?? '', draft: this.drafts.get(chat.id)?.text ?? ''
-    })).filter(({ chat, draft }) => !query || `${chat.name} ${draft}`.toLowerCase().includes(query) ||
-      chat.messages.some(message => message.text.toLowerCase().includes(query)));
+    return this.conversations()
+      .map((chat, index) => ({
+        chat,
+        index,
+        last: chat.messages.at(-1)?.text ?? '',
+        draft: this.drafts.get(chat.id)?.text ?? ''
+      }))
+      .filter(
+        ({ chat, draft }) =>
+          !query ||
+          `${chat.name} ${draft}`.toLowerCase().includes(query) ||
+          chat.messages.some(message => message.text.toLowerCase().includes(query))
+      );
   });
   protected readonly thread = computed(() => {
     const messages = this.chat()?.messages ?? [];
@@ -137,14 +154,20 @@ export class MessagesApp {
     if (this.win.closePending()) return Promise.resolve();
     this.creating.set(true);
     this.error.set('');
-    this.creation = this.store.create().then(id => {
-      this.query.set('');
-      this.selectedId.set(id);
-      this.field().nativeElement.focus();
-    }, error => this.error.set(localWriteFailureMessage(error))).finally(() => {
-      this.creating.set(false);
-      this.creation = null;
-    });
+    this.creation = this.store
+      .create()
+      .then(
+        id => {
+          this.query.set('');
+          this.selectedId.set(id);
+          this.field().nativeElement.focus();
+        },
+        error => this.error.set(localWriteFailureMessage(error))
+      )
+      .finally(() => {
+        this.creating.set(false);
+        this.creation = null;
+      });
     return this.creation;
   }
 
@@ -152,20 +175,33 @@ export class MessagesApp {
     const chat = this.chat();
     if (!chat) return;
     const bounds = anchor.getBoundingClientRect();
-    this.popover.openComponent(MessagesDetails, {
-      x: bounds.left, y: bounds.bottom + 6, origin: 'top left', focus: true,
-      onClose: reason => { if (RETURNS_FOCUS.has(reason)) anchor.focus(); }
-    }, { chat });
+    this.popover.openComponent(
+      MessagesDetails,
+      {
+        x: bounds.left,
+        y: bounds.bottom + 6,
+        origin: 'top left',
+        focus: true,
+        onClose: reason => {
+          if (RETURNS_FOCUS.has(reason)) anchor.focus();
+        }
+      },
+      { chat }
+    );
   }
 
   protected attach(anchor: HTMLElement): void {
-    this.popover.menuUnder(anchor, [
-      { id: 'p', label: 'Open Photos', icon: 'g-gallery', run: () => this.wm.open('photos') },
-      { id: 's', label: 'Insert 👍', icon: 'g-star', run: () => this.insert('👍') },
-      { id: 'a', label: 'Open Voice Memos', icon: 'g-vol-hi', run: () => this.wm.open('voice') },
-      '-',
-      { id: 'f', label: 'File sending unavailable', disabled: true }
-    ], { keyboard: true, label: 'Local conversation actions' });
+    this.popover.menuUnder(
+      anchor,
+      [
+        { id: 'p', label: 'Open Photos', icon: 'g-gallery', run: () => this.wm.open('photos') },
+        { id: 's', label: 'Insert 👍', icon: 'g-star', run: () => this.insert('👍') },
+        { id: 'a', label: 'Open Voice Memos', icon: 'g-vol-hi', run: () => this.wm.open('voice') },
+        '-',
+        { id: 'f', label: 'File sending unavailable', disabled: true }
+      ],
+      { keyboard: true, label: 'Local conversation actions' }
+    );
   }
 
   private async confirmClose(): Promise<boolean> {

@@ -23,10 +23,20 @@ export const notesActions = {
     await expect(note).toHaveCount(1);
     await note.click();
     await window.locator('[data-pin]').click();
-    result.pinPersists = (await surgery(session, db => db.shell.rows(`SELECT pinned FROM "${TABLE}" WHERE title = ?`, ['Window shadow recipe'])))?.[0]?.[0] === 1;
+    result.pinPersists =
+      (
+        await surgery(session, db =>
+          db.shell.rows(`SELECT pinned FROM "${TABLE}" WHERE title = ?`, ['Window shadow recipe'])
+        )
+      )?.[0]?.[0] === 1;
     await expect(rows().filter({ hasText: 'Window shadow recipe' })).toHaveCount(1);
     await window.locator('[data-pin]').click();
-    result.unpinPersists = (await surgery(session, db => db.shell.rows(`SELECT pinned FROM "${TABLE}" WHERE title = ?`, ['Window shadow recipe'])))?.[0]?.[0] === 0;
+    result.unpinPersists =
+      (
+        await surgery(session, db =>
+          db.shell.rows(`SELECT pinned FROM "${TABLE}" WHERE title = ?`, ['Window shadow recipe'])
+        )
+      )?.[0]?.[0] === 0;
     await closeAll();
     return { notesActions: result };
   }

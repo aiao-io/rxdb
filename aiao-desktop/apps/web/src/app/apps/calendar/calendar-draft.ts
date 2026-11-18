@@ -36,14 +36,26 @@ export function parseCalendarInput(value: CalendarInput): CalendarEventDraft {
   if (!value.allDay && end === null) throw new CalendarInputError('Enter a valid end time, such as 10:30 AM.');
   if (s !== null && end !== null && end <= s)
     throw new CalendarInputError('The end time must be after the start on the same day.');
-  return { d, t, s, dur: s !== null && end !== null ? end - s : 0, cal: value.calendar,
-    loc: value.location.trim(), notes: value.notes };
+  return {
+    d,
+    t,
+    s,
+    dur: s !== null && end !== null ? end - s : 0,
+    cal: value.calendar,
+    loc: value.location.trim(),
+    notes: value.notes
+  };
 }
 
 const inputOf = (draft: CalendarEventDraft): CalendarInput => ({
-  title: draft.t, location: draft.loc, notes: draft.notes, date: dateLabel(draft.d),
-  from: clockLabel(draft.s ?? 540), to: clockLabel((draft.s ?? 540) + (draft.dur || 60)),
-  allDay: draft.s === null, calendar: draft.cal
+  title: draft.t,
+  location: draft.loc,
+  notes: draft.notes,
+  date: dateLabel(draft.d),
+  from: clockLabel(draft.s ?? 540),
+  to: clockLabel((draft.s ?? 540) + (draft.dur || 60)),
+  allDay: draft.s === null,
+  calendar: draft.cal
 });
 
 /** 原始输入独立于面板存在；保存与删除期间冻结输入，只有明确放弃才丢弃草稿。 */
@@ -62,7 +74,9 @@ export class CalendarDraftEditor {
   readonly id = this.identity.asReadonly();
   readonly saving = this.working.asReadonly();
   readonly error = this.failure.asReadonly();
-  readonly dirty = computed(() => this.value() !== null && JSON.stringify(this.value()) !== JSON.stringify(this.initial()));
+  readonly dirty = computed(
+    () => this.value() !== null && JSON.stringify(this.value()) !== JSON.stringify(this.initial())
+  );
 
   constructor(
     private readonly write: (change: CalendarDraftWrite) => Promise<void>,
@@ -76,14 +90,14 @@ export class CalendarDraftEditor {
     this.state.set(value);
     this.initial.set(value);
     this.original.set(base);
-    this.identity.set(base ? base.id as CalendarEventRow['id'] : this.createId());
+    this.identity.set(base ? (base.id as CalendarEventRow['id']) : this.createId());
     this.failure.set('');
     return true;
   }
 
   edit(fields: Partial<CalendarInput>): void {
     if (this.disposed || this.saving()) return;
-    this.state.update(value => value ? { ...value, ...fields } : null);
+    this.state.update(value => (value ? { ...value, ...fields } : null));
     if (!this.failure()) return;
     const value = this.value();
     if (!value) {
@@ -149,14 +163,24 @@ export class CalendarDraftEditor {
   private run(work: () => Promise<void>): Promise<boolean> {
     this.working.set(true);
     this.failure.set('');
-    this.pending = Promise.resolve().then(work).then(() => !this.disposed, error => {
-      if (!this.disposed) this.failure.set(error instanceof CalendarInputError || error instanceof CalendarChangeError
-        ? error.message : localWriteFailureMessage(error));
-      return false;
-    }).finally(() => {
-      this.working.set(false);
-      this.pending = null;
-    });
+    this.pending = Promise.resolve()
+      .then(work)
+      .then(
+        () => !this.disposed,
+        error => {
+          if (!this.disposed)
+            this.failure.set(
+              error instanceof CalendarInputError || error instanceof CalendarChangeError ?
+                error.message
+              : localWriteFailureMessage(error)
+            );
+          return false;
+        }
+      )
+      .finally(() => {
+        this.working.set(false);
+        this.pending = null;
+      });
     return this.pending;
   }
 

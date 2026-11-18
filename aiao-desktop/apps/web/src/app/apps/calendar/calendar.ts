@@ -19,8 +19,8 @@ import { Toast } from '../../services/toast';
 import { DAYS, DAYS3, MONS, MONS3, clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { CalendarEventEditor } from './calendar-event-editor';
 import { CalendarDraftEditor } from './calendar-draft';
+import { CalendarEventEditor } from './calendar-event-editor';
 import {
   CalendarView,
   EventDate,

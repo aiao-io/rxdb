@@ -6,12 +6,12 @@
       @for (item of boxes(); track item.name) {
         <button
           class="si"
-          type="button"
           [attr.aria-pressed]="item.name === box()"
           [attr.data-box]="item.name"
           [class.on]="item.name === box()"
           (click)="openBox(item.name)"
           tabindex="0"
+          type="button"
         >
           <svg class="ico" [appIcon]="item.icon"></svg>
           <span class="nm">{{ mailboxLabel(item.name) }}</span>
@@ -24,10 +24,28 @@
   </div>
   <div class="fx">
     <div class="fx-tb" data-drag>
-      <button class="tbtn" tabindex="0" aria-label="New Mail Draft" (click)="compose()" data-mcompose data-nodrag title="New Mail Draft">
+      <button
+        class="tbtn"
+        (click)="compose()"
+        aria-label="New Mail Draft"
+        data-mcompose
+        data-nodrag
+        tabindex="0"
+        title="New Mail Draft"
+      >
         <svg appIcon="g-plus"></svg>
       </button>
-      <button class="tbtn" tabindex="0" [disabled]="savingFlag() || !current()" [attr.aria-pressed]="current()?.flagged ?? false" aria-label="Flag" (click)="toggleFlag()" data-mflag data-nodrag title="Flag">
+      <button
+        class="tbtn"
+        [attr.aria-pressed]="current()?.flagged ?? false"
+        [disabled]="savingFlag() || !current()"
+        (click)="toggleFlag()"
+        aria-label="Flag"
+        data-mflag
+        data-nodrag
+        tabindex="0"
+        title="Flag"
+      >
         <svg appIcon="g-tag"></svg>
       </button>
       <button
@@ -46,19 +64,27 @@
       <div class="grow" style="flex: 1"></div>
       <div class="sfield" data-nodrag style="width: 170px">
         <span><svg appIcon="g-search"></svg></span>
-        <input #search aria-label="Search mail" [value]="query()" (input)="query.set(search.value); selection.set(0)" placeholder="Search" />
+        <input
+          #search
+          [value]="query()"
+          (input)="query.set(search.value); selection.set(0)"
+          aria-label="Search mail"
+          placeholder="Search"
+        />
       </div>
     </div>
     <div style="padding: 8px 14px; background: var(--win); color: var(--txt); font-size: 12px">
       Local mail, including sample messages. No email service is connected; nothing is sent or received.
       @if (composer.editor.dirty() || composer.editor.saving()) {
-        <div style="margin-top: 6px" role="status">
+        <div role="status" style="margin-top: 6px">
           {{ composer.editor.saving() ? 'Saving draft…' : 'Unsaved mail draft' }}
-          <button class="btn" tabindex="0" data-resume-mail (click)="composer.resume()">Resume Draft</button>
+          <button class="btn" (click)="composer.resume()" data-resume-mail tabindex="0">Resume Draft</button>
         </div>
       }
     </div>
-    @if (error()) { <p role="alert" style="padding: 8px 14px; background: var(--win); color: var(--txt)">{{ error() }}</p> }
+    @if (error()) {
+      <p role="alert" style="padding: 8px 14px; background: var(--win); color: var(--txt)">{{ error() }}</p>
+    }
     @if (actions.error()) {
       <p
         data-content-error
@@ -73,16 +99,16 @@
         @for (mail of list(); track mail.id; let i = $index) {
           <button
             class="msg-c"
-            type="button"
-            [attr.data-mail-id]="mail.id"
             [attr.aria-pressed]="mail.id === current()?.id"
-            style="width: 100%; border: 0; text-align: left"
+            [attr.data-mail-id]="mail.id"
             [attr.data-mi]="i"
             [class.on]="i === selection()"
             (click)="select(i)"
+            style="width: 100%; border: 0; text-align: left"
             tabindex="0"
+            type="button"
           >
-            <span aria-hidden="true" class="av" [style.background]="mail.color">{{ party(mail)[0] }}</span>
+            <span class="av" [style.background]="mail.color" aria-hidden="true">{{ party(mail)[0] }}</span>
             <span class="bd">
               <b>
                 @if (mail.unread) {
@@ -102,9 +128,9 @@
           <div style="padding: 24px 30px; max-width: 640px">
             <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 18px">
               <span
-                aria-hidden="true"
                 class="av"
                 [style.background]="mail.color"
+                aria-hidden="true"
                 style="
                   width: 42px;
                   height: 42px;
@@ -128,9 +154,19 @@
             <h2 style="margin: 0 0 14px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em">
               {{ mail.subject }}
             </h2>
-            <p style="font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--txt)">{{ mail.body }}</p>
+            <p
+              style="
+                font-size: 13.5px;
+                line-height: 1.6;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                color: var(--txt);
+              "
+            >
+              {{ mail.body }}
+            </p>
             @if (mail.mailbox === draftsMailbox) {
-              <button class="btn" tabindex="0" (click)="composer.edit(mail)">Edit Draft</button>
+              <button class="btn" (click)="composer.edit(mail)" tabindex="0">Edit Draft</button>
             }
             <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt-2)">
               Stored in this browser. This record does not confirm email delivery.

@@ -5,7 +5,14 @@
       <div class="top">
         <div class="sfield" data-nodrag>
           <span><svg appIcon="g-search"></svg></span>
-          <input #search data-stq aria-label="Search settings" placeholder="Search" [value]="query()" (input)="query.set(search.value)" />
+          <input
+            #search
+            [value]="query()"
+            (input)="query.set(search.value)"
+            aria-label="Search settings"
+            data-stq
+            placeholder="Search"
+          />
         </div>
       </div>
       <div class="st-scroll">
@@ -39,7 +46,9 @@
           }
         }
         @if (!visibleGroups().length) {
-          <div data-settings-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">No matching settings</div>
+          <div data-settings-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">
+            No matching settings
+          </div>
         }
       </div>
     </div>

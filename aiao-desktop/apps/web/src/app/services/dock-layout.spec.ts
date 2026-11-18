@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import { ApprovedRelease } from '../data/approved-catalog';
-import { ApplicationRegistry } from './application-registry';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
@@ -11,6 +10,7 @@ import { TabSync } from '../data/tab-sync';
 import { configureServices } from '../testing/angular';
 import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { FakeChannelHub } from '../testing/fake-tab-sync';
+import { ApplicationRegistry } from './application-registry';
 import { DESKTOP_APPS } from './desktop-apps';
 import { DOCK_LAYOUT_KEY, DockLayoutStore } from './dock-layout';
 import { DockLayout, defaultLayout } from './dock-layout-model';
@@ -346,7 +346,17 @@ describe('DockLayoutStore 多标签页（ADESK-US-105）', () => {
 it('卸载可选应用同步清除固定记录，重新安装不会复活旧固定项', async () => {
   const { store, preferences, table } = setup();
   const registry = TestBed.inject(ApplicationRegistry);
-  const release: ApprovedRelease = { id: 'catalog:editor', name: 'Approved Editor', bundleId: 'io.example.editor', version: '1.0.0', url: 'https://apps.example/releases/1.0.0/', summary: 'Edit.', capabilities: [], allow: [], readyTimeout: 10000 };
+  const release: ApprovedRelease = {
+    id: 'catalog:editor',
+    name: 'Approved Editor',
+    bundleId: 'io.example.editor',
+    version: '1.0.0',
+    url: 'https://apps.example/releases/1.0.0/',
+    summary: 'Edit.',
+    capabilities: [],
+    allow: [],
+    readyTimeout: 10000
+  };
   registry.replace([release]);
   await preferences.ready;
   await settle();

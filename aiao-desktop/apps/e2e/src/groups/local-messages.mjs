@@ -22,11 +22,13 @@ const contrast = element => {
   };
   const ink = luminance(style.color);
   const colors = style.backgroundImage.match(/rgba?\([^)]*\)/g) ?? [style.backgroundColor];
-  return Math.min(...colors.map(color => {
-    const surface = luminance(color);
-    if (ink === null || surface === null) return 0;
-    return (Math.max(ink, surface) + 0.05) / (Math.min(ink, surface) + 0.05);
-  }));
+  return Math.min(
+    ...colors.map(color => {
+      const surface = luminance(color);
+      if (ink === null || surface === null) return 0;
+      return (Math.max(ink, surface) + 0.05) / (Math.min(ink, surface) + 0.05);
+    })
+  );
 };
 
 export const localMessages = {
@@ -77,10 +79,15 @@ export const localMessages = {
     await expect(dialog).toHaveCount(0);
     await expect(details).toBeFocused();
     await win().getByRole('button', { name: 'Local conversation actions' }).click();
-    await expect(page.getByRole('menuitem', { name: 'File sending unavailable', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('menuitem', { name: 'File sending unavailable', exact: true })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
     await page.keyboard.press('Escape');
     result.localScopeAndDetails = true;
-    const ids = await win().locator('[data-cid]').evaluateAll(elements => elements.map(element => element.dataset.cid));
+    const ids = await win()
+      .locator('[data-cid]')
+      .evaluateAll(elements => elements.map(element => element.dataset.cid));
     const [firstId, secondId] = ids;
     expect(await win().locator('.msg-c.on').evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
     expect(await win().locator('.bub.me').first().evaluate(contrast)).toBeGreaterThanOrEqual(4.5);
@@ -100,7 +107,9 @@ export const localMessages = {
     await win().getByRole('textbox', { name: 'Search conversations' }).fill('');
     await row(firstId).click();
     result.draftsStayWithConversation = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(false);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      false
+    );
     result.beforeUnloadGuard = true;
     await sql(`CREATE TRIGGER fail_local_message BEFORE INSERT ON "${MESSAGES}"
       WHEN NEW.text LIKE 'failed-%' BEGIN SELECT RAISE(ABORT, 'Message storage unavailable'); END`);
@@ -128,19 +137,28 @@ export const localMessages = {
     await page.keyboard.press('Enter');
     await expect(input()).toHaveValue('');
     await expect(win().locator('.bub.me').filter({ hasText: 'failed-first 🌏' })).toHaveCount(1);
-    expect(await rows(`SELECT thread_id, text FROM "${MESSAGES}" WHERE id = ?`, [draftId])).toEqual([[firstId, 'failed-first 🌏']]);
+    expect(await rows(`SELECT thread_id, text FROM "${MESSAGES}" WHERE id = ?`, [draftId])).toEqual([
+      [firstId, 'failed-first 🌏']
+    ]);
     await row(secondId).click();
     await expect(input()).toHaveValue('second-conversation-draft');
     result.retryCreatesOneMessage = true;
     await page.waitForTimeout(1500);
     expect(await rows(`SELECT count(*) FROM "${MESSAGES}"`)).toEqual([[initialCount + 1]]);
     result.noSyntheticReply = true;
-    await page.evaluate(() => new Promise(resolve => {
-      globalThis.__messageLock = navigator.locks.request('aiao-desktop-data-write', () => new Promise(release => {
-        globalThis.__releaseMessageLock = release;
-        resolve();
-      }));
-    }));
+    await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          globalThis.__messageLock = navigator.locks.request(
+            'aiao-desktop-data-write',
+            () =>
+              new Promise(release => {
+                globalThis.__releaseMessageLock = release;
+                resolve();
+              })
+          );
+        })
+    );
     await input().press('Enter');
     await expect(win().getByRole('status')).toHaveText('Saving locally…');
     await expect(input()).toBeDisabled();
@@ -150,7 +168,9 @@ export const localMessages = {
     await expect(win()).not.toHaveClass(/closing/);
     await page.evaluate(() => globalThis.__releaseMessageLock());
     await expect(win()).toHaveCount(0);
-    expect(await rows(`SELECT thread_id FROM "${MESSAGES}" WHERE text = ?`, ['second-conversation-draft'])).toEqual([[secondId]]);
+    expect(await rows(`SELECT thread_id FROM "${MESSAGES}" WHERE text = ?`, ['second-conversation-draft'])).toEqual([
+      [secondId]
+    ]);
     result.pendingSaveBlocksClose = true;
     await open();
     expect(await rows(`SELECT count(*) FROM "${MESSAGES}"`)).toEqual([[initialCount + 2]]);
@@ -187,7 +207,9 @@ export const localMessages = {
     await expect(win().getByRole('alert')).toHaveCount(0);
     expect(await rows(`SELECT text FROM "${MESSAGES}" WHERE text = ?`, ['orphan draft must remain'])).toEqual([]);
     result.explicitDiscard = true;
-    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(true);
+    expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
+      true
+    );
     await helpers.closeAll();
     return { localMessages: result };
   }

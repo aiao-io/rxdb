@@ -19,7 +19,10 @@ function setup() {
 function deferred() {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 
@@ -147,8 +150,11 @@ describe('NoteDocument', () => {
 
 describe('noteFailureMessage', () => {
   it('普通异常和非 Error 值不泄露 SQL；容量不足保留可操作反馈', () => {
-    expect(noteFailureMessage('UPDATE desktop$note secret')).toBe('Local storage could not complete this change. Try again.');
-    expect(noteFailureMessage(new DOMException('full', 'QuotaExceededError')))
-      .toBe('Browser storage is full. Free some space, then retry.');
+    expect(noteFailureMessage('UPDATE desktop$note secret')).toBe(
+      'Local storage could not complete this change. Try again.'
+    );
+    expect(noteFailureMessage(new DOMException('full', 'QuotaExceededError'))).toBe(
+      'Browser storage is full. Free some space, then retry.'
+    );
   });
 });

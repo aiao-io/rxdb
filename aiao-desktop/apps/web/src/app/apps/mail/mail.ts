@@ -51,7 +51,9 @@ export class MailApp {
   protected readonly selection = signal(0);
 
   /** 当前邮箱里的邮件：Flagged 汇集各邮箱里打了旗的，其余邮箱只看放在里面的。 */
-  protected readonly list = computed(() => mailsIn(this.mails(), this.box()).filter(mail => mailMatches(mail, this.query())));
+  protected readonly list = computed(() =>
+    mailsIn(this.mails(), this.box()).filter(mail => mailMatches(mail, this.query()))
+  );
   /** 阅读区显示的邮件；选中项落在列表外（取消旗标后）就退回第一封。 */
   protected readonly current = computed<MailMessage | undefined>(() => this.list()[this.selection()] ?? this.list()[0]);
 
@@ -109,9 +111,16 @@ export class MailApp {
           id: 'r',
           label: 'Reply',
           disabled: !mail,
-          run: () => mail && this.composer.compose(`Re: ${mail.subject}`, counterpartOf(mail), `\n\n${mail.sender}:\n${mail.body}`)
+          run: () =>
+            mail &&
+            this.composer.compose(`Re: ${mail.subject}`, counterpartOf(mail), `\n\n${mail.sender}:\n${mail.body}`)
         },
-        { id: 'f', label: 'Forward', disabled: !mail, run: () => mail && content && this.composer.compose(`Fwd: ${mail.subject}`, '', printableText(content)) },
+        {
+          id: 'f',
+          label: 'Forward',
+          disabled: !mail,
+          run: () => mail && content && this.composer.compose(`Fwd: ${mail.subject}`, '', printableText(content))
+        },
         '-',
         { id: 'c', label: 'Copy Message', disabled, run: () => content && this.actions.copy(printableText(content)) },
         { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }

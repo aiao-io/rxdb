@@ -35,11 +35,13 @@ export function partyOf(mail: PartyFields): string {
   return counterpartOf(mail) || 'No Recipient';
 }
 
-
 /** 邮箱内的关键词搜索覆盖往来人、主题和完整正文。 */
-export function mailMatches(mail: Pick<PartyFields, 'sender' | 'recipient'> & { readonly subject: string; readonly body: string }, query: string): boolean {
+export function mailMatches(
+  mail: Pick<PartyFields, 'sender' | 'recipient'> & { readonly subject: string; readonly body: string },
+  query: string
+): boolean {
   const needle = query.trim().toLowerCase();
   return !needle || `${mail.sender} ${mail.recipient} ${mail.subject} ${mail.body}`.toLowerCase().includes(needle);
 }
 
-export const mailboxLabel = (name: string): string => name === SENT_MAILBOX ? 'Local Sent Archive' : name;
+export const mailboxLabel = (name: string): string => (name === SENT_MAILBOX ? 'Local Sent Archive' : name);

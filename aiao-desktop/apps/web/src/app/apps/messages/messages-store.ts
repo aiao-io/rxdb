@@ -39,12 +39,14 @@ export class MessagesStore {
     return this.data.transaction(async executor => {
       const threads = executor.getRepository(ChatThread);
       const [thread] = await threads.find({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.threadId }] }, limit: 1
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.threadId }] },
+        limit: 1
       });
       if (!thread) throw new MessageSaveError('missing');
       const messages = executor.getRepository(ChatMessage);
       const [existing] = await messages.find({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.id }] }, limit: 1
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.id }] },
+        limit: 1
       });
       if (existing) {
         if (existing.threadId !== message.threadId || existing.text !== message.text || existing.sender !== 'me')
@@ -53,11 +55,16 @@ export class MessagesStore {
       }
       const [last] = await messages.find({
         where: inThread(message.threadId),
-        orderBy: [{ field: 'position', sort: 'desc' }], limit: 1
+        orderBy: [{ field: 'position', sort: 'desc' }],
+        limit: 1
       });
-      await messages.create(this.data.instantiate(ChatMessage, {
-        ...message, sender: 'me', position: last ? last.position + 1 : 0
-      }));
+      await messages.create(
+        this.data.instantiate(ChatMessage, {
+          ...message,
+          sender: 'me',
+          position: last ? last.position + 1 : 0
+        })
+      );
       await threads.update(thread, { timeLabel: time12Plain(new Date()) });
     });
   }

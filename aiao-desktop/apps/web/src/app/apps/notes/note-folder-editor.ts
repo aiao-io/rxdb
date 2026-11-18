@@ -21,23 +21,27 @@ export type NoteFolderSubmit = (name: string) => Promise<string>;
     <div style="padding: 0 16px 12px; color: var(--txt-2); font-size: 12px">Create a folder for your notes.</div>
     <input
       #name
+      [disabled]="saving()"
       [value]="value()"
       (input)="value.set(name.value); error.set('')"
-      [disabled]="saving()"
-      data-folder-name
       aria-label="Folder name"
+      autocomplete="off"
+      data-folder-name
       placeholder="Folder name"
       spellcheck="false"
-      autocomplete="off"
-      tabindex="0"
       style="display: block; width: calc(100% - 32px); margin: 0 16px; box-sizing: border-box"
+      tabindex="0"
     />
     @if (error(); as problem) {
       <p role="alert" style="margin: 8px 16px 0; color: var(--red); overflow-wrap: anywhere">{{ problem }}</p>
     }
     <div style="display: flex; justify-content: flex-end; gap: 7px; padding: 14px 16px 16px">
-      <button class="btn" type="button" [disabled]="saving()" (click)="cancel()" data-folder-cancel tabindex="0">Cancel</button>
-      <button class="btn pri" type="button" [disabled]="saving()" (click)="save()" data-folder-create tabindex="0">Create</button>
+      <button class="btn" [disabled]="saving()" (click)="cancel()" data-folder-cancel tabindex="0" type="button">
+        Cancel
+      </button>
+      <button class="btn pri" [disabled]="saving()" (click)="save()" data-folder-create tabindex="0" type="button">
+        Create
+      </button>
     </div>
   `
 })

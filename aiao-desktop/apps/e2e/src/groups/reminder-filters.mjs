@@ -66,7 +66,11 @@ export const reminderFilters = {
     await expect(count('flagged')).toHaveText('1');
     await expect(target).toHaveCount(0);
     result.unflagPersists =
-      (await surgery(session, db => db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])))?.[0]?.[0] === 0;
+      (
+        await surgery(session, db =>
+          db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])
+        )
+      )?.[0]?.[0] === 0;
 
     await list('all').click();
     const flag = target.locator('[data-rflag]');
@@ -74,7 +78,11 @@ export const reminderFilters = {
     await flag.click();
     await expect(flag).toHaveAttribute('aria-label', 'Unflag Pick up dry cleaning');
     result.flagPersists =
-      (await surgery(session, db => db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])))?.[0]?.[0] === 1;
+      (
+        await surgery(session, db =>
+          db.shell.rows(`SELECT flagged FROM "${TABLE}" WHERE title = ?`, ['Pick up dry cleaning'])
+        )
+      )?.[0]?.[0] === 1;
 
     await closeAll();
     return { reminderFilters: result };

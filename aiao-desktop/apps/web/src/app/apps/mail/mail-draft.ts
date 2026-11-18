@@ -18,9 +18,11 @@ export interface MailDraftWrite {
 
 export class MailDraftError extends Error {
   constructor(kind: 'conflict' | 'missing') {
-    super(kind === 'conflict'
-      ? 'This draft changed in another window. Save a copy or discard your changes before reopening it.'
-      : 'This draft is no longer available. Save a copy to keep your changes.');
+    super(
+      kind === 'conflict' ?
+        'This draft changed in another window. Save a copy or discard your changes before reopening it.'
+      : 'This draft is no longer available. Save a copy to keep your changes.'
+    );
   }
 }
 
@@ -69,7 +71,7 @@ export class MailDraftEditor {
 
   edit(patch: Partial<MailDraftContent>): void {
     if (this.disposed || this.saving()) return;
-    this.state.update(value => value ? { ...value, ...patch } : null);
+    this.state.update(value => (value ? { ...value, ...patch } : null));
     this.failure.set('');
   }
 
@@ -98,16 +100,23 @@ export class MailDraftEditor {
     const base = this.base();
     this.writing.set(true);
     this.failure.set('');
-    this.pending = Promise.resolve().then(() => this.write({ base, value })).then(() => {
-      if (!this.disposed) this.base.set(value);
-      return !this.disposed;
-    }, error => {
-      if (!this.disposed) this.failure.set(error instanceof MailDraftError ? error.message : localWriteFailureMessage(error));
-      return false;
-    }).finally(() => {
-      this.pending = null;
-      this.writing.set(false);
-    });
+    this.pending = Promise.resolve()
+      .then(() => this.write({ base, value }))
+      .then(
+        () => {
+          if (!this.disposed) this.base.set(value);
+          return !this.disposed;
+        },
+        error => {
+          if (!this.disposed)
+            this.failure.set(error instanceof MailDraftError ? error.message : localWriteFailureMessage(error));
+          return false;
+        }
+      )
+      .finally(() => {
+        this.pending = null;
+        this.writing.set(false);
+      });
     return this.pending;
   }
 

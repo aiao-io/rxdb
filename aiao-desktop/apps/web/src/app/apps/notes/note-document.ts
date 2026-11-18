@@ -12,9 +12,11 @@ export interface NoteWrite {
 
 export class NoteSaveError extends Error {
   constructor(kind: 'conflict' | 'missing') {
-    super(kind === 'conflict'
-      ? 'This note changed in another window. Save a copy or discard your changes to load the saved note.'
-      : 'This note is no longer available. Save a copy to keep your changes.');
+    super(
+      kind === 'conflict' ?
+        'This note changed in another window. Save a copy or discard your changes to load the saved note.'
+      : 'This note is no longer available. Save a copy to keep your changes.'
+    );
   }
 }
 
@@ -62,7 +64,7 @@ export class NoteDocument {
 
   edit(content: Pick<NoteSnapshot, 'body' | 'title'>): void {
     if (this.disposed) return;
-    this.content.update(value => value ? { ...value, body: content.body, title: content.title } : null);
+    this.content.update(value => (value ? { ...value, body: content.body, title: content.title } : null));
     this.failure.set('');
   }
 
@@ -71,10 +73,12 @@ export class NoteDocument {
     if (this.pending) return this.pending;
     this.writing.set(true);
     this.failure.set('');
-    this.pending = Promise.resolve().then(() => this.flush()).finally(() => {
-      this.pending = null;
-      this.writing.set(false);
-    });
+    this.pending = Promise.resolve()
+      .then(() => this.flush())
+      .finally(() => {
+        this.pending = null;
+        this.writing.set(false);
+      });
     return this.pending;
   }
 

@@ -117,7 +117,10 @@ export const reminderMatchesList = (
 export const reminderListCount = (
   reminders: readonly Pick<ReminderFields, 'due' | 'done' | 'flagged'>[],
   list: ReminderList
-): number => (list === 'today' ? reminders.filter(dueToday).length : reminders.filter(reminder => reminderMatchesList(reminder, list)).length);
+): number =>
+  list === 'today' ?
+    reminders.filter(dueToday).length
+  : reminders.filter(reminder => reminderMatchesList(reminder, list)).length;
 
 /** 勾选一行时写回库的字段：完成的变回未完成，未完成的变完成并染成强调蓝。 */
 export const togglePatch = (reminder: Pick<ReminderFields, 'done'>): { done: boolean; tint?: string } =>

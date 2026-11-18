@@ -127,7 +127,11 @@ export const approvedCatalog = {
       await helpers.launch('Finder');
       const finder = helpers.win('finder');
       await finder.locator('[data-place="Applications"]').click();
-      await finder.locator('input[type="file"]').setInputFiles([{ name: `${name}.app`, mimeType: 'text/plain', buffer: Buffer.from('user item, not an application') }]);
+      await finder
+        .locator('input[type="file"]')
+        .setInputFiles([
+          { name: `${name}.app`, mimeType: 'text/plain', buffer: Buffer.from('user item, not an application') }
+        ]);
       await expect.poll(() => diskCount(session, `${name}.app`)).toBe(1);
       await showStore();
       await card().getByRole('button', { name: 'Install…', exact: true }).click();
@@ -145,7 +149,6 @@ export const approvedCatalog = {
       await expect(rename).toHaveCount(0);
       await showStore();
       result.packageConflictKeepsFiles = true;
-
 
       const install = card().getByRole('button', { name: 'Install…', exact: true });
       await install.focus();

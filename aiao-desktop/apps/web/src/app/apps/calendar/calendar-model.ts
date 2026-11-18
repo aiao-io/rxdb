@@ -101,7 +101,7 @@ export function parseClock(text: string): number | null {
   let hour = Number(match[1]);
   const minute = Number(match[2] ?? 0);
   if (minute > 59 || hour > 23 || (match[3] && (hour < 1 || hour > 12))) return null;
-  if (match[3]) hour = hour % 12 + (/p/i.test(match[3]) ? 12 : 0);
+  if (match[3]) hour = (hour % 12) + (/p/i.test(match[3]) ? 12 : 0);
   return hour * 60 + minute;
 }
 
@@ -111,7 +111,11 @@ export function parseDate(text: string): EventDate | null {
   const numeric = /^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/.exec(text);
   const named = /^\s*([a-z]+)\s+(\d{1,2}),?\s+(\d{4})\s*$/i.exec(text);
   const year = Number(iso?.[1] ?? numeric?.[3] ?? named?.[3]);
-  const month = named ? MONS.findIndex((name, i) => name.toLowerCase() === named[1].toLowerCase() || MONS3[i].toLowerCase() === named[1].toLowerCase())
+  const month =
+    named ?
+      MONS.findIndex(
+        (name, i) => name.toLowerCase() === named[1].toLowerCase() || MONS3[i].toLowerCase() === named[1].toLowerCase()
+      )
     : Number(iso?.[2] ?? numeric?.[1]) - 1;
   const day = Number(iso?.[3] ?? numeric?.[2] ?? named?.[2]);
   if (!Number.isInteger(year) || year < 1000 || year > 9999 || month < 0 || month > 11) return null;

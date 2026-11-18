@@ -7,15 +7,19 @@ import { Chat } from './messages-model';
 @Component({
   selector: 'app-messages-details',
   host: {
-    class: 'pop', role: 'dialog', 'aria-label': 'Local conversation details',
+    class: 'pop',
+    role: 'dialog',
+    'aria-label': 'Local conversation details',
     style: 'width: 280px; padding: 16px; text-align: left; background: var(--win); color: var(--txt)'
   },
   template: `
     <div style="font-size: 15px; font-weight: 600">{{ chat().name }}</div>
     <p>{{ chat().messages.length }} local messages</p>
     <p>This conversation is stored only in this browser. Sample conversations are included.</p>
-    <p>No messaging or calling service is connected. Incoming replies, read receipts and file sending are unavailable.</p>
-    <button class="btn" tabindex="0" (click)="close()">Close Details</button>
+    <p>
+      No messaging or calling service is connected. Incoming replies, read receipts and file sending are unavailable.
+    </p>
+    <button class="btn" (click)="close()" tabindex="0">Close Details</button>
   `
 })
 export class MessagesDetails {

@@ -141,7 +141,10 @@ export class CalendarStore {
     await this.data.ensureSeeded(CalendarEventRow);
     await this.data.transaction(async executor => {
       const lists = executor.getRepository(CalendarListRow);
-      const [calendar] = await lists.find({ where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: fields.cal }] }, limit: 1 });
+      const [calendar] = await lists.find({
+        where: { combinator: 'and', rules: [{ field: 'key', operator: '=', value: fields.cal }] },
+        limit: 1
+      });
       if (!calendar) throw new CalendarChangeError('calendar');
       const events = executor.getRepository(CalendarEventRow);
       const [row] = await events.find({ where: this.whereId(id), limit: 1 });

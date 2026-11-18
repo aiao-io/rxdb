@@ -16,9 +16,11 @@ export interface MessageDraft extends LocalMessage {
 
 export class MessageSaveError extends Error {
   constructor(kind: 'missing' | 'conflict') {
-    super(kind === 'missing'
-      ? 'This conversation is no longer available. Your draft is still here.'
-      : 'A saved message has different content. Your draft is still here.');
+    super(
+      kind === 'missing' ?
+        'This conversation is no longer available. Your draft is still here.'
+      : 'A saved message has different content. Your draft is still here.'
+    );
   }
 }
 
@@ -63,14 +65,21 @@ export class MessageDrafts {
     this.put({ ...draft, saving: true, error: '' });
     const saving = Promise.resolve()
       .then(() => this.write({ id: draft.id, threadId, text }))
-      .then(() => {
-        if (!this.disposed) this.remove(threadId);
-        return !this.disposed;
-      }, error => {
-        if (!this.disposed) this.put({ ...draft, saving: false,
-          error: error instanceof MessageSaveError ? error.message : localWriteFailureMessage(error) });
-        return false;
-      })
+      .then(
+        () => {
+          if (!this.disposed) this.remove(threadId);
+          return !this.disposed;
+        },
+        error => {
+          if (!this.disposed)
+            this.put({
+              ...draft,
+              saving: false,
+              error: error instanceof MessageSaveError ? error.message : localWriteFailureMessage(error)
+            });
+          return false;
+        }
+      )
       .finally(() => this.writes.delete(threadId));
     this.writes.set(threadId, saving);
     return saving;

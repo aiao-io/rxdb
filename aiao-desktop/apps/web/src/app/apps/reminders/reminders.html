@@ -6,9 +6,9 @@
       @for (list of lists(); track list.id) {
         <button
           class="si"
-          [class.on]="selectedList() === list.id"
           [attr.aria-current]="selectedList() === list.id ? 'page' : null"
           [attr.data-rlist]="list.id"
+          [class.on]="selectedList() === list.id"
           (click)="selectList(list.id)"
           type="button"
         >
@@ -159,13 +159,13 @@
             </div>
             <button
               class="tbtn"
-              [disabled]="win.closePending() || toggling().has(item.id)"
               [attr.aria-label]="item.flagged ? 'Unflag ' + item.title : 'Flag ' + item.title"
               [attr.aria-pressed]="item.flagged"
+              [disabled]="win.closePending() || toggling().has(item.id)"
               [title]="item.flagged ? 'Unflag' : 'Flag'"
               (click)="toggleFlag(item)"
-              data-rflag
               data-nodrag
+              data-rflag
               type="button"
             >
               {{ item.flagged ? '🚩' : 'Flag' }}

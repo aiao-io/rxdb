@@ -9,8 +9,8 @@ ADESK-US-127 自动验收完成：Settings 本地分区支持按名称搜索，�
 - `pnpm nx run aiao-desktop-e2e:e2e --args='--group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-settings-workflow-green.json'`：5 项全绿，`initialSections`、`searchesBySection`、`emptySearch`、`clearsSearch` 和 `sectionFollowsSelection` 均为 `true`，无页面错误；报告见[证据](evidence/2026-11-17/aiao-settings-workflow-green.json)。
 
 本次 E2E target 依赖任务已完成生产构建；本轮未发布。
-- 最终无警告生产构建上的三组搜索回归：`pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --group=fontbook-workflow --group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-search-workflows-final.json'`，17 项全部通过，报告见[证据](evidence/2026-11-17/aiao-search-workflows-final.json)。
 
+- 最终无警告生产构建上的三组搜索回归：`pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --group=fontbook-workflow --group=settings-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-search-workflows-final.json'`，17 项全部通过，报告见[证据](evidence/2026-11-17/aiao-search-workflows-final.json)。
 
 ## 2026-11-18：Font Book 字体族搜索（ADESK-US-126）
 
@@ -22,7 +22,6 @@ ADESK-US-126 自动验收完成：Font Book 本地字体族支持按名称搜索
 
 本次 E2E target 依赖任务已完成生产构建；本轮未发布。
 
-
 ## 2026-11-18：Stocks 本地搜索与演示数据声明（ADESK-US-125）
 
 ADESK-US-125 自动验收完成：Stocks 本地自选股支持按代码或公司名搜索，空结果和清空恢复可用，筛选后详情跟随当前股票；页面明确显示 `Demo data · No live market feed`，推算的 Open、High、Low 标为 demo。实时行情、交易和远程同步仍未接入。
@@ -32,7 +31,6 @@ ADESK-US-125 自动验收完成：Stocks 本地自选股支持按代码或公司
 - `pnpm nx run aiao-desktop-e2e:e2e --args='--group=stocks-workflow --parallel=1 --report=../../requirements/evidence/2026-11-17/aiao-stocks-workflow-green.json'`：7 项全绿，`initialWatchlist`、`searchesBySymbol`、`searchesByCompany`、`emptySearch`、`clearsSearch`、`detailFollowsSelection` 和 `declaresDemoData` 均为 `true`，无页面错误；报告见[证据](evidence/2026-11-17/aiao-stocks-workflow-green.json)。
 
 本次 E2E target 依赖任务已完成生产构建；本轮未发布。
-
 
 ## 2026-11-18：Freeform 笔迹保存与失败保护（ADESK-US-124）
 
@@ -44,7 +42,6 @@ ADESK-US-124 自动验收完成：Freeform 画笔输入真实写入 SQLite；INS
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=freeform-workflow --parallel=1 --report=/tmp/aiao-freeform-workflow-green.json --output-style=static`：6 项全绿，`strokePersists`、`failedInsertKeepsStroke`、`retryPersistsStroke`、`failedClearKeepsStrokes`、`retryClearsStrokes` 和 `survivesReload` 均为 `true`，无页面错误；归档报告见 [aiao-freeform-workflow-green.json](evidence/2026-11-17/aiao-freeform-workflow-green.json)。
 
 本地 Freeform 单画板范围已关闭；橡皮擦、选区、撤销/重做、图层、协作、导出、云端同步和远程账号仍未接入。
-
 
 ## 2026-11-18：备忘录新建文件夹（ADESK-US-123）
 
@@ -63,7 +60,6 @@ ADESK-US-122 自动验收完成：Reminders 五个侧栏列表已按本地记录
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=reminder-filters --parallel=1 --report=/tmp/aiao-reminder-filters-green.json --output-style=static`：1 组全绿，Today/Scheduled/All/Flagged/Completed 统计与筛选、Flag/Unflag 均通过；归档报告见 [aiao-reminder-filters-green.json](evidence/2026-11-17/aiao-reminder-filters-green.json)。
 - 既有 `reminder-drafts` 回归组重新通过，失败草稿、关闭等待、重试、完成状态和键盘持久化仍有证据；本轮未发布。
 
-
 ## 2026-11-18：备忘录置顶与取消置顶（ADESK-US-121）
 
 ADESK-US-121 自动验收完成：Notes 工具栏、File 菜单和右键菜单可切换 Pin/Unpin，状态通过真实 SQLite 持久化，置顶优先排序和 US-116 的冲突保护继续生效；New Folder 已由 US-123 补齐。
@@ -72,7 +68,6 @@ ADESK-US-121 自动验收完成：Notes 工具栏、File 菜单和右键菜单�
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static`：通过。
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:lint --output-style=static`：通过。
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=notes-actions --parallel=1 --report=/tmp/aiao-notes-actions-green.json --output-style=static`：1 组全绿，`pinPersists = true`、`unpinPersists = true`，无页面错误；归档报告见 [aiao-notes-actions-green.json](evidence/2026-11-17/aiao-notes-actions-green.json)。
-
 
 ## 2026-11-18：Contacts 搜索与本地编辑流程（ADESK-US-120）
 
@@ -86,7 +81,6 @@ ADESK-US-120 自动验收完成：Contacts 搜索、非法草稿保留、真实 
 - `E2E_TRACE=1 NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --group=contacts --report=/tmp/aiao-contacts-green.json --output-style=static`：5 项全绿、无页面错误；归档报告见 [aiao-contacts-green.json](evidence/2026-11-17/aiao-contacts-green.json)。
 
 本地 Contacts 核心编辑范围已关闭；远程通讯录、头像上传、电话、消息、邮件和跨设备同步仍未接入。
-
 
 ## 2026-11-18：Calendar 事件草稿与失败保护（ADESK-US-119）
 
@@ -278,6 +272,5 @@ ADESK-US-109 自动验收完成：15 项文档浏览器检查、30 项跨页检�
 | 2026-11-16；`1111da18b6` 加本次未提交工作区改动 | Apple M1 Max / darwin 27.2.0 arm64 / Node v26.12.0 / 无头 Chromium 158.0.8127.18 | `aiao-desktop-e2e:e2e --group=pwa,terminal-runtimes`；[报告](evidence/2026-11-16/pwa-terminal.json)、[命令与复跑记录](evidence/2026-11-16/pwa.md) | PWA 14 项、终端 30 项全部通过，页面错误为空。正式构建、类型、lint、1,353 个 web 单测与覆盖率门槛通过。首次 verify 的终端启动超时经隔离复跑和联跑通过；路线图漏记已补齐并复验需求门禁。首次 verify 退出码 1 的原始记录保留。 |
 
 本轮只交付 US-009 的本地代码与自动验收；没有生产发布、原生安装对话框或物理键盘实测。现有线上发布结果与 US-108 的 VoiceOver 保留不变。
-
 
 2026-11-17 A04 增量：[US-207](stories/application/ADESK-US-207-approved-app-catalog.md) 已完成。批准目录与版本管理 15 项生命周期检查、9 组关联回归、1481 条单测、原覆盖率门槛和 lint/typecheck/需求检查通过，见[当日证据](evidence/2026-11-17/README.md#a04-批准应用目录与版本管理adesk-us-207)。正式目录为空，实际发布版本由运营提供；schema 已升至 2026111703，本次未发布。

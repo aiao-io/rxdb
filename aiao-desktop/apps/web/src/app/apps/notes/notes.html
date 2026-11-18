@@ -5,10 +5,27 @@
         <app-traffic-lights />
       }
       <div style="flex: 1"></div>
-      <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Folder" (click)="newFolder()" data-nodrag data-new-folder title="New Folder">
+      <button
+        class="tbtn"
+        [disabled]="busy() || win.closePending()"
+        (click)="newFolder()"
+        aria-label="New Folder"
+        data-new-folder
+        data-nodrag
+        tabindex="0"
+        title="New Folder"
+      >
         <svg appIcon="g-plus"></svg>
       </button>
-      <button class="tbtn" tabindex="0" aria-label="Toggle folders" (click)="toggleSidebar()" data-nodrag data-sbtoggle title="Hide Folders">
+      <button
+        class="tbtn"
+        (click)="toggleSidebar()"
+        aria-label="Toggle folders"
+        data-nodrag
+        data-sbtoggle
+        tabindex="0"
+        title="Hide Folders"
+      >
         <svg appIcon="g-sidebar"></svg>
       </button>
     </div>
@@ -17,14 +34,14 @@
       @for (item of folders(); track item.name) {
         <button
           class="si"
-          type="button"
-          [disabled]="busy() || win.closePending()"
           [attr.aria-pressed]="folder() === item.name"
-          style="width: 100%; text-align: left; border: 0"
           [attr.data-folder]="item.name"
           [class.on]="folder() === item.name"
+          [disabled]="busy() || win.closePending()"
           (click)="pickFolder(item.name)"
+          style="width: 100%; text-align: left; border: 0"
           tabindex="0"
+          type="button"
         >
           <svg class="ico" [appIcon]="item.icon"></svg>
           <span class="nm">{{ item.name }}</span>
@@ -41,9 +58,25 @@
         }
         <div class="sfield" data-nodrag style="flex: 1">
           <span><svg appIcon="g-search"></svg></span>
-          <input [value]="query()" [disabled]="busy() || win.closePending()" (input)="search($event)" aria-label="Search notes" data-q placeholder="Search" />
+          <input
+            [disabled]="busy() || win.closePending()"
+            [value]="query()"
+            (input)="search($event)"
+            aria-label="Search notes"
+            data-q
+            placeholder="Search"
+          />
         </div>
-        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Note" (click)="create()" data-new2 data-nodrag title="New Note">
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending()"
+          (click)="create()"
+          aria-label="New Note"
+          data-new2
+          data-nodrag
+          tabindex="0"
+          title="New Note"
+        >
           <svg appIcon="g-compose"></svg>
         </button>
       </div>
@@ -51,15 +84,15 @@
         @for (row of rows(); track row.id) {
           <button
             class="nt-i"
-            type="button"
-            [disabled]="busy() || win.closePending()"
             [attr.aria-pressed]="row.id === selected()"
-            style="width: 100%; text-align: left; border: 0"
             [attr.data-id]="row.id"
             [class.on]="row.id === selected()"
+            [disabled]="busy() || win.closePending()"
             (click)="pick(row.id)"
             (contextmenu)="menu($event, row.id)"
+            style="width: 100%; text-align: left; border: 0"
             tabindex="0"
+            type="button"
           >
             <b>{{ row.title }}</b>
             <div class="mt">
@@ -77,28 +110,28 @@
         <div style="flex: 1"></div>
         <button
           class="tbtn"
+          [attr.aria-label]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
           [attr.aria-pressed]="current()?.pinned ?? false"
           [disabled]="busy() || win.closePending() || !editor.value()"
-          [attr.aria-label]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
           [title]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
           (click)="togglePin()"
-          data-pin
           data-nodrag
+          data-pin
         >
           {{ current()?.pinned ? '📌' : 'Pin' }}
         </button>
         @for (item of textFormats; track item.command) {
           <button
             class="tbtn"
-            [attr.data-f]="item.command"
-            [class.on]="active().includes(item.command)"
-            [title]="item.title"
             [attr.aria-label]="item.title"
             [attr.aria-pressed]="active().includes(item.command)"
+            [attr.data-f]="item.command"
+            [class.on]="active().includes(item.command)"
             [disabled]="busy() || win.closePending() || !editor.value()"
-            tabindex="0"
+            [title]="item.title"
             (click)="format(item.command)"
             data-nodrag
+            tabindex="0"
           >
             <svg [appIcon]="item.icon"></svg>
           </button>
@@ -106,62 +139,114 @@
         <div class="sep"></div>
         <button
           class="tbtn"
+          [attr.aria-pressed]="active().includes('insertUnorderedList')"
           [class.on]="active().includes('insertUnorderedList')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
           (click)="format('insertUnorderedList')"
+          aria-label="Bulleted list"
           data-f="insertUnorderedList"
           data-nodrag
-          title="Bulleted list"
-          aria-label="Bulleted list"
-          [attr.aria-pressed]="active().includes('insertUnorderedList')"
-          [disabled]="busy() || win.closePending() || !editor.value()"
           tabindex="0"
+          title="Bulleted list"
         >
           <svg appIcon="g-bullets"></svg>
         </button>
-        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending() || !editor.value()" aria-label="Checklist" (click)="checklist()" data-check data-nodrag title="Checklist">
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          (click)="checklist()"
+          aria-label="Checklist"
+          data-check
+          data-nodrag
+          tabindex="0"
+          title="Checklist"
+        >
           <svg appIcon="g-checklist"></svg>
         </button>
-        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending() || !editor.value()" aria-label="Table" (click)="table()" data-nodrag data-table title="Table">
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          (click)="table()"
+          aria-label="Table"
+          data-nodrag
+          data-table
+          tabindex="0"
+          title="Table"
+        >
           <svg appIcon="g-table"></svg>
         </button>
         <div class="sep"></div>
-        <button class="tbtn" tabindex="0" [disabled]="busy() || win.closePending()" aria-label="New Note" (click)="create()" data-new data-nodrag title="New note">
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending()"
+          (click)="create()"
+          aria-label="New Note"
+          data-new
+          data-nodrag
+          tabindex="0"
+          title="New note"
+        >
           <svg appIcon="g-plus"></svg>
         </button>
         <div style="flex: 1"></div>
       </div>
       <div style="padding: 6px 14px; background: var(--card); color: var(--txt)">
-        <div role="status" aria-live="polite" style="font-size: 12px">
-          {{ busy() || editor.saving() ? 'Saving…' : editor.dirty() ? 'Unsaved changes' : 'Saved' }}
+        <div aria-live="polite" role="status" style="font-size: 12px">
+          {{
+            busy() || editor.saving() ? 'Saving…'
+            : editor.dirty() ? 'Unsaved changes'
+            : 'Saved'
+          }}
         </div>
         @if (failure(); as problem) {
           <p role="alert" style="margin: 6px 0; overflow-wrap: anywhere">{{ problem }}</p>
         }
         @if (editor.dirty() || failure()) {
           <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px">
-            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()" (click)="retry()">Retry Save</button>
-            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()" (click)="saveCopy()">Save a Copy</button>
-            <button class="btn" tabindex="0" [disabled]="busy() || editor.saving() || win.closePending() || !editor.dirty()" (click)="discardChanges()">Discard Changes</button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="retry()"
+              tabindex="0"
+            >
+              Retry Save
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="saveCopy()"
+              tabindex="0"
+            >
+              Save a Copy
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.dirty()"
+              (click)="discardChanges()"
+              tabindex="0"
+            >
+              Discard Changes
+            </button>
           </div>
         }
       </div>
       <div
         class="nt-doc selectable"
         #doc
+        [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
+        [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
         (click)="docClick($event)"
         (focus)="focused()"
         (input)="saveSoon()"
         (keydown)="docKey($event)"
         (keyup)="syncFormats()"
         (mouseup)="syncFormats()"
-        [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
-        [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
-        role="textbox"
         aria-label="Note content"
         aria-multiline="true"
-        tabindex="0"
         data-doc
+        role="textbox"
         spellcheck="false"
+        tabindex="0"
       ></div>
     </div>
   </div>

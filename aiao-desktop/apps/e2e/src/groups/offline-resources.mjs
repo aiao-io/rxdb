@@ -35,7 +35,10 @@ const cors = { 'access-control-allow-origin': '*' };
 const buttonContrast = button => {
   const style = getComputedStyle(button);
   const luminance = color => {
-    const channels = color.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const channels = color
+      .match(/[\d.]+/g)
+      .slice(0, 3)
+      .map(Number);
     const linear = channels.map(channel => {
       const value = channel / 255;
       return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;

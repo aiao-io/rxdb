@@ -306,7 +306,13 @@ export class PhotosApp {
     this.popover.menuUnder(
       anchor,
       [
-        { id: 'm', label: 'Mail Draft', icon: 'g-compose', disabled: !photo, run: () => photo && this.mail.compose(photo.title, '', photo.thumb) },
+        {
+          id: 'm',
+          label: 'Mail Draft',
+          icon: 'g-compose',
+          disabled: !photo,
+          run: () => photo && this.mail.compose(photo.title, '', photo.thumb)
+        },
         { id: 'g', label: 'Open Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
         '-',
         {

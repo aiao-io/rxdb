@@ -48,16 +48,16 @@ capabilities: []
 
 已完成源码和本地正式产物验收，未发布。见[证据索引](../../evidence/2026-11-17/README.md#a04-批准应用目录与版本管理adesk-us-207)、[最终生命周期报告](../../evidence/2026-11-17/catalog-lifecycle.json)与[实现计划](../../plans/2026-11-17-approved-app-catalog.md)。
 
-| AC | 自动证据 |
-| --- | --- |
-| 1 | `productionEmpty`、`unapprovedCatalogRejected`、`offlineAndReloadKeepInstallation` |
-| 2 | `invalidEntriesRejected`、目录模型与来源单测 |
-| 3 | `confirmationAndEntrypoints`、`dockPinLifecycle`、`packageConflictKeepsFiles` |
-| 4 | `updateAndRollback`、`otherTabRevokesOldInstance` |
-| 5 | `uninstallKeepsUserAndRemoteData`、取消确认、投影日志单测的包内用户文件保留 |
-| 6 | `offlineAndReloadKeepInstallation`、`failedWriteRetries`、`interruptedProjectionRecovers`、`corruptStateResetsExplicitly` |
-| 7 | `draftCancellationKeepsSession`：两页真实输入框填草稿，另一页 Keep Editing 后两份输入与旧版本保留；全部确认后才提交并撤销旧实例 |
-| 8 | `keyboardAndAxe`：商店、安装确认与远程窗口关闭确认；焦点进入、反向 Tab、Escape 与还焦点 |
+| AC  | 自动证据                                                                                                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `productionEmpty`、`unapprovedCatalogRejected`、`offlineAndReloadKeepInstallation`                                              |
+| 2   | `invalidEntriesRejected`、目录模型与来源单测                                                                                    |
+| 3   | `confirmationAndEntrypoints`、`dockPinLifecycle`、`packageConflictKeepsFiles`                                                   |
+| 4   | `updateAndRollback`、`otherTabRevokesOldInstance`                                                                               |
+| 5   | `uninstallKeepsUserAndRemoteData`、取消确认、投影日志单测的包内用户文件保留                                                     |
+| 6   | `offlineAndReloadKeepInstallation`、`failedWriteRetries`、`interruptedProjectionRecovers`、`corruptStateResetsExplicitly`       |
+| 7   | `draftCancellationKeepsSession`：两页真实输入框填草稿，另一页 Keep Editing 后两份输入与旧版本保留；全部确认后才提交并撤销旧实例 |
+| 8   | `keyboardAndAxe`：商店、安装确认与远程窗口关闭确认；焦点进入、反向 Tab、Escape 与还焦点                                         |
 
 远程协议不报告草稿，当前采取逐窗口明确确认，不宣称自动保存远程文档。正式目录为空是运营输入边界，不影响机制验收；实际发布条目不在本次交付中。
 

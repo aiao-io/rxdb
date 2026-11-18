@@ -5,7 +5,10 @@ import { ReminderDrafts, ReminderWrite, reminderFailureMessage } from './reminde
 function setup() {
   const write = vi.fn<(draft: ReminderWrite) => Promise<void>>(async () => undefined);
   let sequence = 0;
-  const drafts = new ReminderDrafts(write, () => `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}` as const);
+  const drafts = new ReminderDrafts(
+    write,
+    () => `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}` as const
+  );
   const id = drafts.add();
   return { drafts, id, write };
 }
@@ -109,7 +112,10 @@ describe('ReminderDrafts', () => {
       if (draft.id === id) throw new Error('Denied');
     });
     expect(await drafts.saveAll()).toBe(false);
-    expect(drafts.rows().find(row => row.id === id)).toMatchObject({ title: 'first', error: 'Local storage could not complete this change. Try again.' });
+    expect(drafts.rows().find(row => row.id === id)).toMatchObject({
+      title: 'first',
+      error: 'Local storage could not complete this change. Try again.'
+    });
     expect(drafts.rows().find(row => row.id === second)?.createdId).toBe(second);
     write.mockResolvedValue(undefined);
     expect(await drafts.saveAll()).toBe(true);
@@ -157,13 +163,16 @@ describe('ReminderDrafts', () => {
 
 describe('reminderFailureMessage', () => {
   it('用户错误反馈不暴露 SQL 和内部表结构', () => {
-    expect(reminderFailureMessage('sqlite-wasm execute() failed: INSERT INTO desktop$reminder VALUES (?)'))
-      .toBe('Local storage could not complete this change. Try again.');
+    expect(reminderFailureMessage('sqlite-wasm execute() failed: INSERT INTO desktop$reminder VALUES (?)')).toBe(
+      'Local storage could not complete this change. Try again.'
+    );
   });
   it('存储空间不足时给出明确可操作的原因', () => {
-    expect(reminderFailureMessage(new DOMException('Unavailable', 'QuotaExceededError')))
-      .toBe('Browser storage is full. Free some space, then retry.');
-    expect(reminderFailureMessage('SQLITE_FULL: database or disk is full'))
-      .toBe('Browser storage is full. Free some space, then retry.');
+    expect(reminderFailureMessage(new DOMException('Unavailable', 'QuotaExceededError'))).toBe(
+      'Browser storage is full. Free some space, then retry.'
+    );
+    expect(reminderFailureMessage('SQLITE_FULL: database or disk is full')).toBe(
+      'Browser storage is full. Free some space, then retry.'
+    );
   });
 });

@@ -10,14 +10,21 @@ function setup() {
   const write = vi.fn<(change: CalendarDraftWrite) => Promise<void>>(async () => undefined);
   const remove = vi.fn<(event: CalendarEvent) => Promise<void>>(async () => undefined);
   let sequence = 0;
-  const editor = new CalendarDraftEditor(write, remove, () => `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}` as const);
+  const editor = new CalendarDraftEditor(
+    write,
+    remove,
+    () => `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}` as const
+  );
   editor.open(initial, null);
   return { editor, write, remove };
 }
 function deferred() {
   let resolve!: () => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((done, fail) => { resolve = done; reject = fail; });
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
   return { promise, resolve, reject };
 }
 
@@ -64,7 +71,9 @@ describe('CalendarDraftEditor', () => {
     expect(editor.value()?.title).toBe('Pending');
     await Promise.resolve();
     let finished = false;
-    const pending = editor.settle().then(result => { finished = result; });
+    const pending = editor.settle().then(result => {
+      finished = result;
+    });
     expect(finished).toBe(false);
     wait.resolve();
     await pending;

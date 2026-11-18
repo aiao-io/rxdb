@@ -16,44 +16,87 @@ import { MailMessage } from './mail.entities';
 @Component({
   selector: 'app-mail-compose',
   host: {
-    class: 'pop', role: 'dialog', 'aria-label': 'Local mail draft', '[attr.data-draft-id]': 'editor.value()?.id',
-    style: 'padding: 14px; width: min(600px, 84vw); max-height: 80vh; overflow: auto; border-radius: 12px; background: var(--win); color: var(--txt)'
+    class: 'pop',
+    role: 'dialog',
+    'aria-label': 'Local mail draft',
+    '[attr.data-draft-id]': 'editor.value()?.id',
+    style:
+      'padding: 14px; width: min(600px, 84vw); max-height: 80vh; overflow: auto; border-radius: 12px; background: var(--win); color: var(--txt)'
   },
   template: `
     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px">
       <strong style="flex: 1">Local Mail Draft</strong>
-      <button class="btn" tabindex="0" (click)="composer.hide()">Hide Draft</button>
+      <button class="btn" (click)="composer.hide()" tabindex="0">Hide Draft</button>
     </div>
-    <p style="font-size: 12px; margin: 8px 0">Saved only in this browser. No email service is connected and nothing will be sent.</p>
-    @if (composer.notice()) { <p role="alert" style="margin: 8px 0">{{ composer.notice() }}</p> }
-    @if (editor.error()) { <p role="alert" style="margin: 8px 0">{{ editor.error() }}</p> }
+    <p style="font-size: 12px; margin: 8px 0">
+      Saved only in this browser. No email service is connected and nothing will be sent.
+    </p>
+    @if (composer.notice()) {
+      <p role="alert" style="margin: 8px 0">{{ composer.notice() }}</p>
+    }
+    @if (editor.error()) {
+      <p role="alert" style="margin: 8px 0">{{ editor.error() }}</p>
+    }
     <label style="display: block; margin-top: 8px">
       To
-      <input #toField [value]="editor.value()?.to ?? ''" [disabled]="editor.saving()"
-        (input)="editor.edit({ to: toField.value })" data-f="To" aria-label="To"
-        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)" />
+      <input
+        #toField
+        [disabled]="editor.saving()"
+        [value]="editor.value()?.to ?? ''"
+        (input)="editor.edit({ to: toField.value })"
+        aria-label="To"
+        data-f="To"
+        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)"
+      />
     </label>
     <label style="display: block; margin-top: 8px">
       Subject
-      <input #subjectField [value]="editor.value()?.subject ?? ''" [disabled]="editor.saving()"
-        (input)="editor.edit({ subject: subjectField.value })" data-f="Subject" aria-label="Subject"
-        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)" />
+      <input
+        #subjectField
+        [disabled]="editor.saving()"
+        [value]="editor.value()?.subject ?? ''"
+        (input)="editor.edit({ subject: subjectField.value })"
+        aria-label="Subject"
+        data-f="Subject"
+        style="display: block; width: 100%; box-sizing: border-box; min-height: 30px; color: var(--txt); background: var(--field); border: 1px solid var(--line)"
+      />
     </label>
     <label style="display: block; margin-top: 8px">
       Message
-      <textarea #bodyField [value]="editor.value()?.body ?? ''" [disabled]="editor.saving()"
-        (input)="editor.edit({ body: bodyField.value })" data-body aria-label="Message" rows="7"
-        style="display: block; width: 100%; box-sizing: border-box; resize: vertical; color: var(--txt); background: var(--field); border: 1px solid var(--line)"></textarea>
+      <textarea
+        #bodyField
+        [disabled]="editor.saving()"
+        [value]="editor.value()?.body ?? ''"
+        (input)="editor.edit({ body: bodyField.value })"
+        aria-label="Message"
+        data-body
+        rows="7"
+        style="display: block; width: 100%; box-sizing: border-box; resize: vertical; color: var(--txt); background: var(--field); border: 1px solid var(--line)"
+      ></textarea>
     </label>
-    <p role="status" aria-live="polite">{{ editor.saving() ? 'Saving draft…' : editor.dirty() ? 'Unsaved draft' : 'No unsaved changes' }}</p>
+    <p aria-live="polite" role="status">
+      {{
+        editor.saving() ? 'Saving draft…'
+        : editor.dirty() ? 'Unsaved draft'
+        : 'No unsaved changes'
+      }}
+    </p>
     <div style="display: flex; flex-wrap: wrap; gap: 8px">
-      <button class="btn" tabindex="0" [disabled]="editor.saving() || !editor.dirty()" (click)="composer.save()" data-save-draft>
+      <button
+        class="btn"
+        [disabled]="editor.saving() || !editor.dirty()"
+        (click)="composer.save()"
+        data-save-draft
+        tabindex="0"
+      >
         {{ editor.error() ? 'Retry Save Draft' : 'Save Draft' }}
       </button>
       @if (editor.error()) {
-        <button class="btn" tabindex="0" [disabled]="editor.saving()" (click)="composer.saveCopy()">Save a Copy</button>
+        <button class="btn" [disabled]="editor.saving()" (click)="composer.saveCopy()" tabindex="0">Save a Copy</button>
       }
-      <button class="btn" tabindex="0" [disabled]="editor.saving()" (click)="composer.discard()" data-discard-draft>Discard Changes</button>
+      <button class="btn" [disabled]="editor.saving()" (click)="composer.discard()" data-discard-draft tabindex="0">
+        Discard Changes
+      </button>
     </div>
   `
 })
@@ -152,9 +195,13 @@ export class MailComposer {
 
   private show(): void {
     this.popover.openComponent(MailCompose, {
-      x: innerWidth / 2 - 300, y: 70, origin: 'top center', focus: true,
+      x: innerWidth / 2 - 300,
+      y: 70,
+      origin: 'top center',
+      focus: true,
       onClose: reason => {
-        if (reason === 'escape' || reason === 'command') document.querySelector<HTMLElement>('[data-resume-mail]')?.focus();
+        if (reason === 'escape' || reason === 'command')
+          document.querySelector<HTMLElement>('[data-resume-mail]')?.focus();
       }
     });
   }
@@ -164,23 +211,37 @@ export class MailComposer {
     await this.data.transaction(async executor => {
       const messages = executor.getRepository(MailMessage);
       const [existing] = await messages.find({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: value.id }] }, limit: 1
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: value.id }] },
+        limit: 1
       });
       const saved = existing ? { to: existing.recipient, subject: existing.subject, body: existing.body } : null;
       if (existing && saved && existing.mailbox === DRAFTS_MAILBOX && sameMailDraft(saved, value)) return;
       if (base && !existing) throw new MailDraftError('missing');
       if (existing && (!base || !saved || existing.mailbox !== DRAFTS_MAILBOX || !sameMailDraft(saved, base)))
         throw new MailDraftError('conflict');
-      const fields = { recipient: value.to, subject: value.subject, body: value.body, timeLabel: time12Plain(new Date()) };
+      const fields = {
+        recipient: value.to,
+        subject: value.subject,
+        body: value.body,
+        timeLabel: time12Plain(new Date())
+      };
       if (existing) {
         await messages.update(existing, fields);
         return;
       }
       const [first] = await messages.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 1 });
-      await messages.create(this.data.instantiate(MailMessage, {
-        ...fields, id: value.id, mailbox: DRAFTS_MAILBOX, sender: this.system.user,
-        color: SENT_COLOR, unread: false, flagged: false, position: first ? first.position - 1 : 0
-      }));
+      await messages.create(
+        this.data.instantiate(MailMessage, {
+          ...fields,
+          id: value.id,
+          mailbox: DRAFTS_MAILBOX,
+          sender: this.system.user,
+          color: SENT_COLOR,
+          unread: false,
+          flagged: false,
+          position: first ? first.position - 1 : 0
+        })
+      );
     });
   }
 }

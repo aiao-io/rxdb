@@ -42,7 +42,13 @@
       <div style="flex: 1"></div>
       <div class="sfield" data-nodrag style="width: 150px">
         <span><svg appIcon="g-search"></svg></span>
-        <input #search aria-label="Search fonts" placeholder="Search" [value]="query()" (input)="query.set(search.value)" />
+        <input
+          #search
+          [value]="query()"
+          (input)="query.set(search.value)"
+          aria-label="Search fonts"
+          placeholder="Search"
+        />
       </div>
     </div>
     <div class="scroll" data-fbody style="flex: 1; padding: 26px 30px">

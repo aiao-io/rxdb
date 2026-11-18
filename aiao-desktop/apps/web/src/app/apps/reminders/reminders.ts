@@ -75,7 +75,7 @@ export class RemindersApp {
   protected readonly error = signal('');
   protected readonly items = computed<readonly ReminderRow[]>(() => {
     const list = this.selectedList();
-    return this.allItems().filter(item => item.fresh ? list === 'today' : reminderMatchesList(item, list));
+    return this.allItems().filter(item => (item.fresh ? list === 'today' : reminderMatchesList(item, list)));
   });
 
   constructor() {

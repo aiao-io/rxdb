@@ -7,7 +7,6 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { Toast } from '../../services/toast';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { Contact } from './contacts.entities';
 import {
   ContactDraftField,
   ContactEditor,
@@ -18,6 +17,7 @@ import {
   normalizeDraft,
   sameContact
 } from './contacts-model';
+import { Contact } from './contacts.entities';
 
 /** 联系人卡片里的一栏：[标签, 内容]。 */
 type ContactField = readonly [label: string, value: string];
@@ -37,9 +37,9 @@ type ContactField = readonly [label: string, value: string];
             <input
               #search
               [value]="query()"
+              (input)="searchContacts(search.value)"
               aria-label="Search contacts"
               placeholder="Search"
-              (input)="searchContacts(search.value)"
             />
           </div>
         </div>
@@ -69,11 +69,11 @@ type ContactField = readonly [label: string, value: string];
           <div class="tbz" data-nodrag>
             <button
               class="tbtn"
-              aria-label="New Contact"
-              title="New Contact"
               [disabled]="busy() || win.closePending()"
               (click)="create()"
+              aria-label="New Contact"
               data-new-contact
+              title="New Contact"
             >
               <svg appIcon="g-plus"></svg>
             </button>
@@ -109,54 +109,60 @@ type ContactField = readonly [label: string, value: string];
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
                   Name
                   <input
-                    [value]="editing.draft.name"
-                    aria-label="Contact name"
                     [disabled]="busy() || win.closePending()"
+                    [value]="editing.draft.name"
                     (input)="updateDraft('name', $event)"
+                    aria-label="Contact name"
                     data-contact-name
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
                   Role
                   <input
-                    [value]="editing.draft.role"
-                    aria-label="Contact role"
                     [disabled]="busy() || win.closePending()"
+                    [value]="editing.draft.role"
                     (input)="updateDraft('role', $event)"
+                    aria-label="Contact role"
                     data-contact-role
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
                   Email
                   <input
-                    [value]="editing.draft.email"
-                    aria-label="Contact email"
                     [disabled]="busy() || win.closePending()"
+                    [value]="editing.draft.email"
                     (input)="updateDraft('email', $event)"
+                    aria-label="Contact email"
                     data-contact-email
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
                   Home
                   <input
-                    [value]="editing.draft.address"
-                    aria-label="Contact home"
                     [disabled]="busy() || win.closePending()"
+                    [value]="editing.draft.address"
                     (input)="updateDraft('address', $event)"
+                    aria-label="Contact home"
                     data-contact-address
                   />
                 </label>
               </div>
               @if (error(); as message) {
-                <div role="alert" style="margin-top: 12px; color: var(--red); font-size: 12px" data-contact-error>
+                <div data-contact-error role="alert" style="margin-top: 12px; color: var(--red); font-size: 12px">
                   {{ message }}
                 </div>
               }
               <div style="display: flex; gap: 8px; margin-top: 18px">
-                <button class="btn pri" type="submit" [disabled]="busy() || win.closePending()" data-contact-save>
+                <button class="btn pri" [disabled]="busy() || win.closePending()" data-contact-save type="submit">
                   {{ busy() ? 'Saving…' : 'Save' }}
                 </button>
-                <button class="btn" type="button" [disabled]="busy() || win.closePending()" (click)="cancel()" data-contact-cancel>
+                <button
+                  class="btn"
+                  [disabled]="busy() || win.closePending()"
+                  (click)="cancel()"
+                  data-contact-cancel
+                  type="button"
+                >
                   Cancel
                 </button>
               </div>
@@ -186,19 +192,25 @@ type ContactField = readonly [label: string, value: string];
             <div style="margin-top: 24px; max-width: 420px">
               @for (field of fields(); track field[0]) {
                 <div style="display: flex; gap: 16px; padding: 8px 0; border-top: 0.5px solid var(--line)">
-                  <span style="width: 60px; text-align: right; font-size: 11.5px; color: var(--txt-2)">{{ field[0] }}</span>
+                  <span style="width: 60px; text-align: right; font-size: 11.5px; color: var(--txt-2)">{{
+                    field[0]
+                  }}</span>
                   <span style="font-size: 13px; color: var(--blue)">{{ field[1] }}</span>
                 </div>
               }
             </div>
             @if (error(); as message) {
-              <div role="alert" style="margin-top: 12px; color: var(--red); font-size: 12px" data-contact-error>
+              <div data-contact-error role="alert" style="margin-top: 12px; color: var(--red); font-size: 12px">
                 {{ message }}
               </div>
             }
             <div style="display: flex; gap: 8px; margin-top: 18px">
-              <button class="btn pri" [disabled]="busy() || win.closePending()" (click)="edit()" data-contact-edit>Edit</button>
-              <button class="btn" [disabled]="busy() || win.closePending()" (click)="remove()" data-contact-delete>Delete</button>
+              <button class="btn pri" [disabled]="busy() || win.closePending()" (click)="edit()" data-contact-edit>
+                Edit
+              </button>
+              <button class="btn" [disabled]="busy() || win.closePending()" (click)="remove()" data-contact-delete>
+                Delete
+              </button>
             </div>
           } @else {
             <div style="padding: 32px; color: var(--txt-2); font-size: 13px">No contact selected</div>
@@ -232,25 +244,33 @@ export class ContactsApp {
   });
   protected readonly fields = computed<readonly ContactField[]>(() => {
     const person = this.current();
-    return person ? [['email', person.email], ['home', person.address]] : [];
+    return person ?
+        [
+          ['email', person.email],
+          ['home', person.address]
+        ]
+      : [];
   });
 
   constructor() {
     const menus = inject(DesktopMenus);
     this.win.setMenus(
       computed(() =>
-        menus.standard(
-          'contacts',
-          {
-            File: [
-              { id: 'n', label: 'New Contact', key: '⌘N', run: () => this.create() },
-              { id: 's', label: 'Save Contact', key: '⌘S', disabled: !this.editor(), run: () => this.save() },
-              { id: 'd', label: 'Delete Contact', key: '⌘⌫', disabled: !this.current() || !!this.editor(), run: () => this.remove() },
-              '-',
-              { id: 'w', label: 'Close Window', key: '⌘W', run: () => undefined }
-            ]
-          }
-        )
+        menus.standard('contacts', {
+          File: [
+            { id: 'n', label: 'New Contact', key: '⌘N', run: () => this.create() },
+            { id: 's', label: 'Save Contact', key: '⌘S', disabled: !this.editor(), run: () => this.save() },
+            {
+              id: 'd',
+              label: 'Delete Contact',
+              key: '⌘⌫',
+              disabled: !this.current() || !!this.editor(),
+              run: () => this.remove()
+            },
+            '-',
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => undefined }
+          ]
+        })
       )
     );
     this.win.confirmClose = async () => {
@@ -341,7 +361,11 @@ export class ContactsApp {
       const id = await this.data.transaction(async executor => {
         const repository = executor.getRepository(Contact);
         if (draft.id === null) {
-          const rows = await repository.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'desc' }], limit: 1 });
+          const rows = await repository.find({
+            where: ALL_ROWS,
+            orderBy: [{ field: 'position', sort: 'desc' }],
+            limit: 1
+          });
           const position = rows[0] ? rows[0].position + 1 : 0;
           const created = await repository.create(
             this.data.instantiate(Contact, {
