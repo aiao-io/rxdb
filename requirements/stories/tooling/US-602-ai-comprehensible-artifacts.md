@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-11-16
+updated: 2026-11-18
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
@@ -161,9 +161,12 @@ Docusaurus 的 `postBuild` 通过 `website/scripts/generate-llms.mjs` 生成 `ll
 `website/scripts/generate-llms.test.mjs`；AC#10 的线上验收检查两个固定地址返回 HTTP 200、零重定向、
 `text/plain; charset=utf-8`，正文为完整 Markdown、版本标识和站内链接正确。
 
-主域 `rxdb.aiao.io` 与旧域 `rxdb.netlify.app` 均直出同一部署，范围决定见
-[PR #109](https://github.com/aiao-io/rxdb/pull/109)。`netlify.toml` 为索引与全文分别设置 5 分钟 / 1 小时缓存龄，
-过期走条件校验；接受部署后相应的有界陈旧窗口，保留 AC#10 的固定地址合同。
+2026-10-15 的 Netlify 线上验收关闭了 AC#10：主域 `rxdb.aiao.io` 与旧域 `rxdb.netlify.app` 当时直出同一部署，
+符合 [PR #109](https://github.com/aiao-io/rxdb/pull/109) 的约定。索引标明 `v0.0.26`，40 处站内链接均指向主域；全文无截断。
+
+2026-11-17 起，仓库发布配置迁到 Cloudflare Pages。两个固定地址不变；
+[`website/public/_headers`](../../../website/public/_headers) 为索引和全文指定纯文本类型，缓存时间分别为 5 分钟和 1 小时。
+DNS 切换与部署后检查见[站点发布说明](../../../website/README.md#cloudflare-pages-发布)；上述 Netlify 记录不作为迁移后的线上验证。
 
 ## C：内嵌 Skill 与导出合同
 
@@ -223,7 +226,7 @@ SKILL.md 使用纯 YAML 围栏和必需的 `name` / `description`，manifest 的
   链接一律取 [`docusaurus.config.ts`](../../../website/docusaurus.config.ts) 的 `url`（现为 `https://rxdb.aiao.io`），生成器不硬编码域名
 - **B · 语料口径**：投递范围内的包全部进 `llms.txt` 选型索引（一句话简述 + 权威链接）；范围外的包（只在 `main` 上，
   或 npm 上停在旧版本如 `rxdb-model` 系）一律不给安装命令，是不列还是显式标「未发布（仅 `main`）」在 B plan 二选一。
-  站点从 `main` 构建（`netlify.toml`），所以这条过滤必须在生成器里，不能指望站点内容自然对齐 npm。
+  站点从 `main` 构建（`.github/workflows/website.yml`），所以这条过滤必须在生成器里，不能指望站点内容自然对齐 npm。
   `llms-full.txt` 只承诺**站点公开文档全文**（手册 + API 页），不承诺「所有包全文」。未进 TypeDoc 入口的包在索引里显式标出覆盖方式
 - **C**：`@aiao/rxdb` 主包内 `skills/aiao-rxdb/SKILL.md`（frontmatter 按锁定 exporter 的 schema），正文由事实源与样例源生成、只覆盖投递范围；
   `files` 白名单加 `"skills"`、`keywords` 加 `agent-skills`；`package.json` 的元数据字段按锁定 exporter 的 schema 声明（不预设 `agents`）
@@ -255,7 +258,7 @@ SKILL.md 使用纯 YAML 围栏和必需的 `name` / `description`，manifest 的
 | 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                            | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ✅   |
 | 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ✅   |
 | 9   | B：本地 build                         | `pnpm nx build website`                                                                                                                                                                                                                                                                                                                               | 输出含 `llms.txt` 与 `llms-full.txt`；`llms.txt` 每节有链接与一句话描述，投递范围内的包都在选型索引里、范围外的包没有安装命令（另有 fixture：不在 tag 树里的包、npm 上停在旧版本的包不生成安装命令），版本标识等于登记的 `v*` tag，链接以 `docusaurus.config.ts` 的 `url` 为前缀；两文件不超过 B plan 定的 UTF-8 字节上限，超限时构建失败而非静默截断；中文与代码块完整 | ✅   |
-| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（`rxdb.aiao.io` 为主域直出、零重定向；旧域 `rxdb.netlify.app` 同部署直出，2026-10-12 owner 定，PR #109）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                             | ✅   |
+| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 主域直出 HTTP 200、零重定向，`Content-Type: text/plain; charset=utf-8`，正文不是 HTML fallback，含版本标识、选型表与样例片段。旧域的历史验收见 B 节；线上请求只作部署 smoke，不进 fixtures 单测                                                                                                                                                                         | ✅   |
 | 11  | C：exporter 已锁定                    | 临时项目安装真实核心 tgz（**核心为直接依赖**），执行锁定的 exporter 固定命令                                                                                                                                                                                                                                                                          | 生成的 Skill 路径、内容、相对引用与事实源一致；`SKILL.md` ≤ 8192 字节；tgz 含 `skills/aiao-rxdb/SKILL.md`，`files` 去掉 `"skills"` 时不含（反向用例）；核心仅被 peer 自动安装、或 Skill 路径无效时，结果与所选 exporter 文档一致并明确报告，不靠手工拷贝                                                                                                                | ✅   |
 | 12  | A1：TSDoc 已补                        | 读**实际打包**的 `.d.ts`，按符号与重载归属检查                                                                                                                                                                                                                                                                                                        | `RxDB.use` 区分三类插件且保留「普通插件晚装立即安装」；`RxDBAdapterLocalBase.transaction` 两个重载都带 ✅ / ❌ `@example`，各具体适配器的 `transaction` 覆写不带与基类矛盾的 TSDoc；正例可编译，反例由受控队列 spy 或带清理的超时用例证明会重新排队，不挂死测试套件                                                                                                     | ✅   |
 | 13  | 全部阶段合并                          | `pnpm test-all` + CI 审计步骤                                                                                                                                                                                                                                                                                                                         | 绿；新增 `*.spec.mjs` 全部基于 `__fixtures__/` 假包，不断言真实 `packages/` 内容；真实仓库校验只走 `audit:package-graph`                                                                                                                                                                                                                                                | ✅   |
@@ -366,7 +369,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 | B    | `website/docusaurus.config.ts` / `website/package.json`                 | 接入 llms.txt 插件，链接取站点 `url`                                     |
 | B    | `website/src/`                                                          | `llms.txt` 头部（由事实源生成）                                          |
 | B    | `website/scripts/generate-llms.mjs` / `website/src/plugins/llms-txt.js` | Docusaurus 构建后生成两个纯文本文件，复用 A1 事实源并校验 UTF-8 字节上限 |
-| B    | `netlify.toml`                                                          | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头       |
+| B    | `website/public/_headers`                                               | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头       |
 | C    | `packages/rxdb/skills/aiao-rxdb/SKILL.md`                               | 主包单份 Skill，正文生成                                                 |
 | C    | `packages/rxdb/package.json`                                            | 按锁定 exporter 的元数据字段 + `files` 加 `"skills"`                     |
 

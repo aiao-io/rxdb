@@ -8,7 +8,7 @@ on:
 #   actions: read     nrwl/nx-set-shas 要读历史 workflow run 找 base SHA
 #   contents: read    checkout
 #   id-token: write   Codecov 的 OIDC 上传（use_oidc: true）
-# 没有 pull-requests: write —— 全流程没有任何一步往 PR 上写评论或改标签。
+# pull-requests: write 仅由 website-preview-comment job 申请，用于更新预览链接。
 #
 # 这里的 id-token 只是**上限**：ci-template.yml 没有在 workflow 级要它，
 # 只有 coverage job 自己声明，其余 job 一律拿不到。这一行删不得（交集为空就没得签），
@@ -34,3 +34,43 @@ jobs:
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+
+  website-preview:
+    uses: ./.github/workflows/website.yml
+    permissions:
+      contents: read
+      deployments: write
+      pull-requests: read
+    with:
+      deployment-branch: pr-${{ github.event.pull_request.number }}
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  website-preview-comment:
+    needs: website-preview
+    if: ${{ !cancelled() && needs.website-preview.outputs.deployment-url != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: website-preview-comment-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    env:
+      NX_NO_CLOUD: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+      - name: Update preview comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_STATE: open
+          ALIAS_URL: ${{ needs.website-preview.outputs.alias-url }}
+          DEPLOYMENT_URL: ${{ needs.website-preview.outputs.deployment-url }}
+        run: pnpm exec nx run website:preview-comment --output-style=stream
