@@ -400,9 +400,10 @@ export const collaborationEnglish: Record<string, string> = {
   签名密钥地址格式错误: 'The signing key URL is invalid',
   '使用 JWKS 校验令牌时必须配置签发者': 'Configure the token issuer when verifying with JWKS',
   '读取团队数据失败，请稍后重试': 'Could not read team data. Try again later',
-  '先提交或放弃当前改动再恢复': 'Commit or discard your current changes before restoring',
+  先提交或放弃当前改动再恢复: 'Commit or discard your current changes before restoring',
   团队库配置不正确: 'The team database is not configured correctly',
-  '工作树来自历史版本的恢复，同步后形成新的提交': 'The working tree comes from restoring a past version; syncing creates a new commit',
+  '工作树来自历史版本的恢复，同步后形成新的提交':
+    'The working tree comes from restoring a past version; syncing creates a new commit',
   '已从历史版本形成未提交改动，同步后进入审核':
     'The past version is now uncommitted changes; sync them to start a review',
   '已保存未提交的改动会全部撤回，列表与表单回到任务上次提交的版本；已形成的提交不受影响。':
@@ -417,7 +418,8 @@ export const collaborationEnglish: Record<string, string> = {
     'The selected version matches the current shared version; there is nothing to restore',
   '所选版本只在合并带进来的侧枝上，无法直接恢复':
     'The selected version only exists on a branch brought in by a merge and cannot be restored directly',
-  '所选版本含有本应用不认识的数据，无法恢复': 'The selected version contains data this app does not recognize and cannot be restored',
+  '所选版本含有本应用不认识的数据，无法恢复':
+    'The selected version contains data this app does not recognize and cannot be restored',
   放弃草稿: 'Discard draft',
   无法在本机建立任务分支: 'Could not create the task branch on this device',
   '有已保存未提交的改动（{v0} 项）': 'Saved but uncommitted changes ({v0})',

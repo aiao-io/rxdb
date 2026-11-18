@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { firstValueFrom } from 'rxjs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Identity, Records, SchemaManifest } from '../model.js';
 import { assetSchema } from '../schema.testing.js';
 import { MemoryWorkspace } from '../server/memory.testing.js';
@@ -111,6 +111,8 @@ async function task(space: MemoryWorkspace, act: ReturnType<typeof memoryCommand
   return space.state.tasks[id];
 }
 
+// 每个用例都要起 PGlite（WASM）：全量并行跑时冷启动会超过默认的 5 秒
+vi.setConfig({ testTimeout: 30000 });
 describe('打开任务：镜像共享分支、从共同起点建任务分支、导入任务的已有提交', () => {
   it('第二台设备打开同一任务：提交 ID、父链与作者与服务端一致，工作树干净，不记成拉取者的新提交（AC#1）', async () => {
     const { space, act, download } = await workspace();
@@ -124,7 +126,11 @@ describe('打开任务：镜像共享分支、从共同起点建任务分支、�
     const sent = await sync(first, context, act, '采购电脑');
     expect(sent?.result['head']).toBe(sent?.next.upload.head);
     const head = space.state.tasks['t'].head;
-    expect(space.store.record(head)).toMatchObject({ authorId: admin.id, parentIds: [space.state.root], kind: 'normal' });
+    expect(space.store.record(head)).toMatchObject({
+      authorId: admin.id,
+      parentIds: [space.state.root],
+      kind: 'normal'
+    });
 
     const second = await device();
     const pulled = await second.prepare(context, space.state.tasks['t'], download);
@@ -136,7 +142,10 @@ describe('打开任务：镜像共享分支、从共同起点建任务分支、�
 
     await update(second, 'AssetCategory', category, { name: '笔记本' });
     const continued = await sync(second, context, act, '采购电脑');
-    expect(space.store.record(String(continued?.result['head']))).toMatchObject({ parentIds: [head], authorId: admin.id });
+    expect(space.store.record(String(continued?.result['head']))).toMatchObject({
+      parentIds: [head],
+      authorId: admin.id
+    });
   });
 
   it('下发的共享分支导入之后，任务分支起点的业务数据与服务端的共享记录一致', async () => {
@@ -158,9 +167,12 @@ describe('打开任务：镜像共享分支、从共同起点建任务分支、�
     ];
     const remote = Object.entries(shared).map(([id, row]) => ({
       id,
-      ...Object.fromEntries(Object.entries(row.fields).filter(([field]) => ['name', 'categoryId', 'purchasePrice'].includes(field)))
+      ...Object.fromEntries(
+        Object.entries(row.fields).filter(([field]) => ['name', 'categoryId', 'purchasePrice'].includes(field))
+      )
     }));
-    const byId = (a: Record<string, unknown>, b: Record<string, unknown>) => String(a['id']).localeCompare(String(b['id']));
+    const byId = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      String(a['id']).localeCompare(String(b['id']));
     expect(local.sort(byId)).toEqual(remote.sort(byId));
   });
 });
@@ -351,7 +363,12 @@ describe('换一套业务实体：协作代码不改即可编辑、同步与合�
     const tasks = await device(planningEntities);
     await tasks.prepare(context, await task(space, act, 'plan'), download);
     const project = await create(tasks, 'Project', { title: '发布 1.0', active: true });
-    await create(tasks, 'Milestone', { label: '冻结', points: 3, due: new Date('2026-12-01T00:00:00.000Z'), projectId: project });
+    await create(tasks, 'Milestone', {
+      label: '冻结',
+      points: 3,
+      due: new Date('2026-12-01T00:00:00.000Z'),
+      projectId: project
+    });
     await sync(tasks, context, act, '计划');
     await merge(space, act, 'plan');
     const shared = Object.values((await space.records(admin)).records).map(row => row.entity);
@@ -359,7 +376,9 @@ describe('换一套业务实体：协作代码不改即可编辑、同步与合�
 
     const other = await device(planningEntities);
     await other.prepare(contextOf('next', 'planning'), await task(space, act, 'next'), download);
-    expect(await rows(other, 'Project', ['title', 'active'])).toEqual([{ id: project, title: '发布 1.0', active: true }]);
+    expect(await rows(other, 'Project', ['title', 'active'])).toEqual([
+      { id: project, title: '发布 1.0', active: true }
+    ]);
     expect(await rows(other, 'Milestone', ['label', 'points', 'projectId'])).toMatchObject([
       { label: '冻结', points: 3, projectId: project }
     ]);

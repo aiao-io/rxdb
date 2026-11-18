@@ -59,19 +59,21 @@ export type TeamDatabaseFactory = (scope: TeamScope) => RxDB;
 
 /**
  * 团队库名的长度上限。sqlite-wasm 的 IndexedDB 文件系统（wa-sqlite 的 `FacadeVFS`）的 `mxPathname` 是 64：
- * 打开的文件名是 `<库名>@0_1.sqlite`（RxDB 给库名加 `@0_1`，适配器加 `.sqlite`），超过 64 字节时 `xFullPathname`
- * 失败、`sqlite3_open_v2` 直接报错，所以库名至多 53 个字符。
+ * 打开的文件是 `<库名>@0_1.sqlite.db`（RxDB 给库名加 `@0_1`，适配器加 `.sqlite`，IndexedDB 存储再加 `.db`），
+ * 回滚日志再加 `-journal`；日志路径超过上限时 `sqlite3_open_v2` 直接失败（浏览器实测：日志路径 62 字节可以、65 字节不行），
+ * 所以库名至多 41 个字符，日志路径不超过 63 字节。
  */
-const teamDatabaseNameLimit = 53;
+const teamDatabaseNameLimit = 41;
 
 /**
- * 团队库的库名：`<前缀>-<作用域的 96 位散列>`（24 位十六进制）。用户、团队、应用三项按 JSON 数组参与散列，
+ * 团队库的库名：`<前缀>-<作用域的 80 位散列>`（20 位十六进制）。用户、团队、应用三项按 JSON 数组参与散列，
  * 切分方式不同的组合不会混为一谈；同一作用域永远得到同一个库名，刷新、离线冷启动都打开同一个库。
  *
  * @remarks
  * 不把三项原样拼进库名：两个 UUID 加应用 ID 远超 sqlite-wasm 的路径上限（见 {@link teamDatabaseNameLimit}），
  * 而且文件系统用 `new URL(库名, 'file://')` 解析路径，带冒号的库名会被当成 URL 协议。散列不用于防伪：
- * 96 位的意外碰撞概率可以忽略，不同作用域因此不会共库（ADMIN-US-204）。前缀太长、放不下散列时抛出 `configuration`。
+ * 一台设备上只有寥寥几个作用域，80 位的意外碰撞概率可以忽略，不同作用域因此不会共库（ADMIN-US-204）。
+ * 前缀太长、放不下散列（三端的前缀至多 20 个字符）或含冒号时抛出 `configuration`。
  * @param prefix 应用给出的前缀，通常是它的本机库名；不能含冒号。
  * @param scope 用户 × 团队 × 应用。
  */
@@ -82,7 +84,7 @@ export function teamDatabaseName(prefix: string, scope: TeamScope): string {
 }
 
 /**
- * 字符串的 96 位散列（十六进制）：cyrb128 的前三个 32 位字（四路 `Math.imul` 混合，逐个 UTF-16 码元输入），同步计算，
+ * 字符串的 80 位散列（20 位十六进制）：cyrb128（四路 `Math.imul` 混合，逐个 UTF-16 码元输入）的前 80 位，同步计算，
  * 浏览器与 Node 结果相同。只用来把作用域压成短库名，不是密码学散列。
  */
 function scopeHash(text: string): string {
@@ -101,7 +103,10 @@ function scopeHash(text: string): string {
   h1 ^= h2 ^ h3 ^ h4;
   h2 ^= h1;
   h3 ^= h1;
-  return [h1, h2, h3].map(word => (word >>> 0).toString(16).padStart(8, '0')).join('');
+  return [h1, h2, h3]
+    .map(word => (word >>> 0).toString(16).padStart(8, '0'))
+    .join('')
+    .slice(0, 20);
 }
 
 /** 协作读的工作树摘要：当前分支、未提交条目数、恢复会话与三个捕获位。 */
@@ -110,7 +115,10 @@ export type TreeStatus = Pick<
   'branchId' | 'entryCount' | 'restoring' | 'conflicted' | 'activationRevision' | 'headRevision' | 'workingTreeRevision'
 >;
 /** 协作读的提交历史条目（子先于父）。 */
-export type TreeLogEntry = Pick<CommitLogEntry, 'commitId' | 'parentIds' | 'kind' | 'message' | 'authorId' | 'createdAt'>;
+export type TreeLogEntry = Pick<
+  CommitLogEntry,
+  'commitId' | 'parentIds' | 'kind' | 'message' | 'authorId' | 'createdAt'
+>;
 
 /**
  * 协作用到的 working-tree 成员：平台 `db.workingTree`（`WorkingTreeManager`）的子集，入参与结果的类型取自平台，

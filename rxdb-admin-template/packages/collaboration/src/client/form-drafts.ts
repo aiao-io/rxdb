@@ -70,9 +70,7 @@ export class FormDrafts {
     }
   }
   private controls(): (HTMLInputElement | HTMLSelectElement)[] {
-    return [
-      ...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]')
-    ];
+    return [...this.host.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-form-key]')];
   }
   private key(control: HTMLInputElement | HTMLSelectElement): string {
     const label = control.dataset['formKey'];

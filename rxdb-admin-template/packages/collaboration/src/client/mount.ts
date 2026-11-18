@@ -103,14 +103,21 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     if (!task || !database) return;
     const container = element('div');
     editorHost.append(element('h2', '编辑任务数据', 'text-lg font-semibold'), container);
-    editor = { key, dispose: options.renderEditor(container, { database: database.rxdb, task: { id: task.context.taskId, name: task.name } }) };
+    editor = {
+      key,
+      dispose: options.renderEditor(container, {
+        database: database.rxdb,
+        task: { id: task.context.taskId, name: task.name }
+      })
+    };
     // 团队库打开之后才懒加载的资源（sqlite-wasm 等）也交给离线外壳缓存，离线冷启动才能打开这个任务
     refreshOfflineShell();
   };
   const change = () => {
     syncEditor();
     const active = document.activeElement;
-    const typing = !!active && (top.contains(active) || bottom.contains(active)) && active.matches('input, select, textarea');
+    const typing =
+      !!active && (top.contains(active) || bottom.contains(active)) && active.matches('input, select, textarea');
     if (controller.user && !busy && typing) return;
     render();
   };
@@ -317,9 +324,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     data.tasks
       .filter(task => task.ownerId === controller.user?.id)
       .forEach(task =>
-        tasks.append(
-          button(tx('打开任务：{v0}', { v0: task.name }), () => perform(() => controller.openTask(task.id)))
-        )
+        tasks.append(button(tx('打开任务：{v0}', { v0: task.name }), () => perform(() => controller.openTask(task.id))))
       );
     if (data.earlier.tasks) tasks.append(button('加载更早的任务', () => perform(() => controller.loadEarlierTasks())));
     view.append(tasks);
@@ -352,7 +357,11 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
     );
     if (count > importLimit)
       content.append(
-        element('p', tx('本机记录超过单个提交的上限（{v0} 条），请先在本机工作台分批整理后再导入', { v0: importLimit }), 'text-error')
+        element(
+          'p',
+          tx('本机记录超过单个提交的上限（{v0} 条），请先在本机工作台分批整理后再导入', { v0: importLimit }),
+          'text-error'
+        )
       );
     content.append(readOnlyRecords(records, schema), name.wrapper);
     const close = () => {

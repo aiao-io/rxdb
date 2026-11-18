@@ -55,6 +55,7 @@ export default function TeamEditor() {
 
   return (
     <div className='flex flex-col' data-testid='team-editor' style={{ height: EDITOR_HEIGHT }}>
+      {/* 未选中的页签沿用正文颜色：DaisyUI 默认把它减淡到对比度 3.4，达不到 WCAG AA 的 4.5 */}
       <div aria-label={t('teamEditor.entities')} className='tabs tabs-border shrink-0 overflow-x-auto' role='tablist'>
         {entries.map((entry, index) => (
           <button
@@ -64,7 +65,7 @@ export default function TeamEditor() {
             }}
             aria-controls={panelId}
             aria-selected={index === position}
-            className='tab'
+            className='tab text-base-content'
             id={tabId(index)}
             role='tab'
             tabIndex={index === position ? 0 : -1}

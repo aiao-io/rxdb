@@ -20,6 +20,7 @@ export function taskView(controller: TaskViewController, perform: Perform, discl
   const view = section(tx('任务：{v0}', { v0: task.name }));
   const state = element('p', stateText(controller), 'font-medium');
   state.setAttribute('role', 'status');
+  state.dataset['taskState'] = stateKind(controller);
   view.append(
     state,
     element(
@@ -39,7 +40,13 @@ export function taskView(controller: TaskViewController, perform: Perform, discl
   return view;
 }
 
-/** 三种状态之一：已保存未提交优先，其次已提交未同步，否则已同步。 */
+/** 三种状态之一：已保存未提交（`saved`）优先，其次已提交未同步（`committed`），否则已同步（`synced`）。 */
+function stateKind(controller: TaskViewController): 'saved' | 'committed' | 'synced' {
+  const task = controller.task!;
+  if (task.saved || task.restoring) return 'saved';
+  return task.unpushed ? 'committed' : 'synced';
+}
+/** 状态行的文案，与 {@link stateKind} 一一对应。 */
 function stateText(controller: TaskViewController): string {
   const task = controller.task!;
   if (task.saved || task.restoring) return tx('有已保存未提交的改动（{v0} 项）', { v0: task.saved });

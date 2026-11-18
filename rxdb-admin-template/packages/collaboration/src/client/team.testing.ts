@@ -94,7 +94,14 @@ export class MemoryTeamDatabase implements TeamDatabase {
       units: []
     });
     this.commits.set(root.commitId, root);
-    this.branches.set('main', { head: root.commitId, entries: [], restoring: null, activation: 1, headRevision: 1, workingTreeRevision: 1 });
+    this.branches.set('main', {
+      head: root.commitId,
+      entries: [],
+      restoring: null,
+      activation: 1,
+      headRevision: 1,
+      workingTreeRevision: 1
+    });
   }
   /** 当前分支。 */
   branch(): StubBranch {
@@ -152,7 +159,10 @@ export class MemoryTeamDatabase implements TeamDatabase {
   /** 三个捕获位对得上时返回 undefined，否则返回冲突。 */
   private stale(options: Credentials) {
     const branch = this.branch();
-    if (options.expectedBranch.branchId !== this.active || options.expectedBranch.activationRevision !== branch.activation)
+    if (
+      options.expectedBranch.branchId !== this.active ||
+      options.expectedBranch.activationRevision !== branch.activation
+    )
       return conflictOf(this.active, options.expectedBranch.activationRevision, branch.activation);
     if (options.expectedHeadRevision !== branch.headRevision)
       return conflictOf(this.active, options.expectedHeadRevision, branch.headRevision);
@@ -181,7 +191,12 @@ export class MemoryTeamDatabase implements TeamDatabase {
     branch.headRevision++;
     branch.workingTreeRevision++;
     this.log.push(`commit:${record.commitId}`);
-    return { ok: true, commitId: record.commitId, changeSetCount: record.units.length, headRevision: branch.headRevision };
+    return {
+      ok: true,
+      commitId: record.commitId,
+      changeSetCount: record.units.length,
+      headRevision: branch.headRevision
+    };
   }
   private discard(options: WorkingTreeDiscardOptions): WorkingTreeDiscardResult {
     const conflict = this.stale(options);
@@ -221,7 +236,13 @@ export class MemoryTeamDatabase implements TeamDatabase {
     const empty = this.commits.get(branch.head)?.kind === 'baseline' && !this.reachable(branch.head).size;
     if (!chain.includes(branch.head) && !empty) {
       if (this.reachable(branch.head).has(head))
-        return { ok: true, headCommitId: branch.head, headRevision: branch.headRevision, importedCount: 0, appliedCount: 0 };
+        return {
+          ok: true,
+          headCommitId: branch.head,
+          headRevision: branch.headRevision,
+          importedCount: 0,
+          appliedCount: 0
+        };
       return { ok: false, reason: 'not_fast_forward', headCommitId: branch.head };
     }
     for (const record of commits) {
@@ -236,7 +257,13 @@ export class MemoryTeamDatabase implements TeamDatabase {
     branch.head = head;
     branch.headRevision++;
     this.log.push(`import:${head}`);
-    return { ok: true, headCommitId: head, headRevision: branch.headRevision, importedCount: fresh.length, appliedCount: 1 };
+    return {
+      ok: true,
+      headCommitId: head,
+      headRevision: branch.headRevision,
+      importedCount: fresh.length,
+      appliedCount: 1
+    };
   }
   private exportCommits(after: string | undefined) {
     if (after === undefined || !this.commits.has(after)) throw new Error(`Commit ${String(after)} not found`);
@@ -248,8 +275,16 @@ export class MemoryTeamDatabase implements TeamDatabase {
   private createBranchFromCommit(branchId: string, commitId: string) {
     if (this.branches.has(branchId)) throw new Error(`Branch id (${branchId}) already exists`);
     const head = this.branch().head;
-    if (head !== commitId && !this.reachable(head).has(commitId)) return { ok: false as const, reason: 'unreachable_target' as const };
-    this.branches.set(branchId, { head: commitId, entries: [], restoring: null, activation: 0, headRevision: 1, workingTreeRevision: 1 });
+    if (head !== commitId && !this.reachable(head).has(commitId))
+      return { ok: false as const, reason: 'unreachable_target' as const };
+    this.branches.set(branchId, {
+      head: commitId,
+      entries: [],
+      restoring: null,
+      activation: 0,
+      headRevision: 1,
+      workingTreeRevision: 1
+    });
     this.log.push(`branch:${branchId}@${commitId}`);
     return { ok: true as const };
   }

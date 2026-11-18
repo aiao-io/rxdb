@@ -557,8 +557,12 @@ export class CollaborationController extends EventTarget {
     demand(this.task, 'missing', '先打开任务');
     const result = await this.current(this.tasks.restore(this.task.context, commitId));
     await this.refreshTask();
-    if (!result.ok) throw new CollaborationError('restore', restoreRejections[result.reason], { reason: result.reason });
-    this.message = result.restoredCount ? '已从历史版本形成未提交改动，同步后进入审核' : '所选版本与当前共享版本相同，没有需要恢复的改动';
+    if (!result.ok)
+      throw new CollaborationError('restore', restoreRejections[result.reason], { reason: result.reason });
+    this.message =
+      result.restoredCount ? '已从历史版本形成未提交改动，同步后进入审核' : (
+        '所选版本与当前共享版本相同，没有需要恢复的改动'
+      );
     this.changed();
   }
   /**
@@ -621,7 +625,11 @@ export class CollaborationController extends EventTarget {
     const workspace = this.workspace;
     const epoch = this.generation;
     await this.current(this.refresh(), epoch);
-    demand(this.snapshot?.tasks.some(value => value.id === context.taskId), 'missing', '任务不存在');
+    demand(
+      this.snapshot?.tasks.some(value => value.id === context.taskId),
+      'missing',
+      '任务不存在'
+    );
     const view = await this.current(this.tasks.fastForward(context, this.download(workspace)), epoch);
     this.task = view;
     this.changed();
@@ -1139,16 +1147,24 @@ export class CollaborationController extends EventTarget {
   }
   /**
    * 服务端接受了另存分叉（含按原幂等键重放的那一次）之后在本机落地：新任务从原任务分支的头另起分支，原任务记下被带走的头。
+   * 本机账本里没有原任务时没有可带走的本机提交，什么都不做，新任务打开时按服务端的提交导入。
    */
   private async archiveFork(command: Extract<Command, { type: 'fork' }>): Promise<void> {
     demand(this.user && this.workspace && this.snapshot, 'locked', '先选择团队');
     const task = this.snapshot.tasks.find(value => value.id === command.taskId);
-    demand(task?.ownerId === this.user.id, 'forbidden', '没有此任务编辑权限');
+    const member = this.snapshot.members.find(value => value.id === this.user?.id);
+    demand(task?.ownerId === this.user.id && member?.permissions.includes('edit'), 'forbidden', '没有此任务编辑权限');
     const head = command.commits.at(-1)?.commitId;
     demand(head, 'invalid', '分叉回执缺少版本');
-    const context = { userId: this.user.id, teamId: this.workspace.teamId, appId: this.workspace.appId, taskId: task.id };
-    if (!this.tasks.ledger.read(context))
-      await this.current(this.tasks.prepare(context, task, this.download(this.workspace)));
+    const context = {
+      userId: this.user.id,
+      teamId: this.workspace.teamId,
+      appId: this.workspace.appId,
+      taskId: task.id
+    };
+    if (!this.tasks.ledger.read(context)) return;
+    // 刷新页面之后重放时，原任务还没在本会话解锁、团队库也可能没打开：先按联网验证打开它（切到它的分支），再落地新任务
+    await this.current(this.tasks.prepare(context, task, this.download(this.workspace)));
     await this.current(this.tasks.adoptFork(context, { id: command.id, name: command.name }, head));
   }
   private async upload(confirmExpired: boolean): Promise<void> {

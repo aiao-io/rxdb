@@ -65,7 +65,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
       role="alert"
       >{{ t('entity.none') }}</div
     ><template v-else
-      ><div
+      ><!-- 未选中的页签沿用正文颜色：DaisyUI 默认把它减淡到对比度 3.4，达不到 WCAG AA 的 4.5 --><div
         class="tabs tabs-border shrink-0 overflow-x-auto"
         role="tablist"
         :aria-label="t('teamEditor.entities')"
@@ -75,7 +75,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
           :key="`${entry.namespace}/${entry.name}`"
           :aria-controls="panelId"
           :aria-selected="index === position"
-          class="tab"
+          class="tab text-base-content"
           role="tab"
           :tabindex="index === position ? 0 : -1"
           type="button"

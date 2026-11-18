@@ -35,6 +35,7 @@ let created = 0;
   host: { 'data-testid': 'team-editor', class: 'flex flex-col', style: 'height: 32rem' },
   template: `
     @if (current(); as entry) {
+      <!-- 未选中的页签沿用正文颜色：DaisyUI 默认把它减淡到对比度 3.4，达不到 WCAG AA 的 4.5 -->
       <div
         class="tabs tabs-border shrink-0 overflow-x-auto"
         [attr.aria-label]="t('teamEditor.entities')"
@@ -42,7 +43,7 @@ let created = 0;
       >
         @for (item of entries; track item.namespace + '/' + item.name; let index = $index) {
           <button
-            class="tab"
+            class="tab text-base-content"
             #tab
             [attr.aria-controls]="panelId"
             [attr.aria-selected]="index === position()"

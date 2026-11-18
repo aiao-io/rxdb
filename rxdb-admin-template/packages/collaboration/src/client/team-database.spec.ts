@@ -17,7 +17,8 @@ function factory(change: { init?: boolean; userId?: string; synced?: boolean; hi
       dbName: teamDatabaseName(`bad${Math.random().toString(36).slice(2, 8)}`, given),
       context: { userId: change.userId ?? given.userId },
       entities: cloneEntityClasses([...assetEntities]),
-      sync: change.synced ?
+      sync:
+        change.synced ?
           { local: { adapter: 'pglite' }, remote: { adapter: 'supabase' }, type: SyncType.Full }
         : { local: { adapter: 'pglite' }, type: SyncType.None }
     });
@@ -28,12 +29,14 @@ function factory(change: { init?: boolean; userId?: string; synced?: boolean; hi
   };
 }
 
+// 每个用例都要起 PGlite（WASM）：全量并行跑时冷启动会超过默认的 5 秒
+vi.setConfig({ testTimeout: 30000 });
 describe('团队库的库名：用户 × 团队 × 应用', () => {
   const uuid = () => crypto.randomUUID();
-  it('前缀加作用域的 96 位散列：同一作用域永远同名，不同用户、团队或应用不共库，组合的切分方式不同也不撞名', () => {
+  it('前缀加作用域的 80 位散列：同一作用域永远同名，不同用户、团队或应用不共库，组合的切分方式不同也不撞名', () => {
     const scope = { userId: uuid(), teamId: uuid(), appId: 'assets' };
     const name = teamDatabaseName('admin-workbench', scope);
-    expect(name).toMatch(/^admin-workbench-[0-9a-f]{24}$/);
+    expect(name).toMatch(/^admin-workbench-[0-9a-f]{20}$/);
     expect(teamDatabaseName('admin-workbench', { ...scope })).toBe(name);
     const names = new Set(
       [
@@ -47,11 +50,11 @@ describe('团队库的库名：用户 × 团队 × 应用', () => {
     );
     expect(names.size).toBe(6);
   });
-  it('库名短到 sqlite-wasm 的 IndexedDB 文件系统放得下（文件名「<库名>@0_1.sqlite」不超过 64 字节），也不含被当作 URL 协议的冒号', () => {
+  it('库名短到 sqlite-wasm 的 IndexedDB 文件系统放得下（回滚日志「<库名>@0_1.sqlite.db-journal」不超过 63 字节），也不含被当作 URL 协议的冒号', () => {
     const name = teamDatabaseName('admin-workbench-vue', { userId: uuid(), teamId: uuid(), appId: 'a'.repeat(128) });
-    expect(`${name}@0_1.sqlite`.length).toBeLessThanOrEqual(64);
+    expect(`${name}@0_1.sqlite.db-journal`.length).toBeLessThanOrEqual(63);
     expect(name).not.toContain(':');
-    expect(() => teamDatabaseName('x'.repeat(29), { userId: uuid(), teamId: uuid(), appId: 'assets' })).toThrow(
+    expect(() => teamDatabaseName('x'.repeat(21), { userId: uuid(), teamId: uuid(), appId: 'assets' })).toThrow(
       '团队库配置不正确'
     );
     expect(() => teamDatabaseName('admin:workbench', { userId: uuid(), teamId: uuid(), appId: 'assets' })).toThrow(
@@ -111,8 +114,9 @@ describe('打开团队库：连接前装上 working-tree，空库上启用提交
     expect(await database.tree.status()).toMatchObject({ entryCount: 3 });
     await new Promise(resolve => setTimeout(resolve, 100));
     expect(written).not.toHaveBeenCalled();
-    await expect(
-      database.writeRecords({ x: { entity: 'Unknown', fields: {} } }, ['Unknown'])
-    ).rejects.toMatchObject({ code: 'invalid', message: '实体不受支持' });
+    await expect(database.writeRecords({ x: { entity: 'Unknown', fields: {} } }, ['Unknown'])).rejects.toMatchObject({
+      code: 'invalid',
+      message: '实体不受支持'
+    });
   });
 });

@@ -66,7 +66,14 @@ async function setup() {
     { teamId: 'team', appId: 'assets', name: 'Team', bootstrapKey: 'seed', admin: alice, schema: assetSchema },
     { now: 1, id: () => 'id' }
   );
-  space.state.tasks['task'] = { id: 'task', name: 'Task', ownerId: 'alice', base: root, head: root, originTaskId: null };
+  space.state.tasks['task'] = {
+    id: 'task',
+    name: 'Task',
+    ownerId: 'alice',
+    base: root,
+    head: root,
+    originTaskId: null
+  };
   controller.user = alice;
   controller.workspace = { teamId: 'team', appId: 'assets', name: 'Team' };
   controller.snapshot = teamSummary(space.state, alice);
@@ -110,10 +117,14 @@ async function uploadFromAnotherDevice(space: MemoryWorkspace, taskId = 'task', 
     message: name,
     changes: diffAssets({}, { [`category-${serial}`]: { entity: 'AssetCategory', fields: { name } } })
   });
-  await space.run(alice, { type: 'upload', taskId, expectedHead: parent, commits: [commit], operationId: `op-${serial}` } as Command, {
-    now: Date.now(),
-    id: () => `server-${++serial}`
-  });
+  await space.run(
+    alice,
+    { type: 'upload', taskId, expectedHead: parent, commits: [commit], operationId: `op-${serial}` } as Command,
+    {
+      now: Date.now(),
+      id: () => `server-${++serial}`
+    }
+  );
   return commit.commitId;
 }
 function authFixture(userId = 'alice') {
@@ -171,6 +182,29 @@ async function initialized(userId = 'alice') {
   ]);
   await setupValue.controller.initialize();
   return { ...setupValue, ...fixture };
+}
+/**
+ * 刷新页面：释放原控制器，以同一批团队库与给定账本新建控制器——新会话里任务都还没解锁、团队库也没打开；
+ * 团队页、数据模式与下发接口照常走内存服务端，回执由用例自己给。
+ */
+async function reload(
+  previous: CollaborationController,
+  space: MemoryWorkspace,
+  open: (scope: TeamScope) => Promise<MemoryTeamDatabase>,
+  ledger: TaskLedger
+) {
+  previous.dispose();
+  const controller = new CollaborationController('/test', open, ledger);
+  controllers.push(controller);
+  controller.user = alice;
+  await controller.tasks.login('alice');
+  vi.spyOn(controller.reader, 'team').mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
+  vi.spyOn(controller.reader, 'schema').mockResolvedValue(assetSchema);
+  const download = memoryDownload(space);
+  vi.spyOn(controller.reader, 'exchange').mockImplementation(async (_workspace, branch, known) =>
+    download(branch, known)
+  );
+  return controller;
 }
 /** 待确认的上传（账本里任务 `task` 的那一条）。 */
 const pendingUpload = (ledger: TaskLedger) => ledger.read(aliceTask)!.uploads[0];
@@ -528,18 +562,88 @@ describe('client concurrency and recovery', () => {
     expect(command.commits[0].contentFingerprint).toBe(computeCommitExchangeRecordFingerprint(command.commits[0]));
     const head = command.commits.at(-1)!.commitId;
     // 服务端其实已经接受了这次另存：回执查得到，新任务在团队页里
-    space.state.tasks[command.id] = { id: command.id, name: command.name, ownerId: 'alice', base: root, head, originTaskId: 'task' };
+    space.state.tasks[command.id] = {
+      id: command.id,
+      name: command.name,
+      ownerId: 'alice',
+      base: root,
+      head,
+      originTaskId: 'task'
+    };
     vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
     vi.mocked(controller.reader.receipt).mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
     await controller.retryPending();
     expect(send).toHaveBeenCalledTimes(1);
-    expect(controller.task).toMatchObject({ context: { taskId: command.id }, localHead: head, remoteHead: head, unpushed: 0 });
+    expect(controller.task).toMatchObject({
+      context: { taskId: command.id },
+      localHead: head,
+      remoteHead: head,
+      unpushed: 0
+    });
     expect(controller.task!.branchId).not.toBe(ledger.read(aliceTask)!.branchId);
     expect(ledger.read(aliceTask)?.forkArchive).toEqual({ taskId: command.id, head });
     await controller.openTask('task');
     await controller.fetchRemote();
     expect(controller.task).toMatchObject({ localHead: root, remoteHead: root, unpushed: 0, uploads: [] });
     expect(controller.task!.forkArchive).toBeUndefined();
+  });
+  it('recovers an accepted fork receipt after a page reload: the original task is reopened and unlocked before the fork lands', async () => {
+    const { controller, storage, space, database, databases } = await setup();
+    database.edit('preserved');
+    vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
+    await expect(controller.fork('Saved fork')).rejects.toThrow('network');
+    const command = controller.pending()!.command;
+    if (command.type !== 'fork') throw new Error('expected fork');
+    const head = command.commits.at(-1)!.commitId;
+    space.state.tasks[command.id] = {
+      id: command.id,
+      name: command.name,
+      ownerId: 'alice',
+      base: root,
+      head,
+      originTaskId: 'task'
+    };
+    // 刷新页面：账本、团队库与待确认请求都还在
+    const ledger = new TaskLedger(storage);
+    const reloaded = await reload(controller, space, databases.open, ledger);
+    vi.spyOn(reloaded.reader, 'receipt').mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
+    const send = vi.spyOn(reloaded.api, 'command');
+    await reloaded.retryPending();
+    expect(send).not.toHaveBeenCalled();
+    expect(reloaded.pending()).toBeNull();
+    expect(reloaded.task).toMatchObject({ context: { taskId: command.id }, localHead: head, remoteHead: head });
+    expect(ledger.read(aliceTask)?.forkArchive).toEqual({ taskId: command.id, head });
+  });
+  it('lands an accepted fork from the server after a reload whose ledger no longer has the original task', async () => {
+    const { controller, space, database, databases } = await setup();
+    database.edit('preserved');
+    vi.spyOn(controller.api, 'command').mockRejectedValueOnce(new TypeError('network'));
+    await expect(controller.fork('Saved fork')).rejects.toThrow('network');
+    const command = controller.pending()!.command;
+    if (command.type !== 'fork') throw new Error('expected fork');
+    const head = command.commits.at(-1)!.commitId;
+    // 服务端其实已经接受了这次另存：提交原样存下，新任务在团队页里（桩的编辑不属于资产模式，所以直接放进服务端，不经引擎校验）
+    command.commits.forEach(record => space.store.add({ record, candidateId: null }));
+    space.state.tasks[command.id] = {
+      id: command.id,
+      name: command.name,
+      ownerId: 'alice',
+      base: root,
+      head,
+      originTaskId: 'task'
+    };
+    // 刷新页面且本机账本已清除：没有可带走的本机提交，新任务打开时按服务端的提交导入（与本机已有的同一个提交）
+    const ledger = new TaskLedger(memoryStorage());
+    const reloaded = await reload(controller, space, databases.open, ledger);
+    vi.spyOn(reloaded.reader, 'receipt').mockResolvedValue({ status: 'accepted', value: { taskId: command.id, head } });
+    await reloaded.retryPending();
+    expect(reloaded.task).toMatchObject({
+      context: { taskId: command.id },
+      localHead: head,
+      remoteHead: head,
+      unpushed: 0
+    });
+    expect(ledger.read(aliceTask)).toBeUndefined();
   });
   it('keeps the original operation when the transport result is uncertain', async () => {
     const { controller } = await setup();
@@ -777,7 +881,14 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
   it('新设备打开任务：镜像共享分支、从共同起点建分支，再导入任务已有的提交，提交 ID、父链与作者与服务端一致（AC#1）', async () => {
     const { controller, space, exchange, databases } = await setup();
     const remote = await uploadFromAnotherDevice(space);
-    space.state.tasks['task2'] = { id: 'task2', name: 'Second', ownerId: 'alice', base: root, head: root, originTaskId: null };
+    space.state.tasks['task2'] = {
+      id: 'task2',
+      name: 'Second',
+      ownerId: 'alice',
+      base: root,
+      head: root,
+      originTaskId: null
+    };
     const second = await uploadFromAnotherDevice(space, 'task2', '第二个任务');
     vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
     exchange.mockClear();
@@ -791,7 +902,11 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
       [{ taskId: 'task2' }, [root]]
     ]);
     const log = databases.of().log;
-    expect(log.slice(-3)).toEqual([`branch:${controller.task!.branchId}@${root}`, `switch:${controller.task!.branchId}`, `import:${second}`]);
+    expect(log.slice(-3)).toEqual([
+      `branch:${controller.task!.branchId}@${root}`,
+      `switch:${controller.task!.branchId}`,
+      `import:${second}`
+    ]);
     expect(remote).not.toBe(second);
   });
   it('已有本机分支的任务只切过去，内容原样保留，不下发也不覆盖', async () => {
@@ -807,7 +922,14 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
   });
   it('下发失败时任务不打开，账本里没有它', async () => {
     const { controller, space, exchange, ledger } = await setup();
-    space.state.tasks['task2'] = { id: 'task2', name: 'Second', ownerId: 'alice', base: root, head: root, originTaskId: null };
+    space.state.tasks['task2'] = {
+      id: 'task2',
+      name: 'Second',
+      ownerId: 'alice',
+      base: root,
+      head: root,
+      originTaskId: null
+    };
     vi.mocked(controller.reader.team).mockImplementation(async () => teamPageOf(teamSummary(space.state, alice)));
     exchange.mockRejectedValue(new CollaborationError('unavailable', '读取团队数据失败，请稍后重试'));
     await expect(controller.openTask('task2')).rejects.toMatchObject({ message: '读取团队数据失败，请稍后重试' });
@@ -858,7 +980,13 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
     const merged = await mergedShared(space);
     await controller.refresh();
     await controller.restoreVersion(root, '恢复 起点');
-    expect(controller.task).toMatchObject({ name: '恢复 起点', base: merged, localHead: merged, saved: 1, restoring: true });
+    expect(controller.task).toMatchObject({
+      name: '恢复 起点',
+      base: merged,
+      localHead: merged,
+      saved: 1,
+      restoring: true
+    });
     expect(controller.message).toBe('已从历史版本形成未提交改动，同步后进入审核');
     expect(space.state.head).toBe(merged);
     expect(send.mock.calls.map(([, command]) => command.type)).toEqual(['task']);
@@ -909,7 +1037,8 @@ describe('团队任务落在团队库的 working-tree 上（ADMIN-US-221）', ()
 /** 服务端合并一个任务（免审批）：任务从当前共享头起步、上传一个新增分类的提交、建 PR、生成候选并合并；返回新的共享头。 */
 async function mergedShared(space: MemoryWorkspace) {
   const env = () => ({ now: Date.now(), id: () => `server-${++serial}` });
-  const run = (command: Record<string, unknown>) => space.run(alice, { operationId: `op-${++serial}`, ...command } as Command, env());
+  const run = (command: Record<string, unknown>) =>
+    space.run(alice, { operationId: `op-${++serial}`, ...command } as Command, env());
   await run({ type: 'policy', stages: [], expectedVersion: 1 });
   const base = space.state.head;
   await run({ type: 'task', id: 'merged', name: 'merged', expectedHead: base });

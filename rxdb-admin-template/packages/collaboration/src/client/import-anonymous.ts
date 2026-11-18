@@ -73,7 +73,9 @@ export function importOrder(schema: SchemaManifest): string[] {
   const entities = schemaModel(schema).entities;
   const placed: string[] = [];
   const targets = (entity: (typeof entities)[number]) =>
-    entity.fields.flatMap(field => (field.target === undefined || field.target === entity.entity ? [] : [field.target]));
+    entity.fields.flatMap(field =>
+      field.target === undefined || field.target === entity.entity ? [] : [field.target]
+    );
   for (let round = 0; round < entities.length; round++) {
     const ready = entities.filter(
       entity => !placed.includes(entity.entity) && targets(entity).every(target => placed.includes(target))

@@ -1,7 +1,7 @@
 import type { Command, Identity } from '../model.js';
 import type { MemoryWorkspace } from '../server/memory.testing.js';
-import { exchangeRecordOf } from './team.testing.js';
 import type { ExchangeDownload } from './team-tasks.js';
+import { exchangeRecordOf } from './team.testing.js';
 
 /**
  * 内存服务端（`MemoryWorkspace`）上的下发接口替身，约定与只读函数 `admin_commit_exchange` 相同：已知提交连同全部祖先不再下发，

@@ -32,7 +32,13 @@ import { teamDatabaseName, type TeamScope } from './team-database.js';
     { name: 'description', type: PropertyType.string, displayName: '说明', nullable: true }
   ],
   relations: [
-    { name: 'assets', displayName: '资产', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Asset', mappedProperty: 'category' }
+    {
+      name: 'assets',
+      displayName: '资产',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'Asset',
+      mappedProperty: 'category'
+    }
   ]
 })
 export class AssetCategory extends EntityBase {
@@ -70,7 +76,13 @@ export class AssetCategory extends EntityBase {
       mappedEntity: 'AssetCategory',
       mappedProperty: 'assets'
     },
-    { name: 'events', displayName: '维护记录', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'AssetEvent', mappedProperty: 'asset' }
+    {
+      name: 'events',
+      displayName: '维护记录',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'AssetEvent',
+      mappedProperty: 'asset'
+    }
   ]
 })
 export class Asset extends EntityBase {
@@ -87,7 +99,13 @@ export class Asset extends EntityBase {
   displayName: '维护记录',
   properties: [
     { name: 'summary', type: PropertyType.string, required: true, searchable: true, displayName: '事项' },
-    { name: 'cost', type: PropertyType.number, format: { kind: 'number', min: 0 }, displayName: '费用', nullable: true },
+    {
+      name: 'cost',
+      type: PropertyType.number,
+      format: { kind: 'number', min: 0 },
+      displayName: '费用',
+      nullable: true
+    },
     {
       name: 'happenedAt',
       type: PropertyType.date,
@@ -97,7 +115,13 @@ export class Asset extends EntityBase {
     }
   ],
   relations: [
-    { name: 'asset', displayName: '所属资产', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Asset', mappedProperty: 'events' }
+    {
+      name: 'asset',
+      displayName: '所属资产',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Asset',
+      mappedProperty: 'events'
+    }
   ]
 })
 export class AssetEvent extends EntityBase {
@@ -147,7 +171,13 @@ export class Project extends EntityBase {
     { name: 'due', type: PropertyType.date, displayName: '截止', nullable: true }
   ],
   relations: [
-    { name: 'project', displayName: '项目', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Project', mappedProperty: 'milestones' }
+    {
+      name: 'project',
+      displayName: '项目',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Project',
+      mappedProperty: 'milestones'
+    }
   ]
 })
 export class Milestone extends EntityBase {
@@ -185,7 +215,9 @@ export function pgliteTeamFactory(entities: readonly EntityType[], directory?: s
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }
     });
     const options =
-      directory === undefined ? { store: 'memory' as const } : { dataDir: join(directory, dbName.replaceAll(':', '_')) };
+      directory === undefined ?
+        { store: 'memory' as const }
+      : { dataDir: join(directory, dbName.replaceAll(':', '_')) };
     return database.use(rxDBPluginHistory).adapter('pglite', async db => new RxDBAdapterPGlite(db, options));
   };
 }

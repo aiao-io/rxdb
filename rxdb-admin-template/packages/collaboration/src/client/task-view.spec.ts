@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkspaceSummary } from '../model.js';
 import type { Disclosures } from './disclosure.js';
 import type { Perform } from './elements.js';
-import type { TaskView } from './team-tasks.js';
 import { taskView, type TaskViewController } from './task-view.js';
+import type { TaskView } from './team-tasks.js';
 import { useTranslation } from './translate.js';
 
 let window: Window;
@@ -36,12 +36,24 @@ function open(overrides: Partial<TaskView> = {}): TaskView {
     ...overrides
   };
 }
-function setup(task: TaskView, options: { expired?: boolean; online?: boolean; remoteHead?: string; open?: boolean } = {}) {
+function setup(
+  task: TaskView,
+  options: { expired?: boolean; online?: boolean; remoteHead?: string; open?: boolean } = {}
+) {
   const controller = {
     task,
     snapshot: {
       root,
-      tasks: [{ id: 'task', name: task.name, ownerId: 'alice', base: root, head: options.remoteHead ?? task.remoteHead, originTaskId: null }]
+      tasks: [
+        {
+          id: 'task',
+          name: task.name,
+          ownerId: 'alice',
+          base: root,
+          head: options.remoteHead ?? task.remoteHead,
+          originTaskId: null
+        }
+      ]
     } as unknown as WorkspaceSummary,
     syncing: false,
     online: options.online ?? true,
@@ -65,6 +77,7 @@ describe('任务视图把已保存未提交、已提交未同步与已同步分�
   it('工作树有条目：已保存未提交，详情行标「有」，可以放弃草稿', () => {
     const { view, texts, buttons } = setup(open({ saved: 2 }));
     expect(view.querySelector('[role="status"]')?.textContent).toBe('有已保存未提交的改动（2 项）');
+    expect(view.querySelector<HTMLElement>('[data-task-state]')?.dataset['taskState']).toBe('saved');
     expect(texts()).toContain('本地版本：空 · 远端确认：空 · 待上传提交：0 · 已保存未提交：有');
     expect(texts()).toContain('表单里的输入点「保存」之后才进入任务工作树；同步只提交已保存的改动');
     expect(buttons('放弃草稿')).toHaveLength(1);
@@ -72,12 +85,14 @@ describe('任务视图把已保存未提交、已提交未同步与已同步分�
   it('工作树干净、远端头之后还有本机提交：已提交未同步，没有可放弃的草稿', () => {
     const { view, texts, buttons } = setup(open({ localHead: 'c1', unpushed: 1 }));
     expect(view.querySelector('[role="status"]')?.textContent).toBe('有已提交未同步的提交（1 个）');
+    expect(view.querySelector<HTMLElement>('[data-task-state]')?.dataset['taskState']).toBe('committed');
     expect(texts()).toContain('本地版本：c1 · 远端确认：空 · 待上传提交：1 · 已保存未提交：无');
     expect(buttons('放弃草稿')).toHaveLength(0);
   });
   it('工作树干净、没有未同步提交：已同步', () => {
     const { view } = setup(open({ localHead: 'c1', remoteHead: 'c1' }));
     expect(view.querySelector('[role="status"]')?.textContent).toBe('已同步：本机与远端确认的版本一致');
+    expect(view.querySelector<HTMLElement>('[data-task-state]')?.dataset['taskState']).toBe('synced');
   });
   it('来自历史恢复的工作树单独标出，恢复会话期间也能放弃', () => {
     const { texts, buttons } = setup(open({ saved: 1, restoring: true }));

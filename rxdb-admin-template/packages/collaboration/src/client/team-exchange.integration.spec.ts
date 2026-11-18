@@ -41,7 +41,8 @@ const download =
   (limit?: number): ExchangeDownload =>
   (branch, known) =>
     pgReads(pool).reader(admin).exchange({ teamId, appId, name: teamId }, branch, known, limit);
-const remoteTask = async (id: string) => (await pgReads(pool).read(admin, teamId, appId)).tasks.find(task => task.id === id)!;
+const remoteTask = async (id: string) =>
+  (await pgReads(pool).read(admin, teamId, appId)).tasks.find(task => task.id === id)!;
 
 beforeAll(async () => {
   const password = randomUUID();
@@ -82,7 +83,14 @@ beforeAll(async () => {
   }
   await applyMigrations(pool);
   repository = new CollaborationRepository(pool);
-  await repository.initialize({ teamId, appId, name: 'Exchange', bootstrapKey: randomUUID(), admin, schema: assetSchema });
+  await repository.initialize({
+    teamId,
+    appId,
+    name: 'Exchange',
+    bootstrapKey: randomUUID(),
+    admin,
+    schema: assetSchema
+  });
   await op({ type: 'policy', stages: [], expectedVersion: 1 });
   root = (await pgReads(pool).branch(admin, teamId, appId)).root;
 }, 90000);
@@ -132,7 +140,10 @@ async function businessRows(tasks: TeamTasks) {
       rxdb.entityManager.getRepository(typeOf(rxdb, entity)).findAll({ where: { combinator: 'and', rules: [] } })
     );
     for (const row of found.map(item => item as unknown as Record<string, unknown>))
-      rows[String(row['id'])] = { entity, fields: Object.fromEntries(fields.map(field => [field, row[field] ?? null])) };
+      rows[String(row['id'])] = {
+        entity,
+        fields: Object.fromEntries(fields.map(field => [field, row[field] ?? null]))
+      };
   }
   return rows;
 }
@@ -147,7 +158,10 @@ async function sharedRows() {
   return Object.fromEntries(
     Object.entries(records).map(([id, row]) => [
       id,
-      { entity: row.entity, fields: Object.fromEntries(tracked[row.entity].map(field => [field, row.fields[field] ?? null])) }
+      {
+        entity: row.entity,
+        fields: Object.fromEntries(tracked[row.entity].map(field => [field, row.fields[field] ?? null]))
+      }
     ])
   );
 }

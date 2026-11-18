@@ -28,7 +28,7 @@ describe('团队库工厂', () => {
     const { dbName } = create().config;
     expect(dbName.startsWith(`${appConfig.dbName}-`)).toBe(true);
     expect(dbName.startsWith(teamDatabaseName(appConfig.dbName, scope))).toBe(true);
-    expect(`${dbName}.sqlite`.length).toBeLessThanOrEqual(64);
+    expect(`${dbName}.sqlite.db-journal`.length).toBeLessThanOrEqual(63);
   });
 
   it('不同的用户、团队或应用各是一个库，互不共用', () => {

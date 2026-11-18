@@ -3,13 +3,7 @@ import { serializeCommitExchangeRecord, type CommitExchangeRecord } from '@aiao/
 import { commitBatchLimit, parseCommits, requestBodyLimit } from '../commit.js';
 import { CollaborationError, demand, type Commit, type CommitExchangePage, type Records } from '../model.js';
 import type { ExchangeBranch } from '../reader.js';
-import {
-  contextKey,
-  type Context,
-  type PendingUpload,
-  type TaskEntry,
-  type TaskLedger
-} from './task-ledger.js';
+import { contextKey, type Context, type PendingUpload, type TaskEntry, type TaskLedger } from './task-ledger.js';
 import type { TeamDatabase, TeamScope, TreeLogEntry, TreeStatus } from './team-database.js';
 
 /** 打开团队库的函数：生产里是 `scope => openTeamDatabase(应用的工厂, scope)`，单测里交出内存桩。 */
@@ -285,7 +279,10 @@ export class TeamTasks {
       const entry = this.entryOf(context);
       const { commits } = await this.databaseOf(context).tree.exportCommits({ afterCommitId: entry.remoteHead });
       demand(commits.length, 'empty', '没有本机分叉提交');
-      return { expectedHead: entry.remoteHead, commits: parseCommits(uploadChunk(commits).map(serializeCommitExchangeRecord)) };
+      return {
+        expectedHead: entry.remoteHead,
+        commits: parseCommits(uploadChunk(commits).map(serializeCommitExchangeRecord))
+      };
     });
   }
   /**

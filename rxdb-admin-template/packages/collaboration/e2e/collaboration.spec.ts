@@ -5,7 +5,7 @@ import {
   type CommitExchangeRecordJson
 } from '@aiao/rxdb-plugin-working-tree/exchange';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Locator, type Page, type WebSocketRoute } from '@playwright/test';
+import { expect, test, type Browser, type Locator, type Page, type WebSocketRoute } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { diffRecords } from '../src/changes.js';
 import type { Audit, ChangeSet, Commit, Records } from '../src/model.js';
@@ -190,6 +190,217 @@ async function fillSettled(target: Locator, value: string) {
     await expect(target).toHaveValue(value, { timeout: 1000 });
   }).toPass({ timeout: 15000 });
 }
+/** 团队任务的编辑界面：应用用模型驱动组件（rxdb-model 的实体列表与表单）渲染团队库，标签来自实体元数据。 */
+const editor = (page: Page) => page.getByTestId('team-editor');
+/** 切到编辑界面里某个实体的页签（页签名是实体元数据的显示名）。 */
+async function entityTab(page: Page, label: string) {
+  const tab = editor(page).getByRole('tab', { name: label, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
+/** 模型驱动对话框里的一个字段（按字段的显示名定位分组；必填字段的分组名带「 *」）。 */
+const field = (page: Page, label: string) => page.getByRole('group', { name: new RegExp(`^${label}( \\*)?$`) });
+/** 对话框里的关联下拉：选项由活查询异步填充，先等选项出现再按文本选择。 */
+async function chooseRelation(page: Page, label: string, option: string) {
+  const select = field(page, label).getByRole('combobox');
+  await expect.poll(() => select.locator('option').count(), { timeout: 10000 }).toBeGreaterThan(1);
+  await select.selectOption({ label: option });
+}
+/** 等页面上的有限动画结束（对话框与页签切换有入场动画，画布坐标要等它结束再换算）。 */
+async function settleAnimations(page: Page) {
+  await page.evaluate(async () => {
+    const finite = document
+      .getAnimations()
+      .filter(
+        animation =>
+          animation.timeline instanceof DocumentTimeline &&
+          animation.effect?.getComputedTiming().iterations !== Infinity
+      );
+    await Promise.all(finite.map(animation => animation.finished.catch(() => undefined)));
+  });
+}
+/**
+ * 在模型驱动对话框里给一个字段填值并让它失焦：三端表单都在失焦（`change`）时提交取值，Vue 的表单只在 `change` 时提交，
+ * 填完直接点保存时最后一个字段可能还没提交。真实用户点保存之前同样会离开输入框。
+ */
+async function fillField(page: Page, label: string, value: string) {
+  const input = field(page, label).locator('input');
+  await fillSettled(input, value);
+  await input.blur();
+}
+/**
+ * 经「+ 新增」对话框在当前任务里新建一条记录并保存（与本机工作台的录入方式相同）：`values` 按字段显示名填文本、数字或日期，
+ * `relations` 按字段显示名选关联记录。保存即写进团队库，经捕获进入任务工作树。
+ */
+async function createRecord(
+  page: Page,
+  entity: string,
+  values: Record<string, string>,
+  relations: Record<string, string> = {}
+) {
+  await entityTab(page, entity);
+  await editor(page).getByRole('button', { name: '+ 新增', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toBeVisible();
+  for (const [label, value] of Object.entries(values)) await fillField(page, label, value);
+  for (const [label, option] of Object.entries(relations)) await chooseRelation(page, label, option);
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
+}
+interface TableCanvas {
+  __vtable__?: {
+    records?: Record<string, unknown>[];
+    colCount: number;
+    getHeaderField(col: number, row: number): unknown;
+    scrollToCell(cell: { col: number; row: number }): void;
+    scenegraph: { getCell(col: number, row: number): SceneNode };
+  };
+}
+interface SceneNode {
+  name?: string;
+  globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
+  forEachChildren(cb: (child: SceneNode) => void): void;
+}
+/** 编辑界面列表里当前实体的记录（VTable 画在画布上，记录从表格实例读）；只取给定字段，表格还没挂上时为 null。 */
+async function listRecords(page: Page, fields: readonly string[]): Promise<Record<string, unknown>[] | null> {
+  return editor(page)
+    .locator('canvas')
+    .first()
+    .evaluate(
+      (canvas, keys) => {
+        const records = (canvas as unknown as TableCanvas).__vtable__?.records;
+        return records ? records.map(record => Object.fromEntries(keys.map(key => [key, record[key]]))) : null;
+      },
+      [...fields]
+    )
+    .catch(() => null);
+}
+/**
+ * 断言某个实体的列表里某个字段的取值恰好是这些（顺序无关），等列表跟上最新数据。每次重试都重新选页签：
+ * 打开另一个任务时编辑界面整体换掉，页签回到第一项。
+ */
+async function expectList(page: Page, entity: string, name: string, expected: unknown[]) {
+  await expect(async () => {
+    await entityTab(page, entity);
+    const values = ((await listRecords(page, [name])) ?? []).map(record => record[name]).sort();
+    expect(values).toEqual([...expected].sort());
+  }).toPass({ timeout: 15000 });
+}
+/** 列表第 `row` 行（从 1 起）操作列里名为 `icon` 的图标在页面上的坐标；图标不是 DOM 节点，按场景树换算。 */
+async function actionIcon(page: Page, icon: string, row: number) {
+  const canvas = editor(page).locator('canvas').first();
+  await editor(page).scrollIntoViewIfNeeded();
+  await settleAnimations(page);
+  let hit: { x: number; y: number } | null = null;
+  await expect(async () => {
+    hit = await canvas.evaluate(
+      async (element, [name, target]) => {
+        const table = (element as unknown as TableCanvas).__vtable__!;
+        const col = Array.from({ length: table.colCount }, (_, i) => i).find(
+          c => table.getHeaderField(c, 0) === 'actions'
+        );
+        if (col === undefined) return null;
+        table.scrollToCell({ col, row: target });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        let found: SceneNode | undefined;
+        const visit = (node: SceneNode): void => {
+          if (!found && node.name === name) found = node;
+          node.forEachChildren(visit);
+        };
+        visit(table.scenegraph.getCell(col, target));
+        if (!found) return null;
+        const box = found.globalAABBBounds;
+        const rect = element.getBoundingClientRect();
+        return { x: rect.left + (box.x1 + box.x2) / 2, y: rect.top + (box.y1 + box.y2) / 2 };
+      },
+      [icon, row] as const
+    );
+    expect(hit).not.toBeNull();
+  }).toPass({ timeout: 15000 });
+  return hit!;
+}
+/** 某个实体的列表里某个字段等于 `value` 的那一行（从 1 起）；每次重试都重新选页签（理由同 {@link expectList}）。 */
+async function rowOf(page: Page, entity: string, name: string, value: unknown): Promise<number> {
+  let row = -1;
+  await expect(async () => {
+    await entityTab(page, entity);
+    row = ((await listRecords(page, [name])) ?? []).findIndex(record => record[name] === value) + 1;
+    expect(row).toBeGreaterThan(0);
+  }).toPass({ timeout: 15000 });
+  return row;
+}
+/**
+ * 打开列表里某条记录的详情（权限齐备时就是编辑模式），把字段从原值改成新值并保存。记录是异步灌进表单的：先等原值出现再改，
+ * 否则填值会撞在灌值中间。`find` 是用来找到这条记录的字段与取值。
+ */
+async function editRecord(
+  page: Page,
+  entity: string,
+  find: [string, unknown],
+  changes: Record<string, [string, string]>
+) {
+  await entityTab(page, entity);
+  const view = await actionIcon(page, 'view-action', await rowOf(page, entity, ...find));
+  await page.mouse.click(view.x, view.y);
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toBeVisible();
+  for (const [label, [from, to]] of Object.entries(changes)) {
+    await expect(field(page, label).locator('input')).toHaveValue(from);
+    await fillField(page, label, to);
+  }
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
+}
+/** 打开列表里某条记录的详情，读一个字段在表单里的值（只读核对用），再关闭对话框。 */
+async function recordValue(page: Page, entity: string, find: [string, unknown], label: string) {
+  await entityTab(page, entity);
+  const view = await actionIcon(page, 'view-action', await rowOf(page, entity, ...find));
+  await page.mouse.click(view.x, view.y);
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toBeVisible();
+  const input = field(page, label).locator('input');
+  await expect(input).not.toHaveValue('');
+  const value = await input.inputValue();
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
+  return value;
+}
+/** 删除列表里的一条记录（经删除确认）。 */
+async function deleteRecord(page: Page, entity: string, find: [string, unknown]) {
+  await entityTab(page, entity);
+  const remove = await actionIcon(page, 'delete-action', await rowOf(page, entity, ...find));
+  await page.mouse.click(remove.x, remove.y);
+  await page.getByTestId('delete-confirm-submit').click();
+  await expect
+    .poll(async () => ((await listRecords(page, [find[0]])) ?? []).some(record => record[find[0]] === find[1]))
+    .toBe(false);
+}
+/** 任务状态：已保存未提交、已提交未同步与已同步三种之一（任务视图里的状态行，`data-task-state` 标出是哪一种）。 */
+const taskState = (page: Page) => page.locator('[data-task-state]');
+/**
+ * 点「同步」并等它真的完成：提示可能还停在上一次同步的「当前提交已同步」，所以另外等任务状态变成已同步
+ * （本机没有已保存未提交的改动，也没有远端头之后的本机提交）。
+ */
+async function syncTask(page: Page) {
+  await page.getByRole('button', { name: '同步', exact: true }).click();
+  await expect(taskState(page)).toHaveAttribute('data-task-state', 'synced');
+  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+}
+/**
+ * 另一台设备：带上同一个登录会话（Supabase 的会话在 localStorage），但不带本机任务账本——真实的另一台设备上没有它，
+ * 团队库（IndexedDB）也不随 storageState 复制。
+ */
+async function anotherDevice(browser: Browser, page: Page, baseURL: string | undefined) {
+  const state = await page.context().storageState();
+  const origins = state.origins.map(origin => ({
+    ...origin,
+    localStorage: origin.localStorage.filter(item => !item.name.startsWith('admin-collaboration-tasks-v1:'))
+  }));
+  return browser.newContext({ baseURL, storageState: { ...state, origins } });
+}
+/** 本机提交历史（任务视图里的折叠项）：展开后逐个提交的「消息 · 作者 · ID」。 */
+async function localCommits(page: Page) {
+  const history = page.locator('details').filter({ has: page.locator('summary', { hasText: /^本机提交历史/ }) });
+  if ((await history.getAttribute('open')) === null) await history.locator(':scope > summary').click();
+  return history.locator('[data-commit-id]').allTextContents();
+}
 function invitationLink(baseURL: string | undefined, fixture: Fixture, id = fixture.invitation, token = fixture.token) {
   const link = new URL('/collaboration', baseURL);
   const ticket = { teamId: fixture.teamId, appId: fixture.appId, id, token };
@@ -215,35 +426,36 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('采购电脑');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('电脑');
-  await page.getByRole('button', { name: '新增资产', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).nth(1).fill('工作站');
-  await page.getByLabel('购入价', { exact: true }).fill('120');
-  await page.getByLabel('分类', { exact: true }).selectOption({ label: '电脑' });
-  await page.getByRole('button', { name: '新增维护记录', exact: true }).click();
-  await page.getByLabel('事项', { exact: true }).fill('安装系统');
-  await page.getByLabel('日期', { exact: true }).fill('2026-11-16');
-  await page.getByLabel('所属资产', { exact: true }).selectOption({ label: '工作站' });
+  await expect(editor(page)).toBeVisible();
+  await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
+  // 经模型驱动的实体列表与表单连续录入三种关联记录：每次保存都进任务工作树，不逐条提交
+  await createRecord(page, '资产分类', { 分类名: '电脑' });
+  await createRecord(page, '资产', { 名称: '工作站', 购入价: '120' }, { 分类: '电脑' });
+  await createRecord(page, '维护记录', { 事项: '安装系统', 日期: '2026-11-16' }, { 所属资产: '工作站' });
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（3 项）');
   expect((await new AxeBuilder({ page }).include('.collaboration').analyze()).violations).toEqual([]);
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByRole('button', { name: '取消同步', exact: true }).click();
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  // 未保存的表单输入不进工作树：对话框里填了值但没有保存就关掉，已保存未提交的仍是 3 项
+  await entityTab(page, '资产分类');
+  await editor(page).getByRole('button', { name: '+ 新增', exact: true }).click();
+  await fillSettled(field(page, '分类名').locator('input'), '没有保存的分类');
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（3 项）');
+  await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '基本信息', exact: true })).toHaveCount(0);
+  await expectList(page, '资产分类', 'name', ['电脑']);
   await page.reload();
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '打开任务：采购电脑', exact: true }).click();
-  await expect(page.getByLabel('购入价', { exact: true })).toHaveValue('120');
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（3 项）');
+  expect(await recordValue(page, '资产', ['name', '工作站'], '购入价')).toBe('120');
   await page.context().setOffline(true);
-  await page.getByLabel('购入价', { exact: true }).fill('130');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await editRecord(page, '资产', ['name', '工作站'], { 购入价: ['120', '130'] });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await page.getByRole('button', { name: '同步', exact: true }).click();
   await expect(page.getByText('已形成提交，联网验证后可同步', { exact: true })).toBeVisible();
+  await expect(taskState(page)).toHaveText('有已提交未同步的提交（1 个）');
   await page.context().setOffline(false);
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await syncTask(page);
+  await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
   await fillSettled(page.getByLabel('PR 说明', { exact: true }), '整单采购与安装');
   await expect(page.getByLabel('目标分支', { exact: true })).toHaveValue('shared');
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
@@ -335,15 +547,13 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await expect(restore).toHaveAttribute('open', '');
   await restore.getByRole('button', { name: '从此版本创建恢复草稿', exact: true }).click();
   await expect(page.getByRole('heading', { name: /任务：恢复 / })).toBeVisible();
-  await expect(page.getByLabel('购入价', { exact: true })).toHaveValue('130');
+  expect(await recordValue(page, '资产', ['name', '工作站'], '购入价')).toBe('130');
   await expect(page.getByText(/待上传提交：0 · 已保存未提交：/)).toBeVisible();
   await expect(shared).toContainText('130');
   const firstHistory = await state(page, fixture);
-  await page.getByLabel('购入价', { exact: true }).fill('125');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await editRecord(page, '资产', ['name', '工作站'], { 购入价: ['130', '125'] });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  await syncTask(page);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
   await expect(page.getByRole('button', { name: /^恢复 .* · review$/ })).toBeVisible();
@@ -408,12 +618,13 @@ test('真实身份、任务保存、离线同步、非作者审批和原子合�
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
   await expect(page.getByRole('heading', { name: '任务：级联删除预览', exact: true })).toBeVisible();
   await expect(page.locator('.collaboration')).toHaveAttribute('aria-busy', 'false');
-  await page.getByRole('button', { name: '删除（含关联记录）', exact: true }).first().click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  // 删除分类连同引用它的资产与维护记录：外键在团队库里是 RESTRICT，按引用顺序从维护记录删起
+  await deleteRecord(page, '维护记录', ['summary', '安装系统']);
+  await deleteRecord(page, '资产', ['name', '工作站']);
+  await deleteRecord(page, '资产分类', ['name', '电脑']);
+  await expectList(page, '资产分类', 'name', []);
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  await syncTask(page);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
   await expect(page.getByRole('button', { name: '级联删除预览 · review', exact: true })).toBeVisible();
@@ -452,15 +663,14 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('离线保留');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('离线机密草稿');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await createRecord(page, '资产分类', { 分类名: '离线机密草稿' });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  // 打开任务时团队库才懒加载 sqlite-wasm：离线外壳在那之后重新缓存一次，冷启动才打得开团队库
   await expect(page.locator('.collaboration')).toHaveAttribute('data-offline-ready', 'true');
   await page.context().setOffline(true);
   await page.reload();
   await page.getByRole('button', { name: '离线任务：离线保留', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('离线机密草稿');
+  await expectList(page, '资产分类', 'name', ['离线机密草稿']);
   await page.evaluate(() => {
     const key = 'admin-collaboration-grant:/collaboration-api';
     const grant = JSON.parse(localStorage.getItem(key)!);
@@ -470,20 +680,32 @@ test('离线冷启动只恢复有效授权上下文；过期和退出会锁定�
   await page.reload();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(page.getByText('离线机密草稿', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveCount(0);
+  await expect(editor(page)).toHaveCount(0);
   await page.context().setOffline(false);
   await page.reload();
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '打开任务：离线保留', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('离线机密草稿');
+  await expectList(page, '资产分类', 'name', ['离线机密草稿']);
   await page.getByRole('button', { name: '退出账号', exact: true }).click();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
-  const contexts = await page.evaluate(() => indexedDB.databases());
-  // 本机库名带格式版本：v2 起待上传提交是平台交换记录（ADMIN-US-221）
-  expect(contexts.some(database => database.name?.includes('rxdb-admin-collaboration-v2:['))).toBe(true);
+  await expect(editor(page)).toHaveCount(0);
+  // 退出只锁定、不删除：团队库（按用户 × 团队 × 应用散列命名的 sqlite-wasm IndexedDB 库）与本机任务账本都还在，账本里的任务已锁定
+  const kept = await page.evaluate(async userId => {
+    const databases = await indexedDB.databases();
+    const ledger = JSON.parse(localStorage.getItem(`admin-collaboration-tasks-v1:${userId}`) ?? '[]') as {
+      name: string;
+      locked: boolean;
+    }[];
+    return {
+      team: databases.some(database => /-[0-9a-f]{20}@0_1\.sqlite\.db$/.test(database.name ?? '')),
+      tasks: ledger.map(entry => [entry.name, entry.locked])
+    };
+  }, fixture.admin.id);
+  expect(kept).toEqual({ team: true, tasks: [['离线保留', true]] });
   await page.reload();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
   await expect(page.getByText('离线机密草稿', { exact: true })).toHaveCount(0);
+  await expect(editor(page)).toHaveCount(0);
 });
 
 test('错误账号不能消费邀请；验证码不可重复登录', async ({ page, request, browser, baseURL }) => {
@@ -525,7 +747,9 @@ test('匿名资产只在预览确认后复制到任务，原库与共享分支�
   await expect(page.getByRole('dialog')).toContainText('1 条本机记录');
   await expect(page.getByRole('dialog')).toContainText('匿名保留分类');
   await page.getByRole('button', { name: '确认复制到新任务', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('匿名保留分类');
+  // 匿名记录作为普通编辑写进新任务的工作树：已保存、未提交，也没有上传
+  await expectList(page, '资产分类', 'name', ['匿名保留分类']);
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（1 项）');
   await expect(page.getByText('共享版本：空分支 · 默认只读', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: '匿名本机工作台', exact: true }).click();
   await page.goto('/entities/assets/AssetCategory');
@@ -549,26 +773,28 @@ test('语言切换保留未保存输入，产品文案与用户数据分离', as
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('语言草稿');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('保存全部');
+  // 用户数据恰好与产品文案同名：语言切换只翻译产品文案，记录原样显示
+  await createRecord(page, '资产分类', { 分类名: '同步' });
+  // 协作面板里还没提交的输入在语言切换重绘之后保留
+  await fillSettled(page.getByLabel('另存任务名称', { exact: true }), '保留的另存名');
   await page.getByTestId('admin-widget-language').click();
   await page.getByRole('menuitemradio', { name: 'English', exact: true }).click();
   await expect(
     page.locator('.collaboration').getByRole('heading', { name: 'Team collaboration', exact: true })
   ).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('保存全部');
-  await expect(page.getByText('Unsaved inputs', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Save all', exact: true }).click();
-  await expect(page.getByText('Saved locally; not synced yet', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('New task name', { exact: true })).toHaveValue('保留的另存名');
+  await expect(taskState(page)).toHaveText('Saved but uncommitted changes (1)');
+  // 编辑界面的实体与字段标签来自实体元数据，随应用语言切换
+  await expectList(page, 'Asset categories', 'name', ['同步']);
   await page.getByRole('button', { name: 'Sync', exact: true }).click();
   await expect(page.getByText('Current commits synced; later edits still need syncing', { exact: true })).toBeVisible();
-  await page.getByLabel('PR title', { exact: true }).fill('保存全部');
+  await page.getByLabel('PR title', { exact: true }).fill('同步');
   await page.getByRole('button', { name: 'Create PR', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '保存全部', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '同步', exact: true })).toBeVisible();
   await page.getByTestId('admin-widget-language').click();
   await page.getByRole('menuitemradio', { name: /简体中文/ }).click();
-  await expect(page.getByRole('button', { name: '保存全部', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('保存全部');
+  await expect(page.getByRole('button', { name: '同步', exact: true })).toBeVisible();
+  await expectList(page, '资产分类', 'name', ['同步']);
 });
 
 test('跨设备分叉另存后可恢复原任务远端，两个版本均保留', async ({ page, request, browser, baseURL }) => {
@@ -577,36 +803,31 @@ test('跨设备分叉另存后可恢复原任务远端，两个版本均保留',
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('双设备任务');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('共同起点');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
-  const otherContext = await browser.newContext({ baseURL, storageState: await page.context().storageState() });
+  await createRecord(page, '资产分类', { 分类名: '共同起点' });
+  await syncTask(page);
+  const otherContext = await anotherDevice(browser, page, baseURL);
   const other = await otherContext.newPage();
   await other.goto('/collaboration');
   await other.getByRole('button', { name: fixture.name, exact: true }).click();
   await other.getByRole('button', { name: '打开任务：双设备任务', exact: true }).click();
-  await other.getByRole('textbox', { name: '名称', exact: true }).fill('设备乙版本');
-  await other.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(other.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await other.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(other.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('设备甲版本');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await expect(other.getByRole('heading', { name: '任务：双设备任务', exact: true })).toBeVisible();
+  await editRecord(other, '资产分类', ['name', '共同起点'], { 分类名: ['共同起点', '设备乙版本'] });
+  await syncTask(other);
+  await editRecord(page, '资产分类', ['name', '共同起点'], { 分类名: ['共同起点', '设备甲版本'] });
   await page.getByRole('button', { name: '同步', exact: true }).click();
+  await expect(page.getByText('任务已分叉，请另存为新任务', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '拉取远端版本', exact: true })).toBeVisible();
   await fillSettled(page.getByLabel('另存任务名称', { exact: true }), '保留设备甲');
   await page.getByRole('button', { name: '另存为新任务', exact: true }).click();
   await expect(page.getByRole('heading', { name: '任务：保留设备甲', exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备甲版本');
+  await expectList(page, '资产分类', 'name', ['设备甲版本']);
   await page.getByRole('button', { name: '打开任务：双设备任务', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '任务：双设备任务', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '拉取远端版本', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备乙版本');
+  await expectList(page, '资产分类', 'name', ['设备乙版本']);
   await page.getByRole('button', { name: '打开任务：保留设备甲', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('设备甲版本');
+  await expect(page.getByRole('heading', { name: '任务：保留设备甲', exact: true })).toBeVisible();
+  await expectList(page, '资产分类', 'name', ['设备甲版本']);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await expect(page.getByRole('button', { name: '保留设备甲 · draft', exact: true })).toBeVisible();
   const forked = await state(page, fixture);
@@ -630,12 +851,9 @@ test('两阶段审批、在线成员和越权合并拒绝', async ({ page, reque
   await expect(page.getByRole('heading', { name: '审批策略 v2', exact: true })).toBeVisible();
   await page.getByLabel('任务名称', { exact: true }).fill('分级采购');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('已核对分类');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  await createRecord(page, '资产分类', { 分类名: '已核对分类' });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  await syncTask(page);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
   await page.getByRole('button', { name: '请求审核', exact: true }).click();
   await expect(page.getByRole('button', { name: '分级采购 · review', exact: true })).toBeVisible();
@@ -681,23 +899,21 @@ test('双团队切换保留本机任务并隔离查询、通知与在线成员',
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByLabel('任务名称', { exact: true }).fill('甲团队草稿');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('仅甲团队可见');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
+  await createRecord(page, '资产分类', { 分类名: '仅甲团队可见' });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
   await expect(page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true })).toHaveCount(0);
+  await expect(editor(page)).toHaveCount(0);
   await page.getByLabel('任务名称', { exact: true }).fill('乙团队任务');
   await page.getByRole('button', { name: '开始修改', exact: true }).click();
-  await page.getByRole('button', { name: '新增分类', exact: true }).click();
-  await page.getByRole('textbox', { name: '名称', exact: true }).fill('仅乙团队可见');
-  await page.getByRole('button', { name: '保存全部', exact: true }).click();
-  await expect(page.getByText('已保存到本机，尚未同步', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '同步', exact: true }).click();
-  await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
+  // 乙团队是另一个团队库：甲团队的草稿不在这里
+  await expectList(page, '资产分类', 'name', []);
+  await createRecord(page, '资产分类', { 分类名: '仅乙团队可见' });
+  await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
+  await syncTask(page);
   await page.getByRole('button', { name: fixture.name, exact: true }).click();
   await page.getByRole('button', { name: '打开任务：甲团队草稿', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('仅甲团队可见');
+  await expectList(page, '资产分类', 'name', ['仅甲团队可见']);
   await expect(page.getByText(/已保存未提交：有/)).toBeVisible();
   const context = await browser.newContext({ baseURL });
   const other = await context.newPage();
@@ -728,7 +944,7 @@ test('双团队切换保留本机任务并隔离查询、通知与在线成员',
   await page.getByRole('button', { name: fixture.secondary.name, exact: true }).click();
   await expect(page.getByText(/在线成员：/)).not.toContainText(fixture.reviewer.email);
   await page.getByRole('button', { name: '打开任务：乙团队任务', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: '名称', exact: true })).toHaveValue('仅乙团队可见');
+  await expectList(page, '资产分类', 'name', ['仅乙团队可见']);
   expect((await state(page, fixture)).tasks.map(task => task.name)).toEqual(['甲团队草稿']);
   expect((await state(page, fixture, fixture.secondary)).tasks.map(task => task.name)).toEqual(['乙团队任务']);
   await context.close();
@@ -1170,4 +1386,186 @@ test('Realtime 断开期间页面照常可用，恢复后按修订号补齐变�
   await expect(missed).toBeVisible({ timeout: 30000 });
   await expect(page.getByText('实时连接暂不可用，可刷新团队状态', { exact: true })).toHaveCount(0);
   await context.close();
+});
+
+test('跨设备续作：第二台设备导入同一任务，提交 ID、父链与作者与服务端一致，之后的提交接在原提交之后（ADMIN-US-221 AC#1）', async ({
+  page,
+  request,
+  browser,
+  baseURL
+}) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByLabel('任务名称', { exact: true }).fill('续作任务');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await createRecord(page, '资产分类', { 分类名: '设备甲录入' });
+  await syncTask(page);
+  const synced = await state(page, fixture);
+  const task = synced.tasks.find(item => item.name === '续作任务')!;
+  expect(await commitOf(page, fixture, task.head)).toEqual({
+    parentIds: [synced.root],
+    kind: 'normal',
+    authorId: fixture.admin.id
+  });
+
+  const otherContext = await anotherDevice(browser, page, baseURL);
+  const other = await otherContext.newPage();
+  await other.goto('/collaboration');
+  await other.getByRole('button', { name: fixture.name, exact: true }).click();
+  await other.getByRole('button', { name: '打开任务：续作任务', exact: true }).click();
+  await expect(other.getByRole('heading', { name: '任务：续作任务', exact: true })).toBeVisible();
+  // 导入的就是服务端那个提交：本机头、远端确认与本机提交历史都是原提交 ID 与原作者；工作树干净，没有记成拉取者的新提交
+  await expect(
+    other.getByText(`本地版本：${task.head} · 远端确认：${task.head} · 待上传提交：0 · 已保存未提交：无`, {
+      exact: true
+    })
+  ).toBeVisible();
+  await expect(taskState(other)).toHaveText('已同步：本机与远端确认的版本一致');
+  expect(await localCommits(other)).toEqual([`续作任务 · ${fixture.admin.id} · ${task.head}`]);
+  await expectList(other, '资产分类', 'name', ['设备甲录入']);
+  // 经下发接口核对：服务端这个任务的交换记录就是本机历史里的那一个
+  const download = await rpc(other, fixture, 'admin_commit_exchange', {
+    p_team_id: fixture.teamId,
+    p_app_id: fixture.appId,
+    p_ref: `tasks/${task.id}`,
+    p_known: [synced.root],
+    p_limit: 100
+  });
+  expect(download.status, JSON.stringify(download.body)).toBe(200);
+  const exchange = download.body as { head: string; commits: CommitExchangeRecordJson[] };
+  expect(exchange.commits.map(commit => [commit.commitId, commit.parentIds, commit.authorId])).toEqual([
+    [task.head, [synced.root], fixture.admin.id]
+  ]);
+
+  await editRecord(other, '资产分类', ['name', '设备甲录入'], { 分类名: ['设备甲录入', '设备乙续作'] });
+  await syncTask(other);
+  const continued = (await state(page, fixture)).tasks.find(item => item.id === task.id)!;
+  expect(continued.head).not.toBe(task.head);
+  expect(await commitOf(page, fixture, continued.head)).toEqual({
+    parentIds: [task.head],
+    kind: 'normal',
+    authorId: fixture.admin.id
+  });
+  await otherContext.close();
+});
+
+test('放弃草稿：列表与表单立即回到任务头的数据，不残留已放弃的编辑（ADMIN-US-221 AC#3）', async ({ page, request }) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByLabel('任务名称', { exact: true }).fill('放弃草稿');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await createRecord(page, '资产分类', { 分类名: '已提交的分类' });
+  await syncTask(page);
+  await editRecord(page, '资产分类', ['name', '已提交的分类'], { 分类名: ['已提交的分类', '放弃前的改名'] });
+  await createRecord(page, '资产分类', { 分类名: '放弃前的新分类' });
+  await expectList(page, '资产分类', 'name', ['放弃前的改名', '放弃前的新分类']);
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（2 项）');
+  await page.getByRole('button', { name: '放弃草稿', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: '确认放弃', exact: true }).click();
+  await expect(page.getByText('已放弃草稿，任务回到上次提交的版本', { exact: true })).toBeVisible();
+  // 不刷新、不重开任务：列表与表单立即读到任务头的数据
+  await expectList(page, '资产分类', 'name', ['已提交的分类']);
+  expect(await recordValue(page, '资产分类', ['name', '已提交的分类'], '分类名')).toBe('已提交的分类');
+  await expect(taskState(page)).toHaveText('已同步：本机与远端确认的版本一致');
+  await page.reload();
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  await page.getByRole('button', { name: '打开任务：放弃草稿', exact: true }).click();
+  await expectList(page, '资产分类', 'name', ['已提交的分类']);
+  await expect(page.getByText(/待上传提交：0 · 已保存未提交：无/)).toBeVisible();
+});
+
+test('恢复历史版本：形成未提交改动，同步、审批后合并，共享头只前进、历史保留（ADMIN-US-221 AC#5、ADMIN-US-213）', async ({
+  page,
+  request,
+  browser,
+  baseURL
+}) => {
+  const fixture = (await (await request.get('http://127.0.0.1:8309/__fixture')).json()) as Fixture;
+  await login(page, fixture.admin);
+  await page.getByRole('button', { name: fixture.name, exact: true }).click();
+  // 先免审批合出两个共享版本，再恢复成第一个版本的数据并走审批
+  await act(page, fixture, { type: 'policy', stages: [], expectedVersion: 1 });
+  /** 在当前任务上同步、建 PR、请求审核、生成候选并合并（免审批）。 */
+  const syncAndMerge = async (title: string) => {
+    await syncTask(page);
+    await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+    await page.getByRole('button', { name: '请求审核', exact: true }).click();
+    await expect(page.getByRole('button', { name: `${title} · review`, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
+    await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+    await expect(page.getByRole('button', { name: `${title} · merged`, exact: true })).toBeVisible();
+  };
+  await page.getByLabel('任务名称', { exact: true }).fill('第一版');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '任务：第一版', exact: true })).toBeVisible();
+  await createRecord(page, '资产分类', { 分类名: '第一版名称' });
+  await syncAndMerge('第一版');
+  const first = (await state(page, fixture)).head;
+  await page.getByLabel('任务名称', { exact: true }).fill('第二版');
+  await page.getByRole('button', { name: '开始修改', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '任务：第二版', exact: true })).toBeVisible();
+  await editRecord(page, '资产分类', ['name', '第一版名称'], { 分类名: ['第一版名称', '第二版名称'] });
+  await syncAndMerge('第二版');
+  const second = await state(page, fixture);
+  await act(page, fixture, {
+    type: 'policy',
+    stages: [{ id: 'review', name: '审核', minimum: 1, reviewers: [], after: [] }],
+    expectedVersion: 2
+  });
+  // 历史与审计里第一次合并的那个版本：从它创建恢复草稿
+  const version = page.locator('details').filter({ has: page.locator('summary', { hasText: first }) });
+  await version.locator(':scope > summary').click();
+  await version.getByRole('button', { name: '从此版本创建恢复草稿', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /^任务：恢复 Merge 第一版/ })).toBeVisible();
+  await expectList(page, '资产分类', 'name', ['第一版名称']);
+  await expect(taskState(page)).toHaveText('有已保存未提交的改动（1 项）');
+  await expect(page.getByText('工作树来自历史版本的恢复，同步后形成新的提交', { exact: true })).toBeVisible();
+  // 恢复只改了任务的工作树：共享头没动
+  expect((await state(page, fixture)).head).toBe(second.head);
+  await syncTask(page);
+  const restoreTask = (await state(page, fixture)).tasks.find(task => task.name.startsWith('恢复 Merge 第一版'))!;
+  expect(await commitOf(page, fixture, restoreTask.head)).toEqual({
+    parentIds: [second.head],
+    kind: 'normal',
+    authorId: fixture.admin.id
+  });
+  await page.getByRole('button', { name: '创建 PR', exact: true }).click();
+  await page.getByRole('button', { name: '请求审核', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · review$/ })).toBeVisible();
+  await page.getByRole('button', { name: '生成合并候选并检查', exact: true }).click();
+  await expect(page.getByText('未解决冲突：0 · 检查错误：0', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+  await expect(page.getByText('缺少当前候选的有效批准', { exact: true })).toBeVisible();
+  const reviewContext = await browser.newContext({ baseURL });
+  const reviewer = await reviewContext.newPage();
+  await login(reviewer, fixture.reviewer);
+  await accept(reviewer, fixture, baseURL);
+  await reviewer.getByRole('button', { name: /^恢复 Merge 第一版.* · review$/ }).click();
+  await reviewer.getByRole('button', { name: '批准当前候选', exact: true }).click();
+  await expect(reviewer.getByText('审核：1/1 已满足', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '刷新团队状态', exact: true }).click();
+  await page.getByRole('button', { name: '合并到共享数据', exact: true }).click();
+  await expect(page.getByRole('button', { name: /^恢复 Merge 第一版.* · merged$/ })).toBeVisible();
+  const merged = await state(page, fixture);
+  const shared = page
+    .locator('section')
+    .filter({ has: page.getByRole('heading', { name: `共享数据 · ${fixture.name}`, exact: true }) })
+    .first();
+  await expect(shared).toContainText('第一版名称');
+  await expect(shared).not.toContainText('第二版名称');
+  // 共享头只前进：新的合并提交以上一个共享头为第一父，两个旧版本的合并都还在历史里
+  expect((await commitOf(page, fixture, merged.head)).parentIds).toEqual([second.head, restoreTask.head]);
+  const history = await rpc(page, fixture, 'admin_commit_exchange', {
+    p_team_id: fixture.teamId,
+    p_app_id: fixture.appId,
+    p_ref: 'shared',
+    p_known: [],
+    p_limit: 100
+  });
+  const ids = (history.body as { commits: CommitExchangeRecordJson[] }).commits.map(commit => commit.commitId);
+  expect(ids).toEqual(expect.arrayContaining([first, second.head, merged.head]));
+  await reviewContext.close();
 });

@@ -5,7 +5,6 @@ import { systemFieldOf } from '../schema.js';
 import type { CollaborationController } from './controller.js';
 import { diffTable } from './diff-table.js';
 import { lazyDetails, type Disclosures } from './disclosure.js';
-import { readOnlyRecords } from './records-view.js';
 import {
   button,
   checkbox,
@@ -18,6 +17,7 @@ import {
   valueText,
   type Perform
 } from './elements.js';
+import { readOnlyRecords } from './records-view.js';
 import { readResolution } from './resolution-input.js';
 import { tx } from './translate.js';
 export class PullRequestView {
