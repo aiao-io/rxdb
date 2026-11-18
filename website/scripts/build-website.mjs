@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process';
 import { cpSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareAssets } from './cloudflare-pages.mjs';
 
 /** 仓库根目录；本文件位于 `<root>/website/scripts/`。 */
 export const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -64,7 +65,7 @@ export const steps = [
     // （`combineOptionsForExecutor`），查不到时 `resolveConfiguration` 会**静默**回退到
     // defaultConfiguration。于是 `production,website` 只跑成 production，baseHref 与
     // outputPath 全部丢失，产物落回 dist/apps/dev-rxdb-angular，构建照样报成功，
-    // 直到下面的 cpSync 撞上 ENOENT 才暴露——2026-08-16 的 Netlify 部署就死在这里。
+    // 直到下面的 cpSync 撞上 ENOENT 才暴露——2026-08-16 的网站部署就死在这里。
     command:
       'pnpm nx build dev-rxdb-angular --configuration=production' +
       ' --baseHref=/demo/angular/ --outputPath=dist/apps/dev-rxdb-angular-website',
@@ -96,7 +97,8 @@ export const steps = [
   },
   {
     name: '构建 Docusaurus 网站',
-    command: 'pnpm nx site-build website'
+    command: 'pnpm nx site-build website',
+    postBuild: () => prepareAssets(join(repoRoot, 'website/build'))
   }
 ];
 
@@ -107,7 +109,7 @@ export const steps = [
  * 退出码透传子进程的 status 而非一律 `1`：CI 上区分「构建失败」和「被 OOM killer 干掉」
  * 全靠这个码。
  */
-function runSteps() {
+async function runSteps() {
   console.log('🚀 开始构建网站...\n');
   for (const step of steps) {
     const startedAt = performance.now();
@@ -115,14 +117,14 @@ function runSteps() {
     try {
       // 整站构建只允许 production 语义：NODE_ENV=development 会让 vite（@vitejs/plugin-react
       // 的 babel 走 dev JSX 编译）与 docusaurus（rspack 的 jsx.development）产出 jsxDEV 调用，
-      // Docusaurus SSG 渲染时 jsxDEV 不可用，首页即崩（Netlify 上 deploy-preview 的
+      // Docusaurus SSG 渲染时 jsxDEV 不可用，首页即崩（托管 preview 环境中的
       // NODE_ENV=development 正是这样触发的）。显式覆盖，让本脚本从任何环境调用都一致。
       execSync(step.command, {
         stdio: 'inherit',
         cwd: repoRoot,
         env: { ...process.env, NODE_ENV: 'production' }
       });
-      step.postBuild?.();
+      await step.postBuild?.();
     } catch (error) {
       console.error(`❌ ${step.name} 失败`);
       // execSync 失败时 stdio:'inherit' 已经把子进程的报错打全了，再打一遍 JS 错误只是噪音；
@@ -137,4 +139,4 @@ function runSteps() {
 }
 
 // 只在被直接执行时构建。少了这道守卫，任何 import（包括测试）都会同步跑完整场构建。
-if (import.meta.main) runSteps();
+if (import.meta.main) await runSteps();

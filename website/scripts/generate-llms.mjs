@@ -4,7 +4,7 @@
  * @remarks
  * 包选型、组合情景、安装命令与样例一律取自提交的 `requirements/generated/package-knowledge.json`：
  * 它由 `pnpm audit:package-graph` 逐字节校验，是包组合知识唯一的投递源。构建期不碰 git——
- * Netlify、Windows CI 与浅克隆里没有发布标签，现场推导要么构建失败，要么与提交的知识互相矛盾。
+ * 托管构建、Windows CI 与浅克隆里没有发布标签，现场推导要么构建失败，要么与提交的知识互相矛盾。
  * 站点地址取 Docusaurus 解析后的 `url` + `baseUrl`，生成器不硬编码域名；
  * 包的权威文档链接沿用 manifest `homepage` 的路径，重新挂到当前站点下。
  *

@@ -175,6 +175,9 @@ B 已接入 Docusaurus `postBuild` 生成器。当前本地构建产物包含 `l
 零重定向、`Content-Type: text/plain; charset=utf-8`（`netlify.toml` 的两个文件级 header 生效）、正文为 Markdown 而非 HTML fallback。
 `llms.txt` 部署产物 18,334 B：含发布版本标识 `v0.0.26`、包选型表与最小离线样例（4 个代码块），40 处站内链接全为 `rxdb.aiao.io`、无 `netlify.app` 泄漏。
 `llms-full.txt` 部署产物 8,313,081 B：UTF-8 纯文本，3,491 个一级标题，正文以「参考」节收尾（迁移指南 / 兼容矩阵链接），无截断。
+
+> 2026-11-17 部署迁移：以下 Netlify 测量为历史验收记录；当前发布配置已迁到 Cloudflare Pages，DNS 切换步骤见 [website/README.md](../../../website/README.md)。
+
 部署形态：`rxdb.aiao.io` 为主域直出（2026-10-12 owner 定，PR #109）；旧域 `rxdb.netlify.app` 同部署直出、不重定向（两域名同 etag
 `8bc521bea6daf58a2ba5d84d87e7497a-ssl`）。运营问题与修复：`rxdb.aiao.io` 经 Cloudflare 代理且原响应头为
 `Cache-Control: public, max-age=0, must-revalidate`，两层 CDN 均不缓存，`llms-full.txt` 全量下载实测仅 ~16 KB/s（直连 `rxdb.netlify.app` 同文件 1.2 MB/s）；
@@ -237,7 +240,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
   链接一律取 [`docusaurus.config.ts`](../../../website/docusaurus.config.ts) 的 `url`（现为 `https://rxdb.aiao.io`），生成器不硬编码域名
 - **B · 语料口径**：投递范围内的包全部进 `llms.txt` 选型索引（一句话简述 + 权威链接）；范围外的包（只在 `main` 上，
   或 npm 上停在旧版本如 `rxdb-model` 系）一律不给安装命令，是不列还是显式标「未发布（仅 `main`）」在 B plan 二选一。
-  站点从 `main` 构建（`netlify.toml`），所以这条过滤必须在生成器里，不能指望站点内容自然对齐 npm。
+  站点从 `main` 构建（`.github/workflows/website.yml`），所以这条过滤必须在生成器里，不能指望站点内容自然对齐 npm。
   `llms-full.txt` 只承诺**站点公开文档全文**（手册 + API 页），不承诺「所有包全文」。未进 TypeDoc 入口的包在索引里显式标出覆盖方式
 - **C**：`@aiao/rxdb` 主包内 `skills/aiao-rxdb/SKILL.md`（frontmatter 按锁定 exporter 的 schema），正文由事实源与样例源生成、只覆盖投递范围；
   `files` 白名单加 `"skills"`、`keywords` 加 `agent-skills`；`package.json` 的元数据字段按锁定 exporter 的 schema 声明（不预设 `agents`）
@@ -380,7 +383,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 | B    | `website/docusaurus.config.ts` / `website/package.json`                 | 接入 llms.txt 插件，链接取站点 `url`                                     |
 | B    | `website/src/`                                                          | `llms.txt` 头部（由事实源生成）                                          |
 | B    | `website/scripts/generate-llms.mjs` / `website/src/plugins/llms-txt.js` | Docusaurus 构建后生成两个纯文本文件，复用 A1 事实源并校验 UTF-8 字节上限 |
-| B    | `netlify.toml`                                                          | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头       |
+| B    | `website/public/_headers`                                               | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头       |
 | C    | `packages/rxdb/skills/aiao-rxdb/SKILL.md`                               | 主包单份 Skill，正文生成                                                 |
 | C    | `packages/rxdb/package.json`                                            | 按锁定 exporter 的元数据字段 + `files` 加 `"skills"`                     |
 

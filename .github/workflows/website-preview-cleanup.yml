@@ -1,0 +1,65 @@
+name: Website preview cleanup
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 已关闭或合并的 PR 编号
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cleanup:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: website-pages-pr-${{ github.event.pull_request.number || inputs.pr-number }}
+      cancel-in-progress: false
+    env:
+      NX_NO_CLOUD: 'true'
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr-number }}
+      PR_STATE: closed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+      - name: Check PR is still closed
+        id: current-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec nx run website:preview-state --output-style=stream
+      - name: Prepare closed preview page
+        if: steps.current-pr.outputs.eligible == 'true'
+        run: pnpm exec nx run website:pages-close-preview --output-style=stream
+      - name: Replace preview with closed page
+        id: close-preview
+        if: steps.current-pr.outputs.eligible == 'true'
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.156.2'
+          command: pages deploy .nx/website-preview-closed --project-name=rxdb --branch=pr-${{ env.PR_NUMBER }} --commit-dirty=false
+      - name: Delete this PR's old preview deployments
+        if: steps.current-pr.outputs.eligible == 'true'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DEPLOYMENT_BRANCH: pr-${{ env.PR_NUMBER }}
+          KEEP_DEPLOYMENT_URL: ${{ steps.close-preview.outputs.deployment-url }}
+          KEEP_PREVIOUS_DEPLOYMENT: 'false'
+        run: pnpm exec nx run website:pages-clean-preview --output-style=stream
+      - name: Mark preview comment as cleaned up
+        if: steps.current-pr.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec nx run website:preview-comment --output-style=stream
