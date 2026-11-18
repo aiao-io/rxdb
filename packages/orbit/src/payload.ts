@@ -1,7 +1,7 @@
 import { OrbitError } from './errors.js';
 import type { OrbitProps, OrbitValue } from './types.js';
 
-const MAX_BYTES = 1024 * 1024;
+export const MAX_BYTES = 1024 * 1024;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

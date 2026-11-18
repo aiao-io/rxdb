@@ -80,18 +80,22 @@ export function collectDragRegions(root: Document | Element): OrbitDragRegion[] 
 }
 
 /** 跟踪 root 下的拖动区，布局变化时调用 `report`；返回停止函数，停止时清空拖动区。 */
-export function trackDragRegions(report: (regions: OrbitDragRegion[]) => void, root: Document | Element): () => void {
-  const view = (root instanceof Document ? root : root.ownerDocument).defaultView;
+export function trackDragRegions(
+  report: (regions: OrbitDragRegion[]) => unknown,
+  root: Document | Element
+): () => void {
+  const view = (root.ownerDocument ?? (root as Document)).defaultView;
   if (!view) throw new OrbitError('UNSUPPORTED', '拖动区只能在浏览器文档里跟踪');
   let frame = 0;
   let last = '';
+  const send = (regions: OrbitDragRegion[]) => Promise.resolve(report(regions)).catch(error => console.error(error));
   const flush = () => {
     frame = 0;
     const regions = collectDragRegions(root);
     const key = JSON.stringify(regions);
     if (key === last) return;
     last = key;
-    report(regions);
+    void send(regions);
   };
   const schedule = () => {
     frame ||= view.requestAnimationFrame(flush);
@@ -106,9 +110,9 @@ export function trackDragRegions(report: (regions: OrbitDragRegion[]) => void, r
     observe();
     schedule();
   });
-  for (const element of root.querySelectorAll(DRAG_REGION))
-    mutations.observe(element, { subtree: true, childList: true, attributes: true, characterData: true });
+  mutations.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
   observe();
+  view.addEventListener('scroll', schedule, true);
   view.addEventListener('resize', schedule);
   schedule();
   return () => {
@@ -116,6 +120,7 @@ export function trackDragRegions(report: (regions: OrbitDragRegion[]) => void, r
     resize.disconnect();
     mutations.disconnect();
     view.removeEventListener('resize', schedule);
-    report([]);
+    view.removeEventListener('scroll', schedule, true);
+    void send([]);
   };
 }

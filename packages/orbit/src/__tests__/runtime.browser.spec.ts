@@ -37,6 +37,35 @@ afterEach(() => {
 });
 
 describe('原生 iframe 运行内核', () => {
+  it('同一文档并发连接时，两次回显各自得到自己的值', async () => {
+    const { runtime, container, options } = setup('parallel');
+    const app = runtime.createApp(options);
+    app.onRequest('echo', value => value);
+    await app.mount(container);
+    expect(await app.request('parallel')).toEqual([0, 1]);
+  });
+
+  it('观察者在 ready 时销毁实例，后续观察者不会在终态之后再收到 ready', async () => {
+    const { runtime, container, options } = setup();
+    const app = runtime.createApp(options);
+    const states: string[] = [];
+    app.subscribe(({ state }) => {
+      if (state === 'ready') app.destroy();
+    });
+    app.subscribe(({ state }) => states.push(state));
+    await expect(app.mount(container)).rejects.toMatchObject({ code: 'DESTROYED' });
+    expect(states.at(-1)).toBe('destroyed');
+  });
+
+  it('其他文档里的容器在分配 iframe 之前被拒绝，原实例仍能装载', async () => {
+    const { runtime, container, options } = setup();
+    const app = runtime.createApp(options);
+    const frame = document.createElement('iframe');
+    container.append(frame);
+    expect(() => app.mount(frame.contentDocument!.body)).toThrow(expect.objectContaining({ code: 'INVALID_OPTIONS' }));
+    expect(app.snapshot.state).toBe('created');
+    await app.mount(container);
+  });
   it('装载、显式就绪、重复装载复用、属性、事件、双向请求、相对资源与动态导入', async () => {
     const { runtime, container, options } = setup();
     const instance = runtime.createApp(options);

@@ -91,7 +91,7 @@ const opened: DesktopOpenedFile = {
   version: '1731000000000:5'
 };
 
-async function mount(capabilities: readonly DesktopCapability[]) {
+async function mount(capabilities: readonly DesktopCapability[], mode = '') {
   const runtime = createOrbit({ onError: vi.fn() });
   const container = document.createElement('div');
   container.style.cssText = 'width:640px;height:360px';
@@ -104,7 +104,7 @@ async function mount(capabilities: readonly DesktopCapability[]) {
     appId: 'desktop',
     instanceId: 'w1#1',
     version: '1',
-    url: new URL('/test-app/app.html', location.href).href,
+    url: new URL(`/test-app/app.html?mode=${mode}`, location.href).href,
     timeout: 5000,
     props: desktopProps(capabilities)
   });
@@ -118,6 +118,11 @@ async function mount(capabilities: readonly DesktopCapability[]) {
 }
 
 describe('桌面能力协议（真实 iframe 与端口）', () => {
+  it('子应用可以先等文件结果再报告就绪', async () => {
+    const { calls, instance } = await mount(['filesystem:read'], 'open-first');
+    expect(calls).toEqual([['filesystem.open', {}]]);
+    expect(instance.snapshot.state).toBe('ready');
+  });
   it('应用经真实端口调用宿主：已声明的能力成功，参数原样到宿主；宿主推送的事件应用收得到', async () => {
     const { ask, calls, listeners } = await mount(['window', 'menu', 'appearance']);
     expect(await ask('capabilities')).toEqual({ ok: true, value: ['window', 'menu', 'appearance'] });
@@ -251,11 +256,30 @@ describe('桌面能力协议（真实 iframe 与端口）', () => {
   it('用户取消与窗口关闭这类稳定错误码经完成事件回到应用，同时通知桌面', async () => {
     const { ask, host, onError } = await mount(['filesystem:read']);
     vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new DesktopError('USER_CANCELLED', '用户取消'));
+    onError.mockImplementationOnce(() => {
+      throw new Error('错误上报失败');
+    });
     expect(await ask('filesystem.open')).toEqual({ ok: false, code: 'USER_CANCELLED', message: '用户取消' });
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'USER_CANCELLED' }), 'filesystem.open');
     vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new Error('宿主出错'));
     /* 宿主自己的程序错误不冒充任何能力错误码：应用收到的是处理失败（HANDLER_ERROR）。 */
     await expect(ask('filesystem.open')).rejects.toMatchObject({ code: 'HANDLER_ERROR', message: '宿主出错' });
+  });
+
+  it('只解绑服务也结束已受理的文件请求，端口保持可用', async () => {
+    const { ask, host, server } = await mount(['filesystem:read']);
+    const started = Promise.withResolvers<void>();
+    const selected = Promise.withResolvers<DesktopOpenedFile>();
+    vi.spyOn(host.filesystem, 'open').mockImplementation((_options, interaction) => {
+      started.resolve();
+      return interaction!.waitForUser(selected.promise);
+    });
+    const result = ask('filesystem.open');
+    await started.promise;
+    server.dispose();
+    expect(await result).toMatchObject({ ok: false, code: 'WINDOW_CLOSED' });
+    selected.resolve(opened);
+    expect(await ask('capabilities')).toMatchObject({ ok: true });
   });
 
   it('实例销毁后自动解绑：宿主的订阅取消，宿主再触发事件也不会推给已结束的实例', async () => {

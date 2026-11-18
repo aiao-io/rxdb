@@ -528,7 +528,7 @@ export class DesktopAppContext implements DesktopHost {
     }
     /* 权限提示开着的时候窗口关了：不把用户剪贴板里的内容交给已经关闭的窗口。 */
     if (!this.live) throw closedWindow();
-    return text;
+    return parseDesktopArguments('clipboard.writeText', text);
   }
 
   /** 宿主不替用户在没有手势时写剪贴板：请求必须落在宿主页面的用户手势有效期内。 */
@@ -562,6 +562,7 @@ export class DesktopAppContext implements DesktopHost {
     request: Pick<FilePanelRequest, 'mode' | 'accept' | 'suggestedName'>
   ): Promise<FilePanelResult> {
     const { win, panels, refocus } = this.options;
+    interaction.signal?.throwIfAborted();
     const ticket = panels.show({
       ...request,
       app: { id: win.app.id, name: win.app.name, icon: win.app.icon },
@@ -570,12 +571,16 @@ export class DesktopAppContext implements DesktopHost {
       restoreFocus: refocus
     });
     this.panel = ticket;
+    const close = () => ticket.close();
+    interaction.signal?.addEventListener('abort', close, { once: true });
     let result: FilePanelResult | null;
     try {
       result = await interaction.waitForUser(ticket.result);
     } finally {
+      interaction.signal?.removeEventListener('abort', close);
       this.panel = undefined;
     }
+    interaction.signal?.throwIfAborted();
     if (!this.live) throw closedWindow();
     if (result === null) throw new DesktopError('USER_CANCELLED', '用户取消了');
     return result;
@@ -597,6 +602,7 @@ export class DesktopAppContext implements DesktopHost {
       if (picked.kind !== 'open') throw new Error('打开面板返回了不是打开的结果');
       const name = picked.path.at(-1) ?? '';
       const snapshot = await this.options.files.snapshot(picked.path, DESKTOP_LIMITS.filesystem.bytes);
+      interaction.signal?.throwIfAborted();
       if (!this.live) throw closedWindow();
       if (snapshot.kind === 'missing') throw new DesktopError('FILE_NOT_FOUND', `“${name}” 在选定之后已被删除或改名`);
       if (snapshot.kind === 'too-large')
@@ -617,12 +623,22 @@ export class DesktopAppContext implements DesktopHost {
 
   private saveFile(request: DesktopSaveRequest, interaction: DesktopInteraction): Promise<DesktopSavedFile> {
     const { handle } = request;
-    if (handle !== undefined) return this.saveToGrant(request, handle);
-    return this.exclusiveFileRequest(() => this.saveAs(request, interaction));
+    const mark = interaction.prepareSave?.();
+    const beforeWrite = () => {
+      if (!this.live) throw closedWindow();
+      interaction.signal?.throwIfAborted();
+      mark?.();
+    };
+    if (handle !== undefined) return this.saveToGrant(request, handle, beforeWrite);
+    return this.exclusiveFileRequest(() => this.saveAs(request, interaction, beforeWrite));
   }
 
   /** 带凭证：只把内容写回凭证对应的那一个文件，先比对版本；不再弹确认。 */
-  private async saveToGrant(request: DesktopSaveRequest, handle: string): Promise<DesktopSavedFile> {
+  private async saveToGrant(
+    request: DesktopSaveRequest,
+    handle: string,
+    beforeWrite: () => void
+  ): Promise<DesktopSavedFile> {
     const grant = this.handles.get(handle);
     if (!grant)
       throw new DesktopError(
@@ -630,7 +646,7 @@ export class DesktopAppContext implements DesktopHost {
         '这个文件凭证无效：它不是这个窗口实例拿到的，或者窗口已关闭、实例已被销毁或重试'
       );
     const expected = this.expectedStamp(request.expectedVersion);
-    const saved = await this.options.files.replace(grant.path, request.bytes, expected);
+    const saved = await this.options.files.replace(grant.path, request.bytes, expected, beforeWrite);
     if (saved.kind === 'missing')
       throw new DesktopError('FILE_NOT_FOUND', `“${grant.name}” 已被删除或改名：没有写入，也没有在原位置新建`);
     if (saved.kind === 'changed')
@@ -639,7 +655,11 @@ export class DesktopAppContext implements DesktopHost {
   }
 
   /** 不带凭证：弹保存面板，用户选位置与文件名、目标已存在时确认覆盖；确认之前窗口关了就不写。 */
-  private async saveAs(request: DesktopSaveRequest, interaction: DesktopInteraction): Promise<DesktopSavedFile> {
+  private async saveAs(
+    request: DesktopSaveRequest,
+    interaction: DesktopInteraction,
+    beforeWrite: () => void
+  ): Promise<DesktopSavedFile> {
     const picked = await this.choose(interaction, {
       mode: 'save',
       accept: [],
@@ -647,11 +667,15 @@ export class DesktopAppContext implements DesktopHost {
     });
     if (picked.kind !== 'save') throw new Error('保存面板返回了不是保存的结果');
     const path = [...picked.dir, picked.name];
-    const created = await this.options.files.create(path, request.bytes, picked.replace);
+    const created = await this.options.files.create(path, request.bytes, picked.replace, beforeWrite);
     if (created.kind === 'missing-folder')
       throw new DesktopError('FILE_NOT_FOUND', `选定的文件夹已被删除或改名：没有写入，也没有补建文件夹`);
     if (created.kind === 'exists')
       throw new DesktopError('FILE_CHANGED', `“${picked.name}” 在选定之后出现了别的内容：没有覆盖它`);
+    if (!this.live || interaction.signal?.aborted)
+      throw new DesktopError('RESULT_UNKNOWN', '文件已写入，但未能返回新凭证；请重新打开文件核对内容', {
+        cause: this.live ? interaction.signal?.reason : closedWindow()
+      });
     return { name: picked.name, version: versionOf(created.stamp), handle: this.issueHandle(path) };
   }
 

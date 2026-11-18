@@ -17,8 +17,12 @@ if (mode === 'future') {
   });
   parent.postMessage({ protocol: 'aiao.orbit:2', type: 'hello', channel }, '*');
 }
-const client = mode === 'future' ? undefined : await connectOrbitClient();
+const [client, second] = await Promise.all([
+  mode === 'future' ? undefined : connectOrbitClient(),
+  mode === 'parallel' ? connectOrbitClient() : undefined
+]);
 if (client) {
+  if (second) client.onRequest('parallel', () => Promise.all([client.request('echo', 0), second.request('echo', 1)]));
   const events: unknown[] = [];
   const id = crypto.randomUUID();
   Reflect.set(window, 'fixtureIdentity', id);
@@ -107,6 +111,7 @@ if (client) {
     return 'ok';
   });
   const desktop = getDesktop(client);
+  if (mode === 'open-first') await desktop!.filesystem.open();
   const desktopEvents: OrbitValue[] = [];
   desktop?.window.onStateChange(state => desktopEvents.push({ event: 'window', state: { ...state } }));
   desktop?.menu.onCommand(commandId => desktopEvents.push({ event: 'command', commandId }));

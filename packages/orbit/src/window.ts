@@ -1,3 +1,4 @@
+import { registerService } from './callbacks.js';
 import type { OrbitClient, OrbitInstance, OrbitObject, OrbitValue } from './types.js';
 import { readBoolean, readRegions, readState, readTitle, trackDragRegions } from './window-codec.js';
 
@@ -96,6 +97,7 @@ export interface OrbitWindowServer {
 export const WINDOW_PROP = 'orbit.window';
 
 const STATE_EVENT = 'window.state';
+const windows = new WeakMap<OrbitClient, OrbitWindow>();
 
 export { collectDragRegions } from './window-codec.js';
 
@@ -110,14 +112,14 @@ export function serveWindow(instance: OrbitInstance, host: OrbitWindowHost): Orb
     action();
     return null;
   };
-  const offs = [
-    instance.onRequest('window.minimize', () => done(() => host.minimize())),
-    instance.onRequest('window.toggleMaximize', () => done(() => host.toggleMaximize())),
-    instance.onRequest('window.close', () => done(() => host.close())),
-    instance.onRequest('window.setTitle', payload => done(() => host.setTitle(readTitle(payload)))),
-    instance.onRequest('window.setDecorations', payload => done(() => host.setDecorations(readBoolean(payload)))),
-    instance.onRequest('window.setDragRegions', payload => done(() => host.setDragRegions(readRegions(payload))))
-  ];
+  const dispose = registerService(add => {
+    add(instance.onRequest('window.minimize', () => done(() => host.minimize())));
+    add(instance.onRequest('window.toggleMaximize', () => done(() => host.toggleMaximize())));
+    add(instance.onRequest('window.close', () => done(() => host.close())));
+    add(instance.onRequest('window.setTitle', payload => done(() => host.setTitle(readTitle(payload)))));
+    add(instance.onRequest('window.setDecorations', payload => done(() => host.setDecorations(readBoolean(payload)))));
+    add(instance.onRequest('window.setDragRegions', payload => done(() => host.setDragRegions(readRegions(payload)))));
+  });
   let published = '';
   return {
     publish() {
@@ -128,9 +130,7 @@ export function serveWindow(instance: OrbitInstance, host: OrbitWindowHost): Orb
       published = key;
       instance.emit(STATE_EVENT, state);
     },
-    dispose() {
-      for (const off of offs) off();
-    }
+    dispose
   };
 }
 
@@ -141,6 +141,8 @@ export function serveWindow(instance: OrbitInstance, host: OrbitWindowHost): Orb
 export function getCurrentWindow(client: OrbitClient): OrbitWindow | undefined {
   const initial = client.context.props[WINDOW_PROP];
   if (initial === undefined) return undefined;
+  const current = windows.get(client);
+  if (current) return current;
   let state = readState(initial);
   const call = async (method: string, payload: OrbitValue = null): Promise<void> => {
     await client.request(method, payload);
@@ -148,7 +150,7 @@ export function getCurrentWindow(client: OrbitClient): OrbitWindow | undefined {
   client.bus.$on(STATE_EVENT, next => {
     state = readState(next);
   });
-  return {
+  const handle: OrbitWindow = {
     get state() {
       return state;
     },
@@ -165,6 +167,8 @@ export function getCurrentWindow(client: OrbitClient): OrbitWindow | undefined {
     setTitle: title => call('window.setTitle', title),
     setDecorations: decorations => call('window.setDecorations', decorations),
     trackDragRegions: (root = document) =>
-      trackDragRegions(regions => void call('window.setDragRegions', regions as unknown as OrbitValue), root)
+      trackDragRegions(regions => call('window.setDragRegions', regions as unknown as OrbitValue), root)
   };
+  windows.set(client, handle);
+  return handle;
 }

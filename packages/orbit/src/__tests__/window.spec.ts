@@ -23,6 +23,7 @@ function connect(props: Record<string, OrbitValue> = windowProps(initial), state
       return { appId: 'code', instanceId: 'w1', version: '1', url: 'https://code.example/', state: current };
     },
     onRequest(method: string, handler: OrbitRequestHandler) {
+      if (handlers.has(method)) throw new OrbitError('INVALID_STATE', method);
       handlers.set(method, handler);
       return () => handlers.delete(method);
     },
@@ -133,6 +134,9 @@ describe('窗口协议（对齐 Tauri 的 getCurrentWindow）', () => {
     server.publish();
     expect(seen.mock.calls.map(([state]) => state)).toEqual([initial, { ...initial, focused: false }]);
     expect(appWindow.state).toEqual({ ...initial, focused: false });
+    const count = client.bus.listenerCount;
+    expect(getCurrentWindow(client)!.state).toEqual(appWindow.state);
+    expect(client.bus.listenerCount).toBe(count);
     off();
     windowHost.current = { ...initial, maximized: true };
     server.publish();
@@ -152,5 +156,15 @@ describe('窗口协议（对齐 Tauri 的 getCurrentWindow）', () => {
     const server = serveWindow(instance, host());
     server.dispose();
     await expect(getCurrentWindow(client)!.minimize()).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
+  });
+
+  it('注册中途失败只回滚自己已登记的方法', () => {
+    const { instance, handlers } = connect();
+    const off = instance.onRequest('window.close', () => null);
+    expect(() => serveWindow(instance, host())).toThrow();
+    expect([...handlers.keys()]).toEqual(['window.close']);
+    off();
+    serveWindow(instance, host()).dispose();
+    expect(handlers.size).toBe(0);
   });
 });

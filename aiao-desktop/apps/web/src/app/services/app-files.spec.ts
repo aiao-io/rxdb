@@ -76,6 +76,18 @@ describe('snapshot：读用户选定的那一个文件', () => {
 });
 
 describe('replace：带凭证写回同一个文件', () => {
+  it('锁内已经取消的提交不覆盖、不新建，也不通知改动', async () => {
+    const { files, store, notified } = await setup();
+    const stop = () => {
+      throw new Error('已取消');
+    };
+    await expect(files.replace(NOTE, bytes('new'), undefined, stop)).rejects.toThrow('已取消');
+    const target = [...FOLDER, 'new.md'];
+    await expect(files.create(target, bytes('new'), false, stop)).rejects.toThrow('已取消');
+    expect(text(await store.read(NOTE))).toBe('hello');
+    expect(await store.kindOf(target)).toBeNull();
+    expect(notified).toEqual([]);
+  });
   it('版本一致才写，写回后返回新版本，并通知磁盘的改动（终端、Finder 跟着更新）', async () => {
     const { files, store, stampOf, tick, notified } = await setup();
     const opened = await stampOf(NOTE);

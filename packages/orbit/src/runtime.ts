@@ -1,4 +1,5 @@
 import { EventBus } from './bus.js';
+import { reportSafely } from './callbacks.js';
 import { aborted, checkName, checkTimeout, destroyed, OrbitError, OrbitProtocolError } from './errors.js';
 import { createFrame } from './frame.js';
 import { copyProps, copyValue, isRecord } from './payload.js';
@@ -39,6 +40,7 @@ class Instance implements OrbitInstance {
   private resolveReady!: () => void;
   private rejectReady!: (error: unknown) => void;
   private state: OrbitState = 'created';
+  private snapshotRevision = 0;
   private props: OrbitProps;
   private readonly rpc = new Rpc(message => this.send(message));
   private readonly observers = new Set<(snapshot: OrbitSnapshot) => void>();
@@ -83,6 +85,7 @@ class Instance implements OrbitInstance {
     const view = container.ownerDocument.defaultView;
     if (!view || typeof MessageChannel === 'undefined')
       throw new OrbitError('UNSUPPORTED', '当前环境不支持 iframe 通信');
+    if (view !== window) throw new OrbitError('INVALID_OPTIONS', '装载容器必须属于运行内核所在的文档');
     this.container = container;
     this.view = view;
     try {
@@ -289,8 +292,10 @@ class Instance implements OrbitInstance {
   private setState(state: OrbitState): void {
     if (this.state === state) return;
     this.state = state;
+    const revision = ++this.snapshotRevision;
     const snapshot = this.snapshot;
     for (const observer of [...this.observers]) {
+      if (this.snapshotRevision !== revision) break;
       try {
         observer(snapshot);
       } catch (error) {
@@ -389,7 +394,7 @@ export function createOrbit(options: OrbitOptions = {}): OrbitRuntime {
           if (instances.get(normalized.instanceId) === instance) instances.delete(normalized.instanceId);
         },
         bus,
-        options.onError ?? console.error
+        error => reportSafely(() => (options.onError ?? console.error)(error))
       );
       instances.set(normalized.instanceId, instance);
       return instance;

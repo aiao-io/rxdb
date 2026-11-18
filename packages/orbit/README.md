@@ -34,11 +34,13 @@ runtime.dispose();
 
 `readAuthorizedFile` 为宿主提供的服务示意，必须自行做权限校验。默认只允许宿主同源；额外来源必须逐个声明，不支持通配符。入口只接受 HTTP(S)、拒绝 URL 凭据及保留参数 `__aiao_orbit`。跨源应用还需服务器允许对应宿主嵌入，浏览器 CSP/iframe 策略照常生效。
 
-同一 instanceId 在一个 runtime 内不能重复登记，销毁和失败均释放身份。重复 mount 同容器复用同一 ready Promise，跨容器移动明确失败。hide/show 保留原 iframe；从文档移除外壳会自动销毁实例。focus 把键盘焦点交给应用文档（宿主无法感知焦点在两个跨源 iframe 之间移动，激活窗口时由宿主显式调用），只在显示中的就绪状态可用。createOrbit 和模块导入支持 SSR，不注册全局监听。
+同一 instanceId 在一个 runtime 内不能重复登记，销毁和失败均释放身份。`mount()` 的容器必须连接到运行内核所在的文档；重复 mount 同容器复用同一 ready Promise，跨容器移动明确失败。hide/show 保留原 iframe；从文档移除外壳会自动销毁实例。focus 把键盘焦点交给应用文档（宿主无法感知焦点在两个跨源 iframe 之间移动，激活窗口时由宿主显式调用），只在显示中的就绪状态可用。createOrbit 和模块导入支持 SSR，不注册全局监听。
 
 状态：`created → loading → ready ↔ hidden`，失败进入 `failed`，显式释放进入 `destroyed`。ready 默认 15 秒超时；iframe 文档加载后 3 秒内仍未握手（入口不可达、被浏览器拦截或未接入 SDK，浏览器只给 iframe 报 load，不报 error）即以 LOAD_ERROR 失败，不必等满就绪时限。启动失败会拒绝 ready Promise 并调用 onError；运行中断通过状态订阅与 onError 通知。失败句柄不可复用，应重新 createApp；createOrbit.dispose 后不可创建新实例。
 
 ## 子应用
+
+子应用文档内，无参数的 `connectOrbitClient()` 调用共享握手和连接；超时、取消信号和错误回调由首次调用设置，重复指定会得到 `INVALID_STATE`。
 
 ```ts
 import { connectOrbitClient } from '@aiao/orbit/client';
@@ -141,9 +143,11 @@ try {
 
 ### 需要用户操作的请求
 
-`filesystem.open` 与不带 `handle` 的 `filesystem.save` 要用户在桌面的面板里选文件、确认覆盖，用户停留多久没有上限，而 Orbit 的 RPC 时限最多 120 秒，所以这类请求不占着一个 RPC 等用户：请求带一个 `requestId`（`getDesktop` 自动生成），宿主校验完实例、能力与参数就应答「已受理」（`{ ok: true, value: null }`），宿主调用在后台跑，最终结果用事件 `desktop.request.settled` 送达，载荷 `{ requestId, envelope }`（成功或稳定错误码），宿主自己的程序错误是 `{ requestId, handlerError }`。应用侧的 `getDesktop` 把它们接成一个 Promise：先等「已受理」（时限 `callTimeoutMs`），再等完成事件（没有时限）；连接断开（窗口关闭、实例销毁）时还在等的调用以 `WINDOW_CLOSED` 结束。实例销毁或失败之后宿主才完成的请求，结果不再送出。
+`filesystem.open` 与不带 `handle` 的 `filesystem.save` 不占用 RPC 等待用户。`getDesktop` 为每个交互分配 `requestId`；宿主校验实例、能力和参数后应答「已受理」（`{ ok: true, value: null }`），再用 `desktop.request.settled` 事件发送 `{ requestId, envelope }`（成功或稳定错误码）或 `{ requestId, handlerError }`（宿主程序错误）。应用只等待一个 Promise：「已受理」应答受 `callTimeoutMs` 限制，受理后的完成事件没有时限。连接断开时，等待读取的请求以 `WINDOW_CLOSED` 结束；保存按下述提交规则处理。
 
-**超时只计宿主处理请求的时间**：宿主处理请求有 `requestTimeoutMs` 的时限，宿主等用户的那一段（`DesktopFilesystemHost.open / save` 的第二个参数 `interaction.waitForUser(pending)`）暂停计时，用户操作完再接着算剩下的时间——所以用户停留多久都不会让请求超时，而用户选定之后读写磁盘卡住仍然是 `TIMEOUT`。带 `handle` 的保存没有面板，整段都计时。
+**超时只计宿主处理请求的时间**：`interaction.waitForUser(pending)` 暂停计时；带 `handle` 的保存没有面板，整段都计时。应用可以在 `ready()` 之前使用文件能力，实例自身的启动时限不变。
+
+**保存能否重试取决于是否已经提交**。宿主在保存开始时取得 `const beforeWrite = interaction?.prepareSave?.()`；等到持有磁盘锁、通过版本检查，在实际写入前同步调用 `beforeWrite?.()`。超时、RPC 取消或服务解绑会终止 `interaction.signal`。提交前取消会阻止写入；已进入写入、宿主没有标记提交边界，或连接在保存结果送达前断开时，应用收到 `RESULT_UNKNOWN`，应核对文件版本与内容，不要自动重试。在线上仍使用原失败码，并用 `resultUnknown` 区分结果；新版 SDK 对老宿主没有标记的保存 `TIMEOUT` 也按结果未知处理。
 
 ### 文件
 
@@ -151,7 +155,7 @@ try {
 - **`version`**：打开（或保存）时文件的修改时间与大小，一个不透明的字符串（`<毫秒时间>:<字节数>`），应用不解析它，保存时原样作为 `expectedVersion` 交回。
 - **带 `handle` 的 `save`**：先比对 `expectedVersion`——磁盘上的文件已被改动是 `FILE_CHANGED`（不写入，应用可以改走另存）；文件已被删除或改名是 `FILE_NOT_FOUND`（不写入，**也不在原路径新建**）；通过才写回，返回新版本。不再弹确认。`expectedVersion` 只能与 `handle` 一起给；省略它就不比对版本（应用明确选择覆盖），但文件不在了仍然是 `FILE_NOT_FOUND`。
 - **不带 `handle` 的 `save`**：一律弹出保存面板，由用户选位置和文件名，目标已存在时面板要求用户确认覆盖，应用不能跳过；返回的 `handle` 是新选定的文件的凭证。保存内容超过 `filesystem.bytes` 是 `FILE_TOO_LARGE`。
-- **取消与关闭**：用户在面板里取消（按钮或 Esc）是 `USER_CANCELLED`，桌面不弹错误、不写盘；同一实例同一时刻只开一个面板，重复请求是 `BUSY`；窗口关闭、实例销毁或重试之后，面板随窗口关闭、不再提交任何写入，未完成的请求以 `WINDOW_CLOSED` 结束，凭证失效，再用是 `HANDLE_INVALID`，磁盘不变。
+- **取消与关闭**：用户在面板里取消（按钮或 Esc）是 `USER_CANCELLED`，不弹错误、不写盘；同一实例已有面板时再开是 `BUSY`。窗口关闭、实例销毁或重试会关闭面板、阻止尚未提交的写入并使旧凭证失效（`HANDLE_INVALID`）；这不撤销已经提交的写入。
 - **字节在线上是 base64**：`bytes` 经 base64 放进 JSON 消息，`getDesktop` 在应用侧收发的都是 `Uint8Array`。
 
 ### 错误码表
@@ -172,20 +176,21 @@ try {
 | `HANDLE_INVALID`            | 文件凭证在窗口关闭、实例销毁或重试后失效                      | 只回给应用         | D    |
 | `BUSY`                      | 同一实例同一时刻只开一个面板                                  | 只回给应用         | D    |
 | `RATE_LIMITED`              | 通知频率超限                                                  | 只回给应用         | D    |
+| `RESULT_UNKNOWN`            | 不能确认是否写入；核对文件后再决定是否重试                    | 只回给应用         | D    |
 
 ### 协议常量
 
 超时、大小与频率上限是协议常量（`DESKTOP_LIMITS`），阶段 C、D 实现前定下，单测逐项断言；改动时同步更新这里。
 
-| 常量                                        | 值                                                                                                                                            | 说明                                                                                                                                                                                     |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requestTimeoutMs`                          | 5000                                                                                                                                          | 宿主处理一次请求的时限，**只计宿主处理的时间**：用户在桌面面板里选文件、确认覆盖的停留时间不计入（宿主用 `interaction.waitForUser` 声明）。超时回 `TIMEOUT`。                            |
-| `callTimeoutMs`                             | 7000                                                                                                                                          | 应用侧等待宿主**应答**的兜底时限，比宿主多留 2 秒，让宿主自己的 `TIMEOUT` 先到。需要用户操作的请求，它只管「已受理」的应答，用户操作的最终结果没有时限。RPC 层的超时同样归为 `TIMEOUT`。 |
-| `titleLength`、`dragRegions`、`appIdLength` | 256、64、64                                                                                                                                   | 窗口标题的字符数、一次上报的拖动区数、应用 ID 的字符数。                                                                                                                                 |
-| `menu`                                      | `sections` 12、`itemsPerSection` 64、`commands` 256、`sectionLabelLength` 32、`itemLabelLength` 64、`shortcutLength` 16、`commandIdLength` 64 | 菜单结构上限；命令 ID 由字母或数字开头，其后字母、数字、`.`、`_`、`-`，不含冒号。                                                                                                        |
-| `notification`                              | `titleLength` 120、`bodyLength` 1000、`dedupeKeyLength` 128、`iconBytes` 65536、`perMinute` 10、`windowMs` 60000、`entriesPerApp` 20          | 同一 appId 在 `windowMs` 内最多提交 `perMinute` 条，超限 `RATE_LIMITED`；通知中心里每个应用最多保留 `entriesPerApp` 条（超出的旧条目被挤掉）；`iconBytes` 是内联图片解码后的字节数。     |
-| `clipboard`                                 | `textLength` 262144                                                                                                                           | 文本字符数；最坏情况（每字符 3 字节）仍在 1 MiB 消息上限之内。                                                                                                                           |
-| `filesystem`                                | `bytes` 524288、`acceptEntries` 16、`nameLength` 255                                                                                          | 文件内容经 base64 放进 JSON 消息，编码后仍在 1 MiB 消息上限之内；超过 `bytes` 是 `FILE_TOO_LARGE`。                                                                                      |
+| 常量                                        | 值                                                                                                                                            | 说明                                                                                                                                                                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `requestTimeoutMs`                          | 5000                                                                                                                                          | 宿主处理时限。`interaction.waitForUser` 声明的用户等待时间不计入。超时返回 `TIMEOUT`，但保存不能确认未写入时返回 `RESULT_UNKNOWN`。                                                  |
+| `callTimeoutMs`                             | 7000                                                                                                                                          | 应用等待宿主应答的时限。交互请求只对「已受理」应答计时。RPC 超时通常返回 `TIMEOUT`；保存丢失应答返回 `RESULT_UNKNOWN`。                                                              |
+| `titleLength`、`dragRegions`、`appIdLength` | 256、64、64                                                                                                                                   | 窗口标题的字符数、一次上报的拖动区数、应用 ID 的字符数。                                                                                                                             |
+| `menu`                                      | `sections` 12、`itemsPerSection` 64、`commands` 256、`sectionLabelLength` 32、`itemLabelLength` 64、`shortcutLength` 16、`commandIdLength` 64 | 菜单结构上限；命令 ID 由字母或数字开头，其后字母、数字、`.`、`_`、`-`，不含冒号。                                                                                                    |
+| `notification`                              | `titleLength` 120、`bodyLength` 1000、`dedupeKeyLength` 128、`iconBytes` 65536、`perMinute` 10、`windowMs` 60000、`entriesPerApp` 20          | 同一 appId 在 `windowMs` 内最多提交 `perMinute` 条，超限 `RATE_LIMITED`；通知中心里每个应用最多保留 `entriesPerApp` 条（超出的旧条目被挤掉）；`iconBytes` 是内联图片解码后的字节数。 |
+| `clipboard`                                 | `textLength` 262144                                                                                                                           | 同时限制 UTF-16 码元数和 JSON 字符串（含引号、转义）的 UTF-8 大小；后者最多 1 MiB 减 1 KiB，为实例 ID 和信封留空间。                                                                 |
+| `filesystem`                                | `bytes` 524288、`acceptEntries` 16、`nameLength` 255                                                                                          | 文件内容经 base64 放进 JSON 消息，编码后仍在 1 MiB 消息上限之内；超过 `bytes` 是 `FILE_TOO_LARGE`。                                                                                  |
 
 ### 实例绑定与解绑
 

@@ -197,8 +197,8 @@ const IMPLEMENTED: readonly DesktopCapability[] = ['window', 'menu', 'app', 'app
 /** 清单里可以声明的全部能力。 */
 const EVERYTHING: readonly DesktopCapability[] = [...DESKTOP_CAPABILITIES];
 
-function setup(capabilities: readonly DesktopCapability[] = IMPLEMENTED) {
-  const link = connect(desktopProps(capabilities));
+function setup(capabilities: readonly DesktopCapability[] = IMPLEMENTED, instanceId?: string) {
+  const link = connect(desktopProps(capabilities), instanceId);
   const hosted = fakeHost();
   const onError = vi.fn();
   const server = serveDesktop(link.instance, hosted.host, { capabilities, onError });
@@ -230,7 +230,7 @@ describe('能力契约的协议常量', () => {
     ]);
   });
 
-  it('错误码表：通用的六个加阶段 D 的六个，不多不少', () => {
+  it('错误码表包含不可安全重试的保存结果', () => {
     expect(DESKTOP_ERROR_CODES).toEqual([
       'CAPABILITY_DENIED',
       'INVALID_ARGUMENT',
@@ -243,7 +243,8 @@ describe('能力契约的协议常量', () => {
       'FILE_TOO_LARGE',
       'HANDLE_INVALID',
       'BUSY',
-      'RATE_LIMITED'
+      'RATE_LIMITED',
+      'RESULT_UNKNOWN'
     ]);
   });
 
@@ -260,7 +261,8 @@ describe('能力契约的协议常量', () => {
       FILE_TOO_LARGE: 'app',
       HANDLE_INVALID: 'app',
       BUSY: 'app',
-      RATE_LIMITED: 'app'
+      RATE_LIMITED: 'app',
+      RESULT_UNKNOWN: 'app'
     });
     expect(Object.keys(DESKTOP_ERROR_PRESENTATION)).toEqual([...DESKTOP_ERROR_CODES]);
   });
@@ -295,13 +297,12 @@ describe('能力契约的协议常量', () => {
     });
   });
 
-  it('常量之间自洽：宿主先超时、应用侧再兜底；文件内容编码后仍在消息上限内；剪贴板文本最坏编码仍在上限内', () => {
-    const { requestTimeoutMs, callTimeoutMs, filesystem, clipboard } = DESKTOP_LIMITS;
+  it('常量之间自洽：宿主先超时、应用侧再兜底；文件内容编码后仍在消息上限内', () => {
+    const { requestTimeoutMs, callTimeoutMs, filesystem } = DESKTOP_LIMITS;
     expect(callTimeoutMs).toBeGreaterThan(requestTimeoutMs);
     expect(callTimeoutMs).toBeLessThanOrEqual(120_000);
     const messageLimit = 1024 * 1024;
     expect(Math.ceil((filesystem.bytes * 4) / 3)).toBeLessThan(messageLimit - 4096);
-    expect(clipboard.textLength * 3).toBeLessThan(messageLimit - 4096);
   });
 
   it('外观的取值集合是登记的：显示模式与强调色', () => {
@@ -764,6 +765,16 @@ describe('默认拒绝：清单没声明的能力一律 CAPABILITY_DENIED', () =
 });
 
 describe('实例绑定与迟到调用', () => {
+  it('注册冲突不遗留部分方法，解除冲突后可直接重试', () => {
+    const { instance, handlers } = connect();
+    const { host } = fakeHost();
+    const off = instance.onRequest('desktop.window.setTitle', () => null);
+    expect(() => serveDesktop(instance, host, { capabilities: [] })).toThrow();
+    expect([...handlers.keys()]).toEqual(['desktop.window.setTitle']);
+    off();
+    serveDesktop(instance, host, { capabilities: [] }).dispose();
+    expect(handlers.size).toBe(0);
+  });
   it('请求带的实例 ID 与这条连接不符：按实例 ID 丢弃，WINDOW_CLOSED，宿主函数不会被调用', async () => {
     const { client, calls, onError } = setup();
     const stale = await client.request('desktop.window.setTitle', { instanceId: 'w1#0', args: 'late title' });
@@ -1054,6 +1065,84 @@ describe('通知、剪贴板与文件经统一信封', () => {
   /** 等应用侧的一个调用在下一轮微任务里落定。 */
   const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
+  it.each(['w1', '编辑器 1'])('同一连接共用请求 ID 和完成订阅：%s', async id => {
+    const { desktop, client } = setup(EVERYTHING, id);
+    const other = getDesktop(client)!;
+    expect(await Promise.all([desktop.filesystem.open(), other.filesystem.open()])).toEqual([opened, opened]);
+    expect(client.bus.listenerCount).toBe(1);
+  });
+
+  it('服务解绑只送一次终态，上报异常不改变调用方收到的错误', async () => {
+    const { desktop, host, onError, server, emitted } = setup(EVERYTHING);
+    onError.mockImplementation(() => {
+      throw new Error('上报失败');
+    });
+    vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new DesktopError('BUSY', '面板已打开'));
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: 'BUSY' });
+    const gate = Promise.withResolvers<DesktopOpenedFile>();
+    vi.spyOn(host.filesystem, 'open').mockReturnValueOnce(gate.promise);
+    const result = desktop.filesystem.open();
+    await flush();
+    server.dispose();
+    await expect(result).rejects.toMatchObject({ code: 'WINDOW_CLOSED' });
+    gate.resolve(opened);
+    await flush();
+    expect(emitted).toHaveLength(2);
+  });
+
+  it('超限文件不编码发送；拒绝宿主返回的大小不一致和超限快照', async () => {
+    const { desktop, client, host } = setup(EVERYTHING);
+    const request = vi.spyOn(client, 'request');
+    await expect(desktop.filesystem.save({ suggestedName: 'a', bytes: new Uint8Array(800_000) })).rejects.toMatchObject(
+      { code: 'FILE_TOO_LARGE' }
+    );
+    expect(request).not.toHaveBeenCalled();
+    vi.spyOn(host.filesystem, 'open').mockResolvedValueOnce({ ...opened, size: 0 });
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: 'HANDLER_ERROR' });
+    const size = DESKTOP_LIMITS.filesystem.bytes + 1;
+    vi.spyOn(host.filesystem, 'open').mockResolvedValueOnce({ ...opened, size, bytes: new Uint8Array(size) });
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: 'HANDLER_ERROR' });
+  });
+
+  it('旧宿主发来的文件快照也核对实际字节数，无效完成事件结束对应请求', async () => {
+    const { client, desktop } = setup(EVERYTHING);
+    const request = vi.spyOn(client, 'request');
+    for (const value of [
+      { ...opened, bytes: 'YQ==' },
+      { ...opened, size: 524_289, bytes: '' }
+    ]) {
+      request.mockImplementationOnce(async (_method, payload) => {
+        const { requestId } = payload as { requestId: string };
+        client.bus.$emit('desktop.request.settled', { requestId, envelope: { ok: true, value } });
+        return { ok: true, value: null };
+      });
+      await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: 'INVALID_PAYLOAD' });
+    }
+  });
+
+  it('保存遇到旧协议超时或 RPC 超时时按结果未知处理，宿主明确未提交才返回 TIMEOUT', async () => {
+    const { client, desktop, failNext } = setup(EVERYTHING);
+    const save = () => desktop.filesystem.save({ handle: 'h', suggestedName: 'a', bytes: new Uint8Array() });
+    const timeout = { ok: false, code: 'TIMEOUT', message: '超时' };
+    vi.spyOn(client, 'request')
+      .mockResolvedValueOnce(timeout)
+      .mockResolvedValueOnce({ ...timeout, resultUnknown: false });
+    await expect(save()).rejects.toMatchObject({ code: 'RESULT_UNKNOWN' });
+    await expect(save()).rejects.toMatchObject({ code: 'TIMEOUT' });
+    failNext(new OrbitError('TIMEOUT', '未收到应答'));
+    await expect(save()).rejects.toMatchObject({ code: 'RESULT_UNKNOWN' });
+  });
+
+  it('剪贴板预算包括 JSON 转义，不能只数字符', async () => {
+    const { desktop, host } = setup(EVERYTHING);
+    const large = '\0'.repeat(DESKTOP_LIMITS.clipboard.textLength);
+    expect(() => parseDesktopArguments('clipboard.writeText', large)).toThrow(
+      expect.objectContaining({ code: 'INVALID_ARGUMENT' })
+    );
+    vi.spyOn(host.clipboard, 'readText').mockResolvedValueOnce(large);
+    await expect(desktop.clipboard.readText()).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+  });
+
   it('通知：参数原样到宿主，回执回到应用；宿主拒绝带着稳定错误码回来（RATE_LIMITED）', async () => {
     const { desktop, calls, host, onError } = setup(EVERYTHING);
     expect(
@@ -1100,7 +1189,7 @@ describe('通知、剪贴板与文件经统一信封', () => {
     const settled = emitted.filter(([event]) => event === 'desktop.request.settled');
     expect(settled).toHaveLength(1);
     expect(settled[0]![1]).toMatchObject({
-      requestId: 'w1#1/1',
+      requestId: '1',
       envelope: { ok: true, value: { name: 'notes.md', bytes: 'aGkh', handle: 'handle-1' } }
     });
     /* 应答本身只有「已受理」，不带内容。 */
@@ -1267,6 +1356,49 @@ describe('通知、剪贴板与文件经统一信封', () => {
 });
 
 describe('超时只计宿主处理请求的时间', () => {
+  it.each(['超时', '解绑', 'RPC 取消'])('%s 后放行已阻塞的保存，不得开始写入', async cause => {
+    vi.useFakeTimers();
+    const { handlers, host, server } = setup(EVERYTHING);
+    const gate = Promise.withResolvers<void>();
+    const wrote = vi.fn();
+    vi.spyOn(host.filesystem, 'save').mockImplementation(async (_, interaction) => {
+      const beforeWrite = interaction!.prepareSave!();
+      await gate.promise;
+      beforeWrite();
+      wrote();
+      return saved;
+    });
+    const rpc = new AbortController();
+    const reply = handlers.get('desktop.filesystem.save')!(
+      { instanceId: 'w1#1', args: { handle: 'h', suggestedName: 'a', bytes: '' } },
+      rpc.signal
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    if (cause === '解绑') server.dispose();
+    if (cause === 'RPC 取消') rpc.abort();
+    await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.requestTimeoutMs);
+    expect(await reply).toMatchObject({ ok: false, code: cause === '超时' ? 'TIMEOUT' : 'WINDOW_CLOSED' });
+    gate.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(wrote).not.toHaveBeenCalled();
+  });
+
+  it('已进入写入时超时，不能通知调用方可安全重试', async () => {
+    vi.useFakeTimers();
+    const { desktop, host } = setup(EVERYTHING);
+    const gate = Promise.withResolvers<void>();
+    vi.spyOn(host.filesystem, 'save').mockImplementation(async (_, interaction) => {
+      interaction!.prepareSave!()();
+      await gate.promise;
+      return saved;
+    });
+    const result = desktop.filesystem
+      .save({ handle: 'h', suggestedName: 'a', bytes: new Uint8Array() })
+      .catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.requestTimeoutMs);
+    expect(await result).toMatchObject({ code: 'RESULT_UNKNOWN' });
+    gate.resolve();
+  });
   /** 一个由测试控制何时结束的「用户操作」。 */
   function userAction() {
     let finish!: () => void;
@@ -1339,7 +1471,7 @@ describe('超时只计宿主处理请求的时间', () => {
     expect(await result).toEqual(saved);
   });
 
-  it('带凭证的保存没有面板：宿主处理超过 5 秒就是 TIMEOUT，应用在 7 秒的兜底之前就收到它', async () => {
+  it('旧宿主没有标记提交阶段：保存超时保守地按结果未知处理', async () => {
     vi.useFakeTimers();
     const { desktop, control, onError } = setup(EVERYTHING);
     control.hang = true;
@@ -1348,25 +1480,23 @@ describe('超时只计宿主处理请求的时间', () => {
       (error: unknown) => error
     );
     await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.requestTimeoutMs);
-    expect(await result).toMatchObject({ code: 'TIMEOUT' });
-    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'TIMEOUT' }), 'filesystem.save');
+    expect(await result).toMatchObject({ code: 'RESULT_UNKNOWN' });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'RESULT_UNKNOWN' }), 'filesystem.save');
   });
 
   it('应用等「已受理」的应答用 callTimeoutMs 兜底（RPC 层的超时归为 TIMEOUT）；兜底之后的完成事件不会误认', async () => {
     const { desktop, client, failNext } = setup(EVERYTHING);
     const request = vi.spyOn(client, 'request');
     await desktop.filesystem.open();
-    expect(request).toHaveBeenCalledWith('desktop.filesystem.open', expect.objectContaining({ requestId: 'w1#1/1' }), {
+    expect(request).toHaveBeenCalledWith('desktop.filesystem.open', expect.objectContaining({ requestId: '1' }), {
       timeout: DESKTOP_LIMITS.callTimeoutMs
     });
     failNext(new OrbitError('TIMEOUT', '请求超时'));
     await expect(desktop.filesystem.open()).rejects.toMatchObject({ name: 'DesktopError', code: 'TIMEOUT' });
     await desktop.filesystem.open();
-    expect(request).toHaveBeenLastCalledWith(
-      'desktop.filesystem.open',
-      expect.objectContaining({ requestId: 'w1#1/3' }),
-      { timeout: DESKTOP_LIMITS.callTimeoutMs }
-    );
+    expect(request).toHaveBeenLastCalledWith('desktop.filesystem.open', expect.objectContaining({ requestId: '3' }), {
+      timeout: DESKTOP_LIMITS.callTimeoutMs
+    });
   });
 
   it('实例销毁之后宿主才完成的交互式请求：结果不再送出，宿主函数也只被调用过那一次', async () => {

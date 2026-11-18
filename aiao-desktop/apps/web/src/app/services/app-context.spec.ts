@@ -1073,10 +1073,15 @@ describe('DesktopAppContext：filesystem', () => {
         expectedVersion: file.version
       });
       expect(saved).toEqual({ name: 'note.md', version: '2000:7', handle: file.handle });
-      expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(DOC, bytes('edited'), {
-        modified: 1_000,
-        size: 5
-      });
+      expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(
+        DOC,
+        bytes('edited'),
+        {
+          modified: 1_000,
+          size: 5
+        },
+        expect.any(Function)
+      );
       expect(services.panels.show).toHaveBeenCalledTimes(1);
       /* suggestedName 不能换目标：写的仍是打开的那个路径。 */
       expect(services.files.create).not.toHaveBeenCalled();
@@ -1085,7 +1090,7 @@ describe('DesktopAppContext：filesystem', () => {
     it('省略 expectedVersion 就不比对（应用明确选择覆盖），仍只写回这一个文件', async () => {
       const { context, services, file } = await opened();
       await context.filesystem.save({ handle: file.handle, suggestedName: 'x', bytes: bytes('y') });
-      expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(DOC, bytes('y'), undefined);
+      expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(DOC, bytes('y'), undefined, expect.any(Function));
     });
 
     it('③磁盘上的文件已被改动：FILE_CHANGED，不写入；凭证仍然有效，应用可以改走另存或重新打开', async () => {
@@ -1193,6 +1198,37 @@ describe('DesktopAppContext：filesystem', () => {
   });
 
   describe('不带凭证的保存（保存面板）', () => {
+    it('等磁盘锁期间取消，即使只提供 signal，也不能提交另存', async () => {
+      const { context, services } = setup({ capabilities: BOTH });
+      const cancel = new AbortController();
+      const wrote = vi.fn();
+      services.files.create.mockImplementationOnce(async (_path, _bytes, _overwrite, beforeWrite) => {
+        cancel.abort();
+        beforeWrite!();
+        wrote();
+        return { kind: 'ok', stamp: { modified: 3000, size: 1 } };
+      });
+      const saving = context.filesystem.save(
+        { suggestedName: 'a.txt', bytes: bytes('x') },
+        { ...recordingInteraction().interaction, signal: cancel.signal }
+      );
+      (await shown(services)).submit({ kind: 'save', dir: ['Users'], name: 'a.txt', replace: false });
+      expect(await rejection(saving)).toBe(cancel.signal.reason);
+      expect(wrote).not.toHaveBeenCalled();
+    });
+
+    it('另存已经提交后窗口关闭：不给新凭证，不把已写入误报为可重试', async () => {
+      const { context, services } = setup({ capabilities: BOTH });
+      services.files.create.mockImplementationOnce(async (_path, _bytes, _overwrite, beforeWrite) => {
+        beforeWrite!();
+        context.dispose();
+        return { kind: 'ok', stamp: { modified: 3000, size: 1 } };
+      });
+      const saving = codeOf(() => context.filesystem.save({ suggestedName: 'a.txt', bytes: bytes('x') }));
+      (await shown(services)).submit({ kind: 'save', dir: ['Users'], name: 'a.txt', replace: false });
+      expect(await saving).toBe('RESULT_UNKNOWN');
+    });
+
     it('②弹出保存面板（预填建议的名字），用户选位置并确认覆盖才写；返回新文件的凭证，之后可以带凭证保存', async () => {
       const { context, services } = setup({ capabilities: BOTH });
       const saving = context.filesystem.save({ suggestedName: 'draft.txt', bytes: bytes('payload') });
@@ -1205,13 +1241,15 @@ describe('DesktopAppContext：filesystem', () => {
       expect(services.files.create).toHaveBeenCalledExactlyOnceWith(
         ['Users', 'prasenjit', 'Desktop', 'final.txt'],
         bytes('payload'),
-        true
+        true,
+        expect.any(Function)
       );
       await context.filesystem.save({ handle: saved.handle, suggestedName: 'x', bytes: bytes('again') });
       expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(
         ['Users', 'prasenjit', 'Desktop', 'final.txt'],
         bytes('again'),
-        undefined
+        undefined,
+        expect.any(Function)
       );
     });
 
@@ -1220,7 +1258,7 @@ describe('DesktopAppContext：filesystem', () => {
       const saving = context.filesystem.save({ suggestedName: 'a.txt', bytes: bytes('x') });
       (await shown(services)).submit({ kind: 'save', dir: ['Users'], name: 'a.txt', replace: false });
       await saving;
-      expect(services.files.create).toHaveBeenCalledWith(['Users', 'a.txt'], bytes('x'), false);
+      expect(services.files.create).toHaveBeenCalledWith(['Users', 'a.txt'], bytes('x'), false, expect.any(Function));
     });
 
     it('选定之后目标位置出现了别的内容：FILE_CHANGED；目标文件夹已被删除：FILE_NOT_FOUND；都没写、都不发凭证', async () => {

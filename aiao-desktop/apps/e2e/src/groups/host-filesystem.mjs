@@ -39,6 +39,7 @@ export const hostFilesystem = {
     'hostFilesystem.openGivesNothingElse',
     'hostFilesystem.openCancelIsSilent',
     'hostFilesystem.saveChoosesLocationAndName',
+    'hostFilesystem.oversizedSaveKeepsContent',
     'hostFilesystem.saveCancelWritesNothing',
     'hostFilesystem.overwriteNeedsConfirmation',
     'hostFilesystem.overwriteCannotBeSkippedByApp',
@@ -215,6 +216,13 @@ export const hostFilesystem = {
       (await diskText(session, 'hostcap-a.txt')) === 'alpha v1' &&
       (await panelCloses());
     const handleA = saved?.value?.handle;
+    const oversized = await call('filesystem.save', {
+      handle: handleA,
+      suggestedName: 'hostcap-a.txt',
+      text: 'x'.repeat(800_000)
+    });
+    hostFilesystem.oversizedSaveKeepsContent =
+      oversized.code === 'FILE_TOO_LARGE' && (await diskText(session, 'hostcap-a.txt')) === 'alpha v1';
 
     const cancelSaveId = await begin('filesystem.save', {
       suggestedName: 'hostcap-cancelled.txt',

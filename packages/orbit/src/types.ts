@@ -85,7 +85,7 @@ export interface OrbitInstance {
   readonly snapshot: OrbitSnapshot;
   /** 子应用显式 ready 后完成，失败、取消和销毁时拒绝。 */
   readonly ready: Promise<void>;
-  /** 装载到可见容器；重复装载同容器复用启动事务。 */
+  /** 装载到运行内核所在文档中已连接的容器；重复装载同容器复用启动事务。 */
   mount(container: HTMLElement): Promise<void>;
   /** 隐藏窗口，保留浏览器运行环境。 */
   hide(): void;

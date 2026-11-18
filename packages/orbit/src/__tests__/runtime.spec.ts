@@ -12,6 +12,16 @@ describe('服务端安全导入', () => {
 
 describe('应用登记与失败边界', () => {
   const options = { appId: 'editor', instanceId: 'window-1', version: '1', url: 'https://apps.example/editor' };
+  it('观察者与错误上报都抛错也会销毁其余实例', () => {
+    const fail = () => {
+      throw new Error('上报失败');
+    };
+    const runtime = createOrbit({ allowedOrigins: ['https://apps.example'], onError: fail });
+    runtime.createApp(options).subscribe(fail);
+    runtime.createApp({ ...options, instanceId: 'other' });
+    runtime.dispose();
+    expect(runtime.instances).toEqual([]);
+  });
   it('同一应用可以多开，但不能占用相同实例身份；销毁后释放身份', () => {
     const runtime = createOrbit({ allowedOrigins: ['https://apps.example'] });
     const first = runtime.createApp(options);

@@ -48,11 +48,16 @@ export interface AppContextFiles {
    * 把内容写回一个**已存在**的文件（保存已打开的文件）：先比对 `expected`（省略就不比对），
    * 文件已被删除、改名或被同名文件夹顶替就不写、也不在原路径新建。
    */
-  replace(path: DiskPath, bytes: Uint8Array, expected: FileStamp | undefined): Promise<FileReplaced>;
+  replace(
+    path: DiskPath,
+    bytes: Uint8Array,
+    expected: FileStamp | undefined,
+    beforeWrite?: () => void
+  ): Promise<FileReplaced>;
   /**
    * 另存到用户选定的位置：目标已有文件而 `overwrite` 不是 true（用户没有确认覆盖）就不写；目标文件夹不在了不补建。
    */
-  create(path: DiskPath, bytes: Uint8Array, overwrite: boolean): Promise<FileCreated>;
+  create(path: DiskPath, bytes: Uint8Array, overwrite: boolean, beforeWrite?: () => void): Promise<FileCreated>;
 }
 
 const stampOf = (info: DiskFileInfo): FileStamp => ({ modified: info.modified, size: info.size });
@@ -82,23 +87,25 @@ export function appFilesOver(disk: Pick<FileSystem, 'run' | 'changes'>): AppCont
         if (info.size > maxBytes) return { kind: 'too-large', size: info.size };
         return { kind: 'ok', stamp: stampOf(info), bytes: await store.read(path) };
       }),
-    replace: async (path, bytes, expected) => {
+    replace: async (path, bytes, expected, beforeWrite) => {
       const outcome = await disk.run<FileReplaced>(async store => {
         const info = await infoOrNull(store, path);
         if (!info) return { kind: 'missing' };
         if (expected && (info.modified !== expected.modified || info.size !== expected.size))
           return { kind: 'changed' };
+        beforeWrite?.();
         await store.replace(path, bytes);
         return { kind: 'ok', stamp: stampOf(await store.info(path)) };
       });
       if (outcome.kind === 'ok') disk.changes.next([path]);
       return outcome;
     },
-    create: async (path, bytes, overwrite) => {
+    create: async (path, bytes, overwrite, beforeWrite) => {
       const outcome = await disk.run<FileCreated>(async store => {
         if ((await store.kindOf(path.slice(0, -1))) !== 'directory') return { kind: 'missing-folder' };
         const kind = await store.kindOf(path);
         if (kind === 'directory' || (kind === 'file' && !overwrite)) return { kind: 'exists' };
+        beforeWrite?.();
         if (kind === 'file') await store.replace(path, bytes);
         else await store.write(path, bytes);
         return { kind: 'ok', stamp: stampOf(await store.info(path)) };

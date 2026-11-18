@@ -16,6 +16,18 @@ function titleBar(html = '<button style="width:40px;height:24px">b</button><span
 }
 
 describe('拖动区跟踪（窗口协议与桌面能力协议共用，直接在页面里运行）', () => {
+  it('上报晚插入的拖动区及滚动后的视口坐标', async () => {
+    const root = titleBar();
+    root.replaceChildren();
+    root.style.cssText = 'height:50px;overflow:auto;position:relative';
+    const reports: OrbitDragRegion[][] = [];
+    resources.push(trackDragRegions(regions => reports.push(regions), root));
+    await vi.waitFor(() => expect(reports.at(-1)).toEqual([]));
+    root.innerHTML = '<div style="height:100px"></div><header data-orbit-drag-region style="height:40px"></header>';
+    await vi.waitFor(() => expect(reports.at(-1)).toEqual(collectDragRegions(root)));
+    root.scrollTop = 70;
+    await vi.waitFor(() => expect(reports.at(-1)).toEqual(collectDragRegions(root)));
+  });
   it('收集拖动区：整条标题栏减去其中可交互元素的挖空，看不见的拖动区忽略', () => {
     const root = titleBar(
       '<button style="width:40px;height:24px">b</button><input style="width:30px" /><span data-orbit-no-drag>x</span>'
@@ -52,5 +64,18 @@ describe('拖动区跟踪（窗口协议与桌面能力协议共用，直接在�
   it('没有浏览器窗口的文档里跟踪拖动区显式失败', () => {
     const detached = document.implementation.createHTMLDocument('detached');
     expect(() => trackDragRegions(() => undefined, detached)).toThrow(expect.objectContaining({ code: 'UNSUPPORTED' }));
+  });
+
+  it('异步上报被拒绝时记录原因，停止时清空也不会产生未处理拒绝', async () => {
+    const error = new Error('窗口已解绑');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const stop = trackDragRegions(() => Promise.reject(error), titleBar());
+      await vi.waitFor(() => expect(log).toHaveBeenCalledWith(error));
+      stop();
+      await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    } finally {
+      log.mockRestore();
+    }
   });
 });

@@ -1,4 +1,5 @@
 import { EventBus } from './bus.js';
+import { reportSafely } from './callbacks.js';
 import { aborted, checkTimeout, destroyed, OrbitError, OrbitProtocolError } from './errors.js';
 import { isRecord } from './payload.js';
 import type { Message } from './protocol.js';
@@ -127,7 +128,7 @@ class Client implements OrbitClient {
 
   private readonly onPageHide = () => this.dispose();
   private report(error: unknown): void {
-    (this.options.onError ?? console.error)(error);
+    reportSafely(() => (this.options.onError ?? console.error)(error));
   }
 
   private subscribe<T>(handlers: Set<(value: T) => void>, handler: (value: T) => void): () => void {
@@ -192,13 +193,36 @@ function readRefusal(data: Record<string, unknown>, channel: string): OrbitProto
   return new OrbitProtocolError(PROTOCOL_VERSION, supported);
 }
 
-/** 连接仓内桌面宿主；独立页面和普通 iframe 立即返回 undefined，业务路由须在握手后初始化。 */
+const connections = new WeakMap<Window, Promise<OrbitClient>>();
+
+/** 每个应用文档共用一次握手。连接参数由首次调用指定；普通网页返回 undefined。 */
 export async function connectOrbitClient(options: OrbitClientOptions = {}): Promise<OrbitClient | undefined> {
   if (typeof window === 'undefined' || window.parent === window) return undefined;
+  const view = window;
+  const existing = connections.get(view);
+  if (existing) {
+    if (options.signal || options.timeout !== undefined || options.onError)
+      throw new OrbitError('INVALID_STATE', '已有连接，不能重新指定连接参数');
+    return existing;
+  }
   const url = new URL(window.location.href);
   const channel = url.searchParams.get(CHANNEL_PARAM);
   if (!channel) return undefined;
   if (options.signal?.aborted) throw aborted();
+  const promise = handshake(url, channel, options);
+  connections.set(view, promise);
+  const release = () => connections.delete(view);
+  try {
+    const client = await promise;
+    client.onDispose(release);
+    return client;
+  } catch (error) {
+    release();
+    throw error;
+  }
+}
+
+async function handshake(url: URL, channel: string, options: OrbitClientOptions): Promise<OrbitClient> {
   const timeout = checkTimeout(options.timeout ?? 15_000);
   return new Promise<OrbitClient>((resolve, reject) => {
     const cleanup = () => {

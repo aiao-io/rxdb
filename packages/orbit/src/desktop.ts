@@ -1,12 +1,13 @@
+import { registerService, reportSafely } from './callbacks.js';
 import { OrbitError } from './errors.js';
-import { copyValue, isRecord } from './payload.js';
+import { copyValue, isRecord, MAX_BYTES } from './payload.js';
 import type { OrbitClient, OrbitInstance, OrbitObject, OrbitValue } from './types.js';
 import {
   FRAMES,
+  invalid,
   MAX_REGIONS,
   MAX_TITLE,
   PLATFORMS,
-  invalid,
   readBoolean,
   readRegions,
   readTitle,
@@ -49,7 +50,7 @@ export const DESKTOP_CAPABILITIES = [
 export type DesktopCapability = (typeof DESKTOP_CAPABILITIES)[number];
 
 /**
- * 稳定的错误码表：前六个是每项能力通用的结果分类，后六个由 notification（`RATE_LIMITED`）与 filesystem 使用。
+ * 稳定的错误码表：前六个是通用错误，其余由通知与文件能力使用。
  * 应用按错误码分支，不匹配错误文本。
  */
 export const DESKTOP_ERROR_CODES = [
@@ -64,7 +65,8 @@ export const DESKTOP_ERROR_CODES = [
   'FILE_TOO_LARGE',
   'HANDLE_INVALID',
   'BUSY',
-  'RATE_LIMITED'
+  'RATE_LIMITED',
+  'RESULT_UNKNOWN'
 ] as const;
 
 /** 稳定的错误码。 */
@@ -89,7 +91,8 @@ export const DESKTOP_ERROR_PRESENTATION: Readonly<Record<DesktopErrorCode, Deskt
   FILE_TOO_LARGE: 'app',
   HANDLE_INVALID: 'app',
   BUSY: 'app',
-  RATE_LIMITED: 'app'
+  RATE_LIMITED: 'app',
+  RESULT_UNKNOWN: 'app'
 };
 
 /**
@@ -366,6 +369,10 @@ export interface DesktopSavedFile {
  * {@link DesktopInteraction.waitForUser}，`serveDesktop` 暂停宿主处理时限的计时，用户操作完再接着算剩下的时间。
  */
 export interface DesktopInteraction {
+  /** Orbit 在请求超时、取消或服务解绑时终止此信号，宿主可据此关闭面板。 */
+  readonly signal?: AbortSignal;
+  /** 保存开始时调用；在不可撤销的写入前调用返回的函数。已取消则抛错，否则从此处起不能保证未写入。 */
+  prepareSave?(): () => void;
   /** 等待用户操作；返回 `pending` 的结果。等待期间不计入 `DESKTOP_LIMITS.requestTimeoutMs`。 */
   waitForUser<T>(pending: Promise<T>): Promise<T>;
 }
@@ -602,6 +609,8 @@ export interface DesktopFailure {
   readonly code: DesktopErrorCode;
   /** 给人看的说明，不要匹配它。 */
   readonly message: string;
+  /** 保存超时或断连时是否可能已写入；旧宿主没有此标记。 */
+  readonly resultUnknown?: boolean;
 }
 
 /** 线上的结果信封：成功，或带稳定错误码的失败。 */
@@ -861,8 +870,13 @@ function readNotification(value: unknown): DesktopNotificationInput {
 function readClipboardText(value: unknown): string {
   const max = DESKTOP_LIMITS.clipboard.textLength;
   if (typeof value !== 'string' || value.length > max) throw bad(`剪贴板文本必须是最多 ${max} 个字符的文字`);
+  if (new TextEncoder().encode(JSON.stringify(value)).length > CLIPBOARD_JSON_BYTES)
+    throw bad('剪贴板文本经 JSON 编码后超出消息预算');
   return value;
 }
+
+/** 为最坏情况下的实例 ID（128 个需转义的码元）和信封字段保留 1 KiB。 */
+const CLIPBOARD_JSON_BYTES = MAX_BYTES - 1024;
 
 function readAccept(value: unknown): string[] {
   const max = DESKTOP_LIMITS.filesystem.acceptEntries;
@@ -943,7 +957,10 @@ function readOpenedFile(value: unknown): DesktopOpenedFile {
   const { size, mime, bytes } = fields;
   if (typeof mime !== 'string' || typeof bytes !== 'string' || !Number.isSafeInteger(size) || (size as number) < 0)
     throw invalid('打开的文件字段无效');
+  if ((size as number) > DESKTOP_LIMITS.filesystem.bytes || bytes.length !== encodedLength(size as number))
+    throw invalid('文件大小超限或与编码长度不符');
   const content = decodeBytesResult(bytes);
+  if (content.length !== size) throw invalid('文件大小与实际内容不符');
   return Object.freeze({
     name: fields['name'] as string,
     mime,
@@ -1091,11 +1108,13 @@ const METHODS: { readonly [M in DesktopMethod]: MethodSpec<M> } = {
     capability: 'clipboard:read',
     parse: readNone,
     run: host => host.clipboard.readText(),
-    read: readString
+    encodeResult: readClipboardText,
+    read: value => readClipboardText(readString(value))
   },
   'clipboard.writeText': {
     capability: 'clipboard:write',
     parse: readClipboardText,
+    encodeArguments: readClipboardText,
     run: (host, text) => finish(host.clipboard.writeText(text)),
     read: readNull
   },
@@ -1104,7 +1123,10 @@ const METHODS: { readonly [M in DesktopMethod]: MethodSpec<M> } = {
     interactive: () => true,
     parse: readOpenOptions,
     run: (host, options, interaction) => host.filesystem.open(options, interaction),
-    encodeResult: file => ({ ...file, bytes: encodeBase64(file.bytes) }),
+    encodeResult: file => {
+      if (file.bytes.length !== file.size || file.size > DESKTOP_LIMITS.filesystem.bytes) throw invalid('文件大小无效');
+      return { ...file, bytes: encodeBase64(file.bytes) };
+    },
     read: readOpenedFile
   },
   'filesystem.save': {
@@ -1113,10 +1135,12 @@ const METHODS: { readonly [M in DesktopMethod]: MethodSpec<M> } = {
     interactive: request => !isRecord(request) || request['handle'] === undefined,
     parse: readSaveRequest,
     /* 不是字节数组的 bytes 原样发出，由宿主按参数规则拒绝（INVALID_ARGUMENT），客户端不替宿主判断。 */
-    encodeArguments: request =>
-      (isRecord(request) && request.bytes instanceof Uint8Array ?
-        { ...request, bytes: encodeBase64(request.bytes) }
-      : request) as OrbitValue,
+    encodeArguments: request => {
+      if (!isRecord(request) || !(request.bytes instanceof Uint8Array)) return request as unknown as OrbitValue;
+      if (request.bytes.length > DESKTOP_LIMITS.filesystem.bytes)
+        throw new DesktopError('FILE_TOO_LARGE', `文件内容超过 ${DESKTOP_LIMITS.filesystem.bytes} 字节的上限`);
+      return { ...request, bytes: encodeBase64(request.bytes) };
+    },
     run: (host, request, interaction) => host.filesystem.save(request, interaction),
     read: readSavedFile
   }
@@ -1205,48 +1229,77 @@ function readFrame(payload: OrbitValue): Frame {
 /**
  * 在宿主处理时限内运行一次宿主调用，**只计宿主处理的时间**：宿主等用户操作（面板里选文件、确认覆盖）的那一段包进
  * `interaction.waitForUser`，计时暂停，用户操作完再接着算剩下的时间——所以用户在面板里停留多久都不会让请求超时，
- * 而用户选定之后读写磁盘卡住仍然是 `TIMEOUT`。
+ * 超时或取消时终止宿主信号；保存越过提交边界后则不能保证尚未写入。
  */
-function withBudget<T>(
+async function withBudget<T>(
   run: (interaction: DesktopInteraction) => DesktopAwaitable<T>,
-  milliseconds: number
+  method: DesktopMethod,
+  cancelled: AbortSignal
 ): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    let remaining = milliseconds;
-    let startedAt = Date.now();
-    let waiting = 0;
-    let finished = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const arm = () => {
-      if (finished) return;
-      startedAt = Date.now();
-      timer = setTimeout(
-        () => reject(new DesktopError('TIMEOUT', `宿主在 ${milliseconds} 毫秒内没有处理完请求`)),
-        Math.max(remaining, 0)
-      );
-    };
-    const interaction: DesktopInteraction = {
-      async waitForUser<R>(pending: Promise<R>): Promise<R> {
-        if (waiting++ === 0) {
-          clearTimeout(timer);
-          remaining -= Date.now() - startedAt;
-        }
-        try {
-          return await pending;
-        } finally {
-          if (--waiting === 0) arm();
+  if (cancelled.aborted) throw closed();
+  const deadline = new AbortController();
+  const signal = AbortSignal.any([cancelled, deadline.signal]);
+  const stopped = Promise.withResolvers<never>();
+  let savePhase: 'untracked' | 'preparing' | 'writing' = 'untracked';
+  const interrupt = () => {
+    const cause = deadline.signal.aborted ? new DesktopError('TIMEOUT', '宿主处理请求超时') : closed();
+    stopped.reject(method === 'filesystem.save' && savePhase !== 'preparing' ? unknownSave(cause) : cause);
+  };
+  signal.addEventListener('abort', interrupt, { once: true });
+  let remaining: number = DESKTOP_LIMITS.requestTimeoutMs;
+  let startedAt = Date.now();
+  let waits = 0;
+  const arm = () => setTimeout(() => deadline.abort(), Math.max(0, remaining));
+  let timer = arm();
+  const interaction: DesktopInteraction = {
+    signal,
+    prepareSave() {
+      signal.throwIfAborted();
+      if (savePhase !== 'untracked') throw new Error('保存请求只能登记一次提交');
+      savePhase = 'preparing';
+      return () => {
+        signal.throwIfAborted();
+        savePhase = 'writing';
+      };
+    },
+    async waitForUser(pending) {
+      if (waits++ === 0) {
+        clearTimeout(timer);
+        remaining -= Date.now() - startedAt;
+      }
+      try {
+        return await Promise.race([pending, stopped.promise]);
+      } finally {
+        if (--waits === 0 && !signal.aborted) {
+          startedAt = Date.now();
+          timer = arm();
         }
       }
-    };
-    arm();
-    Promise.resolve()
-      .then(() => run(interaction))
-      .then(resolve, reject)
-      .finally(() => {
-        finished = true;
-        clearTimeout(timer);
-      });
-  });
+    }
+  };
+  try {
+    const work = Promise.resolve().then(() => {
+      signal.throwIfAborted();
+      return run(interaction);
+    });
+    return await Promise.race([stopped.promise, work]);
+  } catch (error) {
+    if (
+      method === 'filesystem.save' &&
+      error instanceof DesktopError &&
+      error.code === 'TIMEOUT' &&
+      !deadline.signal.aborted
+    )
+      throw unknownSave(error);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', interrupt);
+  }
+}
+
+function unknownSave(cause: unknown): DesktopError {
+  return new DesktopError('RESULT_UNKNOWN', '无法确认保存结果，请核对文件后再重试', { cause });
 }
 
 /** 宿主的结果上线前的样子：先按规格编码（字节数组变 base64），再走一遍 JSON 复制，线上只有普通的 JSON 值。 */
@@ -1268,17 +1321,25 @@ function packResult<M extends DesktopMethod>(spec: MethodSpec<M>, value: Desktop
  */
 export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options: DesktopServeOptions): DesktopServer {
   const granted: ReadonlySet<DesktopCapability> = new Set(readCapabilities(options.capabilities));
-  const offs: (() => void)[] = [];
   const pending = new Set<string>();
-  let disposed = false;
-  const live = () => !disposed && !['destroyed', 'failed'].includes(instance.snapshot.state);
+  const lifetime = new AbortController();
+  const connectedInstance = () => !['destroyed', 'failed'].includes(instance.snapshot.state);
+  const live = () => !lifetime.signal.aborted && connectedInstance();
 
   /** 信封上线前走一遍 JSON 复制：线上只有普通的 JSON 值。 */
   const wire = (envelope: DesktopEnvelope): OrbitValue => copyValue(envelope);
 
   const fail = (method: DesktopMethod, error: DesktopError): OrbitValue => {
-    options.onError?.(error, method);
-    return wire({ ok: false, code: error.code, message: error.message });
+    reportSafely(() => options.onError?.(error, method));
+    const message = error.message.slice(0, 4096);
+    if (error.code === 'RESULT_UNKNOWN') {
+      const code =
+        error.cause instanceof DesktopError && error.cause.code === 'WINDOW_CLOSED' ? 'WINDOW_CLOSED' : 'TIMEOUT';
+      return { ok: false, code, message, resultUnknown: true };
+    }
+    if (method === 'filesystem.save' && error.code === 'TIMEOUT')
+      return { ok: false, code: error.code, message, resultUnknown: false };
+    return wire({ ok: false, code: error.code, message });
   };
 
   const push = (event: string, payload: OrbitValue) => {
@@ -1290,31 +1351,35 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
     method: M,
     spec: MethodSpec<M>,
     args: DesktopArguments[M],
-    requestId: string | undefined
+    requestId: string | undefined,
+    signal: AbortSignal
   ): OrbitValue => {
     if (requestId === undefined) throw bad('需要用户操作的请求必须带 requestId');
     if (pending.has(requestId)) throw bad(`请求 ID 重复：${requestId}`);
     pending.add(requestId);
     const settle = (result: OrbitValue) => {
-      pending.delete(requestId);
-      push(EVENTS.settled, { requestId, ...(result as OrbitObject) });
+      if (connectedInstance()) instance.emit(EVENTS.settled, { requestId, ...(result as OrbitObject) });
     };
     /* 宿主返回了没法编码的结果（程序错误）也要走到完成事件：否则应用永远等不到结果。 */
-    void withBudget(interaction => spec.run(host, args, interaction), DESKTOP_LIMITS.requestTimeoutMs)
+    void withBudget(interaction => spec.run(host, args, interaction), method, signal)
       .then(value => packResult(spec, value))
-      .then(
-        value => settle({ envelope: wire({ ok: true, value }) }),
-        (error: unknown) =>
-          settle(
-            error instanceof DesktopError ?
-              { envelope: fail(method, error) }
-            : { handlerError: error instanceof Error ? error.message : '请求处理失败' }
-          )
-      );
+      .then(value => settle({ envelope: wire({ ok: true, value }) }))
+      .catch((error: unknown) =>
+        settle(
+          error instanceof DesktopError ?
+            { envelope: fail(method, error) }
+          : { handlerError: error instanceof Error ? error.message.slice(0, 4096) : '请求处理失败' }
+        )
+      )
+      .finally(() => pending.delete(requestId));
     return wire({ ok: true, value: null });
   };
 
-  const handle = async <M extends DesktopMethod>(method: M, payload: OrbitValue): Promise<OrbitValue> => {
+  const handle = async <M extends DesktopMethod>(
+    method: M,
+    payload: OrbitValue,
+    rpc: AbortSignal
+  ): Promise<OrbitValue> => {
     try {
       if (!live()) throw closed();
       const frame = readFrame(payload);
@@ -1322,9 +1387,10 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
       const spec = METHODS[method];
       if (!granted.has(spec.capability)) throw denied(spec.capability);
       const args = parseDesktopArguments(method, frame.args);
-      if (spec.interactive?.(args)) return begin(method, spec, args, frame.requestId);
+      const signal = AbortSignal.any([rpc, lifetime.signal]);
+      if (spec.interactive?.(args)) return begin(method, spec, args, frame.requestId, signal);
       if (frame.requestId !== undefined) throw bad('这个请求不需要 requestId');
-      const value = await withBudget(interaction => spec.run(host, args, interaction), DESKTOP_LIMITS.requestTimeoutMs);
+      const value = await withBudget(interaction => spec.run(host, args, interaction), method, signal);
       return wire({ ok: true, value: packResult(spec, value) });
     } catch (error) {
       if (error instanceof DesktopError) return fail(method, error);
@@ -1332,47 +1398,59 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
     }
   };
 
-  for (const method of METHOD_NAMES)
-    offs.push(instance.onRequest(`${WIRE_PREFIX}${method}`, payload => handle(method, payload)));
-  /* 推送也是能力：没声明 window 的应用不会收到窗口状态，没声明 appearance 的应用不会收到外观变化。 */
-  if (granted.has('window')) offs.push(host.window.onStateChange(state => push(EVENTS.window, { ...state })));
-  if (granted.has('menu')) offs.push(host.menu.onCommand(commandId => push(EVENTS.menu, { commandId })));
-  if (granted.has('appearance'))
-    offs.push(host.appearance.onChange(appearance => push(EVENTS.appearance, { ...appearance })));
-
-  const server: DesktopServer = {
-    dispose() {
-      if (disposed) return;
-      disposed = true;
-      pending.clear();
-      for (const off of offs.splice(0)) off();
-    }
-  };
-  offs.push(
-    instance.subscribe(snapshot => {
-      if (snapshot.state === 'destroyed' || snapshot.state === 'failed') server.dispose();
-    })
-  );
-  return server;
+  const unregister = registerService(add => {
+    for (const method of METHOD_NAMES)
+      add(instance.onRequest(`${WIRE_PREFIX}${method}`, (payload, signal) => handle(method, payload, signal)));
+    if (granted.has('window')) add(host.window.onStateChange(state => push(EVENTS.window, { ...state })));
+    if (granted.has('menu')) add(host.menu.onCommand(commandId => push(EVENTS.menu, { commandId })));
+    if (granted.has('appearance'))
+      add(host.appearance.onChange(appearance => push(EVENTS.appearance, { ...appearance })));
+    add(
+      instance.subscribe(({ state }) => {
+        if (state === 'destroyed' || state === 'failed') dispose();
+      })
+    );
+  });
+  function dispose() {
+    lifetime.abort();
+    unregister();
+  }
+  return { dispose };
 }
 
 /** 请求信封的回复：成功带值，失败带稳定错误码；其余形状一律读不懂。 */
-function readEnvelope(value: unknown): DesktopEnvelope {
+function unpack(value: unknown, method: DesktopMethod): OrbitValue {
   if (!isRecord(value) || typeof value['ok'] !== 'boolean') throw invalid('宿主的回复不是桌面能力信封');
-  if (value['ok']) return { ok: true, value: value['value'] as OrbitValue };
+  if (value['ok']) return value['value'] as OrbitValue;
   const codes: readonly unknown[] = DESKTOP_ERROR_CODES;
   if (!codes.includes(value['code']) || typeof value['message'] !== 'string')
     throw invalid('宿主的失败信封缺少稳定错误码');
-  return { ok: false, code: value['code'] as DesktopErrorCode, message: value['message'] };
+  const error = new DesktopError(value['code'] as DesktopErrorCode, value['message']);
+  if (value['resultUnknown'] === true) throw new DesktopError('RESULT_UNKNOWN', error.message, { cause: error });
+  if (method === 'filesystem.save' && error.code === 'TIMEOUT' && value['resultUnknown'] !== false)
+    throw unknownSave(error);
+  throw error;
 }
 
 /** 把 Orbit RPC 层的失败归到稳定错误码：超时、连接已销毁（窗口已关闭）、载荷不合法；其余照原样抛出。 */
-function translate(error: unknown): unknown {
+function translate(error: unknown, method: DesktopMethod): unknown {
   if (!(error instanceof OrbitError)) return error;
+  if (method === 'filesystem.save' && ['TIMEOUT', 'DESTROYED', 'ABORTED'].includes(error.code))
+    return unknownSave(error);
   if (error.code === 'TIMEOUT') return new DesktopError('TIMEOUT', error.message, { cause: error });
   if (error.code === 'DESTROYED') return new DesktopError('WINDOW_CLOSED', error.message, { cause: error });
   if (error.code === 'INVALID_PAYLOAD') return new DesktopError('INVALID_ARGUMENT', error.message, { cause: error });
   return error;
+}
+
+async function requestDesktop(client: OrbitClient, method: DesktopMethod, payload: OrbitObject): Promise<OrbitValue> {
+  let reply: OrbitValue;
+  try {
+    reply = await client.request(`${WIRE_PREFIX}${method}`, payload, { timeout: DESKTOP_LIMITS.callTimeoutMs });
+  } catch (error) {
+    throw translate(error, method);
+  }
+  return unpack(reply, method);
 }
 
 function listen<T>(client: OrbitClient, event: string, read: (value: unknown) => T, handler: (value: T) => void) {
@@ -1383,22 +1461,53 @@ function listen<T>(client: OrbitClient, event: string, read: (value: unknown) =>
   };
 }
 
-/** 需要用户操作的请求的最终结果事件：成功或稳定错误码的信封，或宿主自己的程序错误。 */
-type Settled =
-  | { readonly requestId: string; readonly envelope: DesktopEnvelope }
-  | { readonly requestId: string; readonly handlerError: string };
-
-function readSettled(value: unknown): Settled {
-  if (!isRecord(value) || typeof value['requestId'] !== 'string') throw invalid('请求的完成事件无效');
-  if (typeof value['handlerError'] === 'string')
-    return { requestId: value['requestId'], handlerError: value['handlerError'] };
-  return { requestId: value['requestId'], envelope: readEnvelope(value['envelope']) };
-}
-
 /** 应用侧正在等的需要用户操作的请求。 */
 interface Waiter {
   resolve(value: OrbitValue): void;
   reject(error: unknown): void;
+  readonly method: DesktopMethod;
+}
+
+interface InteractiveRequests {
+  start(method: DesktopMethod): { id: string; outcome: Promise<OrbitValue>; forget(): void };
+}
+
+const connections = new WeakMap<OrbitClient, InteractiveRequests>();
+
+function interactiveRequests(client: OrbitClient): InteractiveRequests {
+  const existing = connections.get(client);
+  if (existing) return existing;
+  const waiters = new Map<string, Waiter>();
+  let sequence = 0;
+  client.bus.$on(EVENTS.settled, settled => {
+    if (!isRecord(settled) || typeof settled['requestId'] !== 'string') throw invalid('请求的完成事件无效');
+    const waiter = waiters.get(settled['requestId']);
+    if (!waiter) return;
+    waiters.delete(settled['requestId']);
+    try {
+      if (typeof settled['handlerError'] === 'string') throw new OrbitError('HANDLER_ERROR', settled['handlerError']);
+      waiter.resolve(unpack(settled['envelope'], waiter.method));
+    } catch (error) {
+      waiter.reject(error);
+    }
+  });
+  client.onDispose(() => {
+    for (const waiter of waiters.values())
+      waiter.reject(waiter.method === 'filesystem.save' ? unknownSave(closed()) : closed());
+    waiters.clear();
+  });
+  const requests: InteractiveRequests = {
+    start(method) {
+      const id = String(++sequence);
+      const deferred = Promise.withResolvers<OrbitValue>();
+      waiters.set(id, { ...deferred, method });
+      // 完成事件可能早于受理应答；在等应答期间也要接住拒绝。
+      void deferred.promise.catch(() => undefined);
+      return { id, outcome: deferred.promise, forget: () => waiters.delete(id) };
+    }
+  };
+  connections.set(client, requests);
+  return requests;
 }
 
 /**
@@ -1408,76 +1517,25 @@ interface Waiter {
  *
  * 需要用户在桌面面板里操作的调用（`filesystem.open`、不带凭证的 `filesystem.save`）先等宿主应答「已受理」
  * （这一步有 `callTimeoutMs` 的时限），再等宿主用完成事件送达最终结果——用户在面板里停留的时间没有时限；
- * 连接断开（窗口关闭、实例销毁）时还在等的调用以 `WINDOW_CLOSED` 结束。
+ * 断连时读请求以 `WINDOW_CLOSED` 结束；无法确认写入结果时保存以 `RESULT_UNKNOWN` 结束。
  */
 export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
   const initial = client.context.props[DESKTOP_PROP];
   if (initial === undefined) return undefined;
   if (!isRecord(initial)) throw invalid('桌面能力信息必须是对象');
   const capabilities = Object.freeze(readGranted(initial['capabilities']));
-  const waiters = new Map<string, Waiter>();
-  let sequence = 0;
-  let listening = false;
-
-  const onSettled = (settled: Settled) => {
-    const waiter = waiters.get(settled.requestId);
-    if (!waiter) return;
-    waiters.delete(settled.requestId);
-    if ('handlerError' in settled) waiter.reject(new OrbitError('HANDLER_ERROR', settled.handlerError));
-    else if (settled.envelope.ok) waiter.resolve(settled.envelope.value);
-    else waiter.reject(new DesktopError(settled.envelope.code, settled.envelope.message));
-  };
-
-  /** 第一次等用户操作的请求时才订阅完成事件与连接断开。 */
-  const startListening = () => {
-    if (listening) return;
-    listening = true;
-    listen(client, EVENTS.settled, readSettled, onSettled);
-    client.onDispose(() => {
-      for (const waiter of waiters.values()) waiter.reject(closed());
-      waiters.clear();
-    });
-  };
-
-  /** 登记一个等待者：必须在请求发出之前登记，完成事件可能比「已受理」的应答先被处理。 */
-  const waitFor = (requestId: string): Promise<OrbitValue> => {
-    const outcome = new Promise<OrbitValue>((resolve, reject) => waiters.set(requestId, { resolve, reject }));
-    /* 请求在「已受理」之前就失败时没人再等它，不让它变成未处理的拒绝。 */
-    outcome.catch(() => undefined);
-    return outcome;
-  };
-
   const call = async <M extends DesktopMethod>(method: M, args: DesktopArguments[M]): Promise<DesktopResults[M]> => {
     const spec = METHODS[method];
-    const requestId = spec.interactive?.(args) ? `${client.context.instanceId}/${++sequence}` : undefined;
     const wireArgs = spec.encodeArguments ? spec.encodeArguments(args) : (args as OrbitValue);
     const payload: Record<string, OrbitValue> = { instanceId: client.context.instanceId, args: wireArgs };
-    const forget = () => requestId !== undefined && waiters.delete(requestId);
-    let outcome: Promise<OrbitValue> | undefined;
-    let reply: OrbitValue;
+    const pending = spec.interactive?.(args) ? interactiveRequests(client).start(method) : undefined;
+    if (pending) payload['requestId'] = pending.id;
     try {
-      if (requestId !== undefined) {
-        startListening();
-        outcome = waitFor(requestId);
-        payload['requestId'] = requestId;
-      }
-      reply = await client.request(`${WIRE_PREFIX}${method}`, payload, { timeout: DESKTOP_LIMITS.callTimeoutMs });
-    } catch (error) {
-      forget();
-      throw translate(error);
+      const value = await requestDesktop(client, method, payload);
+      return spec.read(pending ? await pending.outcome : value);
+    } finally {
+      pending?.forget();
     }
-    let envelope: DesktopEnvelope;
-    try {
-      envelope = readEnvelope(reply);
-    } catch (error) {
-      forget();
-      throw error;
-    }
-    if (!envelope.ok) {
-      forget();
-      throw new DesktopError(envelope.code, envelope.message);
-    }
-    return spec.read(outcome ? await outcome : envelope.value);
   };
   const done = async (action: Promise<null>): Promise<void> => {
     await action;
@@ -1494,8 +1552,7 @@ export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
       setDecorations: decorations => done(call('window.setDecorations', decorations)),
       setDragRegions: regions => done(call('window.setDragRegions', regions)),
       onStateChange: handler => listen(client, EVENTS.window, readDesktopWindowState, handler),
-      trackDragRegions: (root = document) =>
-        trackDragRegions(regions => void call('window.setDragRegions', regions), root)
+      trackDragRegions: (root = document) => trackDragRegions(regions => call('window.setDragRegions', regions), root)
     },
     menu: {
       set: menus => done(call('menu.set', menus)),
