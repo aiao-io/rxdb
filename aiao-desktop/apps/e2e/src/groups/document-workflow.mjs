@@ -9,6 +9,7 @@ export const documentWorkflow = {
   name: 'document-workflow',
   description: 'TextEdit 新建保存、另存、关闭取消、批量退出与冲突保护',
   keys: [
+    'documentWorkflow.saveBarHasOpaqueBackground',
     'documentWorkflow.newDocumentSaved',
     'documentWorkflow.reopenedBytesMatch',
     'documentWorkflow.savedPathRestored',
@@ -54,6 +55,9 @@ export const documentWorkflow = {
     };
     const result = traced('document-workflow');
     await helpers.launch('TextEdit');
+    result.saveBarHasOpaqueBackground = await editor()
+      .getByRole('status')
+      .evaluate(element => getComputedStyle(element).backgroundColor.startsWith('rgb('));
     await text().fill('新建文档 🌏\n第二行');
     await editor().getByRole('button', { name: 'Save', exact: true }).click();
     await saveOnDesktop('document-workflow.txt');

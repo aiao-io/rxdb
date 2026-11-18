@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-18
 tags: [desktop, files, data-safety]
 dependsOn: [ADESK-US-102, ADESK-US-105, ADESK-US-206]
 capabilities: []
@@ -55,6 +55,7 @@ capabilities: []
 - AC5–7：`documentWorkflow.cancelCloseKeepsDraft`、`discardCloses`、`saveOnClose`、`cancelSaveKeepsDraft`、`quitCancellationIsAtomic`、`restartCancellationKeepsSession`；WindowManager / Session 单测覆盖关闭失败、重复请求和关机分支。
 - AC8：TextDocument 单测覆盖保存期间编辑、请求合并、迟到加载、dispose；WindowManager 单测覆盖协商期间重复关闭。
 - AC9–10：`beforeUnloadProtectsDraft`、`savedDocumentDoesNotBlockUnload`、`keyboardDialogFocus`，以及原 file-panel/a11y 回归；真实设备验收边界不变。
+- 保存工具条背景回归：[`documentWorkflow.saveBarHasOpaqueBackground`](../../../apps/e2e/src/groups/document-workflow.mjs) 检查工具条不透出桌面。
 
 ## 实现文件
 

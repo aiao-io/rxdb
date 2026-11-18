@@ -40,6 +40,7 @@ type DocumentChoice = 'save' | 'discard' | 'cancel';
       display: flex;
       align-items: center;
       gap: 10px;
+      background: var(--win-2);
     }
     .document-error {
       padding: 8px 12px;
