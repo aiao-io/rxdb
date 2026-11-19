@@ -1,4 +1,4 @@
-/* 满屏无界宿主容器 */
+/* 满屏 Orbit 宿主容器 */
 .fullscreenMicroApp {
   position: fixed;
   top: var(--ifm-navbar-height);
