@@ -15,6 +15,8 @@ import { dock } from './dock.mjs';
 import { documentWorkflow } from './document-workflow.mjs';
 import { externalContent } from './external-content.mjs';
 import { fileManagement } from './file-management.mjs';
+import { finderSidebarResize } from './finder-sidebar-resize.mjs';
+import { finderSidebar } from './finder-sidebar.mjs';
 import { fixtures } from './fixtures.mjs';
 import { fontbookWorkflow } from './fontbook-workflow.mjs';
 import { freeformWorkflow } from './freeform-workflow.mjs';
@@ -75,6 +77,8 @@ export const GROUPS = [
   { ...storageFaults, weight: 80 },
   { ...backupStorage, weight: 40 },
   { ...fileManagement, weight: 35 },
+  { ...finderSidebarResize, weight: 10 },
+  { ...finderSidebar, weight: 10 },
   { ...documentWorkflow, weight: 30 },
   { ...shell, weight: 20 },
   { ...shellInteraction, weight: 40 },

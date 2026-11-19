@@ -8,7 +8,12 @@ export { nameSeed, shotKind } from '../../disk/thumbnails';
 export type FinderSort = 'name' | 'date' | 'size' | 'kind';
 
 /** 侧栏分组；图标以 `dot#` 开头的是标签色点。 */
-export const SIDEBAR: readonly { readonly head: string; readonly items: readonly (readonly [string, string])[] }[] = [
+export interface FinderSidebarGroup {
+  readonly head: string;
+  readonly items: readonly (readonly [name: string, icon: string])[];
+}
+
+export const SIDEBAR: readonly FinderSidebarGroup[] = [
   {
     head: 'Favourites',
     items: [

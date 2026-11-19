@@ -20,6 +20,7 @@ export interface FinderCommands {
   openSelected(): void;
   trashSelected(): void;
   setView(view: FinderView): void;
+  sidebarVisible(): boolean;
   toggleSidebar(): void;
   togglePathBar(): void;
   goto(place: string): void;
@@ -121,7 +122,12 @@ export class DesktopMenus {
         { id: 'colv', label: 'as Columns', key: '⌘3', run: () => target.setView('column') },
         { id: 'galv', label: 'as Gallery', key: '⌘4', run: () => target.setView('gallery') },
         '-',
-        { id: 'sb', label: 'Hide Sidebar', key: '⌥⌘S', run: () => target.toggleSidebar() },
+        {
+          id: 'sb',
+          label: target.sidebarVisible() ? 'Hide Sidebar' : 'Show Sidebar',
+          key: '⌥⌘S',
+          run: () => target.toggleSidebar()
+        },
         { id: 'pb', label: 'Hide Path Bar', key: '⌥⌘P', run: () => target.togglePathBar() }
       ]),
       section('Go', [
@@ -148,6 +154,7 @@ export class DesktopMenus {
       openSelected: none,
       trashSelected: none,
       setView: none,
+      sidebarVisible: () => true,
       toggleSidebar: none,
       togglePathBar: none,
       goto: place => this.wm.open('finder', { path: PLACES[place] ?? HOME_PATH })

@@ -1529,6 +1529,29 @@ svg {
   background: var(--sel-soft);
 }
 
+.finder-place-list .si {
+  width: 100%;
+}
+.finder-place-list .cdk-drag:not(.cdk-drag-disabled) {
+  cursor: grab;
+}
+.finder-place-placeholder {
+  background: var(--sel-soft);
+  outline: 1px dashed var(--blue);
+  outline-offset: -1px;
+}
+.finder-place-preview {
+  background: var(--win);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 22%);
+  outline: 1px solid var(--line);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .finder-place-list.cdk-drop-list-dragging .si:not(.cdk-drag-placeholder),
+  .finder-place-preview.cdk-drag-animating {
+    transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+
 /* Right-hand content column */
 .wmain {
   flex: 1;
@@ -1908,6 +1931,47 @@ svg {
 /* ==========================================================================
    10. FINDER
    ========================================================================== */
+.finder-layout .sbar {
+  width: var(--finder-sidebar-width);
+}
+.finder-layout > .tl {
+  position: absolute;
+  top: 28px;
+  left: 12px;
+}
+.finder-layout.sidebar-collapsed > .tl {
+  top: 20px;
+}
+.finder-layout.sidebar-collapsed .fx-tb {
+  padding-left: 76px;
+}
+.fx-divider {
+  position: absolute;
+  top: 52px;
+  bottom: 22px;
+  left: max(5px, calc(var(--finder-sidebar-width) - 5px));
+  z-index: 5;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.fx-divider::after {
+  content: '';
+  position: absolute;
+  inset: 0 4px;
+  border-radius: 2px;
+  background: var(--blue);
+  opacity: 0;
+}
+.sidebar-collapsed .fx-divider::after {
+  inset-block: calc(50% - 18px);
+  background: var(--txt-3);
+  opacity: 0.55;
+}
+.fx-divider:is(:hover, :active, :focus-visible)::after {
+  background: var(--blue);
+  opacity: 1;
+}
 .fx {
   display: flex;
   flex-direction: column;
@@ -1927,14 +1991,18 @@ svg {
   backdrop-filter: blur(30px) var(--vib);
   border-bottom: 0.5px solid var(--line);
 }
+.fx-tb .sfield {
+  width: 150px;
+  min-width: 32px;
+}
 .fx-title {
+  min-width: 0;
+  overflow: hidden;
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
 .fx-body {
   flex: 1;

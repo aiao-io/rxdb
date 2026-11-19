@@ -1,36 +1,78 @@
-<div class="wb" [inert]="fileOperation() !== null">
-  <div class="sbar" [style.display]="sidebar() ? '' : 'none'" data-drag data-fsb>
-    <div class="sb-top"><app-traffic-lights /></div>
-    @for (group of sidebarGroups; track group.head) {
+<div
+  class="wb finder-layout"
+  #layout
+  [class.sidebar-collapsed]="!sidebarVisible()"
+  [inert]="fileOperation() !== null"
+  [style.--finder-sidebar-width]="sidebarWidth() + 'px'"
+>
+  <app-traffic-lights />
+  <div class="sbar" [id]="sidebarId" [style.display]="sidebarVisible() ? '' : 'none'" data-drag data-fsb>
+    <div class="sb-top" aria-hidden="true"></div>
+    @for (group of sidebarGroups(); track group.head) {
       <div class="grp" [attr.aria-label]="group.head" role="group">
         <div class="gh" aria-hidden="true">{{ group.head }}</div>
-        @for (place of group.items; track place[0]) {
-          <button
-            class="si"
-            [appFileDrop]="placeDirectory(place[0])"
-            [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
-            [attr.data-place]="place[0]"
-            [class.on]="placeOn(place[0])"
-            (click)="goto(place[0])"
-            tabindex="0"
-            type="button"
-          >
-            @if (place[1].startsWith('dot#')) {
-              <span
-                class="ico"
-                [style.background]="place[1].slice(3)"
-                aria-hidden="true"
-                style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
-              ></span>
-            } @else {
-              <svg class="ico" [appIcon]="place[1]"></svg>
-            }
-            <span class="nm">{{ place[0] }}</span>
-          </button>
-        }
+        <div
+          class="finder-place-list"
+          [cdkDropListData]="group"
+          (cdkDropListDropped)="dropSidebarPlace($event)"
+          cdkDropList
+        >
+          @for (place of group.items; track place[0]; let index = $index) {
+            <button
+              class="si"
+              [appFileDrop]="placeDirectory(place[0])"
+              [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
+              [attr.aria-keyshortcuts]="group.items.length > 1 ? 'Alt+ArrowUp Alt+ArrowDown' : null"
+              [attr.data-place]="place[0]"
+              [cdkDragData]="place[0]"
+              [cdkDragDisabled]="group.items.length < 2"
+              [class.on]="placeOn(place[0])"
+              (click)="goto(place[0])"
+              (keydown.alt.arrowdown)="moveSidebarPlace($event, group, place[0], index + 1)"
+              (keydown.alt.arrowup)="moveSidebarPlace($event, group, place[0], index - 1)"
+              cdkDrag
+              cdkDragLockAxis="y"
+              cdkDragPreviewClass="finder-place-preview"
+              tabindex="0"
+              type="button"
+            >
+              <span class="si finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true"></span>
+              @if (place[1].startsWith('dot#')) {
+                <span
+                  class="ico"
+                  [style.background]="place[1].slice(3)"
+                  aria-hidden="true"
+                  style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
+                ></span>
+              } @else {
+                <svg class="ico" [appIcon]="place[1]"></svg>
+              }
+              <span class="nm">{{ place[0] }}</span>
+            </button>
+          }
+        </div>
       </div>
     }
   </div>
+  <div
+    class="fx-divider"
+    [attr.aria-controls]="sidebarId"
+    [attr.aria-valuemax]="sidebarMaxWidth()"
+    [attr.aria-valuenow]="sidebarWidth()"
+    [attr.aria-valuetext]="sidebarVisible() ? sidebarWidth() + ' pixels' : 'Collapsed'"
+    (keydown)="sidebarKey($event)"
+    (lostpointercapture)="endSidebarDrag($event)"
+    (pointercancel)="endSidebarDrag($event)"
+    (pointerdown)="startSidebarDrag($event)"
+    (pointermove)="moveSidebarDrag($event)"
+    (pointerup)="endSidebarDrag($event)"
+    aria-label="Sidebar"
+    aria-orientation="vertical"
+    aria-valuemin="0"
+    data-nodrag
+    role="separator"
+    tabindex="0"
+  ></div>
   <div class="fx">
     <div class="fx-tb" aria-label="Toolbar" data-drag role="toolbar">
       <button
@@ -133,7 +175,7 @@
       >
         <svg appIcon="g-ellipsis"></svg>
       </button>
-      <div class="sfield" data-nodrag style="width: 150px">
+      <div class="sfield" data-nodrag>
         <span aria-hidden="true"><svg appIcon="g-search"></svg></span>
         <input
           #queryInput

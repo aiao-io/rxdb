@@ -55,6 +55,7 @@ const finderTarget = (): FinderCommands => ({
   openSelected: vi.fn(),
   trashSelected: vi.fn(),
   setView: vi.fn(),
+  sidebarVisible: vi.fn(() => true),
   toggleSidebar: vi.fn(),
   togglePathBar: vi.fn(),
   goto: vi.fn()
@@ -172,6 +173,10 @@ describe('DesktopMenus Finder 菜单', () => {
     for (const id of ['icons', 'listv', 'colv', 'galv', 'sb', 'pb']) click(view, id);
     expect(vi.mocked(target.setView).mock.calls).toEqual([['icon'], ['list'], ['column'], ['gallery']]);
     expect(target.toggleSidebar).toHaveBeenCalledTimes(1);
+    expect(view.filter(isMenuCommand).find(item => item.id === 'sb')?.label).toBe('Hide Sidebar');
+    vi.mocked(target.sidebarVisible).mockReturnValue(false);
+    const updated = sectionOf(menus.finder(target), 'View');
+    expect(updated.filter(isMenuCommand).find(item => item.id === 'sb')?.label).toBe('Show Sidebar');
     expect(target.togglePathBar).toHaveBeenCalledTimes(1);
   });
 

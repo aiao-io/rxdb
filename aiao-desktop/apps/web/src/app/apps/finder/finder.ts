@@ -1,3 +1,5 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   Component,
   DestroyRef,
@@ -36,7 +38,7 @@ import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { FileDrop } from '../../shared/file-drop';
-import { finderDate } from '../../shared/format';
+import { clamp, finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
 import { PhotoArt } from '../../shared/photo-art';
@@ -45,8 +47,8 @@ import { USER_PROFILE } from '../../shared/user-profile';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
 import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
 import {
+  FinderSidebarGroup,
   FinderSort,
-  SIDEBAR,
   TAG_PLACES,
   VIRTUAL_PLACES,
   columnChain,
@@ -54,10 +56,16 @@ import {
   nameSeed,
   shotKind
 } from './finder-model';
+import { FinderSidebarOrder } from './finder-sidebar-order';
 
 /** 每一栏 206.5px；末端是文件时右侧再留 250px 预览。 */
 const COLUMN_WIDTH = 206.5;
 const PREVIEW_WIDTH = 250;
+const SIDEBAR_INITIAL_WIDTH = 200;
+const SIDEBAR_MIN_WIDTH = 132;
+const SIDEBAR_SNAP_DISTANCE = 24;
+const SIDEBAR_KEY_STEP = 16;
+const MIN_CONTENT_WIDTH = 400;
 
 /**
  * Finder：图标、列表、分栏、画廊四种视图，侧栏、路径栏、搜索、排序与历史。
@@ -69,7 +77,7 @@ const PREVIEW_WIDTH = 250;
  */
 @Component({
   selector: 'app-finder',
-  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog, FileDrop],
+  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog, FileDrop, CdkDropList, CdkDrag, CdkDragPlaceholder],
   host: { style: 'display: contents' },
   templateUrl: './finder.html'
 })
@@ -83,6 +91,9 @@ export class FinderApp implements FinderCommands {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly fileImport = inject(FileImport);
+  private readonly sidebarOrder = inject(FinderSidebarOrder);
+  private readonly announcer = inject(LiveAnnouncer);
+  private readonly layout = viewChild.required<ElementRef<HTMLElement>>('layout');
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
@@ -90,6 +101,11 @@ export class FinderApp implements FinderCommands {
     index: 0
   });
   private readonly bodyWidth = signal(0);
+  private readonly layoutWidth = signal(this.win.initialBox.width);
+  private readonly sidebarSize = signal(SIDEBAR_INITIAL_WIDTH);
+  private readonly sidebarPreview = signal<number | null>(null);
+  private sidebarRestoreWidth = SIDEBAR_INITIAL_WIDTH;
+  private sidebarDrag: { pointerId: number; x: number; width: number } | null = null;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -99,10 +115,16 @@ export class FinderApp implements FinderCommands {
 
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
 
-  protected readonly sidebarGroups = SIDEBAR;
+  protected readonly sidebarGroups = this.sidebarOrder.groups;
   protected readonly path = signal<readonly string[]>([]);
   protected readonly view = signal<FinderView>('icon');
-  protected readonly sidebar = signal(true);
+  protected readonly sidebarId = `${this.win.id}-sidebar`;
+  protected readonly sidebarMaxWidth = computed(() =>
+    Math.max(SIDEBAR_MIN_WIDTH, this.layoutWidth() - MIN_CONTENT_WIDTH)
+  );
+  protected readonly sidebarWidth = computed(() =>
+    Math.min(this.sidebarPreview() ?? this.sidebarSize(), this.sidebarMaxWidth())
+  );
   protected readonly pathbar = signal(true);
   protected readonly selected = signal<string | null>(null);
   protected readonly query = signal('');
@@ -156,7 +178,12 @@ export class FinderApp implements FinderCommands {
   protected readonly pathSegments = computed(() => {
     const path = this.displayPath();
     if (this.view() !== 'column') return path;
-    return [...path, ...this.columns().chain.slice(1).map(column => this.displayName(column.node))];
+    return [
+      ...path,
+      ...this.columns()
+        .chain.slice(1)
+        .map(column => this.displayName(column.node))
+    ];
   });
   protected readonly pathTail = computed(() => {
     if (this.view() === 'column') return null;
@@ -171,6 +198,8 @@ export class FinderApp implements FinderCommands {
     const first = this.firstColumn();
     return { ci: first, name: chain[first]?.items?.[0]?.name };
   });
+
+  readonly sidebarVisible = computed(() => this.sidebarWidth() > 0);
 
   constructor() {
     const menus = inject(DesktopMenus);
@@ -194,8 +223,14 @@ export class FinderApp implements FinderCommands {
 
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
-      const observer = new ResizeObserver(() => this.bodyWidth.set(this.body().nativeElement.clientWidth));
-      observer.observe(this.body().nativeElement);
+      const layout = this.layout().nativeElement;
+      const body = this.body().nativeElement;
+      const observer = new ResizeObserver(() => {
+        this.layoutWidth.set(layout.clientWidth);
+        this.bodyWidth.set(body.clientWidth);
+      });
+      observer.observe(layout);
+      observer.observe(body);
       destroyRef.onDestroy(() => observer.disconnect());
     });
   }
@@ -217,7 +252,7 @@ export class FinderApp implements FinderCommands {
   }
 
   toggleSidebar(): void {
-    this.sidebar.update(on => !on);
+    this.sidebarSize.update(width => (width === 0 ? this.sidebarRestoreWidth : 0));
   }
 
   togglePathBar(): void {
@@ -246,6 +281,71 @@ export class FinderApp implements FinderCommands {
     if (!node?.path) return;
     this.selected.set(null);
     this.fs.moveToTrash(node.path).catch((error: unknown) => this.toast.show(describeDiskError(error)));
+  }
+
+  protected dropSidebarPlace(event: CdkDragDrop<FinderSidebarGroup, FinderSidebarGroup, string>): void {
+    if (!event.isPointerOverContainer || event.currentIndex === event.previousIndex) return;
+    this.sidebarOrder.move(event.container.data.head, event.item.data, event.currentIndex);
+  }
+
+  protected moveSidebarPlace(event: Event, group: FinderSidebarGroup, name: string, index: number): void {
+    if (group.items.length < 2) return;
+    event.preventDefault();
+    if (!this.sidebarOrder.move(group.head, name, index)) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    afterNextRender({ write: () => button.focus({ preventScroll: true }) }, { injector: this.injector });
+    void this.announcer.announce(`${name}, position ${index + 1} of ${group.items.length} in ${group.head}.`);
+  }
+
+  protected startSidebarDrag(event: PointerEvent): void {
+    if (event.button !== 0 || this.sidebarDrag) return;
+    const handle = event.currentTarget as HTMLElement;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    handle.focus({ preventScroll: true });
+    this.sidebarDrag = { pointerId: event.pointerId, x: event.clientX, width: this.sidebarWidth() };
+  }
+
+  protected moveSidebarDrag(event: PointerEvent): void {
+    const drag = this.sidebarDrag;
+    if (drag?.pointerId !== event.pointerId) return;
+    const width = drag.width + event.clientX - drag.x;
+    const snapPoint = drag.width === 0 ? SIDEBAR_SNAP_DISTANCE : SIDEBAR_MIN_WIDTH - SIDEBAR_SNAP_DISTANCE;
+    this.sidebarPreview.set(width <= snapPoint ? 0 : clamp(width, SIDEBAR_MIN_WIDTH, this.sidebarMaxWidth()));
+  }
+
+  protected endSidebarDrag(event: PointerEvent): void {
+    const drag = this.sidebarDrag;
+    if (drag?.pointerId !== event.pointerId) return;
+    const width = this.sidebarWidth();
+    if (event.type === 'pointerup' && width !== drag.width) this.setSidebarWidth(width);
+    this.sidebarDrag = null;
+    this.sidebarPreview.set(null);
+  }
+
+  protected sidebarKey(event: KeyboardEvent): void {
+    if (this.sidebarDrag) return;
+    const width = this.sidebarWidth();
+    switch (event.key) {
+      case 'Enter':
+        this.toggleSidebar();
+        break;
+      case 'Home':
+        this.setSidebarWidth(0);
+        break;
+      case 'End':
+        this.setSidebarWidth(this.sidebarMaxWidth());
+        break;
+      case 'ArrowLeft':
+        this.setSidebarWidth(width <= SIDEBAR_MIN_WIDTH ? 0 : Math.max(SIDEBAR_MIN_WIDTH, width - SIDEBAR_KEY_STEP));
+        break;
+      case 'ArrowRight':
+        this.setSidebarWidth(clamp(width + SIDEBAR_KEY_STEP, SIDEBAR_MIN_WIDTH, this.sidebarMaxWidth()));
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
   }
 
   protected placeOn(place: string): boolean {
@@ -356,7 +456,7 @@ export class FinderApp implements FinderCommands {
       [
         {
           id: 'sb',
-          label: this.sidebar() ? 'Hide Sidebar' : 'Show Sidebar',
+          label: this.sidebarVisible() ? 'Hide Sidebar' : 'Show Sidebar',
           key: '⌥⌘S',
           run: () => this.toggleSidebar()
         },
@@ -440,6 +540,11 @@ export class FinderApp implements FinderCommands {
 
   protected displayIcon(item: FsNode): string {
     return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
+  }
+
+  private setSidebarWidth(width: number): void {
+    if (width > 0) this.sidebarRestoreWidth = width;
+    this.sidebarSize.set(width);
   }
 
   private itemMenuItems(node: FsNode): MenuEntry[] {

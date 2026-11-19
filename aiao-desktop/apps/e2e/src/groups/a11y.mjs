@@ -93,12 +93,15 @@ const KEYS = [
   'a11y.windows.lastCloseFocusesDockIcon',
   'a11y.windows.tabIntoBackgroundRaises',
   'a11y.finder.listboxRoles',
+  'a11y.finder.sidebarSplitter',
+  'a11y.finder.sidebarKeyboard',
   'a11y.finder.arrowKeysMoveSelection',
   'a11y.finder.enterOpensFolderKeepsFocus',
   'a11y.finder.backspaceGoesUp',
   'a11y.finder.commandUpGoesUp',
   'a11y.finder.listViewArrows',
   'a11y.finder.columnViewArrows',
+  'a11y.finder.sidebarKeyboardReorder',
   'a11y.tree.finderWindow',
   'a11y.tree.dock',
   'a11y.tree.dockRunningState',
@@ -950,6 +953,42 @@ export const a11y = {
           []
         : ['内容区应只有一个 Tab 停靠点（roving tabindex）']
       );
+      const splitter = finderWin.getByRole('separator', { name: 'Sidebar' });
+      const splitterReached = (await tabTo(info => info.role === 'separator' && info.name === 'Sidebar')).found;
+      finder.sidebarSplitter = problems(
+        missingInOrder(listboxText, ['- separator "Sidebar"']).map(fragment => `Finder 无障碍树里缺少：${fragment}`),
+        splitterReached ? [] : ['Tab 没有到达侧栏分隔线'],
+        (
+          splitterReached &&
+            !(await splitter.evaluate(node => {
+              const pane = node.ownerDocument.getElementById(node.getAttribute('aria-controls'));
+              return node.getAttribute('aria-orientation') === 'vertical' && pane?.matches('[data-fsb]');
+            }))
+        ) ?
+          ['侧栏分隔线没有声明方向或关联侧栏']
+        : []
+      );
+      finder.sidebarKeyboard = ['Tab 没有到达侧栏分隔线'];
+      if (splitterReached) {
+        const position = async () => Number(await splitter.getAttribute('aria-valuenow'));
+        const reaches = width => eventually(async () => (await position()) === width, { timeout: 1_000 });
+        const original = await position();
+        await press('ArrowRight');
+        const increased = await eventually(async () => (await position()) > original, { timeout: 1_000 });
+        const wider = await position();
+        await press('Enter');
+        const hidden = (await reaches(0)) && !(await finderWin.locator('[data-fsb]').isVisible());
+        const focusHeld = (await active())?.role === 'separator';
+        await press('Enter');
+        const restored = (await reaches(wider)) && (await finderWin.locator('[data-fsb]').isVisible());
+        await press('ArrowLeft');
+        finder.sidebarKeyboard = problems(
+          increased ? [] : ['右方向键没有加宽侧栏'],
+          hidden && focusHeld ? [] : ['Enter 收起侧栏后应保留分隔线的焦点'],
+          restored ? [] : ['再次按 Enter 没有恢复侧栏宽度'],
+          (await reaches(original)) ? [] : ['左方向键没有调窄侧栏']
+        );
+      }
       await focusDocumentStart(page);
       await tabTo(info => info.role === 'option');
       /* 方向键同步地把焦点交给目标条目；选中状态（aria-selected）随下一次渲染到位，所以移动看焦点，选中另外等。 */
@@ -1069,6 +1108,31 @@ export const a11y = {
           []
         : [`向右应进入下一栏，实际 ${columnSeen[2]}`],
         columnSeen[3] === columnSeen[1] ? [] : [`向左应回到上一栏选中的 Documents，实际 ${columnSeen[3]}`]
+      );
+
+      const favourites = finderWin.getByRole('group', { name: 'Favourites' });
+      const sidebarOrder = () =>
+        favourites.locator('[data-place]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+      const before = await sidebarOrder();
+      await focusDocumentStart(page);
+      const airDropTab = await tabTo(info => is(info, 'window', 'AirDrop'));
+      await press('Alt+ArrowDown');
+      const moved = await until(
+        page,
+        () => document.querySelector('[data-fsb] [data-place]')?.getAttribute('data-place') === 'Recents'
+      );
+      const movedOrder = await sidebarOrder();
+      const keepsFocus = (await active())?.name === 'AirDrop';
+      await press('Alt+ArrowUp');
+      const restored = await until(
+        page,
+        () => document.querySelector('[data-fsb] [data-place]')?.getAttribute('data-place') === 'AirDrop'
+      );
+      finder.sidebarKeyboardReorder = problems(
+        airDropTab.found ? [] : ['Tab 没有到达 AirDrop'],
+        moved ? sameList(movedOrder, [before[1], before[0], ...before.slice(2)]) : ['Alt+↓ 没有移动 AirDrop'],
+        keepsFocus ? [] : ['移动后焦点没有留在 AirDrop'],
+        restored ? sameList(await sidebarOrder(), before) : ['Alt+↑ 没有移回 AirDrop']
       );
     });
 
@@ -1272,7 +1336,9 @@ export const a11y = {
       const importFocused = await importCommand.evaluate(node => node === document.activeElement);
       const [picker] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), press('Enter')]);
       await picker.setFiles({ name: 'keyboard-import.txt', mimeType: 'text/plain', buffer: Buffer.from('Keyboard') });
-      await win('finder').getByRole('option', { name: /^keyboard-import\.txt/ }).waitFor();
+      await win('finder')
+        .getByRole('option', { name: /^keyboard-import\.txt/ })
+        .waitFor();
       fileOperations.keyboardImport = problems(importFocused ? [] : ['键盘未能聚焦 Import Files… 菜单项']);
       const entry = () => page.locator('.win.front[data-app="finder"] [role="option"][data-name="prasenx.txt"]');
       const command = async label => {
