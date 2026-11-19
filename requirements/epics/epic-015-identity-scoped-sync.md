@@ -1,0 +1,88 @@
+---
+id: epic-015-identity-scoped-sync
+status: Backlog
+startDate: TBD
+targetDate: TBD
+owner: jimmy
+---
+
+# 按身份授权的同步与本机数据隔离
+
+## 愿景
+
+同一后端的两个用户只能读写各自获准的数据。换账号、断线重连、授权扩大或收回之后，本机可见的数据最终等于服务端以该身份重新查询的结果；旧账号的草稿、待发请求和迟到响应不会进入新账号。能力落在 `packages/*`，Admin 是第一个三端业务验收，不是唯一入口。
+
+## 为什么单列一个 Epic
+
+[US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 收口 anon 与分支写入之后，Supabase 日志同步仍只适用于「所有登录者可见范围一致」的数据：`rxdb_change` 对全部 authenticated 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权，失去读权限的行会一直留在本机。按身份授权要同时改核心元数据、同步插件、适配器与参考 SQL、本机库命名和三端绑定，不属于 epic-004 的单点加固，也不属于 epic-006 / epic-014 的提交图能力。
+
+## 立项前提
+
+2026-11-19 评审拍板：主体等出现「同一后端、不同用户看不同行」的真实业务再开工；在此之前只维持 US-225 的访问底线。
+
+## 已拍板的方向
+
+以下五条是 2026-11-19 评审的结论。
+
+1. **读授权走当前态直读加对账。** 以用户身份直接查业务表，受该表 GRANT 与 RLS 约束；本机有、远端以当前身份查不到的行就删除，即 QueryCache 的 `orphanIds` 模式（`diffMetadata` 的「local but not in remote result set」）。不先做按身份裁剪的变更日志，全范围对账撑不住时再评估。
+2. **游标随本机库隔离。** 本机库按「用户 × 租户或团队 × 应用」分库后，`RxDBSync` 表本身就在该身份的库里，游标天然按用户、租户、应用隔离；filter、授权代次或 schema 版本变化时清掉游标重建，不改游标主键格式 `${namespace}:${entity}:${branchId}`。
+3. **权限沿用成员现有的六项权限。** 行级策略直接读成员权限：read 对应 SELECT，edit 对应增删改。不引入 GitHub 式 read / write / maintain / admin 四级角色。
+4. **不做分支远程删除保护。** 平台和产品都没有远程删除分支的功能，有了再谈。
+5. **Admin 现有协作链路不动。** 团队共享数据保持 `SyncType.None` + 提交交换 + 仅经 PR 合并（admin-template 分支 `rxdb-admin-template/requirements/decisions.md` 的 D-06、协作契约 C06）。
+
+## 目标
+
+- [ ] 两用户、两租户的公共包契约测试：同一远端、一个直写实体，覆盖首次同步、成员关系变化而业务行未写、换号时在途的拉取与推送、离线待推与重连，以服务端按该身份的查询结果作对照（**尚无故事认领**）
+- [ ] 实体声明隔离范围：元数据声明租户键或作用域；声明了隔离而后端不具备按身份读取时，连接即报错，不降级为普通 `Filter`（**尚无故事认领**）
+- [ ] 失权移除：授权代次变化时锁住旧投影，按当前身份重建后原子替换，中途再次变权就废弃本轮；待推变更与可读投影分开保留，重新授权前不重放（**尚无故事认领**）
+- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（**尚无故事认领**；Admin 本机工作台库按 admin-template 分支 D-10 第 4 条另起评审）
+- [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（**尚无故事认领**）
+- [ ] 存在性信号：读授权落地后，推送对不可见的行按「不存在」处理，取代 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) AC#2 对「被拒绝」与「已不存在」的区分（**尚无故事认领**）
+- [ ] 三端验收：Angular / React / Vue 对同一权限矩阵运行同一组用户流程（**尚无故事认领**）
+
+## 故事
+
+> 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
+
+尚无归属故事。前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
+
+## 现状核实（`258856694`）
+
+| 论断                             | 证据                                                                                                                                                                        |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 日志拉取不经业务表 RLS           | [`rxdb_pull_changes`](../../docker/sql/02-rxdb-sync-functions.sql) 读的是 `rxdb_change` 本身，业务表的策略管不到日志里的 `beforeData` / `afterData`                         |
+| filter 只缩小范围，不是授权      | 同一函数的 `p_filter` 由客户端传、可以不传；`OR NOT change."snapshotComplete"` 让快照不完整的日志直接放行                                                                   |
+| 失去读权限的行留在本机           | 增量拉取只写入新变更，没有「此行对你已不可见」的移除信号                                                                                                                    |
+| 游标不分身份                     | [`sync-record-utils.ts`](../../packages/rxdb/src/sync-contract/sync-record-utils.ts) 的 ``const syncId = `${namespace}:${entity}:${branchId}`;``                            |
+| QueryCache 的对账天然受 RLS 约束 | [`QueryCacheEngine`](../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 以调用方身份查远端元数据，`planReconcile` 把 `orphanIds` 列入删除，出站队列占着的行跳过 |
+| `context.userId` 不是凭据        | 由调用方设置，只用于写审计；实体的 `'both' / 'system'` 写权限不判成员、所有者或行读取（[US-027](../stories/core/US-027-entity-permission-model.md)）                        |
+
+## 验收矩阵（立项时细化）
+
+- 同一 authenticated 角色下两个用户、两个租户：首次同步、成员关系变化而业务行不变、换号、断线重连、分页期间权限变化之后，本机集合等于以该身份重新执行授权查询的结果。
+- 篡改租户键、主键、提交作者或分支 ID 都被拒绝；被拒的写入不产生部分业务更改，也不产生审计副作用。
+- 业务表没有 SELECT 授权、RLS 无匹配策略、列权限不足分别得到正确的拒绝；不把「查询返回 0 行」一律当成权限错误。
+- 账户 A 切换到 B 后，数据库、查询缓存、working-tree、游标、待推队列与迟到响应完全隔离；A 重新登录并经服务端授权后才恢复 A 的数据。
+- 同一主体刷新令牌且授权未变时不重建。
+
+## 待冻结的决策
+
+1. 首批纳入的实体，以及每个实体的 `sync.type` 与写入模式；不默认所有表都适合双向同步或整行缓存。
+2. 锁定后保留的本机数据保留多久、无待发送内容时的自动清理条件、共享设备是否退出即清理、备份导出规则。
+3. 全范围对账的代价上限：数据量到多少时改用按身份裁剪的增量协议。
+4. 授权代次从哪里来：成员关系表的版本号、令牌声明，还是服务端接口。
+
+## 非目标
+
+- 分支远程删除保护。
+- GitHub 式 read / write / maintain / admin 四级角色。
+- 按身份裁剪的变更日志，直到全范围对账撑不住。
+- 改写 Admin 现有的 PR 协作链路，或对同一份团队数据再开日志同步双写。
+- 由实体配置自动生成 RLS 策略；任意 SQL RLS 也不能反推成前端 ACL。
+- CRDT 与自动合并：同步冲突按 git 方式由用户裁决（见 [livestore-research](../livestore-research.md) 结论表）。
+- 在浏览器使用 `service_role` 或其他绕过 RLS 的凭据。
+
+## References
+
+- 2026-11-19 评审的原始设计稿：admin-template 分支仓库根的 `redesign.md`，由本 Epic 取代。
+- [US-218 RLS 下的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md)、[US-225 Supabase 日志同步的访问底线](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md)

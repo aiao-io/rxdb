@@ -36,7 +36,8 @@ function createRxdb(entities: EntityType[] = []): RxDB {
 
 function createAdapter(clientOverrides: Record<string, unknown> = {}, entities: EntityType[] = []) {
   return new RxDBAdapterSupabase(createRxdb(entities), {
-    client: clientOverrides as never,
+    // 订阅私有频道前适配器会先 realtime.setAuth()（US-225），桩客户端默认给一个
+    client: { realtime: { setAuth: async () => undefined }, ...clientOverrides } as never,
     rlsCheck: false
   });
 }

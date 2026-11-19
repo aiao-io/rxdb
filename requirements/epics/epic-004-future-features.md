@@ -72,6 +72,7 @@ owner: jimmy
 - [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](../stories/adapter/US-221-opfs-reload-access-handle-race.md) — 三端 demo 走的 sqlite-wasm（OPFS）路径：刷新时上一个页面的 Worker 还占着库文件的同步访问句柄，`createSyncAccessHandle()` 抛 `NoModificationAllowedError`，VFS 不重试，应用起不来也不报错；有界重试（wa-sqlite 的 `OPFSCoopSyncVFS` 同一个 VFS，一并覆盖）+ 连接失败提示 + 确定性浏览器用例
 - [US-223 Supabase 直写路径的 UPDATE 落库语义](../stories/adapter/US-223-supabase-mutations-update-semantics.md) — `mutations()` 修改经 `p_updates` 执行普通 UPDATE，修复 owner 型与共享编辑型 RLS 的 INSERT 误拒；仅直写返回服务器最终行，推送与原计数入口保留既有权限语义
 - [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — 服务端触发器捕获实际 DELETE 的完整 `OLD`，RPC 在源日志后统一写入隐式日志；同批显式删除去重并保留客户端映射，最终回执按实际删除收口，混合批次不复活子行
+- [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) — anon 退出日志协议（拉取、推送、分支登记、存在性探针），非 main 分支由首个写入者认领，实时通知只带元数据；已登录用户之间的隔离归 [epic-015](epic-015-identity-scoped-sync.md)
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 先验证同步启停公开入口与删除证据/合并扩展点，再做 Full/Filter 试点；HTTP QueryCache demo 不承担同步验收

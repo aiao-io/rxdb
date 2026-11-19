@@ -263,6 +263,7 @@ const sidebars: SidebarsConfig = {
         'migration/supabase-update-push',
         'migration/supabase-change-log-order',
         'migration/supabase-remote-backend',
+        'migration/supabase-sync-access',
         'migration/supabase-push-receipts',
         'migration/http-page-token',
         'migration/desktop-split',

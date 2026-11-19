@@ -122,6 +122,7 @@ Epic：
 - [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 - [epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 - [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
+- [epic-015 按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
 视图：
 

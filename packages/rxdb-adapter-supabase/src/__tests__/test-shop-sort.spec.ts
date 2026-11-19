@@ -8,9 +8,7 @@ import { ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseRepository } from '../SupabaseRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 describe('Shop 排序测试 (Supabase)', () => {
   let adapter: RxDBAdapterSupabase;
@@ -36,8 +34,7 @@ describe('Shop 排序测试 (Supabase)', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

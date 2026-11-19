@@ -9,10 +9,8 @@ import { RxDB, SyncType, type SwitchVersionActions } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000091';
 
 /** 慢事务写下日志后拖住提交的秒数；anon 的 statement_timeout 是 3 秒，留出余量 */
@@ -66,10 +64,7 @@ describe('RxDBAdapterSupabase 拉取游标与日志提交顺序', () => {
       entities: [Todo],
       sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
     });
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.init();
     adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
     await adapter.connect();

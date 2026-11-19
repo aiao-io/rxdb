@@ -17,11 +17,9 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000003';
 
 describe('Push/Pull 边界行为测试', () => {
@@ -141,8 +139,7 @@ describe('Push/Pull 边界行为测试', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

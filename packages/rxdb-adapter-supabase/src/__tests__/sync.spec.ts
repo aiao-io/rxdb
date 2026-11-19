@@ -14,11 +14,8 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 
 describe('同步测试 - SQLite + Supabase', () => {
   const testPrefix = `sync-${Date.now()}`;
@@ -68,8 +65,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

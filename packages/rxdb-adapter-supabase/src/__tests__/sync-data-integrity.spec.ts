@@ -16,11 +16,14 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter, getSupabaseServiceRoleClient, LOCAL_RXDB_SYNC_TABLE } from './test-utils.js';
+import {
+  cleanupSqliteAdapter,
+  createAuthenticatedTestClient,
+  getSupabaseServiceRoleClient,
+  LOCAL_RXDB_SYNC_TABLE
+} from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000002';
 const changeEntityIdQueryValues = (id: string): string[] => [id, encodeRxDBChangeEntityId(id)];
 
@@ -101,8 +104,7 @@ describe('Pull/Push 数据完整性测试', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

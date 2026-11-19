@@ -14,7 +14,7 @@ import { ENTITIES, User, type UserStaticTypes } from '@aiao/rxdb-test/shop';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const database = new RxDB({
@@ -43,8 +43,7 @@ database.adapter(
     })
 );
 const adapter = new RxDBAdapterSupabase(database, {
-  supabaseUrl: import.meta.env['VITE_SUPABASE_URL'],
-  supabaseKey: import.meta.env['VITE_SUPABASE_KEY'],
+  client: createAuthenticatedTestClient(),
   rlsCheck: false
 });
 database.adapter('supabase', () => adapter);

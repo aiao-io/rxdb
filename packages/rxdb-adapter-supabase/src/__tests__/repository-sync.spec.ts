@@ -13,11 +13,8 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter, getSupabaseServiceRoleClient } from './test-utils.js';
+import { cleanupSqliteAdapter, createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 
 /**
  * 测试专用的 Todo 实体
@@ -135,8 +132,7 @@ describe('Repository-Level Sync Integration', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

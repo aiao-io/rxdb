@@ -20,10 +20,7 @@ import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 
 describe('SUPA-003 — 树查询应用 FindTreeOptions.where', () => {
   let adapter: RxDBAdapterSupabase;
@@ -65,10 +62,7 @@ describe('SUPA-003 — 树查询应用 FindTreeOptions.where', () => {
     // 树实体的 `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 注册，不装插件 `init()` 直接抛。
     rxdb.use(rxDBPluginTree);
 
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.init();
 
     adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;

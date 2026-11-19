@@ -165,6 +165,60 @@ BEFORE INSERT ON public.rxdb_change
 FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_serialize_append();
 
 -- ============================================
+-- 变更通知：日志落库后广播只带元数据的提醒（US-225）
+-- ============================================
+-- 通知只说明「哪些实体在哪个分支变了、是谁推的」，不带 patch / inversePatch / beforeData / afterData；
+-- 订阅者收到后以自己的身份拉取。广播进私有频道 rxdb:changes，谁能接收由生产权限脚本里
+-- realtime.messages 的策略决定（只对 authenticated 开放）。日志表本身已移出 supabase_realtime 发布（见 01）。
+--
+-- 语句级触发、每 200 条聚合成一条：realtime.send 每次调用都开一个子事务（内部 BEGIN … EXCEPTION），
+-- 按行发送时一次推送上千条变更，子事务数超过 64 会让快照子事务溢出、拖慢所有并发查询。
+-- realtime.send 吞掉自己的错误（只发 WARNING），通知发不出去不会让推送失败；
+-- 它在推送事务内写 realtime.messages，事务回滚就不会发出。
+-- SECURITY DEFINER：realtime schema 的使用权只属于 Supabase 内置角色，不能转授给自定义角色。
+CREATE OR REPLACE FUNCTION public.rxdb_change_broadcast()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    v_batch jsonb;
+BEGIN
+    FOR v_batch IN
+        SELECT pg_catalog.jsonb_agg(
+            pg_catalog.jsonb_build_object(
+                'namespace', numbered.namespace,
+                'entity', numbered.entity,
+                'entityId', numbered."entityId",
+                'type', numbered.type,
+                'branchId', numbered."branchId",
+                'clientId', numbered."clientId",
+                'createdAt', numbered."createdAt"
+            )
+            ORDER BY numbered.id
+        )
+        FROM (
+            SELECT inserted.*, (pg_catalog.row_number() OVER (ORDER BY inserted.id) - 1) / 200 AS batch
+            FROM inserted
+        ) AS numbered
+        GROUP BY numbered.batch
+        ORDER BY numbered.batch
+    LOOP
+        PERFORM realtime.send(pg_catalog.jsonb_build_object('changes', v_batch), 'changes', 'rxdb:changes', true);
+    END LOOP;
+    RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE TRIGGER rxdb_change_broadcast
+AFTER INSERT ON public.rxdb_change
+REFERENCING NEW TABLE AS inserted
+FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_broadcast();
+
+-- ============================================
 -- 远端身份（rxdb_backend，表在 01）
 -- ============================================
 -- 客户端把 rxdb_backend_id() 的返回值与拉取游标存在一起，同步前比对，对不上就停止同步。
@@ -399,9 +453,10 @@ AS $$
     LIMIT GREATEST(p_limit, 0)
 $$;
 
-GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_pull_changes(integer, integer, text, text, text, jsonb) TO anon, authenticated;
+-- 拉取要求已登录（US-225）；anon 的执行权由生产权限脚本收回（Supabase 的默认权限会在建函数时授给 anon）
+GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_changes(integer, integer, text, text, text, jsonb) TO authenticated;
 
 -- ============================================
 -- 启用 RxDB 同步的辅助函数
@@ -459,12 +514,65 @@ END;
 $$;
 
 -- ============================================
+-- 非 main 分支的所有者（US-225，表在 01）
+-- ============================================
+-- 已有所有者：必须是调用者。没有所有者：分支已有日志或登记（所有者表出现之前的旧数据）就拒绝，
+-- 要求先在 rxdb_branch_owner 补登；否则由调用者认领。并发认领同一分支时，唯一键让后到的一方
+-- 等先到的事务结束，再按其结果判定。
+-- 只被 rxdb_enable_sync_for_branch 与 rxdb_insert_changes 调用，两者都是 SECURITY DEFINER，
+-- 不授给任何客户端角色。
+CREATE OR REPLACE FUNCTION public.rxdb_claim_branch(p_branch_id text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    v_caller uuid := auth.uid();
+    v_owner uuid;
+BEGIN
+    IF v_caller IS NULL THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = pg_catalog.format('rxdb: writing branch %s requires an authenticated user', p_branch_id);
+    END IF;
+
+    SELECT "ownerId" INTO v_owner FROM public.rxdb_branch_owner WHERE "branchId" = p_branch_id;
+
+    IF NOT FOUND THEN
+        IF EXISTS (SELECT 1 FROM public.rxdb_branch WHERE id = p_branch_id)
+            OR EXISTS (SELECT 1 FROM public.rxdb_change WHERE "branchId" = p_branch_id) THEN
+            RAISE EXCEPTION USING
+                ERRCODE = 'insufficient_privilege',
+                MESSAGE = pg_catalog.format('rxdb: branch %s has no owner', p_branch_id),
+                HINT = 'Assign its owner in public.rxdb_branch_owner before writing to it.';
+        END IF;
+
+        INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
+        VALUES (p_branch_id, v_caller)
+        ON CONFLICT ("branchId") DO NOTHING;
+
+        SELECT "ownerId" INTO v_owner FROM public.rxdb_branch_owner WHERE "branchId" = p_branch_id;
+    END IF;
+
+    IF v_owner IS DISTINCT FROM v_caller THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = pg_catalog.format('rxdb: branch %s belongs to another user', p_branch_id);
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.rxdb_claim_branch(text) FROM PUBLIC, anon, authenticated;
+
+-- ============================================
 -- 分支同步函数
 -- ============================================
 -- 用途: 将本地分支数据同步到远程 RxDBBranch 表
 -- 规则:
 --   1. 不同步 id='main' 的分支
 --   2. 不修改远程已存在分支的 activated 属性
+--   3. 只能登记或改写调用者拥有的分支，第一次登记即认领（US-225）
 -- ============================================
 CREATE OR REPLACE FUNCTION public.rxdb_enable_sync_for_branch(
     p_branches jsonb DEFAULT '[]'::jsonb
@@ -490,6 +598,9 @@ BEGIN
             skipped_ids := pg_catalog.array_append(skipped_ids, v_id);
             CONTINUE;
         END IF;
+
+        -- 规则 3: 先认领或校验所有者，再动 rxdb_branch（认领要看分支此刻是否已有登记）
+        PERFORM public.rxdb_claim_branch(v_id);
 
         -- 规则 2: 查询远程是否已存在该分支，保留其 activated 值
         SELECT activated INTO v_existing_activated
@@ -528,5 +639,5 @@ BEGIN
 END;
 $$;
 
--- 授权
-GRANT EXECUTE ON FUNCTION public.rxdb_enable_sync_for_branch(jsonb) TO anon, authenticated;
+-- 授权：登记分支要求已登录（anon 的执行权由生产权限脚本收回）
+GRANT EXECUTE ON FUNCTION public.rxdb_enable_sync_for_branch(jsonb) TO authenticated;

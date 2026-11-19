@@ -32,7 +32,7 @@ if (isRemoteE2E) {
 
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
       const securityNotice = page.getByRole('alert');
-      await expect(securityNotice).toContainText('未启用身份认证', { timeout: 60_000 });
+      await expect(securityNotice).toContainText('匿名登录', { timeout: 60_000 });
       await expect(securityNotice).toContainText('createdBy');
 
       const title = uniqueTitle();
@@ -84,7 +84,7 @@ if (isRemoteE2E) {
       });
 
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('alert')).toContainText('未启用身份认证', { timeout: 60_000 });
+      await expect(page.getByRole('alert')).toContainText('匿名登录', { timeout: 60_000 });
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
@@ -153,7 +153,7 @@ if (isRemoteE2E) {
       });
 
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('alert')).toContainText('未启用身份认证', { timeout: 60_000 });
+      await expect(page.getByRole('alert')).toContainText('匿名登录', { timeout: 60_000 });
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
@@ -214,7 +214,7 @@ if (isRemoteE2E) {
 
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
       const securityNotice = page.getByRole('alert');
-      await expect(securityNotice).toContainText('未启用身份认证', { timeout: 60_000 });
+      await expect(securityNotice).toContainText('匿名登录', { timeout: 60_000 });
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);

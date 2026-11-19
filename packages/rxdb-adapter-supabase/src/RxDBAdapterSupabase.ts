@@ -30,7 +30,7 @@ import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/su
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
-import { handleSupabaseChange } from './handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_EVENT, RXDB_CHANGES_TOPIC } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
   assert_postgrest_ok,
@@ -83,16 +83,17 @@ export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 /**
  * Supabase 适配器
  *
+ * @remarks
+ * 按参考 SQL 的生产权限部署后，日志同步（拉取、推送、分支登记、实时通知）只对已登录身份开放：
+ * 传入应用里已经登录的客户端。只给 `supabaseUrl` + `supabaseKey` 时适配器自建一个没有会话的客户端，
+ * 只适合不走日志同步的直读直写。
+ *
  * @example
  * ```typescript
- * const rxdb = new RxDB({
- *   adapters: {
- *     supabase: rxdb => new RxDBAdapterSupabase(rxdb, {
- *       supabaseUrl: 'https://xxx.supabase.co',
- *       supabaseKey: 'your-anon-key'
- *     })
- *   }
- * });
+ * const supabase = createClient('https://xxx.supabase.co', 'your-anon-key');
+ * // …应用在这里完成登录，supabase 带上了用户会话
+ *
+ * rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: supabase }));
  * ```
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
@@ -142,7 +143,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       if (this.#channel) return;
 
       this.#realtimeState = 'connecting';
-      this.#channel = this.#createRealtimeChannel();
+      this.#channel = await this.#createRealtimeChannel();
     });
     return this;
   }
@@ -910,12 +911,21 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     this.#rlsCheckDone = true;
   }
 
-  #createRealtimeChannel(): RealtimeChannel {
+  /**
+   * 订阅变更通知的私有频道（US-225）。
+   *
+   * @remarks
+   * 通知由参考 SQL 在日志落库后广播，只带元数据；频道是私有的，Realtime 加入时按 `realtime.messages`
+   * 的 RLS 策略以当前登录身份放行（生产权限脚本只对 authenticated 开放），anon 订阅会被拒。
+   *
+   * 订阅前先 `realtime.setAuth()`：Realtime 客户端取令牌是异步的，不等它就加入频道，带上的是 apikey
+   * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌。
+   */
+  async #createRealtimeChannel(): Promise<RealtimeChannel> {
+    await this.#client.realtime.setAuth();
     const channel = this.#client
-      .channel('rxdb-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rxdb_change' }, payload =>
-        handleSupabaseChange(this, payload)
-      );
+      .channel(RXDB_CHANGES_TOPIC, { config: { private: true } })
+      .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
 
     channel.subscribe((status, err) => {
       void this.#enqueueRealtime(async () => {
@@ -986,7 +996,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     this.#realtimeState = 'connecting';
-    this.#channel = this.#createRealtimeChannel();
+    this.#channel = await this.#createRealtimeChannel();
   }
 
   /**

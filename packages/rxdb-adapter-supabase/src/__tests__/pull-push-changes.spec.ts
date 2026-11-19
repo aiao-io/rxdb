@@ -7,10 +7,8 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000088';
 
 // 缺少 Supabase 测试环境时由构造或连接阶段直接失败
@@ -36,8 +34,7 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

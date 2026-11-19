@@ -1,11 +1,11 @@
 import {
+  compactChanges,
   Entity,
   EntityBase,
-  PropertyType,
-  SyncStateHub,
-  compactChanges,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
+  PropertyType,
+  SyncStateHub,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
@@ -20,7 +20,7 @@ import { Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
-import { handleSupabaseChange } from '../handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_TOPIC } from '../handle_supabase_change.js';
 import { SUPABASE_PAGE_SIZE } from '../pagination.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
@@ -104,7 +104,8 @@ function createAdapter(
   options: Partial<SupabaseAdapterOptions> = {},
   entities: EntityType[] = []
 ) {
-  const client = clientOverrides;
+  // 订阅私有频道前适配器会先 realtime.setAuth()（US-225），桩客户端默认给一个
+  const client = { realtime: { setAuth: vi.fn(async () => undefined) }, ...clientOverrides };
   const rxdb = createRxdb(entities);
 
   return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
@@ -832,20 +833,19 @@ describe('supabase review regressions', () => {
     const adapterRxdb = (adapter as unknown as { rxdb: RxDB }).rxdb;
     const dispatchEvent = vi.mocked(adapterRxdb.dispatchEvent);
     const payload = {
-      table: 'rxdb_change',
-      eventType: 'INSERT',
-      new: {
-        namespace: 'tenant',
-        entity: 'ScopedRecord',
-        entityId: 'foreign-id',
-        type: 'INSERT',
-        branchId: 'main',
-        patch: { title: 'foreign' },
-        clientId: 'other-client'
-      }
+      changes: [
+        {
+          namespace: 'tenant',
+          entity: 'ScopedRecord',
+          entityId: 'foreign-id',
+          type: 'INSERT',
+          branchId: 'main',
+          clientId: 'other-client'
+        }
+      ]
     };
 
-    handleSupabaseChange(adapter, payload as never);
+    handleSupabaseChanges(adapter, payload);
 
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
@@ -1057,7 +1057,7 @@ describe('supabase review regressions', () => {
       p_tables: [{ schema: 'public', table: 'todo' }]
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('RLS is disabled for tables: public.todo'));
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1121,7 +1121,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1139,7 +1139,7 @@ describe('supabase review regressions', () => {
     );
 
     await expect(adapter.connect()).resolves.toBe(adapter);
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
   });
 
   it('connect accepts enabled RLS when the RPC also reports rlsForced', async () => {
@@ -1156,7 +1156,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1226,7 +1226,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(rpc).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {

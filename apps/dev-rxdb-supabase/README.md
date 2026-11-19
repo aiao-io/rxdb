@@ -37,3 +37,14 @@ pnpm nx run dev-rxdb-supabase:serve-remote
 ```
 
 `serve-remote` fails before starting Angular when either variable is missing or the configured Supabase URL is unreachable. Extra Angular dev-server options are forwarded, for example `--port 8312`.
+
+### 会话：匿名登录
+
+日志同步只对已登录身份开放，anon key 本身拉不到日志、推不了变更（US-225）。demo 连接远端前先检查
+Supabase 会话，没有就调用 `signInAnonymously()`，每个浏览器得到一个匿名用户，刷新后沿用同一个会话。
+匿名用户的数据库角色是 authenticated，因此远端项目必须开启匿名登录：仓库的 CI 栈
+（`docker/docker-compose.ci.yml`）已开启；`docker/.env` 里是 `ENABLE_ANONYMOUS_USERS=true`；
+Supabase 托管项目在 Authentication → Sign In / Providers 里打开 Anonymous Sign-Ins。
+
+开启匿名登录等于让任何访客都能读到同步日志——这个 demo 的数据本来公开，生产部署应关闭匿名登录，
+改用正式登录，并为业务表配置 RLS。

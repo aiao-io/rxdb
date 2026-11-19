@@ -2,10 +2,7 @@ import { RxDB, SyncType, type IRxDBChange, type SwitchVersionActions } from '@ai
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 
 describe('Supabase filter sync snapshots', () => {
   let adapter: RxDBAdapterSupabase;
@@ -21,10 +18,7 @@ describe('Supabase filter sync snapshots', () => {
       entities: [Todo],
       sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
     });
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.init();
     adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
     await adapter.connect();

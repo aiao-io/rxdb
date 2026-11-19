@@ -124,7 +124,8 @@ function createAdapter(entities: EntityType[], sync: SyncOptions = LOCAL_ONLY) {
 
   const client = {
     rpc: vi.fn(),
-    channel: vi.fn(() => channelInstance)
+    channel: vi.fn(() => channelInstance),
+    realtime: { setAuth: vi.fn(async () => undefined) }
   };
   const rxdb = new RxDB({
     dbName: 'supabase-unsupported-property-types',
@@ -190,7 +191,8 @@ describe('Supabase unsupported property types', () => {
     const client = {
       rpc: vi.fn(),
       channel: vi.fn(() => channelInstance),
-      removeChannel: vi.fn(async () => undefined)
+      removeChannel: vi.fn(async () => undefined),
+      realtime: { setAuth: vi.fn(async () => undefined) }
     };
     const rxdb = new RxDB({
       dbName: `supabase-local-bigint-binary-${Date.now()}`,
