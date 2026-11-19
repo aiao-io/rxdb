@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   componentScripts,
+  diskImageSeedScripts,
   initialFootprint,
   initialScripts,
   lazyScripts,
@@ -65,6 +66,19 @@ test('从产物里读出每个脚本声明的组件选择器和数据域种子',
     const seeds = seedScripts(root);
     assert.deepEqual(scriptsDeclaring(seeds, 'notes'), ['chunk-C.js']);
     assert.equal(seeds.has('chunk-D.js'), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('磁盘图片种子脚本包含编码器和共享插画，动态导入的应用不在集合内', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'disk-image-chunks-spec-'));
+  try {
+    await writeFile(join(root, 'encoder.js'), 'import"./photo-art.js";export{x as photoEncoder};');
+    await writeFile(join(root, 'photo-art.js'), 'export{a};');
+    await writeFile(join(root, 'main.js'), 'const encode=()=>import("./encoder.js");');
+    await writeFile(join(root, 'app.js'), 'import"./photo-art.js";export{b as ShelfApp};');
+    assert.deepEqual([...diskImageSeedScripts(root)].sort(), ['encoder.js', 'photo-art.js']);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

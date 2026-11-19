@@ -11,14 +11,23 @@ async function checkSidebarDrag(page, finder) {
   await sidebar.getByRole('button', { name: 'Documents', exact: true }).click();
   await expect(title).toHaveText('Documents');
   await expect(finder).not.toHaveClass(/\bopening\b/);
-  await expect(splitter).toBeVisible({ timeout: 5_000 });
+  await expect(splitter).toBeVisible();
 
+  const toolbar = await finder.getByRole('toolbar', { name: 'Toolbar' }).boundingBox();
+  const controls = finder.locator('.tl');
+  const initialControls = await controls.boundingBox();
+  const dividerAppearance = () =>
+    splitter.evaluate(node => {
+      const marker = getComputedStyle(node, '::after');
+      return [getComputedStyle(node).backgroundColor, marker.content, marker.backgroundColor, marker.opacity];
+    });
+  const initialAppearance = await dividerAppearance();
   const width = () => sidebar.evaluate(node => node.offsetWidth);
   const expectWidth = pixels => expect.poll(width).toBe(pixels);
-  const startDrag = async () => {
+  const startDrag = async atY => {
     const box = await splitter.boundingBox();
     const x = box.x + box.width / 2;
-    const y = box.y + box.height / 2;
+    const y = atY ?? box.y + box.height / 2;
     await page.mouse.move(x, y);
     await page.mouse.down();
     return (distance, vertical = 0) => page.mouse.move(x + distance, y + vertical);
@@ -27,7 +36,7 @@ async function checkSidebarDrag(page, finder) {
   const initial = await width();
   const initialContent = (await content.boundingBox()).width;
   const wider = initial + 64;
-  const widen = await startDrag();
+  const widen = await startDrag(toolbar.y + toolbar.height / 2);
   const max = Number(await splitter.getAttribute('aria-valuemax'));
   await widen(max - initial + 64);
   await expectWidth(max);
@@ -39,7 +48,10 @@ async function checkSidebarDrag(page, finder) {
 
   const min = 132;
   const snap = 24;
+  const favourites = await sidebar.getByRole('group', { name: 'Favourites' }).boundingBox();
+  expect(favourites.y).toBeCloseTo(toolbar.y + toolbar.height, 0);
   const narrow = await startDrag();
+  expect(await dividerAppearance()).toEqual(initialAppearance);
   await narrow(min - wider);
   await expectWidth(min);
   await narrow(min - wider - snap + 1);
@@ -53,6 +65,7 @@ async function checkSidebarDrag(page, finder) {
   await expect(sidebar).toBeHidden();
   expect((await content.boundingBox()).width).toBe(initial + initialContent);
   expect(await finder.boundingBox()).toEqual(frame);
+  expect(await controls.boundingBox()).toEqual(initialControls);
 
   const back = finder.getByRole('button', { name: 'Back', exact: true });
   const forward = finder.getByRole('button', { name: 'Forward', exact: true });
@@ -83,6 +96,7 @@ async function checkSidebarDrag(page, finder) {
   await reveal(175);
   await page.mouse.up();
   await expectWidth(175);
+  expect(await controls.boundingBox()).toEqual(initialControls);
 }
 
 export const finderSidebarResize = {

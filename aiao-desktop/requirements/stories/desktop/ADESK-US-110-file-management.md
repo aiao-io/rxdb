@@ -24,8 +24,9 @@ capabilities: []
 - 文件与目录重命名、递归复制、扩展名前重名消解。
 - 将本机文件批量拖入桌面、Finder 当前目录、文件夹图标、分栏目录或侧栏快捷位置（每批最多 256 MiB）。支持单文件下载，保留原始字节。
 - Finder 工具栏移除独立的导入按钮，「更多」菜单保留键盘选取本机文件的入口。
-- 拖动 Finder 分隔线调整侧栏宽度，到 132 像素后再向左拖 24 像素即可收起。收起后前进和后退按钮排在绿色缩放按钮右侧，侧栏可从左缘拖回。
+- Finder 分隔线从工具栏顶部即可拖动，悬停和拖动时保持原色。侧栏第一组紧贴工具栏下沿，到 132 像素后再向左拖 24 像素即可收起。关闭、最小化和缩放按钮固定在工具栏中线。收起后前进和后退按钮排在绿色缩放按钮右侧，侧栏可从左缘拖回。
 - Finder 侧栏快捷项可在各自分组内上下拖动，落点显示占位，相邻条目滑动让位，顺序保存在本地。
+- 桌面和 Finder 显示进入视野的真实图片缩略图。缩略图按内容 ID 缓存在 OPFS 的 `Library/Caches/Thumbnails`，双击用预览打开原图。
 - 明确选择已支持文件的内置应用打开；不伪装任意应用都支持文件传入。
 - 废纸篓原位置持久化、Put Back、指定目录恢复；旧条目、失效原目录、重名时不覆盖。
 - 目录、文件体、多个标签页与终端的既有同步；系统拥有的路径仍受保护。
@@ -50,6 +51,7 @@ capabilities: []
 | 8   | 新增菜单、输入框、目录选择           | 纯键盘操作和 Esc                   | 焦点进入并约束于对话框，取消回原条目，错误可感知         | ✅   |
 | 9   | 桌面与 Finder 可见                   | 将本机文件拖到可写目录或只读位置   | 可写目标接收副本，只读位置拒绝拖入，更多菜单可用键盘导入 | ✅   |
 | 10  | Finder 侧栏显示 AirDrop 等快捷项     | 组内上下拖动，或聚焦后按 Alt+↑/↓   | 拖动时显示占位和让位动画，松手排序，刷新保持顺序         | ✅   |
+| 11  | 桌面或 Finder 显示图片               | 切换视图、刷新、覆盖、删除         | 等比缩图，刷新复用 OPFS，覆盖和永久删除清理旧缓存        | ✅   |
 
 ## 验收证据
 
@@ -62,9 +64,11 @@ capabilities: []
 
 2026-11-20 的拖放回归覆盖 AC3 和 AC9。`file-management` 检查组验证 `dropsOnDesktop`、`dropsOnDesktopFolder`、`dropsOnFolder`、`dropsOnSidebar`、`dropsOnVisibleColumn`、`rejectsReadOnlyDrops` 及批量导入的数据完整性。`a11y.fileOperations.keyboardImport` 验证通过键盘打开「更多」菜单并选取本机文件。
 
-侧栏调整由 `finderSidebarResize.dragAndNavigation` 验收，覆盖拖动上下限、收起后导航、从左缘拖回与菜单恢复宽度。`a11y.finder.sidebarSplitter` 和 `a11y.finder.sidebarKeyboard` 验证分隔线的无障碍角色、键盘调宽与收起后的焦点。
+侧栏调整由 `finderSidebarResize.dragAndNavigation` 验收，覆盖从工具栏拖动、分隔线颜色、侧栏顶部对齐、固定窗口按钮，以及收起后导航与恢复宽度。`a11y.finder.sidebarSplitter` 和 `a11y.finder.sidebarKeyboard` 验证分隔线的无障碍角色、键盘调宽与收起后的焦点。
 
 AC10 由 `finderSidebar.animatesWithPlaceholder`、`finderSidebar.reordersWithoutNavigating`、`finderSidebar.persists` 和 `a11y.finder.sidebarKeyboardReorder` 验收。
+
+AC11 由 `imageThumbnails.showsActualImage`、`allFinderViews`、`keepsOriginalResolution`、`reusesOpfsAfterReload` 和 `replacesAndRemovesCache` 验收。
 
 新 schema 版本为 `2026111701`；之前的构建不能直接打开升级后的库，沿用既有降级保护。本次尚未发布。
 

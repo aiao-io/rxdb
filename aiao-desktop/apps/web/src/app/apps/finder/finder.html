@@ -7,7 +7,6 @@
 >
   <app-traffic-lights />
   <div class="sbar" [id]="sidebarId" [style.display]="sidebarVisible() ? '' : 'none'" data-drag data-fsb>
-    <div class="sb-top" aria-hidden="true"></div>
     @for (group of sidebarGroups(); track group.head) {
       <div class="grp" [attr.aria-label]="group.head" role="group">
         <div class="gh" aria-hidden="true">{{ group.head }}</div>
@@ -36,7 +35,19 @@
               tabindex="0"
               type="button"
             >
-              <span class="si finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true"></span>
+              <span class="finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true">
+                @if (place[1].startsWith('dot#')) {
+                  <span
+                    class="ico"
+                    [style.background]="place[1].slice(3)"
+                    aria-hidden="true"
+                    style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
+                  ></span>
+                } @else {
+                  <svg class="ico" [appIcon]="place[1]"></svg>
+                }
+                <span class="nm">{{ place[0] }}</span>
+              </span>
               @if (place[1].startsWith('dot#')) {
                 <span
                   class="ico"
@@ -222,7 +233,7 @@
               >
                 <div class="art">
                   @if (item.icon === 'f-img') {
-                    <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                    <app-file-thumbnail class="shot" [contentId]="item.contentId" />
                   } @else {
                     <svg [appIcon]="displayIcon(item)"></svg>
                   }
@@ -271,7 +282,7 @@
                   </span>
                   <span class="art">
                     @if (item.icon === 'f-img') {
-                      <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                      <app-file-thumbnail class="shot" [contentId]="item.contentId" />
                     } @else {
                       <svg [appIcon]="displayIcon(item)"></svg>
                     }
@@ -319,7 +330,13 @@
                       (pointerdown)="dragApp($event, item)"
                       role="option"
                     >
-                      <span class="art"><svg [appIcon]="displayIcon(item)"></svg></span>
+                      <span class="art">
+                        @if (item.icon === 'f-img') {
+                          <app-file-thumbnail class="shot" [contentId]="item.contentId" />
+                        } @else {
+                          <svg [appIcon]="displayIcon(item)"></svg>
+                        }
+                      </span>
                       <span class="nm">{{ displayName(item) }}</span>
                       @if (item.kind === 'folder') {
                         <svg class="ch" appIcon="g-chev-r"></svg>
@@ -335,7 +352,13 @@
             }
             @if (previewFile(); as preview) {
               <div class="fv-prev" [attr.aria-label]="'Preview of ' + displayName(preview)" role="group">
-                <div class="big"><svg [appIcon]="displayIcon(preview)"></svg></div>
+                <div class="big">
+                  @if (preview.icon === 'f-img') {
+                    <app-file-thumbnail [contentId]="preview.contentId" />
+                  } @else {
+                    <svg [appIcon]="displayIcon(preview)"></svg>
+                  }
+                </div>
                 <div class="nm">{{ displayName(preview) }}</div>
                 <dl>
                   <dt>Kind</dt>
@@ -366,9 +389,7 @@
             <div class="stage" aria-hidden="true">
               @if (current) {
                 @if (current.icon === 'f-img') {
-                  <div class="shot big">
-                    <app-photo-art [index]="seed(current.name)" [kind]="shotKind(current.name)" />
-                  </div>
+                  <app-file-thumbnail class="shot big" [contentId]="current.contentId" />
                 } @else {
                   <div class="art"><svg [appIcon]="displayIcon(current)"></svg></div>
                 }
@@ -404,7 +425,7 @@
                   role="option"
                 >
                   @if (item.icon === 'f-img') {
-                    <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                    <app-file-thumbnail class="shot" [contentId]="item.contentId" />
                   } @else {
                     <div class="art"><svg [appIcon]="displayIcon(item)"></svg></div>
                   }

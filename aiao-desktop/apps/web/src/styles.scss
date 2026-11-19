@@ -1536,9 +1536,31 @@ svg {
   cursor: grab;
 }
 .finder-place-placeholder {
-  background: var(--sel-soft);
-  outline: 1px dashed var(--blue);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: var(--txt-2);
+  background: color-mix(in srgb, var(--sel-soft) 72%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--blue) 62%, transparent);
   outline-offset: -1px;
+  opacity: 0.76;
+  pointer-events: none;
+}
+.finder-place-placeholder .ico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--blue);
+}
+.finder-place-placeholder .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .finder-place-preview {
   background: var(--win);
@@ -1931,23 +1953,28 @@ svg {
 /* ==========================================================================
    10. FINDER
    ========================================================================== */
+.finder-layout {
+  --finder-header-height: 52px;
+}
 .finder-layout .sbar {
   width: var(--finder-sidebar-width);
+  padding-top: var(--finder-header-height);
+}
+.finder-layout .sbar .grp:first-child {
+  margin-top: 0;
 }
 .finder-layout > .tl {
   position: absolute;
-  top: 28px;
+  top: calc(var(--finder-header-height) / 2);
   left: 12px;
-}
-.finder-layout.sidebar-collapsed > .tl {
-  top: 20px;
+  transform: translateY(-50%);
 }
 .finder-layout.sidebar-collapsed .fx-tb {
   padding-left: 76px;
 }
 .fx-divider {
   position: absolute;
-  top: 52px;
+  top: 0;
   bottom: 22px;
   left: max(5px, calc(var(--finder-sidebar-width) - 5px));
   z-index: 5;
@@ -1955,22 +1982,16 @@ svg {
   cursor: col-resize;
   touch-action: none;
 }
-.fx-divider::after {
+.sidebar-collapsed .fx-divider::after {
   content: '';
   position: absolute;
-  inset: 0 4px;
+  inset: calc(50% - 18px) 4px;
   border-radius: 2px;
-  background: var(--blue);
-  opacity: 0;
-}
-.sidebar-collapsed .fx-divider::after {
-  inset-block: calc(50% - 18px);
   background: var(--txt-3);
   opacity: 0.55;
 }
-.fx-divider:is(:hover, :active, :focus-visible)::after {
-  background: var(--blue);
-  opacity: 1;
+.fx-divider:focus-visible {
+  outline-color: var(--txt-2);
 }
 .fx {
   display: flex;
@@ -1984,7 +2005,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 52px;
+  height: var(--finder-header-height);
   padding: 0 14px 0 12px;
   background: var(--chrome);
   -webkit-backdrop-filter: blur(30px) var(--vib);

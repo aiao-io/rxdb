@@ -38,7 +38,13 @@
       role="button"
       tabindex="0"
     >
-      <div class="art"><svg [appIcon]="item.icon"></svg></div>
+      <div class="art">
+        @if (item.node?.icon === 'f-img') {
+          <app-file-thumbnail [contentId]="item.node.contentId" />
+        } @else {
+          <svg [appIcon]="item.icon"></svg>
+        }
+      </div>
       <div class="lbl">{{ item.name }}</div>
     </div>
   }

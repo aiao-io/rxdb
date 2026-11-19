@@ -29,6 +29,7 @@ import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
+import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
 import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
@@ -82,6 +83,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     ApplicationCatalog,
     ApplicationRuntime,
     FileSystem,
+    ImageThumbnailCache,
     FileImport,
     FileOpener,
     FilePanels,

@@ -38,10 +38,10 @@ import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { FileDrop } from '../../shared/file-drop';
+import { FileThumbnail } from '../../shared/file-thumbnail';
 import { clamp, finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
-import { PhotoArt } from '../../shared/photo-art';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { USER_PROFILE } from '../../shared/user-profile';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
@@ -52,9 +52,7 @@ import {
   TAG_PLACES,
   VIRTUAL_PLACES,
   columnChain,
-  folderContents,
-  nameSeed,
-  shotKind
+  folderContents
 } from './finder-model';
 import { FinderSidebarOrder } from './finder-sidebar-order';
 
@@ -77,7 +75,16 @@ const MIN_CONTENT_WIDTH = 400;
  */
 @Component({
   selector: 'app-finder',
-  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog, FileDrop, CdkDropList, CdkDrag, CdkDragPlaceholder],
+  imports: [
+    Icon,
+    FileThumbnail,
+    TrafficLights,
+    FileOperationDialog,
+    FileDrop,
+    CdkDropList,
+    CdkDrag,
+    CdkDragPlaceholder
+  ],
   host: { style: 'display: contents' },
   templateUrl: './finder.html'
 })
@@ -132,8 +139,6 @@ export class FinderApp implements FinderCommands {
   protected readonly columnSelection = signal<readonly string[]>([]);
   protected readonly sort = signal<FinderSort>('name');
   protected readonly finderDate = finderDate;
-  protected readonly seed = nameSeed;
-  protected readonly shotKind = shotKind;
 
   protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
   /** 在 Applications 里：同名的非包条目占着位置，让某些预装应用没有包时，说清楚它们仍可从别处打开（D-17）。 */

@@ -21,6 +21,7 @@ import { FakeChannelHub, FakeLifecycle } from '../testing/fake-tab-sync';
 import { ApplicationCatalog } from './application-catalog';
 import { DESKTOP_APPS, applicationManifests } from './desktop-apps';
 import { FileSystem, HOME_PATH, PLACES, describeDiskError } from './file-system';
+import { ImageThumbnailCache } from './image-thumbnail-cache';
 
 /** 种子里的图片要在浏览器里渲染；Node 里换成固定的字节。 */
 vi.mock('./photo-encoder', () => ({ photoEncoder: () => async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]) }));
@@ -49,8 +50,13 @@ function setup({ data = new FakeDesktopData(), readyError, recents }: Options = 
     })
   };
   const errors = { handleError: vi.fn() };
+  const thumbnails = {
+    remove: vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined),
+    clear: vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+  };
   configureServices([
     FileSystem,
+    { provide: ImageThumbnailCache, useValue: thumbnails },
     ApplicationCatalog,
     { provide: DESKTOP_APPS, useValue: DESKTOP_APP_MANIFESTS },
     { provide: DesktopData, useValue: data },
@@ -61,7 +67,7 @@ function setup({ data = new FakeDesktopData(), readyError, recents }: Options = 
   const catalog = TestBed.inject(ApplicationCatalog);
   const changes: (readonly DiskPath[])[] = [];
   fs.changes.subscribe(paths => changes.push(paths));
-  return { fs, catalog, data, files, preferences, locks, changes, errors };
+  return { fs, catalog, data, files, preferences, locks, changes, errors, thumbnails };
 }
 
 /** 推进假时钟：活查询合并同一批写入的 30ms 窗口过去，树才会刷新。 */
@@ -97,6 +103,7 @@ async function seedLegacyDisk(data: FakeDesktopData, names: readonly string[]): 
     repository: () => data.repository(DesktopFile) as never,
     instantiate: fields => data.instantiate(DesktopFile, fields) as never,
     storage: () => data.storage as never,
+    contentReleased: async () => undefined,
     now: Date.now,
     dataVersion: () => data.dataVersion()
   });
@@ -518,14 +525,35 @@ describe('FileSystem 读写', () => {
     expect(changes).toEqual([[path]]);
   });
 
-  it('覆盖写入替换内容，旧文件体被释放', async () => {
-    const { fs, data } = await mounted();
-    const path = [...DESKTOP, 'draft.md'];
+  it('改名与移进废纸篓保留同一个缩略图键，覆盖与永久删除清除旧缓存', async () => {
+    const { fs, data, thumbnails } = await mounted();
+    const path = [...DESKTOP, 'draft.png'];
     await fs.writeText(path, 'v1');
+    await flush();
+    const first = fs.nodeAt(path)?.contentId;
+    expect(first).toEqual(expect.any(String));
+
+    await fs.rename(path, 'renamed.png');
+    const renamed = [...DESKTOP, 'renamed.png'];
+    await flush();
+    expect(fs.nodeAt(renamed)?.contentId).toBe(first);
+    expect(thumbnails.remove).not.toHaveBeenCalled();
     const blobs = data.storage.blobs.size;
-    await fs.writeText(path, 'v2');
-    expect(await fs.readText(path)).toBe('v2');
+    await fs.writeText(renamed, 'v2');
+    await flush();
+    const next = fs.nodeAt(renamed)?.contentId;
+    expect(next).toEqual(expect.any(String));
+    expect(next).not.toBe(first);
+    expect(await fs.readText(renamed)).toBe('v2');
     expect(data.storage.blobs.size).toBe(blobs);
+    expect(thumbnails.remove).toHaveBeenCalledExactlyOnceWith(first);
+
+    await fs.moveToTrash(renamed);
+    await flush();
+    expect(fs.nodeAt([...TRASH, 'renamed.png'])?.contentId).toBe(next);
+    expect(thumbnails.remove).toHaveBeenCalledTimes(1);
+    await fs.emptyTrash();
+    expect(thumbnails.remove).toHaveBeenCalledWith(next);
   });
 
   it('读不存在的文件报 ENOENT', async () => {
@@ -544,12 +572,13 @@ describe('FileSystem 读写', () => {
 
 describe('FileSystem 抹掉磁盘', () => {
   it('erase 清掉所有改动，恢复内置内容，更新完成标记，并通知四个顶层目录', async () => {
-    const { fs, data, changes } = await mounted();
+    const { fs, data, changes, thumbnails } = await mounted();
     await fs.writeText([...DESKTOP, 'mine.txt'], 'x');
     await fs.moveToTrash([...DESKTOP, 'prasenx.txt']);
     const later = new Date(NOW.getTime() + 60_000);
     vi.setSystemTime(later);
 
+    thumbnails.clear.mockClear();
     await fs.erase();
     await flush();
     expect(fs.nodeAt([...DESKTOP, 'mine.txt'])).toBeNull();
@@ -557,6 +586,7 @@ describe('FileSystem 抹掉磁盘', () => {
     expect(await fs.readText([...DESKTOP, 'prasenx.txt'])).toContain('prasenx');
     expect(changes.at(-1)).toEqual(DISK_ROOTS.map(root => [root]));
     expect(data.storage.clear).toHaveBeenCalledWith('blobs');
+    expect(thumbnails.clear).toHaveBeenCalledExactlyOnceWith();
     const marker = data.table(SystemPreference).rows.find(row => row['key'] === 'seed:disk');
     expect(marker?.['value']).toEqual({ version: SEED_VERSION, seededAt: later.getTime() });
   });

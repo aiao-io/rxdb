@@ -46,7 +46,11 @@ describe('备份文件体 I/O', () => {
   it('真实枚举子目录和大小，读取失败不能被当成空目录', async () => {
     const filesystem = {
       list: async function* (path: string) {
-        if (path === '/') yield { name: 'blobs', kind: 'directory' as const };
+        if (path === '/') {
+          yield { name: 'blobs', kind: 'directory' as const };
+          yield { name: 'Library', kind: 'directory' as const };
+        } else if (path === 'Library') yield { name: 'Caches', kind: 'directory' as const };
+        else if (path === 'Library/Caches') yield { name: 'Thumbnails', kind: 'directory' as const };
         else yield { name: 'test', kind: 'file' as const };
       },
       readBlob: vi.fn<(path: string) => Promise<Blob>>(async () => body.blob)

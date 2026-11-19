@@ -3,7 +3,6 @@ import { FsNode, visibleChildren } from '../../disk/disk-tree';
 import { FileSystem } from '../../services/file-system';
 import { USER_PROFILE } from '../../shared/user-profile';
 
-export { nameSeed, shotKind } from '../../disk/thumbnails';
 
 export type FinderSort = 'name' | 'date' | 'size' | 'kind';
 

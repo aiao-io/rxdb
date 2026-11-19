@@ -30,6 +30,7 @@ function setup(fixedNow?: number) {
       repository: () => data.repository(DesktopFile) as never,
       instantiate: fields => data.instantiate(DesktopFile, fields) as never,
       storage: () => data.storage as never,
+      contentReleased: async () => undefined,
       now: () => fixedNow ?? clock++,
       dataVersion: async () => version
     });

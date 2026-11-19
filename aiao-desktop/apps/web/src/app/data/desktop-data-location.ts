@@ -1,3 +1,6 @@
+/** 当前代际的文件根下，可随时重建的图片缩略图目录。 */
+export const THUMBNAIL_DIRECTORY = 'Library/Caches/Thumbnails';
+
 /** 活动数据指针是单个 localStorage 值，更新它才算完成恢复。 */
 export const DATA_LOCATION_KEY = 'aiao-desktop:data-location';
 export const RESTORE_PENDING_KEY = 'aiao-desktop:restore-pending';

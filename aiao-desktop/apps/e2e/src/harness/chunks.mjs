@@ -10,18 +10,8 @@ export function staticImports(source) {
   return [...names];
 }
 
-/**
- * 首屏会下载的脚本（ADESK-US-206）：index.html 里的 `<script src>` 与 `modulepreload`，加上它们的静态 import 闭包。
- * 应用按需加载后，不在这个集合里的 chunk 都是「打开应用时才下载」的。
- *
- * @param {string} distRoot web 的构建产物目录
- * @returns {Set<string>} 文件名集合
- */
-export function initialScripts(distRoot) {
-  const html = readFileSync(join(distRoot, 'index.html'), 'utf8');
-  const queue = [...html.matchAll(/(?:src|href)="([^"]+\.js)"/g)]
-    .map(match => match[1])
-    .filter(name => !name.includes('/'));
+function scriptClosure(distRoot, entries) {
+  const queue = [...entries];
   const seen = new Set();
   while (queue.length) {
     const name = queue.pop();
@@ -31,6 +21,20 @@ export function initialScripts(distRoot) {
     queue.push(...staticImports(readFileSync(join(distRoot, name), 'utf8')));
   }
   return seen;
+}
+
+/**
+ * 首屏会下载的脚本（ADESK-US-206）：index.html 里的 `<script src>` 与 `modulepreload`，加上它们的静态 import 闭包。
+ *
+ * @param {string} distRoot web 的构建产物目录
+ * @returns {Set<string>} 文件名集合
+ */
+export function initialScripts(distRoot) {
+  const html = readFileSync(join(distRoot, 'index.html'), 'utf8');
+  const entries = [...html.matchAll(/(?:src|href)="([^"]+\.js)"/g)]
+    .map(match => match[1])
+    .filter(name => !name.includes('/'));
+  return scriptClosure(distRoot, entries);
 }
 
 /** 产物根目录下按需加载的脚本：不在首屏集合里、也不是工作线程脚本。 */
@@ -80,6 +84,12 @@ export const componentScripts = distRoot => declarations(distRoot, COMPONENT_SEL
  * @returns {Map<string, string[]>}
  */
 export const seedScripts = distRoot => declarations(distRoot, SEED_DOMAIN);
+
+/** 通过产物保留的模块导出名定位磁盘图片种子编码器与它的静态依赖。 */
+export function diskImageSeedScripts(distRoot) {
+  const encoders = declarations(distRoot, /\bexport\s*\{[^{}]*\bas\s+(photoEncoder)\b[^{}]*\}/g);
+  return scriptClosure(distRoot, encoders.keys());
+}
 
 /** 声明表里声明了 `name` 的脚本。 */
 export const scriptsDeclaring = (table, name) =>

@@ -1,6 +1,7 @@
 import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 
 import { DesktopBackupError, DesktopBackupFile } from './desktop-backup-archive';
+import { THUMBNAIL_DIRECTORY } from './desktop-data-location';
 import type { AuditedStorageBody, AuditedStorageMeta } from './desktop-storage-audit';
 
 interface BodySource {
@@ -56,7 +57,7 @@ export async function writeDesktopBodies(
   }
 }
 
-/** 枚举真实文件体，包括没有元数据的中断残留。 */
+/** 枚举真实文件体，包括没有元数据的中断残留，跳过可重建的缓存目录。 */
 export async function storageInventory(
   filesystem: Pick<StorageFilesystem, 'list' | 'readBlob'>
 ): Promise<AuditedStorageBody[]> {
@@ -66,6 +67,7 @@ export async function storageInventory(
     const directory = pending.pop() as string;
     for await (const entry of filesystem.list(directory)) {
       const path = directory === '/' ? entry.name : `${directory}/${entry.name}`;
+      if (entry.kind === 'directory' && path === THUMBNAIL_DIRECTORY) continue;
       if (entry.kind === 'directory') pending.push(path);
       else bodies.push({ path, size: (await filesystem.readBlob(path)).size });
     }

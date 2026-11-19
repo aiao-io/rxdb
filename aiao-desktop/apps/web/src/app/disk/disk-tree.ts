@@ -14,6 +14,8 @@ export interface FsNode {
   readonly date?: Date;
   readonly bytes?: number;
   readonly size?: string;
+  /** storage 插件里的源文件体 ID，用于复用与失效缩略图缓存。 */
+  readonly contentId?: string;
   /** 以点开头的名字，Finder 不显示。 */
   readonly hidden: boolean;
   /** 文件与程序包没有子项。 */
@@ -30,6 +32,8 @@ export interface FileRow {
   readonly size: number;
   /** 文件夹没有记录修改时间时为 `null`。 */
   readonly modified: Date | null;
+  /** storage 插件里的源文件体 ID；内存扫描后端没有这项。 */
+  readonly contentId?: string | null;
 }
 
 /** 防御损坏的数据：父子链成环时最多展开这么多层。 */
@@ -107,6 +111,7 @@ class TreeBuilder {
       date: row.modified ?? this.emptyDate,
       bytes: row.size,
       size: formatSize(row.size),
+      ...(row.contentId ? { contentId: row.contentId } : {}),
       hidden: row.name.startsWith('.')
     };
   }

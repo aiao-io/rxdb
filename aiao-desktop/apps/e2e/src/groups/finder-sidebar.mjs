@@ -36,8 +36,12 @@ export const finderSidebar = {
 
     await dragPlace(page, airDrop, desktop);
     await expect(page.locator(preview)).toBeVisible();
-    await expect(favourites.locator(placeholder)).toBeVisible();
-    await expect(favourites.locator(placeholder)).toHaveCSS('height', rowHeight);
+    const slot = favourites.locator(placeholder);
+    await expect(slot).toBeVisible();
+    await expect(slot.locator('.nm')).toHaveText('AirDrop');
+    await expect(slot.locator('svg.ico')).toBeVisible();
+    await expect(slot).toHaveAttribute('aria-hidden', 'true');
+    await expect(slot).toHaveCSS('height', rowHeight);
     await expect(desktop).toHaveCSS('transition-property', /transform/);
     await expect(desktop).not.toHaveCSS('transform', 'none');
     await page.mouse.up();

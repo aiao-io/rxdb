@@ -8,6 +8,7 @@ import { PopoverService } from '../services/popover';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { FileDrop } from '../shared/file-drop';
+import { FileThumbnail } from '../shared/file-thumbnail';
 import { clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
 import { isMenuKey } from '../shared/menu-list';
@@ -27,7 +28,7 @@ interface Point {
  */
 @Component({
   selector: 'app-desktop-surface',
-  imports: [Icon, CalendarWidget, WeatherWidget, StocksWidget, FileDrop],
+  imports: [Icon, FileThumbnail, CalendarWidget, WeatherWidget, StocksWidget, FileDrop],
   templateUrl: './desktop-surface.html',
   styleUrl: './desktop-surface.scss',
   encapsulation: ViewEncapsulation.None,

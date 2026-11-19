@@ -19,6 +19,7 @@ export interface RxdbDiskDependencies {
   repository(): Promise<IRepository<typeof DesktopFile>>;
   instantiate(data: Partial<DesktopFile>): DesktopFile;
   storage(): RxdbFileStorage;
+  contentReleased(id: string): Promise<void>;
   now(): number;
   /**
    * 库的 `data_version`（SQLite 的 `PRAGMA data_version`）：别的连接（别的标签页）提交过写入，它就和上次读到的不一样；
@@ -171,7 +172,7 @@ export class RxdbDiskStore implements DiskStore {
       index.drop(doomed.id, parentId, doomed.name);
       this.mutations++;
     }
-    for (const doomed of rows) if (doomed.contentId) await this.deps.storage().delete(doomed.contentId);
+    for (const doomed of rows) if (doomed.contentId) await this.releaseContent(doomed.contentId);
   }
 
   async move(from: DiskPath, to: DiskPath): Promise<void> {
@@ -217,7 +218,12 @@ export class RxdbDiskStore implements DiskStore {
       await this.deps.storage().delete(blob.id);
       throw error;
     }
-    if (previousContent) await this.deps.storage().delete(previousContent);
+    if (previousContent) await this.releaseContent(previousContent);
+  }
+
+  private async releaseContent(id: string): Promise<void> {
+    await this.deps.storage().delete(id);
+    await this.deps.contentReleased(id);
   }
 
   private loaded(): Promise<FileIndex> {

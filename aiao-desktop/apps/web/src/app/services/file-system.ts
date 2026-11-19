@@ -54,8 +54,8 @@ import { BLOB_DIR, RxdbDiskStore } from '../disk/rxdb-disk-store';
 import { USER_PROFILE } from '../shared/user-profile';
 import { ApplicationCatalog } from './application-catalog';
 import { ApplicationRegistry } from './application-registry';
+import { ImageThumbnailCache } from './image-thumbnail-cache';
 import { InstalledApplications } from './installed-applications';
-import { photoEncoder } from './photo-encoder';
 
 export type { FsNode } from '../disk/disk-tree';
 
@@ -108,7 +108,8 @@ const toRow = (file: DesktopFile): FileRow => ({
   name: file.name,
   folder: file.type === 'folder',
   size: file.size,
-  modified: file.modifiedAt
+  modified: file.modifiedAt,
+  contentId: file.contentId
 });
 
 const encoder = new TextEncoder();
@@ -133,6 +134,7 @@ export class FileSystem {
   private readonly preferences = inject(Preferences);
   private readonly injector = inject(EnvironmentInjector);
   private readonly catalog = inject(ApplicationCatalog);
+  private readonly thumbnails = inject(ImageThumbnailCache);
   private readonly destroyRef = inject(DestroyRef);
   private readonly errors = inject(ErrorHandler);
   private readonly rootState = signal<FsNode>(emptyVolume());
@@ -407,6 +409,7 @@ export class FileSystem {
         repository: () => this.data.repository(DesktopFile),
         instantiate: data => this.data.instantiate(DesktopFile, data),
         storage: () => database.storage,
+        contentReleased: id => this.thumbnails.remove(id),
         now: Date.now,
         dataVersion: () => this.data.dataVersion()
       });
@@ -501,6 +504,7 @@ export class FileSystem {
       wipe: async () => {
         for (const entry of await store.list([])) await store.remove([entry.name]);
         await this.data.database.storage.clear(BLOB_DIR);
+        await this.thumbnails.clear();
         store.invalidate();
       },
       /* 挂载与抹掉都已经在磁盘锁里（锁不可重入），这里不再加一层。 */
@@ -545,8 +549,10 @@ export class FileSystem {
   }
 
   private seeder(): DiskSeeder {
-    const encodeImage = photoEncoder(this.injector);
-    return store => writeSeed(store, buildSeed(), encodeImage);
+    return async store => {
+      const { photoEncoder } = await import('./photo-encoder');
+      await writeSeed(store, buildSeed(), photoEncoder(this.injector));
+    };
   }
 
   private mountedVolume(): DiskVolume {

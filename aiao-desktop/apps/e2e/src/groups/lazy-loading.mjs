@@ -1,4 +1,11 @@
-import { componentScripts, lazyScripts, scriptNameOf, scriptsDeclaring, seedScripts } from '../harness/chunks.mjs';
+import {
+  componentScripts,
+  diskImageSeedScripts,
+  lazyScripts,
+  scriptNameOf,
+  scriptsDeclaring,
+  seedScripts
+} from '../harness/chunks.mjs';
 import { surgery, tableCounts } from '../harness/database.mjs';
 import { passes } from '../harness/helpers.mjs';
 
@@ -65,6 +72,7 @@ export const lazyLoading = {
   keys: [
     'lazyLoading.everyAppIsItsOwnChunk',
     'lazyLoading.startupLoadsOnlyShellScripts',
+    'lazyLoading.diskImagesLoadOnlyWhenSeeded',
     'lazyLoading.startupSkipsAppEntries',
     'lazyLoading.startupWritesNoAppSeeds',
     'lazyLoading.oneAppLoadsOnlyItsChunk',
@@ -88,7 +96,8 @@ export const lazyLoading = {
     const seeds = seedScripts(distRoot);
     const chunkOf = selector => scriptsDeclaring(components, selector);
     const seedChunkOf = domain => scriptsDeclaring(seeds, domain);
-    const shellSeedChunks = new Set(SHELL_DOMAINS.flatMap(seedChunkOf));
+    const diskImageChunks = [...diskImageSeedScripts(distRoot)].filter(name => lazy.has(name));
+    const shellSeedChunks = new Set([...SHELL_DOMAINS.flatMap(seedChunkOf), ...diskImageChunks]);
     const appSeedChunks = [...seeds]
       .filter(([, domains]) => domains.some(domain => !SHELL_DOMAINS.includes(domain)))
       .map(([name]) => name);
@@ -257,6 +266,9 @@ export const lazyLoading = {
     lazyLoading.widgetsOnExistingLibrary =
       (await showsSeededWidgets()) && JSON.stringify(await markers()) === JSON.stringify(markersBefore);
     const existingScripts = scriptsSince(mark);
+    lazyLoading.diskImagesLoadOnlyWhenSeeded =
+      diskImageChunks.length > 0 &&
+      diskImageChunks.every(name => startup.includes(name) && !existingScripts.includes(name));
     await page.locator('#menubar #mb-clock').dispatchEvent('mousedown');
     await page.waitForTimeout(500);
     const widgetChunks = WIDGET_APPS.flatMap(chunkOf);

@@ -23,6 +23,7 @@ import { freeformWorkflow } from './freeform-workflow.mjs';
 import { game } from './game.mjs';
 import { hostCapabilities } from './host-capabilities.mjs';
 import { hostFilesystem } from './host-filesystem.mjs';
+import { imageThumbnails } from './image-thumbnails.mjs';
 import { integratedApp } from './integrated-app.mjs';
 import { lazyLoading } from './lazy-loading.mjs';
 import { localMail } from './local-mail.mjs';
@@ -77,6 +78,7 @@ export const GROUPS = [
   { ...storageFaults, weight: 80 },
   { ...backupStorage, weight: 40 },
   { ...fileManagement, weight: 35 },
+  { ...imageThumbnails, weight: 25 },
   { ...finderSidebarResize, weight: 10 },
   { ...finderSidebar, weight: 10 },
   { ...documentWorkflow, weight: 30 },
