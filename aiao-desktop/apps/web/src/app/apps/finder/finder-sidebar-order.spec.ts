@@ -68,6 +68,30 @@ describe('FinderSidebarOrder', () => {
     expect(preferences.get(KEY, Array.isArray)).toEqual(expected);
   });
 
+  it('从 favourites 移除快捷项并保存新顺序', async () => {
+    const { order, preferences, favourites } = setup();
+    await preferences.ready;
+    const save = vi.spyOn(preferences, 'set');
+    const expected = initial.slice(1);
+
+    expect(order.remove('Favourites', 'AirDrop')).toBe(true);
+    expect(favourites()).toEqual(expected);
+    await save.mock.results[0].value;
+    expect(save).toHaveBeenCalledWith(KEY, expected);
+    expect(preferences.get(KEY, Array.isArray)).toEqual(expected);
+  });
+
+  it('不从其他分组或不存在的快捷项移除', async () => {
+    const { order, preferences, favourites } = setup();
+    await preferences.ready;
+    const save = vi.spyOn(preferences, 'set');
+
+    expect(order.remove('Locations', 'Macintosh HD')).toBe(false);
+    expect(order.remove('Favourites', 'Missing')).toBe(false);
+    expect(favourites()).toEqual(initial);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it('写入失败时恢复已保存的顺序并提示用户', async () => {
     const { order, preferences, favourites, toast } = setup();
     await preferences.ready;

@@ -41,6 +41,25 @@ export class FinderSidebarOrder {
     moveItemInArray(order, from, index);
     const key = orderKey(head);
     this.pending.update(pending => new Map(pending).set(key, order));
+    this.persist(key, order);
+    return true;
+  }
+
+  remove(head: string, name: string): boolean {
+    if (head !== 'Favourites') return false;
+    const group = this.groups().find(group => group.head === head);
+    if (!group) return false;
+    const order = group.items.map(([item]) => item);
+    if (!order.includes(name)) return false;
+
+    const next = order.filter(item => item !== name);
+    const key = orderKey(head);
+    this.pending.update(pending => new Map(pending).set(key, next));
+    this.persist(key, next);
+    return true;
+  }
+
+  private persist(key: string, order: readonly string[]): void {
     void this.preferences.set(key, order).then(
       () => this.clearPending(key, order),
       () => {
@@ -48,7 +67,6 @@ export class FinderSidebarOrder {
         this.toast.show('Couldn’t save the Finder sidebar order.');
       }
     );
-    return true;
   }
 
   private clearPending(key: string, order: readonly string[]): void {
