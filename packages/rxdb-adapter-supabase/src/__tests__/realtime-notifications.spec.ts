@@ -161,4 +161,30 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('实时变更通知（US-225）'
       expect(local.map(todo => todo.title)).toEqual([`${runId}-adapter`]);
     });
   });
+
+  it('只拿 anon key 的适配器连接时不订阅通知，也不反复重试', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error');
+    const rxdb = new RxDB({
+      dbName: `realtime-anon-${runId.slice(0, 8)}`,
+      entities: [Todo],
+      sync: { type: SyncType.None, remote: { adapter: 'supabase' } }
+    });
+    const anonClient = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+    rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: anonClient }));
+
+    try {
+      await rxdb.connect('supabase');
+      // 给重连退避留出足够时间：之前这里会每隔最多 5 秒被拒一次、一直重试
+      await new Promise(resolve => setTimeout(resolve, 1_500));
+
+      expect(anonClient.getChannels()).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+      expect(error).not.toHaveBeenCalledWith('Supabase Realtime subscription failed:', expect.anything());
+    } finally {
+      await rxdb.destroy();
+      warn.mockRestore();
+      error.mockRestore();
+    }
+  });
 });

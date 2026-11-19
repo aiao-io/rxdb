@@ -363,7 +363,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ### Realtime
 
-订阅私有频道 `rxdb:changes`（订阅前先 `realtime.setAuth()`），按 `clientId` 过滤掉自身变更，派发只带 `id` 的 `EntityRemote{Created,Updated,Removed}Event`——通知不带行内容，同步插件据此累计可拉取条数，数据以订阅者自己的身份拉取；通道异常按指数退避（500ms→5s）重连。
+订阅私有频道 `rxdb:changes`（订阅前先 `realtime.setAuth()`；令牌不属于已登录身份时不订阅，登录后再 `connect()` 开启），按 `clientId` 过滤掉自身变更，派发只带 `id` 的 `EntityRemote{Created,Updated,Removed}Event`——通知不带行内容，同步插件据此累计可拉取条数，数据以订阅者自己的身份拉取；通道异常按指数退避（500ms→5s）重连。
 
 ## 测试
 

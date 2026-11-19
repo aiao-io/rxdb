@@ -28,6 +28,7 @@ import type { SupabaseAdapterOptions } from '../supabase.interface.js';
 import type { MergeChangesPayload, MergeChangesUpsertPayload } from '../supabase.merge-changes.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { SIGNED_IN_TOKEN, testJwt } from './realtime-test-tokens.js';
 
 class FakeTreeEntity {
   id = '';
@@ -99,13 +100,19 @@ function createRxdb(entities: EntityType[] = []): RxDB {
   } as unknown as RxDB;
 }
 
+const AUTHENTICATED_TOKEN = SIGNED_IN_TOKEN;
+
+function createRealtimeAuth(accessTokenValue: string | null = AUTHENTICATED_TOKEN) {
+  return { setAuth: vi.fn(async () => undefined), accessTokenValue };
+}
+
 function createAdapter(
   clientOverrides: Record<string, unknown> = {},
   options: Partial<SupabaseAdapterOptions> = {},
   entities: EntityType[] = []
 ) {
-  // 订阅私有频道前适配器会先 realtime.setAuth()（US-225），桩客户端默认给一个
-  const client = { realtime: { setAuth: vi.fn(async () => undefined) }, ...clientOverrides };
+  // 订阅私有频道前适配器会先 realtime.setAuth() 并看令牌是否属于已登录用户（US-225），桩客户端默认已登录
+  const client = { realtime: createRealtimeAuth(), ...clientOverrides };
   const rxdb = createRxdb(entities);
 
   return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
@@ -1227,6 +1234,86 @@ describe('supabase review regressions', () => {
 
     expect(rpc).not.toHaveBeenCalled();
     expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+  });
+
+  describe('change notifications need a signed-in session (US-225)', () => {
+    const subscribableChannel = () => {
+      const channel: Record<string, unknown> = {};
+      channel['on'] = vi.fn(() => channel);
+      channel['subscribe'] = vi.fn(() => channel);
+      return channel;
+    };
+
+    it.each([
+      ['the anon key', testJwt({ role: 'anon' })],
+      ['a new-style publishable key', 'sb_publishable_example'],
+      ['a token whose payload is not JSON', 'header.bm90LWpzb24.signature'],
+      ['no token at all', null]
+    ])('does not subscribe or retry when realtime would join with %s', async (_label, token) => {
+      vi.useFakeTimers();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(token);
+      const adapter = createAdapter({ channel, realtime }, { rlsCheck: false });
+
+      try {
+        await adapter.connect();
+        await vi.advanceTimersByTimeAsync(10_000);
+
+        expect(realtime.setAuth).toHaveBeenCalledOnce();
+        expect(channel).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+      } finally {
+        await adapter.disconnect();
+        warn.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('subscribes on the next connect once the client is signed in', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const adapter = createAdapter(
+        { channel, realtime, removeChannel: vi.fn(async () => undefined) },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).not.toHaveBeenCalled();
+
+        realtime.accessTokenValue = AUTHENTICATED_TOKEN;
+        await adapter.connect();
+
+        expect(realtime.setAuth).toHaveBeenCalledTimes(2);
+        expect(channel).toHaveBeenCalledOnce();
+        expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+      } finally {
+        await adapter.disconnect();
+        warn.mockRestore();
+      }
+    });
+
+    it('subscribes with a service-role token', async () => {
+      const channel = vi.fn(subscribableChannel);
+      const adapter = createAdapter(
+        {
+          channel,
+          realtime: createRealtimeAuth(testJwt({ role: 'service_role' })),
+          removeChannel: vi.fn(async () => undefined)
+        },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).toHaveBeenCalledOnce();
+      } finally {
+        await adapter.disconnect();
+      }
+    });
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {

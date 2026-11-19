@@ -7,6 +7,7 @@ import { SUPABASE_IN_CHUNK_SIZE } from '../pagination.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { SIGNED_IN_TOKEN } from './realtime-test-tokens.js';
 
 class FakeTreeEntity {
   id = '';
@@ -37,7 +38,10 @@ function createRxdb(entities: EntityType[] = []): RxDB {
 function createAdapter(clientOverrides: Record<string, unknown> = {}, entities: EntityType[] = []) {
   return new RxDBAdapterSupabase(createRxdb(entities), {
     // 订阅私有频道前适配器会先 realtime.setAuth()（US-225），桩客户端默认给一个
-    client: { realtime: { setAuth: async () => undefined }, ...clientOverrides } as never,
+    client: {
+      realtime: { setAuth: async () => undefined, accessTokenValue: SIGNED_IN_TOKEN },
+      ...clientOverrides
+    } as never,
     rlsCheck: false
   });
 }

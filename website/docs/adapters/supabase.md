@@ -101,7 +101,7 @@ rxdb.adapter('supabase', db => {
 :::caution 日志同步需要已登录身份
 按[生产权限脚本](#日志同步只对已登录身份开放)部署后，变更日志的拉取、推送、分支登记与实时通知只对已登录身份（`authenticated` 角色）开放，只拿 anon key 的客户端会得到 `42501`。用方式二把应用里已经登录的客户端交给适配器；方式一由适配器自建客户端，和应用的登录客户端不是同一个实例，不要用于日志同步。
 
-没有登录流程的公开演示可以先调 `supabase.auth.signInAnonymously()`：Supabase 匿名用户的角色也是 `authenticated`，代价见[适用边界](#适用边界)。
+给未登录用户看公开数据不需要登录，也不需要匿名账号：业务表的 RLS 对 `anon` 开放公开行的读取，用 QueryCache 模式直接查业务表即可，见[适用边界](#适用边界)。只拿 anon key 时适配器不订阅实时通知。
 :::
 
 ## 配置选项
@@ -147,6 +147,7 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 
 - 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
 - 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行，生产权限脚本只对 `authenticated` 开放接收，不开放发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
+- 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条提示、不发起订阅，也就不会反复重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
 
@@ -413,7 +414,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 #### 适用边界
 
-日志对全部 `authenticated` 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权。日志同步因此只适用于**所有登录者可见范围一致**的数据；开放注册或开启匿名登录的部署，等于把日志开放给任何访客。同一后端里不同用户看不同行（按租户、按所有者）的数据，不要用日志同步：可以用 QueryCache 模式以用户身份直接查业务表，读取由业务表的 RLS 裁决；同时不要为这些表启用日志触发器（`rxdb_enable_sync_for_table`），否则每次写入都会连同整行记进全员可读的日志。日志同步层面的已登录用户隔离尚在规划中。
+日志对全部 `authenticated` 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权。日志同步因此只适用于**所有登录者可见范围一致**的数据；开放注册或开启匿名登录的部署，等于把日志开放给任何访客。同一后端里不同用户看不同行（按租户、按所有者）的数据，不要用日志同步：可以用 QueryCache 模式以用户身份直接查业务表，读取由业务表的 RLS 裁决；同时不要为这些表启用日志触发器（`rxdb_enable_sync_for_table`），否则每次写入都会连同整行记进全员可读的日志。公开数据同理：RLS 对 `anon` 开放公开行的读取，未登录用户用 QueryCache 模式直接读，不需要登录或匿名账号。日志同步层面的按用户隔离尚在规划中。
 
 #### 非 main 分支按所有者写入
 

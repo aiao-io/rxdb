@@ -52,6 +52,40 @@ export const REALTIME_RECONNECTABLE_STATUSES = new Set(['CHANNEL_ERROR', 'TIMED_
 
 export type RealtimeState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
+/**
+ * 读取 JWT 载荷里的 `role`。
+ *
+ * @param token - Realtime 客户端加入频道时要带的令牌
+ * @returns 载荷里的 `role`；不是 JWT（如 `sb_publishable_` 开头的新式 key）或载荷解析失败时为 `undefined`
+ *
+ * @remarks
+ * 只解码、不校验签名：这里只用来判断要不要发起订阅，授权仍由 Realtime 按 `realtime.messages` 的 RLS 裁决。
+ */
+export function readJwtRole(token: string | null | undefined): string | undefined {
+  const payload = token?.split('.')[1];
+  if (!payload) return undefined;
+  try {
+    const base64 = payload.replaceAll('-', '+').replaceAll('_', '/');
+    const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+    const role: unknown = typeof claims === 'object' && claims !== null ? Reflect.get(claims, 'role') : undefined;
+    return typeof role === 'string' ? role : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 当前令牌能否接收变更通知（US-225）。
+ *
+ * @remarks
+ * 通知频道只对已登录身份开放（生产权限脚本只给 authenticated 建了接收策略，service_role 绕过 RLS）。
+ * 令牌是 anon key、不是 JWT 或干脆没有时，订阅必然被拒；不发起订阅，免得按「可重连」状态无限重试。
+ */
+export function canReceiveChangeNotifications(token: string | null | undefined): boolean {
+  const role = readJwtRole(token);
+  return role !== undefined && role !== 'anon';
+}
+
 const SNAPSHOT_FILTER_OPERATORS = new Set([
   '=',
   '!=',

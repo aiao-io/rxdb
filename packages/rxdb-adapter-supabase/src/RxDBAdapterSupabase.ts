@@ -49,6 +49,7 @@ import { resolve_supabase_schema } from './schema.utils.js';
 import {
   ADAPTER_NAME,
   assertSnapshotFilterSupported,
+  canReceiveChangeNotifications,
   getUnsupportedProperty,
   isRetryableSupabaseWriteError,
   REALTIME_RECONNECT_BASE_DELAY_MS,
@@ -144,6 +145,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
       this.#realtimeState = 'connecting';
       this.#channel = await this.#createRealtimeChannel();
+      // 没登录时不订阅：保持 idle，下一次 connect() 会按新的令牌重新判断
+      if (!this.#channel) this.#realtimeState = 'idle';
     });
     return this;
   }
@@ -919,10 +922,24 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 的 RLS 策略以当前登录身份放行（生产权限脚本只对 authenticated 开放），anon 订阅会被拒。
    *
    * 订阅前先 `realtime.setAuth()`：Realtime 客户端取令牌是异步的，不等它就加入频道，带上的是 apikey
-   * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌。
+   * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌；
+   * 没有会话时 supabase-js 交出的就是 apikey 本身。
+   *
+   * 令牌不属于已登录身份时不订阅、返回 `null`：订阅必然被拒，而被拒的状态按「可重连」处理，
+   * 会每隔最多 5 秒重试一次、永远重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；
+   * 实时通知在登录后再调一次 `connect()` 开启。
+   *
+   * @returns 订阅中的频道；未登录时为 `null`
    */
-  async #createRealtimeChannel(): Promise<RealtimeChannel> {
+  async #createRealtimeChannel(): Promise<RealtimeChannel | null> {
     await this.#client.realtime.setAuth();
+    if (!canReceiveChangeNotifications(this.#client.realtime.accessTokenValue)) {
+      console.warn(
+        '[RxDB Supabase] Change notifications need a signed-in session; skipping the realtime subscription. ' +
+          "Call rxdb.connect('supabase') again after sign-in to receive them."
+      );
+      return null;
+    }
     const channel = this.#client
       .channel(RXDB_CHANGES_TOPIC, { config: { private: true } })
       .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
@@ -997,6 +1014,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     this.#realtimeState = 'connecting';
     this.#channel = await this.#createRealtimeChannel();
+    // 重连途中退出了登录：不再订阅，也就不再重试
+    if (!this.#channel) this.#realtimeState = 'idle';
   }
 
   /**

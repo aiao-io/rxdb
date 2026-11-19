@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { SupabaseUnsupportedPropertyTypeError } from '../errors.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+import { SIGNED_IN_TOKEN } from './realtime-test-tokens.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_REMOTE = {
@@ -125,7 +126,7 @@ function createAdapter(entities: EntityType[], sync: SyncOptions = LOCAL_ONLY) {
   const client = {
     rpc: vi.fn(),
     channel: vi.fn(() => channelInstance),
-    realtime: { setAuth: vi.fn(async () => undefined) }
+    realtime: { setAuth: vi.fn(async () => undefined), accessTokenValue: SIGNED_IN_TOKEN }
   };
   const rxdb = new RxDB({
     dbName: 'supabase-unsupported-property-types',
@@ -192,7 +193,7 @@ describe('Supabase unsupported property types', () => {
       rpc: vi.fn(),
       channel: vi.fn(() => channelInstance),
       removeChannel: vi.fn(async () => undefined),
-      realtime: { setAuth: vi.fn(async () => undefined) }
+      realtime: { setAuth: vi.fn(async () => undefined), accessTokenValue: SIGNED_IN_TOKEN }
     };
     const rxdb = new RxDB({
       dbName: `supabase-local-bigint-binary-${Date.now()}`,
