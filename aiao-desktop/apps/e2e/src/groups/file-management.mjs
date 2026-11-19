@@ -13,6 +13,10 @@ export const fileManagement = {
   name: 'file-management',
   description: 'Finder 改名、复制、导入下载、打开方式、持久废纸篓恢复与键盘路径',
   keys: [
+    'fileManagement.dropsOnDesktop',
+    'fileManagement.dropsOnFolder',
+    'fileManagement.dropsOnSidebar',
+    'fileManagement.rejectsReadOnlyDrops',
     'fileManagement.importPreservesBytes',
     'fileManagement.importKeepsExistingNames',
     'fileManagement.readFailureKeepsBatchAndExistingData',
@@ -34,6 +38,10 @@ export const fileManagement = {
     const result = traced('file-management');
     await session.openDesktop();
     await helpers.closeAll();
+    const desktop = page.locator('#desktop');
+    await desktop.drop({ files: payload('from-desktop.txt', Buffer.from(text)) }, { timeout: 5_000 });
+    await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toBeVisible();
+    result.dropsOnDesktop = (await diskText(session, 'from-desktop.txt')) === text;
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
@@ -59,8 +67,7 @@ export const fileManagement = {
       await expect(item(to)).toBeVisible();
     };
     const importFiles = async files => {
-      await finder().locator('input[type="file"]').setInputFiles(files);
-      await expect(finder().getByRole('button', { name: 'Import Files' })).toBeEnabled();
+      await finder().locator('[data-body]').drop({ files });
       await expect(item(files[0].name)).toBeVisible();
     };
     const downloaded = async name => {
@@ -81,6 +88,27 @@ export const fileManagement = {
       await expect(finder()).not.toHaveAttribute('id', previous);
       await expect(finder().locator('[data-title]')).toHaveText('Trash');
     };
+    await place('Desktop');
+    await expect(finder().getByRole('button', { name: /^Import/ })).toHaveCount(0);
+    await expect(item('from-desktop.txt')).toBeVisible();
+    await item('Projects').drop({ files: payload('from-folder.txt', Buffer.from(text)) });
+    await item('Projects').dblclick();
+    await expect(item('from-folder.txt')).toBeVisible();
+    result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
+
+    await finder().locator('[data-place="Downloads"]').drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
+    await expect(finder().locator('[data-title]')).toHaveText('Projects');
+    await place('Downloads');
+    await expect(item('from-sidebar.txt')).toBeVisible();
+    result.dropsOnSidebar = (await diskText(session, 'from-sidebar.txt')) === text;
+
+    await place('Macintosh HD');
+    await item('System').drop({ files: payload('rejected.txt', Buffer.from(text)) });
+    await expect(item('rejected.txt')).toHaveCount(0);
+    await item('System').dblclick();
+    await expect(item('rejected.txt')).toHaveCount(0);
+    result.rejectsReadOnlyDrops = (await diskText(session, 'rejected.txt')) === undefined;
+
     await place('Desktop');
     await importFiles([
       payload('roundtrip.txt', Buffer.from(text)),
@@ -104,12 +132,12 @@ export const fileManagement = {
           : window.__originalFileReader.call(this);
       };
     });
-    await finder()
-      .locator('input[type="file"]')
-      .setInputFiles([
+    await finder().locator('[data-body]').drop({
+      files: [
         payload('readable.txt', Buffer.from('readable')),
         payload('unreadable.txt', Buffer.from('unreadable'))
-      ]);
+      ]
+    });
     await expect(page.locator('#toast')).toContainText('Unable to read test file');
     await page.evaluate(() => {
       File.prototype.arrayBuffer = window.__originalFileReader;
