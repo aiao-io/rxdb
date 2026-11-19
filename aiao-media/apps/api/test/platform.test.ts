@@ -173,6 +173,14 @@ test('成功原图原样入 R2；响应不泄露供应商配置；重复任务�
       assert.equal(url, 'https://api.example.com/v1/images/generations');
       assert.equal(init.redirect, 'manual');
       assert.equal(new Headers(init.headers).get('authorization'), 'Bearer private-key');
+      assert.deepEqual(JSON.parse(String(init.body)), {
+        model: 'test-image',
+        prompt: '一杯咖啡',
+        n: 1,
+        size: '1024x1024',
+        quality: 'auto',
+        output_format: 'png'
+      });
       return Response.json({ data: [{ b64_json: png }] });
     }
   );

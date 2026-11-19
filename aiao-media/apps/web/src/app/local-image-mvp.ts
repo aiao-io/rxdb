@@ -1,4 +1,4 @@
-import type { GenerationJobSummary, ImageAspectRatio } from '@aiao-media/api-contracts';
+import type { GenerationJobSummary, ImageAspectRatio, ImageJobRequest } from '@aiao-media/api-contracts';
 import {
   createRelayTaskToken,
   imageExtension,
@@ -164,6 +164,22 @@ const ratioSizes: Record<ImageAspectRatio, string> = {
   square: '1024 × 1024',
   landscape: '1536 × 1024',
   portrait: '1024 × 1536'
+};
+const aspectCategory = (value: string): ImageAspectRatio => {
+  const [width, height] = value.split(':').map(Number);
+  return width === height ? 'square' : width > height ? 'landscape' : 'portrait';
+};
+const dimensionsRatio = (size: string) => {
+  const [width, height] = size.split('x').map(Number);
+  const divisor = (a: number, b: number): number => (b ? divisor(b, a % b) : a);
+  const common = divisor(width, height);
+  return `${width / common}:${height / common}`;
+};
+const encodeBase64 = (bytes: Uint8Array) => {
+  let value = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000)
+    value += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  return btoa(value);
 };
 const dateFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' });
 const dateTimeFormat = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
@@ -367,11 +383,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly promptState = signal<PromptState>(plainPrompt(''));
   readonly serialized = computed(() => serializePrompt(this.promptState()));
   readonly ratio = signal<ImageAspectRatio>('square');
-  readonly ratios: { id: ImageAspectRatio; label: string; hint: string; shape: string }[] = [
-    { id: 'square', label: '正方形', hint: '1:1', shape: 'shape' },
-    { id: 'landscape', label: '横向', hint: '3:2', shape: 'shape wide' },
-    { id: 'portrait', label: '纵向', hint: '2:3', shape: 'shape tall' }
-  ];
+  readonly aspectRatioValue = signal('1:1');
+  readonly imageSize = signal('1024x1024');
+  readonly imageResolution = signal('');
+  readonly imageQuality = signal('');
+  readonly imageComplexity = signal('');
+  readonly imageThinkingLevel = signal('');
+  readonly imageCount = signal(1);
+  readonly referenceImage = signal<File | null>(null);
+  readonly referencePreviewUrl = signal<string | null>(null);
   readonly editorReady = signal(false);
   readonly settingsTabs = settingsTabs;
   readonly settingsTab = signal<SettingsTab>('providers');
@@ -405,6 +425,25 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly models = signal<PlatformModel[]>([]);
   readonly modelId = signal('');
   readonly selectedModel = computed(() => this.models().find(model => model.id === this.modelId()) ?? null);
+  readonly selectedAspectRatios = computed(() => this.selectedModel()?.aspectRatios ?? []);
+  readonly selectedResolutions = computed(() => {
+    const model = this.selectedModel();
+    if (model?.protocol === 'gemini' && model.imageOptions)
+      return model.imageOptions
+        .filter(option => option.aspectRatio === this.aspectRatioValue())
+        .map(option => option.resolution);
+    return model?.resolutions ?? [];
+  });
+  readonly selectedQualities = computed(() => this.selectedModel()?.qualities ?? []);
+  readonly selectedComplexities = computed(() => this.selectedModel()?.complexities ?? []);
+  readonly selectedThinkingLevels = computed(() => this.selectedModel()?.thinkingLevels ?? []);
+  readonly selectedCounts = computed(() => this.selectedModel()?.counts ?? [1]);
+  readonly selectedSizes = computed(() => {
+    const model = this.selectedModel();
+    return (model?.sizes ?? []).filter(size => dimensionsRatio(size) === this.aspectRatioValue());
+  });
+  readonly selectedImageCount = computed(() => this.imageCount());
+  readonly totalGenerationCredits = computed(() => (this.selectedModel()?.credits ?? 0) * this.imageCount());
   readonly modelBusy = signal(false);
   readonly modelMessage = signal('');
   readonly creditAccount = signal<CreditAccount | null>(null);
@@ -535,7 +574,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const request = this.job()?.request,
       mimeType = this.resultMimeType();
     return [
-      request?.kind === 'image' && request.aspectRatio ? ratioSizes[request.aspectRatio] : '',
+      request?.kind === 'image' && request.size ? this.formatImageSize(request.size)
+      : request?.kind === 'image' && request.resolution ? request.resolution
+      : request?.kind === 'image' && request.aspectRatio ? ratioSizes[request.aspectRatio]
+      : '',
+      request?.kind === 'image' ? request.aspectRatioValue ?? '' : '',
       mimeType === 'image/png' ? 'PNG'
       : mimeType ? 'JPEG'
       : ''
@@ -628,6 +671,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         );
   }
   ngOnDestroy() {
+    this.clearReferenceImage();
     this.disposed = true;
     ++this.epoch;
     this.lifetime.abort();
@@ -869,6 +913,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       await this.readSettings();
       if (!current()) return;
       if (!this.store) this.modelId.set(models[0]?.id ?? '');
+      if (this.selectedModel()) this.normalizeModelOptions(this.selectedModel()!);
       if (!models.length) this.modelMessage.set('平台暂未开放模型，请稍后刷新。');
     } catch (error) {
       if (!current()) return;
@@ -882,12 +927,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async chooseModel(id: string): Promise<void> {
     const store = this.store,
       epoch = this.epoch;
-    if (this.settingsBusy() || !this.models().some(model => model.id === id) || !store) return;
+    if (this.settingsBusy() || this.localStatus() !== 'ready' || !this.models().some(model => model.id === id) || !store) return;
     const version = ++this.modelVersion;
     const current = () =>
       !this.disposed && epoch === this.epoch && store === this.store && version === this.modelVersion;
     const previous = this.modelId();
     this.modelId.set(id);
+    this.resetModelOptions(this.selectedModel()!);
     this.modelBusy.set(true);
     try {
       const row = await store.preference('platform-model-v1');
@@ -897,6 +943,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     } catch {
       if (current()) {
         this.modelId.set(previous);
+        if (this.selectedModel()) this.resetModelOptions(this.selectedModel()!);
         this.modelMessage.set('模型选择未保存，请刷新后重试。');
       }
     } finally {
@@ -938,8 +985,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       return;
     }
     const model = this.selectedModel(),
+      count = this.imageCount(),
       identity = this.authUser()?.id;
     if (!model || !identity) return;
+    const ratio = this.ratio(), aspectRatio = this.aspectRatioValue(), prompt = this.serialized().text,
+      file = this.referenceImage(), epoch = this.epoch;
+    const options = {
+      ...(model.protocol === 'gemini' ? { resolution: this.imageResolution() } : { size: this.imageSize() }),
+      ...(this.imageQuality() ? { quality: this.imageQuality() } : {}),
+      ...(this.imageComplexity() ? { complexity: this.imageComplexity() } : {}),
+      ...(this.imageThinkingLevel() ? { thinkingLevel: this.imageThinkingLevel() } : {})
+    };
     this.sending.set(true);
     this.error.set('');
     try {
@@ -948,8 +1004,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         throw new Error('账号已变化，请重新登录。');
       const balance = this.creditAccount();
       if (!balance) throw new Error(this.creditMessage() || '积分暂不可确认，未发送生成请求。');
-      if (balance.available < model.credits)
-        throw new Error(`可用积分不足：当前 ${balance.available}，本次需要 ${model.credits}。未发送生成请求。`);
+      const requiredCredits = model.credits * count;
+      if (balance.available < requiredCredits)
+        throw new Error(`可用积分不足：当前 ${balance.available}，本次最多需要 ${requiredCredits}。未发送生成请求。`);
       const access = await this.adminApi.authorization();
       if (
         access.userId !== identity ||
@@ -966,41 +1023,57 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         await this.readTasks();
         if (this.uncertain() || this.job()?.status === 'processing') return;
         await this.studio?.flush();
-        const now = new Date().toISOString(),
-          ratio = this.ratio();
-        const task: LocalTask = {
-          id: crypto.randomUUID(),
-          channel: 'platform',
-          request: {
+        const referenceImage = await this.readReferenceImage(model, file);
+        for (let index = 0; index < count; index++) {
+          if (this.disposed || epoch !== this.epoch || identity !== this.authUser()?.id) break;
+          const now = new Date().toISOString(),
+            taskId = crypto.randomUUID(),
+            ticket: RelayTicket = { token: createRelayTaskToken(), accepted: false, protocol: model.protocol };
+          const request: ImageJobRequest = {
             kind: 'image',
-            operation: 'text-to-image',
-            providerInstanceId: '00000000-0000-4000-8000-000000000000',
+            operation: referenceImage ? 'reference-image' : 'text-to-image',
+            ...(referenceImage ? { referenceImageSource: 'inline' } : {}),
+            providerInstanceId: '00000000-0000-0000-0000-000000000000',
             providerRevision: 1,
             modelId: model.id,
-            prompt: this.serialized().text,
-            aspectRatio: ratio
-          },
-          status: 'processing',
-          createdAt: now,
-          updatedAt: now,
-          delivery: { status: 'pending', expiresAt: null, acknowledgedAt: null },
-          failure: null
-        };
-        const ticket: RelayTicket = { token: createRelayTaskToken(), accepted: false, protocol: model.protocol };
-        await this.writeTask(task, ticket);
-        await this.runTask(
-          task,
-          signal =>
-            runRelayTask({
-              id: task.id,
-              ticket,
-              ratio,
-              signal,
-              dispatch: { modelId: model.id, accessToken: access.session.access_token, prompt: task.request.prompt },
-              accepted: () => this.acceptRelay(task.id, ticket)
-            }),
-          null
-        );
+            prompt,
+            aspectRatio: ratio,
+            aspectRatioValue: aspectRatio,
+            ...options
+          };
+          const task: LocalTask = {
+            id: taskId,
+            channel: 'platform',
+            request,
+            status: 'processing',
+            createdAt: now,
+            updatedAt: now,
+            delivery: { status: 'pending', expiresAt: null, acknowledgedAt: null },
+            failure: null
+          };
+          await this.writeTask(task, ticket);
+          await this.runTask(
+            task,
+            signal =>
+              runRelayTask({
+                id: task.id,
+                ticket,
+                ratio,
+                signal,
+                dispatch: {
+                  modelId: model.id,
+                  accessToken: access.session.access_token,
+                  prompt,
+                  aspectRatio,
+                  ...options,
+                  ...(referenceImage ? { referenceImage } : {})
+                },
+                accepted: () => this.acceptRelay(task.id, ticket)
+              }),
+            null
+          );
+          if (this.job()?.status !== 'completed' || !this.saved()) break;
+        }
       });
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : '本机提交记录写入失败，没有重复发送。');
@@ -1068,10 +1141,97 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   setRatio(ratio: ImageAspectRatio) {
     if (this.inFlight()) return;
-    this.ratio.set(ratio);
+    const option = (this.selectedModel()?.aspectRatios ?? []).find(value => aspectCategory(value) === ratio);
+    if (option) this.setAspectRatioValue(option);
+    else this.ratio.set(ratio);
     this.dirtyInput = true;
     this.studio?.edit(this.draftState());
     this.product?.captureSoon();
+  }
+  aspectShape(value: string): string {
+    const [width, height] = value.split(':').map(Number);
+    return width === height ? 'shape' : width > height ? 'shape wide' : 'shape tall';
+  }
+  formatImageSize(size: string): string {
+    return size.replace('x', ' × ');
+  }
+  setAspectRatioValue(value: string) {
+    const model = this.selectedModel();
+    if (this.inFlight() || !model?.aspectRatios?.includes(value)) return;
+    this.aspectRatioValue.set(value);
+    this.ratio.set(aspectCategory(value));
+    this.normalizeModelOptions(model);
+    this.dirtyInput = true;
+    this.studio?.edit(this.draftState());
+    this.product?.captureSoon();
+  }
+  setImageSize(value: string) {
+    const model = this.selectedModel();
+    if (this.inFlight() || !model?.sizes?.includes(value)) return;
+    this.setAspectRatioValue(dimensionsRatio(value));
+    this.imageSize.set(value);
+  }
+  setImageResolution(value: string) {
+    if (this.inFlight() || !this.selectedResolutions().includes(value)) return;
+    this.imageResolution.set(value);
+  }
+  setImageQuality(value: string) {
+    if (this.inFlight() || !this.selectedQualities().includes(value)) return;
+    this.imageQuality.set(value);
+  }
+  setImageComplexity(value: string) {
+    if (this.inFlight() || !this.selectedComplexities().includes(value)) return;
+    this.imageComplexity.set(value);
+  }
+  setImageThinkingLevel(value: string) {
+    if (this.inFlight() || !this.selectedThinkingLevels().includes(value)) return;
+    this.imageThinkingLevel.set(value);
+  }
+  setImageCount(value: number) {
+    if (this.inFlight() || !this.selectedCounts().includes(value)) return;
+    this.imageCount.set(value);
+  }
+  async readReferenceFile(event: Event) {
+    const model = this.selectedModel();
+    const input = event.target as HTMLInputElement,
+      file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (
+      !model?.supportsImageEditing || this.inFlight() ||
+      !['image/png', 'image/jpeg'].includes(file.type) ||
+      !file.size ||
+      file.size > 4 * 1024 * 1024
+    ) {
+      this.error.set('参考图片仅支持不超过 4 MiB 的 PNG/JPEG。');
+      return;
+    }
+    let decoded: ImageBitmap;
+    try {
+      decoded = await createImageBitmap(file);
+    } catch {
+      this.error.set('参考图片无法解码。');
+      return;
+    }
+    try {
+      if (decoded.width > 2048 || decoded.height > 2048) {
+        this.error.set('参考图片尺寸不能超过 2048 × 2048。');
+        return;
+      }
+    } finally {
+      decoded.close();
+    }
+    if (model !== this.selectedModel() || this.inFlight() || this.disposed) return;
+    this.clearReferenceImage();
+    this.referenceImage.set(file);
+    this.referencePreviewUrl.set(URL.createObjectURL(file));
+    this.error.set('');
+  }
+  clearReferenceImage() {
+    const preview = this.referencePreviewUrl();
+    if (preview) URL.revokeObjectURL(preview);
+    this.referenceImage.set(null);
+    this.referencePreviewUrl.set(null);
   }
   async reloadDraft() {
     if (this.settingsBusy()) return;
@@ -2492,6 +2652,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   private attachWorkspace(store: LocalMediaStore, profile: WorkspaceProfile, initial = false): void {
+    this.clearReferenceImage();
     const old = this.store;
     ++this.epoch;
     this.resetImageSync();
@@ -2548,6 +2709,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           if (epoch !== this.epoch) return;
           this.promptState.set(state);
           this.ratio.set(state.aspectRatio ?? 'square');
+          const model = this.selectedModel();
+          const ratioValue = model?.aspectRatios?.find(value => aspectCategory(value) === (state.aspectRatio ?? 'square'));
+          if (ratioValue) {
+            this.aspectRatioValue.set(ratioValue);
+            const size = model?.sizes?.find(option => dimensionsRatio(option) === ratioValue);
+            if (size) this.imageSize.set(size);
+          }
           this.selected.set(this.templates().find(template => template.id === state.templateId) ?? null);
           this.selectedVersion.set(state.templateVersion ?? 1);
         },
@@ -2703,7 +2871,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (epoch !== this.epoch || store !== this.store) return;
     const selected: unknown = selection ? JSON.parse(selection.payload) : '';
     if (typeof selected !== 'string') throw new Error('本机模型选择无效。');
-    this.modelId.set(this.models().some(model => model.id === selected) ? selected : (this.models()[0]?.id ?? ''));
+    const model = this.models().find(model => model.id === selected) ?? this.models()[0];
+    if (this.modelId() !== (model?.id ?? '')) {
+      this.modelId.set(model?.id ?? '');
+      if (model) this.resetModelOptions(model);
+      else this.clearReferenceImage();
+    }
     const old = legacy ? (JSON.parse(legacy.payload) as { providers: unknown[]; defaultId: string }) : null;
     this.legacyProviders = old ? old.providers.map(publicProvider) : [];
     this.legacyDefaultId = old?.defaultId ?? '';
@@ -2775,6 +2948,47 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       clearTimeout(timer);
       this.lifetime.signal.removeEventListener('abort', abort);
     }
+  }
+  private async readReferenceImage(model: PlatformModel, file: File | null) {
+    if (!file) return undefined;
+    if (!model.supportsImageEditing) throw new Error('当前模型不支持图生图。');
+    return {
+      mimeType: file.type as 'image/png' | 'image/jpeg',
+      data: encodeBase64(new Uint8Array(await file.arrayBuffer()))
+    };
+  }
+  private resetModelOptions(model: PlatformModel) {
+    const aspectRatio = model.aspectRatios?.[0] ?? '1:1';
+    this.aspectRatioValue.set(aspectRatio);
+    this.ratio.set(aspectCategory(aspectRatio));
+    this.imageSize.set(model.sizes?.find(size => dimensionsRatio(size) === aspectRatio) ?? model.sizes?.[0] ?? '');
+    this.imageResolution.set(
+      model.protocol === 'gemini' && model.imageOptions ?
+        model.imageOptions.find(option => option.aspectRatio === aspectRatio)?.resolution ?? ''
+      : model.resolutions?.[0] ?? ''
+    );
+    this.imageQuality.set(model.qualities?.[0] ?? '');
+    this.imageComplexity.set(model.complexities?.[0] ?? '');
+    this.imageThinkingLevel.set(model.thinkingLevels?.[0] ?? '');
+    this.imageCount.set(model.counts?.[0] ?? 1);
+    this.clearReferenceImage();
+  }
+  private normalizeModelOptions(model: PlatformModel) {
+    const aspectRatio = model.aspectRatios?.includes(this.aspectRatioValue()) ?
+      this.aspectRatioValue()
+    : model.aspectRatios?.[0] ?? '1:1';
+    this.aspectRatioValue.set(aspectRatio);
+    this.ratio.set(aspectCategory(aspectRatio));
+    const sizes = (model.sizes ?? []).filter(size => dimensionsRatio(size) === aspectRatio);
+    if (!sizes.includes(this.imageSize())) this.imageSize.set(sizes[0] ?? model.sizes?.[0] ?? '');
+    if (!this.selectedResolutions().includes(this.imageResolution()))
+      this.imageResolution.set(this.selectedResolutions()[0] ?? '');
+    if (!model.qualities?.includes(this.imageQuality())) this.imageQuality.set(model.qualities?.[0] ?? '');
+    if (!model.complexities?.includes(this.imageComplexity())) this.imageComplexity.set(model.complexities?.[0] ?? '');
+    if (!model.thinkingLevels?.includes(this.imageThinkingLevel()))
+      this.imageThinkingLevel.set(model.thinkingLevels?.[0] ?? '');
+    if (!model.counts?.includes(this.imageCount())) this.imageCount.set(model.counts?.[0] ?? 1);
+    if (!model.supportsImageEditing) this.clearReferenceImage();
   }
   private async readTasks() {
     const store = this.store,

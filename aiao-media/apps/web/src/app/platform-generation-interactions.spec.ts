@@ -1,4 +1,5 @@
 import type { CreditSnapshot, PlatformModel } from '@aiao-media/api-contracts';
+import { validatePlatformModels } from '@aiao-media/api-contracts';
 import { TestBed } from '@angular/core/testing';
 import { webcrypto } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -87,7 +88,7 @@ function rig(signedIn = true) {
     close: vi.fn(async () => undefined)
   };
   Object.assign(component, { store, profileId: owner });
-  component.models.set([model]);
+  component.models.set(validatePlatformModels({ models: [model] }));
   component.modelId.set(model.id);
   component.localStatus.set('ready');
   component.editorReady.set(true);
@@ -164,13 +165,100 @@ describe('平台生图交互', () => {
     expect(r.run).not.toHaveBeenCalled();
     expect(r.store.savePreferences).not.toHaveBeenCalled();
   });
+  it('切换型号只展示有效组合，清理参考图，不覆盖同画幅的较高分辨率', async () => {
+    const r = rig();
+    r.component.localStatus.set('opening');
+    r.render();
+    await r.fixture.whenStable();
+    expect(r.element.querySelector<HTMLSelectElement>('#selected-model')?.disabled).toBe(true);
+    r.component.localStatus.set('ready');
+    r.component.models.set(validatePlatformModels({ models: [
+      { ...model, sizes: ['1024x1024','2048x2048'] },
+      { ...model, id: 'editable', protocol: 'gemini', supportsImageEditing: true, imageOptions: [
+        { aspectRatio: '1:1', resolution: '1K', outputSize: '1024x1024' },
+        { aspectRatio: '1:1', resolution: '2K', outputSize: '2048x2048' },
+        { aspectRatio: '16:9', resolution: '1K', outputSize: '1376x768' }
+      ] }
+    ] }));
+    await r.component.chooseModel('editable');
+    r.render();
+    expect(r.element.querySelector('input[type=file][accept*="image/png"]')).not.toBeNull();
+    r.component.setImageResolution('2K');
+    r.component.setAspectRatioValue('16:9');
+    expect(r.component.imageResolution()).toBe('1K');
+    r.component.referenceImage.set(new File(['x'], 'test.png', { type: 'image/png' }));
+    await r.component.chooseModel('standard');
+    r.render();
+    expect(r.component.referenceImage()).toBeNull();
+    expect(r.element.querySelector('input[type=file][accept*="image/png"]')).toBeNull();
+    r.component.setImageSize('2048x2048');
+    expect(r.component.imageSize()).toBe('2048x2048');
+  });
   it('余额不足时显示所需额度，不写任务或调用模型', async () => {
     const r = rig();
     r.credits.mockResolvedValue(snapshot(2));
     await r.component.generate();
-    expect(r.component.error()).toContain('当前 2，本次需要 3');
+    expect(r.component.error()).toContain('当前 2，本次最多需要 3');
     expect(r.run).not.toHaveBeenCalled();
     expect(r.preferences.has('tasks-v1')).toBe(false);
+  });
+  it('数量按模型计价预检总积分，每张使用独立单图任务', async () => {
+    const r = rig();
+    r.component.models.set([
+      {
+        ...model,
+        sizes: ['1024x1024'],
+        aspectRatios: ['1:1'],
+        resolutions: [],
+        qualities: ['high'],
+        complexities: ['high'],
+        thinkingLevels: [],
+        counts: [1, 2],
+        supportsImageEditing: false
+      }
+    ]);
+    await r.component.chooseModel('standard');
+    r.component.setImageCount(2);
+    expect(r.render()).toContain('本次 2 张');
+    r.component.editorReady.set(true);
+    r.credits.mockResolvedValue(snapshot(5));
+    await r.component.generate();
+    expect(r.component.error()).toContain('当前 5，本次最多需要 6');
+    expect(r.run).not.toHaveBeenCalled();
+    expect(r.preferences.has('tasks-v1')).toBe(false);
+
+    r.credits.mockResolvedValue(snapshot(6));
+    r.run.mockImplementationOnce(async () => {
+      r.component.imageQuality.set('low');
+      return new Blob(['verified-image'], { type: 'image/png' });
+    });
+    await r.component.generate();
+    expect(r.run).toHaveBeenCalledTimes(2);
+    expect(r.run.mock.calls.map(([run]) => run.dispatch)).toEqual([
+      expect.objectContaining({ size: '1024x1024', quality: 'high', complexity: 'high' }),
+      expect.objectContaining({ size: '1024x1024', quality: 'high', complexity: 'high' })
+    ]);
+  });
+  it('一张生成失败后停止队列，已持久化任务不会自动补发', async () => {
+    const r = rig();
+    r.component.models.set([
+      {
+        ...model,
+        sizes: ['1024x1024'],
+        aspectRatios: ['1:1'],
+        resolutions: [],
+        qualities: ['low'],
+        complexities: [],
+        thinkingLevels: [],
+        counts: [1, 3],
+        supportsImageEditing: false
+      }
+    ]);
+    r.component.imageCount.set(3);
+    r.run.mockRejectedValueOnce(new Error('平台状态待核对'));
+    await r.component.generate();
+    expect(r.run).toHaveBeenCalledOnce();
+    expect(r.component.job()?.status).toBe('needs_review');
   });
   it('积分不可读或授权用户变化时保留输入，不发送生成', async () => {
     const r = rig();
@@ -199,7 +287,7 @@ describe('平台生图交互', () => {
       expect(options.dispatch).toEqual({
         modelId: 'standard',
         accessToken: 'fixture-platform-session',
-        prompt: '测试图片'
+        prompt: '测试图片', aspectRatio: '1:1', size: '1024x1024'
       });
       expect(relay.deleteRelayTask).not.toHaveBeenCalled();
       await options.accepted();

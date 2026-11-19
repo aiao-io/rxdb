@@ -17,6 +17,19 @@ function object(value, required, optional = []) {
 const text = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 const integer = (value, max) => Number.isSafeInteger(value) && value >= 0 && value <= max;
 const timestamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+const imageSize = value => {
+  if (typeof value !== 'string' || !/^\d{1,4}x\d{1,4}$/.test(value)) return false;
+  const [width, height] = value.split('x').map(Number);
+  return (
+    width > 0 &&
+    height > 0 &&
+    width <= 4096 &&
+    height <= 4096 &&
+    width * height <= 16_777_216 &&
+    width % 16 === 0 &&
+    height % 16 === 0
+  );
+};
 export async function productRecordId(workspaceId, kind, sourceId) {
   if (
     !uuid.test(workspaceId) ||
@@ -234,7 +247,7 @@ export function validateProviderPolicy(input) {
       provider.models.some(model => typeof model !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/.test(model)) ||
       !Array.isArray(provider.sizes) ||
       !provider.sizes.length ||
-      provider.sizes.some(size => !['1024x1024', '1536x1024', '1024x1536'].includes(size)) ||
+      provider.sizes.some(size => !imageSize(size)) ||
       ['direct', 'proxy', 'enabled'].some(key => typeof provider[key] !== 'boolean')
     )
       fail();

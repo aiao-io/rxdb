@@ -30,7 +30,7 @@ function rig(options: Partial<RelayRun> = {}) {
     id,
     ratio: 'square',
     signal: new AbortController().signal,
-    dispatch: { modelId: 'standard', accessToken: 'platform-session', prompt: '测试图片' },
+    dispatch: { modelId: 'standard', accessToken: 'platform-session', prompt: '测试图片', size: '1024x1024' },
     accepted,
     ...options,
     ticket: options.ticket ?? ticket
@@ -87,7 +87,13 @@ describe('平台任务接单与确认', () => {
       'content-type': 'application/json',
       authorization: 'Bearer platform-session'
     });
-    expect(JSON.parse(String(init?.body))).toEqual({ model: 'standard', prompt: '测试图片', n: 1, size: '1024x1024' });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      model: 'standard',
+      prompt: '测试图片',
+      n: 1,
+      size: '1024x1024',
+      aspectRatio: '1:1'
+    });
     for (const [, later] of vi.mocked(fetch).mock.calls.slice(1)) {
       expect(later?.headers).toEqual({ 'x-relay-task-token': t.ticket.token });
       expect(later?.body).toBeUndefined();
@@ -99,13 +105,15 @@ describe('平台任务接单与确认', () => {
     ['portrait', '1024x1536']
   ] as const)('单张 %s 只使用平台参数', async (ratio, size) => {
     const t = rig({ ratio });
+    t.run.dispatch!.size = size;
     vi.mocked(fetch).mockResolvedValueOnce(Response.json({}, { status: 402 }));
     await expect(runRelayTask(t.run)).rejects.toMatchObject({ rejected: true });
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body))).toEqual({
       model: 'standard',
       prompt: '测试图片',
       n: 1,
-      size
+      size,
+      aspectRatio: ratio === 'landscape' ? '3:2' : ratio === 'portrait' ? '2:3' : '1:1'
     });
   });
   it('接单应答丢失后只用原标识重试，不生成新任务', async () => {

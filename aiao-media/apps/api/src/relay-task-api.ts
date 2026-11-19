@@ -44,7 +44,14 @@ export function handleRelayTask(request: Request, env: WorkerEnv) {
           [relayTaskTokenHeader]: token,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ taskId, ownerId: userId, cost: input.cost, url: input.url, body: input.body })
+        body: JSON.stringify({
+          taskId,
+          ownerId: userId,
+          cost: input.cost,
+          url: input.url,
+          body: input.body,
+          protocol: input.protocol
+        })
       });
     }
     const forward = operations[operation](url, taskId);

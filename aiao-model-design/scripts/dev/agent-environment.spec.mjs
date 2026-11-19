@@ -25,6 +25,10 @@ function trigger(apiUrl, secretKey) {
   return `SUPABASE_URL="https://remote.supabase.co"\nTRIGGER_API_URL="${apiUrl}"\nTRIGGER_SECRET_KEY="${secretKey}"\n`;
 }
 
+function triggerKey(secretKey) {
+  return `TRIGGER_SECRET_KEY="${secretKey}"\n`;
+}
+
 test('没有 .dev.vars 或其中没有 Trigger.dev 配置时不启用 AI', async t => {
   assert.deepEqual(await agentEnvironment({ ...(await fixture(t, {})), env: {} }), { mode: 'disabled' });
   const onlyAuth = await fixture(t, { devVars: 'SUPABASE_URL="https://remote.supabase.co"\nDEEPSEEK_MODEL="x"\n' });
@@ -76,6 +80,28 @@ test('开发环境密钥要启动智能体开发会话，需要项目 ref 与 .e
   );
 });
 
+test('开发环境密钥省略实例地址时默认连接本地 Trigger.dev', async t => {
+  const paths = await fixture(t, {
+    devVars: triggerKey(DEV_KEY),
+    agentEnv: 'AGENT_MODEL=x'
+  });
+  assert.deepEqual(
+    await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } }),
+    {
+      mode: 'dev',
+      environment: 'dev',
+      apiUrl: 'http://127.0.0.1:8030',
+      secretKey: DEV_KEY,
+      projectRef: PROJECT_REF
+    }
+  );
+});
+
+test('已部署环境密钥省略实例地址时明确报错，不默认连本地', async t => {
+  const paths = await fixture(t, { devVars: triggerKey(PROD_KEY) });
+  await assert.rejects(agentEnvironment({ ...paths, env: {} }), /TRIGGER_API_URL/);
+});
+
 test('只配了一半、地址无效或密钥不是环境密钥时直接报错', async t => {
   const half = await fixture(t, { devVars: 'TRIGGER_API_URL="http://localhost:8030"\n' });
   await assert.rejects(agentEnvironment({ ...half, env: {} }), /TRIGGER_SECRET_KEY/);
@@ -101,5 +127,5 @@ test('状态说明不带密钥', () => {
     labels.add(summary.label);
   }
   assert.equal(labels.size, agents.length);
-  assert.match(agentSummary(agents[0]).note, /apps\/api\/\.dev\.vars/);
+  assert.match(agentSummary(agents[0]).note, /nx dev 会自动恢复 key 与项目 ref/);
 });

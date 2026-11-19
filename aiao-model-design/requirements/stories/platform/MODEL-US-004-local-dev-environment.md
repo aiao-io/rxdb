@@ -25,7 +25,7 @@ capabilities: []
 
 - 产品根的 `dev` 目标：检查固定端口 → 拉起本地 Supabase 并同步角色密码 → 准备测试账号与本地 Worker 配置 → 启动 Worker 与 Web 开发服务器 → 全部就绪后打开开发导航。
 - 本地 Supabase 放在产品根 `infra/supabase/`，只起登录需要的 Postgres、GoTrue 与 Kong：端口固定在已提交的 `ports.env`，凭据首次运行时随机生成到私有 `.env`；关闭注册，测试账号经管理接口创建并确认。
-- 按 `apps/api/.dev.vars` 的密钥类型接入智能体：未配置时禁用；开发环境密钥顺带启动 `trigger dev`；其他环境密钥使用实例上已部署的版本（[D-10](../../decisions.md#d-10本地开发环境)）。
+- 按 `apps/api/.dev.vars` 的密钥类型接入智能体：缺开发密钥时先从本地 Trigger 实例恢复唯一 Development key 与项目 ref；仍无 key 时禁用；开发环境密钥默认连接本地 Trigger.dev 并启动 `trigger dev`；其他环境密钥显式配置实例地址后使用已部署版本（[D-10](../../decisions.md#d-10本地开发环境)）。
 - 开发导航由绑定 127.0.0.1 的本地 Worker 在根路径提供：服务入口、测试账号、AI 接入状态与数据库连接，可一键复制，不含服务端密钥。
 - 安全门禁把本地 Supabase 的凭据文件纳入 web 构建产物的密钥比对。
 - web 开发服务器关闭预打包：`@trigger.dev/sdk` 只装在 web 自己的依赖里，从仓库根解析不到，原来的 `serve` 打开设计器即报模块错误。
@@ -43,8 +43,8 @@ capabilities: []
 | 1   | Web 或 Worker 的固定端口被占用  | 执行 `nx dev`                        | 报出服务名与地址后退出，不换端口，也不停掉占用者                                                                                                                                                                                    | ✅   |
 | 2   | 首次运行                        | 执行 `supabase-up`                   | 生成仅本人可读的随机凭据，拉起 Postgres、GoTrue 与 Kong；Kong 只把 `/auth/v1/` 转给 GoTrue 并校验 apikey，注册关闭；再次运行沿用凭据与数据卷                                                                                        | ✅   |
 | 3   | 本地 Supabase 就绪              | 准备测试账号                         | 两个账号存在且邮箱已确认；再次启动保留账号 ID、恢复默认密码；只写本机 127.0.0.1                                                                                                                                                     | ✅   |
-| 4   | 准备完成                        | 查看生成的文件                       | Worker 的配置、密钥与导航页只写在忽略的 `apps/api/.wrangler/local-dev/`（密钥与导航页权限 600），不改 `.dev.vars` 与 `wrangler.jsonc`；导航页不含 JWT secret、service role key、anon key 与 Trigger.dev 密钥                        | ✅   |
-| 5   | `.dev.vars` 的 Trigger.dev 配置 | 执行 `nx dev`                        | 未配置时 AI 入口禁用；生产等环境密钥使用已部署的智能体；开发环境密钥启动 `trigger dev`，缺项目 ref 或 `.env.agent` 时在启动服务前报错退出；只配一半、地址无效或密钥不是环境密钥时报错                                               | ✅   |
+| 4   | 准备完成                        | 查看生成的文件                       | Worker 的运行配置、Supabase 凭据与导航页只写在忽略的 `apps/api/.wrangler/local-dev/`；本地 Trigger key 恢复时只回填忽略的 `apps/api/.dev.vars` 与 `infra/trigger/.env`（权限 600），不改 `wrangler.jsonc`；导航页不含任何服务端密钥 | ✅   |
+| 5   | `.dev.vars` 的 Trigger.dev 配置 | 执行 `nx dev`                        | 缺少本地开发密钥时从唯一 Development runtime 自动恢复 key 与项目 ref 并回填忽略文件；本地实例无项目/key 时 AI 入口禁用并说明初始化步骤；开发环境密钥省略地址时默认连接 `http://127.0.0.1:8030` 并启动 `trigger dev`；生产等环境密钥显式配置地址后使用已部署版本；多项目无法唯一选择、缺 `.env.agent`、非开发密钥缺地址、地址无效或密钥格式无效时明确报错 | ✅   |
 | 6   | 全部服务就绪                    | 观察 `nx dev`                        | 自动打开导航页一次；`AIAO_DEV_OPEN=false` 时不打开                                                                                                                                                                                  | ✅   |
 | 7   | 本机 Docker                     | 执行 `pnpm nx dev aiao-model-design` | 导航页列出设计器、登录页、Worker、Supabase Auth 与 Trigger.dev 入口、测试账号和数据库连接，复制可用，手机宽度无横向滚动；设计器正常渲染；测试账号登录后 `/bff/auth/session` 返回该用户，错误密码被拒；改 Web 源码后页面自动重新加载 | ✅   |
 | 8   | 本机自建实例，生产环境密钥      | 登录后申请 AI 会话                   | 导航页显示已部署版本与实例地址，Worker 为本人的会话签发令牌                                                                                                                                                                         | ✅   |

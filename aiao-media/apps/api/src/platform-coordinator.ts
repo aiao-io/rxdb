@@ -1,4 +1,4 @@
-import type { ImageMimeType } from '@aiao-media/api-contracts';
+import type { ImageMimeType, ImageResponseProtocol } from '@aiao-media/api-contracts';
 import { imageGenerationRequest, imageMetadata, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import { body, bounded, endpoint, fields, reject, uuid } from './product-http.ts';
 import type { PlatformContext, WorkerEnv, WorkerRequest, WorkerSql } from './worker-env.ts';
@@ -11,6 +11,7 @@ type PlatformModel = {
   secret: string;
   credits: number;
   costMicros: number;
+  protocol?: ImageResponseProtocol;
 };
 type PlatformPolicy = {
   enabled: boolean;
@@ -65,6 +66,8 @@ const hash = async (value: string) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))]
     .map(v => v.toString(16).padStart(2, '0'))
     .join('');
+const imageProtocol = (model: PlatformModel): ImageResponseProtocol =>
+  model.protocol ?? (isMiniMaxImageProvider(model.baseUrl) ? 'minimax' : 'openai');
 
 function models(env: WorkerEnv) {
   let values: PlatformModel[];
@@ -217,7 +220,15 @@ export class PlatformCoordinator {
       reject(400, '生图参数无效。');
     const model = models(this.env).find(m => m.id === value.model);
     if (!model || !this.env[model.secret] || !this.env.MEDIA_RESULTS) reject(503, '模型或结果存储未配置。');
-    if (!imageGenerationRequest(model.baseUrl, { ...value, model: model.model }))
+    if (
+      !imageGenerationRequest({
+        protocol: imageProtocol(model),
+        baseUrl: model.baseUrl,
+        model: model.model,
+        prompt: value.prompt,
+        size: value.size
+      })
+    )
       reject(400, '此模型不支持当前提示词。');
     const fingerprint = await hash(JSON.stringify([value.model, value.prompt, value.size, value.billing]));
     await this.ctx.storage.setAlarm(Date.now() + 1000);
@@ -520,7 +531,18 @@ export class PlatformCoordinator {
       model = p.provider;
     if (!this.env[model.secret]) return this.atomic(() => this.release(this.owned(row.owner, row.id), 'failed'));
     try {
-      const request = imageGenerationRequest(model.baseUrl, { model: model.model, prompt: p.prompt!, size: p.size })!;
+      const request = imageGenerationRequest({
+        protocol: imageProtocol(model),
+        baseUrl: model.baseUrl,
+        model: model.model,
+        prompt: p.prompt!,
+        size: p.size
+      });
+      if (!request) throw new Error('unsupported image request');
+      const headers: Record<string, string> =
+        request.authHeader === 'authorization' ?
+          { authorization: `Bearer ${this.env[model.secret]}` } :
+          { 'x-goog-api-key': this.env[model.secret] as string };
       const response = await this.request(request.url, {
         method: 'POST',
         redirect: 'manual',
@@ -528,11 +550,10 @@ export class PlatformCoordinator {
         cache: 'no-store',
         referrerPolicy: 'no-referrer',
         signal: AbortSignal.timeout(110000),
-        headers: { authorization: `Bearer ${this.env[model.secret]}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ...request.body,
-          response_format: isMiniMaxImageProvider(model.baseUrl) ? 'base64' : 'b64_json'
-        })
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify(
+          imageProtocol(model) === 'minimax' ? { ...request.body, response_format: 'base64' } : request.body
+        )
       });
       if ([400, 401, 403, 404, 413, 422, 429].includes(response.status)) {
         await response.body?.cancel();

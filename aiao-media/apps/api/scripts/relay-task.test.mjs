@@ -10,6 +10,16 @@ const origin = 'https://app.example.test';
 const evil = 'https://evil.example.test';
 const provider = 'https://provider.example.test/v1';
 const minimax = 'https://api.minimax.cn/v1';
+const imageEditModel = {
+  ...fixtureModel,
+  id: 'gpt-edit',
+  model: 'new-gpt-image-model',
+  sizes: ['1024x1024'],
+  aspectRatios: ['1:1'],
+  qualities: ['high'],
+  counts: [1],
+  supportsImageEditing: true
+};
 const image = { model: 'standard', prompt: 'test forest', n: 1, size: '1024x1024' };
 const result = { data: [{ b64_json: 'private-fixture-image' }] };
 const day = 24 * 60 * 60 * 1000;
@@ -31,6 +41,7 @@ function setup(context, upstream = () => Response.json(result)) {
     ...fixture.env,
     MEDIA_PLATFORM_MODELS: JSON.stringify([
       fixtureModel,
+      imageEditModel,
       { ...fixtureModel, id: 'minimax', baseUrl: minimax, model: 'image-01' }
     ]),
     ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([provider, minimax]),
@@ -290,12 +301,49 @@ test('MiniMax 任务改为 base64 返回，避免暂存会过期的临时 URL', 
   assert.equal(JSON.parse(t.calls[0].init.body).response_format, 'base64');
 });
 
+test('GPT 图生图使用服务端构造的 multipart 请求', async context => {
+  const t = setup(context);
+  const png = Buffer.alloc(33);
+  png.set([137, 80, 78, 71, 13, 10, 26, 10]);
+  png.writeUInt32BE(13, 8);
+  png.write('IHDR', 12);
+  png.writeUInt32BE(1, 16);
+  png.writeUInt32BE(1, 20);
+  const image = png.toString('base64');
+  assert.equal(
+    (
+      await t.create({
+        model: 'gpt-edit',
+        prompt: '修改图片',
+        size: '1024x1024',
+        aspectRatio: '1:1',
+        quality: 'high',
+        n: 1,
+        referenceImage: { mimeType: 'image/png', data: image }
+      })
+    ).status,
+    202
+  );
+  await t.settled();
+  assert.equal(t.calls[0].url, `${provider}/images/edits`);
+  assert.equal(t.calls[0].init.headers.authorization, 'Bearer fixture-model-private');
+  assert.equal(t.calls[0].init.headers['content-type'], undefined);
+  assert.equal(t.calls[0].init.body.get('model'), 'new-gpt-image-model');
+  assert.equal(t.calls[0].init.body.get('prompt'), '修改图片');
+  assert.equal(t.calls[0].init.body.get('quality'), 'high');
+  assert.equal(t.calls[0].init.body.get('n'), '1');
+  const file = t.calls[0].init.body.get('image');
+  assert.ok(file instanceof Blob);
+  assert.equal(file.type, 'image/png');
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()), png);
+});
+
 test('平台任务校验非法参数、未知模型与失效会话，上游零调用', async context => {
   const t = setup(context);
   for (const [data, headers, code] of [
     [{ ...image, n: 2 }, {}, 400],
     [{ ...image, prompt: 'x'.repeat(2001) }, {}, 400],
-    [{ ...image, prompt: 'x'.repeat(17000) }, {}, 413],
+    [{ ...image, prompt: 'x'.repeat(17000) }, {}, 400],
     [{ ...image, model: 'other' }, {}, 400],
     [image, { authorization: 'Basic nope' }, 401],
     [image, { 'x-relay-task-token': 'malformed' }, 400]

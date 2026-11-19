@@ -36,6 +36,12 @@ export const IMAGE_PROMPT_MAX_LENGTH = 2000;
 interface ImageJobSelection {
   kind: 'image';
   aspectRatio?: ImageAspectRatio;
+  aspectRatioValue?: string;
+  resolution?: string;
+  size?: string;
+  quality?: string;
+  complexity?: string;
+  thinkingLevel?: string;
   providerInstanceId: string;
   providerRevision: number;
   modelId: string;
@@ -43,7 +49,10 @@ interface ImageJobSelection {
 }
 /** Opaque upload id only: remote URLs, file paths and inline base64 are not accepted. */
 export type ImageJobRequest = ImageJobSelection &
-  ({ operation: 'text-to-image' } | { operation: 'reference-image'; referenceImageId: string });
+  (
+    | { operation: 'text-to-image' }
+    | { operation: 'reference-image'; referenceImageId?: string; referenceImageSource?: 'inline' }
+  );
 /** Fixed speech output profile; arbitrary voices, formats and tuning knobs are not accepted. */
 export const AUDIO_TEXT_MAX_LENGTH = 500;
 export const AUDIO_WAV_MAX_BYTES = 8 * 1024 * 1024;

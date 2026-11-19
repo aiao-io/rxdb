@@ -31,7 +31,7 @@ function png(width = 1024, height = 1024) {
 const encoded = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decode = (
   data: unknown,
-  protocol: 'openai' | 'minimax' = 'openai',
+  protocol: 'openai' | 'minimax' | 'gemini' = 'openai',
   ratio: 'square' | 'landscape' | 'portrait' = 'square'
 ) => responseImage(protocol, new TextEncoder().encode(JSON.stringify(data)), ratio, new AbortController().signal);
 const answer = (bytes = png()) => ({ data: [{ b64_json: encoded(bytes) }] });
@@ -107,6 +107,13 @@ describe('bounded provider responses', () => {
 });
 
 describe('平台图片响应本机校验', () => {
+  it('Gemini 只交付最终输出，忽略参考图和中间步骤中的图片', async () => {
+    const content = [{ type: 'image', mime_type: 'image/png', data: encoded(png()) }];
+    const steps = ['user_input','thought','model_output'].map(type => ({ type, content }));
+    expect((await decode({ steps }, 'gemini')).type).toBe('image/png');
+    await expect(decode({ steps: steps.slice(0,2) }, 'gemini')).rejects.toThrow('单张图片');
+    await expect(decode({ steps: [...steps,steps[2]] }, 'gemini')).rejects.toThrow('单张图片');
+  });
   it.each([
     ['square', 1024, 1024],
     ['landscape', 1536, 1024],

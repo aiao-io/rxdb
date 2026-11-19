@@ -244,7 +244,7 @@
             <span class="composer-spark" aria-hidden="true">✧</span>
             创作设置
           </span>
-          <span class="small">图片生成 · 每次 1 张</span>
+          <span class="small">图片生成 · 本次 {{ imageCount() }} 张</span>
         </div>
         @if (selected(); as t) {
           <div class="template-chip">
@@ -284,30 +284,152 @@
           </div>
         }
         <div class="composer-settings">
-          <div class="ratio-setting">
-            <div class="field-label">图片画幅</div>
-            <div class="ratio-group" aria-label="图片画幅" role="group">
-              @for (r of ratios; track r.id) {
-                <button
-                  class="ratio"
-                  [attr.aria-pressed]="ratio() === r.id"
-                  [class.active]="ratio() === r.id"
+          @if (selectedModel(); as model) {
+            <div class="ratio-setting">
+              <div class="field-label">宽高比</div>
+              <div class="ratio-group" aria-label="宽高比" role="group">
+                @for (value of selectedAspectRatios(); track value) {
+                  <button
+                    class="ratio"
+                    [attr.aria-pressed]="aspectRatioValue() === value"
+                    [class.active]="aspectRatioValue() === value"
+                    [disabled]="inFlight()"
+                    (click)="setAspectRatioValue(value)"
+                  >
+                    <span [class]="aspectShape(value)"></span>
+                    {{ value }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="model-options">
+              @if (model.protocol === 'gemini') {
+                <label class="model-option" for="image-resolution">
+                  <span class="field-label">分辨率</span>
+                  <select
+                    class="field"
+                    id="image-resolution"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageResolution()"
+                    (ngModelChange)="setImageResolution($event)"
+                  >
+                    @for (value of selectedResolutions(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              } @else {
+                <label class="model-option" for="image-size">
+                  <span class="field-label">分辨率</span>
+                  <select
+                    class="field"
+                    id="image-size"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageSize()"
+                    (ngModelChange)="setImageSize($event)"
+                  >
+                    @for (value of selectedSizes(); track value) {
+                      <option [value]="value">{{ formatImageSize(value) }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedQualities().length) {
+                <label class="model-option" for="image-quality">
+                  <span class="field-label">质量</span>
+                  <select
+                    class="field"
+                    id="image-quality"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageQuality()"
+                    (ngModelChange)="setImageQuality($event)"
+                  >
+                    @for (value of selectedQualities(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedComplexities().length) {
+                <label class="model-option" for="image-complexity">
+                  <span class="field-label">复杂度</span>
+                  <select
+                    class="field"
+                    id="image-complexity"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageComplexity()"
+                    (ngModelChange)="setImageComplexity($event)"
+                  >
+                    @for (value of selectedComplexities(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedThinkingLevels().length) {
+                <label class="model-option" for="image-thinking-level">
+                  <span class="field-label">思考强度</span>
+                  <select
+                    class="field"
+                    id="image-thinking-level"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageThinkingLevel()"
+                    (ngModelChange)="setImageThinkingLevel($event)"
+                  >
+                    @for (value of selectedThinkingLevels(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              <label class="model-option" for="image-count">
+                <span class="field-label">生成数量</span>
+                <select
+                  class="field"
+                  id="image-count"
                   [disabled]="inFlight()"
-                  (click)="setRatio(r.id)"
+                  [ngModel]="imageCount()"
+                  (ngModelChange)="setImageCount(+$event)"
                 >
-                  <span [class]="r.shape"></span>
-                  {{ r.label }}
-                  <small aria-hidden="true">{{ r.hint }}</small>
-                </button>
+                  @for (value of selectedCounts(); track value) {
+                    <option [value]="value">{{ value }} 张</option>
+                  }
+                </select>
+              </label>
+              @if (model.supportsImageEditing) {
+                <div class="model-option reference-image-option">
+                  <span class="field-label">参考图片</span>
+                  @if (referenceImage(); as file) {
+                    <div class="reference-image-selection">
+                      @if (referencePreviewUrl(); as preview) {
+                        <img [src]="preview" alt="参考图片预览" />
+                      }
+                      <span>{{ file.name }}</span>
+                      <button class="secondary sm" type="button" [disabled]="inFlight()" (click)="clearReferenceImage()">
+                        移除
+                      </button>
+                    </div>
+                  } @else {
+                    <label class="secondary sm reference-image-add" for="reference-image-upload">添加图片</label>
+                    <input
+                      class="visually-hidden"
+                      id="reference-image-upload"
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      [disabled]="inFlight()"
+                      (change)="readReferenceFile($event)"
+                    />
+                  }
+                </div>
               }
             </div>
-          </div>
+          }
           <div class="provider-setting">
             <label class="field-label" for="selected-model">平台模型</label>
             <select
               class="field"
               id="selected-model"
-              [disabled]="settingsBusy()"
+              [disabled]="settingsBusy() || localStatus() !== 'ready'"
               [ngModel]="modelId()"
               (ngModelChange)="chooseModel($event)"
             >
@@ -317,13 +439,13 @@
               }
             </select>
             @if (selectedModel(); as model) {
-              <p>本次预占 {{ model.credits }} 积分，图片通过本机验证后扣减；失败不扣。</p>
+              <p>本次最多预占 {{ totalGenerationCredits() }} 积分；按张结算，失败与未开始的图片不扣。</p>
             }
             @if (authStatus() === 'signed-in' && targetKind() === 'platform') {
               @if (creditAccount(); as balance) {
                 <p role="status">可用积分 {{ balance.available }} · 预占 {{ balance.reserved }}</p>
                 @if (selectedModel(); as model) {
-                  @if (balance.available < model.credits) {
+                  @if (balance.available < totalGenerationCredits()) {
                     <p class="inline-alert">积分不足，请联系平台管理员发放积分。</p>
                   }
                 }
@@ -938,7 +1060,7 @@
       role="tabpanel"
     >
       <h2>平台生图与积分</h2>
-      <p>使用平台提供的模型，每次生成一张。图片在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
+      <p>图片按张结算，在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
       @for (model of models(); track model.id) {
         <p>{{ model.name }} · {{ model.credits }} 积分 / 张</p>
       }

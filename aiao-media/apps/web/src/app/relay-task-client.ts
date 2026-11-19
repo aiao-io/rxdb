@@ -19,7 +19,18 @@ export interface RelayRun {
   ticket: RelayTicket;
   ratio: ImageAspectRatio;
   signal: AbortSignal;
-  dispatch: { modelId: string; accessToken: string; prompt: string } | null;
+  dispatch: {
+    modelId: string;
+    accessToken: string;
+    prompt: string;
+    size?: string;
+    aspectRatio?: string;
+    resolution?: string;
+    quality?: string;
+    complexity?: string;
+    thinkingLevel?: string;
+    referenceImage?: { mimeType: 'image/png' | 'image/jpeg'; data: string };
+  } | null;
   accepted(): Promise<void>;
 }
 /** 结果仍可续接，不能将确认故障写成终态或删除服务端原图。 */
@@ -37,7 +48,8 @@ export function relayTickets(payload: string | null): Record<string, RelayTicket
   for (const [id, value] of Object.entries(data)) {
     const ticket = value as Partial<RelayTicket> | null;
     const keys = ticket ? Object.keys(ticket).sort().join() : '';
-    const validProtocol = keys === 'accepted,protocol,token' && ['openai', 'minimax'].includes(ticket?.protocol ?? '');
+    const validProtocol =
+      keys === 'accepted,protocol,token' && ['openai', 'minimax', 'gemini'].includes(ticket?.protocol ?? '');
     const validLegacy =
       keys === 'accepted,baseUrl,token' && typeof ticket?.baseUrl === 'string' && /^https:\/\//.test(ticket.baseUrl);
     if (
@@ -130,10 +142,15 @@ async function accept(run: RelayRun, dispatch: NonNullable<RelayRun['dispatch']>
           model: dispatch.modelId,
           prompt: dispatch.prompt,
           n: 1,
-          size:
-            run.ratio === 'landscape' ? '1536x1024'
-            : run.ratio === 'portrait' ? '1024x1536'
-            : '1024x1024'
+          ...(dispatch.size ? { size: dispatch.size } : {}),
+          aspectRatio:
+            dispatch.aspectRatio ??
+            (run.ratio === 'landscape' ? '3:2' : run.ratio === 'portrait' ? '2:3' : '1:1'),
+          ...(dispatch.resolution ? { resolution: dispatch.resolution } : {}),
+          ...(dispatch.quality ? { quality: dispatch.quality } : {}),
+          ...(dispatch.complexity ? { complexity: dispatch.complexity } : {}),
+          ...(dispatch.thinkingLevel ? { thinkingLevel: dispatch.thinkingLevel } : {}),
+          ...(dispatch.referenceImage ? { referenceImage: dispatch.referenceImage } : {})
         })
       });
       if (receipt.status >= 500 && receipt.status !== 503) unconfirmed = true;

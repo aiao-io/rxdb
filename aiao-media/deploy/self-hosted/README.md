@@ -6,11 +6,11 @@
 
 ```dotenv
 ALLOWED_PROVIDER_BASE_URLS='["https://images.example.test/v1"]'
-MEDIA_PLATFORM_MODELS='[{"id":"platform-image","name":"平台图片","baseUrl":"https://images.example.test/v1","model":"image-model","secret":"MEDIA_IMAGE_API_KEY","credits":1}]'
+MEDIA_PLATFORM_MODELS='[{"id":"platform-image","name":"平台图片","baseUrl":"https://images.example.test/v1","model":"image-model","secret":"MEDIA_IMAGE_API_KEY","credits":1,"protocol":"openai","sizes":["1024x1024"],"aspectRatios":["1:1"],"qualities":["low","high"],"counts":[1,2],"supportsImageEditing":false}]'
 MEDIA_IMAGE_API_KEY='replace-on-host'
 ```
 
-`baseUrl` 必须是部署允许列表里的 HTTPS API 前缀，`secret` 指向同一文件中的凭据变量，`credits` 是每个成功结清任务消费的正整数积分。公开模型目录只返回平台标识、名称、积分和协议。模型、允许列表或凭据缺失时，接口明确返回未启用，不改用旧生成入口。
+`baseUrl` 必须是部署允许列表里的 HTTPS API 前缀，`secret` 指向同一文件中的凭据变量，`credits` 是每个成功结清任务消费的正整数积分。`protocol` 为 `openai` 时可配置 `sizes/aspectRatios/qualities/complexities/counts`；Gemini Interactions 使用 `imageOptions` 声明有效的宽高比、分辨率与交付尺寸组合，并可按型号配置 `thinkingLevels`。`supportsImageEditing` 默认关闭；开启后创作页显示单张 PNG/JPEG 参考图入口。公开模型目录只返回平台标识、名称、积分和经过校验的能力。模型、允许列表或凭据缺失时，接口明确返回未启用，不改用旧生成入口。
 
 Compose 只把这个文件传给 API。主配置显式设置的账号服务凭据、数据目录、公开来源和初始化密钥不会被平台文件覆盖。修改后仅重建 API；保留数据库、Storage、relay 和证书卷。不要将含真实环境变量的 Compose 解析结果写入公共日志。
 

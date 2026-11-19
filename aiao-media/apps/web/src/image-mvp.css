@@ -1126,6 +1126,57 @@ footer {
 .composer-settings > div {
   min-width: 0;
 }
+.composer-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
+  gap: 12px 20px;
+  align-items: start;
+}
+.model-options {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.model-option {
+  display: grid;
+  min-width: 0;
+}
+.model-option .field-label {
+  margin-bottom: 6px;
+}
+.reference-image-option {
+  align-content: start;
+}
+.reference-image-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  width: fit-content;
+  cursor: pointer;
+}
+.reference-image-selection {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.reference-image-selection img {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.reference-image-selection span {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .panel-title .small {
   color: var(--muted);
   font-size: 12px;
@@ -1208,7 +1259,7 @@ footer {
 }
 .ratio-group {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
   gap: 8px;
   margin-bottom: 20px;
 }
@@ -1217,7 +1268,8 @@ footer {
   align-items: center;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 4px 9px;
+  min-height: 76px;
+  padding: 10px 4px 8px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   color: var(--ink-2);
@@ -1225,6 +1277,17 @@ footer {
   transition:
     border-color 0.15s,
     background-color 0.15s;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .ratio:hover:not(:disabled) {
   border-color: #b9c7ab;

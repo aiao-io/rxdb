@@ -52,7 +52,19 @@ export function validateImageJobRequest(value: unknown): ImageJobRequest {
   keys(
     input,
     ['kind', 'operation', 'providerInstanceId', 'providerRevision', 'modelId', 'prompt'],
-    input['operation'] === 'reference-image' ? ['referenceImageId', 'aspectRatio'] : ['aspectRatio']
+    input['operation'] === 'reference-image' ?
+      [
+        'referenceImageId',
+        'referenceImageSource',
+        'aspectRatio',
+        'aspectRatioValue',
+        'resolution',
+        'size',
+        'quality',
+        'complexity',
+        'thinkingLevel'
+      ]
+    : ['aspectRatio', 'aspectRatioValue', 'resolution', 'size', 'quality', 'complexity', 'thinkingLevel']
   );
   if (
     input['kind'] !== 'image' ||
@@ -66,7 +78,15 @@ export function validateImageJobRequest(value: unknown): ImageJobRequest {
     input['prompt'].length > 4000 ||
     (input['aspectRatio'] !== undefined &&
       !['square', 'landscape', 'portrait'].includes(String(input['aspectRatio']))) ||
-    (input['operation'] === 'reference-image' && !isGenerationUuid(input['referenceImageId']))
+    (input['aspectRatioValue'] !== undefined && !validAspectRatio(input['aspectRatioValue'])) ||
+    (input['resolution'] !== undefined && !['512', '1K', '2K', '4K'].includes(String(input['resolution']))) ||
+    (input['size'] !== undefined && !validImageSize(input['size'])) ||
+    (input['quality'] !== undefined && !['auto', 'low', 'medium', 'high', 'xhigh', 'max'].includes(String(input['quality']))) ||
+    (input['complexity'] !== undefined && !['low', 'medium', 'high'].includes(String(input['complexity']))) ||
+    (input['thinkingLevel'] !== undefined && !['minimal', 'low', 'medium', 'high'].includes(String(input['thinkingLevel']))) ||
+    (input['operation'] === 'reference-image' &&
+      !(isGenerationUuid(input['referenceImageId']) || input['referenceImageSource'] === 'inline')) ||
+    (input['referenceImageSource'] !== undefined && input['referenceImageSource'] !== 'inline')
   )
     throw new GenerationProtocolError();
   // Preserve the existing canonical byte order: persisted idempotency hashes
@@ -76,7 +96,8 @@ export function validateImageJobRequest(value: unknown): ImageJobRequest {
     ...(input['operation'] === 'reference-image' ?
       {
         operation: 'reference-image' as const,
-        referenceImageId: input['referenceImageId'] as string
+        ...(input['referenceImageId'] ? { referenceImageId: input['referenceImageId'] as string } : {}),
+        ...(input['referenceImageSource'] ? { referenceImageSource: 'inline' as const } : {})
       }
     : { operation: 'text-to-image' as const }),
     providerInstanceId: input['providerInstanceId'],
@@ -85,8 +106,24 @@ export function validateImageJobRequest(value: unknown): ImageJobRequest {
     prompt: input['prompt'].trim(),
     ...(input['aspectRatio'] !== undefined ?
       { aspectRatio: input['aspectRatio'] as ImageJobRequest['aspectRatio'] }
-    : {})
+    : {}),
+    ...(input['aspectRatioValue'] !== undefined ? { aspectRatioValue: input['aspectRatioValue'] as string } : {}),
+    ...(input['resolution'] !== undefined ? { resolution: input['resolution'] as string } : {}),
+    ...(input['size'] !== undefined ? { size: input['size'] as string } : {}),
+    ...(input['quality'] !== undefined ? { quality: input['quality'] as string } : {}),
+    ...(input['complexity'] !== undefined ? { complexity: input['complexity'] as string } : {}),
+    ...(input['thinkingLevel'] !== undefined ? { thinkingLevel: input['thinkingLevel'] as string } : {})
   };
+}
+function validImageSize(value: unknown): boolean {
+  if (typeof value !== 'string' || !/^\d{1,4}x\d{1,4}$/.test(value)) return false;
+  const [width, height] = value.split('x').map(Number);
+  return width > 0 && height > 0 && width * height <= 16_777_216;
+}
+function validAspectRatio(value: unknown): boolean {
+  if (typeof value !== 'string' || !/^(\d{1,2}):(\d{1,2})$/.test(value)) return false;
+  const [width, height] = value.split(':').map(Number);
+  return width > 0 && height > 0;
 }
 export function validateReferenceImageUpload(value: unknown): ReferenceImageUpload {
   const input = object(value);

@@ -64,7 +64,7 @@ test('平台生图只接受有效账号与平台模型，目录和任务不泄�
     'MEDIA_IMAGE_KEY'
   ])
     assert.ok(!text.includes(secret));
-  assert.deepEqual(JSON.parse(text).models[0], { id: 'standard', name: '平台生图', credits: 3, protocol: 'openai' });
+  assert.partialDeepStrictEqual(JSON.parse(text).models[0], { id: 'standard', name: '平台生图', credits: 3, protocol: 'openai', supportsImageEditing: false, counts: [1] });
   assert.equal((await t.create(body, { authorization: 'Bearer user-supplied-provider-key' })).status, 401);
   assert.equal((await t.create({ ...body, baseUrl: 'https://evil.test' })).status, 400);
   assert.equal((await t.create({ ...body, model: 'private-image-model' })).status, 400);
@@ -345,6 +345,8 @@ test('模型目录遵守后台停用策略，三画幅与协议由服务端固�
   enabled = true;
   const catalog = await (await worker.fetch(new Request(`${origin}/api/models`), t.env)).json();
   assert.equal(catalog.models[0].protocol, 'minimax');
+  assert.deepEqual(catalog.models[0].sizes, ['1024x1024']);
+  assert.deepEqual(catalog.models[0].aspectRatios, ['1:1']);
   assert.equal((await t.create({ ...body, size: '1536x1024' })).status, 403);
   assert.equal((await t.create({ ...body, prompt: 'x'.repeat(1501) })).status, 400);
   assert.equal(t.calls.length, 0);

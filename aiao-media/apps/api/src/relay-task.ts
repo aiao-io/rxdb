@@ -21,7 +21,14 @@ type RelayTaskRow = {
   cost: number | null;
   credit_state: RelayCreditState | 'pending' | null;
 };
-type Dispatch = { taskId: string; ownerId: string; cost: number; url: string; body: unknown };
+type Dispatch = {
+  taskId: string;
+  ownerId: string;
+  cost: number;
+  url: string;
+  body: unknown;
+  protocol: 'openai' | 'minimax' | 'gemini';
+};
 
 /** 上游超时、看门狗、保留期、结果上限与长轮询上限。 */
 export const relayTaskLimits = {
@@ -236,17 +243,47 @@ export class RelayTask {
       return reply({ error: 'Task is closed' }, 409);
     }
     this.update('dispatched');
-    const pending = Promise.resolve().then(() =>
-      this.request(input.url, {
+    const pending = Promise.resolve().then(() => this.dispatch(input, request));
+    this.ctx.waitUntil(this.finish(pending, key, input.taskId));
+    return reply(this.view(this.row()!), 202);
+  }
+  private dispatch(input: Dispatch, request: Request): Promise<Response> {
+    const key = request.headers.get('authorization');
+    if (!key || !['openai', 'minimax', 'gemini'].includes(input.protocol)) throw new Error('invalid dispatch');
+    const body = input.body as Record<string, unknown> | null;
+    if (body && body['_format'] === 'multipart') {
+      const form = new FormData();
+      const fields = body['fields'] as Record<string, unknown>;
+      const image = body['image'] as { mimeType: string; data: string };
+      for (const [name, value] of Object.entries(fields)) {
+        if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid multipart field');
+        form.append(name, String(value));
+      }
+      const bytes = Uint8Array.from(atob(image.data), char => char.charCodeAt(0));
+      form.append('image', new Blob([bytes], { type: image.mimeType }), image.mimeType === 'image/png' ? 'reference.png' : 'reference.jpg');
+      return this.request(input.url, {
         method: 'POST',
         redirect: 'manual',
         signal: AbortSignal.timeout(relayTaskLimits.upstreamMs),
-        headers: { authorization: request.headers.get('authorization')!, 'content-type': 'application/json' },
-        body: JSON.stringify(input.body)
-      })
-    );
-    this.ctx.waitUntil(this.finish(pending, key, input.taskId));
-    return reply(this.view(this.row()!), 202);
+        headers: {
+          [input.protocol === 'gemini' ? 'x-goog-api-key' : 'authorization']:
+            input.protocol === 'gemini' ? key.replace(/^Bearer /, '') : key
+        },
+        body: form
+      });
+    }
+    return this.request(input.url, {
+      method: 'POST',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(relayTaskLimits.upstreamMs),
+      headers: {
+        [input.protocol === 'gemini' ? 'x-goog-api-key' : 'authorization']:
+          input.protocol === 'gemini' ? key.replace(/^Bearer /, '') : key,
+        ...(input.protocol === 'gemini' ? { 'api-revision': '2026-05-20' } : {}),
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(input.body)
+    });
   }
   private async replay(row: RelayTaskRow, hash: string, fingerprint: string) {
     if (row.token_hash !== hash) return missingRelayTask();

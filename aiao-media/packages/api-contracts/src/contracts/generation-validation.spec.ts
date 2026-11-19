@@ -61,6 +61,29 @@ describe('creator image protocol validation', () => {
     };
     expect(JSON.stringify(validateImageJobRequest(ref))).toBe(JSON.stringify(ref));
   });
+  it('preserves model-specific resolution and aspect ratio in local task snapshots', () => {
+    expect(validateImageJobRequest({
+      ...request,
+      aspectRatio: 'landscape',
+      aspectRatioValue: '16:9',
+      size: '1536x1024',
+      resolution: '2K',
+      quality: 'high'
+    })).toEqual({
+      ...request,
+      aspectRatio: 'landscape',
+      aspectRatioValue: '16:9',
+      size: '1536x1024',
+      resolution: '2K',
+      quality: 'high'
+    });
+    for (const size of ['0x1024', '1024x0', '99999x1', 'invalid'])
+      expect(() => validateImageJobRequest({ ...request, size })).toThrow();
+    for (const aspectRatioValue of ['0:1', '1:0', 'invalid'])
+      expect(() => validateImageJobRequest({ ...request, aspectRatioValue })).toThrow();
+    expect(validateImageJobRequest({ ...request, operation: 'reference-image', referenceImageSource: 'inline' }))
+      .toMatchObject({ operation: 'reference-image', referenceImageSource: 'inline' });
+  });
   it('requires an opaque owner-checked upload ID for reference jobs, never a URL or inline body', () => {
     for (const extra of [
       { referenceImageId: 'https://example.test/img.png' },

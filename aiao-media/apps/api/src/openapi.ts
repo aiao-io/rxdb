@@ -88,7 +88,15 @@ const ImageRelayInputSchema = z
     model: z.string().min(1).max(80).openapi({ example: 'standard' }),
     prompt: z.string().min(1).max(2000).openapi({ example: 'A quiet forest at sunrise' }),
     n: z.literal(1),
-    size: z.enum(['1024x1024', '1536x1024', '1024x1536'])
+    size: z.string().regex(/^\d{1,4}x\d{1,4}$/).optional(),
+    aspectRatio: z.string().regex(/^\d{1,2}:\d{1,2}$/).optional(),
+    resolution: z.enum(['512', '1K', '2K', '4K']).optional(),
+    quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+    complexity: z.enum(['low', 'medium', 'high']).optional(),
+    thinkingLevel: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
+    referenceImage: z
+      .object({ mimeType: z.enum(['image/png', 'image/jpeg']), data: z.string() })
+      .optional()
   })
   .openapi('ImageRelayInput');
 
@@ -296,7 +304,18 @@ export const apiRoutes = {
                   id: z.string(),
                   name: z.string(),
                   credits: z.number().int().positive(),
-                  protocol: z.enum(['openai', 'minimax'])
+                  protocol: z.enum(['openai', 'minimax', 'gemini']),
+                  sizes: z.array(z.string()),
+                  aspectRatios: z.array(z.string()),
+                  resolutions: z.array(z.string()),
+                  imageOptions: z.array(
+                    z.object({ aspectRatio: z.string(), resolution: z.string(), outputSize: z.string() })
+                  ).optional(),
+                  qualities: z.array(z.string()),
+                  complexities: z.array(z.string()),
+                  thinkingLevels: z.array(z.string()),
+                  counts: z.array(z.number().int().positive()),
+                  supportsImageEditing: z.boolean()
                 })
               )
             })

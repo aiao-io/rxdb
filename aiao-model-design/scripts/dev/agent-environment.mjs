@@ -11,6 +11,7 @@ const defaults = {
 const ENVIRONMENT_KEY = /^tr_(dev|prod|stg|preview)_(?:sk_)?[A-Za-z0-9]+$/;
 const PROJECT_REF = /^proj_[a-z0-9]+$/;
 const ENVIRONMENT_NAMES = { prod: '生产环境', stg: '预发环境', preview: '预览环境' };
+const LOCAL_TRIGGER_URL = 'http://127.0.0.1:8030';
 
 async function readOptional(file) {
   return readFile(file, 'utf8').catch(error => (error.code === 'ENOENT' ? '' : Promise.reject(error)));
@@ -42,8 +43,8 @@ async function localProjectRef(file, apiUrl) {
 /**
  * 按 `apps/api/.dev.vars` 里的 Trigger.dev 配置决定本地开发怎么接智能体。
  *
- * - 两项都没配：`disabled`，设计器禁用 AI 入口。
- * - 开发环境密钥（`tr_dev_`）：`dev`，`nx dev` 顺带启动 `trigger dev`；需要 `TRIGGER_PROJECT_REF` 与 `apps/agent/.env.agent`。
+ * - 没有密钥：`disabled`，设计器禁用 AI 入口。
+ * - 开发环境密钥（`tr_dev_`）：`dev`，地址默认本地 Trigger.dev；`nx dev` 顺带启动 `trigger dev`，还需要项目 ref 与模型环境文件。
  * - 其他环境密钥：`deployed`，会话交给实例上已部署的智能体。
  *
  * 配置不完整或无效时直接报错，不当作未配置处理。
@@ -58,17 +59,19 @@ export async function agentEnvironment({
   const apiUrl = vars.TRIGGER_API_URL?.trim();
   const secretKey = vars.TRIGGER_SECRET_KEY?.trim();
   if (!apiUrl && !secretKey) return { mode: 'disabled' };
-  if (!apiUrl || !secretKey)
-    throw new Error('apps/api/.dev.vars 里 TRIGGER_API_URL 与 TRIGGER_SECRET_KEY 要一起配置；不用 AI 时两项都删掉。');
+  if (!secretKey)
+    throw new Error('apps/api/.dev.vars 缺少 TRIGGER_SECRET_KEY；不用 AI 时删除 TRIGGER_API_URL。');
   const environment = ENVIRONMENT_KEY.exec(secretKey)?.[1];
   if (!environment)
     throw new Error(
       'apps/api/.dev.vars 的 TRIGGER_SECRET_KEY 不是 Trigger.dev 环境密钥：应以 tr_dev_、tr_prod_、tr_stg_ 或 tr_preview_ 开头（支持新版 tr_*_sk_ 密钥）。'
     );
+  if (!apiUrl && environment !== 'dev')
+    throw new Error('非开发环境的 TRIGGER_SECRET_KEY 必须同时配置 TRIGGER_API_URL。');
   const agent = {
     mode: environment === 'dev' ? 'dev' : 'deployed',
     environment,
-    apiUrl: instanceUrl(apiUrl),
+    apiUrl: instanceUrl(apiUrl || LOCAL_TRIGGER_URL),
     secretKey
   };
   if (agent.mode === 'deployed') return agent;
@@ -95,6 +98,6 @@ export function agentSummary(agent) {
     };
   return {
     label: '未启用',
-    note: '在 apps/api/.dev.vars 填写 TRIGGER_API_URL 与 TRIGGER_SECRET_KEY 后重启：开发环境密钥（tr_dev_）会顺带启动 trigger dev，其他环境密钥使用实例上已部署的智能体。'
+    note: '首次使用先在本地 Trigger.dev 控制台创建项目并签发 Development key；之后 nx dev 会自动恢复 key 与项目 ref。本地地址默认 http://127.0.0.1:8030。'
   };
 }

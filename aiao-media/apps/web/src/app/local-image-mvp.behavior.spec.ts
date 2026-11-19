@@ -2731,7 +2731,7 @@ describe('interface interactions', () => {
     pending.resolve(png());
     await generating;
     expect(r.component.resultLabel()).toBe('已保存到本机');
-    expect(r.component.resultSize()).toBe('1024 × 1024 · PNG');
+    expect(r.component.resultSize()).toBe('1024 × 1024 · 1:1 · PNG');
     expect(r.component['elapsedTimer']).toBeUndefined();
   });
 
