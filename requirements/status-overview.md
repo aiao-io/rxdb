@@ -2,6 +2,7 @@
 
 > **真相源**：每个 story 的 YAML `status`。本文件是派生视图；发现冲突时先修正故事的证据与状态，再同步视图。
 > 排期见 [roadmap](roadmap.md)，能力见 [capability-matrix](capability-matrix.md)，发布见 [release-plan](release-plan.md)。
+> 汇总表、进行中 / 待评审 / 阻塞三节与按 Epic 索引的故事列表由 `pnpm audit:requirements:update` 生成，手改会被覆盖；索引各小节标题下的说明文字是手写的。
 
 ## 状态汇总
 
