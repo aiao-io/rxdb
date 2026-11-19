@@ -34,6 +34,7 @@ export default defineConfig({
       // 非界面代码；Angular 组件与模板（components、apps、pages、shared）由冒烟覆盖，不在统计范围内。
       include: [
         'src/app/{services,disk,vm,data}/**/*.ts',
+        'src/app/apps/finder/finder-sidebar-order.ts',
         'src/app/apps/textedit/text-document.ts',
         'src/app/apps/reminders/reminder-drafts.ts',
         'src/app/apps/notes/note-document.ts',

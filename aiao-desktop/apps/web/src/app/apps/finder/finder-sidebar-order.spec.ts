@@ -18,7 +18,7 @@ function setup(saved?: unknown) {
   const data = new FakeDesktopData();
   const table = data.table<{ key: string; value: unknown }>(SystemPreference);
   if (saved !== undefined) table.seed([{ key: KEY, value: saved }]);
-  configureServices([Preferences, Toast, { provide: DesktopData, useValue: data }]);
+  configureServices([FinderSidebarOrder, Preferences, Toast, { provide: DesktopData, useValue: data }]);
   const order = TestBed.inject(FinderSidebarOrder);
   return {
     order,

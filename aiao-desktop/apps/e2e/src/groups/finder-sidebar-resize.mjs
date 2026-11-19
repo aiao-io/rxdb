@@ -92,6 +92,6 @@ export const finderSidebarResize = {
   async run(session) {
     await session.openDesktop();
     await checkSidebarDrag(session.page, session.helpers.win('finder'));
-    return { dragAndNavigation: true };
+    return { finderSidebarResize: { dragAndNavigation: true } };
   }
 };

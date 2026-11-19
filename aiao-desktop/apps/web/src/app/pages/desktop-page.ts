@@ -1,5 +1,6 @@
 import { Component, DestroyRef, ViewEncapsulation, afterNextRender, inject } from '@angular/core';
 
+import { FinderSidebarOrder } from '../apps/finder/finder-sidebar-order';
 import { MailComposer } from '../apps/mail/mail-composer';
 import { NowPlaying } from '../apps/music/now-playing';
 import { PhotoLibrary } from '../apps/photos/photo-library';
@@ -84,6 +85,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     FileImport,
     FileOpener,
     FilePanels,
+    FinderSidebarOrder,
     AppNotifications,
     DesktopItems,
     CalendarStore,

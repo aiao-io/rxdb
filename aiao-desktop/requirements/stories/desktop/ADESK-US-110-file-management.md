@@ -24,6 +24,8 @@ capabilities: []
 - 文件与目录重命名、递归复制、扩展名前重名消解。
 - 将本机文件批量拖入桌面、Finder 当前目录、文件夹图标、分栏目录或侧栏快捷位置（每批最多 256 MiB）。支持单文件下载，保留原始字节。
 - Finder 工具栏移除独立的导入按钮，「更多」菜单保留键盘选取本机文件的入口。
+- 拖动 Finder 分隔线调整侧栏宽度，到 132 像素后再向左拖 24 像素即可收起。收起后前进和后退按钮排在绿色缩放按钮右侧，侧栏可从左缘拖回。
+- Finder 侧栏快捷项可在各自分组内上下拖动，落点显示占位，相邻条目滑动让位，顺序保存在本地。
 - 明确选择已支持文件的内置应用打开；不伪装任意应用都支持文件传入。
 - 废纸篓原位置持久化、Put Back、指定目录恢复；旧条目、失效原目录、重名时不覆盖。
 - 目录、文件体、多个标签页与终端的既有同步；系统拥有的路径仍受保护。
@@ -46,7 +48,8 @@ capabilities: []
 | 6   | 旧条目无记录、原目录消失或有同名文件 | Put Back / Restore to Folder       | 原目录不被悄悄重建，明确选位置，重名不覆盖，取消保留条目 | ✅   |
 | 7   | 原有 schema 与文件                   | 升级当前构建、升级失败后重试       | 文件和文件体保留；新字段与版本一起提交；旧构建拒绝较新库 | ✅   |
 | 8   | 新增菜单、输入框、目录选择           | 纯键盘操作和 Esc                   | 焦点进入并约束于对话框，取消回原条目，错误可感知         | ✅   |
-| 9   | 桌面与 Finder 可见                  | 将本机文件拖到可写目录或只读位置   | 可写目标接收副本，只读位置拒绝拖入，更多菜单可用键盘导入 | ✅   |
+| 9   | 桌面与 Finder 可见                   | 将本机文件拖到可写目录或只读位置   | 可写目标接收副本，只读位置拒绝拖入，更多菜单可用键盘导入 | ✅   |
+| 10  | Finder 侧栏显示 AirDrop 等快捷项     | 组内上下拖动，或聚焦后按 Alt+↑/↓   | 拖动时显示占位和让位动画，松手排序，刷新保持顺序         | ✅   |
 
 ## 验收证据
 
@@ -58,6 +61,10 @@ capabilities: []
 - AC8：`renameCancellationAndKeyboardFocus`、`a11y.fileOperations.*` 全绿，新增对话框 axe 无违规。自动化不能替代物理设备与读屏人工证据。
 
 2026-11-20 的拖放回归覆盖 AC3 和 AC9。`file-management` 检查组验证 `dropsOnDesktop`、`dropsOnDesktopFolder`、`dropsOnFolder`、`dropsOnSidebar`、`dropsOnVisibleColumn`、`rejectsReadOnlyDrops` 及批量导入的数据完整性。`a11y.fileOperations.keyboardImport` 验证通过键盘打开「更多」菜单并选取本机文件。
+
+侧栏调整由 `finderSidebarResize.dragAndNavigation` 验收，覆盖拖动上下限、收起后导航、从左缘拖回与菜单恢复宽度。`a11y.finder.sidebarSplitter` 和 `a11y.finder.sidebarKeyboard` 验证分隔线的无障碍角色、键盘调宽与收起后的焦点。
+
+AC10 由 `finderSidebar.animatesWithPlaceholder`、`finderSidebar.reordersWithoutNavigating`、`finderSidebar.persists` 和 `a11y.finder.sidebarKeyboardReorder` 验收。
 
 新 schema 版本为 `2026111701`；之前的构建不能直接打开升级后的库，沿用既有降级保护。本次尚未发布。
 

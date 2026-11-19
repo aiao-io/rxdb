@@ -31,16 +31,15 @@ export const finderSidebar = {
     const title = finder.locator('[data-title]');
     const initialTitle = await title.textContent();
     const initialOrder = await places.allTextContents();
-    const desktopY = (await desktop.boundingBox()).y;
-    const rowHeight = (await airDrop.boundingBox()).height;
+    const rowHeight = await airDrop.evaluate(node => getComputedStyle(node).height);
     const expected = ['Recents', 'Desktop', 'AirDrop', ...initialOrder.slice(3)];
 
     await dragPlace(page, airDrop, desktop);
     await expect(page.locator(preview)).toBeVisible();
     await expect(favourites.locator(placeholder)).toBeVisible();
-    expect((await favourites.locator(placeholder).boundingBox()).height).toBe(rowHeight);
+    await expect(favourites.locator(placeholder)).toHaveCSS('height', rowHeight);
     await expect(desktop).toHaveCSS('transition-property', /transform/);
-    await expect.poll(async () => (await desktop.boundingBox()).y).toBeLessThan(desktopY);
+    await expect(desktop).not.toHaveCSS('transform', 'none');
     await page.mouse.up();
     await expect(page.locator(preview)).toHaveCount(0);
     await expect(places).toHaveText(expected);
@@ -57,8 +56,14 @@ export const finderSidebar = {
     await expect(title).toHaveText('AirDrop');
     await expect(airDrop).toHaveAttribute('aria-current', 'true');
 
+    await dragPlace(page, desktop, favourites.getByRole('button', { name: 'Recents' }));
+    await page.mouse.up();
+    const finalOrder = ['Desktop', 'Recents', 'AirDrop', ...initialOrder.slice(3)];
+    await expect(places).toHaveText(finalOrder);
+    await expect(title).toHaveText('AirDrop');
+
     await session.reloadDesktop();
-    await expect(places).toHaveText(expected);
-    return { animatesWithPlaceholder: true, reordersWithoutNavigating: true, persists: true };
+    await expect(places).toHaveText(finalOrder);
+    return { finderSidebar: { animatesWithPlaceholder: true, reordersWithoutNavigating: true, persists: true } };
   }
 };

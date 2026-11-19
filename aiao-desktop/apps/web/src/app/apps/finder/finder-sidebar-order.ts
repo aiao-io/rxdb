@@ -16,7 +16,7 @@ function applyOrder(group: FinderSidebarGroup, order: readonly string[]): Finder
 }
 
 /** 所有 Finder 窗口共用侧栏顺序，每组单独保存到本地偏好。 */
-@Service()
+@Service({ autoProvided: false })
 export class FinderSidebarOrder {
   private readonly preferences = inject(Preferences);
   private readonly toast = inject(Toast);
