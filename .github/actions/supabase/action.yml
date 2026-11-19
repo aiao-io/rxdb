@@ -82,8 +82,23 @@ runs:
         # dev-rxdb-p2p 的设备登记与清单表（p2p schema）。PGRST_DB_SCHEMAS 含 p2p，schema 不存在时
         # PostgREST 加载不了 schema 缓存（PGRST002），下面的 REST 就绪探测会一直等到超时。
         docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < ../apps/dev-rxdb-p2p/supabase/p2p-schema.sql
-        # 与 init-db.sh 保持同一条初始化链：01～04 之后收紧 rxdb_change 写权限（零散收尾项第 13 条），
-        # 测试侧对日志表的直写/清理经 service_role（VITE_SUPABASE_SERVICE_ROLE_KEY），anon 只读。
+        # 生产权限脚本要在 realtime.messages 上建通知频道的接收策略（US-225）。realtime.messages 与
+        # realtime.send 由 Realtime 服务启动后自己建，全新的栈上往往比这一步慢；等它就绪再加载，
+        # 超时就失败，不跳过——跳过会让策略静默缺失。与 init-db.sh 同一道等待。
+        echo "⏳ Waiting for Realtime schema..."
+        realtime_ready=""
+        for i in $(seq 1 120); do
+          if [ "$(docker exec supabase-db psql -U postgres -d postgres -tAc "SELECT pg_catalog.to_regclass('realtime.messages') IS NOT NULL AND pg_catalog.to_regprocedure('realtime.send(jsonb,text,text,boolean)') IS NOT NULL" 2>/dev/null)" = "t" ]; then
+            echo "✅ Realtime schema ready (${i}s)"
+            realtime_ready=1
+            break
+          fi
+          sleep 1
+        done
+        [ -n "$realtime_ready" ] || dump_and_fail "Realtime did not create realtime.messages / realtime.send within 120s"
+
+        # 与 init-db.sh 保持同一条初始化链：01～04 之后收紧日志协议的权限（零散收尾项第 13 条、US-225），
+        # 测试以 authenticated 测试用户运行，对日志表的直写/清理经 service_role（VITE_SUPABASE_SERVICE_ROLE_KEY）。
         docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/production/rxdb-change-grants.sql
 
         # pg_isready 只说明数据库起来了，Kong/PostgREST 还要几秒才接得住请求。
