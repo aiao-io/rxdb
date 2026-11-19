@@ -439,9 +439,11 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   5. `requirements/**/*.md` 相对链接可解析、`#L<n>` 锚点不超过文件行数。
      CONVENTIONS 禁止进正文的过程叙述词（`已于 X 日`、删除线、`落地偏差`……）只告警；
   6. 生成段落没有过期：`status-overview.md` 的进行中 / 待评审 / 阻塞三节与按 Epic 索引、`requirements/README.md` 的 Epic 清单；
-  7. `requirements/**/*.md` 的表格行都长在表格里（行前多一个空行就会掉出表格）；
+  7. AC 表的状态格都以 ✅ / ⚠️ / ⬜ 开头；全部需求根（根目录与各应用、各产品的 `requirements/`）下的表格行
+     都长在表格里（行前多一个空行就会掉出表格）；
   8. 全部需求根（根目录与各应用、各产品的 `requirements/`）下，故事验收证据区里的日期与裸测试计数只减不增，
-     存量记在 `audit/requirements-evidence-baseline.json`，新故事必须为零。
+     存量按故事编号记在 `audit/requirements-evidence-baseline.json`，新故事必须为零。
+     第 6 条只生成根 `requirements/` 的视图，应用与产品目录的派生视图仍由各自的门禁核对。
 - **`--update` 回写派生内容**：数字、上面第 6 条的生成段落，并把第 8 条的基线收紧到现状（只降不升）。
   epic status、死链、表格与证据区的新增是判断不是派生，必须手改。
 - **`--rebaseline-evidence`**：按现状重建证据区基线，是唯一能上调基线的入口；只在引入门禁或批量导入存量故事时用。

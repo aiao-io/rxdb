@@ -28,9 +28,12 @@
  *    capability-matrix / versioning-policy 手写的包计数等于 packages/ 与 api-baseline/ 的实际值。
  * 9. 生成段落没有过期：`status-overview.md` 的进行中 / 待评审 / 阻塞三节与按 Epic 索引、
  *    `requirements/README.md` 的 Epic 清单，必须等于现在重新生成一遍的结果；
- * 10. `requirements/**\/*.md` 里的表格行都长在表格里（行前多一个空行就会掉出表格，渲染成一串竖线）；
- * 11. 全部需求根（根目录与各应用、各产品的 `requirements/`）下，故事验收证据区里的日期与裸测试计数
- *     只减不增：存量记在 `requirements-evidence-baseline.json`，新故事必须为零。
+ * 10. AC 表的状态格都以 ✅ / ⚠️ / ⬜ 开头；全部需求根（根目录与各应用、各产品的 `requirements/`）下的
+ *     表格行都长在表格里（行前多一个空行就会掉出表格，渲染成一串竖线）；
+ * 11. 全部需求根下，故事验收证据区里的日期与裸测试计数只减不增：存量按故事编号记在
+ *     `requirements-evidence-baseline.json`，新故事必须为零；带 frontmatter 的故事必须有 `id` 且编号不重复。
+ *
+ * 第 9 条只生成根 `requirements/` 的视图；应用与产品目录的派生视图仍是手写的，由它们各自的门禁核对。
  *
  * `--update` 重写机器能唯一确定的内容：数字（汇总表、标题里的条数、README 的 N/M）、第 9 条的生成段落，
  * 并把第 11 条的基线收紧到现状（只降不升）。epic `status`、死链、表格与证据区的新增**不自动改**——那些是判断，
@@ -296,33 +299,76 @@ function acRanges(ids) {
 }
 
 /**
+ * 验收标准一节里 AC 表的编号行。AC 表按表头认：末列是「状态」的才是。
+ *
+ * @remarks
+ * 同一节里还会有按 AC 编号排的证据表、归属表（末列是「证据」「测试」「谁最终关闭」……），它们的行不是 AC。
+ * 按表头认而不是按「状态格里有没有状态符号」认，状态格空着或写了别的字的 AC 才不会被当成证据行漏掉。
+ *
+ * @param {string} text story 全文
+ * @returns {Array<{id: number, status: string, symbol: string | undefined}>} `symbol` 是状态格开头的 ✅ / ⚠️ / ⬜，认不出时为 undefined
+ */
+function acTableRows(text) {
+  const body = text.split(/^## 验收标准\s*$/m)[1]?.split(/^##\s/m)[0] ?? '';
+  const rows = [];
+  let inTable = false;
+  let isAcTable = false;
+  for (const raw of body.split('\n')) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) {
+      inTable = false;
+      continue;
+    }
+    const cells = line
+      .replace(/^\||\|$/g, '')
+      .split('|')
+      .map(cell => cell.trim());
+    if (!inTable) {
+      inTable = true;
+      isAcTable = cells.at(-1) === '状态';
+      continue;
+    }
+    if (isAcTable && /^\d+$/.test(cells[0]))
+      rows.push({ id: Number(cells[0]), status: cells.at(-1), symbol: /^(✅|⚠️|⬜)/u.exec(cells.at(-1))?.[1] });
+  }
+  return rows;
+}
+
+/**
+ * AC 表的状态格必须以 ✅ / ⚠️ / ⬜ 开头。空着或写了别的字，这条 AC 就既不算通过也不算未通过，
+ * 会从「还差什么」里消失。
+ *
+ * @param {Array<{rel: string, text: string}>} stories
+ * @returns {string[]}
+ */
+export function checkAcStatusCells(stories) {
+  const offenders = [];
+  for (const { rel, text } of stories) {
+    for (const { id, status, symbol } of acTableRows(text)) {
+      if (symbol === undefined)
+        offenders.push(`${rel}: AC#${id} 的状态格必须以 ✅ / ⚠️ / ⬜ 开头（现为「${status}」）`);
+    }
+  }
+  return offenders;
+}
+
+/**
  * 一句话说明这条故事还差哪些当前承诺的 AC，派生视图里「进行中 / 待评审」各行用它。
  *
- * 只数状态格以状态符号开头的编号行（证据表不算），登记在 `candidate_acs` 里的候选 AC 不参与。
+ * 登记在 `candidate_acs` 里的候选 AC 不参与；状态格认不出来的 AC 按未通过算（同时由 {@link checkAcStatusCells} 报出）。
  *
  * @param {{fm: Record<string, string>, text: string}} story
  * @returns {string}
  */
 export function openAcSummary({ fm, text }) {
-  const body = text.split(/^## 验收标准\s*$/m)[1]?.split(/^##\s/m)[0] ?? '';
+  const rows = acTableRows(text);
+  if (rows.length === 0) return 'AC 不是数字编号，见故事';
   const candidates = candidateAcIds({ rel: '', fm, text }, []);
-  const open = [];
-  let numbered = 0;
-  let current = 0;
-  for (const line of body.split('\n')) {
-    const id = /^\|\s*(\d+)\s*\|/.exec(line.trim());
-    if (!id) continue;
-    const cells = line.trim().replace(/\|$/, '').split('|');
-    const symbol = /^\s*(✅|⚠️|⬜)/u.exec(cells[cells.length - 1] ?? '')?.[1];
-    if (symbol === undefined) continue;
-    numbered++;
-    if (candidates.has(Number(id[1]))) continue;
-    current++;
-    if (symbol !== '✅') open.push(Number(id[1]));
-  }
-  if (numbered === 0) return 'AC 不是数字编号，见故事';
+  const current = rows.filter(row => !candidates.has(row.id));
+  if (current.length === 0) return '只有候选 AC，没有当前承诺的 AC';
+  const open = current.filter(row => row.symbol !== '✅').map(row => row.id);
   if (open.length === 0) return 'AC 已全部通过';
-  return `未通过 AC${acRanges(open.sort((a, b) => a - b))}（${open.length}/${current}）`;
+  return `未通过 AC${acRanges(open.sort((a, b) => a - b))}（${open.length}/${current.length}）`;
 }
 
 /** 把 `## 标题` 到下一个二级标题之间的正文整段换掉；找不到标题时原样返回，缺标题由检查报出。 */
@@ -1262,7 +1308,7 @@ const EVIDENCE_DATE = /(?<!\d)20\d{2}-\d{2}-\d{2}(?!\d)/g;
 const EVIDENCE_COUNTS = [
   /\d+\s*(?:例|条|个用例|条用例|个测试)(?:全部|均|都|全)?(?:通过|全绿|全过|转绿)/g,
   /(?<![\d/.])(\d+)\s*\/\s*\1(?![\d/.])/g,
-  /\d+\s*(?:tests?\s+)?passed/gi
+  /\d+\s*(?:(?:tests?|cases?|specs?)\s+)?pass(?:ed|ing)\b/gi
 ];
 
 /**
@@ -1328,25 +1374,44 @@ export async function collectRequirementRoots(root) {
 }
 
 /**
- * 扫描全部需求根下的故事，返回证据区有命中的那些。
+ * 扫描全部需求根下的故事，返回证据区有命中的那些，以及归属认不出来的文件。
+ *
+ * @remarks
+ * `stories/` 下带 frontmatter 的文件都是故事（证据留档等辅助文件没有 frontmatter，不受约束）。基线按故事编号登记，
+ * 所以编号必须认得出、且在全部需求根里唯一：有 frontmatter 却没有 `id`、或编号与别的故事重复，都作为问题返回，
+ * 不能当成「没有命中」悄悄跳过。缺 `status` 不影响归属，照样按编号扫。
  *
  * @param {string} root 仓库根
- * @returns {Promise<Map<string, {date: number, count: number, rel: string}>>} 以故事编号为键：编号不随文件搬迁变化
+ * @returns {Promise<{hits: Map<string, {date: number, count: number, rel: string}>, offenders: string[]}>}
+ *   `hits` 以故事编号为键：编号不随文件搬迁变化
  */
 export async function scanEvidence(root) {
-  const scan = new Map();
+  const hits = new Map();
+  const offenders = [];
+  const seen = new Map();
   for (const requirements of await collectRequirementRoots(root)) {
     for (const file of await collectMarkdown(path.join(root, requirements, 'stories'))) {
       if (file.endsWith('.template.md')) continue;
       const text = await readFile(file, 'utf8');
       const fm = parseFrontmatter(text);
-      if (!fm?.id || !fm.status) continue; // 证据留档等辅助文件没有 story frontmatter，不受约束
-      const hits = evidenceHits(text);
-      if (hits.date || hits.count)
-        scan.set(fm.id, { ...hits, rel: path.relative(root, file).split(path.sep).join('/') });
+      if (fm === null) continue;
+      const rel = path.relative(root, file).split(path.sep).join('/');
+      if (!fm.id) {
+        offenders.push(`${rel}: 有 frontmatter 却没有 id，验收证据区无法按故事编号登记`);
+        continue;
+      }
+      if (seen.has(fm.id)) {
+        offenders.push(
+          `${rel}: 故事编号 ${fm.id} 重复（另一处是 ${seen.get(fm.id)}），证据区基线按编号登记，分不清两条故事`
+        );
+        continue;
+      }
+      seen.set(fm.id, rel);
+      const found = evidenceHits(text);
+      if (found.date || found.count) hits.set(fm.id, { ...found, rel });
     }
   }
-  return scan;
+  return { hits, offenders };
 }
 
 const EVIDENCE_KINDS = [
@@ -1360,7 +1425,7 @@ const EVIDENCE_KINDS = [
  * - 多了：新增被拒。不在基线里的故事基线按零算，所以新故事一处都不能有；
  * - 少了：要求跑 `--update` 把基线收紧，清掉的部分才不会被悄悄写回来。
  *
- * @param {Awaited<ReturnType<typeof scanEvidence>>} scan
+ * @param {Awaited<ReturnType<typeof scanEvidence>>['hits']} scan
  * @param {Record<string, {date: number, count: number}>} baseline
  * @returns {string[]}
  */
@@ -1382,7 +1447,7 @@ export function checkEvidenceBaseline(scan, baseline) {
 /**
  * `--update` 用的基线回写：只收紧，清零即删条目；从不替新故事登记，也从不上调。
  *
- * @param {Awaited<ReturnType<typeof scanEvidence>>} scan
+ * @param {Awaited<ReturnType<typeof scanEvidence>>['hits']} scan
  * @param {Record<string, {date: number, count: number}>} baseline
  * @returns {Record<string, {count: number, date: number}>}
  */
@@ -1395,6 +1460,24 @@ export function ratchetEvidenceBaseline(scan, baseline) {
     if (count || date) next[id] = { count, date };
   }
   return next;
+}
+
+/**
+ * 这次运行之后基线应该是什么：重建取现状，回写只收紧，其余不动。
+ *
+ * 有故事的归属认不出来时一律不动——编号丢了的故事扫不到，回写会把它的存量登记当成「已清零」抹掉，
+ * 等它改回来，原有的存量就成了「新增」。
+ *
+ * @param {Awaited<ReturnType<typeof scanEvidence>>} scan
+ * @param {Record<string, {date: number, count: number}>} baseline
+ * @param {{update: boolean, rebaselineEvidence: boolean}} mode
+ */
+function nextEvidenceBaseline(scan, baseline, { update, rebaselineEvidence }) {
+  if (scan.offenders.length) return baseline;
+  if (rebaselineEvidence)
+    return Object.fromEntries([...scan.hits].map(([id, { date, count }]) => [id, { count, date }]));
+  if (update) return ratchetEvidenceBaseline(scan.hits, baseline);
+  return baseline;
 }
 
 /** 读基线文件；文件不存在表示没有登记过任何存量。 */
@@ -1447,19 +1530,16 @@ export async function run({ root, update = false, rebaselineEvidence = false }) 
     await writeFile(roadmapPath, updateRoadmap(await readFile(roadmapPath, 'utf8'), counts));
     await writeFile(requirementsReadmePath, renderEpicList(await readFile(requirementsReadmePath, 'utf8'), epics));
   }
-  if (rebaselineEvidence) {
-    evidenceBaseline = Object.fromEntries([...evidenceScan].map(([id, { date, count }]) => [id, { count, date }]));
-    await writeFile(baselinePath, serializeEvidenceBaseline(evidenceBaseline));
-  } else if (update) {
-    const tightened = ratchetEvidenceBaseline(evidenceScan, evidenceBaseline);
-    if (serializeEvidenceBaseline(tightened) !== serializeEvidenceBaseline(evidenceBaseline))
-      await writeFile(baselinePath, serializeEvidenceBaseline(tightened));
-    evidenceBaseline = tightened;
-  }
+  const evidenceNext = nextEvidenceBaseline(evidenceScan, evidenceBaseline, { update, rebaselineEvidence });
+  if (serializeEvidenceBaseline(evidenceNext) !== serializeEvidenceBaseline(evidenceBaseline))
+    await writeFile(baselinePath, serializeEvidenceBaseline(evidenceNext));
+  evidenceBaseline = evidenceNext;
 
   const tableOffenders = [];
-  for (const file of await collectMarkdown(path.join(root, 'requirements')))
-    tableOffenders.push(...checkTables(await readFile(file, 'utf8'), path.relative(root, file)));
+  for (const requirements of await collectRequirementRoots(root)) {
+    for (const file of await collectMarkdown(path.join(root, requirements)))
+      tableOffenders.push(...checkTables(await readFile(file, 'utf8'), path.relative(root, file)));
+  }
 
   const evidence = await checkAnchorEvidence(root);
   const offenders = [
@@ -1477,8 +1557,10 @@ export async function run({ root, update = false, rebaselineEvidence = false }) 
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),
     ...checkRoadmap(await readFile(roadmapPath, 'utf8'), stories),
     ...checkEpics(epics, stories),
+    ...checkAcStatusCells(stories),
     ...tableOffenders,
-    ...checkEvidenceBaseline(evidenceScan, evidenceBaseline),
+    ...evidenceScan.offenders,
+    ...checkEvidenceBaseline(evidenceScan.hits, evidenceBaseline),
     ...(await checkLinks(root)),
     ...evidence.offenders
   ];
