@@ -422,6 +422,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 - 第一个登记（`rxdb_enable_sync_for_branch`）或推送该分支的已登录用户认领它。一次推送会顺带上行从未单独登记的祖先分支，它们同样由推送者认领。
 - 之后只有所有者能登记、改写它，或往它推送日志；其他用户得到 `42501`（`rxdb: branch <id> belongs to another user`），整批回滚。
+- 分支 ID 在一个后端里全局唯一、先到先得。两个用户各自建了同名分支（例如都叫 `feature-1`），后推送的一方会被拒；常见的名字也可能被别人先登记。给分支起名时带上用户前缀或随机后缀。名字已被占用时，只能由管理员改 `rxdb_branch_owner`。
 - 已有日志或登记、却没有所有者的旧分支一律拒绝写入（`rxdb: branch <id> has no owner`）。从旧版本升级后，先以管理员身份为仍在使用的分支按分支 ID 补登所有者。只随推送上行的祖先分支不在 `rxdb_branch` 里，只出现在日志中，列出全部待补登分支的查询见[迁移说明](../migration/supabase-sync-access.md#3-为旧分支补登所有者)：
 
 ```sql
