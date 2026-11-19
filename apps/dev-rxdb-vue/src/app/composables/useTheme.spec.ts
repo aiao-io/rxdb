@@ -1,5 +1,5 @@
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
-import { createFakeWujieBus } from '@modules/wujie/testing';
+import { ORBIT_THEME_EVENT, ORBIT_THEME_REQUEST_EVENT } from '@modules/orbit';
+import { createFakeOrbitBus } from '@modules/orbit/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -48,7 +48,7 @@ describe('useTheme', () => {
   afterEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
-    delete window.$wujie;
+    delete window.$orbit;
     document.documentElement.removeAttribute('data-theme');
   });
 
@@ -74,14 +74,14 @@ describe('useTheme', () => {
     expect(currentThemeLightDark.value).toBe('dark');
   });
 
-  it('applies the host theme from $wujie without persisting it', async () => {
-    const bus = createFakeWujieBus();
+  it('applies the host theme from $orbit without persisting it', async () => {
+    const bus = createFakeOrbitBus();
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => createMediaQueryList(false))
     );
     vi.stubGlobal('localStorage', createStorage());
-    window.$wujie = { bus, props: { theme: 'dark' } };
+    window.$orbit = { bus, props: { theme: 'dark' } };
 
     const { useTheme } = await import('./useTheme');
     const { currentTheme } = useTheme();
@@ -90,7 +90,7 @@ describe('useTheme', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(localStorage.getItem('theme')).toBeNull();
 
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'light' });
     await nextTick();
 
     expect(currentTheme.value).toBe('light');
@@ -98,7 +98,7 @@ describe('useTheme', () => {
   });
 
   it('stopTheme 停掉全部副作用：宿主下发、系统变化、data-theme 写入都不再发生', async () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const mediaQuery = createMediaQueryList(false);
     vi.stubGlobal(
       'matchMedia',
@@ -107,7 +107,7 @@ describe('useTheme', () => {
     vi.stubGlobal('localStorage', createStorage());
     localStorage.setItem('theme', 'auto');
     // 只给 bus 不给 props：初始主题走 localStorage，宿主下发才由 bus 推
-    window.$wujie = { bus };
+    window.$orbit = { bus };
 
     const { stopTheme, useTheme } = await import('./useTheme');
     const { currentTheme, currentThemeIsDark } = useTheme();
@@ -115,7 +115,7 @@ describe('useTheme', () => {
 
     stopTheme();
 
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
     mediaQuery.setMatches(true);
     await nextTick();
 
@@ -125,20 +125,20 @@ describe('useTheme', () => {
   });
 
   it('stopTheme 之后再次调用 useTheme 会重新接线', async () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => createMediaQueryList(false))
     );
     vi.stubGlobal('localStorage', createStorage());
-    window.$wujie = { bus };
+    window.$orbit = { bus };
 
     const { stopTheme, useTheme } = await import('./useTheme');
     useTheme();
     stopTheme();
 
     const { currentTheme } = useTheme();
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
     await nextTick();
 
     expect(currentTheme.value).toBe('dark');
@@ -146,17 +146,17 @@ describe('useTheme', () => {
   });
 
   it('用户切换主题时把请求推给宿主，宿主下发的不回推', async () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     vi.stubGlobal(
       'matchMedia',
       vi.fn(() => createMediaQueryList(false))
     );
     vi.stubGlobal('localStorage', createStorage());
-    window.$wujie = { bus, props: { theme: 'light' } };
+    window.$orbit = { bus, props: { theme: 'light' } };
 
     const { useTheme } = await import('./useTheme');
     const onRequest = vi.fn();
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const { setTheme } = useTheme();
     setTheme('dark');
@@ -168,7 +168,7 @@ describe('useTheme', () => {
     expect(onRequest).toHaveBeenCalledWith({ theme: 'light' });
 
     onRequest.mockClear();
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
     await nextTick();
     expect(onRequest).not.toHaveBeenCalled();
   });
