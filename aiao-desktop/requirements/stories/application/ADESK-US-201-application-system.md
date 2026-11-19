@@ -61,7 +61,7 @@ capabilities: []
 
 - `aiao-desktop/apps/web/src/app/services/desktop-apps.ts` — 应用类别、登记项类型、校验与允许来源推导。
 - `aiao-desktop/apps/web/src/app/apps/registry.ts` — 登记表。
-- `aiao-desktop/apps/web/src/app/components/dock.ts`、`components/icon-sprite.html` — Dock 固定项与 Aiao Code 图标。
+- `aiao-desktop/apps/web/src/app/components/dock.ts`、`aiao-desktop/apps/web/public/icons/desktop/app-aiao-code.png` — Dock 固定项与 Aiao Code 图标。
 - `aiao-desktop/apps/e2e/src/smoke.mjs` — 冒烟。
 
 ## References

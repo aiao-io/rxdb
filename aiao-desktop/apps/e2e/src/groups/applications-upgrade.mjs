@@ -24,6 +24,7 @@ export const applicationsUpgrade = {
     'applicationsUpgrade.deletedPackageIsRestored',
     'applicationsUpgrade.userFileInsidePackageIsKept',
     'applicationsUpgrade.sameNameFileKeptAsIs',
+    'applicationsUpgrade.sameNameFileKeepsItsDisplayName',
     'applicationsUpgrade.finderExplainsTheConflict',
     'applicationsUpgrade.conflictedAppStillOpens',
     'applicationsUpgrade.sameNameFileIsNotProtected',
@@ -111,7 +112,8 @@ export const applicationsUpgrade = {
     await page.locator('#dock .di[data-app="finder"]').click();
     const finder = win('finder').last();
     await finder.locator('[data-place="Applications"]').click();
-    await finder.locator('.fitem[data-name="Clock.app"]').waitFor();
+    const fileName = finder.locator('.fitem[data-name="Clock.app"] .nm');
+    result.sameNameFileKeepsItsDisplayName = (await fileName.textContent())?.trim() === 'Clock.app';
     result.finderExplainsTheConflict = ((await finder.locator('[data-finder-note]').textContent()) ?? '').includes(
       'Clock.app'
     );

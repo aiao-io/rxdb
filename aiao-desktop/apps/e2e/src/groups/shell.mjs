@@ -1,3 +1,4 @@
+import { showsIconAsset } from '../harness/apps.mjs';
 import { passes } from '../harness/helpers.mjs';
 
 /** 桌面外壳（ADESK-US-101）：结构、菜单栏、窗口最小化与还原、启动台、聚焦搜索与通知中心。 */
@@ -11,6 +12,7 @@ export const shell = {
     'shell.noRuntimeGlobals',
     'shell.noInlineScripts',
     'shell.noDevtools',
+    'shell.fileBackedIcons',
     'finderNavigates',
     'calculatorWorks',
     'appleMenu',
@@ -40,6 +42,18 @@ export const shell = {
       noInlineScripts: [...document.scripts].every(script => script.src !== ''),
       noDevtools: !('__AIAO_RXDB_DEVTOOLS__' in window)
     }));
+
+    const calendar = page.locator('#dock [data-app="calendar"] .art');
+    shellState.fileBackedIcons =
+      (await page.locator('app-icon-sprite').count()) === 0 &&
+      (await showsIconAsset(page.locator('#dock [data-app="finder"] .art svg'), 'app-finder.png')) &&
+      (await showsIconAsset(page.locator('#menubar .mb-item.apple svg'), 'g-apple.svg')) &&
+      (await showsIconAsset(calendar.locator('svg'), 'app-calendar.png')) &&
+      (await calendar.locator('.calendar-date').evaluate(node => {
+        const today = new Date();
+        const weekday = today.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+        return node.textContent.trim() === `${weekday} ${today.getDate()}`;
+      }));
 
     /* Finder：双击文件夹进入，标题与路径栏跟着变。 */
     await win('finder').locator('.fitem[data-name="Documents"]').dblclick();

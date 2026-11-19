@@ -192,10 +192,10 @@
                   @if (item.icon === 'f-img') {
                     <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
                   } @else {
-                    <svg [appIcon]="item.icon"></svg>
+                    <svg [appIcon]="displayIcon(item)"></svg>
                   }
                 </div>
-                <div class="nm">{{ item.name }}</div>
+                <div class="nm">{{ displayName(item) }}</div>
               </div>
             }
           </div>
@@ -240,10 +240,10 @@
                     @if (item.icon === 'f-img') {
                       <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
                     } @else {
-                      <svg [appIcon]="item.icon"></svg>
+                      <svg [appIcon]="displayIcon(item)"></svg>
                     }
                   </span>
-                  <span>{{ item.name }}</span>
+                  <span>{{ displayName(item) }}</span>
                 </div>
                 <div class="c2">{{ finderDate(item.date) }}</div>
                 <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
@@ -279,8 +279,8 @@
                       (pointerdown)="dragApp($event, item)"
                       role="option"
                     >
-                      <span class="art"><svg [appIcon]="item.icon"></svg></span>
-                      <span class="nm">{{ item.name }}</span>
+                      <span class="art"><svg [appIcon]="displayIcon(item)"></svg></span>
+                      <span class="nm">{{ displayName(item) }}</span>
                       @if (item.kind === 'folder') {
                         <svg class="ch" appIcon="g-chev-r"></svg>
                       }
@@ -294,9 +294,9 @@
               }
             }
             @if (previewFile(); as preview) {
-              <div class="fv-prev" [attr.aria-label]="'Preview of ' + preview.name" role="group">
-                <div class="big"><svg [appIcon]="preview.icon"></svg></div>
-                <div class="nm">{{ preview.name }}</div>
+              <div class="fv-prev" [attr.aria-label]="'Preview of ' + displayName(preview)" role="group">
+                <div class="big"><svg [appIcon]="displayIcon(preview)"></svg></div>
+                <div class="nm">{{ displayName(preview) }}</div>
                 <dl>
                   <dt>Kind</dt>
                   <dd>{{ preview.k || 'Document' }}</dd>
@@ -330,7 +330,7 @@
                     <app-photo-art [index]="seed(current.name)" [kind]="shotKind(current.name)" />
                   </div>
                 } @else {
-                  <div class="art"><svg [appIcon]="current.icon"></svg></div>
+                  <div class="art"><svg [appIcon]="displayIcon(current)"></svg></div>
                 }
               } @else {
                 <span style="color: var(--txt-3)">Nothing to preview</span>
@@ -338,7 +338,7 @@
             </div>
             @if (current) {
               <div class="cap" role="status">
-                <b>{{ current.name }}</b>
+                <b>{{ displayName(current) }}</b>
                 <span>
                   {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
                   }}{{ current.size ? ' · ' + current.size : ''
@@ -365,7 +365,7 @@
                   @if (item.icon === 'f-img') {
                     <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
                   } @else {
-                    <div class="art"><svg [appIcon]="item.icon"></svg></div>
+                    <div class="art"><svg [appIcon]="displayIcon(item)"></svg></div>
                   }
                 </div>
               }
@@ -379,14 +379,14 @@
         @if (i) {
           <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
         }
-        <button class="seg" [attr.data-i]="i" (click)="jump(i)" tabindex="0" type="button">
+        <button [attr.data-i]="i" (click)="jump(i)" tabindex="0" type="button">
           <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>
           {{ segment }}
         </button>
       }
       @if (pathTail(); as tail) {
         <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
-        <button class="seg" (click)="jump(null)" tabindex="0" type="button">{{ tail }}</button>
+        <button (click)="jump(null)" tabindex="0" type="button">{{ tail }}</button>
       }
     </div>
   </div>

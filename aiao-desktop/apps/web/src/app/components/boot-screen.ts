@@ -13,6 +13,7 @@ import {
 
 import { FileSystem } from '../services/file-system';
 import { BootRun, Session } from '../services/session';
+import { Icon } from '../shared/icon';
 
 /** 进度条分段推进：匀速的条像加载动画，Apple 的会停顿、跳跃再走完。 */
 const STEPS: Readonly<Record<'startup' | 'restart', readonly (readonly [number, number])[]>> = {
@@ -42,6 +43,7 @@ const DONE_AT = { startup: 1980, restart: 1700 } as const;
  */
 @Component({
   selector: 'app-boot-screen',
+  imports: [Icon],
   templateUrl: './boot-screen.html',
   styleUrl: './boot-screen.scss',
   encapsulation: ViewEncapsulation.None,

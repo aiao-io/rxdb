@@ -103,7 +103,7 @@ export const hostCapabilities = {
             title: node.querySelector('[data-nc-title]')?.textContent?.trim(),
             body: node.querySelector('[data-nc-body]')?.textContent?.trim(),
             time: node.querySelector('[data-nc-time]')?.textContent?.trim(),
-            icon: node.querySelector('.art use')?.getAttribute('href'),
+            icon: node.querySelector('.art [data-icon]')?.getAttribute('data-icon'),
             dedupe: node.getAttribute('data-dedupe')
           }))
         ),
@@ -208,7 +208,7 @@ export const hostCapabilities = {
       /^\d{1,2}:\d{2}\s?[AP]M$/.test(note.time ?? '');
     /* 条目归属调用方：显示的是登记表里的名称与图标，不是应用自己填的。 */
     hostCapabilities.notificationAttributedToCaller =
-      note?.app === 'Aiao Code' && note.appId === 'vscode' && note.icon === '#app-aiao-code';
+      note?.app === 'Aiao Code' && note.appId === 'vscode' && note.icon === 'app-aiao-code';
     await centre.close();
 
     /* 应用想冒名（在请求里夹带来源字段）：被宿主拒绝，通知中心没有多出条目。 */

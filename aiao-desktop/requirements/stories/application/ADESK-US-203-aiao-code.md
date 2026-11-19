@@ -65,7 +65,7 @@ capabilities: []
 ## 实现文件
 
 - `aiao-desktop/apps/web/src/app/apps/registry.ts` — Aiao Code 登记项。
-- `aiao-desktop/apps/web/src/app/components/icon-sprite.html` — Aiao Code 图标。
+- `aiao-desktop/apps/web/public/icons/desktop/app-aiao-code.png` — Aiao Code 图标。
 - `aiao-desktop/apps/e2e/src/verify-aiao-code.mjs` — 线上验收脚本。
 - `apps/aiao-vscode/src/main.ts`、`src/app/orbit-embedding.ts`、`public/_headers` — Aiao Code 一侧的握手、就绪与响应头（[US-410](../../../../apps/aiao-vscode/requirements/stories/US-410-desktop-embedding.md)）。
 

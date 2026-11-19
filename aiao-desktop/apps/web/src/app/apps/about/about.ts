@@ -34,7 +34,7 @@ type AboutPage = 'overview' | 'external-content';
     </div>
     @if (page() === 'overview') {
       <div class="about">
-        <svg class="mark" viewBox="0 0 15 18"><use href="#g-apple" /></svg>
+        <svg appIcon="g-apple" class="mark"></svg>
         <h1>MacBook Pro</h1>
         <div class="ver">16‑inch, 2026</div>
         <dl>

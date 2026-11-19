@@ -27,7 +27,6 @@ import {
   sameNoteContent
 } from './note-document';
 import { NoteFolderEditor } from './note-folder-editor';
-import { CHECK_ICON } from './notes-data';
 import {
   ALL_NOTES,
   NOTES_FOLDER,
@@ -386,7 +385,7 @@ export class NotesApp {
   protected checklist(): void {
     if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     this.doc().nativeElement.focus();
-    const tick = `<div class="todo"><i>${CHECK_ICON}</i><span>&nbsp;</span></div>`;
+    const tick = '<div class="todo"><i contenteditable="false"></i><span>&nbsp;</span></div>';
     document.execCommand('insertHTML', false, tick);
     this.saveSoon();
   }

@@ -1,4 +1,4 @@
-import { readLaunchpadEntries } from '../harness/apps.mjs';
+import { readLaunchpadEntries, showsIconAsset } from '../harness/apps.mjs';
 import { prepareOfflineFailure } from '../harness/standin.mjs';
 
 const sorted = names => [...names].sort((a, b) => a.localeCompare(b));
@@ -25,7 +25,10 @@ export const applications = {
     'applications.aiaoCodePackageShowsFailure',
     'applications.aiaoCodeOnlyRequestsRegisteredOrigin',
     'applications.aiaoCodePackageRetries',
-    'applications.reloadKeepsOnePackagePerApp'
+    'applications.reloadKeepsOnePackagePerApp',
+    'applications.finderPresentation',
+    'applications.finderPathHasNoBackground',
+    'applications.finderColumnPresentation'
   ],
   async run(session) {
     const { page, aiaoCode } = session;
@@ -45,10 +48,40 @@ export const applications = {
     const finder = win('finder').last();
     await finder.locator('[data-place="Applications"]').click();
     await finder.locator('.fitem[data-name$=".app"]').first().waitFor();
+    const calculatorItem = finder.locator('.fitem[data-name="Calculator.app"]');
+    result.finderPresentation =
+      (await calculatorItem.locator('.nm').textContent())?.trim() === 'Calculator' &&
+      (await showsIconAsset(calculatorItem.locator('.art svg'), 'app-calculator.png'));
+    await calculatorItem.click();
+    result.finderPathHasNoBackground = await finder.locator('[data-path]').evaluate(node => {
+      const transparent = 'rgba(0, 0, 0, 0)';
+      const buttons = [...node.querySelectorAll('button')];
+      return (
+        getComputedStyle(node).backgroundColor === transparent &&
+        buttons.length > 0 &&
+        buttons.every(button => getComputedStyle(button).backgroundColor === transparent)
+      );
+    });
     const packages = await finder.locator('.fitem').evaluateAll(nodes => nodes.map(node => node.dataset.name));
     const expected = entries.filter(entry => !NOT_IN_APPLICATIONS.includes(entry.id)).map(entry => `${entry.name}.app`);
     result.matchesLaunchpad = JSON.stringify(sorted(packages)) === JSON.stringify(sorted(expected));
     result.hasSaltlineAndAiaoCodePackages = packages.includes('几猫3A大作.app') && packages.includes('Aiao Code.app');
+
+    await finder.locator('[data-place="Macintosh HD"]').click();
+    await finder.locator('[data-view="column"]').click();
+    await finder.locator('.ci[data-name="Applications"]').click();
+    const columnItem = finder.locator('.ci[data-name="Calculator.app"]');
+    const columnPresentation =
+      (await columnItem.locator('.nm').textContent())?.trim() === 'Calculator' &&
+      (await showsIconAsset(columnItem.locator('.art svg'), 'app-calculator.png'));
+    await columnItem.click();
+    const preview = finder.getByRole('group', { name: 'Preview of Calculator', exact: true });
+    const path = finder.getByRole('navigation', { name: 'Path' });
+    result.finderColumnPresentation =
+      columnPresentation &&
+      (await appears(preview)) &&
+      (await showsIconAsset(preview.locator('.big svg'), 'app-calculator.png')) &&
+      (await path.getByRole('button', { name: 'Calculator', exact: true }).isVisible());
 
     /* 各入口启动同一个应用：Calculator 从 Finder 的包、聚焦搜索、启动台与 Dock 分别打开。 */
     const opensCalculator = async trigger => {

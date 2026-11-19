@@ -1,5 +1,16 @@
 /* Dock 的基础样式在全局样式表的 DOCK 一节；这里是固定布局、拖放与键盘焦点新增的部分。 */
 
+#dock .calendar-date {
+  position: absolute;
+  inset: 20% 0 auto;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: calc(var(--dock-size) * 0.14);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
 /* Tab 聚焦图标：焦点环只在键盘操作时出现（:focus-visible），鼠标点击不留环。 */
 #dock .di:focus-visible {
   outline: none;

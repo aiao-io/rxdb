@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-003
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-19
 tags: [application, applications, preinstalled, dock, drag-drop, persistence]
 dependsOn: [ADESK-US-101, ADESK-US-102, ADESK-US-106, ADESK-US-201, ADESK-US-202]
 capabilities: []
@@ -41,7 +41,7 @@ capabilities: []
   - `builtin-component`：随桌面发布的 Angular 应用。按需动态加载由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 交付，本故事不改变加载时机。
   - `bundled-html`：随桌面发布的同源 HTML 入口，例如 `apps/web/public/saltline.html`；入口只在打开应用时装载到窗口 iframe。
   - `remote-web`：独立部署的 Web 应用，例如 `https://vscode.aiao.io/`；继续经 Orbit 在窗口 iframe 里运行，只在打开应用时请求远程地址。
-- **Applications 投影**：`/Applications` 显示所有 `showInApplications: true` 的可启动应用，包括预装的本地应用、随桌面发布的 HTML 应用和预装的远程应用。Launchpad、Trash 等系统入口不伪装成 `.app`，由 `showInApplications: false` 明确排除。唯一的例外是同名冲突：用户自己的同名非包条目占着位置时，投影让位，该应用在 Applications 里没有包（见「已有库升级」），Finder 要对此给出说明，应用仍可从其他入口打开。
+- **Applications 投影**：`/Applications` 显示所有 `showInApplications: true` 的可启动应用，包括预装的本地应用、随桌面发布的 HTML 应用和预装的远程应用。Finder 按清单显示应用图标和不带 `.app` 后缀的名称，普通文件按原文件名显示。底部路径栏及其按钮的背景透明。Launchpad、Trash 等系统入口不伪装成 `.app`，由 `showInApplications: false` 明确排除。唯一的例外是同名冲突：用户自己的同名非包条目占着位置时，投影让位，该应用在 Applications 里没有包（见「已有库升级」），Finder 要对此给出说明，应用仍可从其他入口打开。
 - **预装应用**：清单中的 `installScope: 'preinstalled'` 应用在首次建库时以 `.app` 包元数据出现在 `/Applications`，并由清单中的稳定标识与 `Info.plist` 关联。预装应用不能被 Finder、终端同步层或文件系统 API 删除、移动、改名、覆盖或移进废纸篓；保护同时覆盖包里的子项，以及对 `/Applications` 或其祖先目录的递归操作（整目录删除、移动、覆盖），保护的是系统拥有的投影，不是按显示名匹配的任何条目；抹掉磁盘后重新生成。
 - **已有库升级**：由旧版种子建成的库，打开新版时幂等补齐缺的预装包、补上稳定标识；不覆盖用户自己的文件，同名的非包条目保留，对应应用仍可从其他入口打开。没有标识的旧包按冻结的旧种子名单一次性认领，之后一律按标识。这是 [D-07](../../decisions.md#d-07系统数据存在本地-sqlite)「已有的库不会被覆盖」对 `.app` 包的例外（[D-17](../../decisions.md#d-17应用清单是唯一真相源applications-是系统投影)）。
 - **清单生命周期**：清单里的应用改名、图标或 bundle 元数据更新、运行类型变更、应用下线，只处理系统拥有的投影——位于 `/Applications` 顶层、带清单标识的 `.app` 包。同一 `appId` 的包随显示名改名、就地更新 `Info.plist`；应用下线时只移除系统写入的投影文件（`Contents/Info.plist` 等）；包目录里还有用户放进去的文件时，目录保留为普通文件夹（不再是应用包），否则整个目录一并移除。Dock 与窗口恢复里指向它的引用不由投影清理去改，而是各层遇到清单里已没有的 `appId` 时按自己的规则丢弃（Dock 见 AC#12，窗口恢复见 [ADESK-US-104](../desktop/ADESK-US-104-window-layout-persistence.md) AC#5）。用户复制到别处的包、同名的非包条目、包里用户放的文件都是用户文件，不因清单变化被改名或删除；复制出来的包在清单已没有它时再被打开，提示「应用已下线」。清单变化只能处理标识匹配的投影，不能按显示名删除用户文件。
@@ -66,11 +66,11 @@ capabilities: []
 
 | #   | 前置条件                                                                                                            | 操作                                                                                                  | 预期结果                                                                                                                                                                                                                                                                      | 状态 |
 | --- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 当前应用清单                                                                                                        | 打开 Finder 的 Applications                                                                           | 清单中所有 `showInApplications: true` 的应用都出现为 `.app`；Launchpad、Trash 等系统入口不出现；没有第二份手工维护的应用列表                                                                                                                                                  | ✅   |
-| 2   | 首次创建本地库                                                                                                      | 查看 Applications 中的预装应用                                                                        | `saltline` 显示为 `几猫3A大作.app`，Aiao Code 显示为预装的远程应用（`remote-web`）；每个包能通过稳定 `appId` / bundle 标识回到清单                                                                                                                                            | ✅   |
-| 3   | 由旧版种子建成的库（`/Applications` 里是旧的手写列表、没有 appId），其中用户删过一个 `.app`，并在里面放过自己的文件 | 用新版打开桌面                                                                                        | 缺的预装包被补出，现有包补上 appId；用户自己的文件原样保留；同名的非包条目不被覆盖也不阻塞启动，Finder 对该应用没有包的情况有可见说明，对应应用仍可从启动台、聚焦搜索和 Dock 打开；刷新后不重复补写                                                                           | ✅   |
+| 1   | 当前应用清单                                                                                                        | 打开 Finder 的 Applications                                                                           | 清单中所有 `showInApplications: true` 的应用以 `.app` 包进入目录，Finder 显示清单图标及不带 `.app` 后缀的名称，底部路径栏无背景色；Launchpad、Trash 等系统入口不出现；没有第二份手工维护的应用列表                                                                                                                                                  | ✅   |
+| 2   | 首次创建本地库                                                                                                      | 查看 Applications 中的预装应用                                                                        | `saltline` 显示为 `几猫3A大作`，Aiao Code 显示为预装的远程应用（`remote-web`）；每个包能通过稳定 `appId` / bundle 标识回到清单                                                                                                                                            | ✅   |
+| 3   | 由旧版种子建成的库（`/Applications` 里是旧的手写列表、没有 appId），其中用户删过一个 `.app`，并在里面放过自己的文件 | 用新版打开桌面                                                                                        | 缺的预装包被补出，现有包补上 appId；用户自己的文件及其显示名原样保留；同名的非包条目不被覆盖也不阻塞启动，Finder 对该应用没有包的情况有可见说明，对应应用仍可从启动台、聚焦搜索和 Dock 打开；刷新后不重复补写                                                                           | ✅   |
 | 4   | 选中任意预装 `.app`                                                                                                 | 从 Finder、终端 `open`、Spotlight、Launchpad 和 Dock 分别打开                                         | 都启动同一个 `appId`；存在同名文件、或清单里的显示名变化时仍不会打开错误应用                                                                                                                                                                                                  | ✅   |
-| 5   | `saltline` 已登记                                                                                                   | 双击 Applications 中的 `几猫3A大作.app`                                                               | 窗口加载同源 `/saltline.html`（载荷的按需加载与销毁由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 验收）                                                                                                                                           | ✅   |
+| 5   | `saltline` 已登记                                                                                                   | 双击 Applications 中的 `几猫3A大作`                                                               | 窗口加载同源 `/saltline.html`（载荷的按需加载与销毁由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 验收）                                                                                                                                           | ✅   |
 | 6   | Aiao Code 已登记但网络被拦截                                                                                        | 从 Applications 打开 Aiao Code                                                                        | 它按 remote-web 运行，经 Orbit 显示加载或失败状态；失败不影响其他应用，提供重试；没有请求未登记的远程地址                                                                                                                                                                     | ✅   |
 | 7   | 选中 `几猫3A大作.app`                                                                                               | 在 Finder 里 Move to Trash、改名、移动、覆盖，再清空废纸篓                                            | 操作被拒绝并给出明确原因；预装包仍留在 Applications，不能通过清空废纸篓绕过                                                                                                                                                                                                   | ✅   |
 | 8   | 终端已打开，`/Applications` 里有预装包                                                                              | 在终端里对预装包执行删除、移动、改名                                                                  | 不论采用哪种拦截机制，结果都是：磁盘上的包保持不变（刷新后仍在 Applications 且能打开），用户得到可见反馈（终端里直接报错，或回写时撤销并提示）；Finder 与终端的结论一致                                                                                                       | ✅   |
@@ -133,6 +133,15 @@ Applications按清单投影，旧包补齐/重命名/下线及用户文件保留
 原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 阶段A～D的AC已通过；US-106已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，硬依赖满足，故事置Done。本次产物已完成正式发布与线上复验，见[发布收尾记录](../../evidence/2026-11-14/release-closeout.json)。
+
+## Finder 展示回归（2026-11-19）
+
+- AC#1 由 Chromium 冒烟的 `applications.finderPresentation`、`applications.finderColumnPresentation` 和 `applications.finderPathHasNoBackground` 检查图标、分栏及底部路径栏。[applications.mjs](../../../apps/e2e/src/groups/applications.mjs)
+- AC#3 由 `applicationsUpgrade.sameNameFileKeepsItsDisplayName` 验证用户的 `Clock.app` 仍以原文件名显示。[applications-upgrade.mjs](../../../apps/e2e/src/groups/applications-upgrade.mjs)
+
+## 废纸篓图标回归（2026-11-19）
+
+- Chromium 正式构建冒烟 `applicationsProtection.trashArtworkReflectsContents` 验证 Dock 在清空废纸篓前后分别加载可解码的 macOS Dock 满桶和空桶 PNG。[applications-protection.mjs](../../../apps/e2e/src/groups/applications-protection.mjs)
 
 ## References
 

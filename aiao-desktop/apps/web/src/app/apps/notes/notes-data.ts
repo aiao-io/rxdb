@@ -11,11 +11,8 @@ export interface NoteSeed {
 
 const dt = (month: number, day: number, hour = 10, minute = 24): Date => new Date(2026, month - 1, day, hour, minute);
 
-/** 待办勾选框里的勾，与图标精灵引用同一个 symbol。 */
-export const CHECK_ICON = '<svg class="" aria-hidden="true"><use href="#g-check"/></svg>';
-
 const todo = (text: string, done = false): string =>
-  `<div class="todo${done ? ' done' : ''}"><i>${CHECK_ICON}</i><span>${text}</span></div>`;
+  `<div class="todo${done ? ' done' : ''}"><i contenteditable="false"></i><span>${text}</span></div>`;
 
 /** 初始笔记，顺序与原界面一致。 */
 export const SEED_NOTES: readonly NoteSeed[] = [

@@ -12,6 +12,7 @@ import {
 import { ApplicationRegistry } from '../services/application-registry';
 
 import { AppLauncher } from '../services/app-launcher';
+import { Clock } from '../services/clock';
 import { DesktopAppDefinition, DesktopAppId } from '../services/desktop-apps';
 import { DockDragController, DockDropTarget } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
@@ -24,7 +25,7 @@ import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
-import { clamp } from '../shared/format';
+import { DAYS3, clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
 import { isMenuKey } from '../shared/menu-list';
 
@@ -93,6 +94,7 @@ export class Dock implements DockView, DockDropTarget {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly layout = inject(DockLayoutStore);
+  private readonly clock = inject(Clock);
   private readonly root = inject(DOCUMENT).documentElement;
   private readonly dock = viewChild.required<ElementRef<HTMLElement>>('dock');
   private readonly tip = viewChild.required<ElementRef<HTMLElement>>('tip');
@@ -115,6 +117,10 @@ export class Dock implements DockView, DockDropTarget {
   protected readonly dockState = inject(DockState);
   protected readonly drag = inject(DockDragController);
   protected readonly fs = inject(FileSystem);
+  protected readonly calendarDate = computed(() => {
+    const now = this.clock.now();
+    return `${DAYS3[now.getDay()].toUpperCase()} ${now.getDate()}`;
+  });
 
   protected readonly running = this.wm.runningApps;
   protected readonly slots = computed<readonly DockSlot[]>(() => {

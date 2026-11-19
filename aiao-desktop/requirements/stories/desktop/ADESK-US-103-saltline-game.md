@@ -71,7 +71,7 @@ capabilities: []
 - `aiao-desktop/apps/web/src/app/apps/saltline/saltline.ts`、`saltline.scss` — 窗口内容：同源 iframe、激活层、拖动与缩放时的指针穿透。
 - `aiao-desktop/apps/web/src/app/apps/saltline/saltline-entry.ts` — 入口常量（相对地址）。
 - `aiao-desktop/apps/web/src/app/apps/app-manifests.ts`、`registry.ts`、`services/desktop-apps.ts` — 登记项、组件绑定与启动台顺序。
-- `aiao-desktop/apps/web/src/app/components/icon-sprite.html` — 图标 `app-saltline`。
+- `aiao-desktop/apps/web/public/icons/desktop/app-saltline.png` — 游戏入口图标。
 - `aiao-desktop/apps/web/src/app/components/overlays/launchpad.ts` — 启动台关闭时不再抢焦点。
 - `aiao-desktop/apps/e2e/src/smoke.mjs` — `game` 检查组。
 

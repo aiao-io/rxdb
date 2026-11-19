@@ -112,7 +112,7 @@ export const DESKTOP_APP_MANIFESTS = {
   textedit: {
     id: 'textedit',
     name: 'TextEdit',
-    icon: 'f-txt',
+    icon: 'app-textedit',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.textedit',
     ...preinstalled,

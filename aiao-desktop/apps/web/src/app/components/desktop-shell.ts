@@ -11,7 +11,6 @@ import { BootScreen } from './boot-screen';
 import { DataProblemScreen } from './data-problem';
 import { DesktopSurface } from './desktop-surface';
 import { Dock } from './dock';
-import { IconSprite } from './icon-sprite';
 import { LockScreen } from './lock-screen';
 import { Menubar } from './menubar';
 import { OverlayLayer } from './overlay-layer';
@@ -36,8 +35,7 @@ import { WindowLayer } from './window-layer';
     OverlayLayer,
     LockScreen,
     BootScreen,
-    DataProblemScreen,
-    IconSprite
+    DataProblemScreen
   ],
   templateUrl: './desktop-shell.html',
   styleUrl: './desktop-shell.scss',

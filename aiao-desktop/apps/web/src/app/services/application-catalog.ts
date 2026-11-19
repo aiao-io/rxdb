@@ -69,11 +69,16 @@ export class ApplicationCatalog {
     return protectionViolation(this.ownedState(), operation);
   }
 
-  /** /Applications 顶层系统拥有的包对应的应用 id（只看路径，不看显示名）；别的节点为 `null`。 */
-  appIdAt(path: DiskPath | null): DesktopAppId | null {
+  /** 按磁盘路径读取 /Applications 顶层系统应用包的清单。 */
+  manifestAt(path: DiskPath | null): DesktopAppManifest | null {
     if (!path || path.length !== APPLICATIONS.length + 1 || path[0] !== APPLICATIONS[0]) return null;
     const id = this.ownedState().get(path[1]);
-    return id && id in this.manifests() ? (id as DesktopAppId) : null;
+    return id ? this.manifestOf(id) : null;
+  }
+
+  /** /Applications 顶层系统拥有的包对应的应用 id（只看路径，不看显示名）；别的节点为 `null`。 */
+  appIdAt(path: DiskPath | null): DesktopAppId | null {
+    return this.manifestAt(path)?.id ?? null;
   }
 
   /** 包路径是系统拥有的预装包时的应用 id。 */

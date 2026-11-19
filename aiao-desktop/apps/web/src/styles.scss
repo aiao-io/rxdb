@@ -352,12 +352,19 @@ textarea,
   -webkit-user-select: text;
   user-select: text;
 }
-/* Sensible default so a sprite reference can never render at a wild size */
 svg {
   display: block;
   flex: none;
   width: 16px;
   height: 16px;
+}
+[data-icon^='app-'],
+[data-icon^='f-'] {
+  background: var(--desktop-icon-image) center / contain no-repeat;
+}
+[data-icon^='g-'] {
+  background-color: currentColor;
+  mask: var(--desktop-icon-image) center / contain no-repeat;
 }
 .sr {
   position: absolute;
@@ -429,11 +436,6 @@ svg {
 [data-sb-icons='large'] .sbar .si .ico {
   width: 21px;
   height: 21px;
-}
-
-/* Apple squircle, applied through a normalised clip path built at boot */
-.squircle {
-  clip-path: url(#sqr);
 }
 
 /* ==========================================================================
@@ -1943,11 +1945,10 @@ svg {
   height: 25px;
   padding: 0 12px;
   border-top: 0.5px solid var(--line);
-  background: var(--chrome);
   font-size: 11.5px;
   color: var(--txt-2);
 }
-.fx-path .seg {
+.fx-path button {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1957,7 +1958,7 @@ svg {
   height: 11px;
   opacity: 0.5;
 }
-.fx-path .seg:hover {
+.fx-path button:hover {
   color: var(--txt);
 }
 .fx-status {
@@ -3227,18 +3228,19 @@ svg {
   place-items: center;
   cursor: var(--cur-hand);
 }
-.nt-doc .todo i svg {
-  width: 10px;
-  height: 10px;
-  color: #fff;
-  opacity: 0;
+.nt-doc .todo i > svg {
+  display: none;
 }
 .nt-doc .todo.done i {
   background: #ffb800;
   border-color: #ffb800;
 }
-.nt-doc .todo.done i svg {
-  opacity: 1;
+.nt-doc .todo.done i::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-color: #fff;
+  mask: url('/icons/desktop/g-check.svg') center / contain no-repeat;
 }
 /* Notes ticks the circle and leaves the text alone — no strike, no dimming */
 .nt-doc .todo.done span {

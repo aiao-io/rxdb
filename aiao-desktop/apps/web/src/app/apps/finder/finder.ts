@@ -123,7 +123,6 @@ export class FinderApp implements FinderCommands {
     const selected = this.selected();
     return items.some(item => item.name === selected) ? selected : (items[0]?.name ?? null);
   });
-  protected readonly label = itemLabel;
   /** 只渲染放得下的最深几栏：真机会横向滚动，但总停在栏边界上，效果一样。 */
   protected readonly firstColumn = computed(() => {
     const { chain } = this.columns();
@@ -137,10 +136,17 @@ export class FinderApp implements FinderCommands {
     return leaf?.file ? leaf.node : null;
   });
   /** 分栏视图里选择链也算进路径栏，否则会跳过点进去的每一级。 */
-  protected readonly pathSegments = computed(() =>
-    this.view() === 'column' ? [...this.path(), ...this.columns().selection] : this.path()
-  );
-  protected readonly pathTail = computed(() => (this.view() === 'column' ? null : this.selected()));
+  protected readonly pathSegments = computed(() => {
+    const path = this.path();
+    if (this.view() !== 'column') return path;
+    return [...path, ...this.columns().chain.slice(1).map(column => this.displayName(column.node))];
+  });
+  protected readonly pathTail = computed(() => {
+    if (this.view() === 'column') return null;
+    const selected = this.selected();
+    const item = this.items().find(item => item.name === selected);
+    return item ? this.displayName(item) : selected;
+  });
   /** 分栏视图的 Tab 停靠点：最深一栏里选中的条目；还没选就是最左边那栏的第一项。 */
   protected readonly columnStop = computed(() => {
     const { chain, selection } = this.columns();
@@ -404,6 +410,18 @@ export class FinderApp implements FinderCommands {
     } finally {
       this.importing.set(false);
     }
+  }
+
+  protected label(item: FsNode): string {
+    return itemLabel({ ...item, name: this.displayName(item) });
+  }
+
+  protected displayName(item: FsNode): string {
+    return this.catalog.manifestAt(item.path)?.name ?? item.name;
+  }
+
+  protected displayIcon(item: FsNode): string {
+    return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
   }
 
   private itemMenuItems(node: FsNode): MenuEntry[] {

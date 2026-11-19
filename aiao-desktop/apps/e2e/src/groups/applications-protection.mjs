@@ -1,3 +1,5 @@
+import { showsIconAsset } from '../harness/apps.mjs';
+
 /** 预装应用包的磁盘保护（ADESK-US-205 阶段 B）：Finder 与终端结论一致，包在所有写路径下保持不变。 */
 export const applicationsProtection = {
   name: 'applications-protection',
@@ -8,6 +10,7 @@ export const applicationsProtection = {
     'applicationsProtection.finderRefusesMoveToTrash',
     'applicationsProtection.finderRefusalExplains',
     'applicationsProtection.emptyTrashCannotRemovePackage',
+    'applicationsProtection.trashArtworkReflectsContents',
     'applicationsProtection.terminalDeleteIsReverted',
     'applicationsProtection.terminalMoveIsReverted',
     'applicationsProtection.terminalSubItemEditIsReverted',
@@ -43,11 +46,16 @@ export const applicationsProtection = {
     const refusal = await toastText();
     result.finderRefusesMoveToTrash = (await item.count()) === 1;
     result.finderRefusalExplains = refusal.includes('can’t be moved to the Trash') && refusal.includes('preinstalled');
-    await page.locator('#dock .di[data-app="trash"]').click({ button: 'right' });
+    const trash = page.locator('#dock .di[data-app="trash"]');
+    const art = trash.locator('.art svg');
+    const full = await showsIconAsset(art, 'app-trash-full.png');
+    await trash.click({ button: 'right' });
     await page.locator('#layer-menu .pop .mi', { hasText: 'Empty Trash' }).click();
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    await art.and(page.locator('[data-icon="app-trash"]')).waitFor({ state: 'attached' });
+    const empty = await showsIconAsset(art, 'app-trash.png');
     result.emptyTrashCannotRemovePackage = (await item.count()) === 1;
+    result.trashArtworkReflectsContents = full && empty;
 
     /* 终端：先确认包里写着应用标识（按标识回到清单，不是按显示名）。 */
     await closeAll();

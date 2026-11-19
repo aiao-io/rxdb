@@ -55,7 +55,7 @@ capabilities: []
 
 - AC#1：`pwa.manifest`、`pwa.installable`、`pwa.workerControlsDesktop`。
 - AC#2：`pwa.desktopPrecached`、`pwa.largeResourcesLazy`、`pwa.lazyResourceOffline`。
-- AC#3：`pwa.offlineReload`、`pwa.offlineFirstAppLaunch`、`pwa.offlineDataIntact`、`pwa.offlineIsolation`。
+- AC#3：`pwa.offlineReload`、`pwa.offlineIcons`（离线加载应用 PNG 与菜单栏 SVG）、`pwa.offlineFirstAppLaunch`、`pwa.offlineDataIntact`、`pwa.offlineIsolation`。
 - AC#4：`pwa.onlineRecovery`。
 - AC#5：`pwa.updateWaitsForReload`、`pwa.updatedAfterReload`、`pwa.dataSurvivesUpdate`。更新夹具只改正式产物 HTML 与对应哈希，保留同一个 Origin；不模拟 Worker 或缓存 API。
 - AC#6：`pnpm nx run aiao-desktop:verify --parallel=1`。

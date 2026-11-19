@@ -54,6 +54,8 @@ capabilities: []
 
 ## 技术笔记
 
+Chromium 冒烟的 `shell.fileBackedIcons` 验证 Dock 的 Finder 图标和菜单栏图标从 `public/icons/desktop/` 加载为独立资源。[shell.mjs](../../../apps/e2e/src/groups/shell.mjs)
+
 桌面最初是一份单文件 HTML 的全局脚本运行时，现已全部改写为 Angular 组件与服务：页面不再挂 `WM`、`APPS` 等全局入口，也不注入脚本（AC#1 验证）。应用由 [registry.ts](../../../apps/web/src/app/apps/registry.ts) 登记，App Store、Podcasts、TV 与 Books 共用书架组件。终端要求跨源隔离（[D-05](../../decisions.md#d-05终端依赖跨源隔离)），冒烟的静态服务器与开发服务器都返回所需的响应头。`?boot=0` 或 `#noboot` 跳过开机动画，冒烟依赖这一点。
 
 ## 实现文件

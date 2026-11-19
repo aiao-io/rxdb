@@ -1,17 +1,19 @@
-import { Directive, ElementRef, Renderer2, effect, inject, input } from '@angular/core';
+import { Directive, computed, input } from '@angular/core';
 
-/** 在 `<svg>` 上引用图标精灵里的 symbol：`<svg appIcon="g-search">`。 */
+/** 在 `<svg>` 上显示 `public/icons/desktop` 中的同名资源。`g-` 是单色 SVG，其余是彩色 PNG。 */
 @Directive({
   selector: '[appIcon]',
-  host: { 'aria-hidden': 'true' }
+  host: {
+    'aria-hidden': 'true',
+    '[attr.data-icon]': 'appIcon()',
+    '[style.--desktop-icon-image]': 'image()'
+  }
 })
 export class Icon {
+  protected readonly image = computed(() => {
+    const name = this.appIcon();
+    const extension = name.startsWith('g-') ? 'svg' : 'png';
+    return `url("icons/desktop/${encodeURIComponent(name)}.${extension}")`;
+  });
   readonly appIcon = input.required<string>();
-
-  constructor() {
-    const renderer = inject(Renderer2);
-    const use = renderer.createElement('use', 'svg') as SVGUseElement;
-    renderer.appendChild(inject<ElementRef<SVGSVGElement>>(ElementRef).nativeElement, use);
-    effect(() => renderer.setAttribute(use, 'href', `#${this.appIcon()}`));
-  }
 }

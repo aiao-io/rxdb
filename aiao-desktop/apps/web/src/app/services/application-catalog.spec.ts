@@ -67,6 +67,7 @@ describe('ApplicationCatalog.reconcile', () => {
       'Mail.app can’t be shown here because an item with the same name already exists. The application can still be opened from Launchpad, Spotlight and the Dock.'
     );
     expect(catalog.packageOf('mail')).toBeNull();
+    expect(catalog.manifestAt(['Applications', 'Mail.app'])).toBeNull();
     expect(catalog.owned().has('Mail.app')).toBe(false);
   });
 
@@ -129,6 +130,12 @@ describe('ApplicationCatalog 按路径认应用', () => {
     const { catalog } = await reconciled();
     expect(catalog.appIdOf({ path: SAFARI })).toBe('safari');
     expect(catalog.appIdOf({ path: null })).toBeNull();
+  });
+
+  it('manifestAt 按包路径返回应用的显示名与图标，副本保留自身文件身份', async () => {
+    const { catalog } = await reconciled();
+    expect(catalog.manifestAt(SAFARI)).toMatchObject({ name: 'Safari', icon: 'app-safari' });
+    expect(catalog.manifestAt(COPY)).toBeNull();
   });
 
   it('packageOf 返回应用的包目录名；没有包的应用为 null', async () => {

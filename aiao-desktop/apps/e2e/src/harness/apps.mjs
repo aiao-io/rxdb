@@ -45,3 +45,17 @@ export async function readLaunchpadEntries(page) {
   }
   return [...entries.values()];
 }
+
+/** 验证实际样式指向同源图标资源，且浏览器能解码该文件。 */
+export async function showsIconAsset(icon, file) {
+  if ((await icon.count()) !== 1) return false;
+  return icon.evaluate(async (node, name) => {
+    const url = new URL(`icons/desktop/${name}`, node.baseURI).href;
+    const style = getComputedStyle(node);
+    const layers = [style.backgroundImage, style.getPropertyValue('mask-image')];
+    if (node.getBoundingClientRect().width <= 0 || !layers.some(layer => layer.includes(url))) return false;
+    const image = new Image();
+    image.src = url;
+    return image.decode().then(() => true, () => false);
+  }, file);
+}

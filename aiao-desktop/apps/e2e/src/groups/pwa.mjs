@@ -4,6 +4,7 @@ import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/prom
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { showsIconAsset } from '../harness/apps.mjs';
 import { readUserData, userDataIntact, writeUserData } from '../harness/user-data.mjs';
 
 async function updatedBuild(distRoot) {
@@ -56,6 +57,7 @@ export const pwa = {
     'pwa.largeResourcesLazy',
     'pwa.lazyResourceOffline',
     'pwa.offlineReload',
+    'pwa.offlineIcons',
     'pwa.offlineFirstAppLaunch',
     'pwa.offlineDataIntact',
     'pwa.offlineIsolation',
@@ -135,6 +137,9 @@ export const pwa = {
     const offlineResponse = await page.reload({ waitUntil: 'load' });
     await helpers.restored();
     result.offlineReload = offlineResponse.fromServiceWorker() && (await page.locator('#dock').isVisible());
+    result.offlineIcons =
+      (await showsIconAsset(page.locator('#dock [data-app="finder"] .art svg'), 'app-finder.png')) &&
+      (await showsIconAsset(page.locator('#menubar .mb-item.apple svg'), 'g-apple.svg'));
     result.offlineIsolation = await page.evaluate(() => crossOriginIsolated && typeof SharedArrayBuffer === 'function');
     await helpers.closeAll();
     await page.locator('#dock .di[data-app="calculator"]').click();
