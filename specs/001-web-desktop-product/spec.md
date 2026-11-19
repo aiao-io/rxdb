@@ -1,5 +1,7 @@
 # Feature Specification: 双交互模式 Web 桌面产品
 
+> 本规格记录已退役的 Web Desktop 项目。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 **Feature Branch**: `012-web-desktop-product`
 
 **Created**: 2026-11-07

@@ -64,7 +64,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 本目录是产品根 `aiao-desktop/` 的产品级需求唯一真相源，覆盖两个 Nx 应用：`apps/web`（Angular 桌面）与 `apps/e2e`（正式构建上的浏览器冒烟），见 [D-02](decisions.md#d-02产品根目录与应用拆分) 与 [ADESK-US-001](stories/platform/ADESK-US-001-product-root.md)；本地开发入口 `pnpm nx dev aiao-desktop` 与开发导航见 [ADESK-US-002](stories/platform/ADESK-US-002-local-dev-dashboard.md)；发布到 Cloudflare Pages 的一键命令 `pnpm nx run aiao-desktop:deploy` 见 [ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)。
 
-仓库里的 [Web Desktop](../../apps/web-desktop/requirements/README.md)（`DESKTOP-US-*`，React 宿主与 Orbit 运行内核）是另一个产品，目标、实现与需求各自独立，本目录不引用它的故事状态。
+旧版 Web Desktop（`DESKTOP-US-*`）已退役。[历史规格](../../specs/001-web-desktop-product/spec.md)
 
 ## 导航
 

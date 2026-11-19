@@ -24,6 +24,7 @@ import { DesktopMenus } from '../services/desktop-menus';
 import { DockDragController } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
 import { DockState } from '../services/dock-state';
+import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
@@ -80,6 +81,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     ApplicationCatalog,
     ApplicationRuntime,
     FileSystem,
+    FileImport,
     FileOpener,
     FilePanels,
     AppNotifications,

@@ -4,9 +4,11 @@ import { toSignal } from '@angular/core/rxjs-interop';
 
 import { DesktopData } from '../data/desktop-data';
 import { DATA_LOCATION_KEY } from '../data/desktop-data-location';
+import { FileImport } from '../services/file-import';
 import { Session } from '../services/session';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
+import { fileTransfer } from '../shared/file-drop';
 import { BootScreen } from './boot-screen';
 import { DataProblemScreen } from './data-problem';
 import { DesktopSurface } from './desktop-surface';
@@ -42,12 +44,15 @@ import { WindowLayer } from './window-layer';
   encapsulation: ViewEncapsulation.None,
   host: {
     '[style.display]': '"contents"',
+    '(document:dragover)': 'rejectFileDrop($event)',
+    '(document:drop)': 'rejectFileDrop($event)',
     '(window:storage)': 'checkLocation($event)',
     '(window:focus)': 'checkLocation()'
   }
 })
 export class DesktopShell {
   private readonly data = inject(DesktopData);
+  private readonly fileImport = inject(FileImport);
   private readonly windows = inject(WindowManager);
   private readonly document = inject(DOCUMENT);
   protected readonly replaced = toSignal(this.data.locationGuard.replaced$, { initialValue: false });
@@ -69,6 +74,14 @@ export class DesktopShell {
     } catch (error) {
       this.toast.show(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  protected rejectFileDrop(event: DragEvent): void {
+    const data = fileTransfer(event);
+    if (!data || event.defaultPrevented) return;
+    event.preventDefault();
+    data.dropEffect = 'none';
+    this.fileImport.dropTarget.set(null);
   }
 
   protected async reloadRestored(): Promise<void> {

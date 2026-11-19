@@ -112,6 +112,7 @@ const KEYS = [
   'a11y.safari.browserLinkNamed',
   'a11y.safari.keyboardOpen',
   'a11y.safari.actionsAccessible',
+  'a11y.fileOperations.keyboardImport',
   'a11y.fileOperations.namedDialogs',
   'a11y.fileOperations.keyboardAndFocus',
   'a11y.fileOperations.noViolations',
@@ -1262,6 +1263,17 @@ export const a11y = {
       await openFromDock('Finder', 'finder');
       await win('finder').locator('[data-place="Desktop"]').focus();
       await press('Enter');
+      await win('finder').getByRole('button', { name: 'More', exact: true }).focus();
+      await press('Enter');
+      const importMenu = page.getByRole('menu', { name: 'More' });
+      const importCommand = importMenu.getByRole('menuitem', { name: 'Import Files…', exact: true });
+      await importCommand.waitFor();
+      await press('End');
+      const importFocused = await importCommand.evaluate(node => node === document.activeElement);
+      const [picker] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), press('Enter')]);
+      await picker.setFiles({ name: 'keyboard-import.txt', mimeType: 'text/plain', buffer: Buffer.from('Keyboard') });
+      await win('finder').getByRole('option', { name: /^keyboard-import\.txt/ }).waitFor();
+      fileOperations.keyboardImport = problems(importFocused ? [] : ['键盘未能聚焦 Import Files… 菜单项']);
       const entry = () => page.locator('.win.front[data-app="finder"] [role="option"][data-name="prasenx.txt"]');
       const command = async label => {
         if (process.env.E2E_TRACE) console.error(`[a11y.files] ${label}`);

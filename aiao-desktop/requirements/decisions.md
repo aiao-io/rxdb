@@ -6,7 +6,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-02：产品根目录与应用拆分
 
-按[应用级需求与项目治理办法](../../requirements/application-governance.md)，Aiao Desktop 是多个 Nx 应用组成的一个产品，产品根放在仓库根的 `aiao-desktop/`，与 `aiao-model-design/` 同一布局。拆成两个应用：`apps/web`（Angular 桌面）与 `apps/e2e`（对正式构建跑的浏览器冒烟），两者共用前缀 `ADESK` 与本目录。组成由用户于 2026-11-12 拍板，三个选项是「web + e2e」「再并入 Web Desktop」「只放 web」；`apps/web-desktop` 是另一个产品，原地不动。
+按[应用级需求与项目治理办法](../../requirements/application-governance.md)，Aiao Desktop 是多个 Nx 应用组成的一个产品，产品根放在仓库根的 `aiao-desktop/`，与 `aiao-model-design/` 同一布局。拆成两个应用：`apps/web`（Angular 桌面）与 `apps/e2e`（对正式构建跑的浏览器冒烟），两者共用前缀 `ADESK` 与本目录。组成由用户于 2026-11-12 拍板，三个选项是「web + e2e」「再并入 Web Desktop」「只放 web」。旧版 Web Desktop 当时作为独立产品保留，现已退役。[历史规格](../../specs/001-web-desktop-product/spec.md)
 
 产品根保留 `aiao-desktop` 这个 Nx 项目名，承载需求门禁、安全门禁与聚合验证 `verify`；子项目名加后缀（`aiao-desktop-web`、`aiao-desktop-e2e`）。e2e 只通过 web 的构建产物验证行为，不 import web 的源码。眼下没有跨应用共用的代码，不建产品私有包；出现真实的共用需要时，按治理办法建 `@aiao-desktop/*` 私有包。
 

@@ -1,6 +1,7 @@
 <div
   id="desktop"
   #surface
+  [appFileDrop]="desktopPath"
   (contextmenu)="surfaceMenu($event)"
   (pointerdown)="pressSurface($event)"
   aria-label="Desktop"
@@ -17,6 +18,7 @@
     @let leaving = trashing().has(item.id);
     <div
       class="dicon"
+      [appFileDrop]="item.node?.kind === 'folder' ? item.node.path : undefined"
       [attr.data-id]="item.id"
       [class.drag]="dragging()?.id === item.id"
       [class.sel]="selected().has(item.id)"

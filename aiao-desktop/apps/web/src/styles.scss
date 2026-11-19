@@ -497,6 +497,11 @@ svg {
   z-index: 1;
 }
 
+.file-drop-active {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
 .dicon {
   position: absolute;
   width: 82px;

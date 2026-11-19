@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-20
 tags: [desktop, files, data-safety]
 dependsOn: [ADESK-US-102, ADESK-US-106, ADESK-US-109]
 capabilities: []
@@ -22,7 +22,8 @@ capabilities: []
 ### In Scope
 
 - 文件与目录重命名、递归复制、扩展名前重名消解。
-- 本机文件批量导入当前目录（每批最多 256 MiB）、单文件下载，保留原始字节。
+- 将本机文件批量拖入桌面、Finder 当前目录、文件夹图标、分栏目录或侧栏快捷位置（每批最多 256 MiB）。支持单文件下载，保留原始字节。
+- Finder 工具栏移除独立的导入按钮，「更多」菜单保留键盘选取本机文件的入口。
 - 明确选择已支持文件的内置应用打开；不伪装任意应用都支持文件传入。
 - 废纸篓原位置持久化、Put Back、指定目录恢复；旧条目、失效原目录、重名时不覆盖。
 - 目录、文件体、多个标签页与终端的既有同步；系统拥有的路径仍受保护。
@@ -45,6 +46,7 @@ capabilities: []
 | 6   | 旧条目无记录、原目录消失或有同名文件 | Put Back / Restore to Folder       | 原目录不被悄悄重建，明确选位置，重名不覆盖，取消保留条目 | ✅   |
 | 7   | 原有 schema 与文件                   | 升级当前构建、升级失败后重试       | 文件和文件体保留；新字段与版本一起提交；旧构建拒绝较新库 | ✅   |
 | 8   | 新增菜单、输入框、目录选择           | 纯键盘操作和 Esc                   | 焦点进入并约束于对话框，取消回原条目，错误可感知         | ✅   |
+| 9   | 桌面与 Finder 可见                  | 将本机文件拖到可写目录或只读位置   | 可写目标接收副本，只读位置拒绝拖入，更多菜单可用键盘导入 | ✅   |
 
 ## 验收证据
 
@@ -54,6 +56,8 @@ capabilities: []
 - AC5–6：`trashOriginSurvivesReloadAndRename`、`restoreKeepsCollidingFile`、`missingOriginRequiresExplicitFolder`、`legacyTrashCanChooseFolder`；RxdbDiskStore 单测验证同一行提交和失败不更新原位置。
 - AC7：真实 `2026111301` 产物升级到 `2026111701`，upgrade-previous 六项通过；upgrade-legacy 与 upgrade-protection 继续通过。
 - AC8：`renameCancellationAndKeyboardFocus`、`a11y.fileOperations.*` 全绿，新增对话框 axe 无违规。自动化不能替代物理设备与读屏人工证据。
+
+2026-11-20 的拖放回归覆盖 AC3 和 AC9。`file-management` 检查组验证 `dropsOnDesktop`、`dropsOnDesktopFolder`、`dropsOnFolder`、`dropsOnSidebar`、`dropsOnVisibleColumn`、`rejectsReadOnlyDrops` 及批量导入的数据完整性。`a11y.fileOperations.keyboardImport` 验证通过键盘打开「更多」菜单并选取本机文件。
 
 新 schema 版本为 `2026111701`；之前的构建不能直接打开升级后的库，沿用既有降级保护。本次尚未发布。
 

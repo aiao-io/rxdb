@@ -1,11 +1,13 @@
 import { DOCUMENT } from '@angular/common';
 import { Component, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
 
+import { DESKTOP } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
+import { FileDrop } from '../shared/file-drop';
 import { clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
 import { isMenuKey } from '../shared/menu-list';
@@ -25,7 +27,7 @@ interface Point {
  */
 @Component({
   selector: 'app-desktop-surface',
-  imports: [Icon, CalendarWidget, WeatherWidget, StocksWidget],
+  imports: [Icon, CalendarWidget, WeatherWidget, StocksWidget, FileDrop],
   templateUrl: './desktop-surface.html',
   styleUrl: './desktop-surface.scss',
   encapsulation: ViewEncapsulation.None,
@@ -43,6 +45,7 @@ export class DesktopSurface {
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
 
   protected readonly desktop = inject(DesktopItems);
+  protected readonly desktopPath = DESKTOP;
   protected readonly viewport = signal<readonly [number, number]>([innerWidth, innerHeight]);
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly dragging = signal<{ readonly id: string; readonly at: Point } | null>(null);

@@ -14,8 +14,10 @@ export const fileManagement = {
   description: 'Finder 改名、复制、导入下载、打开方式、持久废纸篓恢复与键盘路径',
   keys: [
     'fileManagement.dropsOnDesktop',
+    'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
     'fileManagement.dropsOnSidebar',
+    'fileManagement.dropsOnVisibleColumn',
     'fileManagement.rejectsReadOnlyDrops',
     'fileManagement.importPreservesBytes',
     'fileManagement.importKeepsExistingNames',
@@ -42,6 +44,10 @@ export const fileManagement = {
     await desktop.drop({ files: payload('from-desktop.txt', Buffer.from(text)) }, { timeout: 5_000 });
     await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toBeVisible();
     result.dropsOnDesktop = (await diskText(session, 'from-desktop.txt')) === text;
+    await desktop.locator('[data-id="file:Projects"]').drop({
+      files: payload('from-desktop-folder.txt', Buffer.from(text))
+    });
+    await expect(page.locator('#toast')).toContainText('Imported 1 file');
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
@@ -93,7 +99,9 @@ export const fileManagement = {
     await expect(item('from-desktop.txt')).toBeVisible();
     await item('Projects').drop({ files: payload('from-folder.txt', Buffer.from(text)) });
     await item('Projects').dblclick();
+    await expect(item('from-desktop-folder.txt')).toBeVisible();
     await expect(item('from-folder.txt')).toBeVisible();
+    result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
     await finder().locator('[data-place="Downloads"]').drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
@@ -208,6 +216,10 @@ export const fileManagement = {
     await place('Desktop');
     await finder().getByRole('button', { name: 'Columns', exact: true }).click();
     await item('nested copy').click();
+    const column = finder().getByRole('listbox', { name: 'nested copy', exact: true });
+    await column.drop({ files: payload('from-column.txt', Buffer.from(text)) });
+    await expect(column.locator('[data-name="from-column.txt"]')).toBeVisible();
+    result.dropsOnVisibleColumn = (await diskText(session, 'from-column.txt')) === text;
     await rename('child.txt', 'column-child.txt');
     result.columnActionsUseExactPath = (await downloaded('column-child.txt')).equals(Buffer.from(text));
     await place('Desktop');

@@ -280,9 +280,6 @@
       "path": "./packages/orbit"
     },
     {
-      "path": "./apps/web-desktop"
-    },
-    {
       "path": "./packages/rxdb-admin"
     },
     {

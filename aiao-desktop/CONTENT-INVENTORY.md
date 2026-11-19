@@ -51,7 +51,7 @@ aiao-desktop/
     └── check-*.mjs             # 需求与密钥门禁
 ```
 
-`aiao-desktop` 是产品聚合项目。`apps/web` 构建到仓库的 `dist/aiao-desktop/apps/web`，`apps/e2e` 从产物侧验收。数据由仓库根的 `@aiao/rxdb` 等平台包提供，集成协议由 `@aiao/orbit` 提供。Aiao Code 源码在仓库的 `apps/aiao-vscode/`，本产品通过已登记的远程地址加载它。`apps/web-desktop/` 是单独的 Web Desktop 产品。[依赖方向](AGENTS.md#依赖方向) · [产品拆分决策](requirements/decisions.md#d-02产品根目录与应用拆分)
+`aiao-desktop` 是产品聚合项目。`apps/web` 构建到仓库的 `dist/aiao-desktop/apps/web`，`apps/e2e` 从产物侧验收。数据由仓库根的 `@aiao/rxdb` 等平台包提供，集成协议由 `@aiao/orbit` 提供。Aiao Code 源码在仓库的 `apps/aiao-vscode/`，本产品通过已登记的远程地址加载它。[依赖方向](AGENTS.md#依赖方向) · [产品拆分决策](requirements/decisions.md#d-02产品根目录与应用拆分)
 
 `apps/web/src/app/apps/` 有 30 个子目录。`shelf/` 共用一个组件承载 Podcasts、TV、Books 三个 ID，`web-app/` 承载 Aiao Code 和将来安装的远程应用。Launchpad 与 Trash 在桌面外壳处理。[组件绑定](apps/web/src/app/apps/registry.ts) · [运行时登记表](apps/web/src/app/services/application-registry.ts) · [系统入口](apps/web/src/app/services/app-launcher.ts)
 

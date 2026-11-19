@@ -34,7 +34,7 @@ A01 文档保存与未保存保护、A02 Finder 文件管理/本机导入导出/
 - 实际 GitHub 账户授权、运营批准应用的不可变版本、需要外部凭据的正式发布。
 - 本机登录窗口在前台时，无法用 Chrome 合成点击完成鼠标锁定实测；保留失败与环境信息，不代替用户解锁会话。
 
-参考：[Angular 状态](../status-overview.md)、[React 状态](../../../apps/web-desktop/requirements/status-overview.md)、[React 逐 AC 台账](../../../apps/web-desktop/requirements/acceptance-evidence.md)、[任务清单](../../../specs/001-web-desktop-product/tasks.md)。
+相关记录见 [Angular 状态](../status-overview.md)与[旧版 Web Desktop 任务清单](../../../specs/001-web-desktop-product/tasks.md)。
 
 ## 同日完成后注记
 

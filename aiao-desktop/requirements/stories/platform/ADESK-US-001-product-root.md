@@ -33,7 +33,7 @@ capabilities: []
 
 - 改变桌面的产品行为。
 - 产品私有包：眼下没有跨应用共用的代码。
-- 把 `apps/web-desktop`（Web Desktop，另一个产品）并入本产品。
+- 迁移旧版 Web Desktop 的实现。
 
 ## 验收标准
 

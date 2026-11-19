@@ -7,6 +7,7 @@
         @for (place of group.items; track place[0]) {
           <button
             class="si"
+            [appFileDrop]="placeDirectory(place[0])"
             [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
             [attr.data-place]="place[0]"
             [class.on]="placeOn(place[0])"
@@ -58,19 +59,6 @@
       </button>
       <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
-      <input #importInput (change)="importSelection(importInput)" hidden multiple type="file" />
-      <button
-        class="tbtn"
-        [disabled]="!canImport()"
-        (click)="importInput.click()"
-        aria-label="Import Files"
-        style="width: auto; padding: 0 8px"
-        tabindex="0"
-        title="Import files — up to 256 MiB per batch"
-        type="button"
-      >
-        {{ importing() ? 'Importing…' : 'Import…' }}
-      </button>
 
       <div class="seg" aria-label="View" data-nodrag role="group">
         <button
@@ -160,6 +148,7 @@
     <div
       class="fx-body"
       #body
+      [appFileDrop]="importDirectory()"
       [class.scroll]="view() !== 'column'"
       [style.overflow]="view() === 'column' ? 'hidden' : ''"
       (contextmenu)="bodyMenu($event)"
@@ -174,6 +163,7 @@
             @for (item of items(); track item.name) {
               <div
                 class="fitem"
+                [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                 [attr.aria-label]="label(item)"
                 [attr.aria-selected]="item.name === selected()"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
@@ -216,6 +206,7 @@
             @for (item of items(); track item.name) {
               <div
                 class="r"
+                [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                 [attr.aria-label]="label(item)"
                 [attr.aria-selected]="item.name === selected()"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
@@ -258,10 +249,17 @@
           <div class="fv-col">
             @for (column of chain; track $index; let ci = $index) {
               @if (!column.file && ci >= firstColumn()) {
-                <div class="col" [attr.aria-label]="column.node.name" [attr.data-ci]="ci" role="listbox">
+                <div
+                  class="col"
+                  [appFileDrop]="ci === 0 ? importDirectory() : column.node.path"
+                  [attr.aria-label]="column.node.name"
+                  [attr.data-ci]="ci"
+                  role="listbox"
+                >
                   @for (item of column.items ?? []; track item.name) {
                     <div
                       class="ci"
+                      [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                       [attr.aria-label]="label(item)"
                       [attr.aria-selected]="item.name === picked[ci]"
                       [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
@@ -350,6 +348,7 @@
               @for (item of items(); track item.name) {
                 <div
                   class="t"
+                  [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                   [attr.aria-label]="label(item)"
                   [attr.aria-selected]="item === current"
                   [attr.data-autofocus]="item.name === tabStop() ? '' : null"
@@ -391,6 +390,7 @@
     </div>
   </div>
 </div>
+<input #importInput (change)="importSelection(importInput)" hidden multiple type="file" />
 
 @if (fileOperation(); as operation) {
   <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation($event)" />

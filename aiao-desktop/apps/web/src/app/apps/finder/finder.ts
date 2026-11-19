@@ -14,17 +14,18 @@ import {
 
 import { isPackageName } from '../../disk/disk-kinds';
 import { DiskPath, TRASH, diskPathOf, isWithin, parentOf, samePath } from '../../disk/disk-path';
-import { validateImportSize } from '../../disk/file-operations';
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { DockDragController } from '../../services/dock-drag';
+import { FileImport } from '../../services/file-import';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
 import { isKeyboardClick } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
+import { FileDrop } from '../../shared/file-drop';
 import { finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
@@ -57,7 +58,7 @@ const PREVIEW_WIDTH = 250;
  */
 @Component({
   selector: 'app-finder',
-  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog],
+  imports: [Icon, PhotoArt, TrafficLights, FileOperationDialog, FileDrop],
   host: { style: 'display: contents' },
   templateUrl: './finder.html'
 })
@@ -70,7 +71,9 @@ export class FinderApp implements FinderCommands {
   private readonly injector = inject(Injector);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly fileImport = inject(FileImport);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
+  private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
     entries: [],
     index: 0
@@ -80,8 +83,6 @@ export class FinderApp implements FinderCommands {
   private refocus = false;
 
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
-  protected readonly importing = signal(false);
-  protected readonly canImport = computed(() => Boolean(diskPathOf(this.path())) && !this.query() && !this.importing());
 
   protected readonly sidebarGroups = SIDEBAR;
   protected readonly path = signal<readonly string[]>([]);
@@ -90,6 +91,7 @@ export class FinderApp implements FinderCommands {
   protected readonly pathbar = signal(true);
   protected readonly selected = signal<string | null>(null);
   protected readonly query = signal('');
+  protected readonly importDirectory = computed(() => (this.query() ? null : diskPathOf(this.path())));
   protected readonly columnSelection = signal<readonly string[]>([]);
   protected readonly sort = signal<FinderSort>('name');
   protected readonly finderDate = finderDate;
@@ -236,6 +238,11 @@ export class FinderApp implements FinderCommands {
     return place === path.at(-1) || (PLACES[place] ?? []).join('/') === path.join('/');
   }
 
+  protected placeDirectory(place: string): DiskPath | null {
+    const path = PLACES[place];
+    return path ? diskPathOf(path) : null;
+  }
+
   protected back(): void {
     this.step(-1);
   }
@@ -345,7 +352,13 @@ export class FinderApp implements FinderCommands {
           run: () => this.togglePathBar()
         },
         '-',
-        { id: 'nf', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() }
+        { id: 'nf', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() },
+        {
+          id: 'import',
+          label: 'Import Files…',
+          disabled: !this.fileImport.accepts(this.importDirectory()),
+          run: () => this.importInput().nativeElement.click()
+        }
       ],
       {
         x: rect.right,
@@ -394,22 +407,11 @@ export class FinderApp implements FinderCommands {
   protected async importSelection(input: HTMLInputElement): Promise<void> {
     const files = Array.from(input.files ?? []);
     input.value = '';
-    const dir = diskPathOf(this.path());
-    if (!dir || !files.length || this.importing()) return;
-    this.importing.set(true);
-    try {
-      validateImportSize(files.map(file => file.size));
-      const entries = await Promise.all(
-        files.map(async file => ({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }))
-      );
-      const paths = await this.fs.importFiles(dir, entries);
-      this.selected.set(paths.at(-1)?.at(-1) ?? null);
-      this.toast.show(`Imported ${paths.length} file${paths.length === 1 ? '' : 's'}`);
-    } catch (error) {
-      this.toast.show(describeDiskError(error));
-    } finally {
-      this.importing.set(false);
-    }
+    const dir = this.importDirectory();
+    if (dir === null) return;
+    const latest = (await this.fileImport.importFiles(dir, files)).at(-1);
+    const current = this.importDirectory();
+    if (latest && current && samePath(dir, current)) this.selectPath(latest);
   }
 
   protected label(item: FsNode): string {

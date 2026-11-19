@@ -68,4 +68,4 @@ capabilities: []
 
 - [ADESK-EPIC-003](../../epics/ADESK-EPIC-003.md)
 - [D-10](../../decisions.md#d-10应用分三类登记在同一张表里)
-- 第一版 Web Desktop 的应用描述与目录：[DESKTOP-US-202](../../../../apps/web-desktop/requirements/stories/application/DESKTOP-US-202-application-manifest.md)（另一个产品，只作参考）
+- 第一版 Web Desktop 的应用体系见[历史规格](../../../../specs/001-web-desktop-product/spec.md)。
