@@ -10,20 +10,30 @@ import {
   checkAnchorEvidence,
   checkBigStoryList,
   checkEpics,
+  checkEvidenceBaseline,
+  checkGeneratedViews,
   checkInheritedAcs,
   checkLinks,
   checkPackageCounts,
   checkReadme,
   checkRoadmap,
   checkStatusOverview,
+  checkTables,
   collectEpics,
+  collectRequirementRoots,
   collectStories,
   countStatuses,
+  evidenceHits,
   evidenceSymbols,
   headingSlug,
   maskCode,
+  openAcSummary,
   parseFrontmatter,
+  ratchetEvidenceBaseline,
+  renderEpicList,
+  renderStatusOverview,
   run,
+  scanEvidence,
   scanNarrative,
   updateReadme,
   updateRoadmap,
@@ -46,11 +56,21 @@ const overview = (done, wip, review, backlog, total, emojis) => `# 状态概览
 
 ## 进行中（${wip} 条）
 
+当前没有进行中的故事。
+
 ## 待评审（${review} 条）
+
+当前没有待评审的故事。
+
+## 阻塞（0 条）
+
+当前没有 YAML 显式标为 Blocked 的故事；不等于其他故事没有前置。
 
 ## 按 Epic 索引
 
-${emojis.map(([e, id]) => `- ${e} [${id} 标题](stories/core/${id}-x.md)`).join('\n')}
+### [X](epics/epic-001-x.md)
+
+${emojis.map(([e, id]) => `- ${e} [${id} ${id}](stories/core/${id}-x.md)`).join('\n')}
 `;
 
 const roadmap = (open, wip, review, backlog, ids = ['US-003'], done = 2, blocked = 0) => `# 排期与约束
@@ -89,7 +109,7 @@ async function scaffold(
   await writeFile(path.join(dir, 'requirements/stories/core/US-003-x.md'), story('US-003', 'Backlog'));
   await writeFile(
     path.join(dir, 'requirements/epics/epic-001-x.md'),
-    `---\nid: epic-001-x\nstatus: ${epicStatus}\n---\n\n## 故事\n\n- [US-001](../stories/core/US-001-x.md)\n- [US-002](../stories/core/US-002-x.md)\n- [US-003](../stories/core/US-003-x.md)\n`
+    `---\nid: epic-001-x\nstatus: ${epicStatus}\n---\n\n# X\n\n## 故事\n\n- [US-001](../stories/core/US-001-x.md)\n- [US-002](../stories/core/US-002-x.md)\n- [US-003](../stories/core/US-003-x.md)\n`
   );
   await writeFile(
     path.join(dir, 'requirements/status-overview.md'),
@@ -108,7 +128,10 @@ async function scaffold(
   );
   await writeFile(path.join(dir, 'requirements/roadmap.md'), roadmapText);
   await writeFile(path.join(dir, 'README.md'), `# x\n\n当前交付状态 ${readme}\n`);
-  await writeFile(path.join(dir, 'requirements/README.md'), '# 需求管理\n');
+  await writeFile(
+    path.join(dir, 'requirements/README.md'),
+    '# 需求管理\n\nEpic：\n\n- [epic-001 X](epics/epic-001-x.md)\n'
+  );
   await writeFile(path.join(dir, 'packages/x/src/a.ts'), 'a\nb\nc\n');
 }
 
@@ -710,4 +733,303 @@ test('capability-matrix / versioning-policy 的包计数与 packages/、api-base
   assert.match(offenders.join('\n'), /capability-matrix\.md: 公开包写 9 个，实际 1 个/);
   assert.match(offenders.join('\n'), /capability-matrix\.md: 受基线保护写 8 个，实际 1 个/);
   assert.match(offenders.join('\n'), /versioning-policy\.md: 公开包写 7 个 \/ 受保护 6 个，实际 1 \/ 1/);
+});
+
+/** 下面的用例会增删故事与史诗文件，各用一个独立目录，不把残留留给共享目录里的其他用例。 */
+async function freshRepo(t) {
+  const repo = await mkdtemp(path.join(os.tmpdir(), 'req-consistency-'));
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  await scaffold(repo);
+  return repo;
+}
+
+// ── 派生段落由脚本生成 ──────────────────────────────────────────────────────────────
+
+const acTable = rows =>
+  `\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n${rows.map(([n, s]) => `| ${n} | a | b | c | ${s} |`).join('\n')}\n`;
+
+test('openAcSummary 列出未通过的当前承诺 AC：连续编号压成区间，候选不算，没有数字 AC 时如实说明', () => {
+  const of = (rows, extra = {}) => openAcSummary({ fm: { status: 'In Progress', ...extra }, text: acTable(rows) });
+  assert.equal(
+    of([
+      [1, '✅'],
+      [2, '⬜'],
+      [3, '⚠️ 待真机'],
+      [4, '⬜'],
+      [5, '✅'],
+      [6, '⬜']
+    ]),
+    '未通过 AC#2～#4、#6（4/6）'
+  );
+  assert.equal(
+    of(
+      [
+        [1, '✅'],
+        [2, '⚠️ 候选']
+      ],
+      { candidate_acs: '[2]' }
+    ),
+    'AC 已全部通过'
+  );
+  assert.equal(
+    openAcSummary({ fm: {}, text: '## 验收标准\n\n- **US1-AC1**：**Given** a\n' }),
+    'AC 不是数字编号，见故事'
+  );
+});
+
+test('--update 重新生成进行中 / 待评审 / 阻塞三段与按 Epic 索引，手写的说明文字原样保留', async t => {
+  const repo = await freshRepo(t);
+  const put = (name, text) => writeFile(path.join(repo, 'requirements/stories/core', name), text);
+  await put(
+    'US-003-x.md',
+    story('US-003', 'In Progress') +
+      acTable([
+        [1, '✅'],
+        [2, '⬜']
+      ])
+  );
+  await put('US-004-x.md', story('US-004', 'In Review') + acTable([[1, '⚠️']]));
+  await put('US-010-x.md', story('US-010', 'Blocked'));
+  const epicPath = path.join(repo, 'requirements/epics/epic-001-x.md');
+  await writeFile(
+    epicPath,
+    `${await readFile(epicPath, 'utf8')}- [US-004](../stories/core/US-004-x.md)\n- [US-010](../stories/core/US-010-x.md)\n`
+  );
+  const overviewPath = path.join(repo, 'requirements/status-overview.md');
+  await writeFile(
+    overviewPath,
+    (await readFile(overviewPath, 'utf8')).replace(
+      '### [X](epics/epic-001-x.md)\n',
+      '### [旧标题](epics/epic-001-x.md)\n\n这段说明是手写的。\n'
+    )
+  );
+  await writeFile(
+    path.join(repo, 'requirements/roadmap.md'),
+    roadmap(3, 1, 1, 0, ['US-003', 'US-004', 'US-010'], 2, 1)
+  );
+  await writeFile(path.join(repo, 'README.md'), '# x\n\n当前交付状态 [2/5 已交付]\n');
+
+  const stale = await run({ root: repo });
+  assert.match(
+    stale.offenders.join('\n'),
+    /status-overview\.md: 生成段落与故事 YAML 不一致.*audit:requirements:update/
+  );
+
+  const { offenders } = await run({ root: repo, update: true });
+  assert.deepEqual(offenders, []);
+  const fixed = await readFile(overviewPath, 'utf8');
+  assert.match(
+    fixed,
+    /## 进行中（1 条）\n\n- \[US-003 US-003\]\(stories\/core\/US-003-x\.md\)：未通过 AC#2（1\/2）\n\n## 待评审（1 条）/
+  );
+  assert.match(
+    fixed,
+    /## 待评审（1 条）\n\n- \[US-004 US-004\]\(stories\/core\/US-004-x\.md\)：未通过 AC#1（1\/1）\n\n## 阻塞（1 条）/
+  );
+  assert.match(fixed, /## 阻塞（1 条）\n\n- \[US-010 US-010\]\(stories\/core\/US-010-x\.md\)\n\n## 按 Epic 索引/);
+  // 小节标题跟着 epic 的一级标题走，说明文字留着，故事按编号排。
+  assert.match(
+    fixed,
+    /### \[X\]\(epics\/epic-001-x\.md\)\n\n这段说明是手写的。\n\n- ✅ \[US-001 US-001\]\(stories\/core\/US-001-x\.md\)\n- ✅ \[US-002 US-002\]\(stories\/core\/US-002-x\.md\)\n- 🚧 \[US-003 US-003\]\(stories\/core\/US-003-x\.md\)\n- 👀 \[US-004 US-004\]\(stories\/core\/US-004-x\.md\)\n- 🚫 \[US-010 US-010\]\(stories\/core\/US-010-x\.md\)\n$/
+  );
+  // 再跑一次不产生任何改动：生成结果是稳定的。
+  await run({ root: repo, update: true });
+  assert.equal(await readFile(overviewPath, 'utf8'), fixed);
+});
+
+test('新史诗在索引里自动得到小节并按史诗编号排位；指向不存在的史诗的小节不动并报出', async t => {
+  const repo = await freshRepo(t);
+  await writeFile(
+    path.join(repo, 'requirements/epics/epic-002-y.md'),
+    '---\nid: epic-002-y\nstatus: Backlog\n---\n\n# Y\n\n## 故事\n\n- [US-005](../stories/core/US-005-x.md)\n'
+  );
+  await writeFile(
+    path.join(repo, 'requirements/stories/core/US-005-x.md'),
+    story('US-005', 'Backlog').replace('epic: epic-001-x', 'epic: epic-002-y')
+  );
+  const stories = await collectStories(repo);
+  const epics = await collectEpics(repo);
+  const before = await readFile(path.join(repo, 'requirements/status-overview.md'), 'utf8');
+  const next = renderStatusOverview(before, stories, epics);
+  assert.match(
+    next,
+    /- ⬜ \[US-003 US-003\]\(stories\/core\/US-003-x\.md\)\n\n### \[Y\]\(epics\/epic-002-y\.md\)\n\n- ⬜ \[US-005 US-005\]\(stories\/core\/US-005-x\.md\)\n$/
+  );
+
+  const orphan = next.replace('### [Y](epics/epic-002-y.md)', '### [改名前](epics/epic-009-gone.md)');
+  const readme = '# 需求管理\n\nEpic：\n\n- [epic-001 X](epics/epic-001-x.md)\n- [epic-002 Y](epics/epic-002-y.md)\n';
+  const offenders = checkGeneratedViews({ overview: orphan, readme }, stories, epics);
+  assert.match(offenders.join('\n'), /status-overview\.md: 索引小节指向不存在的 epic-009-gone/);
+  // 回写不删那一节：标题下可能有手写的说明，改好链接之后再生成。
+  assert.match(renderStatusOverview(orphan, stories, epics), /### \[改名前\]\(epics\/epic-009-gone\.md\)/);
+});
+
+test('requirements/README.md 的 Epic 清单由 epic 文件生成：漏列、多列、标题过期都算不一致', async t => {
+  const repo = await freshRepo(t);
+  await writeFile(
+    path.join(repo, 'requirements/epics/epic-002-y.md'),
+    '---\nid: epic-002-y\nstatus: Backlog\n---\n\n# Y\n\n## 故事\n'
+  );
+  const epics = await collectEpics(repo);
+  const readme = '# 需求管理\n\nEpic：\n\n- [epic-001 旧标题](epics/epic-001-x.md)\n\n视图：\n';
+  assert.equal(
+    renderEpicList(readme, epics),
+    '# 需求管理\n\nEpic：\n\n- [epic-001 X](epics/epic-001-x.md)\n- [epic-002 Y](epics/epic-002-y.md)\n\n视图：\n'
+  );
+  const { offenders } = await run({ root: repo });
+  assert.match(offenders.join('\n'), /requirements\/README\.md: Epic 清单与 epics\/ 目录不一致/);
+  await run({ root: repo, update: true });
+  assert.match(
+    await readFile(path.join(repo, 'requirements/README.md'), 'utf8'),
+    /- \[epic-002 Y\]\(epics\/epic-002-y\.md\)/
+  );
+  assert.match(
+    checkGeneratedViews({ overview: '', readme: '# 需求管理\n' }, [], epics).join('\n'),
+    /找不到「Epic：」清单/
+  );
+});
+
+// ── 表格完整性 ──────────────────────────────────────────────────────────────────────
+
+test('掉在表格外的表格行被抓出：空行之后没有表头与分隔行，渲染出来是一串竖线', () => {
+  const good = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
+  assert.deepEqual(checkTables(good, 'x.md'), []);
+  assert.match(checkTables(`${good}\n| 3 | 4 |\n`, 'x.md').join('\n'), /x\.md:5: 表格行不在表格里/);
+  // 代码块里的竖线行是字面文本；带对齐标记的分隔行照常算表格。
+  assert.deepEqual(checkTables('```text\n| 3 | 4 |\n```\n', 'x.md'), []);
+  assert.deepEqual(checkTables('| a | b |\n| :-- | --: |\n| 1 | 2 |\n', 'x.md'), []);
+});
+
+test('run() 对 requirements 下的文档逐个查表格完整性', async t => {
+  const repo = await freshRepo(t);
+  const roadmapPath = path.join(repo, 'requirements/roadmap.md');
+  await writeFile(
+    roadmapPath,
+    `${await readFile(roadmapPath, 'utf8')}\n| [US-003](stories/core/US-003-x.md) | 📝 Backlog |\n`
+  );
+  const { offenders } = await run({ root: repo });
+  assert.match(offenders.join('\n'), /requirements\/roadmap\.md:\d+: 表格行不在表格里/);
+});
+
+// ── 验收证据区：日期与裸计数只减不增 ────────────────────────────────────────────────
+
+test('evidenceHits 只数验收证据区里的日期与裸计数：表格行里的日期、行内代码与区外正文不算', () => {
+  const text = [
+    '# x',
+    '',
+    '立项于 2026-01-02，区外正文不算。',
+    '',
+    '## 验收标准',
+    '',
+    '| # | 前置 | 操作 | 预期 | 状态 |',
+    '| --- | --- | --- | --- | --- |',
+    '| 1 | 生效日 2026-11-01 的 ECN | 展开 | 16/16 通过 | ✅ |',
+    '',
+    '验收证据（2026-11-17）：`2026-11-18` 的样例日期写在行内代码里；62 例通过，另见 139/139。',
+    '',
+    '### 验收入口',
+    '',
+    '- 复跑于 2026-11-19，7 passed。',
+    '',
+    '## 技术笔记',
+    '',
+    '2026-11-20 的笔记与 5 例通过都不在证据区。',
+    ''
+  ].join('\n');
+  assert.deepEqual(evidenceHits(text), { date: 2, count: 4 });
+  assert.deepEqual(evidenceHits('## 验收标准\n\n- AC#1：`board.spec.ts`，复验命令 `pnpm nx test x`\n'), {
+    date: 0,
+    count: 0
+  });
+});
+
+test('collectRequirementRoots 找出根与各应用 / 产品的需求目录，scanEvidence 按故事编号汇总', async t => {
+  const repo = await freshRepo(t);
+  const app = path.join(repo, 'apps/demo/requirements/stories/platform');
+  const product = path.join(repo, 'product-x/requirements/stories/platform');
+  await mkdir(app, { recursive: true });
+  await mkdir(product, { recursive: true });
+  await mkdir(path.join(repo, 'node_modules/pkg/requirements/stories'), { recursive: true });
+  await writeFile(
+    path.join(app, 'DEMO-US-001-x.md'),
+    `${story('DEMO-US-001', 'Done')}\n## 验收标准\n\n验收证据（2026-11-17）：3 例通过。\n`
+  );
+  await writeFile(path.join(product, 'PX-US-001-x.md'), story('PX-US-001', 'Backlog'));
+  await writeFile(
+    path.join(product, 'PX-US-001-evidence.md'),
+    '# 运行记录\n\n## 验收记录\n\n2026-11-19：62 例通过。\n'
+  );
+  assert.deepEqual(await collectRequirementRoots(repo), [
+    'apps/demo/requirements',
+    'product-x/requirements',
+    'requirements'
+  ]);
+  const scan = await scanEvidence(repo);
+  assert.deepEqual(scan.get('DEMO-US-001'), {
+    date: 1,
+    count: 1,
+    rel: 'apps/demo/requirements/stories/platform/DEMO-US-001-x.md'
+  });
+  // 没有命中的故事不进结果；证据辅助文件没有 story frontmatter，不受约束。
+  assert.equal(scan.has('PX-US-001'), false);
+  assert.equal(scan.size, 1);
+});
+
+test('证据区基线只减不增：新增被拒，不在基线里的新故事必须为零，清掉之后要求收紧基线', () => {
+  const scan = hits =>
+    new Map(Object.entries(hits).map(([id, [date, count]]) => [id, { date, count, rel: `${id}.md` }]));
+  const baseline = { 'US-001': { count: 2, date: 3 } };
+  assert.deepEqual(checkEvidenceBaseline(scan({ 'US-001': [3, 2] }), baseline), []);
+  assert.match(
+    checkEvidenceBaseline(scan({ 'US-001': [4, 2] }), baseline).join('\n'),
+    /US-001\.md: 验收证据区的日期从 3 处增到 4 处/
+  );
+  assert.match(
+    checkEvidenceBaseline(scan({ 'US-001': [3, 5] }), baseline).join('\n'),
+    /US-001\.md: 验收证据区的裸测试计数从 2 处增到 5 处/
+  );
+  assert.match(
+    checkEvidenceBaseline(scan({ 'US-001': [3, 2], 'US-002': [1, 0] }), baseline).join('\n'),
+    /US-002\.md: 验收证据区的日期从 0 处增到 1 处/
+  );
+  assert.match(
+    checkEvidenceBaseline(scan({ 'US-001': [1, 2] }), baseline).join('\n'),
+    /US-001 的基线高于现状.*audit:requirements:update/
+  );
+  assert.match(checkEvidenceBaseline(scan({}), baseline).join('\n'), /US-001 的基线高于现状/);
+
+  // 回写只收紧、清零即删条目，从不替新故事登记，也从不上调。
+  assert.deepEqual(ratchetEvidenceBaseline(scan({ 'US-001': [1, 9], 'US-002': [4, 4] }), baseline), {
+    'US-001': { count: 2, date: 1 }
+  });
+  assert.deepEqual(ratchetEvidenceBaseline(scan({}), baseline), {});
+});
+
+test('run() 按基线文件把证据区的新增挡在门外，--update 只收紧基线', async t => {
+  const repo = await freshRepo(t);
+  const baselinePath = path.join(repo, 'scripts/audit/requirements-evidence-baseline.json');
+  await mkdir(path.dirname(baselinePath), { recursive: true });
+  const storyPath = path.join(repo, 'requirements/stories/core/US-001-x.md');
+  const withEvidence = n => `${story('US-001', 'Done')}\n## 验收标准\n\n验收证据：${'2026-11-17 复跑。'.repeat(n)}\n`;
+  await writeFile(storyPath, withEvidence(2));
+
+  // 没有基线文件 = 没有登记过存量：任何命中都是新增。
+  await rm(baselinePath, { force: true });
+  assert.match((await run({ root: repo })).offenders.join('\n'), /US-001-x\.md: 验收证据区的日期从 0 处增到 2 处/);
+
+  await writeFile(baselinePath, JSON.stringify({ 'US-001': { count: 0, date: 2 } }));
+  assert.deepEqual((await run({ root: repo })).offenders, []);
+
+  await writeFile(storyPath, withEvidence(1));
+  assert.match((await run({ root: repo })).offenders.join('\n'), /US-001 的基线高于现状/);
+  assert.deepEqual((await run({ root: repo, update: true })).offenders, []);
+  assert.deepEqual(JSON.parse(await readFile(baselinePath, 'utf8')), { 'US-001': { count: 0, date: 1 } });
+
+  await writeFile(storyPath, withEvidence(3));
+  assert.match((await run({ root: repo, update: true })).offenders.join('\n'), /日期从 1 处增到 3 处/);
+  assert.deepEqual(JSON.parse(await readFile(baselinePath, 'utf8')), { 'US-001': { count: 0, date: 1 } });
+
+  // 显式重建基线是唯一能上调的入口，引入门禁或批量导入存量时才用。
+  assert.deepEqual((await run({ root: repo, rebaselineEvidence: true })).offenders, []);
+  assert.deepEqual(JSON.parse(await readFile(baselinePath, 'utf8')), { 'US-001': { count: 0, date: 3 } });
 });
