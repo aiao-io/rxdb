@@ -1,12 +1,13 @@
 ---
 id: US-316
 title: 导入远端提交：保留提交身份并快进分支头
-status: In Review
+status: Done
 priority: High
 epic: epic-014-commit-graph-remote-exchange
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-19
 tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
+evidence: ./US-316-evidence.md
 ---
 
 # 用户故事：导入远端提交：保留提交身份并快进分支头
@@ -50,18 +51,19 @@ tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（2026-11-17）：在隔离 worktree（基线 `b2e746fa1`，叠加 US-317）上完成实现与验证，随后以补丁并入本分支；并入后 `pnpm audit:callsite-drift`（15/15）与 `pnpm audit:requirements` 通过，构建、单测与六个适配器的测试在本分支串行复跑后补记。
+验收证据：下面按 AC 给出复验入口；带日期的运行结果见[验收运行记录](./US-316-evidence.md)。
 
-- 一致性套件 `src/working-tree/testing/worktree.suite.ts` 的「导入远端提交（US-316）」一节：AC#1 空分支导入整条链（提交身份与指纹逐字相同）、AC#2 从当前头延续并快进、AC#3 脏工作树与链首父不对时零写入、AC#4 指纹不符整批拒绝、AC#5 重复导入为 no-op 且同 ID 不同内容被拒、AC#6 合并提交入库后 `listCommits()` / `restore()` / 提交视图 / 从提交建分支 / 分支对比与切分支都走对、AC#7 导入后本地提交以导入的头为父；另有前像核对（服务端增量与本机业务行对不上时整批 `precondition_mismatch`、零写入）。六个适配器（electron / pglite / sqlite-wasm / sqlite / sqliteai / wa-sqlite）同一份套件均 62/62（AC#8）。
-- 单测：`import-commits.spec.ts`、`import-precondition.spec.ts`、`commit-graph-merge.spec.ts`、`facade-import-export.spec.ts`、`fingerprint-normalization-doc.spec.ts`（按文档手拼规范串逐字核对指纹）；working-tree 包 87 个文件 1414 例通过，分支覆盖率 91.3%。
-- AC#9：三端 `useWorkingTree()` 对称新增 `importCommits` / `exportCommits` 与对应状态，三端绑定测试 React 89 例、Vue 86 例、Angular 95 例通过。
-- AC#10（2026-11-18）：子路径 `./exchange` 导出 `checkCommitExchangeBatch`（`importCommits()` 判 `invalid_batch` 用的就是它）、`computeChangeUnitFingerprint` / `computeCommitContentFingerprint` / `computeCommitExchangeRecordFingerprint`、`parseCommitExchangeRecord` / `serializeCommitExchangeRecord`；`exchange-entry.spec.ts` 94 例（含文档两个示例哈希逐字相同），`exchange-entry-isolation.spec.ts` 用资源计时证明只加载入口与三个纯模块（往入口加一条非纯导出的变异使其变红）；dist 在 Node 26 与 Deno 2.8 下复算示例哈希一致；`pnpm audit:build-entries` 通过。
-- 受信写登记表 #15（`import-command.ts · applyImportedCommit`，意图 `remote_commit_import`）与 epic-006 登记表、写入口矩阵、漂移扫描同步；`pnpm nx run website:check-doc-code` 481 个代码块零错误；React working-tree e2e 15 例通过。
+- AC#1～#7：一致性套件 `src/working-tree/testing/worktree.suite.ts` 的「导入远端提交（US-316）」一节——空分支导入整条链（提交身份与指纹逐字相同）、从当前头延续并快进、脏工作树与链首父不对时零写入、指纹不符整批拒绝、重复导入为 no-op 且同 ID 不同内容被拒、合并提交入库后 `listCommits()` / `restore()` / 提交视图 / 从提交建分支 / 分支对比与切分支都走对、导入后本地提交以导入的头为父；另有前像核对（服务端增量与本机业务行对不上时整批 `precondition_mismatch`、零写入）。
+- AC#8：同一份套件由六个适配器（electron / pglite / sqlite-wasm / sqlite / sqliteai / wa-sqlite）各自的 `src/__tests__/worktree-conformance.spec.ts` 调用，复验命令为 `pnpm nx test <适配器> -- --run --coverage.enabled=false src/__tests__/worktree-conformance.spec.ts`。
+- 单测：`import-commits.spec.ts`、`import-precondition.spec.ts`、`commit-graph-merge.spec.ts`、`facade-import-export.spec.ts`、`fingerprint-normalization-doc.spec.ts`（按文档手拼规范串逐字核对指纹），由 `pnpm nx test rxdb-plugin-working-tree` 复验，含覆盖率阈值。
+- AC#9：三端 `useWorkingTree()` 对称新增 `importCommits` / `exportCommits` 与对应状态，由 `rxdb-plugin-working-tree-{angular,react,vue}` 的绑定测试覆盖。
+- AC#10：子路径 `./exchange` 导出 `checkCommitExchangeBatch`（`importCommits()` 判 `invalid_batch` 用的就是它）、`computeChangeUnitFingerprint` / `computeCommitContentFingerprint` / `computeCommitExchangeRecordFingerprint`、`parseCommitExchangeRecord` / `serializeCommitExchangeRecord`；`exchange-entry.spec.ts` 核对文档两个示例哈希逐字相同，`exchange-entry-isolation.spec.ts` 用资源计时证明只加载入口与三个纯模块（往入口加一条非纯导出的变异使其变红）；`pnpm audit:build-entries` 守护子路径入口。dist 在 Node 与 Deno 下复算示例哈希一致是手工核对，没有自动化入口。
+- 受信写登记表 #15（`import-command.ts · applyImportedCommit`，意图 `remote_commit_import`）与 epic-006 登记表、写入口矩阵同步，由 `pnpm audit:callsite-drift` 守护；文档代码块由 `pnpm nx run website:check-doc-code` 校验，界面路径由 React working-tree e2e 覆盖。
 
 ## 技术笔记
 
-- 现状（2026-11-17 核对）：提交 ID 在本地生成，写路径的父提交只取当前 HEAD，`commit()` 不伪造远端作者；外部只有 `BranchMaterializationSource` 能物化数据，且只写一个无父的 `branch_baseline`，不带提交历史；远端同步拉下的变化以 `remote_sync` 来源进工作树。
-- 新的受信写意图需要按 epic-006「受信调用点登记表」登记调用点，并更新意图枚举与漂移用例。
+- 导入之外的路径不变：本地 `commit()` 的提交 ID 在本地生成、父提交只取当前 HEAD、不伪造远端作者；`BranchMaterializationSource` 的物化只写一个无父的 `branch_baseline`、不带提交历史；远端同步拉下的变化仍以 `remote_sync` 来源进工作树。带提交身份的远端历史只经 `importCommits()` 进入。
+- 受信写意图 `remote_commit_import` 按 epic-006「受信调用点登记表」登记为 #15，意图枚举与漂移用例随之更新。
 - 首个使用方 [ADMIN-US-221](../../../rxdb-admin-template/requirements/stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 的服务端提交协议已对齐 `CommitChangeSet` 形状（ADMIN-US-218 切片 C），提交 ID 同为 UUIDv7、指纹同为 SHA-256。
 
 ## 实现文件
@@ -74,8 +76,7 @@ tags: [collaboration, working-tree, commit-graph, remote, tri-framework]
 
 ## 已知边界与遗留风险
 
-- 2026-11-18 评审修复：当前分支 HEAD 为 null 时，从根开始的链与系统根 HEAD 同样先检查受版本控制的业务表，有数据就返回 `not_fast_forward`（`headCommitId: null`）、零写入，表为空才照常导入；只有旧版本 `createBranch()` 留下、尚未经 `enable()` 补根的空 ref 会走到这一支，`enable()` 写下的基线 / 分支基线上的换根导入、第一父链快进、恢复路径与前像核对都不变。新增 2 条单测（先红后绿），working-tree 插件 1513 例、PGlite 一致性 62/62 通过；登记表 #14 / #15 的存档行号随之刷新。
-
+- 分支 HEAD 为 null 的空 ref：从根开始的链与系统根 HEAD 同样先检查受版本控制的业务表，有数据就返回 `not_fast_forward`（`headCommitId: null`）、零写入，表为空才照常导入。只有旧版本 `createBranch()` 留下、尚未经 `enable()` 补根的空 ref 会走到这一支；`enable()` 写下的基线 / 分支基线上的换根导入、第一父链快进、恢复路径与前像核对不受影响。由 `import-commits.spec.ts` 覆盖。
 - 只按第一父链快进：头在合并提交非第一父一侧的设备直接导入得到 `not_fast_forward`，需按文档的恢复路径（从分叉提交建分支、切过去再导入）收敛。
 - 加密列不能跨设备交换（各库密钥环不同，叠业务表时整笔回滚）；交换的实体须配 `SyncType.None`，导入在入口拒绝走通用同步的实体。
 - 只测了同后端两台设备之间的交换，没测 PGlite 与 SQLite 之间。

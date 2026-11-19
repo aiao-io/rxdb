@@ -22,7 +22,7 @@ owner: jimmy
 
 - [x] 三端及 E2E 收拢到产品 apps，产品根统一管理需求与门禁（[ADMIN-US-004](../stories/platform/ADMIN-US-004-product-requirements.md)）。
 
-以上勾选表示本地验收完成；ADMIN-US-003 / ADMIN-US-004 / ADMIN-US-102 当前为 In Review，Epic 保持 In Progress，合并与已交付状态见故事 YAML。
+以上勾选的目标已交付；Epic 因 ADMIN-US-101 仍缺真实业务输入保持 In Progress，各故事状态见 YAML。
 
 ## 故事
 

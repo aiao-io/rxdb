@@ -18,8 +18,8 @@ owner: jimmy
 
 ## 目标
 
-- [ ] 导入远端提交并快进分支头，保留提交身份，支持多父合并提交（[US-316](../stories/collaboration/US-316-remote-commit-import.md)）。
-- [ ] `discard()` / `restore()` 回写业务表，查询结果与工作树状态一致（[US-317](../stories/collaboration/US-317-discard-restore-projection.md)）。
+- [x] 导入远端提交并快进分支头，保留提交身份，支持多父合并提交（[US-316](../stories/collaboration/US-316-remote-commit-import.md)）。
+- [x] `discard()` / `restore()` 回写业务表，查询结果与工作树状态一致（[US-317](../stories/collaboration/US-317-discard-restore-projection.md)）。
 
 ## 故事
 

@@ -33,7 +33,7 @@
 1. 从 [story.template.md](stories/story.template.md) 复制出新 story，选正确领域目录、未占用编号。
 2. 完整填写 frontmatter（id / title / status / priority / epic / created / updated / tags）、目标、AC 表、范围边界、实现文件。
 3. 推进过程中持续更新 `status`、`priority`、`updated`、`References`。
-4. 合并后：YAML `status: Done`，补 PR 链接。
+4. 当前承诺的 AC 全部 ✅ 时，在实现 PR 内把 YAML `status` 改成 `Done` 并补 PR 链接，合并即生效；`In Review` 只留给仍有未 ✅ 的 AC、或硬依赖尚未 `Done` 的故事（见根「状态定义」）。
 
 ## 提交与 PR 关联方式
 

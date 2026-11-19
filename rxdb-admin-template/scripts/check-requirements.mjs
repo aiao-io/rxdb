@@ -142,15 +142,18 @@ function checkAcs(story, errors) {
   // 状态取每行最后一格：多出或少了一格时状态照样取得到，渲染出的表格却会把状态挤出状态列，所以列数要与表头逐行核对。
   const header = lines.find(line => /^\|\s*#\s*\|/.test(line));
   const width = header === undefined ? undefined : cellsOf(header).length;
+  const statuses = [];
   for (const row of lines.filter(line => /^\|\s*\d+\s*\|/.test(line))) {
     const cells = cellsOf(row);
     if (width !== undefined && cells.length !== width)
       errors.push(`${story.rel}: AC#${cells[0]} 有 ${cells.length} 列，与表头的 ${width} 列不一致`);
     const status = cells.at(-1);
+    statuses.push(status);
     if (!['⬜', '⚠️', '✅'].includes(status)) errors.push(`${story.rel}: AC#${cells[0]} 状态无效`);
     if (story.fm.status === 'Done' && status !== '✅')
       errors.push(`${story.rel}: Done 故事 AC#${cells[0]} 必须全部 ✅`);
   }
+  story.acsAllPassed = statuses.length > 0 && statuses.every(status => status === '✅');
 }
 
 function checkStory(story, errors) {
@@ -166,12 +169,22 @@ function checkStory(story, errors) {
   checkAcs(story, errors);
 }
 
+/**
+ * 硬依赖的存在性与关闭顺序，以及 `In Review` 的正当理由。
+ *
+ * `In Review` 只有两种理由：自己还有未 ✅ 的 AC，或硬依赖尚未 `Done`。两种都没有时必须在实现 PR 内直接标
+ * `Done`——等合并后另开 PR 补标的那一步没人做。依赖关闭后这条规则会接着要求被它挡住的故事一起关闭。
+ */
 function checkStoryDependencies(story, byId, errors) {
+  let openDependencies = 0;
   for (const id of story.dependencies) {
     if (!STORY_ID.test(id) || !byId.has(id)) errors.push(`${story.rel}: dependsOn ${id} 不是存在的本应用故事`);
-    if (story.fm.status === 'Done' && byId.has(id) && byId.get(id).fm.status !== 'Done')
-      errors.push(`${story.rel}: Done 故事的硬依赖 ${id} 尚未 Done`);
+    if (!byId.has(id) || byId.get(id).fm.status === 'Done') continue;
+    openDependencies++;
+    if (story.fm.status === 'Done') errors.push(`${story.rel}: Done 故事的硬依赖 ${id} 尚未 Done`);
   }
+  if (story.fm.status === 'In Review' && story.acsAllPassed && openDependencies === 0)
+    errors.push(`${story.rel}: In Review 故事的 AC 已全部 ✅ 且硬依赖均已 Done，应在实现 PR 内直接标 Done`);
 }
 
 function checkDependencies(stories, errors) {

@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-102
 title: 自定义页面与导航扩展路径
-status: In Review
+status: Done
 priority: Medium
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-16
+updated: 2026-11-19
 tags: [admin, routing, navigation, customization]
 dependsOn: [ADMIN-US-002]
 capabilities: [rxdb:US-531, rxdb:US-532]
@@ -40,7 +40,7 @@ capabilities: [rxdb:US-531, rxdb:US-532]
 | 2   | 页面有稳定路由与标题       | 使用页签、面包屑与命令面板切换 | 路由与外壳状态一致，返回实体页不丢失已有操作路径     | ✅   |
 | 3   | 有一项应用自定义偏好       | 修改偏好、刷新并恢复默认       | 页面按偏好更新，存储遵守应用前缀，步骤有对应回归用例 | ✅   |
 
-三项 AC 的三端本地验证通过，状态为 In Review；证据覆盖真实页面代码、可复现文档与共享浏览器测试，待合并和 PR 引用。
+三项 AC 的三端本地验证通过；证据覆盖真实页面代码、可复现文档与共享浏览器测试。
 
 以真实 Dashboard 为验收实例。三端接线、可复现步骤与存储前缀见 [页面扩展指南](../../plans/custom-pages-navigation.md)，实际结果见 [Dashboard 三端验收](../../plans/nexus-dashboard-verification.md)。
 

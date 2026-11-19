@@ -122,6 +122,7 @@ Epic：
 - [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 - [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 - [epic-013 局域网 P2P 大文件共享](epics/epic-013-p2p-file-share.md)
+- [epic-014 提交图远端交换与草稿回写](epics/epic-014-commit-graph-remote-exchange.md)
 
 视图：
 

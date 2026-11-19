@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-221
 title: 团队任务草稿落在 RxDB 工作树
-status: In Review
+status: Done
 priority: Medium
 epic: ADMIN-EPIC-004
 created: 2026-11-17
-updated: 2026-11-18
+updated: 2026-11-19
 tags: [admin, collaboration, working-tree, rxdb, model-driven]
 dependsOn: [ADMIN-US-218]
 capabilities: [rxdb:US-316, rxdb:US-317]
@@ -35,7 +35,7 @@ capabilities: [rxdb:US-316, rxdb:US-317]
 
 ### 前置的平台能力
 
-以下能力是平台 epic-006 的非目标，已在根 requirements 以 [epic-014](../../../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项（2026-11-17），完成后本故事才能开始：
+以下能力是平台 epic-006 的非目标，已在根 requirements 以 [epic-014](../../../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 交付，本故事建立在它们之上：
 
 1. 导入远端提交：保留提交 ID、父链、原作者与内容指纹，并把分支头快进到外部提交；合并类（多父）提交可以导入——[US-316](../../../../requirements/stories/collaboration/US-316-remote-commit-import.md)。
 2. `discard()` / `restore()` 同步回写业务表，放弃的编辑不再被查询读到——[US-317](../../../../requirements/stories/collaboration/US-317-discard-restore-projection.md)。
@@ -52,8 +52,6 @@ capabilities: [rxdb:US-316, rxdb:US-317]
 | 6   | 三端运行同一任务场景          | 创建、编辑、保存、同步、另存与恢复   | 三端行为一致；ADMIN-US-205、206、213 的 AC 在新实现上回归通过                               | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
-
-验收证据：尚无。
 
 实施拆为两步（2026-11-18 起）：
 
@@ -74,7 +72,7 @@ capabilities: [rxdb:US-316, rxdb:US-317]
 
 ## 技术笔记
 
-结合评估、可复用能力、平台缺口与「为什么不现在就切」见 [协作后端收敛实施计划](../../plans/collaboration-convergence-tasks.md) 第 5 节。[ADMIN-US-218](ADMIN-US-218-delta-commits-bounded-cost.md) 先把提交协议切换为与 `CommitChangeSet` 同形的 ChangeSet，因此本故事只改客户端，服务端与已存数据不变。`enable()` 是库级且不可逆的开关，团队库必须与匿名工作台分库。
+结合评估、可复用能力、平台缺口与「为什么不现在就切」见 [协作后端收敛实施计划](../../plans/collaboration-convergence-tasks.md) 第 5 节。[ADMIN-US-218](ADMIN-US-218-delta-commits-bounded-cost.md) 先把提交协议切换为与 `CommitChangeSet` 同形的 ChangeSet；本故事在它之上分两部分落地：221-A 把服务端提交存储与线上格式改为平台的 `CommitExchangeRecord`，221-B 把客户端改为团队库加平台 API。`enable()` 是库级且不可逆的开关，团队库必须与匿名工作台分库。
 
 ## 实现文件
 

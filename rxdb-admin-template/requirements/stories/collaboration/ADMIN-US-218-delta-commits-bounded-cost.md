@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-218
 title: 差量提交与有界命令成本
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-004
 created: 2026-11-17
-updated: 2026-11-18
+updated: 2026-11-19
 tags: [admin, collaboration, storage, performance, working-tree]
 dependsOn: []
 capabilities: []

@@ -590,7 +590,7 @@ test('code-scanning 是告警跟踪记录，与 reviews 同样不受叙述词约
   );
 });
 
-test('Done 故事的 AC 表残留 ⬜ 被抓出；⚠️ 与 ✅ 放行；非 Done 不查', async () => {
+test('Done 故事的 AC 表残留 ⬜ 或 ⚠️ 都被抓出；✅ 放行；非 Done 不查', async () => {
   await scaffold(dir);
   await writeFile(
     path.join(dir, 'requirements/stories/core/US-001-x.md'),
@@ -600,13 +600,60 @@ test('Done 故事的 AC 表残留 ⬜ 被抓出；⚠️ 与 ✅ 放行；非 Do
   await writeFile(
     path.join(dir, 'requirements/stories/core/US-003-x.md'),
     story('US-003', 'Backlog') +
-      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n'
+      '\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n| 1 | a | b | c | ⬜ |\n| 2 | a | b | c | ⚠️ |\n'
   );
   const stories = await collectStories(dir);
   const offenders = checkAcSymbols(stories);
   assert.match(offenders.join('\n'), /US-001-x\.md: Done 故事的 AC 行仍标 ⬜/);
+  assert.match(offenders.join('\n'), /US-001-x\.md: Done 故事的 AC#2 仍标 ⚠️/);
   assert.doesNotMatch(offenders.join('\n'), /US-003/);
-  assert.equal((offenders.join('\n').match(/仍标 ⬜/g) ?? []).length, 1);
+  assert.equal(offenders.length, 2);
+});
+
+test('Done 的 ⚠️ 只在登记为候选时放行；带脚注的 ✅ 与证据表里的 ⚠️ 字样不算', () => {
+  const text =
+    '## 验收标准\n\n| 1 | 当前范围 | 操作 | 结果 | ✅ ³ |\n| 2 | 待准入范围 | 操作 | 结果 | ⚠️ 候选 |\n\n| 1 | 本包单测验收；真实宿主的 ⚠️ 见候选 AC#2 |\n';
+  const done = { rel: 'US-001.md', fm: { status: 'Done', candidate_acs: '[2]' }, text };
+  assert.deepEqual(checkAcSymbols([done]), []);
+});
+
+test('In Review 的当前承诺 AC 全部 ✅ 时被抓出：实现 PR 内直接标 Done', () => {
+  const allGreen = '## 验收标准\n\n| 1 | 前置 | 操作 | 结果 | ✅ |\n| 2 | 前置 | 操作 | 结果 | ✅ |\n';
+  const review = text => ({ rel: 'US-001.md', fm: { status: 'In Review' }, text });
+  assert.match(checkAcSymbols([review(allGreen)]).join('\n'), /US-001\.md: In Review 故事的当前承诺 AC 已全部 ✅/);
+
+  // 还有一条未 ✅ 的当前承诺 AC，就是 In Review 的正当理由。
+  for (const pending of ['⚠️ 待真机复验', '⬜'])
+    assert.deepEqual(checkAcSymbols([review(allGreen.replace('| ✅ |\n| 2', `| ${pending} |\n| 2`))]), []);
+
+  // 其他状态不受这条规则约束。
+  for (const status of ['Backlog', 'In Progress', 'Done', 'Blocked'])
+    assert.deepEqual(checkAcSymbols([{ rel: 'US-001.md', fm: { status }, text: allGreen }]), []);
+});
+
+test('In Review 不能靠候选 AC 或证据表撑着：候选不参与关闭，证据行不是 AC', () => {
+  const withCandidate = {
+    rel: 'US-001.md',
+    fm: { status: 'In Review', candidate_acs: '[2]' },
+    text: '## 验收标准\n\n| 1 | 当前范围 | 操作 | 结果 | ✅ |\n| 2 | 候选阶段 | 操作 | 结果 | ⚠️ 候选 |\n'
+  };
+  assert.match(checkAcSymbols([withCandidate]).join('\n'), /In Review 故事的当前承诺 AC 已全部 ✅/);
+
+  const withEvidenceTable = {
+    rel: 'US-002.md',
+    fm: { status: 'In Review' },
+    text: '## 验收标准\n\n| 1 | 前置 | 操作 | 结果 | ✅ |\n\n| 1 | 三端同名单测，失败路径只有单测 |\n'
+  };
+  assert.match(checkAcSymbols([withEvidenceTable]).join('\n'), /US-002\.md: In Review/);
+});
+
+test('没有数字编号 AC 行的 In Review 故事不判全绿（Given / When / Then 形态门禁读不到）', () => {
+  const speckit = {
+    rel: 'US-001.md',
+    fm: { status: 'In Review' },
+    text: '## 验收标准\n\n- **US1-AC1**：**Given** a，**When** b，**Then** c\n'
+  };
+  assert.deepEqual(checkAcSymbols([speckit]), []);
 });
 
 test('acIdsOf 只数验收标准节里带编号的行，节外与 Given/When 行不算', () => {

@@ -214,6 +214,40 @@ for (const [name, mutate, expected] of mutations) {
   });
 }
 
+// 状态改动会连带让夹具的派生视图报数字漂移，下面三条只看「In Review 且全绿」这一条规则报不报。
+const REVIEW_ALL_GREEN = /In Review 故事的 AC 已全部 ✅/;
+
+test('阻断 In Review 且 AC 全 ✅：硬依赖均已 Done 时应在实现 PR 内直接标 Done', async t => {
+  const options = await fixture(t);
+  await options.edit(SECOND, text => text.replace('status: Backlog', 'status: In Review').replace('⬜', '✅'));
+  const { errors } = await checkRequirements(options);
+  assert.match(errors.join('\n'), /ADMIN-US-002-second\.md: In Review 故事的 AC 已全部 ✅ 且硬依赖均已 Done/);
+});
+
+test('In Review 仍有未 ✅ 的 AC 时放行：那条 AC 就是还差什么的说明', async t => {
+  for (const pending of ['⚠️', '⬜']) {
+    const options = await fixture(t);
+    await options.edit(SECOND, text => text.replace('status: Backlog', 'status: In Review').replace('⬜', pending));
+    const { errors } = await checkRequirements(options);
+    assert.doesNotMatch(errors.join('\n'), REVIEW_ALL_GREEN);
+  }
+});
+
+test('In Review 且 AC 全 ✅ 但硬依赖尚未 Done 时放行：等的是依赖关闭', async t => {
+  const options = await fixture(t);
+  await options.edit(SECOND, text => text.replace('dependsOn: [ADMIN-US-001]', 'dependsOn: []'));
+  await options.edit(FIRST, text =>
+    text.replace('status: Done', 'status: In Review').replace('dependsOn: []', 'dependsOn: [ADMIN-US-002]')
+  );
+  const { errors } = await checkRequirements(options);
+  assert.doesNotMatch(errors.join('\n'), REVIEW_ALL_GREEN);
+
+  // 依赖关闭之后，同一条故事就不能再停在 In Review。
+  await options.edit(SECOND, text => text.replace('status: Backlog', 'status: Done').replace('⬜', '✅'));
+  const closed = await checkRequirements(options);
+  assert.match(closed.errors.join('\n'), /ADMIN-US-001-first\.md: In Review 故事的 AC 已全部 ✅/);
+});
+
 test('忽略模板占位链接和代码里的字面链接，验证中文标题与重复标题锚点', async t => {
   const options = await fixture(t);
   await options.put('stories/story.template.md', '---\nid: ADMIN-US-XXX\n---\n[模板](missing.md)\n');

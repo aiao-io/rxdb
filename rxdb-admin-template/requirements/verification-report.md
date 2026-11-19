@@ -11,14 +11,14 @@
 | ADMIN-US-001 #3    | 当前应用需求                    | `pnpm nx run rxdb-admin-template:requirements-check`                                                                                                                                                                              | 通过，平台能力引用与应用状态独立                                      |
 | ADMIN-US-002 #1～3 | 配置接线与 HTML 执行测试        | [app-config.spec.ts](../apps/react/src/app/app-config.spec.ts)、[entity-registry.spec.ts](../apps/react/src/app/entities/entity-registry.spec.ts)、[workbench-shell.spec.ts](../apps/react/src/app/shell/workbench-shell.spec.ts) | 通过，默认配置、新标识隔离、命名空间和真实 Vite HTML 转换均有行为测试 |
 | ADMIN-US-002 #4    | 静态检查 / 构建 / 浏览器        | 应用 lint、typecheck、test、build；`pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2`                                                                                                                                    | 通过，覆盖首屏主题、旧键迁移、CRUD、搜索、刷新重开和备份恢复          |
-| ADMIN-US-003 #1～6 | 单测 / 静态检查 / 构建 / 浏览器 | [国际化本地验收](plans/client-i18n-verification.md)、[国际化浏览器测试](../apps/react-e2e/src/i18n.spec.ts)                                                                                                                       | 三端六项 AC 本地通过，In Review；未合并                               |
-| ADMIN-US-102 #1～3 | 文档 / 配置单测 / 真实浏览器    | [扩展指南](plans/custom-pages-navigation.md)、[Dashboard 场景](../apps/react-e2e/src/dashboard.spec.ts)、[偏好场景](../apps/react-e2e/src/admin-shell.spec.ts)                                                                    | 三端本地通过，In Review；未合并                                       |
+| ADMIN-US-003 #1～6 | 单测 / 静态检查 / 构建 / 浏览器 | [国际化本地验收](plans/client-i18n-verification.md)、[国际化浏览器测试](../apps/react-e2e/src/i18n.spec.ts)                                                                                                                       | 三端六项 AC 本地通过                                                  |
+| ADMIN-US-102 #1～3 | 文档 / 配置单测 / 真实浏览器    | [扩展指南](plans/custom-pages-navigation.md)、[Dashboard 场景](../apps/react-e2e/src/dashboard.spec.ts)、[偏好场景](../apps/react-e2e/src/admin-shell.spec.ts)                                                                    | 三端本地通过                                                          |
 
 详细命令与证据见 [孵化基线本地验收](plans/incubation-verification.md)。ADMIN-US-001 / ADMIN-US-002 的实现随 [PR #199](https://github.com/aiao-io/rxdb/pull/199) 合入。
 
 ## Dashboard 三端优化
 
-2026-11-16 的 [Dashboard 验收记录](plans/nexus-dashboard-verification.md) 汇总两阶段已执行结果：Angular / React / Vue 单测分别 60 / 63 / 60 条通过，完整 E2E 每端 97 条通过，静态检查与构建通过。本轮回填国际化与页面扩展证据，新增导航场景后完整 E2E 每端 99/99；新业务替换的前置与后续工作见 [优化实施清单](plans/nexus-template-optimization-tasks.md)；故事状态已按对应 AC 证据更新为 In Review，尚不计入 Done。
+2026-11-16 的 [Dashboard 验收记录](plans/nexus-dashboard-verification.md) 汇总两阶段已执行结果：Angular / React / Vue 单测分别 60 / 63 / 60 条通过，完整 E2E 每端 97 条通过，静态检查与构建通过。本轮回填国际化与页面扩展证据，新增导航场景后完整 E2E 每端 99/99；新业务替换的前置与后续工作见 [优化实施清单](plans/nexus-template-optimization-tasks.md)；故事状态已按对应 AC 证据更新。
 
 ## 根需求审计
 
@@ -34,14 +34,14 @@
 
 ## 尚未证明
 
-- 非资产业务替换仍属于 ADMIN-US-101，缺真实业务输入；ADMIN-US-102 的 Dashboard 页面扩展三项 AC 已三端本地通过，剩余为统一评审、合并与 PR 证据。
-- [ADMIN-US-201～ADMIN-US-216](status-overview.md) 已有本地实现和分层验证，详见 [协作记录](plans/collaboration-implementation.md)；正式部署和逐条完整 AC 证据尚未关闭。
+- 非资产业务替换仍属于 ADMIN-US-101，缺真实业务输入。
+- [ADMIN-US-201～ADMIN-US-216](status-overview.md) 已有本地实现和分层验证，详见 [协作记录](plans/collaboration-implementation.md)；ADMIN-US-201 的 AC#2 / #3 缺真实邮件环境证据，ADMIN-US-202～216 随这条硬依赖关闭，正式部署由 ADMIN-US-217 承接。
 - 独立复制、仓外安装、正式部署或发行；当前继续在本仓库孵化。
 - 生产 SMTP 投递与正式 Supabase 项目部署；本地隔离环境已验证真实 Auth 会话、RLS、双设备协作和 PostgreSQL 原子合并。
 
 ## 产品根需求迁移
 
-[ADMIN-US-004](stories/platform/ADMIN-US-004-product-requirements.md) 负责三端及 E2E 的产品目录、需求归属、共享门禁和 affected 接线，迁移后的类型检查、应用测试、生产构建、lint 与三端各 104 条完整浏览器回归已通过（React 使用单 worker 复验），In Review，详细记录见 [迁移验收](plans/product-requirements-verification.md)。此变更不增加业务运行时功能，也不改变原故事的实现状态。
+[ADMIN-US-004](stories/platform/ADMIN-US-004-product-requirements.md) 负责三端及 E2E 的产品目录、需求归属、共享门禁和 affected 接线，迁移后的类型检查、应用测试、生产构建、lint 与三端各 104 条完整浏览器回归已通过（React 使用单 worker 复验），详细记录见 [迁移验收](plans/product-requirements-verification.md)。此变更不增加业务运行时功能，也不改变原故事的实现状态。
 
 ## 协作契约与复验入口整改
 

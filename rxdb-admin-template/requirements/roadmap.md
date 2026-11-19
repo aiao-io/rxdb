@@ -2,24 +2,11 @@
 
 当前在本仓库孵化 Angular / React / Vue 三端模板，未来独立导出暂不进入实施批次。状态见 [status-overview](status-overview.md)，不在本页维护第二份状态。
 
-## 产品需求管理升级
+## 协作首版：等待真实邮件环境证据
 
-[ADMIN-US-004](stories/platform/ADMIN-US-004-product-requirements.md) 已将三端及对应 E2E 源码归入产品 `apps/`，产品 `requirements/` 统一需求，共用 Nx 门禁并覆盖 affected 依赖，本地验收通过、待评审合并；验收记录见 [迁移验证](plans/product-requirements-verification.md)。
+以下故事按 [协作首版共享契约](collaboration-contract.md) 定义产品行为、并发、权限和验收条件，实现在 `packages/collaboration`，AC 已在本地隔离栈通过，只有 ADMIN-US-201 的 #2 / #3 除外：它们还差生产 SMTP 投递与验证码自然到期两项真实邮件环境证据，由 ADMIN-US-217 的部署提供。ADMIN-US-202～216 硬依赖 ADMIN-US-201，随它一起关闭。现有插件不替代应用闭环证据。
 
-## 当前评审批次
-
-| 故事                                                                              | 本地验收与合入条件                                                                                                                               |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [ADMIN-US-003](stories/platform/ADMIN-US-003-client-i18n.md) 完整客户端国际化     | 三端六项 AC 本地通过；见 [国际化证据](plans/client-i18n-verification.md)，待统一评审与合并                                                       |
-| [ADMIN-US-102](stories/domain/ADMIN-US-102-custom-pages-navigation.md) 自定义页面 | Dashboard、桌面／移动导航、深链刷新、页签、面包屑、命令面板与偏好扩展本地通过；见 [扩展指南](plans/custom-pages-navigation.md)，待统一评审与合并 |
-
-公共元数据呈现能力与应用接线在同一变更内评审、验证。Done 仍以合并并补齐同层验收证据为准。
-
-## 协作闭环本地实现，待评审与部署
-
-以下故事按 [协作首版共享契约](collaboration-contract.md) 定义产品行为、并发、权限和验收条件，当前故事均为 In Review。可信初始化、会话矩阵、任务提交图同步、PR、讨论、审核、原子合并、审计和基础通知/Presence/多阶段规则已落地到 `packages/collaboration`；待统一评审、正式部署和逐条 AC 证据补齐。现有插件不替代应用闭环证据。
-
-### 第一阶段：身份、团队与任务草稿（In Review）
+### 第一阶段：身份、团队与任务草稿
 
 - [ADMIN-US-201](stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md) Supabase 邮箱验证码登录与会话恢复
 - [ADMIN-US-202](stories/collaboration/ADMIN-US-202-team-membership-workspace.md) 团队邀请、成员与工作区选择
@@ -28,7 +15,7 @@
 - [ADMIN-US-205](stories/collaboration/ADMIN-US-205-task-draft-continuous-editing.md) 任务草稿与连续编辑
 - [ADMIN-US-206](stories/collaboration/ADMIN-US-206-draft-sync-offline-recovery.md) 草稿云同步、跨设备续作与离线恢复
 
-### 第二阶段：数据 PR、审核与合并（In Review）
+### 第二阶段：数据 PR、审核与合并
 
 - [ADMIN-US-207](stories/collaboration/ADMIN-US-207-data-pr-lifecycle.md) 数据变更 PR 创建与生命周期
 - [ADMIN-US-208](stories/collaboration/ADMIN-US-208-data-pr-discussion-comments.md) 数据 PR 讨论、评论与变更定位
@@ -38,24 +25,18 @@
 - [ADMIN-US-212](stories/collaboration/ADMIN-US-212-authorized-atomic-merge.md) 有权限合并与原子提交
 - [ADMIN-US-213](stories/collaboration/ADMIN-US-213-history-audit-restore.md) 提交历史、合并审计与版本恢复草稿
 
-### 后续增强（In Review，独立浏览器证据待补）
+### 后续增强
 
 - [ADMIN-US-214](stories/collaboration/ADMIN-US-214-comment-notifications.md) 评论通知与增强讨论协作
 - [ADMIN-US-215](stories/collaboration/ADMIN-US-215-presence.md) 在线成员与当前查看状态
 - [ADMIN-US-216](stories/collaboration/ADMIN-US-216-multi-level-approval.md) 多级审批与可配置合并规则
 
-## 下一批：协作后端收敛与上线（Backlog）
+## 协作后端收敛与上线
 
-方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。以上协作故事的用户可见行为不变，保持 In Review；收敛完成后在新实现上整体回归，再统一评审合并。
+方向见 [D-09](decisions.md#d-09协作后端收敛方向)，切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)，统一归属 [ADMIN-EPIC-004](epics/ADMIN-EPIC-004.md)。差量提交、Supabase 原生读取与实时、团队任务草稿落在工作树（ADMIN-US-218 / 219 / 221）已交付，平台前置 US-316、US-317 同样已交付。剩余两条：
 
-1. 阶段 0，基线度量：✅ 2026-11-17 完成，见 [收敛实施计划 3.1 节](plans/collaboration-convergence-tasks.md#31-阶段-0-基线与切片进度)；200 个提交时一条评论 2.7 s、写 6.8 MB WAL，快照 26.8 MB。
-2. [ADMIN-US-218](stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md) 差量提交与有界命令成本：ChangeSet 提交（对齐平台 working-tree）、拆表、引用 CAS、细粒度锁、元数据驱动校验。
-3. [ADMIN-US-219](stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md) RLS 分页读取、Realtime Broadcast 与 Presence、本地 JWT 校验。
-4. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase。
-5. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏。
-6. [ADMIN-US-221](stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 团队任务草稿落在 RxDB 工作树：不阻塞上线，前置为平台 US-316、US-317。
-
-并行事项：平台 working-tree 的「导入远端提交并保留身份（含多父提交）」「回写业务表的 discard / restore」已在根 requirements 以 [epic-014](../../requirements/epics/epic-014-commit-graph-remote-exchange.md) 立项（[US-316](../../requirements/stories/collaboration/US-316-remote-commit-import.md)、[US-317](../../requirements/stories/collaboration/US-317-discard-restore-projection.md)，根 roadmap 批次 8）。
+1. [ADMIN-US-220](stories/collaboration/ADMIN-US-220-supabase-only-deployment.md) 命令入口改为 Edge Function，只部署 Supabase：还差在全新的真实 Supabase 项目上部署并跑三端（AC#1）。
+2. [ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md) staging / production 部署、真实邮箱证据、部署后三端协作验收与运维护栏；它同时提供 ADMIN-US-201 与 ADMIN-US-220 所缺的真实环境证据。
 
 ## 既有前置
 

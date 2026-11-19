@@ -1,12 +1,13 @@
 ---
 id: US-317
 title: 放弃与恢复回写业务表
-status: In Review
+status: Done
 priority: High
 epic: epic-014-commit-graph-remote-exchange
 created: 2026-11-17
-updated: 2026-11-17
+updated: 2026-11-19
 tags: [collaboration, working-tree, trusted-write, tri-framework]
+evidence: ./US-316-evidence.md
 ---
 
 # 用户故事：放弃与恢复回写业务表
@@ -44,17 +45,17 @@ tags: [collaboration, working-tree, trusted-write, tri-framework]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（2026-11-17）：在隔离 worktree（基线 `b2e746fa1`）上完成实现与验证，随后与 US-316 一并以补丁并入本分支；并入后静态门禁通过，构建与六个适配器的测试在本分支串行复跑后补记。
+验收证据：下面按 AC 给出复验入口；带日期的运行结果见[验收运行记录](./US-316-evidence.md)。
 
-- AC#1～#4：一致性套件 `worktree.suite.ts` 的「放弃与恢复回写业务表（US-317）」一节——跨实体（含多对多中间表与加密列）的插入、修改、删除在 discard 后逐行回到 HEAD；clean 时不写业务表、不写变更日志、修订号不涨；restore 后业务表等于所选提交且差异计为未提交改动、HEAD 不动；回写之后、事务提交之前注入失败时业务表、条目、会话与修订号都回到操作前。另有「切分支往返」与「撤销一次 discard()」两例钉住触发器开着写的结论（改成关触发器的变异使两组变红）。六个适配器均通过。
-- 单测：`discard.spec.ts`、`restore-projection.spec.ts`、`restore-encryption.spec.ts`。
-- AC#5：受信写登记表 #13 `discard-command.ts · rewriteProjectionToHead`、#14 `restore-command.ts · rewriteProjectionToTarget`（意图 `working_tree_projection`，入口 `projection_rewrite`），`trusted-callsite-registry.spec.ts`、`trusted-callsite-capture.spec.ts`、`write-entry-matrix.spec.ts` 与漂移扫描同步；未声明意图的 `mergeChanges` 仍被拒。
-- AC#6：三端绑定测试与 React working-tree e2e 通过，三端 API 不变。
+- AC#1～#4：一致性套件 `worktree.suite.ts` 的「放弃与恢复回写业务表（US-317）」一节——跨实体（含多对多中间表与加密列）的插入、修改、删除在 discard 后逐行回到 HEAD；clean 时不写业务表、不写变更日志、修订号不涨；restore 后业务表等于所选提交且差异计为未提交改动、HEAD 不动；回写之后、事务提交之前注入失败时业务表、条目、会话与修订号都回到操作前。另有「切分支往返」与「撤销一次 discard()」两例钉住触发器开着写的结论（改成关触发器的变异使两组变红）。
+- 单测：`discard.spec.ts`、`restore-projection.spec.ts`、`restore-encryption.spec.ts`，由 `pnpm nx test rxdb-plugin-working-tree` 复验。
+- AC#5：受信写登记表 #13 `discard-command.ts · rewriteProjectionToHead`、#14 `restore-command.ts · rewriteProjectionToTarget`（意图 `working_tree_projection`，入口 `projection_rewrite`），`trusted-callsite-registry.spec.ts`、`trusted-callsite-capture.spec.ts`、`write-entry-matrix.spec.ts` 与 `pnpm audit:callsite-drift` 同步；未声明意图的 `mergeChanges` 仍被拒。
+- AC#6：同一份套件由六个适配器各自的 `src/__tests__/worktree-conformance.spec.ts` 调用（复验命令见 [US-316](./US-316-remote-commit-import.md) AC#8）；三端 API 不变由 `rxdb-plugin-working-tree-{angular,react,vue}` 的绑定测试覆盖，界面路径由 React working-tree e2e 覆盖。
 - AC#7：`CHANGELOG.md` 两条破坏性条目、迁移指南 `website/docs/migration/working-tree-discard-restore.md`、`requirements/release-plan.md` 第 ④ 条。
 
 ## 技术笔记
 
-- 现状（2026-11-17 核对）：`packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts` 注明 v1 的 discard 只回滚逻辑工作树，投影重写只能经 `mergeChanges` / `switchBranch` 两个已登记的原语；跨这条线需要连同 epic-006「受信调用点登记表」、登记表、意图枚举与漂移用例一起显式修改。`restore()` 目前只写条目与会话行。
+- 本故事跨过的 v1 边界：discard 只回滚逻辑工作树，`restore()` 只写条目与会话行，投影重写只能经 `mergeChanges` / `switchBranch` 两个已登记的原语。跨过这条线的回写登记为受信调用点 #13 / #14，epic-006「受信调用点登记表」、意图枚举与漂移用例随之更新。
 - 首个使用方是 [ADMIN-US-221](../../../rxdb-admin-template/requirements/stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md) 的「放弃草稿」。
 
 ## 实现文件
@@ -65,7 +66,7 @@ tags: [collaboration, working-tree, trusted-write, tri-framework]
 
 ## 已知边界与遗留风险
 
-- **升级时进行中的恢复会话（owner 2026-11-18 决定维持现状：只靠迁移指南，不加代码守卫）**：0.0.28 的 `restore()` 只写条目、不改业务表，那批条目的 `inversePatch` 不是 HEAD 上的值。升级之后对这样的会话调 `discard()`，会把业务表退到错误的版本。目前只在迁移指南里要求升级前先用旧版本 discard，代码里没有守卫。
+- **升级时进行中的恢复会话（owner 决定维持现状：只靠迁移指南，不加代码守卫）**：0.0.28 的 `restore()` 只写条目、不改业务表，那批条目的 `inversePatch` 不是 HEAD 上的值。升级之后对这样的会话调 `discard()`，会把业务表退到错误的版本。目前只在迁移指南里要求升级前先用旧版本 discard，代码里没有守卫。
 - 0.0.28 丢弃留下的业务表残留不会被追溯清理（迁移指南有说明）。
 - discard 现在是撤销栈上的一步，撤销它会把草稿取回工作树；三个 demo 的确认框仍写「无法撤销」。
 - 签名变化：底层 `discardWorkingTree(executor, context, options)` 与 `restoreWorkingTree()` 同形；门面与三端 `useWorkingTree()` 签名不变。

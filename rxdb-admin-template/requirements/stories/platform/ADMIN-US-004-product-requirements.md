@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-004
 title: 三端共用产品根需求与统一门禁
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-001
 created: 2026-11-16
-updated: 2026-11-16
+updated: 2026-11-19
 tags: [admin, product, requirements, nx, angular, react, vue]
 dependsOn: [ADMIN-US-001]
 capabilities: []
@@ -45,7 +45,7 @@ capabilities: []
 | 5   | 某个成员应用试图恢复独立需求目录 | 执行需求校验负例                                            | 产品门禁拒绝需求副本、缺少的产品内成员和被改名的 Nx 项目；正常跨应用源码链接仍通过                                      | ✅   |
 | 6   | 六个成员已迁入产品 `apps/`       | 执行三端及 E2E 的 lint、typecheck、test、build 和浏览器回归 | 新位置的配置与共享场景可运行，三端功能和持久化边界保持原行为                                                            | ✅   |
 
-六项 AC 已在仓库根产品目录完成本地复验，状态保持 In Review，待统一评审与合并。验收证据： [产品需求迁移验收](../../plans/product-requirements-verification.md)。结构门禁只证明需求与任务接线，不代替业务能力验收。
+六项 AC 已在仓库根产品目录完成本地复验。验收证据：[产品需求迁移验收](../../plans/product-requirements-verification.md)。结构门禁只证明需求与任务接线，不代替业务能力验收。
 
 ## 技术笔记
 

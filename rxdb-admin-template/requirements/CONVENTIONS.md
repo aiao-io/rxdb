@@ -25,7 +25,7 @@
 
 ## 状态定义
 
-故事五态 `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked` 与根相同，YAML 是唯一真相源。`Done` 表示已合并且当前承诺 AC 均有同层证据；本地实现完成、待评审使用 `In Review`。
+故事五态 `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked` 与根相同，YAML 是唯一真相源。`Done` 表示当前承诺 AC 均有同层证据、硬依赖均已 `Done`，在实现 PR 内直接标，合并即生效。`In Review` 只有两种理由：自己仍有未 ✅ 的 AC，或硬依赖尚未 `Done`；两者都没有时门禁要求改成 `Done`。
 
 Epic 使用 `Backlog` / `In Progress` / `Done`。Review 使用 `Open` / `Resolved`；Code scanning 使用 `Open` / `Resolved` / `Dismissed`，其真相源为 GitHub。
 
@@ -34,7 +34,7 @@ Epic 使用 `Backlog` / `In Progress` / `Done`。Review 使用 `Open` / `Resolve
 1. 从 [story.template.md](stories/story.template.md) 创建故事，填写 frontmatter、范围、连续编号的 AC 与实现入口。
 2. 应用硬依赖写 `dependsOn: [ADMIN-US-001]`，平台能力写 `capabilities: [rxdb:US-526]`。没有依赖使用空数组。平台状态不能代替应用验收。
 3. 修改故事后同步 Epic、状态总览、路线图、能力矩阵和验收台账，更新 `updated`。涉及协作跨故事规则时，同时维护 [共享契约](collaboration-contract.md)，不得只在计划中改变授权、版本或状态语义。
-4. 运行应用结构门禁与相关代码验证；本地通过后可进入 `In Review`，合并后补 PR 引用再标 `Done`。
+4. 运行应用结构门禁与相关代码验证。AC 全部 ✅ 且硬依赖均已 `Done` 时，在实现 PR 内直接标 `Done`，PR 开出后把链接补进[验收台账](verification-report.md)；仍有 AC 等待外部证据时保持 `In Review`，那条 AC 保持 ⚠️ 并写明还差什么。
 
 门禁支持当前使用的扁平 YAML 值与行内数组。新增候选 AC 或继承 AC 等格式时，先补齐门禁支持与回归夹具，再登记，避免文档约定超出实际校验。
 

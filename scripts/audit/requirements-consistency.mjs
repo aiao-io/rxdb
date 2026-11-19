@@ -22,8 +22,9 @@
  *    CONVENTIONS 说「锚点失效的真实代价不是链接坏了，是读者停止复验」；
  * 6. CONVENTIONS「过程留档的去向」禁止进正文的叙述词（`已于 X 日`、删除线、`落地偏差`……）
  *    只**告警**不阻塞：存量太多，先让它可见，再逐条烧掉。
- * 7. 验收与真相源对齐：Done 故事的 AC 表不得残留 ⬜；`inherited_acs` 的 `from` 必须指向存在的
- *    story、纯数字 `ac` 不得超出源故事 AC 最大编号；显式标为候选 / 移出的 AC 必须登记 `candidate_acs`。
+ * 7. 验收与真相源对齐：Done 故事的当前承诺 AC 不得残留 ⬜ / ⚠️，In Review 故事的当前承诺 AC 不得已经
+ *    全部 ✅（实现 PR 内直接标 Done）；`inherited_acs` 的 `from` 必须指向存在的 story、纯数字 `ac`
+ *    不得超出源故事 AC 最大编号；显式标为候选 / 移出的 AC 必须登记 `candidate_acs`。
  * 8. README「大故事」清单与「正文含交付阶段」的 story 集合一致；
  *    capability-matrix / versioning-policy 手写的包计数等于 packages/ 与 api-baseline/ 的实际值。
  *
@@ -624,8 +625,22 @@ function candidateAcIds({ rel, fm, text }, offenders) {
 }
 
 /**
- * Done 故事的当前承诺 AC 不得残留 ⬜；候选 AC 由 candidate_acs 显式登记，保留未验状态。
+ * 状态格以状态符号开头的才是 AC 行。验收标准一节里还会有按 AC 编号排的证据表，
+ * 它们的末格是一段说明，按「未通过」数就会让任何带证据表的故事都显得还有待办。
+ */
+const AC_STATUS_CELL = /^\s*(✅|⚠️|⬜)/u;
+
+/**
+ * story 状态与 AC 符号的对应关系。候选 AC 由 candidate_acs 显式登记，保留未验状态，不参与下面两条：
+ *
+ * - `Done` 的当前承诺 AC 必须全部 ✅：残留 ⬜ 或 ⚠️ 都阻断；
+ * - `In Review` 至少要有一条未 ✅ 的当前承诺 AC 说明还差什么。全部 ✅ 就在实现 PR 内直接标 `Done`——
+ *   等合并后再开一个 PR 补标，这一步没人做，状态就停在 In Review。
+ *
  * 候选编号不存在、重复或提前标 ✅ 同样阻断，避免候选范围成为隐藏未完成工作的缺口。
+ *
+ * @remarks
+ * 没有数字编号 AC 行的故事（Given / When / Then 形态）读不到 AC，两条状态规则都不判。
  *
  * @param {Array<{rel: string, fm: Record<string, string>, text: string}>} stories
  */
@@ -637,6 +652,8 @@ export function checkAcSymbols(stories) {
     const section = text.split(/^## 验收标准\s*$/m)[1];
     if (!section) continue;
     const body = section.split(/^##\s/m)[0];
+    let current = 0;
+    let open = 0;
     for (const line of body.split('\n')) {
       const id = /^\|\s*(\d+)\s*\|/.exec(line.trim());
       if (!id) continue;
@@ -649,7 +666,19 @@ export function checkAcSymbols(stories) {
         offenders.push(`${rel}: 候选 AC#${id[1]} 不得标 ✅，解锁后应移除候选登记`);
       if (fm.status === 'Done' && !candidate && status.includes('⬜'))
         offenders.push(`${rel}: Done 故事的 AC 行仍标 ⬜（应补齐验收；候选范围须登记 candidate_acs）`);
+      const symbol = AC_STATUS_CELL.exec(status)?.[1];
+      if (candidate || symbol === undefined) continue;
+      current++;
+      if (symbol !== '✅') open++;
+      if (fm.status === 'Done' && symbol === '⚠️')
+        offenders.push(
+          `${rel}: Done 故事的 AC#${id[1]} 仍标 ⚠️（有保留就留在 In Review 并写明还差什么；候选范围须登记 candidate_acs）`
+        );
     }
+    if (fm.status === 'In Review' && current > 0 && open === 0)
+      offenders.push(
+        `${rel}: In Review 故事的当前承诺 AC 已全部 ✅（在实现 PR 内直接标 Done；确有待办就保留一条未 ✅ 的 AC 写明还差什么）`
+      );
   }
   return offenders;
 }

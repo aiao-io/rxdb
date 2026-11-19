@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-219
 title: 协作读取、实时与身份校验改用 Supabase 原生能力
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-004
 created: 2026-11-17
-updated: 2026-11-18
+updated: 2026-11-19
 tags: [admin, collaboration, supabase, realtime, rls, auth]
 dependsOn: [ADMIN-US-218]
 capabilities: []

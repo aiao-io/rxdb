@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-003
 title: 完整客户端国际化接入
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-16
+updated: 2026-11-19
 tags: [admin, i18n, accessibility, compatibility]
 dependsOn: [ADMIN-US-002]
 capabilities: [rxdb:US-911, rxdb:US-530]
@@ -48,7 +48,7 @@ capabilities: [rxdb:US-911, rxdb:US-530]
 | 5   | 有有效归档及全新浏览器环境           | 在首页切换语言并刷新，再进入恢复页导入归档              | 空目标恢复成功，可继续查询编辑；已有数据仍受恢复保护，业务值不被翻译                     | ✅   |
 | 6   | 上述接线与测试已完成                 | 运行需求门禁、lint、typecheck、test、build 和浏览器回归 | 门禁通过，lint 零警告，中英文行为与既有资产、搜索、持久化、备份恢复路径通过              | ✅   |
 
-验收入口见 [国际化浏览器测试](../../../apps/react-e2e/src/i18n.spec.ts)；执行证据见 [国际化本地验收](../../plans/client-i18n-verification.md)。三端本地验证通过，六项 AC 证据已逐项回填；待合并和 PR 引用，状态为 In Review。
+验收入口见 [国际化浏览器测试](../../../apps/react-e2e/src/i18n.spec.ts)；执行证据见 [国际化本地验收](../../plans/client-i18n-verification.md)。三端本地验证通过，六项 AC 证据已逐项回填。
 
 ## 技术笔记
 

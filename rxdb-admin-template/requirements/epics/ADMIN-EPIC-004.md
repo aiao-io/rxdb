@@ -18,11 +18,11 @@ owner: jimmy
 
 ## 目标
 
-- [ ] 提交改为字段级 ChangeSet，工作区拆表，单次命令成本与历史长度无关（[ADMIN-US-218](../stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)）。
-- [ ] 读取、实时通知、在线状态与身份校验改用 Supabase 原生能力（[ADMIN-US-219](../stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md)）。
+- [x] 提交改为字段级 ChangeSet，工作区拆表，单次命令成本与历史长度无关（[ADMIN-US-218](../stories/collaboration/ADMIN-US-218-delta-commits-bounded-cost.md)）。
+- [x] 读取、实时通知、在线状态与身份校验改用 Supabase 原生能力（[ADMIN-US-219](../stories/collaboration/ADMIN-US-219-supabase-native-read-realtime.md)）。
 - [ ] 命令入口可只部署为 Supabase Edge Function（[ADMIN-US-220](../stories/collaboration/ADMIN-US-220-supabase-only-deployment.md)）。
 - [ ] 迁移、发布、真实邮箱证据、部署后协作验收与长期运行护栏（[ADMIN-US-217](../stories/collaboration/ADMIN-US-217-production-deployment-operations.md)）。
-- [ ] 团队任务草稿落在平台 working-tree，编辑复用模型驱动界面（[ADMIN-US-221](../stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)，依赖平台立项）。
+- [x] 团队任务草稿落在平台 working-tree，编辑复用模型驱动界面（[ADMIN-US-221](../stories/collaboration/ADMIN-US-221-task-drafts-on-working-tree.md)）。
 
 ## 故事
 

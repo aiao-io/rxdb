@@ -1,10 +1,10 @@
 # Admin 产品需求
 
-当前交付：[2/27 已交付]；另有 19/27 故事进入 In Review；协作后端收敛与上线共 5 条（见 [D-09](decisions.md#d-09协作后端收敛方向)），其中 ADMIN-US-218 进行中、其余 4 条 Backlog；另有 1 条因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[8/27 已交付]。17 条 In Review：ADMIN-US-201 与 ADMIN-US-220 各有 AC 等待真实环境证据，ADMIN-US-202～216 的 AC 已全部通过、等待硬依赖 ADMIN-US-201 关闭。ADMIN-US-217（生产部署）进行中，ADMIN-US-101 因缺少真实业务输入保持 Backlog。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
-以 `rxdb-admin-template` 为产品根目录，在当前 Nx 工作区统一维护 Angular / React / Vue 三端 Admin 应用模板的需求。应用需求基线与统一配置已合入，国际化、页面扩展和协作首版已完成本地实现与验证，待统一评审、合并和正式部署；当前保留资产样例与既有使用行为，真实业务实体替换仍等待输入。
+以 `rxdb-admin-template` 为产品根目录，在当前 Nx 工作区统一维护 Angular / React / Vue 三端 Admin 应用模板的需求。应用需求基线、统一配置、国际化、页面扩展、产品根需求与协作后端收敛已按本地同层证据交付。协作首版（ADMIN-US-201～216）的 AC 已在本地隔离栈通过，关闭取决于 ADMIN-US-201 的两项真实邮件环境证据；正式部署由 ADMIN-US-217 承接。当前保留资产样例与既有使用行为，真实业务实体替换仍等待输入。
 
 协作产品模型固定为：**团队空间 → 任务草稿/分支 → 持续提交 → 数据 PR → 讨论、差异与最终候选 → 审核 → 有权限成员原子合并到共享数据**。本目录的故事只描述目标行为和验收条件，不把现有 RxDB 插件、Supabase 适配器或交互原型当作已经完成的应用闭环；协作实现记录见 [协作实现与验收记录](plans/collaboration-implementation.md)。
 
