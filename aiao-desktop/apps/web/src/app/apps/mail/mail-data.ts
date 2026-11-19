@@ -1,3 +1,5 @@
+import { USER_PROFILE } from '../../shared/user-profile';
+
 /** 侧栏里一个邮箱的初始记录；`count` 是徽标上的固定数字。 */
 export interface MailboxSeed {
   readonly name: string;
@@ -17,7 +19,7 @@ export interface MailSeed {
 }
 
 /** 初始邮件的收件人：桌面的用户。 */
-export const MAIL_OWNER = 'Prasenjit';
+export const MAIL_OWNER = USER_PROFILE.name;
 
 /** 侧栏的邮箱列表；徽标数字是写死的，不随已读变化。 */
 export const MAILBOX_SEED_DATA: readonly MailboxSeed[] = [

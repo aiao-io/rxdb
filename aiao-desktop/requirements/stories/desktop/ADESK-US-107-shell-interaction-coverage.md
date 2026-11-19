@@ -52,6 +52,8 @@ capabilities: []
 
 验收证据：冒烟 [smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）新增 `shellInteraction` 检查组，各 AC 对应输出 JSON 里的检查项：第 1 条 boot、第 2 条 lock、第 3 条 sleep、第 4 条 statusPanels、第 5 条 controlCentre、第 6 条 dragResizeZoom、第 7 条 focusCycle、第 8 条是只在本机跑的真实键盘实测（不进 CI，结论记录在验收台账）、第 9 条脚本收集的页面错误与控制台错误。session 服务的状态机另补单测。
 
+锁屏与登录后的账户名由 `shellInteraction.boot.accountName`、`shellInteraction.boot.finderHomeName` 和 `shellInteraction.account.settingsName` 验收。锁屏和设置的头像由 `shellInteraction.boot.accountAvatar` 和 `shellInteraction.account.settingsAvatar` 验收。`pwa.accountAvatarOffline` 验收断网后仍可加载头像。
+
 ## 技术笔记
 
 - 这些能力在 [US-101](ADESK-US-101-desktop-shell-baseline.md) 的 Out of Scope 里，实现早已存在（session.ts、boot-screen、lock-screen、status-panels、control-centre、window-frame），缺的是验收；冒烟目前依赖 `?boot=0` 跳过开机，开机流程的用例要么跑真动画路径，要么加一个缩短动画的测试参数。

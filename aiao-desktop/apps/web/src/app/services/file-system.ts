@@ -51,6 +51,7 @@ import {
 } from '../disk/file-operations';
 import { ProtectedDiskStore } from '../disk/protected-store';
 import { BLOB_DIR, RxdbDiskStore } from '../disk/rxdb-disk-store';
+import { USER_PROFILE } from '../shared/user-profile';
 import { ApplicationCatalog } from './application-catalog';
 import { ApplicationRegistry } from './application-registry';
 import { InstalledApplications } from './installed-applications';
@@ -71,7 +72,7 @@ export const PLACES: Readonly<Record<string, readonly string[] | null>> = {
   Music: finderPathOf([...HOME, 'Music']),
   Pictures: finderPathOf([...HOME, 'Pictures']),
   Applications: finderPathOf(['Applications']),
-  prasenjit: finderPathOf(HOME),
+  [USER_PROFILE.name]: finderPathOf(HOME),
   'Macintosh HD': [VOLUME_NAME],
   Trash: finderPathOf(TRASH)
 };

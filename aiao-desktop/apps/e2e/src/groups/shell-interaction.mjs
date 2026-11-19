@@ -1,6 +1,15 @@
 /** 近似相等：像素取整与动画收尾会差一两个像素。 */
 const near = (a, b, tolerance = 3) => Math.abs(a - b) <= tolerance;
 
+const hasAccountAvatar = locator =>
+  locator
+    .evaluate(async image => {
+      if (!(image instanceof HTMLImageElement)) return false;
+      await image.decode();
+      return image.currentSrc === new URL('profile/steve-jobs.jpg', document.baseURI).href;
+    })
+    .catch(() => false);
+
 /** 窗口打开动画结束、几何不再变化后的外框（连续两次相隔 120 毫秒量到同一个结果，最长等 3 秒）。 */
 async function settledBox(locator) {
   let previous = await locator.boundingBox();
@@ -39,7 +48,10 @@ export const shellInteraction = {
     'shellInteraction.boot.screenAppears',
     'shellInteraction.boot.progressAdvances',
     'shellInteraction.boot.endsAtLoginScreen',
+    'shellInteraction.boot.accountName',
+    'shellInteraction.boot.accountAvatar',
     'shellInteraction.boot.loginEntersDesktop',
+    'shellInteraction.boot.finderHomeName',
     'shellInteraction.boot.queryParameterSkips',
     'shellInteraction.boot.hashSkips',
     'shellInteraction.lock.shows',
@@ -56,6 +68,8 @@ export const shellInteraction = {
     'shellInteraction.controlCentre.darkModeApplies',
     'shellInteraction.controlCentre.wifiToggleReflected',
     'shellInteraction.controlCentre.settingsSurviveReload',
+    'shellInteraction.account.settingsName',
+    'shellInteraction.account.settingsAvatar',
     'shellInteraction.dragResizeZoom.titleBarMoves',
     'shellInteraction.dragResizeZoom.cornerResizes',
     'shellInteraction.dragResizeZoom.keepOnScreen',
@@ -100,12 +114,18 @@ export const shellInteraction = {
         () => true,
         () => false
       );
-    await page.locator('#lock').click();
+    const login = page.locator('#lock');
+    boot.accountName =
+      (await login.locator('.lk-name').textContent()) === 'Steve Jobs' &&
+      (await login.getByRole('button', { name: 'Log in as Steve Jobs', exact: true }).count()) === 1;
+    boot.accountAvatar = await hasAccountAvatar(login.locator('[data-av]'));
+    await login.click();
     boot.loginEntersDesktop =
       (await disappears(page.locator('#boot'), 5_000)) && (await appears(win('finder'), 10_000));
     await page.waitForFunction(() => document.querySelector('#lock')?.hasAttribute('hidden'), undefined, {
       timeout: 5_000
     });
+    boot.finderHomeName = (await win('finder').getAttribute('aria-label')) === 'Steve Jobs';
 
     /* 跳过开机的两个入口：?boot=0 与 #noboot 都直接进桌面。 */
     await page.goto(`${origin}/?boot=0`, { waitUntil: 'load' });
@@ -213,6 +233,13 @@ export const shellInteraction = {
         () => true,
         () => false
       );
+
+    await appleItem('System Settings…');
+    const accountRow = win('settings').locator('.st-row').first();
+    const account = {
+      settingsName: (await accountRow.locator('b').textContent()) === 'Steve Jobs',
+      settingsAvatar: await hasAccountAvatar(accountRow.locator('.bg'))
+    };
 
     /* AC#6 窗口交互：拖标题栏、拖右下角缩放、拖出屏幕被拉回、绿色按钮缩放与还原。 */
     await closeAll();
@@ -325,6 +352,6 @@ export const shellInteraction = {
     await page.waitForTimeout(500);
     focusCycle.cycleRaisesBottom = (await isFront('finder')) && (await stack()).at(-1) === 'finder';
 
-    return { shellInteraction: { boot, lock, sleep, statusPanels, controlCentre, dragResizeZoom, focusCycle } };
+    return { shellInteraction: { boot, lock, sleep, statusPanels, controlCentre, account, dragResizeZoom, focusCycle } };
   }
 };

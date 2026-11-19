@@ -1,4 +1,6 @@
-/** 卷内路径：从 Macintosh HD 根起的各级名称，例如 `['Users', 'prasenjit', 'Desktop']`。 */
+import { USER_PROFILE } from '../shared/user-profile';
+
+/** 卷内路径：从 Macintosh HD 根起的各级名称。 */
 export type DiskPath = readonly string[];
 
 /** 启动盘的名字，也是 Finder 路径的第一段。 */
@@ -26,6 +28,10 @@ export const isWithin = (path: DiskPath, dir: DiskPath): boolean =>
   path.length >= dir.length && dir.every((segment, i) => path[i] === segment);
 
 export const samePath = (a: DiskPath, b: DiskPath): boolean => a.length === b.length && isWithin(a, b);
+
+/** 用账户显示名呈现主目录路径。 */
+export const displayDiskPath = (path: DiskPath): DiskPath =>
+  isWithin(path, HOME) ? [HOME[0], USER_PROFILE.name, ...path.slice(HOME.length)] : path;
 
 const HOME_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public', '.Trash'];
 

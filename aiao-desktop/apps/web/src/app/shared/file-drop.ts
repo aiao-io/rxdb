@@ -21,9 +21,9 @@ export function fileTransfer(event: DragEvent): DataTransfer | null {
   }
 })
 export class FileDrop {
+  private readonly toast = inject(Toast);
   protected readonly imports = inject(FileImport);
   protected readonly element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  private readonly toast = inject(Toast);
   readonly appFileDrop = input.required<DiskPath | null | undefined>();
 
   constructor() {

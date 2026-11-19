@@ -1,11 +1,12 @@
+import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { SystemState } from '../../services/system-state';
-import { AVATAR } from '../../shared/avatar';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { USER_PROFILE } from '../../shared/user-profile';
 import { AppearancePane } from './panes/appearance-pane';
 import { BatteryPane } from './panes/battery-pane';
 import { BluetoothPane } from './panes/bluetooth-pane';
@@ -31,6 +32,7 @@ import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-d
     GeneralPane,
     Icon,
     NetworkPane,
+    NgOptimizedImage,
     PrivacyPane,
     SoundPane,
     TrafficLights,
@@ -48,7 +50,7 @@ export class SettingsApp {
   protected readonly query = signal('');
   protected readonly visibleGroups = computed(() => filterSettingsGroups(SETTINGS_GROUPS, this.query()));
   protected readonly system = inject(SystemState);
-  protected readonly avatar = `url('${AVATAR}')`;
+  protected readonly avatar = USER_PROFILE.avatar;
   protected readonly section = computed(() => findSection(this.selected()));
   /** 面板重绘：编号一变，面板的元素整块重建，只改外观的开关回到初始值。 */
   protected readonly renders = computed(() => [{ id: this.generation() }]);

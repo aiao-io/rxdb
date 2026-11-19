@@ -164,9 +164,11 @@ describe('位置', () => {
     return node;
   };
 
-  it('路径的显示文字从卷名开始', () => {
+  it('路径从卷名开始，主目录用账户的显示名', () => {
     expect(pathLabel([])).toBe('Macintosh HD');
-    expect(pathLabel(['Users', 'prasenjit'])).toBe('Macintosh HD › Users › prasenjit');
+    expect(pathLabel(HOME)).toBe('Macintosh HD › Users › Steve Jobs');
+    expect(pathLabel([...HOME, 'Desktop'])).toBe('Macintosh HD › Users › Steve Jobs › Desktop');
+    expect(pathLabel(['Documents', 'prasenjit'])).toBe('Macintosh HD › Documents › prasenjit');
   });
 
   it('最近的还在的文件夹：用户所在的文件夹被删掉就退到上级，一直退到卷根；文件不算文件夹', () => {

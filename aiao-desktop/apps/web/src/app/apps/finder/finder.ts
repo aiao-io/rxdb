@@ -13,7 +13,17 @@ import {
 } from '@angular/core';
 
 import { isPackageName } from '../../disk/disk-kinds';
-import { DiskPath, TRASH, diskPathOf, isWithin, parentOf, samePath } from '../../disk/disk-path';
+import {
+  DiskPath,
+  HOME,
+  TRASH,
+  VOLUME_NAME,
+  diskPathOf,
+  displayDiskPath,
+  isWithin,
+  parentOf,
+  samePath
+} from '../../disk/disk-path';
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -31,6 +41,7 @@ import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
 import { PhotoArt } from '../../shared/photo-art';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { USER_PROFILE } from '../../shared/user-profile';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
 import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
 import {
@@ -79,6 +90,10 @@ export class FinderApp implements FinderCommands {
     index: 0
   });
   private readonly bodyWidth = signal(0);
+  private readonly displayPath = computed(() => {
+    const path = this.path();
+    return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
+  });
   /** 导航之前键盘焦点在内容区里：导航之后条目重新渲染，焦点要交还给新的 Tab 停靠点。 */
   private refocus = false;
 
@@ -104,7 +119,7 @@ export class FinderApp implements FinderCommands {
     const path = this.path();
     return path.length === 2 && path[1] === 'Applications' && !this.query() ? this.catalog.conflictNote() : null;
   });
-  protected readonly title = computed(() => (this.query() ? `Searching “${this.query()}”` : this.path().at(-1)));
+  protected readonly title = computed(() => (this.query() ? `Searching “${this.query()}”` : this.displayPath().at(-1)));
   protected readonly canGoBack = computed(() => this.history().index > 0);
   protected readonly canGoForward = computed(() => this.history().index < this.history().entries.length - 1);
   protected readonly emptyText = computed(() => {
@@ -139,7 +154,7 @@ export class FinderApp implements FinderCommands {
   });
   /** 分栏视图里选择链也算进路径栏，否则会跳过点进去的每一级。 */
   protected readonly pathSegments = computed(() => {
-    const path = this.path();
+    const path = this.displayPath();
     if (this.view() !== 'column') return path;
     return [...path, ...this.columns().chain.slice(1).map(column => this.displayName(column.node))];
   });
@@ -419,6 +434,7 @@ export class FinderApp implements FinderCommands {
   }
 
   protected displayName(item: FsNode): string {
+    if (item.path && samePath(item.path, HOME)) return USER_PROFILE.name;
     return this.catalog.manifestAt(item.path)?.name ?? item.name;
   }
 

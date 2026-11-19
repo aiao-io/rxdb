@@ -47,7 +47,9 @@ export const fileManagement = {
     await desktop.locator('[data-id="file:Projects"]').drop({
       files: payload('from-desktop-folder.txt', Buffer.from(text))
     });
-    await expect(page.locator('#toast')).toContainText('Imported 1 file');
+    await expect.poll(() => diskText(session, 'from-desktop-folder.txt')).toBe(text);
+    await desktop.locator('[data-id="hd"]').drop({ files: payload('rejected.txt', Buffer.from(text)) });
+    await expect(desktop.locator('[data-id="file:rejected.txt"]')).toHaveCount(0);
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);

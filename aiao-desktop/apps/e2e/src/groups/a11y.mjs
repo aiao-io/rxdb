@@ -772,7 +772,7 @@ export const a11y = {
         opened.every(Boolean) ? [] : ['用键盘（Dock 图标 Enter）没有把 Calendar 与 Calculator 都打开'],
         sameList(
           states.map(state => state.name),
-          ['prasenjit', 'Calendar', 'Calculator']
+          ['Steve Jobs', 'Calendar', 'Calculator']
         )
       );
       windows.backgroundHidden = problems(
@@ -815,7 +815,7 @@ export const a11y = {
       windows.cycleSwitchesFocusAndFront = problems(
         cycled ? [] : ['⌘反引号没有把 Finder 窗口调到前台'],
         cycleFocus ? [] : [`⌘反引号之后焦点应进入 Finder 窗口，实际 ${brief(await active())}`],
-        await dialogsSettle(['prasenjit']),
+        await dialogsSettle(['Steve Jobs']),
         cycledStates.find(state => state.app === 'finder')?.hidden ? ['新前台窗口仍 aria-hidden'] : [],
         (await menubarFirstApp()) === 'Finder' ? [] : [`菜单栏应换成 Finder，实际 ${await menubarFirstApp()}`]
       );
@@ -865,7 +865,7 @@ export const a11y = {
         (await page.evaluate(() => window.__heldMinimize === true)) ? [] : ['未能固定最小化动画中的还原前置条件'],
         nextFocus ? [] : [`⌘M 之后焦点应交给下一个窗口，实际 ${brief(await active())}`],
         minimizedHidden ? [] : ['最小化的窗口没有对读屏隐藏'],
-        afterMinimize.length === 1 && afterMinimize[0] !== 'prasenjit' ?
+        afterMinimize.length === 1 && afterMinimize[0] !== 'Steve Jobs' ?
           []
         : [`⌘M 之后读屏只应看到下一个前台窗口，实际 ${afterMinimize.join(' | ')}`]
       );
@@ -931,7 +931,7 @@ export const a11y = {
         intoFinder.found ? [] : ['Tab 没有走进后台的 Finder 窗口'],
         raised ? [] : ['Tab 走进后台窗口之后，窗口没有成为前台'],
         (await menubarFirstApp()) === 'Finder' ? [] : [`菜单栏应换成 Finder，实际 ${await menubarFirstApp()}`],
-        await dialogsSettle(['prasenjit'])
+        await dialogsSettle(['Steve Jobs'])
       );
     });
 
@@ -998,7 +998,7 @@ export const a11y = {
       const wentUp = await until(
         page,
         () =>
-          document.querySelector('.win[data-app="finder"]:not(.closing)')?.getAttribute('aria-label') === 'prasenjit'
+          document.querySelector('.win[data-app="finder"]:not(.closing)')?.getAttribute('aria-label') === 'Steve Jobs'
       );
       const reselected = await until(
         page,
@@ -1078,7 +1078,7 @@ export const a11y = {
       const finderTree = await snapshot('.win[data-app="finder"]');
       tree.finderWindow = problems(
         missingInOrder(finderTree, [
-          '- dialog "prasenjit":',
+          '- dialog "Steve Jobs":',
           '- button "Close"',
           '- button "Minimize"',
           '- button "Zoom"',
@@ -1199,7 +1199,7 @@ export const a11y = {
         undefined,
         5_000
       );
-      const withoutCalendar = await dialogsSettle(['prasenjit']);
+      const withoutCalendar = await dialogsSettle(['Steve Jobs']);
       tree.updatesWhenWindowsOpenAndClose = problems(
         withCalendar,
         afterClose ? [] : ['关掉窗口之后窗口数没有减少'],

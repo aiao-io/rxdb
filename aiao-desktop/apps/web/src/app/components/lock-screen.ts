@@ -1,3 +1,4 @@
+import { NgOptimizedImage } from '@angular/common';
 import {
   Component,
   ElementRef,
@@ -17,8 +18,8 @@ import { Session } from '../services/session';
 import { SystemState } from '../services/system-state';
 import { WallpaperService } from '../services/wallpaper';
 import { WindowManager } from '../services/window-manager';
-import { AVATAR } from '../shared/avatar';
 import { DAYS, MONS, time12Plain } from '../shared/format';
+import { USER_PROFILE } from '../shared/user-profile';
 
 type LockPhase = 'hidden' | 'shown' | 'opening' | 'out';
 
@@ -29,6 +30,7 @@ type LockPhase = 'hidden' | 'shown' | 'opening' | 'out';
  */
 @Component({
   selector: 'app-lock-screen',
+  imports: [NgOptimizedImage],
   templateUrl: './lock-screen.html',
   styleUrl: './lock-screen.scss',
   encapsulation: ViewEncapsulation.None,
@@ -50,7 +52,7 @@ export class LockScreen {
   protected readonly phase = signal<LockPhase>('hidden');
   protected readonly wall = signal('');
   protected readonly dataOn = signal<'1' | '0' | null>(null);
-  protected readonly avatar = `url("${AVATAR}")`;
+  protected readonly avatar = USER_PROFILE.avatar;
   protected readonly date = computed(() => {
     const d = this.clock.now();
     return `${DAYS[d.getDay()]}, ${MONS[d.getMonth()]} ${d.getDate()}`;

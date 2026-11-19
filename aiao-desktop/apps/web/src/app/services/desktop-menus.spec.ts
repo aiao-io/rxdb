@@ -84,7 +84,7 @@ describe('DesktopMenus 苹果菜单', () => {
     expect(session.shutDown).toHaveBeenCalledTimes(1);
     expect(session.lock).toHaveBeenCalledTimes(2);
     expect(apple.find(item => isMenuCommand(item) && item.id === 'logout')).toMatchObject({
-      label: 'Log Out Prasenjit…'
+      label: 'Log Out Steve Jobs…'
     });
   });
 

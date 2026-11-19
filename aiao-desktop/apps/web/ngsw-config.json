@@ -11,6 +11,7 @@
           "/favicon.ico",
           "/manifest.webmanifest",
           "/icons/**",
+          "/profile/steve-jobs.jpg",
           "/*.css$",
           "/*.js$",
           "/sqlite-wasm/*.wasm$"

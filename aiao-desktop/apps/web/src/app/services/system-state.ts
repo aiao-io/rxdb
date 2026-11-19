@@ -1,6 +1,7 @@
 import { Service, signal } from '@angular/core';
 
 import { clamp } from '../shared/format';
+import { USER_PROFILE } from '../shared/user-profile';
 
 export type ThemeMode = 'light' | 'dark';
 /** 用户选择的外观；只有 `auto` 会跟随宿主系统。 */
@@ -14,7 +15,7 @@ export type WallpaperKey = 'tahoe' | 'ridges' | 'summit' | 'valley' | 'forest' |
 /** 桌面的系统级状态（原 `SYS` 与 `Screen.brightness`）。 */
 @Service({ autoProvided: false })
 export class SystemState {
-  readonly user = 'Prasenjit';
+  readonly user = USER_PROFILE.name;
   readonly host = 'macbook';
   readonly boot = Date.now();
 

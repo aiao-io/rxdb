@@ -12,7 +12,7 @@ function setup(): SystemState {
 describe('SystemState', () => {
   it('出厂状态：浅色外观、多彩强调色、Wi-Fi 与蓝牙开启、Dock 放大开启', () => {
     const system = setup();
-    expect(system).toMatchObject({ user: 'Prasenjit', host: 'macbook' });
+    expect(system).toMatchObject({ user: 'Steve Jobs', host: 'macbook' });
     expect(system.theme()).toBe('light');
     expect(system.appearance()).toBe('light');
     expect(system.accent()).toBe('multi');

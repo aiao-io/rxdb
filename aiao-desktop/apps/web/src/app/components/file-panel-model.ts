@@ -1,5 +1,5 @@
 import { extensionOf, formatSize, isPackageName, mimeTypeOf } from '../disk/disk-kinds';
-import { DiskPath, HOME, VOLUME_NAME } from '../disk/disk-path';
+import { DiskPath, HOME, VOLUME_NAME, displayDiskPath } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
 import type { FilePanelMode } from '../services/file-panels';
 
@@ -95,8 +95,8 @@ export function saveConflict(folder: FsNode | null, name: string): SaveConflict 
   return isPackageName(existing.name) ? { kind: 'package' } : { kind: 'file' };
 }
 
-/** 路径的显示文字：`Macintosh HD › Users › prasenjit`。 */
-export const pathLabel = (path: DiskPath): string => [VOLUME_NAME, ...path].join(' › ');
+/** 路径的显示文字，例如 `Macintosh HD › Users › Steve Jobs`。 */
+export const pathLabel = (path: DiskPath): string => [VOLUME_NAME, ...displayDiskPath(path)].join(' › ');
 
 /** 面板开着时用户所在的文件夹还在不在；不在了（被别处删除、改名）就退到最近的还在的上级。 */
 export function nearestFolder(path: DiskPath, nodeAt: (path: DiskPath) => FsNode | null): DiskPath {

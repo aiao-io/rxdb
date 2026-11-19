@@ -1,6 +1,7 @@
 import { FOLDER_KIND } from '../../disk/disk-kinds';
 import { FsNode, visibleChildren } from '../../disk/disk-tree';
 import { FileSystem } from '../../services/file-system';
+import { USER_PROFILE } from '../../shared/user-profile';
 
 export { nameSeed, shotKind } from '../../disk/thumbnails';
 
@@ -17,7 +18,7 @@ export const SIDEBAR: readonly { readonly head: string; readonly items: readonly
       ['Documents', 'g-docs'],
       ['Downloads', 'g-download'],
       ['Applications', 'g-apps'],
-      ['prasenjit', 'g-folder-g']
+      [USER_PROFILE.name, 'g-folder-g']
     ]
   },
   { head: 'iCloud', items: [['iCloud Drive', 'g-icloud-o']] },

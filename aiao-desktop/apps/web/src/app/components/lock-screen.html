@@ -18,7 +18,7 @@
     <div class="lk-time">{{ time() }}</div>
   </div>
   <div class="lk-user">
-    <div class="lk-av" [style.background-image]="avatar" aria-hidden="true" data-av></div>
+    <img class="lk-av" [ngSrc]="avatar" alt="" data-av height="74" loading="eager" width="74" />
     <div class="lk-name">{{ system.user }}</div>
     <div class="lk-pw" aria-hidden="true">
       <span>Enter Password</span>

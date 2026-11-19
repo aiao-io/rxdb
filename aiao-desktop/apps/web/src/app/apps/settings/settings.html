@@ -17,11 +17,14 @@
       </div>
       <div class="st-scroll">
         <div class="st-row" style="height: 44px; margin-bottom: 8px">
-          <span
+          <img
             class="bg"
-            [style.background-image]="avatar"
-            style="width: 34px; height: 34px; border-radius: 50%; background-size: cover; background-position: center"
-          ></span>
+            [ngSrc]="avatar"
+            alt=""
+            height="34"
+            style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover"
+            width="34"
+          />
           <span style="display: flex; flex-direction: column">
             <b style="font-size: 13px; font-weight: 600">{{ system.user }}</b>
             <span style="font-size: 11px; color: var(--txt-2)">Apple Account</span>
