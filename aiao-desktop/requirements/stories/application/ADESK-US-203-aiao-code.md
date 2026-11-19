@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-003
 created: 2026-11-13
-updated: 2026-11-18
+updated: 2026-11-20
 tags: [application, orbit, aiao-vscode, online]
 dependsOn: [ADESK-US-201, ADESK-US-202]
 capabilities: []
@@ -52,6 +52,8 @@ capabilities: []
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 验收证据：线上验收脚本 `aiao-desktop-e2e:verify-aiao-code`（[verify-aiao-code.mjs](../../../apps/e2e/src/verify-aiao-code.mjs)），输出 JSON 的 `checks` 与 AC 一一对应：#1 `workbenchReady`，#2 `crossOriginIsolated`，#3 `terminalRuns`，#4 `restoreKeepsWorkbench`，#5 `reopenKeepsProject`，#6 `noDesktopErrors`。2026-11-13 发布前先用 `--vscode-dist` 把 vscode.aiao.io 指到带握手与 CORP 的本地产物，6 项全过；当时的线上版本没有 CORP，窗口按预期显示「vscode.aiao.io didn’t connect」。同日 Aiao Code 发布到 vscode.aiao.io（Pages 部署 `408194ed`，源提交 `4e9de996`）后对线上重跑，6 项全过：从 Dock 打开到就绪 3.3 s，终端 5.4 s 进入运行中，关闭后重开 1.4 s。登记项本身（Dock、启动台、菜单栏）由 [ADESK-US-201](ADESK-US-201-application-system.md) 的冒烟覆盖。结论见[验收台账](../../verification-report.md#应用体系与集成应用)。
+
+Chromium 冒烟的 `shell.fileBackedIcons` 验证 Dock 能加载并解码本机 VS Code 原生图标对应的 256 × 256 独立 PNG。[shell.mjs](../../../apps/e2e/src/groups/shell.mjs)
 
 ## 技术笔记
 

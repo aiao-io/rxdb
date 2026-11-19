@@ -46,16 +46,19 @@ export async function readLaunchpadEntries(page) {
   return [...entries.values()];
 }
 
-/** 验证实际样式指向同源图标资源，且浏览器能解码该文件。 */
-export async function showsIconAsset(icon, file) {
+/** 验证样式引用的同源图标可解码，并按需检查图标边长。 */
+export async function showsIconAsset(icon, file, size) {
   if ((await icon.count()) !== 1) return false;
-  return icon.evaluate(async (node, name) => {
-    const url = new URL(`icons/desktop/${name}`, node.baseURI).href;
+  return icon.evaluate(async (node, { file, size }) => {
+    const url = new URL(`icons/desktop/${file}`, node.baseURI).href;
     const style = getComputedStyle(node);
     const layers = [style.backgroundImage, style.getPropertyValue('mask-image')];
     if (node.getBoundingClientRect().width <= 0 || !layers.some(layer => layer.includes(url))) return false;
     const image = new Image();
     image.src = url;
-    return image.decode().then(() => true, () => false);
-  }, file);
+    return image.decode().then(
+      () => size === undefined || (image.naturalWidth === size && image.naturalHeight === size),
+      () => false
+    );
+  }, { file, size });
 }

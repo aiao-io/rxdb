@@ -47,6 +47,7 @@ export const shell = {
     shellState.fileBackedIcons =
       (await page.locator('app-icon-sprite').count()) === 0 &&
       (await showsIconAsset(page.locator('#dock [data-app="finder"] .art svg'), 'app-finder.png')) &&
+      (await showsIconAsset(page.locator('#dock [data-app="vscode"] .art svg'), 'app-aiao-code.png', 256)) &&
       (await showsIconAsset(page.locator('#menubar .mb-item.apple svg'), 'g-apple.svg')) &&
       (await showsIconAsset(calendar.locator('svg'), 'app-calendar.png')) &&
       (await calendar.locator('.calendar-date').evaluate(node => {
