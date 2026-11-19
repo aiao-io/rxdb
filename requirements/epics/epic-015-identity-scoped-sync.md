@@ -1,7 +1,7 @@
 ---
 id: epic-015-identity-scoped-sync
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-11-19
 targetDate: TBD
 owner: jimmy
 ---
@@ -16,26 +16,30 @@ owner: jimmy
 
 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 收口 anon 与分支写入之后，Supabase 日志同步仍只适用于「所有登录者可见范围一致」的数据：`rxdb_change` 对全部 authenticated 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权，失去读权限的行会一直留在本机。按身份授权要同时改核心元数据、同步插件、适配器与参考 SQL、本机库命名和三端绑定，不属于 epic-004 的单点加固，也不属于 epic-006 / epic-014 的提交图能力。
 
-## 立项前提
+## 立项
 
-2026-11-19 评审拍板：主体等出现「同一后端、不同用户看不同行」的真实业务再开工；在此之前只维持 US-225 的访问底线。
+owner 明确了目标：不同用户同步到自己有权限的数据是关键，没登录的用户能看到全部公开数据。据此立项，先做只读同步（[US-033](../stories/core/US-033-identity-scoped-read-sync.md)），写入与实时刷新放在后续故事。
 
 ## 已拍板的方向
 
-以下五条是 2026-11-19 评审的结论。
+以下是 2026-11-19 评审（1～5）与立项（6～9）时的结论。
 
 1. **读授权走当前态直读加对账。** 以用户身份直接查业务表，受该表 GRANT 与 RLS 约束；本机有、远端以当前身份查不到的行就删除，即 QueryCache 的 `orphanIds` 模式（`diffMetadata` 的「local but not in remote result set」）。不先做按身份裁剪的变更日志，全范围对账撑不住时再评估。
 2. **游标随本机库隔离。** 本机库按「用户 × 租户或团队 × 应用」分库后，`RxDBSync` 表本身就在该身份的库里，游标天然按用户、租户、应用隔离；filter、授权代次或 schema 版本变化时清掉游标重建，不改游标主键格式 `${namespace}:${entity}:${branchId}`。
 3. **权限沿用成员现有的六项权限。** 行级策略直接读成员权限：read 对应 SELECT，edit 对应增删改。不引入 GitHub 式 read / write / maintain / admin 四级角色。
 4. **不做分支远程删除保护。** 平台和产品都没有远程删除分支的功能，有了再谈。
 5. **Admin 现有协作链路不动。** 团队共享数据保持 `SyncType.None` + 提交交换 + 仅经 PR 合并（admin-template 分支 `rxdb-admin-template/requirements/decisions.md` 的 D-06、协作契约 C06）。
+6. **公开数据给 anon，不靠匿名账号。** 业务表的 RLS 对 anon 开放公开行的读取，未登录用户直接以 anon 身份读；匿名登录只留给演示推送一类场景。
+7. **公开数据按查询缓存。** 打开哪页缓存哪页，不做公开数据的全量离线同步。
+8. **每个身份一个本地库。** 本地库第一次与远端交换数据时绑定身份，之后对不上就停下报错、不混数据；应用按身份打开各自的库。与远端身份不匹配时「停下 + 显式改绑」的做法一致。
+9. **实时刷新放到后续故事。** 第一个故事靠查询时对账。
 
 ## 目标
 
-- [ ] 两用户、两租户的公共包契约测试：同一远端、一个直写实体，覆盖首次同步、成员关系变化而业务行未写、换号时在途的拉取与推送、离线待推与重连，以服务端按该身份的查询结果作对照（**尚无故事认领**）
+- [ ] 两用户、两租户的公共包契约测试：同一远端、一个直写实体，覆盖首次同步、成员关系变化而业务行未写、换号时在途的拉取与推送、离线待推与重连，以服务端按该身份的查询结果作对照（只读部分由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领，写入待后续故事）
 - [ ] 实体声明隔离范围：元数据声明租户键或作用域；声明了隔离而后端不具备按身份读取时，连接即报错，不降级为普通 `Filter`（**尚无故事认领**）
 - [ ] 失权移除：授权代次变化时锁住旧投影，按当前身份重建后原子替换，中途再次变权就废弃本轮；待推变更与可读投影分开保留，重新授权前不重放（**尚无故事认领**）
-- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（**尚无故事认领**；Admin 本机工作台库按 admin-template 分支 D-10 第 4 条另起评审）
+- [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名与身份校验由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领，多标签页锁定与移除数据待后续故事；Admin 本机工作台库按 admin-template 分支 D-10 第 4 条另起评审）
 - [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（**尚无故事认领**）
 - [ ] 存在性信号：读授权落地后，推送对不可见的行按「不存在」处理，取代 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) AC#2 对「被拒绝」与「已不存在」的区分（**尚无故事认领**）
 - [ ] 三端验收：Angular / React / Vue 对同一权限矩阵运行同一组用户流程（**尚无故事认领**）
@@ -44,7 +48,9 @@ owner: jimmy
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
-尚无归属故事。前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
+- [US-033 按身份同步可见数据（只读）：未登录读公开行，登录用户读有权限的行](../stories/core/US-033-identity-scoped-read-sync.md) (High)
+
+前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
 
 ## 现状核实（`258856694`）
 

@@ -8,16 +8,16 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 97   |
-| 🚧 In Progress | 13   |
+| 🚧 In Progress | 14   |
 | 👀 In Review   | 3    |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 140  |
+| **合计**       | 141  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（13 条）
+## 进行中（14 条）
 
 | Story                                                                                                                                                                   | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -32,6 +32,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 | [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 | [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-033 按身份同步可见数据（只读）](stories/core/US-033-identity-scoped-read-sync.md)                                                                                   | RLS 下的契约测试、本地库绑定身份与按身份算库名进行中。             |
 
 ## 待评审（3 条）
 
@@ -233,6 +234,10 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ⬜ [US-710 实时信号：在线状态、编辑标记与变更提示](stories/future/US-710-p2p-live-signals.md)
 - ⬜ [US-711 远程 DevTools：经 P2P 会话检查另一台设备上的库](stories/future/US-711-p2p-remote-devtools.md)
 - ⬜ [US-712 局域网枢纽：一台设备充当远端](stories/future/US-712-p2p-lan-hub.md)
+
+### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
+
+- 🚧 [US-033 按身份同步可见数据（只读）：未登录读公开行，登录用户读有权限的行](stories/core/US-033-identity-scoped-read-sync.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
