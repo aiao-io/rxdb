@@ -507,6 +507,15 @@ ERROR: function rxdb_mutations does not exist
 本地游标属于另一个远端：远端被推倒重建、`rxdb_change` 被 `TRUNCATE`，或者 `supabaseUrl` 被改到了另一个项目。同步停在原地，本地数据没有被改动。
 确认新远端就是要同步的那一个之后，调 `rxdb.syncManager.rebindRemoteBackend()` 再 `pull({ fetchAll: true })`；地址配错时改回原地址即可，不要改绑。
 
+### 报 RxDBIdentityMismatchError
+
+声明了 `RxDBOptions.identity` 的实例，库或远端会话属于另一个身份：
+
+- `connect()` 时报：本地库绑定的是别的身份（例如换了账号却还开着上一个账号的库）。本地数据没有被改动，换到当前身份自己的库即可，库名用 `getRxDBIdentityDatabaseName` 算；
+- 同步或 QueryCache 读写时报：库声明的身份是 A，而适配器的会话令牌已经是 B。一个请求都没发出，待推变更留在原处；会话回到 A 之后照常同步。
+
+两种情况都不要改绑，见[每个身份一个本地库](../collaboration/sync.md#每个身份一个本地库)。
+
 ### Realtime 未收到变更
 
 1. 确认 Supabase 项目已启用 Realtime，库里有 `realtime.send`（Realtime 服务启动时建）。

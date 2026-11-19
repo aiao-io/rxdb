@@ -10,6 +10,7 @@ import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
 import { settleRepositoryTransaction, transactionalRepository } from './repository/transactional-repository.js';
 import { RxDB } from './RxDB.js';
+import { RxDBError } from './RxDBError.js';
 import { SwitchVersionActions } from './sync-contract/VersionManager.interface.js';
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
@@ -956,6 +957,27 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    * 不支持变更日志同步的适配器直接抛不支持错误，不要返回占位值。
    */
   abstract backendId(): Promise<string>;
+
+  /**
+   * 当前调用者的身份：这个适配器此刻是以谁的名义和远端说话
+   *
+   * @returns 未登录（匿名访问）为 `RXDB_ANONYMOUS_SUBJECT`，登录为用户 id；必须与应用声明的 `RxDBOptions.identity.subject` 同口径
+   * @throws {@link RxDBError} 适配器不报告调用者身份（基类的默认行为）
+   *
+   * @remarks
+   * 声明了 `RxDBOptions.identity` 的实例，在每次与远端交换数据之前问它一次，对不上就停下。
+   * 因此要回答**此刻**的调用者而不是连接时的：会话令牌可能在两次请求之间换了主人。实现应当只读本地已有的会话状态，
+   * 不要为它单独发网络请求。
+   *
+   * 不是抽象方法：只有声明了身份的实例才会问它，不支持它的适配器照常使用；
+   * 声明了身份却问到不支持的适配器时，抛错而不是当作通过——无法核对就等于没有这道防线。
+   */
+  async callerIdentity(): Promise<string> {
+    throw new RxDBError(
+      `${this.constructor.name} does not report the caller identity (callerIdentity()), ` +
+        'so RxDBOptions.identity cannot be verified against this remote adapter.'
+    );
+  }
 
   /**
    * 从远程拉取变更记录

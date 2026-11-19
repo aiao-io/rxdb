@@ -11,6 +11,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { getAllRepositorySyncStatus } from '../get-all-repository-sync-status.js';
 import { METADATA } from './fixtures/private-symbols.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 interface QueryRule {
   field: string;
@@ -143,6 +144,7 @@ function createAllStatusHarness() {
       sync: FULL_SYNC
     },
     syncManager: {
+      rxdb: noIdentityDeclared,
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
       getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
       getRemoteRepositories: vi.fn(async () => ({ adapter: { getChangeCount, backendId: async () => 'backend-a' } }))

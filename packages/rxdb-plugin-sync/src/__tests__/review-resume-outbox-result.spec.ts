@@ -20,6 +20,7 @@ import { flushQueryCacheOutbox } from '../query-cache-outbox.js';
 import { setupSyncListeners } from '../sync-listeners.js';
 import type { SyncManager } from '../SyncManager.js';
 import { detachedReachability } from './fixtures/reachability.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 @Entity({
   name: 'ReviewOutboxArticle',
@@ -103,7 +104,8 @@ const createHarness = (failure?: Error) => {
     remoteAdapter$: of(remote),
     entityManager: { getRepository: () => ({ count: () => of(pending().length) }) },
     addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
+    removeEventListener: vi.fn(),
+    ...noIdentityDeclared
   } as unknown as RxDB;
   const manager = { rxdb } as SyncManager;
   const listeners = setupSyncListeners(manager);

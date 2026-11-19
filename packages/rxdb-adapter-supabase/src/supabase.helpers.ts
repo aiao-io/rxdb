@@ -13,6 +13,7 @@ import {
   RemoteChangeResult,
   RemoteEntityRef,
   RemoteMergeResult,
+  RXDB_ANONYMOUS_SUBJECT,
   RuleGroup
 } from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
@@ -53,25 +54,62 @@ export const REALTIME_RECONNECTABLE_STATUSES = new Set(['CHANNEL_ERROR', 'TIMED_
 export type RealtimeState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'closed';
 
 /**
- * 读取 JWT 载荷里的 `role`。
+ * 读取 JWT 的载荷。
  *
- * @param token - Realtime 客户端加入频道时要带的令牌
- * @returns 载荷里的 `role`；不是 JWT（如 `sb_publishable_` 开头的新式 key）或载荷解析失败时为 `undefined`
+ * @param token - 会话令牌
+ * @returns 载荷对象；不是 JWT（如 `sb_publishable_` 开头的新式 key）或载荷解析失败时为 `undefined`
  *
  * @remarks
- * 只解码、不校验签名：这里只用来判断要不要发起订阅，授权仍由 Realtime 按 `realtime.messages` 的 RLS 裁决。
+ * 只解码、不校验签名：这里读出来的东西只用来判断要不要发起订阅、当前调用者是谁，
+ * 授权仍由服务端按令牌的签名与 RLS 裁决。
  */
-export function readJwtRole(token: string | null | undefined): string | undefined {
+export function readJwtClaims(token: string | null | undefined): Record<string, unknown> | undefined {
   const payload = token?.split('.')[1];
   if (!payload) return undefined;
   try {
     const base64 = payload.replaceAll('-', '+').replaceAll('_', '/');
     const claims: unknown = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
-    const role: unknown = typeof claims === 'object' && claims !== null ? Reflect.get(claims, 'role') : undefined;
-    return typeof role === 'string' ? role : undefined;
+    return typeof claims === 'object' && claims !== null ? (claims as Record<string, unknown>) : undefined;
   } catch {
     return undefined;
   }
+}
+
+/**
+ * 读取 JWT 载荷里的 `role`。
+ *
+ * @param token - Realtime 客户端加入频道时要带的令牌
+ * @returns 载荷里的 `role`；不是 JWT 或载荷解析失败时为 `undefined`
+ */
+export function readJwtRole(token: string | null | undefined): string | undefined {
+  const role = readJwtClaims(token)?.['role'];
+  return typeof role === 'string' ? role : undefined;
+}
+
+/** `service_role` 令牌没有 `sub`，它的身份就是这个角色名 */
+const SERVICE_ROLE_IDENTITY = 'service_role';
+
+/**
+ * 令牌代表的调用者身份（US-035）
+ *
+ * @param token - 此刻随请求发出的令牌
+ * @returns 已登录用户为令牌的 `sub`；`service_role` 令牌为 `service_role`；
+ *   其余（没有令牌、anon key、新式 publishable key、读不出载荷）在服务端都是匿名角色，一律 {@link RXDB_ANONYMOUS_SUBJECT}
+ * @throws {@link SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`：无法判断是谁，不猜
+ *
+ * @remarks
+ * 判定口径与 `canReceiveChangeNotifications` 同源：令牌读不出身份，就等于没登录。
+ */
+export function identityOfAccessToken(token: string | null | undefined): string {
+  const claims = readJwtClaims(token);
+  const role = claims?.['role'];
+  if (typeof role !== 'string' || role === 'anon') return RXDB_ANONYMOUS_SUBJECT;
+  const subject = claims?.['sub'];
+  if (typeof subject === 'string' && subject.length > 0) return subject;
+  if (role === 'service_role') return SERVICE_ROLE_IDENTITY;
+  throw new SupabaseConfigError(
+    `Cannot tell the caller identity: the session token has role "${role}" but no "sub" claim.`
+  );
 }
 
 /**

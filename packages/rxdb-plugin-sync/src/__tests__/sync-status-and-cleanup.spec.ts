@@ -23,6 +23,7 @@ import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
 import type { SyncManager } from '../SyncManager.js';
 import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const LOCAL_ADAPTER_OPTIONS = { adapter: 'local' };
 const REMOTE_ADAPTER_OPTIONS = { adapter: 'remote' };
@@ -183,6 +184,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       sync: options.globalSync
     },
     syncManager: {
+      rxdb: noIdentityDeclared,
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories

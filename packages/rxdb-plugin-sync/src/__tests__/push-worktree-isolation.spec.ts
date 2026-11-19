@@ -19,6 +19,7 @@ import { SyncManager } from '../SyncManager.js';
 import { makeBranch } from './fixtures/branch-repository-stub.js';
 import { User } from './fixtures/test-entities.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const createHarness = (changeCount = 1) => {
   let tableSet = WorktreeTableSet.MAIN;
@@ -120,7 +121,8 @@ const createHarness = (changeCount = 1) => {
       return tableSet;
     },
     dispatchEvent: vi.fn(),
-    syncState: { reportRejections: vi.fn() }
+    syncState: { reportRejections: vi.fn() },
+    ...noIdentityDeclared
   } as unknown as RxDB;
   const clearUndoHistory = vi.fn<(branchId?: string) => void>();
   const history = {

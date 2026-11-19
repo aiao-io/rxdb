@@ -16,6 +16,7 @@ import {
   RxDBBranch,
   RxDBChange,
   type RxDBEvent,
+  RxDBIdentityMismatchError,
   RxDBPartialSyncError,
   RxDBSync,
   type SwitchVersionActions,
@@ -455,6 +456,29 @@ describe('pullRepository', () => {
         applied: 2,
         persistedProgress: true
       });
+      expect(syncRecord.lastPullRemoteChangeId).toBe(9);
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+    });
+
+    // US-035 AC#7：A 的拉取在途，会话换了主人，旧响应这时才到。身份核对与远端身份核对共用这道落库前的门，
+    // 所以旧响应一行不写、游标不动；真实的核对链（入口放行、落库前拒绝）见 remote-identity.spec.ts。
+    it('会话在途中换了主人：旧响应不落库，游标停在上一轮', async () => {
+      const syncRecord = createSyncRecord('PullSliceItem', 4);
+      const harness = createHarness({
+        syncRecords: [syncRecord],
+        remoteChanges: [createRemoteChange(5), createRemoteChange(9), createRemoteChange(12)]
+      });
+      const mismatch = new RxDBIdentityMismatchError('remote', 'key-a', ['key-b']);
+      harness.verifyRemoteBackend.mockResolvedValueOnce(undefined).mockRejectedValueOnce(mismatch);
+
+      const error = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+        includeRelated: false,
+        limit: 2,
+        fetchAll: true
+      }).catch((rejection: unknown) => rejection);
+
+      expect(error).toBeInstanceOf(RxDBPartialSyncError);
+      expect((error as RxDBPartialSyncError<PullRepositoryResult>).cause).toBe(mismatch);
       expect(syncRecord.lastPullRemoteChangeId).toBe(9);
       expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
     });

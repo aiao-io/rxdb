@@ -223,6 +223,14 @@ export * from './sync-state.js';
 export * from './system/active-branch-guard.js';
 export * from './system/branch.js';
 export * from './system/capability-watermark.js';
+// 本地库与身份的绑定（US-035）。只导出应用要用的：声明身份的类型、未登录的身份值、按身份算库名、
+// 身份对不上时抛的错。键的算法、水位行名与两处核对是核心与同步插件之间的内部约定，不进公开面。
+export {
+  getRxDBIdentityDatabaseName,
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDBIdentityMismatchError,
+  type RxDBIdentity
+} from './system/identity-binding.js';
 export {
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_CHANGE_ENTITY_ID_PREFIX,
