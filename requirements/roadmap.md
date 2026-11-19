@@ -35,7 +35,7 @@
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |
 | [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B | 批次 7   |
 | [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                         | 批次 7   |
-| [US-033](stories/core/US-033-identity-scoped-read-sync.md)                                                                                                              | 🚧 In Progress | 按身份只读同步：RLS 下的契约测试、本地库绑定身份、按身份算库名                                         | 批次 8   |
+| [US-033](stories/core/US-033-identity-scoped-read-sync.md)                                                                                                              | 🚧 In Progress | 按授权分区只读同步：分区 RLS、按区拉取、规则筛选与自动清理、每个身份一个库                             | 批次 8   |
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                             | 立项池   |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                         | 本轮执行 |
 
@@ -99,13 +99,13 @@ owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付
 | US-707          | 阶段 A 浏览器双 context、Electron 双进程与服务器回退进 CI；阶段 B Tauri 双进程、离线局域网与大文件自动化                                         |
 | US-713          | Worker 管理接口、信令踢下线与管理后台页面；AC 在真实 Supabase 栈与本地 Worker 上验收，处置结果以数据库与 R2 的实际状态为准；AC#11 待首次 CI 运行 |
 
-### 批次 8：按身份同步可见数据（epic-015 已立项）
+### 批次 8：按授权分区同步（epic-015 已立项）
 
 owner 明确了目标：不同用户同步到自己有权限的数据，没登录的用户能看到全部公开数据。先做只读，写入与实时刷新随后。
 
-| 范围   | 关闭条件                                                                                                   |
-| ------ | ---------------------------------------------------------------------------------------------------------- |
-| US-033 | anon、两个用户、两个租户的 QueryCache 真栈契约测试全过；本地库绑定身份，对不上即停；按身份算库名的工具可用 |
+| 范围   | 关闭条件                                                                                       |
+| ------ | ---------------------------------------------------------------------------------------------- |
+| US-033 | 阶段 A～D 的 AC 全过：分区 SQL 回归、anon 与两个用户两个租户的真栈契约测试、身份绑定守卫、文档 |
 
 ### 线 A：桥接版本发布（owner 门控）
 

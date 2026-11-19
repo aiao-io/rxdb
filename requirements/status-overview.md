@@ -19,20 +19,20 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 进行中（14 条）
 
-| Story                                                                                                                                                                   | 剩余范围                                                           |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 协议层与浏览器宿主已接入；桌面 mDNS、握手及剩余 AC 待验收。        |
-| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 浏览器半边与独立 demo 已接入；Electron 与 Tauri 按阶段继续验收。   |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 独立消费、依赖隔离及三框架质量门禁待收口                           |
-| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                             | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
-| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                                                                              | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
-| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
-| [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)                                                                         | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
-| [US-530](stories/domain/US-530-admin-shell-preferences-appearance.md)                                                                                                   | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
-| [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
-| [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
-| [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
-| [US-033 按身份同步可见数据（只读）](stories/core/US-033-identity-scoped-read-sync.md)                                                                                   | RLS 下的契约测试、本地库绑定身份与按身份算库名进行中。             |
+| Story                                                                                                                                                                   | 剩余范围                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 协议层与浏览器宿主已接入；桌面 mDNS、握手及剩余 AC 待验收。         |
+| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 浏览器半边与独立 demo 已接入；Electron 与 Tauri 按阶段继续验收。    |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 独立消费、依赖隔离及三框架质量门禁待收口                            |
+| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                             | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。  |
+| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                                                                              | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。          |
+| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。            |
+| [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)                                                                         | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。    |
+| [US-530](stories/domain/US-530-admin-shell-preferences-appearance.md)                                                                                                   | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
+| [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
+| [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
+| [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
+| [US-033 按授权分区同步（只读）](stories/core/US-033-identity-scoped-read-sync.md)                                                                                       | 分区 RLS 与按区拉取、实体规则筛选与自动清理、每个身份一个库进行中。 |
 
 ## 待评审（3 条）
 
@@ -237,7 +237,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-- 🚧 [US-033 按身份同步可见数据（只读）：未登录读公开行，登录用户读有权限的行](stories/core/US-033-identity-scoped-read-sync.md)
+- 🚧 [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
