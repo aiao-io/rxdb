@@ -11,7 +11,13 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./auth": {
+      "types": "./src/auth.ts",
+      "import": "./src/auth.ts",
+      "default": "./src/auth.ts"
+    },
     "./package.json": "./package.json",
+    "./tailwind.css": "./tailwind.css",
     "./messages": {
       "types": "./src/messages.ts",
       "import": "./src/messages.ts",

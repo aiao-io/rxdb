@@ -3,9 +3,12 @@ import { AdminLayout } from '@aiao/rxdb-admin-vue';
 import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { Database } from '@lucide/vue';
-import { computed, watchEffect } from 'vue';
+import { authSession } from '@rxdb-admin-template/collaboration/auth';
+import { computed, onUnmounted, watchEffect } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import { visibleEntityEntries } from './entities/entity-registry';
+import AccountMenu from './shell/account-menu.vue';
+import { loginUrl } from './shell/auth-gate';
 import EntityCount from './shell/entity-count.vue';
 import { createRecordSearchSource } from './shell/record-search';
 import { buildWorkbenchMenu, entryOfMenuId } from './shell/workbench-menu';
@@ -21,6 +24,14 @@ watchEffect(onCleanup => {
   void locale.value;
   onCleanup(workbenchShell.palette.registerSource(createRecordSearchSource(db, url => void router.push(url), t)));
 });
+// 退出账号或会话失效：带着当前地址回到登录页
+const session = authSession();
+const follow = () => {
+  if (!session.user)
+    void router.push(loginUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`));
+};
+session.addEventListener('identity', follow);
+onUnmounted(() => session.removeEventListener('identity', follow));
 </script>
 <template>
   <AdminLayout
@@ -38,6 +49,7 @@ watchEffect(onCleanup => {
         v-if="entryOfMenuId(entries, node.id)"
         :entry="entryOfMenuId(entries, node.id)!"
     /></template>
+    <template #header-end><AccountMenu /></template>
     <RouterView />
   </AdminLayout>
 </template>

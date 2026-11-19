@@ -53,11 +53,14 @@ test('邮箱验证码：真实发信后登录成功；过期的验证码被拒�
   const local = `otp-${crypto.randomUUID().slice(0, 12)}`;
   const email = `${local}@admin-template.test`;
   const seen = new Set<string>();
+  // 全站都要登录：未登录打开团队协作，被带到全局登录页
   await page.goto('/collaboration');
+  await expect(page).toHaveURL(/\/login\?redirect=/);
   // 第一次：请求验证码，从收件服务读出后登录
   await requestCode(page, email);
   await submit(page, await nextCode(request, local, seen));
-  await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
+  await page.getByTestId('account-menu').locator('summary').click();
   await page.getByRole('button', { name: '退出账号' }).click();
   await expect(page.getByLabel('邮箱', { exact: true })).toBeVisible();
   // 第二次：另取一码，等它自然过期再提交，被 Auth 拒绝，页面不进入登录状态
@@ -65,12 +68,12 @@ test('邮箱验证码：真实发信后登录成功；过期的验证码被拒�
   const stale = await nextCode(request, local, seen);
   await page.waitForTimeout((expiry + 5) * 1000);
   await submit(page, stale);
-  await expect(page.getByText(/expired|invalid/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: '退出账号' })).toHaveCount(0);
+  await expect(page.getByText(/expired|invalid|过期|无效/i)).toBeVisible();
+  await expect(page.getByTestId('account-menu')).toHaveCount(0);
   // 重新请求：新码可用
   await requestCode(page, email);
   const fresh = await nextCode(request, local, seen);
   expect(fresh).not.toBe(stale);
   await submit(page, fresh);
-  await expect(page.getByRole('button', { name: '退出账号' })).toBeVisible();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
 });

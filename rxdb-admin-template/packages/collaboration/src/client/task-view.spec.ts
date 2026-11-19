@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkspaceSummary } from '../model.js';
 import type { Disclosures } from './disclosure.js';
 import type { Perform } from './elements.js';
-import { taskView, type TaskViewController } from './task-view.js';
+import { taskView, type TaskPrActions, type TaskViewController } from './task-view.js';
 import type { TaskView } from './team-tasks.js';
 import { useTranslation } from './translate.js';
 
@@ -38,10 +38,18 @@ function open(overrides: Partial<TaskView> = {}): TaskView {
 }
 function setup(
   task: TaskView,
-  options: { expired?: boolean; online?: boolean; remoteHead?: string; open?: boolean; unsaved?: boolean } = {}
+  options: {
+    expired?: boolean;
+    online?: boolean;
+    remoteHead?: string;
+    open?: boolean;
+    unsaved?: boolean;
+    pr?: TaskPrActions;
+  } = {}
 ) {
   const controller = {
     task,
+    user: { id: 'alice', email: 'alice@example.test', verified: true },
     snapshot: {
       root,
       tasks: [
@@ -68,7 +76,7 @@ function setup(
     await work();
   };
   const disclosures: Disclosures = { isOpen: () => options.open ?? false, reveal: () => undefined };
-  const view = taskView(controller, perform, disclosures);
+  const view = taskView(controller, perform, disclosures, options.pr);
   const buttons = (name: string) => [...view.querySelectorAll('button')].filter(node => node.textContent === name);
   const texts = () => [...view.querySelectorAll('p')].map(node => node.textContent);
   return { controller, view, buttons, texts };
@@ -145,19 +153,43 @@ describe('任务视图的动作', () => {
     [...dialog()!.querySelectorAll('button')].find(node => node.textContent === '确认放弃')!.click();
     await vi.waitFor(() => expect(controller.discardDraft).toHaveBeenCalledTimes(1));
   });
-  it('另存为新任务带上输入的名称，离线时不可用；远端头与本机确认的不同才提供拉取远端版本', async () => {
-    const { view, buttons, controller } = setup(open({ remoteHead: 'c1', localHead: 'c2', unpushed: 1 }), {
+  it('另存为新任务在对话框里填名称，带上输入的名称另存；离线时不可用；远端头与本机确认的不同才提供拉取远端版本', async () => {
+    const { buttons, controller } = setup(open({ remoteHead: 'c1', localHead: 'c2', unpushed: 1 }), {
       remoteHead: 'c9'
     });
-    const name = view.querySelector<HTMLInputElement>('input[aria-label="另存任务名称"]')!;
+    buttons('另存为新任务…')[0].click();
+    await vi.waitFor(() => expect(document.querySelector('dialog')).not.toBeNull());
+    const dialog = document.querySelector('dialog')!;
+    const name = dialog.querySelector<HTMLInputElement>('input[aria-label="另存任务名称"]')!;
     expect(name.value).toBe('采购（分叉）');
     name.value = '保留本机';
-    buttons('另存为新任务')[0].click();
+    [...dialog.querySelectorAll('button')].find(node => node.textContent === '另存为新任务')!.click();
     await vi.waitFor(() => expect(controller.fork).toHaveBeenCalledWith('保留本机'));
+    expect(document.querySelector('dialog')).toBeNull();
     buttons('拉取远端版本')[0].click();
     await vi.waitFor(() => expect(controller.fetchRemote).toHaveBeenCalledTimes(1));
-    expect(setup(open(), { online: false }).buttons('另存为新任务')[0].disabled).toBe(true);
+    expect(setup(open(), { online: false }).buttons('另存为新任务…')[0].disabled).toBe(true);
     expect(setup(open()).buttons('拉取远端版本')).toHaveLength(0);
+  });
+  it('挂载方给出创建入口时显示「创建 PR…」；任务已有进行中的 PR 时改为「查看 PR」；都不给时两者都没有', async () => {
+    const createPr = vi.fn();
+    const showPr = vi.fn();
+    const creatable = setup(open(), { pr: { createPr } });
+    expect(creatable.buttons('查看 PR')).toHaveLength(0);
+    creatable.buttons('创建 PR…')[0].click();
+    await vi.waitFor(() => expect(createPr).toHaveBeenCalledTimes(1));
+    const existing = setup(open(), { pr: { createPr, showPr, openPr: { id: 'p1', title: '采购' } } });
+    expect(existing.buttons('创建 PR…')).toHaveLength(0);
+    existing.buttons('查看 PR')[0].click();
+    await vi.waitFor(() => expect(showPr).toHaveBeenCalledWith('p1'));
+    const none = setup(open());
+    expect([...none.buttons('创建 PR…'), ...none.buttons('查看 PR')]).toHaveLength(0);
+  });
+  it('有要同步的内容时「同步」是主按钮，已同步时是普通按钮', () => {
+    const tone = (task: TaskView) => setup(task).buttons('同步')[0].classList.contains('btn-primary');
+    expect(tone(open({ saved: 1 }))).toBe(true);
+    expect(tone(open({ localHead: 'c1', unpushed: 1 }))).toBe(true);
+    expect(tone(open({ localHead: 'c1', remoteHead: 'c1' }))).toBe(false);
   });
 });
 
@@ -171,10 +203,13 @@ describe('本机提交历史（ADMIN-US-221 AC#1）', () => {
     expect(collapsed.view.querySelector('summary')?.textContent).toBe('本机提交历史（2 个）');
     expect(collapsed.view.querySelector('[data-commit-id]')).toBeNull();
     const expanded = setup(open({ commits, localHead: 'c2', remoteHead: 'c1', unpushed: 1 }), { open: true });
-    expect([...expanded.view.querySelectorAll('[data-commit-id]')].map(node => node.textContent)).toEqual([
-      '采购 · alice · c2',
-      '采购 · alice · c1'
+    const items = [...expanded.view.querySelectorAll<HTMLElement>('[data-commit-id]')];
+    expect(items.map(node => [node.dataset['commitId'], node.dataset['authorId']])).toEqual([
+      ['c2', 'alice'],
+      ['c1', 'alice']
     ]);
-    expect(expanded.texts()).toEqual(expect.arrayContaining(['父提交：c1 · 待上传', '父提交：空 · 已同步']));
+    // 每项：提交消息、作者（显示成员邮箱）、短 ID、第一父（共享分支根显示「空」）与同步状态
+    expect(items[0].textContent).toBe('采购alice@example.testc2父提交：c1待上传');
+    expect(items[1].textContent).toBe('采购alice@example.testc1父提交：空已同步');
   });
 });

@@ -212,6 +212,14 @@ export class PaletteController implements ReadableStore<PaletteState> {
   }
 
   /**
+   * 按各来源当前的数据重算结果，保留查询与选中位置，不重新发起异步搜索。
+   * 同步来源背后的数据变了时调用（例如外壳菜单在面板打开之后才到，或换了语言）；面板关闭时不做任何事，下次打开本来就会重算。
+   */
+  refresh(): void {
+    this.#refresh();
+  }
+
+  /**
    * 更新查询：同步源立即过滤，异步源防抖后搜索。
    * @param query - 查询文本。
    */

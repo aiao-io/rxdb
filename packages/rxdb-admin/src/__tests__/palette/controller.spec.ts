@@ -439,6 +439,29 @@ describe('PaletteController', () => {
       expect(controller.value.total).toBe(1);
     });
 
+    it('refresh 按来源当前的数据重算：保留查询，不重新发起异步搜索；面板关闭时不动', async () => {
+      const { controller } = setup();
+      const items = [item('a', '资产')];
+      const search = vi.fn(async () => [item('r', '资产记录')]);
+      controller.registerSource(menuSource(items));
+      controller.registerSource({ id: 'records', search });
+      controller.refresh();
+      expect(controller.value.open).toBe(false);
+      controller.open();
+      controller.setQuery('资产');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(search).toHaveBeenCalledTimes(1);
+      items.push(item('b', '资产分类'));
+      controller.refresh();
+      expect(controller.value.query).toBe('资产');
+      expect(controller.value.groups.map(group => group.entries.map(entry => entry.item.id))).toEqual([
+        ['a', 'b'],
+        ['r']
+      ]);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(search).toHaveBeenCalledTimes(1);
+    });
+
     it('注销正在搜索的异步源：它的请求被中止，迟到结果不会进入随后注册的同名来源', async () => {
       const { controller } = setup();
       const old = deferred<PaletteItem[]>();

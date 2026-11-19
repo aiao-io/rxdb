@@ -1,3 +1,4 @@
+export * from './auth.js';
 export * from './client/import-anonymous.js';
 export type { CollaborationLabels } from './client/labels.js';
 export * from './client/mount.js';

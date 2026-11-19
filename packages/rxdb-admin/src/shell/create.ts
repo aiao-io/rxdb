@@ -203,6 +203,8 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
     setMenu: nodes => {
       menu.set(nodes);
       tabs.retitle(url => menuTitleOf(nodes, url));
+      // 面板开着时页面组跟着新菜单走：首屏等登录守卫时菜单可能晚于面板打开才到
+      palette.refresh();
     },
     registerCommand: command => {
       if (customCommands.has(command.id)) throw new Error(`Command "${command.id}" is already registered`);

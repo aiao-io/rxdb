@@ -30,7 +30,8 @@ async function backupToFile(page: Page, dir: string): Promise<string> {
 }
 
 async function freshContextPage(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext();
+  // 全新的浏览器上下文也要带上登录状态：全站都要登录
+  const context = await browser.newContext({ storageState: process.env['ADMIN_E2E_AUTH_STATE'] });
   const page = await context.newPage();
   await resetE2eState(page);
   return { context, page };

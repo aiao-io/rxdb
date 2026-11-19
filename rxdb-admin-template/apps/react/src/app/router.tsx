@@ -2,6 +2,7 @@ import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
 import setup_rxdb from './rxdb/setup_rxdb';
+import { requireLogin } from './shell/auth-gate';
 
 interface RouteModule {
   default: React.ComponentType;
@@ -19,6 +20,14 @@ function SearchLoadError() {
   );
 }
 
+/**
+ * 首次进入时，登录门禁（布局路由的 loader）与懒加载页面就绪之前不渲染任何内容：未登录的人不会先看到后台外壳，
+ * 与 Angular（阻塞式首次导航）、Vue（首次导航结束后才挂载）一致。
+ */
+function InitialLoad() {
+  return null;
+}
+
 const lazyRoute =
   (importFn: () => Promise<RouteModule>): LazyRouteFunction<RouteObject> =>
   async () => {
@@ -27,9 +36,13 @@ const lazyRoute =
   };
 
 export const routes: RouteObject[] = [
+  // 登录页在后台外壳之外；其余页面都要先登录（布局路由的 loader 是全站登录门禁）
+  { path: '/login', lazy: lazyRoute(() => import('./pages/login-page')) },
   {
     path: '/',
     element: <AppLayout />,
+    HydrateFallback: InitialLoad,
+    loader: requireLogin,
     children: [
       { index: true, lazy: lazyRoute(() => import('./pages/start-page')) },
       { path: 'dashboard', lazy: lazyRoute(() => import('./pages/dashboard-page')) },

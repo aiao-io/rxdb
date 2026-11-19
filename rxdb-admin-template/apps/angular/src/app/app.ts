@@ -23,8 +23,11 @@ import {
   RouterOutlet
 } from '@angular/router';
 import { LucideDatabase as Database, LucideDynamicIcon } from '@lucide/angular';
+import { authSession } from '@rxdb-admin-template/collaboration/auth';
 import { filter, map } from 'rxjs';
 import { findWorkbenchEntity, visibleEntityEntries, type WorkbenchEntityEntry } from './entities/entity-registry';
+import { AccountMenu } from './shell/account-menu';
+import { loginUrl } from './shell/auth-gate';
 import { createRecordSearchSource } from './shell/record-search';
 import { buildWorkbenchMenu, entryOfMenuId } from './shell/workbench-menu';
 import { bindWorkbenchNavigator, workbenchShell } from './shell/workbench-shell';
@@ -66,16 +69,21 @@ export class EntityCount {
 
 @Component({
   selector: 'app-root',
-  imports: [AdminLayoutComponent, AdminPageDirective, RouterOutlet, LucideDynamicIcon, EntityCount],
-  template: ` <rxdb-admin-layout [menu]="menu()" [menuExtra]="menuExtra" [navigating]="navigating()" [url]="url()">
-    <svg [lucideIcon]="Database" [size]="16" aria-hidden="true" brandIcon></svg>
-    <ng-template #menuExtra let-node>
-      @if (entryOfMenuId(entries, node.id); as entry) {
-        <app-entity-count [entry]="entry" />
-      }
-    </ng-template>
-    <router-outlet *rxdbAdminPage />
-  </rxdb-admin-layout>`
+  imports: [AdminLayoutComponent, AdminPageDirective, RouterOutlet, LucideDynamicIcon, EntityCount, AccountMenu],
+  template: `@if (loginPage()) {
+      <router-outlet />
+    } @else {
+      <rxdb-admin-layout [menu]="menu()" [menuExtra]="menuExtra" [navigating]="navigating()" [url]="url()">
+        <svg [lucideIcon]="Database" [size]="16" aria-hidden="true" brandIcon></svg>
+        <ng-template #menuExtra let-node>
+          @if (entryOfMenuId(entries, node.id); as entry) {
+            <app-entity-count [entry]="entry" />
+          }
+        </ng-template>
+        <app-account-menu headerEnd />
+        <router-outlet *rxdbAdminPage />
+      </rxdb-admin-layout>
+    }`
 })
 export class App {
   private readonly db = useRxDB();
@@ -92,6 +100,8 @@ export class App {
     ),
     { initialValue: this.router.url }
   );
+  /** 登录页在后台外壳之外单独渲染。 */
+  readonly loginPage = computed(() => this.url().startsWith('/login'));
   readonly navigating = toSignal(
     this.router.events.pipe(
       filter(
@@ -107,6 +117,16 @@ export class App {
   );
   constructor() {
     bindWorkbenchNavigator(url => void this.router.navigateByUrl(url));
+    // 退出账号或会话失效：带着当前地址回到登录页
+    const session = authSession();
+    const follow = () => {
+      if (!session.user && !this.router.url.startsWith('/login'))
+        void this.router.navigateByUrl(
+          loginUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+        );
+    };
+    session.addEventListener('identity', follow);
+    inject(DestroyRef).onDestroy(() => session.removeEventListener('identity', follow));
     const stop = effect(onCleanup => {
       this.i18n.locale();
       onCleanup(

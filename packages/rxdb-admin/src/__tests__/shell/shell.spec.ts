@@ -153,6 +153,16 @@ describe('createAdminShell', () => {
       expect(shell.tabs.value.tabs[0].title).toBe('Search');
       expect(shell.menu.value).toHaveLength(1);
     });
+
+    it('命令面板开着时 setMenu：页面组跟着新菜单更新（菜单晚于面板打开才到，或换了语言）', () => {
+      const { shell } = create({ menu: [] });
+      shell.palette.open();
+      expect(shell.palette.value.groups.map(group => group.id)).not.toContain('menu');
+      shell.setMenu([{ id: 'search', label: '搜索', route: '/search' }]);
+      expect(shell.palette.value.groups[0]?.entries.map(entry => entry.item.label)).toEqual(['搜索']);
+      shell.setMenu([{ id: 'search', label: 'Search', route: '/search' }]);
+      expect(shell.palette.value.groups[0]?.entries.map(entry => entry.item.label)).toEqual(['Search']);
+    });
   });
 
   describe('快捷键', () => {

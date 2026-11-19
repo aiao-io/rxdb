@@ -1,4 +1,4 @@
-import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SharedBranch } from '../derive.js';
 import {
   auditPageSize,
@@ -28,6 +28,7 @@ import { AuditTimeline } from './audit-timeline.js';
 import { CommitHistory, type HistoryBranch, type HistoryView } from './commit-history.js';
 import { ContentCache } from './content-cache.js';
 import { importOrder } from './import-anonymous.js';
+import { AuthSession, type MessageTone } from './session.js';
 import {
   retryWindowPassed,
   TaskLedger,
@@ -41,6 +42,8 @@ import { TeamTasks, type ExchangeDownload, type TaskView, type TeamOpener } from
 import { WorkspaceFeed, type FeedStatus } from './workspace-feed.js';
 
 export type { WorkspaceEntry } from '../reader.js';
+
+export type { MessageTone } from './session.js';
 
 /** 尚未得到确认的云端请求：所属团队、原请求（含幂等键）与首次发出的时间。 */
 export interface PendingRequest {
@@ -75,34 +78,6 @@ const restoreRejections: Readonly<Record<string, string>> = {
 };
 
 /**
- * Supabase Auth（GoTrue）的错误码到协作词条与错误类别。
- *
- * @remarks
- * GoTrue 的 `message` 是英文、随版本变化，直接显示会让中文界面冒出一句英文原文；错误码才是稳定的契约。
- * 类别刻意不用 `unauthenticated`：{@link CollaborationController.failure} 遇到它会锁定会话，而这里是登录之前的输入错误。
- */
-const authFailures: Readonly<Record<string, { code: string; message: string }>> = {
-  otp_expired: { code: 'invalid', message: '验证码已过期或无效，请重新获取' },
-  email_address_invalid: { code: 'invalid', message: '邮箱地址无效' },
-  over_email_send_rate_limit: { code: 'limit', message: '发送过于频繁，请稍后再试' },
-  over_request_rate_limit: { code: 'limit', message: '请求过于频繁，请稍后再试' }
-};
-
-/**
- * 把 Supabase Auth 返回的错误换成带协作词条的 {@link CollaborationError}；不认识的错误码统一提示「登录失败」，
- * 原始错误码与 HTTP 状态留在 `details` 里，供运维排查。
- */
-function authFailure(error: Error & { code?: unknown; status?: unknown }): CollaborationError {
-  const authCode = typeof error.code === 'string' ? error.code : null;
-  const known = authCode !== null && Object.hasOwn(authFailures, authCode) ? authFailures[authCode] : undefined;
-  const { code, message } = known ?? { code: 'unavailable', message: '登录失败，请稍后重试' };
-  return new CollaborationError(code, message, {
-    authCode,
-    status: typeof error.status === 'number' ? error.status : null
-  });
-}
-
-/**
  * 协作界面的状态与动作中枢：持有认证会话、团队页、团队库（团队任务落在平台 working-tree 上）与实时频道，界面监听 `change` 事件重绘。
  * 读取全部经 Supabase 的只读投影（{@link CollaborationReader}，PostgREST + RLS）：团队页只含成员、策略、引用与 PR 列表元数据
  * 与本人的通知窗口；PR 详情、提交历史、提交与候选内容、共享数据、审计都按需读取并缓存，同步读取入口未命中时返回 undefined
@@ -120,12 +95,14 @@ export class CollaborationController extends EventTarget {
   private source?: ReadSource;
   private authGeneration = 0;
   private mutations?: { epoch: number; settled: Promise<void> };
-  private unsubscribe?: () => void;
+  /** 正在跟随的全局身份变化（{@link CollaborationController.adoptIdentity}）：重连、登录之后等它落定。 */
+  private identity: Promise<void> = Promise.resolve();
+  /** 会话是本控制器自己建的（没有传入全局会话）：释放控制器时一并释放。 */
+  private readonly ownsSession: boolean;
   /** 取消订阅团队库的本地写入（打开着的任务）。 */
   private unwatch?: () => void;
   /** 合并同一轮里多次本地写入触发的任务状态重读。 */
   private taskRefresh?: Promise<void>;
-  private readonly channel = new BroadcastChannel('admin-collaboration-session');
   /** 本页面的 Presence 会话标识。 */
   private readonly sessionId = crypto.randomUUID();
   /** 频道上最近一次 Presence 全集（未按成员过滤）。 */
@@ -194,8 +171,8 @@ export class CollaborationController extends EventTarget {
   readonly api: CollaborationApi;
   /** 只读访问：经 Supabase 的只读投影读取，可见范围由 RLS 按当前会话裁决。 */
   readonly reader: CollaborationReader;
-  /** Supabase 认证客户端；`initialize` 完成后才存在。 */
-  auth?: SupabaseClient;
+  /** 全局登录会话：身份、验证码登录与退出都在它那里，控制器跟随它的身份变化。 */
+  readonly session: AuthSession;
   /** 当前已确认的身份；未登录或已锁定时为 null。 */
   user: Identity | null = null;
   /** 当前账号可访问的团队与应用。 */
@@ -212,6 +189,8 @@ export class CollaborationController extends EventTarget {
   online = navigator.onLine;
   /** 最近一条提示，通常是中文词条原文，由界面经词条表翻译后显示。 */
   message = '';
+  /** 最近一条提示的语气：界面据此选提示条的图标与颜色。 */
+  messageTone: MessageTone = 'info';
   /** 是否正在上传任务提交。 */
   syncing = false;
   /**
@@ -221,18 +200,26 @@ export class CollaborationController extends EventTarget {
    * 会话失效引起的锁定不受它拦（安全优先），挂载方另外说明输入已随编辑界面丢弃。
    */
   unsavedInput = false;
+  /** Supabase 认证客户端（全局会话的）；会话初始化完成后才存在。 */
+  get auth(): SupabaseClient | undefined {
+    return this.session.auth;
+  }
   /**
    * 创建控制器；此时尚未联网，需继续调用 {@link CollaborationController.initialize}。
    * @param base 协作 HTTP 接口的路径前缀。
    * @param open 打开团队库（`scope => openTeamDatabase(应用的工厂, scope)`）。
    * @param ledger 本机任务账本，默认存在 `localStorage`。
+   * @param session 应用的全局登录会话（{@link authSession}）；不传则自建一个，只给这个控制器用（测试里）。
    */
   constructor(
     readonly base: string,
     open: TeamOpener,
-    ledger: TaskLedger = new TaskLedger(localStorage)
+    ledger: TaskLedger = new TaskLedger(localStorage),
+    session?: AuthSession
   ) {
     super();
+    this.ownsSession = !session;
+    this.session = session ?? new AuthSession(base, () => this.api.config());
     this.tasks = new TeamTasks(ledger, open);
     this.api = new CollaborationApi(
       base,
@@ -248,91 +235,46 @@ export class CollaborationController extends EventTarget {
       demand(this.source, 'configuration', '认证未配置');
       return this.source;
     });
-    this.channel.onmessage = event => {
-      if (event.data?.type === 'logout' && event.data.userId === this.user?.id) void this.lock();
-    };
   }
   /** 通知界面重绘（派发 `change` 事件）。 */
   changed() {
     this.dispatchEvent(new Event('change'));
   }
+  /** 设置提示与语气（不派发 `change`，调用方随后重绘）；传空串即清除提示。 */
+  notify(message: string, tone: MessageTone = 'info'): void {
+    this.message = message;
+    this.messageTone = tone;
+  }
   /** 当前打开着的任务所在的团队库（编辑界面读写它）；没有打开任务时为 undefined。 */
   teamDatabase(): TeamDatabase | undefined {
     return this.task ? this.tasks.database : undefined;
   }
-  /** 读取公开配置（离线时用缓存）、创建认证客户端并恢复会话；离线时只按缓存授权恢复可解锁的本机任务。 */
+  /**
+   * 等全局会话建好认证客户端并恢复身份，再接上只读投影与实时频道、跟随会话的身份（见 {@link CollaborationController.adoptIdentity}）。
+   * 离线且没有可用的缓存授权时拒绝（`locked`）：团队草稿要先联网验证身份。
+   */
   async initialize(): Promise<void> {
     const epoch = ++this.authGeneration;
-    const configKey = `admin-collaboration-config:${this.base}`;
-    let config: { supabaseUrl: string; supabaseKey: string };
-    if (navigator.onLine) {
-      config = await this.current(this.api.config(), this.generation, epoch);
-      localStorage.setItem(configKey, JSON.stringify(config));
-    } else {
-      const cached = localStorage.getItem(configKey);
-      demand(cached, 'offline', '首次使用团队协作需要联网');
-      config = JSON.parse(cached);
-    }
-    this.auth = createClient(config.supabaseUrl, config.supabaseKey, {
-      auth: {
-        storageKey: `admin-collaboration-auth:${config.supabaseUrl}`,
-        detectSessionInUrl: false,
-        autoRefreshToken: true
-      }
-    });
-    this.source = supabaseReadSource(this.auth);
-    this.feed = new WorkspaceFeed(this.auth, {
+    await this.current(this.session.initialize(), this.generation, epoch);
+    demand(this.session.auth, 'configuration', '认证未配置');
+    this.source = supabaseReadSource(this.session.auth);
+    this.feed = new WorkspaceFeed(this.session.auth, {
       changed: signal => this.onSignal(signal),
       revoked: signal => this.onRevoked(signal),
       presence: sessions => this.onPresence(sessions),
       status: status => this.onFeedStatus(status)
     });
-    if (navigator.onLine) {
-      demand(epoch === this.authGeneration, 'cancelled', '上下文已切换');
-      const initial = await this.current(this.auth.auth.getSession(), this.generation, epoch);
-      await this.acceptSession(initial.data.session);
-    } else {
-      const cached = localStorage.getItem(`admin-collaboration-grant:${this.base}`);
-      demand(cached, 'locked', '请联网验证身份后再使用团队草稿');
-      const grant = JSON.parse(cached) as { user: Identity; expiresAt: number };
-      const drafts = await this.current(
-        this.tasks.coldRestore(grant.user.id, grant.expiresAt, Date.now()),
-        this.generation,
-        epoch
-      );
-      if (epoch !== this.authGeneration) return;
-      this.offlineDrafts = drafts;
-      this.user = grant.user;
-      this.online = false;
-      this.changed();
-    }
-    if (this.disposed) return;
-    const { data } = this.auth.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return;
-      if (event === 'SIGNED_OUT') {
-        if (navigator.onLine || !this.user) void this.lock();
-        return;
-      }
-      queueMicrotask(() => {
-        void this.acceptSession(session).catch(error => this.failure(error));
-      });
-    });
-    this.unsubscribe = () => data.subscription.unsubscribe();
+    this.session.addEventListener('identity', this.identityChanged);
+    await this.follow();
   }
-  /** 向邮箱发送一次性验证码。 */
-  async sendCode(email: string): Promise<void> {
-    demand(this.auth, 'configuration', '认证未配置');
-    const { error } = await this.current(this.auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
-    if (error) throw authFailure(error);
-    this.message = '验证码已发送，请检查邮箱';
-    this.changed();
+  /** 向邮箱发送一次性验证码（全局会话）。 */
+  sendCode(email: string): Promise<void> {
+    return this.session.sendCode(email);
   }
-  /** 校验邮箱验证码并建立会话。 */
+  /** 校验邮箱验证码并建立会话（全局会话），等团队协作跟上新身份再返回。 */
   async verify(email: string, token: string): Promise<void> {
-    demand(this.auth, 'configuration', '认证未配置');
-    const { data, error } = await this.current(this.auth.auth.verifyOtp({ email, token, type: 'email' }));
-    if (error) throw authFailure(error);
-    await this.acceptSession(data.session);
+    await this.session.verify(email, token);
+    await this.identity;
   }
   /**
    * 切换到指定团队：读取团队页并加入它的私有频道，丢弃上一个团队的已加载内容与在线状态；关闭打开着的任务，
@@ -359,16 +301,15 @@ export class CollaborationController extends EventTarget {
     const open = this.tasks.database?.scope;
     if (open && (open.teamId !== workspace.teamId || open.appId !== workspace.appId)) await this.tasks.detach();
   }
-  /** 网络恢复后刷新会话与团队页（按修订号补齐离线期间的变化）；离线时只更新在线状态。 */
+  /** 网络恢复后刷新会话（全局会话重新确认身份）与团队页（按修订号补齐离线期间的变化）；离线时只更新在线状态。 */
   async reconnect(): Promise<void> {
     this.online = navigator.onLine;
-    if (!this.online || !this.auth || !this.user) {
+    if (!this.online || !this.session.auth || !this.user) {
       this.changed();
       return;
     }
-    const { data, error } = await this.auth.auth.refreshSession();
-    demand(!error && data.session, 'unauthenticated', '会话已过期，请重新登录');
-    await this.acceptSession(data.session);
+    await this.session.reconnect();
+    await this.identity;
     await this.refresh();
   }
   /**
@@ -579,7 +520,7 @@ export class CollaborationController extends EventTarget {
     const id = crypto.randomUUID();
     await this.run({ type: 'fork', id, name, taskId: original.context.taskId, ...plan });
     await this.openTask(id);
-    this.message = '已另存为新任务，原任务与 PR 保持原远端版本';
+    this.notify('已另存为新任务，原任务与 PR 保持原远端版本', 'success');
     this.changed();
   }
   /** 放弃草稿（ADMIN-US-221 AC#3）：工作树退回任务头，业务表一起退回，列表与表单随即读到任务头的数据。 */
@@ -589,7 +530,7 @@ export class CollaborationController extends EventTarget {
     const context = this.task.context;
     await this.current(this.tasks.discard(context));
     await this.refreshTask();
-    this.message = '已放弃草稿，任务回到上次提交的版本';
+    this.notify('已放弃草稿，任务回到上次提交的版本', 'success');
     this.changed();
   }
   /**
@@ -618,27 +559,23 @@ export class CollaborationController extends EventTarget {
     demand(this.task, 'missing', '先打开任务');
     await this.current(this.tasks.write(this.task.context, records, importOrder(schema)));
     await this.refreshTask();
-    this.message = '已复制到任务工作树，尚未提交或同步';
+    this.notify('已复制到任务工作树，尚未提交或同步', 'success');
     this.changed();
   }
-  /** 退出账号：先锁定本机草稿，再通知其他页面并清除本机会话。 */
+  /** 退出账号：先锁定本机草稿，再经全局会话通知其他页面并清除本机会话。 */
   async logout(): Promise<void> {
     this.assertSaved();
-    const auth = this.auth;
-    const userId = this.user?.id;
     await this.lock();
-    this.channel.postMessage({ type: 'logout', userId });
-    if (auth) await auth.auth.signOut({ scope: 'local' });
+    await this.session.logout();
   }
   /**
-   * 锁定会话：离开实时频道，清空账号与团队状态，锁定本机任务并关闭团队库（编辑界面先卸载，之后才关库）。
-   * 团队库里的已保存改动与提交保留，联网重新验证后可再打开。
+   * 锁定会话（身份不再成立：退出、会话失效、换了账号）：离开实时频道，清空账号与团队状态，锁定本机任务并关闭团队库
+   * （编辑界面先卸载，之后才关库）。团队库里的已保存改动与提交保留，联网重新验证后可再打开。
    */
   async lock(): Promise<void> {
     this.feed?.stop();
     this.generation++;
     this.authGeneration++;
-    localStorage.removeItem(`admin-collaboration-grant:${this.base}`);
     this.user = null;
     this.snapshot = null;
     this.resetContents();
@@ -652,12 +589,48 @@ export class CollaborationController extends EventTarget {
     this.changed();
     await this.tasks.logout();
   }
-  /** 统一处理失败：上下文切换造成的取消静默忽略；权限或身份失效类错误先锁定会话；其余显示为提示。 */
+  /**
+   * 锁定团队上下文（团队访问被撤销或越权：`forbidden`、`locked`）：离开实时频道、关闭任务与团队库、清空团队状态并锁定本机草稿，
+   * 账号保持登录，回到团队列表并重读可访问的团队。草稿要等联网验证身份与权限之后重新打开才解锁。
+   */
+  async lockTeam(): Promise<void> {
+    const user = this.user;
+    this.feed?.stop();
+    this.generation++;
+    this.snapshot = null;
+    this.resetContents();
+    this.closeTask();
+    this.workspace = null;
+    this.offlineDrafts = [];
+    this.sessions = [];
+    this.signals = [];
+    this.live = false;
+    this.changed();
+    await this.tasks.logout();
+    if (!user) return;
+    await this.tasks.login(user.id);
+    if (!navigator.onLine) return;
+    const epoch = this.generation;
+    try {
+      const workspaces = await this.reader.workspaces();
+      if (epoch === this.generation) this.workspaces = workspaces;
+    } catch (error) {
+      this.notify(error instanceof Error ? error.message : '操作失败', 'error');
+    }
+    this.changed();
+  }
+  /**
+   * 统一处理失败：上下文切换造成的取消静默忽略；会话失效（`unauthenticated`）时全局会话退出、本页锁定；
+   * 团队访问被撤销或越权（`forbidden`、`locked`）只锁定团队上下文，账号保持登录；其余显示为提示。
+   */
   async failure(error: unknown): Promise<void> {
     if (error instanceof CollaborationError && error.code === 'cancelled') return;
-    if (error instanceof CollaborationError && ['forbidden', 'unauthenticated', 'locked'].includes(error.code))
+    if (error instanceof CollaborationError && error.code === 'unauthenticated') {
+      this.session.signOut();
       await this.lock();
-    this.message = error instanceof Error ? error.message : '操作失败';
+    } else if (error instanceof CollaborationError && ['forbidden', 'locked'].includes(error.code))
+      await this.lockTeam();
+    this.notify(error instanceof Error ? error.message : '操作失败', 'error');
     this.changed();
   }
   /**
@@ -680,7 +653,11 @@ export class CollaborationController extends EventTarget {
     this.task = view;
     this.changed();
   }
-  /** 释放实时频道、广播频道与团队库；之后控制器不再响应任何结果。 */
+  /** 编辑界面里有没保存的输入时拒绝（`unsaved`）：退出账号、切换任务等会卸载编辑界面的动作之前调用。 */
+  ensureSaved(): void {
+    demand(!this.unsavedInput, 'unsaved', '先在编辑界面里保存或取消未保存的输入');
+  }
+  /** 释放实时频道与团队库，不再跟随全局会话（自建的会话一并释放）；之后控制器不再响应任何结果。 */
   dispose() {
     this.disposed = true;
     this.generation++;
@@ -689,8 +666,8 @@ export class CollaborationController extends EventTarget {
     this.resetContents();
     this.closeTask();
     this.tasks.dispose();
-    this.unsubscribe?.();
-    this.channel.close();
+    this.session.removeEventListener('identity', this.identityChanged);
+    if (this.ownsSession) this.session.dispose();
   }
   /** 读取提交内容（同步）：命中返回；未命中返回 undefined 并在后台加载，加载完成后触发 `change`。 */
   commitContent(id: string): CommitContent | undefined {
@@ -920,7 +897,7 @@ export class CollaborationController extends EventTarget {
   /** 撤权事件：自己被撤权立即锁定（停止接收频道消息、锁定团队上下文）；他人被撤权立即从在线列表移除。 */
   private onRevoked(signal: RevocationSignal): void {
     if (this.user && signal.userIds.includes(this.user.id)) {
-      void this.failure(new CollaborationError('forbidden', '当前用户没有操作权限'));
+      void this.failure(new CollaborationError('forbidden', '你已不是这个团队的成员，团队草稿已锁定'));
       return;
     }
     for (const id of signal.userIds) this.revokedUsers.add(id);
@@ -947,8 +924,8 @@ export class CollaborationController extends EventTarget {
     const recovered = status === 'SUBSCRIBED';
     const lost = !recovered && this.live;
     this.live = recovered;
-    if (recovered && this.message === realtimeUnavailable) this.message = '';
-    if (!recovered) this.message = realtimeUnavailable;
+    if (recovered && this.message === realtimeUnavailable) this.notify('');
+    if (!recovered) this.notify(realtimeUnavailable, 'warning');
     if (recovered || lost) void this.catchUp().catch(error => this.failure(error));
     this.changed();
   }
@@ -1141,36 +1118,45 @@ export class CollaborationController extends EventTarget {
       throw error;
     }
   }
-  private async acceptSession(session: Session | null) {
+  /** 全局会话的身份确认或变化了：跟随它（串行，后到的等前一个落定）。 */
+  private readonly identityChanged = () => {
+    void this.follow().catch(error => this.failure(error));
+  };
+  /**
+   * 跟随全局会话的身份：没有身份即锁定（离线时说明要先联网验证）；换了账号先锁定原账号的本机上下文；
+   * 离线时按缓存授权恢复可解锁的本机任务，在线时登记本机任务账本并读取可访问的团队。
+   */
+  private follow(): Promise<void> {
+    const next = this.identity.then(() => this.adoptIdentity());
+    this.identity = next.catch(() => undefined);
+    return next;
+  }
+  private async adoptIdentity(): Promise<void> {
     if (this.disposed) return;
-    if (!session) {
-      await this.lock();
+    const identity = this.session.user;
+    if (!identity) {
+      if (this.user || this.workspace || this.offlineDrafts.length) await this.lock();
+      demand(this.session.online, 'locked', '请联网验证身份后再使用团队草稿');
       return;
     }
-    if (this.user && this.user.id !== session.user.id) await this.lock();
+    if (this.user && this.user.id !== identity.id) await this.lock();
     const epoch = ++this.authGeneration;
-    if (!navigator.onLine) {
-      const drafts = await this.tasks.coldRestore(session.user.id, (session.expires_at ?? 0) * 1000, Date.now());
-      if (epoch !== this.authGeneration) return;
+    if (!this.session.online) {
+      const drafts = await this.current(
+        this.tasks.coldRestore(identity.id, this.session.expiresAt, Date.now()),
+        this.generation,
+        epoch
+      );
       this.offlineDrafts = drafts;
-      this.user = { id: session.user.id, email: session.user.email ?? '', verified: true };
+      this.user = identity;
       this.online = false;
       this.changed();
       return;
     }
-    demand(this.auth, 'configuration', '认证未配置');
-    const { data, error } = await this.current(this.auth.auth.getUser(session.access_token), this.generation, epoch);
+    this.user = identity;
+    await this.tasks.login(identity.id);
     if (epoch !== this.authGeneration) return;
-    demand(!error && data.user?.email && data.user.email_confirmed_at, 'unauthenticated', '请重新验证邮箱');
-    this.user = { id: data.user.id, email: data.user.email, verified: true };
-    await this.tasks.login(data.user.id);
-    if (epoch !== this.authGeneration) return;
-    localStorage.setItem(
-      `admin-collaboration-grant:${this.base}`,
-      JSON.stringify({ user: this.user, expiresAt: (session.expires_at ?? 0) * 1000 })
-    );
     const workspaces = await this.current(this.reader.workspaces(), this.generation, epoch);
-    if (epoch !== this.authGeneration) return;
     this.workspaces = workspaces;
     this.online = true;
     this.changed();
@@ -1225,7 +1211,7 @@ export class CollaborationController extends EventTarget {
     this.task = await this.current(this.tasks.view(context), viewEpoch);
     this.changed();
     if (!navigator.onLine) {
-      this.message = '已形成提交，联网验证后可同步';
+      this.notify('已形成提交，联网验证后可同步', 'info');
       this.changed();
       return;
     }
@@ -1249,7 +1235,7 @@ export class CollaborationController extends EventTarget {
       this.changed();
     }
     await this.current(this.refresh(), viewEpoch);
-    this.message = '当前提交已同步；后续编辑仍需另行同步';
+    this.notify('当前提交已同步；后续编辑仍需另行同步', 'success');
     this.changed();
   }
   /**
@@ -1276,7 +1262,7 @@ export class CollaborationController extends EventTarget {
   }
   /** 编辑界面里还有未保存的输入时拒绝（见 {@link CollaborationController.unsavedInput}）。 */
   private assertSaved(): void {
-    demand(!this.unsavedInput, 'unsaved', '先在编辑界面里保存或取消未保存的输入');
+    this.ensureSaved();
   }
   /** 显示打开着的任务，并订阅团队库的本地写入：实体列表每次保存之后重读任务状态（工作树没有变更流）。 */
   private showTask(view: TaskView): void {

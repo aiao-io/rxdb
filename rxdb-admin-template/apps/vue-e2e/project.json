@@ -7,7 +7,12 @@
   "targets": {
     "e2e": {
       "dependsOn": ["rxdb-admin-template-vue:build"],
-      "inputs": ["default", "^production", "{workspaceRoot}/rxdb-admin-template/apps/react-e2e/src/**/*"],
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/rxdb-admin-template/apps/react-e2e/src/**/*",
+        "{workspaceRoot}/rxdb-admin-template/apps/react-e2e/auth/**/*"
+      ],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "rxdb-admin-template/apps/vue-e2e",

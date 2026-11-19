@@ -71,3 +71,13 @@
 6. 上线验收（[ADMIN-US-217](stories/collaboration/ADMIN-US-217-production-deployment-operations.md)）排在 218～220 之后；产品尚未部署，存储重构不涉及线上数据迁移。
 
 实施切片、平台缺口与预算见 [协作后端收敛实施计划](plans/collaboration-convergence-tasks.md)。
+
+## D-10：全站登录与全局会话
+
+2026-11-19 用户拍板（AskUserQuestion）：用户认证是全局能力，不属于团队协作。
+
+1. **全站必须先登录**：三端都有路由守卫，未登录访问任何页面都进入外壳之外的全局登录页 `/login`，登录后回到 `redirect` 指向的本站地址（只接受站内路径）；退出账号或会话失效时带着当前地址回到登录页。首次进入时三端都等门禁结算再渲染（React 根路由的 loader、Angular 阻塞式首次导航、Vue 首次导航结束后才挂载），未登录的人不会先看到后台外壳。原「匿名本机模式独立可用、只有团队模式才要求真实身份」的约定（[ADMIN-US-201](stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md) AC#1、[ADMIN-US-204](stories/collaboration/ADMIN-US-204-local-context-explicit-import.md) AC#1）随之改写。
+2. **全局会话单例**：邮箱验证码登录、会话恢复、离线缓存授权、跨页签退出由协作包的 `AuthSession`（`@rxdb-admin-template/collaboration/auth`）统一持有，一个页面只有一个 Supabase 认证客户端；团队协作只跟随它的身份。外壳顶栏右侧是全局账号菜单（账号、团队协作入口、退出账号），团队协作页不再自带登录与退出。supabase-js 动态加载，不进首屏入口。
+3. **撤权只锁团队**：被移出团队（撤权、越权）只锁定该团队的上下文——关闭任务与团队库、离开频道、锁定本机草稿、回到团队列表并说明，账号保持登录；只有会话失效（`unauthenticated`）或主动退出才退出账号。
+4. **本机库这一轮不按账号隔离**：本机工作台仍按设备共用一个库（库名与审计身份不变，见 D-03），同一浏览器换账号仍看得到本机数据；按账号隔离另起一轮单独评审。
+5. 三端 app e2e 没有协作后端：用只在 e2e 里运行的模拟认证服务（`apps/react-e2e/auth/e2e-auth-server.mjs`）先登录并保存浏览器状态；生产代码里没有任何跳过登录的开关。只起前端、不起后端时无法登录，本地开发用 `pnpm nx dev rxdb-admin-template`。

@@ -1,5 +1,6 @@
 import { Window } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Records } from '../model.js';
 import { assetLabels, assetSchema } from '../schema.testing.js';
 import { useLabels } from './labels.js';
 import { readOnlyRecords } from './records-view.js';
@@ -13,35 +14,72 @@ afterEach(() => {
   useLabels(undefined);
   vi.unstubAllGlobals();
 });
+/** 每个实体一张表：实体标题（含条数）、表头与各行单元格的文字。 */
+function tables(records: Records) {
+  return [...readOnlyRecords(records, assetSchema).querySelectorAll<HTMLElement>('[data-entity]')].map(group => ({
+    entity: group.dataset['entity'],
+    heading: group.querySelector('h3')?.textContent,
+    head: [...group.querySelectorAll('th')].map(cell => cell.textContent),
+    rows: [...group.querySelectorAll('tbody tr')].map(row => [...row.children].map(cell => cell.textContent))
+  }));
+}
+
 describe('只读记录表', () => {
   const records = { a: { entity: 'Asset' as const, fields: { name: '工作站', status: null, purchasePrice: 120 } } };
-  const cells = () => [...readOnlyRecords(records, assetSchema).querySelectorAll('td')].map(cell => cell.textContent);
 
-  it('翻译实体、字段名与空值标记，用户录入的数据原样显示', () => {
+  it('按实体分组、字段成列：翻译实体与字段标签，空值显示「—」，用户录入的数据原样显示', () => {
     useTranslation(key => `<${key.replace('collaboration.', '')}>`);
-    expect(cells()).toEqual(['<资产>', '工作站', '<名称>：工作站；<状态>：<空>；<购入价>：120']);
+    expect(tables(records)).toEqual([
+      {
+        entity: 'Asset',
+        heading: '<资产>1',
+        head: ['<名称>', '<状态>', '<购入价>'],
+        rows: [['工作站', '—', '120']]
+      }
+    ]);
   });
 
   it('没有翻译函数时直接显示中文原文', () => {
-    expect(cells()).toEqual(['资产', '工作站', '名称：工作站；状态：空；购入价：120']);
+    expect(tables(records)).toEqual([
+      { entity: 'Asset', heading: '资产1', head: ['名称', '状态', '购入价'], rows: [['工作站', '—', '120']] }
+    ]);
   });
 
   it('只显示日期的日期字段按日期显示：记录里存的是 ISO 时刻文本（落库形态），表格只取日期部分', () => {
     const dated = {
       e: { entity: 'AssetEvent' as const, fields: { summary: '安装系统', happenedAt: '2026-11-16T00:00:00.000Z' } }
     };
-    expect([...readOnlyRecords(dated, assetSchema).querySelectorAll('td')].map(cell => cell.textContent)).toEqual([
-      '维护记录',
-      '安装系统',
-      '事项：安装系统；日期：2026-11-16'
+    expect(tables(dated)).toEqual([
+      { entity: 'AssetEvent', heading: '维护记录1', head: ['事项', '日期'], rows: [['安装系统', '2026-11-16']] }
     ]);
   });
 
-  it('记录名称取实体的标题字段，没有标题取值时用记录标识', () => {
-    const rows = readOnlyRecords(
-      { x: { entity: 'Asset', fields: { status: '在用' } }, y: { entity: 'AssetCategory', fields: { name: '电脑' } } },
-      assetSchema
-    );
-    expect([...rows.querySelectorAll('tbody tr')].map(row => row.children[1]?.textContent)).toEqual(['x', '电脑']);
+  it('实体按清单顺序排列；记录名称取实体的标题字段，没有标题取值时用记录标识（完整标识在悬停提示里）', () => {
+    const view = tables({
+      x: { entity: 'Asset', fields: { status: '在用' } },
+      y: { entity: 'AssetCategory', fields: { name: '电脑' } }
+    });
+    expect(view.map(table => table.entity)).toEqual(['AssetCategory', 'Asset']);
+    expect(view.map(table => table.rows[0][0])).toEqual(['电脑', 'x']);
+  });
+
+  it('单值关联显示目标记录的名称；同一份记录里找不到目标时显示标识', () => {
+    const view = tables({
+      cat: { entity: 'AssetCategory', fields: { name: '电脑' } },
+      pc: { entity: 'Asset', fields: { name: '工作站', categoryId: 'cat' } },
+      lost: { entity: 'Asset', fields: { name: '旧机', categoryId: 'gone' } }
+    });
+    const assets = view.find(table => table.entity === 'Asset')!;
+    expect(assets.head).toEqual(['名称', '分类']);
+    expect(assets.rows).toEqual([
+      ['工作站', '电脑'],
+      ['旧机', 'gone']
+    ]);
+  });
+
+  it('没有任何记录时显示「暂无记录」', () => {
+    const empty = readOnlyRecords({}, assetSchema);
+    expect(empty.textContent).toBe('暂无记录');
+    expect(empty.dataset['empty']).toBe('true');
   });
 });
