@@ -185,6 +185,9 @@ END $$;
 -- ============================================
 -- 禁用 RLS 并授权（仅测试环境）
 -- ============================================
+-- 下面的整库授权作用于 public 下此刻已有的全部表，包括业务表。已有业务表的生产库不要重跑本文件：
+-- 生产权限脚本只收回 RxDB 自己的对象，放宽的业务表权限收不回来。升级走增量脚本
+-- （如 production/rxdb-sync-access-upgrade.sql），见 website/docs/migration/。
 ALTER TABLE IF EXISTS public.rxdb_change DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_branch DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_backend DISABLE ROW LEVEL SECURITY;

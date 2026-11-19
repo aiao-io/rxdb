@@ -15,6 +15,8 @@
 --       见 requirements/epics/epic-015-identity-scoped-sync.md。
 -- 依赖: 必须在 docker/sql/01～04 全部执行之后执行；Supabase 的默认权限会在建表、建函数时授给 anon，
 --       01～04 里重建过的函数（DROP 后 CREATE）要再执行一次本脚本才会收回。
+--       本脚本只收回 RxDB 自己的对象，收不回 01 / 03 整库授权对业务表的放宽；生产库从旧版本升级时
+--       不重跑 01，改用增量脚本 rxdb-sync-access-upgrade.sql，与 02、04、本脚本在同一个事务里执行。
 -- 加载: init-db.sh 与 CI 的 .github/actions/supabase 都会在 01～04 之后自动加载（开发默认与生产一致，
 --       零散收尾项第 13 条）；生产部署时手工执行亦可。幂等，可重复执行。
 -- 测试前提: Supabase 测试以 authenticated 身份运行（见 packages/rxdb-adapter-supabase/src/__tests__/test-utils.ts）；

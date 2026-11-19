@@ -9,6 +9,14 @@
 - 经 HTTP 复核：anon key 调 `rxdb_pull_changes` 得 `42501 permission denied for function rxdb_pull_changes`；匿名注册拿到的令牌是 `role=authenticated`、`is_anonymous=true`。
 - 订阅私有频道必须先 `realtime.setAuth()`：不调用时 Realtime 日志里的令牌是 anon key 本身（`iss=supabase-demo`），已登录客户端也被拒。
 
+## 生产升级路径复核
+
+2026-11-19，同一隔离栈，对应 AC#18～#20：
+
+- 红：新用例先照旧版迁移指南执行（重跑 01、不加 `--single-transaction`、补登语句从 `rxdb_branch` 取分支 ID）。`sync-access-upgrade` 中预先收紧的业务表在升级后多了 `anon=arwdDxtm`、`authenticated=arwdDxtm`；`sync-access-upgrade-atomic` 在注入的失败之后仍留下哨兵表；`branch-ownership` 中只有日志的旧分支补登零行，补登的所有者推送仍报 `rxdb: branch sql-owner-legacy-logged has no owner`。
+- 绿：改用增量脚本 `production/rxdb-sync-access-upgrade.sql` 与 `--single-transaction`、按分支 ID 补登之后，`sql-security-regressions` 45 个用例、单事务汇总与升级原子性检查全过，测试库不留哨兵表与业务探针表。
+- 变异：在 02 末尾混进 `COMMIT;` 后同一条升级命令留下了哨兵表，原子性检查能抓到某份文件自己提交事务的情况。
+
 ## 验收时的测试结果
 
 - **AC#12** 真栈 `realtime-notifications.spec.ts`「另一台设备推送后可拉取计数增加，拉取后本地数据一致」；`handle-supabase-change.spec.ts` 24 个处理器用例

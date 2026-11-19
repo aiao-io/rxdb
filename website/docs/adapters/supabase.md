@@ -410,7 +410,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 远端身份只读的原因：客户端能改这一行，就能让所有客户端误判远端已重置而停止同步；读取经 `rxdb_backend_id()`，轮换只经 `TRUNCATE rxdb_change` 的触发器，两者都是 `SECURITY DEFINER`。
 
-脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，01～04 里先 DROP 再重建的函数也会重新带上默认权限，之后都要再执行一次本脚本，所以它总是最后执行。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试以 `authenticated` 测试用户身份运行，对 `rxdb_change` 的预置与清理经 `service_role` 身份。
+脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，01～04 里先 DROP 再重建的函数也会重新带上默认权限，之后都要再执行一次本脚本，所以它总是最后执行。本脚本只收回 RxDB 自己的对象：01 的整库授权会把执行那一刻 public 下的业务表一并放宽，这部分它收不回来。所以从旧版本升级时不重跑 01，走增量脚本，见[从旧版本升级](#从旧版本升级)；在已有业务表的库上首次执行 01 之后，要核对并恢复业务表自己的权限。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试以 `authenticated` 测试用户身份运行，对 `rxdb_change` 的预置与清理经 `service_role` 身份。
 
 #### 适用边界
 
@@ -422,7 +422,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 - 第一个登记（`rxdb_enable_sync_for_branch`）或推送该分支的已登录用户认领它。一次推送会顺带上行从未单独登记的祖先分支，它们同样由推送者认领。
 - 之后只有所有者能登记、改写它，或往它推送日志；其他用户得到 `42501`（`rxdb: branch <id> belongs to another user`），整批回滚。
-- 已有日志或登记、却没有所有者的旧分支一律拒绝写入（`rxdb: branch <id> has no owner`）。从旧版本升级后，先以管理员身份为仍在使用的分支补登所有者：
+- 已有日志或登记、却没有所有者的旧分支一律拒绝写入（`rxdb: branch <id> has no owner`）。从旧版本升级后，先以管理员身份为仍在使用的分支按分支 ID 补登所有者。只随推送上行的祖先分支不在 `rxdb_branch` 里，只出现在日志中，列出全部待补登分支的查询见[迁移说明](../migration/supabase-sync-access.md#3-为旧分支补登所有者)：
 
 ```sql
 INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
@@ -434,7 +434,7 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 #### 从旧版本升级
 
-依次重新执行 `01-rxdb-system-tables.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。完整步骤与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
+在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
 
 收紧后，日志只剩两条写入路径：
 
