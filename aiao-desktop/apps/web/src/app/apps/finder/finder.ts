@@ -1,5 +1,6 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
-import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDragPreview, CdkDropList } from '@angular/cdk/drag-drop';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -47,6 +48,7 @@ import { USER_PROFILE } from '../../shared/user-profile';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
 import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
 import {
+  FAVOURITES_GROUP,
   FinderSidebarGroup,
   FinderSort,
   TAG_PLACES,
@@ -83,7 +85,9 @@ const MIN_CONTENT_WIDTH = 400;
     FileDrop,
     CdkDropList,
     CdkDrag,
-    CdkDragPlaceholder
+    CdkDragPlaceholder,
+    CdkDragPreview,
+    NgTemplateOutlet
   ],
   host: { style: 'display: contents' },
   templateUrl: './finder.html'
@@ -101,6 +105,8 @@ export class FinderApp implements FinderCommands {
   private readonly sidebarOrder = inject(FinderSidebarOrder);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly layout = viewChild.required<ElementRef<HTMLElement>>('layout');
+  private readonly sidebar = viewChild.required<ElementRef<HTMLElement>>('sidebar');
+  private readonly sidebarSplitter = viewChild.required<ElementRef<HTMLElement>>('sidebarSplitter');
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
@@ -122,7 +128,9 @@ export class FinderApp implements FinderCommands {
 
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
 
+  protected readonly favouritesGroup = FAVOURITES_GROUP;
   protected readonly sidebarGroups = this.sidebarOrder.groups;
+  protected readonly sidebarPlaceRemoving = signal(false);
   protected readonly path = signal<readonly string[]>([]);
   protected readonly view = signal<FinderView>('icon');
   protected readonly sidebarId = `${this.win.id}-sidebar`;
@@ -289,8 +297,34 @@ export class FinderApp implements FinderCommands {
   }
 
   protected dropSidebarPlace(event: CdkDragDrop<FinderSidebarGroup, FinderSidebarGroup, string>): void {
+    this.sidebarPlaceRemoving.set(false);
+    if (event.event.type === 'touchcancel') return;
+    const head = event.previousContainer.data.head;
+    const { x, y } = event.dropPoint;
+    if (head === FAVOURITES_GROUP && this.isOutsideSidebar(x, y)) {
+      this.removeSidebarFavourite(event.item.data);
+      return;
+    }
     if (!event.isPointerOverContainer || event.currentIndex === event.previousIndex) return;
-    this.sidebarOrder.move(event.container.data.head, event.item.data, event.currentIndex);
+    this.sidebarOrder.move(head, event.item.data, event.currentIndex);
+  }
+
+  protected updateSidebarPlaceDrag(event: MouseEvent | TouchEvent, removable: boolean): void {
+    const point = 'targetTouches' in event ? event.targetTouches[0] : event;
+    this.sidebarPlaceRemoving.set(
+      removable && point !== undefined && this.isOutsideSidebar(point.clientX, point.clientY)
+    );
+  }
+
+  protected removeSidebarPlaceByKey(event: Event, name: string, removable: boolean): void {
+    if (!removable) return;
+    event.preventDefault();
+    if ((event as KeyboardEvent).repeat || !this.removeSidebarFavourite(name)) return;
+
+    const button = event.currentTarget as HTMLButtonElement;
+    const next = button.nextElementSibling ?? button.previousElementSibling;
+    const target = next instanceof HTMLElement ? next : this.sidebarSplitter().nativeElement;
+    afterNextRender({ write: () => target.focus({ preventScroll: true }) }, { injector: this.injector });
   }
 
   protected moveSidebarPlace(event: Event, group: FinderSidebarGroup, name: string, index: number): void {
@@ -550,6 +584,17 @@ export class FinderApp implements FinderCommands {
   private setSidebarWidth(width: number): void {
     if (width > 0) this.sidebarRestoreWidth = width;
     this.sidebarSize.set(width);
+  }
+
+  private isOutsideSidebar(x: number, y: number): boolean {
+    const { left, right, top, bottom } = this.sidebar().nativeElement.getBoundingClientRect();
+    return x < left || x > right || y < top || y > bottom;
+  }
+
+  private removeSidebarFavourite(name: string): boolean {
+    if (!this.sidebarOrder.removeFavourite(name)) return false;
+    void this.announcer.announce(`${name} removed from Favourites.`);
+    return true;
   }
 
   private itemMenuItems(node: FsNode): MenuEntry[] {

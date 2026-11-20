@@ -3,11 +3,14 @@ import { Service, computed, inject, signal } from '@angular/core';
 
 import { Preferences } from '../../data/preferences';
 import { Toast } from '../../services/toast';
-import { FinderSidebarGroup, SIDEBAR } from './finder-model';
+import { FAVOURITES_GROUP, FinderSidebarGroup, SIDEBAR } from './finder-model';
 
 const orderKey = (head: string): string => `finder:sidebar:${head}`;
+const removedKey = (name: string): string => `${orderKey(FAVOURITES_GROUP)}:removed:${name}`;
 const isPlaceOrder = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && value.every(name => typeof name === 'string');
+const isRemoved = (value: unknown): value is true => value === true;
+type SidebarPreference = readonly string[] | true;
 
 function applyOrder(group: FinderSidebarGroup, order: readonly string[]): FinderSidebarGroup {
   const items = new Map(group.items.map(item => [item[0], item]));
@@ -15,18 +18,19 @@ function applyOrder(group: FinderSidebarGroup, order: readonly string[]): Finder
   return { ...group, items: ordered.filter(item => item !== undefined) };
 }
 
-/** 所有 Finder 窗口共用侧栏顺序，每组单独保存到本地偏好。 */
+/** 所有 Finder 窗口共用侧栏顺序和已移除的收藏快捷项。 */
 @Service({ autoProvided: false })
 export class FinderSidebarOrder {
   private readonly preferences = inject(Preferences);
   private readonly toast = inject(Toast);
-  private readonly pending = signal<ReadonlyMap<string, readonly string[]>>(new Map());
+  private readonly pending = signal<ReadonlyMap<string, SidebarPreference>>(new Map());
 
   readonly groups = computed(() =>
     SIDEBAR.map(group => {
-      const key = orderKey(group.head);
-      const order = this.pending().get(key) ?? this.preferences.get(key, isPlaceOrder);
-      return order ? applyOrder(group, order) : group;
+      const order = this.get(orderKey(group.head), isPlaceOrder);
+      const ordered = order ? applyOrder(group, order) : group;
+      if (group.head !== FAVOURITES_GROUP) return ordered;
+      return { ...ordered, items: ordered.items.filter(([name]) => !this.get(removedKey(name), isRemoved)) };
     })
   );
 
@@ -39,39 +43,38 @@ export class FinderSidebarOrder {
     if (from < 0 || from === index || index < 0 || index >= order.length) return false;
 
     moveItemInArray(order, from, index);
-    const key = orderKey(head);
-    this.pending.update(pending => new Map(pending).set(key, order));
-    this.persist(key, order);
+    this.persist(orderKey(head), order, 'Couldn’t save the Finder sidebar order.');
     return true;
   }
 
-  remove(head: string, name: string): boolean {
-    if (head !== 'Favourites') return false;
-    const group = this.groups().find(group => group.head === head);
-    if (!group) return false;
-    const order = group.items.map(([item]) => item);
-    if (!order.includes(name)) return false;
+  /** 只移除 Favourites 中的快捷项。 */
+  removeFavourite(name: string): boolean {
+    const group = this.groups().find(group => group.head === FAVOURITES_GROUP);
+    if (!group?.items.some(([place]) => place === name)) return false;
 
-    const next = order.filter(item => item !== name);
-    const key = orderKey(head);
-    this.pending.update(pending => new Map(pending).set(key, next));
-    this.persist(key, next);
+    this.persist(removedKey(name), true, 'Couldn’t remove the Finder favourite.');
     return true;
   }
 
-  private persist(key: string, order: readonly string[]): void {
-    void this.preferences.set(key, order).then(
-      () => this.clearPending(key, order),
+  private get<T extends SidebarPreference>(key: string, guard: (value: unknown) => value is T): T | undefined {
+    const pending = this.pending().get(key);
+    return guard(pending) ? pending : this.preferences.get(key, guard);
+  }
+
+  private persist(key: string, value: SidebarPreference, failure: string): void {
+    this.pending.update(pending => new Map(pending).set(key, value));
+    void this.preferences.set(key, value).then(
+      () => this.clearPending(key, value),
       () => {
-        this.clearPending(key, order);
-        this.toast.show('Couldn’t save the Finder sidebar order.');
+        this.clearPending(key, value);
+        this.toast.show(failure);
       }
     );
   }
 
-  private clearPending(key: string, order: readonly string[]): void {
+  private clearPending(key: string, value: SidebarPreference): void {
     const pending = this.pending();
-    if (pending.get(key) !== order) return;
+    if (pending.get(key) !== value) return;
     const next = new Map(pending);
     next.delete(key);
     this.pending.set(next);

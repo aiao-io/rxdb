@@ -6,8 +6,11 @@
   [style.--finder-sidebar-width]="sidebarWidth() + 'px'"
 >
   <app-traffic-lights />
-  <div class="sbar" [id]="sidebarId" [style.display]="sidebarVisible() ? '' : 'none'" data-drag data-fsb>
+  <div class="sbar" #sidebar [id]="sidebarId" [style.display]="sidebarVisible() ? '' : 'none'" data-drag data-fsb>
     @for (group of sidebarGroups(); track group.head) {
+      @let removable = group.head === favouritesGroup;
+      @let reorderable = group.items.length > 1;
+      @let shortcuts = (reorderable ? 'Alt+ArrowUp Alt+ArrowDown' : '') + (removable ? ' Alt+Backspace' : '');
       <div class="grp" [attr.aria-label]="group.head" role="group">
         <div class="gh" aria-hidden="true">{{ group.head }}</div>
         <div
@@ -21,21 +24,22 @@
               class="si"
               [appFileDrop]="placeDirectory(place[0])"
               [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
-              [attr.aria-keyshortcuts]="group.items.length > 1 ? 'Alt+ArrowUp Alt+ArrowDown' : null"
+              [attr.aria-keyshortcuts]="shortcuts.trim() || null"
               [attr.data-place]="place[0]"
               [cdkDragData]="place[0]"
-              [cdkDragDisabled]="group.items.length < 2"
+              [cdkDragDisabled]="!removable && !reorderable"
               [class.on]="placeOn(place[0])"
+              (cdkDragMoved)="updateSidebarPlaceDrag($event.event, removable)"
+              (cdkDragStarted)="updateSidebarPlaceDrag($event.event, removable)"
               (click)="goto(place[0])"
               (keydown.alt.arrowdown)="moveSidebarPlace($event, group, place[0], index + 1)"
               (keydown.alt.arrowup)="moveSidebarPlace($event, group, place[0], index - 1)"
+              (keydown.alt.backspace)="removeSidebarPlaceByKey($event, place[0], removable)"
               cdkDrag
-              cdkDragLockAxis="y"
-              cdkDragPreviewClass="finder-place-preview"
               tabindex="0"
               type="button"
             >
-              <span class="finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true">
+              <ng-template #placeLabel>
                 @if (place[1].startsWith('dot#')) {
                   <span
                     class="ico"
@@ -47,18 +51,23 @@
                   <svg class="ico" [appIcon]="place[1]"></svg>
                 }
                 <span class="nm">{{ place[0] }}</span>
+              </ng-template>
+              <ng-container [ngTemplateOutlet]="placeLabel" />
+              <span class="si finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true">
+                <ng-container [ngTemplateOutlet]="placeLabel" />
               </span>
-              @if (place[1].startsWith('dot#')) {
+              <ng-template [matchSize]="true" cdkDragPreview>
                 <span
-                  class="ico"
-                  [style.background]="place[1].slice(3)"
+                  class="si finder-place-preview"
+                  [class.finder-place-removing]="sidebarPlaceRemoving()"
                   aria-hidden="true"
-                  style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
-                ></span>
-              } @else {
-                <svg class="ico" [appIcon]="place[1]"></svg>
-              }
-              <span class="nm">{{ place[0] }}</span>
+                >
+                  <ng-container [ngTemplateOutlet]="placeLabel" />
+                  @if (sidebarPlaceRemoving()) {
+                    <span class="finder-place-remove">×</span>
+                  }
+                </span>
+              </ng-template>
             </button>
           }
         </div>
@@ -67,6 +76,7 @@
   </div>
   <div
     class="fx-divider"
+    #sidebarSplitter
     [attr.aria-controls]="sidebarId"
     [attr.aria-valuemax]="sidebarMaxWidth()"
     [attr.aria-valuenow]="sidebarWidth()"

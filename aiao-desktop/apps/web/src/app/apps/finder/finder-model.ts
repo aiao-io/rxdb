@@ -3,7 +3,6 @@ import { FsNode, visibleChildren } from '../../disk/disk-tree';
 import { FileSystem } from '../../services/file-system';
 import { USER_PROFILE } from '../../shared/user-profile';
 
-
 export type FinderSort = 'name' | 'date' | 'size' | 'kind';
 
 /** 侧栏分组；图标以 `dot#` 开头的是标签色点。 */
@@ -12,9 +11,11 @@ export interface FinderSidebarGroup {
   readonly items: readonly (readonly [name: string, icon: string])[];
 }
 
+export const FAVOURITES_GROUP = 'Favourites';
+
 export const SIDEBAR: readonly FinderSidebarGroup[] = [
   {
-    head: 'Favourites',
+    head: FAVOURITES_GROUP,
     items: [
       ['AirDrop', 'g-airdrop'],
       ['Recents', 'g-clock-a'],

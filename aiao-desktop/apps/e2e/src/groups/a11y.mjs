@@ -102,6 +102,7 @@ const KEYS = [
   'a11y.finder.listViewArrows',
   'a11y.finder.columnViewArrows',
   'a11y.finder.sidebarKeyboardReorder',
+  'a11y.finder.sidebarKeyboardRemove',
   'a11y.tree.finderWindow',
   'a11y.tree.dock',
   'a11y.tree.dockRunningState',
@@ -1133,6 +1134,16 @@ export const a11y = {
         moved ? sameList(movedOrder, [before[1], before[0], ...before.slice(2)]) : ['Alt+↓ 没有移动 AirDrop'],
         keepsFocus ? [] : ['移动后焦点没有留在 AirDrop'],
         restored ? sameList(await sidebarOrder(), before) : ['Alt+↑ 没有移回 AirDrop']
+      );
+      const removeShortcut = await favourites
+        .getByRole('button', { name: 'AirDrop', exact: true })
+        .getAttribute('aria-keyshortcuts');
+      await press('Alt+Backspace');
+      const removed = await until(page, () => !document.querySelector('[data-fsb] [data-place="AirDrop"]'));
+      finder.sidebarKeyboardRemove = problems(
+        removeShortcut?.split(' ').includes('Alt+Backspace') ? [] : ['AirDrop 没有为读屏标出移除快捷键'],
+        removed ? sameList(await sidebarOrder(), before.slice(1)) : ['Alt+Backspace 没有移除 AirDrop'],
+        (await active())?.name === 'Recents' ? [] : ['移除 AirDrop 后焦点没有移到 Recents']
       );
     });
 
