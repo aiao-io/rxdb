@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { Preferences } from '../data/preferences';
 import { DESKTOP, DiskPath, finderPathOf } from '../disk/disk-path';
 import { DiskError } from '../disk/disk-store';
@@ -31,7 +32,9 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
     nodeAt: (path: DiskPath) => (path.join('/') === DESKTOP.join('/') ? desktop() : null),
     root: () => root,
     newFolder: vi.fn(async () => 'untitled folder'),
-    moveToTrash: vi.fn(async () => undefined)
+    moveToTrash: vi.fn(async () => undefined),
+    copyTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!]),
+    moveTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!])
   };
   const wm = createWindowManagerStub();
   const opener = { open: vi.fn() };
@@ -52,6 +55,7 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
   };
   configureServices([
     DesktopItems,
+    FinderClipboard,
     { provide: FileSystem, useValue: fs },
     { provide: WindowManager, useValue: wm },
     { provide: FileOpener, useValue: opener },
@@ -59,7 +63,19 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
     { provide: Preferences, useValue: preferences },
     { provide: ErrorHandler, useValue: errors }
   ]);
-  return { items: TestBed.inject(DesktopItems), desktop, fs, wm, opener, toast, preferences, root, remote, errors };
+  return {
+    items: TestBed.inject(DesktopItems),
+    clipboard: TestBed.inject(FinderClipboard),
+    desktop,
+    fs,
+    wm,
+    opener,
+    toast,
+    preferences,
+    root,
+    remote,
+    errors
+  };
 }
 
 /** 等 `preferences.ready` 上登记的回调跑完。 */
@@ -172,8 +188,52 @@ describe('DesktopItems 打开图标', () => {
     const { items, wm, opener } = setup({ entries: [folder, file] });
     items.items()[1].open();
     items.items()[2].open();
-    expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder', { path: finderPathOf([...DESKTOP, 'Projects']) });
+    expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder', {
+      force: true,
+      path: finderPathOf([...DESKTOP, 'Projects'])
+    });
     expect(opener.open).toHaveBeenCalledExactlyOnceWith(file);
+  });
+});
+
+describe('DesktopItems 文件传输', () => {
+  it('把选中的桌面条目移动或复制到文件夹，跳过 Macintosh HD', async () => {
+    const folder = folderNode('Projects');
+    const file = fileNode('a.txt');
+    const { items, fs } = setup({ entries: [folder, file] });
+    const target = [...DESKTOP, 'Projects'];
+
+    await expect(items.transferToDirectory(['hd', 'file:a.txt'], target, false)).resolves.toEqual([
+      [...target, 'a.txt']
+    ]);
+    await expect(items.transferToDirectory(['file:a.txt'], target, true)).resolves.toEqual([
+      [...target, 'a.txt']
+    ]);
+    expect(fs.moveTo).toHaveBeenCalledExactlyOnceWith([...DESKTOP, 'a.txt'], target);
+    expect(fs.copyTo).toHaveBeenCalledExactlyOnceWith([...DESKTOP, 'a.txt'], target);
+  });
+
+  it('把 Finder 剪贴板的复制和剪切内容粘贴到桌面', async () => {
+    const { items, clipboard, fs } = setup();
+    const source: DiskPath = ['Users', 'prasenjit', 'Documents', 'a.txt'];
+
+    clipboard.set('copy', [{ path: source, name: 'a.txt' }]);
+    items.paste();
+    await settled();
+    expect(fs.copyTo).toHaveBeenCalledExactlyOnceWith(source, DESKTOP);
+    expect(clipboard.snapshot()?.mode).toBe('copy');
+
+    clipboard.set('cut', [{ path: source, name: 'a.txt' }]);
+    items.paste();
+    await settled();
+    expect(fs.moveTo).toHaveBeenCalledExactlyOnceWith(source, DESKTOP);
+    expect(clipboard.snapshot()).toBeNull();
+  });
+
+  it('没有剪贴板内容时提示用户', () => {
+    const { items, toast } = setup();
+    items.paste();
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Nothing to paste.');
   });
 });
 

@@ -187,7 +187,13 @@ export class DesktopSurface {
     if ((event.target as Element).closest('.dicon, .wgt')) return;
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
-      { id: 'ps', label: 'Paste Item', key: '⌘V', disabled: !this.clipboard.snapshot(), run: () => this.desktop.paste() },
+      {
+        id: 'ps',
+        label: 'Paste Item',
+        key: '⌘V',
+        disabled: !this.clipboard.snapshot(),
+        run: () => this.desktop.paste()
+      },
       { id: 'gi', label: 'Get Info', run: () => this.wm.open('about') },
       '-',
       { id: 'cw', label: 'Change Wallpaper…', run: () => this.wm.open('settings', { section: 'wallpaper' }) },
@@ -287,7 +293,10 @@ export class DesktopSurface {
   }
 
   private updateFolderHover(x: number, y: number, sourceId: string): void {
-    const target = document.elementFromPoint(x, y)?.closest<HTMLElement>('.dicon[data-id]');
+    const target = document
+      .elementsFromPoint(x, y)
+      .map(element => element.closest<HTMLElement>('.dicon[data-id]'))
+      .find(element => element?.dataset['id'] !== sourceId);
     const id = target?.dataset['id'] ?? null;
     const folder = id ? this.desktop.items().find(item => item.id === id) : null;
     const next = folder?.node?.kind === 'folder' && folder.id !== sourceId ? folder.id : null;
@@ -298,7 +307,10 @@ export class DesktopSurface {
     this.folderHoverTimer = setTimeout(() => {
       this.folderHoverTimer = null;
       if (this.folderHover() !== next) return;
-      this.desktop.items().find(item => item.id === next)?.open();
+      this.desktop
+        .items()
+        .find(item => item.id === next)
+        ?.open();
     }, 700);
   }
 

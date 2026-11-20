@@ -191,7 +191,7 @@ export class DesktopItems {
   }
 
   private openNode(node: FsNode): void {
-    if (node.kind === 'folder' && node.path) this.wm.open('finder', { path: finderPathOf(node.path) });
+    if (node.kind === 'folder' && node.path) this.wm.open('finder', { force: true, path: finderPathOf(node.path) });
     else this.opener.open(node);
   }
 

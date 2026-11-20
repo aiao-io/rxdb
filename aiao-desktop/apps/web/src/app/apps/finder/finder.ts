@@ -1,8 +1,8 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   CdkDrag,
-  CdkDragEnd,
   CdkDragDrop,
+  CdkDragEnd,
   CdkDragEnter,
   CdkDragExit,
   CdkDragPlaceholder,
@@ -809,7 +809,8 @@ export class FinderApp implements FinderCommands {
   protected folderDragEntered(event: CdkDragEnter<DiskPath | null>): void {
     const target = event.container.data;
     const source = event.item.data as FsNode | null;
-    if (!target || !source?.path || this.dragNodes(source).some(node => node.path && isWithin(target, node.path))) return;
+    if (!target || !source?.path || this.dragNodes(source).some(node => node.path && isWithin(target, node.path)))
+      return;
     this.clearSpringFolder();
     this.springFolder.set(target);
     this.springFolderTimer = setTimeout(() => {
@@ -859,7 +860,7 @@ export class FinderApp implements FinderCommands {
 
   private dropDirectory(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): DiskPath | null {
     const targets = [
-      document.elementFromPoint(event.dropPoint.x, event.dropPoint.y),
+      ...document.elementsFromPoint(event.dropPoint.x, event.dropPoint.y),
       event.event.target instanceof Element ? event.event.target : null
     ];
     const encoded = targets
@@ -870,7 +871,7 @@ export class FinderApp implements FinderCommands {
   }
 
   private desktopDropDirectory(point: { readonly x: number; readonly y: number }): DiskPath | null {
-    const target = document.elementFromPoint(point.x, point.y);
+    const target = document.elementsFromPoint(point.x, point.y).find(element => element.closest('#desktop'));
     if (!(target instanceof Element)) return null;
     const desktop = target.closest('#desktop');
     if (!desktop || target.closest('.wgt')) return null;

@@ -39,7 +39,9 @@ export class AppLauncher {
   }
 
   private openTrash(): void {
-    const existing = this.wm.byApp('finder').find(win => (win.restoreOptions()?.path ?? win.options.path)?.[0] === 'Trash');
+    const existing = this.wm
+      .byApp('finder')
+      .find(win => (win.restoreOptions()?.path ?? win.options.path)?.[0] === 'Trash');
     if (!existing) {
       this.wm.open('finder', { path: ['Trash'] });
       return;
