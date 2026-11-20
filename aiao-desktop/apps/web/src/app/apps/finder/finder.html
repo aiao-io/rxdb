@@ -232,10 +232,12 @@
       [style.overflow]="view() === 'column' ? 'hidden' : ''"
       (cdkDropListDropped)="dropFile($event)"
       (contextmenu)="bodyMenu($event)"
+      (pointerdown)="pressBody($event)"
       cdkDropList
       cdkDropListGroup
       data-body
     >
+      <div #marquee aria-hidden="true" class="finder-marquee"></div>
       @if (applicationsNote(); as note) {
         <div class="fx-note" data-finder-note role="status">{{ note }}</div>
       }
@@ -387,7 +389,7 @@
                     *cdkVirtualFor="let item of column.items ?? []; trackBy: trackNode"
                     [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                     [attr.aria-label]="label(item)"
-                    [attr.aria-selected]="item.name === picked[ci]"
+                    [attr.aria-selected]="isColumnSelected(ci, item.name)"
                     [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
                     [attr.data-ci]="ci"
                     [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
@@ -398,17 +400,17 @@
                     [cdkDragDisabled]="!canFileDrag(item)"
                     [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                     [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
-                    [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
+                    [class.sel]="isColumnSelected(ci, item.name)"
                     (cdkDragEnded)="dragEnded($event)"
                     (cdkDragMoved)="dragMoved($event)"
-                    (cdkDragStarted)="dragStarted(item)"
+                    (cdkDragStarted)="dragStarted(item, ci)"
                     (cdkDropListDropped)="dropFile($event)"
                     (cdkDropListEntered)="folderDragEntered($event)"
                     (cdkDropListExited)="folderDragExited($event)"
-                    (click)="pickColumn(ci, item.name)"
+                    (click)="pickColumn(ci, item.name, $event)"
                     (contextmenu)="itemMenu($event, item)"
                     (dblclick)="openColumnFile(item)"
-                    (focus)="pickColumn(ci, item.name)"
+                    (focus)="focusColumn(ci, item.name)"
                     (keydown)="itemKey($event, item.name, ci)"
                     (pointerdown)="dragApp($event, item)"
                     cdkDrag
@@ -519,14 +521,14 @@
                   class="t"
                   [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                   [attr.aria-label]="label(item)"
-                  [attr.aria-selected]="item === current"
+                  [attr.aria-selected]="isSelected(item.name)"
                   [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                   [attr.data-name]="item.name"
                   [attr.tabindex]="item.name === tabStop() ? 0 : -1"
-                  [class.sel]="item === current"
-                  (click)="select(item.name)"
+                  [class.sel]="isSelected(item.name)"
+                  (click)="select(item.name, $event)"
                   (contextmenu)="itemMenu($event, item)"
-                  (focus)="select(item.name)"
+                  (focus)="focusItem(item.name)"
                   (keydown)="itemKey($event, item.name)"
                   role="option"
                 >

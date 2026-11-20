@@ -36,7 +36,10 @@ interface Point {
   encapsulation: ViewEncapsulation.None,
   host: {
     '[style.display]': '"contents"',
-    '(window:resize)': 'resize()'
+    '(window:resize)': 'resize()',
+    '(window:pointermove)': 'externalDragMove($event)',
+    '(window:pointerup)': 'externalDragEnd()',
+    '(window:pointercancel)': 'externalDragEnd()'
   }
 })
 export class DesktopSurface {
@@ -70,6 +73,15 @@ export class DesktopSurface {
 
   protected resize(): void {
     this.viewport.set([innerWidth, innerHeight]);
+  }
+
+  protected externalDragMove(event: PointerEvent): void {
+    if (!document.querySelector('.cdk-drag-dragging')) return;
+    this.updateFolderHover(event.clientX, event.clientY, '');
+  }
+
+  protected externalDragEnd(): void {
+    this.clearDropTargets();
   }
 
   protected position(item: DesktopItem): Point {

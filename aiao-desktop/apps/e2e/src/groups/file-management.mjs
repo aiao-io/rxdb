@@ -32,6 +32,7 @@ export const fileManagement = {
     'fileManagement.folderCopyKeepsNestedAndEmptyEntries',
     'fileManagement.listVirtualScroll',
     'fileManagement.multiSelection',
+    'fileManagement.finderMarqueeSelection',
     'fileManagement.clipboardCopyPaste',
     'fileManagement.dragCopy',
     'fileManagement.dragMove',
@@ -306,6 +307,30 @@ export const fileManagement = {
     await item('drag-copy.txt').click({ modifiers: ['Meta'] });
     await expect(finder().locator('[role=option][aria-selected="true"]')).toHaveCount(2);
     result.multiSelection = true;
+
+    await finder().getByRole('button', { name: 'Icons', exact: true }).click();
+    await item('clipboard-source.txt').click();
+    const marqueeBody = finder().locator('[data-body]');
+    const marqueeTargets = await Promise.all([item('clipboard-source.txt').boundingBox(), item('drag-copy.txt').boundingBox()]);
+    const marqueeBodyBox = await marqueeBody.boundingBox();
+    if (!marqueeBodyBox || marqueeTargets.some(box => !box)) throw new Error('Finder marquee targets are not measurable');
+    const measuredTargets = marqueeTargets.filter(Boolean);
+    const marqueeLeft = Math.min(...measuredTargets.map(box => box.x)) - 8;
+    const marqueeTop = Math.min(...measuredTargets.map(box => box.y)) - 8;
+    const marqueeRight = Math.max(...measuredTargets.map(box => box.x + box.width)) + 2;
+    const marqueeBottom = Math.max(...measuredTargets.map(box => box.y + box.height)) + 8;
+    await page.mouse.move(
+      Math.max(marqueeBodyBox.x + 2, marqueeLeft),
+      Math.min(marqueeBodyBox.y + marqueeBodyBox.height - 2, marqueeBottom)
+    );
+    await page.mouse.down();
+    await page.mouse.move(marqueeRight, marqueeTop, { steps: 8 });
+    await page.mouse.up();
+    await expect(finder().locator('[role=option][aria-selected="true"]')).not.toHaveCount(0);
+    result.finderMarqueeSelection =
+      (await item('clipboard-source.txt').getAttribute('aria-selected')) === 'true' &&
+      (await item('drag-copy.txt').getAttribute('aria-selected')) === 'true';
+    await item('drag-copy.txt').click();
 
     const springSource = item('drag-copy.txt');
     const springTarget = item('nested');

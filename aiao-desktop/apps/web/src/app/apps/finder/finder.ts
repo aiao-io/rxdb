@@ -132,6 +132,7 @@ export class FinderApp implements FinderCommands {
   private readonly sidebar = viewChild.required<ElementRef<HTMLElement>>('sidebar');
   private readonly sidebarSplitter = viewChild.required<ElementRef<HTMLElement>>('sidebarSplitter');
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
+  private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
   private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
     entries: [],
@@ -172,6 +173,8 @@ export class FinderApp implements FinderCommands {
   protected readonly springFolder = signal<DiskPath | null>(null);
   protected readonly selected = signal<string | null>(null);
   protected readonly selectedNames = signal<readonly string[]>([]);
+  protected readonly selectedColumnNames = signal<readonly string[]>([]);
+  protected readonly selectedColumnIndex = signal<number | null>(null);
   protected readonly query = signal('');
   protected readonly importDirectory = computed(() => (this.query() ? null : diskPathOf(this.path())));
   protected readonly columnSelection = signal<readonly string[]>([]);
@@ -180,6 +183,12 @@ export class FinderApp implements FinderCommands {
 
   protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
   protected readonly selectedItems = computed(() => {
+    if (this.view() === 'column') {
+      const index = this.selectedColumnIndex();
+      const columnItems = index === null ? [] : (this.columns().chain[index]?.items ?? []);
+      const names = new Set(this.selectedColumnNames());
+      return columnItems.filter(item => names.has(item.name) && item.path);
+    }
     const names = new Set(this.selectedNames());
     return this.items().filter(item => names.has(item.name) && item.path);
   });
@@ -314,6 +323,14 @@ export class FinderApp implements FinderCommands {
   }
 
   setView(view: FinderView): void {
+    if (view === this.view()) return;
+    if (view === 'column') {
+      const names = this.selectedNames();
+      this.setColumnNames(0, names, this.selected());
+      this.columnSelection.set(this.selected() ? [this.selected()!] : []);
+    } else if (this.view() === 'column') {
+      this.setSelection(this.selectedColumnNames(), this.selected());
+    }
     this.view.set(view);
   }
 
@@ -562,26 +579,9 @@ export class FinderApp implements FinderCommands {
   }
 
   protected select(name: string, event?: MouseEvent): void {
-    const items = this.items();
     const current = this.selectedNames();
-    if (event?.shiftKey && current.length) {
-      const start = items.findIndex(item => item.name === current[0]);
-      const end = items.findIndex(item => item.name === name);
-      if (start >= 0 && end >= 0) {
-        const [from, to] = start < end ? [start, end] : [end, start];
-        this.setSelection(
-          items.slice(from, to + 1).map(item => item.name),
-          name
-        );
-        return;
-      }
-    }
-    if (event?.metaKey || event?.ctrlKey) {
-      const next = current.includes(name) ? current.filter(item => item !== name) : [...current, name];
-      this.setSelection(next, name);
-      return;
-    }
-    this.setSelection([name]);
+    const next = this.nextSelection(this.items(), current, name, event);
+    this.setSelection(next, next.includes(name) ? name : next.at(-1) ?? null);
   }
 
   protected focusItem(name: string): void {
@@ -642,9 +642,20 @@ export class FinderApp implements FinderCommands {
     if (node) this.openNode(node);
   }
 
-  protected pickColumn(index: number, name: string): void {
-    this.columnSelection.update(selection => [...selection.slice(0, index), name]);
-    this.setSelection([name]);
+  protected pickColumn(index: number, name: string, event?: MouseEvent): void {
+    const items = this.columns().chain[index]?.items ?? [];
+    const current = this.selectedColumnIndex() === index ? this.selectedColumnNames() : [];
+    const next = this.nextSelection(items, current, name, event);
+    this.setColumnNames(index, next, next.includes(name) ? name : next.at(-1) ?? null);
+    this.commitColumnPath();
+  }
+
+  protected focusColumn(index: number, name: string): void {
+    if (this.selectedColumnNames().length === 0) {
+      this.pickColumn(index, name);
+      return;
+    }
+    if (this.isColumnSelected(index, name)) this.selected.set(name);
   }
 
   protected openColumnFile(node: FsNode): void {
@@ -729,8 +740,23 @@ export class FinderApp implements FinderCommands {
   }
 
   protected itemMenu(event: MouseEvent, node: FsNode): void {
-    this.setSelection([node.name]);
+    if (!this.isSelected(node.name)) this.setSelection([node.name]);
     this.popover.contextMenu(event, this.itemMenuItems(node), node.name);
+  }
+
+  protected pressBody(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const target = event.target as Element;
+    if (target.closest('[role="option"], button, input, .finder-column-divider, .hd, .fx-note, .fv-gal .stage')) return;
+    const column = this.view() === 'column' ? target.closest<HTMLElement>('.fv-col .col') : null;
+    if (column) {
+      const index = Number(column.dataset['ci']);
+      this.setColumnNames(index, []);
+      this.marquee(event, column, index);
+      return;
+    }
+    this.setSelection([]);
+    this.marquee(event);
   }
 
   protected bodyMenu(event: MouseEvent): void {
@@ -775,6 +801,10 @@ export class FinderApp implements FinderCommands {
     return this.selectedNames().includes(name);
   }
 
+  protected isColumnSelected(index: number, name: string): boolean {
+    return this.selectedColumnIndex() === index && this.selectedColumnNames().includes(name);
+  }
+
   protected label(item: FsNode): string {
     return itemLabel({ ...item, name: this.displayName(item) });
   }
@@ -789,7 +819,11 @@ export class FinderApp implements FinderCommands {
     return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
   }
 
-  protected dragStarted(source: FsNode): void {
+  protected dragStarted(source: FsNode, column = -1): void {
+    if (column >= 0) {
+      if (!this.isColumnSelected(column, source.name)) this.pickColumn(column, source.name);
+      return;
+    }
     if (!this.isSelected(source.name)) this.setSelection([source.name]);
   }
 
@@ -940,16 +974,110 @@ export class FinderApp implements FinderCommands {
   private selectedNode(): FsNode | null {
     const selected = this.selected();
     if (!selected) return null;
-    const current = this.items().find(item => item.name === selected);
+    const current = this.selectedItems().find(item => item.name === selected);
     if (current) return current;
+    const root = this.items().find(item => item.name === selected);
+    if (root) return root;
     const { chain, selection } = this.columns();
     const index = selection.length - 1;
     return index >= 0 ? (chain[index]?.items?.find(item => item.name === selected) ?? null) : null;
   }
 
+  private nextSelection(
+    items: readonly FsNode[],
+    current: readonly string[],
+    name: string,
+    event?: Pick<MouseEvent, 'ctrlKey' | 'metaKey' | 'shiftKey'>
+  ): readonly string[] {
+    if (event?.shiftKey && current.length) {
+      const start = items.findIndex(item => item.name === current[0]);
+      const end = items.findIndex(item => item.name === name);
+      if (start >= 0 && end >= 0) {
+        const [from, to] = start < end ? [start, end] : [end, start];
+        return items.slice(from, to + 1).map(item => item.name);
+      }
+    }
+    if (event?.metaKey || event?.ctrlKey) {
+      return current.includes(name) ? current.filter(item => item !== name) : [...current, name];
+    }
+    return [name];
+  }
+
   private setSelection(names: readonly string[], primary = names.at(-1) ?? null): void {
     this.selectedNames.set([...names]);
     this.selected.set(primary);
+    this.clearColumnSelection();
+  }
+
+  private setColumnNames(index: number, names: readonly string[], primary = names.at(-1) ?? null): void {
+    this.selectedColumnNames.set([...names]);
+    this.selectedColumnIndex.set(index);
+    this.selected.set(primary);
+  }
+
+  private commitColumnPath(): void {
+    const index = this.selectedColumnIndex();
+    if (index === null) return;
+    const primary = this.selected();
+    this.columnSelection.set(primary ? [...this.columnSelection().slice(0, index), primary] : this.columnSelection().slice(0, index));
+  }
+
+  private clearColumnSelection(): void {
+    this.selectedColumnNames.set([]);
+    this.selectedColumnIndex.set(null);
+    this.columnSelection.set([]);
+  }
+
+  private marquee(event: PointerEvent, scope = this.body().nativeElement, column: number | null = null): void {
+    const box = this.marqueeBox().nativeElement;
+    const bodyRect = this.body().nativeElement.getBoundingClientRect();
+    const sx = event.clientX;
+    const sy = event.clientY;
+    let live = false;
+    const move = (current: PointerEvent): void => {
+      if (!live && Math.hypot(current.clientX - sx, current.clientY - sy) < 4) return;
+      live = true;
+      const left = Math.min(sx, current.clientX);
+      const top = Math.min(sy, current.clientY);
+      const width = Math.abs(current.clientX - sx);
+      const height = Math.abs(current.clientY - sy);
+      Object.assign(box.style, {
+        display: 'block',
+        left: `${left - bodyRect.left}px`,
+        top: `${top - bodyRect.top}px`,
+        width: `${width}px`,
+        height: `${height}px`
+      });
+      this.selectWithin(scope, left, top, left + width, top + height, column);
+    };
+    const end = (): void => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', end);
+      removeEventListener('pointercancel', end);
+      box.style.display = 'none';
+      if (column !== null) this.commitColumnPath();
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', end);
+    addEventListener('pointercancel', end);
+  }
+
+  private selectWithin(
+    scope: HTMLElement,
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+    column: number | null
+  ): void {
+    const options = [...scope.querySelectorAll<HTMLElement>('[role="option"]')];
+    const hit = options.filter(option => {
+      const rect = option.getBoundingClientRect();
+      return !(rect.right < left || rect.left > right || rect.bottom < top || rect.top > bottom);
+    });
+    const names = hit.map(option => option.dataset['name']).filter((name): name is string => Boolean(name));
+    if (column === null) this.setSelection(names);
+    else this.setColumnNames(column, names);
   }
 
   private setSidebarWidth(width: number): void {
@@ -1010,7 +1138,12 @@ export class FinderApp implements FinderCommands {
   private selectPath(path: DiskPath): void {
     this.setSelection(path.at(-1) ? [path.at(-1)!] : []);
     const base = diskPathOf(this.path());
-    if (this.view() === 'column' && base && isWithin(path, base)) this.columnSelection.set(path.slice(base.length));
+    if (this.view() === 'column' && base && isWithin(path, base)) {
+      const selection = path.slice(base.length);
+      this.columnSelection.set(selection);
+      const index = selection.length - 1;
+      if (index >= 0) this.setColumnNames(index, [selection[index]], selection[index]);
+    }
   }
 
   private requestFileOperation(kind: FileOperationRequest['kind'], node: FsNode): void {

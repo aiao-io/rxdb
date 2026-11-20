@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-20 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前44条Done、1条In Progress、1条In Review、0条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-20 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前44条Done、1条In Progress、1条In Review、1条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
@@ -11,9 +11,9 @@
 | ✅ Done        | 44   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 0    |
+| 📝 Backlog     | 1    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 46   |
+| **合计**       | 47   |
 
 ## 自动完成计划
 
@@ -29,9 +29,9 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 
 - [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)：VoiceOver V01～V14 实际播报验收按用户要求延期，AC#6 保持未验收。
 
-## 待开发（0 条）
+## 待开发（1 条）
 
-无故事处于 Backlog。
+- [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md)：等待范围评审，目标包含 GitHub Desktop 形态、独立 OPFS Git 仓库和 GitHub OAuth / API 远端工作流。
 
 ## 按 Epic 索引
 
@@ -87,6 +87,7 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 - ✅ [ADESK-US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)
 - ✅ [ADESK-US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)
 - 🚧 [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)
+- ✅ [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 
@@ -100,3 +101,7 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 - ✅ [ADESK-US-207 运营批准应用目录与版本管理](stories/application/ADESK-US-207-approved-app-catalog.md)
 
 - ✅ [ADESK-US-208 Aiao Code 文件复制与嵌入边界](stories/application/ADESK-US-208-aiao-code-file-copy.md)
+
+### ADESK-EPIC-004 GitHub 开发工作台
+
+- ⬜ [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md)

@@ -29,6 +29,10 @@
 
 [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)已完成本地正式构建验收。文件和文件夹支持拖动移动、Option/Alt 拖动复制、剪切粘贴、多选、列表和分栏虚拟滚动、列宽调整；Finder Share 复用本地 Mail 草稿能力，真实远程邮件收发仍未接入。
 
+## GitHub 开发工作台（2026-11-20，待范围评审）
+
+[ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md) 先完成范围评审。实现顺序为 GitHub Desktop 形态入口 → 独立 OPFS Git 工作区 → GitHub OAuth 与 API 远端操作；本故事不与 Finder 虚拟磁盘自动同步，也不承诺跨设备恢复。阶段 B 复用 `aiao-vscode` 的 Git Worker、OPFS 和 `WorkbenchBackend` 设计，阶段 C 复用现有 GitHub OAuth 桥接与 GitHub API 适配经验。
+
 ## 扩大使用范围的条件
 
 扩大使用范围前，仍需完整文件工作流、备份恢复、保存失败与配额边界、明确的浏览器支持矩阵、升级与回滚边界。TextEdit 文档工作流、Finder 文件管理、完整备份和存储故障恢复已由 ADESK-US-109～111 完成；后续应用目录和运行能力按自动完成计划逐项立项和验收，原方向见[后续方向](future-requirements.md)。
