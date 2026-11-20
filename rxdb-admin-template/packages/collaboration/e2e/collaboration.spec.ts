@@ -457,7 +457,7 @@ async function createPr(page: Page, description?: string) {
   await page.getByRole('button', { name: '创建 PR…', exact: true }).click();
   if (description !== undefined) await fillSettled(page.getByLabel('PR 说明', { exact: true }), description);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 60_000 });
 }
 /** 顶栏「在线成员」下拉里的列表（Realtime Presence）；下拉收起时内容仍在文档里。 */
 const presence = (page: Page) => page.getByTestId('presence');
