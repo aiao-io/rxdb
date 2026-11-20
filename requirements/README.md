@@ -109,9 +109,9 @@ PR 描述：
 
 Epic：
 
-- [epic-001 核心 MVP](epics/epic-001-core-mvp.md)
+- [epic-001 核心 MVP 功能](epics/epic-001-core-mvp.md)
 - [epic-002 数据同步与协作](epics/epic-002-data-sync.md)
-- [epic-003 UI 与开发者工具](epics/epic-003-ui-developer-tools.md)
+- [epic-003 UI 组件与开发者工具](epics/epic-003-ui-developer-tools.md)
 - [epic-004 未来功能](epics/epic-004-future-features.md)
 - [epic-005 类型系统演进](epics/epic-005-type-system-evolution.md)
 - [epic-006 本地工作树与提交历史](epics/epic-006-working-tree-commits.md)

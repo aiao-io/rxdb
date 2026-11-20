@@ -238,7 +238,7 @@
 - **rxdb:** 添加 rxdb-adapter-http 适配器 ([#39](https://github.com/aiao-io/rxdb/pull/39))
 - **rxdb-adapter-desktop:** 添加 tauri 本地数据库支持 ([#7](https://github.com/aiao-io/rxdb/pull/7))
 - **rxdb-devtools:** devtools for tauri ([#58](https://github.com/aiao-io/rxdb/pull/58))
-- **website:** 使用 wujie 加载三端 demo ([#31](https://github.com/aiao-io/rxdb/pull/31))
+- **website:** 使用嵌入式运行时加载三端 demo ([#31](https://github.com/aiao-io/rxdb/pull/31))
 - **website:** 抽出共享测试 bus，Vue 主题副作用改绑 detached scope ([#32](https://github.com/aiao-io/rxdb/pull/32))
 
 ### 🩹 Fixes

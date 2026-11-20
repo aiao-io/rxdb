@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @plugin 'daisyui/index.js' {
-  /* 无界 Shadow DOM 用 :host；独立打开仍要 :root。必须用 :is()，daisyUI 会把 root 当前缀拼接 */
+  /* 原生 iframe 与独立页面均使用 :root；保留 :host 支持直接嵌入 Shadow DOM。daisyUI 的 root 使用 :is() */
   root: ':is(:host, :root)';
 }
 
