@@ -129,13 +129,12 @@ async function setupContext(context) {
   await setupPlatform(context, { signedIn, protocol });
   const relay = await taskFixture(context, request => {
     const body = request.postDataJSON();
-    assert.deepEqual(Object.keys(body).filter(key => key !== 'quality').sort(), [
-      'aspectRatio',
-      'model',
-      'n',
-      'prompt',
-      'size'
-    ]);
+    assert.deepEqual(
+      Object.keys(body)
+        .filter(key => key !== 'quality')
+        .sort(),
+      ['aspectRatio', 'model', 'n', 'prompt', 'size']
+    );
     assert.equal(body.model, platformModel.id);
     assert.equal(body.n, 1);
     assert.ok(pictures.has(body.size));

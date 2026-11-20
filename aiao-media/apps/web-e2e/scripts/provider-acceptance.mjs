@@ -498,9 +498,7 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
         !headers['x-provider-base'] &&
         body &&
         Object.entries(dispatch.body).every(([key, value]) => body[key] === value) &&
-        Object.entries(body).every(
-          ([key, value]) => key in dispatch.body || (key === 'quality' && value === 'low')
-        );
+        Object.entries(body).every(([key, value]) => key in dispatch.body || (key === 'quality' && value === 'low'));
       if (!valid) {
         record.requestBoundaryFailed = true;
         return route.abort('blockedbyclient');
