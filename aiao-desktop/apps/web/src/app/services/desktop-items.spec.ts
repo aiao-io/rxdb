@@ -206,9 +206,7 @@ describe('DesktopItems 文件传输', () => {
     await expect(items.transferToDirectory(['hd', 'file:a.txt'], target, false)).resolves.toEqual([
       [...target, 'a.txt']
     ]);
-    await expect(items.transferToDirectory(['file:a.txt'], target, true)).resolves.toEqual([
-      [...target, 'a.txt']
-    ]);
+    await expect(items.transferToDirectory(['file:a.txt'], target, true)).resolves.toEqual([[...target, 'a.txt']]);
     expect(fs.moveTo).toHaveBeenCalledExactlyOnceWith([...DESKTOP, 'a.txt'], target);
     expect(fs.copyTo).toHaveBeenCalledExactlyOnceWith([...DESKTOP, 'a.txt'], target);
   });
