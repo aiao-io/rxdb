@@ -628,7 +628,7 @@ export class FinderApp implements FinderCommands {
     if (path.length < 2) return;
     this.nav(path.slice(0, -1));
     const name = path.at(-1);
-    if (name) this.setSelection([name]);
+    if (name) this.selectPath([...path.slice(0, -1), name]);
   }
 
   /** Applications 里系统拥有的 `.app` 包可以拖进 Dock；别的条目（含用户复制出来的包）不能。只把应用 id 交给 Dock。 */
