@@ -1,12 +1,14 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   CdkDrag,
+  CdkDragEnd,
   CdkDragDrop,
   CdkDragEnter,
   CdkDragExit,
   CdkDragPlaceholder,
   CdkDragPreview,
-  CdkDropList
+  CdkDropList,
+  CdkDropListGroup
 } from '@angular/cdk/drag-drop';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { NgTemplateOutlet } from '@angular/common';
@@ -27,6 +29,7 @@ import {
 import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
 import { isPackageName } from '../../disk/disk-kinds';
 import {
+  DESKTOP,
   DiskPath,
   HOME,
   TRASH,
@@ -100,6 +103,7 @@ const MIN_CONTENT_WIDTH = 400;
     EmptyTrashDialog,
     FileDrop,
     CdkDropList,
+    CdkDropListGroup,
     CdkDrag,
     CdkDragPlaceholder,
     CdkDragPreview,
@@ -784,10 +788,28 @@ export class FinderApp implements FinderCommands {
     return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
   }
 
-  protected folderDragEntered(event: CdkDragEnter<DiskPath | null, FsNode>): void {
+  protected dragStarted(source: FsNode): void {
+    if (!this.isSelected(source.name)) this.setSelection([source.name]);
+  }
+
+  protected dragEnded(event: CdkDragEnd<FsNode>): void {
+    this.clearSpringFolder();
+    const source = event.source.data;
+    const dir = this.desktopDropDirectory(event.dropPoint);
+    if (!source?.path || !dir) return;
+    const copy = this.copyModifier(event.event);
+    void this.transferNodes(this.dragNodes(source), dir, copy).then(
+      () => {
+        if (!copy) this.setSelection([]);
+      },
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
+  }
+
+  protected folderDragEntered(event: CdkDragEnter<DiskPath | null>): void {
     const target = event.container.data;
-    const source = event.item.data;
-    if (!target || !source?.path || isWithin(target, source.path)) return;
+    const source = event.item.data as FsNode | null;
+    if (!target || !source?.path || this.dragNodes(source).some(node => node.path && isWithin(target, node.path))) return;
     this.clearSpringFolder();
     this.springFolder.set(target);
     this.springFolderTimer = setTimeout(() => {
@@ -798,7 +820,7 @@ export class FinderApp implements FinderCommands {
     }, 700);
   }
 
-  protected folderDragExited(event: CdkDragExit<DiskPath | null, FsNode>): void {
+  protected folderDragExited(event: CdkDragExit<DiskPath | null>): void {
     const target = event.container.data;
     if (target && this.isSpringFolder(target)) this.clearSpringFolder();
   }
@@ -812,13 +834,11 @@ export class FinderApp implements FinderCommands {
     const source = event.item.data;
     const dir = this.dropDirectory(event) ?? event.container.data;
     if (!source?.path || !dir) return;
-    const copy = Boolean(
-      ('altKey' in event.event && event.event.altKey) || ('metaKey' in event.event && event.event.metaKey)
-    );
-    const task = copy ? this.fs.copyTo(source.path, dir) : this.fs.moveTo(source.path, dir);
-    void task.then(
+    const copy = this.copyModifier(event.event);
+    void this.transferNodes(this.dragNodes(source), dir, copy).then(
       path => {
-        if (samePath(parentOf(path), this.importDirectory() ?? [])) this.selectPath(path);
+        const last = path.at(-1);
+        if (last && samePath(parentOf(last), this.importDirectory() ?? [])) this.selectPath(last);
       },
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
@@ -838,10 +858,46 @@ export class FinderApp implements FinderCommands {
   }
 
   private dropDirectory(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): DiskPath | null {
-    const target = event.event.target;
-    if (!(target instanceof Element)) return null;
-    const encoded = target.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'];
+    const targets = [
+      document.elementFromPoint(event.dropPoint.x, event.dropPoint.y),
+      event.event.target instanceof Element ? event.event.target : null
+    ];
+    const encoded = targets
+      .filter((target): target is Element => target instanceof Element)
+      .map(target => target.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'])
+      .find(Boolean);
     return encoded ? encoded.split('/') : null;
+  }
+
+  private desktopDropDirectory(point: { readonly x: number; readonly y: number }): DiskPath | null {
+    const target = document.elementFromPoint(point.x, point.y);
+    if (!(target instanceof Element)) return null;
+    const desktop = target.closest('#desktop');
+    if (!desktop || target.closest('.wgt')) return null;
+    const icon = target.closest<HTMLElement>('.dicon[data-id]');
+    if (!icon) return DESKTOP;
+    const id = icon.dataset['id'];
+    if (!id?.startsWith('file:')) return null;
+    const node = this.fs.nodeAt([...DESKTOP, id.slice(5)]);
+    return node?.kind === 'folder' && node.path ? node.path : null;
+  }
+
+  private dragNodes(source: FsNode): readonly FsNode[] {
+    const selected = this.selectedItems();
+    return selected.some(node => node.path && source.path && samePath(node.path, source.path)) ? selected : [source];
+  }
+
+  private async transferNodes(nodes: readonly FsNode[], dir: DiskPath, copy: boolean): Promise<readonly DiskPath[]> {
+    const targets: DiskPath[] = [];
+    for (const node of nodes) {
+      if (!node.path) continue;
+      targets.push(await (copy ? this.fs.copyTo(node.path, dir) : this.fs.moveTo(node.path, dir)));
+    }
+    return targets;
+  }
+
+  private copyModifier(event: MouseEvent | TouchEvent): boolean {
+    return ('altKey' in event && event.altKey) || ('metaKey' in event && event.metaKey);
   }
 
   private selectedNodes(): FsNode[] {

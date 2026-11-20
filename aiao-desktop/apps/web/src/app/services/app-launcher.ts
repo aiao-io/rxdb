@@ -18,7 +18,7 @@ export class AppLauncher {
       return;
     }
     if (appId === 'trash') {
-      this.wm.open('finder', { path: ['Trash'] });
+      this.openTrash();
       return;
     }
     const existing = this.wm.byApp(appId);
@@ -36,5 +36,19 @@ export class AppLauncher {
     this.wm.focus(front);
     /* 刷新后延后装载的窗口（终端、游戏）：从 Dock 等入口再次打开就是要用它，此刻装载。 */
     this.wm.activate(front);
+  }
+
+  private openTrash(): void {
+    const existing = this.wm.byApp('finder').find(win => (win.restoreOptions()?.path ?? win.options.path)?.[0] === 'Trash');
+    if (!existing) {
+      this.wm.open('finder', { path: ['Trash'] });
+      return;
+    }
+    if (existing.minimized()) {
+      this.wm.unminimize(existing.id);
+      return;
+    }
+    this.wm.focus(existing.id);
+    this.wm.activate(existing.id);
   }
 }

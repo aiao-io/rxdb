@@ -71,17 +71,17 @@ export class BrowserSessionRestore {
   private publishAllowed = false;
   private activeAt = 0;
 
+  /** 本标签页的会话标识；会话存储不可用时为 `null`。 */
+  get tabId(): string | null {
+    return this.tabIdValue;
+  }
+
   constructor() {
     this.listenLifecycle();
     this.destroyRef.onDestroy(() => {
       clearInterval(this.heartbeat);
       void this.close();
     });
-  }
-
-  /** 本标签页的会话标识；会话存储不可用时为 `null`。 */
-  get tabId(): string | null {
-    return this.tabIdValue;
   }
 
   /** 页面是否已经收到不可恢复的 `pagehide`。 */

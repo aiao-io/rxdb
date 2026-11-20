@@ -233,6 +233,7 @@
       (cdkDropListDropped)="dropFile($event)"
       (contextmenu)="bodyMenu($event)"
       cdkDropList
+      cdkDropListGroup
       data-body
     >
       @if (applicationsNote(); as note) {
@@ -255,6 +256,8 @@
                 [cdkDragDisabled]="!canFileDrag(item)"
                 [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                 [class.sel]="isSelected(item.name)"
+                (cdkDragEnded)="dragEnded($event)"
+                (cdkDragStarted)="dragStarted(item)"
                 (cdkDropListDropped)="dropFile($event)"
                 (cdkDropListEntered)="folderDragEntered($event)"
                 (cdkDropListExited)="folderDragExited($event)"
@@ -311,6 +314,8 @@
                 [cdkDragDisabled]="!canFileDrag(item)"
                 [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                 [class.sel]="isSelected(item.name)"
+                (cdkDragEnded)="dragEnded($event)"
+                (cdkDragStarted)="dragStarted(item)"
                 (cdkDropListDropped)="dropFile($event)"
                 (cdkDropListEntered)="folderDragEntered($event)"
                 (cdkDropListExited)="folderDragExited($event)"
@@ -392,6 +397,8 @@
                     [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                     [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
                     [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
+                    (cdkDragEnded)="dragEnded($event)"
+                    (cdkDragStarted)="dragStarted(item)"
                     (cdkDropListDropped)="dropFile($event)"
                     (cdkDropListEntered)="folderDragEntered($event)"
                     (cdkDropListExited)="folderDragExited($event)"

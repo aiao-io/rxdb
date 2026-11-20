@@ -2,8 +2,9 @@ import { ErrorHandler, Service, computed, inject, linkedSignal, signal } from '@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { Preferences } from '../data/preferences';
-import { DESKTOP, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
+import { DESKTOP, DiskPath, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
 import { FileOpener } from './file-opener';
 import { FileSystem, describeDiskError } from './file-system';
@@ -77,6 +78,7 @@ export class DesktopItems {
   private readonly opener = inject(FileOpener);
   private readonly toast = inject(Toast);
   private readonly preferences = inject(Preferences);
+  private readonly clipboard = inject(FinderClipboard);
   private readonly errors = inject(ErrorHandler);
   private readonly entries = computed(() => visibleChildren(this.fs.nodeAt(DESKTOP)));
   private readonly cells = linkedSignal<readonly FsNode[], ReadonlyMap<string, DesktopCell>>({
@@ -140,6 +142,32 @@ export class DesktopItems {
       .catch((error: unknown) => this.errors.handleError(error));
   }
 
+  async transferToDirectory(ids: readonly string[], dir: DiskPath, copy: boolean): Promise<readonly DiskPath[]> {
+    const selected = new Set(ids);
+    const paths = this.items()
+      .filter(item => selected.has(item.id) && item.node?.path?.length)
+      .map(item => item.node!.path!);
+    return this.transferPaths(paths, dir, copy);
+  }
+
+  paste(): void {
+    const snapshot = this.clipboard.snapshot();
+    if (!snapshot) {
+      this.toast.show('Nothing to paste.');
+      return;
+    }
+    void this.transferPaths(
+      snapshot.entries.map(entry => entry.path),
+      DESKTOP,
+      snapshot.mode === 'copy'
+    ).then(
+      () => {
+        if (snapshot.mode === 'cut') this.clipboard.clear();
+      },
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
+  }
+
   /** 把图标对应的条目移进废纸篓；Macintosh HD 不能移走。失败时提示原因并返回 `false`。 */
   async remove(id: string): Promise<boolean> {
     const node = this.items().find(item => item.id === id)?.node;
@@ -165,5 +193,11 @@ export class DesktopItems {
   private openNode(node: FsNode): void {
     if (node.kind === 'folder' && node.path) this.wm.open('finder', { path: finderPathOf(node.path) });
     else this.opener.open(node);
+  }
+
+  private async transferPaths(paths: readonly DiskPath[], dir: DiskPath, copy: boolean): Promise<readonly DiskPath[]> {
+    const targets: DiskPath[] = [];
+    for (const path of paths) targets.push(await (copy ? this.fs.copyTo(path, dir) : this.fs.moveTo(path, dir)));
+    return targets;
   }
 }

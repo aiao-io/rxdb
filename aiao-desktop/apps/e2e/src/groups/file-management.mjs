@@ -111,7 +111,12 @@ export const fileManagement = {
       await expect(item(name)).toHaveCount(0);
     };
     const openTrash = async () => {
-      if ((await finder().locator('[data-title]').textContent()) === 'Trash') return;
+      if ((await finder().locator('[data-title]').textContent()) === 'Trash') {
+        const current = await finder().getAttribute('id');
+        await page.locator('#dock .di[data-app="trash"]').click();
+        await expect(finder()).toHaveAttribute('id', current);
+        return;
+      }
       const previous = await finder().getAttribute('id');
       await page.locator('#dock .di[data-app="trash"]').click();
       await expect(finder()).not.toHaveAttribute('id', previous);

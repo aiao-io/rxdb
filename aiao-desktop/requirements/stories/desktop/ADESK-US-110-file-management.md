@@ -67,7 +67,7 @@ capabilities: []
 - AC7：真实 `2026111301` 产物升级到 `2026111701`，upgrade-previous 六项通过；upgrade-legacy 与 upgrade-protection 继续通过。
 - AC8：`renameCancellationAndKeyboardFocus`、`a11y.fileOperations.*` 全绿，新增对话框 axe 无违规。自动化不能替代物理设备与读屏人工证据。
 
-2026-11-20 的拖放回归覆盖 AC3 和 AC9。`file-management` 检查组验证 `dropsOnDesktop`、`dropsOnDesktopFolder`、`dropsOnFolder`、`dropsOnSidebar`、`dropsOnVisibleColumn`、`rejectsReadOnlyDrops` 及批量导入的数据完整性。`a11y.fileOperations.keyboardImport` 验证通过键盘打开「更多」菜单并选取本机文件。
+`2026-11-20` 的拖放回归覆盖 AC3 和 AC9。`file-management` 检查组验证 `dropsOnDesktop`、`dropsOnDesktopFolder`、`dropsOnFolder`、`dropsOnSidebar`、`dropsOnVisibleColumn`、`rejectsReadOnlyDrops` 及批量导入的数据完整性。`a11y.fileOperations.keyboardImport` 验证通过键盘打开「更多」菜单并选取本机文件。
 
 侧栏调整由 `finderSidebarResize.dragAndNavigation` 验收，覆盖从工具栏拖动、分隔线颜色、侧栏顶部对齐、固定窗口按钮，以及收起后导航与恢复宽度。`a11y.finder.sidebarSplitter` 和 `a11y.finder.sidebarKeyboard` 验证分隔线的无障碍角色、键盘调宽与收起后的焦点。
 

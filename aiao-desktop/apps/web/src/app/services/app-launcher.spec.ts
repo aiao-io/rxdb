@@ -21,7 +21,12 @@ function setup() {
   return { launcher: TestBed.inject(AppLauncher), wm, dock, overlays };
 }
 
-const windowOf = (id: string, minimized = false) => ({ id, minimized: () => minimized });
+const windowOf = (id: string, minimized = false, path?: readonly string[]) => ({
+  id,
+  minimized: () => minimized,
+  options: { path },
+  restoreOptions: vi.fn(() => (path ? { path } : null))
+});
 
 describe('AppLauncher', () => {
   it('启动台是系统入口：切换启动台，不开窗口', () => {
@@ -35,6 +40,26 @@ describe('AppLauncher', () => {
     const { launcher, wm } = setup();
     launcher.activate('trash');
     expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder', { path: ['Trash'] });
+  });
+
+  it('废纸篓已有窗口时重复点击只复用同一个窗口', () => {
+    const { launcher, wm } = setup();
+    wm.byApp.mockReturnValue([windowOf('w1', false, ['Trash'])]);
+    launcher.activate('trash');
+    launcher.activate('trash');
+    expect(wm.open).not.toHaveBeenCalled();
+    expect(wm.focus).toHaveBeenCalledTimes(2);
+    expect(wm.focus).toHaveBeenLastCalledWith('w1');
+    expect(wm.activate).toHaveBeenCalledTimes(2);
+    expect(wm.activate).toHaveBeenLastCalledWith('w1');
+  });
+
+  it('废纸篓窗口进入子目录后重复点击仍复用它', () => {
+    const { launcher, wm } = setup();
+    wm.byApp.mockReturnValue([windowOf('w1', false, ['Trash', 'Projects'])]);
+    launcher.activate('trash');
+    expect(wm.open).not.toHaveBeenCalled();
+    expect(wm.focus).toHaveBeenCalledExactlyOnceWith('w1');
   });
 
   it('应用还没打开：Dock 弹跳并打开窗口', () => {

@@ -159,7 +159,7 @@ export class DesktopMenus {
       trashSelected: none,
       copySelected: none,
       cutSelected: none,
-      paste: none,
+      paste: () => this.desktopItems.paste(),
       selectAll: none,
       setView: none,
       sidebarVisible: () => true,

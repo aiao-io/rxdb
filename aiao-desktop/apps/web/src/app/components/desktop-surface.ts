@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { DESKTOP } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
 import { MenuEntry } from '../services/menu';
@@ -41,9 +42,12 @@ export class DesktopSurface {
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly clipboard = inject(FinderClipboard);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly root = inject(DOCUMENT).documentElement;
   private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
+  private folderHoverTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly desktop = inject(DesktopItems);
   protected readonly desktopPath = DESKTOP;
@@ -52,8 +56,10 @@ export class DesktopSurface {
   protected readonly dragging = signal<{ readonly id: string; readonly at: Point } | null>(null);
   protected readonly settling = signal<string | null>(null);
   protected readonly trashing = signal<ReadonlySet<string>>(new Set());
+  protected readonly folderHover = signal<string | null>(null);
 
   constructor() {
+    this.destroyRef.onDestroy(() => this.clearFolderHover());
     effect(() => {
       const created = this.desktop.created();
       if (created) this.selected.set(new Set([created]));
@@ -76,7 +82,7 @@ export class DesktopSurface {
 
   protected grab(event: PointerEvent, item: DesktopItem): void {
     if (event.button !== 0) return;
-    this.select(item.id);
+    const selected = this.selectForDrag(event, item);
     const node = event.currentTarget as HTMLElement;
     const origin = this.position(item);
     const sx = event.clientX;
@@ -89,6 +95,7 @@ export class DesktopSurface {
       if (!moved && Math.hypot(dx, dy) < 3) return;
       if (!moved) this.settling.set(null);
       moved = true;
+      this.updateFolderHover(ev.clientX, ev.clientY, item.id);
       this.dragging.set({
         id: item.id,
         at: { left: origin.left + dx, top: clamp(origin.top + dy, 22, innerHeight - 120) }
@@ -97,14 +104,36 @@ export class DesktopSurface {
     const up = (): void => {
       node.removeEventListener('pointermove', move);
       node.removeEventListener('pointerup', up);
+      node.removeEventListener('pointercancel', cancel);
       const drop = this.dragging();
+      const folderId = this.folderHover();
+      this.clearFolderHover();
       if (!moved || !drop) return;
       this.dragging.set(null);
+      const folder = this.desktop.items().find(other => other.id === folderId);
+      if (folder?.node?.kind === 'folder' && folder.node.path) {
+        const copy = event.altKey || event.metaKey;
+        void this.desktop.transferToDirectory(selected, folder.node.path, copy).then(
+          () => {
+            if (!copy) this.select(null);
+          },
+          (error: unknown) => this.toast.show(error instanceof Error ? error.message : String(error))
+        );
+        return;
+      }
       this.desktop.move(item.id, this.freeCell(item, this.cellAt(drop.at)));
       this.settle(item.id);
     };
+    const cancel = (): void => {
+      node.removeEventListener('pointermove', move);
+      node.removeEventListener('pointerup', up);
+      node.removeEventListener('pointercancel', cancel);
+      this.dragging.set(null);
+      this.clearFolderHover();
+    };
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', up);
+    node.addEventListener('pointercancel', cancel);
   }
 
   protected iconMenu(event: MouseEvent, item: DesktopItem): void {
@@ -143,6 +172,10 @@ export class DesktopSurface {
     this.selected.set(new Set(id ? [id] : []));
   }
 
+  protected focusItem(id: string): void {
+    if (this.selected().size === 0) this.select(id);
+  }
+
   /** 空白处按下：取消选择并开始框选。 */
   protected pressSurface(event: PointerEvent): void {
     if ((event.target as Element).closest('.dicon, .wgt') || event.button !== 0) return;
@@ -154,6 +187,7 @@ export class DesktopSurface {
     if ((event.target as Element).closest('.dicon, .wgt')) return;
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
+      { id: 'ps', label: 'Paste Item', key: '⌘V', disabled: !this.clipboard.snapshot(), run: () => this.desktop.paste() },
       { id: 'gi', label: 'Get Info', run: () => this.wm.open('about') },
       '-',
       { id: 'cw', label: 'Change Wallpaper…', run: () => this.wm.open('settings', { section: 'wallpaper' }) },
@@ -239,6 +273,41 @@ export class DesktopSurface {
     setTimeout(() => {
       if (this.settling() === id) this.settling.set(null);
     }, 300);
+  }
+
+  private selectForDrag(event: PointerEvent, item: DesktopItem): readonly string[] {
+    const current = this.selected();
+    if (event.metaKey || event.ctrlKey) {
+      const next = new Set(current);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.add(item.id);
+      this.selected.set(next);
+    } else if (!current.has(item.id)) this.select(item.id);
+    return [...this.selected()];
+  }
+
+  private updateFolderHover(x: number, y: number, sourceId: string): void {
+    const target = document.elementFromPoint(x, y)?.closest<HTMLElement>('.dicon[data-id]');
+    const id = target?.dataset['id'] ?? null;
+    const folder = id ? this.desktop.items().find(item => item.id === id) : null;
+    const next = folder?.node?.kind === 'folder' && folder.id !== sourceId ? folder.id : null;
+    if (next === this.folderHover()) return;
+    this.clearFolderHover();
+    if (!next) return;
+    this.folderHover.set(next);
+    this.folderHoverTimer = setTimeout(() => {
+      this.folderHoverTimer = null;
+      if (this.folderHover() !== next) return;
+      this.desktop.items().find(item => item.id === next)?.open();
+    }, 700);
+  }
+
+  private clearFolderHover(): void {
+    if (this.folderHoverTimer !== null) {
+      clearTimeout(this.folderHoverTimer);
+      this.folderHoverTimer = null;
+    }
+    this.folderHover.set(null);
   }
 
   private cellAt(point: Point): [number, number] {
