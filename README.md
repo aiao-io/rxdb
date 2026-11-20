@@ -158,6 +158,7 @@ aiao/
 | 能力                       | 包族 / 目录                                                                                                |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | BOM 领域模型与工作台       | `rxdb-plugin-bom`、`rxdb-plugin-bom-{angular,react,vue}`；应用入口见 [BOM 工作台](apps/aiao-bom/README.md) |
+| Web 应用隔离运行           | [`@aiao/orbit`](packages/orbit/README.md)，含 Angular、React、Vue 适配                                     |
 | 核心与框架绑定             | `rxdb`、`rxdb-{angular,react,vue}`                                                                         |
 | 存储与加密                 | `rxdb-adapter-*`，选择见[适配器文档](website/docs/adapters/README.md)                                      |
 | 实体 UI 与 Headless        | `rxdb-model`、`rxdb-model-{angular,react,vue}`                                                             |

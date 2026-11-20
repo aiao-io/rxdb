@@ -96,7 +96,11 @@ vi.mock('@visactor/vtable', () => ({
   register: { editor: vi.fn() }
 }));
 let fixture: ComponentFixture<BomGrid>;
-async function mount(count = 12, mode: ViewMode = 'tree', shape: 'balanced' | 'wide' | 'deep' = 'balanced'): Promise<BomIndex> {
+async function mount(
+  count = 12,
+  mode: ViewMode = 'tree',
+  shape: 'balanced' | 'wide' | 'deep' = 'balanced'
+): Promise<BomIndex> {
   const index = new BomIndex(makeStressDataset(count, shape), 'catalog');
   fixture = TestBed.createComponent(BomGrid);
   fixture.componentRef.setInput('result', index.query({ ...DEFAULT_QUERY, mode }));

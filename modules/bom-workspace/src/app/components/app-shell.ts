@@ -47,7 +47,12 @@ interface NavItem {
         <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
       }
       <aside class="sidebar" id="bom-navigation" #navigation aria-label="演示场景导航">
-        <a class="brand" [routerLink]="config.overviewPath" [attr.aria-label]="config.label + ' 首页'" (click)="closeNavigation()">
+        <a
+          class="brand"
+          [attr.aria-label]="config.label + ' 首页'"
+          [routerLink]="config.overviewPath"
+          (click)="closeNavigation()"
+        >
           <span class="brand-mark" aria-hidden="true">
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
@@ -118,33 +123,33 @@ interface NavItem {
               </svg>
             </button>
             <div class="breadcrumb">
-              <a [routerLink]="config.overviewPath">{{ config.label }}</a><span aria-hidden="true">/</span
-              ><strong>{{ activeLabel() }}</strong>
+              <a [routerLink]="config.overviewPath">{{ config.label }}</a
+              ><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
             </div>
           </div>
           @if (!workbenchRoute()) {
             <div class="header-actions">
-            <span
-              class="badge"
-              [class.badge-neutral]="!ready() || resetting()"
-              [class.badge-success]="ready() && !resetting()"
-              data-testid="workspace-data-status"
-              role="status"
-            >
-              {{ statusLabel() }}
-            </span>
-            <button
-              class="btn btn-quiet reset-button"
-              [disabled]="resetting() || serviceResetting() || initializing()"
-              (click)="resetAll()"
-              aria-label="重置演示数据"
-            >
-              <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
-                <path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <span>重置演示</span>
-            </button>
-          </div>
+              <span
+                class="badge"
+                [class.badge-neutral]="!ready() || resetting()"
+                [class.badge-success]="ready() && !resetting()"
+                data-testid="workspace-data-status"
+                role="status"
+              >
+                {{ statusLabel() }}
+              </span>
+              <button
+                class="btn btn-quiet reset-button"
+                [disabled]="resetting() || serviceResetting() || initializing()"
+                (click)="resetAll()"
+                aria-label="重置演示数据"
+              >
+                <svg aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+                  <path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span>重置演示</span>
+              </button>
+            </div>
           }
         </header>
         @if (ready() && !reviewRoute() && !workbenchRoute()) {
@@ -163,7 +168,7 @@ interface NavItem {
             </nav>
           </div>
         }
-        <main class="content" id="main-content" tabindex="-1" [class.workbench-content]="workbenchRoute()">
+        <main class="content" id="main-content" [class.workbench-content]="workbenchRoute()" tabindex="-1">
           @if (!reviewRoute() && !workbenchRoute()) {
             <bom-workflow-journey />
           }
@@ -239,18 +244,18 @@ export class AppShell implements OnInit {
     {
       label: '开始使用',
       items: [
-        ...(this.config.workbenchPath
-          ? [
-              {
-                path: this.config.workbenchPath,
-                label: '结构工作台',
-                description: '结构表、工作草稿与版本快照',
-                icon: 'M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5',
-                exact: true,
-                excludeQuery: true
-              }
-            ]
-          : []),
+        ...(this.config.workbenchPath ?
+          [
+            {
+              path: this.config.workbenchPath,
+              label: '结构工作台',
+              description: '结构表、工作草稿与版本快照',
+              icon: 'M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5',
+              exact: true,
+              excludeQuery: true
+            }
+          ]
+        : []),
         {
           path: this.config.overviewPath,
           label: '概览',

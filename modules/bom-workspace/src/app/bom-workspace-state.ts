@@ -127,11 +127,7 @@ export class BomWorkspaceState {
       const navigation = router.currentNavigation();
       if (!router.navigated || navigation !== null || this.validationError()) return;
       const current = router.parseUrl(router.url).queryParams;
-      if (
-        this.config.workbenchPath !== null &&
-        router.url.split(/[?#]/)[0] === this.config.workbenchPath
-      )
-        return;
+      if (this.config.workbenchPath !== null && router.url.split(/[?#]/)[0] === this.config.workbenchPath) return;
       if (Object.entries(params).every(([key, value]) => current[key] === value)) return;
       void router.navigate([], { queryParams: params, queryParamsHandling: 'merge', replaceUrl: true });
     });
