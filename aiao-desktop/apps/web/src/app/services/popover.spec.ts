@@ -73,6 +73,20 @@ describe('PopoverService', () => {
     expect(popover.entries()).toEqual([]);
   });
 
+  it('打开新的弹出层时移除尚未完成淡出的旧层', () => {
+    const popover = setup();
+    popover.openMenu(items, { x: 0, y: 0 });
+    const first = popover.active();
+    popover.close();
+
+    popover.openComponent(Panel, { x: 1, y: 1 });
+
+    expect(popover.entries()).toHaveLength(1);
+    expect(popover.entries()[0]).not.toBe(first);
+    vi.advanceTimersByTime(110);
+    expect(popover.entries()).toHaveLength(1);
+  });
+
   it('close(true) 立刻移除，不播放淡出', () => {
     const popover = setup();
     popover.openMenu(items, { x: 0, y: 0 });
