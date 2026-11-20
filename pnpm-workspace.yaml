@@ -86,6 +86,7 @@ overrides:
   dev-rxdb-miniprogram>react: ^18.3.1
   dev-rxdb-miniprogram>react-dom: ^18.3.1
   dompurify@3: ^3.4.16
+  effect: 3.22.4
   fast-uri@3: ^3.1.8
   follow-redirects: ^1.16.2
   geojson-flatten>minimist: ^1.2.8
