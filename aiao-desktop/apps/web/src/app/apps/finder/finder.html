@@ -226,14 +226,13 @@
       class="fx-body"
       #body
       [appFileDrop]="importDirectory()"
-      [class.scroll]="view() !== 'column'"
-      [style.overflow]="view() === 'column' ? 'hidden' : ''"
       [cdkDropListData]="importDirectory()"
       [cdkDropListSortingDisabled]="true"
+      [class.scroll]="view() !== 'column'"
+      [style.overflow]="view() === 'column' ? 'hidden' : ''"
       (cdkDropListDropped)="dropFile($event)"
       (contextmenu)="bodyMenu($event)"
       cdkDropList
-      cdkDropListGroup
       data-body
     >
       @if (applicationsNote(); as note) {
@@ -249,14 +248,16 @@
                 [attr.aria-label]="label(item)"
                 [attr.aria-selected]="isSelected(item.name)"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
-                [attr.data-name]="item.name"
                 [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
+                [attr.data-name]="item.name"
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [cdkDragData]="item"
                 [cdkDragDisabled]="!canFileDrag(item)"
                 [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                 [class.sel]="isSelected(item.name)"
                 (cdkDropListDropped)="dropFile($event)"
+                (cdkDropListEntered)="folderDragEntered($event)"
+                (cdkDropListExited)="folderDragExited($event)"
                 (click)="select(item.name, $event)"
                 (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
@@ -295,22 +296,24 @@
               <div class="c3">Size</div>
               <div class="c4">Kind</div>
             </div>
-            <cdk-virtual-scroll-viewport #listViewport class="fv-list-scroll" [itemSize]="24">
+            <cdk-virtual-scroll-viewport class="fv-list-scroll" #listViewport [itemSize]="24">
               <div
-                *cdkVirtualFor="let item of items(); trackBy: trackNode"
                 class="r"
+                *cdkVirtualFor="let item of items(); trackBy: trackNode"
                 [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                 [attr.aria-label]="label(item)"
                 [attr.aria-selected]="isSelected(item.name)"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
-                [attr.data-name]="item.name"
                 [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
+                [attr.data-name]="item.name"
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [cdkDragData]="item"
                 [cdkDragDisabled]="!canFileDrag(item)"
                 [cdkDropListData]="item.kind === 'folder' ? item.path : null"
                 [class.sel]="isSelected(item.name)"
                 (cdkDropListDropped)="dropFile($event)"
+                (cdkDropListEntered)="folderDragEntered($event)"
+                (cdkDropListExited)="folderDragExited($event)"
                 (click)="select(item.name, $event)"
                 (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
@@ -360,29 +363,29 @@
               @if (!column.file && ci >= firstColumn()) {
                 <cdk-virtual-scroll-viewport
                   class="col"
-                  [class.flex-col]="ci === last"
-                  [style.width.px]="ci === last ? null : columnWidth()"
                   [appFileDrop]="ci === 0 ? importDirectory() : column.node.path"
                   [attr.aria-label]="column.node.name"
                   [attr.data-ci]="ci"
                   [cdkDropListData]="ci === 0 ? importDirectory() : column.node.path"
                   [cdkDropListSortingDisabled]="true"
+                  [class.flex-col]="ci === last"
+                  [itemSize]="23"
+                  [style.width.px]="ci === last ? null : columnWidth()"
                   (cdkDropListDropped)="dropFile($event)"
                   cdkDropList
-                  [itemSize]="23"
                   role="listbox"
                 >
                   <div
-                    *cdkVirtualFor="let item of column.items ?? []; trackBy: trackNode"
                     class="ci"
+                    *cdkVirtualFor="let item of column.items ?? []; trackBy: trackNode"
                     [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                     [attr.aria-label]="label(item)"
                     [attr.aria-selected]="item.name === picked[ci]"
                     [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
                     [attr.data-ci]="ci"
+                    [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
                     [attr.data-kind]="item.kind"
                     [attr.data-name]="item.name"
-                    [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
                     [attr.tabindex]="columnStop().ci === ci && columnStop().name === item.name ? 0 : -1"
                     [cdkDragData]="item"
                     [cdkDragDisabled]="!canFileDrag(item)"
@@ -390,6 +393,8 @@
                     [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
                     [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
                     (cdkDropListDropped)="dropFile($event)"
+                    (cdkDropListEntered)="folderDragEntered($event)"
+                    (cdkDropListExited)="folderDragExited($event)"
                     (click)="pickColumn(ci, item.name)"
                     (contextmenu)="itemMenu($event, item)"
                     (dblclick)="openColumnFile(item)"

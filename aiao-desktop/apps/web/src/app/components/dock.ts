@@ -10,8 +10,8 @@ import {
   viewChild,
   viewChildren
 } from '@angular/core';
-import { EmptyTrashDialog } from './empty-trash-dialog';
 import { ApplicationRegistry } from '../services/application-registry';
+import { EmptyTrashDialog } from './empty-trash-dialog';
 
 import { AppLauncher } from '../services/app-launcher';
 import { Clock } from '../services/clock';

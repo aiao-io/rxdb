@@ -20,15 +20,15 @@
 
 ## 数据模型与边界
 
-| 层 | 方案 |
-| --- | --- |
-| 磁盘位置 | `TRASH` 映射到用户主目录下的 `.Trash` |
-| 移入 | `FileSystem.moveToTrash` 在独占磁盘锁内选择唯一名称后移动，底层保留 `movedOrigin` |
-| 恢复 | `FileSystem.restore` 只允许处理 Trash 顶层条目，自动恢复原目录或接受明确目录 |
-| 清倒 | `FileSystem.emptyTrash` 在独占磁盘锁内逐项永久删除，并通过 `changes` 通知同步层 |
-| 状态 | `FileSystem.trashFull` 由实时目录树计算，Dock 与 Finder 共用 |
-| 受保护内容 | 系统路径和预装应用由同一保护策略拒绝移入和永久删除 |
-| 同步 | Finder、桌面、Dock、多标签页和终端使用同一活查询及路径变更通知 |
+| 层         | 方案                                                                              |
+| ---------- | --------------------------------------------------------------------------------- |
+| 磁盘位置   | `TRASH` 映射到用户主目录下的 `.Trash`                                             |
+| 移入       | `FileSystem.moveToTrash` 在独占磁盘锁内选择唯一名称后移动，底层保留 `movedOrigin` |
+| 恢复       | `FileSystem.restore` 只允许处理 Trash 顶层条目，自动恢复原目录或接受明确目录      |
+| 清倒       | `FileSystem.emptyTrash` 在独占磁盘锁内逐项永久删除，并通过 `changes` 通知同步层   |
+| 状态       | `FileSystem.trashFull` 由实时目录树计算，Dock 与 Finder 共用                      |
+| 受保护内容 | 系统路径和预装应用由同一保护策略拒绝移入和永久删除                                |
+| 同步       | Finder、桌面、Dock、多标签页和终端使用同一活查询及路径变更通知                    |
 
 ## 代码切片
 
@@ -43,15 +43,15 @@
 
 ## 验收切片
 
-| 切片 | 验收结果 |
-| --- | --- |
-| 普通文件通过菜单和快捷键进入 Trash | 已通过 `fileManagement.trashShortcutMovesItem` 和文件管理既有移动用例 |
-| Finder 显示 Empty Trash 和数量 | 已通过 `fileManagement.emptyTrashRequiresConfirmation` |
-| Cancel 不删除，确认后永久删除 | 已通过 `fileManagement.emptyTrashRequiresConfirmation` |
-| Dock 空满图标反映真实内容 | 已通过文件管理组和 `applicationsProtection.trashArtworkReflectsContents` |
-| Put Back 与 Restore to Folder | 已通过既有恢复用例 |
-| 受保护应用不能被删除 | 已通过 `applicationsProtection.finderRefusesMoveToTrash`、`emptyTrashCannotRemovePackage` |
-| 单测与构建门禁 | 95 条定向单测、lint、typecheck、正式构建通过 |
+| 切片                               | 验收结果                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| 普通文件通过菜单和快捷键进入 Trash | 已通过 `fileManagement.trashShortcutMovesItem` 和文件管理既有移动用例                     |
+| Finder 显示 Empty Trash 和数量     | 已通过 `fileManagement.emptyTrashRequiresConfirmation`                                    |
+| Cancel 不删除，确认后永久删除      | 已通过 `fileManagement.emptyTrashRequiresConfirmation`                                    |
+| Dock 空满图标反映真实内容          | 已通过文件管理组和 `applicationsProtection.trashArtworkReflectsContents`                  |
+| Put Back 与 Restore to Folder      | 已通过既有恢复用例                                                                        |
+| 受保护应用不能被删除               | 已通过 `applicationsProtection.finderRefusesMoveToTrash`、`emptyTrashCannotRemovePackage` |
+| 单测与构建门禁                     | 95 条定向单测、lint、typecheck、正式构建通过                                              |
 
 ## 后续边界
 

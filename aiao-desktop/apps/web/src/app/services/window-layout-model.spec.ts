@@ -15,8 +15,8 @@ import {
   activeTabKey,
   buildWindows,
   describeSkipped,
-  parseActiveTabLease,
   fitBox,
+  parseActiveTabLease,
   parseLayout,
   parseResumeLayout,
   resolveOpenOptions,
@@ -156,7 +156,12 @@ describe('浏览器会话快照与标签页租约', () => {
 
   it('活动标签页租约只接受当前版本和合法时间戳', () => {
     expect(
-      parseActiveTabLease({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1_700_000_000_000, lastActiveAt: 1_700_000_000_001 })
+      parseActiveTabLease({
+        version: 1,
+        tabId: 'tab-aaaa-0001',
+        updatedAt: 1_700_000_000_000,
+        lastActiveAt: 1_700_000_000_001
+      })
     ).toEqual({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1_700_000_000_000, lastActiveAt: 1_700_000_000_001 });
     expect(parseActiveTabLease({ version: 2, tabId: 'tab-aaaa-0001', updatedAt: 1, lastActiveAt: 1 })).toBeNull();
     expect(parseActiveTabLease({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1, lastActiveAt: 'now' })).toBeNull();

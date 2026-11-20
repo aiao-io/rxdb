@@ -69,7 +69,8 @@ export interface LifecycleSource {
 /** 浏览器里的生命周期来源：`visibilitychange` 与 `resume` 在 `document` 上，`pageshow` 在 `window` 上。 */
 export function browserLifecycle(): LifecycleSource | undefined {
   if (typeof document === 'undefined') return undefined;
-  const target = (type: string): EventTarget => (type === 'pageshow' || type === 'pagehide' || type === 'focus' ? window : document);
+  const target = (type: string): EventTarget =>
+    type === 'pageshow' || type === 'pagehide' || type === 'focus' ? window : document;
   return {
     get visibilityState() {
       return document.visibilityState;

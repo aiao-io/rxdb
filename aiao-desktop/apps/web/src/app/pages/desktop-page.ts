@@ -17,12 +17,13 @@ import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRegistry } from '../services/application-registry';
 import { ApplicationRuntime } from '../services/application-runtime';
 import { ApplicationTransitions } from '../services/application-transitions';
+import { ariaShortcut } from '../services/aria';
+import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { DesktopBackup } from '../services/desktop-backup';
 import { DesktopItems } from '../services/desktop-items';
-import { ariaShortcut } from '../services/aria';
 import { DesktopMenus } from '../services/desktop-menus';
 import { DockDragController } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
@@ -31,9 +32,9 @@ import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
-import { isMenuCommand } from '../services/menu';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
+import { isMenuCommand } from '../services/menu';
 import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
@@ -44,7 +45,6 @@ import { SystemState } from '../services/system-state';
 import { ThemeService } from '../services/theme';
 import { Toast } from '../services/toast';
 import { WallpaperService } from '../services/wallpaper';
-import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { WeatherStore } from '../services/weather-store';
 import { WindowLayoutStore } from '../services/window-layout';
 import { WindowManager } from '../services/window-manager';
@@ -222,7 +222,10 @@ export class DesktopPage {
 
   private runMenuShortcut(event: KeyboardEvent, front: ReturnType<WindowManager['front']>): boolean {
     if (!front) return false;
-    const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
+    const key =
+      event.key === ' ' ? 'Space'
+      : event.key.length === 1 ? event.key.toUpperCase()
+      : event.key;
     const shortcut = [
       event.ctrlKey ? 'Control' : null,
       event.altKey ? 'Alt' : null,
@@ -233,8 +236,7 @@ export class DesktopPage {
       .filter((part): part is string => part !== null)
       .join('+');
     const command = front
-      .menus()
-      ?.()
+      .menus()?.()
       .flatMap(section => section.items)
       .find(item => isMenuCommand(item) && !item.disabled && item.run && ariaShortcut(item.key ?? '') === shortcut);
     if (!command || !isMenuCommand(command) || !command.run) return false;

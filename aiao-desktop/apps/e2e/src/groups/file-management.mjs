@@ -82,7 +82,10 @@ export const fileManagement = {
     };
     const edit = async command => {
       await page.getByRole('menubar').getByRole('menuitem', { name: 'Edit', exact: true }).click();
-      await page.getByRole('menu', { name: 'Edit', exact: true }).getByRole('menuitem', { name: command, exact: true }).click();
+      await page
+        .getByRole('menu', { name: 'Edit', exact: true })
+        .getByRole('menuitem', { name: command, exact: true })
+        .click();
     };
     const dialog = () => page.locator('app-file-operation-dialog [role="dialog"]');
     const rename = async (from, to) => {

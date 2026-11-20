@@ -4,11 +4,12 @@ import { ApplicationRegistry } from './application-registry';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
-import { DesktopOpenOptions } from './desktop-apps';
 import { BrowserSessionRestore, TAB_STORAGE } from './browser-session-restore';
+import { DesktopOpenOptions } from './desktop-apps';
 import { FileSystem } from './file-system';
 import { Session } from './session';
 import { Toast } from './toast';
+import type { TabStorage } from './window-layout-model';
 import {
   STALE_LAYOUT_AFTER,
   SkippedWindow,
@@ -28,7 +29,6 @@ import {
   windowLayoutKey
 } from './window-layout-model';
 import { WindowManager } from './window-manager';
-import type { TabStorage } from './window-layout-model';
 
 export { TAB_STORAGE } from './browser-session-restore';
 
@@ -159,10 +159,14 @@ export class WindowLayoutStore {
     const skipped = [...parsed.skipped, ...planned.missing, ...failed];
     const resumeExists = fromResume && sessionPlan.resume !== undefined;
     this.notice.set(
-      parsed.unreadable ? fromResume ? RESUME_UNREADABLE_NOTICE : UNREADABLE_NOTICE : describeSkipped(skipped)
+      parsed.unreadable ?
+        fromResume ? RESUME_UNREADABLE_NOTICE
+        : UNREADABLE_NOTICE
+      : describeSkipped(skipped)
     );
     this.latest =
-      fromResume && (!resumeExists || (planned.windows.length === 0 && !parsed.unreadable && skipped.length === 0)) ? '[]'
+      fromResume && (!resumeExists || (planned.windows.length === 0 && !parsed.unreadable && skipped.length === 0)) ?
+        '[]'
       : fromResume ? null
       : parsed.unreadable || skipped.length > 0 ? null
       : JSON.stringify(parsed.windows);

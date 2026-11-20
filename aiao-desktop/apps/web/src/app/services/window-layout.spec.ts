@@ -10,13 +10,13 @@ import { stubLocks, stubViewport } from '../testing/browser';
 import { StubApp, testApps } from '../testing/desktop-apps';
 import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { ApplicationRuntime } from './application-runtime';
+import { BROWSER_SESSION_LIFECYCLE, BrowserSessionRestore } from './browser-session-restore';
 import { AppLoader, DESKTOP_APPS, DesktopAppId, DesktopAppRegistry } from './desktop-apps';
 import { DesktopWindow, WindowBox } from './desktop-window';
 import { DockState } from './dock-state';
 import { FileSystem, FsNode } from './file-system';
 import { BootRun, Session } from './session';
 import { Toast } from './toast';
-import { BROWSER_SESSION_LIFECYCLE, BrowserSessionRestore } from './browser-session-restore';
 import { RESTORE_YIELD, TAB_STORAGE, WindowLayoutStore } from './window-layout';
 import {
   TabStorage,
@@ -822,9 +822,7 @@ describe('WindowLayoutStore 清理遗留的布局行', () => {
       'system:settings': { appearance: 'dark' }
     };
     const ctx = await started({ own: stale(400), others });
-    expect(ctx.userKeys()).toEqual(
-      [OWN, windowLayoutKey('recent-tab-1'), 'dock:layout', 'system:settings'].sort()
-    );
+    expect(ctx.userKeys()).toEqual([OWN, windowLayoutKey('recent-tab-1'), 'dock:layout', 'system:settings'].sort());
   });
 
   it('读不懂的行（更高的版本、损坏的值）不删', async () => {

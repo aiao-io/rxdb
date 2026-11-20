@@ -21,7 +21,9 @@ export class FinderClipboard {
   readonly snapshot = this.state.asReadonly();
 
   set(mode: FinderClipboardMode, entries: readonly FinderClipboardEntry[]): void {
-    this.state.set(entries.length ? { mode, entries: entries.map(entry => ({ ...entry, path: [...entry.path] })) } : null);
+    this.state.set(
+      entries.length ? { mode, entries: entries.map(entry => ({ ...entry, path: [...entry.path] })) } : null
+    );
   }
 
   clear(): void {

@@ -2,10 +2,11 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   CdkDrag,
   CdkDragDrop,
+  CdkDragEnter,
+  CdkDragExit,
   CdkDragPlaceholder,
   CdkDragPreview,
-  CdkDropList,
-  CdkDropListGroup
+  CdkDropList
 } from '@angular/cdk/drag-drop';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { NgTemplateOutlet } from '@angular/common';
@@ -23,6 +24,7 @@ import {
   viewChild
 } from '@angular/core';
 
+import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
 import { isPackageName } from '../../disk/disk-kinds';
 import {
   DiskPath,
@@ -46,7 +48,6 @@ import { isKeyboardClick } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
-import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
 import { FileDrop } from '../../shared/file-drop';
 import { FileThumbnail } from '../../shared/file-thumbnail';
 import { clamp, finderDate } from '../../shared/format';
@@ -54,6 +55,7 @@ import { Icon } from '../../shared/icon';
 import { isMenuKey } from '../../shared/menu-list';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { USER_PROFILE } from '../../shared/user-profile';
+import { MailComposer } from '../mail/mail-composer';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
 import { FinderClipboard } from './finder-clipboard';
 import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
@@ -67,7 +69,6 @@ import {
   folderContents
 } from './finder-model';
 import { FinderSidebarOrder } from './finder-sidebar-order';
-import { MailComposer } from '../mail/mail-composer';
 
 /** 每一栏 206.5px；末端是文件时右侧再留 250px 预览。 */
 const COLUMN_WIDTH = 206.5;
@@ -99,7 +100,6 @@ const MIN_CONTENT_WIDTH = 400;
     EmptyTrashDialog,
     FileDrop,
     CdkDropList,
-    CdkDropListGroup,
     CdkDrag,
     CdkDragPlaceholder,
     CdkDragPreview,
@@ -139,6 +139,7 @@ export class FinderApp implements FinderCommands {
   private sidebarRestoreWidth = SIDEBAR_INITIAL_WIDTH;
   private sidebarDrag: { pointerId: number; x: number; width: number } | null = null;
   private columnDrag: { pointerId: number; x: number; width: number } | null = null;
+  private springFolderTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -163,6 +164,7 @@ export class FinderApp implements FinderCommands {
   );
   protected readonly pathbar = signal(true);
   protected readonly columnSize = signal(COLUMN_WIDTH);
+  protected readonly springFolder = signal<DiskPath | null>(null);
   protected readonly selected = signal<string | null>(null);
   protected readonly selectedNames = signal<readonly string[]>([]);
   protected readonly query = signal('');
@@ -178,7 +180,9 @@ export class FinderApp implements FinderCommands {
   });
   protected readonly isTrash = computed(() => this.path().length === 1 && this.path()[0] === 'Trash');
   protected readonly trashFull = this.fs.trashFull;
-  protected readonly trashCount = computed(() => (this.isTrash() ? (this.fs.get(this.path())?.children ?? []).length : 0));
+  protected readonly trashCount = computed(() =>
+    this.isTrash() ? (this.fs.get(this.path())?.children ?? []).length : 0
+  );
   protected readonly emptyTrashPrompt = signal(false);
   /** 在 Applications 里：同名的非包条目占着位置，让某些预装应用没有包时，说清楚它们仍可从别处打开（D-17）。 */
   protected readonly applicationsNote = computed(() => {
@@ -278,6 +282,7 @@ export class FinderApp implements FinderCommands {
     });
 
     const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => this.clearSpringFolder());
     afterNextRender(() => {
       const layout = this.layout().nativeElement;
       const body = this.body().nativeElement;
@@ -337,10 +342,12 @@ export class FinderApp implements FinderCommands {
     const nodes = this.selectedNodes();
     if (!nodes.length) return;
     this.setSelection([]);
-    void nodes.reduce(
-      (task, node) => task.then(() => node.path ? this.fs.moveToTrash(node.path) : undefined),
-      Promise.resolve()
-    ).catch((error: unknown) => this.toast.show(describeDiskError(error)));
+    void nodes
+      .reduce(
+        (task, node) => task.then(() => (node.path ? this.fs.moveToTrash(node.path) : undefined)),
+        Promise.resolve()
+      )
+      .catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 
   copySelected(): void {
@@ -364,17 +371,21 @@ export class FinderApp implements FinderCommands {
       this.toast.show('Paste is only available in a local folder.');
       return;
     }
-    void snapshot.entries.reduce(
-      (task, entry) =>
-        task.then(() => snapshot.mode === 'copy' ? this.fs.copyTo(entry.path, dir) : this.fs.moveTo(entry.path, dir)),
-      Promise.resolve<DiskPath | undefined>(undefined)
-    ).then(
-      path => {
-        if (snapshot.mode === 'cut') this.clipboard.clear();
-        if (path) this.selectPath(path);
-      },
-      (error: unknown) => this.toast.show(describeDiskError(error))
-    );
+    void snapshot.entries
+      .reduce(
+        (task, entry) =>
+          task.then(() =>
+            snapshot.mode === 'copy' ? this.fs.copyTo(entry.path, dir) : this.fs.moveTo(entry.path, dir)
+          ),
+        Promise.resolve<DiskPath | undefined>(undefined)
+      )
+      .then(
+        path => {
+          if (snapshot.mode === 'cut') this.clipboard.clear();
+          if (path) this.selectPath(path);
+        },
+        (error: unknown) => this.toast.show(describeDiskError(error))
+      );
   }
 
   selectAll(): void {
@@ -514,7 +525,10 @@ export class FinderApp implements FinderCommands {
   protected columnKey(event: KeyboardEvent): void {
     if (this.columnDrag) return;
     const width = this.columnWidth();
-    const next = event.key === 'ArrowLeft' ? width - COLUMN_KEY_STEP : event.key === 'ArrowRight' ? width + COLUMN_KEY_STEP : null;
+    const next =
+      event.key === 'ArrowLeft' ? width - COLUMN_KEY_STEP
+      : event.key === 'ArrowRight' ? width + COLUMN_KEY_STEP
+      : null;
     if (next === null) return;
     event.preventDefault();
     this.columnSize.set(clamp(next, COLUMN_MIN_WIDTH, COLUMN_MAX_WIDTH));
@@ -550,7 +564,10 @@ export class FinderApp implements FinderCommands {
       const end = items.findIndex(item => item.name === name);
       if (start >= 0 && end >= 0) {
         const [from, to] = start < end ? [start, end] : [end, start];
-        this.setSelection(items.slice(from, to + 1).map(item => item.name), name);
+        this.setSelection(
+          items.slice(from, to + 1).map(item => item.name),
+          name
+        );
         return;
       }
     }
@@ -763,7 +780,27 @@ export class FinderApp implements FinderCommands {
   }
 
   protected displayIcon(item: FsNode): string {
+    if (item.kind === 'folder' && this.isSpringFolder(item.path)) return 'g-folder-open';
     return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
+  }
+
+  protected folderDragEntered(event: CdkDragEnter<DiskPath | null, FsNode>): void {
+    const target = event.container.data;
+    const source = event.item.data;
+    if (!target || !source?.path || isWithin(target, source.path)) return;
+    this.clearSpringFolder();
+    this.springFolder.set(target);
+    this.springFolderTimer = setTimeout(() => {
+      this.springFolderTimer = null;
+      if (!this.isSpringFolder(target)) return;
+      const node = this.fs.nodeAt(target);
+      if (node?.kind === 'folder') this.openNode(node);
+    }, 700);
+  }
+
+  protected folderDragExited(event: CdkDragExit<DiskPath | null, FsNode>): void {
+    const target = event.container.data;
+    if (target && this.isSpringFolder(target)) this.clearSpringFolder();
   }
 
   protected canFileDrag(node: FsNode): boolean {
@@ -771,10 +808,13 @@ export class FinderApp implements FinderCommands {
   }
 
   protected dropFile(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): void {
+    this.clearSpringFolder();
     const source = event.item.data;
     const dir = this.dropDirectory(event) ?? event.container.data;
     if (!source?.path || !dir) return;
-    const copy = Boolean(('altKey' in event.event && event.event.altKey) || ('metaKey' in event.event && event.event.metaKey));
+    const copy = Boolean(
+      ('altKey' in event.event && event.event.altKey) || ('metaKey' in event.event && event.event.metaKey)
+    );
     const task = copy ? this.fs.copyTo(source.path, dir) : this.fs.moveTo(source.path, dir);
     void task.then(
       path => {
@@ -782,6 +822,19 @@ export class FinderApp implements FinderCommands {
       },
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
+  }
+
+  private isSpringFolder(path: DiskPath | null | undefined): boolean {
+    const target = this.springFolder();
+    return Boolean(target && path && samePath(target, path));
+  }
+
+  private clearSpringFolder(): void {
+    if (this.springFolderTimer !== null) {
+      clearTimeout(this.springFolderTimer);
+      this.springFolderTimer = null;
+    }
+    this.springFolder.set(null);
   }
 
   private dropDirectory(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): DiskPath | null {
@@ -800,7 +853,7 @@ export class FinderApp implements FinderCommands {
 
   private selectedEntries(): { readonly path: DiskPath; readonly name: string }[] {
     const current = this.selectedItems();
-    if (current.length) return current.flatMap(item => item.path ? [{ path: item.path, name: item.name }] : []);
+    if (current.length) return current.flatMap(item => (item.path ? [{ path: item.path, name: item.name }] : []));
     const node = this.selectedNode();
     return node?.path ? [{ path: node.path, name: node.name }] : [];
   }
@@ -812,7 +865,7 @@ export class FinderApp implements FinderCommands {
     if (current) return current;
     const { chain, selection } = this.columns();
     const index = selection.length - 1;
-    return index >= 0 ? chain[index]?.items?.find(item => item.name === selected) ?? null : null;
+    return index >= 0 ? (chain[index]?.items?.find(item => item.name === selected) ?? null) : null;
   }
 
   private setSelection(names: readonly string[], primary = names.at(-1) ?? null): void {
@@ -1036,6 +1089,7 @@ export class FinderApp implements FinderCommands {
   }
 
   private nav(path: readonly string[]): void {
+    this.clearSpringFolder();
     this.keepFocus();
     this.query.set('');
     this.path.set(path);

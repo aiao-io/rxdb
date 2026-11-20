@@ -5,6 +5,7 @@ import { DesktopData, keyIs } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
 import { LifecycleSource, browserLifecycle } from '../data/tab-sync';
+import type { ActiveTabLease, TabStorage, WindowRecord } from './window-layout-model';
 import {
   ACTIVE_TAB_LEASE_VERSION,
   ResumeLayout,
@@ -15,7 +16,6 @@ import {
   parseActiveTabLease,
   tabSessionId
 } from './window-layout-model';
-import type { ActiveTabLease, TabStorage, WindowRecord } from './window-layout-model';
 
 /** 浏览器会话恢复使用的会话存储；取不到时不使用共享的标签页标识。 */
 export const TAB_STORAGE = new InjectionToken<TabStorage | null>('TAB_STORAGE', {
@@ -30,13 +30,10 @@ export const TAB_STORAGE = new InjectionToken<TabStorage | null>('TAB_STORAGE', 
 });
 
 /** 浏览器页面生命周期，单测用替身注入。 */
-export const BROWSER_SESSION_LIFECYCLE = new InjectionToken<LifecycleSource | undefined>(
-  'BROWSER_SESSION_LIFECYCLE',
-  {
-    providedIn: 'root',
-    factory: browserLifecycle
-  }
-);
+export const BROWSER_SESSION_LIFECYCLE = new InjectionToken<LifecycleSource | undefined>('BROWSER_SESSION_LIFECYCLE', {
+  providedIn: 'root',
+  factory: browserLifecycle
+});
 
 /** 活跃标签页超过这个时间没有心跳，就不再阻挡新的桌面标签页领取恢复权。 */
 export const ACTIVE_TAB_LEASE_TTL = 30_000;
@@ -147,7 +144,8 @@ export class BrowserSessionRestore {
         });
         this.publishAllowed = hasOwnLayout || !otherActive;
         this.startHeartbeat();
-        const resume = !hasOwnLayout && !otherActive ? rows.find(row => row.key === WINDOW_RESUME_KEY)?.value : undefined;
+        const resume =
+          !hasOwnLayout && !otherActive ? rows.find(row => row.key === WINDOW_RESUME_KEY)?.value : undefined;
         return { resume, canPublish: this.publishAllowed };
       });
       return { available: true, tabId, resume: result.resume, canPublish: result.canPublish };
@@ -196,7 +194,7 @@ export class BrowserSessionRestore {
         version: ACTIVE_TAB_LEASE_VERSION,
         tabId,
         updatedAt: now,
-        lastActiveAt: active ? now : current?.lastActiveAt ?? this.activeAt
+        lastActiveAt: active ? now : (current?.lastActiveAt ?? this.activeAt)
       };
       await this.writeLease(repository, lease);
       if (active) this.activeAt = lease.lastActiveAt;

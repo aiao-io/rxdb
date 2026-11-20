@@ -62,7 +62,13 @@ afterEach(() => {
 
 describe('BrowserSessionRestore', () => {
   it('没有其他活跃标签页时领取最近工作区快照', async () => {
-    const resume = { version: 1, updatedAt: NOW - 100, activeAt: NOW - 100, sourceTabId: OTHER_TAB, windows: [record()] };
+    const resume = {
+      version: 1,
+      updatedAt: NOW - 100,
+      activeAt: NOW - 100,
+      sourceTabId: OTHER_TAB,
+      windows: [record()]
+    };
     const ctx = setup([{ key: 'windows:resume', value: resume }]);
 
     await expect(ctx.restore.prepare(false)).resolves.toMatchObject({
@@ -114,7 +120,13 @@ describe('BrowserSessionRestore', () => {
     const ctx = setup([
       {
         key: 'windows:resume',
-        value: { version: 1, updatedAt: NOW, activeAt: NOW + 100, sourceTabId: OTHER_TAB, windows: [record('calculator')] }
+        value: {
+          version: 1,
+          updatedAt: NOW,
+          activeAt: NOW + 100,
+          sourceTabId: OTHER_TAB,
+          windows: [record('calculator')]
+        }
       }
     ]);
     await ctx.restore.prepare(false);

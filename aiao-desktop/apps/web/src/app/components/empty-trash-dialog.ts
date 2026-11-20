@@ -8,12 +8,12 @@ import { FocusTrap } from '../shared/focus-trap';
   imports: [FocusTrap],
   template: `
     <div
+      class="empty-trash-dialog"
+      (keydown.escape)="finish(false, $event)"
       appFocusTrap
       aria-labelledby="empty-trash-title"
       aria-modal="true"
-      class="empty-trash-dialog"
       role="alertdialog"
-      (keydown.escape)="finish(false, $event)"
     >
       <div class="empty-trash-card">
         <h2 id="empty-trash-title">Empty Trash?</h2>

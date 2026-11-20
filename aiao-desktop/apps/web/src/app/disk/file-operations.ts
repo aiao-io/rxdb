@@ -52,7 +52,13 @@ export async function renameEntry(store: DiskStore, from: DiskPath, name: string
 
 async function unusedPath(store: DiskStore, dir: DiskPath, name: string): Promise<DiskPath> {
   await requireDirectory(store, dir);
-  return [...dir, uniqueName((await store.list(dir)).map(item => item.name), name)];
+  return [
+    ...dir,
+    uniqueName(
+      (await store.list(dir)).map(item => item.name),
+      name
+    )
+  ];
 }
 
 async function targetPath(store: DiskStore, from: DiskPath, dir: DiskPath): Promise<DiskPath> {
