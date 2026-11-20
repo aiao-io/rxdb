@@ -53,7 +53,7 @@ export const shell = {
       (await calendar.locator('.calendar-date').evaluate(node => {
         const today = new Date();
         const weekday = today.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-        return node.textContent.trim() === `${weekday} ${today.getDate()}`;
+        return node.getAttribute('data-date') === `${weekday} ${today.getDate()}`;
       }));
 
     /* Finder：双击文件夹进入，标题与路径栏跟着变。 */

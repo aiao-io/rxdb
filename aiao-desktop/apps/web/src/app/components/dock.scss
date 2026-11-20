@@ -10,6 +10,9 @@
   line-height: 1;
   text-align: center;
 }
+#dock .calendar-date::after {
+  content: attr(data-date);
+}
 
 /* Tab 聚焦图标：焦点环只在键盘操作时出现（:focus-visible），鼠标点击不留环。 */
 #dock .di:focus-visible {

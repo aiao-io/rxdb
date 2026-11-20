@@ -37,7 +37,7 @@
           <div class="art">
             <svg [appIcon]="app.id === 'trash' && fs.trashFull() ? 'app-trash-full' : app.icon"></svg>
             @if (app.id === 'calendar') {
-              <span class="calendar-date" aria-hidden="true">{{ calendarDate() }}</span>
+              <span class="calendar-date" [attr.data-date]="calendarDate()" aria-hidden="true"></span>
             }
           </div>
           <span class="dot" aria-hidden="true"></span>
