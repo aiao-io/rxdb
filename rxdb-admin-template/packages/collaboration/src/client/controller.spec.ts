@@ -1665,6 +1665,26 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
     await vi.waitFor(() => expect(controller.snapshot!.revision).toBe(revision + 1));
     expect(team).toHaveBeenCalledTimes(1);
   });
+  it('命令刷新不复用命令发出前已经在途的团队页读取', async () => {
+    const { controller, team, revision } = await joined();
+    let resolveOld!: (value: ReturnType<typeof teamPageOf>) => void;
+    let resolveFresh!: (value: ReturnType<typeof teamPageOf>) => void;
+    const oldRequest = new Promise<ReturnType<typeof teamPageOf>>(resolve => {
+      resolveOld = resolve;
+    });
+    const freshRequest = new Promise<ReturnType<typeof teamPageOf>>(resolve => {
+      resolveFresh = resolve;
+    });
+    team.mockReturnValueOnce(oldRequest).mockReturnValueOnce(freshRequest);
+    const oldRefresh = controller.refresh();
+    await vi.waitFor(() => expect(team).toHaveBeenCalledTimes(1));
+    vi.spyOn(controller.api, 'command').mockResolvedValue({});
+    const command = controller.run({ type: 'task', id: 'created', name: 'Created', expectedHead: root }, 'created-op');
+    await vi.waitFor(() => expect(team).toHaveBeenCalledTimes(2));
+    resolveOld(teamPageOf(controller.snapshot!));
+    resolveFresh(teamPageOf({ ...controller.snapshot!, revision: revision + 1 }));
+    await Promise.all([oldRefresh, command]);
+  });
   it('只有被点名的成员重读通知窗口', async () => {
     const { controller, signal, revision, team } = await joined();
     vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 2, auditCount: 3, head: root });

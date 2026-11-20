@@ -325,7 +325,7 @@ export class CollaborationController extends EventTarget {
    * 整页重读团队页：较旧的结果被丢弃，已加载的 PR 详情标为过期（显示中的那个随即重读）；
    * 已打开任务的编辑权限被撤销时抛出 forbidden。
    */
-  async refresh(): Promise<void> {
+  async refresh(force = false): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
       this.changed();
@@ -334,7 +334,7 @@ export class CollaborationController extends EventTarget {
     if (!this.workspace) return;
     const workspace = this.workspace;
     const epoch = this.generation;
-    const data = await this.current(this.loadTeamRequest(workspace, epoch), epoch);
+    const data = await this.current(this.loadTeamRequest(workspace, epoch, force), epoch);
     if (epoch !== this.generation || workspace !== this.workspace) return;
     if (this.snapshot && data.revision < this.snapshot.revision) return;
     this.details.invalidate();
@@ -776,11 +776,16 @@ export class CollaborationController extends EventTarget {
     if (this.timeline.prepend(cursor, page.events)) this.changed();
   }
   /** 读取团队页：窗口之外还要带上打开着的任务，免得编辑权限校验看不到它。 */
-  private loadTeamRequest(workspace: WorkspaceEntry, epoch = this.generation): Promise<WorkspaceSummary> {
+  private loadTeamRequest(
+    workspace: WorkspaceEntry,
+    epoch = this.generation,
+    force = false
+  ): Promise<WorkspaceSummary> {
     const taskId = this.task?.context.taskId;
     const windows = { ...this.windows };
     const current = this.teamLoad;
     if (
+      !force &&
       current?.epoch === epoch &&
       current.workspace === workspace &&
       current.taskId === taskId &&
@@ -1140,7 +1145,7 @@ export class CollaborationController extends EventTarget {
         acknowledged = true;
       }
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      if (request.type !== 'accept_invite') await this.current(this.refresh(), epoch);
+      if (request.type !== 'accept_invite') await this.current(this.refresh(true), epoch);
       if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
       if (durable) sessionStorage.removeItem(key);
       return result;
