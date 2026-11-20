@@ -104,9 +104,8 @@ async function authDouble(secret: string, accounts: Map<string, Person>) {
   const server = createServer((request, response) => {
     void (async () => {
       const token = request.headers.authorization?.match(/^Bearer (\S+)$/)?.[1] ?? '';
-      const verified =
-        request.url === '/auth/v1/user' ? await identities.verify(token).catch(() => undefined) : undefined;
-      const account = verified ? accounts.get(verified.id) : undefined;
+      const verified = await identities.verify(token).catch(() => undefined);
+      const account = request.url === '/auth/v1/user' && verified ? accounts.get(verified.id) : undefined;
       response.writeHead(account ? 200 : 401, { 'content-type': 'application/json' });
       response.end(
         JSON.stringify(
