@@ -457,10 +457,10 @@ test('平台接单验收不允许用户直连或携带供应商地址', () => {
 
 test('正式验收只向平台任务发送公开模型和单张参数', () => {
   const settings = liveSettings(config);
-  assert.deepEqual(generationDispatch(settings, 'platform', { size: '1536x1024' }, '测试'), {
+  assert.deepEqual(generationDispatch(settings, 'platform', { aspect: 'landscape', label: '3:2', size: '1536x1024' }, '测试'), {
     url: `${settings.origin}/api/relay/tasks/`,
     method: 'PUT',
-    body: { model: 'standard', prompt: '测试', n: 1, size: '1536x1024' }
+    body: { model: 'standard', prompt: '测试', n: 1, size: '1536x1024', aspectRatio: '3:2' }
   });
 });
 

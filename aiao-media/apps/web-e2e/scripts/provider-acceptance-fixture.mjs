@@ -25,6 +25,11 @@ const settings = {
   fixture: true
 };
 const pictures = new Map();
+const aspectRatios = new Map([
+  ['1024x1024', '1:1'],
+  ['1536x1024', '3:2'],
+  ['1024x1536', '2:3']
+]);
 for (const size of ['1024x1024', '1536x1024', '1024x1536']) {
   const [width, height] = size.split('x').map(Number);
   const image = sharp({ create: { width, height, channels: 3, background: '#8a9c62' } });
@@ -124,10 +129,18 @@ async function setupContext(context) {
   await setupPlatform(context, { signedIn, protocol });
   const relay = await taskFixture(context, request => {
     const body = request.postDataJSON();
-    assert.deepEqual(Object.keys(body).sort(), ['model', 'n', 'prompt', 'size']);
+    assert.deepEqual(Object.keys(body).filter(key => key !== 'quality').sort(), [
+      'aspectRatio',
+      'model',
+      'n',
+      'prompt',
+      'size'
+    ]);
     assert.equal(body.model, platformModel.id);
     assert.equal(body.n, 1);
     assert.ok(pictures.has(body.size));
+    assert.equal(body.aspectRatio, aspectRatios.get(body.size));
+    assert.ok(!('quality' in body) || body.quality === 'low');
     if (systemError) return { json: { base_resp: { status_code: 1033, status_msg: 'private fixture error' } } };
     if (incorrectSize) return { json: { data: [{ b64_json: wrongSize.toString('base64') }] } };
     if (protocol === 'minimax')
