@@ -7,6 +7,10 @@
 | 无登录本地工作区       | ✅ 固定本机 UUID、RxDB + wa-sqlite/IndexedDB、OPFS 文件；刷新/离线恢复已验；未登录保留草稿、灵感浏览与本机作品（D-19）                                                                      | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
 | 平台生图服务端入口     | ✅ 同源任务接口、允许列表、超时/流式限制、去重与加密暂存 R2；按请求 Key 的旧代理按 D-19 移除                                                                                                | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
 | 平台积分生图           | ✅ D-19 海外与国内各三画幅真实交付、登录/余额门禁、确认扣费与流水已验；全部 AC 通过，In Review                                                                                              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)      |
+| TTS 文本转语音         | ⬜ 已建立需求，尚未实现；首阶段需完成文本、语言、声音、语速、音频交付与积分结算                                                                                                         | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| ASR 语音转文本         | ⬜ 已建立需求，尚未实现；首阶段需完成受支持音频输入、识别文本、本机保存与失败状态                                                                                                         | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| 音乐生成               | ⬜ 已建立需求，尚未实现；首阶段需完成文本提示词、音频交付、本机保存与积分结算                                                                                                             | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| 视频生成               | ⬜ 已建立需求，尚未实现；首阶段需完成文本提示词、视频交付、实际画幅/时长记录、本机保存与积分结算                                                                                           | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
 | 原图格式               | ✅ PNG/JPEG 按原始字节识别、原样保存与下载；首次写入 JPEG 前将工作区兼容标记升为 2，旧版本拒绝访问                                                                                          | [MEDIA-US-102](stories/generation/MEDIA-US-102-image-generation.md)         |
 | 图片提示词灵感库       | 👀 12 条模板、Tiptap 输入/字段/撤销隔离、资源失败恢复与真实系统中文 IME 已验，待评审/合入；移动验收暂缓                                                                                     | [MEDIA-US-106](stories/generation/MEDIA-US-106-prompt-gallery.md)           |
 | 离线与备份             | ✅ 四路由离线冷启动、无凭据 JSON 备份/隔离恢复；超限、坏摘要/重复 ID 拒绝及中断续导已验                                                                                                     | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
@@ -17,7 +21,7 @@
 | 可选 Supabase 账号会话 | ⚠️ 注册/确认/登录/恢复/退出、工作区绑定与产品 RLS 已通过真实本地验证；正式产物已按 D-16 启用平台账号配置，公众注册邮件未验（见[平台发布记录](plans/platform-supabase-release-20261106.md)） | [MEDIA-US-201](stories/account/MEDIA-US-201-sessions.md)                    |
 | Supabase 跨设备复制    | ⚠️ 草稿与作品元数据的原生双副本、离线/重开、冲突/删除与显式重新扫描已通过真实本地验收，正式云第二设备草稿恢复已验；凭据、原图、句柄与本地文件标识固定排除                                   | [MEDIA-US-302](stories/local-first/MEDIA-US-302-draft-sync.md)              |
 
-当前范围不包含 SSR、旧 Bun API/自建 PostgreSQL 业务栈、音视频和 Electron 桌面；用户自配供应商、浏览器直连与按请求 Key 的代理已按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 移除，其历史验收证据见[正式交付验收](plans/public-delivery-verification.md)与[供应商补验](plans/provider-acceptance-follow-up.md)。平台 Supabase 已按 D-16 正式部署（Web 账号与同步）；两侧生产管理后台已部署，真实登录、积分发放/回收、普通用户/跨站拒绝及临时管理员撤权已验。
+当前范围不包含 SSR、旧 Bun API/自建 PostgreSQL 业务栈和 Electron 桌面；音视频已纳入 MEDIA-US-111，但尚未交付。用户自配供应商、浏览器直连与按请求 Key 的代理已按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 移除，其历史验收证据见[正式交付验收](plans/public-delivery-verification.md)与[供应商补验](plans/provider-acceptance-follow-up.md)。平台 Supabase 已按 D-16 正式部署（Web 账号与同步）；两侧生产管理后台已部署，真实登录、积分发放/回收、普通用户/跨站拒绝及临时管理员撤权已验。
 
 Tauri 与平台同步继续实施；充值计费仍按 D-17 暂缓。Tauri 正式发行与桌面生产服务尚未验收，不计入上表既有已验范围。
 

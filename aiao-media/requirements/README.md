@@ -87,7 +87,7 @@ PR 描述：
 Epic：
 
 - [epic-001 工作区与静态发布](epics/MEDIA-EPIC-001.md)
-- [epic-002 图片生成](epics/MEDIA-EPIC-002.md)
+- [epic-002 媒体生成](epics/MEDIA-EPIC-002.md)
 - [epic-003 账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
 - [epic-004 本地优先与跨设备同步](epics/MEDIA-EPIC-004.md)
 
