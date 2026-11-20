@@ -8,7 +8,6 @@
 
 ```json
 {
-  "revision": 12,
   "capabilities": [
     {
       "providerInstanceId": "00000000-0000-4000-8000-000000000001",
@@ -32,7 +31,8 @@
         "maxDurationMs": 120000
       }
     }
-  ]
+  ],
+  "revision": 12
 }
 ```
 
@@ -40,12 +40,12 @@
 
 ## Supported operations
 
-| `kind` | `operation` | 输入 | 输出 |
-| --- | --- | --- | --- |
-| `audio` | `text-to-speech` | 文本、语言、声音、语速 | 音频二进制 |
+| `kind`  | `operation`      | 输入                             | 输出            |
+| ------- | ---------------- | -------------------------------- | --------------- |
+| `audio` | `text-to-speech` | 文本、语言、声音、语速           | 音频二进制      |
 | `audio` | `speech-to-text` | 短期音频输入引用、语言或自动识别 | Transcript JSON |
-| `audio` | `text-to-music` | 音乐提示词和目录参数 | 音频二进制 |
-| `video` | `text-to-video` | 视频提示词和目录参数 | 视频二进制 |
+| `audio` | `text-to-music`  | 音乐提示词和目录参数             | 音频二进制      |
+| `video` | `text-to-video`  | 视频提示词和目录参数             | 视频二进制      |
 
 图片能力仍通过 `GET /api/models` 暴露，避免改变已有图片消费者的返回结构。
 
