@@ -172,7 +172,7 @@ export const contentActions = {
     await mail.locator('[data-box="Inbox"]').click();
     await expect(mail.locator('[data-mread] h2')).toBeVisible();
     const subject = await mail.locator('[data-mread] h2').innerText();
-    const body = await mail.locator('[data-mread] p').first().innerText();
+    const body = (await mail.locator('[data-mread] p').first().innerText()).trim();
     await choose(mail, '[data-mshare]', 'Copy Message');
     await expect.poll(clipboard).toContain(body);
     const message = await clipboard();
