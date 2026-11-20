@@ -10,7 +10,7 @@
   line-height: 1;
   text-align: center;
 }
-#dock .calendar-date::before {
+#dock .calendar-date::after {
   content: attr(data-date);
 }
 

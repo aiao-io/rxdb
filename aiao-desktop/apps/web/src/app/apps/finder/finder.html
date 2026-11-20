@@ -39,30 +39,32 @@
               tabindex="0"
               type="button"
             >
-              <ng-template #placeLabel>
-                @if (place[1].startsWith('dot#')) {
+              <ng-template #placeLabel let-entry>
+                @if (entry[1].startsWith('dot#')) {
                   <span
                     class="ico"
-                    [style.background]="place[1].slice(3)"
+                    [style.background]="entry[1].slice(3)"
                     aria-hidden="true"
                     style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
                   ></span>
                 } @else {
-                  <svg class="ico" [appIcon]="place[1]"></svg>
+                  <svg class="ico" [appIcon]="entry[1]"></svg>
                 }
-                <span class="nm">{{ place[0] }}</span>
+                <span class="nm">{{ entry[0] }}</span>
               </ng-template>
-              <ng-container [ngTemplateOutlet]="placeLabel" />
-              <span class="si finder-place-placeholder" *cdkDragPlaceholder aria-hidden="true">
-                <ng-container [ngTemplateOutlet]="placeLabel" />
-              </span>
-              <ng-template [matchSize]="true" cdkDragPreview>
+              <ng-container [ngTemplateOutlet]="placeLabel" [ngTemplateOutletContext]="{ $implicit: place }" />
+              <ng-template [data]="{ $implicit: place }" cdkDragPlaceholder let-entry>
+                <span class="si finder-place-placeholder" aria-hidden="true">
+                  <ng-container [ngTemplateOutlet]="placeLabel" [ngTemplateOutletContext]="{ $implicit: entry }" />
+                </span>
+              </ng-template>
+              <ng-template [data]="{ $implicit: place }" [matchSize]="true" cdkDragPreview let-entry>
                 <span
                   class="si finder-place-preview"
                   [class.finder-place-removing]="sidebarPlaceRemoving()"
                   aria-hidden="true"
                 >
-                  <ng-container [ngTemplateOutlet]="placeLabel" />
+                  <ng-container [ngTemplateOutlet]="placeLabel" [ngTemplateOutletContext]="{ $implicit: entry }" />
                   @if (sidebarPlaceRemoving()) {
                     <span class="finder-place-remove">×</span>
                   }

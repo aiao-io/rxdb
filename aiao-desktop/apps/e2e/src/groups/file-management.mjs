@@ -80,9 +80,9 @@ export const fileManagement = {
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toHaveCount(0);
     result.desktopFileDragToTrash = true;
     const desktopFolderIds = async () =>
-      desktop.locator('[data-id^="file:untitled folder"]').evaluateAll(nodes =>
-        nodes.map(node => node.getAttribute('data-id')).filter(Boolean)
-      );
+      desktop
+        .locator('[data-id^="file:untitled folder"]')
+        .evaluateAll(nodes => nodes.map(node => node.getAttribute('data-id')).filter(Boolean));
     const newDesktopFolder = async () => {
       const before = await desktopFolderIds();
       await desktop.click({ button: 'right', position: { x: 420, y: 420 } });
@@ -100,7 +100,9 @@ export const fileManagement = {
     await desktop.locator(`[data-id="file:${targetFolder}"]`).dblclick();
     await expect(page.locator('.win.front[data-app="finder"]:not(.closing) [data-title]')).toHaveText(targetFolder);
     await expect(
-      page.locator(`.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`)
+      page.locator(
+        `.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`
+      )
     ).toBeVisible();
     await page.locator('.win.front[data-app="finder"]:not(.closing) [data-place="Desktop"]').click();
     await dragDesktopIcon(targetFolder, trashDockIcon);

@@ -1279,17 +1279,14 @@ export class FinderApp implements FinderCommands {
     this.focusColumnItem(ci, items[target].name);
   }
 
-  /** 选中并聚焦分栏里的一项；那一栏还没渲染出来（刚选中上一栏的文件夹）就等渲染完再聚焦。 */
+  /** 选中并聚焦分栏里的一项；跨栏时等虚拟列表完成重渲染后再聚焦新节点。 */
   private focusColumnItem(ci: number, name: string): void {
+    const currentColumn = (this.body().nativeElement.ownerDocument.activeElement as HTMLElement | null)?.dataset['ci'];
     this.pickColumn(ci, name);
     const selector = `[data-ci="${ci}"][data-name="${CSS.escape(name)}"]`;
-    const node = this.option(selector);
-    if (node) node.focus();
-    else
-      afterNextRender(
-        () => requestAnimationFrame(() => this.option(selector)?.focus()),
-        { injector: this.injector }
-      );
+    const focus = () => this.option(selector)?.focus();
+    if (currentColumn === String(ci)) focus();
+    else afterNextRender(() => requestAnimationFrame(focus), { injector: this.injector });
   }
 
   private iconRects(): ItemRect[] {

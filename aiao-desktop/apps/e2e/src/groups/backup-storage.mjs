@@ -305,12 +305,14 @@ export const backupStorage = {
       await expect(restoredFinder().locator('[data-title]')).toHaveText('Trash');
       await restoredFinder().locator('[role="option"][data-name="backup-trash.txt"]').click({ button: 'right' });
       await other.page.getByRole('menuitem', { name: 'Put Back', exact: true }).click();
+      await expect(restoredFinder().locator('[role="option"][data-name="backup-trash.txt"]')).toHaveCount(0);
       await restoredFinder().locator('[data-place="Desktop"]').click();
       await expect(restoredFinder().locator('[data-title]')).toHaveText('Desktop');
+      await expect(restoredFinder().locator('[role="option"][data-name="backup-trash.txt"]')).toBeVisible();
+      const restoredTrash = await downloadRestored('backup-trash.txt');
       const binaryMatches = binary.equals(Buffer.from([0, 255, 128, 1, 0, 42]));
       const emptyMatches = empty.length === 0;
-      const trashContent = (await downloadRestored('backup-trash.txt')).toString();
-      const trashMatches = trashContent === 'trash kept';
+      const trashMatches = restoredTrash.toString() === 'trash kept';
       result.binaryEmptyAndTrashRoundTrip = binaryMatches && emptyMatches && trashMatches;
       await expect(restoredFinder().locator('[role="option"][data-name="after-snapshot.txt"]')).toHaveCount(0);
       expect(other.errors).toEqual([]);
