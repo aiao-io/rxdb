@@ -43,16 +43,13 @@ export async function prepareSupabaseSession(): Promise<void> {
 
 export default () => {
   if (rxdb) return rxdb;
-  if (!prepared) {
-    throw new Error(
-      'prepareSupabaseSession() must finish before RxDB is created: the local database is named after the session identity.'
-    );
-  }
-  const { client, identity } = prepared;
-  const dbName = getRxDBIdentityDatabaseName(resolveDatabaseName(import.meta.env.VITE_RXDB_DB_NAME), identity);
+  const dbName =
+    prepared ?
+      getRxDBIdentityDatabaseName(resolveDatabaseName(import.meta.env.VITE_RXDB_DB_NAME), prepared.identity)
+    : resolveDatabaseName(import.meta.env.VITE_RXDB_DB_NAME);
   rxdb = new RxDB({
     dbName,
-    identity,
+    ...(prepared ? { identity: prepared.identity } : {}),
     context: {
       userId: getOrCreateUserId(import.meta.env.VITE_RXDB_USER_ID, localStorage, () => crypto.randomUUID())
     },
@@ -74,10 +71,14 @@ export default () => {
     // 它 `inject: ['plugin:history']`，所以两个都得装。
     .use(rxDBPluginSync)
     .adapter('supabase', async db => {
+      if (!prepared) await prepareSupabaseSession();
+      if (!prepared) throw new Error('Supabase session is required before the remote adapter can connect.');
       const { RxDBAdapterSupabase } = await import('@aiao/rxdb-adapter-supabase');
       // 日志同步只对已登录身份开放（US-225）：会话已经在 prepareSupabaseSession() 里建好，客户端就是那一个。
       // 应用与适配器各自解析到 supabase-js 的 ESM / CJS 两份类型声明，结构相同却被当作无关类型（与 dev-rxdb-p2p 同样处理）
-      return new RxDBAdapterSupabase(db, { client: client as unknown as SupabaseAdapterOptions['client'] });
+      return new RxDBAdapterSupabase(db, {
+        client: prepared.client as unknown as SupabaseAdapterOptions['client']
+      });
     })
     .adapter('wa-sqlite', async db => {
       // P1-1：能力判定与选项构造抽到 wa-sqlite-options.ts，那里能被单测覆盖；
