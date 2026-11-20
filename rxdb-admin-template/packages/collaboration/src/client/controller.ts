@@ -61,6 +61,7 @@ const detailKinds: readonly SignalKind[] = ['members', 'policy', 'schema', 'shar
 /** 只在上下文内生效、不入队列的命令：标记已读与订阅通知。 */
 const lightweight = ['read_notice', 'subscribe'];
 const realtimeUnavailable = '实时连接暂不可用，可刷新团队状态';
+const teamReadRetryPolicy = { attempts: 4, baseDelayMs: 500, maxDelayMs: 10_000 };
 type TeamWindows = { prs: number; tasks: number; notices: number };
 /** 一组在线会话的比较键：与顺序无关，会话、成员或查看位置任一变化都会改变它。 */
 const presenceKey = (sessions: readonly Presence[]) =>
@@ -815,7 +816,23 @@ export class CollaborationController extends EventTarget {
   ): Promise<WorkspaceSummary> {
     demand(this.user, 'locked', '先登录并选择团队');
     const taskIds = taskId ? [taskId] : [];
-    return this.compose(await this.reader.team(workspace, this.user.id, { ...windows, taskIds }));
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return this.compose(await this.reader.team(workspace, this.user.id, { ...windows, taskIds }));
+      } catch (error) {
+        if (
+          !(error instanceof CollaborationError) ||
+          error.code !== 'unavailable' ||
+          attempt >= teamReadRetryPolicy.attempts
+        )
+          throw error;
+        const delay = Math.min(
+          teamReadRetryPolicy.baseDelayMs * 2 ** (attempt - 1),
+          teamReadRetryPolicy.maxDelayMs
+        );
+        await new Promise<void>(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
   /** 团队页的读取结果转成界面用的视图；在线状态由频道另行提供。 */
   private compose(team: TeamPage): WorkspaceSummary {

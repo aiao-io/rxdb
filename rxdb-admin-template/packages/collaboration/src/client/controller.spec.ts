@@ -1650,6 +1650,16 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
     expect(controller.snapshot!.revision).toBe(revision + 1);
     expect(team).toHaveBeenCalledTimes(1);
   });
+  it('团队页暂不可用时有限重试读取', async () => {
+    const { controller, team } = await joined();
+    team
+      .mockRejectedValueOnce(new CollaborationError('unavailable', '读取团队数据失败'))
+      .mockResolvedValueOnce(teamPageOf(controller.snapshot!));
+
+    await controller.refresh(true);
+
+    expect(team).toHaveBeenCalledTimes(2);
+  });
   it('命令刷新与实时通知同时到达时共享同一份团队页读取', async () => {
     const { controller, signal, revision, team } = await joined();
     let resolveTeam!: (value: ReturnType<typeof teamPageOf>) => void;
