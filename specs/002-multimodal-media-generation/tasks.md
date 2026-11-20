@@ -135,13 +135,13 @@ description: "MEDIA-US-111 implementation tasks"
 
 ## Phase 8: Implementation closeout
 
-- [ ] T066 [P] 为 provider URL 结果、同源校验、authorization 不持久化、禁止重定向和结果下载上限补齐 API 失败测试与实现
-- [ ] T067 [P] 将能力目录 `maxDurationMs` 接入音频和视频结果校验，统一视频默认契约上限并补齐超时长结果测试
-- [ ] T068 [P] 要求视频 manifest 使用真实容器或 provider 实际 metadata，移除请求参数 fallback，升级视频 fixture 并补齐缺失 metadata 测试
-- [ ] T069 [P] 为 ASR 输入上传增加同源写校验，并让输入删除失败时保留本机引用和可重试状态
-- [ ] T070 重新运行 API、contracts、Web 和浏览器目标，修复新增边界导致的类型、lint 或测试失败
-- [ ] T071 运行多模态 fixture E2E、需求链接检查、敏感字段扫描和 `git diff --check`，记录验证结果
-- [ ] T072 同步 MEDIA-US-111 story、capability matrix、status overview 和 MEDIA-EPIC-002，保留 T065 的正式 provider 验收为外部门禁
+- [X] T066 [P] 为 provider URL 结果、同源校验、authorization 不持久化、禁止重定向和结果下载上限补齐 API 失败测试与实现
+- [X] T067 [P] 将能力目录 `maxDurationMs` 接入音频和视频结果校验，统一视频默认契约上限并补齐超时长结果测试
+- [X] T068 [P] 要求视频 manifest 使用真实容器或 provider 实际 metadata，移除请求参数 fallback，升级视频 fixture 并补齐缺失 metadata 测试
+- [X] T069 [P] 为 ASR 输入上传增加同源写校验，并让输入删除失败时保留本机引用和可重试状态
+- [X] T070 重新运行 API、contracts、Web 和浏览器目标，修复新增边界导致的类型、lint 或测试失败
+- [X] T071 运行多模态 fixture E2E、需求链接检查、敏感字段扫描和 `git diff --check`，记录验证结果
+- [X] T072 同步 MEDIA-US-111 story、capability matrix、status overview 和 MEDIA-EPIC-002，保留 T065 的正式 provider 验收为外部门禁
 
 ## Dependencies & Execution Order
 
