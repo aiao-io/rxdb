@@ -109,7 +109,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          wranglerVersion: '4.156.2'
+          wranglerVersion: '4.165.0'
           command: pages deploy website/build --project-name=rxdb --branch=${{ inputs.deployment-branch }} --commit-hash=${{ github.event.pull_request.head.sha || github.sha }} --commit-dirty=false
 
       - name: Bind production domain
