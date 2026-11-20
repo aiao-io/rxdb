@@ -352,6 +352,8 @@ export const shellInteraction = {
     await page.waitForTimeout(500);
     focusCycle.cycleRaisesBottom = (await isFront('finder')) && (await stack()).at(-1) === 'finder';
 
-    return { shellInteraction: { boot, lock, sleep, statusPanels, controlCentre, account, dragResizeZoom, focusCycle } };
+    return {
+      shellInteraction: { boot, lock, sleep, statusPanels, controlCentre, account, dragResizeZoom, focusCycle }
+    };
   }
 };

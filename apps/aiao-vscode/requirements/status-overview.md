@@ -11,8 +11,7 @@
 | [US-408 浏览器 Node 交互终端](stories/US-408-browser-terminal.md)                             | 终端、文件双向同步与服务预览已实现；真实 npm / pnpm 安装、Ctrl+C、切项目和停止验收通过，待代码评审。                                   |
 | [US-410 作为集成应用嵌入 Aiao Desktop](stories/US-410-desktop-embedding.md)                   | 握手、就绪 / 失败上报与 CORP 响应头已实现并于 2026-11-13 发布到 vscode.aiao.io（部署 `408194ed`），桌面线上验收 6 项通过；待代码评审。 |
 | [US-411 在 Aiao Desktop 的透明窗口里自绘标题栏](stories/US-411-desktop-transparent-window.md) | 自绘红黄绿与拖动区已实现并于 2026-11-13 发布到 vscode.aiao.io（部署 `22477575`），桌面线上验收 9 项通过；待代码评审。                  |
-
-| [US-412 桌面文件复制与嵌入能力边界](stories/US-412-desktop-file-copy.md) | 单文件/项目复制、目录输入与嵌入边界已完成本地正式构建自动验收，待评审合并；真实账号和发布另验。 |
+| [US-412 桌面文件复制与嵌入能力边界](stories/US-412-desktop-file-copy.md)                      | 单文件/项目复制、目录输入与嵌入边界已完成本地正式构建自动验收，待评审合并；真实账号和发布另验。                                        |
 
 ## 进行中（3 条）
 

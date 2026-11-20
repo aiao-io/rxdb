@@ -155,19 +155,19 @@ aiao/
 
 公共包按能力拆分，`{angular,react,vue}` 表示三端分别提供的绑定包：
 
-| 能力                       | 包族 / 目录                                                           |
-| -------------------------- | --------------------------------------------------------------------- |
-| Web 应用隔离运行           | `orbit`，三框架接入位于 `modules/orbit`                               |
-| 核心与框架绑定             | `rxdb`、`rxdb-{angular,react,vue}`                                    |
-| 存储与加密                 | `rxdb-adapter-*`，选择见[适配器文档](website/docs/adapters/README.md) |
-| 实体 UI 与 Headless        | `rxdb-model`、`rxdb-model-{angular,react,vue}`                        |
-| 后台外壳                   | `rxdb-admin`、`rxdb-admin-{angular,react,vue}`                        |
-| 客户端国际化               | `rxdb-i18n`、`rxdb-i18n-{angular,react,vue}`                          |
-| 任务看板                   | `rxdb-plugin-board`、`rxdb-plugin-board-{angular,react,vue}`          |
-| P2P 会话与文件共享         | `rxdb-plugin-p2p`                                                     |
-| 历史、同步、搜索与其他插件 | `rxdb-plugin-*`，入口见[插件文档](website/docs/plugins/README.md)     |
-| 编辑器                     | `code-editor`、`code-editor-{angular,react,vue}`                      |
-| 开发与测试工具             | `rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`                 |
+| 能力                       | 包族 / 目录                                                            |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Web 应用隔离运行           | [`@aiao/orbit`](packages/orbit/README.md)，含 Angular、React、Vue 适配 |
+| 核心与框架绑定             | `rxdb`、`rxdb-{angular,react,vue}`                                     |
+| 存储与加密                 | `rxdb-adapter-*`，选择见[适配器文档](website/docs/adapters/README.md)  |
+| 实体 UI 与 Headless        | `rxdb-model`、`rxdb-model-{angular,react,vue}`                         |
+| 后台外壳                   | `rxdb-admin`、`rxdb-admin-{angular,react,vue}`                         |
+| 客户端国际化               | `rxdb-i18n`、`rxdb-i18n-{angular,react,vue}`                           |
+| 任务看板                   | `rxdb-plugin-board`、`rxdb-plugin-board-{angular,react,vue}`           |
+| P2P 会话与文件共享         | `rxdb-plugin-p2p`                                                      |
+| 历史、同步、搜索与其他插件 | `rxdb-plugin-*`，入口见[插件文档](website/docs/plugins/README.md)      |
+| 编辑器                     | `code-editor`、`code-editor-{angular,react,vue}`                       |
+| 开发与测试工具             | `rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`                  |
 
 完整包清单见 [packages/](packages/)，发布组合见[包关系登记](requirements/package-graph.json)。
 

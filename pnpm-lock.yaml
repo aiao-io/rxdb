@@ -9585,7 +9585,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: ^3.5.43
+      vue: '*'
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16171,7 +16171,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: ^0.35.5
+      sharp: '*'
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0

@@ -81,6 +81,8 @@
     "LICENSE",
     "README.md",
     "UPSTREAM.md",
-    "third-party"
+    "third-party",
+    "ARCHITECTURE.md",
+    "THIRD-PARTY-LICENSE.txt"
   ]
 }

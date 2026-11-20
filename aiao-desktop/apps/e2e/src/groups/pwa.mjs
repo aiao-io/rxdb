@@ -153,10 +153,13 @@ export const pwa = {
     result.offlineDataIntact = userDataIntact(await readUserData(page, helpers));
     await helpers.launch('System Settings');
     const settings = helpers.win('settings');
-    result.accountAvatarOffline = await settings.locator('.st-row img').first().evaluate(async image => {
-      await image.decode();
-      return image.currentSrc === new URL('profile/steve-jobs.jpg', document.baseURI).href;
-    });
+    result.accountAvatarOffline = await settings
+      .locator('.st-row img')
+      .first()
+      .evaluate(async image => {
+        await image.decode();
+        return image.currentSrc === new URL('profile/steve-jobs.jpg', document.baseURI).href;
+      });
     await settings.locator('[data-sec="wallpaper"]').click();
     const choices = settings.locator('[data-wp]');
     await choices.first().waitFor();

@@ -106,7 +106,9 @@ export const fileManagement = {
     result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
-    await finder().locator('[data-place="Downloads"]').drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
+    await finder()
+      .locator('[data-place="Downloads"]')
+      .drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
     await expect(finder().locator('[data-title]')).toHaveText('Projects');
     await place('Downloads');
     await expect(item('from-sidebar.txt')).toBeVisible();
@@ -142,12 +144,11 @@ export const fileManagement = {
           : window.__originalFileReader.call(this);
       };
     });
-    await finder().locator('[data-body]').drop({
-      files: [
-        payload('readable.txt', Buffer.from('readable')),
-        payload('unreadable.txt', Buffer.from('unreadable'))
-      ]
-    });
+    await finder()
+      .locator('[data-body]')
+      .drop({
+        files: [payload('readable.txt', Buffer.from('readable')), payload('unreadable.txt', Buffer.from('unreadable'))]
+      });
     await expect(page.locator('#toast')).toContainText('Unable to read test file');
     await page.evaluate(() => {
       File.prototype.arrayBuffer = window.__originalFileReader;
