@@ -77,12 +77,14 @@ describe('strict video protocol, not capability evidence', () => {
   it('requires bounded actual MP4 metadata, clones it, and refuses claimed URLs/paths', () => {
     expect(validateVideoResultMetadata(metadata)).toEqual(metadata);
     expect(validateVideoResultMetadata(metadata)).not.toBe(metadata);
+    expect(validateVideoResultMetadata(metadata, 2_000, 6_000)).toEqual(metadata);
+    expect(() => validateVideoResultMetadata(metadata, 2_000, 4_000)).toThrow(GenerationProtocolError);
     for (const patch of [
       { codec: 'h265' },
       { width: 0 },
       { width: 4097 },
       { durationMs: 0 },
-      { durationMs: 15_001 },
+      { durationMs: 300_001 },
       { bytes: VIDEO_MP4_MAX_BYTES + 1 },
       { url: 'private' }
     ])

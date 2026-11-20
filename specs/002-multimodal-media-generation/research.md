@@ -173,3 +173,25 @@ Phase 0 的技术上下文已全部决策，没有未解决的 `NEEDS CLARIFICAT
 - 音乐供应商可能返回 URL、base64 或异步任务回执，adapter 必须统一为私有二进制结果，不允许把供应商 URL交给浏览器。
 - `packages/domain` 中的旧简化媒体类型不作为本故事主契约，若后续公共配置同步需要表达能力目录，必须单独评审 domain 迁移。
 - 备份 v1/v2 和图片同步保持兼容。本故事首期不把音视频原文件接入远端图片同步，也不修改既有备份导入格式。
+
+## 决策 11：Provider URL 只作为服务端输入，不作为结果地址
+
+**Decision**：provider 可以返回内联媒体字节或结果 URL。结果 URL 只能是 HTTPS 且与 provider endpoint 同 origin 的地址。Worker 使用 provider authorization 在内存中下载，禁止跨 origin、自动重定向和未经限制的结果读取。下载内容继续经过能力目录的字节和时长校验，最终只写入私有结果对象。
+
+**Rationale**：部分供应商使用对象存储 URL 返回媒体。把 URL 直接交给浏览器会暴露供应商拓扑、绕过平台任务令牌并扩大 SSRF 和凭据泄露边界。同源限制、禁止重定向和服务端下载可以保留 adapter 兼容性，同时保持平台交付边界。
+
+**Alternatives considered**：
+
+- 直接把 provider URL 写入任务结果。会暴露供应商地址并绕过平台结果鉴权，拒绝。
+- 允许任意 HTTPS URL。无法证明地址属于已配置 provider，拒绝。
+
+## 决策 12：媒体 manifest 必须由真实结果 metadata 生成
+
+**Decision**：音频 manifest 的时长来自实际 WAV 或 provider 明确返回的实际 metadata。视频 manifest 的尺寸、时长和 codec 来自实际容器解析或 provider 明确返回的实际 metadata。请求参数只能用于校验目录约束，不能作为缺失 metadata 的 fallback。能力目录的 `maxBytes` 和 `maxDurationMs` 分别执行。
+
+**Rationale**：请求参数描述用户意图，不证明供应商实际生成的媒体。使用请求参数补齐 manifest 会让错误结果看起来合法，导致播放、下载、积分结算和作品库记录不一致。
+
+**Alternatives considered**：
+
+- 使用请求的画幅和时长补齐结果。实现简单，但无法证明实际媒体内容，拒绝。
+- 只依赖浏览器解码。服务端任务和 manifest 仍需要在保存前完成基本真实性校验，拒绝。

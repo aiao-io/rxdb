@@ -1,7 +1,7 @@
 # Implementation Plan: Aiao Media 多模态媒体生成
 
 **Branch**: `codex/aiao-media-incubation`（Spec Kit feature `002-multimodal-media-generation`）
-**Date**: 2026-11-20
+**Date**: 2026-11-21
 **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `specs/002-multimodal-media-generation/spec.md`
@@ -86,6 +86,15 @@ Phase 0 没有未决的 `NEEDS CLARIFICATION`。供应商名称和模型由服�
 - [contracts/credits.md](./contracts/credits.md) 定义预占、结算、释放和幂等规则。
 - [contracts/local-delivery.md](./contracts/local-delivery.md) 定义 RxDB/OPFS、Transcript、journal、作品库和同步边界。
 - [quickstart.md](./quickstart.md) 定义 Nx 校验、fixture E2E、本地 Supabase 和正式 provider 验收。
+
+## Current implementation closeout
+
+当前分支已经完成四类能力的主要代码路径和 fixture 验证。计划收口阶段必须先处理以下实现边界，再更新产品需求真相源。
+
+1. Provider 返回 `url` 时，只允许 HTTPS 且与 provider endpoint 同源的地址。Worker 携带短暂的 provider authorization 下载内容，使用 `redirect: 'error'` 和结果大小上限。URL 与 authorization 不得进入任务快照、R2 manifest、日志或浏览器响应。
+2. 音频和视频结果同时遵守能力目录声明的 `maxBytes` 和 `maxDurationMs`。视频 manifest 必须来自真实容器或 provider 明确提供的实际 metadata，不得使用请求中的画幅、分辨率和时长补齐。
+3. ASR 输入上传必须执行同源写校验。输入删除只有返回成功或 404 时才清除本机引用，其他响应需要保留引用并进入可重试状态。
+4. 收口验证分为 contracts、API、Web、本机浏览器和 fixture E2E。正式 provider 验收仍需要真实评审账号、release UUID 和审核过的 manifest 摘要。
 
 ### Implementation sequence
 
@@ -223,6 +232,8 @@ aiao-media/
 - `aiao-media/apps/api/scripts/relay-task.test.mjs` 和 `platform-relay.test.mjs` 增加四类 operation、重复提交、结果确认、释放、待核查、过期清理和 token 边界
 - 新增 `media-input.test.mjs` 验证输入所有权、MIME、大小、时长、摘要和生命周期
 - `openapi.test.ts` 验证新增路径与响应 schema
+- `media-provider.spec.ts` 验证同源 provider URL、短暂 authorization、重定向拒绝、结果字节上限和结果时长上限
+- `media-input-api.spec.ts` 验证上传同源写校验和输入对象生命周期
 - API 覆盖率按现有 `relay-coverage` 和仓库 coverage script 执行
 
 ### Web and local-first
@@ -232,6 +243,7 @@ aiao-media/
 - 扩展 `browser-media.spec.ts` 与 `browser-media.browser.test.ts`，覆盖真实 RxDB/OPFS 音视频和 Transcript 保存、刷新、损坏、删除恢复
 - 扩展 `local-collections.spec.ts` 和 `library-query.spec.ts`，验证通用任务投影不破坏图片集合
 - `local-backup.browser.test.ts` 继续证明现有图片 v1/v2 导入兼容，并明确本故事没有把原始音视频混入图片备份
+- ASR 输入删除失败时保留本机引用，只有成功或 404 才推进清理状态
 
 ### Product E2E and formal acceptance
 
@@ -265,4 +277,4 @@ aiao-media/
 
 ## Implementation Readiness
 
-计划阶段产物已经具备进入 `/speckit-tasks` 的输入条件。实现前仍必须把 `MEDIA_PLATFORM_CAPABILITIES` 的实际部署配置和四类 provider adapter 回执格式写入任务和 fixture。此配置不会进入公共 contracts，也不需要在计划阶段选择具体供应商。
+计划阶段产物已经具备进入实现和收口验证的条件。当前分支的剩余实现任务已在 [tasks.md](./tasks.md) 的 Phase 8 列出，完成后再同步 `aiao-media/requirements` 中 MEDIA-US-111 的状态和验收证据。`MEDIA_PLATFORM_CAPABILITIES` 的实际部署配置和四类 provider adapter 回执格式仍只存在于运行时配置与 fixture，不进入公共 contracts，也不在计划阶段选择具体供应商。

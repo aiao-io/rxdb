@@ -46,6 +46,9 @@ pnpm nx run aiao-media-api:relay-coverage
 - 待核查任务不自动重发，alarm 能释放或继续等待核查。
 - 输入和结果对象在完成、失败、删除和过期后清理。
 - 日志、任务快照、队列、备份和同步中不出现 session、Key、临时路径或供应商 URL。
+- provider URL 只允许同源 HTTPS 下载，重定向被拒绝，authorization 只存在于单次服务端下载过程。
+- 音频和视频分别拒绝超出能力目录 `maxBytes` 或 `maxDurationMs` 的真实结果。
+- 缺少真实视频尺寸、时长或 codec 时任务失败或进入待核查，不使用请求参数伪造 manifest。
 
 ## 3. Angular 和本机存储验证
 

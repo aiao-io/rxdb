@@ -28,6 +28,15 @@
       "executor": "nx:noop",
       "dependsOn": ["local-first-e2e"]
     },
+    "multimodal-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/multimodal.config.ts",
+        "cwd": "."
+      }
+    },
     "local-first-e2e": {
       "executor": "nx:run-commands",
       "dependsOn": ["aiao-media:offline-assets"],
@@ -91,6 +100,22 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node --test scripts/provider-acceptance.test.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "multimodal-provider-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "multimodal-provider-acceptance-check"],
+      "options": {
+        "command": "node scripts/multimodal-provider-acceptance.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "multimodal-provider-acceptance-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/multimodal-provider-acceptance-check.test.mjs",
         "cwd": "aiao-media/apps/web-e2e"
       }
     },

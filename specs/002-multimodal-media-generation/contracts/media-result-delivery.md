@@ -18,12 +18,12 @@
 | TTS 或音乐 | manifest 的实际音频 MIME | 读取 Blob 并校验容器、大小、摘要和时长 |
 | 视频 | manifest 的实际视频 MIME | 读取 Blob，校验 MP4 容器并用浏览器解码校验尺寸和时长 |
 
-结果对象放在私有 `results/<taskId>`。响应不得包含供应商 URL。服务端和客户端都不得依据请求的格式、时长或画幅替换 manifest。
+结果对象放在私有 `results/<taskId>`。provider 返回 URL 时，Worker 只允许 HTTPS 且与 provider endpoint 同源的地址，携带短暂 authorization 下载并禁止重定向。响应不得包含供应商 URL，authorization 不得进入任务快照、manifest、日志或浏览器响应。服务端和客户端都不得依据请求的格式、时长或画幅替换 manifest。
 
 ## Local save
 
 1. 任务回执通过共享 validator 校验。
-2. 结果对象读取并校验真实 MIME、字节数、SHA-256 和适用容器元数据。
+2. 结果对象读取并校验真实 MIME、字节数、SHA-256、能力目录 `maxBytes` 和 `maxDurationMs`，并校验适用容器元数据。
 3. UI 先显示可预览结果，确认用户保存后调用本机保存方法。
 4. 本机写入先落 `saving` 记录，写入 OPFS 后回读验证，最后推进 `ready`。
 5. 保存失败保留结果和 `saving` 或 `broken` 记录，重试只执行本机写入。

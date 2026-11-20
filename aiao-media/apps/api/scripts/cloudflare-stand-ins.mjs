@@ -104,7 +104,11 @@ export function r2Bucket() {
     objects,
     async put(key, value, options = {}) {
       const bytes = new Uint8Array(value);
-      objects.set(key, { bytes, httpMetadata: options.httpMetadata ?? {} });
+      objects.set(key, {
+        bytes,
+        httpMetadata: options.httpMetadata ?? {},
+        customMetadata: options.customMetadata ?? {}
+      });
       return { key, size: bytes.byteLength };
     },
     async get(key) {
@@ -114,12 +118,13 @@ export function r2Bucket() {
         key,
         size: object.bytes.byteLength,
         httpMetadata: object.httpMetadata,
+        customMetadata: object.customMetadata,
         body: new Response(object.bytes).body
       };
     },
     async head(key) {
       const object = objects.get(key);
-      return object ? { key, size: object.bytes.byteLength } : null;
+      return object ? { key, size: object.bytes.byteLength, customMetadata: object.customMetadata } : null;
     },
     async delete(key) {
       objects.delete(key);

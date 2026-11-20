@@ -35,7 +35,7 @@ describe('local durable audio intent (not encryption or provider proof)', () => 
       created = createAudioSubmission(book, { ...request, prompt: `  ${request.prompt}  ` }, now);
     const saved = validateAudioSubmissionBook(JSON.parse(JSON.stringify(book)));
     expect(saved.pending).toEqual(created);
-    expect(saved.pending?.request.prompt).toBe(request.prompt);
+    expect(saved.pending?.request && 'prompt' in saved.pending.request ? saved.pending.request.prompt : undefined).toBe(request.prompt);
     expect(() => createAudioSubmission(saved, request, now)).toThrow('已有未确认');
     expect(saved.pending?.key).toBe(created.key);
   });

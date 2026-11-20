@@ -6,6 +6,8 @@ import type {
   DraftSyncResolution,
   DraftSyncResolutionResult,
   GenerationJobSummary,
+  AsrGenerationJobSummary,
+  MusicGenerationJobSummary,
   ImageJobRequest,
   ReferenceImageUpload,
   SyncedDraftContent
@@ -16,12 +18,17 @@ import {
   isImageMimeType,
   productPayloadText,
   validateAudioGenerationJobSummary,
+  validateAsrGenerationJobSummary,
+  validateMusicGenerationJobSummary,
+  validateMusicJobRequest,
+  validateTranscriptResult,
   validateAudioJobRequest,
   validateImageBlob,
   validateSyncPayload,
   validateVideoGenerationJobSummary,
   validateVideoJobRequest,
   type AudioResultMetadata,
+  type TranscriptResult,
   type ImageMetadata,
   type ImageMimeType,
   type PublicWorkPayload,
@@ -54,6 +61,12 @@ import {
   validateNotebook
 } from './draft-notebook';
 import type { ImageDraftSource, ImageSubmissionBook, ImageSubmissionSelection } from './image-submissions';
+import type {
+  LocalMediaSubmission,
+  MediaSubmissionBook,
+  MediaSubmissionJob,
+  MediaSubmissionRequest
+} from './media-submissions';
 import {
   attachImageUpload,
   confirmImageSubmission,
@@ -64,6 +77,14 @@ import {
   rejectImageSubmission,
   validateImageSubmissionBook
 } from './image-submissions';
+import {
+  confirmMediaSubmission,
+  createMediaSubmission,
+  markMediaSubmissionHandled,
+  markMediaSubmissionSent,
+  migrateLegacyMediaSubmission,
+  validateMediaSubmissionBook
+} from './media-submissions';
 import { libraryQuery, libraryWhere, type LocalWorkFilters, type LocalWorkQuery } from './library-query';
 import {
   LocalCollectionCheckpoint,
@@ -81,8 +102,9 @@ import {
   type LocalAssetResult
 } from './media-result';
 import { readStudioPayload, studioPayload, type StudioDraftSnapshot, type StudioPromptState } from './studio-draft';
+import { transcriptText } from './transcript-result';
 
-import type { AudioGenerationJobSummary, AudioJobRequest } from '@aiao-media/api-contracts';
+import type { AudioGenerationJobSummary, AudioJobRequest, MusicJobRequest } from '@aiao-media/api-contracts';
 import type { AudioSubmissionBook } from './audio-submissions';
 import {
   confirmAudioSubmission,
@@ -103,6 +125,9 @@ import {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const emptyWhere = { combinator: 'and' as const, rules: [] };
 const limitBytes = 16 * 1024 * 1024;
+
+const mediaRequestPrompt = (request: AudioJobRequest | MusicJobRequest | VideoJobRequest) =>
+  'text' in request ? request.text : request.prompt;
 @Entity({
   name: 'LocalDraftNotebook',
   tableName: 'local_draft_notebook',
@@ -189,6 +214,30 @@ class LocalAudioSubmissionJournal extends EntityBase {
   ]
 })
 class LocalVideoSubmissionJournal extends EntityBase {
+  key!: string;
+  payload!: string;
+  revision!: number;
+}
+@Entity({
+  name: 'LocalMediaSubmissionJournal',
+  tableName: 'local_media_submission_journal',
+  namespace: 'media',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'key', type: PropertyType.string, required: true },
+    { name: 'payload', type: PropertyType.string, required: true },
+    { name: 'revision', type: PropertyType.integer, required: true }
+  ],
+  indexes: [
+    {
+      name: 'local_media_submission_journal_key',
+      properties: ['key'],
+      unique: true
+    }
+  ]
+})
+class LocalMediaSubmissionJournal extends EntityBase {
   key!: string;
   payload!: string;
   revision!: number;
@@ -298,9 +347,49 @@ class LocalMediaAsset extends EntityBase {
   bytes!: number;
   stage!: 'saving' | 'ready' | 'deleting' | 'broken';
 }
+@Entity({
+  name: 'LocalTranscript',
+  tableName: 'local_transcript',
+  namespace: 'media',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'jobId', type: PropertyType.string, required: true },
+    { name: 'request', type: PropertyType.string, required: true },
+    { name: 'text', type: PropertyType.string, required: true },
+    { name: 'language', type: PropertyType.string, required: true },
+    { name: 'detectedLanguage', type: PropertyType.boolean, required: true },
+    { name: 'characters', type: PropertyType.integer, required: true },
+    { name: 'sha256', type: PropertyType.string, required: true },
+    { name: 'stage', type: PropertyType.string, required: true }
+  ],
+  indexes: [{ name: 'local_transcript_job', properties: ['jobId'], unique: true }]
+})
+export class LocalTranscript extends EntityBase {
+  jobId!: string;
+  request!: string;
+  text!: string;
+  language!: string;
+  detectedLanguage!: boolean;
+  characters!: number;
+  sha256!: string;
+  stage!: 'saving' | 'ready' | 'deleting' | 'broken';
+}
 export type LocalAssetSummary = LocalWorkSummary &
   ({ kind: 'audio'; result: AudioResultMetadata | null } | { kind: 'video'; result: VideoResultMetadata | null });
-export type LocalMediaWorkSummary = LocalAssetSummary | (LocalWorkSummary & { kind: 'image'; result: null });
+export interface LocalTranscriptSummary {
+  jobId: string;
+  text: string;
+  language: string;
+  detectedLanguage: boolean;
+  characters: number;
+  sha256: string;
+  status: 'saving' | 'saved' | 'broken';
+}
+export type LocalMediaWorkSummary =
+  | LocalAssetSummary
+  | (LocalWorkSummary & { kind: 'image'; result: null })
+  | (LocalTranscriptSummary & { kind: 'transcript'; result: TranscriptResult | null });
 @Entity({
   name: 'LocalReferenceImage',
   tableName: 'local_reference_image',
@@ -544,12 +633,14 @@ export class LocalMediaStore {
         LocalStudioDraft,
         LocalImageWork,
         LocalMediaAsset,
+        LocalTranscript,
         LocalReferenceImage,
         LocalReferenceSlot,
         LocalDraftNotebook,
         LocalImageSubmissionJournal,
         LocalAudioSubmissionJournal,
         LocalVideoSubmissionJournal,
+        LocalMediaSubmissionJournal,
         SyncedWorkMetadata
       ],
       sync: { local: { adapter: adapterName }, type: SyncType.None }
@@ -581,6 +672,25 @@ export class LocalMediaStore {
         '本地数据库或文件后端打开失败；不会宣称已保存，请检查浏览器权限和剩余空间。'
       );
     }
+  }
+  async mediaSubmissions(): Promise<LocalMediaSubmission[]> {
+    return this.mediaSubmissionOperation(book => book, true).then(book => book.submissions);
+  }
+  createMediaSubmission(request: MediaSubmissionRequest) {
+    return this.mediaSubmissionOperation(book => createMediaSubmission(book, request));
+  }
+  markMediaSubmissionSent(key: string) {
+    return this.mediaSubmissionOperation(book => markMediaSubmissionSent(book, key));
+  }
+  confirmMediaSubmission(key: string, job: MediaSubmissionJob) {
+    return this.mediaSubmissionOperation(book => confirmMediaSubmission(book, key, job));
+  }
+  markMediaSubmissionHandled(jobId: string) {
+    return this.mediaSubmissionOperation(book => markMediaSubmissionHandled(book, jobId));
+  }
+  async mediaSubmission(key: string): Promise<LocalMediaSubmission | null> {
+    const submissions = await this.mediaSubmissions();
+    return submissions.find(item => item.key === key) ?? null;
   }
   async audioSubmission() {
     const [row] = await this.collection('audio-submissions');
@@ -1090,7 +1200,8 @@ export class LocalMediaStore {
           [LocalDraftNotebook, 'drafts'],
           [LocalImageSubmissionJournal, 'image-submissions'],
           [LocalAudioSubmissionJournal, 'audio-submissions'],
-          [LocalVideoSubmissionJournal, 'video-submissions']
+          [LocalVideoSubmissionJournal, 'video-submissions'],
+          [LocalMediaSubmissionJournal, 'media-submissions']
         ] as const) {
           const [row] = await executor.getRepository(entity).find({ where: emptyWhere });
           if (row) await projectCollection(this.db, executor, events, collection, row.payload, row.revision);
@@ -1291,11 +1402,12 @@ export class LocalMediaStore {
     await this.exclusive(async () => {
       await this.recoverUnlocked();
       await this.recoverAssetsUnlocked();
+      await this.recoverTranscriptsUnlocked();
     });
   }
   /** One public persistence entry, with compatibility delegation for old images. */
   async saveMediaResult(
-    job: GenerationJobSummary | AudioGenerationJobSummary | VideoGenerationJobSummary,
+    job: GenerationJobSummary | AudioGenerationJobSummary | MusicGenerationJobSummary | VideoGenerationJobSummary,
     blob: Blob
   ): Promise<LocalMediaWorkSummary> {
     if (job.request.kind === 'image')
@@ -1304,10 +1416,12 @@ export class LocalMediaStore {
         kind: 'image',
         result: null
       };
-    let receipt: AudioGenerationJobSummary | VideoGenerationJobSummary;
+    let receipt: AudioGenerationJobSummary | MusicGenerationJobSummary | VideoGenerationJobSummary;
     try {
       receipt =
-        job.request.kind === 'audio' ? validateAudioGenerationJobSummary(job) : validateVideoGenerationJobSummary(job);
+        job.request.kind === 'video' ? validateVideoGenerationJobSummary(job)
+        : job.request.operation === 'text-to-music' ? validateMusicGenerationJobSummary(job)
+        : validateAudioGenerationJobSummary(job);
       if (receipt.status !== 'completed' || !receipt.result) throw new Error('no result');
       await validateMediaBlob(receipt.request.kind, blob, receipt.result, this.lifetime.signal);
     } catch (error) {
@@ -1334,7 +1448,7 @@ export class LocalMediaStore {
           previous.digest !== checksum ||
           previous.result !== result ||
           previous.request !== JSON.stringify(receipt.request) ||
-          previous.prompt !== receipt.request.prompt ||
+          previous.prompt !== mediaRequestPrompt(receipt.request) ||
           previous.modelId !== receipt.request.modelId ||
           previous.providerInstanceId !== receipt.request.providerInstanceId
         )
@@ -1347,7 +1461,7 @@ export class LocalMediaStore {
         this.db.entityManager.instantiate(LocalMediaAsset, {
           jobId: receipt.id,
           kind,
-          prompt: receipt.request.prompt,
+          prompt: mediaRequestPrompt(receipt.request),
           modelId: receipt.request.modelId,
           providerInstanceId: receipt.request.providerInstanceId,
           request: JSON.stringify(receipt.request),
@@ -1369,6 +1483,84 @@ export class LocalMediaStore {
       }
     });
   }
+  async saveTranscript(job: AsrGenerationJobSummary): Promise<LocalTranscriptSummary> {
+    const receipt = validateAsrGenerationJobSummary(job);
+    if (receipt.status !== 'completed' || !receipt.result)
+      throw new LocalMediaError('write_failed', '任务不是有效的已完成 Transcript。');
+    const result = validateTranscriptResult(receipt.result);
+    const validated = transcriptText(result);
+    return this.exclusive(async () => {
+      await this.recoverTranscriptsUnlocked();
+      const repo = this.db.entityManager.getRepository(LocalTranscript);
+      const [previous] = await firstValueFrom(
+        repo.find({ where: { combinator: 'and', rules: [{ field: 'jobId', operator: '=', value: receipt.id }] } })
+      );
+      if (previous?.stage === 'ready') {
+        if (previous.sha256 !== validated.sha256 || previous.text !== validated.text)
+          throw new LocalMediaError('conflict', '此任务已有不同的本机 Transcript，未覆盖。');
+        return this.transcriptSummary(previous);
+      }
+      if (previous?.stage === 'deleting') await repo.remove(previous);
+      if (previous?.stage === 'saving' || previous?.stage === 'broken') {
+        if (previous.sha256 !== validated.sha256 || previous.text !== validated.text)
+          await repo.remove(previous);
+        else return this.transcriptSummary(await repo.update(previous, { stage: 'ready' }));
+      }
+      const saving = await repo.create(
+        this.db.entityManager.instantiate(LocalTranscript, {
+          jobId: receipt.id,
+          request: JSON.stringify(receipt.request),
+          text: validated.text,
+          language: validated.language,
+          detectedLanguage: validated.detectedLanguage,
+          characters: validated.characters,
+          sha256: validated.sha256,
+          stage: 'saving'
+        })
+      );
+      try {
+        return this.transcriptSummary(await repo.update(saving, { stage: 'ready' }));
+      } catch {
+        throw new LocalMediaError('write_failed', '本机 Transcript 写入未完成，刷新后可恢复或重试本机保存。');
+      }
+    });
+  }
+  async transcript(jobId: string): Promise<LocalTranscriptSummary> {
+    return this.exclusive(async () => {
+      await this.recoverTranscriptsUnlocked();
+      const [row] = await firstValueFrom(
+        this.db.entityManager.getRepository(LocalTranscript).find({
+          where: { combinator: 'and', rules: [{ field: 'jobId', operator: '=', value: jobId }] }
+        })
+      );
+      if (!row || row.stage !== 'ready') throw new LocalMediaError('corrupt', '本机 Transcript 不可读。');
+      return this.transcriptSummary(row);
+    });
+  }
+  async listTranscripts(): Promise<LocalTranscriptSummary[]> {
+    return this.exclusive(async () => {
+      await this.recoverTranscriptsUnlocked();
+      return (
+        await firstValueFrom(
+          this.db.entityManager.getRepository(LocalTranscript).find({
+            where: { combinator: 'and', rules: [{ field: 'stage', operator: 'in', value: ['ready', 'broken'] }] },
+            orderBy: [{ field: 'jobId', sort: 'asc' }]
+          })
+        )
+      ).map(row => this.transcriptSummary(row));
+    });
+  }
+  async deleteTranscript(jobId: string): Promise<void> {
+    await this.exclusive(async () => {
+      const repo = this.db.entityManager.getRepository(LocalTranscript);
+      const [row] = await firstValueFrom(
+        repo.find({ where: { combinator: 'and', rules: [{ field: 'jobId', operator: '=', value: jobId }] } })
+      );
+      if (!row) return;
+      const deleting = row.stage === 'deleting' ? row : await repo.update(row, { stage: 'deleting' });
+      await repo.remove(deleting);
+    });
+  }
   async listAssets(kind?: LocalAssetKind): Promise<LocalAssetSummary[]> {
     return this.exclusive(async () => {
       return (await (await this.assets()).find(this.assetQuery(kind))).map(asset => this.assetSummary(asset));
@@ -1376,14 +1568,30 @@ export class LocalMediaStore {
   }
   async listMedia(): Promise<LocalMediaWorkSummary[]> {
     const images = await this.list(),
-      assets = await this.listAssets();
+      assets = await this.listAssets(),
+      transcripts = await this.listTranscripts();
     return [
       ...images.map(work => ({
         ...work,
         kind: 'image' as const,
         result: null
       })),
-      ...assets
+      ...assets,
+      ...transcripts.map(transcript => ({
+        ...transcript,
+        kind: 'transcript' as const,
+        result:
+          transcript.status === 'saved' ?
+            transcriptText({
+              kind: 'transcript',
+              text: transcript.text,
+              language: transcript.language,
+              detectedLanguage: transcript.detectedLanguage,
+              characters: transcript.characters,
+              sha256: transcript.sha256
+            })
+          : null
+      }))
     ];
   }
   assets$(kind: LocalAssetKind): Observable<LocalAssetSummary[]> {
@@ -1448,6 +1656,33 @@ export class LocalMediaStore {
       }
     });
     return this.closing;
+  }
+  private transcriptSummary(row: LocalTranscript): LocalTranscriptSummary {
+    try {
+      const result = validateTranscriptResult({
+        kind: 'transcript',
+        text: row.text,
+        language: row.language,
+        detectedLanguage: row.detectedLanguage,
+        characters: row.characters,
+        sha256: row.sha256
+      });
+      return {
+        ...result,
+        jobId: row.jobId,
+        status: row.stage === 'saving' ? 'saving' : row.stage === 'ready' ? 'saved' : 'broken'
+      };
+    } catch {
+      return {
+        jobId: row.jobId,
+        text: row.text,
+        language: row.language,
+        detectedLanguage: row.detectedLanguage,
+        characters: row.characters,
+        sha256: row.sha256,
+        status: 'broken'
+      };
+    }
   }
   private async exclusive<T>(operation: () => Promise<T>): Promise<T> {
     if (this.locked) throw new LocalMediaError('locked', '本地数据已锁定，请先在线重新验证当前账号。');
@@ -1600,6 +1835,58 @@ export class LocalMediaStore {
         const [saved] = await repo.find({ where: emptyWhere });
         if (saved?.payload !== payload || this.locked)
           throw new LocalMediaError('write_failed', '提交意图持久化未确认；没有发送任务。');
+      }
+      return structuredClone(result);
+    });
+  }
+  private async mediaSubmissionOperation<T>(
+    operation: (book: MediaSubmissionBook) => T | Promise<T>,
+    write = true
+  ): Promise<T> {
+    return this.exclusive(async () => {
+      const adapter = await firstValueFrom(this.db.localAdapter$);
+      const repo = adapter.getRepository(LocalMediaSubmissionJournal);
+      const [row] = await repo.find({ where: emptyWhere });
+      let book: MediaSubmissionBook;
+      let previous: { payload: string; revision: number } | null = null;
+      let migrated = false;
+      if (row) {
+        try {
+          book = validateMediaSubmissionBook(JSON.parse(row.payload));
+          previous = { payload: row.payload, revision: row.revision };
+        } catch {
+          throw new LocalMediaError('corrupt', '媒体提交日志不可读；停止提交，不用空日志覆盖或重复生成。');
+        }
+      } else {
+        const legacy: LocalMediaSubmission[] = [];
+        for (const [entity, collection] of [
+          [LocalAudioSubmissionJournal, 'audio-submissions'],
+          [LocalVideoSubmissionJournal, 'video-submissions']
+        ] as const) {
+          const [legacyRow] = await adapter.getRepository(entity).find({ where: emptyWhere });
+          if (!legacyRow) continue;
+          try {
+            const value = JSON.parse(legacyRow.payload);
+            const pending = value?.pending ?? null;
+            const item = migrateLegacyMediaSubmission(pending);
+            if (item) legacy.push(item);
+          } catch {
+            throw new LocalMediaError('corrupt', `${collection} 提交日志不可读；停止迁移，不用空日志覆盖。`);
+          }
+        }
+        book = validateMediaSubmissionBook({
+          version: 1,
+          submissions: legacy.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        });
+        migrated = legacy.length > 0;
+      }
+      const result = await operation(book);
+      if (write && (migrated || JSON.stringify(book) !== previous?.payload)) {
+        const payload = JSON.stringify(validateMediaSubmissionBook(book));
+        await this.commitBook(LocalMediaSubmissionJournal, 'media-submissions', 'submissions', payload, previous);
+        const [saved] = await repo.find({ where: emptyWhere });
+        if (saved?.payload !== payload || this.locked)
+          throw new LocalMediaError('write_failed', '媒体提交意图持久化未确认；没有发送任务。');
       }
       return structuredClone(result);
     });
@@ -1926,6 +2213,31 @@ export class LocalMediaStore {
         orphans.push(entry.name);
     for (const path of orphans) await this.filesystem.removeFile(path);
   }
+  private async recoverTranscriptsUnlocked(): Promise<void> {
+    const repo = this.db.entityManager.getRepository(LocalTranscript);
+    for (const row of await firstValueFrom(repo.find({ where: emptyWhere }))) {
+      if (!['saving', 'ready', 'deleting', 'broken'].includes(row.stage))
+        throw new LocalMediaError('corrupt', '本机 Transcript 恢复状态无效，未覆盖记录。');
+      if (row.stage === 'deleting') {
+        await repo.remove(row);
+        continue;
+      }
+      try {
+        const result = transcriptText({
+          kind: 'transcript',
+          text: row.text,
+          language: row.language,
+          detectedLanguage: row.detectedLanguage,
+          characters: row.characters,
+          sha256: row.sha256
+        });
+        if (row.stage === 'saving') await repo.update(row, { stage: 'ready' });
+        if (result.text.length === 0) throw new Error('empty transcript');
+      } catch {
+        if (row.stage !== 'broken') await repo.update(row, { stage: 'broken' });
+      }
+    }
+  }
   private assetName(asset: Pick<LocalMediaAsset, 'jobId' | 'kind'>) {
     if (!uuid.test(asset.jobId) || !['audio', 'video'].includes(asset.kind))
       throw new LocalMediaError('corrupt', '本地媒体身份无效，停止文件操作。');
@@ -1935,13 +2247,16 @@ export class LocalMediaStore {
     try {
       this.assetName(asset);
       if (asset.result.length > 4096 || asset.request.length > 8192) throw new Error('oversized metadata');
+      const rawRequest = JSON.parse(asset.request);
       const request =
-        asset.kind === 'audio' ?
-          validateAudioJobRequest(JSON.parse(asset.request))
-        : validateVideoJobRequest(JSON.parse(asset.request));
+        asset.kind === 'audio' && rawRequest.operation === 'text-to-music' ?
+          validateMusicJobRequest(rawRequest)
+        : asset.kind === 'audio' ?
+          validateAudioJobRequest(rawRequest)
+        : validateVideoJobRequest(rawRequest);
       if (
         request.kind !== asset.kind ||
-        request.prompt !== asset.prompt ||
+        mediaRequestPrompt(request) !== asset.prompt ||
         request.modelId !== asset.modelId ||
         request.providerInstanceId !== asset.providerInstanceId
       )

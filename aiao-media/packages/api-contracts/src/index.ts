@@ -9,3 +9,4 @@ export * from './platform-model.ts';
 export * from './prompt-state.ts';
 export * from './prompt-template.ts';
 export * from './studio-draft.ts';
+export * from './contracts/media-capabilities.ts';

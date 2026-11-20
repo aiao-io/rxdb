@@ -173,6 +173,114 @@ describe('creator image protocol validation', () => {
     ])
       expect(() => validateGenerationJobSummary({ ...summary, ...change })).toThrow();
   });
+  it('dispatches every public task summary through the generic validator', () => {
+    const base = {
+      id,
+      createdAt: '2026-10-01T12:00:00Z',
+      updatedAt: '2026-10-01T12:00:00Z',
+      delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+      failure: null
+    };
+    const audio = {
+      ...base,
+      request: {
+        kind: 'audio',
+        operation: 'text-to-speech',
+        providerInstanceId: id,
+        providerRevision: 1,
+        modelId: 'tts-fixture',
+        language: 'zh-CN',
+        voiceId: 'alloy',
+        speed: 1,
+        text: '你好'
+      },
+      status: 'completed',
+      result: {
+        mediaType: 'audio/wav',
+        format: 'wav',
+        durationMs: 1000,
+        sampleRate: 32000,
+        channels: 1,
+        bytes: 64044
+      }
+    };
+    const asr = {
+      ...base,
+      request: {
+        kind: 'audio',
+        operation: 'speech-to-text',
+        providerInstanceId: id,
+        providerRevision: 1,
+        modelId: 'asr-fixture',
+        language: null,
+        input: {
+          id: '10000000-0000-4000-8000-000000000002',
+          mediaType: 'audio/wav',
+          bytes: 64044,
+          durationMs: 1000,
+          sha256: 'a'.repeat(64),
+          expiresAt: '2026-10-03T00:00:00.000Z'
+        }
+      },
+      status: 'completed',
+      result: {
+        kind: 'transcript',
+        text: '识别结果',
+        language: 'zh-CN',
+        detectedLanguage: true,
+        characters: 4,
+        sha256: 'b'.repeat(64)
+      }
+    };
+    const music = {
+      ...base,
+      request: {
+        kind: 'audio',
+        operation: 'text-to-music',
+        providerInstanceId: id,
+        providerRevision: 1,
+        modelId: 'music-fixture',
+        prompt: '轻快钢琴',
+        parameters: { durationSeconds: 5, instrumental: true }
+      },
+      status: 'completed',
+      result: {
+        mediaType: 'audio/wav',
+        format: 'wav',
+        durationMs: 5000,
+        sampleRate: 32000,
+        channels: 1,
+        bytes: 320044
+      }
+    };
+    const video = {
+      ...base,
+      request: {
+        kind: 'video',
+        operation: 'text-to-video',
+        providerInstanceId: id,
+        providerRevision: 1,
+        modelId: 'video-fixture',
+        prompt: '流动的光',
+        parameters: { ratio: '16:9', durationSeconds: 5, resolution: '768P' }
+      },
+      status: 'completed',
+      result: {
+        mediaType: 'video/mp4',
+        format: 'mp4',
+        codec: 'h264',
+        width: 32,
+        height: 18,
+        durationMs: 5000,
+        bytes: 1833
+      }
+    };
+    expect(validateGenerationJobSummary(summary).request.kind).toBe('image');
+    expect(validateGenerationJobSummary(audio).request.operation).toBe('text-to-speech');
+    expect(validateGenerationJobSummary(asr).request.operation).toBe('speech-to-text');
+    expect(validateGenerationJobSummary(music).request.operation).toBe('text-to-music');
+    expect(validateGenerationJobSummary(video).request.operation).toBe('text-to-video');
+  });
   it('accepts reference failures and sanitized correlation IDs only', () => {
     expect(
       validateGenerationJobSummary({

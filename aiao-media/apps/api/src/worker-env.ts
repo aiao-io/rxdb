@@ -6,17 +6,20 @@ export interface WorkerEnv {
   RELAY_TASKS?: RelayTaskNamespace;
   MEDIA_RESULTS?: R2Bucket;
   RELAY_RESULTS?: RelayResultStore;
+  MEDIA_INPUTS?: RelayResultStore;
   ALLOWED_PROVIDER_BASE_URLS?: string;
   MEDIA_ALLOW_DESKTOP_ORIGIN?: string;
   MEDIA_SUPABASE_URL?: string;
   MEDIA_SUPABASE_ANON_KEY?: string;
   MEDIA_SUPABASE_SERVICE_ROLE_KEY?: string;
   MEDIA_INSTALLATION_BOOTSTRAP_SECRET?: string;
+  MEDIA_INSTALLATION_DISABLED?: string;
   MEDIA_INSTALLATION?: RelayTaskNamespace;
   MEDIA_PUBLIC_SUPABASE_URL?: string;
   MEDIA_STRIPE_SECRET_KEY?: string;
   MEDIA_STRIPE_WEBHOOK_SECRET?: string;
   MEDIA_PLATFORM_MODELS?: string;
+  MEDIA_PLATFORM_CAPABILITIES?: string;
   MEDIA_PLATFORM_FREE_DAILY?: string;
   MEDIA_PLATFORM_DAILY_BUDGET_MICROS?: string;
   MEDIA_CREDIT_PACK?: string;
@@ -33,10 +36,16 @@ export interface RelayResultStore {
   put(
     key: string,
     value: Uint8Array<ArrayBuffer>,
-    options?: { httpMetadata: { contentType: string } }
+    options?: {
+      httpMetadata: { contentType: string };
+      customMetadata?: Record<string, string>;
+    }
   ): Promise<unknown>;
-  get(key: string): Promise<{ body: ReadableStream<Uint8Array> } | null>;
-  head(key: string): Promise<unknown | null>;
+  get(key: string): Promise<{
+    body: ReadableStream<Uint8Array>;
+    customMetadata?: Record<string, string>;
+  } | null>;
+  head(key: string): Promise<{ size?: number; customMetadata?: Record<string, string> } | null>;
   delete(key: string): Promise<void>;
 }
 

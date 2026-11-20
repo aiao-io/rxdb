@@ -134,6 +134,33 @@ const TaskIdParamsSchema = z
 
 const RelayResponseSchema = z.record(z.string(), z.unknown()).openapi('RelayResponse');
 const RelayBinaryResponseSchema = z.string().openapi({ format: 'binary' });
+const MediaCapabilitySchema = z
+  .object({
+    providerInstanceId: z.string().uuid(),
+    providerRevision: z.number().int().positive(),
+    kind: z.enum(['audio', 'video']),
+    operation: z.enum(['text-to-speech', 'speech-to-text', 'text-to-music', 'text-to-video']),
+    label: z.string(),
+    modelId: z.string(),
+    credits: z.number().int().positive(),
+    input: z.record(z.string(), z.unknown()),
+    parameters: z.record(z.string(), z.unknown()),
+    output: z.record(z.string(), z.unknown())
+  })
+  .openapi('MediaCapability');
+const MediaCapabilityCatalogSchema = z
+  .object({ revision: z.number().int().positive(), capabilities: z.array(MediaCapabilitySchema) })
+  .openapi('MediaCapabilityCatalog');
+const MediaInputReferenceSchema = z
+  .object({
+    id: z.string().uuid(),
+    mediaType: z.literal('audio/wav'),
+    bytes: z.number().int().positive(),
+    durationMs: z.number().int().positive(),
+    sha256: z.string().length(64),
+    expiresAt: z.string()
+  })
+  .openapi('MediaInputReference');
 
 const CreditSnapshotSchema = z
   .object({
@@ -166,6 +193,48 @@ const CreditQuerySchema = z.object({
 const SessionHeadersSchema = z.object({ authorization: z.string().regex(/^Bearer [A-Za-z0-9._~-]+$/) });
 
 export const apiRoutes = {
+  mediaCapabilities: createRoute({
+    method: 'get',
+    path: '/api/media/capabilities',
+    tags: ['Relay'],
+    responses: {
+      200: {
+        description: '公开媒体能力目录，不含供应商地址或凭据',
+        content: { 'application/json': { schema: MediaCapabilityCatalogSchema } }
+      },
+      503: { description: '媒体能力尚未就绪', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
+  mediaInputCreate: createRoute({
+    method: 'post',
+    path: '/api/media/inputs',
+    tags: ['Relay'],
+    request: {
+      headers: SessionHeadersSchema,
+      body: { required: true, content: { 'audio/wav': { schema: RelayBinaryResponseSchema } } }
+    },
+    responses: {
+      201: {
+        description: '短期 ASR 输入引用',
+        content: { 'application/json': { schema: MediaInputReferenceSchema } }
+      },
+      400: { description: '输入格式无效', content: { 'application/json': { schema: ApiErrorSchema } } },
+      401: { description: '账号未登录', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
+  mediaInputDelete: createRoute({
+    method: 'delete',
+    path: '/api/media/inputs/{inputId}',
+    tags: ['Relay'],
+    request: {
+      headers: SessionHeadersSchema,
+      params: z.object({ inputId: z.string().uuid() })
+    },
+    responses: {
+      204: { description: '临时输入已删除' },
+      404: { description: '输入不存在', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
   credits: createRoute({
     method: 'get',
     path: '/api/credits',

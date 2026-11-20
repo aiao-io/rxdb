@@ -6,6 +6,8 @@ import { handleCredits } from './credits-api.ts';
 import { installation } from './installation.ts';
 import { apiRoutes, openApiDocument } from './openapi.ts';
 import { platformCatalog } from './platform-models.ts';
+import { mediaCapabilityCatalog } from './media-capabilities.ts';
+import { deleteMediaInput, uploadMediaInput } from './media-input-api.ts';
 import { publishedTemplates } from './product-content.ts';
 import { endpoint } from './product-http.ts';
 import { json } from './relay-input.ts';
@@ -25,7 +27,7 @@ const jsonPayload = (payload: unknown, status = 200) =>
     }
   });
 const adminContentSecurityPolicy =
-  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; media-src 'self' blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
 const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
 const adminNavigation = /^\/admin\/(?:users|templates|policies|tasks|audit|account)\/?$/;
 function allowAuthConnections(policy: string, authUrl: string | undefined): string {
@@ -139,6 +141,11 @@ app.all('/api/installation', async c => {
 });
 
 app.get('/api/models', c => withConfiguredEnvironment(c.env, env => endpoint(() => platformCatalog(env))));
+app.get('/api/media/capabilities', c => withConfiguredEnvironment(c.env, env => endpoint(() => mediaCapabilityCatalog(env))));
+app.post('/api/media/inputs', c => withConfiguredEnvironment(c.env, env => uploadMediaInput(c.req.raw, env)));
+app.delete('/api/media/inputs/:inputId', c =>
+  withConfiguredEnvironment(c.env, env => deleteMediaInput(c.req.raw, env, c.req.param('inputId')))
+);
 app.all('/api/credits', c => withConfiguredEnvironment(c.env, env => handleCredits(c.req.raw, env)));
 app.all('/api/admin/*', c => withConfiguredEnvironment(c.env, env => handleAdmin(c.req.raw, env)));
 app.get('/api/templates', c => withConfiguredEnvironment(c.env, env => endpoint(() => publishedTemplates(env))));

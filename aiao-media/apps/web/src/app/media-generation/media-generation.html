@@ -1,0 +1,138 @@
+<section class="media-generation" aria-label="多模态媒体生成">
+  <div class="media-modes" role="tablist" aria-label="媒体能力">
+    <button class="secondary sm" [attr.aria-selected]="operation() === 'text-to-speech'" (click)="selectOperation('text-to-speech')" role="tab" type="button">TTS 配音</button>
+    <button class="secondary sm" [attr.aria-selected]="operation() === 'speech-to-text'" (click)="selectOperation('speech-to-text')" role="tab" type="button">ASR 转写</button>
+    <button class="secondary sm" [attr.aria-selected]="operation() === 'text-to-music'" (click)="selectOperation('text-to-music')" role="tab" type="button">生成音乐</button>
+    <button class="secondary sm" [attr.aria-selected]="operation() === 'text-to-video'" (click)="selectOperation('text-to-video')" role="tab" type="button">生成视频</button>
+  </div>
+
+  @if (capabilityBusy()) {
+    <p class="media-status" role="status" aria-live="polite">正在读取媒体能力目录…</p>
+  }
+  @if (capabilityMessage()) {
+    <p class="media-error" role="alert">{{ capabilityMessage() }}</p>
+  }
+
+  <div class="media-form" [attr.aria-busy]="busy() || inputBusy()">
+    @if (operation() === 'speech-to-text') {
+      <label for="media-audio-file">
+        上传 WAV 音频
+        <input id="media-audio-file" accept="audio/wav" [disabled]="inputBusy() || busy()" (change)="selectFile($event)" type="file" />
+      </label>
+      @if (inputName()) {
+        <p class="media-status" role="status">{{ inputName() }}</p>
+      }
+      @if (speechToTextCapability(); as capability) {
+        <label for="media-asr-language">
+          识别语言
+          <select id="media-asr-language" [ngModel]="language()" (ngModelChange)="language.set($event)">
+            <option value="">自动识别</option>
+            @for (item of capability.parameters.languages; track item) {
+              <option [value]="item">{{ item }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (inputMessage()) {
+        <p class="media-status" role="status">{{ inputMessage() }}</p>
+      }
+    } @else {
+      <label for="media-prompt">
+        {{ operation() === 'text-to-speech' ? '朗读文本' : operation() === 'text-to-music' ? '音乐提示词' : '视频提示词' }}
+        <textarea id="media-prompt" [attr.maxlength]="textMaxLength()" [ngModel]="text()" (ngModelChange)="text.set($event)" [placeholder]="operation() === 'text-to-speech' ? '输入要朗读的文本' : '描述你想生成的内容'"></textarea>
+      </label>
+      <div class="media-fields">
+        @if (textToSpeechCapability(); as capability) {
+          <label for="media-language">
+            语言
+            <select id="media-language" [ngModel]="language()" (ngModelChange)="language.set($event)">
+              @for (item of capability.parameters.languages; track item) { <option [value]="item">{{ item }}</option> }
+            </select>
+          </label>
+          <label for="media-voice">
+            声音
+            <select id="media-voice" [ngModel]="voiceId()" (ngModelChange)="voiceId.set($event)">
+              @for (item of capability.parameters.voices; track item.id) { <option [value]="item.id">{{ item.label }}</option> }
+            </select>
+          </label>
+          <label for="media-speed">
+            语速
+            <select id="media-speed" [ngModel]="speed()" (ngModelChange)="speed.set(+$event)">
+              @for (item of capability.parameters.speeds; track item) { <option [value]="item">{{ item }}x</option> }
+            </select>
+          </label>
+        }
+        @if (textToMusicCapability(); as capability) {
+          <label for="media-music-duration">
+            时长
+            <select id="media-music-duration" [ngModel]="musicDuration()" (ngModelChange)="musicDuration.set(+$event)">
+              @for (item of capability.parameters.durationsSeconds; track item) { <option [value]="item">{{ item }} 秒</option> }
+            </select>
+          </label>
+          <label for="media-instrumental">
+            人声
+            <select id="media-instrumental" [ngModel]="musicInstrumental()" (ngModelChange)="musicInstrumental.set($event === true || $event === 'true')">
+              <option [value]="true">纯音乐</option>
+              <option [value]="false">包含人声</option>
+            </select>
+          </label>
+        }
+        @if (textToVideoCapability(); as capability) {
+          <label for="media-video-ratio">
+            画幅
+            <select id="media-video-ratio" [ngModel]="videoRatio()" (ngModelChange)="videoRatio.set($event)">
+              @for (item of capability.parameters.ratios; track item) { <option [value]="item">{{ item }}</option> }
+            </select>
+          </label>
+          <label for="media-video-duration">
+            时长
+            <select id="media-video-duration" [ngModel]="videoDuration()" (ngModelChange)="videoDuration.set(+$event)">
+              @for (item of capability.parameters.durationsSeconds; track item) { <option [value]="item">{{ item }} 秒</option> }
+            </select>
+          </label>
+          <label for="media-video-resolution">
+            分辨率
+            <select id="media-video-resolution" [ngModel]="videoResolution()" (ngModelChange)="videoResolution.set($event)">
+              @for (item of capability.parameters.resolutions; track item) { <option [value]="item">{{ item }}</option> }
+            </select>
+          </label>
+        }
+      </div>
+    }
+  </div>
+
+  @if (selectedCapability(); as capability) {
+    <p class="media-status">{{ capability.label }} · 本次 {{ capability.credits }} 积分</p>
+  }
+  @if (!authReady()) { <p class="media-status">登录平台账号并取得积分后即可生成媒体。</p> }
+  @if (credits(); as account) { <p class="media-status" role="status">可用积分 {{ account.available }} · 预占 {{ account.reserved }}</p> }
+  @if (error()) { <p class="media-error" role="alert">{{ error() }}</p> }
+  @if (message()) { <p class="media-status" role="status">{{ message() }}</p> }
+
+  <div class="media-actions">
+    <button class="primary" [disabled]="!canSubmit()" (click)="submit()" type="button">{{ busy() ? '正在处理…' : '生成媒体' }}</button>
+    @if (task(); as current) {
+      <span class="saved-badge" role="status">{{ statusLabel() }}</span>
+      @if (current.status === 'needs_review' && !current.acknowledged) {
+        <button class="secondary" [disabled]="busy()" (click)="acknowledge()" type="button">记录已核查</button>
+      }
+    }
+  </div>
+
+  @if (result(); as value) {
+    <section class="media-result" aria-label="媒体结果" aria-live="polite">
+      @if (audioResult()) {
+        @if (resultUrl(); as url) { <audio [src]="url" controls preload="metadata">浏览器不支持音频播放。</audio> }
+      }
+      @if (videoResult()) {
+        @if (resultUrl(); as url) { <video [src]="url" controls preload="metadata">浏览器不支持视频播放。</video> }
+      }
+      @if (transcriptResult(); as transcript) {
+        <textarea [value]="transcript.text" aria-label="识别文本" readonly></textarea>
+        <div class="media-actions"><button class="secondary" (click)="copyTranscript()" type="button">{{ copied() ? '已复制' : '复制文本' }}</button></div>
+      }
+      @if (downloadUrl(); as url) { <a class="secondary" [href]="url" [download]="downloadName()">下载 {{ downloadName() }}</a> }
+      @if (!saved()) { <button class="secondary" [disabled]="busy()" (click)="retrySave()" type="button">重试保存到本机</button> }
+    </section>
+  }
+</section>

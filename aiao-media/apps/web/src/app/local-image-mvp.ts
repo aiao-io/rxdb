@@ -1,4 +1,4 @@
-import type { GenerationJobSummary, ImageAspectRatio, ImageJobRequest } from '@aiao-media/api-contracts';
+import type { GenerationJobSummary, ImageAspectRatio, ImageJobRequest, MediaGenerationJobSummary } from '@aiao-media/api-contracts';
 import {
   createRelayTaskToken,
   imageExtension,
@@ -35,7 +35,8 @@ import type { ImageSyncController } from '../local-data/image-sync';
 import type { ImageSyncSelection } from '../local-data/image-sync-selection';
 import { ImageTransferError } from '../local-data/image-transfer-error';
 import type { ImageQueueFileProgress, ImageQueueSummary, ImageUploadQueue } from '../local-data/image-upload-queue';
-import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
+import type { LocalMediaStore, LocalMediaWorkSummary, LocalWorkSummary, StudioPromptState } from '../local-data/index';
+import { transcriptDownload } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
 import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
 import type { ProductRecord } from '../local-data/product-sync-store';
@@ -64,6 +65,7 @@ import {
   type BackupWorkspace
 } from './backup-workspaces';
 import { CreditsPanel } from './credits-panel';
+import { MediaGeneration } from './media-generation/media-generation';
 import {
   cardSizeOptions,
   clearDisplayPreferences,
@@ -131,11 +133,13 @@ interface ImageDownloadState {
   status: 'loading' | 'saved' | 'failed';
   message: string;
 }
-type LocalTask = GenerationJobSummary & {
+type TaskState = {
   channel?: 'direct' | 'proxy' | 'platform';
   saved?: boolean;
   acknowledged?: boolean;
 };
+type ImageLocalTask = GenerationJobSummary & TaskState;
+type LocalTask = MediaGenerationJobSummary & TaskState;
 const paths: Record<View, string> = {
   discover: '/',
   studio: '/create',
@@ -203,6 +207,7 @@ const emptyLibrary = (): LibraryState => ({
   loading: false,
   error: null
 });
+const mediaWorkKey = (work: LocalMediaWorkSummary): string => `${work.kind}:${work.jobId}`;
 @Component({
   selector: 'app-root',
   imports: [
@@ -212,7 +217,8 @@ const emptyLibrary = (): LibraryState => ({
     WorkVisibleDirective,
     ElementWidthDirective,
     SyncTargetSettings,
-    CreditsPanel
+    CreditsPanel,
+    MediaGeneration
   ],
   templateUrl: './local-image-mvp.html',
   host: {
@@ -288,6 +294,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private viewerPageTarget: { page: number; index: number } | null = null;
   private viewerGeneration = 0;
   private readonly filtersApplied = signal(false);
+  private mediaRefresh = 0;
   private readonly remotePage = signal(1);
   private readonly remotePreviews = signal<ReadonlyMap<string, RemoteImagePreview>>(new Map());
   private readonly remoteImages = new RemoteImagePreviewSession(
@@ -461,6 +468,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly storageInfo = signal('');
   readonly offlineReady = signal(false);
   readonly localStatus = signal<'opening' | 'ready' | 'unavailable'>('opening');
+  readonly mediaStore = signal<LocalMediaStore | null>(null);
   readonly draftStatus = signal<StudioDraftStatus | 'inactive'>('inactive');
   readonly storageMessage = signal('');
   readonly works = signal<LocalWorkSummary[]>([]);
@@ -472,6 +480,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly libraryFrom = signal('');
   readonly libraryTo = signal('');
   readonly libraryFilterError = signal('');
+  readonly mediaWorks = signal<LocalMediaWorkSummary[]>([]);
+  readonly mediaLibraryReady = signal(false);
+  readonly mediaLibraryBusy = signal(false);
+  readonly mediaLibraryError = signal('');
+  readonly mediaPreviewUrls = signal<ReadonlyMap<string, string>>(new Map());
+  readonly mediaPreviewBusy = signal<ReadonlySet<string>>(new Set());
+  readonly mediaPages = computed(() => this.mediaWorks().filter(work => work.kind !== 'image'));
+  readonly mediaWorkKey = mediaWorkKey;
   readonly libraryPages = computed(() => Math.max(1, Math.ceil((this.libraryPage().total ?? 0) / 24)));
   readonly advancedFilterCount = computed(
     () => [this.libraryModel(), this.libraryFrom(), this.libraryTo()].filter(value => value.trim()).length
@@ -480,7 +496,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     () => this.filtersApplied() || Boolean(this.librarySearch().trim()) || this.advancedFilterCount() > 0
   );
   readonly history = signal<LocalTask[]>([]);
-  readonly job = signal<LocalTask | null>(null);
+  readonly job = signal<ImageLocalTask | null>(null);
   readonly resultUrl = signal<string | null>(null);
   readonly saved = signal(false);
   readonly sending = signal(false);
@@ -694,6 +710,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.library?.close();
     this.remoteImages.close();
     this.revokeResult();
+    this.releaseMediaPreviews();
+    this.mediaStore.set(null);
     void this.store?.close();
   }
   @HostListener('window:popstate') onPopState() {
@@ -732,6 +750,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.settingsTab.set('providers');
     }
     this.view.set(view);
+    if (view === 'library') void this.refreshMediaLibrary();
     this.detail.set(null);
     this.closeViewer();
     window.scrollTo({ top: 0 });
@@ -1054,7 +1073,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
             aspectRatioValue: aspectRatio,
             ...options
           };
-          const task: LocalTask = {
+          const task: ImageLocalTask = {
             id: taskId,
             channel: 'platform',
             request,
@@ -1373,7 +1392,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (generation === this.viewerGeneration && this.viewer()?.work === current.work) this.closeViewer();
   }
   hasLocalCopy(task: LocalTask) {
-    return this.works().some(work => work.jobId === task.id && work.status === 'saved');
+    return task.request.kind === 'image' && this.works().some(work => work.jobId === task.id && work.status === 'saved');
   }
   async loadWorkInfo(work: Work, event: Event) {
     if ((event.target as HTMLDetailsElement).open) await this.fetchWorkInfo(work, true);
@@ -1457,7 +1476,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         await this.readTasks();
         const { createLocalBackup } = await import('./local-backup');
         if (!this.store) throw new Error('本机工作区不可用。');
-        const blob = await createLocalBackup(this.store, this.legacyProviders, this.legacyDefaultId, this.history());
+        const imageTasks = this.history().filter((task): task is ImageLocalTask => task.request.kind === 'image');
+        const blob = await createLocalBackup(this.store, this.legacyProviders, this.legacyDefaultId, imageTasks);
         if (!(await saveDownload(blob, `aiao-backup-${new Date().toISOString().slice(0, 10)}.zip`))) {
           this.dataMessage.set('已取消导出，原数据保留。');
           return;
@@ -1924,8 +1944,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async restoreRemoteWork(work: PublicWorkPayload) {
     if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'platform') return;
     const signal = this.imageSyncScope.signal;
-    const task =
-      this.history().find(item => item.id === work.jobId) ??
+    const existing = this.history().find(item => item.id === work.jobId);
+    const task: ImageLocalTask =
+      (existing?.request.kind === 'image' ? (existing as ImageLocalTask) : null) ??
       ({
         id: work.jobId,
         request: {
@@ -1945,7 +1966,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         updatedAt: work.createdAt,
         delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
         failure: null
-      } as LocalTask);
+      } as ImageLocalTask);
     this.imageSyncBusy.set(true);
     this.setImageDownloadState(work, { status: 'loading', message: '正在从平台账号取回原图…' });
     try {
@@ -2066,6 +2087,84 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   formatDateTime(value: string | undefined) {
     return formatTime(value, dateTimeFormat);
+  }
+  mediaPreview(work: LocalMediaWorkSummary): string | null {
+    return this.mediaPreviewUrls().get(mediaWorkKey(work)) ?? null;
+  }
+  mediaPreviewLoading(work: LocalMediaWorkSummary): boolean {
+    return this.mediaPreviewBusy().has(mediaWorkKey(work));
+  }
+  mediaTitle(work: LocalMediaWorkSummary): string {
+    return work.kind === 'transcript' ? '语音转写' : work.prompt;
+  }
+  mediaMeta(work: LocalMediaWorkSummary): string {
+    if (work.kind === 'transcript') return `${work.characters} 字 · ${work.language}`;
+    return `${formatBytes(work.bytes)} · ${work.kind === 'audio' ? 'WAV' : 'MP4'}`;
+  }
+  async previewMedia(work: LocalMediaWorkSummary): Promise<void> {
+    if ((work.kind !== 'audio' && work.kind !== 'video') || work.status !== 'saved' || this.mediaPreview(work)) return;
+    const store = this.store;
+    if (!store) return;
+    const key = mediaWorkKey(work);
+    this.mediaPreviewBusy.update(current => new Set(current).add(key));
+    try {
+      const url = await store.previewAsset(work.kind, work.jobId);
+      if (this.disposed || store !== this.store) {
+        store.release(url);
+        return;
+      }
+      this.mediaPreviewUrls.update(current => new Map(current).set(key, url));
+    } catch (error) {
+      this.mediaLibraryError.set(error instanceof Error ? error.message : '媒体预览失败，本机文件保留。');
+    } finally {
+      this.mediaPreviewBusy.update(current => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+  async downloadMedia(work: LocalMediaWorkSummary): Promise<void> {
+    const store = this.store;
+    if (!store || work.status !== 'saved') return;
+    try {
+      if (work.kind === 'transcript') {
+        if (!work.result) throw new Error('Transcript 结果不可用。');
+        await saveDownload(transcriptDownload(work.result), `transcript-${work.jobId}.txt`);
+        return;
+      }
+      if (work.kind !== 'audio' && work.kind !== 'video') return;
+      const existing = this.mediaPreview(work);
+      const url = existing ?? (await store.previewAsset(work.kind, work.jobId));
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('媒体下载失败。');
+        await saveDownload(await response.blob(), `${work.kind}-${work.jobId}.${work.kind === 'audio' ? 'wav' : 'mp4'}`);
+      } finally {
+        if (!existing) store.release(url);
+      }
+    } catch (error) {
+      this.mediaLibraryError.set(error instanceof Error ? error.message : '媒体下载失败，本机文件保留。');
+    }
+  }
+  async deleteMedia(work: LocalMediaWorkSummary): Promise<void> {
+    const store = this.store;
+    if (!store || !(await this.confirm(`删除本机${work.kind === 'transcript' ? ' Transcript' : '媒体'}「${work.jobId}」？下载过的文件不受影响。`))) return;
+    const key = mediaWorkKey(work);
+    const url = this.mediaPreviewUrls().get(key);
+    if (url) store.release(url);
+    this.mediaPreviewUrls.update(current => {
+      const next = new Map(current);
+      next.delete(key);
+      return next;
+    });
+    try {
+      if (work.kind === 'transcript') await store.deleteTranscript(work.jobId);
+      else if (work.kind === 'audio' || work.kind === 'video') await store.deleteAsset(work.kind, work.jobId);
+      await this.refreshMediaLibrary(store, this.epoch);
+    } catch (error) {
+      this.mediaLibraryError.set(error instanceof Error ? error.message : '媒体删除失败，本机文件保留。');
+    }
   }
   private transitionTemplate(template: PromptTemplate | null, trigger: HTMLElement | null) {
     const detailImage = () => document.querySelector<HTMLImageElement>('.template-panel .media-stage img');
@@ -2332,7 +2431,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       : `已同步 ${summary.succeeded} 张原图。`
     );
   }
-  private async syncSavedImage(task: LocalTask) {
+  private async syncSavedImage(task: ImageLocalTask) {
     if (
       !this.imageSyncEnabled() ||
       this.targetKind() !== 'platform' ||
@@ -2354,6 +2453,34 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   private releaseLibraryPreviews() {
     for (const work of this.libraryPage().works) this.library?.setVisible(work.jobId, false);
+    this.releaseMediaPreviews();
+  }
+  private releaseMediaPreviews() {
+    const store = this.store;
+    for (const url of this.mediaPreviewUrls().values()) store?.release(url);
+    this.mediaPreviewUrls.set(new Map());
+    this.mediaPreviewBusy.set(new Set());
+  }
+  private async refreshMediaLibrary(store = this.store, epoch = this.epoch): Promise<void> {
+    if (!store) return;
+    const refresh = ++this.mediaRefresh;
+    this.mediaLibraryBusy.set(true);
+    this.mediaLibraryError.set('');
+    try {
+      const works = (await store.listMedia())
+        .filter(work => work.kind !== 'image')
+        .sort((left, right) => right.jobId.localeCompare(left.jobId));
+      if (this.disposed || store !== this.store || epoch !== this.epoch || refresh !== this.mediaRefresh) return;
+      this.mediaWorks.set(works);
+      this.mediaLibraryReady.set(true);
+    } catch (error) {
+      if (this.disposed || store !== this.store || epoch !== this.epoch || refresh !== this.mediaRefresh) return;
+      this.mediaLibraryError.set(error instanceof Error ? error.message : '已保存媒体暂时无法读取。');
+      this.mediaLibraryReady.set(true);
+    } finally {
+      if (!this.disposed && store === this.store && epoch === this.epoch && refresh === this.mediaRefresh)
+        this.mediaLibraryBusy.set(false);
+    }
   }
   private startElapsed(started = Date.now()) {
     this.stopElapsed();
@@ -2686,7 +2813,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         selectedId: profile.id,
         profiles: [...this.registryState.profiles.filter(item => item.id !== profile.id), profile]
       };
+    this.releaseMediaPreviews();
+    this.mediaWorks.set([]);
+    this.mediaLibraryReady.set(false);
+    this.mediaLibraryError.set('');
     this.store = store;
+    this.mediaStore.set(store);
     store.activateDevTools();
     this.profileId = profile.id;
     this.currentProfileId.set(profile.id);
@@ -2762,6 +2894,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       );
       this.library.start();
       this.watchWorks(store);
+      void this.refreshMediaLibrary(store, epoch);
       this.watchPreferences(store);
       this.workspaceSubscriptions.add(
         store.syncedWorks$().subscribe({
@@ -2903,7 +3036,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   /** Follows one task to a settled state: a saved image, a definite failure, or a locked uncertain outcome. */
   private async runTask(
-    task: LocalTask,
+    task: ImageLocalTask,
     produce: (signal: AbortSignal) => Promise<Blob>,
     timeoutMs: number | null
   ): Promise<void> {
@@ -3028,7 +3161,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.tickets = relayTickets(relay?.payload ?? null);
     this.history.set(tasks);
     const unresolved = tasks.find(
-      t =>
+      (t): t is ImageLocalTask =>
+        t.request.kind === 'image' &&
         !t.acknowledged &&
         (['processing', 'needs_review'].includes(t.status) ||
           (t.status === 'completed' && !t.saved && !!this.tickets[t.id]))
@@ -3097,7 +3231,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
   }
   /** Continues an unsettled relay task once no other tab of this workspace is generating or resuming. */
-  private resumeRelay(task: LocalTask): void {
+  private resumeRelay(task: ImageLocalTask): void {
     if (this.relayResuming === task.id) return;
     this.relayResuming = task.id;
     const epoch = this.epoch;
@@ -3125,11 +3259,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private async continueRelay(id: string): Promise<void> {
     // Another tab may have settled the task while this one waited for the lock.
     const task = this.history().find(item => item.id === id),
-      ticket = this.tickets[id],
-      ratio = task?.request.aspectRatio;
-    if (!task || !['processing', 'completed'].includes(task.status) || task.saved || !ticket || !ratio) return;
+      ticket = this.tickets[id];
+    if (!task || task.request.kind !== 'image' || !['processing', 'completed'].includes(task.status) || task.saved || !ticket)
+      return;
+    const imageTask = task as ImageLocalTask;
+    const ratio = imageTask.request.aspectRatio;
+    if (!ratio) return;
     await this.runTask(
-      task,
+      imageTask,
       signal =>
         runRelayTask({ id, ticket, ratio, signal, dispatch: null, accepted: () => this.acceptRelay(id, ticket) }),
       null

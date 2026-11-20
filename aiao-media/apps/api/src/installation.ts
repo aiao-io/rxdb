@@ -199,5 +199,6 @@ export class Installation {
 
 /** 所有 Worker 实例通过同一持久对象读取安装结果。 */
 export function installation(env: WorkerEnv) {
+  if (env.MEDIA_INSTALLATION_DISABLED === 'true') return undefined;
   return env.MEDIA_INSTALLATION?.get(env.MEDIA_INSTALLATION.idFromName('installation'));
 }

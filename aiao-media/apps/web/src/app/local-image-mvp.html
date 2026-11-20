@@ -591,6 +591,27 @@
         <ng-container [ngTemplateOutlet]="imageLibrary" />
       </section>
     </div>
+    @defer (on idle) {
+      <section class="media-creation-section" aria-label="音频和视频生成">
+        <div class="page-heading">
+          <div>
+            <h2>音频和视频创作</h2>
+            <p>使用 TTS、ASR、音乐和视频能力生成并保存媒体。</p>
+          </div>
+        </div>
+        <app-media-generation
+          [client]="adminApi"
+          [store]="mediaStore()"
+          [authReady]="authStatus() === 'signed-in' && localStatus() === 'ready'"
+          [workspaceKey]="currentProfileId()"
+          [credits]="creditAccount()"
+        />
+      </section>
+    } @placeholder {
+      <section class="media-creation-section" aria-label="音频和视频生成">
+        <p class="media-status" role="status">正在准备媒体创作工具…</p>
+      </section>
+    }
     <div class="privacy-line">
       <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
     </div>
@@ -855,6 +876,70 @@
           <button class="primary" (click)="navigate('studio')">开始第一张创作 →</button>
         }
       </div>
+    }
+    @if (mediaLibraryError()) {
+      <p class="notice" role="alert">{{ mediaLibraryError() }}</p>
+    }
+    @if (mediaLibraryBusy() && !mediaLibraryReady()) {
+      <p class="notice" role="status">正在读取已保存媒体…</p>
+    } @else if (mediaPages().length) {
+      <section class="media-library-section" aria-label="已保存媒体">
+        <div class="library-toolbar">
+          <div class="library-tabs">
+            <span>
+              音频、视频和 Transcript
+              <b class="count-badge">{{ mediaPages().length }}</b>
+            </span>
+          </div>
+          <span class="library-notice">结果保存在本机 · 可重新播放、下载或删除</span>
+        </div>
+        <div class="cards" aria-label="已保存媒体">
+          @for (media of mediaPages(); track mediaWorkKey(media)) {
+            @let preview = mediaPreview(media);
+            <article class="card library-card media-library-card">
+              <div class="card-photo">
+                @if (media.kind === 'audio' && preview) {
+                  <audio controls preload="metadata" [src]="preview" [attr.aria-label]="'播放音频：' + mediaTitle(media)"></audio>
+                } @else if (media.kind === 'video' && preview) {
+                  <video controls preload="metadata" [src]="preview" [attr.aria-label]="'播放视频：' + mediaTitle(media)"></video>
+                } @else if (media.kind === 'transcript' && media.result; as result) {
+                  <div class="empty-state">
+                    <p>{{ result.text }}</p>
+                    <small>{{ result.language }} · {{ result.characters }} 字</small>
+                  </div>
+                } @else if (media.status === 'broken') {
+                  <div class="empty-state"><p>媒体文件待恢复</p></div>
+                } @else {
+                  <div class="empty-state" [attr.aria-busy]="mediaPreviewLoading(media)">
+                    <p>{{ mediaPreviewLoading(media) ? '正在读取媒体…' : '媒体按需加载' }}</p>
+                    <button class="secondary sm" [disabled]="mediaPreviewLoading(media)" (click)="previewMedia(media)">
+                      {{ mediaPreviewLoading(media) ? '读取中…' : '加载预览' }}
+                    </button>
+                  </div>
+                }
+                <span class="tag">
+                  {{ media.kind === 'audio' ? '音频' : media.kind === 'video' ? '视频' : 'Transcript' }}
+                </span>
+              </div>
+              <div class="card-caption">
+                <div class="card-title work-prompt" [title]="mediaTitle(media)">{{ mediaTitle(media) }}</div>
+                <p class="work-meta">{{ mediaMeta(media) }}</p>
+              </div>
+              <div class="work-actions">
+                @if (media.kind !== 'transcript' && !preview && media.status === 'saved') {
+                  <button [disabled]="mediaPreviewLoading(media)" (click)="previewMedia(media)">
+                    {{ mediaPreviewLoading(media) ? '读取中…' : '播放预览' }}
+                  </button>
+                }
+                @if (media.status === 'saved') {
+                  <button (click)="downloadMedia(media)">↓ 下载</button>
+                }
+                <button class="danger" (click)="deleteMedia(media)">删除本机</button>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
     }
     @if ((libraryPage().total ?? 0) > 0) {
       <nav class="library-pagination" aria-label="作品分页">

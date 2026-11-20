@@ -10,6 +10,12 @@ export interface RelayTaskView {
   /** 上游 HTTP 状态；没有收到上游响应时为 null。 */
   upstreamStatus: number | null;
   updatedAt: string;
+  /** 清洗后的供应商关联 ID，不包含凭据、URL 或原始错误。 */
+  providerRequestId?: string;
+  operation?: 'text-to-image' | 'reference-image' | 'text-to-speech' | 'speech-to-text' | 'text-to-music' | 'text-to-video';
+  resultMimeType?: string | null;
+  result?: unknown;
+  creditState?: 'pending' | 'reserved' | 'charged' | 'released';
 }
 
 const encoder = new TextEncoder();

@@ -191,7 +191,14 @@ try {
     (await anonymous.from('media_public_content').select().eq('kind', 'template').eq('key', templateId)).data.length,
     0
   );
-  assert.equal((await a.client.from('media_content_drafts').select()).error.code, '42501');
+  assert.equal(
+    (await a.client.from('media_content_drafts').select().eq('kind', 'template').eq('key', templateId)).data.length,
+    1
+  );
+  assert.deepEqual(
+    (await b.client.from('media_content_drafts').select().eq('kind', 'template').eq('key', templateId)).data,
+    []
+  );
   assert.equal(
     (
       await adminRequest(a, `content/template/${templateId}`, 'PUT', {

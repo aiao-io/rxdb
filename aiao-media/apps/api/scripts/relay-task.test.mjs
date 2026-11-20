@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import worker from '../src/local-first-worker.ts';
 import { RelayTask } from '../src/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
+import { fixtureMediaEnvironment, fixtureWav } from '../src/media-fixtures.ts';
 import { fixtureModel, platformFixture } from './fixtures/platform-fixture.ts';
 
 const origin = 'https://app.example.test';
@@ -86,6 +87,85 @@ function setup(context, upstream = () => Response.json(result)) {
     settled: () => env.RELAY_TASKS.settled(name)
   };
 }
+
+function mediaSetup(context, upstream = () => new Response(fixtureWav(), {
+  headers: { 'content-type': 'audio/wav', 'x-provider-request-id': 'media-provider-request-01' }
+})) {
+  const calls = [];
+  const fixture = platformFixture();
+  const media = fixtureMediaEnvironment();
+  context.mock.method(globalThis, 'fetch', fixture.backendFetch);
+  const env = {
+    ...fixture.env,
+    ...media,
+    ASSETS: { fetch: () => new Response('static application') },
+    RELAY_RESULTS: r2Bucket()
+  };
+  env.RELAY_TASKS = durableObjectNamespace(
+    ctx =>
+      new RelayTask(ctx, env, async (url, init) => {
+        calls.push({ url, init });
+        return upstream(url, init);
+      }),
+    { autoAlarms: false }
+  );
+  const task = { id: crypto.randomUUID(), token: createRelayTaskToken() };
+  const name = `relay-task:${task.id}`;
+  const send = (method, path = '', { token = task.token, headers = {}, data } = {}) =>
+    worker.fetch(
+      new Request(`${origin}/api/relay/tasks/${task.id}${path}`, {
+        method,
+        headers: {
+          ...(method === 'GET' ? {} : { origin }),
+          'x-relay-task-token': token,
+          ...(data ? { 'content-type': 'application/json', authorization: 'Bearer fixture-session' } : {}),
+          ...headers
+        },
+        ...(data ? { body: JSON.stringify(data) } : {})
+      }),
+      env
+    );
+  return {
+    env,
+    calls,
+    task,
+    name,
+    create: data => send('PUT', '', { data }),
+    status: options => send('GET', options?.wait ? `?wait=${options.wait}` : '', options),
+    result: options => send('GET', '/result', options),
+    view: async () => (await send('GET')).json(),
+    settled: () => env.RELAY_TASKS.settled(name)
+  };
+}
+
+test('多模态结果保存清洗后的供应商回执 ID，并在重复查询中继续返回', async context => {
+  const t = mediaSetup(context);
+  const request = {
+    kind: 'audio',
+    operation: 'text-to-speech',
+    providerInstanceId: '10000000-0000-4000-8000-000000000001',
+    providerRevision: 1,
+    modelId: 'fixture-tts',
+    language: 'zh-CN',
+    voiceId: 'alloy',
+    speed: 1,
+    text: 'fixture speech'
+  };
+  assert.equal((await t.create(request)).status, 202);
+  await t.settled();
+  const view = await t.view();
+  assert.equal(view.status, 'received');
+  assert.equal(view.providerRequestId, 'media-provider-request-01');
+  const repeated = await (await t.status()).json();
+  assert.equal(repeated.providerRequestId, 'media-provider-request-01');
+  const sealed = new Uint8Array(await (await t.result()).arrayBuffer());
+  const opened = await openRelayResult(await relayResultKey(t.task.token, t.task.id, 'decrypt'), sealed);
+  assert.deepEqual(opened, fixtureWav());
+  const stored = JSON.stringify(t.env.RELAY_TASKS.rows(t.name, 'SELECT * FROM relay_task')) +
+    [...t.env.RELAY_RESULTS.objects.values()].map(object => Buffer.from(object.bytes).toString('latin1')).join();
+  for (const secret of ['fixture-media-secret', 'fixture-session', 'fixture speech', t.task.token, 'https://fixture-media.example.test'])
+    assert.ok(!stored.includes(secret), secret);
+});
 
 test('接单立即返回回执，上游在页面断开后继续，结果只以密文暂存', async context => {
   const upstream = deferred();
