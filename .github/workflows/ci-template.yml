@@ -954,7 +954,14 @@ jobs:
           # 其余 e2e 项目走空串，依赖照旧由 nx 自己解。
           EXCLUDE_DEPS: ${{ matrix.project == 'dev-rxdb-electron-e2e' && '--excludeTaskDependencies' || '' }}
         # $EXCLUDE_DEPS 刻意不加引号：空串要被 shell 吃掉，加引号会变成一个空参数传给 nx。
-        run: pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT" = "aiao-desktop-e2e" ]; then
+            # 每个检查组内部有多个桌面应用窗口；CI 的 Xvfb 在并行检查组运行时更容易放大淡出窗口的点击拦截，串行运行避免级联假失败。
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1"
+          else
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
+          fi
 
       # 失败复盘用。web demo e2e 与 devtools 扩展 e2e 的 config 都是 `trace: { mode: 'retain-on-failure', screenshots: false }`：
       # 每次尝试都录，只留失败的尝试（重试转绿的用例，首次失败那次的 trace 也在）。
