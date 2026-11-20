@@ -25,8 +25,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SyncManager } from '../SyncManager.js';
 import { createSyncBranchMaterializationSource } from '../branch-materialization-source.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
-import { Tag, User } from './fixtures/test-entities.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
+import { Tag, User } from './fixtures/test-entities.js';
 
 /** 冻结时远端的身份 */
 const BACKEND = 'backend-a';

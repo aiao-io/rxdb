@@ -226,12 +226,6 @@ export * from './system/capability-watermark.js';
 // 本地库与身份的绑定（US-035）。只导出应用要用的：声明身份的类型、未登录的身份值、按身份算库名、
 // 身份对不上时抛的错。键的算法、水位行名与两处核对是核心与同步插件之间的内部约定，不进公开面。
 export {
-  getRxDBIdentityDatabaseName,
-  RXDB_ANONYMOUS_SUBJECT,
-  RxDBIdentityMismatchError,
-  type RxDBIdentity
-} from './system/identity-binding.js';
-export {
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_CHANGE_ENTITY_ID_PREFIX,
   RXDB_CHANGE_SCHEMA_VERSION,
@@ -250,6 +244,12 @@ export {
   type RxDBChangeEntityMetadataResolver
 } from './system/change-codec.js';
 export * from './system/change.js';
+export {
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDBIdentityMismatchError,
+  getRxDBIdentityDatabaseName,
+  type RxDBIdentity
+} from './system/identity-binding.js';
 export * from './system/migration.js';
 // 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-working-tree` 在包外，它的变更单元
 // 指纹与提交幂等键都按它算，而这两个 hex 是**落库**的。插件自带一份实现不产生编译错误，

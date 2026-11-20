@@ -13,8 +13,8 @@ import {
   RemoteChangeResult,
   RemoteEntityRef,
   RemoteMergeResult,
-  RXDB_ANONYMOUS_SUBJECT,
-  RuleGroup
+  RuleGroup,
+  RXDB_ANONYMOUS_SUBJECT
 } from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
 import type { PostgrestErrorBody } from './postgrest-error.js';

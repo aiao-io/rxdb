@@ -19,8 +19,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { flushQueryCacheOutbox } from '../query-cache-outbox.js';
 import { setupSyncListeners } from '../sync-listeners.js';
 import type { SyncManager } from '../SyncManager.js';
-import { detachedReachability } from './fixtures/reachability.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
+import { detachedReachability } from './fixtures/reachability.js';
 
 @Entity({
   name: 'ReviewOutboxArticle',

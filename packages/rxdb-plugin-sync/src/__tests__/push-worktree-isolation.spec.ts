@@ -17,9 +17,9 @@ import { of } from 'rxjs';
 import { expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
 import { makeBranch } from './fixtures/branch-repository-stub.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { User } from './fixtures/test-entities.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
-import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const createHarness = (changeCount = 1) => {
   let tableSet = WorktreeTableSet.MAIN;

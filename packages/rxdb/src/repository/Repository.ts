@@ -11,7 +11,6 @@ import { RxDB } from '../RxDB.js';
 import { RxDBError, RxDBReadOnlyError } from '../RxDBError.js';
 import { SortOrderError } from '../sortable/sortable-error.js';
 import { SORT_ORDER_FIELD, type ReorderTarget } from '../sortable/sortable.interface.js';
-import { createIdentityGuardedQueryCacheRemote, type CallerIdentityReporter } from '../system/identity-binding.js';
 import {
   appendToGroupTails,
   assertExplicitSortOrders,
@@ -26,6 +25,7 @@ import {
   snapshotSortOrders,
   updateKeepingEdits
 } from '../sortable/sortable.utils.js';
+import { createIdentityGuardedQueryCacheRemote, type CallerIdentityReporter } from '../system/identity-binding.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
