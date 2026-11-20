@@ -191,14 +191,16 @@ try {
     (await anonymous.from('media_public_content').select().eq('kind', 'template').eq('key', templateId)).data.length,
     0
   );
-  assert.equal(
-    (await a.client.from('media_content_drafts').select().eq('kind', 'template').eq('key', templateId)).data.length,
-    1
-  );
-  assert.deepEqual(
-    (await b.client.from('media_content_drafts').select().eq('kind', 'template').eq('key', templateId)).data,
-    []
-  );
+  const ownDrafts = await a.client
+    .from('media_content_drafts')
+    .select()
+    .eq('kind', 'template')
+    .eq('key', templateId);
+  assert.equal(ownDrafts.error, null);
+  assert.equal(ownDrafts.data.length, 1);
+  const inaccessibleDrafts = await b.client.from('media_content_drafts').select();
+  assert.equal(inaccessibleDrafts.error, null);
+  assert.deepEqual(inaccessibleDrafts.data, []);
   assert.equal(
     (
       await adminRequest(a, `content/template/${templateId}`, 'PUT', {

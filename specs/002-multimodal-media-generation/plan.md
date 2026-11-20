@@ -47,16 +47,16 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### Initial check before Phase 0
 
-| Constitution gate | Result | Evidence and plan constraint |
-| --- | --- | --- |
-| I. Code Quality | PASS | 复用现有 contracts、RelayTask、积分和 LocalMediaStore。新增 exported symbols 进入 `packages/*` 时补 TSDoc，保持 strict、禁止 `any`、最大三层嵌套。图片兼容适配器不删除旧路径。 |
-| II. Testing Standards | PASS | 采用红-绿-重构。先为 ASR、音乐、目录、结果和 Transcript 写失败测试，再接线实现。单测、浏览器存储、API relay、fixture E2E 和正式验收按影响面分层。覆盖率以 `scripts/audit/coverage-check.mjs` 为准。 |
-| III. User Experience Consistency | PASS | 功能在同一个 Angular 产品的 `/create` 入口提供加载、空、错误、待核查、保存失败和无障碍状态。共享 API contract 保持单一语义。该功能是 `aiao-media` 应用私有 UI，不要求 React/Vue 页面复制。 |
-| IV. Performance Requirements | PASS | 计划已经记录首屏、数据库操作、Worker 非供应商处理、contracts gzip 增量和大视频结果的测量目标。关键路径新增 timing 和大结果证据。 |
+| Constitution gate                | Result | Evidence and plan constraint                                                                                                                                                                        |
+| -------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Code Quality                  | PASS   | 复用现有 contracts、RelayTask、积分和 LocalMediaStore。新增 exported symbols 进入 `packages/*` 时补 TSDoc，保持 strict、禁止 `any`、最大三层嵌套。图片兼容适配器不删除旧路径。                      |
+| II. Testing Standards            | PASS   | 采用红-绿-重构。先为 ASR、音乐、目录、结果和 Transcript 写失败测试，再接线实现。单测、浏览器存储、API relay、fixture E2E 和正式验收按影响面分层。覆盖率以 `scripts/audit/coverage-check.mjs` 为准。 |
+| III. User Experience Consistency | PASS   | 功能在同一个 Angular 产品的 `/create` 入口提供加载、空、错误、待核查、保存失败和无障碍状态。共享 API contract 保持单一语义。该功能是 `aiao-media` 应用私有 UI，不要求 React/Vue 页面复制。          |
+| IV. Performance Requirements     | PASS   | 计划已经记录首屏、数据库操作、Worker 非供应商处理、contracts gzip 增量和大视频结果的测量目标。关键路径新增 timing 和大结果证据。                                                                    |
 
 Phase 0 没有未决的 `NEEDS CLARIFICATION`。供应商名称和模型由服务端能力目录配置，属于运行时配置决策，不进入公共契约。
 
@@ -254,12 +254,12 @@ aiao-media/
 
 ## Constitution Check after Phase 1 design
 
-| Constitution gate | Result | Evidence and required verification |
-| --- | --- | --- |
-| I. Code Quality | PASS | 设计将 provider adapter、输入上传、任务状态、本机交付和 UI session 分开。新增公开符号的 TSDoc、strict、零 warning 和三层嵌套限制进入任务门禁。没有 any、客户端 Key 或隐藏 fallback。 |
-| II. Testing Standards | PASS | 每个新 validator、状态转移、存储恢复和 UI 操作都有先失败再实现的测试位置。覆盖率按仓库脚本为准，fixture 与正式 provider 证据分开，provider acceptance 不进入默认全量测试。 |
-| III. User Experience Consistency | PASS | 四类能力共享目录、登录、积分、任务状态、刷新续接、保存失败和错误语义。Angular 私有 UI 在 `/create` 统一呈现，作品库为音频、视频和 Transcript 定义播放、复制、下载、删除和无障碍状态。图片入口继续兼容。 |
-| IV. Performance Requirements | PASS | 首屏、RxDB 事务、Worker 非供应商处理、contracts gzip 和大视频结果均有指标与验证入口。R2 结果对象避免视频经过 JSON/base64 传输。 |
+| Constitution gate                | Result | Evidence and required verification                                                                                                                                                                      |
+| -------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Code Quality                  | PASS   | 设计将 provider adapter、输入上传、任务状态、本机交付和 UI session 分开。新增公开符号的 TSDoc、strict、零 warning 和三层嵌套限制进入任务门禁。没有 any、客户端 Key 或隐藏 fallback。                    |
+| II. Testing Standards            | PASS   | 每个新 validator、状态转移、存储恢复和 UI 操作都有先失败再实现的测试位置。覆盖率按仓库脚本为准，fixture 与正式 provider 证据分开，provider acceptance 不进入默认全量测试。                              |
+| III. User Experience Consistency | PASS   | 四类能力共享目录、登录、积分、任务状态、刷新续接、保存失败和错误语义。Angular 私有 UI 在 `/create` 统一呈现，作品库为音频、视频和 Transcript 定义播放、复制、下载、删除和无障碍状态。图片入口继续兼容。 |
+| IV. Performance Requirements     | PASS   | 首屏、RxDB 事务、Worker 非供应商处理、contracts gzip 和大视频结果均有指标与验证入口。R2 结果对象避免视频经过 JSON/base64 传输。                                                                         |
 
 设计后的 gate 通过。没有需要宪法例外批准的条目。
 
@@ -267,13 +267,13 @@ aiao-media/
 
 本节记录设计中有明确理由的额外复杂度，供实现和评审约束范围。
 
-| 设计复杂度 | 为什么需要 | 被拒绝的更简单方案 |
-| --- | --- | --- |
+| 设计复杂度                               | 为什么需要                                                                    | 被拒绝的更简单方案                                                 |
+| ---------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | 图片密文 JSON 与音视频 R2 二进制结果并存 | 兼容已有图片任务，同时支持 64 MiB 视频并避免把大文件装入 JSON 或客户端 base64 | 统一使用旧 24 MiB 密文 envelope 会与视频契约和 Worker 内存预算冲突 |
-| `LocalTranscript` 独立实体 | ASR 输出是文本，缺少二进制文件、MIME 和 OPFS fileId | 把文本塞进 `LocalMediaAsset` 会伪造文件元数据并污染音视频恢复逻辑 |
-| 通用 submission journal 加旧版本读取迁移 | ASR 输入和多任务并行需要统一幂等记录，同时必须保护已有 TTS/视频 v1 journal | 直接改写旧 journal 会覆盖用户未完成任务或让刷新续接失效 |
-| 独立 `/api/media/capabilities` | 保持已有图片 `/api/models` 响应结构和用户行为 | 把新能力字段混入图片模型响应会破坏旧消费者和目录验证 |
-| 独立多模态 E2E 和正式 acceptance | 图片 fixture、结果解析和计费证据均是图片专用 | 直接扩展图片套件会让音频、ASR 和视频的失败证据被图片假设掩盖 |
+| `LocalTranscript` 独立实体               | ASR 输出是文本，缺少二进制文件、MIME 和 OPFS fileId                           | 把文本塞进 `LocalMediaAsset` 会伪造文件元数据并污染音视频恢复逻辑  |
+| 通用 submission journal 加旧版本读取迁移 | ASR 输入和多任务并行需要统一幂等记录，同时必须保护已有 TTS/视频 v1 journal    | 直接改写旧 journal 会覆盖用户未完成任务或让刷新续接失效            |
+| 独立 `/api/media/capabilities`           | 保持已有图片 `/api/models` 响应结构和用户行为                                 | 把新能力字段混入图片模型响应会破坏旧消费者和目录验证               |
+| 独立多模态 E2E 和正式 acceptance         | 图片 fixture、结果解析和计费证据均是图片专用                                  | 直接扩展图片套件会让音频、ASR 和视频的失败证据被图片假设掩盖       |
 
 ## Implementation Readiness
 

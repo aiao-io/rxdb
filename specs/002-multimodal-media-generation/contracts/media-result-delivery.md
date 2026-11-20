@@ -12,11 +12,11 @@
 
 `GET /api/relay/tasks/{taskId}/result`
 
-| 结果 | Content-Type | 读取方式 |
-| --- | --- | --- |
-| ASR | `application/json` | 校验 TranscriptResult |
-| TTS 或音乐 | manifest 的实际音频 MIME | 读取 Blob 并校验容器、大小、摘要和时长 |
-| 视频 | manifest 的实际视频 MIME | 读取 Blob，校验 MP4 容器并用浏览器解码校验尺寸和时长 |
+| 结果       | Content-Type             | 读取方式                                             |
+| ---------- | ------------------------ | ---------------------------------------------------- |
+| ASR        | `application/json`       | 校验 TranscriptResult                                |
+| TTS 或音乐 | manifest 的实际音频 MIME | 读取 Blob 并校验容器、大小、摘要和时长               |
+| 视频       | manifest 的实际视频 MIME | 读取 Blob，校验 MP4 容器并用浏览器解码校验尺寸和时长 |
 
 结果对象放在私有 `results/<taskId>`。provider 返回 URL 时，Worker 只允许 HTTPS 且与 provider endpoint 同源的地址，携带短暂 authorization 下载并禁止重定向。响应不得包含供应商 URL，authorization 不得进入任务快照、manifest、日志或浏览器响应。服务端和客户端都不得依据请求的格式、时长或画幅替换 manifest。
 
