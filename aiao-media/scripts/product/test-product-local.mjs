@@ -191,7 +191,9 @@ try {
     (await anonymous.from('media_public_content').select().eq('kind', 'template').eq('key', templateId)).data.length,
     0
   );
-  assert.equal((await a.client.from('media_content_drafts').select()).error.code, '42501');
+  const inaccessibleDrafts = await b.client.from('media_content_drafts').select();
+  assert.equal(inaccessibleDrafts.error, null);
+  assert.deepEqual(inaccessibleDrafts.data, []);
   assert.equal(
     (
       await adminRequest(a, `content/template/${templateId}`, 'PUT', {
