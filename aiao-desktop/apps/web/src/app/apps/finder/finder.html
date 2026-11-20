@@ -2,7 +2,7 @@
   class="wb finder-layout"
   #layout
   [class.sidebar-collapsed]="!sidebarVisible()"
-  [inert]="fileOperation() !== null"
+  [inert]="fileOperation() !== null || emptyTrashPrompt()"
   [style.--finder-sidebar-width]="sidebarWidth() + 'px'"
 >
   <app-traffic-lights />
@@ -123,6 +123,20 @@
       <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
 
+      @if (isTrash()) {
+        <button
+          class="tbtn trash-empty"
+          [disabled]="!trashFull()"
+          (click)="emptyTrash()"
+          aria-label="Empty Trash"
+          data-trash-empty
+          tabindex="0"
+          type="button"
+        >
+          Empty Trash
+        </button>
+      }
+
       <div class="seg" aria-label="View" data-nodrag role="group">
         <button
           [attr.aria-pressed]="view() === 'icon'"
@@ -214,7 +228,12 @@
       [appFileDrop]="importDirectory()"
       [class.scroll]="view() !== 'column'"
       [style.overflow]="view() === 'column' ? 'hidden' : ''"
+      [cdkDropListData]="importDirectory()"
+      [cdkDropListSortingDisabled]="true"
+      (cdkDropListDropped)="dropFile($event)"
       (contextmenu)="bodyMenu($event)"
+      cdkDropList
+      cdkDropListGroup
       data-body
     >
       @if (applicationsNote(); as note) {
@@ -228,17 +247,24 @@
                 class="fitem"
                 [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                 [attr.aria-label]="label(item)"
-                [attr.aria-selected]="item.name === selected()"
+                [attr.aria-selected]="isSelected(item.name)"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                 [attr.data-name]="item.name"
+                [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
-                [class.sel]="item.name === selected()"
-                (click)="select(item.name)"
+                [cdkDragData]="item"
+                [cdkDragDisabled]="!canFileDrag(item)"
+                [cdkDropListData]="item.kind === 'folder' ? item.path : null"
+                [class.sel]="isSelected(item.name)"
+                (cdkDropListDropped)="dropFile($event)"
+                (click)="select(item.name, $event)"
                 (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
-                (focus)="select(item.name)"
+                (focus)="focusItem(item.name)"
                 (keydown)="itemKey($event, item.name)"
                 (pointerdown)="dragApp($event, item)"
+                cdkDrag
+                cdkDropList
                 role="option"
               >
                 <div class="art">
@@ -249,6 +275,9 @@
                   }
                 </div>
                 <div class="nm">{{ displayName(item) }}</div>
+                <ng-template cdkDragPreview>
+                  <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
+                </ng-template>
               </div>
             }
           </div>
@@ -266,22 +295,30 @@
               <div class="c3">Size</div>
               <div class="c4">Kind</div>
             </div>
-            @for (item of items(); track item.name) {
+            <cdk-virtual-scroll-viewport #listViewport class="fv-list-scroll" [itemSize]="24">
               <div
+                *cdkVirtualFor="let item of items(); trackBy: trackNode"
                 class="r"
                 [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
                 [attr.aria-label]="label(item)"
-                [attr.aria-selected]="item.name === selected()"
+                [attr.aria-selected]="isSelected(item.name)"
                 [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                 [attr.data-name]="item.name"
+                [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
                 [attr.tabindex]="item.name === tabStop() ? 0 : -1"
-                [class.sel]="item.name === selected()"
-                (click)="select(item.name)"
+                [cdkDragData]="item"
+                [cdkDragDisabled]="!canFileDrag(item)"
+                [cdkDropListData]="item.kind === 'folder' ? item.path : null"
+                [class.sel]="isSelected(item.name)"
+                (cdkDropListDropped)="dropFile($event)"
+                (click)="select(item.name, $event)"
                 (contextmenu)="itemMenu($event, item)"
                 (dblclick)="enter(item.name)"
-                (focus)="select(item.name)"
+                (focus)="focusItem(item.name)"
                 (keydown)="itemKey($event, item.name)"
                 (pointerdown)="dragApp($event, item)"
+                cdkDrag
+                cdkDropList
                 role="option"
               >
                 <div class="c1">
@@ -302,62 +339,106 @@
                 <div class="c2">{{ finderDate(item.date) }}</div>
                 <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
                 <div class="c4">{{ item.k || (item.kind === 'folder' ? 'Folder' : 'Document') }}</div>
+                <ng-template cdkDragPreview>
+                  <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
+                </ng-template>
               </div>
-            }
+            </cdk-virtual-scroll-viewport>
           </div>
+          @if (!items().length) {
+            <div role="status" style="padding: 40px; text-align: center; color: var(--txt-3); font-size: 13px">
+              {{ emptyText() }}
+            </div>
+          }
         }
         @case ('column') {
           @let chain = columns().chain;
           @let picked = columns().selection;
+          @let last = lastColumn();
           <div class="fv-col">
             @for (column of chain; track $index; let ci = $index) {
               @if (!column.file && ci >= firstColumn()) {
-                <div
+                <cdk-virtual-scroll-viewport
                   class="col"
+                  [class.flex-col]="ci === last"
+                  [style.width.px]="ci === last ? null : columnWidth()"
                   [appFileDrop]="ci === 0 ? importDirectory() : column.node.path"
                   [attr.aria-label]="column.node.name"
                   [attr.data-ci]="ci"
+                  [cdkDropListData]="ci === 0 ? importDirectory() : column.node.path"
+                  [cdkDropListSortingDisabled]="true"
+                  (cdkDropListDropped)="dropFile($event)"
+                  cdkDropList
+                  [itemSize]="23"
                   role="listbox"
                 >
-                  @for (item of column.items ?? []; track item.name) {
-                    <div
-                      class="ci"
-                      [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
-                      [attr.aria-label]="label(item)"
-                      [attr.aria-selected]="item.name === picked[ci]"
-                      [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
-                      [attr.data-ci]="ci"
-                      [attr.data-kind]="item.kind"
-                      [attr.data-name]="item.name"
-                      [attr.tabindex]="columnStop().ci === ci && columnStop().name === item.name ? 0 : -1"
-                      [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
-                      [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
-                      (click)="pickColumn(ci, item.name)"
-                      (contextmenu)="itemMenu($event, item)"
-                      (dblclick)="openColumnFile(item)"
-                      (focus)="pickColumn(ci, item.name)"
-                      (keydown)="itemKey($event, item.name, ci)"
-                      (pointerdown)="dragApp($event, item)"
-                      role="option"
-                    >
-                      <span class="art">
-                        @if (item.icon === 'f-img') {
-                          <app-file-thumbnail class="shot" [contentId]="item.contentId" />
-                        } @else {
-                          <svg [appIcon]="displayIcon(item)"></svg>
-                        }
-                      </span>
-                      <span class="nm">{{ displayName(item) }}</span>
-                      @if (item.kind === 'folder') {
-                        <svg class="ch" appIcon="g-chev-r"></svg>
+                  <div
+                    *cdkVirtualFor="let item of column.items ?? []; trackBy: trackNode"
+                    class="ci"
+                    [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
+                    [attr.aria-label]="label(item)"
+                    [attr.aria-selected]="item.name === picked[ci]"
+                    [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
+                    [attr.data-ci]="ci"
+                    [attr.data-kind]="item.kind"
+                    [attr.data-name]="item.name"
+                    [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
+                    [attr.tabindex]="columnStop().ci === ci && columnStop().name === item.name ? 0 : -1"
+                    [cdkDragData]="item"
+                    [cdkDragDisabled]="!canFileDrag(item)"
+                    [cdkDropListData]="item.kind === 'folder' ? item.path : null"
+                    [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
+                    [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
+                    (cdkDropListDropped)="dropFile($event)"
+                    (click)="pickColumn(ci, item.name)"
+                    (contextmenu)="itemMenu($event, item)"
+                    (dblclick)="openColumnFile(item)"
+                    (focus)="pickColumn(ci, item.name)"
+                    (keydown)="itemKey($event, item.name, ci)"
+                    (pointerdown)="dragApp($event, item)"
+                    cdkDrag
+                    cdkDropList
+                    role="option"
+                  >
+                    <span class="art">
+                      @if (item.icon === 'f-img') {
+                        <app-file-thumbnail class="shot" [contentId]="item.contentId" />
+                      } @else {
+                        <svg [appIcon]="displayIcon(item)"></svg>
                       }
-                    </div>
-                  } @empty {
+                    </span>
+                    <span class="nm">{{ displayName(item) }}</span>
+                    @if (item.kind === 'folder') {
+                      <svg class="ch" appIcon="g-chev-r"></svg>
+                    }
+                    <ng-template cdkDragPreview>
+                      <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
+                    </ng-template>
+                  </div>
+                  @if (!(column.items?.length ?? 0)) {
                     <div role="status" style="padding: 14px; color: var(--txt-3); font-size: 12px; text-align: center">
                       Empty
                     </div>
                   }
-                </div>
+                </cdk-virtual-scroll-viewport>
+                @if (ci < last) {
+                  <div
+                    class="finder-column-divider"
+                    [attr.aria-valuenow]="columnWidth()"
+                    (keydown)="columnKey($event)"
+                    (lostpointercapture)="endColumnDrag($event)"
+                    (pointercancel)="endColumnDrag($event)"
+                    (pointerdown)="startColumnDrag($event)"
+                    (pointermove)="moveColumnDrag($event)"
+                    (pointerup)="endColumnDrag($event)"
+                    aria-label="Column width"
+                    aria-orientation="vertical"
+                    aria-valuemax="420"
+                    aria-valuemin="164"
+                    role="separator"
+                    tabindex="0"
+                  ></div>
+                }
               }
             }
             @if (previewFile(); as preview) {
@@ -446,6 +527,11 @@
         }
       }
     </div>
+    @if (isTrash()) {
+      <div class="fx-status" data-trash-status role="status">
+        {{ trashCount() }} {{ trashCount() === 1 ? 'item' : 'items' }}
+      </div>
+    }
     <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" aria-label="Path" data-path role="navigation">
       @for (segment of pathSegments(); track $index; let i = $index) {
         @if (i) {
@@ -467,4 +553,8 @@
 
 @if (fileOperation(); as operation) {
   <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation($event)" />
+}
+
+@if (emptyTrashPrompt()) {
+  <app-empty-trash-dialog (finished)="finishEmptyTrash($event)" />
 }

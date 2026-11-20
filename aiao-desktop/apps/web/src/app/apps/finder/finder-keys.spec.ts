@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
+import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
+
+const key = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;
 
 describe('linearTarget 列表、画廊、分栏里方向键的去向', () => {
   it('竖向（列表、分栏）：上下方向键移动一项，不循环，到头留在原地', () => {
@@ -78,8 +80,6 @@ describe('gridTarget 图标视图里方向键按几何找邻居', () => {
 });
 
 describe('isGoUp 回到上一级目录的按键', () => {
-  const key = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;
-
   it('Backspace，以及 ⌘↑ / Ctrl+↑', () => {
     expect(isGoUp(key({ key: 'Backspace' }))).toBe(true);
     expect(isGoUp(key({ key: 'ArrowUp', metaKey: true }))).toBe(true);
@@ -90,6 +90,20 @@ describe('isGoUp 回到上一级目录的按键', () => {
     expect(isGoUp(key({ key: 'ArrowUp' }))).toBe(false);
     expect(isGoUp(key({ key: 'Delete' }))).toBe(false);
     expect(isGoUp(key({ key: 'ArrowDown', metaKey: true }))).toBe(false);
+  });
+});
+
+describe('isMoveToTrash Finder 移到废纸篓的快捷键', () => {
+  it('识别 macOS 的 Meta+Backspace 与 Delete', () => {
+    expect(isMoveToTrash(key({ key: 'Backspace', metaKey: true }))).toBe(true);
+    expect(isMoveToTrash(key({ key: 'Delete', metaKey: true }))).toBe(true);
+    expect(isMoveToTrash(key({ key: 'Backspace', ctrlKey: true }))).toBe(true);
+  });
+
+  it('不把普通返回、Shift 组合或没有修饰键的 Delete 当成移入废纸篓', () => {
+    expect(isMoveToTrash(key({ key: 'Backspace' }))).toBe(false);
+    expect(isMoveToTrash(key({ key: 'Delete' }))).toBe(false);
+    expect(isMoveToTrash(key({ key: 'Backspace', metaKey: true, shiftKey: true }))).toBe(false);
   });
 });
 

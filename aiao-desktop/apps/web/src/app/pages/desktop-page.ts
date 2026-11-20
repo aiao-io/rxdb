@@ -1,5 +1,6 @@
 import { Component, DestroyRef, ViewEncapsulation, afterNextRender, inject } from '@angular/core';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { FinderSidebarOrder } from '../apps/finder/finder-sidebar-order';
 import { MailComposer } from '../apps/mail/mail-composer';
 import { NowPlaying } from '../apps/music/now-playing';
@@ -21,6 +22,7 @@ import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { DesktopBackup } from '../services/desktop-backup';
 import { DesktopItems } from '../services/desktop-items';
+import { ariaShortcut } from '../services/aria';
 import { DesktopMenus } from '../services/desktop-menus';
 import { DockDragController } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
@@ -29,6 +31,7 @@ import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
+import { isMenuCommand } from '../services/menu';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
 import { OrbitHost } from '../services/orbit-host';
@@ -85,6 +88,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     FileSystem,
     ImageThumbnailCache,
     FileImport,
+    FinderClipboard,
     FileOpener,
     FilePanels,
     FinderSidebarOrder,
@@ -207,10 +211,34 @@ export class DesktopPage {
       return;
     }
     const front = this.wm.front();
+    if (front && this.runMenuShortcut(event, front)) return;
     if (key === 'n' && front) {
       event.preventDefault();
       this.wm.open(front.appId, { force: true });
     }
+  }
+
+  private runMenuShortcut(event: KeyboardEvent, front: ReturnType<WindowManager['front']>): boolean {
+    if (!front) return false;
+    const key = event.key === ' ' ? 'Space' : event.key.length === 1 ? event.key.toUpperCase() : event.key;
+    const shortcut = [
+      event.ctrlKey ? 'Control' : null,
+      event.altKey ? 'Alt' : null,
+      event.shiftKey ? 'Shift' : null,
+      event.metaKey ? 'Meta' : null,
+      key
+    ]
+      .filter((part): part is string => part !== null)
+      .join('+');
+    const command = front
+      .menus()
+      ?.()
+      .flatMap(section => section.items)
+      .find(item => isMenuCommand(item) && !item.disabled && item.run && ariaShortcut(item.key ?? '') === shortcut);
+    if (!command || !isMenuCommand(command) || !command.run) return false;
+    event.preventDefault();
+    command.run();
+    return true;
   }
 
   /**

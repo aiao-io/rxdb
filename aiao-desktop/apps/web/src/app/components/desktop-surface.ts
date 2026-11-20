@@ -114,6 +114,11 @@ export class DesktopSurface {
 
   /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
   protected iconKey(event: KeyboardEvent, item: DesktopItem): void {
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete')) {
+      event.preventDefault();
+      this.trash(item);
+      return;
+    }
     if (!isMenuKey(event)) return;
     event.preventDefault();
     const anchor = event.currentTarget as HTMLElement;

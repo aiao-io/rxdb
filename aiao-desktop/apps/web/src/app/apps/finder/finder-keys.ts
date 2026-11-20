@@ -59,6 +59,10 @@ function nextRow(rects: readonly ItemRect[], at: number, direction: 1 | -1): num
 export const isGoUp = (event: KeyboardEvent): boolean =>
   event.key === 'Backspace' || (event.key === 'ArrowUp' && Boolean(event.metaKey || event.ctrlKey));
 
+/** Finder 的「移到废纸篓」快捷键：macOS 的 ⌘Delete 在浏览器里表现为 Meta+Backspace。 */
+export const isMoveToTrash = (event: KeyboardEvent): boolean =>
+  Boolean(event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete');
+
 /** 条目的无障碍名称：名称加种类，读屏在按 Enter 之前就知道它是文件夹还是文件。 */
 export const itemLabel = (node: { readonly name: string; readonly kind: string; readonly k?: string }): string =>
   `${node.name}, ${node.k || (node.kind === 'folder' ? 'Folder' : 'Document')}`;

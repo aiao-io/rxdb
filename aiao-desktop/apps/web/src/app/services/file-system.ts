@@ -44,8 +44,10 @@ import { FileRow, FsNode, buildTree, emptyVolume, nodeAt as findNode, searchNode
 import { DiskMarker, DiskSeeder, DiskVolume, eraseVolume, openVolume } from '../disk/disk-volume';
 import {
   ImportedFile,
+  copyEntryTo,
   duplicateEntry,
   importFiles as importEntries,
+  moveEntryTo,
   renameEntry,
   restoreEntry
 } from '../disk/file-operations';
@@ -286,6 +288,23 @@ export class FileSystem {
     this.requireWritable(parentOf(path));
     const target = await this.exclusive(store => duplicateEntry(store, path, this.batchJournal()));
     this.changes.next([target]);
+    return target;
+  }
+
+  async copyTo(path: DiskPath, dir: DiskPath): Promise<DiskPath> {
+    this.requireWritable(dir);
+    const target = await this.exclusive(store => copyEntryTo(store, path, dir, this.batchJournal()));
+    this.changes.next([target]);
+    return target;
+  }
+
+  async moveTo(path: DiskPath, dir: DiskPath): Promise<DiskPath> {
+    if (isRequiredDiskPath(path))
+      throw new DiskError('EACCES', path, 'This item is required by the system and cannot be moved.');
+    this.requireWritable(parentOf(path));
+    this.requireWritable(dir);
+    const target = await this.exclusive(store => moveEntryTo(store, path, dir));
+    this.changes.next([path, target]);
     return target;
   }
 

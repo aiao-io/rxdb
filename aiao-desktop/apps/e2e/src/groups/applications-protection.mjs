@@ -51,7 +51,7 @@ export const applicationsProtection = {
     const full = await showsIconAsset(art, 'app-trash-full.png');
     await trash.click({ button: 'right' });
     await page.locator('#layer-menu .pop .mi', { hasText: 'Empty Trash' }).click();
-    await page.keyboard.press('Escape');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Empty Trash', exact: true }).click();
     await art.and(page.locator('[data-icon="app-trash"]')).waitFor({ state: 'attached' });
     const empty = await showsIconAsset(art, 'app-trash.png');
     result.emptyTrashCannotRemovePackage = (await item.count()) === 1;

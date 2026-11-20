@@ -6,9 +6,11 @@ import {
   afterRenderEffect,
   computed,
   inject,
+  signal,
   viewChild,
   viewChildren
 } from '@angular/core';
+import { EmptyTrashDialog } from './empty-trash-dialog';
 import { ApplicationRegistry } from '../services/application-registry';
 
 import { AppLauncher } from '../services/app-launcher';
@@ -77,7 +79,7 @@ const padOf = (size: number): number => Math.round(size * 0.15);
  */
 @Component({
   selector: 'app-dock',
-  imports: [Icon],
+  imports: [Icon, EmptyTrashDialog],
   templateUrl: './dock.html',
   styleUrl: './dock.scss',
   encapsulation: ViewEncapsulation.None,
@@ -117,6 +119,7 @@ export class Dock implements DockView, DockDropTarget {
   protected readonly dockState = inject(DockState);
   protected readonly drag = inject(DockDragController);
   protected readonly fs = inject(FileSystem);
+  protected readonly emptyTrashPrompt = signal(false);
   protected readonly calendarDate = computed(() => {
     const now = this.clock.now();
     return `${DAYS3[now.getDay()].toUpperCase()} ${now.getDate()}`;
@@ -190,6 +193,19 @@ export class Dock implements DockView, DockDropTarget {
     const left = rect.left + rect.width / 2 - total / 2;
     const centers = placed.filter(item => item.arranged?.slot.draggable).map(item => left + item.base);
     return slotIndexAt(centers, x);
+  }
+
+  protected requestEmptyTrash(): void {
+    if (this.fs.trashFull()) this.emptyTrashPrompt.set(true);
+  }
+
+  protected finishEmptyTrash(confirmed: boolean): void {
+    this.emptyTrashPrompt.set(false);
+    if (!confirmed) return;
+    this.fs.emptyTrash().then(
+      () => this.toast.show('Trash emptied'),
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
   }
 
   /** 重算静止几何；窗口缩放、偏好变化和格子增减时调用。 */
@@ -356,11 +372,7 @@ export class Dock implements DockView, DockDropTarget {
         id: 'e',
         label: 'Empty Trash',
         disabled: !this.fs.trashFull(),
-        run: () =>
-          this.fs.emptyTrash().then(
-            () => this.toast.show('Trash emptied'),
-            (error: unknown) => this.toast.show(describeDiskError(error))
-          )
+        run: () => this.requestEmptyTrash()
       },
       '-',
       this.layout.menuEntry('trash')

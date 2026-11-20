@@ -1,5 +1,21 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-20：浏览器关闭后恢复工作区（ADESK-US-128）
+
+ADESK-US-128 已完成需求设计并登记为 Backlog。当前没有实现代码、浏览器关闭重进测试或可标记为通过的验收证据，12 条 AC 均保持未开始。实现阶段需要使用持久浏览器上下文验证关闭浏览器后的重新进入，并覆盖标签页竞争、显式关闭窗口、延后加载、存储失败和损坏快照。
+
+## 2026-11-20：废纸篓重设计回归（ADESK-US-110 增量）
+
+废纸篓生命周期已按 macOS 风格收口。桌面和 Finder 的删除动作进入 `~/.Trash`，Dock 使用真实目录状态显示空满，Finder 提供 Empty Trash 和数量，永久清倒经过确认框，取消会保留条目，Put Back 与 Restore to Folder 继续保留原位置和冲突处理。
+
+- `pnpm nx run aiao-desktop-web:test --skipNxCache --output-style=static -- --run src/app/services/file-system.spec.ts src/app/services/desktop-items.spec.ts src/app/apps/finder/finder-keys.spec.ts --coverage.enabled=false`：3 个测试文件、95 条用例通过。
+- `pnpm nx run aiao-desktop-web:lint --output-style=static`、`pnpm nx run aiao-desktop-e2e:lint --output-style=static`、`pnpm nx run aiao-desktop-web:typecheck --output-style=static`：全部通过。
+- `pnpm nx run aiao-desktop-web:build --output-style=static`：正式构建通过。Angular 仅提示初始 bundle 超出既有预算 45.78 kB。
+- `pnpm nx run aiao-desktop-e2e:e2e --output-style=static -- --group=file-management`：文件管理组通过，包含 `trashShortcutMovesItem` 和 `emptyTrashRequiresConfirmation`。
+- `pnpm nx run aiao-desktop-e2e:e2e --output-style=static -- --group=applications-protection`：预装应用保护组通过，包含 `emptyTrashCannotRemovePackage` 和 `trashArtworkReflectsContents`。
+
+完整 web 单测首次并发运行受测试环境缺少 Web Locks 影响，`DesktopData` 相关用例失败；按仓库约定串行复跑废纸篓相关测试通过。该环境失败不涉及废纸篓业务断言。
+
 ## 2026-11-18：Settings 分区搜索（ADESK-US-127）
 
 ADESK-US-127 自动验收完成：Settings 本地分区支持按名称搜索，空结果和清空恢复可用，点击结果后右侧标题与面板跟随选择。各面板完整系统 API、远程账号、权限中心和跨设备同步仍未接入。

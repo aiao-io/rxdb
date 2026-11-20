@@ -4,8 +4,10 @@ import type { DiskBatchRecord } from './disk-batch';
 import { DESKTOP, TRASH, type DiskPath } from './disk-path';
 import {
   MAX_IMPORT_BYTES,
+  copyEntryTo as copyToWithJournal,
   duplicateEntry as duplicateWithJournal,
   importFiles as importWithJournal,
+  moveEntryTo,
   renameEntry,
   restoreEntry,
   validateImportSize,
@@ -27,6 +29,8 @@ const journal = () => {
   };
 };
 const duplicateEntry = (store: MemoryDiskStore, path: DiskPath) => duplicateWithJournal(store, path, journal());
+const copyEntryTo = (store: MemoryDiskStore, from: DiskPath, dir: DiskPath) =>
+  copyToWithJournal(store, from, dir, journal());
 const importFiles = (store: MemoryDiskStore, path: DiskPath, files: readonly ImportedFile[]) =>
   importWithJournal(store, path, files, journal());
 
@@ -79,6 +83,23 @@ describe('Finder 文件操作', () => {
     await store.write([...copy, 'empty'], bytes('changed'));
     expect(await store.read([...dir, 'empty'])).toHaveLength(0);
     expect(await duplicateEntry(store, note)).toEqual([...DESKTOP, 'note copy.txt']);
+  });
+
+  it('复制和移动文件夹到目标目录时保留内容、处理重名并拒绝进入自身', async () => {
+    const store = await setup();
+    const source = [...DESKTOP, 'folder'];
+    const target = [...DESKTOP, 'target'];
+    await store.write([...source, 'child.txt'], bytes('child'));
+    await store.mkdir(target);
+
+    const copy = await copyEntryTo(store, source, target);
+    expect(copy).toEqual([...target, 'folder']);
+    expect(await store.read([...copy, 'child.txt'])).toEqual(bytes('child'));
+    const moved = await moveEntryTo(store, note, target);
+    expect(moved).toEqual([...target, 'note.txt']);
+    expect(await store.kindOf(note)).toBeNull();
+    await expect(copyEntryTo(store, source, source)).rejects.toMatchObject({ code: 'EACCES' });
+    await expect(moveEntryTo(store, source, source)).rejects.toMatchObject({ code: 'EACCES' });
   });
 
   it('复制写入失败撤回不完整目标，源文件保持不变', async () => {

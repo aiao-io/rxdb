@@ -24,6 +24,7 @@ export const localMail = {
     'localMail.deletedDraftRetained',
     'localMail.replyAndForwardContent',
     'localMail.sharedContentDrafts',
+    'localMail.finderShareCreatesDraft',
     'localMail.beforeUnloadGuard',
     'localMail.keyboardRecovery',
     'localMail.noViolations'
@@ -244,7 +245,21 @@ export const localMail = {
     await choose(photos, '[data-pshare]', 'Mail Draft');
     expect((await field('Message').inputValue()).replace(/\/\d+px-/, '/')).toBe(url.replace(/\/\d+px-/, '/'));
     await panel().getByRole('button', { name: 'Discard Changes', exact: true }).click();
+
+    await helpers.closeAll();
+    await helpers.launch('Finder');
+    const finder = helpers.win('finder');
+    await finder.locator('[data-place="Desktop"]').click();
+    const sharedFile = finder.locator('[role="option"][data-name="Screenshot 2026-07-27 at 4.34.11 PM.png"]');
+    await sharedFile.click();
+    await finder.locator('[data-share]').click();
+    await expect(field('Subject')).toHaveValue('Share Screenshot 2026-07-27 at 4.34.11 PM.png');
+    const finderBody = await field('Message').inputValue();
+    expect(finderBody).toContain('Screenshot 2026-07-27 at 4.34.11 PM.png');
+    expect(finderBody).toContain('/Users/prasenjit/Desktop/');
+    await panel().getByRole('button', { name: 'Discard Changes', exact: true }).click();
     result.sharedContentDrafts = true;
+    result.finderShareCreatesDraft = true;
     expect(await page.evaluate(() => globalThis.dispatchEvent(new Event('beforeunload', { cancelable: true })))).toBe(
       true
     );

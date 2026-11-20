@@ -29,7 +29,7 @@ capabilities: []
 - Finder 侧栏的拖动预览为透明底，可随指针自由移动。Favourites 快捷项拖出侧栏时显示 ×，松手即移除快捷项。拖回侧栏后 × 消失，聚焦快捷项后可按 Alt+Backspace 移除。
 - 桌面和 Finder 显示进入视野的真实图片缩略图。缩略图按内容 ID 缓存在 OPFS 的 `Library/Caches/Thumbnails`，双击用预览打开原图。
 - 明确选择已支持文件的内置应用打开；不伪装任意应用都支持文件传入。
-- 废纸篓原位置持久化、Put Back、指定目录恢复；旧条目、失效原目录、重名时不覆盖。
+- 废纸篓使用 `~/.Trash` 作为统一中转，支持从桌面和 Finder 移入、Dock 满空状态、Finder Empty Trash 确认清倒、Put Back 和指定目录恢复；旧条目、失效原目录、重名时不覆盖。
 - 目录、文件体、多个标签页与终端的既有同步；系统拥有的路径仍受保护。
 - 新增界面的键盘路径、焦点、错误提示；schema 升级与旧数据保留。
 
@@ -54,6 +54,8 @@ capabilities: []
 | 10  | Finder 侧栏显示 AirDrop 等快捷项     | 组内上下拖动，或聚焦后按 Alt+↑/↓   | 拖动时显示占位和让位动画，松手排序，刷新保持顺序                   | ✅   |
 | 11  | 桌面或 Finder 显示图片               | 切换视图、刷新、覆盖、删除         | 等比缩图，刷新复用 OPFS，覆盖和永久删除清理旧缓存                  | ✅   |
 | 12  | Finder 侧栏显示 Favourites           | 横向拖出 Documents 快捷项并松手    | 透明预览随指针移动，出界显示 ×，刷新后快捷项仍已移除，原目录可访问 | ✅   |
+| 13  | 桌面或 Finder 中存在普通文件          | 右键 Move to Trash 或按 ⌘Backspace  | 原目录立即消失，条目进入 `~/.Trash`，Dock 图标变满，刷新后仍在 Trash | ✅   |
+| 14  | Trash 中存在条目                      | 点击 Empty Trash，取消后再次确认    | 取消保留条目；确认后永久删除，Finder 数量归零，Dock 图标恢复为空     | ✅   |
 
 ## 验收证据
 
@@ -61,6 +63,7 @@ capabilities: []
 
 - AC1–4：`fileManagement.renameValidatesAndPreservesContent`、`duplicateIsIndependent`、`folderCopyKeepsNestedAndEmptyEntries`、`columnActionsUseExactPath`、`galleryActionsAndDuplicateShortcut`、`importPreservesBytes`、`importKeepsExistingNames`、`readFailureKeepsBatchAndExistingData`、`openWithOpensSelectedFile`；写入失败和 256 MiB 边界由操作单测覆盖。
 - AC5–6：`trashOriginSurvivesReloadAndRename`、`restoreKeepsCollidingFile`、`missingOriginRequiresExplicitFolder`、`legacyTrashCanChooseFolder`；RxdbDiskStore 单测验证同一行提交和失败不更新原位置。
+- AC13–14：2026-11-20 的 `file-management` 检查组验证 `trashShortcutMovesItem` 和 `emptyTrashRequiresConfirmation`；`applications-protection` 验证预装应用拒绝移入和清倒后的保护状态。
 - AC7：真实 `2026111301` 产物升级到 `2026111701`，upgrade-previous 六项通过；upgrade-legacy 与 upgrade-protection 继续通过。
 - AC8：`renameCancellationAndKeyboardFocus`、`a11y.fileOperations.*` 全绿，新增对话框 axe 无违规。自动化不能替代物理设备与读屏人工证据。
 

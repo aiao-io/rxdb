@@ -21,11 +21,10 @@ import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { AppLauncher } from '../../services/app-launcher';
 import {} from '../../services/desktop-apps';
 import { FileOpener } from '../../services/file-opener';
-import { FileSystem, FsNode, HOME_PATH, describeDiskError } from '../../services/file-system';
+import { FileSystem, FsNode, HOME_PATH } from '../../services/file-system';
 import { Overlays } from '../../services/overlays';
 import { Session } from '../../services/session';
 import { ThemeService } from '../../services/theme';
-import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
@@ -116,7 +115,6 @@ export class Spotlight {
   private readonly opener = inject(FileOpener);
   private readonly wm = inject(WindowManager);
   private readonly theme = inject(ThemeService);
-  private readonly toast = inject(Toast);
   private readonly session = inject(Session);
   /** 备忘录只在第一次搜索时才读（D-18）：打开聚焦搜索不该触发 Notes 的数据域种子。 */
   private notesQuery: Signal<readonly Note[]> | null = null;
@@ -134,11 +132,7 @@ export class Spotlight {
       name: 'Empty Trash',
       kind: 'Action',
       icon: 'app-trash',
-      run: () =>
-        this.fs.emptyTrash().then(
-          () => this.toast.show('Trash emptied'),
-          (error: unknown) => this.toast.show(describeDiskError(error))
-        )
+      run: () => this.launcher.activate('trash')
     },
     {
       name: 'Change Wallpaper',

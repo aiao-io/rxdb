@@ -52,13 +52,14 @@ export async function renameEntry(store: DiskStore, from: DiskPath, name: string
 
 async function unusedPath(store: DiskStore, dir: DiskPath, name: string): Promise<DiskPath> {
   await requireDirectory(store, dir);
-  return [
-    ...dir,
-    uniqueName(
-      (await store.list(dir)).map(item => item.name),
-      name
-    )
-  ];
+  return [...dir, uniqueName((await store.list(dir)).map(item => item.name), name)];
+}
+
+async function targetPath(store: DiskStore, from: DiskPath, dir: DiskPath): Promise<DiskPath> {
+  if (!from.length) throw new DiskError('EACCES', from, 'The volume root cannot be copied or moved.');
+  if (isWithin(dir, from)) throw new DiskError('EACCES', dir, 'An item cannot be copied or moved into itself.');
+  if (!(await store.kindOf(from))) throw new DiskError('ENOENT', from);
+  return unusedPath(store, dir, from.at(-1) ?? '');
 }
 
 async function copyTree(store: DiskStore, from: DiskPath, to: DiskPath): Promise<void> {
@@ -87,6 +88,26 @@ export async function duplicateEntry(store: DiskStore, from: DiskPath, journal: 
   const copy = dot > 0 ? `${name.slice(0, dot)} copy${name.slice(dot)}` : `${name} copy`;
   const to = await unusedPath(store, parentOf(from), copy);
   await runDiskBatch(store, journal, [to], () => copyTree(store, from, to));
+  return to;
+}
+
+/** 复制文件或文件夹到另一个目录，目标重名时保留源名称并追加序号。 */
+export async function copyEntryTo(
+  store: DiskStore,
+  from: DiskPath,
+  dir: DiskPath,
+  journal: DiskBatchJournal
+): Promise<DiskPath> {
+  const to = await targetPath(store, from, dir);
+  await runDiskBatch(store, journal, [to], () => copyTree(store, from, to));
+  return to;
+}
+
+/** 移动文件或文件夹到另一个目录，目标重名时保留源内容并追加序号。 */
+export async function moveEntryTo(store: DiskStore, from: DiskPath, dir: DiskPath): Promise<DiskPath> {
+  if (samePath(parentOf(from), dir)) return from;
+  const to = await targetPath(store, from, dir);
+  await store.move(from, to);
   return to;
 }
 

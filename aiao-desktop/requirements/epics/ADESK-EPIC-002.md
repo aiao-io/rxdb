@@ -32,6 +32,7 @@ owner: jimmy
 - [x] Stocks 本地代码/公司名搜索、空结果、详情联动和演示数据声明完成本地正式构建自动验收（[ADESK-US-125](../stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)）。
 - [x] Font Book 字体族搜索、空结果、清空恢复和详情联动完成本地正式构建自动验收（[ADESK-US-126](../stories/desktop/ADESK-US-126-fontbook-search.md)）。
 - [x] Settings 分区搜索、空结果、清空恢复和面板联动完成本地正式构建自动验收（[ADESK-US-127](../stories/desktop/ADESK-US-127-settings-search.md)）。
+- [ ] 浏览器关闭后再次进入时恢复最近活跃工作区的窗口应用，并处理标签页竞争与失败恢复（[ADESK-US-128](../stories/desktop/ADESK-US-128-browser-session-restore.md)）。
 
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
 
@@ -76,6 +77,7 @@ owner: jimmy
 - [ADESK-US-125 Stocks 本地搜索与演示数据声明](../stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md) (Medium)
 - [ADESK-US-126 Font Book 字体族搜索](../stories/desktop/ADESK-US-126-fontbook-search.md) (Medium)
 - [ADESK-US-127 Settings 分区搜索](../stories/desktop/ADESK-US-127-settings-search.md) (Medium)
+- [ADESK-US-128 浏览器关闭后恢复工作区](../stories/desktop/ADESK-US-128-browser-session-restore.md) (High)
 
 ## 非目标
 

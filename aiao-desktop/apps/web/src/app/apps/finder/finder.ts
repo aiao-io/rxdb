@@ -1,5 +1,13 @@
 import { LiveAnnouncer } from '@angular/cdk/a11y';
-import { CdkDrag, CdkDragDrop, CdkDragPlaceholder, CdkDragPreview, CdkDropList } from '@angular/cdk/drag-drop';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragPlaceholder,
+  CdkDragPreview,
+  CdkDropList,
+  CdkDropListGroup
+} from '@angular/cdk/drag-drop';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
@@ -38,6 +46,7 @@ import { isKeyboardClick } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
+import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
 import { FileDrop } from '../../shared/file-drop';
 import { FileThumbnail } from '../../shared/file-thumbnail';
 import { clamp, finderDate } from '../../shared/format';
@@ -46,7 +55,8 @@ import { isMenuKey } from '../../shared/menu-list';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { USER_PROFILE } from '../../shared/user-profile';
 import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
-import { ItemRect, gridTarget, isGoUp, itemLabel, linearTarget } from './finder-keys';
+import { FinderClipboard } from './finder-clipboard';
+import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
 import {
   FAVOURITES_GROUP,
   FinderSidebarGroup,
@@ -57,9 +67,13 @@ import {
   folderContents
 } from './finder-model';
 import { FinderSidebarOrder } from './finder-sidebar-order';
+import { MailComposer } from '../mail/mail-composer';
 
 /** 每一栏 206.5px；末端是文件时右侧再留 250px 预览。 */
 const COLUMN_WIDTH = 206.5;
+const COLUMN_MIN_WIDTH = 164;
+const COLUMN_MAX_WIDTH = 420;
+const COLUMN_KEY_STEP = 16;
 const PREVIEW_WIDTH = 250;
 const SIDEBAR_INITIAL_WIDTH = 200;
 const SIDEBAR_MIN_WIDTH = 132;
@@ -82,11 +96,14 @@ const MIN_CONTENT_WIDTH = 400;
     FileThumbnail,
     TrafficLights,
     FileOperationDialog,
+    EmptyTrashDialog,
     FileDrop,
     CdkDropList,
+    CdkDropListGroup,
     CdkDrag,
     CdkDragPlaceholder,
     CdkDragPreview,
+    ScrollingModule,
     NgTemplateOutlet
   ],
   host: { style: 'display: contents' },
@@ -103,6 +120,8 @@ export class FinderApp implements FinderCommands {
   private readonly toast = inject(Toast);
   private readonly fileImport = inject(FileImport);
   private readonly sidebarOrder = inject(FinderSidebarOrder);
+  private readonly clipboard = inject(FinderClipboard);
+  private readonly mail = inject(MailComposer);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly layout = viewChild.required<ElementRef<HTMLElement>>('layout');
   private readonly sidebar = viewChild.required<ElementRef<HTMLElement>>('sidebar');
@@ -119,6 +138,7 @@ export class FinderApp implements FinderCommands {
   private readonly sidebarPreview = signal<number | null>(null);
   private sidebarRestoreWidth = SIDEBAR_INITIAL_WIDTH;
   private sidebarDrag: { pointerId: number; x: number; width: number } | null = null;
+  private columnDrag: { pointerId: number; x: number; width: number } | null = null;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -131,6 +151,7 @@ export class FinderApp implements FinderCommands {
   protected readonly favouritesGroup = FAVOURITES_GROUP;
   protected readonly sidebarGroups = this.sidebarOrder.groups;
   protected readonly sidebarPlaceRemoving = signal(false);
+  protected readonly columnPreview = signal<number | null>(null);
   protected readonly path = signal<readonly string[]>([]);
   protected readonly view = signal<FinderView>('icon');
   protected readonly sidebarId = `${this.win.id}-sidebar`;
@@ -141,7 +162,9 @@ export class FinderApp implements FinderCommands {
     Math.min(this.sidebarPreview() ?? this.sidebarSize(), this.sidebarMaxWidth())
   );
   protected readonly pathbar = signal(true);
+  protected readonly columnSize = signal(COLUMN_WIDTH);
   protected readonly selected = signal<string | null>(null);
+  protected readonly selectedNames = signal<readonly string[]>([]);
   protected readonly query = signal('');
   protected readonly importDirectory = computed(() => (this.query() ? null : diskPathOf(this.path())));
   protected readonly columnSelection = signal<readonly string[]>([]);
@@ -149,6 +172,14 @@ export class FinderApp implements FinderCommands {
   protected readonly finderDate = finderDate;
 
   protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
+  protected readonly selectedItems = computed(() => {
+    const names = new Set(this.selectedNames());
+    return this.items().filter(item => names.has(item.name) && item.path);
+  });
+  protected readonly isTrash = computed(() => this.path().length === 1 && this.path()[0] === 'Trash');
+  protected readonly trashFull = this.fs.trashFull;
+  protected readonly trashCount = computed(() => (this.isTrash() ? (this.fs.get(this.path())?.children ?? []).length : 0));
+  protected readonly emptyTrashPrompt = signal(false);
   /** 在 Applications 里：同名的非包条目占着位置，让某些预装应用没有包时，说清楚它们仍可从别处打开（D-17）。 */
   protected readonly applicationsNote = computed(() => {
     const path = this.path();
@@ -162,6 +193,7 @@ export class FinderApp implements FinderCommands {
     if (disk === 'mounting') return 'Mounting Macintosh HD…';
     if (disk === 'failed') return `Macintosh HD is unavailable: ${this.fs.error()}`;
     if (this.query()) return 'No results';
+    if (this.isTrash()) return 'Trash is empty';
     return this.path()[0] === 'AirDrop' ? 'No one nearby' : 'Empty folder';
   });
   protected readonly gallerySelection = computed(() => {
@@ -180,9 +212,19 @@ export class FinderApp implements FinderCommands {
     const { chain } = this.columns();
     const leafFile = chain.at(-1)?.file ?? false;
     const available = (this.bodyWidth() || 620) - (leafFile ? PREVIEW_WIDTH : 0);
-    const keep = Math.max(1, Math.floor(available / COLUMN_WIDTH));
+    const keep = Math.max(1, Math.floor(available / this.columnWidth()));
     return Math.max(0, chain.filter(column => !column.file).length - keep);
   });
+  protected readonly columnWidth = computed(() => this.columnPreview() ?? this.columnSize());
+  protected readonly lastColumn = computed(() => {
+    const chain = this.columns().chain;
+    let last = this.firstColumn();
+    for (let index = this.firstColumn(); index < chain.length; index++) {
+      if (!chain[index].file) last = index;
+    }
+    return last;
+  });
+
   protected readonly previewFile = computed(() => {
     const leaf = this.columns().chain.at(-1);
     return leaf?.file ? leaf.node : null;
@@ -219,7 +261,8 @@ export class FinderApp implements FinderCommands {
     const start = this.win.options.path ?? HOME_PATH;
     this.path.set(start);
     this.history.set({ entries: [start], index: 0 });
-    this.selected.set(this.win.options.select ?? null);
+    const initialSelection = this.win.options.select ?? null;
+    this.setSelection(initialSelection ? [initialSelection] : []);
     if (start.length === 1 && start[0] === 'Trash') this.view.set('list');
     this.win.setMenus(computed(() => menus.finder(this)));
     /* 窗口停在哪个目录，刷新后就恢复到哪个目录（窗口布局，ADESK-US-104）；选中项、视图属于内部状态，不记。 */
@@ -279,21 +322,79 @@ export class FinderApp implements FinderCommands {
       return;
     }
     this.fs.newFolder(dir).then(
-      name => this.selected.set(name),
+      name => this.setSelection([name]),
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
   }
 
   openSelected(): void {
-    const name = this.selected();
-    if (name) this.enter(name);
+    const node = this.selectedNode();
+    if (node) this.openNode(node);
   }
 
   trashSelected(): void {
-    const node = this.items().find(item => item.name === this.selected());
-    if (!node?.path) return;
-    this.selected.set(null);
-    this.fs.moveToTrash(node.path).catch((error: unknown) => this.toast.show(describeDiskError(error)));
+    if (this.isTrash()) return;
+    const nodes = this.selectedNodes();
+    if (!nodes.length) return;
+    this.setSelection([]);
+    void nodes.reduce(
+      (task, node) => task.then(() => node.path ? this.fs.moveToTrash(node.path) : undefined),
+      Promise.resolve()
+    ).catch((error: unknown) => this.toast.show(describeDiskError(error)));
+  }
+
+  copySelected(): void {
+    const entries = this.selectedEntries();
+    if (entries.length) this.clipboard.set('copy', entries);
+  }
+
+  cutSelected(): void {
+    const entries = this.selectedEntries();
+    if (entries.length) this.clipboard.set('cut', entries);
+  }
+
+  paste(): void {
+    const snapshot = this.clipboard.snapshot();
+    const dir = this.importDirectory();
+    if (!snapshot) {
+      this.toast.show('Nothing to paste.');
+      return;
+    }
+    if (!dir) {
+      this.toast.show('Paste is only available in a local folder.');
+      return;
+    }
+    void snapshot.entries.reduce(
+      (task, entry) =>
+        task.then(() => snapshot.mode === 'copy' ? this.fs.copyTo(entry.path, dir) : this.fs.moveTo(entry.path, dir)),
+      Promise.resolve<DiskPath | undefined>(undefined)
+    ).then(
+      path => {
+        if (snapshot.mode === 'cut') this.clipboard.clear();
+        if (path) this.selectPath(path);
+      },
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
+  }
+
+  selectAll(): void {
+    this.setSelection(this.items().map(item => item.name));
+  }
+
+  emptyTrash(): void {
+    if (this.isTrash() && this.fs.trashFull()) this.emptyTrashPrompt.set(true);
+  }
+
+  protected finishEmptyTrash(confirmed: boolean): void {
+    this.emptyTrashPrompt.set(false);
+    if (!confirmed) return;
+    this.fs.emptyTrash().then(
+      () => {
+        this.setSelection([]);
+        this.toast.show('Trash emptied');
+      },
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
   }
 
   protected dropSidebarPlace(event: CdkDragDrop<FinderSidebarGroup, FinderSidebarGroup, string>): void {
@@ -387,6 +488,38 @@ export class FinderApp implements FinderCommands {
     event.preventDefault();
   }
 
+  protected startColumnDrag(event: PointerEvent): void {
+    if (event.button !== 0 || this.columnDrag) return;
+    const handle = event.currentTarget as HTMLElement;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    handle.focus({ preventScroll: true });
+    this.columnDrag = { pointerId: event.pointerId, x: event.clientX, width: this.columnWidth() };
+  }
+
+  protected moveColumnDrag(event: PointerEvent): void {
+    const drag = this.columnDrag;
+    if (drag?.pointerId !== event.pointerId) return;
+    this.columnPreview.set(clamp(drag.width + event.clientX - drag.x, COLUMN_MIN_WIDTH, COLUMN_MAX_WIDTH));
+  }
+
+  protected endColumnDrag(event: PointerEvent): void {
+    const drag = this.columnDrag;
+    if (drag?.pointerId !== event.pointerId) return;
+    if (event.type === 'pointerup') this.columnSize.set(this.columnWidth());
+    this.columnDrag = null;
+    this.columnPreview.set(null);
+  }
+
+  protected columnKey(event: KeyboardEvent): void {
+    if (this.columnDrag) return;
+    const width = this.columnWidth();
+    const next = event.key === 'ArrowLeft' ? width - COLUMN_KEY_STEP : event.key === 'ArrowRight' ? width + COLUMN_KEY_STEP : null;
+    if (next === null) return;
+    event.preventDefault();
+    this.columnSize.set(clamp(next, COLUMN_MIN_WIDTH, COLUMN_MAX_WIDTH));
+  }
+
   protected placeOn(place: string): boolean {
     const path = this.path();
     return place === path.at(-1) || (PLACES[place] ?? []).join('/') === path.join('/');
@@ -409,13 +542,40 @@ export class FinderApp implements FinderCommands {
     this.query.set(value);
   }
 
-  protected select(name: string): void {
-    this.selected.set(name);
+  protected select(name: string, event?: MouseEvent): void {
+    const items = this.items();
+    const current = this.selectedNames();
+    if (event?.shiftKey && current.length) {
+      const start = items.findIndex(item => item.name === current[0]);
+      const end = items.findIndex(item => item.name === name);
+      if (start >= 0 && end >= 0) {
+        const [from, to] = start < end ? [start, end] : [end, start];
+        this.setSelection(items.slice(from, to + 1).map(item => item.name), name);
+        return;
+      }
+    }
+    if (event?.metaKey || event?.ctrlKey) {
+      const next = current.includes(name) ? current.filter(item => item !== name) : [...current, name];
+      this.setSelection(next, name);
+      return;
+    }
+    this.setSelection([name]);
+  }
+
+  protected focusItem(name: string): void {
+    if (!this.selectedNames().includes(name)) this.setSelection([name]);
+    else this.selected.set(name);
   }
 
   /** 内容区条目上的按键：方向键移动选择、Enter 打开、Backspace 或 ⌘↑ 上一级、Menu 键弹出菜单；`column` 是分栏视图里条目所在的栏。 */
   protected itemKey(event: KeyboardEvent, name: string, column = -1): void {
     const node = (column < 0 ? this.items() : this.columns().chain[column]?.items)?.find(item => item.name === name);
+    if (node?.path && isMoveToTrash(event) && !isWithin(node.path, TRASH)) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.trashNode(node);
+      return;
+    }
     if (node && event.key === 'F2') {
       event.preventDefault();
       this.requestFileOperation('rename', node);
@@ -445,7 +605,8 @@ export class FinderApp implements FinderCommands {
     const path = this.path();
     if (path.length < 2) return;
     this.nav(path.slice(0, -1));
-    this.selected.set(path.at(-1) ?? null);
+    const name = path.at(-1);
+    if (name) this.setSelection([name]);
   }
 
   /** Applications 里系统拥有的 `.app` 包可以拖进 Dock；别的条目（含用户复制出来的包）不能。只把应用 id 交给 Dock。 */
@@ -461,7 +622,7 @@ export class FinderApp implements FinderCommands {
 
   protected pickColumn(index: number, name: string): void {
     this.columnSelection.update(selection => [...selection.slice(0, index), name]);
-    this.selected.set(name);
+    this.setSelection([name]);
   }
 
   protected openColumnFile(node: FsNode): void {
@@ -533,16 +694,34 @@ export class FinderApp implements FinderCommands {
   }
 
   protected share(): void {
-    this.toast.show('Nothing to share — it is all local.');
+    const node = this.selectedNode();
+    if (!node?.path) {
+      this.toast.show('Select a local file or folder to share.');
+      return;
+    }
+    this.mail.compose(
+      `Share ${this.displayName(node)}`,
+      '',
+      `File: ${this.displayName(node)}\nKind: ${node.k || (node.kind === 'folder' ? 'Folder' : 'Document')}\nPath: /${node.path.join('/')}`
+    );
   }
 
   protected itemMenu(event: MouseEvent, node: FsNode): void {
-    this.selected.set(node.name);
+    this.setSelection([node.name]);
     this.popover.contextMenu(event, this.itemMenuItems(node), node.name);
   }
 
   protected bodyMenu(event: MouseEvent): void {
     if ((event.target as Element).closest('[role="option"]')) return;
+    if (this.isTrash()) {
+      this.popover.contextMenu(event, [
+        { id: 'empty', label: 'Empty Trash', disabled: !this.fs.trashFull(), run: () => this.emptyTrash() },
+        '-',
+        { id: 'nf', label: 'New Folder', disabled: true },
+        { id: 'gi', label: 'Get Info' }
+      ]);
+      return;
+    }
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.newFolder() },
       { id: 'gi', label: 'Get Info' },
@@ -568,6 +747,12 @@ export class FinderApp implements FinderCommands {
     if (latest && current && samePath(dir, current)) this.selectPath(latest);
   }
 
+  protected readonly trackNode = (_index: number, item: FsNode): string => item.name;
+
+  protected isSelected(name: string): boolean {
+    return this.selectedNames().includes(name);
+  }
+
   protected label(item: FsNode): string {
     return itemLabel({ ...item, name: this.displayName(item) });
   }
@@ -579,6 +764,60 @@ export class FinderApp implements FinderCommands {
 
   protected displayIcon(item: FsNode): string {
     return this.catalog.manifestAt(item.path)?.icon ?? item.icon;
+  }
+
+  protected canFileDrag(node: FsNode): boolean {
+    return Boolean(node.path) && !this.catalog.appIdOf(node);
+  }
+
+  protected dropFile(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): void {
+    const source = event.item.data;
+    const dir = this.dropDirectory(event) ?? event.container.data;
+    if (!source?.path || !dir) return;
+    const copy = Boolean(('altKey' in event.event && event.event.altKey) || ('metaKey' in event.event && event.event.metaKey));
+    const task = copy ? this.fs.copyTo(source.path, dir) : this.fs.moveTo(source.path, dir);
+    void task.then(
+      path => {
+        if (samePath(parentOf(path), this.importDirectory() ?? [])) this.selectPath(path);
+      },
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
+  }
+
+  private dropDirectory(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): DiskPath | null {
+    const target = event.event.target;
+    if (!(target instanceof Element)) return null;
+    const encoded = target.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'];
+    return encoded ? encoded.split('/') : null;
+  }
+
+  private selectedNodes(): FsNode[] {
+    const current = this.selectedItems();
+    if (current.length) return current;
+    const node = this.selectedNode();
+    return node ? [node] : [];
+  }
+
+  private selectedEntries(): { readonly path: DiskPath; readonly name: string }[] {
+    const current = this.selectedItems();
+    if (current.length) return current.flatMap(item => item.path ? [{ path: item.path, name: item.name }] : []);
+    const node = this.selectedNode();
+    return node?.path ? [{ path: node.path, name: node.name }] : [];
+  }
+
+  private selectedNode(): FsNode | null {
+    const selected = this.selected();
+    if (!selected) return null;
+    const current = this.items().find(item => item.name === selected);
+    if (current) return current;
+    const { chain, selection } = this.columns();
+    const index = selection.length - 1;
+    return index >= 0 ? chain[index]?.items?.find(item => item.name === selected) ?? null : null;
+  }
+
+  private setSelection(names: readonly string[], primary = names.at(-1) ?? null): void {
+    this.selectedNames.set([...names]);
+    this.selected.set(primary);
   }
 
   private setSidebarWidth(width: number): void {
@@ -637,7 +876,7 @@ export class FinderApp implements FinderCommands {
   }
 
   private selectPath(path: DiskPath): void {
-    this.selected.set(path.at(-1) ?? null);
+    this.setSelection(path.at(-1) ? [path.at(-1)!] : []);
     const base = diskPathOf(this.path());
     if (this.view() === 'column' && base && isWithin(path, base)) this.columnSelection.set(path.slice(base.length));
   }
@@ -647,8 +886,8 @@ export class FinderApp implements FinderCommands {
   }
 
   private trashNode(node: FsNode): void {
-    if (!node.path) return;
-    this.selected.set(null);
+    if (!node.path || isWithin(node.path, TRASH)) return;
+    this.setSelection([]);
     this.fs.moveToTrash(node.path).catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 
@@ -685,7 +924,7 @@ export class FinderApp implements FinderCommands {
 
   /** 键盘弹出的右键菜单：贴着条目，焦点交给第一项，关闭后焦点回到条目（条目没了就回到 Tab 停靠点）。 */
   private itemMenuByKey(anchor: HTMLElement, node: FsNode): void {
-    this.selected.set(node.name);
+    this.setSelection([node.name]);
     const rect = anchor.getBoundingClientRect();
     this.popover.openMenu(this.itemMenuItems(node), {
       x: rect.left + rect.width / 2,
@@ -800,7 +1039,7 @@ export class FinderApp implements FinderCommands {
     this.keepFocus();
     this.query.set('');
     this.path.set(path);
-    this.selected.set(null);
+    this.setSelection([]);
     this.columnSelection.set([]);
     this.history.update(({ entries, index }) => {
       const next = [...entries.slice(0, index + 1), path];
@@ -815,7 +1054,7 @@ export class FinderApp implements FinderCommands {
     this.keepFocus();
     this.history.set({ entries, index: target });
     this.path.set(entries[target]);
-    this.selected.set(null);
+    this.setSelection([]);
     this.columnSelection.set([]);
   }
 }

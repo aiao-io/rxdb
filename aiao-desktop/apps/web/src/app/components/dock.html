@@ -64,3 +64,6 @@
     </div>
   }
 </div>
+@if (emptyTrashPrompt()) {
+  <app-empty-trash-dialog (finished)="finishEmptyTrash($event)" />
+}

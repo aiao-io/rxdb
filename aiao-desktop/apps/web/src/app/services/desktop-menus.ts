@@ -19,6 +19,10 @@ export interface FinderCommands {
   newFolder(): void;
   openSelected(): void;
   trashSelected(): void;
+  copySelected(): void;
+  cutSelected(): void;
+  paste(): void;
+  selectAll(): void;
   setView(view: FinderView): void;
   sidebarVisible(): boolean;
   toggleSidebar(): void;
@@ -110,11 +114,11 @@ export class DesktopMenus {
         { id: 'u', label: 'Undo', key: '⌘Z', disabled: true },
         { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: true },
         '-',
-        { id: 'x', label: 'Cut', key: '⌘X' },
-        { id: 'c', label: 'Copy', key: '⌘C' },
-        { id: 'v', label: 'Paste', key: '⌘V' },
+        { id: 'x', label: 'Cut', key: '⌘X', run: () => target.cutSelected() },
+        { id: 'c', label: 'Copy', key: '⌘C', run: () => target.copySelected() },
+        { id: 'v', label: 'Paste', key: '⌘V', run: () => target.paste() },
         '-',
-        { id: 'a', label: 'Select All', key: '⌘A' }
+        { id: 'a', label: 'Select All', key: '⌘A', run: () => target.selectAll() }
       ]),
       section('View', [
         { id: 'icons', label: 'as Icons', key: '⌘1', run: () => target.setView('icon') },
@@ -153,6 +157,10 @@ export class DesktopMenus {
       newFolder: () => this.desktopItems.newFolder(),
       openSelected: none,
       trashSelected: none,
+      copySelected: none,
+      cutSelected: none,
+      paste: none,
+      selectAll: none,
       setView: none,
       sidebarVisible: () => true,
       toggleSidebar: none,
