@@ -325,9 +325,8 @@ export class FinderApp implements FinderCommands {
   setView(view: FinderView): void {
     if (view === this.view()) return;
     if (view === 'column') {
-      const names = this.selectedNames();
-      this.setColumnNames(0, names, this.selected());
-      this.columnSelection.set(this.selected() ? [this.selected()!] : []);
+      this.setColumnNames(0, []);
+      this.columnSelection.set([]);
     } else if (this.view() === 'column') {
       this.setSelection(this.selectedColumnNames(), this.selected());
     }
@@ -740,8 +739,9 @@ export class FinderApp implements FinderCommands {
   }
 
   protected itemMenu(event: MouseEvent, node: FsNode): void {
-    if (!this.isSelected(node.name)) this.setSelection([node.name]);
-    this.popover.contextMenu(event, this.itemMenuItems(node), node.name);
+    const current = this.menuNode(event, node);
+    if (!this.isSelected(current.name)) this.setSelection([current.name]);
+    this.popover.contextMenu(event, this.itemMenuItems(current), current.name);
   }
 
   protected pressBody(event: PointerEvent): void {
@@ -1096,6 +1096,16 @@ export class FinderApp implements FinderCommands {
     return true;
   }
 
+  private menuNode(event: MouseEvent, fallback: FsNode): FsNode {
+    const target = event.currentTarget as HTMLElement | null;
+    const name = target?.dataset['name'];
+    if (!name) return fallback;
+    const column = target.dataset['ci'];
+    const items =
+      column === undefined ? this.items() : (this.columns().chain[Number(column)]?.items ?? []);
+    return items.find(item => item.name === name) ?? fallback;
+  }
+
   private itemMenuItems(node: FsNode): MenuEntry[] {
     const name = node.name;
     const inTrash = Boolean(node?.path && isWithin(node.path, TRASH));
@@ -1275,7 +1285,11 @@ export class FinderApp implements FinderCommands {
     const selector = `[data-ci="${ci}"][data-name="${CSS.escape(name)}"]`;
     const node = this.option(selector);
     if (node) node.focus();
-    else afterNextRender(() => this.option(selector)?.focus(), { injector: this.injector });
+    else
+      afterNextRender(
+        () => requestAnimationFrame(() => this.option(selector)?.focus()),
+        { injector: this.injector }
+      );
   }
 
   private iconRects(): ItemRect[] {

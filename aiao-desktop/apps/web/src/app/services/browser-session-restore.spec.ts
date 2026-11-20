@@ -14,7 +14,7 @@ import {
   BrowserSessionRestore,
   TAB_STORAGE
 } from './browser-session-restore';
-import { WindowRecord, activeTabKey, windowLayoutKey } from './window-layout-model';
+import { WINDOW_RESUME_KEY, WindowRecord, activeTabKey, windowLayoutKey } from './window-layout-model';
 
 const TAB = 'tab-aaaa-0001';
 const OTHER_TAB = 'tab-bbbb-0002';
@@ -150,6 +150,16 @@ describe('BrowserSessionRestore', () => {
       windows: [{ appId: 'notes' }]
     });
     expect(ctx.table.rows.find(row => row.key === activeTabKey(TAB))?.value).toMatchObject({ released: true });
+  });
+
+  it('租约释放后忽略迟到的快照保存', async () => {
+    const ctx = setup();
+    await ctx.restore.prepare(false);
+    await ctx.restore.close();
+
+    await ctx.restore.saveResume([record('calculator')]);
+
+    expect(ctx.table.rows.find(row => row.key === WINDOW_RESUME_KEY)).toBeUndefined();
   });
 
   it('页面关闭时释放租约，恢复到前台时重新标记活跃来源', async () => {

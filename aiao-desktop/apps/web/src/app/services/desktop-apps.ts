@@ -7,6 +7,7 @@ export type BuiltinDesktopAppId =
   | 'finder'
   | 'terminal'
   | 'vscode'
+  | 'github'
   | 'calculator'
   | 'about'
   | 'textedit'
@@ -237,6 +238,7 @@ export const LAUNCH_ORDER: readonly DesktopAppId[] = [
   'clock',
   'terminal',
   'vscode',
+  'github',
   'activity',
   'diskutil',
   'fontbook',

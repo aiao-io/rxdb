@@ -116,6 +116,7 @@ export class BrowserSessionRestore {
     if (this.closed || this.tabIdValue === null) return this.queue;
     this.closed = true;
     this.closing = true;
+    this.publishAllowed = false;
     clearInterval(this.heartbeat);
     return this.enqueue(() => this.releaseLease());
   }

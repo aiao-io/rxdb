@@ -137,8 +137,9 @@ export const narrowScreen = {
     await closeAll();
     await tapDock('launchpad');
     narrowScreen.tapOpensLaunchpad = await shows(page.locator('#lpad:not(.out)'));
-    await page.waitForTimeout(500);
-    const tile = await page.locator('#lpad .app', { hasText: 'Calculator' }).first().boundingBox();
+    const launchpad = page.locator('#lpad:not(.out)');
+    await launchpad.locator('[data-lq]').fill('Calculator');
+    const tile = await launchpad.locator('.app[data-app="calculator"]').boundingBox();
     await page.touchscreen.tap(centerOf(tile).x, centerOf(tile).y);
     narrowScreen.launchpadTapLaunches = await appears(win('calculator'), 5_000);
     await closeAll();

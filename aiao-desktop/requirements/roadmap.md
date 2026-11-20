@@ -21,17 +21,17 @@
 
 [ADESK-US-009 PWA 安装与离线桌面](stories/platform/ADESK-US-009-pwa.md)：生产构建接入安装清单与 Service Worker，验收桌面预缓存、离线重开、本地数据和版本切换。范围限定为本地桌面与已缓存资源；远程集成应用、外网内容和未下载的终端资源不属于完整离线承诺，生产发布单独安排。
 
-## 浏览器会话连续性（2026-11-20）
+## 浏览器会话连续性（2026-11-21）
 
-[ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)：依赖 US-102、US-104、US-105 和 US-106。先实现最近活跃标签页识别、持久窗口快照和单标签页恢复权，再补持久浏览器上下文下的关闭重进、并发标签页、显式关闭窗口和损坏快照验收。
+[ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md) 已完成。持久浏览器上下文已验证最近活跃标签页、恢复权竞争、持久快照、显式关闭窗口、损坏快照和单窗口失败恢复。
 
 ## Finder 仿真与本地邮件分享（2026-11-20）
 
 [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)已完成本地正式构建验收。文件和文件夹支持拖动移动、Option/Alt 拖动复制、剪切粘贴、多选、列表和分栏虚拟滚动、列宽调整；Finder Share 复用本地 Mail 草稿能力，真实远程邮件收发仍未接入。
 
-## GitHub 开发工作台（2026-11-20，待范围评审）
+## GitHub 开发工作台（2026-11-21）
 
-[ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md) 先完成范围评审。实现顺序为 GitHub Desktop 形态入口 → 独立 OPFS Git 工作区 → GitHub OAuth 与 API 远端操作；本故事不与 Finder 虚拟磁盘自动同步，也不承诺跨设备恢复。阶段 B 复用 `aiao-vscode` 的 Git Worker、OPFS 和 `WorkbenchBackend` 设计，阶段 C 复用现有 GitHub OAuth 桥接与 GitHub API 适配经验。
+[ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md) 已完成范围评审和阶段 A～C 验收。实现包括 GitHub Desktop 形态入口、独立 OPFS Git 工作区、Git Worker、OAuth / PAT、GitHub API 远端操作、冲突处理和正式 Chromium 冒烟。本故事不与 Finder 虚拟磁盘自动同步，也不承诺跨设备恢复。证据见 [US-209-evidence.md](stories/application/ADESK-US-209-evidence.md)。
 
 ## 扩大使用范围的条件
 

@@ -36,6 +36,7 @@ const DEFAULT_APPS: readonly DesktopAppId[] = [
   'music',
   'terminal',
   'vscode',
+  'github',
   'calculator',
   'settings'
 ];

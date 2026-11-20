@@ -27,7 +27,7 @@ export class PopoverEntryView implements OnInit {
 
   constructor() {
     effect(() => {
-      if (this.entry().leaving()) this.node?.classList.add('out');
+      if (this.entry().leaving()) this.markLeaving();
     });
   }
 
@@ -43,6 +43,7 @@ export class PopoverEntryView implements OnInit {
 
     const node = ref.location.nativeElement as HTMLElement;
     this.node = node;
+    if (this.entry().leaving()) this.markLeaving();
     if (content.kind === 'component') node.addEventListener('keydown', event => this.trap(event, node));
     node.style.visibility = 'hidden';
     requestAnimationFrame(() => {
@@ -54,6 +55,14 @@ export class PopoverEntryView implements OnInit {
       node.style.visibility = '';
       if (options.focus) this.focusInside(node, options.focus === 'last');
     });
+  }
+
+  private markLeaving(): void {
+    const node = this.node;
+    if (!node) return;
+    node.classList.add('out');
+    node.setAttribute('aria-hidden', 'true');
+    node.style.pointerEvents = 'none';
   }
 
   private focusInside(node: HTMLElement, last: boolean): void {

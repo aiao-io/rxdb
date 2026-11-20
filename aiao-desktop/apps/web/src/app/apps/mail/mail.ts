@@ -94,13 +94,18 @@ export class MailApp {
     return name === 'Inbox' ? matches.filter(mail => mail.unread).length : matches.length;
   }
 
+  /** 阅读区与复制内容共用的正文格式，去掉不可见的边界空白。 */
+  protected displayBody(body: string): string {
+    return body.trim();
+  }
+
   protected share(anchor: HTMLElement, event: MouseEvent): void {
     const mail = this.current();
     const content: PrintableContent | null =
       mail ?
         {
           title: mail.subject,
-          paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, mail.body]
+          paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, this.displayBody(mail.body)]
         }
       : null;
     const disabled = !content || this.actions.busy();

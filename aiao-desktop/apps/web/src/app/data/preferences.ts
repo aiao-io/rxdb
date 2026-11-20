@@ -57,6 +57,23 @@ export class Preferences {
     return this.enqueue(() => this.write(key, value));
   }
 
+  /** 在偏好写锁内读取并更新一个键，供跨标签页的集合型偏好做原子合并。 */
+  update<T>(key: string, guard: (value: unknown) => value is T, updater: (current: T | undefined) => unknown): Promise<void> {
+    return this.enqueue(async () => {
+      await this.ready;
+      const saved = await this.data.tabs.exclusive(async () => {
+        const repository = await this.data.repository(SystemPreference);
+        const [existing] = await repository.find({ where: keyIs(key), limit: 1 });
+        const current = existing && guard(existing.value) ? existing.value : undefined;
+        const value = updater(current);
+        return existing ? repository.update(existing, { value }) : repository.create(this.data.instantiate(SystemPreference, { key, value }));
+      }, PREFERENCES_LOCK);
+      this.known.set(key, fingerprint(saved.value));
+      this.rows.update(rows => new Map(rows).set(key, saved));
+      this.data.tabs.notify('preferences');
+    });
+  }
+
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
     const run = this.queue.then(task);
     this.queue = run.catch(() => undefined);

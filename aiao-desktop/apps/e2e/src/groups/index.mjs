@@ -7,6 +7,7 @@ import { applications } from './applications.mjs';
 import { approvedCatalog } from './approved-catalog.mjs';
 import { apps } from './apps.mjs';
 import { backupStorage } from './backup-storage.mjs';
+import { browserSessionRestore } from './browser-session-restore.mjs';
 import { calendarDrafts } from './calendar-drafts.mjs';
 import { contacts } from './contacts.mjs';
 import { contentActions } from './content-actions.mjs';
@@ -21,6 +22,7 @@ import { fixtures } from './fixtures.mjs';
 import { fontbookWorkflow } from './fontbook-workflow.mjs';
 import { freeformWorkflow } from './freeform-workflow.mjs';
 import { game } from './game.mjs';
+import { githubApp } from './github-app.mjs';
 import { hostCapabilities } from './host-capabilities.mjs';
 import { hostFilesystem } from './host-filesystem.mjs';
 import { imageThumbnails } from './image-thumbnails.mjs';
@@ -77,6 +79,7 @@ export const GROUPS = [
   { ...approvedCatalog, weight: 60 },
   { ...storageFaults, weight: 80 },
   { ...backupStorage, weight: 40 },
+  { ...browserSessionRestore, weight: 70, exclusive: true },
   { ...fileManagement, weight: 35 },
   { ...imageThumbnails, weight: 25 },
   { ...finderSidebarResize, weight: 10 },
@@ -90,6 +93,7 @@ export const GROUPS = [
   { ...integratedApp, weight: 25 },
   { ...transparentWindow, weight: 12 },
   { ...game, weight: 60, exclusive: true },
+  { ...githubApp, weight: 80, exclusive: true },
   { ...apps, weight: 15 },
   { ...dock, weight: 25 },
   { ...persistence, weight: 30 },

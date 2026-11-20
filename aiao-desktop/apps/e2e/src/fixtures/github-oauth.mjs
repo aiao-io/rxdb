@@ -33,16 +33,22 @@ export async function installGitHubOAuth(context, appOrigin, desktopOrigin) {
     await route.fulfill({ status: 302, headers: { Location: callback.href } });
   });
   await context.route(`${appOrigin}/api/github-token`, async route => {
-    if (route.request().method() === 'GET') return route.fulfill({ json: { clientId: 'test-client' } });
+    const headers = {
+      'Access-Control-Allow-Origin': route.request().headers().origin ?? desktopOrigin,
+      'Access-Control-Allow-Headers': 'Accept, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+    };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (route.request().method() === 'GET') return route.fulfill({ headers, json: { clientId: 'test-client' } });
     const body = route.request().postDataJSON();
     expect(body.redirect_uri).toBe(`${appOrigin}/redirect`);
     expect(createHash('sha256').update(body.code_verifier).digest('base64url')).toBe(challengeByCode.get(body.code));
     exchanges++;
-    await route.fulfill({ json: { access_token: token } });
+    await route.fulfill({ headers, json: { access_token: token } });
   });
   await context.route('https://api.github.com/user', async route => {
     const headers = {
-      'Access-Control-Allow-Origin': appOrigin,
+      'Access-Control-Allow-Origin': route.request().headers().origin ?? appOrigin,
       'Access-Control-Allow-Headers': 'authorization, accept, x-github-api-version',
       'Access-Control-Allow-Methods': 'GET, OPTIONS'
     };

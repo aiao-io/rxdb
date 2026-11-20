@@ -290,10 +290,11 @@ export const backupStorage = {
       await other.helpers.launch('Finder');
       const restoredFinder = () => other.page.locator('.win.front[data-app="finder"]:not(.closing)');
       await restoredFinder().locator('[data-place="Desktop"]').click();
+      await expect(restoredFinder().locator('[data-title]')).toHaveText('Desktop');
       const downloadRestored = async name => {
-        await restoredFinder()
-          .locator(`[role="option"][data-name=${JSON.stringify(name)}]`)
-          .click({ button: 'right' });
+        const item = restoredFinder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
+        await expect(item).toBeVisible();
+        await item.click({ button: 'right' });
         const downloading = other.page.waitForEvent('download');
         await other.page.getByRole('menuitem', { name: 'Download File', exact: true }).click();
         return readFile(await (await downloading).path());
@@ -305,10 +306,12 @@ export const backupStorage = {
       await restoredFinder().locator('[role="option"][data-name="backup-trash.txt"]').click({ button: 'right' });
       await other.page.getByRole('menuitem', { name: 'Put Back', exact: true }).click();
       await restoredFinder().locator('[data-place="Desktop"]').click();
-      result.binaryEmptyAndTrashRoundTrip =
-        binary.equals(Buffer.from([0, 255, 128, 1, 0, 42])) &&
-        empty.length === 0 &&
-        (await downloadRestored('backup-trash.txt')).toString() === 'trash kept';
+      await expect(restoredFinder().locator('[data-title]')).toHaveText('Desktop');
+      const binaryMatches = binary.equals(Buffer.from([0, 255, 128, 1, 0, 42]));
+      const emptyMatches = empty.length === 0;
+      const trashContent = (await downloadRestored('backup-trash.txt')).toString();
+      const trashMatches = trashContent === 'trash kept';
+      result.binaryEmptyAndTrashRoundTrip = binaryMatches && emptyMatches && trashMatches;
       await expect(restoredFinder().locator('[role="option"][data-name="after-snapshot.txt"]')).toHaveCount(0);
       expect(other.errors).toEqual([]);
     } finally {

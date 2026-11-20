@@ -128,7 +128,7 @@ await check('exchange: 用 secret 交换授权码并返回 access_token', async 
   try {
     const response = await post('/api/github-token', {
       code: 'code-1',
-      code_verifier: 'verifier-1',
+      code_verifier: 'v'.repeat(43),
       redirect_uri: `${ORIGIN}/redirect`
     });
     assert.equal(response.status, 200);
@@ -136,7 +136,7 @@ await check('exchange: 用 secret 交换授权码并返回 access_token', async 
     assert.equal(upstream[0].input, 'https://github.com/login/oauth/access_token');
     const form = new URLSearchParams(String(upstream[0].init.body));
     assert.equal(form.get('code'), 'code-1');
-    assert.equal(form.get('code_verifier'), 'verifier-1');
+    assert.equal(form.get('code_verifier'), 'v'.repeat(43));
     assert.equal(form.get('client_id'), 'client-1');
     assert.equal(form.get('client_secret'), 'secret-1');
     assert.equal(form.get('redirect_uri'), `${ORIGIN}/redirect`);
@@ -147,7 +147,7 @@ await check('exchange: 用 secret 交换授权码并返回 access_token', async 
 
 await check('exchange: 未配置 secret 返回 500，缺字段返回 400', async () => {
   assert.equal(
-    (await post('/api/github-token', { code: 'c', code_verifier: 'v', redirect_uri: `${ORIGIN}/redirect` }, {})).status,
+    (await post('/api/github-token', { code: 'c', code_verifier: 'v'.repeat(43), redirect_uri: `${ORIGIN}/redirect` }, {})).status,
     500
   );
   assert.equal((await post('/api/github-token', { code: 'c' })).status, 400);
@@ -161,7 +161,7 @@ await check('exchange: 上游失败透传 502', async () => {
   try {
     const response = await post('/api/github-token', {
       code: 'c',
-      code_verifier: 'v',
+      code_verifier: 'v'.repeat(43),
       redirect_uri: `${ORIGIN}/redirect`
     });
     assert.equal(response.status, 502);

@@ -31,6 +31,7 @@ import { DockState } from '../services/dock-state';
 import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
+import { GithubRepositoryStore } from '../services/github-repository';
 import { FileSystem, HOME_PATH } from '../services/file-system';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
@@ -93,6 +94,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     FinderClipboard,
     FileOpener,
     FilePanels,
+    GithubRepositoryStore,
     FinderSidebarOrder,
     AppNotifications,
     DesktopItems,

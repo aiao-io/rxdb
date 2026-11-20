@@ -19,6 +19,7 @@ type BuiltinAppId = { [K in keyof Manifests]: Manifests[K]['kind'] extends 'buil
 const BUILTIN_LOADERS: Readonly<Record<BuiltinAppId, AppLoader>> = {
   finder: async () => FinderApp,
   terminal: () => import('./terminal/terminal').then(m => m.TerminalApp),
+  github: () => import('./github/github').then(m => m.GithubApp),
   calculator: () => import('./calculator/calculator').then(m => m.CalculatorApp),
   about: () => import('./about/about').then(m => m.AboutApp),
   textedit: () => import('./textedit/textedit').then(m => m.TextEditApp),

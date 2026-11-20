@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[44/47 已交付]；1 条进行中、1 条待评审、1 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[46/47 已交付]；0 条进行中、1 条待评审、0 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -18,13 +18,13 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
-2026-11-20 新增 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)，当前进行中，定义最近活跃工作区的浏览器关闭重进恢复边界。
+2026-11-21 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md) 已完成。持久浏览器上下文已验证最近活跃工作区、标签页竞争、显式关闭窗口、损坏快照和单窗口失败恢复。
 
 2026-11-20 新增并完成 [US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)，覆盖拖动移动/复制、剪切粘贴、列表与分栏虚拟滚动、列宽调整及 Finder Share 本地草稿。
 
 2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)、[US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)、[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-117 本地会话草稿保护](stories/desktop/ADESK-US-117-local-messages.md)、[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)、[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)、[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)、[US-122 提醒事项筛选](stories/desktop/ADESK-US-122-reminder-filters.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)、[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)和 [US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)和 [US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)和 [US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成本地自动验收；媒体、书架等应用的主要流程、A07～A09 和人工验收仍按计划继续。
 
-浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107，历史发布范围中仅剩 US-108 的 VoiceOver AC（按用户要求延期）；新增 US-207 已完成本地正式构建验收，未发布，详见[验收台账](verification-report.md)。
+浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，两项历史基线例外已按[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)接受，本次正式发布与线上对账已完成，物理键盘已逐项记录并关闭 US-107。当前只剩 US-108 的 VoiceOver AC，按用户要求延期；US-128 与 US-209 的本地正式构建验收已完成，详见[验收台账](verification-report.md)。
 
 ### 已验收能力
 
@@ -35,7 +35,8 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 - **终端**：[Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python，打开时复制磁盘，与桌面双向同步（[D-09](decisions.md#d-09终端按需复制磁盘)）。
 - **几猫3A大作**：随桌面发布的单文件 3D 游戏，同源 iframe 运行（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)）。
 - **集成应用**：独立部署的 B/S 应用经仓库里的 `@aiao/orbit` 隔离在窗口里，应用统一登记；第一个是 Aiao Code（vscode.aiao.io），支持应用自绘标题栏的透明窗口，见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)（US-201～204）。
-- **GitHub 开发工作台**：已立项、尚未实现；目标是在独立内置应用中复用 GitHub Desktop 形态，使用 OPFS 保存工作区与 `.git`，通过 GitHub 登录和 API 连接远端，见 [ADESK-EPIC-004](epics/ADESK-EPIC-004.md) 与 [ADESK-US-209](stories/application/ADESK-US-209-github-opfs-workbench.md)。
+- **浏览器会话恢复**：浏览器关闭后恢复最近活跃工作区，保留窗口几何、层叠、最小化、Zoom 和应用开窗参数；多标签页竞争、损坏快照和失败窗口都有恢复边界（[ADESK-US-128](stories/desktop/ADESK-US-128-browser-session-restore.md)）。
+- **GitHub 开发工作台**：GitHub 作为预装内置应用提供独立 OPFS Git 工作区，支持本地 Git 闭环、OAuth / PAT、公开和私有仓库、拉取、推送及远端冲突处理（[ADESK-EPIC-004](epics/ADESK-EPIC-004.md)、[ADESK-US-209](stories/application/ADESK-US-209-github-opfs-workbench.md)）。
 - **PWA**：本地正式构建支持安装为独立窗口、缓存完成后的离线重开、内置应用与 SQLite 数据、用户刷新后切换已缓存新版；终端大资源按需缓存，远程内容仍需联网。本次没有生产发布（[ADESK-US-009](stories/platform/ADESK-US-009-pwa.md)、[验收证据](evidence/2026-11-16/pwa.md)）。
 - **发布**：Cloudflare Pages 上的静态站点，一键发布并线上对账（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)、[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 

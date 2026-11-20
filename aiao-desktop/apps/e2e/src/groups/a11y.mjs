@@ -1094,7 +1094,6 @@ export const a11y = {
       await press('ArrowDown');
       columnSeen.push(await columnFocus());
       await press('ArrowRight');
-      await focusReaches(page, info => info.role === 'option', 3_000);
       await until(page, () => document.activeElement?.getAttribute('data-ci') === '1', undefined, 3_000);
       columnSeen.push(await columnFocus());
       await press('ArrowLeft');
@@ -1310,6 +1309,7 @@ export const a11y = {
       const url = 'https://www.baidu.com/';
       await session.context.route(url, route => route.fulfill({ contentType: 'text/html', body: '<h1>Website</h1>' }));
       if (!(await openFromDock('Safari', 'safari'))) throw new Error('键盘未能打开 Safari');
+      await win('safari').locator('[data-url]').waitFor({ timeout: 15_000 });
       if (!(await tabTo(info => info.app === 'safari' && info.tag === 'input')).found)
         throw new Error('Tab 未能到达 Safari 地址栏');
       await page.keyboard.type(url);

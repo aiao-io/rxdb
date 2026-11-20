@@ -34,7 +34,7 @@ export const shell = {
     const shellState = await page.evaluate(() => ({
       stage: Boolean(document.querySelector('#stage')),
       menubar: Boolean(document.querySelector('#menubar')),
-      dock: document.querySelectorAll('#dock .di').length === 15,
+      dock: document.querySelectorAll('#dock .di').length === 16,
       /* 运行时已全部变成 Angular 组件：不再有全局入口，也不再往页面注入脚本。 */
       noRuntimeGlobals: ['WM', 'APPS', 'Pop', 'SYS', 'Bus', '__aiaoRuntimeBridge', '__aiaoTerminalBridge'].every(
         name => !(name in window)

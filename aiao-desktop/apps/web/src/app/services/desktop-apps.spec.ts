@@ -61,7 +61,7 @@ describe('应用登记表', () => {
       ids.filter(id => DESKTOP_APP_MANIFESTS[id as keyof typeof DESKTOP_APP_MANIFESTS].kind === kind);
     expect(byKind('system')).toEqual(['launchpad', 'trash']);
     expect(byKind('web')).toEqual(['vscode']);
-    expect(byKind('builtin')).toHaveLength(31);
+    expect(byKind('builtin')).toHaveLength(32);
   });
 
   it('Aiao Code 登记为单窗口的集成应用，指向线上地址，授予跨源隔离与剪贴板', () => {
@@ -157,6 +157,7 @@ describe('应用清单派生的视图（D-17）', () => {
         'music',
         'terminal',
         'vscode',
+        'github',
         'calculator',
         'settings'
       ],

@@ -57,6 +57,22 @@ describe('PopoverService', () => {
     expect(popover.active()?.id).toBeGreaterThan(first?.id ?? 0);
   });
 
+  it('淡出尚未结束时打开新弹出层，会移除旧的残留节点', () => {
+    const popover = setup();
+    popover.openMenu(items, { x: 0, y: 0 });
+    const first = popover.active();
+    popover.close();
+    expect(popover.entries()).toEqual([first]);
+
+    popover.openMenu(items, { x: 5, y: 5 });
+
+    expect(popover.entries()).toHaveLength(1);
+    expect(popover.entries()[0]).toBe(popover.active());
+    expect(popover.entries()[0]).not.toBe(first);
+    vi.advanceTimersByTime(110);
+    expect(popover.entries()).toHaveLength(1);
+  });
+
   it('close 先让弹出层淡出，110ms 后才移除；onClose 立即触发', () => {
     const popover = setup();
     const closed = vi.fn();

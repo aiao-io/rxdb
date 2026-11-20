@@ -1,0 +1,313 @@
+<div class="gh-app" data-github-app>
+  <div class="gh-titlebar" data-drag>
+    <app-traffic-lights />
+    <strong>GitHub</strong>
+    <span class="gh-title">{{ activeRecord()?.name ?? 'Repositories' }}</span>
+    <span class="gh-grow"></span>
+    @if (session(); as account) {
+      <span class="gh-account" data-github-account>{{ account.login }}</span>
+      <button class="gh-link" (click)="logout()" [disabled]="authBusy()" type="button">Sign out</button>
+    } @else {
+      <input
+        class="gh-pat"
+        [value]="patValue()"
+        (input)="setValue('pat', $event)"
+        aria-label="GitHub personal access token"
+        data-github-pat
+        placeholder="Personal access token"
+        type="password"
+      />
+      <button class="gh-link" (click)="loginWithPat()" [disabled]="authBusy()" data-github-pat-login type="button">
+        Sign in with PAT
+      </button>
+      <button class="gh-link" (click)="loginWithOAuth()" [disabled]="authBusy()" data-github-oauth-login type="button">
+        Sign in with GitHub
+      </button>
+    }
+  </div>
+
+  <div class="gh-toolbar" role="toolbar" aria-label="Repository actions">
+    <input
+      [value]="searchValue()"
+      (input)="setValue('search', $event)"
+      (keydown.enter)="searchRemoteRepositories()"
+      aria-label="Search GitHub repositories"
+      data-github-search
+      placeholder="Search GitHub repositories"
+      type="search"
+    />
+    <button (click)="searchRemoteRepositories()" [disabled]="busy()" data-github-search-submit type="button">Search</button>
+    <input
+      [value]="repoValue()"
+      (input)="setValue('repo', $event)"
+      (keydown.enter)="openRemoteRepository()"
+      aria-label="GitHub repository"
+      data-github-repository
+      placeholder="owner/repository or GitHub URL"
+      type="search"
+    />
+    <input
+      [value]="branchValue()"
+      (input)="setValue('branch', $event)"
+      aria-label="GitHub branch"
+      data-github-branch
+      placeholder="branch"
+      type="text"
+    />
+    @if (remoteBranches().length) {
+      <select
+        [value]="branchValue()"
+        (change)="selectRemoteBranch($event)"
+        aria-label="GitHub remote branch"
+        data-github-remote-branch
+      >
+        @for (branch of remoteBranches(); track branch.name) {
+          <option [value]="branch.name">{{ branch.name }}</option>
+        }
+      </select>
+    }
+    <button (click)="loadRemoteBranches()" [disabled]="busy()" data-github-load-branches type="button">Load branches</button>
+    <button (click)="openRemoteRepository()" [disabled]="busy()" data-github-open-remote type="button">Open remote</button>
+    <label class="gh-file-button" [class.disabled]="busy()">
+      Import
+      <input (change)="importRepository($event)" [disabled]="busy()" data-github-import type="file" />
+    </label>
+    @if (activeRecord()) {
+      <button (click)="exportRepository()" [disabled]="busy()" data-github-export type="button">Export</button>
+    }
+  </div>
+
+  <div class="gh-body">
+    <aside class="gh-sidebar" aria-label="Repositories">
+      <div class="gh-sidebar-heading">
+        <span>Repositories</span>
+        <span class="gh-count">{{ records().length }}</span>
+      </div>
+      @if (searchResults().length) {
+        <div class="gh-search-results" aria-label="GitHub search results">
+          <div class="gh-sidebar-heading"><span>Search results</span><span class="gh-count">{{ searchResults().length }}</span></div>
+          @for (result of searchResults(); track result.fullName) {
+            <button
+              class="gh-repository"
+              (click)="selectRemoteRepository(result)"
+              [attr.data-github-search-result]="result.fullName"
+              type="button"
+            >
+              <span class="gh-repo-icon">⌘</span>
+              <span>
+                <strong>{{ result.fullName }}</strong>
+                <small>{{ result.isPrivate ? 'Private' : 'Public' }} · ★ {{ result.stars }}</small>
+              </span>
+            </button>
+          }
+        </div>
+      }
+      <div class="gh-recent">
+        @for (record of records(); track record.projectId) {
+          <button
+            class="gh-repository"
+            [class.selected]="activeRecord()?.projectId === record.projectId"
+            (click)="openStored(record)"
+            [attr.data-project-id]="record.projectId"
+            type="button"
+          >
+            <span class="gh-repo-icon">⌘</span>
+            <span>
+              <strong>{{ record.name }}</strong>
+              <small>{{ record.branch }}{{ record.owner ? ' · ' + record.owner : ' · Local' }}</small>
+            </span>
+          </button>
+        } @empty {
+          <p class="gh-muted">No repositories yet.</p>
+        }
+      </div>
+      <div class="gh-create">
+        <label for="github-new-repo">New local repository</label>
+        <input
+          id="github-new-repo"
+          [value]="newRepoValue()"
+          (input)="setValue('newRepo', $event)"
+          data-github-new-repository
+          placeholder="Repository name"
+          type="text"
+        />
+        <button (click)="createRepository()" [disabled]="busy()" data-github-create type="button">Create repository</button>
+      </div>
+    </aside>
+
+    <main class="gh-main" aria-live="polite">
+      @if (activeRecord(); as record) {
+        <div class="gh-repo-head">
+          <div>
+            <h1>{{ record.name }}</h1>
+            <p>{{ record.owner ? 'GitHub repository' : 'Local OPFS repository' }} · {{ files().length }} files</p>
+          </div>
+          <div class="gh-branch-tools">
+            <label for="github-branch">Branch</label>
+            <select id="github-branch" [value]="currentBranch()" (change)="checkoutFromEvent($event)" data-github-branch-select>
+              @for (branch of branches(); track branch.name) {
+                <option [value]="branch.name">{{ branch.name }}{{ branch.current ? ' ✓' : '' }}</option>
+              }
+            </select>
+            <input
+              [value]="newBranchValue()"
+              (input)="setValue('newBranch', $event)"
+              aria-label="New branch name"
+              data-github-new-branch
+              placeholder="new branch"
+              type="text"
+            />
+            <button (click)="createBranch()" [disabled]="busy()" data-github-create-branch type="button">Create</button>
+          </div>
+        </div>
+
+        <div class="gh-tabs" role="tablist" aria-label="Repository views">
+          <button [attr.aria-selected]="tab() === 'changes'" [class.active]="tab() === 'changes'" (click)="setTab('changes')" data-github-tab="changes" role="tab" type="button">
+            Changes <span>{{ changedEntries().length }}</span>
+          </button>
+          <button [attr.aria-selected]="tab() === 'history'" [class.active]="tab() === 'history'" (click)="setTab('history')" data-github-tab="history" role="tab" type="button">
+            History <span>{{ history().length }}</span>
+          </button>
+        </div>
+
+        @if (tab() === 'changes') {
+          <div class="gh-changes">
+            <section class="gh-commit-box" aria-label="Commit changes">
+              <textarea
+                [value]="commitValue()"
+                (input)="setValue('commit', $event)"
+                [disabled]="busy()"
+                data-github-commit-message
+                placeholder="Summary of changes"
+                rows="2"
+              ></textarea>
+              <div class="gh-commit-actions">
+                <button (click)="stageAll()" [disabled]="busy() || !changedEntries().length" type="button">Stage all</button>
+                <button (click)="commit()" [disabled]="busy() || !commitValue().trim()" data-github-commit type="button">Commit</button>
+                @if (record.owner) {
+                  <button (click)="pull()" [disabled]="busy()" data-github-pull type="button">Pull</button>
+                  <button (click)="push()" [disabled]="busy() || hasChanges()" data-github-push type="button">Push</button>
+                }
+              </div>
+            </section>
+
+            <div class="gh-workspace">
+              <section class="gh-file-list" aria-label="Files">
+                <div class="gh-list-heading">Working files <span>{{ files().length }}</span></div>
+                @for (file of files(); track file.path) {
+                  <button
+                    class="gh-file-row"
+                    [class.selected]="selectedPath() === file.path"
+                    (click)="selectFile(file.path)"
+                    [attr.data-file-path]="file.path"
+                    type="button"
+                  >
+                    <span class="gh-file-state">{{ statusLabelForPath(file.path) }}</span>
+                    <span class="gh-file-name">{{ file.path }}</span>
+                    <span class="gh-file-size">{{ file.bytes.length }} B</span>
+                  </button>
+                } @empty {
+                  <p class="gh-muted">The repository is empty.</p>
+                }
+                @if (changedEntries().length) {
+                  <div class="gh-list-heading">Changes</div>
+                  @for (entry of changedEntries(); track entry.path) {
+                    <div class="gh-change-row" [class.selected]="selectedPath() === entry.path">
+                      <button (click)="selectFile(entry.path)" class="gh-change-name" type="button">{{ entry.path }}</button>
+                      <span class="gh-status">{{ statusLabel(entry) }}</span>
+                      <button (click)="showDiff(entry.path, isStaged(entry) ? 'staged' : 'working')" [disabled]="busy()" aria-label="Show diff" type="button">Diff</button>
+                      @if (isStaged(entry)) {
+                        <button (click)="unstage(entry.path)" [disabled]="busy()" aria-label="Unstage file" type="button">−</button>
+                      } @else {
+                        <button (click)="stage(entry.path)" [disabled]="busy()" aria-label="Stage file" type="button">+</button>
+                      }
+                      @if (entry.worktree !== ' ') {
+                        <button (click)="discard(entry.path)" [disabled]="busy()" aria-label="Discard file changes" type="button">Discard</button>
+                      }
+                    </div>
+                  }
+                }
+              </section>
+
+              <section class="gh-editor" aria-label="File editor">
+                @if (diff(); as currentDiff) {
+                  <section class="gh-diff" aria-label="Diff" data-github-diff>
+                    <div class="gh-editor-head">
+                      <strong>{{ currentDiff.path }}</strong>
+                      <span>{{ currentDiff.kind }} diff</span>
+                      <span class="gh-grow"></span>
+                      <button (click)="closeDiff()" aria-label="Close diff" type="button">Close</button>
+                    </div>
+                    @if (currentDiff.base.binary || currentDiff.modified.binary) {
+                      <div class="gh-binary">Binary file · byte counts {{ currentDiff.base.byteLength }} → {{ currentDiff.modified.byteLength }}</div>
+                    } @else {
+                      <pre class="gh-diff-text">{{ currentDiff.base.text ?? '' }}
+---
+{{ currentDiff.modified.text ?? '' }}</pre>
+                    }
+                  </section>
+                }
+                @if (selectedFile(); as file) {
+                  <div class="gh-editor-head">
+                    <strong>{{ file.path }}</strong>
+                    <span>{{ file.bytes.length }} bytes</span>
+                    <span class="gh-grow"></span>
+                    <button (click)="saveFile()" [disabled]="busy() || !editorDirty()" data-github-save type="button">Save</button>
+                    <button (click)="removeSelectedFile()" [disabled]="busy()" data-github-delete type="button">Delete</button>
+                  </div>
+                  @if (selectedText() !== null) {
+                    <textarea
+                      [value]="editorValue()"
+                      (input)="setEditor($event)"
+                      [disabled]="busy()"
+                      aria-label="File contents"
+                      data-github-editor
+                      spellcheck="false"
+                    ></textarea>
+                  } @else {
+                    <div class="gh-binary">Binary file · editing is disabled</div>
+                  }
+                } @else {
+                  <div class="gh-empty-editor">Select a file to inspect it.</div>
+                }
+              </section>
+            </div>
+          </div>
+        } @else {
+          <section class="gh-history" aria-label="Commit history">
+            @for (commit of history(); track commit.oid) {
+              <article class="gh-commit-row">
+                <div>
+                  <strong>{{ commit.message }}</strong>
+                  <small>{{ commit.oid }}</small>
+                </div>
+                <button (click)="restore(commit.oid)" [disabled]="busy()" type="button">Restore</button>
+              </article>
+            } @empty {
+              <p class="gh-muted">No commits yet.</p>
+            }
+          </section>
+        }
+      } @else {
+        <div class="gh-empty" data-github-empty>
+          <div class="gh-mark">⌘</div>
+          <h1>GitHub workbench</h1>
+          <p>Create a local OPFS repository or open a GitHub repository to start working.</p>
+        </div>
+      }
+
+      @if (canDiscardBranch()) {
+        <div class="gh-conflict" role="alert">
+          <span>Uncommitted changes prevent switching branches.</span>
+          <button (click)="checkout(pendingBranch() ?? currentBranch(), true)" type="button">Discard and switch</button>
+        </div>
+      }
+      @if (error(); as failure) {
+        <div class="gh-error" data-github-error role="alert">{{ failure }}</div>
+      }
+      @if (notice(); as message) {
+        <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
+      }
+    </main>
+  </div>
+</div>

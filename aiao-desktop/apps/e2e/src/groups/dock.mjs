@@ -18,6 +18,7 @@ export const DEFAULT_DOCK_APPS = [
   'music',
   'terminal',
   'vscode',
+  'github',
   'calculator',
   'settings'
 ];

@@ -1,12 +1,23 @@
 # Aiao Desktop 验收台账
 
-## 2026-11-20：GitHub 应用与 OPFS Git 工作区（ADESK-US-209）
+## 2026-11-21：浏览器会话恢复与 GitHub 工作台收尾
 
-ADESK-US-209 已登记为 Backlog，当前没有实现代码、正式构建或浏览器验收证据。范围评审需要先确认 GitHub Desktop 形态入口、独立 OPFS Git 工作区、仓库级并发恢复、OAuth PKCE 和 GitHub API 远端冲突处理，再进入实现。
+本次收尾完成 ADESK-US-128 和 ADESK-US-209。故事 YAML 现为 46 条 `Done`、1 条 `In Review`、0 条 `In Progress`、0 条 `Backlog`。唯一保留的人工验收是 ADESK-US-108 的 VoiceOver 播报，按用户要求延期。
 
-## 2026-11-20：浏览器关闭后恢复工作区（ADESK-US-128）
+### ADESK-US-128 浏览器关闭后恢复工作区
 
-ADESK-US-128 已完成需求设计并登记为 Backlog。当前没有实现代码、浏览器关闭重进测试或可标记为通过的验收证据，12 条 AC 均保持未开始。实现阶段需要使用持久浏览器上下文验证关闭浏览器后的重新进入，并覆盖标签页竞争、显式关闭窗口、延后加载、存储失败和损坏快照。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --output-style=static` 通过，浏览器会话租约、快照写入、损坏数据和关闭释放由单测覆盖。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --args="--group=browser-session-restore --parallel=1 --report=../../requirements/evidence/2026-11-21/browser-session-restore-green.json" --output-style=static` 通过。
+- [browser-session-restore-green.json](evidence/2026-11-21/browser-session-restore-green.json) 为持久 Chromium 上下文的正式证据。浏览器进程重启恢复、持久配置、损坏快照从新桌面启动、最近活跃标签页胜出、活跃标签页不重复恢复、显式关闭不恢复、单窗口失败不阻塞均为 `true`。
+
+### ADESK-US-209 GitHub 应用与 OPFS Git 工作区
+
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --output-style=static`、`typecheck` 和 `lint` 通过。web 覆盖率为 statements 94.89%、branches 88.97%、functions 95.81%、lines 96.86%。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --args="--group=github-app --parallel=1 --report=../../requirements/evidence/2026-11-21/github-app-green.json" --output-style=static` 通过。
+- [github-app-green.json](evidence/2026-11-21/github-app-green.json) 的 27 项检查全部为 `true`，没有页面错误。
+- 详细范围、环境和证据边界见 [US-209-evidence.md](stories/application/ADESK-US-209-evidence.md)。
+
+生产构建通过，同时保留两个既有预算提示。Initial bundle 约 1.39 MB，高于 1.30 MB 预算约 85.77 KB；`github.scss` 约 7.28 KB，高于 4 KB 组件样式预算。它们没有阻断构建，本次没有扩大范围处理。
 
 ## 2026-11-20：废纸篓重设计回归（ADESK-US-110 增量）
 

@@ -38,7 +38,7 @@ export const OPENED_APPS = [
  * 启动台里有、但由别的检查组覆盖的应用：`vscode`（Aiao Code）在 `integrated-app` 与 `transparent-window`；
  * `about`（关于本机）显示名和 Finder 相同，从启动台按名字搜只会命中 Finder，它由 Apple 菜单进入。
  */
-export const COVERED_ELSEWHERE = ['vscode', 'about'];
+export const COVERED_ELSEWHERE = ['vscode', 'about', 'github'];
 
 /** 每个应用都能从启动台打开，且不产生错误；应用清单由启动台的实际条目与登记表核对，不再手写第二份。 */
 export const apps = {

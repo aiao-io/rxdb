@@ -77,6 +77,7 @@ export class PopoverService {
 
   open(content: PopoverContent, options: PopoverOptions): void {
     this.close(true, 'replaced');
+    this.entriesState.set([]);
     const entry: PopoverEntry = { id: ++this.seq, content, options, leaving: signal(false) };
     this.entriesState.update(entries => [...entries, entry]);
     this.activeState.set(entry);

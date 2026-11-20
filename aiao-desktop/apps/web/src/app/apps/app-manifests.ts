@@ -83,6 +83,20 @@ export const DESKTOP_APP_MANIFESTS = {
       frame: 'transparent'
     }
   },
+  github: {
+    id: 'github',
+    name: 'GitHub',
+    icon: 'g-github',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.github',
+    ...preinstalled,
+    ...pinned(125),
+    w: 1120,
+    h: 720,
+    minW: 760,
+    minH: 480,
+    single: false
+  },
   calculator: {
     id: 'calculator',
     name: 'Calculator',
