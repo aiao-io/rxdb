@@ -466,6 +466,9 @@ importers:
       '@analogjs/vitest-angular':
         specifier: ^2.9.6
         version: 2.9.6(@analogjs/vite-plugin-angular@2.9.6(@angular/build@22.2.6(dfb000d059397f9bb37ea93bfd421099))(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1)))(@angular-devkit/architect@0.2202.6(chokidar@5.0.0))(@angular-devkit/schematics@22.2.6(chokidar@5.0.0))(vitest@4.1.11)(zone.js@0.16.2)
+      '@angular-devkit/architect':
+        specifier: 0.2202.6
+        version: 0.2202.6(chokidar@5.0.0)
       '@angular-devkit/core':
         specifier: 22.2.6
         version: 22.2.6(chokidar@5.0.0)
@@ -9585,7 +9588,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: '*'
+      vue: ^3.5.43
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16171,7 +16174,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: '*'
+      sharp: ^0.35.5
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0

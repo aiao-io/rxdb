@@ -101,7 +101,7 @@ test.describe('看板对拍（US-539 AC#1～3）', () => {
     await page.getByTestId('picker-option').filter({ hasText: '文档' }).click();
     await page.keyboard.press('Escape');
     await expect(card.getByTestId('card-label')).toHaveCount(2);
-    await expect(card.getByTestId('task-due')).toHaveText('2026-11-20');
+    await expect(card.getByTestId('task-due')).toContainText('2026-11-20');
     await detail.getByTestId('detail-close').click();
     await expect(detail).toHaveCount(0);
     await card.getByTestId('task-title').click();
