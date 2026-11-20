@@ -1046,7 +1046,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
             kind: 'image',
             operation: referenceImage ? 'reference-image' : 'text-to-image',
             ...(referenceImage ? { referenceImageSource: 'inline' } : {}),
-            providerInstanceId: '00000000-0000-0000-0000-000000000000',
+            providerInstanceId: '00000000-0000-4000-8000-000000000000',
             providerRevision: 1,
             modelId: model.id,
             prompt,
