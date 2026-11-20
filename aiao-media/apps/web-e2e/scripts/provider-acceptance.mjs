@@ -10,9 +10,9 @@ import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
 
 const ratios = [
-  { aspect: 'square', label: '正方形', size: '1024x1024' },
-  { aspect: 'landscape', label: '横向', size: '1536x1024' },
-  { aspect: 'portrait', label: '纵向', size: '1024x1536' }
+  { aspect: 'square', label: '1:1', size: '1024x1024' },
+  { aspect: 'landscape', label: '3:2', size: '1536x1024' },
+  { aspect: 'portrait', label: '2:3', size: '1024x1536' }
 ];
 const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const requireCheck = (condition, code) => {
