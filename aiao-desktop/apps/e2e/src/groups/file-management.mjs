@@ -15,6 +15,9 @@ export const fileManagement = {
   keys: [
     'fileManagement.dropsOnDesktop',
     'fileManagement.desktopMoveToTrash',
+    'fileManagement.desktopFileDragToTrash',
+    'fileManagement.desktopFolderDrag',
+    'fileManagement.desktopFolderDragToTrash',
     'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
     'fileManagement.dropsOnSidebar',
@@ -32,6 +35,7 @@ export const fileManagement = {
     'fileManagement.clipboardCopyPaste',
     'fileManagement.dragCopy',
     'fileManagement.dragMove',
+    'fileManagement.springFolderIcon',
     'fileManagement.columnVirtualScroll',
     'fileManagement.columnWidthDrag',
     'fileManagement.columnActionsUseExactPath',
@@ -51,6 +55,17 @@ export const fileManagement = {
     await session.openDesktop();
     await helpers.closeAll();
     const desktop = page.locator('#desktop');
+    const dragDesktopIcon = async (sourceName, target) => {
+      const source = desktop.locator(`[data-id="file:${sourceName}"]`);
+      const sourceBox = await source.boundingBox();
+      const targetBox = await target.boundingBox();
+      if (!sourceBox || !targetBox) throw new Error(`Cannot measure desktop drag ${sourceName}`);
+      await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 });
+      await page.mouse.up();
+    };
+    const trashDockIcon = page.locator('#dock .di[data-app="trash"]');
     await desktop.drop({ files: payload('from-desktop.txt', Buffer.from(text)) }, { timeout: 5_000 });
     await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toBeVisible();
     result.dropsOnDesktop = (await diskText(session, 'from-desktop.txt')) === text;
@@ -58,6 +73,38 @@ export const fileManagement = {
     await page.getByRole('menuitem', { name: 'Move to Trash', exact: true }).click();
     await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toHaveCount(0);
     result.desktopMoveToTrash = true;
+    await desktop.drop({ files: payload('drag-trash.txt', Buffer.from(text)) });
+    await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toBeVisible();
+    await dragDesktopIcon('drag-trash.txt', trashDockIcon);
+    await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toHaveCount(0);
+    result.desktopFileDragToTrash = true;
+    const desktopFolderIds = async () =>
+      desktop.locator('[data-id^="file:untitled folder"]').evaluateAll(nodes =>
+        nodes.map(node => node.getAttribute('data-id')).filter(Boolean)
+      );
+    const newDesktopFolder = async () => {
+      const before = await desktopFolderIds();
+      await desktop.click({ button: 'right', position: { x: 420, y: 420 } });
+      await page.getByRole('menuitem', { name: 'New Folder', exact: true }).click();
+      await expect.poll(async () => (await desktopFolderIds()).length).toBe(before.length + 1);
+      const created = (await desktopFolderIds()).find(id => !before.includes(id));
+      if (!created) throw new Error('New desktop folder was not created');
+      return created.slice('file:'.length);
+    };
+    const sourceFolder = await newDesktopFolder();
+    const targetFolder = await newDesktopFolder();
+    await dragDesktopIcon(sourceFolder, desktop.locator(`[data-id="file:${targetFolder}"]`));
+    await expect(desktop.locator(`[data-id="file:${sourceFolder}"]`)).toHaveCount(0);
+    result.desktopFolderDrag = true;
+    await desktop.locator(`[data-id="file:${targetFolder}"]`).dblclick();
+    await expect(page.locator('.win.front[data-app="finder"]:not(.closing) [data-title]')).toHaveText(targetFolder);
+    await expect(
+      page.locator(`.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`)
+    ).toBeVisible();
+    await page.locator('.win.front[data-app="finder"]:not(.closing) [data-place="Desktop"]').click();
+    await dragDesktopIcon(targetFolder, trashDockIcon);
+    await expect(desktop.locator(`[data-id="file:${targetFolder}"]`)).toHaveCount(0);
+    result.desktopFolderDragToTrash = true;
     await desktop.locator('[data-id="file:Projects"]').drop({
       files: payload('from-desktop-folder.txt', Buffer.from(text))
     });
@@ -259,6 +306,34 @@ export const fileManagement = {
     await item('drag-copy.txt').click({ modifiers: ['Meta'] });
     await expect(finder().locator('[role=option][aria-selected="true"]')).toHaveCount(2);
     result.multiSelection = true;
+
+    const springSource = item('drag-copy.txt');
+    const springTarget = item('nested');
+    const springSourceBox = await springSource.boundingBox();
+    const springTargetBox = await springTarget.boundingBox();
+    if (!springSourceBox || !springTargetBox) throw new Error('Spring folder targets are not measurable');
+    await page.mouse.move(
+      springSourceBox.x + springSourceBox.width / 2,
+      springSourceBox.y + springSourceBox.height / 2
+    );
+    await page.mouse.down();
+    try {
+      await page.mouse.move(
+        springTargetBox.x + springTargetBox.width / 2,
+        springTargetBox.y + springTargetBox.height / 2,
+        {
+          steps: 12
+        }
+      );
+      await expect.poll(() => springTarget.locator('.art [data-icon]').getAttribute('data-icon')).toBe('g-folder-open');
+      result.springFolderIcon = true;
+    } finally {
+      await page.mouse.move(
+        springSourceBox.x + springSourceBox.width / 2,
+        springSourceBox.y + springSourceBox.height / 2
+      );
+      await page.mouse.up();
+    }
 
     await item('clipboard-source.txt').click();
     await edit('Copy');
