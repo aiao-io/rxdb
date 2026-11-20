@@ -6,7 +6,7 @@ import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
 import { configureServices } from '../testing/angular';
-import { stubViewport } from '../testing/browser';
+import { stubLocks, stubViewport } from '../testing/browser';
 import { StubApp, testApps } from '../testing/desktop-apps';
 import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { ApplicationRuntime } from './application-runtime';
@@ -16,8 +16,15 @@ import { DockState } from './dock-state';
 import { FileSystem, FsNode } from './file-system';
 import { BootRun, Session } from './session';
 import { Toast } from './toast';
+import { BROWSER_SESSION_LIFECYCLE, BrowserSessionRestore } from './browser-session-restore';
 import { RESTORE_YIELD, TAB_STORAGE, WindowLayoutStore } from './window-layout';
-import { TabStorage, WINDOW_LAYOUT_PREFIX, windowLayoutKey } from './window-layout-model';
+import {
+  TabStorage,
+  WINDOW_ACTIVE_PREFIX,
+  WINDOW_LAYOUT_PREFIX,
+  WINDOW_RESUME_KEY,
+  windowLayoutKey
+} from './window-layout-model';
 import { WindowManager } from './window-manager';
 
 const NOW = Date.UTC(2026, 10, 13, 12, 0, 0);
@@ -52,6 +59,13 @@ const rec = (appId: DesktopAppId, overrides: Record<string, unknown> = {}) => ({
 
 /** 存进偏好的布局：窗口按层叠从后到前。 */
 const layoutOf = (...windows: readonly unknown[]) => ({ version: 1, updatedAt: NOW - 1000, windows });
+const resumeOf = (...windows: readonly unknown[]) => ({
+  version: 1,
+  updatedAt: NOW - 1000,
+  activeAt: NOW - 1000,
+  sourceTabId: 'tab-bbbb-0002',
+  windows
+});
 
 /** 内存里的会话存储：同一份对象代表同一个标签页（刷新后还在）。 */
 function memoryStorage(initial?: string): TabStorage & { readonly data: Map<string, string> } {
@@ -78,6 +92,7 @@ interface Options {
 function setup(options: Options = {}) {
   const [width, height] = options.viewport ?? [1440, 900];
   stubViewport(width, height);
+  stubLocks();
   const data = new FakeDesktopData();
   const table = data.table<{ id?: string; key: string; value: unknown }>(SystemPreference);
   if (options.own !== undefined) table.seed([{ key: OWN, value: options.own }]);
@@ -112,6 +127,7 @@ function setup(options: Options = {}) {
   const storage = options.storage === undefined ? memoryStorage(TAB) : options.storage;
 
   configureServices([
+    BrowserSessionRestore,
     WindowLayoutStore,
     WindowManager,
     DockState,
@@ -122,6 +138,7 @@ function setup(options: Options = {}) {
     { provide: FileSystem, useValue: fs },
     { provide: Session, useValue: session },
     { provide: TAB_STORAGE, useValue: storage },
+    { provide: BROWSER_SESSION_LIFECYCLE, useValue: undefined },
     { provide: RESTORE_YIELD, useValue: yielded },
     { provide: DESKTOP_APPS, useValue: apps }
   ]);
@@ -155,9 +172,17 @@ function setup(options: Options = {}) {
     saved: () => table.rows.find(row => row.key === OWN)?.value as Saved | undefined,
     savedApps: () =>
       (table.rows.find(row => row.key === OWN)?.value as Saved | undefined)?.windows.map(item => item.appId),
+    savedResume: () => table.rows.find(row => row.key === WINDOW_RESUME_KEY)?.value as Saved | undefined,
     /** 写库的次数（新建加更新，含失败的）。 */
-    writeCount: () => create.mock.calls.length + update.mock.calls.length,
+    writeCount: () =>
+      create.mock.calls.filter(([row]) => (row as { readonly key?: string }).key === OWN).length +
+      update.mock.calls.filter(([row]) => (row as { readonly key?: string }).key === OWN).length,
     writes: () => table.rows.filter(row => row.key === OWN),
+    userKeys: () =>
+      table.rows
+        .map(row => row.key)
+        .filter(key => !key.startsWith(WINDOW_ACTIVE_PREFIX) && key !== WINDOW_RESUME_KEY)
+        .sort(),
     win: (appId: DesktopAppId): DesktopWindow => {
       const found = wm.byApp(appId).at(-1);
       if (!found) throw new Error(`没有 ${appId} 窗口`);
@@ -311,6 +336,32 @@ describe('WindowLayoutStore 恢复', () => {
     const ctx = await started({ own: layoutOf() });
     expect(ctx.restored).toBe(0);
     expect(ctx.toast.message()).toBe('');
+  });
+
+  it('当前标签页没有布局时恢复浏览器会话快照，并把恢复结果落成本标签页布局', async () => {
+    const ctx = await started({ others: { [WINDOW_RESUME_KEY]: resumeOf(rec('notes'), rec('calculator')) } });
+    expect(ctx.restored).toBe(2);
+    expect(ctx.apps()).toEqual(['notes', 'calculator']);
+    expect(ctx.savedResume()?.windows.map(window => window.appId)).toEqual(['notes', 'calculator']);
+
+    await vi.advanceTimersByTimeAsync(400);
+    expect(ctx.savedApps()).toEqual(['notes', 'calculator']);
+  });
+
+  it('有其他活跃标签页时不领取浏览器会话快照', async () => {
+    const ctx = await started({
+      others: {
+        [WINDOW_RESUME_KEY]: resumeOf(rec('notes')),
+        'windows:active:tab-bbbb-0002': {
+          version: 1,
+          tabId: 'tab-bbbb-0002',
+          updatedAt: NOW,
+          lastActiveAt: NOW
+        }
+      }
+    });
+    expect(ctx.restored).toBe(0);
+    expect(ctx.apps()).toEqual([]);
   });
 
   it('等偏好库和磁盘都就绪之后才恢复：磁盘没挂好时一个窗口都不开', async () => {
@@ -714,7 +765,7 @@ describe('WindowLayoutStore 写回', () => {
     await vi.advanceTimersByTimeAsync(400);
     expect(ctx.table.rows.find(row => row.key === otherKey)?.value).toBe(other);
     expect(ctx.writes()).toHaveLength(1);
-    expect(ctx.table.rows.map(row => row.key).sort()).toEqual([otherKey, 'dock:layout', OWN].sort());
+    expect(ctx.userKeys()).toEqual([otherKey, 'dock:layout', OWN].sort());
   });
 
   it('只恢复自己的窗口：别的标签页的布局里有什么都不会出现在本标签页', async () => {
@@ -771,7 +822,7 @@ describe('WindowLayoutStore 清理遗留的布局行', () => {
       'system:settings': { appearance: 'dark' }
     };
     const ctx = await started({ own: stale(400), others });
-    expect(ctx.table.rows.map(row => row.key).sort()).toEqual(
+    expect(ctx.userKeys()).toEqual(
       [OWN, windowLayoutKey('recent-tab-1'), 'dock:layout', 'system:settings'].sort()
     );
   });
@@ -782,7 +833,7 @@ describe('WindowLayoutStore 清理遗留的布局行', () => {
       [windowLayoutKey('broken-tab-1')]: 'junk'
     };
     const ctx = await started({ others });
-    expect(ctx.table.rows).toHaveLength(2);
+    expect(ctx.userKeys()).toHaveLength(2);
   });
 
   it('清理失败只记日志，不影响桌面', async () => {
@@ -799,6 +850,6 @@ describe('WindowLayoutStore 清理遗留的布局行', () => {
     const ctx = setup({ others, storage: null });
     await restoreAll(ctx);
     await tick();
-    expect(ctx.table.rows).toHaveLength(1);
+    expect(ctx.userKeys()).toHaveLength(1);
   });
 });

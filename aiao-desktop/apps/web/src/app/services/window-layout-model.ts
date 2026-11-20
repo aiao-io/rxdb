@@ -6,8 +6,20 @@ import type { FsNode } from './file-system';
 /** 布局存成偏好表里的一行 JSON，键是前缀加标签页的会话标识；每个标签页只读写自己的键。 */
 export const WINDOW_LAYOUT_PREFIX = 'windows:layout:';
 
+/** 浏览器关闭后恢复最近工作区的独立偏好键。 */
+export const WINDOW_RESUME_KEY = 'windows:resume';
+
+/** 活跃标签页租约的偏好键前缀。 */
+export const WINDOW_ACTIVE_PREFIX = 'windows:active:';
+
 /** 布局 JSON 的版本；读到别的版本一律不碰（可能是更新的构建写的）。 */
 export const WINDOW_LAYOUT_VERSION = 1;
+
+/** 浏览器会话快照 JSON 的版本；未知版本保留给更新版本处理。 */
+export const WINDOW_RESUME_VERSION = 1;
+
+/** 活跃标签页租约 JSON 的版本。 */
+export const ACTIVE_TAB_LEASE_VERSION = 1;
 
 /** 标签页的会话标识存在会话存储（sessionStorage）的这个键下。 */
 export const TAB_ID_KEY = 'aiao-desktop:tab-id';
@@ -42,6 +54,24 @@ export interface WindowLayout {
   readonly windows: readonly WindowRecord[];
 }
 
+/** 浏览器关闭前最近一次成功提交的完整工作区快照。 */
+export interface ResumeLayout {
+  readonly version: typeof WINDOW_RESUME_VERSION;
+  readonly updatedAt: number;
+  readonly activeAt: number;
+  readonly sourceTabId: string;
+  readonly windows: readonly WindowRecord[];
+}
+
+/** 活跃 Aiao Desktop 标签页的短期租约。 */
+export interface ActiveTabLease {
+  readonly version: typeof ACTIVE_TAB_LEASE_VERSION;
+  readonly tabId: string;
+  readonly updatedAt: number;
+  readonly lastActiveAt: number;
+  readonly released?: boolean;
+}
+
 /** 一个窗口此刻的状态，由窗口管理器的窗口信号收集而来。 */
 export interface WindowSource {
   readonly appId: DesktopAppId;
@@ -55,7 +85,7 @@ export interface WindowSource {
 }
 
 /** 没能恢复的原因：应用已下线、记录读不懂、窗口要打开的文件已经不在了。 */
-export type SkipReason = 'retired' | 'unreadable' | 'file-missing';
+export type SkipReason = 'retired' | 'unreadable' | 'file-missing' | 'unavailable';
 
 /** 被跳过的窗口；`name` 为 `null` 表示连是哪个应用都认不出。 */
 export interface SkippedWindow {
@@ -109,6 +139,11 @@ const OPTION_FIELDS: Readonly<Record<keyof RestoreOptions, (value: unknown) => b
 /** 布局行的偏好键。 */
 export function windowLayoutKey(tabId: string): string {
   return `${WINDOW_LAYOUT_PREFIX}${tabId}`;
+}
+
+/** 活跃标签页租约的偏好键。 */
+export function activeTabKey(tabId: string): string {
+  return `${WINDOW_ACTIVE_PREFIX}${tabId}`;
 }
 
 /**
@@ -173,6 +208,38 @@ export function parseLayout(raw: unknown, manifests: DesktopAppManifests): Parse
     else windows.push(outcome);
   }
   return { windows, skipped, unreadable: false };
+}
+
+/** 读取浏览器会话快照；外壳损坏时整体放弃，单个窗口损坏时沿用布局的逐窗跳过规则。 */
+export function parseResumeLayout(raw: unknown, manifests: DesktopAppManifests): ParsedLayout {
+  if (raw === undefined) return { windows: [], skipped: [], unreadable: false };
+  if (!isResumeLayout(raw)) return { windows: [], skipped: [], unreadable: true };
+  return parseLayout(
+    { version: WINDOW_LAYOUT_VERSION, updatedAt: raw['updatedAt'], windows: raw['windows'] },
+    manifests
+  );
+}
+
+/** 读取一个活动标签页租约；外部写入的损坏数据一律视为无租约。 */
+export function parseActiveTabLease(raw: unknown): ActiveTabLease | null {
+  if (!isRecord(raw)) return null;
+  const { version, tabId, updatedAt, lastActiveAt, released } = raw;
+  if (
+    version !== ACTIVE_TAB_LEASE_VERSION ||
+    !isString(tabId) ||
+    !TAB_ID_FORMAT.test(tabId) ||
+    !isFiniteNumber(updatedAt) ||
+    !isFiniteNumber(lastActiveAt) ||
+    (released !== undefined && typeof released !== 'boolean')
+  )
+    return null;
+  return {
+    version: ACTIVE_TAB_LEASE_VERSION,
+    tabId,
+    updatedAt,
+    lastActiveAt,
+    ...(released === true && { released: true })
+  };
 }
 
 /**
@@ -250,6 +317,8 @@ function describeOne(skipped: SkippedWindow): string {
       return `${subject} no longer exists`;
     case 'unreadable':
       return `${subject} had unreadable settings`;
+    case 'unavailable':
+      return `${subject} was not ready`;
   }
 }
 
@@ -259,6 +328,19 @@ function isLayout(raw: unknown): raw is JsonRecord {
     isRecord(raw) &&
     raw['version'] === WINDOW_LAYOUT_VERSION &&
     isFiniteNumber(raw['updatedAt']) &&
+    Array.isArray(raw['windows'])
+  );
+}
+
+/** 值是当前版本的浏览器会话快照外壳。窗口记录交给 {@link parseLayout} 继续检查。 */
+function isResumeLayout(raw: unknown): raw is JsonRecord {
+  return (
+    isRecord(raw) &&
+    raw['version'] === WINDOW_RESUME_VERSION &&
+    isFiniteNumber(raw['updatedAt']) &&
+    isFiniteNumber(raw['activeAt']) &&
+    isString(raw['sourceTabId']) &&
+    TAB_ID_FORMAT.test(raw['sourceTabId']) &&
     Array.isArray(raw['windows'])
   );
 }

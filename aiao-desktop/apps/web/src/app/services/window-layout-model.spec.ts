@@ -7,13 +7,18 @@ import type { FsNode } from './file-system';
 import {
   STALE_LAYOUT_AFTER,
   TAB_ID_KEY,
+  WINDOW_ACTIVE_PREFIX,
   WINDOW_LAYOUT_PREFIX,
+  WINDOW_RESUME_KEY,
   WindowRecord,
   WindowSource,
+  activeTabKey,
   buildWindows,
   describeSkipped,
+  parseActiveTabLease,
   fitBox,
   parseLayout,
+  parseResumeLayout,
   resolveOpenOptions,
   restoreOptionsOf,
   restoreSteps,
@@ -115,6 +120,46 @@ describe('键与会话标识', () => {
         () => 'never-used-0005'
       )
     ).toThrow(blocked);
+  });
+});
+
+describe('浏览器会话快照与标签页租约', () => {
+  it('使用独立的恢复键和活动标签页键', () => {
+    expect(WINDOW_RESUME_KEY).toBe('windows:resume');
+    expect(WINDOW_ACTIVE_PREFIX).toBe('windows:active:');
+    expect(activeTabKey('tab-aaaa-0001')).toBe('windows:active:tab-aaaa-0001');
+  });
+
+  it('恢复快照沿用窗口布局记录，能读出完整窗口列表', () => {
+    const raw = {
+      version: 1,
+      updatedAt: 1_700_000_000_000,
+      activeAt: 1_700_000_000_001,
+      sourceTabId: 'tab-aaaa-0001',
+      windows: [record({ appId: 'finder', name: 'Finder', options: { path: ['Users', 'Documents'] } })]
+    };
+    expect(parseResumeLayout(raw, DESKTOP_APP_MANIFESTS)).toEqual({
+      windows: [raw.windows[0]],
+      skipped: [],
+      unreadable: false
+    });
+  });
+
+  it.each([
+    ['版本未知', { version: 2, updatedAt: 1, activeAt: 1, sourceTabId: 'tab-aaaa-0001', windows: [] }],
+    ['缺少来源标签页', { version: 1, updatedAt: 1, activeAt: 1, windows: [] }],
+    ['时间戳损坏', { version: 1, updatedAt: 'now', activeAt: 1, sourceTabId: 'tab-aaaa-0001', windows: [] }],
+    ['窗口列表损坏', { version: 1, updatedAt: 1, activeAt: 1, sourceTabId: 'tab-aaaa-0001', windows: {} }]
+  ])('损坏或未知版本的恢复快照不恢复窗口（%s）', (_label, raw) => {
+    expect(parseResumeLayout(raw, DESKTOP_APP_MANIFESTS)).toEqual({ windows: [], skipped: [], unreadable: true });
+  });
+
+  it('活动标签页租约只接受当前版本和合法时间戳', () => {
+    expect(
+      parseActiveTabLease({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1_700_000_000_000, lastActiveAt: 1_700_000_000_001 })
+    ).toEqual({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1_700_000_000_000, lastActiveAt: 1_700_000_000_001 });
+    expect(parseActiveTabLease({ version: 2, tabId: 'tab-aaaa-0001', updatedAt: 1, lastActiveAt: 1 })).toBeNull();
+    expect(parseActiveTabLease({ version: 1, tabId: 'tab-aaaa-0001', updatedAt: 1, lastActiveAt: 'now' })).toBeNull();
   });
 });
 

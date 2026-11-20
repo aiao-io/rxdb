@@ -25,6 +25,10 @@
 
 [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)：依赖 US-102、US-104、US-105 和 US-106。先实现最近活跃标签页识别、持久窗口快照和单标签页恢复权，再补持久浏览器上下文下的关闭重进、并发标签页、显式关闭窗口和损坏快照验收。
 
+## Finder 仿真与本地邮件分享（2026-11-20）
+
+[ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)已完成本地正式构建验收。文件和文件夹支持拖动移动、Option/Alt 拖动复制、剪切粘贴、多选、列表和分栏虚拟滚动、列宽调整；Finder Share 复用本地 Mail 草稿能力，真实远程邮件收发仍未接入。
+
 ## 扩大使用范围的条件
 
 扩大使用范围前，仍需完整文件工作流、备份恢复、保存失败与配额边界、明确的浏览器支持矩阵、升级与回滚边界。TextEdit 文档工作流、Finder 文件管理、完整备份和存储故障恢复已由 ADESK-US-109～111 完成；后续应用目录和运行能力按自动完成计划逐项立项和验收，原方向见[后续方向](future-requirements.md)。

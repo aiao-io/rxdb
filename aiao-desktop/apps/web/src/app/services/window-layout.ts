@@ -5,13 +5,13 @@ import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
 import { DesktopOpenOptions } from './desktop-apps';
+import { BrowserSessionRestore, TAB_STORAGE } from './browser-session-restore';
 import { FileSystem } from './file-system';
 import { Session } from './session';
 import { Toast } from './toast';
 import {
   STALE_LAYOUT_AFTER,
   SkippedWindow,
-  TabStorage,
   WINDOW_LAYOUT_PREFIX,
   WINDOW_LAYOUT_VERSION,
   WindowLayout,
@@ -19,6 +19,7 @@ import {
   buildWindows,
   describeSkipped,
   parseLayout,
+  parseResumeLayout,
   resolveOpenOptions,
   restoreOptionsOf,
   restoreSteps,
@@ -27,21 +28,9 @@ import {
   windowLayoutKey
 } from './window-layout-model';
 import { WindowManager } from './window-manager';
+import type { TabStorage } from './window-layout-model';
 
-/**
- * 本标签页的会话存储（`sessionStorage`）：标签页会话标识放在这里，刷新后不变，新开的标签页各自不同；
- * 浏览器的「重新打开关闭的标签页」会带回原标签页的会话存储。浏览器禁用站点数据时读取它会抛错，此时为 `null`，布局保存停用。
- */
-export const TAB_STORAGE = new InjectionToken<TabStorage | null>('TAB_STORAGE', {
-  providedIn: 'root',
-  factory: () => {
-    try {
-      return sessionStorage;
-    } catch {
-      return null;
-    }
-  }
-});
+export { TAB_STORAGE } from './browser-session-restore';
 
 /**
  * 恢复窗口时两个窗口之间让出主线程的方式，默认让给下一个宏任务（浏览器先去渲染、响应输入）。
@@ -57,6 +46,7 @@ const SAVE_DELAY = 400;
 
 const UNAVAILABLE_NOTICE = 'Window positions won’t be remembered: this browser blocks tab storage.';
 const UNREADABLE_NOTICE = 'Couldn’t read the saved window layout, so the desktop starts fresh.';
+const RESUME_UNREADABLE_NOTICE = 'Couldn’t read the saved browser session, so the desktop starts fresh.';
 const SAVE_FAILED_NOTICE = 'Couldn’t save the window layout.';
 
 type StoredJson = object | string | number | boolean | null;
@@ -103,6 +93,7 @@ export class WindowLayoutStore {
   private readonly fs = inject(FileSystem);
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
+  private readonly browserSession = inject(BrowserSessionRestore);
   private readonly apps = inject(ApplicationRegistry).apps;
   private readonly pause = inject(RESTORE_YIELD);
   /** 等桌面看得见了再弹的提示（开机画面和登录界面盖着时弹了也看不到）。 */
@@ -142,8 +133,11 @@ export class WindowLayoutStore {
   /** 把待写的布局立刻写出去：页面隐藏、关闭时调用，免得停手之前的改动随页面一起丢了。 */
   flush(): void {
     if (!this.armed) return;
-    this.observe(this.collect());
+    const collected = this.collect();
+    this.observe(collected);
     if (this.timer !== undefined) this.save();
+    else if (this.browserSession.isClosing()) void this.browserSession.saveResume(collected.windows);
+    if (this.browserSession.isClosing()) void this.browserSession.close();
   }
 
   private async run(): Promise<number> {
@@ -157,13 +151,19 @@ export class WindowLayoutStore {
     }
     await this.fs.whenReady();
     const stored = this.preferences.get(key, present);
-    const parsed = parseLayout(stored, this.apps());
+    const sessionPlan = await this.browserSession.prepare(stored !== undefined);
+    const fromResume = stored === undefined;
+    const parsed = fromResume ? parseResumeLayout(sessionPlan.resume, this.apps()) : parseLayout(stored, this.apps());
     const planned = this.plan(parsed.windows);
-    const skipped = [...parsed.skipped, ...planned.missing];
-    this.notice.set(parsed.unreadable ? UNREADABLE_NOTICE : describeSkipped(skipped));
-    await this.recreate(planned.windows);
+    const failed = await this.recreate(planned.windows);
+    const skipped = [...parsed.skipped, ...planned.missing, ...failed];
+    const resumeExists = fromResume && sessionPlan.resume !== undefined;
+    this.notice.set(
+      parsed.unreadable ? fromResume ? RESUME_UNREADABLE_NOTICE : UNREADABLE_NOTICE : describeSkipped(skipped)
+    );
     this.latest =
-      stored === undefined ? '[]'
+      fromResume && (!resumeExists || (planned.windows.length === 0 && !parsed.unreadable && skipped.length === 0)) ? '[]'
+      : fromResume ? null
       : parsed.unreadable || skipped.length > 0 ? null
       : JSON.stringify(parsed.windows);
     this.armed = true;
@@ -189,23 +189,29 @@ export class WindowLayoutStore {
   }
 
   /** 按恢复的次序逐个重建窗口，窗口之间让出主线程；层叠位置取记录的，所以先后不影响最终的叠放。 */
-  private async recreate(planned: readonly PlannedWindow[]): Promise<void> {
+  private async recreate(planned: readonly PlannedWindow[]): Promise<SkippedWindow[]> {
+    const failed: SkippedWindow[] = [];
     const base = this.wm.reserveLayers(planned.length);
     const steps = restoreSteps(planned.map(item => item.record));
     for (const [index, step] of steps.entries()) {
       if (index > 0) await this.pause();
       const { record } = step;
-      const win = this.wm.restore({
-        appId: record.appId,
-        options: planned[step.layer].options,
-        box: record.box,
-        minimized: record.minimized,
-        zoomed: record.zoomed,
-        layer: base + step.layer + 1,
-        foreground: step.foreground
-      });
-      if (!win) throw new Error(`“${record.name}”的窗口无法恢复：清单里没有它的装载函数`);
+      try {
+        const win = this.wm.restore({
+          appId: record.appId,
+          options: planned[step.layer].options,
+          box: record.box,
+          minimized: record.minimized,
+          zoomed: record.zoomed,
+          layer: base + step.layer + 1,
+          foreground: step.foreground
+        });
+        if (!win) failed.push({ name: record.name, reason: 'unavailable' });
+      } catch {
+        failed.push({ name: record.name, reason: 'unavailable' });
+      }
     }
+    return failed;
   }
 
   /** 会话存储里取（或生成）本标签页的标识；取不到就停用，并等桌面可见后提示。 */
@@ -265,12 +271,14 @@ export class WindowLayoutStore {
       updatedAt: Date.now(),
       windows: this.collect().windows
     };
+    const windows = layout.windows;
     this.preferences.set(this.key, layout).then(
       () => {
         this.failing = false;
       },
       () => this.reportSaveFailure()
     );
+    void this.browserSession.saveResume(windows).catch(() => this.reportSaveFailure());
   }
 
   private reportSaveFailure(): void {

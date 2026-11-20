@@ -563,7 +563,7 @@ export class FinderApp implements FinderCommands {
   }
 
   protected focusItem(name: string): void {
-    if (!this.selectedNames().includes(name)) this.setSelection([name]);
+    if (this.selectedNames().length === 0) this.setSelection([name]);
     else this.selected.set(name);
   }
 

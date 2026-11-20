@@ -216,7 +216,7 @@ export const localMail = {
     result.deletedDraftRetained = true;
     await win().locator('[data-box="Inbox"]').click();
     await expect(win().locator('[data-box="Inbox"]')).toHaveAttribute('aria-pressed', 'true');
-    const sourceBody = await win().locator('[data-mread] p').first().innerText();
+    const sourceBody = (await win().locator('[data-mread] p').first().innerText()).trim();
     const sourceTitle = await win().locator('[data-mread] h2').innerText();
     await choose(win(), '[data-mshare]', 'Reply');
     await expect(field('Subject')).toHaveValue(`Re: ${sourceTitle}`);

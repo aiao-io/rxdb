@@ -28,6 +28,7 @@ export const fileManagement = {
     'fileManagement.duplicateIsIndependent',
     'fileManagement.folderCopyKeepsNestedAndEmptyEntries',
     'fileManagement.listVirtualScroll',
+    'fileManagement.multiSelection',
     'fileManagement.clipboardCopyPaste',
     'fileManagement.dragCopy',
     'fileManagement.dragMove',
@@ -246,15 +247,17 @@ export const fileManagement = {
     await finder().getByRole('button', { name: 'List', exact: true }).click();
     await expect(finder().locator('.fv-list-scroll')).toHaveCount(1);
     result.listVirtualScroll = true;
+    await item('clipboard-source.txt').click();
+    await item('drag-copy.txt').click({ modifiers: ['Meta'] });
+    await expect(finder().locator('[role=option][aria-selected="true"]')).toHaveCount(2);
+    result.multiSelection = true;
 
     await item('clipboard-source.txt').click();
     await edit('Copy');
     await item('nested').dblclick();
     await edit('Paste');
     await expect(item('clipboard-source.txt')).toBeVisible();
-    const clipboardCopy = await downloaded('clipboard-source.txt');
-    console.error('clipboard copied bytes', JSON.stringify(clipboardCopy.toString()), clipboardCopy.length, Buffer.from(text).length);
-    const clipboardCopyKeptBytes = clipboardCopy.equals(Buffer.from(text));
+    const clipboardCopyKeptBytes = (await downloaded('clipboard-source.txt')).equals(Buffer.from(text));
     await item('clipboard-source.txt').focus();
     await edit('Cut');
     await place('Desktop');
@@ -263,7 +266,8 @@ export const fileManagement = {
     await item('nested').dblclick();
     await expect(item('clipboard-source.txt')).toHaveCount(0);
     await place('Desktop');
-    result.clipboardCopyPaste = clipboardCopyKeptBytes && (await item('clipboard-source 2.txt').count()) === 1;
+    await expect(item('clipboard-source 2.txt')).toBeVisible();
+    result.clipboardCopyPaste = clipboardCopyKeptBytes;
 
     await page.keyboard.down('Alt');
     await item('drag-copy.txt').dragTo(item('nested'));

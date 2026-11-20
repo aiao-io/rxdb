@@ -44,6 +44,7 @@ import { SystemState } from '../services/system-state';
 import { ThemeService } from '../services/theme';
 import { Toast } from '../services/toast';
 import { WallpaperService } from '../services/wallpaper';
+import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { WeatherStore } from '../services/weather-store';
 import { WindowLayoutStore } from '../services/window-layout';
 import { WindowManager } from '../services/window-manager';
@@ -64,6 +65,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     DesktopData,
     DesktopBackup,
     Preferences,
+    BrowserSessionRestore,
     SystemState,
     SystemSettingsStore,
     ThemeService,

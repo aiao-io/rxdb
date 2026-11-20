@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-128
 title: 浏览器关闭后恢复工作区
-status: Backlog
+status: In Progress
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-20

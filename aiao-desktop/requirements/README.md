@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[43/45 已交付]；0 条进行中、1 条待评审、1 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[44/46 已交付]；1 条进行中、1 条待评审、0 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -18,7 +18,9 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
-2026-11-20 新增 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)，当前为 Backlog，定义最近活跃工作区的浏览器关闭重进恢复边界。
+2026-11-20 新增 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)，当前进行中，定义最近活跃工作区的浏览器关闭重进恢复边界。
+
+2026-11-20 新增并完成 [US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)，覆盖拖动移动/复制、剪切粘贴、列表与分栏虚拟滚动、列宽调整及 Finder Share 本地草稿。
 
 2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)、[US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)、[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-117 本地会话草稿保护](stories/desktop/ADESK-US-117-local-messages.md)、[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)、[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)、[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)、[US-122 提醒事项筛选](stories/desktop/ADESK-US-122-reminder-filters.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)、[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)和 [US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)和 [US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)和 [US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成本地自动验收；媒体、书架等应用的主要流程、A07～A09 和人工验收仍按计划继续。
 
