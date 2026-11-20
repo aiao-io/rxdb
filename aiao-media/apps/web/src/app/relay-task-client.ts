@@ -145,7 +145,9 @@ async function accept(run: RelayRun, dispatch: NonNullable<RelayRun['dispatch']>
           ...(dispatch.size ? { size: dispatch.size } : {}),
           aspectRatio:
             dispatch.aspectRatio ??
-            (run.ratio === 'landscape' ? '3:2' : run.ratio === 'portrait' ? '2:3' : '1:1'),
+            (run.ratio === 'landscape' ? '3:2'
+            : run.ratio === 'portrait' ? '2:3'
+            : '1:1'),
           ...(dispatch.resolution ? { resolution: dispatch.resolution } : {}),
           ...(dispatch.quality ? { quality: dispatch.quality } : {}),
           ...(dispatch.complexity ? { complexity: dispatch.complexity } : {}),

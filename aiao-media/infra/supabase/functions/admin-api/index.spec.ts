@@ -70,12 +70,24 @@ describe('admin-api privileged executor', () => {
     const fetchMock = vi.fn(async () => response([]));
     vi.stubGlobal('fetch', fetchMock);
     const execute = createAdminApiExecutor(env);
-    const tasks = await execute({ actorId: userId, path: 'tasks?status=completed&page=2', method: 'GET', requestId: operationId });
-    const usage = await execute({ actorId: userId, path: 'usage?status=completed', method: 'GET', requestId: operationId });
+    const tasks = await execute({
+      actorId: userId,
+      path: 'tasks?status=completed&page=2',
+      method: 'GET',
+      requestId: operationId
+    });
+    const usage = await execute({
+      actorId: userId,
+      path: 'usage?status=completed',
+      method: 'GET',
+      requestId: operationId
+    });
     expect(tasks).toEqual({ reports: [], limit: 100 });
     expect(usage).toMatchObject({ sources: {}, partial: false, receivedRecords: 0 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith(`${env.SUPABASE_URL}/rest/v1/media_task_reports`))).toBe(true);
+    expect(
+      fetchMock.mock.calls.every(([url]) => String(url).startsWith(`${env.SUPABASE_URL}/rest/v1/media_task_reports`))
+    ).toBe(true);
   });
 
   it('rejects invalid credit mutations before calling Supabase', async () => {
@@ -130,13 +142,30 @@ describe('积分账本游标回归', () => {
 
 describe('当前管理员 Auth 身份白名单', () => {
   it('只读取当前操作者身份，不回传认证与权限 metadata', async () => {
-    const fetchMock = vi.fn(async () => response({
-      id: userId, email: 'admin@example.test', created_at: '2026-01-01T00:00:00Z', last_sign_in_at: null,
-      encrypted_password: 'sensitive-sentinel', user_metadata: { role: 'admin' }, app_metadata: { secret: 'hidden' }
-    }));
+    const fetchMock = vi.fn(async () =>
+      response({
+        id: userId,
+        email: 'admin@example.test',
+        created_at: '2026-01-01T00:00:00Z',
+        last_sign_in_at: null,
+        encrypted_password: 'sensitive-sentinel',
+        user_metadata: { role: 'admin' },
+        app_metadata: { secret: 'hidden' }
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
-    const result = await createAdminApiExecutor(env)({ actorId: userId, path: 'account?userId=other', method: 'GET', requestId: operationId });
-    expect(result).toEqual({ userId, email: 'admin@example.test', createdAt: '2026-01-01T00:00:00Z', lastSignInAt: null });
+    const result = await createAdminApiExecutor(env)({
+      actorId: userId,
+      path: 'account?userId=other',
+      method: 'GET',
+      requestId: operationId
+    });
+    expect(result).toEqual({
+      userId,
+      email: 'admin@example.test',
+      createdAt: '2026-01-01T00:00:00Z',
+      lastSignInAt: null
+    });
     expect(fetchMock.mock.calls[0][0]).toBe(`${env.SUPABASE_URL}/auth/v1/admin/users/${userId}`);
   });
 });

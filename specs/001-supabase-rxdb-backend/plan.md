@@ -50,16 +50,16 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research.*
+_GATE: Must pass before Phase 0 research._
 
-| 原则 | 计划约束 | 结果 |
-| --- | --- | --- |
-| Code Quality | 新增公共实体和同步 API 保持 strict、TSDoc、浅层控制流；Admin 私有代码也必须零 lint warning | PASS |
-| Testing Standards | 先补失败的权限、同步恢复、幂等和 projection 测试；通过 affected/包级 test、coverage 和真实本地 Supabase 验证 | PASS |
-| User Experience Consistency | `@aiao/rxdb-model` 领域实体和公共 API保持跨框架可复用；Aiao Media Admin 当前只实现 Angular 组件 | PASS with explicit product scope |
-| Performance | 普通业务直连减少代理往返；commit apply 单事务；后台同步和 PGMQ consumer 有明确超时/积压指标 | PASS |
-| Never break userspace | 保留 `/api/admin/*` 兼容窗口和 Durable Object 回退；图片 Storage、积分、任务结果协议不变 | PASS |
-| Complexity | Edge Function、backend RxDB、commit projection 和 PGMQ consumer 都是新增边界，但分别关闭安全、同步和队列故障问题；不引入直接同步 RxDB 系统表 | JUSTIFIED |
+| 原则                        | 计划约束                                                                                                                                     | 结果                             |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Code Quality                | 新增公共实体和同步 API 保持 strict、TSDoc、浅层控制流；Admin 私有代码也必须零 lint warning                                                   | PASS                             |
+| Testing Standards           | 先补失败的权限、同步恢复、幂等和 projection 测试；通过 affected/包级 test、coverage 和真实本地 Supabase 验证                                 | PASS                             |
+| User Experience Consistency | `@aiao/rxdb-model` 领域实体和公共 API保持跨框架可复用；Aiao Media Admin 当前只实现 Angular 组件                                              | PASS with explicit product scope |
+| Performance                 | 普通业务直连减少代理往返；commit apply 单事务；后台同步和 PGMQ consumer 有明确超时/积压指标                                                  | PASS                             |
+| Never break userspace       | 保留 `/api/admin/*` 兼容窗口和 Durable Object 回退；图片 Storage、积分、任务结果协议不变                                                     | PASS                             |
+| Complexity                  | Edge Function、backend RxDB、commit projection 和 PGMQ consumer 都是新增边界，但分别关闭安全、同步和队列故障问题；不引入直接同步 RxDB 系统表 | JUSTIFIED                        |
 
 ## Project Structure
 
@@ -128,20 +128,20 @@ aiao-media/
 
 ## Constitution Check (post-design)
 
-| 检查项 | 结果 |
-| --- | --- |
-| 没有把 service role 放进浏览器或普通 sync 节点 | PASS |
-| 普通 RPC 身份来自已验证会话 | PASS |
-| PGMQ 不替代任务状态、积分和结果 Storage | PASS |
-| RxDB 系统表不直接成为 Supabase 公共同步契约 | PASS |
-| 当前 Durable Object 有回退路径 | PASS |
+| 检查项                                                             | 结果                    |
+| ------------------------------------------------------------------ | ----------------------- |
+| 没有把 service role 放进浏览器或普通 sync 节点                     | PASS                    |
+| 普通 RPC 身份来自已验证会话                                        | PASS                    |
+| PGMQ 不替代任务状态、积分和结果 Storage                            | PASS                    |
+| RxDB 系统表不直接成为 Supabase 公共同步契约                        | PASS                    |
+| 当前 Durable Object 有回退路径                                     | PASS                    |
 | 新增公共包 API 的 TSDoc、三框架对称和 coverage 任务已纳入 tasks.md | PENDING TASK GENERATION |
 
 ## Complexity Tracking
 
-| Violation / complexity | Why needed | Simpler alternative rejected because |
-| --- | --- | --- |
-| Supabase Edge Function 特权边界 | Auth Admin 和 service role 不能由浏览器执行 | 所有操作继续由 Worker 代理会保留重复业务 API 和 Cloudflare 依赖 |
-| Backend RxDB sync node | 后台必须具备与前端一致的 local-first、重启和冲突语义 | 手写后台 CRUD/cache 无法复用同步游标、Realtime 和冲突协议 |
-| Domain commit projection | RxDB 内部 commit 系统表不属于普通同步范围 | 直接同步系统表会泄漏本地存储实现并破坏版本兼容 |
-| PGMQ consumer PoC | 验证多消费者/积压/重试是否值得切换 | 未验证故障语义就切生产会破坏当前任务恢复协议 |
+| Violation / complexity          | Why needed                                           | Simpler alternative rejected because                            |
+| ------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
+| Supabase Edge Function 特权边界 | Auth Admin 和 service role 不能由浏览器执行          | 所有操作继续由 Worker 代理会保留重复业务 API 和 Cloudflare 依赖 |
+| Backend RxDB sync node          | 后台必须具备与前端一致的 local-first、重启和冲突语义 | 手写后台 CRUD/cache 无法复用同步游标、Realtime 和冲突协议       |
+| Domain commit projection        | RxDB 内部 commit 系统表不属于普通同步范围            | 直接同步系统表会泄漏本地存储实现并破坏版本兼容                  |
+| PGMQ consumer PoC               | 验证多消费者/积压/重试是否值得切换                   | 未验证故障语义就切生产会破坏当前任务恢复协议                    |

@@ -172,14 +172,24 @@ describe('平台生图交互', () => {
     await r.fixture.whenStable();
     expect(r.element.querySelector<HTMLSelectElement>('#selected-model')?.disabled).toBe(true);
     r.component.localStatus.set('ready');
-    r.component.models.set(validatePlatformModels({ models: [
-      { ...model, sizes: ['1024x1024','2048x2048'] },
-      { ...model, id: 'editable', protocol: 'gemini', supportsImageEditing: true, imageOptions: [
-        { aspectRatio: '1:1', resolution: '1K', outputSize: '1024x1024' },
-        { aspectRatio: '1:1', resolution: '2K', outputSize: '2048x2048' },
-        { aspectRatio: '16:9', resolution: '1K', outputSize: '1376x768' }
-      ] }
-    ] }));
+    r.component.models.set(
+      validatePlatformModels({
+        models: [
+          { ...model, sizes: ['1024x1024', '2048x2048'] },
+          {
+            ...model,
+            id: 'editable',
+            protocol: 'gemini',
+            supportsImageEditing: true,
+            imageOptions: [
+              { aspectRatio: '1:1', resolution: '1K', outputSize: '1024x1024' },
+              { aspectRatio: '1:1', resolution: '2K', outputSize: '2048x2048' },
+              { aspectRatio: '16:9', resolution: '1K', outputSize: '1376x768' }
+            ]
+          }
+        ]
+      })
+    );
     await r.component.chooseModel('editable');
     r.render();
     expect(r.element.querySelector('input[type=file][accept*="image/png"]')).not.toBeNull();
@@ -287,7 +297,9 @@ describe('平台生图交互', () => {
       expect(options.dispatch).toEqual({
         modelId: 'standard',
         accessToken: 'fixture-platform-session',
-        prompt: '测试图片', aspectRatio: '1:1', size: '1024x1024'
+        prompt: '测试图片',
+        aspectRatio: '1:1',
+        size: '1024x1024'
       });
       expect(relay.deleteRelayTask).not.toHaveBeenCalled();
       await options.accepted();

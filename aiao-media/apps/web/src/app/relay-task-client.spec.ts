@@ -113,7 +113,10 @@ describe('平台任务接单与确认', () => {
       prompt: '测试图片',
       n: 1,
       size,
-      aspectRatio: ratio === 'landscape' ? '3:2' : ratio === 'portrait' ? '2:3' : '1:1'
+      aspectRatio:
+        ratio === 'landscape' ? '3:2'
+        : ratio === 'portrait' ? '2:3'
+        : '1:1'
     });
   });
   it('接单应答丢失后只用原标识重试，不生成新任务', async () => {

@@ -7,16 +7,16 @@
 
 ## 评审结论
 
-| 编号 | 方案 | 可行性 | 评审结论 |
-| --- | --- | --- | --- |
-| 1 | 用户认证直接走 Supabase Auth | ✅ 可行 | Web 已经这样做；Admin 应统一使用 Supabase Auth，不再把密码交给 Cloudflare Worker。 |
-| 2 | 图片直接存 Supabase Storage | ✅ 已落地 | 保留当前私有 bucket、RLS、TUS 续传、摘要校验和生命周期协议，不再增加图片代理。 |
-| 3 | 登录注册直接走 Supabase | ✅ 可行 | Web/Admin 共用 Auth 会话；生产环境补齐 SMTP、邮箱确认、找回密码和注册限制。 |
-| 4 | 后台直接调用 Supabase | ✅ 有条件可行 | 业务表、受保护 view、普通 RPC 直接调用 Supabase；Auth Admin API、封禁/解禁用户、`service_role`/secret 操作必须经过 Edge Function。 |
-| 5 | 队列使用 Supabase PGMQ | ✅ 技术可行，⚠️ 暂不直接替换 | 立即做 PoC。PGMQ 适合作为任务调度层，但不能替代任务状态、结果存储、幂等和长任务消费者。当前 Durable Object 继续保留，PoC 通过后再决定切换。 |
-| 6 | 后台服务也使用 RxDB 同步 | ✅ 可行，建议采用 | 后台 Node 服务运行本地 RxDB，通过 `@aiao/rxdb-adapter-supabase` 和 `@aiao/rxdb-plugin-sync` 与 Supabase 双向同步；同步身份使用普通 JWT，不使用 service role。 |
-| 7.1 | 使用 `rxdb-model` 做后台显示和编辑 | ✅ 可行，建议采用 | Admin 领域实体统一接入 `rxdb-model`，让列表、详情、表单、校验、撤销和本地编辑都走 RxDB。 |
-| 7.2 | 使用 RxDB 分支和提交逻辑同步配置变更 | ✅ 可行，⚠️ 需要领域投影 | 业务变更和分支元数据已有同步能力；完整 `Commit`/`CommitChangeSet` 图不能直接依赖普通同步，需要新增领域级 commit projection 和后台应用协议。 |
+| 编号 | 方案                                 | 可行性                       | 评审结论                                                                                                                                                      |
+| ---- | ------------------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 用户认证直接走 Supabase Auth         | ✅ 可行                      | Web 已经这样做；Admin 应统一使用 Supabase Auth，不再把密码交给 Cloudflare Worker。                                                                            |
+| 2    | 图片直接存 Supabase Storage          | ✅ 已落地                    | 保留当前私有 bucket、RLS、TUS 续传、摘要校验和生命周期协议，不再增加图片代理。                                                                                |
+| 3    | 登录注册直接走 Supabase              | ✅ 可行                      | Web/Admin 共用 Auth 会话；生产环境补齐 SMTP、邮箱确认、找回密码和注册限制。                                                                                   |
+| 4    | 后台直接调用 Supabase                | ✅ 有条件可行                | 业务表、受保护 view、普通 RPC 直接调用 Supabase；Auth Admin API、封禁/解禁用户、`service_role`/secret 操作必须经过 Edge Function。                            |
+| 5    | 队列使用 Supabase PGMQ               | ✅ 技术可行，⚠️ 暂不直接替换 | 立即做 PoC。PGMQ 适合作为任务调度层，但不能替代任务状态、结果存储、幂等和长任务消费者。当前 Durable Object 继续保留，PoC 通过后再决定切换。                   |
+| 6    | 后台服务也使用 RxDB 同步             | ✅ 可行，建议采用            | 后台 Node 服务运行本地 RxDB，通过 `@aiao/rxdb-adapter-supabase` 和 `@aiao/rxdb-plugin-sync` 与 Supabase 双向同步；同步身份使用普通 JWT，不使用 service role。 |
+| 7.1  | 使用 `rxdb-model` 做后台显示和编辑   | ✅ 可行，建议采用            | Admin 领域实体统一接入 `rxdb-model`，让列表、详情、表单、校验、撤销和本地编辑都走 RxDB。                                                                      |
+| 7.2  | 使用 RxDB 分支和提交逻辑同步配置变更 | ✅ 可行，⚠️ 需要领域投影     | 业务变更和分支元数据已有同步能力；完整 `Commit`/`CommitChangeSet` 图不能直接依赖普通同步，需要新增领域级 commit projection 和后台应用协议。                   |
 
 最终建议是：**Supabase 负责 Auth、业务数据、RLS、Storage、普通 RPC 和未来的 PGMQ；RxDB 负责前端与后台的本地数据模型、离线读写、同步、分支和提交；Edge Function 只承载 Auth Admin、封禁用户以及所有 service role/secret 操作；Cloudflare/Node 只保留长任务、provider secret 和任务消费者边界。**
 
@@ -187,18 +187,18 @@ Supabase 默认邮件服务不等于面向公众的生产邮件系统。正式�
 
 “后台直接调用 Supabase”不应理解为“浏览器可以拿 service role 调任何 Supabase API”。后台操作拆成三类：
 
-| 操作 | Admin 浏览器是否直连 Supabase | 正确入口 |
-| --- | --- | --- |
-| 当前管理员读取自己的 session | ✅ | Supabase Auth |
-| 当前管理员可见的业务表查询 | ✅ | PostgREST + RLS |
-| 受限 view、列表、聚合查询 | ✅ | PostgREST 或 `SECURITY INVOKER` RPC |
-| 当前用户自己的积分、任务、用量 | ✅ | RLS/RPC，身份由 `auth.uid()` 确定 |
-| 管理员读取普通业务配置 | ✅ | RLS + 管理员授权 RPC/view |
-| 管理员修改模板、策略、发布状态 | ✅/⚠️ | 受管理员授权的 RPC；复杂编排可由 Edge Function 调用 RPC |
-| 读取全部 Auth 用户 | ❌ | Supabase Edge Function |
-| 封禁/解禁 Auth 用户 | ❌ | Supabase Edge Function + Auth Admin API |
-| 修改 `auth.users` 或调用 Auth Admin API | ❌ | Supabase Edge Function 内部使用 secret/service role |
-| 任何绕过 RLS 的读取或写入 | ❌ | Supabase Edge Function；浏览器禁止持有特权 key |
+| 操作                                    | Admin 浏览器是否直连 Supabase | 正确入口                                                |
+| --------------------------------------- | ----------------------------- | ------------------------------------------------------- |
+| 当前管理员读取自己的 session            | ✅                            | Supabase Auth                                           |
+| 当前管理员可见的业务表查询              | ✅                            | PostgREST + RLS                                         |
+| 受限 view、列表、聚合查询               | ✅                            | PostgREST 或 `SECURITY INVOKER` RPC                     |
+| 当前用户自己的积分、任务、用量          | ✅                            | RLS/RPC，身份由 `auth.uid()` 确定                       |
+| 管理员读取普通业务配置                  | ✅                            | RLS + 管理员授权 RPC/view                               |
+| 管理员修改模板、策略、发布状态          | ✅/⚠️                         | 受管理员授权的 RPC；复杂编排可由 Edge Function 调用 RPC |
+| 读取全部 Auth 用户                      | ❌                            | Supabase Edge Function                                  |
+| 封禁/解禁 Auth 用户                     | ❌                            | Supabase Edge Function + Auth Admin API                 |
+| 修改 `auth.users` 或调用 Auth Admin API | ❌                            | Supabase Edge Function 内部使用 secret/service role     |
+| 任何绕过 RLS 的读取或写入               | ❌                            | Supabase Edge Function；浏览器禁止持有特权 key          |
 
 目标流程：
 
@@ -270,9 +270,9 @@ Node Consumer
 
 ```json
 {
+  "kind": "image-generation",
   "taskId": "uuid",
-  "taskRevision": 3,
-  "kind": "image-generation"
+  "taskRevision": 3
 }
 ```
 
@@ -299,18 +299,18 @@ Node Consumer
 
 #### 当前 Durable Object 与 PGMQ 对比
 
-| 维度 | 当前 Durable Object + R2 | Supabase PGMQ + Node Consumer |
-| --- | --- | --- |
-| 任务寻址 | `taskId` 天然绑定一个 DO 实例 | 消费者从共享队列读取任务 |
-| 状态存储 | DO SQLite 已经存在 | 需要新增/复用 Postgres 任务表 |
-| 刷新续接 | 当前协议已完成 | 需要重新实现任务查询和结果取回 |
-| 串行化 | 单 task 天然串行 | 需要 task lease/CAS/幂等控制 |
-| 重试 | alarm 和看门狗已实现 | 需要 visibility timeout、重试和死信策略 |
-| 结果存储 | R2 已实现加密结果 | 迁移到 Supabase Storage 或继续 R2 |
-| 多消费者 | 需要额外设计 | PGMQ 更适合水平扩展 |
-| 积压与优先级 | 需要额外设计 | PGMQ 更容易统一调度，但仍需业务字段 |
-| 供应商依赖 | Cloudflare DO/R2 | Supabase Postgres/PGMQ/Storage |
-| 当前迁移风险 | 低，已有生产协议 | 高，需要重做故障恢复和真实压测 |
+| 维度         | 当前 Durable Object + R2      | Supabase PGMQ + Node Consumer           |
+| ------------ | ----------------------------- | --------------------------------------- |
+| 任务寻址     | `taskId` 天然绑定一个 DO 实例 | 消费者从共享队列读取任务                |
+| 状态存储     | DO SQLite 已经存在            | 需要新增/复用 Postgres 任务表           |
+| 刷新续接     | 当前协议已完成                | 需要重新实现任务查询和结果取回          |
+| 串行化       | 单 task 天然串行              | 需要 task lease/CAS/幂等控制            |
+| 重试         | alarm 和看门狗已实现          | 需要 visibility timeout、重试和死信策略 |
+| 结果存储     | R2 已实现加密结果             | 迁移到 Supabase Storage 或继续 R2       |
+| 多消费者     | 需要额外设计                  | PGMQ 更适合水平扩展                     |
+| 积压与优先级 | 需要额外设计                  | PGMQ 更容易统一调度，但仍需业务字段     |
+| 供应商依赖   | Cloudflare DO/R2              | Supabase Postgres/PGMQ/Storage          |
+| 当前迁移风险 | 低，已有生产协议              | 高，需要重做故障恢复和真实压测          |
 
 PGMQ 适合以下触发条件：
 
@@ -596,22 +596,22 @@ CommitSyncAdapter
 
 ## 当前方案与目标方案对比
 
-| 维度 | 当前方案 | Supabase-first + RxDB 目标方案 | 优点变化 | 新增代价 |
-| --- | --- | --- | --- | --- |
-| Web Auth | 直接 Supabase Auth | 不变 | 已经简单 | 无 |
-| Admin 登录 | Worker 代理密码登录 | Admin 直接 Supabase Auth | 删除密码代理，统一会话 | 需要迁移旧 session |
-| 图片上传 | 直接 Supabase Storage | 不变 | 已经绕过 Worker，支持 TUS | 继续承担 Storage CORS/配额 |
-| 普通后台查询 | Worker `/api/admin/*` 代理 | PostgREST/RPC + RLS 直连 | 少一层 Hono、序列化和部署 | RLS/RPC 需要严格审计 |
-| Auth 用户管理 | Worker service role | Edge Function + Auth Admin API | 特权边界独立，普通 API 更薄 | 新增 Edge Function 部署和日志 |
-| 封禁/解禁用户 | Worker service role | Edge Function | 规则集中，浏览器无特权 key | 需要管理员 JWT 校验 |
-| 普通业务写入 | Worker 参数校验后调用 RPC | 浏览器 JWT + `auth.uid()` RPC | 业务路径短，审计集中 | 不能再信任客户端 actor |
-| 前端本地数据 | 前端 RxDB | 前端 RxDB + Supabase sync | 保持 local-first | 需要统一实体 schema |
-| 后台服务数据 | 手写 API/缓存状态 | 后台 Node RxDB + Supabase sync | 前后端共享模型和同步协议 | 后台进程需要本地库、游标和身份 |
-| Admin UI | 手写 signals、模板和请求状态 | `rxdb-model` + RxDB repository | 显示、编辑、撤销、提交统一 | 需要领域实体和组件迁移 |
-| 配置变更 | 业务 API 写配置 | branch + working-tree + commit projection | 配置和变更记录一起同步 | 需要 projection、fingerprint 和 apply RPC |
-| 生成任务 | Durable Object SQLite + alarm + R2 | 初期保留；未来可 PGMQ + Node consumer | 当前任务协议稳定 | PGMQ PoC、消费者、幂等和监控 |
-| secret 边界 | Worker/Node | Edge Function/Worker/Node | 边界更清晰 | 多运行时部署治理 |
-| 供应商锁定 | Cloudflare 较深 | Supabase 较深 | 减少业务 API 代码 | 仍然存在平台绑定 |
+| 维度          | 当前方案                           | Supabase-first + RxDB 目标方案            | 优点变化                    | 新增代价                                  |
+| ------------- | ---------------------------------- | ----------------------------------------- | --------------------------- | ----------------------------------------- |
+| Web Auth      | 直接 Supabase Auth                 | 不变                                      | 已经简单                    | 无                                        |
+| Admin 登录    | Worker 代理密码登录                | Admin 直接 Supabase Auth                  | 删除密码代理，统一会话      | 需要迁移旧 session                        |
+| 图片上传      | 直接 Supabase Storage              | 不变                                      | 已经绕过 Worker，支持 TUS   | 继续承担 Storage CORS/配额                |
+| 普通后台查询  | Worker `/api/admin/*` 代理         | PostgREST/RPC + RLS 直连                  | 少一层 Hono、序列化和部署   | RLS/RPC 需要严格审计                      |
+| Auth 用户管理 | Worker service role                | Edge Function + Auth Admin API            | 特权边界独立，普通 API 更薄 | 新增 Edge Function 部署和日志             |
+| 封禁/解禁用户 | Worker service role                | Edge Function                             | 规则集中，浏览器无特权 key  | 需要管理员 JWT 校验                       |
+| 普通业务写入  | Worker 参数校验后调用 RPC          | 浏览器 JWT + `auth.uid()` RPC             | 业务路径短，审计集中        | 不能再信任客户端 actor                    |
+| 前端本地数据  | 前端 RxDB                          | 前端 RxDB + Supabase sync                 | 保持 local-first            | 需要统一实体 schema                       |
+| 后台服务数据  | 手写 API/缓存状态                  | 后台 Node RxDB + Supabase sync            | 前后端共享模型和同步协议    | 后台进程需要本地库、游标和身份            |
+| Admin UI      | 手写 signals、模板和请求状态       | `rxdb-model` + RxDB repository            | 显示、编辑、撤销、提交统一  | 需要领域实体和组件迁移                    |
+| 配置变更      | 业务 API 写配置                    | branch + working-tree + commit projection | 配置和变更记录一起同步      | 需要 projection、fingerprint 和 apply RPC |
+| 生成任务      | Durable Object SQLite + alarm + R2 | 初期保留；未来可 PGMQ + Node consumer     | 当前任务协议稳定            | PGMQ PoC、消费者、幂等和监控              |
+| secret 边界   | Worker/Node                        | Edge Function/Worker/Node                 | 边界更清晰                  | 多运行时部署治理                          |
+| 供应商锁定    | Cloudflare 较深                    | Supabase 较深                             | 减少业务 API 代码           | 仍然存在平台绑定                          |
 
 ## 推荐目标架构
 

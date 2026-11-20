@@ -3,7 +3,9 @@ import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminAccountMenu } from './admin-account-menu';
 
-beforeEach(() => TestBed.configureTestingModule({ imports: [AdminAccountMenu], providers: [provideRouter([])] }).compileComponents());
+beforeEach(() =>
+  TestBed.configureTestingModule({ imports: [AdminAccountMenu], providers: [provideRouter([])] }).compileComponents()
+);
 afterEach(() => TestBed.resetTestingModule());
 function setup() {
   const fixture = TestBed.createComponent(AdminAccountMenu);
@@ -100,5 +102,4 @@ describe('顶栏账户菜单', () => {
     await fixture.whenStable();
     expect(menu.open()).toBe(false);
   });
-
 });

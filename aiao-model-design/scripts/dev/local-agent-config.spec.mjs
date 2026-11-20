@@ -30,8 +30,10 @@ test('从本地 Development runtime 恢复 key 和项目 ref，并写入私有�
   });
 
   assert.equal(result.status, 'recovered');
-  assert.equal(await readFile(files.devVarsFile, 'utf8'),
-    `SUPABASE_URL="https://example.supabase.co"\nTRIGGER_API_URL="http://127.0.0.1:8030"\nTRIGGER_SECRET_KEY="${key}"\n`);
+  assert.equal(
+    await readFile(files.devVarsFile, 'utf8'),
+    `SUPABASE_URL="https://example.supabase.co"\nTRIGGER_API_URL="http://127.0.0.1:8030"\nTRIGGER_SECRET_KEY="${key}"\n`
+  );
   assert.equal(await readFile(files.triggerEnvFile, 'utf8'), `TRIGGER_PROJECT_REF="${projectRef}"\n`);
   assert.equal((await stat(files.devVarsFile)).mode & 0o777, 0o600);
   assert.equal((await stat(files.triggerEnvFile)).mode & 0o777, 0o600);

@@ -31,10 +31,10 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
-          "http.get('http://localhost:3000/healthcheck', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+          'CMD',
+          'node',
+          '-e',
+          "http.get('http://localhost:3000/healthcheck', res => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
         ]
       interval: 30s
       timeout: 10s
@@ -128,7 +128,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env - run ./generate-secrets.sh}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ['CMD', 'pg_isready', '-U', 'postgres']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -145,7 +145,7 @@ services:
     networks:
       - webapp
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -164,7 +164,7 @@ services:
       ELECTRIC_INSECURE: true
       ELECTRIC_USAGE_REPORTING: false
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/v1/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -197,18 +197,18 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "clickhouse-client",
-          "--host",
-          "localhost",
-          "--port",
-          "9000",
-          "--user",
-          "${CLICKHOUSE_USER:-default}",
-          "--password",
-          "${CLICKHOUSE_PASSWORD}",
-          "--query",
-          "SELECT 1",
+          'CMD',
+          'clickhouse-client',
+          '--host',
+          'localhost',
+          '--port',
+          '9000',
+          '--user',
+          '${CLICKHOUSE_USER:-default}',
+          '--password',
+          '${CLICKHOUSE_PASSWORD}',
+          '--query',
+          'SELECT 1'
         ]
       interval: 5s
       timeout: 5s
@@ -231,7 +231,7 @@ services:
       REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
       REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/"]
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:5000/']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -252,9 +252,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${OBJECT_STORE_ACCESS_KEY_ID:-admin}}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${OBJECT_STORE_SECRET_ACCESS_KEY:?Set OBJECT_STORE_SECRET_ACCESS_KEY in .env - run ./generate-secrets.sh}}
       MINIO_DEFAULT_BUCKETS: packets
-      MINIO_BROWSER: "on"
+      MINIO_BROWSER: 'on'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 5s
       timeout: 10s
       retries: 5
@@ -265,7 +265,7 @@ services:
   # shell), so a tiny init container writes the spec into a shared volume first.
   s2-init:
     image: busybox:${BUSYBOX_IMAGE_TAG:-1.37}
-    restart: "no"
+    restart: 'no'
     logging: *logging-config
     environment:
       REALTIME_STREAMS_S2_BASIN: ${REALTIME_STREAMS_S2_BASIN:-trigger-realtime}
@@ -300,8 +300,8 @@ services:
     depends_on:
       s2-init:
         condition: service_completed_successfully
-    command: ["lite", "--init-file", "/config/s2-spec.json", "--local-root", "/data"]
-    user: "0:0"
+    command: ['lite', '--init-file', '/config/s2-spec.json', '--local-root', '/data']
+    user: '0:0'
     ports:
       - ${S2_PUBLISH_IP:-127.0.0.1}:${S2_PUBLISH_PORT:-8050}:80
     volumes:

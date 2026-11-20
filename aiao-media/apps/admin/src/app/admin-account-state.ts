@@ -14,13 +14,23 @@ export class AdminAccountState {
   readonly message = signal('');
   readonly saved = signal(false);
   readonly validation = computed(() => {
-    try { normalizeDisplayName(this.draft()); return ''; }
-    catch (error) { return (error as Error).message; }
+    try {
+      normalizeDisplayName(this.draft());
+      return '';
+    } catch (error) {
+      return (error as Error).message;
+    }
   });
-  readonly canSave = computed(() => Boolean(
-    this.profile() && !this.loading() && !this.saving() && !this.needsReload() && !this.validation() &&
-    this.draft().trim() !== this.profile()?.displayName
-  ));
+  readonly canSave = computed(() =>
+    Boolean(
+      this.profile() &&
+      !this.loading() &&
+      !this.saving() &&
+      !this.needsReload() &&
+      !this.validation() &&
+      this.draft().trim() !== this.profile()?.displayName
+    )
+  );
 
   constructor(private readonly client: Pick<ProductClient, 'adminProfile' | 'saveAdminProfile'>) {}
 
@@ -67,7 +77,11 @@ export class AdminAccountState {
     this.message.set('');
     this.saved.set(false);
     try {
-      const confirmed = await this.client.saveAdminProfile(normalizeDisplayName(this.draft()), profile.revision, crypto.randomUUID());
+      const confirmed = await this.client.saveAdminProfile(
+        normalizeDisplayName(this.draft()),
+        profile.revision,
+        crypto.randomUUID()
+      );
       if (generation !== this.generation) return;
       this.profile.set(confirmed);
       this.draft.set(confirmed.displayName ?? '');
@@ -76,9 +90,11 @@ export class AdminAccountState {
     } catch (error) {
       if (generation !== this.generation) return;
       this.needsReload.set(true);
-      this.message.set(error instanceof ProductRequestError && error.status === 409
-        ? '资料已被其他页面修改。请重新读取资料，核对后再保存。'
-        : '未能确认保存结果。请重新读取资料，核对后再保存。');
+      this.message.set(
+        error instanceof ProductRequestError && error.status === 409 ?
+          '资料已被其他页面修改。请重新读取资料，核对后再保存。'
+        : '未能确认保存结果。请重新读取资料，核对后再保存。'
+      );
     } finally {
       if (generation === this.generation) this.saving.set(false);
     }

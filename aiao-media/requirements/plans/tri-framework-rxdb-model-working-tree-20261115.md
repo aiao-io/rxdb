@@ -8,20 +8,20 @@
 
 ## 结果
 
-| 公共能力 | Angular | React | Vue | 结论 |
-| --- | --- | --- | --- | --- |
-| `cn` | ✅ | ✅ | ✅ | 三端从 `@aiao/rxdb-model` 透传 |
-| Headless bindings | ✅ | ✅ | ✅ | 三端均提供模型控制器绑定 |
-| Entity Detail | ✅ `EntityDetailComponent` | ✅ `EntityDetail` | ✅ `EntityDetail` | 框架组件命名按平台约定变化 |
-| Entity Dialog | ✅ | ✅ | ✅ | 三端均导出 |
-| Entity Form | ✅ `EntityFormComponent` | ✅ `EntityForm` | ✅ `EntityForm` | 框架组件命名按平台约定变化 |
-| Entity List | ✅ `EntityListComponent` | ✅ `EntityList` | ✅ `EntityList` | Angular 页面使用 `rxdb-entity-list` |
-| Entity Table | ✅ | ✅ | ✅ | 三端均导出 |
-| Query Builder | ✅ | ✅ | ✅ | 三端均导出 |
-| `useWorkingTree` | ✅ | ✅ | ✅ | 三端统一入口名，返回平台资源 |
-| `WorkingTreeResource` | ✅ | ✅ | ✅ | 三端统一类型名 |
-| `useWorktrees` | ✅ | ✅ | ✅ | 三端统一入口名 |
-| `WorktreesResource` | ✅ | ✅ | ✅ | 三端统一类型名 |
+| 公共能力              | Angular                    | React             | Vue               | 结论                                |
+| --------------------- | -------------------------- | ----------------- | ----------------- | ----------------------------------- |
+| `cn`                  | ✅                         | ✅                | ✅                | 三端从 `@aiao/rxdb-model` 透传      |
+| Headless bindings     | ✅                         | ✅                | ✅                | 三端均提供模型控制器绑定            |
+| Entity Detail         | ✅ `EntityDetailComponent` | ✅ `EntityDetail` | ✅ `EntityDetail` | 框架组件命名按平台约定变化          |
+| Entity Dialog         | ✅                         | ✅                | ✅                | 三端均导出                          |
+| Entity Form           | ✅ `EntityFormComponent`   | ✅ `EntityForm`   | ✅ `EntityForm`   | 框架组件命名按平台约定变化          |
+| Entity List           | ✅ `EntityListComponent`   | ✅ `EntityList`   | ✅ `EntityList`   | Angular 页面使用 `rxdb-entity-list` |
+| Entity Table          | ✅                         | ✅                | ✅                | 三端均导出                          |
+| Query Builder         | ✅                         | ✅                | ✅                | 三端均导出                          |
+| `useWorkingTree`      | ✅                         | ✅                | ✅                | 三端统一入口名，返回平台资源        |
+| `WorkingTreeResource` | ✅                         | ✅                | ✅                | 三端统一类型名                      |
+| `useWorktrees`        | ✅                         | ✅                | ✅                | 三端统一入口名                      |
+| `WorktreesResource`   | ✅                         | ✅                | ✅                | 三端统一类型名                      |
 
 ## 判定
 

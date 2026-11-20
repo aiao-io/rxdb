@@ -541,8 +541,8 @@ export class PlatformCoordinator {
       if (!request) throw new Error('unsupported image request');
       const headers: Record<string, string> =
         request.authHeader === 'authorization' ?
-          { authorization: `Bearer ${this.env[model.secret]}` } :
-          { 'x-goog-api-key': this.env[model.secret] as string };
+          { authorization: `Bearer ${this.env[model.secret]}` }
+        : { 'x-goog-api-key': this.env[model.secret] as string };
       const response = await this.request(request.url, {
         method: 'POST',
         redirect: 'manual',

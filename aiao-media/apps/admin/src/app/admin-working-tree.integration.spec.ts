@@ -1,7 +1,11 @@
+import type { CommitChangeSetPage, CommitChangeUnitContent, CommitLogEntry } from '@aiao/rxdb-plugin-working-tree';
 import { Subject } from 'rxjs';
 import { describe, expect, it } from 'vitest';
-import type { CommitChangeSetPage, CommitChangeUnitContent, CommitLogEntry } from '@aiao/rxdb-plugin-working-tree';
-import { createAdminConfigProjection, type AdminConfigProjectionStore, type AdminWorkingTreeSource } from './admin-config-projection';
+import {
+  createAdminConfigProjection,
+  type AdminConfigProjectionStore,
+  type AdminWorkingTreeSource
+} from './admin-config-projection';
 
 const workspaceId = '10000000-0000-4000-8000-000000000001';
 const authorId = '10000000-0000-4000-8000-000000000002';
@@ -44,7 +48,9 @@ describe('Admin working-tree integration contract', () => {
     const synced: string[] = [];
     const store: AdminConfigProjectionStore = {
       hasCompleteProjection: async id => stored.has(id),
-      save: async envelope => { stored.add(envelope.commit.id); }
+      save: async envelope => {
+        stored.add(envelope.commit.id);
+      }
     };
     const projection = createAdminConfigProjection({
       workingTree: source,
@@ -52,7 +58,9 @@ describe('Admin working-tree integration contract', () => {
       authorId,
       store,
       readEntity: async () => ({ key: 'hero', title: '旧模板', prompt: 'prompt', revision: 1, enabled: true }),
-      sync: async envelope => { synced.push(envelope.commit.id); }
+      sync: async envelope => {
+        synced.push(envelope.commit.id);
+      }
     });
 
     await projection.start();

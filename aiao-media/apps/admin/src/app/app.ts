@@ -7,15 +7,15 @@ import { FormsModule } from '@angular/forms';
 import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router } from '@angular/router';
 import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/angular';
 import { filter, map } from 'rxjs';
-import { AdminConsole } from './admin-console';
-import { AdminConfigModelComponent } from './admin-config-model';
-import { AdminConfigDatabaseHost } from './admin-rxdb';
-import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
-import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
-import { ProductClient } from './product-client';
 import { AdminAccount } from './admin-account';
 import { AdminAccountMenu } from './admin-account-menu';
 import { AdminAccountState } from './admin-account-state';
+import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
+import { AdminConfigModelComponent } from './admin-config-model';
+import { AdminConsole } from './admin-console';
+import { AdminConfigDatabaseHost } from './admin-rxdb';
+import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
+import { ProductClient } from './product-client';
 
 export const ADMIN_SESSION_STORAGE_KEY = 'aiao-media-admin-session-v1';
 
@@ -52,7 +52,16 @@ function readStoredSession(): AdminSession | null {
 }
 
 @Component({
-  imports: [AdminAccount, AdminAccountMenu, AdminConsole, AdminConfigModelComponent, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
+  imports: [
+    AdminAccount,
+    AdminAccountMenu,
+    AdminConsole,
+    AdminConfigModelComponent,
+    AdminLayoutComponent,
+    AdminPageDirective,
+    FormsModule,
+    LucideDynamicIcon
+  ],
   selector: 'aiao-media-admin-root',
   templateUrl: './app.html',
   styleUrl: './app.css'

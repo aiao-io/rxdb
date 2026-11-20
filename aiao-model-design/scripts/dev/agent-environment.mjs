@@ -59,8 +59,7 @@ export async function agentEnvironment({
   const apiUrl = vars.TRIGGER_API_URL?.trim();
   const secretKey = vars.TRIGGER_SECRET_KEY?.trim();
   if (!apiUrl && !secretKey) return { mode: 'disabled' };
-  if (!secretKey)
-    throw new Error('apps/api/.dev.vars 缺少 TRIGGER_SECRET_KEY；不用 AI 时删除 TRIGGER_API_URL。');
+  if (!secretKey) throw new Error('apps/api/.dev.vars 缺少 TRIGGER_SECRET_KEY；不用 AI 时删除 TRIGGER_API_URL。');
   const environment = ENVIRONMENT_KEY.exec(secretKey)?.[1];
   if (!environment)
     throw new Error(

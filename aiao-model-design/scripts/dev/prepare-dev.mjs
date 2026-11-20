@@ -88,8 +88,10 @@ async function main() {
   const local = await localEnvironment();
   const recovery = await recoverLocalAgentConfig();
   if (recovery.status === 'recovered') console.log('已从本地 Trigger.dev 恢复 Development key 与项目 ref。');
-  if (recovery.status === 'not-found') console.log('本地 Trigger.dev 没有可恢复的 Development key；首次使用需先创建项目并签发 key。');
-  if (recovery.status === 'unavailable') console.log('无法查询本地 Trigger.dev 的 Development key；检查本地 Docker/Trigger 服务状态。');
+  if (recovery.status === 'not-found')
+    console.log('本地 Trigger.dev 没有可恢复的 Development key；首次使用需先创建项目并签发 key。');
+  if (recovery.status === 'unavailable')
+    console.log('无法查询本地 Trigger.dev 的 Development key；检查本地 Docker/Trigger 服务状态。');
   const agent = await agentEnvironment();
   await seedDevelopmentAccounts(local);
   await writeDevelopmentConfig(productRoot, { local, agent });

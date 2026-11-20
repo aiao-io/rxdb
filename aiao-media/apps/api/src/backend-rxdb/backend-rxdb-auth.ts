@@ -20,7 +20,8 @@ function decodeTokenRole(accessToken: string): string | null {
 function assertBackendRxdbAuthShape(auth: BackendRxdbAuth): void {
   if (!auth.accessToken) throw new Error('backend RxDB access token is required');
   if (!auth.userId) throw new Error('backend RxDB user ID is required');
-  if (decodeTokenRole(auth.accessToken) === 'service_role') throw new Error('service role cannot be used as a backend RxDB sync identity');
+  if (decodeTokenRole(auth.accessToken) === 'service_role')
+    throw new Error('service role cannot be used as a backend RxDB sync identity');
 }
 
 export function assertBackendRxdbAuth(auth: BackendRxdbAuth): void {

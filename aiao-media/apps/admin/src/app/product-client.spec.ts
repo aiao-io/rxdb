@@ -66,7 +66,11 @@ describe('product authorization and response boundaries', () => {
       'https://account.example/functions/v1/admin-api',
       expect.objectContaining({
         method: 'POST',
-        headers: { apikey: 'fixture-public-key', authorization: 'Bearer fixture-session', 'content-type': 'application/json' },
+        headers: {
+          apikey: 'fixture-public-key',
+          authorization: 'Bearer fixture-session',
+          'content-type': 'application/json'
+        },
         body: '{"path":"users?page=1","method":"PATCH","payload":{"revision":2}}',
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
@@ -96,17 +100,34 @@ describe('product authorization and response boundaries', () => {
 
   it('writes ordinary content through the protected business RPC', async () => {
     respond({ kind: 'template', key: 'fixture', revision: 2 });
-    const result = await new ProductClient(async () => access).admin('content/template/fixture', 'PUT', { revision: 1, requestId: '10000000-0000-4000-8000-000000000009', payload: { id: 'fixture' } });
+    const result = await new ProductClient(async () => access).admin('content/template/fixture', 'PUT', {
+      revision: 1,
+      requestId: '10000000-0000-4000-8000-000000000009',
+      payload: { id: 'fixture' }
+    });
     expect(result).toEqual({ content: { kind: 'template', key: 'fixture', revision: 2 }, state: 'draft' });
     expect(fetch).toHaveBeenCalledWith(
       'https://account.example/rest/v1/rpc/media_admin_content_self',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ p_kind: 'template', p_key: 'fixture', p_action: 'save', p_revision: 1, p_request_id: '10000000-0000-4000-8000-000000000009', p_payload: { id: 'fixture' } }) })
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          p_kind: 'template',
+          p_key: 'fixture',
+          p_action: 'save',
+          p_revision: 1,
+          p_request_id: '10000000-0000-4000-8000-000000000009',
+          p_payload: { id: 'fixture' }
+        })
+      })
     );
   });
 
   it('reads ordinary task reports directly from PostgREST', async () => {
     respond([]);
-    expect(await new ProductClient(async () => access).admin('tasks?status=completed&page=2')).toEqual({ reports: [], limit: 100 });
+    expect(await new ProductClient(async () => access).admin('tasks?status=completed&page=2')).toEqual({
+      reports: [],
+      limit: 100
+    });
     expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain('/rest/v1/media_task_reports?');
   });
 
@@ -223,17 +244,19 @@ it('直接写入 RxDB 形状的投影表：幂等插入提交与变更，变更�
       contentFingerprint: 'a'.repeat(64),
       changeCount: 1
     },
-    changes: [{
-      id: '10000000-0000-4000-8000-000000000012',
-      sequence: 1,
-      entity: 'MediaPromptTemplate',
-      entityId: '10000000-0000-4000-8000-000000000013',
-      operation: 'update' as const,
-      patch: { value: { key: 'hero' } },
-      inversePatch: { value: { key: 'old' } },
-      expectedRevision: 2,
-      contentFingerprint: 'b'.repeat(64)
-    }]
+    changes: [
+      {
+        id: '10000000-0000-4000-8000-000000000012',
+        sequence: 1,
+        entity: 'MediaPromptTemplate',
+        entityId: '10000000-0000-4000-8000-000000000013',
+        operation: 'update' as const,
+        patch: { value: { key: 'hero' } },
+        inversePatch: { value: { key: 'old' } },
+        expectedRevision: 2,
+        contentFingerprint: 'b'.repeat(64)
+      }
+    ]
   };
   vi.mocked(fetch)
     .mockResolvedValueOnce(new Response('', { status: 200 }))
@@ -269,21 +292,23 @@ it('直接写入 RxDB 形状的投影表：幂等插入提交与变更，变更�
     'https://account.example/rest/v1/media_config_projection_changes?on_conflict=id',
     expect.objectContaining({
       method: 'POST',
-      body: JSON.stringify([{
-        id: envelope.changes[0]?.id,
-        workspaceId: envelope.commit.workspaceId,
-        commitId: envelope.commit.id,
-        sequence: 1,
-        entity: 'MediaPromptTemplate',
-        entityId: envelope.changes[0]?.entityId,
-        operation: 'update',
-        patch: { value: { key: 'hero' } },
-        inversePatch: { value: { key: 'old' } },
-        expectedRevision: 2,
-        contentFingerprint: 'b'.repeat(64),
-        createdBy: envelope.commit.authorId,
-        updatedBy: envelope.commit.authorId
-      }]),
+      body: JSON.stringify([
+        {
+          id: envelope.changes[0]?.id,
+          workspaceId: envelope.commit.workspaceId,
+          commitId: envelope.commit.id,
+          sequence: 1,
+          entity: 'MediaPromptTemplate',
+          entityId: envelope.changes[0]?.entityId,
+          operation: 'update',
+          patch: { value: { key: 'hero' } },
+          inversePatch: { value: { key: 'old' } },
+          expectedRevision: 2,
+          contentFingerprint: 'b'.repeat(64),
+          createdBy: envelope.commit.authorId,
+          updatedBy: envelope.commit.authorId
+        }
+      ]),
       headers: expect.objectContaining({ Prefer: 'resolution=ignore-duplicates,return=minimal' })
     })
   );
@@ -298,7 +323,9 @@ it('读取投影完整度：提交状态、声明的变更数与实际到达的�
   vi.mocked(fetch)
     .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 'c1', status: 'prepared', changeCount: 2 }])))
     .mockResolvedValueOnce(new Response(JSON.stringify([{ id: 'x1' }])));
-  await expect(new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')).resolves.toEqual({
+  await expect(
+    new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')
+  ).resolves.toEqual({
     status: 'prepared',
     changeCount: 2,
     receivedChanges: 1
@@ -314,7 +341,9 @@ it('读取投影完整度：提交状态、声明的变更数与实际到达的�
     expect.objectContaining({ method: 'GET' })
   );
   vi.mocked(fetch).mockResolvedValueOnce(new Response('[]'));
-  await expect(new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')).resolves.toBeNull();
+  await expect(
+    new ProductClient(async () => access).configProjection('10000000-0000-4000-8000-000000000010')
+  ).resolves.toBeNull();
 });
 
 it('直接调用 rollback RPC，保持回滚经过普通管理员身份', async () => {
@@ -331,20 +360,22 @@ it('直接调用 rollback RPC，保持回滚经过普通管理员身份', async 
 });
 
 it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表', async () => {
-  respond([{
-    id: '10000000-0000-4000-8000-000000000010',
-    workspaceId: userId,
-    branchId: 'main',
-    parentIds: [],
-    authorId: userId,
-    message: '更新首页模板',
-    operationId: '10000000-0000-4000-8000-000000000011',
-    status: 'rejected',
-    createdAt: '2026-11-15T07:00:00Z',
-    appliedAt: null,
-    releasedAt: null,
-    rejectionCode: 'revision_conflict'
-  }]);
+  respond([
+    {
+      id: '10000000-0000-4000-8000-000000000010',
+      workspaceId: userId,
+      branchId: 'main',
+      parentIds: [],
+      authorId: userId,
+      message: '更新首页模板',
+      operationId: '10000000-0000-4000-8000-000000000011',
+      status: 'rejected',
+      createdAt: '2026-11-15T07:00:00Z',
+      appliedAt: null,
+      releasedAt: null,
+      rejectionCode: 'revision_conflict'
+    }
+  ]);
   await expect(new ProductClient(async () => access).latestConfigCommit(userId)).resolves.toEqual({
     id: '10000000-0000-4000-8000-000000000010',
     workspaceId: userId,
@@ -367,7 +398,10 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
 
 it('直接调用 apply RPC，返回幂等回执', async () => {
   respond({ commitId: 'commit', reused: true });
-  await expect(new ProductClient(async () => access).applyConfigCommit('commit', 'operation')).resolves.toEqual({ commitId: 'commit', reused: true });
+  await expect(new ProductClient(async () => access).applyConfigCommit('commit', 'operation')).resolves.toEqual({
+    commitId: 'commit',
+    reused: true
+  });
   expect(fetch).toHaveBeenCalledWith(
     'https://account.example/rest/v1/rpc/apply_media_config_commit',
     expect.objectContaining({ body: JSON.stringify({ p_commit_id: 'commit', p_operation_id: 'operation' }) })
@@ -440,17 +474,30 @@ it('保留模型名称中的空格和加号而不拒绝合法查询', async () =
 });
 
 describe('管理员自己的资料', () => {
-  const profile = { userId, displayName: '管理员', revision: 1, updatedAt: '2026-11-15T00:00:00Z', adminEnabled: true, accessDisabled: false };
+  const profile = {
+    userId,
+    displayName: '管理员',
+    revision: 1,
+    updatedAt: '2026-11-15T00:00:00Z',
+    adminEnabled: true,
+    accessDisabled: false
+  };
   it('普通 JWT 通过受保护 RPC 读取和保存名称，携带 CAS 与幂等标识', async () => {
     const client = new ProductClient(async () => access);
     respond(profile);
     expect(await client.adminProfile()).toEqual(profile);
-    expect(fetch).toHaveBeenLastCalledWith('https://account.example/rest/v1/rpc/media_admin_profile', expect.objectContaining({ method: 'POST', body: '{}' }));
+    expect(fetch).toHaveBeenLastCalledWith(
+      'https://account.example/rest/v1/rpc/media_admin_profile',
+      expect.objectContaining({ method: 'POST', body: '{}' })
+    );
     respond(profile);
     expect(await client.saveAdminProfile(' 管理员 ', 0, workspace.request_id)).toEqual(profile);
-    expect(fetch).toHaveBeenLastCalledWith('https://account.example/rest/v1/rpc/media_admin_update_profile', expect.objectContaining({
-      body: JSON.stringify({ p_display_name: '管理员', p_expected_revision: 0, p_request_id: workspace.request_id })
-    }));
+    expect(fetch).toHaveBeenLastCalledWith(
+      'https://account.example/rest/v1/rpc/media_admin_update_profile',
+      expect.objectContaining({
+        body: JSON.stringify({ p_display_name: '管理员', p_expected_revision: 0, p_request_id: workspace.request_id })
+      })
+    );
   });
 
   it('拒绝串号保存回执及无效名称', async () => {

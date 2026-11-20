@@ -120,7 +120,9 @@ function inversePatchValue(entity: string, patch: Record<string, unknown> | null
  * 应用或回滚成功后，本机把服务端返回的 revision 写回实体；这类只动非白名单字段的更新是簿记，
  * 不是配置变更，进入投影会生成一次内容不变却推进服务端版本的提交。插入与删除总是内容变更。
  */
-export function isConfigContentUnit(unit: Pick<CommitChangeUnitContent, 'namespace' | 'entity' | 'operation' | 'patch'>): boolean {
+export function isConfigContentUnit(
+  unit: Pick<CommitChangeUnitContent, 'namespace' | 'entity' | 'operation' | 'patch'>
+): boolean {
   const fields = CONFIG_FIELDS[unit.entity];
   // 未知实体或命名空间一律按内容处理，交给投影校验当场拒绝，不能被当成簿记静默丢弃。
   if (unit.operation !== 'update' || unit.namespace !== 'public' || !fields) return true;
@@ -134,18 +136,22 @@ async function changeInput(
   unit: CommitChangeUnitContent,
   readEntity: AdminConfigProjectionOptions['readEntity']
 ) {
-  if (unit.namespace !== 'public' || !CONFIG_ENTITIES.has(unit.entity)) throw new Error(`实体 ${unit.entity} 不允许投影。`);
+  if (unit.namespace !== 'public' || !CONFIG_ENTITIES.has(unit.entity))
+    throw new Error(`实体 ${unit.entity} 不允许投影。`);
   const current = await readEntity(unit.entity, unit.entityId);
   const inverse = unit.inversePatch === null ? null : asRecord(unit.inversePatch, '提交逆向 patch 格式无效。');
   const currentRevision = revisionFrom(current);
   const inverseRevision = revisionFrom(inverse);
   // 更新以提交时实体的当前 revision 为准：应用成功后本机写回的服务端 revision 也进入了这次提交的逆向 patch，
   // 优先取逆向值会退回到上一次应用前的版本，导致每次编辑都被 CAS 拒绝。删除后没有当前行，才取逆向快照。
-  const expectedRevision = unit.operation === 'insert' ? null : currentRevision ?? inverseRevision;
-  if (unit.operation !== 'insert' && expectedRevision === null) throw new Error(`实体 ${unit.entity} 缺少预期 revision。`);
-  if (unit.operation !== 'delete' && current === null) throw new Error(`实体 ${unit.entity}:${unit.entityId} 的提交后快照不存在。`);
-  const patch = unit.operation === 'delete'
-    ? { value: null }
+  const expectedRevision = unit.operation === 'insert' ? null : (currentRevision ?? inverseRevision);
+  if (unit.operation !== 'insert' && expectedRevision === null)
+    throw new Error(`实体 ${unit.entity} 缺少预期 revision。`);
+  if (unit.operation !== 'delete' && current === null)
+    throw new Error(`实体 ${unit.entity}:${unit.entityId} 的提交后快照不存在。`);
+  const patch =
+    unit.operation === 'delete' ?
+      { value: null }
     : { value: configPayload(unit.entity, asRecord(current, '提交后配置快照无效。')) };
   return {
     id: await stableUuid(`${commitId}:change:${sequence}:${unit.unitId}`),
@@ -171,7 +177,10 @@ async function projectedCommitId(commitId: string): Promise<string> {
  * 父提交映射到最近的可投影祖先：工作树的系统基线（`baseline` / `branch_baseline`）不进入投影，
  * 直接指向它们会让服务端永远找不到父提交而拒绝应用。
  */
-async function projectedParentIds(entry: CommitLogEntry, history: ReadonlyMap<string, CommitLogEntry>): Promise<string[]> {
+async function projectedParentIds(
+  entry: CommitLogEntry,
+  history: ReadonlyMap<string, CommitLogEntry>
+): Promise<string[]> {
   const resolved: string[] = [];
   const visit = async (parentId: string): Promise<void> => {
     const parent = history.get(parentId);
@@ -189,7 +198,12 @@ async function projectedParentIds(entry: CommitLogEntry, history: ReadonlyMap<st
 
 export async function createMediaConfigCommitEnvelopeFromWorkingTree(
   source: AdminWorkingTreeSource,
-  options: { commitId: string; workspaceId: string; authorId: string; readEntity: AdminConfigProjectionOptions['readEntity'] }
+  options: {
+    commitId: string;
+    workspaceId: string;
+    authorId: string;
+    readEntity: AdminConfigProjectionOptions['readEntity'];
+  }
 ): Promise<MediaConfigCommitEnvelope> {
   if (!isUuid(options.workspaceId) || !isUuid(options.authorId)) throw new Error('配置 projection 身份无效。');
   const page = await source.listCommits();
@@ -210,7 +224,9 @@ export async function createMediaConfigCommitEnvelopeFromWorkingTree(
     message: entry.message,
     operationId: await stableUuid(`${options.workspaceId}:operation:${options.commitId}`),
     status: 'prepared',
-    changes: await Promise.all(content.map((unit, index) => changeInput(options.commitId, index + 1, unit, options.readEntity)))
+    changes: await Promise.all(
+      content.map((unit, index) => changeInput(options.commitId, index + 1, unit, options.readEntity))
+    )
   };
   return createMediaConfigCommitEnvelope(input);
 }
@@ -231,9 +247,9 @@ export function createAdminConfigProjectionStore(client: AdminConfigProjectionCl
       const projection = await client.configProjection(commitId);
       return Boolean(
         projection &&
-          projection.status !== 'prepared' &&
-          projection.changeCount === changeCount &&
-          projection.receivedChanges === changeCount
+        projection.status !== 'prepared' &&
+        projection.changeCount === changeCount &&
+        projection.receivedChanges === changeCount
       );
     },
     save: envelope => client.pushConfigCommit(envelope)
@@ -246,32 +262,38 @@ export function createAdminConfigProjection(options: AdminConfigProjectionOption
   let pending = Promise.resolve();
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = pending.then(operation, operation);
-    pending = result.then(() => undefined, error => {
-      errors.next(error);
-      return undefined;
-    });
+    pending = result.then(
+      () => undefined,
+      error => {
+        errors.next(error);
+        return undefined;
+      }
+    );
     return result;
   };
-  const project = (commitId: string): Promise<MediaConfigCommitEnvelope | null> => enqueue(async () => {
-    const page = await options.workingTree.listCommits();
-    const entry = page.entries.find(candidate => candidate.commitId === commitId);
-    if (!entry || !isProjectable(entry)) return null;
-    const contentCount = (await options.workingTree.commitChanges(commitId)).entries.filter(isConfigContentUnit).length;
-    if (contentCount === 0) return null;
-    // 远端以投影后的标识存储，完整度必须按同一标识、按内容变更数查询。
-    const complete = await options.store.hasCompleteProjection(await projectedCommitId(commitId), contentCount);
-    if (complete && !options.sync) return null;
-    const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(options.workingTree, {
-      commitId,
-      workspaceId: options.workspaceId,
-      authorId: options.authorId,
-      readEntity: options.readEntity
+  const project = (commitId: string): Promise<MediaConfigCommitEnvelope | null> =>
+    enqueue(async () => {
+      const page = await options.workingTree.listCommits();
+      const entry = page.entries.find(candidate => candidate.commitId === commitId);
+      if (!entry || !isProjectable(entry)) return null;
+      const contentCount = (await options.workingTree.commitChanges(commitId)).entries.filter(
+        isConfigContentUnit
+      ).length;
+      if (contentCount === 0) return null;
+      // 远端以投影后的标识存储，完整度必须按同一标识、按内容变更数查询。
+      const complete = await options.store.hasCompleteProjection(await projectedCommitId(commitId), contentCount);
+      if (complete && !options.sync) return null;
+      const envelope = await createMediaConfigCommitEnvelopeFromWorkingTree(options.workingTree, {
+        commitId,
+        workspaceId: options.workspaceId,
+        authorId: options.authorId,
+        readEntity: options.readEntity
+      });
+      if (!complete) await options.store.save(envelope);
+      if (options.sync) await options.sync(envelope);
+      options.onProjected?.(envelope);
+      return envelope;
     });
-    if (!complete) await options.store.save(envelope);
-    if (options.sync) await options.sync(envelope);
-    options.onProjected?.(envelope);
-    return envelope;
-  });
   const compensate = async (): Promise<void> => {
     const page = await options.workingTree.listCommits();
     for (const entry of page.entries) await project(entry.commitId);

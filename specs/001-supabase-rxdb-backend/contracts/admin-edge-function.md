@@ -15,9 +15,9 @@
 ```json
 {
   "operation": "list-users | ban-user | unban-user | privileged-action",
+  "payload": {},
   "requestId": "uuid",
-  "targetUserId": "uuid",
-  "payload": {}
+  "targetUserId": "uuid"
 }
 ```
 
@@ -39,9 +39,9 @@
 
 ```json
 {
-  "ok": false,
   "code": "AUTH_REQUIRED | ADMIN_REQUIRED | ACCOUNT_DISABLED | CONFLICT | INVALID_REQUEST",
-  "message": "可向管理员展示的错误信息"
+  "message": "可向管理员展示的错误信息",
+  "ok": false
 }
 ```
 

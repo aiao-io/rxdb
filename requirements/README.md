@@ -114,9 +114,9 @@ PR 描述：
 
 Epic：
 
-- [epic-001 核心 MVP](epics/epic-001-core-mvp.md)
+- [epic-001 核心 MVP 功能](epics/epic-001-core-mvp.md)
 - [epic-002 数据同步与协作](epics/epic-002-data-sync.md)
-- [epic-003 UI 与开发者工具](epics/epic-003-ui-developer-tools.md)
+- [epic-003 UI 组件与开发者工具](epics/epic-003-ui-developer-tools.md)
 - [epic-004 未来功能](epics/epic-004-future-features.md)
 - [epic-005 类型系统演进](epics/epic-005-type-system-evolution.md)
 - [epic-006 本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
@@ -124,8 +124,8 @@ Epic：
 - [epic-008 生命周期作用域](epics/epic-008-lifecycle-scope.md)
 - [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md)
 - [epic-010 模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
-- [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 - [epic-011 局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
+- [epic-011 任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 - [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 
 视图：

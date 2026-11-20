@@ -30,9 +30,11 @@ export function createBackendConfigCommitRemote(db: BackendConfigCommitDatabase)
   return {
     readCommit: async commitId => {
       const { MediaConfigCommit } = await import('@aiao-media/domain');
-      const rows = await firstValueFrom(db.entityManager.getRepository(MediaConfigCommit).findAll({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: uuid(commitId) }] }
-      }));
+      const rows = await firstValueFrom(
+        db.entityManager.getRepository(MediaConfigCommit).findAll({
+          where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: uuid(commitId) }] }
+        })
+      );
       return rows[0] ? { ...rows[0] } : null;
     },
     readChanges: async commitId => {
@@ -89,13 +91,15 @@ function stringField(row: Record<string, unknown>, key: string): string {
 
 function stringArrayField(row: Record<string, unknown>, key: string): string[] {
   const value = row[key];
-  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new Error(`配置提交字段 ${key} 无效。`);
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string'))
+    throw new Error(`配置提交字段 ${key} 无效。`);
   return [...value];
 }
 
 function statusField(row: Record<string, unknown>): MediaConfigCommitStatus {
   const value = stringField(row, 'status');
-  if (!['prepared', 'synced', 'validated', 'applied', 'released', 'rejected'].includes(value)) throw new Error('配置提交状态无效。');
+  if (!['prepared', 'synced', 'validated', 'applied', 'released', 'rejected'].includes(value))
+    throw new Error('配置提交状态无效。');
   return value as MediaConfigCommitStatus;
 }
 
@@ -168,7 +172,9 @@ export class BackendConfigCommitCache {
     if (cached) return cached;
     const commit = parseCommit(await this.#remote.readCommit(commitId));
     if (commit.status === 'prepared') throw new Error('配置提交尚未同步完成，等待补偿后再加载。');
-    const changes = (await this.#remote.readChanges(commitId)).map(parseChange).sort((left, right) => left.sequence - right.sequence);
+    const changes = (await this.#remote.readChanges(commitId))
+      .map(parseChange)
+      .sort((left, right) => left.sequence - right.sequence);
     if (changes.length === 0) throw new Error('配置提交 envelope 不完整。');
     if (changes.length !== commit.changeCount) throw new Error('配置提交的变更尚未到齐，等待补偿后再加载。');
     const { createMediaConfigCommitEnvelope } = await import('@aiao-media/domain');
@@ -195,9 +201,11 @@ export class BackendConfigCommitCache {
     if (this.#workspaceId && envelope.commit.workspaceId !== this.#workspaceId) {
       throw new Error('配置提交工作区不匹配。');
     }
-    if (envelope.commit.contentFingerprint !== commit.contentFingerprint) throw new Error('配置提交 fingerprint 不一致。');
+    if (envelope.commit.contentFingerprint !== commit.contentFingerprint)
+      throw new Error('配置提交 fingerprint 不一致。');
     envelope.changes.forEach((change, index) => {
-      if (change.contentFingerprint !== changes[index]?.contentFingerprint) throw new Error('配置变更 fingerprint 不一致。');
+      if (change.contentFingerprint !== changes[index]?.contentFingerprint)
+        throw new Error('配置变更 fingerprint 不一致。');
     });
     this.#cache.set(commitId, envelope);
     return envelope;

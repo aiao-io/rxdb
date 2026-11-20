@@ -160,25 +160,50 @@ test('relay accepts only model-configured sizes and dispatches one image per tas
   assert.equal(prepared.protocol, 'openai');
   assert.equal(prepared.authHeader, 'authorization');
   await assert.rejects(
-    platformImageInput(request({ model: 'square-only', prompt: '测试', size: '1024x1536', aspectRatio: '2:3', n: 1 }), env),
+    platformImageInput(
+      request({ model: 'square-only', prompt: '测试', size: '1024x1536', aspectRatio: '2:3', n: 1 }),
+      env
+    ),
     /模型不支持此宽高比/
   );
   await assert.rejects(
-    platformImageInput(request({ model: 'portrait-batch', prompt: '测试', size: '1024x1536', aspectRatio: '2:3', n: 2 }), env),
+    platformImageInput(
+      request({ model: 'portrait-batch', prompt: '测试', size: '1024x1536', aspectRatio: '2:3', n: 2 }),
+      env
+    ),
     /参数无效/
   );
 });
 
 test('官方预设保留不同型号的编辑、尺寸和推理选项', async () => {
-  const names = ['gpt-image-2.6-flare','gpt-image-2.6-sunburst','gpt-image-2.5-flare','gpt-image-2.5-sunburst',
-    'gemini-nano-banana-2.1','gemini-3.1-flash-image','gemini-3.1-flash-lite-image','gemini-3-pro-image','gemini-2.5-flash-image'];
-  const env = { ...environment(), MEDIA_PLATFORM_MODELS: JSON.stringify(names.map(model => ({
-    id: model, model, baseUrl, secret: 'IMAGE_KEY', credits: 2, preset: 'official'
-  }))) };
+  const names = [
+    'gpt-image-2.6-flare',
+    'gpt-image-2.6-sunburst',
+    'gpt-image-2.5-flare',
+    'gpt-image-2.5-sunburst',
+    'gemini-nano-banana-2.1',
+    'gemini-3.1-flash-image',
+    'gemini-3.1-flash-lite-image',
+    'gemini-3-pro-image',
+    'gemini-2.5-flash-image'
+  ];
+  const env = {
+    ...environment(),
+    MEDIA_PLATFORM_MODELS: JSON.stringify(
+      names.map(model => ({
+        id: model,
+        model,
+        baseUrl,
+        secret: 'IMAGE_KEY',
+        credits: 2,
+        preset: 'official'
+      }))
+    )
+  };
   const { models } = await platformCatalog(env);
   assert.equal(models.length, names.length);
   assert.ok(models.every(model => model.supportsImageEditing));
-  assert.deepEqual(models[0].complexities, ['high','medium','low']);
+  assert.deepEqual(models[0].complexities, ['high', 'medium', 'low']);
   assert.deepEqual(models[2].complexities, []);
   assert.deepEqual(models[6].resolutions, ['1K']);
   assert.deepEqual(models[7].thinkingLevels, []);
@@ -215,12 +240,25 @@ test('Gemini uses its native generation contract and only declared image editing
       { type: 'text', text: '编辑图片' },
       { type: 'image', mime_type: 'image/png', data: image }
     ],
-    response_format: { type: 'image', mime_type: 'image/jpeg', delivery: 'inline', aspect_ratio: '16:9', image_size: '2K' },
+    response_format: {
+      type: 'image',
+      mime_type: 'image/jpeg',
+      delivery: 'inline',
+      aspect_ratio: '16:9',
+      image_size: '2K'
+    },
     generation_config: { thinking_level: 'high' }
   });
   await assert.rejects(
     platformImageInput(
-      request({ model: 'square-only', prompt: '无编辑能力', size: '1024x1024', aspectRatio: '1:1', n: 1, referenceImage: { mimeType: 'image/png', data: image } }),
+      request({
+        model: 'square-only',
+        prompt: '无编辑能力',
+        size: '1024x1024',
+        aspectRatio: '1:1',
+        n: 1,
+        referenceImage: { mimeType: 'image/png', data: image }
+      }),
       environment()
     ),
     /不支持图生图/

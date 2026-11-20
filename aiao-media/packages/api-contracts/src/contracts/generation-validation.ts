@@ -81,9 +81,11 @@ export function validateImageJobRequest(value: unknown): ImageJobRequest {
     (input['aspectRatioValue'] !== undefined && !validAspectRatio(input['aspectRatioValue'])) ||
     (input['resolution'] !== undefined && !['512', '1K', '2K', '4K'].includes(String(input['resolution']))) ||
     (input['size'] !== undefined && !validImageSize(input['size'])) ||
-    (input['quality'] !== undefined && !['auto', 'low', 'medium', 'high', 'xhigh', 'max'].includes(String(input['quality']))) ||
+    (input['quality'] !== undefined &&
+      !['auto', 'low', 'medium', 'high', 'xhigh', 'max'].includes(String(input['quality']))) ||
     (input['complexity'] !== undefined && !['low', 'medium', 'high'].includes(String(input['complexity']))) ||
-    (input['thinkingLevel'] !== undefined && !['minimal', 'low', 'medium', 'high'].includes(String(input['thinkingLevel']))) ||
+    (input['thinkingLevel'] !== undefined &&
+      !['minimal', 'low', 'medium', 'high'].includes(String(input['thinkingLevel']))) ||
     (input['operation'] === 'reference-image' &&
       !(isGenerationUuid(input['referenceImageId']) || input['referenceImageSource'] === 'inline')) ||
     (input['referenceImageSource'] !== undefined && input['referenceImageSource'] !== 'inline')

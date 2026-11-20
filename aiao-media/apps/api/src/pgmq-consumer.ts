@@ -1,9 +1,5 @@
+import { generationLeaseKey, generationResultKey, type PgmqGenerationIdempotencyStore } from './pgmq-idempotency.ts';
 import { parsePgmqGenerationMessage, type PgmqGenerationMessage } from './pgmq-message.ts';
-import {
-  generationLeaseKey,
-  generationResultKey,
-  type PgmqGenerationIdempotencyStore
-} from './pgmq-idempotency.ts';
 
 /** PGMQ 消息读取结果的最小字段，避免把数据库驱动类型泄漏进业务层。 */
 export interface PgmqGenerationQueueMessage {
@@ -14,7 +10,11 @@ export interface PgmqGenerationQueueMessage {
 
 /** 隔离 PoC 所需的队列操作；实现层可由 Supabase RPC 或 node-postgres 提供。 */
 export interface PgmqGenerationQueue {
-  read(queue: string, visibilityTimeoutSeconds: number, quantity: number): Promise<readonly PgmqGenerationQueueMessage[]>;
+  read(
+    queue: string,
+    visibilityTimeoutSeconds: number,
+    quantity: number
+  ): Promise<readonly PgmqGenerationQueueMessage[]>;
   delete(queue: string, messageId: string): Promise<void>;
   archive(queue: string, messageId: string): Promise<void>;
 }

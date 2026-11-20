@@ -109,10 +109,10 @@ describe('bounded provider responses', () => {
 describe('平台图片响应本机校验', () => {
   it('Gemini 只交付最终输出，忽略参考图和中间步骤中的图片', async () => {
     const content = [{ type: 'image', mime_type: 'image/png', data: encoded(png()) }];
-    const steps = ['user_input','thought','model_output'].map(type => ({ type, content }));
+    const steps = ['user_input', 'thought', 'model_output'].map(type => ({ type, content }));
     expect((await decode({ steps }, 'gemini')).type).toBe('image/png');
-    await expect(decode({ steps: steps.slice(0,2) }, 'gemini')).rejects.toThrow('单张图片');
-    await expect(decode({ steps: [...steps,steps[2]] }, 'gemini')).rejects.toThrow('单张图片');
+    await expect(decode({ steps: steps.slice(0, 2) }, 'gemini')).rejects.toThrow('单张图片');
+    await expect(decode({ steps: [...steps, steps[2]] }, 'gemini')).rejects.toThrow('单张图片');
   });
   it.each([
     ['square', 1024, 1024],

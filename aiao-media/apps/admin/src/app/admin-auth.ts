@@ -32,7 +32,8 @@ function validateConfig(config: AdminSupabaseConfig): AdminSupabaseConfig {
   )
     throw new Error('Supabase URL 无效。');
   const anonKey = config.anonKey.trim();
-  if (!anonKey || anonKey.includes('service_role') || anonKey.includes('secret')) throw new Error('Supabase 公开 Key 无效。');
+  if (!anonKey || anonKey.includes('service_role') || anonKey.includes('secret'))
+    throw new Error('Supabase 公开 Key 无效。');
   return { url: url.origin, anonKey };
 }
 
@@ -95,7 +96,10 @@ async function defaultFactory(config: AdminSupabaseConfig): Promise<AdminSupabas
  * @param accessToken - 返回当前管理员普通 JWT；会话失效时应抛错
  * @returns 只用于 RxDB 远端适配器的客户端，不持久化会话、不刷新令牌
  */
-export function createAdminSupabaseSyncClient(config: AdminSupabaseConfig, accessToken: () => Promise<string>): SupabaseClient {
+export function createAdminSupabaseSyncClient(
+  config: AdminSupabaseConfig,
+  accessToken: () => Promise<string>
+): SupabaseClient {
   const valid = validateConfig(config);
   return createClient(valid.url, valid.anonKey, {
     accessToken,
@@ -113,7 +117,10 @@ export class AdminSupabaseAuth {
     return this.current ? structuredClone(this.current) : null;
   }
 
-  constructor(config: AdminSupabaseConfig, private readonly factory: AdminSupabaseFactory = defaultFactory) {
+  constructor(
+    config: AdminSupabaseConfig,
+    private readonly factory: AdminSupabaseFactory = defaultFactory
+  ) {
     this.config = validateConfig(config);
   }
 
@@ -145,12 +152,14 @@ export class AdminSupabaseAuth {
 
   async signIn(email: string, password: string): Promise<AdminSession> {
     const normalizedEmail = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || password.length < 1) throw new Error('请输入有效邮箱和密码。');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || password.length < 1)
+      throw new Error('请输入有效邮箱和密码。');
     try {
       const result = await (await this.port()).auth.signInWithPassword({ email: normalizedEmail, password });
       if (result.error || !validSession(result.data.session)) throw result.error ?? new Error('invalid_session');
       const verified = await (await this.port()).auth.getUser(result.data.session.access_token);
-      if (verified.error || verified.data.user?.id !== result.data.session.user.id) throw verified.error ?? new Error('invalid_user');
+      if (verified.error || verified.data.user?.id !== result.data.session.user.id)
+        throw verified.error ?? new Error('invalid_user');
       this.current = toSession(result.data.session);
       return this.session!;
     } catch (error) {

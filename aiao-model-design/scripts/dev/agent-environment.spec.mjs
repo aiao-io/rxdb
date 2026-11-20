@@ -52,8 +52,14 @@ test('生产、预发与预览环境的密钥使用实例上已部署的智能�
 });
 
 test('接受 Trigger.dev 新版带 sk 段的环境密钥', async t => {
-  const paths = await fixture(t, { devVars: trigger('https://trigger.example.com', DEV_SECRET_KEY), agentEnv: 'AGENT_MODEL=x' });
-  assert.equal((await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } })).secretKey, DEV_SECRET_KEY);
+  const paths = await fixture(t, {
+    devVars: trigger('https://trigger.example.com', DEV_SECRET_KEY),
+    agentEnv: 'AGENT_MODEL=x'
+  });
+  assert.equal(
+    (await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } })).secretKey,
+    DEV_SECRET_KEY
+  );
 });
 
 test('开发环境密钥要启动智能体开发会话，需要项目 ref 与 .env.agent', async t => {
@@ -85,16 +91,13 @@ test('开发环境密钥省略实例地址时默认连接本地 Trigger.dev', as
     devVars: triggerKey(DEV_KEY),
     agentEnv: 'AGENT_MODEL=x'
   });
-  assert.deepEqual(
-    await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } }),
-    {
-      mode: 'dev',
-      environment: 'dev',
-      apiUrl: 'http://127.0.0.1:8030',
-      secretKey: DEV_KEY,
-      projectRef: PROJECT_REF
-    }
-  );
+  assert.deepEqual(await agentEnvironment({ ...paths, env: { TRIGGER_PROJECT_REF: PROJECT_REF } }), {
+    mode: 'dev',
+    environment: 'dev',
+    apiUrl: 'http://127.0.0.1:8030',
+    secretKey: DEV_KEY,
+    projectRef: PROJECT_REF
+  });
 });
 
 test('已部署环境密钥省略实例地址时明确报错，不默认连本地', async t => {

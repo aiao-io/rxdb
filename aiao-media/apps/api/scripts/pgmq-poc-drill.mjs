@@ -61,7 +61,6 @@ class DrillQueue {
     this.#archived.push(msgId);
     this.#rows = this.#rows.filter(row => row.msgId !== msgId);
   }
-
 }
 
 class DrillStore {
@@ -122,7 +121,6 @@ class DrillStore {
       if (this.#now - result.createdAt >= maxAgeMilliseconds) this.#results.delete(key);
     }
   }
-
 }
 
 async function main() {
@@ -162,7 +160,11 @@ async function main() {
     store: new DrillStore(),
     visibilityTimeoutSeconds: 1,
     maxReadCount: 1,
-    provider: { generate: async () => { throw new Error('provider unavailable'); } }
+    provider: {
+      generate: async () => {
+        throw new Error('provider unavailable');
+      }
+    }
   });
   assert.deepEqual(await failing.runOnce(), { state: 'archived', messageId: '2', errorCode: 'provider unavailable' });
   assert.deepEqual(queue.archived, ['2']);
@@ -195,15 +197,17 @@ async function main() {
   store.advance(86400000);
   store.cleanup(86400000);
   assert.equal(store.resultCount, 0);
-  console.log(JSON.stringify({
-    providerCalls,
-    backlogProviderCalls,
-    settlements: store.settlementCount + backlogStore.settlementCount,
-    archived: queue.archived,
-    failures: store.failureCount,
-    queueReadTotal: queue.readTotal,
-    backlog: queue.pending
-  }));
+  console.log(
+    JSON.stringify({
+      providerCalls,
+      backlogProviderCalls,
+      settlements: store.settlementCount + backlogStore.settlementCount,
+      archived: queue.archived,
+      failures: store.failureCount,
+      queueReadTotal: queue.readTotal,
+      backlog: queue.pending
+    })
+  );
 }
 
 await main();

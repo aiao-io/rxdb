@@ -20,19 +20,23 @@ const remoteRows = (): { commit: Record<string, unknown>; changes: Record<string
     changeCount: 1,
     status: 'synced'
   },
-  changes: [{
-    id: changeId,
-    workspaceId,
-    commitId,
-    sequence: 1,
-    entity: 'MediaPromptTemplate',
-    entityId: '10000000-0000-4000-8000-000000000006',
-    operation: 'update',
-    patch: { value: { key: 'hero', title: '新标题', prompt: '生成海报', purpose: null, style: null, tags: [], enabled: true } },
-    inversePatch: { value: { key: 'hero', title: '旧标题' } },
-    expectedRevision: 2,
-    contentFingerprint: ''
-  }]
+  changes: [
+    {
+      id: changeId,
+      workspaceId,
+      commitId,
+      sequence: 1,
+      entity: 'MediaPromptTemplate',
+      entityId: '10000000-0000-4000-8000-000000000006',
+      operation: 'update',
+      patch: {
+        value: { key: 'hero', title: '新标题', prompt: '生成海报', purpose: null, style: null, tags: [], enabled: true }
+      },
+      inversePatch: { value: { key: 'hero', title: '旧标题' } },
+      expectedRevision: 2,
+      contentFingerprint: ''
+    }
+  ]
 });
 
 async function validRemote(): Promise<BackendConfigCommitRemote> {
@@ -46,16 +50,18 @@ async function validRemote(): Promise<BackendConfigCommitRemote> {
     message: '后台同步配置',
     operationId,
     status: 'synced' as const,
-    changes: [{
-      id: changeId,
-      sequence: 1,
-      entity: 'MediaPromptTemplate',
-      entityId: '10000000-0000-4000-8000-000000000006',
-      operation: 'update' as const,
-      patch: rows.changes[0]?.['patch'],
-      inversePatch: rows.changes[0]?.['inversePatch'],
-      expectedRevision: 2
-    }]
+    changes: [
+      {
+        id: changeId,
+        sequence: 1,
+        entity: 'MediaPromptTemplate',
+        entityId: '10000000-0000-4000-8000-000000000006',
+        operation: 'update' as const,
+        patch: rows.changes[0]?.['patch'],
+        inversePatch: rows.changes[0]?.['inversePatch'],
+        expectedRevision: 2
+      }
+    ]
   };
   const { createMediaConfigCommitEnvelope } = await import('@aiao-media/domain');
   const envelope = await createMediaConfigCommitEnvelope(input);
@@ -114,7 +120,7 @@ test('变更行少于提交声明的数量时视为投影未到齐，不缓存�
   const remote = await validRemote();
   const rows = await remote.readChanges(commitId);
   const declared: BackendConfigCommitRemote = {
-    readCommit: async id => ({ ...(await remote.readCommit(id) as Record<string, unknown>), changeCount: 2 }),
+    readCommit: async id => ({ ...((await remote.readCommit(id)) as Record<string, unknown>), changeCount: 2 }),
     readChanges: async () => rows
   };
   await assert.rejects(() => new BackendConfigCommitCache(declared).load(commitId), /未到齐/);
@@ -124,7 +130,7 @@ test('prepared 状态的提交还在补写变更，后台不加载', async () =>
   const remote = await validRemote();
   const prepared: BackendConfigCommitRemote = {
     ...remote,
-    readCommit: async id => ({ ...(await remote.readCommit(id) as Record<string, unknown>), status: 'prepared' })
+    readCommit: async id => ({ ...((await remote.readCommit(id)) as Record<string, unknown>), status: 'prepared' })
   };
   await assert.rejects(() => new BackendConfigCommitCache(prepared).load(commitId), /尚未同步/);
 });

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Aiao Media Generation Queue Message",
-  "type": "object",
   "additionalProperties": false,
-  "required": ["taskId", "taskRevision", "kind"],
   "properties": {
     "taskId": { "type": "string", "format": "uuid" },
     "taskRevision": { "type": "integer", "minimum": 1 },
     "kind": { "const": "image-generation" }
-  }
+  },
+  "required": ["taskId", "taskRevision", "kind"],
+  "title": "Aiao Media Generation Queue Message",
+  "type": "object"
 }

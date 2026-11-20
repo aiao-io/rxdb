@@ -54,7 +54,21 @@ function fixture() {
       failures.push(code);
     }
   };
-  return { queue, store, rows, deleted, archived, failures, reads, advanced, settled, results, setFailDelete: (value: boolean) => { failDelete = value; } };
+  return {
+    queue,
+    store,
+    rows,
+    deleted,
+    archived,
+    failures,
+    reads,
+    advanced,
+    settled,
+    results,
+    setFailDelete: (value: boolean) => {
+      failDelete = value;
+    }
+  };
 }
 
 test('consumer reads minimal message, writes an idempotent result and acknowledges it', async () => {
@@ -111,7 +125,11 @@ test('provider success followed by an ack interruption is recovered without a se
   const state = fixture();
   state.setFailDelete(true);
   let providerCalls = 0;
-  const consumer = new PgmqGenerationConsumer({ queue: state.queue, store: state.store, provider: { generate: async () => `result-${++providerCalls}` } });
+  const consumer = new PgmqGenerationConsumer({
+    queue: state.queue,
+    store: state.store,
+    provider: { generate: async () => `result-${++providerCalls}` }
+  });
   assert.deepEqual(await consumer.runOnce(), { state: 'retried', messageId: '1', errorCode: 'ack interrupted' });
   state.setFailDelete(false);
   state.rows.push({ msgId: '2', readCount: 2, message });

@@ -405,7 +405,12 @@
                         <img [src]="preview" alt="参考图片预览" />
                       }
                       <span>{{ file.name }}</span>
-                      <button class="secondary sm" type="button" [disabled]="inFlight()" (click)="clearReferenceImage()">
+                      <button
+                        class="secondary sm"
+                        [disabled]="inFlight()"
+                        (click)="clearReferenceImage()"
+                        type="button"
+                      >
                         移除
                       </button>
                     </div>
@@ -414,10 +419,10 @@
                     <input
                       class="visually-hidden"
                       id="reference-image-upload"
-                      type="file"
-                      accept="image/png,image/jpeg"
                       [disabled]="inFlight()"
                       (change)="readReferenceFile($event)"
+                      accept="image/png,image/jpeg"
+                      type="file"
                     />
                   }
                 </div>

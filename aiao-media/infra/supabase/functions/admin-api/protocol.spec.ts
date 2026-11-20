@@ -9,7 +9,7 @@ const request = (headers: Record<string, string> = {}, body: unknown = { path: '
     body: JSON.stringify(body)
   });
 const dependencies = (authorized = true): AdminApiDependencies => ({
-  authenticate: async token => token === 'valid-token' ? { id: userId } : null,
+  authenticate: async token => (token === 'valid-token' ? { id: userId } : null),
   authorize: async () => authorized,
   execute: async input => ({ actorId: input.actorId, path: input.path, requestId: input.requestId })
 });
@@ -40,7 +40,9 @@ describe('admin-api edge boundary', () => {
   it('does not expose dependency errors or service credentials', async () => {
     const response = await createAdminApiHandler({
       ...dependencies(),
-      execute: async () => { throw new Error('service_role=secret'); }
+      execute: async () => {
+        throw new Error('service_role=secret');
+      }
     })(request({ authorization: 'Bearer valid-token' }));
     expect(response.status).toBe(502);
     const body = await response.json();

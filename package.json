@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@ai-sdk/angular": "3.0.64",
+    "@aiao/orbit": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
     "@angular/cdk": "22.2.6",
     "@angular/common": "22.2.4",
@@ -243,7 +244,8 @@
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "4.1.11",
     "vue-tsc": "^3.3.14",
-    "wait-on": "^9.5.1"
+    "wait-on": "^9.5.1",
+    "wrangler": "4.156.2"
   },
   "config": {
     "commitizen": {
@@ -271,7 +273,7 @@
   "workspaces": [
     "packages/*",
     "apps/*",
-    "modules/wujie",
+    "modules/orbit",
     "modules/recipes-domain",
     "website",
     "benchmarks"

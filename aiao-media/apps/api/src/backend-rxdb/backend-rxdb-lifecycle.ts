@@ -43,7 +43,8 @@ export class BackendRxdbLifecycle {
     this.#syncIntervalMs = positiveDuration(options.syncIntervalMs ?? DEFAULT_SYNC_INTERVAL_MS, 'syncIntervalMs');
     this.#retryDelayMs = positiveDuration(options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS, 'retryDelayMs');
     this.#maxRetryDelayMs = positiveDuration(options.maxRetryDelayMs ?? DEFAULT_MAX_RETRY_DELAY_MS, 'maxRetryDelayMs');
-    if (this.#retryDelayMs > this.#maxRetryDelayMs) throw new Error('maxRetryDelayMs must be greater than or equal to retryDelayMs');
+    if (this.#retryDelayMs > this.#maxRetryDelayMs)
+      throw new Error('maxRetryDelayMs must be greater than or equal to retryDelayMs');
     this.#onStateChange = options.onStateChange;
     this.#onError = options.onError;
   }
@@ -149,7 +150,10 @@ function positiveDuration(value: number, name: string): number {
   return value;
 }
 
-export function createBackendRxdbLifecycleSession(session: BackendRxdbSession, options?: BackendRxdbLifecycleOptions): BackendRxdbLifecycle {
+export function createBackendRxdbLifecycleSession(
+  session: BackendRxdbSession,
+  options?: BackendRxdbLifecycleOptions
+): BackendRxdbLifecycle {
   return new BackendRxdbLifecycle(session, options);
 }
 

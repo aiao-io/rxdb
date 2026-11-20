@@ -17,7 +17,22 @@ export interface PlatformModel {
   supportsImageEditing?: boolean;
 }
 const defaultSizes = ['1024x1024', '1536x1024', '1024x1536'];
-const geminiRatios = ['1:1', '3:2', '2:3', '16:9', '9:16', '4:3', '3:4', '5:4', '4:5', '21:9', '1:4', '4:1', '1:8', '8:1'];
+const geminiRatios = [
+  '1:1',
+  '3:2',
+  '2:3',
+  '16:9',
+  '9:16',
+  '4:3',
+  '3:4',
+  '5:4',
+  '4:5',
+  '21:9',
+  '1:4',
+  '4:1',
+  '1:8',
+  '8:1'
+];
 const allowedResolutions = ['512', '1K', '2K', '4K'];
 const allowedQualities = ['auto', 'low', 'medium', 'high', 'xhigh', 'max'];
 const allowedComplexities = ['low', 'medium', 'high'];
@@ -79,11 +94,16 @@ export function validatePlatformModels(value: unknown): PlatformModel[] {
     )
       throw new Error('平台模型目录无效。');
     const sizes = model.sizes ?? (model.protocol === 'gemini' ? [] : defaultSizes);
-    const aspectRatios = model.aspectRatios ??
-      (model.protocol === 'gemini' && model.imageOptions ? unique(model.imageOptions.map(option => option.aspectRatio)) :
-        unique(sizes.map(size => ratio(size))));
-    const resolutions = model.resolutions ??
-      (model.protocol === 'gemini' && model.imageOptions ? unique(model.imageOptions.map(option => option.resolution)) : []);
+    const aspectRatios =
+      model.aspectRatios ??
+      (model.protocol === 'gemini' && model.imageOptions ?
+        unique(model.imageOptions.map(option => option.aspectRatio))
+      : unique(sizes.map(size => ratio(size))));
+    const resolutions =
+      model.resolutions ??
+      (model.protocol === 'gemini' && model.imageOptions ?
+        unique(model.imageOptions.map(option => option.resolution))
+      : []);
     const optionRatios = model.imageOptions ? unique(model.imageOptions.map(option => option.aspectRatio)) : [];
     const optionResolutions = model.imageOptions ? unique(model.imageOptions.map(option => option.resolution)) : [];
     const qualities = model.qualities ?? (model.protocol === 'openai' ? ['low'] : []);
@@ -113,7 +133,10 @@ export function validatePlatformModels(value: unknown): PlatformModel[] {
           !model.imageOptions?.length ||
           !sameValues(aspectRatios, optionRatios) ||
           !sameValues(resolutions, optionResolutions))) ||
-      (model.protocol !== 'gemini' && (resolutions.length > 0 || model.imageOptions !== undefined || !sameValues(aspectRatios, unique(sizes.map(ratio))))) ||
+      (model.protocol !== 'gemini' &&
+        (resolutions.length > 0 ||
+          model.imageOptions !== undefined ||
+          !sameValues(aspectRatios, unique(sizes.map(ratio))))) ||
       (model.protocol !== 'gemini' && thinkingLevels.length > 0) ||
       (model.protocol === 'gemini' && complexities.length > 0) ||
       (model.protocol === 'minimax' &&
@@ -136,19 +159,24 @@ export function validatePlatformModels(value: unknown): PlatformModel[] {
   });
 }
 function validSizes(sizes: unknown, alignment = 16): sizes is string[] {
-  return Array.isArray(sizes) && sizes.length <= 40 && sizes.every(size => {
-    if (typeof size !== 'string' || !/^\d{1,4}x\d{1,4}$/.test(size)) return false;
-    const [width, height] = size.split('x').map(Number);
-    return (
-      width > 0 &&
-      height > 0 &&
-      width <= 4096 &&
-      height <= 4096 &&
-      width * height <= 16_777_216 &&
-      width % alignment === 0 &&
-      height % alignment === 0
-    );
-  }) && new Set(sizes).size === sizes.length;
+  return (
+    Array.isArray(sizes) &&
+    sizes.length <= 40 &&
+    sizes.every(size => {
+      if (typeof size !== 'string' || !/^\d{1,4}x\d{1,4}$/.test(size)) return false;
+      const [width, height] = size.split('x').map(Number);
+      return (
+        width > 0 &&
+        height > 0 &&
+        width <= 4096 &&
+        height <= 4096 &&
+        width * height <= 16_777_216 &&
+        width % alignment === 0 &&
+        height % alignment === 0
+      );
+    }) &&
+    new Set(sizes).size === sizes.length
+  );
 }
 function validAspectRatios(value: unknown, protocol: ImageResponseProtocol): value is string[] {
   if (!Array.isArray(value) || value.length > 24 || value.some(ratio => typeof ratio !== 'string')) return false;
@@ -159,7 +187,9 @@ function validAspectRatios(value: unknown, protocol: ImageResponseProtocol): val
       const [width, height] = ratio.split(':').map(Number);
       const divisor = (a: number, b: number): number => (b ? divisor(b, a % b) : a);
       if (!width || !height) return false;
-      return allowed ? allowed.includes(ratio) : divisor(width, height) === 1 && width * 3 >= height && height * 3 >= width;
+      return allowed ?
+          allowed.includes(ratio)
+        : divisor(width, height) === 1 && width * 3 >= height && height * 3 >= width;
     }) && new Set(value).size === value.length
   );
 }
@@ -208,5 +238,9 @@ function ratio(size: string): string {
 }
 function aspectCategory(value: string): 'square' | 'landscape' | 'portrait' {
   const [width, height] = value.split(':').map(Number);
-  return width === height ? 'square' : width > height ? 'landscape' : 'portrait';
+  return (
+    width === height ? 'square'
+    : width > height ? 'landscape'
+    : 'portrait'
+  );
 }

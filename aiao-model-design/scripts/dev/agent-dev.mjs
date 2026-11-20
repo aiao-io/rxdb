@@ -5,8 +5,8 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { productRoot } from '../supabase/supabase-local.mjs';
 import { agentEnvironment, agentSummary } from './agent-environment.mjs';
-import { recoverLocalAgentConfig } from './local-agent-config.mjs';
 import { keepRunning } from './keep-running.mjs';
+import { recoverLocalAgentConfig } from './local-agent-config.mjs';
 
 /** 智能体应用目录，`trigger dev` 在这里读取 trigger.config.ts 与 .env.agent。 */
 export const agentDirectory = resolve(productRoot, 'apps/agent');
@@ -72,8 +72,10 @@ export function runAgentSession(plan, { spawn: start = spawn, signals = process 
 async function main() {
   const recovery = await recoverLocalAgentConfig();
   if (recovery.status === 'recovered') console.log('已从本地 Trigger.dev 恢复 Development key 与项目 ref。');
-  if (recovery.status === 'not-found') console.log('本地 Trigger.dev 没有可恢复的 Development key；首次使用需先创建项目并签发 key。');
-  if (recovery.status === 'unavailable') console.log('无法查询本地 Trigger.dev 的 Development key；检查本地 Docker/Trigger 服务状态。');
+  if (recovery.status === 'not-found')
+    console.log('本地 Trigger.dev 没有可恢复的 Development key；首次使用需先创建项目并签发 key。');
+  if (recovery.status === 'unavailable')
+    console.log('无法查询本地 Trigger.dev 的 Development key；检查本地 Docker/Trigger 服务状态。');
   const agent = await agentEnvironment();
   const { label, note } = agentSummary(agent);
   console.log(`AI 智能体：${label}。${note}`);

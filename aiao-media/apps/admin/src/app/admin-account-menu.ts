@@ -1,4 +1,14 @@
-import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, output, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  output,
+  signal
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { accountLabel } from './admin-profile';
 
@@ -33,18 +43,24 @@ export class AdminAccountMenu {
 
   show(last = false): void {
     this.open.set(true);
-    afterNextRender(() => {
-      if (!this.open()) return;
-      const items = this.items();
-      items.at(last ? -1 : 0)?.focus();
-    }, { injector: this.injector });
+    afterNextRender(
+      () => {
+        if (!this.open()) return;
+        const items = this.items();
+        items.at(last ? -1 : 0)?.focus();
+      },
+      { injector: this.injector }
+    );
   }
 
   move(event: KeyboardEvent): void {
     const items = this.items();
     const current = items.findIndex(item => item === document.activeElement);
     const offset = event.key === 'ArrowUp' ? -1 : 1;
-    const index = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + offset + items.length) % items.length;
+    const index =
+      event.key === 'Home' ? 0
+      : event.key === 'End' ? items.length - 1
+      : (current + offset + items.length) % items.length;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     items[index]?.focus();

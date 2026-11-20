@@ -167,7 +167,11 @@ const ratioSizes: Record<ImageAspectRatio, string> = {
 };
 const aspectCategory = (value: string): ImageAspectRatio => {
   const [width, height] = value.split(':').map(Number);
-  return width === height ? 'square' : width > height ? 'landscape' : 'portrait';
+  return (
+    width === height ? 'square'
+    : width > height ? 'landscape'
+    : 'portrait'
+  );
 };
 const dimensionsRatio = (size: string) => {
   const [width, height] = size.split('x').map(Number);
@@ -578,7 +582,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       : request?.kind === 'image' && request.resolution ? request.resolution
       : request?.kind === 'image' && request.aspectRatio ? ratioSizes[request.aspectRatio]
       : '',
-      request?.kind === 'image' ? request.aspectRatioValue ?? '' : '',
+      request?.kind === 'image' ? (request.aspectRatioValue ?? '') : '',
       mimeType === 'image/png' ? 'PNG'
       : mimeType ? 'JPEG'
       : ''
@@ -927,7 +931,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async chooseModel(id: string): Promise<void> {
     const store = this.store,
       epoch = this.epoch;
-    if (this.settingsBusy() || this.localStatus() !== 'ready' || !this.models().some(model => model.id === id) || !store) return;
+    if (
+      this.settingsBusy() ||
+      this.localStatus() !== 'ready' ||
+      !this.models().some(model => model.id === id) ||
+      !store
+    )
+      return;
     const version = ++this.modelVersion;
     const current = () =>
       !this.disposed && epoch === this.epoch && store === this.store && version === this.modelVersion;
@@ -988,8 +998,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       count = this.imageCount(),
       identity = this.authUser()?.id;
     if (!model || !identity) return;
-    const ratio = this.ratio(), aspectRatio = this.aspectRatioValue(), prompt = this.serialized().text,
-      file = this.referenceImage(), epoch = this.epoch;
+    const ratio = this.ratio(),
+      aspectRatio = this.aspectRatioValue(),
+      prompt = this.serialized().text,
+      file = this.referenceImage(),
+      epoch = this.epoch;
     const options = {
       ...(model.protocol === 'gemini' ? { resolution: this.imageResolution() } : { size: this.imageSize() }),
       ...(this.imageQuality() ? { quality: this.imageQuality() } : {}),
@@ -1150,7 +1163,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   aspectShape(value: string): string {
     const [width, height] = value.split(':').map(Number);
-    return width === height ? 'shape' : width > height ? 'shape wide' : 'shape tall';
+    return (
+      width === height ? 'shape'
+      : width > height ? 'shape wide'
+      : 'shape tall'
+    );
   }
   formatImageSize(size: string): string {
     return size.replace('x', ' × ');
@@ -1198,7 +1215,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     input.value = '';
     if (!file) return;
     if (
-      !model?.supportsImageEditing || this.inFlight() ||
+      !model?.supportsImageEditing ||
+      this.inFlight() ||
       !['image/png', 'image/jpeg'].includes(file.type) ||
       !file.size ||
       file.size > 4 * 1024 * 1024
@@ -2710,7 +2728,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           this.promptState.set(state);
           this.ratio.set(state.aspectRatio ?? 'square');
           const model = this.selectedModel();
-          const ratioValue = model?.aspectRatios?.find(value => aspectCategory(value) === (state.aspectRatio ?? 'square'));
+          const ratioValue = model?.aspectRatios?.find(
+            value => aspectCategory(value) === (state.aspectRatio ?? 'square')
+          );
           if (ratioValue) {
             this.aspectRatioValue.set(ratioValue);
             const size = model?.sizes?.find(option => dimensionsRatio(option) === ratioValue);
@@ -2964,8 +2984,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSize.set(model.sizes?.find(size => dimensionsRatio(size) === aspectRatio) ?? model.sizes?.[0] ?? '');
     this.imageResolution.set(
       model.protocol === 'gemini' && model.imageOptions ?
-        model.imageOptions.find(option => option.aspectRatio === aspectRatio)?.resolution ?? ''
-      : model.resolutions?.[0] ?? ''
+        (model.imageOptions.find(option => option.aspectRatio === aspectRatio)?.resolution ?? '')
+      : (model.resolutions?.[0] ?? '')
     );
     this.imageQuality.set(model.qualities?.[0] ?? '');
     this.imageComplexity.set(model.complexities?.[0] ?? '');
@@ -2974,9 +2994,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.clearReferenceImage();
   }
   private normalizeModelOptions(model: PlatformModel) {
-    const aspectRatio = model.aspectRatios?.includes(this.aspectRatioValue()) ?
-      this.aspectRatioValue()
-    : model.aspectRatios?.[0] ?? '1:1';
+    const aspectRatio =
+      model.aspectRatios?.includes(this.aspectRatioValue()) ?
+        this.aspectRatioValue()
+      : (model.aspectRatios?.[0] ?? '1:1');
     this.aspectRatioValue.set(aspectRatio);
     this.ratio.set(aspectCategory(aspectRatio));
     const sizes = (model.sizes ?? []).filter(size => dimensionsRatio(size) === aspectRatio);

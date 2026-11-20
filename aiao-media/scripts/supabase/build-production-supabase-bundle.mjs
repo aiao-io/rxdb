@@ -157,7 +157,12 @@ export const productionUpgrades = [
     toVersion: 21,
     required: ['public.media_credit_accounts']
   },
-  { name: 'admin-account-profile', fromVersion: 21, toVersion: 22, required: ['public.media_admin_memberships', 'public.media_admin_audit'] },
+  {
+    name: 'admin-account-profile',
+    fromVersion: 21,
+    toVersion: 22,
+    required: ['public.media_admin_memberships', 'public.media_admin_audit']
+  },
   {
     name: 'config-rxdb-sync',
     fromVersion: 22,

@@ -1,6 +1,9 @@
 <section class="account-page" aria-labelledby="account-title">
   <header class="page-heading">
-    <div><h1 id="account-title">账户详情</h1><p>查看当前登录身份，维护你的基础资料。</p></div>
+    <div>
+      <h1 id="account-title">账户详情</h1>
+      <p>查看当前登录身份，维护你的基础资料。</p>
+    </div>
     <a class="btn btn-ghost btn-sm" href="/">打开用户端 ↗</a>
   </header>
   <div class="account-grid">
@@ -8,36 +11,102 @@
       <h2 id="profile-title">基础资料</h2>
       <p class="section-description">名称将显示在管理后台的顶部身份菜单中。</p>
       <form (submit)="submit($event)" novalidate>
-        <label for="account-display-name">名称 <span class="field-tag">可修改</span></label>
-        <input class="input input-bordered" id="account-display-name" name="displayName" autocomplete="nickname"
-          [value]="state().draft()" (input)="edit($event)" [disabled]="state().loading() || state().saving() || !state().profile()"
-          [attr.aria-invalid]="state().draft() && state().validation() ? 'true' : null" aria-describedby="name-help name-error" />
-        <p id="name-help" class="field-help">1–40 个字符，支持中文和 emoji，首尾空白会自动去除。</p>
-        <p id="name-error" class="field-error">{{ state().draft() ? state().validation() : '' }}</p>
-        @if (state().loading()) { <p role="status">正在读取资料…</p> }
+        <label for="account-display-name">
+          名称
+          <span class="field-tag">可修改</span>
+        </label>
+        <input
+          class="input input-bordered"
+          id="account-display-name"
+          [attr.aria-invalid]="state().draft() && state().validation() ? 'true' : null"
+          [disabled]="state().loading() || state().saving() || !state().profile()"
+          [value]="state().draft()"
+          (input)="edit($event)"
+          aria-describedby="name-help name-error"
+          autocomplete="nickname"
+          name="displayName"
+        />
+        <p class="field-help" id="name-help">1–40 个字符，支持中文和 emoji，首尾空白会自动去除。</p>
+        <p class="field-error" id="name-error">{{ state().draft() ? state().validation() : '' }}</p>
+        @if (state().loading()) {
+          <p role="status">正在读取资料…</p>
+        }
         @if (state().message()) {
-          <p role="status" [class.field-error]="!state().saved()" [class.field-success]="state().saved()">{{ state().message() }}</p>
+          <p [class.field-error]="!state().saved()" [class.field-success]="state().saved()" role="status">
+            {{ state().message() }}
+          </p>
         }
         <div class="form-actions">
-          <button class="btn btn-primary" type="submit" [disabled]="!state().canSave()">{{ state().saving() ? '正在保存…' : '保存名称' }}</button>
-          <button class="btn btn-ghost" type="button" [disabled]="state().loading() || state().saving()" (click)="state().reload()">重新读取资料</button>
+          <button class="btn btn-primary" [disabled]="!state().canSave()" type="submit">
+            {{ state().saving() ? '正在保存…' : '保存名称' }}
+          </button>
+          <button
+            class="btn btn-ghost"
+            [disabled]="state().loading() || state().saving()"
+            (click)="state().reload()"
+            type="button"
+          >
+            重新读取资料
+          </button>
         </div>
       </form>
     </section>
     <section class="account-card" aria-labelledby="identity-title">
-      <div class="card-heading"><h2 id="identity-title">账号信息</h2><span class="field-tag">只读</span></div>
+      <div class="card-heading">
+        <h2 id="identity-title">账号信息</h2>
+        <span class="field-tag">只读</span>
+      </div>
       <p class="section-description">系统身份和访问权限由账号服务与管理员授权维护。</p>
-      @if (identityLoading()) { <p role="status">正在读取账号信息…</p> }
+      @if (identityLoading()) {
+        <p role="status">正在读取账号信息…</p>
+      }
       @if (identityError()) {
-        <p class="field-error" role="status">{{ identityError() }} <button class="btn btn-ghost btn-xs" type="button" (click)="retryIdentity()">重试</button></p>
+        <p class="field-error" role="status">
+          {{ identityError() }}
+          <button class="btn btn-ghost btn-xs" (click)="retryIdentity()" type="button">重试</button>
+        </p>
       }
       <dl>
-        <div><dt>邮箱</dt><dd>{{ identity()?.email || user().email || '未提供邮箱' }}</dd></div>
-        <div><dt>用户 UUID</dt><dd class="user-id">{{ user().id }}</dd></div>
-        <div><dt>注册时间</dt><dd>{{ (identity()?.createdAt | date:'yyyy-MM-dd HH:mm:ss') || '暂不可用' }}</dd></div>
-        <div><dt>最近登录</dt><dd>{{ (identity()?.lastSignInAt | date:'yyyy-MM-dd HH:mm:ss') || '暂无记录' }}</dd></div>
-        <div><dt>管理员资格</dt><dd>{{ state().profile() ? (state().profile()?.adminEnabled ? '已启用' : '已停用') : '暂不可用' }}</dd></div>
-        <div><dt>产品访问</dt><dd>{{ state().profile() ? (state().profile()?.accessDisabled ? '已禁用' : '正常') : '暂不可用' }}</dd></div>
+        <div>
+          <dt>邮箱</dt>
+          <dd>{{ identity()?.email || user().email || '未提供邮箱' }}</dd>
+        </div>
+        <div>
+          <dt>用户 UUID</dt>
+          <dd class="user-id">{{ user().id }}</dd>
+        </div>
+        <div>
+          <dt>注册时间</dt>
+          <dd>{{ (identity()?.createdAt | date: 'yyyy-MM-dd HH:mm:ss') || '暂不可用' }}</dd>
+        </div>
+        <div>
+          <dt>最近登录</dt>
+          <dd>{{ (identity()?.lastSignInAt | date: 'yyyy-MM-dd HH:mm:ss') || '暂无记录' }}</dd>
+        </div>
+        <div>
+          <dt>管理员资格</dt>
+          <dd>
+            {{
+              state().profile() ?
+                state().profile()?.adminEnabled ?
+                  '已启用'
+                : '已停用'
+              : '暂不可用'
+            }}
+          </dd>
+        </div>
+        <div>
+          <dt>产品访问</dt>
+          <dd>
+            {{
+              state().profile() ?
+                state().profile()?.accessDisabled ?
+                  '已禁用'
+                : '正常'
+              : '暂不可用'
+            }}
+          </dd>
+        </div>
       </dl>
       <p class="field-help">时间按当前设备时区显示。</p>
     </section>

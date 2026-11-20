@@ -39,7 +39,7 @@ function angularEntryPackages() {
 }
 
 test('typedoc 入口里的每个 Angular 包都进了 api-docs 的复合产物预构建', () => {
-  // 漏掉任何一个，净树（Netlify / CI runner 都没有 dist/out-tsc）上 typedoc 都会在
+  // 漏掉任何一个，净树（干净的 CI runner 都没有 dist/out-tsc）上 typedoc 都会在
   // 引用它的包里报 TS6305；本地因为历史 tsc --build 残留而察觉不到。
   const missing = angularEntryPackages().filter(path => !apiDocsCommand.includes(path));
 

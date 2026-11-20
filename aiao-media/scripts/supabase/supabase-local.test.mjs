@@ -39,7 +39,9 @@ test('local gateway routes the administrator function to a running private Edge 
   ]);
   const gateway = parse(template);
   const services = parse(compose).services;
-  const service = gateway.services.find(service => service.routes.some(route => route.paths.includes('/functions/v1/admin-api')));
+  const service = gateway.services.find(service =>
+    service.routes.some(route => route.paths.includes('/functions/v1/admin-api'))
+  );
   assert.ok(service, 'Missing administrator Edge Function route');
   assert.equal(service.url, 'http://functions:9000/');
   assert.ok(services.functions, 'Missing local Edge Runtime service');

@@ -112,23 +112,23 @@ function geminiImageResult(envelope: Record<string, unknown> | null): Record<str
   );
   const parts = content?.['parts'];
   const steps = envelope?.['steps'];
-  const images = Array.isArray(steps) ?
-    steps.flatMap(step => {
-      const stepContent = object(step);
-      if (stepContent?.['type'] !== 'model_output') return [];
-      const contentItems = stepContent?.['content'];
-      return Array.isArray(contentItems) ? contentItems.flatMap(imagePart) : [];
-    })
-  : Array.isArray(parts) ? parts.flatMap(imagePart)
-  : [];
+  const images =
+    Array.isArray(steps) ?
+      steps.flatMap(step => {
+        const stepContent = object(step);
+        if (stepContent?.['type'] !== 'model_output') return [];
+        const contentItems = stepContent?.['content'];
+        return Array.isArray(contentItems) ? contentItems.flatMap(imagePart) : [];
+      })
+    : Array.isArray(parts) ? parts.flatMap(imagePart)
+    : [];
   if (images.length !== 1) return null;
   return { b64_json: images[0]['data'], mimeType: images[0]['mimeType'] };
 }
 function imagePart(part: unknown): Record<string, unknown>[] {
   const item = object(part);
   const inline = object(item?.['inlineData']);
-  if (inline && typeof inline['data'] === 'string')
-    return [{ data: inline['data'], mimeType: inline['mimeType'] }];
+  if (inline && typeof inline['data'] === 'string') return [{ data: inline['data'], mimeType: inline['mimeType'] }];
   if (item?.['type'] === 'image' && typeof item['data'] === 'string')
     return [{ data: item['data'], mimeType: item['mime_type'] }];
   return [];
@@ -154,10 +154,8 @@ export async function responseImage(
   }
   const items = data?.['data'];
   const item =
-    protocol === 'minimax' ?
-      miniMaxImageResult(data)
-    : protocol === 'gemini' ?
-      geminiImageResult(data)
+    protocol === 'minimax' ? miniMaxImageResult(data)
+    : protocol === 'gemini' ? geminiImageResult(data)
     : object(Array.isArray(items) && items.length === 1 ? items[0] : null);
   let bytes: Uint8Array<ArrayBuffer>;
   if (typeof item?.['b64_json'] === 'string') {

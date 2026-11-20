@@ -11,7 +11,7 @@
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
-      "path": "../../modules/wujie/tsconfig.lib.json"
+      "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
       "path": "../../packages/code-editor-vue/tsconfig.lib.json"

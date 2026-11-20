@@ -64,7 +64,14 @@ test('平台生图只接受有效账号与平台模型，目录和任务不泄�
     'MEDIA_IMAGE_KEY'
   ])
     assert.ok(!text.includes(secret));
-  assert.partialDeepStrictEqual(JSON.parse(text).models[0], { id: 'standard', name: '平台生图', credits: 3, protocol: 'openai', supportsImageEditing: false, counts: [1] });
+  assert.partialDeepStrictEqual(JSON.parse(text).models[0], {
+    id: 'standard',
+    name: '平台生图',
+    credits: 3,
+    protocol: 'openai',
+    supportsImageEditing: false,
+    counts: [1]
+  });
   assert.equal((await t.create(body, { authorization: 'Bearer user-supplied-provider-key' })).status, 401);
   assert.equal((await t.create({ ...body, baseUrl: 'https://evil.test' })).status, 400);
   assert.equal((await t.create({ ...body, model: 'private-image-model' })).status, 400);

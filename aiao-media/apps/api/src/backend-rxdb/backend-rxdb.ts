@@ -1,8 +1,6 @@
 import { RxDB, SyncType, type EntitySyncOverride, type EntityType, type SyncOptions } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
-
-type RxdbSupabaseClient = NonNullable<ConstructorParameters<typeof RxDBAdapterSupabase>[1]['client']>;
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
@@ -10,7 +8,9 @@ import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { assertBackendRxdbAuth, type BackendRxdbAuth } from './backend-rxdb-auth.ts';
 
-export { BackendRxdbAuthProvider, assertBackendRxdbAuth } from './backend-rxdb-auth.ts';
+type RxdbSupabaseClient = NonNullable<ConstructorParameters<typeof RxDBAdapterSupabase>[1]['client']>;
+
+export { assertBackendRxdbAuth, BackendRxdbAuthProvider } from './backend-rxdb-auth.ts';
 export type { BackendRxdbAuth } from './backend-rxdb-auth.ts';
 
 export interface BackendRxdbOptions {
@@ -47,7 +47,8 @@ export interface BackendRxdbSession {
 }
 
 export function createBackendSupabaseHeaders(anonKey: string, accessToken: string): Record<string, string> {
-  if (!anonKey || anonKey.includes('service_role') || anonKey.includes('secret')) throw new Error('publishable Supabase key is required');
+  if (!anonKey || anonKey.includes('service_role') || anonKey.includes('secret'))
+    throw new Error('publishable Supabase key is required');
   return { apikey: anonKey, authorization: `Bearer ${accessToken}` };
 }
 
@@ -106,7 +107,10 @@ function supabaseUrl(value: string): string {
 }
 
 function usesQueryCache(plan: { sync: SyncOptions; syncOverrides?: readonly EntitySyncOverride[] }): boolean {
-  return plan.sync.type === SyncType.QueryCache || (plan.syncOverrides ?? []).some(item => item.sync.type === SyncType.QueryCache);
+  return (
+    plan.sync.type === SyncType.QueryCache ||
+    (plan.syncOverrides ?? []).some(item => item.sync.type === SyncType.QueryCache)
+  );
 }
 
 export async function openBackendRxdb(options: BackendRxdbOptions): Promise<BackendRxdbSession> {
@@ -162,7 +166,10 @@ export async function openBackendRxdb(options: BackendRxdbOptions): Promise<Back
 }
 
 /** {@link openBackendConfigRxdb} 的输入：配置同步固定实体与适配器，只需身份与工作区。 */
-export type BackendConfigRxdbOptions = Omit<BackendRxdbOptions, 'entities' | 'workspaceScopedEntities' | 'syncPlan' | 'rlsTables'> & {
+export type BackendConfigRxdbOptions = Omit<
+  BackendRxdbOptions,
+  'entities' | 'workspaceScopedEntities' | 'syncPlan' | 'rlsTables'
+> & {
   workspaceId: string;
 };
 

@@ -24,7 +24,9 @@ export function imageGenerationRequest(input: ImageGenerationInput) {
   if (input.protocol === 'gemini') {
     const contents = [
       { type: 'text', text: input.prompt },
-      ...(input.referenceImage ? [{ type: 'image', mime_type: input.referenceImage.mimeType, data: input.referenceImage.data }] : [])
+      ...(input.referenceImage ?
+        [{ type: 'image', mime_type: input.referenceImage.mimeType, data: input.referenceImage.data }]
+      : [])
     ];
     return {
       url: `${input.baseUrl}/interactions`,

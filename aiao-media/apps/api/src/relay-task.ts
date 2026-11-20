@@ -260,7 +260,11 @@ export class RelayTask {
         form.append(name, String(value));
       }
       const bytes = Uint8Array.from(atob(image.data), char => char.charCodeAt(0));
-      form.append('image', new Blob([bytes], { type: image.mimeType }), image.mimeType === 'image/png' ? 'reference.png' : 'reference.jpg');
+      form.append(
+        'image',
+        new Blob([bytes], { type: image.mimeType }),
+        image.mimeType === 'image/png' ? 'reference.png' : 'reference.jpg'
+      );
       return this.request(input.url, {
         method: 'POST',
         redirect: 'manual',

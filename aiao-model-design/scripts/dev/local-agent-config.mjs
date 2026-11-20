@@ -1,8 +1,8 @@
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import { findLocalDevelopmentCredentials } from '../trigger/trigger-local.mjs';
 import { productRoot } from '../supabase/supabase-local.mjs';
+import { findLocalDevelopmentCredentials } from '../trigger/trigger-local.mjs';
 
 const defaults = {
   devVarsFile: resolve(productRoot, 'apps/api/.dev.vars'),
@@ -82,7 +82,9 @@ export async function recoverLocalAgentConfig({
   const matches = projectRef ? candidates.filter(candidate => candidate.projectRef === projectRef) : candidates;
   if (matches.length === 0) return { status: 'not-found' };
   if (matches.length > 1)
-    throw new Error('本地 Trigger 实例存在多个 Development key，不能自动猜项目；请在 infra/trigger/.env 配置 TRIGGER_PROJECT_REF。');
+    throw new Error(
+      '本地 Trigger 实例存在多个 Development key，不能自动猜项目；请在 infra/trigger/.env 配置 TRIGGER_PROJECT_REF。'
+    );
 
   const [credential] = matches;
   const apiUrl = vars.TRIGGER_API_URL?.trim() || LOCAL_TRIGGER_URL;

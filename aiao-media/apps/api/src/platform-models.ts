@@ -6,8 +6,8 @@ import {
   type ImageResponseProtocol,
   type PlatformModel
 } from '@aiao-media/api-contracts';
-import { runtimePolicy } from './product-content.ts';
 import { officialImagePresets } from './image-presets.ts';
+import { runtimePolicy } from './product-content.ts';
 import { body, fields, reject } from './product-http.ts';
 import { base, providerAllowlist } from './relay-input.ts';
 import type { WorkerEnv } from './worker-env.ts';
@@ -86,9 +86,12 @@ export function platformModels(env: WorkerEnv): PlatformImageModel[] {
     }
     const preset = value.preset === 'official' ? officialImagePresets.get(value.model) : undefined;
     if (value.preset !== undefined && !preset) reject(503, '未知的官方模型预设。');
-    const protocol = preset?.protocol ?? (
-      value.protocol === undefined ? (isMiniMaxImageProvider(upstream) ? 'minimax' : 'openai') :
-      value.protocol as ImageResponseProtocol);
+    const protocol =
+      preset?.protocol ??
+      (value.protocol === undefined ?
+        isMiniMaxImageProvider(upstream) ? 'minimax'
+        : 'openai'
+      : (value.protocol as ImageResponseProtocol));
     let model: PlatformModel;
     try {
       model = validatePlatformModels({
@@ -144,29 +147,57 @@ export async function platformCatalog(env: WorkerEnv) {
     policy = await runtimePolicy(env);
   const enabled = models.flatMap(model => {
     if (!policy) return [model];
-    const provider = policy.providers.find(p => p.baseUrl === model.baseUrl && p.enabled && p.proxy && p.models.includes(model.model));
+    const provider = policy.providers.find(
+      p => p.baseUrl === model.baseUrl && p.enabled && p.proxy && p.models.includes(model.model)
+    );
     if (!provider) return [];
     const sizes = model.sizes.filter(size => provider.sizes.includes(size));
     const imageOptions = model.imageOptions?.filter(o => provider.sizes.includes(o.outputSize));
-    if (imageOptions?.length) return [{...model, imageOptions, aspectRatios: [...new Set(imageOptions.map(o => o.aspectRatio))], resolutions: [...new Set(imageOptions.map(o => o.resolution))]}];
-    return sizes.length ? [{...model, sizes, aspectRatios: model.aspectRatios.filter(r => sizes.some(s => ratioForSize(s) === r))}] : [];
+    if (imageOptions?.length)
+      return [
+        {
+          ...model,
+          imageOptions,
+          aspectRatios: [...new Set(imageOptions.map(o => o.aspectRatio))],
+          resolutions: [...new Set(imageOptions.map(o => o.resolution))]
+        }
+      ];
+    return sizes.length ?
+        [{ ...model, sizes, aspectRatios: model.aspectRatios.filter(r => sizes.some(s => ratioForSize(s) === r)) }]
+      : [];
   });
   return {
-    models: enabled.map(({ id, name, credits, protocol, sizes, aspectRatios, resolutions, imageOptions, qualities, complexities, thinkingLevels, counts, supportsImageEditing }) => ({
-      id,
-      name,
-      credits,
-      protocol,
-      sizes,
-      aspectRatios,
-      resolutions,
-      ...(imageOptions ? { imageOptions } : {}),
-      qualities,
-      complexities,
-      thinkingLevels,
-      counts,
-      supportsImageEditing
-    }))
+    models: enabled.map(
+      ({
+        id,
+        name,
+        credits,
+        protocol,
+        sizes,
+        aspectRatios,
+        resolutions,
+        imageOptions,
+        qualities,
+        complexities,
+        thinkingLevels,
+        counts,
+        supportsImageEditing
+      }) => ({
+        id,
+        name,
+        credits,
+        protocol,
+        sizes,
+        aspectRatios,
+        resolutions,
+        ...(imageOptions ? { imageOptions } : {}),
+        qualities,
+        complexities,
+        thinkingLevels,
+        counts,
+        supportsImageEditing
+      })
+    )
   };
 }
 
@@ -205,9 +236,9 @@ export async function platformImageInput(request: Request, env: WorkerEnv) {
     reject(400, '图片生成参数无效。');
   const model = platformModels(env).find(value => value.id === input.model);
   if (!model) reject(400, '平台模型不存在。');
-  const aspectRatio = input.aspectRatio === undefined && typeof input.size === 'string' ? ratioForSize(input.size) : input.aspectRatio;
-  if (typeof aspectRatio !== 'string' || !model.aspectRatios.includes(aspectRatio))
-    reject(400, '模型不支持此宽高比。');
+  const aspectRatio =
+    input.aspectRatio === undefined && typeof input.size === 'string' ? ratioForSize(input.size) : input.aspectRatio;
+  if (typeof aspectRatio !== 'string' || !model.aspectRatios.includes(aspectRatio)) reject(400, '模型不支持此宽高比。');
   const combo = model.imageOptions?.find(o => o.aspectRatio === aspectRatio && o.resolution === input.resolution);
   if (model.protocol === 'gemini') {
     if (
@@ -281,14 +312,13 @@ export async function platformImageInput(request: Request, env: WorkerEnv) {
     referenceImage
   });
   if (!prepared) reject(400, '当前平台模型不支持此参数或提示词长度。');
-  const upstreamBody =
-    model.protocol === 'minimax' ? { ...prepared.body, response_format: 'base64' } : prepared.body;
+  const upstreamBody = model.protocol === 'minimax' ? { ...prepared.body, response_format: 'base64' } : prepared.body;
   return {
     url: prepared.url,
     body: upstreamBody,
     protocol: model.protocol,
     authHeader: prepared.authHeader,
-    authorization: model.protocol === 'gemini' ? env[model.secret] as string : `Bearer ${env[model.secret]}`,
+    authorization: model.protocol === 'gemini' ? (env[model.secret] as string) : `Bearer ${env[model.secret]}`,
     cost: model.credits
   };
 }
