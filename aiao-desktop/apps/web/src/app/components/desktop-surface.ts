@@ -4,6 +4,7 @@ import { Component, DestroyRef, ElementRef, ViewEncapsulation, effect, inject, s
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { DESKTOP } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
+import { DockState } from '../services/dock-state';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { Toast } from '../services/toast';
@@ -43,6 +44,7 @@ export class DesktopSurface {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly clipboard = inject(FinderClipboard);
+  private readonly dock = inject(DockState);
   private readonly destroyRef = inject(DestroyRef);
   private readonly root = inject(DOCUMENT).documentElement;
   private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
@@ -59,7 +61,7 @@ export class DesktopSurface {
   protected readonly folderHover = signal<string | null>(null);
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.clearFolderHover());
+    this.destroyRef.onDestroy(() => this.clearDropTargets());
     effect(() => {
       const created = this.desktop.created();
       if (created) this.selected.set(new Set([created]));
@@ -82,7 +84,7 @@ export class DesktopSurface {
 
   protected grab(event: PointerEvent, item: DesktopItem): void {
     if (event.button !== 0) return;
-    const selected = this.selectForDrag(event, item);
+    const { ids: selected, toggleOnClick, collapseOnClick } = this.prepareDragSelection(event, item);
     const node = event.currentTarget as HTMLElement;
     const origin = this.position(item);
     const sx = event.clientX;
@@ -107,9 +109,21 @@ export class DesktopSurface {
       node.removeEventListener('pointercancel', cancel);
       const drop = this.dragging();
       const folderId = this.folderHover();
-      this.clearFolderHover();
-      if (!moved || !drop) return;
+      const trash = this.dock.trashDropActive();
+      this.clearDropTargets();
+      if (!moved || !drop) {
+        if (toggleOnClick) {
+          const next = new Set(this.selected());
+          next.delete(item.id);
+          this.selected.set(next);
+        } else if (collapseOnClick) this.select(item.id);
+        return;
+      }
       this.dragging.set(null);
+      if (trash) {
+        this.trashItems(selected);
+        return;
+      }
       const folder = this.desktop.items().find(other => other.id === folderId);
       if (folder?.node?.kind === 'folder' && folder.node.path) {
         const copy = event.altKey || event.metaKey;
@@ -129,7 +143,7 @@ export class DesktopSurface {
       node.removeEventListener('pointerup', up);
       node.removeEventListener('pointercancel', cancel);
       this.dragging.set(null);
-      this.clearFolderHover();
+      this.clearDropTargets();
     };
     node.addEventListener('pointermove', move);
     node.addEventListener('pointerup', up);
@@ -267,10 +281,16 @@ export class DesktopSurface {
 
   /** 缩小淡出后真正移进废纸篓；移不走时图标恢复原样。 */
   private trash(item: DesktopItem): void {
-    this.trashing.update(ids => new Set([...ids, item.id]));
-    setTimeout(async () => {
-      await this.desktop.remove(item.id);
-      this.trashing.update(ids => new Set([...ids].filter(id => id !== item.id)));
+    this.trashItems([item.id]);
+  }
+
+  private trashItems(ids: readonly string[]): void {
+    const unique = [...new Set(ids)];
+    this.trashing.update(current => new Set([...current, ...unique]));
+    setTimeout(() => {
+      void Promise.allSettled(unique.map(id => this.desktop.remove(id))).finally(() => {
+        this.trashing.update(current => new Set([...current].filter(id => !unique.includes(id))));
+      });
     }, 230);
   }
 
@@ -281,18 +301,29 @@ export class DesktopSurface {
     }, 300);
   }
 
-  private selectForDrag(event: PointerEvent, item: DesktopItem): readonly string[] {
+  private prepareDragSelection(
+    event: PointerEvent,
+    item: DesktopItem
+  ): { readonly ids: readonly string[]; readonly toggleOnClick: boolean; readonly collapseOnClick: boolean } {
     const current = this.selected();
     if (event.metaKey || event.ctrlKey) {
-      const next = new Set(current);
-      if (next.has(item.id)) next.delete(item.id);
-      else next.add(item.id);
+      if (current.has(item.id)) return { ids: [...current], toggleOnClick: true, collapseOnClick: false };
+      const next = new Set(current).add(item.id);
       this.selected.set(next);
-    } else if (!current.has(item.id)) this.select(item.id);
-    return [...this.selected()];
+      return { ids: [...next], toggleOnClick: false, collapseOnClick: false };
+    }
+    if (current.has(item.id)) return { ids: [...current], toggleOnClick: false, collapseOnClick: current.size > 1 };
+    this.select(item.id);
+    return { ids: [...this.selected()], toggleOnClick: false, collapseOnClick: false };
   }
 
   private updateFolderHover(x: number, y: number, sourceId: string): void {
+    if (this.dock.isTrashAt(x, y)) {
+      this.clearFolderHover();
+      this.dock.setTrashDropActive(true);
+      return;
+    }
+    this.dock.setTrashDropActive(false);
     const target = document
       .elementsFromPoint(x, y)
       .map(element => element.closest<HTMLElement>('.dicon[data-id]'))
@@ -320,6 +351,11 @@ export class DesktopSurface {
       this.folderHoverTimer = null;
     }
     this.folderHover.set(null);
+  }
+
+  private clearDropTargets(): void {
+    this.clearFolderHover();
+    this.dock.setTrashDropActive(false);
   }
 
   private cellAt(point: Point): [number, number] {

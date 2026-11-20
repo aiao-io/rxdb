@@ -5,6 +5,7 @@ import {
   CdkDragEnd,
   CdkDragEnter,
   CdkDragExit,
+  CdkDragMove,
   CdkDragPlaceholder,
   CdkDragPreview,
   CdkDropList,
@@ -806,19 +807,14 @@ export class FinderApp implements FinderCommands {
     );
   }
 
+  protected dragMoved(event: CdkDragMove<FsNode>): void {
+    const source = event.source.data;
+    const target = this.dropDirectoryAt(event.pointerPosition.x, event.pointerPosition.y);
+    this.updateSpringFolder(source, target);
+  }
+
   protected folderDragEntered(event: CdkDragEnter<DiskPath | null>): void {
-    const target = event.container.data;
-    const source = event.item.data as FsNode | null;
-    if (!target || !source?.path || this.dragNodes(source).some(node => node.path && isWithin(target, node.path)))
-      return;
-    this.clearSpringFolder();
-    this.springFolder.set(target);
-    this.springFolderTimer = setTimeout(() => {
-      this.springFolderTimer = null;
-      if (!this.isSpringFolder(target)) return;
-      const node = this.fs.nodeAt(target);
-      if (node?.kind === 'folder') this.openNode(node);
-    }, 700);
+    this.updateSpringFolder(event.item.data as FsNode | null, event.container.data);
   }
 
   protected folderDragExited(event: CdkDragExit<DiskPath | null>): void {
@@ -845,6 +841,27 @@ export class FinderApp implements FinderCommands {
     );
   }
 
+  private updateSpringFolder(source: FsNode | null, target: DiskPath | null): void {
+    if (!target || !source?.path || this.dragNodes(source).some(node => node.path && isWithin(target, node.path))) {
+      this.clearSpringFolder();
+      return;
+    }
+    const node = this.fs.nodeAt(target);
+    if (node?.kind !== 'folder') {
+      this.clearSpringFolder();
+      return;
+    }
+    if (this.isSpringFolder(target)) return;
+    this.clearSpringFolder();
+    this.springFolder.set(target);
+    this.springFolderTimer = setTimeout(() => {
+      this.springFolderTimer = null;
+      if (!this.isSpringFolder(target)) return;
+      const current = this.fs.nodeAt(target);
+      if (current?.kind === 'folder') this.openNode(current);
+    }, 700);
+  }
+
   private isSpringFolder(path: DiskPath | null | undefined): boolean {
     const target = this.springFolder();
     return Boolean(target && path && samePath(target, path));
@@ -859,10 +876,15 @@ export class FinderApp implements FinderCommands {
   }
 
   private dropDirectory(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): DiskPath | null {
-    const targets = [
-      ...document.elementsFromPoint(event.dropPoint.x, event.dropPoint.y),
+    return this.dropDirectoryAt(
+      event.dropPoint.x,
+      event.dropPoint.y,
       event.event.target instanceof Element ? event.event.target : null
-    ];
+    );
+  }
+
+  private dropDirectoryAt(x: number, y: number, eventTarget?: Element | null): DiskPath | null {
+    const targets = [...document.elementsFromPoint(x, y), eventTarget];
     const encoded = targets
       .filter((target): target is Element => target instanceof Element)
       .map(target => target.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'])

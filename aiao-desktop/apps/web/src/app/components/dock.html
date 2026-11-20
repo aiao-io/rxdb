@@ -21,6 +21,7 @@
           [attr.aria-label]="labelOf(app)"
           [attr.data-app]="app.id"
           [attr.data-key]="slot.key"
+          [class.drop-target]="app.id === 'trash' && dockState.trashDropActive()"
           [class.lifted]="drag.lifted() === app.id"
           [class.run]="running().has(app.id)"
           [class.temp]="slot.temporary"
