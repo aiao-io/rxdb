@@ -102,6 +102,7 @@ export class CollaborationController extends EventTarget {
     workspace: WorkspaceEntry;
     taskId: string | undefined;
     windows: TeamWindows;
+    force: boolean;
     promise: Promise<WorkspaceSummary>;
   };
   /** 正在跟随的全局身份变化（{@link CollaborationController.adoptIdentity}）：重连、登录之后等它落定。 */
@@ -785,17 +786,17 @@ export class CollaborationController extends EventTarget {
     const windows = { ...this.windows };
     const current = this.teamLoad;
     if (
-      !force &&
       current?.epoch === epoch &&
       current.workspace === workspace &&
       current.taskId === taskId &&
       current.windows.prs === windows.prs &&
       current.windows.tasks === windows.tasks &&
-      current.windows.notices === windows.notices
+      current.windows.notices === windows.notices &&
+      (!force || current.force)
     )
       return current.promise;
     const promise = this.loadTeam(workspace, windows, taskId);
-    const request = { epoch, workspace, taskId, windows, promise };
+    const request = { epoch, workspace, taskId, windows, force, promise };
     this.teamLoad = request;
     void promise.then(
       () => {

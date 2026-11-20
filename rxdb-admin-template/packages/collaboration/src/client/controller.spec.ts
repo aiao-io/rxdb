@@ -1685,6 +1685,20 @@ describe('Realtime 失效通知按修订号推进，只重读变化的部分（A
     resolveFresh(teamPageOf({ ...controller.snapshot!, revision: revision + 1 }));
     await Promise.all([oldRefresh, command]);
   });
+  it('并发强制刷新共享同一份团队页读取', async () => {
+    const { controller, team } = await joined();
+    let resolveTeam!: (value: ReturnType<typeof teamPageOf>) => void;
+    const pending = new Promise<ReturnType<typeof teamPageOf>>(resolve => {
+      resolveTeam = resolve;
+    });
+    team.mockReturnValue(pending);
+    const first = controller.refresh(true);
+    await vi.waitFor(() => expect(team).toHaveBeenCalledTimes(1));
+    const second = controller.refresh(true);
+    expect(team).toHaveBeenCalledTimes(1);
+    resolveTeam(teamPageOf(controller.snapshot!));
+    await Promise.all([first, second]);
+  });
   it('只有被点名的成员重读通知窗口', async () => {
     const { controller, signal, revision, team } = await joined();
     vi.spyOn(controller.reader, 'version').mockResolvedValue({ revision: revision + 2, auditCount: 3, head: root });
