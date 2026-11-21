@@ -826,10 +826,7 @@ export class CollaborationController extends EventTarget {
           attempt >= teamReadRetryPolicy.attempts
         )
           throw error;
-        const delay = Math.min(
-          teamReadRetryPolicy.baseDelayMs * 2 ** (attempt - 1),
-          teamReadRetryPolicy.maxDelayMs
-        );
+        const delay = Math.min(teamReadRetryPolicy.baseDelayMs * 2 ** (attempt - 1), teamReadRetryPolicy.maxDelayMs);
         await new Promise<void>(resolve => setTimeout(resolve, delay));
       }
     }
