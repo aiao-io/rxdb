@@ -926,6 +926,10 @@
         "kind": "value"
       },
       {
+        "name": "getRxDBIdentityDatabaseName",
+        "kind": "value"
+      },
+      {
         "name": "getRxDBSystemVersionState",
         "kind": "value"
       },
@@ -1818,6 +1822,10 @@
         "kind": "both"
       },
       {
+        "name": "RXDB_ANONYMOUS_SUBJECT",
+        "kind": "value"
+      },
+      {
         "name": "RXDB_BACKUP_CHUNK_SIZE",
         "kind": "value"
       },
@@ -2115,6 +2123,14 @@
       },
       {
         "name": "RxDBExclusionViolationError",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBIdentityMismatchError",
         "kind": "both"
       },
       {

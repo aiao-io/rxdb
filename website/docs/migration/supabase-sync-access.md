@@ -44,36 +44,53 @@ rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: supabase })
 
 ### 2. 更新服务端 SQL
 
-依次执行，每一步都可以重复执行：
+四份文件在同一个事务里按顺序执行，任一步失败整批回滚，库停在升级前的状态；整批可以重复执行：
 
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -f docker/sql/01-rxdb-system-tables.sql \
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
+  -f docker/sql/production/rxdb-sync-access-upgrade.sql \
   -f docker/sql/02-rxdb-sync-functions.sql \
   -f docker/sql/04-rxdb-utils-functions.sql \
   -f docker/sql/production/rxdb-change-grants.sql
 ```
 
-- 01 建分支所有者表 `rxdb_branch_owner`，把 `rxdb_change` 移出 `supabase_realtime` 发布；
+- 增量脚本建分支所有者表 `rxdb_branch_owner`，把 `rxdb_change` 移出 `supabase_realtime` 发布；
 - 02 加分支认领函数 `rxdb_claim_branch` 与通知触发器 `rxdb_change_broadcast`，分支登记开始校验所有者；
 - 04 让推送在写非 main 日志前校验分支所有者；
 - 生产权限脚本收回 anon 的协议入口与客户端对分支表的直写，并在 `realtime.messages` 上建接收策略。它必须最后执行。
 
-通知触发器调用 `realtime.send`，库里要有 Supabase Realtime 建的 `realtime` schema。
+四份文件只改 RxDB 自己的表、函数、触发器与通知策略，业务表的权限保持原样。不要重跑整份 `01-rxdb-system-tables.sql`：它末尾给开发与测试库用的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把 public 下业务表的权限一并放宽给 `anon` / `authenticated`，生产权限脚本只收回 RxDB 自己的对象，放宽的业务表权限不会被收回。
+
+`ON_ERROR_STOP` 只让 psql 遇错停下，不会撤销此前已经提交的语句，所以要加 `--single-transaction`。使用 Supabase SQL Editor 时，把 `BEGIN;`、四份文件的完整内容和 `COMMIT;` 放在**同一次执行**中，不要分开提交。
+
+通知触发器调用 `realtime.send`，库里要有 Supabase Realtime 建的 `realtime` schema；缺少 `realtime.messages` 时生产权限脚本报错，整批回滚。
 
 ### 3. 为旧分支补登所有者
 
-已有日志或登记、却没有所有者的非 main 分支一律拒绝写入，报 `rxdb: branch <id> has no owner`。为仍在使用的分支补登：
+已有日志或登记、却没有所有者的非 main 分支一律拒绝写入，报 `rxdb: branch <id> has no owner`。先列出这些分支。推送会顺带上行从未单独登记的祖先分支，它们只出现在日志里，不在 `rxdb_branch` 中，所以两处都要查：
+
+```sql
+SELECT branch."branchId"
+FROM (
+  SELECT id AS "branchId" FROM public.rxdb_branch
+  UNION
+  SELECT "branchId" FROM public.rxdb_change
+) AS branch
+WHERE branch."branchId" <> 'main'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.rxdb_branch_owner AS owner WHERE owner."branchId" = branch."branchId"
+  );
+```
+
+核实每个仍在使用的分支属于哪个用户，再以管理员身份按分支 ID 补登：
 
 ```sql
 INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
-SELECT id, '00000000-0000-0000-0000-000000000000'::uuid  -- 换成该分支用户的 auth.users.id
-FROM public.rxdb_branch
-WHERE id = 'feature-checkout'
+VALUES ('feature-checkout', '00000000-0000-0000-0000-000000000000')  -- 换成该分支用户的 auth.users.id
 ON CONFLICT ("branchId") DO NOTHING;
 ```
 
-不再使用的旧分支不用处理。
+补登之后只有这个用户能继续登记、推送该分支。不再使用的旧分支不用处理。
 
 ### 4. 升级客户端
 

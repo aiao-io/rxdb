@@ -1,6 +1,7 @@
 import { EntityType } from './entity/entity.interface.js';
 import { SyncOptions } from './entity/metadata-options.interface.js';
 import type { EntitySyncOverride } from './entity/sync-override.js';
+import type { RxDBIdentity } from './system/identity-binding.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
 /**
@@ -157,6 +158,26 @@ export interface RxDBOptions {
    * 必须与默认 `sync` 同侧一致；覆盖里的 QueryCache 等策略照常要求库级两侧适配器与对应插件。
    */
   syncOverrides?: readonly EntitySyncOverride[];
+
+  /**
+   * 本地库所属的身份（US-035）
+   *
+   * @remarks
+   * 声明之后，本库绑定这个身份：
+   *
+   * - **打开时核对**：库里记着它属于谁，对不上就拒绝连接并抛 `RxDBIdentityMismatchError`，一行数据都不动，
+   *   离线同样生效。新库在建库时记下身份；本功能之前建的库没有绑定，第一次带身份打开时就地绑定；
+   * - **与远端交换数据前核对**：同步与 QueryCache 每次碰远端之前都问远端适配器当前调用者是谁
+   *   （`RxDBAdapterRemoteBase.callerIdentity()`），对不上就停下，一个请求都不发。
+   *
+   * 不声明时不启用这套机制，行为与没有这个功能时一致，包括打开一个已经绑定了某个身份的库。
+   * 不提供自动改绑：身份不匹配只有一种处置，就是换到该身份自己的库，库名用
+   * `getRxDBIdentityDatabaseName()` 按身份算。
+   *
+   * 构造时校验并取自有副本；两个字段都必须是非空字符串，未登录要显式写 `RXDB_ANONYMOUS_SUBJECT`。
+   * 防的是误混，不是保密：本地库不加密时，能读浏览器存储的人仍然读得到每个身份的库。
+   */
+  identity?: RxDBIdentity;
 
   /**
    * 环境上下文

@@ -562,7 +562,15 @@ const NAMING = {
     'CloneEntityClassesOptions',
     // US-313 的只读实例（`RxDBOptions.readOnly`）在公开写入口抛它。只读是实例层的属性，与同族的
     // `RxDBMissingPluginError` 等实例错误并列；叫 `WorkingTree*` 等于宣称只读实例是工作树能力的一部分。
-    'RxDBReadOnlyError'
+    'RxDBReadOnlyError',
+    // US-035 本地库与身份的绑定（`RxDBOptions.identity`）。身份是实例层的属性，与同族的
+    // `RxDBReadOnlyError` 等并列；叫 `Commit*` / `WorkingTree*` 等于宣称本地库绑定身份是提交能力的一部分。
+    // 只登记应用必须用到的四个：声明身份的类型、未登录的身份值、按身份算库名、身份对不上时抛的错。
+    // 键的算法、水位行名与两处核对是核心与同步插件之间的内部约定，不进公开面。
+    'RxDBIdentity',
+    'RXDB_ANONYMOUS_SUBJECT',
+    'getRxDBIdentityDatabaseName',
+    'RxDBIdentityMismatchError'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

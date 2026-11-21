@@ -51,6 +51,7 @@ import {
   assertSnapshotFilterSupported,
   canReceiveChangeNotifications,
   getUnsupportedProperty,
+  identityOfAccessToken,
   isRetryableSupabaseWriteError,
   REALTIME_RECONNECT_BASE_DELAY_MS,
   REALTIME_RECONNECT_MAX_DELAY_MS,
@@ -199,6 +200,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       throw new SupabaseDataError('Failed to get backend id: public.rxdb_backend has no row');
     }
     return data;
+  }
+
+  /**
+   * 当前调用者的身份（US-035）
+   *
+   * @returns 已登录用户为会话令牌的 `sub`；没登录（匿名访问）为 `RXDB_ANONYMOUS_SUBJECT`
+   * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
+   *
+   * @remarks
+   * 取的是**此刻**随请求发出的令牌，每次回答之前先 `realtime.setAuth()` 让客户端刷新它，不缓存：
+   * 会话可能在两次请求之间换了主人。不读 `client.auth`：客户端配了 `accessToken` 选项时，
+   * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
+   * 只读本地已有的会话状态，不发网络请求。
+   */
+  override async callerIdentity(): Promise<string> {
+    await this.#client.realtime.setAuth();
+    return identityOfAccessToken(this.#client.realtime.accessTokenValue);
   }
 
   // ============================================

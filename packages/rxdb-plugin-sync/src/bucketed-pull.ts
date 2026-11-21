@@ -4,21 +4,21 @@ import {
   getRxDBChangeKey,
   getRxDBEntityIdentityKey,
   isEntityMatchWhere,
-  parseRxDBEntityIdentityKey,
   LWWConflictResolver,
-  type EntityType,
-  type IRepository,
-  type RemoteChange,
-  type RuleGroup,
-  type RxDBEntityId,
+  parseRxDBEntityIdentityKey,
   RxDBChange,
   RxDBError,
-  type RxDBAdapterLocalBase,
-  type RxDBAdapterRemoteBase,
   RxDBSync,
+  TrustedWriteIntent,
+  type EntityType,
+  type IRepository,
   type PullRepositoryOptions,
   type PullRepositoryResult,
-  TrustedWriteIntent
+  type RemoteChange,
+  type RuleGroup,
+  type RxDBAdapterLocalBase,
+  type RxDBAdapterRemoteBase,
+  type RxDBEntityId
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
 import {
@@ -353,15 +353,7 @@ async function pullScopedAncestorChanges(
 ): Promise<RemoteChange[]> {
   const changes = await Promise.all(
     branchIds.map(branchId =>
-      remoteAdapter.pullBucketChanges(
-        sinceId,
-        limit,
-        scope.namespace,
-        scope.entity,
-        scope.bucket,
-        filter,
-        branchId
-      )
+      remoteAdapter.pullBucketChanges(sinceId, limit, scope.namespace, scope.entity, scope.bucket, filter, branchId)
     )
   );
   return changes
@@ -418,11 +410,22 @@ async function applyScopedChanges(
   compacted: number;
   conflictsResolved: number;
 }> {
-  return applyScopedBatch(sm, localAdapter, EntityType, repoSync, scope, progress, changes, filter, {
-    snapshotComplete: true,
-    snapshotOffset: progress.snapshotOffset,
-    isSnapshot: false
-  }, conflictResolver);
+  return applyScopedBatch(
+    sm,
+    localAdapter,
+    EntityType,
+    repoSync,
+    scope,
+    progress,
+    changes,
+    filter,
+    {
+      snapshotComplete: true,
+      snapshotOffset: progress.snapshotOffset,
+      isSnapshot: false
+    },
+    conflictResolver
+  );
 }
 
 async function applyScopedBatch(
@@ -469,7 +472,8 @@ async function applyScopedBatch(
     const actionEntries = createConflictActionEntries(safeChanges, actions);
     const resolved = await resolveConflictsAndBuildActions(actionEntries, pending, {
       changeRepo: changeRepository,
-      conflictResolver,
+      conflictResolver:
+        state.isSnapshot ? { resolve: async () => ({ type: 'KEEP_LOCAL' as const }) } : conflictResolver,
       dispatchEvent: event => sm.rxdb.dispatchEvent(event),
       repoLabel: `${scope.namespace}:${scope.entity}:${scope.bucket}`,
       deferLocalChangeSupersession: true,
@@ -545,8 +549,11 @@ async function applyScopedBatch(
     }
 
     const lastChange = changes.at(-1);
-    const nextCursor = state.isSnapshot ?
-        (state.snapshotComplete ? progress.snapshotPoint : progress.cursor)
+    const nextCursor =
+      state.isSnapshot ?
+        state.snapshotComplete ?
+          progress.snapshotPoint
+        : progress.cursor
       : lastChange ? lastChange.id
       : progress.cursor;
     const nextProgress = await progressRepository.update(progress, {
@@ -675,7 +682,10 @@ async function findRowsWithoutMappings(
   return result;
 }
 
-async function findLocalEntity(repository: IRepository<EntityType>, entityIdentity: string): Promise<InstanceType<EntityType> | null> {
+async function findLocalEntity(
+  repository: IRepository<EntityType>,
+  entityIdentity: string
+): Promise<InstanceType<EntityType> | null> {
   for (const candidate of localIdCandidatesFromStoredIdentity(entityIdentity)) {
     const rows = await repository.find({
       where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: candidate }] }
@@ -711,9 +721,11 @@ async function findProgress(
   repository: IRepository<typeof RxDBSyncBucketProgress>,
   scope: BucketScope
 ): Promise<RxDBSyncBucketProgress | undefined> {
-  return (await repository.find({
-    where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: progressId(scope) }] }
-  } as never))[0];
+  return (
+    await repository.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: progressId(scope) }] }
+    } as never)
+  )[0];
 }
 
 async function findRepositoryProgress(
@@ -776,13 +788,22 @@ async function findBucketRow(
   repository: IRepository<typeof RxDBSyncBucketRow>,
   rowId: string
 ): Promise<RxDBSyncBucketRow | undefined> {
-  return (await repository.find({
-    where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: rowId }] }
-  } as never))[0];
+  return (
+    await repository.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: rowId }] }
+    } as never)
+  )[0];
 }
 
 function progressId(scope: BucketScope): string {
-  return JSON.stringify(['progress', scope.namespace, scope.entity, scope.branchId, scope.bucket, scope.filterFingerprint]);
+  return JSON.stringify([
+    'progress',
+    scope.namespace,
+    scope.entity,
+    scope.branchId,
+    scope.bucket,
+    scope.filterFingerprint
+  ]);
 }
 
 function rowIdentity(scope: BucketScope, entityId: string): string {

@@ -191,8 +191,9 @@ export class Document extends EntityBase {}
 ```ts
 import { scopedDatabaseName } from '@aiao/rxdb-plugin-sync';
 
-const identity = session?.user && session.user.is_anonymous !== true
-  ? { kind: 'user' as const, userId: session.user.id }
+const identity =
+  session?.user && session.user.is_anonymous !== true ?
+    { kind: 'user' as const, userId: session.user.id }
   : { kind: 'anon' as const };
 
 const rxdb = new RxDB({
@@ -561,21 +562,21 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 脚本收口四类入口：
 
-| 对象                                                                       | `anon`               | `authenticated`                              |
-| -------------------------------------------------------------------------- | -------------------- | -------------------------------------------- |
-| 变更日志 `rxdb_change` 与序列                                              | 只读 `public` 区；其他行由 RLS 隐藏 | 只读；按 caller buckets 过滤，`INSERT` / `UPDATE` / `DELETE` 收回 |
-| 分支 `rxdb_branch`                                                         | 无权限               | 只读；写入只经 `rxdb_enable_sync_for_branch` |
-| 分支所有者 `rxdb_branch_owner`                                             | 无权限               | 无权限（只经内部函数认领）                   |
-| 通用拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用；可调用按区只读 RPC | 可以调用                                     |
-| `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                 | 可以调用（连接时用） | 可以调用                                     |
-| 实时通知频道 `rxdb:changes`                                                | 订阅被拒             | 只能接收，不能发送                           |
-| 远端身份 `rxdb_backend`                                                    | 只读                 | 只读                                         |
+| 对象                                                                           | `anon`                              | `authenticated`                                                   |
+| ------------------------------------------------------------------------------ | ----------------------------------- | ----------------------------------------------------------------- |
+| 变更日志 `rxdb_change` 与序列                                                  | 只读 `public` 区；其他行由 RLS 隐藏 | 只读；按 caller buckets 过滤，`INSERT` / `UPDATE` / `DELETE` 收回 |
+| 分支 `rxdb_branch`                                                             | 无权限                              | 只读；写入只经 `rxdb_enable_sync_for_branch`                      |
+| 分支所有者 `rxdb_branch_owner`                                                 | 无权限                              | 无权限（只经内部函数认领）                                        |
+| 通用拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用；可调用按区只读 RPC        | 可以调用                                                          |
+| `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                     | 可以调用（连接时用）                | 可以调用                                                          |
+| 实时通知频道 `rxdb:changes`                                                    | 订阅被拒                            | 只能接收，不能发送                                                |
+| 远端身份 `rxdb_backend`                                                        | 只读                                | 只读                                                              |
 
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
 
 远端身份只读的原因：客户端能改这一行，就能让所有客户端误判远端已重置而停止同步；读取经 `rxdb_backend_id()`，轮换只经 `TRUNCATE rxdb_change` 的触发器，两者都是 `SECURITY DEFINER`。
 
-脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，01～04 里先 DROP 再重建的函数也会重新带上默认权限，之后都要再执行一次本脚本，所以它总是最后执行。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试以 `authenticated` 测试用户身份运行，对 `rxdb_change` 的预置与清理经 `service_role` 身份。
+脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，01～04 里先 DROP 再重建的函数也会重新带上默认权限，之后都要再执行一次本脚本，所以它总是最后执行。本脚本只收回 RxDB 自己的对象：01 的整库授权会把执行那一刻 public 下的业务表一并放宽，这部分它收不回来。所以从旧版本升级时不重跑 01，走增量脚本，见[从旧版本升级](#从旧版本升级)；在已有业务表的库上首次执行 01 之后，要核对并恢复业务表自己的权限。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试以 `authenticated` 测试用户身份运行，对 `rxdb_change` 的预置与清理经 `service_role` 身份。
 
 #### 适用边界
 
@@ -587,7 +588,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 - 第一个登记（`rxdb_enable_sync_for_branch`）或推送该分支的已登录用户认领它。一次推送会顺带上行从未单独登记的祖先分支，它们同样由推送者认领。
 - 之后只有所有者能登记、改写它，或往它推送日志；其他用户得到 `42501`（`rxdb: branch <id> belongs to another user`），整批回滚。
-- 已有日志或登记、却没有所有者的旧分支一律拒绝写入（`rxdb: branch <id> has no owner`）。从旧版本升级后，先以管理员身份为仍在使用的分支补登所有者：
+- 分支 ID 在一个后端里全局唯一、先到先得。两个用户各自建了同名分支（例如都叫 `feature-1`），后推送的一方会被拒；常见的名字也可能被别人先登记。给分支起名时带上用户前缀或随机后缀。名字已被占用时，只能由管理员改 `rxdb_branch_owner`。
+- 已有日志或登记、却没有所有者的旧分支一律拒绝写入（`rxdb: branch <id> has no owner`）。从旧版本升级后，先以管理员身份为仍在使用的分支按分支 ID 补登所有者。只随推送上行的祖先分支不在 `rxdb_branch` 里，只出现在日志中，列出全部待补登分支的查询见[迁移说明](../migration/supabase-sync-access.md#3-为旧分支补登所有者)：
 
 ```sql
 INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
@@ -599,7 +601,7 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 #### 从旧版本升级
 
-依次重新执行 `01-rxdb-system-tables.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖未分区旧日志的 anon key 同步应用要先改用按区只读 RPC 或接入登录，再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整步骤与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
+在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
 
 收紧后，日志只剩两条写入路径：
 
@@ -670,6 +672,15 @@ ERROR: function rxdb_mutations does not exist
 
 本地游标属于另一个远端：远端被推倒重建、`rxdb_change` 被 `TRUNCATE`，或者 `supabaseUrl` 被改到了另一个项目。同步停在原地，本地数据没有被改动。
 确认新远端就是要同步的那一个之后，调 `rxdb.syncManager.rebindRemoteBackend()` 再 `pull({ fetchAll: true })`；地址配错时改回原地址即可，不要改绑。
+
+### 报 RxDBIdentityMismatchError
+
+声明了 `RxDBOptions.identity` 的实例，库或远端会话属于另一个身份：
+
+- `connect()` 时报：本地库绑定的是别的身份（例如换了账号却还开着上一个账号的库）。本地数据没有被改动，换到当前身份自己的库即可，库名用 `getRxDBIdentityDatabaseName` 算；
+- 同步或 QueryCache 读写时报：库声明的身份是 A，而适配器的会话令牌已经是 B。一个请求都没发出，待推变更留在原处；会话回到 A 之后照常同步。
+
+两种情况都不要改绑，见[每个身份一个本地库](../collaboration/sync.md#每个身份一个本地库)。
 
 ### Realtime 未收到变更
 

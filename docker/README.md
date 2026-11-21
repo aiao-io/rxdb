@@ -103,7 +103,9 @@ sql/
 
 其中 `03-business-tables.sql` 会创建适配器测试需要的业务表，例如 `Todo`、`TypeDemo`、`User`、`Order`、`OrderItem`、`Category`、`MenuLarge` 等。
 
-`production/rxdb-change-grants.sql` 收回 `anon` / `authenticated` 对变更日志表 `rxdb_change` 的写权限（保留 `SELECT`），必须最后加载：01 / 03 里的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把权限放宽回去。开发库因此与生产同口径，适配器测试对 `rxdb_change` 的预置与清理走 `service_role`。生产部署的用法见 [Supabase 适配器文档](../website/docs/adapters/supabase.md#收紧变更日志表的写权限)。
+`production/rxdb-change-grants.sql` 是生产权限脚本：客户端不能直写变更日志 `rxdb_change`，anon 退出日志同步协议，分支只经登记函数写入，实时通知频道只对 authenticated 开放。它必须最后加载：01 / 03 里的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把权限放宽回去。开发库因此与生产同口径，适配器测试以 authenticated 身份运行，对 `rxdb_change` 的预置与清理走 `service_role`。生产部署的用法见 [Supabase 适配器文档](../website/docs/adapters/supabase.md#日志同步只对已登录身份开放)。
+
+01 / 03 的整库授权只用于开发与测试库，会连同 public 下的业务表一起放宽，生产权限脚本只收回 RxDB 自己的对象。已有业务表的生产库升级时不重跑 01，改用 `production/rxdb-sync-access-upgrade.sql` 这类增量脚本，与 02、04、生产权限脚本在同一个事务里执行，见[迁移说明](../website/docs/migration/supabase-sync-access.md)。`init-db.sh` 不加载增量脚本。
 
 ## 服务结构
 
@@ -204,7 +206,8 @@ docker/
 │   ├── 03-business-tables.sql
 │   ├── 04-rxdb-utils-functions.sql
 │   └── production/
-│       └── rxdb-change-grants.sql # 收紧 rxdb_change 写权限，init-db.sh 最后加载
+│       ├── rxdb-change-grants.sql        # 生产权限，init-db.sh 最后加载
+│       └── rxdb-sync-access-upgrade.sql  # 生产库从 US-225 之前升级的增量脚本，init-db.sh 不加载
 ├── tests/                         # 环境测试脚本
 ├── utils/                         # 密钥/升级工具脚本
 │   ├── add-new-auth-keys.sh

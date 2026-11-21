@@ -18,7 +18,13 @@
  *
  * 不自动改绑：远端地址配错到另一个项目时，自动改绑会把别人的数据拉进来、把本地待推变更推过去。
  */
-import { type IRepository, type RxDBAdapterRemoteBase, RxDBError, RxDBSync } from '@aiao/rxdb';
+import {
+  RxDBError,
+  RxDBIdentityMismatchError,
+  RxDBSync,
+  type IRepository,
+  type RxDBAdapterRemoteBase
+} from '@aiao/rxdb';
 import { RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
 import { IdentityMismatchError, identityFingerprint, type ScopedSyncIdentity } from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
@@ -109,12 +115,7 @@ export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
     const current = (await txRepository.find(IDENTITY_BINDING))[0];
     if (current) {
       if (current.identityFingerprint !== fingerprint) {
-        throw new IdentityMismatchError(
-          current.identityKind,
-          identity.kind,
-          current.identityFingerprint,
-          fingerprint
-        );
+        throw new IdentityMismatchError(current.identityKind, identity.kind, current.identityFingerprint, fingerprint);
       }
       return;
     }
@@ -130,10 +131,26 @@ export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
   });
 }
 
+/**
+ * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛
+ *
+ * @remarks
+ * 没声明身份时核心的 `assertCallerIdentity` 什么都不做，也不问远端。只有身份不匹配才写进面板：
+ * 适配器不报告身份是配置问题，原样抛给调用方。
+ */
+const assertRemoteIdentity = async (sm: SyncManager, remote: RxDBAdapterRemoteBase): Promise<void> => {
+  try {
+    await sm.rxdb.assertCallerIdentity(remote);
+  } catch (error) {
+    if (error instanceof RxDBIdentityMismatchError) sm.rxdb.syncState.reportError(error);
+    throw error;
+  }
+};
 
 /** 读远端身份与本地全部同步记录 */
 const readRemoteBackend = async (sm: SyncManager): Promise<RemoteBackendCheck> => {
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  await assertRemoteIdentity(sm, remoteAdapter);
   const backendId = await remoteAdapter.backendId();
   const { adapter: localAdapter } = await sm.getLocalRepositories();
   const repository = localAdapter.getRepository(RxDBSync);
@@ -191,6 +208,7 @@ export async function assertRemoteBackendIs(
   remote: RxDBAdapterRemoteBase,
   expected: string
 ): Promise<void> {
+  await assertRemoteIdentity(sm, remote);
   const backendId = await remote.backendId();
   if (backendId !== expected) stopOnMismatch(sm, backendId, [expected]);
 }
@@ -226,6 +244,7 @@ export async function bindRemoteBackend(sm: SyncManager): Promise<string> {
  */
 export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemoteBackendResult> {
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  await assertRemoteIdentity(sm, remoteAdapter);
   const backendId = await remoteAdapter.backendId();
   const { adapter: localAdapter } = await sm.getLocalRepositories();
   const result = await localAdapter.transaction(async executor => {
