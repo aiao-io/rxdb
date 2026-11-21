@@ -46,7 +46,7 @@ test('积分为零明确阻止接单且不创建任务', async ({ context, page 
   await platformAccount(page);
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByRole('alert')).toContainText('可用积分不足');
+  await expect(page.getByRole('alert').filter({ hasText: '可用积分不足' })).toContainText('可用积分不足');
   expect(relay.calls).toBe(0);
   expect(relay.account.balance).toBe(0);
   expect(relay.tasks.size).toBe(0);
