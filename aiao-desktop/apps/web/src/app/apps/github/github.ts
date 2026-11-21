@@ -8,17 +8,17 @@ import {
   inject,
   NgZone,
   signal,
-  ViewEncapsulation,
-  viewChild
+  viewChild,
+  ViewEncapsulation
 } from '@angular/core';
 import {
+  LucideGitBranch as BranchIcon,
   LucideCheck as Check,
   LucideChevronDown as ChevronDown,
   LucideCopy as Copy,
-  LucideDynamicIcon,
   LucideFileDiff as FileDiff,
   LucideFilter as Filter,
-  LucideGitBranch as BranchIcon,
+  LucideDynamicIcon,
   LucideMoreVertical as MoreVertical,
   LucideSearch as Search,
   LucideTrash2 as Trash2
