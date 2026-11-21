@@ -68,9 +68,9 @@ interface RestLayout {
 const MIN_DOCK_SIZE = 22;
 /** Dock 与屏幕左右边缘的最小间距。 */
 const DOCK_SIDE_MARGIN = 8;
-/** 图标间隔与两端内边距随图标尺寸等比。 */
-const gapOf = (size: number): number => Math.max(0, Math.round((size - MIN_DOCK_SIZE) * 0.095));
-const padOf = (size: number): number => Math.max(2, Math.round((size - MIN_DOCK_SIZE) * 0.15));
+/** 普通尺寸保持原有间距，只有压到最小尺寸时才收紧窄屏布局。 */
+const gapOf = (size: number): number => (size <= MIN_DOCK_SIZE ? 0 : Math.round(size * 0.095));
+const padOf = (size: number): number => (size <= MIN_DOCK_SIZE ? 2 : Math.round(size * 0.15));
 
 /**
  * Dock：一个 rAF 循环驱动的抛物线放大，外加弹跳、运行指示和右键菜单。
