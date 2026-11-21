@@ -1,10 +1,10 @@
 packages:
   - 'packages/*'
   - 'apps/*'
-  # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；wujie 与 recipes-domain 是例外：
-  # wujie 给 Docusaurus 的 webpack 走 node_modules 软链；recipes-domain 给 dev-rxdb-http-server
+  # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；orbit 与 recipes-domain 是例外：
+  # orbit 给 Docusaurus 的 webpack 走 node_modules 软链；recipes-domain 给 dev-rxdb-http-server
   # 的 Node 类型剥离直跑（`node src/main.ts` 不认 tsconfig paths，只能顺着 node_modules 找 dist）。
-  - 'modules/wujie'
+  - 'modules/orbit'
   - 'modules/recipes-domain'
   - 'website'
   - 'benchmarks'
@@ -57,7 +57,7 @@ overrides:
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
   miniprogram-automator>debug: ^4.4.3
-  '@lucide/angular': 1.70.0
+  '@lucide/angular': 1.77.0
   '@tarojs/helper>esbuild': ^0.25.12
   '@tarojs/plugin-doctor>glob': ^10.5.0
   '@tarojs/plugin-framework-react>vite': 6.4.4

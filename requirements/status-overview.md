@@ -2,6 +2,7 @@
 
 > **真相源**：每个 story 的 YAML `status`。本文件是派生视图；发现冲突时先修正故事的证据与状态，再同步视图。
 > 排期见 [roadmap](roadmap.md)，能力见 [capability-matrix](capability-matrix.md)，发布见 [release-plan](release-plan.md)。
+> 汇总表、进行中 / 待评审 / 阻塞三节与按 Epic 索引的故事列表由 `pnpm audit:requirements:update` 生成，手改会被覆盖；索引各小节标题下的说明文字是手写的。
 
 ## 状态汇总
 
@@ -19,27 +20,25 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 进行中（13 条）
 
-| Story                                                                                                                                                                   | 剩余范围                                                            |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 协议层与浏览器宿主已接入；桌面 mDNS、握手及剩余 AC 待验收。         |
-| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 浏览器半边与独立 demo 已接入；Electron 与 Tauri 按阶段继续验收。    |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 独立消费、依赖隔离及三框架质量门禁待收口                            |
-| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                             | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。  |
-| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                                                                              | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。          |
-| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。            |
-| [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)                                                                         | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。    |
-| [US-530](stories/domain/US-530-admin-shell-preferences-appearance.md)                                                                                                   | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
-| [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
-| [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
-| [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
+- [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
+- [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
+- [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)：未通过 AC#1～#7（7/7）
+- [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)：未通过 AC#1～#7（7/7）
+- [US-532 后台外壳快捷键、命令面板与扩展偏好项](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)：未通过 AC#1～#6（6/6）
+- [US-533 后台外壳顶栏部件、锁屏与通用设置：语言、时区、水印、版权页脚](stories/domain/US-533-admin-shell-widgets-lock-general.md)：未通过 AC#1～#7（7/7）
+- [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)：未通过 AC#9（1/10）
+- [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)：未通过 AC#7、#12（2/13）
+- [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)：未通过 AC#1～#6（6/6）
+- [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)：未通过 AC#2、#4、#5、#7、#8（5/9）
+- [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)：未通过 AC#1～#8（8/8）
+- [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)：未通过 AC#3～#5（3/6）
+- [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)：未通过 AC#4～#8（5/8）
 
 ## 待评审（3 条）
 
-| Story                                                                                         | 剩余范围                                                                            |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。 |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                     |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。         |
+- [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)：AC 已全部通过
+- [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)：未通过 AC#9、#10、#17（3/17）
+- [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)：未通过 AC#11（1/11）
 
 ## 阻塞（0 条）
 
@@ -98,10 +97,10 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
-- ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
+- ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
@@ -199,6 +198,18 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 🚧 [US-532 后台外壳快捷键、命令面板与扩展偏好项](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)
 - 🚧 [US-533 后台外壳顶栏部件、锁屏与通用设置：语言、时区、水印、版权页脚](stories/domain/US-533-admin-shell-widgets-lock-general.md)
 
+### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
+
+US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成，US-713 管理后台由 owner 决定随独立 demo 交付；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
+当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。
+
+- 🚧 [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
+- 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
+- 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
+- 🚧 [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
+- ✅ [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- 👀 [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)
+
 ### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 
 单人范围 US-534～US-540 已获 owner 授权；US-541 团队版保留价值待证。
@@ -212,18 +223,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
 - 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md)
-
-### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
-
-US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成，US-713 管理后台由 owner 决定随独立 demo 交付；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
-当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。
-
-- 🚧 [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
-- 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
-- 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
-- 🚧 [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
-- ✅ [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
-- 👀 [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)
 
 ### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 

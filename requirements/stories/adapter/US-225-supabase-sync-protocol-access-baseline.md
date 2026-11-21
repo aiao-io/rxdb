@@ -103,20 +103,20 @@ INVEST 检查清单:
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | #1～#4  | SQL 回归 `anon-sync-protocol`（`test_anon_sync_protocol` + `_verify`）、`branch-ownership` 里 authenticated 的拉取与读分支                                                                                                                                                                                 |
 | #5～#8  | SQL 回归 `branch-ownership`（`test_branch_ownership`，`seed_legacy_branches` 造旧分支）；`production-change-grants` 的非 main 推送随首写认领                                                                                                                                                               |
-| #9、#10 | SQL 回归 `realtime-notifications`（发布成员、通知载荷的键集合、不含行内容、450 条聚合成 200 + 200 + 50）；真栈 `realtime-notifications.spec.ts`「已登录的订阅者收到只带元数据的通知」                                                                                                                      |
+| #9、#10 | SQL 回归 `realtime-notifications`（发布成员、通知载荷的键集合、不含行内容、通知聚合）；真栈 `realtime-notifications.spec.ts`「已登录的订阅者收到只带元数据的通知」                                                                                                                      |
 | #11     | 同一真栈用例：anon 订阅状态不是 `SUBSCRIBED`、收不到通知；SQL 层 `visible_change_notifications()` 对 anon 为 0                                                                                                                                                                                             |
-| #12     | 真栈 `realtime-notifications.spec.ts`「另一台设备推送后可拉取计数增加，拉取后本地数据一致」；`handle-supabase-change.spec.ts` 24 个处理器用例                                                                                                                                                              |
-| #13     | `nx test rxdb-adapter-supabase`：47 个文件、677 个用例全过，语句 96.77% / 分支 89.82% / 函数 98.36% / 行 97.79%                                                                                                                                                                                            |
-| #14     | `dev-rxdb-supabase` 单测 54 个（含 `supabase-session.spec.ts`）；对隔离栈直跑 `remote-sync.spec.ts` 4 个用例全过（两个浏览器上下文是两个匿名用户）                                                                                                                                                         |
+| #12     | 真栈 `realtime-notifications.spec.ts`「另一台设备推送后可拉取计数增加，拉取后本地数据一致」；`handle-supabase-change.spec.ts` 的处理器测试                                                                                                                                                              |
+| #13     | `nx test rxdb-adapter-supabase` 全部通过，语句 96.77% / 分支 89.82% / 函数 98.36% / 行 97.79%                                                                                                                                                                                            |
+| #14     | `dev-rxdb-supabase` 单测全部通过（含 `supabase-session.spec.ts`）；对隔离栈直跑 `remote-sync.spec.ts` 全部通过（两个浏览器上下文是两个匿名用户）                                                                                                                                                         |
 | #15     | `website/docs/adapters/supabase.md` 的「日志同步只对已登录身份开放」「适用边界」「非 main 分支按所有者写入」「从旧版本升级」「实时同步」与两处已知限制                                                                                                                                                     |
 | #16     | SQL 回归的生产段落连续执行两次生产权限脚本，`production-grants-idempotent` 断言策略、触发器各一份且权限符合生产模型                                                                                                                                                                                        |
 | #17     | `review-regressions.spec.ts`「change notifications need a signed-in session」：anon 令牌、新式 publishable key、非 JSON 载荷、无令牌四种都不订阅且 10 秒内不重试，登录后再连接才订阅，service_role 照常订阅；真栈 `realtime-notifications.spec.ts`「只拿 anon key 的适配器连接时不订阅通知，也不反复重试」 |
 
 ## 验证记录
 
-2026-11-19，本检出位的隔离测试栈（`nx run rxdb-adapter-supabase:test-env`）：
+隔离测试栈（`nx run rxdb-adapter-supabase:test-env`）：
 
-- 红：新用例先在旧版 01～04 上运行，套件准备段因缺 `rxdb_branch_owner` 整体失败；加载新版 01、02、04 与生产权限脚本后 `sql-security-regressions` 44 个用例加单事务汇总全过。
+- 红：新用例先在旧版 01～04 上运行，套件准备段因缺 `rxdb_branch_owner` 整体失败；加载新版 01、02、04 与生产权限脚本后 `sql-security-regressions` 与单事务汇总全过。
 - 迁移中暴露并修正的依赖：`branch-search-path` 与 `pagination-truncation`（SUPA-005）原先以客户端身份直写 `rxdb_branch` 造数据，改走 service_role；三个桩客户端补 `realtime.setAuth`。
 - 经 HTTP 复核：anon key 调 `rxdb_pull_changes` 得 `42501 permission denied for function rxdb_pull_changes`；匿名注册拿到的令牌是 `role=authenticated`、`is_anonymous=true`。
 - 订阅私有频道必须先 `realtime.setAuth()`：不调用时 Realtime 日志里的令牌是 anon key 本身（`iss=supabase-demo`），已登录客户端也被拒。

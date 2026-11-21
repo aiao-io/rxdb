@@ -1,7 +1,7 @@
 # sqlite-sync 调研与后续决策依据
 
 > 调研日期：2026-11-10。范围：[sqliteai/sqlite-sync](https://github.com/sqliteai/sqlite-sync) 主仓（1.2.2，提交 `9e372e88`）的源码、`API.md`、`CHANGELOG.md`、`PERFORMANCE.md` 与 `docs/`；
-> [sqliteai/sqlite-wasm](https://github.com/sqliteai/sqlite-wasm)（提交 `aad21431`）的打包脚本与 `wasm.c`；本仓库锁定的 `@sqliteai/sqlite-wasm@3.50.4-wasm.1.0.0-sync.1.2.1-vector.1.2.0-memory.1.3.6`。
+> [sqliteai/sqlite-wasm](https://github.com/sqliteai/sqlite-wasm)（提交 `aad21431`）的打包脚本与 `wasm.c`；本仓库锁定的 `@sqliteai/sqlite-wasm@3.50.4-wasm.1.0.0-sync.1.2.3-vector.1.2.0-memory.1.3.6`。
 > 本文记录接入判断、可借鉴方向和边界；不创建用户故事，不代表排期。「源码实证」指读过对应代码或测试，「文档声明」只来自上游文档，**推断**是未经用例验证的判断。
 
 ## 结论
