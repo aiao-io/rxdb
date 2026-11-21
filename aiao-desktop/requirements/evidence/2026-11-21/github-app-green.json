@@ -1,10 +1,10 @@
 {
   "format": "aiao-desktop.smoke",
   "version": 1,
-  "measuredAt": "2026-11-20T21:58:21.290Z",
+  "measuredAt": "2026-11-21T02:33:14.823Z",
   "source": {
-    "sha": "fff87b89f606f22d4f2b58847e4016ab1bd8c9cf",
-    "changes": "M src/fixtures/github-oauth.mjs\n M src/groups/apps.mjs\n M src/groups/index.mjs\n M ../web/eslint.config.mjs\n M ../web/public/github-oauth-return.mjs\n M ../web/src/app/apps/app-manifests.ts\n M ../web/src/app/apps/registry.ts\n M ../web/src/app/data/preferences.ts\n M ../web/src/app/pages/desktop-page.ts\n M ../web/src/app/services/browser-session-restore.spec.ts\n M ../web/src/app/services/browser-session-restore.ts\n M ../web/src/app/services/desktop-apps.spec.ts\n M ../web/src/app/services/desktop-apps.ts\n M ../web/src/app/services/dock-layout-model.spec.ts\n M ../web/src/app/shared/external-content.spec.ts\n M ../web/src/app/shared/external-content.ts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/epics/ADESK-EPIC-004.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/application/ADESK-US-209-github-opfs-workbench.md\n M ../../requirements/stories/desktop/ADESK-US-128-browser-session-restore.md\n M ../../requirements/verification-report.md\n?? src/groups/browser-session-restore.mjs\n?? src/groups/github-app.mjs\n?? ../web/public/github-git/\n?? ../web/public/icons/desktop/g-github.svg\n?? ../web/src/app/apps/github/\n?? ../web/src/app/services/git/\n?? ../web/src/app/services/github-git-backend.spec.ts\n?? ../web/src/app/services/github-git-backend.ts\n?? ../web/src/app/services/github-git-worker.spec.ts\n?? ../web/src/app/services/github-git-worker.ts\n?? ../web/src/app/services/github-repository.spec.ts\n?? ../web/src/app/services/github-repository.ts\n?? ../web/src/app/services/github/\n?? ../../requirements/evidence/2026-11-21/\n?? ../../requirements/stories/application/ADESK-US-209-evidence.md"
+    "sha": "fccbc72865dd490add2ac50c54751c4df612c89b",
+    "changes": "M  src/groups/file-management.mjs\nM  src/groups/local-messages.mjs\n M ../../requirements/evidence/2026-11-21/browser-session-restore-green.json"
   },
   "environment": {
     "os": "darwin",
@@ -12,13 +12,13 @@
     "arch": "arm64",
     "cpu": "Apple M1 Max",
     "node": "v26.12.0",
-    "browser": "158.0.8127.18",
+    "browser": "159.0.8154.6",
     "engine": "chromium",
     "headless": true
   },
   "artifact": {
     "root": "/Users/jimmy/.codex/worktrees/pr202-merge-checks/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "a637bcf1d32a04c21ea5217d9507b656d129899eb4369f434b0a4092a3c5ae96"
+    "indexSha256": "fb5e817852ca72deb79029fecbb73a2c241f72694629788cd9b8f730c52eddaa"
   },
   "method": {
     "previousBuild": null,
@@ -30,7 +30,7 @@
     "integratedArtifactTransport": "loopback-http",
     "interceptedExternalRequests": true
   },
-  "seconds": 20.79316075,
+  "seconds": 21.117746124999996,
   "outcomes": [
     {
       "group": "github-app",
@@ -72,7 +72,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 20.750760542
+      "seconds": 21.068548625
     }
   ],
   "checks": {

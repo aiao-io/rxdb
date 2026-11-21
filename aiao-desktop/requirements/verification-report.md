@@ -12,9 +12,9 @@
 
 ### ADESK-US-209 GitHub 应用与 OPFS Git 工作区
 
-- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --output-style=static`、`typecheck` 和 `lint` 通过。web 覆盖率为 statements 94.89%、branches 88.97%、functions 95.81%、lines 96.86%。
+- `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --output-style=static`、`typecheck` 和 `lint` 通过。web 覆盖率为 statements 94.94%、branches 88.98%、functions 95.95%、lines 96.88%。
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e --args="--group=github-app --parallel=1 --report=../../requirements/evidence/2026-11-21/github-app-green.json" --output-style=static` 通过。
-- [github-app-green.json](evidence/2026-11-21/github-app-green.json) 的 27 项检查全部为 `true`，没有页面错误。
+- [github-app-green.json](evidence/2026-11-21/github-app-green.json) 的 28 项检查全部为 `true`，没有页面错误。
 - 详细范围、环境和证据边界见 [US-209-evidence.md](stories/application/ADESK-US-209-evidence.md)。
 
 生产构建通过，同时保留两个既有预算提示。Initial bundle 约 1.39 MB，高于 1.30 MB 预算约 85.77 KB；`github.scss` 约 7.28 KB，高于 4 KB 组件样式预算。它们没有阻断构建，本次没有扩大范围处理。

@@ -9,7 +9,7 @@
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:test --output-style=static` 通过。
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:typecheck --output-style=static` 通过。
 - `NX_NO_CLOUD=true pnpm nx run aiao-desktop-web:lint --output-style=static` 通过。
-- web 覆盖率为 statements 94.89%、branches 88.97%、functions 95.81%、lines 96.86%。
+- web 覆盖率为 statements 94.94%、branches 88.98%、functions 95.95%、lines 96.88%。
 - Git Worker、Git Runtime、归档、索引、差异、状态解析、GitHub API、OAuth、会话存储和仓库合并边界均由 `aiao-desktop-web:test` 覆盖。
 
 ## 正式 Chromium 冒烟
@@ -26,9 +26,9 @@ NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e \
 
 - `passed: true`
 - `clean: true`
-- 27 项检查全部为 `true`
+- 28 项检查全部为 `true`
 - `problems`、`failedKeys`、`missingKeys`、`pageErrors` 均为空
-- 环境为 Apple M1 Max、macOS Darwin 27.2.0、Node v26.12.0、Chromium 158.0.8127.18 无头模式
+- 环境为 Apple M1 Max、macOS Darwin 27.2.0、Node v26.12.0、Chromium 159.0.8154.6 无头模式
 - 外网请求由测试夹具拦截，OAuth 使用受控回调和 token 交换夹具
 
 ## 验收覆盖

@@ -76,8 +76,12 @@ export const fileManagement = {
     await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toHaveCount(0);
     result.desktopMoveToTrash = true;
     await desktop.drop({ files: payload('drag-trash.txt', Buffer.from(text)) });
-    await desktop.drop({ files: payload('desktop-to-finder.txt', Buffer.from(text)) });
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toBeVisible();
+    await desktop.drop(
+      { files: payload('desktop-to-finder.txt', Buffer.from(text)) },
+      { position: { x: 420, y: 420 } }
+    );
+    await expect(desktop.locator('[data-id="file:desktop-to-finder.txt"]')).toBeVisible();
     await dragDesktopIcon('drag-trash.txt', trashDockIcon);
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toHaveCount(0);
     result.desktopFileDragToTrash = true;

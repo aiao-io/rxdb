@@ -74,8 +74,8 @@ capabilities: []
 
 2026-11-21 已完成阶段 A～C 的实现和本地正式构建验收。证据索引见 [US-209-evidence.md](ADESK-US-209-evidence.md)。
 
-- 单元测试、类型检查和 lint 通过 `aiao-desktop-web:test`、`aiao-desktop-web:typecheck` 与 `aiao-desktop-web:lint`。web 覆盖率为 statements 94.89%、branches 88.97%、functions 95.81%、lines 96.86%。
-- 正式构建上的 `aiao-desktop-e2e:e2e --group=github-app --parallel=1` 通过，27 项检查全部为 `true`，没有页面错误。报告见 [github-app-green.json](../../evidence/2026-11-21/github-app-green.json)。
+- 单元测试、类型检查和 lint 通过 `aiao-desktop-web:test`、`aiao-desktop-web:typecheck` 与 `aiao-desktop-web:lint`。web 覆盖率为 statements 94.94%、branches 88.98%、functions 95.95%、lines 96.88%。
+- 正式构建上的 `aiao-desktop-e2e:e2e --group=github-app --parallel=1` 通过，28 项检查全部为 `true`，没有页面错误。报告见 [github-app-green.json](../../evidence/2026-11-21/github-app-green.json)。
 - Chromium 冒烟覆盖应用入口、空态、OPFS 仓库创建、编辑保存、暂存、差异、取消暂存、丢弃、提交、历史、分支切换、刷新恢复、归档往返、仓库搜索、分支选择、公开仓库、OAuth 取消与关闭、OAuth 成功与交换失败、PAT 成功与失败、推送、远端冲突、网络失败和键盘路径。Worker 失败由同一轮单元测试覆盖。
 - 本轮通过的是受控桌面 Chromium 和受控 GitHub API 网络夹具。GitHub OAuth 使用测试桥接，未宣称真实账号授权或生产远端发布。US-108 的 VoiceOver 人工播报验收继续按用户要求延期。
 

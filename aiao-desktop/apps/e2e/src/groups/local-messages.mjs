@@ -188,7 +188,12 @@ export const localMessages = {
     expect(await currentId()).toBe(secondId);
     await sql('DROP TRIGGER fail_conversation_create');
     await win().getByRole('button', { name: 'New Conversation', exact: true }).click();
-    await expect.poll(currentId).not.toBe(secondId);
+    await expect
+      .poll(async () => {
+        const id = await currentId();
+        return Boolean(id && !ids.includes(id));
+      })
+      .toBe(true);
     const created = await currentId();
     await expect(win().locator('.bub')).toHaveCount(0);
     expect(await rows(`SELECT id FROM "${MESSAGES}" WHERE thread_id = ?`, [created])).toEqual([]);
