@@ -222,7 +222,9 @@ export class GithubApp {
   protected readonly canDiscardBranch = computed(() => this.errorCode() === 'dirty_workspace');
   protected readonly lastFetchedLabel = computed(() => {
     const timestamp = this.lastFetchedAt();
-    return timestamp === null ? 'Never' : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(timestamp);
+    return timestamp === null ? 'Never' : (
+        new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(timestamp)
+      );
   });
   protected readonly selectedCommit = computed(() => {
     const selected = this.selectedCommitOid();

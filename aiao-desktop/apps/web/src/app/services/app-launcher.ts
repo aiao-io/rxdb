@@ -1,9 +1,9 @@
 import { Service, inject } from '@angular/core';
 
 import { DesktopAppId } from './desktop-apps';
+import type { DesktopWindow } from './desktop-window';
 import { DockState } from './dock-state';
 import { Overlays } from './overlays';
-import type { DesktopWindow } from './desktop-window';
 import { WindowManager } from './window-manager';
 
 /** 从 Dock、启动台或聚焦搜索激活一个应用：已开则调到前台，否则弹跳并打开。 */
@@ -40,9 +40,7 @@ export class AppLauncher {
   }
 
   private openTrash(): void {
-    const existing = this.wm
-      .byApp('finder')
-      .find(win => this.isTrashWindow(win));
+    const existing = this.wm.byApp('finder').find(win => this.isTrashWindow(win));
     if (!existing) {
       this.wm.open('finder', { path: ['Trash'] });
       return;

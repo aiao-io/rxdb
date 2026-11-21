@@ -18,27 +18,88 @@ description: 装 Playwright chromium（含系统依赖），带缓存。
 runs:
   using: composite
   steps:
-    - name: Resolve Playwright version
+    - name: Resolve Playwright versions
       id: version
       shell: bash
       run: |
-        VERSION=$(node -p "require('./node_modules/@playwright/test/package.json').version" 2>/dev/null) \
-          || VERSION=$(node -p "require('./node_modules/playwright/package.json').version")
-        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "Playwright $VERSION"
+        set -euo pipefail
+
+        package_count=$(find node_modules/.pnpm -path '*/node_modules/playwright/package.json' -type f | wc -l | tr -d ' ')
+        if [ "$package_count" -eq 0 ]; then
+          echo "未找到已安装的 Playwright 包" >&2
+          exit 1
+        fi
+
+        version_key=$(
+          find node_modules/.pnpm -path '*/node_modules/playwright/package.json' -type f |
+            while read -r package_json; do
+              node -p "require(process.argv[1]).version" "$PWD/$package_json"
+            done |
+            sort -u |
+            paste -sd- -
+        )
+        echo "versions=$version_key" >> "$GITHUB_OUTPUT"
+        echo "Playwright versions: $version_key"
 
     - name: Cache Playwright browsers
       id: cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
+        key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.versions }}
 
-    # 每次都校验并补装 chromium。缓存可能只恢复了目录元数据，缺少实际可执行文件，
-    # `playwright install` 会在完整时快速跳过，在缓存残缺时自动修复。
+    # Playwright 用 marker 文件判断浏览器是否已安装。缓存可能同时含有多个版本，
+    # 所以按每个已安装的 CLI 定位目录，再按真实可执行文件决定是否强制补装。
     - name: Verify and install chromium
       shell: bash
-      run: pnpm exec playwright install chromium chromium-headless-shell
+      run: |
+        set -euo pipefail
+
+        cli_file=$(mktemp)
+        trap 'rm -f "$cli_file"' EXIT
+        find node_modules/.pnpm -path '*/node_modules/playwright/package.json' -type f |
+          while read -r package_json; do
+            package_dir=${package_json%/package.json}
+            version=$(node -p "require(process.argv[1]).version" "$PWD/$package_json")
+            printf '%s\t%s\n' "$version" "$package_dir/cli.js"
+          done |
+          sort -t $'\t' -k1,1 -u > "$cli_file"
+
+        while IFS=$'\t' read -r version cli; do
+          echo "检查 Playwright $version 的 Chromium"
+
+          chromium_dir=$(node "$cli" install --dry-run --no-shell chromium \
+            | awk '/Chrome for Testing/{capture=1; next} capture && /Install location:/ {print $3; exit}')
+          headless_shell_dir=$(node "$cli" install --dry-run --only-shell chromium \
+            | awk '/Chrome Headless Shell/{capture=1; next} capture && /Install location:/ {print $3; exit}')
+
+          chromium_bin=''
+          if [ -n "$chromium_dir" ]; then
+            chromium_bin=$(find "$chromium_dir" -type f -perm -111 -name chrome -print -quit 2>/dev/null || true)
+          fi
+          if [ -z "$chromium_bin" ]; then
+            echo "未找到 Playwright $version 的 Chromium，强制补装"
+            node "$cli" install --force --no-shell chromium
+          fi
+
+          headless_shell_bin=''
+          if [ -n "$headless_shell_dir" ]; then
+            headless_shell_bin=$(find "$headless_shell_dir" -type f -perm -111 \
+              -name chrome-headless-shell -print -quit 2>/dev/null || true)
+          fi
+          if [ -z "$headless_shell_bin" ]; then
+            echo "未找到 Playwright $version 的 Chromium headless shell，强制补装"
+            node "$cli" install --force --only-shell chromium
+          fi
+
+          chromium_bin=$(find "$chromium_dir" -type f -perm -111 -name chrome -print -quit 2>/dev/null || true)
+          headless_shell_bin=$(find "$headless_shell_dir" -type f -perm -111 \
+            -name chrome-headless-shell -print -quit 2>/dev/null || true)
+          if [ -z "$chromium_bin" ] || [ -z "$headless_shell_bin" ]; then
+            echo "Playwright $version 浏览器安装后仍缺少可执行文件" >&2
+            exit 1
+          fi
+        done < "$cli_file"
 
     # 这份配置对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界，
     # 同时把 runner 偶发不可达的 azure 镜像切到 archive 镜像。
@@ -59,7 +120,8 @@ runs:
         need=0
         found=0
         for bin in ~/.cache/ms-playwright/*/chrome-linux*/chrome \
-                   ~/.cache/ms-playwright/*/chrome-linux*/headless_shell; do
+                   ~/.cache/ms-playwright/*/chrome-linux*/headless_shell \
+                   ~/.cache/ms-playwright/*/chrome-headless-shell-linux*/chrome-headless-shell; do
           [ -x "$bin" ] || continue
           found=1
           if ldd "$bin" 2>/dev/null | grep -q 'not found'; then

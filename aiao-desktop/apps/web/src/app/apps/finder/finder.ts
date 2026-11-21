@@ -44,8 +44,8 @@ import {
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { DockState } from '../../services/dock-state';
 import { DockDragController } from '../../services/dock-drag';
+import { DockState } from '../../services/dock-state';
 import { FileImport } from '../../services/file-import';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
