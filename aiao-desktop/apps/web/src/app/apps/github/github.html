@@ -20,7 +20,7 @@
         </span>
         <span class="gh-toolbar-copy">
           <small>Current Repository</small>
-          <strong>{{ activeRecord()?.name ?? 'Repositories' }}</strong>
+          <strong data-github-repository-name>{{ activeRecord()?.name ?? 'Repositories' }}</strong>
         </span>
         <span class="gh-toolbar-chevron" aria-hidden="true">⌄</span>
       </button>
@@ -297,6 +297,7 @@
                   <button
                     class="gh-file-select"
                     [attr.data-file-path]="file.path"
+                    [class.selected]="selectedPath() === file.path"
                     (click)="selectFile(file.path)"
                     type="button"
                   >
@@ -391,7 +392,7 @@
         } @else {
           <section class="gh-history" aria-label="Commit history">
             @for (commit of history(); track commit.oid) {
-              <article class="gh-commit-row" [class.gh-commit-row-selected]="selectedCommit()?.oid === commit.oid">
+              <article class="gh-commit-row" [class.gh-commit-row-selected]="selectedCommit().oid === commit.oid">
                 <button class="gh-history-select" (click)="selectCommit(commit.oid)" type="button">
                   <strong>{{ commit.message }}</strong>
                   <small>{{ commit.oid }}</small>

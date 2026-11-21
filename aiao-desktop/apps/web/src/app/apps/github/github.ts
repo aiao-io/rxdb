@@ -361,6 +361,7 @@ export class GithubApp {
       this.fail(new Error('请输入 owner/repo 或 GitHub 仓库地址'));
       return;
     }
+    this.repositoryMenuOpen.set(false);
     await this.run(async () => {
       const remote = await this.remote.open(address.owner, address.repo, this.branchValue().trim() || address.branch);
       const existing = this.store.find(remote.record.projectId);

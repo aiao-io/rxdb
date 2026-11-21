@@ -402,9 +402,9 @@ export const fileManagement = {
     await openTrash();
     await expect(item('finder-dock-trash.txt')).toBeVisible();
     result.finderFileDragToTrash = true;
-    const trashFinderId = await finder().getAttribute('id');
+    const dockTrashFinderId = await finder().getAttribute('id');
     await finder().locator('[data-w="close"]').click();
-    await expect(page.locator(`#${trashFinderId}`)).toHaveCount(0);
+    await expect(page.locator(`#${dockTrashFinderId}`)).toHaveCount(0);
     await page.keyboard.press('Meta+Shift+n');
     await place('Desktop');
     await menu('nested', 'Duplicate');
@@ -439,8 +439,10 @@ export const fileManagement = {
     await page.mouse.up();
     await openTrash();
     const trashFinder = finder();
+    const trashFinderId = await trashFinder.getAttribute('id');
     const trashTitleBox = await trashFinder.locator('[data-title]').boundingBox();
-    if (!trashTitleBox) throw new Error('Trash Finder title is not measurable');
+    if (!trashFinderId || !trashTitleBox) throw new Error('Trash Finder is not measurable');
+    const trashFinderWindow = page.locator(`#${trashFinderId}`);
     await page.mouse.move(
       trashTitleBox.x + trashTitleBox.width / 2,
       trashTitleBox.y + trashTitleBox.height / 2
@@ -455,12 +457,9 @@ export const fileManagement = {
     const sourceBoxAfterMove = await sourceFinder.boundingBox();
     if (!sourceBoxAfterMove) throw new Error('Moved Source Finder window is not measurable');
     await page.mouse.click(sourceBoxAfterMove.x + 80, sourceBoxAfterMove.y + 18);
-    const sourceBox = await sourceFinder.boundingBox();
     const sourceItemBox = await sourceItem.boundingBox();
-    const movedTrashBox = await trashFinder.boundingBox();
-    const trashBodyBox = await trashFinder.locator('[data-body]').boundingBox();
-    if (!sourceBox || !sourceItemBox || !movedTrashBox || !trashBodyBox)
-      throw new Error('Finder drag targets are not measurable');
+    const trashBodyBox = await trashFinderWindow.locator('[data-body]').boundingBox();
+    if (!sourceItemBox || !trashBodyBox) throw new Error('Finder drag targets are not measurable');
     const sourcePoint = {
       x: sourceItemBox.x + sourceItemBox.width / 2,
       y: sourceItemBox.y + sourceItemBox.height / 2
@@ -472,7 +471,6 @@ export const fileManagement = {
     await page.mouse.move(sourcePoint.x, sourcePoint.y);
     await page.mouse.down();
     await page.mouse.move(sourcePoint.x + 20, sourcePoint.y + 20, { steps: 4 });
-    console.error('finder trash dragging', await page.locator('.cdk-drag-dragging').count());
     await page.mouse.move(dropPoint.x, dropPoint.y, { steps: 16 });
     await page.mouse.up();
     await expect(sourceItem).toHaveCount(0);
@@ -490,7 +488,7 @@ export const fileManagement = {
       )
     );
     if (!trashPath.some(([name]) => name === '.Trash')) throw new Error(`Unexpected Finder drop path: ${JSON.stringify(trashPath)}`);
-    await expect(trashFinder.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
+    await expect(trashFinderWindow.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
     result.finderFileDragToTrashWindow = true;
     await place('Desktop');
     await importFiles([

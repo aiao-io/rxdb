@@ -58,6 +58,15 @@ function bearer(request) {
   return request.headers().authorization?.replace(/^Bearer\s+/i, '') ?? null;
 }
 
+async function openRepositoryMenu(view) {
+  const popup = view.locator('[data-github-repository-menu-popup]');
+  if ((await popup.count()) === 0) {
+    await view.locator('[data-github-repository-menu]').click();
+    await popup.waitFor();
+  }
+  await expect(view.locator('[data-github-search-submit]')).toBeEnabled();
+}
+
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
 export const githubApp = {
   name: 'github-app',
@@ -279,9 +288,10 @@ export const githubApp = {
     result.spotlightOpens = await appears(win('github').locator('[data-github-app]'));
     const githubWindow = win('github');
 
+    await openRepositoryMenu(githubWindow);
     await githubWindow.locator('[data-github-new-repository]').fill('Local Fixture');
     await githubWindow.locator('[data-github-create]').click();
-    await githubWindow.locator('h1').filter({ hasText: 'Local Fixture' }).waitFor();
+    await githubWindow.locator('[data-github-repository-name]').filter({ hasText: 'Local Fixture' }).waitFor();
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
       (await githubWindow.locator('.gh-empty').count()) === 0;
@@ -339,6 +349,7 @@ export const githubApp = {
     await launch('GitHub');
     const restoredGithub = win('github');
     await restoredGithub.waitFor();
+    await openRepositoryMenu(restoredGithub);
     result.repositorySurvivesReload = await appears(restoredGithub.locator('[data-project-id^="local-"]'));
 
     const downloadEvent = page.waitForEvent('download');
@@ -350,12 +361,14 @@ export const githubApp = {
       mimeType: 'application/zip',
       buffer: archive
     });
+    await openRepositoryMenu(restoredGithub);
     await restoredGithub.locator('[data-project-id^="local-"]').nth(1).waitFor({ state: 'attached' });
     result.archiveRoundTrip = (await restoredGithub.locator('[data-project-id^="local-"]').count()) >= 2;
 
     await closeAll();
     await launch('GitHub');
     const remoteGithub = win('github');
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-search]').fill(PUBLIC_OWNER);
     await remoteGithub.locator('[data-github-search-submit]').click();
     await remoteGithub.locator(`[data-github-search-result="${PUBLIC_OWNER}/${PUBLIC_REPO}"]`).waitFor();
@@ -363,10 +376,11 @@ export const githubApp = {
     await remoteGithub.locator(`[data-github-search-result="${PUBLIC_OWNER}/${PUBLIC_REPO}"]`).click();
     await remoteGithub.locator('[data-github-remote-branch]').waitFor();
     result.remoteBranchSelection = (await remoteGithub.locator('[data-github-remote-branch] option').count()) === 2;
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub
-      .locator('h1')
+      .locator('[data-github-repository-name]')
       .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
     result.publicRepositoryOpens = (await remoteGithub.locator('[data-file-path="src/main.ts"]').count()) === 1;
@@ -396,6 +410,7 @@ export const githubApp = {
     const pulledValue = await remoteGithub.locator('[data-github-editor]').inputValue();
     result.remotePullClean = pulledValue === 'export const value = 2;\n';
 
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PRIVATE_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub.locator('[data-github-error]').waitFor();
@@ -447,6 +462,7 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-account]').waitFor();
     result.patSuccess = true;
 
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub
@@ -469,16 +485,18 @@ export const githubApp = {
     remoteConflict = false;
 
     apiOffline = true;
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub.locator('[data-github-error]').filter({ hasText: '无法连接 GitHub API' }).waitFor();
     result.networkFailure = true;
     apiOffline = false;
 
+    await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-repository]').press('Enter');
     await remoteGithub
-      .locator('h1')
+      .locator('[data-github-repository-name]')
       .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
     await remoteGithub.locator('[data-github-tab="history"]').focus();

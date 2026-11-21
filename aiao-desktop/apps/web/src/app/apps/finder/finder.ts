@@ -833,31 +833,19 @@ export class FinderApp implements FinderCommands {
     this.dropHandled = false;
     if (!source?.path || dropHandled) return;
     const { x, y } = event.dropPoint;
-    const eventTarget = event.event.target instanceof Element ? event.event.target : null;
-    const dir = this.dropDirectoryAt(x, y, eventTarget);
-    console.error(
-      'finder drag end debug',
-      JSON.stringify({
-        source: source.name,
-        dropPoint: event.dropPoint,
-        dropHandled,
-        trash: this.dock.isTrashAt(x, y),
-        eventTarget: eventTarget?.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'] ?? null,
-        elements: document
-          .elementsFromPoint(x, y)
-          .slice(0, 8)
-          .map(element => `${element.tagName}.${String(element.className)}:${element.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'] ?? ''}`),
-        dir
-      })
-    );
     if (this.dock.isTrashAt(x, y)) {
       this.trashNodes(this.dragNodes(source));
       return;
     }
-    const targetDirectory = dir ?? this.desktopDropDirectory(event.dropPoint);
-    if (!targetDirectory) return;
+    const eventTarget = event.event.target instanceof Element ? event.event.target : null;
+    const dir = this.dropDirectoryAt(x, y, eventTarget) ?? this.desktopDropDirectory(event.dropPoint);
+    if (!dir) return;
+    if (samePath(dir, TRASH)) {
+      this.trashNodes(this.dragNodes(source));
+      return;
+    }
     const copy = this.copyModifier(event.event);
-    void this.transferNodes(this.dragNodes(source), targetDirectory, copy).then(
+    void this.transferNodes(this.dragNodes(source), dir, copy).then(
       () => {
         if (!copy) this.setSelection([]);
       },
@@ -890,6 +878,10 @@ export class FinderApp implements FinderCommands {
     const dir = this.dropDirectory(event) ?? (event.isPointerOverContainer ? event.container.data : null);
     if (!source?.path || !dir) return;
     this.dropHandled = true;
+    if (samePath(dir, TRASH)) {
+      this.trashNodes(this.dragNodes(source));
+      return;
+    }
     const copy = this.copyModifier(event.event);
     void this.transferNodes(this.dragNodes(source), dir, copy).then(
       path => {
