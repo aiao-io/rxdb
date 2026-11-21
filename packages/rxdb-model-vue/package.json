@@ -56,8 +56,8 @@
     "@aiao/rxdb-model": "workspace:^",
     "@aiao/rxdb-plugin-history": "workspace:^",
     "@aiao/rxdb-vue": "workspace:^",
-    "@lucide/vue": "^1.47.0",
-    "@visactor/vtable": "~1.26.5",
+    "@lucide/vue": "^1.77.0",
+    "@visactor/vtable": "~1.26.9",
     "rxjs": "^7.8.2",
     "vue": "^3.5.43"
   },
