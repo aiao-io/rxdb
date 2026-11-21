@@ -2,9 +2,9 @@ import { Service, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Preferences } from '../data/preferences';
-import type { GitFile } from './github-git-backend';
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths';
 import { GIT_WORKBENCH_LIMITS } from './git/git-protocol';
+import type { GitFile } from './github-git-backend';
 import type { GitHubApi, GitHubTreeItem } from './github/github-api';
 import { GitHubApiError } from './github/github-api';
 import type { GitHubTreeEntry } from './github/github-types';
@@ -106,13 +106,15 @@ export function parseGithubRemote(value: string): GithubRemoteAddress | null {
     });
     const hasInvalidCharacter =
       /\s/.test(branch) || /[~^:?*\\|]/.test(branch) || branch.includes('[') || branch.includes(']');
-    return branch &&
-      !hasControlCharacter &&
-      !hasInvalidCharacter &&
-      !branch.startsWith('/') &&
-      !branch.endsWith('/') &&
-      !branch.includes('//')
-      ? { owner, repo, branch }
+    return (
+        branch &&
+          !hasControlCharacter &&
+          !hasInvalidCharacter &&
+          !branch.startsWith('/') &&
+          !branch.endsWith('/') &&
+          !branch.includes('//')
+      ) ?
+        { owner, repo, branch }
       : null;
   } catch {
     return null;
@@ -165,8 +167,7 @@ function validateRemoteEntries(entries: readonly GitHubTreeEntry[]): void {
   const paths = entries.map(entry => entry.path);
   if (new Set(paths).size !== paths.length) throw new Error('远端树包含重复路径');
   assertNoPathCollisions(paths);
-  if (entries.length > GIT_WORKBENCH_LIMITS.files)
-    throw new Error(`远端文件数超过 ${GIT_WORKBENCH_LIMITS.files} 个`);
+  if (entries.length > GIT_WORKBENCH_LIMITS.files) throw new Error(`远端文件数超过 ${GIT_WORKBENCH_LIMITS.files} 个`);
 }
 
 function validateLocalFiles(files: readonly GitFile[]): void {
@@ -178,8 +179,7 @@ function validateLocalFiles(files: readonly GitFile[]): void {
   const paths = files.map(file => file.path);
   if (new Set(paths).size !== paths.length) throw new Error('本地工作区包含重复路径');
   assertNoPathCollisions(paths);
-  if (files.length > GIT_WORKBENCH_LIMITS.files)
-    throw new Error(`文件数超过 ${GIT_WORKBENCH_LIMITS.files} 个`);
+  if (files.length > GIT_WORKBENCH_LIMITS.files) throw new Error(`文件数超过 ${GIT_WORKBENCH_LIMITS.files} 个`);
   const total = files.reduce((sum, file) => sum + file.bytes.byteLength, 0);
   if (total > GIT_WORKBENCH_LIMITS.totalBytes)
     throw new Error(`文件总大小超过 ${GIT_WORKBENCH_LIMITS.totalBytes} 字节`);
@@ -250,13 +250,11 @@ export class GithubRepositoryStore {
   constructor() {
     this.loaded = this.load();
     this.loaded.catch(() => undefined);
-    this.preferences.external$
-      .pipe(takeUntilDestroyed())
-      .subscribe(keys => {
-        if (keys.includes(REPOSITORIES_KEY)) {
-          this.recordsState.set([...(this.preferences.get(REPOSITORIES_KEY, recordsOf) ?? [])]);
-        }
-      });
+    this.preferences.external$.pipe(takeUntilDestroyed()).subscribe(keys => {
+      if (keys.includes(REPOSITORIES_KEY)) {
+        this.recordsState.set([...(this.preferences.get(REPOSITORIES_KEY, recordsOf) ?? [])]);
+      }
+    });
   }
 
   async ready(): Promise<void> {
@@ -274,7 +272,9 @@ export class GithubRepositoryStore {
 
   async remove(projectId: string): Promise<void> {
     await this.loaded;
-    await this.preferences.update(REPOSITORIES_KEY, recordsOf, current => (current ?? []).filter(item => item.projectId !== projectId));
+    await this.preferences.update(REPOSITORIES_KEY, recordsOf, current =>
+      (current ?? []).filter(item => item.projectId !== projectId)
+    );
     this.recordsState.set([...(this.preferences.get(REPOSITORIES_KEY, recordsOf) ?? [])]);
   }
 
@@ -340,8 +340,7 @@ export class GithubRemoteRepository {
     if (!localDirty) return remote;
     const base = await this.readBase(record);
     const merged = mergeFiles(base, localFiles, remote.files);
-    if (merged.conflicts.length)
-      throw new Error(`远端与本地提交存在冲突：${merged.conflicts.join(', ')}`);
+    if (merged.conflicts.length) throw new Error(`远端与本地提交存在冲突：${merged.conflicts.join(', ')}`);
     return { record: remote.record, files: merged.files };
   }
 
@@ -358,9 +357,15 @@ export class GithubRemoteRepository {
       const localPaths = new Set(files.map(file => file.path));
       const deleted = baseEntries
         .filter(entry => !localPaths.has(entry.path))
-        .map(entry => ({ path: entry.path, sha: null } satisfies GitHubTreeItem));
+        .map(entry => ({ path: entry.path, sha: null }) satisfies GitHubTreeItem);
       const tree = await this.api.createTree(record.owner, record.repo, record.remoteTree, [...items, ...deleted]);
-      const head = await this.api.createCommit(record.owner, record.repo, message.trim() || 'Update from Aiao Desktop', tree, [record.remoteHead]);
+      const head = await this.api.createCommit(
+        record.owner,
+        record.repo,
+        message.trim() || 'Update from Aiao Desktop',
+        tree,
+        [record.remoteHead]
+      );
       await this.api.updateRef(record.owner, record.repo, `heads/${record.branch}`, head);
       return { head, tree };
     } catch (cause) {
@@ -369,7 +374,11 @@ export class GithubRemoteRepository {
     }
   }
 
-  private async readFiles(owner: string, repo: string, entries: readonly GitHubTreeEntry[]): Promise<readonly GitFile[]> {
+  private async readFiles(
+    owner: string,
+    repo: string,
+    entries: readonly GitHubTreeEntry[]
+  ): Promise<readonly GitFile[]> {
     validateRemoteEntries(entries);
     const files: GitFile[] = [];
     for (const entry of entries) {

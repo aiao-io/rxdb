@@ -53,7 +53,8 @@ function isStringArray(value: unknown): value is string[] {
 
 function isPayload(value: unknown): value is WorkerRequest['payload'] {
   if (!isRecord(value) || typeof value['projectId'] !== 'string' || !value['projectId']) return false;
-  if (value['files'] !== undefined && (!Array.isArray(value['files']) || !value['files'].every(isSerializedFile))) return false;
+  if (value['files'] !== undefined && (!Array.isArray(value['files']) || !value['files'].every(isSerializedFile)))
+    return false;
   if (value['paths'] !== undefined && !isStringArray(value['paths'])) return false;
   if (value['path'] !== undefined && typeof value['path'] !== 'string') return false;
   if (value['message'] !== undefined && typeof value['message'] !== 'string') return false;

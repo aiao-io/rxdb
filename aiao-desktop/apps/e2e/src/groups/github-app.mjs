@@ -61,8 +61,7 @@ function bearer(request) {
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
 export const githubApp = {
   name: 'github-app',
-  description:
-    'GitHub 应用入口、空态、OPFS Git 工作流、分支与冲突、OAuth 边界、公开/私有远端和失败恢复',
+  description: 'GitHub 应用入口、空态、OPFS Git 工作流、分支与冲突、OAuth 边界、公开/私有远端和失败恢复',
   keys: [
     'github.applicationsOpens',
     'github.launchpadOpens',
@@ -101,8 +100,14 @@ export const githubApp = {
     let apiOffline = false;
     let remoteConflict = false;
     const repositories = new Map([
-      [`${PUBLIC_OWNER}/${PUBLIC_REPO}`, repositoryFixture({ privateRepository: false, head: PUBLIC_HEAD, tree: PUBLIC_TREE })],
-      [`${PUBLIC_OWNER}/${PRIVATE_REPO}`, repositoryFixture({ privateRepository: true, head: PRIVATE_HEAD, tree: PRIVATE_TREE })]
+      [
+        `${PUBLIC_OWNER}/${PUBLIC_REPO}`,
+        repositoryFixture({ privateRepository: false, head: PUBLIC_HEAD, tree: PUBLIC_TREE })
+      ],
+      [
+        `${PUBLIC_OWNER}/${PRIVATE_REPO}`,
+        repositoryFixture({ privateRepository: true, head: PRIVATE_HEAD, tree: PRIVATE_TREE })
+      ]
     ]);
 
     await installGitHubOAuth(context, OAUTH_ORIGIN, session.origin);
@@ -252,7 +257,8 @@ export const githubApp = {
     const github = win('github');
     await github.waitFor();
     result.launchpadOpens = await appears(github.locator('[data-github-app]'));
-    result.emptyState = (await github.locator('[data-github-empty]').textContent())?.includes('GitHub workbench') === true;
+    result.emptyState =
+      (await github.locator('[data-github-empty]').textContent())?.includes('GitHub workbench') === true;
 
     await closeAll();
     await page.locator('#dock .di[data-app="finder"]').click();
@@ -314,7 +320,10 @@ export const githubApp = {
     await githubWindow.locator('[data-github-save]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Saved to OPFS' }).waitFor();
     await githubWindow.locator('[data-github-branch-select]').selectOption('main');
-    await githubWindow.getByRole('alert').filter({ hasText: 'Uncommitted changes prevent switching branches' }).waitFor();
+    await githubWindow
+      .getByRole('alert')
+      .filter({ hasText: 'Uncommitted changes prevent switching branches' })
+      .waitFor();
     await githubWindow.getByRole('button', { name: 'Discard and switch' }).click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Switched to main' }).waitFor();
     result.branchAndDirtyCheckout = (await githubWindow.locator('[data-github-branch-select]').inputValue()) === 'main';
@@ -349,7 +358,10 @@ export const githubApp = {
     result.remoteBranchSelection = (await remoteGithub.locator('[data-github-remote-branch] option').count()) === 2;
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
-    await remoteGithub.locator('h1').filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` }).waitFor();
+    await remoteGithub
+      .locator('h1')
+      .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
+      .waitFor();
     result.publicRepositoryOpens = (await remoteGithub.locator('[data-file-path="src/main.ts"]').count()) === 1;
 
     const publicFixture = repositories.get(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
@@ -366,7 +378,10 @@ export const githubApp = {
     publicFixture.head = 'f'.repeat(40);
     publicFixture.tree = 'pull-tree';
     await remoteGithub.locator('[data-github-pull]').click();
-    await remoteGithub.locator('[data-github-notice]').filter({ hasText: `Pulled ${PUBLIC_OWNER}/${PUBLIC_REPO}` }).waitFor();
+    await remoteGithub
+      .locator('[data-github-notice]')
+      .filter({ hasText: `Pulled ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
+      .waitFor();
     await expect(remoteGithub.locator('[data-github-push]')).toBeEnabled();
     const pulledFile = remoteGithub.locator('[data-file-path="src/main.ts"]');
     await pulledFile.click();
@@ -377,7 +392,8 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PRIVATE_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub.locator('[data-github-error]').waitFor();
-    result.privateRepositoryRequiresAuth = (await remoteGithub.locator('[data-github-error]').textContent())?.includes('仓库不存在') === true;
+    result.privateRepositoryRequiresAuth =
+      (await remoteGithub.locator('[data-github-error]').textContent())?.includes('仓库不存在') === true;
 
     const startOAuth = async () => {
       const popupPromise = context.waitForEvent('page');
@@ -401,7 +417,8 @@ export const githubApp = {
     const successPopup = await successPopupPromise;
     await successPopup.getByRole('link', { name: 'Authorize' }).click();
     await remoteGithub.locator('[data-github-account]').waitFor();
-    result.oauthSuccess = (await remoteGithub.locator('[data-github-account]').textContent())?.trim() === 'desktop-octo';
+    result.oauthSuccess =
+      (await remoteGithub.locator('[data-github-account]').textContent())?.trim() === 'desktop-octo';
 
     await remoteGithub.getByRole('button', { name: 'Sign out' }).click();
     await remoteGithub.locator('[data-github-oauth-login]').waitFor();
@@ -425,7 +442,10 @@ export const githubApp = {
 
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
-    await remoteGithub.locator('[data-github-notice]').filter({ hasText: `Opened ${PUBLIC_OWNER}/${PUBLIC_REPO}` }).waitFor();
+    await remoteGithub
+      .locator('[data-github-notice]')
+      .filter({ hasText: `Opened ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
+      .waitFor();
     await remoteGithub.locator('[data-github-editor]').fill('# remote change\\n');
     await remoteGithub.locator('[data-github-save]').click();
     await remoteGithub.getByRole('button', { name: 'Stage file' }).click();
@@ -450,7 +470,10 @@ export const githubApp = {
 
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-repository]').press('Enter');
-    await remoteGithub.locator('h1').filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` }).waitFor();
+    await remoteGithub
+      .locator('h1')
+      .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
+      .waitFor();
     await remoteGithub.locator('[data-github-tab="history"]').focus();
     await remoteGithub.locator('[data-github-tab="history"]').press('Enter');
     await remoteGithub.locator('.gh-history').waitFor();

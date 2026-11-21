@@ -147,7 +147,13 @@ await check('exchange: 用 secret 交换授权码并返回 access_token', async 
 
 await check('exchange: 未配置 secret 返回 500，缺字段返回 400', async () => {
   assert.equal(
-    (await post('/api/github-token', { code: 'c', code_verifier: 'v'.repeat(43), redirect_uri: `${ORIGIN}/redirect` }, {})).status,
+    (
+      await post(
+        '/api/github-token',
+        { code: 'c', code_verifier: 'v'.repeat(43), redirect_uri: `${ORIGIN}/redirect` },
+        {}
+      )
+    ).status,
     500
   );
   assert.equal((await post('/api/github-token', { code: 'c' })).status, 400);

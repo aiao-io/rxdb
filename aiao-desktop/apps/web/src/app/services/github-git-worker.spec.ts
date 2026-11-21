@@ -42,7 +42,10 @@ describe('GitHub Git Worker protocol', () => {
 
   const payload = {
     projectId: 'project',
-    files: [{ path: 'main.ts', content: 'code' }, { path: 'asset.bin', bytes: [255] }],
+    files: [
+      { path: 'main.ts', content: 'code' },
+      { path: 'asset.bin', bytes: [255] }
+    ],
     paths: ['main.ts'],
     path: 'old.ts',
     destination: 'new.ts',
@@ -68,27 +71,49 @@ describe('GitHub Git Worker protocol', () => {
     }
   );
 
-  it.each(['init', 'open', 'save', 'snapshot', 'remove', 'rename', 'move', 'status', 'stage', 'unstage', 'readDiff', 'discardWorking', 'commit', 'branches', 'createBranch', 'checkout', 'history', 'restore', 'export', 'import'])(
-    'dispatches %s with a matching request identifier',
-    async action => {
-      request({ id: 7, action, payload });
-      await vi.waitFor(() => expect(scope.postMessage).toHaveBeenCalledWith({ id: 7, result: undefined }));
-      if (action === 'init')
-        expect(fixture.initialize).toHaveBeenCalledWith('project', [
-          { path: 'main.ts', bytes: new TextEncoder().encode('code') },
-          { path: 'asset.bin', bytes: new Uint8Array([255]) }
-        ]);
-      if (action === 'save') expect(fixture.save).toHaveBeenCalledWith('project', expect.any(Array), 1);
-      if (action === 'rename') expect(fixture.rename).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
-      if (action === 'move') expect(fixture.move).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
-      if (action === 'readDiff') expect(fixture.readDiff).toHaveBeenCalledWith('project', 'old.ts', 'staged');
-      if (action === 'createBranch') expect(fixture.createBranch).toHaveBeenCalledWith('project', 'feature');
-      if (action === 'checkout') expect(fixture.checkout).toHaveBeenCalledWith('project', 'feature', false);
-    }
-  );
+  it.each([
+    'init',
+    'open',
+    'save',
+    'snapshot',
+    'remove',
+    'rename',
+    'move',
+    'status',
+    'stage',
+    'unstage',
+    'readDiff',
+    'discardWorking',
+    'commit',
+    'branches',
+    'createBranch',
+    'checkout',
+    'history',
+    'restore',
+    'export',
+    'import'
+  ])('dispatches %s with a matching request identifier', async action => {
+    request({ id: 7, action, payload });
+    await vi.waitFor(() => expect(scope.postMessage).toHaveBeenCalledWith({ id: 7, result: undefined }));
+    if (action === 'init')
+      expect(fixture.initialize).toHaveBeenCalledWith('project', [
+        { path: 'main.ts', bytes: new TextEncoder().encode('code') },
+        { path: 'asset.bin', bytes: new Uint8Array([255]) }
+      ]);
+    if (action === 'save') expect(fixture.save).toHaveBeenCalledWith('project', expect.any(Array), 1);
+    if (action === 'rename') expect(fixture.rename).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
+    if (action === 'move') expect(fixture.move).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
+    if (action === 'readDiff') expect(fixture.readDiff).toHaveBeenCalledWith('project', 'old.ts', 'staged');
+    if (action === 'createBranch') expect(fixture.createBranch).toHaveBeenCalledWith('project', 'feature');
+    if (action === 'checkout') expect(fixture.checkout).toHaveBeenCalledWith('project', 'feature', false);
+  });
 
   it('serializes snapshots and binary exports without losing bytes', async () => {
-    fixture.snapshot.mockResolvedValueOnce({ projectId: 'project', files: [{ path: 'asset.bin', bytes: new Uint8Array([0, 255]) }], revision: 1 });
+    fixture.snapshot.mockResolvedValueOnce({
+      projectId: 'project',
+      files: [{ path: 'asset.bin', bytes: new Uint8Array([0, 255]) }],
+      revision: 1
+    });
     request({ id: 3, action: 'snapshot', payload });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({

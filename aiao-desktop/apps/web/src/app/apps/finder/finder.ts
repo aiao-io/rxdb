@@ -580,7 +580,7 @@ export class FinderApp implements FinderCommands {
   protected select(name: string, event?: MouseEvent): void {
     const current = this.selectedNames();
     const next = this.nextSelection(this.items(), current, name, event);
-    this.setSelection(next, next.includes(name) ? name : next.at(-1) ?? null);
+    this.setSelection(next, next.includes(name) ? name : (next.at(-1) ?? null));
   }
 
   protected focusItem(name: string): void {
@@ -645,7 +645,7 @@ export class FinderApp implements FinderCommands {
     const items = this.columns().chain[index]?.items ?? [];
     const current = this.selectedColumnIndex() === index ? this.selectedColumnNames() : [];
     const next = this.nextSelection(items, current, name, event);
-    this.setColumnNames(index, next, next.includes(name) ? name : next.at(-1) ?? null);
+    this.setColumnNames(index, next, next.includes(name) ? name : (next.at(-1) ?? null));
     this.commitColumnPath();
   }
 
@@ -1019,7 +1019,9 @@ export class FinderApp implements FinderCommands {
     const index = this.selectedColumnIndex();
     if (index === null) return;
     const primary = this.selected();
-    this.columnSelection.set(primary ? [...this.columnSelection().slice(0, index), primary] : this.columnSelection().slice(0, index));
+    this.columnSelection.set(
+      primary ? [...this.columnSelection().slice(0, index), primary] : this.columnSelection().slice(0, index)
+    );
   }
 
   private clearColumnSelection(): void {
@@ -1101,8 +1103,7 @@ export class FinderApp implements FinderCommands {
     const name = target?.dataset['name'];
     if (!name) return fallback;
     const column = target.dataset['ci'];
-    const items =
-      column === undefined ? this.items() : (this.columns().chain[Number(column)]?.items ?? []);
+    const items = column === undefined ? this.items() : (this.columns().chain[Number(column)]?.items ?? []);
     return items.find(item => item.name === name) ?? fallback;
   }
 

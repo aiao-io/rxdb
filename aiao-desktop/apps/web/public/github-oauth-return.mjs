@@ -1,7 +1,10 @@
 const CODE_ORIGIN = 'https://vscode.aiao.io';
 const CALLBACK_PATH = '/github-callback';
 const NONCE_PATTERN = /^[0-9a-f]{32}$/;
-const source = location.search ? location.search : location.hash.startsWith('#') ? location.hash.slice(1) : '';
+const source =
+  location.search ? location.search
+  : location.hash.startsWith('#') ? location.hash.slice(1)
+  : '';
 const params = new URLSearchParams(source);
 const status = document.querySelector('#status');
 const values = name => params.getAll(name);

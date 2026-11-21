@@ -44,29 +44,29 @@ capabilities: []
 
 ## 交付阶段
 
-| 阶段 | 用户可见价值 | 依赖 | 关闭条件 | 状态 |
-| ---- | ------------ | ---- | -------- | ---- |
-| A | 用户能从 Aiao Desktop 打开 GitHub 应用，并在 GitHub Desktop 形态的工作区里查看仓库、分支、变更和历史 | ADESK-US-201、ADESK-US-205、ADESK-US-206 | 应用清单、窗口生命周期、视觉布局、主题、键盘等效操作和失败空态在正式构建中可用 | ✅ |
-| B | 用户能在浏览器本地建立可恢复的 Git 工作区，完成编辑、分支、暂存、差异、提交和历史操作 | 阶段 A；`apps/aiao-vscode/src/workbench/git/` 的 Git Worker 与 `WorkbenchBackend` 契约 | 工作区和 `.git` 均在 OPFS；刷新、重开、并发写入、失败恢复和导出重导入通过同一组仓库 fixture | ✅ |
-| C | 用户能登录 GitHub，打开远端仓库，在本地 OPFS 工作区拉取和推送，并处理认证失败、网络失败和远端冲突 | 阶段 B；现有 GitHub OAuth 桥接与 GitHub API 适配 | OAuth 状态校验、会话清除、公开/私有仓库、分支快照、API 提交、拉取冲突和推送冲突在受控网络环境通过 | ✅ |
+| 阶段 | 用户可见价值                                                                                         | 依赖                                                                                   | 关闭条件                                                                                          | 状态 |
+| ---- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
+| A    | 用户能从 Aiao Desktop 打开 GitHub 应用，并在 GitHub Desktop 形态的工作区里查看仓库、分支、变更和历史 | ADESK-US-201、ADESK-US-205、ADESK-US-206                                               | 应用清单、窗口生命周期、视觉布局、主题、键盘等效操作和失败空态在正式构建中可用                    | ✅   |
+| B    | 用户能在浏览器本地建立可恢复的 Git 工作区，完成编辑、分支、暂存、差异、提交和历史操作                | 阶段 A；`apps/aiao-vscode/src/workbench/git/` 的 Git Worker 与 `WorkbenchBackend` 契约 | 工作区和 `.git` 均在 OPFS；刷新、重开、并发写入、失败恢复和导出重导入通过同一组仓库 fixture       | ✅   |
+| C    | 用户能登录 GitHub，打开远端仓库，在本地 OPFS 工作区拉取和推送，并处理认证失败、网络失败和远端冲突    | 阶段 B；现有 GitHub OAuth 桥接与 GitHub API 适配                                       | OAuth 状态校验、会话清除、公开/私有仓库、分支快照、API 提交、拉取冲突和推送冲突在受控网络环境通过 | ✅   |
 
 ## 验收标准
 
-| #   | 前置条件 | 操作 | 预期结果 | 状态 |
-| --- | -------- | ---- | -------- | ---- |
-| 1 | Aiao Desktop 正式构建 | 从 Applications、启动台或聚焦搜索打开 GitHub | GitHub 应用作为预装内置应用出现，窗口可以打开、聚焦、最小化、还原和关闭，应用失败不影响其他桌面窗口 | ✅ |
-| 2 | GitHub 应用窗口已打开 | 查看空态、仓库工作区和仓库有变更的状态 | 页面具有 GitHub Desktop 形态的仓库工具栏、分支选择、Changes / History、文件列表、提交框、差异或历史详情，并能在亮色和暗色主题下保持可读 | ✅ |
-| 3 | GitHub 应用窗口已打开 | 只用键盘完成打开仓库、切换 Changes / History、选择文件、打开差异、提交和关闭对话框 | 每个动作都有可聚焦的控件、可理解的名称和等效按钮，焦点不会被异步刷新或失败提示吞掉 | ✅ |
-| 4 | 浏览器处于安全上下文且支持 OPFS、Web Locks 和 Git Worker | 创建或导入仓库并检查其持久内容 | 工作区文件和 `.git` 元数据写入 GitHub 应用的独立 OPFS 根，RxDB 只保留仓库元数据，Finder 虚拟磁盘中不会出现同一份隐式副本 | ✅ |
-| 5 | OPFS 中存在一个仓库 | 刷新页面、关闭窗口后重新打开应用，再查看分支、HEAD、工作区、暂存区和历史 | 所有状态与最后一次成功操作一致，文本、UTF-8、CRLF、点文件、嵌套路径和二进制字节保持不变 | ✅ |
-| 6 | 仓库包含新增、修改、删除和重命名文件 | 依次执行 status、选择差异、stage、unstage、discard、commit、history、restore、create branch 和 switch branch | 状态、暂存内容、差异、提交图和分支结果与 Git 语义一致，带未提交改动切换分支时先明确提示并按用户选择处理 | ✅ |
-| 7 | 同一仓库被两个标签页打开，或 Git Worker 在写入中途失败 | 并发执行写操作，或模拟 Worker 中断、配额不足和 OPFS 写失败后重新打开仓库 | 同一仓库写入按仓库级锁串行化，失败不会显示成功、不会丢失最后一个成功版本，残留状态可以被诊断和恢复 | ✅ |
-| 8 | 仓库存在提交历史 | 导出完整仓库后在新的仓库标识下导入并继续提交 | 导出包含工作区与 `.git`，导入后的 HEAD、分支、历史和文件字节可被 Git 工作区继续使用，坏包或超限包不会创建半成品仓库 | ✅ |
-| 9 | 用户点击 GitHub 登录 | 取消 OAuth 授权、关闭授权窗口、伪造 state、重复使用 code、让授权码交换失败，或输入空/无效 PAT | 不创建会话，不把 token 写入 URL 或普通 localStorage，界面给出可恢复错误，下一次登录可以重新开始 | ✅ |
-| 10 | 用户完成 GitHub OAuth 登录 | 刷新应用、在另一个标签页完成登录、退出登录或使用失效 token 访问私有仓库 | 当前账户、头像和登录来源显示正确，退出后本地会话与缓存清除，失效会话要求重新登录，其他标签页能刷新到最新状态 | ✅ |
-| 11 | 用户已登录，或正在打开公开仓库 | 搜索仓库或输入 owner/repo，选择分支并打开 | 选定分支的远端文件、必要 Git 元数据、远端坐标和当前提交写入独立 OPFS 工作区，公开仓库不因未登录被错误拦截，私有仓库权限不足给出明确提示 | ✅ |
-| 12 | 本地 OPFS 工作区已有改动，远端也可能已更新 | 执行拉取、提交并推送 | 非冲突远端改动可以保留本地改动并继续工作；远端分支前进或 API 冲突时拒绝覆盖本地内容，保留本地提交和暂存状态，并提供下一步处理入口 | ✅ |
-| 13 | 真实浏览器正式构建，外网请求按测试夹具受控 | 运行 GitHub 应用的单测、类型检查、构建、Chromium 冒烟和持久浏览器上下文复验 | 应用入口、视觉交互、OPFS Git 闭环、OAuth 边界、远端错误和恢复路径都有同层证据，未验证能力不标记为已完成 | ✅ |
+| #   | 前置条件                                                 | 操作                                                                                                         | 预期结果                                                                                                                                | 状态 |
+| --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Aiao Desktop 正式构建                                    | 从 Applications、启动台或聚焦搜索打开 GitHub                                                                 | GitHub 应用作为预装内置应用出现，窗口可以打开、聚焦、最小化、还原和关闭，应用失败不影响其他桌面窗口                                     | ✅   |
+| 2   | GitHub 应用窗口已打开                                    | 查看空态、仓库工作区和仓库有变更的状态                                                                       | 页面具有 GitHub Desktop 形态的仓库工具栏、分支选择、Changes / History、文件列表、提交框、差异或历史详情，并能在亮色和暗色主题下保持可读 | ✅   |
+| 3   | GitHub 应用窗口已打开                                    | 只用键盘完成打开仓库、切换 Changes / History、选择文件、打开差异、提交和关闭对话框                           | 每个动作都有可聚焦的控件、可理解的名称和等效按钮，焦点不会被异步刷新或失败提示吞掉                                                      | ✅   |
+| 4   | 浏览器处于安全上下文且支持 OPFS、Web Locks 和 Git Worker | 创建或导入仓库并检查其持久内容                                                                               | 工作区文件和 `.git` 元数据写入 GitHub 应用的独立 OPFS 根，RxDB 只保留仓库元数据，Finder 虚拟磁盘中不会出现同一份隐式副本                | ✅   |
+| 5   | OPFS 中存在一个仓库                                      | 刷新页面、关闭窗口后重新打开应用，再查看分支、HEAD、工作区、暂存区和历史                                     | 所有状态与最后一次成功操作一致，文本、UTF-8、CRLF、点文件、嵌套路径和二进制字节保持不变                                                 | ✅   |
+| 6   | 仓库包含新增、修改、删除和重命名文件                     | 依次执行 status、选择差异、stage、unstage、discard、commit、history、restore、create branch 和 switch branch | 状态、暂存内容、差异、提交图和分支结果与 Git 语义一致，带未提交改动切换分支时先明确提示并按用户选择处理                                 | ✅   |
+| 7   | 同一仓库被两个标签页打开，或 Git Worker 在写入中途失败   | 并发执行写操作，或模拟 Worker 中断、配额不足和 OPFS 写失败后重新打开仓库                                     | 同一仓库写入按仓库级锁串行化，失败不会显示成功、不会丢失最后一个成功版本，残留状态可以被诊断和恢复                                      | ✅   |
+| 8   | 仓库存在提交历史                                         | 导出完整仓库后在新的仓库标识下导入并继续提交                                                                 | 导出包含工作区与 `.git`，导入后的 HEAD、分支、历史和文件字节可被 Git 工作区继续使用，坏包或超限包不会创建半成品仓库                     | ✅   |
+| 9   | 用户点击 GitHub 登录                                     | 取消 OAuth 授权、关闭授权窗口、伪造 state、重复使用 code、让授权码交换失败，或输入空/无效 PAT                | 不创建会话，不把 token 写入 URL 或普通 localStorage，界面给出可恢复错误，下一次登录可以重新开始                                         | ✅   |
+| 10  | 用户完成 GitHub OAuth 登录                               | 刷新应用、在另一个标签页完成登录、退出登录或使用失效 token 访问私有仓库                                      | 当前账户、头像和登录来源显示正确，退出后本地会话与缓存清除，失效会话要求重新登录，其他标签页能刷新到最新状态                            | ✅   |
+| 11  | 用户已登录，或正在打开公开仓库                           | 搜索仓库或输入 owner/repo，选择分支并打开                                                                    | 选定分支的远端文件、必要 Git 元数据、远端坐标和当前提交写入独立 OPFS 工作区，公开仓库不因未登录被错误拦截，私有仓库权限不足给出明确提示 | ✅   |
+| 12  | 本地 OPFS 工作区已有改动，远端也可能已更新               | 执行拉取、提交并推送                                                                                         | 非冲突远端改动可以保留本地改动并继续工作；远端分支前进或 API 冲突时拒绝覆盖本地内容，保留本地提交和暂存状态，并提供下一步处理入口       | ✅   |
+| 13  | 真实浏览器正式构建，外网请求按测试夹具受控               | 运行 GitHub 应用的单测、类型检查、构建、Chromium 冒烟和持久浏览器上下文复验                                  | 应用入口、视觉交互、OPFS Git 闭环、OAuth 边界、远端错误和恢复路径都有同层证据，未验证能力不标记为已完成                                 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -90,15 +90,15 @@ capabilities: []
 
 ## 实现文件
 
-| 阶段 | 文件 | 改动 |
-| ---- | ---- | ---- |
-| A | `aiao-desktop/apps/web/src/app/apps/app-manifests.ts`、`aiao-desktop/apps/web/src/app/apps/registry.ts` | GitHub 内置应用登记、懒加载和窗口元数据 |
-| A | `aiao-desktop/apps/web/src/app/apps/github/`（新增） | GitHub Desktop 形态的工作区页面、组件和局部样式 |
-| B | `apps/aiao-vscode/src/workbench/git/` 与 `aiao-desktop/apps/web/src/app/apps/github/` | 抽取或适配框架无关 Git Worker、OPFS 仓库和 GitHub 应用状态模型 |
-| B | `aiao-desktop/apps/web/src/app/services/github-repository.ts`（新增） | 仓库目录、OPFS 根、恢复、导入导出和并发协调 |
-| C | `aiao-desktop/apps/web/src/app/services/github-oauth.ts`、`aiao-desktop/apps/web/public/github-oauth-return.*` | GitHub 应用登录桥接、回调和会话清理 |
-| C | `aiao-desktop/apps/web/src/app/services/github-repository.ts`、`aiao-desktop/apps/web/src/app/services/github-api.ts`（新增） | GitHub API、远端坐标、拉取、提交并推送与冲突错误 |
-| A～C | `aiao-desktop/apps/e2e/src/groups/github-app.mjs`（新增）及 `smoke.mjs` | 正式构建冒烟、持久化、键盘、认证和远端错误验收 |
+| 阶段 | 文件                                                                                                                          | 改动                                                           |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| A    | `aiao-desktop/apps/web/src/app/apps/app-manifests.ts`、`aiao-desktop/apps/web/src/app/apps/registry.ts`                       | GitHub 内置应用登记、懒加载和窗口元数据                        |
+| A    | `aiao-desktop/apps/web/src/app/apps/github/`（新增）                                                                          | GitHub Desktop 形态的工作区页面、组件和局部样式                |
+| B    | `apps/aiao-vscode/src/workbench/git/` 与 `aiao-desktop/apps/web/src/app/apps/github/`                                         | 抽取或适配框架无关 Git Worker、OPFS 仓库和 GitHub 应用状态模型 |
+| B    | `aiao-desktop/apps/web/src/app/services/github-repository.ts`（新增）                                                         | 仓库目录、OPFS 根、恢复、导入导出和并发协调                    |
+| C    | `aiao-desktop/apps/web/src/app/services/github-oauth.ts`、`aiao-desktop/apps/web/public/github-oauth-return.*`                | GitHub 应用登录桥接、回调和会话清理                            |
+| C    | `aiao-desktop/apps/web/src/app/services/github-repository.ts`、`aiao-desktop/apps/web/src/app/services/github-api.ts`（新增） | GitHub API、远端坐标、拉取、提交并推送与冲突错误               |
+| A～C | `aiao-desktop/apps/e2e/src/groups/github-app.mjs`（新增）及 `smoke.mjs`                                                       | 正式构建冒烟、持久化、键盘、认证和远端错误验收                 |
 
 ## References
 

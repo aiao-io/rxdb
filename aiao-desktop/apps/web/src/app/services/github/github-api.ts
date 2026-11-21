@@ -72,8 +72,7 @@ function requiredBoolean(value: unknown, field: string): boolean {
 }
 
 function pathSegment(value: string, field: string): string {
-  if (!/^[A-Za-z0-9._~-]{1,128}$/.test(value))
-    throw new GitHubApiError('invalid_response', `响应包含无效的 ${field}`);
+  if (!/^[A-Za-z0-9._~-]{1,128}$/.test(value)) throw new GitHubApiError('invalid_response', `响应包含无效的 ${field}`);
   return encodeURIComponent(value);
 }
 
@@ -410,8 +409,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
           throw new GitHubApiError('resource_limit', '远端目录树层级或条目过多');
         seenTrees.add(treeKey);
         const json = asRecord(await requestJson(`${base}/${pathSegment(subtree.sha, 'tree.sha')}`, {}, true));
-        if (json['truncated'] === true)
-          throw new GitHubApiError('resource_limit', '远端子树响应被截断，无法安全导入');
+        if (json['truncated'] === true) throw new GitHubApiError('resource_limit', '远端子树响应被截断，无法安全导入');
         if (json['truncated'] !== undefined && typeof json['truncated'] !== 'boolean')
           throw new GitHubApiError('invalid_response', '子树响应包含无效的 truncated');
         const raw = json['tree'];

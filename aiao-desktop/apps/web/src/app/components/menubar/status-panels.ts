@@ -124,8 +124,7 @@ export class WifiPanel extends StatusPanel {
     <div class="mhead" style="padding-left: 0">Devices</div>
     @for (device of devices; track device[0]) {
       <div class="row">
-        <span class="nm">{{ device[0] }}</span
-        ><span class="tail sub">{{ device[1] }}</span>
+        <span class="nm">{{ device[0] }}</span><span class="tail sub">{{ device[1] }}</span>
       </div>
     }
     <div class="sep"></div>

@@ -15,10 +15,13 @@ async function appIds(page) {
 
 async function openProfilePage(profile, origin, restored = false) {
   const context = await profile.open();
-  await context.route(url => {
-    if (!APP_ORIGIN_PATTERN.test(url)) return false;
-    return new URL(url).origin !== origin;
-  }, route => route.abort());
+  await context.route(
+    url => {
+      if (!APP_ORIGIN_PATTERN.test(url)) return false;
+      return new URL(url).origin !== origin;
+    },
+    route => route.abort()
+  );
   const page = context.pages()[0] ?? (await context.newPage());
   const helpers = createHelpers(page);
   await page.goto(`${origin}/?boot=0`, { waitUntil: 'load' });
@@ -42,17 +45,14 @@ async function closeProfilePage(page) {
 
 async function updateResumeSnapshot(context, origin, distRoot, update) {
   await surgery({ context, origin, distRoot }, async db => {
-    const rows = await db.shell.rows(
-      `SELECT "value" FROM "${PREFERENCES}" WHERE "key" = ?`,
-      [RESUME_KEY]
-    );
+    const rows = await db.shell.rows(`SELECT "value" FROM "${PREFERENCES}" WHERE "key" = ?`, [RESUME_KEY]);
     if (!rows[0]) throw new Error('浏览器会话快照不存在');
     const current = JSON.parse(rows[0][0]);
     const next = update(current);
-    await db.shell.execute(
-      `UPDATE "${PREFERENCES}" SET "value" = ? WHERE "key" = ?`,
-      [JSON.stringify(next), RESUME_KEY]
-    );
+    await db.shell.execute(`UPDATE "${PREFERENCES}" SET "value" = ? WHERE "key" = ?`, [
+      JSON.stringify(next),
+      RESUME_KEY
+    ]);
   });
 }
 

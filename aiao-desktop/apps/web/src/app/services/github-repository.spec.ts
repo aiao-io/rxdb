@@ -1,13 +1,11 @@
+import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
 
-import { configureServices } from '../testing/angular';
 import { Preferences } from '../data/preferences';
-import type { GitFile } from './github-git-backend';
+import { configureServices } from '../testing/angular';
 import { GIT_WORKBENCH_LIMITS } from './git/git-protocol';
-import { GitHubApiError, type GitHubApi } from './github/github-api';
-import type { GitHubTreeEntry } from './github/github-types';
+import type { GitFile } from './github-git-backend';
 import {
   GithubRemoteRepository,
   GithubRepositoryStore,
@@ -15,11 +13,13 @@ import {
   projectIdFor,
   type GithubRepositoryRecord
 } from './github-repository';
+import { GitHubApiError, type GitHubApi } from './github/github-api';
+import type { GitHubTreeEntry } from './github/github-types';
 
 const bytes = (value: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(value) as Uint8Array<ArrayBuffer>;
 const file = (path: string, value: string | number[]): GitFile => ({
   path,
-  bytes: typeof value === 'string' ? bytes(value) : new Uint8Array(value) as Uint8Array<ArrayBuffer>
+  bytes: typeof value === 'string' ? bytes(value) : (new Uint8Array(value) as Uint8Array<ArrayBuffer>)
 });
 const entry = (path: string, sha = `sha-${path}`, mode = '100644'): GitHubTreeEntry => ({ path, sha, mode });
 
@@ -69,7 +69,9 @@ describe('GitHub repository parsing and remote workflow', () => {
 
   beforeEach(() => {
     api = makeApi();
-    api.getBlobContents.mockImplementation(async (_owner: string, _repo: string, sha: string) => bytes(sha.startsWith('sha-') ? 'base' : ''));
+    api.getBlobContents.mockImplementation(async (_owner: string, _repo: string, sha: string) =>
+      bytes(sha.startsWith('sha-') ? 'base' : '')
+    );
     remote = new GithubRemoteRepository(api as unknown as GitHubApi);
   });
 
@@ -82,7 +84,15 @@ describe('GitHub repository parsing and remote workflow', () => {
     expect(parseGithubRemote(value)).toEqual(expected);
   });
 
-  it.each(['', 'octo', 'git@github.com:octo/repo.git', 'http://github.com/octo/repo', 'github.com/octo/repo', 'octo/repo?x=1', 'octo/repo/tree/main?bad'])('rejects an unsupported remote %s', value => {
+  it.each([
+    '',
+    'octo',
+    'git@github.com:octo/repo.git',
+    'http://github.com/octo/repo',
+    'github.com/octo/repo',
+    'octo/repo?x=1',
+    'octo/repo/tree/main?bad'
+  ])('rejects an unsupported remote %s', value => {
     expect(parseGithubRemote(value)).toBeNull();
   });
 
@@ -101,7 +111,11 @@ describe('GitHub repository parsing and remote workflow', () => {
     api.getRepository.mockResolvedValue({ owner: 'octo', repo: 'repo', defaultBranch: 'main', isPrivate: true });
     api.getBranchSha.mockResolvedValue('head-1');
     api.getCommit.mockResolvedValue({ sha: 'head-1', treeSha: 'tree-1', parents: [], message: 'initial' });
-    api.getTreeFiles.mockResolvedValue([entry('README.md'), entry('vendor', 'gitlink', '160000'), entry('asset.bin', 'sha-asset')]);
+    api.getTreeFiles.mockResolvedValue([
+      entry('README.md'),
+      entry('vendor', 'gitlink', '160000'),
+      entry('asset.bin', 'sha-asset')
+    ]);
     api.getBlobContents.mockImplementation(async (_owner: string, _repo: string, sha: string) =>
       sha === 'sha-asset' ? new Uint8Array([0, 255]) : bytes('# repo\n')
     );
@@ -119,7 +133,14 @@ describe('GitHub repository parsing and remote workflow', () => {
       record({ remoteEntries: [entry('a.txt'), entry('b.txt')], remoteHead: 'head-1' }),
       local,
       true,
-      { record: record({ remoteHead: 'head-2', remoteTree: 'tree-2', remoteEntries: [entry('a.txt'), entry('b.txt'), entry('c.txt')] }), files: remoteFiles }
+      {
+        record: record({
+          remoteHead: 'head-2',
+          remoteTree: 'tree-2',
+          remoteEntries: [entry('a.txt'), entry('b.txt'), entry('c.txt')]
+        }),
+        files: remoteFiles
+      }
     );
     expect(result.files).toEqual([file('a.txt', 'local'), file('b.txt', 'remote'), file('c.txt', 'new')]);
     expect(result.record.remoteHead).toBe('head-2');
@@ -130,12 +151,7 @@ describe('GitHub repository parsing and remote workflow', () => {
     const local = [file('a.txt', 'local'), file('b.txt', 'local-b')];
     const remoteFiles = [file('a.txt', 'remote'), file('b.txt', 'remote-b')];
     await expect(
-      remote.pull(
-        record(),
-        local,
-        true,
-        { record: record({ remoteHead: 'head-2' }), files: remoteFiles }
-      )
+      remote.pull(record(), local, true, { record: record({ remoteHead: 'head-2' }), files: remoteFiles })
     ).rejects.toThrow('a.txt, b.txt');
     expect(local).toEqual([file('a.txt', 'local'), file('b.txt', 'local-b')]);
   });
@@ -196,13 +212,22 @@ describe('GitHub repository parsing and remote workflow', () => {
 
   it('rejects unsupported remote modes, collisions and local resource limits', async () => {
     api.getRepository.mockRejectedValue(new GitHubApiError('not_found', 'missing', 404));
-    await expect(remote.open('octo', 'repo', 'main')).rejects.toMatchObject({ message: expect.stringContaining('仓库不存在') });
+    await expect(remote.open('octo', 'repo', 'main')).rejects.toMatchObject({
+      message: expect.stringContaining('仓库不存在')
+    });
     api.getRepository.mockResolvedValue({ owner: 'octo', repo: 'repo', defaultBranch: 'main', isPrivate: false });
     api.getBranchSha.mockResolvedValue('head-1');
     api.getCommit.mockResolvedValue({ sha: 'head-1', treeSha: 'tree-1', parents: [], message: 'initial' });
     api.getTreeFiles.mockResolvedValue([entry('script.sh', 'sha', '100755')]);
     await expect(remote.open('octo', 'repo')).rejects.toThrow('模式不受支持');
-    await expect(remote.pull(record(), Array.from({ length: GIT_WORKBENCH_LIMITS.files + 1 }, (_, index) => file(`f${index}`, 'x')), false, { record: record({ remoteHead: 'head-2' }), files: [] })).rejects.toThrow('文件数超过');
+    await expect(
+      remote.pull(
+        record(),
+        Array.from({ length: GIT_WORKBENCH_LIMITS.files + 1 }, (_, index) => file(`f${index}`, 'x')),
+        false,
+        { record: record({ remoteHead: 'head-2' }), files: [] }
+      )
+    ).rejects.toThrow('文件数超过');
   });
 });
 
@@ -214,9 +239,15 @@ describe('GitHub repository directory store', () => {
       ready: Promise.resolve(),
       external$: external.asObservable(),
       get: vi.fn(() => records),
-      update: vi.fn(async (_key: string, _guard: unknown, updater: (current: GithubRepositoryRecord[]) => GithubRepositoryRecord[]) => {
-        records = updater(records);
-      })
+      update: vi.fn(
+        async (
+          _key: string,
+          _guard: unknown,
+          updater: (current: GithubRepositoryRecord[]) => GithubRepositoryRecord[]
+        ) => {
+          records = updater(records);
+        }
+      )
     };
     configureServices([GithubRepositoryStore, { provide: Preferences, useValue: preferences }]);
     const store = TestBed.inject(GithubRepositoryStore);

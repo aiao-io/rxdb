@@ -395,7 +395,18 @@ describe('Git workspace operation contract', () => {
 
   it('validates branch names before invoking the Git runtime', async () => {
     await runtime.initialize('project', [file('README.md', 'fixture')]);
-    for (const name of ['', ' feature', 'feature ', '-feature', 'feature..name', 'feature~name', 'feature@{name}', 'feature.lock', 'feature/', 'feature//nested']) {
+    for (const name of [
+      '',
+      ' feature',
+      'feature ',
+      '-feature',
+      'feature..name',
+      'feature~name',
+      'feature@{name}',
+      'feature.lock',
+      'feature/',
+      'feature//nested'
+    ]) {
       await expect(runtime.createBranch('project', name)).rejects.toMatchObject({ code: 'invalid_path' });
     }
   });

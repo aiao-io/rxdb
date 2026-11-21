@@ -27,8 +27,7 @@ import { WeatherStatus } from '../weather-status';
       <div class="ev">
         <i [style.background]="store.colorOf(event)"></i>
         <div class="b">
-          <b>{{ event.t }}</b
-          ><span>{{ time(event) }}</span>
+          <b>{{ event.t }}</b><span>{{ time(event) }}</span>
         </div>
       </div>
     } @empty {
@@ -65,8 +64,7 @@ export class CalendarWidget {
         <div class="hours">
           @for (hour of weather.hours(5); track $index) {
             <div>
-              <span>{{ hour[0] }}</span
-              ><svg [appIcon]="hour[2]"></svg><b>{{ hour[1] }}°</b>
+              <span>{{ hour[0] }}</span><svg [appIcon]="hour[2]"></svg><b>{{ hour[1] }}°</b>
             </div>
           }
         </div>
@@ -108,8 +106,7 @@ export class WeatherWidget {
           >
           <span class="spark"><app-sparkline [height]="26" [seed]="i" [up]="ticker.up" [width]="90" /></span>
           <span class="num">
-            <b>{{ ticker.p.toFixed(2) }}</b
-            ><span>{{ ticker.up ? '+' : '' }}{{ ticker.d.toFixed(2) }}%</span>
+            <b>{{ ticker.p.toFixed(2) }}</b><span>{{ ticker.up ? '+' : '' }}{{ ticker.d.toFixed(2) }}%</span>
           </span>
         </div>
       }

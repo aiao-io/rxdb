@@ -37,7 +37,13 @@ export async function onRequestGet({ request }: PagesContext): Promise<Response>
     return new Response('Invalid state', { status: 400 });
   }
   // 防开放重定向：state 只能是本站回调路由
-  if (target.origin !== url.origin || target.pathname !== '/github-callback' || target.username || target.password || target.hash) {
+  if (
+    target.origin !== url.origin ||
+    target.pathname !== '/github-callback' ||
+    target.username ||
+    target.password ||
+    target.hash
+  ) {
     return new Response('Invalid state redirect target', { status: 400 });
   }
   const desktop = target.searchParams.get('desktop');

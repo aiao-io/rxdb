@@ -8,8 +8,8 @@ import {
   literalGitPathspec
 } from './git-paths.js';
 import {
-  type GitCommit,
   type GitBranch,
+  type GitCommit,
   type GitFile,
   type GitFileDiff,
   type GitSnapshot,
@@ -349,11 +349,16 @@ export class GitWorkbenchRuntime {
       this.assertBranchName(name);
       const status = await this.statusContext(context);
       if (!status.head) throw new GitWorkbenchError('git_failed', 'Cannot create a branch before the first commit');
-      if (this.readBranchRefs(context.root).has(name)) throw new GitWorkbenchError('git_failed', 'Branch already exists');
+      if (this.readBranchRefs(context.root).has(name))
+        throw new GitWorkbenchError('git_failed', 'Branch already exists');
       return this.mutate(
         context,
         async () => {
-          await this.writeRepositoryFile(context, `.git/refs/heads/${name}`, new TextEncoder().encode(`${status.head}\n`));
+          await this.writeRepositoryFile(
+            context,
+            `.git/refs/heads/${name}`,
+            new TextEncoder().encode(`${status.head}\n`)
+          );
           const result = await this.branchesContext(context);
           return () => result;
         },
@@ -369,14 +374,11 @@ export class GitWorkbenchRuntime {
       if (current.branch === name) return current;
       if (!force && current.entries.some(entry => entry.index !== ' ' || entry.worktree !== ' '))
         throw new GitWorkbenchError('dirty_workspace', 'Cannot switch branches with uncommitted changes');
-      return this.mutate(
-        context,
-        async () => {
-          await this.run(['checkout', ...(force ? ['--force'] : []), name]);
-          const result = await this.statusContext(context);
-          return () => result;
-        }
-      );
+      return this.mutate(context, async () => {
+        await this.run(['checkout', ...(force ? ['--force'] : []), name]);
+        const result = await this.statusContext(context);
+        return () => result;
+      });
     });
   }
 
@@ -568,7 +570,11 @@ export class GitWorkbenchRuntime {
     const refs = this.readBranchRefs(context.root);
     if (current !== 'detached' && !refs.has(current)) refs.set(current, null);
     return [...refs]
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .sort(([left], [right]) =>
+        left < right ? -1
+        : left > right ? 1
+        : 0
+      )
       .map(([name, oid]) => ({ name, oid, current: name === current }));
   }
 
@@ -594,7 +600,8 @@ export class GitWorkbenchRuntime {
         const mode = this.fs.lstat(path).mode;
         const branch = prefix ? `${prefix}/${name}` : name;
         if (this.fs.isDir(mode)) visit(path, branch);
-        else if (this.fs.isFile(mode)) refs.set(branch, new TextDecoder().decode(this.fs.readFile(path)).trim() || null);
+        else if (this.fs.isFile(mode))
+          refs.set(branch, new TextDecoder().decode(this.fs.readFile(path)).trim() || null);
       }
     };
     visit(heads, '');

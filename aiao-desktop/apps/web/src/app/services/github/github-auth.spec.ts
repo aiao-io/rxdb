@@ -125,7 +125,9 @@ describe('GitHub authentication', () => {
   it('rejects a failed exchange without persisting', async () => {
     const pending = await auth.beginOAuth();
     fetchMock.mockResolvedValue(jsonResponse({ message: 'invalid' }, { status: 400 }));
-    await expect(auth.completeOAuth('code-abc', pending.verifier, pending.state)).rejects.toMatchObject({ code: 'auth_invalid' });
+    await expect(auth.completeOAuth('code-abc', pending.verifier, pending.state)).rejects.toMatchObject({
+      code: 'auth_invalid'
+    });
     await expect(store.load()).resolves.toBeNull();
   });
 

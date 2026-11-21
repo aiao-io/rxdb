@@ -6,7 +6,7 @@
     <span class="gh-grow"></span>
     @if (session(); as account) {
       <span class="gh-account" data-github-account>{{ account.login }}</span>
-      <button class="gh-link" (click)="logout()" [disabled]="authBusy()" type="button">Sign out</button>
+      <button class="gh-link" [disabled]="authBusy()" (click)="logout()" type="button">Sign out</button>
     } @else {
       <input
         class="gh-pat"
@@ -17,16 +17,16 @@
         placeholder="Personal access token"
         type="password"
       />
-      <button class="gh-link" (click)="loginWithPat()" [disabled]="authBusy()" data-github-pat-login type="button">
+      <button class="gh-link" [disabled]="authBusy()" (click)="loginWithPat()" data-github-pat-login type="button">
         Sign in with PAT
       </button>
-      <button class="gh-link" (click)="loginWithOAuth()" [disabled]="authBusy()" data-github-oauth-login type="button">
+      <button class="gh-link" [disabled]="authBusy()" (click)="loginWithOAuth()" data-github-oauth-login type="button">
         Sign in with GitHub
       </button>
     }
   </div>
 
-  <div class="gh-toolbar" role="toolbar" aria-label="Repository actions">
+  <div class="gh-toolbar" aria-label="Repository actions" role="toolbar">
     <input
       [value]="searchValue()"
       (input)="setValue('search', $event)"
@@ -36,7 +36,9 @@
       placeholder="Search GitHub repositories"
       type="search"
     />
-    <button (click)="searchRemoteRepositories()" [disabled]="busy()" data-github-search-submit type="button">Search</button>
+    <button [disabled]="busy()" (click)="searchRemoteRepositories()" data-github-search-submit type="button">
+      Search
+    </button>
     <input
       [value]="repoValue()"
       (input)="setValue('repo', $event)"
@@ -66,14 +68,18 @@
         }
       </select>
     }
-    <button (click)="loadRemoteBranches()" [disabled]="busy()" data-github-load-branches type="button">Load branches</button>
-    <button (click)="openRemoteRepository()" [disabled]="busy()" data-github-open-remote type="button">Open remote</button>
+    <button [disabled]="busy()" (click)="loadRemoteBranches()" data-github-load-branches type="button">
+      Load branches
+    </button>
+    <button [disabled]="busy()" (click)="openRemoteRepository()" data-github-open-remote type="button">
+      Open remote
+    </button>
     <label class="gh-file-button" [class.disabled]="busy()">
       Import
-      <input (change)="importRepository($event)" [disabled]="busy()" data-github-import type="file" />
+      <input [disabled]="busy()" (change)="importRepository($event)" data-github-import type="file" />
     </label>
     @if (activeRecord()) {
-      <button (click)="exportRepository()" [disabled]="busy()" data-github-export type="button">Export</button>
+      <button [disabled]="busy()" (click)="exportRepository()" data-github-export type="button">Export</button>
     }
   </div>
 
@@ -85,12 +91,15 @@
       </div>
       @if (searchResults().length) {
         <div class="gh-search-results" aria-label="GitHub search results">
-          <div class="gh-sidebar-heading"><span>Search results</span><span class="gh-count">{{ searchResults().length }}</span></div>
+          <div class="gh-sidebar-heading">
+            <span>Search results</span>
+            <span class="gh-count">{{ searchResults().length }}</span>
+          </div>
           @for (result of searchResults(); track result.fullName) {
             <button
               class="gh-repository"
-              (click)="selectRemoteRepository(result)"
               [attr.data-github-search-result]="result.fullName"
+              (click)="selectRemoteRepository(result)"
               type="button"
             >
               <span class="gh-repo-icon">⌘</span>
@@ -106,9 +115,9 @@
         @for (record of records(); track record.projectId) {
           <button
             class="gh-repository"
+            [attr.data-project-id]="record.projectId"
             [class.selected]="activeRecord()?.projectId === record.projectId"
             (click)="openStored(record)"
-            [attr.data-project-id]="record.projectId"
             type="button"
           >
             <span class="gh-repo-icon">⌘</span>
@@ -131,7 +140,9 @@
           placeholder="Repository name"
           type="text"
         />
-        <button (click)="createRepository()" [disabled]="busy()" data-github-create type="button">Create repository</button>
+        <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">
+          Create repository
+        </button>
       </div>
     </aside>
 
@@ -144,7 +155,12 @@
           </div>
           <div class="gh-branch-tools">
             <label for="github-branch">Branch</label>
-            <select id="github-branch" [value]="currentBranch()" (change)="checkoutFromEvent($event)" data-github-branch-select>
+            <select
+              id="github-branch"
+              [value]="currentBranch()"
+              (change)="checkoutFromEvent($event)"
+              data-github-branch-select
+            >
               @for (branch of branches(); track branch.name) {
                 <option [value]="branch.name">{{ branch.name }}{{ branch.current ? ' ✓' : '' }}</option>
               }
@@ -157,16 +173,32 @@
               placeholder="new branch"
               type="text"
             />
-            <button (click)="createBranch()" [disabled]="busy()" data-github-create-branch type="button">Create</button>
+            <button [disabled]="busy()" (click)="createBranch()" data-github-create-branch type="button">Create</button>
           </div>
         </div>
 
-        <div class="gh-tabs" role="tablist" aria-label="Repository views">
-          <button [attr.aria-selected]="tab() === 'changes'" [class.active]="tab() === 'changes'" (click)="setTab('changes')" data-github-tab="changes" role="tab" type="button">
-            Changes <span>{{ changedEntries().length }}</span>
+        <div class="gh-tabs" aria-label="Repository views" role="tablist">
+          <button
+            [attr.aria-selected]="tab() === 'changes'"
+            [class.active]="tab() === 'changes'"
+            (click)="setTab('changes')"
+            data-github-tab="changes"
+            role="tab"
+            type="button"
+          >
+            Changes
+            <span>{{ changedEntries().length }}</span>
           </button>
-          <button [attr.aria-selected]="tab() === 'history'" [class.active]="tab() === 'history'" (click)="setTab('history')" data-github-tab="history" role="tab" type="button">
-            History <span>{{ history().length }}</span>
+          <button
+            [attr.aria-selected]="tab() === 'history'"
+            [class.active]="tab() === 'history'"
+            (click)="setTab('history')"
+            data-github-tab="history"
+            role="tab"
+            type="button"
+          >
+            History
+            <span>{{ history().length }}</span>
           </button>
         </div>
 
@@ -174,32 +206,46 @@
           <div class="gh-changes">
             <section class="gh-commit-box" aria-label="Commit changes">
               <textarea
+                [disabled]="busy()"
                 [value]="commitValue()"
                 (input)="setValue('commit', $event)"
-                [disabled]="busy()"
                 data-github-commit-message
                 placeholder="Summary of changes"
                 rows="2"
               ></textarea>
               <div class="gh-commit-actions">
-                <button (click)="stageAll()" [disabled]="busy() || !changedEntries().length" type="button">Stage all</button>
-                <button (click)="commit()" [disabled]="busy() || !commitValue().trim()" data-github-commit type="button">Commit</button>
+                <button [disabled]="busy() || !changedEntries().length" (click)="stageAll()" type="button">
+                  Stage all
+                </button>
+                <button
+                  [disabled]="busy() || !commitValue().trim()"
+                  (click)="commit()"
+                  data-github-commit
+                  type="button"
+                >
+                  Commit
+                </button>
                 @if (record.owner) {
-                  <button (click)="pull()" [disabled]="busy()" data-github-pull type="button">Pull</button>
-                  <button (click)="push()" [disabled]="busy() || hasChanges()" data-github-push type="button">Push</button>
+                  <button [disabled]="busy()" (click)="pull()" data-github-pull type="button">Pull</button>
+                  <button [disabled]="busy() || hasChanges()" (click)="push()" data-github-push type="button">
+                    Push
+                  </button>
                 }
               </div>
             </section>
 
             <div class="gh-workspace">
               <section class="gh-file-list" aria-label="Files">
-                <div class="gh-list-heading">Working files <span>{{ files().length }}</span></div>
+                <div class="gh-list-heading">
+                  Working files
+                  <span>{{ files().length }}</span>
+                </div>
                 @for (file of files(); track file.path) {
                   <button
                     class="gh-file-row"
+                    [attr.data-file-path]="file.path"
                     [class.selected]="selectedPath() === file.path"
                     (click)="selectFile(file.path)"
-                    [attr.data-file-path]="file.path"
                     type="button"
                   >
                     <span class="gh-file-state">{{ statusLabelForPath(file.path) }}</span>
@@ -213,16 +259,41 @@
                   <div class="gh-list-heading">Changes</div>
                   @for (entry of changedEntries(); track entry.path) {
                     <div class="gh-change-row" [class.selected]="selectedPath() === entry.path">
-                      <button (click)="selectFile(entry.path)" class="gh-change-name" type="button">{{ entry.path }}</button>
+                      <button class="gh-change-name" (click)="selectFile(entry.path)" type="button">
+                        {{ entry.path }}
+                      </button>
                       <span class="gh-status">{{ statusLabel(entry) }}</span>
-                      <button (click)="showDiff(entry.path, isStaged(entry) ? 'staged' : 'working')" [disabled]="busy()" aria-label="Show diff" type="button">Diff</button>
+                      <button
+                        [disabled]="busy()"
+                        (click)="showDiff(entry.path, isStaged(entry) ? 'staged' : 'working')"
+                        aria-label="Show diff"
+                        type="button"
+                      >
+                        Diff
+                      </button>
                       @if (isStaged(entry)) {
-                        <button (click)="unstage(entry.path)" [disabled]="busy()" aria-label="Unstage file" type="button">−</button>
+                        <button
+                          [disabled]="busy()"
+                          (click)="unstage(entry.path)"
+                          aria-label="Unstage file"
+                          type="button"
+                        >
+                          −
+                        </button>
                       } @else {
-                        <button (click)="stage(entry.path)" [disabled]="busy()" aria-label="Stage file" type="button">+</button>
+                        <button [disabled]="busy()" (click)="stage(entry.path)" aria-label="Stage file" type="button">
+                          +
+                        </button>
                       }
                       @if (entry.worktree !== ' ') {
-                        <button (click)="discard(entry.path)" [disabled]="busy()" aria-label="Discard file changes" type="button">Discard</button>
+                        <button
+                          [disabled]="busy()"
+                          (click)="discard(entry.path)"
+                          aria-label="Discard file changes"
+                          type="button"
+                        >
+                          Discard
+                        </button>
                       }
                     </div>
                   }
@@ -239,9 +310,13 @@
                       <button (click)="closeDiff()" aria-label="Close diff" type="button">Close</button>
                     </div>
                     @if (currentDiff.base.binary || currentDiff.modified.binary) {
-                      <div class="gh-binary">Binary file · byte counts {{ currentDiff.base.byteLength }} → {{ currentDiff.modified.byteLength }}</div>
+                      <div class="gh-binary">
+                        Binary file · byte counts {{ currentDiff.base.byteLength }} →
+                        {{ currentDiff.modified.byteLength }}
+                      </div>
                     } @else {
-                      <pre class="gh-diff-text">{{ currentDiff.base.text ?? '' }}
+                      <pre class="gh-diff-text"
+                        >{{ currentDiff.base.text ?? '' }}
 ---
 {{ currentDiff.modified.text ?? '' }}</pre>
                     }
@@ -252,14 +327,18 @@
                     <strong>{{ file.path }}</strong>
                     <span>{{ file.bytes.length }} bytes</span>
                     <span class="gh-grow"></span>
-                    <button (click)="saveFile()" [disabled]="busy() || !editorDirty()" data-github-save type="button">Save</button>
-                    <button (click)="removeSelectedFile()" [disabled]="busy()" data-github-delete type="button">Delete</button>
+                    <button [disabled]="busy() || !editorDirty()" (click)="saveFile()" data-github-save type="button">
+                      Save
+                    </button>
+                    <button [disabled]="busy()" (click)="removeSelectedFile()" data-github-delete type="button">
+                      Delete
+                    </button>
                   </div>
                   @if (selectedText() !== null) {
                     <textarea
+                      [disabled]="busy()"
                       [value]="editorValue()"
                       (input)="setEditor($event)"
-                      [disabled]="busy()"
                       aria-label="File contents"
                       data-github-editor
                       spellcheck="false"
@@ -281,7 +360,7 @@
                   <strong>{{ commit.message }}</strong>
                   <small>{{ commit.oid }}</small>
                 </div>
-                <button (click)="restore(commit.oid)" [disabled]="busy()" type="button">Restore</button>
+                <button [disabled]="busy()" (click)="restore(commit.oid)" type="button">Restore</button>
               </article>
             } @empty {
               <p class="gh-muted">No commits yet.</p>

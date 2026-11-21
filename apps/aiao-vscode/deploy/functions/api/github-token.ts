@@ -16,11 +16,7 @@ export function onRequestGet({ request, env }: PagesContext): Response {
   if (cors instanceof Response) return cors;
   const clientId = env['GITHUB_CLIENT_ID']?.trim();
   if (!clientId || clientId === 'pending-aiao-vscode-oauth-app') {
-    return json(
-      { error: 'GitHub OAuth client ID is not configured on this deployment' },
-      503,
-      cors
-    );
+    return json({ error: 'GitHub OAuth client ID is not configured on this deployment' }, 503, cors);
   }
   return json({ clientId }, 200, cors);
 }

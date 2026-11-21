@@ -1,12 +1,6 @@
-import { Component, DestroyRef, ViewEncapsulation, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal, ViewEncapsulation } from '@angular/core';
 
 import { DesktopWindow } from '../../services/desktop-window';
-import {
-  GithubRemoteRepository,
-  type GithubRepositoryRecord,
-  GithubRepositoryStore,
-  parseGithubRemote
-} from '../../services/github-repository';
 import {
   GithubGitBackend,
   type GitBranch,
@@ -16,6 +10,12 @@ import {
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
+import {
+  GithubRemoteRepository,
+  GithubRepositoryStore,
+  parseGithubRemote,
+  type GithubRepositoryRecord
+} from '../../services/github-repository';
 import { createGitHubApi, GitHubApi } from '../../services/github/github-api';
 import { createGitHubAuth, GitHubAuth } from '../../services/github/github-auth';
 import { createIndexedDbSessionStore, createMemorySessionStore } from '../../services/github/github-session-store';
@@ -83,9 +83,13 @@ export class GithubApp {
     desktopOrigin: location.origin,
     callbackPath: '/github-callback',
     sessionStore:
-      typeof indexedDB === 'undefined' ? createMemorySessionStore() : createIndexedDbSessionStore('aiao-desktop-github-auth')
+      typeof indexedDB === 'undefined' ? createMemorySessionStore() : (
+        createIndexedDbSessionStore('aiao-desktop-github-auth')
+      )
   });
-  private readonly api: GitHubApi = createGitHubApi({ getToken: async () => (await this.auth.getSession())?.token ?? null });
+  private readonly api: GitHubApi = createGitHubApi({
+    getToken: async () => (await this.auth.getSession())?.token ?? null
+  });
   private readonly remote = new GithubRemoteRepository(this.api);
   private readonly unsubscribeAuth: () => void;
   private currentRevision = 0;
@@ -121,7 +125,7 @@ export class GithubApp {
 
   protected readonly selectedFile = computed(() => {
     const path = this.selectedPath();
-    return path ? this.files().find(file => file.path === path) ?? null : null;
+    return path ? (this.files().find(file => file.path === path) ?? null) : null;
   });
   protected readonly selectedText = computed(() => {
     const file = this.selectedFile();
@@ -146,7 +150,10 @@ export class GithubApp {
     void this.restoreLastRepository();
   }
 
-  protected setValue(target: 'repo' | 'branch' | 'newRepo' | 'newBranch' | 'commit' | 'pat' | 'search', event: Event): void {
+  protected setValue(
+    target: 'repo' | 'branch' | 'newRepo' | 'newBranch' | 'commit' | 'pat' | 'search',
+    event: Event
+  ): void {
     const element = event.target;
     if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) return;
     const value = element.value;
@@ -222,7 +229,7 @@ export class GithubApp {
     }
     this.selectedPath.set(path);
     const file = this.files().find(item => item.path === path);
-    this.editorValue.set(file ? textOf(file.bytes) ?? '' : '');
+    this.editorValue.set(file ? (textOf(file.bytes) ?? '') : '');
     this.diff.set(null);
   }
 
@@ -297,7 +304,10 @@ export class GithubApp {
         return;
       }
       const snapshot = await this.backend.create(remote.record.projectId, remote.files);
-      await this.backend.stage(remote.record.projectId, remote.files.map(file => file.path));
+      await this.backend.stage(
+        remote.record.projectId,
+        remote.files.map(file => file.path)
+      );
       await this.backend.commit(remote.record.projectId, `Import ${remote.record.name}@${remote.record.branch}`);
       if (remote.record.branch !== 'main') {
         await this.backend.createBranch(remote.record.projectId, remote.record.branch);
@@ -347,7 +357,9 @@ export class GithubApp {
     if (!record) return;
     await this.run(async () => {
       const bytes = await this.backend.exportArchive(record.projectId);
-      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: 'application/zip' }));
+      const url = URL.createObjectURL(
+        new Blob([new Uint8Array(bytes).buffer as ArrayBuffer], { type: 'application/zip' })
+      );
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = `${record.name.replace(/[^a-zA-Z0-9._-]+/g, '-')}.zip`;
@@ -410,7 +422,12 @@ export class GithubApp {
     const record = this.activeRecord();
     if (!record) return;
     await this.run(async () => {
-      this.status.set(await this.backend.stage(record.projectId, this.changedEntries().map(entry => entry.path)));
+      this.status.set(
+        await this.backend.stage(
+          record.projectId,
+          this.changedEntries().map(entry => entry.path)
+        )
+      );
       this.diff.set(null);
     });
   }
@@ -517,13 +534,20 @@ export class GithubApp {
     const record = this.activeRecord();
     if (!record?.owner || !record.repo) return;
     await this.run(async () => {
-      if (this.status()?.entries.length || this.editorDirty()) throw new Error('请先保存并提交本地改动，再推送到 GitHub');
+      if (this.status()?.entries.length || this.editorDirty())
+        throw new Error('请先保存并提交本地改动，再推送到 GitHub');
       const snapshot = await this.backend.snapshot(record.projectId);
       const result = await this.remote.push(record, snapshot.files, this.commitValue() || 'Update from Aiao Desktop');
       const entries = (await this.api.getTreeFiles(record.owner!, record.repo!, result.tree)).filter(
         entry => entry.mode !== '160000'
       );
-      const next = { ...record, remoteHead: result.head, remoteTree: result.tree, remoteEntries: entries, updatedAt: Date.now() };
+      const next = {
+        ...record,
+        remoteHead: result.head,
+        remoteTree: result.tree,
+        remoteEntries: entries,
+        updatedAt: Date.now()
+      };
       await this.store.put(next);
       this.activeRecord.set(next);
       this.notice.set(`Pushed ${result.head.slice(0, 8)}`);
@@ -671,10 +695,10 @@ export class GithubApp {
   private applySnapshot(files: readonly GitFile[]): void {
     this.files.set(files);
     const selected = this.selectedPath();
-    const path = selected && files.some(file => file.path === selected) ? selected : files[0]?.path ?? null;
+    const path = selected && files.some(file => file.path === selected) ? selected : (files[0]?.path ?? null);
     this.selectedPath.set(path);
     const file = path ? files.find(item => item.path === path) : null;
-    this.editorValue.set(file ? textOf(file.bytes) ?? '' : '');
+    this.editorValue.set(file ? (textOf(file.bytes) ?? '') : '');
     this.editorDirty.set(false);
     this.win.hasUnsavedChanges.set(false);
   }
@@ -691,7 +715,10 @@ export class GithubApp {
     if (cleanBaseline) {
       const changed = await this.backend.status(record.projectId);
       if (changed.entries.length) {
-        await this.backend.stage(record.projectId, changed.entries.map(entry => entry.path));
+        await this.backend.stage(
+          record.projectId,
+          changed.entries.map(entry => entry.path)
+        );
         await this.backend.commit(record.projectId, `Pull ${remote.record.name}@${remote.record.branch}`);
       }
     }

@@ -231,12 +231,18 @@ describe('GitHub Git Worker backend', () => {
     current.reply(20, snapshot);
     await expect(imported).resolves.toMatchObject({ projectId: 'project' });
 
-    expect(current.messages).toEqual(expect.arrayContaining([
-      { id: 3, action: 'save', payload: { projectId: 'project', files: [], expectedRevision: 1, removedPaths: ['old.ts'] } },
-      { id: 10, action: 'unstage', payload: { projectId: 'project', paths: ['README.md'] } },
-      { id: 16, action: 'checkout', payload: { projectId: 'project', branch: 'feature', force: true } },
-      { id: 20, action: 'import', payload: { projectId: 'project', archive: [0, 255] } }
-    ]));
+    expect(current.messages).toEqual(
+      expect.arrayContaining([
+        {
+          id: 3,
+          action: 'save',
+          payload: { projectId: 'project', files: [], expectedRevision: 1, removedPaths: ['old.ts'] }
+        },
+        { id: 10, action: 'unstage', payload: { projectId: 'project', paths: ['README.md'] } },
+        { id: 16, action: 'checkout', payload: { projectId: 'project', branch: 'feature', force: true } },
+        { id: 20, action: 'import', payload: { projectId: 'project', archive: [0, 255] } }
+      ])
+    );
   });
 
   it('cleans up a synchronously failed postMessage and rejects future calls after dispose', async () => {

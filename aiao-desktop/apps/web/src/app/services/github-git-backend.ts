@@ -1,13 +1,13 @@
-import { GitWorkbenchError, type GitErrorCode } from './git/git-protocol';
 import type {
   GitBranch,
   GitCommit,
   GitFile,
   GitFileDiff,
   GitSnapshot,
-  GitStatusEntry,
-  GitStatus
+  GitStatus,
+  GitStatusEntry
 } from './git/git-protocol';
+import { GitWorkbenchError, type GitErrorCode } from './git/git-protocol';
 
 export type { GitBranch, GitCommit, GitFile, GitFileDiff, GitSnapshot, GitStatus, GitStatusEntry };
 
@@ -43,7 +43,11 @@ function isWorkerResponse(value: unknown): value is WorkerResponse {
     Boolean((error as Record<string, unknown>)['code']) &&
     typeof (error as Record<string, unknown>)['message'] === 'string' &&
     Boolean((error as Record<string, unknown>)['message']);
-  return Number.isSafeInteger(id) && (id as number) > 0 && ((hasResult && !hasError) || (!hasResult && hasError && validError));
+  return (
+    Number.isSafeInteger(id) &&
+    (id as number) > 0 &&
+    ((hasResult && !hasError) || (!hasResult && hasError && validError))
+  );
 }
 
 function invalidPayload(message: string): never {
@@ -78,7 +82,9 @@ function booleanOf(value: unknown, name: string): boolean {
 function bytesOf(value: unknown, name: string): Uint8Array<ArrayBuffer> {
   if (
     !Array.isArray(value) ||
-    !value.every((item): item is number => typeof item === 'number' && Number.isInteger(item) && item >= 0 && item <= 255)
+    !value.every(
+      (item): item is number => typeof item === 'number' && Number.isInteger(item) && item >= 0 && item <= 255
+    )
   )
     invalidPayload(name);
   return Uint8Array.from(value) as Uint8Array<ArrayBuffer>;
@@ -114,14 +120,15 @@ function status(value: unknown): GitStatus {
     entries: entries.map((value, index) => {
       const entry = recordOf(value, `status.entries[${index}]`);
       const originalPath = entry['originalPath'];
-      if (originalPath !== undefined && typeof originalPath !== 'string') invalidPayload(`status.entries[${index}].originalPath`);
+      if (originalPath !== undefined && typeof originalPath !== 'string')
+        invalidPayload(`status.entries[${index}].originalPath`);
       return {
         path: stringOf(entry['path'], `status.entries[${index}].path`),
         index: typeof entry['index'] === 'string' ? entry['index'] : invalidPayload(`status.entries[${index}].index`),
         worktree:
-          typeof entry['worktree'] === 'string'
-            ? entry['worktree']
-            : invalidPayload(`status.entries[${index}].worktree`),
+          typeof entry['worktree'] === 'string' ?
+            entry['worktree']
+          : invalidPayload(`status.entries[${index}].worktree`),
         ...(originalPath === undefined ? {} : { originalPath })
       } satisfies GitStatusEntry;
     })
@@ -167,7 +174,10 @@ function commits(value: unknown): readonly GitCommit[] {
   if (!Array.isArray(value)) invalidPayload('history');
   return value.map((raw, index) => {
     const item = recordOf(raw, `history[${index}]`);
-    return { oid: stringOf(item['oid'], `history[${index}].oid`), message: stringOf(item['message'], `history[${index}].message`) };
+    return {
+      oid: stringOf(item['oid'], `history[${index}].oid`),
+      message: stringOf(item['message'], `history[${index}].message`)
+    };
   });
 }
 
@@ -222,7 +232,8 @@ export class GithubGitBackend {
   private disposed = false;
 
   constructor(workerFactory?: WorkerFactory) {
-    this.workerFactory = workerFactory ?? (() => new Worker(new URL('./github-git-worker', import.meta.url), { type: 'module' }));
+    this.workerFactory =
+      workerFactory ?? (() => new Worker(new URL('./github-git-worker', import.meta.url), { type: 'module' }));
     this.worker = this.createWorker();
   }
 

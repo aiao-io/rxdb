@@ -162,7 +162,9 @@
                 overflow-wrap: anywhere;
                 color: var(--txt);
               "
-            ><span>{{ displayBody(mail.body) }}</span></p>
+            >
+              <span>{{ displayBody(mail.body) }}</span>
+            </p>
             @if (mail.mailbox === draftsMailbox) {
               <button class="btn" (click)="composer.edit(mail)" tabindex="0">Edit Draft</button>
             }

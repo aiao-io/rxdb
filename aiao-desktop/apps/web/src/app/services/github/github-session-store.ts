@@ -137,11 +137,10 @@ export function createIndexedDbSecretStore<T>(databaseName: string): GitHubSecre
         return migrated;
       }
 
-      const next = (await crypto.subtle.generateKey(
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      )) as CryptoKey;
+      const next = (await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+        'encrypt',
+        'decrypt'
+      ])) as CryptoKey;
       await putRecord(db, KEY_STORE, 'aes-gcm', next);
       return next;
     };

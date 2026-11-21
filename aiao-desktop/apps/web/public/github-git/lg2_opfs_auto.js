@@ -32,7 +32,7 @@
 export const VARIANT_FILES = {
   pthreads: 'lg2_opfs.js',
   jspi: 'lg2_opfs_jspi.js',
-  asyncify: 'lg2_opfs_async.js',
+  asyncify: 'lg2_opfs_async.js'
 };
 
 /**
@@ -42,21 +42,13 @@ export const VARIANT_FILES = {
  */
 export function detectOpfsEnvironment(env = globalThis) {
   const nav = env.navigator;
-  const opfsAvailable = !!(
-    nav &&
-    nav.storage &&
-    typeof nav.storage.getDirectory === 'function'
-  );
-  const crossOriginIsolated =
-    env.crossOriginIsolated === true && typeof env.SharedArrayBuffer !== 'undefined';
+  const opfsAvailable = !!(nav && nav.storage && typeof nav.storage.getDirectory === 'function');
+  const crossOriginIsolated = env.crossOriginIsolated === true && typeof env.SharedArrayBuffer !== 'undefined';
   const wasm = env.WebAssembly;
   // JSPI shipped as WebAssembly.Suspending / WebAssembly.promising. Older
   // experimental builds exposed WebAssembly.Function with a suspending option;
   // we only rely on the shipped API here.
-  const jspiAvailable = !!(
-    wasm &&
-    (typeof wasm.Suspending === 'function' || typeof wasm.promising === 'function')
-  );
+  const jspiAvailable = !!(wasm && (typeof wasm.Suspending === 'function' || typeof wasm.promising === 'function'));
   return { opfsAvailable, crossOriginIsolated, jspiAvailable };
 }
 
@@ -90,9 +82,7 @@ export async function loadOpfsGit(options = {}) {
   const env = options.env || globalThis;
   const variant = options.variant || selectOpfsVariant(env);
   if (!variant) {
-    throw new Error(
-      'OPFS is not available in this context — fall back to the IDBFS build (lg2.js).'
-    );
+    throw new Error('OPFS is not available in this context — fall back to the IDBFS build (lg2.js).');
   }
   const files = options.variantFiles || VARIANT_FILES;
   const file = files[variant];
@@ -131,8 +121,12 @@ export class OpfsGit {
 
   async init({ user = 'wasm-git', email = 'wasm-git@example.com' } = {}) {
     const FS = this.FS;
-    try { FS.mkdir('/home'); } catch (e) {}
-    try { FS.mkdir('/home/web_user'); } catch (e) {}
+    try {
+      FS.mkdir('/home');
+    } catch (e) {}
+    try {
+      FS.mkdir('/home/web_user');
+    } catch (e) {}
     FS.writeFile('/home/web_user/.gitconfig', `[user]\nname = ${user}\nemail = ${email}`);
 
     if (this.variant === 'pthreads') {
@@ -140,7 +134,8 @@ export class OpfsGit {
       const backend = this.module._lg2_create_opfs_backend();
       if (!backend) throw new Error('Failed to create OPFS backend');
       const rc = this.module.ccall(
-        'lg2_create_directory', 'number',
+        'lg2_create_directory',
+        'number',
         ['string', 'number', 'number'],
         [this.opfsRoot, 0o777, backend]
       );
@@ -156,19 +151,27 @@ export class OpfsGit {
   // '//repo' instead of '/opfs/repo', which breaks libgit2 repo discovery. A
   // root symlink makes the broken path still resolve correctly.
   _createMountSymlink(repoName) {
-    try { this.FS.unlink('/' + repoName); } catch (e) {}
+    try {
+      this.FS.unlink('/' + repoName);
+    } catch (e) {}
     this.FS.symlink(this.repoDir(repoName), '/' + repoName);
   }
   _removeMountSymlink(repoName) {
-    try { this.FS.unlink('/' + repoName); } catch (e) {}
+    try {
+      this.FS.unlink('/' + repoName);
+    } catch (e) {}
   }
 
   _rmdirRecursive(path) {
     const FS = this.FS;
-    for (const entry of FS.readdir(path).filter((e) => e !== '.' && e !== '..')) {
+    for (const entry of FS.readdir(path).filter(e => e !== '.' && e !== '..')) {
       const full = path + '/' + entry;
-      try { FS.readdir(full); this._rmdirRecursive(full); }
-      catch (e) { FS.unlink(full); }
+      try {
+        FS.readdir(full);
+        this._rmdirRecursive(full);
+      } catch (e) {
+        FS.unlink(full);
+      }
     }
     FS.rmdir(path);
   }
@@ -189,9 +192,17 @@ export class OpfsGit {
    */
   _ensureGitSkeleton(dir) {
     const FS = this.FS;
-    try { FS.readdir(`${dir}/.git/objects`); } catch (e) { return; }
+    try {
+      FS.readdir(`${dir}/.git/objects`);
+    } catch (e) {
+      return;
+    }
     for (const sub of ['objects/pack', 'objects/info', 'refs', 'refs/heads', 'refs/tags']) {
-      try { FS.mkdir(`${dir}/.git/${sub}`); } catch (e) { /* exists */ }
+      try {
+        FS.mkdir(`${dir}/.git/${sub}`);
+      } catch (e) {
+        /* exists */
+      }
     }
   }
 
@@ -205,20 +216,22 @@ export class OpfsGit {
     if (this.variant === 'pthreads') {
       try {
         const contents = FS.readdir(dir);
-        if (contents.find((f) => f === '.git')) {
+        if (contents.find(f => f === '.git')) {
           this._createMountSymlink(repoName);
           this._ensureGitSkeleton(dir);
           FS.chdir(dir);
           return true;
         }
-      } catch (e) { /* not present */ }
+      } catch (e) {
+        /* not present */
+      }
       return false;
     }
     // async / jspi: load the OPFS sub-tree into the MEMFS cache.
     const loaded = await this.module.opfsLoadTree(dir);
     if (!loaded) return false;
     try {
-      if (FS.readdir(dir).find((f) => f === '.git')) {
+      if (FS.readdir(dir).find(f => f === '.git')) {
         this._ensureGitSkeleton(dir);
         FS.chdir(dir);
         return true;
@@ -275,7 +288,9 @@ export class OpfsGit {
   async removeRepo(repoName) {
     const dir = this.repoDir(repoName);
     if (this.variant === 'pthreads') {
-      try { this._rmdirRecursive(dir); } catch (e) {}
+      try {
+        this._rmdirRecursive(dir);
+      } catch (e) {}
       try {
         const root = await navigator.storage.getDirectory();
         await root.removeEntry(repoName, { recursive: true });

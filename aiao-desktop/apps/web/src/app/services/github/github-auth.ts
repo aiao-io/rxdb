@@ -115,7 +115,10 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
   let session: GitHubSession | null = null;
   let restoring: Promise<void> | null = null;
   let overrideToken: string | null = null;
-  const pendingOAuth = new Map<string, { readonly nonce: string; readonly verifier: string; readonly createdAt: number }>();
+  const pendingOAuth = new Map<
+    string,
+    { readonly nonce: string; readonly verifier: string; readonly createdAt: number }
+  >();
 
   const api = createGitHubApi({
     getToken: async () => overrideToken ?? (await restoreSession())?.token ?? null,
@@ -188,7 +191,8 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       const verifier = randomHex(32);
       const nonce = randomHex(16);
       const challenge = await pkceChallenge(verifier);
-      const state = options.desktopOrigin ?
+      const state =
+        options.desktopOrigin ?
           callbackState(options.origin, options.callbackPath ?? '/github-callback', options.desktopOrigin, nonce)
         : `${nonce}${randomHex(16)}`;
       pendingOAuth.set(state, { nonce, verifier, createdAt: now });
@@ -249,7 +253,8 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
         token = json.access_token;
       } catch (cause) {
         if (cause instanceof GitHubApiError) throw loginError(cause);
-        if (cause instanceof GitWorkbenchError || cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+        if (cause instanceof GitWorkbenchError || (cause instanceof DOMException && cause.name === 'AbortError'))
+          throw cause;
         throw new GitWorkbenchError('network_failed', '无法连接 GitHub 登录服务', { cause });
       }
       signal?.throwIfAborted();
