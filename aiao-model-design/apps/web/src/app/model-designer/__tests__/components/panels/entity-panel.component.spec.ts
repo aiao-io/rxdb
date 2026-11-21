@@ -393,13 +393,14 @@ describe('EntityPanelComponent direct edits', () => {
       indexes: [
         { id: uid('i1'), propertyIds: [uid('p1'), 'id'] },
         { id: uid('i2'), propertyIds: ['id', uid('p1')] },
-        { id: uid('i3'), propertyIds: [] }
+        { id: uid('i3'), propertyIds: [] },
+        { id: uid('i4'), propertyIds: undefined }
       ]
     });
     const component = fixture.componentInstance;
 
     expect(component.duplicateIndexIds()).toEqual(new Set([uid('i1'), uid('i2')]));
-    expect(component.emptyIndexIds()).toEqual(new Set([uid('i3')]));
+    expect(component.emptyIndexIds()).toEqual(new Set([uid('i3'), uid('i4')]));
     expect(component.canAddIndex()).toBe(true);
     expect(component.propertyCount()).toBeGreaterThan(0);
     expect(component.metaSummary()).toBe('EntityBase');
@@ -474,6 +475,25 @@ describe('EntityPanelComponent branch coverage', () => {
     fixture.detectChanges();
     expect(component.metaSummary()).toBe('EntityBase · orders · billing');
     expect(component.currentExtendsBase()).toBe('EntityBase');
+
+    fixture.componentRef.setInput('entity', null);
+    fixture.detectChanges();
+    component.emitEntityChanges();
+
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      displayName: 'Order display',
+      tableName: 'orders',
+      entityNamespace: 'billing',
+      extendsBase: 'EntityBase'
+    });
+    fixture.detectChanges();
+    component.entityForm.displayName().value.set('');
+    component.entityForm.tableName().value.set('');
+    component.entityForm.entityNamespace().value.set('');
+    component.emitEntityChanges();
+    expect(updates.at(-1)).toEqual({ displayName: null, tableName: null, entityNamespace: null });
   });
 
   it('covers pending add effects when the parent has not supplied new ids yet', () => {
@@ -509,6 +529,17 @@ describe('EntityPanelComponent branch coverage', () => {
     fixture.componentInstance.emitEntityChanges();
 
     expect(deleted).toHaveBeenCalledWith([staleIndexId]);
+
+    fixture.componentRef.setInput('indexes', []);
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      extendsBase: 'TreeEntityBase'
+    });
+    fixture.detectChanges();
+    fixture.componentInstance.entityForm.extendsBase().value.set('EntityBase');
+    fixture.componentInstance.emitEntityChanges();
+    expect(deleted).toHaveBeenCalledTimes(1);
   });
 
   it('covers the leading edge of each reorder handler and debounce replacement', () => {
@@ -538,6 +569,7 @@ describe('EntityPanelComponent branch coverage', () => {
 
     fixture.componentInstance.onPropertyDrop({ previousIndex: 1, currentIndex: 0 } as never);
     fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 1, currentIndex: 0 } as never);
+    fixture.componentInstance.onChildPropertyDrop(uid('missing-parent'), { previousIndex: 0, currentIndex: 1 } as never);
     fixture.componentInstance.onIndexDrop({ previousIndex: 1, currentIndex: 0 } as never);
 
     vi.useFakeTimers();

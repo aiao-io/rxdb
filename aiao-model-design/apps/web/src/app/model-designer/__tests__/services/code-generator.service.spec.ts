@@ -226,17 +226,25 @@ describe('CodeGeneratorService', () => {
         defaultValue: '8080'
       } as unknown as DesignProperty;
 
-      const childMap = new Map([['p1', [child2, child1]]]);
+      const child3 = {
+        ...makeProp('c3', 'region', 'string', 'a2'),
+        displayName: null,
+        isNullable: false,
+        isRequired: false,
+        defaultValue: null
+      } as unknown as DesignProperty;
+      const childMap = new Map([['p1', [child2, child1, child3]]]);
       const entity = makeEntity('e1', 'User');
       const result = service.toMetadataOptions(entity, [parent], [], [], [entity], childMap);
 
       const kvProp = result.properties?.[0] as { type: unknown; properties: KeyValuePropertyMetadata[] } | undefined;
       expect(kvProp?.type).toBe('keyValue');
-      expect(kvProp?.properties).toHaveLength(2);
+      expect(kvProp?.properties).toHaveLength(3);
       expect(kvProp?.properties[0]?.name).toBe('host');
       expect(kvProp?.properties[0]?.required).toBe(true);
       expect(kvProp?.properties[1]?.name).toBe('port');
       expect(kvProp?.properties[1]?.default).toBe(8080);
+      expect(kvProp?.properties[2]?.name).toBe('region');
     });
 
     it('MUST handle relation with mappedNamespace', () => {
@@ -441,6 +449,10 @@ describe('CodeGeneratorService', () => {
       const result = service.generate([]);
       expect(result.success).toBe(false);
       expect(result.errors).toContain('Invalid entity');
+
+      mockGeneratorState.throwValue = new Error('Invalid entity object');
+      const errorResult = service.generate([]);
+      expect(errorResult.errors).toContain('Invalid entity object');
     });
   });
 

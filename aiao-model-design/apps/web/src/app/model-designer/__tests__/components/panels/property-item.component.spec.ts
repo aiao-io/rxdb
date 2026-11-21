@@ -25,12 +25,18 @@ type SetupOptions = {
   siblingNames?: string[];
   expanded?: boolean;
   autoFocus?: boolean;
+  translations?: typeof DEFAULT_TRANSLATIONS;
 };
 
 function setup(propertyOverrides: Partial<DesignProperty> = {}, options: SetupOptions = {}) {
   TestBed.configureTestingModule({
     imports: [PropertyItemComponent],
-    providers: [{ provide: MODEL_DESIGNER_TRANSLATIONS, useValue: signal(DEFAULT_TRANSLATIONS) }]
+    providers: [
+      {
+        provide: MODEL_DESIGNER_TRANSLATIONS,
+        useValue: signal(options.translations ?? DEFAULT_TRANSLATIONS)
+      }
+    ]
   });
   const fixture = TestBed.createComponent(PropertyItemComponent);
   fixture.componentRef.setInput('property', {
@@ -324,5 +330,82 @@ describe('PropertyItemComponent changes and validation', () => {
     expect(toggled).toHaveBeenCalledOnce();
     document.body.removeChild(fixture.nativeElement);
     focus.mockRestore();
+  });
+});
+
+
+describe('PropertyItemComponent remaining branches', () => {
+  it('uses static labels when translations omit property type labels', () => {
+    const fixture = setup({}, { translations: { ...DEFAULT_TRANSLATIONS, propertyTypes: {} } });
+    const component = fixture.componentInstance;
+
+    expect(component.propertyTypeOptions().find(option => option.value === 'string')?.label).toBe('String');
+    expect(component.keyValueSubTypeOptions().find(option => option.value === 'number')?.label).toBe('Number');
+  });
+
+  it('covers parent and child type navigation while the list is already open', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+
+    component.typeSelectOpen.set(true);
+    component.onTypeTriggerKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    component.onTypeTriggerKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    component.toggleTypeSelect();
+    component.toggleTypeSelect();
+
+    expect(component.typeSelectOpen()).toBe(true);
+
+    fixture.componentRef.setInput('isChild', true);
+    fixture.detectChanges();
+    component.typeSelectOpen.set(true);
+    component.onTypeTriggerKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    component.onTypeListKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    component.onTypeListKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+    component.onTypeListKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+    expect(component.typeSelectOpen()).toBe(false);
+  });
+
+  it('covers empty and duplicate names, child summaries, and fallback type metadata', () => {
+    const fixture = setup({ propertyType: 'unknown' as never }, { siblingNames: ['taken'] });
+    const component = fixture.componentInstance;
+
+    component.propertyForm.name().value.set('taken');
+    expect(component.isNameDuplicate()).toBe(true);
+    expect(component.nameDuplicateError()).toContain('taken');
+
+    component.propertyForm.name().value.set('');
+    expect(component.isNameDuplicate()).toBe(false);
+    expect(component.currentTypeMeta().value).toBe('uuid');
+
+    fixture.componentRef.setInput('isChild', true);
+    fixture.detectChanges();
+    expect(component.nameDuplicateError()).toBe(DEFAULT_TRANSLATIONS.validation.childPropertyNameDuplicate);
+    expect(component.flagSummary()).toEqual([]);
+  });
+
+  it('emits null for cleared optional values and handles an enum with no prior values', () => {
+    const fixture = setup({
+      propertyType: 'enum',
+      enumValues: null,
+      columnName: 'status_code',
+      displayName: 'Status',
+      defaultValue: 'draft'
+    });
+    const updated = vi.fn();
+    fixture.componentInstance.updated.subscribe(updated);
+    const form = fixture.componentInstance.propertyForm;
+    form.columnName().value.set('');
+    form.displayName().value.set('');
+    form.defaultValue().value.set('');
+    form.enumValues().value.set('draft, draft');
+    fixture.componentInstance.emitChanges();
+
+    expect(updated).toHaveBeenCalledWith({
+      columnName: null,
+      displayName: null,
+      defaultValue: null,
+      enumValues: ['draft']
+    });
   });
 });
