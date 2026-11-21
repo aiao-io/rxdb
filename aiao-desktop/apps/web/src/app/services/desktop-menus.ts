@@ -32,6 +32,36 @@ export interface FinderCommands {
 
 export type StandardMenuOverrides = Readonly<Partial<Record<string, readonly MenuEntry[]>>>;
 
+export type GithubTab = 'changes' | 'history';
+export type GithubRepositoryMenu = 'new' | 'local' | 'clone';
+export type GithubExternalTarget =
+  | 'repository'
+  | 'issue'
+  | 'compare'
+  | 'branch'
+  | 'pull-request'
+  | 'report-issue'
+  | 'support'
+  | 'guides'
+  | 'shortcuts';
+
+/** GitHub Desktop 菜单作用的目标，由应用组件提供当前状态与命令。 */
+export interface GithubCommands {
+  activeTab(): GithubTab;
+  hasRepository(): boolean;
+  hasRemote(): boolean;
+  hasChanges(): boolean;
+  isBusy(): boolean;
+  openRepositoryMenu(kind: GithubRepositoryMenu): void;
+  openBranchMenu(): void;
+  setTab(tab: GithubTab): void;
+  fetch(): void;
+  pull(): void;
+  push(): void;
+  discardAllChanges(): void;
+  openExternal(target: GithubExternalTarget): void;
+}
+
 const exec = (command: string): void => {
   document.execCommand(command);
 };
@@ -167,6 +197,140 @@ export class DesktopMenus {
       togglePathBar: none,
       goto: place => this.wm.open('finder', { path: PLACES[place] ?? HOME_PATH })
     });
+  }
+
+  github(target: GithubCommands): MenuSection[] {
+    const disabled = (): boolean => !target.hasRepository() || target.isBusy();
+    const remoteDisabled = (): boolean => !target.hasRemote() || target.isBusy();
+    const external = (destination: GithubExternalTarget): (() => void) => () => target.openExternal(destination);
+
+    return this.standard(
+      'github',
+      {
+        File: [
+          { id: 'new-repository', label: 'New Repository…', key: '⌘N', run: () => target.openRepositoryMenu('new') },
+          '-',
+          { id: 'add-local-repository', label: 'Add Local Repository…', key: '⌘O', run: () => target.openRepositoryMenu('local') },
+          { id: 'clone-repository', label: 'Clone Repository…', key: '⇧⌘O', run: () => target.openRepositoryMenu('clone') },
+          '-',
+          { id: 'close-window', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+        ],
+        View: [
+          {
+            id: 'show-changes',
+            label: 'Show Changes',
+            key: '⌘1',
+            checked: target.activeTab() === 'changes',
+            run: () => target.setTab('changes')
+          },
+          {
+            id: 'show-history',
+            label: 'Show History',
+            key: '⌘2',
+            checked: target.activeTab() === 'history',
+            run: () => target.setTab('history')
+          },
+          {
+            id: 'show-repository-list',
+            label: 'Show Repository List',
+            key: '⌘T',
+            disabled: target.isBusy(),
+            run: () => target.openRepositoryMenu('clone')
+          },
+          {
+            id: 'show-branches-list',
+            label: 'Show Branches List',
+            key: '⌘B',
+            disabled: disabled(),
+            run: () => target.openBranchMenu()
+          },
+          '-',
+          { id: 'full-screen', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
+          { id: 'toolbar', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
+        ],
+        Repository: [
+          {
+            id: 'push',
+            label: 'Push',
+            key: '⌘P',
+            disabled: remoteDisabled() || target.hasChanges(),
+            run: () => target.push()
+          },
+          { id: 'pull', label: 'Pull', key: '⇧⌘P', disabled: remoteDisabled(), run: () => target.pull() },
+          { id: 'fetch', label: 'Fetch', key: '⇧⌘T', disabled: disabled(), run: () => target.fetch() },
+          '-',
+          {
+            id: 'view-repository-on-github',
+            label: 'View on GitHub',
+            key: '⇧⌘G',
+            disabled: remoteDisabled(),
+            run: external('repository')
+          },
+          {
+            id: 'create-issue-on-github',
+            label: 'Create Issue on GitHub',
+            key: '⌘I',
+            disabled: remoteDisabled(),
+            run: external('issue')
+          }
+        ],
+        Branch: [
+          {
+            id: 'create-branch',
+            label: 'New Branch…',
+            key: '⇧⌘N',
+            disabled: disabled(),
+            run: () => target.openBranchMenu()
+          },
+          '-',
+          {
+            id: 'discard-all-changes',
+            label: 'Discard All Changes…',
+            key: '⇧⌘⌫',
+            disabled: !target.hasChanges() || target.isBusy(),
+            run: () => target.discardAllChanges()
+          },
+          '-',
+          {
+            id: 'compare-on-github',
+            label: 'Compare on GitHub',
+            key: '⇧⌘C',
+            disabled: remoteDisabled(),
+            run: external('compare')
+          },
+          {
+            id: 'branch-on-github',
+            label: 'View Branch on GitHub',
+            key: '⌥⌘B',
+            disabled: remoteDisabled(),
+            run: external('branch')
+          },
+          {
+            id: 'create-pull-request',
+            label: 'Create Pull Request',
+            key: '⌘R',
+            disabled: remoteDisabled(),
+            run: external('pull-request')
+          }
+        ],
+        Help: [
+          { field: 'Search' },
+          {
+            id: 'report-issue',
+            label: 'Report Issue…',
+            run: external('report-issue')
+          },
+          {
+            id: 'contact-support',
+            label: 'Contact GitHub Support…',
+            run: external('support')
+          },
+          { id: 'user-guides', label: 'Show User Guides', run: external('guides') },
+          { id: 'keyboard-shortcuts', label: 'Show Keyboard Shortcuts', run: external('shortcuts') }
+        ]
+      },
+      ['File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']
+    );
   }
 
   /**

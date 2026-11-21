@@ -62,6 +62,7 @@ export class Menubar {
   private readonly statusItems = viewChildren<ElementRef<HTMLElement>>('statusItem');
   /** 最近一次鼠标按下（读屏的「按下」也会发 mousedown）：随后到达的 click 是它的尾声，不再处理一遍。 */
   private lastPress: { readonly key: string; readonly at: number } | null = null;
+  private hoveredMenu: string | null = null;
   protected readonly wm = inject(WindowManager);
   protected readonly system = inject(SystemState);
   protected readonly overlays = inject(Overlays);
@@ -113,6 +114,9 @@ export class Menubar {
   protected toggleMenu(event: MouseEvent, key: string): void {
     event.preventDefault();
     this.lastPress = { key, at: event.timeStamp };
+    const switchedByHover = this.hoveredMenu === key;
+    this.hoveredMenu = null;
+    if (switchedByHover && this.openMenu() === key) return;
     this.toggle(event.currentTarget as HTMLElement, key, event.detail === 0);
   }
 
@@ -125,7 +129,10 @@ export class Menubar {
   /** 已有菜单打开时，划过别的标题就切换过去。 */
   protected hoverMenu(event: MouseEvent, key: string): void {
     const open = this.openMenu();
-    if (open !== null && open !== key) this.open(event.currentTarget as HTMLElement, key);
+    if (open !== null && open !== key) {
+      this.open(event.currentTarget as HTMLElement, key);
+      this.hoveredMenu = key;
+    }
   }
 
   /** 焦点在菜单栏标题上：左右方向键、Home、End 移动；向下、向上方向键展开菜单（焦点交给第一项、最后一项）。 */
@@ -220,6 +227,7 @@ export class Menubar {
   }
 
   private open(anchor: HTMLElement, key: string, focus: boolean | 'last' = false): void {
+    this.hoveredMenu = null;
     const rect = anchor.getBoundingClientRect();
     this.openMenu.set(key);
     this.popover.openMenu(

@@ -152,7 +152,7 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
       'The public client ID, requested permissions, the return address and a one-time challenge. You sign in on GitHub; Aiao Code does not store your credentials or access token, while the GitHub workbench keeps its returned token only in encrypted same-origin session storage.',
     trigger: 'on-action',
     when: 'When you choose to sign in with GitHub in Aiao Code or the GitHub workbench.',
-    apps: ['Aiao Code', 'GitHub']
+    apps: ['Aiao Code', 'GitHub Desktop']
   },
   {
     host: 'api.github.com',
@@ -161,7 +161,7 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
       'The repository or search terms you request, the selected branch and the encrypted-session token when you are signed in. Public repository reads can be anonymous.',
     trigger: 'on-action',
     when: 'When you search, open, pull or push a repository in the GitHub workbench.',
-    apps: ['GitHub']
+    apps: ['GitHub Desktop']
   }
 ];
 

@@ -174,9 +174,9 @@ describe('外网内容清单本身', () => {
   it('GitHub 授权只由账户登录操作触发，并说明桌面不保存令牌', () => {
     const github = entryOf('github.com');
     expect(github.trigger).toBe('on-action');
-    expect(github.apps).toEqual(['Aiao Code', 'GitHub']);
+    expect(github.apps).toEqual(['Aiao Code', 'GitHub Desktop']);
     expect(github.sends).toContain('does not store your credentials or access token');
-    expect(entryOf('api.github.com').apps).toEqual(['GitHub']);
+    expect(entryOf('api.github.com').apps).toEqual(['GitHub Desktop']);
   });
 
   it('统一写明所有请求至少让第三方看到用户的 IP，也写明了 Safari 里用户输入的站点', () => {

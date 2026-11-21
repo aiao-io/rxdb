@@ -2,12 +2,14 @@ import {
   ApplicationRef,
   ChangeDetectorRef,
   Component,
+  afterRenderEffect,
   computed,
   DestroyRef,
   ElementRef,
   inject,
   NgZone,
   signal,
+  untracked,
   ViewEncapsulation,
   viewChild
 } from '@angular/core';
@@ -24,6 +26,12 @@ import {
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 
+import {
+  DesktopMenus,
+  type GithubExternalTarget,
+  type GithubRepositoryMenu,
+  type GithubTab
+} from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import {
   GithubGitBackend,
@@ -48,7 +56,6 @@ import { TrafficLights } from '../../shared/traffic-lights';
 
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
-type GithubTab = 'changes' | 'history';
 type GithubChangeKind = 'all' | 'added' | 'modified' | 'deleted';
 
 interface GithubDiffLine {
@@ -139,6 +146,7 @@ function diffLinesOf(value: GitFileDiff | null): readonly GithubDiffLine[] {
 })
 export class GithubApp {
   private readonly win = inject(DesktopWindow);
+  private readonly menus = inject(DesktopMenus);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
@@ -168,6 +176,12 @@ export class GithubApp {
   private restorePromise: Promise<void> | null = null;
   private readonly storageListener: (event: StorageEvent) => void;
   private readonly commitMessageInput = viewChild<ElementRef<HTMLTextAreaElement>>('commitMessageInput');
+  private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
+  private readonly newRepositoryInput = viewChild<ElementRef<HTMLElement>>('newRepositoryInput');
+  private readonly importRepositoryButton = viewChild<ElementRef<HTMLElement>>('importRepositoryButton');
+  private readonly branchInput = viewChild<ElementRef<HTMLElement>>('newBranchInput');
+  private readonly repositoryMenuFocus = signal<GithubRepositoryMenu | null>(null);
+  private readonly branchMenuFocus = signal(false);
 
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
@@ -263,6 +277,28 @@ export class GithubApp {
   protected readonly Trash2 = Trash2;
 
   constructor() {
+    this.win.setMenus(computed(() => this.menuSections()));
+    afterRenderEffect(() => {
+      const repositoryFocus = this.repositoryMenuFocus();
+      const branchFocus = this.branchMenuFocus();
+      if (this.repositoryMenuOpen() && repositoryFocus) {
+        let focusTarget: ElementRef<HTMLElement> | undefined;
+        if (repositoryFocus === 'clone') focusTarget = this.repositoryInput();
+        if (repositoryFocus === 'new') focusTarget = this.newRepositoryInput();
+        if (repositoryFocus === 'local') focusTarget = this.importRepositoryButton();
+        if (focusTarget) {
+          focusTarget.nativeElement.focus();
+          untracked(() => this.repositoryMenuFocus.set(null));
+        }
+      }
+      if (this.branchMenuOpen() && branchFocus) {
+        const input = this.branchInput();
+        if (input) {
+          input.nativeElement.focus();
+          untracked(() => this.branchMenuFocus.set(false));
+        }
+      }
+    });
     this.storageListener = event => {
       if (event.key === 'aiao-desktop-github-session-updated') void this.auth.refresh();
     };
@@ -294,10 +330,27 @@ export class GithubApp {
     if (target === 'changeFilter') this.changeFilter.set(value);
   }
 
+  protected openImportPicker(event: Event): void {
+    event.preventDefault();
+    const input = event.currentTarget instanceof HTMLElement
+      ? event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
+      : null;
+    input?.click();
+  }
+
   protected toggleRepositoryMenu(): void {
+    if (this.repositoryMenuOpen()) {
+      this.closeRepositoryMenu();
+      return;
+    }
+    this.openRepositoryMenu('clone');
+  }
+
+  protected openRepositoryMenu(kind: GithubRepositoryMenu): void {
     this.branchMenuOpen.set(false);
     this.closeContextMenu();
-    this.repositoryMenuOpen.update(open => !open);
+    this.repositoryMenuFocus.set(kind);
+    this.repositoryMenuOpen.set(true);
   }
 
   protected closeRepositoryMenu(): void {
@@ -305,9 +358,18 @@ export class GithubApp {
   }
 
   protected toggleBranchMenu(): void {
+    if (this.branchMenuOpen()) {
+      this.closeBranchMenu();
+      return;
+    }
+    this.openBranchMenu();
+  }
+
+  protected openBranchMenu(): void {
     this.repositoryMenuOpen.set(false);
     this.closeContextMenu();
-    this.branchMenuOpen.update(open => !open);
+    this.branchMenuFocus.set(true);
+    this.branchMenuOpen.set(true);
   }
 
   protected closeBranchMenu(): void {
@@ -405,15 +467,21 @@ export class GithubApp {
   }
 
   protected async fetchOrigin(): Promise<void> {
-    if (this.activeRecord()?.owner) {
-      await this.pull();
-      this.lastFetchedAt.set(Date.now());
-      return;
-    }
+    const record = this.activeRecord();
+    if (!record) return;
     await this.run(async () => {
-      await this.refresh();
+      if (!record.owner || !record.repo) {
+        await this.refresh();
+        this.lastFetchedAt.set(Date.now());
+        this.notice.set('Refreshed local status');
+        return;
+      }
+      const remote = await this.remote.open(record.owner, record.repo, record.branch);
+      const next = { ...record, ...remote.record, updatedAt: Date.now() };
+      await this.store.put(next);
+      this.activeRecord.set(next);
       this.lastFetchedAt.set(Date.now());
-      this.notice.set('Fetched local status');
+      this.notice.set(next.remoteHead === record.remoteHead ? 'Already up to date' : 'Fetched origin');
     });
   }
 
@@ -640,6 +708,7 @@ export class GithubApp {
       this.activeRecord.set(record);
       this.applySnapshot(snapshot.files);
       await this.refresh();
+      this.notice.set(`Imported ${name}`);
       this.repositoryMenuOpen.set(false);
     });
     element.value = '';
@@ -733,6 +802,27 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       await this.refresh();
       this.notice.set(`Discarded ${path}`);
+    });
+  }
+
+  protected async discardAllChanges(): Promise<void> {
+    const record = this.activeRecord();
+    const entries = this.changedEntries();
+    if (!record || (!entries.length && !this.editorDirty())) return;
+    await this.run(async () => {
+      const stagedPaths = entries.filter(entry => this.isStaged(entry)).map(entry => entry.path);
+      if (stagedPaths.length) await this.backend.unstage(record.projectId, stagedPaths);
+
+      const status = await this.backend.status(record.projectId);
+      const workingPaths = status.entries
+        .filter(entry => entry.worktree !== ' ' && entry.worktree !== '!')
+        .map(entry => entry.path);
+      for (const path of workingPaths) await this.backend.discardWorking(record.projectId, path);
+
+      this.applySnapshot((await this.backend.snapshot(record.projectId)).files);
+      this.diff.set(null);
+      await this.refresh();
+      this.notice.set('Discarded all changes');
     });
   }
 
@@ -987,6 +1077,47 @@ export class GithubApp {
     this.selectedCommitOid.set(oid);
   }
 
+  private menuSections() {
+    return this.menus.github({
+      activeTab: () => this.tab(),
+      hasRepository: () => this.activeRecord() !== null,
+      hasRemote: () => Boolean(this.activeRecord()?.owner && this.activeRecord()?.repo),
+      hasChanges: () => this.hasChanges(),
+      isBusy: () => this.busy(),
+      openRepositoryMenu: kind => this.openRepositoryMenu(kind),
+      openBranchMenu: () => this.openBranchMenu(),
+      setTab: tab => this.setTab(tab),
+      fetch: () => void this.fetchOrigin(),
+      pull: () => void this.pull(),
+      push: () => void this.push(),
+      discardAllChanges: () => void this.discardAllChanges(),
+      openExternal: target => this.openExternal(target)
+    });
+  }
+
+  private openExternal(target: GithubExternalTarget): void {
+    const record = this.activeRecord();
+    const base = record?.owner && record.repo ? `https://github.com/${record.owner}/${record.repo}` : null;
+    const branch = record?.branch
+      .split('/')
+      .map(part => encodeURIComponent(part))
+      .join('/');
+    const urls: Record<GithubExternalTarget, string | null> = {
+      repository: base,
+      issue: base ? `${base}/issues/new` : null,
+      compare: base && branch ? `${base}/compare/${branch}` : null,
+      branch: base && branch ? `${base}/tree/${branch}` : null,
+      'pull-request': base && branch ? `${base}/compare/${branch}?expand=1` : null,
+      'report-issue': 'https://github.com/desktop/desktop/issues/new/choose',
+      support: 'https://support.github.com/contact',
+      guides: 'https://docs.github.com/en/desktop',
+      shortcuts: 'https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/overview/keyboard-shortcuts'
+    };
+    const url = urls[target];
+    if (!url) return;
+    if (!window.open(url, '_blank', 'noopener,noreferrer')) this.notice.set('请允许打开外部页面后重试');
+  }
+
   private async restoreLastRepository(): Promise<void> {
     await this.store.ready();
     const record = this.records()[0];
@@ -1012,7 +1143,7 @@ export class GithubApp {
     this.branches.set(branches);
     this.history.set(history);
     this.currentRevision = (await this.backend.snapshot(record.projectId)).revision;
-    this.win.title.set(`GitHub · ${record.name}`);
+    this.win.title.set(`GitHub Desktop · ${record.name}`);
   }
 
   private applySnapshot(files: readonly GitFile[]): void {

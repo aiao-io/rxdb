@@ -38,6 +38,19 @@ const TEST_APP_DEFINITIONS = [
     minH: 220
   },
   {
+    id: 'github',
+    name: 'GitHub Desktop',
+    icon: 'app-github',
+    kind: 'builtin',
+    bundleId: 'io.test.github',
+    ...common,
+    w: 1120,
+    h: 720,
+    minW: 760,
+    minH: 480,
+    single: false
+  },
+  {
     id: 'calculator',
     name: 'Calculator',
     icon: 'app-calculator',

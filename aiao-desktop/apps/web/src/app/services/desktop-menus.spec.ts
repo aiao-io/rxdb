@@ -8,7 +8,14 @@ import { testApps } from '../testing/desktop-apps';
 import { createWindowManagerStub } from '../testing/stubs';
 import { DESKTOP_APPS } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
-import { DesktopMenus, FinderCommands } from './desktop-menus';
+import {
+  DesktopMenus,
+  type FinderCommands,
+  type GithubCommands,
+  type GithubExternalTarget,
+  type GithubRepositoryMenu,
+  type GithubTab
+} from './desktop-menus';
 import { HOME_PATH, PLACES } from './file-system';
 import { MenuEntry, MenuSection, isMenuCommand } from './menu';
 import { PopoverService } from './popover';
@@ -64,6 +71,28 @@ const finderTarget = (): FinderCommands => ({
   togglePathBar: vi.fn(),
   goto: vi.fn()
 });
+
+const githubTarget = (overrides: Partial<{
+  activeTab: GithubTab;
+  hasRepository: boolean;
+  hasRemote: boolean;
+  hasChanges: boolean;
+  isBusy: boolean;
+}> = {}) => ({
+  activeTab: vi.fn((): GithubTab => overrides.activeTab ?? 'changes'),
+  hasRepository: vi.fn(() => overrides.hasRepository ?? true),
+  hasRemote: vi.fn(() => overrides.hasRemote ?? true),
+  hasChanges: vi.fn(() => overrides.hasChanges ?? false),
+  isBusy: vi.fn(() => overrides.isBusy ?? false),
+  openRepositoryMenu: vi.fn((kind: GithubRepositoryMenu): void => { void kind; }),
+  openBranchMenu: vi.fn((): void => undefined),
+  setTab: vi.fn((tab: GithubTab): void => { void tab; }),
+  fetch: vi.fn((): void => undefined),
+  pull: vi.fn((): void => undefined),
+  push: vi.fn((): void => undefined),
+  discardAllChanges: vi.fn((): void => undefined),
+  openExternal: vi.fn((target: GithubExternalTarget): void => { void target; })
+}) satisfies GithubCommands;
 
 describe('DesktopMenus 苹果菜单', () => {
   it('关于本机、系统设置交给窗口管理器；App Store 只提示', () => {
@@ -233,6 +262,64 @@ describe('DesktopMenus 没有 Finder 窗口时的菜单', () => {
       ['finder', { path: PLACES['Documents'] }],
       ['finder', { path: HOME_PATH }]
     ]);
+  });
+});
+
+describe('DesktopMenus GitHub Desktop 菜单', () => {
+  it('按 macOS 应用菜单顺序提供 File、Edit、View、Repository、Branch、Window、Help', () => {
+    const { menus } = setup();
+    expect(menus.github(githubTarget()).map(item => item.label)).toEqual([
+      'File',
+      'Edit',
+      'View',
+      'Repository',
+      'Branch',
+      'Window',
+      'Help'
+    ]);
+  });
+
+  it('把仓库、分支、同步与外部 GitHub 操作交给 GitHub 应用', () => {
+    const { menus } = setup();
+    const target = githubTarget({ hasChanges: true });
+    const sections = menus.github(target);
+    click(sectionOf(sections, 'File'), 'new-repository');
+    click(sectionOf(sections, 'File'), 'add-local-repository');
+    click(sectionOf(sections, 'File'), 'clone-repository');
+    click(sectionOf(sections, 'View'), 'show-history');
+    click(sectionOf(sections, 'View'), 'show-branches-list');
+    click(sectionOf(sections, 'Repository'), 'fetch');
+    click(sectionOf(sections, 'Repository'), 'pull');
+    click(sectionOf(sections, 'Repository'), 'view-repository-on-github');
+    click(sectionOf(sections, 'Branch'), 'create-branch');
+    click(sectionOf(sections, 'Branch'), 'discard-all-changes');
+    click(sectionOf(sections, 'Help'), 'keyboard-shortcuts');
+    expect(target.openRepositoryMenu.mock.calls).toEqual([['new'], ['local'], ['clone']]);
+    expect(target.setTab).toHaveBeenCalledExactlyOnceWith('history');
+    expect(target.openBranchMenu).toHaveBeenCalledTimes(2);
+    expect(target.fetch).toHaveBeenCalledTimes(1);
+    expect(target.pull).toHaveBeenCalledTimes(1);
+    expect(target.openExternal).toHaveBeenCalledWith('repository');
+    expect(target.discardAllChanges).toHaveBeenCalledTimes(1);
+    expect(target.openExternal).toHaveBeenCalledWith('shortcuts');
+  });
+
+  it('没有仓库或正在执行任务时置灰依赖当前状态的命令', () => {
+    const { menus } = setup();
+    const target = githubTarget({ hasRepository: false, hasRemote: false, hasChanges: false, isBusy: true });
+    const sections = menus.github(target);
+    for (const [sectionName, id] of [
+      ['View', 'show-branches-list'],
+      ['Repository', 'push'],
+      ['Repository', 'pull'],
+      ['Repository', 'fetch'],
+      ['Branch', 'create-branch'],
+      ['Branch', 'discard-all-changes'],
+      ['Branch', 'create-pull-request']
+    ] as const) {
+      const entry = sectionOf(sections, sectionName).find(item => isMenuCommand(item) && item.id === id);
+      expect(entry).toMatchObject({ disabled: true });
+    }
   });
 });
 

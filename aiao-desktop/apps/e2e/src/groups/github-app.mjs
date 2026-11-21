@@ -70,11 +70,15 @@ async function openRepositoryMenu(view) {
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
 export const githubApp = {
   name: 'github-app',
-  description: 'GitHub 应用入口、空态、OPFS Git 工作流、分支与冲突、OAuth 边界、公开/私有远端和失败恢复',
+  description: 'GitHub Desktop 应用入口、系统菜单、OPFS Git 工作流、分支与冲突、OAuth 边界、公开/私有远端和失败恢复',
   keys: [
     'github.applicationsOpens',
     'github.launchpadOpens',
     'github.spotlightOpens',
+    'github.applicationMenu',
+    'github.repositoryMenu',
+    'github.branchMenu',
+    'github.menuActions',
     'github.emptyState',
     'github.localRepositoryCreated',
     'github.editorSaveAndStage',
@@ -262,7 +266,7 @@ export const githubApp = {
     await session.openDesktop();
     await closeAll();
 
-    await launch('GitHub');
+    await launch('GitHub Desktop');
     const github = win('github');
     await github.waitFor();
     result.launchpadOpens = await appears(github.locator('[data-github-app]'));
@@ -279,14 +283,35 @@ export const githubApp = {
     const finder = win('finder').last();
     await finder.waitFor();
     await finder.locator('[data-place="Applications"]').click();
-    await finder.locator('.fitem[data-name="GitHub.app"]').dblclick();
+    await finder.locator('.fitem[data-name="GitHub Desktop.app"]').dblclick();
     result.applicationsOpens = await appears(win('github').locator('[data-github-app]'));
 
     await closeAll();
-    await spotlight('GitHub');
+    await spotlight('GitHub Desktop');
     await page.keyboard.press('Enter');
     result.spotlightOpens = await appears(win('github').locator('[data-github-app]'));
     const githubWindow = win('github');
+    const menuTitles = (await page.locator('#menubar #mb-titles .mb-item').allTextContents()).map(title => title.trim());
+    result.applicationMenu = JSON.stringify(menuTitles) ===
+      JSON.stringify(['GitHub Desktop', 'File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']);
+
+    await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+    const repositoryMenu = page.getByRole('menu', { name: 'Repository', exact: true });
+    await repositoryMenu.waitFor();
+    result.repositoryMenu = (await repositoryMenu.getByRole('menuitem').count()) > 0;
+
+    await page.getByRole('menuitem', { name: 'Branch', exact: true }).click();
+    const branchMenu = page.getByRole('menu', { name: 'Branch', exact: true });
+    await branchMenu.waitFor();
+    result.branchMenu = (await branchMenu.getByRole('menuitem').count()) > 0;
+
+    await page.getByRole('menuitem', { name: 'File', exact: true }).click();
+    await page
+      .getByRole('menu', { name: 'File', exact: true })
+      .getByRole('menuitem', { name: 'New Repository…', exact: true })
+      .click();
+    await expect(githubWindow.locator('[data-github-new-repository]')).toBeFocused();
+    result.menuActions = true;
 
     await openRepositoryMenu(githubWindow);
     await githubWindow.locator('[data-github-new-repository]').fill('Local Fixture');
@@ -347,7 +372,7 @@ export const githubApp = {
     result.branchAndDirtyCheckout = (await githubWindow.locator('[data-github-branch-select]').inputValue()) === 'main';
 
     await session.reloadDesktop();
-    await launch('GitHub');
+    await launch('GitHub Desktop');
     const restoredGithub = win('github');
     await restoredGithub.waitFor();
     await openRepositoryMenu(restoredGithub);
@@ -362,12 +387,13 @@ export const githubApp = {
       mimeType: 'application/zip',
       buffer: archive
     });
+    await restoredGithub.locator('[data-github-notice]').filter({ hasText: 'Imported local-roundtrip' }).waitFor();
     await openRepositoryMenu(restoredGithub);
-    await restoredGithub.locator('[data-project-id^="local-"]').nth(1).waitFor({ state: 'attached' });
+    await expect(restoredGithub.locator('[data-project-id^="local-"]')).toHaveCount(2);
     result.archiveRoundTrip = (await restoredGithub.locator('[data-project-id^="local-"]').count()) >= 2;
 
     await closeAll();
-    await launch('GitHub');
+    await launch('GitHub Desktop');
     const remoteGithub = win('github');
     await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-search]').fill(PUBLIC_OWNER);

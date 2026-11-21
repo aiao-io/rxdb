@@ -82,6 +82,11 @@ const KEYS = [
   'a11y.menus.keyboardOnlyFlow.opensGoMenu',
   'a11y.menus.keyboardOnlyFlow.changesDirectory',
   'a11y.menus.keyboardOnlyFlow.closesWindow',
+  'a11y.github.menubar',
+  'a11y.github.repositoryMenu',
+  'a11y.github.branchMenu',
+  'a11y.github.disabledMenuItems',
+  'a11y.github.fileMenuAction',
   'a11y.windows.dialogsNamedByTitle',
   'a11y.windows.backgroundHidden',
   'a11y.windows.menubarShowsFrontApp',
@@ -224,6 +229,7 @@ export const a11y = {
     const tabPath = {};
     const overlays = {};
     const menus = {};
+    const github = {};
     const windows = {};
     const finder = {};
     const tree = {};
@@ -713,6 +719,66 @@ export const a11y = {
       );
       await press('Escape');
       await focusReaches(page, info => is(info, 'window', 'Sort'));
+
+      /* GitHub Desktop 的应用菜单：标题、角色、禁用状态，以及从菜单键盘打开仓库面板。 */
+      await guarded('github', github, async () => {
+        await reset();
+        const opened = await openFromDock('GitHub Desktop', 'github');
+        const githubWindow = win('github').last();
+        github.menubar = problems(
+          opened ? [] : ['无法从 Dock 通过键盘打开 GitHub Desktop'],
+          (await menubarFirstApp()) === 'GitHub Desktop' ? [] : [`菜单栏应用名不是 GitHub Desktop，实际 ${await menubarFirstApp()}`]
+        );
+        const githubBarSnapshot = await snapshot('#menubar');
+        github.menubar.push(
+          ...missingInOrder(githubBarSnapshot, [
+            '- menuitem "GitHub Desktop"',
+            '- menuitem "File"',
+            '- menuitem "Edit"',
+            '- menuitem "View"',
+            '- menuitem "Repository"',
+            '- menuitem "Branch"',
+            '- menuitem "Window"',
+            '- menuitem "Help"'
+          ]).map(fragment => `GitHub Desktop 菜单栏缺少或顺序不对：${fragment}`)
+        );
+
+        await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+        const repositoryMenu = page.getByRole('menu', { name: 'Repository', exact: true });
+        await repositoryMenu.waitFor({ timeout: 5_000 });
+        github.repositoryMenu = problems(
+          (await repositoryMenu.getByRole('menuitem').count()) > 0 ? [] : ['Repository 菜单没有 menuitem'],
+          (await repositoryMenu.getAttribute('aria-label')) === 'Repository' ? [] : ['Repository 菜单缺少正确名称']
+        );
+        const repositoryDisabled = await repositoryMenu.locator('[aria-disabled="true"]').count();
+        await press('Escape');
+
+        await page.getByRole('menuitem', { name: 'Branch', exact: true }).click();
+        const branchMenu = page.getByRole('menu', { name: 'Branch', exact: true });
+        await branchMenu.waitFor({ timeout: 5_000 });
+        github.branchMenu = problems(
+          (await branchMenu.getByRole('menuitem').count()) > 0 ? [] : ['Branch 菜单没有 menuitem'],
+          (await branchMenu.getAttribute('aria-label')) === 'Branch' ? [] : ['Branch 菜单缺少正确名称']
+        );
+        const branchDisabled = await branchMenu.locator('[aria-disabled="true"]').count();
+        github.disabledMenuItems = problems(
+          repositoryDisabled > 0 ? [] : ['没有仓库时 Repository 菜单项没有置灰'],
+          branchDisabled > 0 ? [] : ['没有仓库时 Branch 菜单项没有置灰']
+        );
+        await press('Escape');
+
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'File'));
+        await press('Enter');
+        await press('n');
+        await press('Enter');
+        await githubWindow.locator('[data-github-new-repository]').waitFor({ timeout: 5_000 });
+        github.fileMenuAction =
+          (await githubWindow.locator('[data-github-new-repository]').getAttribute('aria-label')) === 'New repository name' &&
+          (await githubWindow.locator('[data-github-new-repository]').evaluate(node => node === document.activeElement))
+            ? []
+            : ['File > New Repository 没有通过键盘打开并聚焦输入框'];
+      });
 
       /* 完整的纯键盘流程：关掉 Finder 窗口 → Dock 图标 Enter 重新打开 → 「前往」菜单选 Documents → ⌘W 关窗口。全程不碰鼠标。 */
       await reset();

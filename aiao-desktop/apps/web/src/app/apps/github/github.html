@@ -109,6 +109,7 @@
               </button>
             </div>
             <input
+              #repositoryInput
               [value]="repoValue()"
               (input)="setValue('repo', $event)"
               (keydown.enter)="openRemoteRepository()"
@@ -154,8 +155,10 @@
             <div class="gh-menu-section-title">Local repositories</div>
             <div class="gh-menu-form-row">
               <input
+                #newRepositoryInput
                 [value]="newRepoValue()"
                 (input)="setValue('newRepo', $event)"
+                aria-label="New repository name"
                 data-github-new-repository
                 placeholder="New repository name"
                 type="text"
@@ -163,7 +166,16 @@
               <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">Create</button>
             </div>
             <div class="gh-menu-actions">
-              <label class="gd-btn-secondary gh-file-button" [class.disabled]="busy()">
+              <label
+                #importRepositoryButton
+                class="gd-btn-secondary gh-file-button"
+                [class.disabled]="busy()"
+                aria-label="Import local repository"
+                (keydown.enter)="openImportPicker($event)"
+                (keydown.space)="openImportPicker($event)"
+                role="button"
+                tabindex="0"
+              >
                 Import repository
                 <input [disabled]="busy()" (change)="importRepository($event)" data-github-import type="file" />
               </label>
@@ -273,6 +285,7 @@
             <div class="gh-menu-section-title">Create a branch</div>
             <div class="gh-menu-form-row">
               <input
+                #newBranchInput
                 [value]="newBranchValue()"
                 (input)="setValue('newBranch', $event)"
                 (keydown.enter)="createBranch()"
