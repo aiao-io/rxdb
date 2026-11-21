@@ -1086,6 +1086,9 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
 });
 
 async function signInAdmin(page: Page, path: string) {
+  await page.context().clearCookies();
+  await page.goto('/');
+  await page.evaluate(() => localStorage.removeItem('aiao-media-supabase-session-v1'));
   const user = await account();
   const membership = await admin.from('media_admin_memberships').insert({ user_id: user.id, enabled: true });
   expect(membership.error).toBeNull();

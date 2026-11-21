@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-21
 dependsOn: [MEDIA-US-302, MEDIA-US-303, MEDIA-US-208]
 tags: [rxdb, sync, backend, supabase, realtime, rls]
 ---
@@ -59,8 +59,9 @@ tags: [rxdb, sync, backend, supabase, realtime, rls]
 
 - `aiao-media/apps/api/src/backend-rxdb/` 已装配 PGlite、本地 RxDB、Supabase adapter、history、working-tree、`syncManager.sync()` 和 `syncManager.syncBranches()`。
 - `backend-rxdb-auth.ts` 拒绝 `service_role`，并覆盖普通 JWT 过期刷新；`backend-rxdb-lifecycle.ts` 覆盖启动、重试、暂停、恢复、定时同步和关闭。
-- API Node 测试当前为 15/15，通过了普通 JWT 边界、生命周期、配置提交 envelope、PGMQ 消息和 consumer 幂等测试。
-- 尚未关闭的证据：真实本地 Supabase pull/push、Realtime 断线、游标恢复、tombstone、revision 冲突和远端 backend identity mismatch 集成测试。
+- `backend-rxdb.local.integration.spec.ts` 已在本地 Supabase 验证普通 JWT 下的 workspace filter pull/push、重复同步和删除传播；`config-sync.local.integration.spec.ts` 已验证配置投影、完整度、指纹复核、原子应用、幂等回放和跨 workspace 隔离。
+- API Node 与 Vitest 测试已通过，覆盖普通 JWT 边界、生命周期、配置提交 envelope、PGMQ 消息和 consumer 幂等测试。
+- 尚未关闭的证据：正式 Playwright、Realtime 断线后的游标恢复、跨进程重启、revision 冲突的真实双客户端场景、远端 backend identity mismatch 和双区域生产验收。
 
 ## 交付阶段
 

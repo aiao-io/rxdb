@@ -391,7 +391,16 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
     rejectionCode: 'revision_conflict'
   });
   expect(fetch).toHaveBeenCalledWith(
-    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&order=createdAt.desc&limit=1`,
+    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&branchId=eq.main&order=createdAt.desc&limit=1`,
+    expect.objectContaining({ method: 'GET' })
+  );
+});
+
+it('按当前配置分支读取最新提交，避免把其他分支状态显示到页面', async () => {
+  respond([]);
+  await expect(new ProductClient(async () => access).latestConfigCommit(userId, 'release/2026-11')).resolves.toBeNull();
+  expect(fetch).toHaveBeenCalledWith(
+    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&branchId=eq.release%2F2026-11&order=createdAt.desc&limit=1`,
     expect.objectContaining({ method: 'GET' })
   );
 });

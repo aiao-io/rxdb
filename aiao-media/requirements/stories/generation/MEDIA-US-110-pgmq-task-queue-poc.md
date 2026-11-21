@@ -6,7 +6,7 @@ status: In Progress
 priority: Medium
 epic: MEDIA-EPIC-002
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-21
 dependsOn: [MEDIA-US-108, MEDIA-US-109]
 tags: [pgmq, queue, generation, idempotency, supabase]
 ---
@@ -44,18 +44,25 @@ tags: [pgmq, queue, generation, idempotency, supabase]
 
 | #   | 前置条件                                | 操作                                           | 预期结果                                                                        | 状态 |
 | --- | --------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- | ---- |
-| 1   | 账号、积分和任务表已准备                | 调用 `create_generation_task`                  | 任务记录、积分预留和 PGMQ 消息在同一事务中完成；任一失败全部回滚                | ⬜   |
-| 2   | 消费者读取任务后被强制终止              | 在处理过程中停止消费者                         | 消息重新可见；任务状态和积分不会被重复扣减                                      | ⬜   |
-| 3   | provider 已成功，消费者在删除消息前崩溃 | 重新消费同一消息                               | 结果通过唯一约束或幂等键恢复；不会重复生成或重复结算                            | ⬜   |
-| 4   | provider 超时、返回可重试错误或永久错误 | 运行重试策略                                   | visibility timeout、最大重试次数和归档/死信状态符合配置；用户可看到最终失败原因 | ⬜   |
+| 1   | 账号、积分和任务表已准备                | 调用 `create_generation_task`                  | 任务记录、积分预留和 PGMQ 消息在同一事务中完成；任一失败全部回滚                | ⚠️   |
+| 2   | 消费者读取任务后被强制终止              | 在处理过程中停止消费者                         | 消息重新可见；任务状态和积分不会被重复扣减                                      | ⚠️   |
+| 3   | provider 已成功，消费者在删除消息前崩溃 | 重新消费同一消息                               | 结果通过唯一约束或幂等键恢复；不会重复生成或重复结算                            | ⚠️   |
+| 4   | provider 超时、返回可重试错误或永久错误 | 运行重试策略                                   | visibility timeout、最大重试次数和归档/死信状态符合配置；用户可看到最终失败原因 | ⚠️   |
 | 5   | 任务执行时间接近 180 秒                 | 在目标 Edge Function 和 Node consumer 分别压测 | 记录 wall-clock、超时、租约续期和看门狗边界；未通过的运行时不承载生产长任务     | ⬜   |
-| 6   | 多个消费者并发运行                      | 发送多条任务并重复读取同一 task                | 不同任务可以并发；同一 task 的状态更新由 CAS/租约串行化                         | ⬜   |
+| 6   | 多个消费者并发运行                      | 发送多条任务并重复读取同一 task                | 不同任务可以并发；同一 task 的状态更新由 CAS/租约串行化                         | ⚠️   |
 | 7   | provider 结果已写入私有 Storage         | 用户刷新、重新打开、确认领取和过期清理         | 结果取回、确认、删除和过期行为与当前 Durable Object 契约一致                    | ⬜   |
-| 8   | 消费者滚动发布、断电或重启              | 运行积压任务                                   | 消息不丢失；积压、失败、重试、处理时长和死信可观测                              | ⬜   |
+| 8   | 消费者滚动发布、断电或重启              | 运行积压任务                                   | 消息不丢失；积压、失败、重试、处理时长和死信可观测                              | ⚠️   |
 | 9   | 国内自建和海外托管环境分别部署          | 重复执行核心故障场景                           | 两侧队列、消费者、Storage、积分和任务状态结果一致                               | ⬜   |
-| 10  | PoC 测试全部完成                        | 与 Durable Object 方案评审                     | 输出切换/不切换结论；未通过时保留 Durable Object 回退路径                       | ⬜   |
+| 10  | PoC 测试全部完成                        | 与 Durable Object 方案评审                     | 输出切换/不切换结论；未通过时保留 Durable Object 回退路径                       | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
+
+## 当前实现证据
+
+- AC1：`pgmq-supabase.integration.test.ts` 在本地 Supabase 验证普通 JWT 入队、无效消息拒绝、匿名请求拒绝和 PGMQ 配置关闭；真实生产事务入队仍待验证。
+- AC2–AC4、AC6、AC8、AC10：`pgmq-consumer.test.ts` 和 `pgmq-poc-drill.mjs` 覆盖最小消息、task revision、visibility timeout 参数、租约释放、provider 临时失败重试、ack 中断后的幂等恢复、归档、消费者替换、积压清空和结果过期清理。证据使用 Node fixture，不能替代真实 180 秒 provider、任务表、Storage 和积分链路。
+- AC5、AC7、AC9 仍未关闭：真实 180 秒 provider 压测、正式任务/Storage/领取契约和国内自建与海外托管双区域演练尚未完成。
+- 生产边界保持不变：`local-first-worker.ts` 仍使用 Durable Object，PGMQ 只运行在 `media_generation_poc` 隔离队列，PoC 结论继续是暂不切换生产链路。
 
 ## 交付阶段
 

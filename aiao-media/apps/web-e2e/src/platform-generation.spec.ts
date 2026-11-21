@@ -46,7 +46,7 @@ test('积分为零明确阻止接单且不创建任务', async ({ context, page 
   await platformAccount(page);
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByRole('alert')).toContainText('可用积分不足');
+  await expect(page.getByRole('alert').filter({ hasText: '可用积分不足' })).toBeVisible();
   expect(relay.calls).toBe(0);
   expect(relay.account.balance).toBe(0);
   expect(relay.tasks.size).toBe(0);
@@ -138,4 +138,41 @@ test('接单后关闭页面，新页面只凭原令牌恢复一次扣费与原�
   await next.goto('/images');
   await verifyImageDownload(next, next.locator('.library-card'), png);
   expect(relay.calls).toBe(1);
+});
+
+test('同一工作区两个标签页只允许一个平台生图任务', async ({ context, page }) => {
+  await setupPlatform(context, { balance: 10 });
+  const png = await pngFixture();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  const relay = await taskFixture(context, async () => {
+    await pending;
+    return { json: { data: [{ b64_json: png.toString('base64') }] } };
+  });
+
+  await platformAccount(page);
+  await prompt(page);
+  await page.getByRole('button', { name: '✧ 生成图片' }).click();
+  await expect.poll(() => relay.calls).toBe(1);
+  expect(relay.account.balance).toBe(10);
+  expect(relay.account.reserved).toBe(3);
+
+  const second = await context.newPage();
+  try {
+    await second.goto('/create');
+    const generate = second.getByRole('button', { name: /生成图片/ });
+    await expect(generate).toBeDisabled();
+    await expect(second.getByText(/平台正在生成，可以刷新或关闭页面/)).toBeVisible();
+    expect(relay.calls).toBe(1);
+
+    release();
+    await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+    await expect.poll(() => relay.account.balance).toBe(7);
+    expect(relay.account.entries).toHaveLength(1);
+    expect(relay.calls).toBe(1);
+  } finally {
+    await second.close();
+  }
 });

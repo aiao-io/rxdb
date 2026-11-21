@@ -18,6 +18,8 @@ function fixture() {
   const reads: Array<{ queue: string; visibilityTimeoutSeconds: number; limit: number }> = [];
   const advanced: string[] = [];
   const settled: string[] = [];
+  const released: string[] = [];
+  const leaseEvents: string[] = [];
   const results = new Map<string, string>();
   const leases = new Set<string>();
   let failDelete = false;
@@ -35,7 +37,18 @@ function fixture() {
     }
   };
   const store: PgmqGenerationIdempotencyStore<string> = {
-    acquireTaskLease: async (_message, key) => !leases.has(key) && (leases.add(key), true),
+    acquireTaskLease: async (_message, key) => {
+      const occupied = leases.has(key);
+      leaseEvents.push(`acquire:${key}:${occupied}`);
+      if (occupied) return false;
+      leases.add(key);
+      return true;
+    },
+    releaseTaskLease: async (_message, key) => {
+      leases.delete(key);
+      released.push(key);
+      leaseEvents.push(`release:${key}`);
+    },
     findResult: async key => results.get(key) ?? null,
     writeResult: async (key, result) => {
       const state = results.has(key) ? 'existing' : 'created';
@@ -64,6 +77,8 @@ function fixture() {
     reads,
     advanced,
     settled,
+    released,
+    leaseEvents,
     results,
     setFailDelete: (value: boolean) => {
       failDelete = value;
@@ -137,6 +152,42 @@ test('provider success followed by an ack interruption is recovered without a se
   assert.equal(providerCalls, 1);
   assert.deepEqual(state.settled, ['media-generation:10000000-0000-4000-8000-000000000001:3']);
   assert.deepEqual(state.deleted, ['2']);
+});
+
+test('transient provider failures release the lease and retry the same task', async () => {
+  const state = fixture();
+  let providerCalls = 0;
+  const consumer = new PgmqGenerationConsumer({
+    queue: state.queue,
+    store: state.store,
+    provider: {
+      generate: async () => {
+        providerCalls += 1;
+        if (providerCalls === 1) throw new Error('temporary provider failure');
+        return 'result-after-retry';
+      },
+    },
+    maxReadCount: 2,
+  });
+
+  assert.deepEqual(await consumer.runOnce(), {
+    state: 'retried',
+    messageId: '1',
+    errorCode: 'temporary provider failure',
+  });
+  assert.deepEqual(state.released, ['10000000-0000-4000-8000-000000000001:3']);
+  assert.deepEqual(state.leaseEvents, [
+    'acquire:10000000-0000-4000-8000-000000000001:3:false',
+    'release:10000000-0000-4000-8000-000000000001:3',
+  ]);
+  state.rows.push({ msgId: '2', readCount: 2, message });
+  assert.deepEqual(await consumer.runOnce(), {
+    state: 'processed',
+    messageId: '2',
+    resultKey: 'media-generation:10000000-0000-4000-8000-000000000001:3',
+  });
+  assert.equal(providerCalls, 2);
+  assert.equal(state.results.get('media-generation:10000000-0000-4000-8000-000000000001:3'), 'result-after-retry');
 });
 
 test('failed messages retry until the configured read count and then enter the archive path', async () => {

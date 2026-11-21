@@ -5,7 +5,8 @@ import {
   type MediaConfigCommitEnvelope,
   type MediaConfigCommitStatus
 } from '@aiao-media/domain';
-import { type EntityType, type RxDB, type UUID } from '@aiao/rxdb';
+import { RxDBBranch, type EntityType, type RxDB, type UUID } from '@aiao/rxdb';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import { EntityListComponent } from '@aiao/rxdb-model-angular';
 import {
   ChangeDetectionStrategy,
@@ -21,6 +22,13 @@ import {
 import { FormsModule } from '@angular/forms';
 import { debounceTime, firstValueFrom, Subject, type Subscription } from 'rxjs';
 import { createAdminSupabaseSyncClient } from './admin-auth';
+import {
+  describeAdminConfigMerge,
+  mergeAdminConfigConflictCount,
+  normalizeAdminConfigBranchId,
+  type AdminConfigBranchView,
+  toAdminConfigBranchView
+} from './admin-config-branches';
 import {
   createAdminConfigProjection,
   createAdminConfigProjectionStore,
@@ -149,6 +157,90 @@ export function toAdminConfigCommitView(
         (retry)="retry()"
       />
       @if (permission() === 'granted') {
+        @if (databaseReady()) {
+          <section class="branch-panel" aria-labelledby="config-branch-title">
+            <header class="branch-panel-header">
+              <div>
+                <p class="section-kicker">版本管理</p>
+                <h3 id="config-branch-title">配置分支</h3>
+              </div>
+              <span class="branch-current" data-testid="config-active-branch">当前：{{ activeBranchId() ?? '未知' }}</span>
+            </header>
+            <div class="branch-controls">
+              <label>
+                切换分支
+                <select
+                  aria-label="切换配置分支"
+                  [ngModel]="activeBranchId()"
+                  (ngModelChange)="switchBranch($event)"
+                  name="activeBranch"
+                  [disabled]="loading() || !workingTreeClean()"
+                >
+                  @for (branch of localBranches(); track branch.id) {
+                    <option [value]="branch.id">{{ branch.id }}{{ branch.activated ? '（当前）' : '' }}</option>
+                  }
+                </select>
+              </label>
+              <form (ngSubmit)="createBranch()" aria-label="创建配置分支">
+                <label>
+                  新分支
+                  <input
+                    class="input input-sm"
+                    [ngModel]="branchName()"
+                    (ngModelChange)="branchName.set($event)"
+                    name="branchName"
+                    maxlength="128"
+                    placeholder="例如 release/2026-11"
+                  />
+                </label>
+                <button class="btn btn-outline btn-sm" [disabled]="loading() || !workingTreeClean()" type="submit">
+                  创建并切换
+                </button>
+              </form>
+            </div>
+            @if (!workingTreeClean()) {
+              <p class="branch-hint">当前分支有未提交修改，先提交或丢弃后才能切换和合并。</p>
+            }
+            @if (branchError(); as failure) {
+              <p class="operation-error" role="alert">{{ failure }}</p>
+            }
+            <div class="branch-merge-list">
+              @for (branch of mergeCandidates(); track branch.id) {
+                <button
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="loading() || !workingTreeClean()"
+                  (click)="previewMerge(branch.id)"
+                  type="button"
+                >
+                  预览 {{ branch.id }} → {{ activeBranchId() }}
+                </button>
+              }
+            </div>
+            @if (mergePreview(); as preview) {
+              <div class="merge-preview" data-testid="config-merge-preview">
+                <p>{{ mergeDescription() }}</p>
+                @if (mergeConflicts().length) {
+                  <ul>
+                    @for (entry of mergeConflicts(); track entry.entity + ':' + entry.entityId) {
+                      <li>{{ entry.entity }} / {{ entry.entityId }}：{{ entry.conflict?.kind }}</li>
+                    }
+                  </ul>
+                }
+                <button
+                  class="btn btn-primary btn-sm"
+                  [disabled]="loading() || mergeConflictCount() > 0 || !workingTreeClean()"
+                  (click)="mergePreviewBranch()"
+                  type="button"
+                >
+                  合并到当前分支
+                </button>
+                <button class="btn btn-ghost btn-sm" [disabled]="loading()" (click)="clearMergePreview()" type="button">
+                  关闭预览
+                </button>
+              </div>
+            }
+          </section>
+        }
         @if (pendingChanges() > 0) {
           <form class="commit-form" (ngSubmit)="commitChanges()" aria-label="提交本机修改">
             <p>本机有 {{ pendingChanges() }} 项未提交的修改。</p>
@@ -175,6 +267,7 @@ export function toAdminConfigCommitView(
           <app-admin-config-commit
             [busy]="loading()"
             [canManage]="true"
+            [allowApply]="canPublish()"
             [commit]="view"
             [offline]="offline()"
             (apply)="applyCommit($event)"
@@ -238,6 +331,62 @@ export function toAdminConfigCommitView(
       gap: 0.5rem;
       align-items: center;
     }
+    .branch-panel {
+      margin: 1rem 0;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.85rem;
+      padding: 1rem;
+      background: var(--color-base-100);
+    }
+    .branch-panel-header,
+    .branch-controls,
+    .branch-controls form,
+    .branch-merge-list,
+    .merge-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      align-items: center;
+    }
+    .branch-panel-header {
+      justify-content: space-between;
+    }
+    .branch-panel h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .branch-controls {
+      margin-top: 0.75rem;
+    }
+    .branch-controls label {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .branch-current,
+    .branch-hint {
+      color: var(--color-base-content);
+      opacity: 0.78;
+    }
+    .branch-hint {
+      margin-top: 0.6rem;
+    }
+    .branch-merge-list {
+      margin-top: 0.75rem;
+    }
+    .merge-preview {
+      align-items: flex-start;
+      margin-top: 0.75rem;
+      border-left: 0.25rem solid var(--color-primary);
+      padding-left: 0.75rem;
+    }
+    .merge-preview p {
+      flex-basis: 100%;
+    }
+    .merge-preview ul {
+      flex-basis: 100%;
+      margin: 0;
+    }
     .operation-error {
       margin: 0.75rem 0;
       color: var(--color-error);
@@ -277,6 +426,13 @@ export class AdminConfigModelComponent {
   readonly databaseReady = signal(false);
   readonly empty = signal(false);
   readonly pendingChanges = signal(0);
+  readonly branches = signal<readonly AdminConfigBranchView[]>([]);
+  readonly activeBranchId = signal<string | null>(null);
+  readonly branchName = signal('');
+  readonly branchError = signal<string | null>(null);
+  readonly workingTreeStateClean = signal(true);
+  readonly mergePreview = signal<MergePreview | null>(null);
+  readonly mergeSourceBranchId = signal<string | null>(null);
   readonly commit = signal<RemoteConfigCommitStatus | null>(null);
   readonly commitMessage = signal('');
   readonly workspaceQuery = computed(() => createAdminConfigWorkspaceQuery(this.workspaceId()));
@@ -289,6 +445,22 @@ export class AdminConfigModelComponent {
     const value = this.commitMessage().trim();
     return value.length > 0 && value.length <= COMMIT_MESSAGE_LIMIT;
   });
+  readonly workingTreeClean = computed(() => this.workingTreeStateClean() && this.pendingChanges() === 0);
+  readonly localBranches = computed(() => this.branches().filter(branch => branch.local));
+  readonly mergeCandidates = computed(() => this.localBranches().filter(branch => branch.id !== this.activeBranchId()));
+  readonly mergeConflicts = computed(() => this.mergePreview()?.entries.filter(entry => entry.conflict !== null) ?? []);
+  readonly mergeConflictCount = computed(() => mergeAdminConfigConflictCount(this.mergePreview()));
+  readonly mergeDescription = computed(() => {
+    const preview = this.mergePreview();
+    return preview ? describeAdminConfigMerge(preview) : '';
+  });
+  readonly canPublish = computed(
+    () =>
+      this.activeBranchId() === 'main' &&
+      this.commit()?.branchId === 'main' &&
+      this.mergeConflictCount() === 0 &&
+      this.workingTreeClean()
+  );
   readonly syncLabel = computed(
     () =>
       ({
@@ -339,6 +511,108 @@ export class AdminConfigModelComponent {
     void this.hydrate(this.client(), this.identity());
   }
 
+  async createBranch(): Promise<void> {
+    if (this.loading()) return;
+    let branchId: string;
+    try {
+      branchId = normalizeAdminConfigBranchId(this.branchName());
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '分支名称无效。');
+      return;
+    }
+    if (this.branches().some(branch => branch.id === branchId)) {
+      this.branchError.set(`分支 ${branchId} 已存在。`);
+      return;
+    }
+    const database = this.host.require();
+    if (!(await this.ensureWorkingTreeClean(database))) return;
+    this.loading.set(true);
+    this.branchError.set(null);
+    try {
+      const history = await database.workingTree.listCommits();
+      if (history.headCommitId) {
+        const result = await database.workingTree.createBranchFromCommit(branchId, history.headCommitId);
+        if (!result.ok) {
+          this.branchError.set(`无法创建分支：${result.reason}。`);
+          return;
+        }
+      } else {
+        await database.versionManager.createBranch(branchId);
+      }
+      const status = await database.workingTree.status();
+      await database.versionManager.switchBranch(branchId, {
+        requireClean: true,
+        expectedActivationRevision: status.activationRevision
+      });
+      this.branchName.set('');
+      await this.afterBranchChange(database);
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '创建分支失败。');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async switchBranch(branchId: string): Promise<void> {
+    if (this.loading() || branchId === this.activeBranchId()) return;
+    const database = this.host.require();
+    if (!(await this.ensureWorkingTreeClean(database))) return;
+    const status = await database.workingTree.status();
+    this.loading.set(true);
+    this.branchError.set(null);
+    try {
+      await database.versionManager.switchBranch(branchId, {
+        requireClean: true,
+        expectedActivationRevision: status.activationRevision
+      });
+      await this.afterBranchChange(database);
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '切换分支失败。');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async previewMerge(sourceBranchId: string): Promise<void> {
+    if (this.loading()) return;
+    const database = this.host.require();
+    if (!(await this.ensureWorkingTreeClean(database))) return;
+    this.loading.set(true);
+    this.branchError.set(null);
+    try {
+      const preview = await database.versionManager.previewMerge(sourceBranchId, { strategy: 'squash' });
+      this.mergeSourceBranchId.set(sourceBranchId);
+      this.mergePreview.set(preview);
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '合并预览失败。');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  async mergePreviewBranch(): Promise<void> {
+    const sourceBranchId = this.mergeSourceBranchId();
+    if (!sourceBranchId || this.mergeConflictCount() > 0 || this.loading()) return;
+    const database = this.host.require();
+    if (!(await this.ensureWorkingTreeClean(database))) return;
+    this.loading.set(true);
+    this.branchError.set(null);
+    try {
+      await database.versionManager.mergeBranch(sourceBranchId, { strategy: 'squash', deleteSource: false });
+      await this.afterBranchChange(database);
+      this.message.set(`分支 ${sourceBranchId} 已合并到 ${this.activeBranchId()}。`);
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '合并分支失败。');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  clearMergePreview(): void {
+    this.mergeSourceBranchId.set(null);
+    this.mergePreview.set(null);
+  }
+
   async commitChanges(): Promise<void> {
     const message = this.commitMessage().trim();
     if (!this.commitMessageValid() || this.loading()) return;
@@ -360,6 +634,7 @@ export class AdminConfigModelComponent {
       }
       this.commitMessage.set('');
       await this.refreshPending(database);
+      await this.refreshBranches(database);
       if (!this.offline()) await this.host.syncNow();
     } catch (error) {
       this.operationError.set(error instanceof Error ? error.message : '提交本机修改失败。');
@@ -370,7 +645,10 @@ export class AdminConfigModelComponent {
 
   async applyCommit(commitId: string): Promise<void> {
     const commit = this.commit();
-    if (!commit || commit.id !== commitId || !this.canApply(commit.status) || this.loading()) return;
+    if (!commit || commit.id !== commitId || !this.canApply(commit.status) || !this.canPublish() || this.loading()) {
+      if (commit && !this.canPublish()) this.operationError.set('只有无冲突的 main 分支提交才能发布。');
+      return;
+    }
     await this.runRemote(async client => {
       const receipt = await client.applyConfigCommit(commit.id, commit.operationId);
       await this.writeBackRevisions(parseAppliedRevisions(receipt));
@@ -395,7 +673,7 @@ export class AdminConfigModelComponent {
     try {
       await operation(client);
       const workspaceId = this.workspaceId();
-      if (workspaceId) await this.refreshRemoteCommit(client, workspaceId);
+      if (workspaceId) await this.refreshRemoteCommit(client, workspaceId, this.activeBranchId() ?? 'main');
     } catch (error) {
       this.reportRemoteError(error, fallbackMessage, 'commit');
     } finally {
@@ -445,6 +723,7 @@ export class AdminConfigModelComponent {
       const database = await this.host.open({ userId: identity, workspaceId, supabase });
       this.workspaceId.set(workspaceId);
       this.databaseReady.set(true);
+      await this.refreshBranches(database);
       this.watchLocal(database, workspaceId);
       this.startProjection(database, client, identity, workspaceId);
       await this.synchronize(client, database, workspaceId);
@@ -467,8 +746,9 @@ export class AdminConfigModelComponent {
       await this.host.syncNow();
       await this.seedLegacyDrafts(client, database, workspaceId);
       await database.syncManager.sync();
+      await this.refreshBranches(database);
       await this.projection?.compensate();
-      await this.refreshRemoteCommit(client, workspaceId);
+      await this.refreshRemoteCommit(client, workspaceId, this.activeBranchId() ?? 'main');
       this.syncState.set(this.commit()?.status === 'applied' ? 'applied' : 'synced');
     } catch (error) {
       this.syncState.set(this.offline() ? 'offline' : 'error');
@@ -501,6 +781,59 @@ export class AdminConfigModelComponent {
     this.pendingChanges.set(diff.entries.filter(isConfigContentUnit).length);
   }
 
+  private async ensureWorkingTreeClean(database: RxDB): Promise<boolean> {
+    try {
+      const status = await database.workingTree.status();
+      this.activeBranchId.set(status.branchId);
+      this.workingTreeStateClean.set(status.clean && !status.restoring && !status.conflicted);
+      await this.refreshPending(database);
+      if (status.restoring) {
+        this.branchError.set('工作树正在恢复，完成后才能切换或合并分支。');
+        return false;
+      }
+      if (status.conflicted) {
+        this.branchError.set('工作树存在未解决冲突，解决后才能切换或合并分支。');
+        return false;
+      }
+      if (!status.clean) {
+        this.branchError.set('当前分支有未提交修改，先提交或丢弃后才能切换或合并分支。');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      this.branchError.set(error instanceof Error ? error.message : '无法读取工作树状态。');
+      return false;
+    }
+  }
+
+  private async refreshBranches(database: RxDB): Promise<void> {
+    const branches = await firstValueFrom(
+      database.entityManager.getRepository(RxDBBranch).findAll({
+        where: { combinator: 'and', rules: [] },
+        orderBy: [{ field: 'id', sort: 'asc' }]
+      })
+    );
+    this.branches.set(
+      branches
+        .map(toAdminConfigBranchView)
+        .sort((left, right) => left.id.localeCompare(right.id))
+    );
+    const status = await database.workingTree.status();
+    this.activeBranchId.set(status.branchId);
+    this.workingTreeStateClean.set(status.clean && !status.restoring && !status.conflicted);
+  }
+
+  private async afterBranchChange(database: RxDB): Promise<void> {
+    await this.refreshBranches(database);
+    await this.refreshPending(database);
+    this.clearMergePreview();
+    this.commit.set(null);
+    const workspaceId = this.workspaceId();
+    if (workspaceId && !this.offline()) {
+      await this.refreshRemoteCommit(this.client(), workspaceId, this.activeBranchId() ?? 'main');
+    }
+  }
+
   private startProjection(database: RxDB, client: ProductClient, identity: string, workspaceId: UUID): void {
     if (this.projection) return;
     this.projection = createAdminConfigProjection({
@@ -509,7 +842,8 @@ export class AdminConfigModelComponent {
       authorId: normalizeAdminUserId(identity),
       store: createAdminConfigProjectionStore(client),
       readEntity: (entity, entityId) => this.readEntity(database, entity, entityId, workspaceId),
-      onProjected: envelope => this.commit.set(this.projectedStatus(envelope))
+      onProjected: envelope => this.commit.set(this.projectedStatus(envelope)),
+      shouldProject: branchId => branchId === 'main'
     });
     this.subscriptions.push(
       this.projection.errors$.subscribe(error => {
@@ -539,9 +873,9 @@ export class AdminConfigModelComponent {
     };
   }
 
-  private async refreshRemoteCommit(client: ProductClient, workspaceId: string): Promise<void> {
-    const remote = await client.latestConfigCommit(workspaceId);
-    if (remote) this.commit.set(remote);
+  private async refreshRemoteCommit(client: ProductClient, workspaceId: string, branchId: string): Promise<void> {
+    const remote = await client.latestConfigCommit(workspaceId, branchId);
+    this.commit.set(remote);
   }
 
   private async readEntity(

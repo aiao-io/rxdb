@@ -364,6 +364,8 @@ export class AdminConfigCommitComponent {
   readonly commit = input.required<AdminConfigCommitView>();
   /** 当前账号能否应用或回滚配置；为 `false` 时不渲染动作按钮。 */
   readonly canManage = input.required<boolean>();
+  /** 当前提交是否允许发布到平台配置。 */
+  readonly allowApply = input(true);
   /** 有进行中的应用或回滚请求。 */
   readonly busy = input(false);
   /** 浏览器处于离线状态。 */
@@ -382,7 +384,7 @@ export class AdminConfigCommitComponent {
   /** 操作者名称，没有资料时为 UUID。 */
   readonly authorText = computed(() => this.commit().authorLabel ?? this.commit().authorId);
   /** 已同步或已校验的提交可以应用。 */
-  readonly canApply = computed(() => ['synced', 'validated'].includes(this.commit().status));
+  readonly canApply = computed(() => this.allowApply() && ['synced', 'validated'].includes(this.commit().status));
   /** 已应用或已发布的提交可以安全回滚。 */
   readonly canRollback = computed(() => ['applied', 'released'].includes(this.commit().status));
   /** 忙碌或离线时禁用动作。 */

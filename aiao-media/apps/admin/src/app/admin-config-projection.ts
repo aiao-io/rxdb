@@ -41,6 +41,7 @@ export interface AdminConfigProjectionOptions {
   readonly readEntity: (entity: string, entityId: string) => Promise<Record<string, unknown> | null>;
   readonly sync?: (envelope: MediaConfigCommitEnvelope) => Promise<void>;
   readonly onProjected?: (envelope: MediaConfigCommitEnvelope) => void;
+  readonly shouldProject?: (branchId: string) => boolean;
 }
 
 export interface AdminConfigProjection {
@@ -274,6 +275,7 @@ export function createAdminConfigProjection(options: AdminConfigProjectionOption
   const project = (commitId: string): Promise<MediaConfigCommitEnvelope | null> =>
     enqueue(async () => {
       const page = await options.workingTree.listCommits();
+      if (options.shouldProject && !options.shouldProject(page.branchId)) return null;
       const entry = page.entries.find(candidate => candidate.commitId === commitId);
       if (!entry || !isProjectable(entry)) return null;
       const contentCount = (await options.workingTree.commitChanges(commitId)).entries.filter(

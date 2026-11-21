@@ -55,9 +55,14 @@
 | `aiao-media-e2e:product-e2e -g 后台配置：`（真实浏览器 + 本地 Supabase） | 3 项通过：断网时修改留在本机、刷新后恢复未提交状态、联网后同步到工作区草稿；提交与应用、刷新后状态与操作者仍在、不留簿记修改、状态区与提交详情无 WCAG 2.1 AA 违规、回滚二次确认后服务端标记删除；其他设备已应用时冲突只在提交详情显示、服务端未写入 |
 | `aiao-media-e2e:product-e2e -g 后台`                                     | 既有 8 项后台回归通过，含真实配置表格与旧草稿导入                                                                                                                                                                                                   |
 
+## 2026-11-21 分支管理补充
+
+- 配置页从 RxDB 分支表展示本地分支，支持创建、切换和 `previewMerge` 合并预览；工作树未提交、恢复中或冲突时阻止切换与合并，有冲突时阻止合并。只有 `main` 分支允许 commit projection，feature 分支提交只保留本机。
+- `admin-config-branches.spec.ts`、`admin-config-projection.spec.ts`、`product-client.spec.ts` 覆盖分支标识、冲突计数、分支过滤和 projection 边界。
+
 ## 边界与后续
 
-- 远端分支仍只开放 `main`。配置分支在本机建立与合并；合并前用 `previewMerge` 暴露覆盖冲突，服务端以 revision CAS 拒绝冲突应用。后台还没有分支与合并界面，MEDIA-US-308 AC7 保持部分通过。
+- 远端分支仍只开放 `main`。服务端以 revision CAS 拒绝冲突应用，双方原始提交保留在各自历史中。MEDIA-US-308 AC7 的本地路径已通过，公共目录发布链路仍待接通。
 - 发布链路仍缺：应用结果写入 `media_config_records`，尚未接到普通用户读取的公共目录（G07，后台差距评估 C 阶段）。
 - 公共包缺口：`rxdb-model-angular` 表单的输入框没有关联字段标签（只有字段组有名称），加载动画没有可读名称，读取失败显示成空列表。这些要在公共包里按三框架对称修复，本轮由宿主页面承担错误态。
 - 本地开发库 `aiao-media-admin-config` 不迁移；生产尚未部署配置编辑器，没有用户数据受影响。

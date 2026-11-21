@@ -448,4 +448,48 @@ describe('Admin 配置提交投影', () => {
     expect(persisted).toEqual([commitId]);
     projection.stop();
   });
+
+  it('功能分支提交只保留在本机，合并到 main 后才允许投影', async () => {
+    const commits$ = new Subject<WorkingTreeCommitEvent>();
+    const workingTree: AdminWorkingTreeSource = {
+      commits$,
+      listCommits: async () => ({
+        branchId: 'config-draft',
+        headCommitId: commitId,
+        entries: [{ ...commitEntry, changeSetCount: 1 }]
+      }),
+      commitChanges: async () => ({ commitId, entries: [unit({})] })
+    };
+    const persisted: string[] = [];
+    const projection = createAdminConfigProjection({
+      workingTree,
+      workspaceId,
+      authorId,
+      store: {
+        hasCompleteProjection: async () => false,
+        save: async envelope => {
+          persisted.push(envelope.commit.id);
+        }
+      },
+      readEntity: async () => ({
+        id: templateId,
+        workspaceId,
+        branchId: 'main',
+        revision: 2,
+        key: 'hero',
+        title: '分支标题',
+        prompt: '生成海报',
+        tags: [],
+        enabled: true
+      }),
+      shouldProject: branchId => branchId === 'main'
+    });
+
+    await projection.start();
+    commits$.next({ commitId, branchId: 'config-draft' });
+    await projection.idle();
+
+    expect(persisted).toEqual([]);
+    projection.stop();
+  });
 });

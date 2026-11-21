@@ -92,6 +92,10 @@ class DrillStore {
     return true;
   }
 
+  async releaseTaskLease(_message, key) {
+    this.#leases.delete(key);
+  }
+
   async findResult(key) {
     return this.#results.get(key)?.value ?? null;
   }

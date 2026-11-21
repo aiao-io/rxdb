@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-11-15
-updated: 2026-11-15
+updated: 2026-11-21
 dependsOn: [MEDIA-US-201, MEDIA-US-203]
 tags: [supabase, auth, admin, edge-function, rls]
 ---
@@ -55,7 +55,7 @@ tags: [supabase, auth, admin, edge-function, rls]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
-验收证据：AC1 使用 `aiao-media-admin` 测试验证；AC2–AC6 使用 Admin、Edge Function 与 migration contract tests 验证；AC7 的生产 bundle 扫描、AC8 的旧路径切换和真实 Supabase 验收仍待完成。
+验收证据：AC1 使用 `aiao-media-admin` 测试验证；AC2–AC6 使用 Admin、Edge Function 与 migration contract tests 验证。当前 `aiao-media/apps/admin` 没有 `/api/admin/*` 调用方，Admin 已使用 Supabase Auth、PostgREST/RPC 和 `admin-api` Edge Function；旧 Worker 兼容入口与旧 Web `ProductClient` 仍由测试覆盖并保留，不能据此删除。AC7 的正式 bundle 扫描、AC8 的切换对照和正式 Supabase 验收仍待完成。
 
 ## 交付阶段
 
@@ -71,9 +71,9 @@ Admin 已通过 [app.ts](../../../apps/admin/src/app/app.ts) 和 [admin-auth.ts]
 
 ## 当前实现证据
 
-- Admin Auth、ProductClient、Edge Function 相关测试：`pnpm nx run aiao-media-admin:test`（74/74）与 `pnpm nx run aiao-media-supabase-functions:test`（8/8）。
+- Admin Auth、ProductClient、Edge Function 相关测试：`pnpm nx run aiao-media-admin:test` 与 `pnpm nx run aiao-media-supabase-functions:test` 已通过；本轮 Admin 回归为 195/195。
 - 迁移与 RLS 契约：`pnpm nx run aiao-media:production-bundle-test`（15/15），覆盖 16 → 20 升级、幂等、parent、revision、部分回滚和跨 workspace 拒绝。
-- 真实 Supabase 项目登录、发布 bundle 扫描、旧路径切换和双区域验收仍是关闭本故事前的待办。
+- 旧 `/api/admin/*` 在当前 Admin 产品没有调用方，但 API 兼容入口和旧 Web 客户端仍存在。正式 Supabase 项目登录、生产 bundle 扫描、旧路径切换对照和双区域验收仍是关闭本故事前的待办。
 
 ## 实现文件
 

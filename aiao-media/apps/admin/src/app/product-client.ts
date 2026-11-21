@@ -233,11 +233,11 @@ export class ProductClient {
     });
   }
 
-  async latestConfigCommit(workspaceId: string): Promise<RemoteConfigCommitStatus | null> {
+  async latestConfigCommit(workspaceId: string, branchId = 'main'): Promise<RemoteConfigCommitStatus | null> {
     const access = await this.authorize();
     const rows = await this.remote(
       access,
-      `/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${encodeURIComponent(workspaceId)}&order=createdAt.desc&limit=1`
+      `/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${encodeURIComponent(workspaceId)}&branchId=eq.${encodeURIComponent(branchId)}&order=createdAt.desc&limit=1`
     );
     if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交状态不可读。');
     if (!rows.length) return null;

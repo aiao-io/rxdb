@@ -4,6 +4,8 @@ import type { PgmqGenerationMessage } from './pgmq-message.ts';
 export interface PgmqGenerationIdempotencyStore<TResult = unknown> {
   /** 获取任务租约；重复消息或旧修订返回 false。 */
   acquireTaskLease(message: PgmqGenerationMessage, leaseKey: string): Promise<boolean>;
+  /** 处理失败后释放任务租约，让 visibility timeout 后的消息可以重试。 */
+  releaseTaskLease(message: PgmqGenerationMessage, leaseKey: string): Promise<void>;
   /** 按结果唯一键读取已写入结果，供 ack 前崩溃后的恢复使用。 */
   findResult(resultKey: string): Promise<TResult | null>;
   /** 只允许同一个结果唯一键成功写入一次。 */

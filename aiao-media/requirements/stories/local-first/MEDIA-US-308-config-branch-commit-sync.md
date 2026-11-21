@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-11-15
-updated: 2026-11-16
+updated: 2026-11-21
 dependsOn: [MEDIA-US-306, MEDIA-US-307]
 tags: [rxdb, branch, commit, sync, config, audit]
 ---
@@ -50,7 +50,7 @@ tags: [rxdb, branch, commit, sync, config, audit]
 | 4   | commit change 缺失、顺序错误或 fingerprint 不匹配 | 后台尝试应用                       | 提交进入 rejected/incomplete 状态，不写入部分配置，不得标记 applied      | ✅   |
 | 5   | 完整提交且父节点和 revision 正确                  | 调用 `apply_media_config_commit`   | 配置表、审计记录和 commit 状态在一个数据库事务中一致更新                 | ✅   |
 | 6   | 同一 `operationId` 或 `commitId` 重复推送         | 重试同步和应用请求                 | 不重复写配置、不重复写审计、不重复发布，返回第一次结果                   | ✅   |
-| 7   | 两个分支修改同一配置                              | 合并或应用变更                     | 冲突按规则暴露；未经解决不能发布，原始双方变更仍可恢复                   | ⚠️   |
+| 7   | 两个分支修改同一配置                              | 合并或应用变更                     | 冲突按规则暴露；未经解决不能发布，原始双方变更仍可恢复                   | ✅   |
 | 8   | 后台应用后管理员查看配置                          | 刷新列表、详情和提交记录           | 可见 branch、commit、同步、应用、发布或拒绝状态及操作者                  | ✅   |
 | 9   | 分支元数据已同步但 commit projection 未到齐       | 后台执行同步                       | 分支存在但不会误认为完整提交历史已同步；系统等待或请求补偿               | ✅   |
 
@@ -58,12 +58,13 @@ tags: [rxdb, branch, commit, sync, config, audit]
 
 ## 当前实现证据
 
-- 2026-11-16 九条 AC 中八条通过，AC7 部分通过；证据与边界见[配置同步交付记录](../../plans/config-sync-delivery-20261116.md)。
+- 2026-11-21 九条 AC 均已完成本地验证；AC7 的本地分支、合并和发布边界证据见[配置同步交付记录](../../plans/config-sync-delivery-20261116.md)。公共目录发布链路仍未接通，因此故事继续保持 In Progress。
 - 真实 RxDB 工作树集成：编辑被捕获，`commit()` 只发一次事件；进程在投影前退出后，补偿扫描补齐且不重复；父提交跳过系统基线（AC1、AC2）。
 - 投影写入 RxDB 形状的新表：客户端只能写 prepared，变更到齐才能标记 synced；后台节点经查询缓存读取完整 envelope 并复核指纹，变更未到齐或仍为 prepared 时等待补偿（AC3、AC4、AC9）。
 - 应用 RPC 在一个事务内写配置、审计与提交状态；同一 operationId 重放复用首次回执（AC5、AC6，真实本地 Supabase 集成与 SQL 包测试）。
 - 应用后提交详情显示状态、操作者、分支、父提交与应用时间，刷新后保持（AC8，真实浏览器 e2e）。
-- AC7：合并预览能暴露同字段覆盖冲突，双方提交都保留在各自历史中；服务端以 revision CAS 拒绝冲突应用。后台还没有分支与合并界面，远端分支只开放 main，发布链路尚未接通，因此保持部分通过。
+- AC7：配置页现在能读取本地分支、创建并切换 feature 分支、预览合并并列出同字段覆盖冲突；工作树有未提交修改、恢复中或冲突时禁止切换和合并，有冲突时合并按钮保持禁用。原始双方提交继续保留在各自历史中，服务端以 revision CAS 拒绝冲突应用。
+- 发布边界：只有 `main` 分支允许生成 commit projection 并执行应用，feature 分支提交只保留在本机；远端分支仍只开放 `main`，`media_config_records` 到公共目录的正式发布链路仍待接通。
 
 ## 交付阶段
 

@@ -77,16 +77,19 @@ export class PgmqGenerationConsumer<TResult> {
       return { state: 'duplicate', messageId: message.msgId };
     }
 
+    let taskCommitted = false;
     try {
       const existing = await this.#store.findResult(resultKey);
       const result = existing ?? (await this.#provider.generate(task, resultKey));
       await this.#store.writeResult(resultKey, result);
       await this.#store.advanceTask(task, resultKey);
       await this.#store.settleCredits(resultKey);
+      taskCommitted = true;
       await this.#queue.delete(this.#queueName, message.msgId);
       return { state: 'processed', messageId: message.msgId, resultKey };
     } catch (error) {
       const errorCode = error instanceof Error && error.message ? error.message.slice(0, 120) : 'consumer_failure';
+      if (!taskCommitted) await this.#store.releaseTaskLease(task, leaseKey);
       await this.#store.recordFailure(task, errorCode);
       if (message.readCount >= this.#maxReadCount) {
         await this.#queue.archive(this.#queueName, message.msgId);
