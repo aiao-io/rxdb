@@ -123,8 +123,8 @@ interface NavItem {
               </svg>
             </button>
             <div class="breadcrumb">
-              <a [routerLink]="config.overviewPath">{{ config.label }}</a
-              ><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
+              <a [routerLink]="config.overviewPath">{{ config.label }}</a><span aria-hidden="true">/</span
+              ><strong>{{ activeLabel() }}</strong>
             </div>
           </div>
           @if (!workbenchRoute()) {
@@ -155,8 +155,7 @@ interface NavItem {
         @if (ready() && !reviewRoute() && !workbenchRoute()) {
           <div class="workspace-context" aria-label="当前分析条件">
             <div>
-              <strong>{{ materialLabel(workspaceState.rootKey()) }}</strong
-              ><span
+              <strong>{{ materialLabel(workspaceState.rootKey()) }}</strong><span
                 >{{ workspaceState.asOfDate() }} · {{ workspaceState.plannedQty() }}
                 {{ workspaceState.plannedUom() }}</span
               >
