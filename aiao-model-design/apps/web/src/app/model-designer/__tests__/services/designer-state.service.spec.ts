@@ -699,7 +699,6 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
   });
 });
 
-
 describe('DesignerStateService — 空目标、可选数据和计算状态', () => {
   let service: DesignerStateService;
   let entityCreateSpy: ReturnType<typeof vi.fn>;
@@ -950,12 +949,12 @@ describe('DesignerStateService — 空目标、可选数据和计算状态', () 
       childPropertiesOf: (id: string) => () => Array<unknown>;
     };
     propertyService.propertiesOf = (id: string) => () =>
-      id === 'e1'
-        ? [
-            { id: 'key-value', name: 'metadata', propertyType: 'keyValue' },
-            { id: 'title', name: 'title', propertyType: 'string' }
-          ]
-        : [];
+      id === 'e1' ?
+        [
+          { id: 'key-value', name: 'metadata', propertyType: 'keyValue' },
+          { id: 'title', name: 'title', propertyType: 'string' }
+        ]
+      : [];
     propertyService.childPropertiesOf = () => () => [];
     entitiesSignal.set([{ id: 'e1', name: 'Order' }]);
     expect(service.childPropertiesMap().has('key-value')).toBe(true);

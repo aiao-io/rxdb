@@ -336,12 +336,9 @@ describe('CodeGeneratorService', () => {
         mappedPropertyId: 'posts'
       } as unknown as DesignRelation;
 
-      const result = service.toClientDesignContract(
-        [user, post],
-        new Map([['e1', [prop]]]),
-        new Map([['e1', [rel]]]),
-        { source: 'test' }
-      );
+      const result = service.toClientDesignContract([user, post], new Map([['e1', [prop]]]), new Map([['e1', [rel]]]), {
+        source: 'test'
+      });
 
       expect(result).toEqual({
         entities: [

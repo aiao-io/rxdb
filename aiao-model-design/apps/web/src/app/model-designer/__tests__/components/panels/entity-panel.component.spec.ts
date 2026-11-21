@@ -352,10 +352,13 @@ describe('EntityPanelComponent direct edits', () => {
         { id: uid('p2'), name: 'second', propertyType: 'string', sortOrder: 'a2' }
       ],
       childPropertiesMap: new Map([
-        [parentId, [
-          { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
-          { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
-        ]]
+        [
+          parentId,
+          [
+            { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
+            { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
+          ]
+        ]
       ]),
       indexes: [
         { id: uid('i1'), propertyIds: [uid('p1')], sortOrder: 'a0' },
@@ -437,7 +440,6 @@ describe('EntityPanelComponent direct edits', () => {
     expect(fixture.componentInstance.canAddIndex()).toBe(true);
   });
 });
-
 
 describe('EntityPanelComponent branch coverage', () => {
   it('covers metadata no-op and invalid-field guards', () => {
@@ -550,10 +552,13 @@ describe('EntityPanelComponent branch coverage', () => {
         { id: uid('p2'), name: 'second', propertyType: 'string', sortOrder: 'a2' }
       ],
       childPropertiesMap: new Map([
-        [parentId, [
-          { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
-          { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
-        ]]
+        [
+          parentId,
+          [
+            { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
+            { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
+          ]
+        ]
       ]),
       indexes: [
         { id: uid('i1'), propertyIds: [uid('p1')], sortOrder: 'a0' },
@@ -569,7 +574,10 @@ describe('EntityPanelComponent branch coverage', () => {
 
     fixture.componentInstance.onPropertyDrop({ previousIndex: 1, currentIndex: 0 } as never);
     fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 1, currentIndex: 0 } as never);
-    fixture.componentInstance.onChildPropertyDrop(uid('missing-parent'), { previousIndex: 0, currentIndex: 1 } as never);
+    fixture.componentInstance.onChildPropertyDrop(uid('missing-parent'), {
+      previousIndex: 0,
+      currentIndex: 1
+    } as never);
     fixture.componentInstance.onIndexDrop({ previousIndex: 1, currentIndex: 0 } as never);
 
     vi.useFakeTimers();
