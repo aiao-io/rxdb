@@ -6,6 +6,7 @@
 import { SetRequired } from 'type-fest';
 import { EntityCheckMetadata } from './check-constraint.js';
 import { EntityExclusionMetadata } from './exclusion-constraint.js';
+import type { EntityGeneratedColumnMetadataOptions } from './generated-column.js';
 import {
   EntityForeignKeyMetadata,
   EntityIndexMetadataOptions,
@@ -99,6 +100,9 @@ export interface EntityMetadataType extends SetRequired<
    * 键为索引名，值为索引元数据
    */
   indexMap: Map<string, EntityIndexMetadata>;
+
+  /** 继承合并后的只读生成列声明，独立于可写属性与日志列。 */
+  generatedColumnMap: Map<string, EntityGeneratedColumnMetadataOptions>;
 
   /**
    * 实体全部 CHECK 约束的映射（继承合并后的全集，含属性级 `check` 编译出的项）

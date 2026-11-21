@@ -43,10 +43,12 @@ import {
 } from '../../../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeEntry } from '../../../working-tree/working-tree-entry.entity.js';
 import type { WorkingTreeManager } from '../../../working-tree/working-tree-facade.js';
+import { buildWorkingTreeOriginCountsSql } from '../../../working-tree/working-tree-origin-sql.js';
 import { WorkingTreeRestoreSession } from '../../../working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../../../working-tree/working-tree-state.entity.js';
 import type { CommitGraphProbeOptions } from '../../commit/fixtures/commit-graph-probe.js';
 import { createCommitGraphProbe } from '../../commit/fixtures/commit-graph-probe.js';
+import { fakeTableRef } from '../../fixtures/fake-table-ref.js';
 import { createMockAdapter, type MockLocalAdapter } from '../../fixtures/test-db-setup.js';
 
 /** 本文件造出来的分支 id；九个用例文件都拿它当「当前分支」。 */
@@ -139,14 +141,14 @@ export interface WorkingTreeSceneOptions {
   /** `executor.query()` 的固定 `rowsAffected`；CAS 命不命中由它决定，默认 1（命中） */
   readonly rowsAffected?: number;
   /**
-   * 原样透传给探针的 `executor.query()` 旁路钩子；默认不挂
+   * 来源统计以外的 `executor.query()` 旁路钩子；默认不挂
    *
    * @remarks
    * 走到**代际发放**（`allocateBranchGeneration`）的场景必须给一个
    * （`activation-sql.ts` › `runBranchGenerationSql`）：那一步把加法交给库做、又从库里把号读回来，
    * 而探针不执行 SQL——不补这两下，单调源永远停在原地、读回来永远是 0 行，发放当场就抛。
    *
-   * 透传而不是在本工厂里默认挂上：挂上之后，每一个**不该**走到发放的场景都会在实现某天
+   * 代际发放仍由调用方显式提供：默认应答后，每一个**不该**走到发放的场景都会在实现某天
    * 多发一次号时照常绿，而「这条路上一次都没发号」正是其中几条用例要钉的性质。
    */
   readonly onQuery?: CommitGraphProbeOptions['onQuery'];
@@ -212,6 +214,20 @@ const entrySeedDefaults = (index: number): WorkingTreeEntrySeed => ({
   sourceChangeId: null
 });
 
+/** 只应答固定来源统计语句，其余原始语句仍交给调用方布景。 */
+const originCountsOf = (
+  sql: string,
+  rowsOf: (EntityClass: typeof RxDBBranch | typeof WorkingTreeEntry) => object[]
+): unknown[][] | undefined => {
+  const branches = rowsOf(RxDBBranch) as RxDBBranch[];
+  const branch = branches.find(row => sql === buildWorkingTreeOriginCountsSql(fakeTableRef(WorkingTreeEntry), row.id));
+  if (branch === undefined) return undefined;
+  const entries = (rowsOf(WorkingTreeEntry) as WorkingTreeEntry[]).filter(row => row.branchId === branch.id);
+  return [
+    [entries.filter(row => row.origin === 'local').length, entries.filter(row => row.origin === 'remote_sync').length]
+  ];
+};
+
 /**
  * 造一个「已启用提交能力、有一条激活分支」的库。
  *
@@ -236,7 +252,7 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   database.init();
 
   const probe = createCommitGraphProbe({
-    onQuery: options.onQuery,
+    onQuery: (sql, rowsOf) => originCountsOf(sql, rowsOf) ?? options.onQuery?.(sql, rowsOf) ?? [],
     rowsAffected: options.rowsAffected ?? 1,
     tableSet: options.tableSet
   });

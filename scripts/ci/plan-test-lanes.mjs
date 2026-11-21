@@ -73,6 +73,8 @@ export const NO_COVERAGE_PROJECTS = ['website', 'e2e-parity'];
  * lane 的实测负载落在 534–887s，更新后约 760–761s。不要拿缓存命中或本地机器耗时回填。
  */
 export const WEIGHTS = {
+  // PR #129 run 41943297402：BOM 双后端浏览器覆盖率实测 1223.47s，不能再按新包 60s 装箱。
+  'rxdb-plugin-bom': 1224,
   'rxdb-adapter-pglite': 709,
   'rxdb-adapter-electron': 393,
   'dev-rxdb-angular': 350,

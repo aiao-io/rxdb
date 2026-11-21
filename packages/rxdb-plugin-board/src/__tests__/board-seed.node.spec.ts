@@ -8,9 +8,12 @@ import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js
 import { matchAll, readFirst, whereEq } from '../query.js';
 import { ISOLATION_BOARD_ID, RELEASE_BOARD_ID, seedReleaseBoardDataset } from '../testing/release-board-dataset.js';
 
+const SEED_TEST_TIMEOUT = 15000;
+
 /**
  * 确定性种子（US-540 AC#1）：两个全新内存库装载同一份种子，
  * 五张业务表按主键排序后逐字节相同，ID 与审计时间固定；零随机、零 `Date.now()`。
+ * 每条用例包含两个真实 PGlite 库的冷启动与迁移，执行超时覆盖这段集成准备。
  */
 describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
   const instances: RxDB[] = [];
@@ -53,61 +56,71 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
     return snapshot;
   };
 
-  it('两次装载的五张业务表逐字节相同，ID 与审计时间固定', async () => {
-    const first = await createSeeded();
-    const second = await createSeeded();
+  it(
+    '两次装载的五张业务表逐字节相同，ID 与审计时间固定',
+    async () => {
+      const first = await createSeeded();
+      const second = await createSeeded();
 
-    const a = await businessSnapshot(first);
-    const b = await businessSnapshot(second);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+      const a = await businessSnapshot(first);
+      const b = await businessSnapshot(second);
+      expect(JSON.stringify(a)).toBe(JSON.stringify(b));
 
-    // 主板 4 列 12 任务（5 / 4 / 3 / 0），隔离板 1 列 8 任务
-    const columns = await readFirst(
-      first.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) })
-    );
-    expect(columns.map(column => column.title)).toEqual(['To do', 'Doing', 'Done', 'Ideas']);
-    const tasksByColumn = new Map<string, number>();
-    for (const column of columns) {
-      tasksByColumn.set(
-        column.id,
-        (await readFirst(first.entityManager.getRepository(Task).find({ where: whereEq('columnId', column.id) })))
-          .length
+      // 主板 4 列 12 任务（5 / 4 / 3 / 0），隔离板 1 列 8 任务
+      const columns = await readFirst(
+        first.entityManager.getRepository(Column).find({ where: whereEq('boardId', RELEASE_BOARD_ID) })
       );
-    }
-    expect([...tasksByColumn.values()]).toEqual([5, 4, 3, 0]);
-    const isolationTasks = await readFirst(
-      first.entityManager
-        .getRepository(Task)
-        .find({ where: whereEq('columnId', 'c0000000-0000-4000-8000-000000000005') })
-    );
-    expect(isolationTasks).toHaveLength(8);
+      expect(columns.map(column => column.title)).toEqual(['To do', 'Doing', 'Done', 'Ideas']);
+      const tasksByColumn = new Map<string, number>();
+      for (const column of columns) {
+        tasksByColumn.set(
+          column.id,
+          (await readFirst(first.entityManager.getRepository(Task).find({ where: whereEq('columnId', column.id) })))
+            .length
+        );
+      }
+      expect([...tasksByColumn.values()]).toEqual([5, 4, 3, 0]);
+      const isolationTasks = await readFirst(
+        first.entityManager
+          .getRepository(Task)
+          .find({ where: whereEq('columnId', 'c0000000-0000-4000-8000-000000000005') })
+      );
+      expect(isolationTasks).toHaveLength(8);
 
-    // 主板至少 6 条任务含「同步」（板内分页超过一页的搜索验收前置）
-    const allReleaseTasks = await readFirst(
-      first.entityManager.getRepository(Task).find({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'columnId', operator: 'in', value: [...columns.map(c => c.id)] }]
-        }
-      })
-    );
-    const withSync = allReleaseTasks.filter(task => `${task.title}${task.description ?? ''}`.includes('同步'));
-    expect(withSync.length).toBeGreaterThanOrEqual(6);
-    // 隔离板全部含「同步」且数量超过一页
-    expect(isolationTasks.every(task => task.title.includes('同步'))).toBe(true);
-    expect(isolationTasks.length).toBeGreaterThan(5);
-    expect(ISOLATION_BOARD_ID).not.toBe(RELEASE_BOARD_ID);
-  });
+      // 主板至少 6 条任务含「同步」（板内分页超过一页的搜索验收前置）
+      const allReleaseTasks = await readFirst(
+        first.entityManager.getRepository(Task).find({
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'columnId', operator: 'in', value: [...columns.map(c => c.id)] }]
+          }
+        })
+      );
+      const withSync = allReleaseTasks.filter(task => `${task.title}${task.description ?? ''}`.includes('同步'));
+      expect(withSync.length).toBeGreaterThanOrEqual(6);
+      // 隔离板全部含「同步」且数量超过一页
+      expect(isolationTasks.every(task => task.title.includes('同步'))).toBe(true);
+      expect(isolationTasks.length).toBeGreaterThan(5);
+      expect(ISOLATION_BOARD_ID).not.toBe(RELEASE_BOARD_ID);
+    },
+    SEED_TEST_TIMEOUT
+  );
 
-  it('只装进空库：库里已有看板（种子或用户数据）时拒绝且零写', async () => {
-    const seeded = await createSeeded();
-    await expect(seedReleaseBoardDataset(seeded)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
-    expect(await readFirst(seeded.entityManager.getRepository(Board).find({ where: matchAll() }))).toHaveLength(2);
+  it(
+    '只装进空库：库里已有看板（种子或用户数据）时拒绝且零写',
+    async () => {
+      const seeded = await createSeeded();
+      await expect(seedReleaseBoardDataset(seeded)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
+      expect(await readFirst(seeded.entityManager.getRepository(Board).find({ where: matchAll() }))).toHaveLength(2);
 
-    const used = await createDb();
-    await used.entityManager.getRepository(Board).create(used.entityManager.instantiate(Board, { title: '用户的板' }));
-    await expect(seedReleaseBoardDataset(used)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
-    const boards = await readFirst(used.entityManager.getRepository(Board).find({ where: matchAll() }));
-    expect(boards.map(board => board.title)).toEqual(['用户的板']);
-  });
+      const used = await createDb();
+      await used.entityManager
+        .getRepository(Board)
+        .create(used.entityManager.instantiate(Board, { title: '用户的板' }));
+      await expect(seedReleaseBoardDataset(used)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
+      const boards = await readFirst(used.entityManager.getRepository(Board).find({ where: matchAll() }));
+      expect(boards.map(board => board.title)).toEqual(['用户的板']);
+    },
+    SEED_TEST_TIMEOUT
+  );
 });

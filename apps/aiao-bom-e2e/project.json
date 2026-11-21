@@ -1,0 +1,30 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project aiao-bom-e2e --web",
+  "implicitDependencies": ["aiao-bom"],
+  "name": "aiao-bom-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-bom-e2e/src",
+  "targets": {
+    "e2e": {
+      "dependsOn": ["aiao-bom:build"],
+      "parallelism": false
+    },
+    "install-browsers": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec playwright install --with-deps firefox webkit",
+        "cwd": "apps/aiao-bom-e2e"
+      }
+    },
+    "e2e-cloudflare": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-bom:build"],
+      "options": {
+        "command": "playwright test --config playwright.cloudflare.config.mts",
+        "cwd": "apps/aiao-bom-e2e"
+      }
+    }
+  }
+}

@@ -57,7 +57,14 @@ import type {
   RxDB,
   TransactionExecutor
 } from '@aiao/rxdb';
-import { branchMaterializationPageFingerprint, getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
+import {
+  branchMaterializationPageFingerprint,
+  getEntityMetadata,
+  getEntityStatus,
+  RxDBBranch,
+  RxDBChange,
+  uuid
+} from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -442,6 +449,32 @@ const captureOneWrite = async (database: RxDB, executor: TransactionExecutor, en
     shouldCapture: () => true
   });
 };
+
+/** 捕获两种来源后故意制造冗余总数漂移，用真实明细验证来源摘要。 */
+const captureMixedOriginsWithCountDrift = (database: RxDB, branchId: string): Promise<void> =>
+  withTransaction(database, async executor => {
+    const token = await readActiveBranchToken(executor);
+    await captureChanges(executor, database, {
+      token,
+      unitId: uuid(),
+      origin: 'local',
+      changes: [changeOf('target-local')],
+      shouldCapture: () => true
+    });
+    await captureChanges(executor, database, {
+      token,
+      unitId: uuid(),
+      origin: 'remote_sync',
+      changes: [changeOf('target-remote-a'), changeOf('target-remote-b')],
+      shouldCapture: () => true
+    });
+    const repository = executor.getRepository(WorkingTreeState);
+    const [state] = await repository.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
+      limit: 1
+    });
+    await repository.update(state, { entryCount: 41 });
+  });
 
 /** 读一次工作树摘要，各开一个事务——这正是调用方捕获那三个位的那一次读。 */
 const readStatus = (database: RxDB): Promise<WorkingTreeStatus> => withTransaction(database, readWorkingTreeStatus);
@@ -1344,6 +1377,21 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
       });
     });
 
+    it('来源取真实行，隔离其他分支并支持含引号的分支名', async () => {
+      const targetBranchId = "status-origin-'quoted'";
+      await database.versionManager.createBranch(targetBranchId);
+      await withTransaction(database, executor => captureOneWrite(database, executor, 'source-local'));
+      await database.versionManager.switchBranch(targetBranchId);
+      expect((await database.workingTree.status()).byOrigin).toEqual({ local: 0, remote_sync: 0 });
+
+      await captureMixedOriginsWithCountDrift(database, targetBranchId);
+
+      const status = await database.workingTree.status();
+      expect(status.branchId).toBe(targetBranchId);
+      expect(status.entryCount).toBe(41);
+      expect(status.byOrigin).toEqual({ local: 1, remote_sync: 2 });
+    });
+
     describe('§2.3 两类 CAS 分开（FR-031/FR-032、SC-008）', () => {
       it('调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地', async () => {
         const branchId = await readActiveBranchId(database);
@@ -1492,6 +1540,27 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
     });
 
     describe('§2.5 损坏守卫（三入口同一份）', () => {
+      it('完整性校验不回填历史实体缓存', async () => {
+        const branchId = await readActiveBranchId(database);
+        const commit = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '历史内容只读', units: [buildUnit()] })
+        );
+        const [entry] = await withTransaction(database, executor =>
+          executor.getRepository(CommitChangeSet).find({
+            where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: commit.id }] }
+          })
+        );
+        if (!entry) throw new Error('刚写下的历史内容读不回来');
+        let notifications = 0;
+        const subscription = getEntityStatus(entry).patches$.subscribe(() => notifications++);
+        try {
+          await withTransaction(database, executor => assertCommitGraphIntact(executor, branchId));
+          expect(notifications).toBe(0);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
       for (const entryPoint of CORRUPTION_ENTRY_POINTS) {
         it(`${entryPoint.name}：健康分支放行`, async () => {
           const branchId = await readActiveBranchId(database);

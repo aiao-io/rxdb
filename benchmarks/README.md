@@ -97,3 +97,15 @@ GIT_BENCH_CONFIGS=isomorphic-memfs,wasm-memfs pnpm nx run benchmarks:bench-git
 - Firefox 111+：OPFS
 
 首页的参考目标是设计目标，不自动判定；当前自动门禁包括 `search-ci`、`bench-hot-path` 和 `bench-working-tree`。具体阈值和工作树 reference 规则见 [`node/working-tree/README.md`](node/working-tree/README.md)。
+
+## BOM 基准手动门禁
+
+BOM 插件的 Node 基准依赖 `rxdb-plugin-bom` 与 `rxdb-adapter-pglite` 的构建产物：
+
+```bash
+pnpm nx run benchmarks:benchmark-bom
+pnpm nx run benchmarks:benchmark-bom-reach
+pnpm nx run benchmarks:benchmark-bom-reach-prototype
+```
+
+这些绝对 p95 预算只在本机独占 CPU 上作为发布前手动门禁，不进入共享 CI；报告文件按命令说明处理，日常复跑后还原生成物。

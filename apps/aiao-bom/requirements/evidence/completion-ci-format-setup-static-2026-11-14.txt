@@ -1,0 +1,12 @@
+Running conditions
+✅ Package runtime conditions passed.
+Running workspace-patches
+✅ Workspace patches passed（3 个补丁均不覆盖可发布包的运行时依赖）.
+Running action-pins
+✅ Workflow action pins passed.
+Running docs-plugins
+✅ Docs plugin surface passed（扫描 206 个文件）.
+Running table-name-resolver
+表名解析器门禁通过：扫 4 个源码根，0 处待改，全部登记在案。
+Running e2e-spec-copies
+✅ E2E spec copies passed: 5 组三端副本同步。

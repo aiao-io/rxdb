@@ -22,7 +22,7 @@ const baseURL = process.env['BASE_URL'] || `http://${host}:${port}`;
 export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src' }),
   fullyParallel: !isCI,
-  workers: isCI ? 2 : 8,
+  workers: 1,
   retries: isCI ? 2 : 0,
   timeout: isCI ? 120000 : 90000,
   expect: {

@@ -1,0 +1,319 @@
+<div class="page" [attr.aria-busy]="busy()">
+  <section class="page-hero">
+    <div>
+      <p class="page-eyebrow">实际装机与售后记录</p>
+      <h1>实例追溯</h1>
+      <p class="panel-desc">查看整机装了哪些零件，按序列号或批次找到使用它们的整机，并保留每次换件的历史。</p>
+    </div>
+  </section>
+
+  <div class="summary-grid" aria-label="实例记录概况">
+    <div class="metric-card">
+      <span class="metric-label">可查询整机</span>
+      <strong class="metric-value">{{ roots().length }}</strong>
+      <span class="metric-note">按整机序列号选择</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">本次装机记录</span>
+      <strong class="metric-value">{{ tree() ? tree()!.nodes.length : '—' }}</strong>
+      <span class="metric-note">点击查看实例树后更新</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">本次追溯命中</span>
+      <strong class="metric-value">{{ trace() ? trace()!.matches.length : '—' }}</strong>
+      <span class="metric-note">按序列号或批次查询</span>
+    </div>
+  </div>
+
+  @if (busy()) {
+    <p class="hint" role="status">正在处理装机记录…</p>
+  }
+  @if (error()) {
+    <div class="error-box" role="alert">操作未完成。请核对所选整机、日期和输入内容后重试。</div>
+    <details class="details-panel">
+      <summary>查看错误详情</summary>
+      <pre>{{ error() }}</pre>
+    </details>
+  }
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>实际装机结构</h2>
+      <p class="panel-desc">先选整机和日期，再查看当时实际安装的零件。勾选历史，可同时查看已经拆卸的记录。</p>
+    </div>
+    <div class="toolbar">
+      <label>
+        整机实例
+        <select [(ngModel)]="rootId" [disabled]="busy() || !ready()" data-testid="instance-root-select">
+          @for (root of roots(); track root.id) {
+            <option [value]="root.id">{{ materialLabel(root.itemNo) }} · {{ root.serialNumber }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        装机时点
+        <input [(ngModel)]="asOfDate" [disabled]="busy() || history()" data-testid="instance-as-of" type="date" />
+      </label>
+      <label>
+        <input [(ngModel)]="history" [disabled]="busy()" data-testid="instance-history" type="checkbox" />
+        显示全部装机历史
+      </label>
+      <button
+        class="btn btn-primary"
+        [disabled]="busy() || !ready() || roots().length === 0"
+        (click)="loadTree()"
+        data-testid="instance-load"
+      >
+        {{ busy() ? '查询中…' : '查看实例树' }}
+      </button>
+    </div>
+    <div class="instance-tree" data-testid="instance-tree">
+      @if (treeStale()) {
+        <p class="error-box" role="status">条件已修改，当前仍为上次查询的安装记录，请重新查看实例树。</p>
+      }
+      @if (tree(); as result) {
+        @if (treeQuery(); as query) {
+          <p class="hint">查询时点：{{ query.history ? '全部安装历史' : query.date }}</p>
+        }
+        @if (result.truncated) {
+          <p class="error-box">实例结果已截断，请缩小查询范围。</p>
+        }
+        @if (result.nodes.length > 0) {
+          <div class="table-scroll">
+            <table class="data-table" aria-label="实际安装记录">
+              <thead>
+                <tr>
+                  <th scope="col">物料</th>
+                  <th scope="col">实际修订</th>
+                  <th scope="col">序列号</th>
+                  <th scope="col">批次</th>
+                  <th scope="col">记录状态</th>
+                  <th scope="col">安装日期</th>
+                  <th scope="col">拆卸日期</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (node of result.nodes; track node.id) {
+                  <tr
+                    [attr.data-item]="node.itemNo"
+                    [attr.data-revision]="node.revisionNo"
+                    [attr.data-serial]="node.serialNumber"
+                  >
+                    <td [style.paddingLeft.px]="12 + node.depth * 20">
+                      <strong>{{ materialLabel(node.itemNo) }}</strong>
+                    </td>
+                    <td>{{ node.revisionNo }}</td>
+                    <td>{{ node.serialNumber ?? '—' }}</td>
+                    <td>{{ node.lotCode ?? '—' }}</td>
+                    <td>
+                      <span class="chip" [class.chip-released]="!node.removedAt">
+                        {{ node.removedAt ? '已记录拆卸' : '无拆卸记录' }}
+                      </span>
+                    </td>
+                    <td>{{ date(node.installedAt) }}</td>
+                    <td>{{ node.removedAt ? date(node.removedAt) : '未记录拆卸日期' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">该时点没有有效的安装记录。请更换整机或日期，或勾选全部装机历史。</div>
+        }
+      } @else {
+        <div class="empty-state">选择整机与装机时点后，点击「查看实例树」。</div>
+      }
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>序列与批次反查</h2>
+      <p class="panel-desc">查询沿用上方装机时点；勾选历史时会同时显示已拆卸记录。</p>
+    </div>
+    <div class="toolbar">
+      <label>
+        追溯条件
+        <select [(ngModel)]="traceKind" [disabled]="busy()" data-testid="instance-trace-kind">
+          <option value="lot">批次</option>
+          <option value="serial">序列号</option>
+        </select>
+      </label>
+      <label>
+        查询值
+        <input [(ngModel)]="traceValue" [disabled]="busy()" data-testid="instance-trace-value" />
+      </label>
+      <button
+        class="btn btn-primary"
+        [disabled]="busy() || !ready() || !traceValue().trim()"
+        (click)="runTrace()"
+        data-testid="instance-trace"
+      >
+        追溯到整机
+      </button>
+    </div>
+    @if (traceStale()) {
+      <p class="error-box" role="status">条件已修改，请重新追溯，以下结果仍对应上次查询。</p>
+    }
+    @if (trace(); as result) {
+      @if (traceQuery(); as query) {
+        <p class="hint">
+          查询依据：{{ query.kind === 'serial' ? '序列号' : '批次' }} {{ query.value }} ·
+          {{ query.history ? '全部安装历史' : query.date }}
+        </p>
+      }
+      @if (result.truncated) {
+        <p class="error-box">追溯结果已截断，请缩小查询范围。</p>
+      }
+      @if (result.matches.length > 0) {
+        <p class="hint" role="status">找到 {{ result.matches.length }} 条安装记录，所属整机与实际路径如下。</p>
+        <div class="table-scroll">
+          <table class="data-table" aria-label="序列号与批次追溯结果">
+            <thead>
+              <tr>
+                <th scope="col">所属整机</th>
+                <th scope="col">命中零件</th>
+                <th scope="col">实际修订</th>
+                <th scope="col">记录状态</th>
+                <th scope="col">安装区间</th>
+                <th scope="col">实际路径</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (match of result.matches; track match.node.id) {
+                <tr data-testid="instance-trace-row">
+                  <td>
+                    <strong>{{ materialLabel(match.root.itemNo) }}</strong>
+                    <span class="cell-note">{{ match.root.serialNumber }}</span>
+                  </td>
+                  <td>
+                    {{ materialLabel(match.node.itemNo) }}
+                    <span class="cell-note">{{ match.node.serialNumber ?? match.node.lotCode }}</span>
+                  </td>
+                  <td>{{ match.node.revisionNo }}</td>
+                  <td>
+                    <span class="chip">{{ match.node.removedAt ? '已记录拆卸' : '无拆卸记录' }}</span>
+                  </td>
+                  <td>
+                    {{ date(match.node.installedAt) }} ～
+                    {{ match.node.removedAt ? date(match.node.removedAt) : '未记录结束日期' }}
+                  </td>
+                  <td>{{ tracePath(match) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">没有满足条件的安装记录。请检查序列号或批次，也可切换日期或查询全部历史。</div>
+      }
+    } @else {
+      <div class="empty-state">输入实际序列号或批次，查询使用它的整机。</div>
+    }
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>电池换件</h2>
+      <p class="panel-desc">
+        为电动滑板车（SC-100）SN-001 将电池组（BATT）PACK-001 换成 PACK-003。先截止旧安装，再追加新记录，历史保持可查。
+      </p>
+    </div>
+    @if (stateLoading()) {
+      <p class="hint" role="status">正在核对已保存的换件记录…</p>
+    }
+    @if (rootId() !== firstInstanceId) {
+      <p class="hint">此示例只为 SN-001 换电池，请先在上方选择电动滑板车（SC-100）· SN-001。</p>
+    }
+    <div class="toolbar">
+      <label>
+        换件日期
+        <input
+          [(ngModel)]="replaceDate"
+          [disabled]="busy() || replaced()"
+          data-testid="instance-replace-date"
+          type="date"
+        />
+      </label>
+      <button
+        class="btn btn-primary"
+        [disabled]="busy() || stateLoading() || !ready() || replaced() || rootId() !== firstInstanceId"
+        (click)="replace()"
+        data-testid="instance-replace"
+      >
+        记录电池换件
+      </button>
+    </div>
+    @if (actionResult()) {
+      <p class="hint" data-testid="instance-action-result" role="status">{{ actionResult() }}</p>
+    }
+  </section>
+
+  <details class="panel details-panel">
+    <summary>高级验证：改版与来源保护</summary>
+    <section class="advanced-section">
+      <div class="panel-head">
+        <h2>主数据改版对照</h2>
+        <p class="panel-desc">发布电池组（BATT）的 B 修订后，再查询同一装机时点。已有电池的实际修订仍为 A。</p>
+      </div>
+      <div class="toolbar">
+        <label>
+          新修订生效日
+          <input
+            [(ngModel)]="masterDate"
+            [disabled]="busy() || revised()"
+            data-testid="instance-master-effective-date"
+            type="date"
+          />
+        </label>
+        <button
+          class="btn"
+          [disabled]="busy() || stateLoading() || !ready() || revised()"
+          (click)="reviseMaster()"
+          data-testid="instance-master-revise"
+        >
+          发布电池 B 版
+        </button>
+      </div>
+      @if (masterResult()) {
+        <p class="hint" data-testid="instance-master-result" role="status">{{ masterResult() }}</p>
+      } @else if (revised()) {
+        <p class="hint" role="status">已存在电池 B 版修订，主数据改版示例已完成。</p>
+      }
+    </section>
+
+    <section class="advanced-section">
+      <div class="panel-head">
+        <h2>来源保护</h2>
+        <p class="panel-desc">
+          SN-002 的电芯安装记录引用了一条草稿来源。尝试删除时，系统应阻止删除并保留原有装机记录。
+        </p>
+      </div>
+      <details class="details-panel">
+        <summary>查看来源记录标识</summary>
+        <code>{{ protectedSourceId }}</code>
+      </details>
+      <button
+        class="btn btn-danger source-delete"
+        [disabled]="busy() || !ready()"
+        (click)="deleteSource()"
+        data-testid="instance-source-delete"
+      >
+        直连删除草稿来源
+      </button>
+      @if (sourceResult(); as outcome) {
+        <div data-testid="instance-source-delete-result" role="status">
+          @if (outcome.ok) {
+            <div class="error-box">删除未被拒绝：来源保护未生效（不应发生）。</div>
+          } @else {
+            <p class="hint">删除已被拒绝，请展开核对来源保护的具体原因。</p>
+            <details class="details-panel">
+              <summary>查看来源操作详情</summary>
+              <pre>{{ outcome.error }}</pre>
+            </details>
+          }
+        </div>
+      }
+    </section>
+  </details>
+</div>

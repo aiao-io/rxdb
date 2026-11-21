@@ -1,0 +1,35 @@
+$ nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --output-style=static --skipRemoteCache --parallel=4 --nxBail
+
+ NX   Affected criteria defaulted to --base=main --head=HEAD
+
+ FAIL  |rxdb-plugin-board| src/__tests__/board-full-collections.node.spec.ts > 看板完整集合回归 > 板内第101个任务仍可查询且整列可删除
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/__tests__/board-full-collections.node.spec.ts:14:3
+     12| });
+     13| describe('看板完整集合回归', () => {
+     14|   it('板内第101个任务仍可查询且整列可删除', async () => {
+       |   ^
+     15|     db = new RxDB({
+     16|       dbName: 'pr139-review-101',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 21 passed (22)
+      Tests  1 failed | 166 passed (167)
+   Start at  10:57:17
+   Duration  266.14s (transform 1.47s, setup 0ms, import 6.38s, tests 251.13s, environment 747ms)
+
+JUNIT report written to /Users/jimmy/Documents/aia
+Failed tasks:
+
+- rxdb-plugin-board:coverage
+
+  Run duration:      7m 7s
+  Cache:             31/184 hit (17%)
+  Critical path:     4m 43s (9 tasks)
+  Recoverable time:  2m 24s (34% of the run)
+
+  Recommendation: Increase parallelism to recover up to 2m 24s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.
+[ELIFECYCLE] Command failed with exit code 1.

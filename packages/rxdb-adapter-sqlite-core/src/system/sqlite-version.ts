@@ -38,15 +38,22 @@ export const compareSqliteVersion = (a: string, b: string): number => {
  * 断言 SQLite 宿主版本达标。
  *
  * @param version - `SELECT sqlite_version()` 的实际版本
+ * @param declaringEntities - 声明了存储约束、因而触发门槛的实体名（判定见 `declaresStorageConstraints`），消息逐个点名
  * @param minVersion - 门槛，默认 {@link SQLITE_MIN_HOST_VERSION}
- * @throws {@link RxDBAdapterSqliteError} 实际版本低于门槛时，消息点名实际版本与门槛。
- *   理由文本由 `minVersion` 派生，提高门槛时消息不会自相矛盾
+ * @throws {@link RxDBAdapterSqliteError} 实际版本低于门槛时，消息点名实际版本、门槛、会触发门槛的全部声明种类
+ *   与声明它们的实体。理由文本由 `minVersion` 派生，提高门槛时消息不会自相矛盾；只声明热字段（生成列 /
+ *   高级索引，常见于 `entityStorage` 覆盖）的应用不会被误导去只删 `checks`
  */
-export const assertSqliteHostVersion = (version: string, minVersion: string = SQLITE_MIN_HOST_VERSION): void => {
+export const assertSqliteHostVersion = (
+  version: string,
+  declaringEntities: readonly string[],
+  minVersion: string = SQLITE_MIN_HOST_VERSION
+): void => {
   if (compareSqliteVersion(version, minVersion) >= 0) return;
   throw new RxDBAdapterSqliteError(
     `SQLite host version ${version} is below the required minimum ${minVersion}: ` +
-      `declarative CHECK constraints need SQLite ${minVersion}+ (RAISE() with expressions). ` +
-      `Upgrade the host SQLite, or remove 'checks' from entity metadata.`
+      `declarative storage constraints (checks, exclusions, conditional unique indexes, generated columns, advanced indexes) ` +
+      `need SQLite ${minVersion}+ (RAISE() with expressions); declared by: ${declaringEntities.join(', ')}. ` +
+      `Upgrade the host SQLite, or remove those declarations from the entity metadata and entityStorage overrides.`
   );
 };

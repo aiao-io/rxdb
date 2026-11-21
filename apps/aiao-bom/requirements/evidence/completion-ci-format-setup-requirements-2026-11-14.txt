@@ -1,0 +1,72 @@
+
+ NX   Running targets requirements-check, requirements-test for project aiao-bom:
+
+- aiao-bom
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run aiao-bom:requirements-test:coverage
+
+> node --test --experimental-test-coverage --test-coverage-include=apps/aiao-bom/scripts/check-requirements.mjs --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 apps/aiao-bom/scripts/check-requirements.spec.mjs
+
+(node:3336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3338) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 合法应用需求通过，应用统计独立于平台故事 (31.808845ms)
+✔ 缺少目录文件时报告具体路径 (7.445313ms)
+✔ YAML 语法错误、重复键和缺失字段均阻断 (20.155544ms)
+✔ 非法状态、日期与非列表依赖均阻断 (19.130663ms)
+✔ ID 重复、编号段和文件名不符均阻断 (16.208443ms)
+✔ AC 必须从 1 连续编号，Done 不得保留未验收项 (20.195752ms)
+✔ 候选 AC 必须存在且未标通过 (27.961749ms)
+✔ 硬依赖必须存在，Done 依赖必须关闭 (14.69016ms)
+✔ 硬依赖环必须拒绝 (12.250063ms)
+✔ capabilities 校验平台命名空间与真实故事 (16.637223ms)
+✔ 所属 epic 必须存在，Done epic 不得包含未关闭故事 (17.451596ms)
+✔ 所有派生视图都校验统计、遗漏与状态标记 (59.027035ms)
+✔ 本地链接和标题锚点必须能解析 (31.817878ms)
+✔ 无 frontmatter 的故事辅助材料不进入状态统计，截断 YAML 仍拒绝 (18.453537ms)
+✔ epic 使用根约定的三态与精确文件名 (20.807083ms)
+✔ 承接 AC 必须指向存在的应用故事及源 AC (18.702144ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 493.212775
+ℹ start of coverage report
+ℹ ----------------------------------------------------------------------------------
+ℹ file                        | line % | branch % | funcs % | uncovered lines
+ℹ ----------------------------------------------------------------------------------
+ℹ apps                        |        |          |         |
+ℹ  aiao-bom                   |        |          |         |
+ℹ   scripts                   |        |          |         |
+ℹ    check-requirements.mjs   |  94.90 |    93.96 |   93.48 | 58-59 173-175 285-294
+ℹ ----------------------------------------------------------------------------------
+ℹ all files                   |  94.90 |    93.96 |   93.48 |
+ℹ ----------------------------------------------------------------------------------
+ℹ end of coverage report
+
+> nx run aiao-bom:requirements-check
+
+> node apps/aiao-bom/scripts/check-requirements.mjs
+
+✅ Aiao BOM requirements passed: Done=0, In Progress=0, In Review=6, Backlog=1, Blocked=0, total=7
+
+
+
+ NX   Successfully ran targets requirements-check, requirements-test for project aiao-bom
+
+
+  Run duration:      2.0s
+  Cache:             0/2 hit (0%)
+  Critical path:     593ms (1 task)
+  Recoverable time:  593ms (29% of the run)

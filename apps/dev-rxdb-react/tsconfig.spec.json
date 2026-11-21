@@ -87,6 +87,12 @@
     },
     {
       "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
     }
   ]
 }

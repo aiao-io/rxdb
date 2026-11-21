@@ -25,6 +25,7 @@ import { readCommitBranchRef } from '../commit/list-commits.js';
 import { readActiveBranchToken, readWorkingTreeStateRow } from './capture-runtime.js';
 import { readActiveRestoreSessionRow } from './restore-session-transitions.js';
 import { WorkingTreeEntry } from './working-tree-entry.entity.js';
+import { buildWorkingTreeOriginCountsSql } from './working-tree-origin-sql.js';
 import type { WriteEntryOrigin } from './write-entry-matrix.js';
 
 /**
@@ -108,54 +109,16 @@ export class WorkingTreeEntryCountMismatchError extends RxDBError {
   }
 }
 
-/** 分组时遍历的来源取值域；顺序只影响发查询的顺序。 */
-const WRITE_ENTRY_ORIGINS: readonly WriteEntryOrigin[] = ['local', 'remote_sync'];
-
-/** 干净分支的分布常量；短路时直接返回它的副本。 */
-const emptyBreakdown = (): Record<WriteEntryOrigin, number> => ({ local: 0, remote_sync: 0 });
-
-/** 数某个分支某个来源的未提交条目。 */
-const countEntriesOfOrigin = (
-  executor: TransactionExecutor,
-  branchId: string,
-  origin: WriteEntryOrigin
-): Promise<number> =>
-  executor.getRepository(WorkingTreeEntry).count({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'branchId', operator: '=', value: branchId },
-        { field: 'origin', operator: '=', value: origin }
-      ]
-    }
-  });
+/** 干净分支的来源分布。 */
+const emptyBreakdown = (): WorkingTreeOriginBreakdown => ({ local: 0, remote_sync: 0 });
 
 /**
- * 按来源分组数一遍未提交条目。
+ * 只查询本分支两种来源的真实数量；干净分支不发查询。
  *
- * @param executor - 调用方那个事务的执行器
- * @param branchId - 目标分支
- * @param entryCount - 冗余列当前的值；为 0 时直接短路
- * @returns 见 {@link WorkingTreeOriginBreakdown}
- *
- * @remarks
- * 逐个来源 `count()` 而不是把整张表 `find()` 回来自己分组：摘要只要两个数字，
- * 读回全部 patch 会让「有没有未提交变更」的代价随工作树大小线性增长。
- *
- * **一个 `GROUP BY origin` 能把这两次顺序查询并成一次，挡住它的不是收益判断，是没有 API。**
- * `IRepository` 只有 `find` / `count` / `create` / `update` / `remove`，一格聚合都没有
- * （见 `packages/rxdb/src/repository/repository.interface.ts`）。剩下两条路都要先决策，
- * 所以这里维持两次 `count()`：
- *
- * 1. 走 `executor.query()` 裸 SQL——会是本插件的**第一处生产裸读**，而各方言 `COUNT(*)` 的
- *    返回类型与列名大小写并不一致（PG 给 bigint 且列名折成小写，SQLite 给 number），
- *    且现有测试替身只认结构化查询（`commit-graph-probe.ts` 的 `@fileoverview` 写明了
- *    「只支持一点点、其余抛错」正是它敢被信任的理由），补一条裸读等于让替身开始长成数据库。
- * 2. 往核心补聚合入口——那是 core ↔ plugin 公开面决策，记在
- *    `requirements/roadmap.md` 的「epic-006 评审顺延的架构项」。
- *
- * 顺带记一笔**不能**走的那条：拿 `entryCount - local` 反推 `remote_sync`。`entryCount` 是
- * 冗余列，它与明细行的漂移正是这份摘要要暴露的东西；反推会把漂移换成一个看起来正常的错数字。
+ * @param executor - 调用方事务的执行器
+ * @param branchId - 当前分支
+ * @param entryCount - 仅用于干净分支短路的冗余总数
+ * @returns 两种来源的真实数量，不用冗余总数反推任何一项
  */
 const readOriginBreakdown = async (
   executor: TransactionExecutor,
@@ -163,11 +126,9 @@ const readOriginBreakdown = async (
   entryCount: number
 ): Promise<WorkingTreeOriginBreakdown> => {
   if (entryCount === 0) return emptyBreakdown();
-  const breakdown = emptyBreakdown();
-  for (const origin of WRITE_ENTRY_ORIGINS) {
-    breakdown[origin] = await countEntriesOfOrigin(executor, branchId, origin);
-  }
-  return breakdown;
+  const { rows } = await executor.query(buildWorkingTreeOriginCountsSql(executor.tableRef(WorkingTreeEntry), branchId));
+  const [local, remoteSync] = rows[0];
+  return { local: Number(local), remote_sync: Number(remoteSync) };
 };
 
 /** {@link readRestoreBits} 的产物：互斥的两位。 */

@@ -1,0 +1,276 @@
+2026-11-14T10:07:07.3189219Z aiao-bom-2-e2e:   1) [chromium] › src/acceptance.spec.ts:22:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样 ─────────────────────
+2026-11-14T10:07:07.3190083Z aiao-bom-2-e2e:     Error: expect(locator).toHaveText(expected) failed
+2026-11-14T10:07:07.3190876Z aiao-bom-2-e2e:     Locator:  getByTestId('matched-count')
+2026-11-14T10:07:07.3199263Z aiao-bom-2-e2e:     Expected: "50,000"
+2026-11-14T10:07:07.3200457Z aiao-bom-2-e2e:     Received: "31,163"
+2026-11-14T10:07:07.3209137Z aiao-bom-2-e2e:     Timeout:  15000ms
+2026-11-14T10:07:07.3209553Z aiao-bom-2-e2e:     Call log:
+2026-11-14T10:07:07.3210257Z aiao-bom-2-e2e:       - Expect "toHaveText" getByTestId('matched-count') with timeout 15000ms
+2026-11-14T10:07:07.3210976Z aiao-bom-2-e2e:       - waiting for getByTestId('matched-count')
+2026-11-14T10:07:07.3211919Z aiao-bom-2-e2e:         34 × locator resolved to <strong data-testid="matched-count" _ngcontent-ng-c3897076072="">31,163</strong>
+2026-11-14T10:07:07.3212430Z aiao-bom-2-e2e:            - unexpected value "31,163"
+2026-11-14T10:07:07.3213035Z aiao-bom-2-e2e:       50 |     await expect(grid).toHaveAttribute('aria-busy', 'false');
+2026-11-14T10:07:07.3213797Z aiao-bom-2-e2e:       51 |     await expect(grid).toHaveAttribute('data-first-interactive-ms', /\d/);
+2026-11-14T10:07:07.3214620Z aiao-bom-2-e2e:     > 52 |     await expect(page.getByTestId('matched-count')).toHaveText('50,000');
+2026-11-14T10:07:07.3215250Z aiao-bom-2-e2e:          |                                                     ^
+2026-11-14T10:07:07.3215714Z aiao-bom-2-e2e:       53 |     const columns = await grid
+2026-11-14T10:07:07.3216143Z aiao-bom-2-e2e:       54 |       .locator('canvas')
+2026-11-14T10:07:07.3216510Z aiao-bom-2-e2e:       55 |       .first()
+2026-11-14T10:07:07.3217009Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/acceptance.spec.ts:52:53
+2026-11-14T10:07:07.3217665Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3218565Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/test-failed-1.png
+2026-11-14T10:07:07.3219200Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3219835Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/error-context.md
+2026-11-14T10:07:07.3220748Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3221487Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/trace.zip
+2026-11-14T10:07:07.3221893Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3222514Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/acceptance-50k-数据就绪到-20-列首屏可操作，20-次独立页面采样-chromium/trace.zip
+2026-11-14T10:07:07.3223187Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3223816Z aiao-bom-2-e2e:   2) [chromium] › src/acceptance.spec.ts:73:1 › 真实模型反向拾取到表格绘制，20 次采样 ───────────────────────────────
+2026-11-14T10:07:07.3224452Z aiao-bom-2-e2e:     Error: expect(locator).toContainText(expected) failed
+2026-11-14T10:07:07.3224927Z aiao-bom-2-e2e:     Locator: locator('.mapping-state')
+2026-11-14T10:07:07.3225241Z aiao-bom-2-e2e:     Timeout: 90000ms
+2026-11-14T10:07:07.3225562Z aiao-bom-2-e2e:     - Expected substring  - 1
+2026-11-14T10:07:07.3225900Z aiao-bom-2-e2e:     + Received string     + 2
+2026-11-14T10:07:07.3226206Z aiao-bom-2-e2e:     - 具体模型位置
+2026-11-14T10:07:07.3226496Z aiao-bom-2-e2e:     +  EU 参考模型
+2026-11-14T10:07:07.3226764Z aiao-bom-2-e2e:     +
+2026-11-14T10:07:07.3227014Z aiao-bom-2-e2e:     Call log:
+2026-11-14T10:07:07.3227426Z aiao-bom-2-e2e:       - Expect "toContainText" locator('.mapping-state') with timeout 90000ms
+2026-11-14T10:07:07.3227873Z aiao-bom-2-e2e:       - waiting for locator('.mapping-state')
+2026-11-14T10:07:07.3228574Z aiao-bom-2-e2e:         180 × locator resolved to <div aria-live="polite" class="mapping-state" _ngcontent-ng-c25303007="">…</div>
+2026-11-14T10:07:07.3229064Z aiao-bom-2-e2e:             - unexpected value " EU 参考模型
+2026-11-14T10:07:07.3229361Z aiao-bom-2-e2e:     "
+2026-11-14T10:07:07.3229819Z aiao-bom-2-e2e:       73 | test('真实模型反向拾取到表格绘制，20 次采样', async ({ page }) => {
+2026-11-14T10:07:07.3230400Z aiao-bom-2-e2e:       74 |   await page.goto('/?structure=cad&pn=1321315X9D01A');
+2026-11-14T10:07:07.3231358Z aiao-bom-2-e2e:     > 75 |   await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
+2026-11-14T10:07:07.3232138Z aiao-bom-2-e2e:          |                                                ^
+2026-11-14T10:07:07.3232631Z aiao-bom-2-e2e:       76 |   const durations: number[] = [];
+2026-11-14T10:07:07.3233239Z aiao-bom-2-e2e:       77 |   for (let i = 0; i < 20; i++) {
+2026-11-14T10:07:07.3233886Z aiao-bom-2-e2e:       78 |     const grid = page.getByTestId('bom-grid');
+2026-11-14T10:07:07.3234476Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/acceptance.spec.ts:75:48
+2026-11-14T10:07:07.3235114Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3235739Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-真实模型反向拾取到表格绘制，20-次采样-chromium/test-failed-1.png
+2026-11-14T10:07:07.3236349Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3236953Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/acceptance-真实模型反向拾取到表格绘制，20-次采样-chromium/error-context.md
+2026-11-14T10:07:07.3237608Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3238420Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-真实模型反向拾取到表格绘制，20-次采样-chromium/trace.zip
+2026-11-14T10:07:07.3238835Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3239387Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/acceptance-真实模型反向拾取到表格绘制，20-次采样-chromium/trace.zip
+2026-11-14T10:07:07.3240043Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3240665Z aiao-bom-2-e2e:   3) [chromium] › src/acceptance.spec.ts:145:1 › 真实模型开关 20 次释放 WebGL 上下文与驱动资源 ──────────────────────
+2026-11-14T10:07:07.3241288Z aiao-bom-2-e2e:     Error: expect(locator).toContainText(expected) failed
+2026-11-14T10:07:07.3241736Z aiao-bom-2-e2e:     Locator: locator('.mapping-state')
+2026-11-14T10:07:07.3242045Z aiao-bom-2-e2e:     Timeout: 90000ms
+2026-11-14T10:07:07.3242358Z aiao-bom-2-e2e:     - Expected substring  - 1
+2026-11-14T10:07:07.3242873Z aiao-bom-2-e2e:     + Received string     + 2
+2026-11-14T10:07:07.3243271Z aiao-bom-2-e2e:     - 具体模型位置
+2026-11-14T10:07:07.3243557Z aiao-bom-2-e2e:     +  EU 参考模型
+2026-11-14T10:07:07.3243820Z aiao-bom-2-e2e:     +
+2026-11-14T10:07:07.3244069Z aiao-bom-2-e2e:     Call log:
+2026-11-14T10:07:07.3244483Z aiao-bom-2-e2e:       - Expect "toContainText" locator('.mapping-state') with timeout 90000ms
+2026-11-14T10:07:07.3244923Z aiao-bom-2-e2e:       - waiting for locator('.mapping-state')
+2026-11-14T10:07:07.3245489Z aiao-bom-2-e2e:         180 × locator resolved to <div aria-live="polite" class="mapping-state" _ngcontent-ng-c25303007="">…</div>
+2026-11-14T10:07:07.3245974Z aiao-bom-2-e2e:             - unexpected value " EU 参考模型
+2026-11-14T10:07:07.3246281Z aiao-bom-2-e2e:     "
+2026-11-14T10:07:07.3246732Z aiao-bom-2-e2e:       193 |   const samples: GLState[][] = [];
+2026-11-14T10:07:07.3247361Z aiao-bom-2-e2e:       194 |   for (let i = 0; i < 20; i++) {
+2026-11-14T10:07:07.3248476Z aiao-bom-2-e2e:     > 195 |     await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
+2026-11-14T10:07:07.3249160Z aiao-bom-2-e2e:           |                                                  ^
+2026-11-14T10:07:07.3249782Z aiao-bom-2-e2e:       196 |     await expect(page.locator('.model-overlay')).toHaveCount(0);
+2026-11-14T10:07:07.3250664Z aiao-bom-2-e2e:       197 |     await page.getByRole('button', { name: '关闭模型与详情', exact: true }).click();
+2026-11-14T10:07:07.3251468Z aiao-bom-2-e2e:       198 |     await expect(page.getByTestId('model-viewport')).toHaveCount(0);
+2026-11-14T10:07:07.3252107Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/acceptance.spec.ts:195:50
+2026-11-14T10:07:07.3252740Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3253399Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-真实模型开关-20-次释放-WebGL-上下文与驱动资源-chromium/test-failed-1.png
+2026-11-14T10:07:07.3254025Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3254646Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/acceptance-真实模型开关-20-次释放-WebGL-上下文与驱动资源-chromium/error-context.md
+2026-11-14T10:07:07.3255320Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3255927Z aiao-bom-2-e2e:     test-output/playwright/output/acceptance-真实模型开关-20-次释放-WebGL-上下文与驱动资源-chromium/trace.zip
+2026-11-14T10:07:07.3256326Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3256993Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/acceptance-真实模型开关-20-次释放-WebGL-上下文与驱动资源-chromium/trace.zip
+2026-11-14T10:07:07.3257747Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3258579Z aiao-bom-2-e2e:   4) [chromium] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ───────────
+2026-11-14T10:07:07.3259212Z aiao-bom-2-e2e:     Error: expect(received).toEqual(expected) // deep equality
+2026-11-14T10:07:07.3259658Z aiao-bom-2-e2e:     - Expected  - 1
+2026-11-14T10:07:07.3259965Z aiao-bom-2-e2e:     + Received  + 4
+2026-11-14T10:07:07.3260252Z aiao-bom-2-e2e:     - Array []
+2026-11-14T10:07:07.3260544Z aiao-bom-2-e2e:     + Array [
+2026-11-14T10:07:07.3261184Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3262016Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3262497Z aiao-bom-2-e2e:     + ]
+2026-11-14T10:07:07.3262884Z aiao-bom-2-e2e:       40 |     contentType: 'application/json'
+2026-11-14T10:07:07.3263258Z aiao-bom-2-e2e:       41 |   });
+2026-11-14T10:07:07.3263692Z aiao-bom-2-e2e:     > 42 |   expect(errors).toEqual([]);
+2026-11-14T10:07:07.3264115Z aiao-bom-2-e2e:          |                  ^
+2026-11-14T10:07:07.3264464Z aiao-bom-2-e2e:       43 | });
+2026-11-14T10:07:07.3264755Z aiao-bom-2-e2e:       44 |
+2026-11-14T10:07:07.3265208Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/compatibility.spec.ts:42:18
+2026-11-14T10:07:07.3265827Z aiao-bom-2-e2e:     attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3266493Z aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/test-failed-1.png
+2026-11-14T10:07:07.3267118Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3267875Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/error-context.md
+2026-11-14T10:07:07.3268822Z aiao-bom-2-e2e:     attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3269458Z aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/trace.zip
+2026-11-14T10:07:07.3269872Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3270458Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/trace.zip
+2026-11-14T10:07:07.3271127Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3271751Z aiao-bom-2-e2e:   5) [chromium] › src/scale-model.spec.ts:10:1 › 50k 发生项、20 列与真实整车同时工作 ─────────────────────────────
+2026-11-14T10:07:07.3272376Z aiao-bom-2-e2e:     Error: expect(locator).toContainText(expected) failed
+2026-11-14T10:07:07.3272828Z aiao-bom-2-e2e:     Locator: locator('.mapping-state')
+2026-11-14T10:07:07.3273136Z aiao-bom-2-e2e:     Timeout: 90000ms
+2026-11-14T10:07:07.3273447Z aiao-bom-2-e2e:     - Expected substring  - 1
+2026-11-14T10:07:07.3273778Z aiao-bom-2-e2e:     + Received string     + 2
+2026-11-14T10:07:07.3274081Z aiao-bom-2-e2e:     - 具体模型位置
+2026-11-14T10:07:07.3274363Z aiao-bom-2-e2e:     +  EU 参考模型
+2026-11-14T10:07:07.3274628Z aiao-bom-2-e2e:     +
+2026-11-14T10:07:07.3274874Z aiao-bom-2-e2e:     Call log:
+2026-11-14T10:07:07.3275288Z aiao-bom-2-e2e:       - Expect "toContainText" locator('.mapping-state') with timeout 90000ms
+2026-11-14T10:07:07.3275730Z aiao-bom-2-e2e:       - waiting for locator('.mapping-state')
+2026-11-14T10:07:07.3276288Z aiao-bom-2-e2e:         183 × locator resolved to <div aria-live="polite" class="mapping-state" _ngcontent-ng-c25303007="">…</div>
+2026-11-14T10:07:07.3276771Z aiao-bom-2-e2e:             - unexpected value " EU 参考模型
+2026-11-14T10:07:07.3277070Z aiao-bom-2-e2e:     "
+2026-11-14T10:07:07.3277462Z aiao-bom-2-e2e:       45 |   await page.goto('/');
+2026-11-14T10:07:07.3278102Z aiao-bom-2-e2e:       46 |   await expect(page.getByTestId('matched-count')).toHaveText('50,000');
+2026-11-14T10:07:07.3279153Z aiao-bom-2-e2e:     > 47 |   await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
+2026-11-14T10:07:07.3279927Z aiao-bom-2-e2e:          |                                                ^
+2026-11-14T10:07:07.3280653Z aiao-bom-2-e2e:       48 |   await page.getByRole('button', { name: '列配置', exact: true }).click();
+2026-11-14T10:07:07.3281655Z aiao-bom-2-e2e:       49 |   for (const checkbox of await page.locator('.column-menu input[type=checkbox]:enabled').all()) await checkbox.check();
+2026-11-14T10:07:07.3282712Z aiao-bom-2-e2e:       50 |   await page.getByRole('button', { name: '列配置', exact: true }).click();
+2026-11-14T10:07:07.3283410Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/scale-model.spec.ts:47:48
+2026-11-14T10:07:07.3284036Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3284657Z aiao-bom-2-e2e:     test-output/playwright/output/scale-model-50k-发生项、20-列与真实整车同时工作-chromium/test-failed-1.png
+2026-11-14T10:07:07.3285264Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3285875Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/scale-model-50k-发生项、20-列与真实整车同时工作-chromium/error-context.md
+2026-11-14T10:07:07.3286538Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3287121Z aiao-bom-2-e2e:     test-output/playwright/output/scale-model-50k-发生项、20-列与真实整车同时工作-chromium/trace.zip
+2026-11-14T10:07:07.3287515Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3288052Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/scale-model-50k-发生项、20-列与真实整车同时工作-chromium/trace.zip
+2026-11-14T10:07:07.3288842Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3289467Z aiao-bom-2-e2e:   6) [chromium] › src/scale.spec.ts:7:1 › 50k / 20 列与 100k 末项、宽树预算和性能证据 ────────────────────────────
+2026-11-14T10:07:07.3290175Z aiao-bom-2-e2e:     Error: expect(received).toEqual(expected) // deep equality
+2026-11-14T10:07:07.3290607Z aiao-bom-2-e2e:     - Expected  - 1
+2026-11-14T10:07:07.3290912Z aiao-bom-2-e2e:     + Received  + 4
+2026-11-14T10:07:07.3291208Z aiao-bom-2-e2e:     - Array []
+2026-11-14T10:07:07.3291495Z aiao-bom-2-e2e:     + Array [
+2026-11-14T10:07:07.3292110Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3293011Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3293493Z aiao-bom-2-e2e:     + ]
+2026-11-14T10:07:07.3294082Z aiao-bom-2-e2e:       158 |   await expect(page.getByTestId('selected-summary')).toContainText('ST-099999');
+2026-11-14T10:07:07.3294895Z aiao-bom-2-e2e:       159 |   await expect(page).toHaveURL(/occurrence=stress%3A99999/);
+2026-11-14T10:07:07.3295450Z aiao-bom-2-e2e:     > 160 |   expect(errors).toEqual([]);
+2026-11-14T10:07:07.3295875Z aiao-bom-2-e2e:           |                  ^
+2026-11-14T10:07:07.3296223Z aiao-bom-2-e2e:       161 | });
+2026-11-14T10:07:07.3296508Z aiao-bom-2-e2e:       162 |
+2026-11-14T10:07:07.3296949Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/scale.spec.ts:160:18
+2026-11-14T10:07:07.3297566Z aiao-bom-2-e2e:     attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3298301Z aiao-bom-2-e2e:     test-output/playwright/output/scale-50k-20-列与-100k-末项、宽树预算和性能证据-chromium/test-failed-1.png
+2026-11-14T10:07:07.3298978Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3299586Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/scale-50k-20-列与-100k-末项、宽树预算和性能证据-chromium/error-context.md
+2026-11-14T10:07:07.3300246Z aiao-bom-2-e2e:     attachment #4: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3300847Z aiao-bom-2-e2e:     test-output/playwright/output/scale-50k-20-列与-100k-末项、宽树预算和性能证据-chromium/trace.zip
+2026-11-14T10:07:07.3301237Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3301798Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/scale-50k-20-列与-100k-末项、宽树预算和性能证据-chromium/trace.zip
+2026-11-14T10:07:07.3302437Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3303045Z aiao-bom-2-e2e:   7) [chromium] › src/workspace.spec.ts:23:1 › 真实数据、范围导航、搜索祖先与三种视图 ─────────────────────────────────
+2026-11-14T10:07:07.3303663Z aiao-bom-2-e2e:     Error: expect(received).toEqual(expected) // deep equality
+2026-11-14T10:07:07.3304200Z aiao-bom-2-e2e:     - Expected  - 1
+2026-11-14T10:07:07.3304589Z aiao-bom-2-e2e:     + Received  + 4
+2026-11-14T10:07:07.3304877Z aiao-bom-2-e2e:     - Array []
+2026-11-14T10:07:07.3305161Z aiao-bom-2-e2e:     + Array [
+2026-11-14T10:07:07.3305769Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3306583Z aiao-bom-2-e2e:     +   "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info.",
+2026-11-14T10:07:07.3307059Z aiao-bom-2-e2e:     + ]
+2026-11-14T10:07:07.3307719Z aiao-bom-2-e2e:       40 |   await page.getByRole('button', { name: '汇总', exact: true }).click();
+2026-11-14T10:07:07.3308780Z aiao-bom-2-e2e:       41 |   await expect(page.getByTestId('bom-grid')).toHaveAttribute('data-row-count', '1');
+2026-11-14T10:07:07.3309429Z aiao-bom-2-e2e:     > 42 |   expect(errors).toEqual([]);
+2026-11-14T10:07:07.3309856Z aiao-bom-2-e2e:          |                  ^
+2026-11-14T10:07:07.3310199Z aiao-bom-2-e2e:       43 | });
+2026-11-14T10:07:07.3310485Z aiao-bom-2-e2e:       44 |
+2026-11-14T10:07:07.3310968Z aiao-bom-2-e2e:       45 | test('草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入', async ({ page }) => {
+2026-11-14T10:07:07.3311533Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/workspace.spec.ts:42:18
+2026-11-14T10:07:07.3312152Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3312758Z aiao-bom-2-e2e:     test-output/playwright/output/workspace-真实数据、范围导航、搜索祖先与三种视图-chromium/test-failed-1.png
+2026-11-14T10:07:07.3313355Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3313947Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/workspace-真实数据、范围导航、搜索祖先与三种视图-chromium/error-context.md
+2026-11-14T10:07:07.3314705Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3315370Z aiao-bom-2-e2e:     test-output/playwright/output/workspace-真实数据、范围导航、搜索祖先与三种视图-chromium/trace.zip
+2026-11-14T10:07:07.3315754Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3316275Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/workspace-真实数据、范围导航、搜索祖先与三种视图-chromium/trace.zip
+2026-11-14T10:07:07.3316916Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3317515Z aiao-bom-2-e2e:   8) [chromium] › src/workspace.spec.ts:101:1 › 真实整车模型完成解码，表格与模型双向定位 ───────────────────────────────
+2026-11-14T10:07:07.3318122Z aiao-bom-2-e2e:     Error: expect(locator).toContainText(expected) failed
+2026-11-14T10:07:07.3318753Z aiao-bom-2-e2e:     Locator: locator('.mapping-state')
+2026-11-14T10:07:07.3319064Z aiao-bom-2-e2e:     Timeout: 90000ms
+2026-11-14T10:07:07.3319368Z aiao-bom-2-e2e:     - Expected substring  - 1
+2026-11-14T10:07:07.3319702Z aiao-bom-2-e2e:     + Received string     + 2
+2026-11-14T10:07:07.3320007Z aiao-bom-2-e2e:     - 具体模型位置
+2026-11-14T10:07:07.3320290Z aiao-bom-2-e2e:     +  EU 参考模型
+2026-11-14T10:07:07.3320556Z aiao-bom-2-e2e:     +
+2026-11-14T10:07:07.3320800Z aiao-bom-2-e2e:     Call log:
+2026-11-14T10:07:07.3321213Z aiao-bom-2-e2e:       - Expect "toContainText" locator('.mapping-state') with timeout 90000ms
+2026-11-14T10:07:07.3321651Z aiao-bom-2-e2e:       - waiting for locator('.mapping-state')
+2026-11-14T10:07:07.3322216Z aiao-bom-2-e2e:         183 × locator resolved to <div aria-live="polite" class="mapping-state" _ngcontent-ng-c25303007="">…</div>
+2026-11-14T10:07:07.3322710Z aiao-bom-2-e2e:             - unexpected value " EU 参考模型
+2026-11-14T10:07:07.3323010Z aiao-bom-2-e2e:     "
+2026-11-14T10:07:07.3323300Z aiao-bom-2-e2e:       105 |   });
+2026-11-14T10:07:07.3323799Z aiao-bom-2-e2e:       106 |   await open(page, '/?structure=cad&pn=1321315X9D01A');
+2026-11-14T10:07:07.3324643Z aiao-bom-2-e2e:     > 107 |   await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
+2026-11-14T10:07:07.3325313Z aiao-bom-2-e2e:           |                                                ^
+2026-11-14T10:07:07.3325940Z aiao-bom-2-e2e:       108 |   await expect(page.locator('.mapping-state')).toContainText('几何节点');
+2026-11-14T10:07:07.3326779Z aiao-bom-2-e2e:       109 |   await page.getByRole('button', { name: '隔离', exact: true }).click();
+2026-11-14T10:07:07.3327739Z aiao-bom-2-e2e:       110 |   await expect(page.getByRole('button', { name: '隔离', exact: true })).toHaveClass(/active/);
+2026-11-14T10:07:07.3328639Z aiao-bom-2-e2e:         at /home/runner/work/rxdb/rxdb/apps/aiao-bom-2-e2e/src/workspace.spec.ts:107:48
+2026-11-14T10:07:07.3329364Z aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3330085Z aiao-bom-2-e2e:     test-output/playwright/output/workspace-真实整车模型完成解码，表格与模型双向定位-chromium/test-failed-1.png
+2026-11-14T10:07:07.3330678Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3331270Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/workspace-真实整车模型完成解码，表格与模型双向定位-chromium/error-context.md
+2026-11-14T10:07:07.3331921Z aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3332500Z aiao-bom-2-e2e:     test-output/playwright/output/workspace-真实整车模型完成解码，表格与模型双向定位-chromium/trace.zip
+2026-11-14T10:07:07.3332893Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3333436Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/workspace-真实整车模型完成解码，表格与模型双向定位-chromium/trace.zip
+2026-11-14T10:07:07.3334077Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3334684Z aiao-bom-2-e2e:   9) [firefox] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ────────────
+2026-11-14T10:07:07.3335338Z aiao-bom-2-e2e:     Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/firefox-1572/firefox/firefox
+2026-11-14T10:07:07.3335886Z aiao-bom-2-e2e:     ╔════════════════════════════════════════════════════════════╗
+2026-11-14T10:07:07.3336320Z aiao-bom-2-e2e:     ║ Looks like Playwright was just installed or updated.       ║
+2026-11-14T10:07:07.3336760Z aiao-bom-2-e2e:     ║ Please run the following command to download new browsers: ║
+2026-11-14T10:07:07.3337166Z aiao-bom-2-e2e:     ║                                                            ║
+2026-11-14T10:07:07.3337561Z aiao-bom-2-e2e:     ║     pnpm exec playwright install                           ║
+2026-11-14T10:07:07.3337961Z aiao-bom-2-e2e:     ║                                                            ║
+2026-11-14T10:07:07.3338505Z aiao-bom-2-e2e:     ║ <3 Playwright Team                                         ║
+2026-11-14T10:07:07.3339037Z aiao-bom-2-e2e:     ╚════════════════════════════════════════════════════════════╝
+2026-11-14T10:07:07.3339745Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/error-context.md
+2026-11-14T10:07:07.3340525Z aiao-bom-2-e2e:     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3341159Z aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/trace.zip
+2026-11-14T10:07:07.3341570Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3342153Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/trace.zip
+2026-11-14T10:07:07.3342826Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3343436Z aiao-bom-2-e2e:   10) [webkit] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ────────────
+2026-11-14T10:07:07.3344075Z aiao-bom-2-e2e:     Error: browserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/webkit-2388/pw_run.sh
+2026-11-14T10:07:07.3344603Z aiao-bom-2-e2e:     ╔════════════════════════════════════════════════════════════╗
+2026-11-14T10:07:07.3345023Z aiao-bom-2-e2e:     ║ Looks like Playwright was just installed or updated.       ║
+2026-11-14T10:07:07.3345448Z aiao-bom-2-e2e:     ║ Please run the following command to download new browsers: ║
+2026-11-14T10:07:07.3345852Z aiao-bom-2-e2e:     ║                                                            ║
+2026-11-14T10:07:07.3346247Z aiao-bom-2-e2e:     ║     pnpm exec playwright install                           ║
+2026-11-14T10:07:07.3346640Z aiao-bom-2-e2e:     ║                                                            ║
+2026-11-14T10:07:07.3347174Z aiao-bom-2-e2e:     ║ <3 Playwright Team                                         ║
+2026-11-14T10:07:07.3347611Z aiao-bom-2-e2e:     ╚════════════════════════════════════════════════════════════╝
+2026-11-14T10:07:07.3348326Z aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/error-context.md
+2026-11-14T10:07:07.3349013Z aiao-bom-2-e2e:     attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3349639Z aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/trace.zip
+2026-11-14T10:07:07.3350051Z aiao-bom-2-e2e:     Usage:
+2026-11-14T10:07:07.3350734Z aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/trace.zip
+2026-11-14T10:07:07.3351499Z aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-11-14T10:07:07.3351867Z aiao-bom-2-e2e:   10 failed
+2026-11-14T10:07:07.3352380Z aiao-bom-2-e2e:     [chromium] › src/acceptance.spec.ts:22:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样 ──────────────────────
+2026-11-14T10:07:07.3353007Z aiao-bom-2-e2e:     [chromium] › src/acceptance.spec.ts:73:1 › 真实模型反向拾取到表格绘制，20 次采样 ────────────────────────────────
+2026-11-14T10:07:07.3353642Z aiao-bom-2-e2e:     [chromium] › src/acceptance.spec.ts:145:1 › 真实模型开关 20 次释放 WebGL 上下文与驱动资源 ───────────────────────
+2026-11-14T10:07:07.3354287Z aiao-bom-2-e2e:     [chromium] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ────────────
+2026-11-14T10:07:07.3354929Z aiao-bom-2-e2e:     [chromium] › src/scale-model.spec.ts:10:1 › 50k 发生项、20 列与真实整车同时工作 ──────────────────────────────
+2026-11-14T10:07:07.3355559Z aiao-bom-2-e2e:     [chromium] › src/scale.spec.ts:7:1 › 50k / 20 列与 100k 末项、宽树预算和性能证据 ─────────────────────────────
+2026-11-14T10:07:07.3356179Z aiao-bom-2-e2e:     [chromium] › src/workspace.spec.ts:23:1 › 真实数据、范围导航、搜索祖先与三种视图 ──────────────────────────────────
+2026-11-14T10:07:07.3356796Z aiao-bom-2-e2e:     [chromium] › src/workspace.spec.ts:101:1 › 真实整车模型完成解码，表格与模型双向定位 ────────────────────────────────
+2026-11-14T10:07:07.3357415Z aiao-bom-2-e2e:     [firefox] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ─────────────
+2026-11-14T10:07:07.3358049Z aiao-bom-2-e2e:     [webkit] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ──────────────
+2026-11-14T10:07:07.3358702Z aiao-bom-2-e2e:   49 passed (9.7m)

@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-14",
+  "headBeforePatch": "f3369d5ce91ec0692fb3f8e1ac5af1f49efb5efe",
+  "scope": "修复三份性能 E2E 在列配置菜单尚未渲染时枚举到空列表的问题",
+  "rootCause": {
+    "remoteRun": "43585221765",
+    "remoteJob": "132419005206",
+    "passed": 58,
+    "failed": 1,
+    "expectedColumns": 21,
+    "receivedColumns": 11,
+    "menuCheckboxCount": 0,
+    "trace": "completion-ci-columns-remote-trace-2026-11-14.json"
+  },
+  "change": {
+    "helper": "apps/aiao-bom-2-e2e/src/helpers/columns.ts",
+    "callers": [
+      "src/acceptance.spec.ts",
+      "src/scale.spec.ts",
+      "src/scale-model.spec.ts"
+    ],
+    "menuReadyCount": 19,
+    "savedVisibleCount": 20,
+    "renderedVtableColumnCount": 21,
+    "businessSourceChanged": false
+  },
+  "localVerification": {
+    "e2e": "59/59",
+    "e2eLogSha256": "ec766c1c89ae8007e20b027f53e0d3652888ed93289292c6c1bc80def12e518e",
+    "e2eDuration": "5m28s",
+    "typecheck": "passed",
+    "lint": "passed",
+    "targeted50k": "passed",
+    "targeted50kLogSha256": "887168faf3cddf2da205257d9ac4484f57719c8ec215e71f4c5d15b689370005",
+    "format": "pending final format check",
+    "diffCheck": "passed",
+    "firstInteractiveP95Ms": 326.4699999988079,
+    "firstInteractiveLimitMs": 1000,
+    "modeSwitchP95Ms": 110.03064699997776,
+    "searchP95Ms": 131.06594800000312,
+    "modelToTableP95Ms": 68.92097900000226,
+    "frameP95Ms": 16.670000000000073,
+    "windowRecords": 1000,
+    "modelRequests": 1
+  },
+  "generatedEvidence": {
+    "firstInteractive": "apps/aiao-bom-2-e2e/test-output/evidence/first-interactive.json",
+    "50kPerformance": "apps/aiao-bom-2-e2e/test-output/evidence/50k-performance.json",
+    "50kModelPerformance": "apps/aiao-bom-2-e2e/test-output/evidence/50k-model-performance.json"
+  },
+  "remoteStatus": "new head pending push"
+}

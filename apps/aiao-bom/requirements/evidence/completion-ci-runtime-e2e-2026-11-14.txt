@@ -1,0 +1,750 @@
+
+ NX   Running target e2e for project aiao-bom-2-e2e and 19 tasks it depends on:
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run utils:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 159 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1681ms.
+
+computing gzip size...
+dist/index.js  70.62 kB │ gzip: 22.97 kB
+
+✓ built in 1.74s
+
+> nx run rxdb:generate-skill
+
+> node ../../scripts/audit/generate-skill.mjs
+
+✅ SKILL.md 已生成：packages/rxdb/skills/aiao-rxdb/SKILL.md（7922 字节 ≤ 8192）
+
+> nx run rxdb:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60165) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 344 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3089ms.
+
+computing gzip size...
+dist/testing.js                  1.66 kB │ gzip:  0.88 kB
+dist/QueryManager-xIzA8TZN.js   61.19 kB │ gzip: 17.00 kB
+dist/index.js                  252.41 kB │ gzip: 74.71 kB
+
+✓ built in 3.24s
+
+> nx run rxdb-plugin-history:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60203) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1837ms.
+
+computing gzip size...
+dist/index.js  57.11 kB │ gzip: 15.41 kB
+
+✓ built in 1.88s
+
+> nx run rxdb-adapter-encrypted:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:60206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1225ms.
+
+computing gzip size...
+dist/testing.js   1.54 kB │ gzip: 0.70 kB
+dist/index.js    25.14 kB │ gzip: 7.31 kB
+
+✓ built in 1.26s
+(node:60367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public API documentation passed: rxdb-adapter-encrypted
+
+> nx run rxdb-client-generator:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60205) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 24 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2302ms.
+
+computing gzip size...
+dist/index.js                          0.31 kB │ gzip:  0.19 kB
+dist/vite.js                           1.91 kB │ gzip:  0.93 kB
+dist/cli.js                            2.84 kB │ gzip:  1.25 kB
+dist/testing.js                        4.82 kB │ gzip:  1.83 kB
+dist/build-client-lib-D8pJzzuO.js     19.48 kB │ gzip:  6.69 kB
+dist/RxDBClientGenerator-BU4uS4-h.js  51.97 kB │ gzip: 13.83 kB
+
+✓ built in 2.34s
+
+> nx run rxdb-plugin-tree:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60381) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 21 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1678ms.
+
+computing gzip size...
+dist/constants-hmRlLxvd.js   0.92 kB │ gzip: 0.48 kB
+dist/generator.js            3.73 kB │ gzip: 1.38 kB
+dist/index.js               17.69 kB │ gzip: 5.05 kB
+
+✓ built in 1.71s
+
+> nx run rxdb-plugin-sync:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60379) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 222 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2005ms.
+
+computing gzip size...
+dist/index.js  105.65 kB │ gzip: 27.77 kB
+
+✓ built in 2.06s
+
+> nx run rxdb-plugin-working-tree:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:60382) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 89 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2994ms.
+
+computing gzip size...
+dist/index.js                         2.75 kB │ gzip:  1.09 kB
+dist/working-tree/testing/index.js  116.51 kB │ gzip: 30.13 kB
+dist/src-BZpPv2tT.js                142.61 kB │ gzip: 41.33 kB
+
+✓ built in 3.06s
+(node:60432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public API documentation passed: rxdb-plugin-working-tree
+
+> nx run rxdb-devtools:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60441) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2088ms.
+
+computing gzip size...
+dist/testing-providers.js            0.07 kB │ gzip:  0.08 kB
+dist/fake-providers-B-LlUCM8.js      6.22 kB │ gzip:  2.06 kB
+dist/snapshot-Cemq7GWK.js           12.36 kB │ gzip:  4.29 kB
+dist/negotiation-panel-Fu6ZRTSm.js  31.59 kB │ gzip:  8.34 kB
+dist/testing.js                     43.30 kB │ gzip: 10.02 kB
+dist/index.js                       55.03 kB │ gzip: 16.38 kB
+
+✓ built in 2.14s
+
+> nx run rxdb-test:build  [existing outputs match the cache, left as is]
+
+> vite build && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json
+
+(node:60413) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2185ms.
+
+computing gzip size...
+dist/chunks/generate-test-db-name-C23VG_er.js   0.20 kB │ gzip: 0.18 kB │ map:   0.50 kB
+dist/chunks/decorate-DsqXQ0nF.js                0.49 kB │ gzip: 0.32 kB
+dist/tree-unique/index.js                       5.07 kB │ gzip: 1.54 kB │ map:  14.07 kB
+dist/transaction/index.js                       6.81 kB │ gzip: 2.69 kB │ map:  23.42 kB
+dist/query-cache-contract/index.js              7.94 kB │ gzip: 2.86 kB │ map:  23.91 kB
+dist/check-constraint/index.js                 19.90 kB │ gzip: 4.63 kB │ map:  52.51 kB
+dist/index.js                                  27.60 kB │ gzip: 9.47 kB │ map:  97.74 kB
+dist/sortable/index.js                         29.78 kB │ gzip: 8.23 kB │ map:  86.25 kB
+dist/encrypted/index.js                        37.58 kB │ gzip: 9.00 kB │ map: 121.55 kB
+
+✓ built in 2.25s
+(node:60449) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ Generated 2 client(s) from ./rxdb.config.ts
+(node:60466) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract OK: 117 exports across 9 entries
+
+> nx run rxdb-plugin-querycache:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60421) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 199 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1530ms.
+
+computing gzip size...
+dist/index.js  39.98 kB │ gzip: 10.78 kB
+
+✓ built in 1.57s
+
+> nx run rxdb-adapter-sqlite-core:build  [existing outputs match the cache, left as is]
+
+> node ../../node_modules/vite/bin/vite.js build
+
+(node:60491) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 113 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3043ms.
+
+computing gzip size...
+dist/sqlite-backend.interface-Im_ETXg8.js    0.23 kB │ gzip:  0.18 kB
+dist/index.js                                5.35 kB │ gzip:  2.29 kB
+dist/desktop-host-protocol-CYOIEUaV.js      10.61 kB │ gzip:  3.69 kB
+dist/desktop-host.js                        14.33 kB │ gzip:  5.01 kB
+dist/src-CPxNy7md.js                       176.94 kB │ gzip: 53.02 kB
+dist/testing.js                            451.73 kB │ gzip: 84.20 kB
+
+✓ built in 3.14s
+
+> nx run rxdb-adapter-pglite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586296..13586300
+  │
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586774..13586778
+  │
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553282..553286
+  │
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553760..553764
+  │
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+✓ 80 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2874ms.
+
+computing gzip size...
+dist/assets/pglite.browser.worker-DBps7OlR.js  51,143.59 kB
+dist/__vite-browser-external-q4xEsQeL.js            0.16 kB │ gzip:  0.16 kB
+dist/fts/index.js                                   0.29 kB │ gzip:  0.21 kB
+dist/rolldown-runtime-CYdcPHCu.js                   0.77 kB │ gzip:  0.44 kB
+dist/testing.js                                     3.09 kB │ gzip:  1.60 kB
+dist/fts-Bl3e2vGT.js                                3.51 kB │ gzip:  1.55 kB
+dist/table-name-resolver-BKwqK8gh.js               12.30 kB │ gzip:  4.19 kB
+dist/execute_switch_actions-B22tPsal.js            23.47 kB │ gzip:  8.11 kB
+dist/index.js                                     169.41 kB │ gzip: 50.42 kB
+
+✓ built in 4.06s
+
+> nx run rxdb-adapter-wa-sqlite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 91 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1505ms.
+
+computing gzip size...
+dist/client.js                           0.07 kB │ gzip:   0.08 kB
+dist/index.js                            0.69 kB │ gzip:   0.36 kB
+dist/WaSqliteClientBase-CIWHKHk7.js     11.16 kB │ gzip:   3.98 kB
+dist/RxDBAdapterSqlite-bE4_Iegg.js      11.78 kB │ gzip:   3.91 kB
+dist/testing.js                      1,743.54 kB │ gzip: 626.48 kB
+
+✓ built in 1.62s
+
+> nx run rxdb-plugin-bom:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:60574) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 86 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 5180ms.
+
+computing gzip size...
+dist/view-items-BnBj0LJi.js               0.61 kB │ gzip:  0.40 kB
+dist/joint-cost-error-b8ilT_bI.js         0.74 kB │ gzip:  0.53 kB
+dist/resolver-B30zsXHw.js                 1.25 kB │ gzip:  0.76 kB
+dist/versions-BETI2TYt.js                 2.09 kB │ gzip:  0.95 kB
+dist/installed-ddl-eXiCbgVZ.js            2.94 kB │ gzip:  1.41 kB
+dist/resolver-engine-mYyJ1vgv.js          3.61 kB │ gzip:  1.30 kB
+dist/instance-D4SVjg5-.js                 6.18 kB │ gzip:  2.44 kB
+dist/structural-trigger-ddl-BRG8ObTV.js   6.40 kB │ gzip:  2.22 kB
+dist/history-loader-OS16Ki0E.js           7.86 kB │ gzip:  2.53 kB
+dist/ecn-GisYpOxG.js                      8.12 kB │ gzip:  3.04 kB
+dist/expansion-BKNVQLmT.js               10.85 kB │ gzip:  3.37 kB
+dist/export-contract-BdZ1IxFP.js         15.37 kB │ gzip:  5.33 kB
+dist/integration-V066lp-M.js             16.63 kB │ gzip:  5.76 kB
+dist/bom-map-BSIWy10T.js                 17.14 kB │ gzip:  5.49 kB
+dist/explosion-gDUHyBGG.js               23.95 kB │ gzip:  7.38 kB
+dist/repository-C2xDk1pZ.js              24.21 kB │ gzip:  8.81 kB
+dist/cost-DnojvMD1.js                    26.81 kB │ gzip:  8.44 kB
+dist/index.js                            39.94 kB │ gzip: 13.98 kB
+dist/testing/index.js                    47.72 kB │ gzip: 11.17 kB
+dist/history-api-JN2cpaux.js             67.67 kB │ gzip: 16.73 kB
+dist/bom-trigger-ddl-ChE0oCfs.js         88.27 kB │ gzip: 18.85 kB
+
+✓ built in 5.32s
+
+> nx run bom-workspace:build  [existing outputs match the cache, left as is]
+
+> tsc --build tsconfig.lib.json
+
+
+> nx run aiao-bom:build:production  [existing outputs match the cache, left as is]
+
+(node:68496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// dependsOn).
+Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// e2e-devtools).
+Project 'dev-rxdb-miniprogram-alipay-probe' contains extension with invalid name (// build).
+Project 'dev-rxdb-miniprogram-douyin-spike' contains extension with invalid name (// build).
+Project 'rxdb-plugin-working-tree' contains extension with invalid name (// namedInputs).
+Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// dependsOn).
+Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// e2e-devtools).
+Project 'rxdb-devtools-panel' contains extension with invalid name (//targets).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-alipay).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-tt).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-weapp).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// lint).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// serve).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// verify-dist).
+Project 'e2e-parity' contains extension with invalid name (//).
+Project '@aiao/source' contains extension with invalid name (// implicitDependencies).
+❯ Building...
+(node:68496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Building...
+Initial chunk files | Names             |  Raw size | Estimated transfer size
+chunk-Dz-0E3YY.js   | -                 | 405.21 kB |               110.98 kB
+chunk-OIGjPE-h.js   | -                 | 266.07 kB |                70.68 kB
+main.js             | main              | 157.65 kB |                41.51 kB
+chunk-DY8XvS-n.js   | -                 |  20.10 kB |                 7.00 kB
+styles.css          | styles            |  12.64 kB |                 2.79 kB
+chunk-DVMi7-04.js   | -                 |  12.45 kB |                 4.18 kB
+chunk-CFPdYFvR.js   | -                 |   8.79 kB |                 1.77 kB
+chunk-B-TydWJx.js   | -                 |   6.56 kB |                 2.08 kB
+chunk-CqnXEJ5u.js   | -                 |   6.11 kB |                 1.86 kB
+chunk-o8YUdWoQ.js   | -                 |   5.02 kB |                 1.92 kB
+chunk-lOoBuF8U.js   | -                 |   3.71 kB |                 1.36 kB
+chunk-eACT3a7C.js   | -                 |   1.99 kB |               949 bytes
+chunk-CK1gUoUH.js   | -                 |   1.93 kB |               455 bytes
+chunk-B1hgXwvp.js   | -                 |   1.15 kB |               645 bytes
+chunk-CaybrhrH.js   | -                 | 862 bytes |               862 bytes
+chunk-CLT18pwu.js   | -                 | 230 bytes |               230 bytes
+chunk-BvdUtego.js   | -                 | 221 bytes |               221 bytes
+chunk-CzrONRXD.js   | -                 | 191 bytes |               191 bytes
+chunk-Dtua7rWI.js   | -                 | 157 bytes |               157 bytes
+
+                    | Initial total     | 911.06 kB |               249.82 kB
+
+Lazy chunk files    | Names             |  Raw size | Estimated transfer size
+chunk-D-HYpVON.js   | bom-trigger-ddl   |  83.75 kB |                14.42 kB
+chunk-CZLDDppF.js   | wa-sqlite-async   |  75.37 kB |                20.30 kB
+chunk-Ca5hHPBr.js   | wa-sqlite         |  72.12 kB |                19.23 kB
+chunk-n-ompWS8.js   | index             |  65.07 kB |                17.96 kB
+chunk-CWrwHs-1.js   | review-page       |  43.49 kB |                11.14 kB
+chunk-DfIJaptr.js   | -                 |  36.59 kB |                 8.26 kB
+chunk-B-wBJ8Ay.js   | explosion-page    |  33.78 kB |                 9.00 kB
+chunk-BKF2g-I5.js   | overview-page     |  31.33 kB |                 8.64 kB
+chunk-Csd9arAd.js   | OPFSWriteAheadVFS |  24.07 kB |                 6.75 kB
+chunk-1hzx1zxc.js   | cost              |  23.49 kB |                 7.25 kB
+chunk-BcNYcdN3.js   | cost-page         |  22.79 kB |                 6.63 kB
+chunk-BJ_7Kiz5.js   | -                 |  21.72 kB |                 6.30 kB
+chunk-OHaATOp7.js   | instances-page    |  20.44 kB |                 5.49 kB
+chunk-CtoqwL3E.js   | mapping-page      |  15.97 kB |                 4.83 kB
+chunk-CxEZeuYo.js   | where-used-page   |  15.30 kB |                 4.96 kB
+...and 30 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [9.594 seconds] - 2026-11-14T10:14:42.586Z
+
+▲ [WARNING] Module 'ms' used by 'packages/utils/src/date/msTimeToMilliseconds.ts' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+Output location: /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/dist/apps/aiao-bom
+
+
+> nx run aiao-bom-2:build:production  [existing outputs match the cache, left as is]
+
+(node:68497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// dependsOn).
+Project 'dev-rxdb-miniprogram-alipay-probe-e2e' contains extension with invalid name (// e2e-devtools).
+Project 'dev-rxdb-miniprogram-alipay-probe' contains extension with invalid name (// build).
+Project 'dev-rxdb-miniprogram-douyin-spike' contains extension with invalid name (// build).
+Project 'rxdb-plugin-working-tree' contains extension with invalid name (// namedInputs).
+Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// dependsOn).
+Project 'dev-rxdb-miniprogram-e2e' contains extension with invalid name (// e2e-devtools).
+Project 'rxdb-devtools-panel' contains extension with invalid name (//targets).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-alipay).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-tt).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// build-weapp).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// lint).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// serve).
+Project 'dev-rxdb-miniprogram' contains extension with invalid name (// verify-dist).
+Project 'e2e-parity' contains extension with invalid name (//).
+Project '@aiao/source' contains extension with invalid name (// implicitDependencies).
+❯ Building...
+(node:68497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Building...
+Initial chunk files      | Names           |  Raw size | Estimated transfer size
+main-OWPVKPHJ.js         | main            | 241.39 kB |                66.04 kB
+chunk-bDLlvh0F.js        | -               |  20.30 kB |                 6.23 kB
+styles-F3VZTGM2.css      | styles          |   1.70 kB |               683 bytes
+chunk-BeFMOTY5.js        | -               |   1.55 kB |               651 bytes
+
+                         | Initial total   | 264.94 kB |                73.61 kB
+
+Lazy chunk files         | Names           |  Raw size | Estimated transfer size
+chunk-BrfjP4Qz.js        | index           |   2.40 MB |               447.77 kB
+chunk-Z6krsOA-.js        | model-viewport  | 711.14 kB |               147.97 kB
+chunk-DONfwNUt.js        | -               | 351.98 kB |                91.42 kB
+chunk-o2kyYMe7.js        | index           | 293.24 kB |                77.03 kB
+chunk-BU_rMFuh.js        | app             | 150.26 kB |                37.93 kB
+worker-chunk-PQVXH24Z.js | bom-trigger-ddl |  89.94 kB |                14.70 kB
+chunk-eqxrwTT9.js        | bom-trigger-ddl |  84.09 kB |                14.44 kB
+chunk-CZLDDppF.js        | wa-sqlite-async |  75.37 kB |                20.30 kB
+chunk-Ca5hHPBr.js        | wa-sqlite       |  72.12 kB |                19.23 kB
+chunk-Bg8oCX0Z.js        | index           |  65.19 kB |                18.06 kB
+chunk-dIL9O-9b.js        | -               |  46.62 kB |                 9.99 kB
+chunk-BAbBUFim.js        | review-page     |  43.39 kB |                11.10 kB
+chunk-y1RYPI_C.js        | explosion-page  |  33.68 kB |                 9.02 kB
+chunk-NKBd1jl4.js        | overview-page   |  31.18 kB |                 8.59 kB
+worker-chunk-RISA643H.js | -               |  27.94 kB |                 6.42 kB
+...and 68 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [12.047 seconds] - 2026-11-14T10:14:45.045Z
+
+▲ [WARNING] NG8102: NG8102: The left side of this nullish coalescing operation does not include 'null' or 'undefined' in its type, therefore the '??' operator can be safely removed. Find more at https://v22.angular.dev/extended-diagnostics/NG8102 [plugin angular-compiler]
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:24:19:
+      24 │   <select [value]="activeAsset()?.id ?? ''" (change)="chooseAsset(...
+         ╵                    ~~~~~~~~~~~~~~~~~~~~~~~
+
+  Warning occurs in the template of component ModelPanel.
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:20:15:
+      20 │   templateUrl: './model-panel.html',
+         ╵                ~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:24:34:
+      24 │   <select [value]="activeAsset()?.id ?? ''" (change)="chooseAsset(...
+         ╵                                   ~~
+
+  Warning occurs in the template of component ModelPanel.
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:20:15:
+      20 │   templateUrl: './model-panel.html',
+         ╵                ~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:52:48:
+      52 │ ...��件 · ' + (activeAsset()?.variants?.join(' / ') || selected(...
+         ╵                               ~~~~
+
+  Warning occurs in the template of component ModelPanel.
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:20:15:
+      20 │   templateUrl: './model-panel.html',
+         ╵                ~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] NG8107: NG8107: The left side of this optional chain operation does not include 'null' or 'undefined' in its type, therefore the '?.' operator can be replaced with the '.' operator. Find more at https://v22.angular.dev/extended-diagnostics/NG8107 [plugin angular-compiler]
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.html:52:38:
+      52 │ ...'独立零件 · ' + (activeAsset()?.variants?.join(' / ') || s...
+         ╵                       ~~~~~~~~
+
+  Warning occurs in the template of component ModelPanel.
+
+    /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts:20:15:
+      20 │   templateUrl: './model-panel.html',
+         ╵                ~~~~~~~~~~~~~~~~~~~~
+
+
+▲ [WARNING] Module 'gifuct-js' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/scenegraph/graphic/icon.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'lodash/get' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/data/CachedDataSource.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'eventemitter3' used by 'node_modules/.pnpm/@visactor+vutils@1.0.28/node_modules/@visactor/vutils/es/index.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'lottie-web' used by 'node_modules/.pnpm/@visactor+vrender-kits@1.1.14/node_modules/@visactor/vrender-kits/es/graphic/Lottie.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'cssfontparser' used by 'node_modules/.pnpm/@visactor+vtable@1.26.8/node_modules/@visactor/vtable/es/scenegraph/utils/font.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'geojson-dissolve' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/transform/geo/dissolve.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'simplify-geojson' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/transform/geo/simplify.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'geobuf' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/parser/geo/geobuf.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'pbf' used by 'node_modules/.pnpm/@visactor+vdataset@1.0.28/node_modules/@visactor/vdataset/es/parser/geo/geobuf.js' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+▲ [WARNING] Module 'ms' used by 'packages/utils/src/date/msTimeToMilliseconds.ts' is not ESM
+
+  CommonJS or AMD dependencies can cause optimization bailouts.
+  For more information see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+Output location: /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/dist/apps/aiao-bom-2
+
+
+> nx run aiao-bom-2-e2e:e2e
+
+> playwright test
+
+(node:84284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:84292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:84301) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 59 tests using 1 worker
+
+(node:84302) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/59] [chromium] › src/acceptance.spec.ts:22:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样
+[2/59] [chromium] › src/acceptance.spec.ts:78:1 › 真实模型反向拾取到表格绘制，20 次采样
+[3/59] [chromium] › src/acceptance.spec.ts:150:1 › 真实模型开关 20 次释放 WebGL 上下文与驱动资源
+[4/59] [chromium] › src/acceptance.spec.ts:222:1 › 100k 发生项与 50 层结构可进入分支、定位末项和取消迟到数据
+[5/59] [chromium] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+[6/59] [chromium] › src/domain-draft.spec.ts:3:1 › 已确认的真实物料草稿可进入领域库、刷新重开并校验发布
+[7/59] [chromium] › src/migration.spec.ts:38:1 › 旧版完整库备份迁入新版，草稿、Decimal、ECN、换件历史不丢失并可回退
+[8/59] [chromium] › src/revisions.spec.ts:31:1 › 完整结构版本保存、改量差异、重开恢复、导出与独立工作区重入
+[9/59] [chromium] › src/revisions.spec.ts:105:1 › 窄屏版本对话框不溢出，跨结构选择显示错误且不损坏主表
+[10/59] [chromium] › src/revisions.spec.ts:127:1 › 另一个标签页的过期目录不能覆盖同身份快照
+[11/59] [chromium] › src/scale-model.spec.ts:10:1 › 50k 发生项、20 列与真实整车同时工作
+[12/59] [chromium] › src/scale.spec.ts:7:1 › 50k / 20 列与 100k 末项、宽树预算和性能证据
+[13/59] [chromium] › src/workspace.spec.ts:23:1 › 真实数据、范围导航、搜索祖先与三种视图
+[14/59] [chromium] › src/workspace.spec.ts:45:1 › 草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入
+[15/59] [chromium] › src/workspace.spec.ts:87:1 › 非法导入与模型失败可见，表格仍可操作
+[16/59] [chromium] › src/workspace.spec.ts:101:1 › 真实整车模型完成解码，表格与模型双向定位
+[17/59] [chromium] › src/workspace.spec.ts:133:1 › 375px 窄屏搜索、面板开合与键盘路径可用
+(node:85087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[18/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:92:3 › BOM 生产改版核对主线 › 从 10 台生产任务完成改版核对，下载条件、用量与真实成本一致的结论
+[19/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:140:3 › BOM 生产改版核对主线 › 改为 20 台后旧结论失效，必须重算并重新确认；刷新只恢复条件
+[20/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:166:3 › BOM 生产改版核对主线 › 375 像素宽度完成核对，不产生页面横向溢出
+[21/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:183:3 › BOM 生产改版核对主线 › 已加载核对页断网后仍可改变批量并完成真实计算
+[22/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:198:3 › BOM 生产改版核对主线 › 既有数据重开仍可开始核对，查询保留原来的记录统计
+[23/59] [domain] › ../aiao-bom-e2e/src/bom-change-review.spec.ts:216:1 › 首次窄屏从首页准备案例，查看用量依据并返回，完成核对和下载
+[24/59] [domain] › ../aiao-bom-e2e/src/bom-coproduct.spec.ts:4:1 › 联产场景按需追加，展示220→132/88并显式选择下游成本来源
+[25/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:74:3 › BOM demo（US-525 阶段 A） › AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量
+[domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:74:3 › BOM demo（US-525 阶段 A） › AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量
+BOM 首屏测量：[{"name":"first-paint","startTime":72.19499999284744},{"name":"first-contentful-paint","startTime":249.01500000059605}]
+
+[26/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:112:3 › BOM demo（US-525 阶段 A） › AC#2 同一 10kΩ 电阻三行独立可见，位号清单各自完整
+[27/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:123:3 › BOM demo（US-525 阶段 A） › AC#3 位号 39/qty 100：草稿可存、发布拒绝且错误同时给两个数
+[28/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:135:3 › BOM demo（US-525 阶段 A） › AC#4 WH-01 phantom 穿透：无需求行、面板显示换算与 COALESCE 判定来源
+[29/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:149:3 › BOM demo（US-525 阶段 A） › AC#5 直连与表单两条路径报同一存储层环错误（路径一致）
+[30/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:172:3 › BOM demo（US-525 阶段 A） › US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8
+[31/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:193:3 › BOM demo（US-525 阶段 A） › US-525 AC#8 外壳下料：consume 需求 2、by_product 0.3、scrap_out 0.1 分列
+[32/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:205:3 › BOM demo（US-525 阶段 A） › US-525 AC#9 工序损耗与分摊：PROCESS-01 需求 101.8，面板第 5 步显示累乘
+[33/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:218:3 › BOM demo（US-525 阶段 A） › 既有库重开：不重置直接重载页面，插件新表与触发器在既有库上幂等安装
+[34/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:228:3 › BOM demo（US-525 阶段 A） › AC#6 M3 螺钉 where-used：全部父件与路径，含经由虚拟件的那条
+[35/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:260:3 › BOM demo（US-525 阶段 A） › US-525 AC#10 评估日切换：两段生效期行集不同且各自自洽（不读系统时钟）
+[36/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:279:3 › BOM demo（US-525 阶段 A） › US-525 AC#11 ECN-2026-014 影响面与差异：整机、四类变更各自可见
+[37/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:302:3 › BOM demo（US-525 阶段 A） › US-525 AC#12 现场 ECN 取消整体回退；已生效种子 ECN 取消拒绝
+[38/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:332:3 › BOM demo（US-525 阶段 A） › US-525 AC#13 双图并排：EBOM 钣金外壳 / MBOM 板材 + 2 工序件；覆盖率报未覆盖
+[39/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:354:3 › BOM demo（US-525 阶段 A） › US-525 AC#14 整机卷算逐项等于手工 golden：39.1204…、HOUSING 材料/加工/制费/抵减
+[40/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:402:3 › BOM demo（US-525 阶段 A） › US-525 AC#15 缺成本子件：卷算报缺失项而非 0
+[41/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:416:3 › BOM demo（US-525 阶段 A） › 阶段 D 既有库重开：D 层实体与映射重开后原样可用（幂等）
+[42/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:443:3 › BOM demo（US-525 阶段 E） › US-525 AC#17 扩展属性拒绝非法值与缺必填，按声明类型过滤并排除缺字段与 null
+[43/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:477:3 › BOM demo（US-525 阶段 E） › US-525 AC#18 同一整机序列 136 选旧件、137 选新件，清空保留正常行并列未解析候选
+[44/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:508:3 › BOM demo（US-525 阶段 E） › US-525 AC#19 配置红入选、蓝落选，冲突与缺必填不保留部分结构
+[45/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:528:3 › BOM demo（US-525 阶段 E） › US-525 AC#20 导出含 manifest 与十进制串，坏文件全回滚，修正重导并发布可见
+[46/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:616:3 › BOM demo（US-525 阶段 F） › US-525 AC#21 两台 SC-100 的换件历史、序列批次追溯与固定实际修订
+[47/59] [domain] › ../aiao-bom-e2e/src/bom-demo.spec.ts:696:3 › BOM demo（US-525 阶段 F） › US-525 AC#22 草稿来源直连删除被拒，点名发生项与一个实例引用且树不变
+[48/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:52:3 › BOM 连续业务工作流 › 计划量从 10 改为 20 时旧结果待更新，重新展开后下载保留同一批量
+[49/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:84:3 › BOM 连续业务工作流 › 搜索电池后快捷反查，回到结构及刷新均保留日期和计划量
+[50/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:118:3 › BOM 连续业务工作流 › 10 台生产引导贯穿结构、成本与反查，退出后保留工作条件
+[51/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:149:3 › BOM 连续业务工作流 › 375 像素导航进入当前链接，Tab 循环，Escape 返回打开按钮
+[52/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:171:3 › BOM 连续业务工作流 › 导入草稿离页刷新后仍在待发布清单，恢复后需明确勾选再发布
+[53/59] [domain] › ../aiao-bom-e2e/src/bom-product-workflow.spec.ts:225:3 › BOM 连续业务工作流 › 重复 M3 发生项显示各自路径，窄屏看完计算后能返回结构
+[54/59] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:12:1 › 已有数据重开后直接可用，取消重置不丢失数据，场景入口与筛选清晰
+[55/59] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:37:1 › 成本按业务精度展示，原值可展开核对，构成不重复汇总子件
+[56/59] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:56:1 › 窄屏导航可关闭，查询和成本结果不造成页面横向溢出
+[57/59] [domain] › ../aiao-bom-e2e/src/bom-redesign.spec.ts:76:1 › 物料反查按使用关系成树，分支支持鼠标键盘折叠与窄屏查看
+(node:85821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[58/59] [firefox] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+(node:85872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[59/59] [webkit] › src/compatibility.spec.ts:4:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+  59 passed (5.4m)
+
+
+
+ NX   Successfully ran target e2e for project aiao-bom-2-e2e and 19 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 18 out of 20 tasks.
+
+  Run duration:      5m 23s
+  Cache:             18/20 hit (90%)
+  Critical path:     5m 22s (11 tasks)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2-e2e:e2e    5m 22s

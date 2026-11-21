@@ -105,17 +105,19 @@ export const canonicalSchemaJson = (value: unknown): string => encode(value, new
  *
  * @param entities - 实体类；不在这里滤系统实体
  * @param keys - 取哪些实体级字段
+ * @param extraOf - 每个实体在这些字段之外并进去的结构（表集指纹并上实例级存储声明）；值为 `undefined` 的键编码时丢掉
  * @returns 指纹输入
  * @internal
  */
 export const pickSchemaFingerprintInput = (
   entities: readonly EntityType[],
-  keys: readonly string[]
+  keys: readonly string[],
+  extraOf?: (entity: EntityType) => Readonly<Record<string, unknown>>
 ): Record<string, unknown>[] =>
   entities
     .map(entity => {
       const metadata = getEntityMetadata(entity) as unknown as Record<string, unknown>;
-      return Object.fromEntries(keys.map(key => [key, metadata[key]]));
+      return { ...Object.fromEntries(keys.map(key => [key, metadata[key]])), ...extraOf?.(entity) };
     })
     .sort((left, right) => {
       const leftKey = `${String(left['namespace'])}.${String(left['name'])}`;

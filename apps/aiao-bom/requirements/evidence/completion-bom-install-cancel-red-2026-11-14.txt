@@ -1,0 +1,53 @@
+
+> nx run aiao-bom-2:test --args=src/app/core/workspace.spec.ts
+
+aiao-bom-2: (node:32088) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2
+aiao-bom-2: (node:32299) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ❯ |aiao-bom-2| src/app/core/workspace.spec.ts (11 tests | 1 failed) 311ms
+aiao-bom-2:      ✓ 过期加载不能覆盖后来选择的数据集 16ms
+aiao-bom-2:      ✓ 空结构深链接不能让合成数据进入不存在的 CAD 树 2ms
+aiao-bom-2:      ✓ pn 深链接选中行并展开祖先，草稿持久化与撤销有效 5ms
+aiao-bom-2:      ✓ 同物料多个位置由模型选择时切换具体 CAD 身份 4ms
+aiao-bom-2:      ✓ 损坏的持久视图不污染查询状态，换数据集重置历史 2ms
+aiao-bom-2:      ✓ 多位置物料转 CAD 后定位具体节点，单一位置与精确节点沿用当前结构 2ms
+aiao-bom-2:      ✓ 无法写入时显示失败，后续保存能恢复且旧失败不能覆盖新状态 209ms
+aiao-bom-2:      ✓ 来源 HTTP / 版本错误及本地读取失败不伪装成空清单 3ms
+aiao-bom-2:      ✓ 保存的草稿、基线和合法视图重开时恢复，发生位置深链接优先于件号 5ms
+aiao-bom-2:      ✓ 取消慢来源后保留原数据与选择，迟到结果不能覆盖 3ms
+aiao-bom-2:      × 取消本地视图读取中的新装载时不提前替换当前数据 58ms
+aiao-bom-2: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+aiao-bom-2:  FAIL  |aiao-bom-2| src/app/core/workspace.spec.ts > 取消数据装载 > 取消本地视图读取中的新装载时不提前替换当前数据
+aiao-bom-2: AssertionError: expected [ { id: 'ST-000000', …(25) }, …(49) ] to have a length of 20 but got 50
+aiao-bom-2: - Expected
+aiao-bom-2: + Received
+aiao-bom-2: - 20
+aiao-bom-2: + 50
+aiao-bom-2:  ❯ src/app/core/workspace.spec.ts:128:33
+aiao-bom-2:     126|     const read = vi.mocked(WorkspaceRepository.prototype.read).mockRet…
+aiao-bom-2:     127|     const loading = ws.loadStress(50); await vi.waitFor(() => expect(r…
+aiao-bom-2:     128|     expect(ws.dataset()?.parts).toHaveLength(20);
+aiao-bom-2:        |                                 ^
+aiao-bom-2:     129|     ws.cancelLoad(); finish(undefined); await loading;
+aiao-bom-2:     130|     expect(ws.dataset()?.parts).toHaveLength(20); expect(ws.selection(…
+aiao-bom-2: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+aiao-bom-2:  Test Files  1 failed (1)
+aiao-bom-2:       Tests  1 failed | 10 passed (11)
+aiao-bom-2:    Start at  10:43:07
+aiao-bom-2:    Duration  4.39s (transform 2.33s, setup 700ms, import 2.54s, tests 311ms, environment 501ms)
+
+
+
+ NX   Running target test for project aiao-bom-2 failed
+
+Failed tasks:
+
+- aiao-bom-2:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      27.8s
+  Critical path:     27.7s (1 task)
+  Recoverable time:  <1ms

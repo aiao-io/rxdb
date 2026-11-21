@@ -29,9 +29,6 @@
       "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-adapter-sqliteai/tsconfig.lib.json"
     },
     {
@@ -81,6 +78,15 @@
     },
     {
       "path": "../../packages/code-editor-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"

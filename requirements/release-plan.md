@@ -39,6 +39,15 @@
 下一次说明明确写 **7→8**：新客户端可以升级旧库，旧客户端不能重新打开已升到 8 的库，用户须升级客户端。
 迁移说明还要覆盖 table-set 参数等公开 API 变化，清单以 `requirements/api-baseline/` 对 `v0.0.28` 的差异为准。
 
+### ④ BOM 四包的发布范围
+
+`@aiao/rxdb-plugin-bom` 与三框架绑定已在 [package-graph.json](package-graph.json) 的 development 中登记，
+受 API 基线保护；当前 `v0.0.28` 发布树没有这些包，本分支实现不等于 npm 首发已经发生。
+发布前须核对 registry 与最终版本，四包的 `workspace:^` core peer 要与同期核心产物一起验证，
+不能向旧 core `0.0.28` 单独补发需要新声明面的包。领域与公共包按 [AGENTS.md](../AGENTS.md#候选领域合并治理)
+在同一 PR 中统一评审验证，发布仍以最终 main 与待发布提交为准。
+BOM 本机性能门禁见 [benchmarks/README](../benchmarks/README.md#bom-基准手动门禁)，不冒充共享 CI 已执行的性能证据。
+
 ## 下一次发布：迁移发布（schema 7→8）
 
 | 字段                                          | 要求                                                                                                  |

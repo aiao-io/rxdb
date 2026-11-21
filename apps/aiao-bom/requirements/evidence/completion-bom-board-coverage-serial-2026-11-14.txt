@@ -1,0 +1,204 @@
+
+> nx run rxdb-plugin-board:coverage
+
+rxdb-plugin-board: (node:46123) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-plugin-board
+rxdb-plugin-board:       Coverage enabled with v8
+rxdb-plugin-board: (node:46137) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-full-collections.node.spec.ts (1 test) 2760ms
+rxdb-plugin-board:      ✓ 板内第101个任务仍可查询且整列可删除  2757ms
+rxdb-plugin-board: (node:46192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-detail-label.node.spec.ts (19 tests) 31685ms
+rxdb-plugin-board:      ✓ 切板后拒绝执行旧标签删除清单，标签与关联都保留  1984ms
+rxdb-plugin-board:      ✓ AC#1 / #5 / #8：一次保存原子提交，重开不丢；100 KiB 描述逐字读回  1641ms
+rxdb-plugin-board:      ✓ 标签颜色按 trim 归一落库：校验值与入库值一致  1437ms
+rxdb-plugin-board:      ✓ AC#2 / #14：标签板级定义 + 多对多引用；改名改色立即反映到引用卡片  1643ms
+rxdb-plugin-board:      ✓ AC#3 / #16：删标签原子清除全部关联；任务 / 列 / 板删除沿用同一份级联服务  1693ms
+rxdb-plugin-board:      ✓ AC#4：同板重名拒绝零写，异板可建同名，空白名拒绝  1653ms
+rxdb-plugin-board:      ✓ AC#6 / #7：一次保存四类变更整体撤销 / 重放；三次保存对应三次 undo；刷新后不可撤销  2012ms
+rxdb-plugin-board:      ✓ AC#9：取消 / 无改动保存零写，不新增撤销项  1512ms
+rxdb-plugin-board:      ✓ AC#11：跨板标签引用与已删除标签引用整体拒绝且零写  1628ms
+rxdb-plugin-board:      ✓ AC#12：内联与详情共用同一标题校验；非法日期零写拒绝；清空存 null  1571ms
+rxdb-plugin-board:      ✓ AC#13：时区改变不改日期（纯日期串不经 Date 换算）  1580ms
+rxdb-plugin-board:      ✓ AC#15：打开后任务被删 / 字段被改 → 事务内复核失败零写  1615ms
+rxdb-plugin-board:      ✓ AC#10：字段与关联同事务——关联写入失败整批回滚（引用已删标签）  1662ms
+rxdb-plugin-board:        ✓ 每次只提交补丁里的字段，各成一个事务、可逐次撤销  1900ms
+rxdb-plugin-board:        ✓ 清空截止日与描述：null / 空串落库为 null；与最新值相同则零写  1800ms
+rxdb-plugin-board:        ✓ 「未涉及」只认 undefined：无类型约束的补丁给描述 null，与截止日同口径视为清空  1537ms
+rxdb-plugin-board:        ✓ 字段级冲突：补丁涉及的字段被其它入口改过则拒绝零写，其它字段的外部修改不冲突  1654ms
+rxdb-plugin-board:        ✓ 标签冲突与校验沿用一次保存的语义  1576ms
+rxdb-plugin-board:        ✓ 恢复中写门禁  1585ms
+rxdb-plugin-board: (node:46572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-move-sort.node.spec.ts (18 tests) 30207ms
+rxdb-plugin-board:      ✓ 邻居校验后被并发移走不得把当前任务带到第三列  2116ms
+rxdb-plugin-board:      ✓ AC#1：跨列两邻之间——一个事务只写 column_id 与 sortOrder，源列其余行不改写  1725ms
+rxdb-plugin-board:      ✓ AC#2：空列落点用 { group } 目标，任务落入空列  1590ms
+rxdb-plugin-board:      ✓ AC#3：同列改序只写 sortOrder；原位落点零写  1611ms
+rxdb-plugin-board:      ✓ 单卡列：列首 / 列尾空区都是原位（null），不产出 undefined 邻居  1608ms
+rxdb-plugin-board:      ✓ 卡片间隙按最近卡归 before/after，不一律落列尾  1386ms
+rxdb-plugin-board:      ✓ between 目标邻居来自异板列 → 拒绝（cross_board），零写  1514ms
+rxdb-plugin-board:      ✓ 菜单式移动（AC#6 键盘等价路径）：插入下标 → between 目标；原位 / 未知列返回 null  1652ms
+rxdb-plugin-board:      ✓ 菜单移入空列可落库、撤销后原样，单卡列原位不写入  1695ms
+rxdb-plugin-board:      ✓ AC#6：目标邻居被另一入口删除 → 拒绝（staleTarget），零写，状态机发布失败  1556ms
+rxdb-plugin-board:      ✓ AC#7：一次 undo 反转整个移动事务  1543ms
+rxdb-plugin-board:      ✓ AC#8：不存在的列 / 跨板列拒绝，零写并发布可展示原因  1501ms
+rxdb-plugin-board:      ✓ AC#12：换算表逐行确定——两邻 / 列首 / 列尾 / 空列 / 原位  1480ms
+rxdb-plugin-board:      ✓ AC#4：按截止日排序——升序、空值在后、同日按标题再按 id；只写 sortOrder  1579ms
+rxdb-plugin-board:      ✓ AC#9：已排好再排零写，且不新增撤销项  1651ms
+rxdb-plugin-board:      ✓ AC#10：按标题排序——中英文、数字与重名按 zh-Hans-CN 数值序，重复执行结果一致  1510ms
+rxdb-plugin-board:      ✓ AC#11：一次 undo / redo 还原 / 重放整列  1759ms
+rxdb-plugin-board:      ✓ AC#11b：remote-only 主端在写入前明确拒绝  2728ms
+rxdb-plugin-board: (node:46898) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-edge.node.spec.ts (14 tests) 21362ms
+rxdb-plugin-board:      ✓ 纯日期校验：合法 / 非法 / 闰日 / 格式（US-536 AC#13 服务层）  1961ms
+rxdb-plugin-board:      ✓ 无当前板时建列 / 改列给出 board_not_found  1505ms
+rxdb-plugin-board:      ✓ 改板只能修改当前板  1509ms
+rxdb-plugin-board:      ✓ 任务与板不存在时给出可判别错误；listTasksOfBoard 汇总板内任务  1552ms
+rxdb-plugin-board:      ✓ 改板描述与标题只写给定字段  1507ms
+rxdb-plugin-board:      ✓ 拖列：板内列序重排（US-535 列序路径）  1489ms
+rxdb-plugin-board:      ✓ 拖列失败：列不在当前板 → cross_board，状态机发布失败  1460ms
+rxdb-plugin-board:      ✓ 本列排序失败路径：列不存在 → sort-failed 发布且重抛  1474ms
+rxdb-plugin-board:      ✓ 板删除的确认集合变化：新增板级标签后零写退出  1545ms
+rxdb-plugin-board:      ✓ describeBoardFailure 对非 Error 值也给出可展示文本  1433ms
+rxdb-plugin-board:      ✓ 标签颜色必须是 #rgb / #rrggbb，非法格式显式拒绝（US-539 AC#6）  1488ms
+rxdb-plugin-board:      ✓ 任务不存在时 requireTaskInBoard 可判别  1585ms
+rxdb-plugin-board:      ✓ 跨板任务存在但拒绝：requireTaskInBoard 经列推导判 cross_board  1428ms
+rxdb-plugin-board:      ✓ 恢复中：删除、移动、排序同样被门禁拒绝  1423ms
+rxdb-plugin-board: (node:47086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-search-source.node.spec.ts (7 tests) 12330ms
+rxdb-plugin-board:      ✓ AC#1 / #7：只返回当前板命中，异板高排位命中不挤空；本地分页无遗漏无重复  2052ms
+rxdb-plugin-board:      ✓ 已删除任务 / 已删除列的任务自然不在结果中（不复活）  1660ms
+rxdb-plugin-board:      ✓ AC#3：上游完成后无匹配才显示 empty；空输入回到 idle 不报空结果错误  1921ms
+rxdb-plugin-board:      ✓ AC#5：查询执行失败显示错误与重试，不伪装为无匹配  1505ms
+rxdb-plugin-board:      ✓ AC#8：切板立即丢弃旧查询——上游未返回时切板，迟到结果不回填  1650ms
+rxdb-plugin-board:      ✓ AC#6：任务 / 列数据变更触发重查（事件订阅直通 pipeline）  1684ms
+rxdb-plugin-board:      ✓ 无当前板时结果为空且不发起上游检索  1857ms
+rxdb-plugin-board: (node:47219) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-create.node.spec.ts (7 tests) 11602ms
+rxdb-plugin-board:      ✓ AC#1：板下建列、列下建任务，任务经列推导所属板  2300ms
+rxdb-plugin-board:      ✓ AC#2：列内创建追加到列尾，默认排序按「分组字段 + sortOrder」，列间互不影响  1670ms
+rxdb-plugin-board:      ✓ AC#3：列序是板内排序域，追加顺序即默认顺序  1740ms
+rxdb-plugin-board:      ✓ AC#4：空 / 全空白标题拒绝且零写入，合法标题去首尾空白后保存  1576ms
+rxdb-plugin-board:      ✓ AC#5：跨板任务归属与列归属入口全部拒绝且零写  1446ms
+rxdb-plugin-board:      ✓ 恢复中写门禁：创建被拒且库零变化（US-534 AC#10 服务层半边）  1451ms
+rxdb-plugin-board:      ✓ 错误码是 BoardDomainError 且可判别  1418ms
+rxdb-plugin-board: (node:47337) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-delete.node.spec.ts (6 tests) 9909ms
+rxdb-plugin-board:      ✓ 跨板删除被拒绝：plan 与 execute 都复核板归属，零写  2071ms
+rxdb-plugin-board:      ✓ AC#6：删列只删该列与其任务（含关联），他列不动；删板全清不留孤儿  1538ms
+rxdb-plugin-board:      ✓ AC#9：确认期间集合变化则零写退出并要求重新确认；取消路径无写  1517ms
+rxdb-plugin-board:      ✓ AC#11：删除列的事务撤销后按原 ID 全部插回，列序与任务顺序复原  1707ms
+rxdb-plugin-board:      ✓ AC#7：级联写入的整批回滚（子先父后顺序 + 事务回滚不留半状态）  1508ms
+rxdb-plugin-board:      ✓ 任务删除清关联且可撤销  1567ms
+rxdb-plugin-board: (node:47438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-seed.node.spec.ts (2 tests) 6532ms
+rxdb-plugin-board:      ✓ 两次装载的五张业务表逐字节相同，ID 与审计时间固定  3581ms
+rxdb-plugin-board:      ✓ 只装进空库：库里已有看板（种子或用户数据）时拒绝且零写  2950ms
+rxdb-plugin-board: (node:47505) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-upgrade.node.spec.ts (1 test) 2976ms
+rxdb-plugin-board:      ✓ 旧实体先建库写入，断开后装看板实体重开：旧数据原样、种子可装载、再重开不丢  2974ms
+rxdb-plugin-board: (node:47541) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-indexes.node.spec.ts (1 test) 1978ms
+rxdb-plugin-board:      ✓ 任务按列 + 排序键、列按板 + 排序键、关联按标签都有索引  1977ms
+rxdb-plugin-board: (node:47574) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-shell.node.spec.ts (19 tests) 114ms
+rxdb-plugin-board: (node:47575) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-filter.node.spec.ts (25 tests) 11ms
+rxdb-plugin-board: (node:47576) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/focus-modal.node.spec.ts (2 tests) 14ms
+rxdb-plugin-board: (node:47601) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-read.node.spec.ts (4 tests) 14ms
+rxdb-plugin-board: (node:47618) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/popover-palette.node.spec.ts (6 tests) 6ms
+rxdb-plugin-board: (node:47619) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/query.node.spec.ts (3 tests) 9ms
+rxdb-plugin-board: (node:47628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/keyboard.node.spec.ts (9 tests) 6ms
+rxdb-plugin-board: (node:47629) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/drop-indicator.node.spec.ts (3 tests) 4ms
+rxdb-plugin-board: (node:47630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/board-restore-machine.node.spec.ts (9 tests) 8ms
+rxdb-plugin-board: (node:47631) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/due-status.node.spec.ts (4 tests) 5ms
+rxdb-plugin-board: (node:47632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/label-text-color.node.spec.ts (3 tests) 5ms
+rxdb-plugin-board: (node:47633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-plugin-board: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-plugin-board:  ✓ |rxdb-plugin-board| src/__tests__/focus-trap.node.spec.ts (4 tests) 4ms
+rxdb-plugin-board:  Test Files  22 passed (22)
+rxdb-plugin-board:       Tests  167 passed (167)
+rxdb-plugin-board:    Start at  11:02:45
+rxdb-plugin-board:    Duration  140.43s (transform 936ms, setup 0ms, import 3.82s, tests 131.54s, environment 279ms)
+rxdb-plugin-board: JUNIT report written to /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/coverage/packages/rxdb-plugin-board/junit.xml
+rxdb-plugin-board:  % Coverage report from v8
+rxdb-plugin-board: -------------------|---------|----------|---------|---------|-------------------
+rxdb-plugin-board: File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+rxdb-plugin-board: -------------------|---------|----------|---------|---------|-------------------
+rxdb-plugin-board: All files          |   96.34 |    90.68 |   99.29 |   97.91 |                   
+rxdb-plugin-board:  src               |    95.6 |    90.78 |   99.07 |   97.42 |                   
+rxdb-plugin-board:   board-domain.ts  |   98.33 |       95 |     100 |     100 | 105               
+rxdb-plugin-board:   board-read.ts    |     100 |    92.85 |     100 |     100 | 118               
+rxdb-plugin-board:   board-shell.ts   |   99.11 |     98.7 |     100 |   98.96 | 233,512           
+rxdb-plugin-board:   ...rt-service.ts |   91.66 |    79.48 |     100 |   97.91 | 91                
+rxdb-plugin-board:   ...te-service.ts |   88.18 |    74.13 |   96.42 |   92.45 | ...56,271,283-286 
+rxdb-plugin-board:   ...il-service.ts |    91.2 |    91.86 |     100 |    92.2 | ...10,123,163-164 
+rxdb-plugin-board:   ...resolution.ts |   97.22 |    93.42 |     100 |     100 | 64,86,100-107,179 
+rxdb-plugin-board:   due-status.ts    |     100 |     87.5 |     100 |     100 | 26                
+rxdb-plugin-board:   keyboard.ts      |   98.07 |    95.83 |     100 |     100 | 65,90             
+rxdb-plugin-board:   label-service.ts |   90.76 |       90 |   93.75 |   92.72 | 48-49,101-102     
+rxdb-plugin-board:   move-service.ts  |   91.93 |    77.27 |     100 |   98.03 | 112               
+rxdb-plugin-board:   ...re-machine.ts |     100 |    82.14 |     100 |     100 | 75,84-89,106-115  
+rxdb-plugin-board:  src/filter        |     100 |    95.69 |     100 |     100 |                   
+rxdb-plugin-board:   board-filter.ts  |     100 |    95.69 |     100 |     100 | 188,227,284,300   
+rxdb-plugin-board:  src/search        |   98.21 |    73.33 |     100 |     100 |                   
+rxdb-plugin-board:   ...rch-source.ts |   98.21 |    73.33 |     100 |     100 | 70,91,124-126,148 
+rxdb-plugin-board: -------------------|---------|----------|---------|---------|-------------------
+rxdb-plugin-board: =============================== Coverage summary ===============================
+rxdb-plugin-board: Statements   : 96.34% ( 1213/1259 )
+rxdb-plugin-board: Branches     : 90.68% ( 633/698 )
+rxdb-plugin-board: Functions    : 99.29% ( 280/282 )
+rxdb-plugin-board: Lines        : 97.91% ( 1033/1055 )
+rxdb-plugin-board: ================================================================================
+
+
+
+ NX   Successfully ran target coverage for project rxdb-plugin-board
+
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-plugin-board:coverage
+
+Flaky tasks can disrupt your CI pipeline. Automatically retry them with Nx Cloud. Learn more at https://nx.dev/ci/features/flaky-tasks
+
+  Run duration:      2m 21s
+  Cache:             0/1 hit (0%)
+  Critical path:     2m 21s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-plugin-board:coverage    2m 21s

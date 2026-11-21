@@ -4,10 +4,10 @@ Angular + Electron 开发应用，位于 Nx monorepo 中。
 
 ## 环境
 
-仓库固定使用 pnpm 10，请通过 Corepack 执行：
+仓库固定使用 pnpm 10，确认本机版本：
 
 ```bash
-corepack pnpm --version
+pnpm --version
 ```
 
 以下命令均从仓库根目录运行。
@@ -17,13 +17,13 @@ corepack pnpm --version
 仅启动 Angular renderer：
 
 ```bash
-corepack pnpm nx serve dev-rxdb-electron
+pnpm nx serve dev-rxdb-electron
 ```
 
 同时启动 Angular dev server、Electron 主进程 TypeScript watch 和 Electron：
 
 ```bash
-corepack pnpm nx run dev-rxdb-electron:dev
+pnpm nx run dev-rxdb-electron:dev
 ```
 
 开发端口固定为 `4120`。`dev` target 会等待 renderer 端口和 `src-electron/main.js` 都可用后再启动 Electron。
@@ -31,9 +31,9 @@ corepack pnpm nx run dev-rxdb-electron:dev
 ## 验证
 
 ```bash
-corepack pnpm nx test dev-rxdb-electron
-corepack pnpm nx lint dev-rxdb-electron
-corepack pnpm nx build dev-rxdb-electron
+pnpm nx test dev-rxdb-electron
+pnpm nx lint dev-rxdb-electron
+pnpm nx build dev-rxdb-electron
 ```
 
 Renderer production build 输出到：
@@ -47,7 +47,7 @@ dist/apps/dev-rxdb-electron/browser/
 ## Electron 打包
 
 ```bash
-corepack pnpm nx run dev-rxdb-electron:electron-build
+pnpm nx run dev-rxdb-electron:electron-build
 ```
 
 配置的发布目录是：
@@ -61,7 +61,7 @@ dist/apps/dev-rxdb-electron/release/
 ```bash
 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ \
 ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ \
-corepack pnpm nx run dev-rxdb-electron:electron-build
+pnpm nx run dev-rxdb-electron:electron-build
 ```
 
 这只切换构建工具下载源，不改变应用产物或运行时行为。其他平台产物仍必须在对应平台完成实际构建后再宣称可用。
@@ -101,7 +101,7 @@ dev 与打包产物一致：
 需要换一个干净的数据目录（或不想污染日常开发库）时，用 Electron 自带的开关：
 
 ```bash
-corepack pnpm exec electron dist/apps/dev-rxdb-electron --serve --user-data-dir=/tmp/rxdb-electron-scratch
+pnpm exec electron dist/apps/dev-rxdb-electron --serve --user-data-dir=/tmp/rxdb-electron-scratch
 ```
 
 e2e 就是这么做的：每次启动新建临时目录并在结束时删掉，重启持久化用例则对两次启动传同一个目录。
@@ -112,7 +112,7 @@ renderer 单独用 `nx serve` 跑在浏览器里时走的是另一条路径 —�
 ## 打包 e2e
 
 ```bash
-corepack pnpm nx e2e dev-rxdb-electron-e2e
+pnpm nx e2e dev-rxdb-electron-e2e
 ```
 
 该 target 依赖 `electron-package-dir`（`--dir` 解包产物），Playwright 直接拉起真实可执行文件。
@@ -125,7 +125,7 @@ macOS 上同时调用 `app.dock.hide()`，避免应用启动时切走焦点与�
 排查失败用例需要肉眼看窗口时，显式关掉这个开关：
 
 ```bash
-DEV_RXDB_ELECTRON_HIDE_WINDOW=0 corepack pnpm nx e2e dev-rxdb-electron-e2e
+DEV_RXDB_ELECTRON_HIDE_WINDOW=0 pnpm nx e2e dev-rxdb-electron-e2e
 ```
 
 该变量只影响窗口是否显示，不改变加载路径、协议与存储位置。

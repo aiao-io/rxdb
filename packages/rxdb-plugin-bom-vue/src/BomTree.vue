@@ -1,0 +1,199 @@
+<script setup lang="ts">
+/**
+ * BOM 展开树（对齐 Angular `ao-bom-tree`、React `BomTree`）。
+ *
+ * 渲染共享控制器给出的可见路径、未裁决候选、截断原因与查询状态。交互一律经 `commands`
+ * 回到共享控制器，组件不发出事件。键盘遵循 WAI-ARIA tree 模式：方向键移动焦点
+ * （ArrowLeft 无父节点时不动），Home/End 跳到首尾，Space 切换展开，Enter 加载发生项；
+ * 当前焦点节点不在可见节点中时首行是 Tab 入口。行加载失败的原始错误只对发起时的那一版
+ * 节点列表显示：共享状态发布新的节点列表（换输入、换库、刷新出新结果、展开折叠）即撤下，
+ * 换之前发起、之后才失败的加载也不回写。
+ */
+import { BOM_VIEW_STYLES, bomErrorText, handleBomTreeKey } from '@aiao/rxdb-plugin-bom';
+import type { BomViewCommands, BomViewNode, BomViewState } from '@aiao/rxdb-plugin-bom';
+import { computed, ref, shallowRef } from 'vue';
+
+/** 一次行加载失败与发起时的那一版节点。 */
+interface TreeInteraction {
+  nodes: readonly BomViewNode[];
+  error: unknown;
+}
+
+const props = defineProps<{
+  /** 共享控制器发布的视图状态（`useBomView` 的 `state.value`）。 */
+  state: BomViewState;
+  /** 共享控制器命令，原样透传。 */
+  commands: BomViewCommands;
+}>();
+const tree = ref<HTMLElement>();
+const focused = ref<string | null>(null);
+const hasFocused = computed(() => props.state.nodes.some(node => node.key === focused.value));
+const interaction = shallowRef<TreeInteraction | null>(null);
+// 按节点数组身份失效，对照行编辑器表单错误随 editor.value 重置
+const interactionError = computed(() =>
+  interaction.value !== null && interaction.value.nodes === props.state.nodes ? interaction.value.error : null
+);
+
+/** 按节点身份同步聚焦已渲染的行，焦点事件再回写 focused（与 Angular / React 同一时序）。 */
+const focusKey = (key: string): void => {
+  const rows = tree.value?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [];
+  Array.from(rows)
+    .find(row => row.getAttribute('data-path') === key)
+    ?.focus();
+};
+
+const focus = (index: number): void => {
+  const node = props.state.nodes[Math.max(0, Math.min(index, props.state.nodes.length - 1))];
+  if (node) focusKey(node.key);
+};
+
+const select = async (node: BomViewNode): Promise<void> => {
+  if (node.occurrenceId === null) return;
+  const { nodes } = props.state;
+  interaction.value = null;
+  try {
+    await props.commands.loadOccurrence(node.occurrenceId);
+  } catch (error) {
+    interaction.value = { nodes, error };
+  }
+};
+
+const activate = (node: BomViewNode): void => {
+  focusKey(node.key);
+  void select(node);
+};
+
+const keydown = (event: KeyboardEvent, _node: BomViewNode, index: number): void => {
+  if (
+    handleBomTreeKey(event.key, props.state.nodes, index, {
+      focus,
+      toggle: path => props.commands.toggle(path),
+      edit: node => {
+        void select(node);
+      }
+    })
+  )
+    event.preventDefault();
+};
+</script>
+
+<template>
+  <section
+    class="bom-view bom-tree"
+    aria-label="BOM 展开"
+    :aria-busy="state.refreshing || state.phase === 'loading'"
+  >
+    <component :is="'style'">{{ BOM_VIEW_STYLES }}</component>
+    <p
+      v-if="state.phase === 'idle' || state.phase === 'loading'"
+      role="status"
+      >正在加载 BOM…</p
+    >
+    <p
+      v-if="state.phase === 'empty'"
+      role="status"
+      >没有可见 BOM 节点</p
+    >
+    <p
+      v-if="state.refreshing"
+      role="status"
+      >正在刷新 BOM…</p
+    >
+    <p
+      v-if="state.error !== null"
+      role="alert"
+      >{{ bomErrorText(state.error) }}</p
+    >
+    <button
+      v-if="state.phase === 'error'"
+      type="button"
+      @click="commands.refresh()"
+      >重试</button
+    >
+    <ul
+      ref="tree"
+      role="tree"
+      aria-label="BOM 结构"
+    >
+      <li
+        v-for="(node, index) in state.nodes"
+        :key="node.key"
+        role="treeitem"
+        data-testid="bom-node"
+        :data-path="node.key"
+        :data-occurrence="node.occurrenceId ?? ''"
+        :aria-level="node.depth + 1"
+        :aria-expanded="node.hasChildren ? node.expanded : undefined"
+        :aria-selected="node.occurrenceId !== null && state.editor.value?.occurrenceId === node.occurrenceId"
+        :tabindex="focused === node.key || (!hasFocused && index === 0) ? 0 : -1"
+        @focus="focused = node.key"
+        @keydown="keydown($event, node, index)"
+        @click="activate(node)"
+      >
+        <div
+          class="bom-node-content"
+          :style="{ paddingInlineStart: `${node.depth * 24}px` }"
+        >
+          <button
+            v-if="node.hasChildren"
+            type="button"
+            tabindex="-1"
+            :aria-label="`${node.expanded ? '折叠' : '展开'} ${node.itemNo}`"
+            @click.stop="commands.toggle(node.path)"
+            >{{ node.expanded ? '−' : '+' }}</button
+          >
+          <span>{{ node.itemNo }}</span>
+          <span v-if="node.description">{{ node.description }}</span>
+          <span
+            class="bom-node-quantity"
+            data-testid="bom-quantity"
+            >{{ node.quantity ? `${node.quantity.value} ${node.quantity.uom}` : '未解析' }}</span
+          >
+          <button
+            v-if="node.occurrenceId !== null"
+            type="button"
+            tabindex="-1"
+            :aria-label="`编辑 ${node.itemNo}`"
+            @click.stop="select(node)"
+            >编辑</button
+          >
+        </div>
+      </li>
+    </ul>
+    <section
+      v-if="state.unresolved.length > 0"
+      aria-label="未解析候选"
+    >
+      <h3>未解析</h3>
+      <div
+        v-for="group in state.unresolved"
+        :key="group.key"
+        data-testid="bom-candidate"
+      >
+        <span>{{ group.kind }}</span>
+        <ul
+          ><li
+            v-for="candidate in group.candidates"
+            :key="candidate.key"
+            >{{ candidate.label }}</li
+          ></ul
+        >
+      </div>
+    </section>
+    <p
+      v-if="state.truncated !== null"
+      role="note"
+      >结果已截断：{{ state.truncated.reason }}</p
+    >
+    <p
+      v-if="state.quantityError !== null"
+      role="alert"
+      >{{ bomErrorText(state.quantityError) }}</p
+    >
+    <p
+      v-if="interactionError !== null"
+      role="alert"
+      >{{ bomErrorText(interactionError) }}</p
+    >
+  </section>
+</template>

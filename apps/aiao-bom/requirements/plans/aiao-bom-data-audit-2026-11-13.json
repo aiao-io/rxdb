@@ -1,0 +1,485 @@
+{
+  "observedOn": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "scope": "公开资源、源码与 GLB JSON 元数据核查；未对全部模型完成加载和业务验证",
+  "sources": [
+    {
+      "name": "bom.html",
+      "url": "https://www.windrose.ai/bom?lang=zh",
+      "status": 200,
+      "bytes": 609858,
+      "sha256": "7822e2590b65401d4ad06bd576e7c48226c87ffd563dbc1b96d0bcadce379334"
+    },
+    {
+      "name": "technology.html",
+      "url": "https://www.windrose.ai/technology",
+      "status": 200,
+      "bytes": 511119,
+      "sha256": "02766cd2f3a1a709fa1368676978ce853c06e887d5c7cf35560deda350183d24"
+    },
+    {
+      "name": "BOM-3D-data.json",
+      "url": "https://www.windrose.ai/assets/BOM-3D-data.json?v=20261009pn2",
+      "status": 200,
+      "bytes": 579282,
+      "sha256": "fd910068671d4ac67677ab5c90fd9de437b2e9fa72f9579b5de23f2736a9902c"
+    },
+    {
+      "name": "BOM-parts-detail.json",
+      "url": "https://www.windrose.ai/assets/BOM-parts-detail.json?v=20261009pn2",
+      "status": 200,
+      "bytes": 918098,
+      "sha256": "1108e748abc90426aa57acef0c4018b002d1147a4dd714b66c2d8c0a7941f697"
+    },
+    {
+      "name": "viewer-hierarchy-data.mjs",
+      "url": "https://www.windrose.ai/assets/viewer-hierarchy-data.mjs",
+      "status": 200,
+      "bytes": 133548,
+      "sha256": "b1d3ec8945bdf5b9049f94ec382d52aefe1db714aa5dbabc64665443a17fdeeb"
+    },
+    {
+      "name": "viewer-hierarchy.mjs",
+      "url": "https://www.windrose.ai/assets/viewer-hierarchy.mjs",
+      "status": 200,
+      "bytes": 7312,
+      "sha256": "a22012631080ed09884694938919ceeef002ad677c2efa56d2a1121475706216"
+    },
+    {
+      "name": "system-names.json",
+      "url": "https://www.windrose.ai/assets/system-names.json?v=20260902b",
+      "status": 200,
+      "bytes": 8245,
+      "sha256": "89cdc7f1dcd896bd6617b124af9c54abc80edc4edfdf57d30d8774d8d25d5fe8"
+    },
+    {
+      "name": "part-names.json",
+      "url": "https://www.windrose.ai/assets/part-names.json?v=20260910c",
+      "status": 200,
+      "bytes": 221029,
+      "sha256": "aee268f7a14a4b84e87aea9d752573a321363e5a824b3dc05d59cfe7a1cd0737"
+    },
+    {
+      "name": "wh13-eu-truth.js",
+      "url": "https://www.windrose.ai/assets/wh13-eu-truth.js?v=20261108bat2",
+      "status": 200,
+      "bytes": 35787,
+      "sha256": "cb7417126d60213e6c8c9f84c85e08bb932b0d0524026dadbb619bc1adfc08ce"
+    },
+    {
+      "name": "workbuddy-viewer.html",
+      "url": "https://www.workbuddy.link/p/PkiIx75v5kSuQdJMZG0SDq?pn=1300001X9D01",
+      "status": 200,
+      "bytes": 5761,
+      "sha256": "e8cde527eb0819486b3a3111b09c628c27def83d58807871c9bbde93455c1bc7"
+    },
+    {
+      "name": "spare-parts-3d.html",
+      "url": "https://workbuddy-space-static.codebuddy.work/page/PkiIx75v5kSuQdJMZG0SDq/5/spare-parts-3d.html",
+      "status": 200,
+      "bytes": 29810,
+      "sha256": "a3f6ed759d2b5c7584590ee17d77212d0cfd20fc33fd214e6b3136421442b14d"
+    },
+    {
+      "name": "spare-parts-data.js",
+      "url": "https://www.windrose.ai/assets/spare-parts-data.js",
+      "status": 200,
+      "bytes": 52559,
+      "sha256": "6fdd0d88ab3bd2b6f472e8584cd84a2f12ed3c391ed25726b30e71ad4197b5a0"
+    }
+  ],
+  "bom": {
+    "rows": 1424,
+    "uniqueGroupIds": 1424,
+    "families": 40,
+    "sourceStats": {
+      "total": 1424,
+      "wh11": 1313,
+      "wh12": 1342,
+      "wh13": 1311,
+      "wh14": 1312,
+      "bestconfig": {
+        "已全球统一": 1308,
+        "四市场均不装": 74,
+        "法规专属(US)": 34,
+        "料号仍分": 5,
+        "部分市场": 3
+      },
+      "families": 40,
+      "conflicts": 99,
+      "withphoto": 85
+    },
+    "quantityMissing": 503,
+    "quantityAmbiguous": [
+      {
+        "gid": "1319317",
+        "rawQuantity": "2,3 件"
+      },
+      {
+        "gid": "3602561",
+        "rawQuantity": "1,4 件"
+      }
+    ],
+    "levelFieldValues": [
+      "2",
+      "",
+      "3",
+      "共用件()",
+      "法规专属(US)",
+      "4",
+      "最高配来源:US",
+      "6",
+      "5"
+    ],
+    "warning": "l 含文本分类，不能作为装配深度；q 不是已验证的发生项用量。页面版本标签 2026-12 晚于观察日期。"
+  },
+  "catalog3d": {
+    "rows": 2290,
+    "uniqueIds": 2211,
+    "uniqueNumericGroupIds": 2028,
+    "idsWithMultipleRows": 76,
+    "duplicateRowsBeyondFirst": 79,
+    "rowsWithGlb": 1647,
+    "uniqueGlbUrls": 1644,
+    "baseGroupsWithGlb": 983,
+    "uniqueNumericGroupsAcrossCatalogAndBom": 2028,
+    "warning": "非七位数字的标准件与其他编号同样保留；同 GID 多资产不覆盖。"
+  },
+  "details": {
+    "totalKeys": 2320,
+    "numericGroupKeys": 2028,
+    "otherPartKeys": 292,
+    "numericPartsWithParent": 1022,
+    "basePartsWithParent": 794,
+    "parentGroupInBase": 996,
+    "parentGroupAbsentFromKnownNumericGroups": 26,
+    "parentExactVariantInBase": 109,
+    "warning": "parent 仅为来源父件线索；精确变体不匹配不等于没有父件，不能截短编号后自动确认装配关系。"
+  },
+  "purchaseHierarchy": {
+    "roots": 33,
+    "occurrences": 813,
+    "uniqueGids": 607,
+    "levels": {
+      "L1": 33,
+      "L2": 76,
+      "L3": 704
+    },
+    "maxDepth": 3,
+    "euOccurrences": 675,
+    "usOccurrences": 677,
+    "cnOccurrences": 0,
+    "auOccurrences": 0,
+    "fields": [
+      "level",
+      "gid",
+      "eu",
+      "us",
+      "name_zh",
+      "name_en",
+      "children",
+      "supply"
+    ],
+    "quantityRows": 0,
+    "withMultipleParents": 82,
+    "uniqueGidsMatchingInline": 484,
+    "unmatchedInline": 940,
+    "sample": {
+      "level": "L1",
+      "gid": "2400001",
+      "eu": "2400001X9D13",
+      "us": "2400001X9D05",
+      "name_zh": "集成电桥总成",
+      "name_en": "Integrated Axle Assembly",
+      "children": [
+        {
+          "level": "L2",
+          "gid": "2400100",
+          "eu": "2400100X9D13",
+          "us": "2400100X9D05",
+          "supply": "Buy",
+          "name_zh": "集成电桥-中桥",
+          "name_en": "Integrated Electric Axle - Middle Axle",
+          "children": []
+        },
+        {
+          "level": "L2",
+          "gid": "2400200",
+          "eu": "2400200X9D13",
+          "us": "2400200X9D05",
+          "supply": "Buy",
+          "name_zh": "集成电桥-后桥",
+          "name_en": "Integrated Electric Axle - Rear Axle",
+          "children": []
+        },
+        {
+          "level": "L3",
+          "gid": "2400300",
+          "eu": "2400300X9D13",
+          "supply": "Buy",
+          "name_zh": "温度采集器",
+          "name_en": "Temperature Sensor",
+          "children": []
+        },
+        {
+          "level": "L3",
+          "gid": "Q184143",
+          "eu": "Q1841430TF62",
+          "supply": "STD",
+          "name_zh": "六角法兰面螺栓 粗杆",
+          "name_en": "Hex flange bolt, shank",
+          "children": []
+        }
+      ]
+    }
+  },
+  "standardGlb": {
+    "url": "/assets/3d-data/EU-X9D13-full.glb",
+    "bytes": 25881736,
+    "jsonBytes": 3092064,
+    "nodes": 8791,
+    "meshes": 1741,
+    "meshNodes": 8743,
+    "uniqueItemIds": 1876,
+    "uniqueNumericGroups": 1546,
+    "uniqueSystems": 96,
+    "baseRows": 1424,
+    "baseInFullModel": 925,
+    "baseStandalone": 983,
+    "baseWithAny3d": 1170,
+    "baseFullOnly": 187,
+    "withExtras": 8791,
+    "extras": {
+      "item_id": 8790,
+      "system_id": 8790,
+      "parent_id": 8788,
+      "depth": 8788,
+      "node_type": 8523,
+      "has_geom": 8523,
+      "outlier": 20,
+      "approx": 85,
+      "removed_by_pose_fix": 4,
+      "_gen2Superseded": 2,
+      "model": 1,
+      "vehicle_root": 1,
+      "up_axis": 1,
+      "units": 1,
+      "gid": 2,
+      "gen2_clone": 2
+    },
+    "vehicleNodes": [
+      {
+        "name": "WH13_欧标_X9D13C",
+        "extras": {
+          "model": "X9D13C 6x4 LFP 4电机 电子后视镜 WH13 欧标 2*CCS2",
+          "vehicle_root": "ENG00000042",
+          "up_axis": "Y",
+          "units": "mm"
+        }
+      }
+    ],
+    "extensions": [
+      "KHR_draco_mesh_compression",
+      "KHR_mesh_quantization"
+    ],
+    "parsedJsonSha256": "3af5dbaf3e4789f0b311516b0dba6eb1143c201f3d4686ffac28283b24e75912",
+    "hashScope": "本地 JSON.stringify 后的 glTF JSON，不是完整 GLB 文件哈希"
+  },
+  "standardGlbRelations": {
+    "nodeTypes": {
+      "part": 8523,
+      "(missing)": 268
+    },
+    "semanticParentRows": 8788,
+    "semanticParentIds": 167,
+    "semanticParentIdsMissing": 96,
+    "sceneRoots": [
+      {
+        "index": 8498,
+        "name": "WH13_欧标_X9D13C",
+        "children": 6364
+      },
+      {
+        "index": 8789,
+        "name": "8403500X9D01"
+      },
+      {
+        "index": 8790,
+        "name": "8403600X9D01"
+      }
+    ],
+    "nodesWithChildren": 72,
+    "baseAnyVariantExactInFull": 833,
+    "baseAnyVariantExactWithAny3d": 1139
+  },
+  "modelHeaders": [
+    {
+      "url": "/assets/3d-data/EU-X9D13-full.glb?v=20261014hubfile",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/3d-data/EU-X9D13-full.glb?v=20261014hubfile",
+      "type": "model/gltf-binary",
+      "length": "25881736",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    },
+    {
+      "url": "/assets/3d-data/EU-X9D13-full-hd.glb",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/3d-data/EU-X9D13-full-hd.glb",
+      "type": "model/gltf-binary",
+      "length": "59221952",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    },
+    {
+      "url": "/assets/Frame.glb",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/Frame.glb",
+      "type": "model/gltf-binary",
+      "length": "11443180",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    },
+    {
+      "url": "/assets/Battery.glb",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/Battery.glb",
+      "type": "model/gltf-binary",
+      "length": "19566952",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    },
+    {
+      "url": "/assets/E-axle.glb",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/E-axle.glb",
+      "type": "model/gltf-binary",
+      "length": "14223344",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    },
+    {
+      "url": "/assets/3d-data/full_CN-X9D02-1303123-ugp-1ts0aagat7qbk.glb",
+      "status": 200,
+      "finalUrl": "https://www.windrose.ai/assets/3d-data/full_CN-X9D02-1303123-ugp-1ts0aagat7qbk.glb",
+      "type": "model/gltf-binary",
+      "length": "26988",
+      "ranges": "bytes",
+      "cors": "*",
+      "corp": null
+    }
+  ],
+  "spareParts": {
+    "baseModel": "assets/3d-data/EU-X9D13-full.glb?v=20261014hubfile",
+    "parts": 113,
+    "markets": {
+      "Global Master": 44,
+      "Europe": 38,
+      "Israel": 46,
+      "Chile": 36,
+      "US": 85,
+      "Australia": 44
+    },
+    "withGlb": 58,
+    "withNode": 90,
+    "withEither": 91,
+    "withPrice": 44,
+    "truckGids": 1638,
+    "fields": [
+      "pn",
+      "en",
+      "cn",
+      "price",
+      "glb",
+      "markets",
+      "xform",
+      "node",
+      "mk",
+      "cat"
+    ],
+    "transforms": [
+      "none",
+      null,
+      "scale1000",
+      "rotX-90",
+      "UNRESOLVED"
+    ],
+    "queryPnInParts": false,
+    "spareNodeExamples": [
+      {
+        "pn": "2803360X9D01",
+        "en": "LICENSE PLATE MOUNTING PLATE ASSY",
+        "cn": "牌照安装板总成",
+        "price": "8.14",
+        "glb": null,
+        "markets": [
+          "Global Master",
+          "Europe",
+          "Israel",
+          "Chile",
+          "Australia"
+        ],
+        "node": "2803360X9D01",
+        "mk": {
+          "Europe": "1",
+          "Israel": "1",
+          "Chile": "1",
+          "Australia": "1",
+          "Global Master": "1"
+        },
+        "cat": "COLLISION"
+      },
+      {
+        "pn": "2950210X9D02",
+        "en": "PRESSURE SENSOR ASSY",
+        "cn": "压力传感器总成",
+        "price": "85.38",
+        "glb": null,
+        "markets": [
+          "Global Master",
+          "Europe",
+          "Israel",
+          "Australia"
+        ],
+        "node": "2950210X9D02",
+        "mk": {
+          "Europe": "1",
+          "Israel": "1",
+          "Australia": "1",
+          "Global Master": "1"
+        },
+        "cat": "ELECTRICAL"
+      }
+    ]
+  },
+  "coverage": {
+    "basis": "七位 GID 前缀层面的资源候选覆盖，不代表市场、版本与发生项精确匹配或资源均可加载",
+    "baseRows": 1424,
+    "standaloneCandidateGroups": 983,
+    "fullModelCandidateGroups": 925,
+    "additionalFullModelOnlyGroups": 187,
+    "combinedCandidateGroups": 1170,
+    "combinedPercent": 82.16,
+    "anyVariantExactCandidateGroups": 1139,
+    "notes": [
+      "整车为 EU X9D13C 参考配置。",
+      "GLB 场景树、采购 CBOM 与 40 个 Family 分类具有不同语义。",
+      "备用件市场首批数量不能当成装配用量；FOB 报价不能当成制造成本。",
+      "WorkBuddy 外层页面当前 iframe src 未携带 pn；子页面本身支持 pn 查询。"
+    ]
+  },
+  "localEvidence": {
+    "vtableVersion": "1.26.8",
+    "existingApp": "apps/aiao-bom",
+    "existingDbIdentity": "dev-rxdb-bom",
+    "reqTreeRenderLimit": 151,
+    "benchmark": "benchmarks/reports/bom-view-benchmark.json",
+    "benchmarkFixtureOccurrences": 100,
+    "benchmarkNotProving": "50,000 节点 VTable + 3D 真实浏览器性能"
+  }
+}

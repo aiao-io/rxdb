@@ -1,0 +1,199 @@
+{
+  "checkedAt": "2026-11-14T06:01:43.839Z",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "pages": [
+    {
+      "path": "/",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/domain",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/review",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/explosion",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/timeline",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/mapping",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/cost",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/where-used",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/instances",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    },
+    {
+      "path": "/transfer",
+      "status": 200,
+      "type": "text/html",
+      "coop": "same-origin",
+      "coep": "require-corp",
+      "nosniff": "nosniff",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140"
+    }
+  ],
+  "resources": [
+    {
+      "path": "data/windrose.json",
+      "bytes": 5098429,
+      "sha256": "c8b2797f13eec00ace98618f6beb39af752adb090652bd37fdcfeb8bdd7e6be2",
+      "status": 200,
+      "servedBytes": 5098429,
+      "servedSha256": "c8b2797f13eec00ace98618f6beb39af752adb090652bd37fdcfeb8bdd7e6be2",
+      "type": "application/json"
+    },
+    {
+      "path": "draco/draco_decoder.wasm",
+      "bytes": 192420,
+      "sha256": "a680d927bed9cb864ddbd63521868891af2bfbe755092761b4837487618df8ac",
+      "status": 200,
+      "servedBytes": 192420,
+      "servedSha256": "a680d927bed9cb864ddbd63521868891af2bfbe755092761b4837487618df8ac",
+      "type": "application/wasm"
+    },
+    {
+      "path": "draco/draco_wasm_wrapper.js",
+      "bytes": 58456,
+      "sha256": "8bb2952d2ba7d67e1414f8df819410cb0434a666be53f671fff75f68843d76f6",
+      "status": 200,
+      "servedBytes": 58456,
+      "servedSha256": "8bb2952d2ba7d67e1414f8df819410cb0434a666be53f671fff75f68843d76f6",
+      "type": "text/javascript"
+    },
+    {
+      "path": "index.html",
+      "bytes": 1151,
+      "sha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140",
+      "status": 200,
+      "servedBytes": 1151,
+      "servedSha256": "c8d3571871a8ba3dd87b552cf3591fbf0cdc77619c8bef5907258a8caf897140",
+      "type": "text/html"
+    },
+    {
+      "path": "main-G5IMGHAW.js",
+      "bytes": 241390,
+      "sha256": "e0d51b25a5aba8cbd64347fdfc758bc9682966b4b4584dbaa404f4fd3457edb4",
+      "status": 200,
+      "servedBytes": 241390,
+      "servedSha256": "e0d51b25a5aba8cbd64347fdfc758bc9682966b4b4584dbaa404f4fd3457edb4",
+      "type": "text/javascript"
+    },
+    {
+      "path": "models/eu-x9d13.glb",
+      "bytes": 25881736,
+      "sha256": "00fec1b68e38fbcd80a4f7e45105767123ca5fe192b3b361ab44486cd60af383",
+      "status": 200,
+      "servedBytes": 25881736,
+      "servedSha256": "00fec1b68e38fbcd80a4f7e45105767123ca5fe192b3b361ab44486cd60af383",
+      "type": "model/gltf-binary"
+    },
+    {
+      "path": "wa-sqlite/wa-sqlite-async.wasm",
+      "bytes": 1263008,
+      "sha256": "6bfcf02fe6c30eb05784850d985f37058475fce686cdcdc4322c8192c5a43722",
+      "status": 200,
+      "servedBytes": 1263008,
+      "servedSha256": "6bfcf02fe6c30eb05784850d985f37058475fce686cdcdc4322c8192c5a43722",
+      "type": "application/wasm"
+    },
+    {
+      "path": "wa-sqlite/wa-sqlite-jspi.wasm",
+      "bytes": 616372,
+      "sha256": "712e92d9d085e36f9f5d2af0f4190be4ff48caf2722dc676d9eadc20992774ba",
+      "status": 200,
+      "servedBytes": 616372,
+      "servedSha256": "712e92d9d085e36f9f5d2af0f4190be4ff48caf2722dc676d9eadc20992774ba",
+      "type": "application/wasm"
+    },
+    {
+      "path": "wa-sqlite/wa-sqlite.wasm",
+      "bytes": 610649,
+      "sha256": "aa0c2e6f606d49ecb276808bfd9f31176ecc73b5d9c9a80dd15c615fa801846c",
+      "status": 200,
+      "servedBytes": 610649,
+      "servedSha256": "aa0c2e6f606d49ecb276808bfd9f31176ecc73b5d9c9a80dd15c615fa801846c",
+      "type": "application/wasm"
+    }
+  ],
+  "artifactCount": 98,
+  "artifactBytes": 38976642,
+  "transport": "Isolated Chromium fetch; local Node/curl direct network timed out",
+  "externalPart": {
+    "url": "https://www.windrose.ai/assets/3d-data/x9d01_CN-X9D01A-1300001-assembly.glb",
+    "status": 200,
+    "type": "model/gltf-binary",
+    "bytes": "15479312",
+    "allowOrigin": "*"
+  }
+}

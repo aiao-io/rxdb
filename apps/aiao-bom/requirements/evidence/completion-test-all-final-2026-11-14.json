@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-14T05:49:06.245626+00:00",
+  "baseline": "main",
+  "headAtCompletion": "2c9a3347722d345a95b4af37efcecf6f0e57a1f9",
+  "affectedProjects": 114,
+  "tasks": 463,
+  "cached": 330,
+  "duration": "21m 3s",
+  "wallSeconds": 1270.258,
+  "exitCode": 0,
+  "originalScript": "nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --output-style=static --skipRemoteCache --parallel=4 --nxBail",
+  "override": {
+    "parallel": 1
+  },
+  "targets": [
+    "lint",
+    "typecheck",
+    "test",
+    "test-memory",
+    "test-browser",
+    "build",
+    "audit-lazy-backend",
+    "e2e"
+  ],
+  "rawLog": {
+    "path": "/tmp/bom-test-all-main-serial.log",
+    "bytes": 2802937,
+    "sha256": "4b8392fd64940a1e97c2abe7106502d559bef3852082b2b85ebeb814c397dcd5"
+  },
+  "historicalFlakyTasks": [
+    "rxdb-client-generator:test",
+    "rxdb-adapter-sqlite:test",
+    "rxdb-adapter-electron:test-memory"
+  ],
+  "newFailures": 0
+}

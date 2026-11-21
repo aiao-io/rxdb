@@ -35,6 +35,9 @@
 | Angular | `@aiao/rxdb-plugin-board-angular`        | `@angular/common 22.2.4`、`@angular/core 22.2.4`、`@angular/forms 22.2.4`                                                            | `^7.8.2` |
 | React   | `@aiao/rxdb-plugin-board-react`          | `react ^19.0.0`                                                                                                                      | `^7.8.2` |
 | Vue     | `@aiao/rxdb-plugin-board-vue`            | `vue ^3.5.0`                                                                                                                         | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-bom-angular`          | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-bom-react`            | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-bom-vue`              | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
 | Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
 | React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
 | Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
@@ -70,6 +73,7 @@ Angular 包目前仍使用精确 peer，各包的要求可能不同：例如 `rx
 | `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，微信 / 抖音 / 支付宝小程序逻辑层（抖音、支付宝 Android 未验证）；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`                                                       |
 | `@aiao/rxdb-taro`                | 构建插件   | **实验性**，Taro 4.3（vite 编译器）一行接入 `@aiao/rxdb-adapter-miniprogram`，微信 / 抖音；支付宝经 `./vite` 子路径；Node `>=20.19`；使用指南见 [Taro（小程序）](./frameworks/taro.md) |
 | `@aiao/rxdb-plugin-search`       | 插件       | 放行名单见下方「运行时能力 × 适配器」之后的说明；未放行的适配器 fail-fast                                                                                                              |
+| `@aiao/rxdb-plugin-bom`          | 插件       | BOM 领域模型与修订、生效域、数量展开、成本卷算及变更校验                                                                                                                               |
 | `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                                                                      |
 | `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记                                                                                                |
 | `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                                                                                                                       |
