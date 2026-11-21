@@ -6,6 +6,7 @@ const placeholder = '.finder-place-placeholder';
 const removeBadge = '.finder-place-remove';
 
 async function pickUpPlace(page, source) {
+  await source.scrollIntoViewIfNeeded();
   const from = await source.boundingBox();
   const x = from.x + from.width / 2;
   const y = from.y + from.height / 2;
@@ -16,10 +17,12 @@ async function pickUpPlace(page, source) {
 
 /** 从条目中心开始拖动，越过目标条目的中心。 */
 async function dragPlace(page, source, target) {
+  await target.scrollIntoViewIfNeeded();
   const to = await target.boundingBox();
-  const { x, y } = await pickUpPlace(page, source);
+  const { y } = await pickUpPlace(page, source);
+  const targetX = to.x + to.width / 2;
   const targetY = to.y + to.height / 2;
-  await page.mouse.move(x, targetY + Math.sign(targetY - y) * 4, { steps: 12 });
+  await page.mouse.move(targetX, targetY, { steps: 12 });
 }
 
 export const finderSidebar = {

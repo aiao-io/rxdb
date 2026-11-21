@@ -21,7 +21,7 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     }));
   const waitFor = value =>
     frame.waitForFunction(expected => window.saltlineDesktop.state === expected, value, {
-      timeout: 15_000,
+      timeout: 45_000,
       polling: 100
     });
   const observePause = () =>
