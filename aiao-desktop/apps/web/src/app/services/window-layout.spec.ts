@@ -146,7 +146,8 @@ function setup(options: Options = {}) {
     bounce: vi.fn(),
     stopBounce: vi.fn(),
     focusApp: vi.fn(),
-    rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 })
+    rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }),
+    setPointerX: vi.fn()
   });
   const wm = TestBed.inject(WindowManager);
   const store = TestBed.inject(WindowLayoutStore);

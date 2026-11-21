@@ -42,11 +42,6 @@
   opacity: 0;
 }
 
-#dock .di.drop-target .art {
-  transform: scale(1.12);
-  filter: drop-shadow(0 0 9px rgba(10, 132, 255, 0.7));
-}
-
 /* 跟着指针的图标；拖出 Dock 时旁边显示 Remove。fixed 定位必须在带 backdrop-filter 的 #dock 之外。 */
 .dock-ghost {
   position: fixed;

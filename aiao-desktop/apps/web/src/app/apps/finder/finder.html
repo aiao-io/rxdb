@@ -25,6 +25,7 @@
               [appFileDrop]="placeDirectory(place[0])"
               [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
               [attr.aria-keyshortcuts]="shortcuts.trim() || null"
+              [attr.data-drop-directory]="placeDirectory(place[0])?.join('/')"
               [attr.data-place]="place[0]"
               [cdkDragData]="place[0]"
               [cdkDragDisabled]="!removable && !reorderable"
@@ -228,6 +229,7 @@
       class="fx-body"
       #body
       [appFileDrop]="importDirectory()"
+      [attr.data-drop-directory]="importDirectory()?.join('/')"
       [cdkDropListData]="importDirectory()"
       [cdkDropListSortingDisabled]="true"
       [class.scroll]="view() !== 'column'"
@@ -239,7 +241,7 @@
       cdkDropListGroup
       data-body
     >
-      <div #marquee aria-hidden="true" class="finder-marquee"></div>
+      <div class="finder-marquee" #marquee aria-hidden="true"></div>
       @if (applicationsNote(); as note) {
         <div class="fx-note" data-finder-note role="status">{{ note }}</div>
       }
@@ -377,6 +379,7 @@
                   [appFileDrop]="ci === 0 ? importDirectory() : column.node.path"
                   [attr.aria-label]="column.node.name"
                   [attr.data-ci]="ci"
+                  [attr.data-drop-directory]="(ci === 0 ? importDirectory() : column.node.path)?.join('/')"
                   [cdkDropListData]="ci === 0 ? importDirectory() : column.node.path"
                   [cdkDropListSortingDisabled]="true"
                   [class.flex-col]="ci === last"

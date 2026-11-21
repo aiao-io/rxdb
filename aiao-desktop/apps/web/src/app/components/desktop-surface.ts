@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
-import { DESKTOP } from '../disk/disk-path';
+import { DESKTOP, DiskPath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
 import { MenuEntry } from '../services/menu';
@@ -52,6 +52,7 @@ export class DesktopSurface {
   private readonly root = inject(DOCUMENT).documentElement;
   private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
+  private dockDragHover = false;
   private folderHoverTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly desktop = inject(DesktopItems);
@@ -115,12 +116,13 @@ export class DesktopSurface {
         at: { left: origin.left + dx, top: clamp(origin.top + dy, 22, innerHeight - 120) }
       });
     };
-    const up = (): void => {
+    const up = (release: PointerEvent): void => {
       node.removeEventListener('pointermove', move);
       node.removeEventListener('pointerup', up);
       node.removeEventListener('pointercancel', cancel);
       const drop = this.dragging();
       const folderId = this.folderHover();
+      const finderDirectory = this.finderDropDirectory(release.clientX, release.clientY);
       const trash = this.dock.trashDropActive();
       this.clearDropTargets();
       if (!moved || !drop) {
@@ -137,9 +139,10 @@ export class DesktopSurface {
         return;
       }
       const folder = this.desktop.items().find(other => other.id === folderId);
-      if (folder?.node?.kind === 'folder' && folder.node.path) {
-        const copy = event.altKey || event.metaKey;
-        void this.desktop.transferToDirectory(selected, folder.node.path, copy).then(
+      const directory = folder?.node?.kind === 'folder' && folder.node.path ? folder.node.path : finderDirectory;
+      if (directory) {
+        const copy = release.altKey || release.metaKey;
+        void this.desktop.transferToDirectory(selected, directory, copy).then(
           () => {
             if (!copy) this.select(null);
           },
@@ -329,7 +332,18 @@ export class DesktopSurface {
     return { ids: [...this.selected()], toggleOnClick: false, collapseOnClick: false };
   }
 
+  private finderDropDirectory(x: number, y: number): DiskPath | null {
+    const encoded = document
+      .elementsFromPoint(x, y)
+      .map(element => element.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'])
+      .find(Boolean);
+    return encoded ? encoded.split('/') : null;
+  }
+
   private updateFolderHover(x: number, y: number, sourceId: string): void {
+    const overDock = this.dock.isDockAt(x, y);
+    this.dock.setPointerX(overDock ? x : null);
+    this.dockDragHover = overDock;
     if (this.dock.isTrashAt(x, y)) {
       this.clearFolderHover();
       this.dock.setTrashDropActive(true);
@@ -367,6 +381,8 @@ export class DesktopSurface {
 
   private clearDropTargets(): void {
     this.clearFolderHover();
+    if (this.dockDragHover) this.dock.setPointerX(null);
+    this.dockDragHover = false;
     this.dock.setTrashDropActive(false);
   }
 

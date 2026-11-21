@@ -144,6 +144,12 @@ export class Dock implements DockView, DockDropTarget {
     });
   }
 
+  setPointerX(clientX: number | null): void {
+    this.pointerX = clientX;
+    if (clientX === null) this.hideTip();
+    this.kick();
+  }
+
   focusApp(appId: string): void {
     const id = appId as DesktopAppId;
     /* 固定的图标，或还有别的窗口开着的未固定应用：图标留着，直接聚焦。否则图标这一帧还在、渲染后会消失，
@@ -227,14 +233,11 @@ export class Dock implements DockView, DockDropTarget {
 
   protected hover(clientX: number): void {
     if (this.drag.active()) return;
-    this.pointerX = clientX;
-    this.kick();
+    this.setPointerX(clientX);
   }
 
   protected leave(): void {
-    this.pointerX = null;
-    this.hideTip();
-    this.kick();
+    this.setPointerX(null);
   }
 
   protected press(event: PointerEvent, slot: DockSlot): void {
@@ -470,9 +473,7 @@ export class Dock implements DockView, DockDropTarget {
   /** 拖动开始时收起放大：拖动中指针不在图标上，放大的图标会挡住插入位置。 */
   private releaseHover(): void {
     if (!this.drag.active()) return;
-    this.pointerX = null;
-    this.hideTip();
-    this.kick();
+    this.setPointerX(null);
   }
 
   private kick(): void {

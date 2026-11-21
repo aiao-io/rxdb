@@ -20,7 +20,7 @@
       ],
       "options": {
         "cwd": "aiao-desktop/apps/e2e",
-        "command": "node src/smoke.mjs"
+        "command": "node src/smoke.mjs --parallel=1"
       }
     },
     "e2e-firefox": {

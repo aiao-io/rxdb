@@ -14,6 +14,7 @@ export interface DockView {
   bounce(appId: string): void;
   stopBounce(appId: string): void;
   rectFor(appId: string): DockRect;
+  setPointerX(clientX: number | null): void;
   /** 把键盘焦点交给应用的 Dock 图标；图标不在（未固定的应用退出后）时交给相邻的图标。 */
   focusApp(appId: string): void;
 }
@@ -41,6 +42,11 @@ export class DockState {
     return this.dock().rectFor(appId);
   }
 
+  /** 桌面图标拖动时复用 Dock 的鼠标悬停放大。 */
+  setPointerX(clientX: number | null): void {
+    this.dock().setPointerX(clientX);
+  }
+
   /** 键盘焦点交给应用的 Dock 图标：窗口全部关闭或最小化之后，焦点有处可去，按 Enter 就能再打开。 */
   focusApp(appId: string): void {
     this.dock().focusApp(appId);
@@ -48,9 +54,12 @@ export class DockState {
 
   /** 判断指针是否落在废纸篓图标上。 */
   isTrashAt(x: number, y: number): boolean {
-    return this.document
-      .elementsFromPoint(x, y)
-      .some(element => element.closest('#dock .di[data-app="trash"]') !== null);
+    return this.elementsAt(x, y).some(element => element.closest('#dock .di[data-app="trash"]') !== null);
+  }
+
+  /** 判断指针是否落在 Dock 上。 */
+  isDockAt(x: number, y: number): boolean {
+    return this.elementsAt(x, y).some(element => element.closest('#dock') !== null);
   }
 
   /** 切换桌面文件拖到废纸篓时的视觉反馈。 */
@@ -61,5 +70,9 @@ export class DockState {
   private dock(): DockView {
     if (!this.view) throw new Error('Dock view is not attached');
     return this.view;
+  }
+
+  private elementsAt(x: number, y: number): readonly Element[] {
+    return this.document.elementsFromPoint(x, y);
   }
 }

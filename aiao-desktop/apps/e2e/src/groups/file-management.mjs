@@ -17,6 +17,7 @@ export const fileManagement = {
     'fileManagement.desktopMoveToTrash',
     'fileManagement.desktopFileDragToTrash',
     'fileManagement.desktopFolderDrag',
+    'fileManagement.desktopFileDragToFinderFolder',
     'fileManagement.desktopFolderDragToTrash',
     'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
@@ -75,6 +76,7 @@ export const fileManagement = {
     await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toHaveCount(0);
     result.desktopMoveToTrash = true;
     await desktop.drop({ files: payload('drag-trash.txt', Buffer.from(text)) });
+    await desktop.drop({ files: payload('desktop-to-finder.txt', Buffer.from(text)) });
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toBeVisible();
     await dragDesktopIcon('drag-trash.txt', trashDockIcon);
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toHaveCount(0);
@@ -104,6 +106,21 @@ export const fileManagement = {
         `.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`
       )
     ).toBeVisible();
+    await dragDesktopIcon(
+      'desktop-to-finder.txt',
+      page.locator(
+        `.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`
+      )
+    );
+    await expect(desktop.locator('[data-id="file:desktop-to-finder.txt"]')).toHaveCount(0);
+    await page
+      .locator(`.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`)
+      .dblclick();
+    await expect(page.locator('.win.front[data-app="finder"]:not(.closing) [data-title]')).toHaveText(sourceFolder);
+    await expect(
+      page.locator('.win.front[data-app="finder"]:not(.closing) [data-name="desktop-to-finder.txt"]')
+    ).toBeVisible();
+    result.desktopFileDragToFinderFolder = true;
     await page.locator('.win.front[data-app="finder"]:not(.closing) [data-place="Desktop"]').click();
     await dragDesktopIcon(targetFolder, trashDockIcon);
     await expect(desktop.locator(`[data-id="file:${targetFolder}"]`)).toHaveCount(0);
@@ -313,9 +330,13 @@ export const fileManagement = {
     await finder().getByRole('button', { name: 'Icons', exact: true }).click();
     await item('clipboard-source.txt').click();
     const marqueeBody = finder().locator('[data-body]');
-    const marqueeTargets = await Promise.all([item('clipboard-source.txt').boundingBox(), item('drag-copy.txt').boundingBox()]);
+    const marqueeTargets = await Promise.all([
+      item('clipboard-source.txt').boundingBox(),
+      item('drag-copy.txt').boundingBox()
+    ]);
     const marqueeBodyBox = await marqueeBody.boundingBox();
-    if (!marqueeBodyBox || marqueeTargets.some(box => !box)) throw new Error('Finder marquee targets are not measurable');
+    if (!marqueeBodyBox || marqueeTargets.some(box => !box))
+      throw new Error('Finder marquee targets are not measurable');
     const measuredTargets = marqueeTargets.filter(Boolean);
     const marqueeLeft = Math.min(...measuredTargets.map(box => box.x)) - 8;
     const marqueeTop = Math.min(...measuredTargets.map(box => box.y)) - 8;

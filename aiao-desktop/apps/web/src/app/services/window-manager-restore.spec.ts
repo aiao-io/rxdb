@@ -38,7 +38,7 @@ function setup(width = 1440, height = 900) {
     ApplicationRuntime,
     { provide: DESKTOP_APPS, useValue: apps }
   ]);
-  const dock = { bounce: vi.fn(), stopBounce: vi.fn(), focusApp: vi.fn() };
+  const dock = { bounce: vi.fn(), stopBounce: vi.fn(), focusApp: vi.fn(), setPointerX: vi.fn() };
   TestBed.inject(DockState).attach({ ...dock, rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }) });
   return { wm: TestBed.inject(WindowManager), calls, dock, dom };
 }
