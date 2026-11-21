@@ -426,10 +426,7 @@ export const fileManagement = {
     const sourceBoxBeforeMove = await sourceFinder.boundingBox();
     const sourceTitleBox = await sourceFinder.locator('[data-title]').boundingBox();
     if (!sourceBoxBeforeMove || !sourceTitleBox) throw new Error('Source Finder window is not measurable');
-    await page.mouse.move(
-      sourceTitleBox.x + sourceTitleBox.width / 2,
-      sourceTitleBox.y + sourceTitleBox.height / 2
-    );
+    await page.mouse.move(sourceTitleBox.x + sourceTitleBox.width / 2, sourceTitleBox.y + sourceTitleBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(
       sourceTitleBox.x + sourceTitleBox.width / 2 - 220,
@@ -443,16 +440,11 @@ export const fileManagement = {
     const trashTitleBox = await trashFinder.locator('[data-title]').boundingBox();
     if (!trashFinderId || !trashTitleBox) throw new Error('Trash Finder is not measurable');
     const trashFinderWindow = page.locator(`#${trashFinderId}`);
-    await page.mouse.move(
-      trashTitleBox.x + trashTitleBox.width / 2,
-      trashTitleBox.y + trashTitleBox.height / 2
-    );
+    await page.mouse.move(trashTitleBox.x + trashTitleBox.width / 2, trashTitleBox.y + trashTitleBox.height / 2);
     await page.mouse.down();
-    await page.mouse.move(
-      trashTitleBox.x + trashTitleBox.width / 2 + 200,
-      trashTitleBox.y + trashTitleBox.height / 2,
-      { steps: 8 }
-    );
+    await page.mouse.move(trashTitleBox.x + trashTitleBox.width / 2 + 200, trashTitleBox.y + trashTitleBox.height / 2, {
+      steps: 8
+    });
     await page.mouse.up();
     const sourceBoxAfterMove = await sourceFinder.boundingBox();
     if (!sourceBoxAfterMove) throw new Error('Moved Source Finder window is not measurable');
@@ -487,7 +479,8 @@ export const fileManagement = {
         ['finder-window-trash.txt']
       )
     );
-    if (!trashPath.some(([name]) => name === '.Trash')) throw new Error(`Unexpected Finder drop path: ${JSON.stringify(trashPath)}`);
+    if (!trashPath.some(([name]) => name === '.Trash'))
+      throw new Error(`Unexpected Finder drop path: ${JSON.stringify(trashPath)}`);
     await expect(trashFinderWindow.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
     result.finderFileDragToTrashWindow = true;
     await place('Desktop');

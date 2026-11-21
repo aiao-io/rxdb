@@ -34,11 +34,26 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
 
-    # 每次都校验并补装 chromium。缓存可能只恢复了目录元数据，缺少实际可执行文件，
-    # `playwright install` 会在完整时快速跳过，在缓存残缺时自动修复。
+    # Playwright 用 marker 文件判断浏览器是否已安装。缓存若只恢复了 marker，
+    # 普通 `install` 会错误地跳过下载，所以这里按真实可执行文件决定是否强制补装。
     - name: Verify and install chromium
       shell: bash
-      run: pnpm exec playwright install chromium chromium-headless-shell
+      run: |
+        set -euo pipefail
+
+        chromium_bin=$(find "$HOME/.cache/ms-playwright" -type f -perm -111 \
+          -path '*/chrome-linux*/chrome' -print -quit 2>/dev/null || true)
+        if [ -z "$chromium_bin" ]; then
+          echo "未找到 Chromium 可执行文件，强制补装 Chromium"
+          pnpm exec playwright install --force chromium
+        fi
+
+        headless_shell_bin=$(find "$HOME/.cache/ms-playwright" -type f -perm -111 \
+          -path '*/chrome-headless-shell-linux*/chrome-headless-shell' -print -quit 2>/dev/null || true)
+        if [ -z "$headless_shell_bin" ]; then
+          echo "未找到 Chromium headless shell，强制补装 headless shell"
+          pnpm exec playwright install --force --only-shell chromium
+        fi
 
     # 这份配置对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界，
     # 同时把 runner 偶发不可达的 azure 镜像切到 archive 镜像。
@@ -59,7 +74,8 @@ runs:
         need=0
         found=0
         for bin in ~/.cache/ms-playwright/*/chrome-linux*/chrome \
-                   ~/.cache/ms-playwright/*/chrome-linux*/headless_shell; do
+                   ~/.cache/ms-playwright/*/chrome-linux*/headless_shell \
+                   ~/.cache/ms-playwright/*/chrome-headless-shell-linux*/chrome-headless-shell; do
           [ -x "$bin" ] || continue
           found=1
           if ldd "$bin" 2>/dev/null | grep -q 'not found'; then

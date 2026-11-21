@@ -343,9 +343,7 @@ export class DesktopSurface {
 
   private movableItems(ids: readonly string[]): readonly DesktopItem[] {
     const selected = new Set(ids);
-    return this.desktop
-      .items()
-      .filter(item => selected.has(item.id) && Boolean(item.node?.path?.length));
+    return this.desktop.items().filter(item => selected.has(item.id) && Boolean(item.node?.path?.length));
   }
 
   private clearMoving(ids: readonly string[]): void {
