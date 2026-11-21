@@ -47,7 +47,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.156.2'
+          wranglerVersion: '4.165.0'
           command: pages deploy .nx/website-preview-closed --project-name=rxdb --branch=pr-${{ env.PR_NUMBER }} --commit-dirty=false
       - name: Delete this PR's old preview deployments
         if: steps.current-pr.outputs.eligible == 'true'
