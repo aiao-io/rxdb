@@ -34,25 +34,43 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
 
-    # Playwright 用 marker 文件判断浏览器是否已安装。缓存若只恢复了 marker，
-    # 普通 `install` 会错误地跳过下载，所以这里按真实可执行文件决定是否强制补装。
+    # Playwright 用 marker 文件判断浏览器是否已安装。缓存可能同时含有多个版本，
+    # 所以先用当前 CLI 的安装目录定位，再按真实可执行文件决定是否强制补装。
     - name: Verify and install chromium
       shell: bash
       run: |
         set -euo pipefail
 
-        chromium_bin=$(find "$HOME/.cache/ms-playwright" -type f -perm -111 \
-          -path '*/chrome-linux*/chrome' -print -quit 2>/dev/null || true)
+        chromium_dir=$(pnpm exec playwright install --dry-run --no-shell chromium \
+          | awk '/Chrome for Testing/{capture=1; next} capture && /Install location:/ {print $3; exit}')
+        headless_shell_dir=$(pnpm exec playwright install --dry-run --only-shell chromium \
+          | awk '/Chrome Headless Shell/{capture=1; next} capture && /Install location:/ {print $3; exit}')
+
+        chromium_bin=''
+        if [ -n "$chromium_dir" ]; then
+          chromium_bin=$(find "$chromium_dir" -type f -perm -111 -name chrome -print -quit 2>/dev/null || true)
+        fi
         if [ -z "$chromium_bin" ]; then
-          echo "未找到 Chromium 可执行文件，强制补装 Chromium"
-          pnpm exec playwright install --force chromium
+          echo "未找到当前版本的 Chromium，强制补装 Chromium"
+          pnpm exec playwright install --force --no-shell chromium
         fi
 
-        headless_shell_bin=$(find "$HOME/.cache/ms-playwright" -type f -perm -111 \
-          -path '*/chrome-headless-shell-linux*/chrome-headless-shell' -print -quit 2>/dev/null || true)
+        headless_shell_bin=''
+        if [ -n "$headless_shell_dir" ]; then
+          headless_shell_bin=$(find "$headless_shell_dir" -type f -perm -111 \
+            -name chrome-headless-shell -print -quit 2>/dev/null || true)
+        fi
         if [ -z "$headless_shell_bin" ]; then
-          echo "未找到 Chromium headless shell，强制补装 headless shell"
+          echo "未找到当前版本的 Chromium headless shell，强制补装 headless shell"
           pnpm exec playwright install --force --only-shell chromium
+        fi
+
+        chromium_bin=$(find "$chromium_dir" -type f -perm -111 -name chrome -print -quit 2>/dev/null || true)
+        headless_shell_bin=$(find "$headless_shell_dir" -type f -perm -111 \
+          -name chrome-headless-shell -print -quit 2>/dev/null || true)
+        if [ -z "$chromium_bin" ] || [ -z "$headless_shell_bin" ]; then
+          echo "Playwright 浏览器安装后仍缺少当前版本的可执行文件" >&2
+          exit 1
         fi
 
     # 这份配置对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界，
