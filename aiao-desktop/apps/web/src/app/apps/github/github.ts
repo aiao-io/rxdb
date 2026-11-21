@@ -1,4 +1,28 @@
-import { Component, computed, DestroyRef, inject, signal, ViewEncapsulation } from '@angular/core';
+import {
+  ApplicationRef,
+  ChangeDetectorRef,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  NgZone,
+  signal,
+  ViewEncapsulation,
+  viewChild
+} from '@angular/core';
+import {
+  LucideCheck as Check,
+  LucideChevronDown as ChevronDown,
+  LucideCopy as Copy,
+  LucideDynamicIcon,
+  LucideFileDiff as FileDiff,
+  LucideFilter as Filter,
+  LucideGitBranch as BranchIcon,
+  LucideMoreVertical as MoreVertical,
+  LucideSearch as Search,
+  LucideTrash2 as Trash2
+} from '@lucide/angular';
 
 import { DesktopWindow } from '../../services/desktop-window';
 import {
@@ -25,6 +49,25 @@ import { TrafficLights } from '../../shared/traffic-lights';
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 type GithubTab = 'changes' | 'history';
+type GithubChangeKind = 'all' | 'added' | 'modified' | 'deleted';
+
+interface GithubDiffLine {
+  readonly oldNumber: number | null;
+  readonly newNumber: number | null;
+  readonly oldText: string | null;
+  readonly newText: string | null;
+  readonly same: boolean;
+}
+
+type GithubContextMenu =
+  | { readonly kind: 'file'; readonly path: string; readonly x: number; readonly y: number }
+  | { readonly kind: 'branch'; readonly name: string; readonly x: number; readonly y: number }
+  | { readonly kind: 'commit'; readonly oid: string; readonly x: number; readonly y: number };
+
+type GithubContextMenuTarget =
+  | { readonly kind: 'file'; readonly path: string }
+  | { readonly kind: 'branch'; readonly name: string }
+  | { readonly kind: 'commit'; readonly oid: string };
 
 const ASIDE_WIDTH_MIN = 240;
 const ASIDE_WIDTH_MAX = 560;
@@ -61,9 +104,33 @@ function projectIdForLocal(name: string): string {
   return `local-${(slug || 'repository').slice(0, 48)}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+function linesOf(text: string | null): readonly string[] {
+  if (text === null) return [];
+  const lines = text.split('\n');
+  return lines.length > 1 && lines.at(-1) === '' ? lines.slice(0, -1) : lines;
+}
+
+function diffLinesOf(value: GitFileDiff | null): readonly GithubDiffLine[] {
+  if (!value || value.base.binary || value.modified.binary) return [];
+  const oldLines = linesOf(value.base.text);
+  const newLines = linesOf(value.modified.text);
+  const length = Math.max(oldLines.length, newLines.length);
+  return Array.from({ length }, (_, index) => {
+    const oldText = oldLines[index] ?? null;
+    const newText = newLines[index] ?? null;
+    return {
+      oldNumber: oldText === null ? null : index + 1,
+      newNumber: newText === null ? null : index + 1,
+      oldText,
+      newText,
+      same: oldText !== null && oldText === newText
+    };
+  });
+}
+
 @Component({
   selector: 'app-github',
-  imports: [TrafficLights],
+  imports: [TrafficLights, LucideDynamicIcon],
   templateUrl: './github.html',
   encapsulation: ViewEncapsulation.None,
   host: {
@@ -72,6 +139,9 @@ function projectIdForLocal(name: string): string {
 })
 export class GithubApp {
   private readonly win = inject(DesktopWindow);
+  private readonly applicationRef = inject(ApplicationRef);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
   private readonly store = inject(GithubRepositoryStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly backend = new GithubGitBackend();
@@ -95,7 +165,9 @@ export class GithubApp {
   private readonly remote = new GithubRemoteRepository(this.api);
   private readonly unsubscribeAuth: () => void;
   private currentRevision = 0;
+  private restorePromise: Promise<void> | null = null;
   private readonly storageListener: (event: StorageEvent) => void;
+  private readonly commitMessageInput = viewChild<ElementRef<HTMLTextAreaElement>>('commitMessageInput');
 
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
@@ -125,7 +197,13 @@ export class GithubApp {
   protected readonly commitValue = signal('');
   protected readonly patValue = signal('');
   protected readonly repositoryMenuOpen = signal(false);
-  protected readonly remoteActionsOpen = signal(false);
+  protected readonly branchMenuOpen = signal(false);
+  protected readonly branchFilter = signal('');
+  protected readonly changeFilter = signal('');
+  protected readonly changeKind = signal<GithubChangeKind>('all');
+  protected readonly changeKindOpen = signal(false);
+  protected readonly contextMenu = signal<GithubContextMenu | null>(null);
+  protected readonly changeKinds: readonly GithubChangeKind[] = ['all', 'added', 'modified', 'deleted'];
   protected readonly asideWidth = signal(320);
   protected readonly lastFetchedAt = signal<number | null>(null);
   protected readonly selectedCommitOid = signal<string | null>(null);
@@ -151,6 +229,36 @@ export class GithubApp {
     const commits = this.history();
     return commits.find(commit => commit.oid === selected) ?? commits[0] ?? null;
   });
+  protected readonly filteredEntries = computed(() => {
+    const needle = this.changeFilter().trim().toLowerCase();
+    const kind = this.changeKind();
+    return this.changedEntries().filter(entry => {
+      const matchesText = entry.path.toLowerCase().includes(needle);
+      const matchesKind = kind === 'all' || this.changeKindFor(entry) === kind;
+      return matchesText && matchesKind;
+    });
+  });
+  protected readonly visibleFiles = computed(() => {
+    const entries = this.changedEntries();
+    if (!entries.length) return this.files();
+    const paths = new Set(this.filteredEntries().map(entry => entry.path));
+    return this.files().filter(file => paths.has(file.path));
+  });
+  protected readonly filteredBranches = computed(() => {
+    const needle = this.branchFilter().trim().toLowerCase();
+    return this.branches().filter(branch => branch.name.toLowerCase().includes(needle));
+  });
+  protected readonly diffLines = computed(() => diffLinesOf(this.diff()));
+
+  protected readonly Check = Check;
+  protected readonly ChevronDown = ChevronDown;
+  protected readonly Copy = Copy;
+  protected readonly FileDiff = FileDiff;
+  protected readonly Filter = Filter;
+  protected readonly GitBranch = BranchIcon;
+  protected readonly MoreVertical = MoreVertical;
+  protected readonly Search = Search;
+  protected readonly Trash2 = Trash2;
 
   constructor() {
     this.storageListener = event => {
@@ -167,7 +275,7 @@ export class GithubApp {
   }
 
   protected setValue(
-    target: 'repo' | 'branch' | 'newRepo' | 'newBranch' | 'commit' | 'pat' | 'search',
+    target: 'repo' | 'branch' | 'newRepo' | 'newBranch' | 'commit' | 'pat' | 'search' | 'branchFilter' | 'changeFilter',
     event: Event
   ): void {
     const element = event.target;
@@ -180,9 +288,13 @@ export class GithubApp {
     if (target === 'newBranch') this.newBranchValue.set(value);
     if (target === 'commit') this.commitValue.set(value);
     if (target === 'pat') this.patValue.set(value);
+    if (target === 'branchFilter') this.branchFilter.set(value);
+    if (target === 'changeFilter') this.changeFilter.set(value);
   }
 
   protected toggleRepositoryMenu(): void {
+    this.branchMenuOpen.set(false);
+    this.closeContextMenu();
     this.repositoryMenuOpen.update(open => !open);
   }
 
@@ -190,8 +302,104 @@ export class GithubApp {
     this.repositoryMenuOpen.set(false);
   }
 
-  protected toggleRemoteActions(): void {
-    this.remoteActionsOpen.update(open => !open);
+  protected toggleBranchMenu(): void {
+    this.repositoryMenuOpen.set(false);
+    this.closeContextMenu();
+    this.branchMenuOpen.update(open => !open);
+  }
+
+  protected closeBranchMenu(): void {
+    this.branchMenuOpen.set(false);
+  }
+
+  protected toggleChangeKind(): void {
+    this.changeKindOpen.update(open => !open);
+  }
+
+  protected closeChangeKind(): void {
+    this.changeKindOpen.set(false);
+  }
+
+  protected setChangeKind(kind: GithubChangeKind): void {
+    this.changeKind.set(kind);
+    this.changeKindOpen.set(false);
+  }
+
+  protected changeKindLabel(): string {
+    const labels: Record<GithubChangeKind, string> = {
+      all: 'All',
+      added: 'Added',
+      modified: 'Modified',
+      deleted: 'Deleted'
+    };
+    return labels[this.changeKind()];
+  }
+
+  protected openContextMenu(event: MouseEvent, menu: GithubContextMenuTarget): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const width = 230;
+    const height = menu.kind === 'file' ? 180 : 125;
+    this.contextMenu.set({
+      ...menu,
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
+    });
+  }
+
+  protected closeContextMenu(): void {
+    this.contextMenu.set(null);
+  }
+
+  protected async copyValue(value: string): Promise<void> {
+    this.closeContextMenu();
+    try {
+      await navigator.clipboard.writeText(value);
+      this.notice.set(`Copied ${value}`);
+    } catch (error) {
+      this.fail(error);
+    }
+  }
+
+  protected async deleteBranch(branch: string): Promise<void> {
+    const record = this.activeRecord();
+    if (!record || branch === this.currentBranch()) return;
+    this.closeContextMenu();
+    await this.run(async () => {
+      this.branches.set(await this.backend.deleteBranch(record.projectId, branch));
+      this.notice.set(`Deleted branch ${branch}`);
+    });
+  }
+
+  protected async restoreFromContext(oid: string): Promise<void> {
+    this.closeContextMenu();
+    await this.restore(oid);
+  }
+
+  protected contextSelectFile(path: string): void {
+    this.closeContextMenu();
+    this.selectFile(path);
+  }
+
+  protected async contextShowDiff(path: string): Promise<void> {
+    const entry = this.statusEntryForPath(path);
+    this.closeContextMenu();
+    await this.showDiff(path, entry && this.isStaged(entry) ? 'staged' : 'working');
+  }
+
+  protected async contextStage(path: string): Promise<void> {
+    this.closeContextMenu();
+    await this.stage(path);
+  }
+
+  protected async contextUnstage(path: string): Promise<void> {
+    this.closeContextMenu();
+    await this.unstage(path);
+  }
+
+  protected async contextDiscard(path: string): Promise<void> {
+    this.closeContextMenu();
+    await this.discard(path);
   }
 
   protected async fetchOrigin(): Promise<void> {
@@ -310,7 +518,7 @@ export class GithubApp {
     this.diff.set(null);
   }
 
-  protected async openStored(record: GithubRepositoryRecord): Promise<void> {
+  protected async openStored(record: GithubRepositoryRecord, closeMenu = true): Promise<void> {
     if (!this.ensureEditorSaved()) return;
     await this.run(async () => {
       const snapshot = await this.backend.open(record.projectId);
@@ -320,7 +528,7 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       await this.refresh();
       this.notice.set(`Opened ${record.name}`);
-      this.repositoryMenuOpen.set(false);
+      if (closeMenu) this.repositoryMenuOpen.set(false);
     });
   }
 
@@ -534,14 +742,20 @@ export class GithubApp {
 
   protected async commit(): Promise<void> {
     const record = this.activeRecord();
-    const message = this.commitValue().trim();
+    const message = this.commitValue().trim() || this.commitMessageInput()?.nativeElement.value.trim() || '';
     if (!record || !message) return;
     await this.run(async () => {
       const oid = await this.backend.commit(record.projectId, message);
       this.commitValue.set('');
+      const input = this.commitMessageInput()?.nativeElement;
+      if (input) input.value = '';
       await this.refresh();
       this.notice.set(`Committed ${oid.slice(0, 8)}`);
     });
+  }
+
+  protected commitReady(): boolean {
+    return Boolean(this.commitValue().trim() || this.commitMessageInput()?.nativeElement.value.trim());
   }
 
   protected async createBranch(): Promise<void> {
@@ -551,6 +765,8 @@ export class GithubApp {
     await this.run(async () => {
       this.branches.set(await this.backend.createBranch(record.projectId, branch));
       this.newBranchValue.set('');
+      this.branchFilter.set('');
+      this.branchMenuOpen.set(false);
       this.notice.set(`Created branch ${branch}`);
     });
   }
@@ -563,6 +779,7 @@ export class GithubApp {
   protected async checkout(branch: string, force = false): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
+    this.branchMenuOpen.set(false);
     if (this.editorDirty()) {
       this.fail(new Error('请先保存当前文件再切换分支'));
       return;
@@ -745,6 +962,12 @@ export class GithubApp {
     return 'Changed';
   }
 
+  protected changeKindFor(entry: GitStatusEntry): Exclude<GithubChangeKind, 'all'> {
+    if (entry.index === 'D' || entry.worktree === 'D') return 'deleted';
+    if (entry.index === '?' && entry.worktree === '?') return 'added';
+    return 'modified';
+  }
+
   protected isStaged(entry: GitStatusEntry): boolean {
     return entry.index !== ' ' && entry.index !== '?';
   }
@@ -765,7 +988,14 @@ export class GithubApp {
   private async restoreLastRepository(): Promise<void> {
     await this.store.ready();
     const record = this.records()[0];
-    if (record) await this.openStored(record);
+    if (!record) return;
+    const pending = Promise.resolve().then(() => this.openStored(record, false));
+    this.restorePromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.restorePromise === pending) this.restorePromise = null;
+    }
   }
 
   private async refresh(): Promise<void> {
@@ -823,7 +1053,14 @@ export class GithubApp {
   }
 
   private async run(task: () => Promise<void>): Promise<void> {
-    if (this.busy()) return;
+    if (this.busy()) {
+      const restore = this.restorePromise;
+      if (restore) {
+        await restore;
+        return this.run(task);
+      }
+      return;
+    }
     this.busy.set(true);
     this.fail(null);
     try {
@@ -832,7 +1069,13 @@ export class GithubApp {
       this.fail(error);
       if (errorCodeOf(error) === 'storage_failed') this.backend.restart();
     } finally {
-      this.busy.set(false);
+      this.zone.run(() => {
+        this.busy.set(false);
+        if (!this.destroyRef.destroyed) {
+          this.changeDetectorRef.detectChanges();
+          this.applicationRef.tick();
+        }
+      });
     }
   }
 

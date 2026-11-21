@@ -307,6 +307,10 @@ export class GithubGitBackend {
     return this.call('createBranch', { projectId, branch }).then(branches);
   }
 
+  deleteBranch(projectId: string, branch: string): Promise<readonly GitBranch[]> {
+    return this.call('deleteBranch', { projectId, branch }).then(branches);
+  }
+
   checkout(projectId: string, branch: string, force = false): Promise<GitStatus> {
     return this.call('checkout', { projectId, branch, force }).then(status);
   }

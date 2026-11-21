@@ -245,6 +245,20 @@ describe('GitHub Git Worker backend', () => {
     );
   });
 
+  it('forwards branch deletion and validates the returned branch list', async () => {
+    const current = new FakeWorker();
+    const backend = new GithubGitBackend(() => worker(current));
+    const branches = [{ name: 'main', oid: null, current: true }];
+    const pending = backend.deleteBranch('project', 'feature');
+
+    expect(current.messages).toEqual([
+      { id: 1, action: 'deleteBranch', payload: { projectId: 'project', branch: 'feature' } }
+    ]);
+    current.reply(1, branches);
+
+    await expect(pending).resolves.toEqual(branches);
+  });
+
   it('cleans up a synchronously failed postMessage and rejects future calls after dispose', async () => {
     const current = new FakeWorker();
     current.shouldThrow = true;

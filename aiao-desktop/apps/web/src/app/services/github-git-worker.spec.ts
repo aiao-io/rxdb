@@ -16,6 +16,7 @@ const fixture = vi.hoisted(() => ({
   commit: vi.fn(),
   branches: vi.fn(),
   createBranch: vi.fn(),
+  deleteBranch: vi.fn(),
   checkout: vi.fn(),
   history: vi.fn(),
   restore: vi.fn(),
@@ -87,6 +88,7 @@ describe('GitHub Git Worker protocol', () => {
     'commit',
     'branches',
     'createBranch',
+    'deleteBranch',
     'checkout',
     'history',
     'restore',
@@ -105,6 +107,7 @@ describe('GitHub Git Worker protocol', () => {
     if (action === 'move') expect(fixture.move).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
     if (action === 'readDiff') expect(fixture.readDiff).toHaveBeenCalledWith('project', 'old.ts', 'staged');
     if (action === 'createBranch') expect(fixture.createBranch).toHaveBeenCalledWith('project', 'feature');
+    if (action === 'deleteBranch') expect(fixture.deleteBranch).toHaveBeenCalledWith('project', 'feature');
     if (action === 'checkout') expect(fixture.checkout).toHaveBeenCalledWith('project', 'feature', false);
   });
 

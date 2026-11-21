@@ -393,6 +393,31 @@ describe('Git workspace operation contract', () => {
     ]);
   });
 
+  it('deletes loose and packed branches while preserving the current branch', async () => {
+    await runtime.initialize('project', [file('README.md', 'fixture')]);
+    await runtime.stage('project', ['README.md']);
+    const oid = await runtime.commit('project', 'initial');
+    const repository = '/aiao-browser-workbench/projects/project/repository';
+    const heads = `${repository}/.git/refs/heads`;
+    fixture.disk.writeFile(`${heads}/feature`, new TextEncoder().encode(`${oid}\n`));
+    fixture.disk.writeFile(
+      `${repository}/.git/packed-refs`,
+      new TextEncoder().encode(`# pack-refs with: peeled fully-peeled\n${oid} refs/heads/packed\n`)
+    );
+
+    await expect(runtime.deleteBranch('project', 'feature')).resolves.toEqual([
+      { name: 'main', oid, current: true },
+      { name: 'packed', oid, current: false }
+    ]);
+    expect(fixture.disk.analyzePath(`${heads}/feature`).exists).toBe(false);
+
+    await expect(runtime.deleteBranch('project', 'packed')).resolves.toEqual([{ name: 'main', oid, current: true }]);
+    expect(new TextDecoder().decode(fixture.disk.readFile(`${repository}/.git/packed-refs`))).toBe(
+      '# pack-refs with: peeled fully-peeled\n'
+    );
+    await expect(runtime.deleteBranch('project', 'main')).rejects.toMatchObject({ code: 'git_failed' });
+  });
+
   it('validates branch names before invoking the Git runtime', async () => {
     await runtime.initialize('project', [file('README.md', 'fixture')]);
     for (const name of [

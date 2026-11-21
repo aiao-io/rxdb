@@ -367,6 +367,54 @@ export class GitWorkbenchRuntime {
     });
   }
 
+  async deleteBranch(projectId: string, name: string): Promise<readonly GitBranch[]> {
+    return this.lock(projectId, true, async context => {
+      this.assertBranchName(name);
+      const current = await this.statusContext(context);
+      if (current.branch === name) throw new GitWorkbenchError('git_failed', 'Cannot delete the current branch');
+      if (!this.readBranchRefs(context.root).has(name))
+        throw new GitWorkbenchError('git_failed', `Branch does not exist: ${name}`);
+      return this.mutate(
+        context,
+        async () => {
+          const looseRef = `${context.root}/.git/refs/heads/${name}`;
+          if (this.fs.analyzePath(looseRef).exists) {
+            await this.removePersistent(context.root, `.git/refs/heads/${name}`);
+          } else {
+            const packedPath = `${context.root}/.git/packed-refs`;
+            const packed = this.fs.analyzePath(packedPath).exists ? new TextDecoder().decode(this.fs.readFile(packedPath)) : '';
+            const lines = packed.split('\n');
+            const ref = `refs/heads/${name}`;
+            const nextLines: string[] = [];
+            let removed = false;
+            for (const line of lines) {
+              if (line.endsWith(` ${ref}`)) {
+                removed = true;
+                continue;
+              }
+              if (removed && line.startsWith('^')) {
+                removed = false;
+                continue;
+              }
+              nextLines.push(line);
+              removed = false;
+            }
+            if (!packed || nextLines.join('\n') === packed)
+              throw new GitWorkbenchError('git_failed', `Cannot delete branch: ${name}`);
+            await this.writeRepositoryFile(
+              context,
+              '.git/packed-refs',
+              new TextEncoder().encode(nextLines.join('\n')) as Uint8Array<ArrayBuffer>
+            );
+          }
+          const result = await this.branchesContext(context);
+          return () => result;
+        },
+        false
+      );
+    });
+  }
+
   async checkout(projectId: string, name: string, force = false): Promise<GitStatus> {
     return this.lock(projectId, true, async context => {
       this.assertBranchName(name);

@@ -126,6 +126,8 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.branches(projectId);
     case 'createBranch':
       return git.createBranch(projectId, payload.branch ?? '');
+    case 'deleteBranch':
+      return git.deleteBranch(projectId, payload.branch ?? '');
     case 'checkout':
       return git.checkout(projectId, payload.branch ?? '', payload.force ?? false);
     case 'history':

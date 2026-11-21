@@ -328,6 +328,7 @@ export const githubApp = {
     result.commitAndHistory = (await githubWindow.locator('.gh-commit-row').count()) >= 2;
     await githubWindow.locator('[data-github-tab="changes"]').click();
 
+    await githubWindow.locator('[data-github-branch-menu]').click();
     await githubWindow.locator('[data-github-new-branch]').fill('feature');
     await githubWindow.locator('[data-github-create-branch]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Created branch feature' }).waitFor();
