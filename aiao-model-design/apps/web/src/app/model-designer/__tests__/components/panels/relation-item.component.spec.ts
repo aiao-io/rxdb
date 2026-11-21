@@ -127,7 +127,7 @@ describe('RelationItemComponent changes and state', () => {
         relationKind: 'MANY_TO_ONE',
         mappedEntityId: 'e2',
         designEntityId: 'e2'
-      } as DesignRelation
+      } as unknown as DesignRelation
     ]);
     fixture.detectChanges();
 
@@ -171,7 +171,7 @@ describe('RelationItemComponent changes and state', () => {
       mappedPropertyId: 'p1',
       onDeleteAction: 'CASCADE',
       onUpdateAction: 'RESTRICT'
-    } as DesignRelation);
+    } as unknown as DesignRelation);
     fixture.detectChanges();
 
     const form = component.relationForm;

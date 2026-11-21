@@ -10,6 +10,10 @@ describe('calculateLayout', () => {
     expect(calculateLayout(1, [{ nodeX: 200, nodeY: 100, nodeWidth: 240 }])[0].x).toBeGreaterThan(200);
   });
 
+  it('已有实体缺少宽度时使用默认宽度', () => {
+    expect(calculateLayout(1, [{ nodeX: 200, nodeY: 100 }])[0].x).toBe(640);
+  });
+
   it('每行 3 个，第 4 个换行', () => {
     const positions = calculateLayout(6, []);
     expect(positions[0].y).toBe(positions[1].y);

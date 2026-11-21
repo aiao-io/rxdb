@@ -149,7 +149,7 @@ describe('PropertyItemComponent type dropdown keyboard navigation', () => {
     component.typeSelectOpen.set(true);
     component.closeTypeSelect();
     expect(component.typeSelectOpen()).toBe(false);
-    expect(component.highlighted()).toBeNull();
+    expect((component as unknown as { highlighted: () => string | null }).highlighted()).toBeNull();
 
     component.onTypeTriggerKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(component.typeSelectOpen()).toBe(false);
@@ -245,7 +245,7 @@ describe('PropertyItemComponent changes and validation', () => {
       displayName: null,
       defaultValue: null,
       enumValues: null
-    } as DesignProperty;
+    } as unknown as DesignProperty;
     const fixture = setup(
       {
         propertyType: 'keyValue',
@@ -294,7 +294,7 @@ describe('PropertyItemComponent changes and validation', () => {
       displayName: null,
       defaultValue: null,
       enumValues: null
-    } as DesignProperty);
+    } as unknown as DesignProperty);
     fixture.componentRef.setInput('isChild', true);
     fixture.detectChanges();
     const childUpdated = vi.fn();

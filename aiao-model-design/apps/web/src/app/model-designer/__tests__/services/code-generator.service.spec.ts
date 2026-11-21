@@ -411,7 +411,7 @@ describe('CodeGeneratorService', () => {
       const index = makeIndex('i1', ['missing'], false);
 
       const result = service.toMetadataOptions(entity, [prop], [relation], [index], [entity], new Map());
-      const generatedProperty = result.properties?.[0] as Record<string, unknown>;
+      const generatedProperty = result.properties?.[0] as unknown as Record<string, unknown>;
 
       expect(generatedProperty).toMatchObject({
         unique: true,

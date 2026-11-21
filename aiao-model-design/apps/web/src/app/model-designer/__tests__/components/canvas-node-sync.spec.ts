@@ -273,9 +273,9 @@ function mockCanvasGraph(initialNodes: MockCanvasNode[]) {
       if (index >= 0) nodes.splice(index, 1);
     },
     addNode: (config: Record<string, unknown>) => {
-      const node = mockCanvasNode(String(config.id), {
-        position: { x: Number(config.x ?? 0), y: Number(config.y ?? 0) },
-        size: { width: Number(config.width ?? 240), height: Number(config.height ?? 80) }
+      const node = mockCanvasNode(String(config['id']), {
+        position: { x: Number(config['x'] ?? 0), y: Number(config['y'] ?? 0) },
+        size: { width: Number(config['width'] ?? 240), height: Number(config['height'] ?? 80) }
       });
       nodes.push(node);
       cells.set(node.id, node);
@@ -323,7 +323,7 @@ describe('syncGraphNodes', () => {
     await Promise.resolve();
 
     expect(state.removed).toEqual(['stale', 'ns:stale']);
-    expect(state.added.map(item => item.id)).toEqual(['order']);
+    expect(state.added.map(item => item['id'])).toEqual(['order']);
     expect(state.cells.get('ns:default')?.attrs.get('label/text')).toBe('default');
     expect(state.cells.get('order')?.getPorts().map(port => port.id)).toEqual([
       'rl:relation-1',
@@ -331,7 +331,7 @@ describe('syncGraphNodes', () => {
       'entity:left',
       'entity:right'
     ]);
-    expect(state.added.find(item => item.id === 'order')?.data).toBeDefined();
+    expect(state.added.find(item => item['id'] === 'order')?.['data']).toBeDefined();
   });
 
   it('updates existing nodes, reparents them, and honors skipped positions', async () => {
@@ -418,6 +418,7 @@ describe('syncFieldPorts edge cases', () => {
     const setPortProp = vi.fn();
     const addPort = vi.fn();
     const node = {
+      id: 'order',
       getPorts: () => [
         { id: 'rl:relation-1', group: 'field-left', args: { x: 0, y: 10 } },
         { id: 'entity:left', group: 'entity-left', args: { x: 0, y: 50 } },
