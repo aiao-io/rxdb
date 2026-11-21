@@ -34,10 +34,9 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ runner.os }}-${{ steps.version.outputs.version }}
 
-    # 只下二进制，不碰 apt —— 系统依赖交给下面的探测步骤统一处理，
-    # 这样 cache 命中与否走的是同一条依赖路径，少一种只在冷缓存下才炸的组合。
-    - name: Install chromium
-      if: steps.cache.outputs.cache-hit != 'true'
+    # 每次都校验并补装 chromium。缓存可能只恢复了目录元数据，缺少实际可执行文件，
+    # `playwright install` 会在完整时快速跳过，在缓存残缺时自动修复。
+    - name: Verify and install chromium
       shell: bash
       run: pnpm exec playwright install chromium
 
