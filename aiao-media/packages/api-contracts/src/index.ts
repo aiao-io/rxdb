@@ -1,6 +1,7 @@
 export * from './contracts/image-format.ts';
 export * from './contracts/image-provider-protocol.ts';
 export * from './contracts/index.ts';
+export * from './contracts/media-capabilities.ts';
 export * from './contracts/product-data.mjs';
 export * from './contracts/relay-task.ts';
 export type { CreditAccount, CreditEntry, CreditSnapshot } from './credits';

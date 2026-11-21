@@ -29,6 +29,8 @@ test('公开 OpenAPI 文档包含稳定的产品接口', async () => {
     '/api/admin/users/{userId}/credits',
     '/api/templates',
     '/api/models',
+    '/api/media/capabilities',
+    '/api/media/inputs',
     '/api/relay/tasks/{taskId}',
     '/api/relay/tasks/{taskId}/result',
     '/api/relay/tasks/{taskId}/abandon',

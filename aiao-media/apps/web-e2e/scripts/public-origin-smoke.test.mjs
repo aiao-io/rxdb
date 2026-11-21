@@ -29,7 +29,7 @@ test('正式烟测必须绑定审核过的发布版本和产物摘要，不读�
 });
 
 test('网络边界拒绝生成、探针、远程写入和外站，不制造成功响应', () => {
-  for (const path of ['/', '/create', '/offline-worker.js', '/api/templates', '/api/models'])
+  for (const path of ['/', '/create', '/offline-worker.js', '/api/templates', '/api/models', '/api/media/capabilities'])
     assert.equal(allowedPublicRequest(origin, `${origin}${path}`, 'GET'), true);
   for (const path of [
     '/api/relay',

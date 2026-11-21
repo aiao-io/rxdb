@@ -116,8 +116,7 @@
     "vtable",
     "vueuse",
     "Wechat",
-    "Worktree",
-    "Wujie"
+    "Worktree"
   ],
   "chat.promptFilesRecommendations": {
     "speckit.constitution": true,

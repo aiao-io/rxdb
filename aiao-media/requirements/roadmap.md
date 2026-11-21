@@ -6,6 +6,10 @@
 
 **选模板或写提示词 → 登录平台账号 → 积分校验 → 单模型生成 1 张 PNG/JPEG → 预览 → RxDB 本机保存 → 下载 → 反馈。** 模型与凭据由平台统一托管（D-19）；未登录保留本机草稿、灵感浏览与本机作品，生成与跨设备同步需要登录。
 
+## 音视频生成主路径
+
+**选择 TTS、ASR、音乐或视频 → 登录平台账号 → 积分校验 → 创建服务端任务 → 预览或查看文本 → RxDB/OPFS 本机保存 → 下载。** 首阶段覆盖 TTS、ASR、文本生成音乐和文本生成视频；输入输出限制、模型和积分由平台目录声明，任务续接复用 MEDIA-US-109。
+
 ## 当前任务顺序
 
 按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改版：用户不再配置供应商，生成改为登录+平台积分。积分账本与后台发放（MEDIA-US-206）、服务端任务平台凭据（MEDIA-US-109）、生成侧校验与消费（MEDIA-US-108）均已实现；2026-11-14 海外与国内各三画幅、真实发放/回收与原字节交付通过，108/206 进入 In Review。2026-11-15 真实实例重置与 4/24 MiB 加密 CPU 已通过。下一步完成 109 的真实期限、双标签页与桌面来源，再继续 Web/Tauri 同步联验。首次访问后台初始化（[MEDIA-US-007](stories/platform/MEDIA-US-007-installation.md)）统一覆盖 self-hosted 和 Cloudflare；实现、安装产物和本地验证已进入评审。国内自建已随 [MEDIA-US-006](stories/platform/MEDIA-US-006-self-hosted-deployment.md) 的 11-09 发布记录真实部署，首次初始化与管理员接管已修复验证；Cloudflare 与国内均已升级至 schema 16 并发布当前版本，保留原初始化状态。首次访问跳转、管理员密码和 Supabase 配置范围见[首次安装](../deploy/installation.md)。
@@ -27,10 +31,11 @@
 | 后台 RxDB 与 `rxdb-model`（MEDIA-US-306/307） | 后台 RxDB 装配、普通 JWT 生命周期、workspace/RLS/Realtime 双向同步已实现；配置实体经 RxDB 同步、Admin 按账号分库的模型驱动编辑与 Playwright 验收已于 11-16 通过（MEDIA-US-307 In Review），生产验收待完成 | 依赖 MEDIA-US-302/303/208；后台同步使用普通 JWT，不使用 service role；证据见 [MEDIA-US-306](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)、[MEDIA-US-307](stories/local-first/MEDIA-US-307-admin-rxdb-model.md) 和[本轮验收记录](plans/requirements-completion-20261114.md#2026-11-15-supabase-first-后台与-rxdb-收口) |
 | 配置分支提交同步（MEDIA-US-308）              | 投影接入 RxDB 同步（迁移 023）、提交入口与提交详情、应用与安全回滚已于 11-16 通过 8/9 AC；后台分支与合并界面、远端非 main 分支与发布链路待完成                                                            | 依赖 MEDIA-US-306/307；不直接同步 RxDB 内部系统表；证据见 [MEDIA-US-308](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) 和[配置同步交付记录](plans/config-sync-delivery-20261116.md)                                                                                                                            |
 | PGMQ 任务队列 PoC（MEDIA-US-110）             | 隔离 PoC 已通过真实本地入队授权、失败回滚、重复消费、provider 成功后崩溃恢复、重启/积压/死信/指标演练；生产仍使用 Durable Object                                                                          | 依赖 MEDIA-US-108/109；消息只放 taskId、kind 和版本，切生产仍需双区域和正式容量评审                                                                                                                                                                                                                                             |
+| TTS、ASR、音乐与视频生成（MEDIA-US-111）      | 已建立 Backlog 故事，尚未开始实现；先完成统一媒体任务、目录、积分与本机交付方案，再分阶段接入四类能力                                                                                                     | 依赖 MEDIA-US-108/109/202/301；首阶段不包含图生视频、实时语音、音视频跨设备原文件同步和高级编辑                                                                                                                                                                                                                                 |
 
 ## 后续产品方向
 
-[未来功能需求与目录规划](future-requirements.md) 汇总当前方向：Web 持续优化、Tauri 本地安装程序、Cloudflare 业务后端与管理页面（安全代理）及统一的平台账号同步；同时给出产品目标目录。平台生图按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改为登录+积分，模型由平台托管；充值计费仍按 [D-17](decisions.md) 暂缓。首阶段代码与待验边界见[产品交付计划](plans/product-completion-20261030.md)。原自有项目接入按 D-16 撤销并移除；MEDIA-US-305 已完成正式云 Web 原图往返与独立真实 Storage 续传，完整 Web/Tauri 跨设备仍待验收。
+[未来功能需求与目录规划](future-requirements.md) 汇总当前方向：Web 持续优化、Tauri 本地安装程序、Cloudflare 业务后端与管理页面（安全代理）、统一的平台账号同步及音视频生成；同时给出产品目标目录。平台生图按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改为登录+积分，模型由平台托管；充值计费仍按 [D-17](decisions.md) 暂缓。首阶段代码与待验边界见[产品交付计划](plans/product-completion-20261030.md)。原自有项目接入按 D-16 撤销并移除；MEDIA-US-305 已完成正式云 Web 原图往返与独立真实 Storage 续传，完整 Web/Tauri 跨设备仍待验收。
 
 建议先保持 Web 与现有数据兼容、整理服务端/部署职责，双区域积分生图已完成真实验收，继续补齐平台任务剩余场景与同步。Tauri 和平台同步按各自前置并行推进，不依赖收费生图；独立充值计费不在当前排期。详细依赖、验收目标和待定项见该文档；当前发布范围及故事状态继续按上文和 YAML 记录。
 

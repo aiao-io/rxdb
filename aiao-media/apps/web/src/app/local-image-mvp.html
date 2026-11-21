@@ -244,7 +244,7 @@
             <span class="composer-spark" aria-hidden="true">✧</span>
             创作设置
           </span>
-          <span class="small">图片生成 · 每次 1 张</span>
+          <span class="small">图片生成 · 本次 {{ imageCount() }} 张</span>
         </div>
         @if (selected(); as t) {
           <div class="template-chip">
@@ -284,30 +284,157 @@
           </div>
         }
         <div class="composer-settings">
-          <div class="ratio-setting">
-            <div class="field-label">图片画幅</div>
-            <div class="ratio-group" aria-label="图片画幅" role="group">
-              @for (r of ratios; track r.id) {
-                <button
-                  class="ratio"
-                  [attr.aria-pressed]="ratio() === r.id"
-                  [class.active]="ratio() === r.id"
+          @if (selectedModel(); as model) {
+            <div class="ratio-setting">
+              <div class="field-label">宽高比</div>
+              <div class="ratio-group" aria-label="宽高比" role="group">
+                @for (value of selectedAspectRatios(); track value) {
+                  <button
+                    class="ratio"
+                    [attr.aria-pressed]="aspectRatioValue() === value"
+                    [class.active]="aspectRatioValue() === value"
+                    [disabled]="inFlight()"
+                    (click)="setAspectRatioValue(value)"
+                  >
+                    <span [class]="aspectShape(value)"></span>
+                    {{ value }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="model-options">
+              @if (model.protocol === 'gemini') {
+                <label class="model-option" for="image-resolution">
+                  <span class="field-label">分辨率</span>
+                  <select
+                    class="field"
+                    id="image-resolution"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageResolution()"
+                    (ngModelChange)="setImageResolution($event)"
+                  >
+                    @for (value of selectedResolutions(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              } @else {
+                <label class="model-option" for="image-size">
+                  <span class="field-label">分辨率</span>
+                  <select
+                    class="field"
+                    id="image-size"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageSize()"
+                    (ngModelChange)="setImageSize($event)"
+                  >
+                    @for (value of selectedSizes(); track value) {
+                      <option [value]="value">{{ formatImageSize(value) }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedQualities().length) {
+                <label class="model-option" for="image-quality">
+                  <span class="field-label">质量</span>
+                  <select
+                    class="field"
+                    id="image-quality"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageQuality()"
+                    (ngModelChange)="setImageQuality($event)"
+                  >
+                    @for (value of selectedQualities(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedComplexities().length) {
+                <label class="model-option" for="image-complexity">
+                  <span class="field-label">复杂度</span>
+                  <select
+                    class="field"
+                    id="image-complexity"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageComplexity()"
+                    (ngModelChange)="setImageComplexity($event)"
+                  >
+                    @for (value of selectedComplexities(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (selectedThinkingLevels().length) {
+                <label class="model-option" for="image-thinking-level">
+                  <span class="field-label">思考强度</span>
+                  <select
+                    class="field"
+                    id="image-thinking-level"
+                    [disabled]="inFlight()"
+                    [ngModel]="imageThinkingLevel()"
+                    (ngModelChange)="setImageThinkingLevel($event)"
+                  >
+                    @for (value of selectedThinkingLevels(); track value) {
+                      <option [value]="value">{{ value }}</option>
+                    }
+                  </select>
+                </label>
+              }
+              <label class="model-option" for="image-count">
+                <span class="field-label">生成数量</span>
+                <select
+                  class="field"
+                  id="image-count"
                   [disabled]="inFlight()"
-                  (click)="setRatio(r.id)"
+                  [ngModel]="imageCount()"
+                  (ngModelChange)="setImageCount(+$event)"
                 >
-                  <span [class]="r.shape"></span>
-                  {{ r.label }}
-                  <small aria-hidden="true">{{ r.hint }}</small>
-                </button>
+                  @for (value of selectedCounts(); track value) {
+                    <option [value]="value">{{ value }} 张</option>
+                  }
+                </select>
+              </label>
+              @if (model.supportsImageEditing) {
+                <div class="model-option reference-image-option">
+                  <span class="field-label">参考图片</span>
+                  @if (referenceImage(); as file) {
+                    <div class="reference-image-selection">
+                      @if (referencePreviewUrl(); as preview) {
+                        <img [src]="preview" alt="参考图片预览" />
+                      }
+                      <span>{{ file.name }}</span>
+                      <button
+                        class="secondary sm"
+                        [disabled]="inFlight()"
+                        (click)="clearReferenceImage()"
+                        type="button"
+                      >
+                        移除
+                      </button>
+                    </div>
+                  } @else {
+                    <label class="secondary sm reference-image-add" for="reference-image-upload">添加图片</label>
+                    <input
+                      class="visually-hidden"
+                      id="reference-image-upload"
+                      [disabled]="inFlight()"
+                      (change)="readReferenceFile($event)"
+                      accept="image/png,image/jpeg"
+                      type="file"
+                    />
+                  }
+                </div>
               }
             </div>
-          </div>
+          }
           <div class="provider-setting">
             <label class="field-label" for="selected-model">平台模型</label>
             <select
               class="field"
               id="selected-model"
-              [disabled]="settingsBusy()"
+              [disabled]="settingsBusy() || localStatus() !== 'ready'"
               [ngModel]="modelId()"
               (ngModelChange)="chooseModel($event)"
             >
@@ -317,13 +444,13 @@
               }
             </select>
             @if (selectedModel(); as model) {
-              <p>本次预占 {{ model.credits }} 积分，图片通过本机验证后扣减；失败不扣。</p>
+              <p>本次最多预占 {{ totalGenerationCredits() }} 积分；按张结算，失败与未开始的图片不扣。</p>
             }
             @if (authStatus() === 'signed-in' && targetKind() === 'platform') {
               @if (creditAccount(); as balance) {
                 <p role="status">可用积分 {{ balance.available }} · 预占 {{ balance.reserved }}</p>
                 @if (selectedModel(); as model) {
-                  @if (balance.available < model.credits) {
+                  @if (balance.available < totalGenerationCredits()) {
                     <p class="inline-alert">积分不足，请联系平台管理员发放积分。</p>
                   }
                 }
@@ -464,6 +591,27 @@
         <ng-container [ngTemplateOutlet]="imageLibrary" />
       </section>
     </div>
+    @defer (on idle) {
+      <section class="media-creation-section" aria-label="音频和视频生成">
+        <div class="page-heading">
+          <div>
+            <h2>音频和视频创作</h2>
+            <p>使用 TTS、ASR、音乐和视频能力生成并保存媒体。</p>
+          </div>
+        </div>
+        <app-media-generation
+          [authReady]="authStatus() === 'signed-in' && localStatus() === 'ready'"
+          [client]="adminApi"
+          [credits]="creditAccount()"
+          [store]="mediaStore()"
+          [workspaceKey]="currentProfileId()"
+        />
+      </section>
+    } @placeholder {
+      <section class="media-creation-section" aria-label="音频和视频生成">
+        <p class="media-status" role="status">正在准备媒体创作工具…</p>
+      </section>
+    }
     <div class="privacy-line">
       <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
     </div>
@@ -729,6 +877,84 @@
         }
       </div>
     }
+    @if (mediaLibraryError()) {
+      <p class="notice" role="alert">{{ mediaLibraryError() }}</p>
+    }
+    @if (mediaLibraryBusy() && !mediaLibraryReady()) {
+      <p class="notice" role="status">正在读取已保存媒体…</p>
+    } @else if (mediaPages().length) {
+      <section class="media-library-section" aria-label="已保存媒体">
+        <div class="library-toolbar">
+          <div class="library-tabs">
+            <span>
+              音频、视频和 Transcript
+              <b class="count-badge">{{ mediaPages().length }}</b>
+            </span>
+          </div>
+          <span class="library-notice">结果保存在本机 · 可重新播放、下载或删除</span>
+        </div>
+        <div class="cards" aria-label="已保存媒体">
+          @for (media of mediaPages(); track mediaWorkKey(media)) {
+            @let preview = mediaPreview(media);
+            <article class="card library-card media-library-card">
+              <div class="card-photo">
+                @if (media.kind === 'audio' && preview) {
+                  <audio
+                    [attr.aria-label]="'播放音频：' + mediaTitle(media)"
+                    [src]="preview"
+                    controls
+                    preload="metadata"
+                  ></audio>
+                } @else if (media.kind === 'video' && preview) {
+                  <video
+                    [attr.aria-label]="'播放视频：' + mediaTitle(media)"
+                    [src]="preview"
+                    controls
+                    preload="metadata"
+                  ></video>
+                } @else if (media.kind === 'transcript' && media.result; as result) {
+                  <div class="empty-state">
+                    <p>{{ result.text }}</p>
+                    <small>{{ result.language }} · {{ result.characters }} 字</small>
+                  </div>
+                } @else if (media.status === 'broken') {
+                  <div class="empty-state"><p>媒体文件待恢复</p></div>
+                } @else {
+                  <div class="empty-state" [attr.aria-busy]="mediaPreviewLoading(media)">
+                    <p>{{ mediaPreviewLoading(media) ? '正在读取媒体…' : '媒体按需加载' }}</p>
+                    <button class="secondary sm" [disabled]="mediaPreviewLoading(media)" (click)="previewMedia(media)">
+                      {{ mediaPreviewLoading(media) ? '读取中…' : '加载预览' }}
+                    </button>
+                  </div>
+                }
+                <span class="tag">
+                  {{
+                    media.kind === 'audio' ? '音频'
+                    : media.kind === 'video' ? '视频'
+                    : 'Transcript'
+                  }}
+                </span>
+              </div>
+              <div class="card-caption">
+                <div class="card-title work-prompt" [title]="mediaTitle(media)">{{ mediaTitle(media) }}</div>
+                <p class="work-meta">{{ mediaMeta(media) }}</p>
+              </div>
+              <div class="work-actions">
+                @if (media.kind !== 'transcript' && !preview && media.status === 'saved') {
+                  <button [disabled]="mediaPreviewLoading(media)" (click)="previewMedia(media)">
+                    {{ mediaPreviewLoading(media) ? '读取中…' : '播放预览' }}
+                  </button>
+                }
+                @if (media.status === 'saved') {
+                  <button (click)="downloadMedia(media)">↓ 下载</button>
+                }
+                <button class="danger" (click)="deleteMedia(media)">删除本机</button>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
     @if ((libraryPage().total ?? 0) > 0) {
       <nav class="library-pagination" aria-label="作品分页">
         <span aria-live="polite">
@@ -938,7 +1164,7 @@
       role="tabpanel"
     >
       <h2>平台生图与积分</h2>
-      <p>使用平台提供的模型，每次生成一张。图片在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
+      <p>图片按张结算，在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
       @for (model of models(); track model.id) {
         <p>{{ model.name }} · {{ model.credits }} 积分 / 张</p>
       }

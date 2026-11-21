@@ -81,9 +81,9 @@ describe('bounded speech-only public contracts', () => {
   ])('rejects unsupported kind/subtype/tuning/URL and malformed selection %#', value =>
     expect(() => validateAudioJobRequest(value)).toThrow()
   );
-  it('keeps image consumers from confirming audio receipts', () => {
+  it('keeps image request validation separate while the generic summary accepts audio receipts', () => {
     expect(() => validateImageJobRequest(request)).toThrow();
-    expect(() => validateGenerationJobSummary(summary)).toThrow();
+    expect(validateGenerationJobSummary(summary).request.kind).toBe('audio');
   });
   it('checks exact canonical PCM duration and immutable metadata', () => {
     expect(validateAudioResultMetadata(metadata)).toEqual(metadata);

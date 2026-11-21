@@ -737,7 +737,7 @@ test('三个画幅均能保存原图，每次用户操作只产生一个请求',
       json: { data: [{ b64_json: png.toString('base64') }] }
     };
   });
-  for (const [index, label] of ['正方形', '横向', '纵向'].entries()) {
+  for (const [index, label] of ['1:1', '3:2', '2:3'].entries()) {
     await page.getByRole('button', { name: label, exact: true }).click();
     await page.getByRole('button', { name: '✧ 生成图片' }).click();
     await expect.poll(() => sizes.length).toBe(index + 1);

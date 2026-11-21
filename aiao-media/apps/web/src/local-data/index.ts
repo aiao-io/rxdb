@@ -35,6 +35,7 @@ export type {
   LocalMediaWorkSummary,
   LocalReferenceState,
   LocalReferenceSummary,
+  LocalTranscriptSummary,
   LocalWorkSummary
 } from './browser-media';
 export type { LocalWorkFilters, LocalWorkQuery } from './library-query';
@@ -54,3 +55,5 @@ export type { StudioDraftSnapshot, StudioPromptState } from './studio-draft';
 
 export { decodeVideoPreview } from './media-result';
 export type { LocalAssetKind, LocalAssetResult } from './media-result';
+export { transcriptDownload, TranscriptResultError, transcriptText } from './transcript-result';
+export type { LocalTranscriptResult } from './transcript-result';

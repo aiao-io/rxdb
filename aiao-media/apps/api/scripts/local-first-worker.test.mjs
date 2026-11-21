@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker from '../src/local-first-worker.ts';
+import { fixtureMediaEnvironment } from '../src/media-fixtures.ts';
 const origin = 'https://app.example.test';
 const env = {
   ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]',
   ASSETS: { fetch: () => new Response('static application') }
 };
+
+test('媒体能力目录只返回四类公开能力，不泄露 fixture 供应商配置', async () => {
+  const response = await worker.fetch(new Request(`${origin}/api/media/capabilities`), {
+    ...fixtureMediaEnvironment(),
+    ASSETS: { fetch: () => new Response('static application') }
+  });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(
+    body.capabilities.map(value => value.operation),
+    ['text-to-speech', 'speech-to-text', 'text-to-music', 'text-to-video']
+  );
+  assert.doesNotMatch(JSON.stringify(body), /fixture-media\.example\.test|fixture-media-secret|FIXTURE_MEDIA_SECRET/);
+});
 test('旧无状态代理已下线，任何方法或用户 Key 都不发出上游请求', async context => {
   let calls = 0;
   context.mock.method(globalThis, 'fetch', async () => {

@@ -34,8 +34,8 @@ owner: jimmy
 
 ## 非目标
 
-- 真实图片/声音/视频生成；见 [epic-002](MEDIA-EPIC-002.md)。
-- 服务端渲染、Bun API、PostgreSQL 与音视频。
+- 本 Epic 不负责真实图片、声音和视频生成；见 [epic-002](MEDIA-EPIC-002.md)。
+- 服务端渲染、Bun API 与 PostgreSQL。
 
 ## 进展
 

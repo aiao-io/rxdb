@@ -29,6 +29,10 @@
       "durable_objects": {
         "bindings": [
           {
+            "name": "MEDIA_INSTALLATION",
+            "class_name": "Installation"
+          },
+          {
             "name": "MEDIA_PLATFORM",
             "class_name": "PlatformCoordinator"
           },
@@ -42,11 +46,50 @@
         {
           "binding": "RELAY_RESULTS",
           "bucket_name": "aiao-media-relay-results"
+        },
+        {
+          "binding": "MEDIA_INPUTS",
+          "bucket_name": "aiao-media-relay-inputs"
         }
       ],
       "vars": {
         "ALLOWED_PROVIDER_BASE_URLS": "[\"https://api.pengdevs.com\"]",
-        "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
+        "MEDIA_ALLOW_DESKTOP_ORIGIN": "true",
+        "MEDIA_INSTALLATION_DISABLED": "true"
+      },
+      "routes": []
+    },
+    "multimodal-fixture": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "MEDIA_INSTALLATION",
+            "class_name": "Installation"
+          },
+          {
+            "name": "MEDIA_PLATFORM",
+            "class_name": "PlatformCoordinator"
+          },
+          {
+            "name": "RELAY_TASKS",
+            "class_name": "RelayTask"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "RELAY_RESULTS",
+          "bucket_name": "aiao-media-relay-results"
+        },
+        {
+          "binding": "MEDIA_INPUTS",
+          "bucket_name": "aiao-media-relay-inputs"
+        }
+      ],
+      "vars": {
+        "ALLOWED_PROVIDER_BASE_URLS": "[\"https://fixture-media.example.test/v1\"]",
+        "MEDIA_ALLOW_DESKTOP_ORIGIN": "true",
+        "MEDIA_INSTALLATION_DISABLED": "true"
       },
       "routes": []
     }
@@ -74,6 +117,10 @@
     {
       "binding": "RELAY_RESULTS",
       "bucket_name": "aiao-media-relay-results"
+    },
+    {
+      "binding": "MEDIA_INPUTS",
+      "bucket_name": "aiao-media-relay-inputs"
     }
   ],
   "routes": [

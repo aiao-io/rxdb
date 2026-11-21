@@ -45,16 +45,22 @@ pnpm nx run aiao-media:supabase-down
 
 仅开发前端可继续使用 `pnpm nx serve aiao-media`，不需要 Docker。多检出目录的数据库卷与端口隔离、账号验收和生产形态预览见 [Web 开发说明](apps/web/README.md)。
 
-平台生图的服务端接线按 [D-19](requirements/decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改为真实平台账号、平台模型和积分账本。前端改版仍在进行，当前分支的旧供应商表单尚未完成替换，不作为可发布的完整生图流程。服务端不再接受按请求 Key 的 `/api/relay`。
+平台生图经真实平台账号、平台模型和积分账本完成，服务端不接受浏览器提交的供应商地址或 Key。
 
-模型由部署环境 `MEDIA_PLATFORM_MODELS` 定义，每项包含 `id`、展示 `name`、`baseUrl`、上游 `model`、凭据变量名 `secret` 与正整数 `credits`。`baseUrl` 必须同时列入 `ALLOWED_PROVIDER_BASE_URLS`；`secret` 指向只存在于 Worker secret 或 Node 服务端环境中的凭据。平台标识和上游型号分开，例如以下是需由部署者替换的配置形状：
+模型由部署环境 `MEDIA_PLATFORM_MODELS` 定义。除 `id/name/baseUrl/model/secret/credits` 外，每项须声明协议 `openai` 或 `gemini` 和模型能力：OpenAI Images 模型使用 `sizes/aspectRatios/qualities/complexities/counts`；Gemini Interactions 模型使用 `imageOptions`（宽高比、分辨率及交付尺寸组合）、`thinkingLevels/counts`。`supportsImageEditing` 只有在该型号确实支持单参考图编辑时才设为 `true`。目录不会根据型号名称猜测能力。
+
+OpenAI Images 模型可按型号配置例如 `sizes: ["1024x1024", "1536x1024"]`、`qualities: ["low", "high"]`、`complexities: ["low", "medium", "high"]` 与 `counts: [1, 2, 3]`。Gemini 的 `imageOptions` 每项包含 `aspectRatio`、`resolution` 与 `outputSize`；后者声明该组合的输出尺寸，并须在当前本机交付尺寸上限内。界面只展示声明过的组合和数量，API 对请求重新校验。
+
+`baseUrl` 必须同时列入 `ALLOWED_PROVIDER_BASE_URLS`；`secret` 指向只存在于 Worker secret 或 Node 服务端环境中的凭据。平台标识和上游型号分开，例如以下是需由部署者替换的配置形状：
 
 ```dotenv
-MEDIA_PLATFORM_MODELS='[{"id":"standard","name":"平台生图","baseUrl":"https://provider.example/v1","model":"private-image-model","secret":"MEDIA_IMAGE_KEY","credits":3}]'
-ALLOWED_PROVIDER_BASE_URLS='["https://provider.example/v1"]'
+MEDIA_PLATFORM_MODELS='[{"id":"gpt-flare","name":"GPT Image 2.6 Flare","baseUrl":"https://api.openai.com/v1","model":"gpt-image-2.6-flare","secret":"MEDIA_IMAGE_KEY","credits":3,"preset":"official"},{"id":"nano-banana","name":"Nano Banana 2.1","baseUrl":"https://generativelanguage.googleapis.com/v1beta","model":"gemini-nano-banana-2.1","secret":"MEDIA_GEMINI_KEY","credits":4,"preset":"official"}]'
+ALLOWED_PROVIDER_BASE_URLS='["https://api.openai.com/v1","https://generativelanguage.googleapis.com/v1beta"]'
 ```
 
-开发环境从 `apps/api/.dev.vars` 或进程环境读取模型和引用的凭据，仅写入权限 `0600` 的 `.wrangler/local-dev/.dev.vars`；不覆盖源配置，不复制无关密钥。Cloudflare 用 secret 绑定凭据；Node 通过服务端环境传入。模型、凭据或任务绑定缺失时明确返回 `503`，不调用上游。公开 `/api/models` 只返回平台标识、展示名、积分与响应协议，后台已发布的停用、型号和画幅策略仍限制接单。
+`preset: "official"` 按**精确上游型号**载入已核对的能力，无需逐项填写。可分别启用 GPT Image 2.6 / 2.5 的 `flare`、`sunburst`，以及 `gemini-nano-banana-2.1`、`gemini-3.1-flash-image`、`gemini-3.1-flash-lite-image`、`gemini-3-pro-image`、`gemini-2.5-flash-image`。每个型号需要独立的公开 `id`、名称和单张积分；没有配置的型号不自动上架。对照来源：[OpenAI 图片模型](https://developers.openai.com/api/docs/guides/image-generation)、[Gemini 图片模型](https://ai.google.dev/gemini-api/docs/image-generation)。
+
+开发环境从 `apps/api/.dev.vars` 或进程环境读取模型和引用的凭据，仅写入权限 `0600` 的 `.wrangler/local-dev/.dev.vars`；不覆盖源配置，不复制无关密钥。Cloudflare 用 secret 绑定凭据；Node 通过服务端环境传入。模型、凭据或任务绑定缺失时明确返回 `503`，不调用上游。公开 `/api/models` 仅返回平台标识、展示名、积分及已配置能力；后台已发布的停用、型号和画幅策略仍限制接单。
 
 现有 Supabase 项目先执行后台提供的 `/admin/upgrade-credits.sql`，包含 `012` 积分账本与 `013` 放弃封存迁移，在同一事务内升级；新项目初始化 SQL 包已同时包含两者。后台发放积分后，接单预占额度；上游失败或结果待核对释放预占。本机取得密文、解密并验证图片后通过 `/confirm` 幂等扣减；图片验证失败通过 `/discard` 释放预占。扣费应答丢失可用原任务令牌重试确认，不重复扣款。
 

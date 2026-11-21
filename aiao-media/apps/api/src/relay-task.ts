@@ -1,5 +1,7 @@
-import type { RelayTaskStatus } from '@aiao-media/api-contracts';
+import type { GenerationJobRequest, RelayTaskStatus } from '@aiao-media/api-contracts';
 import { relayResultKey, relayTaskTokenHash, relayTaskTokenHeader, sealRelayResult } from '@aiao-media/api-contracts';
+import { removeStoredMediaInput } from './media-input-api.ts';
+import { normalizeMediaResponse, type MediaDispatch, type MediaResultKind } from './media-provider.ts';
 import { bounded, ProductApiError } from './product-http.ts';
 import {
   BackendRelayCredits,
@@ -20,8 +22,27 @@ type RelayTaskRow = {
   owner_id: string | null;
   cost: number | null;
   credit_state: RelayCreditState | 'pending' | null;
+  operation: string | null;
+  result_kind: MediaResultKind | 'image' | null;
+  result_mime: string | null;
+  result_manifest: string | null;
+  provider_request_id: string | null;
+  input_id: string | null;
+  input_cleanup: 'pending' | 'complete' | null;
 };
-type Dispatch = { taskId: string; ownerId: string; cost: number; url: string; body: unknown };
+type Dispatch = {
+  taskId: string;
+  ownerId: string;
+  cost: number;
+  url: string;
+  body: unknown;
+  protocol: 'openai' | 'minimax' | 'gemini';
+  operation?: string;
+  resultKind?: MediaResultKind | 'image';
+  maxResultBytes?: number;
+  maxResultDurationMs?: number;
+  request?: GenerationJobRequest;
+};
 
 /** 上游超时、看门狗、保留期、结果上限与长轮询上限。 */
 export const relayTaskLimits = {
@@ -30,6 +51,8 @@ export const relayTaskLimits = {
   retentionMs: 24 * 60 * 60 * 1000,
   creditRetryMs: 30_000,
   resultBytes: 24 * 1024 * 1024,
+  mediaAudioBytes: 32 * 1024 * 1024,
+  mediaVideoBytes: 64 * 1024 * 1024,
   waitMs: 25_000
 };
 const definite = [400, 401, 403, 404, 413, 422, 429];
@@ -103,8 +126,18 @@ export class RelayTask {
   }
   alarm() {
     return this.exclusive(async () => {
-      const row = this.row();
+      let row = this.row();
       if (!row) return;
+      if (row.input_cleanup === 'pending' && row.status !== 'dispatched' && row.status !== 'preparing') {
+        try {
+          await this.cleanupInput(row);
+        } catch {
+          await this.ctx.storage.setAlarm(Date.now() + relayTaskLimits.creditRetryMs);
+          return;
+        }
+        row = this.row();
+        if (!row) return;
+      }
       if (Date.now() >= row.created_at + relayTaskLimits.retentionMs) return this.expire(row);
       if (running(row)) {
         const recovered = row.status === 'dispatched' && (await this.env.RELAY_RESULTS.head(row.task_id));
@@ -130,38 +163,54 @@ export class RelayTask {
     for (const [name, type] of [
       ['owner_id', 'TEXT'],
       ['cost', 'INTEGER'],
-      ['credit_state', 'TEXT']
+      ['credit_state', 'TEXT'],
+      ['operation', 'TEXT'],
+      ['result_kind', 'TEXT'],
+      ['result_mime', 'TEXT'],
+      ['result_manifest', 'TEXT'],
+      ['provider_request_id', 'TEXT'],
+      ['input_id', 'TEXT'],
+      ['input_cleanup', 'TEXT']
     ])
       if (!columns.has(name)) this.ctx.storage.sql.exec(`ALTER TABLE relay_task ADD COLUMN ${name} ${type}`);
     return [...this.ctx.storage.sql.exec<RelayTaskRow>('SELECT * FROM relay_task')][0] ?? null;
   }
   private view(row: RelayTaskRow) {
-    return {
+    const view: Record<string, unknown> = {
       status: row.status === 'preparing' ? 'dispatched' : row.status,
       upstreamStatus: row.upstream_status,
       updatedAt: new Date(row.updated_at).toISOString()
     };
+    if (row.operation) {
+      view.operation = row.operation;
+      view.resultMimeType = row.result_mime;
+      view.creditState = row.credit_state;
+      if (row.provider_request_id && /^[a-zA-Z0-9_-]{1,128}$/.test(row.provider_request_id))
+        view.providerRequestId = row.provider_request_id;
+      if (row.result_manifest) view.result = JSON.parse(row.result_manifest);
+    }
+    return view;
   }
-  private insert(
-    taskId: string,
-    hash: string,
-    fingerprint: string,
-    status: RelayTaskRow['status'],
-    ownerId: string | null = null,
-    cost: number | null = null
-  ) {
+  private insert(taskId: string, hash: string, fingerprint: string, status: RelayTaskRow['status'], input?: Dispatch) {
     const created = Date.now();
     this.ctx.storage.sql.exec(
-      'INSERT INTO relay_task (task_id,token_hash,fingerprint,status,created_at,updated_at,owner_id,cost,credit_state) VALUES (?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO relay_task (task_id,token_hash,fingerprint,status,created_at,updated_at,owner_id,cost,credit_state,operation,result_kind,result_mime,result_manifest,provider_request_id,input_id,input_cleanup) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       taskId,
       hash,
       fingerprint,
       status,
       created,
       created,
-      ownerId,
-      cost,
-      ownerId ? 'pending' : null
+      input?.ownerId ?? null,
+      input?.cost ?? null,
+      input?.ownerId ? 'pending' : null,
+      input?.operation ?? null,
+      input?.resultKind ?? null,
+      null,
+      null,
+      null,
+      input?.request?.operation === 'speech-to-text' ? input.request.input.id : null,
+      input?.request?.operation === 'speech-to-text' ? 'pending' : null
     );
     return this.row()!;
   }
@@ -196,8 +245,14 @@ export class RelayTask {
       !!row.owner_id &&
       !['charged', 'released'].includes(row.credit_state ?? '') &&
       !running(row) &&
-      row.status !== 'received'
+      row.status !== 'received' &&
+      !(row.status === 'needs_review' && row.operation !== null)
     );
+  }
+  private async cleanupInput(row: RelayTaskRow): Promise<void> {
+    if (!row.input_id || row.input_cleanup === 'complete' || !row.owner_id) return;
+    await removeStoredMediaInput(this.env, row.input_id, row.owner_id);
+    this.ctx.storage.sql.exec('UPDATE relay_task SET input_cleanup=?, updated_at=?', 'complete', Date.now());
   }
   private async releaseAndSchedule(row: RelayTaskRow) {
     try {
@@ -208,18 +263,25 @@ export class RelayTask {
   }
   private schedule(row: RelayTaskRow) {
     const expires = row.created_at + relayTaskLimits.retentionMs;
-    const at = this.needsRelease(row) ? Math.min(Date.now() + relayTaskLimits.creditRetryMs, expires) : expires;
+    const at =
+      row.input_cleanup === 'pending' || this.needsRelease(row) ?
+        Math.min(Date.now() + relayTaskLimits.creditRetryMs, expires)
+      : expires;
     return this.ctx.storage.setAlarm(
       running(row) ? row.created_at + relayTaskLimits.watchdogMs : Math.max(Date.now() + 1, at)
     );
   }
   private async start(request: Request, hash: string) {
     const input = await request.json<Dispatch>();
-    const fingerprint = await digest(JSON.stringify([input.ownerId, input.cost, input.url, input.body]));
+    const authorization = request.headers.get('authorization');
+    if (!authorization) throw new Error('invalid dispatch');
+    const fingerprint = await digest(
+      JSON.stringify([input.ownerId, input.cost, input.url, input.body, input.operation, input.resultKind])
+    );
     const existing = this.row();
     if (existing) return this.replay(existing, hash, fingerprint);
     const key = await relayResultKey(request.headers.get(relayTaskTokenHeader)!, input.taskId, 'encrypt');
-    const row = this.insert(input.taskId, hash, fingerprint, 'preparing', input.ownerId, input.cost);
+    const row = this.insert(input.taskId, hash, fingerprint, 'preparing', input);
     await this.schedule(row);
     let receipt: RelayCreditState;
     try {
@@ -236,17 +298,79 @@ export class RelayTask {
       return reply({ error: 'Task is closed' }, 409);
     }
     this.update('dispatched');
-    const pending = Promise.resolve().then(() =>
-      this.request(input.url, {
+    const pending = Promise.resolve().then(() => this.dispatch(input, authorization));
+    this.ctx.waitUntil(this.finish(pending, key, input.taskId, input, authorization));
+    return reply(this.view(this.row()!), 202);
+  }
+  private async dispatch(input: Dispatch, authorization: string): Promise<Response> {
+    if (!['openai', 'minimax', 'gemini'].includes(input.protocol)) throw new Error('invalid dispatch');
+    const body = input.body as Record<string, unknown> | null;
+    if (body && body['_format'] === 'multipart') {
+      const form = new FormData();
+      const fields = body['fields'] as Record<string, unknown>;
+      const image = body['image'] as { mimeType: string; data: string };
+      for (const [name, value] of Object.entries(fields)) {
+        if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid multipart field');
+        form.append(name, String(value));
+      }
+      const bytes = Uint8Array.from(atob(image.data), char => char.charCodeAt(0));
+      form.append(
+        'image',
+        new Blob([bytes], { type: image.mimeType }),
+        image.mimeType === 'image/png' ? 'reference.png' : 'reference.jpg'
+      );
+      return this.request(input.url, {
         method: 'POST',
         redirect: 'manual',
         signal: AbortSignal.timeout(relayTaskLimits.upstreamMs),
-        headers: { authorization: request.headers.get('authorization')!, 'content-type': 'application/json' },
-        body: JSON.stringify(input.body)
-      })
-    );
-    this.ctx.waitUntil(this.finish(pending, key, input.taskId));
-    return reply(this.view(this.row()!), 202);
+        headers: {
+          [input.protocol === 'gemini' ? 'x-goog-api-key' : 'authorization']:
+            input.protocol === 'gemini' ? authorization.replace(/^Bearer /, '') : authorization
+        },
+        body: form
+      });
+    }
+    if (body && body['_format'] === 'media-input') {
+      const fields = body['fields'];
+      const inputReference = body['input'];
+      if (!fields || typeof fields !== 'object' || !inputReference || typeof inputReference !== 'object')
+        throw new Error('invalid media input');
+      const id = (inputReference as { id?: unknown }).id;
+      if (typeof id !== 'string') throw new Error('invalid media input');
+      const bucket = this.env.MEDIA_INPUTS;
+      if (!bucket) throw new Error('media input unavailable');
+      const object = await bucket.get(`inputs/${id}`);
+      if (!object) throw new Error('media input expired');
+      const form = new FormData();
+      for (const [name, value] of Object.entries(fields as Record<string, unknown>)) {
+        if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid media field');
+        form.append(name, String(value));
+      }
+      form.append(
+        'file',
+        new Blob([await new Response(object.body).arrayBuffer()], { type: 'audio/wav' }),
+        'input.wav'
+      );
+      return this.request(input.url, {
+        method: 'POST',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(relayTaskLimits.upstreamMs),
+        headers: { authorization },
+        body: form
+      });
+    }
+    return this.request(input.url, {
+      method: 'POST',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(relayTaskLimits.upstreamMs),
+      headers: {
+        [input.protocol === 'gemini' ? 'x-goog-api-key' : 'authorization']:
+          input.protocol === 'gemini' ? authorization.replace(/^Bearer /, '') : authorization,
+        ...(input.protocol === 'gemini' ? { 'api-revision': '2026-05-20' } : {}),
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(input.body)
+    });
   }
   private async replay(row: RelayTaskRow, hash: string, fingerprint: string) {
     if (row.token_hash !== hash) return missingRelayTask();
@@ -258,30 +382,76 @@ export class RelayTask {
   private async answer(
     pending: Promise<Response>,
     key: CryptoKey,
-    taskId: string
+    taskId: string,
+    input: Dispatch,
+    authorization: string
   ): Promise<[RelayTaskStatus, number | null]> {
     const response = await pending;
     if (definite.includes(response.status)) {
       await response.body?.cancel();
       return ['rejected', response.status];
     }
+    if (input.resultKind && input.resultKind !== 'image') {
+      const normalized = await normalizeMediaResponse(response, {
+        operation: input.operation as MediaDispatch['operation'],
+        url: input.url,
+        body: input.body,
+        protocol: input.protocol === 'minimax' ? 'minimax' : 'openai',
+        authorization,
+        cost: input.cost,
+        resultKind: input.resultKind as MediaResultKind,
+        maxResultBytes: input.maxResultBytes ?? relayTaskLimits.mediaVideoBytes,
+        maxResultDurationMs: input.maxResultDurationMs,
+        request: input.request!,
+        fetchResult: (url, init) => this.request(url, init)
+      });
+      const sealed = await sealRelayResult(key, normalized.bytes);
+      await this.env.RELAY_RESULTS.put(taskId, sealed, { httpMetadata: { contentType: 'application/octet-stream' } });
+      this.ctx.storage.sql.exec(
+        'UPDATE relay_task SET result_mime=?, result_manifest=?, provider_request_id=?, updated_at=?',
+        normalized.mediaType,
+        JSON.stringify(normalized.manifest),
+        normalized.providerRequestId ?? null,
+        Date.now()
+      );
+      return ['received', response.status];
+    }
     if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
       await response.body?.cancel();
       return ['needs_review', response.status];
     }
-    const sealed = await sealRelayResult(key, await bounded(response, relayTaskLimits.resultBytes));
+    const sealed = await sealRelayResult(
+      key,
+      await bounded(response, input.maxResultBytes ?? relayTaskLimits.resultBytes)
+    );
     await this.env.RELAY_RESULTS.put(taskId, sealed, { httpMetadata: { contentType: 'application/octet-stream' } });
+    this.ctx.storage.sql.exec(
+      'UPDATE relay_task SET result_mime=?, updated_at=?',
+      'application/octet-stream',
+      Date.now()
+    );
     return ['received', response.status];
   }
-  private async finish(pending: Promise<Response>, key: CryptoKey, taskId: string) {
-    const [status, upstreamStatus] = await this.answer(pending, key, taskId).catch((): [RelayTaskStatus, null] => [
-      'needs_review',
-      null
-    ]);
+  private async finish(
+    pending: Promise<Response>,
+    key: CryptoKey,
+    taskId: string,
+    input: Dispatch,
+    authorization: string
+  ) {
+    const [status, upstreamStatus] = await this.answer(pending, key, taskId, input, authorization).catch(
+      (): [RelayTaskStatus, null] => ['needs_review', null]
+    );
     await this.exclusive(async () => {
       if (this.row()?.status !== 'dispatched') return;
       const row = this.update(status, upstreamStatus);
-      if (status === 'received') await this.schedule(row);
+      try {
+        await this.cleanupInput(row);
+      } catch {
+        await this.ctx.storage.setAlarm(Date.now() + relayTaskLimits.creditRetryMs);
+      }
+      const latest = this.row()!;
+      if (status === 'received' || (status === 'needs_review' && input.resultKind)) await this.schedule(latest);
       else await this.releaseAndSchedule(row);
     });
   }
@@ -308,7 +478,7 @@ export class RelayTask {
     if (!object) return reply({ error: 'Result expired' }, 410);
     return new Response(object.body, {
       headers: {
-        'content-type': 'application/octet-stream',
+        'content-type': row.result_mime ?? 'application/octet-stream',
         'cache-control': 'no-store',
         'referrer-policy': 'no-referrer',
         'x-content-type-options': 'nosniff'
@@ -336,6 +506,12 @@ export class RelayTask {
   }
   private async remove(row: RelayTaskRow) {
     if (running(row)) return reply({ error: 'Task is still running' }, 409);
+    try {
+      await this.cleanupInput(row);
+    } catch {
+      await this.schedule(row);
+      return reply({ error: 'Task cleanup is temporarily unavailable' }, 503);
+    }
     await this.releaseAndSchedule(row);
     await this.env.RELAY_RESULTS.delete(row.task_id);
     await this.schedule(this.update('deleted', row.upstream_status));
@@ -354,6 +530,7 @@ export class RelayTask {
   }
   private async expire(row: RelayTaskRow) {
     try {
+      await this.cleanupInput(row);
       await this.release(row);
     } catch (error) {
       await this.ctx.storage.setAlarm(Date.now() + relayTaskLimits.creditRetryMs);

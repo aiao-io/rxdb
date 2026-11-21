@@ -10,9 +10,9 @@ import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
 
 const ratios = [
-  { aspect: 'square', label: '正方形', size: '1024x1024' },
-  { aspect: 'landscape', label: '横向', size: '1536x1024' },
-  { aspect: 'portrait', label: '纵向', size: '1024x1536' }
+  { aspect: 'square', label: '1:1', size: '1024x1024' },
+  { aspect: 'landscape', label: '3:2', size: '1536x1024' },
+  { aspect: 'portrait', label: '2:3', size: '1024x1536' }
 ];
 const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const requireCheck = (condition, code) => {
@@ -326,7 +326,7 @@ export function generationDispatch(settings, mode, ratio, prompt) {
   return {
     url: `${settings.origin}/api/relay/tasks/`,
     method: 'PUT',
-    body: { model: settings.model, prompt, n: 1, size: ratio.size }
+    body: { model: settings.model, prompt, n: 1, size: ratio.size, aspectRatio: ratio.label }
   };
 }
 
@@ -497,8 +497,8 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
         !headers.cookie &&
         !headers['x-provider-base'] &&
         body &&
-        Object.keys(body).length === Object.keys(dispatch.body).length &&
-        Object.entries(dispatch.body).every(([key, value]) => body[key] === value);
+        Object.entries(dispatch.body).every(([key, value]) => body[key] === value) &&
+        Object.entries(body).every(([key, value]) => key in dispatch.body || (key === 'quality' && value === 'low'));
       if (!valid) {
         record.requestBoundaryFailed = true;
         return route.abort('blockedbyclient');

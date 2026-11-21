@@ -69,13 +69,15 @@ pnpm nx dev aiao-model-design
 
 `nx dev` 按 `apps/api/.dev.vars` 里的 `TRIGGER_API_URL` 与 `TRIGGER_SECRET_KEY` 决定怎么接智能体：
 
-| `.dev.vars` 的配置                                   | 接入方式                                                                          |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| 两项都没填                                           | 不启用，设计器的 AI 入口禁用并说明原因                                            |
-| 开发环境密钥（`tr_dev_` / `tr_dev_sk_`）             | 先启动本地 Trigger.dev，再启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
-| 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                                          |
+| `.dev.vars` 的配置                                   | 接入方式                                                                                      |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 未配置密钥且本地实例没有 Development runtime         | 不启用，设计器的 AI 入口禁用并说明首次初始化方式                                              |
+| 未配置密钥但本地实例已有唯一 Development runtime     | 自动恢复 key 与项目 ref，再启动本地智能体开发会话                                             |
+| 开发环境密钥（`tr_dev_` / `tr_dev_sk_`），未填地址时 | 默认连接 `http://127.0.0.1:8030`，启动本地 Trigger.dev 与 `trigger dev`，改智能体代码即时生效 |
+| 开发环境密钥，同时配置地址                           | 连接指定实例并启动 `trigger dev` 智能体开发会话                                               |
+| 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                                                      |
 
-只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要项目 ref 与 `.env.agent`；本地 Trigger 栈已经有项目配置时，项目 ref 会从 `infra/trigger/.env` 自动读取。`nx dev` 会自动执行 `trigger-up` 和 `trigger dev start`；默认使用 `self-hosted` profile，若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它。
+缺少密钥时，`dev-config` 会先查本地 Trigger 数据库；存在唯一 Development runtime 时自动把 key 和项目 ref 回填到权限为 600 的忽略文件，再生成 Worker 配置并启动智能体。多个项目且未指定 ref 时拒绝猜选；本地实例尚无项目/key 时保持 AI 未启用并提示一次性初始化。生产等非开发环境密钥必须显式配置实例地址。开发会话还需要 `.env.agent`；`nx dev` 会自动执行 `trigger-up` 和 `trigger dev start`，默认使用 `self-hosted` profile。若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它。
 
 首次在一台机器上初始化自托管实例：
 
@@ -85,11 +87,9 @@ pnpm nx run aiao-model-design:trigger-up
 # 2. 打开 http://127.0.0.1:8030，使用 local@trigger.dev 登录；魔法链接在下面的日志里
 pnpm nx run aiao-model-design:trigger-logs
 # 3. 在控制台创建组织与 model-design 项目，进入 Development / API keys 创建一个后端 key
-# 4. 把项目 ref 与 Development key 写进忽略文件和 API 本地配置
-printf '\nTRIGGER_PROJECT_REF=proj_xxx\n' >> aiao-model-design/infra/trigger/.env
-# apps/api/.dev.vars：TRIGGER_API_URL=http://127.0.0.1:8030、TRIGGER_SECRET_KEY=tr_dev_sk_xxx
-# 5. 模型密钥只写智能体本地环境，不进 Worker
+# 4. 模型密钥只写智能体本地环境，不进 Worker
 cp aiao-model-design/apps/agent/.env.agent.example aiao-model-design/apps/agent/.env.agent
+# 5. 后续 nx dev 会从本地实例恢复 Development key 和项目 ref，无需复制到 .dev.vars
 ```
 
 之后直接执行 `pnpm nx dev aiao-model-design`；Trigger 控制台、worker supervisor 与本地 `trigger dev` 都会自动启动。单独管理栈：

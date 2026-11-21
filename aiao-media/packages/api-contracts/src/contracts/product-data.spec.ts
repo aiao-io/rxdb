@@ -104,11 +104,17 @@ describe('product transport field whitelists', () => {
       version: 1,
       providers: [provider]
     });
+    expect(
+      validateProviderPolicy({ version: 1, providers: [{ ...provider, sizes: ['2048x2048', '4096x3072'] }] })
+        .providers[0].sizes
+    ).toEqual(['2048x2048', '4096x3072']);
     for (const value of [
       { ...provider, baseUrl: 'http://provider.example.test' },
       { ...provider, baseUrl: 'https://user:secret@provider.example.test' },
       { ...provider, apiKey: 'secret' },
-      { ...provider, models: ['bad/model'] }
+      { ...provider, models: ['bad/model'] },
+      { ...provider, sizes: ['8192x8192'] },
+      { ...provider, sizes: ['1023x1024'] }
     ])
       expect(() => validateProviderPolicy({ version: 1, providers: [value] })).toThrow();
     expect(() => validateProviderPolicy({ version: 1, providers: [provider, provider] })).toThrow();

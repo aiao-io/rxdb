@@ -102,6 +102,37 @@ function miniMaxImageResult(envelope: Record<string, unknown> | null): Record<st
   if (urlItems.length + base64Items.length !== 1) return null;
   return { url: urlItems[0], b64_json: base64Items[0] };
 }
+function geminiImageResult(envelope: Record<string, unknown> | null): Record<string, unknown> | null {
+  const outputImage = object(envelope?.['output_image']);
+  if (outputImage && typeof outputImage['data'] === 'string')
+    return { b64_json: outputImage['data'], mimeType: outputImage['mime_type'] };
+  const candidates = envelope?.['candidates'];
+  const content = object(
+    Array.isArray(candidates) && candidates.length === 1 ? object(candidates[0])?.['content'] : null
+  );
+  const parts = content?.['parts'];
+  const steps = envelope?.['steps'];
+  const images =
+    Array.isArray(steps) ?
+      steps.flatMap(step => {
+        const stepContent = object(step);
+        if (stepContent?.['type'] !== 'model_output') return [];
+        const contentItems = stepContent?.['content'];
+        return Array.isArray(contentItems) ? contentItems.flatMap(imagePart) : [];
+      })
+    : Array.isArray(parts) ? parts.flatMap(imagePart)
+    : [];
+  if (images.length !== 1) return null;
+  return { b64_json: images[0]['data'], mimeType: images[0]['mimeType'] };
+}
+function imagePart(part: unknown): Record<string, unknown>[] {
+  const item = object(part);
+  const inline = object(item?.['inlineData']);
+  if (inline && typeof inline['data'] === 'string') return [{ data: inline['data'], mimeType: inline['mimeType'] }];
+  if (item?.['type'] === 'image' && typeof item['data'] === 'string')
+    return [{ data: item['data'], mimeType: item['mime_type'] }];
+  return [];
+}
 /** HTTP statuses that prove a request was refused before any image was generated. */
 export const httpFailure = (status: number | null, rejected: boolean) =>
   new ProviderFailure(`供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`, rejected);
@@ -113,8 +144,9 @@ export async function responseImage(
   signal: AbortSignal
 ): Promise<Blob> {
   const data = object(JSON.parse(new TextDecoder().decode(json)));
-  if (typeof data?.['error'] === 'string') {
-    const code = data['status'];
+  if (data?.['error'] !== undefined) {
+    const error = object(data['error']);
+    const code = data['status'] ?? error?.['code'];
     throw httpFailure(
       typeof code === 'number' && Number.isInteger(code) && code >= 400 && code <= 599 ? code : 502,
       false
@@ -122,8 +154,8 @@ export async function responseImage(
   }
   const items = data?.['data'];
   const item =
-    protocol === 'minimax' ?
-      miniMaxImageResult(data)
+    protocol === 'minimax' ? miniMaxImageResult(data)
+    : protocol === 'gemini' ? geminiImageResult(data)
     : object(Array.isArray(items) && items.length === 1 ? items[0] : null);
   let bytes: Uint8Array<ArrayBuffer>;
   if (typeof item?.['b64_json'] === 'string') {
@@ -134,6 +166,8 @@ export async function responseImage(
     )
       throw new ProviderFailure('图片数据无效，请核对供应商结果。');
     bytes = Uint8Array.from(atob(item['b64_json']), c => c.charCodeAt(0));
+    if (item['mimeType'] !== undefined && !['image/png', 'image/jpeg'].includes(String(item['mimeType'])))
+      throw new ProviderFailure('Gemini 返回的图片格式无效。');
   } else if (typeof item?.['url'] === 'string') {
     const url = new URL(item['url']);
     if (url.protocol !== 'https:' || url.username || url.password) throw new ProviderFailure('图片地址无效。');

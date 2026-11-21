@@ -48,7 +48,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/package-api-docs.spec.mjs`                                           | 改公开 API 文档门禁后                        | pass/fail fixture 验证成员路径、非零退出及排除规则                                                            | `node --test scripts/audit/package-api-docs.spec.mjs`                         |
 | [audit/package-runtime-conditions.mjs](#auditpackage-runtime-conditionsmjs) | 改包 `exports` 后                            | 静态扫 `packages/*/package.json`，揪出指向源码的非可执行 export condition                                     | `pnpm audit:conditions`                                                       |
 | [audit/wa-sqlite-integrity.mjs](#auditwa-sqlite-integritymjs)               | 同上 / `preinstall`                          | 锁仓库 `wa-sqlite` 到固定 commit + SHA-512，并校验小程序 vendored WASM/CJS 资产                               | `preinstall` / `audit:wa-sqlite`                                              |
-| [audit/requirements-consistency.mjs](#auditrequirements-consistencymjs)     | PR 改动 `requirements/` / README             | story YAML 是真相源，校验并回写派生视图（计数、索引符号、epic status、N/M、死链）                             | `audit:requirements` / `audit:requirements:update`                            |
+| [audit/requirements-consistency.mjs](#auditrequirements-consistencymjs)     | PR 改动 `requirements/` / README             | story YAML 是真相源，校验并回写派生视图（计数、生成段落、epic status、N/M、死链、表格、证据区存量）           | `audit:requirements` / `audit:requirements:update`                            |
 | `audit/requirements-consistency.spec.mjs`                                   | 改该门禁后                                   | 临时目录搭最小仓库，覆盖计数 / 符号 / epic 规则 / 死链 / --update                                             | `node --test scripts/audit/requirements-consistency.spec.mjs`                 |
 | [audit/coverage-check.mjs](#auditcoverage-checkmjs)                         | CI 门禁                                      | 聚合 `coverage-summary.json`，按核心 90% / 其余 80% 卡线                                                      | `pnpm audit:coverage` / `:update`                                             |
 | [audit/coverage-baseline.json](#auditcoverage-baselinejson)                 | 上次 `:update` 写入                          | 覆盖率历史趋势快照                                                                                            | 由 `coverage-check.mjs --update` 维护                                         |
@@ -430,15 +430,23 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 ### `audit/requirements-consistency.mjs`
 
 - **触发**：`pnpm audit:requirements`（默认 `--check`，CI `setup` job 每个 PR 跑）；`pnpm audit:requirements:update`
-  改完 story `status` 后回写派生数字。
+  改完 story 后回写派生数字与生成段落。
 - **做什么**：以 `requirements/stories/*/US-*.md` 的 YAML `status` 为唯一真相源，校验
   1. story frontmatter 齐全、`status` 在五态内、`epic` 指向存在的 epic；
   2. `status-overview.md` 的汇总表、「进行中 / 待评审（N 条）」标题、按 Epic 索引里每条 story 的状态符号；
   3. epic `status` 与归属故事一致（Done 不持有 In Progress / Backlog；Backlog 不持有已开工）；
   4. `README.md` 的「N/M 已交付」；
   5. `requirements/**/*.md` 相对链接可解析、`#L<n>` 锚点不超过文件行数。
-     CONVENTIONS 禁止进正文的过程叙述词（`已于 X 日`、删除线、`落地偏差`……）只告警。
-- **`--update` 只改数字**：状态符号、epic status、死链是判断不是派生，必须手改。
+     CONVENTIONS 禁止进正文的过程叙述词（`已于 X 日`、删除线、`落地偏差`……）只告警；
+  6. 生成段落没有过期：`status-overview.md` 的进行中 / 待评审 / 阻塞三节与按 Epic 索引、`requirements/README.md` 的 Epic 清单；
+  7. AC 表的状态格都以 ✅ / ⚠️ / ⬜ 开头；全部需求根（根目录与各应用、各产品的 `requirements/`）下的表格行
+     都长在表格里（行前多一个空行就会掉出表格）；
+  8. 全部需求根（根目录与各应用、各产品的 `requirements/`）下，故事验收证据区里的日期与裸测试计数只减不增，
+     存量按故事编号记在 `audit/requirements-evidence-baseline.json`，新故事必须为零。
+     第 6 条只生成根 `requirements/` 的视图，应用与产品目录的派生视图仍由各自的门禁核对。
+- **`--update` 回写派生内容**：数字、上面第 6 条的生成段落，并把第 8 条的基线收紧到现状（只降不升）。
+  epic status、死链、表格与证据区的新增是判断不是派生，必须手改。
+- **`--rebaseline-evidence`**：按现状重建证据区基线，是唯一能上调基线的入口；只在引入门禁或批量导入存量故事时用。
 
 ## 10. AI 代码评审
 

@@ -127,7 +127,7 @@ test('AI 未启用时 Worker 拿不到 Trigger.dev 配置，导航页说明怎�
   assert.deepEqual(Object.keys(parseEnv(await readPrivateFile(secrets))).sort(), ['SUPABASE_ANON_KEY', 'SUPABASE_URL']);
   const homepage = await readFile(path.join(localDev, 'assets/index.html'), 'utf8');
   assert.ok(homepage.includes('data-agent="disabled"'));
-  assert.ok(homepage.includes('apps/api/.dev.vars'));
+  assert.ok(homepage.includes('nx dev 会自动恢复 key 与项目 ref'));
 });
 
 test('模板取值按 HTML 转义，用到未提供的取值时报错', () => {

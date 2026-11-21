@@ -4,7 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { parseEnv } from 'node:util';
-import { composeArgs, initializeEnvironment, localEnvironment, migrateLocalEndpoints } from './trigger-local.mjs';
+import {
+  composeArgs,
+  initializeEnvironment,
+  localEnvironment,
+  migrateLocalEndpoints,
+  parseDevelopmentCredentials
+} from './trigger-local.mjs';
 
 async function directory(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'model-trigger-'));
@@ -137,6 +143,13 @@ test('Compose 固定复用产品 infra 入口并隔离 Trigger 项目', () => {
     '-f',
     expectPath('infra/supabase/docker-compose.yml')
   ]);
+});
+
+test('解析本地 Development key 查询结果，不打印或改写密钥', () => {
+  assert.deepEqual(parseDevelopmentCredentials('tr_dev_sk_0123456789abcdefghij\tproj_xjkrazglzqhfhhbwdllb\n'), [
+    { secretKey: 'tr_dev_sk_0123456789abcdefghij', projectRef: 'proj_xjkrazglzqhfhhbwdllb' }
+  ]);
+  assert.deepEqual(parseDevelopmentCredentials(''), []);
 });
 
 function expectPath(suffix) {

@@ -163,7 +163,7 @@ describe('Admin 配置实体：真实 rxdb-entity-list / 详情 / 表单 / 表�
   /** 按 fieldset 的 legend 找到表单控件。 */
   const control = (root: ParentNode, legend: string): HTMLInputElement | HTMLTextAreaElement => {
     const fieldset = [...root.querySelectorAll('fieldset')].find(
-      item => item.querySelector('legend')?.textContent?.replace('*', '').trim() === legend
+      item => item.querySelector('legend')?.textContent?.replaceAll('*', '').trim() === legend
     );
     const element = fieldset?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
     if (!element) throw new Error(`表单里没有「${legend}」字段`);

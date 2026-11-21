@@ -24,16 +24,43 @@ export function isGenerationRequest(input: unknown): input is GenerationRequest 
 }
 
 export type {
+  AsrGenerationJobSummary,
+  AsrGenerationOption,
+  AsrJobRequest,
+  AudioGenerationJobSummary,
+  AudioGenerationOption,
+  AudioInputReference,
+  AudioJobRequest,
+  AudioResultManifest,
+  AudioResultMetadata,
   GenerationDeliveryStatus,
   GenerationFailureCategory,
   GenerationJobFailure,
+  GenerationJobRequest,
   GenerationJobStatus,
   GenerationJobSummary,
   GenerationReconciliation,
   GenerationReviewItem,
   GenerationReviewRequest,
   ImageJobRequest,
-  ReferenceImageUpload
+  LegacyAudioJobRequest,
+  LegacyMusicJobRequest,
+  LegacyVideoJobRequest,
+  MediaGenerationJobSummary,
+  MusicGenerationJobSummary,
+  MusicGenerationOption,
+  MusicJobRequest,
+  MusicJobRequestWithParameters,
+  ReferenceImageUpload,
+  TextToSpeechJobRequest,
+  TextToVideoJobRequest,
+  TranscriptResult,
+  VideoGenerationJobSummary,
+  VideoGenerationOption,
+  VideoJobRequest,
+  VideoParameters,
+  VideoResultManifest,
+  VideoResultMetadata
 } from './generation-jobs.ts';
 
 export {
@@ -64,35 +91,40 @@ export type { ImageGenerationOption } from './generation-jobs.ts';
 export {
   GenerationProtocolError,
   isGenerationUuid,
+  validateGenerationJobRequest,
   validateGenerationJobSummary,
+  validateImageGenerationJobSummary,
   validateImageGenerationOptions,
   validateImageJobRequest,
   validateReferenceImageUpload
 } from './generation-validation.ts';
 
-export { AUDIO_DURATION_MAX_MS, AUDIO_TEXT_MAX_LENGTH, AUDIO_WAV_MAX_BYTES } from './generation-jobs.ts';
-export type {
-  AudioGenerationJobSummary,
-  AudioGenerationOption,
-  AudioJobRequest,
-  AudioResultMetadata,
-  GenerationJobRequest,
-  MediaGenerationJobSummary
+export {
+  ASR_AUDIO_DURATION_MAX_MS,
+  ASR_AUDIO_MAX_BYTES,
+  AUDIO_DURATION_MAX_MS,
+  AUDIO_TEXT_MAX_LENGTH,
+  AUDIO_WAV_MAX_BYTES,
+  MUSIC_AUDIO_MAX_BYTES,
+  MUSIC_DURATION_MAX_MS,
+  MUSIC_TEXT_MAX_LENGTH
 } from './generation-jobs.ts';
 export {
+  validateAsrGenerationJobSummary,
+  validateAsrGenerationOptions,
+  validateAsrJobRequest,
   validateAudioGenerationJobSummary,
   validateAudioGenerationOptions,
+  validateAudioInputReference,
   validateAudioJobRequest,
-  validateAudioResultMetadata
+  validateAudioResultMetadata,
+  validateMusicGenerationJobSummary,
+  validateMusicGenerationOptions,
+  validateMusicJobRequest,
+  validateTranscriptResult
 } from './generation-validation.ts';
 
-export { VIDEO_MP4_MAX_BYTES, VIDEO_TEXT_MAX_LENGTH } from './generation-jobs.ts';
-export type {
-  VideoGenerationJobSummary,
-  VideoGenerationOption,
-  VideoJobRequest,
-  VideoResultMetadata
-} from './generation-jobs.ts';
+export { VIDEO_DURATION_MAX_MS, VIDEO_MP4_MAX_BYTES, VIDEO_TEXT_MAX_LENGTH } from './generation-jobs.ts';
 export {
   validateVideoGenerationJobSummary,
   validateVideoGenerationOptions,
@@ -102,3 +134,4 @@ export {
 
 export { IMAGE_PROMPT_MAX_LENGTH } from './generation-jobs.ts';
 export type { ImageAspectRatio } from './generation-jobs.ts';
+export * from './media-capabilities.ts';

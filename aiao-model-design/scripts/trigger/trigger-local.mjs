@@ -241,6 +241,33 @@ export function composeArgs(args) {
   ];
 }
 
+export function parseDevelopmentCredentials(output) {
+  return output
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(line => {
+      const [secretKey, projectRef] = line.split('\t');
+      return { secretKey, projectRef };
+    });
+}
+
+/** 读取本地自托管实例中的 Development runtime key，不输出密钥到终端。 */
+export async function findLocalDevelopmentCredentials() {
+  const sql = `SELECT r."apiKey", p."externalRef"
+    FROM public."RuntimeEnvironment" r
+    JOIN public."Project" p ON p."id" = r."projectId"
+    WHERE r."type"::text = 'DEVELOPMENT'
+      AND r."archivedAt" IS NULL
+      AND p."deletedAt" IS NULL
+      AND r."apiKey" ~ '^tr_dev_(sk_)?[A-Za-z0-9]+$'
+    ORDER BY p."name", r."createdAt"`;
+  const output = await capture('docker', [
+    ...composeArgs(['exec', '-T', 'postgres', 'psql', '-U', 'postgres', '-d', 'main', '-At', '-F', '\t', '-c', sql])
+  ]);
+  return parseDevelopmentCredentials(output);
+}
+
 async function compose(args) {
   const env = await localEnvironment();
   return run('docker', composeArgs(args), { env: { ...process.env, ...env } });

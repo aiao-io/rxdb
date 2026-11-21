@@ -2,16 +2,16 @@
 
 > **真相源**：`stories/*/MEDIA-US-*.md` 的 YAML `status`。本页按该字段派生，有冲突以 YAML 为准并修正本页。排期见[路线图](roadmap.md)，能力范围见[能力矩阵](capability-matrix.md)，证据分层见[验收记录](verification-report.md)。
 
-当前范围是桌面浏览器上的图片创作：灵感与提示词、平台积分生图与本机交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)，用户不再配置供应商：模型与凭据由平台统一托管，登录平台账号且积分可用即可生成，未登录保留本机草稿、灵感浏览与本机作品。海外平台账号与同步已按 [D-16](decisions.md) 正式启用，国内自建 Supabase 与 IP HTTPS 已通过[发布验收](plans/self-hosted-release-20261109.md)；公众邮件与桌面联验仍待完成。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；充值计费按 [D-17](decisions.md#d-17充值退款与价格体系暂缓平台生图已按-d-19-恢复为积分制) 暂缓，积分由后台发放（MEDIA-US-206）。原自有项目接入需求与代码按用户决定移除。本站服务端任务与刷新续接拆为 MEDIA-US-109，服务端已完成平台凭据、积分预占/确认/释放及本地验证，前端改版与本地浏览器验收已完成，双区域真实账号三画幅、积分、海外刷新/关页续接、真实实例重置与 24 小时期满回收已验；双标签页与桌面来源仍待验，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务) 与 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)。
+当前已交付主路径仍是桌面浏览器上的图片创作：灵感与提示词、平台积分生图与本机交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。TTS、ASR、音乐生成和视频生成已纳入 MEDIA-US-111，当前仍处于 Backlog。按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)，用户不再配置供应商：模型与凭据由平台统一托管，登录平台账号且积分可用即可生成，未登录保留本机草稿、灵感浏览与本机作品。海外平台账号与同步已按 [D-16](decisions.md) 正式启用，国内自建 Supabase 与 IP HTTPS 已通过[发布验收](plans/self-hosted-release-20261109.md)；公众邮件与桌面联验仍待完成。旧 Bun API/PostgreSQL、SSR/BFF、Electron 桌面与通用供应商证据机不在范围内；充值计费按 [D-17](decisions.md#d-17充值退款与价格体系暂缓平台生图已按-d-19-恢复为积分制) 暂缓，积分由后台发放（MEDIA-US-206）。原自有项目接入需求与代码按用户决定移除。本站服务端任务与刷新续接拆为 MEDIA-US-109，服务端已完成平台凭据、积分预占/确认/释放及本地验证，前端改版与本地浏览器验收已完成，双区域真实账号三画幅、积分、海外刷新/关页续接、真实实例重置与 24 小时期满回收已验；双标签页与桌面来源仍待验，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务) 与 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)。
 
 | 状态           |   数量 | 说明                                                                                       |
 | -------------- | -----: | ------------------------------------------------------------------------------------------ |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条                           |
 | 🚧 In Progress |      8 | 桌面、同步、Supabase 边界、配置分支发布与 PGMQ PoC 剩余验收                                |
 | 👀 In Review   |      8 | 本机交付、灵感库、国内部署、首次安装、平台生图、积分、账户资料与模型驱动配置编辑待评审合入 |
-| ⬜ Backlog     |      2 | 既有移动/支付与后续迁移评审                                                                |
+| ⬜ Backlog     |      3 | 移动/支付与音视频生成仍待排期                                                              |
 | 🚫 Blocked     |      0 | —                                                                                          |
-| **合计**       | **26** | 不含模板和上游故事                                                                         |
+| **合计**       | **27** | 不含模板和上游故事                                                                         |
 
 ## 按 Epic 索引
 
@@ -23,7 +23,7 @@
 - 👀 [MEDIA-US-006 国内自建服务与 IP HTTPS 部署](stories/platform/MEDIA-US-006-self-hosted-deployment.md)
 - 👀 [MEDIA-US-007 首次访问后台初始化](stories/platform/MEDIA-US-007-installation.md)
 
-### [图片生成](epics/MEDIA-EPIC-002.md)
+### [媒体生成](epics/MEDIA-EPIC-002.md)
 
 - 👀 [MEDIA-US-108 平台积分生图与额度](stories/generation/MEDIA-US-108-platform-generation.md)
 - 🚧 [MEDIA-US-109 平台生图服务端任务与刷新续接](stories/generation/MEDIA-US-109-relay-durable-task.md)
@@ -31,6 +31,7 @@
 - 👀 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
 - 🚧 [MEDIA-US-110 PGMQ 生成任务队列 PoC](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)
 - ⬜ [MEDIA-US-107 移动设备能力验收](stories/generation/MEDIA-US-107-mobile-verification.md)（暂缓）
+- ⬜ [MEDIA-US-111 TTS、ASR 与音乐/视频生成](stories/generation/MEDIA-US-111-multimodal-generation.md)
 
 ### [账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
 
@@ -61,7 +62,7 @@
 
 ## 未完成验收与关闭条件
 
-26 条故事共 194 条 AC，141 条已通过（✅）、20 条部分通过（⚠️）、33 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 10 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，2026-11-16 真实 alarm 在 24 小时期满后 304 ms 删除任务行与 R2 对象（AC9），仍待双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+27 条故事共 206 条 AC，141 条已通过（✅）、20 条部分通过（⚠️）、45 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 全部 7 条、MEDIA-US-206 全部 5 条均已通过，双区域真实发放/回收、三画幅消费与精确原图交付已验，两条故事进入 In Review，见[积分交付证据](plans/credits-delivery-20261113.md)。MEDIA-US-111 的 12 条 AC 属于新增 Backlog，尚无实现或验收证据。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 10 条通过；真实刷新、关页后结果完成五分钟续接、三画幅及 R2 领取即删已验，真实实例重置与 4/24 MiB 加密 CPU 另已通过，2026-11-16 真实 alarm 在 24 小时期满后 304 ms 删除任务行与 R2 对象（AC9），仍待双标签页与桌面来源，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)和[真实 Cloudflare 实测](plans/relay-cloudflare-verification-20261115.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展     | 关闭所需证据                                                  |
 | -------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------- |

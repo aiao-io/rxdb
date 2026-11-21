@@ -1,4 +1,5 @@
 import { isRelayTaskToken, relayTaskTokenHeader } from '@aiao-media/api-contracts';
+import { mediaProviderInput } from './media-provider.ts';
 import { platformImageInput } from './platform-models.ts';
 import { endpoint, member, originAllowed, reject, uuid } from './product-http.ts';
 import { missingRelayTask, relayTaskLimits } from './relay-task.ts';
@@ -22,7 +23,7 @@ const operations: Record<string, (url: URL, taskId: string) => ForwardOperation>
   'DELETE ': () => ({ path: '/', method: 'DELETE', write: true })
 };
 
-/** 创建需要真实平台账号；续接和结清继续使用本机任务令牌。 */
+/** 创建需要真实平台账号，续接和结清继续使用本机任务令牌。 */
 export function handleRelayTask(request: Request, env: WorkerEnv) {
   return endpoint(async () => {
     const url = new URL(request.url),
@@ -36,6 +37,34 @@ export function handleRelayTask(request: Request, env: WorkerEnv) {
     const task = env.RELAY_TASKS.get(env.RELAY_TASKS.idFromName(`relay-task:${taskId}`));
     if (operation === 'PUT ') {
       const { userId } = await member(request, env);
+      const preview = await request
+        .clone()
+        .json<Record<string, unknown>>()
+        .catch(() => null);
+      if (preview?.kind === 'audio' || preview?.kind === 'video') {
+        const input = await mediaProviderInput(request, env, userId);
+        return task.fetch('https://relay-task.internal/', {
+          method: 'PUT',
+          headers: {
+            authorization: input.authorization,
+            [relayTaskTokenHeader]: token,
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            taskId,
+            ownerId: userId,
+            cost: input.cost,
+            url: input.url,
+            body: input.body,
+            protocol: input.protocol,
+            operation: input.operation,
+            resultKind: input.resultKind,
+            maxResultBytes: input.maxResultBytes,
+            maxResultDurationMs: input.maxResultDurationMs,
+            request: input.request
+          })
+        });
+      }
       const input = await platformImageInput(request, env);
       return task.fetch('https://relay-task.internal/', {
         method: 'PUT',
@@ -44,7 +73,14 @@ export function handleRelayTask(request: Request, env: WorkerEnv) {
           [relayTaskTokenHeader]: token,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({ taskId, ownerId: userId, cost: input.cost, url: input.url, body: input.body })
+        body: JSON.stringify({
+          taskId,
+          ownerId: userId,
+          cost: input.cost,
+          url: input.url,
+          body: input.body,
+          protocol: input.protocol
+        })
       });
     }
     const forward = operations[operation](url, taskId);

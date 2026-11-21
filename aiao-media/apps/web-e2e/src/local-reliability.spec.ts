@@ -434,11 +434,11 @@ test('模板字段可撤销重做，刷新恢复画幅，替换模板后撤销�
   await expect(product).toHaveValue('手冲咖啡');
   await page.getByRole('button', { name: '重做', exact: true }).click();
   await expect(product).toHaveValue('燕麦拿铁');
-  await page.getByRole('button', { name: '纵向', exact: true }).click();
+  await page.getByRole('button', { name: '2:3', exact: true }).click();
   await expect(page.locator('.draft-status')).toContainText('已保存');
   await page.reload();
   await expect(product).toHaveValue('燕麦拿铁');
-  await expect(page.getByRole('button', { name: '纵向', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '2:3', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await product.fill('不应进入下一模板的输入');
   await page.getByRole('link', { name: '发现灵感', exact: true }).click();
   await page.getByRole('button', { name: '查看一件陶器，也有自己的年轮', exact: true }).click();

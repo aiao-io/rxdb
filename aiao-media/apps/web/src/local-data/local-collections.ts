@@ -13,10 +13,17 @@ import { validateAudioSubmissionBook } from './audio-submissions';
 import { validateNotebook } from './draft-notebook';
 import { validateImageSubmissionBook } from './image-submissions';
 import { localRepository } from './local-repository';
+import { validateMediaSubmissionBook } from './media-submissions';
 import { validateVideoSubmissionBook } from './video-submissions';
 
 export type LocalCollection =
-  'providers' | 'tasks' | 'drafts' | 'image-submissions' | 'audio-submissions' | 'video-submissions';
+  | 'providers'
+  | 'tasks'
+  | 'drafts'
+  | 'image-submissions'
+  | 'audio-submissions'
+  | 'video-submissions'
+  | 'media-submissions';
 export interface CollectionEntry {
   sourceId: string;
   payload: string;
@@ -137,6 +144,17 @@ export function decodeCollection(collection: LocalCollection, payload: string): 
         providerId: pending.request.providerInstanceId
       });
   }
+  if (collection === 'media-submissions')
+    for (const submission of validateMediaSubmissionBook(source).submissions)
+      rows.push({
+        id: submission.key,
+        value: submission,
+        status:
+          submission.resultHandled ? 'handled'
+          : submission.firstSentAt ? 'sent'
+          : 'prepared',
+        providerId: submission.request.providerInstanceId
+      });
   const ids = new Set(rows.map(row => row.id));
   if (ids.size !== rows.length) throw new Error('旧集合包含重复标识；未迁移或删除原数据。');
   return rows.map((row, position) => ({

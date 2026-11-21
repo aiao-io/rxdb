@@ -2,8 +2,8 @@ import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import {
   imageExtension,
   imageMetadata,
-  validateGenerationJobSummary,
-  validateImageBlob
+  validateImageBlob,
+  validateImageGenerationJobSummary
 } from '@aiao-media/api-contracts';
 import { strFromU8, strToU8, unzip, zip, type AsyncZippable, type Unzipped } from 'fflate';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
@@ -94,7 +94,7 @@ function validateBackup(data: LocalBackup): LocalBackup {
       throw new Error('备份任务通道无效。');
     return {
       channel: channel ?? 'direct',
-      ...validateGenerationJobSummary(summary),
+      ...validateImageGenerationJobSummary(summary),
       ...(saved ? { saved: true } : {}),
       ...(acknowledged ? { acknowledged: true } : {})
     };
@@ -102,7 +102,7 @@ function validateBackup(data: LocalBackup): LocalBackup {
   if (new Set(data.tasks.map(t => t.id)).size !== data.tasks.length) throw new Error('备份任务 ID 重复。');
   const ids = new Set<string>();
   for (const image of data.images) {
-    image.job = validateGenerationJobSummary(image.job);
+    image.job = validateImageGenerationJobSummary(image.job);
     if (
       image.job.status !== 'completed' ||
       image.job.request.kind !== 'image' ||
@@ -197,7 +197,7 @@ export async function createLocalBackup(
     draft: (await store.studioDraft())?.state ?? null,
     tasks: tasks.map(t => ({
       ...(t.channel ? { channel: t.channel } : {}),
-      ...validateGenerationJobSummary({
+      ...validateImageGenerationJobSummary({
         id: t.id,
         request: t.request,
         status: t.status,
