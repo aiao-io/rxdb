@@ -340,10 +340,10 @@ export const githubApp = {
     await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /320px/);
 
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
-    await page
-      .getByRole('menu', { name: 'View', exact: true })
-      .getByRole('menuitem', { name: 'Show Changes Filter', exact: true })
-      .click();
+    const viewMenu = page.getByRole('menu', { name: 'View', exact: true });
+    const changesFilter = viewMenu.getByRole('menuitem', { name: 'Show Changes Filter', exact: true });
+    await expect(changesFilter).toBeEnabled();
+    await changesFilter.click();
     await expect(githubWindow.locator('input[aria-label="Filter changes"]')).toBeFocused();
 
     const editor = githubWindow.locator('[data-github-editor]');
