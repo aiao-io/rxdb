@@ -167,8 +167,8 @@
             </div>
             <div class="gh-menu-actions">
               <button
-                #localRepositoryButton
                 class="gd-btn-secondary"
+                #localRepositoryButton
                 [disabled]="busy()"
                 (click)="openLocalRepositoryPicker()"
                 aria-label="Add local repository"
@@ -178,29 +178,35 @@
                 Add Local Repository
               </button>
               <input
-                #localRepositoryInput
                 class="sr-only"
+                #localRepositoryInput
                 [disabled]="busy()"
                 (change)="importLocalDirectory($event)"
-                data-github-add-local-input
                 aria-label="Choose local Git repository directory"
+                data-github-add-local-input
                 directory
                 tabindex="-1"
                 type="file"
                 webkitdirectory
               />
               <label
-                #importRepositoryButton
                 class="gd-btn-secondary gh-file-button"
+                #importRepositoryButton
                 [class.disabled]="busy()"
-                aria-label="Import repository archive"
                 (keydown.enter)="openImportPicker($event)"
                 (keydown.space)="openImportPicker($event)"
+                aria-label="Import repository archive"
                 role="button"
                 tabindex="0"
               >
                 Import archive
-                <input [disabled]="busy()" (change)="importRepository($event)" aria-label="Import repository archive" data-github-import type="file" />
+                <input
+                  [disabled]="busy()"
+                  (change)="importRepository($event)"
+                  aria-label="Import repository archive"
+                  data-github-import
+                  type="file"
+                />
               </label>
               @if (activeRecord()) {
                 <button (click)="exportRepository()" data-github-export type="button">Export repository</button>

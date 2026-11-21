@@ -727,7 +727,9 @@ export const a11y = {
         const githubWindow = win('github').last();
         github.menubar = problems(
           opened ? [] : ['无法从 Dock 通过键盘打开 GitHub Desktop'],
-          (await menubarFirstApp()) === 'GitHub Desktop' ? [] : [`菜单栏应用名不是 GitHub Desktop，实际 ${await menubarFirstApp()}`]
+          (await menubarFirstApp()) === 'GitHub Desktop' ?
+            []
+          : [`菜单栏应用名不是 GitHub Desktop，实际 ${await menubarFirstApp()}`]
         );
         const githubBarSnapshot = await snapshot('#menubar');
         github.menubar.push(
@@ -774,10 +776,15 @@ export const a11y = {
         await press('Enter');
         await githubWindow.locator('[data-github-new-repository]').waitFor({ timeout: 5_000 });
         github.fileMenuAction =
-          (await githubWindow.locator('[data-github-new-repository]').getAttribute('aria-label')) === 'New repository name' &&
-          (await githubWindow.locator('[data-github-new-repository]').evaluate(node => node === document.activeElement))
-            ? []
-            : ['File > New Repository 没有通过键盘打开并聚焦输入框'];
+          (
+            (await githubWindow.locator('[data-github-new-repository]').getAttribute('aria-label')) ===
+              'New repository name' &&
+            (await githubWindow
+              .locator('[data-github-new-repository]')
+              .evaluate(node => node === document.activeElement))
+          ) ?
+            []
+          : ['File > New Repository 没有通过键盘打开并聚焦输入框'];
       });
 
       /* 完整的纯键盘流程：关掉 Finder 窗口 → Dock 图标 Enter 重新打开 → 「前往」菜单选 Documents → ⌘W 关窗口。全程不碰鼠标。 */

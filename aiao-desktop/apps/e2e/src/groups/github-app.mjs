@@ -292,8 +292,11 @@ export const githubApp = {
     await page.keyboard.press('Enter');
     result.spotlightOpens = await appears(win('github').locator('[data-github-app]'));
     const githubWindow = win('github');
-    const menuTitles = (await page.locator('#menubar #mb-titles .mb-item').allTextContents()).map(title => title.trim());
-    result.applicationMenu = JSON.stringify(menuTitles) ===
+    const menuTitles = (await page.locator('#menubar #mb-titles .mb-item').allTextContents()).map(title =>
+      title.trim()
+    );
+    result.applicationMenu =
+      JSON.stringify(menuTitles) ===
       JSON.stringify(['GitHub Desktop', 'File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']);
 
     await page.getByRole('menuitem', { name: 'GitHub Desktop', exact: true }).click();
@@ -301,8 +304,11 @@ export const githubApp = {
     await applicationMenu.waitFor();
     result.applicationAppMenu =
       (await applicationMenu.getByRole('menuitem', { name: 'About GitHub Desktop', exact: true }).count()) === 1 &&
-      (await applicationMenu.getByRole('menuitem', { name: 'Install Command Line Tool', exact: true }).getAttribute('aria-disabled')) === 'true' &&
-      (await applicationMenu.getByRole('menuitem', { name: 'Services', exact: true }).getAttribute('aria-disabled')) === 'true';
+      (await applicationMenu
+        .getByRole('menuitem', { name: 'Install Command Line Tool', exact: true })
+        .getAttribute('aria-disabled')) === 'true' &&
+      (await applicationMenu.getByRole('menuitem', { name: 'Services', exact: true }).getAttribute('aria-disabled')) ===
+        'true';
     await page.keyboard.press('Escape');
 
     await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
@@ -334,7 +340,10 @@ export const githubApp = {
     await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /320px/);
 
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
-    await page.getByRole('menu', { name: 'View', exact: true }).getByRole('menuitem', { name: 'Show Changes Filter', exact: true }).click();
+    await page
+      .getByRole('menu', { name: 'View', exact: true })
+      .getByRole('menuitem', { name: 'Show Changes Filter', exact: true })
+      .click();
     await expect(githubWindow.locator('input[aria-label="Filter changes"]')).toBeFocused();
 
     const editor = githubWindow.locator('[data-github-editor]');

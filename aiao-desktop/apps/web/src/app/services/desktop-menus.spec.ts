@@ -72,29 +72,38 @@ const finderTarget = (): FinderCommands => ({
   goto: vi.fn()
 });
 
-const githubTarget = (overrides: Partial<{
-  activeTab: GithubTab;
-  hasRepository: boolean;
-  hasRemote: boolean;
-  hasChanges: boolean;
-  isBusy: boolean;
-}> = {}) => ({
-  activeTab: vi.fn((): GithubTab => overrides.activeTab ?? 'changes'),
-  hasRepository: vi.fn(() => overrides.hasRepository ?? true),
-  hasRemote: vi.fn(() => overrides.hasRemote ?? true),
-  hasChanges: vi.fn(() => overrides.hasChanges ?? false),
-  isBusy: vi.fn(() => overrides.isBusy ?? false),
-  openRepositoryMenu: vi.fn((kind: GithubRepositoryMenu): void => { void kind; }),
-  openLocalRepository: vi.fn((): void => undefined),
-  openBranchMenu: vi.fn((): void => undefined),
-  focusChangesFilter: vi.fn((): void => undefined),
-  setTab: vi.fn((tab: GithubTab): void => { void tab; }),
-  fetch: vi.fn((): void => undefined),
-  pull: vi.fn((): void => undefined),
-  push: vi.fn((): void => undefined),
-  discardAllChanges: vi.fn((): void => undefined),
-  openExternal: vi.fn((target: GithubExternalTarget): void => { void target; })
-}) satisfies GithubCommands;
+const githubTarget = (
+  overrides: Partial<{
+    activeTab: GithubTab;
+    hasRepository: boolean;
+    hasRemote: boolean;
+    hasChanges: boolean;
+    isBusy: boolean;
+  }> = {}
+) =>
+  ({
+    activeTab: vi.fn((): GithubTab => overrides.activeTab ?? 'changes'),
+    hasRepository: vi.fn(() => overrides.hasRepository ?? true),
+    hasRemote: vi.fn(() => overrides.hasRemote ?? true),
+    hasChanges: vi.fn(() => overrides.hasChanges ?? false),
+    isBusy: vi.fn(() => overrides.isBusy ?? false),
+    openRepositoryMenu: vi.fn((kind: GithubRepositoryMenu): void => {
+      void kind;
+    }),
+    openLocalRepository: vi.fn((): void => undefined),
+    openBranchMenu: vi.fn((): void => undefined),
+    focusChangesFilter: vi.fn((): void => undefined),
+    setTab: vi.fn((tab: GithubTab): void => {
+      void tab;
+    }),
+    fetch: vi.fn((): void => undefined),
+    pull: vi.fn((): void => undefined),
+    push: vi.fn((): void => undefined),
+    discardAllChanges: vi.fn((): void => undefined),
+    openExternal: vi.fn((target: GithubExternalTarget): void => {
+      void target;
+    })
+  }) satisfies GithubCommands;
 
 describe('DesktopMenus 苹果菜单', () => {
   it('关于本机、系统设置交给窗口管理器；App Store 只提示', () => {
@@ -171,7 +180,12 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
       'Show All',
       'Quit GitHub Desktop'
     ]);
-    expect(about.filter(isMenuCommand).filter(item => item.disabled).map(item => item.id)).toEqual(['cli', 'services']);
+    expect(
+      about
+        .filter(isMenuCommand)
+        .filter(item => item.disabled)
+        .map(item => item.id)
+    ).toEqual(['cli', 'services']);
     click(about, 'a');
     click(about, 'p');
     click(about, 'h');

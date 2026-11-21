@@ -1,8 +1,8 @@
 import {
+  afterRenderEffect,
   ApplicationRef,
   ChangeDetectorRef,
   Component,
-  afterRenderEffect,
   computed,
   DestroyRef,
   ElementRef,
@@ -359,8 +359,9 @@ export class GithubApp {
 
   protected openImportPicker(event: Event): void {
     event.preventDefault();
-    const input = event.currentTarget instanceof HTMLElement
-      ? event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
+    const input =
+      event.currentTarget instanceof HTMLElement ?
+        event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
       : null;
     input?.click();
   }
@@ -760,7 +761,9 @@ export class GithubApp {
     });
   }
 
-  private async archiveOfDirectory(directory: DirectoryHandle): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
+  private async archiveOfDirectory(
+    directory: DirectoryHandle
+  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
     const files: GitArchive['files'][number][] = [];
     const directories = new Set<string>();
     const visit = async (current: DirectoryHandle, prefix: string): Promise<void> => {
@@ -773,7 +776,9 @@ export class GithubApp {
         }
         files.push({
           path,
-          bytes: new Uint8Array((await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer) as Uint8Array<ArrayBuffer>
+          bytes: new Uint8Array(
+            (await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer
+          ) as Uint8Array<ArrayBuffer>
         });
       }
     };
@@ -781,7 +786,9 @@ export class GithubApp {
     return { name: directory.name, archive: encodeGitArchive({ files, directories: [...directories] }) };
   }
 
-  private async archiveOfUploadedDirectory(files: readonly File[]): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
+  private async archiveOfUploadedDirectory(
+    files: readonly File[]
+  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
     const entries = files
       .map(file => {
         const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean);
@@ -804,7 +811,11 @@ export class GithubApp {
     return { name: root, archive: encodeGitArchive({ files: collected, directories: [...directories] }) };
   }
 
-  private async importArchive(name: string, bytes: Uint8Array<ArrayBuffer>, noticeVerb: 'Added' | 'Imported'): Promise<void> {
+  private async importArchive(
+    name: string,
+    bytes: Uint8Array<ArrayBuffer>,
+    noticeVerb: 'Added' | 'Imported'
+  ): Promise<void> {
     const projectId = projectIdForLocal(name);
     const snapshot = await this.backend.importArchive(projectId, bytes);
     const importedStatus = await this.backend.status(projectId);
@@ -1232,7 +1243,8 @@ export class GithubApp {
       'report-issue': 'https://github.com/desktop/desktop/issues/new/choose',
       support: 'https://support.github.com/contact',
       guides: 'https://docs.github.com/en/desktop',
-      shortcuts: 'https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/overview/keyboard-shortcuts'
+      shortcuts:
+        'https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/overview/keyboard-shortcuts'
     };
     const url = urls[target];
     if (!url) return;
