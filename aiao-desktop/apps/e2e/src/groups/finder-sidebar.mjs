@@ -19,7 +19,7 @@ async function pickUpPlace(page, source) {
 async function dragPlace(page, source, target) {
   await target.scrollIntoViewIfNeeded();
   const to = await target.boundingBox();
-  const { y } = await pickUpPlace(page, source);
+  await pickUpPlace(page, source);
   const targetX = to.x + to.width / 2;
   const targetY = to.y + to.height / 2;
   await page.mouse.move(targetX, targetY, { steps: 12 });
