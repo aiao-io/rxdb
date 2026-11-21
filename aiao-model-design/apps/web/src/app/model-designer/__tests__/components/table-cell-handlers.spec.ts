@@ -100,6 +100,29 @@ describe('table cell handlers', () => {
     expect(cb.emitPropertyUpdated).toHaveBeenCalledWith({ id: 'child-1', changes: { isRequired: true } });
   });
 
+  it('handles empty add-row values and non-string enum inputs', () => {
+    const cb = callbacks();
+    const activeEntity = entity({ id: 'entity-1' });
+    const propertyRecord: TableRecord = { _propId: 'prop-1' };
+    const validProperty = property({ id: 'prop-1', name: 'title' });
+
+    handlePropertyCellChange(undefined, 'name', 0, 0, 'ignored', activeEntity, [], cb);
+    handlePropertyCellChange({ _isAddRow: true }, 'name', 0, 0, 12, activeEntity, [], cb);
+    handlePropertyCellChange({ _isAddRow: true }, 'name', 0, 0, '   ', activeEntity, [], cb);
+    handlePropertyCellChange({ _isAddRow: true, propertyType: '' }, 'name', 2, 3, 'count', activeEntity, [], cb);
+
+    handlePropertyCellChange(propertyRecord, undefined, 0, 0, 'ignored', null, [validProperty], cb);
+    handlePropertyCellChange(propertyRecord, 'name', 0, 0, null, null, [validProperty], cb);
+    handlePropertyCellChange(propertyRecord, 'columnName', 0, 0, 'invalid name', null, [validProperty], cb);
+    handlePropertyCellChange(propertyRecord, 'columnName', 0, 0, undefined, null, [validProperty], cb);
+    handlePropertyCellChange(propertyRecord, 'enumValues', 0, 0, 42, null, [validProperty], cb);
+    handlePropertyCellChange(propertyRecord, 'enumValues', 0, 0, null, null, [validProperty], cb);
+
+    expect(cb.emitPropertyAdded).toHaveBeenCalledWith({ entityId: 'entity-1', name: 'count', type: 'string' });
+    expect(cb.setPropertyError).toHaveBeenCalledWith('prop-1', 'columnName', true);
+    expect(cb.emitPropertyUpdated).toHaveBeenLastCalledWith({ id: 'prop-1', changes: { enumValues: null } });
+  });
+
   it('updates relation targets and clears stale mapped properties', () => {
     const emit = vi.fn();
     const record: TableRecord = {
@@ -148,6 +171,30 @@ describe('table cell handlers', () => {
     expect(emit).toHaveBeenCalledWith({ id: 'rel-1', changes: { mappedEntityId: null } });
   });
 
+  it('keeps an unchanged target and resolves missing mapped properties to null', () => {
+    const emit = vi.fn();
+    const account = entity({ id: 'account', name: 'Account' });
+
+    handleRelationCellChange(
+      { _relId: 'rel-1', _mappedEntityId: 'account' },
+      'mappedEntityId',
+      'Account',
+      [account],
+      new Map(),
+      emit
+    );
+    handleRelationCellChange({ _relId: 'rel-1' }, 'mappedPropertyId', 'owner', [], new Map(), emit);
+    handleRelationCellChange({ _relId: 'rel-1', _mappedEntityId: 'missing' }, 'mappedPropertyId', 'owner', [], new Map(), emit);
+    handleRelationCellChange({ _relId: 'rel-1' }, 'mappedPropertyId', '', [], new Map(), emit);
+    handleRelationCellChange({ _relId: 'rel-1' }, undefined, 'ignored', [], new Map(), emit);
+
+    expect(emit).toHaveBeenNthCalledWith(1, { id: 'rel-1', changes: { mappedEntityId: 'account' } });
+    expect(emit).toHaveBeenNthCalledWith(2, { id: 'rel-1', changes: { mappedPropertyId: 'owner' } });
+    expect(emit).toHaveBeenNthCalledWith(3, { id: 'rel-1', changes: { mappedPropertyId: null } });
+    expect(emit).toHaveBeenNthCalledWith(4, { id: 'rel-1', changes: { mappedPropertyId: null } });
+    expect(emit).toHaveBeenCalledTimes(4);
+  });
+
   it('emits index property ids and editable fields', () => {
     const emit = vi.fn();
     const record: TableRecord = { _idxId: 'idx-1' };
@@ -162,5 +209,16 @@ describe('table cell handlers', () => {
     expect(emit).toHaveBeenNthCalledWith(1, { id: 'idx-1', changes: { propertyIds: ['p1', 'p2'] } });
     expect(emit).toHaveBeenNthCalledWith(2, { id: 'idx-1', changes: { displayName: 'Unique email' } });
     expect(emit).toHaveBeenNthCalledWith(3, { id: 'idx-1', changes: { isUnique: true } });
+  });
+
+  it('ignores incomplete index edits', () => {
+    const emit = vi.fn();
+
+    handleIndexCellChange(undefined, 'displayName', 'ignored', emit);
+    handleIndexCellChange({}, 'displayName', 'ignored', emit);
+    handleIndexCellChange({ _idxId: 'idx-1' }, 'propertyNames', ['p1'], emit);
+    handleIndexCellChange({ _idxId: 'idx-1' }, undefined, 'ignored', emit);
+
+    expect(emit).not.toHaveBeenCalled();
   });
 });

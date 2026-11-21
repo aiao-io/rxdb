@@ -102,6 +102,27 @@ describe('syncGraphSelection', () => {
     expect(unselect).toHaveBeenCalledWith({ id: 'old' });
     expect(select).toHaveBeenCalledWith({ id: 'new' });
   });
+
+  it('synchronizes selection without enabling the plugin outside move mode', () => {
+    const enable = vi.fn();
+    const disable = vi.fn();
+    const select = vi.fn();
+    const unselect = vi.fn();
+    const graph = {
+      getSelectedCells: () => [{ id: 'old' }],
+      getCellById: (id: string) => (id === 'new' ? { id } : undefined),
+      select,
+      unselect,
+      cleanSelection: vi.fn()
+    } as unknown as GraphType;
+
+    syncGraphSelection(graph, { enable, disable } as unknown as SelectionType, new Set(['new']), 'select');
+
+    expect(enable).not.toHaveBeenCalled();
+    expect(disable).not.toHaveBeenCalled();
+    expect(unselect).not.toHaveBeenCalled();
+    expect(select).toHaveBeenCalledWith({ id: 'new' });
+  });
 });
 
 describe('namespace graph helpers', () => {
@@ -393,6 +414,50 @@ describe('syncGraphNodes', () => {
     expect(skipped.position).toEqual({ x: 0, y: 0 });
     expect(moved.ports.map(port => port.id)).toContain('entity:left');
   });
+
+  it('updates an already grouped node when its size changes and position is unchanged', async () => {
+    const group = mockCanvasNode(`${NS_PREFIX}default`, { size: { width: 100, height: 60 } });
+    const aligned = mockCanvasNode('aligned', {
+      position: { x: 40, y: 60 },
+      size: { width: 240, height: 80 },
+      parent: group
+    });
+    const state = mockCanvasGraph([group, aligned]);
+    const entity = {
+      id: 'aligned',
+      name: 'Aligned',
+      entityNamespace: undefined,
+      extendsBase: undefined,
+      nodeX: 40,
+      nodeY: 60,
+      nodeWidth: 260
+    };
+
+    syncGraphNodes(
+      state.graph,
+      [entity as never],
+      new Map([
+        [
+          'aligned',
+          [
+            { id: 'property-1', name: 'status', propertyType: 'string' },
+            { id: 'property-2', name: 'title', propertyType: 'string' }
+          ] as never
+        ]
+      ]),
+      new Map(),
+      new Set(),
+      new Set(),
+      'default',
+      new Map()
+    );
+    await Promise.resolve();
+
+    expect(aligned.parent).toBe(group);
+    expect(aligned.position).toEqual({ x: 40, y: 60 });
+    expect(aligned.size).toEqual({ width: 240, height: 208 });
+    expect(aligned.props.get('zIndex')).toBe(1);
+  });
 });
 
 describe('syncGraphSelection edge cases', () => {
@@ -441,6 +506,23 @@ describe('syncFieldPorts edge cases', () => {
     expect(setPortProp).toHaveBeenCalledTimes(1);
     expect(addPort).toHaveBeenCalledWith(expect.objectContaining({ id: 'rr:relation-1' }));
   });
+
+  it('uses the relation name when the relation id and current ports are absent', () => {
+    const addPort = vi.fn();
+
+    syncFieldPorts(
+      { id: 'order', addPort } as never,
+      [{ name: 'owner', type: 'relation', category: 'relation' } as never],
+      240,
+      40,
+      false
+    );
+
+    expect(addPort).toHaveBeenCalledWith(expect.objectContaining({ id: 'rl:owner' }));
+    expect(addPort).toHaveBeenCalledWith(expect.objectContaining({ id: 'rr:owner' }));
+    expect(addPort).toHaveBeenCalledWith(expect.objectContaining({ id: 'entity:left' }));
+    expect(addPort).toHaveBeenCalledWith(expect.objectContaining({ id: 'entity:right' }));
+  });
 });
 
 describe('theme and group guards', () => {
@@ -465,5 +547,28 @@ describe('theme and group guards', () => {
     fitGroupToChildren({ getCellById: () => ({ id: `${NS_PREFIX}empty`, isNode: () => true, getChildren: () => [] }) } as unknown as GraphType, 'ns:empty');
     expect(setPosition).not.toHaveBeenCalled();
     expect(setSize).not.toHaveBeenCalled();
+  });
+
+  it('skips missing groups and non-node children while fitting usable children', () => {
+    const setPosition = vi.fn();
+    const setSize = vi.fn();
+    const group = {
+      id: `${NS_PREFIX}mixed`,
+      isNode: () => true,
+      getChildren: () => [
+        { id: 'edge', isNode: () => false },
+        { id: 'missing-size', isNode: () => true, getPosition: () => ({ x: 20, y: 30 }) },
+        { id: 'customer', isNode: () => true, getPosition: () => ({ x: 100, y: 120 }), getSize: () => ({ width: 200, height: 80 }) }
+      ],
+      setPosition,
+      setSize
+    };
+    const getCellById = vi.fn((id: string) => (id === `${NS_PREFIX}mixed` ? group : undefined));
+
+    fitGroupToChildren({ getCellById } as unknown as GraphType, `${NS_PREFIX}missing`);
+    fitGroupToChildren({ getCellById } as unknown as GraphType, `${NS_PREFIX}mixed`);
+
+    expect(setPosition).toHaveBeenCalledWith(76, 60, { deep: false });
+    expect(setSize).toHaveBeenCalledWith(248, 164);
   });
 });
