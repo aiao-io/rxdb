@@ -558,6 +558,10 @@
   gap: 6px;
 }
 
+.gh-menu-actions {
+  flex-wrap: wrap;
+}
+
 .gh-menu-form-row > input,
 .gh-menu-form-row > select,
 .gh-menu-section > input {
@@ -656,7 +660,8 @@
 .gh-menu-actions > button,
 .gh-menu-actions > .gh-file-button,
 .gh-menu-form-row > button {
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 120px;
 }
 
 .gh-file-button {

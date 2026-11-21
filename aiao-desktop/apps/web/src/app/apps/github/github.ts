@@ -85,10 +85,6 @@ interface DirectoryPickerWindow extends Window {
   readonly showDirectoryPicker?: DirectoryPicker;
 }
 
-interface RelativeFile extends File {
-  readonly webkitRelativePath?: string;
-}
-
 type GithubContextMenu =
   | { readonly kind: 'file'; readonly path: string; readonly x: number; readonly y: number }
   | { readonly kind: 'branch'; readonly name: string; readonly x: number; readonly y: number }
@@ -777,7 +773,7 @@ export class GithubApp {
         }
         files.push({
           path,
-          bytes: new Uint8Array(await entry.getFile().then(file => file.arrayBuffer())) as Uint8Array<ArrayBuffer>
+          bytes: new Uint8Array((await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer) as Uint8Array<ArrayBuffer>
         });
       }
     };
@@ -788,7 +784,7 @@ export class GithubApp {
   private async archiveOfUploadedDirectory(files: readonly File[]): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
     const entries = files
       .map(file => {
-        const parts = ((file as RelativeFile).webkitRelativePath ?? '').split('/').filter(Boolean);
+        const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean);
         return { file, parts };
       })
       .filter(entry => entry.parts.length > 1);
