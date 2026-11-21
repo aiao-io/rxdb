@@ -1,12 +1,15 @@
 import type {
   AsrGenerationJobSummary,
+  AudioInputReference,
   AudioGenerationJobSummary,
   AudioResultManifest,
+  MediaCapabilityCatalog,
   TranscriptResult,
   VideoGenerationJobSummary,
   VideoResultManifest
 } from '@aiao-media/api-contracts';
 import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
+import type { WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LocalMediaStore } from '../../local-data';
@@ -151,6 +154,75 @@ function mediaTask(operation: 'text-to-speech' | 'speech-to-text' | 'text-to-vid
     })
   };
 }
+
+describe('多模态媒体独立页面配置', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['text-to-speech', 'TTS 配音'],
+    ['speech-to-text', 'ASR 转写'],
+    ['text-to-music', '生成音乐'],
+    ['text-to-video', '生成视频']
+  ] as const)('%s 页面锁定对应能力并隐藏跨能力切换', async (operation, label) => {
+    vi.spyOn(MediaGeneration.prototype, 'loadCapabilities').mockResolvedValue();
+    const fixture = TestBed.createComponent(MediaGeneration);
+    fixture.componentRef.setInput('client', { authorization: vi.fn(async () => access) } as unknown as ProductClient);
+    fixture.componentRef.setInput('initialOperation', operation);
+    fixture.componentRef.setInput('showOperationTabs', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.operation()).toBe(operation);
+    expect(fixture.componentInstance.operationLabel()).toBe(label);
+    expect(fixture.nativeElement.querySelector('.media-modes')).toBeNull();
+  });
+
+  it('ASR 上传引用变化后会重新计算提交状态', async () => {
+    vi.spyOn(MediaGeneration.prototype, 'loadCapabilities').mockResolvedValue();
+    const fixture = TestBed.createComponent(MediaGeneration);
+    const { store } = storeStub();
+    fixture.componentRef.setInput('client', { authorization: vi.fn(async () => access) } as unknown as ProductClient);
+    fixture.componentRef.setInput('store', store);
+    fixture.componentRef.setInput('authReady', true);
+    fixture.componentRef.setInput('initialOperation', 'speech-to-text');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.componentInstance.capabilities.set({
+      revision: 1,
+      capabilities: [
+        {
+          providerInstanceId,
+          providerRevision: 1,
+          kind: 'audio',
+          operation: 'speech-to-text',
+          label: 'Fixture ASR',
+          modelId: 'fixture-asr',
+          credits: 1,
+          input: { mediaTypes: ['audio/wav'], maxBytes: 16 * 1024 * 1024, maxDurationMs: 600_000 },
+          parameters: { languages: ['zh-CN'] },
+          output: { mediaTypes: ['application/json'] }
+        }
+      ]
+    } satisfies MediaCapabilityCatalog);
+
+    const component = fixture.componentInstance as unknown as {
+      inputReference: WritableSignal<AudioInputReference | null>;
+    };
+    expect(fixture.componentInstance.canSubmit()).toBe(false);
+    component.inputReference.set({
+      id: '10000000-0000-4000-8000-000000000011',
+      mediaType: 'audio/wav',
+      bytes: 76,
+      durationMs: 1_000,
+      sha256: 'a'.repeat(64),
+      expiresAt: '2026-11-20T01:00:00.000Z'
+    });
+    expect(fixture.componentInstance.canSubmit()).toBe(true);
+  });
+});
 
 describe('多模态媒体保存重试', () => {
   afterEach(() => {

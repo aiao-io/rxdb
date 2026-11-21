@@ -14,7 +14,7 @@
 
 浏览器本地 RxDB 仍是模型真相源，见 [D-03](decisions.md#d-03本地模型是真相源)。
 
-本目录是产品根 `aiao-model-design/` 的产品级需求唯一真相源，覆盖三个 Nx 应用（`apps/web`、`apps/api`、`apps/agent`）与私有包 `packages/model-ops`，见 [D-09](decisions.md#d-09产品根目录与按运行时拆分) 与 [MODEL-US-003](stories/platform/MODEL-US-003-product-root.md)。范围依据见 [decisions](decisions.md)，调研结论见 [rendi 与 Trigger.dev 调研](plans/agent-harness-research.md)。
+本目录是产品根 `aiao-model-design/` 的产品级需求唯一真相源，覆盖三个 Nx 应用（`apps/web`、`apps/api`、`apps/agent`）、浏览器 E2E 项目 `apps/web-e2e` 与私有包 `packages/model-ops`，见 [D-09](decisions.md#d-09产品根目录与按运行时拆分) 与 [MODEL-US-003](stories/platform/MODEL-US-003-product-root.md)。范围依据见 [decisions](decisions.md)，调研结论见 [rendi 与 Trigger.dev 调研](plans/agent-harness-research.md)。
 
 ## 导航
 

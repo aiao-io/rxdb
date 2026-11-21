@@ -19,7 +19,7 @@
 | MODEL-US-103 #1～5         | 假传输 / 离线智能体                  | 会话服务测试（基线、改名、丢弃分支）；[readback.spec.ts](../apps/agent/src/readback.spec.ts) 与智能体测试（注入位置、前缀不变）                                                                                                                 | 通过                                                                                                        |
 | MODEL-US-104 #2、#3        | 假传输                               | 会话服务测试：回填后续轮、刷新后仍可作答                                                                                                                                                                                                        | 通过                                                                                                        |
 | MODEL-US-104 #1、#4        | 离线智能体 / 映射 / 服务             | 提问让本轮以待回答的工具调用结束；问题映射；准备期间与生成中拒绝重复提交                                                                                                                                                                        | 通过；浏览器侧见下方真实环境                                                                                |
-| MODEL-US-003 #1、#2、#9    | 结构 / Nx 项目发现                   | `requirements-check`；`pnpm nx show project` 读出五个项目的 root、sourceRoot、tags 与 targets；`git check-ignore`                                                                                                                               | 通过                                                                                                        |
+| MODEL-US-003 #1、#2、#9    | 结构 / Nx 项目发现                   | `requirements-check`；`pnpm nx show project` 读出六个项目的 root、sourceRoot、tags 与 targets；`git check-ignore`                                                                                                                               | 通过                                                                                                        |
 | MODEL-US-003 #3、#4、#5    | 依赖图 / lint / affected             | `nx graph`：只有 web→model-ops、agent→model-ops 两条产品内依赖；在 model-ops 导入 `@angular/core` 被 `layer:domain` 约束拦下；改 model-ops 时 affected 列出 model-ops、web、agent，改 api 时只列 api                                            | 通过                                                                                                        |
 | MODEL-US-003 #6、#7        | 安全门禁 / 聚合门禁                  | [check-web-secrets.spec.mjs](../scripts/check-web-secrets.spec.mjs)；`aiao-model-design:security-check`（含本机 `.dev.vars` 取值比对）；`aiao-model-design:verify`                                                                              | 通过                                                                                                        |
 
@@ -76,7 +76,7 @@
 
 - `nx dev` 在交互终端默认的 Nx TUI 下的窗格显示与 Ctrl-C：本机验证用的是 `--output-style=stream`，TUI 需要人工看一遍。
 - 自建实例没有 checkpoint 时的空闲占用与续跑恢复耗时（`turnTimeout` 15 分钟）。
-- 迁入时前端覆盖率基线（语句 61.75%、行 63.64%）低于仓库 80% 门槛；本史诗新增与改动的代码都有测试，存量代码的覆盖率不在范围内。
+- Web 的分支与函数覆盖率仍低于仓库 80% 门槛。2026-11-21 的结果为语句 80.03%、分支 64.33%、函数 77.90%、行 82.93%；本史诗新增与改动的代码都有测试，存量代码仍有覆盖率债务。
 
 ## 2026-11-15 复核
 
@@ -95,3 +95,9 @@
 - `pnpm nx run aiao-model-design:dev-test --output-style=stream` 通过，当前 **37/37**；覆盖 Trigger 凭据初始化、endpoint 迁移、自定义 endpoint 保留、新版 `tr_dev_sk_` 密钥格式和本地项目 ref 自动读取。
 - 使用真实本地账号在真实 Chromium 中发送“创建一个 Customer 实体，包含 email 属性，然后校验模型。”：Trigger 会话创建成功，回复经本地自托管实例的 S2 会话流到达；画布新增 `Customer`，包含 `email` 属性，AI 同时执行模型校验并报告原有 5 个占位实体的问题。对应 run 为 `run_cmwhgavcg00013go1hiuam3u3`，它在回复后继续等待下一轮会话消息，符合持久会话设计；日志中没有 S2 DNS、MinIO provider 或 snapshot 上传错误。
 - 上述真实浏览器证据补齐 MODEL-US-002 #10，并解除 MODEL-US-102、MODEL-US-103、MODEL-US-104 的硬依赖阻塞；四条 story 的所有 AC 均有证据，状态更新为 `Done`。未提交任何本地密钥。
+
+## 2026-11-21 Web smoke 复核
+
+- 执行 `pnpm nx run aiao-model-design-web-e2e:e2e --output-style=stream` 通过。测试使用 Web 生产构建产物和 Chromium，验证设计器入口、创建实体、刷新后从 IndexedDB 恢复实体，以及切换到表格视图。
+- `aiao-model-design:verify` 已接入 `aiao-model-design-web-e2e:e2e`，后续产品聚合门禁会自动执行这条浏览器 smoke test。
+- 当前 Web 单元测试为 66 个测试文件、627 个测试；覆盖率为语句 80.03%、分支 64.33%、函数 77.90%、行 82.93%。本轮补充了表格记录构建、单元格变更、表格列定义、画布同步、表格 Shell 与设计器状态服务测试，产品门禁已通过，分支与函数覆盖率债务仍待继续收敛。

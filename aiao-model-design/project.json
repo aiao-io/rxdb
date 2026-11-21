@@ -210,7 +210,8 @@
           "target": "test"
         },
         { "projects": ["aiao-model-design-web", "aiao-model-design-api"], "target": "build" },
-        { "projects": ["aiao-model-design-api"], "target": "test-worker" }
+        { "projects": ["aiao-model-design-api"], "target": "test-worker" },
+        { "projects": ["aiao-model-design-web-e2e"], "target": "e2e" }
       ]
     }
   }

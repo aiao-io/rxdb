@@ -4,12 +4,13 @@
 
 ## 产品组成
 
-本目录是产品根：三个 Nx 应用与一个产品私有包服务同一个产品目标，共用需求前缀 `MODEL` 与 [requirements/](requirements/README.md)（产品级需求唯一真相源）。
+本目录是产品根：三个运行时 Nx 应用、一个浏览器 E2E 测试项目与一个产品私有包服务同一个产品目标，共用需求前缀 `MODEL` 与 [requirements/](requirements/README.md)（产品级需求唯一真相源）。
 
 | 目录                 | Nx 项目                       | tags                                           | 说明                                                                                           |
 | -------------------- | ----------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `.`                  | `aiao-model-design`           | `scope:model-design`                           | 需求门禁、安全门禁、聚合验证 `verify`、本地开发环境 `dev`（`scripts/dev/`、`infra/supabase/`） |
 | `apps/web`           | `aiao-model-design-web`       | `scope:model-design` `type:app` `layer:ui`     | Angular 设计器（浏览器）                                                                       |
+| `apps/web-e2e`       | `aiao-model-design-web-e2e` | `scope:model-design` `type:e2e`                | Web 静态构建产物的 Chromium smoke test |
 | `apps/api`           | `aiao-model-design-api`       | `scope:model-design` `type:app` `layer:server` | Cloudflare Worker：登录与会话签发                                                              |
 | `apps/agent`         | `aiao-model-design-agent`     | `scope:model-design` `type:app` `layer:server` | Trigger.dev 建模智能体                                                                         |
 | `packages/model-ops` | `aiao-model-design-model-ops` | `scope:model-design` `type:lib` `layer:domain` | `@aiao-model-design/model-ops` 纯函数                                                          |
@@ -17,9 +18,10 @@
 ## 依赖方向
 
 ```text
-apps/web ───┐
-            ├──> packages/model-ops（@aiao-model-design/model-ops）
-apps/agent ─┘
+apps/web ───────┐
+                ├──> packages/model-ops（@aiao-model-design/model-ops）
+apps/agent ─────┘
+apps/web-e2e ───> apps/web 构建产物
 apps/* ──────> 根平台公共包（@aiao/*）
 ```
 
@@ -45,6 +47,7 @@ pnpm nx run aiao-model-design:verify            # 全部门禁：需求、lint�
 pnpm nx run aiao-model-design:supabase-down     # 停止本地 Supabase，保留数据卷
 pnpm nx run aiao-model-design-agent:dev         # 只跑智能体开发会话（需要自建实例，见 README）
 pnpm nx run aiao-model-design-web:generate-models  # 改实体后重新生成模型
+pnpm nx run aiao-model-design-web-e2e:e2e        # 运行 Web Chromium smoke test
 ```
 
 本地开发环境的端口固定（Web 4400、Worker 8788、Supabase 54421/54422）。改 Web 或 Worker 端口要同时改 `scripts/dev/services.mjs`、各 `dev` 目标与 compose 里的 `GOTRUE_SITE_URL`，`services.spec.mjs` 校验这三处一致；Supabase 端口只在 `infra/supabase/ports.env`。开发导航与本地 Worker 的密钥只生成在忽略的 `apps/api/.wrangler/local-dev/`，不进 web 构建产物。

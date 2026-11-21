@@ -47,7 +47,7 @@ import {
   type MediaRelayResult
 } from '../relay-task-client';
 
-type MediaOperation = MediaCapability['operation'];
+export type MediaOperation = MediaCapability['operation'];
 type MediaTaskState = {
   channel?: 'platform';
   saved?: boolean;
@@ -80,64 +80,9 @@ const isTranscriptResult = (value: MediaResult | null): value is TranscriptResul
   imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './media-generation.html',
-  styles: [
-    `
-      .media-generation {
-        display: grid;
-        gap: 1rem;
-      }
-      .media-modes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-      }
-      .media-modes button[aria-selected='true'] {
-        background: var(--ink, #202027);
-        color: white;
-      }
-      .media-form,
-      .media-result {
-        display: grid;
-        gap: 0.8rem;
-      }
-      .media-form label {
-        display: grid;
-        gap: 0.35rem;
-      }
-      .media-form textarea {
-        min-height: 8rem;
-        resize: vertical;
-      }
-      .media-fields {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-        gap: 0.75rem;
-      }
-      .media-result audio,
-      .media-result video {
-        width: 100%;
-        max-height: 24rem;
-      }
-      .media-result textarea {
-        min-height: 10rem;
-      }
-      .media-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-        align-items: center;
-      }
-      .media-status {
-        margin: 0;
-      }
-      .media-error {
-        color: #a32929;
-      }
-    `
-  ]
 })
 export class MediaGeneration implements OnDestroy {
-  private inputReference: AudioInputReference | null = null;
+  private readonly inputReference = signal<AudioInputReference | null>(null);
   private tickets: Record<string, RelayTicket> = {};
   private generation = 0;
   private readonly lifetime = new AbortController();
@@ -152,6 +97,8 @@ export class MediaGeneration implements OnDestroy {
   readonly authReady = input(false);
   readonly workspaceKey = input('');
   readonly credits = input<CreditAccount | null>(null);
+  readonly initialOperation = input<MediaOperation>('text-to-speech');
+  readonly showOperationTabs = input(true);
 
   readonly operation = signal<MediaOperation>('text-to-speech');
   readonly capabilities = signal<MediaCapabilityCatalog | null>(null);
@@ -217,7 +164,7 @@ export class MediaGeneration implements OnDestroy {
   readonly canSubmit = computed(() => {
     const capability = this.selectedCapability();
     if (!capability || !this.authReady() || !this.store() || this.busy()) return false;
-    if (this.operation() === 'speech-to-text') return this.inputReference !== null;
+    if (this.operation() === 'speech-to-text') return this.inputReference() !== null;
     const maxLength = this.textMaxLength();
     return maxLength !== null && this.text().trim().length > 0 && this.text().trim().length <= maxLength;
   });
@@ -238,8 +185,45 @@ export class MediaGeneration implements OnDestroy {
       : `audio-${id}.wav`
     );
   });
+  readonly operationLabel = computed(
+    () =>
+      ({
+        'text-to-speech': 'TTS 配音',
+        'speech-to-text': 'ASR 转写',
+        'text-to-music': '生成音乐',
+        'text-to-video': '生成视频'
+      })[this.operation()]
+  );
+  readonly inputLabel = computed(
+    () =>
+      ({
+        'text-to-speech': '朗读文本',
+        'speech-to-text': '上传 WAV 音频',
+        'text-to-music': '音乐提示词',
+        'text-to-video': '视频提示词'
+      })[this.operation()]
+  );
+  readonly inputPlaceholder = computed(
+    () =>
+      ({
+        'text-to-speech': '输入要朗读的文本，可以先写完整句子再选择声音和语速。',
+        'speech-to-text': '',
+        'text-to-music': '描述曲风、情绪、乐器和使用场景，例如：轻快的城市 Lo-fi，适合短视频片头。',
+        'text-to-video': '描述主体、动作、镜头和氛围，例如：雨夜街头的霓虹倒影，镜头缓慢推进。'
+      })[this.operation()]
+  );
+  readonly textCount = computed(() => this.text().length);
 
   constructor() {
+    effect(() => {
+      const initialOperation = this.initialOperation();
+      if (initialOperation === this.operation()) return;
+      this.operation.set(initialOperation);
+      this.resetOperationDefaults(
+        this.capabilities()?.capabilities.find(item => item.operation === initialOperation) ?? null
+      );
+      this.clearResult();
+    });
     effect(() => {
       const store = this.store();
       const workspaceKey = this.workspaceKey();
@@ -285,6 +269,14 @@ export class MediaGeneration implements OnDestroy {
     this.clearResult();
   }
 
+  clearText(): void {
+    if (this.busy() || this.inputBusy() || this.operation() === 'speech-to-text') return;
+    this.text.set('');
+    this.error.set('');
+    this.message.set('');
+    this.clearResult();
+  }
+
   async selectFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -311,12 +303,12 @@ export class MediaGeneration implements OnDestroy {
       });
       if (!response.ok) throw new Error('音频上传失败，请检查格式后重试。');
       const reference = validateAudioInputReference(await response.json());
-      this.inputReference = reference;
+      this.inputReference.set(reference);
       this.inputName.set(file.name);
       this.language.set('');
       this.inputMessage.set(`已上传 ${file.name}，${Math.round(reference.durationMs / 1000)} 秒`);
     } catch (error) {
-      this.inputReference = null;
+      this.inputReference.set(null);
       this.inputName.set('');
       this.inputMessage.set(error instanceof Error ? error.message : '音频上传失败。');
     } finally {
@@ -487,8 +479,9 @@ export class MediaGeneration implements OnDestroy {
       const tasks = rows.map(row => this.decodeTask(row.payload)).filter((task): task is MediaTask => task !== null);
       const current = tasks.find(
         item =>
-          item.status === 'needs_review' ||
-          (mediaTicket(this.tickets[item.id]) && (item.status === 'processing' || item.status === 'completed'))
+          item.request.operation === this.operation() &&
+          (item.status === 'needs_review' ||
+            (mediaTicket(this.tickets[item.id]) && (item.status === 'processing' || item.status === 'completed')))
       );
       if (!current) return;
       this.task.set(current);
@@ -690,13 +683,14 @@ export class MediaGeneration implements OnDestroy {
     };
     const operation = capability.operation;
     if (operation === 'speech-to-text') {
-      if (!this.inputReference) throw new Error('请先上传 WAV 音频。');
+      const input = this.inputReference();
+      if (!input) throw new Error('请先上传 WAV 音频。');
       return validateAsrJobRequest({
         kind: 'audio',
         operation,
         ...base,
         language: this.language() || null,
-        input: this.inputReference
+        input
       });
     }
     if (operation === 'text-to-speech')
@@ -801,6 +795,7 @@ export class MediaGeneration implements OnDestroy {
     this.resultBlob = null;
     this.settlement = null;
     this.saved.set(false);
+    this.copied.set(false);
   }
 
   private revokeResultUrls(): void {
@@ -830,7 +825,7 @@ export class MediaGeneration implements OnDestroy {
         this.message.set('ASR 输入已完成任务，但临时输入清理失败，请重试。');
         return;
       }
-      this.inputReference = null;
+      this.inputReference.set(null);
       this.inputName.set('');
     } catch {
       this.message.set('ASR 输入已完成任务，但临时输入清理未确认。');

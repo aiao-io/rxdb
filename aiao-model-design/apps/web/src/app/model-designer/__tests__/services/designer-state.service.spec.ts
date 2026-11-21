@@ -71,12 +71,33 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
   let createLinkedPairSpy: ReturnType<typeof vi.fn>;
   let propertyUpdateSpy: ReturnType<typeof vi.fn>;
   let propertyRemoveSpy: ReturnType<typeof vi.fn>;
+  let propertyCreateSpy: ReturnType<typeof vi.fn>;
+  let propertyUpdateBatchSpy: ReturnType<typeof vi.fn>;
   let indexRemoveSpy: ReturnType<typeof vi.fn>;
+  let indexCreateSpy: ReturnType<typeof vi.fn>;
+  let indexUpdateSpy: ReturnType<typeof vi.fn>;
+  let indexUpdateBatchSpy: ReturnType<typeof vi.fn>;
   let findByTargetEntitySpy: ReturnType<typeof vi.fn>;
+  let relationCreateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateBatchSpy: ReturnType<typeof vi.fn>;
+  let entityClearSelectionSpy: ReturnType<typeof vi.fn>;
+  let entitySelectOneSpy: ReturnType<typeof vi.fn>;
+  let entityToggleSelectSpy: ReturnType<typeof vi.fn>;
+  let entitySelectManySpy: ReturnType<typeof vi.fn>;
+  let entityUpdatePositionSpy: ReturnType<typeof vi.fn>;
+  let entityUpdatePositionsBatchSpy: ReturnType<typeof vi.fn>;
+  let entityUpdateWidthSpy: ReturnType<typeof vi.fn>;
+  let historyUndoSpy: ReturnType<typeof vi.fn>;
+  let historyRedoSpy: ReturnType<typeof vi.fn>;
+  let codeGenerateSpy: ReturnType<typeof vi.fn>;
+  let toAllMetadataOptionsSpy: ReturnType<typeof vi.fn>;
+  let downloadZipSpy: ReturnType<typeof vi.fn>;
   let allRelationsSignal: WritableSignal<
     Array<{ id: string; name: string; designEntityId: string; mappedEntityId?: string | null }>
   >;
   let entitiesSignal: WritableSignal<unknown[]>;
+  let selectedEntityIdsSignal: WritableSignal<Set<string>>;
   let archivePackageSpy: ReturnType<typeof vi.fn>;
   let publishPackageSpy: ReturnType<typeof vi.fn>;
   let downloadBlobSpy: ReturnType<typeof vi.fn>;
@@ -88,14 +109,32 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
     removeManySpy = vi.fn().mockResolvedValue(undefined);
     entityCreateSpy = vi.fn().mockResolvedValue({ id: 'new-entity' });
     entityUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    entityClearSelectionSpy = vi.fn();
+    entitySelectOneSpy = vi.fn();
+    entityToggleSelectSpy = vi.fn();
+    entitySelectManySpy = vi.fn();
+    entityUpdatePositionSpy = vi.fn().mockResolvedValue(undefined);
+    entityUpdatePositionsBatchSpy = vi.fn().mockResolvedValue(undefined);
+    entityUpdateWidthSpy = vi.fn().mockResolvedValue(undefined);
     relationRemoveSpy = vi.fn().mockResolvedValue(undefined);
     createLinkedPairSpy = vi.fn().mockResolvedValue({ source: { id: 'r1' }, inverse: { id: 'r2' } });
+    relationCreateSpy = vi.fn().mockResolvedValue({ id: 'r-new', name: 'createdRelation' });
+    relationUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    relationUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
+    propertyCreateSpy = vi.fn().mockResolvedValue(undefined);
     propertyUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    propertyUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
     propertyRemoveSpy = vi.fn().mockResolvedValue(undefined);
     indexRemoveSpy = vi.fn().mockResolvedValue(undefined);
+    indexCreateSpy = vi.fn().mockResolvedValue(undefined);
+    indexUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    indexUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
     findByTargetEntitySpy = vi.fn().mockReturnValue([]);
     allRelationsSignal = signal([]);
     entitiesSignal = signal<unknown[]>([]);
+    selectedEntityIdsSignal = signal(new Set<string>());
+    historyUndoSpy = vi.fn();
+    historyRedoSpy = vi.fn();
     archivePackageSpy = vi.fn().mockResolvedValue({
       blob: new Blob(['tgz'], { type: 'application/gzip' }),
       packageName: '@acme/blog-rxdb',
@@ -110,6 +149,9 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
       status: 'published'
     });
     downloadBlobSpy = vi.fn();
+    downloadZipSpy = vi.fn();
+    toAllMetadataOptionsSpy = vi.fn(() => []);
+    codeGenerateSpy = vi.fn(() => ({ files: [{ path: 'index.ts', content: 'export class Blog {}' }], errors: [] }));
     validateModelSpy = vi.fn(() => ({
       valid: true,
       entityErrors: new Map<string, string[]>(),
@@ -128,10 +170,18 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
           provide: DesignEntityService,
           useValue: {
             entities: entitiesSignal,
-            selectedEntityIds: signal(new Set<string>()),
+            selectedEntityIds: selectedEntityIdsSignal,
             create: entityCreateSpy,
             update: entityUpdateSpy,
-            removeMany: removeManySpy
+            removeMany: removeManySpy,
+            clearSelection: entityClearSelectionSpy,
+            selectOne: entitySelectOneSpy,
+            toggleSelect: entityToggleSelectSpy,
+            selectMany: entitySelectManySpy,
+            updatePosition: entityUpdatePositionSpy,
+            updatePositionsBatch: entityUpdatePositionsBatchSpy,
+            updateWidth: entityUpdateWidthSpy,
+            queryError: signal<string | null>(null)
           }
         },
         {
@@ -141,7 +191,11 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
             relationsOf: () => () => [],
             remove: relationRemoveSpy,
             createLinkedPair: createLinkedPairSpy,
-            findByTargetEntity: findByTargetEntitySpy
+            findByTargetEntity: findByTargetEntitySpy,
+            create: relationCreateSpy,
+            update: relationUpdateSpy,
+            updateBatch: relationUpdateBatchSpy,
+            queryError: signal<string | null>(null)
           }
         },
         {
@@ -149,22 +203,32 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
           useValue: {
             propertiesOf: () => () => [],
             childPropertiesOf: () => () => [],
+            create: propertyCreateSpy,
             update: propertyUpdateSpy,
-            remove: propertyRemoveSpy
+            updateBatch: propertyUpdateBatchSpy,
+            remove: propertyRemoveSpy,
+            queryError: signal<string | null>(null)
           }
         },
         {
           provide: DesignIndexService,
           useValue: {
             indexesOf: () => () => [],
-            remove: indexRemoveSpy
+            remove: indexRemoveSpy,
+            create: indexCreateSpy,
+            update: indexUpdateSpy,
+            updateBatch: indexUpdateBatchSpy,
+            queryError: signal<string | null>(null)
           }
         },
         {
           provide: CodeGeneratorService,
           useValue: {
             toClientDesignContract: vi.fn(() => ({ entities: [], metadata: { designName: 'Blog' } })),
-            downloadBlob: downloadBlobSpy
+            toAllMetadataOptions: toAllMetadataOptionsSpy,
+            generate: codeGenerateSpy,
+            downloadBlob: downloadBlobSpy,
+            downloadZip: downloadZipSpy
           }
         },
         { provide: CLIENT_PACKAGE_ADAPTER, useValue: { archive: archivePackageSpy, publish: publishPackageSpy } },
@@ -173,11 +237,20 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
           useValue: { validateModel: validateModelSpy, validateEntityIdentity: validateEntityIdentitySpy }
         },
         { provide: AiOperationGuardService, useValue: {} },
-        { provide: ModelDesignService, useValue: { activeDesign: () => null } },
+        {
+          provide: ModelDesignService,
+          useValue: {
+            activeDesign: () => ({ name: 'Blog', description: 'Blog model' }),
+            activeDesignId: () => 'design-1',
+            queryError: signal<string | null>(null)
+          }
+        },
         {
           provide: RxDB,
           useValue: {
-            versionManager: { history: () => ({ undoCount$: of(0), redoCount$: of(0), undo: vi.fn(), redo: vi.fn() }) }
+            versionManager: {
+              history: () => ({ undoCount$: of(0), redoCount$: of(0), undo: historyUndoSpy, redo: historyRedoSpy })
+            }
           }
         }
       ]
@@ -471,6 +544,135 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
     it('onEntityMovedToNamespace 实体不存在时跳过', async () => {
       await service.onEntityMovedToNamespace('missing', 'shop');
       expect(entityUpdateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('实体选择与画布事件', () => {
+    it('在实体存在时选择实体，不存在时清空选择', () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post' }]);
+
+      expect(service.onEntitySelected('e1')).toBe(true);
+      expect(entitySelectOneSpy).toHaveBeenCalledWith('e1');
+      expect(service.onEntitySelected('missing')).toBe(false);
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+    });
+
+    it('转发多选、清空、移动和尺寸更新事件', async () => {
+      service.onEntitySelectionToggled('e1');
+      service.onEntitySelectionChanged(['e1', 'e2']);
+      service.onSelectionCleared();
+      await service.onEntityMoved({ id: 'e1', x: 10, y: 20 });
+      await service.onEntitiesMovedBatch([{ id: 'e1', x: 10, y: 20 }]);
+      await service.onEntityResized({ id: 'e1', width: 320 });
+
+      expect(entityToggleSelectSpy).toHaveBeenCalledWith('e1');
+      expect(entitySelectManySpy).toHaveBeenCalledWith(['e1', 'e2']);
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+      expect(entityUpdatePositionSpy).toHaveBeenCalledWith('e1', 10, 20);
+      expect(entityUpdatePositionsBatchSpy).toHaveBeenCalledWith([{ id: 'e1', x: 10, y: 20 }]);
+      expect(entityUpdateWidthSpy).toHaveBeenCalledWith('e1', 320);
+    });
+
+    it('没有选中实体时跳过更新，选中后转发实体更新与批量删除', async () => {
+      await service.onEntityUpdated({ name: 'Post' });
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
+
+      entitiesSignal.set([{ id: 'e1', name: 'Post' }]);
+      selectedEntityIdsSignal.set(new Set(['e1']));
+      await service.onEntityUpdated({ name: 'Article' });
+      await service.onDeleteSelectedEntities();
+
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { name: 'Article' });
+      expect(removeManySpy).toHaveBeenCalledWith(['e1']);
+    });
+  });
+
+  describe('属性、关系和索引事件', () => {
+    beforeEach(() => {
+      entitiesSignal.set([
+        { id: 'e1', name: 'Order' },
+        { id: 'e2', name: 'Customer' }
+      ]);
+      selectedEntityIdsSignal.set(new Set(['e1']));
+    });
+
+    it('使用显式或当前选中实体创建属性和 keyValue 子属性', async () => {
+      await service.onPropertyAdded({ entityId: 'e2', name: 'email', type: 'string' });
+      await service.onPropertyAdded({ name: 'status', type: 'string' });
+      await service.onChildPropertyAdded({ entityId: 'e2', parentPropertyId: 'meta', name: 'createdBy', type: 'string' });
+      await service.onChildPropertyAdded({ parentPropertyId: 'meta', name: 'updatedBy', type: 'string' });
+      await service.onChildPropertyUpdated({ id: 'child-1', changes: { name: 'owner' } });
+      await service.onPropertiesBatchUpdated([{ id: 'p1', changes: { name: 'title' } }]);
+
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(1, 'e2', 'email', 'string');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(2, 'e1', 'status', 'string');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(3, 'e2', 'createdBy', 'string', 'meta');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(4, 'e1', 'updatedBy', 'string', 'meta');
+      expect(propertyUpdateSpy).toHaveBeenCalledWith('child-1', { name: 'owner' });
+      expect(propertyUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'p1', changes: { name: 'title' } }]);
+    });
+
+    it('转发关系和索引的创建、更新、批量删除事件', async () => {
+      await service.onRelationCreated({ sourceEntityId: 'e1', targetEntityId: 'e2' });
+      await service.onRelationAdded({ entityId: 'e1', name: 'customer', kind: 'MANY_TO_ONE', targetEntity: 'Customer' });
+      await service.onRelationUpdated({ id: 'r1', changes: { name: 'buyer' } });
+      await service.onRelationsBatchUpdated([{ id: 'r1', changes: { name: 'buyer' } }]);
+      await service.onIndexesDeleteBatch(['i1', 'i2']);
+      await service.onIndexAdded({ entityId: 'e2', propertyIds: ['p1'], isUnique: true });
+      await service.onIndexUpdated({ id: 'i1', changes: { isUnique: false } });
+      await service.onIndexesBatchUpdated([{ id: 'i1', changes: { isUnique: true } }]);
+
+      expect(createLinkedPairSpy).toHaveBeenCalledWith('e1', 'e2', 'MANY_TO_ONE');
+      expect(relationCreateSpy).toHaveBeenCalledWith('e1', 'e2', 'MANY_TO_ONE');
+      expect(relationUpdateSpy).toHaveBeenCalledWith('r-new', { name: 'customer' });
+      expect(relationUpdateSpy).toHaveBeenCalledWith('r1', { name: 'buyer' });
+      expect(relationUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'r1', changes: { name: 'buyer' } }]);
+      expect(indexRemoveSpy).toHaveBeenCalledWith('i1');
+      expect(indexRemoveSpy).toHaveBeenCalledWith('i2');
+      expect(indexCreateSpy).toHaveBeenCalledWith('e2', ['p1'], true);
+      expect(indexUpdateSpy).toHaveBeenCalledWith('i1', { isUnique: false });
+      expect(indexUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'i1', changes: { isUnique: true } }]);
+    });
+  });
+
+  describe('生成、历史和视图状态', () => {
+    it('生成代码、SQL、ZIP，并转发历史和 viewport 事件', () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Order', tableName: 'orders', extendsBase: 'EntityBase' }]);
+      service.onGenerate();
+      expect(toAllMetadataOptionsSpy).toHaveBeenCalled();
+      expect(codeGenerateSpy).toHaveBeenCalledWith([]);
+      expect(service.generatedFiles()).toEqual([{ path: 'index.ts', content: 'export class Blog {}' }]);
+      expect(service.codePreviewOpen()).toBe(true);
+
+      service.onGenerateSql();
+      expect(service.generatedFiles()[0]?.path).toBe('Blog.sql');
+      service.onDownloadZip();
+      expect(downloadZipSpy).toHaveBeenCalledWith(service.generatedFiles(), 'Blog');
+
+      service.onUndo();
+      service.onRedo();
+      service.onViewportChanged({ zoom: 1.25, panX: 10, panY: 20 });
+      service.toggleInteractionMode('select');
+      service.toggleInteractionMode('move');
+
+      expect(historyUndoSpy).toHaveBeenCalled();
+      expect(historyRedoSpy).toHaveBeenCalled();
+      expect(service.viewport()).toEqual({ zoom: 1.25, panX: 10, panY: 20 });
+      expect(service.interactionMode()).toBe('move');
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+    });
+
+    it('客户端包归档或发布失败时保留错误并释放 busy 状态', async () => {
+      archivePackageSpy.mockRejectedValueOnce(new Error('archive unavailable'));
+      publishPackageSpy.mockRejectedValueOnce('publish unavailable');
+
+      await service.onArchiveClientPackage();
+      expect(service.lastError()).toContain('archive unavailable');
+      expect(service.clientPackageBusy()).toBe(false);
+
+      await service.onPublishClientPackage();
+      expect(service.lastError()).toContain('publish unavailable');
+      expect(service.clientPackageBusy()).toBe(false);
     });
   });
 });

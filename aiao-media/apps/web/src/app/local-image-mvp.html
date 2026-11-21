@@ -33,6 +33,22 @@
       </svg>
       发现灵感
     </a>
+    <span class="nav-section">媒体创作</span>
+    <div class="media-nav" aria-label="媒体创作">
+      @for (page of mediaTools; track page.id) {
+        <a
+          [attr.aria-current]="view() === page.id ? 'page' : null"
+          [class.active]="view() === page.id"
+          (click)="navigate(page.id, $event)"
+          [href]="page.path"
+        >
+          <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+            <path d="M3 12.5c1.4-1.8 2.8-1.8 4.2 0s2.8 1.8 4.2 0 2.8-1.8 4.2 0M3 7.5c1.4-1.8 2.8-1.8 4.2 0s2.8 1.8 4.2 0 2.8-1.8 4.2 0" />
+          </svg>
+          {{ page.navLabel }}
+        </a>
+      }
+    </div>
     <span class="nav-section">我的空间</span>
     <a
       [attr.aria-current]="view() === 'library' ? 'page' : null"
@@ -92,14 +108,7 @@
   <div class="breadcrumb" aria-label="当前位置">
     <span>Aiao</span>
     <span aria-hidden="true">/</span>
-    <strong>
-      {{
-        view() === 'discover' ? '发现灵感'
-        : view() === 'studio' ? '图片创作'
-        : view() === 'library' ? '我的图片'
-        : '设置'
-      }}
-    </strong>
+    <strong>{{ headerTitle() }}</strong>
   </div>
   <p class="header-tip">好画面，从一个具体的想法开始。</p>
   <div class="header-right">
@@ -593,11 +602,16 @@
     </div>
     @defer (on idle) {
       <section class="media-creation-section" aria-label="音频和视频生成">
-        <div class="page-heading">
+        <div class="page-heading media-tools-heading">
           <div>
-            <h2>音频和视频创作</h2>
-            <p>使用 TTS、ASR、音乐和视频能力生成并保存媒体。</p>
+            <h2>媒体工具</h2>
+            <p>选择一个独立工具页开始 TTS、ASR、音乐或视频创作。</p>
           </div>
+          <nav class="media-entry-links" aria-label="媒体工具入口">
+            @for (page of mediaTools; track page.id) {
+              <a class="secondary sm" [href]="page.path" (click)="navigate(page.id, $event)">{{ page.navLabel }}</a>
+            }
+          </nav>
         </div>
         <app-media-generation
           [authReady]="authStatus() === 'signed-in' && localStatus() === 'ready'"
@@ -1122,6 +1136,72 @@
       </div>
     }
   </ng-template>
+  @if (mediaPage(); as page) {
+    <section class="media-page" [attr.aria-labelledby]="'media-page-title-' + page.id">
+      <div class="media-page-heading">
+        <div>
+          <p class="eyebrow">媒体创作</p>
+          <h1 [id]="'media-page-title-' + page.id">{{ page.title }}</h1>
+          <p>{{ page.description }}</p>
+        </div>
+        <div class="media-page-account">
+          <span>本机工作区</span>
+          <strong>
+            {{
+              localStatus() === 'ready' ? '已就绪'
+              : localStatus() === 'unavailable' ? '暂不可用'
+              : '准备中'
+            }}
+          </strong>
+          @if (creditAccount(); as account) {
+            <small>可用积分 {{ account.available }}</small>
+          }
+        </div>
+      </div>
+      <nav class="media-page-switcher" aria-label="切换媒体工具">
+        @for (item of mediaTools; track item.id) {
+          <a
+            [attr.aria-current]="item.id === page.id ? 'page' : null"
+            [class.active]="item.id === page.id"
+            [href]="item.path"
+            (click)="navigate(item.id, $event)"
+          >
+            {{ item.navLabel }}
+          </a>
+        }
+      </nav>
+      <div class="media-page-grid">
+        <div class="media-page-main">
+          @defer (on idle) {
+            <app-media-generation
+              [authReady]="authStatus() === 'signed-in' && localStatus() === 'ready'"
+              [client]="adminApi"
+              [credits]="creditAccount()"
+              [initialOperation]="page.operation"
+              [showOperationTabs]="false"
+              [store]="mediaStore()"
+              [workspaceKey]="currentProfileId()"
+            />
+          } @placeholder {
+            <p class="notice" role="status">正在准备媒体创作工具…</p>
+          }
+        </div>
+        <aside class="media-page-aside" aria-label="使用提示">
+          <section class="media-help-card">
+            <p class="media-help-kicker">使用提示</p>
+            <h2>{{ page.tipTitle }}</h2>
+            <p>{{ page.tip }}</p>
+          </section>
+          <section class="media-help-card">
+            <p class="media-help-kicker">结果管理</p>
+            <h2>生成后自动保存</h2>
+            <p>结果会保存到本机工作区，之后可以在媒体记录里预览、复制、下载或删除。</p>
+            <a class="text-link" href="/images" (click)="navigate('library', $event)">查看已保存媒体 →</a>
+          </section>
+        </aside>
+      </div>
+    </section>
+  }
   @if (view() === 'providers') {
     <section class="page-heading">
       <div>

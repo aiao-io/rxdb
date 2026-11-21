@@ -2,7 +2,7 @@
 
 从 `aiao-enterprise` 迁入的模型设计器，入口为 `/model-designer/canvas`。本地模型、画布位置、版本和 AI 会话保存在独立的 `aiao-model-design` SQLite 数据库中。
 
-这是一个产品根目录：三个 Nx 应用和一个产品私有包共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。
+这是一个产品根目录：三个运行时 Nx 应用、一个浏览器 E2E 测试项目和一个产品私有包共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。
 
 ## 结构
 
@@ -11,6 +11,7 @@
 | 目录                                     | Nx 项目                       | 运行时              | 职责                                                                                                         |
 | ---------------------------------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | [apps/web](apps/web)                     | `aiao-model-design-web`       | 浏览器（Angular）   | 模型的真相源（本地 RxDB）；每轮把模型快照发给智能体，把工具产出按 `toolCallId` 幂等写进 AI 分支              |
+| [apps/web-e2e](apps/web-e2e)             | `aiao-model-design-web-e2e`   | 浏览器测试         | 运行生产 Web 构建产物的 Chromium smoke test，验证入口、模型持久化与视图切换                             |
 | [apps/api](apps/api)                     | `aiao-model-design-api`       | Cloudflare Worker   | 静态资源、Supabase 登录会话、为本人的会话签发 Trigger.dev 令牌；不持有模型密钥                               |
 | [apps/agent](apps/agent)                 | `aiao-model-design-agent`     | Trigger.dev（Node） | `chat.agent` 持久会话；在草稿上执行建模工具，校验失败把原因还给模型                                          |
 | [packages/model-ops](packages/model-ops) | `aiao-model-design-model-ops` | 无（纯函数）        | `@aiao-model-design/model-ops`：web 与 agent 共用的快照类型、操作、校验、差异与概要                          |
@@ -178,9 +179,9 @@ Worker 名称为 `aiao-model-design`。部署后访问 `/health`、`/api/agent/c
 pnpm nx run aiao-model-design:verify
 ```
 
-`verify` 依次跑完产品的全部门禁：需求结构门禁与夹具测试、四个子项目的 lint / typecheck / test、web 构建与 Worker 打包、Worker 本地运行时测试（`test-worker`），以及安全门禁（`security-check`：web 构建产物里不能出现服务端密钥）。也可以单独跑某一项，比如 `pnpm nx run aiao-model-design-agent:test`。
+`verify` 依次跑完产品的全部门禁：需求结构门禁与夹具测试、四个运行时子项目的 lint / typecheck / test、web 构建与 Worker 打包、Worker 本地运行时测试（`test-worker`），以及安全门禁（`security-check`：web 构建产物里不能出现服务端密钥），并运行 Web Chromium smoke test。也可以单独跑某一项，比如 `pnpm nx run aiao-model-design-agent:test`。
 
-api、agent 与 model-ops 的测试门槛为语句、分支、函数、行均至少 80%；智能体测试用 `mockChatAgent` 驱动真实的轮次循环，不需要网络或实例。`test-worker` 在 wrangler 本地运行时里验证路由、会话签发与登录流程。web 的前端迁入基线覆盖率为语句 61.75%、行 63.64%，尚未达到仓库 80% 门槛。改了实体后用 `pnpm nx run aiao-model-design-web:generate-models` 重新生成模型。
+api、agent 与 model-ops 的测试门槛为语句、分支、函数、行均至少 80%；智能体测试用 `mockChatAgent` 驱动真实的轮次循环，不需要网络或实例。`test-worker` 在 wrangler 本地运行时里验证路由、会话签发与登录流程。Web 当前覆盖率为语句 80.03%、分支 64.33%、函数 77.90%、行 82.93%，分支与函数仍有覆盖率债务。改了实体后用 `pnpm nx run aiao-model-design-web:generate-models` 重新生成模型。
 
 ## 代码来源
 

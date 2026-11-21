@@ -1,10 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { NavigationEnd, Router, provideRouter } from '@angular/router';
+import { Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveActiveEntity } from '../../components/table/table-view.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
-import type { DesignEntity } from '../../models/index.js';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import TableShellPage from '../../pages/table-shell.page';
 import { DesignerStateService } from '../../services/designer-state.service';
 
@@ -45,5 +46,153 @@ describe('TableShellPage route input', () => {
     const fixture = TestBed.createComponent(TableShellPage);
     expect(() => fixture.detectChanges()).not.toThrow();
     expect(fixture.componentInstance.activeEntity()).toBeNull();
+  });
+});
+
+type TableShellFixture = {
+  fixture: ReturnType<typeof TestBed.createComponent<TableShellPage>>;
+  router: { events: Subject<NavigationEnd>; navigate: ReturnType<typeof vi.fn> };
+  state: {
+    entities: ReturnType<typeof signal<DesignEntity[]>>;
+    propertiesMap: ReturnType<typeof signal<Map<string, DesignProperty[]>>>;
+    relationsMap: ReturnType<typeof signal<Map<string, DesignRelation[]>>>;
+    indexesMap: ReturnType<typeof signal<Map<string, DesignIndex[]>>>;
+    onEntitySelected: ReturnType<typeof vi.fn>;
+    onTableEntityUpdated: ReturnType<typeof vi.fn>;
+    onEntityDeleted: ReturnType<typeof vi.fn>;
+    onPropertyAdded: ReturnType<typeof vi.fn>;
+    onRelationAdded: ReturnType<typeof vi.fn>;
+    onIndexAdded: ReturnType<typeof vi.fn>;
+  };
+};
+
+async function setupTableShell(entityId = 'e1'): Promise<TableShellFixture> {
+  const routerEvents = new Subject<NavigationEnd>();
+  const router = {
+    events: routerEvents,
+    url: `/model-designer/table/${entityId}/properties`,
+    navigate: vi.fn().mockResolvedValue(true)
+  };
+  const entity = {
+    id: 'e1',
+    name: 'Order',
+    displayName: 'Orders',
+    tableName: 'orders',
+    extendsBase: 'EntityBase',
+    entityNamespace: 'sales'
+  } as unknown as DesignEntity;
+  const property = { id: 'p1', name: 'status', propertyType: 'string' } as unknown as DesignProperty;
+  const relation = { id: 'r1', name: 'customer', relationKind: 'MANY_TO_ONE' } as unknown as DesignRelation;
+  const index = { id: 'i1', propertyIds: ['p1'], isUnique: true } as unknown as DesignIndex;
+  const state = {
+    entities: signal([entity]),
+    propertiesMap: signal(new Map([['e1', [property]]])),
+    relationsMap: signal(new Map([['e1', [relation]]])),
+    indexesMap: signal(new Map([['e1', [index]]])),
+    onEntitySelected: vi.fn(() => entityId === 'e1'),
+    onTableEntityUpdated: vi.fn(),
+    onEntityDeleted: vi.fn().mockResolvedValue(true),
+    onPropertyAdded: vi.fn(),
+    onRelationAdded: vi.fn(),
+    onIndexAdded: vi.fn()
+  };
+
+  await TestBed.configureTestingModule({
+    imports: [TableShellPage],
+    providers: [
+      { provide: Router, useValue: router },
+      { provide: DesignerStateService, useValue: state },
+      { provide: MODEL_DESIGNER_TRANSLATIONS, useValue: signal(DEFAULT_TRANSLATIONS) }
+    ]
+  })
+    .overrideComponent(TableShellPage, { set: { template: '' } })
+    .compileComponents();
+
+  const fixture = TestBed.createComponent(TableShellPage);
+  fixture.componentRef.setInput('entityId', entityId);
+  fixture.detectChanges();
+  TestBed.flushEffects();
+  fixture.detectChanges();
+  return { fixture, router: { events: routerEvents, navigate: router.navigate }, state };
+}
+
+describe('TableShellPage behavior', () => {
+  it('resolves the active entity and inherited/custom counts', async () => {
+    const { fixture } = await setupTableShell();
+    const page = fixture.componentInstance;
+
+    expect(page.activeEntity()?.name).toBe('Order');
+    expect(page.propertiesCount()).toBeGreaterThan(1);
+    expect(page.relationsCount()).toBe(1);
+    expect(page.indexesCount()).toBe(1);
+  });
+
+  it('tracks the active tab from navigation events', async () => {
+    const { fixture, router } = await setupTableShell();
+    const page = fixture.componentInstance;
+
+    router.events.next(new NavigationEnd(1, '/model-designer/table/e1/relations', '/model-designer/table/e1/relations'));
+    expect(page.activeTab()).toBe('relations');
+    router.events.next(new NavigationEnd(2, '/model-designer/table/e1/indexes', '/model-designer/table/e1/indexes'));
+    expect(page.activeTab()).toBe('indexes');
+    router.events.next(new NavigationEnd(3, '/model-designer/table/e1/properties', '/model-designer/table/e1/properties'));
+    expect(page.activeTab()).toBe('properties');
+  });
+
+  it('redirects a missing route entity when the state contains entities', async () => {
+    const { router } = await setupTableShell('missing');
+
+    expect(router.navigate).toHaveBeenCalledWith(['model-designer', 'canvas']);
+  });
+
+  it('emits changed entity metadata and derives the repository type', async () => {
+    const { fixture, state } = await setupTableShell();
+    const page = fixture.componentInstance;
+
+    page.entityForm.name().value.set('Invoice');
+    page.entityForm.displayName().value.set('Invoices');
+    page.entityForm.tableName().value.set('invoices');
+    page.entityForm.extendsBase().value.set('TreeEntityBase');
+    page.entityForm.entityNamespace().value.set('billing');
+    page.emitEntityChanges();
+
+    expect(state.onTableEntityUpdated).toHaveBeenCalledWith({
+      id: 'e1',
+      changes: {
+        name: 'Invoice',
+        displayName: 'Invoices',
+        tableName: 'invoices',
+        extendsBase: 'TreeEntityBase',
+        repositoryType: 'TreeRepository',
+        entityNamespace: 'billing'
+      }
+    });
+  });
+
+  it('handles entity deletion and routes back to canvas after confirmation', async () => {
+    const { fixture, router, state } = await setupTableShell();
+
+    await fixture.componentInstance.onEntityDelete('e1');
+
+    expect(state.onEntityDeleted).toHaveBeenCalledWith('e1');
+    expect(router.navigate).toHaveBeenCalledWith(['model-designer', 'canvas']);
+  });
+
+  it('emits add actions with unique names and the first property for an index', async () => {
+    const { fixture, state } = await setupTableShell();
+    const page = fixture.componentInstance;
+
+    page.onAddProperty();
+    page.onAddRelation();
+    page.onAddIndex();
+
+    expect(state.onPropertyAdded).toHaveBeenCalledWith({ entityId: 'e1', name: 'newProperty', type: 'string' });
+    expect(state.onRelationAdded).toHaveBeenCalledWith({
+      entityId: 'e1',
+      name: 'newRelation1',
+      kind: 'ONE_TO_MANY',
+      targetEntity: ''
+    });
+    expect(state.onIndexAdded).toHaveBeenCalledWith({ entityId: 'e1', propertyIds: ['p1'], isUnique: false });
   });
 });

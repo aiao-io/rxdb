@@ -40,12 +40,12 @@ capabilities: []
 | #   | 前置条件             | 操作                                                  | 预期结果                                                                                                      | 状态 |
 | --- | -------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 产品根目录已建立     | 查看 `aiao-model-design/` 并执行 `requirements-check` | 有 `AGENTS.md`、`requirements/`、`apps/{web,api,agent}` 与 `packages/model-ops`；需求门禁通过，链接全部有效   | ✅   |
-| 2   | 五个 Nx 项目         | 执行 `pnpm nx show project <name>`                    | root、sourceRoot、tags 与 targets 可读；tags 含 `scope:model-design` 及对应的 `type:*`、`layer:*`             | ✅   |
+| 2   | 六个 Nx 项目         | 执行 `pnpm nx show project <name>`                    | root、sourceRoot、tags 与 targets 可读；tags 含 `scope:model-design` 及对应的 `type:*`、`layer:*`             | ✅   |
 | 3   | web 与 agent         | 查看依赖图与导入                                      | 两者只经 `@aiao-model-design/model-ops` 共用模型操作；应用之间没有依赖边，也不 import 其他应用的源码          | ✅   |
 | 4   | 私有包               | 在 `packages/model-ops` 里导入 `@angular/core`        | lint 报 `layer:domain` 不允许该导入                                                                           | ✅   |
 | 5   | 只改私有包的一个文件 | 执行 `nx show projects --affected`                    | 列出 model-ops、web 与 agent；只改 api 时只列 api                                                             | ✅   |
 | 6   | web 已构建           | 执行 `aiao-model-design:security-check`               | 产物里没有 Trigger.dev 或供应商密钥形状的字符串，也没有本机环境文件里的密钥值；命中时只报文件与类型、不回显值 | ✅   |
-| 7   | 本地                 | 执行 `aiao-model-design:verify`                       | 需求门禁、四个子项目的 lint / typecheck / test、web 构建、Worker 打包、`test-worker` 与安全门禁全部通过       | ✅   |
+| 7   | 本地                 | 执行 `aiao-model-design:verify`                       | 需求门禁、四个代码子项目的 lint / typecheck / test、web 构建、Worker 打包、`test-worker`、安全门禁与浏览器 smoke test 全部通过 | ✅   |
 | 8   | 自建实例             | 从新位置部署智能体，并重跑真实环境场景                | 部署成功；电商订单建模、生成并合并、中途刷新续流与提问作答在新结构下全部通过（真实环境）                      | ✅   |
 | 9   | 旧目录的本地文件     | 迁移后检查 api 与 agent                               | `.dev.vars` 在 `apps/api/`；`.env.agent.example` 进入版本管理，`.env.agent` 仍被忽略                          | ✅   |
 

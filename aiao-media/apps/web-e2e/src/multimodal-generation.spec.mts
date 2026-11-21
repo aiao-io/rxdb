@@ -12,6 +12,22 @@ test.describe('aiao-media 多模态媒体生成', () => {
     return panel;
   }
 
+  test('四种媒体能力都有独立入口并锁定当前工具', async ({ page }) => {
+    for (const [route, label] of [
+      ['/tts', 'TTS 配音'],
+      ['/asr', 'ASR 转写'],
+      ['/music', '生成音乐'],
+      ['/video', '生成视频']
+    ] as const) {
+      await page.goto(route);
+      const mediaPage = page.locator('.media-page');
+      await expect(mediaPage).toBeVisible();
+      await expect(mediaPage.getByRole('heading', { name: label, level: 1 })).toBeVisible();
+      await expect(mediaPage.locator('.media-modes')).toHaveCount(0);
+      await expect(mediaPage.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
+    }
+  });
+
   test('TTS 生成、播放、下载和重复点击只产生一个任务', async ({ context, page }) => {
     const fixture = await installMediaFixture(context);
     const panel = await openMedia(page);
