@@ -39,6 +39,11 @@ if (isHealthInspect) {
   process.stdout.write(sequence[Math.min(earlier, sequence.length) - 1] + '\n');
   process.exit(0);
 }
+// init-db.sh 加载生产权限脚本前探测 Realtime 的 schema（psql -tAc）：默认已就绪，FAKE_REALTIME_READY=false 时一直没建好
+if (args[0] === 'compose' && args.includes('psql') && args.includes('-tAc')) {
+  process.stdout.write((process.env.FAKE_REALTIME_READY === 'false' ? 'f' : 't') + '\n');
+  process.exit(0);
+}
 if (args[0] === 'compose' && args.includes('port')) {
   let hash = 7;
   for (const char of valueAfter('-p') || 'default') hash = (hash * 31 + char.charCodeAt(0)) % 10000;
@@ -125,6 +130,34 @@ const initStacks = calls =>
   composeCalls(calls)
     .filter(call => call.subcommand[0] === 'exec' && call.subcommand.includes('psql'))
     .map(call => call.stack);
+
+test('init-db.sh 先探测 Realtime 建好的 schema，之后才加载生产权限脚本', async t => {
+  const harness = await createHarness(t);
+  const { calls } = await harness.run('init-db.sh');
+
+  const psqlCalls = composeCalls(calls).filter(
+    call => call.subcommand[0] === 'exec' && call.subcommand.includes('psql')
+  );
+  const probe = psqlCalls.findIndex(
+    call => call.subcommand.includes('-tAc') && call.subcommand.some(arg => arg.includes('realtime.messages'))
+  );
+  assert.ok(probe >= 0, 'init-db.sh 应当探测 realtime.messages / realtime.send');
+  const fileLoadsAfterProbe = psqlCalls
+    .slice(probe + 1)
+    .filter(call => !call.subcommand.includes('-tAc') && !call.subcommand.includes('-c'));
+  assert.equal(fileLoadsAfterProbe.length, 1, '探测之后只应再加载生产权限脚本这一份 SQL');
+});
+
+test('init-db.sh 等不到 Realtime 的 schema 就按超时报错退出，不跳过生产权限脚本', async t => {
+  const harness = await createHarness(t);
+  await assert.rejects(
+    harness.run('init-db.sh', { FAKE_REALTIME_READY: 'false', SUPABASE_REALTIME_WAIT_SECONDS: '1' }),
+    error => {
+      assert.match(String(error.stderr), /realtime\.messages/);
+      return true;
+    }
+  );
+});
 
 test('start.sh 起的默认栈，自动初始化发给同一个 Compose 项目', async t => {
   const harness = await createHarness(t);

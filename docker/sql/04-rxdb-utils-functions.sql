@@ -757,6 +757,7 @@ DECLARE
   max_change_id bigint := NULL;
   mapped_max_change_id bigint := NULL;
   change_id_mapping jsonb := '[]'::jsonb;
+  v_branch_id text;
 BEGIN
   IF pg_catalog.current_setting('rxdb.insert_changes', true) IS DISTINCT FROM 'on' THEN
     RAISE EXCEPTION USING
@@ -765,6 +766,17 @@ BEGIN
   END IF;
   -- 消费守卫：一次授权只够一次调用
   PERFORM pg_catalog.set_config('rxdb.insert_changes', '', true);
+
+  -- 非 main 日志只能写进调用者拥有的分支，第一次写入即认领（US-225）。非 main 推送不做业务写，
+  -- 不经过任何业务表的 RLS，这里是它唯一的授权点。按分支 id 排序认领，并发推送多个分支时加锁顺序一致
+  FOR v_branch_id IN
+    SELECT DISTINCT c->>'branchId'
+    FROM pg_catalog.jsonb_array_elements(p_changes) AS changes(c)
+    WHERE COALESCE(c->>'branchId', 'main') <> 'main'
+    ORDER BY 1
+  LOOP
+    PERFORM public.rxdb_claim_branch(v_branch_id);
+  END LOOP;
 
   WITH inserted AS (
     INSERT INTO public.rxdb_change (
@@ -1268,21 +1280,23 @@ BEGIN
 END;
 $$;
 
--- 授权
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_execute_batch_update(text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_update_rows(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;
+-- 授权：推送与它的内部函数要求已登录（US-225）。rxdb_mutations 是 SECURITY INVOKER，以调用者身份调这些函数，
+-- 所以调用者要有它们的执行权。anon 的执行权由生产权限脚本收回（Supabase 的默认权限会在建函数时授给 anon）；
+-- 连接时的 RLS 自检 rxdb_check_rls 仍对 anon 开放
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_execute_batch_update(text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update_rows(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_check_rls(jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_depends_on(text, text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_insert_changes(jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_depends_on(text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_insert_changes(jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
 RETURNS text

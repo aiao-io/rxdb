@@ -3,9 +3,7 @@ import { TypeDemo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 /**
  * TypeDemo 类型测试
@@ -54,8 +52,7 @@ describe('TypeDemo 实体 Supabase 适配器 - 类型测试', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

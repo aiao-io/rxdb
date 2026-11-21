@@ -17,7 +17,7 @@ describe('RemoteSecurityNotice', () => {
     fixture.detectChanges();
 
     const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement | null;
-    expect(alert?.textContent).toContain('未启用身份认证');
+    expect(alert?.textContent).toContain('匿名登录');
     expect(alert?.textContent).toContain('createdBy');
   });
 });

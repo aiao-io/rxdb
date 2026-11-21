@@ -8,9 +8,7 @@ import { ENTITIES, IdCard, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseRepository } from '../SupabaseRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 describe('关系外键设置为 null (Supabase)', () => {
   let adapter: RxDBAdapterSupabase;
@@ -34,8 +32,7 @@ describe('关系外键设置为 null (Supabase)', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

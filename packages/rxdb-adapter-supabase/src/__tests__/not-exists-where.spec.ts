@@ -16,9 +16,7 @@ import { ENTITIES, Order, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseRepository } from '../SupabaseRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 /** 判定 `notExists` 的金额阈值：`big` 的订单在其上，`small` 的在其下 */
 const THRESHOLD = 1000;
@@ -49,10 +47,7 @@ describe('SUPA-007 — 带 where 的 notExists', () => {
       sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
     });
 
-    rxdb.adapter(
-      'supabase',
-      async db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.init();
 
     adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;

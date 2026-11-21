@@ -100,6 +100,22 @@ VALUES ('main', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
+-- rxdb_branch_owner 表（非 main 分支的所有者，US-225）
+-- ============================================
+-- 第一个登记或推送某个非 main 分支的已登录用户认领它，之后只有所有者能登记、改写它，或往它推送日志。
+-- 单独成表、不给 rxdb_branch 加列：一次推送会顺带上行从未登记过的祖先分支，认领它们时不能在
+-- rxdb_branch 里造缺父分支的占位行（客户端 syncBranches 会把它当成拓扑错误）。
+-- 只经 rxdb_claim_branch（SECURITY DEFINER，见 02）写入；开 RLS 且不建任何策略，
+-- 客户端即便经下文的整库授权拿到表权限，也读写不了任何一行。
+CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
+  "branchId" varchar PRIMARY KEY,
+  "ownerId" uuid NOT NULL,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
 -- rxdb_backend 表（远端身份，单行）
 -- ============================================
 -- 拉取游标是 rxdb_change.id，只在同一个库里单调：库重建或变更日志被清空重新计数后，
@@ -148,28 +164,30 @@ BEFORE UPDATE ON public.rxdb_branch
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 启用 Supabase Realtime（仅 rxdb_change 表）
+-- 日志表不进 Supabase Realtime 发布（US-225）
 -- ============================================
+-- 变更通知改由日志插入触发器经 realtime.send 发只带元数据的广播（见 02 的 rxdb_change_broadcast）。
+-- 日志表留在 supabase_realtime 发布里，订阅 postgres_changes 的客户端仍会收到带 patch 的完整行，
+-- 所以旧版本加进去的 rxdb_change 在这里移出。
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-    CREATE PUBLICATION supabase_realtime;
-  END IF;
-
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1
     FROM pg_publication_tables
     WHERE pubname = 'supabase_realtime'
       AND schemaname = 'public'
       AND tablename = 'rxdb_change'
   ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.rxdb_change;
+    ALTER PUBLICATION supabase_realtime DROP TABLE public.rxdb_change;
   END IF;
 END $$;
 
 -- ============================================
 -- 禁用 RLS 并授权（仅测试环境）
 -- ============================================
+-- 下面的整库授权作用于 public 下此刻已有的全部表，包括业务表。已有业务表的生产库不要重跑本文件：
+-- 生产权限脚本只收回 RxDB 自己的对象，放宽的业务表权限收不回来。升级走增量脚本
+-- （如 production/rxdb-sync-access-upgrade.sql），见 website/docs/migration/。
 ALTER TABLE IF EXISTS public.rxdb_change DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_branch DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_backend DISABLE ROW LEVEL SECURITY;

@@ -21,6 +21,7 @@ import { cleanupExpired } from '../cleanup-expired.js';
 import { getAllRepositorySyncStatus } from '../get-all-repository-sync-status.js';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
 import type { SyncManager } from '../SyncManager.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -183,6 +184,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       sync: options.globalSync
     },
     syncManager: {
+      rxdb: noIdentityDeclared,
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories

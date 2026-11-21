@@ -13,7 +13,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -50,10 +50,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('冲突裁决的时间语义（�
       'wa-sqlite',
       db => new RxDBAdapterWaSqlite(db, { vfs: 'MemoryAsyncVFS', async: true, worker: false, wasmPath: asyncWasmPath })
     );
-    rxdb.adapter(
-      'supabase',
-      db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.use(rxDBPluginHistory);
     rxdb.use(rxDBPluginSync);
     await rxdb.connect('wa-sqlite');

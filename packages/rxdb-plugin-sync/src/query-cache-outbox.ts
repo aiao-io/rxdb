@@ -321,7 +321,13 @@ async function runOutboxFlush(
   // 的远端明确不实现的东西 —— `RxDBAdapterHttp.getRepository()` 无条件抛。绕这一道会让
   // 整轮回推在发出第一个请求之前就死掉，本模块开头写明的「不复用 changelog 那条路」
   // 也就名存实亡。
-  const remoteAdapter = (await firstValueFrom(rxdb.remoteAdapter$)) as unknown as QueryCacheRemoteAdapter;
+  const remote = await firstValueFrom(rxdb.remoteAdapter$);
+  const remoteAdapter = remote as unknown as QueryCacheRemoteAdapter;
+  // 声明了身份的实例：离线时在某个身份下排进队里的写，不能在换了主人的会话下被重放出去（US-035）。
+  // 对不上就在第一个远端请求之前整轮停下，队里的变更与水位线都留在原处，等原来的身份回来再推。
+  // 只在整轮开头核对一次：逐条核对抛出时，已经结算的那一段水位来不及落库，下一轮会把它们重放一遍；
+  // 而且身份不匹配不是网络问题，不进 `run.failures`，也不上报可达性。
+  await rxdb.assertCallerIdentity(remote);
   const run: RunState = {
     ...base,
     compacted: pending.length - entries.length,

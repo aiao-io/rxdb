@@ -12,6 +12,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { checkRepositoryUpdates } from '../check-repository-updates.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
 interface QueryRule {
@@ -164,6 +165,7 @@ function createCheckHarness(options: CheckHarnessOptions) {
       sync: options.globalSync ?? FULL_SYNC
     },
     syncState: { reportError },
+    ...noIdentityDeclared,
     syncManager
   } as unknown as RxDB;
   Object.assign(syncManager, { rxdb });

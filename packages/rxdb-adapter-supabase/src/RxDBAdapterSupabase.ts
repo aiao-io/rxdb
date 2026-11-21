@@ -30,7 +30,7 @@ import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/su
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
-import { handleSupabaseChange } from './handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_EVENT, RXDB_CHANGES_TOPIC } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
   assert_postgrest_ok,
@@ -49,7 +49,9 @@ import { resolve_supabase_schema } from './schema.utils.js';
 import {
   ADAPTER_NAME,
   assertSnapshotFilterSupported,
+  canReceiveChangeNotifications,
   getUnsupportedProperty,
+  identityOfAccessToken,
   isRetryableSupabaseWriteError,
   REALTIME_RECONNECT_BASE_DELAY_MS,
   REALTIME_RECONNECT_MAX_DELAY_MS,
@@ -83,16 +85,17 @@ export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 /**
  * Supabase 适配器
  *
+ * @remarks
+ * 按参考 SQL 的生产权限部署后，日志同步（拉取、推送、分支登记、实时通知）只对已登录身份开放：
+ * 传入应用里已经登录的客户端。只给 `supabaseUrl` + `supabaseKey` 时适配器自建一个没有会话的客户端，
+ * 只适合不走日志同步的直读直写。
+ *
  * @example
  * ```typescript
- * const rxdb = new RxDB({
- *   adapters: {
- *     supabase: rxdb => new RxDBAdapterSupabase(rxdb, {
- *       supabaseUrl: 'https://xxx.supabase.co',
- *       supabaseKey: 'your-anon-key'
- *     })
- *   }
- * });
+ * const supabase = createClient('https://xxx.supabase.co', 'your-anon-key');
+ * // …应用在这里完成登录，supabase 带上了用户会话
+ *
+ * rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: supabase }));
  * ```
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
@@ -142,7 +145,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       if (this.#channel) return;
 
       this.#realtimeState = 'connecting';
-      this.#channel = this.#createRealtimeChannel();
+      this.#channel = await this.#createRealtimeChannel();
+      // 没登录时不订阅：保持 idle，下一次 connect() 会按新的令牌重新判断
+      if (!this.#channel) this.#realtimeState = 'idle';
     });
     return this;
   }
@@ -189,6 +194,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       throw new SupabaseDataError('Failed to get backend id: public.rxdb_backend has no row');
     }
     return data;
+  }
+
+  /**
+   * 当前调用者的身份（US-035）
+   *
+   * @returns 已登录用户为会话令牌的 `sub`；没登录（匿名访问）为 `RXDB_ANONYMOUS_SUBJECT`
+   * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
+   *
+   * @remarks
+   * 取的是**此刻**随请求发出的令牌，每次回答之前先 `realtime.setAuth()` 让客户端刷新它，不缓存：
+   * 会话可能在两次请求之间换了主人。不读 `client.auth`：客户端配了 `accessToken` 选项时，
+   * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
+   * 只读本地已有的会话状态，不发网络请求。
+   */
+  override async callerIdentity(): Promise<string> {
+    await this.#client.realtime.setAuth();
+    return identityOfAccessToken(this.#client.realtime.accessTokenValue);
   }
 
   // ============================================
@@ -910,12 +932,35 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     this.#rlsCheckDone = true;
   }
 
-  #createRealtimeChannel(): RealtimeChannel {
-    const channel = this.#client
-      .channel('rxdb-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rxdb_change' }, payload =>
-        handleSupabaseChange(this, payload)
+  /**
+   * 订阅变更通知的私有频道（US-225）。
+   *
+   * @remarks
+   * 通知由参考 SQL 在日志落库后广播，只带元数据；频道是私有的，Realtime 加入时按 `realtime.messages`
+   * 的 RLS 策略以当前登录身份放行（生产权限脚本只对 authenticated 开放），anon 订阅会被拒。
+   *
+   * 订阅前先 `realtime.setAuth()`：Realtime 客户端取令牌是异步的，不等它就加入频道，带上的是 apikey
+   * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌；
+   * 没有会话时 supabase-js 交出的就是 apikey 本身。
+   *
+   * 令牌不属于已登录身份时不订阅、返回 `null`：订阅必然被拒，而被拒的状态按「可重连」处理，
+   * 会每隔最多 5 秒重试一次、永远重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；
+   * 实时通知在登录后再调一次 `connect()` 开启。
+   *
+   * @returns 订阅中的频道；未登录时为 `null`
+   */
+  async #createRealtimeChannel(): Promise<RealtimeChannel | null> {
+    await this.#client.realtime.setAuth();
+    if (!canReceiveChangeNotifications(this.#client.realtime.accessTokenValue)) {
+      console.warn(
+        '[RxDB Supabase] Change notifications need a signed-in session; skipping the realtime subscription. ' +
+          "Call rxdb.connect('supabase') again after sign-in to receive them."
       );
+      return null;
+    }
+    const channel = this.#client
+      .channel(RXDB_CHANGES_TOPIC, { config: { private: true } })
+      .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
 
     channel.subscribe((status, err) => {
       void this.#enqueueRealtime(async () => {
@@ -986,7 +1031,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     this.#realtimeState = 'connecting';
-    this.#channel = this.#createRealtimeChannel();
+    this.#channel = await this.#createRealtimeChannel();
+    // 重连途中退出了登录：不再订阅，也就不再重试
+    if (!this.#channel) this.#realtimeState = 'idle';
   }
 
   /**

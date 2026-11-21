@@ -20,9 +20,7 @@ import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 type MenuLargeFixture = MenuLarge & { title: string; sortOrder?: string };
 
@@ -74,8 +72,7 @@ describe('SupabaseTreeRepository - MenuLarge 树形查询', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

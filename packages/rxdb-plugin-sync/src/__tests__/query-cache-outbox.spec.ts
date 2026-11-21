@@ -24,6 +24,7 @@ import {
   type RxDB,
   RxDBBranch,
   RxDBChange,
+  RxDBIdentityMismatchError,
   RxDBSync,
   type SyncOptions,
   SyncType,
@@ -136,6 +137,8 @@ interface SetupOptions {
   entities?: Array<typeof CachedRecipe | typeof VersionedRecipe | typeof TenantRecipe>;
   /** 实例对 `entityType` 的同步覆盖（US-026） */
   syncOverride?: SyncOptions;
+  /** 声明了身份、而远端会话换了主人：`assertCallerIdentity` 抛它（US-035）；不给就是没声明身份 */
+  identityError?: Error;
 }
 
 const setup = (options: SetupOptions = {}) => {
@@ -221,9 +224,13 @@ const setup = (options: SetupOptions = {}) => {
 
   const entityType = options.entityType ?? CachedRecipe;
   const overrides = new Map(options.syncOverride ? [[getEntityMetadata(entityType), options.syncOverride]] : []);
+  const assertCallerIdentity = vi.fn(async () => {
+    if (options.identityError) throw options.identityError;
+  });
   const rxdb = {
     config: { entities: options.entities ?? [entityType], sync: undefined },
     entitySync: createEntitySyncResolver(undefined, overrides),
+    assertCallerIdentity,
     entityManager: {
       instantiate: () => ({ enabled: true }) as RxDBSync,
       getRepository: vi.fn(() => ({ count: countChanges }))
@@ -238,6 +245,7 @@ const setup = (options: SetupOptions = {}) => {
 
   return {
     rxdb,
+    assertCallerIdentity,
     branchRepo,
     changeRepo,
     changeQueries,
@@ -363,6 +371,56 @@ describe('flushQueryCacheOutbox', () => {
 
       expect(ctx.remoteAdapter.getRepository).not.toHaveBeenCalled();
       expect(result.replayed).toBe(1);
+    });
+  });
+
+  describe('远端会话换了主人（US-035）', () => {
+    const mismatch = () => new RxDBIdentityMismatchError('remote', 'key-a', ['key-b']);
+    const pendingInsert = () => [change({ type: 'INSERT', entityId: 'r1', patch: { id: 'r1', title: '红烧肉' } })];
+
+    // 离线时在 A 的身份下排进队里的写，不能在 B 的会话下被重放出去：
+    // 整轮在第一个远端请求之前就停下，队里的变更与水位线都留在原处，等 A 回来再推。
+    it('核对不过：整轮一个远端请求都不发，错误原样抛出，水位线不动', async () => {
+      const error = mismatch();
+      const ctx = setup({ changes: pendingInsert(), identityError: error });
+
+      await expect(flush(ctx)).rejects.toBe(error);
+
+      expect(ctx.remoteAdapter.fetchMetadata).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.create).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.update).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.delete).not.toHaveBeenCalled();
+      expect(ctx.remoteAdapter.findByIds).not.toHaveBeenCalled();
+      expect(ctx.syncRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('核对的就是取到的那个远端适配器，并排在第一个远端请求之前', async () => {
+      const ctx = setup({ changes: pendingInsert() });
+
+      await flush(ctx);
+
+      expect(ctx.assertCallerIdentity).toHaveBeenCalledTimes(1);
+      expect(ctx.assertCallerIdentity).toHaveBeenCalledWith(ctx.remoteAdapter);
+      expect(ctx.assertCallerIdentity.mock.invocationCallOrder[0]).toBeLessThan(
+        ctx.remoteAdapter.fetchMetadata.mock.invocationCallOrder[0]
+      );
+    });
+
+    // 身份不匹配不是网络问题：不能记成「远端不可达」，否则面板上会说离线，而用户其实是登错了号。
+    it('不上报可达性，也不记成某一条的失败', async () => {
+      const ctx = setup({ changes: pendingInsert(), identityError: mismatch() });
+      const report = vi.spyOn(ctx.reachability, 'report');
+
+      await flush(ctx).catch(() => undefined);
+
+      expect(report).not.toHaveBeenCalled();
+    });
+
+    it('没有待推的行：不核对，也就不问远端', async () => {
+      const ctx = setup({ changes: [], identityError: mismatch() });
+
+      await expect(flush(ctx)).resolves.toMatchObject({ replayed: 0 });
+      expect(ctx.assertCallerIdentity).not.toHaveBeenCalled();
     });
   });
 

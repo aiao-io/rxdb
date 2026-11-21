@@ -4,7 +4,7 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -66,10 +66,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('Supabase 级联删除同步（U
           wasmPath: asyncWasmPath
         })
     );
-    rxdb.adapter(
-      'supabase',
-      db => new RxDBAdapterSupabase(db, { supabaseUrl: SUPABASE_URL, supabaseKey: SUPABASE_KEY })
-    );
+    rxdb.adapter('supabase', db => new RxDBAdapterSupabase(db, { client: createAuthenticatedTestClient() }));
     rxdb.use(rxDBPluginHistory);
     rxdb.use(rxDBPluginSync);
     await rxdb.connect('wa-sqlite');

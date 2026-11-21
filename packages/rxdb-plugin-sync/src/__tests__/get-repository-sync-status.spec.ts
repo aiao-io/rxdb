@@ -11,6 +11,7 @@ import {
 } from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getRepositorySyncStatus } from '../get-repository-sync-status.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
 interface QueryRule {
@@ -145,6 +146,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
       sync: options.globalSync ?? FULL_SYNC
     },
     syncManager: {
+      rxdb: noIdentityDeclared,
       getCurrentBranch,
       getLocalRepositories,
       getRemoteRepositories

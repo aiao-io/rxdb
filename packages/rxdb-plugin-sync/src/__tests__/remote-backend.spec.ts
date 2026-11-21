@@ -8,6 +8,7 @@ import {
   RemoteBackendMismatchError
 } from '../remote-backend.js';
 import type { SyncManager } from '../SyncManager.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const syncRecord = (entity: string, remoteBackendId: string | null, lastPullRemoteChangeId: number | null) =>
   Object.assign(Object.create(RxDBSync.prototype) as RxDBSync, {
@@ -42,7 +43,8 @@ const createHarness = (options: HarnessOptions) => {
     remoteBackendId: options.remoteBackendId ?? null,
     rxdb: {
       entityManager: { instantiate },
-      syncState: { reportError, reportSuccess, snapshot: { lastError: options.lastError ?? null } }
+      syncState: { reportError, reportSuccess, snapshot: { lastError: options.lastError ?? null } },
+      ...noIdentityDeclared
     },
     getRemoteRepositories: async () => ({ adapter: { backendId: async () => options.backendId } }),
     getLocalRepositories: async () => ({ adapter: { getRepository: () => repository, transaction } })

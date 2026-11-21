@@ -4,6 +4,16 @@
 \set test_case all
 \endif
 
+-- 参考 SQL 由 run-supabase-sql-security-regressions.sh 拷进容器，目录经 -v sql_dir 传入
+\if :{?sql_dir}
+\else
+DO $$ BEGIN RAISE EXCEPTION 'missing -v sql_dir (run via run-supabase-sql-security-regressions.sh)'; END $$;
+\endif
+\set sync_access_upgrade_file :sql_dir '/production/rxdb-sync-access-upgrade.sql'
+\set sync_functions_file :sql_dir '/02-rxdb-sync-functions.sql'
+\set utils_functions_file :sql_dir '/04-rxdb-utils-functions.sql'
+\set production_grants_file :sql_dir '/production/rxdb-change-grants.sql'
+
 BEGIN;
 
 DROP SCHEMA IF EXISTS rxdb_sql_regression CASCADE;
@@ -546,6 +556,20 @@ AS $$
 BEGIN
   DELETE FROM public.rxdb_change
   WHERE p_client_ids IS NULL OR "clientId" = ANY(p_client_ids);
+END;
+$$;
+
+-- 以属主身份清理分支登记与所有者（US-225）：生产权限收回了客户端对 rxdb_branch 的直写，
+-- 「客户端直写被拒」的断言在 branch-ownership 用例里
+CREATE FUNCTION rxdb_sql_regression.clear_branch(p_branch_id text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  DELETE FROM public.rxdb_branch WHERE id = p_branch_id;
+  DELETE FROM public.rxdb_branch_owner WHERE "branchId" = p_branch_id;
 END;
 $$;
 
@@ -1455,15 +1479,17 @@ BEGIN
     ),
     'rxdb_assert_push_integrity must be SECURITY INVOKER, STABLE and pin search_path'
   );
+  -- 只断言 authenticated：anon 的执行权由生产权限脚本收回（US-225），收回与否随栈的初始化状态而定，
+  -- 在 anon-sync-protocol / production-grants-idempotent 里于脚本生效之后断言
   PERFORM rxdb_sql_regression.assert_true(
     (
-      SELECT pg_catalog.count(*) = 2
+      SELECT pg_catalog.count(*) = 1
       FROM pg_catalog.pg_proc AS p, pg_catalog.aclexplode(p.proacl) AS acl
       WHERE p.oid = helper_oid
         AND acl.privilege_type = 'EXECUTE'
-        AND acl.grantee IN ('anon'::regrole, 'authenticated'::regrole)
+        AND acl.grantee = 'authenticated'::regrole
     ),
-    'rxdb_assert_push_integrity must be explicitly granted to anon and authenticated like the other rxdb_mutations helpers'
+    'rxdb_assert_push_integrity must be explicitly granted to authenticated like the other rxdb_mutations helpers'
   );
 
   -- ① 五种不配对各一例
@@ -1603,7 +1629,7 @@ AS $$
 DECLARE
   result jsonb;
 BEGIN
-  DELETE FROM public.rxdb_branch WHERE id = 'sql-security-shadow-branch';
+  PERFORM rxdb_sql_regression.clear_branch('sql-security-shadow-branch');
 
   SELECT public.rxdb_enable_sync_for_branch(
     '[{
@@ -3394,14 +3420,673 @@ BEGIN
 END;
 $$;
 
-GRANT USAGE ON SCHEMA rxdb_sql_regression TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO anon;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO anon;
+-- US-225：以属主身份窥看所有者表与通知（被测角色读不到它们）
+CREATE FUNCTION rxdb_sql_regression.branch_owner(p_branch_id text)
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT "ownerId" FROM public.rxdb_branch_owner WHERE "branchId" = p_branch_id
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.change_notifications()
+RETURNS SETOF jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT payload FROM realtime.messages
+  WHERE topic = 'rxdb:changes' AND extension = 'broadcast' AND event = 'changes' AND private
+$$;
+
+-- 以调用方身份数通知：Realtime 加入私有频道时就是这样以登录用户身份试读 realtime.messages
+CREATE FUNCTION rxdb_sql_regression.visible_change_notifications()
+RETURNS bigint
+LANGUAGE sql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.count(*) FROM realtime.messages WHERE topic = 'rxdb:changes' AND extension = 'broadcast'
+$$;
+
+-- US-225 AC#7 的种子：所有者表出现之前就已登记、或已写过日志的旧分支（以属主身份写入，不经认领）
+CREATE FUNCTION rxdb_sql_regression.seed_legacy_branches()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  INSERT INTO public.rxdb_branch (id, activated, "parentId") VALUES ('sql-owner-legacy-registered', false, 'main');
+  INSERT INTO public.rxdb_change (namespace, entity, "entityId", type, "branchId", "clientId", "localId")
+  VALUES ('rxdb_sql_regression', 'PushOpen', 'owner-legacy-seed', 'INSERT', 'sql-owner-legacy-logged', 'sql-legacy-client', 893001);
+END;
+$$;
+
+-- US-225 AC#1、#3、#4：anon 退出日志同步协议（以 anon 身份执行，生产权限脚本已生效）
+CREATE FUNCTION rxdb_sql_regression.test_anon_sync_protocol()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  denied text[] := '{}';
+BEGIN
+  BEGIN
+    PERFORM 1 FROM public.rxdb_change LIMIT 1;
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'select rxdb_change'::text;
+  END;
+  BEGIN
+    PERFORM 1 FROM public.rxdb_branch LIMIT 1;
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'select rxdb_branch'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_pull_changes(0, 10, 'rxdb_sql_regression', 'PushOpen');
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_pull_changes'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"anon-protocol-main","value":"pushed"}]}]'::jsonb,
+      p_changes => pg_catalog.jsonb_build_array(rxdb_sql_regression.push_log('anon-protocol-main', 'INSERT', 890001)),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_mutations main'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('anon-protocol-branch', 'INSERT', 890002, 'sql-anon-branch')
+      ),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_mutations branch'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_existing_ids('push_open_ids', 'rxdb_sql_regression', ARRAY['open-1']);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_existing_ids'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-anon-branch","parentId":"main"}]'::jsonb);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_enable_sync_for_branch'::text;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    denied = ARRAY[
+      'select rxdb_change', 'select rxdb_branch', 'rxdb_pull_changes', 'rxdb_mutations main',
+      'rxdb_mutations branch', 'rxdb_existing_ids', 'rxdb_enable_sync_for_branch'
+    ],
+    pg_catalog.format('anon-sync-protocol: every sync protocol entry must be denied to anon, denied: %s', denied)
+  );
+
+  -- 连接时调用的三个函数照常可用；业务表仍按自己的 GRANT 与 RLS 直接读写
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_server_version() IS NOT NULL,
+    'anon-sync-protocol: rxdb_server_version must stay callable'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_backend_id() IS NOT NULL,
+    'anon-sync-protocol: rxdb_backend_id must stay callable'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_check_rls('[{"schema":"rxdb_sql_regression","table":"push_open_ids"}]'::jsonb) IS NOT NULL,
+    'anon-sync-protocol: rxdb_check_rls must stay callable'
+  );
+  INSERT INTO rxdb_sql_regression.push_open_ids (id, value) VALUES ('anon-protocol-direct', 'direct');
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'anon-protocol-direct'),
+    'anon-sync-protocol: anon must still write business tables under their own grants'
+  );
+END;
+$$;
+
+-- 以属主身份核对 anon 被拒的调用没有留下任何写入
+CREATE FUNCTION rxdb_sql_regression.test_anon_sync_protocol_verify()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id IN ('anon-protocol-main', 'anon-protocol-branch')
+    )
+      AND NOT EXISTS (
+        SELECT 1 FROM public.rxdb_change WHERE "entityId" IN ('anon-protocol-main', 'anon-protocol-branch')
+      )
+      AND NOT EXISTS (SELECT 1 FROM public.rxdb_branch WHERE id = 'sql-anon-branch')
+      AND NOT EXISTS (SELECT 1 FROM public.rxdb_branch_owner WHERE "branchId" = 'sql-anon-branch'),
+    'anon-sync-protocol: denied anon calls must leave business tables, the log and the branch tables untouched'
+  );
+END;
+$$;
+
+-- US-225 AC#2、#5～#8：非 main 分支按所有者写入（以 authenticated 身份执行，切换 JWT 声明模拟两个用户）
+CREATE FUNCTION rxdb_sql_regression.test_branch_ownership()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a constant text := '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}';
+  user_b constant text := '{"sub":"00000000-0000-4000-8000-0000000000b2","role":"authenticated"}';
+  no_sub constant text := '{"role":"authenticated"}';
+  denied text[] := '{}';
+  message text;
+BEGIN
+  -- A 登记 feature 并推送它的日志；同一次推送顺带一个从未登记过的祖先分支
+  PERFORM pg_catalog.set_config('request.jwt.claims', user_a, true);
+  PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-feature","parentId":"sql-owner-ancestor"}]'::jsonb);
+  PERFORM public.rxdb_mutations(
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.push_log('owner-feature-1', 'INSERT', 891001, 'sql-owner-feature'),
+      rxdb_sql_regression.push_log('owner-ancestor-1', 'INSERT', 891002, 'sql-owner-ancestor')
+    ),
+    p_skip_sync => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.branch_owner('sql-owner-feature') = '00000000-0000-4000-8000-0000000000a1'::uuid
+      AND rxdb_sql_regression.branch_owner('sql-owner-ancestor') = '00000000-0000-4000-8000-0000000000a1'::uuid,
+    'branch-ownership: the first writer must own both the registered branch and the unregistered ancestor'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_pull_changes(0, 1000, 'rxdb_sql_regression', 'PushOpen', 'sql-owner-feature')) = 1,
+    'branch-ownership: authenticated callers must pull the owned branch log'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM public.rxdb_branch WHERE id = 'sql-owner-feature'),
+    'branch-ownership: authenticated callers must read rxdb_branch'
+  );
+  -- 所有者改写自己的分支照常可以
+  PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-feature","parentId":"main"}]'::jsonb);
+
+  -- B 登记同名分支、往 A 的分支推送
+  PERFORM pg_catalog.set_config('request.jwt.claims', user_b, true);
+  BEGIN
+    PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-feature","parentId":"main"}]'::jsonb);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'b register'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('owner-feature-b', 'INSERT', 891003, 'sql-owner-feature')
+      ),
+      p_skip_sync => true,
+      p_receipts => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      denied := denied || 'b push'::text;
+      GET STACKED DIAGNOSTICS message = MESSAGE_TEXT;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    message = 'rxdb: branch sql-owner-feature belongs to another user',
+    pg_catalog.format('branch-ownership: a push into another user''s branch must name the branch: %s', message)
+  );
+
+  -- 没有 sub 的令牌认领不了分支
+  PERFORM pg_catalog.set_config('request.jwt.claims', no_sub, true);
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('owner-nosub-1', 'INSERT', 891004, 'sql-owner-nosub')
+      ),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'no sub push'::text;
+  END;
+
+  -- 已有日志或登记、却没有所有者的旧分支（种子见 seed_legacy_branches）
+  PERFORM pg_catalog.set_config('request.jwt.claims', user_a, true);
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('owner-legacy-1', 'INSERT', 891005, 'sql-owner-legacy-logged')
+      ),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      denied := denied || 'legacy logged push'::text;
+      GET STACKED DIAGNOSTICS message = MESSAGE_TEXT;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    message = 'rxdb: branch sql-owner-legacy-logged has no owner',
+    pg_catalog.format('branch-ownership: an unowned legacy branch must ask for an owner: %s', message)
+  );
+  BEGIN
+    PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-legacy-registered","parentId":"main"}]'::jsonb);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'legacy registered register'::text;
+  END;
+
+  -- 分支表只经登记函数写入，所有者表客户端不读不写，认领函数不对客户端开放
+  BEGIN
+    INSERT INTO public.rxdb_branch (id, activated) VALUES ('sql-owner-direct', false);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'insert rxdb_branch'::text;
+  END;
+  BEGIN
+    UPDATE public.rxdb_branch SET "parentId" = 'forged' WHERE id = 'sql-owner-feature';
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'update rxdb_branch'::text;
+  END;
+  BEGIN
+    DELETE FROM public.rxdb_branch WHERE id = 'sql-owner-feature';
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'delete rxdb_branch'::text;
+  END;
+  BEGIN
+    PERFORM 1 FROM public.rxdb_branch_owner LIMIT 1;
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'select rxdb_branch_owner'::text;
+  END;
+  BEGIN
+    INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
+    VALUES ('sql-owner-squat', '00000000-0000-4000-8000-0000000000b2');
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'insert rxdb_branch_owner'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_claim_branch('sql-owner-squat');
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'rxdb_claim_branch'::text;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    denied = ARRAY[
+      'b register', 'b push', 'no sub push', 'legacy logged push', 'legacy registered register',
+      'insert rxdb_branch', 'update rxdb_branch', 'delete rxdb_branch',
+      'select rxdb_branch_owner', 'insert rxdb_branch_owner', 'rxdb_claim_branch'
+    ],
+    pg_catalog.format('branch-ownership: denied set mismatch: %s', denied)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_pull_changes(0, 1000, 'rxdb_sql_regression', 'PushOpen', 'sql-owner-feature')) = 1
+      AND rxdb_sql_regression.branch_owner('sql-owner-nosub') IS NULL
+      AND rxdb_sql_regression.branch_owner('sql-owner-legacy-logged') IS NULL
+      AND rxdb_sql_regression.branch_owner('sql-owner-squat') IS NULL,
+    'branch-ownership: denied writes must leave the log and the owner table untouched'
+  );
+END;
+$$;
+
+-- US-225 AC#9、#10：实时通知只带元数据，按 200 条聚合（以 authenticated 身份推送）
+CREATE FUNCTION rxdb_sql_regression.test_realtime_notifications()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  before_count integer;
+  payload jsonb;
+  bulk jsonb;
+  batch_sizes integer[];
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_publication_tables
+      WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'rxdb_change'
+    ),
+    'realtime-notifications: rxdb_change must not be in the supabase_realtime publication'
+  );
+
+  SELECT pg_catalog.count(*)::integer INTO before_count FROM rxdb_sql_regression.change_notifications();
+  PERFORM public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"realtime-secret-1","value":"realtime-secret-value"}]}]'::jsonb,
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.push_log('realtime-secret-1', 'INSERT', 892001)
+        || '{"patch":{"id":"realtime-secret-1","value":"realtime-secret-value"}}'::jsonb
+    ),
+    p_skip_sync => true
+  );
+  SELECT notification INTO payload
+  FROM rxdb_sql_regression.change_notifications() AS notification
+  WHERE notification->'changes' @> '[{"entityId":"realtime-secret-1"}]';
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.change_notifications()) = before_count + 1,
+    'realtime-notifications: one push statement must broadcast exactly one notification'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(payload->'changes') = 1
+      AND (
+        SELECT pg_catalog.array_agg(key ORDER BY key)
+        FROM pg_catalog.jsonb_object_keys(payload->'changes'->0) AS key
+      ) = ARRAY['branchId', 'clientId', 'createdAt', 'entity', 'entityId', 'namespace', 'type']
+      AND payload->'changes'->0->>'type' = 'INSERT'
+      AND payload->'changes'->0->>'branchId' = 'main'
+      AND payload->'changes'->0->>'clientId' = 'sql-push-integrity-client',
+    pg_catalog.format('realtime-notifications: a notification must carry metadata only: %s', payload)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.strpos(payload::text, 'realtime-secret-value') = 0,
+    pg_catalog.format('realtime-notifications: row content must not leak into the notification: %s', payload)
+  );
+
+  -- 一次推 450 条（调用者认领的非 main 分支，不需要业务行）：聚合成 200 + 200 + 50 三条
+  SELECT pg_catalog.jsonb_agg(
+    rxdb_sql_regression.push_log('realtime-bulk-' || n, 'INSERT', 892100 + n, 'sql-realtime-bulk') ORDER BY n
+  )
+  INTO bulk
+  FROM pg_catalog.generate_series(1, 450) AS n;
+  SELECT pg_catalog.count(*)::integer INTO before_count FROM rxdb_sql_regression.change_notifications();
+  PERFORM public.rxdb_mutations(p_changes => bulk, p_skip_sync => true);
+  SELECT pg_catalog.array_agg(pg_catalog.jsonb_array_length(notification->'changes') ORDER BY pg_catalog.jsonb_array_length(notification->'changes') DESC)
+  INTO batch_sizes
+  FROM rxdb_sql_regression.change_notifications() AS notification
+  WHERE notification->'changes'->0->>'branchId' = 'sql-realtime-bulk';
+  PERFORM rxdb_sql_regression.assert_true(
+    batch_sizes = ARRAY[200, 200, 50],
+    pg_catalog.format('realtime-notifications: 450 changes must be batched as 200 + 200 + 50, got %s', batch_sizes)
+  );
+END;
+$$;
+
+-- US-225 AC#16：生产权限脚本执行两次之后，权限、策略与触发器都只有一份且仍然生效
+CREATE FUNCTION rxdb_sql_regression.test_production_grants_idempotent()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    (
+      SELECT pg_catalog.count(*) FROM pg_catalog.pg_policies
+      WHERE schemaname = 'realtime' AND tablename = 'messages' AND policyname = 'rxdb_changes_receive'
+    ) = 1,
+    'production-grants-idempotent: the realtime receive policy must exist exactly once'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (
+      SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger
+      WHERE tgrelid = 'public.rxdb_change'::regclass AND tgname = 'rxdb_change_broadcast'
+    ) = 1,
+    'production-grants-idempotent: the broadcast trigger must exist exactly once'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT')
+      AND pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change', 'SELECT')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch', 'INSERT')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch_owner', 'SELECT'),
+    'production-grants-idempotent: table privileges must match the production model'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT pg_catalog.has_function_privilege('anon', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('authenticated', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)', 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege('anon', 'public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb)', 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege('authenticated', 'public.rxdb_claim_branch(text)', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('anon', 'public.rxdb_server_version()', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('anon', 'public.rxdb_backend_id()', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('anon', 'public.rxdb_check_rls(jsonb)', 'EXECUTE'),
+    'production-grants-idempotent: function privileges must match the production model'
+  );
+END;
+$$;
+
+-- US-225 AC#20：迁移指南第 3 步。以管理员身份列出没有所有者的旧分支，再按核实过的分支 ID 补登所有者。
+-- 列表与 rxdb_claim_branch 判「旧分支」的口径一致：登记过，或写过日志（只随推送上行、从未登记的祖先分支）
+CREATE FUNCTION rxdb_sql_regression.backfill_legacy_branch_owners()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_unowned text[];
+BEGIN
+  SELECT pg_catalog.array_agg(branch."branchId" ORDER BY branch."branchId")
+  INTO v_unowned
+  FROM (
+    SELECT id AS "branchId" FROM public.rxdb_branch
+    UNION
+    SELECT "branchId" FROM public.rxdb_change
+  ) AS branch
+  WHERE branch."branchId" <> 'main'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.rxdb_branch_owner AS owner WHERE owner."branchId" = branch."branchId"
+    );
+  PERFORM rxdb_sql_regression.assert_true(
+    v_unowned @> ARRAY['sql-owner-legacy-logged', 'sql-owner-legacy-registered'],
+    pg_catalog.format('branch-ownership: the unowned-branch query must list registered and log-only legacy branches: %s', v_unowned)
+  );
+
+  INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
+  VALUES
+    ('sql-owner-legacy-registered', '00000000-0000-4000-8000-0000000000a1'),
+    ('sql-owner-legacy-logged', '00000000-0000-4000-8000-0000000000a1')
+  ON CONFLICT ("branchId") DO NOTHING;
+END;
+$$;
+
+-- US-225 AC#20：补登之后两类旧分支都只有指定的所有者能写（以 authenticated 身份执行）
+CREATE FUNCTION rxdb_sql_regression.test_branch_owner_backfill()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a constant text := '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}';
+  user_b constant text := '{"sub":"00000000-0000-4000-8000-0000000000b2","role":"authenticated"}';
+  denied text[] := '{}';
+BEGIN
+  PERFORM pg_catalog.set_config('request.jwt.claims', user_a, true);
+  PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-legacy-registered","parentId":"main"}]'::jsonb);
+  PERFORM public.rxdb_mutations(
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.push_log('owner-backfill-logged', 'INSERT', 891101, 'sql-owner-legacy-logged'),
+      rxdb_sql_regression.push_log('owner-backfill-registered', 'INSERT', 891102, 'sql-owner-legacy-registered')
+    ),
+    p_skip_sync => true
+  );
+
+  PERFORM pg_catalog.set_config('request.jwt.claims', user_b, true);
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('owner-backfill-b-logged', 'INSERT', 891103, 'sql-owner-legacy-logged')
+      ),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'b push logged'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(
+        rxdb_sql_regression.push_log('owner-backfill-b-registered', 'INSERT', 891104, 'sql-owner-legacy-registered')
+      ),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'b push registered'::text;
+  END;
+  BEGIN
+    PERFORM public.rxdb_enable_sync_for_branch('[{"id":"sql-owner-legacy-registered","parentId":"main"}]'::jsonb);
+  EXCEPTION
+    WHEN insufficient_privilege THEN denied := denied || 'b register registered'::text;
+  END;
+
+  PERFORM rxdb_sql_regression.assert_true(
+    denied = ARRAY['b push logged', 'b push registered', 'b register registered'],
+    pg_catalog.format('branch-ownership: backfilled legacy branches must stay closed to other users, denied: %s', denied)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_pull_changes(0, 1000, 'rxdb_sql_regression', 'PushOpen', 'sql-owner-legacy-logged')) = 2
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_pull_changes(0, 1000, 'rxdb_sql_regression', 'PushOpen', 'sql-owner-legacy-registered')) = 1,
+    'branch-ownership: only the backfilled owner''s pushes may land in the legacy branches'
+  );
+END;
+$$;
+
+-- US-225 AC#18 的业务表：权限、列权限、行级安全开关与策略，升级前后逐项比对
+CREATE FUNCTION rxdb_sql_regression.upgrade_probe_privileges()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  RETURN (
+    SELECT pg_catalog.jsonb_build_object(
+      'table', probe.relacl::text,
+      'rowSecurity', pg_catalog.jsonb_build_array(probe.relrowsecurity, probe.relforcerowsecurity),
+      'sequence', (
+        SELECT sequence.relacl::text FROM pg_catalog.pg_class AS sequence
+        WHERE sequence.oid = 'public.rxdb_sql_upgrade_probe_id_seq'::regclass
+      ),
+      'columns', (
+        SELECT pg_catalog.jsonb_object_agg(attribute.attname, attribute.attacl::text)
+        FROM pg_catalog.pg_attribute AS attribute
+        WHERE attribute.attrelid = probe.oid AND attribute.attnum > 0 AND NOT attribute.attisdropped
+      ),
+      'policies', (
+        SELECT pg_catalog.jsonb_agg(
+          pg_catalog.jsonb_build_array(
+            policy.polname, policy.polcmd, policy.polroles::text, pg_catalog.pg_get_expr(policy.polqual, policy.polrelid)
+          )
+          ORDER BY policy.polname
+        )
+        FROM pg_catalog.pg_policy AS policy
+        WHERE policy.polrelid = probe.oid
+      )
+    )
+    FROM pg_catalog.pg_class AS probe
+    WHERE probe.oid = 'public.rxdb_sql_upgrade_probe'::regclass
+  );
+END;
+$$;
+
+-- US-225 AC#18：生产库从旧版本升级（迁移指南第 2 步）。以属主身份把 RxDB 对象退回升级前的样子：
+-- 没有所有者表、日志表在 Realtime 发布里、01 的整库授权留下的日志与分支表权限、协议函数对 PUBLIC 与 anon 开放。
+-- 再在 public 下建一张预先收紧权限的业务表：只给 authenticated 两列的读权限，成本列谁都读不到
+CREATE FUNCTION rxdb_sql_regression.prepare_sync_access_upgrade()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_function regprocedure;
+BEGIN
+  DROP TABLE public.rxdb_branch_owner;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.rxdb_change;
+  -- 旧版生产权限脚本只收回日志表的写权限
+  GRANT ALL ON public.rxdb_change, public.rxdb_branch TO anon, authenticated;
+  REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_change FROM anon, authenticated;
+  GRANT SELECT ON SEQUENCE public.rxdb_change_id_seq TO anon, authenticated;
+  FOR v_function IN
+    SELECT p.oid::regprocedure
+    FROM pg_catalog.pg_proc AS p
+    WHERE p.pronamespace = 'public'::regnamespace AND p.proname LIKE 'rxdb\_%'
+  LOOP
+    EXECUTE pg_catalog.format('GRANT EXECUTE ON FUNCTION %s TO PUBLIC, anon', v_function);
+  END LOOP;
+
+  CREATE TABLE public.rxdb_sql_upgrade_probe (
+    id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    title text NOT NULL,
+    cost numeric NOT NULL
+  );
+  ALTER TABLE public.rxdb_sql_upgrade_probe ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY rxdb_sql_upgrade_probe_read ON public.rxdb_sql_upgrade_probe
+    FOR SELECT TO authenticated USING (true);
+  REVOKE ALL ON public.rxdb_sql_upgrade_probe FROM PUBLIC, anon, authenticated;
+  GRANT SELECT (id, title) ON public.rxdb_sql_upgrade_probe TO authenticated;
+  REVOKE ALL ON SEQUENCE public.rxdb_sql_upgrade_probe_id_seq FROM PUBLIC, anon, authenticated;
+
+  PERFORM pg_catalog.set_config(
+    'rxdb_sql_regression.upgrade_probe_privileges', rxdb_sql_regression.upgrade_probe_privileges()::text, true
+  );
+END;
+$$;
+
+-- US-225 AC#18：升级只动 RxDB 自己的对象。业务表的权限原样保留，RxDB 对象达到生产模型
+CREATE FUNCTION rxdb_sql_regression.test_sync_access_upgrade()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_before jsonb := pg_catalog.current_setting('rxdb_sql_regression.upgrade_probe_privileges')::jsonb;
+  v_after jsonb := rxdb_sql_regression.upgrade_probe_privileges();
+  v_open_to_anon text[];
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    v_after = v_before,
+    pg_catalog.format('sync-access-upgrade: a business table must keep its own privileges, before %s, after %s', v_before, v_after)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_sql_upgrade_probe', 'SELECT, INSERT, UPDATE, DELETE')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_sql_upgrade_probe', 'INSERT, UPDATE, DELETE')
+      AND NOT pg_catalog.has_column_privilege('authenticated', 'public.rxdb_sql_upgrade_probe', 'cost', 'SELECT')
+      AND pg_catalog.has_column_privilege('authenticated', 'public.rxdb_sql_upgrade_probe', 'title', 'SELECT'),
+    'sync-access-upgrade: the business table must stay readable by authenticated on its granted columns only'
+  );
+
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid = pg_catalog.to_regclass('public.rxdb_branch_owner')),
+    'sync-access-upgrade: the upgrade must create rxdb_branch_owner with row level security on'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_publication_tables
+      WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'rxdb_change'
+    ),
+    'sync-access-upgrade: the upgrade must take rxdb_change out of the supabase_realtime publication'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT, REFERENCES, TRIGGER')
+      AND NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_branch', 'SELECT, INSERT, UPDATE, DELETE')
+      AND NOT pg_catalog.has_sequence_privilege('anon', 'public.rxdb_change_id_seq', 'SELECT, USAGE, UPDATE')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change', 'REFERENCES, TRIGGER')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch', 'INSERT, UPDATE, DELETE'),
+    'sync-access-upgrade: privileges left on the log and branch tables by the old base SQL must be revoked'
+  );
+
+  -- 非触发器的 rxdb_ 函数里，anon（含 PUBLIC）只能执行连接时调用的三个；rxdb_test_ 是 03 的测试夹具
+  SELECT pg_catalog.array_agg(p.oid::regprocedure::text ORDER BY p.oid::regprocedure::text)
+  INTO v_open_to_anon
+  FROM pg_catalog.pg_proc AS p
+  WHERE p.pronamespace = 'public'::regnamespace
+    AND p.proname LIKE 'rxdb\_%'
+    AND p.proname NOT LIKE 'rxdb\_test\_%'
+    AND p.prorettype <> 'trigger'::regtype
+    AND p.oid NOT IN (
+      'public.rxdb_server_version()'::regprocedure,
+      'public.rxdb_backend_id()'::regprocedure,
+      'public.rxdb_check_rls(jsonb)'::regprocedure
+    )
+    AND pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE');
+  PERFORM rxdb_sql_regression.assert_true(
+    v_open_to_anon IS NULL,
+    pg_catalog.format('sync-access-upgrade: only the connect functions may stay executable by anon, open: %s', v_open_to_anon)
+  );
+
+  PERFORM rxdb_sql_regression.test_production_grants_idempotent();
+END;
+$$;
+
+GRANT USAGE ON SCHEMA rxdb_sql_regression TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO anon, authenticated;
 REVOKE ALL ON TABLE rxdb_sql_regression.no_dml_ids FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE rxdb_sql_regression.update_column_privileges FROM PUBLIC, anon, authenticated;
-GRANT SELECT (id, value), UPDATE (value) ON rxdb_sql_regression.update_column_privileges TO anon;
+GRANT SELECT (id, value), UPDATE (value) ON rxdb_sql_regression.update_column_privileges TO authenticated;
 
-SET LOCAL ROLE anon;
+-- 日志同步协议只对已登录身份开放（US-225）：用例以固定测试用户的 authenticated 身份运行，
+-- auth.uid() 由 PostgREST 平时写入的 request.jwt.claims 给出
+SELECT pg_catalog.set_config(
+  'request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true
+);
+SET LOCAL ROLE authenticated;
 SELECT rxdb_sql_regression.test_text_varchar()
 WHERE :'test_case' IN ('all', 'text-varchar');
 SELECT rxdb_sql_regression.test_entity_id()
@@ -3487,21 +4172,74 @@ WHERE :'test_case' IN ('all', 'trigger-schema');
 SELECT rxdb_sql_regression.test_backend_identity()
 WHERE :'test_case' IN ('all', 'backend-identity');
 
--- US-218 阶段 C：以属主身份执行生产权限脚本（随外层 ROLLBACK 撤销），再以 authenticated 验证写路径。
--- 必须放在最后：REVOKE 之后前面以 anon 跑的用例会失去日志表写权限。
-SELECT :'test_case' IN ('all', 'production-change-grants') AS run_production_change_grants \gset
+-- US-218 阶段 C、US-225：以属主身份执行生产权限脚本（随外层 ROLLBACK 撤销），再分别以 authenticated、anon 验证。
+-- 必须放在最后：本栈初始化时加载的可能是旧版脚本，前面的用例不依赖它收回了哪些权限。
+SELECT :'test_case' IN (
+  'all', 'production-change-grants', 'anon-sync-protocol', 'branch-ownership', 'realtime-notifications',
+  'production-grants-idempotent'
+) AS run_production_change_grants \gset
 \if :run_production_change_grants
-\if :{?production_grants_sql}
-:production_grants_sql
-\else
-DO $$ BEGIN RAISE EXCEPTION 'production-change-grants: missing -v production_grants_sql (run via run-supabase-sql-security-regressions.sh)'; END $$;
-\endif
-GRANT USAGE ON SCHEMA rxdb_sql_regression TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO authenticated;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO authenticated;
+\i :production_grants_file
+-- 幂等（US-225 AC#16）：同一脚本再执行一次，之后的断言都落在两次执行后的状态上
+\i :production_grants_file
+
+SELECT pg_catalog.set_config(
+  'request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true
+);
 SET LOCAL ROLE authenticated;
-SELECT rxdb_sql_regression.test_production_change_grants();
+SELECT rxdb_sql_regression.test_production_change_grants()
+WHERE :'test_case' IN ('all', 'production-change-grants');
+SELECT rxdb_sql_regression.test_realtime_notifications()
+WHERE :'test_case' IN ('all', 'realtime-notifications');
+SELECT rxdb_sql_regression.assert_true(
+  rxdb_sql_regression.visible_change_notifications() > 0,
+  'realtime-notifications: authenticated must be able to receive rxdb:changes broadcasts'
+)
+WHERE :'test_case' IN ('all', 'realtime-notifications');
 RESET ROLE;
+
+SELECT rxdb_sql_regression.seed_legacy_branches()
+WHERE :'test_case' IN ('all', 'branch-ownership');
+SET LOCAL ROLE authenticated;
+SELECT rxdb_sql_regression.test_branch_ownership()
+WHERE :'test_case' IN ('all', 'branch-ownership');
+RESET ROLE;
+
+-- 迁移指南第 3 步（US-225 AC#20）：以管理员身份补登两类旧分支的所有者，再以 authenticated 验证
+SELECT rxdb_sql_regression.backfill_legacy_branch_owners()
+WHERE :'test_case' IN ('all', 'branch-ownership');
+SET LOCAL ROLE authenticated;
+SELECT rxdb_sql_regression.test_branch_owner_backfill()
+WHERE :'test_case' IN ('all', 'branch-ownership');
+RESET ROLE;
+
+SELECT pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+SET LOCAL ROLE anon;
+SELECT rxdb_sql_regression.test_anon_sync_protocol()
+WHERE :'test_case' IN ('all', 'anon-sync-protocol');
+SELECT rxdb_sql_regression.assert_true(
+  rxdb_sql_regression.visible_change_notifications() = 0,
+  'realtime-notifications: anon must not receive rxdb:changes broadcasts'
+)
+WHERE :'test_case' IN ('all', 'realtime-notifications');
+RESET ROLE;
+
+SELECT rxdb_sql_regression.test_anon_sync_protocol_verify()
+WHERE :'test_case' IN ('all', 'anon-sync-protocol');
+SELECT rxdb_sql_regression.test_production_grants_idempotent()
+WHERE :'test_case' IN ('all', 'production-grants-idempotent');
+\endif
+
+-- US-225 AC#18：生产库从旧版本升级。按迁移指南第 2 步的顺序执行参考 SQL，随外层 ROLLBACK 撤销。
+-- 必须放在最后：它把 RxDB 对象先退回升级前的样子，前面的用例都不该看到这个中间状态
+SELECT :'test_case' IN ('all', 'sync-access-upgrade') AS run_sync_access_upgrade \gset
+\if :run_sync_access_upgrade
+SELECT rxdb_sql_regression.prepare_sync_access_upgrade();
+\i :sync_access_upgrade_file
+\i :sync_functions_file
+\i :utils_functions_file
+\i :production_grants_file
+SELECT rxdb_sql_regression.test_sync_access_upgrade();
 \endif
 
 ROLLBACK;

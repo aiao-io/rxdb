@@ -480,6 +480,60 @@ PGlite 侧**不作此要求**——它按列集把批分组，每组一条 INSER
 在这里补齐等于把它伪装成成功。
 :::
 
+## 每个身份一个本地库
+
+同一个本地库换了登录身份，上一个身份同步下来的行仍留在库里：新账号离线打开就读得到，上一个账号留下的待推变更也会被新账号的会话推出去。
+`RxDBOptions.identity` 让库记住它属于谁，身份对不上就拒绝打开、也不与远端交换数据。
+
+```ts
+import { getRxDBIdentityDatabaseName, RXDB_ANONYMOUS_SUBJECT, RxDB, SyncType } from '@aiao/rxdb';
+
+// 先有会话，再创建 RxDB：库名要在创建时就定下来
+const identity = {
+  scope: 'https://project-a.supabase.co', // 后端标识：同一个用户在不同后端是不同的库
+  subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT // 登录用用户 id，未登录用 anon
+};
+
+const rxdb = new RxDB({
+  dbName: getRxDBIdentityDatabaseName('todo', identity), // 同一个身份恒得同一个名字
+  identity,
+  entities: [Todo],
+  sync: { type: SyncType.Full, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } }
+});
+```
+
+声明了身份之后，有两处核对：
+
+- **打开时**：库里记着它属于谁。新库在建库时记下身份；对不上就拒绝 `connect()` 并抛 `RxDBIdentityMismatchError`，库里一行数据都不动，查询拿不到任何行。离线同样生效。
+- **与远端交换数据之前**：同步（`pull` / `push` / `sync`、各个按仓库的入口、分支同步、检查更新、QueryCache 离线写重放）与 QueryCache 的读写，每次碰远端之前都问远端适配器当前调用者是谁
+  （`callerIdentity()`），对不上就停下、一个请求都不发，抛同一个错误并写进 `rxdb.syncState` 的 `lastError`；本地数据不动，待推变更留在原处，会话换回原来的身份之后照常推送。
+  同一个用户刷新令牌不算变化。
+
+身份不匹配只有一种处置：换到该身份自己的库（用 `getRxDBIdentityDatabaseName` 重新算库名，销毁旧实例再创建新实例）。
+**不提供自动改绑**：把库改绑给另一个身份，等于把上一个身份的数据交给他。
+
+```ts
+import { RxDBIdentityMismatchError } from '@aiao/rxdb';
+
+try {
+  await rxdb.connect('wa-sqlite');
+} catch (error) {
+  if (!(error instanceof RxDBIdentityMismatchError)) throw error;
+  // 应用拿着旧身份的库打开了新会话：销毁它，按当前会话的身份重新创建
+}
+```
+
+要点：
+
+- **只防误混，不是保密边界**：本地库不加密时，能读浏览器存储的人仍然读得到每个身份的库。需要保密请用加密适配器。
+- **不带 `identity` 时行为不变**，包括打开一个已经绑定了某个身份的库：不核对、不改绑。
+- **本功能之前建的库没有绑定**：第一次带 `identity` 打开时就地绑给这个身份，之后别的身份打不开它。
+  应用改用按身份命名的库之后，原先那个固定名字的库不会自动搬过去，是否搬、怎么搬由应用决定。
+- **库名长度**：名字是 `<基础名>-<16 位十六进制>`，比基础名多 17 个字节。wa-sqlite 内置 VFS 的库名（含 `@0_1` 后缀）上限 49 字节，基础名要留在 28 字节以内。
+- **远端适配器要实现 `callerIdentity()`**：声明了身份却问到不支持的适配器会拒绝同步，不会当作通过。Supabase 适配器按当前会话令牌回答
+  （已登录是用户 id，未登录是 `anon`）；自己写适配器时继承 `RxDBAdapterRemoteBase` 并覆盖它。
+- **身份是会话的属性，不是授权**：它防的是本机数据误混。谁能读哪些行仍由服务端的 RLS 决定。
+
 ## 实例级覆盖（`syncOverrides`）
 
 同一个实体类在不同的 `RxDB` 实例里可以走不同的策略。典型场景是前后端共享领域模块：

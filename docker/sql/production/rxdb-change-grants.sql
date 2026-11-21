@@ -1,22 +1,104 @@
 -- ============================================
--- RxDB 生产权限：收口 rxdb_change 与 rxdb_backend 写入（US-218 阶段 C）
+-- RxDB 生产权限：日志同步协议只对已登录身份开放（US-218 阶段 C、US-225）
 -- ============================================
--- 用途: 撤销客户端角色（anon / authenticated）对变更日志表与远端身份表的直接写权限，
---       日志只能经 rxdb_mutations → rxdb_insert_changes 与同步触发器（均为 SECURITY DEFINER）写入
--- 依赖: 必须在 docker/sql/01～04 全部执行之后执行
+-- 用途:
+--   1. 撤销客户端角色（anon / authenticated）对变更日志表与远端身份表的直接写权限，日志只能经
+--      rxdb_mutations → rxdb_insert_changes 与同步触发器（均为 SECURITY DEFINER）写入。
+--   2. anon 退出日志同步协议：读不到日志与分支，不能调用拉取、推送、分支登记与存在性探针；
+--      只保留连接时调用的 rxdb_server_version / rxdb_backend_id / rxdb_check_rls。anon 仍可按业务表
+--      自己的 GRANT 与 RLS 直接读写。推送对「被 RLS 拒绝」与「已不存在」分别报错，本身就是存在性信号，
+--      所以推送与探针一并收回。
+--   3. 分支表与分支所有者表只经 SECURITY DEFINER 函数写入（rxdb_enable_sync_for_branch / rxdb_claim_branch）。
+--   4. 实时变更通知（私有频道 rxdb:changes）只对 authenticated 开放接收，客户端不能往里发消息。
+-- 适用边界: 日志对全部 authenticated 可读，只适用于所有登录者可见范围一致的数据。开放注册或开启匿名登录
+--       （Supabase 匿名用户的角色也是 authenticated）的部署，等于把日志开放给任何访客。已登录用户之间的隔离
+--       见 requirements/epics/epic-015-identity-scoped-sync.md。
+-- 依赖: 必须在 docker/sql/01～04 全部执行之后执行；Supabase 的默认权限会在建表、建函数时授给 anon，
+--       01～04 里重建过的函数（DROP 后 CREATE）要再执行一次本脚本才会收回。
+--       本脚本只收回 RxDB 自己的对象，收不回 01 / 03 整库授权对业务表的放宽；生产库从旧版本升级时
+--       不重跑 01，改用增量脚本 rxdb-sync-access-upgrade.sql，与 02、04、本脚本在同一个事务里执行。
 -- 加载: init-db.sh 与 CI 的 .github/actions/supabase 都会在 01～04 之后自动加载（开发默认与生产一致，
 --       零散收尾项第 13 条）；生产部署时手工执行亦可。幂等，可重复执行。
--- 测试前提: Supabase 测试对 rxdb_change 的直写与清理经 service_role 身份
---       （见 packages/rxdb-adapter-supabase/src/__tests__/test-utils.ts），anon 只读。
+-- 测试前提: Supabase 测试以 authenticated 身份运行（见 packages/rxdb-adapter-supabase/src/__tests__/test-utils.ts）；
+--       对 rxdb_change 的直写与清理经 service_role 身份。
 -- ============================================
 
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_change FROM anon, authenticated;
-REVOKE USAGE, UPDATE ON SEQUENCE public.rxdb_change_id_seq FROM anon, authenticated;
-
--- 保留 SELECT：rxdb_pull_changes（SECURITY INVOKER）与 realtime 以调用方身份读日志
-GRANT SELECT ON public.rxdb_change TO anon, authenticated;
+-- 1. 变更日志：只有 authenticated 可读（rxdb_pull_changes 是 SECURITY INVOKER，以调用方身份读）
+REVOKE ALL ON public.rxdb_change FROM PUBLIC, anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.rxdb_change FROM authenticated;
+GRANT SELECT ON public.rxdb_change TO authenticated;
+REVOKE ALL ON SEQUENCE public.rxdb_change_id_seq FROM PUBLIC, anon;
+REVOKE USAGE, UPDATE ON SEQUENCE public.rxdb_change_id_seq FROM authenticated;
 
 -- 远端身份同样只读：客户端能改它，就能让所有客户端误判远端已重置而停止同步。
 -- 读经 rxdb_backend_id()，轮换只经 TRUNCATE rxdb_change 的触发器（均为 SECURITY DEFINER）。
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_backend FROM anon, authenticated;
 GRANT SELECT ON public.rxdb_backend TO anon, authenticated;
+
+-- 2. 分支：authenticated 可读；登记与改写只经 rxdb_enable_sync_for_branch（校验所有者）
+REVOKE ALL ON public.rxdb_branch FROM PUBLIC, anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.rxdb_branch FROM authenticated;
+GRANT SELECT ON public.rxdb_branch TO authenticated;
+
+-- 分支所有者：客户端不读不写（表上还开着 RLS 且没有策略，见 01）
+REVOKE ALL ON public.rxdb_branch_owner FROM PUBLIC, anon, authenticated;
+
+-- 3. 日志协议的函数：收回 PUBLIC 与 anon，显式授给 authenticated 与 service_role。
+-- PostgreSQL 建函数时默认授 EXECUTE 给 PUBLIC，Supabase 的默认权限还会授给 anon，两处都要收。
+-- 签名写死：函数改了签名而这里没跟上，类型转换直接报错，不会静默漏收
+DO $$
+DECLARE
+  v_function regprocedure;
+BEGIN
+  FOREACH v_function IN ARRAY ARRAY[
+    'public.rxdb_pull_changes(integer, integer, text, text, text, jsonb)',
+    'public.rxdb_jsonb_matches_rule(jsonb, jsonb)',
+    'public.rxdb_jsonb_matches_filter(jsonb, jsonb)',
+    'public.rxdb_enable_sync_for_branch(jsonb)',
+    'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)',
+    'public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb)',
+    'public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean)',
+    'public.rxdb_mutations_depends_on(text, text, text, jsonb)',
+    'public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean)',
+    'public.rxdb_insert_changes(jsonb)',
+    'public.rxdb_batch_upsert(text, text, jsonb)',
+    'public.rxdb_execute_batch_update(text, text, jsonb, boolean)',
+    'public.rxdb_batch_update_rows(text, text, jsonb)',
+    'public.rxdb_batch_update(text, text, jsonb)',
+    'public.rxdb_batch_delete(text, text, text[])',
+    'public.rxdb_id_array_type(text, text)',
+    'public.rxdb_existing_ids(text, text, text[])'
+  ]::regprocedure[]
+  LOOP
+    EXECUTE pg_catalog.format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', v_function);
+    EXECUTE pg_catalog.format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', v_function);
+  END LOOP;
+END $$;
+
+-- 部署时调用的建表辅助函数不对 anon 开放
+REVOKE ALL ON FUNCTION public.rxdb_enable_sync_for_table(text, text, text) FROM PUBLIC, anon;
+
+-- 只由 SECURITY DEFINER 函数与触发器内部调用，不授给任何客户端角色
+REVOKE ALL ON FUNCTION public.rxdb_claim_branch(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authenticated;
+
+-- 4. 实时变更通知：Realtime 在加入私有频道时以登录用户身份试读 realtime.messages，有 SELECT 策略才放行。
+-- 只建 SELECT 策略、不建 INSERT 策略：广播只由日志插入触发器经 realtime.send 写入，客户端发不了伪造通知。
+-- 不用 DROP POLICY 重建：在 Supabase 上对 auth / realtime 表做 DROP 类 DDL 可能和 GoTrue 迁移互锁
+-- （见 01-rxdb-system-tables.sql 的触发器一节），已存在时改用 ALTER POLICY 刷新条件
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_policies
+    WHERE schemaname = 'realtime' AND tablename = 'messages' AND policyname = 'rxdb_changes_receive'
+  ) THEN
+    ALTER POLICY rxdb_changes_receive ON realtime.messages
+      TO authenticated
+      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+  ELSE
+    CREATE POLICY rxdb_changes_receive ON realtime.messages
+      FOR SELECT
+      TO authenticated
+      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+  END IF;
+END $$;

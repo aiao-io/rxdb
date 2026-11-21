@@ -25,6 +25,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SyncManager } from '../SyncManager.js';
 import { createSyncBranchMaterializationSource } from '../branch-materialization-source.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
+import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { Tag, User } from './fixtures/test-entities.js';
 
 /** 冻结时远端的身份 */
@@ -106,7 +107,8 @@ const createSource = (changes: RemoteChange[]) => {
   const sm = {
     rxdb: {
       config: { entities: [User, Tag], sync: { remote: { adapter: 'remote' } } },
-      syncState: { reportError }
+      syncState: { reportError },
+      ...noIdentityDeclared
     },
     verifyRemoteBackend,
     getRemoteRepositories: async () => ({ adapter: remote })
@@ -181,7 +183,8 @@ const createFreezingSource = (remoteBackendId: string | null) => {
     rxdb: {
       config: { entities: [User, Tag], sync: FULL_SYNC },
       entitySync: createEntitySyncResolver(FULL_SYNC),
-      entityManager: { instantiate: () => Object.create(RxDBSync.prototype) as RxDBSync }
+      entityManager: { instantiate: () => Object.create(RxDBSync.prototype) as RxDBSync },
+      ...noIdentityDeclared
     },
     verifyRemoteBackend: vi.fn(async () => undefined),
     getLocalRepositories: async () => ({ adapter: readers }),
@@ -528,7 +531,8 @@ describe('同步插件的分支物化来源', () => {
       const sm = {
         rxdb: {
           config: { entities: [User, Tag], sync: databaseSync },
-          entitySync: createEntitySyncResolver(databaseSync, new Map([[getEntityMetadata(User), override]]))
+          entitySync: createEntitySyncResolver(databaseSync, new Map([[getEntityMetadata(User), override]])),
+          ...noIdentityDeclared
         },
         verifyRemoteBackend: async () => undefined,
         getLocalRepositories: async () => ({ adapter: { getRepository: () => reader } }),

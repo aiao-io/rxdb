@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 96   |
+| ✅ Done        | 97   |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 30   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 139  |
+| **合计**       | 143  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -119,6 +119,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md)
 - ✅ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
 - ✅ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
+- ✅ [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](stories/adapter/US-225-supabase-sync-protocol-access-baseline.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)
@@ -231,6 +232,12 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ⬜ [US-710 实时信号：在线状态、编辑标记与变更提示](stories/future/US-710-p2p-live-signals.md)
 - ⬜ [US-711 远程 DevTools：经 P2P 会话检查另一台设备上的库](stories/future/US-711-p2p-remote-devtools.md)
 - ⬜ [US-712 局域网枢纽：一台设备充当远端](stories/future/US-712-p2p-lan-hub.md)
+
+### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
+
+- ⬜ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
+- ⬜ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
+- ⬜ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

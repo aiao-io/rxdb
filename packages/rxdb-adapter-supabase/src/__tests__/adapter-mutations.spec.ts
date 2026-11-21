@@ -13,9 +13,7 @@ import { RxDB, SyncType, type EntityType, type RxDBMutationsMap } from '@aiao/rx
 import { Category, ENTITIES, User } from '@aiao/rxdb-test/shop';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-
-const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
-const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+import { createAuthenticatedTestClient } from './test-utils.js';
 
 describe('Supabase Adapter Mutations', () => {
   let adapter: RxDBAdapterSupabase;
@@ -37,8 +35,7 @@ describe('Supabase Adapter Mutations', () => {
       'supabase',
       async db =>
         new RxDBAdapterSupabase(db, {
-          supabaseUrl: SUPABASE_URL,
-          supabaseKey: SUPABASE_KEY
+          client: createAuthenticatedTestClient()
         })
     );
 

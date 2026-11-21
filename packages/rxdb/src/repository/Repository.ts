@@ -25,6 +25,7 @@ import {
   snapshotSortOrders,
   updateKeepingEdits
 } from '../sortable/sortable.utils.js';
+import { createIdentityGuardedQueryCacheRemote, type CallerIdentityReporter } from '../system/identity-binding.js';
 import { getFingerprintByEntities, getFingerprintByEntity, getFingerprintPrimitive } from './fingerprint.utils.js';
 import { assertOptionalNonNegativeSafeInteger } from './number-validation.utils.js';
 import {
@@ -33,6 +34,7 @@ import {
   type QueryCacheSession
 } from './query-cache-engine.interface.js';
 import { missingQueryCacheOutboxError } from './query-cache-outbox.interface.js';
+import type { QueryCacheRemoteAdapter } from './query-cache.interface.js';
 import {
   CountOptions,
   FindAllOptions,
@@ -114,6 +116,9 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
    * 顺手把当前实例记下来 —— 那是唯一同步够得着它的位置。
    */
   #queryCachePrimary: QueryCachePrimary<T> | undefined;
+
+  /** {@link Repository.#guardQueryCacheRemote} 的替身缓存 */
+  #guardedRemote: { source: object; guarded: QueryCacheRemoteAdapter } | undefined;
 
   /** 本轮合流窗口内累积的失效实体类型（US-023 D14） */
   readonly #pendingInvalidations = new Set<EntityType>();
@@ -676,6 +681,27 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
   }
 
   /**
+   * 声明了身份时，给读写远端的五个入口加每次先核对调用者的替身（US-035）
+   *
+   * @param remoteAdapter - 远端适配器
+   * @returns 没声明身份时原样返回同一个适配器；声明了就返回替身
+   *
+   * @remarks
+   * 替身按适配器实例缓存：读引擎的同步记忆按适配器实例判断「有没有换」，每次发射都换一个新对象会让记忆被清空。
+   */
+  #guardQueryCacheRemote(remoteAdapter: object): object {
+    const identity = this.rxdb.config.identity;
+    if (identity === undefined) return remoteAdapter;
+    if (this.#guardedRemote?.source === remoteAdapter) return this.#guardedRemote.guarded;
+    const guarded = createIdentityGuardedQueryCacheRemote(
+      identity,
+      remoteAdapter as QueryCacheRemoteAdapter & CallerIdentityReporter
+    );
+    this.#guardedRemote = { source: remoteAdapter, guarded };
+    return guarded;
+  }
+
+  /**
    * 构造 QueryCache 主仓储流。
    *
    * @param namespace - 实体命名空间
@@ -703,7 +729,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
       map(([localAdapter, remoteAdapter]) => {
         const session = this.#resolveQueryCacheSession(namespace, entityName, sync);
-        const primary = session.createPrimary(localAdapter, remoteAdapter);
+        const primary = session.createPrimary(localAdapter, this.#guardQueryCacheRemote(remoteAdapter));
         // 记下「此刻的那一个」：失效上报要同步作废它的在飞查询（US-023 D13）
         this.#queryCachePrimary = primary;
         return primary;

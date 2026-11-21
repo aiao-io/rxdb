@@ -1,11 +1,11 @@
 import {
+  compactChanges,
   Entity,
   EntityBase,
-  PropertyType,
-  SyncStateHub,
-  compactChanges,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
+  PropertyType,
+  SyncStateHub,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
@@ -20,7 +20,7 @@ import { Order, OrderItem, User } from '@aiao/rxdb-test/shop';
 import { firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseConfigError, SupabaseDataError } from '../errors.js';
-import { handleSupabaseChange } from '../handle_supabase_change.js';
+import { handleSupabaseChanges, RXDB_CHANGES_TOPIC } from '../handle_supabase_change.js';
 import { SUPABASE_PAGE_SIZE } from '../pagination.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
@@ -28,6 +28,7 @@ import type { SupabaseAdapterOptions } from '../supabase.interface.js';
 import type { MergeChangesPayload, MergeChangesUpsertPayload } from '../supabase.merge-changes.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { SIGNED_IN_TOKEN, testJwt } from './realtime-test-tokens.js';
 
 class FakeTreeEntity {
   id = '';
@@ -99,12 +100,19 @@ function createRxdb(entities: EntityType[] = []): RxDB {
   } as unknown as RxDB;
 }
 
+const AUTHENTICATED_TOKEN = SIGNED_IN_TOKEN;
+
+function createRealtimeAuth(accessTokenValue: string | null = AUTHENTICATED_TOKEN) {
+  return { setAuth: vi.fn(async () => undefined), accessTokenValue };
+}
+
 function createAdapter(
   clientOverrides: Record<string, unknown> = {},
   options: Partial<SupabaseAdapterOptions> = {},
   entities: EntityType[] = []
 ) {
-  const client = clientOverrides;
+  // 订阅私有频道前适配器会先 realtime.setAuth() 并看令牌是否属于已登录用户（US-225），桩客户端默认已登录
+  const client = { realtime: createRealtimeAuth(), ...clientOverrides };
   const rxdb = createRxdb(entities);
 
   return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
@@ -832,20 +840,19 @@ describe('supabase review regressions', () => {
     const adapterRxdb = (adapter as unknown as { rxdb: RxDB }).rxdb;
     const dispatchEvent = vi.mocked(adapterRxdb.dispatchEvent);
     const payload = {
-      table: 'rxdb_change',
-      eventType: 'INSERT',
-      new: {
-        namespace: 'tenant',
-        entity: 'ScopedRecord',
-        entityId: 'foreign-id',
-        type: 'INSERT',
-        branchId: 'main',
-        patch: { title: 'foreign' },
-        clientId: 'other-client'
-      }
+      changes: [
+        {
+          namespace: 'tenant',
+          entity: 'ScopedRecord',
+          entityId: 'foreign-id',
+          type: 'INSERT',
+          branchId: 'main',
+          clientId: 'other-client'
+        }
+      ]
     };
 
-    handleSupabaseChange(adapter, payload as never);
+    handleSupabaseChanges(adapter, payload);
 
     expect(dispatchEvent).not.toHaveBeenCalled();
   });
@@ -1057,7 +1064,7 @@ describe('supabase review regressions', () => {
       p_tables: [{ schema: 'public', table: 'todo' }]
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('RLS is disabled for tables: public.todo'));
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1121,7 +1128,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1139,7 +1146,7 @@ describe('supabase review regressions', () => {
     );
 
     await expect(adapter.connect()).resolves.toBe(adapter);
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
   });
 
   it('connect accepts enabled RLS when the RPC also reports rlsForced', async () => {
@@ -1156,7 +1163,7 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(warn).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
     warn.mockRestore();
   });
 
@@ -1226,7 +1233,87 @@ describe('supabase review regressions', () => {
     await adapter.connect();
 
     expect(rpc).not.toHaveBeenCalled();
-    expect(channel).toHaveBeenCalledWith('rxdb-changes');
+    expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+  });
+
+  describe('change notifications need a signed-in session (US-225)', () => {
+    const subscribableChannel = () => {
+      const channel: Record<string, unknown> = {};
+      channel['on'] = vi.fn(() => channel);
+      channel['subscribe'] = vi.fn(() => channel);
+      return channel;
+    };
+
+    it.each([
+      ['the anon key', testJwt({ role: 'anon' })],
+      ['a new-style publishable key', 'sb_publishable_example'],
+      ['a token whose payload is not JSON', 'header.bm90LWpzb24.signature'],
+      ['no token at all', null]
+    ])('does not subscribe or retry when realtime would join with %s', async (_label, token) => {
+      vi.useFakeTimers();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(token);
+      const adapter = createAdapter({ channel, realtime }, { rlsCheck: false });
+
+      try {
+        await adapter.connect();
+        await vi.advanceTimersByTimeAsync(10_000);
+
+        expect(realtime.setAuth).toHaveBeenCalledOnce();
+        expect(channel).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+      } finally {
+        await adapter.disconnect();
+        warn.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('subscribes on the next connect once the client is signed in', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const adapter = createAdapter(
+        { channel, realtime, removeChannel: vi.fn(async () => undefined) },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).not.toHaveBeenCalled();
+
+        realtime.accessTokenValue = AUTHENTICATED_TOKEN;
+        await adapter.connect();
+
+        expect(realtime.setAuth).toHaveBeenCalledTimes(2);
+        expect(channel).toHaveBeenCalledOnce();
+        expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
+      } finally {
+        await adapter.disconnect();
+        warn.mockRestore();
+      }
+    });
+
+    it('subscribes with a service-role token', async () => {
+      const channel = vi.fn(subscribableChannel);
+      const adapter = createAdapter(
+        {
+          channel,
+          realtime: createRealtimeAuth(testJwt({ role: 'service_role' })),
+          removeChannel: vi.fn(async () => undefined)
+        },
+        { rlsCheck: false }
+      );
+
+      try {
+        await adapter.connect();
+        expect(channel).toHaveBeenCalledOnce();
+      } finally {
+        await adapter.disconnect();
+      }
+    });
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {
