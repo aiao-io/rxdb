@@ -1,7 +1,7 @@
 import type {
   AsrGenerationJobSummary,
-  AudioInputReference,
   AudioGenerationJobSummary,
+  AudioInputReference,
   AudioResultManifest,
   MediaCapabilityCatalog,
   TranscriptResult,

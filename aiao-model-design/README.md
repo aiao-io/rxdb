@@ -11,7 +11,7 @@
 | 目录                                     | Nx 项目                       | 运行时              | 职责                                                                                                         |
 | ---------------------------------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | [apps/web](apps/web)                     | `aiao-model-design-web`       | 浏览器（Angular）   | 模型的真相源（本地 RxDB）；每轮把模型快照发给智能体，把工具产出按 `toolCallId` 幂等写进 AI 分支              |
-| [apps/web-e2e](apps/web-e2e)             | `aiao-model-design-web-e2e`   | 浏览器测试         | 运行生产 Web 构建产物的 Chromium smoke test，验证入口、模型持久化与视图切换                             |
+| [apps/web-e2e](apps/web-e2e)             | `aiao-model-design-web-e2e`   | 浏览器测试          | 运行生产 Web 构建产物的 Chromium smoke test，验证入口、模型持久化与视图切换                                  |
 | [apps/api](apps/api)                     | `aiao-model-design-api`       | Cloudflare Worker   | 静态资源、Supabase 登录会话、为本人的会话签发 Trigger.dev 令牌；不持有模型密钥                               |
 | [apps/agent](apps/agent)                 | `aiao-model-design-agent`     | Trigger.dev（Node） | `chat.agent` 持久会话；在草稿上执行建模工具，校验失败把原因还给模型                                          |
 | [packages/model-ops](packages/model-ops) | `aiao-model-design-model-ops` | 无（纯函数）        | `@aiao-model-design/model-ops`：web 与 agent 共用的快照类型、操作、校验、差异与概要                          |

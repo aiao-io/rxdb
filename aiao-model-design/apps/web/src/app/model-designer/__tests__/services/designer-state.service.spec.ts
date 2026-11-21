@@ -599,7 +599,12 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
     it('使用显式或当前选中实体创建属性和 keyValue 子属性', async () => {
       await service.onPropertyAdded({ entityId: 'e2', name: 'email', type: 'string' });
       await service.onPropertyAdded({ name: 'status', type: 'string' });
-      await service.onChildPropertyAdded({ entityId: 'e2', parentPropertyId: 'meta', name: 'createdBy', type: 'string' });
+      await service.onChildPropertyAdded({
+        entityId: 'e2',
+        parentPropertyId: 'meta',
+        name: 'createdBy',
+        type: 'string'
+      });
       await service.onChildPropertyAdded({ parentPropertyId: 'meta', name: 'updatedBy', type: 'string' });
       await service.onChildPropertyUpdated({ id: 'child-1', changes: { name: 'owner' } });
       await service.onPropertiesBatchUpdated([{ id: 'p1', changes: { name: 'title' } }]);
@@ -614,7 +619,12 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
 
     it('转发关系和索引的创建、更新、批量删除事件', async () => {
       await service.onRelationCreated({ sourceEntityId: 'e1', targetEntityId: 'e2' });
-      await service.onRelationAdded({ entityId: 'e1', name: 'customer', kind: 'MANY_TO_ONE', targetEntity: 'Customer' });
+      await service.onRelationAdded({
+        entityId: 'e1',
+        name: 'customer',
+        kind: 'MANY_TO_ONE',
+        targetEntity: 'Customer'
+      });
       await service.onRelationUpdated({ id: 'r1', changes: { name: 'buyer' } });
       await service.onRelationsBatchUpdated([{ id: 'r1', changes: { name: 'buyer' } }]);
       await service.onIndexesDeleteBatch(['i1', 'i2']);

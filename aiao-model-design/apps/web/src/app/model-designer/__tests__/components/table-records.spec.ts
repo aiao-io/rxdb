@@ -1,11 +1,7 @@
+import { describe, expect, it } from 'vitest';
+import { buildIndexRecords, buildPropertyRecords, buildRelationRecords } from '../../components/table/table-records';
 import type { InheritedPropertyDef } from '../../constants';
 import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
-import {
-  buildIndexRecords,
-  buildPropertyRecords,
-  buildRelationRecords
-} from '../../components/table/table-records';
-import { describe, expect, it } from 'vitest';
 
 function property(data: Record<string, unknown>): DesignProperty {
   return data as unknown as DesignProperty;

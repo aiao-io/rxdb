@@ -1,20 +1,13 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["aiao-model-design-web"],
   "name": "aiao-model-design-web-e2e",
   "projectType": "application",
   "sourceRoot": "aiao-model-design/apps/web-e2e/src",
-  "implicitDependencies": [
-    "aiao-model-design-web"
-  ],
-  "tags": [
-    "scope:model-design",
-    "type:e2e"
-  ],
+  "tags": ["scope:model-design", "type:e2e"],
   "targets": {
     "e2e": {
-      "dependsOn": [
-        "aiao-model-design-web:build"
-      ]
+      "dependsOn": ["aiao-model-design-web:build"]
     }
   }
 }

@@ -131,11 +131,15 @@ describe('TableShellPage behavior', () => {
     const { fixture, router } = await setupTableShell();
     const page = fixture.componentInstance;
 
-    router.events.next(new NavigationEnd(1, '/model-designer/table/e1/relations', '/model-designer/table/e1/relations'));
+    router.events.next(
+      new NavigationEnd(1, '/model-designer/table/e1/relations', '/model-designer/table/e1/relations')
+    );
     expect(page.activeTab()).toBe('relations');
     router.events.next(new NavigationEnd(2, '/model-designer/table/e1/indexes', '/model-designer/table/e1/indexes'));
     expect(page.activeTab()).toBe('indexes');
-    router.events.next(new NavigationEnd(3, '/model-designer/table/e1/properties', '/model-designer/table/e1/properties'));
+    router.events.next(
+      new NavigationEnd(3, '/model-designer/table/e1/properties', '/model-designer/table/e1/properties')
+    );
     expect(page.activeTab()).toBe('properties');
   });
 

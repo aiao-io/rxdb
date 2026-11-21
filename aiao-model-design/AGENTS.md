@@ -10,7 +10,7 @@
 | -------------------- | ----------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `.`                  | `aiao-model-design`           | `scope:model-design`                           | 需求门禁、安全门禁、聚合验证 `verify`、本地开发环境 `dev`（`scripts/dev/`、`infra/supabase/`） |
 | `apps/web`           | `aiao-model-design-web`       | `scope:model-design` `type:app` `layer:ui`     | Angular 设计器（浏览器）                                                                       |
-| `apps/web-e2e`       | `aiao-model-design-web-e2e` | `scope:model-design` `type:e2e`                | Web 静态构建产物的 Chromium smoke test |
+| `apps/web-e2e`       | `aiao-model-design-web-e2e`   | `scope:model-design` `type:e2e`                | Web 静态构建产物的 Chromium smoke test                                                         |
 | `apps/api`           | `aiao-model-design-api`       | `scope:model-design` `type:app` `layer:server` | Cloudflare Worker：登录与会话签发                                                              |
 | `apps/agent`         | `aiao-model-design-agent`     | `scope:model-design` `type:app` `layer:server` | Trigger.dev 建模智能体                                                                         |
 | `packages/model-ops` | `aiao-model-design-model-ops` | `scope:model-design` `type:lib` `layer:domain` | `@aiao-model-design/model-ops` 纯函数                                                          |

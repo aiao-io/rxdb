@@ -1,11 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import type { Graph as GraphType, Selection as SelectionType } from '@antv/x6';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
-import { CanvasViewComponent } from '../../components/canvas/canvas-view.component';
 import { NS_PREFIX } from '../../components/canvas/canvas-constants';
 import { initCanvasGraph } from '../../components/canvas/canvas-graph-init';
-import { syncGraphNodes, syncGraphSelection, updateGraphTheme, updateNamespaceFontSize } from '../../components/canvas/canvas-node-sync';
+import {
+  syncGraphNodes,
+  syncGraphSelection,
+  updateGraphTheme,
+  updateNamespaceFontSize
+} from '../../components/canvas/canvas-node-sync';
+import { CanvasViewComponent } from '../../components/canvas/canvas-view.component';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 
 type Handler = (payload?: unknown) => void;
 
@@ -87,7 +92,9 @@ vi.mock('../../components/canvas/canvas-edge-sync', () => ({
   edgeTopologyKey: vi.fn((entities: readonly { id: string; nodeX?: number; nodeY?: number }[]) =>
     entities.map(entity => `${entity.id}:${entity.nodeX ?? 0}:${entity.nodeY ?? 0}`).join('|')
   ),
-  relationTopologyKey: vi.fn((relations: readonly { id: string }[]) => relations.map(relation => relation.id).join('|')),
+  relationTopologyKey: vi.fn((relations: readonly { id: string }[]) =>
+    relations.map(relation => relation.id).join('|')
+  ),
   syncGraphEdges: vi.fn()
 }));
 vi.mock('../../components/canvas/canvas-node-sync', () => ({

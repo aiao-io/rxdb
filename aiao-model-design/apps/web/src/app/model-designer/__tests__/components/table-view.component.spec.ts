@@ -1,10 +1,10 @@
+import type { BatchChangeItem, CellChangeEvent, EntityTableRecord } from '@aiao/rxdb-model-angular';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { CellChangeEvent, EntityTableRecord, BatchChangeItem } from '@aiao/rxdb-model-angular';
 import { describe, expect, it, vi } from 'vitest';
+import { TableViewComponent } from '../../components/table/table-view.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
-import { TableViewComponent } from '../../components/table/table-view.component';
 
 type SetupOptions = {
   entities?: DesignEntity[];
@@ -44,7 +44,12 @@ function property(value: string, name: string, overrides: Partial<DesignProperty
   } as DesignProperty;
 }
 
-function relation(value: string, name: string, designEntityId: string, overrides: Partial<DesignRelation> = {}): DesignRelation {
+function relation(
+  value: string,
+  name: string,
+  designEntityId: string,
+  overrides: Partial<DesignRelation> = {}
+): DesignRelation {
   return {
     id: id(value),
     name,
@@ -257,7 +262,16 @@ describe('TableViewComponent', () => {
     view.indexesBatchUpdated.subscribe(value => indexesBatchUpdated.push(value));
 
     const propertyMutations: BatchChangeItem[] = [
-      { recordId: prop.id, changes: { name: 'status', columnName: '', enumValues: 'draft, draft, published', isUnique: true, _propId: 'ignored' } }
+      {
+        recordId: prop.id,
+        changes: {
+          name: 'status',
+          columnName: '',
+          enumValues: 'draft, draft, published',
+          isUnique: true,
+          _propId: 'ignored'
+        }
+      }
     ];
     view.onBatchUpdated(propertyMutations);
     expect(propertiesBatchUpdated).toEqual([

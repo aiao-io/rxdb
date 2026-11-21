@@ -3382,8 +3382,12 @@ footer {
   animation: media-progress 1.2s ease-in-out infinite;
 }
 @keyframes media-progress {
-  from { transform: translateX(-120%); }
-  to { transform: translateX(280%); }
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
 }
 @media (max-width: 760px) {
   .media-workspace {
