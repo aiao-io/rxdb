@@ -43,17 +43,32 @@ function manifestFor(record, operation) {
   const value = record.manifest;
   requireCheck(value && typeof value === 'object', 'ACCEPTANCE_MANIFEST_MISSING');
   if (operation.id === 'asr') {
-    requireCheck(value.kind === 'transcript' && typeof value.text === 'string' && value.text.trim(), 'TRANSCRIPT_RESULT_INVALID');
-    requireCheck(typeof value.language === 'string' && /^[a-zA-Z0-9-]{2,20}$/.test(value.language), 'TRANSCRIPT_LANGUAGE_INVALID');
+    requireCheck(
+      value.kind === 'transcript' && typeof value.text === 'string' && value.text.trim(),
+      'TRANSCRIPT_RESULT_INVALID'
+    );
+    requireCheck(
+      typeof value.language === 'string' && /^[a-zA-Z0-9-]{2,20}$/.test(value.language),
+      'TRANSCRIPT_LANGUAGE_INVALID'
+    );
     requireCheck(Number.isSafeInteger(value.characters) && value.characters > 0, 'TRANSCRIPT_RESULT_INVALID');
     requireCheck(/^[a-f0-9]{64}$/.test(value.sha256 ?? ''), 'TRANSCRIPT_RESULT_INVALID');
     return value;
   }
   if (operation.id === 'video') {
-    requireCheck(value.kind === 'video' && value.mediaType === 'video/mp4' && value.format === 'mp4', 'VIDEO_MANIFEST_INVALID');
-    requireCheck(value.codec === 'h264' && Number.isSafeInteger(value.width) && Number.isSafeInteger(value.height), 'VIDEO_MANIFEST_INVALID');
+    requireCheck(
+      value.kind === 'video' && value.mediaType === 'video/mp4' && value.format === 'mp4',
+      'VIDEO_MANIFEST_INVALID'
+    );
+    requireCheck(
+      value.codec === 'h264' && Number.isSafeInteger(value.width) && Number.isSafeInteger(value.height),
+      'VIDEO_MANIFEST_INVALID'
+    );
   } else {
-    requireCheck(value.kind === 'audio' && value.mediaType === 'audio/wav' && value.format === 'wav', 'AUDIO_MANIFEST_INVALID');
+    requireCheck(
+      value.kind === 'audio' && value.mediaType === 'audio/wav' && value.format === 'wav',
+      'AUDIO_MANIFEST_INVALID'
+    );
     requireCheck(value.channels === 1 && value.sampleRate === 32_000, 'AUDIO_MANIFEST_INVALID');
   }
   requireCheck(Number.isSafeInteger(value.bytes) && value.bytes > 0, 'MEDIA_MANIFEST_INVALID');
@@ -122,7 +137,8 @@ async function platformLogin(page, settings) {
   await dialog.getByRole('button', { name: '关闭账号窗口' }).click();
   const token = await page.evaluate(() => {
     const url = globalThis.__AIAO_SUPABASE_CONFIG__?.url;
-    return JSON.parse(localStorage.getItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`) ?? 'null')?.access_token;
+    return JSON.parse(localStorage.getItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`) ?? 'null')
+      ?.access_token;
   });
   requireCheck(typeof token === 'string' && token.length > 0, 'PLATFORM_LOGIN_REQUIRED');
   return token;
@@ -139,7 +155,10 @@ async function platformCredits(page, token) {
     });
     return response.ok ? response.json() : null;
   }, token);
-  requireCheck(Number.isSafeInteger(receipt?.account?.balance) && Array.isArray(receipt.entries), 'PLATFORM_CREDITS_UNAVAILABLE');
+  requireCheck(
+    Number.isSafeInteger(receipt?.account?.balance) && Array.isArray(receipt.entries),
+    'PLATFORM_CREDITS_UNAVAILABLE'
+  );
   return receipt;
 }
 
@@ -158,12 +177,17 @@ async function inputFor(page, panel, operation, settings) {
     return;
   }
   const wav = settings.asrFile ? await readFile(settings.asrFile) : wavFixture().bytes;
-  await panel.locator('#media-audio-file').setInputFiles({ name: 'acceptance.wav', mimeType: 'audio/wav', buffer: wav });
+  await panel
+    .locator('#media-audio-file')
+    .setInputFiles({ name: 'acceptance.wav', mimeType: 'audio/wav', buffer: wav });
   await expect(panel.getByText('acceptance.wav', { exact: true })).toBeVisible();
 }
 
 async function downloadEvidence(page, panel, operation, manifest) {
-  const name = operation.id === 'asr' ? /下载 transcript-.*\.txt/ : operation.id === 'video' ? /下载 video-.*\.mp4/ : /下载 audio-.*\.wav/;
+  const name =
+    operation.id === 'asr' ? /下载 transcript-.*\.txt/
+    : operation.id === 'video' ? /下载 video-.*\.mp4/
+    : /下载 audio-.*\.wav/;
   const downloadEvent = page.waitForEvent('download');
   await panel.getByRole('link', { name }).click();
   const download = await downloadEvent;
@@ -185,7 +209,10 @@ async function libraryEvidence(page, operation) {
   await expect(library).toBeVisible({ timeout: 30_000 });
   const card = library.locator('.media-library-card').last();
   await expect(card).toBeVisible();
-  const kind = operation.id === 'asr' ? 'Transcript' : operation.id === 'video' ? '视频' : '音频';
+  const kind =
+    operation.id === 'asr' ? 'Transcript'
+    : operation.id === 'video' ? '视频'
+    : '音频';
   await expect(card.getByText(kind, { exact: true })).toBeVisible();
   return { status: 'verified', visible: true };
 }
@@ -234,13 +261,16 @@ async function runAttempt(browser, settings, directory, operation, previous) {
     page.on('response', response => {
       const match = taskPath.exec(response.url());
       if (response.request().method() !== 'GET' || !match) return;
-      void response.json().then(value => {
-        if (match[1] !== record.taskId || !value || typeof value !== 'object') return;
-        const providerId = safeProviderRequestId(value.providerRequestId);
-        if (providerId) record.providerRequestId = providerId;
-        record.taskStatus = typeof value.status === 'string' ? value.status : record.taskStatus;
-        if (value.status === 'received' && value.result) record.manifest = value.result;
-      }).catch(() => undefined);
+      void response
+        .json()
+        .then(value => {
+          if (match[1] !== record.taskId || !value || typeof value !== 'object') return;
+          const providerId = safeProviderRequestId(value.providerRequestId);
+          if (providerId) record.providerRequestId = providerId;
+          record.taskStatus = typeof value.status === 'string' ? value.status : record.taskStatus;
+          if (value.status === 'received' && value.result) record.manifest = value.result;
+        })
+        .catch(() => undefined);
     });
     const token = await platformLogin(page, settings);
     const before = await platformCredits(page, token);
@@ -262,7 +292,9 @@ async function runAttempt(browser, settings, directory, operation, previous) {
       if (record.taskStatus === 'needs_review') throw new Error('UNKNOWN_RECEIPT_REQUIRES_REVIEW', { cause: error });
       throw error;
     }
-    await expect.poll(() => Boolean(record.taskId && record.providerRequestId && record.manifest), { timeout: 30_000 }).toBe(true);
+    await expect
+      .poll(() => Boolean(record.taskId && record.providerRequestId && record.manifest), { timeout: 30_000 })
+      .toBe(true);
     requireCheck(record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
     requireCheck(/^\d{4}-\d{2}-\d{2}T/.test(record.startedAt), 'ACCEPTANCE_TIMESTAMP_INVALID');
     manifestFor(record, operation);
@@ -272,7 +304,12 @@ async function runAttempt(browser, settings, directory, operation, previous) {
     requireCheck(entries.length === 1, 'PLATFORM_CREDIT_MISMATCH');
     const cost = before.account.balance - after.account.balance;
     requireCheck(cost > 0 && entries[0].delta === -cost, 'PLATFORM_CREDIT_MISMATCH');
-    record.credits = { before: before.account.balance, after: after.account.balance, cost, ledgerEntries: entries.length };
+    record.credits = {
+      before: before.account.balance,
+      after: after.account.balance,
+      cost,
+      ledgerEntries: entries.length
+    };
     record.stage = 'local-save';
     record.localSave = { status: 'saved', label: '已保存到本机' };
     record.stage = 'download';
@@ -309,7 +346,8 @@ export async function runMultimodalProviderAcceptance(settings, directory) {
     const browser = await chromium.launch({ channel: process.env.AIAO_PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
     const records = [];
     try {
-      for (const operation of acceptancePlan()) records.push(await runAttempt(browser, settings, directory, operation, previous));
+      for (const operation of acceptancePlan())
+        records.push(await runAttempt(browser, settings, directory, operation, previous));
       return records;
     } finally {
       await browser.close();

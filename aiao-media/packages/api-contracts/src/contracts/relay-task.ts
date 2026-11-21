@@ -12,7 +12,8 @@ export interface RelayTaskView {
   updatedAt: string;
   /** 清洗后的供应商关联 ID，不包含凭据、URL 或原始错误。 */
   providerRequestId?: string;
-  operation?: 'text-to-image' | 'reference-image' | 'text-to-speech' | 'speech-to-text' | 'text-to-music' | 'text-to-video';
+  operation?:
+    'text-to-image' | 'reference-image' | 'text-to-speech' | 'speech-to-text' | 'text-to-music' | 'text-to-video';
   resultMimeType?: string | null;
   result?: unknown;
   creditState?: 'pending' | 'reserved' | 'charged' | 'released';

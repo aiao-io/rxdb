@@ -12,7 +12,7 @@ import { bounded, ProviderFailure, responseImage } from './local-provider';
 /** 设备私有令牌不进入任务、备份或同步；旧地址记录只用于恢复已有任务。 */
 export type MediaRelayTicket = { token: string; accepted: boolean; kind: 'media' };
 export type RelayTicket = { token: string; accepted: boolean } & (
-  { protocol: ImageResponseProtocol; baseUrl?: never; kind?: never }
+  | { protocol: ImageResponseProtocol; baseUrl?: never; kind?: never }
   | { baseUrl: string; protocol?: never; kind?: never }
   | MediaRelayTicket
 );
@@ -49,13 +49,18 @@ export function relayTickets(payload: string | null): Record<string, RelayTicket
   const data: unknown = payload === null ? {} : JSON.parse(payload);
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('本机平台任务记录无效。');
   for (const [id, value] of Object.entries(data)) {
-    const ticket = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+    const ticket =
+      value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
     if (!ticket) throw new Error('本机平台任务记录无效。');
     const keys = Object.keys(ticket).sort().join();
     const validProtocol =
-      keys === 'accepted,protocol,token' && typeof ticket['protocol'] === 'string' && ['openai', 'minimax', 'gemini'].includes(ticket['protocol']);
+      keys === 'accepted,protocol,token' &&
+      typeof ticket['protocol'] === 'string' &&
+      ['openai', 'minimax', 'gemini'].includes(ticket['protocol']);
     const validLegacy =
-      keys === 'accepted,baseUrl,token' && typeof ticket['baseUrl'] === 'string' && /^https:\/\//.test(ticket['baseUrl']);
+      keys === 'accepted,baseUrl,token' &&
+      typeof ticket['baseUrl'] === 'string' &&
+      /^https:\/\//.test(ticket['baseUrl']);
     const validMedia = keys === 'accepted,kind,token' && ticket['kind'] === 'media';
     if (
       !uuid.test(id) ||
@@ -233,11 +238,9 @@ export async function runRelayTask(run: RelayRun): Promise<Blob> {
   try {
     if (run.ticket.kind === 'media') throw new ProviderFailure('图片任务令牌类型无效。');
     const protocol: ImageResponseProtocol =
-      'protocol' in run.ticket && run.ticket.protocol
-        ? run.ticket.protocol
-        : 'baseUrl' in run.ticket && isMiniMaxImageProvider(run.ticket.baseUrl)
-          ? 'minimax'
-          : 'openai';
+      'protocol' in run.ticket && run.ticket.protocol ? run.ticket.protocol
+      : 'baseUrl' in run.ticket && isMiniMaxImageProvider(run.ticket.baseUrl) ? 'minimax'
+      : 'openai';
     blob = await responseImage(protocol, await result(run), run.ratio, run.signal);
   } catch (error) {
     if (run.signal.aborted || error instanceof RelayContinuationFailure) throw error;
@@ -259,12 +262,12 @@ import {
   validateAudioResultMetadata,
   validateTranscriptResult,
   validateVideoResultMetadata,
+  type AsrJobRequest,
   type AudioJobRequest,
   type AudioResultMetadata,
-  type AsrJobRequest,
   type MusicJobRequest,
-  type VideoJobRequest,
   type TranscriptResult,
+  type VideoJobRequest,
   type VideoResultMetadata
 } from '@aiao-media/api-contracts';
 
@@ -281,12 +284,11 @@ interface MediaRelaySettlement {
   confirm(): Promise<void>;
   discard(): Promise<void>;
 }
-type MediaRelayPayload = { providerRequestId?: string }
-  & (
-    | { kind: 'audio'; blob: Blob; manifest: AudioResultMetadata }
-    | { kind: 'video'; blob: Blob; manifest: VideoResultMetadata }
-    | { kind: 'transcript'; blob: Blob; manifest: TranscriptResult }
-  );
+type MediaRelayPayload = { providerRequestId?: string } & (
+  | { kind: 'audio'; blob: Blob; manifest: AudioResultMetadata }
+  | { kind: 'video'; blob: Blob; manifest: VideoResultMetadata }
+  | { kind: 'transcript'; blob: Blob; manifest: TranscriptResult }
+);
 export type MediaRelayResult = MediaRelayPayload & MediaRelaySettlement;
 const mediaSealedLimit = 64 * 1024 * 1024 + 28;
 async function acceptMedia(run: MediaRelayRun): Promise<RelayTaskView> {
@@ -343,7 +345,10 @@ async function mediaResult(run: MediaRelayRun): Promise<Uint8Array<ArrayBuffer>>
     if (response.status === 503) throw new RelayContinuationFailure('媒体结果暂不可读取，请刷新继续原任务。');
     throw uncertain(`暂存媒体结果已过期或不可读（HTTP ${response.status}）。`);
   }
-  return openRelayResult(await relayResultKey(run.ticket.token, run.id, 'decrypt'), await bounded(response, mediaSealedLimit));
+  return openRelayResult(
+    await relayResultKey(run.ticket.token, run.id, 'decrypt'),
+    await bounded(response, mediaSealedLimit)
+  );
 }
 async function mediaSettlement(run: MediaRelayRun, action: 'confirm' | 'discard') {
   const response = await settled(

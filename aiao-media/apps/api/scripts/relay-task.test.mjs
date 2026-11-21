@@ -2,9 +2,9 @@ import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-med
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker from '../src/local-first-worker.ts';
+import { fixtureMediaEnvironment, fixtureWav } from '../src/media-fixtures.ts';
 import { RelayTask } from '../src/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
-import { fixtureMediaEnvironment, fixtureWav } from '../src/media-fixtures.ts';
 import { fixtureModel, platformFixture } from './fixtures/platform-fixture.ts';
 
 const origin = 'https://app.example.test';
@@ -88,9 +88,13 @@ function setup(context, upstream = () => Response.json(result)) {
   };
 }
 
-function mediaSetup(context, upstream = () => new Response(fixtureWav(), {
-  headers: { 'content-type': 'audio/wav', 'x-provider-request-id': 'media-provider-request-01' }
-})) {
+function mediaSetup(
+  context,
+  upstream = () =>
+    new Response(fixtureWav(), {
+      headers: { 'content-type': 'audio/wav', 'x-provider-request-id': 'media-provider-request-01' }
+    })
+) {
   const calls = [];
   const fixture = platformFixture();
   const media = fixtureMediaEnvironment();
@@ -161,9 +165,16 @@ test('多模态结果保存清洗后的供应商回执 ID，并在重复查询�
   const sealed = new Uint8Array(await (await t.result()).arrayBuffer());
   const opened = await openRelayResult(await relayResultKey(t.task.token, t.task.id, 'decrypt'), sealed);
   assert.deepEqual(opened, fixtureWav());
-  const stored = JSON.stringify(t.env.RELAY_TASKS.rows(t.name, 'SELECT * FROM relay_task')) +
+  const stored =
+    JSON.stringify(t.env.RELAY_TASKS.rows(t.name, 'SELECT * FROM relay_task')) +
     [...t.env.RELAY_RESULTS.objects.values()].map(object => Buffer.from(object.bytes).toString('latin1')).join();
-  for (const secret of ['fixture-media-secret', 'fixture-session', 'fixture speech', t.task.token, 'https://fixture-media.example.test'])
+  for (const secret of [
+    'fixture-media-secret',
+    'fixture-session',
+    'fixture speech',
+    t.task.token,
+    'https://fixture-media.example.test'
+  ])
     assert.ok(!stored.includes(secret), secret);
 });
 

@@ -68,7 +68,10 @@ export function failureCode(error) {
 export function assertSafeAcceptanceRecord(record, settings = null) {
   requireCheck(record && typeof record === 'object' && !Array.isArray(record), 'INVALID_ACCEPTANCE_RECORD');
   requireCheck(typeof record.operation === 'string', 'INVALID_ACCEPTANCE_RECORD');
-  requireCheck(record.phase === 'dispatching' || record.phase === 'verified' || record.phase === 'requires-review', 'INVALID_ACCEPTANCE_RECORD');
+  requireCheck(
+    record.phase === 'dispatching' || record.phase === 'verified' || record.phase === 'requires-review',
+    'INVALID_ACCEPTANCE_RECORD'
+  );
   const serialized = JSON.stringify(record);
   for (const value of [settings?.password, settings?.email])
     if (value) requireCheck(!serialized.includes(value), 'ACCEPTANCE_CREDENTIAL_LEAK');
@@ -88,6 +91,9 @@ export function validateVerifiedRecord(record, operation) {
   requireCheck(record.manifest && typeof record.manifest === 'object', 'ACCEPTANCE_MANIFEST_MISSING');
   requireCheck(record.credits?.ledgerEntries === 1, 'PLATFORM_CREDIT_MISMATCH');
   requireCheck(record.localSave?.status === 'saved', 'LOCAL_SAVE_MISSING');
-  requireCheck(record.download?.status === 'verified' || record.library?.status === 'verified', 'DELIVERY_EVIDENCE_MISSING');
+  requireCheck(
+    record.download?.status === 'verified' || record.library?.status === 'verified',
+    'DELIVERY_EVIDENCE_MISSING'
+  );
   return record;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixtureWav } from './media-fixtures.ts';
-import { removeStoredMediaInput, readMediaInput, type MediaInputReference } from './media-input-api.ts';
+import { readMediaInput, removeStoredMediaInput, type MediaInputReference } from './media-input-api.ts';
 import type { RelayResultStore, WorkerEnv } from './worker-env.ts';
 
 function inputStore(): RelayResultStore {
@@ -23,9 +23,8 @@ function inputStore(): RelayResultStore {
   };
 }
 async function digest(bytes: Uint8Array): Promise<string> {
-  return Array.from(
-    new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)),
-    byte => byte.toString(16).padStart(2, '0')
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)), byte =>
+    byte.toString(16).padStart(2, '0')
   ).join('');
 }
 
@@ -46,7 +45,9 @@ describe('ASR 临时输入所有权', () => {
       httpMetadata: { contentType: 'audio/wav' },
       customMetadata: { ownerId: '10000000-0000-4000-8000-000000000011' }
     });
-    await expect(readMediaInput(env, reference, '10000000-0000-4000-8000-000000000011')).resolves.toHaveLength(wav.length);
+    await expect(readMediaInput(env, reference, '10000000-0000-4000-8000-000000000011')).resolves.toHaveLength(
+      wav.length
+    );
     await expect(readMediaInput(env, reference, '10000000-0000-4000-8000-000000000012')).rejects.toThrow('不存在');
     await removeStoredMediaInput(env, reference.id, '10000000-0000-4000-8000-000000000012');
     await expect(store.head(`inputs/${reference.id}`)).resolves.not.toBeNull();
@@ -70,14 +71,18 @@ describe('ASR 临时输入所有权', () => {
 
   it('没有独立输入存储时不回退到结果存储', async () => {
     await expect(
-      readMediaInput({ RELAY_RESULTS: inputStore() } as WorkerEnv, {
-        id: '10000000-0000-4000-8000-000000000014',
-        mediaType: 'audio/wav',
-        bytes: 46,
-        durationMs: 1,
-        sha256: 'a'.repeat(64),
-        expiresAt: new Date(Date.now() + 60_000).toISOString()
-      }, '10000000-0000-4000-8000-000000000011')
+      readMediaInput(
+        { RELAY_RESULTS: inputStore() } as WorkerEnv,
+        {
+          id: '10000000-0000-4000-8000-000000000014',
+          mediaType: 'audio/wav',
+          bytes: 46,
+          durationMs: 1,
+          sha256: 'a'.repeat(64),
+          expiresAt: new Date(Date.now() + 60_000).toISOString()
+        },
+        '10000000-0000-4000-8000-000000000011'
+      )
     ).rejects.toThrow('尚未启用');
   });
 });

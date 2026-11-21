@@ -4,8 +4,8 @@ import {
   type MediaCapabilityCatalog,
   type MediaCapabilityOperation
 } from '@aiao-media/api-contracts';
-import { base, providerAllowlist } from './relay-input.ts';
 import { reject } from './product-http.ts';
+import { base, providerAllowlist } from './relay-input.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 export type PrivateMediaCapability = MediaCapability & {
@@ -42,15 +42,10 @@ function parseConfig(env: WorkerEnv): MediaCapabilityConfig {
   } catch {
     reject(503, '媒体能力目录配置无效。');
   }
-  const input = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : null;
+  const input = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
   const revision = input?.['revision'] ?? 1;
   const values = Array.isArray(raw) ? raw : input?.['capabilities'];
-  if (
-    !Number.isSafeInteger(revision) ||
-    (revision as number) <= 0 ||
-    !Array.isArray(values) ||
-    values.length > 200
-  )
+  if (!Number.isSafeInteger(revision) || (revision as number) <= 0 || !Array.isArray(values) || values.length > 200)
     reject(503, '媒体能力目录配置无效。');
   let allowlist: Set<string>;
   try {

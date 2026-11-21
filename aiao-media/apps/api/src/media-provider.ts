@@ -6,18 +6,18 @@ import {
   validateGenerationJobRequest,
   validateTranscriptResult,
   validateVideoResultMetadata,
-  type AudioResultManifest,
-  type TextToSpeechCapability,
-  type SpeechToTextCapability,
-  type TextToMusicCapability,
-  type TextToVideoCapability,
   type AsrJobRequest,
+  type AudioResultManifest,
   type GenerationJobRequest,
   type MusicJobRequest,
+  type SpeechToTextCapability,
+  type TextToMusicCapability,
+  type TextToSpeechCapability,
   type TextToSpeechJobRequest,
+  type TextToVideoCapability,
+  type TextToVideoJobRequest,
   type TranscriptResult,
-  type VideoResultManifest,
-  type TextToVideoJobRequest
+  type VideoResultManifest
 } from '@aiao-media/api-contracts';
 import { mediaCapability, type PrivateMediaCapability } from './media-capabilities.ts';
 import { readMediaInput } from './media-input-api.ts';
@@ -62,7 +62,8 @@ function providerRequestId(response: Response, value?: unknown): string | undefi
   const candidates = [input['id'], input['request_id'], input['requestId']];
   const data = Array.isArray(input['data']) ? object(input['data'][0]) : {};
   candidates.push(data['id'], data['request_id'], data['requestId']);
-  return candidates.find(candidate => typeof candidate === 'string' && correlation.test(candidate)) as string | undefined;
+  return candidates.find(candidate => typeof candidate === 'string' && correlation.test(candidate)) as
+    string | undefined;
 }
 const base64 = (value: unknown): Uint8Array<ArrayBuffer> => {
   if (typeof value !== 'string' || !value || value.length % 4 === 1 || !/^[A-Za-z0-9+/]+={0,2}$/.test(value))
@@ -94,7 +95,11 @@ function exactNumber(values: number[], value: number): boolean {
   return values.some(candidate => Object.is(candidate, value));
 }
 function validateSelection(request: GenerationJobRequest, capability: PrivateMediaCapability) {
-  if (request.kind !== capability.kind || request.operation !== capability.operation || request.modelId !== capability.modelId)
+  if (
+    request.kind !== capability.kind ||
+    request.operation !== capability.operation ||
+    request.modelId !== capability.modelId
+  )
     reject(400, '媒体能力选择与目录不一致。');
   if (request.operation === 'text-to-speech') {
     const value = request as TextToSpeechJobRequest;
@@ -261,7 +266,8 @@ function jsonValue(bytes: Uint8Array): unknown {
 function audioFromJson(value: unknown): Uint8Array<ArrayBuffer> {
   const input = object(value);
   const data = input['data'];
-  if (Array.isArray(data) && data.length) return audioBytes(object(data[0])['b64_json'] ?? object(data[0])['audio_base64']);
+  if (Array.isArray(data) && data.length)
+    return audioBytes(object(data[0])['b64_json'] ?? object(data[0])['audio_base64']);
   return audioBytes(input['audio_base64'] ?? input['audio'] ?? input['b64_json']);
 }
 function videoFromJson(value: unknown): Uint8Array<ArrayBuffer> {
@@ -275,7 +281,8 @@ function videoFromJson(value: unknown): Uint8Array<ArrayBuffer> {
 }
 type Mp4Box = { type: string; payloadStart: number; end: number };
 const textDecoder = new TextDecoder('latin1');
-const mp4Text = (bytes: Uint8Array, start: number, size: number) => textDecoder.decode(bytes.subarray(start, start + size));
+const mp4Text = (bytes: Uint8Array, start: number, size: number) =>
+  textDecoder.decode(bytes.subarray(start, start + size));
 
 function mp4Boxes(bytes: Uint8Array, start: number, end: number): Mp4Box[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -325,16 +332,25 @@ function movieTime(bytes: Uint8Array, box: Mp4Box): { timescale: number; duratio
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const version = bytes[box.payloadStart];
   if (version === 0)
-    return { timescale: uint32(view, box.payloadStart + 12, box.end), duration: uint32(view, box.payloadStart + 16, box.end) };
+    return {
+      timescale: uint32(view, box.payloadStart + 12, box.end),
+      duration: uint32(view, box.payloadStart + 16, box.end)
+    };
   if (version === 1)
-    return { timescale: uint32(view, box.payloadStart + 20, box.end), duration: uint64(view, box.payloadStart + 24, box.end) };
+    return {
+      timescale: uint32(view, box.payloadStart + 20, box.end),
+      duration: uint64(view, box.payloadStart + 24, box.end)
+    };
   reject(502, '媒体供应商 MP4 结果 metadata 版本不受支持。');
 }
 
 function trackDimensions(bytes: Uint8Array, box: Mp4Box): { width: number; height: number } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const version = bytes[box.payloadStart];
-  const offset = version === 0 ? 76 : version === 1 ? 88 : -1;
+  const offset =
+    version === 0 ? 76
+    : version === 1 ? 88
+    : -1;
   if (offset < 0) reject(502, '媒体供应商 MP4 结果 metadata 版本不受支持。');
   const width = uint32(view, box.payloadStart + offset, box.end) / 65536;
   const height = uint32(view, box.payloadStart + offset + 4, box.end) / 65536;
@@ -407,14 +423,19 @@ function videoDimensions(bytes: Uint8Array, response: Response) {
 function validateMp4(bytes: Uint8Array) {
   const boxes = mp4Boxes(bytes, 0, bytes.byteLength);
   const types = new Set(boxes.map(box => box.type));
-  if (!types.has('ftyp') || !types.has('moov') || !types.has('mdat'))
-    reject(502, '媒体供应商 MP4 结果容器无效。');
+  if (!types.has('ftyp') || !types.has('moov') || !types.has('mdat')) reject(502, '媒体供应商 MP4 结果容器无效。');
 }
 
 function mediaResultUrl(value: unknown): string | undefined {
   const input = object(value);
   const first = Array.isArray(input['data']) ? object(input['data'][0]) : {};
-  const candidate = input['url'] ?? input['audio_url'] ?? input['video_url'] ?? first['url'] ?? first['audio_url'] ?? first['video_url'];
+  const candidate =
+    input['url'] ??
+    input['audio_url'] ??
+    input['video_url'] ??
+    first['url'] ??
+    first['audio_url'] ??
+    first['video_url'];
   if (candidate === undefined) return undefined;
   if (typeof candidate !== 'string' || !candidate) reject(502, '媒体供应商结果地址无效。');
   return candidate;
@@ -448,7 +469,11 @@ async function resolveMediaResponse(
     await mediaResponse.body?.cancel();
     reject(mediaResponse.status >= 400 && mediaResponse.status < 500 ? 400 : 502, '媒体供应商结果下载失败。');
   }
-  return { response: mediaResponse, bytes: await responseBytes(mediaResponse, dispatch.maxResultBytes), parsed: undefined };
+  return {
+    response: mediaResponse,
+    bytes: await responseBytes(mediaResponse, dispatch.maxResultBytes),
+    parsed: undefined
+  };
 }
 
 export async function normalizeMediaResponse(
@@ -466,7 +491,10 @@ export async function normalizeMediaResponse(
     const value = object(parsed);
     const text = typeof value['text'] === 'string' ? value['text'].trim() : '';
     if (!text) reject(502, '媒体供应商返回空 Transcript。');
-    const language = typeof value['language'] === 'string' ? value['language'] : typeof value['language_code'] === 'string' ? value['language_code'] : 'und';
+    const language =
+      typeof value['language'] === 'string' ? value['language']
+      : typeof value['language_code'] === 'string' ? value['language_code']
+      : 'und';
     const manifest = validateTranscriptResult({
       kind: 'transcript',
       text,
@@ -488,20 +516,25 @@ export async function normalizeMediaResponse(
   const resolvedContentType = resolved.response.headers.get('content-type')?.split(';', 1)[0].trim();
   const parsed = resolved.parsed;
   if (dispatch.resultKind === 'audio') {
-    const maxDurationMs = dispatch.maxResultDurationMs ??
+    const maxDurationMs =
+      dispatch.maxResultDurationMs ??
       (dispatch.operation === 'text-to-speech' ? AUDIO_DURATION_MAX_MS : MUSIC_DURATION_MAX_MS);
     const audio = resolvedContentType === 'audio/wav' ? resolved.bytes : audioFromJson(parsed);
     const { durationMs } = parseWav(audio, maxDurationMs);
-    const manifest = validateAudioResultMetadata({
-      kind: 'audio' as const,
-      mediaType: 'audio/wav' as const,
-      format: 'wav' as const,
-      durationMs,
-      sampleRate: 32000 as const,
-      channels: 1 as const,
-      bytes: audio.byteLength,
-      sha256: await digest(audio)
-    }, dispatch.maxResultBytes, maxDurationMs) as AudioResultManifest;
+    const manifest = validateAudioResultMetadata(
+      {
+        kind: 'audio' as const,
+        mediaType: 'audio/wav' as const,
+        format: 'wav' as const,
+        durationMs,
+        sampleRate: 32000 as const,
+        channels: 1 as const,
+        bytes: audio.byteLength,
+        sha256: await digest(audio)
+      },
+      dispatch.maxResultBytes,
+      maxDurationMs
+    ) as AudioResultManifest;
     const requestId = providerRequestId(response, initialParsed);
     return { bytes: audio, mediaType: 'audio/wav', manifest, ...(requestId ? { providerRequestId: requestId } : {}) };
   }
@@ -509,17 +542,21 @@ export async function normalizeMediaResponse(
   const video = resolvedContentType === 'video/mp4' ? resolved.bytes : videoFromJson(parsed);
   validateMp4(video);
   const dimensions = videoDimensions(video, resolved.response);
-  const manifest = validateVideoResultMetadata({
-    kind: 'video' as const,
-    mediaType: 'video/mp4' as const,
-    format: 'mp4' as const,
-    codec: dimensions.codec,
-    width: dimensions.width,
-    height: dimensions.height,
-    durationMs: dimensions.durationMs,
-    bytes: video.byteLength,
-    sha256: await digest(video)
-  }, dispatch.maxResultBytes, maxDurationMs) as VideoResultManifest;
+  const manifest = validateVideoResultMetadata(
+    {
+      kind: 'video' as const,
+      mediaType: 'video/mp4' as const,
+      format: 'mp4' as const,
+      codec: dimensions.codec,
+      width: dimensions.width,
+      height: dimensions.height,
+      durationMs: dimensions.durationMs,
+      bytes: video.byteLength,
+      sha256: await digest(video)
+    },
+    dispatch.maxResultBytes,
+    maxDurationMs
+  ) as VideoResultManifest;
   const requestId = providerRequestId(response, initialParsed);
   return { bytes: video, mediaType: 'video/mp4', manifest, ...(requestId ? { providerRequestId: requestId } : {}) };
 }

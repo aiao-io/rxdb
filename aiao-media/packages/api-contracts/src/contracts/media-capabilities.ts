@@ -71,19 +71,13 @@ export interface TextToVideoCapability extends MediaCapabilityBase {
   };
 }
 export type MediaCapability =
-  | TextToSpeechCapability
-  | SpeechToTextCapability
-  | TextToMusicCapability
-  | TextToVideoCapability;
+  TextToSpeechCapability | SpeechToTextCapability | TextToMusicCapability | TextToVideoCapability;
 export interface MediaCapabilityCatalog {
   revision: number;
   capabilities: MediaCapability[];
 }
 export type LegacyCapabilityOption =
-  | AudioGenerationOption
-  | AsrGenerationOption
-  | MusicGenerationOption
-  | VideoGenerationOption;
+  AudioGenerationOption | AsrGenerationOption | MusicGenerationOption | VideoGenerationOption;
 
 import {
   ASR_AUDIO_DURATION_MAX_MS,
@@ -147,11 +141,7 @@ const outputBytes = (value: unknown, max: number) => integer(value, max);
 const voice = (value: unknown): value is { id: string; label: string } => {
   const input = object(value);
   keys(input, ['id', 'label']);
-  return (
-    typeof input['id'] === 'string' &&
-    /^[a-zA-Z0-9_-]{1,128}$/.test(input['id']) &&
-    label(input['label'])
-  );
+  return typeof input['id'] === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(input['id']) && label(input['label']);
 };
 const duration = (value: unknown, max: number) => integer(value, max);
 
@@ -164,14 +154,29 @@ export function validateMediaCapabilityCatalog(value: unknown): MediaCapabilityC
   const seen = new Set<string>();
   for (const entry of capabilities) {
     const input = object(entry);
-    keys(input, ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits'], ['input', 'parameters', 'output']);
+    keys(
+      input,
+      ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits'],
+      ['input', 'parameters', 'output']
+    );
     capabilityBase(input);
     const identity = `${input['providerInstanceId']}/${input['providerRevision']}/${input['modelId']}/${input['operation']}`;
     if (seen.has(identity)) throw new GenerationProtocolError();
     seen.add(identity);
     if (input['kind'] !== 'audio' && input['kind'] !== 'video') throw new GenerationProtocolError();
     if (input['operation'] === 'text-to-speech') {
-      keys(input, ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits', 'input', 'parameters', 'output']);
+      keys(input, [
+        'providerInstanceId',
+        'providerRevision',
+        'kind',
+        'operation',
+        'label',
+        'modelId',
+        'credits',
+        'input',
+        'parameters',
+        'output'
+      ]);
       if (input['kind'] !== 'audio') throw new GenerationProtocolError();
       const inputSpec = object(input['input']);
       const parameters = object(input['parameters']);
@@ -195,7 +200,18 @@ export function validateMediaCapabilityCatalog(value: unknown): MediaCapabilityC
       continue;
     }
     if (input['operation'] === 'speech-to-text') {
-      keys(input, ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits', 'input', 'parameters', 'output']);
+      keys(input, [
+        'providerInstanceId',
+        'providerRevision',
+        'kind',
+        'operation',
+        'label',
+        'modelId',
+        'credits',
+        'input',
+        'parameters',
+        'output'
+      ]);
       if (input['kind'] !== 'audio') throw new GenerationProtocolError();
       const inputSpec = object(input['input']);
       const parameters = object(input['parameters']);
@@ -215,7 +231,18 @@ export function validateMediaCapabilityCatalog(value: unknown): MediaCapabilityC
       continue;
     }
     if (input['operation'] === 'text-to-music') {
-      keys(input, ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits', 'input', 'parameters', 'output']);
+      keys(input, [
+        'providerInstanceId',
+        'providerRevision',
+        'kind',
+        'operation',
+        'label',
+        'modelId',
+        'credits',
+        'input',
+        'parameters',
+        'output'
+      ]);
       if (input['kind'] !== 'audio') throw new GenerationProtocolError();
       const inputSpec = object(input['input']);
       const parameters = object(input['parameters']);
@@ -237,7 +264,18 @@ export function validateMediaCapabilityCatalog(value: unknown): MediaCapabilityC
       continue;
     }
     if (input['operation'] === 'text-to-video') {
-      keys(input, ['providerInstanceId', 'providerRevision', 'kind', 'operation', 'label', 'modelId', 'credits', 'input', 'parameters', 'output']);
+      keys(input, [
+        'providerInstanceId',
+        'providerRevision',
+        'kind',
+        'operation',
+        'label',
+        'modelId',
+        'credits',
+        'input',
+        'parameters',
+        'output'
+      ]);
       if (input['kind'] !== 'video') throw new GenerationProtocolError();
       const inputSpec = object(input['input']);
       const parameters = object(input['parameters']);

@@ -9,13 +9,10 @@ const env = {
 };
 
 test('媒体能力目录只返回四类公开能力，不泄露 fixture 供应商配置', async () => {
-  const response = await worker.fetch(
-    new Request(`${origin}/api/media/capabilities`),
-    {
-      ...fixtureMediaEnvironment(),
-      ASSETS: { fetch: () => new Response('static application') }
-    }
-  );
+  const response = await worker.fetch(new Request(`${origin}/api/media/capabilities`), {
+    ...fixtureMediaEnvironment(),
+    ASSETS: { fetch: () => new Response('static application') }
+  });
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.deepEqual(

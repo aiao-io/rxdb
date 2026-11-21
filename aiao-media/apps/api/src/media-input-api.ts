@@ -19,7 +19,8 @@ export interface MediaInputReference {
 }
 const read32 = (view: DataView, offset: number) => view.getUint32(offset, true);
 const read16 = (view: DataView, offset: number) => view.getUint16(offset, true);
-const text = (bytes: Uint8Array, offset: number, size: number) => new TextDecoder().decode(bytes.subarray(offset, offset + size));
+const text = (bytes: Uint8Array, offset: number, size: number) =>
+  new TextDecoder().decode(bytes.subarray(offset, offset + size));
 
 /** 解析受支持的 PCM WAV，拒绝带私有路径或未知容器的输入。 */
 export function parseWav(bytes: Uint8Array): ParsedWav {
@@ -28,7 +29,7 @@ export function parseWav(bytes: Uint8Array): ParsedWav {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let format: { channels: number; sampleRate: number; bitsPerSample: number } | null = null;
   let dataBytes = 0;
-  for (let offset = 12; offset + 8 <= bytes.byteLength; ) {
+  for (let offset = 12; offset + 8 <= bytes.byteLength;) {
     const size = read32(view, offset + 4);
     const next = offset + 8 + size + (size % 2);
     if (next > bytes.byteLength) reject(400, 'WAV 音频块无效。');
@@ -78,9 +79,8 @@ async function readBytes(request: Request): Promise<Uint8Array<ArrayBuffer>> {
   return bytes;
 }
 async function sha256(bytes: Uint8Array): Promise<string> {
-  return Array.from(
-    new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)),
-    byte => byte.toString(16).padStart(2, '0')
+  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)), byte =>
+    byte.toString(16).padStart(2, '0')
   ).join('');
 }
 function store(env: WorkerEnv): RelayResultStore {

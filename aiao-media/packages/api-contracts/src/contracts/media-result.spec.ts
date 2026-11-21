@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  validateAudioResultMetadata,
-  validateVideoResultMetadata
-} from './generation-validation';
+import { validateAudioResultMetadata, validateVideoResultMetadata } from './generation-validation';
 
 const audio = {
   kind: 'audio' as const,
