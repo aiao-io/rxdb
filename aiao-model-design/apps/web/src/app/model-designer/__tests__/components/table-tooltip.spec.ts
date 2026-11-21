@@ -36,18 +36,24 @@ describe('detectCellError', () => {
       addRowNameError: true
     };
 
-    expect(detectCellError('properties', record({ _isAddRow: true }), 'name', propCtx, emptyRelationContext, hints)).toEqual({
+    expect(
+      detectCellError('properties', record({ _isAddRow: true }), 'name', propCtx, emptyRelationContext, hints)
+    ).toEqual({
       isError: true,
       content: 'property name'
     });
-    expect(detectCellError('properties', record({ _propId: 'prop-1' }), 'name', propCtx, emptyRelationContext, hints)).toEqual({
+    expect(
+      detectCellError('properties', record({ _propId: 'prop-1' }), 'name', propCtx, emptyRelationContext, hints)
+    ).toEqual({
       isError: true,
       content: 'property name'
     });
     expect(
       detectCellError('properties', record({ _propId: 'prop-1' }), 'columnName', propCtx, emptyRelationContext, hints)
     ).toEqual({ isError: true, content: 'column name' });
-    expect(detectCellError('properties', record({ _propId: 'prop-2' }), 'name', propCtx, emptyRelationContext, hints)).toEqual({
+    expect(
+      detectCellError('properties', record({ _propId: 'prop-2' }), 'name', propCtx, emptyRelationContext, hints)
+    ).toEqual({
       isError: false
     });
     expect(detectCellError('properties', record({}), 'displayName', propCtx, emptyRelationContext, hints)).toEqual({
@@ -67,8 +73,12 @@ describe('detectCellError', () => {
       missingInverseRelationIds: new Set(['rel-2', 'rel-5'])
     };
 
-    expect(detectCellError('relations', record({}), 'name', emptyPropertyContext, relCtx, hints)).toEqual({ isError: false });
-    expect(detectCellError('relations', record({ _relId: 'rel-1' }), 'name', emptyPropertyContext, relCtx, hints)).toEqual({
+    expect(detectCellError('relations', record({}), 'name', emptyPropertyContext, relCtx, hints)).toEqual({
+      isError: false
+    });
+    expect(
+      detectCellError('relations', record({ _relId: 'rel-1' }), 'name', emptyPropertyContext, relCtx, hints)
+    ).toEqual({
       isError: true,
       content: 'relation name'
     });
@@ -78,21 +88,36 @@ describe('detectCellError', () => {
     expect(
       detectCellError('relations', record({ _relId: 'rel-3' }), 'mappedPropertyId', emptyPropertyContext, relCtx, hints)
     ).toEqual({ isError: true, content: 'mapped property' });
-    expect(detectCellError('relations', record({ _relId: 'rel-4' }), 'unknown', emptyPropertyContext, relCtx, hints)).toEqual({
+    expect(
+      detectCellError('relations', record({ _relId: 'rel-4' }), 'unknown', emptyPropertyContext, relCtx, hints)
+    ).toEqual({
       isError: true,
       content: 'target entity'
     });
-    expect(detectCellError('relations', record({ _relId: 'rel-5' }), undefined, emptyPropertyContext, relCtx, hints)).toEqual({
+    expect(
+      detectCellError('relations', record({ _relId: 'rel-5' }), undefined, emptyPropertyContext, relCtx, hints)
+    ).toEqual({
       isError: true,
       content: 'missing inverse'
     });
-    expect(detectCellError('relations', record({ _relId: 'rel-6' }), 'name', emptyPropertyContext, relCtx, hints)).toEqual({
+    expect(
+      detectCellError('relations', record({ _relId: 'rel-6' }), 'name', emptyPropertyContext, relCtx, hints)
+    ).toEqual({
       isError: false
     });
   });
 
   it('returns no error for tabs without validation rules', () => {
-    expect(detectCellError('indexes', record({ _idxId: 'idx-1' }), 'displayName', emptyPropertyContext, emptyRelationContext, hints)).toEqual({
+    expect(
+      detectCellError(
+        'indexes',
+        record({ _idxId: 'idx-1' }),
+        'displayName',
+        emptyPropertyContext,
+        emptyRelationContext,
+        hints
+      )
+    ).toEqual({
       isError: false
     });
   });
