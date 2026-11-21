@@ -13,6 +13,18 @@ export interface SupabaseRlsCheckTable {
   table: string;
 }
 
+export interface SupabaseEntitySyncInfo {
+  namespace: string;
+  entity: string;
+  tableName: string | null;
+  bucketed: boolean;
+}
+
+export interface SupabaseScopedSyncIdentity {
+  readonly kind: 'anon' | 'user';
+  readonly userId?: string;
+}
+
 export interface SupabaseRlsCheckOptions {
   /** 自检使用的 RPC 名称 */
   rpcName?: string;

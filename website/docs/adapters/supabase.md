@@ -57,6 +57,171 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-supabase @supabase/supabase-js
 本地**不记 `RxDBChange`**，因此没有 push 阶段，也没有 undo/redo 与冲突解决。远端已删除的行在下一次
 同步该 `where` 时从本地清除。配置与调用面见[同步策略 · QueryCache 快速入门](../collaboration/sync.md#querycache-快速入门)。
 
+## 按授权分区的只读同步
+
+US-033 把授权和实体筛选拆成两层。业务表的 `rxdb_bucket` 由数据库生成，决定一行属于哪个授权区。`rxdb_caller_buckets()` 决定当前调用者能读取哪些区，实体的 `remote.filter()` 只能在这些区内继续缩小范围。
+
+### 声明业务表分区
+
+在业务表上添加生成列。表达式由应用定义，客户端只能写入参与计算的业务列，不能直接改写 `rxdb_bucket`。
+
+```sql
+CREATE TABLE public.documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  visibility text NOT NULL,
+  tenant_id uuid,
+  title text NOT NULL,
+  rxdb_bucket text GENERATED ALWAYS AS (
+    CASE
+      WHEN visibility = 'public' THEN 'public'
+      WHEN tenant_id IS NOT NULL THEN 'tenant:' || tenant_id::text
+      ELSE 'private:unassigned'
+    END
+  ) STORED
+);
+
+SELECT public.rxdb_enable_sync_for_table('documents', 'public', 'Document');
+CREATE INDEX documents_rxdb_bucket_id ON public.documents (rxdb_bucket, id);
+```
+
+直写、`rxdb_mutations` 和触发器都会把变更记入对应区。一行从 `public` 换到租户区时，旧区日志是没有行内容的删除，新区日志包含完整行。这样失去授权的一方只会收到移除信号，不会从日志拿到新行内容。
+
+### 配置 caller buckets
+
+内置实现返回以下范围。
+
+- `anon` 返回 `['public']`。
+- 有用户身份的 `authenticated` 返回 `['public', 'user:<auth.uid()>']`。
+- 租户区需要由应用根据成员关系追加，例如 `tenant:<tenant_id>`。
+
+成员判断应放进 `SECURITY DEFINER` 函数，并固定 `search_path`。成员表至少建立 `(user_id, tenant_id)` 复合索引。策略中的 `auth.uid()` 用 `(SELECT auth.uid())` 包起来，让 PostgreSQL 可以把它按语句求值一次。
+
+```sql
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE TABLE app.tenant_members (
+  user_id uuid NOT NULL,
+  tenant_id uuid NOT NULL,
+  PRIMARY KEY (user_id, tenant_id)
+);
+
+CREATE INDEX tenant_members_user_tenant_idx
+  ON app.tenant_members (user_id, tenant_id);
+
+CREATE FUNCTION app.caller_tenant_ids()
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, app, public
+AS $$
+  SELECT tenant_id
+  FROM app.tenant_members
+  WHERE user_id = (SELECT auth.uid())
+$$;
+
+REVOKE ALL ON FUNCTION app.caller_tenant_ids() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app.caller_tenant_ids() TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.rxdb_caller_buckets()
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, public, app, pg_temp
+AS $$
+  SELECT CASE
+    WHEN auth.uid() IS NULL THEN ARRAY['public']::text[]
+    ELSE ARRAY['public', 'user:' || auth.uid()::text]
+      || COALESCE(
+        ARRAY(
+          SELECT 'tenant:' || tenant_id::text
+          FROM app.caller_tenant_ids()
+        ),
+        ARRAY[]::text[]
+      )
+  END
+$$;
+```
+
+生产权限脚本会把 `rxdb_change` 的 SELECT 策略限制为 `bucket = ANY(public.rxdb_caller_buckets())`，并保留未分区旧日志对 `authenticated` 的读取。应用业务表也要写匹配的 SELECT RLS。推荐把同一个 bucket 条件写在策略里，不要只依赖日志表的 RLS。
+
+```sql
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY documents_select_by_bucket
+ON public.documents
+FOR SELECT
+USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())));
+```
+
+`SECURITY DEFINER` 成员函数的所有者需要能够读取成员表。不要把成员表直接授给客户端角色，也不要在函数里使用可被客户端角色覆盖的 `search_path`。成员关系发生变化而业务表没有写入时，下一轮同步会按新的 caller buckets 加入或退出整个租户区。
+
+### 在授权区内使用实体 filter
+
+`remote.filter()` 仍然使用 `SyncType.Filter` 的 `RuleGroup`。Supabase 适配器先按 caller buckets 拉取，再在每个已授权区内执行快照和增量 filter。客户端把 filter 改宽，不能扩大 `rxdb_caller_buckets()` 的授权范围。
+
+```ts
+@Entity({
+  name: 'Document',
+  tableName: 'documents',
+  sync: {
+    type: SyncType.Filter,
+    local: { adapter: 'wa-sqlite' },
+    remote: {
+      adapter: 'supabase',
+      filter: () => ({
+        combinator: 'and',
+        rules: [{ field: 'visibility', operator: '!=', value: 'archived' }]
+      })
+    }
+  }
+})
+export class Document extends EntityBase {}
+```
+
+每个分区、实体、分支和 filter 指纹都有独立进度。filter 放宽时，新指纹会对每个授权区重新补快照，因此早于当前日志游标、但现在才匹配的行也能拉到。filter 收窄时，旧指纹的数据会在新指纹的所有分区成功拉取后清理。变更让行离开 filter 时会生成本地删除动作。尚未推送的本地变更会保留，避免把离线写入误当成远端过期数据。
+
+一个分区失败不会回滚其他分区的进度。失败分区保留自己的快照点和游标，下次从该分区继续拉取。分区权限被撤销时，本地会删除该分区的已同步行和进度记录。
+
+### 为每个身份创建本地库
+
+用 `scopedDatabaseName()` 给 anon 和每个用户生成稳定、互不相同的数据库名。结果包含不透明的身份摘要，不包含用户 ID 原文。
+
+```ts
+import { scopedDatabaseName } from '@aiao/rxdb-plugin-sync';
+
+const identity = session?.user && session.user.is_anonymous !== true
+  ? { kind: 'user' as const, userId: session.user.id }
+  : { kind: 'anon' as const };
+
+const rxdb = new RxDB({
+  dbName: scopedDatabaseName('notes', identity),
+  entities: [Document],
+  sync: {
+    type: SyncType.Filter,
+    local: { adapter: 'wa-sqlite' },
+    remote: { adapter: 'supabase' }
+  }
+});
+```
+
+同步第一次访问远端时还会在本地绑定身份。已绑定 A 的数据库被 B 或 anon 继续使用，会抛 `IdentityMismatchError`，不会发起远端请求，也不会修改本地行。应用应关闭当前实例，按当前 Supabase 会话重新计算数据库名，再打开对应身份的库。A 刷新 token 只要 `sub` 不变，就继续使用 A 的库。
+
+```ts
+import { IdentityMismatchError } from '@aiao/rxdb-plugin-sync';
+
+try {
+  await rxdb.syncManager.sync();
+} catch (error) {
+  if (!(error instanceof IdentityMismatchError)) throw error;
+  await rxdb.disconnectAll();
+  // 重新用当前 session 的 identity 创建 scopedDatabaseName() 对应的实例
+}
+```
+
+身份绑定同样适用于使用 `accessToken` 回调创建的 Supabase 客户端。适配器读取 JWT 的 `sub`，不会调用该客户端不支持的 `auth.getSession()`。
+
 ## 基础使用
 
 ### 方式一：传入 URL + Key
@@ -98,10 +263,10 @@ rxdb.adapter('supabase', db => {
 传入 `client` 时，`supabaseUrl` 和 `supabaseKey` 会被忽略。推荐在已有 Supabase 客户端的项目中使用此方式，避免创建多个实例。
 :::
 
-:::caution 日志同步需要已登录身份
-按[生产权限脚本](#日志同步只对已登录身份开放)部署后，变更日志的拉取、推送、分支登记与实时通知只对已登录身份（`authenticated` 角色）开放，只拿 anon key 的客户端会得到 `42501`。用方式二把应用里已经登录的客户端交给适配器；方式一由适配器自建客户端，和应用的登录客户端不是同一个实例，不要用于日志同步。
+:::caution 日志同步按身份与分区授权
+按[生产权限脚本](#日志同步只对已登录身份开放)部署后，`anon` 可以读取分区日志中的 `public` 区，`authenticated` 可以读取 `rxdb_caller_buckets()` 返回的分区；通用日志拉取、推送、分支登记与实时通知仍只对 `authenticated` 开放。只拿 anon key 的客户端不能调用通用日志协议，也不会订阅实时通知。
 
-给未登录用户看公开数据不需要登录，也不需要匿名账号：业务表的 RLS 对 `anon` 开放公开行的读取，用 QueryCache 模式直接查业务表即可，见[适用边界](#适用边界)。只拿 anon key 时适配器不订阅实时通知。
+按授权分区同步需要把应用里已经登录的 Supabase 客户端交给适配器。方式一创建的客户端没有应用会话，只适合公开区的只读 RPC 或 QueryCache。使用静态 `accessToken` 配置时，适配器会从 JWT 的 `sub` 绑定本地身份。
 :::
 
 ## 配置选项
@@ -398,15 +563,15 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 | 对象                                                                       | `anon`               | `authenticated`                              |
 | -------------------------------------------------------------------------- | -------------------- | -------------------------------------------- |
-| 变更日志 `rxdb_change` 与序列                                              | 无权限               | 只读；`INSERT` / `UPDATE` / `DELETE` 收回    |
+| 变更日志 `rxdb_change` 与序列                                              | 只读 `public` 区；其他行由 RLS 隐藏 | 只读；按 caller buckets 过滤，`INSERT` / `UPDATE` / `DELETE` 收回 |
 | 分支 `rxdb_branch`                                                         | 无权限               | 只读；写入只经 `rxdb_enable_sync_for_branch` |
 | 分支所有者 `rxdb_branch_owner`                                             | 无权限               | 无权限（只经内部函数认领）                   |
-| 拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用             | 可以调用                                     |
+| 通用拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用；可调用按区只读 RPC | 可以调用                                     |
 | `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                 | 可以调用（连接时用） | 可以调用                                     |
 | 实时通知频道 `rxdb:changes`                                                | 订阅被拒             | 只能接收，不能发送                           |
 | 远端身份 `rxdb_backend`                                                    | 只读                 | 只读                                         |
 
-`anon` 仍可按业务表自己的 GRANT 与 RLS 直接读写业务表，只是不能经由日志同步协议。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
+`anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
 
 远端身份只读的原因：客户端能改这一行，就能让所有客户端误判远端已重置而停止同步；读取经 `rxdb_backend_id()`，轮换只经 `TRUNCATE rxdb_change` 的触发器，两者都是 `SECURITY DEFINER`。
 
@@ -414,7 +579,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 #### 适用边界
 
-日志对全部 `authenticated` 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权。日志同步因此只适用于**所有登录者可见范围一致**的数据；开放注册或开启匿名登录的部署，等于把日志开放给任何访客。同一后端里不同用户看不同行（按租户、按所有者）的数据，不要用日志同步：可以用 QueryCache 模式以用户身份直接查业务表，读取由业务表的 RLS 裁决；同时不要为这些表启用日志触发器（`rxdb_enable_sync_for_table`），否则每次写入都会连同整行记进全员可读的日志。公开数据同理：RLS 对 `anon` 开放公开行的读取，未登录用户用 QueryCache 模式直接读，不需要登录或匿名账号。日志同步层面的按用户隔离尚在规划中。
+未分区旧日志仍对 `authenticated` 可读，`SyncType.Filter` 的过滤条件由客户端传入，不构成授权。启用 `rxdb_bucket` 的实体走按身份分区日志：anon 默认只读 `public`，authenticated 只能读 `rxdb_caller_buckets()` 返回的分区。过滤条件仍然只能在已授权分区内缩小范围，不能替代业务表 RLS。需要租户隔离的实体应完成生成列、caller buckets、业务表 RLS 和生产权限脚本的部署，再使用按区日志同步。
 
 #### 非 main 分支按所有者写入
 
@@ -430,11 +595,11 @@ VALUES ('feature-checkout', '00000000-0000-0000-0000-000000000000')  -- 换成�
 ON CONFLICT ("branchId") DO NOTHING;
 ```
 
-分支列表与分支日志仍对全部登录者可读（见上面的适用边界）；多人共享同一分支的授权尚未提供。
+分支列表仍对全部登录者可读，分区日志按 caller buckets 过滤（见上面的适用边界）；多人共享同一分支的写入授权尚未提供。
 
 #### 从旧版本升级
 
-依次重新执行 `01-rxdb-system-tables.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。完整步骤与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
+依次重新执行 `01-rxdb-system-tables.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖未分区旧日志的 anon key 同步应用要先改用按区只读 RPC 或接入登录，再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整步骤与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
 
 收紧后，日志只剩两条写入路径：
 
@@ -483,7 +648,7 @@ CREATE POLICY todos_delete ON public.todos
 
 ### 生产部署的已知限制
 
-- **日志的读取范围**：日志对全部登录者可读，见[适用边界](#适用边界)。级联删除保留完整 `OLD` 快照，即使调用方按业务表 RLS 看不到子行；业务表的 RLS 不会自动套到日志上。
+- **日志的读取范围**：带 `rxdb_bucket` 的日志按 `rxdb_caller_buckets()` 做 RLS，anon 默认只能读取 `public` 区，authenticated 只能读取已授权区。未分区旧日志仍按旧权限对 authenticated 可读。级联删除保留完整 `OLD` 快照，业务表的 RLS 不会自动套到日志上。
 - **存在性信号**：已登录用户仍能经推送报错或 `rxdb_existing_ids` 判断某个 id 是否存在，见下文[已知限制](#已知限制)。id 不应承载敏感信息。
 - **多人共享分支**：非 main 分支只允许所有者写入，见[非 main 分支按所有者写入](#非-main-分支按所有者写入)。
 

@@ -32,7 +32,12 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
-import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+import {
+  RxDBSyncBucketProgress,
+  RxDBSyncBucketRow,
+  RxDBSyncIdentityBinding,
+  rxDBPluginSync
+} from '@aiao/rxdb-plugin-sync';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
   WORKING_TREE_CONFORMANCE_ENTITIES,
@@ -52,6 +57,7 @@ afterEach(async () => {
 });
 
 workingTreeCaptureConformanceSuite({
+  additionalSystemEntities: [RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding],
   name: 'PGlite',
   createDatabase: async () => {
     const database = new RxDB({

@@ -67,7 +67,12 @@ import {
   type RetryableWriteResponse,
   type SupabaseRlsCheckResult
 } from './supabase.helpers.js';
-import { SupabaseAdapterOptions, type SupabaseRlsCheckTable } from './supabase.interface.js';
+import {
+  SupabaseAdapterOptions,
+  type SupabaseEntitySyncInfo,
+  type SupabaseRlsCheckTable,
+  type SupabaseScopedSyncIdentity
+} from './supabase.interface.js';
 import { build_merge_changes_payload } from './supabase.merge-changes.js';
 import {
   formatRlsRpcError,
@@ -85,9 +90,10 @@ export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
  * Supabase 适配器
  *
  * @remarks
- * 按参考 SQL 的生产权限部署后，日志同步（拉取、推送、分支登记、实时通知）只对已登录身份开放：
- * 传入应用里已经登录的客户端。只给 `supabaseUrl` + `supabaseKey` 时适配器自建一个没有会话的客户端，
- * 只适合不走日志同步的直读直写。
+ * 按参考 SQL 的生产权限部署后，分区日志按调用者的 caller buckets 做读取隔离：anon 默认只读 `public`，
+ * authenticated 只读已授权区。通用日志拉取、推送、分支登记与实时通知仍只对已登录身份开放。
+ * 传入应用里已经登录的客户端，或使用带 JWT 的 `accessToken` 回调。只给 `supabaseUrl` + `supabaseKey`
+ * 时适配器自建一个没有会话的客户端，只适合公开区只读 RPC 或直读业务表。
  *
  * @example
  * ```typescript
@@ -398,6 +404,117 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       }))
       .sort((left, right) => left.id - right.id)
       .slice(0, limit);
+  }
+
+  async getCallerBuckets(): Promise<string[]> {
+    const { data, error, status } = await this.#client.rpc('rxdb_caller_buckets');
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve caller buckets');
+    if (!Array.isArray(data) || !data.every(bucket => typeof bucket === 'string' && bucket.length > 0)) {
+      throw new SupabaseDataError('Failed to resolve caller buckets: invalid response data');
+    }
+    return data;
+  }
+
+  async getEntitySyncInfo(namespace: string, entity: string): Promise<SupabaseEntitySyncInfo> {
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_sync_info', {
+      p_namespace: namespace,
+      p_entity: entity
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve entity sync info');
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      typeof data['namespace'] !== 'string' ||
+      typeof data['entity'] !== 'string' ||
+      (typeof data['tableName'] !== 'string' && data['tableName'] !== null) ||
+      typeof data['bucketed'] !== 'boolean'
+    ) {
+      throw new SupabaseDataError('Failed to resolve entity sync info: invalid response data');
+    }
+    return data as SupabaseEntitySyncInfo;
+  }
+
+  async getBucketSnapshotPoint(namespace: string, entity: string, bucket: string): Promise<number> {
+    const { data, error, status } = await this.#client.rpc('rxdb_bucket_snapshot_point', {
+      p_namespace: namespace,
+      p_entity: entity,
+      p_bucket: bucket
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read bucket snapshot point');
+    const point = typeof data === 'number' ? data : Number(data);
+    if (!Number.isSafeInteger(point) || point < 0) {
+      throw new SupabaseDataError('Failed to read bucket snapshot point: invalid response data');
+    }
+    return point;
+  }
+
+  async pullBucketSnapshot(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    filter: RuleGroup<unknown> | undefined,
+    offset: number,
+    limit: number
+  ): Promise<Record<string, unknown>[]> {
+    if (limit <= 0) return [];
+    if (filter) assertSnapshotFilterSupported(filter);
+    const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_snapshot', {
+      p_namespace: namespace,
+      p_entity: entity,
+      p_bucket: bucket,
+      p_filter: filter ?? null,
+      p_offset: offset,
+      p_limit: limit
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket snapshot');
+    if (!Array.isArray(data) || !data.every(row => row !== null && typeof row === 'object' && !Array.isArray(row))) {
+      throw new SupabaseDataError('Failed to pull bucket snapshot: invalid response data');
+    }
+    return data as Record<string, unknown>[];
+  }
+
+  async pullBucketChanges(
+    sinceId: number,
+    limit: number,
+    namespace: string,
+    entity: string,
+    bucket: string,
+    filter?: RuleGroup<unknown>,
+    branchId?: string
+  ): Promise<RemoteChange[]> {
+    if (limit <= 0) return [];
+    if (filter) assertSnapshotFilterSupported(filter);
+    const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_changes', {
+      p_since_id: sinceId,
+      p_limit: limit,
+      p_namespace: namespace,
+      p_entity: entity,
+      p_bucket: bucket,
+      p_branch_id: branchId ?? null,
+      p_filter: filter ?? null
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket changes');
+    if (!Array.isArray(data)) {
+      throw new SupabaseDataError('Failed to pull bucket changes: invalid response data');
+    }
+    return data.map(row => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
+    })) as RemoteChange[];
+  }
+
+  async syncIdentity(): Promise<SupabaseScopedSyncIdentity> {
+    const configuredAccessToken = await readConfiguredAccessToken(this.#client);
+    if (configuredAccessToken !== undefined) return identityFromAccessToken(configuredAccessToken);
+
+    const auth = this.#client.auth;
+    if (!auth || typeof auth.getSession !== 'function') return { kind: 'anon' };
+    const { data, error } = await auth.getSession();
+    if (error) throw new SupabaseDataError(`Failed to resolve Supabase session: ${error.message}`);
+    const user = data.session?.user;
+    if (!user?.id || user.is_anonymous === true) return { kind: 'anon' };
+    return { kind: 'user', userId: user.id };
   }
 
   /**
@@ -1095,5 +1212,39 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     return rows;
+  }
+}
+
+
+type SupabaseClientRuntime = SupabaseClient & {
+  accessToken?: () => Promise<string | null>;
+};
+
+async function readConfiguredAccessToken(client: SupabaseClient): Promise<string | null | undefined> {
+  const accessToken = (client as unknown as SupabaseClientRuntime).accessToken;
+  if (typeof accessToken !== 'function') return undefined;
+  return (await accessToken()) ?? null;
+}
+
+function identityFromAccessToken(accessToken: string | null): SupabaseScopedSyncIdentity {
+  const userId = accessToken ? readJwtSubject(accessToken) : null;
+  return userId ? { kind: 'user', userId } : { kind: 'anon' };
+}
+
+function readJwtSubject(accessToken: string): string | null {
+  const payload = accessToken.split('.')[1];
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    const claims: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (!claims || typeof claims !== 'object' || !('sub' in claims)) return null;
+    const subject = claims.sub;
+    return typeof subject === 'string' && subject.length > 0 ? subject : null;
+  } catch {
+    return null;
   }
 }

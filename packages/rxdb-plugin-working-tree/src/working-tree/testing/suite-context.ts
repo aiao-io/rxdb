@@ -13,7 +13,7 @@
  * 前缀）。`*.suite.ts` 被命名门禁排除，本文件不是。
  */
 
-import type { RxDB } from '@aiao/rxdb';
+import type { EntityType, RxDB } from '@aiao/rxdb';
 
 /**
  * 套件调用上下文：一个适配器名 + 一个已就绪数据库的工厂。
@@ -34,6 +34,9 @@ export interface WorkingTreeConformanceSuiteContext {
 
   /** 返回一个全新的、已启用提交能力的 RxDB 实例。 */
   readonly createDatabase: () => Promise<RxDB>;
+
+  /** 调用点额外安装的系统实体，例如同步插件贡献的进度与身份绑定表。 */
+  readonly additionalSystemEntities?: readonly EntityType[];
 }
 
 /**

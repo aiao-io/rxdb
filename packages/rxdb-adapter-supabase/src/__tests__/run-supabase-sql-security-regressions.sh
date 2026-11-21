@@ -67,6 +67,7 @@ CASES=(
   cascade-partition-keys
   backend-identity
   production-change-grants
+  bucketed-read-sync
   anon-sync-protocol
   branch-ownership
   realtime-notifications

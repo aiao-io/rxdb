@@ -40,9 +40,14 @@ DECLARE
     v_val_new jsonb;
     v_val_old jsonb;
     v_branch_id text := 'main'; -- 默认为 main 分支
+    v_old_bucket text;
+    v_new_bucket text;
     v_captured_deletes jsonb;
     v_capture_key text;
 BEGIN
+    v_old_bucket := CASE WHEN TG_OP <> 'INSERT' THEN NULLIF((pg_catalog.to_jsonb(OLD)->>'rxdb_bucket'), '') END;
+    v_new_bucket := CASE WHEN TG_OP <> 'DELETE' THEN NULLIF((pg_catalog.to_jsonb(NEW)->>'rxdb_bucket'), '') END;
+
     IF pg_catalog.current_setting('rxdb.sync_enabled', true) = 'false' THEN
         IF TG_OP != 'DELETE' THEN
             RETURN NULL;
@@ -77,16 +82,34 @@ BEGIN
         v_patch := pg_catalog.to_jsonb(NEW);
 
         INSERT INTO public.rxdb_change (
-            namespace, entity, "entityId", type, patch, "inversePatch", "branchId",
+            namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
             "beforeData", "afterData", "snapshotComplete"
         ) VALUES (
-            v_namespace, v_entity, v_entity_id, 'INSERT', v_patch, NULL, v_branch_id,
+            v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', v_patch, NULL, v_branch_id,
             NULL, pg_catalog.to_jsonb(NEW), true
         );
         RETURN NEW;
 
     ELSIF (TG_OP = 'UPDATE') THEN
         v_entity_id := NEW.id::text;
+
+        IF v_old_bucket IS DISTINCT FROM v_new_bucket THEN
+            INSERT INTO public.rxdb_change (
+                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
+                "beforeData", "afterData", "snapshotComplete"
+            ) VALUES (
+                v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE', NULL, NULL, v_branch_id,
+                NULL, NULL, true
+            );
+            INSERT INTO public.rxdb_change (
+                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
+                "beforeData", "afterData", "snapshotComplete"
+            ) VALUES (
+                v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', pg_catalog.to_jsonb(NEW), NULL, v_branch_id,
+                NULL, pg_catalog.to_jsonb(NEW), true
+            );
+            RETURN NEW;
+        END IF;
 
         -- 计算差异
         v_patch := '{}'::jsonb;
@@ -107,10 +130,10 @@ BEGIN
         -- 如果有变更才插入
         IF v_patch != '{}'::jsonb THEN
             INSERT INTO public.rxdb_change (
-                namespace, entity, "entityId", type, patch, "inversePatch", "branchId",
+                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
                 "beforeData", "afterData", "snapshotComplete"
             ) VALUES (
-                v_namespace, v_entity, v_entity_id, 'UPDATE', v_patch, v_inverse_patch, v_branch_id,
+                v_namespace, v_entity, v_new_bucket, v_entity_id, 'UPDATE', v_patch, v_inverse_patch, v_branch_id,
                 pg_catalog.to_jsonb(OLD), pg_catalog.to_jsonb(NEW), true
             );
         END IF;
@@ -121,10 +144,10 @@ BEGIN
         v_patch := pg_catalog.to_jsonb(OLD);
 
         INSERT INTO public.rxdb_change (
-            namespace, entity, "entityId", type, patch, "inversePatch", "branchId",
+            namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
             "beforeData", "afterData", "snapshotComplete"
         ) VALUES (
-            v_namespace, v_entity, v_entity_id, 'DELETE', v_patch, NULL, v_branch_id,
+            v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE', v_patch, NULL, v_branch_id,
             pg_catalog.to_jsonb(OLD), NULL, true
         );
         RETURN OLD;
@@ -254,6 +277,67 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.rxdb_backend_id() TO anon, authenticated;
+
+-- ============================================
+-- 按授权分区的只读同步
+-- ============================================
+CREATE OR REPLACE FUNCTION public.rxdb_caller_buckets()
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT CASE
+        WHEN auth.uid() IS NULL THEN ARRAY['public']::text[]
+        ELSE ARRAY['public', 'user:' || auth.uid()::text]::text[]
+    END
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_entity_sync_info(
+    p_namespace text,
+    p_entity text
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT COALESCE(
+        (
+            SELECT pg_catalog.jsonb_build_object(
+                'namespace', namespace,
+                'entity', entity,
+                'tableName', "tableName",
+                'bucketed', "bucketColumn" IS NOT NULL
+            )
+            FROM public.rxdb_sync_entity
+            WHERE namespace = p_namespace AND entity = p_entity
+        ),
+        pg_catalog.jsonb_build_object(
+            'namespace', p_namespace,
+            'entity', p_entity,
+            'tableName', NULL,
+            'bucketed', false
+        )
+    )
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_bucket_snapshot_point(
+    p_namespace text,
+    p_entity text,
+    p_bucket text
+)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT COALESCE(MAX(id), 0)::integer
+    FROM public.rxdb_change
+$$;
 
 -- ============================================
 -- 基于持久变更快照的 Filter Sync
@@ -458,6 +542,91 @@ GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO authen
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_changes(integer, integer, text, text, text, jsonb) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_changes(
+    p_since_id integer,
+    p_limit integer,
+    p_namespace text,
+    p_entity text,
+    p_bucket text,
+    p_branch_id text DEFAULT NULL,
+    p_filter jsonb DEFAULT NULL
+)
+RETURNS SETOF public.rxdb_change
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT change.*
+    FROM public.rxdb_change AS change
+    WHERE change.id > p_since_id
+      AND change.namespace = p_namespace
+      AND change.entity = p_entity
+      AND change.bucket = p_bucket
+      AND (p_branch_id IS NULL OR change."branchId" = p_branch_id)
+      AND (
+        p_filter IS NULL
+        OR change.type = 'DELETE' AND change."beforeData" IS NULL AND change."afterData" IS NULL
+        OR NOT change."snapshotComplete"
+        OR public.rxdb_jsonb_matches_filter(change."beforeData", p_filter)
+        OR public.rxdb_jsonb_matches_filter(change."afterData", p_filter)
+      )
+    ORDER BY change.id ASC
+    LIMIT GREATEST(p_limit, 0)
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_snapshot(
+    p_namespace text,
+    p_entity text,
+    p_bucket text,
+    p_filter jsonb DEFAULT NULL,
+    p_offset integer DEFAULT 0,
+    p_limit integer DEFAULT 1000
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    v_table_name text;
+    v_bucket_column text;
+    v_rows jsonb;
+BEGIN
+    SELECT info->>'tableName',
+           CASE WHEN (info->>'bucketed')::boolean THEN 'rxdb_bucket' ELSE NULL END
+    INTO v_table_name, v_bucket_column
+    FROM (SELECT public.rxdb_entity_sync_info(p_namespace, p_entity) AS info) AS entity_info;
+
+    IF v_table_name IS NULL OR v_bucket_column IS NULL THEN
+        RAISE EXCEPTION 'Entity %.% is not bucketed', p_namespace, p_entity;
+    END IF;
+
+    EXECUTE pg_catalog.format(
+        'SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(row_data) ORDER BY row_data.id), ''[]''::jsonb)
+         FROM (
+             SELECT table_data.*
+             FROM %I.%I AS table_data
+             WHERE table_data.%I::text = $1
+               AND ($2 IS NULL OR public.rxdb_jsonb_matches_filter(pg_catalog.to_jsonb(table_data), $2))
+             ORDER BY table_data.id
+             OFFSET GREATEST($3, 0)
+             LIMIT GREATEST($4, 0)
+         ) AS row_data',
+        p_namespace, v_table_name, v_bucket_column
+    ) INTO v_rows USING p_bucket, p_filter, p_offset, p_limit;
+
+    RETURN v_rows;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer) TO anon, authenticated;
+
 -- ============================================
 -- 启用 RxDB 同步的辅助函数
 -- ============================================
@@ -488,6 +657,22 @@ BEGIN
           AND table_name = p_table_name
           AND column_name = 'updatedAt'
     ) INTO v_has_updated_at;
+
+    INSERT INTO public.rxdb_sync_entity (namespace, entity, "tableName", "bucketColumn", "updatedAt")
+    VALUES (
+        p_namespace,
+        v_entity_name,
+        p_table_name,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = p_namespace AND table_name = p_table_name AND column_name = 'rxdb_bucket'
+        ) THEN 'rxdb_bucket' ELSE NULL END,
+        pg_catalog.now()
+    )
+    ON CONFLICT (namespace, entity) DO UPDATE SET
+        "tableName" = EXCLUDED."tableName",
+        "bucketColumn" = EXCLUDED."bucketColumn",
+        "updatedAt" = EXCLUDED."updatedAt";
 
     -- 2. 如果存在 updatedAt，创建自动更新触发器 (BEFORE UPDATE)
     --

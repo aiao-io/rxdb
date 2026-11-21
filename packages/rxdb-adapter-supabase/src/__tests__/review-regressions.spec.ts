@@ -102,6 +102,9 @@ function createRxdb(entities: EntityType[] = []): RxDB {
 
 const AUTHENTICATED_TOKEN = SIGNED_IN_TOKEN;
 
+const jwtFor = (claims: Record<string, unknown>): string =>
+  `header.${btoa(JSON.stringify(claims)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}.signature`;
+
 function createRealtimeAuth(accessTokenValue: string | null = AUTHENTICATED_TOKEN) {
   return { setAuth: vi.fn(async () => undefined), accessTokenValue };
 }
@@ -287,6 +290,20 @@ afterEach(() => {
 });
 
 describe('supabase review regressions', () => {
+  it('支持 accessToken 配置的客户端读取当前用户身份', async () => {
+    const adapter = createAdapter({ accessToken: async () => jwtFor({ sub: 'user-from-token' }) });
+
+    await expect(adapter.syncIdentity()).resolves.toEqual({ kind: 'user', userId: 'user-from-token' });
+  });
+
+  it('accessToken 为空或没有 sub 时按 anon 处理', async () => {
+    const emptyTokenAdapter = createAdapter({ accessToken: async () => null });
+    const malformedTokenAdapter = createAdapter({ accessToken: async () => jwtFor({ role: 'anon' }) });
+
+    await expect(emptyTokenAdapter.syncIdentity()).resolves.toEqual({ kind: 'anon' });
+    await expect(malformedTokenAdapter.syncIdentity()).resolves.toEqual({ kind: 'anon' });
+  });
+
   it('requires a non-empty URL and key when no client is supplied', () => {
     const rxdb = createRxdb();
 

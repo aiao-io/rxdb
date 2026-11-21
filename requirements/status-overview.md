@@ -7,8 +7,8 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 97   |
-| 🚧 In Progress | 14   |
+| ✅ Done        | 98   |
+| 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
@@ -17,7 +17,7 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（14 条）
+## 进行中（13 条）
 
 | Story                                                                                                                                                                   | 剩余范围                                                            |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -32,7 +32,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
 | [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
 | [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                    |
-| [US-033 按授权分区同步（只读）](stories/core/US-033-identity-scoped-read-sync.md)                                                                                       | 分区 RLS 与按区拉取、实体规则筛选与自动清理、每个身份一个库进行中。 |
 
 ## 待评审（3 条）
 
@@ -237,7 +236,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-- 🚧 [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
+- ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

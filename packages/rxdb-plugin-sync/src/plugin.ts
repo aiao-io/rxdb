@@ -5,14 +5,40 @@
  * @module rxdb-plugin-sync
  */
 
-import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase } from '@aiao/rxdb';
+import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase, type EntityType, type RxDBSystemContribution } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { createSyncBranchMaterializationSource } from './branch-materialization-source.js';
 import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
 import { SyncManager } from './SyncManager.js';
+import {
+  RxDBSyncBucketProgress,
+  RxDBSyncBucketRow,
+  RxDBSyncIdentityBinding
+} from './scoped-sync.entity.js';
 
 /** 本插件当前不接受任何选项 */
 export type RxDBPluginSyncOptions = object;
+
+const SYNC_SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBSyncBucketProgress,
+  RxDBSyncBucketRow,
+  RxDBSyncIdentityBinding
+];
+
+const SYNC_SYSTEM_CONTRIBUTION: RxDBSystemContribution = {
+  capability: 'sync',
+  version: 1,
+  packageSpecifier: '@aiao/rxdb-plugin-sync',
+  entities: SYNC_SYSTEM_ENTITIES,
+  createInitialRows: () => [],
+  createMigrations: () => [],
+  bootstrapExisting: async () => undefined,
+  writeBranchRows: async () => undefined,
+  removeBranchRows: async () => undefined,
+  prepareBranchSwitch: async () => undefined,
+  takeOverBranchSwitch: async () => 'not_applicable',
+  settleBranchSwitchFailure: async () => undefined
+};
 
 /**
  * 推拉同步 / 冲突 / 仓库依赖序插件。
@@ -51,6 +77,7 @@ export class RxDBPluginSync extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly inject = ['plugin:history'] as const;
   name: Uncapitalize<string> = 'sync';
+  readonly system = SYNC_SYSTEM_CONTRIBUTION;
 
   install(scope: LifecycleScope) {
     // `inject` 已经保证历史插件先装完，`versionManager` 槽位此刻一定在。

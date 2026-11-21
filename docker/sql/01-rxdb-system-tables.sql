@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.rxdb_change (
   id serial PRIMARY KEY,
   namespace varchar NOT NULL DEFAULT 'public',
   entity varchar NOT NULL,
+  "bucket" varchar,
   "entityId" varchar NOT NULL,
   "branchId" varchar DEFAULT 'main',
   type varchar NOT NULL CHECK (type IN ('INSERT', 'UPDATE', 'DELETE')),
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS public.rxdb_change (
   "updatedAt" timestamptz(3) NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "bucket" varchar;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "beforeData" jsonb;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "afterData" jsonb;
 ALTER TABLE public.rxdb_change ADD COLUMN IF NOT EXISTS "snapshotComplete" boolean NOT NULL DEFAULT false;
@@ -58,6 +60,8 @@ CREATE INDEX IF NOT EXISTS idx_rxdb_change_branch_id ON public.rxdb_change("bran
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_type ON public.rxdb_change(type);
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_scope_cursor
 ON public.rxdb_change(namespace, entity, "branchId", id);
+CREATE INDEX IF NOT EXISTS idx_rxdb_change_bucket_cursor
+ON public.rxdb_change(namespace, entity, bucket, id);
 WITH duplicate_changes AS (
   SELECT
     id,
@@ -114,6 +118,24 @@ CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
 );
 
 ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- rxdb_sync_entity 表（同步实体注册）
+-- ============================================
+-- rxdb_enable_sync_for_table 记录实体名到业务表名的映射，并记下是否存在 rxdb_bucket。
+-- 按区快照需要这个映射，因为实体名不一定等于 PostgreSQL 表名。
+CREATE TABLE IF NOT EXISTS public.rxdb_sync_entity (
+  namespace varchar NOT NULL,
+  entity varchar NOT NULL,
+  "tableName" varchar NOT NULL,
+  "bucketColumn" varchar,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+  PRIMARY KEY (namespace, entity)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rxdb_sync_entity_bucket
+ON public.rxdb_sync_entity(namespace, entity, "bucketColumn");
 
 -- ============================================
 -- rxdb_backend 表（远端身份，单行）
