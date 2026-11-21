@@ -66,7 +66,7 @@ overrides:
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
   miniprogram-automator>debug: ^4.4.3
-  '@lucide/angular': 1.70.0
+  '@lucide/angular': 1.77.0
   '@prisma/config@6>deepmerge-ts': ^8.0.0
   'trigger.dev>zod': ^4.6.7
   '@tarojs/helper>esbuild': ^0.25.12
