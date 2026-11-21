@@ -1,5 +1,4 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
-import type { DesignPropertyChanges } from '../../interfaces';
+import { describe, expect, it, vi } from 'vitest';
 import {
   handleIndexCellChange,
   handlePropertyCellChange,
@@ -7,7 +6,8 @@ import {
   type PropertyCellCallbacks
 } from '../../components/table/table-cell-handlers';
 import type { TableRecord } from '../../components/table/table.types';
-import { describe, expect, it, vi } from 'vitest';
+import type { DesignPropertyChanges } from '../../interfaces';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 
 function entity(data: Record<string, unknown>): DesignEntity {
   return data as unknown as DesignEntity;
@@ -58,7 +58,16 @@ describe('table cell handlers', () => {
     const validProperty = property({ id: 'prop-1', name: 'title' });
     const record: TableRecord = { _propId: 'prop-1' };
 
-    handlePropertyCellChange({ _readonly: true, _propId: 'prop-1' }, 'name', 0, 0, 'ignored', null, [validProperty], cb);
+    handlePropertyCellChange(
+      { _readonly: true, _propId: 'prop-1' },
+      'name',
+      0,
+      0,
+      'ignored',
+      null,
+      [validProperty],
+      cb
+    );
     handlePropertyCellChange(record, 'unknown', 0, 0, 'ignored', null, [validProperty], cb);
     handlePropertyCellChange({ _propId: 'missing' }, 'name', 0, 0, 'ignored', null, [validProperty], cb);
     expect(cb.emitPropertyUpdated).not.toHaveBeenCalled();
@@ -86,16 +95,7 @@ describe('table cell handlers', () => {
   it('allows child properties when the parent marker is present', () => {
     const cb = callbacks();
 
-    handlePropertyCellChange(
-      { _propId: 'child-1', _parentPropId: 'parent-1' },
-      'isRequired',
-      0,
-      0,
-      true,
-      null,
-      [],
-      cb
-    );
+    handlePropertyCellChange({ _propId: 'child-1', _parentPropId: 'parent-1' }, 'isRequired', 0, 0, true, null, [], cb);
 
     expect(cb.emitPropertyUpdated).toHaveBeenCalledWith({ id: 'child-1', changes: { isRequired: true } });
   });

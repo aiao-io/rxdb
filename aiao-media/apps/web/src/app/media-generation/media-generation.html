@@ -48,13 +48,22 @@
   }
 
   <div class="media-workspace">
-    <form class="media-form" [attr.aria-busy]="busy() || inputBusy()" (submit)="submit(); $event.preventDefault()" novalidate>
+    <form
+      class="media-form"
+      [attr.aria-busy]="busy() || inputBusy()"
+      (submit)="submit(); $event.preventDefault()"
+      novalidate
+    >
       <div class="media-form-head">
         <div>
           <p class="media-step">输入内容</p>
           <h2>{{ operationLabel() }}</h2>
           <p class="media-form-intro">
-            {{ operation() === 'speech-to-text' ? '上传一段 WAV 音频，生成可复制和下载的文字。' : '填写内容并选择参数，生成结果会自动保存到本机。' }}
+            {{
+              operation() === 'speech-to-text' ? '上传一段 WAV 音频，生成可复制和下载的文字。' : (
+                '填写内容并选择参数，生成结果会自动保存到本机。'
+              )
+            }}
           </p>
         </div>
         @if (selectedCapability(); as capability) {
@@ -68,10 +77,10 @@
             <span>{{ inputLabel() }}</span>
             <input
               id="media-audio-file"
-              name="media-audio-file"
               [disabled]="inputBusy() || busy()"
               (change)="selectFile($event)"
               accept="audio/wav"
+              name="media-audio-file"
               type="file"
             />
           </label>
@@ -85,9 +94,9 @@
             识别语言
             <select
               id="media-asr-language"
-              name="media-asr-language"
               [ngModel]="language()"
               (ngModelChange)="language.set($event)"
+              name="media-asr-language"
             >
               <option value="">自动识别</option>
               @for (item of capability.parameters.languages; track item) {
@@ -106,11 +115,11 @@
           </span>
           <textarea
             id="media-prompt"
-            name="media-prompt"
             [attr.maxlength]="textMaxLength()"
             [ngModel]="text()"
             [placeholder]="inputPlaceholder()"
             (ngModelChange)="text.set($event)"
+            name="media-prompt"
           ></textarea>
         </label>
         <div class="media-fields">
@@ -119,9 +128,9 @@
               语言
               <select
                 id="media-language"
-                name="media-language"
                 [ngModel]="language()"
                 (ngModelChange)="language.set($event)"
+                name="media-language"
               >
                 @for (item of capability.parameters.languages; track item) {
                   <option [value]="item">{{ item }}</option>
@@ -130,12 +139,7 @@
             </label>
             <label for="media-voice">
               声音
-              <select
-                id="media-voice"
-                name="media-voice"
-                [ngModel]="voiceId()"
-                (ngModelChange)="voiceId.set($event)"
-              >
+              <select id="media-voice" [ngModel]="voiceId()" (ngModelChange)="voiceId.set($event)" name="media-voice">
                 @for (item of capability.parameters.voices; track item.id) {
                   <option [value]="item.id">{{ item.label }}</option>
                 }
@@ -143,7 +147,7 @@
             </label>
             <label for="media-speed">
               语速
-              <select id="media-speed" name="media-speed" [ngModel]="speed()" (ngModelChange)="speed.set(+$event)">
+              <select id="media-speed" [ngModel]="speed()" (ngModelChange)="speed.set(+$event)" name="media-speed">
                 @for (item of capability.parameters.speeds; track item) {
                   <option [value]="item">{{ item }}x</option>
                 }
@@ -155,9 +159,9 @@
               时长
               <select
                 id="media-music-duration"
-                name="media-music-duration"
                 [ngModel]="musicDuration()"
                 (ngModelChange)="musicDuration.set(+$event)"
+                name="media-music-duration"
               >
                 @for (item of capability.parameters.durationsSeconds; track item) {
                   <option [value]="item">{{ item }} 秒</option>
@@ -168,9 +172,9 @@
               人声
               <select
                 id="media-instrumental"
-                name="media-instrumental"
                 [ngModel]="musicInstrumental()"
                 (ngModelChange)="musicInstrumental.set($event === true || $event === 'true')"
+                name="media-instrumental"
               >
                 <option [value]="true">纯音乐</option>
                 <option [value]="false">包含人声</option>
@@ -182,9 +186,9 @@
               画幅
               <select
                 id="media-video-ratio"
-                name="media-video-ratio"
                 [ngModel]="videoRatio()"
                 (ngModelChange)="videoRatio.set($event)"
+                name="media-video-ratio"
               >
                 @for (item of capability.parameters.ratios; track item) {
                   <option [value]="item">{{ item }}</option>
@@ -195,9 +199,9 @@
               时长
               <select
                 id="media-video-duration"
-                name="media-video-duration"
                 [ngModel]="videoDuration()"
                 (ngModelChange)="videoDuration.set(+$event)"
+                name="media-video-duration"
               >
                 @for (item of capability.parameters.durationsSeconds; track item) {
                   <option [value]="item">{{ item }} 秒</option>
@@ -208,9 +212,9 @@
               分辨率
               <select
                 id="media-video-resolution"
-                name="media-video-resolution"
                 [ngModel]="videoResolution()"
                 (ngModelChange)="videoResolution.set($event)"
+                name="media-video-resolution"
               >
                 @for (item of capability.parameters.resolutions; track item) {
                   <option [value]="item">{{ item }}</option>
@@ -259,7 +263,13 @@
       <div class="media-result-head">
         <div>
           <p class="media-result-kicker">输出结果</p>
-          <h2>{{ result() ? '已生成结果' : busy() ? '任务处理中' : '结果会显示在这里' }}</h2>
+          <h2>
+            {{
+              result() ? '已生成结果'
+              : busy() ? '任务处理中'
+              : '结果会显示在这里'
+            }}
+          </h2>
         </div>
         @if (task(); as current) {
           <span class="media-cost">{{ statusLabel() }}</span>

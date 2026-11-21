@@ -2,9 +2,15 @@ import { IconListEditor, SafeListEditor } from '@aiao/rxdb-model-angular';
 import type { ColumnsDefine } from '@visactor/vtable';
 import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types';
 import { describe, expect, it } from 'vitest';
+import {
+  createPropertyColumns,
+  type PropertyColumnsErrorContext
+} from '../../components/table/table.columns.properties';
+import {
+  createRelationColumns,
+  type RelationColumnsErrorContext
+} from '../../components/table/table.columns.relations';
 import { DEFAULT_TRANSLATIONS } from '../../i18n';
-import { createPropertyColumns, type PropertyColumnsErrorContext } from '../../components/table/table.columns.properties';
-import { createRelationColumns, type RelationColumnsErrorContext } from '../../components/table/table.columns.relations';
 
 const translations = {
   ...DEFAULT_TRANSLATIONS,
@@ -35,9 +41,7 @@ function columnValue(column: ColumnDefine, key: string): unknown {
 
 describe('property table columns', () => {
   const errorContext: PropertyColumnsErrorContext = {
-    propertyErrors: new Map([
-      ['prop-1', { name: true, columnName: true }]
-    ]),
+    propertyErrors: new Map([['prop-1', { name: true, columnName: true }]]),
     addRowNameError: true,
     propertyNameHint: 'name hint',
     columnNameHint: 'column hint',
@@ -45,17 +49,13 @@ describe('property table columns', () => {
   };
 
   it('formats types, renders icons, and chooses editors by row kind', () => {
-    const columns = createPropertyColumns(
-      { ...translations, propertyTypes: { string: 'Text' } },
-      errorContext,
-      {
-        propertyTypes: ['string', 'enum'],
-        relationKinds: [],
-        cascadeActions: [],
-        entities: [],
-        targetRelationsByEntity: new Map()
-      }
-    );
+    const columns = createPropertyColumns({ ...translations, propertyTypes: { string: 'Text' } }, errorContext, {
+      propertyTypes: ['string', 'enum'],
+      relationKinds: [],
+      cascadeActions: [],
+      entities: [],
+      targetRelationsByEntity: new Map()
+    });
     const typeColumn = column(columns, 'propertyType');
     const nameColumn = column(columns, 'name');
     const columnNameColumn = column(columns, 'columnName');
@@ -66,16 +66,20 @@ describe('property table columns', () => {
     expect(invoke(typeColumn.editor, args({ _readonly: true }))).toBeUndefined();
     expect(invoke(typeColumn.editor, args({ propertyType: 'string' }))).toBeInstanceOf(IconListEditor);
     expect(invoke(typeColumn.editor, args({ _parentPropId: 'parent' }))).toBeInstanceOf(IconListEditor);
-    expect(invoke(typeColumn.customRender, {
-      col: 0,
-      row: 0,
-      table: { getRecordByCell: () => ({ propertyType: 'string', _readonly: false }) }
-    })).toMatchObject({ renderDefault: false });
-    expect(invoke(typeColumn.customRender, {
-      col: 0,
-      row: 0,
-      table: { getRecordByCell: () => ({}) }
-    })).toMatchObject({ elements: [], renderDefault: true });
+    expect(
+      invoke(typeColumn.customRender, {
+        col: 0,
+        row: 0,
+        table: { getRecordByCell: () => ({ propertyType: 'string', _readonly: false }) }
+      })
+    ).toMatchObject({ renderDefault: false });
+    expect(
+      invoke(typeColumn.customRender, {
+        col: 0,
+        row: 0,
+        table: { getRecordByCell: () => ({}) }
+      })
+    ).toMatchObject({ elements: [], renderDefault: true });
 
     expect(invoke(nameColumn.style, args({ _isAddRow: true }))).toEqual({ bgColor: '#fee2e2' });
     expect(invoke(columnNameColumn.style, args({ _propId: 'prop-1' }))).toEqual({ bgColor: '#fee2e2' });
@@ -147,9 +151,9 @@ describe('relation table columns', () => {
     expect(invoke(propertyColumn.editor, args({ _mappedEntityId: 'user' }))).toBeInstanceOf(SafeListEditor);
     expect(invoke(deleteColumn.editor, args({}))).toBeInstanceOf(SafeListEditor);
     expect(invoke(propertyColumn.editor, args({ _mappedEntityId: 'missing' }))).toBeInstanceOf(SafeListEditor);
-    expect(
-      invoke(createRelationColumns(translations)[5].editor, args({ _mappedEntityId: 'missing' }))
-    ).toBe('input-editor');
+    expect(invoke(createRelationColumns(translations)[5].editor, args({ _mappedEntityId: 'missing' }))).toBe(
+      'input-editor'
+    );
   });
 
   it('uses missing-inverse errors for every relation field', () => {

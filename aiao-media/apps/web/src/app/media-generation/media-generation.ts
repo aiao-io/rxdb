@@ -79,7 +79,7 @@ const isTranscriptResult = (value: MediaResult | null): value is TranscriptResul
   selector: 'app-media-generation',
   imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './media-generation.html',
+  templateUrl: './media-generation.html'
 })
 export class MediaGeneration implements OnDestroy {
   private readonly inputReference = signal<AudioInputReference | null>(null);
