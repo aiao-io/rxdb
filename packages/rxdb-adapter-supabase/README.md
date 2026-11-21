@@ -95,8 +95,8 @@ rxdb.use(rxDBPluginSync);
 // 注册本地适配器
 rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicVFS', async: true }));
 
-// 注册远程适配器：日志同步只对已登录身份开放，传入应用里已经登录的客户端
-// （只给 supabaseUrl + supabaseKey 时适配器自建客户端，没有会话，拉取与推送会得到 42501）
+// 注册远程适配器：分区日志按 caller buckets 读取，通用日志协议与推送仍需已登录身份
+// 传入应用里已经登录的客户端，或使用带 JWT 的 accessToken 回调
 rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: signedInSupabaseClient }));
 
 // 连接本地（自动建表）
@@ -210,7 +210,7 @@ CREATE TABLE public.rxdb_branch (
 
 > 实时通知不经 `postgres_changes`：`rxdb_change` 不在 `supabase_realtime` publication 里，日志落库后由触发器 `rxdb_change_broadcast` 经 `realtime.send` 向私有频道 `rxdb:changes` 广播只带元数据的提醒；接收权由生产权限脚本里 `realtime.messages` 的策略给 authenticated。
 >
-> 生产部署在 01～04 之后执行 `docker/sql/production/rxdb-change-grants.sql`：anon 读不到日志与分支、不能调用拉取与推送，非 main 分支由首个写入者认领、只有所有者能写。日志对全部登录者可读，只适用于所有登录者可见范围一致的数据，详见[生产部署](https://rxdb.aiao.io/docs/adapters/supabase#日志同步只对已登录身份开放)。
+> 生产部署在 01～04 之后执行 `docker/sql/production/rxdb-change-grants.sql`：anon 默认只能读取分区日志的 `public` 区，authenticated 按 caller buckets 读取，通用拉取与推送仍需已登录身份。非 main 分支由首个写入者认领、只有所有者能写，详见[生产部署](https://rxdb.aiao.io/docs/adapters/supabase#日志同步只对已登录身份开放)。
 > 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`、`rxdb_backend_id`。`rxdb_batch_update` 保留原有整数计数返回值。
 >
 > `rxdb_backend_id` 读单行表 `rxdb_backend` 里的远端身份：库重建或 `TRUNCATE rxdb_change` 后换新值，同步插件发现它变了就停止同步并报 `RemoteBackendMismatchError`。已有部署的升级步骤见[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)。

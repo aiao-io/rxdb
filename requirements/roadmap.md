@@ -7,14 +7,14 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 97     |
+| ✅ Done        | 98     |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 30     |
+| 📝 Backlog     | 29     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **46** |
+| **未完成合计** | **45** |
 
-仓库还剩 **46 条**未关闭故事（13 In Progress + 3 In Review + 30 Backlog + 0 Blocked）。
+仓库还剩 **45 条**未关闭故事（13 In Progress + 3 In Review + 29 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -36,7 +36,7 @@
 | [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B  | 批次 7   |
 | [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                          | 批次 7   |
 | [US-035](stories/core/US-035-identity-bound-local-database.md)                                                                                                          | 📝 Backlog     | 每个身份一个本地库：按身份算库名，打开时与同步前核对身份；批次 8 里先做                                 | 批次 8   |
-| [US-033](stories/core/US-033-identity-scoped-read-sync.md)                                                                                                              | 📝 Backlog     | 按授权分区只读同步：不带正文的分区日志、按区快照与拉取、规则筛选与自动清理；阶段 A 的前提已定，尚未开工 | 批次 8   |
+| [US-033](stories/core/US-033-identity-scoped-read-sync.md)                                                                                                              | ✅ Done        | 按授权分区只读同步：分区 SQL、按区快照与拉取、规则筛选、进度隔离、自动清理、契约测试与文档已完成              | 批次 8   |
 | [US-036](stories/core/US-036-browse-public-data-outside-sync-rule.md)                                                                                                   | 📝 Backlog     | 规则之外的公开数据在线浏览：只读浏览实体走 QueryCache，映射公开视图                                     | 批次 8   |
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                              | 立项池   |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                          | 本轮执行 |

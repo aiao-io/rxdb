@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 97   |
+| ✅ Done        | 98   |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 30   |
+| 📝 Backlog     | 29   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 143  |
 
@@ -235,7 +235,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-- ⬜ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
+- ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 - ⬜ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ⬜ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 

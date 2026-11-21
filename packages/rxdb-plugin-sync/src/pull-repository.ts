@@ -48,6 +48,7 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
@@ -524,6 +525,20 @@ async function pullSingleRepository(
     },
     () => instantiateSyncRecord(sm)
   );
+
+  const bucketedResult = await pullBucketedRepositoryIfSupported(
+    sm,
+    remoteAdapter,
+    localAdapter,
+    EntityType!,
+    repoSync,
+    namespace,
+    entity,
+    branch.id,
+    options,
+    options.filter
+  );
+  if (bucketedResult) return bucketedResult;
 
   const lastPullRemoteChangeId: number | null = repoSync.lastPullRemoteChangeId;
 
