@@ -35,7 +35,7 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",
     "@aiao/utils": "workspace:*",
-    "@lucide/vue": "^1.70.0",
+    "@lucide/vue": "^1.77.0",
     "@modules/orbit": "workspace:*",
     "@tanstack/vue-virtual": "^3.13.52",
     "@vueuse/rxjs": "^15.0.0",
@@ -44,8 +44,8 @@
     "clsx": "^2.1.1"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.4",
-    "daisyui": "^5.7.50",
-    "tailwindcss": "^4.3.4"
+    "@tailwindcss/vite": "^4.3.5",
+    "daisyui": "^5.8.1",
+    "tailwindcss": "^4.3.5"
   }
 }
