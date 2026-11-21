@@ -1233,7 +1233,6 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 }
 
-
 type SupabaseClientRuntime = SupabaseClient & {
   accessToken?: () => Promise<string | null>;
 };

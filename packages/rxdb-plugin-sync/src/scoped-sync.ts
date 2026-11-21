@@ -10,7 +10,10 @@ export interface ScopedSyncIdentitySource {
 
 export interface ScopedSyncAdapter {
   getCallerBuckets(): Promise<string[]>;
-  getEntitySyncInfo(namespace: string, entity: string): Promise<{
+  getEntitySyncInfo(
+    namespace: string,
+    entity: string
+  ): Promise<{
     namespace: string;
     entity: string;
     tableName: string | null;
@@ -72,7 +75,9 @@ export function canonicalize(value: unknown): string {
   if (value instanceof Date) return JSON.stringify(value.toISOString());
   if (Array.isArray(value)) return `[${value.map(item => canonicalize(item)).join(',')}]`;
   if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+      left.localeCompare(right)
+    );
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`).join(',')}}`;
   }
   return JSON.stringify(value);

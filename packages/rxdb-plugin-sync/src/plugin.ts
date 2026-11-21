@@ -9,12 +9,8 @@ import { IRxDBPlugin, Plugin, RxDB, RxDBPluginBase, type EntityType, type RxDBSy
 import type { LifecycleScope } from '@aiao/utils';
 import { createSyncBranchMaterializationSource } from './branch-materialization-source.js';
 import { pendingQueryCacheWriteIds } from './query-cache-outbox.js';
+import { RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
 import { SyncManager } from './SyncManager.js';
-import {
-  RxDBSyncBucketProgress,
-  RxDBSyncBucketRow,
-  RxDBSyncIdentityBinding
-} from './scoped-sync.entity.js';
 
 /** 本插件当前不接受任何选项 */
 export type RxDBPluginSyncOptions = object;

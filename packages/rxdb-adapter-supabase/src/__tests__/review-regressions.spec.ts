@@ -131,9 +131,7 @@ function createAdapter(
   // 订阅私有频道前适配器会先 realtime.setAuth() 并看令牌是否属于已登录用户（US-225），桩客户端默认已登录
   const configuredAccessToken = clientOverrides.accessToken;
   const accessTokenProvider =
-    typeof configuredAccessToken === 'function'
-      ? (configuredAccessToken as () => Promise<string | null>)
-      : undefined;
+    typeof configuredAccessToken === 'function' ? (configuredAccessToken as () => Promise<string | null>) : undefined;
   const realtime = clientOverrides.realtime ?? createRealtimeAuth(AUTHENTICATED_TOKEN, accessTokenProvider);
   const client = { realtime, ...clientOverrides };
   const rxdb = createRxdb(entities);
@@ -311,7 +309,9 @@ afterEach(() => {
 
 describe('supabase review regressions', () => {
   it('支持 accessToken 配置的客户端读取当前用户身份', async () => {
-    const adapter = createAdapter({ accessToken: async () => jwtFor({ role: 'authenticated', sub: 'user-from-token' }) });
+    const adapter = createAdapter({
+      accessToken: async () => jwtFor({ role: 'authenticated', sub: 'user-from-token' })
+    });
 
     await expect(adapter.callerIdentity()).resolves.toBe('user-from-token');
   });

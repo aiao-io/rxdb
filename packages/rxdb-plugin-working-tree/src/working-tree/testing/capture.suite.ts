@@ -672,10 +672,7 @@ const EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [
  * @returns 无；直接向当前 `describe` 作用域注册用例
  */
 export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConformanceSuiteContext): void => {
-  const expectedSystemEntities = [
-    ...EPIC_006_SYSTEM_ENTITIES,
-    ...(context.additionalSystemEntities ?? [])
-  ];
+  const expectedSystemEntities = [...EPIC_006_SYSTEM_ENTITIES, ...(context.additionalSystemEntities ?? [])];
 
   describe(`[${context.name}] 工作树捕获一致性`, () => {
     let database: RxDB;

@@ -6,11 +6,11 @@ import {
   PropertyType,
   RxDBChange,
   RxDBSync,
+  WorktreeTableSet,
   type EntityType,
   type RemoteChange,
   type RuleGroup,
-  type SwitchVersionActions,
-  WorktreeTableSet
+  type SwitchVersionActions
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pullBucketedRepositoryIfSupported } from '../bucketed-pull.js';
@@ -230,13 +230,8 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
       }
     ),
     pullBucketChanges: vi.fn(
-      async (
-        sinceId: number,
-        limit: number,
-        _namespace: string,
-        _entity: string,
-        bucket: string
-      ) => (options.changes[bucket] ?? []).filter(change => change.id > sinceId).slice(0, limit)
+      async (sinceId: number, limit: number, _namespace: string, _entity: string, bucket: string) =>
+        (options.changes[bucket] ?? []).filter(change => change.id > sinceId).slice(0, limit)
     )
   };
 
@@ -373,8 +368,18 @@ describe('bucketed pull', () => {
     harness.adapter.pullBucketChanges.mockImplementation(
       async (sinceId: number, limit: number, _namespace: string, _entity: string, bucket: string) => {
         const movedDelete = createChange(2, 'moved', 'DELETE', null, null, null, 'public');
-        const movedInsert = createChange(3, 'moved', 'INSERT', row('moved', true), null, row('moved', true), 'tenant:1');
-        return (bucket === 'public' ? [movedDelete] : [movedInsert]).filter(change => change.id > sinceId).slice(0, limit);
+        const movedInsert = createChange(
+          3,
+          'moved',
+          'INSERT',
+          row('moved', true),
+          null,
+          row('moved', true),
+          'tenant:1'
+        );
+        return (bucket === 'public' ? [movedDelete] : [movedInsert])
+          .filter(change => change.id > sinceId)
+          .slice(0, limit);
       }
     );
 
@@ -449,9 +454,8 @@ describe('bucketed pull', () => {
     expect(failed?.failures).toHaveLength(1);
     expect(harness.entities).toEqual([row('healthy')]);
 
-    harness.adapter.pullBucketSnapshot.mockImplementation(
-      async (_namespace, _entity, bucket, _filter, offset, limit) =>
-        (bucket === 'broken' ? [row('broken')] : [row('healthy')]).slice(offset, offset + limit)
+    harness.adapter.pullBucketSnapshot.mockImplementation(async (_namespace, _entity, bucket, _filter, offset, limit) =>
+      (bucket === 'broken' ? [row('broken')] : [row('healthy')]).slice(offset, offset + limit)
     );
     const recovered = await pull(harness);
     expect(recovered?.failures).toHaveLength(0);

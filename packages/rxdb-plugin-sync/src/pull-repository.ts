@@ -36,6 +36,7 @@ import {
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
+import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
@@ -48,7 +49,6 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
-import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';

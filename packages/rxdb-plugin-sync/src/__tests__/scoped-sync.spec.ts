@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { bindScopedIdentity } from '../remote-backend.js';
+import { RxDBSyncIdentityBinding } from '../scoped-sync.entity.js';
 import {
   IdentityMismatchError,
   canonicalize,
@@ -8,7 +9,6 @@ import {
   scopedDatabaseName,
   type ScopedSyncIdentity
 } from '../scoped-sync.js';
-import { RxDBSyncIdentityBinding } from '../scoped-sync.entity.js';
 import type { SyncManager } from '../SyncManager.js';
 
 const makeBinding = (identity: ScopedSyncIdentity) =>
@@ -33,8 +33,9 @@ const createIdentityHarness = (identity: ScopedSyncIdentity, existing?: RxDBSync
     syncIdentity: vi.fn(async () => identity)
   };
   const reportError = vi.fn();
-  const transaction = vi.fn(async (callback: (executor: { getRepository: () => typeof repository }) => Promise<unknown>) =>
-    callback({ getRepository: () => repository })
+  const transaction = vi.fn(
+    async (callback: (executor: { getRepository: () => typeof repository }) => Promise<unknown>) =>
+      callback({ getRepository: () => repository })
   );
   const sm = {
     rxdb: {
@@ -131,7 +132,8 @@ describe('bindScopedIdentity', () => {
 
   it('并发首次绑定时以事务内已存在的绑定为准', async () => {
     const repository = {
-      find: vi.fn()
+      find: vi
+        .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([makeBinding({ kind: 'user', userId: 'user-a' })]),
       create: vi.fn()
@@ -139,8 +141,10 @@ describe('bindScopedIdentity', () => {
     const remoteAdapter = { syncIdentity: vi.fn(async () => ({ kind: 'user' as const, userId: 'user-a' })) };
     const sm = {
       rxdb: {
-        entityManager: { instantiate: (EntityType: typeof RxDBSyncIdentityBinding) =>
-          Object.create(EntityType.prototype) as RxDBSyncIdentityBinding },
+        entityManager: {
+          instantiate: (EntityType: typeof RxDBSyncIdentityBinding) =>
+            Object.create(EntityType.prototype) as RxDBSyncIdentityBinding
+        },
         syncState: { reportError: vi.fn() }
       },
       getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
