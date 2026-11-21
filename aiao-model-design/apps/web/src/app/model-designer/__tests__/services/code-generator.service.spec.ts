@@ -284,6 +284,103 @@ describe('CodeGeneratorService', () => {
       expect(result[0].name).toBe('User');
       expect(result[1].name).toBe('Post');
     });
+
+    it('uses empty maps and preserves entity ordering when data is missing', () => {
+      const entities = [makeEntity('e1', 'User'), makeEntity('e2', 'Post')];
+
+      const result = service.toAllMetadataOptions(entities, new Map(), new Map(), new Map());
+
+      expect(result.map(item => item.name)).toEqual(['User', 'Post']);
+      expect(result.every(item => item.properties?.length === 0)).toBe(true);
+    });
+  });
+
+  describe('client design contract and optional metadata', () => {
+    it('normalizes names and emits optional property and relation fields', () => {
+      const user = makeEntityFull('e1', 'UserProfile', { entityNamespace: 'Core', tableName: 'user_profiles' });
+      const post = makeEntityFull('e2', 'BlogPost');
+      const prop = {
+        ...makeProp('p1', 'DisplayName', 'string'),
+        columnName: 'display_name',
+        isRequired: true,
+        isNullable: true,
+        isUnique: true
+      } as unknown as DesignProperty;
+      const rel = {
+        ...makeRelation('r1', 'BlogPosts', 'ONE_TO_MANY', 'e2'),
+        mappedPropertyId: 'posts'
+      } as unknown as DesignRelation;
+
+      const result = service.toClientDesignContract(
+        [user, post],
+        new Map([['e1', [prop]]]),
+        new Map([['e1', [rel]]]),
+        { source: 'test' }
+      );
+
+      expect(result).toEqual({
+        entities: [
+          {
+            name: 'UserProfile',
+            namespace: 'core',
+            tableName: 'user_profiles',
+            properties: [
+              {
+                name: 'displayName',
+                columnName: 'display_name',
+                type: 'string',
+                required: true,
+                nullable: true,
+                unique: true
+              }
+            ],
+            relations: [
+              {
+                name: 'blogPosts',
+                kind: 'ONE_TO_MANY',
+                mappedEntity: 'BlogPost',
+                mappedProperty: 'posts'
+              }
+            ]
+          },
+          { name: 'BlogPost', properties: [], relations: [] }
+        ],
+        metadata: { source: 'test' }
+      });
+    });
+
+    it('handles missing relation targets and optional defaults', () => {
+      const entity = makeEntity('e1', 'User');
+      const relation = makeRelation('r1', 'unknownTarget', 'ONE_TO_ONE', 'missing');
+      const prop = {
+        ...makeProp('p1', 'settings', 'keyValue'),
+        isUnique: true,
+        isNullable: true,
+        isRequired: true,
+        isReadonly: true,
+        isSortable: true,
+        defaultValue: '{"enabled":true}',
+        columnName: 'settings',
+        displayName: 'Settings'
+      } as unknown as DesignProperty;
+      const index = makeIndex('i1', ['missing'], false);
+
+      const result = service.toMetadataOptions(entity, [prop], [relation], [index], [entity], new Map());
+      const generatedProperty = result.properties?.[0] as Record<string, unknown>;
+
+      expect(generatedProperty).toMatchObject({
+        unique: true,
+        nullable: true,
+        required: true,
+        readonly: true,
+        sortable: true,
+        default: { enabled: true },
+        columnName: 'settings',
+        displayName: 'Settings'
+      });
+      expect(result.relations?.[0]).toMatchObject({ mappedEntity: '', mappedProperty: undefined });
+      expect(result.indexes?.[0]).toEqual({ name: 'missing', properties: ['missing'], unique: undefined });
+    });
   });
 
   describe('generate', () => {
@@ -337,6 +434,19 @@ describe('CodeGeneratorService', () => {
       expect(createObjectURL).toHaveBeenCalled();
       expect(clickSpy).toHaveBeenCalled();
       expect(revokeObjectURL).toHaveBeenCalled();
+    });
+
+    it('creates zip blobs and keeps an existing zip suffix', async () => {
+      const blob = service.createZipBlob([
+        { path: 'index.js', content: 'export {}' },
+        { path: 'index.d.ts', content: 'export declare {}' }
+      ]);
+      expect(blob.type).toBe('application/zip');
+      expect(blob.size).toBeGreaterThan(0);
+
+      const downloadBlob = vi.spyOn(service, 'downloadBlob');
+      service.downloadZip([], 'model.zip');
+      expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), 'model.zip');
     });
   });
 });

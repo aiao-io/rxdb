@@ -16,7 +16,11 @@ vi.mock('@aiao/rxdb', () => ({
     computedProperties: [],
     relations: [{ name: 'parent', kind: 'm:1', columnName: 'parentId', displayName: 'Parent' }]
   },
-  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: { properties: [], computedProperties: [], relations: [] }
+  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: {
+    properties: [{ name: 'treeParentId', type: 'uuid', displayName: 'Tree Parent' }],
+    computedProperties: [],
+    relations: []
+  }
 }));
 
 import { EntityPanelComponent } from '../../../components/panels/entity-panel.component';
@@ -296,5 +300,254 @@ describe('EntityPanelComponent relation errors', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Relation must specify mappedEntityId');
+  });
+});
+
+describe('EntityPanelComponent direct edits', () => {
+  it('emits entity metadata changes and debounces repeated saves', () => {
+    const fixture = setup();
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      displayName: null,
+      tableName: null,
+      entityNamespace: null,
+      extendsBase: 'EntityBase'
+    });
+    fixture.detectChanges();
+    const changes: unknown[] = [];
+    fixture.componentInstance.entityUpdated.subscribe(value => changes.push(value));
+    const form = fixture.componentInstance.entityForm;
+    form.name().value.set('Invoice');
+    form.displayName().value.set('Invoices');
+    form.tableName().value.set('invoices');
+    form.entityNamespace().value.set('billing');
+    form.extendsBase().value.set('TreeEntityBase');
+
+    fixture.componentInstance.emitEntityChanges();
+    expect(changes).toEqual([
+      {
+        name: 'Invoice',
+        displayName: 'Invoices',
+        tableName: 'invoices',
+        extendsBase: 'TreeEntityBase',
+        repositoryType: 'TreeRepository',
+        entityNamespace: 'billing'
+      }
+    ]);
+
+    vi.useFakeTimers();
+    form.displayName().value.set('Invoice records');
+    fixture.componentInstance.emitEntityChangesDebounced();
+    vi.advanceTimersByTime(300);
+    vi.useRealTimers();
+    expect(changes).toHaveLength(2);
+  });
+
+  it('handles property, child property, and index reorder guards', () => {
+    const parentId = uid('p1');
+    const fixture = setup({
+      properties: [
+        { id: uid('p1'), name: 'first', propertyType: 'string', sortOrder: 'a0' },
+        { id: uid('p2'), name: 'second', propertyType: 'string', sortOrder: 'a2' }
+      ],
+      childPropertiesMap: new Map([
+        [parentId, [
+          { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
+          { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
+        ]]
+      ]),
+      indexes: [
+        { id: uid('i1'), propertyIds: [uid('p1')], sortOrder: 'a0' },
+        { id: uid('i2'), propertyIds: [uid('p2')], sortOrder: 'a2' }
+      ]
+    });
+    const propertyUpdated: unknown[] = [];
+    const childUpdated: unknown[] = [];
+    const indexUpdated: unknown[] = [];
+    fixture.componentInstance.propertyUpdated.subscribe(value => propertyUpdated.push(value));
+    fixture.componentInstance.childPropertyUpdated.subscribe(value => childUpdated.push(value));
+    fixture.componentInstance.indexUpdated.subscribe(value => indexUpdated.push(value));
+
+    fixture.componentInstance.onPropertyDrop({ previousIndex: 0, currentIndex: 0 } as never);
+    fixture.componentInstance.onPropertyDrop({ previousIndex: 4, currentIndex: 0 } as never);
+    fixture.componentInstance.onPropertyDrop({ previousIndex: 0, currentIndex: 1 } as never);
+    fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 0, currentIndex: 0 } as never);
+    fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 3, currentIndex: 0 } as never);
+    fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 0, currentIndex: 1 } as never);
+    fixture.componentInstance.onIndexDrop({ previousIndex: 0, currentIndex: 0 } as never);
+    fixture.componentInstance.onIndexDrop({ previousIndex: 3, currentIndex: 0 } as never);
+    fixture.componentInstance.onIndexDrop({ previousIndex: 0, currentIndex: 1 } as never);
+
+    expect(propertyUpdated).toHaveLength(1);
+    expect(propertyUpdated[0]).toEqual({ id: uid('p1'), changes: { sortOrder: expect.any(String) } });
+    expect(childUpdated).toHaveLength(1);
+    expect(childUpdated[0]).toEqual({ id: uid('c1'), changes: { sortOrder: expect.any(String) } });
+    expect(indexUpdated).toHaveLength(1);
+    expect(indexUpdated[0]).toEqual({ id: uid('i1'), changes: { sortOrder: expect.any(String) } });
+  });
+
+  it('covers computed index state and item/group toggles', () => {
+    const fixture = setup({
+      properties: [{ id: uid('p1'), name: 'status', propertyType: 'string' }],
+      indexes: [
+        { id: uid('i1'), propertyIds: [uid('p1'), 'id'] },
+        { id: uid('i2'), propertyIds: ['id', uid('p1')] },
+        { id: uid('i3'), propertyIds: [] }
+      ]
+    });
+    const component = fixture.componentInstance;
+
+    expect(component.duplicateIndexIds()).toEqual(new Set([uid('i1'), uid('i2')]));
+    expect(component.emptyIndexIds()).toEqual(new Set([uid('i3')]));
+    expect(component.canAddIndex()).toBe(true);
+    expect(component.propertyCount()).toBeGreaterThan(0);
+    expect(component.metaSummary()).toBe('EntityBase');
+
+    component.toggleGroup('EntityBase');
+    expect(component.expandedGroups()).toEqual(new Set(['EntityBase']));
+    component.toggleGroup('EntityBase');
+    expect(component.expandedGroups()).toEqual(new Set());
+    component.toggleItemExpand('i1');
+    expect(component.expandedItemId()).toBe('i1');
+    component.toggleItemExpand('i1');
+    expect(component.expandedItemId()).toBeNull();
+    component.toggleMeta();
+    expect(component.metaExpanded()).toBe(true);
+    component.toggleMeta();
+    expect(component.metaExpanded()).toBe(false);
+
+    const closed = vi.fn();
+    component.closed.subscribe(closed);
+    component.onPanelEscape();
+    expect(closed).toHaveBeenCalledOnce();
+    component.toggleMeta();
+    component.onPanelEscape();
+    expect(closed).toHaveBeenCalledOnce();
+    expect(component.metaExpanded()).toBe(false);
+  });
+
+  it('adds an index from inherited properties when no custom property exists', () => {
+    const fixture = setup();
+    const added = vi.fn();
+    fixture.componentInstance.indexAdded.subscribe(added);
+    fixture.componentInstance.addIndex();
+    expect(added).toHaveBeenCalledWith({ propertyIds: ['id'], isUnique: false });
+    expect(fixture.componentInstance.canAddIndex()).toBe(true);
+  });
+});
+
+
+describe('EntityPanelComponent branch coverage', () => {
+  it('covers metadata no-op and invalid-field guards', () => {
+    const fixture = setup();
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      displayName: null,
+      tableName: null,
+      entityNamespace: null,
+      extendsBase: 'EntityBase'
+    });
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const updates: unknown[] = [];
+    component.entityUpdated.subscribe(value => updates.push(value));
+
+    component.emitEntityChanges();
+    expect(updates).toHaveLength(0);
+
+    component.entityForm.name().value.set('bad name');
+    component.entityForm.tableName().value.set('bad table');
+    component.emitEntityChanges();
+    expect(updates).toHaveLength(0);
+    expect(component.entityForm.name().invalid()).toBe(true);
+    expect(component.entityForm.tableName().invalid()).toBe(true);
+
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      extendsBase: '',
+      tableName: 'orders',
+      entityNamespace: 'billing'
+    });
+    fixture.detectChanges();
+    expect(component.metaSummary()).toBe('EntityBase · orders · billing');
+    expect(component.currentExtendsBase()).toBe('EntityBase');
+  });
+
+  it('covers pending add effects when the parent has not supplied new ids yet', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+
+    component.addProperty();
+    component.addRelationFromFooter();
+    component.addIndex();
+    component.addChildProperty(uid('missing-parent'));
+    fixture.detectChanges();
+    TestBed.flushEffects();
+
+    expect(component.focusPropertyId()).toBeNull();
+    expect(component.focusRelationId()).toBeNull();
+    expect(component.expandedItemId()).toBeNull();
+    expect(component.focusChildPropertyId()).toBeNull();
+  });
+
+  it('clears stale indexes when a tree base is removed', () => {
+    const staleIndexId = uid('stale-index');
+    const fixture = setup({ indexes: [{ id: staleIndexId, propertyIds: ['treeParentId'] }] });
+    fixture.componentRef.setInput('entity', {
+      id: uid('e1'),
+      name: 'Order',
+      extendsBase: 'TreeEntityBase'
+    });
+    fixture.detectChanges();
+
+    const deleted = vi.fn();
+    fixture.componentInstance.indexesDeleteBatch.subscribe(deleted);
+    fixture.componentInstance.entityForm.extendsBase().value.set('EntityBase');
+    fixture.componentInstance.emitEntityChanges();
+
+    expect(deleted).toHaveBeenCalledWith([staleIndexId]);
+  });
+
+  it('covers the leading edge of each reorder handler and debounce replacement', () => {
+    const parentId = uid('parent');
+    const fixture = setup({
+      properties: [
+        { id: uid('p1'), name: 'first', propertyType: 'string', sortOrder: 'a0' },
+        { id: uid('p2'), name: 'second', propertyType: 'string', sortOrder: 'a2' }
+      ],
+      childPropertiesMap: new Map([
+        [parentId, [
+          { id: uid('c1'), name: 'firstChild', propertyType: 'string', sortOrder: 'a0' },
+          { id: uid('c2'), name: 'secondChild', propertyType: 'string', sortOrder: 'a2' }
+        ]]
+      ]),
+      indexes: [
+        { id: uid('i1'), propertyIds: [uid('p1')], sortOrder: 'a0' },
+        { id: uid('i2'), propertyIds: [uid('p2')], sortOrder: 'a2' }
+      ]
+    });
+    const propertyUpdated: unknown[] = [];
+    const childUpdated: unknown[] = [];
+    const indexUpdated: unknown[] = [];
+    fixture.componentInstance.propertyUpdated.subscribe(value => propertyUpdated.push(value));
+    fixture.componentInstance.childPropertyUpdated.subscribe(value => childUpdated.push(value));
+    fixture.componentInstance.indexUpdated.subscribe(value => indexUpdated.push(value));
+
+    fixture.componentInstance.onPropertyDrop({ previousIndex: 1, currentIndex: 0 } as never);
+    fixture.componentInstance.onChildPropertyDrop(parentId, { previousIndex: 1, currentIndex: 0 } as never);
+    fixture.componentInstance.onIndexDrop({ previousIndex: 1, currentIndex: 0 } as never);
+
+    vi.useFakeTimers();
+    fixture.componentInstance.emitEntityChangesDebounced();
+    fixture.componentInstance.emitEntityChangesDebounced();
+    vi.advanceTimersByTime(300);
+    vi.useRealTimers();
+
+    expect(propertyUpdated).toHaveLength(1);
+    expect(childUpdated).toHaveLength(1);
+    expect(indexUpdated).toHaveLength(1);
   });
 });

@@ -195,4 +195,74 @@ describe('TableShellPage behavior', () => {
     });
     expect(state.onIndexAdded).toHaveBeenCalledWith({ entityId: 'e1', propertyIds: ['p1'], isUnique: false });
   });
+
+  it('keeps empty route state inert and does not navigate when no entity is selected', async () => {
+    const { fixture, router, state } = await setupTableShell('');
+    const page = fixture.componentInstance;
+
+    expect(page.activeEntity()).toBeNull();
+    expect(page.propertiesCount()).toBe(0);
+    expect(page.relationsCount()).toBe(0);
+    expect(page.indexesCount()).toBe(0);
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    page.emitEntityChanges();
+    page.onAddProperty();
+    page.onAddRelation();
+    page.onAddIndex();
+    expect(state.onTableEntityUpdated).not.toHaveBeenCalled();
+    expect(state.onPropertyAdded).not.toHaveBeenCalled();
+    expect(state.onRelationAdded).not.toHaveBeenCalled();
+    expect(state.onIndexAdded).not.toHaveBeenCalled();
+  });
+
+  it('emits only valid entity metadata changes and supports clearing optional fields', async () => {
+    const { fixture, state } = await setupTableShell();
+    const page = fixture.componentInstance;
+
+    page.entityForm.name().value.set('bad-name');
+    page.entityForm.tableName().value.set('bad-table');
+    page.entityForm.displayName().value.set('Invoices');
+    page.entityForm.entityNamespace().value.set('');
+    page.emitEntityChanges();
+    expect(state.onTableEntityUpdated).toHaveBeenCalledWith({
+      id: 'e1',
+      changes: { displayName: 'Invoices', entityNamespace: null }
+    });
+
+    state.onTableEntityUpdated.mockClear();
+    page.entityForm.name().value.set('Order');
+    page.entityForm.tableName().value.set('');
+    page.entityForm.displayName().value.set('');
+    page.entityForm.entityNamespace().value.set('');
+    page.emitEntityChanges();
+    expect(state.onTableEntityUpdated).toHaveBeenCalledWith({
+      id: 'e1',
+      changes: { displayName: null, tableName: null, entityNamespace: null }
+    });
+  });
+
+  it('handles cancelled entity deletion and empty property maps', async () => {
+    const { fixture, state, router } = await setupTableShell();
+    const page = fixture.componentInstance;
+    state.onEntityDeleted.mockResolvedValue(false);
+
+    await page.onEntityDelete('e1');
+    expect(router.navigate).not.toHaveBeenCalledWith(['model-designer', 'canvas']);
+
+    state.propertiesMap.set(new Map());
+    state.relationsMap.set(new Map());
+    state.indexesMap.set(new Map());
+    page.onAddProperty();
+    page.onAddRelation();
+    page.onAddIndex();
+    expect(state.onPropertyAdded).toHaveBeenCalledWith({ entityId: 'e1', name: 'newProperty', type: 'string' });
+    expect(state.onRelationAdded).toHaveBeenCalledWith({
+      entityId: 'e1',
+      name: 'newRelation1',
+      kind: 'ONE_TO_MANY',
+      targetEntity: ''
+    });
+    expect(state.onIndexAdded).toHaveBeenCalledWith({ entityId: 'e1', propertyIds: [], isUnique: false });
+  });
 });

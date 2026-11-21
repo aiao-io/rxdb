@@ -17,6 +17,7 @@ vi.mock('@aiao/rxdb', () => ({
 
 import { RelationItemComponent } from '../../../components/panels/relation-item.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
+import type { DesignRelation } from '../../../models/index.js';
 
 function setup() {
   TestBed.configureTestingModule({
@@ -109,5 +110,120 @@ describe('RelationItemComponent autoFocus', () => {
     const input = fixture.nativeElement.querySelector('[data-testid="relation-name-input"]') as HTMLInputElement;
     expect(document.activeElement).not.toBe(input);
     document.body.removeChild(fixture.nativeElement);
+  });
+});
+
+describe('RelationItemComponent changes and state', () => {
+  it('emits every valid relation field change', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+    const updated = vi.fn();
+    component.updated.subscribe(updated);
+    fixture.componentRef.setInput('expanded', true);
+    fixture.componentRef.setInput('allRelations', [
+      {
+        id: 'r2',
+        name: 'customerOrders',
+        relationKind: 'MANY_TO_ONE',
+        mappedEntityId: 'e2',
+        designEntityId: 'e2'
+      } as DesignRelation
+    ]);
+    fixture.detectChanges();
+
+    const form = component.relationForm;
+    form.name().value.set('customerOrders');
+    form.displayName().value.set('Customer orders');
+    form.relationKind().value.set('MANY_TO_MANY');
+    form.mappedEntityId().value.set('e2');
+    form.columnName().value.set('customer_id');
+    form.mappedPropertyId().value.set('r2');
+    form.onDeleteAction().value.set('CASCADE');
+    form.onUpdateAction().value.set('RESTRICT');
+
+    component.emitChanges();
+
+    expect(updated).toHaveBeenCalledWith({
+      name: 'customerOrders',
+      displayName: 'Customer orders',
+      relationKind: 'MANY_TO_MANY',
+      columnName: 'customer_id',
+      mappedPropertyId: 'r2',
+      onDeleteAction: 'CASCADE',
+      onUpdateAction: 'RESTRICT'
+    });
+    expect(component.isManyToMany()).toBe(true);
+    expect(component.targetRelations().map(relation => relation.id)).toEqual(['r2']);
+  });
+
+  it('emits null when optional relation fields are cleared', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+    const updated = vi.fn();
+    component.updated.subscribe(updated);
+    fixture.componentRef.setInput('relation', {
+      id: 'r1',
+      name: 'orders',
+      relationKind: 'ONE_TO_MANY',
+      mappedEntityId: 'e2',
+      displayName: 'Orders',
+      columnName: 'customer_id',
+      mappedPropertyId: 'p1',
+      onDeleteAction: 'CASCADE',
+      onUpdateAction: 'RESTRICT'
+    } as DesignRelation);
+    fixture.detectChanges();
+
+    const form = component.relationForm;
+    form.displayName().value.set('');
+    form.mappedEntityId().value.set('');
+    form.columnName().value.set('');
+    form.mappedPropertyId().value.set('');
+    form.onDeleteAction().value.set('NO_ACTION');
+    form.onUpdateAction().value.set('NO_ACTION');
+    component.emitChanges();
+
+    expect(updated).toHaveBeenCalledWith({
+      displayName: null,
+      mappedEntityId: null,
+      columnName: null,
+      mappedPropertyId: null,
+      onDeleteAction: 'NO_ACTION',
+      onUpdateAction: 'NO_ACTION'
+    });
+  });
+
+  it('skips invalid column names and emits no event when nothing changes', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+    const updated = vi.fn();
+    component.updated.subscribe(updated);
+
+    component.emitChanges();
+    expect(updated).not.toHaveBeenCalled();
+
+    component.relationForm.columnName().value.set('bad-column');
+    component.relationForm.displayName().value.set('Customer');
+    component.emitChanges();
+    expect(updated).toHaveBeenCalledWith({ displayName: 'Customer' });
+  });
+
+  it('handles detail and deletion outputs and unknown relation kinds', () => {
+    const fixture = setup();
+    const component = fixture.componentInstance;
+    const toggled = vi.fn();
+    const deleted = vi.fn();
+    component.expandToggled.subscribe(toggled);
+    component.deleted.subscribe(deleted);
+
+    component.toggleDetails();
+    expect(toggled).toHaveBeenCalledOnce();
+    expect(component.kindLabel('UNKNOWN')).toBe('UNKNOWN');
+
+    fixture.componentRef.setInput('expanded', true);
+    fixture.detectChanges();
+    const deleteButton = fixture.nativeElement.querySelector('button[aria-label="Delete relation"]') as HTMLButtonElement;
+    deleteButton.click();
+    expect(deleted).toHaveBeenCalledOnce();
   });
 });

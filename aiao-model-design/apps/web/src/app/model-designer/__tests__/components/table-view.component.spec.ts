@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { CellChangeEvent, EntityTableRecord, BatchChangeItem } from '@aiao/rxdb-model-angular';
 import { describe, expect, it, vi } from 'vitest';
+import { generateKeysBetween } from '@aiao/utils';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { TableViewComponent } from '../../components/table/table-view.component';
@@ -332,5 +333,129 @@ describe('TableViewComponent', () => {
     fixture.detectChanges();
     expect(view.activeEntity()).toBeNull();
     expect(view.tableRecords()).toEqual([]);
+  });
+
+  it('returns empty derived data when the active entity cannot be resolved', () => {
+    const fixture = setup({ activeEntityId: 'missing' });
+    const view = fixture.componentInstance;
+
+    expect(view.activeEntity()).toBeNull();
+    expect(view.activeEntityProperties()).toEqual([]);
+    expect(view.activeEntityRelations()).toEqual([]);
+    expect(view.activeEntityIndexes()).toEqual([]);
+    expect(view.tableRecords()).toEqual([]);
+    expect(view.dropdownOptions().entities).toHaveLength(2);
+  });
+
+  it('tracks property validation errors through cell changes', () => {
+    const prop = property('p1', 'status');
+    const fixture = setup({ properties: [prop] });
+    const view = fixture.componentInstance;
+    const updated = vi.fn();
+    view.propertyUpdated.subscribe(updated);
+    const propRecord = record({ _propId: prop.id, _readonly: false });
+
+    view.onCellChanged(cell({ record: propRecord, field: 'name', value: 'bad-name' }));
+    expect(view.cellErrorDetector()(propRecord, 'name')).toContain(DEFAULT_TRANSLATIONS.validation.propertyNameHint);
+    view.onCellChanged(cell({ record: propRecord, field: 'columnName', value: 'bad-column' }));
+    expect(view.cellErrorDetector()(propRecord, 'columnName')).toContain(DEFAULT_TRANSLATIONS.validation.columnNameHint);
+
+    view.onCellChanged(cell({ record: propRecord, field: 'name', value: 'validName' }));
+    view.onCellChanged(cell({ record: propRecord, field: 'columnName', value: '' }));
+    expect(view.cellErrorDetector()(propRecord, 'name')).toBeNull();
+    expect(view.cellErrorDetector()(propRecord, 'columnName')).toBeNull();
+    expect(updated).toHaveBeenCalledTimes(4);
+  });
+
+  it('handles add-row validation and all row event guard clauses', () => {
+    const prop = property('p1', 'metadata', { propertyType: 'keyValue' });
+    const fixture = setup({ properties: [prop] });
+    const view = fixture.componentInstance;
+    const propertyAdded = vi.fn();
+    const propertyDeleted = vi.fn();
+    const childAdded = vi.fn();
+    view.propertyAdded.subscribe(propertyAdded);
+    view.propertyDeleted.subscribe(propertyDeleted);
+    view.childPropertyAdded.subscribe(childAdded);
+
+    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '   ' }));
+    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: 'bad-name' }));
+    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'displayName', value: 'ignored' }));
+    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '  amount  ' }));
+    expect(propertyAdded).toHaveBeenCalledWith({ entityId: id('e1'), name: 'amount', type: 'number' });
+
+    view.onRowDeleted(record({}));
+    view.onRowDeleted(record({ _propId: prop.id, _readonly: true }));
+    fixture.componentRef.setInput('detailTab', 'relations');
+    fixture.detectChanges();
+    view.onRowDeleted(record({}));
+    view.onRowDeleted(record({ _relId: id('r1'), _readonly: true }));
+    fixture.componentRef.setInput('detailTab', 'indexes');
+    fixture.detectChanges();
+    view.onRowDeleted(record({}));
+    expect(propertyDeleted).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('detailTab', 'properties');
+    fixture.detectChanges();
+    view.onIconClicked({ name: 'other', record: record({ _propId: prop.id, _readonly: false }) });
+    view.onIconClicked({ name: 'add-child-action', record: record({ _readonly: false }) });
+    view.onIconClicked({ name: 'add-child-action', record: record({ _propId: prop.id, _readonly: true }) });
+    fixture.componentRef.setInput('activeEntityId', null);
+    fixture.detectChanges();
+    view.onIconClicked({ name: 'add-child-action', record: record({ _propId: prop.id, _readonly: false }) });
+    expect(childAdded).not.toHaveBeenCalled();
+  });
+
+  it('ignores empty, readonly, unchanged, and unknown paste mutations', () => {
+    const prop = property('p1', 'status', { propertyType: 'enum', enumValues: ['draft'] });
+    const relationValue = relation('r1', 'customer', 'e1', { mappedEntityId: id('e2') });
+    const idx = index('i1', 'e1');
+    const fixture = setup({ properties: [prop], relations: [relationValue], indexes: [idx] });
+    const view = fixture.componentInstance;
+    const propertyBatch = vi.fn();
+    const relationBatch = vi.fn();
+    const indexBatch = vi.fn();
+    view.propertiesBatchUpdated.subscribe(propertyBatch);
+    view.relationsBatchUpdated.subscribe(relationBatch);
+    view.indexesBatchUpdated.subscribe(indexBatch);
+
+    view.onBatchUpdated([]);
+    view.onBatchUpdated([
+      { recordId: 'missing', changes: { name: 'ignored' } },
+      { recordId: '', changes: { name: 'ignored' } },
+      { recordId: prop.id, changes: { name: 'status', unknown: 'ignored', _propId: 'ignored' } }
+    ]);
+    expect(propertyBatch).not.toHaveBeenCalled();
+
+    fixture.componentRef.setInput('detailTab', 'relations');
+    fixture.detectChanges();
+    view.onBatchUpdated([
+      {
+        recordId: relationValue.id,
+        changes: { mappedEntityId: 'Missing', mappedPropertyId: 'orders', unknown: 'ignored' }
+      }
+    ]);
+    expect(relationBatch).toHaveBeenCalledWith([
+      { id: relationValue.id, changes: { mappedEntityId: null, mappedPropertyId: null } }
+    ]);
+
+    fixture.componentRef.setInput('detailTab', 'indexes');
+    fixture.detectChanges();
+    view.onBatchUpdated([{ recordId: idx.id, changes: { unknown: true } }]);
+    expect(indexBatch).not.toHaveBeenCalled();
+  });
+
+  it('does not emit reorder batches when there are no effective changes', () => {
+    const sortOrder = generateKeysBetween(null, null, 1)[0];
+    const prop = property('p1', 'status', { sortOrder });
+    const fixture = setup({ properties: [prop] });
+    const batch = vi.fn();
+    fixture.componentInstance.propertiesBatchUpdated.subscribe(batch);
+
+    fixture.componentInstance.onRowReordered([]);
+    fixture.componentInstance.onRowReordered([id('missing')]);
+    fixture.componentInstance.onRowReordered([prop.id]);
+
+    expect(batch).not.toHaveBeenCalled();
   });
 });

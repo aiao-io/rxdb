@@ -103,6 +103,7 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
   let downloadBlobSpy: ReturnType<typeof vi.fn>;
   let validateModelSpy: ReturnType<typeof vi.fn>;
   let validateEntityIdentitySpy: ReturnType<typeof vi.fn>;
+  let activeDesignSignal: WritableSignal<{ name: string; description?: string | null } | null>;
 
   beforeEach(() => {
     confirmDialog = { confirm: vi.fn().mockResolvedValue(true) };
@@ -161,6 +162,10 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
     }));
 
     validateEntityIdentitySpy = vi.fn().mockReturnValue({ valid: true, errors: [] });
+    activeDesignSignal = signal<{ name: string; description?: string | null } | null>({
+      name: 'Blog',
+      description: 'Blog model'
+    });
 
     TestBed.configureTestingModule({
       providers: [
@@ -240,7 +245,7 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
         {
           provide: ModelDesignService,
           useValue: {
-            activeDesign: () => ({ name: 'Blog', description: 'Blog model' }),
+            activeDesign: () => activeDesignSignal(),
             activeDesignId: () => 'design-1',
             queryError: signal<string | null>(null)
           }
@@ -663,8 +668,8 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
     });
 
     it('客户端包归档或发布失败时保留错误并释放 busy 状态', async () => {
-      archivePackageSpy.mockRejectedValueOnce(new Error('archive unavailable'));
-      publishPackageSpy.mockRejectedValueOnce('publish unavailable');
+      archivePackageSpy.mockRejectedValueOnce('archive unavailable');
+      publishPackageSpy.mockRejectedValueOnce(new Error('publish unavailable'));
 
       await service.onArchiveClientPackage();
       expect(service.lastError()).toContain('archive unavailable');
@@ -673,6 +678,286 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
       await service.onPublishClientPackage();
       expect(service.lastError()).toContain('publish unavailable');
       expect(service.clientPackageBusy()).toBe(false);
+
+      archivePackageSpy.mockRejectedValueOnce(new Error('archive error object'));
+      publishPackageSpy.mockRejectedValueOnce('publish error string');
+      await service.onArchiveClientPackage();
+      await service.onPublishClientPackage();
+      expect(service.lastError()).toContain('publish error string');
+      expect(service.clientPackageBusy()).toBe(false);
     });
+  });
+});
+
+
+describe('DesignerStateService — 空目标、可选数据和计算状态', () => {
+  let service: DesignerStateService;
+  let entityCreateSpy: ReturnType<typeof vi.fn>;
+  let propertyCreateSpy: ReturnType<typeof vi.fn>;
+  let relationCreateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateSpy: ReturnType<typeof vi.fn>;
+  let indexCreateSpy: ReturnType<typeof vi.fn>;
+  let entitiesSignal: WritableSignal<unknown[]>;
+  let selectedEntityIdsSignal: WritableSignal<Set<string>>;
+  let activeDesignSignal: WritableSignal<{ name: string; description?: string | null } | null>;
+  let modelQueryError: WritableSignal<string | null>;
+  let entityQueryError: WritableSignal<string | null>;
+  let propertyQueryError: WritableSignal<string | null>;
+  let relationQueryError: WritableSignal<string | null>;
+  let indexQueryError: WritableSignal<string | null>;
+
+  beforeEach(() => {
+    entityCreateSpy = vi.fn().mockResolvedValue({ id: 'new-entity' });
+    propertyCreateSpy = vi.fn().mockResolvedValue(undefined);
+    relationCreateSpy = vi.fn().mockResolvedValue({ id: 'r-new', name: 'createdRelation' });
+    relationUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    indexCreateSpy = vi.fn().mockResolvedValue(undefined);
+    entitiesSignal = signal<unknown[]>([]);
+    selectedEntityIdsSignal = signal(new Set<string>());
+    activeDesignSignal = signal<{ name: string; description?: string | null } | null>({
+      name: 'Blog',
+      description: 'Blog model'
+    });
+    modelQueryError = signal<string | null>(null);
+    entityQueryError = signal<string | null>(null);
+    propertyQueryError = signal<string | null>(null);
+    relationQueryError = signal<string | null>(null);
+    indexQueryError = signal<string | null>(null);
+
+    TestBed.configureTestingModule({
+      providers: [
+        DesignerStateService,
+        {
+          provide: ConfirmDialogService,
+          useValue: { confirm: vi.fn().mockResolvedValue(true) }
+        },
+        {
+          provide: DesignEntityService,
+          useValue: {
+            entities: entitiesSignal,
+            selectedEntityIds: selectedEntityIdsSignal,
+            create: entityCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            removeMany: vi.fn().mockResolvedValue(undefined),
+            clearSelection: vi.fn(),
+            selectOne: vi.fn(),
+            toggleSelect: vi.fn(),
+            selectMany: vi.fn(),
+            updatePosition: vi.fn().mockResolvedValue(undefined),
+            updatePositionsBatch: vi.fn().mockResolvedValue(undefined),
+            updateWidth: vi.fn().mockResolvedValue(undefined),
+            queryError: entityQueryError
+          }
+        },
+        {
+          provide: DesignRelationService,
+          useValue: {
+            allRelations: signal([]),
+            relationsOf: () => () => [],
+            remove: vi.fn().mockResolvedValue(undefined),
+            createLinkedPair: vi.fn().mockResolvedValue({ source: { id: 'r1' }, inverse: { id: 'r2' } }),
+            findByTargetEntity: vi.fn().mockReturnValue([]),
+            create: relationCreateSpy,
+            update: relationUpdateSpy,
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            queryError: relationQueryError
+          }
+        },
+        {
+          provide: DesignPropertyService,
+          useValue: {
+            propertiesOf: () => () => [],
+            childPropertiesOf: () => () => [],
+            create: propertyCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            remove: vi.fn().mockResolvedValue(undefined),
+            queryError: propertyQueryError
+          }
+        },
+        {
+          provide: DesignIndexService,
+          useValue: {
+            indexesOf: () => () => [],
+            remove: vi.fn().mockResolvedValue(undefined),
+            create: indexCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            queryError: indexQueryError
+          }
+        },
+        {
+          provide: CodeGeneratorService,
+          useValue: {
+            toClientDesignContract: vi.fn(() => ({ entities: [], metadata: { designName: 'Blog' } })),
+            toAllMetadataOptions: vi.fn(() => []),
+            generate: vi.fn(() => ({ files: [], errors: [] })),
+            downloadBlob: vi.fn(),
+            downloadZip: vi.fn()
+          }
+        },
+        {
+          provide: CLIENT_PACKAGE_ADAPTER,
+          useValue: {
+            archive: vi.fn().mockResolvedValue({
+              blob: new Blob(['tgz']),
+              version: '1.0.0',
+              filename: 'model.tgz'
+            }),
+            publish: vi.fn().mockResolvedValue({ version: '1.0.0' })
+          }
+        },
+        {
+          provide: ModelValidatorService,
+          useValue: {
+            validateModel: vi.fn(() => ({
+              valid: true,
+              entityErrors: new Map(),
+              propertyErrors: new Map(),
+              relationErrors: new Map(),
+              globalErrors: []
+            })),
+            validateEntityIdentity: vi.fn().mockReturnValue({ valid: true, errors: [] })
+          }
+        },
+        { provide: AiOperationGuardService, useValue: {} },
+        {
+          provide: ModelDesignService,
+          useValue: {
+            activeDesign: () => activeDesignSignal(),
+            activeDesignId: () => 'design-1',
+            queryError: modelQueryError
+          }
+        },
+        {
+          provide: RxDB,
+          useValue: {
+            versionManager: {
+              history: () => ({ undoCount$: of(0), redoCount$: of(0), undo: vi.fn(), redo: vi.fn() })
+            }
+          }
+        }
+      ]
+    });
+
+    service = TestBed.inject(DesignerStateService);
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('covers empty targets and relation target/name branches', async () => {
+    await service.onPropertyAdded({ name: 'title', type: 'string' });
+    await service.onChildPropertyAdded({ parentPropertyId: 'meta', name: 'owner', type: 'string' });
+    await service.onRelationAdded({ name: 'ignored', kind: 'MANY_TO_ONE', targetEntity: '' });
+    await service.onIndexAdded({ propertyIds: ['p1'], isUnique: false });
+
+    expect(propertyCreateSpy).not.toHaveBeenCalled();
+    expect(relationCreateSpy).not.toHaveBeenCalled();
+    expect(indexCreateSpy).not.toHaveBeenCalled();
+
+    entitiesSignal.set([
+      { id: 'e1', name: 'Order' },
+      { id: 'e2', name: 'Customer' }
+    ]);
+    selectedEntityIdsSignal.set(new Set(['e1']));
+
+    await service.onRelationAdded({ name: 'createdRelation', kind: 'MANY_TO_ONE', targetEntity: '' });
+    await service.onRelationAdded({ name: 'buyer', kind: 'MANY_TO_ONE', targetEntity: 'Missing' });
+
+    expect(relationCreateSpy).toHaveBeenNthCalledWith(1, 'e1', null, 'MANY_TO_ONE');
+    expect(relationCreateSpy).toHaveBeenNthCalledWith(2, 'e1', null, 'MANY_TO_ONE');
+    expect(relationUpdateSpy).toHaveBeenCalledWith('r-new', { name: 'buyer' });
+  });
+
+  it('covers service errors and computed selection/package states', async () => {
+    entityCreateSpy.mockRejectedValueOnce(new Error('create failed'));
+    await service.onAddEntity('shop');
+    expect(service.lastError()).toBe('Create entity failed: create failed');
+
+    expect(service.selectedEntityId()).toBeNull();
+    expect(service.selectedEntityProperties()).toEqual([]);
+    expect(service.selectedEntityRelations()).toEqual([]);
+    expect(service.selectedEntityIndexes()).toEqual([]);
+
+    entitiesSignal.set([{ id: 'e1', name: 'Order' }]);
+    selectedEntityIdsSignal.set(new Set(['e1']));
+    expect(service.selectedEntityId()).toBe('e1');
+    expect(service.selectedEntityProperties()).toEqual([]);
+    expect(service.selectedEntityRelations()).toEqual([]);
+    expect(service.selectedEntityIndexes()).toEqual([]);
+  });
+
+  it('covers client package availability predicates and fallback design metadata', async () => {
+    expect(service.canArchiveClientPackage()).toBe(false);
+    service.generatedFiles.set([{ path: 'index.js', content: '' }]);
+    expect(service.canArchiveClientPackage()).toBe(false);
+    service.generatedFiles.set([
+      { path: 'index.js', content: '' },
+      { path: 'index.d.ts', content: '' }
+    ]);
+    expect(service.canArchiveClientPackage()).toBe(true);
+    service.clientPackageBusy.set(true);
+    expect(service.canPublishClientPackage()).toBe(false);
+    service.clientPackageBusy.set(false);
+
+    activeDesignSignal.set(null);
+    expect(service.activeDesignName()).toBe('');
+    expect(service.clientPackageName()).toBe('@aiao/model-rxdb');
+    await service.onArchiveClientPackage();
+    service.onGenerateSql();
+    expect(service.generatedFiles()[0]?.path).toBe('model.sql');
+    service.generatedFiles.set([]);
+    service.onDownloadZip();
+
+    activeDesignSignal.set({ name: '', description: null });
+    service.generatedFiles.set([{ path: 'index.js', content: '' }]);
+    service.onDownloadZip();
+    expect(service.generatedFiles()).toHaveLength(1);
+  });
+
+  it('covers query error precedence and dismissibility', () => {
+    expect(service.bannerError()).toBeNull();
+    expect(service.bannerDismissible()).toBe(true);
+
+    service.lastError.set('operation failed');
+    expect(service.bannerError()).toBe('operation failed');
+
+    const errors = [modelQueryError, entityQueryError, propertyQueryError, relationQueryError, indexQueryError];
+    for (const [index, error] of errors.entries()) {
+      error.set(`query-${index}`);
+      expect(service.queryError()).toBe(`query-${index}`);
+      expect(service.bannerError()).toBe(`query-${index}`);
+      expect(service.bannerDismissible()).toBe(false);
+      error.set(null);
+    }
+  });
+
+  it('covers keyValue maps and SQL index propertyId fallbacks', () => {
+    const propertyService = service.propertyService as unknown as {
+      propertiesOf: (id: string) => () => Array<{ id: string; propertyType: string }>;
+      childPropertiesOf: (id: string) => () => Array<unknown>;
+    };
+    propertyService.propertiesOf = (id: string) => () =>
+      id === 'e1'
+        ? [
+            { id: 'key-value', name: 'metadata', propertyType: 'keyValue' },
+            { id: 'title', name: 'title', propertyType: 'string' }
+          ]
+        : [];
+    propertyService.childPropertiesOf = () => () => [];
+    entitiesSignal.set([{ id: 'e1', name: 'Order' }]);
+    expect(service.childPropertiesMap().has('key-value')).toBe(true);
+
+    const indexService = service.indexService as unknown as {
+      indexesOf: (id: string) => () => Array<{ id: string; propertyIds?: string[] }>;
+    };
+    indexService.indexesOf = () => () => [
+      { id: 'i1', propertyIds: undefined },
+      { id: 'i2', propertyIds: ['title'] }
+    ];
+    service.onGenerateSql();
+    expect(service.generatedFiles()[0]?.path).toBe('Blog.sql');
   });
 });
