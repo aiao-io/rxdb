@@ -1,0 +1,44 @@
+{
+  "browser": "156.0.8078.4",
+  "generatedAt": "2026-11-02T11:50:10.689Z",
+  "node": "v26.12.0",
+  "pnpm": "12.16.1",
+  "templates": [
+    {
+      "template": "vanilla",
+      "status": "passed",
+      "lockSHA256": "f4ab7b26625faa037741006b77d777adc698501768a816d507e41d6c96d8501e",
+      "packageSHA256": "1651336ac6bade070e89b8587f4c122abb9cdc61c4047b8d3c158f17bbd60458",
+      "installMs": 109,
+      "buildMs": 1716,
+      "browserInteraction": "次数 1"
+    },
+    {
+      "template": "react",
+      "status": "passed",
+      "lockSHA256": "7f07008118c1c17313de959efdcfda42f860fa8a48a9c97e0ceb8e106a426c1d",
+      "packageSHA256": "79a95364627b4d70160ce82cdeb82a10fed1406073ef76dc25df94e3049fa57e",
+      "installMs": 89,
+      "buildMs": 1106,
+      "browserInteraction": "次数 1"
+    },
+    {
+      "template": "vue",
+      "status": "passed",
+      "lockSHA256": "83adcdac75ab2ec6658d162906699bbb56ef01e21c129650127b9ce8f807c7f1",
+      "packageSHA256": "7ea8603008d5e9a77a035d01b12a624d924a09e798a96c0e4d1ec874c95309e7",
+      "installMs": 109,
+      "buildMs": 1083,
+      "browserInteraction": "次数 1"
+    },
+    {
+      "template": "angular",
+      "status": "passed",
+      "lockSHA256": "1ac33e4ea4d4e0210071c40ee7dfe12dbecfe1e6e9a53f3a407909554afaa5ac",
+      "packageSHA256": "25df421a9c9ba02711a76e9d9211400d6c89ae969dd81b331449d0c891f33db0",
+      "installMs": 611,
+      "buildMs": 2747,
+      "browserInteraction": "Count: 1"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "format": "aiao-desktop.verify-saltline",
+  "version": 1,
+  "measuredAt": "2026-11-17T03:55:33.681Z",
+  "revision": "2a3e46183+workspace",
+  "environment": {
+    "channel": "chrome",
+    "headless": false,
+    "browser": "157.0.8103.52",
+    "node": "v26.12.0",
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max"
+  },
+  "artifacts": {
+    "index.html": "18815e77e3b7703604a1fe09415357e3d922e258295a31ed0514ac4a691f95b7",
+    "saltline.html": "c528909da746cb69518530b7fb6b48e857e44c708a405409267e2b3306829bca"
+  },
+  "checks": {
+    "titleReached": true,
+    "noGameErrors": true,
+    "crossOriginIsolated": true,
+    "hardwareRenderer": true,
+    "desktopResponsive": true,
+    "pointerLocked": false,
+    "playing": true,
+    "fpsNear60": true,
+    "escExitsLock": true,
+    "escPauses": true,
+    "completed": false
+  },
+  "timings": {
+    "bootToTitleMs": 4142,
+    "calculatorOpensMs": 125
+  },
+  "metrics": {
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)",
+    "pointerLockAttempts": [
+      {
+        "focused": true,
+        "connected": true,
+        "root": "#document",
+        "document": "http://127.0.0.1:62837/saltline.html",
+        "target": "CANVAS",
+        "result": "WrongDocumentError: The root document of this element is not valid for pointer lock."
+      }
+    ],
+    "fps": 81
+  },
+  "logs": [],
+  "failure": "page.waitForFunction: Timeout 30000ms exceeded."
+}

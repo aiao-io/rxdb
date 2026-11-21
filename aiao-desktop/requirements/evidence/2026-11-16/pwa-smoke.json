@@ -1,0 +1,89 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T09:06:50.316Z",
+  "source": {
+    "sha": "1111da18b600feb05f8c7328a0ee1b15ccc579d1",
+    "changes": "M ../../README.md\n M src/fixtures/artifact-server.mjs\n M src/groups/index.mjs\n M src/harness/runner.mjs\n M src/harness/session.mjs\n M ../web/project.json\n M ../web/public/_headers\n M ../web/src/app/app.config.ts\n M ../web/src/index.html\n M ../web/tools/serve-static.mjs\n M ../../requirements/README.md\n M ../../requirements/decisions.md\n M ../../requirements/epics/ADESK-EPIC-001.md\n M ../../requirements/status-overview.md\n?? src/groups/pwa.mjs\n?? ../web/ngsw-config.json\n?? ../web/public/icons/\n?? ../web/public/manifest.webmanifest\n?? ../web/tools/generate-pwa-icons.mjs\n?? ../../requirements/stories/platform/ADESK-US-009-pwa.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "d5c8f646673d6df7b8a9782160ff3b0f73060b200f2b27d22c70ac39010c373a"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "pwa"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 18.832453542,
+  "outcomes": [
+    {
+      "group": "pwa",
+      "result": {
+        "pwa": {
+          "manifest": true,
+          "workerControlsDesktop": true,
+          "installable": true,
+          "desktopPrecached": true,
+          "largeResourcesLazy": true,
+          "lazyResourceOffline": true,
+          "offlineReload": true,
+          "offlineIsolation": true,
+          "offlineFirstAppLaunch": true,
+          "offlineDataIntact": true,
+          "onlineRecovery": true,
+          "updateWaitsForReload": true,
+          "updatedAfterReload": true,
+          "dataSurvivesUpdate": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 18.783580999999998
+    }
+  ],
+  "checks": {
+    "pwa": {
+      "manifest": true,
+      "workerControlsDesktop": true,
+      "installable": true,
+      "desktopPrecached": true,
+      "largeResourcesLazy": true,
+      "lazyResourceOffline": true,
+      "offlineReload": true,
+      "offlineIsolation": true,
+      "offlineFirstAppLaunch": true,
+      "offlineDataIntact": true,
+      "onlineRecovery": true,
+      "updateWaitsForReload": true,
+      "updatedAfterReload": true,
+      "dataSurvivesUpdate": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

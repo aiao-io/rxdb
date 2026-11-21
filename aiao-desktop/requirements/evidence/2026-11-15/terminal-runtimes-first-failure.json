@@ -1,0 +1,147 @@
+{
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  },
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": false,
+      "python3": false,
+      "script": false,
+      "sharedDisk": false,
+      "pip": false,
+      "installedPackage": false,
+      "pipFreeze": false,
+      "numpyPandas": false,
+      "scipySklearn": false,
+      "pythonLibraries": false,
+      "pytest": false,
+      "black": false,
+      "mypy": false,
+      "ruff": false,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "nodeSqlite": true,
+      "bunSqlite": false
+    }
+  },
+  "clean": false,
+  "environment": {
+    "os": "darwin",
+    "release": "24.6.0",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz",
+    "node": "v26.13.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "format": "aiao-desktop.smoke",
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.python3",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.script",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.sharedDisk",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pip",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.installedPackage",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pipFreeze",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.numpyPandas",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.scipySklearn",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonLibraries",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pytest",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.black",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.mypy",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.ruff",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.bunSqlite"
+    ],
+    "stale": []
+  },
+  "measuredAt": "2026-11-15T11:53:04.324Z",
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": ["terminal-runtimes"],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "outcomes": [
+    {
+      "group": "terminal-runtimes",
+      "result": {
+        "terminalRuntimes": {
+          "lazy": true,
+          "python": false,
+          "python3": false,
+          "script": false,
+          "sharedDisk": false,
+          "pip": false,
+          "installedPackage": false,
+          "pipFreeze": false,
+          "numpyPandas": false,
+          "scipySklearn": false,
+          "pythonLibraries": false,
+          "pytest": false,
+          "black": false,
+          "mypy": false,
+          "ruff": false,
+          "tsc": true,
+          "tsgo": true,
+          "bun": true,
+          "nodeSqlite": true,
+          "bunSqlite": false
+        }
+      },
+      "problems": [
+        "检查项未通过：terminalRuntimes.python = false",
+        "检查项未通过：terminalRuntimes.python3 = false",
+        "检查项未通过：terminalRuntimes.script = false",
+        "检查项未通过：terminalRuntimes.sharedDisk = false",
+        "检查项未通过：terminalRuntimes.pip = false",
+        "检查项未通过：terminalRuntimes.installedPackage = false",
+        "检查项未通过：terminalRuntimes.pipFreeze = false",
+        "检查项未通过：terminalRuntimes.numpyPandas = false",
+        "检查项未通过：terminalRuntimes.scipySklearn = false",
+        "检查项未通过：terminalRuntimes.pythonLibraries = false",
+        "检查项未通过：terminalRuntimes.pytest = false",
+        "检查项未通过：terminalRuntimes.black = false",
+        "检查项未通过：terminalRuntimes.mypy = false",
+        "检查项未通过：terminalRuntimes.ruff = false",
+        "检查项未通过：terminalRuntimes.bunSqlite = false"
+      ],
+      "failedKeys": [
+        "terminalRuntimes.python",
+        "terminalRuntimes.python3",
+        "terminalRuntimes.script",
+        "terminalRuntimes.sharedDisk",
+        "terminalRuntimes.pip",
+        "terminalRuntimes.installedPackage",
+        "terminalRuntimes.pipFreeze",
+        "terminalRuntimes.numpyPandas",
+        "terminalRuntimes.scipySklearn",
+        "terminalRuntimes.pythonLibraries",
+        "terminalRuntimes.pytest",
+        "terminalRuntimes.black",
+        "terminalRuntimes.mypy",
+        "terminalRuntimes.ruff",
+        "terminalRuntimes.bunSqlite"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 27.304839287
+    }
+  ],
+  "passed": false,
+  "seconds": 27.364526402,
+  "source": {
+    "sha": "e535499c5659cf6bcc08a9a0274b8b4573fa4cdd",
+    "changes": "M src/groups/terminal-runtimes.mjs\n M ../../scripts/vivari/prepare.mjs\n M ../../scripts/vivari/runtimes.mjs"
+  },
+  "version": 1
+}

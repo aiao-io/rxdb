@@ -1,0 +1,1485 @@
+.gh-app {
+  --gd-bg: #fafbfc;
+  --gd-panel: #ffffff;
+  --gd-fg: #24292f;
+  --gd-muted: #57606a;
+  --gd-border: #d0d7de;
+  --gd-hover: #f3f4f6;
+  --gd-selected: #dcedff;
+  --gd-accent: #1f6feb;
+  --gd-accent-hover: #1158c7;
+  --gd-pill-bg: #eaeef2;
+  --gd-add-bg: #e6ffed;
+  --gd-add-fg: #1a7f37;
+  --gd-del-bg: #ffebe9;
+  --gd-del-fg: #cf222e;
+  --gd-gutter-bg: #f6f8fa;
+  --gd-line-num: #667085;
+  --gd-hunk-bg: #e6edf5;
+  --gd-warn-bg: #fff8c5;
+  --gd-warn-fg: #9a6700;
+  --gd-shadow: 0 10px 28px rgba(27, 31, 36, 0.22);
+  --gd-sidebar-bg: #f6f8fa;
+  --gd-tabs-bg: #f0f2f5;
+  --gd-input-bg: #ffffff;
+  --gd-input-border: #8c959f;
+  --gd-files-bg: #eaeef2;
+  --gd-row-border: #d8dee4;
+  --gd-commit-bg: #f6f8fa;
+  --gd-toolbar: #24292e;
+  --gd-toolbar-fg: #e5e8eb;
+  --gd-toolbar-muted: #a7afb9;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--gd-bg);
+  color: var(--gd-fg);
+  color-scheme: light;
+  font:
+    13px/1.4 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+.gh-app .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:root[data-theme='dark'] .gh-app {
+  --gd-bg: #1b1f24;
+  --gd-panel: #22272e;
+  --gd-fg: #e6edf3;
+  --gd-muted: #8b949e;
+  --gd-border: #30363d;
+  --gd-hover: #2d333b;
+  --gd-selected: rgba(47, 129, 247, 0.2);
+  --gd-accent: #388bfd;
+  --gd-accent-hover: #1f6feb;
+  --gd-pill-bg: #2d333b;
+  --gd-add-bg: #12261e;
+  --gd-add-fg: #7ee787;
+  --gd-del-bg: #2d1516;
+  --gd-del-fg: #ff7b72;
+  --gd-gutter-bg: #161b22;
+  --gd-line-num: #8b949e;
+  --gd-hunk-bg: #262c36;
+  --gd-warn-bg: rgba(187, 128, 9, 0.15);
+  --gd-warn-fg: #d29922;
+  --gd-shadow: 0 12px 30px rgba(1, 4, 9, 0.6);
+  --gd-sidebar-bg: #262c31;
+  --gd-tabs-bg: #292f35;
+  --gd-input-bg: #20262b;
+  --gd-input-border: #626c76;
+  --gd-files-bg: #2c3339;
+  --gd-row-border: #171c20;
+  --gd-commit-bg: #292f35;
+  color-scheme: dark;
+}
+
+.gh-app button,
+.gh-app input,
+.gh-app select,
+.gh-app textarea {
+  font: inherit;
+}
+
+.gh-app button {
+  cursor: pointer;
+}
+
+.gh-app button:disabled,
+.gh-app .disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.gh-app button:focus-visible,
+.gh-app input:focus-visible,
+.gh-app select:focus-visible,
+.gh-app textarea:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 1px;
+}
+
+.gh-toolbar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  min-height: 50px;
+  flex: 0 0 50px;
+  align-items: stretch;
+  overflow: visible;
+  background: var(--gd-toolbar);
+  color: var(--gd-toolbar-fg);
+}
+
+.gh-toolbar-chrome {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 10px;
+  display: flex;
+  height: 50px;
+  align-items: center;
+}
+
+.gh-toolbar-chrome .tl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.gh-toolbar-section {
+  min-width: 0;
+  height: 50px;
+  flex-shrink: 0;
+}
+
+.gh-repository-section {
+  min-width: 240px;
+}
+
+.gd-toolbar-select,
+.gd-toolbar-refresh {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--gd-toolbar-fg);
+  text-align: left;
+}
+
+.gd-toolbar-select:hover,
+.gd-toolbar-refresh:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gd-toolbar-select:focus-visible,
+.gd-toolbar-refresh:focus-visible {
+  outline: 2px solid #6cb6ff;
+  outline-offset: -2px;
+}
+
+.gh-repository-trigger {
+  padding-left: 76px;
+}
+
+.gh-system-icon {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 5px;
+}
+
+.gh-system-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gh-toolbar-system-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+.gh-toolbar-copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-align: left;
+}
+
+.gh-toolbar-copy small {
+  display: block;
+  overflow: hidden;
+  color: var(--gd-toolbar-muted);
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-toolbar-copy strong,
+.gh-toolbar-copy select {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: var(--gd-toolbar-fg);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-toolbar-chevron,
+.gh-fetch-icon {
+  flex: 0 0 auto;
+  color: var(--gd-toolbar-muted);
+  font-size: 18px;
+}
+
+.gh-toolbar-handle {
+  position: relative;
+  width: 5px;
+  height: 50px;
+  flex: 0 0 5px;
+  cursor: col-resize;
+}
+
+.gh-toolbar-handle::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+  background: #11161a;
+  content: '';
+}
+
+.gh-toolbar-handle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gh-branch-section {
+  display: flex;
+  min-width: 260px;
+  max-width: 430px;
+  flex: 1 1 300px;
+  align-items: center;
+}
+
+.gh-branch-trigger {
+  gap: 8px;
+  padding-inline: 10px;
+}
+
+.gh-branch-trigger > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--gd-toolbar-muted);
+}
+
+.gh-branch-chevron {
+  flex: 0 0 auto;
+  color: var(--gd-toolbar-muted);
+  transition: transform 120ms ease;
+}
+
+.gh-legacy-branch-select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.gh-branch-control {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.gh-branch-control .gh-toolbar-copy {
+  flex: 1 1 115px;
+}
+
+.gh-branch-control select {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gd-toolbar-fg);
+  cursor: pointer;
+}
+
+.gh-branch-create {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 145px;
+  gap: 4px;
+}
+
+.gh-branch-create input,
+.gh-auth-pat {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--gd-toolbar-fg);
+  outline: none;
+}
+
+.gh-branch-create input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.gh-branch-create button,
+.gh-auth-button {
+  white-space: nowrap;
+}
+
+.gh-branch-create button {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gd-toolbar-fg);
+  font-size: 11px;
+}
+
+.gh-branch-create button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gh-fetch-button {
+  width: 152px;
+  gap: 8px;
+}
+
+.gh-auth {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 8px;
+}
+
+.gh-account {
+  max-width: 120px;
+  overflow: hidden;
+  color: var(--gd-toolbar-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-auth-pat {
+  width: 72px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.gd-btn-primary,
+.gd-btn-secondary,
+.gd-btn-ghost {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gd-btn-primary {
+  padding: 4px 11px;
+  border: 1px solid var(--gd-accent);
+  background: var(--gd-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.gd-btn-primary:hover {
+  border-color: var(--gd-accent-hover);
+  background: var(--gd-accent-hover);
+}
+
+.gd-btn-primary:disabled {
+  border-color: #6b7280;
+  background: #6b7280;
+  color: #fff;
+}
+
+.gd-btn-secondary {
+  padding: 4px 11px;
+  border: 1px solid var(--gd-border);
+  background: var(--gd-panel);
+  color: var(--gd-fg);
+}
+
+.gd-btn-secondary:hover {
+  background: var(--gd-hover);
+}
+
+.gd-btn-ghost {
+  padding: 3px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--gd-muted);
+}
+
+.gd-btn-ghost:hover {
+  background: var(--gd-hover);
+  color: var(--gd-fg);
+}
+
+.gh-auth .gd-btn-ghost {
+  color: var(--gd-toolbar-muted);
+}
+
+.gh-auth .gd-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gd-toolbar-fg);
+}
+
+.gh-menu-overlay {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.gd-menu {
+  position: absolute;
+  z-index: 40;
+  top: 50px;
+  left: 0;
+  display: flex;
+  max-height: calc(100vh - 50px);
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--gd-border);
+  border-top: 0;
+  background: var(--gd-panel);
+  box-shadow: var(--gd-shadow);
+  color: var(--gd-fg);
+}
+
+.gd-menu-header {
+  padding: 9px 12px 6px;
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gd-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--gd-border);
+}
+
+.gd-menu-row {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--gd-fg);
+  text-align: left;
+}
+
+.gd-menu-row:hover,
+.gh-repository-menu-row-selected {
+  background: var(--gd-hover);
+}
+
+.gd-menu-row img {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  object-fit: contain;
+}
+
+.gh-repository-menu-row strong,
+.gh-repository-menu-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-repository-menu-row small {
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-menu-check {
+  color: var(--gd-accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.gh-menu-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--gd-muted);
+  font-size: 12px;
+}
+
+.gh-menu-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.gh-menu-section-title {
+  color: var(--gd-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gh-menu-form-row,
+.gh-menu-actions {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+}
+
+.gh-menu-actions {
+  flex-wrap: wrap;
+}
+
+.gh-menu-form-row > input,
+.gh-menu-form-row > select,
+.gh-menu-section > input {
+  min-width: 0;
+  flex: 1;
+  padding: 5px 7px;
+  border: 1px solid var(--gd-input-border);
+  border-radius: 4px;
+  background: var(--gd-input-bg);
+  color: var(--gd-fg);
+}
+
+.gh-menu-form-row > select {
+  max-width: 150px;
+}
+
+.gh-menu-section > input {
+  width: 100%;
+}
+
+.gh-menu-search,
+.gh-change-search {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--gd-input-border);
+  border-radius: 4px;
+  background: var(--gd-input-bg);
+  color: var(--gd-muted);
+}
+
+.gh-menu-search {
+  margin: 0 10px 6px;
+}
+
+.gh-menu-search input,
+.gh-change-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--gd-fg);
+}
+
+.gh-branch-menu {
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 50px);
+}
+
+.gh-branch-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 7px;
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gh-branch-list {
+  max-height: min(360px, 45vh);
+  overflow-y: auto;
+}
+
+.gh-branch-row {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.gh-branch-row > .gd-menu-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.gh-branch-row > .gd-menu-row code {
+  color: var(--gd-muted);
+  font-size: 10px;
+}
+
+.gh-branch-row-current {
+  color: var(--gd-accent);
+}
+
+.gh-context-trigger {
+  min-width: 30px;
+  flex: 0 0 30px;
+  padding: 3px;
+}
+
+.gh-menu-actions > button,
+.gh-menu-actions > .gh-file-button,
+.gh-menu-form-row > button {
+  min-width: 0;
+  flex: 1 1 120px;
+}
+
+.gh-file-button {
+  cursor: pointer;
+}
+
+.gh-file-button input {
+  display: none;
+}
+
+.gh-workspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: var(--gh-aside-width, 320px) 6px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.gh-sidebar {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--gd-sidebar-bg);
+}
+
+.gd-tabs {
+  display: flex;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: stretch;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-tabs-bg);
+}
+
+.gd-tab {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--gd-muted);
+}
+
+.gd-tab:hover {
+  color: var(--gd-fg);
+}
+
+.gd-tab.gd-tab-active {
+  color: var(--gd-fg);
+  font-weight: 600;
+}
+
+.gd-tab.gd-tab-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  border-radius: 1px 1px 0 0;
+  background: var(--gd-accent);
+  content: '';
+}
+
+.gd-pill {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--gd-pill-bg);
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.gh-changes-panel,
+.gh-history {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gh-filter-bar {
+  position: relative;
+  display: flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-files-bg);
+}
+
+.gh-filter-combo {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+}
+
+.gh-filter-kind-button {
+  position: relative;
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 1px solid var(--gd-border);
+  border-radius: 4px;
+  background: var(--gd-panel);
+  color: var(--gd-fg);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.gh-filter-kind-button:hover,
+.gh-change-kind-selected {
+  background: var(--gd-hover);
+}
+
+.gh-change-kind-menu {
+  top: 34px;
+  left: 9px;
+  z-index: 40;
+  width: 150px;
+}
+
+.gh-filter-overlay {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+}
+
+.gh-menu-check-icon {
+  margin-left: auto;
+  color: var(--gd-accent);
+}
+
+.gh-change-search {
+  min-height: 25px;
+  flex: 1;
+  padding-block: 3px;
+}
+
+.gh-change-search input {
+  width: 100%;
+  font-size: 11px;
+}
+
+.gh-list-header,
+.gh-commit-box {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-files-bg);
+}
+
+.gh-list-header {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  color: var(--gd-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gh-file-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.gd-row {
+  display: flex;
+  min-width: 0;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px 5px 9px;
+  border-bottom: 1px solid var(--gd-row-border);
+  border-left: 3px solid transparent;
+  background: transparent;
+}
+
+.gd-row:hover,
+.gd-row.gd-row-selected {
+  background: var(--gd-selected);
+}
+
+.gd-row.gd-row-selected {
+  border-left-color: var(--gd-accent);
+}
+
+.gh-file-select {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gd-fg);
+  text-align: left;
+}
+
+.gh-file-select.selected {
+  color: var(--gd-fg);
+  font-weight: 600;
+}
+
+.gh-file-status,
+.gh-status {
+  min-width: 14px;
+  flex: 0 0 auto;
+  color: var(--gd-accent);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gh-file-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-file-size {
+  flex: 0 0 auto;
+  color: var(--gd-muted);
+  font-size: 10px;
+}
+
+.gh-row-action {
+  min-height: 24px;
+  padding: 2px 5px;
+  font-size: 11px;
+}
+
+.gh-row-danger,
+.gh-row-danger:hover {
+  color: var(--gd-del-fg);
+}
+
+.gh-empty-list,
+.gh-muted,
+.gh-empty-editor {
+  color: var(--gd-muted);
+}
+
+.gh-empty-list {
+  padding: 16px 12px;
+  font-size: 12px;
+}
+
+.gh-commit-box {
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px 10px;
+  border-top: 1px solid var(--gd-border);
+  border-bottom: 0;
+  background: var(--gd-commit-bg);
+}
+
+.gh-commit-box textarea {
+  min-height: 52px;
+  resize: vertical;
+  padding: 7px 8px;
+  border: 1px solid var(--gd-input-border);
+  border-radius: 4px;
+  background: var(--gd-input-bg);
+  color: var(--gd-fg);
+}
+
+.gh-commit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.gh-commit-actions > button {
+  min-width: 0;
+  flex: 1;
+}
+
+.gh-commit-button {
+  min-width: 150px;
+}
+
+.gd-resizer {
+  position: relative;
+  width: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+}
+
+.gd-resizer::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--gd-border);
+  content: '';
+}
+
+.gd-resizer:hover::after,
+.gd-resizer:focus-visible::after {
+  width: 2px;
+  background: var(--gd-accent);
+}
+
+.gh-main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--gd-bg);
+}
+
+.gh-editor {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gh-diff,
+.gh-editor-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.gh-diff {
+  flex: 0 1 44%;
+  overflow: hidden;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-panel);
+}
+
+.gh-editor-pane {
+  flex: 1 1 56%;
+  background: var(--gd-panel);
+}
+
+.gh-editor-head {
+  display: flex;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-panel);
+}
+
+.gh-editor-head > div:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.gh-editor-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-editor-head span,
+.gh-eyebrow {
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-editor-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.gh-diff-grid {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.gh-diff-lines {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--gd-panel);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+.gh-diff-column-head,
+.gh-diff-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.gh-diff-column-head {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-gutter-bg);
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gh-diff-column-head span {
+  padding: 5px 10px;
+}
+
+.gh-diff-column-head span + span {
+  border-left: 1px solid var(--gd-border);
+}
+
+.gh-diff-side {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 42px 18px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 24px;
+  border-bottom: 1px solid rgba(208, 215, 222, 0.45);
+}
+
+.gh-diff-side + .gh-diff-side {
+  border-left: 1px solid var(--gd-border);
+}
+
+.gh-diff-side code {
+  min-width: 0;
+  padding: 3px 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.gh-diff-number,
+.gh-diff-sign {
+  padding: 3px 5px;
+  background: var(--gd-gutter-bg);
+  color: var(--gd-line-num);
+  text-align: right;
+  user-select: none;
+}
+
+.gh-diff-sign {
+  color: var(--gd-muted);
+  text-align: center;
+}
+
+.gh-diff-side-delete {
+  background: var(--gd-del-bg);
+}
+
+.gh-diff-side-delete .gh-diff-sign {
+  color: var(--gd-del-fg);
+}
+
+.gh-diff-side-add {
+  background: var(--gd-add-bg);
+}
+
+.gh-diff-side-add .gh-diff-sign {
+  color: var(--gd-add-fg);
+}
+
+.gh-diff-line-same .gh-diff-side {
+  background: var(--gd-panel);
+}
+
+.gd-split-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 50%;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 12px;
+  overflow: auto;
+}
+
+.gd-split-cell + .gd-split-cell {
+  border-left: 1px solid var(--gd-border);
+}
+
+.gd-split-old {
+  background: var(--gd-del-bg);
+}
+
+.gd-split-new {
+  background: var(--gd-add-bg);
+}
+
+.gh-diff-label {
+  flex: 0 0 auto;
+  color: var(--gd-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.gd-diff-content {
+  min-width: 0;
+  margin: 0;
+  color: var(--gd-fg);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gh-editor-pane textarea {
+  min-height: 0;
+  flex: 1;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  resize: none;
+  background: var(--gd-panel);
+  color: var(--gd-fg);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+}
+
+.gh-binary,
+.gh-empty-editor {
+  display: grid;
+  min-height: 120px;
+  flex: 1;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.gh-history {
+  overflow-y: auto;
+  background: var(--gd-sidebar-bg);
+}
+
+.gh-commit-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 9px;
+  border-bottom: 1px solid var(--gd-row-border);
+  border-left: 3px solid transparent;
+}
+
+.gh-commit-row:hover,
+.gh-commit-row-selected {
+  background: var(--gd-selected);
+}
+
+.gh-commit-row-selected {
+  border-left-color: var(--gd-accent);
+}
+
+.gh-history-select {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gd-fg);
+  text-align: left;
+}
+
+.gh-history-select strong,
+.gh-history-select small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-history-select small {
+  margin-top: 2px;
+  color: var(--gd-muted);
+  font:
+    10px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.gh-history-detail {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--gd-panel);
+}
+
+.gh-detail-header {
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--gd-border);
+}
+
+.gh-detail-header h2 {
+  margin: 4px 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.gh-detail-header code {
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-detail-body {
+  display: grid;
+  max-width: 560px;
+  gap: 14px;
+  padding: 22px 26px;
+  color: var(--gd-muted);
+}
+
+.gh-detail-body p {
+  margin: 0;
+}
+
+.gh-context-backdrop {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+}
+
+.gh-context-menu {
+  position: fixed;
+  z-index: 80;
+  top: 0;
+  left: 0;
+  width: 230px;
+  min-width: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.gh-empty {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--gd-muted);
+  text-align: center;
+}
+
+.gh-empty h2,
+.gh-empty p {
+  margin: 0;
+}
+
+.gh-empty h2 {
+  color: var(--gd-fg);
+  font-size: 20px;
+}
+
+.gh-empty p {
+  max-width: 420px;
+}
+
+.gh-mark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--gd-toolbar);
+  box-shadow: var(--gd-shadow);
+}
+
+.gh-mark img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.gh-conflict,
+.gh-error,
+.gh-notice {
+  position: absolute;
+  z-index: 60;
+  bottom: 12px;
+  display: flex;
+  max-width: min(560px, calc(100% - 24px));
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--gd-border);
+  border-radius: 5px;
+  box-shadow: var(--gd-shadow);
+  font-size: 12px;
+}
+
+.gh-conflict,
+.gh-error {
+  left: 12px;
+  background: var(--gd-warn-bg);
+  color: var(--gd-warn-fg);
+}
+
+.gh-notice {
+  right: 12px;
+  background: var(--gd-panel);
+  color: var(--gd-fg);
+}
+
+.gh-error {
+  background: var(--gd-del-bg);
+  color: var(--gd-del-fg);
+}
+
+@media (max-width: 900px) {
+  .gh-auth-pat,
+  .gh-branch-create input {
+    display: none;
+  }
+
+  .gh-fetch-button {
+    width: 118px;
+  }
+}
+
+@media (max-width: 700px) {
+  .gh-toolbar {
+    min-height: 92px;
+    flex-wrap: wrap;
+  }
+
+  .gh-toolbar-section,
+  .gh-toolbar-handle {
+    height: 46px;
+  }
+
+  .gh-repository-section {
+    width: 50% !important;
+    min-width: 0;
+  }
+
+  .gh-branch-section {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .gh-fetch-button {
+    width: 50%;
+  }
+
+  .gh-auth {
+    width: 50%;
+    justify-content: flex-end;
+  }
+
+  .gh-toolbar-chrome {
+    height: 46px;
+  }
+
+  .gh-repository-trigger {
+    padding-left: 72px;
+  }
+
+  .gh-workspace {
+    grid-template-columns: minmax(240px, 42vw) 6px minmax(0, 1fr);
+  }
+
+  .gh-diff-grid {
+    flex-direction: column;
+  }
+
+  .gd-split-cell + .gd-split-cell {
+    border-top: 1px solid var(--gd-border);
+    border-left: 0;
+  }
+}

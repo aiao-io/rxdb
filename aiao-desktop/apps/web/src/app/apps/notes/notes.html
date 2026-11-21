@@ -1,0 +1,253 @@
+<div class="wb">
+  <div class="sbar" [style.display]="sidebar() ? null : 'none'" data-drag style="width: 196px">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 10px 0 12px">
+      @if (sidebar()) {
+        <app-traffic-lights />
+      }
+      <div style="flex: 1"></div>
+      <button
+        class="tbtn"
+        [disabled]="busy() || win.closePending()"
+        (click)="newFolder()"
+        aria-label="New Folder"
+        data-new-folder
+        data-nodrag
+        tabindex="0"
+        title="New Folder"
+      >
+        <svg appIcon="g-plus"></svg>
+      </button>
+      <button
+        class="tbtn"
+        (click)="toggleSidebar()"
+        aria-label="Toggle folders"
+        data-nodrag
+        data-sbtoggle
+        tabindex="0"
+        title="Hide Folders"
+      >
+        <svg appIcon="g-sidebar"></svg>
+      </button>
+    </div>
+    <div class="grp">
+      <div class="gh">On This Browser</div>
+      @for (item of folders(); track item.name) {
+        <button
+          class="si"
+          [attr.aria-pressed]="folder() === item.name"
+          [attr.data-folder]="item.name"
+          [class.on]="folder() === item.name"
+          [disabled]="busy() || win.closePending()"
+          (click)="pickFolder(item.name)"
+          style="width: 100%; text-align: left; border: 0"
+          tabindex="0"
+          type="button"
+        >
+          <svg class="ico" [appIcon]="item.icon"></svg>
+          <span class="nm">{{ item.name }}</span>
+          <span class="tail">{{ item.count }}</span>
+        </button>
+      }
+    </div>
+  </div>
+  <div class="nt">
+    <div class="nt-list">
+      <div class="nt-search" data-drag style="display: flex; gap: 8px; align-items: center; padding-top: 9px">
+        @if (!sidebar()) {
+          <app-traffic-lights />
+        }
+        <div class="sfield" data-nodrag style="flex: 1">
+          <span><svg appIcon="g-search"></svg></span>
+          <input
+            [disabled]="busy() || win.closePending()"
+            [value]="query()"
+            (input)="search($event)"
+            aria-label="Search notes"
+            data-q
+            placeholder="Search"
+          />
+        </div>
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending()"
+          (click)="create()"
+          aria-label="New Note"
+          data-new2
+          data-nodrag
+          tabindex="0"
+          title="New Note"
+        >
+          <svg appIcon="g-compose"></svg>
+        </button>
+      </div>
+      <div class="nt-items scroll" data-items>
+        @for (row of rows(); track row.id) {
+          <button
+            class="nt-i"
+            [attr.aria-pressed]="row.id === selected()"
+            [attr.data-id]="row.id"
+            [class.on]="row.id === selected()"
+            [disabled]="busy() || win.closePending()"
+            (click)="pick(row.id)"
+            (contextmenu)="menu($event, row.id)"
+            style="width: 100%; text-align: left; border: 0"
+            tabindex="0"
+            type="button"
+          >
+            <b>{{ row.title }}</b>
+            <div class="mt">
+              <span>{{ row.when }}</span>
+              <span class="sn">{{ row.snippet }}</span>
+            </div>
+          </button>
+        } @empty {
+          <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No notes</div>
+        }
+      </div>
+    </div>
+    <div class="nt-ed">
+      <div class="nt-fmt" data-drag>
+        <div style="flex: 1"></div>
+        <button
+          class="tbtn"
+          [attr.aria-label]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          [attr.aria-pressed]="current()?.pinned ?? false"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          (click)="togglePin()"
+          data-nodrag
+          data-pin
+        >
+          {{ current()?.pinned ? '📌' : 'Pin' }}
+        </button>
+        @for (item of textFormats; track item.command) {
+          <button
+            class="tbtn"
+            [attr.aria-label]="item.title"
+            [attr.aria-pressed]="active().includes(item.command)"
+            [attr.data-f]="item.command"
+            [class.on]="active().includes(item.command)"
+            [disabled]="busy() || win.closePending() || !editor.value()"
+            [title]="item.title"
+            (click)="format(item.command)"
+            data-nodrag
+            tabindex="0"
+          >
+            <svg [appIcon]="item.icon"></svg>
+          </button>
+        }
+        <div class="sep"></div>
+        <button
+          class="tbtn"
+          [attr.aria-pressed]="active().includes('insertUnorderedList')"
+          [class.on]="active().includes('insertUnorderedList')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          (click)="format('insertUnorderedList')"
+          aria-label="Bulleted list"
+          data-f="insertUnorderedList"
+          data-nodrag
+          tabindex="0"
+          title="Bulleted list"
+        >
+          <svg appIcon="g-bullets"></svg>
+        </button>
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          (click)="checklist()"
+          aria-label="Checklist"
+          data-check
+          data-nodrag
+          tabindex="0"
+          title="Checklist"
+        >
+          <svg appIcon="g-checklist"></svg>
+        </button>
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          (click)="table()"
+          aria-label="Table"
+          data-nodrag
+          data-table
+          tabindex="0"
+          title="Table"
+        >
+          <svg appIcon="g-table"></svg>
+        </button>
+        <div class="sep"></div>
+        <button
+          class="tbtn"
+          [disabled]="busy() || win.closePending()"
+          (click)="create()"
+          aria-label="New Note"
+          data-new
+          data-nodrag
+          tabindex="0"
+          title="New note"
+        >
+          <svg appIcon="g-plus"></svg>
+        </button>
+        <div style="flex: 1"></div>
+      </div>
+      <div style="padding: 6px 14px; background: var(--card); color: var(--txt)">
+        <div aria-live="polite" role="status" style="font-size: 12px">
+          {{
+            busy() || editor.saving() ? 'Saving…'
+            : editor.dirty() ? 'Unsaved changes'
+            : 'Saved'
+          }}
+        </div>
+        @if (failure(); as problem) {
+          <p role="alert" style="margin: 6px 0; overflow-wrap: anywhere">{{ problem }}</p>
+        }
+        @if (editor.dirty() || failure()) {
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px">
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="retry()"
+              tabindex="0"
+            >
+              Retry Save
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="saveCopy()"
+              tabindex="0"
+            >
+              Save a Copy
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.dirty()"
+              (click)="discardChanges()"
+              tabindex="0"
+            >
+              Discard Changes
+            </button>
+          </div>
+        }
+      </div>
+      <div
+        class="nt-doc selectable"
+        #doc
+        [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
+        [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
+        (click)="docClick($event)"
+        (focus)="focused()"
+        (input)="saveSoon()"
+        (keydown)="docKey($event)"
+        (keyup)="syncFormats()"
+        (mouseup)="syncFormats()"
+        aria-label="Note content"
+        aria-multiline="true"
+        data-doc
+        role="textbox"
+        spellcheck="false"
+        tabindex="0"
+      ></div>
+    </div>
+  </div>
+</div>

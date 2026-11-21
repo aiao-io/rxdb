@@ -1,0 +1,160 @@
+/* 打开 / 保存面板：模态，盖在窗口层上（比任何窗口的层叠序都高），菜单栏与 Dock 不在它下面所以仍可用。 */
+.fp-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.14);
+}
+.fp {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+  height: min(470px, 100%);
+  padding: 16px 18px 14px;
+  border-radius: 12px;
+  background: var(--win);
+  color: var(--txt);
+  font-size: 13px;
+  box-shadow:
+    0 0 0 0.5px var(--line-2),
+    var(--shadow-pop);
+}
+.fp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fp-app {
+  width: 40px;
+  height: 40px;
+}
+.fp-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.fp-sub {
+  margin: 1px 0 0;
+  color: var(--txt-2);
+}
+.fp-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fp-name input {
+  flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--field);
+  box-shadow: 0 0 0 0.5px var(--field-border);
+}
+.fp-name input:focus-visible,
+.fp-list:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.fp-where {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fp-path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--txt-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--win-2);
+  box-shadow: inset 0 0 0 0.5px var(--line-2);
+}
+.fp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+}
+.fp-row svg {
+  width: 18px;
+  height: 18px;
+}
+.fp-row .nm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fp-row .sz,
+.fp-row .why {
+  color: var(--txt-2);
+  font-size: 12px;
+}
+.fp-row.sel {
+  background: var(--blue);
+  color: #fff;
+}
+.fp-row.sel .sz,
+.fp-row.sel .why {
+  color: inherit;
+}
+.fp-row.dis {
+  opacity: 0.55;
+}
+.fp-list:not(:focus-within) .fp-row.sel {
+  background: var(--sel-soft);
+  color: inherit;
+}
+.fp-empty,
+.fp-note {
+  margin: 0;
+  color: var(--txt-2);
+}
+.fp-empty {
+  padding: 18px;
+  text-align: center;
+}
+.fp-note.bad {
+  color: var(--red);
+}
+.fp-replace {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: var(--fill);
+}
+.fp-replace span {
+  color: var(--txt-2);
+}
+.fp-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+.fp-foot .btn,
+.fp-where .btn {
+  height: 26px;
+}
+.fp .btn:disabled {
+  opacity: 0.5;
+}
+.fp .btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}

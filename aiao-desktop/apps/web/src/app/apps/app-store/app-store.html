@@ -1,0 +1,162 @@
+<section [inert]="flow.pending() !== null" aria-label="Approved applications">
+  <header>
+    <div>
+      <h1>App Store</h1>
+      <p>Applications approved for this desktop.</p>
+    </div>
+    <button [disabled]="flow.busy()" (click)="flow.refresh()" tabindex="0" type="button">Refresh Catalog</button>
+  </header>
+  <p class="scope">
+    Installed entries are saved in this browser. Remote apps need a connection to their publisher; installing an entry
+    does not download an offline copy.
+  </p>
+  @if (applications.failure()) {
+    <div class="problem" role="alert">
+      <h2>Optional applications need attention</h2>
+      <p>{{ applications.failure() }}</p>
+      <p>
+        Preinstalled apps and your files remain available. Refresh the approved catalog, or reset optional application
+        records to install again.
+      </p>
+      <button [disabled]="flow.busy()" (click)="flow.requestReset()" tabindex="0" type="button">
+        Reset Optional Apps…
+      </button>
+    </div>
+  }
+  @for (problem of applications.catalog().problems; track $index) {
+    <p class="problem" role="alert">{{ problem }}</p>
+  }
+  @if (!flow.items().length && !applications.failure()) {
+    <div class="empty">
+      <h2>No approved apps available</h2>
+      <p>
+        Your preinstalled apps are ready to use. New applications appear here when their publisher provides an approved
+        release.
+      </p>
+    </div>
+  }
+  @for (item of flow.items(); track item.id) {
+    <article [attr.aria-label]="item.latest.name" [attr.data-catalog-app]="item.id">
+      <div class="app-details">
+        <h2>{{ item.latest.name }}</h2>
+        <p>{{ item.latest.summary }}</p>
+        <p class="origin">{{ item.origin }}</p>
+      </div>
+      <p>
+        Latest approved version: {{ item.latest.version }} ·
+        {{ item.installed ? 'Installed: ' + item.installed.version : 'Not installed' }}
+      </p>
+      <div class="actions">
+        @if (!item.installed) {
+          <button
+            class="primary"
+            [disabled]="flow.busy()"
+            (click)="flow.request(item.id, item.latest.version)"
+            tabindex="0"
+            type="button"
+          >
+            Install…
+          </button>
+        } @else {
+          <button class="primary" [disabled]="flow.busy()" (click)="flow.open(item.id)" tabindex="0" type="button">
+            Open
+          </button>
+          @if (item.canUpdate) {
+            <button
+              [disabled]="flow.busy()"
+              (click)="flow.request(item.id, item.latest.version)"
+              tabindex="0"
+              type="button"
+            >
+              Update to {{ item.latest.version }}…
+            </button>
+          }
+          @if (item.rollback; as previous) {
+            <button
+              [disabled]="flow.busy()"
+              (click)="flow.request(item.id, previous.version)"
+              tabindex="0"
+              type="button"
+            >
+              Roll Back to {{ previous.version }}…
+            </button>
+          }
+          <button [disabled]="flow.busy()" (click)="flow.request(item.id, null)" tabindex="0" type="button">
+            Uninstall…
+          </button>
+        }
+      </div>
+    </article>
+  }
+  <p aria-live="polite" role="status">{{ flow.status() }}</p>
+  @if (flow.error()) {
+    <p class="problem" role="alert">{{ flow.error() }}</p>
+  }
+</section>
+@if (flow.pending(); as request) {
+  <div class="scrim">
+    <div
+      class="confirmation"
+      [attr.aria-label]="request.kind === 'reset' ? 'Reset Optional Apps' : request.action + ' ' + request.name"
+      (keydown.escape)="cancel($event)"
+      appFocusTrap
+      aria-modal="true"
+      role="dialog"
+    >
+      @if (request.kind === 'reset') {
+        <h2>Reset Optional Apps?</h2>
+        <p>
+          Remove optional application entries from this desktop and close their windows. Your files, preinstalled apps,
+          and data stored on remote app sites are kept.
+        </p>
+        <p>Save your work before continuing. Other open desktop tabs will also lose these entries.</p>
+      } @else {
+        <h2>{{ request.action }} {{ request.name }}?</h2>
+        <p>{{ request.previous ? 'Currently installed: ' + request.previous : 'Not installed' }}</p>
+        @if (request.release; as release) {
+          <p>
+            Approved version:
+            <strong>{{ release.version }}</strong>
+          </p>
+          <p class="origin">{{ release.url }}</p>
+          <h3>Desktop access</h3>
+          @if (release.capabilities.length) {
+            <ul>
+              @for (permission of release.capabilities; track permission) {
+                <li>{{ capability(permission) }}</li>
+              }
+            </ul>
+          } @else {
+            <p>No desktop capabilities.</p>
+          }
+          <h3>Browser permissions</h3>
+          <p>{{ release.allow.length ? release.allow.join(', ') : 'No extra browser permissions.' }}</p>
+        } @else {
+          <p>
+            Removes the installed entry and its desktop access. Your files and data stored on the remote app’s own site
+            are kept.
+          </p>
+        }
+        <p>
+          Save work in this application before continuing. Its existing windows will close when the installed version
+          changes, including in other desktop tabs.
+        </p>
+      }
+      @if (flow.error()) {
+        <p class="problem" role="alert">{{ flow.error() }}</p>
+      }
+      <div class="actions">
+        <button [disabled]="flow.busy()" (click)="flow.cancel()" data-autofocus tabindex="0" type="button">
+          Cancel
+        </button>
+        <button class="primary" [disabled]="flow.busy()" (click)="flow.confirm()" tabindex="0" type="button">
+          {{
+            flow.busy() ? 'Working…'
+            : request.kind === 'reset' ? 'Reset Optional Apps'
+            : request.action
+          }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

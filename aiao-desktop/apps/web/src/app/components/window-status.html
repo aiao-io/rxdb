@@ -1,0 +1,37 @@
+<div class="tb plain" data-drag>
+  <div class="title" data-window-title>{{ win.title() }}</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz"></div>
+</div>
+@switch (win.state()) {
+  @case ('failed') {
+    <div class="ws" data-window-failure role="alert">
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <h2>“{{ win.app.name }}” can’t be opened.</h2>
+      <p data-window-failure-reason>{{ win.failure() }}</p>
+      <button class="btn pri" (click)="retry()" data-window-retry type="button">Try Again</button>
+    </div>
+  }
+  @case ('registered') {
+    <button
+      class="ws ws-idle"
+      [attr.aria-describedby]="'ws-hint-' + win.id"
+      [attr.aria-label]="'Start ' + win.app.name"
+      (click)="start()"
+      data-window-idle
+      type="button"
+    >
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <span class="ws-title">{{ win.app.name }} isn’t running.</span>
+      <span class="ws-hint" [id]="'ws-hint-' + win.id">It starts the first time you click this window.</span>
+    </button>
+  }
+  @default {
+    <div class="ws" data-window-loading role="status">
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <div class="ws-spinner"></div>
+      <p>Opening {{ win.app.name }}…</p>
+    </div>
+  }
+}

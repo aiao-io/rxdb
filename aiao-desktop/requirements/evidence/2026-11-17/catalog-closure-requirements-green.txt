@@ -1,0 +1,16 @@
+
+> nx run aiao-desktop:requirements-check
+
+> node scripts/check-requirements.mjs
+
+✅ Aiao Desktop requirements passed（26/27 已交付）
+
+
+
+ NX   Successfully ran target requirements-check for project aiao-desktop
+
+
+  Run duration:      365ms
+  Cache:             0/1 hit (0%)
+  Critical path:     254ms (1 task)
+  Recoverable time:  <1ms

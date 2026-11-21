@@ -1,5 +1,5 @@
 /**
- * US-217 阶段 B：备份矩阵只交付了主线程连接，Worker / SharedWorker 传输在备份、恢复、清理入口都直接拒绝，
+ * US-217：未交付的 idb Worker / SharedWorker 传输在备份、恢复、清理入口都直接拒绝，
  * 且不碰输出流与归档源。
  */
 import { RxDB, SyncType } from '@aiao/rxdb';
@@ -61,4 +61,14 @@ describe('sqlite-wasm backup over worker transports', () => {
       worker.terminate();
     }
   });
+});
+
+it('OPFS 恢复拒绝连接释放时就终止的 Worker，避免成功后无法重连', async () => {
+  const adapter = createAdapter({ vfs: 'opfs', worker: true, workerOwnership: 'client' });
+  const expected = { code: 'unsupported_combination', details: { field: 'workerOwnership', actual: 'client' } };
+  await expect(adapter.restore(new ReadableStream({ start: controller => controller.close() }))).rejects.toMatchObject(
+    expected
+  );
+  await expect(adapter.cleanupIncompleteRestore()).rejects.toMatchObject(expected);
+  await adapter.disconnect();
 });

@@ -1,0 +1,85 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T10:39:14.331Z",
+  "source": {
+    "sha": "7c82239834db09c9a42222391e6606f75ea9617a",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/notes/notes.html\n M ../web/src/app/apps/notes/notes.ts\n M ../web/vitest.config.mts\n?? src/groups/note-drafts.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "37f977f82ea5e8054c94cd13fa339fbaba9cb14efa4d2f968e0de6cb5c7cb3b5"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "note-drafts"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 23.092458750000002,
+  "outcomes": [
+    {
+      "group": "note-drafts",
+      "result": {
+        "noteDrafts": {
+          "failedWriteKeepsContent": true,
+          "beforeUnloadGuard": true,
+          "failedNavigationAndClose": true,
+          "noViolations": [],
+          "keyboardRecovery": true,
+          "retryAndPersistence": true,
+          "pendingWriteSavesNewestBeforeClose": true,
+          "createFailureAndRecovery": true,
+          "deleteFailureAndRecovery": true,
+          "crossWindowConflict": true,
+          "copyFailureAndRecovery": true,
+          "deletedNoteAndDiscard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 23.000816917
+    }
+  ],
+  "checks": {
+    "noteDrafts": {
+      "failedWriteKeepsContent": true,
+      "beforeUnloadGuard": true,
+      "failedNavigationAndClose": true,
+      "noViolations": [],
+      "keyboardRecovery": true,
+      "retryAndPersistence": true,
+      "pendingWriteSavesNewestBeforeClose": true,
+      "createFailureAndRecovery": true,
+      "deleteFailureAndRecovery": true,
+      "crossWindowConflict": true,
+      "copyFailureAndRecovery": true,
+      "deletedNoteAndDiscard": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

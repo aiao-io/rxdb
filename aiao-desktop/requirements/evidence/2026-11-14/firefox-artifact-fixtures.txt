@@ -1,0 +1,18 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--group=fixtures --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-artifact-fixtures.json
+
+aiao-desktop-e2e: (node:32816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✓ fixtures  20.7s
+aiao-desktop-e2e: 检查组 1 个，总耗时 20.7s（引擎 firefox，并行 1）
+aiao-desktop-e2e: {"groupIsolation":{"nextGroupSeesNoDiskChange":true,"nextGroupSeesNoSettingChange":true},"multiPage":{"sameContextSharesStorage":true,"otherContextIsIsolated":true},"persistentProfile":{"dataSurvivesRestart":true},"artifactSwitch":{"servesSwitchedArtifact":true,"keepsOrigin":true,"keepsStorage":true},"artifactOrigin":{"crossOrigin":true,"crossOriginIsolated":true,"keyboardReachesFrame":true,"storageIsolated":true,"relativeAssetsServed":true,"reloadKeepsStorage":true,"resourceMappingKeepsQuery":true,"rejectsOtherSources":true}}
+
+
+
+ NX   Successfully ran target e2e-firefox for project aiao-desktop-e2e
+
+
+  Run duration:      22.7s
+  Cache:             0/1 hit (0%)
+  Critical path:     22.6s (1 task)
+  Recoverable time:  <1ms

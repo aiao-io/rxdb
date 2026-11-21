@@ -1,0 +1,105 @@
+<div class="fp-scrim" [trapInitialFocus]="false" appFocusTrap data-file-panel-scrim>
+  <section
+    class="fp"
+    [attr.aria-describedby]="uid + '-sub'"
+    [attr.aria-label]="label()"
+    [attr.data-mode]="request().mode"
+    [attr.data-owner]="request().app.id"
+    aria-modal="true"
+    data-file-panel
+    role="dialog"
+  >
+    <header class="fp-head">
+      <svg class="fp-app" [appIcon]="request().app.icon"></svg>
+      <div>
+        <h2 class="fp-title" data-fp-title>{{ heading() }}</h2>
+        <p class="fp-sub" [id]="uid + '-sub'" data-fp-subtitle>{{ subtitle() }}</p>
+      </div>
+    </header>
+    @if (isSave()) {
+      <label class="fp-name">
+        <span>Save As:</span>
+        <input
+          #field
+          [maxLength]="request().nameLength"
+          [value]="name()"
+          (input)="rename(field.value)"
+          (keydown.enter)="confirm(); $event.preventDefault()"
+          autocomplete="off"
+          data-fp-name
+          spellcheck="false"
+          type="text"
+        />
+      </label>
+    }
+    <div class="fp-where">
+      <button
+        class="btn"
+        [disabled]="dir().length === 0"
+        (click)="up()"
+        aria-label="Enclosing folder"
+        data-fp-up
+        tabindex="0"
+        type="button"
+      >
+        Up
+      </button>
+      <span class="fp-path" data-fp-path>{{ where() }}</span>
+    </div>
+    <div
+      class="fp-list"
+      #list
+      [attr.aria-activedescendant]="activeId()"
+      (click)="pick($event)"
+      (dblclick)="pickAndOpen($event)"
+      (keydown)="listKey($event)"
+      aria-label="Files"
+      data-fp-list
+      role="listbox"
+      tabindex="0"
+    >
+      @for (entry of entries(); track entry.name; let index = $index) {
+        <div
+          class="fp-row"
+          [attr.aria-disabled]="entry.disabled ? 'true' : null"
+          [attr.aria-selected]="entry.name === activeName()"
+          [attr.data-kind]="entry.folder ? 'folder' : 'file'"
+          [attr.data-name]="entry.name"
+          [class.dis]="entry.disabled"
+          [class.sel]="entry.name === activeName()"
+          [id]="rowId(index)"
+          data-fp-entry
+          role="option"
+        >
+          <svg [appIcon]="entry.node.icon"></svg>
+          <span class="nm">{{ entry.name }}</span>
+          @if (entry.reason) {
+            <span class="why" data-fp-reason>{{ entry.reason }}</span>
+          } @else {
+            <span class="sz">{{ entry.folder ? '' : entry.node.size }}</span>
+          }
+        </div>
+      } @empty {
+        <p class="fp-empty" data-fp-empty>This folder is empty.</p>
+      }
+    </div>
+    @if (request().accept.length > 0) {
+      <p class="fp-note" data-fp-filter>Showing: {{ request().accept.join(', ') }}</p>
+    }
+    @if (problem(); as text) {
+      <p class="fp-note bad" data-fp-problem role="alert">{{ text }}</p>
+    }
+    @if (phase() === 'replace') {
+      <div class="fp-replace" aria-label="Replace existing file" data-fp-replace role="alertdialog">
+        <b>A file named “{{ name() }}” already exists in this location.</b>
+        <span>Do you want to replace it? Its current contents will be overwritten.</span>
+      </div>
+    }
+    <footer class="fp-foot">
+      <button class="btn" #cancelButton (click)="dismiss()" data-fp-cancel tabindex="0" type="button">Cancel</button>
+      <button class="btn pri" [disabled]="!canConfirm()" (click)="confirm()" data-fp-confirm tabindex="0" type="button">
+        {{ confirmLabel() }}
+      </button>
+    </footer>
+  </section>
+</div>

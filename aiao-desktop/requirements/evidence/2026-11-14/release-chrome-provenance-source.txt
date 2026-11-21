@@ -1,0 +1,40 @@
+
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
+import {writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.env.AIAO_RELEASE_WORKSPACE;
+const base=path.join(root,'aiao-desktop/requirements/evidence/2026-11-14');
+const dist=path.join(root,'dist/aiao-desktop/apps/web/browser');
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const run=promisify(execFile);
+const required={'cross-origin-opener-policy':'same-origin','cross-origin-embedder-policy':'require-corp'};
+async function chrome(){
+ const report={format:'aiao-desktop.chrome-entry-provenance',version:1,measuredAt:new Date().toISOString(),method:'Fresh temporary headless Google Chrome; service workers blocked; raw response body',environment:{channel:'chrome'},entries:[],pageErrors:[]};
+ const output=path.join(base,'release-chrome-entry-provenance.json');
+ const watchdog=setTimeout(()=>{report.error='90 second diagnostic watchdog expired';writeFileSync(output,JSON.stringify(report,null,2)+'\n');process.exit(1)},90000);
+ let browser;
+ try{
+ const require=createRequire(path.join(root,'aiao-desktop/apps/e2e/package.json'));const{chromium}=require('playwright');
+ browser=await chromium.launch({channel:'chrome',headless:true,timeout:15000});report.environment.browser=browser.version();
+ const local=await readFile(path.join(dist,'index.html'),'utf8');const context=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
+ const origins=['https://desktop.aiao.io','https://aiao-desktop.pages.dev'];await context.route(url=>!origins.includes(url.origin),route=>route.abort());
+ for(const origin of origins){
+ const page=await context.newPage();page.on('pageerror',e=>report.pageErrors.push(e.message));
+ const response=await page.goto(origin+'/?boot=0',{timeout:20000,waitUntil:'domcontentloaded'});const body=await response.body();const text=body.toString('utf8');
+ let prefix=0;while(prefix<local.length&&prefix<text.length&&local[prefix]===text[prefix])prefix++;
+ let suffix=0;while(suffix<local.length-prefix&&suffix<text.length-prefix&&local.at(-suffix-1)===text.at(-suffix-1))suffix++;
+ const added=text.slice(prefix,text.length-suffix);const scripts=html=>[...html.matchAll(/<script\b([^>]*)>/gi)].map(m=>({src:m[1].match(/\bsrc=["']([^"']+)/i)?.[1]??null,type:m[1].match(/\btype=["']([^"']+)/i)?.[1]??null}));
+ const item={origin,status:response.status(),bytes:body.length,indexSha256:sha(body),artifactIndexSha256:sha(Buffer.from(local)),sameAsArtifact:text===local,commonPrefixChars:prefix,commonSuffixChars:suffix,removedLocalCharacters:local.length-prefix-suffix,addedCharacters:added.length,addedFragmentSha256:sha(Buffer.from(added)),localScripts:scripts(local),responseScripts:scripts(text),extraScriptSources:scripts(text).map(s=>s.src).filter(src=>src&&!scripts(local).some(s=>s.src===src))};report.entries.push(item);
+ await page.locator('.win[data-app="finder"]').waitFor({timeout:15000});item.finderVisible=await page.locator('.win[data-app="finder"]').isVisible();item.crossOriginIsolated=await page.evaluate(()=>crossOriginIsolated);await page.close();
+ }
+ report.passed=report.entries.length===2&&report.pageErrors.length===0&&report.entries.every(e=>e.status===200&&e.finderVisible&&e.crossOriginIsolated);
+ }catch(e){report.error=String(e);report.passed=false;}finally{await browser?.close().catch(()=>{});clearTimeout(watchdog);await writeFile(output,JSON.stringify(report,null,2)+'\n');}
+ return report;
+}
+const report=await chrome();console.log(JSON.stringify(report,null,2));if(!report.passed)process.exitCode=1;

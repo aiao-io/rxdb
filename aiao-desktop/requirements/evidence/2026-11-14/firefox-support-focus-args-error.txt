@@ -1,0 +1,35 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--group=a11y,window-layout --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-support-focus-checks.json
+
+aiao-desktop-e2e: (node:94202) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: node:internal/util/parse_args/parse_args:383
+aiao-desktop-e2e:         throw new ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL(token.value);
+aiao-desktop-e2e:               ^
+aiao-desktop-e2e: TypeError [ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL]: Unexpected argument 'window-layout'. This command does not take positional arguments
+aiao-desktop-e2e: [90m    at node:internal/util/parse_args/parse_args:383:15[39m
+aiao-desktop-e2e:     at Array.forEach (<anonymous>)
+aiao-desktop-e2e: [90m    at parseArgs (node:internal/util/parse_args/parse_args:374:3)[39m
+aiao-desktop-e2e:     at parseArguments [90m(file:///Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/e2e/[39msrc/harness/cli.mjs:22:22[90m)[39m
+aiao-desktop-e2e:     at [90mfile:///Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/e2e/[39msrc/smoke.mjs:27:17
+aiao-desktop-e2e: [90m    at ModuleJobSync.run (node:internal/modules/esm/module_job:679:46)[39m
+aiao-desktop-e2e: [90m    at node:internal/modules/run_main:199:19[39m
+aiao-desktop-e2e: [90m    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)[39m
+aiao-desktop-e2e: [90m    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:105:5)[39m {
+aiao-desktop-e2e:   code: [32m'ERR_PARSE_ARGS_UNEXPECTED_POSITIONAL'[39m
+aiao-desktop-e2e: }
+aiao-desktop-e2e: Node.js v26.12.0
+
+
+
+ NX   Running target e2e-firefox for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:e2e-firefox
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      470ms
+  Critical path:     354ms (1 task)
+  Recoverable time:  <1ms

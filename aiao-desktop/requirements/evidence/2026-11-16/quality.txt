@@ -1,0 +1,329 @@
+
+ NX   Running targets lint, test for 2 projects and 6 tasks they depend on:
+
+- aiao-desktop
+- aiao-desktop-e2e
+
+
+
+> nx run aiao-desktop-e2e:lint  [existing outputs match the cache, left as is]
+
+> eslint . --max-warnings=0
+
+(node:22779) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-desktop-e2e:test
+
+> node --test "src/**/*.spec.mjs"
+
+(node:25533) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25578) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 托管产物并带跨源隔离响应头；不存在的路径是 404，目录穿越被拒 (63.094625ms)
+✔ switchTo 换一份产物而不换来源 (24.839709ms)
+✔ 可以沿用上一次的端口重启，来源因此不变 (4.155583ms)
+(node:25579) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 升级起点必须唯一而且显式指定 (0.596834ms)
+✔ 支持固定本地产物与 HTTPS 生产部署 (0.411916ms)
+(node:25580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 检查组名唯一 (0.457708ms)
+✔ 每个检查组都声明了检查项键，且同一个键只由一个检查组产出 (0.310917ms)
+✔ 默认检查组产出拆分前单体冒烟的全部检查项（ADESK-US-008 AC#1） (0.463ms)
+✔ 夹具自检不随全量冒烟运行，也不占用拆分前的检查项键 (0.081541ms)
+(node:25581) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 启动台条目与冒烟声明一致时没有差异 (2.390917ms)
+✔ 登记表新增了应用而冒烟没覆盖：指出应用 id (0.117375ms)
+✔ 冒烟里多出登记表没有的应用：指出应用 id (0.726ms)
+✔ 两种差异同时出现时都列出 (0.099125ms)
+(node:25582) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 只改 Aiao Code 清单里的那一个 capabilities 数组，其余字节原样保留；引号写法照原样 (3.052375ms)
+✔ 匹配不到就抛错，不静默通过 (0.2755ms)
+✔ 匹配到多处就抛错，并报出每一处在哪个文件 (0.123583ms)
+✔ 匹配到的不是 Aiao Code 当前的最小清单（清单已经被改过、或是别的应用的清单）就抛错 (0.117584ms)
+(node:25583) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 只认静态 import，动态 import 不算 (0.821959ms)
+✔ 首屏脚本是 index.html 的脚本与预加载加上静态 import 闭包；其余 chunk 是按需加载的 (22.11475ms)
+✔ 请求 URL 换算成产物根目录脚本名，别的来源与子目录不算 (0.332167ms)
+✔ 从产物里读出每个脚本声明的组件选择器和数据域种子 (14.161334ms)
+✔ initial 体积包含静态脚本闭包与样式，逐文件 gzip，不计入按需模块与 HTML (10.290958ms)
+(node:25584) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 默认参数：全部默认检查组、chromium、并行 3 (0.993417ms)
+✔ --group 可以逗号分隔也可以重复给出，并能选中默认不跑的夹具自检 (0.287584ms)
+✔ 未知的检查组、引擎和非法的并行数直接报错 (0.350834ms)
+✔ 引擎、并行数与产物目录 (0.116708ms)
+✔ --report 指定完整运行证据的输出路径 (0.085416ms)
+(node:25585) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 一批种子表计数复用一个连接，按输入顺序返回行数，零行不伪装成已种数据 (11.742916ms)
+✔ 表名仍由数据库夹具引用，不拼接未转义的标识符 (2.295125ms)
+✔ 读取失败原样抛出，仍断开唯一连接并关闭临时页面，不通过重试掩盖错误 (3.118541ms)
+(node:25586) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 对象逐层展开成点分路径，数组与基本值是叶子 (0.775125ms)
+✔ 数组检查项必须为空才算通过，其余按真值 (0.08125ms)
+✔ 列出没通过的检查项 (14.717625ms)
+✔ 比较声明的键与实际输出的键 (1.298375ms)
+(node:25587) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 全部通过、没有限制清单：没有任何问题 (0.903ms)
+✔ 没登记的失败、缺项、异常和页面错误都是意外 (0.121791ms)
+✔ 多出未声明的检查项任何情况下都是意外，登记整个检查组也不豁免 (0.093375ms)
+✔ 登记过的检查项失败是已知的，不算失败 (0.098875ms)
+✔ 登记了却通过的检查项是过期限制，算失败 (0.161792ms)
+✔ 整个检查组登记为限制：它的异常、缺项与页面错误都是已知的；检查组没问题了就过期 (0.110083ms)
+✔ 登记的页面错误按正则匹配，别的页面错误仍然是意外 (0.102417ms)
+✔ 检查组异常导致缺项，缺的键都登记过时不再重复报异常 (0.096125ms)
+✔ 清单校验：引擎要对得上、档位与原因必填、不重复 (0.36975ms)
+✔ 默认从入口旁的 baseline 目录读取限制清单，不依赖执行目录 (0.650416ms)
+✔ 定向运行只检查选中组的限制，未运行的组不算过期 (0.177875ms)
+(node:25588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Chromium 的离线失败不动时钟：被拦截的 iframe 导航会触发 load，Orbit 3 秒后以 LOAD_ERROR 失败 (5.99925ms)
+✔ firefox 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 (0.207666ms)
+✔ webkit 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 (0.074709ms)
+✔ 同一个页面只装一次假时钟（重复装会报错） (0.108291ms)
+✔ 替身结果只接收登记来源，拒绝包含允许域名的伪造来源 (0.80225ms)
+✔ 远端结果的属性名不会修改结果表的原型 (0.367209ms)
+(node:25589) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 清单覆盖能力矩阵「快捷键」表里的每个组合，且没有多出的 (1.764333ms)
+✔ 清单项的 id 唯一，每项都说明怎么按与期望的行为 (0.130167ms)
+✔ 结果分三类：没到达、到达且正确、到达但不对；只有后者算验收失败 (0.125834ms)
+✔ 报告是一张 Markdown 表，带环境与备注 (0.140916ms)
+ℹ tests 55
+ℹ suites 0
+ℹ pass 55
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 469.004459
+
+> nx run aiao-desktop:requirements-test
+
+> node --test scripts/check-requirements.spec.mjs
+
+(node:25594) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25595) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 当前产品需求目录通过结构门禁 (173.419334ms)
+✔ ADESK 前缀的需求树通过 (6.732875ms)
+✔ 默认按仓库根解析平台故事引用 (41.175458ms)
+✔ Web Desktop 的 DESKTOP 前缀故事被拒绝 (8.891792ms)
+✔ 其他产品前缀的史诗被拒绝 (7.696167ms)
+✔ Done 故事的 AC 必须全部通过 (8.848333ms)
+✔ 指向不存在文件的链接被拒绝 (6.180291ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 316.118792
+
+> nx run aiao-desktop:dev-test
+
+> node --test scripts/dev/*.spec.mjs
+
+(node:25596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 固定端口被占用时直接失败，不换端口，也不停止占用者 (5.688875ms)
+(node:25598) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 导航页列出服务入口、常用命令与文档，并标明当前检出位 (2.216708ms)
+✔ 检出位与分支名按 HTML 转义后再写入页面 (1.452ms)
+✔ 导航服务返回页面与服务状态，不缓存、不带来源 (10.749625ms)
+开发导航渲染失败：导航模板引用了未知的占位符：X
+✔ 每次请求重新渲染导航页，模板出错时返回 500 并写明原因 (3.201625ms)
+✔ 导航服务拒绝其他 Host、其他方法与未知路径 (3.421ms)
+✔ 探测服务：带齐跨源隔离响应头才算隔离，连不上或超时算未运行 (225.419083ms)
+(node:25599) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 用系统浏览器打开一次开发导航 (2.234042ms)
+✔ 无界面环境可以关掉自动打开 (0.101542ms)
+✔ 打不开浏览器时报错，不换别的方式重试 (0.290583ms)
+✔ 不认识的系统明确报错 (0.0915ms)
+(node:25600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 开发服务器、正式构建预览与开发导航的端口和固定入口一致 (4.698459ms)
+✔ 开发服务器启动前先检查固定端口、构建依赖包并准备包管理器资源 (2.019334ms)
+✔ 正式构建预览是常驻服务：就绪不等于任务结束 (0.676542ms)
+✔ 三个入口互不冲突，导航与预览只监听本机回环地址 (0.710125ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 375.669834
+
+> nx run aiao-desktop:deploy-test
+
+> node --test scripts/deploy/*.spec.mjs
+
+(node:25651) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 产物目录就是 web 构建的输出目录 (3.006417ms)
+✔ 随构建发布的 _headers 满足发布配置要求的跨源隔离响应头（D-05） (2.595ms)
+✔ 发布到哪个 Pages 项目与分支写在配置里，生产分支和 Preview 分支不同 (0.2245ms)
+✔ 构建与开发都先准备包管理器资源，并将生成目录托管到 /vendor/ (2.419292ms)
+(node:25653) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseArgs：默认发布到生产；识别 --dry-run 与 --preview；未知参数直接报错 (1.137375ms)
+✔ wranglerEnv：补上 IPv6 优先的 DNS 顺序，已有设置时保持原样 (0.118667ms)
+✔ 命令参数：新建项目要带 --force（只此一次），发布要显式指定分支 (0.118791ms)
+✔ parseDeployOutput 取 pages-deploy-detailed 记录；没有这条记录就报错 (0.15525ms)
+✔ parseProjects 与 parseDeployments 校验 wrangler 的 JSON 形状 (0.270917ms)
+✔ liveTargets：部署地址逐文件对账，别名与自定义域名只核对入口页；Preview 没有自定义域名 (0.1465ms)
+✔ --dry-run 只做产物检查，不碰 wrangler 与线上 (0.821459ms)
+✔ 产物检查不通过时，一个 wrangler 命令都不跑 (0.449042ms)
+✔ 项目已存在：不新建，记下上一版生产部署，发布到 main 并核对线上 (0.543667ms)
+✔ 项目不存在：先带 --force 新建，再发布；没有上一版可回滚 (0.307917ms)
+✔ --preview 发布到 Preview 分支，不核对自定义域名 (0.84125ms)
+✔ 线上对账失败：整体失败，列出失败原因，并给出回滚点 (2.270583ms)
+✔ 核对每个地址前先等它连得上：新项目的子域名证书要几分钟才签发 (0.191875ms)
+✔ 地址一直连不上：该地址记为失败、不再逐文件请求，其余地址照常核对 (0.218458ms)
+✔ 部署落在了预期之外的环境（项目的生产分支被改过）：发布算失败，不去核对线上 (0.158416ms)
+(node:25654) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseHeadersFile 按规则分组，忽略注释与空行，头名保持原样 (0.968209ms)
+✔ parseHeadersFile 的值里可以有冒号 (0.119375ms)
+✔ parseHeadersFile 遇到没有规则的响应头时报错，不悄悄丢弃 (0.206875ms)
+✔ listDistFiles 返回排序后的相对路径与大小 (29.494458ms)
+✔ 产物合格时没有问题 (14.103125ms)
+✔ 产物目录不存在时提示先构建 (5.054792ms)
+✔ 缺 index.html 或缺 _headers 都报 (7.02575ms)
+✔ 缺少跨源隔离响应头，或取值不对，指出是哪一个 (12.765333ms)
+✔ 同一个响应头写了多次会被 Pages 拼成无效值，要报 (6.528708ms)
+✔ 响应头只写在 /* 以外的规则里，不算全站生效 (10.857833ms)
+✔ 漏发任何一个包管理器资源都阻止发布 (21.44125ms)
+✔ 包管理器资源是 HTML、损坏的 gzip 或错误版本时阻止发布 (16.533042ms)
+✔ Python 同源资源缺失或被 HTML 替换时阻止发布 (8.6295ms)
+(node:25655) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 两个入口内容一致、状态与跨源隔离头完整才通过 (25.6825ms)
+✔ 入口内容不同不能当成同一部署 (0.402666ms)
+✔ 重定向不跟随，响应头缺失和网络错误均保留具体地址 (0.653416ms)
+(node:25656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ publicPath：index.html 对应站点根，其余按相对路径 (3.56075ms)
+✔ 逐个文件对账通过：_headers 与 _redirects 不是站点内容，不请求 (46.888584ms)
+✔ 请求不跟随重定向、不用缓存 (5.793916ms)
+✔ Pages 对不存在的文件回 index.html 且 200：内容不一致必须报出 (6.340958ms)
+✔ 缺少或写错跨源隔离响应头都报，指出是哪一个 (4.854459ms)
+✔ 重定向与错误状态码都算失败 (3.701625ms)
+✔ 网络抖动与 5xx 会重试，重试后通过 (5.478583ms)
+✔ 一直失败时用尽重试次数后报错，带上最后一次的原因 (8.573417ms)
+✔ 4xx 不重试 (4.18225ms)
+✔ waitUntilReachable：只要有 HTTP 应答（哪怕 404）就算连得上，不多请求 (0.4635ms)
+✔ waitUntilReachable：新项目的子域名证书还没签发时，一直等到连上，只提示一次 (3.34675ms)
+✔ waitUntilReachable：超过时限仍连不上就报错，带上地址与最后一次的原因 (21.578875ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 47
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 219.19775
+
+> nx run aiao-desktop:runtime-test
+
+> node --test scripts/vivari/*.spec.mjs
+
+(node:25657) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 产物符合 Vivari 的 gzip 索引格式，保留二进制和中文，排除原生扩展与符号链接 (8.584416ms)
+✔ 包内版本不匹配或缺少 CLI 入口时拒绝打包 (6.840875ms)
+✔ 损坏的 gzip、错误版本和缺少 CLI 的缓存不能通过校验 (4.543125ms)
+✔ 首次准备校验下载内容并生成资源，已有合格产物时不联网 (76.76425ms)
+✔ 下载失败、校验值不符或下载包版本不对时失败，不留下可发布产物 (65.852375ms)
+✔ 已有损坏资源直接报错，不能把 HTML 或截断包当作缓存命中 (2.795709ms)
+✔ 缓存索引越界或包名被替换时拒绝使用 (2.915083ms)
+✔ tsgo 发布包提取 Go 引擎供 Vivari 使用，缺少引擎结构时拒绝继续 (62.188125ms)
+(node:25660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 首次准备从校验过的发布包复制解释器和 wheel，合格缓存完全离线 (69.406208ms)
+✔ 缺失、HTML 替身和截断资源必须阻止发布 (6.90025ms)
+✔ wheel 下载失败或散列不符时失败，不留下文件 (1.83625ms)
+✔ 本地锁文件与版本信息也按固定散列复制 (4.156208ms)
+✔ Python 锁文件中全部同源 wheel 都有固定资源，传递依赖可解析 (1.462375ms)
+✔ 仓库中的本地运行时资源逐字节符合发布清单的固定散列 (5.729792ms)
+(node:25661) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SDK 将宿主同源 vendor 请求交回浏览器，其他 localhost 请求仍进入虚拟机 (22.836958ms)
+✔ Ruff 使用宿主 ESM 加载器，修补后的两个 worker URL 都区分旧缓存 (12.835375ms)
+✔ pip 的 wheel 加载失败必须返回失败，不能打印安装成功或保存空包存储 (13.593834ms)
+✔ Python input 按完整行读取分块按键，保留空行、退格与 EOF 前的内容 (9.391166ms)
+✔ Python REPL 复用脚本会话的项目目录、包存储和文件回写 (16.275708ms)
+✔ Bun eval 从项目目录解析已安装的依赖、相对模块与 require.resolve (10.779417ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 291.269334
+
+> nx run aiao-desktop:requirements-check
+
+> node scripts/check-requirements.mjs
+
+✅ Aiao Desktop requirements passed（21/22 已交付）
+
+> nx run aiao-desktop:security-test
+
+> node --test scripts/check-web-secrets.spec.mjs
+
+(node:25974) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 产物里没有密钥时不报 (6.804709ms)
+✔ 每类密钥形状都报出文件与类型，不回显取值 (12.047166ms)
+✔ 二进制文件不扫描 (2.25925ms)
+✔ 产物目录不存在时报错，不当作通过 (0.917542ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.937375
+
+> nx run aiao-desktop:lint
+
+> eslint .
+
+(node:25976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran targets lint, test for 2 projects and 6 tasks they depend on
+
+Nx read the output from the cache instead of running the command for 1 out of 10 tasks.
+
+  Run duration:      4.1s
+  Cache:             1/10 hit (10%)
+  Critical path:     1.6s (1 task)
+  Recoverable time:  2.3s (56% of the run)

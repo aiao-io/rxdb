@@ -1,0 +1,166 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T09:25:24.195Z",
+  "source": {
+    "sha": "1111da18b600feb05f8c7328a0ee1b15ccc579d1",
+    "changes": "MM ../../README.md\nM  src/fixtures/artifact-server.mjs\n M src/groups/a11y.mjs\n M src/groups/external-content.mjs\nMM src/groups/index.mjs\nAM src/groups/pwa.mjs\n M src/harness/cli.mjs\n M src/harness/cli.spec.mjs\nM  src/harness/runner.mjs\nM  src/harness/session.mjs\n M src/smoke.mjs\nA  ../web/ngsw-config.json\nM  ../web/project.json\nM  ../web/public/_headers\nA  ../web/public/icons/apple-touch-icon.png\nA  ../web/public/icons/desktop.svg\nA  ../web/public/icons/icon-192.png\nA  ../web/public/icons/icon-512.png\nA  ../web/public/icons/icon-maskable-512.png\nA  ../web/public/manifest.webmanifest\nM  ../web/src/app/app.config.ts\nD  ../web/src/app/apps/safari/safari-markdown.ts\nMM ../web/src/app/apps/safari/safari-network.spec.ts\nM  ../web/src/app/apps/safari/safari-network.ts\nMM ../web/src/app/apps/safari/safari-page.ts\n M ../web/src/app/apps/safari/safari-url.ts\nMM ../web/src/app/apps/safari/safari.html\nMM ../web/src/app/apps/safari/safari.ts\n M ../web/src/app/shared/external-content.spec.ts\nMM ../web/src/app/shared/external-content.ts\nM  ../web/src/index.html\n M ../web/src/styles.scss\nA  ../web/tools/generate-pwa-icons.mjs\nM  ../web/tools/serve-static.mjs\nM  ../../requirements/README.md\n M ../../requirements/capability-matrix.md\nMM ../../requirements/decisions.md\nM  ../../requirements/epics/ADESK-EPIC-001.md\n M ../../requirements/roadmap.md\nM  ../../requirements/status-overview.md\n M ../../requirements/stories/desktop/ADESK-US-101-desktop-shell-baseline.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/stories/platform/ADESK-US-007-external-content-disclosure.md\nAM ../../requirements/stories/platform/ADESK-US-009-pwa.md\n M ../../scripts/dev/dashboard.html\n?? ../../requirements/evidence/2026-11-16/pwa-cache.json\n?? ../../requirements/evidence/2026-11-16/pwa-red.txt\n?? ../../requirements/evidence/2026-11-16/pwa-smoke.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "444d7fdebaf59e6d672bda31d811464fdeb4e0682871778f00011ef80761af9d"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "terminal-runtimes",
+      "pwa"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 67.67218525,
+  "outcomes": [
+    {
+      "group": "terminal-runtimes",
+      "result": {
+        "terminalRuntimes": {
+          "lazy": true,
+          "python": true,
+          "python3": true,
+          "pythonExit": true,
+          "pythonAsync": true,
+          "script": true,
+          "sharedDisk": true,
+          "pip": true,
+          "installedPackage": true,
+          "pipFreeze": true,
+          "pythonRepl": true,
+          "pythonReplFile": true,
+          "pythonInput": true,
+          "numpyPandas": true,
+          "scipySklearn": true,
+          "pythonLibraries": true,
+          "pytest": true,
+          "black": true,
+          "mypy": true,
+          "ruff": true,
+          "tsc": true,
+          "tsgo": true,
+          "bun": true,
+          "bunScript": true,
+          "bunSharedDisk": true,
+          "bunRun": true,
+          "bunExit": true,
+          "bunRepl": true,
+          "nodeSqlite": true,
+          "bunSqlite": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 49.282204750000005
+    },
+    {
+      "group": "pwa",
+      "result": {
+        "pwa": {
+          "manifest": true,
+          "workerControlsDesktop": true,
+          "installable": true,
+          "desktopPrecached": true,
+          "largeResourcesLazy": true,
+          "lazyResourceOffline": true,
+          "offlineReload": true,
+          "offlineIsolation": true,
+          "offlineFirstAppLaunch": true,
+          "offlineDataIntact": true,
+          "onlineRecovery": true,
+          "updateWaitsForReload": true,
+          "updatedAfterReload": true,
+          "dataSurvivesUpdate": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 18.328875959
+    }
+  ],
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": true,
+      "python3": true,
+      "pythonExit": true,
+      "pythonAsync": true,
+      "script": true,
+      "sharedDisk": true,
+      "pip": true,
+      "installedPackage": true,
+      "pipFreeze": true,
+      "pythonRepl": true,
+      "pythonReplFile": true,
+      "pythonInput": true,
+      "numpyPandas": true,
+      "scipySklearn": true,
+      "pythonLibraries": true,
+      "pytest": true,
+      "black": true,
+      "mypy": true,
+      "ruff": true,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "bunScript": true,
+      "bunSharedDisk": true,
+      "bunRun": true,
+      "bunExit": true,
+      "bunRepl": true,
+      "nodeSqlite": true,
+      "bunSqlite": true
+    },
+    "pwa": {
+      "manifest": true,
+      "workerControlsDesktop": true,
+      "installable": true,
+      "desktopPrecached": true,
+      "largeResourcesLazy": true,
+      "lazyResourceOffline": true,
+      "offlineReload": true,
+      "offlineIsolation": true,
+      "offlineFirstAppLaunch": true,
+      "offlineDataIntact": true,
+      "onlineRecovery": true,
+      "updateWaitsForReload": true,
+      "updatedAfterReload": true,
+      "dataSurvivesUpdate": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

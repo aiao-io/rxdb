@@ -1,0 +1,494 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T16:38:35.436Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M src/groups/calendar-drafts.mjs\n M ../web/src/app/apps/calendar/calendar.html"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "e46d96d806afe045b081aa2272c99204b85d76380c04790a8a9ff99579725532"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "calendar-drafts",
+      "document-workflow",
+      "shell-interaction",
+      "apps",
+      "persistence",
+      "a11y"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 75.69276233299999,
+  "outcomes": [
+    {
+      "group": "calendar-drafts",
+      "result": {
+        "calendarDrafts": {
+          "invalidInputIsRejected": true,
+          "failedCreateKeepsFields": true,
+          "beforeUnloadGuard": true,
+          "noViolations": [],
+          "closeAndRestartKeepDraft": true,
+          "retryCreatesOneEvent": true,
+          "pendingSaveBlocksClose": true,
+          "failedUpdateKeepsFields": true,
+          "conflictAndCopyRecovery": true,
+          "failedDeleteKeepsEvent": true,
+          "keyboardAndPersistence": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 26.551225207999998
+    },
+    {
+      "group": "document-workflow",
+      "result": {
+        "documentWorkflow": {
+          "savedDocumentDoesNotBlockUnload": true,
+          "newDocumentSaved": true,
+          "savedPathRestored": true,
+          "reopenedBytesMatch": true,
+          "saveAsKeepsOriginal": true,
+          "beforeUnloadProtectsDraft": true,
+          "restartCancellationKeepsSession": true,
+          "keyboardDialogFocus": true,
+          "cancelCloseKeepsDraft": true,
+          "discardCloses": true,
+          "cancelSaveKeepsDraft": true,
+          "saveOnClose": true,
+          "concurrentConflict": true,
+          "conflictCanSaveCopy": true,
+          "quitCancellationIsAtomic": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 15.634317167
+    },
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "loginEntersDesktop": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 29.51878875
+    },
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 33.45619566700001
+    },
+    {
+      "group": "persistence",
+      "result": {
+        "persistence": {
+          "fileSurvivesReload": true,
+          "folderSurvivesReload": true,
+          "settingsSurviveReload": true,
+          "noteSurvivesReload": true,
+          "reminderSurvivesReload": true,
+          "eraseRestoresDisk": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 23.567460833
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          },
+          "safari": {
+            "browserLinkNamed": [],
+            "keyboardOpen": [],
+            "actionsAccessible": []
+          },
+          "fileOperations": {
+            "namedDialogs": [],
+            "keyboardAndFocus": [],
+            "noViolations": []
+          },
+          "activity": {
+            "keyboardControls": true,
+            "noViolations": []
+          },
+          "resources": {
+            "keyboardControls": true,
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 52.420825916999995
+    }
+  ],
+  "checks": {
+    "calendarDrafts": {
+      "invalidInputIsRejected": true,
+      "failedCreateKeepsFields": true,
+      "beforeUnloadGuard": true,
+      "noViolations": [],
+      "closeAndRestartKeepDraft": true,
+      "retryCreatesOneEvent": true,
+      "pendingSaveBlocksClose": true,
+      "failedUpdateKeepsFields": true,
+      "conflictAndCopyRecovery": true,
+      "failedDeleteKeepsEvent": true,
+      "keyboardAndPersistence": true
+    },
+    "documentWorkflow": {
+      "savedDocumentDoesNotBlockUnload": true,
+      "newDocumentSaved": true,
+      "savedPathRestored": true,
+      "reopenedBytesMatch": true,
+      "saveAsKeepsOriginal": true,
+      "beforeUnloadProtectsDraft": true,
+      "restartCancellationKeepsSession": true,
+      "keyboardDialogFocus": true,
+      "cancelCloseKeepsDraft": true,
+      "discardCloses": true,
+      "cancelSaveKeepsDraft": true,
+      "saveOnClose": true,
+      "concurrentConflict": true,
+      "conflictCanSaveCopy": true,
+      "quitCancellationIsAtomic": true
+    },
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "loginEntersDesktop": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
+    "persistence": {
+      "fileSurvivesReload": true,
+      "folderSurvivesReload": true,
+      "settingsSurviveReload": true,
+      "noteSurvivesReload": true,
+      "reminderSurvivesReload": true,
+      "eraseRestoresDisk": true
+    },
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      },
+      "safari": {
+        "browserLinkNamed": [],
+        "keyboardOpen": [],
+        "actionsAccessible": []
+      },
+      "fileOperations": {
+        "namedDialogs": [],
+        "keyboardAndFocus": [],
+        "noViolations": []
+      },
+      "activity": {
+        "keyboardControls": true,
+        "noViolations": []
+      },
+      "resources": {
+        "keyboardControls": true,
+        "noViolations": []
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

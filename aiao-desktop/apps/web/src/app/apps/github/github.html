@@ -1,0 +1,859 @@
+<div class="gd-workspace gh-app" [class.has-repository]="activeRecord()" data-github-app>
+  <h1 class="sr-only">GitHub Desktop</h1>
+
+  <div class="gd-toolbar gh-toolbar" aria-label="GitHub Desktop toolbar" data-drag role="toolbar">
+    <div class="gh-toolbar-chrome" data-drag>
+      <app-traffic-lights />
+    </div>
+
+    <div class="gd-toolbar-section gh-repository-section relative" [style.width.px]="asideWidth()">
+      <button
+        class="gd-toolbar-select gh-repository-trigger"
+        [attr.aria-expanded]="repositoryMenuOpen()"
+        (click)="toggleRepositoryMenu()"
+        aria-haspopup="menu"
+        data-github-repository-menu
+        type="button"
+      >
+        <span class="gh-system-icon gh-toolbar-system-icon">
+          <img alt="" data-github-system-icon src="icons/desktop/app-github.png" />
+        </span>
+        <span class="gh-toolbar-copy">
+          <small>Current Repository</small>
+          <strong data-github-repository-name>{{ activeRecord()?.name ?? 'Repositories' }}</strong>
+        </span>
+        <span class="gh-toolbar-chevron" aria-hidden="true">⌄</span>
+      </button>
+
+      @if (repositoryMenuOpen()) {
+        <div
+          class="gh-menu-overlay"
+          (click)="closeRepositoryMenu()"
+          (keydown.escape)="closeRepositoryMenu()"
+          aria-label="Close repository menu"
+          role="button"
+          tabindex="0"
+        ></div>
+        <div
+          class="gd-menu gh-repository-menu"
+          [style.width.px]="asideWidth() < 320 ? 320 : asideWidth()"
+          aria-label="Repository menu"
+          data-github-repository-menu-popup
+          role="menu"
+        >
+          <div class="gd-menu-header">Current Repository</div>
+          <div class="gh-repository-records">
+            @for (record of records(); track record.projectId) {
+              <button
+                class="gd-menu-row gh-repository-menu-row"
+                [attr.data-project-id]="record.projectId"
+                [class.gh-repository-menu-row-selected]="activeRecord()?.projectId === record.projectId"
+                (click)="openStored(record)"
+                role="menuitem"
+                type="button"
+              >
+                <img alt="" data-github-system-icon src="icons/desktop/app-github.png" />
+                <span class="min-w-0 flex-1 truncate text-left">
+                  <strong>{{ record.name }}</strong>
+                  <small>{{ record.branch }}{{ record.owner ? ' · ' + record.owner : ' · Local' }}</small>
+                </span>
+                @if (activeRecord()?.projectId === record.projectId) {
+                  <span class="gh-menu-check" aria-label="Selected">✓</span>
+                }
+              </button>
+            } @empty {
+              <p class="gh-menu-empty">No repositories yet.</p>
+            }
+          </div>
+
+          @if (searchResults().length) {
+            <div class="gd-menu-divider"></div>
+            <div class="gd-menu-header">Search results</div>
+            @for (result of searchResults(); track result.fullName) {
+              <button
+                class="gd-menu-row gh-repository-menu-row"
+                [attr.data-github-search-result]="result.fullName"
+                (click)="selectRemoteRepository(result)"
+                role="menuitem"
+                type="button"
+              >
+                <img alt="" data-github-system-icon src="icons/desktop/app-github.png" />
+                <span class="min-w-0 flex-1 truncate text-left">
+                  <strong>{{ result.fullName }}</strong>
+                  <small>{{ result.isPrivate ? 'Private' : 'Public' }} · ★ {{ result.stars }}</small>
+                </span>
+              </button>
+            }
+          }
+
+          <div class="gd-menu-divider"></div>
+          <section class="gh-menu-section" aria-label="Remote repository actions">
+            <div class="gh-menu-section-title">Open a GitHub repository</div>
+            <div class="gh-menu-form-row">
+              <input
+                [value]="searchValue()"
+                (input)="setValue('search', $event)"
+                (keydown.enter)="searchRemoteRepositories()"
+                aria-label="Search GitHub repositories"
+                data-github-search
+                placeholder="Search repositories"
+                type="search"
+              />
+              <button
+                (click)="searchRemoteRepositories()"
+                aria-label="Search repositories"
+                data-github-search-submit
+                type="button"
+              >
+                Search
+              </button>
+            </div>
+            <input
+              #repositoryInput
+              [value]="repoValue()"
+              (input)="setValue('repo', $event)"
+              (keydown.enter)="openRemoteRepository()"
+              aria-label="GitHub repository"
+              data-github-repository
+              placeholder="owner/repository or GitHub URL"
+              type="search"
+            />
+            <div class="gh-menu-form-row">
+              <input
+                [value]="branchValue()"
+                (input)="setValue('branch', $event)"
+                aria-label="GitHub branch"
+                data-github-branch
+                placeholder="Branch"
+                type="text"
+              />
+              @if (remoteBranches().length) {
+                <select
+                  [value]="branchValue()"
+                  (change)="selectRemoteBranch($event)"
+                  aria-label="GitHub remote branch"
+                  data-github-remote-branch
+                >
+                  @for (branch of remoteBranches(); track branch.name) {
+                    <option [value]="branch.name">{{ branch.name }}</option>
+                  }
+                </select>
+              }
+            </div>
+            <div class="gh-menu-actions">
+              <button [disabled]="busy()" (click)="loadRemoteBranches()" data-github-load-branches type="button">
+                Load branches
+              </button>
+              <button [disabled]="busy()" (click)="openRemoteRepository()" data-github-open-remote type="button">
+                Open remote
+              </button>
+            </div>
+          </section>
+
+          <div class="gd-menu-divider"></div>
+          <section class="gh-menu-section" aria-label="Local repository actions">
+            <div class="gh-menu-section-title">Local repositories</div>
+            <div class="gh-menu-form-row">
+              <input
+                #newRepositoryInput
+                [value]="newRepoValue()"
+                (input)="setValue('newRepo', $event)"
+                aria-label="New repository name"
+                data-github-new-repository
+                placeholder="New repository name"
+                type="text"
+              />
+              <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">Create</button>
+            </div>
+            <div class="gh-menu-actions">
+              <button
+                class="gd-btn-secondary"
+                #localRepositoryButton
+                [disabled]="busy()"
+                (click)="openLocalRepositoryPicker()"
+                aria-label="Add local repository"
+                data-github-add-local
+                type="button"
+              >
+                Add Local Repository
+              </button>
+              <input
+                class="sr-only"
+                #localRepositoryInput
+                [disabled]="busy()"
+                (change)="importLocalDirectory($event)"
+                aria-label="Choose local Git repository directory"
+                data-github-add-local-input
+                directory
+                tabindex="-1"
+                type="file"
+                webkitdirectory
+              />
+              <label
+                class="gd-btn-secondary gh-file-button"
+                #importRepositoryButton
+                [class.disabled]="busy()"
+                (keydown.enter)="openImportPicker($event)"
+                (keydown.space)="openImportPicker($event)"
+                aria-label="Import repository archive"
+                role="button"
+                tabindex="0"
+              >
+                Import archive
+                <input
+                  [disabled]="busy()"
+                  (change)="importRepository($event)"
+                  aria-label="Import repository archive"
+                  data-github-import
+                  type="file"
+                />
+              </label>
+              @if (activeRecord()) {
+                <button (click)="exportRepository()" data-github-export type="button">Export repository</button>
+              }
+            </div>
+          </section>
+        </div>
+      }
+    </div>
+
+    <div class="gd-toolbar-handle gh-toolbar-handle" aria-hidden="true"></div>
+
+    <div class="gd-toolbar-section gh-branch-section relative">
+      <button
+        class="gd-toolbar-select gh-branch-trigger"
+        [attr.aria-expanded]="branchMenuOpen()"
+        (click)="toggleBranchMenu()"
+        aria-haspopup="dialog"
+        data-github-branch-menu
+        type="button"
+      >
+        <svg [lucideIcon]="GitBranch" size="17"></svg>
+        <span class="gh-toolbar-copy">
+          <small>Current Branch</small>
+          <strong>{{ currentBranch() }}</strong>
+        </span>
+        <svg
+          class="gh-branch-chevron"
+          [lucideIcon]="ChevronDown"
+          [style.transform]="branchMenuOpen() ? 'rotate(180deg)' : null"
+          size="14"
+        ></svg>
+      </button>
+
+      <select
+        class="gh-legacy-branch-select"
+        [value]="currentBranch()"
+        (change)="checkoutFromEvent($event)"
+        aria-label="Current Branch"
+        data-github-branch-select
+        tabindex="-1"
+      >
+        @for (branch of branches(); track branch.name) {
+          <option [value]="branch.name">{{ branch.name }}</option>
+        }
+      </select>
+
+      @if (branchMenuOpen()) {
+        <div
+          class="gh-menu-overlay"
+          (click)="closeBranchMenu()"
+          (keydown.escape)="closeBranchMenu()"
+          aria-label="Close branch menu"
+          role="button"
+          tabindex="0"
+        ></div>
+        <div class="gd-menu gh-branch-menu" aria-label="Branch list" role="dialog">
+          <div class="gh-branch-menu-header">
+            <span>Branches ({{ branches().length }})</span>
+            <span class="gh-muted">{{ currentBranch() }}</span>
+          </div>
+          <label class="gh-menu-search">
+            <svg [lucideIcon]="Search" size="13"></svg>
+            <input
+              [value]="branchFilter()"
+              (input)="setValue('branchFilter', $event)"
+              aria-label="Filter branches"
+              placeholder="Filter branches"
+              type="search"
+            />
+          </label>
+          <div class="gh-branch-list">
+            @for (branch of filteredBranches(); track branch.name) {
+              <div class="gh-branch-row">
+                <button
+                  class="gd-menu-row"
+                  [attr.aria-current]="branch.current ? 'true' : null"
+                  [class.gh-branch-row-current]="branch.current"
+                  (click)="checkout(branch.name)"
+                  type="button"
+                >
+                  <svg [lucideIcon]="branch.current ? Check : GitBranch" size="14"></svg>
+                  <span class="min-w-0 flex-1 truncate">{{ branch.name }}</span>
+                  @if (branch.oid) {
+                    <code>{{ branch.oid.slice(0, 7) }}</code>
+                  }
+                </button>
+                <button
+                  class="gd-btn-ghost gh-context-trigger"
+                  (click)="openContextMenu($event, { kind: 'branch', name: branch.name })"
+                  aria-label="Branch actions"
+                  type="button"
+                >
+                  <svg [lucideIcon]="MoreVertical" size="14"></svg>
+                </button>
+              </div>
+            } @empty {
+              <div class="gh-menu-empty">No matching branches.</div>
+            }
+          </div>
+          <div class="gd-menu-divider"></div>
+          <section class="gh-menu-section" aria-label="Create branch">
+            <div class="gh-menu-section-title">Create a branch</div>
+            <div class="gh-menu-form-row">
+              <input
+                #newBranchInput
+                [value]="newBranchValue()"
+                (input)="setValue('newBranch', $event)"
+                (keydown.enter)="createBranch()"
+                aria-label="New branch name"
+                data-github-new-branch
+                placeholder="New branch name"
+                type="text"
+              />
+              <button [disabled]="busy()" (click)="createBranch()" data-github-create-branch type="button">
+                Create
+              </button>
+            </div>
+          </section>
+        </div>
+      }
+    </div>
+
+    <div class="gd-toolbar-handle gh-toolbar-handle" aria-hidden="true"></div>
+
+    <button
+      class="gd-toolbar-refresh gd-toolbar-section gh-fetch-button"
+      [disabled]="busy() || !activeRecord()"
+      (click)="fetchOrigin()"
+      data-github-fetch-origin
+      type="button"
+    >
+      <span class="gh-toolbar-copy">
+        <small>{{ activeRecord()?.owner ? 'Fetch origin' : 'Refresh status' }}</small>
+        <strong>{{ lastFetchedLabel() }}</strong>
+      </span>
+      <span class="gh-fetch-icon" aria-hidden="true">↻</span>
+    </button>
+
+    <div class="gh-auth" aria-label="GitHub authentication">
+      @if (session(); as account) {
+        <span class="gh-account" data-github-account>{{ account.login }}</span>
+        <button class="gd-btn-ghost gh-auth-button" [disabled]="authBusy()" (click)="logout()" type="button">
+          Sign out
+        </button>
+      } @else {
+        <input
+          class="gh-auth-pat"
+          [value]="patValue()"
+          (input)="setValue('pat', $event)"
+          aria-label="GitHub personal access token"
+          data-github-pat
+          placeholder="PAT"
+          type="password"
+        />
+        <button
+          class="gd-btn-ghost gh-auth-button"
+          [disabled]="authBusy()"
+          (click)="loginWithPat()"
+          data-github-pat-login
+          type="button"
+        >
+          Sign in
+        </button>
+        <button
+          class="gd-btn-primary gh-auth-button"
+          [disabled]="authBusy()"
+          (click)="loginWithOAuth()"
+          data-github-oauth-login
+          type="button"
+        >
+          GitHub login
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (activeRecord(); as record) {
+    <div class="gh-workspace" [style.--gh-aside-width]="asideWidth() + 'px'" aria-label="Repository workspace">
+      <aside class="gd-sidebar gh-sidebar" aria-label="Repository changes and history">
+        <div class="gd-tabs gh-tabs" aria-label="Repository views" role="tablist">
+          <button
+            class="gd-tab"
+            [attr.aria-selected]="tab() === 'changes'"
+            [class.gd-tab-active]="tab() === 'changes'"
+            (click)="setTab('changes')"
+            data-github-tab="changes"
+            role="tab"
+            type="button"
+          >
+            Changes
+            <span class="gd-pill">{{ changedEntries().length }}</span>
+          </button>
+          <button
+            class="gd-tab"
+            [attr.aria-selected]="tab() === 'history'"
+            [class.gd-tab-active]="tab() === 'history'"
+            (click)="setTab('history')"
+            data-github-tab="history"
+            role="tab"
+            type="button"
+          >
+            History
+            <span class="gd-pill">{{ history().length }}</span>
+          </button>
+        </div>
+
+        @if (tab() === 'changes') {
+          <section class="gh-changes-panel" aria-label="Changes">
+            <div class="gh-filter-bar">
+              <div class="gh-filter-combo">
+                <button
+                  class="gh-filter-kind-button"
+                  [attr.aria-expanded]="changeKindOpen()"
+                  (click)="toggleChangeKind()"
+                  aria-haspopup="dialog"
+                  aria-label="Change type filter"
+                  type="button"
+                >
+                  <svg [lucideIcon]="Filter" size="13"></svg>
+                  <span>{{ changeKindLabel() }}</span>
+                  <svg [lucideIcon]="ChevronDown" size="11"></svg>
+                </button>
+                @if (changeKindOpen()) {
+                  <div
+                    class="gh-filter-overlay"
+                    (click)="closeChangeKind()"
+                    (keydown.escape)="closeChangeKind()"
+                    aria-label="Close change filter"
+                    role="button"
+                    tabindex="0"
+                  ></div>
+                  <div class="gd-menu gh-change-kind-menu" aria-label="Change type" role="dialog">
+                    @for (kind of changeKinds; track kind) {
+                      <button
+                        class="gd-menu-row"
+                        [class.gh-change-kind-selected]="changeKind() === kind"
+                        (click)="setChangeKind(kind)"
+                        type="button"
+                      >
+                        <span>
+                          {{
+                            kind === 'all' ? 'All'
+                            : kind === 'added' ? 'Added'
+                            : kind === 'modified' ? 'Modified'
+                            : 'Deleted'
+                          }}
+                        </span>
+                        @if (changeKind() === kind) {
+                          <svg class="gh-menu-check-icon" [lucideIcon]="Check" size="13"></svg>
+                        }
+                      </button>
+                    }
+                  </div>
+                }
+                <label class="gh-change-search">
+                  <svg [lucideIcon]="Search" size="13"></svg>
+                  <input
+                    #changeFilterInput
+                    [value]="changeFilter()"
+                    (input)="setValue('changeFilter', $event)"
+                    aria-label="Filter changes"
+                    placeholder="Filter"
+                    type="search"
+                  />
+                </label>
+              </div>
+              <span class="gd-pill">{{ filteredEntries().length }}</span>
+            </div>
+            <div class="gh-file-list" aria-label="Working files">
+              @for (file of visibleFiles(); track file.path) {
+                @let entry = statusEntryForPath(file.path);
+                <div
+                  class="gd-row gh-file-row"
+                  [class.gd-row-selected]="selectedPath() === file.path"
+                  (contextmenu)="openContextMenu($event, { kind: 'file', path: file.path })"
+                >
+                  <button
+                    class="gh-file-select"
+                    [attr.data-file-path]="file.path"
+                    [class.selected]="selectedPath() === file.path"
+                    (click)="selectFile(file.path)"
+                    type="button"
+                  >
+                    <span class="gh-file-status">{{ statusLabelForPath(file.path) }}</span>
+                    <span class="gh-file-name">{{ file.path }}</span>
+                    <span class="gh-file-size">{{ file.bytes.length }} B</span>
+                  </button>
+                  @if (entry) {
+                    <span class="gh-status">{{ statusLabel(entry) }}</span>
+                    <button
+                      class="gd-btn-ghost gh-row-action"
+                      [disabled]="busy()"
+                      (click)="showDiff(entry.path, isStaged(entry) ? 'staged' : 'working')"
+                      aria-label="Show diff"
+                      type="button"
+                    >
+                      Diff
+                    </button>
+                    @if (isStaged(entry)) {
+                      <button
+                        class="gd-btn-ghost gh-row-action"
+                        [disabled]="busy()"
+                        (click)="unstage(entry.path)"
+                        aria-label="Unstage file"
+                        type="button"
+                      >
+                        −
+                      </button>
+                    } @else {
+                      <button
+                        class="gd-btn-ghost gh-row-action"
+                        [disabled]="busy()"
+                        (click)="stage(entry.path)"
+                        aria-label="Stage file"
+                        type="button"
+                      >
+                        +
+                      </button>
+                    }
+                    @if (entry.worktree !== ' ') {
+                      <button
+                        class="gd-btn-ghost gh-row-action gh-row-danger"
+                        [disabled]="busy()"
+                        (click)="discard(entry.path)"
+                        aria-label="Discard file changes"
+                        type="button"
+                      >
+                        Discard
+                      </button>
+                    }
+                  }
+                </div>
+              } @empty {
+                <div class="gh-empty-list">The repository is empty.</div>
+              }
+            </div>
+          </section>
+
+          <section class="gd-commit-header gh-commit-box" aria-label="Commit changes">
+            <textarea
+              #commitMessageInput
+              [disabled]="busy()"
+              [value]="commitValue()"
+              (change)="setValue('commit', $event)"
+              (input)="setValue('commit', $event)"
+              data-github-commit-message
+              placeholder="Summary of changes"
+              rows="2"
+            ></textarea>
+            <div class="gh-commit-actions">
+              <button
+                class="gd-btn-secondary"
+                [disabled]="busy() || !changedEntries().length"
+                (click)="stageAll()"
+                type="button"
+              >
+                Stage all
+              </button>
+              <button
+                class="gd-btn-primary gh-commit-button"
+                [disabled]="busy() || !commitReady()"
+                (click)="commit()"
+                data-github-commit
+                type="button"
+              >
+                Commit to {{ currentBranch() }}
+              </button>
+              @if (record.owner) {
+                <button class="gd-btn-secondary" [disabled]="busy()" (click)="pull()" data-github-pull type="button">
+                  Pull
+                </button>
+                <button
+                  class="gd-btn-secondary"
+                  [disabled]="busy() || hasChanges()"
+                  (click)="push()"
+                  data-github-push
+                  type="button"
+                >
+                  Push
+                </button>
+              }
+            </div>
+          </section>
+        } @else {
+          <section class="gh-history" aria-label="Commit history">
+            @for (commit of history(); track commit.oid) {
+              <article
+                class="gh-commit-row"
+                [class.gh-commit-row-selected]="selectedCommit().oid === commit.oid"
+                (contextmenu)="openContextMenu($event, { kind: 'commit', oid: commit.oid })"
+              >
+                <button class="gh-history-select" (click)="selectCommit(commit.oid)" type="button">
+                  <strong>{{ commit.message }}</strong>
+                  <small>{{ commit.oid }}</small>
+                </button>
+                <button
+                  class="gd-btn-ghost gh-context-trigger"
+                  (click)="openContextMenu($event, { kind: 'commit', oid: commit.oid })"
+                  aria-label="Commit actions"
+                  type="button"
+                >
+                  <svg [lucideIcon]="MoreVertical" size="14"></svg>
+                </button>
+              </article>
+            } @empty {
+              <p class="gh-muted">No commits yet.</p>
+            }
+          </section>
+        }
+      </aside>
+
+      <button
+        class="gd-resizer gh-resizer"
+        [attr.aria-valuemax]="560"
+        [attr.aria-valuemin]="240"
+        [attr.aria-valuenow]="asideWidth()"
+        (keydown)="handleAsideResizeKey($event)"
+        (pointerdown)="startAsideResize($event)"
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        role="separator"
+        type="button"
+      ></button>
+
+      <main class="gh-main" aria-live="polite">
+        @if (tab() === 'changes') {
+          <section class="gh-editor" aria-label="File editor">
+            @if (diff(); as currentDiff) {
+              <section class="gd-history-layout gh-diff" aria-label="Diff" data-github-diff>
+                <div class="gh-editor-head">
+                  <div>
+                    <strong>{{ currentDiff.path }}</strong>
+                    <span>{{ currentDiff.kind }} diff</span>
+                  </div>
+                  <button class="gd-btn-ghost" (click)="closeDiff()" aria-label="Close diff" type="button">
+                    Close
+                  </button>
+                </div>
+                @if (currentDiff.base.binary || currentDiff.modified.binary) {
+                  <div class="gh-binary">
+                    Binary file · byte counts {{ currentDiff.base.byteLength }} → {{ currentDiff.modified.byteLength }}
+                  </div>
+                } @else {
+                  <div class="gh-diff-lines" aria-label="File diff">
+                    <div class="gh-diff-column-head">
+                      <span>Previous</span>
+                      <span>Working tree</span>
+                    </div>
+                    @for (line of diffLines(); track $index) {
+                      <div class="gh-diff-line" [class.gh-diff-line-same]="line.same">
+                        <div
+                          class="gh-diff-side gh-diff-side-old"
+                          [class.gh-diff-side-delete]="!line.same && line.oldText !== null"
+                        >
+                          <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
+                          <span class="gh-diff-sign">
+                            {{
+                              line.same ? ' '
+                              : line.oldText === null ? ' '
+                              : '−'
+                            }}
+                          </span>
+                          <code>{{ line.oldText ?? '' }}</code>
+                        </div>
+                        <div
+                          class="gh-diff-side gh-diff-side-new"
+                          [class.gh-diff-side-add]="!line.same && line.newText !== null"
+                        >
+                          <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
+                          <span class="gh-diff-sign">
+                            {{
+                              line.same ? ' '
+                              : line.newText === null ? ' '
+                              : '+'
+                            }}
+                          </span>
+                          <code>{{ line.newText ?? '' }}</code>
+                        </div>
+                      </div>
+                    } @empty {
+                      <div class="gh-empty-editor">No text changes.</div>
+                    }
+                  </div>
+                }
+              </section>
+            }
+
+            @if (selectedFile(); as file) {
+              <section class="gh-editor-pane">
+                <div class="gh-editor-head">
+                  <div>
+                    <strong>{{ file.path }}</strong>
+                    <span>{{ file.bytes.length }} bytes</span>
+                  </div>
+                  <div class="gh-editor-actions">
+                    <button
+                      class="gd-btn-primary"
+                      [disabled]="busy() || !editorDirty()"
+                      (click)="saveFile()"
+                      data-github-save
+                      type="button"
+                    >
+                      Save
+                    </button>
+                    <button
+                      class="gd-btn-ghost gh-row-danger"
+                      [disabled]="busy()"
+                      (click)="removeSelectedFile()"
+                      data-github-delete
+                      type="button"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                @if (selectedText() !== null) {
+                  <textarea
+                    [disabled]="busy()"
+                    [value]="editorValue()"
+                    (input)="setEditor($event)"
+                    aria-label="File contents"
+                    data-github-editor
+                    spellcheck="false"
+                  ></textarea>
+                } @else {
+                  <div class="gh-binary">Binary file · editing is disabled</div>
+                }
+              </section>
+            } @else {
+              <div class="gh-empty-editor">Select a file to inspect it.</div>
+            }
+          </section>
+        } @else {
+          <section class="gh-history-detail" aria-label="Commit details">
+            @if (selectedCommit(); as commit) {
+              <div class="gh-detail-header">
+                <span class="gh-eyebrow">Commit</span>
+                <h2>{{ commit.message }}</h2>
+                <code>{{ commit.oid }}</code>
+              </div>
+              <div class="gh-detail-body">
+                <p>Restore this commit to the working tree or return to Changes to continue editing.</p>
+                <button class="gd-btn-secondary" [disabled]="busy()" (click)="restore(commit.oid)" type="button">
+                  Restore this version
+                </button>
+              </div>
+            } @else {
+              <div class="gh-empty-editor">No commits yet.</div>
+            }
+          </section>
+        }
+      </main>
+    </div>
+  } @else {
+    <div class="gh-empty" data-github-empty>
+      <div class="gh-mark"><img alt="" data-github-system-icon src="icons/desktop/app-github.png" /></div>
+      <h2>GitHub workbench</h2>
+      <p>Create a local OPFS repository or open a GitHub repository to start working.</p>
+      <button class="gd-btn-primary" (click)="toggleRepositoryMenu()" type="button">Choose a repository</button>
+    </div>
+  }
+
+  @if (contextMenu(); as menu) {
+    <div
+      class="gh-context-backdrop"
+      (click)="closeContextMenu()"
+      (keydown.escape)="closeContextMenu()"
+      aria-label="Close context menu"
+      role="button"
+      tabindex="0"
+    ></div>
+    <div class="gd-menu gh-context-menu" [style.left.px]="menu.x" [style.top.px]="menu.y" role="menu">
+      @if (menu.kind === 'file') {
+        @let entry = statusEntryForPath(menu.path);
+        <button class="gd-menu-row" (click)="contextSelectFile(menu.path)" type="button">
+          <svg [lucideIcon]="FileDiff" size="14"></svg>
+          Open {{ menu.path }}
+        </button>
+        @if (entry) {
+          <button class="gd-menu-row" (click)="contextShowDiff(menu.path)" type="button">
+            <svg [lucideIcon]="FileDiff" size="14"></svg>
+            Show diff
+          </button>
+          <button
+            class="gd-menu-row"
+            [disabled]="busy()"
+            (click)="entry && isStaged(entry) ? contextUnstage(menu.path) : contextStage(menu.path)"
+            type="button"
+          >
+            {{ isStaged(entry) ? 'Unstage file' : 'Stage file' }}
+          </button>
+          @if (entry.worktree !== ' ') {
+            <button
+              class="gd-menu-row gh-row-danger"
+              [disabled]="busy()"
+              (click)="contextDiscard(menu.path)"
+              type="button"
+            >
+              <svg [lucideIcon]="Trash2" size="14"></svg>
+              Discard changes
+            </button>
+          }
+        }
+        <div class="gd-menu-divider"></div>
+        <button class="gd-menu-row" (click)="copyValue(menu.path)" type="button">
+          <svg [lucideIcon]="Copy" size="14"></svg>
+          Copy path
+        </button>
+      } @else if (menu.kind === 'branch') {
+        <button class="gd-menu-row" (click)="copyValue(menu.name)" type="button">
+          <svg [lucideIcon]="Copy" size="14"></svg>
+          Copy branch name
+        </button>
+        <button
+          class="gd-menu-row gh-row-danger"
+          [disabled]="busy() || menu.name === currentBranch()"
+          (click)="deleteBranch(menu.name)"
+          type="button"
+        >
+          <svg [lucideIcon]="Trash2" size="14"></svg>
+          Delete branch
+        </button>
+      } @else {
+        <button class="gd-menu-row" (click)="copyValue(menu.oid)" type="button">
+          <svg [lucideIcon]="Copy" size="14"></svg>
+          Copy commit SHA
+        </button>
+        <button class="gd-menu-row" [disabled]="busy()" (click)="restoreFromContext(menu.oid)" type="button">
+          Restore this commit
+        </button>
+      }
+    </div>
+  }
+
+  @if (canDiscardBranch()) {
+    <div class="gh-conflict" role="alert">
+      <span>Uncommitted changes prevent switching branches.</span>
+      <button class="gd-btn-secondary" (click)="checkout(pendingBranch() ?? currentBranch(), true)" type="button">
+        Discard and switch
+      </button>
+    </div>
+  }
+  @if (error(); as failure) {
+    <div class="gh-error" data-github-error role="alert">{{ failure }}</div>
+  }
+  @if (notice(); as message) {
+    <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
+  }
+</div>

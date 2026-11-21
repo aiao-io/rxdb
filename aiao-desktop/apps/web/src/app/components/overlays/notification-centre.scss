@@ -1,0 +1,56 @@
+/* 通知中心里的应用通知：每条的卡片外观沿用全局的 `.note`，这里只补应用通知自己的部分。 */
+.nc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nc-clear {
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--mb-ink);
+  font-size: 11px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.nc-clear:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+.nc-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.note .from {
+  display: block;
+  color: var(--txt-2);
+  font-size: 11px;
+}
+.note .pic {
+  flex: none;
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.note .x {
+  flex: none;
+  align-self: flex-start;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--txt-2);
+  font-size: 14px;
+  line-height: 1;
+}
+.note .x:hover {
+  background: var(--fill);
+}
+.nc-clear:focus-visible,
+.note .x:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}

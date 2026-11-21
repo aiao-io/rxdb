@@ -1,0 +1,179 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 196px">
+    <div class="sb-top"><app-traffic-lights /></div>
+    <div class="grp">
+      <div class="gh">Mailboxes</div>
+      @for (item of boxes(); track item.name) {
+        <button
+          class="si"
+          [attr.aria-pressed]="item.name === box()"
+          [attr.data-box]="item.name"
+          [class.on]="item.name === box()"
+          (click)="openBox(item.name)"
+          tabindex="0"
+          type="button"
+        >
+          <svg class="ico" [appIcon]="item.icon"></svg>
+          <span class="nm">{{ mailboxLabel(item.name) }}</span>
+          @if (count(item.name); as count) {
+            <span class="tail">{{ count }}</span>
+          }
+        </button>
+      }
+    </div>
+  </div>
+  <div class="fx">
+    <div class="fx-tb" data-drag>
+      <button
+        class="tbtn"
+        (click)="compose()"
+        aria-label="New Mail Draft"
+        data-mcompose
+        data-nodrag
+        tabindex="0"
+        title="New Mail Draft"
+      >
+        <svg appIcon="g-plus"></svg>
+      </button>
+      <button
+        class="tbtn"
+        [attr.aria-pressed]="current()?.flagged ?? false"
+        [disabled]="savingFlag() || !current()"
+        (click)="toggleFlag()"
+        aria-label="Flag"
+        data-mflag
+        data-nodrag
+        tabindex="0"
+        title="Flag"
+      >
+        <svg appIcon="g-tag"></svg>
+      </button>
+      <button
+        class="tbtn"
+        #shareButton
+        (click)="share(shareButton, $event)"
+        aria-label="Share"
+        data-mshare
+        data-nodrag
+        tabindex="0"
+        title="Share"
+      >
+        <svg appIcon="g-share"></svg>
+      </button>
+      <div class="fx-title" data-mbtitle>{{ mailboxLabel(box()) }}</div>
+      <div class="grow" style="flex: 1"></div>
+      <div class="sfield" data-nodrag style="width: 170px">
+        <span><svg appIcon="g-search"></svg></span>
+        <input
+          #search
+          [value]="query()"
+          (input)="query.set(search.value); selection.set(0)"
+          aria-label="Search mail"
+          placeholder="Search"
+        />
+      </div>
+    </div>
+    <div style="padding: 8px 14px; background: var(--win); color: var(--txt); font-size: 12px">
+      Local mail, including sample messages. No email service is connected; nothing is sent or received.
+      @if (composer.editor.dirty() || composer.editor.saving()) {
+        <div role="status" style="margin-top: 6px">
+          {{ composer.editor.saving() ? 'Saving draft…' : 'Unsaved mail draft' }}
+          <button class="btn" (click)="composer.resume()" data-resume-mail tabindex="0">Resume Draft</button>
+        </div>
+      }
+    </div>
+    @if (error()) {
+      <p role="alert" style="padding: 8px 14px; background: var(--win); color: var(--txt)">{{ error() }}</p>
+    }
+    @if (actions.error()) {
+      <p
+        data-content-error
+        role="alert"
+        style="margin: 0; padding: 8px 14px; color: var(--txt); background: var(--win); flex-shrink: 0"
+      >
+        {{ actions.error() }}
+      </p>
+    }
+    <div class="wb" style="flex: 1; min-height: 0">
+      <div class="msg-list scroll" data-mlist style="width: 344px">
+        @for (mail of list(); track mail.id; let i = $index) {
+          <button
+            class="msg-c"
+            [attr.aria-pressed]="mail.id === current()?.id"
+            [attr.data-mail-id]="mail.id"
+            [attr.data-mi]="i"
+            [class.on]="i === selection()"
+            (click)="select(i)"
+            style="width: 100%; border: 0; text-align: left"
+            tabindex="0"
+            type="button"
+          >
+            <span class="av" [style.background]="mail.color" aria-hidden="true">{{ party(mail)[0] }}</span>
+            <span class="bd">
+              <b>
+                @if (mail.unread) {
+                  <span style="color: var(--blue)">●</span>
+                }
+                {{ party(mail) }}
+              </b>
+              <b style="font-weight: 500; font-size: 12px">{{ mail.subject }}</b>
+              <p>{{ mail.body }}</p>
+            </span>
+            <span class="tm">{{ mail.timeLabel }}</span>
+          </button>
+        }
+      </div>
+      <div class="pv scroll" data-mread style="place-items: start stretch; padding: 0; background: var(--win)">
+        @if (current(); as mail) {
+          <div style="padding: 24px 30px; max-width: 640px">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 18px">
+              <span
+                class="av"
+                [style.background]="mail.color"
+                aria-hidden="true"
+                style="
+                  width: 42px;
+                  height: 42px;
+                  border-radius: 50%;
+                  display: grid;
+                  place-items: center;
+                  color: #fff;
+                  font-weight: 600;
+                  font-size: 16px;
+                "
+              >
+                {{ mail.sender[0] }}
+              </span>
+              <div>
+                <div style="font-size: 14px; font-weight: 600">{{ mail.sender }}</div>
+                <div style="font-size: 11.5px; color: var(--txt-2)">
+                  To: {{ mail.recipient }} · {{ mail.timeLabel }}
+                </div>
+              </div>
+            </div>
+            <h2 style="margin: 0 0 14px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em">
+              {{ mail.subject }}
+            </h2>
+            <p
+              style="
+                font-size: 13.5px;
+                line-height: 1.6;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                color: var(--txt);
+              "
+            >
+              <span>{{ displayBody(mail.body) }}</span>
+            </p>
+            @if (mail.mailbox === draftsMailbox) {
+              <button class="btn" (click)="composer.edit(mail)" tabindex="0">Edit Draft</button>
+            }
+            <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt-2)">
+              Stored in this browser. This record does not confirm email delivery.
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

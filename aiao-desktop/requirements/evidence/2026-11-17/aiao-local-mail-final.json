@@ -1,0 +1,549 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T14:34:26.269Z",
+  "source": {
+    "sha": "ef822a0403bdb32492f01df484baaf0571e20f95",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/mail/mail-composer.ts\n M ../web/src/app/apps/mail/mail-model.spec.ts\n M ../web/src/app/apps/mail/mail-model.ts\n M ../web/src/app/apps/mail/mail.html\n M ../web/src/app/apps/mail/mail.ts\n M ../web/src/app/apps/photos/photos.ts\n M ../web/src/app/apps/preview/preview.ts\n M ../web/src/styles.scss\n M ../web/vitest.config.mts\n M ../../requirements/README.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/evidence/2026-11-17/README.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n?? src/groups/local-mail.mjs\n?? ../web/src/app/apps/mail/mail-draft.spec.ts\n?? ../web/src/app/apps/mail/mail-draft.ts\n?? ../../requirements/stories/desktop/ADESK-US-118-local-mail-drafts.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "047048e4aebba45c2b82c9581cb77e713ba7175c4330f3b258a6f1f8e8ccf5fc"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-mail",
+      "local-messages",
+      "note-drafts",
+      "content-actions",
+      "shell-interaction",
+      "apps",
+      "a11y"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 82.339120334,
+  "outcomes": [
+    {
+      "group": "local-mail",
+      "result": {
+        "localMail": {
+          "localScope": true,
+          "failedSaveKeepsFields": true,
+          "noViolations": [],
+          "beforeUnloadGuard": true,
+          "hiddenAndReplacedPanelKeepsDraft": true,
+          "closeAndRestartKeepDraft": true,
+          "retrySavesOneLocalDraft": true,
+          "keyboardRecovery": true,
+          "pendingSaveBlocksClose": true,
+          "persistedDraftEditable": true,
+          "searchAndFlagFailure": true,
+          "conflictAndCopyRecovery": true,
+          "deletedDraftRetained": true,
+          "replyAndForwardContent": true,
+          "sharedContentDrafts": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 31.102048333
+    },
+    {
+      "group": "local-messages",
+      "result": {
+        "localMessages": {
+          "localScopeAndDetails": true,
+          "readableSelectionAndBubbles": true,
+          "draftsStayWithConversation": true,
+          "beforeUnloadGuard": true,
+          "failedWriteKeepsDraft": true,
+          "noViolations": [],
+          "unsavedCloseAndRestartBlocked": true,
+          "retryCreatesOneMessage": true,
+          "noSyntheticReply": true,
+          "pendingSaveBlocksClose": true,
+          "persistenceAndKeyboard": true,
+          "createFailureAndRecovery": true,
+          "missingConversationKeepsDraft": true,
+          "explicitDiscard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 19.649171583
+    },
+    {
+      "group": "note-drafts",
+      "result": {
+        "noteDrafts": {
+          "failedWriteKeepsContent": true,
+          "beforeUnloadGuard": true,
+          "failedNavigationAndClose": true,
+          "noViolations": [],
+          "keyboardRecovery": true,
+          "retryAndPersistence": true,
+          "pendingWriteSavesNewestBeforeClose": true,
+          "createFailureAndRecovery": true,
+          "deleteFailureAndRecovery": true,
+          "crossWindowConflict": true,
+          "copyFailureAndRecovery": true,
+          "deletedNoteAndDiscard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 24.270742500000004
+    },
+    {
+      "group": "content-actions",
+      "result": {},
+      "problems": [
+        "检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeFocused\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('menuitem', { name: 'Mail', exact: true })\nExpected: focused\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeFocused\" getByRole('menuitem', { name: 'Mail', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('menuitem', { name: 'Mail', exact: true })\u001b[22m\n（groups/content-actions.mjs:93）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "contentActions.unavailableContentDisabled",
+        "contentActions.pdfTextInClipboard",
+        "contentActions.copyFailureAndRecovery",
+        "contentActions.selectedDocumentPrint",
+        "contentActions.printFailureAndCleanup",
+        "contentActions.imageNameAndPrint",
+        "contentActions.mailTextAndPrint",
+        "contentActions.photoAddressInClipboard",
+        "contentActions.keyboardMenu",
+        "contentActions.noViolations"
+      ],
+      "extraKeys": [],
+      "crashed": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeFocused\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('menuitem', { name: 'Mail', exact: true })\nExpected: focused\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeFocused\" getByRole('menuitem', { name: 'Mail', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('menuitem', { name: 'Mail', exact: true })\u001b[22m\n（groups/content-actions.mjs:93）",
+      "pageErrors": [],
+      "seconds": 21.203592708000002
+    },
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "loginEntersDesktop": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 27.983880792000004
+    },
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 32.84372425000001
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          },
+          "safari": {
+            "browserLinkNamed": [],
+            "keyboardOpen": [],
+            "actionsAccessible": []
+          },
+          "fileOperations": {
+            "namedDialogs": [],
+            "keyboardAndFocus": [],
+            "noViolations": []
+          },
+          "activity": {
+            "keyboardControls": true,
+            "noViolations": []
+          },
+          "resources": {
+            "keyboardControls": true,
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 49.437573375
+    }
+  ],
+  "checks": {
+    "localMail": {
+      "localScope": true,
+      "failedSaveKeepsFields": true,
+      "noViolations": [],
+      "beforeUnloadGuard": true,
+      "hiddenAndReplacedPanelKeepsDraft": true,
+      "closeAndRestartKeepDraft": true,
+      "retrySavesOneLocalDraft": true,
+      "keyboardRecovery": true,
+      "pendingSaveBlocksClose": true,
+      "persistedDraftEditable": true,
+      "searchAndFlagFailure": true,
+      "conflictAndCopyRecovery": true,
+      "deletedDraftRetained": true,
+      "replyAndForwardContent": true,
+      "sharedContentDrafts": true
+    },
+    "localMessages": {
+      "localScopeAndDetails": true,
+      "readableSelectionAndBubbles": true,
+      "draftsStayWithConversation": true,
+      "beforeUnloadGuard": true,
+      "failedWriteKeepsDraft": true,
+      "noViolations": [],
+      "unsavedCloseAndRestartBlocked": true,
+      "retryCreatesOneMessage": true,
+      "noSyntheticReply": true,
+      "pendingSaveBlocksClose": true,
+      "persistenceAndKeyboard": true,
+      "createFailureAndRecovery": true,
+      "missingConversationKeepsDraft": true,
+      "explicitDiscard": true
+    },
+    "noteDrafts": {
+      "failedWriteKeepsContent": true,
+      "beforeUnloadGuard": true,
+      "failedNavigationAndClose": true,
+      "noViolations": [],
+      "keyboardRecovery": true,
+      "retryAndPersistence": true,
+      "pendingWriteSavesNewestBeforeClose": true,
+      "createFailureAndRecovery": true,
+      "deleteFailureAndRecovery": true,
+      "crossWindowConflict": true,
+      "copyFailureAndRecovery": true,
+      "deletedNoteAndDiscard": true
+    },
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "loginEntersDesktop": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      },
+      "safari": {
+        "browserLinkNamed": [],
+        "keyboardOpen": [],
+        "actionsAccessible": []
+      },
+      "fileOperations": {
+        "namedDialogs": [],
+        "keyboardAndFocus": [],
+        "noViolations": []
+      },
+      "activity": {
+        "keyboardControls": true,
+        "noViolations": []
+      },
+      "resources": {
+        "keyboardControls": true,
+        "noViolations": []
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[content-actions] 检查项未通过或缺失：contentActions.unavailableContentDisabled",
+      "[content-actions] 检查项未通过或缺失：contentActions.pdfTextInClipboard",
+      "[content-actions] 检查项未通过或缺失：contentActions.copyFailureAndRecovery",
+      "[content-actions] 检查项未通过或缺失：contentActions.selectedDocumentPrint",
+      "[content-actions] 检查项未通过或缺失：contentActions.printFailureAndCleanup",
+      "[content-actions] 检查项未通过或缺失：contentActions.imageNameAndPrint",
+      "[content-actions] 检查项未通过或缺失：contentActions.mailTextAndPrint",
+      "[content-actions] 检查项未通过或缺失：contentActions.photoAddressInClipboard",
+      "[content-actions] 检查项未通过或缺失：contentActions.keyboardMenu",
+      "[content-actions] 检查项未通过或缺失：contentActions.noViolations",
+      "[content-actions] 检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeFocused\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('menuitem', { name: 'Mail', exact: true })\nExpected: focused\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeFocused\" getByRole('menuitem', { name: 'Mail', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('menuitem', { name: 'Mail', exact: true })\u001b[22m\n（groups/content-actions.mjs:93）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

@@ -109,13 +109,16 @@ Web Lock（`navigator.locks`）里排队，死在事务中间的标签页留下�
 
 `backup()` / `restore()` / `cleanupIncompleteRestore()` 由 [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core#备份与恢复) 提供，语义与错误码见那里。
 
-| VFS      | 备份 / 恢复                                     |
-| -------- | ----------------------------------------------- |
-| `memory` | ✅ 内存库                                       |
-| `idb`    | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
-| 其余 VFS | ❌ `unsupported_combination`（`vfs`）           |
+| VFS / 传输          | 备份 / 恢复                                     |
+| ------------------- | ----------------------------------------------- |
+| 主线程 `memory`     | ✅ 内存库                                       |
+| 主线程 `idb`        | ✅ IndexedDB，持久化 `journal_mode` 为 `delete` |
+| 专用 Worker `opfs`  | ✅ OPFS，一致快照、独占恢复、失败清理与强杀恢复 |
+| 其余 VFS / 传输组合 | ❌ `unsupported_combination`                    |
 
-表中组合只在主线程连接下交付：设置了 `worker` / `workerInstance` 或 `sharedWorker` / `sharedWorkerInstance` 时，三个入口都报 `unsupported_combination`（`transport`，`actual` 为 `worker` 或 `sharedWorker`），不碰输出流与归档源。
+OPFS 恢复及 `cleanupIncompleteRestore()` 要求 `workerOwnership: 'caller'`（默认值）：临时恢复连接会关闭，随后 `rxdb.connect()` 重新初始化同一个 Worker。调用方在数据库最终销毁后负责 `worker.terminate()`。`'client'` 所有权支持导出备份，但恢复和清理会在打开目标前明确拒绝，因为关闭临时连接会终止这个一次性 Worker。
+
+`idb` / `memory` 的 Worker 传输以及所有 SharedWorker 传输仍未交付备份能力，三个入口均明确拒绝。
 
 ## 完整示例
 

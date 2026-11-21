@@ -1,0 +1,83 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T16:36:01.152Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M src/groups/calendar-drafts.mjs\n M ../web/src/app/apps/calendar/calendar.html"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "e46d96d806afe045b081aa2272c99204b85d76380c04790a8a9ff99579725532"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "calendar-drafts"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 18.074216333,
+  "outcomes": [
+    {
+      "group": "calendar-drafts",
+      "result": {
+        "calendarDrafts": {
+          "invalidInputIsRejected": true,
+          "failedCreateKeepsFields": true,
+          "beforeUnloadGuard": true,
+          "noViolations": [],
+          "closeAndRestartKeepDraft": true,
+          "retryCreatesOneEvent": true,
+          "pendingSaveBlocksClose": true,
+          "failedUpdateKeepsFields": true,
+          "conflictAndCopyRecovery": true,
+          "failedDeleteKeepsEvent": true,
+          "keyboardAndPersistence": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 18.034649916
+    }
+  ],
+  "checks": {
+    "calendarDrafts": {
+      "invalidInputIsRejected": true,
+      "failedCreateKeepsFields": true,
+      "beforeUnloadGuard": true,
+      "noViolations": [],
+      "closeAndRestartKeepDraft": true,
+      "retryCreatesOneEvent": true,
+      "pendingSaveBlocksClose": true,
+      "failedUpdateKeepsFields": true,
+      "conflictAndCopyRecovery": true,
+      "failedDeleteKeepsEvent": true,
+      "keyboardAndPersistence": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

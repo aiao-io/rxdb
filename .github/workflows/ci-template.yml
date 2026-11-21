@@ -954,7 +954,14 @@ jobs:
           # 其余 e2e 项目走空串，依赖照旧由 nx 自己解。
           EXCLUDE_DEPS: ${{ matrix.project == 'dev-rxdb-electron-e2e' && '--excludeTaskDependencies' || '' }}
         # $EXCLUDE_DEPS 刻意不加引号：空串要被 shell 吃掉，加引号会变成一个空参数传给 nx。
-        run: pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
+        run: |
+          set -euo pipefail
+          if [ "$PROJECT" = "aiao-desktop-e2e" ]; then
+            # 每个检查组内部有多个桌面应用窗口；CI 的 Xvfb 在并行检查组运行时更容易放大淡出窗口的点击拦截，串行运行避免级联假失败。
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1"
+          else
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
+          fi
 
       # 失败复盘用。web demo e2e 与 devtools 扩展 e2e 的 config 都是 `trace: { mode: 'retain-on-failure', screenshots: false }`：
       # 每次尝试都录，只留失败的尝试（重试转绿的用例，首次失败那次的 trace 也在）。
@@ -971,6 +978,7 @@ jobs:
           path: |
             apps/${{ matrix.project }}/test-output/playwright/**
             apps/${{ matrix.project }}/playwright-report/**
+            test-output/${{ matrix.project }}/**
           retention-days: 7
           if-no-files-found: ignore
 
@@ -1297,7 +1305,7 @@ jobs:
       # 只在门禁跑完且数据完整时上报。上一步失败时 coverage/ 可能只有部分 lane 的产物，
       # 把残缺数据推给 Codecov 会在 PR 上留一条「覆盖率暴跌」的假告警，
       # 掩盖掉「其实是某条 lane 没跑完」这个真问题。
-      # 这两步是全仓唯一同时拿到 CODECOV_TOKEN 和 id-token 的地方，
+      # 下列 Codecov 步骤是全仓唯一同时拿到 CODECOV_TOKEN 和 id-token 的地方，
       # 所以更要遵守文件头那条「第三方 action 一律钉 commit SHA」——
       # 之前挂在可变 tag `v7` 上，上游 tag 被强推就等于把 secret 和 OIDC 一起交出去。
       - name: Upload coverage to Codecov
@@ -1318,6 +1326,17 @@ jobs:
           slug: aiao-io/rxdb
           codecov_yml_path: .github/codecov.yml
           report_type: test_results
+
+      - name: Send Codecov notifications after all uploads
+        if: success()
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: aiao-io/rxdb
+          codecov_yml_path: .github/codecov.yml
+          run_command: send-notifications
+          fail_ci_if_error: true
 
   # ---------------------------------------------------------------------------
   # 分支保护唯一的 required status check。

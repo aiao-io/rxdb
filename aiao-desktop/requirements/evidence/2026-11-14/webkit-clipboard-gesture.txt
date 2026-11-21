@@ -1,0 +1,34 @@
+
+> nx run aiao-desktop-e2e:e2e-webkit --args=--group=host-capabilities --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-clipboard-gesture-checks.json
+
+> node src/smoke.mjs --engine=webkit --group=host-capabilities --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-clipboard-gesture-checks.json
+
+(node:6638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+剪贴板读取诊断 {"permissions":["clipboard-read"],"granted":true,"readBack":{"ok":false,"name":"DesktopError","code":"BROWSER_PERMISSION_DENIED","message":"浏览器拒绝了读取剪贴板（NotAllowedError）"}}
+✗ host-capabilities  30.4s
+检查组 1 个，总耗时 30.4s（引擎 webkit，并行 1）
+{"hostCapabilities":{"undeclaredNotificationDenied":true,"denialShowsReasonInWindow":true,"undeclaredFilesystemDenied":true,"unauthorizedAppearanceWriteDenied":true,"clipboardReadDeniedWithoutPermission":true,"clipboardWriteWithGesture":true,"clipboardHoldsWrittenText":true,"clipboardReadAfterGrant":false,"clipboardWriteWithoutGestureDenied":true,"clipboardUnchangedAfterDenial":true,"clipboardDenialIsForTheAppOnly":true,"notificationAppearsInCentre":true,"notificationAttributedToCaller":true,"notificationSpoofRejected":true,"notificationDedupeReplaces":true,"notificationInvalidIconRejected":true,"notificationSurvivesWindowClose":true,"notificationKeyboardOperable":true,"notificationClearAll":true,"notificationRateLimited":true,"notificationIconsShown":true,"notificationNotKeptAcrossReload":true}}
+已知限制 1 项（webkit，见 baseline/limitations-webkit.json）：
+  [有限支持] hostCapabilities.clipboardReadAfterGrant：Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。
+冒烟失败：
+  限制已经过期（这一项已经通过，请从清单里删掉）：check hostCapabilities.clipboardHoldsWrittenText
+  限制已经过期（这一项已经通过，请从清单里删掉）：check hostCapabilities.clipboardUnchangedAfterDenial
+Warning: command "node src/smoke.mjs --engine=webkit --group=host-capabilities --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/webkit-clipboard-gesture-checks.json" exited with non-zero status code
+
+
+ NX   Running target e2e-webkit for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:e2e-webkit
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      31.1s
+  Critical path:     31.0s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e-webkit    31.0s

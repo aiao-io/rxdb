@@ -1,0 +1,70 @@
+/* 阻断界面盖在开机画面、锁屏和一切浮层之上（最高的层是 9999）。 */
+.dp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 12, 16, 0.78);
+  backdrop-filter: blur(18px);
+  color: var(--txt);
+  font: 13px/1.5 var(--font-ui);
+}
+.dp-card {
+  width: min(480px, 100%);
+  padding: 26px 28px 22px;
+  border-radius: 14px;
+  background: var(--win);
+  box-shadow:
+    0 0 0 0.5px var(--line-2),
+    var(--shadow-pop);
+}
+.dp-card h1 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 650;
+}
+.dp-card p {
+  margin: 0 0 10px;
+}
+.dp-details,
+.dp-advice {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+.dp-details {
+  max-height: 96px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--txt-2);
+}
+.dp-advice {
+  color: var(--txt-2);
+}
+.dp-advice li + li {
+  margin-top: 4px;
+}
+.dp-warning,
+.dp-failure {
+  color: var(--red);
+  font-weight: 500;
+}
+.dp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 14px;
+}
+.dp-actions .btn {
+  height: 28px;
+  padding: 0 16px;
+}
+.dp-actions .btn.danger {
+  background: var(--red);
+  color: #fff;
+}
+.dp-actions .btn:disabled {
+  opacity: 0.55;
+}

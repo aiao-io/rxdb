@@ -1,0 +1,700 @@
+
+ NX   Running target test for project aiao-desktop-web and 21 tasks it depends on:
+
+
+
+> nx run utils:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66425) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 159 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1248ms.
+
+computing gzip size...
+dist/index.js  70.62 kB │ gzip: 22.97 kB
+
+✓ built in 1.33s
+
+> nx run orbit:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:66428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 942ms.
+
+computing gzip size...
+dist/vue.js                     0.20 kB │ gzip: 0.17 kB
+dist/binding-BHf5tKlR.js        0.22 kB │ gzip: 0.16 kB
+dist/angular.js                 0.24 kB │ gzip: 0.19 kB
+dist/react.js                   0.24 kB │ gzip: 0.19 kB
+dist/window.js                  1.69 kB │ gzip: 0.73 kB
+dist/payload-PuWzqEr2.js        2.16 kB │ gzip: 1.17 kB
+dist/window-codec-lC1C5B3-.js   2.96 kB │ gzip: 1.43 kB
+dist/client.js                  5.06 kB │ gzip: 1.93 kB
+dist/rpc-DflhNanH.js            5.79 kB │ gzip: 2.09 kB
+dist/index.js                   9.73 kB │ gzip: 3.69 kB
+dist/desktop.js                21.76 kB │ gzip: 7.41 kB
+
+✓ built in 971ms
+Public API documentation passed: orbit
+(node:66476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb:generate-skill
+
+> node ../../scripts/audit/generate-skill.mjs
+
+✅ SKILL.md 已生成：packages/rxdb/skills/aiao-rxdb/SKILL.md（7922 字节 ≤ 8192）
+
+> nx run rxdb:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66477) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 338 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2004ms.
+
+computing gzip size...
+dist/testing.js                  1.66 kB │ gzip:  0.88 kB
+dist/QueryManager-8j1OG6at.js   60.73 kB │ gzip: 16.80 kB
+dist/index.js                  231.25 kB │ gzip: 68.61 kB
+
+✓ built in 2.08s
+
+> nx run rxdb-plugin-history:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66536) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1238ms.
+
+computing gzip size...
+dist/index.js  57.11 kB │ gzip: 15.41 kB
+
+✓ built in 1.30s
+
+> nx run rxdb-adapter-encrypted:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:66539) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 797ms.
+
+computing gzip size...
+dist/testing.js   1.54 kB │ gzip: 0.70 kB
+dist/index.js    25.14 kB │ gzip: 7.31 kB
+
+✓ built in 838ms
+Public API documentation passed: rxdb-adapter-encrypted
+(node:66561) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-client-generator:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66538) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 24 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1692ms.
+
+computing gzip size...
+dist/index.js                          0.31 kB │ gzip:  0.19 kB
+dist/vite.js                           1.91 kB │ gzip:  0.93 kB
+dist/cli.js                            2.84 kB │ gzip:  1.25 kB
+dist/testing.js                        4.82 kB │ gzip:  1.83 kB
+dist/build-client-lib-D8pJzzuO.js     19.48 kB │ gzip:  6.69 kB
+dist/RxDBClientGenerator-BU4uS4-h.js  51.97 kB │ gzip: 13.83 kB
+
+✓ built in 1.72s
+
+> nx run rxdb-plugin-tree:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66613) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 21 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1285ms.
+
+computing gzip size...
+dist/constants-hmRlLxvd.js   0.92 kB │ gzip: 0.48 kB
+dist/generator.js            3.73 kB │ gzip: 1.38 kB
+dist/index.js               17.69 kB │ gzip: 5.05 kB
+
+✓ built in 1.32s
+
+> nx run rxdb-plugin-sync:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66595) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 222 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1388ms.
+
+computing gzip size...
+dist/index.js  105.65 kB │ gzip: 27.77 kB
+
+✓ built in 1.53s
+
+> nx run rxdb-plugin-working-tree:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:66605) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 88 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2085ms.
+
+computing gzip size...
+dist/index.js                         2.75 kB │ gzip:  1.10 kB
+dist/working-tree/testing/index.js  115.43 kB │ gzip: 29.86 kB
+dist/src-DvCd21Ft.js                142.52 kB │ gzip: 41.25 kB
+
+✓ built in 2.15s
+Public API documentation passed: rxdb-plugin-working-tree
+(node:66678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-devtools:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66682) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1379ms.
+
+computing gzip size...
+dist/testing-providers.js            0.07 kB │ gzip:  0.08 kB
+dist/fake-providers-B-LlUCM8.js      6.22 kB │ gzip:  2.06 kB
+dist/snapshot-Cemq7GWK.js           12.36 kB │ gzip:  4.29 kB
+dist/negotiation-panel-Fu6ZRTSm.js  31.59 kB │ gzip:  8.34 kB
+dist/testing.js                     43.30 kB │ gzip: 10.02 kB
+dist/index.js                       55.03 kB │ gzip: 16.38 kB
+
+✓ built in 1.42s
+
+> nx run rxdb-test:build  [existing outputs match the cache, left as is]
+
+> vite build && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json
+
+(node:66669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1439ms.
+
+computing gzip size...
+dist/chunks/generate-test-db-name-C23VG_er.js   0.20 kB │ gzip: 0.18 kB │ map:   0.50 kB
+dist/chunks/decorate-DsqXQ0nF.js                0.49 kB │ gzip: 0.32 kB
+dist/tree-unique/index.js                       5.07 kB │ gzip: 1.54 kB │ map:  14.07 kB
+dist/transaction/index.js                       6.81 kB │ gzip: 2.69 kB │ map:  23.42 kB
+dist/query-cache-contract/index.js              7.94 kB │ gzip: 2.86 kB │ map:  23.91 kB
+dist/check-constraint/index.js                 19.90 kB │ gzip: 4.63 kB │ map:  52.51 kB
+dist/index.js                                  27.60 kB │ gzip: 9.47 kB │ map:  97.74 kB
+dist/sortable/index.js                         29.78 kB │ gzip: 8.23 kB │ map:  86.25 kB
+dist/encrypted/index.js                        37.58 kB │ gzip: 9.00 kB │ map: 121.55 kB
+
+✓ built in 1.48s
+(node:66724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ Generated 2 client(s) from ./rxdb.config.ts
+(node:66760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract OK: 117 exports across 9 entries
+
+> nx run rxdb-plugin-querycache:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 199 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1023ms.
+
+computing gzip size...
+dist/index.js  39.98 kB │ gzip: 10.78 kB
+
+✓ built in 1.06s
+
+> nx run rxdb-adapter-sqlite-core:build  [existing outputs match the cache, left as is]
+
+> node ../../node_modules/vite/bin/vite.js build
+
+(node:66802) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 112 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1700ms.
+
+computing gzip size...
+dist/sqlite-backend.interface-Im_ETXg8.js    0.23 kB │ gzip:  0.18 kB
+dist/index.js                                5.35 kB │ gzip:  2.30 kB
+dist/desktop-host-protocol-CYOIEUaV.js      10.61 kB │ gzip:  3.69 kB
+dist/desktop-host.js                        14.33 kB │ gzip:  5.01 kB
+dist/src-On3fEwYM.js                       173.62 kB │ gzip: 51.95 kB
+dist/testing.js                            449.88 kB │ gzip: 83.82 kB
+
+✓ built in 1.77s
+
+> nx run rxdb-adapter-pglite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66803) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586296..13586300
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586774..13586778
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553282..553286
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553760..553764
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+✓ 79 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1624ms.
+
+computing gzip size...
+dist/assets/pglite.browser.worker-DBps7OlR.js  51,143.59 kB
+dist/__vite-browser-external-q4xEsQeL.js            0.16 kB │ gzip:  0.16 kB
+dist/fts/index.js                                   0.29 kB │ gzip:  0.22 kB
+dist/rolldown-runtime-CYdcPHCu.js                   0.77 kB │ gzip:  0.44 kB
+dist/testing.js                                     3.09 kB │ gzip:  1.60 kB
+dist/fts-BVURWK0P.js                                3.51 kB │ gzip:  1.55 kB
+dist/table-name-resolver-BteE0_aj.js               11.81 kB │ gzip:  4.00 kB
+dist/execute_switch_actions-BeQhJsyb.js            23.44 kB │ gzip:  8.10 kB
+dist/index.js                                     165.05 kB │ gzip: 48.92 kB
+
+✓ built in 2.22s
+
+> nx run rxdb-adapter-wa-sqlite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66850) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 91 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1073ms.
+
+computing gzip size...
+dist/client.js                           0.07 kB │ gzip:   0.08 kB
+dist/index.js                            0.69 kB │ gzip:   0.36 kB
+dist/WaSqliteClientBase-CIWHKHk7.js     11.16 kB │ gzip:   3.98 kB
+dist/RxDBAdapterSqlite-bE4_Iegg.js      11.78 kB │ gzip:   3.91 kB
+dist/testing.js                      1,743.54 kB │ gzip: 626.48 kB
+
+✓ built in 1.17s
+
+> nx run rxdb-adapter-electron:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:66901) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 22 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1121ms.
+
+computing gzip size...
+dist/index.js                           2.51 kB │ gzip: 0.95 kB
+dist/pglite-host-data-dir-BIN3E0dL.js   3.04 kB │ gzip: 1.31 kB
+dist/pglite.js                         16.28 kB │ gzip: 5.19 kB
+dist/pglite-host.js                    20.84 kB │ gzip: 6.13 kB
+dist/host.js                           22.64 kB │ gzip: 7.39 kB
+
+✓ built in 1.15s
+Public API documentation passed: rxdb-adapter-electron
+(node:66924) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-adapter-sqlite-wasm:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66851) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1040ms.
+
+computing gzip size...
+dist/vfs-storage-loaders-DFY64Xzi.js      0.55 kB │ gzip:     0.23 kB
+dist/index.js                             0.58 kB │ gzip:     0.31 kB
+dist/RxDBAdapterSqlite-Ces1mYKg.js       13.96 kB │ gzip:     5.04 kB
+dist/testing.js                       3,401.73 kB │ gzip: 1,316.15 kB
+
+✓ built in 1.19s
+
+> nx run rxdb-plugin-graph:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:66916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 26 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1122ms.
+
+computing gzip size...
+dist/constants-DsVGjN8V.js   0.28 kB │ gzip: 0.21 kB
+dist/utils-C_4MU0uN.js       0.94 kB │ gzip: 0.52 kB
+dist/index.js                6.15 kB │ gzip: 2.24 kB
+dist/generator.js            7.55 kB │ gzip: 2.19 kB
+dist/sqlite.js              16.17 kB │ gzip: 5.61 kB
+
+✓ built in 1.15s
+
+> nx run rxdb-plugin-storage:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:66967) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 23 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1186ms.
+
+computing gzip size...
+dist/devtools-desktop-snapshot.js     1.18 kB │ gzip: 0.63 kB
+dist/physical-name-Cow6oiQY.js        1.43 kB │ gzip: 0.79 kB
+dist/paths-B9AMi5cD.js                1.47 kB │ gzip: 0.64 kB
+dist/errors-CRfARWPS.js               1.96 kB │ gzip: 0.64 kB
+dist/index.js                         2.02 kB │ gzip: 0.93 kB
+dist/devtools-desktop-filesystem.js   3.25 kB │ gzip: 1.27 kB
+dist/desktop.js                       9.72 kB │ gzip: 3.07 kB
+dist/testing.js                      11.61 kB │ gzip: 3.86 kB
+dist/storage.service-D8VJKoml.js     31.48 kB │ gzip: 8.66 kB
+
+✓ built in 1.21s
+Public API documentation passed: rxdb-plugin-storage
+(node:66976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-angular:build:production  [existing outputs match the cache, left as is]
+
+(node:66975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Building Angular Package
+[debug] Found primary entry point: @aiao/rxdb-angular
+[debug] Initializing tsconfig for @aiao/rxdb-angular
+[debug] Analysing sources for @aiao/rxdb-angular
+
+------------------------------------------------------------------------------
+Building entry point '@aiao/rxdb-angular'
+------------------------------------------------------------------------------
+- Compiling with Angular sources in partial compilation mode.
+✔ Compiling with Angular sources in partial compilation mode.
+- Writing FESM and DTS bundles
+✔ Writing FESM and DTS bundles
+- Copying assets
+✔ Copying assets
+- Writing package manifest
+[debug] Writing package.json
+[debug] Dependency tslib is allowed in 'dependencies'
+ℹ Removing devDependencies section in package.json.
+✔ Writing package manifest
+✔ Built @aiao/rxdb-angular
+
+------------------------------------------------------------------------------
+Built Angular Package
+- from: /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/packages/rxdb-angular
+- to:   /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/packages/rxdb-angular
+------------------------------------------------------------------------------
+
+Build at: 2026-11-13T23:13:53.322Z - Time: 762ms
+
+
+> nx run aiao-desktop-web:test --args=src/app/services/window-manager.spec.ts --coverage.enabled=false
+
+> vitest src/app/services/window-manager.spec.ts --coverage.enabled=false
+
+(node:2980) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/web
+
+(node:3010) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ |aiao-desktop-web| src/app/services/window-manager.spec.ts (63 tests | 1 failed) 63ms
+     ✓ 打开应用：新窗口登记在列表里，获得焦点并成为菜单栏的所属窗口，Dock 图标弹跳到窗口开完 9ms
+     ✓ 每个窗口的 id 互不相同，get() 找不到的 id 返回 undefined 2ms
+     ✓ 没有组件的系统入口打不开：提示 Unknown app，不新增窗口也不让 Dock 弹跳 1ms
+     ✓ 单实例应用再次打开：返回同一个窗口并提到最前，不新增窗口，也不再弹跳 1ms
+     ✓ 单实例应用的窗口已最小化时再打开：从 Dock 还原它 1ms
+     ✓ force 选项让单实例应用也新开一个窗口 1ms
+     ✓ 登记为多实例（single:false）的应用每次打开都是新窗口 1ms
+     ✓ 打开参数原样交给窗口，应用组件据此决定显示内容 1ms
+     ✓ runningApps 按应用去重，包含正在关闭但尚未移除的窗口 1ms
+     ✓ 第一个窗口按应用登记的尺寸，水平略偏左居中、贴近菜单栏下方 1ms
+     ✓ 打开参数的 w/h 优先于登记尺寸，登记里也没有时用 860×560 1ms
+     ✓ 窗口不会比视口大：宽度留 60px 边距，高度扣掉菜单栏和 Dock 的位置 1ms
+     ✓ 连续打开的窗口依次错开，满七个后回到起点 2ms
+     ✓ 菜单栏高度读样式变量 --mb-h，没有时按 25px 1ms
+     ✓ 可见高度 = 视口高 - 菜单栏 - Dock 占用（尺寸 + 间距），不受放大中的 Dock 影响 1ms
+     ✓ focus 把窗口提到最上层并设为焦点，窗口之间的层级严格递增 1ms
+     ✓ focus 一个不存在、或正在关闭的窗口不起作用，不会改层级也不会改焦点 1ms
+     ✓ raise 只抬高层级，不改变焦点 1ms
+     ✓ front 是层级最高的可见窗口：最小化或正在关闭的窗口不算 1ms
+     ✓ focusFront 把焦点交给最上层的可见窗口 1ms
+     ✓ 没有窗口时 focusFront 什么也不做 1ms
+     ✓ byApp 只返回该应用没有在关闭的窗口，按打开顺序排列 1ms
+     ✓ close：先标记正在关闭并通知应用释放资源，动画结束后才从列表移除 1ms
+     ✓ 重复关闭同一个窗口，或关闭不存在的窗口：只通知一次，不报错 1ms
+     × 关闭开始时立即交还焦点，避免关闭动画把仍有焦点的窗口设为 aria-hidden 7ms
+     ✓ 关闭最上层的窗口后，焦点和菜单栏回到下面的窗口 1ms
+     ✓ 关掉最后一个窗口后菜单栏没有所属窗口（回到 Finder），可以重新打开同一个单实例应用 1ms
+     ✓ 正在关闭的单实例窗口不阻止再次打开：会新开一个窗口 1ms
+     ✓ closeAll 关闭所有窗口，动画结束后列表清空 1ms
+     ✓ quitApp 关闭该应用的全部窗口，其他应用不受影响 1ms
+     ✓ minimize/unminimize/zoom 交给窗口框架组件执行，状态由框架改变 1ms
+     ✓ 窗口框架还没挂上（或 id 不存在）时这些操作什么也不做 1ms
+     ✓ 有可见的缩放窗口时菜单栏变为不透明；窗口最小化或关闭后恢复 1ms
+     ✓ keepOnScreen 让每个有框架的窗口各自检查边界，没有框架的窗口被跳过 1ms
+     ✓ closeFront、minimizeFront、zoomFront 只作用于最上层的可见窗口 1ms
+     ✓ quitFront 退出最前窗口所属的整个应用，包括它的其他窗口 1ms
+     ✓ 没有可见窗口时这些命令都不起作用 2ms
+     ✓ hideOthers 最小化除最前窗口外的所有可见窗口；showAll 把最小化的窗口全部还原 1ms
+     ✓ hideOthers 不会重复最小化已最小化或正在关闭的窗口 1ms
+     ✓ cycle（⌘`）把最底层的可见窗口提到最前，连续按下轮流切换 1ms
+     ✓ cycle 跳过最小化的窗口；只剩一个可见窗口时不改变层级 1ms
+     ✓ 打开应用即开始装载：窗口先是 loading，载荷到了变 ready 并带上应用组件 1ms
+     ✓ 同一应用的多个窗口各自装载、各是一个实例 1ms
+     ✓ 一个应用装载失败只影响它自己的窗口：带原因，窗口留在列表里等重试或关闭，其他应用照常打开 1ms
+     ✓ retry 重试装载失败的窗口：同一个窗口创建新实例，回到 loading 并清掉失败原因，成功后 ready 1ms
+     ✓ 重试再次失败：仍是 failed，带最新的原因，可以接着重试 1ms
+     ✓ retry 只对失败的窗口生效：装载中、已就绪的窗口，以及不存在的窗口，都不会再装载一次 1ms
+     ✓ 关闭窗口：运行时先标记 closing（动画期间窗口还在列表里），动画结束、窗口移除之后才是 closed，并释放组件 1ms
+     ✓ 装载还在路上就关闭窗口：迟到的载荷被丢弃，已关闭的窗口不会重新出现 1ms
+     ✓ 装载失败的窗口也能关闭：closing → closed，之后重试不起作用 1ms
+     ✓ closeAll 与 quitApp 关掉的窗口都走完 closing → closed 1ms
+     ✓ 登记表里没有载荷的应用打不开：不创建窗口，不让 Dock 弹跳，也不启动装载 1ms
+     ✓ focus 默认把键盘焦点交给窗口框架；dom: false（鼠标按下）只改前台状态与层叠 1ms
+     ✓ 关闭中或不存在的窗口：既不抢前台，也不动键盘焦点 0ms
+     ✓ 再次打开已经开着的单实例应用：键盘焦点跟着进到那个窗口 1ms
+     ✓ ⌘` 循环到的窗口拿到键盘焦点，焦点与前台窗口同步 0ms
+     ✓ 关闭窗口时键盘焦点在里面：窗口移除后焦点交给新的前台窗口 1ms
+     ✓ 关闭窗口时键盘焦点在别处（比如用鼠标关了一个后台窗口）：新的前台窗口只改状态，不抢焦点 0ms
+     ✓ 关掉最后一个窗口且键盘焦点在里面：焦点落到它的 Dock 图标，用 Enter 就能再打开 0ms
+     ✓ 最小化走完之后同样交接焦点：有别的窗口去那个窗口，没有就落到 Dock 图标；焦点在别处不动 1ms
+     ✓ handOffFocus 没有前台窗口也不要求焦点时什么也不做 0ms
+     ✓ tabbing 默认是 false：只有桌面页在按住 Tab 的那一刻才置位 0ms
+     ✓ 桌面启动完成之前建出的窗口是 quiet 的（不抢键盘焦点），之后用户打开的不是 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |aiao-desktop-web| src/app/services/window-manager.spec.ts > WindowManager 关闭窗口 > 关闭开始时立即交还焦点，避免关闭动画把仍有焦点的窗口设为 aria-hidden
+AssertionError: expected DesktopWindow{ id: 'w2', …(26) } to be DesktopWindow{ id: 'w1', …(26) } // Object.is equality
+
+- Expected
++ Received
+
+@@ -6,28 +6,31 @@
+      "isStopped": false,
+      "observers": [],
+      "thrownError": null,
+    },
+    "app": {
+-     "bundleId": "io.test.notes",
++     "bundleId": "io.test.calculator",
+      "defaultPinned": false,
+      "dockRemovable": true,
+-     "icon": "app-notes",
+-     "id": "notes",
++     "h": 366,
++     "icon": "app-calculator",
++     "id": "calculator",
+      "installScope": "preinstalled",
+      "kind": "builtin",
+      "load": [Function load],
+-     "name": "Notes",
++     "minH": 320,
++     "name": "Calculator",
+      "showInApplications": true,
++     "w": 254,
+    },
+-   "appId": "notes",
++   "appId": "calculator",
+    "attempt": 1,
+    "beforeClose": Subject {
+      "closed": false,
+-     "currentObservers": null,
++     "currentObservers": [],
+      "hasError": false,
+-     "isStopped": false,
++     "isStopped": true,
+      "observers": [],
+      "thrownError": null,
+    },
+    "box": [Function getter],
+    "busy": false,
+@@ -41,20 +44,20 @@
+      "minimize": [Function Mock],
+      "restore": [Function Mock],
+      "toggleZoom": [Function Mock],
+    },
+    "hidden": [Function getter],
+-   "id": "w1",
++   "id": "w2",
+    "initialBox": {
+-     "height": 560,
+-     "left": 200,
+-     "top": 51,
+-     "width": 860,
++     "height": 366,
++     "left": 529,
++     "top": 77,
++     "width": 254,
+    },
+    "menus": [Function readonlyFn],
+    "menusState": [Function getter],
+-   "minHeight": 240,
++   "minHeight": 320,
+    "minWidth": 380,
+    "minimized": [Function getter],
+    "opening": [Function getter],
+    "options": {},
+    "quiet": true,
+
+ ❯ src/app/services/window-manager.spec.ts:364:26
+    362|     wm.close(top.win.id);
+    363|     expect(top.win.closing()).toBe(true);
+    364|     expect(wm.focused()).toBe(back.win);
+       |                          ^
+    365|     expect(back.frame.focusContent).toHaveBeenCalledTimes(1);
+    366|     const fresh = openFramed(wm, 'finder');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 62 passed (63)
+   Start at  07:44:53
+   Duration  446ms (transform 84ms, setup 0ms, import 275ms, tests 63ms, environment 0ms)
+
+Warning: command "vitest src/app/services/window-manager.spec.ts --coverage.enabled=false" exited with non-zero status code
+
+
+ NX   Running target test for project aiao-desktop-web and 21 tasks it depends on failed
+
+Failed tasks:
+
+- aiao-desktop-web:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.1s
+  Cache:             20/21 hit (95%)
+  Critical path:     940ms (9 tasks)
+  Recoverable time:  <1ms

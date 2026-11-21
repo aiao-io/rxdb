@@ -1,0 +1,43 @@
+{
+  "command": "pnpm nx run aiao-desktop:inspect-live --args=\"--output=<文件>\"",
+  "entries": [
+    {
+      "url": "https://aiao-desktop.pages.dev/",
+      "status": 200,
+      "location": null,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      },
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "problems": []
+    },
+    {
+      "url": "https://desktop.aiao.io/",
+      "status": 200,
+      "location": null,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      },
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "problems": []
+    }
+  ],
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "node": "v26.12.0"
+  },
+  "format": "aiao-desktop.inspect-live",
+  "measuredAt": "2026-11-14T09:39:27.990Z",
+  "passed": true,
+  "sameEntrypoint": true,
+  "source": {
+    "sha": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+    "changes": "M requirements/README.md\n M requirements/decisions.md\n M requirements/epics/ADESK-EPIC-001.md\n M requirements/epics/ADESK-EPIC-002.md\n M requirements/epics/ADESK-EPIC-003.md\n M requirements/evidence/2026-11-14/closeout-summary.json\n M requirements/plans/acceptance-closeout.md\n M requirements/status-overview.md\n M requirements/stories/application/ADESK-US-205-application-management.md\n M requirements/stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md\n M requirements/stories/desktop/ADESK-US-104-window-layout-persistence.md\n M requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\n M requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M requirements/stories/platform/ADESK-US-005-cross-browser-smoke.md\n M requirements/stories/platform/ADESK-US-008-smoke-suite.md\n?? requirements/evidence/2026-11-14/closeout-approval.json\n?? requirements/evidence/2026-11-14/release-approved-dry-run-metadata.json\n?? requirements/evidence/2026-11-14/release-approved-dry-run.txt\n?? requirements/evidence/2026-11-14/release-entrypoints.txt\n?? requirements/evidence/2026-11-14/release-production-metadata.json\n?? requirements/evidence/2026-11-14/release-production.txt"
+  },
+  "version": 1
+}

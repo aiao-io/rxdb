@@ -1,0 +1,106 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--group=a11y --group=window-layout --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-support-focus-checks.json
+
+aiao-desktop-e2e: (node:96467) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✗ window-layout  81.6s
+aiao-desktop-e2e: ✓ a11y  91.6s
+aiao-desktop-e2e: 检查组 2 个，总耗时 173.1s（引擎 firefox，并行 1）
+aiao-desktop-e2e: {"a11y":{"tabPath":{"startsInMenubar":[],"menubarOrder":[],"windowBetweenMenubarAndDock":[],"dockOrder":[],"desktopAfterDock":[],"regionsInVisibleOrder":[],"noInvisibleStops":[],"doesNotTrap":[],"shiftTabReverses":[],"focusRingOnlyForKeyboard":[],"enterAndSpaceActivate":[]},"overlays":{"launchpadOpensByEnter":[],"launchpadTabStaysInside":[],"launchpadSpaceLaunches":[],"launchpadEscapeRestoresFocus":[],"spotlightOpensByEnter":[],"spotlightComboboxState":[],"spotlightTabStaysInside":[],"spotlightEscapeRestoresFocus":[],"spotlightEnterOpensApp":[],"panelOpensBySpace":[],"panelTabStaysInside":[],"panelSwitchToggles":[],"panelEscapeRestoresFocus":[]},"menus":{"menubarRoles":[],"arrowKeysMoveBetweenTitles":[],"expandKeys":[],"arrowsMoveInsideMenu":[],"typeaheadJumps":[],"leftRightSwitchMenus":[],"escapeRestoresFocus":[],"tabClosesMenu":[],"checkedItemRole":[],"keyboardOnlyFlow":{"opensFinder":[],"opensGoMenu":[],"changesDirectory":[],"closesWindow":[]}},"windows":{"dialogsNamedByTitle":[],"backgroundHidden":[],"menubarShowsFrontApp":[],"openMovesFocusIn":[],"cycleSwitchesFocusAndFront":[],"minimizeHandsFocusToNext":[],"restoreFromDockByKeyboard":[],"closeHandsFocusOver":[],"lastCloseFocusesDockIcon":[],"tabIntoBackgroundRaises":[]},"finder":{"listboxRoles":[],"arrowKeysMoveSelection":[],"enterOpensFolderKeepsFocus":[],"backspaceGoesUp":[],"commandUpGoesUp":[],"listViewArrows":[],"columnViewArrows":[]},"tree":{"finderWindow":[],"dock":[],"dockRunningState":[],"menuItems":[],"launchpad":[],"spotlight":[],"updatesWhenWindowsOpenAndClose":[],"everyControlNamed":[],"decorativeSvgHidden":[]},"axe":{"noViolations":[]}}}
+aiao-desktop-e2e: 冒烟失败：
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.restoresPositionAndSize
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.restoresMinimizedState
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.finderKeepsPath
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.layoutRowShape
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.restoresTwoFinders
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.twoFindersKeepTheirPaths
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.zoomedWindowRestoresZoomed
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.zoomedWindowUnzoomsToSavedBox
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.integratedStandardRestoresGeometry
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.integratedStandardHandshakesAgain
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentRestoresGeometry
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentHandshakesAgain
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentHidesDesktopChrome
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.closedWindowStaysClosed
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.otherWindowsRestoredAfterClose
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.retiredAppSkipped
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.retiredAppNotice
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.retiredAppOthersRestored
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.retiredWindowDroppedFromLayout
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.onlyRetiredOpensDefaultFinder
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.restoreRunsBehindBootScreen
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.noticeWaitsForUnlockedDesktop
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.farWindowWasSaved
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.restoredWindowPulledOnScreen
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.heavyWindowsRestoreAsFrames
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.heavyWindowsShowIdlePlaceholder
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.heavyFrontWindowStaysFront
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.startupBootsNoVirtualMachine
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.startupRequestsNoHeavyChunks
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.startupRequestsNoSaltlineEntry
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.firstClickStartsTerminal
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.firstClickStartsGame
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.idlePlaceholderIsFocusableButton
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.idlePlaceholderStartsFromKeyboard
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.tabAKeepsOnlyItsWindows
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.tabBKeepsOnlyItsWindows
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.layoutsStoredPerTab
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.reloadDoesNotOverwriteOtherTab
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.newTabStartsFromEmptyDesktop
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.noExtraDefaultFinder
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.frontWindowStaysFront
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.stackOrderPreserved
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.minimizedFrameOnlyAtStartup
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.minimizedPayloadNotRequestedAtStartup
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.dockRestoreShowsWindow
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.dockRestoreLoadsPayloadFirstTime
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.staleRowsPruned
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.recentRowsKept
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.blockedStorageNotice
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.blockedStorageStillOpensFinder
+aiao-desktop-e2e:   [window-layout] 检查项未通过或缺失：windowLayout.blockedStorageWritesNothing
+aiao-desktop-e2e:   [window-layout] 检查组异常：locator.click: Timeout 30000ms exceeded.
+aiao-desktop-e2e: Call log:
+aiao-desktop-e2e: [2m  - waiting for locator('.win[data-app="finder"]:not(.closing)').first().locator('.tl .f')[22m
+aiao-desktop-e2e: [2m    - locator resolved to <button class="f" tabindex="0" data-w="zoom" type="button" aria-label="Zoom">…</button>[22m
+aiao-desktop-e2e: [2m  - attempting click action[22m
+aiao-desktop-e2e: [2m    2 × waiting for element to be visible, enabled and stable[22m
+aiao-desktop-e2e: [2m      - element is visible, enabled and stable[22m
+aiao-desktop-e2e: [2m      - scrolling into view if needed[22m
+aiao-desktop-e2e: [2m      - done scrolling[22m
+aiao-desktop-e2e: [2m      - <div class="sb-top">…</div> from <app-window-frame id="w2" role="dialog" tabindex="-1" class="win front" data-app="finder" aria-label="Desktop">…</app-window-frame> subtree intercepts pointer events[22m
+aiao-desktop-e2e: [2m    - retrying click action[22m
+aiao-desktop-e2e: [2m    - waiting 20ms[22m
+aiao-desktop-e2e: [2m    2 × waiting for element to be visible, enabled and stable[22m
+aiao-desktop-e2e: [2m      - element is visible, enabled and stable[22m
+aiao-desktop-e2e: [2m      - scrolling into view if needed[22m
+aiao-desktop-e2e: [2m      - done scrolling[22m
+aiao-desktop-e2e: [2m      - <div class="sb-top">…</div> from <app-window-frame id="w2" role="dialog" tabindex="-1" class="win front" data-app="finder" aria-label="Desktop">…</app-window-frame> subtree intercepts pointer events[22m
+aiao-desktop-e2e: [2m    - retrying click action[22m
+aiao-desktop-e2e: [2m      - waiting 100ms[22m
+aiao-desktop-e2e: [2m    55 × waiting for element to be visible, enabled and stable[22m
+aiao-desktop-e2e: [2m       - element is visible, enabled and stable[22m
+aiao-desktop-e2e: [2m       - scrolling into view if needed[22m
+aiao-desktop-e2e: [2m       - done scrolling[22m
+aiao-desktop-e2e: [2m       - <div class="sb-top">…</div> from <app-window-frame id="w2" role="dialog" tabindex="-1" class="win front" data-app="finder" aria-label="Desktop">…</app-window-frame> subtree intercepts pointer events[22m
+aiao-desktop-e2e: [2m     - retrying click action[22m
+aiao-desktop-e2e: [2m       - waiting 500ms[22m
+aiao-desktop-e2e: （groups/window-layout.mjs:449）
+
+
+
+ NX   Running target e2e-firefox for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:e2e-firefox
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2m 56s
+  Critical path:     2m 56s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e-firefox    2m 56s

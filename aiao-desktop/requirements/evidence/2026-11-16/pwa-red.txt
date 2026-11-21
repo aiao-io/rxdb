@@ -1,0 +1,26 @@
+> node src/smoke.mjs --group=pwa
+
+(node:70991) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✗ pwa  0.1s
+检查组 1 个，总耗时 0.1s（引擎 chromium，并行 3）
+{}
+冒烟失败：
+  [pwa] 检查项未通过或缺失：pwa.manifest
+  [pwa] 检查项未通过或缺失：pwa.installable
+  [pwa] 检查项未通过或缺失：pwa.workerControlsDesktop
+  [pwa] 检查项未通过或缺失：pwa.desktopPrecached
+  [pwa] 检查项未通过或缺失：pwa.largeResourcesLazy
+  [pwa] 检查项未通过或缺失：pwa.offlineReload
+  [pwa] 检查项未通过或缺失：pwa.offlineFirstAppLaunch
+  [pwa] 检查项未通过或缺失：pwa.offlineDataIntact
+  [pwa] 检查项未通过或缺失：pwa.offlineIsolation
+  [pwa] 检查项未通过或缺失：pwa.onlineRecovery
+  [pwa] 检查项未通过或缺失：pwa.updateWaitsForReload
+  [pwa] 检查项未通过或缺失：pwa.updatedAfterReload
+  [pwa] 检查项未通过或缺失：pwa.dataSurvivesUpdate
+  [pwa] 检查组异常：正式构建缺少 PWA manifest
+
+404 !== 200
+（groups/pwa.mjs:65）
+Warning: command "node src/smoke.mjs --group=pwa" exited with non-zero status code

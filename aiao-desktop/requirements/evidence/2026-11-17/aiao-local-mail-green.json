@@ -1,0 +1,128 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T14:35:54.258Z",
+  "source": {
+    "sha": "8723ec1da3c27363914184469a32ec975d1c2b23",
+    "changes": ""
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "047048e4aebba45c2b82c9581cb77e713ba7175c4330f3b258a6f1f8e8ccf5fc"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-mail",
+      "content-actions"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 26.879267042,
+  "outcomes": [
+    {
+      "group": "local-mail",
+      "result": {
+        "localMail": {
+          "localScope": true,
+          "failedSaveKeepsFields": true,
+          "noViolations": [],
+          "beforeUnloadGuard": true,
+          "hiddenAndReplacedPanelKeepsDraft": true,
+          "closeAndRestartKeepDraft": true,
+          "retrySavesOneLocalDraft": true,
+          "keyboardRecovery": true,
+          "pendingSaveBlocksClose": true,
+          "persistedDraftEditable": true,
+          "searchAndFlagFailure": true,
+          "conflictAndCopyRecovery": true,
+          "deletedDraftRetained": true,
+          "replyAndForwardContent": true,
+          "sharedContentDrafts": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 26.814699958
+    },
+    {
+      "group": "content-actions",
+      "result": {
+        "contentActions": {
+          "unavailableContentDisabled": true,
+          "noViolations": [],
+          "pdfTextInClipboard": true,
+          "keyboardMenu": true,
+          "copyFailureAndRecovery": true,
+          "selectedDocumentPrint": true,
+          "printFailureAndCleanup": true,
+          "imageNameAndPrint": true,
+          "mailTextAndPrint": true,
+          "photoAddressInClipboard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 16.18359675
+    }
+  ],
+  "checks": {
+    "localMail": {
+      "localScope": true,
+      "failedSaveKeepsFields": true,
+      "noViolations": [],
+      "beforeUnloadGuard": true,
+      "hiddenAndReplacedPanelKeepsDraft": true,
+      "closeAndRestartKeepDraft": true,
+      "retrySavesOneLocalDraft": true,
+      "keyboardRecovery": true,
+      "pendingSaveBlocksClose": true,
+      "persistedDraftEditable": true,
+      "searchAndFlagFailure": true,
+      "conflictAndCopyRecovery": true,
+      "deletedDraftRetained": true,
+      "replyAndForwardContent": true,
+      "sharedContentDrafts": true
+    },
+    "contentActions": {
+      "unavailableContentDisabled": true,
+      "noViolations": [],
+      "pdfTextInClipboard": true,
+      "keyboardMenu": true,
+      "copyFailureAndRecovery": true,
+      "selectedDocumentPrint": true,
+      "printFailureAndCleanup": true,
+      "imageNameAndPrint": true,
+      "mailTextAndPrint": true,
+      "photoAddressInClipboard": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

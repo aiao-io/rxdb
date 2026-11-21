@@ -1,0 +1,744 @@
+{
+  "browser": "156.0.8078.80",
+  "cells": [
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vanilla",
+      "round": 1,
+      "loadavg": 7.97900390625,
+      "steps": {
+        "localPreviewMs": 1797,
+        "runToPageMs": 139,
+        "editToUpdateMs": 223,
+        "pageMemoryBytes": 19898945,
+        "browserRssBytes": 2218901504
+      },
+      "errors": [],
+      "rssBeforeBytes": 536084480,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 6758191,
+        "Window": 12384234
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vanilla",
+      "round": 2,
+      "loadavg": 7.8203125,
+      "steps": {
+        "localPreviewMs": 1887,
+        "runToPageMs": 147,
+        "editToUpdateMs": 223,
+        "pageMemoryBytes": 19986053,
+        "browserRssBytes": 2198487040
+      },
+      "errors": [],
+      "rssBeforeBytes": 645873664,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 6758363,
+        "Window": 12305929,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vanilla",
+      "round": 3,
+      "loadavg": 7.35400390625,
+      "steps": {
+        "localPreviewMs": 1821,
+        "runToPageMs": 143,
+        "editToUpdateMs": 222,
+        "pageMemoryBytes": 19808802,
+        "browserRssBytes": 2221522944
+      },
+      "errors": [],
+      "rssBeforeBytes": 651493376,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 6758039,
+        "Window": 12277977,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "react",
+      "round": 1,
+      "loadavg": 10.2880859375,
+      "steps": {
+        "localPreviewMs": 2425,
+        "runToPageMs": 544,
+        "editToUpdateMs": 872,
+        "pageMemoryBytes": 30739609,
+        "browserRssBytes": 2375270400
+      },
+      "errors": [],
+      "rssBeforeBytes": 655507456,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 11728273,
+        "Window": 18292820,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "react",
+      "round": 2,
+      "loadavg": 10.5048828125,
+      "steps": {
+        "localPreviewMs": 2313,
+        "runToPageMs": 544,
+        "editToUpdateMs": 834,
+        "pageMemoryBytes": 30785139,
+        "browserRssBytes": 2353823744
+      },
+      "errors": [],
+      "rssBeforeBytes": 658407424,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "Window": 18330509,
+        "DedicatedWorkerGlobalScope": 11726160
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "react",
+      "round": 3,
+      "loadavg": 9.90380859375,
+      "steps": {
+        "localPreviewMs": 2429,
+        "runToPageMs": 536,
+        "editToUpdateMs": 840,
+        "pageMemoryBytes": 30743558,
+        "browserRssBytes": 2357903360
+      },
+      "errors": [],
+      "rssBeforeBytes": 661405696,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 11726616,
+        "Window": 18287278
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vue",
+      "round": 1,
+      "loadavg": 9.1904296875,
+      "steps": {
+        "localPreviewMs": 2173,
+        "runToPageMs": 310,
+        "editToUpdateMs": 409,
+        "pageMemoryBytes": 26180632,
+        "browserRssBytes": 2300428288
+      },
+      "errors": [],
+      "rssBeforeBytes": 663568384,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 9135245,
+        "Window": 16080307,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vue",
+      "round": 2,
+      "loadavg": 8.9345703125,
+      "steps": {
+        "localPreviewMs": 2145,
+        "runToPageMs": 299,
+        "editToUpdateMs": 405,
+        "pageMemoryBytes": 26154086,
+        "browserRssBytes": 2300674048
+      },
+      "errors": [],
+      "rssBeforeBytes": 666189824,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "Window": 16132606,
+        "DedicatedWorkerGlobalScope": 9135031,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vue",
+      "round": 3,
+      "loadavg": 8.779296875,
+      "steps": {
+        "localPreviewMs": 2161,
+        "runToPageMs": 302,
+        "editToUpdateMs": 438,
+        "pageMemoryBytes": 26152927,
+        "browserRssBytes": 2300051456
+      },
+      "errors": [],
+      "rssBeforeBytes": 667254784,
+      "appLoadBytes": 30844502,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "Window": 16204744,
+        "DedicatedWorkerGlobalScope": 9134653
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "angular",
+      "round": 1,
+      "loadavg": 8.716796875,
+      "steps": {
+        "localPreviewMs": 3495,
+        "runToPageMs": 1421,
+        "editToUpdateMs": 1951,
+        "pageMemoryBytes": 59703666,
+        "browserRssBytes": 2752643072
+      },
+      "errors": [],
+      "rssBeforeBytes": 669761536,
+      "appLoadBytes": 30844502,
+      "pageMemoryByScope": {
+        "Window": 24865304,
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 33255593
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "angular",
+      "round": 2,
+      "loadavg": 9.1025390625,
+      "steps": {
+        "localPreviewMs": 3494,
+        "runToPageMs": 1508,
+        "editToUpdateMs": 1926,
+        "pageMemoryBytes": 59661693,
+        "browserRssBytes": 2735751168
+      },
+      "errors": [],
+      "rssBeforeBytes": 670253056,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "Window": 25466093,
+        "DedicatedWorkerGlobalScope": 33256356,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "angular",
+      "round": 3,
+      "loadavg": 8.09033203125,
+      "steps": {
+        "localPreviewMs": 3487,
+        "runToPageMs": 1418,
+        "editToUpdateMs": 1938,
+        "pageMemoryBytes": 59602036,
+        "browserRssBytes": 2742927360
+      },
+      "errors": [],
+      "rssBeforeBytes": 670990336,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "Window": 25535326,
+        "DedicatedWorkerGlobalScope": 33255644,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 0
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vanilla",
+      "round": 1,
+      "loadavg": 7.3876953125,
+      "steps": {
+        "localPreviewMs": 1825,
+        "runToPageMs": 17267,
+        "installStartMs": 4625,
+        "serverStartMs": 11489,
+        "installSummary": "Done in 6.5s",
+        "devServerSummary": "ready in 2820 ms",
+        "editToUpdateMs": 116,
+        "rerunToPageMs": 3675,
+        "pageMemoryBytes": 23023252,
+        "browserRssBytes": 3870965760
+      },
+      "errors": [],
+      "rssBeforeBytes": 671596544,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 6561936,
+        "Window": 15524993,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 42045265
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vanilla",
+      "round": 2,
+      "loadavg": 7.248046875,
+      "steps": {
+        "localPreviewMs": 1835,
+        "runToPageMs": 13499,
+        "installStartMs": 2921,
+        "serverStartMs": 8211,
+        "installSummary": "Done in 5s",
+        "devServerSummary": "ready in 2769 ms",
+        "editToUpdateMs": 223,
+        "rerunToPageMs": 3670,
+        "pageMemoryBytes": 23043100,
+        "browserRssBytes": 4458168320
+      },
+      "errors": [],
+      "rssBeforeBytes": 579731456,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 6561540,
+        "Window": 15473304
+      },
+      "runDownloadedBytes": 42045961
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vanilla",
+      "round": 3,
+      "loadavg": 8.13427734375,
+      "steps": {
+        "localPreviewMs": 1893,
+        "runToPageMs": 13585,
+        "installStartMs": 2980,
+        "serverStartMs": 8504,
+        "installSummary": "Done in 5.2s",
+        "devServerSummary": "ready in 2947 ms",
+        "editToUpdateMs": 117,
+        "rerunToPageMs": 3643,
+        "pageMemoryBytes": 23070292,
+        "browserRssBytes": 4907089920
+      },
+      "errors": [],
+      "rssBeforeBytes": 606846976,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 6561728,
+        "cross-origin-aggregated": 0,
+        "Window": 15615150
+      },
+      "runDownloadedBytes": 42044466
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "react",
+      "round": 1,
+      "loadavg": 8.54248046875,
+      "steps": {
+        "localPreviewMs": 2320,
+        "runToPageMs": 13935,
+        "installStartMs": 2719,
+        "serverStartMs": 8101,
+        "installSummary": "Done in 4.9s",
+        "devServerSummary": "ready in 2794 ms",
+        "editToUpdateMs": 225,
+        "rerunToPageMs": 4311,
+        "pageMemoryBytes": 25211978,
+        "browserRssBytes": 4045438976
+      },
+      "errors": [],
+      "rssBeforeBytes": 617562112,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 2917179,
+        "cross-origin-aggregated": 0,
+        "Window": 21404640
+      },
+      "runDownloadedBytes": 52542661
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "react",
+      "round": 2,
+      "loadavg": 8.42333984375,
+      "steps": {
+        "localPreviewMs": 2423,
+        "runToPageMs": 15683,
+        "installStartMs": 3041,
+        "serverStartMs": 10043,
+        "installSummary": "Done in 6.6s",
+        "devServerSummary": "ready in 2756 ms",
+        "editToUpdateMs": 223,
+        "rerunToPageMs": 4205,
+        "pageMemoryBytes": 25311342,
+        "browserRssBytes": 4979228672
+      },
+      "errors": [],
+      "rssBeforeBytes": 610074624,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 2916967,
+        "Window": 21451119
+      },
+      "runDownloadedBytes": 52542221
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "react",
+      "round": 3,
+      "loadavg": 7.4580078125,
+      "steps": {
+        "localPreviewMs": 2385,
+        "runToPageMs": 15273,
+        "installStartMs": 3027,
+        "serverStartMs": 9265,
+        "installSummary": "Done in 5.9s",
+        "devServerSummary": "ready in 2842 ms",
+        "editToUpdateMs": 116,
+        "rerunToPageMs": 4112,
+        "pageMemoryBytes": 25229404,
+        "browserRssBytes": 3970514944
+      },
+      "errors": [],
+      "rssBeforeBytes": 639221760,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 0,
+        "Window": 21424229,
+        "DedicatedWorkerGlobalScope": 2916931
+      },
+      "runDownloadedBytes": 52542004
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vue",
+      "round": 1,
+      "loadavg": 7.14794921875,
+      "steps": {
+        "localPreviewMs": 2259,
+        "runToPageMs": 15838,
+        "installStartMs": 3021,
+        "serverStartMs": 9402,
+        "installSummary": "Done in 6s",
+        "devServerSummary": "ready in 3218 ms",
+        "editToUpdateMs": 124,
+        "rerunToPageMs": 4384,
+        "pageMemoryBytes": 23310645,
+        "browserRssBytes": 3636461568
+      },
+      "errors": [],
+      "rssBeforeBytes": 621166592,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "Window": 19526209,
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 2923512
+      },
+      "runDownloadedBytes": 51093118
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vue",
+      "round": 2,
+      "loadavg": 9.84716796875,
+      "steps": {
+        "localPreviewMs": 2400,
+        "runToPageMs": 14553,
+        "installStartMs": 2871,
+        "serverStartMs": 8342,
+        "installSummary": "Done in 5.2s",
+        "devServerSummary": "ready in 3133 ms",
+        "editToUpdateMs": 116,
+        "rerunToPageMs": 4706,
+        "pageMemoryBytes": 23297474,
+        "browserRssBytes": 3612164096
+      },
+      "errors": [],
+      "rssBeforeBytes": 619757568,
+      "appLoadBytes": 30844502,
+      "pageMemoryByScope": {
+        "Window": 19526927,
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 2923432
+      },
+      "runDownloadedBytes": 51092700
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vue",
+      "round": 3,
+      "loadavg": 11.8505859375,
+      "steps": {
+        "localPreviewMs": 2157,
+        "runToPageMs": 15621,
+        "installStartMs": 3021,
+        "serverStartMs": 8754,
+        "installSummary": "Done in 5.4s",
+        "devServerSummary": "ready in 3298 ms",
+        "editToUpdateMs": 116,
+        "rerunToPageMs": 4662,
+        "pageMemoryBytes": 23262004,
+        "browserRssBytes": 3574628352
+      },
+      "errors": [],
+      "rssBeforeBytes": 594247680,
+      "appLoadBytes": 30748603,
+      "pageMemoryByScope": {
+        "Window": 19496377,
+        "cross-origin-aggregated": 0,
+        "DedicatedWorkerGlobalScope": 2923704
+      },
+      "runDownloadedBytes": 51092533
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "angular",
+      "round": 1,
+      "loadavg": 10.07568359375,
+      "steps": {
+        "localPreviewMs": 3675,
+        "runToPageMs": 31430,
+        "installStartMs": 3011,
+        "serverStartMs": 19068,
+        "installSummary": "Done in 15.7s",
+        "devServerSummary": "bundle generation complete. [5.229 seconds]",
+        "editToUpdateMs": 1883,
+        "rerunToPageMs": 8863,
+        "pageMemoryBytes": 61885701,
+        "browserRssBytes": 5059215360
+      },
+      "errors": [],
+      "rssBeforeBytes": 600686592,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 32144180,
+        "cross-origin-aggregated": 0,
+        "Window": 28919862
+      },
+      "runDownloadedBytes": 110930223
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "angular",
+      "round": 2,
+      "loadavg": 16.72119140625,
+      "steps": {
+        "localPreviewMs": 3477,
+        "runToPageMs": 27523,
+        "installStartMs": 2908,
+        "serverStartMs": 15670,
+        "installSummary": "Done in 12.4s",
+        "devServerSummary": "bundle generation complete. [5.270 seconds]",
+        "editToUpdateMs": 1731,
+        "rerunToPageMs": 9240,
+        "pageMemoryBytes": 62031753,
+        "browserRssBytes": 4220846080
+      },
+      "errors": [],
+      "rssBeforeBytes": 564576256,
+      "appLoadBytes": 30669985,
+      "pageMemoryByScope": {
+        "Window": 28747947,
+        "DedicatedWorkerGlobalScope": 32153468,
+        "cross-origin-aggregated": 0
+      },
+      "runDownloadedBytes": 109427408
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "angular",
+      "round": 3,
+      "loadavg": 17.60693359375,
+      "steps": {
+        "localPreviewMs": 3862,
+        "runToPageMs": 27948,
+        "installStartMs": 3022,
+        "serverStartMs": 15039,
+        "installSummary": "Done in 11.6s",
+        "devServerSummary": "bundle generation complete. [5.944 seconds]",
+        "editToUpdateMs": 1821,
+        "rerunToPageMs": 8756,
+        "pageMemoryBytes": 61886554,
+        "browserRssBytes": 4097245184
+      },
+      "errors": [],
+      "rssBeforeBytes": 568573952,
+      "appLoadBytes": 30844502,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 32145316,
+        "cross-origin-aggregated": 0,
+        "Window": 28924086
+      },
+      "runDownloadedBytes": 110922203
+    }
+  ],
+  "environment": {
+    "platform": "darwin",
+    "cpus": 10,
+    "model": "Apple M1 Max"
+  },
+  "finishedAt": "2026-11-07T01:06:55.115Z",
+  "format": "aiao.workbench.runtimes",
+  "repeat": 3,
+  "runtimes": ["esbuild-wasm", "webcontainer"],
+  "startedAt": "2026-11-07T00:59:42.733Z",
+  "summary": [
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vanilla",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 1821,
+      "runToPageMs": 143,
+      "installStartMs": null,
+      "serverStartMs": null,
+      "editToUpdateMs": 223,
+      "rerunToPageMs": null,
+      "pageMemoryBytes": 19898945,
+      "browserRssBytes": 2218901504,
+      "appLoadBytes": 30669985,
+      "runDownloadedBytes": 0,
+      "loadavg": 7.8203125
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "react",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 2425,
+      "runToPageMs": 544,
+      "installStartMs": null,
+      "serverStartMs": null,
+      "editToUpdateMs": 840,
+      "rerunToPageMs": null,
+      "pageMemoryBytes": 30743558,
+      "browserRssBytes": 2357903360,
+      "appLoadBytes": 30669985,
+      "runDownloadedBytes": 0,
+      "loadavg": 10.2880859375
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "vue",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 2161,
+      "runToPageMs": 302,
+      "installStartMs": null,
+      "serverStartMs": null,
+      "editToUpdateMs": 409,
+      "rerunToPageMs": null,
+      "pageMemoryBytes": 26154086,
+      "browserRssBytes": 2300428288,
+      "appLoadBytes": 30748603,
+      "runDownloadedBytes": 0,
+      "loadavg": 8.9345703125
+    },
+    {
+      "runtime": "esbuild-wasm",
+      "template": "angular",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 3494,
+      "runToPageMs": 1421,
+      "installStartMs": null,
+      "serverStartMs": null,
+      "editToUpdateMs": 1938,
+      "rerunToPageMs": null,
+      "pageMemoryBytes": 59661693,
+      "browserRssBytes": 2742927360,
+      "appLoadBytes": 30748603,
+      "runDownloadedBytes": 0,
+      "loadavg": 8.716796875
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vanilla",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 1835,
+      "runToPageMs": 13585,
+      "installStartMs": 2980,
+      "serverStartMs": 8504,
+      "editToUpdateMs": 117,
+      "rerunToPageMs": 3670,
+      "pageMemoryBytes": 23043100,
+      "browserRssBytes": 4458168320,
+      "appLoadBytes": 30748603,
+      "runDownloadedBytes": 42045265,
+      "loadavg": 7.3876953125
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "react",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 2385,
+      "runToPageMs": 15273,
+      "installStartMs": 3027,
+      "serverStartMs": 9265,
+      "editToUpdateMs": 223,
+      "rerunToPageMs": 4205,
+      "pageMemoryBytes": 25229404,
+      "browserRssBytes": 4045438976,
+      "appLoadBytes": 30748603,
+      "runDownloadedBytes": 52542221,
+      "loadavg": 8.42333984375
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "vue",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 2259,
+      "runToPageMs": 15621,
+      "installStartMs": 3021,
+      "serverStartMs": 8754,
+      "editToUpdateMs": 116,
+      "rerunToPageMs": 4662,
+      "pageMemoryBytes": 23297474,
+      "browserRssBytes": 3612164096,
+      "appLoadBytes": 30748603,
+      "runDownloadedBytes": 51092700,
+      "loadavg": 9.84716796875
+    },
+    {
+      "runtime": "webcontainer",
+      "template": "angular",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 3675,
+      "runToPageMs": 27948,
+      "installStartMs": 3011,
+      "serverStartMs": 15670,
+      "editToUpdateMs": 1821,
+      "rerunToPageMs": 8863,
+      "pageMemoryBytes": 61886554,
+      "browserRssBytes": 4220846080,
+      "appLoadBytes": 30669985,
+      "runDownloadedBytes": 110922203,
+      "loadavg": 16.72119140625
+    }
+  ],
+  "templates": ["vanilla", "react", "vue", "angular"],
+  "url": "http://127.0.0.1:64988/",
+  "version": 1
+}

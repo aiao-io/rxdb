@@ -164,7 +164,9 @@ app-header {
 }
 
 // Mobile sidebar overlay
-// 遮罩只覆盖 #layout-main 内的应用内容。
+// absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
+// Orbit嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。
+
 .sidebar-overlay {
   position: absolute;
   top: 0;

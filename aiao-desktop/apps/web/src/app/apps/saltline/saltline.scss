@@ -1,0 +1,26 @@
+/* 几猫3A大作的窗口内容：游戏 iframe 铺满标题栏以下，激活层叠在它上面。底色与游戏一致，加载前不闪白。 */
+.saltline {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #0b0d0f;
+}
+.saltline-frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/* 拖动与缩放窗口时 iframe 不截走指针，否则指针一进游戏画面就丢了跟踪。 */
+.win.drag .saltline-frame,
+.win.rsz .saltline-frame {
+  pointer-events: none;
+}
+/* 后台窗口的激活层：盖住游戏，首次点击只激活窗口。 */
+.saltline-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}

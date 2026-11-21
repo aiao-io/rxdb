@@ -1,0 +1,65 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T17:15:49.186Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M  src/groups/calendar-drafts.mjs\nA  src/groups/contacts.mjs\nMM src/groups/index.mjs\nM  ../web/src/app/apps/calendar/calendar.html\nA  ../web/src/app/apps/contacts/contacts-model.spec.ts\nA  ../web/src/app/apps/contacts/contacts-model.ts\nM  ../web/src/app/apps/contacts/contacts.ts\n M ../web/src/app/apps/notes/notes.html\n M ../web/src/app/apps/notes/notes.ts\nM  ../../requirements/README.md\nM  ../../requirements/epics/ADESK-EPIC-002.md\nM  ../../requirements/evidence/2026-11-17/README.md\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-drafts-green.json\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-failure.png\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-final.json\nA  ../../requirements/evidence/2026-11-17/aiao-contacts-green.json\nA  ../../requirements/evidence/2026-11-17/calendar-unit-green.txt\nM  ../../requirements/plans/2026-11-17-autonomous-completion.md\nM  ../../requirements/plans/2026-11-17-builtin-workflows.md\nM  ../../requirements/roadmap.md\nM  ../../requirements/status-overview.md\nA  ../../requirements/stories/desktop/ADESK-US-119-calendar-drafts.md\nA  ../../requirements/stories/desktop/ADESK-US-120-contacts-workflow.md\nM  ../../requirements/verification-report.md\n?? src/groups/notes-actions.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74058cc10254726204322efa0b1a86718db8717929d907a035dfc5bebd705587"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "notes-actions"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 6.480784083,
+  "outcomes": [
+    {
+      "group": "notes-actions",
+      "result": {
+        "notesActions": {
+          "pinPersists": true,
+          "unpinPersists": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 6.417173291
+    }
+  ],
+  "checks": {
+    "notesActions": {
+      "pinPersists": true,
+      "unpinPersists": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

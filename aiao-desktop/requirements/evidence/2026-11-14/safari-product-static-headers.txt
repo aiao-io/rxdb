@@ -1,0 +1,9 @@
+HTTP/1.1 200 OK
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
+Content-Type: text/html; charset=utf-8
+Date: Sat, 14 Nov 2026 07:01:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+

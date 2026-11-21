@@ -312,7 +312,9 @@ describe('校验只读，落标记是另一件事（FR-051、R10）', () => {
 
     // 守卫跑在调用方的写事务里，而调用方命中损坏后一定回滚：
     // 标记写在这里会跟着一起消失，用户于是永远拿不到一个持久的诊断。
-    expect(scene.probe.statements).toEqual([]);
+    expect(scene.probe.statements.every(sql => /^SELECT\b/i.test(sql))).toBe(true);
+    expect(scene.probe.executor.removeMany).not.toHaveBeenCalled();
+    expect(scene.probe.executor.mutations).not.toHaveBeenCalled();
     expect(scene.probe.saved).toEqual([]);
     expect({ status: scene.refOf('main').status, corruptedAt: scene.refOf('main').corruptedAt }).toEqual({
       status: 'ok',

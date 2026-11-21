@@ -87,7 +87,8 @@ const isGlobalScope = (constructorName: 'WorkerGlobalScope' | 'SharedWorkerGloba
   return typeof constructor === 'function' && globalThis instanceof constructor;
 };
 
-const detectRuntimeContext = (): SqliteRuntimeContext => {
+/** 当前 JavaScript 执行环境；VFS 与备份矩阵采用同一判据。 */
+export const detectRuntimeContext = (): SqliteRuntimeContext => {
   if (isGlobalScope('SharedWorkerGlobalScope')) return 'sharedWorker';
   if (isGlobalScope('WorkerGlobalScope')) return 'worker';
   return 'main thread';

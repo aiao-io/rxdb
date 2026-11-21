@@ -1,0 +1,90 @@
+{
+  "checks": [
+    {
+      "name": "pane-sash-resize",
+      "result": "verified",
+      "before": { "workspace": 88, "outline": 954, "timeline": 28 },
+      "after": { "workspace": 236, "outline": 806, "timeline": 28 }
+    },
+    {
+      "name": "pane-collapse",
+      "result": "verified",
+      "expanded": false,
+      "size": 28
+    },
+    {
+      "name": "pane-reorder",
+      "result": "verified",
+      "before": ["workspace", "outline", "timeline"],
+      "after": ["timeline", "workspace", "outline"]
+    },
+    {
+      "name": "pane-to-dock-tab",
+      "result": "verified",
+      "paneOrder": ["timeline", "workspace"],
+      "toolTabs": ["outline", "terminal"],
+      "position": "center",
+      "index": 0,
+      "sameContentNode": true,
+      "input": "拖出再拖回，状态必须保留"
+    },
+    {
+      "name": "dock-to-pane",
+      "result": "verified",
+      "paneOrder": ["timeline", "outline", "workspace"],
+      "toolTabs": ["terminal"],
+      "sameContentNode": true,
+      "contentInstances": 1,
+      "input": "拖出再拖回，状态必须保留"
+    },
+    {
+      "name": "pane-to-dock-split",
+      "result": "verified",
+      "position": "right",
+      "outlineGroup": "3",
+      "terminalGroup": "2"
+    },
+    {
+      "name": "serialize-restore-both-layouts",
+      "result": "verified",
+      "outlineDocked": true,
+      "sameContentNode": true,
+      "uniqueContentInstances": true,
+      "panes": [
+        { "id": "timeline", "expanded": false, "size": 28 },
+        { "id": "workspace", "expanded": true, "size": 1042 }
+      ]
+    },
+    {
+      "name": "collapsed-pane-serialize-restore",
+      "result": "verified",
+      "order": ["timeline", "outline", "workspace"],
+      "outlineExpanded": false,
+      "outlineSize": 28,
+      "sameContentNode": true
+    },
+    {
+      "name": "collapsed-reexpand-size-observation",
+      "result": "limitation-observed",
+      "expanded": true,
+      "expandedSizeAfterRestore": 300,
+      "sidebarWidth": 300,
+      "finding": "SerializedPaneview omits the cached size before collapse; persist lastExpandedSize separately"
+    }
+  ],
+  "date": "2026-11-09",
+  "dependency": "dockview-core@8.8.3",
+  "format": "aiao.dockview-paneview.research",
+  "method": "Observed browser mouse interactions; results transcribed from tool outputs",
+  "productionIntegrated": false,
+  "scope": "isolated-prototype",
+  "unverified": [
+    "application integration and application test suite",
+    "touch and pen input",
+    "focus and scroll restoration",
+    "empty pane container drop target",
+    "cancelled drag and failed transfer rollback",
+    "project switching and persistent catalog round trip",
+    "narrow-screen drawer transitions"
+  ]
+}

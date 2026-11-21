@@ -1,0 +1,117 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-21T02:33:14.823Z",
+  "source": {
+    "sha": "fccbc72865dd490add2ac50c54751c4df612c89b",
+    "changes": "M  src/groups/file-management.mjs\nM  src/groups/local-messages.mjs\n M ../../requirements/evidence/2026-11-21/browser-session-restore-green.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/.codex/worktrees/pr202-merge-checks/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "fb5e817852ca72deb79029fecbb73a2c241f72694629788cd9b8f730c52eddaa"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "github-app"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 21.117746124999996,
+  "outcomes": [
+    {
+      "group": "github-app",
+      "result": {
+        "github": {
+          "launchpadOpens": true,
+          "emptyState": true,
+          "applicationsOpens": true,
+          "spotlightOpens": true,
+          "localRepositoryCreated": true,
+          "editorSaveAndStage": true,
+          "diffPanel": true,
+          "unstageAndDiscard": true,
+          "commitAndHistory": true,
+          "branchAndDirtyCheckout": true,
+          "repositorySurvivesReload": true,
+          "archiveRoundTrip": true,
+          "repositorySearch": true,
+          "remoteBranchSelection": true,
+          "publicRepositoryOpens": true,
+          "remotePullClean": true,
+          "privateRepositoryRequiresAuth": true,
+          "oauthCancel": true,
+          "oauthPopupClose": true,
+          "oauthSuccess": true,
+          "oauthExchangeFailure": true,
+          "patInvalid": true,
+          "patSuccess": true,
+          "remotePush": true,
+          "remoteConflict": true,
+          "networkFailure": true,
+          "keyboardPath": true,
+          "workerFailureCoveredByUnitTests": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 21.068548625
+    }
+  ],
+  "checks": {
+    "github": {
+      "launchpadOpens": true,
+      "emptyState": true,
+      "applicationsOpens": true,
+      "spotlightOpens": true,
+      "localRepositoryCreated": true,
+      "editorSaveAndStage": true,
+      "diffPanel": true,
+      "unstageAndDiscard": true,
+      "commitAndHistory": true,
+      "branchAndDirtyCheckout": true,
+      "repositorySurvivesReload": true,
+      "archiveRoundTrip": true,
+      "repositorySearch": true,
+      "remoteBranchSelection": true,
+      "publicRepositoryOpens": true,
+      "remotePullClean": true,
+      "privateRepositoryRequiresAuth": true,
+      "oauthCancel": true,
+      "oauthPopupClose": true,
+      "oauthSuccess": true,
+      "oauthExchangeFailure": true,
+      "patInvalid": true,
+      "patSuccess": true,
+      "remotePush": true,
+      "remoteConflict": true,
+      "networkFailure": true,
+      "keyboardPath": true,
+      "workerFailureCoveredByUnitTests": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

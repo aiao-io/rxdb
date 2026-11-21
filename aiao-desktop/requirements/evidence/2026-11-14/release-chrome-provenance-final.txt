@@ -1,0 +1,76 @@
+{
+  "format": "aiao-desktop.chrome-entry-provenance",
+  "version": 1,
+  "measuredAt": "2026-11-14T11:25:07.608Z",
+  "method": "Fresh temporary headless Google Chrome; service workers blocked; raw response body",
+  "environment": {
+    "channel": "chrome",
+    "browser": "157.0.8103.52"
+  },
+  "entries": [
+    {
+      "origin": "https://desktop.aiao.io",
+      "status": 200,
+      "bytes": 1817,
+      "indexSha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc",
+      "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": false,
+      "commonPrefixChars": 1435,
+      "commonSuffixChars": 15,
+      "removedLocalCharacters": 0,
+      "addedCharacters": 367,
+      "addedFragmentSha256": "f084d6f862fd907f3389b1b425d2c131310e3e7e2bab0c5a54c98a602639448e",
+      "localScripts": [
+        {
+          "src": "main-RI2ER7MO.js",
+          "type": "module"
+        }
+      ],
+      "responseScripts": [
+        {
+          "src": "main-RI2ER7MO.js",
+          "type": "module"
+        },
+        {
+          "src": "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092",
+          "type": "module"
+        }
+      ],
+      "extraScriptSources": [
+        "https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092"
+      ],
+      "finderVisible": true,
+      "crossOriginIsolated": true
+    },
+    {
+      "origin": "https://aiao-desktop.pages.dev",
+      "status": 200,
+      "bytes": 1450,
+      "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": true,
+      "commonPrefixChars": 1450,
+      "commonSuffixChars": 0,
+      "removedLocalCharacters": 0,
+      "addedCharacters": 0,
+      "addedFragmentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "localScripts": [
+        {
+          "src": "main-RI2ER7MO.js",
+          "type": "module"
+        }
+      ],
+      "responseScripts": [
+        {
+          "src": "main-RI2ER7MO.js",
+          "type": "module"
+        }
+      ],
+      "extraScriptSources": [],
+      "finderVisible": true,
+      "crossOriginIsolated": true
+    }
+  ],
+  "pageErrors": [],
+  "passed": true
+}

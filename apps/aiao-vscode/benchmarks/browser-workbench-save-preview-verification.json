@@ -1,0 +1,181 @@
+{
+  "browser": "156.0.8078.4",
+  "checks": [
+    "initial-preview-does-not-wait-for-history",
+    "initial-draft-never-implicitly-saved",
+    "history-release-during-save-keeps-latest-preview",
+    "current-save-keeps-other-dirty-buffer-off-disk-and-preview",
+    "workbench-save-all-shortcut-persists-all-buffers",
+    "rapid-save-keeps-latest-input-and-preview",
+    "syntax-error-keeps-successful-preview-and-marks-it-stale",
+    "next-save-recovers-after-compile-error"
+  ],
+  "format": "aiao.workbench.save-preview-verification",
+  "functionalOnly": false,
+  "initialReadOnly": {
+    "historyHeld": true,
+    "historyReleased": true,
+    "historyDelayMs": 1880.5,
+    "historyRequests": 1,
+    "saveHeld": true,
+    "saveReleased": true,
+    "saves": [
+      {
+        "id": 7,
+        "action": "save",
+        "projectId": "default-react",
+        "source": "import { createRoot } from 'react-dom/client';\n\ncreateRoot(document.getElementById('app')!).render(<h1>initial-read-only-draft</h1>);\n"
+      },
+      {
+        "id": 8,
+        "action": "save",
+        "projectId": "default-react",
+        "source": "import { createRoot } from 'react-dom/client';\n\ncreateRoot(document.getElementById('app')!).render(<h1>initial-user-save-latest</h1>);\n"
+      }
+    ],
+    "mechanism": "公开 Worker 请求仍由真实 Git Worker 执行；初始 history 响应持有至少 1.8s，首个 save ACK 在草稿更新后再释放。"
+  },
+  "pageErrors": [],
+  "status": "passed",
+  "timing": {
+    "scenario": "真实 React 工作台；初始预览已就绪；编辑 TSX 后只按 CtrlS，观察新 iframe 标题可见；包括 100ms debounce 和 Playwright 操作/观察开销。",
+    "samples": [
+      {
+        "index": 0,
+        "saveMs": 87.9209579999997,
+        "saveToVisibleMs": 630.7527499999997,
+        "compilerWorkersCreated": 0
+      },
+      {
+        "index": 1,
+        "saveMs": 85.83116599999994,
+        "saveToVisibleMs": 622.6469160000006,
+        "compilerWorkersCreated": 0
+      },
+      {
+        "index": 2,
+        "saveMs": 86.89962500000001,
+        "saveToVisibleMs": 622.563083,
+        "compilerWorkersCreated": 0
+      },
+      {
+        "index": 3,
+        "saveMs": 89.65904200000023,
+        "saveToVisibleMs": 628.8868750000001,
+        "compilerWorkersCreated": 0
+      },
+      {
+        "index": 4,
+        "saveMs": 85.77050000000054,
+        "saveToVisibleMs": 623.401417000001,
+        "compilerWorkersCreated": 0
+      },
+      {
+        "index": 5,
+        "saveMs": 86.07404200000019,
+        "saveToVisibleMs": 623.9383330000001,
+        "compilerWorkersCreated": 0
+      }
+    ],
+    "warmMedianMs": 623.401417000001,
+    "warmMinMs": 622.563083,
+    "warmMaxMs": 628.8868750000001,
+    "compilerWorkersCreatedDuringSamples": 0
+  },
+  "url": "http://127.0.0.1:4201/browser-workbench",
+  "version": 1,
+  "workerProbe": {
+    "historyHeld": true,
+    "historyReleased": true,
+    "historyDelayMs": 1880.5,
+    "historyRequests": 1,
+    "saveHeld": true,
+    "saveReleased": true,
+    "saves": [
+      {
+        "id": 7,
+        "action": "save",
+        "projectId": "default-react",
+        "source": "import { createRoot } from 'react-dom/client';\n\ncreateRoot(document.getElementById('app')!).render(<h1>initial-read-only-draft</h1>);\n"
+      },
+      {
+        "id": 8,
+        "action": "save",
+        "projectId": "default-react",
+        "source": "import { createRoot } from 'react-dom/client';\n\ncreateRoot(document.getElementById('app')!).render(<h1>initial-user-save-latest</h1>);\n"
+      },
+      {
+        "id": 14,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-0</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 17,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-1</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 20,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-2</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 23,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-3</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 26,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-4</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 29,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>automatic-preview-5</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 32,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>scoped-save-current</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 35,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>scoped-save-current</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 38,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>rapid-preview-first</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 39,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>rapid-preview-latest</h1><Counter/></main>);\n"
+      },
+      {
+        "id": 44,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\ncreateRoot(\n"
+      },
+      {
+        "id": 47,
+        "action": "save",
+        "projectId": "18f4eefc-b37f-4135-b52d-ced4bf8cf135",
+        "source": "import { createRoot } from \"react-dom/client\";\nimport { Counter } from \"./Counter\";\nimport \"./style.css\";\nimport icon from \"./icon.svg\";\n\ncreateRoot(document.getElementById(\"app\")!).render(<main><img className=\"logo\" src={icon}/><h1>recovered-preview</h1><Counter/></main>);\n"
+      }
+    ]
+  }
+}

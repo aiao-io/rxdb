@@ -1,0 +1,692 @@
+{
+  "architecture": "arm64",
+  "browser": "156.0.8078.4",
+  "caveats": [
+    "Single fixture run; timings are observations rather than performance thresholds.",
+    "Wasm linear memory excludes JS caches and browser process memory."
+  ],
+  "checks": [
+    "restart-staged-unstaged-deletion-binary-native-git-import-continuation",
+    "restore-reachable-tree-preserves-head-index-dirty-rejected",
+    "two-worker-lock-revision-conflict-isolated-paths",
+    "quota-rollback-and-terminated-worker-journal-recovery",
+    "premature-and-repeated-commits-rejected-without-empty-history",
+    "unpublished-journal-create-write-close-failure-and-worker-interruption",
+    "restore-preserves-ignored-binary-worktree-files",
+    "restore-rejects-ignored-target-conflicts-without-mutation",
+    "staged-rename-path-remains-machine-readable-after-edit",
+    "literal-stage-paths-never-expand-to-unselected-files",
+    "exact-bom-crlf-binary-diffs-preserve-head-index-and-working-bytes",
+    "per-file-unstage-keeps-other-index-working-bytes-and-unborn-head",
+    "per-file-discard-restores-index-bytes-and-keeps-staged-and-other-files",
+    "rename-diff-and-unstage-respect-original-and-new-paths",
+    "public-backend-create-open-save-preserves-bom-crlf-exactly",
+    "scm-unstage-and-discard-quota-rollback-preserve-index-and-working",
+    "full-save-50-files-writes-only-changed-new-paths-and-preserves-mtime"
+  ],
+  "measurements": [
+    {
+      "action": "init",
+      "milliseconds": 198.1663750000007
+    },
+    {
+      "action": "stage",
+      "milliseconds": 73.96120800000062
+    },
+    {
+      "action": "status",
+      "milliseconds": 47.09666599999946
+    },
+    {
+      "action": "commit",
+      "milliseconds": 72.78416599999946
+    },
+    {
+      "action": "save",
+      "milliseconds": 74.48283300000003
+    },
+    {
+      "action": "stage",
+      "milliseconds": 80.10325000000012
+    },
+    {
+      "action": "save",
+      "milliseconds": 48.623999999999796
+    },
+    {
+      "action": "remove",
+      "milliseconds": 45.60808299999917
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 37.154875000000175
+    },
+    {
+      "action": "status",
+      "milliseconds": 40.169458000000304
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 81.11299999999937
+    },
+    {
+      "action": "status",
+      "milliseconds": 55.97587500000009
+    },
+    {
+      "action": "export",
+      "milliseconds": 141.57145799999853
+    },
+    {
+      "action": "import",
+      "milliseconds": 158.47162500000013
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 36.883874999999534
+    },
+    {
+      "action": "status",
+      "milliseconds": 48.27350000000115
+    },
+    {
+      "action": "stage",
+      "milliseconds": 62.38483300000007
+    },
+    {
+      "action": "commit",
+      "milliseconds": 80.8715830000001
+    },
+    {
+      "action": "status",
+      "milliseconds": 51.22533399999884
+    },
+    {
+      "action": "init",
+      "milliseconds": 53.68854199999987
+    },
+    {
+      "action": "stage",
+      "milliseconds": 33.185208999999304
+    },
+    {
+      "action": "commit",
+      "milliseconds": 51.54683399999885
+    },
+    {
+      "action": "save",
+      "milliseconds": 39.00816599999962
+    },
+    {
+      "action": "stage",
+      "milliseconds": 53.080792000000656
+    },
+    {
+      "action": "commit",
+      "milliseconds": 65.28387499999917
+    },
+    {
+      "action": "export",
+      "milliseconds": 117.57491699999991
+    },
+    {
+      "action": "restore",
+      "milliseconds": 55.097499999999854
+    },
+    {
+      "action": "status",
+      "milliseconds": 45.591292000000976
+    },
+    {
+      "action": "export",
+      "milliseconds": 112.28262499999983
+    },
+    {
+      "action": "init",
+      "milliseconds": 53.27862500000083
+    },
+    {
+      "action": "rename",
+      "milliseconds": 25.660416000000623
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 16.74633299999914
+    },
+    {
+      "action": "save",
+      "milliseconds": 43.67500000000109
+    },
+    {
+      "action": "save",
+      "milliseconds": 68.53179099999943
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 23.65741700000035
+    },
+    {
+      "action": "init",
+      "milliseconds": 54.29804199999853
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 17.82600000000093
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 21.151457999998456
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 97.80470799999966
+    },
+    {
+      "action": "save",
+      "milliseconds": 26.365250000000742
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 20.263832999999067
+    },
+    {
+      "action": "init",
+      "milliseconds": 58.038666999998895
+    },
+    {
+      "action": "history",
+      "milliseconds": 18.639541999998983
+    },
+    {
+      "action": "stage",
+      "milliseconds": 31.506499999999505
+    },
+    {
+      "action": "commit",
+      "milliseconds": 50.87333299999955
+    },
+    {
+      "action": "history",
+      "milliseconds": 34.679958000000624
+    },
+    {
+      "action": "status",
+      "milliseconds": 33.40970800000105
+    },
+    {
+      "action": "init",
+      "milliseconds": 52.54175000000032
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 17.77429200000006
+    },
+    {
+      "action": "open",
+      "milliseconds": 41.93224999999984
+    },
+    {
+      "action": "export",
+      "milliseconds": 42.84920899999997
+    },
+    {
+      "action": "open",
+      "milliseconds": 32.00504100000035
+    },
+    {
+      "action": "export",
+      "milliseconds": 39.053374999999505
+    },
+    {
+      "action": "open",
+      "milliseconds": 33.65712499999972
+    },
+    {
+      "action": "export",
+      "milliseconds": 38.43804199999977
+    },
+    {
+      "action": "open",
+      "milliseconds": 33.43737499999952
+    },
+    {
+      "action": "export",
+      "milliseconds": 41.43587500000103
+    },
+    {
+      "action": "init",
+      "milliseconds": 53.38312500000029
+    },
+    {
+      "action": "stage",
+      "milliseconds": 36.71283299999959
+    },
+    {
+      "action": "commit",
+      "milliseconds": 64.17745800000012
+    },
+    {
+      "action": "save",
+      "milliseconds": 49.09049999999843
+    },
+    {
+      "action": "stage",
+      "milliseconds": 68.62829099999908
+    },
+    {
+      "action": "commit",
+      "milliseconds": 76.0462920000009
+    },
+    {
+      "action": "status",
+      "milliseconds": 51.08433399999922
+    },
+    {
+      "action": "restore",
+      "milliseconds": 59.10250000000087
+    },
+    {
+      "action": "init",
+      "milliseconds": 70.63262500000019
+    },
+    {
+      "action": "stage",
+      "milliseconds": 42.64837500000067
+    },
+    {
+      "action": "commit",
+      "milliseconds": 68.4798750000009
+    },
+    {
+      "action": "remove",
+      "milliseconds": 41.03258300000016
+    },
+    {
+      "action": "save",
+      "milliseconds": 51.611792000001515
+    },
+    {
+      "action": "stage",
+      "milliseconds": 52.937167000000045
+    },
+    {
+      "action": "commit",
+      "milliseconds": 87.09162500000093
+    },
+    {
+      "action": "save",
+      "milliseconds": 52.75229099999888
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 45.71095800000148
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 44.239042000001064
+    },
+    {
+      "action": "init",
+      "milliseconds": 54.46916699999929
+    },
+    {
+      "action": "stage",
+      "milliseconds": 37.23604200000045
+    },
+    {
+      "action": "commit",
+      "milliseconds": 54.293541999999434
+    },
+    {
+      "action": "rename",
+      "milliseconds": 34.92408299999988
+    },
+    {
+      "action": "stage",
+      "milliseconds": 41.21220799999901
+    },
+    {
+      "action": "status",
+      "milliseconds": 29.222791000000143
+    },
+    {
+      "action": "save",
+      "milliseconds": 45.550083000000086
+    },
+    {
+      "action": "status",
+      "milliseconds": 39.90808300000026
+    },
+    {
+      "action": "stage",
+      "milliseconds": 123.8837910000002
+    },
+    {
+      "action": "commit",
+      "milliseconds": 85.73262499999873
+    },
+    {
+      "action": "status",
+      "milliseconds": 53.718666999999186
+    },
+    {
+      "action": "init",
+      "milliseconds": 74.42799999999988
+    },
+    {
+      "action": "stage",
+      "milliseconds": 51.16441699999996
+    },
+    {
+      "action": "status",
+      "milliseconds": 43.93804199999977
+    },
+    {
+      "action": "init",
+      "milliseconds": 53.283166999999594
+    },
+    {
+      "action": "stage",
+      "milliseconds": 31.444625000000087
+    },
+    {
+      "action": "commit",
+      "milliseconds": 58.48279100000036
+    },
+    {
+      "action": "save",
+      "milliseconds": 48.87016699999913
+    },
+    {
+      "action": "stage",
+      "milliseconds": 58.93620900000133
+    },
+    {
+      "action": "save",
+      "milliseconds": 43.64125000000058
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 39.50966700000026
+    },
+    {
+      "action": "export",
+      "milliseconds": 117.26108399999976
+    },
+    {
+      "action": "readDiff",
+      "milliseconds": 54.93745900000067
+    },
+    {
+      "action": "readDiff",
+      "milliseconds": 76.11016700000073
+    },
+    {
+      "action": "readDiff",
+      "milliseconds": 67.71437500000138
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 55.93679200000042
+    },
+    {
+      "action": "export",
+      "milliseconds": 148.09029200000077
+    },
+    {
+      "action": "init",
+      "milliseconds": 88.08566699999938
+    },
+    {
+      "action": "stage",
+      "milliseconds": 71.65250000000015
+    },
+    {
+      "action": "commit",
+      "milliseconds": 89.42604199999914
+    },
+    {
+      "action": "save",
+      "milliseconds": 51.567041999998764
+    },
+    {
+      "action": "stage",
+      "milliseconds": 62.16670900000099
+    },
+    {
+      "action": "save",
+      "milliseconds": 72.79470799999945
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 48.1668750000008
+    },
+    {
+      "action": "unstage",
+      "milliseconds": 70.97241700000086
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 65.10041699999965
+    },
+    {
+      "action": "status",
+      "milliseconds": 57.018833000000086
+    },
+    {
+      "action": "export",
+      "milliseconds": 133.1269999999986
+    },
+    {
+      "action": "init",
+      "milliseconds": 95.51875000000291
+    },
+    {
+      "action": "stage",
+      "milliseconds": 82.37491599999703
+    },
+    {
+      "action": "unstage",
+      "milliseconds": 54.529374999998254
+    },
+    {
+      "action": "status",
+      "milliseconds": 40.43600000000151
+    },
+    {
+      "action": "init",
+      "milliseconds": 113.21245800000179
+    },
+    {
+      "action": "stage",
+      "milliseconds": 102.19866700000057
+    },
+    {
+      "action": "commit",
+      "milliseconds": 109.23183399999834
+    },
+    {
+      "action": "save",
+      "milliseconds": 71.32425000000148
+    },
+    {
+      "action": "stage",
+      "milliseconds": 77.1697090000016
+    },
+    {
+      "action": "save",
+      "milliseconds": 64.29412500000035
+    },
+    {
+      "action": "export",
+      "milliseconds": 169.9841669999987
+    },
+    {
+      "action": "discardWorking",
+      "milliseconds": 69.77375000000029
+    },
+    {
+      "action": "discardWorking",
+      "milliseconds": 58.69220899999709
+    },
+    {
+      "action": "discardWorking",
+      "milliseconds": 56.13979200000176
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 56.625
+    },
+    {
+      "action": "export",
+      "milliseconds": 161.1670840000006
+    },
+    {
+      "action": "init",
+      "milliseconds": 76.43837500000154
+    },
+    {
+      "action": "stage",
+      "milliseconds": 49.05983399999968
+    },
+    {
+      "action": "commit",
+      "milliseconds": 78.7444579999974
+    },
+    {
+      "action": "rename",
+      "milliseconds": 52.351582999999664
+    },
+    {
+      "action": "stage",
+      "milliseconds": 51.77091600000131
+    },
+    {
+      "action": "readDiff",
+      "milliseconds": 52.10233299999891
+    },
+    {
+      "action": "save",
+      "milliseconds": 47.57099999999991
+    },
+    {
+      "action": "unstage",
+      "milliseconds": 63.39387500000157
+    },
+    {
+      "action": "status",
+      "milliseconds": 46.73937500000102
+    },
+    {
+      "action": "init",
+      "milliseconds": 85.33616699999766
+    },
+    {
+      "action": "stage",
+      "milliseconds": 37.81424999999945
+    },
+    {
+      "action": "commit",
+      "milliseconds": 71.76637499999924
+    },
+    {
+      "action": "save",
+      "milliseconds": 43.899459000000206
+    },
+    {
+      "action": "stage",
+      "milliseconds": 69.03491700000086
+    },
+    {
+      "action": "save",
+      "milliseconds": 49.92374999999811
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 42.17733399999997
+    },
+    {
+      "action": "status",
+      "milliseconds": 36.57449999999881
+    },
+    {
+      "action": "export",
+      "milliseconds": 95.10450000000128
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 210.80408299999908
+    },
+    {
+      "action": "status",
+      "milliseconds": 42.930083999999624
+    },
+    {
+      "action": "snapshot",
+      "milliseconds": 91.26433399999951
+    },
+    {
+      "action": "status",
+      "milliseconds": 55.63054199999897
+    },
+    {
+      "action": "export",
+      "milliseconds": 99.55641699999978
+    },
+    {
+      "action": "init",
+      "milliseconds": 146.11433300000135
+    },
+    {
+      "action": "stage",
+      "milliseconds": 449.55762499999764
+    },
+    {
+      "action": "commit",
+      "milliseconds": 259.6561249999977
+    },
+    {
+      "action": "sourceWriteCounts",
+      "milliseconds": 5.4568749999998545
+    },
+    {
+      "action": "save",
+      "milliseconds": 246.80408399999942
+    },
+    {
+      "action": "sourceWriteCounts",
+      "milliseconds": 1.9526249999980791
+    },
+    {
+      "action": "status",
+      "milliseconds": 216.7192909999976
+    },
+    {
+      "action": "save",
+      "milliseconds": 287.41058299999713
+    },
+    {
+      "action": "sourceWriteCounts",
+      "milliseconds": 4.557791000002908
+    },
+    {
+      "action": "metrics",
+      "milliseconds": 7.414832999998907
+    }
+  ],
+  "nativeGit": "git version 2.54.0 (Apple Git-157)",
+  "node": "v26.12.0",
+  "platform": "darwin",
+  "recordedAt": "2026-11-03T02:29:50.753Z",
+  "status": "passed",
+  "storage": {
+    "quota": 10737578907,
+    "usage": 160667,
+    "usageDetails": {
+      "fileSystem": 160667
+    }
+  },
+  "variant": "jspi",
+  "wasmGit": "0.0.17",
+  "wasmLinearMemoryBytes": 17039360
+}

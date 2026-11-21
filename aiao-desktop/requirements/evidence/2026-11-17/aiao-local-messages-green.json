@@ -1,0 +1,126 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T11:37:52.615Z",
+  "source": {
+    "sha": "45495d161e848086e912fef7d2a54fb9f01a806b",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/messages/messages-data.ts\n M ../web/src/app/apps/messages/messages.html\n M ../web/src/styles.scss\n?? src/groups/local-messages.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "49664c1f2ca69951586562506036bb5c7aa27f33fd9b83ce13dbdc5f59e7f937"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-messages",
+      "content-actions"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 19.010863166,
+  "outcomes": [
+    {
+      "group": "local-messages",
+      "result": {
+        "localMessages": {
+          "localScopeAndDetails": true,
+          "readableSelectionAndBubbles": true,
+          "draftsStayWithConversation": true,
+          "beforeUnloadGuard": true,
+          "failedWriteKeepsDraft": true,
+          "noViolations": [],
+          "unsavedCloseAndRestartBlocked": true,
+          "retryCreatesOneMessage": true,
+          "noSyntheticReply": true,
+          "pendingSaveBlocksClose": true,
+          "persistenceAndKeyboard": true,
+          "createFailureAndRecovery": true,
+          "missingConversationKeepsDraft": true,
+          "explicitDiscard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 18.953246749999998
+    },
+    {
+      "group": "content-actions",
+      "result": {
+        "contentActions": {
+          "unavailableContentDisabled": true,
+          "noViolations": [],
+          "pdfTextInClipboard": true,
+          "keyboardMenu": true,
+          "copyFailureAndRecovery": true,
+          "selectedDocumentPrint": true,
+          "printFailureAndCleanup": true,
+          "imageNameAndPrint": true,
+          "mailTextAndPrint": true,
+          "photoAddressInClipboard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 16.320882166
+    }
+  ],
+  "checks": {
+    "localMessages": {
+      "localScopeAndDetails": true,
+      "readableSelectionAndBubbles": true,
+      "draftsStayWithConversation": true,
+      "beforeUnloadGuard": true,
+      "failedWriteKeepsDraft": true,
+      "noViolations": [],
+      "unsavedCloseAndRestartBlocked": true,
+      "retryCreatesOneMessage": true,
+      "noSyntheticReply": true,
+      "pendingSaveBlocksClose": true,
+      "persistenceAndKeyboard": true,
+      "createFailureAndRecovery": true,
+      "missingConversationKeepsDraft": true,
+      "explicitDiscard": true
+    },
+    "contentActions": {
+      "unavailableContentDisabled": true,
+      "noViolations": [],
+      "pdfTextInClipboard": true,
+      "keyboardMenu": true,
+      "copyFailureAndRecovery": true,
+      "selectedDocumentPrint": true,
+      "printFailureAndCleanup": true,
+      "imageNameAndPrint": true,
+      "mailTextAndPrint": true,
+      "photoAddressInClipboard": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

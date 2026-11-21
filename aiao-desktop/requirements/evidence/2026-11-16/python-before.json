@@ -1,0 +1,133 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T08:22:19.452Z",
+  "source": {
+    "sha": "9d9ff1c75ed3434923892c1780c986192e87bf62",
+    "changes": "M src/groups/terminal-runtimes.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "ac6343762ac1e27c017294aa6c0acdb54e5b5d636cc3b194a4ecd0481783d12b"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "terminal-runtimes"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 55.152544709000004,
+  "outcomes": [
+    {
+      "group": "terminal-runtimes",
+      "result": {
+        "terminalRuntimes": {
+          "lazy": true,
+          "python": true,
+          "python3": true,
+          "pythonExit": true,
+          "pythonAsync": true,
+          "script": true,
+          "sharedDisk": true,
+          "pip": true,
+          "installedPackage": true,
+          "pipFreeze": true,
+          "pythonRepl": false,
+          "pythonReplFile": false,
+          "pythonInput": false,
+          "numpyPandas": true,
+          "scipySklearn": true,
+          "pythonLibraries": true,
+          "pytest": true,
+          "black": true,
+          "mypy": true,
+          "ruff": true,
+          "tsc": true,
+          "tsgo": true,
+          "bun": true,
+          "bunScript": true,
+          "bunSharedDisk": true,
+          "bunRun": true,
+          "bunExit": true,
+          "bunRepl": true,
+          "nodeSqlite": true,
+          "bunSqlite": true
+        }
+      },
+      "problems": [
+        "检查项未通过：terminalRuntimes.pythonRepl = false",
+        "检查项未通过：terminalRuntimes.pythonReplFile = false",
+        "检查项未通过：terminalRuntimes.pythonInput = false"
+      ],
+      "failedKeys": [
+        "terminalRuntimes.pythonRepl",
+        "terminalRuntimes.pythonReplFile",
+        "terminalRuntimes.pythonInput"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 55.08868275
+    }
+  ],
+  "checks": {
+    "terminalRuntimes": {
+      "lazy": true,
+      "python": true,
+      "python3": true,
+      "pythonExit": true,
+      "pythonAsync": true,
+      "script": true,
+      "sharedDisk": true,
+      "pip": true,
+      "installedPackage": true,
+      "pipFreeze": true,
+      "pythonRepl": false,
+      "pythonReplFile": false,
+      "pythonInput": false,
+      "numpyPandas": true,
+      "scipySklearn": true,
+      "pythonLibraries": true,
+      "pytest": true,
+      "black": true,
+      "mypy": true,
+      "ruff": true,
+      "tsc": true,
+      "tsgo": true,
+      "bun": true,
+      "bunScript": true,
+      "bunSharedDisk": true,
+      "bunRun": true,
+      "bunExit": true,
+      "bunRepl": true,
+      "nodeSqlite": true,
+      "bunSqlite": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonRepl",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonReplFile",
+      "[terminal-runtimes] 检查项未通过或缺失：terminalRuntimes.pythonInput"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

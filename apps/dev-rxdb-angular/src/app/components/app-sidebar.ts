@@ -92,7 +92,9 @@ import { BranchManager } from './branch-manager';
       }
 
       /* Mobile: hidden by default, overlay when open
-         抽屉相对 #layout-main 定位，不覆盖应用标题栏。 */
+         absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
+         Orbit嵌入（website）里 fixed top:0 会顶到宿主导航栏底下，抽屉头被遮。 */
+
       @media (max-width: 768px) {
         :host {
           position: absolute;

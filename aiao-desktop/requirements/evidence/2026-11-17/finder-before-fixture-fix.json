@@ -1,0 +1,390 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T17:32:17.269Z",
+  "source": {
+    "sha": "2a3e4618369c325d2ea3d2fef8b95cbba697677f",
+    "changes": "M src/groups/a11y.mjs\n M src/groups/index.mjs\n M src/groups/multi-tab.mjs\n M src/groups/upgrade-legacy.mjs\n M src/groups/upgrade-previous.mjs\n M src/harness/database.mjs\n M src/harness/helpers.mjs\n M ../web/src/app/apps/finder/finder.html\n M ../web/src/app/apps/finder/finder.ts\n M ../web/src/app/apps/textedit/textedit.ts\n M ../web/src/app/data/desktop-data.spec.ts\n M ../web/src/app/data/schema-fingerprint.snapshot.json\n M ../web/src/app/data/schema-version.spec.ts\n M ../web/src/app/data/schema-version.ts\n M ../web/src/app/disk/desktop-file.entity.ts\n M ../web/src/app/disk/disk-path.ts\n M ../web/src/app/disk/disk-store.ts\n M ../web/src/app/disk/memory-disk-store.ts\n M ../web/src/app/disk/rxdb-disk-store.spec.ts\n M ../web/src/app/disk/rxdb-disk-store.ts\n M ../web/src/app/services/desktop-window.ts\n M ../web/src/app/services/file-opener.spec.ts\n M ../web/src/app/services/file-opener.ts\n M ../web/src/app/services/file-system.spec.ts\n M ../web/src/app/services/file-system.ts\n M ../web/src/app/services/session.spec.ts\n M ../web/src/app/services/session.ts\n M ../web/src/app/services/window-manager.spec.ts\n M ../web/src/app/services/window-manager.ts\n M ../web/src/app/testing/stubs.ts\n M ../web/vitest.config.mts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/future-requirements.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\n M ../../requirements/verification-report.md\n?? src/groups/document-workflow.mjs\n?? src/groups/file-management.mjs\n?? ../web/src/app/apps/finder/file-operation-dialog.ts\n?? ../web/src/app/apps/textedit/text-document.spec.ts\n?? ../web/src/app/apps/textedit/text-document.ts\n?? ../web/src/app/disk/file-operations.spec.ts\n?? ../web/src/app/disk/file-operations.ts\n?? ../../requirements/evidence/2026-11-17/\n?? ../../requirements/plans/2026-11-17-autonomous-completion.md\n?? ../../requirements/stories/desktop/ADESK-US-109-document-workflow.md\n?? ../../requirements/stories/desktop/ADESK-US-110-file-management.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2ffa8b14ccff7cae05841886939564a4b0d4661d511b469ae5bf94c6caff6096"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "file-management",
+      "a11y",
+      "upgrade-legacy",
+      "upgrade-protection"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 74.371766542,
+  "outcomes": [
+    {
+      "group": "file-management",
+      "result": {},
+      "problems": [
+        "检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win.front[data-app=\"finder\"]:not(.closing)').locator('[role=\"option\"][data-name=\"trash-renamed.txt\"]')\u001b[22m\n\u001b[2m    - locator resolved to <div class=\"r\" role=\"option\" tabindex=\"-1\" aria-selected=\"false\" data-name=\"trash-renamed.txt\" aria-label=\"trash-renamed.txt, Plain text\">…</div>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" data-app=\"finder\" aria-label=\"Trash\" class=\"win opening front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    51 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/file-management.mjs:45）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "fileManagement.importPreservesBytes",
+        "fileManagement.importKeepsExistingNames",
+        "fileManagement.renameValidatesAndPreservesContent",
+        "fileManagement.renameCancellationAndKeyboardFocus",
+        "fileManagement.duplicateIsIndependent",
+        "fileManagement.folderCopyKeepsNestedAndEmptyEntries",
+        "fileManagement.openWithOpensSelectedFile",
+        "fileManagement.trashOriginSurvivesReloadAndRename",
+        "fileManagement.restoreKeepsCollidingFile",
+        "fileManagement.missingOriginRequiresExplicitFolder",
+        "fileManagement.legacyTrashCanChooseFolder",
+        "fileManagement.otherTabSeesChanges"
+      ],
+      "extraKeys": [],
+      "crashed": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win.front[data-app=\"finder\"]:not(.closing)').locator('[role=\"option\"][data-name=\"trash-renamed.txt\"]')\u001b[22m\n\u001b[2m    - locator resolved to <div class=\"r\" role=\"option\" tabindex=\"-1\" aria-selected=\"false\" data-name=\"trash-renamed.txt\" aria-label=\"trash-renamed.txt, Plain text\">…</div>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" data-app=\"finder\" aria-label=\"Trash\" class=\"win opening front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    51 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/file-management.mjs:45）",
+      "pageErrors": [],
+      "seconds": 53.80664087500001
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          },
+          "safari": {
+            "browserLinkNamed": [],
+            "keyboardOpen": [],
+            "actionsAccessible": []
+          },
+          "fileOperations": {
+            "namedDialogs": [
+              "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+            ],
+            "keyboardAndFocus": [
+              "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+            ],
+            "noViolations": [
+              "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+            ]
+          }
+        }
+      },
+      "problems": [
+        "检查项未通过：a11y.fileOperations.namedDialogs = [\"fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）\"]",
+        "检查项未通过：a11y.fileOperations.keyboardAndFocus = [\"fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）\"]",
+        "检查项未通过：a11y.fileOperations.noViolations = [\"fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）\"]"
+      ],
+      "failedKeys": [
+        "a11y.fileOperations.namedDialogs",
+        "a11y.fileOperations.keyboardAndFocus",
+        "a11y.fileOperations.noViolations"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 74.202844917
+    },
+    {
+      "group": "upgrade-legacy",
+      "result": {},
+      "problems": [
+        "检查组异常：page.evaluate: Error: sqlite-wasm execute() failed for SQL \"ALTER TABLE \"desktop$desktop_file\" DROP COLUMN \"original_path\"\": error in table desktop$desktop_file after drop column: no such column: \"original_path\" - should this be a string literal in single-quotes?\n    at Worker.eval (eval at evaluate (:370:30), <anonymous>:16:66)（groups/upgrade-legacy.mjs:65）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "upgradeLegacy.freshDatabaseGetsRecord",
+        "upgradeLegacy.legacyKeepsData",
+        "upgradeLegacy.legacyGetsVersionRecord",
+        "upgradeLegacy.fileOriginColumnMigrated",
+        "upgradeLegacy.seedsNotRewritten",
+        "upgradeLegacy.newDomainSeededOnce",
+        "upgradeLegacy.existingDomainsNotOverwritten",
+        "upgradeLegacy.notReseededOnReload",
+        "upgradeLegacy.upgradeIsRepeatable",
+        "upgradeLegacy.interruptedStateIsWhole",
+        "upgradeLegacy.interruptedUpgradeRecovers",
+        "upgradeLegacy.noDuplicateSeedsAfterInterrupt"
+      ],
+      "extraKeys": [],
+      "crashed": "page.evaluate: Error: sqlite-wasm execute() failed for SQL \"ALTER TABLE \"desktop$desktop_file\" DROP COLUMN \"original_path\"\": error in table desktop$desktop_file after drop column: no such column: \"original_path\" - should this be a string literal in single-quotes?\n    at Worker.eval (eval at evaluate (:370:30), <anonymous>:16:66)（groups/upgrade-legacy.mjs:65）",
+      "pageErrors": [],
+      "seconds": 12.706288875
+    },
+    {
+      "group": "upgrade-protection",
+      "result": {
+        "upgradeProtection": {
+          "newerDataShowsUpdateNotice": true,
+          "newerDataOffersNoErase": true,
+          "newerDataNotWritten": true,
+          "dataIntactAfterReturning": true,
+          "staleTabRefusesWrite": true,
+          "staleTabAsksReload": true,
+          "staleWriteNotInDatabase": true,
+          "dataIntactAfterReload": true,
+          "brokenRecordShowsProblem": true,
+          "incompatibleShowsProblem": true,
+          "damagedShowsProblem": true,
+          "damagedOffersRecovery": true,
+          "damagedNotPatched": true,
+          "eraseRestartsFresh": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 30.499367834
+    }
+  ],
+  "checks": {
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      },
+      "safari": {
+        "browserLinkNamed": [],
+        "keyboardOpen": [],
+        "actionsAccessible": []
+      },
+      "fileOperations": {
+        "namedDialogs": [
+          "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+        ],
+        "keyboardAndFocus": [
+          "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+        ],
+        "noViolations": [
+          "fileOperations 检查中途出错：locator.focus: Timeout 30000ms exceeded.（groups/a11y.mjs:1256）"
+        ]
+      }
+    },
+    "upgradeProtection": {
+      "newerDataShowsUpdateNotice": true,
+      "newerDataOffersNoErase": true,
+      "newerDataNotWritten": true,
+      "dataIntactAfterReturning": true,
+      "staleTabRefusesWrite": true,
+      "staleTabAsksReload": true,
+      "staleWriteNotInDatabase": true,
+      "dataIntactAfterReload": true,
+      "brokenRecordShowsProblem": true,
+      "incompatibleShowsProblem": true,
+      "damagedShowsProblem": true,
+      "damagedOffersRecovery": true,
+      "damagedNotPatched": true,
+      "eraseRestartsFresh": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[file-management] 检查项未通过或缺失：fileManagement.importPreservesBytes",
+      "[file-management] 检查项未通过或缺失：fileManagement.importKeepsExistingNames",
+      "[file-management] 检查项未通过或缺失：fileManagement.renameValidatesAndPreservesContent",
+      "[file-management] 检查项未通过或缺失：fileManagement.renameCancellationAndKeyboardFocus",
+      "[file-management] 检查项未通过或缺失：fileManagement.duplicateIsIndependent",
+      "[file-management] 检查项未通过或缺失：fileManagement.folderCopyKeepsNestedAndEmptyEntries",
+      "[file-management] 检查项未通过或缺失：fileManagement.openWithOpensSelectedFile",
+      "[file-management] 检查项未通过或缺失：fileManagement.trashOriginSurvivesReloadAndRename",
+      "[file-management] 检查项未通过或缺失：fileManagement.restoreKeepsCollidingFile",
+      "[file-management] 检查项未通过或缺失：fileManagement.missingOriginRequiresExplicitFolder",
+      "[file-management] 检查项未通过或缺失：fileManagement.legacyTrashCanChooseFolder",
+      "[file-management] 检查项未通过或缺失：fileManagement.otherTabSeesChanges",
+      "[file-management] 检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win.front[data-app=\"finder\"]:not(.closing)').locator('[role=\"option\"][data-name=\"trash-renamed.txt\"]')\u001b[22m\n\u001b[2m    - locator resolved to <div class=\"r\" role=\"option\" tabindex=\"-1\" aria-selected=\"false\" data-name=\"trash-renamed.txt\" aria-label=\"trash-renamed.txt, Plain text\">…</div>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" data-app=\"finder\" aria-label=\"Trash\" class=\"win opening front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    51 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-body=\"\" class=\"fx-body scroll\">…</div> from <app-window-frame id=\"w3\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Trash\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/file-management.mjs:45）",
+      "[a11y] 检查项未通过或缺失：a11y.fileOperations.namedDialogs",
+      "[a11y] 检查项未通过或缺失：a11y.fileOperations.keyboardAndFocus",
+      "[a11y] 检查项未通过或缺失：a11y.fileOperations.noViolations",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.freshDatabaseGetsRecord",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.legacyKeepsData",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.legacyGetsVersionRecord",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.fileOriginColumnMigrated",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.seedsNotRewritten",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.newDomainSeededOnce",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.existingDomainsNotOverwritten",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.notReseededOnReload",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.upgradeIsRepeatable",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.interruptedStateIsWhole",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.interruptedUpgradeRecovers",
+      "[upgrade-legacy] 检查项未通过或缺失：upgradeLegacy.noDuplicateSeedsAfterInterrupt",
+      "[upgrade-legacy] 检查组异常：page.evaluate: Error: sqlite-wasm execute() failed for SQL \"ALTER TABLE \"desktop$desktop_file\" DROP COLUMN \"original_path\"\": error in table desktop$desktop_file after drop column: no such column: \"original_path\" - should this be a string literal in single-quotes?\n    at Worker.eval (eval at evaluate (:370:30), <anonymous>:16:66)（groups/upgrade-legacy.mjs:65）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

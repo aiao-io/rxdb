@@ -1,0 +1,59 @@
+
+> nx run aiao-desktop:runtime-test:coverage
+
+> node --test --experimental-test-coverage --test-coverage-include="**/scripts/vivari/prepare.mjs" --test-coverage-include="**/scripts/vivari/runtimes.mjs" --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 scripts/vivari/*.spec.mjs
+
+(node:19519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 产物符合 Vivari 的 gzip 索引格式，保留二进制和中文，排除原生扩展与符号链接 (14.721418ms)
+✔ 包内版本不匹配或缺少 CLI 入口时拒绝打包 (7.542962ms)
+✔ 损坏的 gzip、错误版本和缺少 CLI 的缓存不能通过校验 (6.185138ms)
+✔ 首次准备校验下载内容并生成资源，已有合格产物时不联网 (54.63033ms)
+✔ 下载失败、校验值不符或下载包版本不对时失败，不留下可发布产物 (93.695663ms)
+✔ 已有损坏资源直接报错，不能把 HTML 或截断包当作缓存命中 (3.520629ms)
+✔ 缓存索引越界或包名被替换时拒绝使用 (5.652033ms)
+✔ tsgo 发布包提取 Go 引擎供 Vivari 使用，缺少引擎结构时拒绝继续 (43.600494ms)
+(node:19522) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 首次准备从校验过的发布包复制解释器和 wheel，合格缓存完全离线 (60.621452ms)
+✔ 缺失、HTML 替身和截断资源必须阻止发布 (3.787129ms)
+✔ wheel 下载失败或散列不符时失败，不留下文件 (2.120922ms)
+✔ 本地锁文件与版本信息也按固定散列复制 (5.172609ms)
+✔ Python 锁文件中全部同源 wheel 都有固定资源，传递依赖可解析 (2.983407ms)
+(node:19523) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SDK 将宿主同源 vendor 请求交回浏览器，其他 localhost 请求仍进入虚拟机 (52.066483ms)
+✔ Ruff 使用宿主 ESM 加载器，修补后的两个 worker URL 都区分旧缓存 (24.12777ms)
+✔ pip 的 wheel 加载失败必须返回失败，不能打印安装成功或保存空包存储 (11.577583ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 376.20545
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ scripts          |        |          |         | 
+ℹ  vivari          |        |          |         | 
+ℹ   prepare.mjs    | 100.00 |    95.74 |  100.00 | 
+ℹ   runtimes.mjs   | 100.00 |    97.22 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        | 100.00 |    96.39 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report
+
+
+
+ NX   Successfully ran target runtime-test for project aiao-desktop
+
+
+  Run duration:      630ms
+  Cache:             0/1 hit (0%)
+  Critical path:     505ms (1 task)
+  Recoverable time:  <1ms

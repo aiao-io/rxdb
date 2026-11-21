@@ -1,0 +1,109 @@
+Scope: all 97 workspace projects
+. preinstall$ node ./scripts/audit/wa-sqlite-integrity.mjs && node ./scripts/preinstall.mjs
+. preinstall: sqlite supply-chain pin OK: wa-sqlite 2bf1c59d89eb6497535a4217bc62fec68a0bb994 / sqlite-wasm 1.3.1
+. preinstall: Removing /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/packages/code-editor-angular/node_modules...
+. preinstall: Removed packages/code-editor-angular/node_modules
+. preinstall: Removing /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/packages/rxdb-angular/node_modules...
+. preinstall: Removed packages/rxdb-angular/node_modules
+. preinstall: Done
+? Verifying lockfile against supply-chain policies (3831 entries)...
+✓ Lockfile passes supply-chain policies (3831 entries in 0ms)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+.../node_modules/@swc/core postinstall$ node postinstall.js
+.../node_modules/@parcel/watcher install$ node scripts/build-from-source.js
+.../node_modules/@swc/core postinstall$ node postinstall.js
+.../.pnpm/lmdb@3.5.6/node_modules/lmdb install$ node-gyp-build-optional-packages
+.../node_modules/@parcel/watcher install: Done
+.../node_modules/@swc/core postinstall: Done
+.../node_modules/@swc/core postinstall: Done
+.../node_modules/nx postinstall$ node -e "try{require('./dist/bin/post-install')}catch(e){}"
+.../.pnpm/lmdb@3.5.6/node_modules/lmdb install: Done
+.../node_modules/nx postinstall: Done
+. postinstall$ pnpm check-workspace
+. postinstall: $ node scripts/check-workspace.mjs
+. postinstall: - 检查 .env 配置
+. postinstall: ✔ .env 配置已就绪
+. postinstall: - 清理陈旧 .bin shim
+. postinstall: ✔ .bin shim 均有效
+. postinstall: - build
+. postinstall: (node:24527) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+. postinstall: (Use `node --trace-deprecation ...` to show where the warning was created)
+. postinstall: 
+. postinstall:  NX   6 tasks: 6 succeeded, 5 cached
+. postinstall: 
+. postinstall: 
+. postinstall: Re-run with --output-style=static to inline logs.
+. postinstall: 
+. postinstall:   Run duration:      582ms
+. postinstall:   Cache:             5/6 hit (83%)
+. postinstall:   Critical path:     469ms (5 tasks)
+. postinstall:   Recoverable time:  <1ms
+. postinstall: ✔ build
+. postinstall: Done
+. prepare$ is-ci || husky
+. prepare: Done
+Done in 9.2s using pnpm v12.16.1
+
+> nx run aiao-desktop:runtime-test:coverage
+
+> node --test --experimental-test-coverage --test-coverage-include="**/scripts/vivari/prepare.mjs" --test-coverage-include="**/scripts/vivari/runtimes.mjs" --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 scripts/vivari/*.spec.mjs
+
+(node:24930) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24931) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 产物符合 Vivari 的 gzip 索引格式，保留二进制和中文，排除原生扩展与符号链接 (8.281666ms)
+✔ 包内版本不匹配或缺少 CLI 入口时拒绝打包 (5.762084ms)
+✔ 损坏的 gzip、错误版本和缺少 CLI 的缓存不能通过校验 (3.877459ms)
+✔ 首次准备校验下载内容并生成资源，已有合格产物时不联网 (53.400625ms)
+✔ 下载失败、校验值不符或下载包版本不对时失败，不留下可发布产物 (76.848542ms)
+✔ 已有损坏资源直接报错，不能把 HTML 或截断包当作缓存命中 (3.028167ms)
+✔ 缓存索引越界或包名被替换时拒绝使用 (8.105917ms)
+✔ tsgo 发布包提取 Go 引擎供 Vivari 使用，缺少引擎结构时拒绝继续 (83.680875ms)
+(node:24932) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 首次准备从校验过的发布包复制解释器和 wheel，合格缓存完全离线 (47.590291ms)
+✔ 缺失、HTML 替身和截断资源必须阻止发布 (3.296833ms)
+✔ wheel 下载失败或散列不符时失败，不留下文件 (1.624917ms)
+✔ 本地锁文件与版本信息也按固定散列复制 (6.013625ms)
+✔ Python 锁文件中全部同源 wheel 都有固定资源，传递依赖可解析 (1.715416ms)
+✔ 仓库中的本地运行时资源逐字节符合发布清单的固定散列 (5.522209ms)
+(node:24933) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SDK 将宿主同源 vendor 请求交回浏览器，其他 localhost 请求仍进入虚拟机 (23.684542ms)
+✔ Ruff 使用宿主 ESM 加载器，修补后的两个 worker URL 都区分旧缓存 (9.184167ms)
+✔ pip 的 wheel 加载失败必须返回失败，不能打印安装成功或保存空包存储 (4.806416ms)
+✔ Python input 按完整行读取分块按键，保留空行、退格与 EOF 前的内容 (5.164709ms)
+✔ Python REPL 复用脚本会话的项目目录、包存储和文件回写 (7.374042ms)
+✔ Bun eval 从项目目录解析已安装的依赖、相对模块与 require.resolve (12.071458ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 315.016375
+ℹ start of coverage report
+ℹ -----------------------------------------------------------------
+ℹ file             | line % | branch % | funcs % | uncovered lines
+ℹ -----------------------------------------------------------------
+ℹ scripts          |        |          |         | 
+ℹ  vivari          |        |          |         | 
+ℹ   prepare.mjs    | 100.00 |    95.74 |  100.00 | 
+ℹ   runtimes.mjs   | 100.00 |    97.14 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ all files        | 100.00 |    96.34 |  100.00 | 
+ℹ -----------------------------------------------------------------
+ℹ end of coverage report
+
+
+
+ NX   Successfully ran target runtime-test for project aiao-desktop
+
+
+  Run duration:      498ms
+  Cache:             0/1 hit (0%)
+  Critical path:     392ms (1 task)
+  Recoverable time:  <1ms
