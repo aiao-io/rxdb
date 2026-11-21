@@ -54,7 +54,7 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
   -f docker/sql/production/rxdb-change-grants.sql
 ```
 
-- 增量脚本建分支所有者表 `rxdb_branch_owner`，把 `rxdb_change` 移出 `supabase_realtime` 发布；
+- 增量脚本补上分区同步所需的 `rxdb_change.bucket`、游标索引、`rxdb_sync_entity` 与分支所有者表 `rxdb_branch_owner`，并把 `rxdb_change` 移出 `supabase_realtime` 发布；
 - 02 加分支认领函数 `rxdb_claim_branch` 与通知触发器 `rxdb_change_broadcast`，分支登记开始校验所有者；
 - 04 让推送在写非 main 日志前校验分支所有者；
 - 生产权限脚本收回 anon 的协议入口与客户端对分支表的直写，并在 `realtime.messages` 上建接收策略。它必须最后执行。
