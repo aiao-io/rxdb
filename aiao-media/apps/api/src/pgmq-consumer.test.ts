@@ -165,26 +165,26 @@ test('transient provider failures release the lease and retry the same task', as
         providerCalls += 1;
         if (providerCalls === 1) throw new Error('temporary provider failure');
         return 'result-after-retry';
-      },
+      }
     },
-    maxReadCount: 2,
+    maxReadCount: 2
   });
 
   assert.deepEqual(await consumer.runOnce(), {
     state: 'retried',
     messageId: '1',
-    errorCode: 'temporary provider failure',
+    errorCode: 'temporary provider failure'
   });
   assert.deepEqual(state.released, ['10000000-0000-4000-8000-000000000001:3']);
   assert.deepEqual(state.leaseEvents, [
     'acquire:10000000-0000-4000-8000-000000000001:3:false',
-    'release:10000000-0000-4000-8000-000000000001:3',
+    'release:10000000-0000-4000-8000-000000000001:3'
   ]);
   state.rows.push({ msgId: '2', readCount: 2, message });
   assert.deepEqual(await consumer.runOnce(), {
     state: 'processed',
     messageId: '2',
-    resultKey: 'media-generation:10000000-0000-4000-8000-000000000001:3',
+    resultKey: 'media-generation:10000000-0000-4000-8000-000000000001:3'
   });
   assert.equal(providerCalls, 2);
   assert.equal(state.results.get('media-generation:10000000-0000-4000-8000-000000000001:3'), 'result-after-retry');

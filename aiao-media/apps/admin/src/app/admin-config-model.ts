@@ -6,8 +6,8 @@ import {
   type MediaConfigCommitStatus
 } from '@aiao-media/domain';
 import { RxDBBranch, type EntityType, type RxDB, type UUID } from '@aiao/rxdb';
-import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import { EntityListComponent } from '@aiao/rxdb-model-angular';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -26,8 +26,8 @@ import {
   describeAdminConfigMerge,
   mergeAdminConfigConflictCount,
   normalizeAdminConfigBranchId,
-  type AdminConfigBranchView,
-  toAdminConfigBranchView
+  toAdminConfigBranchView,
+  type AdminConfigBranchView
 } from './admin-config-branches';
 import {
   createAdminConfigProjection,
@@ -164,17 +164,19 @@ export function toAdminConfigCommitView(
                 <p class="section-kicker">版本管理</p>
                 <h3 id="config-branch-title">配置分支</h3>
               </div>
-              <span class="branch-current" data-testid="config-active-branch">当前：{{ activeBranchId() ?? '未知' }}</span>
+              <span class="branch-current" data-testid="config-active-branch"
+                >当前：{{ activeBranchId() ?? '未知' }}</span
+              >
             </header>
             <div class="branch-controls">
               <label>
                 切换分支
                 <select
-                  aria-label="切换配置分支"
+                  [disabled]="loading() || !workingTreeClean()"
                   [ngModel]="activeBranchId()"
                   (ngModelChange)="switchBranch($event)"
+                  aria-label="切换配置分支"
                   name="activeBranch"
-                  [disabled]="loading() || !workingTreeClean()"
                 >
                   @for (branch of localBranches(); track branch.id) {
                     <option [value]="branch.id">{{ branch.id }}{{ branch.activated ? '（当前）' : '' }}</option>
@@ -188,8 +190,8 @@ export function toAdminConfigCommitView(
                     class="input input-sm"
                     [ngModel]="branchName()"
                     (ngModelChange)="branchName.set($event)"
-                    name="branchName"
                     maxlength="128"
+                    name="branchName"
                     placeholder="例如 release/2026-11"
                   />
                 </label>
@@ -265,9 +267,9 @@ export function toAdminConfigCommitView(
         }
         @if (commitView(); as view) {
           <app-admin-config-commit
+            [allowApply]="canPublish()"
             [busy]="loading()"
             [canManage]="true"
-            [allowApply]="canPublish()"
             [commit]="view"
             [offline]="offline()"
             (apply)="applyCommit($event)"
@@ -813,11 +815,7 @@ export class AdminConfigModelComponent {
         orderBy: [{ field: 'id', sort: 'asc' }]
       })
     );
-    this.branches.set(
-      branches
-        .map(toAdminConfigBranchView)
-        .sort((left, right) => left.id.localeCompare(right.id))
-    );
+    this.branches.set(branches.map(toAdminConfigBranchView).sort((left, right) => left.id.localeCompare(right.id)));
     const status = await database.workingTree.status();
     this.activeBranchId.set(status.branchId);
     this.workingTreeStateClean.set(status.clean && !status.restoring && !status.conflicted);

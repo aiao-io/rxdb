@@ -22,7 +22,9 @@ export function mergeAdminConfigConflictCount(preview: MergePreview | null): num
 /** 把合并预览转换为管理员可直接理解的状态文案。 */
 export function describeAdminConfigMerge(preview: MergePreview): string {
   const conflicts = mergeAdminConfigConflictCount(preview);
-  return conflicts > 0 ? `发现 ${conflicts} 项冲突，解决后才能合并和发布。` : `预览通过，没有冲突，可合并 ${preview.merged} 项变更。`;
+  return conflicts > 0 ?
+      `发现 ${conflicts} 项冲突，解决后才能合并和发布。`
+    : `预览通过，没有冲突，可合并 ${preview.merged} 项变更。`;
 }
 
 /** 分支列表中供配置页展示的稳定字段。 */
