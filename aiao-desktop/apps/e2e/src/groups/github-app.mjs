@@ -76,6 +76,7 @@ export const githubApp = {
     'github.launchpadOpens',
     'github.spotlightOpens',
     'github.applicationMenu',
+    'github.applicationAppMenu',
     'github.repositoryMenu',
     'github.branchMenu',
     'github.menuActions',
@@ -295,6 +296,15 @@ export const githubApp = {
     result.applicationMenu = JSON.stringify(menuTitles) ===
       JSON.stringify(['GitHub Desktop', 'File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']);
 
+    await page.getByRole('menuitem', { name: 'GitHub Desktop', exact: true }).click();
+    const applicationMenu = page.getByRole('menu', { name: 'GitHub Desktop', exact: true });
+    await applicationMenu.waitFor();
+    result.applicationAppMenu =
+      (await applicationMenu.getByRole('menuitem', { name: 'About GitHub Desktop', exact: true }).count()) === 1 &&
+      (await applicationMenu.getByRole('menuitem', { name: 'Install Command Line Tool', exact: true }).getAttribute('aria-disabled')) === 'true' &&
+      (await applicationMenu.getByRole('menuitem', { name: 'Services', exact: true }).getAttribute('aria-disabled')) === 'true';
+    await page.keyboard.press('Escape');
+
     await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
     const repositoryMenu = page.getByRole('menu', { name: 'Repository', exact: true });
     await repositoryMenu.waitFor();
@@ -322,6 +332,10 @@ export const githubApp = {
       (await githubWindow.locator('.gh-empty').count()) === 0;
     await expect(githubWindow.locator('.gh-sidebar')).toBeVisible();
     await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /320px/);
+
+    await page.getByRole('menuitem', { name: 'View', exact: true }).click();
+    await page.getByRole('menu', { name: 'View', exact: true }).getByRole('menuitem', { name: 'Show Changes Filter', exact: true }).click();
+    await expect(githubWindow.locator('input[aria-label="Filter changes"]')).toBeFocused();
 
     const editor = githubWindow.locator('[data-github-editor]');
     await githubWindow.locator('[data-file-path="README.md"]').click();

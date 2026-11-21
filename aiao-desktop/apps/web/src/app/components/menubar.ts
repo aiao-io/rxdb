@@ -55,8 +55,8 @@ export class Menubar {
   private readonly clock = inject(Clock);
   private readonly owner = computed(() => {
     const win = this.wm.menubarOwner();
-    if (!win) return { name: 'Finder', sections: this.menus.finderFallback() };
-    return { name: win.app.name, sections: win.menus()?.() ?? this.menus.standard(win.appId) };
+    if (!win) return { appId: null, name: 'Finder', sections: this.menus.finderFallback() };
+    return { appId: win.appId, name: win.app.name, sections: win.menus()?.() ?? this.menus.standard(win.appId) };
   });
   private readonly menuItems = viewChildren<ElementRef<HTMLElement>>('menuItem');
   private readonly statusItems = viewChildren<ElementRef<HTMLElement>>('statusItem');
@@ -258,7 +258,7 @@ export class Menubar {
     if (key === 'apple') return this.menus.apple();
     const index = Number(key);
     const owner = this.owner();
-    if (index === 0) return this.menus.about(owner.name);
+    if (index === 0) return owner.appId === 'github' ? this.menus.githubApplication() : this.menus.about(owner.name);
     return owner.sections[index - 1]?.items ?? [];
   }
 

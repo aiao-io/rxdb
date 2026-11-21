@@ -33,6 +33,7 @@ import {
   type GithubTab
 } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { encodeGitArchive, type GitArchive } from '../../services/git/git-archive.js';
 import {
   GithubGitBackend,
   type GitBranch,
@@ -64,6 +65,28 @@ interface GithubDiffLine {
   readonly oldText: string | null;
   readonly newText: string | null;
   readonly same: boolean;
+}
+
+interface DirectoryFileHandle {
+  readonly kind: 'file';
+  readonly name: string;
+  getFile(): Promise<File>;
+}
+
+interface DirectoryHandle {
+  readonly kind: 'directory';
+  readonly name: string;
+  values(): AsyncIterable<DirectoryFileHandle | DirectoryHandle>;
+}
+
+type DirectoryPicker = () => Promise<DirectoryHandle>;
+
+interface DirectoryPickerWindow extends Window {
+  readonly showDirectoryPicker?: DirectoryPicker;
+}
+
+interface RelativeFile extends File {
+  readonly webkitRelativePath?: string;
 }
 
 type GithubContextMenu =
@@ -178,10 +201,12 @@ export class GithubApp {
   private readonly commitMessageInput = viewChild<ElementRef<HTMLTextAreaElement>>('commitMessageInput');
   private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
   private readonly newRepositoryInput = viewChild<ElementRef<HTMLElement>>('newRepositoryInput');
-  private readonly importRepositoryButton = viewChild<ElementRef<HTMLElement>>('importRepositoryButton');
+  private readonly localRepositoryButton = viewChild<ElementRef<HTMLElement>>('localRepositoryButton');
+  private readonly localRepositoryInput = viewChild<ElementRef<HTMLInputElement>>('localRepositoryInput');
   private readonly branchInput = viewChild<ElementRef<HTMLElement>>('newBranchInput');
   private readonly repositoryMenuFocus = signal<GithubRepositoryMenu | null>(null);
   private readonly branchMenuFocus = signal(false);
+  private readonly changesFilterFocus = signal(false);
 
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
@@ -214,6 +239,7 @@ export class GithubApp {
   protected readonly branchMenuOpen = signal(false);
   protected readonly branchFilter = signal('');
   protected readonly changeFilter = signal('');
+  private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
   protected readonly changeKind = signal<GithubChangeKind>('all');
   protected readonly changeKindOpen = signal(false);
   protected readonly contextMenu = signal<GithubContextMenu | null>(null);
@@ -285,18 +311,19 @@ export class GithubApp {
         let focusTarget: ElementRef<HTMLElement> | undefined;
         if (repositoryFocus === 'clone') focusTarget = this.repositoryInput();
         if (repositoryFocus === 'new') focusTarget = this.newRepositoryInput();
-        if (repositoryFocus === 'local') focusTarget = this.importRepositoryButton();
-        if (focusTarget) {
-          focusTarget.nativeElement.focus();
-          untracked(() => this.repositoryMenuFocus.set(null));
-        }
+        if (repositoryFocus === 'local') focusTarget = this.localRepositoryButton();
+        if (focusTarget) focusTarget.nativeElement.focus();
+        untracked(() => this.repositoryMenuFocus.set(null));
       }
       if (this.branchMenuOpen() && branchFocus) {
         const input = this.branchInput();
-        if (input) {
-          input.nativeElement.focus();
-          untracked(() => this.branchMenuFocus.set(false));
-        }
+        if (input) input.nativeElement.focus();
+        untracked(() => this.branchMenuFocus.set(false));
+      }
+      if (this.changesFilterFocus()) {
+        const input = this.changeFilterInput();
+        if (input) input.nativeElement.focus();
+        untracked(() => this.changesFilterFocus.set(false));
       }
     });
     this.storageListener = event => {
@@ -330,12 +357,38 @@ export class GithubApp {
     if (target === 'changeFilter') this.changeFilter.set(value);
   }
 
+  protected openLocalRepository(): void {
+    this.openLocalRepositoryPicker();
+  }
+
   protected openImportPicker(event: Event): void {
     event.preventDefault();
     const input = event.currentTarget instanceof HTMLElement
       ? event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
       : null;
     input?.click();
+  }
+
+  protected openLocalRepositoryPicker(): void {
+    const picker = (window as DirectoryPickerWindow).showDirectoryPicker;
+    if (picker) {
+      void this.pickLocalDirectory(picker);
+      return;
+    }
+    this.localRepositoryInput()?.nativeElement.click();
+  }
+
+  protected async importLocalDirectory(event: Event): Promise<void> {
+    if (!this.ensureEditorSaved()) return;
+    const element = event.target;
+    if (!(element instanceof HTMLInputElement) || !element.files?.length) return;
+    const files = [...element.files];
+    element.value = '';
+    await this.run(async () => {
+      const archive = await this.archiveOfUploadedDirectory(files);
+      if (!archive) throw new Error('请选择包含 .git 目录的 Git 仓库');
+      await this.importArchive(archive.name, archive.archive, 'Added');
+    });
   }
 
   protected toggleRepositoryMenu(): void {
@@ -687,31 +740,96 @@ export class GithubApp {
     const element = event.target;
     if (!(element instanceof HTMLInputElement) || !element.files?.length) return;
     const file = element.files[0];
-    const name = file.name.replace(/\.(zip|tar)$/i, '') || 'Imported Repository';
-    const projectId = projectIdForLocal(name);
-    await this.run(async () => {
-      const snapshot = await this.backend.importArchive(projectId, new Uint8Array(await file.arrayBuffer()));
-      const importedStatus = await this.backend.status(projectId);
-      const record: GithubRepositoryRecord = {
-        projectId,
-        name,
-        owner: null,
-        repo: null,
-        branch: importedStatus.branch,
-        private: false,
-        remoteHead: null,
-        remoteTree: null,
-        remoteEntries: [],
-        updatedAt: Date.now()
-      };
-      await this.store.put(record);
-      this.activeRecord.set(record);
-      this.applySnapshot(snapshot.files);
-      await this.refresh();
-      this.notice.set(`Imported ${name}`);
-      this.repositoryMenuOpen.set(false);
-    });
     element.value = '';
+    await this.run(async () => {
+      const name = file.name.replace(/\.(zip|tar)$/i, '') || 'Imported Repository';
+      const bytes = new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>;
+      await this.importArchive(name, bytes, 'Imported');
+    });
+  }
+
+  private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
+    let directory: DirectoryHandle;
+    try {
+      directory = await picker();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      this.fail(error);
+      return;
+    }
+    if (!this.ensureEditorSaved()) return;
+    await this.run(async () => {
+      const archive = await this.archiveOfDirectory(directory);
+      await this.importArchive(archive.name, archive.archive, 'Added');
+    });
+  }
+
+  private async archiveOfDirectory(directory: DirectoryHandle): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
+    const files: GitArchive['files'][number][] = [];
+    const directories = new Set<string>();
+    const visit = async (current: DirectoryHandle, prefix: string): Promise<void> => {
+      for await (const entry of current.values()) {
+        const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.kind === 'directory') {
+          directories.add(path);
+          await visit(entry, path);
+          continue;
+        }
+        files.push({
+          path,
+          bytes: new Uint8Array(await entry.getFile().then(file => file.arrayBuffer())) as Uint8Array<ArrayBuffer>
+        });
+      }
+    };
+    await visit(directory, '');
+    return { name: directory.name, archive: encodeGitArchive({ files, directories: [...directories] }) };
+  }
+
+  private async archiveOfUploadedDirectory(files: readonly File[]): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
+    const entries = files
+      .map(file => {
+        const parts = ((file as RelativeFile).webkitRelativePath ?? '').split('/').filter(Boolean);
+        return { file, parts };
+      })
+      .filter(entry => entry.parts.length > 1);
+    const root = entries[0]?.parts[0];
+    if (!root || entries.some(entry => entry.parts[0] !== root)) return null;
+    const collected = await Promise.all(
+      entries.map(async ({ file, parts }) => ({
+        path: parts.slice(1).join('/'),
+        bytes: new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>
+      }))
+    );
+    const directories = new Set<string>();
+    for (const file of collected) {
+      const parts = file.path.split('/');
+      for (let index = 1; index < parts.length; index += 1) directories.add(parts.slice(0, index).join('/'));
+    }
+    return { name: root, archive: encodeGitArchive({ files: collected, directories: [...directories] }) };
+  }
+
+  private async importArchive(name: string, bytes: Uint8Array<ArrayBuffer>, noticeVerb: 'Added' | 'Imported'): Promise<void> {
+    const projectId = projectIdForLocal(name);
+    const snapshot = await this.backend.importArchive(projectId, bytes);
+    const importedStatus = await this.backend.status(projectId);
+    const record: GithubRepositoryRecord = {
+      projectId,
+      name,
+      owner: null,
+      repo: null,
+      branch: importedStatus.branch,
+      private: false,
+      remoteHead: null,
+      remoteTree: null,
+      remoteEntries: [],
+      updatedAt: Date.now()
+    };
+    await this.store.put(record);
+    this.activeRecord.set(record);
+    this.applySnapshot(snapshot.files);
+    await this.refresh();
+    this.notice.set(`${noticeVerb} ${name}`);
+    this.repositoryMenuOpen.set(false);
   }
 
   protected async exportRepository(): Promise<void> {
@@ -1073,6 +1191,11 @@ export class GithubApp {
     this.diff.set(null);
   }
 
+  protected focusChangesFilter(): void {
+    this.setTab('changes');
+    this.changesFilterFocus.set(true);
+  }
+
   protected selectCommit(oid: string): void {
     this.selectedCommitOid.set(oid);
   }
@@ -1085,7 +1208,9 @@ export class GithubApp {
       hasChanges: () => this.hasChanges(),
       isBusy: () => this.busy(),
       openRepositoryMenu: kind => this.openRepositoryMenu(kind),
+      openLocalRepository: () => this.openLocalRepository(),
       openBranchMenu: () => this.openBranchMenu(),
+      focusChangesFilter: () => this.focusChangesFilter(),
       setTab: tab => this.setTab(tab),
       fetch: () => void this.fetchOrigin(),
       pull: () => void this.pull(),

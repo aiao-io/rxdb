@@ -166,18 +166,41 @@
               <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">Create</button>
             </div>
             <div class="gh-menu-actions">
+              <button
+                #localRepositoryButton
+                class="gd-btn-secondary"
+                [disabled]="busy()"
+                (click)="openLocalRepositoryPicker()"
+                aria-label="Add local repository"
+                data-github-add-local
+                type="button"
+              >
+                Add Local Repository
+              </button>
+              <input
+                #localRepositoryInput
+                class="sr-only"
+                [disabled]="busy()"
+                (change)="importLocalDirectory($event)"
+                data-github-add-local-input
+                aria-label="Choose local Git repository directory"
+                directory
+                tabindex="-1"
+                type="file"
+                webkitdirectory
+              />
               <label
                 #importRepositoryButton
                 class="gd-btn-secondary gh-file-button"
                 [class.disabled]="busy()"
-                aria-label="Import local repository"
+                aria-label="Import repository archive"
                 (keydown.enter)="openImportPicker($event)"
                 (keydown.space)="openImportPicker($event)"
                 role="button"
                 tabindex="0"
               >
-                Import repository
-                <input [disabled]="busy()" (change)="importRepository($event)" data-github-import type="file" />
+                Import archive
+                <input [disabled]="busy()" (change)="importRepository($event)" aria-label="Import repository archive" data-github-import type="file" />
               </label>
               @if (activeRecord()) {
                 <button (click)="exportRepository()" data-github-export type="button">Export repository</button>
@@ -436,6 +459,7 @@
                 <label class="gh-change-search">
                   <svg [lucideIcon]="Search" size="13"></svg>
                   <input
+                    #changeFilterInput
                     [value]="changeFilter()"
                     (input)="setValue('changeFilter', $event)"
                     aria-label="Filter changes"

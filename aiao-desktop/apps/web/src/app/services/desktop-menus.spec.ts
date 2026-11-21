@@ -85,7 +85,9 @@ const githubTarget = (overrides: Partial<{
   hasChanges: vi.fn(() => overrides.hasChanges ?? false),
   isBusy: vi.fn(() => overrides.isBusy ?? false),
   openRepositoryMenu: vi.fn((kind: GithubRepositoryMenu): void => { void kind; }),
+  openLocalRepository: vi.fn((): void => undefined),
   openBranchMenu: vi.fn((): void => undefined),
+  focusChangesFilter: vi.fn((): void => undefined),
   setTab: vi.fn((tab: GithubTab): void => { void tab; }),
   fetch: vi.fn((): void => undefined),
   pull: vi.fn((): void => undefined),
@@ -149,6 +151,33 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
       'Quit Notes'
     ]);
     for (const id of ['a', 'p', 'h', 'o', 's', 'q']) click(about, id);
+    expect(wm.open.mock.calls).toEqual([['about'], ['settings']]);
+    expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
+    expect(wm.hideOthers).toHaveBeenCalledTimes(1);
+    expect(wm.showAll).toHaveBeenCalledTimes(1);
+    expect(wm.quitFront).toHaveBeenCalledTimes(1);
+  });
+
+  it('GitHub Desktop 应用菜单包含应用命令，未提供平台能力的项目明确置灰', () => {
+    const { menus, wm } = setup();
+    const about = menus.githubApplication();
+    expect(about.filter(isMenuCommand).map(item => item.label)).toEqual([
+      'About GitHub Desktop',
+      'Settings…',
+      'Install Command Line Tool',
+      'Services',
+      'Hide GitHub Desktop',
+      'Hide Others',
+      'Show All',
+      'Quit GitHub Desktop'
+    ]);
+    expect(about.filter(isMenuCommand).filter(item => item.disabled).map(item => item.id)).toEqual(['cli', 'services']);
+    click(about, 'a');
+    click(about, 'p');
+    click(about, 'h');
+    click(about, 'o');
+    click(about, 's');
+    click(about, 'q');
     expect(wm.open.mock.calls).toEqual([['about'], ['settings']]);
     expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
     expect(wm.hideOthers).toHaveBeenCalledTimes(1);
@@ -286,7 +315,10 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     click(sectionOf(sections, 'File'), 'new-repository');
     click(sectionOf(sections, 'File'), 'add-local-repository');
     click(sectionOf(sections, 'File'), 'clone-repository');
+    click(sectionOf(sections, 'Edit'), 'find');
     click(sectionOf(sections, 'View'), 'show-history');
+    click(sectionOf(sections, 'View'), 'show-changes-filter');
+    click(sectionOf(sections, 'View'), 'show-repository-list');
     click(sectionOf(sections, 'View'), 'show-branches-list');
     click(sectionOf(sections, 'Repository'), 'fetch');
     click(sectionOf(sections, 'Repository'), 'pull');
@@ -294,8 +326,10 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     click(sectionOf(sections, 'Branch'), 'create-branch');
     click(sectionOf(sections, 'Branch'), 'discard-all-changes');
     click(sectionOf(sections, 'Help'), 'keyboard-shortcuts');
-    expect(target.openRepositoryMenu.mock.calls).toEqual([['new'], ['local'], ['clone']]);
+    expect(target.openRepositoryMenu.mock.calls).toEqual([['new'], ['clone'], ['list']]);
+    expect(target.openLocalRepository).toHaveBeenCalledTimes(1);
     expect(target.setTab).toHaveBeenCalledExactlyOnceWith('history');
+    expect(target.focusChangesFilter).toHaveBeenCalledTimes(2);
     expect(target.openBranchMenu).toHaveBeenCalledTimes(2);
     expect(target.fetch).toHaveBeenCalledTimes(1);
     expect(target.pull).toHaveBeenCalledTimes(1);
@@ -309,6 +343,8 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     const target = githubTarget({ hasRepository: false, hasRemote: false, hasChanges: false, isBusy: true });
     const sections = menus.github(target);
     for (const [sectionName, id] of [
+      ['Edit', 'find'],
+      ['View', 'show-changes-filter'],
       ['View', 'show-branches-list'],
       ['Repository', 'push'],
       ['Repository', 'pull'],

@@ -33,7 +33,7 @@ export interface FinderCommands {
 export type StandardMenuOverrides = Readonly<Partial<Record<string, readonly MenuEntry[]>>>;
 
 export type GithubTab = 'changes' | 'history';
-export type GithubRepositoryMenu = 'new' | 'local' | 'clone';
+export type GithubRepositoryMenu = 'new' | 'local' | 'clone' | 'list';
 export type GithubExternalTarget =
   | 'repository'
   | 'issue'
@@ -53,7 +53,9 @@ export interface GithubCommands {
   hasChanges(): boolean;
   isBusy(): boolean;
   openRepositoryMenu(kind: GithubRepositoryMenu): void;
+  openLocalRepository(): void;
   openBranchMenu(): void;
+  focusChangesFilter(): void;
   setTab(tab: GithubTab): void;
   fetch(): void;
   pull(): void;
@@ -114,6 +116,23 @@ export class DesktopMenus {
       { id: 's', label: 'Show All', run: () => this.wm.showAll() },
       '-',
       { id: 'q', label: `Quit ${name}`, key: '⌘Q', run: () => this.wm.quitFront() }
+    ];
+  }
+
+  /** GitHub Desktop 的应用菜单，应用专属命令不混入 Apple 系统菜单。 */
+  githubApplication(): MenuEntry[] {
+    return [
+      { id: 'a', label: 'About GitHub Desktop', run: () => this.wm.open('about') },
+      '-',
+      { id: 'p', label: 'Settings…', key: '⌘,', run: () => this.wm.open('settings') },
+      { id: 'cli', label: 'Install Command Line Tool', disabled: true },
+      { id: 'services', label: 'Services', key: '▸', disabled: true },
+      '-',
+      { id: 'h', label: 'Hide GitHub Desktop', key: '⌘H', run: () => this.wm.minimizeFront() },
+      { id: 'o', label: 'Hide Others', key: '⌥⌘H', run: () => this.wm.hideOthers() },
+      { id: 's', label: 'Show All', run: () => this.wm.showAll() },
+      '-',
+      { id: 'q', label: 'Quit GitHub Desktop', key: '⌘Q', run: () => this.wm.quitFront() }
     ];
   }
 
@@ -208,12 +227,23 @@ export class DesktopMenus {
       'github',
       {
         File: [
-          { id: 'new-repository', label: 'New Repository…', key: '⌘N', run: () => target.openRepositoryMenu('new') },
+          { id: 'new-repository', label: 'New Repository…', key: '⌘N', disabled: target.isBusy(), run: () => target.openRepositoryMenu('new') },
           '-',
-          { id: 'add-local-repository', label: 'Add Local Repository…', key: '⌘O', run: () => target.openRepositoryMenu('local') },
-          { id: 'clone-repository', label: 'Clone Repository…', key: '⇧⌘O', run: () => target.openRepositoryMenu('clone') },
+          { id: 'add-local-repository', label: 'Add Local Repository…', key: '⌘O', disabled: target.isBusy(), run: () => target.openLocalRepository() },
+          { id: 'clone-repository', label: 'Clone Repository…', key: '⇧⌘O', disabled: target.isBusy(), run: () => target.openRepositoryMenu('clone') },
           '-',
           { id: 'close-window', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+        ],
+        Edit: [
+          { id: 'undo', label: 'Undo', key: '⌘Z', run: () => exec('undo') },
+          { id: 'redo', label: 'Redo', key: '⇧⌘Z', run: () => exec('redo') },
+          '-',
+          { id: 'cut', label: 'Cut', key: '⌘X', run: () => exec('cut') },
+          { id: 'copy', label: 'Copy', key: '⌘C', run: () => exec('copy') },
+          { id: 'paste', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+          '-',
+          { id: 'select-all', label: 'Select All', key: '⌘A', run: () => exec('selectAll') },
+          { id: 'find', label: 'Find…', key: '⌘F', disabled: disabled(), run: () => target.focusChangesFilter() }
         ],
         View: [
           {
@@ -231,11 +261,17 @@ export class DesktopMenus {
             run: () => target.setTab('history')
           },
           {
+            id: 'show-changes-filter',
+            label: 'Show Changes Filter',
+            disabled: disabled(),
+            run: () => target.focusChangesFilter()
+          },
+          {
             id: 'show-repository-list',
             label: 'Show Repository List',
             key: '⌘T',
             disabled: target.isBusy(),
-            run: () => target.openRepositoryMenu('clone')
+            run: () => target.openRepositoryMenu('list')
           },
           {
             id: 'show-branches-list',
