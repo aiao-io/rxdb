@@ -84,7 +84,7 @@ export function createAuthenticatedTestClient(userId: string = TEST_USER_ID): Su
  *
  * 开发/CI 的初始化链（init-db.sh 与 .github/actions/supabase）现在都会在 01～04 之后
  * 加载 docker/sql/production/rxdb-change-grants.sql：客户端对 `rxdb_change` 至多只有 SELECT，
- * 直接 INSERT/DELETE 一律 42501；anon 连 SELECT 都没有。测试里「模拟另一个客户端推送」的
+ * 直接 INSERT/DELETE 一律 42501；anon 的 SELECT 由 RLS 限制为公开区。测试里「模拟另一个客户端推送」的
  * 日志直插与「清场」不属于被测路径，改用本函数拿到的 service_role 客户端执行；
  * 断言拉取结果用 {@link createAuthenticatedTestClient} 的客户端读。
  *

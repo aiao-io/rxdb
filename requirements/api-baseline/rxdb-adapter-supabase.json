@@ -30,6 +30,10 @@
         "kind": "type"
       },
       {
+        "name": "SupabaseEntitySyncInfo",
+        "kind": "type"
+      },
+      {
         "name": "SupabaseNetworkError",
         "kind": "both"
       },
@@ -43,6 +47,10 @@
       },
       {
         "name": "SupabaseRlsCheckTable",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseScopedSyncIdentity",
         "kind": "type"
       },
       {

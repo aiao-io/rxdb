@@ -36,6 +36,7 @@ import {
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
+import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
@@ -524,6 +525,20 @@ async function pullSingleRepository(
     },
     () => instantiateSyncRecord(sm)
   );
+
+  const bucketedResult = await pullBucketedRepositoryIfSupported(
+    sm,
+    remoteAdapter,
+    localAdapter,
+    EntityType!,
+    repoSync,
+    namespace,
+    entity,
+    branch.id,
+    options,
+    options.filter
+  );
+  if (bucketedResult) return bucketedResult;
 
   const lastPullRemoteChangeId: number | null = repoSync.lastPullRemoteChangeId;
 

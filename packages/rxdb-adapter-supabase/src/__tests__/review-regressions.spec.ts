@@ -102,8 +102,25 @@ function createRxdb(entities: EntityType[] = []): RxDB {
 
 const AUTHENTICATED_TOKEN = SIGNED_IN_TOKEN;
 
-function createRealtimeAuth(accessTokenValue: string | null = AUTHENTICATED_TOKEN) {
-  return { setAuth: vi.fn(async () => undefined), accessTokenValue };
+const jwtFor = (claims: Record<string, unknown>): string =>
+  `header.${btoa(JSON.stringify(claims)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')}.signature`;
+
+function createRealtimeAuth(
+  accessTokenValue: string | null = AUTHENTICATED_TOKEN,
+  accessTokenProvider?: () => Promise<string | null>
+) {
+  let currentAccessToken = accessTokenValue;
+  return {
+    setAuth: vi.fn(async () => {
+      if (accessTokenProvider) currentAccessToken = await accessTokenProvider();
+    }),
+    get accessTokenValue() {
+      return currentAccessToken;
+    },
+    set accessTokenValue(value: string | null) {
+      currentAccessToken = value;
+    }
+  };
 }
 
 function createAdapter(
@@ -112,7 +129,11 @@ function createAdapter(
   entities: EntityType[] = []
 ) {
   // 订阅私有频道前适配器会先 realtime.setAuth() 并看令牌是否属于已登录用户（US-225），桩客户端默认已登录
-  const client = { realtime: createRealtimeAuth(), ...clientOverrides };
+  const configuredAccessToken = clientOverrides.accessToken;
+  const accessTokenProvider =
+    typeof configuredAccessToken === 'function' ? (configuredAccessToken as () => Promise<string | null>) : undefined;
+  const realtime = clientOverrides.realtime ?? createRealtimeAuth(AUTHENTICATED_TOKEN, accessTokenProvider);
+  const client = { realtime, ...clientOverrides };
   const rxdb = createRxdb(entities);
 
   return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
@@ -287,6 +308,22 @@ afterEach(() => {
 });
 
 describe('supabase review regressions', () => {
+  it('支持 accessToken 配置的客户端读取当前用户身份', async () => {
+    const adapter = createAdapter({
+      accessToken: async () => jwtFor({ role: 'authenticated', sub: 'user-from-token' })
+    });
+
+    await expect(adapter.callerIdentity()).resolves.toBe('user-from-token');
+  });
+
+  it('accessToken 为空或没有 sub 时按 anon 处理', async () => {
+    const emptyTokenAdapter = createAdapter({ accessToken: async () => null });
+    const malformedTokenAdapter = createAdapter({ accessToken: async () => jwtFor({ role: 'anon' }) });
+
+    await expect(emptyTokenAdapter.callerIdentity()).resolves.toBe('anon');
+    await expect(malformedTokenAdapter.callerIdentity()).resolves.toBe('anon');
+  });
+
   it('requires a non-empty URL and key when no client is supplied', () => {
     const rxdb = createRxdb();
 

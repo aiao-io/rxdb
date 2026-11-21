@@ -61,4 +61,15 @@ export { queryCacheEntityIdentifier } from './query-cache-entity-identifier.js';
 // 元素类型），自由函数收回。
 export type { SyncBranchSkipReason, SyncBranchesResult } from './sync-branches.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
+export { RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
+export {
+  IdentityMismatchError,
+  canonicalize,
+  filterFingerprint,
+  identityFingerprint,
+  scopedDatabaseName,
+  type ScopedSyncAdapter,
+  type ScopedSyncIdentity,
+  type ScopedSyncIdentitySource
+} from './scoped-sync.js';
 export type { SyncManager } from './SyncManager.js';

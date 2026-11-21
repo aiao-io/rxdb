@@ -49,7 +49,12 @@ import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
-import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+import {
+  RxDBSyncBucketProgress,
+  RxDBSyncBucketRow,
+  RxDBSyncIdentityBinding,
+  rxDBPluginSync
+} from '@aiao/rxdb-plugin-sync';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
   WORKING_TREE_CONFORMANCE_ENTITIES,
@@ -80,6 +85,7 @@ afterAll(() => {
 });
 
 workingTreeCaptureConformanceSuite({
+  additionalSystemEntities: [RxDBSyncBucketProgress, RxDBSyncBucketRow, RxDBSyncIdentityBinding],
   name: 'electron',
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await electronAdapterFactory.createAdapter<AdapterCleanupTarget>({
