@@ -45,7 +45,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.search)
     return;
-  if (request.mode === 'navigate' && ['/', '/create', '/images', '/providers'].includes(url.pathname)) {
+  if (request.mode === 'navigate' && ['/', '/create', '/images', '/library', '/providers'].includes(url.pathname)) {
     // Network errors only. Preserve 401/403/5xx; NEVER cache live SSR responses.
     event.respondWith(
       fetch(request).catch(async () => {
