@@ -156,10 +156,10 @@ describe('property table columns', () => {
 
     expect(invoke(displayNameColumn.editor, args({ _readonly: true }))).toBeUndefined();
     expect(invoke(displayNameColumn.editor, args({}))).toBe('input-editor');
-    expect(invoke(nullableColumn.disable, args({ _readonly: true }))).toBe(true);
-    expect(invoke(nullableColumn.disable, args({}))).toBe(false);
-    expect(invoke(requiredColumn.disable, args({ _readonly: true }))).toBe(true);
-    expect(invoke(requiredColumn.disable, args({}))).toBe(false);
+    expect(invoke(columnValue(nullableColumn, 'disable'), args({ _readonly: true }))).toBe(true);
+    expect(invoke(columnValue(nullableColumn, 'disable'), args({}))).toBe(false);
+    expect(invoke(columnValue(requiredColumn, 'disable'), args({ _readonly: true }))).toBe(true);
+    expect(invoke(columnValue(requiredColumn, 'disable'), args({}))).toBe(false);
     expect(invoke(defaultColumn.editor, args({ _readonly: true }))).toBeUndefined();
     expect(invoke(defaultColumn.editor, args({}))).toBe('input-editor');
     expect(invoke(enumColumn.editor, args({ propertyType: 'enum', _readonly: true }))).toBeUndefined();

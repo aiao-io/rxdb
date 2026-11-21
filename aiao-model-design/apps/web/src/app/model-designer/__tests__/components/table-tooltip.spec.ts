@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { detectCellError } from '../../components/table/table-tooltip';
 import type { TableRecord } from '../../components/table/table.types';
+import type { RelationFieldError, RelationFieldErrors } from '../../interfaces/designer.interface';
 
 const hints = {
   propertyNameHint: 'property name',
@@ -18,7 +19,7 @@ const emptyPropertyContext = {
 
 const emptyRelationContext = {
   invalidRelationIds: new Set<string>(),
-  relationFieldErrors: new Map(),
+  relationFieldErrors: new Map() as RelationFieldErrors,
   missingInverseRelationIds: new Set<string>()
 };
 
@@ -64,12 +65,12 @@ describe('detectCellError', () => {
   it('combines relation field and missing inverse errors', () => {
     const relCtx = {
       invalidRelationIds: new Set<string>(),
-      relationFieldErrors: new Map([
-        ['rel-1', new Set(['name'])],
-        ['rel-2', new Set(['mappedEntityId'])],
-        ['rel-3', new Set(['mappedPropertyId'])],
-        ['rel-4', new Set(['unknown'] as never)]
-      ]),
+      relationFieldErrors: new Map<string, Set<RelationFieldError>>([
+        ['rel-1', new Set<RelationFieldError>(['name'])],
+        ['rel-2', new Set<RelationFieldError>(['mappedEntityId'])],
+        ['rel-3', new Set<RelationFieldError>(['mappedPropertyId'])],
+        ['rel-4', new Set<RelationFieldError>(['unknown' as RelationFieldError])]
+      ]) satisfies RelationFieldErrors,
       missingInverseRelationIds: new Set(['rel-2', 'rel-5'])
     };
 
