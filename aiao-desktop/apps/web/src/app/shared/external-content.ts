@@ -204,11 +204,11 @@ export const LINK_ONLY_HOSTS: readonly LinkOnlyHost[] = [
       'A photographer credit written as plain text in the Photos library. It is not a link and nothing is requested.'
   },
   {
-    host: 'support.github.com',
-    reason: 'A GitHub Desktop support link opened in a new browser tab only when you click it.'
+    host: 'docs.github.com',
+    reason: 'A GitHub Desktop guide link. The external browser opens it only after you choose the guide.'
   },
   {
-    host: 'docs.github.com',
-    reason: 'A GitHub Desktop documentation link opened in a new browser tab only when you click it.'
+    host: 'support.github.com',
+    reason: 'A GitHub support link. The external browser opens it only after you choose support.'
   }
 ];
