@@ -572,7 +572,12 @@ describe('theme and group guards', () => {
       getChildren: () => [
         { id: 'edge', isNode: () => false },
         { id: 'missing-size', isNode: () => true, getPosition: () => ({ x: 20, y: 30 }) },
-        { id: 'customer', isNode: () => true, getPosition: () => ({ x: 100, y: 120 }), getSize: () => ({ width: 200, height: 80 }) }
+        {
+          id: 'customer',
+          isNode: () => true,
+          getPosition: () => ({ x: 100, y: 120 }),
+          getSize: () => ({ width: 200, height: 80 })
+        }
       ],
       setPosition,
       setSize

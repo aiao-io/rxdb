@@ -184,7 +184,14 @@ describe('table cell handlers', () => {
       emit
     );
     handleRelationCellChange({ _relId: 'rel-1' }, 'mappedPropertyId', 'owner', [], new Map(), emit);
-    handleRelationCellChange({ _relId: 'rel-1', _mappedEntityId: 'missing' }, 'mappedPropertyId', 'owner', [], new Map(), emit);
+    handleRelationCellChange(
+      { _relId: 'rel-1', _mappedEntityId: 'missing' },
+      'mappedPropertyId',
+      'owner',
+      [],
+      new Map(),
+      emit
+    );
     handleRelationCellChange({ _relId: 'rel-1' }, 'mappedPropertyId', '', [], new Map(), emit);
     handleRelationCellChange({ _relId: 'rel-1' }, undefined, 'ignored', [], new Map(), emit);
 
