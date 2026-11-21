@@ -59,9 +59,13 @@ export const notesFolders = {
 
     await session.reloadDesktop(page, { finder: false });
     window = await open();
-    result.folderSurvivesReload =
-      (await window.locator('[data-folder="Projects"]').count()) === 1 &&
-      (await rows(`SELECT name FROM "${FOLDER_TABLE}" WHERE name = ?`, ['Projects'])).length === 1;
+    await expect
+      .poll(async () => {
+        const folders = await rows(`SELECT name FROM "${FOLDER_TABLE}" WHERE name = ?`, ['Projects']);
+        return (await window.locator('[data-folder="Projects"]').count()) === 1 && folders.length === 1;
+      })
+      .toBe(true);
+    result.folderSurvivesReload = true;
     await helpers.closeAll();
     return { notesFolders: result };
   }
