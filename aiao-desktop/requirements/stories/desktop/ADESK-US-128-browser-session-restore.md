@@ -64,10 +64,10 @@ capabilities: []
 
 ## 验收证据
 
-2026-11-21 已完成本地实现、单元测试和正式 Chromium 持久浏览器上下文验收。
+已完成本地实现、单元测试和正式 Chromium 持久浏览器上下文验收。
 
 - 单元测试通过 `aiao-desktop-web:test`，`browser-session-restore.spec.ts` 覆盖标签页租约、最近活跃来源、快照并发写入、关闭释放和损坏数据边界。
-- 正式构建上的 `aiao-desktop-e2e:e2e --group=browser-session-restore --parallel=1` 通过。报告见 [browser-session-restore-green.json](../../evidence/2026-11-21/browser-session-restore-green.json)。
+- 正式构建上的 `aiao-desktop-e2e:e2e --group=browser-session-restore --parallel=1` 通过。报告见 [Aiao Desktop 验收台账](../../verification-report.md#adesk-us-128-浏览器关闭后恢复工作区)。
 - 持久浏览器上下文实际关闭 Chromium 进程后重新进入，浏览器窗口恢复、最近活跃标签页胜出、活跃标签页不重复领取、显式关闭窗口不恢复、损坏快照从新桌面启动、单窗口失败不阻塞其余窗口均通过。
 - 本轮验收范围仍按 D-19 限定为桌面 Chrome。US-108 的 VoiceOver 人工播报验收继续按用户要求延期。
 
