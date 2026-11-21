@@ -1,0 +1,87 @@
+<div
+  class="card card-compact card-bordered h-full overflow-hidden shadow-md transition-all hover:shadow-lg"
+  [ngClass]="data()?.selected ? 'border-info ring-info/30 ring-2' : 'border-primary'"
+>
+  <div
+    class="flex shrink-0 items-center justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-semibold"
+    [ngClass]="data()?.selected ? 'bg-info text-info-content' : 'bg-primary text-primary-content'"
+  >
+    <span>{{ data()?.name }}</span>
+    @if (data()?.displayName) {
+      <span class="text-xs font-normal opacity-70">{{ data()!.displayName }}</span>
+    }
+  </div>
+  @if (data()?.extendsBase && data()!.extendsBase !== 'EntityBase') {
+    <div class="bg-base-200/50 border-base-200 border-b px-2 py-0.5 text-center text-[9px] opacity-60">
+      extends {{ data()!.extendsBase }}
+    </div>
+  }
+  <div class="bg-base-100 flex-1 overflow-hidden">
+    @if (!propertyFields().length && !relationFields().length) {
+      <div class="text-base-content/40 p-4 text-center text-xs italic">No properties</div>
+    }
+    @for (field of propertyFields(); track field.name; let i = $index) {
+      <div
+        class="border-base-200 hover:bg-base-200 flex h-6 items-center border-b px-2 py-1 text-[11px] transition-colors last:border-b-0"
+        [ngClass]="{
+          'bg-base-200/50': !field.inherited && !field.invalid && i % 2 === 0,
+          'bg-primary/10': field.keyType === 'primary',
+          'bg-success/10': field.keyType === 'unique' && !field.invalid,
+          'bg-error/10 hover:bg-error/20': field.invalid,
+          'opacity-50': field.inherited
+        }"
+      >
+        <!-- 类型图标（最左，始终显示） -->
+        <div class="relative mr-1 flex h-3 w-3 shrink-0 items-center justify-center">
+          @if (typeIcon(field.type); as ico) {
+            <lucide-icon class="h-3 w-3" [img]="ico" [style.color]="typeColor(field.type)" />
+          }
+          @if (field.keyType === 'primary') {
+            <lucide-icon class="text-primary absolute -top-1 -right-1 h-2 w-2" [img]="Key" />
+          } @else if (field.keyType === 'unique') {
+            <lucide-icon class="text-success absolute -top-1 -right-1 h-2 w-2" [img]="ShieldCheck" />
+          }
+        </div>
+        <span
+          class="text-base-content font-medium"
+          [ngClass]="{ italic: field.inherited, 'text-error': field.invalid }"
+        >
+          {{ field.name }}
+        </span>
+        @if (field.displayName) {
+          <span class="text-base-content/40 ml-1 flex-1 truncate text-[9px]">{{ field.displayName }}</span>
+        } @else {
+          <span class="flex-1"></span>
+        }
+        <span class="badge badge-ghost badge-xs ml-1 font-mono text-[9px]">
+          {{ typeLabel(field.type) }}
+        </span>
+      </div>
+    }
+    @if (relationFields().length) {
+      <div
+        class="border-base-300 bg-base-200/30 border-t border-b px-2 py-0.5 text-[9px] font-semibold tracking-wide opacity-60"
+      >
+        RELATIONS
+      </div>
+      @for (field of relationFields(); track field.id ?? field.name; let i = $index) {
+        <div
+          class="border-base-200 flex h-6 items-center border-b px-2 py-1 text-[11px] transition-colors last:border-b-0"
+          [ngClass]="[
+            field.invalid ? 'bg-error/10 hover:bg-error/20' : 'bg-warning/5 hover:bg-warning/10',
+            field.inherited ? 'opacity-50' : ''
+          ]"
+        >
+          <lucide-icon class="text-warning mr-1 h-3 w-3" [img]="Link" />
+          <span class="text-base-content font-medium" [ngClass]="{ italic: field.inherited }">{{ field.name }}</span>
+          @if (field.displayName) {
+            <span class="text-base-content/40 ml-1 flex-1 truncate text-[9px]">{{ field.displayName }}</span>
+          } @else {
+            <span class="flex-1"></span>
+          }
+          <span class="badge badge-outline badge-xs ml-1 font-mono text-[9px]">{{ field.type }}</span>
+        </div>
+      }
+    }
+  </div>
+</div>

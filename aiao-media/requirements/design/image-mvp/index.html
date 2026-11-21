@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>Aiao Images · 图片 MVP 交互设计</title>
+    <link href="styles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="header">
+      <a class="brand" aria-label="Aiao Images 首页" href="#discover">
+        <span class="brand-mark">
+          a
+          <span>i</span>
+        </span>
+        <span>
+          aiao
+          <span class="brand-sub">/ images</span>
+        </span>
+      </a>
+      <nav aria-label="主导航">
+        <button data-nav="discover">发现灵感</button>
+        <button data-nav="studio">生成图片</button>
+        <button data-nav="library">我的图片</button>
+      </nav>
+      <div class="header-right">
+        <button class="feedback-link" data-action="feedback">
+          反馈建议
+          <span>↗</span>
+        </button>
+        <span class="beta">邀请试用</span>
+        <span class="avatar" aria-label="试用账号">J</span>
+      </div>
+    </header>
+    <main id="main"></main>
+    <footer>
+      <span>© 2026 Aiao Images</span>
+      <button class="footer-feedback" data-action="feedback">反馈建议 ↗</button>
+      <span class="prototype-label">设计原型 · 生成与保存均为演示</span>
+    </footer>
+    <dialog id="template-dialog">
+      <button class="dialog-close" aria-label="关闭">×</button>
+      <div id="template-content"></div>
+    </dialog>
+    <dialog id="feedback-dialog">
+      <button class="dialog-close" aria-label="关闭">×</button>
+      <div class="feedback-body">
+        <span class="eyebrow">一起把它变得更好</span>
+        <h2>这次创作，感觉怎么样？</h2>
+        <p>告诉我们哪里好用，哪里还差一点。</p>
+        <div class="ratings">
+          <button data-rating="满意">☺ 满意</button>
+          <button data-rating="需要改进">☹ 需要改进</button>
+        </div>
+        <label for="feedback-text">你的建议</label>
+        <textarea id="feedback-text" placeholder="例如：希望能根据一张参考图生成……" rows="4"></textarea>
+        <button class="primary" id="copy-feedback">复制反馈内容 ↗</button>
+        <small>设计演示：复制后可粘贴给产品团队。正式版接试用反馈表单。</small>
+      </div>
+    </dialog>
+    <div id="toast" aria-live="polite" role="status"></div>
+    <script src="prototype.js"></script>
+  </body>
+</html>

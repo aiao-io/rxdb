@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+tmp/
+.env
+.env.local
+.env.*.local
+.wrangler/
+desktop-dist/
+src-tauri/target/
+src-tauri/gen/

@@ -1,0 +1,52 @@
+# 当前能力矩阵
+
+> 产品实装能力，不是依赖库列表。状态以 [故事 YAML](status-overview.md) 为准。✅ 仅覆盖格内明确限定的范围；⚠️ 表示设施/部分能力，不等于完整交付；⬜ 未交付。证据来自哪一层见[验收记录](verification-report.md)。
+
+| 能力                   | 当前状态                                                                                                                                                                                    | 对应故事                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 无登录本地工作区       | ✅ 固定本机 UUID、RxDB + wa-sqlite/IndexedDB、OPFS 文件；刷新/离线恢复已验；未登录保留草稿、灵感浏览与本机作品（D-19）                                                                      | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
+| 平台生图服务端入口     | ✅ 同源任务接口、允许列表、超时/流式限制、去重与加密暂存 R2；按请求 Key 的旧代理按 D-19 移除                                                                                                | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
+| 平台积分生图           | ✅ D-19 海外与国内各三画幅真实交付、登录/余额门禁、确认扣费与流水已验；全部 AC 通过，In Review                                                                                              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)      |
+| TTS 文本转语音         | 👀 API、fixture、浏览器和本机保存链路已验；正式 provider 与 release 验收待 T065                                                                                                             | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| ASR 语音转文本         | 👀 输入引用、识别文本、复制下载、清理和本机保存链路已验；正式 provider 与 release 验收待 T065                                                                                               | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| 音乐生成               | 👀 目录参数、音频真实 metadata、播放下载、本机保存和积分链路已验；正式 provider 与 release 验收待 T065                                                                                      | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| 视频生成               | 👀 目录参数、真实 MP4 画幅/时长/codec、播放下载、本机保存和积分链路已验；正式 provider 与 release 验收待 T065                                                                               | [MEDIA-US-111](stories/generation/MEDIA-US-111-multimodal-generation.md)    |
+| 原图格式               | ✅ PNG/JPEG 按原始字节识别、原样保存与下载；首次写入 JPEG 前将工作区兼容标记升为 2，旧版本拒绝访问                                                                                          | [MEDIA-US-102](stories/generation/MEDIA-US-102-image-generation.md)         |
+| 图片提示词灵感库       | 👀 12 条模板、Tiptap 输入/字段/撤销隔离、资源失败恢复与真实系统中文 IME 已验，待评审/合入；移动验收暂缓                                                                                     | [MEDIA-US-106](stories/generation/MEDIA-US-106-prompt-gallery.md)           |
+| 离线与备份             | ✅ 四路由离线冷启动、无凭据 JSON 备份/隔离恢复；超限、坏摘要/重复 ID 拒绝及中断续导已验                                                                                                     | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
+| 本机图片作品           | ✅ 保存/刷新回读/精确下载已验；复用、删除及 journal 中断恢复有本地证据                                                                                                                      | [MEDIA-US-202](stories/account/MEDIA-US-202-library.md)                     |
+| 本地作品检索与可见预览 | ✅ 字面 AND/整日、24 件原生分页、只为视口内卡片读原图、ready 冷启动零原图读；本地分层验收，非 1,000 张原图的 UI 实测                                                                        | [MEDIA-US-204](stories/account/MEDIA-US-204-library-search.md)              |
+| schema 兼容守卫        | ⚠️ 0.0.26 升级及未知/更高 marker 拒写已通过本地验证；正式同 schema 1 的 A→B→A 回退已验，不承诺任意历史库迁移或线上 schema 转换                                                              | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |
+| 静态发布               | ✅ `media.aiao.io` 四路由/WASM/CSP/旧 API 404、完整离线内容与真实 A→B→A 更新/回退已验                                                                                                       | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
+| 可选 Supabase 账号会话 | ⚠️ 注册/确认/登录/恢复/退出、工作区绑定与产品 RLS 已通过真实本地验证；正式产物已按 D-16 启用平台账号配置，公众注册邮件未验（见[平台发布记录](plans/platform-supabase-release-20261106.md)） | [MEDIA-US-201](stories/account/MEDIA-US-201-sessions.md)                    |
+| Supabase 跨设备复制    | ⚠️ 草稿与作品元数据的原生双副本、离线/重开、冲突/删除与显式重新扫描已通过真实本地验收，正式云第二设备草稿恢复已验；凭据、原图、句柄与本地文件标识固定排除                                   | [MEDIA-US-302](stories/local-first/MEDIA-US-302-draft-sync.md)              |
+
+当前范围不包含 SSR、旧 Bun API/自建 PostgreSQL 业务栈和 Electron 桌面；音视频已纳入 MEDIA-US-111，本地与 fixture 链路完成并进入 In Review，正式 provider 验收待 T065。用户自配供应商、浏览器直连与按请求 Key 的代理已按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 移除，其历史验收证据见[正式交付验收](plans/public-delivery-verification.md)与[供应商补验](plans/provider-acceptance-follow-up.md)。平台 Supabase 已按 D-16 正式部署（Web 账号与同步）；两侧生产管理后台已部署，真实登录、积分发放/回收、普通用户/跨站拒绝及临时管理员撤权已验。
+
+Tauri 与平台同步继续实施；充值计费仍按 D-17 暂缓。Tauri 正式发行与桌面生产服务尚未验收，不计入上表既有已验范围。
+
+| 计划中能力                | 当前状态                                                                                                                                                                                               | 对应故事                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| 跨用户业务后台            | ⚠️ 用户、模板、任务与来源明确的用量已通过真实本地服务/浏览器验收；生产启用属后续范围                                                                                                                   | [MEDIA-US-203](stories/account/MEDIA-US-203-business-admin.md)                |
+| 移动设备验收              | ⬜ 暂缓，不阻断桌面、同步和后台工作                                                                                                                                                                    | [MEDIA-US-107](stories/generation/MEDIA-US-107-mobile-verification.md)        |
+| Supabase 后台权限边界     | ⚠️ Admin Auth、普通业务 PostgREST/RPC、配置 projection 和特权 Edge Function 已实现；真实本地 Supabase/RLS、普通 JWT 边界与本地 Admin bundle secret scan 已通过；生产切换和旧入口退出待完成             | [MEDIA-US-208](stories/account/MEDIA-US-208-supabase-admin-boundary.md)       |
+| 后台服务 RxDB 同步        | ⚠️ Node 后台 RxDB 装配、普通 JWT、生命周期、workspace/RLS、Pull/Push、配置 projection、revision 冲突和删除传播已通过真实本地 Supabase 集成；正式 Playwright、Realtime 断线恢复、双区域和生产验收待完成 | [MEDIA-US-306](stories/local-first/MEDIA-US-306-backend-rxdb-sync.md)         |
+| `rxdb-model` 后台配置编辑 | ⚠️ Admin 已接入共享配置实体、repository、本地 working-tree projection 与 `rxdb-model-angular` EntityList；完整 DOM/Playwright、无障碍状态和冲突 UI 验收待完成                                          | [MEDIA-US-307](stories/local-first/MEDIA-US-307-admin-rxdb-model.md)          |
+| 配置分支与提交投影        | ⚠️ 配置实体与投影已接入 RxDB 同步，本地分支创建/切换、合并预览、冲突阻塞、提交详情、main 发布边界、应用与安全回滚已经真实本地验收；远端非 main 分支和公共目录发布链路待完成                            | [MEDIA-US-308](stories/local-first/MEDIA-US-308-config-branch-commit-sync.md) |
+| PGMQ 生成任务队列         | ⚠️ 隔离 PoC 已通过真实本地入队授权、失败回滚、幂等/重试、provider 成功后崩溃恢复、重启/积压/死信/指标演练；生产任务仍由 Durable Object 承担                                                            | [MEDIA-US-110](stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)        |
+
+## 产品扩展实施
+
+| 能力                   | 当前边界                                                                                                                                                                 | 故事                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Tauri 安装版           | ⚠️ macOS Apple Silicon 真实启动/保存/备份互通、原生确认、满盘失败与重试、重开及本地整包签名已验；干净系统、正式签名公证与升级/重装待验                                   | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)          |
+| 国内自建部署           | ⚠️ 公网 Caddy IP HTTPS、自建 Supabase/Storage、Node 任务与整机重启已通过 11-09 发布验收；公众 SMTP、站外备份、模型压力与桌面联验待完成                                   | [MEDIA-US-006](stories/platform/MEDIA-US-006-self-hosted-deployment.md) |
+| 首次安装与后台初始化   | ⚠️ self-hosted/Cloudflare 双形态安装向导、管理员账号与安装状态持久化已实现并通过本地与隔离真实 GoTrue 验证；国内已随 11-09 发布真实部署，Cloudflare 生产部署待合入后执行 | [MEDIA-US-007](stories/platform/MEDIA-US-007-installation.md)           |
+| 后台积分管理           | ✅ 真实本地与海外/国内发放、回收、幂等、权限及三画幅消费已验；全部 AC 通过，In Review                                                                                    | [MEDIA-US-206](stories/account/MEDIA-US-206-credit-admin.md)            |
+| 平台支付与运维         | ⬜ D-17 暂缓；积分由后台发放，充值、退款与价格体系待未来收费需求明确后重新评审                                                                                           | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)        |
+| 平台账号同步           | ⚠️ 按 D-16 统一平台；平台注册入口与正式云登录、元数据同步、第二设备草稿恢复已验，生产 Tauri 跨设备与配额管理待验                                                         | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)        |
+| 平台 Supabase 原图同步 | ⚠️ 正式云 Web 原字节上传/下载已验；独立真实 Storage 的 7 MiB 续传、回执恢复与隔离已验，正式配额/删除竞态及 Web/Tauri 跨设备待验                                          | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) |
+
+扩展实现的统一证据见[产品交付计划](plans/product-completion-20261030.md)。
+
+国内自建部署（MEDIA-US-006）为真实公网部署；上表其余「真实本地验收」类表述不代表该部署未启用。公众 SMTP、站外备份及桌面原图联验尚未完成。

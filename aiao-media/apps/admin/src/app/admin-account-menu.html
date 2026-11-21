@@ -1,0 +1,51 @@
+<button
+  class="account-trigger"
+  [attr.aria-controls]="open() ? 'admin-account-menu' : null"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="'账户菜单：' + label()"
+  (click)="toggle()"
+  (keydown.arrowdown)="$event.preventDefault(); show()"
+  (keydown.arrowup)="$event.preventDefault(); show(true)"
+  aria-haspopup="menu"
+  type="button"
+>
+  <span class="account-avatar" aria-hidden="true">{{ initial() }}</span>
+  <span class="account-identity">
+    <span class="account-name">{{ label() }}</span>
+    @if (displayName() && email()) {
+      <span class="account-email">{{ email() }}</span>
+    }
+  </span>
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="16"
+    stroke="currentColor"
+    stroke-width="1.7"
+    viewBox="0 0 24 24"
+    width="16"
+  >
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+</button>
+@if (open()) {
+  <div
+    class="account-dropdown"
+    id="admin-account-menu"
+    (keydown)="move($event)"
+    aria-label="账户操作"
+    role="menu"
+    tabindex="-1"
+  >
+    <div class="dropdown-identity" role="presentation">
+      <strong>{{ label() }}</strong>
+      @if (email()) {
+        <span>{{ email() }}</span>
+      }
+    </div>
+    <a (click)="close()" (keydown.space)="activateLink($event)" role="menuitem" routerLink="/account" tabindex="-1">
+      账户详情
+    </a>
+    <button (click)="signOut()" role="menuitem" tabindex="-1" type="button">退出登录</button>
+  </div>
+}

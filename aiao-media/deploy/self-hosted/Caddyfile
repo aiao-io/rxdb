@@ -1,0 +1,49 @@
+{
+	default_sni {$MEDIA_PUBLIC_HOST}
+}
+
+{$MEDIA_PUBLIC_HOST} {
+	tls {
+		issuer acme https://acme-v02.api.letsencrypt.org/directory {
+			profile shortlived
+		}
+	}
+
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		-Server
+	}
+
+	@supabase path /auth/v1/* /rest/v1/* /realtime/v1/* /storage/v1/*
+	handle @supabase {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	redir /admin /admin/ 302
+	handle_path /admin/* {
+		root * /srv/web/admin
+		header {
+			Cache-Control no-store
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+		}
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	@offline path /offline-worker.js /offline-shell.html /offline-manifest.json /app-config*.js
+	header @offline Cache-Control no-cache
+
+	handle {
+		root * /srv/web
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss://{$MEDIA_PUBLIC_HOST}; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+		try_files {path} /index.html
+		file_server
+	}
+}

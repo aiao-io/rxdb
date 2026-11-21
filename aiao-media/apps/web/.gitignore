@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+tmp/
+.env
+.env.local
+.env.*.local
+.wrangler/
+public/prompt-runtime/
+public/wa-sqlite/
+public/app-config.js

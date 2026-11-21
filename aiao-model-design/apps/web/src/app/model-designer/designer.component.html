@@ -1,0 +1,145 @@
+<div class="flex h-full flex-col">
+  @if (state.bannerError(); as error) {
+    <div class="alert alert-error m-2 shrink-0" data-testid="designer-error" role="alert">
+      <span class="flex-1 break-all">{{ error }}</span>
+      @if (state.bannerDismissible()) {
+        <button
+          class="btn btn-ghost btn-square min-h-11 min-w-11"
+          [attr.aria-label]="t().errorBanner.ariaDismiss"
+          (click)="state.lastError.set(null)"
+          data-testid="designer-error-dismiss"
+          type="button"
+        >
+          <lucide-icon class="h-5 w-5" [img]="X" aria-hidden="true" />
+        </button>
+      }
+    </div>
+  }
+
+  @if (modelDesign.activeDesign()) {
+    <div class="relative flex flex-1 overflow-hidden">
+      <div class="hidden shrink-0 lg:block">
+        <lib-schema-navigator
+          [activeModelId]="modelDesign.activeDesignId()"
+          [entities]="state.entities()"
+          [models]="modelDesign.designs()"
+          [selectedEntityIds]="state.selectedEntityIds()"
+          (entityCreatedInNamespace)="state.onAddEntity($event)"
+          (entityDeleted)="state.onEntitiesDeleted([$event])"
+          (entityMoved)="state.onEntityMovedToNamespace($event.id, $event.namespace)"
+          (entityRenamed)="state.onEntityRenamed($event.id, $event.name)"
+          (entitySelected)="onEntitySelected($event)"
+          (modelCreated)="onModelCreated($event)"
+          (modelRenamed)="onModelRenamed($event)"
+          (modelSelected)="onModelSelected($event)"
+        />
+      </div>
+
+      @if (navigatorOpen()) {
+        <div class="absolute inset-0 z-40 flex lg:hidden">
+          <button
+            class="absolute inset-0 bg-black/40"
+            [attr.aria-label]="t().toolbar.closeNavigator"
+            (click)="navigatorOpen.set(false)"
+            type="button"
+          ></button>
+          <div class="relative z-10 h-full shadow-xl">
+            <lib-schema-navigator
+              [activeModelId]="modelDesign.activeDesignId()"
+              [entities]="state.entities()"
+              [models]="modelDesign.designs()"
+              [selectedEntityIds]="state.selectedEntityIds()"
+              (entityCreatedInNamespace)="state.onAddEntity($event); navigatorOpen.set(false)"
+              (entityDeleted)="state.onEntitiesDeleted([$event])"
+              (entityMoved)="state.onEntityMovedToNamespace($event.id, $event.namespace)"
+              (entityRenamed)="state.onEntityRenamed($event.id, $event.name)"
+              (entitySelected)="onEntitySelected($event)"
+              (modelCreated)="onModelCreated($event); navigatorOpen.set(false)"
+              (modelRenamed)="onModelRenamed($event)"
+              (modelSelected)="onModelSelected($event); navigatorOpen.set(false)"
+            />
+          </div>
+        </div>
+      }
+
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <lib-designer-toolbar
+          [entityCount]="state.entities().length"
+          [entityName]="state.selectedEntity()?.name"
+          [modelName]="state.activeDesignName()"
+          [redoCount]="state.redoCount()"
+          [redoDisabled]="state.redoCount() === 0"
+          [undoCount]="state.undoCount()"
+          [undoDisabled]="state.undoCount() === 0"
+          [viewMode]="viewMode()"
+          (addEntity)="state.onAddEntity()"
+          (generateCode)="state.onGenerate()"
+          (generateSql)="state.onGenerateSql()"
+          (openNavigator)="navigatorOpen.set(true)"
+          (redo)="state.onRedo()"
+          (toggleAi)="onToggleAi()"
+          (undo)="state.onUndo()"
+          (viewModeChange)="onViewModeChange($event)"
+        />
+        <div class="relative flex flex-1 overflow-hidden">
+          <router-outlet />
+        </div>
+      </div>
+    </div>
+
+    @defer (when state.codePreviewOpen()) {
+      <lib-code-preview
+        [(isOpen)]="state.codePreviewOpen"
+        [(packageName)]="state.clientPackageName"
+        [canArchivePackage]="state.canArchiveClientPackage()"
+        [canPublishPackage]="state.canPublishClientPackage()"
+        [errors]="state.generatedErrors()"
+        [files]="state.generatedFiles()"
+        [packageBusy]="state.clientPackageBusy()"
+        [packageVersion]="state.clientPackageVersion()"
+        (archivePackage)="state.onArchiveClientPackage()"
+        (download)="state.onDownloadZip()"
+        (publishPackage)="state.onPublishClientPackage()"
+      />
+    }
+  } @else {
+    <lib-model-list
+      [activeId]="modelDesign.activeDesignId()"
+      [designs]="modelDesign.designs()"
+      (copied)="onModelCopied($event)"
+      (created)="onModelCreated($event)"
+      (deleted)="onModelDeleted($event)"
+      (selected)="onModelSelected($event)"
+    />
+  }
+</div>
+
+<!-- AI Chat Panel template for drawer content injection -->
+<ng-template #aiChatPanelTpl>
+  <lib-ai-chat-panel
+    [activeSessionId]="agent.activeSessionId()"
+    [agentError]="agent.error()"
+    [awaitingAnswer]="agent.awaitingAnswer()"
+    [branchDiff]="agent.sessionDiff()"
+    [branches]="agent.branches()"
+    [currentBranchId]="agent.currentBranchId() ?? 'main'"
+    [hasError]="agent.hasError()"
+    [messages]="agent.messages()"
+    [notice]="agent.notice()"
+    [operationState]="agent.operationState()"
+    [selectedEntityName]="$safeNavigationMigration(state.selectedEntity()?.name)"
+    [sessions]="agent.sessions()"
+    (abortGeneration)="agent.stop()"
+    (answerQuestion)="agent.answer($event.toolCallId, $event)"
+    (backToList)="agent.backToList()"
+    (compareBranch)="onCompareBranch($event)"
+    (confirmMerge)="agent.confirmMerge()"
+    (createSessionEvent)="agent.createSession()"
+    (deleteSessionEvent)="agent.deleteSession($event)"
+    (discardChanges)="agent.discard()"
+    (refreshAgent)="agent.refreshAvailability()"
+    (retryRequest)="agent.retry()"
+    (selectSessionEvent)="agent.selectSession($event)"
+    (sendMessage)="agent.send($event)"
+  />
+</ng-template>

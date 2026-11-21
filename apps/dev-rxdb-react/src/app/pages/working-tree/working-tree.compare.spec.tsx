@@ -1,4 +1,5 @@
 import { WorktreeTableSet } from '@aiao/rxdb';
+import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,22 +40,33 @@ const harness = vi.hoisted(() => {
     ]
   });
   const compareBranches = vi.fn<() => Promise<ReturnType<typeof comparison>>>();
+  const commitEntry: CommitLogEntry = {
+    commitId: 'commit-menu-base',
+    parentIds: [],
+    firstParentId: null,
+    kind: 'normal',
+    message: '菜单打开时的提交',
+    authorId: 'author',
+    createdAt: new Date('2026-11-14T00:00:00Z'),
+    changeSetCount: 1
+  };
   const tree = {
     isEnabledState: { phase: 'success', value: true },
     statusState: { phase: 'success', value: status },
     diffState: { phase: 'success', value: { entries: [entry] } },
-    listCommitsState: { phase: 'empty', value: { entries: [] } },
+    listCommitsState: undefined as unknown as WorkingTreeQueryState<CommitLogPage>,
     commitState: { phase: 'idle' },
     commitChangesState: { phase: 'idle' },
     isEnabled: vi.fn(async () => true),
     status: vi.fn(async () => status),
     diff: vi.fn(async () => ({ entries: [entry] })),
     listCommits: vi.fn(async () => ({ entries: [] })),
-    commitChanges: vi.fn(),
+    commitChanges: vi.fn(async () => undefined),
+    checkBranchFromCommit: vi.fn(async () => ({ ok: true })),
     discard: vi.fn(async () => undefined)
   };
   const database = { versionManager: { compareBranches } };
-  return { tree, database, comparison, compareBranches, mountWorktree: vi.fn(async () => undefined) };
+  return { tree, commitEntry, database, comparison, compareBranches, mountWorktree: vi.fn(async () => undefined) };
 });
 
 vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
@@ -94,6 +106,7 @@ vi.mock('@aiao/rxdb-react', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  harness.tree.listCommitsState = { phase: 'empty', value: { branchId: 'main', headCommitId: null, entries: [] } };
   harness.tree.status.mockResolvedValue(harness.tree.statusState.value);
   harness.compareBranches.mockResolvedValue(harness.comparison('dirty'));
 });
@@ -160,5 +173,31 @@ describe('WorkingTreePage 的分支对比刷新', () => {
 
     expect(screen.queryByTestId('wt-compare-view')).toBeNull();
     expect(harness.compareBranches).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('WorkingTreePage 的历史菜单快照', () => {
+  it('菜单打开后历史进入重读，仍从原提交打开新建分支对话框', async () => {
+    harness.tree.listCommitsState = {
+      phase: 'success',
+      value: { branchId: 'main', headCommitId: harness.commitEntry.commitId, entries: [harness.commitEntry] }
+    };
+    const view = () => (
+      <MemoryRouter>
+        <WorkingTreePage />
+      </MemoryRouter>
+    );
+    const mounted = render(view());
+    fireEvent.click(screen.getByTestId('wt-tab-history'));
+    fireEvent.contextMenu(screen.getByTestId('wt-commit-item'));
+    act(() => {
+      harness.tree.listCommitsState = { phase: 'loading' };
+      mounted.rerender(view());
+    });
+    fireEvent.click(screen.getByTestId('wt-commit-create-branch'));
+    await waitFor(() =>
+      expect(screen.getByTestId('wt-create-branch-base').textContent).toContain(harness.commitEntry.message)
+    );
+    expect(harness.tree.checkBranchFromCommit).toHaveBeenCalledExactlyOnceWith(harness.commitEntry.commitId);
   });
 });

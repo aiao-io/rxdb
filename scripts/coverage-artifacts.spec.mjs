@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { planTestCommands } from './ci/run-test-lane.mjs';
 import {
   assertCoverageSummaryMatchesFinal,
   readVerifiedCoverageTotals,
@@ -153,6 +154,11 @@ test('真实 Vitest 只为成功运行发布 coverage 文件对', async () => {
 
 test('CI 同时产出 final 与 summary 供一致性门禁校验', async () => {
   const workflow = await readFile(new URL('../.github/workflows/ci-template.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /--coverage\.reporter=json(?:\s|\\)/);
-  assert.match(workflow, /--coverage\.reporter=json-summary/);
+  assert.match(workflow, /node scripts\/ci\/run-test-lane\.mjs .* "\$TARGET" "\$PROJECTS" "\$COVERAGE"/);
+  for (const executor of ['@nx/vitest:test', '@angular/build:unit-test']) {
+    const graph = { graph: { nodes: { fixture: { data: { targets: { test: { executor } } } } } } };
+    const [command] = planTestCommands(graph, { projects: ['fixture'], target: 'test', coverage: true });
+    assert.ok(command.some(arg => /^--coverage(?:\.reporter|Reporters)=json$/.test(arg)));
+    assert.ok(command.some(arg => /^--coverage(?:\.reporter|Reporters)=json-summary$/.test(arg)));
+  }
 });

@@ -1,0 +1,93 @@
+<div class="border-base-300 bg-base-100 relative border-b px-1.5 py-1">
+  <div class="flex items-center gap-1">
+    <lucide-icon class="h-4 w-4 shrink-0 opacity-70" [img]="Boxes" aria-hidden="true" />
+
+    @if (editing()) {
+      <input
+        class="input input-bordered input-xs min-h-11 min-w-0 flex-1 lg:min-h-7"
+        #renameInput
+        [value]="editValue()"
+        (blur)="commitRename()"
+        (input)="editValue.set(asInputValue($event))"
+        (keydown.enter)="commitRename()"
+        (keydown.escape)="cancelRename()"
+        data-testid="model-switcher-rename-input"
+      />
+    } @else {
+      <button
+        class="btn btn-ghost min-h-11 min-w-0 flex-1 justify-start truncate px-1 text-sm font-semibold lg:min-h-7"
+        [attr.aria-label]="t().modelSwitcher.renameTitle"
+        [title]="t().modelSwitcher.renameTitle"
+        (click)="startRename()"
+        data-testid="model-switcher-name"
+        type="button"
+      >
+        <span class="truncate">{{ activeModel()?.name ?? t().modelSwitcher.untitled }}</span>
+      </button>
+    }
+
+    <button
+      class="btn btn-ghost btn-square min-h-11 min-w-11 shrink-0 lg:min-h-7 lg:min-w-7"
+      [attr.aria-expanded]="menuOpen()"
+      [attr.aria-label]="t().modelSwitcher.switchModel"
+      (click)="menuOpen.set(!menuOpen())"
+      aria-haspopup="menu"
+      data-testid="model-switcher-toggle"
+      type="button"
+    >
+      <lucide-icon class="h-4 w-4" [img]="ChevronsUpDown" aria-hidden="true" />
+    </button>
+  </div>
+
+  @if (menuOpen()) {
+    <button
+      class="fixed inset-0 z-40 cursor-default"
+      [attr.aria-label]="t().modelSwitcher.closeMenu"
+      (click)="menuOpen.set(false)"
+      data-testid="model-switcher-backdrop"
+      type="button"
+    ></button>
+    <ul
+      class="menu bg-base-100 border-base-300 absolute top-full left-0 z-50 mt-1 w-full border p-2 shadow-lg lg:w-64"
+      data-testid="model-switcher-menu"
+    >
+      @for (m of models(); track m.id) {
+        <li>
+          <button
+            class="min-h-11 lg:min-h-0"
+            [class.menu-active]="m.id === activeId()"
+            (click)="onSelect(m.id)"
+            type="button"
+          >
+            <lucide-icon class="h-3.5 w-3.5 opacity-80" [img]="Box" aria-hidden="true" />
+            <span class="truncate">{{ m.name }}</span>
+            @if (m.id === activeId()) {
+              <lucide-icon class="ml-auto h-3.5 w-3.5 shrink-0" [img]="Check" aria-hidden="true" />
+            }
+          </button>
+        </li>
+      }
+      <li>
+        <div class="flex items-center gap-1 px-1 py-0.5">
+          <input
+            class="input input-bordered input-xs min-h-11 min-w-0 flex-1 lg:min-h-7"
+            [placeholder]="t().modelSwitcher.newPlaceholder"
+            [value]="newName()"
+            (input)="newName.set(asInputValue($event))"
+            (keydown.enter)="onCreate()"
+            data-testid="model-switcher-new-input"
+          />
+          <button
+            class="btn btn-primary btn-xs"
+            [disabled]="!newName().trim()"
+            (click)="onCreate()"
+            data-testid="model-switcher-create"
+            type="button"
+          >
+            {{ t().modelSwitcher.create }}
+          </button>
+        </div>
+      </li>
+    </ul>
+  }
+</div>

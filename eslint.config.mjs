@@ -16,6 +16,7 @@ export default [
     ignores: [
       '**/node_modules',
       '**/dist',
+      'aiao-media/apps/api/dist-node',
       '**/out-tsc',
       '**/coverage',
       '**/tmp',
@@ -26,8 +27,6 @@ export default [
       '**/playwright-report',
       '**/build',
       '**/.react-router',
-      // 测试期临时目录（`compileGeneratedRuntime` 用 mkdtemp 建在包根下），
-      // 与 lint 并发时会被删掉，eslint 扫到一半报 ENOENT 直接崩。
       '**/.tmp-generated-runtime-*'
     ]
   },
@@ -44,14 +43,47 @@ export default [
             // tsconfig paths 别名：映射到带扩展名的已有文件时 tsc 直接取该文件，在 allowJs 下把 .mjs
             // 当源码拉进 e2e 程序（TS6059 / TS6307）。依赖边 Nx 照样从这条 import 推得出来
             '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/entity-model-parity\\.mjs$',
+            // API 本地 Supabase 集成测试直接加载脚本模块；该模块不是 Nx library。
+            '^\\.\\./\\.\\./\\.\\./scripts/supabase/supabase-local\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./\\.\\./scripts/supabase/supabase-local\\.mjs$',
             '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$'
           ],
           depConstraints: [
             {
               sourceTag: '*',
               onlyDependOnLibsWithTags: ['*']
+            },
+            {
+              // 产品私有的领域包只放纯函数：不依赖界面、服务端入口或 AI SDK（requirements/application-governance.md）
+              sourceTag: 'layer:domain',
+              notDependOnLibsWithTags: ['layer:ui', 'layer:server', 'type:app'],
+              bannedExternalImports: [
+                '@angular/*',
+                'react',
+                'react-dom',
+                'vue',
+                '@trigger.dev/*',
+                'trigger.dev',
+                'ai',
+                '@ai-sdk/*',
+                'wrangler',
+                '@cloudflare/*'
+              ]
             }
           ]
+        }
+      ]
+    }
+  },
+  {
+    files: ['packages/**/*.{ts,tsx,js,mjs}', 'modules/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: true,
+          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          depConstraints: [{ sourceTag: '*', notDependOnLibsWithTags: ['product:media'] }]
         }
       ]
     }

@@ -1,0 +1,12 @@
+{
+  "name": "@aiao-model-design/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/angular": "3.0.64",
+    "@aiao-model-design/model-ops": "workspace:*",
+    "@trigger.dev/sdk": "4.8.3",
+    "ai": "7.0.64"
+  }
+}

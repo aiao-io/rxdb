@@ -1,0 +1,18 @@
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { buildProductionUpgrade, productionUpgrades } from '../supabase/build-production-supabase-bundle.mjs';
+
+const root = resolve(import.meta.dirname, '../..');
+const source = resolve(root, '../dist/aiao-media/apps/admin/browser');
+const target = resolve(root, 'apps/web/dist/browser/admin');
+await rm(target, { recursive: true, force: true });
+await mkdir(target, { recursive: true });
+await cp(source, target, { recursive: true });
+const index = resolve(target, 'index.html');
+await writeFile(index, (await readFile(index, 'utf8')).replace(/<base href="\/"\s*\/?>/, '<base href="/admin/">'));
+await cp(resolve(root, 'tmp/production-supabase-bundle.sql'), resolve(target, 'new-project.sql'));
+for (const { name } of productionUpgrades) {
+  const { sql } = await buildProductionUpgrade(name);
+  await writeFile(resolve(target, `upgrade-${name}.sql`), sql);
+}
+console.log('Packaged admin initialization and login at /admin/.');
