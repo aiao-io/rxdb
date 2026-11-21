@@ -444,12 +444,7 @@ async function applyScopedBatch(
     isSnapshot: boolean;
   },
   conflictResolver: NonNullable<PullRepositoryOptions['conflictResolver']>
-): Promise<{
-  progress: RxDBSyncBucketProgress;
-  applied: number;
-  compacted: number;
-  conflictsResolved: number;
-}> {
+) {
   const normalizedChanges = normalizeScopedChanges(changes, filter);
   return localAdapter.transaction(async executor => {
     const changeRepository = executor.getRepository(RxDBChange);
@@ -537,8 +532,8 @@ async function applyScopedBatch(
     const actionCount = countActions(resolved.applyActions);
     if (actionCount > 0) {
       declareTrustedWrite(executor, {
-        file: 'pull-repository.ts',
-        symbol: 'pullSingleRepository',
+        file: 'bucketed-pull.ts',
+        symbol: 'applyScopedBatch',
         intent: TrustedWriteIntent.remote_sync
       });
       await executor.mergeChanges(resolved.applyActions, undefined, true);
@@ -643,8 +638,8 @@ async function removeBucketScope(
     }
     if (actions.deletes.size > 0) {
       declareTrustedWrite(executor, {
-        file: 'pull-repository.ts',
-        symbol: 'pullSingleRepository',
+        file: 'bucketed-pull.ts',
+        symbol: 'removeBucketScope',
         intent: TrustedWriteIntent.remote_sync
       });
       await executor.mergeChanges(actions, undefined, true);
