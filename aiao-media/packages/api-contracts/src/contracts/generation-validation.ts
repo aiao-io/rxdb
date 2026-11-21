@@ -11,25 +11,25 @@ import {
   VIDEO_DURATION_MAX_MS,
   VIDEO_MP4_MAX_BYTES,
   VIDEO_TEXT_MAX_LENGTH,
-  type AudioGenerationJobSummary,
   type AsrGenerationJobSummary,
   type AsrGenerationOption,
   type AsrJobRequest,
+  type AudioGenerationJobSummary,
   type AudioGenerationOption,
   type AudioInputReference,
   type AudioJobRequest,
-  type LegacyAudioJobRequest,
-  type TextToSpeechJobRequest,
   type AudioResultMetadata,
   type GenerationJobRequest,
   type GenerationJobSummary,
   type ImageGenerationOption,
   type ImageJobRequest,
+  type LegacyAudioJobRequest,
   type MediaGenerationJobSummary,
   type MusicGenerationJobSummary,
   type MusicGenerationOption,
   type MusicJobRequest,
   type ReferenceImageUpload,
+  type TextToSpeechJobRequest,
   type TranscriptResult,
   type VideoGenerationJobSummary,
   type VideoGenerationOption,
@@ -540,9 +540,9 @@ export function validateAudioResultMetadata(
   const manifest = own(input, 'kind') || own(input, 'sha256');
   keys(
     input,
-    manifest
-      ? ['kind', 'mediaType', 'format', 'durationMs', 'sampleRate', 'channels', 'bytes', 'sha256']
-      : ['mediaType', 'format', 'durationMs', 'sampleRate', 'channels', 'bytes']
+    manifest ?
+      ['kind', 'mediaType', 'format', 'durationMs', 'sampleRate', 'channels', 'bytes', 'sha256']
+    : ['mediaType', 'format', 'durationMs', 'sampleRate', 'channels', 'bytes']
   );
   const duration = input['durationMs'];
   if (
@@ -612,8 +612,7 @@ export function validateAudioGenerationOptions(value: unknown): AudioGenerationO
       input['channels'] !== 1 ||
       (languages !== undefined &&
         (!Array.isArray(languages) || languages.length === 0 || languages.some(item => !language(item)))) ||
-      (speeds !== undefined &&
-        (!Array.isArray(speeds) || speeds.length === 0 || speeds.some(item => !speed(item))))
+      (speeds !== undefined && (!Array.isArray(speeds) || speeds.length === 0 || speeds.some(item => !speed(item))))
     )
       throw new GenerationProtocolError();
     const key = `${input['providerInstanceId']}/${input['modelId']}/${input['voiceId']}/${input['profileId']}`;
@@ -755,10 +754,7 @@ export function validateVideoJobRequest(value: unknown): VideoJobRequest {
     };
   }
   keys(input, [...base, 'profileId']);
-  if (
-    typeof input['profileId'] !== 'string' ||
-    !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(input['profileId'])
-  )
+  if (typeof input['profileId'] !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(input['profileId']))
     throw new GenerationProtocolError();
   return {
     kind: 'video',
@@ -779,9 +775,9 @@ export function validateVideoResultMetadata(
   const manifest = own(input, 'kind') || own(input, 'sha256');
   keys(
     input,
-    manifest
-      ? ['kind', 'mediaType', 'format', 'codec', 'width', 'height', 'durationMs', 'bytes', 'sha256']
-      : ['mediaType', 'format', 'codec', 'width', 'height', 'durationMs', 'bytes']
+    manifest ?
+      ['kind', 'mediaType', 'format', 'codec', 'width', 'height', 'durationMs', 'bytes', 'sha256']
+    : ['mediaType', 'format', 'codec', 'width', 'height', 'durationMs', 'bytes']
   );
   if (
     (manifest && input['kind'] !== 'video') ||

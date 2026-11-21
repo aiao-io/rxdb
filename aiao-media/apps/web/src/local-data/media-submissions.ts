@@ -6,8 +6,8 @@ import {
   validateMusicGenerationJobSummary,
   validateVideoGenerationJobSummary,
   type AsrGenerationJobSummary,
-  type AudioGenerationJobSummary,
   type AsrJobRequest,
+  type AudioGenerationJobSummary,
   type AudioJobRequest,
   type GenerationJobRequest,
   type MusicGenerationJobSummary,
@@ -18,10 +18,7 @@ import {
 
 export type MediaSubmissionRequest = AudioJobRequest | AsrJobRequest | MusicJobRequest | VideoJobRequest;
 export type MediaSubmissionJob =
-  | AudioGenerationJobSummary
-  | AsrGenerationJobSummary
-  | MusicGenerationJobSummary
-  | VideoGenerationJobSummary;
+  AudioGenerationJobSummary | AsrGenerationJobSummary | MusicGenerationJobSummary | VideoGenerationJobSummary;
 export interface LocalMediaSubmission {
   key: string;
   idempotencyKey: string;
@@ -131,8 +128,7 @@ export function validateMediaSubmissionBook(value: unknown): MediaSubmissionBook
   const submissions = input['submissions'].map(validateSubmission);
   const ids = new Set(submissions.map(item => item.key));
   const idempotencyKeys = new Set(submissions.map(item => item.idempotencyKey));
-  if (ids.size !== submissions.length || idempotencyKeys.size !== submissions.length)
-    throw new MediaSubmissionError();
+  if (ids.size !== submissions.length || idempotencyKeys.size !== submissions.length) throw new MediaSubmissionError();
   return { version: 1, submissions };
 }
 
@@ -174,7 +170,8 @@ export function markMediaSubmissionSent(
   const sent = submission.firstSentAt === null ? null : Date.parse(submission.firstSentAt);
   if (sent !== null && (now.getTime() < sent || now.getTime() >= sent + 24 * 60 * 60 * 1000))
     throw new MediaSubmissionError('原提交已超出安全核对期限或本机时钟回退；请核对任务及账单，不再次提交。');
-  if (now.getTime() < Date.parse(submission.createdAt)) throw new MediaSubmissionError('本机时钟回退；未发送媒体请求。');
+  if (now.getTime() < Date.parse(submission.createdAt))
+    throw new MediaSubmissionError('本机时钟回退；未发送媒体请求。');
   if (submission.firstSentAt === null) {
     submission.firstSentAt = now.toISOString();
     submission.revision += 1;
@@ -217,11 +214,7 @@ export function migrateLegacyMediaSubmission(value: unknown): LocalMediaSubmissi
   const key = input['key'];
   const createdAt = input['createdAt'];
   const firstSentAt = input['firstSentAt'];
-  if (
-    !isGenerationUuid(key) ||
-    !timestamp(createdAt) ||
-    (firstSentAt !== null && !timestamp(firstSentAt))
-  )
+  if (!isGenerationUuid(key) || !timestamp(createdAt) || (firstSentAt !== null && !timestamp(firstSentAt)))
     throw new MediaSubmissionError();
   return {
     key,

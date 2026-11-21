@@ -81,7 +81,9 @@ describe('music contracts', () => {
 
   it('validates actual audio output limits separately from the legacy TTS limit', () => {
     expect(validateAudioResultMetadata(result, 32 * 1024 * 1024, 300_000)).toEqual(result);
-    expect(() => validateAudioResultMetadata({ ...result, bytes: 32 * 1024 * 1024 + 1 }, 32 * 1024 * 1024, 300_000)).toThrow();
+    expect(() =>
+      validateAudioResultMetadata({ ...result, bytes: 32 * 1024 * 1024 + 1 }, 32 * 1024 * 1024, 300_000)
+    ).toThrow();
   });
 
   it('validates a music summary, unique catalog options and unknown-field rejection', () => {

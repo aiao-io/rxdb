@@ -1,10 +1,10 @@
 import type {
   AsrGenerationJobSummary,
+  AsrJobRequest,
   AudioGenerationJobSummary,
-  AudioResultMetadata,
   AudioInputReference,
   AudioJobRequest,
-  AsrJobRequest,
+  AudioResultMetadata,
   CreditAccount,
   MediaCapability,
   MediaCapabilityCatalog,
@@ -32,20 +32,20 @@ import {
 import { ChangeDetectionStrategy, Component, computed, effect, input, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { LocalMediaStore } from '../../local-data';
-import type { MediaSubmissionJob } from '../../local-data/media-submissions';
 import { transcriptDownload } from '../../local-data';
+import type { MediaSubmissionJob } from '../../local-data/media-submissions';
 import { apiEndpoint } from '../../platform/local-backend';
 import { ProviderFailure } from '../local-provider';
+import type { ProductClient } from '../product-client';
 import {
+  deleteRelayTask,
   MediaRelayTicket,
   RelayContinuationFailure,
   RelayTicket,
-  deleteRelayTask,
   relayTickets,
   runMediaRelayTask,
   type MediaRelayResult
 } from '../relay-task-client';
-import type { ProductClient } from '../product-client';
 
 type MediaOperation = MediaCapability['operation'];
 type MediaTaskState = {
@@ -67,8 +67,7 @@ const digest = async (bytes: Uint8Array): Promise<string> =>
   Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>)), byte =>
     byte.toString(16).padStart(2, '0')
   ).join('');
-const mediaTicket = (ticket: RelayTicket | undefined): ticket is MediaRelayTicket =>
-  ticket?.kind === 'media';
+const mediaTicket = (ticket: RelayTicket | undefined): ticket is MediaRelayTicket => ticket?.kind === 'media';
 const isAudioResult = (value: MediaResult | null): value is AudioResultMetadata =>
   !!value && 'mediaType' in value && value.mediaType === 'audio/wav';
 const isVideoResult = (value: MediaResult | null): value is NonNullable<VideoGenerationJobSummary['result']> =>
@@ -83,18 +82,57 @@ const isTranscriptResult = (value: MediaResult | null): value is TranscriptResul
   templateUrl: './media-generation.html',
   styles: [
     `
-      .media-generation { display: grid; gap: 1rem; }
-      .media-modes { display: flex; flex-wrap: wrap; gap: .5rem; }
-      .media-modes button[aria-selected='true'] { background: var(--ink, #202027); color: white; }
-      .media-form, .media-result { display: grid; gap: .8rem; }
-      .media-form label { display: grid; gap: .35rem; }
-      .media-form textarea { min-height: 8rem; resize: vertical; }
-      .media-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; }
-      .media-result audio, .media-result video { width: 100%; max-height: 24rem; }
-      .media-result textarea { min-height: 10rem; }
-      .media-actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
-      .media-status { margin: 0; }
-      .media-error { color: #a32929; }
+      .media-generation {
+        display: grid;
+        gap: 1rem;
+      }
+      .media-modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .media-modes button[aria-selected='true'] {
+        background: var(--ink, #202027);
+        color: white;
+      }
+      .media-form,
+      .media-result {
+        display: grid;
+        gap: 0.8rem;
+      }
+      .media-form label {
+        display: grid;
+        gap: 0.35rem;
+      }
+      .media-form textarea {
+        min-height: 8rem;
+        resize: vertical;
+      }
+      .media-fields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+        gap: 0.75rem;
+      }
+      .media-result audio,
+      .media-result video {
+        width: 100%;
+        max-height: 24rem;
+      }
+      .media-result textarea {
+        min-height: 10rem;
+      }
+      .media-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+      }
+      .media-status {
+        margin: 0;
+      }
+      .media-error {
+        color: #a32929;
+      }
     `
   ]
 })
@@ -141,9 +179,8 @@ export class MediaGeneration implements OnDestroy {
   readonly message = signal('');
   readonly copied = signal(false);
 
-
-  readonly selectedCapability = computed(() =>
-    this.capabilities()?.capabilities.find(item => item.operation === this.operation()) ?? null
+  readonly selectedCapability = computed(
+    () => this.capabilities()?.capabilities.find(item => item.operation === this.operation()) ?? null
   );
   readonly textToSpeechCapability = computed(() => {
     const capability = this.selectedCapability();
@@ -195,9 +232,11 @@ export class MediaGeneration implements OnDestroy {
   });
   readonly downloadName = computed(() => {
     const id = this.task()?.id ?? 'media';
-    return this.operation() === 'speech-to-text' ? `transcript-${id}.txt`
+    return (
+      this.operation() === 'speech-to-text' ? `transcript-${id}.txt`
       : this.operation() === 'text-to-video' ? `video-${id}.mp4`
-      : `audio-${id}.wav`;
+      : `audio-${id}.wav`
+    );
   });
 
   constructor() {
@@ -302,7 +341,12 @@ export class MediaGeneration implements OnDestroy {
         throw new Error(`可用积分不足，本次需要 ${capability.credits} 积分。`);
       const request = this.buildRequest(capability);
       const current = this.task();
-      if (current && ['completed', 'needs_review'].includes(current.status) && JSON.stringify(current.request) === JSON.stringify(request)) return;
+      if (
+        current &&
+        ['completed', 'needs_review'].includes(current.status) &&
+        JSON.stringify(current.request) === JSON.stringify(request)
+      )
+        return;
       const submission = await store.createMediaSubmission(request);
       submissionKey = submission.key;
       if (!submission.firstSentAt) await store.markMediaSubmissionSent(submission.key);
@@ -348,11 +392,11 @@ export class MediaGeneration implements OnDestroy {
         const rejected = error instanceof ProviderFailure && error.rejected;
         const failed = {
           ...current,
-          status: rejected ? 'failed' as const : 'needs_review' as const,
+          status: rejected ? ('failed' as const) : ('needs_review' as const),
           updatedAt: new Date().toISOString(),
           delivery: { status: 'unavailable' as const, expiresAt: null, acknowledgedAt: null },
           failure: {
-            category: rejected ? 'invalid_request' as const : 'dispatch_uncertain' as const,
+            category: rejected ? ('invalid_request' as const) : ('dispatch_uncertain' as const),
             retryable: !rejected
           }
         } as MediaTask;
@@ -440,12 +484,11 @@ export class MediaGeneration implements OnDestroy {
       const relay = await store.preference('relay-tasks-v1');
       if (generation !== this.generation || store !== this.store()) return;
       this.tickets = relayTickets(relay?.payload ?? null);
-      const tasks = rows
-        .map(row => this.decodeTask(row.payload))
-        .filter((task): task is MediaTask => task !== null);
-      const current = tasks.find(item =>
-        item.status === 'needs_review' ||
-        (mediaTicket(this.tickets[item.id]) && (item.status === 'processing' || item.status === 'completed'))
+      const tasks = rows.map(row => this.decodeTask(row.payload)).filter((task): task is MediaTask => task !== null);
+      const current = tasks.find(
+        item =>
+          item.status === 'needs_review' ||
+          (mediaTicket(this.tickets[item.id]) && (item.status === 'processing' || item.status === 'completed'))
       );
       if (!current) return;
       this.task.set(current);
@@ -453,7 +496,8 @@ export class MediaGeneration implements OnDestroy {
       const ticket = this.tickets[current.id];
       if (mediaTicket(ticket)) void this.resume(current, ticket, generation);
     } catch (error) {
-      if (generation === this.generation) this.message.set(error instanceof Error ? error.message : '媒体任务读取失败，请刷新重试。');
+      if (generation === this.generation)
+        this.message.set(error instanceof Error ? error.message : '媒体任务读取失败，请刷新重试。');
     }
   }
 
@@ -481,9 +525,7 @@ export class MediaGeneration implements OnDestroy {
         result: result.manifest,
         ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {})
       } as MediaTask;
-      const submission = (await this.store()!.mediaSubmissions()).find(
-        item => item.idempotencyKey === task.id
-      );
+      const submission = (await this.store()!.mediaSubmissions()).find(item => item.idempotencyKey === task.id);
       if (!submission) throw new Error('媒体结果没有对应的本机提交意图。');
       await this.store()!.confirmMediaSubmission(submission.key, this.protocolTask(completed));
       await this.writeTask(completed, ticket);
@@ -498,11 +540,7 @@ export class MediaGeneration implements OnDestroy {
     }
   }
 
-  private async saveCompleted(
-    store: LocalMediaStore,
-    task: MediaTask,
-    result: MediaRelayResult
-  ): Promise<void> {
+  private async saveCompleted(store: LocalMediaStore, task: MediaTask, result: MediaRelayResult): Promise<void> {
     try {
       await this.saveStoredResult(store, task, result.blob);
       const savedTask = { ...task, saved: true, updatedAt: new Date().toISOString() } as MediaTask;
@@ -585,18 +623,34 @@ export class MediaGeneration implements OnDestroy {
     const valid = this.protocolTask(task);
     const row = await store.preference('tasks-v1');
     const relay = ticket ? await store.preference('relay-tasks-v1') : null;
-    const existing = row ? JSON.parse(row.payload) as unknown[] : [];
+    const existing = row ? (JSON.parse(row.payload) as unknown[]) : [];
     const next = [
-      { ...valid, channel: 'platform', ...(task.saved === undefined ? {} : { saved: task.saved }), ...(task.acknowledged === undefined ? {} : { acknowledged: task.acknowledged }) },
+      {
+        ...valid,
+        channel: 'platform',
+        ...(task.saved === undefined ? {} : { saved: task.saved }),
+        ...(task.acknowledged === undefined ? {} : { acknowledged: task.acknowledged })
+      },
       ...existing.filter(value => {
         if (!value || typeof value !== 'object') return true;
         return (value as Record<string, unknown>)['id'] !== task.id;
       })
     ].slice(0, 100);
-    await store.savePreferences([
-      { key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null },
-      ...(ticket ? [{ key: 'relay-tasks-v1', payload: JSON.stringify({ ...relayTickets(relay?.payload ?? null), [task.id]: ticket }), revision: relay?.revision ?? null }] : [])
-    ], true);
+    await store.savePreferences(
+      [
+        { key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null },
+        ...(ticket ?
+          [
+            {
+              key: 'relay-tasks-v1',
+              payload: JSON.stringify({ ...relayTickets(relay?.payload ?? null), [task.id]: ticket }),
+              revision: relay?.revision ?? null
+            }
+          ]
+        : [])
+      ],
+      true
+    );
     if (ticket) this.tickets = { ...this.tickets, [task.id]: ticket };
   }
 
@@ -606,7 +660,12 @@ export class MediaGeneration implements OnDestroy {
     delete raw['channel'];
     const task = validateGenerationJobSummary(raw);
     if (task.request.kind === 'image') return null;
-    return { ...task, channel: 'platform', ...(typeof saved === 'boolean' ? { saved } : {}), ...(typeof acknowledged === 'boolean' ? { acknowledged } : {}) } as MediaTask;
+    return {
+      ...task,
+      channel: 'platform',
+      ...(typeof saved === 'boolean' ? { saved } : {}),
+      ...(typeof acknowledged === 'boolean' ? { acknowledged } : {})
+    } as MediaTask;
   }
 
   private pendingTask(id: string, request: MediaRequest, now: string): MediaTask {
@@ -633,19 +692,41 @@ export class MediaGeneration implements OnDestroy {
     if (operation === 'speech-to-text') {
       if (!this.inputReference) throw new Error('请先上传 WAV 音频。');
       return validateAsrJobRequest({
-        kind: 'audio', operation, ...base, language: this.language() || null, input: this.inputReference
+        kind: 'audio',
+        operation,
+        ...base,
+        language: this.language() || null,
+        input: this.inputReference
       });
     }
     if (operation === 'text-to-speech')
       return validateAudioJobRequest({
-        kind: 'audio', operation, ...base, language: this.language(), voiceId: this.voiceId(), speed: this.speed(), text: this.text().trim()
+        kind: 'audio',
+        operation,
+        ...base,
+        language: this.language(),
+        voiceId: this.voiceId(),
+        speed: this.speed(),
+        text: this.text().trim()
       });
     if (operation === 'text-to-music')
       return validateMusicJobRequest({
-        kind: 'audio', operation, ...base, prompt: this.text().trim(), parameters: { durationSeconds: this.musicDuration(), instrumental: this.musicInstrumental() }
+        kind: 'audio',
+        operation,
+        ...base,
+        prompt: this.text().trim(),
+        parameters: { durationSeconds: this.musicDuration(), instrumental: this.musicInstrumental() }
       });
     return validateVideoJobRequest({
-      kind: 'video', operation, ...base, prompt: this.text().trim(), parameters: { ratio: this.videoRatio(), durationSeconds: this.videoDuration(), resolution: this.videoResolution() }
+      kind: 'video',
+      operation,
+      ...base,
+      prompt: this.text().trim(),
+      parameters: {
+        ratio: this.videoRatio(),
+        durationSeconds: this.videoDuration(),
+        resolution: this.videoResolution()
+      }
     });
   }
 
@@ -678,7 +759,7 @@ export class MediaGeneration implements OnDestroy {
     let channels = 0;
     let bits = 0;
     let dataBytes = 0;
-    for (let offset = 12; offset + 8 <= bytes.length; ) {
+    for (let offset = 12; offset + 8 <= bytes.length;) {
       const size = view.getUint32(offset + 4, true);
       const next = offset + 8 + size + (size % 2);
       if (next > bytes.length) throw new Error('WAV 数据块不完整。');
@@ -694,7 +775,7 @@ export class MediaGeneration implements OnDestroy {
     }
     if (!sampleRate || ![1, 2].includes(channels) || ![8, 16, 24, 32].includes(bits) || !dataBytes)
       throw new Error('WAV 音频格式不受支持。');
-    const durationMs = Math.round((dataBytes / (sampleRate * channels * bits / 8)) * 1000);
+    const durationMs = Math.round((dataBytes / ((sampleRate * channels * bits) / 8)) * 1000);
     if (!Number.isSafeInteger(durationMs) || durationMs <= 0) throw new Error('无法读取 WAV 时长。');
     return { bytes: bytes.byteLength, durationMs, sha256: await digest(bytes) };
   }
@@ -724,7 +805,8 @@ export class MediaGeneration implements OnDestroy {
 
   private revokeResultUrls(): void {
     if (this.ownedResultUrl) URL.revokeObjectURL(this.ownedResultUrl);
-    if (this.ownedDownloadUrl && this.ownedDownloadUrl !== this.ownedResultUrl) URL.revokeObjectURL(this.ownedDownloadUrl);
+    if (this.ownedDownloadUrl && this.ownedDownloadUrl !== this.ownedResultUrl)
+      URL.revokeObjectURL(this.ownedDownloadUrl);
     this.ownedResultUrl = null;
     this.ownedDownloadUrl = null;
     this.resultUrl.set(null);

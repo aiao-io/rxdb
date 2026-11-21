@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createMediaSubmission, markMediaSubmissionHandled, markMediaSubmissionSent, validateMediaSubmissionBook } from './media-submissions';
+import {
+  createMediaSubmission,
+  markMediaSubmissionHandled,
+  markMediaSubmissionSent,
+  validateMediaSubmissionBook
+} from './media-submissions';
 
 const request = {
   kind: 'audio' as const,

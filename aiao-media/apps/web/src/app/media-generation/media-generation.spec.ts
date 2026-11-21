@@ -1,4 +1,3 @@
-import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
 import type {
   AsrGenerationJobSummary,
   AudioGenerationJobSummary,
@@ -7,12 +6,13 @@ import type {
   VideoGenerationJobSummary,
   VideoResultManifest
 } from '@aiao-media/api-contracts';
+import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LocalMediaStore } from '../../local-data';
-import { MediaGeneration } from './media-generation';
 import type { ProductClient } from '../product-client';
 import type { ProductAuthorization } from '../supabase-auth';
+import { MediaGeneration } from './media-generation';
 
 const providerInstanceId = '10000000-0000-4000-8000-000000000001';
 const taskId = '10000000-0000-4000-8000-000000000010';
@@ -144,7 +144,10 @@ function mediaTask(operation: 'text-to-speech' | 'speech-to-text' | 'text-to-vid
     } as AudioGenerationJobSummary | AsrGenerationJobSummary | VideoGenerationJobSummary,
     result,
     blob: new Blob([operation === 'speech-to-text' ? JSON.stringify(result) : 'fixture'], {
-      type: operation === 'speech-to-text' ? 'application/json' : operation === 'text-to-video' ? 'video/mp4' : 'audio/wav'
+      type:
+        operation === 'speech-to-text' ? 'application/json'
+        : operation === 'text-to-video' ? 'video/mp4'
+        : 'audio/wav'
     })
   };
 }
@@ -186,7 +189,9 @@ describe('多模态媒体保存重试', () => {
     expect(saveCall).toHaveBeenCalledOnce();
     expect(store.markMediaSubmissionHandled).toHaveBeenCalledOnce();
     expect(savePreferences).toHaveBeenCalled();
-    const taskJournal = JSON.parse((await store.preference('tasks-v1'))?.payload ?? '[]') as Array<Record<string, unknown>>;
+    const taskJournal = JSON.parse((await store.preference('tasks-v1'))?.payload ?? '[]') as Array<
+      Record<string, unknown>
+    >;
     expect(taskJournal[0]?.['providerRequestId']).toBe('provider-request-01');
     expect(fixture.componentInstance.saved()).toBe(true);
     expect(fixture.componentInstance.error()).toBe('');

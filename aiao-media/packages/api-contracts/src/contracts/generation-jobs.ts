@@ -210,7 +210,8 @@ export interface AsrGenerationOption {
   maxDurationMs: number;
   languages: string[];
 }
-export type GenerationJobRequest = ImageJobRequest | AudioJobRequest | MusicJobRequest | AsrJobRequest | VideoJobRequest;
+export type GenerationJobRequest =
+  ImageJobRequest | AudioJobRequest | MusicJobRequest | AsrJobRequest | VideoJobRequest;
 export interface LegacyAudioResultMetadata {
   mediaType: 'audio/wav';
   format: 'wav';

@@ -2,8 +2,8 @@ import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import {
   imageExtension,
   imageMetadata,
-  validateImageGenerationJobSummary,
-  validateImageBlob
+  validateImageBlob,
+  validateImageGenerationJobSummary
 } from '@aiao-media/api-contracts';
 import { strFromU8, strToU8, unzip, zip, type AsyncZippable, type Unzipped } from 'fflate';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';

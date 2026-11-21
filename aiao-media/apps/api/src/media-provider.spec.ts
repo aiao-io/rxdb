@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fixtureMediaEnvironment, fixtureMp4, fixtureWav } from './media-fixtures.ts';
 import { mediaCapabilityCatalog } from './media-capabilities.ts';
+import { fixtureMediaEnvironment, fixtureMp4, fixtureWav } from './media-fixtures.ts';
 import { normalizeMediaResponse, type MediaDispatch } from './media-provider.ts';
 
 const requestBase = {
@@ -207,54 +207,59 @@ describe('fixture media provider normalization', () => {
     ]);
 
     await expect(
-      normalizeMediaResponse(
-        Response.json({ url: 'https://other.example.test/audio.wav' }),
-        {
-          ...dispatch(
-            {
-              kind: 'audio',
-              operation: 'text-to-music',
-              ...requestBase,
-              modelId: 'fixture-music',
-              prompt: 'ambient',
-              parameters: { durationSeconds: 5, instrumental: true }
-            },
-            'audio'
-          ),
-          fetchResult: async () => new Response(wav, { headers: { 'content-type': 'audio/wav' } })
-        }
-      )
+      normalizeMediaResponse(Response.json({ url: 'https://other.example.test/audio.wav' }), {
+        ...dispatch(
+          {
+            kind: 'audio',
+            operation: 'text-to-music',
+            ...requestBase,
+            modelId: 'fixture-music',
+            prompt: 'ambient',
+            parameters: { durationSeconds: 5, instrumental: true }
+          },
+          'audio'
+        ),
+        fetchResult: async () => new Response(wav, { headers: { 'content-type': 'audio/wav' } })
+      })
     ).rejects.toThrow('结果地址');
   });
 
   it('uses capability output limits and rejects missing actual video metadata', async () => {
     const wav = fixtureWav(500);
     await expect(
-      normalizeMediaResponse(
-        new Response(wav, { headers: { 'content-type': 'audio/wav' } }),
-        { ...dispatch({
-          kind: 'audio',
-          operation: 'text-to-music',
-          ...requestBase,
-          modelId: 'fixture-music',
-          prompt: 'ambient',
-          parameters: { durationSeconds: 5, instrumental: true }
-        }, 'audio'), maxResultDurationMs: 400 }
-      )
+      normalizeMediaResponse(new Response(wav, { headers: { 'content-type': 'audio/wav' } }), {
+        ...dispatch(
+          {
+            kind: 'audio',
+            operation: 'text-to-music',
+            ...requestBase,
+            modelId: 'fixture-music',
+            prompt: 'ambient',
+            parameters: { durationSeconds: 5, instrumental: true }
+          },
+          'audio'
+        ),
+        maxResultDurationMs: 400
+      })
     ).rejects.toThrow('时长');
 
     await expect(
       normalizeMediaResponse(
-        new Response(new Uint8Array([0, 0, 0, 8, 0x66, 0x74, 0x79, 0x70]), { headers: { 'content-type': 'video/mp4' } }),
-        dispatch({
-          kind: 'video',
-          operation: 'text-to-video',
-          providerInstanceId: '10000000-0000-4000-8000-000000000004',
-          providerRevision: 1,
-          modelId: 'fixture-video',
-          prompt: 'fixture',
-          parameters: { ratio: '16:9', durationSeconds: 5, resolution: '768P' }
-        }, 'video')
+        new Response(new Uint8Array([0, 0, 0, 8, 0x66, 0x74, 0x79, 0x70]), {
+          headers: { 'content-type': 'video/mp4' }
+        }),
+        dispatch(
+          {
+            kind: 'video',
+            operation: 'text-to-video',
+            providerInstanceId: '10000000-0000-4000-8000-000000000004',
+            providerRevision: 1,
+            modelId: 'fixture-video',
+            prompt: 'fixture',
+            parameters: { ratio: '16:9', durationSeconds: 5, resolution: '768P' }
+          },
+          'video'
+        )
       )
     ).rejects.toThrow('MP4');
   });
@@ -269,9 +274,9 @@ describe('fixture media provider normalization', () => {
       speed: 1,
       text: '你好'
     } as const;
-    await expect(
-      normalizeMediaResponse(Response.json({ data: [] }), dispatch(request, 'audio'))
-    ).rejects.toThrow('媒体供应商结果无效');
+    await expect(normalizeMediaResponse(Response.json({ data: [] }), dispatch(request, 'audio'))).rejects.toThrow(
+      '媒体供应商结果无效'
+    );
     await expect(
       normalizeMediaResponse(new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'video/mp4' } }), {
         ...dispatch(

@@ -1,4 +1,5 @@
 import type {
+  AsrGenerationJobSummary,
   DraftSyncConflictView,
   DraftSyncMutation,
   DraftSyncPullResult,
@@ -6,9 +7,8 @@ import type {
   DraftSyncResolution,
   DraftSyncResolutionResult,
   GenerationJobSummary,
-  AsrGenerationJobSummary,
-  MusicGenerationJobSummary,
   ImageJobRequest,
+  MusicGenerationJobSummary,
   ReferenceImageUpload,
   SyncedDraftContent
 } from '@aiao-media/api-contracts';
@@ -17,21 +17,21 @@ import {
   imageMetadata,
   isImageMimeType,
   productPayloadText,
-  validateAudioGenerationJobSummary,
   validateAsrGenerationJobSummary,
-  validateMusicGenerationJobSummary,
-  validateMusicJobRequest,
-  validateTranscriptResult,
+  validateAudioGenerationJobSummary,
   validateAudioJobRequest,
   validateImageBlob,
+  validateMusicGenerationJobSummary,
+  validateMusicJobRequest,
   validateSyncPayload,
+  validateTranscriptResult,
   validateVideoGenerationJobSummary,
   validateVideoJobRequest,
   type AudioResultMetadata,
-  type TranscriptResult,
   type ImageMetadata,
   type ImageMimeType,
   type PublicWorkPayload,
+  type TranscriptResult,
   type VideoResultMetadata
 } from '@aiao-media/api-contracts';
 import type { EntityStaticType, EntityType, FindAllOptions, IRepository, RxDBEvent } from '@aiao/rxdb';
@@ -61,12 +61,6 @@ import {
   validateNotebook
 } from './draft-notebook';
 import type { ImageDraftSource, ImageSubmissionBook, ImageSubmissionSelection } from './image-submissions';
-import type {
-  LocalMediaSubmission,
-  MediaSubmissionBook,
-  MediaSubmissionJob,
-  MediaSubmissionRequest
-} from './media-submissions';
 import {
   attachImageUpload,
   confirmImageSubmission,
@@ -77,14 +71,6 @@ import {
   rejectImageSubmission,
   validateImageSubmissionBook
 } from './image-submissions';
-import {
-  confirmMediaSubmission,
-  createMediaSubmission,
-  markMediaSubmissionHandled,
-  markMediaSubmissionSent,
-  migrateLegacyMediaSubmission,
-  validateMediaSubmissionBook
-} from './media-submissions';
 import { libraryQuery, libraryWhere, type LocalWorkFilters, type LocalWorkQuery } from './library-query';
 import {
   LocalCollectionCheckpoint,
@@ -101,6 +87,20 @@ import {
   type LocalAssetKind,
   type LocalAssetResult
 } from './media-result';
+import type {
+  LocalMediaSubmission,
+  MediaSubmissionBook,
+  MediaSubmissionJob,
+  MediaSubmissionRequest
+} from './media-submissions';
+import {
+  confirmMediaSubmission,
+  createMediaSubmission,
+  markMediaSubmissionHandled,
+  markMediaSubmissionSent,
+  migrateLegacyMediaSubmission,
+  validateMediaSubmissionBook
+} from './media-submissions';
 import { readStudioPayload, studioPayload, type StudioDraftSnapshot, type StudioPromptState } from './studio-draft';
 import { transcriptText } from './transcript-result';
 
@@ -1502,8 +1502,7 @@ export class LocalMediaStore {
       }
       if (previous?.stage === 'deleting') await repo.remove(previous);
       if (previous?.stage === 'saving' || previous?.stage === 'broken') {
-        if (previous.sha256 !== validated.sha256 || previous.text !== validated.text)
-          await repo.remove(previous);
+        if (previous.sha256 !== validated.sha256 || previous.text !== validated.text) await repo.remove(previous);
         else return this.transcriptSummary(await repo.update(previous, { stage: 'ready' }));
       }
       const saving = await repo.create(
@@ -1670,7 +1669,10 @@ export class LocalMediaStore {
       return {
         ...result,
         jobId: row.jobId,
-        status: row.stage === 'saving' ? 'saving' : row.stage === 'ready' ? 'saved' : 'broken'
+        status:
+          row.stage === 'saving' ? 'saving'
+          : row.stage === 'ready' ? 'saved'
+          : 'broken'
       };
     } catch {
       return {
@@ -2249,10 +2251,8 @@ export class LocalMediaStore {
       if (asset.result.length > 4096 || asset.request.length > 8192) throw new Error('oversized metadata');
       const rawRequest = JSON.parse(asset.request);
       const request =
-        asset.kind === 'audio' && rawRequest.operation === 'text-to-music' ?
-          validateMusicJobRequest(rawRequest)
-        : asset.kind === 'audio' ?
-          validateAudioJobRequest(rawRequest)
+        asset.kind === 'audio' && rawRequest.operation === 'text-to-music' ? validateMusicJobRequest(rawRequest)
+        : asset.kind === 'audio' ? validateAudioJobRequest(rawRequest)
         : validateVideoJobRequest(rawRequest);
       if (
         request.kind !== asset.kind ||

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { runMultimodalProviderAcceptance } from './multimodal-provider-acceptance.mjs';
 import {
   acceptancePlan,
   assertSafeAcceptanceRecord,
@@ -10,6 +9,7 @@ import {
   safeProviderRequestId,
   validateVerifiedRecord
 } from './multimodal-provider-acceptance-check.mjs';
+import { runMultimodalProviderAcceptance } from './multimodal-provider-acceptance.mjs';
 
 const config = {
   AIAO_MEDIA_ACCEPTANCE_GENERATE: '1',
@@ -32,8 +32,14 @@ test('正式验收必须显式启用，且只接受评审 origin、发布和 man
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_GENERATE: undefined }), /LIVE_OPT_IN_REQUIRED/);
   for (const origin of ['http://media.aiao.io', 'https://other.example.test', 'https://media.aiao.io?x=1'])
     assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_ORIGIN: origin }), /FORMAL_ORIGIN_REQUIRED/);
-  assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_RELEASE: '../release' }), /DEPLOYED_VERSION_ID_REQUIRED/);
-  assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256: '../manifest' }), /REVIEWED_MANIFEST_DIGEST_REQUIRED/);
+  assert.throws(
+    () => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_RELEASE: '../release' }),
+    /DEPLOYED_VERSION_ID_REQUIRED/
+  );
+  assert.throws(
+    () => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256: '../manifest' }),
+    /REVIEWED_MANIFEST_DIGEST_REQUIRED/
+  );
   assert.throws(() => liveSettings({ ...config, DEBUG: 'pw:api' }), /BROWSER_DEBUG_LOGGING_MUST_BE_DISABLED/);
   assert.equal(liveSettings(config).password, config.AIAO_MEDIA_ACCEPTANCE_PASSWORD);
 });
@@ -69,7 +75,13 @@ test('验收报告不能包含账号、密码、token、URL 或 key 字段', () 
     library: { status: 'verified' }
   };
   assertSafeAcceptanceRecord(record, settings);
-  assert.throws(() => assertSafeAcceptanceRecord({ ...record, token: 'token' }, settings), /ACCEPTANCE_SENSITIVE_FIELD/);
-  assert.throws(() => assertSafeAcceptanceRecord({ ...record, providerRequestId: 'https://provider/id' }, settings), /ACCEPTANCE_SENSITIVE_VALUE/);
+  assert.throws(
+    () => assertSafeAcceptanceRecord({ ...record, token: 'token' }, settings),
+    /ACCEPTANCE_SENSITIVE_FIELD/
+  );
+  assert.throws(
+    () => assertSafeAcceptanceRecord({ ...record, providerRequestId: 'https://provider/id' }, settings),
+    /ACCEPTANCE_SENSITIVE_VALUE/
+  );
   assert.doesNotThrow(() => validateVerifiedRecord(record, acceptancePlan()[0]));
 });

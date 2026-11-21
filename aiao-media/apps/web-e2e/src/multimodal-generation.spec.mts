@@ -41,23 +41,25 @@ test.describe('aiao-media 多模态媒体生成', () => {
     await expect(submit).toBeEnabled({ timeout: 30_000 });
     await expect(secondSubmit).toBeEnabled({ timeout: 30_000 });
     await Promise.all([submit.click(), secondSubmit.click()]);
-    await expect.poll(
-      async () =>
-        Promise.all(
-          [panel, secondPanel].map(async currentPanel => {
-            if (await currentPanel.getByText('已保存到本机', { exact: true }).isVisible()) return 'saved';
-            if (
-              await currentPanel
-                .getByRole('alert')
-                .filter({ hasText: '已有相同的未确认媒体意图；只能核对原提交，不能覆盖或新建。' })
-                .isVisible()
-            )
-              return 'conflict';
-            return 'pending';
-          })
-        ).then(states => states.sort()),
-      { timeout: 30_000 }
-    ).toEqual(['conflict', 'saved']);
+    await expect
+      .poll(
+        async () =>
+          Promise.all(
+            [panel, secondPanel].map(async currentPanel => {
+              if (await currentPanel.getByText('已保存到本机', { exact: true }).isVisible()) return 'saved';
+              if (
+                await currentPanel
+                  .getByRole('alert')
+                  .filter({ hasText: '已有相同的未确认媒体意图；只能核对原提交，不能覆盖或新建。' })
+                  .isVisible()
+              )
+                return 'conflict';
+              return 'pending';
+            })
+          ).then(states => states.sort()),
+        { timeout: 30_000 }
+      )
+      .toEqual(['conflict', 'saved']);
     expect(fixture.calls).toBe(1);
     expect(fixture.confirmCalls).toBe(1);
     expect(fixture.account.balance).toBe(998);

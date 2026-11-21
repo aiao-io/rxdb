@@ -600,11 +600,11 @@
           </div>
         </div>
         <app-media-generation
-          [client]="adminApi"
-          [store]="mediaStore()"
           [authReady]="authStatus() === 'signed-in' && localStatus() === 'ready'"
-          [workspaceKey]="currentProfileId()"
+          [client]="adminApi"
           [credits]="creditAccount()"
+          [store]="mediaStore()"
+          [workspaceKey]="currentProfileId()"
         />
       </section>
     } @placeholder {
@@ -899,9 +899,19 @@
             <article class="card library-card media-library-card">
               <div class="card-photo">
                 @if (media.kind === 'audio' && preview) {
-                  <audio controls preload="metadata" [src]="preview" [attr.aria-label]="'播放音频：' + mediaTitle(media)"></audio>
+                  <audio
+                    [attr.aria-label]="'播放音频：' + mediaTitle(media)"
+                    [src]="preview"
+                    controls
+                    preload="metadata"
+                  ></audio>
                 } @else if (media.kind === 'video' && preview) {
-                  <video controls preload="metadata" [src]="preview" [attr.aria-label]="'播放视频：' + mediaTitle(media)"></video>
+                  <video
+                    [attr.aria-label]="'播放视频：' + mediaTitle(media)"
+                    [src]="preview"
+                    controls
+                    preload="metadata"
+                  ></video>
                 } @else if (media.kind === 'transcript' && media.result; as result) {
                   <div class="empty-state">
                     <p>{{ result.text }}</p>
@@ -918,7 +928,11 @@
                   </div>
                 }
                 <span class="tag">
-                  {{ media.kind === 'audio' ? '音频' : media.kind === 'video' ? '视频' : 'Transcript' }}
+                  {{
+                    media.kind === 'audio' ? '音频'
+                    : media.kind === 'video' ? '视频'
+                    : 'Transcript'
+                  }}
                 </span>
               </div>
               <div class="card-caption">

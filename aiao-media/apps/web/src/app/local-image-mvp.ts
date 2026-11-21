@@ -1,4 +1,9 @@
-import type { GenerationJobSummary, ImageAspectRatio, ImageJobRequest, MediaGenerationJobSummary } from '@aiao-media/api-contracts';
+import type {
+  GenerationJobSummary,
+  ImageAspectRatio,
+  ImageJobRequest,
+  MediaGenerationJobSummary
+} from '@aiao-media/api-contracts';
 import {
   createRelayTaskToken,
   imageExtension,
@@ -65,7 +70,6 @@ import {
   type BackupWorkspace
 } from './backup-workspaces';
 import { CreditsPanel } from './credits-panel';
-import { MediaGeneration } from './media-generation/media-generation';
 import {
   cardSizeOptions,
   clearDisplayPreferences,
@@ -87,6 +91,7 @@ import { imageMvpCatalog } from './image-mvp-catalog';
 import { transitionImage } from './image-view-transition';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
 import { ProviderFailure, publicProvider, type LocalProvider } from './local-provider';
+import { MediaGeneration } from './media-generation/media-generation';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
@@ -1392,7 +1397,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (generation === this.viewerGeneration && this.viewer()?.work === current.work) this.closeViewer();
   }
   hasLocalCopy(task: LocalTask) {
-    return task.request.kind === 'image' && this.works().some(work => work.jobId === task.id && work.status === 'saved');
+    return (
+      task.request.kind === 'image' && this.works().some(work => work.jobId === task.id && work.status === 'saved')
+    );
   }
   async loadWorkInfo(work: Work, event: Event) {
     if ((event.target as HTMLDetailsElement).open) await this.fetchWorkInfo(work, true);
@@ -2139,7 +2146,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error('媒体下载失败。');
-        await saveDownload(await response.blob(), `${work.kind}-${work.jobId}.${work.kind === 'audio' ? 'wav' : 'mp4'}`);
+        await saveDownload(
+          await response.blob(),
+          `${work.kind}-${work.jobId}.${work.kind === 'audio' ? 'wav' : 'mp4'}`
+        );
       } finally {
         if (!existing) store.release(url);
       }
@@ -2149,7 +2159,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async deleteMedia(work: LocalMediaWorkSummary): Promise<void> {
     const store = this.store;
-    if (!store || !(await this.confirm(`删除本机${work.kind === 'transcript' ? ' Transcript' : '媒体'}「${work.jobId}」？下载过的文件不受影响。`))) return;
+    if (
+      !store ||
+      !(await this.confirm(
+        `删除本机${work.kind === 'transcript' ? ' Transcript' : '媒体'}「${work.jobId}」？下载过的文件不受影响。`
+      ))
+    )
+      return;
     const key = mediaWorkKey(work);
     const url = this.mediaPreviewUrls().get(key);
     if (url) store.release(url);
@@ -3260,7 +3276,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     // Another tab may have settled the task while this one waited for the lock.
     const task = this.history().find(item => item.id === id),
       ticket = this.tickets[id];
-    if (!task || task.request.kind !== 'image' || !['processing', 'completed'].includes(task.status) || task.saved || !ticket)
+    if (
+      !task ||
+      task.request.kind !== 'image' ||
+      !['processing', 'completed'].includes(task.status) ||
+      task.saved ||
+      !ticket
+    )
       return;
     const imageTask = task as ImageLocalTask;
     const ratio = imageTask.request.aspectRatio;

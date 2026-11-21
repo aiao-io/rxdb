@@ -13,11 +13,17 @@ import { validateAudioSubmissionBook } from './audio-submissions';
 import { validateNotebook } from './draft-notebook';
 import { validateImageSubmissionBook } from './image-submissions';
 import { localRepository } from './local-repository';
-import { validateVideoSubmissionBook } from './video-submissions';
 import { validateMediaSubmissionBook } from './media-submissions';
+import { validateVideoSubmissionBook } from './video-submissions';
 
 export type LocalCollection =
-  'providers' | 'tasks' | 'drafts' | 'image-submissions' | 'audio-submissions' | 'video-submissions' | 'media-submissions';
+  | 'providers'
+  | 'tasks'
+  | 'drafts'
+  | 'image-submissions'
+  | 'audio-submissions'
+  | 'video-submissions'
+  | 'media-submissions';
 export interface CollectionEntry {
   sourceId: string;
   payload: string;
@@ -143,7 +149,10 @@ export function decodeCollection(collection: LocalCollection, payload: string): 
       rows.push({
         id: submission.key,
         value: submission,
-        status: submission.resultHandled ? 'handled' : submission.firstSentAt ? 'sent' : 'prepared',
+        status:
+          submission.resultHandled ? 'handled'
+          : submission.firstSentAt ? 'sent'
+          : 'prepared',
         providerId: submission.request.providerInstanceId
       });
   const ids = new Set(rows.map(row => row.id));

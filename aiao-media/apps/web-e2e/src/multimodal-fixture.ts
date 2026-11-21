@@ -8,9 +8,9 @@ import {
   type TranscriptResult,
   type VideoResultManifest
 } from '@aiao-media/api-contracts';
+import { expect, type BrowserContext, type Page, type Request } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { expect, type BrowserContext, type Page, type Request } from '@playwright/test';
 import { setupPlatform } from './platform-fixture.ts';
 
 type MediaResultManifest = AudioResultManifest | TranscriptResult | VideoResultManifest;
@@ -300,8 +300,7 @@ export async function installMediaFixture(
         task!.bytes = answer.bytes;
         task!.manifest = answer.manifest;
         task!.providerRequestId = answer.providerRequestId ?? null;
-        task!.resultMimeType =
-          answer.manifest.kind === 'transcript' ? 'application/json' : answer.manifest.mediaType;
+        task!.resultMimeType = answer.manifest.kind === 'transcript' ? 'application/json' : answer.manifest.mediaType;
       });
       return route.fulfill({ status: 202, json: view(task) });
     }

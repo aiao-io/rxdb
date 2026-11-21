@@ -24,10 +24,6 @@ export function isGenerationRequest(input: unknown): input is GenerationRequest 
 }
 
 export type {
-  GenerationDeliveryStatus,
-  GenerationFailureCategory,
-  GenerationJobFailure,
-  GenerationJobStatus,
   AsrGenerationJobSummary,
   AsrGenerationOption,
   AsrJobRequest,
@@ -37,7 +33,11 @@ export type {
   AudioJobRequest,
   AudioResultManifest,
   AudioResultMetadata,
+  GenerationDeliveryStatus,
+  GenerationFailureCategory,
+  GenerationJobFailure,
   GenerationJobRequest,
+  GenerationJobStatus,
   GenerationJobSummary,
   GenerationReconciliation,
   GenerationReviewItem,
@@ -45,6 +45,7 @@ export type {
   ImageJobRequest,
   LegacyAudioJobRequest,
   LegacyMusicJobRequest,
+  LegacyVideoJobRequest,
   MediaGenerationJobSummary,
   MusicGenerationJobSummary,
   MusicGenerationOption,
@@ -52,13 +53,12 @@ export type {
   MusicJobRequestWithParameters,
   ReferenceImageUpload,
   TextToSpeechJobRequest,
+  TextToVideoJobRequest,
   TranscriptResult,
   VideoGenerationJobSummary,
   VideoGenerationOption,
   VideoJobRequest,
   VideoParameters,
-  TextToVideoJobRequest,
-  LegacyVideoJobRequest,
   VideoResultManifest,
   VideoResultMetadata
 } from './generation-jobs.ts';

@@ -37,7 +37,10 @@ export function handleRelayTask(request: Request, env: WorkerEnv) {
     const task = env.RELAY_TASKS.get(env.RELAY_TASKS.idFromName(`relay-task:${taskId}`));
     if (operation === 'PUT ') {
       const { userId } = await member(request, env);
-      const preview = await request.clone().json<Record<string, unknown>>().catch(() => null);
+      const preview = await request
+        .clone()
+        .json<Record<string, unknown>>()
+        .catch(() => null);
       if (preview?.kind === 'audio' || preview?.kind === 'video') {
         const input = await mediaProviderInput(request, env, userId);
         return task.fetch('https://relay-task.internal/', {

@@ -1,8 +1,8 @@
 import type { GenerationJobRequest, RelayTaskStatus } from '@aiao-media/api-contracts';
 import { relayResultKey, relayTaskTokenHash, relayTaskTokenHeader, sealRelayResult } from '@aiao-media/api-contracts';
-import { bounded, ProductApiError } from './product-http.ts';
 import { removeStoredMediaInput } from './media-input-api.ts';
 import { normalizeMediaResponse, type MediaDispatch, type MediaResultKind } from './media-provider.ts';
+import { bounded, ProductApiError } from './product-http.ts';
 import {
   BackendRelayCredits,
   type RelayCreditInput,
@@ -275,7 +275,9 @@ export class RelayTask {
     const input = await request.json<Dispatch>();
     const authorization = request.headers.get('authorization');
     if (!authorization) throw new Error('invalid dispatch');
-    const fingerprint = await digest(JSON.stringify([input.ownerId, input.cost, input.url, input.body, input.operation, input.resultKind]));
+    const fingerprint = await digest(
+      JSON.stringify([input.ownerId, input.cost, input.url, input.body, input.operation, input.resultKind])
+    );
     const existing = this.row();
     if (existing) return this.replay(existing, hash, fingerprint);
     const key = await relayResultKey(request.headers.get(relayTaskTokenHeader)!, input.taskId, 'encrypt');
@@ -344,7 +346,11 @@ export class RelayTask {
         if (typeof value !== 'string' && typeof value !== 'number') throw new Error('invalid media field');
         form.append(name, String(value));
       }
-      form.append('file', new Blob([await new Response(object.body).arrayBuffer()], { type: 'audio/wav' }), 'input.wav');
+      form.append(
+        'file',
+        new Blob([await new Response(object.body).arrayBuffer()], { type: 'audio/wav' }),
+        'input.wav'
+      );
       return this.request(input.url, {
         method: 'POST',
         redirect: 'manual',
@@ -414,9 +420,16 @@ export class RelayTask {
       await response.body?.cancel();
       return ['needs_review', response.status];
     }
-    const sealed = await sealRelayResult(key, await bounded(response, input.maxResultBytes ?? relayTaskLimits.resultBytes));
+    const sealed = await sealRelayResult(
+      key,
+      await bounded(response, input.maxResultBytes ?? relayTaskLimits.resultBytes)
+    );
     await this.env.RELAY_RESULTS.put(taskId, sealed, { httpMetadata: { contentType: 'application/octet-stream' } });
-    this.ctx.storage.sql.exec('UPDATE relay_task SET result_mime=?, updated_at=?', 'application/octet-stream', Date.now());
+    this.ctx.storage.sql.exec(
+      'UPDATE relay_task SET result_mime=?, updated_at=?',
+      'application/octet-stream',
+      Date.now()
+    );
     return ['received', response.status];
   }
   private async finish(
@@ -426,10 +439,9 @@ export class RelayTask {
     input: Dispatch,
     authorization: string
   ) {
-    const [status, upstreamStatus] = await this.answer(pending, key, taskId, input, authorization).catch((): [RelayTaskStatus, null] => [
-      'needs_review',
-      null
-    ]);
+    const [status, upstreamStatus] = await this.answer(pending, key, taskId, input, authorization).catch(
+      (): [RelayTaskStatus, null] => ['needs_review', null]
+    );
     await this.exclusive(async () => {
       if (this.row()?.status !== 'dispatched') return;
       const row = this.update(status, upstreamStatus);
