@@ -24,6 +24,7 @@ async function switchProject(root, projectId) {
 async function createProject(page, expect, template) {
   const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
   await expect(root).toBeVisible({ timeout: 30000 });
+  await expect(root.locator('[data-action="workspace"]')).toBeEnabled({ timeout: 30000 });
   await openTitleMenu(root);
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`vscode-${template}-fixture`);
