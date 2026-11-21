@@ -502,11 +502,7 @@ export const fileManagement = {
     await page.mouse.move(trashItemBox.x + trashItemBox.width / 2, trashItemBox.y + trashItemBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(trashItemBox.x + 20, trashItemBox.y + 20, { steps: 4 });
-    await page.mouse.move(
-      targetBodyBox.x + 40,
-      targetBodyBox.y + targetBodyBox.height - 40,
-      { steps: 16 }
-    );
+    await page.mouse.move(targetBodyBox.x + 40, targetBodyBox.y + targetBodyBox.height - 40, { steps: 16 });
     await page.waitForTimeout(800);
     await expect(trashTitle).toHaveText('Trash');
     await expect(sourceFinder.locator('[data-title]')).toHaveText('nested');
