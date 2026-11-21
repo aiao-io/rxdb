@@ -382,7 +382,8 @@ export class GitWorkbenchRuntime {
             await this.removePersistent(context.root, `.git/refs/heads/${name}`);
           } else {
             const packedPath = `${context.root}/.git/packed-refs`;
-            const packed = this.fs.analyzePath(packedPath).exists ? new TextDecoder().decode(this.fs.readFile(packedPath)) : '';
+            const packed =
+              this.fs.analyzePath(packedPath).exists ? new TextDecoder().decode(this.fs.readFile(packedPath)) : '';
             const lines = packed.split('\n');
             const ref = `refs/heads/${name}`;
             const nextLines: string[] = [];

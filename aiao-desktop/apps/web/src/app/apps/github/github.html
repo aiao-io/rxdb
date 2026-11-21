@@ -180,9 +180,7 @@
                 <input [disabled]="busy()" (change)="importRepository($event)" data-github-import type="file" />
               </label>
               @if (activeRecord()) {
-                <button (click)="exportRepository()" data-github-export type="button">
-                  Export repository
-                </button>
+                <button (click)="exportRepository()" data-github-export type="button">Export repository</button>
               }
             </div>
           </section>
@@ -196,8 +194,8 @@
       <button
         class="gd-toolbar-select gh-branch-trigger"
         [attr.aria-expanded]="branchMenuOpen()"
-        aria-haspopup="dialog"
         (click)="toggleBranchMenu()"
+        aria-haspopup="dialog"
         data-github-branch-menu
         type="button"
       >
@@ -256,8 +254,8 @@
               <div class="gh-branch-row">
                 <button
                   class="gd-menu-row"
-                  [class.gh-branch-row-current]="branch.current"
                   [attr.aria-current]="branch.current ? 'true' : null"
+                  [class.gh-branch-row-current]="branch.current"
                   (click)="checkout(branch.name)"
                   type="button"
                 >
@@ -294,7 +292,9 @@
                 placeholder="New branch name"
                 type="text"
               />
-              <button [disabled]="busy()" (click)="createBranch()" data-github-create-branch type="button">Create</button>
+              <button [disabled]="busy()" (click)="createBranch()" data-github-create-branch type="button">
+                Create
+              </button>
             </div>
           </section>
         </div>
@@ -418,7 +418,14 @@
                         (click)="setChangeKind(kind)"
                         type="button"
                       >
-                        <span>{{ kind === 'all' ? 'All' : kind === 'added' ? 'Added' : kind === 'modified' ? 'Modified' : 'Deleted' }}</span>
+                        <span>
+                          {{
+                            kind === 'all' ? 'All'
+                            : kind === 'added' ? 'Added'
+                            : kind === 'modified' ? 'Modified'
+                            : 'Deleted'
+                          }}
+                        </span>
                         @if (changeKind() === kind) {
                           <svg class="gh-menu-check-icon" [lucideIcon]="Check" size="13"></svg>
                         }
@@ -514,8 +521,8 @@
               #commitMessageInput
               [disabled]="busy()"
               [value]="commitValue()"
-              (input)="setValue('commit', $event)"
               (change)="setValue('commit', $event)"
+              (input)="setValue('commit', $event)"
               data-github-commit-message
               placeholder="Summary of changes"
               rows="2"
@@ -621,14 +628,32 @@
                     </div>
                     @for (line of diffLines(); track $index) {
                       <div class="gh-diff-line" [class.gh-diff-line-same]="line.same">
-                        <div class="gh-diff-side gh-diff-side-old" [class.gh-diff-side-delete]="!line.same && line.oldText !== null">
+                        <div
+                          class="gh-diff-side gh-diff-side-old"
+                          [class.gh-diff-side-delete]="!line.same && line.oldText !== null"
+                        >
                           <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
-                          <span class="gh-diff-sign">{{ line.same ? ' ' : line.oldText === null ? ' ' : '−' }}</span>
+                          <span class="gh-diff-sign">
+                            {{
+                              line.same ? ' '
+                              : line.oldText === null ? ' '
+                              : '−'
+                            }}
+                          </span>
                           <code>{{ line.oldText ?? '' }}</code>
                         </div>
-                        <div class="gh-diff-side gh-diff-side-new" [class.gh-diff-side-add]="!line.same && line.newText !== null">
+                        <div
+                          class="gh-diff-side gh-diff-side-new"
+                          [class.gh-diff-side-add]="!line.same && line.newText !== null"
+                        >
                           <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
-                          <span class="gh-diff-sign">{{ line.same ? ' ' : line.newText === null ? ' ' : '+' }}</span>
+                          <span class="gh-diff-sign">
+                            {{
+                              line.same ? ' '
+                              : line.newText === null ? ' '
+                              : '+'
+                            }}
+                          </span>
                           <code>{{ line.newText ?? '' }}</code>
                         </div>
                       </div>
@@ -724,12 +749,7 @@
       role="button"
       tabindex="0"
     ></div>
-    <div
-      class="gd-menu gh-context-menu"
-      [style.left.px]="menu.x"
-      [style.top.px]="menu.y"
-      role="menu"
-    >
+    <div class="gd-menu gh-context-menu" [style.left.px]="menu.x" [style.top.px]="menu.y" role="menu">
       @if (menu.kind === 'file') {
         @let entry = statusEntryForPath(menu.path);
         <button class="gd-menu-row" (click)="contextSelectFile(menu.path)" type="button">
@@ -750,7 +770,12 @@
             {{ isStaged(entry) ? 'Unstage file' : 'Stage file' }}
           </button>
           @if (entry.worktree !== ' ') {
-            <button class="gd-menu-row gh-row-danger" [disabled]="busy()" (click)="contextDiscard(menu.path)" type="button">
+            <button
+              class="gd-menu-row gh-row-danger"
+              [disabled]="busy()"
+              (click)="contextDiscard(menu.path)"
+              type="button"
+            >
               <svg [lucideIcon]="Trash2" size="14"></svg>
               Discard changes
             </button>
