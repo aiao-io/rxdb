@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2026-04-20
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, sqlite, ai, vector]
 ---
 
@@ -43,6 +43,6 @@ tags: [adapter, sqlite, ai, vector]
 
 - 把 AI / vector 函数封装成独立的插件 API：没有对应的包与排期
 
-## 参考
+## References
 
 - [Epic: 核心 MVP 功能](../../epics/epic-001-core-mvp.md)

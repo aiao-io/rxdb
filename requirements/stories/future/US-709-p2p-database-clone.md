@@ -5,7 +5,7 @@ status: Backlog
 priority: High
 epic: epic-012-p2p-lan-collaboration
 created: 2026-11-03
-updated: 2026-11-03
+updated: 2026-11-16
 tags: [p2p, clone, backup, restore, sync]
 ---
 
@@ -37,13 +37,13 @@ tags: [p2p, clone, backup, restore, sync]
   - 归档与目标的兼容键一致，由 [`assertRxDBBackupCompatible`](../../../packages/rxdb/src/backup/backup-manifest.ts) 判定。兼容键包括：adapter 名、引擎、引擎兼容键、系统表版本、变更编码版本、schema 指纹、加密认证域。
 - **校验**：传输层逐块校验之外，再核对归档自带的 SHA-256 尾标。任何一项不符，都不连接、不留半成品。
 - **克隆后同步**：目标实例用自己的新 `clientId`，从归档带来的水位线继续向服务器增量拉取，不重复应用已有的变更。
-- **进度**：只进本地事件，不写同步实体（同 epic-011）。
+- **进度**：只进本地事件，不写同步实体（同 epic-013）。
 
 ### Out of Scope
 
 - **跨适配器克隆**（如浏览器 wa-sqlite → 桌面 SQLite）：备份兼容检查要求 adapter 名相同。需要一种与适配器无关的逻辑导出格式，另立故事。
 - **跨用户克隆**：受规则 R3 约束，需要排序者签名，另立故事。
-- **外置文件**（storage 插件管理的文件本体）：备份范围本来就不含（`RXDB_BACKUP_SCOPE.externalFiles` 为 `'excluded'`），这些文件经 epic-011 的 files 协议按需拉取。
+- **外置文件**（storage 插件管理的文件本体）：备份范围本来就不含（`RXDB_BACKUP_SCOPE.externalFiles` 为 `'excluded'`），这些文件经 epic-013 的 files 协议按需拉取。
 - **增量克隆**（只补差异）：需要行版本，见 epic-012 非目标。
 
 ## 验收标准
@@ -67,7 +67,7 @@ tags: [p2p, clone, backup, restore, sync]
 
 - **传输方式二选一，实现时定**：
   - (a) 在会话的数据流上直传归档，靠归档的 SHA-256 尾标整体校验；中断后从头重来。
-  - (b) 源端先把归档写成临时文件，按 epic-011 的分块清单传输，可续传、可逐块校验；这需要把文件清单推广成通用的大对象清单。
+  - (b) 源端先把归档写成临时文件，按 epic-013 的分块清单传输，可续传、可逐块校验；这需要把文件清单推广成通用的大对象清单。
 
   大库倾向 (b)。
 

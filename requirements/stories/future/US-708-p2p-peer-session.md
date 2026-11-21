@@ -3,9 +3,9 @@ id: US-708
 title: P2P 会话层：一对设备一条会话、多协议复用
 status: Done
 priority: High
-epic: epic-011-p2p-file-share
+epic: epic-013-p2p-file-share
 created: 2026-11-03
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 ---
 
@@ -48,7 +48,7 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 
 ## 验收标准
 
-按 epic-011 的口径验收：协议层的内存测试只证明实现，不充当 AC 证据。浏览器用例跑在真实的 WebRTC DataChannel 上（两个浏览器上下文，由测试夹具交换 SDP）；桌面用例跑在两个进程之间的真实 TLS socket 上。
+按 epic-013 的口径验收：协议层的内存测试只证明实现，不充当 AC 证据。浏览器用例跑在真实的 WebRTC DataChannel 上（两个浏览器上下文，由测试夹具交换 SDP）；桌面用例跑在两个进程之间的真实 TLS socket 上。
 
 | #   | 前置条件                                          | 操作                       | 预期结果                                                                           | 状态 |
 | --- | ------------------------------------------------- | -------------------------- | ---------------------------------------------------------------------------------- | ---- |
@@ -78,8 +78,8 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 
 ## 技术笔记
 
-- **在 PR #172 内完成**：owner 决定（2026-11-03）。`@aiao/rxdb-plugin-p2p` 没有进入 main，也没有发布（npm 上不存在），调整公开 API 没有迁移负担。
-- **包划分**：owner 决定（2026-11-04）单包 `@aiao/rxdb-plugin-p2p`。会话层在 `src/session/`，不认识文件与清单；files 协议只经它的公开接口使用会话。epic-012 里带重依赖的能力（三框架绑定、DevTools、枢纽）另立包并依赖它。新导出不进核心包（核心包公开导出的命名门禁只放行 `Commit*` / `WorkingTree*` / `Worktree*` 前缀，见 `scripts/audit/api-surface.mjs`）。
+- **交付范围**：按 owner 决定在 PR #172 内完成。`@aiao/rxdb-plugin-p2p` 没有进入 main，也没有发布（npm 上不存在），调整公开 API 没有迁移负担。
+- **包划分**：owner 确定使用单包 `@aiao/rxdb-plugin-p2p`。会话层在 `src/session/`，不认识文件与清单；files 协议只经它的公开接口使用会话。epic-012 里带重依赖的能力（三框架绑定、DevTools、枢纽）另立包并依赖它。新导出不进核心包（核心包公开导出的命名门禁只放行 `Commit*` / `WorkingTree*` / `Worktree*` 前缀，见 `scripts/audit/api-surface.mjs`）。
 - **与 US-704 的分工**：持有断言发生在请求时而不是握手时，[US-704](US-704-p2p-manifest-discovery.md) AC#5 按此验收。未认证方仍在 hello 阶段只得到通用拒绝，US-706 AC#2 不变。
 - **帧格式 v2**：[`P2PFrame`](../../../packages/rxdb-plugin-p2p/src/session/frame.ts) 的帧类型为 `hello` / `request` / `response` / `error` / `cancel` / `ping` / `pong` / `bye`，只有请求与应答带负载。`decodeP2PFrame` 遇到未知帧类型返回 `null`，会话忽略它；已知类型字段不合法即判对端违反协议。
 - **多路复用放在会话内**：一条 `P2PByteTransport` 对应一条会话，WebRTC 与 TCP 走同一套逻辑。**推断**：WebRTC 开多条 DataChannel 能消除 SCTP 有序流上的队头阻塞，但只有一种传输能用；先以帧级优先级出队解决，实测不够再评估。

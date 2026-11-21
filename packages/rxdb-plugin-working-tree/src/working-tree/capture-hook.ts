@@ -28,7 +28,6 @@ import type {
   InterceptedBulkWrite,
   MergeChangesNext,
   RawWritePrimitives,
-  RxDBAdapterLocalBase,
   SwitchBranchOptions,
   SwitchVersionActions,
   SwitchVersionChange,
@@ -41,11 +40,8 @@ import type {
   WriteEntrance
 } from '@aiao/rxdb';
 import {
-  getEntityMetadata,
-  getEntitySync,
   getSystemEntityIdentities,
   getSystemEntityNames,
-  isSystemEntity,
   parseRxDBChangeKey,
   RxDBChange,
   RxDBError,
@@ -61,9 +57,10 @@ import {
   type ChangeCaptureSource,
   type WorkingTreeCaptureHost
 } from './capture-runtime.js';
+import { buildDatabaseVersionedDomain, type PhysicalTableNameSource } from './database-versioned-domain.js';
 import { gateExternalNotify } from './external-notify-gate.js';
 import { applyRawWriteJudgment } from './raw-write-judgment.js';
-import { buildVersionedDomain, type VersionedDomain, type VersionedDomainEntityInput } from './versioned-domain.js';
+import type { VersionedDomain } from './versioned-domain.js';
 import {
   classifyWriteEntrance,
   WorkingTreeWriteRejectedError,
@@ -539,7 +536,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    * @throws {@link WorkingTreeWriteRejectedError} 两个作用域上都没有声明时
    *
    * @remarks
-   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11，全是 `mergeChanges`）
+   * 先问 executor 再问适配器：事务内的调用（登记表 #2/#5/#6/#7/#8/#9/#11/#12/#13/#14，全是 `mergeChanges`）
    * 把声明放在 executor 上，适配器级调用（#1/#3/#4/#10，全是 `switchBranch`）放在适配器上。
    * 反过来先问适配器的话，一次适配器级声明会被紧随其后的事务内写取走。
    * 接管路径的物化正是两者叠在一起的那一处：#10 由挂载点 3 在调 `prepare` **之前**同步取走，
@@ -648,20 +645,9 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
  * @throws RxDBError 某个实体解析不出生效的同步配置时
  *
  * @remarks
- * 同步策略走 {@link getEntitySync} 而不是直接读 `metadata.sync`：「实体优先、否则继承库级」
- * 这条规则已经有一份实现，在这里重写一遍就等于给 `QueryCache` 的判定开了第二个入口——
- * 而版本化域里唯一按 `syncType` 分叉的判断正是「是不是 QueryCache」。两处一旦分叉，
- * 症状是某张缓存表的行开始被捕获成用户编辑，追起来要穿过整条捕获链。
- *
- * 解析不出同步配置时抛而不是当作 `Full`：`RxDBConfig.sync` 是必填的，所以这个分支在正常构造
- * 下走不到；真走到了说明配置形状已经不是这里以为的样子，此时按「不是 QueryCache」继续，
- * 只会把一张缓存表静默地纳入版本化。
- *
- * **系统表先摘出去再建域。** 传进来的 `rxdb.config.entities` 已经被 `SchemaManager.init()`
- * 补过系统表，照单全收会让 `rxdb_branch` / `rxdb_change` 这些表落进 `versionedTables`，
- * 于是 raw 写四步门禁的判定域整个错位——库自己的簿记 SQL 会被当成绕过捕获的业务写而拦下。
- * 摘干净之后还多一层作用：域认得的名字必定是业务实体，{@link WorkingTreeCaptureRuntime.targetClassOf}
- * 正是靠这一点先问域再问系统表清单。
+ * 建域整段在 `database-versioned-domain.ts`（同步策略怎么解析、系统表为什么先摘出去，理由都写在那边）：导入远端提交
+ * （US-316）判「这张表受不受版本控制」也走它，两边问的必须是同一份清单。物理表名每次向适配器现取——建立检出位、
+ * 重新连接都可能增加影子表，所以域放在 getter 里，不在构造时定格。
  */
 export const createWorkingTreeCaptureRuntime = (
   adapter: PhysicalTableNameSource,
@@ -672,53 +658,8 @@ export const createWorkingTreeCaptureRuntime = (
   new WorkingTreeCaptureRuntime({
     entityManager,
     get domain() {
-      return buildVersionedDomain(
-        entities
-          .filter(EntityType => !isSystemEntity(EntityType))
-          .map(toVersionedDomainEntityInput(adapter, databaseSync))
-      );
+      return buildDatabaseVersionedDomain(adapter, entities, databaseSync);
     },
     systemEntityNames: getSystemEntityNames(),
     systemEntityIdentities: getSystemEntityIdentities()
   });
-
-/**
- * 建域时唯一要向适配器问的那件事：这张表在它发出的 SQL 里叫什么
- *
- * @remarks
- * 收窄到一个成员而不是整个 `RxDBAdapterLocalBase`，是因为建域只读这一项——收整个适配器会让
- * 「建域还依赖适配器的什么」变成要逐行读实现才能回答的问题。
- *
- * 不收一个裸的 `(metadata) => string[]`：那样任何一处都能就地塞一份自己拼的规则进来，
- * 而这次改动的全部意义正是让规则只有一份、且归写表的那一方所有。要求**有这个方法的对象**，
- * 生产路径上就只有适配器本身能交得出。
- */
-type PhysicalTableNameSource = Pick<RxDBAdapterLocalBase, 'physicalTableNames'>;
-
-/**
- * 把一个实体类折成域的登记项
- *
- * @param adapter - 物理表名的唯一出处
- * @param databaseSync - 实例解析器或库级同步配置，见 {@link createWorkingTreeCaptureRuntime}
- * @returns 可直接喂给 `Array.prototype.map` 的折叠函数
- * @throws RxDBError 实体解析不出生效的同步配置时
- *
- * @remarks
- * 表名问适配器而不是读 `metadata.tableName`：后者是**逻辑**名，而 SQLite 家族真正建出来的是
- * `public$post`，那也是它们唯一能用的表名。在这里只登记逻辑名的话，raw 门禁在 5/6 的后端上
- * 整条失效，且没有报错形态。
- */
-const toVersionedDomainEntityInput =
-  (adapter: PhysicalTableNameSource, databaseSync: SyncOptions | EntitySyncResolver) =>
-  (EntityType: EntityType): VersionedDomainEntityInput => {
-    const metadata = getEntityMetadata(EntityType);
-    const sync = getEntitySync(EntityType, databaseSync);
-    if (!sync) throw new RxDBError(`实体 ${metadata.name} 解析不出生效的同步配置，无法判定它是否版本化。`);
-    return {
-      entityName: metadata.name,
-      namespace: metadata.namespace,
-      physicalTableNames: adapter.physicalTableNames(metadata),
-      syncType: sync.type,
-      log: metadata.log
-    };
-  };

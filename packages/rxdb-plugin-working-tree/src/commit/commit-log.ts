@@ -12,6 +12,10 @@
  * 判据——那个值的定义随编码器版本走，不承诺跨版本稳定。实体同时还是可写的类实例，
  * 摆上公开面等于把「历史不可变」降级成一句口头约定。
  *
+ * 指纹真正离开本包的只有一处：提交交换记录（`commit-exchange.ts`，US-316 导入 / 导出）。那里它是跨系统的契约——
+ * 服务端按同一套规范化规则复算、核对——稳定性由摘要域串里的版本号（`rxdb.commit.content.v1`）承诺，而不是由
+ * 「它出现在某个公开类型上」承诺。历史列表仍然不带它：列表是给人看的元数据，不是交换格式。
+ *
  * **页里带 `branchId` 与 `headCommitId`，但入参里没有 `branchId`。** 读的永远是当前
  * active 分支（FR-048，与 `status()` / `diff()` 同一条理由：别的分支的历史拿回去，
  * 既不能在它上面提交也不能丢弃）；回传分支身份是为了让调用方能把这一页与自己那次
@@ -67,7 +71,7 @@ export interface CommitLogEntry {
   /** 第一父；根节点为 `null` */
   readonly firstParentId: string | null;
 
-  /** 提交种类；`baseline` / `branch_baseline` 是系统根节点，不是用户提交 */
+  /** 提交种类；`baseline` / `branch_baseline` 是系统根节点，不是用户提交；`merge` 是导入的合并提交，`parentIds` 有两个及以上 */
   readonly kind: CommitKind;
 
   /** 提交消息 */
@@ -98,7 +102,7 @@ export interface CommitLogPage {
   /** 该分支当前的 HEAD；一次都没提交过时为 `null` */
   readonly headCommitId: string | null;
 
-  /** 提交节点，最新在前 */
+  /** 提交节点，子先于父：线性历史上最新在前；合并提交带进来的侧枝排在合并提交之后，任何祖先都不排在它的子前面 */
   readonly entries: readonly CommitLogEntry[];
 }
 

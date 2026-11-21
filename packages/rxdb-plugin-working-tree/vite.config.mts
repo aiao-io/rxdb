@@ -50,7 +50,15 @@ export default defineConfig(() => ({
       // 并进主入口等于让运行时入口背上测试框架。
       // package.json 的 `./testing` 指向 dist/working-tree/testing/index.js，
       // 漏登记这一条就是死链（scripts/audit/subpath-build-entries.mjs 守这条）。
-      entry: { index: 'src/index.ts', 'working-tree/testing/index': 'src/working-tree/testing/index.ts' },
+      //
+      // `./exchange` 单独成产物的理由反过来：要的是**轻**。交换的另一端（服务端，含 Deno）只导入它，
+      // 它的闭包是三个纯模块；主入口那一侧的实体类、插件类与捕获运行时落在别的块里，这个入口一个都不加载。
+      // package.json 的 `./exchange` 指向 dist/exchange.js，同样由上面那条审计守着。
+      entry: {
+        index: 'src/index.ts',
+        'working-tree/testing/index': 'src/working-tree/testing/index.ts',
+        exchange: 'src/exchange.ts'
+      },
       name: '@aiao/rxdb-plugin-working-tree',
       fileName: (_format: string, entryName: string) => `${entryName}.js`,
       formats: ['es' as const]

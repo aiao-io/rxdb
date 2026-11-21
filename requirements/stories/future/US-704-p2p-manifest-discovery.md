@@ -3,9 +3,9 @@ id: US-704
 title: 文件清单与 P2P 发现
 status: In Progress
 priority: High
-epic: epic-011-p2p-file-share
+epic: epic-013-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-05
+updated: 2026-11-16
 tags: [p2p, sync, discovery, manifest]
 ---
 
@@ -19,12 +19,12 @@ tags: [p2p, sync, discovery, manifest]
 
 ## 开工前置
 
-epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-share.md#价值待证)）。
+epic-013 已由 owner 解锁（见[解锁记录](../../epics/epic-013-p2p-file-share.md#价值待证)）。
 现有 HTTP 示例只检查可选 Bearer header 的格式，不提供身份校验；不能把客户端 auth hook 当成服务端认证。
 
-**认证宿主选型（owner 决定，2026-11-04）**：Supabase Auth 负责身份，Cloudflare Worker 负责信令与连接凭据。
+**认证宿主选型（owner 决定）**：Supabase Auth 负责身份，Cloudflare Worker 负责信令与连接凭据。
 参考宿主是独立 demo 项目 `apps/dev-rxdb-p2p`（见 [US-707](US-707-p2p-cross-runtime-e2e.md#交付形态)）。
-合同如下，随 PR #172 评审：
+当前合同如下：
 
 | 项                   | 合同                                                                                                                                                                                                                                                                               |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,7 +56,7 @@ epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-s
 
 ## 验收标准
 
-认证宿主选定前，下表依赖身份的条目只是待验收范围；协议层单元测试不能替代其中任何一条。
+下表依赖身份的条目必须在选定的认证宿主上验证；协议层单元测试不能替代宿主级证据。
 
 | #   | 前置条件                                                                    | 操作                          | 预期结果                                                                                     | 状态 |
 | --- | --------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- | ---- |
@@ -76,7 +76,7 @@ epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-s
 
 - **AC#1 / AC#3 / AC#6**：[transfer.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/transfer.spec.ts)「AC#1」。清单行写进本地库后经 `rxdb-plugin-sync` 与 Supabase 适配器上行，对端经 Realtime 通知拉取；两台设备经信令 Durable Object 完成 WebRTC 握手；下载方登记为持有者后两端互见。
 - **AC#9**：[server-contract.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/server-contract.spec.ts)。伪造 token 与冒用他人设备在信令 hello 阶段得到通用的 `unauthorized`；只能撤回自己设备的持有声明。认证入口与服务端交付归属见「开工前置」。
-- AC#4、#7、#8（桌面 mDNS、presence TTL、离线凭据）归 US-707 阶段 B；AC#2、#5 尚无宿主级用例。
+- 桌面 mDNS、presence TTL 与离线凭据仍缺真实宿主验证；AC#2、#5 尚无宿主级用例。
 
 ## 技术笔记
 

@@ -5,11 +5,12 @@ status: Done
 priority: High
 epic: epic-003-ui-developer-tools
 created: 2026-08-15
-updated: 2026-10-06
+updated: 2026-11-16
 tags:
   [tooling, devtools, desktop, electron, protocol, provider, security, transfer, snapshot, conformance, chrome, browser]
 decision: supported
 evidence: ./US-904-phase-a-evidence.md
+candidate_acs: [34, 38, 39, 42, 54, 55]
 ---
 
 <!--
@@ -34,20 +35,20 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                                                                                                         |
-| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                                                                                       |
-| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 已交付（24 条全部关闭）                                                                                                   |
-| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ✅ 已交付（移出承诺范围：AC#19 真实断连半边、AC#34/#38/#39/#42 人工浏览器回归、AC#40 OPFS conformance 半边——项目早期暂不做） |
-| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ✅ 已交付（AC#45～#53 全部关闭）                                                                                             |
+| 阶段 | 交付                                                    | 直接前置                                     | AC 区段   | 状态                                                           |
+| ---- | ------------------------------------------------------- | -------------------------------------------- | --------- | -------------------------------------------------------------- |
+| A    | Electron 43 + 当前 MV3 扩展 stop/go 实证                | 无                                           | AC#1～6   | ✅ 已交付（supported）                                         |
+| B    | v2 控制面（协商/session/授权/ID 预算）+ provider 数据面 | 无                                           | AC#7～30  | ✅ 当前承诺通过（真实浏览器断连为候选 AC#54）                  |
+| C    | 私有 Angular 面板 library + Chrome 四段 relay v2 迁移   | 阶段 B（仅其阶段 2）                         | AC#31～44 | ✅ 当前承诺通过；候选 AC#34/#38/#39/#42/#54/#55 不参与本轮关闭 |
+| D    | Electron desktop SQLite / native files 接入与真实 E2E   | 阶段 A(supported) + 阶段 C + US-207 / US-504 | AC#45～53 | ✅ 已交付（AC#45～#53 全部关闭）                               |
 
 - 阶段 A 与阶段 B 相互独立，可并行开工；阶段 C 的阶段 1（行为中性抽取）也可与阶段 B 并行。
 - 阶段 B 已交付：本包内的 v2 协议、provider 数据面与 conformance suite 全部落地；5 条 fake 关不掉的 AC 的
-  真实链路半边已分别由阶段 C / D 与 US-905 关闭，其中 AC#19 的真实断连半边移出承诺范围（见
+  真实链路证据由阶段 C / D 与 US-905 分别承担；真实浏览器断连登记为候选 AC#54（见
   「保留项：fake 关不掉的 5 条」）。
 - 阶段 A 的结论写在本文件 frontmatter 的 `decision` / `evidence`。`decision: unsupported` 时**只有阶段 D**
   转 `Blocked` 并记录替代故事，阶段 B / C 的共享链与 US-905 继续推进；本故事整体 `status` 相应转
-  `Blocked` 并在此处注明。全部阶段关闭后才置 `Done`。
+  `Blocked` 并在此处注明。各阶段当前承诺关闭后才置 `Done`；候选 AC 单独准入，不视作已通过。
 - **阶段 A 已交付，`decision: supported`**（见 [可行性记录](./US-904-phase-a-evidence.md)）：AC#1～#4 的
   全部关键项在 Electron 43.4.0 / Chromium 150 上真实通过，只用到一项可容忍差异（AC#3 的授权 UI）。
   阶段 D 不转 `Blocked`，但新增两个由实证带出的约束：**(a)** Electron 43 缺少整个 `chrome.permissions`
@@ -492,9 +493,9 @@ transport 不得临时发明平台私有码。
 - panel 侧 Chrome transport driver 实现证据触发协商：init 发 `PROTOCOL_HELLO`，并在每次无 session
   状态下观察到 legacy HANDSHAKE 时补发一次
 - 完整跑通 new/new v2、new panel/old connector bridge、old panel/new connector facade 和无共同版本路径
-  （其中跨版本实证与真实断连实证移出承诺范围，AC#38 / #39 / #19 后半）
+  （其中跨版本实证与真实断连实证移出承诺范围，AC#38 / #39 / #54）
 - Chrome OPFS provider 接入阶段 B 的 descriptor、base64 transfer、错误映射与 snapshot conformance，
-  删除旧 OPFS 私有状态机（「conformance 直接跑在真实 OPFS provider 上」半边移出承诺范围，AC#40）
+  删除旧 OPFS 私有状态机（真实 OPFS conformance 为候选 AC#55；AC#40 只验收 provider 单测与旧状态机清理）
 - 删除不安全数据库下载路径：按钮禁用，强制命令 `export_unsupported`，执行路径零 OPFS 读取
 - 普通 Chrome 页面在 `none` 档的零数据泄漏回归，以及 readonly/full 的既有功能回归（后者的人工回归移出承诺范围，AC#42）
 - v1 bridge 的保留窗口与移除前的文档/最低版本同步约定
@@ -641,7 +642,7 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 | 16  | none/readonly/full 分别运行控制面矩阵                                 | 伪造查询、branch mutation 与更高 capability 回显           | none 零数据；readonly 只读；full 仅允许自身操作；wire 回显不能扩大本地配置                                                             | ✅   |
 | 17  | session 达到 32 个请求或 2 个传输                                     | 再登记一个                                                 | 返回对应 limit 错误且不分配资源                                                                                                        | ✅   |
 | 18  | 连续完成 4,096 请求或 256 个传输                                      | 再登记唯一 ID，并尝试复用旧 ID                             | 新登记返回 `session_budget_exhausted`，复用返回 duplicate；tombstone 数量不超过固定上限，轮换后旧 session 消息全部拒绝                 | ✅   |
-| 19  | 请求进行中或已超时                                                    | 断连、重握手并投递迟到响应                                 | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活                                                                              | ✅ ² |
+| 19  | fake relay 中请求进行中或已超时                                       | 模拟断连、重握手并投递迟到响应                             | 计时器和资源释放；迟到数据不进入新状态，旧 session 不复活；真实浏览器断连另由候选 AC#54 验收                                           | ✅   |
 | 20  | fake transfer 帧序列（不含真实 provider）                             | 分别制造 idle 静默、被拒帧刷新尝试和超长总时长             | 合法帧刷新 idle，被拒帧不刷新；idle 15 秒或总时长 10 分钟到期返回 `transfer_timeout`，临时资源释放且不复活                             | ✅   |
 
 ### 阶段 B — provider 数据面（AC#21～30）
@@ -661,12 +662,12 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 #### 保留项：fake 关不掉的 5 条
 
-阶段 B 的 24 条 AC 全部关闭，全部有对应断言且在 `pnpm nx test rxdb-devtools` 中绿。其中 5 条的
-真实链路半边在本包结构上不可测，由后续阶段与 US-905 关闭：
+阶段 B 当前 AC 均有 `pnpm nx test rxdb-devtools` 的本包断言；下表区分 fake 证据与真实宿主证据。
+AC#19 只承诺 fake relay；真实浏览器断连保留为候选 AC#54，其余宿主责任见表：
 
 | AC  | fake 验收到的程度                                                                                                                                                          | 谁最终关闭                                                                                             |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义，service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 真实断连半边移出承诺范围，其余半边已由本包单测关闭                                                     |
+| 19  | 计时器与资源释放、迟到响应不进新状态、旧 session 帧被拒，均已断言；但「断连」由 fake relay 自己定义，service worker 重启、Port 重连与页面刷新的真实语义不在本包            | 本包单测验收 AC#19；真实浏览器断连为候选 AC#54                                                         |
 | 25  | 状态机全部终态、错误码稳定性、`peakRetainedBytes ≤ 256 KiB` 已断言；「不得整文件驻留内存」只有这一个代理指标，Rust / 主进程那一半在本包结构上不可观测                      | Electron 半边已由阶段 D AC#47 关闭（真实 host 的上传/下载/边界大小全链路）；Tauri 半边已由 US-905 关闭 |
 | 27  | tuple 稳定排序、字节计量、不漏尾页、只在 complete 后报告已由 `provider/snapshot` 单测断言；fake 锁只能证明**调用顺序**，证明不了真实独占锁排斥并发写者                     | Electron 半边已由阶段 D AC#48 关闭；Tauri 半边已由 US-905 关闭                                         |
 | 29  | 三来源代表性 fixture 全部映射到同一联合且响应脱敏；穷尽性只做到「`DEVTOOLS_PROVIDER_ERROR_CODES` 每个成员都至少被一条 fixture 产出」的 meta-test，真实平台异常空间无法枚举 | Electron 侧已随阶段 D 加行，Tauri 侧已随 US-905 加行（**加行**而非加分支）                             |
@@ -674,27 +675,27 @@ shared panel → chrome.runtime.Port → MV3 background service worker → conte
 
 ### 阶段 C1 — 行为中性抽取（AC#31～35）
 
-| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态     |
-| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅       |
-| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅       |
-| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅       |
-| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ⚠️ 移出¹ |
-| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅       |
+| #   | 前置条件                           | 操作                                                              | 预期结果                                                                                                                           | 状态    |
+| --- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 31  | generator 创建私有 panel library   | 检查 project、manifest、graph 与 release dry-run                  | `nx graph` 存在 app → panel 的 static 边；project 落在 `packages/*` 之外，不在 public tag、API baseline、版本改写或 publish 列表中 | ✅      |
+| 32  | Chrome surface 构建                | 扫描共享 library import graph                                     | UI/状态服务只依赖 transport token；不引用 chrome runtime、PortService 或任何桌面 global                                            | ✅      |
+| 33  | 抽取完成                           | 只用内存 fake transport 在单测中启动面板并渲染各页                | 面板可在无任何 `chrome.*` 的环境下装配；token 是唯一接缝                                                                           | ✅      |
+| 34  | 抽取前的浏览器回归基线已记录       | 抽取后重跑 Database、Events、branch、Storage、OPFS、Settings 清理 | 用户可见行为、wire 消息与错误展示与基线一致；**C1 不引入任何协议或行为差异**                                                       | ⚠️ 候选 |
+| 35  | 公开包统计与 API baseline 已有基线 | 运行 API surface 审计与包数量统计                                 | 公开包数量与 baseline 条目不变；`modules/rxdb-devtools-panel/` 不产生任何公开子路径入口                                            | ✅      |
 
 ### 阶段 C2 — Chrome v2 迁移（AC#36～44）
 
-| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                   | 状态     |
-| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------- |
-| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                      | ✅       |
-| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级  | ✅       |
-| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                        | ⚠️ 移出¹ |
-| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态 | ⚠️ 移出¹ |
-| 40  | Chrome OPFS provider                                               | 运行阶段 B 全部 data-plane conformance             | descriptor、base64、限额、transfer、snapshot 和穷举错误全部通过，不保留旧 OPFS 私有状态机                  | ✅ ²     |
-| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                  | ✅       |
-| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                               | ⚠️ 移出¹ |
-| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0   | ✅       |
-| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本   | ✅ ³     |
+| #   | 前置条件                                                           | 操作                                               | 预期结果                                                                                                                                                | 状态    |
+| --- | ------------------------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 36  | new panel + v2 connector，真实 background/content/Port             | 同时交换 eager legacy 与 v2 HANDSHAKE              | background 不代 ACK；确定选择 v2，只建立一个 session，从未短暂进入 v1                                                                                   | ✅      |
+| 37  | panel 先于 inspected page connector 就绪，且注入需先获得 host 授权 | 授权后刷新页面，观察握手                           | panel 在观察到 legacy HANDSHAKE 时补发 HELLO，窗口自暂存起算；双方均支持 v2 时仍选 v2，不因授权耗时而降级                                               | ✅      |
+| 38  | new panel/old connector 与 old panel/new connector                 | 分别通过真实扩展 relay 调试既有页面                | 前者窗口到期后 bridge，后者无等待 facade；既有页面可用且都不获得 v2/provider 新能力                                                                     | ⚠️ 候选 |
+| 39  | 双方版本无交集、service worker 重启、页面刷新和 Port 重连          | 观察 UI 与 session                                 | 可见 `protocol_unsupported` 或确定重连；旧订阅、请求、transfer、snapshot、计时器清理，迟到消息不进入新状态                                              | ⚠️ 候选 |
+| 40  | Chrome OPFS provider                                               | 运行 provider 单测并扫描 content 目录              | descriptor、base64、限额、transfer、snapshot 与穷举错误通过；content 仅保留 bridge，不保留旧 OPFS 私有状态机；真实 OPFS conformance 另由候选 AC#55 验收 | ✅      |
+| 41  | capability 为 none，握手前后产生事件并伪造查询                     | 经过真实四段 relay 观察页面消息和 provider 调用    | 仅生命周期消息；EVENT/DB_INFO/BRANCHES/Storage/files、订阅、buffer、provider 调用全部为 0                                                               | ✅      |
+| 42  | readonly/full 普通 Chrome 页面使用现有 Web adapters                | 查询、事件、branch、OPFS、Storage 与 Settings 清理 | 除数据库下载和超过协商上限的传输明确拒绝外，用户可见行为不变                                                                                            | ⚠️ 候选 |
+| 43  | Settings 展示数据库下载                                            | 点击按钮并强制发送 export 命令                     | 按钮禁用；返回 `export_unsupported`；`navigator.storage.getDirectory()`、SQLite/WAL 和文件读取次数均为 0                                                | ✅      |
+| 44  | Chrome 与 fake native thin driver                                  | 运行同一 panel/provider conformance                | 状态、错误、授权和资源清理一致；事件集合只来自 `RXDB_EVENT_TYPES`，fixture、状态机和错误断言没有平台副本                                                | ✅ ³    |
 
 #### 本轮落地：中继两段换成真实实现
 
@@ -719,15 +720,16 @@ C2 的第一、二个增量已合入，两者都不触碰组件搬迁（C1 的�
 | 41  | **页面消息来自真实页面**（扩展 e2e）：`?capabilities=none&emitOnInit=1` 的页面在 init 同一 tick 发事件（确定性的「握手之前」），握手后再发一次，四条车道上 EVENT / DB_INFO / BRANCHES 均为 0                                                                   | ✅ 已关闭             |
 | 44  | Chrome driver 与内存 driver 跑同一套件、同一 fixture、同一错误断言，结构上无处写平台副本。Electron 薄 driver 已随阶段 D AC#53 跑完 80 条，Tauri 薄 driver 已随 US-905 阶段 2 跑完                                                                              | 阶段 D AC#53 / US-905 |
 
-#### 移出承诺范围
+#### 候选验收的准入
 
-项目早期暂不做（见交付阶段表 C 行）：
+按项目早期暂不开展额外人工 / 真实 OPFS 验证的范围决定，以下候选由 `candidate_acs` 登记，保留待验状态且不阻塞当前 Done。
+准入条件是明确回归负责人、可复现的旧 / 新版本产物或真实 OPFS 测试宿主，并重新评审交付范围；解锁后移除候选登记。
 
 - **AC#34 / #38 / #39 / #42**：人工浏览器回归（#34/#42）与跨版本实证（#38，需同时装一份旧 connector
   与一份旧面板产物）、真实断连实证（#39，需 service worker 重启与 Port 重连）——不是再写一条断言能得到的。
-- **AC#19 的真实断连半边**：fake relay 已断言计时器与资源释放、迟到响应不进新状态；service worker 重启、
+- **候选 AC#54（真实浏览器断连）**：fake relay 已断言计时器与资源释放、迟到响应不进新状态；service worker 重启、
   Port 重连与页面刷新的真实语义半边移出承诺范围。
-- **AC#40 的 OPFS conformance 半边**：私有 OPFS 状态机已随 `apps/rxdb-devtools-extension/src/content/opfs*.ts`
+- **候选 AC#55（真实 OPFS conformance）**：私有 OPFS 状态机已随 `apps/rxdb-devtools-extension/src/content/opfs*.ts`
   整体删除（`content/` 下现在只剩 bridge），OPFS provider 的 descriptor、限额、transfer 绑定、穷举错误都有单测，
   该半边已由这些单测关闭；「让阶段 B 的 data-plane conformance 直接跑在真实 OPFS provider 上」半边移出承诺范围
   ——suite 现在跑的是 JSON fake driver，而 vitest 里没有真实 OPFS host。
@@ -834,10 +836,15 @@ descriptor）即不再出现；让端点对「本就没有该领域」的订阅�
 | 52  | 真实临时 userData、SQLite 与原生文件后端                         | 跑 E2E，重启应用后重新连接                             | 重启前后同一实体和文件一致；证据经过真实 extension/renderer/preload/main/host，不用 mock 替代                                                    | ✅   |
 | 53  | Electron 薄 driver 接入阶段 B conformance 与阶段 C panel library | 运行全部共享断言                                       | 控制面、descriptor、base64、safe integer、授权、传输、快照、错误和 session 重建通过；不复制 UI、wire、fixture 或错误码                           | ✅   |
 
+### 候选验收（不参与当前关闭）
+
+| #   | 前置条件                                           | 操作                                                             | 预期结果                                                                                         | 状态    |
+| --- | -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------- |
+| 54  | 真实扩展、service worker、Port 与页面会话          | 请求在途时重启 service worker、重连 Port、刷新页面并投递迟到响应 | 旧请求、订阅、transfer、snapshot 与计时器清理；新会话拒绝旧数据与身份，不复活旧 session          | ⚠️ 候选 |
+| 55  | 真实 Chrome OPFS provider 与可复现的浏览器测试宿主 | 将阶段 B 全部 data-plane conformance 直接接到真实 provider       | descriptor、base64、限额、transfer、snapshot 与穷举错误全部通过；JSON fake driver 不能替代该证据 | ⚠️ 候选 |
+
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-- ¹ 移出承诺范围（项目早期暂不做，见交付阶段表 C 行）。
-- ² 除「移出承诺范围」清单注明的半边外已关闭。
 - ³ Tauri 半边由 [US-905](./US-905-tauri-native-devtools.md) 关闭。
 
 ### 阶段 D 关闭说明

@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-10-15
+updated: 2026-11-18
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
@@ -119,85 +119,71 @@ INVEST 检查清单:
 B / C 只依赖 A1 的知识契约，不因 A2 的破坏性发布而停工；但生成物必须标明对应的发布版本，
 不得把未发布的包或新写法（如 A2 之后才成立的安装清单）当作现版本用法投递。
 
-## A1 验收记录
+## A1：知识事实源与验收入口
 
-A1 的实现已落在入口 TSDoc、`requirements/package-graph.json`、包组合审计、确定性知识生成、离线 PGlite 样例和 CI/Nx 接线。验证证据如下：
+入口 TSDoc、`requirements/package-graph.json`、包组合审计、确定性知识生成与离线 PGlite 样例
+共同承载 A1。`pnpm nx run @aiao/source:test-scripts` 验证 fixture 正反例，
+`pnpm nx run @aiao/source:audit-package-graph` 检查真实工作区与提交生成物，
+`pnpm nx run @aiao/source:ai-example` 使用真实核心 tgz 验证声明、严格编译、CRUD、事务执行器与断开。
+核心与适配器覆盖率分别执行 90% / 80% 门槛。
 
-- `pnpm nx run @aiao/source:test-scripts`：414 项脚本测试通过；新增正反例只使用 `scripts/audit/__fixtures__/`。
-- `pnpm audit:package-graph`：真实工作区登记 51 个非 private 包、事实源登记的发布标签 `v0.0.26` 对应 34 个投递包、9 个情景通过；生成物 `--check` 通过。
-- `pnpm verify:ai-example`：实际核心 `.tgz` 分文件声明、严格 TypeScript 编译、PGlite memory CRUD、事务执行器和 disconnect 全部通过。
-- `pnpm nx run rxdb-adapter-pglite:test --coverage ...`：四项覆盖率均达标，statements 95.91%、branches 89.71%、functions 96.26%、lines 97.22%。核心 `rxdb` 四项为 95.68%、93.37%、95.58%、96.26%。
-- `website:typecheck` 的 Vite 8/Rolldown 类型兼容问题已以类型别名兼容修复，未改变运行时逻辑；串行 affected 全量已通过，AC#13 与 A1 阶段验收完成。
+- 投递范围只读事实源 `release` 登记的发布标签；打 tag 不改变门禁结论，切换登记必须提交评审。
+  已发布但删目录的条目标 `retired: true` 继续投递，登记切走后删除；操作顺序见
+  [发布计划](../../release-plan.md#包组合知识随发布更新us-602)。
+- 站点生成器只读提交的 `package-knowledge.json`，构建期不碰 git；`audit-package-graph` 与 `test-scripts` 不缓存，
+  `ai-example` 在 CI extras job 运行，根 `lint` 覆盖 scripts。
+- 宿主事实按真实运行面登记。按宿主校验必需依赖闭包仍需先表达子路径入口差异，不能把包级宿主当成每个入口都支持。
+- `ai-example` 检查覆写 `transaction` 的适配器类不自带遮蔽基类的 TSDoc，并要求两个重载的 TSDoc 一致。
+- 情景插件闭包与样例取自工作区，可能新于登记发布；生成物与 `llms.txt` 必须注明这个边界。
 
-A1 / A2 / B / C 全部关闭，故事 `Done`：A2 与 C 已关闭（见下），B 经 2026-10-15 的部署后线上 smoke 关闭 AC#10。
+## A2：依赖契约与仓外消费
 
-**评审修复（2026-10-12）**：合入前评审指出的发布流程与缓存缺陷已修复，口径变化如下。
+依赖边的判定与破坏性变更证据见 [PR #113](https://github.com/aiao-io/rxdb/pull/113)，
+迁移口径见[迁移指南](../../../website/docs/migration/v1.md)。
 
-- 投递范围改读事实源 `release` 登记的发布标签，不再 `git describe` 探测：打 tag 不改变任何门禁结论，切换登记是一次可评审的提交；
-  已发布的包删目录时条目标 `retired: true` 继续投递，登记切走后门禁要求删条目。发布时的操作顺序写进
-  [release-plan「包组合知识随发布更新」](../../release-plan.md#包组合知识随发布更新us-602)。
-- 站点生成器只读提交的 `package-knowledge.json`，构建期不碰 git（Netlify、Windows CI、浅克隆都没有标签）；`aiKnowledge` 命名输入随之删除，
-  `audit-package-graph` 与 `test-scripts` 改为不缓存，`ai-example` 移到 CI 的 extras job，根项目补 `lint` target 让 `scripts/` 进 CI lint。
-- 事实源宿主按真实运行面修正：`utils` 覆盖全部五个宿主，`rxdb-adapter-encrypted` 补 electron / tauri（小程序可加载、没有 `crypto.subtle`，记在 `notes`），
-  `rxdb-test` 补 browser，`rxdb-taro` 补 miniprogram。「宿主覆盖必需依赖闭包」的规则没有加：graph / tree 的生成器子路径、
-  miniprogram 复用 wa-sqlite 的 `/client`、taro 的 vite 与 runtime 两个入口都会误报，要先给事实源加按入口登记宿主的表达。
-- AC#12 的覆写子句改为可执行检查：`ai-example` 扫各适配器包源码，覆写 `transaction` 的类不得自带 TSDoc
-  （自带就会遮住基类正反例；`RxDBAdapterPGlite` 原有的一段已改成行注释），并要求两个重载的 TSDoc 一致。
-- 情景的插件闭包与样例取自工作区源码，可能新于登记的发布，生成物与 `llms.txt` 正文如实注明；与发布树完全同源的投递快照留给后续阶段。
+- AC#4：[`validatePeerConventions`](../../../scripts/audit/lib/package-graph-validation.mjs) 拒绝核心进入
+  `dependencies` / `optionalDependencies`、兄弟边偏离 `workspace:^`，以及相对登记发布树删掉 optional 语义。
+  正反例由 `package-graph.spec.mjs` 固定。
+- AC#7：对 `nx.json` 的 `release.projects` 全集执行 `--skip-nx-cache` 冷 build，包含 Angular / React / Vue 绑定。
+- AC#8：`pnpm nx run @aiao/source:release-consumers` 从解析后的发布根真实 pack，在工作区外用 npm / pnpm 安装，
+  验证无 `workspace:` 残留、版本边、入口与声明、三端最小构建、兼容核心单实例和不兼容 peer 拒绝，
+  并编译执行 A1 的 CRUD 样例。
+- [`link-release-peers.mjs`](../../../scripts/audit/link-release-peers.mjs) 为 dist 发布根提供兄弟 manifest 链接，
+  作为 Angular 系包 `nx-release-publish` 的前置任务，保证 pnpm 能改写 workspace 协议。
 
-## A2 验收记录
+绑定消费者使用 Bundler 解析；Vue 无扩展名的 hooks 导出在 NodeNext 下的限制仍需独立处理，
+不能把 Bundler 验收当作 NodeNext 兼容证据。
 
-A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入（提交 `803f633c`，`feat(aiao)!:`），不改运行时代码；
-迁移说明是[迁移指南](../../../website/docs/migration/v1.md)「`0.0.26` 之后（未发布）」第 9 项。
-逐条边放 `dependencies` 还是 peer 的判定表在 #113 描述里，下列验证证据取自 #113 的验证记录：
+## B：固定地址文档投递
 
-- **AC#4**：[`validatePeerConventions`](../../../scripts/audit/lib/package-graph-validation.mjs) 拒绝核心进 `dependencies` / `optionalDependencies`、
-  `@aiao/*` peer 或留在 `dependencies` 的兄弟边不是 `workspace:^`，并以登记的发布标签树为基线拒绝删掉 optional 语义；
-  正反例在 `package-graph.spec.mjs`，真实仓库由 `pnpm audit:package-graph` 守。
-- **AC#7**：`nx.json` 的 `release.projects` 全集（51 个项目，含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`）`--skip-nx-cache` 冷跑 build 通过。
-- **AC#8**：`pnpm verify:release-consumers`（[`release-consumers.mjs`](../../../scripts/audit/release-consumers.mjs)，CI extras job 同样执行）
-  从解析后的发布根真实 `pnpm pack` 18 个 tgz，在工作区外按 5 组组合分别用 npm、pnpm 安装：产物无 `workspace:` 残留、
-  `@aiao/*` 安装边全为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定 tsc 与 esbuild 最小构建通过；兼容组合下核心单实例；
-  核心版本不兼容时 npm 报 `ERESOLVE`、pnpm 报 `ERR_PNPM_PEER_DEP_ISSUES`；A1 样例源在消费端编译并跑通 CRUD 断言。
-- **发布链**：pnpm 改写 `workspace:^` 时从包目录下的 `node_modules` 读兄弟 manifest，从 `dist/` 发布根 pack 会抛
-  `ERR_PNPM_CANNOT_RESOLVE_WORKSPACE_PROTOCOL`；[`link-release-peers.mjs`](../../../scripts/audit/link-release-peers.mjs) 补兄弟包链接，
-  挂在 7 个 Angular 系包 `nx-release-publish` 的前置 target 上。
+Docusaurus 的 `postBuild` 通过 `website/scripts/generate-llms.mjs` 生成 `llms.txt` 与 `llms-full.txt`，
+只读提交知识快照，站点链接取解析后的 `url` + `baseUrl`。生成器回归见
+`website/scripts/generate-llms.test.mjs`；AC#10 的线上验收检查两个固定地址返回 HTTP 200、零重定向、
+`text/plain; charset=utf-8`，正文为完整 Markdown、版本标识和站内链接正确。
 
-AC#8 的绑定消费者按 UI 应用常规用 Bundler 解析。`@aiao/rxdb-vue` 入口的 `export * from './hooks'` 不带扩展名，
-NodeNext 解析下报 `TS2305`——现存缺陷，#113 用已发布的 `0.0.26` 复现，不由 A2 引入。
+2026-10-15 的 Netlify 线上验收关闭了 AC#10：主域 `rxdb.aiao.io` 与旧域 `rxdb.netlify.app` 当时直出同一部署，
+符合 [PR #109](https://github.com/aiao-io/rxdb/pull/109) 的约定。索引标明 `v0.0.26`，40 处站内链接均指向主域；全文无截断。
 
-## B 实施记录
+2026-11-17 起，仓库发布配置迁到 Cloudflare Pages。两个固定地址不变；
+[`website/public/_headers`](../../../website/public/_headers) 为索引和全文指定纯文本类型，缓存时间分别为 5 分钟和 1 小时。
+DNS 切换与部署后检查见[站点发布说明](../../../website/README.md#cloudflare-pages-发布)；上述 Netlify 记录不作为迁移后的线上验证。
 
-B 已接入 Docusaurus `postBuild` 生成器。当前本地构建产物包含 `llms.txt`（17,836 B）和 `llms-full.txt`（8,178,175 B），完整文档包含 3,366 个 Markdown / MDX 文件。
-评审修复后生成器只读提交的 `package-knowledge.json`，站点地址取 Docusaurus 解析后的 `url` + `baseUrl`；同一份文档下 `llms.txt` 为 18,334 B、`llms-full.txt` 为 8,178,673 B（新增宿主备注与退役标记）。
+## C：内嵌 Skill 与导出合同
 
-**线上 smoke（2026-10-15，AC#10 关闭）**：`https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt` 均 HTTP 200、
-零重定向、`Content-Type: text/plain; charset=utf-8`（`netlify.toml` 的两个文件级 header 生效）、正文为 Markdown 而非 HTML fallback。
-`llms.txt` 部署产物 18,334 B：含发布版本标识 `v0.0.26`、包选型表与最小离线样例（4 个代码块），40 处站内链接全为 `rxdb.aiao.io`、无 `netlify.app` 泄漏。
-`llms-full.txt` 部署产物 8,313,081 B：UTF-8 纯文本，3,491 个一级标题，正文以「参考」节收尾（迁移指南 / 兼容矩阵链接），无截断。
+导出合同锁定 `skills-npm@4.0.0`：默认只扫直接 `dependencies` / `devDependencies`，不扫 peer；
+`--source node_modules` 才扫 hoisted 包。导出为指向 node_modules 的相对符号链接，lock 字段为 `skillPath`；
+SKILL.md 使用纯 YAML 围栏和必需的 `name` / `description`，manifest 的 `files` 必须含 `skills`，不加 `agents` 字段。
 
-> 2026-11-17 部署迁移：以下 Netlify 测量为历史验收记录；当前发布配置已迁到 Cloudflare Pages，DNS 切换步骤见 [website/README.md](../../../website/README.md)。
+- 生成链由 `generate-skill.mjs`、`templates/skill-aiao-rxdb.md` 与 `lib/package-skill.mjs` 承担，
+  `renderSkill` 校验 frontmatter、展开时序令牌并执行 8192 字节硬门禁，超限报错。
+- 语义事实与 A1 同源，发布包名 / 版本读提交的 `package-knowledge.json`，只投递 `delivery` 范围，构建期不碰 git。
+  `package-graph.mjs --update/--check` 管理生成物；核心 `generate-skill` 前置目标不可缓存，build 声明完整生成输入。
+- AC#11 用工作区外真实 tgz 验证发现、导出、链接内容与相对引用；仅 peer 自动安装核心或 tgz 不含 `skills` 时须明确报告未发现。
+- AC#17 用暖缓存后的语义事实变更验证直接 build + pack 得到同版 Skill，不依赖手工生成。
+  正反例入口为 `package-skill.spec.mjs` 与 `package-graph.spec.mjs`。
 
-部署形态：`rxdb.aiao.io` 为主域直出（2026-10-12 owner 定，PR #109）；旧域 `rxdb.netlify.app` 同部署直出、不重定向（两域名同 etag
-`8bc521bea6daf58a2ba5d84d87e7497a-ssl`）。运营问题与修复：`rxdb.aiao.io` 经 Cloudflare 代理且原响应头为
-`Cache-Control: public, max-age=0, must-revalidate`，两层 CDN 均不缓存，`llms-full.txt` 全量下载实测仅 ~16 KB/s（直连 `rxdb.netlify.app` 同文件 1.2 MB/s）；
-本 PR 在 `netlify.toml` 给两个文件加正缓存龄（`llms.txt` 5 分钟、`llms-full.txt` 1 小时，过期走 304 条件校验），部署后生效。
-代价是部署后存在 ≤ 5 分钟 / ≤ 1 小时的有界陈旧窗口，属已知取舍：选型索引的陈旧窗口收紧到分钟级，版本化 URL 会破坏 AC#10 的固定地址，不取。
-
-A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提 PR。
-故事 `Done` 要求 A1 / A2 / B 关闭，且 C 已交付或已按上表标为延期——不允许一边宣称整体完成、一边忽略 AC#11。
-
-## C 实施记录
-
-**探针（2026-10-12）**：按 References 钉住的提交核实两条候选后，锁定 **antfu/skills-npm 路线，`skills-npm@4.0.0`**——钉住提交 35ec05a 的源码与已发布的 4.0.0 一致（lock 字段为 `skillPath`；3.0.0 仍是旧 `skillFolder`），npm 上 14 个版本、latest 即 4.0.0；onmax/npm-agentskills 在 npm 上 404，无法锁定包名与版本，弃用。锁定的行为：命令 `npx skills-npm`（默认 sync，旗标与 `skills experimental_sync` 同构，`--agents claude-code` 选择目标助手）；默认只扫直接依赖（`dependencies` + `devDependencies`，不读 peerDependencies；`--source node_modules` 才扫全部 hoisted）；输出为指向 node_modules 的相对符号链接（非复制）；frontmatter schema 为纯 `---` 围栏 YAML 的 `name` + `description` 两个必需字段；manifest 无 `agents` 字段，`files` 必须含 `"skills"`。
-
-探针技术验证（工作区外临时消费者，真实核心 tgz 为直接依赖，执行 `npx skills-npm --yes --no-remote --agents claude-code --force`）：发现并导出成功——`.claude/skills/aiao-rxdb → ../../node_modules/@aiao/rxdb/skills/aiao-rxdb`，内容与安装包逐字节一致，经链接的相对引用可解析，lock 记录 `skillPath`。反向用例与文档口径一致并明确报告：核心仅被 peer 自动安装时不发现（`Scanned 1 package, no skills found`）、`files` 去掉 `"skills"` 时 tgz 不含 SKILL.md 且不发现（`Scanned 2 packages, no skills found`）。
-
-**实现**：生成器 `scripts/audit/generate-skill.mjs` + 模板 `scripts/audit/templates/skill-aiao-rxdb.md` + 渲染库 `scripts/audit/lib/package-skill.mjs`（`renderSkill`：8192 字节硬门禁、frontmatter 校验、时序令牌展开，超限报错不截断）。SKILL.md 与 A1 生成物同源（事实源 + manifest + 插件源码 + 样例），只取 `delivery` 投递范围；语义事实直接读事实源，投递快照（已发布包名与版本）读提交的 `requirements/generated/package-knowledge.json`——由门禁保证与登记发布标签树一致，因此**构建期不碰 git**（CI 的构建 lane 是浅克隆、没有 tag，与 B 的站点生成器同口径）。`package-graph.mjs` 的 `--update`/`--check` 把 SKILL.md 纳入提交生成物与防漂移门禁；`packages/rxdb/project.json` 新增 `generate-skill` 目标（无 outputs、不可缓存，每次 build 前重生成），build 的 inputs/dependsOn 声明事实源、投递快照、模板、样例与生成器（AC#17 生命周期）；主包 `package.json` 的 `files` 加 `"skills"`、`keywords` 加 `agent-skills`（锁定 schema 无 `agents` 字段，不预设）。
-
-**验证**：`pnpm test-scripts` 435 项全绿（新增 11 项 fixture 测试）；真实生成 7284 字节 ≤ 8192；AC#17 变异验证——暖缓存后改语义事实、不手动生成、直接 `nx build` + `pnpm pack`，tgz 内 SKILL.md 与事实源同版、不带旧 Skill；AC#11 全链路用真实 tgz（`pnpm pack` 已把 `workspace:*` 改写成精确版本）重跑消费者验证；`audit:package-graph` 门禁与 scripts/rxdb lint 通过。
-
-**留给 owner 的手工验收**（不并入 AC#11）：安装核心包后执行 `npx skills-npm setup`（或 `npx skills-npm --agents claude-code`），打开本机 Claude Code（或其它目标助手）确认 `aiao-rxdb` Skill 出现在 Skill 列表且正文可读。撤销判据（自 C 首个发布版本起满 6 个月由 epic-007 owner 复核）见技术笔记。
+目标助手实际加载 Skill 另由 owner 手工验收并记录在 plan，不并入 AC#11。
+撤销判据从 C 的首个发布版本起满 6 个月由 epic-007 owner 复核，见技术笔记。
 
 ## 范围边界
 
@@ -272,7 +258,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 | 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                            | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ✅   |
 | 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ✅   |
 | 9   | B：本地 build                         | `pnpm nx build website`                                                                                                                                                                                                                                                                                                                               | 输出含 `llms.txt` 与 `llms-full.txt`；`llms.txt` 每节有链接与一句话描述，投递范围内的包都在选型索引里、范围外的包没有安装命令（另有 fixture：不在 tag 树里的包、npm 上停在旧版本的包不生成安装命令），版本标识等于登记的 `v*` tag，链接以 `docusaurus.config.ts` 的 `url` 为前缀；两文件不超过 B plan 定的 UTF-8 字节上限，超限时构建失败而非静默截断；中文与代码块完整 | ✅   |
-| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（`rxdb.aiao.io` 为主域直出、零重定向；旧域 `rxdb.netlify.app` 同部署直出，2026-10-12 owner 定，PR #109）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                             | ✅   |
+| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 主域直出 HTTP 200、零重定向，`Content-Type: text/plain; charset=utf-8`，正文不是 HTML fallback，含版本标识、选型表与样例片段。旧域的历史验收见 B 节；线上请求只作部署 smoke，不进 fixtures 单测                                                                                                                                                                         | ✅   |
 | 11  | C：exporter 已锁定                    | 临时项目安装真实核心 tgz（**核心为直接依赖**），执行锁定的 exporter 固定命令                                                                                                                                                                                                                                                                          | 生成的 Skill 路径、内容、相对引用与事实源一致；`SKILL.md` ≤ 8192 字节；tgz 含 `skills/aiao-rxdb/SKILL.md`，`files` 去掉 `"skills"` 时不含（反向用例）；核心仅被 peer 自动安装、或 Skill 路径无效时，结果与所选 exporter 文档一致并明确报告，不靠手工拷贝                                                                                                                | ✅   |
 | 12  | A1：TSDoc 已补                        | 读**实际打包**的 `.d.ts`，按符号与重载归属检查                                                                                                                                                                                                                                                                                                        | `RxDB.use` 区分三类插件且保留「普通插件晚装立即安装」；`RxDBAdapterLocalBase.transaction` 两个重载都带 ✅ / ❌ `@example`，各具体适配器的 `transaction` 覆写不带与基类矛盾的 TSDoc；正例可编译，反例由受控队列 spy 或带清理的超时用例证明会重新排队，不挂死测试套件                                                                                                     | ✅   |
 | 13  | 全部阶段合并                          | `pnpm test-all` + CI 审计步骤                                                                                                                                                                                                                                                                                                                         | 绿；新增 `*.spec.mjs` 全部基于 `__fixtures__/` 假包，不断言真实 `packages/` 内容；真实仓库校验只走 `audit:package-graph`                                                                                                                                                                                                                                                | ✅   |

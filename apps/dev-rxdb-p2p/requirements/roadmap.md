@@ -4,7 +4,7 @@
 
 ## 产品主路径
 
-**给团队的局域网文件池：账号下所有设备与成员的文件资产一屏可见，按需点对点拉取，字节不走服务器，无人在线时回退云端。** 产品本质是「云盘式资产视图 × P2P 零存储传输」。技术底座是根 requirements 的 epic-011 六条故事（rxdb:US-704～US-708、US-713）与 epic-012 立项池（US-709～US-712），本目录只维护产品化增量。
+**给团队的局域网文件池：账号下所有设备与成员的文件资产一屏可见，按需点对点拉取，字节不走服务器，无人在线时回退云端。** 产品本质是「云盘式资产视图 × P2P 零存储传输」。技术底座是根 requirements 的 epic-013 六条故事（rxdb:US-704～US-708、US-713）与 epic-012 立项池（US-709～US-712），本目录只维护产品化增量。
 
 ## 里程碑
 
@@ -37,4 +37,4 @@ M1 是浏览器侧能完成的 MVP 补齐项，五件事各有归属：
 
 ## 历史归档
 
-立项与市场调研的过程性文档见 [plans/](plans/README.md)：[立项方案](plans/p2p-product-proposal.md)（含 D-01～D-08 决策记录与里程碑表）、[市场调研与对比分析](plans/p2p-market-analysis.md)。技术底座的故事、AC 与状态在根 requirements（rxdb:US-704～US-713、epic-011/012），不在这里复制。
+立项与市场调研的过程性文档见 [plans/](plans/README.md)：[立项方案](plans/p2p-product-proposal.md)（含 D-01～D-08 决策记录与里程碑表）、[市场调研与对比分析](plans/p2p-market-analysis.md)。技术底座的故事、AC 与状态在根 requirements（rxdb:US-704～US-713、epic-013/012），不在这里复制。

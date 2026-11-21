@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [collaboration, versioning]
 ---
 
@@ -23,7 +23,7 @@ tags: [collaboration, versioning]
 
 - 分支生命周期：`createBranch()` / `switchBranch()` / `removeBranch()` 与 `RxDBBranch` 树形结构管理
 - 分支切换时按外键依赖的拓扑排序处理实体
-- 分支合并：可插拔 `ConflictResolver`，默认 Last-Write-Wins
+- 分支合并：按源分支分叉以来的有效变更单向应用到目标分支；覆盖预览契约见 [US-312](US-312-branch-compare-merge-preview.md)，不按时间戳裁决分支内容
 - 变更压缩：`compactChanges()` — INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
 - push / pull 增量同步：`pullChanges(sinceId)` 拉取并合并远程变更
 
@@ -37,16 +37,16 @@ tags: [collaboration, versioning]
 
 ## 验收标准
 
-| #   | 前置条件                          | 操作                            | 预期结果                                 | 状态 |
-| --- | --------------------------------- | ------------------------------- | ---------------------------------------- | ---- |
-| 1   | 调用 `createBranch('experiment')` | 成功                            | 基于当前状态创建新分支                   | ✅   |
-| 2   | 在分支 A                          | 切换到分支 B                    | 数据库状态反映分支 B 的数据，UI 自动更新 | ✅   |
-| 3   | 分支切换涉及外键依赖              | 执行切换操作                    | 按拓扑排序处理实体                       | ✅   |
-| 4   | 两个分支有冲突变更                | 合并                            | 通过 `ConflictResolver` 解决冲突         | ✅   |
-| 5   | 执行 push 同步                    | 压缩变更                        | INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并 | ✅   |
-| 6   | 执行 pull 同步                    | 拉取远程变更                    | `pullChanges(sinceId)` 增量拉取并合并    | ✅   |
-| 7   | 实体被删除                        | 调用 `restoreEntity(entityKey)` | 恢复到删除前状态                         | ✅   |
-| 8   | `RxDBBranch` 树形结构             | 管理分支                        | 支持创建/切换/删除操作                   | ✅   |
+| #   | 前置条件                          | 操作                            | 预期结果                                                                                     | 状态 |
+| --- | --------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------- | ---- |
+| 1   | 调用 `createBranch('experiment')` | 成功                            | 基于当前状态创建新分支                                                                       | ✅   |
+| 2   | 在分支 A                          | 切换到分支 B                    | 数据库状态反映分支 B 的数据，UI 自动更新                                                     | ✅   |
+| 3   | 分支切换涉及外键依赖              | 执行切换操作                    | 按拓扑排序处理实体                                                                           | ✅   |
+| 4   | 两个分支修改同一内容              | 合并源分支到目标分支            | 按源分支有效变更应用；覆盖标注由 US-312 的 `previewMerge()` 提供，与真实合并使用相同源变更集 | ✅   |
+| 5   | 执行 push 同步                    | 压缩变更                        | INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并                                                     | ✅   |
+| 6   | 执行 pull 同步                    | 拉取远程变更                    | `pullChanges(sinceId)` 增量拉取并合并                                                        | ✅   |
+| 7   | 实体被删除                        | 调用 `restoreEntity(entityKey)` | 恢复到删除前状态                                                                             | ✅   |
+| 8   | `RxDBBranch` 树形结构             | 管理分支                        | 支持创建/切换/删除操作                                                                       | ✅   |
 
 ## 技术笔记
 
@@ -54,7 +54,7 @@ tags: [collaboration, versioning]
 - 分支存储：分支是同一数据库内 `rxdb_branch` 表的行（[`branch.ts`](../../../packages/rxdb/src/system/branch.ts)，`activated` 列切换），各分支的 change/ref 也在同一主库内
 - 拓扑排序：分支切换时按外键依赖顺序处理实体
 - 变更压缩：`compactChanges()` - INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
-- 冲突解决：可插拔 `ConflictResolver`，默认 Last-Write-Wins
+- 本地分支合并由 [`merge_branch()`](../../../packages/rxdb-plugin-history/src/merge-branch.ts) 应用源分支有效变更；远端同步的冲突单独使用 `ConflictResolver`（默认 `LWWConflictResolver`），两条路径不共用裁决语义
 - 实体恢复：通过 `inversePatch` 实现删除恢复
 
 ## 实现文件
@@ -63,7 +63,7 @@ tags: [collaboration, versioning]
 - `packages/rxdb-plugin-history/src/HistoryManager.ts` — 历史记录管理
 - `packages/rxdb/src/sync-contract/compact-changes.ts` — 变更压缩
 - `packages/rxdb/src/sync-contract/conflict.ts` — 冲突契约（`ConflictResolver` 接口）
-- `packages/rxdb/src/sync-contract/LWWConflictResolver.ts` — 默认 Last-Write-Wins 实现（`LWWConflictResolver`）
+- `packages/rxdb/src/sync-contract/LWWConflictResolver.ts` — 远端同步默认冲突策略（`LWWConflictResolver`）
 
 ## References
 

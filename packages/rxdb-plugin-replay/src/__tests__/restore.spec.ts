@@ -88,7 +88,11 @@ describe('replayRestoreHint（research D8 表逐字）', () => {
     ['conflict', 'The working tree changed while restoring. Try again.'],
     ['dirty_working_tree', 'There are uncommitted changes. Commit or discard them before restoring.'],
     ['incompatible_schema', 'This commit was written by an incompatible schema version and cannot be restored.'],
-    ['unreachable_target', 'This commit is not on the current branch history.']
+    ['unreachable_target', 'This commit is not on the current branch history.'],
+    [
+      'side_branch_target',
+      'This commit is only on a merged side branch and cannot be restored from the current branch.'
+    ]
   ] as const)('%s', (reason, hint) => {
     expect(replayRestoreHint(reason)).toBe(hint);
   });

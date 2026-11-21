@@ -1,0 +1,175 @@
+{
+  "archive": {
+    "hotBefore": 50308,
+    "hotAfter": 20000,
+    "archived": 30308,
+    "archiveCommandMs": 9382,
+    "oldestHotEvent": "2026-09-08T10:23:43.911Z",
+    "pagesIdentical": true,
+    "recentIdentical": true,
+    "byPrIdentical": true,
+    "events": 50308,
+    "walkMsBefore": 4701,
+    "walkMsAfter": 9257
+  },
+  "at": "2026-11-18T08:02:35.966Z",
+  "auditCountUnchanged": true,
+  "budgets": {
+    "commandMs": 50,
+    "teamPageBytes": 51200
+  },
+  "checks": {
+    "commandsWithinBudget": true,
+    "teamPageWithinBudget": true,
+    "retryReturnsOriginal": true,
+    "expiredRetryIsNewRequest": true,
+    "expiredReceiptsCleaned": true,
+    "archiveMovedEvents": true,
+    "archivedStillQueryable": true,
+    "auditCountUnchanged": true
+  },
+  "commandsAfter": {
+    "thread": {
+      "server": {
+        "count": 100,
+        "p50": 7.1,
+        "p95": 11.9,
+        "max": 12.5
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 10,
+        "p95": 15.6,
+        "max": 17.2
+      }
+    },
+    "read_notice": {
+      "server": {
+        "count": 100,
+        "p50": 5.6,
+        "p95": 9.6,
+        "max": 10.7
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 8.2,
+        "p95": 13.4,
+        "max": 17.3
+      }
+    },
+    "subscribe": {
+      "server": {
+        "count": 100,
+        "p50": 6.2,
+        "p95": 12.6,
+        "max": 34.3
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 9.1,
+        "p95": 16.5,
+        "max": 157.7
+      }
+    }
+  },
+  "commandsBefore": {
+    "thread": {
+      "server": {
+        "count": 100,
+        "p50": 8.2,
+        "p95": 29.1,
+        "max": 54
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 12.1,
+        "p95": 36.7,
+        "max": 61
+      }
+    },
+    "read_notice": {
+      "server": {
+        "count": 100,
+        "p50": 6.1,
+        "p95": 10.2,
+        "max": 21.1
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 9.2,
+        "p95": 14.3,
+        "max": 25.3
+      }
+    },
+    "subscribe": {
+      "server": {
+        "count": 100,
+        "p50": 6.4,
+        "p95": 13.4,
+        "max": 57.7
+      },
+      "endToEnd": {
+        "count": 100,
+        "p50": 9.5,
+        "p95": 18.2,
+        "max": 107.9
+      }
+    }
+  },
+  "expiredAfter": 1,
+  "expiredBefore": 5000,
+  "idempotency": {
+    "original": {
+      "status": 200,
+      "body": {
+        "taskId": "retry-task",
+        "head": "01a1edad-d959-7ac9-9e1c-059524cb8796"
+      }
+    },
+    "within29Days": {
+      "status": 200,
+      "body": {
+        "head": "01a1edad-d959-7ac9-9e1c-059524cb8796",
+        "taskId": "retry-task"
+      },
+      "sameResult": true
+    },
+    "tasksAfterRetry": 1,
+    "beyond31Days": {
+      "status": 409,
+      "error": "exists",
+      "message": "任务标识已存在"
+    }
+  },
+  "kind": "retention",
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "policy": {
+    "afterDays": 90,
+    "keepLatest": 20000
+  },
+  "release": "r20261118-080053-3ab4041",
+  "rounds": 100,
+  "scale": {
+    "receipts": 20000,
+    "expired": 5000,
+    "audit": 50000,
+    "notices": 10000
+  },
+  "seedMs": 2178,
+  "teamPageAfter": {
+    "ms": 171,
+    "pageBytes": 9418,
+    "responseBytes": 10472,
+    "requests": 7,
+    "unread": 4798,
+    "auditCount": 50611
+  },
+  "teamPageBefore": {
+    "ms": 182,
+    "pageBytes": 9183,
+    "responseBytes": 10222,
+    "requests": 7,
+    "unread": 4899,
+    "auditCount": 50307
+  }
+}

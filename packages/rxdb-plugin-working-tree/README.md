@@ -9,9 +9,12 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 - 写捕获：用户编辑落进工作树而不是直接改主数据，库自己的簿记写入不被捕获
 - `status()` / `diff()`：读当前分支的未提交摘要与逐条改动
 - `commit()`：把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常
-- `discard()`：把工作树整体退回 HEAD
-- `listCommits()`：读当前分支的可达提交历史
-- `restore()` / `restoreSession()`：把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史，四个被拒成因走返回值
+- `discard()`：把工作树整体退回 HEAD，业务表逐行一起退回；工作树干净时一条写语句都不发
+- `listCommits()`：读当前分支的可达提交历史，子先于父（合并提交带进来的侧枝也在里面）
+- `restore()` / `restoreSession()`：把业务表恢复成一个可达历史提交的数据，与 HEAD 的差异作为**新的未提交变更**写进工作树；不移动 HEAD、不删历史，沿第一父链撤销，五个被拒成因走返回值（只在合并侧枝上的提交是 `side_branch_target`）
+- `importCommits()` / `exportCommits()`：与服务端交换提交。导入把一段远端提交原样写进当前分支（id、父链、作者、消息、时间、内容指纹都不变），
+  第一父链上新到的提交依次叠到业务表上、分支头快进到最后一个，支持多父的合并提交，工作树保持 clean，被拒的十种成因走返回值；
+  导出列出某个提交之后的提交，交出同一种交换记录（父先于子、落库形态、带指纹）供上传
 - `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上，被拒**走异常**
 - `checkouts`：检出位。只读检出位不切换分支、不动工作树，把另一条分支或当前分支上一个可达提交的完整数据建成一份只读快照，
   用第二个只读实例浏览；快照库由插件选项 `worktrees.adapter` 给出，与主库同一种后端、各用各的库名（PGlite 与 SQLite 系六个后端）。
@@ -24,12 +27,16 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 
 1. **提交能力是数据库级的显式开关**——`enable()` 一次，整个库的所有实体、所有分支都按工作树语义运行。启用会留下一行能力水位，**没装本包的客户端从此拒绝连接这个库**；v1 没有 `disable()`。
 2. **工作树 ≠ 草稿缓存。** 工作树装的是「已经写进数据库、还没提交成快照」的变更，参与事务、被查询读到；草稿缓存（`@aiao/rxdb-plugin-workspace`）装的是「还没保存」的编辑器 buffer，根本没进主库。两层不能合并，本包因此也不占用 `Workspace*` 前缀。
-3. **`restore()` 不是 checkout。** 它把历史内容作为新的未提交变更写回工作树：HEAD 不动、历史不删、工作树变脏，下一步是 `commit()` 或 `discard()`。v1 没有 detached HEAD、没有 `checkout()`。
+3. **`restore()` 不是 checkout。** 它把业务表恢复成历史提交的数据，与 HEAD 的差异作为新的未提交变更：HEAD 不动、历史不删、工作树变脏，下一步是 `commit()`（新 HEAD 的数据就是那份数据）或 `discard()`（业务表退回 HEAD）。v1 没有 detached HEAD、没有 `checkout()`。
 4. **历史会原样保留敏感旧值。** 写进过某次提交的字段永久留在那次提交的 `ChangeSet` 里，之后改掉、清空、删行都不会动到它；v1 没有任何公开 API 能把它从历史里抠掉。**不要把不该留痕的东西写进启用了提交能力的库。**
 5. **加密边界**：加密字段在提交、工作树与恢复会话里仍以 versioned envelope 落盘，持久化路径不先解密再写明文，错误与摘要也不带明文。但加密保护的是**落盘的字节**——它不消解第 4 条，第 4 条也不能替代它。
 6. **不改写历史**：没有 amend / rebase / squash，没有「修改提交信息」，也没有 auto-baseline。提交图损坏时守卫只置 `corrupted_read_only` 并留诊断，**不动 HEAD、不删记录**。
 
 另外一条常被漏掉的：**远端同步拉下来的变更和用户的编辑一样进工作树**，在 `status().byOrigin` 里计为 `origin = 'remote_sync'`、**不豁免**，会让 `clean` 变成 `false`，并被下一次 `commit()` 一并提交（提交者是这次 `commit()` 的 `authorId`，v1 不伪造远端作者）。「同步之后工作树突然脏了」是正常行为。
+
+**导入远端提交（`importCommits()`）有三条边界**：快进只沿第一父链判定（服务端要以本机当前头为第一父建合并提交；头落在合并另一侧的设备从两条线的分叉点 `createBranchFromCommit()` 另起一条分支、切过去再导入）；叠业务表之前逐个单元核对前像（插入时这一行不在、修改与删除时这一行在且 `inversePatch` 覆盖的跟踪业务列与当前值相等），对不上即零写入的 `precondition_mismatch`——服务端的增量不是相对本机这份数据算的时，两台设备不会静默分叉；导入开着触发器写、进变更日志，所以**不能与通用实体同步同时用在同一批实体上**——走 changelog 推送的实体直接被拒（`unsupported_entity` / `synced`）；加密列的信封绑在写下它的那个库的密钥环身份上，另一台设备解不开、整笔回滚。服务端校验批次、复算指纹用 `./exchange` 子路径（见下文「服务端」）；别的语言照文档站插件页「内容指纹的规范化规则」复算。
+
+**`discard()` / `restore()` 会改业务表。** 两者都在同一个事务里把业务表对齐成「HEAD + 工作树条目」：回写是一次普通的本地写入，进变更日志——切分支、同步推送与撤销栈都看得见它（撤销一次丢弃就是把草稿取回来），远端同步来的条目被丢弃时，退回的值同样会推上远端；回写本身不会再被捕获成工作树单元。`remoteId` 与审计时间不跟着回写，`createdBy` / `updatedBy` 在 UPDATE 回写上写不回去。0.0.28 及更早版本只改工作树、不改业务表，升级说明见[迁移指南](https://rxdb.aiao.io/docs/migration/working-tree-discard-restore)。
 
 不进版本控制的只有四类：`SyncType.QueryCache` 的实体、实体行上的 `remoteId` 与审计时间、插件登记的派生索引列、关闭变更日志（`@Entity({ log: false })`）的实体（如 storage 插件的文件元数据）。它们的变化不进 `status()` / `diff()` / `commit()`，`restore()` 也不会带回。
 
@@ -87,6 +94,39 @@ db.use(rxDBPluginHistory);
 `db.workingTree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来：装了本包才存在这个入口，
 没装时 `db.workingTree` 是编译错误，而不是运行期的 `undefined`。能力未启用时它照样在，
 但每个方法以 `commit_capability_disabled` 拒绝。
+
+## 服务端：`@aiao/rxdb-plugin-working-tree/exchange`
+
+`importCommits()` / `exportCommits()` 交换的记录要经过服务端：它按平台规则校验上传批次的形状、复算内容指纹核对、给自己合成的合并提交算指纹。
+JavaScript / TypeScript 的服务端（Node、Supabase Edge Function 里的 Deno）用 `./exchange` 子路径，拿到的就是导入命令自己用的那几个函数，
+不必照文档另写一份、迟早分岔。它只加载三个纯模块，**不加载**实体类、插件类与捕获运行时，运行时只依赖 peer `@aiao/rxdb`；
+主入口是插件本身，服务端不要导入它。
+
+```ts
+import {
+  checkCommitExchangeBatch,
+  computeCommitExchangeRecordFingerprint,
+  parseCommitExchangeRecord
+} from '@aiao/rxdb-plugin-working-tree/exchange';
+
+function acceptUpload(body: { readonly commits: readonly unknown[] }) {
+  const commits = body.commits.map(json => parseCommitExchangeRecord(json)); // createdAt：ISO 串 → Date
+  const finding = checkCommitExchangeBatch(commits); // 与 importCommits() 的 invalid_batch 同一个判定
+  if (finding) return { status: 422, body: finding };
+  const forged = commits.find(commit => computeCommitExchangeRecordFingerprint(commit) !== commit.contentFingerprint);
+  if (forged) return { status: 422, body: { problem: 'fingerprint_mismatch', commitId: forged.commitId } };
+  return { status: 200, commits };
+}
+```
+
+- 指纹：`computeCommitExchangeRecordFingerprint(record)`（按交换记录算，`authorId` 进 `author` 那一格、消息原样不 trim）、
+  `computeChangeUnitFingerprint(unit)`、`computeCommitContentFingerprint(input)`；
+- 批次形状：`checkCommitExchangeBatch(commits)`，交出第一处毛病 `{ problem, commitId }`，合格时为 `undefined`；只判形状，指纹要自己复算核对；
+- JSON：`parseCommitExchangeRecord(json)` / `serializeCommitExchangeRecord(record)`，`createdAt` 在 JSON 里是 `toISOString()` 的串。
+  解析严格：缺字段、多字段、类型或取值不对、`createdAt` 换了写法、补丁里有 JSON 表示不了的值，都抛 `CommitExchangeJsonError`（`problem` / `path` / `commitId`），不修正；
+- 类型：`CommitExchangeRecord`、`CommitExchangeRecordJson`、`CommitChangeUnitContent` 等交换格式的全部类型。
+
+完整说明（严格解析的理由、合成合并提交的写法）见文档站插件页「导入与导出远端提交」的「服务端：`./exchange` 子路径」。
 
 ## 未认领能力守卫
 

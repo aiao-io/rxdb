@@ -6,7 +6,7 @@
  *   每条连接的信令按到达顺序串行处理，远端描述就位之前到的 ICE 先缓存。
  * - 只接受信令服务为这条连接宣布的那个对端发来的信令；会话 hello 的凭据按 {@link authenticatePeerTicket} 校验。
  * - 已就绪的会话登记进 `P2PSessionRegistry`，同一对端只留一条（双方同时拨号时按包里的规则去重）。
- * - 不配 STUN / TURN：只走局域网直连（epic-011 非目标）。
+ * - 不配 STUN / TURN：只走局域网直连（epic-013 非目标）。
  */
 import {
   createWebRTCTransport,

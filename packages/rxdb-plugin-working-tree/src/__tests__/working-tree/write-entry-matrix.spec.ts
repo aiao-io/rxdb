@@ -61,7 +61,7 @@ const MATRIX_ROW = {
   remoteApply: '`pull()`、autoSync、`pullRepository()`、`sync()`、`bulkSync()` 的实体应用',
   syncMetadata: '只更新 `remoteId`、同步水位或审计时间',
   cleanupExpired: '`cleanupExpired()` 的过期删除',
-  projectionRewrite: 'branch switch、baseline/restore 物化、commit 后的工作树清空',
+  projectionRewrite: 'branch switch、baseline 物化、restore / discard 回写、远端提交导入、commit 后的工作树清空',
   metadataOnlyPrefetch: 'metadata-only 目标分支的远端预取',
   queryCache: 'QueryCache 的 upsert/delete/孤儿清理与离线出站重放',
   rawWrite: 'raw SQL、adapter 直写或其他 trigger bypass',
@@ -260,7 +260,7 @@ describe('行 5 — cleanupExpired() 的过期删除', () => {
   });
 });
 
-describe('行 6 — branch switch / baseline·restore 物化 / commit 后的工作树清空', () => {
+describe('行 6 — branch switch / baseline 物化 / restore·discard 回写 / 远端提交导入 / commit 后的工作树清空', () => {
   matrixCase(MATRIX_ROW.projectionRewrite, '底层投影重写照常发生，但不被二次记录', () => {
     // 关键在于结论是 no_capture 而不是 reject：物化必须写得进去。判成 reject 的话，
     // 切分支这件事本身会失败。
@@ -270,6 +270,21 @@ describe('行 6 — branch switch / baseline·restore 物化 / commit 后的工�
       revisionBump: false
     });
   });
+
+  matrixCase(
+    MATRIX_ROW.projectionRewrite,
+    'restore / discard 回写与远端提交导入的三种操作都放行且不落单元（US-317 / US-316）',
+    () => {
+      // 回写恰好覆盖三种操作：discard 把插入撤成删除、把删除撤成插入，restore 反之。任何一种落成单元，
+      // 命令自己写下的条目旁边就多出一份同一改动的副本——entryCount 翻倍、revision 一次推两格，
+      // 另一个 Tab 手里刚读到的凭据凭空作废。导入远端提交同理：它叠上去的是已经是提交的改动，
+      // 落成单元的话 `status()` 报脏，下一次 `commit()` 把远端的改动当成本地的再提交一次。
+      const decisions = (['insert', 'update', 'delete'] as const).map(
+        operation => classifyWriteEntrance(request({ entrance: 'projection_rewrite', operation })).kind
+      );
+      expect(decisions).toEqual(['no_capture', 'no_capture', 'no_capture']);
+    }
+  );
 });
 
 describe('行 7 — metadata-only 目标分支的远端预取', () => {

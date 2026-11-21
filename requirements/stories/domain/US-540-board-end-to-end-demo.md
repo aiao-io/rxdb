@@ -5,7 +5,7 @@ status: In Progress
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-29
+updated: 2026-11-16
 tags: [domain, board, demo, e2e, angular]
 ---
 
@@ -109,14 +109,13 @@ INVEST 检查清单:
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **验收注记（2026-10-29）**：demo 侧阶段 B 用例落在 `apps/dev-rxdb-board-e2e/src/board-search.spec.ts`（4 条）：AC#9 主板
-> 首屏不被异板挤空、分页 5 + 1 无遗漏无重复、切到隔离板只命中 8 条、点结果定位并突出卡片；AC#10 查询返回后才显示「无匹配」、
-> 查询发出即切板时旧板结果不回填；AC#11 新建命中、改描述后不再命中、删除命中任务及其所在列后无陈旧结果；AC#13 编辑任务标题与
-> 标签名后整页重开，数据原样、改过的标题与旧任务都能搜到。阶段 A / B 是同一份 schema（搜索插件自阶段 A 起维护索引，见技术笔记），
-> 「阶段 A 版本建的库」即重开既有库。启动页、工具栏与恢复编排改由绑定包外壳承接（核心包 `BoardShellController`），原有 19 条
-> 闭环 / 恢复用例照绿。原先挡住「断开重连」的 sqlite-wasm idb 丢行缺陷在当前适配器上已不复现，`board-upgrade.browser.spec.ts`
-> 两条去掉 skip 转为常规用例（AC#7 的 vitest 半边）。仍待验：AC#7 的 demo Playwright 半边（demo 没有「非看板实体」的初态入口）
-> 与 AC#12（未装搜索插件的禁用入口构建）。
+**验收证据与保留项**：阶段 B 的 demo 验收入口是 `apps/dev-rxdb-board-e2e/src/board-search.spec.ts`：
+AC#9 覆盖当前板过滤、分页和定位；AC#10 覆盖查询完成前的加载态及切板后拒收旧结果；
+AC#11 覆盖新建、编辑、删除后的结果更新；AC#13 覆盖编辑任务与标签后重开，旧数据完整且可搜索。
+阶段 A / B 使用同一 schema，搜索插件自阶段 A 起维护索引。启动页、工具栏与恢复共用绑定包外壳和核心包
+`BoardShellController`，由闭环 / 恢复 e2e 验收。AC#7 的持久化半边由 `board-upgrade.{node,browser}.spec.ts` 覆盖。
+
+仍待验：AC#7 的 demo Playwright 半边（demo 没有「非看板实体」初态入口），以及 AC#12 的未装搜索插件禁用入口构建。
 
 ## 技术笔记
 
@@ -145,8 +144,9 @@ AC#6 验两条成功路径，AC#8 验失败后保留源库并继续写入；清�
 
 ## 价值待证
 
-本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
-解锁（2026-10-19，owner 决定）：本故事不新增抽象，全部行为归属 US-534～US-539；「demo 不当
+本故事的开工授权见 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)。
+
+本故事不新增抽象，全部行为归属 US-534～US-539；「demo 不当
 业务需求证据」的顾虑与豁免边界见 epic 解锁记录。
 
 ## 实现文件

@@ -14,7 +14,7 @@
  *    `status` 落在五态之内，`epic` 指向存在的 epic 文件；
  * 2. `status-overview.md` 的状态汇总表、「进行中（N 条）」/「待评审（N 条）」标题、
  *    按 Epic 索引里每条 story 前的状态符号，全部等于 YAML 推导值；每条 story 都在索引里；
- * 3. epic frontmatter `status` 与归属它的故事一致：`Done` 的 epic 不得持有 In Progress / Backlog 故事，
+ * 3. epic 数字编号唯一、文件名与 frontmatter id 一致；`status` 与归属它的故事一致：`Done` 的 epic 不得持有 In Progress / Backlog 故事，
  *    `Backlog` 的 epic 不得持有已开工故事；`In Progress` 不作约束（epic-005 全绿但发布门禁未审计，
  *    epic-007 只有一条故事却还有无主目标，都是有意的）；
  * 4. `README.md` 的「N/M 已交付」等于 Done / 合计；
@@ -22,8 +22,9 @@
  *    CONVENTIONS 说「锚点失效的真实代价不是链接坏了，是读者停止复验」；
  * 6. CONVENTIONS「过程留档的去向」禁止进正文的叙述词（`已于 X 日`、删除线、`落地偏差`……）
  *    只**告警**不阻塞：存量太多，先让它可见，再逐条烧掉。
- * 7. 验收与真相源对齐：Done 故事的 AC 表不得残留 ⬜；`inherited_acs` 的 `from` 必须指向存在的
- *    story、纯数字 `ac` 不得超出源故事 AC 编号行数。
+ * 7. 验收与真相源对齐：Done 故事的当前承诺 AC 不得残留 ⬜ / ⚠️，In Review 故事的当前承诺 AC 不得已经
+ *    全部 ✅（实现 PR 内直接标 Done）；`inherited_acs` 的 `from` 必须指向存在的 story、纯数字 `ac`
+ *    不得超出源故事 AC 最大编号；显式标为候选 / 移出的 AC 必须登记 `candidate_acs`。
  * 8. README「大故事」清单与「正文含交付阶段」的 story 集合一致；
  *    capability-matrix / versioning-policy 手写的包计数等于 packages/ 与 api-baseline/ 的实际值。
  * 9. 生成段落没有过期：`status-overview.md` 的进行中 / 待评审 / 阻塞三节与按 Epic 索引、
@@ -75,18 +76,18 @@ export const REQUIRED_FRONTMATTER = ['id', 'title', 'status', 'priority', 'epic'
  * CONVENTIONS「过程留档的去向」点名的叙述词。命中只告警。
  *
  * @remarks
- * 后五条针对同一种病：把**过程**写进正文。`（已修）` / `（未修）` 是按时间轴记账，
+ * 验收日期、评审轮次、修复标签与历史标题针对同一种病：把**过程**写进正文。`（已修）` / `（未修）` 是按时间轴记账，
  * 读者要自己算「现在到底是什么状态」；带日期的三级标题把一次 PR 的切片留成了永久章节；
  * `历史快照` 明说了这段已被别处取代，却仍占着正文。
  * 最后一条是 `\d+ 文件 \d+ 条` 这类裸测试计数——它天然会烂（实测 US-905 里三处互不相同），
  * 正确写法是给出复现命令而不是数字，见 CONVENTIONS「结论必须写出复验方式」。
  */
 export const NARRATIVE_PATTERNS = [
-  ['已于 X 日', /已于\s*\d{4}-\d{2}-\d{2}|已于\s*\d{1,2}-\d{1,2}/g],
+  ['已于 X 日', /已于\s*\*{0,2}(?:\d{4}-\d{2}-\d{2}|\d{1,2}-\d{1,2})/g],
   ['删除线', /~~[^~\n]+~~/g],
   ['原判定', /原判定/g],
   ['落地偏差', /落地偏差/g],
-  ['第 N 轮复核', /第\s*[一二三四五六七八九十\d]+\s*轮复核/g],
+  ['第 N 轮复核 / 评审', /第\s*[一二三四五六七八九十\d]+\s*轮(?:复核|评审)/g],
   ['后续变更', /后续变更/g],
   ['已修 / 未修', /（\s*\**\s*(?:已修|未修)[^）\n]*）/g],
   [
@@ -96,6 +97,7 @@ export const NARRATIVE_PATTERNS = [
     // 永远清不到零——而清不到零的表，读者会整张忽略。
     /(?:本节|本段|以下|下面|上面|前文|这一?[段节])[^\n。]{0,20}历史快照|^#{1,6}[^\n]*历史快照|\*\*[^*\n]*历史快照[^*\n]*\*\*|被[^\n。]{0,20}整节取代/gm
   ],
+  ['带日期的验收记录', /(?:验收注记[（(][^）)\n]*|验证日期[：:]\s*)\d{4}-\d{2}-\d{2}/g],
   ['带日期的标题', /^#{2,6} .*\d{4}-\d{2}-\d{2}.*$/gm],
   ['裸测试计数', /\d+\s*文件\s*\d+\s*条|（原\s*\d+\s*\/\s*\d+）/g]
 ];
@@ -663,7 +665,7 @@ export async function collectEpics(root) {
 }
 
 /**
- * epic `status` 与故事状态的硬约束，以及 epic ↔ story 的双向引用。
+ * epic 数字编号唯一、文件名与 id 一致，状态符合故事约束，且 epic ↔ story 双向引用完整。
  *
  * 状态约束只看**归属**该 epic 的故事（story frontmatter `epic:` 指向它），不看它正文顺带链接到的
  * 别家故事——epic-006 引用 US-207 / US-210 只是拿宿主能力当证据，不是持有它们。
@@ -678,7 +680,14 @@ export function checkEpics(epics, stories) {
   const offenders = [];
   const byId = new Map(stories.map(s => [s.id, s]));
   const epicById = new Map(epics.map(e => [e.id, e]));
+  const byNumber = new Map();
   for (const epic of epics) {
+    if (path.basename(epic.file, '.md') !== epic.id)
+      offenders.push(`${epic.rel}: 文件名必须与 frontmatter id ${epic.id} 一致`);
+    const number = /^epic-(\d+)-/.exec(epic.id);
+    const previous = number && byNumber.get(Number(number[1]));
+    if (previous) offenders.push(`${epic.rel}: epic-${number[1]} 编号重复，已由 ${previous} 使用`);
+    if (number) byNumber.set(Number(number[1]), epic.id);
     for (const id of epic.storyIds) {
       if (!byId.has(id)) offenders.push(`${epic.rel}: 链接到不存在的故事 ${id}`);
     }
@@ -887,8 +896,22 @@ function candidateAcIds({ rel, fm, text }, offenders) {
 }
 
 /**
- * Done 故事的当前承诺 AC 不得残留 ⬜；候选 AC 由 candidate_acs 显式登记，保留未验状态。
+ * 状态格以状态符号开头的才是 AC 行。验收标准一节里还会有按 AC 编号排的证据表，
+ * 它们的末格是一段说明，按「未通过」数就会让任何带证据表的故事都显得还有待办。
+ */
+const AC_STATUS_CELL = /^\s*(✅|⚠️|⬜)/u;
+
+/**
+ * story 状态与 AC 符号的对应关系。候选 AC 由 candidate_acs 显式登记，保留未验状态，不参与下面两条：
+ *
+ * - `Done` 的当前承诺 AC 必须全部 ✅：残留 ⬜ 或 ⚠️ 都阻断；
+ * - `In Review` 至少要有一条未 ✅ 的当前承诺 AC 说明还差什么。全部 ✅ 就在实现 PR 内直接标 `Done`——
+ *   等合并后再开一个 PR 补标，这一步没人做，状态就停在 In Review。
+ *
  * 候选编号不存在、重复或提前标 ✅ 同样阻断，避免候选范围成为隐藏未完成工作的缺口。
+ *
+ * @remarks
+ * 没有数字编号 AC 行的故事（Given / When / Then 形态）读不到 AC，两条状态规则都不判。
  *
  * @param {Array<{rel: string, fm: Record<string, string>, text: string}>} stories
  */
@@ -900,17 +923,33 @@ export function checkAcSymbols(stories) {
     const section = text.split(/^## 验收标准\s*$/m)[1];
     if (!section) continue;
     const body = section.split(/^##\s/m)[0];
+    let current = 0;
+    let open = 0;
     for (const line of body.split('\n')) {
       const id = /^\|\s*(\d+)\s*\|/.exec(line.trim());
       if (!id) continue;
       const cells = line.trim().replace(/\|$/, '').split('|');
       const status = cells[cells.length - 1] ?? '';
       const candidate = candidates.has(Number(id[1]));
+      if (!candidate && /^\s*(?:⚠️|⬜)?\s*(?:候选|移出)/u.test(status))
+        offenders.push(`${rel}: AC#${id[1]} 标为候选或移出，必须登记 candidate_acs`);
       if (candidate && status.includes('✅'))
         offenders.push(`${rel}: 候选 AC#${id[1]} 不得标 ✅，解锁后应移除候选登记`);
       if (fm.status === 'Done' && !candidate && status.includes('⬜'))
-        offenders.push(`${rel}: Done 故事的 AC 行仍标 ⬜（应 ✅，或改为带移出依据的 ⚠️）`);
+        offenders.push(`${rel}: Done 故事的 AC 行仍标 ⬜（应补齐验收；候选范围须登记 candidate_acs）`);
+      const symbol = AC_STATUS_CELL.exec(status)?.[1];
+      if (candidate || symbol === undefined) continue;
+      current++;
+      if (symbol !== '✅') open++;
+      if (fm.status === 'Done' && symbol === '⚠️')
+        offenders.push(
+          `${rel}: Done 故事的 AC#${id[1]} 仍标 ⚠️（有保留就留在 In Review 并写明还差什么；候选范围须登记 candidate_acs）`
+        );
     }
+    if (fm.status === 'In Review' && current > 0 && open === 0)
+      offenders.push(
+        `${rel}: In Review 故事的当前承诺 AC 已全部 ✅（在实现 PR 内直接标 Done；确有待办就保留一条未 ✅ 的 AC 写明还差什么）`
+      );
   }
   return offenders;
 }

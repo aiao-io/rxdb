@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-03
-updated: 2026-10-09
+updated: 2026-11-16
 tags: [core, sortable, tree, rxdb-test, demo]
 ---
 
@@ -96,7 +96,7 @@ US-028 阶段 A + D 已提供所需的全部原语：按组创建追加、`Repos
 | A    | 新实体与创建类写入：四个可排序树实体；三端六页改用新实体；新建、批量添加、删除并提升子节点不再自己算键（交给 core 的按组追加与改分组字段追加），删除提升三端统一为一次提交；core 批内追加优化（按组键拆分、同批新建父行的组不读尾键）；三端 e2e | US-028 阶段 A + D（已交付） | AC#1～4 | ✅   |
 | B    | 拖放与显示顺序：三端拖放改走 `Repository.reorder()`（含文件管理器非手动排序模式的映射），失败处理三端同交；手动顺序取自查询默认排序；删除剩余的算键、比较器、`rebalanceSortOrder` 与兜底；三端拖放 e2e                                          | 阶段 A                      | AC#5～9 | ✅   |
 
-两个阶段同一分支、同一 PR（owner 2026-10-08 定；原计划一阶段一 PR），每个阶段三端同交。按写入类型而不按页面切：React / Vue 的 `useDragDrop` → `useDragDropService` 由菜单与文件管理器共用，按页面切会让共用的拖放层在中间态同时挂两条写入路径。阶段 A 交付后拖放仍由 demo 显式算键再 `save()`，合法的显式键 core 原样保留，可以单独发布；懒加载撞键（上面第三条）由阶段 B 关闭。
+两个阶段按 owner 确定的范围在同一分支、同一 PR 交付，每个阶段三端同交。按写入类型而不按页面切：React / Vue 的 `useDragDrop` → `useDragDropService` 由菜单与文件管理器共用，按页面切会让共用的拖放层在中间态同时挂两条写入路径。阶段 A 交付后拖放仍由 demo 显式算键再 `save()`，合法的显式键 core 原样保留，可以单独发布；懒加载撞键（上面第三条）由阶段 B 关闭。
 
 ## 验收标准
 
@@ -132,20 +132,19 @@ AC#2～#8 的三端验收是 Playwright 操作后刷新页面读回顺序（同 
 | 3   | 契约套件「批量添加：同批新建的父节点下从首键起，既有组从库里尾键之后，组内按批内顺序」；`packages/rxdb/src/__tests__/sortable/manual-order-batch-append.spec.ts`（同批新建父行的组不读尾键）；三端批量单测；三端 `tree-write-order.spec.ts`「批量添加后原有根节点仍在最前」「文件管理器懒加载页批量添加后根级原有节点在前」；`benchmarks/node/sortable-batch-append.bench.ts` 比值 ≤ 1.2                                                                                                                                                                                                                                              |
 | 4   | 契约套件两条「删除并提升子节点」（被删节点是根 / 不是根）；Angular `tree-menu.store.spec.ts`「删除并提升子节点（缺陷二）」「删除读库里的子节点，不看页面已加载的节点」、React `useTreeMenuStore.spec.ts`、Vue `tree-menu-writes.spec.ts` 的同组用例；文件端 Angular `tree-file.store.spec.ts`「删除读库里的子节点，不看页面已加载的节点」、React `useFileManagerLazyStore.spec.ts`「删除对话框的影响数取自库」、Vue `file-manager-writes.spec.ts` 的同组用例；三端 `tree-write-order.spec.ts`「删除并提升子节点，子节点排到祖父组末尾」「懒加载页删除折叠节点仍弹出选择对话框」「文件管理器懒加载页删除折叠文件夹弹出级联删除对话框」 |
 
-批量添加的性能（demo 的随机树，10,000 行约 4,200 组）：core 追加优化前缺键追加是显式键的 3.6 倍（sqlite-wasm）/ 2.91 倍（PGlite），
-优化后 0.95 / 0.97 倍；测法与数字见 `specs/008-us031-sortable-tree-entities/research.md` R3。
-全量门禁 `pnpm test-all`（74 个项目的 lint / typecheck / test / test-browser / build / e2e）通过；三端 `tree-write-order.spec.ts` 以 `mode: 'serial'` 运行，并发分散到多个 worker 时会抢占本机 CPU、拖慢同批的 `search-refresh`（实测与对照见 `specs/008-us031-sortable-tree-entities/tasks.md` 基线备注）。
-既有库升级：用 `main` 构建的 Angular demo 建库后，再用本故事的代码打开同一个库。新树为空，新建可用，旧表行数不变，四张新表已补建。
-首轮走查暴露的引擎缺陷（技术笔记「既有库打开」）已修，门禁用例为 `rxdb-adapter-sqlite-wasm/src/__tests__/existing-db-new-entity.spec.ts`；
-该修复在引擎层，三端共用；React / Vue 未另做浏览器走查。
+批量添加性能由 [`sortable-batch-append.bench.ts`](../../../benchmarks/node/sortable-batch-append.bench.ts)
+对固定种子树比较显式键与 core 追加，AC#3 要求中位数比值 ≤ 1.2。三端 `tree-write-order.spec.ts`
+按 `mode: 'serial'` 运行，避免同一 spec 的 CPU 竞争干扰相邻场景。
+既有库补建实体的引擎回归入口是 `rxdb-adapter-sqlite-wasm/src/__tests__/existing-db-new-entity.spec.ts`；
+三端共用引擎实现，React / Vue 没有单独的既有库浏览器走查证据。
 
-阶段 B 的证据（三端单测与 e2e 用例同名，`specs/009-us031-tree-drag-reorder/contracts/demo-drag-drop.md` §4、§5）：
+阶段 B 的证据（三端同名的拖放判定单测与 `apps/dev-rxdb-{angular,react,vue}-e2e/src/tree-drag-reorder.spec.ts`）：
 
 | AC  | 测试                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 5   | `packages/rxdb/src/__tests__/sortable/reorder-target-for-drop.spec.ts`（前后放置换算，含跨组与原位）；三端 `resolveTreeDrop` 判定表 9 条与 `treeDropPosition` 落点区间 5 条；三端「拖进折叠且子节点未加载的节点：目标为 { group }，不读子节点」（缺陷三）「前后放置的邻居取自组的完整序列，不取搜索过滤后的可见行」；三端 `tree-drag-reorder.spec.ts`「同父拖到两邻之间」「拖到组首与组尾」「跨父拖到两个子节点之间」「菜单懒加载：拖进折叠节点，展开后排在末尾」「拖到后代上被拒、零写」「原位放下与拖进当前父节点（已是末尾）都零写」「拖放后撤销一次恢复」「虚拟滚动页同父重排」 |
 | 6   | 三端「非手动模式同级前后放置被拒、不调用 reorder」「非手动模式子级拖到根级节点下方 → { group: { parentId: null } }」；三端 `tree-drag-reorder.spec.ts`「文件管理器手动模式：文件夹之间重排、拖进文件夹」「文件管理器懒加载：拖进折叠文件夹，展开后排在末尾」「文件管理器非手动模式：子级拖到根级节点下方移到根组末尾」「文件管理器非手动模式：同级前后放置被拒」                                                                                                                                                                                                                    |
-| 7   | 三端「reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗」「下一次拖放清空错误」；三端 `tree-write-error.spec.ts` 的「拖放」操作名。失败路径只有单测，理由见 `specs/009-us031-tree-drag-reorder/plan.md` Complexity Tracking                                                                                                                                                                                                                                                                                                                                 |
+| 7   | 三端「reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗」「下一次拖放清空错误」；三端 `tree-write-error.spec.ts` 的「拖放」操作名。失败路径由三端同名单测验收：活查询会先刷新页面，Playwright 无法确定性触发提交时的 `staleTarget` / `notFound`；成功与被拒零写路径仍由三端 e2e 覆盖                                                                                                                                                                                                                                                                        |
 | 8   | 三端「建树顺序 = 查询顺序」「查询不传 orderBy」「Manual 返回 null（保留查询顺序）」；React `tree-write-order.spec.ts` 根级交替新建收紧为 A、X、B                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 9   | 下方两条检索在三端 demo 源码中无输出                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 

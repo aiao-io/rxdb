@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [domain, board, detail, label]
 ---
 
@@ -65,7 +65,7 @@ tags: [domain, board, detail, label]
 | 6   | 一次详情保存同时改标题、描述、标签与截止日                    | 调用一次 `undo()`，再调用一次 `redo()`                 | 四类变更整体回退、整体重放；新的成功保存清空 redo 栈，失败、取消和零改动不新增历史                  | ✅   |
 | 7   | 分别「改标题→保存」「贴标签→保存」「设截止日→保存」           | 连续 `undo()` 三次；另一轮保存后只开一个页面并刷新     | 每次反转一个保存事务，三次后回到初始状态；刷新后此前的保存不可撤销、撤销入口禁用，redo 同时清空     | ✅   |
 | 8   | 描述粘贴 100 KiB 文本                                         | 保存并重开库                                           | 接受且逐字完整读回，换行保留，无静默截断                                                            | ✅   |
-| 9   | 详情中同时修改字段与标签                                      | 取消、Esc 或关闭；无改动保存                           | 库、列表和历史均零变化，不创建撤销项                                                                | ✅   |
+| 9   | 服务层草稿尚未提交；另有与库一致的无改动草稿                  | 放弃未提交草稿；调用 `saveTaskDraft` 保存无改动草稿    | 库、列表与历史均零变化，不创建撤销项；UI 已提交字段的关闭行为按 US-539 AC#19 验收                   | ✅   |
 | 10  | 一次详情保存包含字段改动与标签关联改动                        | 在关联写入时注入失败                                   | 字段与关联全部回滚，原值及历史不变；提示失败并保留草稿供修正，不显示成功                            | ✅   |
 | 11  | 任务属板 B1，标签 L 属板 B2；B1 有标签 L1                     | 保存含 L 的草稿；重复勾选 L1                           | 前者事务内校验拒绝且全部零写；后者最多一条关联；标签在保存前已删除也拒绝全部保存                    | ✅   |
 | 12  | 内联与详情入口均可编辑标题                                    | 分别输入空白标题并保存                                 | 共用同一校验、相同提示且零写；标题内联取消零写，保存只改标题                                        | ✅   |
@@ -76,14 +76,11 @@ tags: [domain, board, detail, label]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-> **看板 v2 补充（2026-10-28，owner 拍板「即改即存」）**：服务层语义不变——`saveTaskDraft` 仍是
-> 「一次保存一个事务、无改动零写、事务内复核快照」，上表 AC 全部继续有效。新增
-> `BoardDetailService.saveTaskFields(taskId, base, patch)` 作为即改即存入口：只提交补丁里的字段，
-> `base` 取该字段开始编辑时的快照，补丁涉及的字段已被其它入口改过才拒绝（字段级冲突），其余字段以最新状态
-> 为准，内部仍走 `saveTaskDraft`（单测见 `board-detail-label.node.spec.ts` 的 `saveTaskFields` 组）。
-> 三端详情侧栏改为字段级提交（标题回车 / 失焦、描述失焦、截止日选择、标签选择器关闭时一次提交），
-> 不再有「取消零写」的整表草稿：每次提交一个事务、可逐次撤销，替代原 AC#9 在 UI 层的「取消」路径
-> （交互约定见 [US-539 阶段 C](US-539-board-tri-framework-ui.md#阶段-c看板-v2github-projects-风格)）。
+详情服务的 `saveTaskDraft` 以一次调用为一个事务，无改动零写，事务内复核快照；AC#9 只约束服务层未提交草稿。
+`BoardDetailService.saveTaskFields(taskId, base, patch)` 是 UI 即改即存入口，只提交补丁涉及的字段，
+字段从开始编辑到提交之间被其它入口修改时拒绝，其余字段取最新值。复验见 `board-detail-label.node.spec.ts` 的 `saveTaskFields` 组。
+三端侧栏按字段提交：标题回车 / 失焦、描述失焦、截止日选择、标签选择器关闭。每次成功提交均可逐次撤销；
+关闭侧栏保留已提交值，交互契约见 [US-539 阶段 C](US-539-board-tri-framework-ui.md#阶段-c看板-v2github-projects-风格)。
 
 ## 技术笔记
 
@@ -138,8 +135,9 @@ tags: [domain, board, detail, label]
 
 ## 价值待证
 
-本故事已随 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)
-解锁（2026-10-19，owner 决定）：新增 `board_label` 抽象对应零个已知病灶，「病灶数 ≥ 抽象数」
+本故事的开工授权见 [epic-011 解锁记录](../../epics/epic-011-task-board-domain-model.md#价值待证整个-epic)。
+
+新增 `board_label` 抽象对应零个已知病灶，「病灶数 ≥ 抽象数」
 按 owner 决定豁免（演示价值入场），依据与边界见 epic。
 
 ## 实现文件

@@ -1,0 +1,181 @@
+{
+  "at": "2026-11-18T08:03:16.988Z",
+  "checks": {
+    "returns500Internal": true,
+    "responseHasNoDetails": true,
+    "collectorReceived": true,
+    "logSinkReceived": true,
+    "releaseAndPath": true,
+    "redactedPlaceholders": true,
+    "noSensitiveValues": true,
+    "healthHasNoSecrets": true,
+    "healthOk": true,
+    "databaseOutageReported": true,
+    "authOutageReported": true,
+    "recovered": true
+  },
+  "collector": {
+    "events": 1,
+    "report": {
+      "at": "2026-11-18T08:03:26.422Z",
+      "entry": "edge",
+      "release": "r20261118-080053-3ab4041",
+      "source": "request",
+      "request": {
+        "method": "POST",
+        "path": "/admin-collaboration/workspaces/admin-template-local/assets/commands"
+      },
+      "error": {
+        "name": "error",
+        "message": "monitor drill fault for [email] code [digits] token [jwt]",
+        "code": "P0001",
+        "detail": "Key (email)=([email]) rejected by the drill",
+        "stack": "error: monitor drill fault for [email] code [digits] token [jwt]\n    at file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:11:14652\n    at eventLoopTick (ext:core/01_core.js:175:7)\n    at async Ce (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:90:509)\n    at async Yu.save (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:94:1185)\n    at async vE (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:112:9797)\n    at async ec.transaction (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:115:221)\n    at async ec.operation (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:112:11155)\n    at async XV (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:16:44359)\n    at async Object.handler (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:16:43377)\n    at async mapped (ext:runtime/http.js:246:20)"
+      }
+    }
+  },
+  "fault": {
+    "status": 500,
+    "body": {
+      "error": "internal",
+      "message": "服务暂时不可用，请稍后按原请求重试",
+      "details": {}
+    }
+  },
+  "functions": "r20261118-080053-3ab4041",
+  "health": {
+    "direct": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "entry": "edge",
+        "release": "r20261118-080053-3ab4041",
+        "checks": {
+          "database": {
+            "status": "ok",
+            "latencyMs": 2
+          },
+          "auth": {
+            "status": "ok",
+            "latencyMs": 4
+          }
+        }
+      }
+    },
+    "viaSites": {
+      "react": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-080053-3ab4041",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 1
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 2
+            }
+          }
+        }
+      },
+      "angular": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-080053-3ab4041",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 1
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 2
+            }
+          }
+        }
+      },
+      "vue": {
+        "status": 200,
+        "body": {
+          "status": "ok",
+          "entry": "edge",
+          "release": "r20261118-080053-3ab4041",
+          "checks": {
+            "database": {
+              "status": "ok",
+              "latencyMs": 0
+            },
+            "auth": {
+              "status": "ok",
+              "latencyMs": 1
+            }
+          }
+        }
+      }
+    },
+    "leaked": []
+  },
+  "kind": "monitor",
+  "leaked": [],
+  "logs": {
+    "lines": 1,
+    "sample": "ADMIN_ERROR {\"at\":\"2026-11-18T08:03:26.422Z\",\"entry\":\"edge\",\"release\":\"r20261118-080053-3ab4041\",\"source\":\"request\",\"request\":{\"method\":\"POST\",\"path\":\"/admin-collaboration/workspaces/admin-template-local/assets/commands\"},\"error\":{\"name\":\"error\",\"message\":\"monitor drill fault for [email] code [digits] token [jwt]\",\"code\":\"P0001\",\"detail\":\"Key (email)=([email]) rejected by the drill\",\"stack\":\"error: monitor drill fault for [email] code [digits] token [jwt]\\n    at file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:11:14652\\n    at eventLoopTick (ext:core/01_core.js:175:7)\\n    at async Ce (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:90:509)\\n    at async Yu.save (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:94:1185)\\n    at async vE (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:112:9797)\\n    at async ec.transaction (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:115:221)\\n    at async ec.operation (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:112:11155)\\n    at async XV (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:16:44359)\\n    at async Object.handler (file:///var/tmp/sb-compile-edge-runtime/admin-collaboration/dist/collaboration.js:16:43377)\\n    at async mapped (ext:runtime/http.js:246:20)\"}}"
+  },
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "outages": {
+    "database": {
+      "status": "unavailable",
+      "entry": "edge",
+      "release": "r20261118-080053-3ab4041",
+      "checks": {
+        "database": {
+          "status": "unavailable",
+          "latencyMs": 12,
+          "reason": "error",
+          "code": "ENOTFOUND"
+        },
+        "auth": {
+          "status": "ok",
+          "latencyMs": 3
+        }
+      }
+    },
+    "auth": {
+      "status": "unavailable",
+      "entry": "edge",
+      "release": "r20261118-080053-3ab4041",
+      "checks": {
+        "database": {
+          "status": "ok",
+          "latencyMs": 1
+        },
+        "auth": {
+          "status": "unavailable",
+          "latencyMs": 3002,
+          "reason": "timeout"
+        }
+      }
+    },
+    "recovered": {
+      "status": "ok",
+      "entry": "edge",
+      "release": "r20261118-080053-3ab4041",
+      "checks": {
+        "database": {
+          "status": "ok",
+          "latencyMs": 0
+        },
+        "auth": {
+          "status": "ok",
+          "latencyMs": 1
+        }
+      }
+    }
+  },
+  "release": "r20261118-080053-3ab4041"
+}

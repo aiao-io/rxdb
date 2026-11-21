@@ -6,7 +6,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 const ENTRIES: readonly (readonly [string, () => Promise<unknown>])[] = [
   ['../index.js', () => import('../index.js')],
-  ['../working-tree/testing/index.js', () => import('../working-tree/testing/index.js')]
+  ['../working-tree/testing/index.js', () => import('../working-tree/testing/index.js')],
+  ['../exchange.js', () => import('../exchange.js')]
 ];
 
 afterEach(() => {

@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, sqlite]
 ---
 
@@ -53,6 +53,6 @@ tags: [adapter, sqlite]
 - `packages/rxdb-adapter-sqlite-wasm/src/__tests__/RxDBAdapterSqlite.spec.ts` — 核心功能测试
 - `packages/rxdb-adapter-sqlite-core/src/__tests__/transaction_sqlite_result.spec.ts` — 事务测试
 
-## 参考
+## References
 
 - [文档: SQLite 适配器](../../../website/docs/adapters/sqlite.md)

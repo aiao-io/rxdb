@@ -1,0 +1,350 @@
+{
+  "edge": {
+    "idempotency": {
+      "statuses": [200, 200, 409, 200, 200],
+      "reused": "idempotency",
+      "results": [
+        ["head", "taskId"],
+        ["head", "taskId"]
+      ],
+      "facts": {
+        "tasks": 1,
+        "commits": 1,
+        "receipts": 2,
+        "audit": 3,
+        "revision": 2,
+        "shared": 0,
+        "broadcasts": 2
+      }
+    },
+    "concurrentUploads": {
+      "statuses": [200, 409],
+      "loser": "diverged",
+      "loserSeesWinner": true,
+      "facts": {
+        "tasks": 1,
+        "commits": 1,
+        "receipts": 2,
+        "audit": 3,
+        "revision": 2,
+        "shared": 0,
+        "broadcasts": 2
+      }
+    },
+    "revocationRaces": {
+      "first": ["pending", "pending", 200, 200],
+      "mergeAfterRevocation": "approval",
+      "second": ["pending", "pending", "pending", 200, "forbidden", "forbidden"]
+    },
+    "denials": {
+      "results": {
+        "missingToken": [401, "unauthenticated"],
+        "forgedSignature": [401, "unauthenticated"],
+        "expired": [401, "unauthenticated"],
+        "serviceRoleToken": [401, "unauthenticated"],
+        "outsider": [403, "forbidden"],
+        "readOnlyMember": [403, "forbidden"],
+        "otherTeam": [403, "forbidden"],
+        "foreignOrigin": [403, "forbidden"],
+        "wrongInvitee": [403, "forbidden"]
+      },
+      "config": [
+        200,
+        {
+          "supabaseUrl": "https://project.supabase.test",
+          "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6ImNvbnRyYWN0In0.78aw2HpYmAiiQ6dhUcQquhFczuLPlkA0kmIjyLrhOZk"
+        }
+      ],
+      "facts": {
+        "tasks": 0,
+        "commits": 0,
+        "receipts": 3,
+        "audit": 4,
+        "revision": 3,
+        "shared": 0,
+        "broadcasts": 3
+      }
+    },
+    "rollback": {
+      "failed": [500, "internal"],
+      "unchanged": true,
+      "retried": 200,
+      "merged": {
+        "tasks": 1,
+        "commits": 2,
+        "receipts": 7,
+        "audit": 8,
+        "revision": 7,
+        "shared": 1,
+        "broadcasts": 7
+      }
+    },
+    "lockTimeout": {
+      "blocked": [
+        503,
+        "2",
+        "unavailable",
+        {
+          "reason": "timeout",
+          "retryAfter": 2
+        }
+      ],
+      "retried": [200, 200],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "poolExhausted": {
+      "exhausted": [
+        503,
+        "1",
+        "unavailable",
+        {
+          "reason": "pool",
+          "retryAfter": 1
+        }
+      ],
+      "retried": [200, 200],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "clientRetry": {
+      "waits": [1000],
+      "result": ["head", "taskId"],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "everyCommand": {
+      "types": [
+        "accept_invite",
+        "candidate",
+        "dismiss",
+        "edit_comment",
+        "fork",
+        "invite",
+        "member",
+        "merge",
+        "policy",
+        "pr",
+        "pr_state",
+        "read_notice",
+        "reply",
+        "resolve_thread",
+        "review",
+        "revoke_invite",
+        "schema",
+        "subscribe",
+        "task",
+        "thread",
+        "upload"
+      ],
+      "statuses": [
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200
+      ],
+      "facts": {
+        "tasks": 2,
+        "commits": 3,
+        "receipts": 23,
+        "audit": 24,
+        "revision": 23,
+        "shared": 1,
+        "broadcasts": 23
+      }
+    }
+  },
+  "node": {
+    "idempotency": {
+      "statuses": [200, 200, 409, 200, 200],
+      "reused": "idempotency",
+      "results": [
+        ["head", "taskId"],
+        ["head", "taskId"]
+      ],
+      "facts": {
+        "tasks": 1,
+        "commits": 1,
+        "receipts": 2,
+        "audit": 3,
+        "revision": 2,
+        "shared": 0,
+        "broadcasts": 2
+      }
+    },
+    "concurrentUploads": {
+      "statuses": [200, 409],
+      "loser": "diverged",
+      "loserSeesWinner": true,
+      "facts": {
+        "tasks": 1,
+        "commits": 1,
+        "receipts": 2,
+        "audit": 3,
+        "revision": 2,
+        "shared": 0,
+        "broadcasts": 2
+      }
+    },
+    "revocationRaces": {
+      "first": ["pending", "pending", 200, 200],
+      "mergeAfterRevocation": "approval",
+      "second": ["pending", "pending", "pending", 200, "forbidden", "forbidden"]
+    },
+    "denials": {
+      "results": {
+        "missingToken": [401, "unauthenticated"],
+        "forgedSignature": [401, "unauthenticated"],
+        "expired": [401, "unauthenticated"],
+        "serviceRoleToken": [401, "unauthenticated"],
+        "outsider": [403, "forbidden"],
+        "readOnlyMember": [403, "forbidden"],
+        "otherTeam": [403, "forbidden"],
+        "foreignOrigin": [403, "forbidden"],
+        "wrongInvitee": [403, "forbidden"]
+      },
+      "config": [
+        200,
+        {
+          "supabaseUrl": "https://project.supabase.test",
+          "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6ImNvbnRyYWN0In0.78aw2HpYmAiiQ6dhUcQquhFczuLPlkA0kmIjyLrhOZk"
+        }
+      ],
+      "facts": {
+        "tasks": 0,
+        "commits": 0,
+        "receipts": 3,
+        "audit": 4,
+        "revision": 3,
+        "shared": 0,
+        "broadcasts": 3
+      }
+    },
+    "rollback": {
+      "failed": [500, "internal"],
+      "unchanged": true,
+      "retried": 200,
+      "merged": {
+        "tasks": 1,
+        "commits": 2,
+        "receipts": 7,
+        "audit": 8,
+        "revision": 7,
+        "shared": 1,
+        "broadcasts": 7
+      }
+    },
+    "lockTimeout": {
+      "blocked": [
+        503,
+        "2",
+        "unavailable",
+        {
+          "reason": "timeout",
+          "retryAfter": 2
+        }
+      ],
+      "retried": [200, 200],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "poolExhausted": {
+      "exhausted": [
+        503,
+        "1",
+        "unavailable",
+        {
+          "reason": "pool",
+          "retryAfter": 1
+        }
+      ],
+      "retried": [200, 200],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "clientRetry": {
+      "waits": [1000],
+      "result": ["head", "taskId"],
+      "facts": {
+        "tasks": 1,
+        "commits": 0,
+        "receipts": 1,
+        "audit": 2,
+        "revision": 1,
+        "shared": 0,
+        "broadcasts": 1
+      }
+    },
+    "everyCommand": {
+      "types": [
+        "accept_invite",
+        "candidate",
+        "dismiss",
+        "edit_comment",
+        "fork",
+        "invite",
+        "member",
+        "merge",
+        "policy",
+        "pr",
+        "pr_state",
+        "read_notice",
+        "reply",
+        "resolve_thread",
+        "review",
+        "revoke_invite",
+        "schema",
+        "subscribe",
+        "task",
+        "thread",
+        "upload"
+      ],
+      "statuses": [
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200
+      ],
+      "facts": {
+        "tasks": 2,
+        "commits": 3,
+        "receipts": 23,
+        "audit": 24,
+        "revision": 23,
+        "shared": 1,
+        "broadcasts": 23
+      }
+    }
+  }
+}

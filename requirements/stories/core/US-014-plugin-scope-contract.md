@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-10-28
+updated: 2026-11-16
 tags: [lifecycle, plugin, public-api, breaking-candidate]
 ---
 
@@ -443,7 +443,7 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
 **不 `complete()` 这两个 Subject**。断连期间没有变更可发，流保持沉默而非终结；重连后同一条
 `changes$` 继续发射（AC#11c）。
 
-这是本故事**唯一一处**有意的可观察行为变更（`changes$` 不再于断连时 complete），
+这是本故事有意的三处可观察行为变更**之一**（`changes$` 不再于断连时 complete），
 必须落到 `website/docs/migration/`（AC#20）。挂起的 `flush()` 在断连时仍然 reject，与升级前一致——
 那条语义由 D5「不改拆卸错误出口」保护，不受本决策影响。
 

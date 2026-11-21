@@ -11,7 +11,7 @@
 | 本地真栈       | 隔离 Supabase 栈 + 本地 wrangler Worker（US-713 验收入口）                            | Auth、RLS、管理接口、信令踢下线在真实服务上的行为 | 正式环境已启用                   |
 | 正式环境       | 线上 aiao-rxdb-p2p.aiao.workers.dev（走代理 7897 的 tmp/p2p-live 配置，本机直连不通） | 线上发布、账号/清单/直传/回退的真实链路           | 真实团队持续使用、滥用演练       |
 
-内存协议测试不充当任何 AC 的验收证据（根 epic-011 的口径同样适用）；fixture 的 URL 结果只验证请求约束，不替代真实跨 origin 行为；dry-run 不代表已发布。
+内存协议测试不充当任何 AC 的验收证据（根 epic-013 的口径同样适用）；fixture 的 URL 结果只验证请求约束，不替代真实跨 origin 行为；dry-run 不代表已发布。
 
 ## 当前证据
 

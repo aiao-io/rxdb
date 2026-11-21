@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="no-referrer" name="referrer" />
+    <link href="data:," rel="icon" />
+    <title>RxDB Admin Template 开发导航</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f6f8;
+        --panel: #ffffff;
+        --line: #e2e5ea;
+        --text: #18202c;
+        --muted: #5b6676;
+        --accent: #3451c7;
+        --accent-soft: #e9edfc;
+        --ok: #18794a;
+        --warn: #9a5b00;
+        --bad: #b42318;
+        --code-bg: #f0f2f5;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0d1219;
+          --panel: #141b25;
+          --line: #253041;
+          --text: #e5eaf2;
+          --muted: #96a2b4;
+          --accent: #9fb5ff;
+          --accent-soft: #1b2847;
+          --ok: #72d9a0;
+          --warn: #f0c36a;
+          --bad: #ff9184;
+          --code-bg: #1b2432;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+      }
+      main {
+        max-width: 1180px;
+        margin: auto;
+        padding: 28px 32px 48px;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 1px 5px;
+        overflow-wrap: anywhere;
+      }
+      button {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 6px;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 3px 9px;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text);
+        font-weight: 650;
+        font-size: 14px;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font:
+          650 12px ui-monospace,
+          monospace;
+      }
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 36px 0 28px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(26px, 4vw, 36px);
+        font-weight: 650;
+        letter-spacing: -0.5px;
+      }
+      header p {
+        margin: 0;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .primary,
+      .secondary {
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .primary {
+        background: var(--accent);
+        color: var(--panel);
+      }
+      .secondary {
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .primary:hover,
+      .secondary:hover {
+        text-decoration: none;
+        filter: brightness(1.06);
+      }
+      section {
+        margin-top: 30px;
+      }
+      .heading {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 12px;
+        margin: 0 0 12px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+      }
+      .caption,
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .hint {
+        display: block;
+        margin-top: 3px;
+        line-height: 1.6;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .grid.four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .card,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px 18px;
+      }
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+      }
+      .card p {
+        flex: 1;
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 9px;
+        color: var(--muted);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .state::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.6;
+      }
+      .state[data-state='up'] {
+        color: var(--ok);
+        border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+      }
+      .state[data-state='degraded'] {
+        color: var(--warn);
+        border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+      }
+      .state[data-state='down'] {
+        color: var(--bad);
+        border-color: color-mix(in srgb, var(--bad) 40%, transparent);
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0 0 12px;
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+      .steps li {
+        position: relative;
+        border-radius: 10px;
+        background: var(--accent-soft);
+        padding: 12px 14px 12px 42px;
+        font-size: 13px;
+        line-height: 1.6;
+        counter-increment: step;
+      }
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        top: 12px;
+        left: 14px;
+        display: grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--panel);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .table {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      tbody td:nth-child(2),
+      tbody td:nth-child(4) {
+        white-space: nowrap;
+      }
+      th,
+      td {
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .permissions code {
+        display: inline-block;
+        margin: 0 4px 4px 0;
+      }
+      .code code {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 2px;
+      }
+      .code[data-state='stale'] code {
+        opacity: 0.55;
+      }
+      .note,
+      .notes {
+        margin: 10px 2px 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .notes {
+        padding-left: 18px;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1.1fr 1fr;
+        gap: 20px;
+      }
+      .panel {
+        padding: 4px 18px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 7px 0;
+      }
+      .row + .row {
+        border-top: 1px solid var(--line);
+      }
+      .row-label {
+        flex-shrink: 0;
+        width: 112px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .row-value {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+      }
+      .tips {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .tips li {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .tips strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text);
+        font-weight: 600;
+      }
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px 16px;
+        margin-top: 30px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      footer p {
+        margin: 0;
+      }
+      #copy-status {
+        color: var(--accent);
+      }
+      @media (max-width: 960px) {
+        .grid,
+        .grid.four,
+        .tips {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .two,
+        .steps {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        main {
+          padding: 20px 16px 36px;
+        }
+        header {
+          display: block;
+        }
+        .actions {
+          margin-top: 18px;
+        }
+        .grid,
+        .grid.four,
+        .tips {
+          grid-template-columns: 1fr;
+        }
+        .row {
+          flex-wrap: wrap;
+        }
+        .row-label {
+          width: 100%;
+        }
+        .topbar .local {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">AT</span>
+          RxDB Admin Template
+        </div>
+        <span class="local">本地开发 · 分支 {{ BRANCH }}</span>
+      </div>
+
+      <header>
+        <div>
+          <h1>本地开发导航</h1>
+          <p>
+            三端工作台、团队协作、本地 Supabase 栈都已就绪。端口固定；在终端按 Ctrl-C
+            停止三端、协作命令服务与本页，Docker 容器继续运行并保留数据。
+          </p>
+        </div>
+        <div class="actions">
+          <a class="primary" href="{{ REACT_URL }}/" rel="noreferrer" target="_blank">打开 React 工作台 ↗</a>
+          <a class="secondary" href="{{ REACT_URL }}/collaboration" rel="noreferrer" target="_blank">团队协作 ↗</a>
+        </div>
+      </header>
+
+      <section aria-labelledby="apps-title">
+        <div class="heading">
+          <h2 id="apps-title">三端工作台</h2>
+          <span class="caption">同一套功能、同一套验收；改代码热更新，状态每 3 秒刷新</span>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <div class="card-top">
+              <h3>React</h3>
+              <span class="state" data-down="未响应" data-status="react">检测中</span>
+            </div>
+            <p>
+              Vite 开发服务器，
+              <code>/collaboration-api</code>
+              代理到协作命令服务。
+            </p>
+            <div class="links">
+              <a href="{{ REACT_URL }}/" rel="noreferrer" target="_blank">工作台 ↗</a>
+              <a href="{{ REACT_URL }}/collaboration" rel="noreferrer" target="_blank">团队协作 ↗</a>
+              <code>{{ REACT_URL }}</code>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>Angular</h3>
+              <span class="state" data-down="未响应" data-status="angular">检测中</span>
+            </div>
+            <p>
+              Angular 开发服务器（无 Zone）。代理配置见
+              <code>apps/angular/proxy.conf.cjs</code>
+            </p>
+            <div class="links">
+              <a href="{{ ANGULAR_URL }}/" rel="noreferrer" target="_blank">工作台 ↗</a>
+              <a href="{{ ANGULAR_URL }}/collaboration" rel="noreferrer" target="_blank">团队协作 ↗</a>
+              <code>{{ ANGULAR_URL }}</code>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>Vue</h3>
+              <span class="state" data-down="未响应" data-status="vue">检测中</span>
+            </div>
+            <p>Vite 开发服务器，与 React 同一份代理与离线外壳配置。</p>
+            <div class="links">
+              <a href="{{ VUE_URL }}/" rel="noreferrer" target="_blank">工作台 ↗</a>
+              <a href="{{ VUE_URL }}/collaboration" rel="noreferrer" target="_blank">团队协作 ↗</a>
+              <code>{{ VUE_URL }}</code>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="accounts-title">
+        <div class="heading">
+          <h2 id="accounts-title">测试账号</h2>
+          <span class="caption">
+            团队「{{ TEAM_NAME }}」 ·
+            <code>{{ TEAM_ID }}</code>
+            /
+            <code>{{ APP_ID }}</code>
+            · 邮箱验证码登录，没有密码
+          </span>
+        </div>
+        <ol class="steps">
+          <li>打开任一端的「团队协作」页，输入下表里的邮箱，点「发送验证码」。</li>
+          <li>验证码几秒内出现在下表（每 3 秒刷新），也可以在本地收件服务里查看。</li>
+          <li>填入验证码点「登录」。换账号先「退出账号」；多个账号同时在线用不同浏览器或隐私窗口。</li>
+        </ol>
+        <div class="panel table">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">角色</th>
+                <th scope="col">邮箱</th>
+                <th scope="col">权限</th>
+                <th scope="col">最新验证码</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ ACCOUNT_ROWS }}
+            </tbody>
+          </table>
+        </div>
+        <ul class="notes">
+          <li>每次启动都会确认这些账号存在、邮箱已验证、是团队的有效成员；在页面上改过的权限保持不变。</li>
+          <li>PR 作者不能批准自己的 PR：编辑者发起，审核者批准，管理员合并。</li>
+          <li>任意邮箱都能收到验证码（收件箱按 @ 前的部分分），但只有团队成员能进入团队。</li>
+          <li>首页、实体页与 Dashboard 等匿名工作台不需要登录，数据只在当前浏览器。</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="backend-title">
+        <div class="heading">
+          <h2 id="backend-title">后端服务</h2>
+          <span class="caption">
+            本地 Supabase 栈与发布预演共用（compose 项目 admin-template-local，端口 4500～4529）
+          </span>
+        </div>
+        <div class="four grid">
+          <article class="card">
+            <div class="card-top">
+              <h3>协作命令服务</h3>
+              <span class="state" data-down="未响应" data-status="api">检测中</span>
+            </div>
+            <p>
+              Node 入口，以专用角色经 PgBouncer 连库、按 JWKS 验签。
+              <span class="hint" data-detail="api"></span>
+            </p>
+            <div class="links">
+              <a href="{{ API_URL }}/health" rel="noreferrer" target="_blank">健康检查 ↗</a>
+              <code>{{ API_URL }}</code>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>Supabase 网关</h3>
+              <span class="state" data-down="未响应" data-status="gateway">检测中</span>
+            </div>
+            <p>Auth、REST、Realtime 与 Functions 的唯一入口，根路径没有网页，接口要带 anon key。</p>
+            <div class="links">
+              <code>{{ GATEWAY_URL }}</code>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>Supabase Studio</h3>
+              <span class="state" data-down="未启动" data-status="studio">检测中</span>
+            </div>
+            <p>
+              浏览表、跑 SQL、看 Auth 用户；协作数据在
+              <code>public</code>
+              与
+              <code>admin_private</code>
+              两个 schema 里
+            </p>
+            <div class="links">
+              <a href="{{ STUDIO_URL }}/" rel="noreferrer" target="_blank">打开 Studio ↗</a>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>本地收件服务</h3>
+              <span class="state" data-down="未响应" data-status="mail">检测中</span>
+            </div>
+            <p>GoTrue 的验证码邮件都发到这里，不会发出真实邮件。</p>
+            <div class="links">
+              <a href="{{ MAIL_URL }}/" rel="noreferrer" target="_blank">打开收件箱 ↗</a>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>错误收集器</h3>
+              <span class="state" data-down="未响应" data-status="collector">检测中</span>
+            </div>
+            <p>协作命令服务的未处理错误（已脱敏）。</p>
+            <div class="links">
+              <a href="{{ COLLECTOR_URL }}/events" rel="noreferrer" target="_blank">最近的错误 ↗</a>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>PostgreSQL</h3>
+              <span class="state" data-down="未响应" data-status="database">检测中</span>
+            </div>
+            <p>迁移所有者（postgres）直连，口令见下方连接信息。</p>
+            <div class="links">
+              <code>{{ DB_ADDRESS }}</code>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-top">
+              <h3>PgBouncer</h3>
+              <span class="state" data-down="未响应" data-status="pooler">检测中</span>
+            </div>
+            <p>transaction 模式，对应生产的 Supavisor 6543；只给协作专用角色。</p>
+            <div class="links">
+              <code>{{ POOLER_ADDRESS }}</code>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="connection-title">
+        <div class="heading">
+          <h2 id="connection-title">连接信息</h2>
+          <span class="caption">密钥来自 deploy/local/.env.local（首次起栈随机生成），只在本机</span>
+        </div>
+        <div class="panel">
+          <div class="row">
+            <span class="row-label">Supabase URL</span>
+            <span class="row-value">
+              <code>{{ GATEWAY_URL }}</code>
+            </span>
+            <button aria-label="复制 Supabase URL" data-copy="{{ GATEWAY_URL }}" type="button">复制</button>
+          </div>
+          <div class="row">
+            <span class="row-label">anon key（公开）</span>
+            <span class="row-value">
+              <code>{{ ANON_KEY }}</code>
+            </span>
+            <button aria-label="复制 anon key" data-copy="{{ ANON_KEY }}" type="button">复制</button>
+          </div>
+          <div class="row">
+            <span class="row-label">数据库连接串</span>
+            <span class="row-value">
+              <code>{{ DB_URI }}</code>
+            </span>
+            <button aria-label="复制数据库连接串" data-copy="{{ DB_URI }}" type="button">复制</button>
+          </div>
+          <div class="row">
+            <span class="row-label">postgres 口令</span>
+            <span class="row-value">
+              <code>{{ DB_PASSWORD }}</code>
+            </span>
+            <button aria-label="复制 postgres 口令" data-copy="{{ DB_PASSWORD }}" type="button">复制</button>
+          </div>
+          <div class="row">
+            <span class="row-label">psql</span>
+            <span class="row-value">
+              <code>{{ PSQL_COMMAND }}</code>
+            </span>
+            <button aria-label="复制 psql 命令" data-copy="{{ PSQL_COMMAND }}" type="button">复制</button>
+          </div>
+        </div>
+        <p class="note">
+          service role key、JWT 密钥、协作专用角色口令与初始化密钥不放在本页，需要时直接看 .env.local。
+        </p>
+      </section>
+
+      <section class="two">
+        <div aria-labelledby="commands-title" role="region">
+          <div class="heading">
+            <h2 id="commands-title">常用命令</h2>
+            <span class="caption">在仓库根执行，Node 26</span>
+          </div>
+          <div class="panel">
+            <div class="row">
+              <span class="row-label">普通日志输出</span>
+              <span class="row-value"><code>pnpm nx dev rxdb-admin-template --tui=false</code></span>
+              <button
+                aria-label="复制普通日志输出的启动命令"
+                data-copy="pnpm nx dev rxdb-admin-template --tui=false"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">不开浏览器</span>
+              <span class="row-value"><code>AIAO_DEV_OPEN=false pnpm nx dev rxdb-admin-template</code></span>
+              <button
+                aria-label="复制不打开浏览器的启动命令"
+                data-copy="AIAO_DEV_OPEN=false pnpm nx dev rxdb-admin-template"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">本地栈状态</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template:local-status</code></span>
+              <button
+                aria-label="复制本地栈状态命令"
+                data-copy="pnpm nx run rxdb-admin-template:local-status"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">停止本地栈</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template:local-down</code></span>
+              <button
+                aria-label="复制停止本地栈命令"
+                data-copy="pnpm nx run rxdb-admin-template:local-down"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">清空数据重来</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template:local-down -- --volumes</code></span>
+              <button
+                aria-label="复制清空本地栈数据的命令"
+                data-copy="pnpm nx run rxdb-admin-template:local-down -- --volumes"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">Auth 日志</span>
+              <span class="row-value"><code>docker logs -f admin-template-local-auth-1</code></span>
+              <button
+                aria-label="复制查看 Auth 日志的命令"
+                data-copy="docker logs -f admin-template-local-auth-1"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">产品门禁</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template:test</code></span>
+              <button aria-label="复制产品门禁命令" data-copy="pnpm nx run rxdb-admin-template:test" type="button">
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">协作单测</span>
+              <span class="row-value"><code>pnpm nx run admin-collaboration:test</code></span>
+              <button aria-label="复制协作单测命令" data-copy="pnpm nx run admin-collaboration:test" type="button">
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">React 浏览器验收</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template-react-e2e:e2e</code></span>
+              <button
+                aria-label="复制 React 浏览器验收命令"
+                data-copy="pnpm nx run rxdb-admin-template-react-e2e:e2e"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">发布预演</span>
+              <span class="row-value"><code>pnpm nx run rxdb-admin-template:deploy-local</code></span>
+              <button
+                aria-label="复制发布预演命令"
+                data-copy="pnpm nx run rxdb-admin-template:deploy-local"
+                type="button"
+              >
+                复制
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div aria-labelledby="docs-title" role="region">
+          <div class="heading">
+            <h2 id="docs-title">文档与源码</h2>
+            <span class="caption">点击在 VS Code 中打开</span>
+          </div>
+          <div class="panel">
+            <div class="row">
+              <span class="row-label">产品说明</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/README.md">
+                <code>rxdb-admin-template/README.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">目录边界</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/AGENTS.md">
+                <code>rxdb-admin-template/AGENTS.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">产品需求</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/requirements/README.md">
+                <code>requirements/README.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">状态总览</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/requirements/status-overview.md">
+                <code>requirements/status-overview.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">协作包</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/packages/collaboration/README.md">
+                <code>packages/collaboration/README.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">本地栈与部署</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/deploy/README.md">
+                <code>deploy/README.md</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">数据模式清单</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/schema/collaboration-schema.json">
+                <code>schema/collaboration-schema.json</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">测试账号定义</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/scripts/dev/accounts.mjs">
+                <code>scripts/dev/accounts.mjs</code>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">端口登记</span>
+              <a class="row-value" href="{{ EDITOR_ROOT }}rxdb-admin-template/scripts/dev/services.mjs">
+                <code>scripts/dev/services.mjs</code>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="tips-title">
+        <div class="heading">
+          <h2 id="tips-title">开发提示</h2>
+        </div>
+        <ul class="tips">
+          <li>
+            <strong>端口固定，不换号</strong>
+            被占用时直接报错，不会顺延到别的端口。在终端里（TUI）强行结束 nx 不留进程；用 --tui=false 跑时被强杀，React
+            / Vue 的 vite 可能残留，结束占用 4206 / 4208 的进程即可。
+          </li>
+          <li>
+            <strong>哪些改动会热更新</strong>
+            三端代码与协作包的浏览器端代码改完即生效；协作包服务端代码
+            <code>src/server</code>
+            改了要重启 nx dev。
+          </li>
+          <li>
+            <strong>验证码与会话</strong>
+            验证码 1 小时内有效、只能用一次；access token 15 分钟，页面在到期前自动刷新。收不到验证码先看 Auth 日志。
+          </li>
+          <li>
+            <strong>数据在哪里</strong>
+            匿名工作台在浏览器的 sqlite-wasm + IndexedDB，清站点数据即重置；团队数据在
+            PostgreSQL，清空用「清空数据重来」。
+          </li>
+          <li>
+            <strong>改了数据模式</strong>
+            实体定义变了要重新生成
+            <code>schema/collaboration-schema.json</code>
+            并提高版本，已有团队经「数据模式」命令登记新版本。
+          </li>
+          <li>
+            <strong>与发布预演共用</strong>
+            <code>deploy-local</code>
+            把三端产物发布到 4510～4512；做迁移验收前先清空数据，从干净的栈开始。
+          </li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>
+          检出位
+          <code>{{ WORKSPACE }}</code>
+          · 分支
+          <code>{{ BRANCH }}</code>
+        </p>
+        <p>
+          本页只监听
+          <code>{{ DASHBOARD_ADDRESS }}</code>
+          · 不进入任何构建产物
+        </p>
+        <p id="copy-status" aria-live="polite" role="status"></p>
+      </footer>
+    </main>
+    <script>
+      const copyStatus = document.getElementById('copy-status');
+      document.addEventListener('click', async event => {
+        const button = event.target.closest('button[data-copy]');
+        if (!button) return;
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy);
+          copyStatus.textContent = '已复制到剪贴板';
+        } catch {
+          copyStatus.textContent = '无法访问剪贴板，请选中文字复制';
+        }
+      });
+
+      const describeCheck = check => (check?.status === 'ok' ? `${check.latencyMs} ms` : (check?.reason ?? '不可用'));
+      const ago = iso => {
+        const seconds = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+        if (seconds < 60) return `${seconds} 秒前`;
+        if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟前`;
+        return `${Math.round(seconds / 3600)} 小时前，可能已过期`;
+      };
+
+      async function refreshStatus() {
+        let status;
+        try {
+          status = await (await fetch('/status.json', { cache: 'no-store' })).json();
+        } catch {
+          for (const badge of document.querySelectorAll('[data-status]')) {
+            badge.textContent = '导航已停止';
+            badge.dataset.state = 'down';
+          }
+          return;
+        }
+        for (const [id, service] of Object.entries(status)) {
+          for (const badge of document.querySelectorAll(`[data-status="${id}"]`)) {
+            badge.dataset.state = service.state;
+            badge.textContent =
+              service.state === 'up' ? '运行中'
+              : service.state === 'degraded' ? `异常（${service.status}）`
+              : badge.dataset.down;
+          }
+        }
+        const checks = status.api?.body?.checks;
+        document.querySelector('[data-detail="api"]').textContent =
+          checks ? `数据库 ${describeCheck(checks.database)} · Auth ${describeCheck(checks.auth)}` : '';
+      }
+
+      async function refreshCodes() {
+        const cells = document.querySelectorAll('[data-code]');
+        let codes;
+        try {
+          const response = await fetch('/codes.json', { cache: 'no-store' });
+          codes = await response.json();
+          if (!response.ok) throw new Error(codes.error);
+        } catch {
+          for (const cell of cells) cell.replaceChildren('收件服务不可用');
+          return;
+        }
+        for (const cell of cells) {
+          const latest = codes[cell.dataset.code];
+          if (!latest) {
+            cell.replaceChildren('暂无，先发送验证码');
+            continue;
+          }
+          const code = document.createElement('code');
+          code.textContent = latest.code;
+          const copy = document.createElement('button');
+          copy.type = 'button';
+          copy.dataset.copy = latest.code;
+          copy.textContent = '复制';
+          copy.setAttribute('aria-label', `复制 ${cell.dataset.code} 的验证码`);
+          const time = document.createElement('span');
+          time.className = 'hint';
+          time.textContent = ago(latest.receivedAt);
+          cell.dataset.state = Date.now() - Date.parse(latest.receivedAt) > 3_600_000 ? 'stale' : 'fresh';
+          cell.replaceChildren(code, ' ', copy, time);
+        }
+      }
+
+      const refresh = () => Promise.all([refreshStatus(), refreshCodes()]);
+      refresh();
+      setInterval(() => document.visibilityState === 'visible' && refresh(), 3000);
+    </script>
+  </body>
+</html>

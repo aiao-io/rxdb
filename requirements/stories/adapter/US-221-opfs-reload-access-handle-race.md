@@ -5,14 +5,14 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-16
-updated: 2026-10-27
+updated: 2026-11-16
 tags: [adapter, sqlite-wasm, opfs, browser, bug]
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent (独立): 只动 sqlite-wasm 适配器打开库的路径与三端 demo 的连接失败提示，不依赖其它在途故事
-- [x] Negotiable (可协商): 修法落在适配器内的有界重试（owner 2026-10-16 决定与 #122 一起交付）
+- [x] Independent (独立): 覆盖 sqlite-wasm 的 OPFS、wa-sqlite 的 OPFSCoopSyncVFS 打开路径与三端 demo 的连接失败提示，不依赖其它在途故事
+- [x] Negotiable (可协商): 修法落在适配器内的有界重试
 - [x] Valuable (有价值): 三端 demo 都用这条路径；写库时刷新页面，应用就可能起不来，且页面上看不到任何错误
 - [x] Estimable (可估算): 一处打开路径的有界重试 + 一条确定性的浏览器用例 + 三端连接失败提示
 - [x] Small (小): 不改 VFS 的协作机制，不改 idb 路径

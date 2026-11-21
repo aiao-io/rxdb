@@ -1,0 +1,95 @@
+{
+  "afterRollback": {
+    "revision": 13,
+    "auditCount": 14,
+    "head": "01a1eda6-24cb-7d8e-979e-b60e07215e18",
+    "records": ["drill-1-category:回滚前的分类", "drill-2-category:新版本期间的分类"]
+  },
+  "afterRollbackWrite": {
+    "revision": 19,
+    "auditCount": 20,
+    "head": "01a1eda6-4352-7363-9f35-d5fbfcc5db90",
+    "records": ["drill-1-category:回滚前的分类", "drill-2-category:新版本期间的分类", "drill-3-category:回滚之后的分类"]
+  },
+  "at": "2026-11-18T07:51:26.427Z",
+  "checks": {
+    "newReleaseWentLive": true,
+    "backToPreviousRelease": true,
+    "sharedDataUnchangedByRollback": true,
+    "bothMergesPresent": true,
+    "oldVersionStillWrites": true,
+    "e2eSmokePassed": true
+  },
+  "kind": "rollback-drill",
+  "links": {
+    "current": "r20261118-065714-121bbf2",
+    "functions": "r20261118-065714-121bbf2"
+  },
+  "note": "本地预演栈（deploy/local，自托管 Supabase）上的结果，⚠️ 不能替代真实部署环境的证据",
+  "onA": {
+    "revision": 7,
+    "auditCount": 8,
+    "head": "01a1eda3-a8c2-75e5-843c-14a47f4de573",
+    "records": ["drill-1-category:回滚前的分类"]
+  },
+  "onB": {
+    "revision": 13,
+    "auditCount": 14,
+    "head": "01a1eda6-24cb-7d8e-979e-b60e07215e18",
+    "records": ["drill-1-category:回滚前的分类", "drill-2-category:新版本期间的分类"]
+  },
+  "releaseA": "r20261118-065714-121bbf2",
+  "releaseB": "r20261118-075128-3ab4041",
+  "rollbackRecord": {
+    "release": "r20261118-065714-121bbf2",
+    "result": "rolled_back",
+    "from": "r20261118-075128-3ab4041",
+    "to": "r20261118-065714-121bbf2",
+    "startedAt": "2026-11-18T07:54:11.193Z",
+    "finishedAt": "2026-11-18T07:54:18.470Z",
+    "before": {
+      "current": "r20261118-075128-3ab4041",
+      "functions": "r20261118-075128-3ab4041"
+    },
+    "after": {
+      "current": "r20261118-065714-121bbf2",
+      "functions": "r20261118-065714-121bbf2"
+    },
+    "migrationsKept": [],
+    "health": {
+      "status": "ok",
+      "entry": "edge",
+      "release": "r20261118-065714-121bbf2",
+      "checks": {
+        "database": {
+          "status": "ok",
+          "latencyMs": 5
+        },
+        "auth": {
+          "status": "ok",
+          "latencyMs": 6
+        }
+      }
+    }
+  },
+  "smoke": "passed",
+  "smokeRuns": [
+    {
+      "kind": "e2e",
+      "release": "r20261118-065714-121bbf2",
+      "functions": "r20261118-065714-121bbf2",
+      "startedAt": "2026-11-18T07:54:19.162Z",
+      "finishedAt": "2026-11-18T07:54:56.404Z",
+      "args": ["--project", "smoke-react", "--project", "smoke-angular", "--project", "smoke-vue"],
+      "otpExpirySeconds": null,
+      "report": "acceptance/e2e-r20261118-065714-121bbf2-20261118T075419.json",
+      "expected": 3,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "durationMs": 19398,
+      "failures": []
+    }
+  ],
+  "workspace": "rollback-1794988286408"
+}

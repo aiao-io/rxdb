@@ -1,0 +1,484 @@
+{
+  "baseline": {
+    "label": "task(baseline)",
+    "status": 200,
+    "requestBytes": 154,
+    "wallMs": 1163,
+    "cpuMs": 39,
+    "reason": "EarlyDrop",
+    "memoryTotalMb": 12.7,
+    "memoryHeapMb": 9.7
+  },
+  "cpuHeadroom": 1.87,
+  "environment": {
+    "edgeRuntime": "supabase/edge-runtime:v1.74.0",
+    "limits": {
+      "cpuSoftMs": 1000,
+      "cpuHardMs": 2000,
+      "memoryMb": 256
+    },
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "workspace": {
+      "shared": 10000,
+      "commits": 1003
+    }
+  },
+  "generatedAt": "2026-11-17T21:33:40.121Z",
+  "hundredCommits": {
+    "label": "upload(100 commits)",
+    "status": 200,
+    "requestBytes": 150649,
+    "wallMs": 315,
+    "cpuMs": 89,
+    "reason": "EarlyDrop",
+    "memoryTotalMb": 13.2,
+    "memoryHeapMb": 10.2
+  },
+  "margins": [
+    {
+      "memoryLimitMb": 64,
+      "failed": "merge(10000) failed: {\"code\":\"WORKER_LIMIT\",\"message\":\"Worker failed to respond due to a resource limit (please check logs)\"}"
+    },
+    {
+      "memoryLimitMb": 32,
+      "failed": "upload(10000) failed: {\"code\":\"WORKER_LIMIT\",\"message\":\"Worker failed to respond due to a resource limit (please check logs)\"}"
+    },
+    {
+      "cpuLimitMs": 1000,
+      "failed": "merge(10000) failed: {\"code\":\"WORKER_LIMIT\",\"message\":\"Worker failed to respond due to a resource limit (please check logs)\"}"
+    },
+    {
+      "cpuLimitMs": 500,
+      "failed": "candidate(10000) failed: {\"code\":\"WORKER_LIMIT\",\"message\":\"Worker failed to respond due to a resource limit (please check logs)\"}"
+    }
+  ],
+  "method": "每个请求由新建的 worker 处理并在响应后回收，cpuMs 是该 worker 的 cpu_time_used（含冷启动、建连与 SCRAM 认证），memory 是关闭时的占用",
+  "peakCpuMs": 1068,
+  "rounds": {
+    "100": [
+      {
+        "label": "task(100)",
+        "status": 200,
+        "requestBytes": 160,
+        "wallMs": 93,
+        "cpuMs": 37,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "upload(100)",
+        "status": 200,
+        "requestBytes": 23978,
+        "wallMs": 119,
+        "cpuMs": 53,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.8
+      },
+      {
+        "label": "pr(100)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 86,
+        "cpuMs": 38,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr_state(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 88,
+        "cpuMs": 39,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "candidate(100)",
+        "status": 200,
+        "requestBytes": 131,
+        "wallMs": 106,
+        "cpuMs": 54,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13,
+        "memoryHeapMb": 10
+      },
+      {
+        "label": "merge(100)",
+        "status": 200,
+        "requestBytes": 254,
+        "wallMs": 125,
+        "cpuMs": 63,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      }
+    ],
+    "1000": [
+      {
+        "label": "task(1000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 88,
+        "cpuMs": 38,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "upload(1000)",
+        "status": 200,
+        "requestBytes": 235383,
+        "wallMs": 151,
+        "cpuMs": 81,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "pr(1000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 85,
+        "cpuMs": 38,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr_state(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 87,
+        "cpuMs": 39,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "candidate(1000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 229,
+        "cpuMs": 171,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      },
+      {
+        "label": "merge(1000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 311,
+        "cpuMs": 169,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.3,
+        "memoryHeapMb": 10.3
+      }
+    ],
+    "5000": [
+      {
+        "label": "task(5000)",
+        "status": 200,
+        "requestBytes": 162,
+        "wallMs": 97,
+        "cpuMs": 41,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.6
+      },
+      {
+        "label": "upload(5000)",
+        "status": 200,
+        "requestBytes": 1174939,
+        "wallMs": 318,
+        "cpuMs": 179,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.1,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "pr(5000)",
+        "status": 200,
+        "requestBytes": 165,
+        "wallMs": 84,
+        "cpuMs": 37,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr_state(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 90,
+        "cpuMs": 37,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "candidate(5000)",
+        "status": 200,
+        "requestBytes": 132,
+        "wallMs": 427,
+        "cpuMs": 345,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      },
+      {
+        "label": "merge(5000)",
+        "status": 200,
+        "requestBytes": 255,
+        "wallMs": 1129,
+        "cpuMs": 594,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.9,
+        "memoryHeapMb": 9.9
+      }
+    ],
+    "10000": [
+      {
+        "label": "task(10000)",
+        "status": 200,
+        "requestBytes": 164,
+        "wallMs": 84,
+        "cpuMs": 36,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "upload(10000)",
+        "status": 200,
+        "requestBytes": 2375011,
+        "wallMs": 540,
+        "cpuMs": 318,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.1
+      },
+      {
+        "label": "pr(10000)",
+        "status": 200,
+        "requestBytes": 168,
+        "wallMs": 81,
+        "cpuMs": 40,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.6,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "pr_state(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 85,
+        "cpuMs": 39,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 12.7,
+        "memoryHeapMb": 9.7
+      },
+      {
+        "label": "candidate(10000)",
+        "status": 200,
+        "requestBytes": 133,
+        "wallMs": 674,
+        "cpuMs": 572,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 13.2,
+        "memoryHeapMb": 10.2
+      },
+      {
+        "label": "merge(10000)",
+        "status": 200,
+        "requestBytes": 256,
+        "wallMs": 2210,
+        "cpuMs": 1068,
+        "reason": "EarlyDrop",
+        "memoryTotalMb": 47.7,
+        "memoryHeapMb": 37.9
+      }
+    ]
+  },
+  "statistics": {
+    "task(100)": {
+      "runs": 1,
+      "cpuMedianMs": 37,
+      "cpuMaxMs": 37,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 93
+    },
+    "upload(100)": {
+      "runs": 1,
+      "cpuMedianMs": 53,
+      "cpuMaxMs": 53,
+      "memoryMaxMb": 12.9,
+      "wallMedianMs": 119
+    },
+    "pr(100)": {
+      "runs": 1,
+      "cpuMedianMs": 38,
+      "cpuMaxMs": 38,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 86
+    },
+    "pr_state(100)": {
+      "runs": 1,
+      "cpuMedianMs": 39,
+      "cpuMaxMs": 39,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 88
+    },
+    "candidate(100)": {
+      "runs": 1,
+      "cpuMedianMs": 54,
+      "cpuMaxMs": 54,
+      "memoryMaxMb": 13,
+      "wallMedianMs": 106
+    },
+    "merge(100)": {
+      "runs": 1,
+      "cpuMedianMs": 63,
+      "cpuMaxMs": 63,
+      "memoryMaxMb": 13.1,
+      "wallMedianMs": 125
+    },
+    "task(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 38,
+      "cpuMaxMs": 38,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 88
+    },
+    "upload(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 81,
+      "cpuMaxMs": 81,
+      "memoryMaxMb": 13.1,
+      "wallMedianMs": 151
+    },
+    "pr(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 38,
+      "cpuMaxMs": 38,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 85
+    },
+    "pr_state(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 39,
+      "cpuMaxMs": 39,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 87
+    },
+    "candidate(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 171,
+      "cpuMaxMs": 171,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 229
+    },
+    "merge(1000)": {
+      "runs": 1,
+      "cpuMedianMs": 169,
+      "cpuMaxMs": 169,
+      "memoryMaxMb": 13.3,
+      "wallMedianMs": 311
+    },
+    "task(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 41,
+      "cpuMaxMs": 41,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 97
+    },
+    "upload(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 179,
+      "cpuMaxMs": 179,
+      "memoryMaxMb": 13.1,
+      "wallMedianMs": 318
+    },
+    "pr(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 37,
+      "cpuMaxMs": 37,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 84
+    },
+    "pr_state(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 37,
+      "cpuMaxMs": 37,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 90
+    },
+    "candidate(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 345,
+      "cpuMaxMs": 345,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 427
+    },
+    "merge(5000)": {
+      "runs": 1,
+      "cpuMedianMs": 594,
+      "cpuMaxMs": 594,
+      "memoryMaxMb": 12.9,
+      "wallMedianMs": 1129
+    },
+    "task(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 36,
+      "cpuMaxMs": 36,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 84
+    },
+    "upload(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 318,
+      "cpuMaxMs": 318,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 540
+    },
+    "pr(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 40,
+      "cpuMaxMs": 40,
+      "memoryMaxMb": 12.6,
+      "wallMedianMs": 81
+    },
+    "pr_state(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 39,
+      "cpuMaxMs": 39,
+      "memoryMaxMb": 12.7,
+      "wallMedianMs": 85
+    },
+    "candidate(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 572,
+      "cpuMaxMs": 572,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 674
+    },
+    "merge(10000)": {
+      "runs": 1,
+      "cpuMedianMs": 1068,
+      "cpuMaxMs": 1068,
+      "memoryMaxMb": 47.7,
+      "wallMedianMs": 2210
+    },
+    "upload(100 commits)": {
+      "runs": 1,
+      "cpuMedianMs": 89,
+      "cpuMaxMs": 89,
+      "memoryMaxMb": 13.2,
+      "wallMedianMs": 315
+    }
+  }
+}

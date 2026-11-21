@@ -43,7 +43,7 @@ function makeArgs(record: Record<string, unknown>): StylePropertyFunctionArg {
   return {
     col: 1,
     row: 1,
-    table: { getRecordByCell: vi.fn().mockReturnValue(record) }
+    table: { getRecordByCell: vi.fn().mockReturnValue(record), measureText: vi.fn().mockReturnValue({ width: 36 }) }
   } as unknown as StylePropertyFunctionArg;
 }
 
@@ -424,7 +424,7 @@ describe('buildEditableColumns', () => {
 
     const actions = columns.at(-1) as Record<string, unknown>;
     expect(actions['title']).toBe('Actions');
-    expect(actions['width']).toBe(130); // 带查看按钮 → 更宽
+    expect(actions['width']).toBe('auto');
 
     const iconFn = actions['icon'] as (a: StylePropertyFunctionArg) => unknown[];
     const icons = iconFn(makeArgs({ id: '1' }));
@@ -466,10 +466,18 @@ describe('buildEditableColumns', () => {
     expect(names).toEqual(['view-action']);
   });
 
-  it('uses a narrower actions column when the view label is disabled', () => {
+  it('透传操作列最大宽度，不设置最小宽度', () => {
+    const columns = buildEditableColumns(makeMeta(), { actionsMaxWidth: 180 });
+    const actions = columns.at(-1)!;
+    expect(actions.width).toBe('auto');
+    expect(actions.maxWidth).toBe(180);
+    expect(actions.minWidth).toBeUndefined();
+  });
+
+  it('关闭查看按钮后仍按剩余操作内容自动计算列宽', () => {
     const columns = buildEditableColumns(makeMeta(), { viewLabel: '' });
     const actions = columns.at(-1) as Record<string, unknown>;
-    expect(actions['width']).toBe(100);
+    expect(actions['width']).toBe('auto');
 
     const iconFn = actions['icon'] as (a: StylePropertyFunctionArg) => unknown[];
     expect(iconFn(makeArgs({ id: '1' }))).toHaveLength(2); // 仅删除

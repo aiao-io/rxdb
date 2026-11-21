@@ -7,24 +7,25 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 96     |
+| ✅ Done        | 98     |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 27     |
+| 📝 Backlog     | 28     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **43** |
+| **未完成合计** | **44** |
 
-仓库还剩 **43 条**未关闭故事（13 In Progress + 3 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **44 条**未关闭故事（13 In Progress + 3 In Review + 28 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
 
 | Story                                                                                                                                                                   | 状态           | 剩什么                                                                                                 | 排期位置 |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------ | -------- |
-| [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                        | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                        | 批次 3   |
+| [US-105](stories/framework/US-105-form-field-error-feedback.md)                                                                                                         | 📝 Backlog     | 字段内联错误、保存失败归因、摘要定位与三端状态一致；方案待评审，AC 待实现与验收                        | 需求评审 |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                    | 批次 3   |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3   |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                         | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                           | 批次 3   |
+| [US-018](stories/core/US-018-generator-default-serialization.md)                                                                                                        | 👀 In Review   | 原 PR 的破坏性声明与 Release 文本同步待验收（AC#10）                                                   | 批次 3   |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                             | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                 | 批次 4   |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                               | 📝 Backlog     | 由 React Admin 模板承接公开包消费与成本验证；仓外闭环和实际业务增量均待验，本轮仅仓内孵化              | 批次 5   |
 | [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                 | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                       | 批次 6   |
@@ -46,17 +47,17 @@ US-603 的共享 preflight 仍待受控 registry 替身验收。
 
 ### 批次 3：能力补齐（可并行开 PR）
 
-| 顺序     | 范围            | 关闭条件                                                       |
-| -------- | --------------- | -------------------------------------------------------------- |
-| 并行收尾 | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入       |
-| 并行收尾 | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明 |
+| 顺序     | 范围            | 关闭条件                                                                      |
+| -------- | --------------- | ----------------------------------------------------------------------------- |
+| 并行收尾 | US-018          | 补齐原 PR 的 BREAKING CHANGE 声明与 Release 文本证据，不以 CHANGELOG 补录代替 |
+| 并行收尾 | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明                |
 
-US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 的候选 D 不阻塞已授权范围。
+US-211/219 有人工宿主验收，不用单元测试通过替代。
 
 ### 批次 4：BOM 首轮切片（epic-009 已解锁）
 
 owner 已授权以完整演示应用为驱动，见 [epic-009](epics/epic-009-bom-domain-model.md)；不重新要求具名客户才能推进已批准切片。
-US-030 A～C 是首轮第 1 步前置；当前 Tauri rusqlite 已达 0.33，无需重复规划升级。
+US-030 A～C 已交付，是首轮第 1 步的前置；当前 Tauri rusqlite 已达 0.33，无需重复规划升级。
 
 | 顺序 | 交付                                                                                                                            | 关闭条件                                                                                              |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -68,7 +69,7 @@ US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保�
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
-当前在 `apps/rxdb-admin-template-react` 孵化应用配置与扩展路径，范围见 [ADMIN 应用路线图](../apps/rxdb-admin-template-react/requirements/roadmap.md)。
+当前由 `rxdb-admin-template` 统一管理三端产品需求，应用配置与扩展仍在对应框架项目中孵化，范围见 [ADMIN 产品路线图](../rxdb-admin-template/requirements/roadmap.md)。
 US-528 保留 Backlog；待明确发布产物、具体业务任务与试用者后，再验证仓外安装、样式 / WASM、CRUD 和重开闭环及真实接入增量。
 本轮不实施独立复制，workspace 模板代码量不能推导独立接入收益。
 
@@ -88,7 +89,7 @@ US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突
 
 ### 批次 7：局域网 P2P 大文件共享（P2P epic 已解锁）
 
-owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付，记录见 [epic-011 P2P](epics/epic-011-p2p-file-share.md#价值待证)。
+owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付，记录见 [epic-013 P2P](epics/epic-013-p2p-file-share.md#价值待证)。
 框架无关的协议层 `@aiao/rxdb-plugin-p2p` 先行；它的内存协议测试不充当任何 AC 的验收证据。
 
 | 范围            | 关闭条件                                                                                                                                         |
@@ -97,6 +98,11 @@ owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付
 | US-705 / US-706 | 浏览器两上下文与桌面双进程的直传、续传、多源、坏 peer 退避与服务器回退按各自 AC 验收；桌面 TCP 以链路加密为前置                                  |
 | US-707          | 阶段 A 浏览器双 context、Electron 双进程与服务器回退进 CI；阶段 B Tauri 双进程、离线局域网与大文件自动化                                         |
 | US-713          | Worker 管理接口、信令踢下线与管理后台页面；AC 在真实 Supabase 栈与本地 Worker 上验收，处置结果以数据库与 R2 的实际状态为准；AC#11 待首次 CI 运行 |
+
+### 批次 8：提交图远端交换（服务 ADMIN-US-221）
+
+[epic-014](epics/epic-014-commit-graph-remote-exchange.md) 的 US-316（导入远端提交）与 US-317（discard / restore 回写业务表）已交付。
+它们跨过 epic-006 v1「纯本地、discard 不回写业务表」的边界；剩下的是随下一次发布单列这次语义变化，见[发布计划](release-plan.md#④-discard--restore-改写业务表签名不变语义变了)。
 
 ### 线 A：桥接版本发布（owner 门控）
 
@@ -140,6 +146,8 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 3. 23505 / 23502 / 23514 仍整批失败，不作为逐实体 rejected；只有真实部署反馈出现后才评估改判。
 4. 被拒变更与 undo/redo 的交互：现有 `undo-redo-rejected-change.spec.ts` 固定了水位线行为；redo 后可能本地重放而不再推送、待推计数缺显式 rejected 过滤，仍待评估，不宣称已修复。
 5. `@aiao/rxdb-model@0.0.26` 坏产物的处置与 GitHub Release 正文同步，见 [发布计划](release-plan.md#开项版本漂移)。
+6. sqlite-wasm 的 idb VFS 路径上限：`mxPathname` 为 64，库名连同 `@0_1.sqlite.db-journal` 后缀超过约 63 字节时 `sqlite3_open_v2` 报不透明的失败（实测 62 字节通过、65 字节失败）；库名里出现 `x:` 还会被 `new URL(name, 'file://')` 当成协议。复现：浏览器里用 45 字符的 `dbName` 配 `{ vfs: 'idb' }` 连接。至少应在连接时给出明确报错；Admin 团队库已用散列库名规避（ADMIN-US-221）。
+7. working-tree 的分支清理与读取成本：`removeBranch` 不能删除当前分支与有子分支的分支，另存、快进之后的旧任务分支会一直留在库里；`listCommits` / `exportCommits` 每次都读完整的第一父链，状态读取的成本随历史增长，缺按范围读取的选项（US-316 已登记有合并时同类成本）。待出现长期使用的真实团队库后评估。
 
 US-603 已有独立故事，不在这里另建一份待办。
 

@@ -16,6 +16,7 @@ import { RxDBError } from '@aiao/rxdb';
  * - `incomplete_entities`：主实例上有一张要复制的表，快照实例上没有对应的实体类
  *   （多半是生成它的插件没装进 `worktrees.plugins`）
  * - `unreachable_target`：提交不在 active 分支 HEAD 的可达父链上（与 `restore()` 同名同口径）
+ * - `side_branch_target`：提交只在某个合并提交带进来的侧枝上，从 HEAD 沿第一父链往回推不到它（与 `restore()` 同名同口径，US-316）
  * - `incompatible_schema`：往回推的路径上有本客户端认不出的实体（与 `restore()` 同名同口径）
  * - `restoring_working_tree`：active 分支上有进行中的恢复，工作树里是恢复出来的变更，推回去的起点不是 HEAD
  * - `locks_unavailable`：运行时没有 `navigator.locks`，判断不了有没有上下文在用一个检出位
@@ -36,6 +37,7 @@ export type WorktreeUnavailableReason =
   | 'branch_not_materialized'
   | 'incomplete_entities'
   | 'unreachable_target'
+  | 'side_branch_target'
   | 'incompatible_schema'
   | 'restoring_working_tree'
   | 'locks_unavailable'

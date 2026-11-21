@@ -1,0 +1,47 @@
+---
+id: ADMIN-EPIC-001
+status: In Progress
+startDate: 2026-11-06
+targetDate: TBD
+owner: jimmy
+---
+
+# Admin 应用模板孵化
+
+## 愿景
+
+在现有数据工作台上沉淀可定制的 Admin 应用基线，让新业务复用外壳和模型驱动页面，在当前仓库完成真实场景验证，再评估独立启动项目模板。
+
+## 目标
+
+- [x] 应用需求独立管理，门禁约束状态、引用与派生视图（[ADMIN-US-001](../stories/platform/ADMIN-US-001-application-requirements.md)）。
+- [x] 应用标识与本机存储配置集中，默认数据兼容且首屏主题一致（[ADMIN-US-002](../stories/platform/ADMIN-US-002-application-configuration.md)）。
+- [x] 中英文覆盖外壳、页面和模型显示名，偏好恢复与空库备份恢复兼容（[ADMIN-US-003](../stories/platform/ADMIN-US-003-client-i18n.md)）。
+- [ ] 新业务实体贯通列表、表单、导航和搜索（[ADMIN-US-101](../stories/domain/ADMIN-US-101-replace-sample-domain.md)）。
+- [x] 自定义页面与导航可按明确路径扩展，并复用外壳行为（[ADMIN-US-102](../stories/domain/ADMIN-US-102-custom-pages-navigation.md)）。
+
+- [x] 三端及 E2E 收拢到产品 apps，产品根统一管理需求与门禁（[ADMIN-US-004](../stories/platform/ADMIN-US-004-product-requirements.md)）。
+
+以上勾选的目标已交付；Epic 因 ADMIN-US-101 仍缺真实业务输入保持 In Progress，各故事状态见 YAML。
+
+## 故事
+
+本清单只列范围，状态见 [status-overview](../status-overview.md)。
+
+- [ADMIN-US-001 应用需求管理与结构门禁](../stories/platform/ADMIN-US-001-application-requirements.md) (High)
+- [ADMIN-US-002 应用标识与存储配置](../stories/platform/ADMIN-US-002-application-configuration.md) (High)
+- [ADMIN-US-003 完整客户端国际化接入](../stories/platform/ADMIN-US-003-client-i18n.md) (High)
+- [ADMIN-US-004 三端共用产品根需求与统一门禁](../stories/platform/ADMIN-US-004-product-requirements.md) (High)
+- [ADMIN-US-101 示例实体替换与元数据贯通](../stories/domain/ADMIN-US-101-replace-sample-domain.md) (Medium)
+- [ADMIN-US-102 自定义页面与导航扩展路径](../stories/domain/ADMIN-US-102-custom-pages-navigation.md) (Medium)
+
+## 关联后续 Epic
+
+- [ADMIN-EPIC-002 认证与团队工作区](ADMIN-EPIC-002.md) 管理 Supabase 身份、团队上下文、权限隔离和任务草稿。
+- [ADMIN-EPIC-003 数据变更中心与合并治理](ADMIN-EPIC-003.md) 管理数据 PR、审核、冲突、合并和审计。
+
+## 非目标
+
+- 当前 Epic 不实施独立复制、导出、生成器、发包或仓外安装。
+- 账号认证、团队授权、云端协作和数据合并不属于本 Epic 的关闭条件，分别由后续 Epic 管理。
+- 不重写公共后台框架；公共包能力继续由平台故事管理。

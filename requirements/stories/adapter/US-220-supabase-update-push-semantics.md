@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-05
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [adapter, supabase, sync, rls]
 ---
 
@@ -101,7 +101,7 @@ SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true)
 - INSERT 路径：本地 INSERT 的 patch 是整行，仍走 `rxdb_batch_upsert`
 - `SupabaseRepository.update` 的 PostgREST 直写路径
 - 远端行已删、本地仍在更新这类并发冲突的解决策略：本故事只保证它被明确报错，不保证它被自动解决
-- `RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写，`options.update` 整实体进 `p_upserts`）不改。**推断**：它在 owner 型与共享编辑型 RLS 上同样命中症状 2、3；登记为[零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带)第 8 条待评估
+- `RxDBAdapterSupabase.mutations()` 的直写修改由 [US-223](US-223-supabase-mutations-update-semantics.md) 负责：序列化整实体经 `p_updates` 执行普通 UPDATE，并返回服务器最终行；本故事只负责同步推送路径
 
 ## 验收标准
 

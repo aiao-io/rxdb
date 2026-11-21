@@ -584,6 +584,33 @@ describe('EntityDetail（真实组件）', () => {
     });
   });
 
+  it('edit 对话框模式内部保存：先通知 onFormSubmitted 再关闭，与 Angular / Vue 同序', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+    const submitted: EntityFormData[] = [];
+    const deliveredAtClose: number[] = [];
+    render(
+      <Dialog open onClose={() => deliveredAtClose.push(submitted.length)} width='720px' height='80vh'>
+        <RxDBProvider db={rxdb}>
+          <EntityDetail
+            {...dialogData({ formMode: 'edit', entityId: inst.id })}
+            onFormSubmitted={e => submitted.push(e)}
+          />
+        </RxDBProvider>
+      </Dialog>
+    );
+    const pane = document.querySelector('.rxdb-dialog-pane') as HTMLDivElement;
+    await waitFor(() => {
+      expect((pane.querySelector('[data-field="title"] input') as HTMLInputElement).value).toBe('待编辑');
+    });
+    fireEvent.change(pane.querySelector('[data-field="title"] input') as HTMLInputElement, {
+      target: { value: '已编辑' }
+    });
+    fireEvent.click([...pane.querySelectorAll('button')].find(b => b.textContent?.trim() === '保存')!);
+    await waitFor(() => expect(deliveredAtClose).toHaveLength(1));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   it('edit 模式无实例（无 entityId）时 formSubmitted 直接透传，不落库', async () => {
     const { container, submitted } = renderWithDialog(dialogData({ formMode: 'edit' }));
 
@@ -644,5 +671,125 @@ describe('EntityDetail（真实组件）', () => {
     expect(actionIconNames('发票')).toEqual(['view-action', 'delete-action']);
     expect(tableOf('合同').records.map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
     expect(actionIconNames('合同')).toEqual(['view-action']);
+  });
+
+  describe('onDirtyChange：表单与关系页签的未保存输入', () => {
+    /** 在对话框里挂载带 onDirtyChange 的详情，按顺序记下每次通知。 */
+    function renderDirtyDetail(data: EntityDetailDialogData) {
+      const reports: boolean[] = [];
+      const utils = render(
+        <Dialog open onClose={() => undefined} width='720px' height='80vh'>
+          <RxDBProvider db={rxdb}>
+            <EntityDetail {...data} onDirtyChange={dirty => reports.push(dirty)} />
+          </RxDBProvider>
+        </Dialog>
+      );
+      const pane = document.querySelector('.rxdb-dialog-pane') as HTMLDivElement;
+      return { ...utils, container: pane, reports };
+    }
+    const panes = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>('.rxdb-dialog-pane')];
+    const buttonIn = (root: Element, text: string): HTMLElement =>
+      [...root.querySelectorAll<HTMLElement>('button')].find(button => button.textContent?.trim() === text)!;
+    /** 点关系页签里嵌套列表的「+ 新增」，等嵌套的新增对话框打开，返回它的面板。 */
+    async function openNestedCreate(container: HTMLElement): Promise<HTMLElement> {
+      fireEvent.click(buttonIn(container.querySelector('.rxdb-entity-list')!, '+ 新增'));
+      await waitFor(() => expect(panes()[1]?.querySelector('[data-field="label"] input')).toBeTruthy());
+      return panes()[1]!;
+    }
+
+    it('表单输入报 true、改回原值报 false；取消时回到 false', () => {
+      const { container, reports } = renderDirtyDetail(dialogData());
+      const title = container.querySelector('[data-field="title"] input') as HTMLInputElement;
+
+      fireEvent.change(title, { target: { value: '甲' } });
+      fireEvent.change(title, { target: { value: '' } });
+      fireEvent.change(title, { target: { value: '乙' } });
+      expect(reports).toEqual([true, false, true]);
+
+      fireEvent.click(container.querySelector('[data-detail-cancel="true"]') as HTMLElement);
+      expect(reports).toEqual([true, false, true, false]);
+    });
+
+    it('把输入交给宿主（delegateSave 的保存）即回到 false', () => {
+      const { container, reports } = renderDirtyDetail(dialogData({ delegateSave: true }));
+      fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+        target: { value: '委托' }
+      });
+      fireEvent.click(container.querySelector('[data-detail-save="true"]') as HTMLElement);
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('关系页签里嵌套列表的新增对话框有输入：汇总进详情，取消嵌套对话框后回到 false', async () => {
+      const { container, reports } = renderDirtyDetail(
+        dialogData({ formMode: 'edit', formData: { title: 'x', count: 0 } })
+      );
+      const nested = await openNestedCreate(container);
+
+      fireEvent.change(nested.querySelector('[data-field="label"] input') as HTMLInputElement, {
+        target: { value: '子项输入' }
+      });
+      expect(reports).toEqual([true]);
+
+      fireEvent.click(nested.querySelector('[data-detail-cancel="true"]') as HTMLElement);
+      await waitFor(() => expect(panes()).toHaveLength(1));
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('create 模式：级联新增进本地草稿的子记录随父实体保存，父实体保存之前仍算未保存', async () => {
+      const { container, reports } = renderDirtyDetail(dialogData());
+      const title = container.querySelector('[data-field="title"] input') as HTMLInputElement;
+      fireEvent.change(title, { target: { value: '父' } });
+      fireEvent.click(container.querySelectorAll('[role="tab"]')[1]!);
+      const nested = await openNestedCreate(container);
+      fireEvent.change(nested.querySelector('[data-field="label"] input') as HTMLInputElement, {
+        target: { value: '草稿子项' }
+      });
+      fireEvent.click(nested.querySelector('[data-detail-save="true"]') as HTMLElement);
+      await waitFor(() => expect(panes()).toHaveLength(1));
+
+      // 父表单改回原值：字段不再偏离，子记录还在本地草稿里，仍是未保存内容
+      fireEvent.change(title, { target: { value: '' } });
+      expect(reports).toEqual([true]);
+
+      fireEvent.click(container.querySelector('[data-detail-cancel="true"]') as HTMLElement);
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('编辑目标换了：旧记录上的输入随表单作废，回到 false', async () => {
+      const first = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录一' });
+      const second = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录二' });
+      await first.save();
+      await second.save();
+      const reports: boolean[] = [];
+      const view = (id: string) => (
+        <RxDBProvider db={rxdb}>
+          <EntityDetail
+            namespace='test'
+            name='DetailGroup'
+            entityId={id}
+            onDirtyChange={dirty => reports.push(dirty)}
+          />
+        </RxDBProvider>
+      );
+      const utils = render(view(first.id));
+      const title = (): HTMLInputElement =>
+        utils.container.querySelector('[data-field="title"] input') as HTMLInputElement;
+      await waitFor(() => expect(title().value).toBe('记录一'));
+      fireEvent.change(title(), { target: { value: '记录一改' } });
+      expect(reports).toEqual([true]);
+
+      utils.rerender(view(second.id));
+      await waitFor(() => expect(title().value).toBe('记录二'));
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('卸载时仍有未保存输入：补发一次 false', () => {
+      const { container, reports, unmount } = renderDirtyDetail(dialogData());
+      fireEvent.change(container.querySelector('[data-field="title"] input') as HTMLInputElement, {
+        target: { value: '没保存' }
+      });
+      unmount();
+      expect(reports).toEqual([true, false]);
+    });
   });
 });

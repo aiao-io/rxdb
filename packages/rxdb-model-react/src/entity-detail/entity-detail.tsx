@@ -28,6 +28,7 @@ import {
   buildDetailTabs,
   buildFormFields,
   cn,
+  createEntityDirtyTracker,
   entityToFormData,
   formDataToEntityChanges,
   localizeEntityFormFields,
@@ -127,6 +128,16 @@ export interface EntityDetailProps extends Partial<EntityDetailDialogData> {
   onFieldChanged?: (event: FormFieldChangeEvent) => void;
   /** 校验失败。 */
   onValidationErrors?: (result: FormValidationResult) => void;
+  /**
+   * 是否有未保存输入，状态变化时触发。
+   *
+   * @remarks
+   * 未保存输入指表单里还没保存的取值（改回原值就不算），以及关系页签里嵌套列表报告的同类输入与本地草稿；
+   * 判定在 `@aiao/rxdb-model` 的 `EntityDirtyTracker`。保存成功、把输入交给宿主（`onFormSubmitted`）、取消，
+   * 以及编辑目标换了（换记录、换库、换模式，旧目标上的输入随表单一起作废）都回到 `false`；卸载时仍是 `true` 就补发 `false`。
+   * 实体列表据此汇总成自己的 `onDirtyChange`。
+   */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -148,7 +159,8 @@ export function EntityDetail({
   onFormSubmitted,
   onFormCancelled,
   onFieldChanged,
-  onValidationErrors
+  onValidationErrors,
+  onDirtyChange
 }: EntityDetailProps): JSX.Element {
   const { t, runtime: modelI18n } = useModelI18n();
 
@@ -214,6 +226,24 @@ export function EntityDetail({
       });
     return () => subscription.unsubscribe();
   }, [editTarget]);
+
+  // ── 未保存输入（onDirtyChange）：判定在共享的 EntityDirtyTracker，这里只把表单字段变化、关系列表的报告与会话边界交给它 ──
+  // 回调经 ref 读最新值；订阅随 effect 建立与清理，卸载、StrictMode 回放与 <Activity> 隐藏时仍有未保存输入就补发 false
+  const [dirtyTracker] = useState(createEntityDirtyTracker);
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange;
+  }, [onDirtyChange]);
+  useEffect(() => dirtyTracker.subscribe(dirty => onDirtyChangeRef.current?.(dirty)), [dirtyTracker]);
+  // 编辑目标换了（换记录、换库、换模式）：旧目标上的输入随表单一起作废，未保存状态跟着清空。
+  // 例外是 create 模式里库首次就绪：等库期间的输入会并进随后建的草稿（见下方 draftTrigger），仍是未保存输入
+  const dirtyTargetRef = useRef(editTarget);
+  useEffect(() => {
+    const previous = dirtyTargetRef.current;
+    dirtyTargetRef.current = editTarget;
+    const draftArrived = previous.mode === 'create' && editTarget.mode === 'create' && previous.rxdb === undefined;
+    if (previous !== editTarget && !draftArrived) dirtyTracker.reset();
+  }, [dirtyTracker, editTarget]);
 
   /**
    * 编辑目标未就绪（有 Provider 但库未到或 source 创建失败、查询未发射或已失败）：拦截提交，表单内部动作隐藏，
@@ -437,17 +467,19 @@ export function EntityDetail({
     setDraftSession(null);
   }, [draftSession]);
 
-  /** 表单提交：create 模式 delegate 语义只 emit；edit 模式内部保存并关闭（'saved'）。 */
+  /** 表单提交：create 模式 delegate 语义只 emit；edit 模式内部保存并关闭（'saved'）。输入交给宿主或保存成功即不再算未保存。 */
   const handleFormSubmitted = useCallback(
     (data: EntityFormData): void => {
       // 表单内部动作已隐藏，回车仍会提交：目标未就绪时既不能写旧实例，也不能当成透传成功
       if (isEditPending) return;
       if (isCreateMode) {
+        dirtyTracker.reset();
         onFormSubmitted?.(data);
         return;
       }
       const inst = entityInstance;
       if (!inst) {
+        dirtyTracker.reset();
         onFormSubmitted?.(data);
         return;
       }
@@ -463,8 +495,10 @@ export function EntityDetail({
         .save()
         .then(() => {
           if (!isCurrent()) return;
-          dialog?.close('saved');
+          dirtyTracker.reset();
+          // 先通知再关闭，与 Angular / Vue 同序：那两端关闭即卸载组件，之后的输出会被丢弃；三端的宿主看到同一个先后。
           onFormSubmitted?.(data);
+          dialog?.close('saved');
         })
         .catch(error => {
           if (!isCurrent()) return;
@@ -478,18 +512,20 @@ export function EntityDetail({
       editTarget,
       formFieldsValue,
       dialog,
+      dirtyTracker,
       onFormSubmitted,
       saveErrorMessage
     ]
   );
 
-  /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled。 */
+  /** 表单取消：作废进行中的保存，清理草稿缓存并 emit formCancelled；输入随之作废。 */
   const handleFormCancelled = useCallback((): void => {
     cancelGenerationRef.current++;
     cleanupDraftEntity();
+    dirtyTracker.reset();
     onFormCancelled?.();
     dialog?.close();
-  }, [cleanupDraftEntity, onFormCancelled, dialog]);
+  }, [cleanupDraftEntity, dirtyTracker, onFormCancelled, dialog]);
 
   const handleFieldChanged = useCallback(
     (event: FormFieldChangeEvent): void => {
@@ -498,9 +534,10 @@ export function EntityDetail({
       }
       setFormErrors(null);
       setSaveError(null);
+      dirtyTracker.recordField(event);
       onFieldChanged?.(event);
     },
-    [isCreateMode, onFieldChanged]
+    [isCreateMode, dirtyTracker, onFieldChanged]
   );
 
   /** 外部保存按钮（create 模式）：校验 → 草稿落库（或 delegate emit）→ 关闭。 */
@@ -527,6 +564,7 @@ export function EntityDetail({
         .then(() => {
           if (!isCurrent()) return;
           setDraftSession(null);
+          dirtyTracker.reset();
           dialog?.close('saved');
         })
         .catch(error => {
@@ -534,6 +572,7 @@ export function EntityDetail({
           setSaveError(saveErrorMessage(error));
         });
     } else {
+      dirtyTracker.reset();
       onFormSubmitted?.(merged);
       dialog?.close();
     }
@@ -544,6 +583,7 @@ export function EntityDetail({
     draftEntity,
     editTarget,
     dialog,
+    dirtyTracker,
     onFormSubmitted,
     handleValidationErrors,
     saveErrorMessage,
@@ -640,6 +680,7 @@ export function EntityDetail({
                       parentEntity={parentEntityForRelation}
                       parentRelationName={tab.relationName}
                       relationKind={tab.relationKind}
+                      onDirtyChange={dirty => dirtyTracker.setSource(`relation:${tab.key}`, dirty)}
                     />
                   )
                 }

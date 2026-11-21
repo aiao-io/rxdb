@@ -1,0 +1,63 @@
+{
+  "checkpoints": [
+    {
+      "commits": 10,
+      "stateTextBytes": 3052167,
+      "stateStoredBytes": 309847,
+      "snapshotBytes": 4859,
+      "sharedRecordsBytes": 26,
+      "snapshotMs": 51,
+      "commandMs": 132,
+      "commandWalBytes": 344392,
+      "uploadMsPerCommit": 18
+    },
+    {
+      "commits": 50,
+      "stateTextBytes": 15254900,
+      "stateStoredBytes": 1543363,
+      "snapshotBytes": 20150,
+      "sharedRecordsBytes": 26,
+      "snapshotMs": 230,
+      "commandMs": 623,
+      "commandWalBytes": 1699056,
+      "uploadMsPerCommit": 16
+    },
+    {
+      "commits": 100,
+      "stateTextBytes": 30505384,
+      "stateStoredBytes": 3084174,
+      "snapshotBytes": 37550,
+      "sharedRecordsBytes": 26,
+      "snapshotMs": 467,
+      "commandMs": 1445,
+      "commandWalBytes": 3391576,
+      "uploadMsPerCommit": 46
+    },
+    {
+      "commits": 200,
+      "stateTextBytes": 60995793,
+      "stateStoredBytes": 6162468,
+      "snapshotBytes": 66073,
+      "sharedRecordsBytes": 26,
+      "snapshotMs": 816,
+      "commandMs": 2277,
+      "commandWalBytes": 6772744,
+      "uploadMsPerCommit": 58
+    }
+  ],
+  "contention": {
+    "commits": 200,
+    "idleCommandMs": 2277,
+    "readers": 4,
+    "contendedCommandMs": 5450
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 1000,
+    "changedRecordsPerCommit": 5,
+    "samples": 7
+  },
+  "generatedAt": "2026-11-17T04:55:49.859Z",
+  "label": "切片 A+B：读取不加锁、Presence 共享锁；摘要不含提交与候选内容、共享数据与完整审计"
+}

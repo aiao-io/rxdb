@@ -318,6 +318,7 @@ describe('R2-10 Angular + 真实核心：加载与生命周期', () => {
 const restoreResults: readonly (ReplayRestoreResult | Error)[] = [
   restored,
   { ok: false, reason: 'unreachable_target' },
+  { ok: false, reason: 'side_branch_target' },
   { ok: false, reason: 'dirty_working_tree' },
   { ok: false, reason: 'conflict' },
   { ok: false, reason: 'incompatible_schema' },

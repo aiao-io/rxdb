@@ -971,6 +971,8 @@ jobs:
           path: |
             apps/${{ matrix.project }}/test-output/playwright/**
             apps/${{ matrix.project }}/playwright-report/**
+            rxdb-admin-template/packages/collaboration/test-results/**
+            rxdb-admin-template/packages/collaboration/playwright-report/**
           retention-days: 7
           if-no-files-found: ignore
 

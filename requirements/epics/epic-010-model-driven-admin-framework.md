@@ -58,13 +58,13 @@ owner 批准的列表字段配置、排序和分组切片见
 owner 批准的后台外壳（偏好中心、布局与页签栏、快捷键 / 命令面板 / 扩展、顶栏部件 / 锁屏 / 通用设置）见
 [US-530](../stories/domain/US-530-admin-shell-preferences-appearance.md)～
 [US-533](../stories/domain/US-533-admin-shell-widgets-lock-general.md)。它落在新包族 `@aiao/rxdb-admin`（无头核心）与
-`-react` / `-vue` / `-angular` 三端壳，`apps/rxdb-admin-template-react` 是它的领域测试应用。外壳与路由库无关，
+`-react` / `-vue` / `-angular` 三端壳，`rxdb-admin-template/apps/react` 是它的领域测试应用。外壳与路由库无关，
 首版 US-526～529 的范围保持各自 story 定义。
 
 ## 应用模板孵化
 
-`apps/rxdb-admin-template-react` 同时作为 Admin 应用模板在当前仓库孵化。应用配置、业务替换、页面扩展与应用验收使用独立的
-[ADMIN 故事与路线图](../../apps/rxdb-admin-template-react/requirements/README.md)；本 Epic 继续维护可复用平台能力，
+`rxdb-admin-template` 产品由 Angular、React、Vue 三个应用共同组成，在 `rxdb-admin-template` 统一管理需求。应用配置、业务替换、页面扩展与产品验收使用独立的
+[ADMIN 故事与路线图](../../rxdb-admin-template/requirements/README.md)；本 Epic 继续维护可复用平台能力，
 不继承或代替应用故事状态。当前应用批次不实施独立复制或发行，完整应用生成与发布模板仍不在本 Epic 范围内。
 
 ## 价值待证（整个 Epic）

@@ -1,0 +1,449 @@
+{
+  "entities": [
+    {
+      "dtoVersion": 1,
+      "entity": "AssetCategory",
+      "namespace": "assets",
+      "fields": [
+        {
+          "field": "id",
+          "displayName": "ID",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "uuid",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": true,
+          "encrypted": false,
+          "sortable": false,
+          "primary": true
+        },
+        {
+          "field": "createdAt",
+          "displayName": "创建时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "updatedAt",
+          "displayName": "更新时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "createdBy",
+          "displayName": "创建者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "updatedBy",
+          "displayName": "更新者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "name",
+          "displayName": "分类名",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": false,
+          "nullable": false,
+          "required": true,
+          "unique": true,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": true,
+          "primary": false
+        },
+        {
+          "field": "description",
+          "displayName": "说明",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": false,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "assets",
+          "displayName": "资产",
+          "source": "relation",
+          "valueType": "uuid",
+          "readonly": true,
+          "sortable": false,
+          "cardinality": "multiple",
+          "relation": {
+            "kind": "1:m",
+            "entity": "Asset",
+            "namespace": "assets",
+            "mutation": "add-remove"
+          }
+        }
+      ]
+    },
+    {
+      "dtoVersion": 1,
+      "entity": "Asset",
+      "namespace": "assets",
+      "fields": [
+        {
+          "field": "id",
+          "displayName": "ID",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "uuid",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": true,
+          "encrypted": false,
+          "sortable": false,
+          "primary": true
+        },
+        {
+          "field": "createdAt",
+          "displayName": "创建时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "updatedAt",
+          "displayName": "更新时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "createdBy",
+          "displayName": "创建者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "updatedBy",
+          "displayName": "更新者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "name",
+          "displayName": "名称",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": false,
+          "nullable": false,
+          "required": true,
+          "unique": true,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": true,
+          "primary": false
+        },
+        {
+          "field": "status",
+          "displayName": "状态",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": false,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "purchasePrice",
+          "displayName": "购入价",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "number",
+          "format": {
+            "kind": "number",
+            "min": 0
+          },
+          "readonly": false,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "purchaseDate",
+          "displayName": "购入日期",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "date",
+          "format": {
+            "kind": "dateTime",
+            "display": "date"
+          },
+          "readonly": false,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "category",
+          "displayName": "分类",
+          "source": "relation",
+          "valueType": "uuid",
+          "readonly": true,
+          "sortable": false,
+          "cardinality": "single",
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "relation": {
+            "kind": "m:1",
+            "entity": "AssetCategory",
+            "namespace": "assets",
+            "mutation": "set-remove",
+            "writeField": "categoryId"
+          }
+        },
+        {
+          "field": "events",
+          "displayName": "维护记录",
+          "source": "relation",
+          "valueType": "uuid",
+          "readonly": true,
+          "sortable": false,
+          "cardinality": "multiple",
+          "relation": {
+            "kind": "1:m",
+            "entity": "AssetEvent",
+            "namespace": "assets",
+            "mutation": "add-remove"
+          }
+        }
+      ]
+    },
+    {
+      "dtoVersion": 1,
+      "entity": "AssetEvent",
+      "namespace": "assets",
+      "fields": [
+        {
+          "field": "id",
+          "displayName": "ID",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "uuid",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": true,
+          "encrypted": false,
+          "sortable": false,
+          "primary": true
+        },
+        {
+          "field": "createdAt",
+          "displayName": "创建时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "updatedAt",
+          "displayName": "更新时间",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "date",
+          "readonly": true,
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "createdBy",
+          "displayName": "创建者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "updatedBy",
+          "displayName": "更新者",
+          "source": "system",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": true,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": false,
+          "primary": false
+        },
+        {
+          "field": "summary",
+          "displayName": "事项",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "string",
+          "readonly": false,
+          "nullable": false,
+          "required": true,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false,
+          "searchable": true,
+          "primary": false
+        },
+        {
+          "field": "cost",
+          "displayName": "费用",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "number",
+          "format": {
+            "kind": "number",
+            "min": 0
+          },
+          "readonly": false,
+          "nullable": true,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "happenedAt",
+          "displayName": "日期",
+          "source": "property",
+          "cardinality": "single",
+          "valueType": "date",
+          "format": {
+            "kind": "dateTime",
+            "display": "date"
+          },
+          "readonly": false,
+          "nullable": false,
+          "required": true,
+          "unique": false,
+          "encrypted": false,
+          "sortable": false
+        },
+        {
+          "field": "asset",
+          "displayName": "所属资产",
+          "source": "relation",
+          "valueType": "uuid",
+          "readonly": true,
+          "sortable": false,
+          "cardinality": "single",
+          "nullable": false,
+          "required": false,
+          "unique": false,
+          "encrypted": false,
+          "relation": {
+            "kind": "m:1",
+            "entity": "Asset",
+            "namespace": "assets",
+            "mutation": "set-remove",
+            "writeField": "assetId"
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1
+}

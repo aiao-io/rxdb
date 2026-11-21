@@ -1,0 +1,12 @@
+/**
+ * Tailwind source 注册入口（非编译产物）
+ *
+ * 协作界面是框架无关的原生 DOM，类名写在 TypeScript 源码里。三端应用在自己的 Tailwind 入口里引入本文件，
+ * Tailwind 才会扫描到这些类并生成对应的工具类与 daisyUI 组件样式：
+ *
+ *   @import '@rxdb-admin-template/collaboration/tailwind.css';
+ *
+ * 本包不输出 preflight / theme / daisyUI 主题，全部由应用决定。
+ */
+
+@source './src/client/**/*.ts';

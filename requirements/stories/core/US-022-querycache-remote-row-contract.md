@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-10-06
+updated: 2026-11-16
 tags: [core, querycache, sqlite, contract, docs]
 ---
 
@@ -100,9 +100,9 @@ Object.keys(data[0] as object).filter(column => columnNames.has(column));
 下一次 upsert 被覆盖或不被覆盖（取决于 upsert 子句是否包含该列）。这是一个会长期沉默、
 在跨设备对比时才暴露的数据污染。
 
-候选三（实体可把基类非空列声明为 nullable）不是本故事的替代方案，而是**它的后续**：
-当远端确实没有这一列时，用户需要一条出路。这条出路是否可行、`@Property` 能否覆盖基类字段元数据，
-**由实现阶段回答并记入技术笔记**；如果不可行，另开故事。
+远端确实没有基类列时，实体可用 `@Property` 重声明为 nullable；注册期同名属性整条替换，
+本地 DDL 与缺列校验共同读取替换后的 `propertyMap`。基类的 readonly 与 default 不会自动继承，
+调用方须显式声明所需选项；源码依据与复验入口见技术笔记。这不改变 `EntityBase` 本身的非空契约。
 
 ### D2 — 判在落地前，不靠捕获 SQLite 错误再翻译
 

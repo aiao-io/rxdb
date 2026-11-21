@@ -5,8 +5,9 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-12
+updated: 2026-11-16
 tags: [domain, bom, graph, integrity]
+candidate_acs: [8]
 ---
 
 # 用户故事：DAG 约束与环路检测下沉存储层
@@ -160,7 +161,9 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
 只在仓储层校验等于没校验，而声称在每个后端都校验到了，比没校验更坏。
 
 **首轮切片只验收 AC#1～#3 / #5～#7 / #9～#12 / #14 / #17**：AC#4 等 US-513 引入 `flow_direction`，
-AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，AC#15 / #16 等 US-515 的 ECN；整条故事在这些前置落地前不置 Done，见
+AC#13 等真实 PostgreSQL 环境，AC#15 / #16 等 US-515 的 ECN；这些当前承诺全部通过并合入后才置 Done。
+AC#8 属候选优化，由 `candidate_acs` 登记，不阻塞当前关闭；仅在 US-510 阶段 B 经热路径证据与范围评审解锁后纳入交付，
+届时移除候选登记并验证与递归 CTE 判定一致，见
 [epic-009 首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)。
 
 ## 价值待证

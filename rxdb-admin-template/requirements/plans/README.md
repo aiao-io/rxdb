@@ -1,0 +1,38 @@
+# 计划与验收记录
+
+实施计划、真实环境验收记录和历史归档。当前范围与状态以[需求索引](../README.md)、`status-overview.md`、`roadmap.md` 和各 story 为准；这里的记录带日期，不作为当前状态的派生视图。
+
+| 类别     | 回答的问题                                   |
+| -------- | -------------------------------------------- |
+| 验收记录 | 已经验证什么、还缺什么、证据来自哪一层       |
+| 实施计划 | 已确定的方案、实施切片与任务清单             |
+| 历史归档 | 范围调整前的路线图与验收记录，不作为当前证据 |
+
+产品规则整理在对应 story；计划记录研究结论、依赖与实施切片，不能替代实现证据。文件名用 `<主题>-verification.md` 区分验收记录、`<主题>-tasks.md` 区分实施清单，历史归档用 `<主题>-<日期>.md`。
+
+## 国际化验收
+
+[完整客户端国际化本地验收](client-i18n-verification.md) 记录 ADMIN-US-003 的代码、构建与浏览器证据，按六项 AC 分别关联三端实现、单测、构建与完整浏览器证据。
+
+## Nexus 参考三端优化
+
+- [优化实施清单](nexus-template-optimization-tasks.md)：记录两阶段实现及 T01～T05：T01/T02/T04/T05 本地验证完成，T03 待真实业务输入；图表候选尚未排期。
+- [Dashboard 验收记录](nexus-dashboard-verification.md)：2026-11-16 核对的三端结果、测试入口、复验命令及证据边界。
+
+## 自定义页面与导航扩展
+
+[三端页面扩展指南](custom-pages-navigation.md) 以 Dashboard 记录懒加载页面、菜单、面包屑、页签、命令面板和搜索分页偏好的可复现步骤。
+
+## 产品根需求迁移
+
+[产品需求迁移验收](product-requirements-verification.md) 记录需求与门禁提升至产品根目录后的链接、回归、三端任务和 affected 验证。
+
+## 全量需求评审整改
+
+[需求优化复核](requirements-refinement-verification.md) 将十项评审发现映射到共享契约、故事 AC、性能脚本回归和实际验证结果；需求完善不代表协作功能完成。
+
+## 协作实现
+
+[协作实现与验收记录](collaboration-implementation.md) 汇总三端真实身份、IndexedDB 离线任务、双设备分叉、PR、讨论通知、审批、原子事务与 RLS 的实现、测试证据和部署前置。
+
+[协作后端收敛实施计划](collaboration-convergence-tasks.md) 记录 2026-11-17 定下的收敛方向：差量提交与拆表、Supabase 原生读取与实时、只部署 Supabase、与平台 working-tree 的结合评估及平台缺口，对应 ADMIN-US-217～221。

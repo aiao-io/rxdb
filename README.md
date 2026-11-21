@@ -41,7 +41,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层，提供 SQL 存
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [96/139 已交付](requirements/status-overview.md)；需求交付状态以状态概览与各 story 的 YAML 为准。
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [98/142 已交付](requirements/status-overview.md)；需求交付状态以状态概览与各 story 的 YAML 为准。
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -197,7 +197,7 @@ rxdb/
 | [后台外壳（US-530～533）](requirements/epics/epic-010-model-driven-admin-framework.md)                                                                                | 外壳实现与三端测试已接入；验收和代码评审待收口，仓外消费验证另行推进。         |
 | [客户端国际化（US-911）](requirements/stories/future/US-911-client-i18n.md)                                                                                           | A～D 已实现，三端 / 四运行时等验证已记录，等待代码评审。                       |
 | [任务看板](requirements/epics/epic-011-task-board-domain-model.md)                                                                                                    | 领域模型与三端视图待评审，恢复异常分支及 demo 验收仍有缺口。                   |
-| [P2P 文件共享](requirements/epics/epic-011-p2p-file-share.md)                                                                                                         | 浏览器协议与会话已接入；Electron / Tauri 宿主和剩余验收继续推进。              |
+| [P2P 文件共享](requirements/epics/epic-013-p2p-file-share.md)                                                                                                         | 浏览器协议与会话已接入；Electron / Tauri 宿主和剩余验收继续推进。              |
 | [多端小程序（US-211）](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)与[Taro 插件（US-219）](requirements/stories/adapter/US-219-taro-plugin.md) | 实验性支持，设备证据与当前 Taro 版本的外部安装验收仍待补齐。                   |
 | [声明式存储约束（US-030）](requirements/stories/core/US-030-declarative-storage-constraints.md)                                                                       | A～C 已实现并待评审，阶段 D 仍为候选。                                         |
 

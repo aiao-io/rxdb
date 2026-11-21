@@ -1,0 +1,262 @@
+{
+  "baselineCommit": "b52320402",
+  "bundles": {
+    "react": {
+      "before": {
+        "initial": {
+          "files": ["assets/index-D-oQKngF.js", "assets/rxdb-utils-BAFasyR2.js", "assets/RxDBError-BZcgvyVE.js"],
+          "bytes": 1074605,
+          "gzipBytes": 338601
+        },
+        "dashboard": {
+          "files": ["assets/dashboard-page-BVggs19s.js"],
+          "bytes": 8618,
+          "gzipBytes": 2610
+        },
+        "entity": {
+          "files": ["assets/entity-list-page-q2OoMr3g.js"],
+          "bytes": 2186695,
+          "gzipBytes": 543026
+        },
+        "backend": {
+          "files": [],
+          "bytes": 0,
+          "gzipBytes": 0
+        },
+        "vfs": {
+          "files": ["assets/vfs-storage-loaders-BKw8HtBt.js"],
+          "bytes": 95015,
+          "gzipBytes": 28305
+        }
+      },
+      "after": {
+        "initial": {
+          "files": [
+            "assets/index-Be3IsOSW.js",
+            "assets/rxdb-utils-BAFasyR2.js",
+            "assets/RxDBError-BZcgvyVE.js",
+            "assets/Subscriber-P4mrx3x5.js",
+            "assets/decorate-D0wB8qzp.js"
+          ],
+          "bytes": 835947,
+          "gzipBytes": 264791
+        },
+        "dashboard": {
+          "files": ["assets/dashboard-page-C470HV-9.js"],
+          "bytes": 10280,
+          "gzipBytes": 3400
+        },
+        "entity": {
+          "files": ["assets/entity-list-page-BTpVh49o.js"],
+          "bytes": 2186792,
+          "gzipBytes": 543040
+        },
+        "backend": {
+          "files": ["assets/src-vdouFXQI.js"],
+          "bytes": 241848,
+          "gzipBytes": 77164
+        },
+        "vfs": {
+          "files": ["assets/vfs-storage-loaders-CEY_DhfD.js"],
+          "bytes": 95013,
+          "gzipBytes": 28279
+        }
+      }
+    },
+    "vue": {
+      "before": {
+        "initial": {
+          "files": [
+            "assets/index-DW1FDBBf.js",
+            "assets/use-i18n-CYbFa5xW.js",
+            "assets/rxdb-utils-BAFasyR2.js",
+            "assets/RxDBError-BZcgvyVE.js",
+            "assets/Observable-CE6ntfA8.js"
+          ],
+          "bytes": 864673,
+          "gzipBytes": 281759
+        },
+        "dashboard": {
+          "files": ["assets/dashboard-page-CgElWwfZ.js"],
+          "bytes": 8895,
+          "gzipBytes": 3037
+        },
+        "entity": {
+          "files": ["assets/entity-list-page-BXZCUCGc.js"],
+          "bytes": 2196186,
+          "gzipBytes": 547523
+        },
+        "backend": {
+          "files": [],
+          "bytes": 0,
+          "gzipBytes": 0
+        },
+        "vfs": {
+          "files": ["assets/vfs-storage-loaders-lwasLIcD.js"],
+          "bytes": 95020,
+          "gzipBytes": 28280
+        }
+      },
+      "after": {
+        "initial": {
+          "files": [
+            "assets/index-DwTGz8Vi.js",
+            "assets/use-i18n-BmPhcATA.js",
+            "assets/Subscription-Q3-twGvw.js",
+            "assets/rxdb-utils-BAFasyR2.js",
+            "assets/RxDBError-BZcgvyVE.js",
+            "assets/decorate-STulRdTN.js",
+            "assets/Observable-lvgj_GtY.js"
+          ],
+          "bytes": 625834,
+          "gzipBytes": 207422
+        },
+        "dashboard": {
+          "files": ["assets/dashboard-page-DniV-2m6.js"],
+          "bytes": 10679,
+          "gzipBytes": 3862
+        },
+        "entity": {
+          "files": ["assets/entity-list-page-D2qci0MG.js"],
+          "bytes": 2196275,
+          "gzipBytes": 547496
+        },
+        "backend": {
+          "files": ["assets/src-BwiD8W9L.js"],
+          "bytes": 241851,
+          "gzipBytes": 77143
+        },
+        "vfs": {
+          "files": ["assets/vfs-storage-loaders-Boff3jb3.js"],
+          "bytes": 95013,
+          "gzipBytes": 28280
+        }
+      }
+    },
+    "angular": {
+      "before": {
+        "initial": {
+          "files": [
+            "main-6NY5M4SR.js",
+            "chunk-Bg4mZN6l.js",
+            "chunk-BXtNnaO2.js",
+            "chunk-BK6U3HWV.js",
+            "chunk-gPmq9b0l.js"
+          ],
+          "bytes": 1214720,
+          "gzipBytes": 342301
+        },
+        "dashboard": {
+          "files": ["chunk-C6p555lX.js"],
+          "bytes": 11729,
+          "gzipBytes": 3813
+        },
+        "entity": {
+          "files": ["chunk-sdoITNHD.js"],
+          "bytes": 2409105,
+          "gzipBytes": 604870
+        },
+        "backend": {
+          "files": [],
+          "bytes": 0,
+          "gzipBytes": 0
+        },
+        "vfs": {
+          "files": ["chunk-BfPtljE0.js"],
+          "bytes": 96609,
+          "gzipBytes": 29270
+        }
+      },
+      "after": {
+        "initial": {
+          "files": [
+            "main-NLZFTS75.js",
+            "chunk-DiKfAjBI.js",
+            "chunk-BXafiRSm.js",
+            "chunk-BSRQewVR.js",
+            "chunk-BK6U3HWV.js",
+            "chunk-Bk2gubQY.js"
+          ],
+          "bytes": 1123581,
+          "gzipBytes": 315605
+        },
+        "dashboard": {
+          "files": ["chunk-C4EOxSmn.js"],
+          "bytes": 12894,
+          "gzipBytes": 4409
+        },
+        "entity": {
+          "files": ["chunk-DcvAoFzu.js"],
+          "bytes": 2409111,
+          "gzipBytes": 604422
+        },
+        "backend": {
+          "files": ["chunk-DE_TGezc.js"],
+          "bytes": 90544,
+          "gzipBytes": 28698
+        },
+        "vfs": {
+          "files": ["chunk-CqF0SBxn.js"],
+          "bytes": 96610,
+          "gzipBytes": 29267
+        }
+      }
+    }
+  },
+  "compression": "Node 26 gzipSync level 9, sum per chunk",
+  "date": "2026-11-16",
+  "network": {
+    "before": {
+      "react": {
+        "startReadyMedianMs": 146.57558300000005,
+        "dashboardReadyMedianMs": 238.3147919999999,
+        "initialJsEncodedBytes": 340144,
+        "dashboardCumulativeJsEncodedBytes": 371104,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      },
+      "angular": {
+        "startReadyMedianMs": 123.76029200000039,
+        "dashboardReadyMedianMs": 220.68862499999977,
+        "initialJsEncodedBytes": 1215857,
+        "dashboardCumulativeJsEncodedBytes": 1324195,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      },
+      "vue": {
+        "startReadyMedianMs": 121.134458,
+        "dashboardReadyMedianMs": 240.99320799999987,
+        "initialJsEncodedBytes": 283230,
+        "dashboardCumulativeJsEncodedBytes": 314593,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      }
+    },
+    "after": {
+      "react": {
+        "startReadyMedianMs": 138.24133300000017,
+        "dashboardReadyMedianMs": 247.58179199999995,
+        "initialJsEncodedBytes": 266264,
+        "dashboardCumulativeJsEncodedBytes": 375611,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      },
+      "angular": {
+        "startReadyMedianMs": 123.1966669999997,
+        "dashboardReadyMedianMs": 223.33795899999996,
+        "initialJsEncodedBytes": 1124718,
+        "dashboardCumulativeJsEncodedBytes": 1324766,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      },
+      "vue": {
+        "startReadyMedianMs": 113.74645899999996,
+        "dashboardReadyMedianMs": 229.52379199999996,
+        "initialJsEncodedBytes": 208797,
+        "dashboardCumulativeJsEncodedBytes": 318587,
+        "initialWasmRequests": 0,
+        "dashboardWasmRequests": 1
+      }
+    }
+  }
+}

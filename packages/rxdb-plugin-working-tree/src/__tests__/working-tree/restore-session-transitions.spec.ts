@@ -126,7 +126,7 @@ const discardOnce = (
   scene: WorkingTreeScene,
   overrides: Partial<{ expectedWorkingTreeRevision: number }> = {}
 ): Promise<WorkingTreeDiscardResult> =>
-  discardWorkingTree(scene.probe.executor, {
+  discardWorkingTree(scene.probe.executor, scene.context, {
     expectedBranch: { branchId: SCENE_BRANCH_ID, activationRevision: 0 },
     expectedHeadRevision: refRowOf(scene).headRevision,
     expectedWorkingTreeRevision: stateRowOf(scene).workingTreeRevision,

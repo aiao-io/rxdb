@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-27
-updated: 2026-11-08
+updated: 2026-11-16
 tags: [adapter, supabase, rls, mutations]
 ---
 
@@ -103,16 +103,13 @@ const upserts = [
   并一起提交，再升级客户端；不能原子执行时须在维护窗口禁止写入，避免新触发器与旧 RPC 混用。
   `01-rxdb-system-tables.sql` 无变化，无需为本故事重建系统表。升级步骤见[迁移说明](../../../website/docs/migration/supabase-update-push.md)。
 
-## 验证记录
+## 验收入口
 
-验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～7 全部通过，实现见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
-
-- 先写失败回归，再实现并转绿：直写载荷不再混入 upsert，owner / 共享编辑 RLS 正向修改、拒绝与已删除错误、整批回滚、`mutations()` 返回服务器最终行均有覆盖。列级 SELECT 权限回归同时验证原计数 UPDATE 不要求读取无关列。
-- 与 US-224 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。
-- Supabase 适配器 43 个 spec 文件、630 个用例通过；应用单测 50 个、本地模式 e2e 4 个、远端模式 e2e 4 个通过。
-- SQL 安全回归 36 个独立用例及 `all` 单事务组合全部通过；脚本套件已执行版本 489 个用例通过。
-- 适配器覆盖率：Lines 97.52%、Statements 96.65%、Functions 97.71%、Branches 88.20%，四项均达到 80% 门槛。
-- 评审修复（2026-10-29）：未设置 `context.userId` 时直写修改仍下发 `createdBy`，与本故事「`createdBy` 不下发」不符；`mutations-update-payload.spec.ts` 对应用例先红后绿，修改载荷不论有无身份都剥除 `createdBy`。RLS 复现 spec 的 afterAll 补清本 spec 两个实体的日志。适配器 43 个 spec 文件、630 个用例通过，覆盖率 Lines 97.53%、Statements 96.66%、Functions 97.71%、Branches 88.23%；SQL 安全回归 39 个独立用例及 `all` 组合通过；lint / typecheck 通过。
+- `mutations-update-payload.spec.ts` 覆盖 INSERT / UPDATE 载荷拆分、服务器最终行，以及有无 `context.userId` 都剥除 `createdBy`。
+- `mutations-update-rls-repro.spec.ts` 覆盖 owner / 共享编辑的 RLS 正向修改、拒绝、已删除错误与整批回滚。
+- `supabase-sql-security-regressions.sql` 覆盖 UPDATE 错误、返回行与计数入口的列级 SELECT 权限；
+  `run-supabase-sql-security-regressions.sh` 提供独立用例与 `all` 单事务组合入口。
+- 适配器通过 `pnpm nx test rxdb-adapter-supabase --coverage` 复验，覆盖率门槛为 80%；实现与交付证据见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
 
 ## 实现文件
 

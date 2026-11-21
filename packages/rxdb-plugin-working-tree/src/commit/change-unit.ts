@@ -50,9 +50,18 @@
  * 共用一个取值域时，一个单元的指纹可能恰好也是某个 commit 的合法指纹，篡改检测就多出
  * 一条可替换路径。域串里的 `v1` 同时是算法版本：将来换算法必须换这个串，让新旧值一眼
  * 不可比，而不是悄悄给出另一批同形的 hex。
+ *
+ * ## 服务端用的也是这一份
+ *
+ * US-316 起指纹是跨系统契约：交换的另一端（首个使用方是 Admin 的服务端，含 Supabase Edge Function）要复算它。
+ * JavaScript 的那一端经 `@aiao/rxdb-plugin-working-tree/exchange` 拿到的就是本文件的三个函数，不照文档另写一份——
+ * 文档那一节（插件页「内容指纹的规范化规则」）留给别的语言。于是本文件在那个子路径的模块闭包里：值导入只能有
+ * `@aiao/rxdb`（`sha256Hex` 与 `RxDBError`），一条指向实体或运行时的值导入就把它们带进了服务端
+ * （`__tests__/exchange/exchange-entry-isolation.spec.ts` 守着）；`commit.entity.ts` 只能 `import type`。
  */
 
 import { RxDBError, sha256Hex } from '@aiao/rxdb';
+import type { CommitExchangeRecord } from './commit-exchange.js';
 import type { CommitKind } from './commit.entity.js';
 
 /** 单元摘要的域分隔前缀；`v1` 是算法版本，换算法必须换它。 */
@@ -61,10 +70,18 @@ const UNIT_DOMAIN = 'rxdb.commit.change-unit.v1';
 /** commit 摘要的域分隔前缀；`v1` 是算法版本，换算法必须换它。 */
 const COMMIT_DOMAIN = 'rxdb.commit.content.v1';
 
-/** 变更单元的操作类型，与 `CommitChangeSet.operation` 同一取值域。 */
+/**
+ * 变更单元的操作类型，与 `CommitChangeSet.operation` 同一取值域。
+ *
+ * @public
+ */
 export type CommitChangeUnitOperation = 'insert' | 'update' | 'delete';
 
-/** 变更单元的来源，与 `CommitChangeSet.origin` 同一取值域。 */
+/**
+ * 变更单元的来源，与 `CommitChangeSet.origin` 同一取值域。
+ *
+ * @public
+ */
 export type CommitChangeUnitOrigin = 'local' | 'remote_sync';
 
 /**
@@ -73,6 +90,8 @@ export type CommitChangeUnitOrigin = 'local' | 'remote_sync';
  * @remarks
  * 单列成型是为了让 {@link computeChangeUnitFingerprint} 的形参说清楚「哪些字段进摘要」。
  * 往这个接口上加字段 = 改变全库已有指纹的口径，**必须**同时换 `UNIT_DOMAIN` 的版本号。
+ *
+ * @public
  */
 export interface CommitChangeUnitContent {
   /** 单元 id；完整事务的多行共享同一个值——拆散它等于把原子写入拆成多笔独立变更 */
@@ -118,7 +137,15 @@ export interface CommitChangeUnit extends CommitChangeUnitContent {
   readonly fingerprint: string;
 }
 
-/** {@link computeCommitContentFingerprint} 的输入：进 commit 摘要的全部内容。 */
+/**
+ * {@link computeCommitContentFingerprint} 的输入：进 commit 摘要的全部内容。
+ *
+ * @remarks
+ * 字段名跟的是 `Commit` 实体的列（`author`），不是交换记录（`authorId`）：写路径与损坏守卫手上是实体行。
+ * 手上是交换记录时用 {@link computeCommitExchangeRecordFingerprint}，不要自己拼这一份。
+ *
+ * @public
+ */
 export interface CommitContentFingerprintInput {
   /** 提交类型 */
   readonly kind: CommitKind;
@@ -215,6 +242,8 @@ const digest = (domain: string, payload: string): string =>
  * 形参刻意收窄成 {@link CommitChangeUnitContent}：传一个完整的 {@link CommitChangeUnit}
  * 进来照常可用（结构子类型），但 `baseFingerprint` 与 `fingerprint` 都读不到，
  * 也就不可能被误算进摘要。理由见本文件 `@fileoverview`。
+ *
+ * @public
  */
 export const computeChangeUnitFingerprint = (content: CommitChangeUnitContent): string =>
   digest(
@@ -251,6 +280,8 @@ export const computeChangeUnitFingerprint = (content: CommitChangeUnitContent): 
  *
  * 排除的三个字段各有理由：`id` 与 `operationId` 是**身份**不是内容（一次重试会换掉 `id`，
  * 但它仍是同一次提交）；`createdAt` 由数据库时钟给，构造期根本不知道它的值。
+ *
+ * @public
  */
 export const computeCommitContentFingerprint = (input: CommitContentFingerprintInput): string => {
   const parents = `p${input.parentIds.length}:${input.parentIds.map(id => atom('s', id)).join('')}`;
@@ -266,3 +297,36 @@ export const computeCommitContentFingerprint = (input: CommitContentFingerprintI
     ].join('')
   );
 };
+
+/**
+ * 按交换记录算它的内容指纹：{@link computeCommitContentFingerprint} 在交换记录上的那一种调用。
+ *
+ * @param record - 交换记录里进指纹的五个字段；整条记录照传即可（结构子类型），`commitId` / `createdAt` /
+ *   `contentFingerprint` 读不到，也就不可能被误算进去
+ * @returns 64 位小写 hex
+ * @throws {@link RxDBError} 任一单元的补丁里有落不进 JSON 列的值时
+ *
+ * @remarks
+ * 两边的字段名不同：交换记录叫 `authorId`（与 `CommitLogEntry` 同名），摘要的输入跟 `Commit` 实体的列叫 `author`。
+ * 这一格对应、以及「消息取原样值，不 trim」，就是服务端照文档自己拼时最容易写岔的两处——岔了不会报错，只会让每一次
+ * 核对都落在 `fingerprint_mismatch` 上。所以对应关系只写在这里：`importCommits()` 核对指纹走它，服务端复算上传的记录、
+ * 给自己合成的合并提交算指纹也走它（经 `@aiao/rxdb-plugin-working-tree/exchange`）。
+ *
+ * @example
+ * ```ts
+ * const merge = { kind: 'merge', parentIds: [head, taskHead], message: '合并任务', authorId: 'server', units } as const;
+ * const contentFingerprint = computeCommitExchangeRecordFingerprint(merge);
+ * ```
+ *
+ * @public
+ */
+export const computeCommitExchangeRecordFingerprint = (
+  record: Pick<CommitExchangeRecord, 'kind' | 'parentIds' | 'message' | 'authorId' | 'units'>
+): string =>
+  computeCommitContentFingerprint({
+    kind: record.kind,
+    parentIds: record.parentIds,
+    message: record.message,
+    author: record.authorId,
+    units: record.units
+  });

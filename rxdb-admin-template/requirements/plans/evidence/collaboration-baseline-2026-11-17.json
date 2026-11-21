@@ -1,0 +1,59 @@
+{
+  "checkpoints": [
+    {
+      "commits": 10,
+      "stateTextBytes": 3052167,
+      "stateStoredBytes": 309833,
+      "snapshotBytes": 1340677,
+      "snapshotMs": 61,
+      "commandMs": 131,
+      "commandWalBytes": 344584,
+      "uploadMsPerCommit": 15
+    },
+    {
+      "commits": 50,
+      "stateTextBytes": 15254900,
+      "stateStoredBytes": 1543473,
+      "snapshotBytes": 6699247,
+      "snapshotMs": 278,
+      "commandMs": 756,
+      "commandWalBytes": 1699272,
+      "uploadMsPerCommit": 14
+    },
+    {
+      "commits": 100,
+      "stateTextBytes": 30505384,
+      "stateStoredBytes": 3084076,
+      "snapshotBytes": 13395747,
+      "snapshotMs": 2590,
+      "commandMs": 3442,
+      "commandWalBytes": 3392696,
+      "uploadMsPerCommit": 29
+    },
+    {
+      "commits": 200,
+      "stateTextBytes": 60995793,
+      "stateStoredBytes": 6162486,
+      "snapshotBytes": 26782470,
+      "snapshotMs": 1713,
+      "commandMs": 2739,
+      "commandWalBytes": 6773200,
+      "uploadMsPerCommit": 658
+    }
+  ],
+  "contention": {
+    "commits": 200,
+    "idleCommandMs": 2739,
+    "readers": 4,
+    "contendedCommandMs": 10927
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 1000,
+    "changedRecordsPerCommit": 5,
+    "samples": 7
+  },
+  "generatedAt": "2026-11-17T03:41:21.371Z",
+  "protocol": "首版：每个提交携带全量记录，整个工作区一行 JSONB，读快照带行锁"
+}

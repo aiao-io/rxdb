@@ -121,14 +121,15 @@ const result = await db.replay.restoreToCommit(markers[0].commitId);
 if (!result.ok) console.warn(replayRestoreHint(result.reason));
 ```
 
-`restoreToCommit()` 每次都现取工作树凭据再调 `workingTree.restore()`。被拒绝时 `reason` 是下面之一，用 `replayRestoreHint(reason)` 取提示文案：
+`restoreToCommit()` 每次都现取工作树凭据再调 `workingTree.restore()`，语义与它相同：业务表变成那次提交的数据，与 HEAD 的差异记作未提交改动，之后 `commit()` 留下、`discard()` 退回 HEAD（0.0.28 及更早只写工作树条目、业务表不动，见[放弃与恢复回写业务表的迁移](../../migration/working-tree-discard-restore.md)）。被拒绝时 `reason` 是下面之一，用 `replayRestoreHint(reason)` 取提示文案：
 
-| `reason`              | 含义                               |
-| --------------------- | ---------------------------------- |
-| `conflict`            | 恢复过程中工作树变了，重试即可     |
-| `dirty_working_tree`  | 工作树有未提交的改动，先提交或丢弃 |
-| `incompatible_schema` | 目标提交由不兼容的 schema 版本写入 |
-| `unreachable_target`  | 目标提交不在当前分支的历史上       |
+| `reason`              | 含义                                           |
+| --------------------- | ---------------------------------------------- |
+| `conflict`            | 恢复过程中工作树变了，重试即可                 |
+| `dirty_working_tree`  | 工作树有未提交的改动，先提交或丢弃             |
+| `incompatible_schema` | 目标提交由不兼容的 schema 版本写入             |
+| `unreachable_target`  | 目标提交不在当前分支的历史上                   |
+| `side_branch_target`  | 目标提交只在合并进来的侧枝上，沿第一父链退不到 |
 
 没装工作树插件时，`restoreToCommit()` 抛 `working_tree_unavailable`。
 

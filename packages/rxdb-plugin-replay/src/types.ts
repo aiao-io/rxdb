@@ -3,8 +3,15 @@ import type { Observable } from 'rxjs';
 import type { ReplaySessionStatus } from './entities.js';
 import type { ReplayTruncatedCode } from './markers.js';
 
-/** `restoreToCommit()` 被拒的四种原因（与工作树 `restore()` 的 `reason` 同值）。 */
-export type ReplayRestoreRejection = 'conflict' | 'dirty_working_tree' | 'incompatible_schema' | 'unreachable_target';
+/**
+ * `restoreToCommit()` 被拒的五种原因（与工作树 `restore()` 的 `reason` 同值）。
+ *
+ * @remarks
+ * `side_branch_target` 随工作树 US-316 一起来：标记指向的提交只在某个合并提交带进来的侧枝上，从当前分支沿第一父链退不到它。
+ * 录制当时那个提交在当前分支上，之后导入了一次合并、主线换了第一父——回放里的标记就可能落到侧枝上。
+ */
+export type ReplayRestoreRejection =
+  'conflict' | 'dirty_working_tree' | 'incompatible_schema' | 'unreachable_target' | 'side_branch_target';
 
 /**
  * `restoreToCommit()` 的结果：工作树 `restore()` 结果里回放用得上的那部分。

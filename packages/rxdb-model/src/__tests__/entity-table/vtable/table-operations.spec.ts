@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   collectReorderedIds,
   patchDragIconForReadonlyRows,
+  preserveActionsColumnWidthOnResize,
   syncHeaderSortIcon,
   updateTableRecords
 } from '../../../entity-table/vtable/table-operations.js';
@@ -105,6 +106,34 @@ describe('collectReorderedIds', () => {
   });
 });
 
+describe('preserveActionsColumnWidthOnResize', () => {
+  it('restores the action width after a data column resize', () => {
+    const listeners = new Map<string, (event: { col: number }) => void>();
+    let actionWidth = 140;
+    const table = {
+      colCount: 3,
+      getHeaderField: (col: number) => ['id', 'updatedAt', 'actions'][col],
+      getColWidth: (col: number) => (col === 2 ? actionWidth : 160),
+      setColWidth: vi.fn((_col: number, width: number) => {
+        actionWidth = width;
+      }),
+      on: vi.fn((event: string, callback: (value: { col: number }) => void) => {
+        listeners.set(event, callback);
+      })
+    } as unknown as VTable.ListTable;
+
+    preserveActionsColumnWidthOnResize(table);
+    listeners.get('resize_column')!({ col: 1 });
+    actionWidth = 104;
+    listeners.get('resize_column_end')!({ col: 1 });
+    actionWidth = 104;
+    listeners.get('resize_column_end')!({ col: 2 });
+
+    expect(table.setColWidth).toHaveBeenLastCalledWith(2, 140);
+    expect(actionWidth).toBe(140);
+  });
+});
+
 // ── updateTableRecords ───────────────────────────────────────────────────────
 
 describe('updateTableRecords', () => {
@@ -126,6 +155,22 @@ describe('updateTableRecords', () => {
     // After updateColumns, colCount is still 3, so widths restored
     expect(setColWidth).toHaveBeenCalledWith(1, 120);
     expect(setColWidth).toHaveBeenCalledWith(2, 200);
+  });
+
+  it('操作列更新后重新计算内容宽度，不恢复旧的操作列宽度', () => {
+    const setColWidth = vi.fn();
+    const table = {
+      colCount: 3,
+      getColWidth: vi.fn((col: number) => (col === 1 ? 150 : 100)),
+      setRecords: vi.fn(),
+      updateColumns: vi.fn(),
+      setColWidth
+    } as unknown as VTable.ListTable;
+    const columns = [{ field: 'name' }, { field: 'actions', width: 'auto' }] as TableColumns;
+
+    updateTableRecords(table, [], columns, columns);
+
+    expect(setColWidth).toHaveBeenCalledExactlyOnceWith(1, 150);
   });
 
   it('handles missing field gracefully', () => {

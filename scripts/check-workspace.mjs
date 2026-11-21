@@ -10,7 +10,7 @@
  * CI 模式下整体跳过 —— 流水线环境里 .env 由部署系统注入、预构建由专用 job 完成。
  */
 
-import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, globSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ora from 'ora';
@@ -63,19 +63,12 @@ const checkEnvFiles = () => {
 };
 
 /**
- * workspace 成员目录（对应 pnpm-workspace.yaml 的 packages 列表；modules/ 多扫几个没有 node_modules 的目录无害）。
+ * 按根 package.json 的 workspaces 发现成员目录，包含产品内嵌应用。
  */
-const listMemberDirs = rootDir => [
-  ...['packages', 'apps', 'modules'].flatMap(group => {
-    const groupDir = join(rootDir, group);
-    if (!existsSync(groupDir)) return [];
-    return readdirSync(groupDir, { withFileTypes: true })
-      .filter(entry => entry.isDirectory())
-      .map(entry => join(groupDir, entry.name));
-  }),
-  join(rootDir, 'website'),
-  join(rootDir, 'benchmarks')
-];
+const listMemberDirs = rootDir =>
+  globSync(JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf8')).workspaces, { cwd: rootDir }).map(relative =>
+    join(rootDir, relative)
+  );
 
 const STORE_DIR_PATTERN = /node_modules[\\/]\.pnpm[\\/]([^\\/:;"]+)/g;
 

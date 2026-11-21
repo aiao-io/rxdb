@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["rxdb-admin-template-angular", "rxdb-admin-template-react-e2e"],
+  "name": "rxdb-admin-template-angular-e2e",
+  "projectType": "application",
+  "tags": ["product:admin-template", "scope:admin-template", "type:e2e"],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["rxdb-admin-template-angular:build"],
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/rxdb-admin-template/apps/react-e2e/src/**/*",
+        "{workspaceRoot}/rxdb-admin-template/apps/react-e2e/auth/**/*"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template/apps/angular-e2e",
+        "command": "playwright test --config e2e.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "rxdb-admin-template/apps/angular-e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

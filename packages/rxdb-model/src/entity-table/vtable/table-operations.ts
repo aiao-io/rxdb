@@ -90,7 +90,7 @@ export function collectReorderedIds(table: VTable.ListTable, idField: string): s
 }
 
 /**
- * 更新表格数据并恢复列宽（按 field 名匹配，容忍列增删）
+ * 更新表格数据并恢复数据列宽；操作列按内容重新计算宽度。
  *
  * @param table 目标表格实例
  * @param records 更新后的行数据
@@ -108,7 +108,7 @@ export function updateTableRecords(
   const widthByField = new Map<string, number>();
   for (let col = 1; col < colCount; col++) {
     const field = prevCols[col - 1]?.field;
-    if (field) widthByField.set(field, table.getColWidth(col));
+    if (field && field !== 'actions') widthByField.set(field, table.getColWidth(col));
   }
   table.setRecords(records);
   if (newColumns) table.updateColumns(newColumns as never);
@@ -121,4 +121,37 @@ export function updateTableRecords(
       if (w !== undefined) table.setColWidth(col, w);
     }
   }
+}
+
+/** 手动调整数据列时保持操作列的当前内容宽度，避免 autoFillWidth 重新分配冻结列。 */
+export function preserveActionsColumnWidthOnResize(table: VTable.ListTable): void {
+  const actionColumn = Array.from({ length: table.colCount }, (_, col) => col).find(
+    col => table.getHeaderField(col, 0) === 'actions'
+  );
+  if (actionColumn === undefined) return;
+  let resizingColumn: number | undefined;
+  let widthBeforeResize: number | undefined;
+  let resetTimer: ReturnType<typeof setTimeout> | undefined;
+  table.on('resize_column', ({ col }: { col: number }) => {
+    if (resetTimer !== undefined) {
+      clearTimeout(resetTimer);
+      resetTimer = undefined;
+      resizingColumn = undefined;
+      widthBeforeResize = undefined;
+    }
+    if (resizingColumn === undefined) {
+      resizingColumn = col;
+      if (col !== actionColumn) widthBeforeResize = table.getColWidth(actionColumn);
+    }
+  });
+  table.on('resize_column_end', () => {
+    if (resizingColumn !== actionColumn && widthBeforeResize !== undefined) {
+      table.setColWidth(actionColumn, widthBeforeResize);
+    }
+    resetTimer ??= setTimeout(() => {
+      resizingColumn = undefined;
+      widthBeforeResize = undefined;
+      resetTimer = undefined;
+    }, 0);
+  });
 }

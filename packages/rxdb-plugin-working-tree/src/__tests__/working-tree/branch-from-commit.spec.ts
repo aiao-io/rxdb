@@ -9,13 +9,13 @@
 import type { TransactionExecutor } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isCommitReachable } from '../../commit/commit-ancestry.js';
 import type { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { isForkPointLineageRewritten, readCommitForkPoint } from '../../commit/commit-fork-point.js';
 import { assertCommitGraphIntact } from '../../commit/commit-graph-guard.js';
 import { readCommitBranchRef } from '../../commit/list-commits.js';
 import { assertBranchIdFreeLocally, planBranchFromCommit } from '../../working-tree/branch-from-commit.js';
 import { readActiveBranchToken } from '../../working-tree/capture-runtime.js';
-import { selectRestoreReplayPath } from '../../working-tree/restore-precheck.js';
 
 vi.mock('../../working-tree/capture-runtime.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../working-tree/capture-runtime.js')>()),
@@ -29,9 +29,10 @@ vi.mock('../../commit/list-commits.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../commit/list-commits.js')>()),
   readCommitBranchRef: vi.fn()
 }));
-vi.mock('../../working-tree/restore-precheck.js', async importOriginal => ({
-  ...(await importOriginal<typeof import('../../working-tree/restore-precheck.js')>()),
-  selectRestoreReplayPath: vi.fn()
+// US-316：从提交建分支的可达性走全部父链（侧枝提交有分叉点时也能建），不再借 restore 的第一父链路径
+vi.mock('../../commit/commit-ancestry.js', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../commit/commit-ancestry.js')>()),
+  isCommitReachable: vi.fn()
 }));
 vi.mock('../../commit/commit-fork-point.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../commit/commit-fork-point.js')>()),
@@ -54,7 +55,7 @@ beforeEach(() => {
   vi.mocked(readActiveBranchToken).mockResolvedValue({ branchId: 'main', activationRevision: 1 });
   vi.mocked(assertCommitGraphIntact).mockResolvedValue(undefined);
   vi.mocked(readCommitBranchRef).mockResolvedValue({ headCommitId: 'c3' } as never);
-  vi.mocked(selectRestoreReplayPath).mockResolvedValue(['c3', 'c2']);
+  vi.mocked(isCommitReachable).mockResolvedValue(true);
   vi.mocked(readCommitForkPoint).mockResolvedValue(FORK_POINT);
   vi.mocked(isForkPointLineageRewritten).mockResolvedValue(false);
 });
@@ -64,11 +65,11 @@ afterEach(() => vi.clearAllMocks());
 describe('planBranchFromCommit', () => {
   it('可达、有分叉点、谱系没被改过：交回分叉点', async () => {
     await expect(planBranchFromCommit(executor, 'c1')).resolves.toEqual({ ok: true, forkPoint: FORK_POINT });
-    expect(vi.mocked(selectRestoreReplayPath)).toHaveBeenCalledWith(executor, 'c3', 'c1');
+    expect(vi.mocked(isCommitReachable)).toHaveBeenCalledWith(executor, 'c3', 'c1');
   });
 
   it('不在 HEAD 可达父链上：unreachable_target，不读分叉点', async () => {
-    vi.mocked(selectRestoreReplayPath).mockResolvedValue(undefined);
+    vi.mocked(isCommitReachable).mockResolvedValue(false);
 
     await expect(planBranchFromCommit(executor, 'c1')).resolves.toEqual({ ok: false, reason: 'unreachable_target' });
     expect(vi.mocked(readCommitForkPoint)).not.toHaveBeenCalled();
@@ -92,7 +93,7 @@ describe('planBranchFromCommit', () => {
     vi.mocked(assertCommitGraphIntact).mockRejectedValue(corrupted);
 
     await expect(planBranchFromCommit(executor, 'c1')).rejects.toBe(corrupted);
-    expect(vi.mocked(selectRestoreReplayPath)).not.toHaveBeenCalled();
+    expect(vi.mocked(isCommitReachable)).not.toHaveBeenCalled();
   });
 });
 

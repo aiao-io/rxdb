@@ -1,0 +1,261 @@
+{
+  "affectedProductProjects": [
+    "rxdb-admin-template",
+    "rxdb-admin-template-angular",
+    "rxdb-admin-template-angular-e2e",
+    "rxdb-admin-template-react",
+    "rxdb-admin-template-react-e2e",
+    "rxdb-admin-template-vue",
+    "rxdb-admin-template-vue-e2e"
+  ],
+  "applications": [
+    {
+      "project": "rxdb-admin-template-angular",
+      "testDependsOn": [
+        "rxdb-admin-template-angular:requirements-check",
+        "rxdb-admin-template-angular:requirements-test"
+      ]
+    },
+    {
+      "project": "rxdb-admin-template-react",
+      "testDependsOn": ["rxdb-admin-template-react:requirements-check", "rxdb-admin-template-react:requirements-test"]
+    },
+    {
+      "project": "rxdb-admin-template-vue",
+      "testDependsOn": ["rxdb-admin-template-vue:requirements-check", "rxdb-admin-template-vue:requirements-test"]
+    }
+  ],
+  "date": "2026-11-16",
+  "preservedRequirementFiles": 48,
+  "preservedStories": [
+    {
+      "id": "ADMIN-US-201",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-202",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-203",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-204",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-205",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-206",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-207",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-208",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-209",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-210",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-211",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-212",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-213",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-214",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-215",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-216",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-101",
+      "status": "Backlog"
+    },
+    {
+      "id": "ADMIN-US-102",
+      "status": "In Review"
+    },
+    {
+      "id": "ADMIN-US-001",
+      "status": "Done"
+    },
+    {
+      "id": "ADMIN-US-002",
+      "status": "Done"
+    },
+    {
+      "id": "ADMIN-US-003",
+      "status": "In Review"
+    }
+  ],
+  "productGateTasks": ["rxdb-admin-template:requirements-check", "rxdb-admin-template:requirements-test"],
+  "productMembers": [
+    {
+      "project": "rxdb-admin-template",
+      "root": "rxdb-admin-template",
+      "tags": ["product:admin-template", "scope:admin-template", "type:governance"]
+    },
+    {
+      "project": "rxdb-admin-template-angular",
+      "root": "rxdb-admin-template/apps/angular",
+      "sourceRoot": "rxdb-admin-template/apps/angular/src",
+      "tags": ["npm:private", "angular-app", "product:admin-template", "scope:admin-template", "type:app", "layer:ui"]
+    },
+    {
+      "project": "rxdb-admin-template-angular-e2e",
+      "root": "rxdb-admin-template/apps/angular-e2e",
+      "tags": ["npm:private", "product:admin-template", "scope:admin-template", "type:e2e"]
+    },
+    {
+      "project": "rxdb-admin-template-react",
+      "root": "rxdb-admin-template/apps/react",
+      "sourceRoot": "rxdb-admin-template/apps/react/src",
+      "tags": ["npm:public", "react-app", "product:admin-template", "scope:admin-template", "type:app", "layer:ui"]
+    },
+    {
+      "project": "rxdb-admin-template-react-e2e",
+      "root": "rxdb-admin-template/apps/react-e2e",
+      "sourceRoot": "rxdb-admin-template/apps/react-e2e/src",
+      "tags": ["npm:private", "product:admin-template", "scope:admin-template", "type:e2e"]
+    },
+    {
+      "project": "rxdb-admin-template-vue",
+      "root": "rxdb-admin-template/apps/vue",
+      "sourceRoot": "rxdb-admin-template/apps/vue/src",
+      "tags": ["npm:private", "vue-app", "product:admin-template", "scope:admin-template", "type:app", "layer:ui"]
+    },
+    {
+      "project": "rxdb-admin-template-vue-e2e",
+      "root": "rxdb-admin-template/apps/vue-e2e",
+      "tags": ["npm:private", "product:admin-template", "scope:admin-template", "type:e2e"]
+    }
+  ],
+  "productRoot": "rxdb-admin-template",
+  "verification": {
+    "requirementsTests": 56,
+    "workspaceTests": 10,
+    "applicationTests": {
+      "react": 72,
+      "angular": 69,
+      "vue": 69
+    },
+    "typecheckTargetsPassed": 6,
+    "applicationBuildsPassed": 3,
+    "lintTargetsPassed": 8,
+    "e2e": {
+      "angular": {
+        "passed": 104,
+        "total": 104,
+        "workers": 2
+      },
+      "vue": {
+        "passed": 104,
+        "total": 104,
+        "workers": 2
+      },
+      "react": {
+        "passed": 104,
+        "total": 104,
+        "workers": 1
+      },
+      "initialRun": {
+        "workers": 2,
+        "react": {
+          "passed": 102,
+          "failed": 2
+        },
+        "failures": [
+          "entity-table-layout.spec.ts: 滚动到最右端后，更新时间列能缩小和放大（2048px）",
+          "i18n.spec.ts: 首页切换语言并刷新后仍可向空工作台恢复备份"
+        ]
+      },
+      "failedCasesRetry": {
+        "passed": 2,
+        "total": 2,
+        "workers": 1
+      }
+    },
+    "documentLinks": {
+      "checkedDocuments": 70,
+      "checkedLinks": 778,
+      "errors": []
+    },
+    "rootRequirementsCheck": "passed",
+    "dependencyVersionsUnchanged": true,
+    "movedImporters": 6,
+    "workspaceLinksVerified": 42,
+    "preservedSourceFiles": 140,
+    "lazyBackendAudit": [
+      {
+        "framework": "angular",
+        "initialBytes": 1123581,
+        "initialGzipBytes": 315606,
+        "dashboard": "chunk-BmFrisSL.js",
+        "lazyBackend": "chunk-Bny6uoCT.js",
+        "initialChunks": [
+          "main-EQ6VAQ2C.js",
+          "chunk-DiKfAjBI.js",
+          "chunk-BXafiRSm.js",
+          "chunk-BSRQewVR.js",
+          "chunk-BK6U3HWV.js",
+          "chunk-Bk2gubQY.js"
+        ]
+      },
+      {
+        "framework": "react",
+        "initialBytes": 835947,
+        "initialGzipBytes": 264791,
+        "dashboard": "assets/dashboard-page-B5TSDhhS.js",
+        "lazyBackend": "assets/src-Di09QKK-.js",
+        "initialChunks": [
+          "assets/index-7Ou9Qg6Y.js",
+          "assets/rxdb-utils-BAFasyR2.js",
+          "assets/RxDBError-BZcgvyVE.js",
+          "assets/Subscriber-P4mrx3x5.js",
+          "assets/decorate-D0wB8qzp.js"
+        ]
+      },
+      {
+        "framework": "vue",
+        "initialBytes": 625834,
+        "initialGzipBytes": 207432,
+        "dashboard": "assets/dashboard-page-PkOEOahS.js",
+        "lazyBackend": "assets/src-CwKWfvMd.js",
+        "initialChunks": [
+          "assets/index-BjtAGRS1.js",
+          "assets/use-i18n-BmPhcATA.js",
+          "assets/Subscription-Q3-twGvw.js",
+          "assets/rxdb-utils-BAFasyR2.js",
+          "assets/RxDBError-BZcgvyVE.js",
+          "assets/decorate-STulRdTN.js",
+          "assets/Observable-lvgj_GtY.js"
+        ]
+      }
+    ]
+  }
+}

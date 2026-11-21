@@ -62,7 +62,7 @@ import { createBootstrapScript } from '@aiao/rxdb-admin';
 createBootstrapScript({ storageKey: 'aiao.workbench.preferences' });
 ```
 
-建议在应用单测里断言 `index.html` 含有这段脚本，防止存储键或逻辑漂移（`apps/rxdb-admin-template-react` 的 `workbench-shell.spec.ts` 是现成写法）。
+建议在应用单测里断言 `index.html` 含有这段脚本，防止存储键或逻辑漂移（`rxdb-admin-template/apps/react` 的 `workbench-shell.spec.ts` 是现成写法）。
 
 ## 主题
 
@@ -126,6 +126,7 @@ shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: '立即同�
 
 - `Mod` 在 macOS 是 ⌘，其他平台是 Ctrl；含 Alt 的组合按物理键位（`event.code`）匹配。
 - 来源可声明 `minQueryLength`，查询被新输入取代时会收到 `signal` 的取消。
+- 同步来源（`items`）背后的数据变了时调用 `shell.palette.refresh()` 按当前数据重算，查询与选中位置不变、不重新发起异步搜索；外壳菜单经 `setMenu` 更新时会自动刷新。
 - 来源如果用 `@aiao/rxdb-plugin-search` 的句柄，等 `state$` 结算后再读 `results$`，不要用 `combineLatest` 合并两者——它们派生自同一份快照，状态先到、结果还是旧值。
 
 ## 锁屏的边界

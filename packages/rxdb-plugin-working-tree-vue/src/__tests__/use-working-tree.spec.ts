@@ -28,6 +28,7 @@ import type { RxDB } from '@aiao/rxdb';
 import {
   CommitValidationError,
   WorkingTreeDirtyError,
+  type CommitImportResult,
   type CommitResult,
   type WorkingTreeRestoreResult,
   type WorkingTreeStatus,
@@ -38,7 +39,11 @@ import {
   CREDENTIALS,
   deferred,
   diffWith,
+  exportWith,
+  IMPORT_OK,
+  IMPORT_RECORD,
   logWith,
+  REJECTED_IMPORTS,
   REJECTED_RESTORES,
   RESTORE_OK,
   RESTORE_TARGET,
@@ -91,7 +96,7 @@ afterEach(() => {
 describe('useWorkingTree：初始状态', () => {
   // 挂上去就去读库，会让每个用到这个入口的组件在挂载时各发一轮查询，
   // 而其中大多数只是想拿到 commit() 这个方法。
-  it('十四格全是 idle，创建入口本身一次 IO 都不发', () => {
+  it('十六格全是 idle，创建入口本身一次 IO 都不发', () => {
     const { workingTree, tree } = createFixture();
 
     expect([
@@ -108,8 +113,10 @@ describe('useWorkingTree：初始状态', () => {
       tree.restoreSessionState.value.phase,
       tree.switchBranchState.value.phase,
       tree.checkBranchFromCommitState.value.phase,
-      tree.createBranchFromCommitState.value.phase
-    ]).toEqual(Array.from({ length: 14 }, () => 'idle'));
+      tree.createBranchFromCommitState.value.phase,
+      tree.importCommitsState.value.phase,
+      tree.exportCommitsState.value.phase
+    ]).toEqual(Array.from({ length: 16 }, () => 'idle'));
     expect(workingTree.status).not.toHaveBeenCalled();
     expect(workingTree.isEnabled).not.toHaveBeenCalled();
   });
@@ -276,8 +283,8 @@ describe('useWorkingTree：不给无 empty 语义的命令伪造 empty（§4）'
     expect(tree.commitState.value).toEqual({ phase: 'success', value: conflicted });
   });
 
-  // 四个被拒成因都是一次**成功调用**的结果：脏工作树与不兼容要用户去处理，不可达是问错了节点，
-  // 冲突要重来一次 —— 四者都不是崩溃，也都不是空。四种全测而不是挑一种代表：带载荷的只有其中
+  // 五个被拒成因都是一次**成功调用**的结果：脏工作树与不兼容要用户去处理，不可达与只在侧枝上是问错了节点，
+  // 冲突要重来一次 —— 五者都不是崩溃，也都不是空。五种全测而不是挑一种代表：带载荷的只有其中
   // 两个分支，而界面要显示的恰恰是那两份载荷。
   it.each(REJECTED_RESTORES)('restore 被拒（$reason）落在 success，载荷原样带着', async rejected => {
     const { workingTree, tree } = createFixture();
@@ -315,7 +322,7 @@ describe('useWorkingTree：不给无 empty 语义的命令伪造 empty（§4）'
     expect(tree.switchBranchState.value).toEqual({ phase: 'success', value: undefined });
   });
 
-  // 与 restore 的四个被拒成因正好相反：`requireClean` 撞上脏工作树时分支**根本没切**，
+  // 与 restore 的五个被拒成因正好相反：`requireClean` 撞上脏工作树时分支**根本没切**，
   // 没有任何结果可交给调用方。翻成返回值的话，`await tree.switchBranch(...)` 之后那行
   // 「已经切过去了」的代码会照跑。
   it('requireClean 撞上脏工作树时落在 error，并把 WorkingTreeDirtyError 原样抛出', async () => {
@@ -446,8 +453,91 @@ describe('useWorkingTree：没有 provider', () => {
   });
 });
 
+describe('useWorkingTree：导入与导出远端提交（US-316 AC#9）', () => {
+  // 入参原样交给核心：批次与三个捕获位一个字段都不改写——本端替调用方补一个「内部读的 revision」，HEAD 的 CAS 就永远命中
+  it('importCommits 的两个实参原样传给核心，成功落在 success，返回值与核心那一份是同一个', async () => {
+    const { workingTree, tree } = createFixture();
+    workingTree.importCommits.mockResolvedValue(IMPORT_OK);
+
+    const result = await tree.importCommits([IMPORT_RECORD], CREDENTIALS);
+
+    expect(workingTree.importCommits).toHaveBeenCalledWith([IMPORT_RECORD], CREDENTIALS);
+    expect(result).toBe(IMPORT_OK);
+    expect(tree.importCommitsState.value).toEqual({ phase: 'success', value: IMPORT_OK });
+  });
+
+  it('导入期间不静默：importCommitsState 先进 loading', async () => {
+    const { workingTree, tree } = createFixture();
+    const pending = deferred<CommitImportResult>();
+    workingTree.importCommits.mockReturnValue(pending.promise);
+
+    const running = tree.importCommits([IMPORT_RECORD], CREDENTIALS);
+    expect(tree.importCommitsState.value.phase).toBe('loading');
+
+    pending.resolve(IMPORT_OK);
+    await running;
+    expect(tree.importCommitsState.value.phase).toBe('success');
+  });
+
+  // 被拒的十种成因都是一次**成功调用**的结果：不是快进要先上传，指纹不符要服务端重发，前像对不上要服务端按本机的数据重算增量——都不是崩溃，也都不是空
+  it.each(REJECTED_IMPORTS)('importCommits 被拒（$reason）落在 success，载荷原样带着', async rejected => {
+    const { workingTree, tree } = createFixture();
+    workingTree.importCommits.mockResolvedValue(rejected);
+
+    const result = await tree.importCommits([IMPORT_RECORD], CREDENTIALS);
+
+    expect(result).toEqual(rejected);
+    expect(tree.importCommitsState.value).toEqual({ phase: 'success', value: rejected });
+  });
+
+  // 成功是 HEAD 刚快进过（headRevision 换了），被拒的成因里 conflict / dirty_working_tree 都在说面板上那份摘要已经过期
+  it('导入之后无论成败都重读 status', async () => {
+    const { workingTree, tree } = createFixture();
+    workingTree.importCommits.mockResolvedValueOnce(IMPORT_OK).mockResolvedValueOnce(REJECTED_IMPORTS[0]);
+    workingTree.status.mockResolvedValue(statusWith(0));
+
+    await tree.importCommits([IMPORT_RECORD], CREDENTIALS);
+    await tree.importCommits([IMPORT_RECORD], CREDENTIALS);
+    await flush();
+
+    expect(workingTree.status).toHaveBeenCalledTimes(2);
+    expect(tree.statusState.value.phase).toBe('empty');
+  });
+
+  // 抛出来的（能力未启用、提交图损坏、加密列里的明文）一个字节都没写：status 保持原样，错误原样往上抛
+  it('导入抛错落在 error 并原样抛出，不重读 status', async () => {
+    const { workingTree, tree } = createFixture();
+    const failure = new Error('提交图已损坏');
+    workingTree.importCommits.mockRejectedValue(failure);
+
+    const caught = await tree.importCommits([IMPORT_RECORD], CREDENTIALS).catch((error: unknown) => error);
+
+    expect(caught).toBe(failure);
+    expect(tree.importCommitsState.value).toEqual({ phase: 'error', error: failure });
+    expect(workingTree.status).not.toHaveBeenCalled();
+  });
+
+  // 导出是查询：那个提交之后没有新提交是「有语义的空」，上传逻辑据此跳过一轮；空页照样带着 HEAD 与修订号
+  it('exportCommits 的选项原样传给核心；空页落在 empty 并带着那一页，有提交落在 success', async () => {
+    const { workingTree, tree } = createFixture();
+    workingTree.exportCommits.mockResolvedValueOnce(exportWith(0)).mockResolvedValueOnce(exportWith(2));
+
+    await tree.exportCommits({ afterCommitId: 'commit-1' });
+    expect(tree.exportCommitsState.value).toEqual({ phase: 'empty', value: exportWith(0) });
+
+    const page = await tree.exportCommits();
+
+    expect(workingTree.exportCommits).toHaveBeenNthCalledWith(1, { afterCommitId: 'commit-1' });
+    expect(workingTree.exportCommits).toHaveBeenNthCalledWith(2, undefined);
+    expect(page.commits).toHaveLength(2);
+    expect(tree.exportCommitsState.value.phase).toBe('success');
+    // 导出只读：不改工作树，不该顺手重读 status
+    expect(workingTree.status).not.toHaveBeenCalled();
+  });
+});
+
 describe('tri-framework-api.md §3 清单守卫', () => {
-  // 清单原有十二项，US-314 阶段 A 又补两项，十四项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
+  // 清单原有十二项，US-314 阶段 A 又补两项，US-316 再补导入与导出两项，十六项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
   // 它现在守的是反方向的那件事：任何一项被摘掉（重构时顺手改了返回值、某端漏接一次）
   // 都会在这里当场红，而不是等到另外两端的用户先发现分歧。
   // `switchBranch` 那一行今天从「不该有」翻成「该有」，靠的就是这条断言先红。
@@ -465,7 +555,9 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     { member: 'restoreSession', deliveredIn: 'T110' },
     { member: 'switchBranch', deliveredIn: 'T123' },
     { member: 'checkBranchFromCommit', deliveredIn: 'US-314' },
-    { member: 'createBranchFromCommit', deliveredIn: 'US-314' }
+    { member: 'createBranchFromCommit', deliveredIn: 'US-314' },
+    { member: 'importCommits', deliveredIn: 'US-316' },
+    { member: 'exportCommits', deliveredIn: 'US-316' }
   ] as const;
 
   it.each(CHECKLIST)('$member 由 $deliveredIn 交付', ({ member }) => {
@@ -474,7 +566,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     expect(member in tree).toBe(true);
   });
 
-  it('十四格状态与核心那一份同名同数', () => {
+  it('十六格状态与核心那一份同名同数', () => {
     const { tree } = createFixture();
 
     expect(
@@ -490,6 +582,8 @@ describe('tri-framework-api.md §3 清单守卫', () => {
       'discardState',
       'enableIfEmptyState',
       'enableState',
+      'exportCommitsState',
+      'importCommitsState',
       'isEnabledState',
       'listCommitsState',
       'restoreSessionState',

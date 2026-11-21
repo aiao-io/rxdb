@@ -184,11 +184,19 @@ describe('EntityList（真实组件）', () => {
   }
 
   /** 挂载列表组件并等待首页加载完成。 */
-  async function renderList(inputs: Partial<{ namespace: string; name: string; mode: 'default' | 'select' }> = {}) {
+  async function renderList(
+    inputs: Partial<{
+      namespace: string;
+      name: string;
+      mode: 'default' | 'select';
+      actionsMaxWidth: number | string;
+    }> = {}
+  ) {
     const { wrapper, child } = mountWithRxDB(EntityList, rxdb, {
       props: {
         namespace: inputs.namespace ?? 'public',
         name: inputs.name ?? 'Todo',
+        actionsMaxWidth: inputs.actionsMaxWidth,
         ...(inputs.mode ? { mode: inputs.mode } : {})
       }
     });
@@ -209,6 +217,17 @@ describe('EntityList（真实组件）', () => {
   function tableOf(child: ReturnType<typeof mountWithRxDB>['child']): FakeListTable {
     return child.findComponent(QueryTable).vm.tableInstance as unknown as FakeListTable;
   }
+
+  it('操作列按内容自动计算宽度，并响应最大宽度设置变化', async () => {
+    const { wrapper, child } = await renderList({ actionsMaxWidth: 180 });
+    const column = () => tableOf(child).columns.find(column => column['field'] === 'actions');
+    expect(column()).toMatchObject({ width: 'auto', maxWidth: 180 });
+    expect(column()?.['minWidth']).toBeUndefined();
+
+    await wrapper.setProps({ actionsMaxWidth: 120 });
+    await FLUSH();
+    expect(column()?.['maxWidth']).toBe(120);
+  });
 
   const repoOf = () => rxdb.entityManager.getRepository(Todo as unknown as EntityType);
 
@@ -1720,5 +1739,103 @@ describe('EntityList（真实组件）', () => {
 
     expect(((child.emitted('viewEntity') as unknown as unknown[][]) ?? []).map(e => e[0])).toEqual([record]);
     expect(document.body.querySelector('.rxdb-dialog-pane')).toBeNull();
+  });
+
+  describe('dirty-change：新增 / 编辑表单的未保存输入交给宿主', () => {
+    const pane = (): HTMLElement | null => document.body.querySelector('.rxdb-dialog-pane');
+    /** 对话框表单里的 title 文本框（Todo 唯一的文本字段；Tab 是 radio，completed 是复选框）。 */
+    const titleInput = (): HTMLInputElement => pane()!.querySelector<HTMLInputElement>('form input[type="text"]')!;
+    /** 把 title 文本框改成 `value`：Vue 表单的文本框按 input 收值。 */
+    const typeTitle = (value: string): void => {
+      titleInput().value = value;
+      titleInput().dispatchEvent(new Event('input'));
+    };
+    const dialogButton = (text: string): HTMLButtonElement =>
+      [...pane()!.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === text)!;
+    /** 列表按顺序发出的 dirty-change。 */
+    const reportsOf = (child: ReturnType<typeof mountWithRxDB>['child']): boolean[] =>
+      ((child.emitted('dirtyChange') as unknown as boolean[][] | undefined) ?? []).map(event => event[0]!);
+    async function openCreate(component: ListVM): Promise<void> {
+      component.openCreateDialog();
+      await vi.waitFor(() => expect(pane()?.querySelector('form input[type="text"]')).toBeTruthy());
+    }
+    async function openEdit(component: ListVM, title: string): Promise<void> {
+      await vi.waitFor(() => expect(component.tableRecords).toHaveLength(1));
+      await component.onIconClicked({ name: 'view-action', record: component.tableRecords[0]! });
+      await vi.waitFor(() =>
+        expect(pane()?.querySelector<HTMLInputElement>('form input[type="text"]')?.value).toBe(title)
+      );
+    }
+
+    it('新增对话框：输入后发出 true，继续输入不重复发出，取消后回到 false', async () => {
+      const { child, component } = await renderList();
+      await openCreate(component);
+      expect(reportsOf(child)).toEqual([]);
+
+      typeTitle('甲');
+      typeTitle('甲乙');
+      expect(reportsOf(child)).toEqual([true]);
+
+      dialogButton('取消').click();
+      await vi.waitFor(() => expect(pane()).toBeNull());
+      expect(reportsOf(child)).toEqual([true, false]);
+    });
+
+    it('新增对话框：改回原值不算未保存；保存成功后回到 false，记录落库', async () => {
+      const { child, component } = await renderList();
+      await openCreate(component);
+
+      typeTitle('甲');
+      typeTitle('');
+      expect(reportsOf(child)).toEqual([true, false]);
+
+      typeTitle('dirty-then-saved');
+      dialogButton('保存').click();
+      await vi.waitFor(() => expect(pane()).toBeNull());
+      expect(reportsOf(child)).toEqual([true, false, true, false]);
+      await vi.waitFor(async () => expect(await findTitles()).toContain('dirty-then-saved'));
+    });
+
+    it('编辑对话框：修改后发出 true，点遮罩关闭回到 false，记录不变', async () => {
+      await seedTodo('edit-me');
+      const { child, component } = await renderList();
+      await openEdit(component, 'edit-me');
+
+      typeTitle('edited-but-closed');
+      expect(reportsOf(child)).toEqual([true]);
+
+      document.body.querySelector<HTMLElement>('.rxdb-dialog-overlay')!.click();
+      await vi.waitFor(() => expect(pane()).toBeNull());
+      expect(reportsOf(child)).toEqual([true, false]);
+      expect(await findTitles()).toEqual(['edit-me']);
+    });
+
+    it('编辑对话框：保存成功回到 false', async () => {
+      await seedTodo('before-save');
+      const { child, component } = await renderList();
+      await openEdit(component, 'before-save');
+
+      typeTitle('after-save');
+      dialogButton('保存').click();
+      await vi.waitFor(() => expect(pane()).toBeNull());
+      expect(reportsOf(child)).toEqual([true, false]);
+      await vi.waitFor(async () => expect(await findTitles()).toEqual(['after-save']));
+    });
+
+    it('卸载时仍有未保存输入：补发一次 false，宿主不会停在 true', async () => {
+      // 卸载会清掉 test-utils 的 emitted() 记录：改用宿主的监听属性收事件
+      const reports: boolean[] = [];
+      const { wrapper, child } = mountWithRxDB(EntityList, rxdb, {
+        props: { namespace: 'public', name: 'Todo', onDirtyChange: (dirty: boolean) => reports.push(dirty) }
+      });
+      await FLUSH();
+      await openCreate(child.vm as unknown as ListVM);
+      typeTitle('没保存就离开');
+      expect(reports).toEqual([true]);
+
+      wrapper.unmount();
+      expect(reports).toEqual([true, false]);
+      await vi.waitFor(() => expect(pane()).toBeNull());
+    });
   });
 });

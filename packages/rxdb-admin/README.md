@@ -92,6 +92,8 @@ shell.registerCommand({ id: 'sync', label: '立即同步', keywords: ['sync'], r
 shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: '立即同步', handler: () => sync() });
 ```
 
+同步来源（`items`）背后的数据变了时调用 `shell.palette.refresh()` 重算；外壳菜单经 `setMenu` 更新时会自动刷新。
+
 `Mod` 在 macOS 是 ⌘，其他平台是 Ctrl；含 Alt 的组合按物理键位（`event.code`）匹配，避免 macOS 上 ⌥L 变成 `¬`。内置：`Mod+K` 命令面板、`Mod+,` 偏好设置、`Alt+L` 锁屏、`Mod+B` 折叠侧栏、`Alt+W` 关闭页签。
 
 ## 布局与样式契约

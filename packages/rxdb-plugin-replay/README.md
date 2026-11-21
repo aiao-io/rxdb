@@ -75,12 +75,13 @@ const events = await db.replay.readEvents(sessionId);
 
 被录的库装了 `@aiao/rxdb-plugin-working-tree` 时，录制中的每次提交都会写一条 `commit` 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。标记来自工作树门面的 `commits$`。
 
-`restoreToCommit(commitId)` 每次调用时都现取工作树凭据，再调 `workingTree.restore()`。被拒绝时用 `replayRestoreHint(reason)` 取提示文案，可能的 `reason`：
+`restoreToCommit(commitId)` 每次调用时都现取工作树凭据，再调 `workingTree.restore()`。语义与它相同：业务表变成那次提交的数据，与 HEAD 的差异记作未提交改动，之后 `commit()` 留下、`discard()` 退回 HEAD。0.0.28 及更早只写工作树条目、业务表不动，升级说明见[迁移指南](https://rxdb.aiao.io/docs/migration/working-tree-discard-restore)。被拒绝时用 `replayRestoreHint(reason)` 取提示文案，可能的 `reason`：
 
 - `conflict`
 - `dirty_working_tree`
 - `incompatible_schema`
 - `unreachable_target`
+- `side_branch_target`（提交只在合并进来的侧枝上，沿第一父链退不到）
 
 没装工作树插件时抛 `working_tree_unavailable`。
 

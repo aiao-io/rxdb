@@ -590,6 +590,20 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(submitted).toEqual([{ title: '已编辑', count: 2 }]);
   });
 
+  it('edit 对话框模式内部保存：先 emit formSubmitted 再关闭——真实 CDK 对话框关闭即销毁组件，之后的 emit 会被丢弃（NG0953）', async () => {
+    const inst = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '待编辑', count: 1 });
+    await inst.save();
+
+    const { component, submitted } = createWithDialog(dialogData({ formMode: 'edit', entityId: inst.id }));
+    await FLUSH();
+    const deliveredAtClose: number[] = [];
+    closeSpy.mockImplementation(() => deliveredAtClose.push(submitted.length));
+
+    component.onFormSubmitted({ title: '已编辑', count: 2 });
+    await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+    expect(deliveredAtClose).toEqual([1]);
+  });
+
   /** 把表单里当前显示为 `from` 的文本框改成 `to`：EntityForm 的文本框按 change 收值。 */
   const changeTextInput = (fixture: ComponentFixture<EntityDetailComponent>, from: string, to: string): void => {
     const input = fixture.debugElement
@@ -691,5 +705,102 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(actionIconNames('Invoice')).toEqual(['view-action', 'delete-action']);
     expect(recordsOf('Contract').map(r => [r['id'], r['_readonly']])).toEqual([[contract.id, undefined]]);
     expect(actionIconNames('Contract')).toEqual(['view-action']);
+  });
+
+  describe('dirtyChange：表单与关系页签的未保存输入', () => {
+    /** 按顺序记下详情 dirtyChange 的每次输出。 */
+    const track = (component: EntityDetailComponent): boolean[] => {
+      const reports: boolean[] = [];
+      component.dirtyChange.subscribe(dirty => reports.push(dirty));
+      return reports;
+    };
+    const dialogs = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('.cdk-dialog-container')];
+
+    it('表单里的输入经模板交给详情：输出 true，改回原值输出 false；取消时回到 false', () => {
+      const { fixture, component } = createWithDialog(dialogData());
+      const reports = track(component);
+      const title = fixture.nativeElement.querySelector('form input[type="text"]') as HTMLInputElement;
+      const type = (value: string): void => {
+        title.value = value;
+        title.dispatchEvent(new Event('change'));
+      };
+
+      type('甲');
+      type('');
+      type('乙');
+      expect(reports).toEqual([true, false, true]);
+
+      component.onCancel();
+      expect(reports).toEqual([true, false, true, false]);
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
+    it('create 草稿保存成功回到 false', async () => {
+      const { component } = createWithDialog(dialogData());
+      const reports = track(component);
+      component.onFieldChanged({ field: 'title', type: 'string', value: '第一组', previousValue: '' });
+      component.onSave();
+      await vi.waitFor(() => expect(closeSpy).toHaveBeenCalledWith('saved'));
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('把输入交给宿主（delegateSave 的保存）即回到 false', () => {
+      const { component } = createWithDialog(dialogData({ delegateSave: true }));
+      const reports = track(component);
+      component.onFieldChanged({ field: 'title', type: 'string', value: '委托', previousValue: '' });
+      component.onSave();
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('关系页签里嵌套列表的新增对话框有输入：汇总进详情，取消嵌套对话框后回到 false', async () => {
+      const { fixture, component } = createWithDialog(
+        dialogData({ formMode: 'edit', formData: { title: 'x', count: 0 } })
+      );
+      const reports = track(component);
+      await FLUSH();
+      fixture.detectChanges();
+      const nested = fixture.debugElement.query(By.directive(EntityListComponent))
+        .componentInstance as EntityListComponent;
+
+      await nested.openCreateDialog();
+      await vi.waitFor(() => expect(dialogs()[0]?.querySelector('form input[type="text"]')).toBeTruthy());
+      const label = dialogs()[0]!.querySelector<HTMLInputElement>('form input[type="text"]')!;
+      label.value = '子项输入';
+      label.dispatchEvent(new Event('change'));
+      expect(reports).toEqual([true]);
+
+      [...dialogs()[0]!.querySelectorAll<HTMLButtonElement>('button')]
+        .find(b => b.textContent?.trim() === '取消')!
+        .click();
+      await vi.waitFor(() => expect(dialogs()).toHaveLength(0));
+      expect(reports).toEqual([true, false]);
+    });
+
+    it('编辑目标换了：旧记录上的输入随表单作废，回到 false', async () => {
+      const first = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录一' });
+      const second = rxdb.entityManager.instantiate(DetailGroup as unknown as EntityType, { title: '记录二' });
+      await first.save();
+      await second.save();
+      const { fixture, component } = createWithRouteInputs('test', 'DetailGroup', first.id);
+      const reports = track(component);
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('input')).some(d => d.nativeElement.value === '记录一')).toBe(true);
+      });
+      changeTextInput(fixture, '记录一', '记录一改');
+      expect(reports).toEqual([true]);
+
+      fixture.componentRef.setInput('entityId', second.id);
+      fixture.detectChanges();
+      await vi.waitFor(() => expect(reports).toEqual([true, false]));
+    });
+
+    it('销毁时仍有未保存输入：补发一次 false', () => {
+      const { fixture, component } = createWithDialog(dialogData());
+      const reports = track(component);
+      component.onFieldChanged({ field: 'title', type: 'string', value: '没保存', previousValue: '' });
+      fixture.destroy();
+      expect(reports).toEqual([true, false]);
+    });
   });
 });

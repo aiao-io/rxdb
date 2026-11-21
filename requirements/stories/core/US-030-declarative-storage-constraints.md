@@ -1,11 +1,11 @@
 ---
 id: US-030
 title: 实体元数据层的声明式存储约束
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-19
 tags: [core, schema, integrity]
 candidate_acs: [5]
 ---
@@ -29,7 +29,7 @@ candidate_acs: [5]
 阶段归属：A 关闭 AC#1 / #2 / #7～#9 / #11 / #15～#17，以及 AC#6 / #10 的 CHECK 部分；B 关闭 AC#3 与 AC#6 / #10 的条件唯一部分；
 C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分。AC#11 / #15 的命名规则与 AC#16 的漂移扫描范围在 A 定下，B / C 沿用。
 
-当前交付范围为 **A～C**，关闭条件是 AC#1～4、#6～17 的实现、验收与合并证据齐全。
+当前交付范围为 **A～C**，关闭条件是 AC#1～4、#6～17 的实现、验收与合并证据齐全；实现随 [PR #114](https://github.com/aiao-io/rxdb/pull/114) 合入。
 生成列、表达式索引与 GIN / GiST 声明保留为**候选阶段 D**：价值待证、未立项，不参与当前关闭条件；
 AC#5 保留原编号与未验收状态，供解锁时细化，不能计作已交付能力。
 
@@ -279,7 +279,7 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 
 ## 价值待证
 
-**A～C 的有效授权**：owner 于 2026-10-02 确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#解锁前须先处理)
+**A～C 的有效授权**：owner 确认 [epic-009 默认决策](../../epics/epic-009-bom-domain-model.md#跨故事合同与开工决策)
 1～8 条，并授权 A～C 以 Medium 优先级交付，豁免这三个阶段的「病灶数 ≥ 抽象数」准入条件。
 授权不覆盖 D；BOM 领域的准入以 epic-009 自己的有效授权为准。
 

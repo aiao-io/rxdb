@@ -37,6 +37,12 @@
       "types": "./dist/working-tree/testing/index.d.ts",
       "import": "./dist/working-tree/testing/index.js",
       "default": "./dist/working-tree/testing/index.js"
+    },
+    "./exchange": {
+      "@aiao/source": "./src/exchange.ts",
+      "types": "./dist/exchange.d.ts",
+      "import": "./dist/exchange.js",
+      "default": "./dist/exchange.js"
     }
   },
   "files": [

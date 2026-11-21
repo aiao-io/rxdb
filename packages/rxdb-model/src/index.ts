@@ -29,6 +29,7 @@ export * from './entity-list/manual-order-list.js';
 export * from './entity-list/types.js';
 
 // Entity Form
+export * from './entity-form/dirty-tracker.js';
 export * from './entity-form/form-data.js';
 export * from './entity-form/form-fields.js';
 export * from './entity-form/form-validation.js';

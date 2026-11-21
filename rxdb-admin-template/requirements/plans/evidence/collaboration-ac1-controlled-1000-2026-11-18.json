@@ -1,0 +1,99 @@
+{
+  "checkpoints": [
+    {
+      "commits": 1000,
+      "stateTextBytes": 245,
+      "stateStoredBytes": 168,
+      "rowBytes": {
+        "pr": 288,
+        "version": 88,
+        "taskRef": 160
+      },
+      "snapshotBytes": 1935,
+      "snapshotParts": {
+        "teamId": 38,
+        "appId": 8,
+        "name": 18,
+        "revision": 2,
+        "schemaVersion": 1,
+        "head": 38,
+        "policy": 25,
+        "members": 326,
+        "invitations": 265,
+        "tasks": 399,
+        "prs": 592,
+        "earlier": 27,
+        "notices": 41,
+        "auditCount": 2
+      },
+      "sharedRecordsBytes": 1366439,
+      "historyPageBytes": 8715,
+      "commitRows": 1002,
+      "commitChangeRows": 25000,
+      "sharedRows": 10000,
+      "tableRows": {
+        "threads": 15,
+        "comments": 30,
+        "reviews": 15,
+        "notifications": 30,
+        "operations": 107,
+        "audit": 108
+      },
+      "commitStoreBytes": 10289152,
+      "snapshotMs": 6,
+      "historyMs": 13.3,
+      "commandMs": 8,
+      "commandWalBytes": 4072,
+      "commands": {
+        "thread": {
+          "ms": 7.5,
+          "walBytes": 4072
+        },
+        "reply": {
+          "ms": 8.1,
+          "walBytes": 4200
+        },
+        "review": {
+          "ms": 7.8,
+          "walBytes": 4112
+        },
+        "read_notice": {
+          "ms": 7.2,
+          "walBytes": 2584
+        },
+        "member": {
+          "ms": 5.5,
+          "walBytes": 2752
+        }
+      },
+      "uploadMsPerCommit": 1,
+      "upload100Ms": 25.1,
+      "candidateMerge100Ms": 56.1,
+      "bulkChanges": {
+        "records": 100,
+        "uploadMs": 25.1,
+        "candidateMs": 14.5,
+        "mergeMs": 41.9,
+        "candidateAndMergeMs": 56.1
+      }
+    }
+  ],
+  "contention": {
+    "commits": 1000,
+    "idleCommandMs": 8,
+    "readers": 4,
+    "contendedCommandMs": 15
+  },
+  "environment": {
+    "node": "v26.12.0",
+    "postgresImage": "supabase/postgres:17.6.1.136",
+    "records": 10000,
+    "sharedRecords": 10000,
+    "changedRecordsPerCommit": 5,
+    "bulkChangedRecords": 100,
+    "commands": ["thread", "reply", "review", "read_notice", "member"],
+    "samples": 15
+  },
+  "generatedAt": "2026-11-17T16:30:22.035Z",
+  "label": "ADMIN-US-218 AC#1 对照：全新库只跑 1000 个提交一个测量点，讨论量相同（15 个样本）"
+}

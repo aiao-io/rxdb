@@ -164,7 +164,8 @@ defineExpose({
 
 <style scoped>
 .rxdb-query-table {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
 }

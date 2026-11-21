@@ -123,6 +123,16 @@ export class FakeListTable {
     this.#columns = columns;
   }
 
+  /** 文字测量替身；真实字体宽度由浏览器回归验证。 */
+  measureText(text: string, font: { fontSize: number }): { width: number } {
+    return { width: text.length * font.fontSize };
+  }
+
+  /** 读取列头字段；第 0 列是行号列，没有业务字段。 */
+  getHeaderField(col: number): unknown {
+    return this.#columns[col - 1]?.['field'];
+  }
+
   getColWidth(col: number): number {
     return (this.#columns[col - 1]?.['width'] as number | undefined) ?? 120;
   }

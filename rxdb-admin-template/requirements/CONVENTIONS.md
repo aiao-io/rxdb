@@ -1,0 +1,77 @@
+# Admin 产品级约定（Conventions）
+
+沿用根 [CONVENTIONS](../../requirements/CONVENTIONS.md) 与[需求管理说明](../../requirements/README.md)，本文件只定义 Admin 产品增量。通用治理规则见[应用级需求与项目治理办法](../../requirements/application-governance.md)，目录结构来自[应用级需求模板](../../requirements/app-template/README.md)。
+
+## 文档类型与编号段
+
+| 类型          | ID 与文件名                            | 目录                                                               |
+| ------------- | -------------------------------------- | ------------------------------------------------------------------ |
+| 用户故事      | `ADMIN-US-XXX-description.md`          | `stories/<domain>/`                                                |
+| 史诗          | `ADMIN-EPIC-XXX.md`                    | `epics/`                                                           |
+| Review        | `RV-<uuid>.md`，沿用根规范             | 仓库根 `requirements/reviews/<projectKey>/`；`reviews/` 只放旧记录 |
+| Code scanning | `CS-XXX-描述.md`，编号对应 GitHub 告警 | `code-scanning/`                                                   |
+
+| 领域             | 编号段            | 范围                                 |
+| ---------------- | ----------------- | ------------------------------------ |
+| `platform/`      | ADMIN-US-001～099 | 应用治理、配置与工程基线             |
+| `domain/`        | ADMIN-US-101～199 | 样例业务、页面与导航扩展             |
+| `collaboration/` | ADMIN-US-201～299 | 认证、团队工作区、数据 PR 与协作治理 |
+
+新增领域再分配编号段，不预建无故事的目录；复制与发行未进入当前范围。
+
+## 命名规范
+
+文件名与上表的 ID 保持一致，不使用字母后缀子故事。大故事在正文内分交付阶段，计划与验收记录放 `plans/`，辅助文件不带 story frontmatter、不计入状态统计。
+
+## 状态定义
+
+故事五态 `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked` 与根相同，YAML 是唯一真相源。`Done` 表示当前承诺 AC 均有同层证据、硬依赖均已 `Done`，在实现 PR 内直接标，合并即生效。`In Review` 只有两种理由：自己仍有未 ✅ 的 AC，或硬依赖尚未 `Done`；两者都没有时门禁要求改成 `Done`。
+
+Epic 使用 `Backlog` / `In Progress` / `Done`。Review 使用 `Open` / `Resolved`；Code scanning 使用 `Open` / `Resolved` / `Dismissed`，其真相源为 GitHub。
+
+## 工作流
+
+1. 从 [story.template.md](stories/story.template.md) 创建故事，填写 frontmatter、范围、连续编号的 AC 与实现入口。
+2. 应用硬依赖写 `dependsOn: [ADMIN-US-001]`，平台能力写 `capabilities: [rxdb:US-526]`。没有依赖使用空数组。平台状态不能代替应用验收。
+3. 修改故事后同步 Epic、状态总览、路线图、能力矩阵和验收台账，更新 `updated`。涉及协作跨故事规则时，同时维护 [共享契约](collaboration-contract.md)，不得只在计划中改变授权、版本或状态语义。
+4. 运行应用结构门禁与相关代码验证。AC 全部 ✅ 且硬依赖均已 `Done` 时，在实现 PR 内直接标 `Done`，PR 开出后把链接补进[验收台账](verification-report.md)；仍有 AC 等待外部证据时保持 `In Review`，那条 AC 保持 ⚠️ 并写明还差什么。
+
+门禁支持当前使用的扁平 YAML 值与行内数组。新增候选 AC 或继承 AC 等格式时，先补齐门禁支持与回归夹具，再登记，避免文档约定超出实际校验。
+
+## 提交与 PR 关联方式
+
+```text
+feat(rxdb-admin-template-react): implement application template configuration
+
+Refs: ADMIN-US-002
+```
+
+PR 描述使用 `## Related Stories` 列出故事；story ID 不是 GitHub issue 编号，不写 `Closes #ADMIN-US-001`。涉及公共包的改动与应用功能同一 PR 评审和合入，沿用根合并治理。
+
+## 需求门禁
+
+在仓库根目录运行：
+
+```bash
+pnpm nx run rxdb-admin-template:requirements-test
+pnpm nx run rxdb-admin-template:requirements-check
+```
+
+脚本入口为 [check-requirements.mjs](../scripts/check-requirements.mjs)，校验故事字段、ID 与文件名、AC、依赖环与关闭条件、平台引用、派生视图和本地链接。代码校验命令见 [应用 README](../README.md#启动与验证)。
+
+Angular / React / Vue 三端 `test` 目标均以前置任务执行这两道产品门禁；兼容目标依赖同一产品任务，一次任务图内共享执行。三端显式依赖产品项目，使产品文档变化进入 affected。
+
+## 模板位置
+
+| 类型          | 模板                                                                       |
+| ------------- | -------------------------------------------------------------------------- |
+| Story         | [story.template.md](stories/story.template.md)                             |
+| Epic          | [epic.template.md](epics/epic.template.md)                                 |
+| Review        | 仓库根 [review.template.md](../../requirements/reviews/review.template.md) |
+| Code scanning | [code-scanning.template.md](code-scanning/code-scanning.template.md)       |
+
+## 多应用产品归属
+
+`rxdb-admin-template/requirements/` 是 `ADMIN-*` 需求唯一真相源。三个应用与对应 E2E 共用故事、Epic 和派生视图；各框架的实现入口和独立验收证据写在同一故事中。门禁脚本统一位于产品根目录的 `scripts/`，禁止在任一子应用恢复独立 `requirements/` 副本。
+
+产品项目 `rxdb-admin-template` 只承载需求治理任务，业务运行时和 Nx 应用名继续由三个现有项目管理。新增框架或运行时应先更新产品归属、Nx 依赖、校验入口和同一故事的验收边界。

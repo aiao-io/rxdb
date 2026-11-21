@@ -32,11 +32,7 @@ owner: jimmy
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
 - [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 - [x] 三端 demo 的树菜单与文件管理器改用可排序树实体，排序键一律由 core 给出，同一操作三端结果一致
-
-## 当前交付
-
-2026-10-28 owner 授权完成 US-223 / US-224，纳入 [roadmap 批次 3](../roadmap.md#批次-3能力补齐可并行开-pr)。
-两条故事待评审，AC 全部通过；2026-10-29 分支评审的修复已复验适配器全量用例与 SQL 安全回归，验证范围与数字见各 story 的验证记录。尚未合并，不标 Done。
+- [ ] rxdb-model 表单按属性显示友好错误，可靠归因保存约束，三端保持相同的修正与重试体验
 
 ## 故事
 
@@ -74,6 +70,7 @@ owner: jimmy
 - [US-224 Supabase 推送路径上级联删除的子行不写变更日志](../stories/adapter/US-224-supabase-cascade-delete-change-log.md) — 服务端触发器捕获实际 DELETE 的完整 `OLD`，RPC 在源日志后统一写入隐式日志；同批显式删除去重并保留客户端映射，最终回执按实际删除收口，混合批次不复活子行
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-104 rxdb-model 表单校验反馈与保存失败的展示](../stories/framework/US-104-validation-feedback.md) — 三端 EntityDetail 错误面板（US-526 AC#4 触发）
+- [US-105 rxdb-model 表单字段错误提示与保存失败归因](../stories/framework/US-105-form-field-error-feedback.md) — 属性旁提示、错误摘要与定位、精准清理和保存重试；资产重名为复现入口，公共能力三端同义
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 先验证同步启停公开入口与删除证据/合并扩展点，再做 Full/Filter 试点；HTTP QueryCache demo 不承担同步验收
 - [US-911 客户端国际化 / 本地化](../stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：ICU 消息引擎（intl-messageformat）+ 三端 `useI18n()`；locale 状态须先比较现成 PersistedState 与非版本化实体方案，验证通知及历史边界；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 D 目录走 QueryCache 分发、独立后置
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 契约见 `git show f9528e8f:specs/001-working-tree-commits/spec.md` FR-008 / FR-009 与
- * `src/commit/commit.entity.ts` 里 {@link CommitKind} 的 TSDoc。实现目标是
+ * `src/commit/commit.entity.ts` 里 {@link SystemCommitKind} 与 CommitKind 的 TSDoc。实现目标是
  * `src/commit/write-commit.ts`（T035）。
  *
  * 为什么这四组断言值得写：
@@ -31,7 +31,7 @@ import { computeChangeUnitFingerprint } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import type { CommitWriteContext } from '../../commit/commit-context.js';
-import type { CommitKind } from '../../commit/commit.entity.js';
+import type { SystemCommitKind } from '../../commit/commit.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import type { WriteCommitInput } from '../../commit/write-commit.js';
 import { CommitValidationError, SYSTEM_COMMIT_MESSAGES, writeCommit } from '../../commit/write-commit.js';
@@ -188,7 +188,7 @@ describe('普通 commit 不得为空（FR-009）', () => {
 });
 
 describe('两种系统根节点是唯一例外（FR-008/009）', () => {
-  const systemKinds: Exclude<CommitKind, 'normal'>[] = ['baseline', 'branch_baseline'];
+  const systemKinds: SystemCommitKind[] = ['baseline', 'branch_baseline'];
 
   for (const kind of systemKinds) {
     it(`${kind} 允许无作者、无用户消息且 ChangeSet 为空`, async () => {
