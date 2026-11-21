@@ -372,7 +372,9 @@ describe('TableViewComponent', () => {
     view.onCellChanged(cell({ record: propRecord, field: 'name', value: 'bad-name' }));
     expect(view.cellErrorDetector()(propRecord, 'name')).toContain(DEFAULT_TRANSLATIONS.validation.propertyNameHint);
     view.onCellChanged(cell({ record: propRecord, field: 'columnName', value: 'bad-column' }));
-    expect(view.cellErrorDetector()(propRecord, 'columnName')).toContain(DEFAULT_TRANSLATIONS.validation.columnNameHint);
+    expect(view.cellErrorDetector()(propRecord, 'columnName')).toContain(
+      DEFAULT_TRANSLATIONS.validation.columnNameHint
+    );
 
     view.onCellChanged(cell({ record: propRecord, field: 'name', value: 'validName' }));
     view.onCellChanged(cell({ record: propRecord, field: 'columnName', value: '' }));
@@ -392,10 +394,18 @@ describe('TableViewComponent', () => {
     view.propertyDeleted.subscribe(propertyDeleted);
     view.childPropertyAdded.subscribe(childAdded);
 
-    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '   ' }));
-    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: 'bad-name' }));
-    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'displayName', value: 'ignored' }));
-    view.onCellChanged(cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '  amount  ' }));
+    view.onCellChanged(
+      cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '   ' })
+    );
+    view.onCellChanged(
+      cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: 'bad-name' })
+    );
+    view.onCellChanged(
+      cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'displayName', value: 'ignored' })
+    );
+    view.onCellChanged(
+      cell({ record: record({ _isAddRow: true, propertyType: 'number' }), field: 'name', value: '  amount  ' })
+    );
     expect(propertyAdded).toHaveBeenCalledWith({ entityId: id('e1'), name: 'amount', type: 'number' });
 
     view.onRowDeleted(record({}));

@@ -222,7 +222,9 @@ describe('RelationItemComponent changes and state', () => {
 
     fixture.componentRef.setInput('expanded', true);
     fixture.detectChanges();
-    const deleteButton = fixture.nativeElement.querySelector('button[aria-label="Delete relation"]') as HTMLButtonElement;
+    const deleteButton = fixture.nativeElement.querySelector(
+      'button[aria-label="Delete relation"]'
+    ) as HTMLButtonElement;
     deleteButton.click();
     expect(deleted).toHaveBeenCalledOnce();
   });

@@ -242,7 +242,6 @@ describe('syncGraphEdges', () => {
   });
 });
 
-
 describe('canvas edge utility guards', () => {
   it('narrows nodes, filters invalid children, and resolves namespace parents', () => {
     const child = { id: 'child' };
@@ -269,28 +268,34 @@ describe('canvas edge utility guards', () => {
     expect(toValidRelationPair(pair[0], relationById)).toEqual(pair);
     expect(toValidRelationPair({ id: 'missing' } as unknown as DesignRelation, relationById)).toBeNull();
     expect(
-      toValidRelationPair(
-        { ...pair[0], mappedPropertyId: 'missing' } as unknown as DesignRelation,
-        relationById
-      )
+      toValidRelationPair({ ...pair[0], mappedPropertyId: 'missing' } as unknown as DesignRelation, relationById)
     ).toBeNull();
     expect(
-      toValidRelationPair(
-        { ...pair[0], mappedEntityId: 'other' } as unknown as DesignRelation,
-        relationById
-      )
+      toValidRelationPair({ ...pair[0], mappedEntityId: 'other' } as unknown as DesignRelation, relationById)
     ).toBeNull();
     expect(
-      toValidRelationPair(
-        { ...pair[0], relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation,
-        relationById
-      )
+      toValidRelationPair({ ...pair[0], relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation, relationById)
     ).toBeNull();
 
     expect(orientRelationPair(pair[1], pair[0])).toEqual({ source: pair[0], target: pair[1] });
-    expect(orientRelationPair({ id: 'a', relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation, { id: 'b', relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation).source.id).toBe('a');
-    expect(pairLabel({ relationKind: 'MANY_TO_MANY' } as unknown as DesignRelation, { relationKind: 'MANY_TO_MANY' } as unknown as DesignRelation)).toBe('N:N');
-    expect(pairLabel({ relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation, { relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation)).toBe('1:1');
+    expect(
+      orientRelationPair(
+        { id: 'a', relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation,
+        { id: 'b', relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation
+      ).source.id
+    ).toBe('a');
+    expect(
+      pairLabel(
+        { relationKind: 'MANY_TO_MANY' } as unknown as DesignRelation,
+        { relationKind: 'MANY_TO_MANY' } as unknown as DesignRelation
+      )
+    ).toBe('N:N');
+    expect(
+      pairLabel(
+        { relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation,
+        { relationKind: 'ONE_TO_ONE' } as unknown as DesignRelation
+      )
+    ).toBe('1:1');
     expect(relationPortId('relation-1', 'left')).toBe('rl:relation-1');
     expect(relationPortId('relation-1', 'right')).toBe('rr:relation-1');
   });
@@ -342,7 +347,8 @@ describe('canvas edge utility guards', () => {
       id: 'source',
       getPosition: () => ({ x: 100, y: 0 }),
       getSize: () => ({ width: 200, height: 100 }),
-      getPort: (id: string) => id === 'rl:r1' || id === 'rr:r1' ? { id, args: { x: id.startsWith('rr:') ? 200 : 0, y: 40 } } : undefined
+      getPort: (id: string) =>
+        id === 'rl:r1' || id === 'rr:r1' ? { id, args: { x: id.startsWith('rr:') ? 200 : 0, y: 40 } } : undefined
     } as X6NodeLike;
     const target = {
       id: 'target',

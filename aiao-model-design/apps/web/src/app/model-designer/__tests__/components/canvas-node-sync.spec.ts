@@ -4,8 +4,8 @@ import { NS_PREFIX } from '../../components/canvas/canvas-constants';
 import {
   fitGroupToChildren,
   syncFieldPorts,
-  syncGraphSelection,
   syncGraphNodes,
+  syncGraphSelection,
   updateGraphTheme,
   updateNamespaceFontSize
 } from '../../components/canvas/canvas-node-sync';
@@ -226,7 +226,11 @@ interface MockCanvasNode {
 
 function mockCanvasNode(
   id: string,
-  options: { position?: { x: number; y: number }; size?: { width: number; height: number }; parent?: MockCanvasNode | null } = {}
+  options: {
+    position?: { x: number; y: number };
+    size?: { width: number; height: number };
+    parent?: MockCanvasNode | null;
+  } = {}
 ): MockCanvasNode {
   const position = options.position ?? { x: 0, y: 0 };
   const size = options.size ?? { width: 240, height: 80 };
@@ -346,12 +350,12 @@ describe('syncGraphNodes', () => {
     expect(state.removed).toEqual(['stale', 'ns:stale']);
     expect(state.added.map(item => item['id'])).toEqual(['order']);
     expect(state.cells.get('ns:default')?.attrs.get('label/text')).toBe('default');
-    expect(state.cells.get('order')?.getPorts().map(port => port.id)).toEqual([
-      'rl:relation-1',
-      'rr:relation-1',
-      'entity:left',
-      'entity:right'
-    ]);
+    expect(
+      state.cells
+        .get('order')
+        ?.getPorts()
+        .map(port => port.id)
+    ).toEqual(['rl:relation-1', 'rr:relation-1', 'entity:left', 'entity:right']);
     expect(state.added.find(item => item['id'] === 'order')?.['data']).toBeDefined();
   });
 
@@ -472,7 +476,12 @@ describe('syncGraphSelection edge cases', () => {
     } as unknown as GraphType;
 
     syncGraphSelection(graph, undefined, new Set(['entity']), 'select');
-    syncGraphSelection(graph, { enable: vi.fn(), disable: vi.fn() } as unknown as SelectionType, new Set(['entity']), 'move');
+    syncGraphSelection(
+      graph,
+      { enable: vi.fn(), disable: vi.fn() } as unknown as SelectionType,
+      new Set(['entity']),
+      'move'
+    );
 
     expect(cleanSelection).toHaveBeenCalledOnce();
   });
@@ -494,13 +503,7 @@ describe('syncFieldPorts edge cases', () => {
       setPortProp
     };
 
-    syncFieldPorts(
-      node,
-      [{ id: 'relation-1', name: 'owner', type: 'relation', category: 'relation' }],
-      240,
-      100,
-      true
-    );
+    syncFieldPorts(node, [{ id: 'relation-1', name: 'owner', type: 'relation', category: 'relation' }], 240, 100, true);
 
     expect(addPort).toHaveBeenCalledTimes(1);
     expect(setPortProp).toHaveBeenCalledTimes(1);
@@ -538,13 +541,24 @@ describe('theme and group guards', () => {
     updateGraphTheme(graph, false);
     updateNamespaceFontSize(graph, 2);
 
-    expect(graph.drawGrid).toHaveBeenCalledWith({ type: 'dot', args: { color: 'rgba(128, 128, 128, 0.4)', thickness: 1 } });
+    expect(graph.drawGrid).toHaveBeenCalledWith({
+      type: 'dot',
+      args: { color: 'rgba(128, 128, 128, 0.4)', thickness: 1 }
+    });
     expect(setAttrByPath).toHaveBeenCalledWith('label/fontSize', 16);
 
     const setPosition = vi.fn();
     const setSize = vi.fn();
-    fitGroupToChildren({ getCellById: () => ({ id: `${NS_PREFIX}invalid`, isNode: () => false }) } as unknown as GraphType, 'ns:invalid');
-    fitGroupToChildren({ getCellById: () => ({ id: `${NS_PREFIX}empty`, isNode: () => true, getChildren: () => [] }) } as unknown as GraphType, 'ns:empty');
+    fitGroupToChildren(
+      { getCellById: () => ({ id: `${NS_PREFIX}invalid`, isNode: () => false }) } as unknown as GraphType,
+      'ns:invalid'
+    );
+    fitGroupToChildren(
+      {
+        getCellById: () => ({ id: `${NS_PREFIX}empty`, isNode: () => true, getChildren: () => [] })
+      } as unknown as GraphType,
+      'ns:empty'
+    );
     expect(setPosition).not.toHaveBeenCalled();
     expect(setSize).not.toHaveBeenCalled();
   });

@@ -333,7 +333,6 @@ describe('PropertyItemComponent changes and validation', () => {
   });
 });
 
-
 describe('PropertyItemComponent remaining branches', () => {
   it('uses static labels when translations omit property type labels', () => {
     const fixture = setup({}, { translations: { ...DEFAULT_TRANSLATIONS, propertyTypes: {} } });
