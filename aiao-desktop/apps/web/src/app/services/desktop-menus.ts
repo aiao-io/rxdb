@@ -35,15 +35,7 @@ export type StandardMenuOverrides = Readonly<Partial<Record<string, readonly Men
 export type GithubTab = 'changes' | 'history';
 export type GithubRepositoryMenu = 'new' | 'local' | 'clone' | 'list';
 export type GithubExternalTarget =
-  | 'repository'
-  | 'issue'
-  | 'compare'
-  | 'branch'
-  | 'pull-request'
-  | 'report-issue'
-  | 'support'
-  | 'guides'
-  | 'shortcuts';
+  'repository' | 'issue' | 'compare' | 'branch' | 'pull-request' | 'report-issue' | 'support' | 'guides' | 'shortcuts';
 
 /** GitHub Desktop 菜单作用的目标，由应用组件提供当前状态与命令。 */
 export interface GithubCommands {
@@ -221,16 +213,37 @@ export class DesktopMenus {
   github(target: GithubCommands): MenuSection[] {
     const disabled = (): boolean => !target.hasRepository() || target.isBusy();
     const remoteDisabled = (): boolean => !target.hasRemote() || target.isBusy();
-    const external = (destination: GithubExternalTarget): (() => void) => () => target.openExternal(destination);
+    const external =
+      (destination: GithubExternalTarget): (() => void) =>
+      () =>
+        target.openExternal(destination);
 
     return this.standard(
       'github',
       {
         File: [
-          { id: 'new-repository', label: 'New Repository…', key: '⌘N', run: () => target.openRepositoryMenu('new') },
+          {
+            id: 'new-repository',
+            label: 'New Repository…',
+            key: '⌘N',
+            disabled: target.isBusy(),
+            run: () => target.openRepositoryMenu('new')
+          },
           '-',
-          { id: 'add-local-repository', label: 'Add Local Repository…', key: '⌘O', disabled: target.isBusy(), run: () => target.openLocalRepository() },
-          { id: 'clone-repository', label: 'Clone Repository…', key: '⇧⌘O', disabled: target.isBusy(), run: () => target.openRepositoryMenu('clone') },
+          {
+            id: 'add-local-repository',
+            label: 'Add Local Repository…',
+            key: '⌘O',
+            disabled: target.isBusy(),
+            run: () => target.openLocalRepository()
+          },
+          {
+            id: 'clone-repository',
+            label: 'Clone Repository…',
+            key: '⇧⌘O',
+            disabled: target.isBusy(),
+            run: () => target.openRepositoryMenu('clone')
+          },
           '-',
           { id: 'close-window', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
         ],
