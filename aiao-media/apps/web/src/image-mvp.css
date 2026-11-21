@@ -303,6 +303,8 @@ select.field {
   flex-direction: column;
   gap: 6px;
   margin: 34px 0 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 .nav-section {
   margin: 22px 12px 8px;
