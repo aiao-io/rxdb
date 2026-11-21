@@ -1,5 +1,7 @@
 vi.mock('@aiao/rxdb-plugin-tree', () => vi.importMock('@aiao/rxdb'));
 
+import { DOCUMENT } from '@angular/common';
+import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,7 +27,8 @@ const mockGeneratorState = vi.hoisted(() => ({
   execCalled: false,
   sourceFiles: [] as Array<{ getFilePath: () => string; getText: () => string }>,
   shouldThrow: false,
-  throwMessage: ''
+  throwMessage: '',
+  throwValue: undefined as unknown
 }));
 
 vi.mock('@aiao/rxdb-client-generator', () => ({
@@ -35,7 +38,9 @@ vi.mock('@aiao/rxdb-client-generator', () => ({
     }
     exec() {
       mockGeneratorState.execCalled = true;
-      if (mockGeneratorState.shouldThrow) throw new Error(mockGeneratorState.throwMessage);
+      if (mockGeneratorState.shouldThrow) {
+        throw mockGeneratorState.throwValue ?? new Error(mockGeneratorState.throwMessage);
+      }
     }
     getSourceFiles() {
       return mockGeneratorState.sourceFiles;
@@ -126,6 +131,7 @@ describe('CodeGeneratorService', () => {
     mockGeneratorState.sourceFiles = [];
     mockGeneratorState.shouldThrow = false;
     mockGeneratorState.throwMessage = '';
+    mockGeneratorState.throwValue = undefined;
 
     TestBed.configureTestingModule({
       providers: [CodeGeneratorService, ModelValidatorService]
@@ -189,6 +195,17 @@ describe('CodeGeneratorService', () => {
       expect(result.properties?.[0]?.default).toBe('hello world');
     });
 
+    it('MUST handle enum properties with enum values', () => {
+      const prop = {
+        ...makeProp('p1', 'status', 'enum'),
+        enumValues: ['draft', 'published']
+      } as unknown as DesignProperty;
+      const entity = makeEntity('e1', 'User');
+      const result = service.toMetadataOptions(entity, [prop], [], [], [entity]);
+
+      expect(result.properties?.[0]).toMatchObject({ type: 'enum', enum: ['draft', 'published'] });
+    });
+
     it('MUST handle keyValue property with childPropertiesMap', () => {
       const parent = {
         ...makeProp('p1', 'config', 'keyValue'),
@@ -209,7 +226,7 @@ describe('CodeGeneratorService', () => {
         defaultValue: '8080'
       } as unknown as DesignProperty;
 
-      const childMap = new Map([['p1', [child1, child2]]]);
+      const childMap = new Map([['p1', [child2, child1]]]);
       const entity = makeEntity('e1', 'User');
       const result = service.toMetadataOptions(entity, [parent], [], [], [entity], childMap);
 
@@ -349,6 +366,26 @@ describe('CodeGeneratorService', () => {
       });
     });
 
+    it('handles optional fields when they are absent in the client contract', () => {
+      const entity = makeEntity('e1', 'User');
+      const property = makeProp('p1', 'title', 'string');
+      const relation = makeRelation('r1', 'owner', 'MANY_TO_ONE', 'missing');
+
+      const result = service.toClientDesignContract(
+        [entity],
+        new Map([['e1', [property]]]),
+        new Map([['e1', [relation]]]),
+        { source: 'test' }
+      );
+
+      expect(result.entities[0]?.properties[0]).toEqual({ name: 'title', type: 'string' });
+      expect(result.entities[0]?.relations[0]).toEqual({
+        name: 'owner',
+        kind: 'MANY_TO_ONE',
+        mappedEntity: ''
+      });
+    });
+
     it('handles missing relation targets and optional defaults', () => {
       const entity = makeEntity('e1', 'User');
       const relation = makeRelation('r1', 'unknownTarget', 'ONE_TO_ONE', 'missing');
@@ -399,11 +436,26 @@ describe('CodeGeneratorService', () => {
     it('MUST return failure on error', () => {
       mockGeneratorState.shouldThrow = true;
       mockGeneratorState.throwMessage = 'Invalid entity';
+      mockGeneratorState.throwValue = 'Invalid entity';
 
       const result = service.generate([]);
       expect(result.success).toBe(false);
       expect(result.errors).toContain('Invalid entity');
     });
+  });
+
+  it('MUST skip browser side effects during SSR', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        CodeGeneratorService,
+        { provide: DOCUMENT, useValue: document },
+        { provide: PLATFORM_ID, useValue: 'server' }
+      ]
+    });
+    const serverService = TestBed.inject(CodeGeneratorService);
+
+    expect(() => serverService.downloadBlob(new Blob(['server']), 'server.js')).not.toThrow();
   });
 
   describe('downloadZip', () => {
