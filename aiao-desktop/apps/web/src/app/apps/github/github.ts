@@ -204,6 +204,8 @@ export class GithubApp {
   private readonly branchMenuFocus = signal(false);
   private readonly changesFilterFocus = signal(false);
 
+  private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
+
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
   protected readonly activeRecord = signal<GithubRepositoryRecord | null>(null);
@@ -235,7 +237,6 @@ export class GithubApp {
   protected readonly branchMenuOpen = signal(false);
   protected readonly branchFilter = signal('');
   protected readonly changeFilter = signal('');
-  private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
   protected readonly changeKind = signal<GithubChangeKind>('all');
   protected readonly changeKindOpen = signal(false);
   protected readonly contextMenu = signal<GithubContextMenu | null>(null);
@@ -745,100 +746,6 @@ export class GithubApp {
     });
   }
 
-  private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
-    let directory: DirectoryHandle;
-    try {
-      directory = await picker();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      this.fail(error);
-      return;
-    }
-    if (!this.ensureEditorSaved()) return;
-    await this.run(async () => {
-      const archive = await this.archiveOfDirectory(directory);
-      await this.importArchive(archive.name, archive.archive, 'Added');
-    });
-  }
-
-  private async archiveOfDirectory(
-    directory: DirectoryHandle
-  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
-    const files: GitArchive['files'][number][] = [];
-    const directories = new Set<string>();
-    const visit = async (current: DirectoryHandle, prefix: string): Promise<void> => {
-      for await (const entry of current.values()) {
-        const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.kind === 'directory') {
-          directories.add(path);
-          await visit(entry, path);
-          continue;
-        }
-        files.push({
-          path,
-          bytes: new Uint8Array(
-            (await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer
-          ) as Uint8Array<ArrayBuffer>
-        });
-      }
-    };
-    await visit(directory, '');
-    return { name: directory.name, archive: encodeGitArchive({ files, directories: [...directories] }) };
-  }
-
-  private async archiveOfUploadedDirectory(
-    files: readonly File[]
-  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
-    const entries = files
-      .map(file => {
-        const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean);
-        return { file, parts };
-      })
-      .filter(entry => entry.parts.length > 1);
-    const root = entries[0]?.parts[0];
-    if (!root || entries.some(entry => entry.parts[0] !== root)) return null;
-    const collected = await Promise.all(
-      entries.map(async ({ file, parts }) => ({
-        path: parts.slice(1).join('/'),
-        bytes: new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>
-      }))
-    );
-    const directories = new Set<string>();
-    for (const file of collected) {
-      const parts = file.path.split('/');
-      for (let index = 1; index < parts.length; index += 1) directories.add(parts.slice(0, index).join('/'));
-    }
-    return { name: root, archive: encodeGitArchive({ files: collected, directories: [...directories] }) };
-  }
-
-  private async importArchive(
-    name: string,
-    bytes: Uint8Array<ArrayBuffer>,
-    noticeVerb: 'Added' | 'Imported'
-  ): Promise<void> {
-    const projectId = projectIdForLocal(name);
-    const snapshot = await this.backend.importArchive(projectId, bytes);
-    const importedStatus = await this.backend.status(projectId);
-    const record: GithubRepositoryRecord = {
-      projectId,
-      name,
-      owner: null,
-      repo: null,
-      branch: importedStatus.branch,
-      private: false,
-      remoteHead: null,
-      remoteTree: null,
-      remoteEntries: [],
-      updatedAt: Date.now()
-    };
-    await this.store.put(record);
-    this.activeRecord.set(record);
-    this.applySnapshot(snapshot.files);
-    await this.refresh();
-    this.notice.set(`${noticeVerb} ${name}`);
-    this.repositoryMenuOpen.set(false);
-  }
-
   protected async exportRepository(): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
@@ -1205,6 +1112,100 @@ export class GithubApp {
 
   protected selectCommit(oid: string): void {
     this.selectedCommitOid.set(oid);
+  }
+
+  private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
+    let directory: DirectoryHandle;
+    try {
+      directory = await picker();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      this.fail(error);
+      return;
+    }
+    if (!this.ensureEditorSaved()) return;
+    await this.run(async () => {
+      const archive = await this.archiveOfDirectory(directory);
+      await this.importArchive(archive.name, archive.archive, 'Added');
+    });
+  }
+
+  private async archiveOfDirectory(
+    directory: DirectoryHandle
+  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
+    const files: GitArchive['files'][number][] = [];
+    const directories = new Set<string>();
+    const visit = async (current: DirectoryHandle, prefix: string): Promise<void> => {
+      for await (const entry of current.values()) {
+        const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.kind === 'directory') {
+          directories.add(path);
+          await visit(entry, path);
+          continue;
+        }
+        files.push({
+          path,
+          bytes: new Uint8Array(
+            (await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer
+          ) as Uint8Array<ArrayBuffer>
+        });
+      }
+    };
+    await visit(directory, '');
+    return { name: directory.name, archive: encodeGitArchive({ files, directories: [...directories] }) };
+  }
+
+  private async archiveOfUploadedDirectory(
+    files: readonly File[]
+  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
+    const entries = files
+      .map(file => {
+        const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean);
+        return { file, parts };
+      })
+      .filter(entry => entry.parts.length > 1);
+    const root = entries[0]?.parts[0];
+    if (!root || entries.some(entry => entry.parts[0] !== root)) return null;
+    const collected = await Promise.all(
+      entries.map(async ({ file, parts }) => ({
+        path: parts.slice(1).join('/'),
+        bytes: new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>
+      }))
+    );
+    const directories = new Set<string>();
+    for (const file of collected) {
+      const parts = file.path.split('/');
+      for (let index = 1; index < parts.length; index += 1) directories.add(parts.slice(0, index).join('/'));
+    }
+    return { name: root, archive: encodeGitArchive({ files: collected, directories: [...directories] }) };
+  }
+
+  private async importArchive(
+    name: string,
+    bytes: Uint8Array<ArrayBuffer>,
+    noticeVerb: 'Added' | 'Imported'
+  ): Promise<void> {
+    const projectId = projectIdForLocal(name);
+    const snapshot = await this.backend.importArchive(projectId, bytes);
+    const importedStatus = await this.backend.status(projectId);
+    const record: GithubRepositoryRecord = {
+      projectId,
+      name,
+      owner: null,
+      repo: null,
+      branch: importedStatus.branch,
+      private: false,
+      remoteHead: null,
+      remoteTree: null,
+      remoteEntries: [],
+      updatedAt: Date.now()
+    };
+    await this.store.put(record);
+    this.activeRecord.set(record);
+    this.applySnapshot(snapshot.files);
+    await this.refresh();
+    this.notice.set(`${noticeVerb} ${name}`);
+    this.repositoryMenuOpen.set(false);
   }
 
   private menuSections() {
