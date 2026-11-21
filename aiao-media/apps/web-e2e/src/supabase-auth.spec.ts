@@ -140,7 +140,7 @@ test('平台登录和刷新保留本机创作与余额，停用旧计费入口',
     if (new URL(request.url()).pathname.startsWith('/api/platform/')) platformRequests.push(request.url());
   });
   await context.route('**/api/platform/**', route => route.abort('blockedbyclient'));
-  await page.goto('/create');
+  await page.goto('/images');
   await expect(page.locator('.draft-status')).toHaveText('输入会自动保存到本机');
   await login(page);
   const editor = page.locator('[contenteditable="true"]');
@@ -172,7 +172,7 @@ test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ p
     if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== origin) foreign.push(request.url());
   });
   page.on('websocket', socket => foreign.push(socket.url()));
-  for (const path of ['/', '/create', '/images', '/providers']) {
+  for (const path of ['/', '/images', '/library', '/providers']) {
     await page.goto(path);
     await expect(page.getByRole('button', { name: '登录账号', exact: true })).toHaveCount(0);
   }
@@ -186,7 +186,7 @@ test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ p
 test('登录刷新恢复且退出保留本机草稿，账号凭据不进入备份', async ({ page, context }) => {
   await configure(context);
   const { calls } = await authFixture(context);
-  await page.goto('/create');
+  await page.goto('/images');
   const editor = page.locator('[contenteditable="true"]');
   await expect(editor).toBeVisible();
   await editor.fill('登录前的本机草稿');

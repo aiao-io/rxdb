@@ -35,7 +35,7 @@ test('创作输入在浏览灵感、筛选和页面切换后保留，不自动�
     return { failure: 'network failed' };
   });
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
-  await expect(page).toHaveURL(/\/create$/);
+  await expect(page).toHaveURL(/\/images$/);
   const editor = page.locator('[contenteditable=true]');
   await expect(editor).toBeVisible();
   const draft = '窗边的一杯拿铁，清晨自然光与安静的木质空间';
@@ -48,7 +48,7 @@ test('创作输入在浏览灵感、筛选和页面切换后保留，不自动�
   await page.getByRole('searchbox', { name: '搜索灵感' }).fill('咖啡');
   await expect(page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true })).toBeVisible();
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
-  await expect(page).toHaveURL(/\/create$/);
+  await expect(page).toHaveURL(/\/images$/);
   await expect(editor).toContainText(draft);
   await page.reload();
   await expect(editor).toContainText(draft);
@@ -67,7 +67,7 @@ test('创作页直接生成并保存作品，刷新后不重复请求', async ({
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await page.getByRole('textbox', { name: '创意描述' }).fill('清晨窗边的咖啡，温暖的胶片风格');
   await generate(page);
-  await expect(page).toHaveURL(/\/create$/);
+  await expect(page).toHaveURL(/\/images$/);
   await expect(page.getByAltText('本次生成的图片')).toBeVisible();
   await page.reload();
   await page.getByRole('link', { name: '我的图片', exact: true }).click();
@@ -90,7 +90,7 @@ test('损坏 PNG 被拒绝并释放积分，不泄露凭据、不创建假作品
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(page.getByRole('heading', { name: '请核对平台任务' })).toBeVisible();
   await expect(page.locator('body')).not.toContainText(key);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(0);
   await page.reload();
   await expect(page.getByAltText('本机生成作品')).toHaveCount(0);
@@ -116,7 +116,7 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   await generate(page);
   await prompt(page, '另一张图片');
   await generate(page);
-  await page.goto('/images');
+  await page.goto('/library');
   const cards = page.locator('.library-card');
   await expect(cards).toHaveCount(2);
   const original = cards.filter({ hasText: '可复用的原始提示词' });
@@ -126,7 +126,7 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   page.once('dialog', dialog => dialog.accept());
   await original.getByRole('button', { name: '复用提示词' }).click();
   await expect(page.locator('[contenteditable=true]')).toContainText('可复用的原始提示词');
-  await page.goto('/images');
+  await page.goto('/library');
   page.once('dialog', dialog => dialog.accept());
   await original.getByRole('button', { name: '删除本机图片' }).click();
   await expect(cards).toHaveCount(1);
@@ -153,10 +153,10 @@ test('另一标签页保存草稿不重新读取作品，新增作品通过原�
   await platformAccount(page);
   await prompt(page, '第一张图片');
   await generate(page);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.locator('.library-card')).toHaveCount(1);
   const other = await context.newPage();
-  await other.goto('/create');
+  await other.goto('/images');
   await expect(other.locator('[contenteditable=true]')).toContainText('第一张图片');
   await page.evaluate(() => {
     const read = FileSystemFileHandle.prototype.getFile;
@@ -174,7 +174,7 @@ test('另一标签页保存草稿不重新读取作品，新增作品通过原�
   await expect(page.locator('html')).toHaveAttribute('data-image-reads', '0');
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await expect(page.locator('[contenteditable=true]')).toContainText('第二个窗口的新草稿');
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.locator('.library-card')).toHaveCount(1);
   await generate(other);
   await expect(page.locator('.library-card')).toHaveCount(2);
@@ -207,7 +207,7 @@ test('保存完成文件但关联确认前关闭页面，重开从 journal 恢�
   await expect(page.getByText('已保存到本机', { exact: true })).toHaveCount(0);
   await page.close();
   const reopened = await context.newPage();
-  await reopened.goto('/images');
+  await reopened.goto('/library');
   await expect(reopened.getByAltText('本机生成作品')).toHaveCount(1);
   await reopened.getByText('本机任务记录', { exact: false }).click();
   await expect(reopened.locator('.task-history')).toContainText('有本机保存记录');
@@ -226,7 +226,7 @@ test('删除文件被中断后重开会继续清理，不影响其他作品', as
   await generate(page);
   await prompt(page, '应当保留');
   await generate(page);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.locator('.library-card')).toHaveCount(2);
   await page.evaluate(() => {
     const original = FileSystemDirectoryHandle.prototype.removeEntry;
@@ -314,7 +314,7 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
   await reloaded;
   await expect.poll(() => profile(page)).toBe(staging.id);
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-previous-profile-v1'))).toBe(original);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(2);
   const restoredContents = await downloadBackup(page);
   const restored = JSON.parse(backupText(restoredContents));
@@ -332,7 +332,7 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
   await expect.poll(() => profile(page)).toBe(original);
   await page.getByRole('tab', { name: '平台生图', exact: true }).click();
   await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(2);
 });
 
@@ -357,7 +357,7 @@ test('两个标签页的草稿冲突保留各自输入，明确选择保留或�
   await platformAccount(page);
   await prompt(page, '初始草稿');
   const other = await context.newPage();
-  await other.goto('/create');
+  await other.goto('/images');
   await expect(other.locator('[contenteditable=true]')).toContainText('初始草稿');
   for (const choice of ['保留本页输入', '载入另一标签页的草稿']) {
     await page.evaluate(() => {
@@ -408,7 +408,7 @@ test('编辑器资源失败不丢草稿、不允许提交，重试加载后可�
   // A fresh page is no longer controlled by the installed offline cache.
   await page.goto('about:blank');
   await page.route('**/prompt-runtime/editor.js', route => route.abort('failed'));
-  await page.goto('/create');
+  await page.goto('/images');
   await expect(page.getByRole('button', { name: '重试输入编辑器' })).toBeVisible();
   await expect(page.locator('app-prompt-input pre')).toContainText('编辑器重试后仍保留的输入');
   await expect(page.getByRole('button', { name: '✧ 生成图片' })).toBeDisabled();

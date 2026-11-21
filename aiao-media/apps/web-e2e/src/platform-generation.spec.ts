@@ -30,7 +30,7 @@ test('未登录可以编辑草稿，生成引导平台登录，不出现 Key 配
   const relay = await taskFixture(context, () => {
     throw new Error('未登录不应生成');
   });
-  await page.goto('/create');
+  await page.goto('/images');
   await page.getByRole('textbox', { name: '创意描述' }).fill('未登录的本机草稿');
   await page.getByRole('button', { name: '登录后生成图片' }).click();
   await expect(page.getByRole('dialog', { name: '我的账号' }).getByRole('heading', { name: '登录账号' })).toBeVisible();
@@ -63,14 +63,14 @@ test('成功后仅消费模型配置积分，流水与任务一致，备份不�
   await expect.poll(() => relay.account.balance).toBe(7);
   expect(account.entries).toHaveLength(1);
   expect(account.entries[0].delta).toBe(-platformModel.credits);
-  await page.goto('/images');
+  await page.goto('/library');
   await verifyImageDownload(page, page.locator('.library-card'), png);
   const backup = backupText(await downloadBackup(page));
   expect(backup).not.toContain(account.token);
   expect(backup).not.toContain('fixture-platform-refresh');
   expect(backup).not.toContain('relay-tasks-v1');
   expect(backup).not.toContain('generation-auth.example.test');
-  await page.goto('/create');
+  await page.goto('/images');
   await page.getByRole('button', { name: '我的账号', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('region', { name: '平台积分' })).toContainText('可用积分 7');
   expect(relay.calls).toBe(1);
@@ -130,12 +130,12 @@ test('接单后关闭页面，新页面只凭原令牌恢复一次扣费与原�
   expect(relay.account.reserved).toBe(3);
   await page.close();
   const next = await context.newPage();
-  await next.goto('/create');
+  await next.goto('/images');
   release();
   await expect(next.getByText('已保存到本机', { exact: true })).toBeVisible();
   expect(relay.account.balance).toBe(7);
   expect(relay.account.entries).toHaveLength(1);
-  await next.goto('/images');
+  await next.goto('/library');
   await verifyImageDownload(next, next.locator('.library-card'), png);
   expect(relay.calls).toBe(1);
 });
@@ -161,7 +161,7 @@ test('同一工作区两个标签页只允许一个平台生图任务', async ({
 
   const second = await context.newPage();
   try {
-    await second.goto('/create');
+    await second.goto('/images');
     const generate = second.getByRole('button', { name: /生成图片/ });
     await expect(generate).toBeDisabled();
     await expect(second.getByText(/平台正在生成，可以刷新或关闭页面/)).toBeVisible();

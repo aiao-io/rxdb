@@ -191,7 +191,7 @@ test('本地作品筛选分页和可见预览不加载全库原图，页外任�
   });
   await seed(page);
   await expect.poll(async () => (await previews(page)).active).toBe(0);
-  await page.goto('/images');
+  await page.goto('/library');
   const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
   await expect(cards).toHaveCount(24);
   const paging = page.getByLabel('作品分页');
@@ -237,7 +237,7 @@ test('本地作品筛选分页和可见预览不加载全库原图，页外任�
 
 test('末页删除自动回到有效页，离线筛选保留精确下载', async ({ page, context }) => {
   const { png } = await seed(page);
-  await page.goto('/images');
+  await page.goto('/library');
   const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
   await expect(cards).toHaveCount(24);
   await page.getByRole('button', { name: '下一页', exact: true }).click();
@@ -374,7 +374,7 @@ test('大图跨页连续查看并按原尺寸滚动检查细节', async ({ page 
     'base64'
   );
   const { jobs } = await seed(page, 26, '', image);
-  await page.goto('/images');
+  await page.goto('/library');
   const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
   await expect(cards).toHaveCount(24);
   await cards.last().scrollIntoViewIfNeeded();
@@ -409,7 +409,7 @@ test('大图跨页连续查看并按原尺寸滚动检查细节', async ({ page 
 test('手机图库操作具有可辨认名称和至少 44px 的触点', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const { jobs } = await seed(page, 1);
-  await page.goto('/images');
+  await page.goto('/library');
   const card = page.locator('.library-card').first();
   await card.scrollIntoViewIfNeeded();
   await expect(card.getByRole('button', { name: `查看大图：${jobs[0].request.prompt}`, exact: true })).toBeVisible();
@@ -423,7 +423,7 @@ test('手机图库操作具有可辨认名称和至少 44px 的触点', async ({
 
 test('超宽屏下我的图片按卡片大小排满整行，常见窗口的列数与此前一致', async ({ page }) => {
   await seed(page, 24);
-  await page.goto('/images');
+  await page.goto('/library');
   const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
   await expect(cards).toHaveCount(24);
   const layout = () =>
@@ -487,7 +487,7 @@ test('生成页右侧共用我的图片，筛选复用后生成的新图自动�
   await expect(cards).toHaveCount(3);
   await cards.first().getByRole('button', { name: '复用提示词' }).click();
   await expect(editor).toContainText('森林');
-  await expect(page).toHaveURL(/\/create$/);
+  await expect(page).toHaveURL(/\/images$/);
   await library.getByRole('button', { name: '清空筛选', exact: true }).click();
   await editor.fill('创作页新增的图片');
   await page.getByRole('button', { name: '✧ 生成图片', exact: true }).click();

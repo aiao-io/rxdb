@@ -109,9 +109,16 @@ describe('workspace interaction boundaries', () => {
     expect(focus).toHaveBeenCalledOnce();
   });
 
+  it('removes the unused media tool navigation and creation section', () => {
+    const r = workspace();
+    expect(r.element.querySelector('.media-nav')).toBeNull();
+    expect(r.element.querySelector('.media-creation-section')).toBeNull();
+    expect(r.element.textContent).not.toContain('媒体工具');
+  });
+
   it.each(['ctrlKey', 'metaKey'] as const)('preserves %s link clicks for opening another browser tab', modifier => {
     const r = workspace();
-    const link = r.element.querySelector<HTMLAnchorElement>('a[href="/create"]')!;
+    const link = r.element.querySelector<HTMLAnchorElement>('a[href="/images"]')!;
     let prevented: boolean | undefined;
     link.addEventListener('click', event => {
       prevented = event.defaultPrevented;

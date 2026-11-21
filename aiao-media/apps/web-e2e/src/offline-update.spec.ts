@@ -18,7 +18,7 @@ async function activate(context: BrowserContext, version: string) {
     )
     .toBe(true);
   const next = await context.newPage();
-  await next.goto('/create');
+  await next.goto('/images');
   await next.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -58,9 +58,9 @@ test('实际离线 Worker 更新等待旧页面关闭，切换版本与回退后
   await expect(next.locator('[contenteditable=true]')).toContainText('离线更新前的草稿');
   expect(await profile(next)).toBe(id);
   await context.setOffline(true);
-  await next.goto('/create');
-  expect(await next.locator('meta[name="local-test-build"]').getAttribute('content')).toBe('b');
   await next.goto('/images');
+  expect(await next.locator('meta[name="local-test-build"]').getAttribute('content')).toBe('b');
+  await next.goto('/library');
   await expect(next.getByAltText('本机生成作品')).toHaveCount(1);
   await context.setOffline(false);
   await next.request.post('/__build/a');
@@ -72,10 +72,10 @@ test('实际离线 Worker 更新等待旧页面关闭，切换版本与回退后
     .toBe(true);
   next = await activate(context, a.version);
   await context.setOffline(true);
-  await next.goto('/create');
+  await next.goto('/images');
   expect(await next.locator('meta[name="local-test-build"]').getAttribute('content')).toBe('a');
   await expect(next.locator('[contenteditable=true]')).toContainText('离线更新前的草稿');
-  await next.goto('/images');
+  await next.goto('/library');
   await expect(next.getByAltText('本机生成作品')).toHaveCount(1);
   expect(await profile(next)).toBe(id);
 });

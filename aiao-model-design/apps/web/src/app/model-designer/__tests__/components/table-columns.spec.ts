@@ -114,6 +114,57 @@ describe('property table columns', () => {
     expect(invoke(actions.icon, args({ propertyType: 'keyValue' }))).toHaveLength(3);
     expect(invoke(actions.icon, args({ propertyType: 'string' }))).toHaveLength(2);
   });
+
+  it('handles readonly, unknown, empty, and themed property rows', () => {
+    const columns = createPropertyColumns(translations, errorContext);
+    const typeColumn = column(columns, 'propertyType');
+    const nameColumn = column(columns, 'name');
+    const columnNameColumn = column(columns, 'columnName');
+    const displayNameColumn = column(columns, 'displayName');
+    const nullableColumn = column(columns, 'isNullable');
+    const requiredColumn = column(columns, 'isRequired');
+    const defaultColumn = column(columns, 'defaultValue');
+    const enumColumn = column(columns, 'enumValues');
+
+    expect(invoke(nameColumn.style, args({}))).toEqual({});
+    expect(invoke(columnNameColumn.style, args({ _propId: 'unknown' }))).toEqual({});
+    expect(invoke(typeColumn.editor, args({ propertyType: 'string' }))).toBe('input-editor');
+    expect(
+      invoke(typeColumn.customRender, {
+        col: 0,
+        row: 0,
+        table: { getRecordByCell: () => ({ propertyType: 'unknown', _readonly: false }) }
+      })
+    ).toMatchObject({ renderDefault: false, elements: [{ type: 'text', x: 8, fill: '#1e293b' }] });
+
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const darkReadonly = invoke(typeColumn.customRender, {
+      col: 0,
+      row: 0,
+      table: { getRecordByCell: () => ({ propertyType: 'string', _readonly: true }) }
+    }) as { elements: Array<{ svg?: string; fill?: string }> };
+    expect(darkReadonly.elements[0]?.svg).toContain('#64748b');
+    expect(darkReadonly.elements[1]?.fill).toBe('#64748b');
+
+    document.documentElement.setAttribute('data-theme', 'light');
+    const lightReadonly = invoke(typeColumn.customRender, {
+      col: 0,
+      row: 0,
+      table: { getRecordByCell: () => ({ propertyType: 'string', _readonly: true }) }
+    }) as { elements: Array<{ svg?: string }> };
+    expect(lightReadonly.elements[0]?.svg).toContain('#94a3b8');
+
+    expect(invoke(displayNameColumn.editor, args({ _readonly: true }))).toBeUndefined();
+    expect(invoke(displayNameColumn.editor, args({}))).toBe('input-editor');
+    expect(invoke(nullableColumn.disable, args({ _readonly: true }))).toBe(true);
+    expect(invoke(nullableColumn.disable, args({}))).toBe(false);
+    expect(invoke(requiredColumn.disable, args({ _readonly: true }))).toBe(true);
+    expect(invoke(requiredColumn.disable, args({}))).toBe(false);
+    expect(invoke(defaultColumn.editor, args({ _readonly: true }))).toBeUndefined();
+    expect(invoke(defaultColumn.editor, args({}))).toBe('input-editor');
+    expect(invoke(enumColumn.editor, args({ propertyType: 'enum', _readonly: true }))).toBeUndefined();
+    expect(invoke(enumColumn.fieldFormat, { propertyType: 'enum' })).toBe('');
+  });
 });
 
 describe('relation table columns', () => {

@@ -45,15 +45,15 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   await page.reload();
   await verifyLegacySettings(page);
   expect(await profile(page)).toBe(previousProfile);
-  await page.goto('/create');
-  await expect(page.locator('[contenteditable="true"]')).toContainText('迁移前保存的蓝色森林');
   await page.goto('/images');
+  await expect(page.locator('[contenteditable="true"]')).toContainText('迁移前保存的蓝色森林');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
   const download = page.waitForEvent('download');
   await page.getByRole('link', { name: '下载图片' }).click();
   expect(await readFile((await (await download).path()) as string)).toEqual(png);
 
-  await page.goto('/create');
+  await page.goto('/images');
   await prompt(page, '新版集合迁移后保存的草稿');
   await page.route(origin, serveBaseline);
   await page.reload();
@@ -66,7 +66,7 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   await page.unroute(origin, serveBaseline);
   await page.reload();
   await expect(page.locator('[contenteditable=true]')).toContainText('新版集合迁移后保存的草稿');
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
   await page.goto('/providers');
   const restored = page.waitForEvent('load');
@@ -74,7 +74,7 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   await restored;
   await verifyLegacySettings(page);
   expect(await profile(page)).not.toBe(previousProfile);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
 });
 

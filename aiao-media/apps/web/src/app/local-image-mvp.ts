@@ -91,7 +91,6 @@ import { imageMvpCatalog } from './image-mvp-catalog';
 import { transitionImage } from './image-view-transition';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
 import { ProviderFailure, publicProvider, type LocalProvider } from './local-provider';
-import { MediaGeneration, type MediaOperation } from './media-generation/media-generation';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
@@ -130,20 +129,9 @@ import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
-type MediaView = 'tts' | 'asr' | 'music' | 'video';
-type View = 'discover' | 'studio' | 'library' | 'providers' | MediaView;
+type View = 'discover' | 'studio' | 'library' | 'providers';
 type SettingsTab = 'providers' | 'sync' | 'data' | 'display';
 type Work = LibraryWork;
-type MediaPage = {
-  id: MediaView;
-  path: string;
-  navLabel: string;
-  title: string;
-  description: string;
-  tipTitle: string;
-  tip: string;
-  operation: MediaOperation;
-};
 type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
 interface ImageDownloadState {
   status: 'loading' | 'saved' | 'failed';
@@ -156,67 +144,18 @@ type TaskState = {
 };
 type ImageLocalTask = GenerationJobSummary & TaskState;
 type LocalTask = MediaGenerationJobSummary & TaskState;
-const mediaTools: readonly MediaPage[] = [
-  {
-    id: 'tts',
-    path: '/tts',
-    navLabel: 'TTS 配音',
-    title: 'TTS 配音',
-    description: '把文字变成自然、清晰的语音，适合旁白、口播和产品介绍。',
-    tipTitle: '先写完整句子',
-    tip: '在文本里保留停顿和标点，再选择语言、声音和语速，试听后直接下载 WAV。',
-    operation: 'text-to-speech'
-  },
-  {
-    id: 'asr',
-    path: '/asr',
-    navLabel: 'ASR 转写',
-    title: 'ASR 转写',
-    description: '上传 WAV 音频，快速得到可复制、可下载的文字记录。',
-    tipTitle: '准备清晰的 WAV',
-    tip: '当前页面支持 PCM WAV。上传后会先检查格式、时长和大小，识别完成后临时输入会自动清理。',
-    operation: 'speech-to-text'
-  },
-  {
-    id: 'music',
-    path: '/music',
-    navLabel: '生成音乐',
-    title: '生成音乐',
-    description: '用一句提示词描述曲风和情绪，生成适合内容使用的音乐片段。',
-    tipTitle: '描述声音细节',
-    tip: '曲风、情绪、乐器、节奏和使用场景越具体，生成结果越容易接近你的预期。',
-    operation: 'text-to-music'
-  },
-  {
-    id: 'video',
-    path: '/video',
-    navLabel: '生成视频',
-    title: '生成视频',
-    description: '描述主体、动作和镜头，生成短视频并在本机保存结果。',
-    tipTitle: '按镜头组织提示词',
-    tip: '建议按主体、动作、环境、镜头运动和画幅描述，生成后可以预览或下载 MP4。',
-    operation: 'text-to-video'
-  }
-];
 const paths: Record<View, string> = {
   discover: '/',
-  studio: '/create',
-  library: '/images',
-  providers: '/providers',
-  tts: '/tts',
-  asr: '/asr',
-  music: '/music',
-  video: '/video'
+  studio: '/images',
+  library: '/library',
+  providers: '/providers'
 };
 const routeViews: Record<string, View> = {
   '/': 'discover',
   '/create': 'studio',
-  '/images': 'library',
-  '/providers': 'providers',
-  '/tts': 'tts',
-  '/asr': 'asr',
-  '/music': 'music',
-  '/video': 'video'
+  '/images': 'studio',
+  '/library': 'library',
+  '/providers': 'providers'
 } satisfies Record<string, View>;
 const routeView = (path: string): View => routeViews[path] ?? 'discover';
 // Settings sections are in-page tabs; the hash only deep-links a tab and never adds a route.
@@ -285,8 +224,7 @@ const mediaWorkKey = (work: LocalMediaWorkSummary): string => `${work.kind}:${wo
     WorkVisibleDirective,
     ElementWidthDirective,
     SyncTargetSettings,
-    CreditsPanel,
-    MediaGeneration
+    CreditsPanel
   ],
   templateUrl: './local-image-mvp.html',
   host: {
@@ -416,14 +354,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   });
   readonly nativeMode = nativeBackend;
   readonly view = signal<View>('discover');
-  readonly mediaTools = mediaTools;
-  readonly mediaPage = computed(() => mediaTools.find(page => page.id === this.view()) ?? null);
   readonly headerTitle = computed(() => {
     const view = this.view();
     if (view === 'discover') return '发现灵感';
     if (view === 'studio') return '图片创作';
     if (view === 'library') return '我的图片';
-    return this.mediaPage()?.title ?? '设置';
+    return '设置';
   });
   readonly templates = signal(imageMvpCatalog);
   readonly selectedVersion = signal(1);
@@ -545,7 +481,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly storageInfo = signal('');
   readonly offlineReady = signal(false);
   readonly localStatus = signal<'opening' | 'ready' | 'unavailable'>('opening');
-  readonly mediaStore = signal<LocalMediaStore | null>(null);
   readonly draftStatus = signal<StudioDraftStatus | 'inactive'>('inactive');
   readonly storageMessage = signal('');
   readonly works = signal<LocalWorkSummary[]>([]);
@@ -735,7 +670,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     });
   }
   ngOnInit() {
-    this.view.set(routeView(location.pathname));
+    const initialPath = location.pathname;
+    this.view.set(routeView(initialPath));
+    if (initialPath === '/create') history.replaceState(null, '', `${paths.studio}${location.search}${location.hash}`);
     this.settingsTab.set(hashTab(location.hash));
     try {
       const platform = readSupabaseAuthConfig();
@@ -788,11 +725,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.remoteImages.close();
     this.revokeResult();
     this.releaseMediaPreviews();
-    this.mediaStore.set(null);
     void this.store?.close();
   }
   @HostListener('window:popstate') onPopState() {
     const next = routeView(location.pathname);
+    if (location.pathname === '/create')
+      history.replaceState(null, '', `${paths.studio}${location.search}${location.hash}`);
     if (next !== this.view()) this.releaseLibraryPreviews();
     this.view.set(next);
     this.closeViewer();
@@ -2906,7 +2844,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.mediaLibraryReady.set(false);
     this.mediaLibraryError.set('');
     this.store = store;
-    this.mediaStore.set(store);
     store.activateDevTools();
     this.profileId = profile.id;
     this.currentProfileId.set(profile.id);

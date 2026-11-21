@@ -95,7 +95,7 @@ async function deleteRemoteDraft(page: Page, ownerId: string) {
 }
 test('真实登录不绑定，取消首次同步确认不上传或改变本机副本', async ({ page }) => {
   const user = await account();
-  await page.goto('/create');
+  await page.goto('/images');
   await page.locator('[contenteditable=true]').fill('本机未绑定的草稿');
   await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
   const profile = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
@@ -112,7 +112,7 @@ test('真实登录不绑定，取消首次同步确认不上传或改变本机�
 
 test('有效会话在同步预览期间恢复焦点，确认范围仍保留且不会自动绑定', async ({ page }) => {
   const user = await account();
-  await page.goto('/create');
+  await page.goto('/images');
   await editDraft(page, '焦点恢复前的本机草稿');
   await signIn(page, user);
   let releasePreview!: () => void;
@@ -151,7 +151,7 @@ test('有效会话在同步预览期间恢复焦点，确认范围仍保留且�
 test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B→A 保留独立副本', async ({ page, browser, baseURL }) => {
   const user = await account(),
     other = await account();
-  await page.goto('/create');
+  await page.goto('/images');
   await page.locator('[contenteditable=true]').fill('设备 A 的输入');
   await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
   await signIn(page, user);
@@ -170,7 +170,7 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
   const context = await browser.newContext({ baseURL });
   try {
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await second.locator('[contenteditable=true]').fill('未绑定设备 B 原始输入');
     await expect(second.getByText('输入已保存到本机', { exact: true })).toBeVisible();
     const unbound = await second.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
@@ -269,11 +269,11 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
   const user = await account();
   const context = await browser.newContext({ baseURL });
   try {
-    await page.goto('/create');
+    await page.goto('/images');
     await editDraft(page, '初始草稿');
     await enableReplica(page, user);
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await enableReplica(second, user);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toContainText('初始草稿');
@@ -427,7 +427,7 @@ test('历史供应商和作品导入后跨副本同步，凭据剥离且原图�
   const context = await browser.newContext({ baseURL });
   try {
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await enableReplica(second, user);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
@@ -525,7 +525,7 @@ test('已删除原图明确创建新版本，准备和提交回执丢失后重�
   try {
     await installStorage(context);
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await enableReplica(second, user);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
@@ -720,7 +720,7 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
       await route.fulfill({ contentType: 'image/png', body: bytes! });
     });
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await enableReplica(second, user);
     await expect(second.getByRole('article', { name: '图片原图同步' })).not.toContainText('图片自动同步已启用');
     await expect(second.getByRole('button', { name: '设置图片同步范围', exact: true })).toBeEnabled();
@@ -882,11 +882,11 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
   const user = await account();
   const context = await browser.newContext({ baseURL });
   try {
-    await page.goto('/create');
+    await page.goto('/images');
     await editDraft(page, '重新扫描前的共同草稿');
     await enableReplica(page, user);
     const second = await context.newPage();
-    await second.goto('/create');
+    await second.goto('/images');
     await enableReplica(second, user);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await context.setOffline(true);
@@ -944,7 +944,7 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
 test('远端图库分三页仅预览可见卡片，离开后释放 URL，显式保存才落本机', async ({ page }) => {
   const user = await account();
   const png = await pngFixture();
-  await page.goto('/create');
+  await page.goto('/images');
   await enableReplica(page, user);
   const seeded = await seedRemoteImagePreviews(admin, user, png, 53);
   const reads: string[] = [];
@@ -1056,7 +1056,7 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
     received = resolve;
   });
   const relay = await productGenerationFixture(page, admin, png, gate, received);
-  await page.goto('/create');
+  await page.goto('/images');
   await editDraft(page, 'A的在途生成必须保留');
   await enableReplica(page, a);
   const aProfile = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));

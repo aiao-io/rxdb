@@ -336,7 +336,7 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
   const downloaded = await resultDownload;
   expect(downloaded.suggestedFilename()).toMatch(/\.jpg$/);
   expect(await readFile((await downloaded.path())!)).toEqual(jpeg);
-  await page.goto('/images');
+  await page.goto('/library');
   await page.reload();
   const card = page.locator('.library-card').filter({ hasText: 'JPEG 原图完整交付' });
   await expect(card.getByAltText('本机生成作品')).toBeVisible();
@@ -355,7 +355,7 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
   await importBackup(page, backup);
   await reloaded;
   await expect.poll(() => profile(page)).not.toBe(originalProfile);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(card.getByAltText('本机生成作品')).toBeVisible();
   await verifyImageDownload(page, card, jpeg);
   expect(calls).toBe(1);
@@ -377,7 +377,7 @@ test('未知结果刷新后仍锁定，不会自动重复提交或切换代理',
   await page.goto('/providers');
   await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   expect(calls).toBe(1);
-  await page.goto('/create');
+  await page.goto('/images');
   page.once('dialog', d => d.accept());
   await page.getByRole('button', { name: '已核对，解除本机锁定' }).click();
   await prompt(page, '解除锁定后的新提示词');
@@ -439,7 +439,7 @@ test('代理生成中刷新页面，回来后接着取回并保存结果，任�
   await expect(page.getByAltText('本次生成的图片')).toBeVisible();
   await expect.poll(() => seen.deleted).toBe(1);
   expect([seen.created, seen.abandoned]).toEqual([1, 0]);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toBeVisible();
 });
 test('接单回执不明时刷新：本站没有收到就解除锁定，原请求以后也不会发出', async ({ page }) => {
@@ -476,15 +476,15 @@ test('首次缓存后四条页面离线可打开，设置和草稿仍可读', as
   });
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
-  for (const path of ['/providers', '/create', '/images', '/']) {
+  for (const path of ['/providers', '/images', '/library', '/']) {
     await page.goto(path);
     if (path === '/providers') await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible();
-    if (path === '/create') await expect(page.locator('[contenteditable="true"]')).toContainText('离线也能继续的创作');
+    if (path === '/images') await expect(page.locator('[contenteditable="true"]')).toContainText('离线也能继续的创作');
     await expect(page.getByRole('link', { name: 'Aiao Images 首页' })).toBeVisible();
   }
 });
 test('从创作页首次安装后，离线冷开首页仍可解码六张参考图', async ({ page, context }) => {
-  await page.goto('/create');
+  await page.goto('/images');
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -665,9 +665,9 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toBeVisible();
-  await page.goto('/create');
+  await page.goto('/images');
   await expect(page.locator('[contenteditable="true"]')).toContainText('备份中的原始提示词');
   await page.goto('/providers#data');
   const importedAgain = page.waitForEvent('load');
@@ -683,7 +683,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
     page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true }).click()
   ]);
   await expect.poll(() => profile(page)).toBe(originalId);
-  await page.goto('/create');
+  await page.goto('/images');
   await expect(page.locator('[contenteditable="true"]')).toContainText('原工作区未导出的草稿');
   await page.goto('/providers');
   await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
@@ -695,7 +695,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
     firstCopy.getByRole('button', { name: '返回工作区：backup.zip', exact: true }).click()
   ]);
   await expect.poll(() => profile(page)).toBe(firstImportedId);
-  await page.goto('/create');
+  await page.goto('/images');
   await expect(page.locator('[contenteditable="true"]')).toContainText('备份中的原始提示词');
 });
 
@@ -769,7 +769,7 @@ test('两标签页并发点击不会重复付费请求', async ({ page, context 
   await platformAccount(page);
   await prompt(page);
   const other = await context.newPage();
-  await other.goto('/create');
+  await other.goto('/images');
   await expect(other.getByRole('button', { name: '✧ 生成图片' })).toBeEnabled();
   await Promise.all([
     page.getByRole('button', { name: '✧ 生成图片' }).click(),
@@ -798,7 +798,7 @@ test('两标签页并发点击不会重复付费请求', async ({ page, context 
       { timeout: 10000 }
     )
     .toBe(true);
-  await page.goto('/images');
+  await page.goto('/library');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
   expect(calls).toBe(1);
 });

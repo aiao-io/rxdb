@@ -80,7 +80,7 @@ test.afterAll(async () => {
 
 test('真实邮箱注册、确认、登录、刷新和退出保留本机草稿', async ({ page }) => {
   const account = credentials();
-  await page.goto('/create');
+  await page.goto('/images');
   await saveDraft(page, '真实账号登录前的本机草稿');
   const profile = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
   await openLogin(page);
@@ -120,7 +120,7 @@ test('真实邮箱注册、确认、登录、刷新和退出保留本机草稿',
 
 test('真实错误密码提示与 Auth 断网恢复不阻断本机编辑', async ({ page, context }) => {
   const account = await confirmedAccount();
-  await page.goto('/create');
+  await page.goto('/images');
   await openLogin(page);
   await fillCredentials(page, {
     ...account,
