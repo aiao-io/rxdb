@@ -770,7 +770,9 @@ export const a11y = {
         await focusDocumentStart(page);
         await tabTo(info => is(info, 'menubar', 'File'));
         await press('Enter');
+        await page.getByRole('menu', { name: 'File', exact: true }).waitFor({ timeout: 5_000 });
         await press('n');
+        await focusReaches(page, info => info?.region === 'popover' && info.name.startsWith('New Repository'));
         await press('Enter');
         await githubWindow.locator('[data-github-new-repository]').waitFor({ timeout: 5_000 });
         github.fileMenuAction =
@@ -1479,6 +1481,7 @@ export const a11y = {
         tabPath,
         overlays,
         menus,
+        github,
         windows,
         finder,
         tree,

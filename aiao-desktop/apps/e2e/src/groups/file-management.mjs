@@ -21,6 +21,7 @@ export const fileManagement = {
     'fileManagement.desktopFolderDragToTrash',
     'fileManagement.finderFileDragToTrash',
     'fileManagement.finderFileDragToTrashWindow',
+    'fileManagement.trashFinderDragToFolderWindow',
     'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
     'fileManagement.dropsOnSidebar',
@@ -452,12 +453,13 @@ export const fileManagement = {
     const sourceItemBox = await sourceItem.boundingBox();
     const trashBodyBox = await trashFinderWindow.locator('[data-body]').boundingBox();
     if (!sourceItemBox || !trashBodyBox) throw new Error('Finder drag targets are not measurable');
+    const viewportWidth = await page.evaluate(() => innerWidth);
     const sourcePoint = {
       x: sourceItemBox.x + sourceItemBox.width / 2,
       y: sourceItemBox.y + sourceItemBox.height / 2
     };
     const dropPoint = {
-      x: trashBodyBox.x + trashBodyBox.width / 2,
+      x: Math.min(trashBodyBox.x + trashBodyBox.width - 40, viewportWidth - 20),
       y: trashBodyBox.y + Math.min(80, trashBodyBox.height / 2)
     };
     await page.mouse.move(sourcePoint.x, sourcePoint.y);
@@ -483,6 +485,37 @@ export const fileManagement = {
       throw new Error(`Unexpected Finder drop path: ${JSON.stringify(trashPath)}`);
     await expect(trashFinderWindow.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
     result.finderFileDragToTrashWindow = true;
+
+    const trashItem = trashFinderWindow.locator('[data-name="finder-window-trash.txt"]');
+    const trashTitle = trashFinderWindow.locator('[data-title]');
+    const targetBody = sourceFinder.locator('[data-body]');
+    const trashTitleBeforeReverseDrag = await trashTitle.boundingBox();
+    const trashItemBox = await trashItem.boundingBox();
+    const targetBodyBox = await targetBody.boundingBox();
+    if (!trashTitleBeforeReverseDrag || !trashItemBox || !targetBodyBox)
+      throw new Error('Reverse Finder drag targets are not measurable');
+    await page.mouse.click(
+      trashTitleBeforeReverseDrag.x + trashTitleBeforeReverseDrag.width / 2,
+      trashTitleBeforeReverseDrag.y + trashTitleBeforeReverseDrag.height / 2
+    );
+    await expect(trashFinderWindow).toHaveClass(/front/);
+    await page.mouse.move(trashItemBox.x + trashItemBox.width / 2, trashItemBox.y + trashItemBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(trashItemBox.x + 20, trashItemBox.y + 20, { steps: 4 });
+    await page.mouse.move(
+      targetBodyBox.x + 40,
+      targetBodyBox.y + targetBodyBox.height - 40,
+      { steps: 16 }
+    );
+    await page.waitForTimeout(800);
+    await expect(trashTitle).toHaveText('Trash');
+    await expect(sourceFinder.locator('[data-title]')).toHaveText('nested');
+    await expect(sourceFinder).toHaveClass(/front/);
+    await page.mouse.up();
+    await expect(trashItem).toHaveCount(0);
+    await expect(sourceFinder.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
+    result.trashFinderDragToFolderWindow = true;
+
     await place('Desktop');
     await importFiles([
       payload('clipboard-source.txt', Buffer.from(text)),

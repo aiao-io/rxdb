@@ -202,5 +202,13 @@ export const LINK_ONLY_HOSTS: readonly LinkOnlyHost[] = [
     host: 'unsplash.com',
     reason:
       'A photographer credit written as plain text in the Photos library. It is not a link and nothing is requested.'
+  },
+  {
+    host: 'support.github.com',
+    reason: 'A GitHub Desktop support link opened in a new browser tab only when you click it.'
+  },
+  {
+    host: 'docs.github.com',
+    reason: 'A GitHub Desktop documentation link opened in a new browser tab only when you click it.'
   }
 ];

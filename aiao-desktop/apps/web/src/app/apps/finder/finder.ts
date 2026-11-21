@@ -53,6 +53,7 @@ import { isKeyboardClick } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { FileDrop } from '../../shared/file-drop';
 import { FileThumbnail } from '../../shared/file-thumbnail';
 import { clamp, finderDate } from '../../shared/format';
@@ -123,6 +124,7 @@ export class FinderApp implements FinderCommands {
   private readonly catalog = inject(ApplicationCatalog);
   private readonly dockDrag = inject(DockDragController);
   private readonly dock = inject(DockState);
+  private readonly windows = inject(WindowManager);
   private readonly injector = inject(Injector);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
@@ -855,7 +857,14 @@ export class FinderApp implements FinderCommands {
 
   protected dragMoved(event: CdkDragMove<FsNode>): void {
     const source = event.source.data;
-    const target = this.dropDirectoryAt(event.pointerPosition.x, event.pointerPosition.y);
+    const { x, y } = event.pointerPosition;
+    const targetWindow = this.finderWindowAt(x, y);
+    if (targetWindow && targetWindow !== this.win) {
+      this.clearSpringFolder();
+      if (this.windows.focused() !== targetWindow) this.windows.focus(targetWindow.id, { dom: false });
+      return;
+    }
+    const target = this.dropDirectoryAt(x, y);
     this.updateSpringFolder(source, target);
   }
 
@@ -941,6 +950,14 @@ export class FinderApp implements FinderCommands {
       .map(target => target.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'])
       .find(Boolean);
     return encoded ? encoded.split('/') : null;
+  }
+
+  private finderWindowAt(x: number, y: number): DesktopWindow | null {
+    const id = document
+      .elementsFromPoint(x, y)
+      .map(element => element.closest<HTMLElement>('.win[data-app="finder"]')?.id)
+      .find(Boolean);
+    return id ? (this.windows.get(id) ?? null) : null;
   }
 
   private desktopDropDirectory(point: { readonly x: number; readonly y: number }): DiskPath | null {

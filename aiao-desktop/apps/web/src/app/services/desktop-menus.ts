@@ -227,7 +227,7 @@ export class DesktopMenus {
       'github',
       {
         File: [
-          { id: 'new-repository', label: 'New Repository…', key: '⌘N', disabled: target.isBusy(), run: () => target.openRepositoryMenu('new') },
+          { id: 'new-repository', label: 'New Repository…', key: '⌘N', run: () => target.openRepositoryMenu('new') },
           '-',
           { id: 'add-local-repository', label: 'Add Local Repository…', key: '⌘O', disabled: target.isBusy(), run: () => target.openLocalRepository() },
           { id: 'clone-repository', label: 'Clone Repository…', key: '⇧⌘O', disabled: target.isBusy(), run: () => target.openRepositoryMenu('clone') },
