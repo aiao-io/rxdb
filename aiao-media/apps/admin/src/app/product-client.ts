@@ -1,7 +1,17 @@
 import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
-import { MEDIA_CONFIG_COMMIT_STATUSES, type MediaConfigCommitEnvelope, type MediaConfigCommitStatus } from '@aiao-media/domain';
+import {
+  MEDIA_CONFIG_COMMIT_STATUSES,
+  type MediaConfigCommitEnvelope,
+  type MediaConfigCommitStatus
+} from '@aiao-media/domain';
 import type { AdminSupabaseClient } from './admin-auth';
-import { normalizeDisplayName, parseAccountIdentity, parseAdminProfile, type AdminAccountIdentity, type AdminProfile } from './admin-profile';
+import {
+  normalizeDisplayName,
+  parseAccountIdentity,
+  parseAdminProfile,
+  type AdminAccountIdentity,
+  type AdminProfile
+} from './admin-profile';
 
 export interface ProductAuthorization {
   config: { url: string; anonKey: string };
@@ -81,7 +91,9 @@ export class ProductClient {
     const displayName = normalizeDisplayName(name);
     const access = await this.authorize();
     const value = await this.remote(access, '/rpc/media_admin_update_profile', {
-      p_display_name: displayName, p_expected_revision: revision, p_request_id: requestId
+      p_display_name: displayName,
+      p_expected_revision: revision,
+      p_request_id: requestId
     });
     const confirmed = parseAdminProfile(value, access.userId);
     if (confirmed.displayName !== displayName || confirmed.revision !== revision + 1)
@@ -155,21 +167,26 @@ export class ProductClient {
     };
     const ignoreDuplicates = { headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } };
     await this.remote(access, '/media_config_projection_commits?on_conflict=id', commit, ignoreDuplicates);
-    await this.remote(access, '/media_config_projection_changes?on_conflict=id', envelope.changes.map(change => ({
-      id: change.id,
-      workspaceId: envelope.commit.workspaceId,
-      commitId: envelope.commit.id,
-      sequence: change.sequence,
-      entity: change.entity,
-      entityId: change.entityId,
-      operation: change.operation,
-      patch: change.patch,
-      inversePatch: change.inversePatch,
-      expectedRevision: change.expectedRevision,
-      contentFingerprint: change.contentFingerprint,
-      createdBy: author,
-      updatedBy: author
-    })), ignoreDuplicates);
+    await this.remote(
+      access,
+      '/media_config_projection_changes?on_conflict=id',
+      envelope.changes.map(change => ({
+        id: change.id,
+        workspaceId: envelope.commit.workspaceId,
+        commitId: envelope.commit.id,
+        sequence: change.sequence,
+        entity: change.entity,
+        entityId: change.entityId,
+        operation: change.operation,
+        patch: change.patch,
+        inversePatch: change.inversePatch,
+        expectedRevision: change.expectedRevision,
+        contentFingerprint: change.contentFingerprint,
+        createdBy: author,
+        updatedBy: author
+      })),
+      ignoreDuplicates
+    );
     await this.remote(
       access,
       `/media_config_projection_commits?id=eq.${encodeURIComponent(envelope.commit.id)}&status=eq.prepared`,
@@ -186,11 +203,18 @@ export class ProductClient {
     if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交投影不可读。');
     if (!rows.length) return null;
     const row = rows[0] as Record<string, unknown>;
-    if (!MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus) || !Number.isSafeInteger(row['changeCount']))
+    if (
+      !MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus) ||
+      !Number.isSafeInteger(row['changeCount'])
+    )
       throw new Error('配置提交投影回执无效。');
     const changes = await this.remote(access, `/media_config_projection_changes?select=id&commitId=eq.${id}`);
     if (!Array.isArray(changes)) throw new Error('配置提交变更不可读。');
-    return { status: row['status'] as MediaConfigCommitStatus, changeCount: row['changeCount'] as number, receivedChanges: changes.length };
+    return {
+      status: row['status'] as MediaConfigCommitStatus,
+      changeCount: row['changeCount'] as number,
+      receivedChanges: changes.length
+    };
   }
 
   async applyConfigCommit(commitId: string, operationId: string): Promise<unknown> {
@@ -247,7 +271,12 @@ export class ProductClient {
     });
   }
 
-  private async directAdmin(access: ProductAuthorization, path: string, method: string, payload: unknown): Promise<unknown | undefined> {
+  private async directAdmin(
+    access: ProductAuthorization,
+    path: string,
+    method: string,
+    payload: unknown
+  ): Promise<unknown | undefined> {
     const url = new URL(`https://admin.local/${path}`);
     const route = url.pathname.replace(/^\//, '');
     if (route === 'session' && method === 'GET') {
@@ -257,7 +286,10 @@ export class ProductClient {
     }
     if (route === 'content' && method === 'GET') {
       const [drafts, published] = await Promise.all([
-        this.remote(access, '/media_content_drafts?select=kind,key,payload,revision,updated_at&order=kind,key&limit=200'),
+        this.remote(
+          access,
+          '/media_content_drafts?select=kind,key,payload,revision,updated_at&order=kind,key&limit=200'
+        ),
         this.remote(access, '/media_public_content?select=kind,key,revision&order=kind,key&limit=200')
       ]);
       return { drafts, published };
@@ -268,13 +300,19 @@ export class ProductClient {
     return undefined;
   }
 
-  private async directContent(access: ProductAuthorization, route: string, method: string, payload: unknown): Promise<unknown> {
+  private async directContent(
+    access: ProductAuthorization,
+    route: string,
+    method: string,
+    payload: unknown
+  ): Promise<unknown> {
     const match = /^content\/(template|provider-policy)\/([a-z][a-z0-9-]{0,59})(?:\/(publish|withdraw))?$/.exec(route);
     if (!match) throw new ProductRequestError(404, this.errorMessage(404));
     const [, kind, key, operation] = match;
     const action = operation ?? 'save';
     if ((action === 'save' ? method : 'POST') !== method) throw new ProductRequestError(405, this.errorMessage(405));
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new ProductRequestError(400, '内容参数无效。');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+      throw new ProductRequestError(400, '内容参数无效。');
     const value = payload as Record<string, unknown>;
     if (!Number.isSafeInteger(value['revision']) || typeof value['requestId'] !== 'string')
       throw new ProductRequestError(400, '内容版本无效。');
@@ -286,7 +324,13 @@ export class ProductClient {
       p_request_id: value['requestId'],
       p_payload: action === 'save' ? value['payload'] : null
     });
-    return { content: result, state: action === 'publish' ? 'active' : action === 'withdraw' ? 'withdrawn' : 'draft' };
+    return {
+      content: result,
+      state:
+        action === 'publish' ? 'active'
+        : action === 'withdraw' ? 'withdrawn'
+        : 'draft'
+    };
   }
 
   private async directReports(access: ProductAuthorization, path: string, usage: boolean): Promise<unknown> {
@@ -340,17 +384,21 @@ export class ProductClient {
 
   private usage(rows: ReportRow[], partial: boolean): unknown {
     const sources: Record<string, UsageBucket> = Object.fromEntries(
-      ['application', 'provider', 'verified'].map(source => [source, {
-        records: 0,
-        requestCount: null,
-        providerUnits: null,
-        verifiedCost: null,
-        currencies: {},
-        unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
-      }])
+      ['application', 'provider', 'verified'].map(source => [
+        source,
+        {
+          records: 0,
+          requestCount: null,
+          providerUnits: null,
+          verifiedCost: null,
+          currencies: {},
+          unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
+        }
+      ])
     );
     for (const row of rows) {
-      if (!row.payload || typeof row.payload.source !== 'string' || !sources[row.payload.source]) throw new Error('用量来源不可识别。');
+      if (!row.payload || typeof row.payload.source !== 'string' || !sources[row.payload.source])
+        throw new Error('用量来源不可识别。');
       const bucket = sources[row.payload.source];
       bucket.records++;
       for (const key of ['requestCount', 'providerUnits'] as const) {
@@ -360,8 +408,13 @@ export class ProductClient {
         else throw new Error('用量数据无效。');
       }
       if (row.payload.verifiedCost === null) bucket.unknown.verifiedCost++;
-      else if (typeof row.payload.verifiedCost === 'number' && Number.isFinite(row.payload.verifiedCost) && row.payload.currency) {
-        bucket.currencies[row.payload.currency] = (bucket.currencies[row.payload.currency] ?? 0) + row.payload.verifiedCost;
+      else if (
+        typeof row.payload.verifiedCost === 'number' &&
+        Number.isFinite(row.payload.verifiedCost) &&
+        row.payload.currency
+      ) {
+        bucket.currencies[row.payload.currency] =
+          (bucket.currencies[row.payload.currency] ?? 0) + row.payload.verifiedCost;
       } else throw new Error('用量数据无效。');
     }
     for (const bucket of Object.values(sources))
@@ -414,17 +467,18 @@ export class ProductClient {
       throw new ProductRequestError(status, this.errorMessage(status));
     }
     const body = await result.text();
-    return body ? JSON.parse(body) as unknown : null;
-
+    return body ? (JSON.parse(body) as unknown) : null;
   }
 
   private errorMessage(status: number): string {
-    return status === 401 || status === 403 ? '账号或权限已失效，远程操作已暂停。'
+    return (
+      status === 401 || status === 403 ? '账号或权限已失效，远程操作已暂停。'
       : status === 402 ? '可用积分不足，请查看当前余额。'
       : status === 409 ? '数据版本已变化，请重试。'
       : status === 405 ? '当前操作不被支持。'
       : status === 400 ? '请求被拒绝：内容无效，或当前状态不允许该操作。'
-      : '产品服务暂不可用，原数据保留。';
+      : '产品服务暂不可用，原数据保留。'
+    );
   }
 }
 
@@ -450,9 +504,12 @@ function parseConfigCommitStatus(value: unknown): RemoteConfigCommitStatus {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('配置提交状态回执无效。');
   const row = value as Record<string, unknown>;
   const strings = ['id', 'workspaceId', 'branchId', 'authorId', 'message', 'operationId', 'createdAt'] as const;
-  for (const key of strings) if (typeof row[key] !== 'string' || row[key].length === 0) throw new Error('配置提交状态回执无效。');
-  if (!Array.isArray(row['parentIds']) || row['parentIds'].some(parent => typeof parent !== 'string')) throw new Error('配置提交父提交无效。');
-  if (!MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus)) throw new Error('配置提交状态无效。');
+  for (const key of strings)
+    if (typeof row[key] !== 'string' || row[key].length === 0) throw new Error('配置提交状态回执无效。');
+  if (!Array.isArray(row['parentIds']) || row['parentIds'].some(parent => typeof parent !== 'string'))
+    throw new Error('配置提交父提交无效。');
+  if (!MEDIA_CONFIG_COMMIT_STATUSES.includes(row['status'] as MediaConfigCommitStatus))
+    throw new Error('配置提交状态无效。');
   const nullableString = (key: 'appliedAt' | 'releasedAt' | 'rejectionCode'): string | null => {
     const value = row[key];
     if (value !== null && value !== undefined && typeof value !== 'string') throw new Error('配置提交状态回执无效。');

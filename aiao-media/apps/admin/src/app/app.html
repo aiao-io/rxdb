@@ -2,13 +2,20 @@
   <rxdb-admin-layout [menu]="menu" [navigating]="navigating()" [url]="url()">
     <svg [lucideIcon]="Clapperboard" [size]="18" aria-hidden="true" brandIcon></svg>
     <span class="admin-account" headerEnd>
-      <a class="btn btn-ghost btn-sm" href="/" aria-label="打开用户端"><span class="user-app-label">打开用户端</span><span class="user-app-icon" aria-hidden="true">↗</span></a>
-      <app-admin-account-menu [userId]="signedIn.user.id" [email]="signedIn.user.email"
-        [displayName]="account.profile()?.displayName" (logout)="logout()" />
+      <a class="btn btn-ghost btn-sm" aria-label="打开用户端" href="/">
+        <span class="user-app-label">打开用户端</span>
+        <span class="user-app-icon" aria-hidden="true">↗</span>
+      </a>
+      <app-admin-account-menu
+        [displayName]="account.profile()?.displayName"
+        [email]="signedIn.user.email"
+        [userId]="signedIn.user.id"
+        (logout)="logout()"
+      />
     </span>
     <ng-container *rxdbAdminPage>
       @if (accountPage()) {
-        <app-admin-account [client]="client" [user]="signedIn.user" [state]="account" />
+        <app-admin-account [client]="client" [state]="account" [user]="signedIn.user" />
       } @else if (routeTab() !== 'templates' && routeTab() !== 'policies') {
         <app-admin-console
           [client]="client"

@@ -8,14 +8,13 @@ import {
   MediaProviderPolicy,
   MediaSyncRecord,
   assertValidMediaConfigCommit,
+  canTransitionMediaConfigCommit,
   createMediaConfigChangeFingerprint,
   createMediaConfigCommitEnvelope,
-  canTransitionMediaConfigCommit,
   createMediaConfigCommitFingerprint,
-  type MediaConfigCommitInput,
-  type MediaConfigCommitChangeInput
+  type MediaConfigCommitChangeInput,
+  type MediaConfigCommitInput
 } from './index.js';
-
 
 type EntityConstructor<T extends object> = new (initData?: Partial<T>) => T;
 
@@ -41,7 +40,9 @@ describe('media configuration domain contracts', () => {
     expect(getEntityMetadata(MediaProviderPolicy).properties.map(property => property.name)).toContain('providers');
     expect(getEntityMetadata(MediaPlatformModel).properties.map(property => property.name)).toContain('modelId');
     expect(getEntityMetadata(MediaConfigCommit).properties.map(property => property.name)).toContain('operationId');
-    expect(getEntityMetadata(MediaConfigCommitChange).properties.map(property => property.name)).toContain('expectedRevision');
+    expect(getEntityMetadata(MediaConfigCommitChange).properties.map(property => property.name)).toContain(
+      'expectedRevision'
+    );
   });
 
   it('keeps commit and change defaults safe for a new local working-tree record', () => {
@@ -68,12 +69,12 @@ describe('media configuration domain contracts', () => {
     const metadata = getEntityMetadata(MediaSyncRecord);
     expect(metadata.namespace).toBe('public');
     expect(metadata.tableName).toBe('media_sync_records');
-    expect(metadata.properties.map(property => property.name)).toEqual(expect.arrayContaining([
-      'workspaceId', 'sourceId', 'kind', 'payload', 'revision', 'deleted', 'baseRevision'
-    ]));
-    expect(metadata.indexes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'workspace_kind_source', unique: true })
-    ]));
+    expect(metadata.properties.map(property => property.name)).toEqual(
+      expect.arrayContaining(['workspaceId', 'sourceId', 'kind', 'payload', 'revision', 'deleted', 'baseRevision'])
+    );
+    expect(metadata.indexes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'workspace_kind_source', unique: true })])
+    );
   });
 
   it('allows only the declared commit state transitions', () => {
@@ -135,16 +136,18 @@ describe('media configuration domain contracts', () => {
       message: '新增模板',
       operationId: '10000000-0000-4000-8000-000000000005',
       status: 'prepared' as const,
-      changes: [{
-        id: '10000000-0000-4000-8000-000000000006',
-        sequence: 1,
-        entity: 'MediaPromptTemplate',
-        entityId: '10000000-0000-4000-8000-000000000007',
-        operation: 'insert' as const,
-        patch: { value: { key: 'fixture' } },
-        inversePatch: null,
-        expectedRevision: 0
-      }]
+      changes: [
+        {
+          id: '10000000-0000-4000-8000-000000000006',
+          sequence: 1,
+          entity: 'MediaPromptTemplate',
+          entityId: '10000000-0000-4000-8000-000000000007',
+          operation: 'insert' as const,
+          patch: { value: { key: 'fixture' } },
+          inversePatch: null,
+          expectedRevision: 0
+        }
+      ]
     };
     const envelope = await createMediaConfigCommitEnvelope(input);
     expect(envelope.commit.contentFingerprint).toMatch(/^[a-f0-9]{64}$/);
@@ -187,24 +190,28 @@ describe('media configuration domain contracts', () => {
         expectedRevision: 1
       }
     ];
-    expect(() => assertValidMediaConfigCommit({
-      ...invalid,
-      id: '10000000-0000-4000-8000-000000000001',
-      workspaceId: '10000000-0000-4000-8000-000000000002',
-      authorId: '10000000-0000-4000-8000-000000000004',
-      message: '有效提交',
-      operationId: '10000000-0000-4000-8000-000000000005',
-      changes: duplicateSequence
-    })).toThrow('序号');
-    expect(() => assertValidMediaConfigCommit({
-      ...invalid,
-      id: '10000000-0000-4000-8000-000000000001',
-      workspaceId: '10000000-0000-4000-8000-000000000002',
-      authorId: '10000000-0000-4000-8000-000000000004',
-      message: '空提交',
-      operationId: '10000000-0000-4000-8000-000000000005',
-      changes: []
-    })).toThrow('变更');
+    expect(() =>
+      assertValidMediaConfigCommit({
+        ...invalid,
+        id: '10000000-0000-4000-8000-000000000001',
+        workspaceId: '10000000-0000-4000-8000-000000000002',
+        authorId: '10000000-0000-4000-8000-000000000004',
+        message: '有效提交',
+        operationId: '10000000-0000-4000-8000-000000000005',
+        changes: duplicateSequence
+      })
+    ).toThrow('序号');
+    expect(() =>
+      assertValidMediaConfigCommit({
+        ...invalid,
+        id: '10000000-0000-4000-8000-000000000001',
+        workspaceId: '10000000-0000-4000-8000-000000000002',
+        authorId: '10000000-0000-4000-8000-000000000004',
+        message: '空提交',
+        operationId: '10000000-0000-4000-8000-000000000005',
+        changes: []
+      })
+    ).toThrow('变更');
   });
 
   it('rejects invalid commit metadata and change fields before projection', () => {
@@ -232,12 +239,20 @@ describe('media configuration domain contracts', () => {
     });
 
     expect(() => assertValidMediaConfigCommit(commit({ branchId: '' }))).toThrow('提交内容');
-    expect(() => assertValidMediaConfigCommit(commit({ status: 'unknown' as MediaConfigCommitInput['status'] }))).toThrow('状态');
+    expect(() =>
+      assertValidMediaConfigCommit(commit({ status: 'unknown' as MediaConfigCommitInput['status'] }))
+    ).toThrow('状态');
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, id: 'invalid' }] }))).toThrow('序号');
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, sequence: 0 }] }))).toThrow('序号');
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, entity: '' }] }))).toThrow('变更');
-    expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, operation: 'replace' as MediaConfigCommitChangeInput['operation'] }] }))).toThrow('变更');
-    expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, expectedRevision: -1 }] }))).toThrow('预期修订号');
+    expect(() =>
+      assertValidMediaConfigCommit(
+        commit({ changes: [{ ...change, operation: 'replace' as MediaConfigCommitChangeInput['operation'] }] })
+      )
+    ).toThrow('变更');
+    expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, expectedRevision: -1 }] }))).toThrow(
+      '预期修订号'
+    );
     expect(() => assertValidMediaConfigCommit(commit({ changes: [{ ...change, sequence: 2 }] }))).toThrow('连续');
   });
 
@@ -278,16 +293,18 @@ describe('media configuration domain contracts', () => {
       message: '状态无关',
       operationId: '10000000-0000-4000-8000-000000000005',
       status: 'prepared',
-      changes: [{
-        id: '10000000-0000-4000-8000-000000000006',
-        sequence: 1,
-        entity: 'MediaPromptTemplate',
-        entityId: '10000000-0000-4000-8000-000000000007',
-        operation: 'insert',
-        patch: { value: { key: 'hero' } },
-        inversePatch: null,
-        expectedRevision: null
-      }]
+      changes: [
+        {
+          id: '10000000-0000-4000-8000-000000000006',
+          sequence: 1,
+          entity: 'MediaPromptTemplate',
+          entityId: '10000000-0000-4000-8000-000000000007',
+          operation: 'insert',
+          patch: { value: { key: 'hero' } },
+          inversePatch: null,
+          expectedRevision: null
+        }
+      ]
     };
     const prepared = await createMediaConfigCommitFingerprint(input);
     for (const status of ['synced', 'validated', 'applied', 'released', 'rejected'] as const) {
@@ -298,30 +315,40 @@ describe('media configuration domain contracts', () => {
 
   it('accepts the UUID v7 identities that RxDB and the working tree generate', () => {
     const v7 = '01a1e4ab-2eb4-74ac-8053-9f223ad0bf50';
-    expect(() => assertValidMediaConfigCommit({
-      id: v7,
-      workspaceId: '10000000-0000-4000-8000-000000000002',
-      branchId: 'main',
-      parentIds: ['01a1e4ab-2eb4-74ac-8053-9f223ad0bf51'],
-      authorId: '10000000-0000-4000-8000-000000000004',
-      message: 'v7 提交',
-      operationId: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf52',
-      status: 'prepared',
-      changes: [{
-        id: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf53',
-        sequence: 1,
-        entity: 'MediaPromptTemplate',
-        entityId: v7,
-        operation: 'insert',
-        patch: { value: { key: 'hero' } },
-        inversePatch: null,
-        expectedRevision: null
-      }]
-    })).not.toThrow();
+    expect(() =>
+      assertValidMediaConfigCommit({
+        id: v7,
+        workspaceId: '10000000-0000-4000-8000-000000000002',
+        branchId: 'main',
+        parentIds: ['01a1e4ab-2eb4-74ac-8053-9f223ad0bf51'],
+        authorId: '10000000-0000-4000-8000-000000000004',
+        message: 'v7 提交',
+        operationId: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf52',
+        status: 'prepared',
+        changes: [
+          {
+            id: '01a1e4ab-2eb4-74ac-8053-9f223ad0bf53',
+            sequence: 1,
+            entity: 'MediaPromptTemplate',
+            entityId: v7,
+            operation: 'insert',
+            patch: { value: { key: 'hero' } },
+            inversePatch: null,
+            expectedRevision: null
+          }
+        ]
+      })
+    ).not.toThrow();
   });
 
   it('keeps every synced entity addressable by workspace, including the change rows', () => {
-    for (const EntityType of [MediaPromptTemplate, MediaProviderPolicy, MediaPlatformModel, MediaConfigCommit, MediaConfigCommitChange]) {
+    for (const EntityType of [
+      MediaPromptTemplate,
+      MediaProviderPolicy,
+      MediaPlatformModel,
+      MediaConfigCommit,
+      MediaConfigCommitChange
+    ]) {
       expect(getEntityMetadata(EntityType).properties.map(property => property.name)).toContain('workspaceId');
     }
   });

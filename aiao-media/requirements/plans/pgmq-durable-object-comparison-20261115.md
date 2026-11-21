@@ -12,16 +12,16 @@ PGMQ 可以作为持久化调度层的候选方案，但当前证据只足以进
 
 ## 能力对比
 
-| 能力 | PGMQ PoC | 当前 Durable Object | 评估 |
-| --- | --- | --- | --- |
-| 持久消息、visibility timeout、重试 | 由 Supabase PGMQ 提供 | 由 SQLite 状态和 alarm 自行实现 | PGMQ 更直接，但需要验证区域延迟和运维指标 |
-| 任务正文与敏感数据隔离 | 消息只带 taskId、taskRevision、kind | 任务正文留在 DO 私有存储 | 两者都可以满足，PGMQ 不能承载正文 |
-| provider 成功后 ack 前崩溃 | 依赖结果唯一键、task CAS、积分结算 guard | 现有任务协议已覆盖 | PGMQ 需要保留整套业务幂等协议 |
-| 用户刷新、重新打开和结果领取 | 需要额外查询任务状态与结果 Storage | 已由 Durable Object 任务协议提供 | 当前 DO 风险更低 |
-| 长任务和租约续期 | 需要 Node consumer、visibility 延长和看门狗 | alarm + SQLite 已有恢复语义 | PGMQ 尚未完成真实 180 秒压测 |
-| 多消费者与积压 | 原生适合队列消费 | 需要按任务实例串行化 | PGMQ 有优势，但要防止同一 task 并发更新 |
-| 双区域一致性 | 每个 Supabase 项目独立运行，需要分别演练 | 现有双区域任务链路已有验证基础 | PGMQ 尚无真实双区域数据 |
-| 回退 | 队列入口可以停用，保留 DO | 当前生产路径不变 | PGMQ PoC 失败时可回退 |
+| 能力                               | PGMQ PoC                                    | 当前 Durable Object              | 评估                                      |
+| ---------------------------------- | ------------------------------------------- | -------------------------------- | ----------------------------------------- |
+| 持久消息、visibility timeout、重试 | 由 Supabase PGMQ 提供                       | 由 SQLite 状态和 alarm 自行实现  | PGMQ 更直接，但需要验证区域延迟和运维指标 |
+| 任务正文与敏感数据隔离             | 消息只带 taskId、taskRevision、kind         | 任务正文留在 DO 私有存储         | 两者都可以满足，PGMQ 不能承载正文         |
+| provider 成功后 ack 前崩溃         | 依赖结果唯一键、task CAS、积分结算 guard    | 现有任务协议已覆盖               | PGMQ 需要保留整套业务幂等协议             |
+| 用户刷新、重新打开和结果领取       | 需要额外查询任务状态与结果 Storage          | 已由 Durable Object 任务协议提供 | 当前 DO 风险更低                          |
+| 长任务和租约续期                   | 需要 Node consumer、visibility 延长和看门狗 | alarm + SQLite 已有恢复语义      | PGMQ 尚未完成真实 180 秒压测              |
+| 多消费者与积压                     | 原生适合队列消费                            | 需要按任务实例串行化             | PGMQ 有优势，但要防止同一 task 并发更新   |
+| 双区域一致性                       | 每个 Supabase 项目独立运行，需要分别演练    | 现有双区域任务链路已有验证基础   | PGMQ 尚无真实双区域数据                   |
+| 回退                               | 队列入口可以停用，保留 DO                   | 当前生产路径不变                 | PGMQ PoC 失败时可回退                     |
 
 ## 已完成的本地证据
 

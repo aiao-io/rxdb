@@ -35,7 +35,9 @@ async function readTextFiles(directory) {
 export async function scanAdminSupabaseBoundary({ bundleRoot = defaultBundleRoot, sourceRoot = adminSourceRoot } = {}) {
   const sourceFiles = await readTextFiles(sourceRoot);
   const sourceCallers = sourceFiles.filter(({ text }) => /\/api\/admin\/login/.test(text));
-  const bundleExists = await stat(bundleRoot).then(value => value.isDirectory()).catch(() => false);
+  const bundleExists = await stat(bundleRoot)
+    .then(value => value.isDirectory())
+    .catch(() => false);
   const bundleFiles = bundleExists ? await readTextFiles(bundleRoot) : [];
   const bundleFindings = [];
   for (const { path, text } of bundleFiles) {
@@ -43,7 +45,8 @@ export async function scanAdminSupabaseBoundary({ bundleRoot = defaultBundleRoot
       bundleFindings.push({ file: relative(repositoryRoot, path), name: 'legacy admin login caller' });
     }
     for (const forbidden of forbiddenBundlePatterns) {
-      if (forbidden.pattern.test(text)) bundleFindings.push({ file: relative(repositoryRoot, path), name: forbidden.name });
+      if (forbidden.pattern.test(text))
+        bundleFindings.push({ file: relative(repositoryRoot, path), name: forbidden.name });
     }
   }
   return {
@@ -55,7 +58,8 @@ export async function scanAdminSupabaseBoundary({ bundleRoot = defaultBundleRoot
 
 export async function assertAdminSupabaseBoundary(options = {}) {
   const report = await scanAdminSupabaseBoundary(options);
-  if (!report.bundleExists) throw new Error(`Admin production bundle 不存在：${options.bundleRoot ?? defaultBundleRoot}`);
+  if (!report.bundleExists)
+    throw new Error(`Admin production bundle 不存在：${options.bundleRoot ?? defaultBundleRoot}`);
   if (report.sourceCallers.length) throw new Error(`Admin 源码仍调用旧登录代理：${report.sourceCallers.join(', ')}`);
   if (report.bundleFindings.length) {
     const details = report.bundleFindings.map(finding => `${finding.file}: ${finding.name}`).join('\n');
@@ -66,5 +70,7 @@ export async function assertAdminSupabaseBoundary(options = {}) {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   const report = await assertAdminSupabaseBoundary();
-  console.log(`Admin Supabase boundary passed: ${report.bundleFindings.length} findings, ${report.sourceCallers.length} legacy callers.`);
+  console.log(
+    `Admin Supabase boundary passed: ${report.bundleFindings.length} findings, ${report.sourceCallers.length} legacy callers.`
+  );
 }

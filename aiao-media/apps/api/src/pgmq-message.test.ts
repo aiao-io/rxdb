@@ -24,5 +24,6 @@ test('PGMQ message rejects secrets, prompt bodies, invalid revisions and extra f
     { taskId: '10000000-0000-4000-8000-000000000001', taskRevision: 1, kind: 'video-generation' },
     { taskId: '10000000-0000-4000-8000-000000000001', taskRevision: 1, kind: 'image-generation', prompt: 'secret' },
     { taskId: 'not-a-uuid', taskRevision: 1, kind: 'image-generation' }
-  ]) assert.throws(() => parsePgmqGenerationMessage(value));
+  ])
+    assert.throws(() => parsePgmqGenerationMessage(value));
 });

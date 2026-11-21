@@ -46,15 +46,15 @@ pnpm nx dev aiao-model-design
 
 它依次检查固定端口，拉起本地 Supabase（Postgres、GoTrue 与 Kong 网关）和本地自托管 Trigger.dev（官方 webapp、worker supervisor、Postgres、Redis、Electric、ClickHouse、MinIO、registry、s2-lite 与 Docker socket proxy；首次运行分别在 `infra/supabase/.env`、`infra/trigger/.env` 生成随机凭据），准备测试账号与本地 Worker 配置，再启动 Worker 与支持热更新的 Web，并按 `apps/api/.dev.vars` 的配置接入智能体。全部就绪后自动打开[开发导航](http://127.0.0.1:8788/)：服务入口、测试账号、AI 接入状态与数据库连接都在这一页，可一键复制。不想自动打开浏览器时用 `AIAO_DEV_OPEN=false pnpm nx dev aiao-model-design`。
 
-| 服务                     | 地址                                          |
-| ------------------------ | --------------------------------------------- |
-| 设计器（Web）            | <http://localhost:4400/model-designer/canvas> |
-| 登录页                   | <http://localhost:4400/login.html>            |
-| 开发导航 / Worker        | <http://127.0.0.1:8788/>                      |
-| Supabase Auth（经 Kong） | <http://127.0.0.1:54421/auth/v1>              |
-| PostgreSQL               | `127.0.0.1:54422`，用户 `postgres`            |
+| 服务                           | 地址                                             |
+| ------------------------------ | ------------------------------------------------ |
+| 设计器（Web）                  | <http://localhost:4400/model-designer/canvas>    |
+| 登录页                         | <http://localhost:4400/login.html>               |
+| 开发导航 / Worker              | <http://127.0.0.1:8788/>                         |
+| Supabase Auth（经 Kong）       | <http://127.0.0.1:54421/auth/v1>                 |
+| PostgreSQL                     | `127.0.0.1:54422`，用户 `postgres`               |
 | Trigger.dev 自托管控制台 / API | <http://127.0.0.1:8030>，健康检查 `/healthcheck` |
-| Trigger.dev MinIO          | <http://127.0.0.1:9001>                       |
+| Trigger.dev MinIO              | <http://127.0.0.1:9001>                          |
 
 | 测试账号             | 密码             | 用途                   |
 | -------------------- | ---------------- | ---------------------- |
@@ -69,11 +69,11 @@ pnpm nx dev aiao-model-design
 
 `nx dev` 按 `apps/api/.dev.vars` 里的 `TRIGGER_API_URL` 与 `TRIGGER_SECRET_KEY` 决定怎么接智能体：
 
-| `.dev.vars` 的配置                                   | 接入方式                                                    |
-| ---------------------------------------------------- | ----------------------------------------------------------- |
-| 两项都没填                                           | 不启用，设计器的 AI 入口禁用并说明原因                      |
+| `.dev.vars` 的配置                                   | 接入方式                                                                          |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 两项都没填                                           | 不启用，设计器的 AI 入口禁用并说明原因                                            |
 | 开发环境密钥（`tr_dev_` / `tr_dev_sk_`）             | 先启动本地 Trigger.dev，再启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
-| 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                    |
+| 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                                          |
 
 只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要项目 ref 与 `.env.agent`；本地 Trigger 栈已经有项目配置时，项目 ref 会从 `infra/trigger/.env` 自动读取。`nx dev` 会自动执行 `trigger-up` 和 `trigger dev start`；默认使用 `self-hosted` profile，若本机已有其他 Trigger CLI 登录 profile，可设置 `TRIGGER_PROFILE=default`（或对应 profile 名）复用它。
 

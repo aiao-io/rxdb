@@ -1208,13 +1208,22 @@ test('后台账户：身份下拉、名称保存、直接刷新和重新登录�
   await expect(page.getByRole('status').filter({ hasText: '名称已保存。' })).toBeVisible();
   await expect(page.getByRole('button', { name: '账户菜单：新管理员 👩‍💻' })).toBeVisible();
   await page.getByRole('button', { name: '账户菜单：新管理员 👩‍💻' }).click();
-  const accessibility = await new AxeBuilder({ page }).include('app-admin-account').include('app-admin-account-menu').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+  const accessibility = await new AxeBuilder({ page })
+    .include('app-admin-account')
+    .include('app-admin-account-menu')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+    .analyze();
   expect(accessibility.violations).toEqual([]);
   await testInfo.attach('账户详情与身份菜单', { body: await page.screenshot(), contentType: 'image/png' });
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileTrigger = page.getByRole('button', { name: '账户菜单：新管理员 👩‍💻' });
-  await expect.poll(async () => { const box = await mobileTrigger.boundingBox(); return box ? box.x + box.width : Infinity; }).toBeLessThanOrEqual(390);
+  await expect
+    .poll(async () => {
+      const box = await mobileTrigger.boundingBox();
+      return box ? box.x + box.width : Infinity;
+    })
+    .toBeLessThanOrEqual(390);
   await mobileTrigger.click();
   const dropdown = await page.getByRole('menu', { name: '账户操作' }).boundingBox();
   expect(dropdown?.x).toBeGreaterThanOrEqual(0);
@@ -1227,7 +1236,13 @@ test('后台账户：身份下拉、名称保存、直接刷新和重新登录�
   await page.getByRole('button', { name: '账户菜单：新管理员 👩‍💻' }).click();
   await page.getByRole('menuitem', { name: '退出登录' }).click();
   await expect(page.getByRole('heading', { name: '管理员登录' })).toBeVisible();
-  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('aiao-media-admin-') && key.includes('session')))).toEqual([]);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Object.keys(localStorage).filter(key => key.startsWith('aiao-media-admin-') && key.includes('session'))
+      )
+    )
+    .toEqual([]);
   await page.getByLabel('邮箱', { exact: true }).fill(user.email);
   await page.getByLabel('密码', { exact: true }).fill(user.password);
   await page.getByRole('button', { name: '登录后台', exact: true }).click();
@@ -1272,7 +1287,9 @@ test('后台账户：保存响应丢失不虚报成功，重新读取确认真�
 });
 
 test('后台账户：资料读取失败保留会话，撤权后资料保存被服务端拒绝', async ({ page }) => {
-  await page.route('**/rest/v1/rpc/media_admin_profile', route => route.fulfill({ status: 503, json: { error: 'unavailable' } }));
+  await page.route('**/rest/v1/rpc/media_admin_profile', route =>
+    route.fulfill({ status: 503, json: { error: 'unavailable' } })
+  );
   const user = await signInAdmin(page, 'account');
   await expect(page.getByRole('heading', { name: '账户详情' })).toBeVisible();
   await expect(page.getByRole('button', { name: `账户菜单：${user.email}` })).toBeVisible();
@@ -1311,14 +1328,20 @@ async function openTemplates(page: Page) {
   const config = page.locator('app-admin-config-model');
   await expect(config.locator('rxdb-entity-list')).toBeVisible({ timeout: 30000 });
   await expect(
-    config.locator('app-admin-config-state').getByRole('status').filter({ hasText: /同步状态：(已与工作区同步|最近提交已应用)/ })
+    config
+      .locator('app-admin-config-state')
+      .getByRole('status')
+      .filter({ hasText: /同步状态：(已与工作区同步|最近提交已应用)/ })
   ).toBeVisible({ timeout: 30000 });
   return config;
 }
 
 /** 经模型驱动的新增弹窗创建一条模板；系统字段由页面固定带入。 */
 async function createTemplate(page: Page, values: { key: string; title: string; prompt: string }) {
-  await page.locator('app-admin-config-model rxdb-entity-list').getByRole('button', { name: '+ 新增', exact: true }).click();
+  await page
+    .locator('app-admin-config-model rxdb-entity-list')
+    .getByRole('button', { name: '+ 新增', exact: true })
+    .click();
   const dialog = page.getByRole('dialog');
   // 模型表单把标签放在字段组上，输入框本身没有关联标签（rxdb-model-angular 的可访问性缺口），按字段组定位。
   const field = (label: string) => dialog.getByRole('group', { name: `${label} *`, exact: true }).getByRole('textbox');
@@ -1401,8 +1424,16 @@ test('后台配置：提交后应用，状态与服务端修订号可见且不�
   await expect(detail).toContainText('确认回滚「新增首页模板」');
   await detail.getByRole('button', { name: '确认回滚', exact: true }).click();
   await expect
-    .poll(async () =>
-      (await admin.from('media_config_records').select('revision,deleted').eq('workspace_id', workspaceId).eq('entity_id', template.id).single()).data
+    .poll(
+      async () =>
+        (
+          await admin
+            .from('media_config_records')
+            .select('revision,deleted')
+            .eq('workspace_id', workspaceId)
+            .eq('entity_id', template.id)
+            .single()
+        ).data
     )
     .toEqual({ revision: 2, deleted: true });
 });
@@ -1434,6 +1465,11 @@ test('后台配置：其他设备已应用同一配置时，应用被服务端�
   await expect(detail.getByRole('alert')).toContainText('冲突：数据版本已变化');
   await expect(config.locator('app-admin-config-state').getByRole('alert')).toHaveCount(0);
   await expect(detail).toContainText('已同步，待应用');
-  const record = await admin.from('media_config_records').select('payload').eq('workspace_id', workspaceId).eq('entity_id', rows[0]!.id).single();
+  const record = await admin
+    .from('media_config_records')
+    .select('payload')
+    .eq('workspace_id', workspaceId)
+    .eq('entity_id', rows[0]!.id)
+    .single();
   expect(record.data?.payload).toEqual({ key, title: '另一台设备的版本', prompt: '先应用' });
 });

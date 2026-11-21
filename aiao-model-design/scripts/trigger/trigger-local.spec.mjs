@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { parseEnv } from 'node:util';
 import { test } from 'node:test';
+import { parseEnv } from 'node:util';
 import { composeArgs, initializeEnvironment, localEnvironment, migrateLocalEndpoints } from './trigger-local.mjs';
 
 async function directory(t) {
@@ -116,7 +116,12 @@ test('本地 Trigger.dev 环境要求全部自托管凭据', async t => {
   const env = await localEnvironment(file);
   assert.equal(env.APP_ORIGIN, 'http://127.0.0.1:8030');
   const missing = Object.fromEntries(Object.entries(env).filter(([key]) => key !== 'CLICKHOUSE_PASSWORD'));
-  await writeFile(file, `${Object.entries(missing).map(([key, value]) => `${key}=${value}`).join('\n')}\n`);
+  await writeFile(
+    file,
+    `${Object.entries(missing)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n')}\n`
+  );
   await assert.rejects(localEnvironment(file), /CLICKHOUSE_PASSWORD/);
 });
 

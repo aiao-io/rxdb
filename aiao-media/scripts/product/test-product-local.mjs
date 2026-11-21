@@ -191,7 +191,10 @@ try {
     (await anonymous.from('media_public_content').select().eq('kind', 'template').eq('key', templateId)).data.length,
     0
   );
-  assert.equal((await a.client.from('media_content_drafts').select()).error.code, '42501');
+  const drafts = await a.client.from('media_content_drafts').select().eq('kind', 'template').eq('key', templateId);
+  assert.equal(drafts.error, null);
+  assert.equal(drafts.data.length, 1);
+  assert.equal(drafts.data[0].revision, 1);
   assert.equal(
     (
       await adminRequest(a, `content/template/${templateId}`, 'PUT', {

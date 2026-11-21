@@ -26,7 +26,11 @@ export function normalizeDisplayName(value: string): string {
 }
 
 /** 资料缺失时仍提供可识别的身份入口。 */
-export function accountLabel(name: string | null | undefined, email: string | null | undefined, userId: string): string {
+export function accountLabel(
+  name: string | null | undefined,
+  email: string | null | undefined,
+  userId: string
+): string {
   return name || email || userId.slice(0, 8);
 }
 
@@ -36,11 +40,17 @@ export function parseAdminProfile(value: unknown, userId: string): AdminProfile 
   const row = value as Record<string, unknown>;
   if (
     row['userId'] !== userId ||
-    !(row['displayName'] === null || (typeof row['displayName'] === 'string' && normalizeDisplayName(row['displayName']) === row['displayName'])) ||
-    !Number.isSafeInteger(row['revision']) || (row['revision'] as number) < 0 ||
+    !(
+      row['displayName'] === null ||
+      (typeof row['displayName'] === 'string' && normalizeDisplayName(row['displayName']) === row['displayName'])
+    ) ||
+    !Number.isSafeInteger(row['revision']) ||
+    (row['revision'] as number) < 0 ||
     !(row['updatedAt'] === null || validDate(row['updatedAt'])) ||
-    typeof row['adminEnabled'] !== 'boolean' || typeof row['accessDisabled'] !== 'boolean'
-  ) throw new Error('账户资料回执无效。');
+    typeof row['adminEnabled'] !== 'boolean' ||
+    typeof row['accessDisabled'] !== 'boolean'
+  )
+    throw new Error('账户资料回执无效。');
   return {
     userId,
     displayName: row['displayName'] as string | null,
@@ -56,10 +66,18 @@ export function parseAccountIdentity(value: unknown, userId: string): AdminAccou
   if (!value || typeof value !== 'object') throw new Error('账号身份回执无效。');
   const row = value as Record<string, unknown>;
   if (
-    row['userId'] !== userId || !(row['email'] === null || typeof row['email'] === 'string') ||
-    !validDate(row['createdAt']) || !(row['lastSignInAt'] === null || validDate(row['lastSignInAt']))
-  ) throw new Error('账号身份回执无效。');
-  return { userId, email: row['email'] as string | null, createdAt: row['createdAt'] as string, lastSignInAt: row['lastSignInAt'] as string | null };
+    row['userId'] !== userId ||
+    !(row['email'] === null || typeof row['email'] === 'string') ||
+    !validDate(row['createdAt']) ||
+    !(row['lastSignInAt'] === null || validDate(row['lastSignInAt']))
+  )
+    throw new Error('账号身份回执无效。');
+  return {
+    userId,
+    email: row['email'] as string | null,
+    createdAt: row['createdAt'] as string,
+    lastSignInAt: row['lastSignInAt'] as string | null
+  };
 }
 
 function validDate(value: unknown): value is string {

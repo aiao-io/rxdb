@@ -26,7 +26,9 @@ export class AdminAccount {
       const client = this.client();
       const userId = this.user().id;
       void this.loadIdentity(client, userId);
-      onCleanup(() => { this.identityGeneration++; });
+      onCleanup(() => {
+        this.identityGeneration++;
+      });
     });
   }
 

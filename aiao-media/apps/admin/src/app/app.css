@@ -86,9 +86,17 @@ button:disabled {
   color: #8c5b2f;
 }
 
-.user-app-icon { display: none; }
+.user-app-icon {
+  display: none;
+}
 @media (max-width: 640px) {
-  .admin-account { gap: 4px; }
-  .user-app-label { display: none; }
-  .user-app-icon { display: inline; }
+  .admin-account {
+    gap: 4px;
+  }
+  .user-app-label {
+    display: none;
+  }
+  .user-app-icon {
+    display: inline;
+  }
 }

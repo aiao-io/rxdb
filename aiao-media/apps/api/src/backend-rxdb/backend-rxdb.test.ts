@@ -1,7 +1,9 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
 import type { RxDB } from '@aiao/rxdb';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { BackendRxdbLifecycle } from './backend-rxdb-lifecycle.ts';
+import type { BackendRxdbSession } from './backend-rxdb.ts';
 import {
   BackendRxdbAuthProvider,
   assertBackendRxdbAuth,
@@ -9,13 +11,14 @@ import {
   createBackendRxdbSyncConfig,
   createBackendSupabaseHeaders
 } from './backend-rxdb.ts';
-import { BackendRxdbLifecycle } from './backend-rxdb-lifecycle.ts';
-import type { BackendRxdbSession } from './backend-rxdb.ts';
 
 const token = (role: string) => `header.${Buffer.from(JSON.stringify({ role })).toString('base64url')}.signature`;
 const auth = (expiresAt = Date.now() + 60000) => ({ accessToken: token('authenticated'), userId: 'owner', expiresAt });
 
-function fakeSession(sync: () => Promise<{ branches: string; sync: string }>): { session: BackendRxdbSession; calls: { close: number } } {
+function fakeSession(sync: () => Promise<{ branches: string; sync: string }>): {
+  session: BackendRxdbSession;
+  calls: { close: number };
+} {
   const calls = { close: 0 };
   const session = {
     db: {
@@ -41,10 +44,10 @@ test('backend RxDB rejects service role tokens as sync identities', () => {
 });
 
 test('backend RxDB headers carry only the ordinary JWT and publishable key', () => {
-  assert.deepEqual(
-    createBackendSupabaseHeaders('publishable-key', 'ordinary-token'),
-    { apikey: 'publishable-key', authorization: 'Bearer ordinary-token' }
-  );
+  assert.deepEqual(createBackendSupabaseHeaders('publishable-key', 'ordinary-token'), {
+    apikey: 'publishable-key',
+    authorization: 'Bearer ordinary-token'
+  });
 });
 
 test('backend workspace sync uses a fixed entity filter and never changes the ordinary JWT boundary', () => {
@@ -60,27 +63,45 @@ test('backend workspace sync uses a fixed entity filter and never changes the or
     combinator: 'and',
     rules: [{ field: 'workspaceId', operator: '=', value: workspaceId }]
   });
-  assert.equal(createBackendSupabaseHeaders('publishable-key', 'ordinary-token').authorization, 'Bearer ordinary-token');
+  assert.equal(
+    createBackendSupabaseHeaders('publishable-key', 'ordinary-token').authorization,
+    'Bearer ordinary-token'
+  );
 });
 
 test('backend workspace IDs reject values that cannot be used as an RLS filter', () => {
-  assert.equal(assertBackendWorkspaceId(' 10000000-0000-4000-8000-000000000001 '), '10000000-0000-4000-8000-000000000001');
+  assert.equal(
+    assertBackendWorkspaceId(' 10000000-0000-4000-8000-000000000001 '),
+    '10000000-0000-4000-8000-000000000001'
+  );
   assert.throws(() => assertBackendWorkspaceId('other-workspace'), /workspaceId must be a UUID/);
 });
 
 test('backend RxDB rejects expired or incomplete identities before opening a database', () => {
-  assert.throws(() => assertBackendRxdbAuth({ accessToken: '', userId: 'owner', expiresAt: Date.now() + 60000 }), /access token/);
-  assert.throws(() => assertBackendRxdbAuth({ accessToken: token('authenticated'), userId: '', expiresAt: Date.now() + 60000 }), /user ID/);
-  assert.throws(() => assertBackendRxdbAuth({ accessToken: token('authenticated'), userId: 'owner', expiresAt: Date.now() - 1 }), /expired/);
+  assert.throws(
+    () => assertBackendRxdbAuth({ accessToken: '', userId: 'owner', expiresAt: Date.now() + 60000 }),
+    /access token/
+  );
+  assert.throws(
+    () => assertBackendRxdbAuth({ accessToken: token('authenticated'), userId: '', expiresAt: Date.now() + 60000 }),
+    /user ID/
+  );
+  assert.throws(
+    () => assertBackendRxdbAuth({ accessToken: token('authenticated'), userId: 'owner', expiresAt: Date.now() - 1 }),
+    /expired/
+  );
 });
 
 test('backend auth provider refreshes an expired ordinary JWT and still rejects service role', async () => {
-  const provider = new BackendRxdbAuthProvider(
-    auth(Date.now() - 1),
-    async () => ({ ...auth(), accessToken: token('authenticated-refreshed') })
-  );
+  const provider = new BackendRxdbAuthProvider(auth(Date.now() - 1), async () => ({
+    ...auth(),
+    accessToken: token('authenticated-refreshed')
+  }));
   assert.equal((await provider.valid()).accessToken, token('authenticated-refreshed'));
-  assert.throws(() => provider.set({ accessToken: token('service_role'), userId: 'owner', expiresAt: Date.now() + 60000 }), /service role/);
+  assert.throws(
+    () => provider.set({ accessToken: token('service_role'), userId: 'owner', expiresAt: Date.now() + 60000 }),
+    /service role/
+  );
 });
 
 test('backend RxDB lifecycle deduplicates sync, supports pause/resume and closes once', async () => {

@@ -16,7 +16,10 @@ export interface AdminApiDependencies {
 }
 
 export class AdminApiError extends Error {
-  constructor(readonly status: 400 | 401 | 402 | 403 | 404 | 405 | 409 | 502, message: string) {
+  constructor(
+    readonly status: 400 | 401 | 402 | 403 | 404 | 405 | 409 | 502,
+    message: string
+  ) {
     super(message);
   }
 }

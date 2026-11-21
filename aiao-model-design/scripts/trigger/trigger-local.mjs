@@ -1,8 +1,8 @@
 // 本地开发用的 Trigger.dev 自托管实例。
 // 用法：node scripts/trigger/trigger-local.mjs <up|down|status|logs|logs-follow>
 import { spawn } from 'node:child_process';
-import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -130,8 +130,11 @@ export async function migrateLocalEndpoints(envFile = files.envFile) {
   const env = parseEnv(source);
   const host = hostAddress();
   const values = {};
-  const hasInternalObjectStoreEndpoint = [env.OBJECT_STORE_BASE_URL, env.OBJECT_STORE_MINIO_BASE_URL].includes('http://minio:9000');
-  const hasInternalS2Endpoint = !env.REALTIME_STREAMS_S2_ENDPOINT || env.REALTIME_STREAMS_S2_ENDPOINT === 'http://s2/v1';
+  const hasInternalObjectStoreEndpoint = [env.OBJECT_STORE_BASE_URL, env.OBJECT_STORE_MINIO_BASE_URL].includes(
+    'http://minio:9000'
+  );
+  const hasInternalS2Endpoint =
+    !env.REALTIME_STREAMS_S2_ENDPOINT || env.REALTIME_STREAMS_S2_ENDPOINT === 'http://s2/v1';
 
   if (hasInternalObjectStoreEndpoint) {
     values.OBJECT_STORE_BASE_URL = `http://${host}:9000`;
@@ -214,7 +217,10 @@ async function registryAuth(env) {
     ['run', '--rm', '-i', 'httpd:2', 'htpasswd', '-Bni', env.DOCKER_REGISTRY_USERNAME],
     { input: `${env.DOCKER_REGISTRY_PASSWORD}\n` }
   );
-  const line = output.trim().split('\n').find(value => value.startsWith(`${env.DOCKER_REGISTRY_USERNAME}:`));
+  const line = output
+    .trim()
+    .split('\n')
+    .find(value => value.startsWith(`${env.DOCKER_REGISTRY_USERNAME}:`));
   if (!line) throw new Error('无法生成本地 Trigger.dev registry 的认证文件。');
   await writeFile(files.registryAuthFile, `${line}\n`, { mode: 0o600 });
   await chmod(files.registryAuthFile, 0o600);
@@ -262,7 +268,9 @@ export async function up() {
   await migrateLocalEndpoints();
   const env = await localEnvironment();
   await registryAuth(env);
-  console.log(state === 'created' ? '已生成本地 Trigger.dev 凭据：infra/trigger/.env' : '沿用已有的本地 Trigger.dev 凭据。');
+  console.log(
+    state === 'created' ? '已生成本地 Trigger.dev 凭据：infra/trigger/.env' : '沿用已有的本地 Trigger.dev 凭据。'
+  );
   await compose(['up', '-d', ...TRIGGER_SERVICES]);
   await waitForHealth();
   console.log(`本地 Trigger.dev 已就绪：${env.API_ORIGIN} · 健康检查 ${env.API_ORIGIN}/healthcheck`);

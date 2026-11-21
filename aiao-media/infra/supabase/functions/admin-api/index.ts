@@ -13,7 +13,10 @@ interface SupabaseErrorBody {
 }
 
 class SupabaseCallError extends AdminApiError {
-  constructor(status: number, readonly code: string) {
+  constructor(
+    status: number,
+    readonly code: string
+  ) {
     super(
       status === 400 ? 400
       : status === 401 ? 401
@@ -46,7 +49,8 @@ function environment(): EdgeEnvironment {
 function validUrl(value: string | undefined): string {
   if (!value) throw new Error('Supabase is not configured');
   const url = new URL(value);
-  if (url.pathname !== '/' || url.username || url.password || url.search || url.hash) throw new Error('Invalid Supabase URL');
+  if (url.pathname !== '/' || url.username || url.password || url.search || url.hash)
+    throw new Error('Invalid Supabase URL');
   return url.origin;
 }
 
@@ -55,7 +59,11 @@ function validKey(value: string | undefined): string {
   return value;
 }
 
-async function call<T>(env: EdgeEnvironment, path: string, options: { token: string; method?: string; payload?: unknown }): Promise<T> {
+async function call<T>(
+  env: EdgeEnvironment,
+  path: string,
+  options: { token: string; method?: string; payload?: unknown }
+): Promise<T> {
   const origin = validUrl(env.SUPABASE_URL);
   const key = validKey(env.SUPABASE_SERVICE_ROLE_KEY);
   const response = await fetch(`${origin}${path}`, {
@@ -75,7 +83,10 @@ async function call<T>(env: EdgeEnvironment, path: string, options: { token: str
   const body = response.status === 204 ? null : await response.json<SupabaseErrorBody & T>();
   if (!response.ok) {
     const error = body as SupabaseErrorBody;
-    throw new SupabaseCallError(response.status, typeof error.code === 'string' ? error.code : error.error_code ?? 'unknown');
+    throw new SupabaseCallError(
+      response.status,
+      typeof error.code === 'string' ? error.code : (error.error_code ?? 'unknown')
+    );
   }
   return body as T;
 }
@@ -138,12 +149,17 @@ async function users(env: EdgeEnvironment, path: string, actorId: string): Promi
     throw new SupabaseCallError(400, 'invalid_pagination');
   }
   const search = url.searchParams.get('search')?.trim();
-  const result = search
-    ? await call<{ users: Array<Record<string, unknown>>; total?: number }>(env, '/rest/v1/rpc/media_admin_search_users', {
-        token: validKey(env.SUPABASE_SERVICE_ROLE_KEY),
-        method: 'POST',
-        payload: { p_actor: actorId, p_query: search, p_page: page, p_limit: perPage }
-      })
+  const result =
+    search ?
+      await call<{ users: Array<Record<string, unknown>>; total?: number }>(
+        env,
+        '/rest/v1/rpc/media_admin_search_users',
+        {
+          token: validKey(env.SUPABASE_SERVICE_ROLE_KEY),
+          method: 'POST',
+          payload: { p_actor: actorId, p_query: search, p_page: page, p_limit: perPage }
+        }
+      )
     : await call<{ users: Array<Record<string, unknown>>; total?: number }>(
         env,
         `/auth/v1/admin/users?page=${page}&per_page=${perPage}`,
@@ -151,8 +167,9 @@ async function users(env: EdgeEnvironment, path: string, actorId: string): Promi
       );
   const rows = Array.isArray(result.users) ? result.users : [];
   const ids = rows.map(user => user['id']).filter((id): id is string => typeof id === 'string' && uuidPattern.test(id));
-  const states = ids.length
-    ? await call<Array<Record<string, unknown>>>(
+  const states =
+    ids.length ?
+      await call<Array<Record<string, unknown>>>(
         env,
         `/rest/v1/media_accounts?select=user_id,disabled,revision,auth_state&user_id=in.(${ids.join(',')})`,
         { token: validKey(env.SUPABASE_SERVICE_ROLE_KEY) }
@@ -178,7 +195,11 @@ async function users(env: EdgeEnvironment, path: string, actorId: string): Promi
   };
 }
 
-async function content(env: EdgeEnvironment, input: AdminApiRequest & { actorId: string }, route: string): Promise<unknown> {
+async function content(
+  env: EdgeEnvironment,
+  input: AdminApiRequest & { actorId: string },
+  route: string
+): Promise<unknown> {
   const match = /^content\/(template|provider-policy)\/([a-z][a-z0-9-]{0,59})(?:\/(publish|withdraw))?$/.exec(route);
   if (!match) throw new SupabaseCallError(404, 'content_not_found');
   const [, kind, key, operation] = match;
@@ -218,7 +239,10 @@ async function content(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
   });
   return {
     content: result,
-    state: action === 'publish' ? 'active' : action === 'withdraw' ? 'withdrawn' : 'draft'
+    state:
+      action === 'publish' ? 'active'
+      : action === 'withdraw' ? 'withdrawn'
+      : 'draft'
   };
 }
 
@@ -232,14 +256,18 @@ function reportQuery(url: URL): URLSearchParams {
   for (const [name, column] of Object.entries(names)) {
     const value = url.searchParams.get(name);
     if (!value) continue;
-    const valid = name === 'userId' ? uuidPattern.test(value)
+    const valid =
+      name === 'userId' ? uuidPattern.test(value)
       : name === 'model' ? /^[a-zA-Z0-9._:-]{1,128}$/.test(value)
       : name === 'channel' ? ['direct', 'proxy'].includes(value)
       : ['processing', 'completed', 'failed', 'needs_review'].includes(value);
     if (!valid) throw new SupabaseCallError(400, 'invalid_report_filter');
     query.set(column, `eq.${value}`);
   }
-  for (const [name, operator] of [['from', 'gte'], ['to', 'lt']] as const) {
+  for (const [name, operator] of [
+    ['from', 'gte'],
+    ['to', 'lt']
+  ] as const) {
     const value = url.searchParams.get(name);
     if (!value) continue;
     if (!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value)))
@@ -268,19 +296,24 @@ async function reports(env: EdgeEnvironment, path: string, usage: boolean): Prom
   if (!usage) return { reports: await call(env, `/rest/v1/media_task_reports?${query}`, { token }), limit: 100 };
   query.delete('offset');
   const sources: Record<string, UsageBucket> = Object.fromEntries(
-    ['application', 'provider', 'verified'].map(source => [source, {
-      records: 0,
-      requestCount: null,
-      providerUnits: null,
-      verifiedCost: null,
-      currencies: {},
-      unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
-    }])
+    ['application', 'provider', 'verified'].map(source => [
+      source,
+      {
+        records: 0,
+        requestCount: null,
+        providerUnits: null,
+        verifiedCost: null,
+        currencies: {},
+        unknown: { requestCount: 0, providerUnits: 0, verifiedCost: 0 }
+      }
+    ])
   );
   let offset = 0;
   while (true) {
     query.set('offset', String(offset));
-    const rows = await call<Array<{ payload: Record<string, unknown> }>>(env, `/rest/v1/media_task_reports?${query}`, { token });
+    const rows = await call<Array<{ payload: Record<string, unknown> }>>(env, `/rest/v1/media_task_reports?${query}`, {
+      token
+    });
     for (const row of rows) {
       const payload = row.payload;
       const source = payload['source'];
@@ -310,7 +343,11 @@ async function reports(env: EdgeEnvironment, path: string, usage: boolean): Prom
   return { sources, partial: false, receivedRecords: offset };
 }
 
-async function credits(env: EdgeEnvironment, input: AdminApiRequest & { actorId: string }, target: string): Promise<unknown> {
+async function credits(
+  env: EdgeEnvironment,
+  input: AdminApiRequest & { actorId: string },
+  target: string
+): Promise<unknown> {
   if (!uuidPattern.test(target)) throw new SupabaseCallError(404, 'user_not_found');
   const token = validKey(env.SUPABASE_SERVICE_ROLE_KEY);
   if (input.method === 'GET') {
@@ -324,14 +361,23 @@ async function credits(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
         `/rest/v1/media_credit_accounts?select=balance,reserved&user_id=eq.${target}&limit=1`,
         { token }
       ),
-      call(env, `/rest/v1/media_credit_ledger?select=id,user_id,actor_id,delta,balance_after,reason,source,request_id,created_at&user_id=eq.${target}&order=id.desc&limit=50${cursor}`, { token })
+      call(
+        env,
+        `/rest/v1/media_credit_ledger?select=id,user_id,actor_id,delta,balance_after,reason,source,request_id,created_at&user_id=eq.${target}&order=id.desc&limit=50${cursor}`,
+        { token }
+      )
     ]);
     const account = accounts[0] ?? { balance: 0, reserved: 0 };
     return { account: { ...account, available: account.balance - account.reserved }, entries };
   }
   if (input.method !== 'POST') throw new SupabaseCallError(405, 'invalid_credit_method');
   const value = objectPayload(input.payload, 'invalid_credit_payload');
-  if (!Number.isSafeInteger(value['delta']) || Math.abs(value['delta'] as number) > 1000000 || typeof value['reason'] !== 'string' || value['reason'].trim().length === 0)
+  if (
+    !Number.isSafeInteger(value['delta']) ||
+    Math.abs(value['delta'] as number) > 1000000 ||
+    typeof value['reason'] !== 'string' ||
+    value['reason'].trim().length === 0
+  )
     throw new SupabaseCallError(400, 'invalid_credit_payload');
   return {
     entry: await call(env, '/rest/v1/rpc/media_admin_adjust_credits', {
@@ -358,24 +404,37 @@ async function execute(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
   if (input.method === 'GET' && route === 'session') return { actorId: input.actorId };
   if (input.method === 'GET' && route === 'account') {
     const user = await call<{ id: string; email?: string; created_at: string; last_sign_in_at?: string }>(
-      env, `/auth/v1/admin/users/${input.actorId}`, { token: validKey(env.SUPABASE_SERVICE_ROLE_KEY) }
+      env,
+      `/auth/v1/admin/users/${input.actorId}`,
+      { token: validKey(env.SUPABASE_SERVICE_ROLE_KEY) }
     );
-    return { userId: user.id, email: user.email ?? null, createdAt: user.created_at, lastSignInAt: user.last_sign_in_at ?? null };
+    return {
+      userId: user.id,
+      email: user.email ?? null,
+      createdAt: user.created_at,
+      lastSignInAt: user.last_sign_in_at ?? null
+    };
   }
   if (input.method === 'GET' && route === 'users') return users(env, input.path, input.actorId);
   if (route === 'content' && input.method === 'GET') {
     const token = validKey(env.SUPABASE_SERVICE_ROLE_KEY);
     const [drafts, published] = await Promise.all([
-      call(env, '/rest/v1/media_content_drafts?select=kind,key,payload,revision,updated_at&order=kind,key&limit=200', { token }),
+      call(env, '/rest/v1/media_content_drafts?select=kind,key,payload,revision,updated_at&order=kind,key&limit=200', {
+        token
+      }),
       call(env, '/rest/v1/media_public_content?select=kind,key,revision&order=kind,key&limit=200', { token })
     ]);
     return { drafts, published };
   }
   if (route === 'audit' && input.method === 'GET') {
     return {
-      entries: await call(env, '/rest/v1/media_admin_audit?select=id,actor_id,action,target_id,before_data,after_data,created_at&order=id.desc&limit=100', {
-        token: validKey(env.SUPABASE_SERVICE_ROLE_KEY)
-      })
+      entries: await call(
+        env,
+        '/rest/v1/media_admin_audit?select=id,actor_id,action,target_id,before_data,after_data,created_at&order=id.desc&limit=100',
+        {
+          token: validKey(env.SUPABASE_SERVICE_ROLE_KEY)
+        }
+      )
     };
   }
   if (route.startsWith('content/')) return content(env, input, route);
@@ -391,7 +450,13 @@ async function execute(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
     const result = await call<Record<string, unknown>>(env, '/rest/v1/rpc/media_admin_set_account', {
       token: validKey(env.SUPABASE_SERVICE_ROLE_KEY),
       method: 'POST',
-      payload: { p_actor: input.actorId, p_target: account, p_revision: revision, p_disabled: value['disabled'], p_request_id: operationId }
+      payload: {
+        p_actor: input.actorId,
+        p_target: account,
+        p_revision: revision,
+        p_disabled: value['disabled'],
+        p_request_id: operationId
+      }
     });
     try {
       await call(env, `/auth/v1/admin/users/${account}`, {
@@ -406,7 +471,10 @@ async function execute(env: EdgeEnvironment, input: AdminApiRequest & { actorId:
       });
       return { account: { ...result, auth_state: applied ? 'applied' : 'pending' } };
     } catch {
-      return { account: { ...result, auth_state: 'pending' }, message: '产品访问状态已提交；账号登录限制尚待确认，可由管理员重试。' };
+      return {
+        account: { ...result, auth_state: 'pending' },
+        message: '产品访问状态已提交；账号登录限制尚待确认，可由管理员重试。'
+      };
     }
   }
   const creditTarget = /^users\/([0-9a-f-]+)\/credits$/.exec(route)?.[1];

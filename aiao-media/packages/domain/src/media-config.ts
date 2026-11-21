@@ -91,7 +91,14 @@ export class MediaPlatformModel extends MediaConfigEntity {
   enabled = true;
 }
 
-export const MEDIA_CONFIG_COMMIT_STATUSES = ['prepared', 'synced', 'validated', 'applied', 'released', 'rejected'] as const;
+export const MEDIA_CONFIG_COMMIT_STATUSES = [
+  'prepared',
+  'synced',
+  'validated',
+  'applied',
+  'released',
+  'rejected'
+] as const;
 export type MediaConfigCommitStatus = (typeof MEDIA_CONFIG_COMMIT_STATUSES)[number];
 export const MEDIA_CONFIG_COMMIT_OPERATIONS = ['insert', 'update', 'delete'] as const;
 export type MediaConfigCommitOperation = (typeof MEDIA_CONFIG_COMMIT_OPERATIONS)[number];
@@ -256,7 +263,9 @@ export async function createMediaConfigChangeFingerprint(change: MediaConfigComm
 }
 
 /** 生成包含提交与变更指纹的完整领域 envelope。 */
-export async function createMediaConfigCommitEnvelope(input: MediaConfigCommitInput): Promise<MediaConfigCommitEnvelope> {
+export async function createMediaConfigCommitEnvelope(
+  input: MediaConfigCommitInput
+): Promise<MediaConfigCommitEnvelope> {
   assertValidMediaConfigCommit(input);
   const changes = await Promise.all(
     input.changes.map(async change => ({
@@ -284,11 +293,19 @@ export function assertValidMediaConfigCommit(input: MediaConfigCommitInput): voi
   if (input.changes.length === 0) throw new Error('提交必须包含变更。');
   const seenSequences = new Set<number>();
   for (const change of input.changes) {
-    if (!isUuid(change.id) || !Number.isSafeInteger(change.sequence) || change.sequence < 1 || seenSequences.has(change.sequence))
+    if (
+      !isUuid(change.id) ||
+      !Number.isSafeInteger(change.sequence) ||
+      change.sequence < 1 ||
+      seenSequences.has(change.sequence)
+    )
       throw new Error('提交变更序号无效。');
     if (!change.entity || !change.entityId || !MEDIA_CONFIG_COMMIT_OPERATIONS.includes(change.operation))
       throw new Error('提交变更无效。');
-    if (change.expectedRevision !== null && (!Number.isSafeInteger(change.expectedRevision) || change.expectedRevision < 0))
+    if (
+      change.expectedRevision !== null &&
+      (!Number.isSafeInteger(change.expectedRevision) || change.expectedRevision < 0)
+    )
       throw new Error('预期修订号无效。');
     seenSequences.add(change.sequence);
   }

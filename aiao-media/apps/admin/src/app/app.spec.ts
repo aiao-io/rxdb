@@ -12,7 +12,14 @@ const ready = {
   initialized: true,
   auth: { url: 'https://project.supabase.co', anonKey: 'sb_publishable_fixture' }
 };
-const supabaseUser = { id: 'owner', email: 'owner@example.test', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '2026-01-01T00:00:00Z' };
+const supabaseUser = {
+  id: 'owner',
+  email: 'owner@example.test',
+  app_metadata: {},
+  user_metadata: {},
+  aud: 'authenticated',
+  created_at: '2026-01-01T00:00:00Z'
+};
 const supabaseSession = {
   access_token: 'fixture-session',
   refresh_token: 'fixture-refresh-token',
@@ -139,7 +146,12 @@ describe('App', () => {
     Object.assign(fixture.componentInstance.form, { email: 'owner@example.test', password: 'password' });
     vi.mocked(fetch).mockImplementation(async input => {
       const url = String(input);
-      if (url.includes('/auth/v1/token')) return Response.json({ ...supabaseSession, access_token: session.accessToken, user: { ...supabaseUser, id: session.user.id } });
+      if (url.includes('/auth/v1/token'))
+        return Response.json({
+          ...supabaseSession,
+          access_token: session.accessToken,
+          user: { ...supabaseUser, id: session.user.id }
+        });
       if (url.includes('/auth/v1/user')) return Response.json({ ...supabaseUser, id: session.user.id });
       if (url.includes('/rest/v1/rpc/media_admin_authorized')) return Response.json(true);
       if (url.includes('/functions/v1/admin-api')) return Response.json({ actorId: session.user.id });
@@ -148,7 +160,10 @@ describe('App', () => {
     await fixture.componentInstance.login();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!)).toMatchObject({ accessToken: session.accessToken, user: { id: session.user.id } });
+    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!)).toMatchObject({
+      accessToken: session.accessToken,
+      user: { id: session.user.id }
+    });
     expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!).expiresAt).toBeGreaterThan(Date.now());
     expect(fixture.nativeElement.querySelector('.access-shell')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="admin-shell"]')).not.toBeNull();

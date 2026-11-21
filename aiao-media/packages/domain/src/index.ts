@@ -20,13 +20,13 @@ export interface ProviderInstance {
 }
 
 export {
+  MEDIA_CONFIG_COMMIT_OPERATIONS,
+  MEDIA_CONFIG_COMMIT_STATUSES,
   MediaConfigCommit,
   MediaConfigCommitChange,
   MediaPlatformModel,
   MediaPromptTemplate,
   MediaProviderPolicy,
-  MEDIA_CONFIG_COMMIT_OPERATIONS,
-  MEDIA_CONFIG_COMMIT_STATUSES,
   assertValidMediaConfigCommit,
   canTransitionMediaConfigCommit,
   createMediaConfigChangeFingerprint,
@@ -39,7 +39,7 @@ export {
   type MediaConfigCommitStatus
 } from './media-config.js';
 
-export { MediaSyncRecord, MEDIA_SYNC_RECORD_KINDS, type MediaSyncRecordKind } from './media-sync-record.js';
+export { MEDIA_SYNC_RECORD_KINDS, MediaSyncRecord, type MediaSyncRecordKind } from './media-sync-record.js';
 
 export {
   MEDIA_CONFIG_SYNC_ENTITIES,
