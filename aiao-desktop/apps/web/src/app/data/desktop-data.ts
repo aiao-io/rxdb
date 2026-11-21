@@ -51,6 +51,12 @@ export const seedMarkerKey = (domain: string): string => `seed:${domain}`;
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+const seedVersionOf = (value: unknown): number | undefined => {
+  if (value === null || typeof value !== 'object') return undefined;
+  const version = (value as { version?: unknown }).version;
+  return typeof version === 'number' && Number.isInteger(version) ? version : undefined;
+};
+
 /** 判定结果里不能由本构建打开的几种，转成界面用的原因。 */
 function problemOf(plan: SchemaPlan): DataProblem | null {
   switch (plan.kind) {
@@ -265,14 +271,25 @@ export class DesktopData {
     return this.tabs.exclusive(async () => {
       const adapter = await this.rxdb.connect(DESKTOP_ADAPTER);
       const key = seedMarkerKey(seed.domain);
-      const markers = await adapter.getRepository(SystemPreference).find({ where: keyIs(key), limit: 1 });
-      if (markers.length) return;
+      const preference = adapter.getRepository(SystemPreference);
+      const marker = (await preference.find({ where: keyIs(key), limit: 1 }))[0];
+      if (marker) {
+        const fromVersion = seedVersionOf(marker.value);
+        if (!seed.migrate || fromVersion === undefined || fromVersion >= seed.version) return;
+        await adapter.transaction(async executor => {
+          await seed.migrate!(executor, fromVersion);
+          await executor
+            .getRepository(SystemPreference)
+            .update(marker, { value: { version: seed.version, seededAt: Date.now() } });
+        });
+        return;
+      }
       await adapter.transaction(async executor => {
         await seed.run(executor, this.rxdb);
-        const marker = { version: seed.version, seededAt: Date.now() };
+        const markerValue = { version: seed.version, seededAt: Date.now() };
         await executor
           .getRepository(SystemPreference)
-          .create(this.rxdb.entityManager.instantiate(SystemPreference, { key, value: marker }));
+          .create(this.rxdb.entityManager.instantiate(SystemPreference, { key, value: markerValue }));
       });
     }, seedLock(seed.domain));
   }

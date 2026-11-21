@@ -21,7 +21,7 @@ import type { RawQueryResult } from '@aiao/rxdb';
  * 构建产物里最大的十位版本字面量是当前版本，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
  * **改这个常量是一次单向操作**：升过的库，没有降级保护的旧构建会直接打开，所以每次升版本都进发布说明。
  */
-export const DESKTOP_SCHEMA_VERSION = 2026111802;
+export const DESKTOP_SCHEMA_VERSION = 2026112101;
 
 /** 版本记录在系统偏好表里的键。 */
 export const SCHEMA_RECORD_KEY = 'schema:desktop';
@@ -105,6 +105,10 @@ export const SCHEMA_STEPS: readonly SchemaStep[] = [
   {
     version: 2026111802,
     summary: 'Notes 新增用户文件夹目录；旧库由 RxDB 补建空目录表，已有笔记和系统文件夹保持不变。'
+  },
+  {
+    version: 2026112101,
+    summary: '天气默认城市改为北京；旧库首次读取天气时只迁移仍是初始 Cupertino 的城市。'
   }
 ];
 

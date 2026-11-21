@@ -44,6 +44,7 @@ import {
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { DockState } from '../../services/dock-state';
 import { DockDragController } from '../../services/dock-drag';
 import { FileImport } from '../../services/file-import';
 import { FileOpener } from '../../services/file-opener';
@@ -81,6 +82,7 @@ const COLUMN_MAX_WIDTH = 420;
 const COLUMN_KEY_STEP = 16;
 const PREVIEW_WIDTH = 250;
 const SIDEBAR_INITIAL_WIDTH = 200;
+const TRASH_SIDEBAR_WIDTH = 162;
 const SIDEBAR_MIN_WIDTH = 132;
 const SIDEBAR_SNAP_DISTANCE = 24;
 const SIDEBAR_KEY_STEP = 16;
@@ -120,6 +122,7 @@ export class FinderApp implements FinderCommands {
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly dockDrag = inject(DockDragController);
+  private readonly dock = inject(DockState);
   private readonly injector = inject(Injector);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
@@ -146,6 +149,7 @@ export class FinderApp implements FinderCommands {
   private sidebarDrag: { pointerId: number; x: number; width: number } | null = null;
   private columnDrag: { pointerId: number; x: number; width: number } | null = null;
   private springFolderTimer: ReturnType<typeof setTimeout> | null = null;
+  private dropHandled = false;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -277,11 +281,14 @@ export class FinderApp implements FinderCommands {
   constructor() {
     const menus = inject(DesktopMenus);
     const start = this.win.options.path ?? HOME_PATH;
+    const initialSidebarWidth =
+      start.length === 1 && start[0] === 'Trash' ? TRASH_SIDEBAR_WIDTH : SIDEBAR_INITIAL_WIDTH;
+    this.sidebarSize.set(initialSidebarWidth);
+    this.sidebarRestoreWidth = initialSidebarWidth;
     this.path.set(start);
     this.history.set({ entries: [start], index: 0 });
     const initialSelection = this.win.options.select ?? null;
     this.setSelection(initialSelection ? [initialSelection] : []);
-    if (start.length === 1 && start[0] === 'Trash') this.view.set('list');
     this.win.setMenus(computed(() => menus.finder(this)));
     /* 窗口停在哪个目录，刷新后就恢复到哪个目录（窗口布局，ADESK-US-104）；选中项、视图属于内部状态，不记。 */
     effect(() => this.win.restoreOptions.set({ path: this.path() }));
@@ -359,16 +366,7 @@ export class FinderApp implements FinderCommands {
   }
 
   trashSelected(): void {
-    if (this.isTrash()) return;
-    const nodes = this.selectedNodes();
-    if (!nodes.length) return;
-    this.setSelection([]);
-    void nodes
-      .reduce(
-        (task, node) => task.then(() => (node.path ? this.fs.moveToTrash(node.path) : undefined)),
-        Promise.resolve()
-      )
-      .catch((error: unknown) => this.toast.show(describeDiskError(error)));
+    this.trashNodes(this.selectedNodes());
   }
 
   copySelected(): void {
@@ -820,6 +818,7 @@ export class FinderApp implements FinderCommands {
   }
 
   protected dragStarted(source: FsNode, column = -1): void {
+    this.dropHandled = false;
     if (column >= 0) {
       if (!this.isColumnSelected(column, source.name)) this.pickColumn(column, source.name);
       return;
@@ -830,10 +829,35 @@ export class FinderApp implements FinderCommands {
   protected dragEnded(event: CdkDragEnd<FsNode>): void {
     this.clearSpringFolder();
     const source = event.source.data;
-    const dir = this.desktopDropDirectory(event.dropPoint);
-    if (!source?.path || !dir) return;
+    const dropHandled = this.dropHandled;
+    this.dropHandled = false;
+    if (!source?.path || dropHandled) return;
+    const { x, y } = event.dropPoint;
+    const eventTarget = event.event.target instanceof Element ? event.event.target : null;
+    const dir = this.dropDirectoryAt(x, y, eventTarget);
+    console.error(
+      'finder drag end debug',
+      JSON.stringify({
+        source: source.name,
+        dropPoint: event.dropPoint,
+        dropHandled,
+        trash: this.dock.isTrashAt(x, y),
+        eventTarget: eventTarget?.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'] ?? null,
+        elements: document
+          .elementsFromPoint(x, y)
+          .slice(0, 8)
+          .map(element => `${element.tagName}.${String(element.className)}:${element.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'] ?? ''}`),
+        dir
+      })
+    );
+    if (this.dock.isTrashAt(x, y)) {
+      this.trashNodes(this.dragNodes(source));
+      return;
+    }
+    const targetDirectory = dir ?? this.desktopDropDirectory(event.dropPoint);
+    if (!targetDirectory) return;
     const copy = this.copyModifier(event.event);
-    void this.transferNodes(this.dragNodes(source), dir, copy).then(
+    void this.transferNodes(this.dragNodes(source), targetDirectory, copy).then(
       () => {
         if (!copy) this.setSelection([]);
       },
@@ -863,8 +887,9 @@ export class FinderApp implements FinderCommands {
   protected dropFile(event: CdkDragDrop<DiskPath | null, DiskPath | null, FsNode>): void {
     this.clearSpringFolder();
     const source = event.item.data;
-    const dir = this.dropDirectory(event) ?? event.container.data;
+    const dir = this.dropDirectory(event) ?? (event.isPointerOverContainer ? event.container.data : null);
     if (!source?.path || !dir) return;
+    this.dropHandled = true;
     const copy = this.copyModifier(event.event);
     void this.transferNodes(this.dragNodes(source), dir, copy).then(
       path => {
@@ -951,6 +976,17 @@ export class FinderApp implements FinderCommands {
       targets.push(await (copy ? this.fs.copyTo(node.path, dir) : this.fs.moveTo(node.path, dir)));
     }
     return targets;
+  }
+
+  private trashNodes(nodes: readonly FsNode[]): void {
+    if (this.isTrash() || !nodes.length) return;
+    this.setSelection([]);
+    void nodes
+      .reduce(
+        (task, node) => task.then(() => (node.path ? this.fs.moveToTrash(node.path) : undefined)),
+        Promise.resolve()
+      )
+      .catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 
   private copyModifier(event: MouseEvent | TouchEvent): boolean {

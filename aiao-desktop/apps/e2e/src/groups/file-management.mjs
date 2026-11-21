@@ -19,6 +19,8 @@ export const fileManagement = {
     'fileManagement.desktopFolderDrag',
     'fileManagement.desktopFileDragToFinderFolder',
     'fileManagement.desktopFolderDragToTrash',
+    'fileManagement.finderFileDragToTrash',
+    'fileManagement.finderFileDragToTrashWindow',
     'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
     'fileManagement.dropsOnSidebar',
@@ -43,6 +45,8 @@ export const fileManagement = {
     'fileManagement.columnActionsUseExactPath',
     'fileManagement.galleryActionsAndDuplicateShortcut',
     'fileManagement.openWithOpensSelectedFile',
+    'fileManagement.trashOpensInIconView',
+    'fileManagement.finderOpensAlongsideTrash',
     'fileManagement.trashOriginSurvivesReloadAndRename',
     'fileManagement.restoreKeepsCollidingFile',
     'fileManagement.missingOriginRequiresExplicitFolder',
@@ -66,6 +70,49 @@ export const fileManagement = {
       await page.mouse.down();
       await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 12 });
       await page.mouse.up();
+    };
+    const watchDesktopDrag = async id => {
+      await page.evaluate(id => {
+        const desktopSurface = document.querySelector('#desktop');
+        const node = [...(desktopSurface?.querySelectorAll('[data-id]') ?? [])].find(
+          candidate => candidate.getAttribute('data-id') === id
+        );
+        if (!desktopSurface || !node) throw new Error(`Cannot watch desktop drag ${id}`);
+        const states = [];
+        const record = () => {
+          if (!desktopSurface.contains(node)) {
+            states.push({ detached: true });
+            observer.disconnect();
+            return;
+          }
+          states.push({
+            moving: node.classList.contains('moving'),
+            opacity: getComputedStyle(node).opacity
+          });
+        };
+        const observer = new MutationObserver(record);
+        observer.observe(node, { attributes: true, attributeFilter: ['class', 'style'] });
+        observer.observe(desktopSurface, { childList: true, subtree: true });
+        globalThis.__desktopDragTrace = { node, observer, states };
+        record();
+      }, id);
+    };
+    const readDesktopDrag = async () =>
+      page.evaluate(() => {
+        const trace = globalThis.__desktopDragTrace;
+        if (!trace) throw new Error('Desktop drag trace was not started');
+        if (!trace.states.at(-1)?.detached && !document.documentElement.contains(trace.node)) {
+          trace.states.push({ detached: true });
+        }
+        trace.observer.disconnect();
+        delete globalThis.__desktopDragTrace;
+        return trace.states;
+      });
+    const assertNoDesktopFlash = trace => {
+      const movingStates = trace.filter(state => state.moving);
+      expect(movingStates.length).toBeGreaterThan(0);
+      expect(movingStates.every(state => state.opacity === '0')).toBe(true);
+      expect(trace.at(-1)?.detached).toBe(true);
     };
     const trashDockIcon = page.locator('#dock .di[data-app="trash"]');
     await desktop.drop({ files: payload('from-desktop.txt', Buffer.from(text)) }, { timeout: 5_000 });
@@ -100,9 +147,48 @@ export const fileManagement = {
     };
     const sourceFolder = await newDesktopFolder();
     const targetFolder = await newDesktopFolder();
+    await watchDesktopDrag(`file:${sourceFolder}`);
     await dragDesktopIcon(sourceFolder, desktop.locator(`[data-id="file:${targetFolder}"]`));
     await expect(desktop.locator(`[data-id="file:${sourceFolder}"]`)).toHaveCount(0);
+    assertNoDesktopFlash(await readDesktopDrag());
     result.desktopFolderDrag = true;
+    const lowerFolder = await newDesktopFolder();
+    const upperFolder = await newDesktopFolder();
+    await desktop.drop({ files: payload('desktop-to-lower-folder.txt', Buffer.from(text)) });
+    const lower = desktop.locator(`[data-id="file:${lowerFolder}"]`);
+    const lowerBox = await lower.boundingBox();
+    const file = desktop.locator('[data-id="file:desktop-to-lower-folder.txt"]');
+    const fileBox = await file.boundingBox();
+    if (!lowerBox || !fileBox) throw new Error('Cannot measure overlapping desktop folders');
+    await page.evaluate(
+      ({ upperId, lowerId }) => {
+        const lowerNode = document.querySelector(`[data-id="${lowerId}"]`);
+        const upperNode = document.querySelector(`[data-id="${upperId}"]`);
+        if (!lowerNode || !upperNode) throw new Error('Cannot find overlapping desktop folders');
+        const lowerBox = lowerNode.getBoundingClientRect();
+        upperNode.style.left = `${lowerBox.left + 20}px`;
+        upperNode.style.top = `${lowerBox.top + 20}px`;
+      },
+      { lowerId: `file:${lowerFolder}`, upperId: `file:${upperFolder}` }
+    );
+    const exposed = { x: lowerBox.x + 5, y: lowerBox.y + 5 };
+    await page.mouse.move(fileBox.x + fileBox.width / 2, fileBox.y + fileBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(exposed.x, exposed.y, { steps: 12 });
+    await expect.poll(() => lower.evaluate(node => node.classList.contains('drop-target'))).toBe(true);
+    const raisedZIndex = await lower.evaluate(node => getComputedStyle(node).zIndex);
+    expect(raisedZIndex).toBe('851');
+    await page.mouse.move(lowerBox.x + lowerBox.width / 2, lowerBox.y + lowerBox.height / 2);
+    await page.mouse.up();
+    await expect(file).toHaveCount(0);
+    await page.mouse.dblclick(exposed.x, exposed.y);
+    await expect(page.locator('.win.front[data-app="finder"]:not(.closing) [data-title]')).toHaveText(lowerFolder);
+    await expect(
+      page.locator(
+        `.win.front[data-app="finder"]:not(.closing) [role="option"][data-name="desktop-to-lower-folder.txt"]`
+      )
+    ).toBeVisible();
+    await helpers.closeAll();
     await desktop.locator(`[data-id="file:${targetFolder}"]`).dblclick();
     await expect(page.locator('.win.front[data-app="finder"]:not(.closing) [data-title]')).toHaveText(targetFolder);
     await expect(
@@ -110,6 +196,7 @@ export const fileManagement = {
         `.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`
       )
     ).toBeVisible();
+    await watchDesktopDrag('file:desktop-to-finder.txt');
     await dragDesktopIcon(
       'desktop-to-finder.txt',
       page.locator(
@@ -117,6 +204,7 @@ export const fileManagement = {
       )
     );
     await expect(desktop.locator('[data-id="file:desktop-to-finder.txt"]')).toHaveCount(0);
+    assertNoDesktopFlash(await readDesktopDrag());
     await page
       .locator(`.win.front[data-app="finder"]:not(.closing) [role="option"][data-name=${JSON.stringify(sourceFolder)}]`)
       .dblclick();
@@ -194,6 +282,10 @@ export const fileManagement = {
       await expect(finder().locator('[data-title]')).toHaveText('Trash');
     };
     await openTrash();
+    result.trashOpensInIconView =
+      (await finder().getByRole('button', { name: 'Icons', exact: true }).getAttribute('aria-pressed')) === 'true';
+    await expect(finder().locator('[data-trash-header]')).toBeVisible();
+    await expect(finder().getByRole('button', { name: 'Empty Trash', exact: true })).toHaveText('Empty');
     await expect(item('from-desktop.txt')).toBeVisible();
     await place('Desktop');
     await expect(finder().getByRole('button', { name: /^Import/ })).toHaveCount(0);
@@ -304,8 +396,16 @@ export const fileManagement = {
       payload('empty', Buffer.alloc(0)),
       payload('bytes.bin', binary)
     ]);
-    await finder().locator('[data-more]').click();
-    await page.getByRole('menuitem', { name: /New Folder/ }).click();
+    await importFiles([payload('finder-dock-trash.txt', Buffer.from(text))]);
+    await item('finder-dock-trash.txt').dragTo(trashDockIcon);
+    await expect(item('finder-dock-trash.txt')).toHaveCount(0);
+    await openTrash();
+    await expect(item('finder-dock-trash.txt')).toBeVisible();
+    result.finderFileDragToTrash = true;
+    const trashFinderId = await finder().getAttribute('id');
+    await finder().locator('[data-w="close"]').click();
+    await expect(page.locator(`#${trashFinderId}`)).toHaveCount(0);
+    await page.keyboard.press('Meta+Shift+n');
     await place('Desktop');
     await menu('nested', 'Duplicate');
     await item('nested copy').dblclick();
@@ -315,6 +415,83 @@ export const fileManagement = {
     await expect(finder().getByRole('option')).toHaveCount(0);
     result.folderCopyKeepsNestedAndEmptyEntries = nestedBytes && (await finder().getByRole('option').count()) === 0;
 
+    await place('Desktop');
+    await page.keyboard.press('Meta+n');
+    await place('Desktop');
+    await item('nested').dblclick();
+    await importFiles([payload('finder-window-trash.txt', Buffer.from(text))]);
+    const sourceFinderId = await finder().getAttribute('id');
+    const sourceFinder = page.locator(`#${sourceFinderId}`);
+    const sourceItem = sourceFinder.locator('[data-name="finder-window-trash.txt"]');
+    const sourceBoxBeforeMove = await sourceFinder.boundingBox();
+    const sourceTitleBox = await sourceFinder.locator('[data-title]').boundingBox();
+    if (!sourceBoxBeforeMove || !sourceTitleBox) throw new Error('Source Finder window is not measurable');
+    await page.mouse.move(
+      sourceTitleBox.x + sourceTitleBox.width / 2,
+      sourceTitleBox.y + sourceTitleBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      sourceTitleBox.x + sourceTitleBox.width / 2 - 220,
+      sourceTitleBox.y + sourceTitleBox.height / 2,
+      { steps: 8 }
+    );
+    await page.mouse.up();
+    await openTrash();
+    const trashFinder = finder();
+    const trashTitleBox = await trashFinder.locator('[data-title]').boundingBox();
+    if (!trashTitleBox) throw new Error('Trash Finder title is not measurable');
+    await page.mouse.move(
+      trashTitleBox.x + trashTitleBox.width / 2,
+      trashTitleBox.y + trashTitleBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      trashTitleBox.x + trashTitleBox.width / 2 + 200,
+      trashTitleBox.y + trashTitleBox.height / 2,
+      { steps: 8 }
+    );
+    await page.mouse.up();
+    const sourceBoxAfterMove = await sourceFinder.boundingBox();
+    if (!sourceBoxAfterMove) throw new Error('Moved Source Finder window is not measurable');
+    await page.mouse.click(sourceBoxAfterMove.x + 80, sourceBoxAfterMove.y + 18);
+    const sourceBox = await sourceFinder.boundingBox();
+    const sourceItemBox = await sourceItem.boundingBox();
+    const movedTrashBox = await trashFinder.boundingBox();
+    const trashBodyBox = await trashFinder.locator('[data-body]').boundingBox();
+    if (!sourceBox || !sourceItemBox || !movedTrashBox || !trashBodyBox)
+      throw new Error('Finder drag targets are not measurable');
+    const sourcePoint = {
+      x: sourceItemBox.x + sourceItemBox.width / 2,
+      y: sourceItemBox.y + sourceItemBox.height / 2
+    };
+    const dropPoint = {
+      x: trashBodyBox.x + trashBodyBox.width / 2,
+      y: trashBodyBox.y + Math.min(80, trashBodyBox.height / 2)
+    };
+    await page.mouse.move(sourcePoint.x, sourcePoint.y);
+    await page.mouse.down();
+    await page.mouse.move(sourcePoint.x + 20, sourcePoint.y + 20, { steps: 4 });
+    console.error('finder trash dragging', await page.locator('.cdk-drag-dragging').count());
+    await page.mouse.move(dropPoint.x, dropPoint.y, { steps: 16 });
+    await page.mouse.up();
+    await expect(sourceItem).toHaveCount(0);
+    const trashPath = await surgery(session, db =>
+      db.shell.rows(
+        `WITH RECURSIVE chain(id, name, parent_id) AS (
+          SELECT "id", "name", "parentId" FROM "desktop$desktop_file" WHERE "name" = ?
+          UNION ALL
+          SELECT parent."id", parent."name", parent."parentId"
+          FROM "desktop$desktop_file" parent
+          JOIN chain child ON child."parent_id" = parent."id"
+        )
+        SELECT "name" FROM chain`,
+        ['finder-window-trash.txt']
+      )
+    );
+    if (!trashPath.some(([name]) => name === '.Trash')) throw new Error(`Unexpected Finder drop path: ${JSON.stringify(trashPath)}`);
+    await expect(trashFinder.locator('[data-name="finder-window-trash.txt"]')).toBeVisible();
+    result.finderFileDragToTrashWindow = true;
     await place('Desktop');
     await importFiles([
       payload('clipboard-source.txt', Buffer.from(text)),
@@ -535,6 +712,16 @@ export const fileManagement = {
     await expect(item('shortcut-trash.txt')).toHaveCount(0);
     await expect(finder().locator('[data-trash-status]')).toHaveText('0 items');
     result.emptyTrashRequiresConfirmation = remainsAfterCancel === 1;
+
+    await helpers.closeAll();
+    await page.locator('#dock .di[data-app="trash"]').click();
+    const trashWindow = await finder().getAttribute('id');
+    await expect(finder().locator('[data-title]')).toHaveText('Trash');
+    await page.locator('#dock .di[data-app="finder"]').click();
+    await expect(finder()).not.toHaveAttribute('id', trashWindow);
+    result.finderOpensAlongsideTrash =
+      (await page.locator('.win[data-app="finder"]:not(.closing)').count()) === 2 &&
+      (await finder().locator('[data-title]').textContent()) !== 'Trash';
 
     return { fileManagement: result };
   }

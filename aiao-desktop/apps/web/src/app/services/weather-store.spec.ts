@@ -34,11 +34,11 @@ const PAYLOAD = {
   }
 };
 
-const CUPERTINO: CityRow = { name: 'Cupertino', latitude: 37.323, longitude: -122.0322, position: 0 };
+const BEIJING: CityRow = { name: 'Beijing', latitude: 39.9042, longitude: 116.4074, position: 0 };
 
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
-async function setup(cities: CityRow[] = [CUPERTINO]) {
+async function setup(cities: CityRow[] = [BEIJING]) {
   const data = new FakeDesktopData();
   const rows = data.table<CityRow>(WeatherCity);
   rows.seed(cities);
@@ -78,7 +78,7 @@ describe('WeatherStore 离线读数', () => {
   });
 
   it('place 是主城市的名字，城市列表还没读到时为空串', async () => {
-    const { store } = await setup([{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, position: 1 }, CUPERTINO]);
+    const { store } = await setup([{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, position: 1 }, BEIJING]);
     expect(store.place()).toBe('Tokyo');
 
     const empty = await setup([]);
@@ -100,7 +100,7 @@ describe('WeatherStore 实况', () => {
     expect(payload).toEqual(PAYLOAD);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = String((fetchMock.mock.calls as unknown[][])[0][0]);
-    expect(url).toContain('https://api.open-meteo.com/v1/forecast?latitude=37.323&longitude=-122.0322');
+    expect(url).toContain('https://api.open-meteo.com/v1/forecast?latitude=39.9042&longitude=116.4074');
     expect(url).toContain('temperature_unit=fahrenheit');
 
     expect(store.now()).toEqual({ t: 72, code: 2, day: 1, hi: 80, lo: 55, live: true });

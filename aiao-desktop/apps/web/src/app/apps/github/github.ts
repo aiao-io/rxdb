@@ -26,6 +26,9 @@ const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 type GithubTab = 'changes' | 'history';
 
+const ASIDE_WIDTH_MIN = 240;
+const ASIDE_WIDTH_MAX = 560;
+
 function bytesOf(value: string): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(value) as Uint8Array<ArrayBuffer>;
 }
@@ -62,7 +65,6 @@ function projectIdForLocal(name: string): string {
   selector: 'app-github',
   imports: [TrafficLights],
   templateUrl: './github.html',
-  styleUrl: './github.scss',
   encapsulation: ViewEncapsulation.None,
   host: {
     style: 'display: contents'
@@ -122,6 +124,11 @@ export class GithubApp {
   protected readonly newBranchValue = signal('');
   protected readonly commitValue = signal('');
   protected readonly patValue = signal('');
+  protected readonly repositoryMenuOpen = signal(false);
+  protected readonly remoteActionsOpen = signal(false);
+  protected readonly asideWidth = signal(320);
+  protected readonly lastFetchedAt = signal<number | null>(null);
+  protected readonly selectedCommitOid = signal<string | null>(null);
 
   protected readonly selectedFile = computed(() => {
     const path = this.selectedPath();
@@ -135,6 +142,15 @@ export class GithubApp {
   protected readonly changedEntries = computed(() => this.status()?.entries ?? []);
   protected readonly currentBranch = computed(() => this.status()?.branch ?? this.activeRecord()?.branch ?? 'main');
   protected readonly canDiscardBranch = computed(() => this.errorCode() === 'dirty_workspace');
+  protected readonly lastFetchedLabel = computed(() => {
+    const timestamp = this.lastFetchedAt();
+    return timestamp === null ? 'Never' : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(timestamp);
+  });
+  protected readonly selectedCommit = computed(() => {
+    const selected = this.selectedCommitOid();
+    const commits = this.history();
+    return commits.find(commit => commit.oid === selected) ?? commits[0] ?? null;
+  });
 
   constructor() {
     this.storageListener = event => {
@@ -166,6 +182,65 @@ export class GithubApp {
     if (target === 'pat') this.patValue.set(value);
   }
 
+  protected toggleRepositoryMenu(): void {
+    this.repositoryMenuOpen.update(open => !open);
+  }
+
+  protected closeRepositoryMenu(): void {
+    this.repositoryMenuOpen.set(false);
+  }
+
+  protected toggleRemoteActions(): void {
+    this.remoteActionsOpen.update(open => !open);
+  }
+
+  protected async fetchOrigin(): Promise<void> {
+    if (this.activeRecord()?.owner) {
+      await this.pull();
+      this.lastFetchedAt.set(Date.now());
+      return;
+    }
+    await this.run(async () => {
+      await this.refresh();
+      this.lastFetchedAt.set(Date.now());
+      this.notice.set('Fetched local status');
+    });
+  }
+
+  protected startAsideResize(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = this.asideWidth();
+    const move = (moveEvent: PointerEvent): void => {
+      const next = startWidth + moveEvent.clientX - startX;
+      this.asideWidth.set(Math.max(ASIDE_WIDTH_MIN, Math.min(ASIDE_WIDTH_MAX, next)));
+    };
+    const stop = (): void => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', stop);
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', stop);
+  }
+
+  protected handleAsideResizeKey(event: KeyboardEvent): void {
+    const step = 16;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      this.asideWidth.update(width => Math.max(ASIDE_WIDTH_MIN, width - step));
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      this.asideWidth.update(width => Math.min(ASIDE_WIDTH_MAX, width + step));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      this.asideWidth.set(ASIDE_WIDTH_MIN);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      this.asideWidth.set(ASIDE_WIDTH_MAX);
+    }
+  }
+
   protected async searchRemoteRepositories(): Promise<void> {
     const query = this.searchValue().trim();
     if (!query) {
@@ -175,6 +250,7 @@ export class GithubApp {
     await this.run(async () => {
       const results = await this.api.searchRepositories(query, 20);
       this.searchResults.set(results);
+      this.repositoryMenuOpen.set(true);
       this.notice.set(results.length ? `Found ${results.length} repositories` : 'No repositories found');
     });
   }
@@ -185,6 +261,7 @@ export class GithubApp {
     this.repoValue.set(repository.fullName);
     this.branchValue.set('');
     this.searchResults.set([]);
+    this.repositoryMenuOpen.set(true);
     await this.loadRemoteBranches();
   }
 
@@ -243,6 +320,7 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       await this.refresh();
       this.notice.set(`Opened ${record.name}`);
+      this.repositoryMenuOpen.set(false);
     });
   }
 
@@ -272,6 +350,7 @@ export class GithubApp {
       this.newRepoValue.set('');
       this.applySnapshot(snapshot.files);
       await this.refresh();
+      this.repositoryMenuOpen.set(false);
     });
   }
 
@@ -295,6 +374,7 @@ export class GithubApp {
           this.applySnapshot(current.files);
           await this.refresh();
           this.notice.set(`Opened ${remote.record.name}`);
+          this.repositoryMenuOpen.set(false);
           return;
         }
         const localDirty = Boolean(currentStatus.entries.length) || this.editorDirty();
@@ -319,6 +399,7 @@ export class GithubApp {
       this.branchValue.set(remote.record.branch);
       this.applySnapshot(snapshot.files);
       await this.refresh();
+      this.repositoryMenuOpen.set(false);
     });
   }
 
@@ -348,6 +429,7 @@ export class GithubApp {
       this.activeRecord.set(record);
       this.applySnapshot(snapshot.files);
       await this.refresh();
+      this.repositoryMenuOpen.set(false);
     });
     element.value = '';
   }
@@ -652,6 +734,10 @@ export class GithubApp {
     return entry ? this.statusLabel(entry).slice(0, 1) : '';
   }
 
+  protected statusEntryForPath(path: string): GitStatusEntry | null {
+    return this.changedEntries().find(entry => entry.path === path) ?? null;
+  }
+
   protected statusLabel(entry: GitStatusEntry): string {
     if (entry.index === '?' && entry.worktree === '?') return 'Untracked';
     if (entry.index !== ' ') return 'Staged';
@@ -669,6 +755,10 @@ export class GithubApp {
   protected setTab(tab: GithubTab): void {
     this.tab.set(tab);
     this.diff.set(null);
+  }
+
+  protected selectCommit(oid: string): void {
+    this.selectedCommitOid.set(oid);
   }
 
   private async restoreLastRepository(): Promise<void> {

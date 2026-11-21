@@ -24,10 +24,12 @@ import { CALENDAR_ENTITIES } from '../services/calendar.entities';
  */
 export interface DataSeed {
   readonly domain: string;
-  /** 改了初始数据时递增；只影响新库，已有库不会被覆盖。 */
+  /** 改了初始数据时递增；已有库只有提供迁移函数时才会升级。 */
   readonly version: number;
   /** 只能经 `executor.getRepository(…)` 写入；实体用 `rxdb.entityManager.instantiate` 创建。 */
   run(executor: TransactionExecutor, rxdb: RxDB): Promise<void>;
+  /** 把已有种子从旧版本迁到当前版本；迁移与标记更新在同一个事务里提交。 */
+  migrate?(executor: TransactionExecutor, fromVersion: number): Promise<void>;
 }
 
 /**

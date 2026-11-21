@@ -259,6 +259,11 @@ export const githubApp = {
     result.launchpadOpens = await appears(github.locator('[data-github-app]'));
     result.emptyState =
       (await github.locator('[data-github-empty]').textContent())?.includes('GitHub workbench') === true;
+    await expect(github.locator('[data-github-system-icon]').first()).toHaveAttribute(
+      'src',
+      'icons/desktop/app-github.png'
+    );
+    await expect(github.locator('.gh-app')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
     await closeAll();
     await page.locator('#dock .di[data-app="finder"]').click();
@@ -280,6 +285,8 @@ export const githubApp = {
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
       (await githubWindow.locator('.gh-empty').count()) === 0;
+    await expect(githubWindow.locator('.gh-sidebar')).toBeVisible();
+    await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /320px/);
 
     const editor = githubWindow.locator('[data-github-editor]');
     await githubWindow.locator('[data-file-path="README.md"]').click();
@@ -343,7 +350,7 @@ export const githubApp = {
       mimeType: 'application/zip',
       buffer: archive
     });
-    await restoredGithub.locator('[data-project-id^="local-"]').nth(1).waitFor();
+    await restoredGithub.locator('[data-project-id^="local-"]').nth(1).waitFor({ state: 'attached' });
     result.archiveRoundTrip = (await restoredGithub.locator('[data-project-id^="local-"]').count()) >= 2;
 
     await closeAll();

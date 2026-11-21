@@ -86,7 +86,7 @@ export const DESKTOP_APP_MANIFESTS = {
   github: {
     id: 'github',
     name: 'GitHub',
-    icon: 'g-github',
+    icon: 'app-github',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.github',
     ...preinstalled,

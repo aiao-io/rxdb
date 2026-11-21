@@ -21,7 +21,7 @@ interface WeekRow {
   readonly right: string;
 }
 
-/** 天气：主城市（城市列表里排第一的，默认库比蒂诺）的预报（Open-Meteo）；没有成功响应时不显示数字。 */
+/** 天气：主城市（城市列表里排第一的，默认北京）的预报（Open-Meteo）；没有成功响应时不显示数字。 */
 @Component({
   selector: 'app-weather',
   imports: [Icon, TrafficLights, WeatherStatus],

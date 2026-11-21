@@ -62,6 +62,15 @@ describe('AppLauncher', () => {
     expect(wm.focus).toHaveBeenCalledExactlyOnceWith('w1');
   });
 
+  it('只有废纸篓 Finder 窗口时点击 Finder 会新开普通窗口', () => {
+    const { launcher, wm, dock } = setup();
+    wm.byApp.mockReturnValue([windowOf('w1', false, ['Trash', 'Projects'])]);
+    launcher.activate('finder');
+    expect(dock.bounce).toHaveBeenCalledExactlyOnceWith('finder');
+    expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder');
+    expect(wm.focus).not.toHaveBeenCalled();
+  });
+
   it('应用还没打开：Dock 弹跳并打开窗口', () => {
     const { launcher, wm, dock } = setup();
     launcher.activate('notes');

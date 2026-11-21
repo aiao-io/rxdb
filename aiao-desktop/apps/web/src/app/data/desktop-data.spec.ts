@@ -344,14 +344,45 @@ describe('DesktopData 数据域的初始数据：首次读取才种（D-18）', 
   it('已有种子标记（以前种过）就跳过：不重写，不开事务', async () => {
     const { data, db, adapter } = setup({
       probe: PROBES.current,
+      existing: [{ key: seedMarkerKey('notes'), value: { version: 1, seededAt: 1 } }]
+    });
+    await settled(data);
+    await data.ensureSeeded(Note);
+
+    expect(db.table(Note).rows).toEqual([]);
+    expect(adapter.transaction).not.toHaveBeenCalled();
+    expect(markers(db)).toEqual([seedMarkerKey('notes')]);
+  });
+
+  it('天气种子从旧版本升级时只替换仍是初始 Cupertino 的城市', async () => {
+    const { data, db, adapter } = setup({
+      probe: PROBES.current,
       existing: [{ key: seedMarkerKey('weather'), value: { version: 1, seededAt: 1 } }]
     });
+    db.table(WeatherCity).seed([{ name: 'Cupertino', latitude: 37.323, longitude: -122.0322, position: 0 }]);
     await settled(data);
     await data.ensureSeeded(WeatherCity);
 
-    expect(db.table(WeatherCity).rows).toEqual([]);
-    expect(adapter.transaction).not.toHaveBeenCalled();
-    expect(markers(db)).toEqual([seedMarkerKey('weather')]);
+    expect(db.table(WeatherCity).rows).toEqual([
+      expect.objectContaining({ name: 'Beijing', latitude: 39.9042, longitude: 116.4074, position: 0 })
+    ]);
+    expect(valueOf(db, seedMarkerKey('weather'))).toMatchObject({ version: 2 });
+    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('天气种子升级不覆盖用户已经修改过的城市', async () => {
+    const { data, db } = setup({
+      probe: PROBES.current,
+      existing: [{ key: seedMarkerKey('weather'), value: { version: 1, seededAt: 1 } }]
+    });
+    db.table(WeatherCity).seed([{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, position: 0 }]);
+    await settled(data);
+    await data.ensureSeeded(WeatherCity);
+
+    expect(db.table(WeatherCity).rows).toEqual([
+      expect.objectContaining({ name: 'Tokyo', latitude: 35.68, longitude: 139.69, position: 0 })
+    ]);
+    expect(valueOf(db, seedMarkerKey('weather'))).toMatchObject({ version: 2 });
   });
 
   it('没有数据域的实体（系统偏好、磁盘文件行、Freeform 笔迹）立即完成，什么也不写', async () => {

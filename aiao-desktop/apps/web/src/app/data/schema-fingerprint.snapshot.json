@@ -66,9 +66,9 @@
     },
     {
       "domain": "weather",
-      "version": 1
+      "version": 2
     }
   ],
   "entityFingerprint": "661fe3dfc7162badb5b1dc1a3410203005682865bfbfd87528ee6d152172279d",
-  "version": 2026111802
+  "version": 2026112101
 }

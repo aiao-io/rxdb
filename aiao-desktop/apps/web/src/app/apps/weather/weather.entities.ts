@@ -16,7 +16,7 @@ import { Entity, EntityBase, EntityType, PropertyType } from '@aiao/rxdb';
   ]
 })
 export class WeatherCity extends EntityBase {
-  /** 显示名，例如 `Cupertino`。 */
+  /** 显示名，例如 `Beijing`。 */
   declare name: string;
   /** 纬度（度）。 */
   declare latitude: number;

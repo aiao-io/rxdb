@@ -2,6 +2,7 @@
   class="wb finder-layout"
   #layout
   [class.sidebar-collapsed]="!sidebarVisible()"
+  [class.trash-window]="isTrash()"
   [inert]="fileOperation() !== null || emptyTrashPrompt()"
   [style.--finder-sidebar-width]="sidebarWidth() + 'px'"
 >
@@ -126,20 +127,6 @@
       <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
 
-      @if (isTrash()) {
-        <button
-          class="tbtn trash-empty"
-          [disabled]="!trashFull()"
-          (click)="emptyTrash()"
-          aria-label="Empty Trash"
-          data-trash-empty
-          tabindex="0"
-          type="button"
-        >
-          Empty Trash
-        </button>
-      }
-
       <div class="seg" aria-label="View" data-nodrag role="group">
         <button
           [attr.aria-pressed]="view() === 'icon'"
@@ -225,6 +212,22 @@
         />
       </div>
     </div>
+    @if (isTrash()) {
+      <div class="trash-content-header" data-trash-header>
+        <strong aria-hidden="true">Trash</strong>
+        <button
+          class="tbtn trash-empty"
+          [disabled]="!trashFull()"
+          (click)="emptyTrash()"
+          aria-label="Empty Trash"
+          data-trash-empty
+          tabindex="0"
+          type="button"
+        >
+          Empty
+        </button>
+      </div>
+    }
     <div
       class="fx-body"
       #body

@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
-import { DESKTOP, DiskPath } from '../disk/disk-path';
+import { DESKTOP, DiskPath, samePath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
 import { MenuEntry } from '../services/menu';
@@ -49,7 +49,8 @@ export class DesktopSurface {
   private readonly clipboard = inject(FinderClipboard);
   private readonly dock = inject(DockState);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly root = inject(DOCUMENT).documentElement;
+  private readonly document = inject(DOCUMENT);
+  private readonly root = this.document.documentElement;
   private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
   private dockDragHover = false;
@@ -62,6 +63,7 @@ export class DesktopSurface {
   protected readonly dragging = signal<{ readonly id: string; readonly at: Point } | null>(null);
   protected readonly settling = signal<string | null>(null);
   protected readonly trashing = signal<ReadonlySet<string>>(new Set());
+  protected readonly movingToDirectory = signal<ReadonlySet<string>>(new Set());
   protected readonly folderHover = signal<string | null>(null);
 
   constructor() {
@@ -70,6 +72,12 @@ export class DesktopSurface {
       const created = this.desktop.created();
       if (created) this.selected.set(new Set([created]));
     });
+    effect(() => {
+      const visible = new Set(this.desktop.items().map(item => item.id));
+      const moving = this.movingToDirectory();
+      const stale = [...moving].filter(id => !visible.has(id));
+      if (stale.length) this.clearMoving(stale);
+    });
   }
 
   protected resize(): void {
@@ -77,7 +85,7 @@ export class DesktopSurface {
   }
 
   protected externalDragMove(event: PointerEvent): void {
-    if (!document.querySelector('.cdk-drag-dragging')) return;
+    if (!this.document.querySelector('.cdk-drag-dragging')) return;
     this.updateFolderHover(event.clientX, event.clientY, '');
   }
 
@@ -133,8 +141,8 @@ export class DesktopSurface {
         } else if (collapseOnClick) this.select(item.id);
         return;
       }
-      this.dragging.set(null);
       if (trash) {
+        this.dragging.set(null);
         this.trashItems(selected);
         return;
       }
@@ -142,14 +150,31 @@ export class DesktopSurface {
       const directory = folder?.node?.kind === 'folder' && folder.node.path ? folder.node.path : finderDirectory;
       if (directory) {
         const copy = release.altKey || release.metaKey;
+        const movingItems = copy ? [] : this.movableItems(selected);
+        const movingIds = movingItems.map(item => item.id);
+        if (movingIds.length) this.movingToDirectory.update(current => new Set([...current, ...movingIds]));
+        this.dragging.set(null);
         void this.desktop.transferToDirectory(selected, directory, copy).then(
-          () => {
+          targets => {
             if (!copy) this.select(null);
+
+            const unchanged = movingItems
+              .filter((item, index) => {
+                const source = item.node?.path;
+                const target = targets[index];
+                return Boolean(source && target && samePath(source, target));
+              })
+              .map(item => item.id);
+            this.clearMoving(unchanged);
           },
-          (error: unknown) => this.toast.show(error instanceof Error ? error.message : String(error))
+          (error: unknown) => {
+            this.clearMoving(movingIds);
+            this.toast.show(error instanceof Error ? error.message : String(error));
+          }
         );
         return;
       }
+      this.dragging.set(null);
       this.desktop.move(item.id, this.freeCell(item, this.cellAt(drop.at)));
       this.settle(item.id);
     };
@@ -316,6 +341,18 @@ export class DesktopSurface {
     }, 300);
   }
 
+  private movableItems(ids: readonly string[]): readonly DesktopItem[] {
+    const selected = new Set(ids);
+    return this.desktop
+      .items()
+      .filter(item => selected.has(item.id) && Boolean(item.node?.path?.length));
+  }
+
+  private clearMoving(ids: readonly string[]): void {
+    if (!ids.length) return;
+    this.movingToDirectory.update(current => new Set([...current].filter(id => !ids.includes(id))));
+  }
+
   private prepareDragSelection(
     event: PointerEvent,
     item: DesktopItem
@@ -333,7 +370,7 @@ export class DesktopSurface {
   }
 
   private finderDropDirectory(x: number, y: number): DiskPath | null {
-    const encoded = document
+    const encoded = this.document
       .elementsFromPoint(x, y)
       .map(element => element.closest<HTMLElement>('[data-drop-directory]')?.dataset['dropDirectory'])
       .find(Boolean);
@@ -350,13 +387,12 @@ export class DesktopSurface {
       return;
     }
     this.dock.setTrashDropActive(false);
-    const target = document
+    const folder = this.document
       .elementsFromPoint(x, y)
-      .map(element => element.closest<HTMLElement>('.dicon[data-id]'))
-      .find(element => element?.dataset['id'] !== sourceId);
-    const id = target?.dataset['id'] ?? null;
-    const folder = id ? this.desktop.items().find(item => item.id === id) : null;
-    const next = folder?.node?.kind === 'folder' && folder.id !== sourceId ? folder.id : null;
+      .map(element => element.closest<HTMLElement>('.dicon[data-id]')?.dataset['id'])
+      .map(id => (id ? this.desktop.items().find(item => item.id === id) : undefined))
+      .find(item => item?.id !== sourceId && item?.node?.kind === 'folder');
+    const next = folder?.id ?? null;
     if (next === this.folderHover()) return;
     this.clearFolderHover();
     if (!next) return;

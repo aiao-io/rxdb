@@ -1,3 +1,5 @@
+@use './app/apps/github/github';
+
 /* ==========================================================================
    0. TOKENS
    ========================================================================== */
@@ -563,11 +565,18 @@ svg {
   outline-offset: 2px;
   border-radius: 11px;
 }
+.dicon.drop-target {
+  z-index: 851;
+}
 .dicon.drag {
   opacity: 0.72;
   z-index: 850;
   transition: none !important;
   cursor: var(--cur-fist);
+}
+.dicon.moving {
+  opacity: 0;
+  pointer-events: none;
 }
 .dicon.settle {
   transition:
@@ -1947,6 +1956,63 @@ svg {
    ========================================================================== */
 .finder-layout {
   --finder-header-height: 52px;
+}
+.finder-layout.trash-window .fx-tb .sfield {
+  width: clamp(150px, 22%, 240px);
+}
+.finder-layout.trash-window .trash-content-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 25px;
+  padding: 0 8px 0 10px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--win);
+  color: var(--txt-2);
+  font-size: 12px;
+}
+.finder-layout.trash-window .trash-content-header strong {
+  font-weight: 600;
+}
+.finder-layout.trash-window .trash-empty {
+  min-width: 48px;
+  height: 18px;
+  padding: 0 7px;
+  border: 0.5px solid var(--line-2);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--win) 72%, var(--fill));
+  color: var(--txt-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+.finder-layout.trash-window .trash-empty:hover:not(:disabled) {
+  background: var(--fill-2);
+  color: var(--txt);
+}
+.finder-layout.trash-window .trash-empty:disabled {
+  border-color: transparent;
+  background: transparent;
+}
+.finder-layout.trash-window .fx-body {
+  background: var(--win);
+}
+.finder-layout.trash-window .fv-icon {
+  grid-template-columns: repeat(auto-fill, minmax(106px, 1fr));
+  gap: 13px 4px;
+  padding: 27px 14px 20px;
+}
+.finder-layout.trash-window .fitem .art {
+  width: 54px;
+  height: 54px;
+}
+.finder-layout.trash-window .fitem .nm {
+  max-width: 108px;
+  padding-inline: 4px;
+}
+.finder-layout.trash-window .fx-status,
+.finder-layout.trash-window .fx-path {
+  background: var(--win-2);
 }
 .finder-layout .sbar {
   width: var(--finder-sidebar-width);

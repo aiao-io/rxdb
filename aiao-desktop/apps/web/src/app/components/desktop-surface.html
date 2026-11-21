@@ -16,11 +16,14 @@
   @for (item of desktop.items(); track item.id) {
     @let at = position(item);
     @let leaving = trashing().has(item.id);
+    @let moving = movingToDirectory().has(item.id);
     <div
       class="dicon"
       [appFileDrop]="item.node?.kind === 'folder' ? item.node.path : undefined"
       [attr.data-id]="item.id"
       [class.drag]="dragging()?.id === item.id"
+      [class.drop-target]="folderHover() === item.id"
+      [class.moving]="moving"
       [class.sel]="selected().has(item.id)"
       [class.settle]="settling() === item.id"
       [style.left.px]="at.left"

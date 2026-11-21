@@ -178,12 +178,13 @@ describe('runUpgrade：迁移在前，版本记录最后写', () => {
 });
 
 describe('Notes 文件夹 schema 步骤', () => {
-  it('新增用户文件夹实体时把当前版本推进到 2026111802', () => {
-    expect(SCHEMA_STEPS.at(-1)).toMatchObject({
+  it('新增用户文件夹实体时登记 2026111802 步骤', () => {
+    const step = SCHEMA_STEPS.find(candidate => candidate.version === 2026111802);
+    expect(step).toMatchObject({
       version: 2026111802,
       summary: expect.stringContaining('用户文件夹')
     });
-    expect(SCHEMA_STEPS.at(-1)?.migrate).toBeUndefined();
+    expect(step?.migrate).toBeUndefined();
   });
 });
 

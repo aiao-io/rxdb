@@ -70,7 +70,7 @@ export const EXTERNAL_CONTENT: readonly ExternalContentEntry[] = [
     host: 'api.open-meteo.com',
     purpose: 'Current conditions and the seven-day forecast in the Weather widget and the Weather app.',
     sends:
-      'The latitude and longitude of the first city in your Weather list (Cupertino by default). It is not your device location.',
+      'The latitude and longitude of the first city in your Weather list (Beijing by default). It is not your device location.',
     trigger: 'on-open',
     when: 'When the desktop opens. The Weather app reuses that reading, and asks again only if the first try failed.',
     apps: ['Desktop', 'Weather']

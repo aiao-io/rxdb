@@ -75,6 +75,10 @@ describe('应用登记表', () => {
     expect(orbitAllow(DESKTOP_APP_MANIFESTS.vscode.web)).toBe('cross-origin-isolated; clipboard-read; clipboard-write');
   });
 
+  it('GitHub 使用随产品发布的系统应用图标', () => {
+    expect(DESKTOP_APP_MANIFESTS.github).toMatchObject({ name: 'GitHub', icon: 'app-github' });
+  });
+
   it('不合规的登记逐项报出应用 id 与字段', () => {
     expect(validateManifests(misfiled)).toEqual(['mismatch.id：登记的 id 是 code，与登记键不一致']);
     const problems = validateManifests(
