@@ -22,7 +22,7 @@ import type { PostgrestErrorBody } from './postgrest-error.js';
 export const ADAPTER_NAME = 'supabase';
 
 /** 适配器所基于的 @supabase/supabase-js 最低支持版本（与 package.json peerDependencies 对齐） */
-export const SUPABASE_SDK_VERSION = '2.88.0';
+export const SUPABASE_SDK_VERSION = '2.119.2';
 
 const RETRYABLE_SUPABASE_WRITE_ERROR_PATTERNS = [
   /invalid response was received from the upstream server/i,

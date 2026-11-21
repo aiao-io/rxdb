@@ -59,8 +59,8 @@
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
-    "@visactor/vtable": "~1.26.5",
-    "@visactor/vtable-editors": "~1.26.5"
+    "@visactor/vtable": "~1.26.9",
+    "@visactor/vtable-editors": "~1.26.9"
   },
   "peerDependenciesMeta": {
     "@visactor/vtable": {

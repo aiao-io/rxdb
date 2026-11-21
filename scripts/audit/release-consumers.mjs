@@ -210,7 +210,7 @@ const COMBOS = [
       '@angular/common': '22.2.3',
       '@angular/platform-browser': '22.2.3',
       '@angular/compiler': '22.2.3',
-      '@lucide/angular': '1.61.0'
+      '@lucide/angular': '1.77.0'
     }
   },
   {
