@@ -38,7 +38,7 @@ runs:
     # `playwright install` 会在完整时快速跳过，在缓存残缺时自动修复。
     - name: Verify and install chromium
       shell: bash
-      run: pnpm exec playwright install chromium
+      run: pnpm exec playwright install chromium chromium-headless-shell
 
     # 这份配置对整个 job 生效（不止本 action），有意为之：任何 apt 使用者都该有上界，
     # 同时把 runner 偶发不可达的 azure 镜像切到 archive 镜像。
