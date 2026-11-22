@@ -67,6 +67,14 @@ async function openRepositoryMenu(view) {
   await expect(view.locator('[data-github-search-submit]')).toBeEnabled();
 }
 
+async function showRepositoryFiles(view) {
+  const button = view.getByRole('button', {
+    name: 'Open in Visual Studio Code',
+    exact: true
+  });
+  if ((await button.count()) > 0) await button.click();
+}
+
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
 export const githubApp = {
   name: 'github-app',
@@ -333,6 +341,7 @@ export const githubApp = {
     await githubWindow.locator('[data-github-new-repository]').fill('Local Fixture');
     await githubWindow.locator('[data-github-create]').click();
     await githubWindow.locator('[data-github-repository-name]').filter({ hasText: 'Local Fixture' }).waitFor();
+    await showRepositoryFiles(githubWindow);
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
       (await githubWindow.locator('.gh-empty').count()) === 0;
@@ -364,6 +373,7 @@ export const githubApp = {
     await githubWindow.getByRole('button', { name: 'Discard file changes' }).click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Discarded README.md' }).waitFor();
     result.unstageAndDiscard = (await githubWindow.getByRole('button', { name: 'Stage file' }).count()) === 0;
+    await showRepositoryFiles(githubWindow);
 
     await githubWindow.locator('[data-github-editor]').fill('# committed\\n');
     await githubWindow.locator('[data-github-save]').click();
@@ -371,6 +381,7 @@ export const githubApp = {
     await githubWindow.locator('[data-github-commit-message]').fill('Fixture commit');
     await githubWindow.locator('[data-github-commit]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
+    await showRepositoryFiles(githubWindow);
     await githubWindow.locator('[data-github-tab="history"]').click();
     await githubWindow.locator('.gh-commit-row').nth(1).waitFor();
     result.commitAndHistory = (await githubWindow.locator('.gh-commit-row').count()) >= 2;
@@ -433,6 +444,7 @@ export const githubApp = {
       .locator('[data-github-repository-name]')
       .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
+    await showRepositoryFiles(remoteGithub);
     result.publicRepositoryOpens = (await remoteGithub.locator('[data-file-path="src/main.ts"]').count()) === 1;
 
     const publicFixture = repositories.get(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
@@ -453,6 +465,7 @@ export const githubApp = {
       .locator('[data-github-notice]')
       .filter({ hasText: `Pulled ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
+    await showRepositoryFiles(remoteGithub);
     await expect(remoteGithub.locator('[data-github-push]')).toBeEnabled();
     const pulledFile = remoteGithub.locator('[data-file-path="src/main.ts"]');
     await pulledFile.click();
@@ -467,6 +480,7 @@ export const githubApp = {
     result.privateRepositoryRequiresAuth =
       (await remoteGithub.locator('[data-github-error]').textContent())?.includes('仓库不存在') === true;
 
+    await openRepositoryMenu(remoteGithub);
     const startOAuth = async () => {
       const popupPromise = context.waitForEvent('page');
       await remoteGithub.locator('[data-github-oauth-login]').click();
@@ -519,6 +533,7 @@ export const githubApp = {
       .locator('[data-github-notice]')
       .filter({ hasText: `Opened ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
+    await showRepositoryFiles(remoteGithub);
     await remoteGithub.locator('[data-github-editor]').fill('# remote change\\n');
     await remoteGithub.locator('[data-github-save]').click();
     await remoteGithub.getByRole('button', { name: 'Stage file' }).click();
@@ -549,6 +564,7 @@ export const githubApp = {
       .locator('[data-github-repository-name]')
       .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
+    await showRepositoryFiles(remoteGithub);
     await remoteGithub.locator('[data-github-tab="history"]').focus();
     await remoteGithub.locator('[data-github-tab="history"]').press('Enter');
     await remoteGithub.locator('.gh-history').waitFor();

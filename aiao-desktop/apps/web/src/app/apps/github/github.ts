@@ -20,6 +20,7 @@ import {
   LucideCopy as Copy,
   LucideFileDiff as FileDiff,
   LucideFilter as Filter,
+  LucideFolder as Folder,
   LucideDynamicIcon,
   LucideMoreVertical as MoreVertical,
   LucideSearch as Search,
@@ -194,7 +195,7 @@ export class GithubApp {
   private currentRevision = 0;
   private restorePromise: Promise<void> | null = null;
   private readonly storageListener: (event: StorageEvent) => void;
-  private readonly commitMessageInput = viewChild<ElementRef<HTMLTextAreaElement>>('commitMessageInput');
+  private readonly commitMessageInput = viewChild<ElementRef<HTMLInputElement>>('commitMessageInput');
   private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
   private readonly newRepositoryInput = viewChild<ElementRef<HTMLElement>>('newRepositoryInput');
   private readonly localRepositoryButton = viewChild<ElementRef<HTMLElement>>('localRepositoryButton');
@@ -232,6 +233,7 @@ export class GithubApp {
   protected readonly newRepoValue = signal('');
   protected readonly newBranchValue = signal('');
   protected readonly commitValue = signal('');
+  protected readonly commitDescription = signal('');
   protected readonly patValue = signal('');
   protected readonly repositoryMenuOpen = signal(false);
   protected readonly branchMenuOpen = signal(false);
@@ -242,6 +244,9 @@ export class GithubApp {
   protected readonly contextMenu = signal<GithubContextMenu | null>(null);
   protected readonly changeKinds: readonly GithubChangeKind[] = ['all', 'added', 'modified', 'deleted'];
   protected readonly asideWidth = signal(320);
+  protected readonly worktreeWidth = signal(190);
+  protected readonly branchWidth = signal(250);
+  protected readonly showCleanFiles = signal(false);
   protected readonly lastFetchedAt = signal<number | null>(null);
   protected readonly selectedCommitOid = signal<string | null>(null);
 
@@ -256,6 +261,8 @@ export class GithubApp {
   protected readonly hasChanges = computed(() => (this.status()?.entries.length ?? 0) > 0 || this.editorDirty());
   protected readonly changedEntries = computed(() => this.status()?.entries ?? []);
   protected readonly currentBranch = computed(() => this.status()?.branch ?? this.activeRecord()?.branch ?? 'main');
+  protected readonly currentWorktree = computed(() => this.activeRecord()?.name ?? 'No repository');
+  protected readonly cleanRepository = computed(() => !this.hasChanges() && !this.showCleanFiles());
   protected readonly canDiscardBranch = computed(() => this.errorCode() === 'dirty_workspace');
   protected readonly lastFetchedLabel = computed(() => {
     const timestamp = this.lastFetchedAt();
@@ -279,7 +286,7 @@ export class GithubApp {
   });
   protected readonly visibleFiles = computed(() => {
     const entries = this.changedEntries();
-    if (!entries.length) return this.files();
+    if (!entries.length) return this.showCleanFiles() ? this.files() : [];
     const paths = new Set(this.filteredEntries().map(entry => entry.path));
     return this.files().filter(file => paths.has(file.path));
   });
@@ -294,6 +301,7 @@ export class GithubApp {
   protected readonly Copy = Copy;
   protected readonly FileDiff = FileDiff;
   protected readonly Filter = Filter;
+  protected readonly Folder = Folder;
   protected readonly GitBranch = BranchIcon;
   protected readonly MoreVertical = MoreVertical;
   protected readonly Search = Search;
@@ -337,7 +345,17 @@ export class GithubApp {
   }
 
   protected setValue(
-    target: 'repo' | 'branch' | 'newRepo' | 'newBranch' | 'commit' | 'pat' | 'search' | 'branchFilter' | 'changeFilter',
+    target:
+      | 'repo'
+      | 'branch'
+      | 'newRepo'
+      | 'newBranch'
+      | 'commit'
+      | 'commitDescription'
+      | 'pat'
+      | 'search'
+      | 'branchFilter'
+      | 'changeFilter',
     event: Event
   ): void {
     const element = event.target;
@@ -349,6 +367,7 @@ export class GithubApp {
     if (target === 'newRepo') this.newRepoValue.set(value);
     if (target === 'newBranch') this.newBranchValue.set(value);
     if (target === 'commit') this.commitValue.set(value);
+    if (target === 'commitDescription') this.commitDescription.set(value);
     if (target === 'pat') this.patValue.set(value);
     if (target === 'branchFilter') this.branchFilter.set(value);
     if (target === 'changeFilter') this.changeFilter.set(value);
@@ -356,6 +375,12 @@ export class GithubApp {
 
   protected openLocalRepository(): void {
     this.openLocalRepositoryPicker();
+  }
+
+  protected viewRepositoryFiles(): void {
+    this.showCleanFiles.set(true);
+    const path = this.selectedPath() ?? this.files()[0]?.path ?? null;
+    if (path) this.selectFile(path);
   }
 
   protected openImportPicker(event: Event): void {
@@ -570,6 +595,28 @@ export class GithubApp {
     }
   }
 
+  protected startToolbarResize(event: PointerEvent, target: 'repository' | 'worktree' | 'branch'): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth =
+      target === 'repository' ? this.asideWidth()
+      : target === 'worktree' ? this.worktreeWidth()
+      : this.branchWidth();
+    const move = (moveEvent: PointerEvent): void => {
+      const next = startWidth + moveEvent.clientX - startX;
+      if (target === 'repository') this.asideWidth.set(Math.max(ASIDE_WIDTH_MIN, Math.min(ASIDE_WIDTH_MAX, next)));
+      if (target === 'worktree') this.worktreeWidth.set(Math.max(160, Math.min(340, next)));
+      if (target === 'branch') this.branchWidth.set(Math.max(210, Math.min(480, next)));
+    };
+    const stop = (): void => {
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', stop);
+    };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', stop);
+  }
+
   protected async searchRemoteRepositories(): Promise<void> {
     const query = this.searchValue().trim();
     if (!query) {
@@ -644,6 +691,7 @@ export class GithubApp {
     await this.run(async () => {
       const snapshot = await this.backend.open(record.projectId);
       this.activeRecord.set(record);
+      this.showCleanFiles.set(false);
       this.repoValue.set(record.owner && record.repo ? `${record.owner}/${record.repo}` : '');
       this.branchValue.set(record.owner ? record.branch : '');
       this.applySnapshot(snapshot.files);
@@ -676,6 +724,7 @@ export class GithubApp {
       };
       await this.store.put(record);
       this.activeRecord.set(record);
+      this.showCleanFiles.set(false);
       this.newRepoValue.set('');
       this.applySnapshot(snapshot.files);
       await this.refresh();
@@ -699,6 +748,7 @@ export class GithubApp {
         const currentStatus = await this.backend.status(existing.projectId);
         if (existing.remoteHead === remote.record.remoteHead) {
           this.activeRecord.set(existing);
+          this.showCleanFiles.set(false);
           this.repoValue.set(`${remote.record.owner}/${remote.record.repo}`);
           this.branchValue.set(remote.record.branch);
           this.applySnapshot(current.files);
@@ -725,6 +775,7 @@ export class GithubApp {
       }
       await this.store.put(remote.record);
       this.activeRecord.set(remote.record);
+      this.showCleanFiles.set(false);
       this.repoValue.set(`${remote.record.owner}/${remote.record.repo}`);
       this.branchValue.set(remote.record.branch);
       this.applySnapshot(snapshot.files);
@@ -832,6 +883,7 @@ export class GithubApp {
     await this.run(async () => {
       const snapshot = await this.backend.discardWorking(record.projectId, path);
       this.applySnapshot(snapshot.files);
+      this.showCleanFiles.set(false);
       await this.refresh();
       this.notice.set(`Discarded ${path}`);
     });
@@ -853,6 +905,7 @@ export class GithubApp {
 
       this.applySnapshot((await this.backend.snapshot(record.projectId)).files);
       this.diff.set(null);
+      this.showCleanFiles.set(false);
       await this.refresh();
       this.notice.set('Discarded all changes');
     });
@@ -866,13 +919,17 @@ export class GithubApp {
 
   protected async commit(): Promise<void> {
     const record = this.activeRecord();
-    const message = this.commitValue().trim() || this.commitMessageInput()?.nativeElement.value.trim() || '';
+    const summary = this.commitValue().trim() || this.commitMessageInput()?.nativeElement.value.trim() || '';
+    const description = this.commitDescription().trim();
+    const message = summary ? `${summary}${description ? `\n\n${description}` : ''}` : '';
     if (!record || !message) return;
     await this.run(async () => {
       const oid = await this.backend.commit(record.projectId, message);
       this.commitValue.set('');
+      this.commitDescription.set('');
       const input = this.commitMessageInput()?.nativeElement;
       if (input) input.value = '';
+      this.showCleanFiles.set(false);
       await this.refresh();
       this.notice.set(`Committed ${oid.slice(0, 8)}`);
     });
@@ -1202,6 +1259,7 @@ export class GithubApp {
     };
     await this.store.put(record);
     this.activeRecord.set(record);
+    this.showCleanFiles.set(false);
     this.applySnapshot(snapshot.files);
     await this.refresh();
     this.notice.set(`${noticeVerb} ${name}`);
@@ -1312,6 +1370,7 @@ export class GithubApp {
     }
     await this.store.put(remote.record);
     this.activeRecord.set(remote.record);
+    this.showCleanFiles.set(false);
     this.repoValue.set(remote.record.owner && remote.record.repo ? `${remote.record.owner}/${remote.record.repo}` : '');
     this.branchValue.set(remote.record.owner ? remote.record.branch : '');
     this.applySnapshot(snapshot.files);

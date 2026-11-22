@@ -246,6 +246,9 @@
   width: 5px;
   height: 50px;
   flex: 0 0 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: col-resize;
 }
 
@@ -263,11 +266,31 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+.gh-toolbar-handle:focus-visible {
+  outline: 2px solid #6cb6ff;
+  outline-offset: -1px;
+}
+
+.gh-worktree-section {
+  min-width: 160px;
+  max-width: 340px;
+}
+
+.gh-worktree-trigger {
+  gap: 9px;
+  padding-inline: 11px;
+}
+
+.gh-worktree-trigger > svg:first-child {
+  flex: 0 0 auto;
+  color: var(--gd-toolbar-muted);
+}
+
 .gh-branch-section {
   display: flex;
-  min-width: 260px;
-  max-width: 430px;
-  flex: 1 1 300px;
+  min-width: 210px;
+  max-width: 480px;
+  flex: 0 1 auto;
   align-items: center;
 }
 
@@ -360,7 +383,9 @@
 }
 
 .gh-fetch-button {
-  width: 152px;
+  width: auto;
+  min-width: 180px;
+  flex: 1 1 auto;
   gap: 8px;
 }
 
@@ -370,6 +395,26 @@
   align-items: center;
   gap: 6px;
   padding: 0 12px 0 8px;
+}
+
+.gh-toolbar > .gh-auth {
+  display: none;
+}
+
+.gh-menu-auth {
+  gap: 7px;
+}
+
+.gh-account-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gh-account-row .gh-account {
+  color: var(--gd-fg);
 }
 
 .gh-account {
@@ -792,6 +837,13 @@
   background: var(--gd-hover);
 }
 
+.gh-filter-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gd-accent);
+}
+
 .gh-change-kind-menu {
   top: 34px;
   left: 9px;
@@ -837,6 +889,18 @@
   color: var(--gd-fg);
   font-size: 12px;
   font-weight: 600;
+}
+
+.gh-check-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gd-fg);
+  font-weight: 500;
+}
+
+.gh-check-all input {
+  margin: 0;
 }
 
 .gh-file-list {
@@ -933,36 +997,94 @@
 
 .gh-commit-box {
   display: grid;
-  gap: 7px;
-  padding: 9px 10px 10px;
+  gap: 8px;
+  padding: 12px 14px 14px;
   border-top: 1px solid var(--gd-border);
   border-bottom: 0;
   background: var(--gd-commit-bg);
 }
 
-.gh-commit-box textarea {
-  min-height: 52px;
-  resize: vertical;
-  padding: 7px 8px;
+.gh-commit-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-commit-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-commit-avatar {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid var(--gd-border);
+  border-radius: 50%;
+  background: var(--gd-panel);
+  color: var(--gd-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.gh-commit-summary input,
+.gh-commit-fields textarea {
+  min-width: 0;
+  width: 100%;
   border: 1px solid var(--gd-input-border);
   border-radius: 4px;
   background: var(--gd-input-bg);
   color: var(--gd-fg);
 }
 
-.gh-commit-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+.gh-commit-summary input {
+  min-height: 32px;
+  padding: 6px 8px;
 }
 
-.gh-commit-actions > button {
-  min-width: 0;
-  flex: 1;
+.gh-commit-fields textarea {
+  min-height: 78px;
+  padding: 8px;
+  resize: none;
+}
+
+.gh-commit-tools {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 4px;
+}
+
+.gh-commit-tools > button {
+  min-width: 24px;
+  min-height: 22px;
+  padding: 2px 5px;
+}
+
+.gh-new-badge {
+  padding: 1px 6px;
+  border: 1px solid var(--gd-add-fg);
+  border-radius: 999px;
+  color: var(--gd-add-fg);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.gh-sync-action {
+  margin-left: auto;
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-sync-action + .gh-sync-action {
+  margin-left: 0;
 }
 
 .gh-commit-button {
-  min-width: 150px;
+  width: 100%;
 }
 
 .gd-resizer {
@@ -1240,6 +1362,145 @@
   text-align: center;
 }
 
+.gh-no-changes {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--gd-bg);
+}
+
+.gh-no-changes-content {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 72px 42px 48px;
+}
+
+.gh-no-changes-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  gap: 28px;
+  margin-bottom: 26px;
+}
+
+.gh-no-changes-header > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.gh-no-changes-header h2,
+.gh-no-changes-header p {
+  margin: 0;
+}
+
+.gh-no-changes-header h2 {
+  color: var(--gd-fg);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.gh-no-changes-header p {
+  max-width: 640px;
+  margin-top: 7px;
+  color: var(--gd-fg);
+  font-size: 14px;
+}
+
+.gh-paper-stack {
+  position: relative;
+  width: 78px;
+  height: 76px;
+  flex: 0 0 78px;
+  opacity: 0.75;
+}
+
+.gh-paper-stack span {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 58px;
+  height: 42px;
+  border: 2px solid #b6d5f7;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.55);
+  transform: rotate(-7deg);
+}
+
+.gh-paper-stack span:nth-child(2) {
+  right: 8px;
+  bottom: 14px;
+  transform: rotate(8deg);
+}
+
+.gh-paper-stack span:nth-child(3) {
+  right: 17px;
+  bottom: 27px;
+  transform: rotate(-2deg);
+}
+
+.gh-suggested-actions {
+  overflow: hidden;
+  border: 1px solid var(--gd-border);
+  border-radius: 6px;
+  background: var(--gd-panel);
+}
+
+.gh-suggested-action {
+  display: flex;
+  min-height: 96px;
+  align-items: center;
+  gap: 22px;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--gd-border);
+}
+
+.gh-suggested-action:last-child {
+  border-bottom: 0;
+}
+
+.gh-suggested-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.gh-suggested-copy h3,
+.gh-suggested-copy p {
+  margin: 0;
+}
+
+.gh-suggested-copy h3 {
+  color: var(--gd-fg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gh-suggested-copy p {
+  margin-top: 5px;
+  color: var(--gd-muted);
+  font-size: 13px;
+}
+
+.gh-inline-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gd-accent);
+  text-decoration: underline;
+}
+
+.gh-suggested-action kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--gd-border);
+  border-radius: 3px;
+  background: var(--gd-sidebar-bg);
+  color: var(--gd-fg);
+  font-size: 11px;
+}
+
 .gh-history {
   overflow-y: auto;
   background: var(--gd-sidebar-bg);
@@ -1427,8 +1688,13 @@
     display: none;
   }
 
+  .gh-worktree-section,
+  [data-github-toolbar-resizer='worktree'] {
+    display: none;
+  }
+
   .gh-fetch-button {
-    width: 118px;
+    min-width: 118px;
   }
 }
 
@@ -1449,17 +1715,15 @@
   }
 
   .gh-branch-section {
+    width: 50% !important;
+    flex: 0 0 50%;
     min-width: 0;
     max-width: none;
   }
 
   .gh-fetch-button {
     width: 50%;
-  }
-
-  .gh-auth {
-    width: 50%;
-    justify-content: flex-end;
+    flex: 0 0 50%;
   }
 
   .gh-toolbar-chrome {
@@ -1481,5 +1745,23 @@
   .gd-split-cell + .gd-split-cell {
     border-top: 1px solid var(--gd-border);
     border-left: 0;
+  }
+
+  .gh-no-changes-content {
+    padding: 32px 20px;
+  }
+
+  .gh-no-changes-header {
+    align-items: flex-start;
+  }
+
+  .gh-paper-stack {
+    display: none;
+  }
+
+  .gh-suggested-action {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
   }
 }
