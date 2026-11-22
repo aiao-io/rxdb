@@ -1,4 +1,4 @@
-import { type RxDBAdapterRemoteBase, RxDBError, RxDBSync } from '@aiao/rxdb';
+import { RxDBChange, type RxDBAdapterRemoteBase, RxDBError, RxDBSync, type SwitchVersionActions } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertRemoteBackendIs,
@@ -8,6 +8,7 @@ import {
   RemoteBackendMismatchError
 } from '../remote-backend.js';
 import type { SyncManager } from '../SyncManager.js';
+import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from '../scoped-sync.entity.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const syncRecord = (entity: string, remoteBackendId: string | null, lastPullRemoteChangeId: number | null) =>
@@ -118,6 +119,92 @@ describe('远端身份', () => {
         lastPushedChangeId: 7
       });
       expect(current).toMatchObject({ remoteBackendId: 'backend-new', lastPullRemoteChangeId: 12 });
+    });
+
+    it('清理旧分区时使用同实体当前同步记录的推送水位', async () => {
+      const current = syncRecord('Todo', 'backend-new', 12);
+      current.lastPushedChangeId = 100;
+      const progress = Object.assign(Object.create(RxDBSyncBucketProgress.prototype), {
+        id: 'public:Todo:main:bucket-a:all',
+        namespace: 'public',
+        entity: 'Todo',
+        branchId: 'main',
+        bucket: 'bucket-a',
+        filterFingerprint: 'all',
+        remoteBackendId: 'backend-old'
+      }) as RxDBSyncBucketProgress;
+      const bucketRow = Object.assign(Object.create(RxDBSyncBucketRow.prototype), {
+        id: 'public:Todo:main:bucket-a:all:a',
+        namespace: 'public',
+        entity: 'Todo',
+        branchId: 'main',
+        bucket: 'bucket-a',
+        filterFingerprint: 'all',
+        entityId: 'a'
+      }) as RxDBSyncBucketRow;
+      const alreadyPushedChange = Object.assign(Object.create(RxDBChange.prototype), {
+        id: 50,
+        namespace: 'public',
+        entity: 'Todo',
+        branchId: 'main',
+        entityId: 'a',
+        remoteId: null,
+        rejectedAt: null,
+        revertChangeId: null
+      }) as RxDBChange;
+      const rowFind = vi.fn().mockResolvedValueOnce([bucketRow]).mockResolvedValue([]);
+      const rowRemove = vi.fn(async () => undefined);
+      const progressRemove = vi.fn(async () => undefined);
+      const mergeChanges = vi.fn(async (actions: SwitchVersionActions) => {
+        void actions;
+        return { results: [] };
+      });
+      const entityType = class Todo {};
+      const syncRepository = {
+        find: vi.fn(async () => [current]),
+        update: vi.fn(async (record: RxDBSync, patch: Partial<RxDBSync>) => Object.assign(record, patch))
+      };
+      const progressRepository = {
+        find: vi.fn(async () => [progress]),
+        remove: progressRemove
+      };
+      const rowRepository = { find: rowFind, remove: rowRemove };
+      const changeRepository = { find: vi.fn(async () => [alreadyPushedChange]) };
+      const entityRepository = { find: vi.fn(async () => [{ id: 'a' }]) };
+      const repositories = new Map<unknown, unknown>([
+        [RxDBSync, syncRepository],
+        [RxDBSyncBucketProgress, progressRepository],
+        [RxDBSyncBucketRow, rowRepository],
+        [RxDBChange, changeRepository],
+        [entityType, entityRepository]
+      ]);
+      const executor = {
+        getRepository: vi.fn((type: unknown) => repositories.get(type)),
+        mergeChanges
+      };
+      const transaction = vi.fn(async (callback: (value: unknown) => Promise<unknown>) => callback(executor));
+      const sm = {
+        rxdb: {
+          entityManager: { instantiate: vi.fn(() => Object.create(RxDBSync.prototype)) },
+          schemaManager: { getEntityType: vi.fn(() => entityType) },
+          syncState: { reportSuccess: vi.fn(), snapshot: { lastError: null } },
+          ...noIdentityDeclared
+        },
+        getRemoteRepositories: async () => ({ adapter: { backendId: async () => 'backend-new' } }),
+        getLocalRepositories: async () => ({ adapter: { transaction } })
+      } as unknown as SyncManager;
+
+      await expect(rebindRemoteBackend(sm)).resolves.toMatchObject({
+        backendId: 'backend-new',
+        previousBackendIds: ['backend-old'],
+        rebound: 0
+      });
+
+      expect(rowRemove).toHaveBeenCalledWith(bucketRow);
+      expect(progressRemove).toHaveBeenCalledWith(progress);
+      expect(mergeChanges).toHaveBeenCalledTimes(1);
+      const actions = mergeChanges.mock.calls[0][0] as { deletes: Map<string, unknown> };
+      expect([...actions.deletes.keys()]).toEqual(['public:Todo:a']);
     });
 
     it('改绑之后清掉那条远端身份错误', async () => {

@@ -154,8 +154,8 @@ export interface TrustedCallsite {
  * 对齐到远端现状（远端有行就覆盖，远端无行就删除），走的是 `executor.mergeChanges(…, true)`。
  * 同样只核对了新增的这一行，表头日期照旧。
  *
- * 2026-11-21 新增 #13 / #14：分桶拉取的实体应用与过期分桶清理都在 `bucketed-pull.ts` 内直接调用
- * `executor.mergeChanges(…, true)`，分别登记实际发起写入的 `applyScopedBatch` 与 `removeBucketScope`。
+ * 2026-11-21 新增 #13 / #14：分桶拉取的实体应用与过期分桶清理分别在 `bucketed-pull.ts` 与
+ * `bucketed-scope-cleanup.ts` 内调用 `executor.mergeChanges(…, true)`，登记实际发起写入的函数。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -263,12 +263,12 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     verifiedAtLine: 534
   },
   {
-    file: 'bucketed-pull.ts',
-    symbol: 'removeBucketScope',
+    file: 'bucketed-scope-cleanup.ts',
+    symbol: 'removeBucketScopeInTransaction',
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 640
+    verifiedAtLine: 67
   }
 ];
 

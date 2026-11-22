@@ -382,10 +382,10 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
 | 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
 | 13  | `bucketed-pull.ts`      | `applyScopedBatch`          | `executor.mergeChanges(…, true)`  | 534  | `remote_sync` | **必须产生**   |
-| 14  | `bucketed-pull.ts`      | `removeBucketScope`         | `executor.mergeChanges(…, true)`  | 640  | `remote_sync` | **必须产生**   |
+| 14  | `bucketed-scope-cleanup.ts` | `removeBucketScopeInTransaction` | `executor.mergeChanges(…, true)` | 67 | `remote_sync` | **必须产生**   |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
-`pull-batch.ts`、`pull-repository.ts` 与 `bucketed-pull.ts` 是不同文件里的独立调用点，不得合并成一行。
+`pull-batch.ts`、`pull-repository.ts`、`bucketed-pull.ts` 与 `bucketed-scope-cleanup.ts` 是不同文件里的独立调用点，不得合并成一行。
 
 **restore 那一行的文件是 `restore-entity.ts` 而不是 `VersionManager.ts`，写原语是 `mergeChanges` 而不是
 `adapter.switchBranch`**：`VersionManager.restoreEntity()` 只是把调用委托给 `restore_entity()`，而后者

@@ -104,6 +104,7 @@ stampMetadata(VersionedEntity, {
 /** 直通 QueryManager：只暴露 runner 的结果，同时留下任务 key 供指纹断言 */
 class StubQueryManager {
   lastOptions: QueryOptions<CachedEntityCtor> | undefined;
+  destroy = vi.fn();
 
   createTask<RT>(taskOptions: { options: QueryOptions<CachedEntityCtor>; runner: () => Observable<RT> }) {
     this.lastOptions = taskOptions.options;
@@ -192,6 +193,7 @@ const setup = (
     entitySync: createEntitySyncResolver(undefined),
     config: { sync: undefined, ...(overrides.identity ? { identity: overrides.identity } : {}) },
     addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     // 搬迁前 `Repository` 在构造里直 `new QueryCacheSyncMemo()`；现在读引擎由插件经
     // `rxdb.queryCacheEngine()` 填槽，手搭的 `rxdb` 替身得把这个槽补上。用真工厂而不是桩：
     // 这些用例断言的就是引擎行为，换成桩等于把被测对象挖空（US-025 B2）。
@@ -337,6 +339,28 @@ describe('US-020 阶段 A：QueryCache 接入统一 Repository', () => {
     await ctx.repository.create(row('b', '2024-01-04T00:00:00Z'));
 
     expect(ctx.localRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('Repository destroy 后迟到的远端响应不再写入本地缓存', async () => {
+    let release!: () => void;
+    const remoteAdapter = createRemoteAdapter();
+    remoteAdapter.fetchMetadata.mockReturnValue(
+      new Observable<{ id: string; updatedAt: string }[]>(subscriber => {
+        release = () => {
+          subscriber.next([{ id: 'a', updatedAt: '2024-01-02T00:00:00Z' }]);
+          subscriber.complete();
+        };
+      })
+    );
+    const destroyed = setup({ remoteAdapter });
+    const result = firstValueFrom(destroyed.repository.find({ where: where() }));
+
+    await vi.waitFor(() => expect(remoteAdapter.fetchMetadata).toHaveBeenCalledOnce());
+    destroyed.repository.destroy();
+    release();
+
+    await expect(result).resolves.toEqual([expect.objectContaining({ id: 'a' })]);
+    expect(destroyed.localAdapter.upsertMany).not.toHaveBeenCalled();
   });
 
   // AC#22 + D10：适配器不得在构造期固化，重连后必须打到新实例

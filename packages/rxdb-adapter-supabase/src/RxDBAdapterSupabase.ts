@@ -33,7 +33,7 @@ import {
   RxDBAdapterRemoteBase,
   tryGetEntityStatus
 } from '@aiao/rxdb';
-import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, RealtimeChannel, type AuthChangeEvent, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
@@ -99,6 +99,10 @@ import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
 import type { RxDBIdentity } from '@aiao/rxdb';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
+
+type AuthStateChangeListener = (
+  callback: (event: AuthChangeEvent, session: Session | null) => void
+) => { data: { subscription: { unsubscribe: () => void } } };
 
 /**
  * Supabase 适配器
@@ -558,17 +562,6 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return { scope, subject: user?.id ?? RXDB_ANONYMOUS_SUBJECT };
   }
 
-  #requireSupabaseScope(): string {
-    if (this.#supabaseScope) return this.#supabaseScope;
-    throw new SupabaseConfigError(
-      'The supplied Supabase client does not expose its project URL. Pass supabaseUrl when configuring the adapter.'
-    );
-  }
-
-  #identityFromSubject(subject: string): RxDBIdentity {
-    return { scope: this.#requireSupabaseScope(), subject };
-  }
-
   /**
    * 获取远程变更数量（轻量级，不下载数据）(T042, US2)
    *
@@ -1010,6 +1003,17 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return results;
   }
 
+  #requireSupabaseScope(): string {
+    if (this.#supabaseScope) return this.#supabaseScope;
+    throw new SupabaseConfigError(
+      'The supplied Supabase client does not expose its project URL. Pass supabaseUrl when configuring the adapter.'
+    );
+  }
+
+  #identityFromSubject(subject: string): RxDBIdentity {
+    return { scope: this.#requireSupabaseScope(), subject };
+  }
+
   #assertConfiguredEntitiesSupported(): void {
     for (const EntityType of this.rxdb.config.entities) {
       this.#assertEntitySupported(EntityType);
@@ -1233,10 +1237,16 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     } catch {
       return;
     }
-    if (!auth || typeof auth.onAuthStateChange !== 'function') return;
+    let onAuthStateChange: AuthStateChangeListener;
+    try {
+      if (!auth) return;
+      onAuthStateChange = auth.onAuthStateChange as AuthStateChangeListener;
+    } catch {
+      return;
+    }
 
     try {
-      const { data } = auth.onAuthStateChange((_event, session) => {
+      const { data } = onAuthStateChange.call(auth, (_event, session) => {
         const changed = this.#updateRealtimeIdentity(session?.access_token ?? null);
         if (!changed) return;
         void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {

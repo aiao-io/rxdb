@@ -77,13 +77,16 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
 
 async function pullBucketedRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
   const rxdb = sm.rxdb;
+  const entities = rxdb.config.entities;
+  if (entities.length === 0) return;
+
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
   const candidate = remoteAdapter as unknown as RxDBAdapterRemoteBase & {
     getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
   };
   if (typeof candidate.getEntitySyncInfo !== 'function') return;
 
-  for (const EntityType of rxdb.config.entities) {
+  for (const EntityType of entities) {
     const metadata = getEntityMetadata(EntityType);
     const syncType = getSyncType(metadata, rxdb.entitySync);
     if (syncType === 'filter' || !getSyncCapability(syncType).pull) continue;

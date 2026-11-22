@@ -1366,6 +1366,93 @@ describe('supabase review regressions', () => {
     });
   });
 
+  it('auth 身份切换时重建 bucket 频道并丢弃旧频道的迟到广播', async () => {
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const tokenB = testJwt({ role: 'authenticated', sub: 'user-b' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const subscription = { unsubscribe: vi.fn() };
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const handlers: Array<(message: { payload: unknown }) => void> = [];
+    const channels: Array<{ topic: string }> = [];
+    const channel = vi.fn((topic: string) => {
+      const entry = { topic };
+      const channelInstance = {
+        on: vi.fn((_type: string, _filter: unknown, handler: (message: { payload: unknown }) => void) => {
+          handlers.push(handler);
+          return channelInstance;
+        }),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      channels.push(entry);
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          realtime.accessTokenValue === tokenA ? ['public', 'user:user-a'] : ['public', 'user:user-b']
+        : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter(
+      { auth, realtime, channel, removeChannel, rpc },
+      { rlsCheck: false },
+      [Todo]
+    );
+    const dispatchEvent = vi.mocked(adapter.rxdb.dispatchEvent);
+    const notice = {
+      changes: [
+        {
+          namespace: 'public',
+          entity: 'Todo',
+          entityId: 'stale-event',
+          type: 'INSERT',
+          branchId: 'main',
+          clientId: 'other-client',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    };
+
+    await adapter.connect();
+    expect(channels.map(item => item.topic)).toEqual([
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:user-a`
+    ]);
+    const oldBroadcast = handlers[0];
+
+    realtime.accessTokenValue = tokenB;
+    authCallbacks[0]('TOKEN_REFRESHED', { access_token: tokenB });
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+
+    expect(removeChannel).toHaveBeenCalledTimes(3);
+    expect(channels.slice(3).map(item => item.topic)).toEqual([
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:user-b`
+    ]);
+
+    dispatchEvent.mockClear();
+    oldBroadcast({ payload: notice });
+    expect(dispatchEvent).not.toHaveBeenCalled();
+    handlers[3]({ payload: notice });
+    expect(dispatchEvent).toHaveBeenCalledOnce();
+
+    await adapter.disconnect();
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it('reconnects realtime subscription with exponential backoff', async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

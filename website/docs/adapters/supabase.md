@@ -186,15 +186,22 @@ export class Document extends EntityBase {}
 
 ### 为每个身份创建本地库
 
-用 `scopedDatabaseName()` 给 anon 和每个用户生成稳定、互不相同的数据库名。结果包含不透明的身份摘要，不包含用户 ID 原文。
+用 `scopedDatabaseName()` 给每个 Supabase 项目和身份生成稳定、互不相同的数据库名。结果包含不透明的身份摘要，不包含用户 ID 原文。未登录时使用 `RXDB_ANONYMOUS_SUBJECT`，匿名登录用户仍使用 Supabase JWT 的 `sub`，因此不会与未登录访客共用本地库。
 
 ```ts
+import {
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDB,
+  SyncType,
+  type RxDBIdentity
+} from '@aiao/rxdb';
 import { scopedDatabaseName } from '@aiao/rxdb-plugin-sync';
 
-const identity =
-  session?.user && session.user.is_anonymous !== true ?
-    { kind: 'user' as const, userId: session.user.id }
-  : { kind: 'anon' as const };
+const supabaseUrl = 'https://your-project.supabase.co';
+const identity: RxDBIdentity = {
+  scope: supabaseUrl,
+  subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT
+};
 
 const rxdb = new RxDB({
   dbName: scopedDatabaseName('notes', identity),
