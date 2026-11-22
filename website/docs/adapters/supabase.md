@@ -200,6 +200,7 @@ const identity: RxDBIdentity = {
 
 const rxdb = new RxDB({
   dbName: scopedDatabaseName('notes', identity),
+  identity,
   entities: [Document],
   sync: {
     type: SyncType.Filter,
