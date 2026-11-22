@@ -91,7 +91,7 @@ export class TerminalTab implements OnDestroy {
   }
 
   private async start(): Promise<void> {
-    this.terminal.writeln('\x1b[2mStarting local shell with Vivari…\x1b[0m');
+    this.terminal.writeln('\x1b[2mStarting local shell…\x1b[0m');
     this.acquired = true;
     try {
       const runtime = await this.vm.acquire();
@@ -109,7 +109,7 @@ export class TerminalTab implements OnDestroy {
       this.attach(process);
     } catch (error) {
       if (!this.disposed)
-        this.terminal.writeln(`\r\n\x1b[31mVivari failed to start the local shell: ${describe(error)}\x1b[0m`);
+        this.terminal.writeln(`\r\n\x1b[31mFailed to start the local shell: ${describe(error)}\x1b[0m`);
     }
   }
 
