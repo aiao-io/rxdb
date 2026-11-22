@@ -1,156 +1,49 @@
 # @aiao/rxdb-react
 
-`@aiao/rxdb-react` 把 `@aiao/rxdb` 的响应式仓库查询接入 React 19。
+React 19 integration for Aiao RxDB. The package provides the database provider, reactive query hooks, graph queries, cursor infinite scrolling, async actions, persisted state, entity-change rendering, and sync state.
 
-## 安装
+## Install
 
 ```bash
-pnpm add @aiao/rxdb @aiao/rxdb-react react react-dom rxjs
+pnpm add @aiao/rxdb @aiao/rxdb-react rxjs react react-dom
 ```
 
-## Provider
-
-`RxDBProvider` 的 `db` 收 `RxDBSource`：实例、`Promise`，或返回二者之一的工厂。三个框架包收的是同一个联合类型。`db` 仍是**必填** —— 少传时报错要指得出「你没给数据库」，而不是把正在用 Provider 的人指回 Provider。
+## Provide a database
 
 ```tsx
-import type { RxDB } from '@aiao/rxdb';
 import { RxDBProvider } from '@aiao/rxdb-react';
 
-interface AppProps {
-  db: RxDB;
-}
-
-export function App({ db }: AppProps) {
+export function App() {
   return (
-    <RxDBProvider db={db}>
-      <Routes />
+    <RxDBProvider database={database}>
+      <TodoList />
     </RxDBProvider>
   );
 }
 ```
 
-异步形态用于「后端按运行环境动态选择」这类场景 —— 静态 import 会把桌面分支打进 web bundle：
+A provider can receive an instance, Promise, or factory through the package's `RxDBInput` contract. Provider-created instances are destroyed with the provider. Application-owned instances remain application-owned.
+
+## Query data
 
 ```tsx
-// 注意：非实例的 source 必须是稳定引用（模块级常量或 useMemo 包住）。
-// 每次 render 新建一个工厂，会让 Provider 反复重建数据库。
-const source = useMemo(() => async () => (await import('./setup-desktop')).setupDesktop(), []);
+import { useCount, useFind, useGet } from '@aiao/rxdb-react';
 
-<RxDBProvider db={source}>…</RxDBProvider>;
+export function TodoList() {
+  const todos = useFind(Todo, { where: { combinator: 'and', rules: [] } });
+  const todo = useGet(Todo, 'todo-1');
+  const count = useCount(Todo, { where: { combinator: 'and', rules: [] } });
+
+  return <div>{count.value} todos</div>;
+}
 ```
 
-读取分两条，区别只有「没就绪该怎么办」：
+Query resources expose a current `value`, `isLoading`, `error`, `hasValue`, and `isEmpty` state. Keep the resource object together or use `toRefs`-style adapters supplied by the framework. `useAction`, `useInfiniteScroll`, `usePersistedState`, `useEntityChange`, and `useSyncState` use the same lifecycle semantics as the Angular and Vue bindings.
 
-```tsx
-const database = useRxDB(); // 未就绪抛错，创建失败原样抛出创建异常
-const maybe = useRxDBOptional(); // 无 Provider 或未就绪时返回 undefined，用于渲染 loading 态
-const hasProvider = useHasRxDBProvider(); // 只回答有没有 Provider，与是否就绪、是否创建失败无关
+Run package tests with:
+
+```bash
+pnpm nx test rxdb-react --run
 ```
 
-`useRxDBOptional()` 的 `undefined` 分不出「没有 Provider」与「有 Provider 但还在解析（或已失败）」，要分路时配合 `useHasRxDBProvider()`：前者按独立形态运行（如表单直接透传数据），后者渲染 loading 态并拦截依赖数据库的操作。
-
-**生命周期所有权：Provider 只销毁自己造的东西。** 传工厂或 `Promise`，实例由 Provider 等来，卸载时它负责 `destroy()`；传已就绪的实例，它归调用方所有，Provider 不碰 —— 否则 `StrictMode` 的双挂载（挂载 → 卸载 → 挂载）会断掉调用方的模块级单例，留下一个没人会去重连的死库。这条规则三端逐字相同。
-
-**`<Activity>` 隐藏等同于一次断开。** 隐藏与卸载一样会执行 effect 清理，Provider 在清理时分不出两者，只能照上面的所有权规则销毁自己持有的库（`destroy()` 是终态，销毁后不能再连接）。重新显示时，工厂会被重新调用、建出一个新库；`Promise` 不能重新求值，只会再解析出那个已销毁的实例 —— Provider 不会把它交出去，而是让 `useRxDB()` 抛出说明原因的错误（`useRxDBOptional()` 返回 `undefined`）。所以会被 `<Activity>` 隐藏的 Provider 请传工厂（每次调用都新建数据库）或你自己持有的实例；工厂交回一个已被 Provider 销毁过的实例，同样按错误处理。
-
-换 `db` 时，从新 source 的首个提交起子树拿到的就只属于新 source：异步 source 解析完成之前读到的是未就绪，不会先读到旧库或旧 source 的创建异常。
-
-需要隔离多个数据库 context 时使用 `makeRxDBProvider<T>()` 创建独立的 Provider/hook 对。
-
-## 查询 Hooks
-
-所有查询 hook 返回 `{ value, error, isLoading, isEmpty, hasValue }`。查询参数既可以直接传值，也可以传返回参数的函数。参数函数可能在一次 render 中被调用多次，每次必须返回结构相等的值；非幂等函数会抛出 `TypeError`，避免形成无限重渲染。结构相等的 inline 参数不会重复订阅；参数语义变化时会取消旧订阅并启动新查询。
-
-- `useGet`
-- `useFindOne`
-- `useFindOneOrFail`
-- `useFind`
-- `useFindByCursor`
-- `useFindAll`
-- `useCount`
-- `useGraphNeighbors`
-- `useCountNeighbors`
-- `useGraphPaths`
-
-树查询 hooks（`useFindDescendants`、`useCountDescendants`、`useFindAncestors`、`useCountAncestors`）不在本包，由 [`@aiao/rxdb-plugin-tree-react`](../rxdb-plugin-tree-react/README.md) 提供。
-
-查询失败采用 stale-while-error 语义：`value` 保留最后一次成功值，`error` 保存原始 `Error`，`hasValue` 变为 `false`，`isEmpty` 变为 `undefined`。
-
-## 无限滚动
-
-`useInfiniteScroll` 通过仓库的 `findByCursor` 加载页面，返回 `{ value, error, isLoading, isEmpty, hasMore, loadMore, refresh }`。
-
-```tsx
-const todos = useInfiniteScroll(Todo, {
-  where: { combinator: 'and', rules: [] },
-  orderBy: [
-    { field: 'createdAt', sort: 'desc' },
-    { field: 'id', sort: 'asc' }
-  ],
-  limit: 50
-});
-```
-
-`loadMore()` 在加载中或没有下一页时不会重复请求。`refresh()` 会取消现有页面订阅并从第一页重新加载。
-
-## 异步操作
-
-`useAction` 把一个异步函数包成带在途状态的 action：
-
-```tsx
-const save = useAction((todo: Todo) => repository.save(todo));
-
-return (
-  <button disabled={save.isPending} onClick={() => save.execute(todo)}>
-    {save.isPending ? '保存中…' : '保存'}
-  </button>
-);
-```
-
-`isPending` 是**并发计数**而不是布尔开关：N 次调用同时在途时它一直为真，直到最后一个 settle；计数在 `finally` 里回退，因此失败也会正确复位。有意不做去重与取消 —— 重复点击会真的执行多次，错误原样 reject 给调用方。
-
-`execute` 的函数 identity 跨渲染稳定，可以直接进 `useEffect` / `useCallback` 的依赖数组，同时调用的始终是最新一次已提交渲染传入的函数 —— 在同一次提交的 layout effect（包括父组件的）里调用也是如此；挂起或被丢弃、没有提交的并发渲染不会改写它。
-
-## 持久化状态
-
-`usePersistedState` 把一份状态持久化到 `localStorage`，同 `namespace + name` 共享同一份状态：
-
-```tsx
-const theme = usePersistedState('my-app', 'theme', 'dark');
-
-return <button onClick={() => theme.setValue('light')}>{theme.value}</button>;
-```
-
-- 后续调用传入的 `initialValue` 会被忽略，但仍参与**类型标签**校验 —— 同 key 换值类型直接抛错，而不是静默串型。
-- `namespace` 与 `name` 在键里各自转义，不会互相串号；含 `:` 或 `%` 的旧键在首次读取时一次性迁移。
-- 是**快照**语义：对象原地改字段不会重渲染也不会落盘，必须整体 `setValue`。`setValue` 的 identity 跨渲染稳定。
-- 订阅走 `useSyncExternalStore`，并发渲染与 `StrictMode` 下都不会读到撕裂的快照。
-- 写盘失败**不抛错**，内存值照常更新，失败经 `persistError` 暴露 —— 这是唯一能知道数据没落盘的途径。
-- SSR 下不读也不写 `localStorage`，也不在进程内注册表里登记：服务端快照恒为本次调用的 `initialValue`，连续或并发的请求之间互不可见，同 key 跨请求换值类型也不抛错；hydrate 用同一个快照对齐服务端 HTML，提交后再切到盘上值。暂不监听 `storage` 事件，因此不跨标签页同步。
-
-## 实体实时变更
-
-实体是原地可变的类实例，引用不变，React 的 props/state 比较看不到它们的字段变化。`useEntityChange` 把实体的 `patches$` 接进渲染依赖：
-
-```tsx
-// 输入停止 200ms 后才重渲染
-const live = useEntityChange(todo, { debounceTime: 200 });
-
-return <div>{live.value?.title}</div>;
-```
-
-`debounceTime` 与 `auditTime` 单位是毫秒，同时设置时**串联**生效（顺序 `debounceTime → auditTime`），仅**正有限值**生效：`0`、负值、`NaN`、`Infinity` 一律表示禁用，两者都禁用时 patch 同步透传。`revision` 记录已收到的 patch 次数，跨实体切换继续累加；`error` 在实体或时间窗切换时复位。
-
-## 三端 API 对照
-
-同功能同 API 是本仓库的硬约束，框架惯例允许容器形态与命名差异，不允许能力缺失：
-
-| 能力         | React                                   | Angular                                                | Vue                                  |
-| ------------ | --------------------------------------- | ------------------------------------------------------ | ------------------------------------ |
-| 查询         | `useGet` / `useFind` / …                | 同名                                                   | 同名                                 |
-| 无限滚动     | `useInfiniteScroll`                     | `useInfiniteScroll`                                    | `useInfiniteScroll`                  |
-| 异步操作     | `useAction` → 渲染快照                  | `useAction` → `Signal<boolean>`                        | `useAction` → `ComputedRef<boolean>` |
-| 持久化状态   | `usePersistedState` → 快照 + `setValue` | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → `Ref<T>`       |
-| 实体实时变更 | `useEntityChange`                       | `RxDBEntityChangeDirective`（`markForCheck`）          | `useEntityChange`                    |
-
-时间窗判定（`withTimeWindows`）与持久化内核（`PersistedStateRegistry`）都放在 `@aiao/utils` 里由三端共用，语义不会各自漂移。Angular 的 `usePersistedState` 是既有 `useState` 的扁平签名适配，与 Vue / React 侧**键格式一致**但各自持有内存状态。
+Read the [English React guide](https://rxdb.aiao.io/en/docs/frameworks/react) and the [Chinese mirror](README.zh-CN.md) for the complete API.

@@ -11,7 +11,7 @@
 | `@aiao/rxdb-plugin-board-react`   | `BoardView`、`BoardShell`、`useBoard`                                                   |
 | `@aiao/rxdb-plugin-board-vue`     | `BoardView`、`BoardShell`、`useBoard`                                                   |
 
-当前包族尚未进入 npm 发布集合，先从仓库工作区验证。包名与代码示例描述当前 main 的接入方式，不能把工作区的 `0.0.28` 当作这些包已经发布的证明。本地运行入口见[能力与示例](../../getting-started/capabilities.md)。
+当前包族尚未进入 npm 发布集合，先从仓库工作区验证。包名与代码示例描述当前 main 的接入方式，不能把工作区的 `0.0.28` 当作这些包已经发布的证明。本地运行入口见[能力与示例](@site/docs/getting-started/capabilities.md)。
 
 完整视图需加载对应绑定的 `board-view.css` 子路径。React / Vue 在应用入口导入，Angular 在全局 styles 中配置；只使用 `useBoard` 的数据与动作时无需视图样式。
 
@@ -46,7 +46,7 @@ export function createRxdb(dbName: string): RxDB {
 }
 ```
 
-WASM 来自适配器依赖的 `@subframe7536/sqlite-wasm`，复制方式见 [sqlite-wasm 适配器](../../adapters/sqlite-wasm.md)。不能把 wa-sqlite 或官方 SQLite 的 WASM 放到该路径混用。
+WASM 来自适配器依赖的 `@subframe7536/sqlite-wasm`，复制方式见 [sqlite-wasm 适配器](@site/docs/adapters/sqlite-wasm.md)。不能把 wa-sqlite 或官方 SQLite 的 WASM 放到该路径混用。
 
 ## 三框架外壳
 
@@ -71,7 +71,7 @@ Angular 使用 `<board-shell [options]="options" />` 与 `BoardShellComponent`�
 
 ## 搜索、历史与运行示例
 
-看板通过实体仓储与领域服务维护归属、手动排序和操作权限。搜索使用 [全文搜索插件](../rxdb-plugin-search/README.md)，历史使用 [history 插件](../rxdb-plugin-history/README.md)；不能据此推断全部数据库适配器都支持完整看板外壳。
+看板通过实体仓储与领域服务维护归属、手动排序和操作权限。搜索使用 [全文搜索插件](@site/docs/plugins/rxdb-plugin-search/README.md)，历史使用 [history 插件](@site/docs/plugins/rxdb-plugin-history/README.md)；不能据此推断全部数据库适配器都支持完整看板外壳。
 
 ```bash
 pnpm nx serve dev-rxdb-board

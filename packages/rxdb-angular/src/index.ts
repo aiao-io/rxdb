@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
- * RxDB Angular 集成包 - Angular 框架的 RxDB 响应式数据库支持
- * 提供 Angular 特有的响应式状态管理和变更检测集成
+ * Angular integration for Aiao RxDB.
+ * Provides Signals, dependency injection, and Angular change-detection integration.
  */
 export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 export * from './hooks';

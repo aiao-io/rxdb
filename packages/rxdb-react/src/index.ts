@@ -1,59 +1,32 @@
 /**
- * @fileoverview RxDB React 集成包
- * 提供 RxDB 数据库的 React Hooks 接口
+ * @packageDocumentation
+ * React integration for Aiao RxDB.
+ * Provides the database provider and reactive React Hooks interface.
  *
  * @module @aiao/rxdb-react
  */
 
-/**
- * RxDB React 钩子。
- * - useGet: 通过 ID 获取单个实体
- * - useFindOne: 查找匹配条件的单个实体
- * - useFindOneOrFail: 查找单个实体或抛出错误
- * - useFind: 查找多个匹配条件的实体
- * - useFindByCursor: 使用游标分页查找实体
- * - useFindAll: 查找所有实体
- * - useCount: 统计匹配条件的实体数量
- * - useGraphNeighbors: 查找图结构的邻居实体
- * - useCountNeighbors: 统计邻居实体数量
- * - useGraphPaths: 查找图中的路径
- */
+/** Reactive entity, graph, and query hooks. */
 export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 export * from './hooks.js';
 
-/** 查询 hook 的公开选项类型。 */
+/** Public options shared by query hooks. */
 export type { UseOptions } from './query-options.js';
 
-/**
- * RxDB React 集成组件
- */
+/** React provider and integration components. */
 export * from './rxdb-react.js';
 
-/**
- * RxDB React 无限滚动钩子
- */
+/** Cursor-based infinite scrolling. */
 export * from './useInfiniteScroll.js';
 
-/**
- * 异步操作状态管理（三端等价：Angular `useAction` / Vue `useAction`）
- * - useAction: 把异步函数包成带 isPending 计数的可调用 action
- */
+/** Async action state shared with the Angular and Vue bindings. */
 export * from './use-action.js';
 
-/**
- * localStorage 命名空间持久化状态（三端等价：Angular / Vue `usePersistedState`）
- * - usePersistedState: 同 namespace + name 共享同一份状态，写入即落盘
- */
+/** Namespace-scoped localStorage state shared with the Angular and Vue bindings. */
 export * from './use-persisted-state.js';
 
-/**
- * 实体 patch 到渲染的桥接（Angular 侧对应 `RxDBEntityChangeDirective`）
- * - useEntityChange: 让实体的原地修改实时反映到视图
- */
+/** Bridges in-place entity patches to React rendering. */
 export * from './use-entity-change.js';
 
-/**
- * local-first 同步状态面板（三端等价：Angular `useSyncState` / Vue `useSyncState`）
- * - useSyncState: 网通不通、还有多少没推上去、这会儿在不在推、上次错在哪、上次谁判负
- */
+/** Local-first synchronization state shared with the Angular and Vue bindings. */
 export * from './use-sync-state.js';

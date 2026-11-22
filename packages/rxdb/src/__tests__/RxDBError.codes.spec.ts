@@ -4,7 +4,6 @@ import {
   NetworkOfflineError,
   RxDBCheckViolationError,
   RxDBConstraintDriftError,
-  RxDBError,
   RxDBExclusionViolationError,
   RxDBLocalAdapterCapabilityError,
   RxDBMissingPluginError,
@@ -50,11 +49,6 @@ const cases = [
     'RxDBPluginAmbiguousDependencyError',
     new RxDBPluginAmbiguousDependencyError('plugin:search', ['A', 'B']),
     'RXDB_PLUGIN_AMBIGUOUS_DEPENDENCY'
-  ],
-  [
-    'RxDBError',
-    new RxDBError('generic'),
-    undefined
   ]
 ] as const;
 

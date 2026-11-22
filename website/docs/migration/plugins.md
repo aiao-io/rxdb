@@ -71,20 +71,20 @@ await db.connect('sqlite-wasm');
 await db.workingTree.enable();
 ```
 
-`enable()` 之后库里会留下能力水位行；**没装本插件的客户端再打开这个库会被拒绝连接**并报出该装的包名。从未启用过工作树的库不装本包零成本。完整流程见[工作树拆包](./working-tree-split.md)，API 见[工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)。
+`enable()` 之后库里会留下能力水位行；**没装本插件的客户端再打开这个库会被拒绝连接**并报出该装的包名。从未启用过工作树的库不装本包零成本。完整流程见[工作树拆包](@site/docs/migration/working-tree-split.md)，API 见[工作树与提交历史插件](@site/docs/plugins/rxdb-plugin-working-tree/README.md)。
 
 ## 升级已启用的插件
 
 1. 所有 `@aiao/*` 包同步版本号，升级时**插件与核心保持同一版本**。
-2. 升级后检查插件选项是否有破坏性变更（见对应版本的 [v1 升级说明](./v1.md)）。
+2. 升级后检查插件选项是否有破坏性变更（见对应版本的 [v1 升级说明](@site/docs/migration/v1.md)）。
 3. 若插件涉及底层表结构（如 FTS5），首次以新版本连接时会按需重建，无需手工干预。
 
 ## 注意事项
 
-1. 搜索插件在未放行的适配器上会抛 `SearchUnsupportedAdapterError` fail-fast（`wa-sqlite` / `wa-sqlite-miniprogram` 尚未实测放行）—— 启用前对照[兼容矩阵](../compatibility.md)。
+1. 搜索插件在未放行的适配器上会抛 `SearchUnsupportedAdapterError` fail-fast（`wa-sqlite` / `wa-sqlite-miniprogram` 尚未实测放行）—— 启用前对照[兼容矩阵](@site/docs/compatibility.md)。
 2. 插件选项变更不影响已持久化的业务数据，仅影响运行期行为。
 
 ## 参考
 
 - 搜索插件完整用法见「插件 › 全文搜索」章节
-- [框架绑定迁移](./frameworks.md)
+- [框架绑定迁移](@site/docs/migration/frameworks.md)

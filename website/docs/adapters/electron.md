@@ -194,7 +194,7 @@ SQLite 侧的事务用 `BEGIN IMMEDIATE` 而非裸 `BEGIN`：写锁在事务起�
 
 ## 配合 rxdb-plugin-storage 的 `./desktop` 入口
 
-桌面文件存储与桌面库同属一个备份域，走的是**同一条 host 通道**：文件宿主是 `/host` 入口导出的 `createElectronFileHost`，不新增 preload 方法。使用方式见 [rxdb-plugin-storage 文档](../plugins/rxdb-plugin-storage/README.md)：
+桌面文件存储与桌面库同属一个备份域，走的是**同一条 host 通道**：文件宿主是 `/host` 入口导出的 `createElectronFileHost`，不新增 preload 方法。使用方式见 [rxdb-plugin-storage 文档](@site/docs/plugins/rxdb-plugin-storage/README.md)：
 
 ```typescript
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
@@ -214,7 +214,7 @@ rxdb.use(rxDBPluginStorage, {
 - 数据量超出浏览器存储配额的舒适区，或不接受 OPFS 被浏览器回收的风险；
 - 需要外部工具直接打开同一份数据（SQLite：`sqlite3` CLI、DB Browser）。
 
-在**浏览器**里运行（包括 Electron 渲染进程里不想起 host 的场景）请改用 [wa-sqlite 适配器](./sqlite.md)（或 [sqlite-wasm](./sqlite-wasm.md)）。一句话区分：浏览器适配器活在浏览器存储配额与回收策略之内，桌面适配器把数据放回应用自己掌控的目录。完整选型对比见[适配器总览](./README.md)。
+在**浏览器**里运行（包括 Electron 渲染进程里不想起 host 的场景）请改用 [wa-sqlite 适配器](@site/docs/adapters/sqlite.md)（或 [sqlite-wasm](@site/docs/adapters/sqlite-wasm.md)）。一句话区分：浏览器适配器活在浏览器存储配额与回收策略之内，桌面适配器把数据放回应用自己掌控的目录。完整选型对比见[适配器总览](@site/docs/adapters/README.md)。
 
 ## 参考
 

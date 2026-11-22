@@ -38,7 +38,7 @@ pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-quer
 
 `use()` 传的是**插件工厂函数本身**，不要调用它（`db.use(rxDBPluginQueryCache)`，不是 `db.use(rxDBPluginQueryCache())`）。
 
-已经在用推拉同步的应用多半已经装好 history + sync，这一步只需要补 querycache 一个包。从旧版 core 升级的完整同步迁移见[历史与同步拆包](./history-sync-plugins.md)。
+已经在用推拉同步的应用多半已经装好 history + sync，这一步只需要补 querycache 一个包。从旧版 core 升级的完整同步迁移见[历史与同步拆包](@site/docs/migration/history-sync-plugins.md)。
 
 实体元数据一个字都不用改：`@Entity({ sync: { type: SyncType.QueryCache, … } })` 照旧——`SyncType` 是闭合联合，枚举值仍在 core。
 
@@ -67,7 +67,7 @@ Install '@aiao/rxdb-plugin-querycache' and register it via rxdb.use(rxDBPluginQu
 +const repo = new QueryCacheEngine('Product', remoteAdapter, localAdapter);
 ```
 
-这条入口在[版本与 API 稳定性策略](../versioning.md)里标为实验性，改名不受废弃周期约束。正常用法（经 `entityManager.getRepository()` 拿仓储）不碰这个类。
+这条入口在[版本与 API 稳定性策略](@site/docs/versioning.md)里标为实验性，改名不受废弃周期约束。正常用法（经 `entityManager.getRepository()` 拿仓储）不碰这个类。
 
 ## 留在 core 的东西
 
@@ -98,7 +98,7 @@ rxdb.getQueryCacheEngine(); // 读槽位，未装插件时为 undefined
 
 ## 相关
 
-- [编写插件](../plugins/authoring.md)：`install(scope)` 契约与作用域用法
-- [历史与同步拆包](./history-sync-plugins.md)：`versionManager` → `syncManager` 的完整对照
-- [插件作用域契约迁移](./plugin-scope.md)：本包的注册同样随连接纪元撤销
-- [版本与 API 稳定性策略](../versioning.md)：实验性层级与破坏性变更流程
+- [编写插件](@site/docs/plugins/authoring.md)：`install(scope)` 契约与作用域用法
+- [历史与同步拆包](@site/docs/migration/history-sync-plugins.md)：`versionManager` → `syncManager` 的完整对照
+- [插件作用域契约迁移](@site/docs/migration/plugin-scope.md)：本包的注册同样随连接纪元撤销
+- [版本与 API 稳定性策略](@site/docs/versioning.md)：实验性层级与破坏性变更流程

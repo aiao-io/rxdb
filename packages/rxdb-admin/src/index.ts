@@ -1,3 +1,7 @@
+/**
+ * @packageDocumentation
+ * Framework-independent admin-shell state for Aiao RxDB.
+ */
 export * from './bootstrap.js';
 export * from './i18n/index.js';
 export * from './layout/layout-state.js';

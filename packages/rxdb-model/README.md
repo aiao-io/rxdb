@@ -1,78 +1,62 @@
 # @aiao/rxdb-model
 
-框架无关的 RxDB 实体模型核心库：从实体元数据（`EntityMetadata`）派生表单、详情页、可编辑表格与可视化查询构建器所需的全部纯逻辑，并配套 VTable 表格运行时基础设施。
+Framework-independent entity-model utilities for Aiao RxDB. The package derives form fields, detail layouts, editable table columns, validation, formatting, and query-builder state from `EntityMetadata`.
 
-## 定位与边界
+It has no Angular, React, or Vue runtime dependency. Use the framework bindings in `@aiao/rxdb-model-angular`, `@aiao/rxdb-model-react`, or `@aiao/rxdb-model-vue` when you need ready-made components.
 
-- **唯一输入源**：`@aiao/rxdb` 的实体装饰器体系产出的 `EntityMetadata`。
-- **框架无关**：本包不含任何 Angular / React / Vue 依赖，可被任意前端技术栈消费；三框架 UI 组件层见 `@aiao/rxdb-model-angular`（React / Vue 版本陆续提供）。
-- **与 `@aiao/rxdb` 的边界**：核心包的 `entity-field.utils`（Field Descriptor 字段语义元数据）与 `entity-value.utils`（`parseEntityFieldValue`/`formatEntityFieldValue`/`validateFieldValue` 等）服务于核心内部与插件契约；本包的同名模块面向「实体管理界面」场景（表单字段提取、字段值解析/格式化/校验、表格列构建），语义不同、请勿混用。
-- **表格引擎**：`@visactor/vtable` 与 `@visactor/vtable-editors` 为 peer 依赖（`~1.26.x`），由消费方提供。
-- **Headless 入口**：`@aiao/rxdb-model/headless` 只导出表单、查询构建器、列表、详情、对话框和 QueryTable 的状态与动作，不加载 VTable；两个 VTable peer 在包清单中为可选。需要默认表格展示时再安装并使用根入口。
+## Install
 
-## 模块一览
+```bash
+pnpm add @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-i18n
+```
 
-| 目录                                                                    | 职责                                                                                                   |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| 根目录 `entity-field.utils` / `entity-value.utils` / `structural-equal` | 字段配置提取、字段值解析/格式化/校验、键序无关的结构化深比较                                           |
-| `entity-form/`                                                          | 元数据 → 表单字段配置（create/edit/view 三模式）、实体与表单数据双向转换（仅变化字段）、表单校验       |
-| `entity-detail/`                                                        | 元数据 → 详情页 Tab 结构（基础表单 + 每关系一个表格 Tab）                                              |
-| `entity-table/`                                                         | 可编辑表格列构建、15 个 VTable 单元格编辑器、剪贴板 / 键盘 / 主题 / tooltip / 拖拽重排等运行时基础设施 |
-| `query-builder/`                                                        | 可视化查询构建器引擎：状态服务、操作符注册表、查询转换、schema 解析、即时校验、字段树等工具            |
+The default table entry also uses `@visactor/vtable` and `@visactor/vtable-editors`. Use `@aiao/rxdb-model/headless` when you only need state and actions without VTable.
 
-## 使用
+## Build UI state from metadata
 
 ```ts
-import { buildFormFields, buildEditableColumns, buildDetailTabs } from '@aiao/rxdb-model';
+import { buildDetailTabs, buildEditableColumns, buildFormFields } from '@aiao/rxdb-model';
 
 const fields = buildFormFields(metadata, 'create');
 const columns = buildEditableColumns(metadata);
 const tabs = buildDetailTabs(metadata);
 ```
 
-只需要状态与动作时可从 `@aiao/rxdb-model/headless` 导入 `createEntityFormController`。该入口不触碰 DOM，也不加载 VTable，消费方自行渲染字段控件；控制器的 `snapshot`、`setField`、`discardInput`、`validate`、`submit`、`cancel` 和 `dispose` 组成稳定的表单交互契约。完整的三框架接入示例见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
-
-查询构建器（框架无关服务层）：
+The headless entry exposes controllers such as `createEntityFormController`, query-builder services, list state, detail state, and QueryTable state. The controller snapshot and actions can be rendered by any UI layer.
 
 ```ts
 import { createQueryBuilderService, createSchemaFromEntity } from '@aiao/rxdb-model';
 
-const qb = createQueryBuilderService<MyEntity>({ fields: createSchemaFromEntity(metadata) });
-qb.state$.subscribe(state => console.log(state));
-// 第一个参数是目标分组 ID，null 表示根组
-qb.addRule(null, { field: 'title', operator: 'contains', value: 'a' });
-const rxdbQuery = qb.toRxDBQuery();
+const queryBuilder = createQueryBuilderService({ fields: createSchemaFromEntity(metadata) });
+queryBuilder.addRule(null, { field: 'title', operator: 'contains', value: 'draft' });
+const query = queryBuilder.toRxDBQuery();
 ```
 
-## 国际化
+## Internationalization
 
-`modelMessages` 随包提供默认 `zh-Hans` 目录。未提供 i18n provider 时，组件继续使用原中文文案，日期保留原 `toLocaleString()` 的时分秒，数字保留原文本格式。显式接入 provider 后，日期按 locale 格式化且保留到秒，普通数字按 locale 分组。英文示例目录 `modelEnMessages` 由应用显式注册：
+Register the bundled catalogs with `@aiao/rxdb-i18n` when the model UI should follow the application locale.
 
 ```ts
 import { I18n } from '@aiao/rxdb-i18n';
-import { modelMessages, modelEnMessages, buildEditableColumns, buildDetailTabs } from '@aiao/rxdb-model';
+import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 
 const i18n = new I18n({
   defaultLocale: 'zh-Hans',
-  deviceLocale: 'zh-Hans',
+  deviceLocale: navigator.language,
   catalogs: [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }]
 });
-const columns = buildEditableColumns(metadata, { i18n });
-const tabs = buildDetailTabs(metadata, i18n);
-await i18n.setLocale('en');
 ```
 
-Angular / React / Vue 组件消费对应 `@aiao/rxdb-i18n-{angular,react,vue}` 的 provider，无需逐层传入翻译函数。命令式表格通过 `createListTable` 的第六个参数接收同一运行时；已打开的编辑器会更新 placeholder、提示与当前错误，结束编辑时解除订阅。
+`buildFormFields`, `buildDetailTabs`, and table helpers accept the runtime where their formatting or message behavior needs to track the current locale.
 
-应用目录使用 namespace=`rxdb-model` 和 [文案盘点](../../requirements/client-i18n-inventory.md) 中的 key。数据库模式下通过 `i18n.setMessages({ locale: 'en', namespace: 'rxdb-model', messages: { 'common.save': 'Submit' } })` 持久化逐条覆盖，重启后仍生效；未覆盖 key 沿 fallback 链回退中文。`actionsTitle` 等已有 options 始终优先于目录。
+## Framework parity
 
-实体、字段与关系显示名可在同一 `rxdb-model` 命名空间声明稳定键：`entity.assets.Asset.displayName`、`entity.assets.Asset.property.name`、`entity.assets.Asset.relation.category`。三端列表、筛选、详情及已打开表单随目录和语言更新标签，保留未保存数据。缺少声明的键继续使用实体原有显示名，不记录缺失诊断。`localizeEntityMetadata(metadata, runtime)` 只克隆显示元数据，保持原实体声明、字段名、默认值和记录内容不变；`localizeEntityFormFields(metadata, fields, runtime)` 可更新已构造的表单字段标签。自定义 `ModelI18n` 可实现可选的 `resolve()` 以启用这一能力。
+Angular, React, and Vue bindings share the same metadata, query, validation, and mutation semantics. Framework-specific code is limited to rendering and reactive subscription lifecycles.
 
-`FormFieldValidationError.reason` 保存已知约束校验或输入解析的来源值。详情页切换语言时通过 `refreshFormValidationResult(result, fields, runtime)` 重新生成错误文案，保留未保存数据和受控输入最近一次合法值；没有来源的外部错误保持原文。
-
-## 开发
+Run package tests with:
 
 ```bash
-pnpm nx test rxdb-model        # Vitest（node 默认环境，DOM 用例经文件头 pragma 切 happy-dom）
-pnpm nx build rxdb-model       # Vite 库构建（ES 单格式 + dts）
+pnpm nx test rxdb-model --run
 ```
+
+Read the [English entity model guide](https://rxdb.aiao.io/en/docs/entity-model/) and the [Chinese mirror](README.zh-CN.md) for the full API examples.

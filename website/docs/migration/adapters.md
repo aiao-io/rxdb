@@ -59,10 +59,10 @@ await source.disconnect('wa-sqlite');
 
 1. 搬运期间源库与目标库使用**不同的 `dbName`**，避免底层存储互相覆盖。
 2. 大数据量建议分批读取（配合 `limit` / `offset` 或游标查询）并在批次间让出事件循环。
-3. 切换到需要特定浏览器能力的适配器前，先对照[兼容矩阵](../compatibility.md)确认目标环境支持。
+3. 切换到需要特定浏览器能力的适配器前，先对照[兼容矩阵](@site/docs/compatibility.md)确认目标环境支持。
 4. 迁移完成并校验无误后，再清理旧库数据。
 
 ## 参考
 
 - 各适配器的详细配置见「适配器」章节
-- [Schema 迁移](./schema.md)
+- [Schema 迁移](@site/docs/migration/schema.md)

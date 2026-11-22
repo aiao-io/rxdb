@@ -13,9 +13,6 @@ export type RxDBErrorCode =
   | 'RXDB_PLUGIN_AMBIGUOUS_DEPENDENCY';
 
 export class RxDBError extends Error {
-  /** Stable machine-readable identifier for this error, when one is defined. */
-  readonly code?: RxDBErrorCode;
-
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = 'RxDBError';

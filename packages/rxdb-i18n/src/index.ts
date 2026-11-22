@@ -1,3 +1,7 @@
+/**
+ * @packageDocumentation
+ * Reactive client internationalization runtime for Aiao RxDB.
+ */
 export {
   catalogMessages,
   messageId,

@@ -2,7 +2,7 @@
 
 工作树与提交历史（epic-006）从 `@aiao/rxdb` 核心抽成了独立插件包，**下一个发布版本起**生效：十张系统表、写捕获、提交图编解码、`0004-working-tree-commits` 迁移全部随 `@aiao/rxdb-plugin-working-tree` 走，核心侧只留下装卸口与「未认领能力守卫」。
 
-**不涉及数据迁移。** 磁盘上的库文件、表结构、`rxdb_change` 链、已经写进 `rxdb_migration` 的迁移名——一样都没动。要改的只有依赖清单、一行 `use()`、以及（对用过工作树的库）一次 `enable()` 收敛。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
+**不涉及数据迁移。** 磁盘上的库文件、表结构、`rxdb_change` 链、已经写进 `rxdb_migration` 的迁移名——一样都没动。要改的只有依赖清单、一行 `use()`、以及（对用过工作树的库）一次 `enable()` 收敛。按[版本与 API 稳定性策略](@site/docs/versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
 ## 为什么拆
 
@@ -143,7 +143,7 @@ await db.versionManager.switchBranch('feature'); // 首次切换即物化
 
 ## 参考
 
-- [工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)：完整用法与 API
-- [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约与本插件 `lifecycle: 'scoped'` 的含义
-- [版本与 API 稳定性策略](../versioning.md)：废弃周期与公开 API 范围
-- [兼容矩阵](../compatibility.md)：框架版本与 RxJS 版本对应关系
+- [工作树与提交历史插件](@site/docs/plugins/rxdb-plugin-working-tree/README.md)：完整用法与 API
+- [插件作用域契约迁移](@site/docs/migration/plugin-scope.md)：`install(scope)` 新契约与本插件 `lifecycle: 'scoped'` 的含义
+- [版本与 API 稳定性策略](@site/docs/versioning.md)：废弃周期与公开 API 范围
+- [兼容矩阵](@site/docs/compatibility.md)：框架版本与 RxJS 版本对应关系

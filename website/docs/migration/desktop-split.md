@@ -7,7 +7,7 @@
 | `@aiao/rxdb-adapter-desktop`               | `@aiao/rxdb-adapter-electron` |
 | `@aiao/rxdb-adapter-desktop`（Tauri 半边） | `@aiao/rxdb-adapter-tauri`    |
 
-以旧包名发布的最新版本是 `0.0.25`。它不会被撤回，也**不会被标记为 `deprecated`**——旧包保留在 registry 上，未来仍可能继续更新，因此不会出现「安装时报废弃警告」这回事。现有安装照常工作，迁移由本文指路而不是靠 registry 元数据推着走。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
+以旧包名发布的最新版本是 `0.0.25`。它不会被撤回，也**不会被标记为 `deprecated`**——旧包保留在 registry 上，未来仍可能继续更新，因此不会出现「安装时报废弃警告」这回事。现有安装照常工作，迁移由本文指路而不是靠 registry 元数据推着走。按[版本与 API 稳定性策略](@site/docs/versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
 **不涉及数据迁移。** 磁盘上的库文件、逻辑库名的推导规则（`${dbName}.sqlite3`）、线协议版本（`1`）、preload 注入用的全局键（`__aiaoRxdbDesktopHost__`）、全部错误码——一样都没动。要改的只有 import 路径、五个符号名，以及适配器注册名。
 
@@ -149,6 +149,6 @@ pnpm tsc --noEmit
 
 ## 参考
 
-- [版本与 API 稳定性策略](../versioning.md)：废弃周期与公开 API 范围
-- [兼容矩阵](../compatibility.md)：Node / Electron / 框架版本对应关系
-- [适配器切换与数据迁移](./adapters.md)：换的是存储后端而不只是包名时看这篇
+- [版本与 API 稳定性策略](@site/docs/versioning.md)：废弃周期与公开 API 范围
+- [兼容矩阵](@site/docs/compatibility.md)：Node / Electron / 框架版本对应关系
+- [适配器切换与数据迁移](@site/docs/migration/adapters.md)：换的是存储后端而不只是包名时看这篇

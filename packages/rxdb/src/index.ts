@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
- * RxDB 核心包 - 响应式数据库客户端
- * 提供实体管理、版本控制、查询管理等功能
+ * Aiao RxDB core package.
+ * Provides entity management, repositories, reactive queries, transactions, migrations, and adapter contracts.
  */
 // 备份 / 恢复的 adapter 无关契约（US-217）：错误分类、manifest、流式归档编解码、实体结构指纹。
 // 各 adapter 的 backup/restore 在包外实现，必须共用这一份格式与判定，否则同一个归档在两端

@@ -87,7 +87,7 @@ source 时没有人替你等，`inject(RxDB)` 会抛 `RxDB is not ready yet`；�
 
 ## 升级框架主版本
 
-- 框架绑定通过 `peerDependencies` 声明框架版本范围（见[兼容矩阵](../compatibility.md)）。
+- 框架绑定通过 `peerDependencies` 声明框架版本范围（见[兼容矩阵](@site/docs/compatibility.md)）。
 - 升级 Angular / React / Vue 主版本前，确认目标版本落在对应绑定包的 peer 范围内。
 - 所有 `@aiao/*` 包同步版本号，升级绑定包时**与核心包保持同一版本**。
 
@@ -99,4 +99,4 @@ source 时没有人替你等，`inject(RxDB)` 会抛 `RxDB is not ready yet`；�
 ## 参考
 
 - 各框架完整指南见「框架集成」章节
-- [适配器切换与数据迁移](./adapters.md)
+- [适配器切换与数据迁移](@site/docs/migration/adapters.md)

@@ -5,7 +5,7 @@
 
 :::tip 后端对接者请看协议规范
 如果你是要**实现后端**（Node / Go / Python …）来对接 RxDB 前端，请看
-[HTTP QueryCache 协议规范](./http-protocol.md)——一份语言无关的端点 + JSON 契约，不看 TS 源码也能照着实现。
+[HTTP QueryCache 协议规范](@site/docs/adapters/http-protocol.md)——一份语言无关的端点 + JSON 契约，不看 TS 源码也能照着实现。
 :::
 
 :::warning v1 只支持 `SyncType.QueryCache`
@@ -173,7 +173,7 @@ rxdb.adapter(
 
 :::note `pageToken` 是不透明串，不是 `findByCursor` 的游标
 适配器只判断它「相等 / 不等 / 是否 `undefined`」，从不解析内部结构。core 的
-[`findByCursor`](../model-query/findByCursor.md) 用「游标」指**实体实例**做的 keyset 锚点，那种游标在
+[`findByCursor`](@site/docs/model-query/findByCursor.md) 用「游标」指**实体实例**做的 keyset 锚点，那种游标在
 Repository 里就被编译成了 `where` 规则组，适配器根本看不到。两者没有关系。
 :::
 
@@ -258,7 +258,7 @@ auth header **不进**请求指纹——否则每次 token 轮换都会让整份
 
 ## 变更通知：让远端改动主动打过来
 
-缺省关闭。打开后适配器会连一条 [SSE](./http-protocol.md#变更通知可选) 长连接；远端推来一个
+缺省关闭。打开后适配器会连一条 [SSE](@site/docs/adapters/http-protocol.md#变更通知可选) 长连接；远端推来一个
 **实体名**，适配器就调 core 的失效上报口，让挂在该实体上的查询按各自的策略重取。
 
 ```typescript
@@ -407,5 +407,5 @@ adapter.changeFeedEnabled; // boolean
 
 ## 延伸阅读
 
-- [同步策略 · QueryCache 快速入门](../collaboration/sync.md#querycache-快速入门)——`localCacheFirst`、`offlineFallback`、`syncStaleTime`
-- [适配器总览](./README.md)
+- [同步策略 · QueryCache 快速入门](@site/docs/collaboration/sync.md#querycache-快速入门)——`localCacheFirst`、`offlineFallback`、`syncStaleTime`
+- [适配器总览](@site/docs/adapters/README.md)
