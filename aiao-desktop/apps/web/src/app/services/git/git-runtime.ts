@@ -80,6 +80,7 @@ export interface GitTerminalResult extends GitTerminalTree {
   readonly stderr: string;
 }
 
+/** 随桌面分发的 wasm-git 包版本。 */
 export const GIT_TERMINAL_VERSION = 'git version 0.0.17 (wasm-git)';
 
 export const isGitVersionRequest = (args: readonly string[]): boolean =>
@@ -156,7 +157,14 @@ export class GitWorkbenchRuntime {
   }
 
   async runTerminal(command: GitTerminalCommand): Promise<GitTerminalResult> {
-    if (isGitVersionRequest(command.args)) return { files: command.files, directories: command.directories, exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' };
+    if (isGitVersionRequest(command.args))
+      return {
+        files: command.files,
+        directories: command.directories,
+        exitCode: 0,
+        stdout: GIT_TERMINAL_VERSION,
+        stderr: ''
+      };
     return this.enqueue(async () => {
       const root = `/tmp/aiao-terminal-${this.#scratch++}`;
       try {
@@ -169,7 +177,9 @@ export class GitWorkbenchRuntime {
         const cwd = command.cwd ? `${root}/${command.cwd}` : root;
         this.fs.chdir(cwd);
         const result = await this.runRaw(this.normalizeTerminalArgs(command.args, cwd));
-        if (command.args[0] === 'init') result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
+        if (command.args[0] === 'init')
+          result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
+        // lg2 在首次提交前会把 HEAD 指向的待创建分支报到 stderr，即使 status 成功。
         if (command.args[0] === 'status' && result.exitCode === 0 && result.stderr) {
           const head = command.files.find(file => file.path === '.git/HEAD');
           const ref = /^ref: (refs\/heads\/.+)$/.exec(new TextDecoder().decode(head?.bytes).trim())?.[1];
