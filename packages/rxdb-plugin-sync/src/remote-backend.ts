@@ -22,7 +22,6 @@ import {
   RxDBError,
   RxDBIdentityMismatchError,
   RxDBSync,
-  type EntityType,
   type IRepository,
   type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
@@ -260,10 +259,17 @@ export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemote
   const { adapter: localAdapter } = await sm.getLocalRepositories();
   const result = await localAdapter.transaction(async executor => {
     const repository = executor.getRepository(RxDBSync);
-    const records = (await repository.find(ALL_RECORDS)).filter(record => record.remoteBackendId !== backendId);
+    const allRecords = await repository.find(ALL_RECORDS);
+    const records = allRecords.filter(record => record.remoteBackendId !== backendId);
     const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
     const progresses = (await progressRepository.find(ALL_RECORDS)).filter(
-      progress => progress.remoteBackendId !== backendId
+      progress =>
+        typeof progress.namespace === 'string' &&
+        typeof progress.entity === 'string' &&
+        typeof progress.branchId === 'string' &&
+        typeof progress.bucket === 'string' &&
+        typeof progress.filterFingerprint === 'string' &&
+        progress.remoteBackendId !== backendId
     );
     const previousBackendIds = [
       ...new Set([
@@ -280,7 +286,7 @@ export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemote
     for (const progress of progresses) {
       const EntityType = sm.rxdb.schemaManager.getEntityType(progress.entity, progress.namespace);
       const repoSync =
-        records.find(
+        allRecords.find(
           record =>
             record.namespace === progress.namespace &&
             record.entity === progress.entity &&

@@ -10,7 +10,6 @@
 
 import type {
   EntityType,
-  getRxDBIdentityKey,
   IRepository,
   IRxDBAdapter,
   IRxDBChange,
@@ -24,10 +23,16 @@ import type {
   RuleGroup,
   RxDB,
   RxDBMutationsMap,
-  RXDB_ANONYMOUS_SUBJECT,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getRxDBIdentityKey,
+  getSyncConfig,
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDBAdapterRemoteBase,
+  tryGetEntityStatus
+} from '@aiao/rxdb';
 import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';

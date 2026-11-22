@@ -90,7 +90,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端会话换了主人', () =
   it('适配器按会话令牌报告调用者：就是令牌里的用户', async () => {
     const client = await createClient('reports', TEST_USER_ID, OTHER_USER_ID);
 
-    await expect(client.remote.callerIdentity()).resolves.toBe(OTHER_USER_ID);
+    await expect(client.remote.callerIdentity()).resolves.toEqual({ scope: SUPABASE_URL, subject: OTHER_USER_ID });
   });
 
   it('会话就是声明的身份：拉取与推送照常', async () => {
@@ -142,7 +142,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端会话换了主人', () =
       RxDBIdentityMismatchError
     );
 
-    vi.spyOn(client.remote, 'callerIdentity').mockResolvedValue(TEST_USER_ID);
+    vi.spyOn(client.remote, 'callerIdentity').mockResolvedValue({ scope: SUPABASE_URL, subject: TEST_USER_ID });
     await client.rxdb.syncManager.pushRepository('public', 'Todo');
 
     expect(await remoteHasTodo(todo.id)).toBe(true);

@@ -136,7 +136,11 @@ function createAdapter(
   const client = { realtime, ...clientOverrides };
   const rxdb = createRxdb(entities);
 
-  return new RxDBAdapterSupabase(rxdb, { client: client as never, ...options });
+  return new RxDBAdapterSupabase(rxdb, {
+    client: client as never,
+    supabaseUrl: 'https://project-a.supabase.co',
+    ...options
+  });
 }
 
 function createRepositoryClientMocks() {
@@ -313,15 +317,24 @@ describe('supabase review regressions', () => {
       accessToken: async () => jwtFor({ role: 'authenticated', sub: 'user-from-token' })
     });
 
-    await expect(adapter.callerIdentity()).resolves.toBe('user-from-token');
+    await expect(adapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'user-from-token'
+    });
   });
 
   it('accessToken 为空或没有 sub 时按 anon 处理', async () => {
     const emptyTokenAdapter = createAdapter({ accessToken: async () => null });
     const malformedTokenAdapter = createAdapter({ accessToken: async () => jwtFor({ role: 'anon' }) });
 
-    await expect(emptyTokenAdapter.callerIdentity()).resolves.toBe('anon');
-    await expect(malformedTokenAdapter.callerIdentity()).resolves.toBe('anon');
+    await expect(emptyTokenAdapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'anon'
+    });
+    await expect(malformedTokenAdapter.callerIdentity()).resolves.toEqual({
+      scope: 'https://project-a.supabase.co',
+      subject: 'anon'
+    });
   });
 
   it('requires a non-empty URL and key when no client is supplied', () => {

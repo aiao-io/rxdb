@@ -434,7 +434,7 @@ AS $$
       AND attribute.attnum > 0
       AND NOT attribute.attisdropped
       AND pg_catalog.has_column_privilege(
-          pg_catalog.current_user,
+          current_user,
           relation.oid,
           attribute.attnum,
           'SELECT'
@@ -787,7 +787,7 @@ BEGIN
             LEFT JOIN LATERAL (
                 SELECT %1$s AS row_json
                 FROM %2$I.%3$I AS table_data
-                WHERE table_data.%4$I::text = change."entityId"
+                WHERE table_data.id::text = change."entityId"
                   AND table_data.%4$I::text = $5
                 LIMIT 1
             ) AS current_row ON true

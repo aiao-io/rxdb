@@ -1,11 +1,13 @@
 import {
   compactChanges,
+  declareTrustedWrite,
   getRxDBChangeKey,
   isEntityMatchWhere,
   LWWConflictResolver,
   RxDBChange,
   RxDBError,
   RxDBSync,
+  TrustedWriteIntent,
   type EntityType,
   type IRepository,
   type PullRepositoryOptions,
@@ -30,7 +32,6 @@ import {
   findBucketRows,
   findRowsWithoutMappings,
   localIdCandidates,
-  localIdCandidatesFromStoredIdentity,
   removeBucketScope,
   scopedEntityKey,
   type BucketScope

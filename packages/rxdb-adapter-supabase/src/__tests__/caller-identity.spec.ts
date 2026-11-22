@@ -16,6 +16,7 @@ import { SupabaseConfigError } from '../errors.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 import { testJwt } from './realtime-test-tokens.js';
 
+const SCOPE = 'https://project-a.supabase.co';
 const USER_A = '00000000-0000-4000-8000-0000000000a1';
 const USER_B = '00000000-0000-4000-8000-0000000000b2';
 
@@ -23,7 +24,7 @@ const createAdapter = (accessTokenValue: string | null) => {
   const realtime = { setAuth: vi.fn(async () => undefined), accessTokenValue };
   // 故意不给 `auth`：配了 accessToken 选项的客户端就是这个形状，访问它会抛
   const client = { realtime };
-  const adapter = new RxDBAdapterSupabase({} as RxDB, { client: client as never });
+  const adapter = new RxDBAdapterSupabase({} as RxDB, { client: client as never, supabaseUrl: SCOPE });
   return { adapter, realtime };
 };
 
@@ -31,13 +32,13 @@ describe('callerIdentity', () => {
   it('已登录用户：返回令牌里的 sub', async () => {
     const { adapter } = createAdapter(testJwt({ role: 'authenticated', sub: USER_A }));
 
-    await expect(adapter.callerIdentity()).resolves.toBe(USER_A);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: USER_A });
   });
 
   it('匿名登录的用户也是用户（角色是 authenticated），身份是他的 sub', async () => {
     const { adapter } = createAdapter(testJwt({ role: 'authenticated', sub: USER_A, is_anonymous: true }));
 
-    await expect(adapter.callerIdentity()).resolves.toBe(USER_A);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: USER_A });
   });
 
   it.each([
@@ -48,19 +49,19 @@ describe('callerIdentity', () => {
   ])('令牌不属于已登录用户（%s）：返回 anon', async (_label, token) => {
     const { adapter } = createAdapter(token);
 
-    await expect(adapter.callerIdentity()).resolves.toBe(RXDB_ANONYMOUS_SUBJECT);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: RXDB_ANONYMOUS_SUBJECT });
   });
 
   it('service_role 令牌没有 sub：返回 service_role，不冒充用户也不冒充 anon', async () => {
     const { adapter } = createAdapter(testJwt({ role: 'service_role' }));
 
-    await expect(adapter.callerIdentity()).resolves.toBe('service_role');
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: 'service_role' });
   });
 
   it('自定义角色的令牌带 sub：身份是 sub', async () => {
     const { adapter } = createAdapter(testJwt({ role: 'member', sub: USER_A }));
 
-    await expect(adapter.callerIdentity()).resolves.toBe(USER_A);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: USER_A });
   });
 
   it('声称是已登录用户却没有 sub：拒绝回答，不猜', async () => {
@@ -75,18 +76,18 @@ describe('callerIdentity', () => {
 
     realtime.accessTokenValue = testJwt({ role: 'authenticated', sub: USER_A, exp: 2 });
 
-    await expect(adapter.callerIdentity()).resolves.toBe(before);
+    await expect(adapter.callerIdentity()).resolves.toEqual(before);
   });
 
   it('每次都取此刻的令牌，不缓存：令牌换了主人，答案立刻跟着换', async () => {
     const { adapter, realtime } = createAdapter(testJwt({ role: 'authenticated', sub: USER_A }));
-    await expect(adapter.callerIdentity()).resolves.toBe(USER_A);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: USER_A });
 
     realtime.accessTokenValue = testJwt({ role: 'authenticated', sub: USER_B });
-    await expect(adapter.callerIdentity()).resolves.toBe(USER_B);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: USER_B });
 
     realtime.accessTokenValue = testJwt({ role: 'anon' });
-    await expect(adapter.callerIdentity()).resolves.toBe(RXDB_ANONYMOUS_SUBJECT);
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: RXDB_ANONYMOUS_SUBJECT });
   });
 
   it('每次回答之前先让客户端取最新令牌（realtime.setAuth）', async () => {

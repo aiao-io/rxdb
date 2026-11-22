@@ -7,14 +7,19 @@ import {
   filterFingerprint,
   identityFingerprint,
   scopedDatabaseName,
+  scopedIdentityKind,
   type ScopedSyncIdentity
 } from '../scoped-sync.js';
 import type { SyncManager } from '../SyncManager.js';
 
+const SCOPE = 'https://project-a.supabase.co';
+const anon = (): ScopedSyncIdentity => ({ scope: SCOPE, subject: 'anon' });
+const user = (subject: string, scope = SCOPE): ScopedSyncIdentity => ({ scope, subject });
+
 const makeBinding = (identity: ScopedSyncIdentity) =>
   Object.assign(Object.create(RxDBSyncIdentityBinding.prototype) as RxDBSyncIdentityBinding, {
     id: 'singleton',
-    identityKind: identity.kind,
+    identityKind: scopedIdentityKind(identity),
     identityFingerprint: identityFingerprint(identity),
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z')
@@ -61,23 +66,23 @@ describe('scoped sync identity helpers', () => {
   });
 
   it('为 anon、用户 A 和用户 B 生成稳定且不含原文的指纹', () => {
-    const anon = identityFingerprint({ kind: 'anon' });
-    const userA = identityFingerprint({ kind: 'user', userId: 'user-a' });
-    const userB = identityFingerprint({ kind: 'user', userId: 'user-b' });
+    const anonFingerprint = identityFingerprint(anon());
+    const userA = identityFingerprint(user('user-a'));
+    const userB = identityFingerprint(user('user-b'));
 
-    expect(anon).toBe(identityFingerprint({ kind: 'anon' }));
-    expect(new Set([anon, userA, userB]).size).toBe(3);
+    expect(anonFingerprint).toBe(identityFingerprint(anon()));
+    expect(new Set([anonFingerprint, userA, userB]).size).toBe(3);
     expect(userA).not.toContain('user-a');
   });
 
   it('按身份隔离数据库名并拒绝空基础名', () => {
-    const anonName = scopedDatabaseName('recipes', { kind: 'anon' });
-    const userName = scopedDatabaseName('recipes', { kind: 'user', userId: 'user-a' });
+    const anonName = scopedDatabaseName('recipes', anon());
+    const userName = scopedDatabaseName('recipes', user('user-a'));
 
     expect(anonName).not.toBe(userName);
-    expect(scopedDatabaseName(' recipes ', { kind: 'user', userId: 'user-a' })).toBe(userName);
+    expect(scopedDatabaseName(' recipes ', user('user-a'))).toBe(userName);
     expect(userName).not.toContain('user-a');
-    expect(() => scopedDatabaseName('   ', { kind: 'anon' })).toThrow('non-empty base database name');
+    expect(() => scopedDatabaseName('   ', anon())).toThrow('non-empty base database name');
   });
 
   it('为条件范围生成顺序稳定且可区分的指纹', () => {
@@ -93,7 +98,7 @@ describe('scoped sync identity helpers', () => {
 
 describe('bindScopedIdentity', () => {
   it('首次交换数据时绑定身份摘要', async () => {
-    const harness = createIdentityHarness({ kind: 'anon' });
+    const harness = createIdentityHarness(anon());
 
     await expect(bindScopedIdentity(harness.sm)).resolves.toBeUndefined();
 
@@ -102,12 +107,12 @@ describe('bindScopedIdentity', () => {
     expect(harness.rows[0]).toMatchObject({
       id: 'singleton',
       identityKind: 'anon',
-      identityFingerprint: identityFingerprint({ kind: 'anon' })
+      identityFingerprint: identityFingerprint(anon())
     });
   });
 
   it('同一用户刷新令牌后继续使用原库', async () => {
-    const identity = { kind: 'user' as const, userId: 'user-a' };
+    const identity = user('user-a');
     const harness = createIdentityHarness(identity, makeBinding(identity));
 
     await expect(bindScopedIdentity(harness.sm)).resolves.toBeUndefined();
@@ -118,8 +123,8 @@ describe('bindScopedIdentity', () => {
 
   it('身份变化时阻止同步并写入同步错误', async () => {
     const harness = createIdentityHarness(
-      { kind: 'user', userId: 'user-b' },
-      makeBinding({ kind: 'user', userId: 'user-a' })
+      user('user-b'),
+      makeBinding(user('user-a'))
     );
 
     const error = await bindScopedIdentity(harness.sm).catch((rejection: unknown) => rejection);
@@ -135,10 +140,10 @@ describe('bindScopedIdentity', () => {
       find: vi
         .fn()
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([makeBinding({ kind: 'user', userId: 'user-a' })]),
+        .mockResolvedValueOnce([makeBinding(user('user-a'))]),
       create: vi.fn()
     };
-    const remoteAdapter = { syncIdentity: vi.fn(async () => ({ kind: 'user' as const, userId: 'user-a' })) };
+    const remoteAdapter = { syncIdentity: vi.fn(async () => user('user-a')) };
     const sm = {
       rxdb: {
         entityManager: {

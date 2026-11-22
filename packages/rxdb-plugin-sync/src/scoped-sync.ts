@@ -72,7 +72,9 @@ export function identityFingerprint(identity: ScopedSyncIdentity): string {
 }
 
 export function scopedDatabaseName(baseName: string, identity: ScopedSyncIdentity): string {
-  return getRxDBIdentityDatabaseName(baseName.trim(), identity);
+  const normalized = baseName.trim();
+  if (normalized.length === 0) throw new RxDBError('A non-empty base database name is required.');
+  return getRxDBIdentityDatabaseName(normalized, identity);
 }
 
 export function filterFingerprint(filter: RuleGroup | undefined): string {

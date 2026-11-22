@@ -555,7 +555,7 @@ describe('US-035：声明了身份的实例，QueryCache 读写远端前先核�
   /** 远端适配器带上 `callerIdentity`：真实的适配器就是在同一个对象上同时有五件套与它 */
   const withCallerIdentity = (reported: () => string) => {
     const remote = createRemoteAdapter();
-    const callerIdentity = vi.fn(async () => reported());
+    const callerIdentity = vi.fn(async () => ({ scope: 'https://project-a.supabase.co', subject: reported() }));
     Object.assign(remote, { callerIdentity });
     return { remote, callerIdentity };
   };

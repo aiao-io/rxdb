@@ -59,7 +59,7 @@ const createHarness = (options: HarnessOptions) => {
   instances.add(rxdb);
 
   const backendId = vi.fn(async () => 'backend-a');
-  const callerIdentity = vi.fn(async () => options.reported as string);
+  const callerIdentity = vi.fn(async () => ({ scope: SCOPE, subject: options.reported as string }));
   const remote = options.reported === undefined ? { backendId } : { backendId, callerIdentity };
 
   const records = options.records ?? [];
@@ -151,7 +151,7 @@ describe('远端会话就是声明的身份：照常核对远端并绑定', () =
   it('每次入口都重新问，不缓存：第二次会话已经换了主人就拒绝', async () => {
     const harness = createHarness({ subject: USER_A, reported: USER_A });
     await bindRemoteBackend(harness.sm);
-    harness.callerIdentity.mockResolvedValueOnce(USER_B);
+    harness.callerIdentity.mockResolvedValueOnce({ scope: SCOPE, subject: USER_B });
 
     await expect(bindRemoteBackend(harness.sm)).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
     expect(harness.callerIdentity).toHaveBeenCalledTimes(2);

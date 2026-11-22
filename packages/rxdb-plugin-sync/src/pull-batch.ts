@@ -174,7 +174,7 @@ async function pullBatchOnce(
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const allRepos: RepoSyncInfo[] = [];
 
-  const bucketedAdapter = remoteAdapter as RxDBAdapterRemoteBase & {
+  const bucketedAdapter = remoteAdapter as unknown as RxDBAdapterRemoteBase & {
     getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
   };
 

@@ -78,7 +78,7 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
 async function pullBucketedRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
   const rxdb = sm.rxdb;
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
-  const candidate = remoteAdapter as RxDBAdapterRemoteBase & {
+  const candidate = remoteAdapter as unknown as RxDBAdapterRemoteBase & {
     getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
   };
   if (typeof candidate.getEntitySyncInfo !== 'function') return;

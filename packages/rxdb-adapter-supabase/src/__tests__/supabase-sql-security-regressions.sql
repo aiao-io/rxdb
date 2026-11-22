@@ -3890,6 +3890,7 @@ DECLARE
   v_snapshot jsonb;
   v_point integer;
   v_count integer;
+  v_rejected boolean;
 BEGIN
   SELECT public.rxdb_entity_sync_info('rxdb_sql_regression', 'IdentityScopedRow') INTO v_info;
   PERFORM rxdb_sql_regression.assert_true(
@@ -3910,11 +3911,22 @@ BEGIN
       AND NOT v_snapshot @> '[{"id":"bucket-a"}]'::jsonb,
     'bucketed-read-sync: anon snapshot must contain public rows only'
   );
-  SELECT count(*) INTO v_count
-  FROM public.rxdb_pull_bucket_changes(0, 100, 'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text);
+  v_rejected := false;
+  BEGIN
+    PERFORM public.rxdb_pull_bucket_changes(
+      0,
+      100,
+      'rxdb_sql_regression',
+      'IdentityScopedRow',
+      'user:' || user_a::text
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      v_rejected := true;
+  END;
   PERFORM rxdb_sql_regression.assert_true(
-    v_count = 0,
-    'bucketed-read-sync: anon must not read a private bucket log'
+    v_rejected,
+    'bucketed-read-sync: anon must be rejected from a private bucket log'
   );
 
   PERFORM pg_catalog.set_config(
@@ -4259,7 +4271,7 @@ BEGIN
     'sync-access-upgrade: only partition-log SELECT may remain on rxdb_change; old write privileges must be revoked'
   );
 
-  -- 非触发器的 rxdb_ 函数里，anon 只能执行连接函数和分区只读 RPC；rxdb_test_ 是 03 的测试夹具
+  -- 非触发器的 rxdb_ 函数里，anon 只能执行连接函数、分区只读 RPC 及其调用者权限辅助函数；rxdb_test_ 是 03 的测试夹具
   SELECT pg_catalog.array_agg(p.oid::regprocedure::text ORDER BY p.oid::regprocedure::text)
   INTO v_open_to_anon
   FROM pg_catalog.pg_proc AS p
@@ -4277,12 +4289,15 @@ BEGIN
       'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)'::regprocedure,
       'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)'::regprocedure,
       'public.rxdb_jsonb_matches_rule(jsonb, jsonb)'::regprocedure,
-      'public.rxdb_jsonb_matches_filter(jsonb, jsonb)'::regprocedure
+      'public.rxdb_jsonb_matches_filter(jsonb, jsonb)'::regprocedure,
+      'public.rxdb_selectable_columns(text, text)'::regprocedure,
+      'public.rxdb_assert_snapshot_filter_columns(jsonb, text[])'::regprocedure,
+      'public.rxdb_selectable_row_expression(text[])'::regprocedure
     )
     AND pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE');
   PERFORM rxdb_sql_regression.assert_true(
     v_open_to_anon IS NULL,
-    pg_catalog.format('sync-access-upgrade: only connect functions and bucketed read RPCs may stay executable by anon, open: %s', v_open_to_anon)
+    pg_catalog.format('sync-access-upgrade: only protocol functions and read helpers may stay executable by anon, open: %s', v_open_to_anon)
   );
 
   PERFORM rxdb_sql_regression.test_production_grants_idempotent();
