@@ -77,6 +77,7 @@ class FixtureFilesystem {
 interface Commit {
   oid: string;
   message: string;
+  parent?: string;
   files: Record<string, number[]>;
 }
 
@@ -165,7 +166,12 @@ function createRuntimeFixture() {
       }
       fs.writeFile(indexPath, encode(index));
     } else if (command === 'commit') {
-      const commit = { oid: (commits.length + 1).toString(16).padStart(40, '0'), message: parameters[1], files: index };
+      const commit = {
+        oid: (commits.length + 1).toString(16).padStart(40, '0'),
+        message: parameters[1],
+        parent: head?.oid,
+        files: Object.fromEntries(Object.entries(index).map(([path, bytes]) => [path, [...bytes]]))
+      };
       commits.push(commit);
       fs.writeFile(commitsPath, encode(commits));
       fs.writeFile(`${git}/refs/heads/main`, new TextEncoder().encode(commit.oid));
@@ -183,6 +189,10 @@ function createRuntimeFixture() {
         }
         print(target[0].oid);
       } else print(target.oid);
+    } else if (command === 'cat-file') {
+      const commit = commits.find(entry => entry.oid === parameters.at(-1));
+      if (!commit || parameters[0] !== '-p') return 1;
+      print(`tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}\nauthor fixture\ncommitter fixture\n\n${commit.message}`);
     } else if (command === 'checkout-index') {
       for (const [path, data] of Object.entries(index)) {
         fs.ensure(parent(`${root}/${path}`));
@@ -545,6 +555,50 @@ describe('Git workspace operation contract', () => {
     expect((await runtime.status('project')).head).toBe(second);
     expect((await runtime.snapshot('project')).files).toEqual([file('draft.txt', 'draft'), file('file.txt', 'one')]);
     await expect(runtime.restore('project', first)).rejects.toMatchObject({ code: 'dirty_workspace' });
+  });
+
+  it('列出提交相对父提交的新增、修改和删除文件', async () => {
+    await runtime.initialize('project', [file('a.txt', 'one')]);
+    await runtime.stage('project', ['a.txt']);
+    const first = await runtime.commit('project', 'first');
+    await runtime.save('project', [file('a.txt', 'two'), file('b.txt', 'new')]);
+    await runtime.stage('project', ['a.txt', 'b.txt']);
+    const second = await runtime.commit('project', 'second');
+
+    await expect(runtime.commitChanges('project', first)).resolves.toEqual([
+      expect.objectContaining({
+        path: 'a.txt',
+        status: 'added',
+        base: expect.objectContaining({ exists: false }),
+        modified: expect.objectContaining({ text: 'one' })
+      })
+    ]);
+    await expect(runtime.commitChanges('project', second)).resolves.toEqual([
+      expect.objectContaining({
+        path: 'a.txt',
+        status: 'modified',
+        base: expect.objectContaining({ text: 'one' }),
+        modified: expect.objectContaining({ text: 'two' })
+      }),
+      expect.objectContaining({
+        path: 'b.txt',
+        status: 'added',
+        base: expect.objectContaining({ exists: false }),
+        modified: expect.objectContaining({ text: 'new' })
+      })
+    ]);
+
+    await runtime.save('project', [file('b.txt', 'new')], undefined, ['a.txt']);
+    await runtime.stage('project', ['a.txt']);
+    const third = await runtime.commit('project', 'third');
+    await expect(runtime.commitChanges('project', third)).resolves.toEqual([
+      expect.objectContaining({
+        path: 'a.txt',
+        status: 'deleted',
+        base: expect.objectContaining({ text: 'two' }),
+        modified: expect.objectContaining({ exists: false })
+      })
+    ]);
   });
 
   it('imports archives into new roots and rolls back invalid repositories', async () => {

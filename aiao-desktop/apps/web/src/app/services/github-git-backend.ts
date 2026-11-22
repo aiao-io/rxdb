@@ -1,15 +1,27 @@
 import type {
   GitBranch,
   GitCommit,
+  GitCommitFileChange,
   GitFile,
   GitFileDiff,
+  GitFileVersion,
   GitSnapshot,
   GitStatus,
   GitStatusEntry
 } from './git/git-protocol';
 import { GitWorkbenchError, type GitErrorCode } from './git/git-protocol';
 
-export type { GitBranch, GitCommit, GitFile, GitFileDiff, GitSnapshot, GitStatus, GitStatusEntry };
+export type {
+  GitBranch,
+  GitCommit,
+  GitCommitFileChange,
+  GitFile,
+  GitFileDiff,
+  GitFileVersion,
+  GitSnapshot,
+  GitStatus,
+  GitStatusEntry
+};
 
 interface WorkerResponse {
   readonly id: number;
@@ -156,6 +168,24 @@ function diff(value: unknown): GitFileDiff {
     base: fileVersion(item['base'], 'diff.base'),
     modified: fileVersion(item['modified'], 'diff.modified')
   };
+}
+
+function commitChanges(value: unknown): readonly GitCommitFileChange[] {
+  if (!Array.isArray(value)) invalidPayload('commitChanges');
+  return value.map((raw, index) => {
+    const item = recordOf(raw, `commitChanges[${index}]`);
+    const status = item['status'];
+    if (status !== 'added' && status !== 'modified' && status !== 'deleted')
+      invalidPayload(`commitChanges[${index}].status`);
+    return {
+      projectId: stringOf(item['projectId'], `commitChanges[${index}].projectId`),
+      oid: stringOf(item['oid'], `commitChanges[${index}].oid`),
+      path: stringOf(item['path'], `commitChanges[${index}].path`),
+      status,
+      base: fileVersion(item['base'], `commitChanges[${index}].base`),
+      modified: fileVersion(item['modified'], `commitChanges[${index}].modified`)
+    };
+  });
 }
 
 function branches(value: unknown): readonly GitBranch[] {
@@ -317,6 +347,10 @@ export class GithubGitBackend {
 
   history(projectId: string): Promise<readonly GitCommit[]> {
     return this.call('history', { projectId }).then(commits);
+  }
+
+  commitChanges(projectId: string, oid: string): Promise<readonly GitCommitFileChange[]> {
+    return this.call('commitChanges', { projectId, oid }).then(commitChanges);
   }
 
   restore(projectId: string, oid: string): Promise<GitSnapshot> {

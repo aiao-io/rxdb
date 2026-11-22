@@ -37,13 +37,16 @@ import {
   type GithubTab
 } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { WindowManager } from '../../services/window-manager';
 import { encodeGitArchive, type GitArchive } from '../../services/git/git-archive.js';
 import {
   GithubGitBackend,
   type GitBranch,
   type GitCommit,
+  type GitCommitFileChange,
   type GitFile,
   type GitFileDiff,
+  type GitFileVersion,
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
@@ -69,6 +72,11 @@ interface GithubDiffLine {
   readonly oldText: string | null;
   readonly newText: string | null;
   readonly same: boolean;
+}
+
+interface GithubDiffValue {
+  readonly base: GitFileVersion;
+  readonly modified: GitFileVersion;
 }
 
 interface DirectoryFileHandle {
@@ -140,22 +148,110 @@ function linesOf(text: string | null): readonly string[] {
   return lines.length > 1 && lines.at(-1) === '' ? lines.slice(0, -1) : lines;
 }
 
-function diffLinesOf(value: GitFileDiff | null): readonly GithubDiffLine[] {
+function diffLinesOf(value: GithubDiffValue | null): readonly GithubDiffLine[] {
   if (!value || value.base.binary || value.modified.binary) return [];
   const oldLines = linesOf(value.base.text);
   const newLines = linesOf(value.modified.text);
-  const length = Math.max(oldLines.length, newLines.length);
-  return Array.from({ length }, (_, index) => {
-    const oldText = oldLines[index] ?? null;
-    const newText = newLines[index] ?? null;
-    return {
-      oldNumber: oldText === null ? null : index + 1,
-      newNumber: newText === null ? null : index + 1,
-      oldText,
-      newText,
-      same: oldText !== null && oldText === newText
-    };
-  });
+  const max = oldLines.length + newLines.length;
+  const trace: Map<number, number>[] = [];
+  let frontier = new Map<number, number>([[0, 0]]);
+
+  for (let distance = 0; distance <= max; distance++) {
+    trace.push(new Map(frontier));
+    const next = new Map<number, number>();
+    for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
+      const down = diagonal === -distance || (
+        diagonal !== distance &&
+        (frontier.get(diagonal - 1) ?? -1) < (frontier.get(diagonal + 1) ?? -1)
+      );
+      let oldIndex = down ? (frontier.get(diagonal + 1) ?? 0) : (frontier.get(diagonal - 1) ?? 0) + 1;
+      let newIndex = oldIndex - diagonal;
+      while (
+        oldIndex < oldLines.length &&
+        newIndex < newLines.length &&
+        oldLines[oldIndex] === newLines[newIndex]
+      ) {
+        oldIndex++;
+        newIndex++;
+      }
+      next.set(diagonal, oldIndex);
+      if (oldIndex >= oldLines.length && newIndex >= newLines.length) {
+        return buildDiffLines(oldLines, newLines, trace, distance);
+      }
+    }
+    frontier = next;
+  }
+
+  return [];
+}
+
+function buildDiffLines(
+  oldLines: readonly string[],
+  newLines: readonly string[],
+  trace: readonly Map<number, number>[],
+  finalDistance: number
+): readonly GithubDiffLine[] {
+  let oldIndex = oldLines.length;
+  let newIndex = newLines.length;
+  const result: GithubDiffLine[] = [];
+
+  for (let distance = finalDistance; distance > 0; distance--) {
+    const diagonal = oldIndex - newIndex;
+    const previous = trace[distance - 1];
+    const down = diagonal === -distance || (
+      diagonal !== distance &&
+      (previous.get(diagonal - 1) ?? -1) < (previous.get(diagonal + 1) ?? -1)
+    );
+    const previousDiagonal = down ? diagonal + 1 : diagonal - 1;
+    const previousOldIndex = previous.get(previousDiagonal) ?? 0;
+    const previousNewIndex = previousOldIndex - previousDiagonal;
+
+    while (oldIndex > previousOldIndex && newIndex > previousNewIndex) {
+      result.push({
+        oldNumber: oldIndex,
+        newNumber: newIndex,
+        oldText: oldLines[oldIndex - 1],
+        newText: newLines[newIndex - 1],
+        same: true
+      });
+      oldIndex--;
+      newIndex--;
+    }
+
+    if (oldIndex === previousOldIndex) {
+      result.push({
+        oldNumber: null,
+        newNumber: newIndex,
+        oldText: null,
+        newText: newLines[newIndex - 1],
+        same: false
+      });
+      newIndex--;
+    } else {
+      result.push({
+        oldNumber: oldIndex,
+        newNumber: null,
+        oldText: oldLines[oldIndex - 1],
+        newText: null,
+        same: false
+      });
+      oldIndex--;
+    }
+  }
+
+  while (oldIndex > 0 && newIndex > 0) {
+    result.push({
+      oldNumber: oldIndex,
+      newNumber: newIndex,
+      oldText: oldLines[oldIndex - 1],
+      newText: newLines[newIndex - 1],
+      same: true
+    });
+    oldIndex--;
+    newIndex--;
+  }
+
+  return result.reverse();
 }
 
 @Component({
@@ -169,6 +265,7 @@ function diffLinesOf(value: GitFileDiff | null): readonly GithubDiffLine[] {
 })
 export class GithubApp {
   private readonly win = inject(DesktopWindow);
+  private readonly wm = inject(WindowManager);
   private readonly menus = inject(DesktopMenus);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
@@ -196,6 +293,7 @@ export class GithubApp {
   private readonly remote = new GithubRemoteRepository(this.api);
   private readonly unsubscribeAuth: () => void;
   private currentRevision = 0;
+  private historyLoadRequest = 0;
   private restorePromise: Promise<void> | null = null;
   private readonly storageListener: (event: StorageEvent) => void;
   private readonly commitMessageInput = viewChild<ElementRef<HTMLInputElement>>('commitMessageInput');
@@ -220,6 +318,11 @@ export class GithubApp {
   protected readonly searchResults = signal<readonly GitHubRepoSummary[]>([]);
   protected readonly history = signal<readonly GitCommit[]>([]);
   protected readonly diff = signal<GitFileDiff | null>(null);
+  protected readonly historyChanges = signal<readonly GitCommitFileChange[]>([]);
+  protected readonly historyDiff = signal<GitCommitFileChange | null>(null);
+  protected readonly historyDetailsExpanded = signal(false);
+  protected readonly historyDiffSettingsOpen = signal(false);
+  protected readonly selectedHistoryPath = signal<string | null>(null);
   protected readonly selectedPath = signal<string | null>(null);
   protected readonly editorValue = signal('');
   protected readonly tab = signal<GithubTab>('changes');
@@ -239,8 +342,10 @@ export class GithubApp {
   protected readonly commitDescription = signal('');
   protected readonly patValue = signal('');
   protected readonly repositoryMenuOpen = signal(false);
+  protected readonly worktreeMenuOpen = signal(false);
   protected readonly branchMenuOpen = signal(false);
   protected readonly branchFilter = signal('');
+  protected readonly worktreeFilter = signal('');
   protected readonly changeFilter = signal('');
   protected readonly changeKind = signal<GithubChangeKind>('all');
   protected readonly changeKindOpen = signal(false);
@@ -298,6 +403,19 @@ export class GithubApp {
     return this.branches().filter(branch => branch.name.toLowerCase().includes(needle));
   });
   protected readonly diffLines = computed(() => diffLinesOf(this.diff()));
+  protected readonly historyDiffLines = computed(() => diffLinesOf(this.historyDiff()));
+  protected readonly historyStats = computed(() => {
+    let additions = 0;
+    let deletions = 0;
+    for (const change of this.historyChanges()) {
+      for (const line of diffLinesOf(change)) {
+        if (line.same) continue;
+        if (line.newText !== null) additions++;
+        if (line.oldText !== null) deletions++;
+      }
+    }
+    return { additions, deletions };
+  });
 
   protected readonly Check = Check;
   protected readonly ChevronDown = ChevronDown;
@@ -361,6 +479,7 @@ export class GithubApp {
       | 'pat'
       | 'search'
       | 'branchFilter'
+      | 'worktreeFilter'
       | 'changeFilter',
     event: Event
   ): void {
@@ -376,6 +495,7 @@ export class GithubApp {
     if (target === 'commitDescription') this.commitDescription.set(value);
     if (target === 'pat') this.patValue.set(value);
     if (target === 'branchFilter') this.branchFilter.set(value);
+    if (target === 'worktreeFilter') this.worktreeFilter.set(value);
     if (target === 'changeFilter') this.changeFilter.set(value);
   }
 
@@ -383,10 +503,19 @@ export class GithubApp {
     this.openLocalRepositoryPicker();
   }
 
-  protected viewRepositoryFiles(): void {
+  protected openRepositoryInEditor(): void {
+    if (!this.activeRecord()) return;
     this.showCleanFiles.set(true);
     const path = this.selectedPath() ?? this.files()[0]?.path ?? null;
-    if (path) this.selectFile(path);
+    if (path) this.openFile(path);
+    this.wm.open('vscode');
+    this.notice.set('Opened Aiao Code');
+  }
+
+  protected showRepositoryInFinder(): void {
+    if (!this.activeRecord()) return;
+    this.wm.open('finder');
+    this.notice.set('Opened Finder');
   }
 
   protected openImportPicker(event: Event): void {
@@ -429,6 +558,7 @@ export class GithubApp {
   }
 
   protected openRepositoryMenu(kind: GithubRepositoryMenu): void {
+    this.worktreeMenuOpen.set(false);
     this.branchMenuOpen.set(false);
     this.closeContextMenu();
     this.repositoryMenuFocus.set(kind);
@@ -437,6 +567,22 @@ export class GithubApp {
 
   protected closeRepositoryMenu(): void {
     this.repositoryMenuOpen.set(false);
+  }
+
+  protected toggleWorktreeMenu(): void {
+    if (this.worktreeMenuOpen()) {
+      this.closeWorktreeMenu();
+      return;
+    }
+    this.repositoryMenuOpen.set(false);
+    this.branchMenuOpen.set(false);
+    this.closeContextMenu();
+    this.worktreeFilter.set('');
+    this.worktreeMenuOpen.set(true);
+  }
+
+  protected closeWorktreeMenu(): void {
+    this.worktreeMenuOpen.set(false);
   }
 
   protected toggleBranchMenu(): void {
@@ -449,6 +595,7 @@ export class GithubApp {
 
   protected openBranchMenu(): void {
     this.repositoryMenuOpen.set(false);
+    this.worktreeMenuOpen.set(false);
     this.closeContextMenu();
     this.branchMenuFocus.set(true);
     this.branchMenuOpen.set(true);
@@ -524,7 +671,7 @@ export class GithubApp {
 
   protected contextSelectFile(path: string): void {
     this.closeContextMenu();
-    this.selectFile(path);
+    this.openFile(path);
   }
 
   protected async contextShowDiff(path: string): Promise<void> {
@@ -681,7 +828,20 @@ export class GithubApp {
     this.win.hasUnsavedChanges.set(true);
   }
 
-  protected selectFile(path: string): void {
+  protected async selectFile(path: string, entry: GitStatusEntry | null): Promise<void> {
+    if (this.editorDirty() && this.selectedPath() !== path) {
+      this.fail(new Error('请先保存当前文件再切换文件'));
+      return;
+    }
+    if (!entry) {
+      this.openFile(path);
+      return;
+    }
+    this.selectedPath.set(path);
+    await this.showDiff(path);
+  }
+
+  protected openFile(path: string): void {
     if (this.editorDirty() && this.selectedPath() !== path) {
       this.fail(new Error('请先保存当前文件再切换文件'));
       return;
@@ -860,6 +1020,10 @@ export class GithubApp {
     });
   }
 
+  protected async toggleStage(entry: GitStatusEntry): Promise<void> {
+    await (this.isStaged(entry) ? this.unstage(entry.path) : this.stage(entry.path));
+  }
+
   protected async unstage(path: string): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
@@ -917,10 +1081,16 @@ export class GithubApp {
     });
   }
 
-  protected async showDiff(path: string, kind: 'working' | 'staged' = 'working'): Promise<void> {
+  protected async showDiff(path: string, kind?: 'working' | 'staged'): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
-    await this.run(async () => this.diff.set(await this.backend.readDiff(record.projectId, path, kind)));
+    while (this.busy()) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const entry = this.statusEntryForPath(path);
+    const resolvedKind = kind ?? (entry && this.isStaged(entry) ? 'staged' : 'working');
+    await this.run(async () => {
+      this.selectedPath.set(path);
+      this.diff.set(await this.backend.readDiff(record.projectId, path, resolvedKind));
+    });
   }
 
   protected async commit(): Promise<void> {
@@ -1155,6 +1325,43 @@ export class GithubApp {
     return 'modified';
   }
 
+  protected commitChangeLabel(change: GitCommitFileChange): string {
+    return change.status === 'added' ? 'A' : change.status === 'deleted' ? 'D' : 'M';
+  }
+
+  protected commitChangeDescription(change: GitCommitFileChange): string {
+    return change.status === 'added' ? 'Added' : change.status === 'deleted' ? 'Deleted' : 'Modified';
+  }
+
+  protected shortOid(oid: string): string {
+    return oid.slice(0, 8);
+  }
+
+  protected historyHunkLabel(value: GithubDiffValue | null): string | null {
+    const lines = diffLinesOf(value);
+    const firstChanged = lines.findIndex(line => !line.same);
+    if (firstChanged < 0) return null;
+    const lastChanged = lines.findLastIndex(line => !line.same);
+    const hunk = lines.slice(firstChanged, lastChanged + 1);
+    const oldLines = hunk.filter(line => line.oldNumber !== null);
+    const newLines = hunk.filter(line => line.newNumber !== null);
+    const oldStart = oldLines[0]?.oldNumber ?? 0;
+    const newStart = newLines[0]?.newNumber ?? 0;
+    return `@@ -${oldStart},${oldLines.length} +${newStart},${newLines.length} @@`;
+  }
+
+  protected toggleHistoryDetails(): void {
+    this.historyDetailsExpanded.update(expanded => !expanded);
+  }
+
+  protected toggleHistoryDiffSettings(): void {
+    this.historyDiffSettingsOpen.update(open => !open);
+  }
+
+  protected closeHistoryDiffSettings(): void {
+    this.historyDiffSettingsOpen.set(false);
+  }
+
   protected isStaged(entry: GitStatusEntry): boolean {
     return entry.index !== ' ' && entry.index !== '?';
   }
@@ -1166,6 +1373,12 @@ export class GithubApp {
   protected setTab(tab: GithubTab): void {
     this.tab.set(tab);
     this.diff.set(null);
+    this.historyDiff.set(null);
+    this.selectedHistoryPath.set(null);
+    if (tab === 'history') {
+      const commit = this.selectedCommit();
+      if (commit) void this.selectCommit(commit.oid);
+    }
   }
 
   protected focusChangesFilter(): void {
@@ -1173,8 +1386,27 @@ export class GithubApp {
     this.changesFilterFocus.set(true);
   }
 
-  protected selectCommit(oid: string): void {
+  protected async selectCommit(oid: string): Promise<void> {
     this.selectedCommitOid.set(oid);
+    this.historyChanges.set([]);
+    this.historyDetailsExpanded.set(false);
+    this.historyDiffSettingsOpen.set(false);
+    this.selectedHistoryPath.set(null);
+    this.historyDiff.set(null);
+    const record = this.activeRecord();
+    if (!record) return;
+    const request = ++this.historyLoadRequest;
+    await this.run(async () => {
+      const changes = await this.backend.commitChanges(record.projectId, oid);
+      if (request !== this.historyLoadRequest) return;
+      this.historyChanges.set(changes);
+    });
+  }
+
+  protected selectHistoryFile(change: GitCommitFileChange): void {
+    this.selectedHistoryPath.set(change.path);
+    this.historyDiffSettingsOpen.set(false);
+    this.historyDiff.set(change);
   }
 
   private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
@@ -1340,6 +1572,15 @@ export class GithubApp {
     this.status.set(status);
     this.branches.set(branches);
     this.history.set(history);
+    const selectedCommit = this.selectedCommitOid();
+    if (!selectedCommit || !history.some(commit => commit.oid === selectedCommit)) {
+      this.selectedCommitOid.set(history[0]?.oid ?? null);
+      this.historyChanges.set([]);
+      this.historyDetailsExpanded.set(false);
+      this.historyDiffSettingsOpen.set(false);
+      this.historyDiff.set(null);
+      this.selectedHistoryPath.set(null);
+    }
     this.currentRevision = (await this.backend.snapshot(record.projectId)).revision;
     this.win.title.set(`GitHub Desktop · ${record.name}`);
   }

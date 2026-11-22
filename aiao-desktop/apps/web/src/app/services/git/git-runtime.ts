@@ -10,6 +10,7 @@ import {
 import {
   type GitBranch,
   type GitCommit,
+  type GitCommitFileChange,
   type GitFile,
   type GitFileDiff,
   type GitSnapshot,
@@ -467,6 +468,44 @@ export class GitWorkbenchRuntime {
             throw new GitWorkbenchError('git_failed', 'Git history returned an invalid commit OID');
           return { oid, message: line.slice(separator + 1) };
         });
+    });
+  }
+
+  async commitChanges(projectId: string, oid: string): Promise<readonly GitCommitFileChange[]> {
+    if (!/^[0-9a-f]{4,40}$/.test(oid))
+      throw new GitWorkbenchError('unreachable_commit', 'Commit changes requires a valid commit OID');
+    return this.lock(projectId, true, async context => {
+      const status = await this.statusContext(context);
+      if (!status.head) return [];
+      const resolvedOid = (await this.run(['rev-parse', oid])).trim();
+      const reachable = (await this.run(['rev-list', 'HEAD'])).split(/\s+/).includes(resolvedOid);
+      if (!reachable) throw new GitWorkbenchError('unreachable_commit', 'Commit is not reachable from HEAD');
+      const commit = await this.run(['cat-file', '-p', resolvedOid]);
+      const parents = commit
+        .split('\n')
+        .filter(line => line.startsWith('parent '))
+        .map(line => line.slice('parent '.length).trim());
+      const current = await this.readCommitFiles(context, resolvedOid);
+      const previous = parents[0] ? await this.readCommitFiles(context, parents[0]) : [];
+      const currentByPath = new Map(current.map(file => [file.path, file.bytes]));
+      const previousByPath = new Map(previous.map(file => [file.path, file.bytes]));
+      const paths = [...new Set([...currentByPath.keys(), ...previousByPath.keys()])].sort((left, right) =>
+        left.localeCompare(right, 'en')
+      );
+      return paths.flatMap(path => {
+        const base = previousByPath.get(path);
+        const modified = currentByPath.get(path);
+        if (base && modified && sameFileBytes(base, modified)) return [];
+        const change = base === undefined ? 'added' : modified === undefined ? 'deleted' : 'modified';
+        return [{
+          projectId,
+          oid: resolvedOid,
+          path,
+          status: change,
+          base: gitFileVersion(base),
+          modified: gitFileVersion(modified)
+        }];
+      });
     });
   }
 

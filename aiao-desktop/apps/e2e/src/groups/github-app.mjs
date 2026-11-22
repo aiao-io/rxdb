@@ -75,7 +75,40 @@ async function showRepositoryFiles(view) {
   if ((await button.count()) > 0) {
     await button.click();
     await view.locator('[data-file-path]').first().waitFor();
+    const windowLayer = view.locator('xpath=..');
+    const externalWindow = windowLayer.locator('.win[data-app=\"vscode\"]:not(.closing)').last();
+    const closeButton = externalWindow.locator('.tl .c');
+    if ((await closeButton.count()) > 0) await closeButton.click();
   }
+}
+
+function changedFileRow(view, path) {
+  return view.locator(`.gd-row:has([data-file-path="${path}"])`);
+}
+
+function changedFileCheckbox(view, path) {
+  return changedFileRow(view, path).locator('.gh-file-checkbox');
+}
+
+async function stageChangedFile(view, path) {
+  const checkbox = changedFileCheckbox(view, path);
+  await expect(checkbox).toHaveCount(1);
+  await expect(checkbox).toBeEnabled();
+  await checkbox.check();
+  await expect(checkbox).toBeChecked();
+  await expect(checkbox).toBeEnabled();
+}
+
+async function unstageChangedFile(view, path) {
+  const checkbox = changedFileCheckbox(view, path);
+  await checkbox.uncheck();
+  await expect(checkbox).not.toBeChecked();
+  await expect(checkbox).toBeEnabled();
+}
+
+async function discardChangedFile(view, path) {
+  await changedFileRow(view, path).locator('[data-file-path]').click({ button: 'right' });
+  await view.getByRole('button', { name: 'Discard changes', exact: true }).click();
 }
 
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
@@ -97,6 +130,8 @@ export const githubApp = {
     'github.diffPanel',
     'github.unstageAndDiscard',
     'github.commitAndHistory',
+    'github.historyDetails',
+    'github.historyContextMenu',
     'github.branchAndDirtyCheckout',
     'github.repositorySurvivesReload',
     'github.archiveRoundTrip',
@@ -363,31 +398,43 @@ export const githubApp = {
     await editor.fill('# Local Fixture\\nchanged\\n');
     await githubWindow.locator('[data-github-save]').click();
     await githubWindow.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
-    await githubWindow.getByRole('button', { name: 'Stage file' }).click();
-    await githubWindow.getByRole('button', { name: 'Unstage file' }).waitFor();
-    const localDiffButton = githubWindow.getByRole('button', { name: 'Show diff' });
-    await localDiffButton.focus();
-    await localDiffButton.press('Enter');
+    await stageChangedFile(githubWindow, 'README.md');
+    await expect(changedFileCheckbox(githubWindow, 'README.md')).toBeChecked();
+    await githubWindow.locator('[data-file-path="README.md"]').click();
     await githubWindow.locator('[data-github-diff]').waitFor({ state: 'attached' });
-    result.editorSaveAndStage = (await githubWindow.getByRole('button', { name: 'Unstage file' }).count()) === 1;
+    result.editorSaveAndStage = await changedFileCheckbox(githubWindow, 'README.md').isChecked();
     result.diffPanel = (await githubWindow.locator('[data-github-diff]').textContent())?.includes('changed') === true;
 
-    await githubWindow.getByRole('button', { name: 'Unstage file' }).click();
-    await githubWindow.getByRole('button', { name: 'Discard file changes' }).click();
+    await unstageChangedFile(githubWindow, 'README.md');
+    await discardChangedFile(githubWindow, 'README.md');
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Discarded README.md' }).waitFor();
-    result.unstageAndDiscard = (await githubWindow.getByRole('button', { name: 'Stage file' }).count()) === 0;
+    result.unstageAndDiscard = (await changedFileCheckbox(githubWindow, 'README.md').count()) === 0;
     await showRepositoryFiles(githubWindow);
 
     await githubWindow.locator('[data-github-editor]').fill('# committed\\n');
     await githubWindow.locator('[data-github-save]').click();
-    await githubWindow.getByRole('button', { name: 'Stage file' }).click();
+    await githubWindow.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
+    await stageChangedFile(githubWindow, 'README.md');
     await githubWindow.locator('[data-github-commit-message]').fill('Fixture commit');
     await githubWindow.locator('[data-github-commit]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
     await showRepositoryFiles(githubWindow);
     await githubWindow.locator('[data-github-tab="history"]').click();
-    await githubWindow.locator('.gh-commit-row').nth(1).waitFor();
-    result.commitAndHistory = (await githubWindow.locator('.gh-commit-row').count()) >= 2;
+    const historyRows = githubWindow.locator('.gh-commit-row');
+    await historyRows.nth(1).waitFor();
+    result.commitAndHistory = (await historyRows.count()) >= 2;
+    await historyRows.first().click();
+    await githubWindow.locator('[data-history-file-path="README.md"]').waitFor();
+    result.historyDetails =
+      (await githubWindow.locator('.gh-history-detail').count()) === 1 &&
+      (await githubWindow.locator('[data-github-history-diff]').count()) === 1;
+    await expect(historyRows.first().locator('.gh-context-trigger')).toHaveCount(0);
+    await historyRows.first().click({ button: 'right' });
+    await githubWindow.locator('.gh-context-menu').waitFor();
+    result.historyContextMenu =
+      (await githubWindow.getByRole('button', { name: 'Copy commit SHA', exact: true }).count()) === 1;
+    await githubWindow.getByRole('button', { name: 'Copy commit SHA', exact: true }).click();
+    await githubWindow.locator('.gh-context-menu').waitFor({ state: 'detached' });
     await githubWindow.locator('[data-github-tab="changes"]').click();
 
     await githubWindow.locator('[data-github-branch-menu]').click();
@@ -537,9 +584,11 @@ export const githubApp = {
       .filter({ hasText: `Opened ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
     await showRepositoryFiles(remoteGithub);
+    await remoteGithub.locator('[data-file-path="README.md"]').click();
     await remoteGithub.locator('[data-github-editor]').fill('# remote change\\n');
     await remoteGithub.locator('[data-github-save]').click();
-    await remoteGithub.getByRole('button', { name: 'Stage file' }).click();
+    await remoteGithub.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
+    await stageChangedFile(remoteGithub, 'README.md');
     await remoteGithub.locator('[data-github-commit-message]').fill('Remote fixture change');
     await remoteGithub.locator('[data-github-commit]').click();
     await remoteGithub.locator('[data-github-push]').click();
@@ -580,15 +629,16 @@ export const githubApp = {
     await expect(remoteGithub.locator('[data-github-save]')).toBeEnabled();
     await remoteGithub.locator('[data-github-save]').press('Enter');
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Saved to OPFS' }).waitFor();
-    const stageButton = remoteGithub.getByRole('button', { name: 'Stage file' });
-    await expect(stageButton).toBeEnabled();
-    await stageButton.focus();
-    await stageButton.press('Enter');
-    await remoteGithub.getByRole('button', { name: 'Unstage file' }).waitFor();
-    const diffButton = remoteGithub.getByRole('button', { name: 'Show diff' });
-    await expect(diffButton).toBeEnabled();
-    await diffButton.focus();
-    await diffButton.press('Enter');
+    const stageCheckbox = changedFileCheckbox(remoteGithub, 'README.md');
+    await expect(stageCheckbox).toBeEnabled();
+    await stageCheckbox.focus();
+    await stageCheckbox.press('Space');
+    await expect(stageCheckbox).toBeChecked();
+    await expect(stageCheckbox).toBeEnabled();
+    const changedFile = remoteGithub.locator('[data-file-path="README.md"]');
+    await expect(changedFile).toBeEnabled();
+    await changedFile.focus();
+    await changedFile.press('Enter');
     await remoteGithub.locator('[data-github-diff]').waitFor();
     await remoteGithub.locator('[data-github-diff] button[aria-label="Close diff"]').focus();
     await remoteGithub.locator('[data-github-diff] button[aria-label="Close diff"]').press('Enter');

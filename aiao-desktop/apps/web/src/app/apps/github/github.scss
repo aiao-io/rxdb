@@ -29,6 +29,9 @@
   --gd-toolbar: #24292e;
   --gd-toolbar-fg: #e5e8eb;
   --gd-toolbar-muted: #a7afb9;
+  --gh-titlebar-height: 22px;
+  --gh-toolbar-height: 50px;
+  --gh-toolbar-handle-width: 5px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -113,37 +116,43 @@
   outline-offset: 1px;
 }
 
-.gh-toolbar {
+.gh-titlebar {
   position: relative;
+  z-index: 11;
+  display: flex;
+  min-height: var(--gh-titlebar-height);
+  flex: 0 0 var(--gh-titlebar-height);
+  align-items: center;
+  padding: 0 12px;
+  background: var(--gd-toolbar);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--gd-toolbar-fg);
+}
+
+.gh-titlebar-controls {
+  display: flex;
+  align-items: center;
+}
+
+.gh-titlebar-controls .tl {
+  gap: 8px;
+}
+
+.gh-toolbar {
+  position: static;
   z-index: 10;
   display: flex;
-  min-height: 50px;
-  flex: 0 0 50px;
+  min-height: var(--gh-toolbar-height);
+  flex: 0 0 var(--gh-toolbar-height);
   align-items: stretch;
   overflow: visible;
   background: var(--gd-toolbar);
   color: var(--gd-toolbar-fg);
 }
 
-.gh-toolbar-chrome {
-  position: absolute;
-  z-index: 4;
-  top: 0;
-  left: 10px;
-  display: flex;
-  height: 50px;
-  align-items: center;
-}
-
-.gh-toolbar-chrome .tl {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
 .gh-toolbar-section {
   min-width: 0;
-  height: 50px;
+  height: var(--gh-toolbar-height);
   flex-shrink: 0;
 }
 
@@ -177,7 +186,7 @@
 }
 
 .gh-repository-trigger {
-  padding-left: 76px;
+  padding-left: 14px;
 }
 
 .gh-system-icon {
@@ -257,9 +266,9 @@
 
 .gh-toolbar-handle {
   position: relative;
-  width: 5px;
-  height: 50px;
-  flex: 0 0 5px;
+  width: var(--gh-toolbar-handle-width);
+  height: var(--gh-toolbar-height);
+  flex: 0 0 var(--gh-toolbar-handle-width);
   padding: 0;
   border: 0;
   background: transparent;
@@ -403,6 +412,10 @@
   gap: 8px;
 }
 
+.gh-fetch-button .gh-fetch-icon {
+  order: -1;
+}
+
 .gh-auth {
   display: flex;
   min-width: 0;
@@ -510,19 +523,24 @@
 }
 
 .gh-menu-overlay {
-  position: fixed;
+  position: absolute;
   z-index: 30;
-  inset: 0;
+  top: calc(var(--gh-titlebar-height) + var(--gh-toolbar-height));
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: rgba(0, 0, 0, 0.35);
 }
 
 .gd-menu {
   position: absolute;
   z-index: 40;
-  top: 50px;
+  top: calc(var(--gh-titlebar-height) + var(--gh-toolbar-height));
+  right: auto;
+  bottom: 0;
   left: 0;
   display: flex;
-  max-height: calc(100vh - 50px);
+  max-height: none;
   flex-direction: column;
   overflow-y: auto;
   border: 1px solid var(--gd-border);
@@ -668,9 +686,33 @@
   color: var(--gd-fg);
 }
 
+.gh-repository-menu {
+  left: 0;
+}
+
+.gh-worktree-row {
+  min-height: 30px;
+}
+
+.gh-worktree-row svg {
+  flex: 0 0 auto;
+  color: var(--gd-muted);
+}
+
+.gh-worktree-current {
+  color: var(--gd-accent);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.gh-worktree-menu {
+  left: calc(var(--gh-repository-width) + var(--gh-toolbar-handle-width));
+  min-width: 365px;
+}
+
 .gh-branch-menu {
-  width: min(360px, calc(100vw - 24px));
-  max-height: calc(100vh - 50px);
+  left: calc(var(--gh-repository-width) + var(--gh-worktree-width) + (var(--gh-toolbar-handle-width) * 2));
+  min-width: 365px;
 }
 
 .gh-branch-menu-header {
@@ -686,7 +728,8 @@
 }
 
 .gh-branch-list {
-  max-height: min(360px, 45vh);
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -708,12 +751,6 @@
 
 .gh-branch-row-current {
   color: var(--gd-accent);
-}
-
-.gh-context-trigger {
-  min-width: 30px;
-  flex: 0 0 30px;
-  padding: 3px;
 }
 
 .gh-menu-actions > button,
@@ -928,10 +965,10 @@
 .gd-row {
   display: flex;
   min-width: 0;
-  min-height: 36px;
+  min-height: 29px;
   align-items: center;
   gap: 5px;
-  padding: 5px 8px 5px 9px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--gd-row-border);
   border-left: 3px solid transparent;
   background: transparent;
@@ -946,12 +983,24 @@
   border-left-color: var(--gd-accent);
 }
 
+.gh-file-checkbox,
+.gh-file-checkbox-placeholder {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+}
+
+.gh-file-checkbox-placeholder {
+  display: block;
+}
+
 .gh-file-select {
   display: flex;
   min-width: 0;
   flex: 1;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -964,14 +1013,25 @@
   font-weight: 600;
 }
 
-.gh-file-status,
-.gh-status {
-  min-width: 14px;
-  flex: 0 0 auto;
-  color: var(--gd-accent);
-  font-size: 10px;
+.gh-file-status {
+  min-width: 16px;
+  flex: 0 0 16px;
+  color: var(--gd-warn-fg);
+  font:
+    12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   font-weight: 700;
   text-align: center;
+}
+
+.gh-file-status-added {
+  color: var(--gd-add-fg);
+}
+
+.gh-file-status-deleted {
+  color: var(--gd-del-fg);
 }
 
 .gh-file-name {
@@ -981,18 +1041,6 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.gh-file-size {
-  flex: 0 0 auto;
-  color: var(--gd-muted);
-  font-size: 10px;
-}
-
-.gh-row-action {
-  min-height: 24px;
-  padding: 2px 5px;
-  font-size: 11px;
 }
 
 .gh-row-danger,
@@ -1519,6 +1567,30 @@
   background: var(--gd-sidebar-bg);
 }
 
+.gh-history-branch-filter {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--gd-border);
+  color: var(--gd-muted);
+}
+
+.gh-history-branch-filter input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--gd-fg);
+  font-size: 12px;
+}
+
+.gh-history-branch-filter input::placeholder {
+  color: var(--gd-muted);
+}
+
 .gh-commit-row {
   display: flex;
   min-width: 0;
@@ -1575,19 +1647,112 @@
 }
 
 .gh-detail-header {
-  padding: 22px 26px 18px;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--gd-border);
 }
 
-.gh-detail-header h2 {
-  margin: 4px 0 8px;
-  font-size: 18px;
-  font-weight: 600;
+.gh-detail-header-main {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 8px;
 }
 
-.gh-detail-header code {
+.gh-detail-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.gh-detail-header h2 {
+  margin: 1px 0 5px;
+  color: var(--gd-fg);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.gh-commit-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
   color: var(--gd-muted);
   font-size: 11px;
+}
+
+.gh-commit-meta strong {
+  color: var(--gd-fg);
+}
+
+.gh-history-avatar {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.gh-commit-avatar {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gd-accent);
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.gh-commit-stats {
+  margin-left: 8px;
+  color: var(--gd-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.gh-detail-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.gh-copy-sha {
+  min-width: 26px;
+  padding-inline: 5px;
+}
+
+.gh-detail-expander {
+  gap: 4px;
+  padding-inline: 5px;
+  font-size: 11px;
+}
+
+.gh-detail-expander svg {
+  transition: transform 120ms ease;
+}
+
+.gh-commit-details-expanded {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 6px;
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-commit-details-expanded code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gd-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gh-detail-body {
@@ -1600,6 +1765,153 @@
 
 .gh-detail-body p {
   margin: 0;
+}
+
+.gh-history-content {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: row;
+}
+
+.gh-history-files {
+  display: flex;
+  min-width: 240px;
+  width: 34%;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--gd-border);
+  background: var(--gd-sidebar-bg);
+}
+
+.gh-history-files-header {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--gd-border);
+  color: var(--gd-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gh-history-file-list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.gh-history-file-row {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--gd-row-border);
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--gd-fg);
+  text-align: left;
+}
+
+.gh-history-file-row:hover,
+.gh-history-file-row-selected {
+  background: var(--gd-selected);
+}
+
+.gh-history-file-row-selected {
+  border-left-color: var(--gd-accent);
+}
+
+.gh-history-file-status {
+  color: var(--gd-accent);
+  font:
+    12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gh-history-file-status-added {
+  color: var(--gd-add-fg);
+}
+
+.gh-history-file-status-deleted {
+  color: var(--gd-del-fg);
+}
+
+.gh-history-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-history-file-kind {
+  color: var(--gd-muted);
+  font-size: 11px;
+}
+
+.gh-history-diff {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--gd-panel);
+}
+
+.gh-history-diff-head {
+  position: relative;
+}
+
+.gh-history-diff-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gh-diff-settings {
+  position: absolute;
+  z-index: 20;
+  top: 32px;
+  right: 0;
+  display: grid;
+  min-width: 220px;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--gd-border);
+  border-radius: 5px;
+  background: var(--gd-panel);
+  box-shadow: var(--gd-shadow);
+  color: var(--gd-fg);
+  font-size: 11px;
+}
+
+.gh-diff-settings label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.gh-diff-hunk {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--gd-border);
+  background: var(--gd-hunk-bg);
+  color: var(--gd-muted);
+  font:
+    11px/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
 }
 
 .gh-context-backdrop {
@@ -1739,13 +2051,6 @@
     flex: 0 0 50%;
   }
 
-  .gh-toolbar-chrome {
-    height: 46px;
-  }
-
-  .gh-repository-trigger {
-    padding-left: 72px;
-  }
 
   .gh-workspace {
     grid-template-columns: minmax(240px, 42vw) 6px minmax(0, 1fr);
