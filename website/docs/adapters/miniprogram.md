@@ -57,7 +57,7 @@ wa-sqlite 的 Emscripten glue 与 wasm 二进制都取自
 
 - 源子路径导出为 `SUBFRAME_WASM_SUBPATH`，代码包内的目标路径导出为 `DEFAULT_WASM_PATH`。
 - glue 与 wasm 是一对，跨构建混用会 `LinkError`。
-- Taro（Vite）项目不用手抄构建配置，装 `@aiao/rxdb-taro` 即可，见 [Taro（小程序）](@site/docs/frameworks/taro.md)。
+- Taro（Vite）项目不用手抄构建配置，装 `@aiao/rxdb-taro` 即可，见 [Taro（小程序）](/frameworks/taro.md)。
 
 ## 运行时引导与建库
 
@@ -154,7 +154,7 @@ async function createDatabase() {
 iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装，
 所以打进产物的代码**不能在模块顶层构造编码器**，要等第一次用到再建。
 
-Taro 项目可以直接用 [Taro 运行时入口](@site/docs/frameworks/taro.md#运行时入口) 按构建平台取 host 与 WASM 运行时，
+Taro 项目可以直接用 [Taro 运行时入口](/frameworks/taro.md#运行时入口) 按构建平台取 host 与 WASM 运行时，
 不用自己写 `wx` / `tt` 分支。
 
 ### 支付宝
@@ -169,7 +169,7 @@ i64 返回值的构造器取回）、Worker 里的 `crypto.getRandomValues`、�
 :::
 
 代码包要放三样东西。Taro（Vite）项目首选 `@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins('alipay', appRoot)` 发出
-（见 [Taro（小程序）](@site/docs/frameworks/taro.md#支付宝实验性)），它同时负责模拟器里的真实全局对象登记；其他打包器自行拷贝：
+（见 [Taro（小程序）](/frameworks/taro.md#支付宝实验性)），它同时负责模拟器里的真实全局对象登记；其他打包器自行拷贝：
 
 ```text
 @aiao/rxdb-adapter-miniprogram/alipay-random-worker.js  →  workers/index.js（预编译 ES5，原样拷贝）
@@ -224,20 +224,20 @@ glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和 `new URL('wa-sq
 
 Taro（Vite）项目在 `config/index.ts` 的 `plugins` 里加一行 `'@aiao/rxdb-taro'`（微信、抖音）即可：这一步、wasm 发进
 代码包、抖音的真实全局对象绑定，以及把 Taro 写死的 `es6` 构建目标抬到 es2020 都由它完成；其他 vite 项目用
-`@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins()` 自行组装。详见 [Taro（小程序）](@site/docs/frameworks/taro.md)。
+`@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins()` 自行组装。详见 [Taro（小程序）](/frameworks/taro.md)。
 
 ## 全文搜索与 FTS5
 
 - `@subframe7536/sqlite-wasm` 的构建开启了 `ENABLE_FTS5`，所以小程序侧可以建 FTS5 虚拟表，`rxdb_fts_bigram` 也随基类一起
   注册（中文需要它切 bigram，否则整段只成一个 token）。
 - 但 `@aiao/rxdb-plugin-search` 的后端注册表仍把 `wa-sqlite-miniprogram` 标为 `unverified`：在本适配器上注册搜索插件时抛
-  `SearchUnsupportedAdapterError` fail-fast。放行名单与状态见[插件文档](@site/docs/plugins/rxdb-plugin-search/README.md)。
+  `SearchUnsupportedAdapterError` fail-fast。放行名单与状态见[插件文档](/plugins/rxdb-plugin-search/README.md)。
 - 真机（微信基础库）上的 FTS5 表现尚无实测。
 - 建表时列名不能与表名相同——FTS5 声明 vtab 时会额外加一列与表同名，撞名即重复列，只会报不透明的
   `vtable constructor failed: <table>`。
 
 ## 相关文档
 
-- [Taro（小程序）](@site/docs/frameworks/taro.md)
-- [数据库适配器](@site/docs/adapters/README.md)
-- [版本兼容矩阵](@site/docs/compatibility.md)
+- [Taro（小程序）](/frameworks/taro.md)
+- [数据库适配器](/adapters/README.md)
+- [版本兼容矩阵](/compatibility.md)

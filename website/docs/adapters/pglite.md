@@ -122,7 +122,7 @@ const settings = await firstValueFrom(
 
 ### 3. 全文搜索
 
-PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 rxdb 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](@site/docs/plugins/rxdb-plugin-search/README.md)：本适配器已支持（pg-tsvector 后端）；SQLite 家族里兼容 sqlite-wasm / sqlite / sqliteai（FTS5 后端），wa-sqlite 与小程序适配器尚未放行。
+PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 rxdb 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](/plugins/rxdb-plugin-search/README.md)：本适配器已支持（pg-tsvector 后端）；SQLite 家族里兼容 sqlite-wasm / sqlite / sqliteai（FTS5 后端），wa-sqlite 与小程序适配器尚未放行。
 
 ### 4. 数组类型
 
@@ -151,7 +151,7 @@ const posts = await firstValueFrom(
 
 ### 事务支持
 
-PGlite 支持完整的 ACID 事务（正确入口是适配器的 `transaction()`，见[事务](@site/docs/model-mutation/transaction.md)）：
+PGlite 支持完整的 ACID 事务（正确入口是适配器的 `transaction()`，见[事务](/model-mutation/transaction.md)）：
 
 ```typescript
 import type { TransactionExecutor } from '@aiao/rxdb';
@@ -364,7 +364,7 @@ if ('storage' in navigator && 'persist' in navigator.storage) {
 
 ### 从 SQLite 迁移到 PGlite
 
-RxDB 没有整库导出/导入 API。保留数据的迁移方式是：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](@site/docs/migration/adapters.md)）。
+RxDB 没有整库导出/导入 API。保留数据的迁移方式是：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](/migration/adapters.md)）。
 
 ```typescript
 import { firstValueFrom } from 'rxjs';
@@ -499,4 +499,4 @@ main();
 - [PGlite](https://github.com/electric-sql/pglite)
 - [PostgreSQL 文档](https://www.postgresql.org/docs/)
 - [模型定义](../model-definition/)
-- [安装指南](@site/docs/getting-started/install.md)
+- [安装指南](/getting-started/install.md)

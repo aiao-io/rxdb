@@ -177,14 +177,14 @@ if (target) await repository.reorder(draggedId, target);
 await repository.reorder(draggedId, { group: { parentId: target.id } });
 ```
 
-环检测不在 `reorder()` 里——拖进自己的后代要在调用方先拒绝。树插件的 `ISortableTreeEntity` 只借核心的 `SortOrderKey` 类型组合出可空的 `sortOrder`，实现它不会获得手动排序声明。见[树结构 (Tree)](@site/docs/model-definition/structure-tree.md) 的「可排序树实体」小节。
+环检测不在 `reorder()` 里——拖进自己的后代要在调用方先拒绝。树插件的 `ISortableTreeEntity` 只借核心的 `SortOrderKey` 类型组合出可空的 `sortOrder`，实现它不会获得手动排序声明。见[树结构 (Tree)](/model-definition/structure-tree.md) 的「可排序树实体」小节。
 
 ## 与 rxdb-model 实体列表的拖拽
 
-三框架 `EntityList` 对满足条件的可排序实体自动开启拖拽手柄（string 主键、`normal` 排序状态、数据完整加载、无草稿 / 待提交编辑等），拖放经 `reorderTargetForMove` 换算成邻居目标后调用 `Repository.reorder()`；失败恢复最新已提交顺序并展示错误，下一次拖拽可用。使用与细节见 [实体模型（rxdb-model）实体列表](@site/docs/entity-model/README.md)。
+三框架 `EntityList` 对满足条件的可排序实体自动开启拖拽手柄（string 主键、`normal` 排序状态、数据完整加载、无草稿 / 待提交编辑等），拖放经 `reorderTargetForMove` 换算成邻居目标后调用 `Repository.reorder()`；失败恢复最新已提交顺序并展示错误，下一次拖拽可用。使用与细节见 [实体模型（rxdb-model）实体列表](/entity-model/README.md)。
 
 ## 继续阅读
 
-- [模型修改](@site/docs/model-mutation/README.md)
-- [树结构 (Tree)](@site/docs/model-definition/structure-tree.md)
-- [findDescendants](@site/docs/model-query/findDescendants.md) / [findAncestors](@site/docs/model-query/findAncestors.md)
+- [模型修改](/model-mutation/README.md)
+- [树结构 (Tree)](/model-definition/structure-tree.md)
+- [findDescendants](/model-query/findDescendants.md) / [findAncestors](/model-query/findAncestors.md)

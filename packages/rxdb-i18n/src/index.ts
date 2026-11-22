@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Reactive client internationalization runtime for Aiao RxDB.
+ * Aiao RxDB 客户端的响应式国际化运行时。
  */
 export {
   catalogMessages,

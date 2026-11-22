@@ -217,6 +217,6 @@ class Ledger extends EntityBase {
 
 ## 参考
 
-- [模型定义](../model-definition/README.md)
+- [模型定义](/model-definition/README.md)
 - [SQLite 适配器](./sqlite.md)
 - [SQLite WASM 适配器](./sqlite-wasm.md)

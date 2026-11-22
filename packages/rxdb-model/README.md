@@ -4,11 +4,16 @@ Framework-independent entity-model utilities for Aiao RxDB. The package derives 
 
 It has no Angular, React, or Vue runtime dependency. Use the framework bindings in `@aiao/rxdb-model-angular`, `@aiao/rxdb-model-react`, or `@aiao/rxdb-model-vue` when you need ready-made components.
 
-## Install
+## Run the workspace example
 
-```bash
-pnpm add @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-i18n
+The model on this branch uses the workspace i18n package. From the repository root, install the locked dependencies and start a demo to see the generated entity UI.
+
+```sh
+pnpm install
+pnpm nx serve dev-rxdb-react
 ```
+
+For Angular or Vue, use `dev-rxdb-angular` or `dev-rxdb-vue`. For an application using a published release, follow the dependencies declared by that release of `@aiao/rxdb-model`.
 
 The default table entry also uses `@visactor/vtable` and `@visactor/vtable-editors`. Use `@aiao/rxdb-model/headless` when you only need state and actions without VTable.
 
@@ -59,4 +64,4 @@ Run package tests with:
 pnpm nx test rxdb-model --run
 ```
 
-Read the [English entity model guide](https://rxdb.aiao.io/en/docs/entity-model/) and the [Chinese mirror](README.zh-CN.md) for the full API examples.
+Read the [English entity model guide](https://rxdb.aiao.io/en/docs/entity-model/) and the [Chinese mirror](https://github.com/aiao-io/rxdb/blob/main/packages/rxdb-model/README.zh-CN.md) for the full API examples.

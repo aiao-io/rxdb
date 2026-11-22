@@ -20,7 +20,7 @@ Read these documents first.
 - Use strict TypeScript, avoid `any`, and leave lint with zero warnings.
 - Keep functions focused and avoid unnecessary nesting.
 - Maintain the repository coverage gates. Core packages require at least 90 percent coverage and other packages require at least 80 percent.
-- Add TSDoc for new public exports.
+- Document new public exports with TSDoc. Write comments and TSDoc in `packages` in Chinese. Keep identifiers, code examples, and TSDoc tags in their original form. Put English usage notes in the package README.
 - Run repository tasks through Nx with the `pnpm nx` prefix.
 
 ## Requirements and scope
@@ -31,7 +31,7 @@ Keep the change focused. Include implementation, tests, documentation, and migra
 
 ## Environment setup
 
-The repository requires Node.js 26 or newer. The root `package.json` declares pnpm 12.16.1 and the engine minimum is pnpm 10.
+Use Node.js 26 or newer and the pnpm version pinned in the root manifest. On Windows, keep the LF line endings specified in `.gitattributes` so that the wa-sqlite checksum matches during installation. [Tool versions](package.json)
 
 ```sh
 pnpm install
@@ -166,7 +166,7 @@ pnpm nx show project <project-name>
 
 ## Getting help
 
-- Read the [documentation](https://rxdb.aiao.io).
+- Read the [documentation](https://rxdb.aiao.io/en/).
 - Search [existing issues](https://github.com/aiao-io/rxdb/issues).
 - Use the [bug report](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml), [feature request](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml), or [question form](https://github.com/aiao-io/rxdb/issues/new?template=question.yml).
 

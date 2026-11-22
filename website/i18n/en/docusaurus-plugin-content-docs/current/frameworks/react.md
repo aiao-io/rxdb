@@ -11,11 +11,12 @@ npm install @aiao/rxdb @aiao/rxdb-react
 ## Provide the database
 
 ```tsx
+import type { RxDB } from '@aiao/rxdb';
 import { RxDBProvider } from '@aiao/rxdb-react';
 
 export function AppRoot({ rxdb }: { rxdb: RxDB }) {
   return (
-    <RxDBProvider value={rxdb}>
+    <RxDBProvider db={rxdb}>
       <App />
     </RxDBProvider>
   );
@@ -30,14 +31,12 @@ Use the query Hooks from the package inside a component below the provider. The 
 import { useFind } from '@aiao/rxdb-react';
 
 export function TodoList() {
-  const todos = useFind(() =>
-    Todo.find({
-      where: { combinator: 'and', rules: [] },
-      orderBy: [{ field: 'createdAt', sort: 'desc' }]
-    })
-  );
+  const todos = useFind(Todo, {
+    where: { combinator: 'and', rules: [] },
+    orderBy: [{ field: 'createdAt', sort: 'desc' }]
+  });
 
-  return <ul>{todos.map(todo => <li key={todo.id}>{todo.title}</li>)}</ul>;
+  return <ul>{todos.value.map(todo => <li key={todo.id}>{todo.title}</li>)}</ul>;
 }
 ```
 

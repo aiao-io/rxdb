@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
- * Angular integration for Aiao RxDB.
- * Provides Signals, dependency injection, and Angular change-detection integration.
+ * Aiao RxDB 的 Angular 绑定。
+ * 提供 Signals、依赖注入和变更检测集成。
  */
 export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 export * from './hooks';

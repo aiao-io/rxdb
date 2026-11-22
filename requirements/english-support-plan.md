@@ -8,13 +8,58 @@
 | 影响范围 | 仓库入口、官网、公共 API 文档、i18n runtime、Admin 模板、开发演示应用 |
 | 主要约束 | Angular、React、Vue 三端行为和 API 保持对称；既有中文语言选择继续有效 |
 
-当前实现已覆盖语言解析合同、GitHub 英文入口、Admin 与开发演示运行时、英文官网核心入口、文案键完整性门禁和核心错误码。公共包 README 全量英文化、完整公共 TSDoc 迁移与浏览器英文首次访问验收仍按本计划继续收口。
+## 实施与验收记录
+
+GitHub 的英文 README 和贡献指南直接进入官网 `/en/`。官网根路径继续提供中文文档，两个入口都可以通过导航切换到另一种语言。
+
+| 读者操作 | 已验证的范围 |
+| --- | --- |
+| 从 GitHub 提问 | Issue 选择页直接提供英文和中文文档链接，英文提问表单进入 `/en/`。仓库脚本检查三个链接的目标。 |
+| 按英文文档接入第一个插件 | Chromium 从 Vite 示例加载配套 WASM，在 IndexedDB 中新增、查询、更新和删除 Todo，控制台收到一次插件通知。PGlite 内存库在断开重连前后各保存一个 Todo，每次都只收到一次通知。脚本测试逐字节比对安装页复制的 WASM 和适配器实际依赖。 |
+| 在英文浏览器打开 Admin | Angular、React、Vue 共用一套 Chromium 用例。在干净的 `en-US` 环境中检查英文首页、`html[lang]`、标题和 meta description。切换到中文后刷新，再从偏好抽屉清除语言并刷新，两次都检查文案和 metadata。 |
+| 打开开发演示的实体页 | 三端 Chromium 都验证了英文新增按钮、规范语言 `en`，以及日期 `October 28, 2026` 和数字 `12,345.67`。 |
+| 在 AG Grid 中切换语言 | 三端 Chromium 在实体页写入同一个固定时间的 Todo，进入 AG Grid 后核对英文时间列标题、单元格日期以及 `Yes` / `No` 筛选值。原页切换至中文后再核对中文标题、日期和“是／否”。 |
+| 从文档复制代码 | 自动检查仓库首页、英文 Getting Started、模型定义、查询、响应式查询、写入、Vite 配置、插件编写、i18n 指南、三端框架指南和首批 12 个公共包 README 中的 TypeScript 示例。Vue 另有测试会实际编译并挂载 `useEntityChange` 的 README 示例。 |
+| 从未翻译页面跳到英文指南 | 文档链接以内容目录为根并保留 `.md`。英文单语言构建开启 Markdown、页面和锚点三种断链检查，已核对插件目录正文到编写插件、桌面迁移正文到兼容矩阵的生成链接。 |
+| 根据核心报错定位问题 | `packages/rxdb/README.md` 列出 12 个具体错误码、诊断字段及处理方法，含原有小写事务错误码。 |
+
+2026-11-23 已复核 63 个公开包的 101 个 API 入口。`resolveUiLocale` 与 `UiLocale` 已登记在 i18n 基线中。仓库脚本 622 项通过，官网测试 93 项通过，11 组中英文文案键一致。官网和仓库脚本均通过 lint，文档代码检查和需求一致性检查通过。
+
+GitHub 英文 README 直达的安装、兼容矩阵和迁移入口均有英文正文。迁移首页按升级场景说明改动，详细操作仍为中文，并在入口标明。英文文档首页和 Getting Started 直接链接的指南也均有英文正文。官网测试逐一读取这些链接的英文源文件，防止缺少翻译时悄悄展示中文。模型定义、查询、响应式查询和写入示例随仓库脚本进行 TypeScript 编译检查。插件目录注明各插件详细指南的当前语言。英文站严格构建已通过，逐页核对了五个生成页面的英文标题。加密适配器和模型权限两页也能跳到对应的模型指南。
+
+英文 API 索引按任务列出 12 个包的入口。各包 README 的中文镜像链接指向 GitHub 上对应的 `README.zh-CN.md`，生成站点和 npm 包页面都可以使用同一地址。[英文 API 索引](../website/i18n/en/docusaurus-plugin-content-docs/current/api/README.md)
+
+正式双语构建已通过。首次完整构建产出 20,007 个文件，中英文演示共用 `/demo/` 后降至 19,307 个，低于仓库的 Pages 上限 20,000。预览中 `/en/demo/` 下的资源请求保留查询参数并跳转到同一份 JS。三个 `/en/demos/` 宿主都能打开深链接。两份搜索索引分别包含本语言的安装页，英文 API 正文的 12 个包链接均可解析，中英文包页面都提供了中文 README 镜像入口。
+
+本轮加入插件示例和英文迁移索引后，英文严格构建用时 5 分 31 秒。双语正式产物通过 `website:pages-check`，共有 19,308 个文件，最大文件为 10,924,148 字节。已检查两个搜索索引、8 篇英文正文、12 个包的参考链接，以及预览中三个框架的演示深链接。
+
+首轮 `pnpm test-all` 覆盖 99 个受影响项目。在一次并发运行中，5 个看板 PGlite 用例超过默认 5 秒。`rxdb-plugin-board:coverage` 单独按默认配置通过 167 项测试，行覆盖率 97.91%，耗时 3 分 48 秒。全量复跑随后在 `rxdb-plugin-working-tree:test` 和 `rxdb-adapter-electron:test` 停止。工作树插件单独通过全部 1,285 项测试。Electron 适配器单独按默认配置运行时有 1,375 项通过、8 项失败、23 项跳过，包含 PGlite 初始化、备份恢复超时以及 `Article` 重复注册。按原超时配置以 `VITEST_MAX_WORKERS=1` 复跑后，40 个文件全部通过，1,398 项通过、8 项跳过，用时 25 分 20 秒。
+
+三端 Admin、实体页和 AG Grid 的 9 项 Chromium 场景全部通过。三端 Admin 布局测试显式从中文开始，再验证品牌标题切到英文。Angular、React 和 Vue 的 Admin 单测分别通过 132、120 和 144 项。加入 AG Grid 后，全量检查覆盖 100 个项目。看板种子用例把两个 PGlite 连接移到每项测试的准备阶段，仍在测试体内写入种子并比较快照。看板 Node 套件通过 167 项，浏览器通过 6 项，合并后的行覆盖率为 97.90%。SQLite 加载器单独通过 13 项检查，完整 `rxdb-adapter-sqlite:test` 按默认配置通过 842 项，跳过 13 项。
+
+最新一次全量验收中，Angular 开发演示的 232 项 E2E 全部通过，含此前超时的 History 建分支。Vue 开发演示通过 210 项，三个 Admin 模板各通过 92 项。React 开发演示在本机 8 个 worker 下通过 221 项、6 项超时，同一批失败用例按原超时用单 worker 复跑，6 项全部通过。
+
+可重复执行的验收命令如下。
+
+```bash
+pnpm nx run-many -t e2e -p rxdb-admin-template-angular-e2e,rxdb-admin-template-react-e2e,rxdb-admin-template-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
+pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
+pnpm nx run @aiao/source:test-scripts
+pnpm nx run @aiao/source:audit-i18n
+pnpm audit:api-surface
+pnpm nx run website:build
+pnpm nx run website:site-build -- --locale en --out-dir /tmp/rxdb-english-site
+pnpm nx run website:pages-check
+pnpm test-all
+```
+
+首批包包含核心、Model、Admin、i18n、三端数据库绑定、三端 i18n 绑定、wa-sqlite 和 PGlite。其余适配器、插件和历史页面按使用路径继续翻译。公共 API 的英文说明先交付在 Markdown；包内 JS/TS 注释遵循仓库协作约定。
 
 ## 1. 结论
 
 ✅ 值得做。
 
-项目已经具备 `@aiao/rxdb-i18n` 以及 Angular、React、Vue 三端绑定，Admin 模板、模型文案和备份页面也已经有中英文目录。当前英文支持的主要缺口集中在公共入口、默认语言探测、日期和数字格式化、官网文档、公共 TSDoc 与运行时错误信息。
+项目已经具备 `@aiao/rxdb-i18n` 以及 Angular、React、Vue 三端绑定，Admin 模板、模型文案和备份页面也已经有中英文目录。当前英文支持的主要缺口集中在公共入口、默认语言探测、日期和数字格式化、官网文档、公共 API 使用说明与运行时错误信息。
 
 本计划先建立一条完整的英文成功路径，再逐步扩大翻译覆盖。英文贡献者应能完成以下动作：
 
@@ -25,7 +70,7 @@
 5. 从英文官网查到 Getting Started、框架接入、适配器、实体模型、i18n 和贡献流程。
 6. 通过稳定的英文公共 API 文档和错误码理解失败原因。
 
-## 2. 当前审计结论
+## 2. 实施前审计基线
 
 ### 2.1 已有基础
 
@@ -87,14 +132,7 @@
 
 ### 3.3 公共文档语言规则
 
-公共 API 文档需要服务英文作者。实施前先更新 `AGENTS.md` 和 `requirements/zh-glossary.md` 的规则边界，明确以下约定：
-
-- 公共导出、公共类型、参数、返回值、错误码和使用示例的 TSDoc 使用英文。
-- 内部实现注释、测试说明和中文领域备注继续使用中文。
-- API 名、类型名、代码示例和标准 TSDoc 标签保留原文。
-- 中文 API 说明放入中文文档或中文镜像，避免在同一段 TSDoc 中混用两套主语言。
-
-这项规则变更需要和公共包文档迁移一起评审，避免只翻部分包造成文档语言不一致。
+包 README 和官网英文指南面向外部作者，说明公共类型、参数、返回值、错误码和使用示例。`packages` 下 JS/TS 文件的注释和 TSDoc 使用中文。API 名、类型名、代码示例和标准 TSDoc 标签保留原文。维护约定见 [AGENTS.md](../AGENTS.md) 和[中文注释词汇约定](zh-glossary.md)。
 
 ## 4. 分阶段实施
 
@@ -109,7 +147,7 @@
 - 盘点 Admin、Model、Application 三套目录的 key 集合，生成可重复执行的完整性检查。
 - 盘点 `toLocaleString('zh-CN')`、固定 `Intl.*` locale、固定 `localeCompare('zh-CN')` 和组件 locale。
 - 明确哪些日期和排序属于协议格式，哪些属于用户界面格式。
-- 更新 `AGENTS.md` 和 `requirements/zh-glossary.md` 的公共 TSDoc 语言规则。
+- 把包内中文注释和包外英文 API 说明的范围写入贡献指南。
 
 #### 完成条件
 
@@ -128,6 +166,7 @@
 - 新增 `README.zh-CN.md`
 - `CONTRIBUTING.md`
 - 新增 `CONTRIBUTING.zh-CN.md`
+- `.github/ISSUE_TEMPLATE/config.yml`
 - `.github/ISSUE_TEMPLATE/bug_report.yml`
 - `.github/ISSUE_TEMPLATE/feature_request.yml`
 - `.github/ISSUE_TEMPLATE/question.yml`
@@ -250,7 +289,7 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 #### 实施内容
 
 - 配置 `en` 与 `zh-Hans` 两个 locale。
-- 以英文作为公共默认站点语言，保留中文 locale 路径和已有内容入口。
+- 官网根路径继续提供中文。GitHub 的英文 README 和贡献指南指向 `/en/`。
 - 翻译首页、Getting Started、Install、Frameworks、Entity Model、Adapters、Plugin Authoring、I18n、Compatibility 和 Contributing。
 - 翻译导航、footer、页面标题、meta description、搜索提示和错误页面。
 - 保持代码示例、包名、API 名和命令可复制执行。
@@ -267,7 +306,7 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 
 历史文档、博客和完整 API 页面可以在最短成功路径稳定后继续分批迁移。核心入口先完成，避免翻译范围失控。
 
-### Phase 5 公共包 README 与 TSDoc
+### Phase 5 公共包 README 与 API 指南
 
 优先级 P1。让英文作者能从包入口理解 API 边界和用法。
 
@@ -284,7 +323,7 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 #### 实施内容
 
 - 公共包 README 使用英文，并提供中文镜像或中文文档链接。
-- 公共导出、公共类型、参数、返回值、异常和生命周期说明使用英文 TSDoc。
+- 在英文 README 和官网指南中说明公共导出、参数、返回值、异常和生命周期。
 - 生成的 API 页面与包 README 使用相同术语。
 - 示例覆盖安装、初始化、查询、实体模型、框架绑定和错误处理。
 - 不重命名现有导出，不改变参数类型，不借翻译清理引入破坏性 API 变化。
@@ -293,8 +332,8 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 #### 完成条件
 
 - 主要公共包的入口页面可以独立解释安装、核心概念和最小用法。
-- 生成的 API 文档不再以中文作为公共 API 的主说明语言。
-- TSDoc 中的示例可在当前仓库或对应 demo 中验证。
+- 英文 API 入口可以找到已翻译包的使用说明和公共签名。
+- 英文 Markdown 中的示例可在当前仓库或对应 demo 中验证。
 - API baseline、类型检查、lint 和包测试通过。
 
 ### Phase 6 稳定错误码和英文诊断
@@ -317,15 +356,7 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 - 先追加 code 和结构化上下文，再逐组迁移 message，避免一次性改动所有错误文本。
 - 为关键错误建立错误码清单、英文说明和中文界面映射。
 
-示例结构如下：
-
-```ts
-{
-  code: 'RXDB_SYNC_CONFIG_MISSING',
-  message: 'Database-level sync configuration is required',
-  details: {}
-}
-```
+`RxDBMissingPluginError` 已提供 `RXDB_PLUGIN_MISSING`。调用方可以读取 `entity`、`packageName` 和 `registration`，定位缺少注册的实体和插件。完整清单见[核心包 README](../packages/rxdb/README.md#public-contracts)。
 
 #### 完成条件
 
@@ -369,7 +400,7 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 | EN-AC-08 | 缺失 key 不直接泄漏到用户界面，且检查能定位缺失目录 |
 | EN-AC-09 | 英文 README 可完成安装、运行、测试和提交 Issue |
 | EN-AC-10 | 英文官网核心路径无断链，构建和搜索索引通过 |
-| EN-AC-11 | 公共 API 主说明为英文，示例可验证，API baseline 不回退 |
+| EN-AC-11 | 首批包有英文 API 指南，示例可验证，API baseline 通过 |
 | EN-AC-12 | 核心错误具备稳定 code，应用层不依赖 message 全文匹配 |
 | EN-AC-13 | 英文和中文用户已有显式语言偏好在升级后保持原值 |
 
@@ -386,13 +417,13 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 ## 7. 推荐交付顺序
 
-1. 冻结语言合同、目录完整性检查和公共 TSDoc 规则。
+1. 确认语言解析顺序、目录完整性检查和英文 API 说明的位置。
 2. 先补 `rxdb-i18n` 与 Admin runtime 的红测试。
 3. 同一交付切片完成 React、Angular、Vue Admin 模板默认语言和偏好行为。
 4. 完成 GitHub 英文入口，让外部作者可以开始使用和反馈。
 5. 完成开发演示中的日期、数字、排序和组件 locale。
 6. 配置英文官网并翻译最短成功路径。
-7. 迁移公共包 README 和 TSDoc。
+7. 翻译公共包 README 和官网 API 指南。
 8. 增加错误码和英文诊断，配套 UI 翻译。
 9. 执行 affected 检查、覆盖率检查、API 门禁和完整测试。
 
@@ -405,7 +436,7 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 | C | GitHub 英文入口 | 命令可执行、链接有效、中文镜像同步 |
 | D | 开发演示格式化 | 用户界面格式与协议格式边界 |
 | E | 官网英文 locale | 文档层级、链接、URL 兼容、搜索索引 |
-| F | 公共包 README、TSDoc 和错误码 | API 稳定性、英文诊断、公共文档质量 |
+| F | 公共包 README、API 指南和错误码 | API 稳定性、英文诊断、公共文档质量 |
 
 涉及 `packages/*` 公共包和三端应用的切片需要在同一变更范围内统一评审和验证。每个切片合入前都应通过对应 target，最终由 affected 和完整门禁收口。
 
@@ -418,7 +449,6 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 | Angular locale data 未加载 | 把英文和中文格式化场景加入 Angular 实际运行测试 |
 | 官网默认语言变化导致旧中文链接失效 | 先盘点现有 URL，再保留中文 locale 路径或增加兼容跳转 |
 | `localeCompare` 改动影响稳定排序 | 先区分协议排序和用户界面排序，只迁移有明确用户语言语义的场景 |
-| 公共 TSDoc 语言规则与现行 AGENTS 冲突 | 先更新规则并完成评审，再迁移公共 TSDoc |
 | 错误 message 变化影响下游断言 | 先增加稳定 `code`，保留错误类型和语义，分组迁移 message 并补迁移说明 |
 | 翻译扩大范围造成长期维护负担 | 先完成英文作者最短路径，再按包和文档层级逐步扩展 |
 
@@ -434,15 +464,13 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 - 在没有真实运行时验证的情况下宣称小程序、Electron、Tauri 和 Web 完全等价。
 - 将领域功能和公共包改动拆成绕过统一评审的独立合并路径。
 
-## 10. 实现前需要确认的决策
+## 10. 已采用的决策与后续范围
 
-以下事项在 Phase 0 结束前冻结：
-
-1. 官网根路径切换为英文默认站点的时间点，以及现有中文 URL 的兼容方式。
-2. 公共 TSDoc 英文化规则在 `AGENTS.md` 和 `requirements/zh-glossary.md` 中的最终措辞。
-3. 开发演示应用中需要进入首批验收的页面范围，建议覆盖 workspace、storage、OPFS、history 和 AG Grid。
-4. 核心错误从中文 message 迁移到英文 message 的兼容窗口，以及是否需要单独的迁移说明。
-5. 文案完整性检查放入现有 Nx target 的位置，确保本地和 CI 使用同一入口。
+- 官网 `/` 为中文，`/en/` 为英文。中英文首页、安装页和各自的搜索索引纳入 Pages 发布检查。
+- 公共包的英文说明写入 Markdown，源码注释遵循 `AGENTS.md`。
+- Admin、演示实体页和 AG Grid 的时间列及布尔筛选已完成三框架英文浏览器验收。后续页面包括 workspace、storage、OPFS 和 history。
+- 核心 README 已记录 12 个错误码。涉及既有异常消息的改动按错误类型单独评审。
+- 本地和 CI 都通过 `pnpm nx run @aiao/source:audit-i18n` 检查文案键。
 
 ## 11. 完成定义
 

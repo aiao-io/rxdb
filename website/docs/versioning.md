@@ -35,7 +35,7 @@ Aiao 遵循 [semver 2.0](https://semver.org/lang/zh-CN/)：`主版本.次版本.
 
 1. 计划移除的符号先标注 `@deprecated`，并在 TSDoc 中给出替代方案。
 2. 废弃符号至少保留 **一个次版本**（1.0 后为一个主版本周期）再移除。
-3. 移除在破坏性版本中进行，并在[迁移指南](@site/docs/migration/v1.md)记录。
+3. 移除在破坏性版本中进行，并在[迁移指南](/migration/v1.md)记录。
 
 示例（取自 `@aiao/rxdb` 的真实导出）：
 
@@ -95,5 +95,5 @@ export const REMOTE_CHANGES_PENDING_EVENT = 'REMOTE_CHANGES_PENDING' as const;
 
 ## 参考
 
-- [迁移指南](@site/docs/migration/README.md)
-- [兼容矩阵](@site/docs/compatibility.md)
+- [迁移指南](/migration/README.md)
+- [兼容矩阵](/compatibility.md)

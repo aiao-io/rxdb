@@ -1,29 +1,29 @@
 /**
  * @packageDocumentation
- * Vue 3 integration for Aiao RxDB.
- * Provides dependency injection and the Vue Composition API interface.
+ * Aiao RxDB 的 Vue 3 绑定。
+ * 提供依赖注入和响应式 Vue 组合式函数。
  *
  * @module @aiao/rxdb-vue
  */
 
-/** Reactive entity, graph, and query composables. */
+/** 实体、图和查询的响应式组合式函数。 */
 export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 export * from './hooks';
 
-/** Vue provider and integration components. */
+/** Vue 数据库注入与集成组件。 */
 export * from './rxdb-vue';
 
-/** Cursor-based infinite scrolling. */
+/** 基于游标的无限滚动。 */
 export * from './useInfiniteScroll';
 
-/** Async action state shared with the Angular and React bindings. */
+/** 跟踪异步操作的执行状态。 */
 export * from './use-action';
 
-/** Namespace-scoped localStorage state shared with the Angular and React bindings. */
+/** 按命名空间持久化 localStorage 状态。 */
 export * from './use-persisted-state';
 
-/** Bridges in-place entity patches to Vue reactivity. */
+/** 实体原地更新后触发 Vue 响应式更新。 */
 export * from './use-entity-change';
 
-/** Local-first synchronization state shared with the Angular and React bindings. */
+/** 应用本地读写和后台同步的状态。 */
 export * from './use-sync-state';

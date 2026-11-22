@@ -11,7 +11,7 @@ npm install @aiao/rxdb @aiao/rxdb-angular
 ## Provide the database
 
 ```typescript
-import { ApplicationConfig } from '@angular/core';
+import type { ApplicationConfig } from '@angular/core';
 import { provideRxDB } from '@aiao/rxdb-angular';
 
 export const appConfig: ApplicationConfig = {
@@ -26,15 +26,13 @@ export const appConfig: ApplicationConfig = {
 Inject `RxDB` for imperative operations and use the query helpers for Signals-backed component state.
 
 ```typescript
-import { Component, inject } from '@angular/core';
+import { Component } from '@angular/core';
 import { useFindAll } from '@aiao/rxdb-angular';
 
 @Component({
-  standalone: true,
-  template: `@for (todo of todos(); track todo.id) { <p>{{ todo.title }}</p> }`
+  template: `@for (todo of todos.value(); track todo.id) { <p>{{ todo.title }}</p> }`
 })
 export class TodoListComponent {
-  private readonly rxdb = inject(RxDB);
   readonly todos = useFindAll(Todo, {
     where: { combinator: 'and', rules: [] }
   });

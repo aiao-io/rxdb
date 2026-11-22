@@ -27,7 +27,7 @@
 await repository.reorder(draggedId, { group: { parentId: target.id } });
 ```
 
-完整说明见[手动排序（manualOrder 与 reorder）](@site/docs/model-mutation/reorder.md)。
+完整说明见[手动排序（manualOrder 与 reorder）](/model-mutation/reorder.md)。
 
 ## 安装
 
@@ -111,7 +111,7 @@ Category.findDescendants({ entityId: rootId, level: 2 }).subscribe(nodes => {
 
 ## 推荐阅读
 
-- [树结构建模](@site/docs/model-definition/structure-tree.md)
-- [findDescendants](@site/docs/model-query/findDescendants.md) / [findAncestors](@site/docs/model-query/findAncestors.md)
-- [树结构拆包迁移](@site/docs/migration/tree-split.md)
-- [API 文档](@site/docs/api/README.md)
+- [树结构建模](/model-definition/structure-tree.md)
+- [findDescendants](/model-query/findDescendants.md) / [findAncestors](/model-query/findAncestors.md)
+- [树结构拆包迁移](/migration/tree-split.md)
+- [API 文档](/api/README.md)

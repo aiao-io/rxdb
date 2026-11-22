@@ -53,11 +53,13 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
   name: 'Todo',
   properties: [
     { name: 'title', type: PropertyType.string, required: true },
-    { name: 'completed', type: PropertyType.boolean, default: false },
-    { name: 'createdAt', type: PropertyType.date }
+    { name: 'completed', type: PropertyType.boolean, default: false }
   ]
 })
-export class Todo extends EntityBase {}
+export class Todo extends EntityBase {
+  declare title: string;
+  declare completed: boolean;
+}
 ```
 
 Queries, writes, and type inference use this model as their shared boundary.
@@ -96,7 +98,6 @@ import { firstValueFrom } from 'rxjs';
 
 const todo = new Todo();
 todo.title = 'Finish the RxDB guide';
-todo.createdAt = new Date();
 await todo.save();
 
 const todos = await firstValueFrom(
@@ -108,10 +109,11 @@ const todos = await firstValueFrom(
     orderBy: [{ field: 'createdAt', sort: 'desc' }]
   })
 );
+console.log(todos.map(row => row.title));
 
 todo.completed = true;
 await todo.save();
 await todo.remove();
 ```
 
-`Todo.find()` returns a reactive `Observable`. See [reactive queries](/model-query/query-realtime.md) for the subscription model.
+The browser console should list `Finish the RxDB guide`. The final two writes mark the Todo complete and remove it. `Todo.find()` returns a reactive `Observable` that can also deliver later changes. [Reactive queries](/model-query/query-realtime.md)

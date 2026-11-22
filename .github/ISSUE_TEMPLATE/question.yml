@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check the [documentation](https://rxdb.aiao.io) and [existing issues](https://github.com/aiao-io/rxdb/issues) before submitting.
+        Check the [documentation](https://rxdb.aiao.io/en/) and [existing issues](https://github.com/aiao-io/rxdb/issues) before submitting.
 
   - type: textarea
     id: question

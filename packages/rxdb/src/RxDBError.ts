@@ -1,17 +1,3 @@
-export type RxDBErrorCode =
-  | 'RXDB_PARTIAL_SYNC'
-  | 'RXDB_QUERY_CACHE_CAPABILITY_MISSING'
-  | 'RXDB_LOCAL_ADAPTER_CAPABILITY_MISSING'
-  | 'RXDB_PLUGIN_MISSING'
-  | 'mixed_versioned_cache_transaction'
-  | 'RXDB_READ_ONLY'
-  | 'RXDB_NETWORK_OFFLINE'
-  | 'RXDB_PLUGIN_DEPENDENCY_CYCLE'
-  | 'RXDB_CHECK_VIOLATION'
-  | 'RXDB_EXCLUSION_VIOLATION'
-  | 'RXDB_CONSTRAINT_DRIFT'
-  | 'RXDB_PLUGIN_AMBIGUOUS_DEPENDENCY';
-
 export class RxDBError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);

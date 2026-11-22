@@ -128,6 +128,7 @@ import {
   styles: []
 })
 export class OpfsFileListComponent {
+  readonly #i18n = useI18nOptional();
   private destroyRef = inject(DestroyRef);
   private clickTimeout: number | null = null;
 
@@ -165,7 +166,6 @@ export class OpfsFileListComponent {
   getFileIconColor = getFileIconColor;
   formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
-  readonly #i18n = useI18nOptional();
 
   constructor() {
     // 组件销毁时清理点击延迟

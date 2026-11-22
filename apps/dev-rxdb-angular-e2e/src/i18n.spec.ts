@@ -68,6 +68,20 @@ async function expectLocale(page: Page, locale: 'zh-Hans' | 'en'): Promise<void>
   await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${locale === 'en' ? 'en' : 'zh'}`));
 }
 
+test.describe('英文浏览器的演示页面', () => {
+  test.use({ locale: 'en-US' });
+
+  test('首次打开实体页显示英文模型操作和本地化日期', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/public/Todo');
+    await expect(page.getByRole('button', { name: '+ New', exact: true })).toBeVisible();
+    await expect(page.getByTestId('i18n-locale')).toHaveValue('en');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByTestId('i18n-formatted-date')).toHaveText('October 28, 2026');
+    await expect(page.getByTestId('i18n-formatted-number')).toHaveText('12,345.67');
+  });
+});
+
 test.describe('客户端国际化', () => {
   test('完整演示页覆盖菜单、页面文案、ICU 与格式化', async ({ page }) => {
     await resetE2eState(page);

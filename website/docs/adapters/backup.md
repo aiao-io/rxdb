@@ -2,7 +2,7 @@
 
 本地数据库适配器提供**一致性备份与恢复**：在数据库运行期间生成一份带版本、带完整性校验的快照归档，并把它恢复到一台全新的空目标上。备份与一次已提交事务的边界一致——不会出现半个事务，也不会丢已提交数据；恢复要么得到完整、已验证、可连接的库，要么目标保持原样。
 
-目前支持 SQLite 系（wa-sqlite / sqlite-wasm / sqlite / sqliteai，以及 Electron / Tauri 桌面 host）与 PGlite（浏览器与 Electron）两类本地适配器。远端适配器（[HTTP](@site/docs/adapters/http.md) / [Supabase](@site/docs/adapters/supabase.md)）不在范围内。
+目前支持 SQLite 系（wa-sqlite / sqlite-wasm / sqlite / sqliteai，以及 Electron / Tauri 桌面 host）与 PGlite（浏览器与 Electron）两类本地适配器。远端适配器（[HTTP](/adapters/http.md) / [Supabase](/adapters/supabase.md)）不在范围内。
 
 ## 支持范围
 
@@ -381,7 +381,7 @@ await adapter.restore(archiveStream, {
 
 ## 相关页面
 
-- [适配器总览](@site/docs/adapters/README.md) — 各适配器的选型与分工
-- [SQLite](@site/docs/adapters/sqlite.md) / [SQLite WASM](@site/docs/adapters/sqlite-wasm.md) / [SQLiteAI](@site/docs/adapters/sqliteai.md) — SQLite 系适配器
-- [PGlite](@site/docs/adapters/pglite.md) — PGlite 适配器
-- [字段加密](@site/docs/adapters/encrypted.md) — 加密库的备份 / 恢复语义（密文往返、认证域）
+- [适配器总览](/adapters/README.md) — 各适配器的选型与分工
+- [SQLite](/adapters/sqlite.md) / [SQLite WASM](/adapters/sqlite-wasm.md) / [SQLiteAI](/adapters/sqliteai.md) — SQLite 系适配器
+- [PGlite](/adapters/pglite.md) — PGlite 适配器
+- [字段加密](/adapters/encrypted.md) — 加密库的备份 / 恢复语义（密文往返、认证域）

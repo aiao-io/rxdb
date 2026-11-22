@@ -2,7 +2,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Board, BoardLabel, Column, Task, TaskLabel } from '../entities/index.js';
 import { matchAll, readFirst, whereEq } from '../query.js';
@@ -28,11 +28,13 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
     return rxdb;
   };
 
-  const createSeeded = async (): Promise<RxDB> => {
-    const rxdb = await createDb();
-    await seedReleaseBoardDataset(rxdb);
-    return rxdb;
-  };
+  let first: RxDB;
+  let second: RxDB;
+
+  beforeEach(async () => {
+    first = await createDb();
+    second = await createDb();
+  });
 
   afterEach(async () => {
     for (const rxdb of instances.splice(0)) {
@@ -54,8 +56,8 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
   };
 
   it('两次装载的五张业务表逐字节相同，ID 与审计时间固定', async () => {
-    const first = await createSeeded();
-    const second = await createSeeded();
+    await seedReleaseBoardDataset(first);
+    await seedReleaseBoardDataset(second);
 
     const a = await businessSnapshot(first);
     const b = await businessSnapshot(second);
@@ -100,14 +102,13 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
   });
 
   it('只装进空库：库里已有看板（种子或用户数据）时拒绝且零写', async () => {
-    const seeded = await createSeeded();
-    await expect(seedReleaseBoardDataset(seeded)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
-    expect(await readFirst(seeded.entityManager.getRepository(Board).find({ where: matchAll() }))).toHaveLength(2);
+    await seedReleaseBoardDataset(first);
+    await expect(seedReleaseBoardDataset(first)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
+    expect(await readFirst(first.entityManager.getRepository(Board).find({ where: matchAll() }))).toHaveLength(2);
 
-    const used = await createDb();
-    await used.entityManager.getRepository(Board).create(used.entityManager.instantiate(Board, { title: '用户的板' }));
-    await expect(seedReleaseBoardDataset(used)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
-    const boards = await readFirst(used.entityManager.getRepository(Board).find({ where: matchAll() }));
+    await second.entityManager.getRepository(Board).create(second.entityManager.instantiate(Board, { title: '用户的板' }));
+    await expect(seedReleaseBoardDataset(second)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
+    const boards = await readFirst(second.entityManager.getRepository(Board).find({ where: matchAll() }));
     expect(boards.map(board => board.title)).toEqual(['用户的板']);
   });
 });

@@ -30,17 +30,15 @@ provideRxDB(rxdb);
 <script setup lang="ts">
 import { useFind } from '@aiao/rxdb-vue';
 
-const todos = useFind(() =>
-  Todo.find({
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'createdAt', sort: 'desc' }]
-  })
-);
+const todos = useFind(Todo, {
+  where: { combinator: 'and', rules: [] },
+  orderBy: [{ field: 'createdAt', sort: 'desc' }]
+});
 </script>
 
 <template>
   <ul>
-    <li v-for="todo in todos" :key="todo.id">{{ todo.title }}</li>
+    <li v-for="todo in todos.value" :key="todo.id">{{ todo.title }}</li>
   </ul>
 </template>
 ```

@@ -1,6 +1,6 @@
 import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
-import { I18n, type MessageCatalog } from '@aiao/rxdb-i18n';
+import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 
 export const demoMessages: readonly MessageCatalog[] = [
@@ -28,6 +28,7 @@ export const DEMO_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 export function createDemoI18n(rxdb: RxDB): I18n {
   const i18n = new I18n({
     rxdb,
+    deviceLocale: resolveUiLocale(globalThis.navigator?.language),
     catalogs: [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }, ...demoMessages]
   });
   getDevToolsConnector().init(rxdb, getEntityMetadata, { i18n, mutationPolicy: 'allow' });

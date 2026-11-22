@@ -125,6 +125,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
   `
 })
 export class StorageFileListComponent {
+  readonly #i18n = useI18nOptional();
   private destroyRef = inject(DestroyRef);
   private clickTimeout: number | null = null;
 
@@ -151,7 +152,6 @@ export class StorageFileListComponent {
   getFileIconColor = getFileIconColor;
   formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
-  readonly #i18n = useI18nOptional();
 
   constructor() {
     this.destroyRef.onDestroy(() => {

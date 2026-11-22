@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * Framework-independent entity-model utilities for Aiao RxDB.
+ * Aiao RxDB 的实体模型工具，供各框架共用。
  * @module @aiao/rxdb-model
  */
 export * from './entity-field.utils.js';

@@ -18,9 +18,32 @@ The adapter determines how the local database is executed and persisted.
 npm install @aiao/rxdb-adapter-wa-sqlite
 ```
 
-Place the matching `wa-sqlite` WASM asset under the public path used by your application, then configure `wasmPath` when creating `RxDBAdapterWaSqlite`.
+The JavaScript loader and WASM binary must come from the same `wa-sqlite` build. In the app where you installed the adapter, save this as `copy-wa-sqlite.mjs` and run `node copy-wa-sqlite.mjs` from the app root. Resolving the binary through the adapter also works with pnpm’s isolated dependencies.
 
-`IDBBatchAtomicVFS` is the default browser path in the examples because it provides IndexedDB-backed persistence. OPFS VFS support is experimental and should be selected explicitly after checking its browser and deployment constraints.
+```javascript
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const fromAdapter = createRequire(import.meta.resolve('@aiao/rxdb-adapter-wa-sqlite'));
+const wasm = fromAdapter.resolve('wa-sqlite/dist/wa-sqlite-async.wasm');
+mkdirSync('public/wa-sqlite', { recursive: true });
+copyFileSync(wasm, 'public/wa-sqlite/wa-sqlite-async.wasm');
+```
+
+### Serve the browser example with Vite
+
+Place the configuration below in `vite.config.ts`. Vite serves `public/wa-sqlite/wa-sqlite-async.wasm` at `/wa-sqlite/wa-sqlite-async.wasm` when the app runs at the origin root. Use that URL for `wasmPath`. For an app deployed under a subpath, include the app’s base path in the URL.
+
+```typescript
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  publicDir: 'public',
+  optimizeDeps: { exclude: ['@aiao/rxdb-adapter-wa-sqlite'] }
+});
+```
+
+Enable `experimentalDecorators` in your app’s TypeScript configuration and copy the model, initialization, and read/write examples into your browser entry point, such as `src/main.ts`. Start Vite with your app’s dev script and open the local URL it prints. The example uses `IDBBatchAtomicVFS` with asynchronous WASM on the main thread and persists data in IndexedDB. [Getting Started](/getting-started/README.md)
 
 ### PGlite
 

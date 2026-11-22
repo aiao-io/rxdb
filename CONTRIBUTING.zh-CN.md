@@ -1,5 +1,7 @@
 # 贡献指南
 
+[English](CONTRIBUTING.md)
+
 欢迎来到 RxDB 项目! 👋
 
 我们非常感谢您对本项目的关注和贡献。本指南将帮助您了解如何参与项目开发。
@@ -27,7 +29,7 @@
 ### 必需工具
 
 - **Node.js** ≥ 26 (最低要求，见 `package.json` engines；`.nvmrc` 固定为 26，可用 nvm 管理版本)
-- **pnpm** 10 (包管理器)
+- **pnpm** 使用根 `package.json` 的 `packageManager` 指定版本
 - **Git** (版本控制；仓库根 `.gitattributes` 把文本钉为 LF。Windows 上不要开 `core.autocrlf=true` 覆盖它，否则 `pnpm install` 的 wa-sqlite SHA 校验会红)
 
 ### 可选工具
@@ -252,7 +254,7 @@ pnpm nx show project <project-name>
 
 ## 获取帮助
 
-- 查看 [项目文档](README.md)
+- 查看 [项目文档](README.zh-CN.md)
 - 浏览 [Issues](https://github.com/aiao-io/rxdb/issues) 查找已知问题
 - 提交新的 [Issue](https://github.com/aiao-io/rxdb/issues/new) 报告 bug 或建议新功能
 - 加入社区讨论

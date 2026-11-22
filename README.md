@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/@aiao/rxdb)](https://www.npmjs.com/package/@aiao/rxdb)
 [![codecov](https://codecov.io/gh/aiao-io/rxdb/graph/badge.svg?token=VJW8U2PNBG)](https://codecov.io/gh/aiao-io/rxdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Docs](https://img.shields.io/badge/docs-rxdb.aiao.io-0ea5e9)](https://rxdb.aiao.io)
+[![Docs](https://img.shields.io/badge/docs-rxdb.aiao.io-0ea5e9)](https://rxdb.aiao.io/en/)
 
 </div>
 
@@ -18,7 +18,7 @@ RxDB is a TypeScript data layer for local-first applications. It combines SQL st
 - Use one model declaration for database schemas, TypeScript types, and reactive data flows.
 - Run SQLite directly in the browser to build offline-first applications with app-like behavior.
 
-> The capability summary follows the current `main` branch. Admin, I18n, Board, and P2P packages are not yet part of the npm release set. Run examples from this workspace and check the [compatibility matrix](website/docs/compatibility.md) before consuming published packages.
+> The capability summary follows the current `main` branch. Admin, I18n, Board, and P2P packages are not yet part of the npm release set. Run examples from this workspace and check the [compatibility matrix](https://rxdb.aiao.io/en/docs/compatibility) before consuming published packages.
 
 Chinese readers can use the [简体中文 README](README.zh-CN.md).
 
@@ -54,7 +54,7 @@ Related projects include [Jazz](https://jazz.tools/), [LiveStore](https://github
 | Layer | Technology |
 | --- | --- |
 | Language | TypeScript 6.0+ with strict checking and ESM |
-| Build | Nx 24.0.5 and pnpm 12.16.1 |
+| Build | Nx and pnpm, pinned in [package.json](package.json) |
 | Frameworks | Angular 22+, React 19+, and Vue 3.5+ |
 | Reactive runtime | RxJS 7.8+ |
 | Storage | wa-sqlite, sqlite-wasm, PGlite, Supabase, HTTP, and sqliteai |
@@ -62,7 +62,7 @@ Related projects include [Jazz](https://jazz.tools/), [LiveStore](https://github
 | Hosts | Browser, Node.js 26+, Electron, and Tauri |
 
 > [!NOTE]
-> The API is still evolving. Pin versions before production use and follow the [migration guide](https://rxdb.aiao.io/docs/migration/). Current delivery status is tracked in the [status overview](requirements/status-overview.md).
+> The API is still evolving. Pin versions before production use and follow the [migration guide](https://rxdb.aiao.io/en/docs/migration/). The status overview tracks progress ([96/139 delivered](requirements/status-overview.md)).
 
 Support and feedback are welcome. Use the [bug report](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml), [feature request](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml), or [question form](https://github.com/aiao-io/rxdb/issues/new?template=question.yml).
 
@@ -85,18 +85,18 @@ The Admin, I18n, Board, and P2P packages currently require this repository works
 ## Minimal model example
 
 ```ts
-import { RxDB, SyncType, entity, field } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 
-@entity({ collection: 'todos' })
-class Todo {
-  @field({ type: 'string', primary: true })
-  id!: string;
-
-  @field({ type: 'string' })
-  title!: string;
-
-  @field({ type: 'boolean' })
-  completed = false;
+@Entity({
+  name: 'Todo',
+  properties: [
+    { name: 'title', type: PropertyType.string, required: true },
+    { name: 'completed', type: PropertyType.boolean, default: false }
+  ]
+})
+export class Todo extends EntityBase {
+  declare title: string;
+  declare completed: boolean;
 }
 
 const database = new RxDB({
@@ -107,7 +107,7 @@ const database = new RxDB({
 });
 ```
 
-The [Getting Started documentation](https://rxdb.aiao.io/docs/getting-started/) contains the complete setup for adapters, repositories, and framework bindings.
+The [Getting Started documentation](https://rxdb.aiao.io/en/docs/getting-started/) contains the complete setup for adapters, repositories, and framework bindings.
 
 ## Workspace development
 
@@ -163,7 +163,7 @@ The project is working toward a stable 1.0 release. Current work focuses on publ
 - [Status overview](requirements/status-overview.md)
 - [Roadmap](requirements/roadmap.md)
 - [Release plan](requirements/release-plan.md)
-- [Compatibility matrix](website/docs/compatibility.md)
+- [Compatibility matrix](https://rxdb.aiao.io/en/docs/compatibility)
 - [English support plan](requirements/english-support-plan.md)
 
 ## Contributing

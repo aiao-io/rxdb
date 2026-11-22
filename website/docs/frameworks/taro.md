@@ -2,7 +2,7 @@
 
 `@aiao/rxdb-taro`（**实验性**）是给 Taro 4.3（vite 编译器）项目**一行接入**小程序适配器构建前提的构建配置插件，不是 RxDB 运行时插件。目前支持微信（`weapp`）与抖音（`tt`）；支付宝经 `./vite` 子路径（见下文）。
 
-平台口径以[小程序适配器](@site/docs/adapters/miniprogram.md)为准：抖音为实验性、Android 未验证，单连接，不保证崩溃恢复。本包不扩大支持面。
+平台口径以[小程序适配器](/adapters/miniprogram.md)为准：抖音为实验性、Android 未验证，单连接，不保证崩溃恢复。本包不扩大支持面。
 
 ## 安装
 
@@ -66,11 +66,11 @@ await prepareMiniProgramHostRuntime(host);
 - 平台判断是 `process.env.TARO_ENV` 与字面量比较，Taro 构建期把它替换成常量，另一平台的分支连同它读的全局一起摇掉：微信产物里没有 `typeof tt` / `TTWebAssembly`，抖音产物里没有 `typeof wx` / `WXWebAssembly`。
 - 平台全局缺失时直接报错，不回退到另一平台；`WXWebAssembly` / `TTWebAssembly` 缺失时 `wasmRuntime` 为 `undefined`，交给 adapter 的运行时预检报缺失项。
 - 抖音不传 `runtimeGlobal`：Taro 插件已把产物里自由的 `globalThis` 改指真实全局对象。
-- 只支持 `weapp` / `tt`；支付宝要 Worker 随机源与运行时修补，按[小程序适配器的「支付宝」](@site/docs/adapters/miniprogram.md#支付宝)自行组装。
+- 只支持 `weapp` / `tt`；支付宝要 Worker 随机源与运行时修补，按[小程序适配器的「支付宝」](/adapters/miniprogram.md#支付宝)自行组装。
 
 ## 支付宝（实验性）
 
-Taro 插件不开支付宝：支付宝还要懒加载分包、标签 `var` 提升，以及插件管不到的 `app.config.ts` 的 `workers` 与 `project.alipay.json` 的 `compileOptions.transpile`（见[小程序适配器的「支付宝」](@site/docs/adapters/miniprogram.md#支付宝)）。其中 wasm、base64 副本、随机数 Worker、真实全局对象登记与构建目标（Taro 的 `es6` 抬到实测过的 `es2018`）由 `@aiao/rxdb-taro/vite` 组装：
+Taro 插件不开支付宝：支付宝还要懒加载分包、标签 `var` 提升，以及插件管不到的 `app.config.ts` 的 `workers` 与 `project.alipay.json` 的 `compileOptions.transpile`（见[小程序适配器的「支付宝」](/adapters/miniprogram.md#支付宝)）。其中 wasm、base64 副本、随机数 Worker、真实全局对象登记与构建目标（Taro 的 `es6` 抬到实测过的 `es2018`）由 `@aiao/rxdb-taro/vite` 组装：
 
 ```ts
 // config/index.ts
@@ -99,5 +99,5 @@ Worker 在代码包里的路径导出为 `ALIPAY_WORKER_PATH`（`workers/index.j
 
 ## 相关文档
 
-- [小程序适配器（实验性）](@site/docs/adapters/miniprogram.md)
-- [数据库适配器](@site/docs/adapters/README.md)
+- [小程序适配器（实验性）](/adapters/miniprogram.md)
+- [数据库适配器](/adapters/README.md)

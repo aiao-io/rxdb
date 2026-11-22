@@ -48,7 +48,7 @@ ModuleRegistry.registerModules([
 ]);
 
 const rxdb = injectRxDB();
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 const { currentThemeIsDark } = useTheme();
 
 const gridApi = shallowRef<GridApi | null>(null);
@@ -57,7 +57,7 @@ const todosData = ref<Todo[]>([]);
 const theme = useAgGridTheme(currentThemeIsDark, gridApi);
 
 const columnDefs = computed<ColDef<Todo>[]>(() =>
-  buildColDefs(Todo, { locale: locale.value }).map(col => {
+  buildColDefs(Todo, { locale: locale.value, t }).map(col => {
     const field = col.field as string;
     return {
       ...col,

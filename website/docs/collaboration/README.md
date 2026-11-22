@@ -8,10 +8,10 @@
 
 | 能力                                                            | 用途                                                               |
 | --------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [分支](@site/docs/collaboration/branch.md)                                             | 隔离变更、组织工作流、处理并行编辑                                 |
-| [工作树与提交](@site/docs/plugins/rxdb-plugin-working-tree/README.md) | 未提交改动捕获、`status` / `diff` / `commit` / `discard`、提交历史 |
-| [同步](@site/docs/collaboration/sync.md)                                               | 本地与远端之间的数据交换方式                                       |
-| [撤销重做](@site/docs/collaboration/undo-redo.md)                                      | 让用户操作具备可逆性与可恢复性                                     |
+| [分支](/collaboration/branch.md)                                             | 隔离变更、组织工作流、处理并行编辑                                 |
+| [工作树与提交](/plugins/rxdb-plugin-working-tree/README.md) | 未提交改动捕获、`status` / `diff` / `commit` / `discard`、提交历史 |
+| [同步](/collaboration/sync.md)                                               | 本地与远端之间的数据交换方式                                       |
+| [撤销重做](/collaboration/undo-redo.md)                                      | 让用户操作具备可逆性与可恢复性                                     |
 
 ## 当前不包含
 
@@ -26,6 +26,6 @@
 
 ## 建议先读
 
-- [模型定义](@site/docs/model-definition/README.md)
-- [模型修改](@site/docs/model-mutation/README.md)
-- [数据库适配器](@site/docs/adapters/README.md)
+- [模型定义](/model-definition/README.md)
+- [模型修改](/model-mutation/README.md)
+- [数据库适配器](/adapters/README.md)

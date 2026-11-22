@@ -10,6 +10,8 @@
 
 </div>
 
+[English](README.md)
+
 RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层，提供 SQL 存储、响应式查询、实体管理 UI 与 Angular / React / Vue 三端集成。当前登记的已发布基线为 `v0.0.28`，仍处于 0.x 演进阶段；发布范围与下一次迁移发布见[发布计划](requirements/release-plan.md)。
 
 > 本项目发布在 `@aiao/*` 作用域下，与 npm 上的 [`rxdb`](https://rxdb.info)（NoSQL 文档数据库）**无关**：这里是装饰器实体 + SQL 引擎（SQLite / PGlite）+ 三框架绑定，不是它的 fork 或插件。
@@ -33,7 +35,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层，提供 SQL 存
 | 层     | 技术                                                          |
 | ------ | ------------------------------------------------------------- |
 | 语言   | TypeScript 6.0+ strict, ESM                                   |
-| 构建   | Nx 24.0.5 + pnpm 12.16.1                                      |
+| 构建   | Nx 与 pnpm，版本见 [package.json](package.json)               |
 | 框架   | Angular 22+ / React 19+ / Vue 3.5+                            |
 | 响应式 | RxJS 7.8+                                                     |
 | 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / HTTP / sqliteai |
@@ -106,7 +108,7 @@ await rxdb.connect('wa-sqlite');
 await new Todo({ title: '读完 README' }).save();
 ```
 
-完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。 wa-sqlite 默认使用 IndexedDB；OPFS VFS 仍为实验性，支持边界见[适配器说明](packages/rxdb-adapter-wa-sqlite/README.md)。
+完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。 wa-sqlite 默认使用 IndexedDB；OPFS VFS 仍为实验性，支持边界见[适配器说明](packages/rxdb-adapter-wa-sqlite/README.zh-CN.md)。
 
 ## 现在有什么？
 
@@ -264,7 +266,7 @@ pnpm test-all
 
 `test-all` 使用 `nx affected` 执行 lint、typecheck、test、test-memory、test-browser、build、audit-lazy-backend 与 e2e，默认基线通常为 `main`，并禁用远端缓存。要检查所有公共包，使用 `pnpm test-packages`。
 
-详情见[贡献指南](CONTRIBUTING.md)、[脚本说明](scripts/README.md)与[需求管理](requirements/README.md)。
+详情见[贡献指南](CONTRIBUTING.zh-CN.md)、[脚本说明](scripts/README.md)与[需求管理](requirements/README.md)。
 
 ## 许可证
 

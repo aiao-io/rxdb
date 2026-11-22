@@ -14,6 +14,7 @@ export default defineConfig({
   expect: { timeout: isCI ? 10000 : 5000 },
   use: {
     baseURL,
+    locale: 'zh-CN',
     trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: 10000,
     navigationTimeout: 15000

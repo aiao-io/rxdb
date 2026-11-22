@@ -5,11 +5,11 @@
 ## Register catalogs
 
 ```typescript
-import { I18n } from '@aiao/rxdb-i18n';
+import { I18n, resolveUiLocale } from '@aiao/rxdb-i18n';
 
 const runtime = new I18n({
   defaultLocale: 'zh-Hans',
-  locale: 'en',
+  deviceLocale: resolveUiLocale(globalThis.navigator?.language),
   catalogs: [
     { locale: 'zh-Hans', namespace: 'app', messages: { greeting: '你好，{name}' } },
     { locale: 'en', namespace: 'app', messages: { greeting: 'Hello, {name}' } }
@@ -23,7 +23,7 @@ runtime.t('greeting', { name: 'Ada' });
 
 The current UI contract supports `en` and `zh-Hans`. English regional tags such as `en-US` resolve to `en`; `zh`, `zh-CN`, and `zh-Hans-CN` resolve to `zh-Hans`. Unknown or invalid values fall back to `zh-Hans`.
 
-Applications should resolve the locale once through the shared runtime, then pass it to date, number, relative-time, and user-interface sorting functions. Protocol fields, entity names, SQL identifiers, and stable serialized output keep their existing values.
+Use `deviceLocale` to supply the host language. Call `await runtime.setLocale('en')` when the user selects English. In the Admin templates, clearing the language preference restores the host language. Pass the active locale to date, number, relative-time, and user-interface sorting functions. Protocol fields, entity names, SQL identifiers, and stable serialized output keep their existing values.
 
 ## Framework bindings
 

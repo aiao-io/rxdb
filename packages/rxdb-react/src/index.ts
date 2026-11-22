@@ -1,32 +1,32 @@
 /**
  * @packageDocumentation
- * React integration for Aiao RxDB.
- * Provides the database provider and reactive React Hooks interface.
+ * Aiao RxDB 的 React 绑定。
+ * 提供数据库 Provider 和响应式 React Hooks。
  *
  * @module @aiao/rxdb-react
  */
 
-/** Reactive entity, graph, and query hooks. */
+/** 实体、图和查询的响应式 Hooks。 */
 export type { GraphPath, GraphQueryResult, NeighborResult } from '@aiao/rxdb-plugin-graph';
 export * from './hooks.js';
 
-/** Public options shared by query hooks. */
+/** 查询 Hooks 的公共选项。 */
 export type { UseOptions } from './query-options.js';
 
-/** React provider and integration components. */
+/** React 数据库注入与集成组件。 */
 export * from './rxdb-react.js';
 
-/** Cursor-based infinite scrolling. */
+/** 基于游标的无限滚动。 */
 export * from './useInfiniteScroll.js';
 
-/** Async action state shared with the Angular and Vue bindings. */
+/** 跟踪异步操作的执行状态。 */
 export * from './use-action.js';
 
-/** Namespace-scoped localStorage state shared with the Angular and Vue bindings. */
+/** 按命名空间持久化 localStorage 状态。 */
 export * from './use-persisted-state.js';
 
-/** Bridges in-place entity patches to React rendering. */
+/** 实体原地更新后触发 React 渲染。 */
 export * from './use-entity-change.js';
 
-/** Local-first synchronization state shared with the Angular and Vue bindings. */
+/** 应用本地读写和后台同步的状态。 */
 export * from './use-sync-state.js';

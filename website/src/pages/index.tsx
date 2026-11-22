@@ -1,5 +1,4 @@
 import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -23,7 +22,7 @@ import type { ReactNode } from 'react';
 
 import { Button } from '@site/src/components/button';
 import { HomeSqlPlayground } from '@site/src/components/home-sql-playground';
-import { siteCopy } from '@site/src/lib/locale-copy';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,11 +33,6 @@ const containerVariants = {
     }
   }
 };
-
-function useSiteCopy(): (value: string) => string {
-  const { i18n } = useDocusaurusContext();
-  return (value: string) => siteCopy(value, i18n.currentLocale);
-}
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
@@ -230,7 +224,9 @@ function Section({ index, eyebrow, title, description, children }: SectionProps)
               <span className='eyebrow'>{copy(eyebrow)}</span>
               <span className='section-index'>— {index}</span>
             </div>
-            <h2 className='text-foreground max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl'>{copy(title)}</h2>
+            <h2 className='text-foreground max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl'>
+              {copy(title)}
+            </h2>
             {description ?
               <p className='text-muted-foreground max-w-3xl text-base leading-7 sm:text-lg sm:leading-8'>
                 {copy(description)}

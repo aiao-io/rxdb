@@ -59,3 +59,17 @@ test('兼容矩阵覆盖每个框架绑定声明的真实 peer 版本', async ()
 
   assert.deepEqual(violations, []);
 });
+
+for (const entry of ['README.md', 'getting-started/README.md']) {
+  test(`English ${entry} links directly to translated guides`, async () => {
+    const docs = join(websiteRoot, 'i18n/en/docusaurus-plugin-content-docs/current');
+    const markdown = await readFile(join(docs, entry), 'utf8');
+    const links = [...markdown.matchAll(/\]\(([^\s:)#]+\.md)(?:#[^)]*)?\)/g)];
+    assert.ok(links.length > 0);
+    for (const [, href] of links) {
+      const target = href.startsWith('/') ? href.slice(1) : join(dirname(entry), href);
+      const translation = await readFile(join(docs, target), 'utf8');
+      assert.match(translation, /^# .+/m, target);
+    }
+  });
+}

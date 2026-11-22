@@ -203,7 +203,7 @@ export default defineConfig({
 
 ### 静态资源配置
 
-从适配器实际依赖的同一份 wa-sqlite 构建复制 WASM 到 `public`，不能混用上游最新 release。资源来源见[安装与初始化](@site/docs/getting-started/install.md)。
+从适配器实际依赖的同一份 wa-sqlite 构建复制 WASM 到 `public`，不能混用上游最新 release。资源来源见[安装与初始化](/getting-started/install.md)。
 
 ```text
 public/
@@ -228,7 +228,7 @@ const adapter = new RxDBAdapterWaSqlite(db, {
 
 ### 2. 批量操作
 
-使用事务批量执行操作（正确入口是适配器的 `transaction()`，见[事务](@site/docs/model-mutation/transaction.md)）：
+使用事务批量执行操作（正确入口是适配器的 `transaction()`，见[事务](/model-mutation/transaction.md)）：
 
 ```typescript
 import type { TransactionExecutor } from '@aiao/rxdb';
@@ -269,7 +269,7 @@ export class Todo extends EntityBase {
 | IDB + SharedWorker      | 上述能力、SharedWorker、Web Locks                 | HTTPS 或 localhost；多个标签页共享同一连接                       |
 | OPFS + dedicated Worker | WebAssembly、OPFS 同步访问句柄、Worker、Web Locks | 实验性，必须显式评估；`OPFSCoopSyncVFS` 不要求 SharedArrayBuffer |
 
-宿主还可能受隐私模式、存储配额和嵌入策略影响。更多组合见[兼容矩阵](@site/docs/compatibility.md)。
+宿主还可能受隐私模式、存储配额和嵌入策略影响。更多组合见[兼容矩阵](/compatibility.md)。
 
 ## 故障排查
 
@@ -318,7 +318,7 @@ wasmPath: '/wa-sqlite/wa-sqlite.wasm';
 
 ### 从 IDB 迁移到 OPFS
 
-适配器已提供[整库备份与恢复](@site/docs/adapters/backup.md)，但它不是跨 VFS 的自动迁移入口；尤其 Worker 传输不支持这条归档链路。需要迁移到 OPFS Worker 并保留数据时：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](@site/docs/migration/adapters.md)）。
+适配器已提供[整库备份与恢复](/adapters/backup.md)，但它不是跨 VFS 的自动迁移入口；尤其 Worker 传输不支持这条归档链路。需要迁移到 OPFS Worker 并保留数据时：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](/migration/adapters.md)）。
 
 ```typescript
 import { firstValueFrom } from 'rxjs';
@@ -460,4 +460,4 @@ main();
 - [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
 - [SharedArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer)
 - [模型定义](../model-definition/)
-- [安装指南](@site/docs/getting-started/install.md)
+- [安装指南](/getting-started/install.md)

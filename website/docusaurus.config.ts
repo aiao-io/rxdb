@@ -53,7 +53,7 @@ const config: Config = {
   markdown: {
     mermaid: true,
     hooks: {
-      onBrokenMarkdownLinks: 'warn'
+      onBrokenMarkdownLinks: 'throw'
     }
   },
   themes: [
@@ -98,6 +98,7 @@ const config: Config = {
           // 请更改为您的仓库
           // 删除此项可移除"编辑此页面"链接
           editUrl: 'https://github.com/aiao-io/rxdb/tree/main/website/',
+          editLocalizedFiles: true,
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
           remarkPlugins: [[require('@docusaurus/remark-plugin-npm2yarn'), { sync: true }]],
@@ -141,6 +142,7 @@ const config: Config = {
         { to: '/demos', label: '演示', position: 'left' },
         { to: '/benchmarks', label: '基准测试', position: 'left' },
         { to: '/blog', label: '博客', position: 'left' },
+        { type: 'localeDropdown', position: 'right' },
         {
           href: 'https://github.com/aiao-io/rxdb',
           position: 'right',

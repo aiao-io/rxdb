@@ -1,11 +1,10 @@
 import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import { motion } from 'framer-motion';
 import { ArrowRight, Blocks, Database, Gauge, Layers3, Workflow, Zap } from 'lucide-react';
 
 import { Button } from '@site/src/components/button';
-import { siteCopy } from '@site/src/lib/locale-copy';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const demos = [
   {
@@ -71,11 +70,13 @@ const whatToObserve = [
 ] as const;
 
 export default function DemosIndexPage() {
-  const { i18n } = useDocusaurusContext();
-  const copy = (value: string) => siteCopy(value, i18n.currentLocale);
+  const copy = useSiteCopy();
 
   return (
-    <Layout title={copy('在线演示')} description={copy('直接对比 RxDB 在 Angular、React、Vue 中的真实接入方式与页面复杂度')}>
+    <Layout
+      title={copy('在线演示')}
+      description={copy('直接对比 RxDB 在 Angular、React、Vue 中的真实接入方式与页面复杂度')}
+    >
       <main className='home-shell px-4 pt-20 pb-28 sm:px-6 sm:pt-28'>
         <div className='mx-auto max-w-7xl'>
           <motion.section
@@ -90,7 +91,9 @@ export default function DemosIndexPage() {
                 <span className='home-gradient-text mt-2 block'>{copy('三种框架绑定方式')}</span>
               </h1>
               <p className='text-muted-foreground mt-8 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8'>
-                {copy('在可运行页面中对照 Angular、React、Vue 的查询订阅、实体状态与复杂视图实现，并可继续查看对应源码。')}
+                {copy(
+                  '在可运行页面中对照 Angular、React、Vue 的查询订阅、实体状态与复杂视图实现，并可继续查看对应源码。'
+                )}
               </p>
               <div className='mt-10 flex flex-wrap gap-3'>
                 <Button asChild>

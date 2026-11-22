@@ -8,7 +8,7 @@
 npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-react
 ```
 
-组件自己经 `@aiao/rxdb-react` 读取数据库，应用须先用 `RxDBProvider` 提供实例（见 [React 集成](@site/docs/frameworks/react.md)）。页面本身不需要再调 `useRxDB()`：它只读取最近的 Provider，不做任何初始化。
+组件自己经 `@aiao/rxdb-react` 读取数据库，应用须先用 `RxDBProvider` 提供实例（见 [React 集成](/frameworks/react.md)）。页面本身不需要再调 `useRxDB()`：它只读取最近的 Provider，不做任何初始化。
 
 ## 实体列表
 

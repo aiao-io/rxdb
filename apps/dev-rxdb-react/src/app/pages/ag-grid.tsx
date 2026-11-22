@@ -58,7 +58,7 @@ const ag_grid_dark = themeQuartz.withParams({
 
 export function AgGridPage() {
   const rxdb = useRxDB();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const { currentThemeIsDark } = useTheme();
   const gridApiRef = useRef<GridApi | null>(null);
   const fingerprintMapRef = useRef(new Map<string, string>());
@@ -70,21 +70,14 @@ export function AgGridPage() {
 
   const columnDefs = useMemo(
     () =>
-      buildColDefs(Todo, {
-        locale,
-        formatDate: date =>
-          new Intl.DateTimeFormat(locale, {
-            dateStyle: 'medium',
-            timeStyle: 'medium'
-          }).format(new Date(date))
-      }).map(col => {
+      buildColDefs(Todo, { locale, t }).map(col => {
         const field = col.field as string;
         return {
           ...col,
           editable: field !== 'id' && field !== 'createdAt' && field !== 'updatedAt'
         } as ColDef<Todo>;
       }),
-    [locale]
+    [locale, t]
   );
 
   const defaultColDef = useMemo<ColDef>(
