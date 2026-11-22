@@ -3759,7 +3759,34 @@ BEGIN
 END;
 $$;
 
--- US-225 AC#9、#10：实时通知只带元数据，按 200 条聚合（以 authenticated 身份推送）
+-- 让快照水位测试制造「目标 bucket 先写、其它 bucket 后写」的交错日志。
+CREATE FUNCTION rxdb_sql_regression.seed_bucket_snapshot_interleaving()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, bucket, "entityId", type, "branchId", "clientId")
+  VALUES
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000a1', 'snapshot-target', 'INSERT', 'main', 'sql-snapshot-target'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000b2', 'snapshot-interleaving', 'INSERT', 'main', 'sql-snapshot-other');
+$$;
+
+-- 让实时通知测试在同一条 INSERT 中覆盖公开区、用户 A 和用户 B。
+CREATE FUNCTION rxdb_sql_regression.seed_realtime_bucket_notifications()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, bucket, "entityId", type, "branchId", "clientId")
+  VALUES
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'public', 'realtime-bucket-public', 'INSERT', 'main', 'sql-realtime-public'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000a1', 'realtime-bucket-user-a', 'INSERT', 'main', 'sql-realtime-user-a'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000b2', 'realtime-bucket-user-b', 'INSERT', 'main', 'sql-realtime-user-b');
+$$;
+
+-- US-225 AC#9、#10：实时通知只带元数据，按每个 bucket 每 200 条聚合（以 authenticated 身份推送）
 CREATE FUNCTION rxdb_sql_regression.test_realtime_notifications()
 RETURNS void
 LANGUAGE plpgsql
@@ -3800,7 +3827,7 @@ BEGIN
       AND (
         SELECT pg_catalog.array_agg(key ORDER BY key)
         FROM pg_catalog.jsonb_object_keys(payload->'changes'->0) AS key
-      ) = ARRAY['branchId', 'clientId', 'createdAt', 'entity', 'entityId', 'namespace', 'type']
+      ) = ARRAY['branchId', 'bucket', 'clientId', 'createdAt', 'entity', 'entityId', 'namespace', 'type']
       AND payload->'changes'->0->>'type' = 'INSERT'
       AND payload->'changes'->0->>'branchId' = 'main'
       AND payload->'changes'->0->>'clientId' = 'sql-push-integrity-client',
@@ -3826,6 +3853,26 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     batch_sizes = ARRAY[200, 200, 50],
     pg_catalog.format('realtime-notifications: 450 changes must be batched as 200 + 200 + 50, got %s', batch_sizes)
+  );
+
+  PERFORM rxdb_sql_regression.seed_realtime_bucket_notifications();
+  PERFORM rxdb_sql_regression.assert_true(
+    (
+      SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+      WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+        AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-public"}]'::jsonb
+    ) = 1
+      AND (
+        SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+        WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+          AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-user-a"}]'::jsonb
+      ) = 1
+      AND (
+        SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+        WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+          AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-user-b"}]'::jsonb
+      ) = 0,
+    'realtime-notifications: an authenticated user must only see public and caller bucket notifications'
   );
 END;
 $$;
@@ -3887,6 +3934,21 @@ BEGIN
       AND NOT v_snapshot @> '[{"id":"bucket-b"}]'::jsonb,
     'bucketed-read-sync: user A snapshot must exclude user B'
   );
+  PERFORM rxdb_sql_regression.seed_bucket_snapshot_interleaving();
+  SELECT public.rxdb_bucket_snapshot_point(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text
+  ) INTO v_point;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_point = (
+      SELECT pg_catalog.max(id)::integer
+      FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression'
+        AND entity = 'IdentityScopedRow'
+        AND bucket = 'user:' || user_a::text
+    ),
+    pg_catalog.format('bucketed-read-sync: snapshot point must be scoped to the requested bucket: %s', v_point)
+  );
+
   SELECT public.rxdb_bucket_snapshot_point(
     'rxdb_sql_regression', 'IdentityScopedRow', 'public'
   ) INTO v_point;

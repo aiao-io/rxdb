@@ -14,7 +14,7 @@ owner: jimmy
 
 ## 为什么单列一个 Epic
 
-[US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 收口 anon 与分支写入之后，Supabase 日志同步仍只适用于「所有登录者可见范围一致」的数据：`rxdb_change` 对全部 authenticated 可读，`SyncType.Filter` 的过滤条件由客户端传、不构成授权，失去读权限的行会一直留在本机。按身份授权要同时改核心元数据、同步插件、适配器与参考 SQL、本机库命名和三端绑定，不属于 epic-004 的单点加固，也不属于 epic-006 / epic-014 的提交图能力。
+[US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 收口 anon 与分支写入之后，Supabase 日志同步已经支持按 `rxdb_caller_buckets()` 隔离带 bucket 的日志与实时通知，但未分区旧日志仍对全部 authenticated 可读。`SyncType.Filter` 的过滤条件由客户端传、不构成授权，账号切换后的本机数据清理、按行不可见即不存在、完整三端身份绑定仍需按身份授权方案继续推进，不属于 epic-004 的单点加固，也不属于 epic-006 / epic-014 的提交图能力。
 
 ## 立项
 

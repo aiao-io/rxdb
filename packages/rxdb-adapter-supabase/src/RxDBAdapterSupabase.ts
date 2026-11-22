@@ -30,7 +30,12 @@ import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/su
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
-import { handleSupabaseChanges, RXDB_CHANGES_EVENT, RXDB_CHANGES_TOPIC } from './handle_supabase_change.js';
+import {
+  handleSupabaseChanges,
+  rxdbChangesTopicForBucket,
+  RXDB_CHANGES_EVENT,
+  RXDB_CHANGES_TOPIC
+} from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
   assert_postgrest_ok,
@@ -106,7 +111,7 @@ export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
   #client: SupabaseClient;
-  #channel: RealtimeChannel | null = null;
+  #channels: RealtimeChannel[] = [];
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #reconnectAttempt = 0;
   #realtimeState: RealtimeState = 'idle';
@@ -148,12 +153,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     await this.#verifyRlsConfiguration();
     await this.#enqueueRealtime(async () => {
       this.#clearReconnectTimer();
-      if (this.#channel) return;
+      if (this.#channels.length > 0) return;
 
       this.#realtimeState = 'connecting';
-      this.#channel = await this.#createRealtimeChannel();
+      this.#channels = (await this.#createRealtimeChannels()) ?? [];
       // 没登录时不订阅：保持 idle，下一次 connect() 会按新的令牌重新判断
-      if (!this.#channel) this.#realtimeState = 'idle';
+      if (this.#channels.length === 0) this.#realtimeState = 'idle';
     });
     return this;
   }
@@ -163,11 +168,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       this.#realtimeState = 'closed';
       this.#clearReconnectTimer();
       this.#reconnectAttempt = 0;
-      if (!this.#channel) return;
+      if (this.#channels.length === 0) return;
 
-      const channel = this.#channel;
-      this.#channel = null;
-      await this.#client.removeChannel(channel);
+      const channels = this.#channels;
+      this.#channels = [];
+      for (const channel of channels) {
+        await this.#client.removeChannel(channel);
+      }
     });
   }
 
@@ -1053,20 +1060,19 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 订阅变更通知的私有频道（US-225）。
    *
    * @remarks
-   * 通知由参考 SQL 在日志落库后广播，只带元数据；频道是私有的，Realtime 加入时按 `realtime.messages`
-   * 的 RLS 策略以当前登录身份放行（生产权限脚本只对 authenticated 开放），anon 订阅会被拒。
+   * 通知由参考 SQL 在日志落库后广播，只带元数据；未分区旧日志进入统一私有频道，分区日志进入带 bucket 的
+   * 私有频道。Realtime 加入频道时按 `realtime.messages` 的 RLS 策略以当前登录身份放行，anon 订阅会被拒。
    *
    * 订阅前先 `realtime.setAuth()`：Realtime 客户端取令牌是异步的，不等它就加入频道，带上的是 apikey
    * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌；
    * 没有会话时 supabase-js 交出的就是 apikey 本身。
    *
-   * 令牌不属于已登录身份时不订阅、返回 `null`：订阅必然被拒，而被拒的状态按「可重连」处理，
-   * 会每隔最多 5 秒重试一次、永远重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；
-   * 实时通知在登录后再调一次 `connect()` 开启。
+   * caller buckets 查询失败时只保留未分区旧日志频道。这样不会越权，拉取仍以 RPC 为准，后续重连会再次尝试
+   * 获取分区频道。令牌不属于已登录身份时不订阅，返回 `null`。
    *
    * @returns 订阅中的频道；未登录时为 `null`
    */
-  async #createRealtimeChannel(): Promise<RealtimeChannel | null> {
+  async #createRealtimeChannels(): Promise<RealtimeChannel[] | null> {
     await this.#client.realtime.setAuth();
     if (!canReceiveChangeNotifications(this.#client.realtime.accessTokenValue)) {
       console.warn(
@@ -1075,34 +1081,45 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       );
       return null;
     }
-    const channel = this.#client
-      .channel(RXDB_CHANGES_TOPIC, { config: { private: true } })
-      .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
 
-    channel.subscribe((status, err) => {
-      void this.#enqueueRealtime(async () => {
-        if (this.#channel !== channel || this.#realtimeState === 'closed') return;
+    const topics = [RXDB_CHANGES_TOPIC];
+    try {
+      const buckets = await this.getCallerBuckets();
+      topics.push(...buckets.map(rxdbChangesTopicForBucket));
+    } catch {
+      // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定。
+    }
 
-        if (status === 'SUBSCRIBED') {
-          this.#realtimeState = 'connected';
-          this.#reconnectAttempt = 0;
-          this.#refreshPullableCount();
-          return;
-        }
+    return [...new Set(topics)].map(topic => {
+      const channel = this.#client
+        .channel(topic, { config: { private: true } })
+        .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
 
-        if (err) {
-          console.error('Supabase Realtime subscription failed:', err);
-        }
+      channel.subscribe((status, err) => {
+        void this.#enqueueRealtime(async () => {
+          if (!this.#channels.includes(channel) || this.#realtimeState === 'closed') return;
 
-        if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
-          this.#scheduleRealtimeReconnect(channel, status, err?.message);
-        }
-      }).catch(error => {
-        console.error('[RxDB Supabase] Realtime status handling failed:', error);
+          if (status === 'SUBSCRIBED') {
+            this.#realtimeState = 'connected';
+            this.#reconnectAttempt = 0;
+            this.#refreshPullableCount();
+            return;
+          }
+
+          if (err) {
+            console.error('Supabase Realtime subscription failed:', err);
+          }
+
+          if (REALTIME_RECONNECTABLE_STATUSES.has(status)) {
+            this.#scheduleRealtimeReconnect(channel, status, err?.message);
+          }
+        }).catch(error => {
+          console.error('[RxDB Supabase] Realtime status handling failed:', error);
+        });
       });
-    });
 
-    return channel;
+      return channel;
+    });
   }
 
   #scheduleRealtimeReconnect(channel: RealtimeChannel, status: string, reason?: string): void {
@@ -1110,7 +1127,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       this.#realtimeState === 'closed' ||
       this.#realtimeState === 'idle' ||
       this.#reconnectTimer ||
-      this.#channel !== channel
+      !this.#channels.includes(channel)
     ) {
       return;
     }
@@ -1127,30 +1144,33 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     this.#reconnectTimer = setTimeout(() => {
       this.#reconnectTimer = null;
-      void this.#enqueueRealtime(() => this.#reconnectRealtimeChannel(channel)).catch(error => {
+      void this.#enqueueRealtime(() => this.#reconnectRealtimeChannels()).catch(error => {
         console.error('[RxDB Supabase] Realtime reconnect failed:', error);
       });
     }, delay);
   }
 
-  async #reconnectRealtimeChannel(channel: RealtimeChannel): Promise<void> {
-    if (this.#realtimeState === 'closed' || this.#channel !== channel) {
+  async #reconnectRealtimeChannels(): Promise<void> {
+    if (this.#realtimeState === 'closed' || this.#channels.length === 0) {
       return;
     }
 
     this.#realtimeState = 'reconnecting';
-    this.#channel = null;
-    try {
-      await this.#client.removeChannel(channel);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
+    const channels = this.#channels;
+    this.#channels = [];
+    for (const channel of channels) {
+      try {
+        await this.#client.removeChannel(channel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
+      }
     }
 
     this.#realtimeState = 'connecting';
-    this.#channel = await this.#createRealtimeChannel();
+    this.#channels = (await this.#createRealtimeChannels()) ?? [];
     // 重连途中退出了登录：不再订阅，也就不再重试
-    if (!this.#channel) this.#realtimeState = 'idle';
+    if (this.#channels.length === 0) this.#realtimeState = 'idle';
   }
 
   /**

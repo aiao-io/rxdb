@@ -9,7 +9,7 @@
 --      自己的 GRANT 与 RLS 直接读写。推送对「被 RLS 拒绝」与「已不存在」分别报错，本身就是存在性信号，
 --      所以推送与探针一并收回。authenticated 可读取自己被授权的分区以及未分区旧日志。
 --   3. 分支表与分支所有者表只经 SECURITY DEFINER 函数写入（rxdb_enable_sync_for_branch / rxdb_claim_branch）。
---   4. 实时变更通知（私有频道 rxdb:changes）只对 authenticated 开放接收，客户端不能往里发消息。
+--   4. 实时变更通知：未分区旧日志使用私有频道 rxdb:changes，分区日志使用带 bucket 的私有频道；旧日志只对 authenticated 开放，分区频道按 rxdb_caller_buckets() 开放接收，客户端不能往里发消息。
 -- 适用边界: 带 rxdb_bucket 的日志按 rxdb_caller_buckets() 做 RLS，未分区旧日志仍对 authenticated 可读。
 --       anon 默认只能读取 public 区。应用通过 SECURITY DEFINER 的 rxdb_caller_buckets() 扩展租户授权，
 --       见 requirements/epics/epic-015-identity-scoped-sync.md。
@@ -128,21 +128,35 @@ REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authent
 
 -- 4. 实时变更通知：Realtime 在加入私有频道时以登录用户身份试读 realtime.messages，有 SELECT 策略才放行。
 -- 只建 SELECT 策略、不建 INSERT 策略：广播只由日志插入触发器经 realtime.send 写入，客户端发不了伪造通知。
+-- 未分区旧日志继续使用统一频道；分区日志使用带 bucket 的频道，策略只放行 caller buckets 对应的频道。
 -- 不用 DROP POLICY 重建：在 Supabase 上对 auth / realtime 表做 DROP 类 DDL 可能和 GoTrue 迁移互锁
 -- （见 01-rxdb-system-tables.sql 的触发器一节），已存在时改用 ALTER POLICY 刷新条件
 DO $$
+DECLARE
+  v_policy text := $policy$
+    extension = 'broadcast'
+    AND (
+      topic = 'rxdb:changes'
+      OR (
+        topic LIKE 'rxdb:changes:bucket:%'
+        AND pg_catalog.substr(topic, pg_catalog.char_length('rxdb:changes:bucket:') + 1)
+          = ANY(public.rxdb_caller_buckets())
+      )
+    )
+  $policy$;
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_catalog.pg_policies
     WHERE schemaname = 'realtime' AND tablename = 'messages' AND policyname = 'rxdb_changes_receive'
   ) THEN
-    ALTER POLICY rxdb_changes_receive ON realtime.messages
-      TO authenticated
-      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+    EXECUTE pg_catalog.format(
+      'ALTER POLICY rxdb_changes_receive ON realtime.messages TO authenticated USING (%s)',
+      v_policy
+    );
   ELSE
-    CREATE POLICY rxdb_changes_receive ON realtime.messages
-      FOR SELECT
-      TO authenticated
-      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+    EXECUTE pg_catalog.format(
+      'CREATE POLICY rxdb_changes_receive ON realtime.messages FOR SELECT TO authenticated USING (%s)',
+      v_policy
+    );
   END IF;
 END $$;

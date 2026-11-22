@@ -1,6 +1,6 @@
 /**
  * @fileoverview Supabase Realtime 变更通知处理器
- * 监听私有频道 {@link RXDB_CHANGES_TOPIC} 上的广播，转换为 RxDB Remote 事件。
+ * 监听未分区旧日志频道 {@link RXDB_CHANGES_TOPIC} 与按 bucket 生成的分区频道广播，转换为 RxDB Remote 事件。
  *
  * @remarks
  * 通知由参考 SQL 的 `rxdb_change_broadcast` 触发器在日志落库后经 `realtime.send` 发出，只带日志行的元数据，
@@ -13,8 +13,16 @@ import { EntityRemoteCreatedEvent, EntityRemoteRemovedEvent, EntityRemoteUpdated
 import { isConfiguredEntityScope } from './entity_scope.js';
 import type { RxDBAdapterSupabase } from './RxDBAdapterSupabase.js';
 
-/** 变更通知所在的私有频道，与参考 SQL 里 `realtime.send` 的 topic 一致 */
+/** 未分区旧日志使用的私有频道，与参考 SQL 里 `realtime.send` 的 topic 一致 */
 export const RXDB_CHANGES_TOPIC = 'rxdb:changes';
+
+/** 分区日志频道的前缀；后面拼接服务端授权的 bucket */
+export const RXDB_CHANGES_BUCKET_TOPIC_PREFIX = `${RXDB_CHANGES_TOPIC}:bucket:`;
+
+/** 根据已授权 bucket 生成分区日志频道名 */
+export function rxdbChangesTopicForBucket(bucket: string): string {
+  return `${RXDB_CHANGES_BUCKET_TOPIC_PREFIX}${bucket}`;
+}
 
 /** 变更通知的广播事件名，与参考 SQL 里 `realtime.send` 的 event 一致 */
 export const RXDB_CHANGES_EVENT = 'changes';
@@ -36,6 +44,7 @@ interface ChangeNotice {
   branchId?: unknown;
   clientId?: unknown;
   createdAt?: unknown;
+  bucket?: unknown;
 }
 
 /** 校验通过、要派发的一条变更 */

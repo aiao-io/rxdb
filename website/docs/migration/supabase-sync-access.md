@@ -17,10 +17,10 @@
 | 未分区日志读取 | anon 与 authenticated                        | 只有 authenticated                                                                              |
 | 分区只读 RPC   | 未提供                                       | anon 读取 `public`，authenticated 读取 caller buckets                                           |
 | 非 main 分支   | 谁都能写                                     | 首个登记或推送的已登录用户认领，之后只有所有者能写                                              |
-| 实时通知       | 日志表的 `postgres_changes`，带完整行        | 私有频道 `rxdb:changes` 的广播，只带元数据，只对 authenticated 开放                             |
+| 实时通知       | 日志表的 `postgres_changes`，带完整行        | 未分区旧日志广播到 `rxdb:changes`，分区日志广播到 `rxdb:changes:bucket:<bucket>`，只带元数据；旧日志只对 authenticated 开放，分区频道按 caller buckets 开放 |
 | Remote 事件    | `data` 是 `{ id, ...patch }`                 | `data` 只有 `{ id }`                                                                            |
 
-未分区旧日志仍对全部登录者可读，日志同步只适用于所有登录者可见范围一致的数据。分区实体的读取范围由 `rxdb_caller_buckets()` 与业务表 RLS 决定，过滤条件只能在已授权分区内缩小范围。开放注册或开启匿名登录的部署，仍应按[适用边界](../adapters/supabase.md#适用边界)检查数据暴露范围。
+未分区旧日志仍对全部登录者可读，日志同步只适用于这些旧数据对所有登录者可见的场景。分区实体的日志读取与实时通知范围由 `rxdb_caller_buckets()` 与业务表 RLS 决定，过滤条件只能在已授权分区内缩小范围。开放注册或开启匿名登录的部署，仍应按[适用边界](../adapters/supabase.md#适用边界)检查数据暴露范围。
 
 ## 升级
 
@@ -94,6 +94,6 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 ### 4. 升级客户端
 
-新客户端订阅私有频道；没登录（令牌是 anon key）时不订阅，登录后再调一次 `rxdb.connect('supabase')` 开启。旧客户端在 SQL 升级后收不到实时通知（日志表已不在发布里），拉取与推送不受影响，可以按自己的节奏升级。
+新客户端按未分区日志或已授权 bucket 订阅对应的私有频道；没登录（令牌是 anon key）时不订阅，登录后再调一次 `rxdb.connect('supabase')` 开启。旧客户端在 SQL 升级后收不到实时通知（日志表已不在发布里），拉取与推送不受影响，可以按自己的节奏升级。
 
 自定义代码若读过 Remote 事件的 `data` 字段，改成按 `id` 自己拉取：通知不再带行内容。

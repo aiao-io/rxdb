@@ -309,10 +309,10 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 
 ## 实时同步
 
-适配器订阅 Supabase Realtime 的私有频道 `rxdb:changes`，收到「哪些实体在哪个分支变了」的通知后，由同步插件累计可拉取条数，数据本身以订阅者自己的身份拉取：
+适配器订阅 Supabase Realtime 的私有频道。未分区旧日志使用 `rxdb:changes`，按 bucket 分区的日志使用 `rxdb:changes:bucket:<bucket>`。适配器根据当前身份从 `rxdb_caller_buckets()` 获取可订阅的分区频道。收到「哪些实体在哪个分支变了」的通知后，由同步插件累计可拉取条数，数据本身以订阅者自己的身份拉取：
 
-- 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
-- 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行，生产权限脚本只对 `authenticated` 开放接收，不开放发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
+- 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，同一 bucket 每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`、`bucket`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
+- 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行。旧日志频道只对 `authenticated` 开放，分区频道还要匹配 `rxdb_caller_buckets()`，任何频道都不开放客户端发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
 - 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条提示、不发起订阅，也就不会反复重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
@@ -569,7 +569,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 | 分支所有者 `rxdb_branch_owner`                                                 | 无权限                              | 无权限（只经内部函数认领）                                        |
 | 通用拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用；可调用按区只读 RPC        | 可以调用                                                          |
 | `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                     | 可以调用（连接时用）                | 可以调用                                                          |
-| 实时通知频道 `rxdb:changes`                                                    | 订阅被拒                            | 只能接收，不能发送                                                |
+| 实时通知频道 `rxdb:changes` / `rxdb:changes:bucket:<bucket>`                         | 订阅被拒                            | 旧日志只能接收，分区频道按 caller buckets 接收，不能发送          |
 | 远端身份 `rxdb_backend`                                                        | 只读                                | 只读                                                              |
 
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
@@ -685,8 +685,8 @@ ERROR: function rxdb_mutations does not exist
 ### Realtime 未收到变更
 
 1. 确认 Supabase 项目已启用 Realtime，库里有 `realtime.send`（Realtime 服务启动时建）。
-2. 确认已执行生产权限脚本：`realtime.messages` 上要有策略 `rxdb_changes_receive`，否则私有频道 `rxdb:changes` 谁都加入不了。
-3. 确认客户端已登录：anon 订阅会被拒，订阅状态是 `CHANNEL_ERROR`，Realtime 日志里是 `Unauthorized: You do not have permissions to read from this Channel topic: rxdb:changes`。日志里的令牌若是 anon key 本身（`iss=supabase-demo` 之类），说明订阅前没有调 `realtime.setAuth()`。
+2. 确认已执行生产权限脚本：`realtime.messages` 上要有策略 `rxdb_changes_receive`，否则 `rxdb:changes` 或对应的 `rxdb:changes:bucket:<bucket>` 私有频道无法加入。
+3. 确认客户端已登录：anon 订阅会被拒，订阅状态是 `CHANNEL_ERROR`，Realtime 日志里的 topic 会是 `rxdb:changes` 或对应的 bucket 频道。日志里的令牌若是 anon key 本身（`iss=supabase-demo` 之类），说明订阅前没有调 `realtime.setAuth()`。
 4. 通知不经 `postgres_changes`：`rxdb_change` 不在 Realtime Publication 里是预期的，不要再把它加回去，否则订阅者会收到带 `patch` 的完整行。
 
 如果启动日志提示 `RLS self-check skipped because RPC "rxdb_check_rls" is not installed`，说明数据库还没应用最新的 `04-rxdb-utils-functions.sql`。

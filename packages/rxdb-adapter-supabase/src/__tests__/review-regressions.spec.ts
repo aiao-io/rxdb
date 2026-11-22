@@ -1147,7 +1147,7 @@ describe('supabase review regressions', () => {
     await adapter.disconnect();
     await adapter.connect();
 
-    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenCalledTimes(4);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch'));
   });
 
@@ -1269,7 +1269,7 @@ describe('supabase review regressions', () => {
 
     await adapter.connect();
 
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith('rxdb_caller_buckets');
     expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
   });
 

@@ -191,10 +191,10 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_serialize_append();
 -- 变更通知：日志落库后广播只带元数据的提醒（US-225）
 -- ============================================
 -- 通知只说明「哪些实体在哪个分支变了、是谁推的」，不带 patch / inversePatch / beforeData / afterData；
--- 订阅者收到后以自己的身份拉取。广播进私有频道 rxdb:changes，谁能接收由生产权限脚本里
--- realtime.messages 的策略决定（只对 authenticated 开放）。日志表本身已移出 supabase_realtime 发布（见 01）。
+-- 订阅者收到后以自己的身份拉取。未分区旧日志广播进私有频道 rxdb:changes，分区日志广播进带 bucket 的频道，
+-- 谁能接收由生产权限脚本里 realtime.messages 的策略按频道与 caller buckets 决定。日志表本身已移出 supabase_realtime 发布（见 01）。
 --
--- 语句级触发、每 200 条聚合成一条：realtime.send 每次调用都开一个子事务（内部 BEGIN … EXCEPTION），
+-- 语句级触发、每个 bucket 每 200 条聚合成一条：realtime.send 每次调用都开一个子事务（内部 BEGIN … EXCEPTION），
 -- 按行发送时一次推送上千条变更，子事务数超过 64 会让快照子事务溢出、拖慢所有并发查询。
 -- realtime.send 吞掉自己的错误（只发 WARNING），通知发不出去不会让推送失败；
 -- 它在推送事务内写 realtime.messages，事务回滚就不会发出。
@@ -207,8 +207,9 @@ SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_batch jsonb;
+    v_topic text;
 BEGIN
-    FOR v_batch IN
+    FOR v_batch, v_topic IN
         SELECT pg_catalog.jsonb_agg(
             pg_catalog.jsonb_build_object(
                 'namespace', numbered.namespace,
@@ -217,18 +218,24 @@ BEGIN
                 'type', numbered.type,
                 'branchId', numbered."branchId",
                 'clientId', numbered."clientId",
-                'createdAt', numbered."createdAt"
+                'createdAt', numbered."createdAt",
+                'bucket', numbered.bucket
             )
             ORDER BY numbered.id
-        )
+        ),
+        CASE
+            WHEN numbered.bucket IS NULL THEN 'rxdb:changes'
+            ELSE 'rxdb:changes:bucket:' || numbered.bucket
+        END
         FROM (
-            SELECT inserted.*, (pg_catalog.row_number() OVER (ORDER BY inserted.id) - 1) / 200 AS batch
+            SELECT inserted.*,
+                   (pg_catalog.row_number() OVER (PARTITION BY inserted.bucket ORDER BY inserted.id) - 1) / 200 AS batch
             FROM inserted
         ) AS numbered
-        GROUP BY numbered.batch
-        ORDER BY numbered.batch
+        GROUP BY numbered.bucket, numbered.batch
+        ORDER BY numbered.bucket NULLS FIRST, numbered.batch
     LOOP
-        PERFORM realtime.send(pg_catalog.jsonb_build_object('changes', v_batch), 'changes', 'rxdb:changes', true);
+        PERFORM realtime.send(pg_catalog.jsonb_build_object('changes', v_batch), 'changes', v_topic, true);
     END LOOP;
     RETURN NULL;
 END;
@@ -337,6 +344,9 @@ SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT COALESCE(MAX(id), 0)::integer
     FROM public.rxdb_change
+    WHERE namespace = p_namespace
+      AND entity = p_entity
+      AND bucket = p_bucket
 $$;
 
 -- ============================================

@@ -208,7 +208,7 @@ CREATE TABLE public.rxdb_branch (
 - **批量直写只支持默认的 `id` 主键列**：`saveMany` 与 `mutations` 的载荷以 `id` 键定位行（`rxdb_mutations` 一族为 `ON CONFLICT (id)`），遇到自定义主键列时在发出任何请求前抛 `SupabaseConfigError`。
 - **同步协议绑定业务表的 `id` 列**：变更日志触发器记录 `NEW.id`，`mergeChanges` 推送也以 `id` 键定位行，都不读实体主键的 `columnName`。参与同步的远端表主键列必须叫 `id`；只做同步、不经本适配器直接读写的实体，可以只在本地改主键列名——本地适配器（SQLite 系与 PGlite）的变更日志、拉取回填与版本切换都按本地的主键物理列定位行。
 
-> 实时通知不经 `postgres_changes`：`rxdb_change` 不在 `supabase_realtime` publication 里，日志落库后由触发器 `rxdb_change_broadcast` 经 `realtime.send` 向私有频道 `rxdb:changes` 广播只带元数据的提醒；接收权由生产权限脚本里 `realtime.messages` 的策略给 authenticated。
+> 实时通知不经 `postgres_changes`：`rxdb_change` 不在 `supabase_realtime` publication 里，日志落库后由触发器 `rxdb_change_broadcast` 经 `realtime.send` 广播只带元数据的提醒。未分区旧日志使用私有频道 `rxdb:changes`，分区日志使用 `rxdb:changes:bucket:<bucket>`，接收权由生产权限脚本里 `realtime.messages` 的策略按 authenticated 与 caller buckets 决定。
 >
 > 生产部署在 01～04 之后执行 `docker/sql/production/rxdb-change-grants.sql`：anon 默认只能读取分区日志的 `public` 区，authenticated 按 caller buckets 读取，通用拉取与推送仍需已登录身份。非 main 分支由首个写入者认领、只有所有者能写，详见[生产部署](https://rxdb.aiao.io/docs/adapters/supabase#日志同步只对已登录身份开放)。
 > 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`、`rxdb_backend_id`。`rxdb_batch_update` 保留原有整数计数返回值。
@@ -363,7 +363,7 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 ### Realtime
 
-订阅私有频道 `rxdb:changes`（订阅前先 `realtime.setAuth()`；令牌不属于已登录身份时不订阅，登录后再 `connect()` 开启），按 `clientId` 过滤掉自身变更，派发只带 `id` 的 `EntityRemote{Created,Updated,Removed}Event`——通知不带行内容，同步插件据此累计可拉取条数，数据以订阅者自己的身份拉取；通道异常按指数退避（500ms→5s）重连。
+订阅私有频道（未分区旧日志为 `rxdb:changes`，分区日志为 `rxdb:changes:bucket:<bucket>`，订阅前先 `realtime.setAuth()`；令牌不属于已登录身份时不订阅，登录后再 `connect()` 开启），按 `clientId` 过滤掉自身变更，派发只带 `id` 的 `EntityRemote{Created,Updated,Removed}Event`——通知不带行内容，同步插件据此累计可拉取条数，数据以订阅者自己的身份拉取；通道异常按指数退避（500ms→5s）重连。
 
 ## 测试
 
