@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import {
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 
 const clickTimeout = ref<number | null>(null);
 const T = STORAGE_TESTID;
+const { locale } = useI18n();
 
 function handleEntryClick(entry: StorageBrowserItem, event: MouseEvent) {
   if (clickTimeout.value) clearTimeout(clickTimeout.value);
@@ -117,7 +119,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
         </td>
         <td class="text-base-content/60 hidden text-sm md:table-cell">
-          {{ formatDate(entry.lastModified) }}
+          {{ formatDate(entry.lastModified, locale) }}
         </td>
         <td>
           <div class="flex items-center gap-1">

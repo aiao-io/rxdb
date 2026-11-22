@@ -1,4 +1,5 @@
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
@@ -16,10 +17,10 @@ interface Props {
   onEntryClick: (entry: StorageBrowserItem, event: React.MouseEvent) => void;
 }
 
-function formatDate(timestamp?: number): string {
+function formatDate(timestamp?: number, locale = 'zh-CN'): string {
   if (!timestamp) return '-';
 
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -39,6 +40,7 @@ export function StorageFileList({
   onContextMenu,
   onEntryClick
 }: Props) {
+  const { locale } = useI18n();
   const clickTimeoutRef = useRef<number | null>(null);
   const T = STORAGE_TESTID;
 
@@ -131,7 +133,9 @@ export function StorageFileList({
               >
                 {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
               </td>
-              <td className='text-base-content/60 hidden text-sm md:table-cell'>{formatDate(entry.lastModified)}</td>
+              <td className='text-base-content/60 hidden text-sm md:table-cell'>
+                {formatDate(entry.lastModified, locale)}
+              </td>
               <td>
                 <div className='flex items-center gap-1'>
                   {entry.kind === 'directory' ?

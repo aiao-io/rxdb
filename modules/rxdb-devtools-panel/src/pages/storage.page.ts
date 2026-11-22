@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
 import { DatabaseStateService } from '../services/database-state.service';
 // P2-16：不再自带一份拷贝，统一用 opfs-page.utils 里的唯一实现
@@ -36,7 +37,7 @@ function isStorageRow(value: unknown): value is StorageRow {
 function formatDate(timestamp?: number | string | Date): string {
   if (!timestamp) return '';
   const d = timestamp instanceof Date ? timestamp : new Date(timestamp);
-  return isNaN(d.getTime()) ? '' : d.toLocaleString();
+  return isNaN(d.getTime()) ? '' : d.toLocaleString(resolveUiLocale(globalThis.navigator?.language));
 }
 
 @Component({

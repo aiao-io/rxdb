@@ -33,12 +33,19 @@ const config: Config = {
   // 静态目录配置 - 从 public/ 复制到构建输出的根目录
   staticDirectories: ['public'],
 
-  // 即使不使用国际化，也可以使用此字段设置
-  // 有用的元数据，如 html lang。例如，如果您的站点是中文，
-  // 您可能希望将 "en" 替换为 "zh-Hans"
   i18n: {
     defaultLocale: 'zh-Hans',
-    locales: ['zh-Hans']
+    locales: ['zh-Hans', 'en'],
+    localeConfigs: {
+      'zh-Hans': {
+        label: '简体中文',
+        htmlLang: 'zh-CN'
+      },
+      en: {
+        label: 'English',
+        htmlLang: 'en'
+      }
+    }
   },
 
   trailingSlash: false,

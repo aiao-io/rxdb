@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { X } from '@lucide/vue';
 import { computed, ref } from 'vue';
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 }>();
 
 const parentRef = ref<HTMLDivElement | null>(null);
+const { locale } = useI18n();
 
 const rowVirtualizerOptions = computed(() => ({
   count: props.histories.length,
@@ -78,7 +80,7 @@ const getTypeColor = (type: HistoryItem['type']) => {
 const formatTime = (timestamp: number | Date) => {
   const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
   return (
-    date.toLocaleString('zh-CN', {
+    date.toLocaleString(locale.value, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

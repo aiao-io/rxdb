@@ -197,9 +197,9 @@ export function formatFileSize(bytes: number): string {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }
 
-export function formatDate(timestamp?: number): string {
+export function formatDate(timestamp?: number, locale = 'zh-CN'): string {
   if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

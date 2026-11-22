@@ -1,4 +1,5 @@
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
 import {
@@ -150,6 +151,7 @@ export class StorageFileListComponent {
   getFileIconColor = getFileIconColor;
   formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
+  readonly #i18n = useI18nOptional();
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -162,7 +164,7 @@ export class StorageFileListComponent {
   formatDate(timestamp?: number): string {
     if (!timestamp) return '-';
 
-    return new Date(timestamp).toLocaleString('zh-CN', {
+    return new Date(timestamp).toLocaleString(this.#i18n?.locale() ?? 'zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

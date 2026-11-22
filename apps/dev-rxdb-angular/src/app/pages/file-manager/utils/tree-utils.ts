@@ -27,7 +27,8 @@ export function buildTreeNodes<T extends FileTreeEntity>(
   hoverTargetId: string | null = null,
   dropMode: DropMode | null = null,
   invalidTargets: Set<string> | null = null,
-  sortMode: SortMode = SortMode.Manual
+  sortMode: SortMode = SortMode.Manual,
+  locale = 'zh-CN'
 ): TreeNode<T>[] {
   const result: TreeNode<T>[] = [];
   const childrenMap = new Map<string | null, T[]>();
@@ -42,7 +43,7 @@ export function buildTreeNodes<T extends FileTreeEntity>(
   });
 
   // 2. 排序：手动模式不排序，数组即查询顺序
-  const comparator = getSortComparator(sortMode);
+  const comparator = getSortComparator(sortMode, locale);
   if (comparator) {
     childrenMap.forEach(children => {
       children.sort(comparator);

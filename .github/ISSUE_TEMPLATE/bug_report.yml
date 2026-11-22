@@ -1,19 +1,19 @@
-name: 🐛 Bug 报告
-description: 报告一个可复现的缺陷，帮助我们修复问题
-title: '[Bug]: '
+name: "🐛 Bug report"
+description: "Report a reproducible defect so we can investigate it"
+title: "[Bug]: "
 labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈！请尽量提供可复现步骤与环境信息，这能显著加快定位。
-        提交前请先搜索[已有 Issue](https://github.com/aiao-io/rxdb/issues) 避免重复。
+        Thanks for the report. Reproduction steps and environment details help us investigate quickly.
+        Search [existing issues](https://github.com/aiao-io/rxdb/issues) before submitting to avoid duplicates.
 
   - type: input
     id: package
     attributes:
-      label: 受影响的包
-      description: 例如 `@aiao/rxdb`、`@aiao/rxdb-adapter-pglite`、`@aiao/rxdb-react`
+      label: Affected package
+      description: "For example, `@aiao/rxdb`, `@aiao/rxdb-adapter-pglite`, or `@aiao/rxdb-react`."
       placeholder: '@aiao/rxdb'
     validations:
       required: true
@@ -21,51 +21,51 @@ body:
   - type: textarea
     id: what-happened
     attributes:
-      label: 问题描述
-      description: 清晰描述发生了什么，以及你期望的行为。
-      placeholder: 调用 X 时抛出 Y，但预期应返回 Z。
+      label: What happened?
+      description: Describe the current behavior and the behavior you expected.
+      placeholder: Calling X throws Y, but the expected result is Z.
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: 复现步骤
-      description: 最小可复现代码或步骤。可提供 StackBlitz / 仓库链接。
+      label: Reproduction steps
+      description: Provide the smallest reproduction code or set of steps. A StackBlitz or repository link is welcome.
       placeholder: |
-        1. 定义实体 ...
-        2. 执行查询 ...
-        3. 观察到 ...
+        1. Define an entity ...
+        2. Run a query ...
+        3. Observe ...
     validations:
       required: true
 
   - type: textarea
     id: environment
     attributes:
-      label: 运行环境
-      description: 版本、运行时与存储后端。
+      label: Environment
+      description: Include package versions, runtime, framework, and storage adapter.
       value: |
-        - Aiao 版本:
-        - 框架 (Angular/React/Vue + 版本):
-        - 存储适配器 (wa-sqlite / PGlite / Supabase / sqliteai):
-        - 运行时 (浏览器 / Node / Electron / Tauri + 版本):
-        - Node.js 版本:
+        - Aiao package version:
+        - Framework (Angular/React/Vue and version):
+        - Storage adapter (wa-sqlite / PGlite / Supabase / sqliteai):
+        - Runtime (browser / Node / Electron / Tauri and version):
+        - Node.js version:
     validations:
       required: true
 
   - type: textarea
     id: logs
     attributes:
-      label: 相关日志 / 报错栈
-      description: 粘贴控制台输出或报错栈（会自动格式化为代码块）。
+      label: Logs or stack trace
+      description: Paste relevant console output or the stack trace.
       render: shell
 
   - type: checkboxes
     id: checklist
     attributes:
-      label: 确认项
+      label: Checklist
       options:
-        - label: 我已搜索过现有 Issue，确认这不是重复问题
+        - label: I searched existing issues and confirmed this is not a duplicate.
           required: true
-        - label: 我提供了可复现步骤或最小复现示例
+        - label: I included reproduction steps or a minimal reproduction.
           required: true

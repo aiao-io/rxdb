@@ -1,6 +1,7 @@
 import { type RxDB } from '@aiao/rxdb';
 import { type WorkspaceCacheEntry } from '@aiao/rxdb-plugin-workspace';
 import { useCount, useFind, useRxDB } from '@aiao/rxdb-react';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
@@ -30,10 +31,10 @@ type Notice = {
 // 只会在运行时对不上。类型直接从插件取。
 type WorkspaceEntry = WorkspaceCacheEntry;
 
-function formatDateTime(value: Date | string | null | undefined): string {
+function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN'): string {
   if (!value) return '-';
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(locale);
 }
 
 function alertClass(tone: NoticeTone): string {
@@ -72,6 +73,7 @@ function listTodoWorkspaceEntries(workspace: RxDB['workspace']): WorkspaceEntry[
 
 export default function WorkspacePage() {
   const rxdb = useRxDB();
+  const { locale } = useI18n();
 
   /** 用户点出来的页码。记录被删后可能越界，对外一律读 todoPage。 */
   const [requestedTodoPage, setRequestedTodoPage] = useState(0);
@@ -459,7 +461,7 @@ export default function WorkspacePage() {
                         </div>
                         <div className='text-base-content/55 grid gap-1 font-mono text-xs sm:grid-cols-3'>
                           <span className='truncate'>完成: {completedText(entry)}</span>
-                          <span className='truncate'>{formatDateTime(createdAtOf(entry))}</span>
+                          <span className='truncate'>{formatDateTime(createdAtOf(entry), locale)}</span>
                           <span className='truncate'>{entry.cacheId}</span>
                         </div>
                       </article>
@@ -514,7 +516,7 @@ export default function WorkspacePage() {
                               </span>
                             </td>
                             <td className='font-mono text-xs'>{todo.id.slice(0, 8)}</td>
-                            <td className='text-xs'>{formatDateTime(todo.updatedAt)}</td>
+                            <td className='text-xs'>{formatDateTime(todo.updatedAt, locale)}</td>
                           </tr>
                         ))
                       }
@@ -573,7 +575,7 @@ export default function WorkspacePage() {
                       </div>
                       <div className='flex items-center justify-between gap-3'>
                         <span className='text-base-content/55'>创建时间</span>
-                        <span>{formatDateTime(createdAtOf(activeDraftEntry))}</span>
+                        <span>{formatDateTime(createdAtOf(activeDraftEntry), locale)}</span>
                       </div>
                     </div>
                     <div className='flex gap-2'>

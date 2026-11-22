@@ -9,6 +9,7 @@
  */
 
 import { CommonModule } from '@angular/common';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
 import {
   LucideDownload as Download,
@@ -25,7 +26,14 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
-import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIconColor } from '../utils/opfs-utils';
+import {
+  OPFSFileEntry,
+  canPreviewFile,
+  formatDate as formatFileDate,
+  formatFileSize,
+  getFileIcon,
+  getFileIconColor
+} from '../utils/opfs-utils';
 
 @Component({
   selector: 'app-opfs-file-list',
@@ -157,6 +165,7 @@ export class OpfsFileListComponent {
   getFileIconColor = getFileIconColor;
   formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
+  readonly #i18n = useI18nOptional();
 
   constructor() {
     // 组件销毁时清理点击延迟
@@ -169,14 +178,7 @@ export class OpfsFileListComponent {
   }
 
   formatDate(timestamp?: number): string {
-    if (!timestamp) return '-';
-    return new Date(timestamp).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatFileDate(timestamp, this.#i18n?.locale() ?? 'zh-CN');
   }
 
   /**

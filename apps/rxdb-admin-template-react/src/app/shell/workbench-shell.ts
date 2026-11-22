@@ -8,6 +8,7 @@ import {
   type PreferenceExtension,
   type StorageLike
 } from '@aiao/rxdb-admin';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import type { ReactNode } from 'react';
 import { appConfig, type AppConfig } from '../app-config';
 import { createWorkbenchI18n } from '../i18n/workbench-i18n';
@@ -62,7 +63,10 @@ export function createWorkbenchShell(
   config: AppConfig = appConfig,
   environment: Pick<AdminShellOptions<ReactNode>, 'storage' | 'host'> = {}
 ): AdminShell<ReactNode> {
-  const i18n = createWorkbenchI18n(config);
+  const deviceLocale = resolveUiLocale(
+    environment.host ? environment.host.window?.navigator?.language ?? 'zh-Hans' : globalThis.navigator?.language
+  );
+  const i18n = createWorkbenchI18n(config, deviceLocale);
   const shell = createAdminShell<ReactNode>({
     ...environment,
     brand: { title: config.brandTitle, titleKey: 'app.brandTitle', documentTitleKey: 'app.title' },
@@ -88,7 +92,9 @@ export function createWorkbenchShell(
     migrateLegacy: readLegacyPreferences
   });
   const updateLocale = (): void => {
-    const locale = shell.preferences.value.app.locale || 'zh-Hans';
+    const preference = shell.preferences.value.app.locale;
+    const locale = preference === '' ? deviceLocale : resolveUiLocale(preference);
+    if (preference !== '' && preference !== locale) shell.preferences.setPath('app.locale', locale);
     if (locale !== i18n.locale) void i18n.setLocale(locale);
   };
   updateLocale();

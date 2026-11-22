@@ -1,10 +1,10 @@
 # 中文注释词汇约定（zh-glossary）
 
-> 配套 `AGENTS.md` 「`packages` 下 JS/TS 文件中的注释使用中文」。
-> 本文是**项目内 JS/TS 注释与 TSDoc**的词汇规约：哪些词该用、哪些词要换、哪些词保留。
+> 配套 `AGENTS.md` 的内部注释语言规则。公共 API TSDoc 使用英文，本文只约束中文内部注释中的领域术语。
+> 本文是**项目内 JS/TS 内部注释**的词汇规约：哪些词该用、哪些词要换、哪些词保留。
 > 新人第一次改 packages 中文注释前先看；reviewer 在看注释 diff 时按本文档对线。
 
-**作用域**：默认只检查 `packages/**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}` 中的注释和 TSDoc。
+**作用域**：默认只检查 `packages/**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}` 中的中文内部注释。
 README、Rust、测试标题、API 标识符和用户可见文案不自动套用本规约；确需覆盖时在对应项目的文档中单独声明。
 
 ---

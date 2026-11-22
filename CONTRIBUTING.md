@@ -1,262 +1,175 @@
-# 贡献指南
+# Contributing to RxDB
 
-欢迎来到 RxDB 项目! 👋
+Thank you for taking the time to contribute. This guide covers the workflow required to change code, documentation, packages, and examples in this repository.
 
-我们非常感谢您对本项目的关注和贡献。本指南将帮助您了解如何参与项目开发。
+Chinese readers can use the [简体中文贡献指南](CONTRIBUTING.zh-CN.md).
 
-## 📚 开始之前
+## Before you start
 
-请先阅读以下文档了解项目：
+Read these documents first.
 
-- **[AI 代理指南](AGENTS.md)** - 代理铁律与行为规范
-- **[需求管理](requirements/README.md)** - 用户故事和功能规划
+- [AI agent guide](AGENTS.md) for repository rules and engineering constraints
+- [Requirements index](requirements/README.md) for stories, epics, plans, and delivery status
+- [README](README.md) for package boundaries, examples, and common commands
+- [English support plan](requirements/english-support-plan.md) for localization changes
 
-## 开发原则
+## Engineering requirements
 
-遵循项目开发的四大核心原则：
+- Use TDD. Add a failing test before implementing behavior.
+- Keep Angular, React, and Vue behavior and public APIs symmetric.
+- Use strict TypeScript, avoid `any`, and leave lint with zero warnings.
+- Keep functions focused and avoid unnecessary nesting.
+- Maintain the repository coverage gates. Core packages require at least 90 percent coverage and other packages require at least 80 percent.
+- Add TSDoc for new public exports.
+- Run repository tasks through Nx with the `pnpm nx` prefix.
 
-1. ✅ **TDD 强制** - 先写测试，再写实现
-2. ✅ **跨框架一致** - Angular/React/Vue 功能和 API 必须一致
-3. ✅ **代码质量** - TypeScript strict + 禁止 `any` + 零警告
-4. ✅ **性能预算** - 查询 <16ms, DB <100ms, Bundle <50KB
+## Requirements and scope
 
-规范性定义以 .specify/memory/constitution.md 为准，补充说明请参考 AGENTS.md 和 README.md。
+Before starting a feature, identify the affected story, epic, package, application, or plan. Public package changes and their framework consumers belong in one reviewable scope. Candidate domain work follows the governance documented in `requirements/domain-research/README.md`.
 
-## 环境安装
+Keep the change focused. Include implementation, tests, documentation, and migration notes required by the behavior change. Avoid unrelated formatting or configuration changes.
 
-### 必需工具
+## Environment setup
 
-- **Node.js** ≥ 26 (最低要求，见 `package.json` engines；`.nvmrc` 固定为 26，可用 nvm 管理版本)
-- **pnpm** 10 (包管理器)
-- **Git** (版本控制；仓库根 `.gitattributes` 把文本钉为 LF。Windows 上不要开 `core.autocrlf=true` 覆盖它，否则 `pnpm install` 的 wa-sqlite SHA 校验会红)
-
-### 可选工具
-
-- **nvm** - Node 版本管理器
-- **VS Code** - 推荐的 IDE
-
-### 安装步骤
+The repository requires Node.js 26 or newer. The root `package.json` declares pnpm 12.16.1 and the engine minimum is pnpm 10.
 
 ```sh
-pnpm i
-```
-
-### VS Code 插件安装
-
-项目推荐的插件配置在 [.vscode/extensions.json](.vscode/extensions.json) 中,打开项目后 VS Code 会自动提示安装。
-
-## 项目开发
-
-### 断点调试
-
-`vscode` **运行和调试** 界面直接可以启动断点调试，可以修改 [launch.json](.vscode/launch.json) 中的配置
-
-### 集成测试
-
-端到端集成示例已迁入三个独立仓库 [rxdb-todo-react](https://github.com/aiao-io/rxdb-todo-react) / [rxdb-todo-vue](https://github.com/aiao-io/rxdb-todo-vue) / [rxdb-todo-angular](https://github.com/aiao-io/rxdb-todo-angular)，均可在 StackBlitz 一键打开；Taro 微信小程序示例已迁入 [apps/dev-rxdb-miniprogram](./apps/dev-rxdb-miniprogram)
-
-### 单元测试
-
-```sh
-# 测试 rxdb 项目
-pnpm nx test rxdb --watch --tui=false
-
-# 测试 rxdb 项目并生成代码覆盖率报告（含 HTML）
-pnpm nx test rxdb --coverage --tui=false
-
-# 本地查看 HTML 报告（必须用 HTTP，不要直接用 file:// 打开 index.html）
-# Istanbul 多页报告在 file:// / VS Code Simple Browser 下点进子目录会失败
-pnpm coverage:serve
-# 浏览器打开 http://127.0.0.1:8765/  （列出 packages/* / modules/* 全部报告）
-# 也可直接定位某个包：pnpm coverage:serve rxdb
-```
-
-### e2e 测试
-
-```sh
-# 安装 Playwright 依赖
-pnpm exec playwright install --with-deps --only-shell
-```
-
-## Git 使用
-
-```sh
-# 设置提交信息
-git config user.name "你的名字"
-git config user.email "你的邮箱"
-
-# 设置 Git 仓库的大小写敏感
-git config core.ignorecase false
-```
-
-### 分支与合并策略
-
-- 所有更改通过 **Pull Request** 合并到 `main`
-- PR 合并使用 **squash merge** 压缩为单次提交
-- PR 标题使用 `pnpm commit` 生成的提交信息
-- 合并后删除功能分支
-- 领域功能与其 `packages/*` 公共包改动在同一 PR 中统一评审、验证，通过后一起合入 `main`，不单独提取公共包改动
-
-详细流程请参考相关规范。
-
-### 候选领域合并治理
-
-候选领域（[`requirements/domain-research`](requirements/domain-research/README.md)）衍生的功能分支受额外约束：
-
-- **候选领域功能不能轻易合并 `main`**：领域功能分支（demo、领域产品、探索代码）不随功能开发直接
-  进 `main`，合入前需按毕业路径完成立项 / 范围评审。
-- **候选领域同样适用统一 PR 规则**：候选领域分支对 `packages/*` 引擎 / 共享库的修改不单独提取，
-  与领域功能在同一 PR 中统一评审、验证。
-
-### 提交信息规范
-
-使用 **Conventional Commits** 格式：
-
-```text
-type(scope): subject
-
-body (可选)
-
-Close #issue-number
-```
-
-**推荐使用 `pnpm commit` 命令生成规范的提交信息。**
-
-详细说明请参考提交信息规范。
-
-### 提交前检查
-
-```sh
-# 运行完整测试套件
-pnpm test-all --skip-nx-cache
-```
-
-## 常用命令
-
-完整命令列表请参考项目文档。
-
-### 快速索引
-
-| 任务       | 命令                             |
-| ---------- | -------------------------------- |
-| 安装依赖   | `pnpm install`                   |
-| 运行测试   | `pnpm nx test <project> --watch` |
-| 完整检查   | `pnpm test-all --skip-nx-cache`  |
-| 格式化代码 | `pnpm nx format:write`           |
-| 提交代码   | `pnpm commit`                    |
-| 查看架构   | `pnpm nx graph`                  |
-
-## 版本发布
-
-### 本地测试
-
-在发布包到 npm 之前，可以先将包发布到本地 Verdaccio 注册表进行测试。
-
-#### 1. 启动本地注册表
-
-```sh
-pnpm nx local-registry
-```
-
-这将启动 Verdaccio 本地实例于 <http://localhost:4873>，并自动配置 pnpm/npm/yarn 的注册表指向本地。
-
-> **注意**：关闭终端窗口（Ctrl+C）后，注册表会停止，已安装的包会被清理， registries 会恢复到原始状态。
-
-#### 2. 构建并发布包到本地注册表
-
-```sh
-# 构建所有包
-pnpm nx run-many --targets=build
-
-# 发布到本地注册表（需要先启动 local-registry）
-pnpm publish-local
-```
-
-#### 3. 测试已发布的包
-
-在其他项目或测试工作区中，可以通过以下方式从本地注册表安装包：
-
-##### pnpm
-
-```sh
-# 方式一：命令行指定注册表
-pnpm add @aiao/rxdb --registry http://localhost:4873
-
-# 方式二：项目级配置 (.npmrc)
-echo "@aiao:registry=http://localhost:4873" >> .npmrc
-
-# 方式三：全局配置
-pnpm config set @aiao:registry http://localhost:4873
-```
-
-##### npm
-
-```sh
-# 方式一：命令行指定注册表
-npm install @aiao/rxdb --registry http://localhost:4873
-
-# 方式二：项目级配置 (.npmrc)
-echo "@aiao:registry=http://localhost:4873" >> .npmrc
-
-# 方式三：全局配置
-npm config set @aiao:registry http://localhost:4873
-```
-
-##### bun
-
-```sh
-# 方式一：命令行指定注册表
-bun add @aiao/rxdb --registry http://localhost:4873
-
-# 方式二：项目级配置 (.npmrc)
-echo "@aiao:registry=http://localhost:4873" >> .npmrc
-
-# 方式三：全局配置
-bun config set @aiao:registry http://localhost:4873
-```
-
-> **提示**：方式二（项目级 .npmrc）是推荐方式，只影响当前项目，不影响全局 npm 环境。
-
-## 常见问题
-
-### 依赖安装失败
-
-```bash
-# 清理缓存并重新安装
-pnpm store prune
-rm -rf node_modules pnpm-lock.yaml
 pnpm install
 ```
 
-### 测试失败
+The recommended editor extensions are listed in [.vscode/extensions.json](.vscode/extensions.json).
 
-- 确保已安装所有依赖
-- 检查是否有未提交的更改影响测试
-- 使用 `--skip-nx-cache` 跳过缓存重新运行
-- 清理 Nx 缓存：`pnpm nx reset`
+## Development
 
-### Nx 相关问题
+Choose an example application when you need a browser entry point.
 
-```bash
-# 清理缓存
-pnpm nx reset
+```sh
+pnpm nx serve dev-rxdb-angular
+pnpm nx serve dev-rxdb-react
+pnpm nx serve dev-rxdb-vue
+```
 
-# 查看依赖图
-pnpm nx graph
+Other useful targets include the Admin templates, the Board and P2P demos, the HTTP and Supabase examples, the Electron and Tauri hosts, and the documentation site.
 
-# 查看项目配置
+```sh
+pnpm nx serve rxdb-admin-template-angular
+pnpm nx serve rxdb-admin-template-react
+pnpm nx serve rxdb-admin-template-vue
+pnpm nx serve website
+```
+
+Inspect available projects and targets with Nx.
+
+```sh
+pnpm nx show projects
 pnpm nx show project <project-name>
 ```
 
-更多故障排查请参考常见问题部分。
+## Testing
 
-## 获取帮助
+Run the smallest affected target during development.
 
-- 查看 [项目文档](README.md)
-- 浏览 [Issues](https://github.com/aiao-io/rxdb/issues) 查找已知问题
-- 提交新的 [Issue](https://github.com/aiao-io/rxdb/issues/new) 报告 bug 或建议新功能
-- 加入社区讨论
+```sh
+pnpm nx test rxdb --watch
+pnpm nx run rxdb:lint
+pnpm nx run rxdb:typecheck
+```
 
-## 致谢
+Run coverage for a package when the change affects its public behavior.
 
-感谢所有为项目做出贡献的开发者! 🎉
+```sh
+pnpm nx test rxdb --coverage
+```
+
+Install the Playwright browser dependencies before running browser or E2E targets.
+
+```sh
+pnpm exec playwright install --with-deps --only-shell
+```
+
+Before opening a pull request, run the repository gate.
+
+```sh
+pnpm test-all
+```
+
+The full gate runs affected lint, typecheck, test, memory, browser, build, lazy-backend, and E2E targets. If a task fails, inspect the failed task first and rerun the individual Nx target before changing application code.
+
+## Git workflow
+
+All changes are merged into `main` through a pull request. Use a feature branch, keep commits focused, and use Conventional Commits.
+
+```sh
+git config user.name "Your Name"
+git config user.email "you@example.com"
+pnpm commit
+```
+
+Pull requests use squash merge. Delete the feature branch after merging.
+
+Changes to a candidate domain and its `packages/*` public packages are reviewed and merged together according to the domain governance rules.
+
+## Pull requests
+
+A pull request should include the following information.
+
+- What changed and why.
+- The affected packages, applications, or stories.
+- Tests and Nx targets that were run.
+- Coverage or API baseline effects when applicable.
+- Migration notes for breaking changes.
+- Evidence that Angular, React, and Vue remain symmetric for framework-related work.
+
+Use the repository pull request template. Keep issue references in the `Related Stories` or issue section of the description and do not use a story ID as a GitHub issue number.
+
+## Local package publishing
+
+The workspace provides a local Verdaccio registry for testing package output.
+
+```sh
+pnpm nx local-registry
+pnpm nx run-many --targets=build
+pnpm publish-local
+```
+
+Install a local package from the registry in another project.
+
+```sh
+pnpm add @aiao/rxdb --registry http://localhost:4873
+```
+
+The registry is stopped with `Ctrl+C`. Restore any project-level registry configuration after testing.
+
+## Troubleshooting
+
+### Dependency installation
+
+```sh
+pnpm store prune
+pnpm install
+```
+
+Keep the existing lockfile unless dependency maintenance is part of the change. Do not delete `pnpm-lock.yaml` as a general recovery step.
+
+### Test or build failures
+
+- Check the first failed Nx task and its full log.
+- Rerun the individual target with `pnpm nx run <project>:<target>`.
+- Treat EPIPE, worker crashes, and `The service was stopped` as possible concurrency failures and rerun serially before changing code.
+- Use `pnpm nx reset` when the workspace cache is stale.
+
+```sh
+pnpm nx reset
+pnpm nx graph
+pnpm nx show project <project-name>
+```
+
+## Getting help
+
+- Read the [documentation](https://rxdb.aiao.io).
+- Search [existing issues](https://github.com/aiao-io/rxdb/issues).
+- Use the [bug report](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml), [feature request](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml), or [question form](https://github.com/aiao-io/rxdb/issues/new?template=question.yml).
+
+## License
+
+By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).

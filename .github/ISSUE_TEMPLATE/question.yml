@@ -1,46 +1,46 @@
-name: 💬 使用问题
-description: 咨询用法、兼容性或设计问题
-title: '[Question]: '
+name: "💬 Question"
+description: "Ask about usage, compatibility, or design"
+title: "[Question]: "
 labels: ['question', 'triage']
 body:
   - type: markdown
     attributes:
       value: |
-        使用问题请先查阅[文档](https://rxdb.aiao.io)和已有 Issue。
+        Check the [documentation](https://rxdb.aiao.io) and [existing issues](https://github.com/aiao-io/rxdb/issues) before submitting.
 
   - type: textarea
     id: question
     attributes:
-      label: 你的问题
-      description: 描述你想实现的目标、当前行为和期望行为。
+      label: Your question
+      description: Describe your goal, current behavior, and expected behavior.
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: 环境与上下文
-      description: 请填写包、框架、适配器、运行时和版本。
+      label: Environment and context
+      description: Include the package, framework, adapter, runtime, and versions.
       value: |
-        - Aiao 版本:
-        - 框架 (Angular/React/Vue + 版本):
-        - 存储适配器:
-        - 运行时 (浏览器 / Node / Electron / Tauri):
-        - Node.js / pnpm 版本:
+        - Aiao package version:
+        - Framework (Angular/React/Vue and version):
+        - Storage adapter:
+        - Runtime (browser / Node / Electron / Tauri):
+        - Node.js / pnpm versions:
     validations:
       required: true
 
   - type: textarea
     id: reproduction
     attributes:
-      label: 最小示例
-      description: 如适用，请提供可运行代码、仓库、StackBlitz 或错误日志。
+      label: Minimal example
+      description: If applicable, provide runnable code, a repository, a StackBlitz link, or error logs.
       render: shell
 
   - type: checkboxes
     id: checklist
     attributes:
-      label: 确认项
+      label: Checklist
       options:
-        - label: 我已阅读相关文档并搜索过已有 Issue
+        - label: I read the relevant documentation and searched existing issues.
           required: true

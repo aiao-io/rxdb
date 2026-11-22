@@ -3,6 +3,7 @@
  * OPFS 文件列表组件
  */
 import { Download, Eye, Pen, Trash2 } from '@lucide/vue';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { ref } from 'vue';
 import {
   canPreviewFile,
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 }>();
 
 const clickTimeout = ref<number | null>(null);
+const { locale } = useI18n();
 
 function handleEntryClick(entry: OPFSFileEntry, event: MouseEvent) {
   if (clickTimeout.value) clearTimeout(clickTimeout.value);
@@ -104,7 +106,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
         </td>
         <td class="text-base-content/60 hidden text-sm md:table-cell">
-          {{ formatDate(entry.lastModified) }}
+          {{ formatDate(entry.lastModified, locale) }}
         </td>
         <td>
           <div class="flex items-center gap-1">

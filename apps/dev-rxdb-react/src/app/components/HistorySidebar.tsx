@@ -1,4 +1,5 @@
 import { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { X } from 'lucide-react';
 import { useRef } from 'react';
@@ -12,6 +13,7 @@ interface HistorySidebarProps {
 }
 
 export function HistorySidebar({ show, histories, scopeType, borderSide = 'left', onClose }: HistorySidebarProps) {
+  const { locale } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -116,7 +118,7 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
                         <div className={item.reverted ? 'opacity-50' : ''}>
                           {/* 时间 */}
                           <time className='text-base-content/50 mb-1 block text-[10px]'>
-                            {new Date(item.createdAt).toLocaleString('zh-CN', {
+                            {new Date(item.createdAt).toLocaleString(locale, {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',

@@ -122,7 +122,7 @@ if (!result.valid) {
 }
 ```
 
-脱离状态容器单独使用：`QueryConverter`（`toRxDBQuery(state)` / `fromRxDBQuery(query)`，`state` 为 `{ rootGroup }` 形态的 `QueryBuilderState`）、`ValidationService`（`validateRule` / `validateGroup`）、`createOperatorRegistry` / `getDefaultOperatorRegistry`、`createSchemaParser`。核心模型（`UIRule`、`QueryBuilderRuleGroup`、`FieldMetadata`、`ValidationResult`）与完整导出见 [API 文档](../api/rxdb-model)。
+脱离状态容器单独使用：`QueryConverter`（`toRxDBQuery(state)` / `fromRxDBQuery(query)`，`state` 为 `{ rootGroup }` 形态的 `QueryBuilderState`）、`ValidationService`（`validateRule` / `validateGroup`）、`createOperatorRegistry` / `getDefaultOperatorRegistry`、`createSchemaParser`。核心模型（`UIRule`、`QueryBuilderRuleGroup`、`FieldMetadata`、`ValidationResult`）与完整导出见 [API 文档](../api)。
 
 ## 手动排序实体（US-028）
 

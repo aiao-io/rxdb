@@ -16,4 +16,12 @@ describe('getSortComparator', () => {
     expect(getSortComparator(SortMode.NameAsc)?.(a, b)).toBeLessThan(0);
     expect(getSortComparator(SortMode.NameDesc)?.(a, b)).toBeGreaterThan(0);
   });
+
+  it('使用调用方传入的界面语言比较名称', () => {
+    const a = { name: 'a', type: 'file' as const };
+    const b = { name: 'b', type: 'file' as const };
+    const comparator = getSortComparator(SortMode.NameAsc, 'en-US');
+
+    expect(comparator?.(a, b)).toBe(a.name.localeCompare(b.name, 'en-US'));
+  });
 });

@@ -210,7 +210,6 @@ async function flattenApiDocs() {
 
   // 为每个包目录添加 _category_.json 文件（设置默认折叠）
   console.log('📝 生成 _category_.json 文件...');
-  const categoryConfig = JSON.stringify({ collapsed: true }, null, 2);
 
   // 递归函数：为目录及其所有子目录添加 _category_.json
   async function addCategoryFiles(dirPath) {
@@ -223,11 +222,15 @@ async function flattenApiDocs() {
         const subDirPath = join(dirPath, entry.name);
         const categoryPath = join(subDirPath, '_category_.json');
 
-        // 写入 _category_.json
+        // 使用目录路径生成稳定 key，避免不同包下的 classes / variables 等目录产生翻译键冲突。
+        const relativePath = relative(apiDir, subDirPath).replaceAll('\\', '/');
+        const categoryConfig = JSON.stringify(
+          { key: `api-${relativePath.replaceAll('/', '-')}`, collapsed: true },
+          null,
+          2
+        );
         await writeFile(categoryPath, categoryConfig, 'utf-8');
 
-        // 计算相对路径用于日志输出
-        const relativePath = relative(apiDir, subDirPath);
         console.log(`  ✓ ${relativePath}/_category_.json`);
 
         // 递归处理子目录

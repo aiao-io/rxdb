@@ -1,4 +1,5 @@
 import type { RxDB, RxDBEntityId } from '@aiao/rxdb';
+import { useI18nOptional } from '@aiao/rxdb-i18n-vue';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { computed, ref, type Ref } from 'vue';
 import { formatFileName } from '../utils/file-name';
@@ -24,6 +25,8 @@ export interface DeleteImpact {
 }
 
 export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) {
+  const i18n = useI18nOptional();
+  const uiLocale = computed(() => i18n?.locale.value ?? 'zh-CN');
   const expandedIds = ref<Set<RxDBEntityId>>(new Set());
   const editingId = ref<RxDBEntityId | null>(null);
   const selectedId = ref<RxDBEntityId | null>(null);
@@ -93,7 +96,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     });
 
     // 应用排序；手动模式不排序，沿用查询顺序
-    const comparator = getSortComparator(sortMode.value);
+    const comparator = getSortComparator(sortMode.value, uiLocale.value);
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
       comparator ? [...fileList].sort(comparator) : fileList;
 

@@ -55,19 +55,19 @@ export const SORT_MODE_LABELS: Record<SortMode, string> = {
  * @param mode 排序模式
  * @returns 比较器函数；`SortMode.Manual` 返回 `null`——手动顺序就是查询顺序，调用方不再排序
  */
-export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: SortableFileNode) => number) | null {
+export function getSortComparator(mode: SortMode, locale = 'zh-CN'): ((a: SortableFileNode, b: SortableFileNode) => number) | null {
   switch (mode) {
     case SortMode.Manual:
       // 手动顺序由引擎的默认排序给出，页面不再自己比较排序键
       return null;
 
     case SortMode.NameAsc:
-      // 名称升序,使用中文排序规则
-      return (a, b) => a.name.localeCompare(b.name, 'zh-CN');
+      // 名称升序,使用当前界面语言排序规则
+      return (a, b) => a.name.localeCompare(b.name, locale);
 
     case SortMode.NameDesc:
       // 名称降序
-      return (a, b) => b.name.localeCompare(a.name, 'zh-CN');
+      return (a, b) => b.name.localeCompare(a.name, locale);
 
     case SortMode.TypeAsc:
       // 文件夹优先,同类型按名称排序
@@ -75,7 +75,7 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         if (a.type !== b.type) {
           return a.type === 'folder' ? -1 : 1;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     case SortMode.TypeDesc:
@@ -84,7 +84,7 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         if (a.type !== b.type) {
           return a.type === 'file' ? -1 : 1;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     case SortMode.ExtensionAsc:
@@ -93,9 +93,9 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         const aExt = a.extension ?? '';
         const bExt = b.extension ?? '';
         if (aExt !== bExt) {
-          return aExt.localeCompare(bExt, 'zh-CN');
+          return aExt.localeCompare(bExt, locale);
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     case SortMode.ExtensionDesc:
@@ -104,9 +104,9 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         const aExt = a.extension ?? '';
         const bExt = b.extension ?? '';
         if (aExt !== bExt) {
-          return bExt.localeCompare(aExt, 'zh-CN');
+          return bExt.localeCompare(aExt, locale);
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     case SortMode.SizeAsc:
@@ -117,7 +117,7 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         if (aSize !== bSize) {
           return aSize - bSize;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     case SortMode.SizeDesc:
@@ -128,7 +128,7 @@ export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: Sor
         if (aSize !== bSize) {
           return bSize - aSize;
         }
-        return a.name.localeCompare(b.name, 'zh-CN');
+        return a.name.localeCompare(b.name, locale);
       };
 
     default:

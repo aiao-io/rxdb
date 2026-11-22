@@ -3,6 +3,7 @@
  */
 
 import { Download, Eye, Pen, Trash2 } from 'lucide-react';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useCallback } from 'react';
 import { useResettableTimeout } from '../../../hooks/useResettableTimeout';
 import {
@@ -38,6 +39,7 @@ export function OpfsFileList({
   onContextMenu,
   onEntryClick
 }: Props) {
+  const { locale } = useI18n();
   const { schedule: scheduleEntryClick, cancel: cancelEntryClick } = useResettableTimeout();
 
   const handleEntryClick = useCallback(
@@ -110,7 +112,9 @@ export function OpfsFileList({
               <td className='text-base-content/60 text-sm'>
                 {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
               </td>
-              <td className='text-base-content/60 hidden text-sm md:table-cell'>{formatDate(entry.lastModified)}</td>
+              <td className='text-base-content/60 hidden text-sm md:table-cell'>
+                {formatDate(entry.lastModified, locale)}
+              </td>
               <td>
                 <div className='flex items-center gap-1'>
                   {entry.kind === 'file' && canPreviewFile(entry) && (

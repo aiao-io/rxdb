@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { type RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { useCount, useFind, useRxDB } from '@aiao/rxdb-vue';
 import { firstValueFrom } from 'rxjs';
@@ -47,11 +48,13 @@ type WorkspaceRxDB = RxDB & {
   workspace: WorkspaceApi;
 };
 
-function formatDateTime(value: Date | string | null | undefined): string {
+function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN'): string {
   if (!value) return '-';
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(locale);
 }
+
+const { locale } = useI18n();
 
 function alertClass(tone: NoticeTone): string {
   switch (tone) {
@@ -489,7 +492,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="text-base-content/55 grid gap-1 font-mono text-xs sm:grid-cols-3">
                     <span class="truncate">完成: {{ completedText(entry) }}</span>
-                    <span class="truncate">{{ formatDateTime(createdAtOf(entry)) }}</span>
+                    <span class="truncate">{{ formatDateTime(createdAtOf(entry), locale) }}</span>
                     <span class="truncate">{{ entry.cacheId }}</span>
                   </div>
                 </article>
@@ -546,7 +549,7 @@ onBeforeUnmount(() => {
                         <span class="badge badge-outline badge-sm">{{ todo.completed ? 'completed' : 'open' }}</span>
                       </td>
                       <td class="font-mono text-xs">{{ todo.id.slice(0, 8) }}</td>
-                      <td class="text-xs">{{ formatDateTime(todo.updatedAt) }}</td>
+                      <td class="text-xs">{{ formatDateTime(todo.updatedAt, locale) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -607,7 +610,7 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-base-content/55">创建时间</span>
-                    <span>{{ formatDateTime(createdAtOf(activeDraftEntry)) }}</span>
+                    <span>{{ formatDateTime(createdAtOf(activeDraftEntry), locale) }}</span>
                   </div>
                 </div>
                 <div class="flex gap-2">

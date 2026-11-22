@@ -106,6 +106,27 @@ describe('TreeFileStore.treeNodes', () => {
     expect(store.sortMode()).toBe(SortMode.Manual);
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['rb', 'cz', 'ca', 'ra']);
   });
+
+  it('语言变化后重新应用用户界面排序规则', () => {
+    const locale = signal('en');
+    const arabicName = makeFile('arabic', null, '阿', 'file');
+    const latinName = makeFile('latin', null, 'a', 'file');
+    const store = new TreeFileStore<typeof SortableFileNode>(
+      {} as RxDB,
+      {} as FilePathValidatorService,
+      { value: signal([arabicName, latinName]) },
+      SortableFileNode,
+      undefined,
+      () => locale()
+    );
+    store.sortMode.set(SortMode.NameAsc);
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['latin', 'arabic']);
+
+    locale.set('zh-Hans');
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['arabic', 'latin']);
+  });
 });
 
 interface FindAllOptions {
