@@ -196,7 +196,7 @@ function createRuntimeFixture() {
       const commit = commits.find(entry => entry.oid === parameters.at(-1));
       if (!commit || parameters[0] !== '-p') return 1;
       print(
-        `tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}\nauthor fixture\ncommitter fixture\n\n${commit.message}`
+        `tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}author Fixture Author <fixture@example.invalid> 1700000000 +0000\ncommitter Fixture Author <fixture@example.invalid> 1700000000 +0000\n\n${commit.message}`
       );
     } else if (command === 'checkout-index') {
       for (const [path, data] of Object.entries(index)) {
@@ -204,7 +204,13 @@ function createRuntimeFixture() {
         fs.writeFile(`${root}/${path}`, new Uint8Array(data));
       }
     } else if (command === 'ls-files') print(Object.keys(index).join('\n'));
-    else if (command === 'rev-list') print(commits.map(commit => commit.oid).join('\n'));
+    else if (command === 'rev-list')
+      print(
+        [...commits]
+          .reverse()
+          .map(commit => commit.oid)
+          .join('\n')
+      );
     else if (command === 'log')
       print(
         [...commits]
@@ -617,8 +623,8 @@ describe('Git workspace operation contract', () => {
     await runtime.stage('project', ['file.txt', 'new.txt']);
     const second = await runtime.commit('project', 'second');
     expect(await runtime.history('project')).toEqual([
-      { oid: second, message: 'second' },
-      { oid: first, message: 'first' }
+      { oid: second, message: 'second', description: '', author: 'Fixture Author', authoredAt: 1700000000000 },
+      { oid: first, message: 'first', description: '', author: 'Fixture Author', authoredAt: 1700000000000 }
     ]);
     await expect(runtime.restore('project', 'f'.repeat(40))).rejects.toMatchObject({ code: 'unreachable_commit' });
     await expect(runtime.restore('project', 'short')).rejects.toThrow();

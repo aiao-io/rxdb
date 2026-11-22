@@ -25,6 +25,8 @@ export interface SyncOptions {
   readonly roots: readonly string[];
   /** 不同步的名字（例如 `node_modules`），在任何深度都跳过。 */
   readonly ignore: (name: string) => boolean;
+  /** 回写后通知桌面已成功写入或删除的路径。 */
+  readonly onPulled?: (paths: readonly DiskPath[]) => void;
   /**
    * 终端这一侧的改动能不能写回磁盘（ADESK-US-205 阶段 B）：返回拒绝原因就不写，回写后再用磁盘的现状
    * 把虚拟机里的这些路径恢复回去；返回 `null` 放行。预装应用包在虚拟机的文件系统里没法设成只读，
@@ -143,15 +145,37 @@ export class DiskVmSync {
     const removed = permitted(diff.removed, 'remove');
     const files = permitted(diff.files, 'write');
     const contents = await this.readFiles(files);
-    await this.disk.run(async store => {
-      for (const path of removed) await store.remove(fromVmPath(path));
-      for (const path of diff.folders) await store.mkdir(fromVmPath(path));
-      for (const [path, data] of contents) await store.write(fromVmPath(path), data);
-    });
+    await this.writeChanges(removed, diff.folders, contents);
     this.snapshot = current;
     for (const path of vetoed.keys()) await this.pushPath(fromVmPath(path));
     if (vetoed.size) this.options.onVetoed?.([...new Set(vetoed.values())]);
     return true;
+  }
+
+  private async writeChanges(
+    removed: readonly string[],
+    folders: readonly string[],
+    contents: ReadonlyMap<string, Uint8Array>
+  ): Promise<void> {
+    const applied = new Set<string>();
+    try {
+      await this.disk.run(async store => {
+        for (const path of removed) {
+          await store.remove(fromVmPath(path));
+          applied.add(path);
+        }
+        for (const path of folders) {
+          await store.mkdir(fromVmPath(path));
+          applied.add(path);
+        }
+        for (const [path, data] of contents) {
+          await store.write(fromVmPath(path), data);
+          applied.add(path);
+        }
+      });
+    } finally {
+      if (applied.size) this.options.onPulled?.([...applied].map(fromVmPath));
+    }
   }
 
   /** 扫描之后才消失的文件跳过，下一轮扫描会把它当作删除。 */

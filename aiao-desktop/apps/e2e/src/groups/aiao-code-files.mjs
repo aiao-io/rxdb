@@ -337,11 +337,20 @@ export const aiaoCodeFiles = {
       const github = helpers.win('github');
       await expect(github.locator('[data-github-repository-name]')).toHaveText('bridge');
       await github.locator('[data-github-repository-menu]').click();
-      await github.getByLabel('Remote origin').fill('https://github.com/octo/bridge.git');
-      await github.getByRole('button', { name: 'Add origin', exact: true }).click();
-      await expect(github.getByRole('button', { name: 'Remove origin' })).toBeEnabled();
-      await github.locator('[data-github-repository-menu]').click();
-      await github.getByRole('button', { name: 'Open in Aiao Code', exact: true }).click();
+      const repositories = github.locator('[data-github-repository-menu-popup]');
+      await repositories.getByRole('button', { name: 'Add', exact: true }).click();
+      await repositories.getByRole('menuitem', { name: 'Add Existing Repository…', exact: true }).click();
+      const repositoryDialog = github.locator('[data-github-repository-dialog]');
+      await repositoryDialog.getByLabel('Remote origin').fill('https://github.com/octo/bridge.git');
+      await repositoryDialog.getByRole('button', { name: 'Add origin', exact: true }).click();
+      await expect(repositoryDialog.getByRole('button', { name: 'Remove origin', exact: true })).toBeEnabled();
+      await repositoryDialog.getByRole('button', { name: 'Close repository dialog' }).click();
+      async function openInAiaoCode(target, win) {
+        await expect(win.locator('[data-github-fetch-origin]')).toBeEnabled();
+        await target.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+        await target.getByRole('menuitem', { name: 'Open in Aiao Code', exact: true }).click();
+      }
+      await openInAiaoCode(page, github);
       const sharedWindow = helpers.win('vscode');
       async function sharedEditor(target, win) {
         await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({ timeout: 90000 });
@@ -364,7 +373,7 @@ export const aiaoCodeFiles = {
       await other.helpers.launch('GitHub Desktop');
       const otherGithub = other.helpers.win('github').last();
       await expect(otherGithub.locator('[data-github-repository-name]')).toHaveText('bridge');
-      await otherGithub.getByRole('button', { name: 'Open in Aiao Code', exact: true }).click();
+      await openInAiaoCode(other.page, otherGithub);
       const second = await sharedEditor(other.page, other.helpers.win('vscode').last());
       expect(await second.evaluate(() => window.workbench.session.state.files['note.txt'])).toBe('shell-original\n');
       await editor.evaluate(async () => {

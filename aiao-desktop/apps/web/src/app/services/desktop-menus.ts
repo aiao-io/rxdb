@@ -46,6 +46,7 @@ export interface GithubCommands {
   openRepositoryMenu(kind: GithubRepositoryMenu): void;
   openLocalRepository(): void;
   openInEditor(): void;
+  openInTerminal(): void;
   openBranchMenu(): void;
   focusChangesFilter(): void;
   setTab(tab: GithubTab): void;
@@ -299,6 +300,13 @@ export class DesktopMenus {
         ],
         Repository: [
           { id: 'open-in-editor', label: 'Open in Aiao Code', disabled: disabled(), run: () => target.openInEditor() },
+          {
+            id: 'open-in-terminal',
+            label: 'Open in Terminal',
+            key: '⌃`',
+            disabled: disabled(),
+            run: () => target.openInTerminal()
+          },
           {
             id: 'push',
             label: 'Push',

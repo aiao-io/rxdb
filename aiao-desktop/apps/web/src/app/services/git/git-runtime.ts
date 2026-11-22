@@ -14,6 +14,7 @@ import {
   type GitCommitFileChange,
   type GitFile,
   type GitFileDiff,
+  type GitHistoryComparison,
   type GitSnapshot,
   type GitStatus,
   GitWorkbenchError
@@ -96,6 +97,22 @@ const INIT_VALUE_OPTIONS = new Set([
   '--ref-format'
 ]);
 
+function parseCommit(oid: string, raw: string): GitCommit {
+  const separator = raw.indexOf('\n\n');
+  const header = separator < 0 ? raw : raw.slice(0, separator);
+  const body = separator < 0 ? '' : raw.slice(separator + 2).trimEnd();
+  const line = body.indexOf('\n');
+  const author = /^author (.*) <[^>]*> (-?\d+) [+-]\d{4}$/m.exec(header);
+  const timestamp = Number(author?.[2]) * 1000;
+  return {
+    oid,
+    message: line < 0 ? body : body.slice(0, line),
+    description: line < 0 ? '' : body.slice(line + 1).trimStart(),
+    author: author?.[1] ?? '',
+    authoredAt: Math.abs(timestamp) <= 8_640_000_000_000_000 ? timestamp : null
+  };
+}
+
 function sameFileBytes(previous: Uint8Array<ArrayBuffer> | undefined, next: Uint8Array<ArrayBuffer>): boolean {
   if (!previous || previous.length !== next.length) return false;
   for (let index = 0; index < next.length; index++) if (previous[index] !== next[index]) return false;
@@ -108,6 +125,7 @@ export class GitWorkbenchRuntime {
   #stderr: string[] = [];
   #git: WasmGit | undefined;
   #scratch = 0;
+  readonly #commitMetadata = new Map<string, GitCommit>();
 
   private get git(): WasmGit {
     if (!this.#git) throw new GitWorkbenchError('unsupported_environment', 'Git runtime is not initialized');
@@ -185,10 +203,14 @@ export class GitWorkbenchRuntime {
       const paths = [...old.keys(), ...changes.map(file => file.path)];
       if (!paths.length) return output;
       const tree = decodeGitArchive(encodeGitArchive(result));
-      return this.mutate(context, async () => {
-        await this.restoreArchive(context, tree);
-        return () => output;
-      }, paths.some(path => !path.startsWith('.git/')));
+      return this.mutate(
+        context,
+        async () => {
+          await this.restoreArchive(context, tree);
+          return () => output;
+        },
+        paths.some(path => !path.startsWith('.git/'))
+      );
     });
   }
 
@@ -535,35 +557,44 @@ export class GitWorkbenchRuntime {
 
   async history(projectId: string): Promise<readonly GitCommit[]> {
     return this.lock(projectId, true, async context => {
-      const status = await this.statusContext(context);
-      if (!status.head) return [];
-      const output = await this.run(['log', '--oneline', '--max-count=100']);
-      return output
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map(line => {
-          const separator = line.indexOf(' ');
-          if (separator <= 0) throw new GitWorkbenchError('git_failed', 'Git history returned an invalid commit');
-          const oid = line.slice(0, separator);
-          if (!/^[0-9a-f]{4,40}$/.test(oid))
-            throw new GitWorkbenchError('git_failed', 'Git history returned an invalid commit OID');
-          return { oid, message: line.slice(separator + 1) };
-        });
+      if (!(await this.statusContext(context)).head) return [];
+      return this.readCommitMetadata(await this.commitIds('HEAD'));
     });
   }
 
-  async commitChanges(projectId: string, oid: string): Promise<readonly GitCommitFileChange[]> {
+  async compareHistory(projectId: string, branch: string): Promise<GitHistoryComparison> {
+    return this.lock(projectId, true, async context => {
+      const branchHead = this.readBranchRefs(context.root).get(branch);
+      if (!branchHead || !(await this.statusContext(context)).head)
+        throw new GitWorkbenchError('unreachable_commit', 'Select a local branch with commits');
+      const currentIds = await this.commitIds('HEAD');
+      const targetIds = await this.commitIds(branchHead);
+      const currentSet = new Set(currentIds);
+      const targetSet = new Set(targetIds);
+      const aheadIds = currentIds.filter(oid => !targetSet.has(oid));
+      const behindIds = targetIds.filter(oid => !currentSet.has(oid));
+      return {
+        ahead: aheadIds.length,
+        behind: behindIds.length,
+        aheadCommits: await this.readCommitMetadata(aheadIds),
+        behindCommits: await this.readCommitMetadata(behindIds)
+      };
+    });
+  }
+
+  async commitChanges(projectId: string, oid: string, branch?: string): Promise<readonly GitCommitFileChange[]> {
     if (!/^[0-9a-f]{4,40}$/.test(oid))
       throw new GitWorkbenchError('unreachable_commit', 'Commit changes requires a valid commit OID');
     return this.lock(projectId, true, async context => {
       const status = await this.statusContext(context);
       if (!status.head) return [];
       const resolvedOid = (await this.run(['rev-parse', oid])).trim();
-      const reachable = (await this.run(['rev-list', 'HEAD'])).split(/\s+/).includes(resolvedOid);
-      if (!reachable) throw new GitWorkbenchError('unreachable_commit', 'Commit is not reachable from HEAD');
+      const ref = branch === undefined ? 'HEAD' : this.readBranchRefs(context.root).get(branch);
+      if (!ref || !(await this.commitIds(ref)).includes(resolvedOid))
+        throw new GitWorkbenchError('unreachable_commit', 'Commit is not reachable from the selected branch');
       const commit = await this.run(['cat-file', '-p', resolvedOid]);
       const parents = commit
+        .split('\n\n', 1)[0]
         .split('\n')
         .filter(line => line.startsWith('parent '))
         .map(line => line.slice('parent '.length).trim());
@@ -571,9 +602,7 @@ export class GitWorkbenchRuntime {
       const previous = parents[0] ? await this.readCommitFiles(context, parents[0]) : [];
       const currentByPath = new Map(current.map(file => [file.path, file.bytes]));
       const previousByPath = new Map(previous.map(file => [file.path, file.bytes]));
-      const paths = [...new Set([...currentByPath.keys(), ...previousByPath.keys()])].sort((left, right) =>
-        left.localeCompare(right, 'en')
-      );
+      const paths = [...new Set([...currentByPath.keys(), ...previousByPath.keys()])].sort();
       return paths.flatMap(path => {
         const base = previousByPath.get(path);
         const modified = currentByPath.get(path);
@@ -682,6 +711,30 @@ export class GitWorkbenchRuntime {
         throw cause;
       }
     });
+  }
+
+  private async commitIds(ref: string): Promise<readonly string[]> {
+    const output = (await this.run(['rev-list', ref])).trim();
+    const ids = output ? output.split(/\s+/) : [];
+    if (ids.some(oid => !/^[0-9a-f]{40}$/.test(oid)))
+      throw new GitWorkbenchError('git_failed', 'Git history returned an invalid commit OID');
+    return ids;
+  }
+
+  private async readCommitMetadata(ids: readonly string[]): Promise<readonly GitCommit[]> {
+    const commits: GitCommit[] = [];
+    for (const oid of ids.slice(0, 100)) {
+      const cached = this.#commitMetadata.get(oid);
+      if (cached) {
+        commits.push(cached);
+        continue;
+      }
+      const commit = parseCommit(oid, await this.run(['cat-file', '-p', oid]));
+      if (this.#commitMetadata.size >= 500) this.#commitMetadata.clear();
+      this.#commitMetadata.set(oid, commit);
+      commits.push(commit);
+    }
+    return commits;
   }
 
   private lock<T>(
@@ -875,29 +928,29 @@ export class GitWorkbenchRuntime {
   }
 
   private async runInCommandDirectory(command: GitTerminalCommand): Promise<GitTerminalResult> {
-      const root = `/tmp/aiao-terminal-${this.#scratch++}`;
-      try {
-        this.ensureMemoryDirectory(`${root}/.placeholder`);
-        for (const directory of command.directories) this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
-        for (const file of command.files) {
-          this.ensureMemoryDirectory(`${root}/${file.path}`);
-          this.fs.writeFile(`${root}/${file.path}`, file.bytes);
-        }
-        const cwd = command.cwd ? `${root}/${command.cwd}` : root;
-        this.fs.chdir(cwd);
-        const result = await this.runRaw(this.normalizeTerminalArgs(command.args, cwd));
-        if (command.args[0] === 'init')
-          result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
-        // lg2 在首次提交前会把 HEAD 指向的待创建分支报到 stderr，即使 status 成功。
-        if (command.args[0] === 'status' && result.exitCode === 0 && result.stderr) {
-          const head = command.files.find(file => file.path === '.git/HEAD');
-          const ref = /^ref: (refs\/heads\/.+)$/.exec(new TextDecoder().decode(head?.bytes).trim())?.[1];
-          if (ref && result.stderr === `error: reference '${ref}' not found`) result.stderr = '';
-        }
-        return { ...result, ...this.collectTerminalTree(root) };
-      } finally {
-        this.clearMemory(root);
+    const root = `/tmp/aiao-terminal-${this.#scratch++}`;
+    try {
+      this.ensureMemoryDirectory(`${root}/.placeholder`);
+      for (const directory of command.directories) this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
+      for (const file of command.files) {
+        this.ensureMemoryDirectory(`${root}/${file.path}`);
+        this.fs.writeFile(`${root}/${file.path}`, file.bytes);
       }
+      const cwd = command.cwd ? `${root}/${command.cwd}` : root;
+      this.fs.chdir(cwd);
+      const result = await this.runRaw(this.normalizeTerminalArgs(command.args, cwd));
+      if (command.args[0] === 'init')
+        result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
+      // lg2 在首次提交前会把 HEAD 指向的待创建分支报到 stderr，即使 status 成功。
+      if (command.args[0] === 'status' && result.exitCode === 0 && result.stderr) {
+        const head = command.files.find(file => file.path === '.git/HEAD');
+        const ref = /^ref: (refs\/heads\/.+)$/.exec(new TextDecoder().decode(head?.bytes).trim())?.[1];
+        if (ref && result.stderr === `error: reference '${ref}' not found`) result.stderr = '';
+      }
+      return { ...result, ...this.collectTerminalTree(root) };
+    } finally {
+      this.clearMemory(root);
+    }
   }
 
   private normalizeTerminalArgs(args: readonly string[], root: string): string[] {

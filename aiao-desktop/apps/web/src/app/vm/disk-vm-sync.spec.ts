@@ -71,7 +71,8 @@ describe('DiskVmSync', () => {
   });
 
   it('终端里新建、修改、删除的文件同步回磁盘', async () => {
-    const { store, vm, sync } = await setup();
+    const onPulled = vi.fn();
+    const { store, vm, sync } = await setup({ onPulled });
     await vm.write('/Users/me/Desktop/new.txt', text('from shell'));
     await vm.write('/Users/me/Desktop/note.txt', text('edited'));
     await vm.remove('/Users/me/Documents');
@@ -82,6 +83,25 @@ describe('DiskVmSync', () => {
     expect(await store.kindOf(['Users', 'me', 'Documents'])).toBeNull();
     expect(await store.kindOf(['Users', 'me', 'Projects', 'demo'])).toBe('directory');
     expect(await sync.pull()).toBe(false);
+    expect(onPulled).toHaveBeenCalledExactlyOnceWith([
+      ['Users', 'me', 'Documents'],
+      ['Users', 'me', 'Projects'],
+      ['Users', 'me', 'Projects', 'demo'],
+      ['Users', 'me', 'Desktop', 'note.txt'],
+      ['Users', 'me', 'Desktop', 'new.txt']
+    ]);
+  });
+
+  it('一批回写中途失败时，仅通知已落盘的路径', async () => {
+    const onPulled = vi.fn();
+    const { store, vm, sync } = await setup({ onPulled });
+    await vm.remove('/Users/me/Documents');
+    await vm.write('/Users/me/Desktop/new.txt', text('from shell'));
+    vi.spyOn(store, 'write').mockRejectedValueOnce(new Error('disk write failed'));
+
+    await expect(sync.pull()).rejects.toThrow('disk write failed');
+    expect(await store.kindOf(['Users', 'me', 'Desktop', 'new.txt'])).toBeNull();
+    expect(onPulled).toHaveBeenCalledExactlyOnceWith([['Users', 'me', 'Documents']]);
   });
 
   it('node_modules 与卷以外的路径不同步', async () => {
@@ -163,7 +183,8 @@ describe('DiskVmSync 否决终端的改动（预装应用保护）', () => {
   it('同一次扫描里被放行的改动照常落盘，被否决的才撤销；原因去重后只通知一次', async () => {
     const veto = guard();
     const onVetoed = vi.fn();
-    const { store, vm, sync } = await setup({ veto, onVetoed });
+    const onPulled = vi.fn();
+    const { store, vm, sync } = await setup({ veto, onVetoed, onPulled });
 
     await vm.write('/Users/me/Desktop/new.txt', text('allowed'));
     await vm.write(PROTECTED, text('tampered'));
@@ -174,6 +195,7 @@ describe('DiskVmSync 否决终端的改动（预装应用保护）', () => {
     expect(decode(await store.read(['Applications', 'Notes.app', 'Contents', 'Info.plist']))).toBe('<plist/>');
     expect(onVetoed).toHaveBeenCalledTimes(1);
     expect(onVetoed.mock.calls[0][0]).toEqual([`${reason} [write]`]);
+    expect(onPulled).toHaveBeenCalledExactlyOnceWith([['Users', 'me', 'Desktop', 'new.txt']]);
   });
 
   it('没有被否决的改动时不通知', async () => {

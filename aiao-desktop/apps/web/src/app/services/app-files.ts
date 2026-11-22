@@ -78,7 +78,7 @@ async function infoOrNull(store: DiskStore, path: DiskPath): Promise<DiskFileInf
  * 用桌面的磁盘服务实现 {@link AppContextFiles}。只拿磁盘服务的独占执行入口与改动通知，
  * 写盘走保存已有文件的 `replace`（目标不在就失败，不悄悄新建）与显式创建的 `write`。
  */
-export function appFilesOver(disk: Pick<FileSystem, 'run' | 'changes'>): AppContextFiles {
+export function appFilesOver(disk: Pick<FileSystem, 'run' | 'notifyChanges'>): AppContextFiles {
   return {
     snapshot: (path, maxBytes) =>
       disk.run<FileSnapshot>(async store => {
@@ -97,7 +97,7 @@ export function appFilesOver(disk: Pick<FileSystem, 'run' | 'changes'>): AppCont
         await store.replace(path, bytes);
         return { kind: 'ok', stamp: stampOf(await store.info(path)) };
       });
-      if (outcome.kind === 'ok') disk.changes.next([path]);
+      if (outcome.kind === 'ok') disk.notifyChanges([path]);
       return outcome;
     },
     create: async (path, bytes, overwrite, beforeWrite) => {
@@ -110,7 +110,7 @@ export function appFilesOver(disk: Pick<FileSystem, 'run' | 'changes'>): AppCont
         else await store.write(path, bytes);
         return { kind: 'ok', stamp: stampOf(await store.info(path)) };
       });
-      if (outcome.kind === 'ok') disk.changes.next([path]);
+      if (outcome.kind === 'ok') disk.notifyChanges([path]);
       return outcome;
     }
   };

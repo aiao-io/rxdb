@@ -1,6 +1,6 @@
 import { Injector, Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
-import { Subscription } from 'rxjs';
+import { Subscription, filter } from 'rxjs';
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
@@ -132,7 +132,9 @@ export class VirtualMachine {
         try {
           const record = await (await this.workspace()).openDirectory(path);
           this.wm.open(app, { projectId: record.projectId });
-        } catch (error) { this.toast.show(describeDiskError(error)); }
+        } catch (error) {
+          this.toast.show(describeDiskError(error));
+        }
         return;
       }
       this.wm.open('finder', { path: finderPathOf(path) });
@@ -164,23 +166,33 @@ export class VirtualMachine {
       const sync = new DiskVmSync({ run: task => this.fs.run(task) }, vivariFs(vivari), {
         roots: DISK_ROOTS,
         ignore: name => name === 'node_modules',
+        onPulled: paths => this.fs.notifyChanges(paths, 'terminal'),
         veto: (path, change) =>
           this.catalog.violation(change === 'remove' ? { kind: 'remove', path } : { kind: 'write', path }),
         onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`)
       });
       await this.install(vivari);
-      const subscription = this.fs.changes.subscribe(paths =>
-        sync.push(paths).catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`))
-      );
+      const subscription = this.fs.changes
+        .pipe(filter(change => change.source === 'desktop'))
+        .subscribe(({ paths }) =>
+          sync
+            .push(paths)
+            .catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`))
+        );
       await sync.attach();
-      const git = new TerminalGit(this.shellEnv.AIAO_GIT_CHANNEL, vivariFs(vivari), () => sync.pull(), async (request, root) => {
-        await sync.pull();
-        const workspace = await this.workspace();
-        if (root) await workspace.openDirectory(fromVmPath(root));
-        const result = await workspace.runTerminal(request);
-        await sync.push([]);
-        return {exitCode: result.code, stdout: result.stdout.trimEnd(), stderr: result.stderr.trimEnd()};
-      });
+      const git = new TerminalGit(
+        this.shellEnv.AIAO_GIT_CHANNEL,
+        vivariFs(vivari),
+        () => sync.pull(),
+        async (request, root) => {
+          await sync.pull();
+          const workspace = await this.workspace();
+          if (root) await workspace.openDirectory(fromVmPath(root));
+          const result = await workspace.runTerminal(request);
+          await sync.push([]);
+          return { exitCode: result.code, stdout: result.stdout.trimEnd(), stderr: result.stderr.trimEnd() };
+        }
+      );
       const ticker = setInterval(() => void this.pull(), POLL_INTERVAL);
       return { vivari, git, sync, subscription, ticker };
     } catch (error) {

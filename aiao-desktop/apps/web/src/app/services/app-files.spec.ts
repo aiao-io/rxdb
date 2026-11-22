@@ -1,4 +1,3 @@
-import { Subject } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 
 import { DiskPath } from '../disk/disk-path';
@@ -16,16 +15,14 @@ async function setup() {
   let now = 1_000;
   const store = new MemoryDiskStore(() => now);
   await store.write(NOTE, bytes('hello'));
-  const changes = new Subject<readonly DiskPath[]>();
   const notified: (readonly DiskPath[])[] = [];
-  changes.subscribe(paths => notified.push(paths));
   const tasks: string[] = [];
   const files: AppContextFiles = appFilesOver({
     run: <T>(task: (disk: DiskStore) => Promise<T>) => {
       tasks.push('run');
       return task(store);
     },
-    changes
+    notifyChanges: paths => notified.push(paths)
   });
   return {
     files,

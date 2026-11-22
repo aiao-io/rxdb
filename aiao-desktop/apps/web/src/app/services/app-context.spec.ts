@@ -8,7 +8,6 @@ import type {
 import { DESKTOP_CAPABILITIES, DESKTOP_LIMITS, DESKTOP_METHOD_CAPABILITIES, DesktopError } from '@aiao/orbit/desktop';
 import { EnvironmentInjector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DesktopData } from '../data/desktop-data';
@@ -60,7 +59,7 @@ interface Setup {
 
 function setup({ capabilities = ALL, frame = 'transparent', withChrome = true, projectId }: Setup = {}) {
   const registry = apps(frame);
-  const win = new DesktopWindow('w1', registry.notes, {projectId}, { left: 0, top: 0, width: 600, height: 400 });
+  const win = new DesktopWindow('w1', registry.notes, { projectId }, { left: 0, top: 0, width: 600, height: 400 });
   win.attempt = 1;
   win.state.set('ready');
   const { windows, focused } = fakeWindows();
@@ -75,10 +74,11 @@ function setup({ capabilities = ALL, frame = 'transparent', withChrome = true, p
   };
   const notices: DesktopNotice[] = [];
   const services = fakeHostServices();
-  const workspace = {call: vi.fn(async () => 'allowed')};
+  const workspace = { call: vi.fn(async () => 'allowed') };
   const context = new DesktopAppContext({
     win,
-    capabilities, workspace,
+    capabilities,
+    workspace,
     apps: registry,
     windows,
     system,
@@ -211,11 +211,13 @@ describe('DesktopAppContext：默认拒绝', () => {
   });
 
   it('文件请求只送达已授权、仍打开并绑定该仓库的宿主实例', async () => {
-    const { context, workspace } = setup({capabilities: ['workspace'], projectId: 'mine'});
-    const open = (projectId: string) => context.workspace.call({operation:'open', projectId});
+    const { context, workspace } = setup({ capabilities: ['workspace'], projectId: 'mine' });
+    const open = (projectId: string) => context.workspace.call({ operation: 'open', projectId });
     await expect(open('mine')).resolves.toBe('allowed');
     expect(await codeOf(() => open('other'))).toBe('INVALID_ARGUMENT');
-    expect(await codeOf(() => context.workspace.call({operation:'remove', projectId:'mine',path:'../other/README.md'}))).toBe('INVALID_ARGUMENT');
+    expect(
+      await codeOf(() => context.workspace.call({ operation: 'remove', projectId: 'mine', path: '../other/README.md' }))
+    ).toBe('INVALID_ARGUMENT');
     context.dispose();
     expect(await codeOf(() => open('mine'))).toBe('WINDOW_CLOSED');
     expect(workspace.call).toHaveBeenCalledTimes(1);
@@ -613,7 +615,7 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
     /* 磁盘服务的替身：是 FileSystem 的实例（`instanceof` 能认出来），所以「上下文够得到磁盘」会被下面的检查抓住。 */
     const disk = Object.assign(Object.create(FileSystem.prototype) as FileSystem, {
       run: vi.fn(),
-      changes: new Subject<readonly string[][]>()
+      notifyChanges: vi.fn()
     });
     configureServices([
       DesktopAppContexts,
@@ -673,7 +675,7 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
       { provide: Toast, useValue: { show: vi.fn() } },
       {
         provide: FileSystem,
-        useValue: Object.assign(Object.create(FileSystem.prototype), { run: vi.fn(), changes: new Subject() })
+        useValue: Object.assign(Object.create(FileSystem.prototype), { run: vi.fn(), notifyChanges: vi.fn() })
       }
     ]);
     const context = TestBed.inject(DesktopAppContexts).bind(win);

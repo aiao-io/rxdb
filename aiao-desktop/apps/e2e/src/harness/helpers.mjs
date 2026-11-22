@@ -66,18 +66,22 @@ export function createHelpers(page) {
   const disappears = (locator, timeout = 10_000) => passes(locator.waitFor({ state: 'detached', timeout }));
 
   const xtermText = () =>
-    page.evaluate(() => document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? '');
+    page.evaluate(
+      () => document.querySelector('.win[data-app="terminal"]:not(.closing) .xterm-rows')?.textContent ?? ''
+    );
 
   /** 在终端里输入一条命令；给了 `expect` 就等输出里出现它。 */
   const runInShell = async (command, expect) => {
-    await page.locator('.win[data-app="terminal"] .xterm-helper-textarea').focus();
+    await page.locator('.win[data-app="terminal"]:not(.closing) .xterm-helper-textarea').focus();
     await page.keyboard.type(command);
     await page.keyboard.press('Enter');
     if (!expect) return true;
     return passes(
       page.waitForFunction(
         source =>
-          new RegExp(source).test(document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? ''),
+          new RegExp(source).test(
+            document.querySelector('.win[data-app="terminal"]:not(.closing) .xterm-rows')?.textContent ?? ''
+          ),
         expect.source,
         { timeout: 15_000 }
       )

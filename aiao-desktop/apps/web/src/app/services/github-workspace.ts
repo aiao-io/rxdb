@@ -116,9 +116,11 @@ export class GithubWorkspace {
 
   async openDirectory(root: DiskPath, initialize = false): Promise<GithubRepositoryRecord> {
     requireRoot(root);
-    const projectId = projectIdForPath(root);
+    await this.records.ready();
+    const projectId =
+      this.records.records().find(item => item.rootPath && samePath(item.rootPath, root))?.projectId ??
+      projectIdForPath(root);
     return this.lock(projectId, async () => {
-      await this.records.ready();
       const record = this.records.find(projectId);
       if (record && !samePath(root, record.rootPath ?? [])) throw new Error('仓库标识已被其他目录使用');
       if (record) {
@@ -130,7 +132,7 @@ export class GithubWorkspace {
           this.registerDirectory(root, snapshot)
         )
       );
-      this.files.changes.next([root]);
+      this.files.notifyChanges([root]);
       this.changes.next(projectId);
       return result.record;
     });
@@ -142,6 +144,23 @@ export class GithubWorkspace {
   async importDirectory(name: string, archive: Uint8Array<ArrayBuffer>) {
     const digest = await hashBytes(archive);
     return this.addDirectory([...HOME, 'Documents', 'GitHub', name], digest, id => this.git.importArchive(id, archive));
+  }
+
+  workingDirectory(id: string) {
+    return this.lock(id, async () => {
+      const record = await this.registered(id);
+      if (record.rootPath) return record.rootPath;
+      const root = [...HOME, 'Documents', 'GitHub', ...record.name.split('/')];
+      requireRoot(root);
+      await this.files.run(store =>
+        bindVolumeRepository(store, root, id, this.git, { copy: { source: 'opfs', existing: true } }, () =>
+          this.records.put({ ...record, rootPath: root })
+        )
+      );
+      this.files.notifyChanges([root]);
+      this.changes.next(id);
+      return root;
+    });
   }
 
   inspect(id: string) {
@@ -188,8 +207,12 @@ export class GithubWorkspace {
     return this.use(id, 'read', () => this.git.history(id));
   }
 
-  commitChanges(id: string, oid: string) {
-    return this.use(id, 'read', () => this.git.commitChanges(id, oid));
+  compareHistory(id: string, branch: string) {
+    return this.use(id, 'read', () => this.git.compareHistory(id, branch));
+  }
+
+  commitChanges(id: string, oid: string, branch?: string) {
+    return this.use(id, 'read', () => this.git.commitChanges(id, oid, branch));
   }
 
   exportArchive(id: string) {
@@ -387,7 +410,7 @@ export class GithubWorkspace {
           this.registerDirectory(root, snapshot)
         )
       );
-      this.files.changes.next([root]);
+      this.files.notifyChanges([root]);
       this.changes.next(id);
       return result;
     });
@@ -431,7 +454,7 @@ export class GithubWorkspace {
           return value;
         })
       : await task();
-    if (paths.length) this.files.changes.next(paths);
+    if (paths.length) this.files.notifyChanges(paths);
     if (mode !== 'read') this.changes.next(id);
     return result;
   }

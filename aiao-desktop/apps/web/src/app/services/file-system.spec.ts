@@ -66,7 +66,7 @@ function setup({ data = new FakeDesktopData(), readyError, recents }: Options = 
   const fs = TestBed.inject(FileSystem);
   const catalog = TestBed.inject(ApplicationCatalog);
   const changes: (readonly DiskPath[])[] = [];
-  fs.changes.subscribe(paths => changes.push(paths));
+  fs.changes.subscribe(({ paths }) => changes.push(paths));
   return { fs, catalog, data, files, preferences, locks, changes, errors, thumbnails };
 }
 

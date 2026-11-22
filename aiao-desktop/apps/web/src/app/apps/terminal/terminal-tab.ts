@@ -8,17 +8,17 @@ import {
   input,
   viewChild
 } from '@angular/core';
-import { DesktopAppServices } from '../../services/desktop-app-services';
 import { type VivariProcess } from '@vivari/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 
 import { OPEN_OSC } from '../../vm/coreutils';
-import { SHELL_HOME, VirtualMachine } from '../../vm/virtual-machine';
+import { VirtualMachine } from '../../vm/virtual-machine';
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-/** 一个终端标签：xterm 接到页面共用的 Vivari 虚拟机里真实的 `sh` 进程，从 Macintosh HD 的主目录开始。 */
+/** 一个终端标签：xterm 接到页面共用的 Vivari 虚拟机里真实的 `sh` 进程。 */
 @Component({
   selector: 'app-terminal-tab',
   host: { style: 'display: contents' },
@@ -50,6 +50,7 @@ export class TerminalTab implements OnDestroy {
   private acquired = false;
 
   readonly active = input(false);
+  readonly cwd = input.required<string>();
 
   constructor() {
     this.terminal.parser.registerOscHandler(OPEN_OSC, async data => {
@@ -98,7 +99,7 @@ export class TerminalTab implements OnDestroy {
       if (this.disposed) return;
       this.fit();
       const process = await runtime.spawn('sh', [], {
-        cwd: SHELL_HOME,
+        cwd: this.cwd(),
         env: this.vm.shellEnv,
         terminal: { cols: Math.max(2, this.terminal.cols), rows: Math.max(2, this.terminal.rows) }
       });

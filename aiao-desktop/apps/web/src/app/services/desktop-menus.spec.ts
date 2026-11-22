@@ -91,6 +91,7 @@ const githubTarget = (
       void kind;
     }),
     openInEditor: vi.fn(),
+    openInTerminal: vi.fn(),
     openLocalRepository: vi.fn((): void => undefined),
     openBranchMenu: vi.fn((): void => undefined),
     focusChangesFilter: vi.fn((): void => undefined),
@@ -338,6 +339,7 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     click(sectionOf(sections, 'View'), 'show-changes-filter');
     click(sectionOf(sections, 'View'), 'show-repository-list');
     click(sectionOf(sections, 'View'), 'show-branches-list');
+    click(sectionOf(sections, 'Repository'), 'open-in-terminal');
     click(sectionOf(sections, 'Repository'), 'fetch');
     click(sectionOf(sections, 'Repository'), 'pull');
     click(sectionOf(sections, 'Repository'), 'view-repository-on-github');
@@ -349,6 +351,7 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     expect(target.setTab).toHaveBeenCalledExactlyOnceWith('history');
     expect(target.focusChangesFilter).toHaveBeenCalledTimes(2);
     expect(target.openBranchMenu).toHaveBeenCalledTimes(2);
+    expect(target.openInTerminal).toHaveBeenCalledOnce();
     expect(target.fetch).toHaveBeenCalledTimes(1);
     expect(target.pull).toHaveBeenCalledTimes(1);
     expect(target.openExternal).toHaveBeenCalledWith('repository');
@@ -364,6 +367,7 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
       ['Edit', 'find'],
       ['View', 'show-changes-filter'],
       ['View', 'show-branches-list'],
+      ['Repository', 'open-in-terminal'],
       ['Repository', 'push'],
       ['Repository', 'pull'],
       ['Repository', 'fetch'],

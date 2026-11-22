@@ -63,6 +63,11 @@ export type { FsNode } from '../disk/disk-tree';
 
 export type DiskState = 'mounting' | 'ready' | 'failed';
 
+export interface DiskChange {
+  readonly paths: readonly DiskPath[];
+  readonly source: 'desktop' | 'terminal';
+}
+
 /** Finder 侧栏与「前往」菜单的快捷位置；`null` 表示虚拟视图。 */
 export const PLACES: Readonly<Record<string, readonly string[] | null>> = {
   AirDrop: null,
@@ -151,14 +156,15 @@ export class FileSystem {
   private treeSeq = 0;
   private applicationSignature = '';
   private readonly mounted: Promise<void>;
+  private readonly diskChanges = new Subject<DiskChange>();
 
   readonly root = this.rootState.asReadonly();
   readonly state = this.stateValue.asReadonly();
   readonly error = this.errorValue.asReadonly();
   /** 废纸篓里有东西时 Dock 显示满的图标。 */
   readonly trashFull = computed(() => (findNode(this.rootState(), TRASH)?.children?.length ?? 0) > 0);
-  /** 桌面这一侧改动过的路径（新建、移动、写入、删除）；终端的虚拟机据此同步同一路径。 */
-  readonly changes = new Subject<readonly DiskPath[]>();
+  /** 本标签页磁盘改动的路径与来源；终端只同步来自桌面的改动。 */
+  readonly changes = this.diskChanges.asObservable();
 
   constructor() {
     this.mounted = this.mount();
@@ -233,7 +239,7 @@ export class FileSystem {
       await store.mkdir([...dir, folder]);
       return folder;
     });
-    this.changes.next([[...dir, name]]);
+    this.notifyChanges([[...dir, name]]);
     return name;
   }
 
@@ -272,7 +278,7 @@ export class FileSystem {
       }
       return to;
     });
-    this.changes.next([path, target]);
+    this.notifyChanges([path, target]);
   }
 
   /** Finder 改名：系统目录与预装应用的保护同样适用。 */
@@ -280,21 +286,21 @@ export class FileSystem {
     if (isRequiredDiskPath(path))
       throw new DiskError('EACCES', path, 'This item is required by the system and cannot be renamed.');
     const target = await this.exclusive(store => renameEntry(store, path, name));
-    this.changes.next([path, target]);
+    this.notifyChanges([path, target]);
     return target;
   }
 
   async duplicate(path: DiskPath): Promise<DiskPath> {
     this.requireWritable(parentOf(path));
     const target = await this.exclusive(store => duplicateEntry(store, path, this.batchJournal()));
-    this.changes.next([target]);
+    this.notifyChanges([target]);
     return target;
   }
 
   async copyTo(path: DiskPath, dir: DiskPath): Promise<DiskPath> {
     this.requireWritable(dir);
     const target = await this.exclusive(store => copyEntryTo(store, path, dir, this.batchJournal()));
-    this.changes.next([target]);
+    this.notifyChanges([target]);
     return target;
   }
 
@@ -304,14 +310,14 @@ export class FileSystem {
     this.requireWritable(parentOf(path));
     this.requireWritable(dir);
     const target = await this.exclusive(store => moveEntryTo(store, path, dir));
-    this.changes.next([path, target]);
+    this.notifyChanges([path, target]);
     return target;
   }
 
   async importFiles(dir: DiskPath, files: readonly ImportedFile[]): Promise<DiskPath[]> {
     this.requireWritable(dir);
     const targets = await this.exclusive(store => importEntries(store, dir, files, this.batchJournal()));
-    this.changes.next(targets);
+    this.notifyChanges(targets);
     return targets;
   }
 
@@ -321,7 +327,7 @@ export class FileSystem {
       if (dir ?? original) this.requireWritable(dir ?? parentOf(original!));
       return restoreEntry(store, path, dir);
     });
-    this.changes.next([path, target]);
+    this.notifyChanges([path, target]);
     return target;
   }
 
@@ -331,7 +337,7 @@ export class FileSystem {
       for (const entry of entries) await store.remove([...TRASH, entry.name]);
       return entries.map(entry => [...TRASH, entry.name]);
     });
-    this.changes.next(removed);
+    this.notifyChanges(removed);
   }
 
   read(path: DiskPath): Promise<Uint8Array> {
@@ -345,7 +351,7 @@ export class FileSystem {
   /** 写入文本：路径不存在就创建它与缺失的父目录，已有文件就覆盖。这是显式的新建入口（另存、导入），保存已打开的文件用 {@link saveText}。 */
   async writeText(path: DiskPath, text: string): Promise<void> {
     await this.exclusive(store => store.write(path, encoder.encode(text)));
-    this.changes.next([path]);
+    this.notifyChanges([path]);
   }
 
   /**
@@ -371,7 +377,7 @@ export class FileSystem {
         );
       throw error;
     }
-    this.changes.next([path]);
+    this.notifyChanges([path]);
   }
 
   /** 投影日志先落库，再提交安装状态；中断后按已提交状态恢复系统文件。 */
@@ -408,7 +414,12 @@ export class FileSystem {
       /* 抹掉后由应用清单重新生成 /Applications 里的预装包（D-17）。 */
       await this.catalog.reconcile(this.mountedRawStore());
     });
-    this.changes.next(DISK_ROOTS.map(root => [root]));
+    this.notifyChanges(DISK_ROOTS.map(root => [root]));
+  }
+
+  /** 直接用 `run` 写盘的调用方在提交后通知本标签页的应用。 */
+  notifyChanges(paths: readonly DiskPath[], source: DiskChange['source'] = 'desktop'): void {
+    this.diskChanges.next({ paths, source });
   }
 
   /** 给终端的虚拟机同步用：在同一条串行队列里直接读写存储后端。 */

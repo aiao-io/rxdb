@@ -19,7 +19,7 @@ capabilities: []
 
 ## 范围边界
 
-桌面 Chrome 上，终端的本地目录指 Macintosh HD 卷内目录。菜单沿用 File → Add Local Repository，仓库操作提供 Open in Aiao Code。桌面 Finder 内的目录按原位置打开。用户从操作系统选取或拖入 Git 目录时，界面明确导入到浏览器工作区，保留可支持的 `.git`、分支、暂存区和工作区。远端沿用 US-209 的 GitHub HTTPS 与 OAuth / PAT 范围。用户可在离线时配置 `origin`。系统选取的目录导入到 `~/Documents/GitHub/<目录名>`，后续编辑保存在桌面卷内。远端同步从已提交的工作树创建 GitHub API 提交，远端 SHA 由 GitHub 生成。
+桌面 Chrome 上，终端的本地目录指 Macintosh HD 卷内目录。菜单沿用 File → Add Local Repository，仓库操作提供 Open in Aiao Code 和 Open in Terminal。桌面 Finder 内的目录按原位置打开。用户从操作系统选取或拖入 Git 目录时，界面明确导入到浏览器工作区，保留可支持的 `.git`、分支、暂存区和工作区。尚未挂载到卷内的克隆仓库第一次在终端打开时写入 `~/Documents/GitHub/`，仓库标识与历史不变，不覆盖同名目标。远端沿用 US-209 的 GitHub HTTPS 与 OAuth / PAT 范围。用户可在离线时配置 `origin`。系统选取的目录导入到 `~/Documents/GitHub/<目录名>`，后续编辑保存在桌面卷内。远端同步从已提交的工作树创建 GitHub API 提交，远端 SHA 由 GitHub 生成。
 
 ## 交付阶段
 
@@ -57,6 +57,8 @@ capabilities: []
 ## 验收证据
 
 2026-11-23，桌面与 Aiao Code 的正式构建通过 Chromium 验收。系统 Git 目录导入保留原提交 SHA 和暂存区，远端夹具读回已发布分支的文件。两个跨源编辑窗口验证了版本冲突和 1,100,000 字节二进制文件往返。[逐项证据与复验命令](../../evidence/2026-11-23/git-workspace.md)
+
+另用同一份临时仓库对照官方 GitHub Desktop 3.6.11，补验三个全高下拉、History 详情，以及终端修改、暂存、提交、切分支后的界面更新。[界面对照、联动与复验命令](../../evidence/2026-11-23/github-desktop-parity.md)
 
 ## References
 

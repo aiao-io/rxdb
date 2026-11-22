@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { HOME } from '../disk/disk-path';
+import { HOME, type DiskPath } from '../disk/disk-path';
 import { MemoryDiskStore } from '../disk/memory-disk-store';
 import { configureServices } from '../testing/angular';
 import { DesktopAppServices } from './desktop-app-services';
@@ -78,7 +78,13 @@ describe('桌面共享 Git 仓库', () => {
         provide: DesktopAppServices,
         useValue: { get: (type: unknown) => (type === GithubConnection ? { remote } : store) }
       },
-      { provide: FileSystem, useValue: { changes, run: (task: (store: MemoryDiskStore) => unknown) => task(disk) } }
+      {
+        provide: FileSystem,
+        useValue: {
+          notifyChanges: (paths: readonly DiskPath[]) => changes.next(paths),
+          run: (task: (store: MemoryDiskStore) => unknown) => task(disk)
+        }
+      }
     ]);
     workspace = TestBed.inject(GithubWorkspace);
     git.snapshot.mockResolvedValue(snapshot);

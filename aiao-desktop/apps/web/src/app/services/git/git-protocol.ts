@@ -26,6 +26,16 @@ export interface GitStatus {
 export interface GitCommit {
   readonly oid: string;
   readonly message: string;
+  readonly description: string;
+  readonly author: string;
+  readonly authoredAt: number | null;
+}
+
+export interface GitHistoryComparison {
+  readonly ahead: number;
+  readonly behind: number;
+  readonly aheadCommits: readonly GitCommit[];
+  readonly behindCommits: readonly GitCommit[];
 }
 
 export interface GitBranch {

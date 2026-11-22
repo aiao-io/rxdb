@@ -200,13 +200,23 @@ function branches(value: unknown): readonly GitBranch[] {
   });
 }
 
+function textOf(value: unknown, name: string): string {
+  return typeof value === 'string' ? value : invalidPayload(name);
+}
+
 function commits(value: unknown): readonly GitCommit[] {
   if (!Array.isArray(value)) invalidPayload('history');
   return value.map((raw, index) => {
     const item = recordOf(raw, `history[${index}]`);
     return {
       oid: stringOf(item['oid'], `history[${index}].oid`),
-      message: stringOf(item['message'], `history[${index}].message`)
+      message: textOf(item['message'], `history[${index}].message`),
+      description: textOf(item['description'], `history[${index}].description`),
+      author: textOf(item['author'], `history[${index}].author`),
+      authoredAt:
+        item['authoredAt'] === null ?
+          null
+        : integerOf(item['authoredAt'], `history[${index}].authoredAt`, -8640000000000000)
     };
   });
 }
@@ -290,10 +300,11 @@ export class GithubGitBackend {
   }
 
   localCommand(projectId: string, cwd: string, args: readonly string[]) {
-    return this.call('localCommand', {projectId,path:cwd,paths:args}).then(value => {
-      const item = recordOf(value,'localCommand');
-      if (typeof item['stdout'] !== 'string' || typeof item['stderr'] !== 'string') return invalidPayload('localCommand');
-      return {exitCode: integerOf(item['exitCode'],'exitCode'), stdout: item['stdout'], stderr: item['stderr']};
+    return this.call('localCommand', { projectId, path: cwd, paths: args }).then(value => {
+      const item = recordOf(value, 'localCommand');
+      if (typeof item['stdout'] !== 'string' || typeof item['stderr'] !== 'string')
+        return invalidPayload('localCommand');
+      return { exitCode: integerOf(item['exitCode'], 'exitCode'), stdout: item['stdout'], stderr: item['stderr'] };
     });
   }
 
@@ -367,8 +378,22 @@ export class GithubGitBackend {
     return this.call('history', { projectId }).then(commits);
   }
 
-  commitChanges(projectId: string, oid: string): Promise<readonly GitCommitFileChange[]> {
-    return this.call('commitChanges', { projectId, oid }).then(commitChanges);
+  compareHistory(projectId: string, branch: string) {
+    return this.call('compareHistory', { projectId, branch }).then(value => {
+      const result = recordOf(value, 'comparison');
+      return {
+        ahead: integerOf(result['ahead'], 'comparison.ahead'),
+        behind: integerOf(result['behind'], 'comparison.behind'),
+        aheadCommits: commits(result['aheadCommits']),
+        behindCommits: commits(result['behindCommits'])
+      };
+    });
+  }
+
+  commitChanges(projectId: string, oid: string, branch?: string): Promise<readonly GitCommitFileChange[]> {
+    return this.call('commitChanges', { projectId, oid, ...(branch === undefined ? {} : { branch }) }).then(
+      commitChanges
+    );
   }
 
   restore(projectId: string, oid: string): Promise<GitSnapshot> {

@@ -137,6 +137,27 @@ describe('GitHub Git Worker backend', () => {
     await expect(timed).rejects.toMatchObject({ code: 'storage_failed', message: /timed out/i });
   });
 
+  it('validates branch comparison and forwards its branch ref to the commit diff', async () => {
+    const current = new FakeWorker();
+    const backend = new GithubGitBackend(() => worker(current));
+    const commit = { oid: 'b'.repeat(40), message: 'topic', description: 'Body.', author: 'Fixture', authoredAt: null };
+    const result = { ahead: 0, behind: 1, aheadCommits: [], behindCommits: [commit] };
+    const comparison = backend.compareHistory('project', 'topic');
+    expect(current.messages.at(-1)).toMatchObject({
+      action: 'compareHistory',
+      payload: { projectId: 'project', branch: 'topic' }
+    });
+    current.reply(1, result);
+    await expect(comparison).resolves.toEqual(result);
+    const diff = backend.commitChanges('project', commit.oid, 'topic');
+    expect(current.messages.at(-1)).toMatchObject({
+      action: 'commitChanges',
+      payload: { oid: commit.oid, branch: 'topic' }
+    });
+    current.reply(2, []);
+    await expect(diff).resolves.toEqual([]);
+  });
+
   it('forwards every public operation and restores serialized values', async () => {
     const current = new FakeWorker();
     const backend = new GithubGitBackend(() => worker(current));
@@ -149,7 +170,9 @@ describe('GitHub Git Worker backend', () => {
       modified: { exists: true, binary: false, text: 'new', byteLength: 3 }
     };
     const branches = [{ name: 'main', oid: null, current: true }];
-    const commits = [{ oid: 'a'.repeat(40), message: 'initial' }];
+    const commits = [
+      { oid: 'a'.repeat(40), message: 'initial', description: '', author: 'Fixture Author', authoredAt: 0 }
+    ];
 
     const open = backend.open('project');
     current.reply(1, snapshot);

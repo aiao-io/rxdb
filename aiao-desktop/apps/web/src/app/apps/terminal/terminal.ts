@@ -11,10 +11,12 @@ import {
   viewChildren
 } from '@angular/core';
 
+import { toVmPath } from '../../disk/disk-path';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { SHELL_HOME } from '../../vm/virtual-machine';
 import { TerminalTab } from './terminal-tab';
 
 /** 终端：xterm 接到浏览器内 Vivari 的真实 shell，看到的是同一块 Macintosh HD；支持多标签。 */
@@ -33,7 +35,7 @@ import { TerminalTab } from './terminal-tab';
     </div>
     <div class="term xterm-host" #host data-terminal>
       <div class="tm-tabs">
-        @for (tab of tabs(); track tab; let i = $index) {
+        @for (tab of tabs(); track tab.id; let i = $index) {
           <button class="tm-tab" [class.on]="i === activeIndex()" (click)="activeIndex.set(i)" type="button">
             <span class="tm-tab-title">Local shell</span
             ><span class="x" (click)="closeTab($event, i)" (keydown.enter)="closeTab($event, i)" tabindex="-1">×</span>
@@ -42,8 +44,8 @@ import { TerminalTab } from './terminal-tab';
         <button class="tm-tab tm-new-tab" (click)="newTab()" title="New Tab" type="button">+</button>
       </div>
       <div class="xterm-panels">
-        @for (tab of tabs(); track tab; let i = $index) {
-          <app-terminal-tab [active]="i === activeIndex()" />
+        @for (tab of tabs(); track tab.id; let i = $index) {
+          <app-terminal-tab [active]="i === activeIndex()" [cwd]="tab.cwd" />
         }
       </div>
     </div>
@@ -57,7 +59,9 @@ export class TerminalApp {
   private readonly destroyRef = inject(DestroyRef);
   private seq = 1;
 
-  protected readonly tabs = signal<readonly number[]>([1]);
+  protected readonly tabs = signal<readonly { id: number; cwd: string }[]>([
+    { id: 1, cwd: this.win.options.cwd ? toVmPath(this.win.options.cwd) : SHELL_HOME }
+  ]);
   protected readonly activeIndex = signal(0);
 
   constructor() {
@@ -92,7 +96,7 @@ export class TerminalApp {
   }
 
   protected newTab(): void {
-    this.tabs.update(tabs => [...tabs, ++this.seq]);
+    this.tabs.update(tabs => [...tabs, { id: ++this.seq, cwd: SHELL_HOME }]);
     this.activeIndex.set(this.tabs().length - 1);
   }
 

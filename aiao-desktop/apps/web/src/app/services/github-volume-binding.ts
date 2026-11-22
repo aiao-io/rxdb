@@ -56,10 +56,7 @@ async function writeBinding(directory: FileSystemDirectoryHandle, value: Binding
   await writer.close();
 }
 
-interface NewDirectory {
-  readonly source: string;
-  create(): Promise<GitSnapshot>;
-}
+type VolumeCopy = { readonly source: string } & ({ create(): Promise<GitSnapshot> } | { readonly existing: true });
 
 /** 仅发布完整目录。中断后凭持久化的目标路径、来源和临时目录名继续同一操作。 */
 export async function bindVolumeRepository<T>(
@@ -67,7 +64,7 @@ export async function bindVolumeRepository<T>(
   root: DiskPath,
   id: string,
   git: Pick<GithubGitBackend, 'open' | 'create' | 'importArchive'>,
-  options: { initialize?: boolean; copy?: NewDirectory },
+  options: { initialize?: boolean; copy?: VolumeCopy },
   register: (snapshot: GitSnapshot) => Promise<T>
 ) {
   const marker = [...root, '.git'];
@@ -86,12 +83,16 @@ export async function bindVolumeRepository<T>(
   if (!copy && !metadata && !pending && !options.initialize)
     throw new GitWorkbenchError('project_missing', '目录尚未初始化。请先在终端运行 git init');
   const state = await fileIfPresent(dir, 'state.json');
-  if (state && !pending && !linked) throw new Error('此仓库标识已被使用，请选择其他目录');
+  if (state && !pending && !linked && !(copy && 'existing' in copy))
+    throw new Error('此仓库标识已被使用，请选择其他目录');
   const binding = pending ?? { root, source, temporary: `.aiao-bind-${crypto.randomUUID()}` };
   if (!pending) await writeBinding(dir, binding);
   const temporary = [...root.slice(0, -1), binding.temporary];
   const create = async () => {
-    if (copy) return copy.create();
+    if (copy) {
+      if ('create' in copy) return copy.create();
+      throw new GitWorkbenchError('project_missing', '仓库尚未初始化');
+    }
     if (source !== 'volume') throw new Error('请重新选择原仓库完成导入');
     if (metadata === 'directory')
       return git.importArchive(id, (await archiveOfDirectory(diskDirectory(store, root))).archive);

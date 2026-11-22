@@ -1,5 +1,6 @@
 import type { DesktopCapability } from '@aiao/orbit/desktop';
 import { InjectionToken, Type } from '@angular/core';
+import type { DiskPath } from '../disk/disk-path';
 
 import type { FsNode } from './file-system';
 
@@ -178,6 +179,8 @@ export type DesktopAppRegistry = Readonly<Record<DesktopAppId, DesktopAppDefinit
 
 /** 打开窗口的参数，按应用各取所需。 */
 export interface DesktopOpenOptions {
+  /** 起始工作目录，使用 Macintosh HD 卷内路径。 */
+  readonly cwd?: DiskPath;
   readonly force?: boolean;
   readonly w?: number;
   readonly h?: number;

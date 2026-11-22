@@ -111,13 +111,60 @@ function bearer(request) {
   return request.headers().authorization?.replace(/^Bearer\s+/i, '') ?? null;
 }
 
-async function openRepositoryMenu(view) {
+async function openRepositoryMenu(view, panel = 'list') {
   const popup = view.locator('[data-github-repository-menu-popup]');
-  if ((await popup.count()) === 0) {
-    await view.locator('[data-github-repository-menu]').click();
-    await popup.waitFor();
+  const dialog = view.locator('[data-github-repository-dialog]');
+  const labels = { clone: 'Clone a Repository', new: 'Create a New Repository', local: 'Add Local Repository' };
+  if (panel !== 'list' && (await dialog.getByRole('heading', { name: labels[panel], exact: true }).count())) return;
+  if (await dialog.count()) await view.getByRole('button', { name: 'Close repository dialog' }).click();
+  if (!(await popup.count())) await view.locator('[data-github-repository-menu]').click();
+  await expect(popup).toBeVisible();
+  if (panel === 'list') return;
+  const actions = { clone: 'Clone Repository…', new: 'Create New Repository…', local: 'Add Existing Repository…' };
+  await popup.getByRole('button', { name: 'Add', exact: true }).click();
+  await popup.getByRole('menuitem', { name: actions[panel], exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: labels[panel], exact: true })).toBeVisible();
+}
+
+async function verifyToolbar(view) {
+  const app = view.locator('[data-github-app]');
+  const titlebar = view.locator('.gh-titlebar');
+  const toolbar = view.locator('.gh-toolbar');
+  await expect(titlebar).toHaveCSS('height', '32px');
+  await expect(toolbar).toHaveCSS('height', '50px');
+  const controls = await titlebar.getByRole('button').all();
+  expect(await Promise.all(controls.map(button => button.getAttribute('aria-label')))).toEqual([
+    'Close',
+    'Minimize',
+    'Zoom'
+  ]);
+  const boxes = await Promise.all(controls.map(button => button.boundingBox()));
+  expect(boxes[0].x).toBeLessThan(boxes[1].x);
+  expect(boxes[1].x).toBeLessThan(boxes[2].x);
+  expect(boxes[0].y).toBe(boxes[2].y);
+  const refresh = view.locator('[data-github-fetch-origin]');
+  const [icon, label] = await Promise.all([
+    refresh.locator('svg').boundingBox(),
+    refresh.locator('small').boundingBox()
+  ]);
+  expect(icon.x).toBeLessThan(label.x);
+  for (const kind of ['repository', 'worktree', 'branch']) {
+    const trigger = view.locator(`[data-github-${kind}-menu]`);
+    await trigger.click();
+    const popup = view.locator(`[data-github-${kind}-menu-popup]`);
+    await expect(popup).toBeVisible();
+    await expect(popup.getByRole('searchbox')).toBeFocused();
+    await expect(popup).toHaveCSS('width', kind === 'repository' ? '250px' : '365px');
+    const [appBox, toolbarBox, popupBox] = await Promise.all([
+      app.boundingBox(),
+      toolbar.boundingBox(),
+      popup.boundingBox()
+    ]);
+    expect(Math.abs(popupBox.y - (toolbarBox.y + toolbarBox.height))).toBeLessThan(1);
+    expect(Math.abs(popupBox.y + popupBox.height - (appBox.y + appBox.height))).toBeLessThan(1);
+    await trigger.click();
+    await expect(popup).toHaveCount(0);
   }
-  await expect(view.locator('[data-github-search-submit]')).toBeEnabled();
 }
 
 async function showRepositoryFiles(view) {
@@ -164,6 +211,21 @@ async function unstageChangedFile(view, path) {
 async function discardChangedFile(view, path) {
   await changedFileRow(view, path).locator('[data-file-path]').click({ button: 'right' });
   await view.getByRole('button', { name: 'Discard changes', exact: true }).click();
+}
+
+function terminalOutput(session) {
+  const { runInShell, xtermText } = session.helpers;
+  let sequence = 0;
+  return async command => {
+    const token = `D${++sequence}`;
+    const finished = await runInShell(
+      `echo ${token}'BEGIN'; ${command}; echo ${token}'END'`,
+      new RegExp(`${token}END.*\\$\\s*$`)
+    );
+    const rows = (await xtermText()).replaceAll('\u00a0', ' ');
+    if (!finished || !rows.includes(`${token}BEGIN`)) throw new Error(`Terminal did not finish ${command}\n${rows}`);
+    return rows.split(`${token}BEGIN`).at(-1).split(`${token}END`)[0].trim();
+  };
 }
 
 async function droppedRepository(session, view) {
@@ -217,17 +279,7 @@ async function droppedRepository(session, view) {
     await drop([folder]);
     await expect(view.locator('[data-github-error]')).toContainText('目标目录已存在');
     await session.helpers.openTerminal();
-    let sequence = 0;
-    const outputOf = async command => {
-      const token = `D${++sequence}`;
-      const finished = await session.helpers.runInShell(
-        `echo ${token}'BEGIN'; ${command}; echo ${token}'END'`,
-        new RegExp(`${token}END.*\\$\\s*$`)
-      );
-      const rows = (await session.helpers.xtermText()).replaceAll('\u00a0', ' ');
-      if (!finished) throw new Error(`Terminal did not finish ${command}\n${rows}`);
-      return rows.split(`${token}BEGIN`).at(-1).split(`${token}END`)[0].trim();
-    };
+    const outputOf = terminalOutput(session);
     expect(await outputOf('cd ~/Documents/GitHub/drop-fixture && git rev-parse HEAD')).toBe(head);
     expect(await outputOf('git status --short')).toBe('MM tracked.txt');
     expect(await outputOf('git diff --cached')).toContain('+staged');
@@ -236,10 +288,19 @@ async function droppedRepository(session, view) {
     expect(await outputOf('git remote -v')).toContain('https://github.com/octo/drop-fixture.git');
     await outputOf('git remote remove origin');
     expect(await outputOf('git remote -v')).toBe('');
-    await session.helpers.runInShell('open -R ~/Documents/GitHub/drop-fixture');
-    const finder = session.helpers.win('finder').last();
+    expect(await outputOf('open -R .')).toBe('');
+    const finder = session.helpers.win('finder').filter({ has: session.page.locator('[data-name="drop-fixture"]') });
     const source = finder.locator('[data-name="drop-fixture"]').last();
-    await expect(source).toBeVisible();
+    try {
+      await expect(source).toBeVisible();
+    } catch (error) {
+      const titles = await session.page
+        .locator('.win:not(.closing)')
+        .evaluateAll(windows =>
+          windows.map(window => [window.getAttribute('data-app'), window.getAttribute('aria-label')])
+        );
+      throw new Error(`open -R . did not reveal the repository in Finder: ${JSON.stringify(titles)}`, { cause: error });
+    }
     const layout = await session.page.addStyleTag({
       content: `.win[data-app="github"] {left: 5px!important; top: 45px!important; width: 48vw!important;} .win[data-app="finder"] {left: 50vw!important; top: 45px!important; width: 47vw!important;} .win[data-app="terminal"]{visibility:hidden}`
     });
@@ -249,11 +310,12 @@ async function droppedRepository(session, view) {
       await expect(view.locator('[data-github-notice]')).toHaveText('Opened drop-fixture');
       await openRepositoryMenu(view);
       await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
+      await openRepositoryMenu(view, 'local');
       await expect(view.getByRole('button', { name: 'Add origin', exact: true })).toBeEnabled();
       const volumePath = view.getByRole('textbox', { name: 'Macintosh HD folder' });
       await volumePath.fill('~/Documents/GitHub/drop-fixture');
       await volumePath.press('Enter');
-      await expect(view.locator('[data-github-repository-menu-popup]')).toHaveCount(0);
+      await expect(view.locator('[data-github-repository-dialog]')).toHaveCount(0);
       await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
     } finally {
       await layout.evaluate(element => element.remove());
@@ -261,6 +323,91 @@ async function droppedRepository(session, view) {
   } finally {
     await client.detach();
     await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+async function terminalRoundTrip(session) {
+  const { page } = session;
+  const { win, closeAll, openTerminal, runInShell } = session.helpers;
+  await closeAll();
+  await openTerminal();
+  const originalTerminal = win('terminal').first();
+  const setup =
+    'mkdir -p "$HOME/Documents/Git Demo" && cd "$HOME/Documents/Git Demo" && git init && echo start > note.txt && git add note.txt && git commit -m initial && open -a "GitHub Desktop" .';
+  expect(await runInShell(setup, /\[main [0-9a-f]+\] initial/)).toBe(true);
+  const github = win('github');
+  await expect(github.locator('[data-github-repository-name]')).toHaveText('Git Demo');
+  await expect(github.locator('[data-github-fetch-origin]')).toBeEnabled();
+  await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
+  await expect(win('terminal')).toHaveCount(2);
+  await originalTerminal.locator('.tl .c').dispatchEvent('click');
+  await expect(win('terminal')).toHaveCount(1);
+  expect(await runInShell('pwd', /\/Users\/[^/]+\/Documents\/Git Demo/)).toBe(true);
+
+  expect(await runInShell('echo shell > note.txt && git add note.txt && git status --short', /M\s+note\.txt/)).toBe(
+    true
+  );
+  await expect(changedFileCheckbox(github, 'note.txt')).toBeChecked();
+  expect(await runInShell('git commit -m "Terminal commit"', /\[main [0-9a-f]+\] Terminal commit/)).toBe(true);
+  await expect(changedFileCheckbox(github, 'note.txt')).toHaveCount(0);
+  expect(await runInShell('git checkout -b terminal-topic', /Switched to branch 'terminal-topic'/)).toBe(true);
+  await expect(github.locator('[data-github-branch-select]')).toHaveValue('terminal-topic');
+
+  const layout = await page.addStyleTag({
+    content:
+      '.win[data-app="github"] { left: 10px !important; } .win[data-app="terminal"] { left: 73vw !important; width: 26vw !important; }'
+  });
+  try {
+    const activateGithub = () => github.locator('.gh-titlebar').click({ position: { x: 110, y: 10 } });
+    await activateGithub();
+    await github.getByRole('tab', { name: 'History' }).click();
+    await expect(github.locator('.gh-commit-row').first()).toContainText('Terminal commit');
+    expect(
+      await runInShell(
+        'echo topic > note.txt && git add note.txt && git commit -m "Topic commit"',
+        /\[terminal-topic [0-9a-f]+\] Topic commit/
+      )
+    ).toBe(true);
+    await expect(github.locator('.gh-commit-row').first()).toContainText('Topic commit');
+    await activateGithub();
+    await github.locator('[data-github-branch-menu]').click();
+    await github
+      .getByRole('dialog', { name: 'Branch list' })
+      .getByRole('button', { name: 'main', exact: true })
+      .click();
+    await expect(github.locator('[data-github-branch-select]')).toHaveValue('main');
+    expect(await runInShell('git status', /On branch main/)).toBe(true);
+    await activateGithub();
+    await github.getByRole('combobox', { name: 'Select Branch to Compare' }).selectOption('terminal-topic');
+    await expect(github.getByRole('button', { name: 'Behind 1' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(github.locator('.gh-commit-row').first()).toContainText('Topic commit');
+    await expect(github.locator('[data-history-unified] code')).toHaveText(['shell', 'topic']);
+    await github.getByRole('button', { name: 'Clear branch comparison' }).click();
+    await expect(github.locator('.gh-commit-row').first()).toContainText('Terminal commit');
+
+    const outputOf = terminalOutput(session);
+    expect(await outputOf('echo before-draft > note.txt')).toBe('');
+    await activateGithub();
+    await github.getByRole('tab', { name: 'Changes' }).click();
+    await github.locator('[data-file-path="note.txt"]').click({ button: 'right' });
+    await github.getByRole('button', { name: 'Open note.txt', exact: true }).click();
+    const editor = github.locator('[data-github-editor]');
+    await expect(editor).toHaveValue('before-draft\n');
+    await editor.fill('not yet saved\n');
+    expect(await runInShell('echo terminal-write > note.txt && git status --short', /M\s+note\.txt/)).toBe(true);
+    await expect(changedFileCheckbox(github, 'note.txt')).toBeVisible();
+    await activateGithub();
+    const refresh = github.locator('[data-github-fetch-origin]');
+    await refresh.click();
+    await expect(refresh).toBeEnabled();
+    await expect(editor).toHaveValue('not yet saved\n');
+    await github.locator('[data-github-save]').click();
+    await expect(github.locator('[data-github-error]')).toContainText(/Expected revision \d+, current revision is \d+/);
+    await expect(editor).toHaveValue('not yet saved\n');
+    expect(await outputOf('cat note.txt')).toBe('terminal-write');
+  } finally {
+    await layout.evaluate(element => element.remove());
   }
 }
 
@@ -284,6 +431,9 @@ export const githubApp = {
     'github.unstageAndDiscard',
     'github.commitAndHistory',
     'github.historyDetails',
+    'github.toolbarLayout',
+    'github.diffModes',
+    'github.clonedRepositoryInTerminal',
     'github.historyContextMenu',
     'github.branchAndDirtyCheckout',
     'github.repositorySurvivesReload',
@@ -304,7 +454,8 @@ export const githubApp = {
     'github.remoteConflict',
     'github.networkFailure',
     'github.workerFailureCoveredByUnitTests',
-    'github.keyboardPath'
+    'github.keyboardPath',
+    'github.terminalRoundTrip'
   ],
   async run(session) {
     const { page, context } = session;
@@ -579,16 +730,19 @@ export const githubApp = {
     await expect(githubWindow.locator('[data-github-error]')).toHaveCount(0);
     result.menuActions = true;
 
-    await openRepositoryMenu(githubWindow);
+    await openRepositoryMenu(githubWindow, 'new');
     await githubWindow.locator('[data-github-new-repository]').fill('Local Fixture');
     await githubWindow.locator('[data-github-create]').click();
     await githubWindow.locator('[data-github-repository-name]').filter({ hasText: 'Local Fixture' }).waitFor();
+    await expect(githubWindow.locator('[data-github-repository-dialog]')).toHaveCount(0);
+    await verifyToolbar(githubWindow);
+    result.toolbarLayout = true;
     await showRepositoryFiles(githubWindow);
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
       (await githubWindow.locator('.gh-empty').count()) === 0;
     await expect(githubWindow.locator('.gh-sidebar')).toBeVisible();
-    await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /380px/);
+    await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /^250px [\d.]+px$/);
 
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
     const viewMenu = page.getByRole('menu', { name: 'View', exact: true });
@@ -620,6 +774,7 @@ export const githubApp = {
     await githubWindow.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
     await stageChangedFile(githubWindow, 'README.md');
     await githubWindow.locator('[data-github-commit-message]').fill('Fixture commit');
+    await githubWindow.getByRole('textbox', { name: 'Commit description' }).fill('First release notes');
     await githubWindow.locator('[data-github-commit]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
     await showRepositoryFiles(githubWindow);
@@ -627,8 +782,23 @@ export const githubApp = {
     const historyRows = githubWindow.locator('.gh-commit-row');
     await historyRows.nth(1).waitFor();
     result.commitAndHistory = (await historyRows.count()) >= 2;
-    await historyRows.first().click();
-    await githubWindow.locator('[data-history-file-path="README.md"]').waitFor();
+    await expect(githubWindow.locator('[data-history-file-path="README.md"]')).toHaveClass(
+      /gh-history-file-row-selected/
+    );
+    await expect(githubWindow.locator('[data-history-file-path="README.md"]').getByRole('img')).toHaveAccessibleName(
+      'Modified'
+    );
+    await expect(githubWindow.locator('[data-github-commit-sha]')).toHaveText(/^[a-f0-9]{7}$/);
+    await expect(githubWindow.locator('.gh-detail-header')).toContainText('Browser Workbench');
+    await expect(githubWindow.locator('.gh-commit-body')).toHaveText('First release notes');
+    await expect(githubWindow.locator('[data-history-unified]').first()).toBeVisible();
+    const settings = githubWindow.getByRole('button', { name: 'Diff Settings' });
+    await settings.click();
+    await githubWindow.getByRole('button', { name: 'Split Diff', exact: true }).click();
+    await expect(githubWindow.locator('[data-history-split]').first()).toBeVisible();
+    await settings.click();
+    await githubWindow.getByRole('button', { name: 'Unified Diff', exact: true }).click();
+    result.diffModes = true;
     result.historyDetails =
       (await githubWindow.locator('.gh-history-detail').count()) === 1 &&
       (await githubWindow.locator('[data-github-history-diff]').count()) === 1;
@@ -636,12 +806,13 @@ export const githubApp = {
     await historyRows.first().click({ button: 'right' });
     await githubWindow.locator('.gh-context-menu').waitFor();
     result.historyContextMenu =
-      (await githubWindow.getByRole('button', { name: 'Copy commit SHA', exact: true }).count()) === 1;
-    await githubWindow.getByRole('button', { name: 'Copy commit SHA', exact: true }).click();
+      (await githubWindow.getByRole('button', { name: 'Copy SHA', exact: true }).count()) === 1;
+    await githubWindow.getByRole('button', { name: 'Copy SHA', exact: true }).click();
     await githubWindow.locator('.gh-context-menu').waitFor({ state: 'detached' });
     await githubWindow.locator('[data-github-tab="changes"]').click();
 
     await githubWindow.locator('[data-github-branch-menu]').click();
+    await githubWindow.getByRole('button', { name: 'New Branch', exact: true }).click();
     await githubWindow.locator('[data-github-new-branch]').fill('feature');
     await githubWindow.locator('[data-github-create-branch]').click();
     await githubWindow.locator('[data-github-notice]').filter({ hasText: 'Created branch feature' }).waitFor();
@@ -666,6 +837,7 @@ export const githubApp = {
     await openRepositoryMenu(restoredGithub);
     result.repositorySurvivesReload = await appears(restoredGithub.locator('[data-project-id^="local-"]'));
 
+    await openRepositoryMenu(restoredGithub, 'local');
     const downloadEvent = page.waitForEvent('download');
     await restoredGithub.locator('[data-github-export]').click();
     const download = await downloadEvent;
@@ -686,7 +858,7 @@ export const githubApp = {
     await closeAll();
     await launch('GitHub Desktop');
     const remoteGithub = win('github');
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-search]').fill(PUBLIC_OWNER);
     await remoteGithub.locator('[data-github-search-submit]').click();
     await remoteGithub.locator(`[data-github-search-result="${PUBLIC_OWNER}/${PUBLIC_REPO}"]`).waitFor();
@@ -694,7 +866,7 @@ export const githubApp = {
     await remoteGithub.locator(`[data-github-search-result="${PUBLIC_OWNER}/${PUBLIC_REPO}"]`).click();
     await remoteGithub.locator('[data-github-remote-branch]').waitFor();
     result.remoteBranchSelection = (await remoteGithub.locator('[data-github-remote-branch] option').count()) === 2;
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await expect(remoteGithub.locator('[data-github-repository-name]')).toHaveText(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
@@ -728,14 +900,14 @@ export const githubApp = {
     const pulledValue = await remoteGithub.locator('[data-github-editor]').inputValue();
     result.remotePullClean = pulledValue === 'export const value = 2;\n';
 
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PRIVATE_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub.locator('[data-github-error]').waitFor();
     result.privateRepositoryRequiresAuth =
       (await remoteGithub.locator('[data-github-error]').textContent())?.includes('仓库不存在') === true;
 
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     const startOAuth = async () => {
       const button = remoteGithub.locator('[data-github-oauth-login]');
       await expect(button).toBeEnabled();
@@ -782,7 +954,7 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-account]').waitFor();
     result.patSuccess = true;
 
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub
@@ -810,14 +982,14 @@ export const githubApp = {
     remoteConflict = false;
 
     apiOffline = true;
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
     await remoteGithub.locator('[data-github-error]').filter({ hasText: '无法连接 GitHub API' }).waitFor();
     result.networkFailure = true;
     apiOffline = false;
 
-    await openRepositoryMenu(remoteGithub);
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-repository]').press('Enter');
     await remoteGithub
@@ -858,9 +1030,18 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
     result.keyboardPath = true;
 
-    await session.helpers.openTerminal();
-    const publish = `cd ~/Documents/GitHub/drop-fixture && git remote add origin https://github.com/${PUBLIC_OWNER}/${PUBLIC_REPO}.git && git push origin topic`;
-    expect(await session.helpers.runInShell(publish, /Pushed to origin/)).toBe(true);
+    await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
+    await expect(win('terminal')).toHaveCount(1);
+    expect(await session.helpers.runInShell('pwd', /\/Documents\/GitHub\/octo\/public/)).toBe(true);
+    expect(await session.helpers.runInShell('git remote -v', /origin\s+https:\/\/github\.com\/octo\/public\.git/)).toBe(
+      true
+    );
+    result.clonedRepositoryInTerminal = true;
+    const outputOf = terminalOutput(session);
+    expect(await outputOf('cd ~/Documents/GitHub/drop-fixture')).toBe('');
+    expect(await outputOf(`git remote add origin https://github.com/${PUBLIC_OWNER}/${PUBLIC_REPO}.git`)).toBe('');
+    expect(await outputOf('git push origin topic')).toBe('Pushed to origin');
     const topic = await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`, 'topic');
     expect(topic).toEqual({ 'tracked.txt': Buffer.from('committed\n').toString('base64') });
     expect(await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`)).toEqual(pushed);
@@ -868,6 +1049,8 @@ export const githubApp = {
     result.remotePush = true;
     result.workerFailureCoveredByUnitTests = true;
 
+    await terminalRoundTrip(session);
+    result.terminalRoundTrip = true;
     await closeAll();
     return { github: result };
   }

@@ -60,6 +60,21 @@ describe('卷内仓库的发布与重试', () => {
     expect(await store.read([...root, 'a'])).toEqual(bytes('user edit'));
   });
 
+  it('把已有 OPFS 仓库挂载到卷内，保留内容与仓库标识', async () => {
+    const mount = () =>
+      bindVolumeRepository(store, root, id, git, { copy: { source: 'opfs', existing: true } }, register);
+    await expect(mount()).rejects.toThrow('尚未初始化');
+    metadata.set('state.json', '1');
+    await expect(mount()).resolves.toEqual(snapshot);
+    expect(git.open).toHaveBeenCalledExactlyOnceWith(id);
+    expect(git.create).not.toHaveBeenCalled();
+    expect(await store.read([...root, '.git'])).toEqual(bytes(gitfile(id)));
+    expect(await store.read([...root, 'a'])).toEqual(bytes('original'));
+    await store.write([...root, 'a'], bytes('local edit'));
+    await expect(mount()).rejects.toThrow('目标目录已存在');
+    expect(await store.read([...root, 'a'])).toEqual(bytes('local edit'));
+  });
+
   it('坏归档后可以在原位置重试，普通目录给出初始化提示', async () => {
     copy.create.mockRejectedValueOnce(new Error('invalid archive'));
     await expect(bind()).rejects.toThrow('invalid archive');

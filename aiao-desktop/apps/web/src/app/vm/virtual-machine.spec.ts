@@ -10,7 +10,7 @@ import { ApplicationCatalog } from '../services/application-catalog';
 import { DesktopAppServices } from '../services/desktop-app-services';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { FileOpener } from '../services/file-opener';
-import { FileSystem } from '../services/file-system';
+import { FileSystem, type DiskChange } from '../services/file-system';
 import {
   GIT_TERMINAL_VERSION,
   GitWorkbenchRuntime,
@@ -64,12 +64,14 @@ async function setup() {
     log.push('boot');
     return vivari;
   });
-  const changes = new Subject<readonly DiskPath[]>();
+  const changes = new Subject<DiskChange>();
   const disk = {
     whenReady: vi.fn(async () => undefined),
     state: vi.fn(() => 'ready'),
     error: vi.fn((): string | null => null),
     run: <T>(task: (store: DiskStore) => Promise<T>) => task(store),
+    notifyChanges: (paths: readonly DiskPath[], source: DiskChange['source'] = 'desktop') =>
+      changes.next({ paths, source }),
     changes
   };
   const wm = createWindowManagerStub();
@@ -93,7 +95,20 @@ async function setup() {
     { provide: Toast, useValue: toast },
     { provide: DESKTOP_APPS, useValue: testApps() }
   ]);
-  return { machine: TestBed.inject(VirtualMachine), store, vm, vivari, disk, changes, wm, opener, toast, log, catalog, workspace };
+  return {
+    machine: TestBed.inject(VirtualMachine),
+    store,
+    vm,
+    vivari,
+    disk,
+    changes,
+    wm,
+    opener,
+    toast,
+    log,
+    catalog,
+    workspace
+  };
 }
 
 /** 让所有排着的微任务（含假时钟下的 await 链）跑完。 */
@@ -241,11 +256,26 @@ describe('VirtualMachine 与磁盘同步', () => {
     expect(decode(await store.read([...HOME, 'background.log']))).toBe('tick');
   });
 
+  it('终端改动落盘会通知应用，不会回推并覆盖终端接下来的写入', async () => {
+    const { machine, vm, store, changes } = await setup();
+    await machine.acquire();
+    const events: DiskChange[] = [];
+    changes.subscribe(event => events.push(event));
+    const pushes = vi.spyOn(vm, 'remove');
+    await vm.write(toVmPath(NOTE), text('from shell'));
+
+    machine.noteActivity();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(decode(await store.read(NOTE))).toBe('from shell');
+    expect(events).toEqual([{ paths: [NOTE], source: 'terminal' }]);
+    expect(pushes).not.toHaveBeenCalled();
+  });
+
   it('桌面这边的改动按路径推进虚拟机', async () => {
     const { machine, vm, store, changes } = await setup();
     await machine.acquire();
     await store.write([...DESKTOP, 'saved.txt'], text('from TextEdit'));
-    changes.next([[...DESKTOP, 'saved.txt']]);
+    changes.next({ paths: [[...DESKTOP, 'saved.txt']], source: 'desktop' });
     await settle();
     expect(decode(await vm.read(toVmPath([...DESKTOP, 'saved.txt'])))).toBe('from TextEdit');
   });
@@ -254,7 +284,7 @@ describe('VirtualMachine 与磁盘同步', () => {
     const { machine, vm, changes, toast } = await setup();
     await machine.acquire();
     vi.spyOn(vm, 'remove').mockRejectedValueOnce(new Error('vm is gone'));
-    changes.next([[...DESKTOP, 'x.txt']]);
+    changes.next({ paths: [[...DESKTOP, 'x.txt']], source: 'desktop' });
     await settle();
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('Terminal sync failed: vm is gone');
   });
