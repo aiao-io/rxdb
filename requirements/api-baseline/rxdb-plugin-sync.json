@@ -110,6 +110,14 @@
         "kind": "value"
       },
       {
+        "name": "scopedIdentityKind",
+        "kind": "value"
+      },
+      {
+        "name": "ScopedIdentityKind",
+        "kind": "type"
+      },
+      {
         "name": "ScopedSyncAdapter",
         "kind": "type"
       },

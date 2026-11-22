@@ -28,7 +28,6 @@ import type {
 } from '@aiao/rxdb';
 import {
   getEntityMetadata,
-  getRxDBIdentityKey,
   getSyncConfig,
   RXDB_ANONYMOUS_SUBJECT,
   RxDBAdapterRemoteBase,
@@ -1275,7 +1274,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
   #identityKeyForToken(accessToken: string | null): string {
     const scope = this.#supabaseScope ?? '';
-    return getRxDBIdentityKey({ scope, subject: identityOfAccessToken(accessToken) });
+    return JSON.stringify([scope, identityOfAccessToken(accessToken)]);
   }
 
   async #rotateRealtimeChannels(): Promise<void> {

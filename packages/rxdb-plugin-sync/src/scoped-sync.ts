@@ -1,8 +1,8 @@
 import {
   getRxDBIdentityDatabaseName,
-  getRxDBIdentityKey,
   RXDB_ANONYMOUS_SUBJECT,
   RxDBError,
+  sha256Hex,
   type RuleGroup,
   type RxDBIdentity
 } from '@aiao/rxdb';
@@ -44,6 +44,8 @@ export interface ScopedSyncAdapter {
   ): Promise<import('@aiao/rxdb').RemoteChange[]>;
 }
 
+const IDENTITY_KEY_VERSION = 1;
+
 export type ScopedIdentityKind = 'anon' | 'user';
 
 export function scopedIdentityKind(identity: ScopedSyncIdentity): ScopedIdentityKind {
@@ -68,7 +70,8 @@ export class IdentityMismatchError extends RxDBError {
 }
 
 export function identityFingerprint(identity: ScopedSyncIdentity): string {
-  return getRxDBIdentityKey(identity);
+  const encoded = JSON.stringify(['rxdb-identity', IDENTITY_KEY_VERSION, identity.scope, identity.subject]);
+  return sha256Hex(new TextEncoder().encode(encoded));
 }
 
 export function scopedDatabaseName(baseName: string, identity: ScopedSyncIdentity): string {
