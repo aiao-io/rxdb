@@ -189,12 +189,7 @@ export class Document extends EntityBase {}
 用 `scopedDatabaseName()` 给每个 Supabase 项目和身份生成稳定、互不相同的数据库名。结果包含不透明的身份摘要，不包含用户 ID 原文。未登录时使用 `RXDB_ANONYMOUS_SUBJECT`，匿名登录用户仍使用 Supabase JWT 的 `sub`，因此不会与未登录访客共用本地库。
 
 ```ts
-import {
-  RXDB_ANONYMOUS_SUBJECT,
-  RxDB,
-  SyncType,
-  type RxDBIdentity
-} from '@aiao/rxdb';
+import { RXDB_ANONYMOUS_SUBJECT, RxDB, SyncType, type RxDBIdentity } from '@aiao/rxdb';
 import { scopedDatabaseName } from '@aiao/rxdb-plugin-sync';
 
 const supabaseUrl = 'https://your-project.supabase.co';
@@ -576,7 +571,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 | 分支所有者 `rxdb_branch_owner`                                                 | 无权限                              | 无权限（只经内部函数认领）                                        |
 | 通用拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记、`rxdb_existing_ids` | 不能调用；可调用按区只读 RPC        | 可以调用                                                          |
 | `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                     | 可以调用（连接时用）                | 可以调用                                                          |
-| 实时通知频道 `rxdb:changes` / `rxdb:changes:bucket:<bucket>`                         | 订阅被拒                            | 旧日志只能接收，分区频道按 caller buckets 接收，不能发送          |
+| 实时通知频道 `rxdb:changes` / `rxdb:changes:bucket:<bucket>`                   | 订阅被拒                            | 旧日志只能接收，分区频道按 caller buckets 接收，不能发送          |
 | 远端身份 `rxdb_backend`                                                        | 只读                                | 只读                                                              |
 
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。

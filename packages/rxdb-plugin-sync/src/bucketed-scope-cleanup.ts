@@ -29,7 +29,9 @@ export async function removeBucketScope(
   scope: BucketScope,
   progress: RxDBSyncBucketProgress
 ): Promise<boolean> {
-  return localAdapter.transaction(executor => removeBucketScopeInTransaction(executor, EntityType, repoSync, scope, progress));
+  return localAdapter.transaction(executor =>
+    removeBucketScopeInTransaction(executor, EntityType, repoSync, scope, progress)
+  );
 }
 
 export async function removeBucketScopeInTransaction(

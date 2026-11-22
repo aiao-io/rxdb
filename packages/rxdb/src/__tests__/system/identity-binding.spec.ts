@@ -173,14 +173,16 @@ describe('与远端交换数据前的核对', () => {
 
   it('未登录声明为 anon，远端报告 anon：放行', async () => {
     await expect(
-      assertCallerIdentity(identityOf(RXDB_ANONYMOUS_SUBJECT), { callerIdentity: async () => remoteIdentity(RXDB_ANONYMOUS_SUBJECT) })
+      assertCallerIdentity(identityOf(RXDB_ANONYMOUS_SUBJECT), {
+        callerIdentity: async () => remoteIdentity(RXDB_ANONYMOUS_SUBJECT)
+      })
     ).resolves.toBeUndefined();
   });
 
   it('远端会话实际是别的身份：抛身份不匹配，带上两边的键', async () => {
-    const error = await assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => remoteIdentity(USER_B) }).catch(
-      (rejection: unknown) => rejection
-    );
+    const error = await assertCallerIdentity(identityOf(USER_A), {
+      callerIdentity: async () => remoteIdentity(USER_B)
+    }).catch((rejection: unknown) => rejection);
     expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
     expect(error).toMatchObject({
       source: 'remote',
@@ -212,9 +214,9 @@ describe('与远端交换数据前的核对', () => {
   });
 
   it('远端报告了空身份：拒绝，不当作 anon', async () => {
-    await expect(assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => ({ scope: '', subject: '' }) })).rejects.toBeInstanceOf(
-      RxDBError
-    );
+    await expect(
+      assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => ({ scope: '', subject: '' }) })
+    ).rejects.toBeInstanceOf(RxDBError);
   });
 });
 

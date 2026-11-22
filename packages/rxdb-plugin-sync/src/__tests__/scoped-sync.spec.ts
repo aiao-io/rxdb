@@ -122,10 +122,7 @@ describe('bindScopedIdentity', () => {
   });
 
   it('身份变化时阻止同步并写入同步错误', async () => {
-    const harness = createIdentityHarness(
-      user('user-b'),
-      makeBinding(user('user-a'))
-    );
+    const harness = createIdentityHarness(user('user-b'), makeBinding(user('user-a')));
 
     const error = await bindScopedIdentity(harness.sm).catch((rejection: unknown) => rejection);
 

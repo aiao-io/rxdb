@@ -1,4 +1,4 @@
-import { RxDBChange, type RxDBAdapterRemoteBase, RxDBError, RxDBSync, type SwitchVersionActions } from '@aiao/rxdb';
+import { RxDBChange, RxDBError, RxDBSync, type RxDBAdapterRemoteBase, type SwitchVersionActions } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertRemoteBackendIs,
@@ -7,8 +7,8 @@ import {
   rebindRemoteBackend,
   RemoteBackendMismatchError
 } from '../remote-backend.js';
-import type { SyncManager } from '../SyncManager.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from '../scoped-sync.entity.js';
+import type { SyncManager } from '../SyncManager.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 
 const syncRecord = (entity: string, remoteBackendId: string | null, lastPullRemoteChangeId: number | null) =>

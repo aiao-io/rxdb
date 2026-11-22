@@ -1399,16 +1399,14 @@ describe('supabase review regressions', () => {
     const rpc = vi.fn(async (name: string) => ({
       data:
         name === 'rxdb_caller_buckets' ?
-          realtime.accessTokenValue === tokenA ? ['public', 'user:user-a'] : ['public', 'user:user-b']
+          realtime.accessTokenValue === tokenA ?
+            ['public', 'user:user-a']
+          : ['public', 'user:user-b']
         : null,
       error: null,
       status: 200
     }));
-    const adapter = createAdapter(
-      { auth, realtime, channel, removeChannel, rpc },
-      { rlsCheck: false },
-      [Todo]
-    );
+    const adapter = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
     const dispatchEvent = vi.mocked(adapter.rxdb.dispatchEvent);
     const notice = {
       changes: [

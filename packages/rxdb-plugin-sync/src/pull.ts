@@ -9,10 +9,10 @@ import {
   PullResult,
   RxDBError,
   RxDBPartialSyncError,
-  type RxDBAdapterRemoteBase,
   SyncBeginEvent,
   SyncCompleteEvent,
-  SyncErrorEvent
+  SyncErrorEvent,
+  type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
 import { BulkSyncOptions } from './bulk-sync.js';
 import { pullBatch } from './pull-batch.js';

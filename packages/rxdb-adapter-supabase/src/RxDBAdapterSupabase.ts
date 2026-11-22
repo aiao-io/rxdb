@@ -22,6 +22,7 @@ import type {
   RepositoryInstance,
   RuleGroup,
   RxDB,
+  RxDBIdentity,
   RxDBMutationsMap,
   SwitchVersionActions
 } from '@aiao/rxdb';
@@ -33,15 +34,21 @@ import {
   RxDBAdapterRemoteBase,
   tryGetEntityStatus
 } from '@aiao/rxdb';
-import { createClient, RealtimeChannel, type AuthChangeEvent, type Session, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient,
+  RealtimeChannel,
+  type AuthChangeEvent,
+  type Session,
+  type SupabaseClient
+} from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
 import {
   handleSupabaseChanges,
-  rxdbChangesTopicForBucket,
   RXDB_CHANGES_EVENT,
-  RXDB_CHANGES_TOPIC
+  RXDB_CHANGES_TOPIC,
+  rxdbChangesTopicForBucket
 } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
@@ -96,13 +103,12 @@ import {
 } from './supabase.rls.js';
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
-import type { RxDBIdentity } from '@aiao/rxdb';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
-type AuthStateChangeListener = (
-  callback: (event: AuthChangeEvent, session: Session | null) => void
-) => { data: { subscription: { unsubscribe: () => void } } };
+type AuthStateChangeListener = (callback: (event: AuthChangeEvent, session: Session | null) => void) => {
+  data: { subscription: { unsubscribe: () => void } };
+};
 
 /**
  * Supabase 适配器

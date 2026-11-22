@@ -1254,7 +1254,9 @@ export class RxDB {
             // 首轮引导即完成：指纹随建表同批写入，第二次连接直接走指纹跳过。
             this.#bootstrapFingerprintRow(bootstrapFingerprint),
             // 新库在建库时就记下身份：与表同批原子提交，不存在「库建好了、还没绑定」的窗口
-            ...(identityKey === undefined ? [] : [this.#identityBindingClaimRow(), this.#identityBindingRow(identityKey)])
+            ...(identityKey === undefined ?
+              []
+            : [this.#identityBindingClaimRow(), this.#identityBindingRow(identityKey)])
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();

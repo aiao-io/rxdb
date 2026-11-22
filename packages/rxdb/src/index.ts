@@ -247,8 +247,8 @@ export * from './system/change.js';
 export {
   RXDB_ANONYMOUS_SUBJECT,
   RxDBIdentityMismatchError,
-  getRxDBIdentityKey,
   getRxDBIdentityDatabaseName,
+  getRxDBIdentityKey,
   type RxDBIdentity
 } from './system/identity-binding.js';
 export * from './system/migration.js';

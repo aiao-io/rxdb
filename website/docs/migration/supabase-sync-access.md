@@ -11,14 +11,14 @@
 
 ## 变化
 
-| 方面           | 之前                                         | 现在                                                                                            |
-| -------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| anon           | 能拉取、推送、登记分支、调用探针，能读日志表 | 只能连接（`rxdb_server_version` / `rxdb_backend_id` / `rxdb_check_rls`）与按业务表 RLS 直接读写 |
-| 未分区日志读取 | anon 与 authenticated                        | 只有 authenticated                                                                              |
-| 分区只读 RPC   | 未提供                                       | anon 读取 `public`，authenticated 读取 caller buckets                                           |
-| 非 main 分支   | 谁都能写                                     | 首个登记或推送的已登录用户认领，之后只有所有者能写                                              |
+| 方面           | 之前                                         | 现在                                                                                                                                                        |
+| -------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| anon           | 能拉取、推送、登记分支、调用探针，能读日志表 | 只能连接（`rxdb_server_version` / `rxdb_backend_id` / `rxdb_check_rls`）与按业务表 RLS 直接读写                                                             |
+| 未分区日志读取 | anon 与 authenticated                        | 只有 authenticated                                                                                                                                          |
+| 分区只读 RPC   | 未提供                                       | anon 读取 `public`，authenticated 读取 caller buckets                                                                                                       |
+| 非 main 分支   | 谁都能写                                     | 首个登记或推送的已登录用户认领，之后只有所有者能写                                                                                                          |
 | 实时通知       | 日志表的 `postgres_changes`，带完整行        | 未分区旧日志广播到 `rxdb:changes`，分区日志广播到 `rxdb:changes:bucket:<bucket>`，只带元数据；旧日志只对 authenticated 开放，分区频道按 caller buckets 开放 |
-| Remote 事件    | `data` 是 `{ id, ...patch }`                 | `data` 只有 `{ id }`                                                                            |
+| Remote 事件    | `data` 是 `{ id, ...patch }`                 | `data` 只有 `{ id }`                                                                                                                                        |
 
 未分区旧日志仍对全部登录者可读，日志同步只适用于这些旧数据对所有登录者可见的场景。分区实体的日志读取与实时通知范围由 `rxdb_caller_buckets()` 与业务表 RLS 决定，过滤条件只能在已授权分区内缩小范围。开放注册或开启匿名登录的部署，仍应按[适用边界](../adapters/supabase.md#适用边界)检查数据暴露范围。
 

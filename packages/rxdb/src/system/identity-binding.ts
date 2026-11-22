@@ -250,9 +250,7 @@ export async function assertCallerIdentity(
   const reported = await remote.callerIdentity();
   assertRxDBIdentity(reported);
   if (reported.scope === identity.scope && reported.subject === identity.subject) return;
-  throw new RxDBIdentityMismatchError('remote', getRxDBIdentityKey(identity), [
-    getRxDBIdentityKey(reported)
-  ]);
+  throw new RxDBIdentityMismatchError('remote', getRxDBIdentityKey(identity), [getRxDBIdentityKey(reported)]);
 }
 
 /**

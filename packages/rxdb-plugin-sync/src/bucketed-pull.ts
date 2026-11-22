@@ -15,18 +15,9 @@ import {
   type RemoteChange,
   type RuleGroup,
   type RxDBAdapterLocalBase,
-  type RxDBAdapterRemoteBase,
+  type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
-import {
-  countActions,
-  createConflictActionEntries,
-  createEmptyActions,
-  markLocalChangesSuperseded,
-  queryPendingLocalChanges,
-  resolveConflictsAndBuildActions
-} from './pull-conflict-utils.js';
-import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
 import {
   entityIdentityKey,
   findBucketRows,
@@ -36,9 +27,18 @@ import {
   scopedEntityKey,
   type BucketScope
 } from './bucketed-scope-cleanup.js';
+import {
+  countActions,
+  createConflictActionEntries,
+  createEmptyActions,
+  markLocalChangesSuperseded,
+  queryPendingLocalChanges,
+  resolveConflictsAndBuildActions
+} from './pull-conflict-utils.js';
+import { RemoteBackendMismatchError } from './remote-backend.js';
+import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
 import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
-import { RemoteBackendMismatchError } from './remote-backend.js';
 
 type BucketedRemoteAdapter = RxDBAdapterRemoteBase & ScopedSyncAdapter;
 
@@ -628,7 +628,6 @@ function latestChangesByEntityId(changes: RemoteChange[]): Map<string, RemoteCha
   return result;
 }
 
-
 async function findProgress(
   repository: IRepository<typeof RxDBSyncBucketProgress>,
   scope: BucketScope
@@ -658,7 +657,6 @@ async function findRepositoryProgress(
     orderBy: [{ field: 'id', sort: 'asc' }]
   } as never);
 }
-
 
 async function findBucketRow(
   repository: IRepository<typeof RxDBSyncBucketRow>,
