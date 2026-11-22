@@ -41,6 +41,7 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
     createTree: vi.fn(),
     createCommit: vi.fn(),
     updateRef: vi.fn(),
+    createRef: vi.fn(),
     createRepository: vi.fn(),
     getZipball: vi.fn(),
     quota: vi.fn(),
@@ -221,6 +222,20 @@ describe('GitHub repository parsing and remote workflow', () => {
       { path: 'b', mode: '100644', content: 'text' }
     ]);
     expect(api.updateRef).toHaveBeenCalledWith('octo', 'repo', 'heads/main', 'full-head');
+  });
+
+  it('publishes a new branch without touching an existing ref or stripping a UTF-8 BOM', async () => {
+    api.getRepository.mockResolvedValue({ defaultBranch: 'main' });
+    api.listBranches.mockResolvedValue([{ name: 'main', sha: 'latest' }]);
+    api.createTree.mockResolvedValue('tree');
+    api.createCommit.mockResolvedValue('topic-head');
+    await remote.push({ ...fresh(), branch: 'topic' }, [file('text', '\ufefftext')], 'publish', 'base');
+    expect(api.createTree).toHaveBeenCalledWith('octo', 'repo', null, [
+      { path: 'text', mode: '100644', content: '\ufefftext' }
+    ]);
+    expect(api.createCommit).toHaveBeenCalledWith('octo', 'repo', 'publish', 'tree', ['base']);
+    expect(api.createRef).toHaveBeenCalledWith('octo', 'repo', 'topic', 'topic-head');
+    expect(api.updateRef).not.toHaveBeenCalled();
   });
 
   it('requires integration before the first push to an existing remote even after fetch', async () => {

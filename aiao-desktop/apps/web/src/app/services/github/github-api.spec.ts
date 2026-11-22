@@ -46,6 +46,15 @@ describe('GitHub API client', () => {
     });
   });
 
+  it('publishes a new ref with a create-only request', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/topic' }, { status: 201 }));
+    await api.createRef('octo', 'repo', 'topic', 'first');
+    const { url, init } = calledUrl();
+    expect(url).toBe('https://api.github.com/repos/octo/repo/git/refs');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({ ref: 'refs/heads/topic', sha: 'first' });
+  });
+
   it('creates a root commit with the contents API and detects a racing initial push', async () => {
     const commit = { sha: 'head', tree: { sha: 'tree' }, parents: [] };
     fetchMock.mockResolvedValueOnce(jsonResponse({ commit }, { status: 201 }));
@@ -352,8 +361,8 @@ describe('GitHub API client', () => {
     expect(JSON.parse(String(init.body))).toEqual({
       base_tree: 'base-tree',
       tree: [
-        { path: 'a.ts', mode: '100644', content: 'hello' },
-        { path: 'logo.png', mode: '100644', sha: 'blob-logo' },
+        { path: 'a.ts', mode: '100644', type: 'blob', content: 'hello' },
+        { path: 'logo.png', mode: '100644', type: 'blob', sha: 'blob-logo' },
         { path: 'gone.ts', sha: null }
       ]
     });

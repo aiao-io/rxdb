@@ -38,7 +38,56 @@ function repositoryFixture({ privateRepository, head, tree }) {
     { path: 'src/main.ts', sha: 'blob-main', mode: '100644' },
     { path: 'asset.bin', sha: 'blob-asset', mode: '100644' }
   ];
-  return { privateRepository, head, tree, files, blobs, entries };
+  return { privateRepository, head, tree, blobs, entries, branches: new Map(), commits: new Map(), trees: new Map() };
+}
+
+function storeBlob(fixture, content) {
+  const sha = `blob-${fixture.blobs.size}`;
+  fixture.blobs.set(sha, content);
+  return sha;
+}
+
+function treeAt(fixture, sha) {
+  return sha === fixture.tree ? fixture.entries : fixture.trees.get(sha);
+}
+
+function storeTree(fixture, { base_tree: base, tree }) {
+  const previous = base === undefined ? [] : treeAt(fixture, base);
+  if (!previous) return null;
+  const entries = new Map(previous.map(entry => [entry.path, entry]));
+  for (const { path, mode, type, sha, content } of tree) {
+    if (sha === null) {
+      entries.delete(path);
+      continue;
+    }
+    const blob = sha ?? storeBlob(fixture, Buffer.from(content));
+    if (type !== 'blob' || mode !== '100644' || !fixture.blobs.has(blob)) return null;
+    entries.set(path, { path, mode, sha: blob });
+  }
+  const sha = `tree-${fixture.trees.size}`;
+  fixture.trees.set(sha, [...entries.values()]);
+  return sha;
+}
+
+async function readRemoteFiles(page, repository, ref = MAIN_BRANCH) {
+  return page.evaluate(
+    async ([name, ref]) => {
+      const base = `https://api.github.com/repos/${name}`;
+      const read = async path => {
+        const response = await fetch(`${base}/${path}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`GET ${path} returned ${response.status}`);
+        return response.json();
+      };
+      const branch = await read(`branches/${encodeURIComponent(ref)}`);
+      const { commit } = await read(`commits/${branch.commit.sha}`);
+      const { tree } = await read(`git/trees/${commit.tree.sha}?recursive=1`);
+      const files = await Promise.all(
+        tree.map(async ({ path, sha }) => [path, (await read(`git/blobs/${sha}`)).content])
+      );
+      return Object.fromEntries(files);
+    },
+    [repository, ref]
+  );
 }
 
 function responseHeaders(origin) {
@@ -99,6 +148,7 @@ async function stageChangedFile(view, path) {
   await expect(checkbox).toHaveCount(1);
   await expect(checkbox).toBeEnabled();
   await checkbox.check();
+  await expect(checkbox).toHaveAccessibleName('Unstage file');
   await expect(checkbox).toBeChecked();
   await expect(checkbox).toBeEnabled();
 }
@@ -106,6 +156,7 @@ async function stageChangedFile(view, path) {
 async function unstageChangedFile(view, path) {
   const checkbox = changedFileCheckbox(view, path);
   await checkbox.uncheck();
+  await expect(checkbox).toHaveAccessibleName('Stage file');
   await expect(checkbox).not.toBeChecked();
   await expect(checkbox).toBeEnabled();
 }
@@ -169,8 +220,11 @@ async function droppedRepository(session, view) {
     let sequence = 0;
     const outputOf = async command => {
       const token = `D${++sequence}`;
-      const finished = await session.helpers.runInShell(`echo ${token}'BEGIN'; ${command}; echo ${token}'END'`, new RegExp(`${token}END.*\\$\\s*$`));
-      const rows = (await session.helpers.xtermText()).replaceAll('\u00a0',' ');
+      const finished = await session.helpers.runInShell(
+        `echo ${token}'BEGIN'; ${command}; echo ${token}'END'`,
+        new RegExp(`${token}END.*\\$\\s*$`)
+      );
+      const rows = (await session.helpers.xtermText()).replaceAll('\u00a0', ' ');
       if (!finished) throw new Error(`Terminal did not finish ${command}\n${rows}`);
       return rows.split(`${token}BEGIN`).at(-1).split(`${token}END`)[0].trim();
     };
@@ -186,15 +240,24 @@ async function droppedRepository(session, view) {
     const finder = session.helpers.win('finder').last();
     const source = finder.locator('[data-name="drop-fixture"]').last();
     await expect(source).toBeVisible();
-    const layout = await session.page.addStyleTag({content: `.win[data-app="github"] {left: 5px!important; top: 45px!important; width: 48vw!important;} .win[data-app="finder"] {left: 50vw!important; top: 45px!important; width: 47vw!important;} .win[data-app="terminal"]{visibility:hidden}`});
+    const layout = await session.page.addStyleTag({
+      content: `.win[data-app="github"] {left: 5px!important; top: 45px!important; width: 48vw!important;} .win[data-app="finder"] {left: 50vw!important; top: 45px!important; width: 47vw!important;} .win[data-app="terminal"]{visibility:hidden}`
+    });
     try {
       const target = view.locator('[data-github-app]');
-      await source.dragTo(target,{targetPosition:{x:80,y:150}});
+      await source.dragTo(target, { targetPosition: { x: 80, y: 150 } });
       await expect(view.locator('[data-github-notice]')).toHaveText('Opened drop-fixture');
       await openRepositoryMenu(view);
-      await expect(view.locator('[data-project-id]').filter({hasText:'drop-fixture'})).toHaveCount(1);
-      await expect(view.getByRole('button',{name:'Add origin',exact:true})).toBeEnabled();
-    } finally { await layout.evaluate(element => element.remove()); }
+      await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
+      await expect(view.getByRole('button', { name: 'Add origin', exact: true })).toBeEnabled();
+      const volumePath = view.getByRole('textbox', { name: 'Macintosh HD folder' });
+      await volumePath.fill('~/Documents/GitHub/drop-fixture');
+      await volumePath.press('Enter');
+      await expect(view.locator('[data-github-repository-menu-popup]')).toHaveCount(0);
+      await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
+    } finally {
+      await layout.evaluate(element => element.remove());
+    }
   } finally {
     await client.detach();
     await rm(temporary, { recursive: true, force: true });
@@ -330,34 +393,46 @@ export const githubApp = {
       if (suffix === 'branches' && method === 'GET') {
         await fulfillJson(route, session.origin, [
           { name: MAIN_BRANCH, commit: { sha: fixture.head } },
-          { name: 'feature', commit: { sha: fixture.head } }
+          { name: 'feature', commit: { sha: fixture.head } },
+          ...Array.from(fixture.branches, ([name, sha]) => ({ name, commit: { sha } }))
         ]);
         return;
       }
       const branchMatch = suffix.match(/^branches\/(.+)$/);
       if (branchMatch && method === 'GET') {
-        await fulfillJson(route, session.origin, {
-          name: decodeURIComponent(branchMatch[1]),
-          commit: { sha: remoteConflict ? 'e'.repeat(40) : fixture.head }
-        });
+        const name = decodeURIComponent(branchMatch[1]);
+        const head = [MAIN_BRANCH, 'feature'].includes(name) ? fixture.head : fixture.branches.get(name);
+        await fulfillJson(
+          route,
+          session.origin,
+          { name, commit: { sha: remoteConflict ? 'e'.repeat(40) : head } },
+          head ? 200 : 404
+        );
         return;
       }
       const commitMatch = suffix.match(/^commits\/([^/]+)$/);
       if (commitMatch && method === 'GET') {
         const head = decodeURIComponent(commitMatch[1]);
+        const commit =
+          fixture.commits.get(head) ??
+          (head === fixture.head ? { tree: fixture.tree, message: 'Fixture commit', parents: [] } : null);
+        if (!commit) return fulfillJson(route, session.origin, { message: 'Unknown commit' }, 404);
         await fulfillJson(route, session.origin, {
           sha: head,
-          commit: { tree: { sha: fixture.tree }, message: 'Fixture commit' },
-          parents: []
+          commit: { tree: { sha: commit.tree }, message: commit.message },
+          parents: commit.parents.map(sha => ({ sha }))
         });
         return;
       }
       const treeMatch = suffix.match(/^git\/trees\/([^/]+)$/);
       if (treeMatch && method === 'GET') {
+        const sha = decodeURIComponent(treeMatch[1]);
+        const entries = treeAt(fixture, sha);
+        if (!entries) return fulfillJson(route, session.origin, { message: 'Unknown tree' }, 404);
         await fulfillJson(route, session.origin, {
-          sha: decodeURIComponent(treeMatch[1]),
+          sha,
           truncated: false,
-          tree: fixture.entries.map(entry => ({ ...entry, type: 'blob' }))
+          tree: entries.map(entry => ({ ...entry, type: 'blob' }))
         });
         return;
       }
@@ -377,24 +452,46 @@ export const githubApp = {
       }
       if (suffix === 'git/blobs' && method === 'POST') {
         const body = request.postDataJSON();
-        fixture.blobs.set('blob-uploaded', Buffer.from(String(body.content ?? ''), 'base64'));
-        await fulfillJson(route, session.origin, { sha: 'blob-uploaded' });
+        const sha = storeBlob(fixture, Buffer.from(body.content, 'base64'));
+        await fulfillJson(route, session.origin, { sha }, 201);
         return;
       }
       if (suffix === 'git/trees' && method === 'POST') {
-        await fulfillJson(route, session.origin, { sha: 'tree-pushed' });
+        const sha = storeTree(fixture, request.postDataJSON());
+        await fulfillJson(route, session.origin, { sha }, sha ? 201 : 422);
         return;
       }
       if (suffix === 'git/commits' && method === 'POST') {
-        await fulfillJson(route, session.origin, { sha: 'head-pushed' });
+        const commit = request.postDataJSON();
+        if (!fixture.trees.has(commit.tree))
+          return fulfillJson(route, session.origin, { message: 'Unknown tree' }, 422);
+        const sha = `commit-${fixture.commits.size}`;
+        fixture.commits.set(sha, commit);
+        await fulfillJson(route, session.origin, { sha }, 201);
         return;
+      }
+      if (suffix === 'git/refs' && method === 'POST') {
+        const { ref, sha } = request.postDataJSON();
+        const name = ref.replace(/^refs\/heads\//, '');
+        if (
+          name === ref ||
+          [MAIN_BRANCH, 'feature'].includes(name) ||
+          fixture.branches.has(name) ||
+          !fixture.commits.has(sha)
+        )
+          return fulfillJson(route, session.origin, { message: 'Cannot create reference' }, 422);
+        fixture.branches.set(name, sha);
+        return fulfillJson(route, session.origin, { ref, object: { sha } }, 201);
       }
       if (suffix === `git/refs/heads/${MAIN_BRANCH}` && method === 'PATCH') {
         if (remoteConflict) {
           await fulfillJson(route, session.origin, { message: 'Reference update failed' }, 409);
           return;
         }
-        fixture.head = 'head-pushed';
+        const { sha, force } = request.postDataJSON();
+        if (force || !fixture.commits.get(sha)?.parents.includes(fixture.head))
+          return fulfillJson(route, session.origin, { message: 'Non-fast-forward' }, 422);
+        fixture.head = sha;
         await fulfillJson(route, session.origin, { ref: `refs/heads/${MAIN_BRANCH}`, object: { sha: fixture.head } });
         return;
       }
@@ -464,6 +561,22 @@ export const githubApp = {
       .getByRole('menuitem', { name: 'New Repository…', exact: true })
       .click();
     await expect(githubWindow.locator('[data-github-new-repository]')).toBeFocused();
+    await page.getByRole('menuitem', { name: 'File', exact: true }).click();
+    await page
+      .getByRole('menu', { name: 'File', exact: true })
+      .getByRole('menuitem', { name: 'Add Local Repository…', exact: true })
+      .press('Enter');
+    const addLocal = githubWindow.getByRole('button', { name: 'Add local repository', exact: true });
+    await expect(addLocal).toBeFocused();
+    await page.evaluate(() => {
+      const original = window.showDirectoryPicker;
+      window.showDirectoryPicker = async () => {
+        window.showDirectoryPicker = original;
+        throw new DOMException('Selection cancelled', 'AbortError');
+      };
+    });
+    await addLocal.press('Enter');
+    await expect(githubWindow.locator('[data-github-error]')).toHaveCount(0);
     result.menuActions = true;
 
     await openRepositoryMenu(githubWindow);
@@ -592,7 +705,6 @@ export const githubApp = {
 
     const publicFixture = repositories.get(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     const pulledMain = bytes('export const value = 2;\n');
-    publicFixture.files.set('src/main.ts', pulledMain);
     publicFixture.blobs.set('blob-main-pulled', pulledMain);
     publicFixture.entries.splice(
       0,
@@ -679,7 +791,7 @@ export const githubApp = {
       .waitFor();
     await showRepositoryFiles(remoteGithub);
     await remoteGithub.locator('[data-file-path="README.md"]').click();
-    await remoteGithub.locator('[data-github-editor]').fill('# remote change\\n');
+    await remoteGithub.locator('[data-github-editor]').fill('# remote change\n');
     await remoteGithub.locator('[data-github-save]').click();
     await remoteGithub.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
     await stageChangedFile(remoteGithub, 'README.md');
@@ -687,7 +799,9 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-commit]').click();
     await remoteGithub.locator('[data-github-push]').click();
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Pushed' }).waitFor();
-    result.remotePush = true;
+    const pushed = await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`);
+    expect(Buffer.from(pushed['README.md'], 'base64').toString('utf8')).toBe('# remote change\n');
+    expect(Buffer.from(pushed['asset.bin'], 'base64')).toEqual(Buffer.from([0, 255, 1, 2]));
 
     remoteConflict = true;
     await remoteGithub.locator('[data-github-push]').click();
@@ -743,6 +857,15 @@ export const githubApp = {
     await commitButton.press('Enter');
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
     result.keyboardPath = true;
+
+    await session.helpers.openTerminal();
+    const publish = `cd ~/Documents/GitHub/drop-fixture && git remote add origin https://github.com/${PUBLIC_OWNER}/${PUBLIC_REPO}.git && git push origin topic`;
+    expect(await session.helpers.runInShell(publish, /Pushed to origin/)).toBe(true);
+    const topic = await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`, 'topic');
+    expect(topic).toEqual({ 'tracked.txt': Buffer.from('committed\n').toString('base64') });
+    expect(await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`)).toEqual(pushed);
+    expect(await session.helpers.runInShell('git status --short', /MM\s+tracked\.txt/)).toBe(true);
+    result.remotePush = true;
     result.workerFailureCoveredByUnitTests = true;
 
     await closeAll();

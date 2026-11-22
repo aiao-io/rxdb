@@ -12,6 +12,13 @@ import type { GitHubTreeEntry } from './github/github-types';
 
 const REPOSITORIES_KEY = 'github:repositories';
 
+/** 已与这个远端分支整合的提交和树。 */
+export interface GithubBranchBase {
+  readonly branch: string;
+  readonly head: string;
+  readonly tree: string;
+}
+
 export interface GithubRepositoryRecord {
   readonly projectId: string;
   readonly name: string;
@@ -23,8 +30,10 @@ export interface GithubRepositoryRecord {
   readonly remoteTree: string | null;
   readonly fetched?: { readonly branch: string; readonly head: string };
   readonly remoteEntries: readonly GitHubTreeEntry[];
+  /** 同一 origin 下其余已整合分支的远端基线。 */
+  readonly branchBases?: readonly GithubBranchBase[];
   readonly updatedAt: number;
-  /** 终端和 Finder 目录对应的卷内路径，外部导入的仓库没有这个路径。 */
+  /** 终端和 Finder 打开仓库使用的卷内路径。 */
   readonly rootPath?: DiskPath;
 }
 
@@ -46,6 +55,12 @@ function isTreeEntry(value: unknown): value is GitHubTreeEntry {
   return isString(item['path']) && isString(item['sha']) && isString(item['mode']);
 }
 
+function isBranchBase(value: unknown): value is GithubBranchBase {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return isString(item['branch']) && isString(item['head']) && isString(item['tree']);
+}
+
 function isRecord(value: unknown): value is GithubRepositoryRecord {
   if (typeof value !== 'object' || value === null) return false;
   const item = value as Record<string, unknown>;
@@ -60,6 +75,8 @@ function isRecord(value: unknown): value is GithubRepositoryRecord {
     (item['remoteTree'] === null || isString(item['remoteTree'])) &&
     Array.isArray(item['remoteEntries']) &&
     item['remoteEntries'].every(isTreeEntry) &&
+    (item['branchBases'] === undefined ||
+      (Array.isArray(item['branchBases']) && item['branchBases'].every(isBranchBase))) &&
     Number.isSafeInteger(item['updatedAt']) &&
     (item['fetched'] === undefined ||
       (typeof item['fetched'] === 'object' &&
@@ -249,7 +266,11 @@ function mergeFiles(
 function toTreeItem(file: GitFile, api: GitHubApi, owner: string, repo: string): Promise<GitHubTreeItem> {
   const bytes = file.bytes;
   if (!isBinary(bytes) && bytes.byteLength <= 512 * 1024)
-    return Promise.resolve({ path: file.path, mode: '100644', content: new TextDecoder().decode(bytes) });
+    return Promise.resolve({
+      path: file.path,
+      mode: '100644',
+      content: new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes)
+    });
   return api.createBlob(owner, repo, bytes).then(sha => ({ path: file.path, mode: '100644', sha }));
 }
 
@@ -379,13 +400,19 @@ export class GithubRemoteRepository {
     return { record: remote.record, files: merged.files };
   }
 
-  async push(record: GithubRepositoryRecord, files: readonly GitFile[], message: string): Promise<GithubPushResult> {
+  async push(
+    record: GithubRepositoryRecord,
+    files: readonly GitFile[],
+    message: string,
+    parent: string | null = null
+  ): Promise<GithubPushResult> {
     validateLocalFiles(files);
     const { owner, repo, branch } = record;
     if (!owner || !repo) throw new Error('请先配置 GitHub 远端 origin');
     const summary = message.trim() || 'Update from Aiao Desktop';
     try {
-      if (!record.remoteHead || !record.remoteTree) return await this.firstPush(owner, repo, branch, files, summary);
+      if (!record.remoteHead || !record.remoteTree)
+        return await this.firstPush(owner, repo, branch, files, summary, parent);
       const currentHead = await this.api.getBranchSha(owner, repo, branch);
       if (currentHead !== record.remoteHead) throw new Error('远端分支已变化，请先拉取远端更改');
       const baseEntries = await this.entriesForTree(record);
@@ -413,11 +440,19 @@ export class GithubRemoteRepository {
     repo: string,
     branch: string,
     files: readonly GitFile[],
-    message: string
+    message: string,
+    parent: string | null
   ): Promise<GithubPushResult> {
     const repository = await this.api.getRepository(owner, repo);
     const branches = await this.api.listBranches(owner, repo);
-    if (branches.length) throw new Error('远端已有提交，请先拉取远端更改');
+    if (branches.some(item => item.name === branch)) throw new Error('远端已有提交，请先拉取远端更改');
+    if (branches.length) {
+      const items = await Promise.all(files.map(file => toTreeItem(file, this.api, owner, repo)));
+      const tree = await this.api.createTree(owner, repo, null, items);
+      const head = await this.api.createCommit(owner, repo, message, tree, parent ? [parent] : []);
+      await this.api.createRef(owner, repo, branch, head);
+      return { head, tree };
+    }
     if (repository.defaultBranch !== branch)
       throw new Error(`空仓库的首次推送请使用默认分支 ${repository.defaultBranch}`);
     const [first, ...rest] = files;

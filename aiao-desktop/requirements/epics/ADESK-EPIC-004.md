@@ -1,6 +1,6 @@
 ---
 id: ADESK-EPIC-004
-status: In Progress
+status: Done
 startDate: 2026-11-20
 targetDate: 2026-11-21
 owner: jimmy
@@ -21,15 +21,13 @@ Aiao Desktop 提供一个可直接打开的 GitHub 应用。用户在浏览器�
 - [x] 在 Aiao Desktop 中提供 GitHub 应用入口和 GitHub Desktop 形态的工作区（[ADESK-US-209](../stories/application/ADESK-US-209-github-opfs-workbench.md)）。
 - [x] 把工作区文件、`.git`、refs、index 和对象存入独立 OPFS 根，并支持刷新与重开后继续工作（[ADESK-US-209](../stories/application/ADESK-US-209-github-opfs-workbench.md)）。
 - [x] 通过 GitHub 登录与 GitHub API 打开、拉取和推送仓库，并对认证失败、网络失败和远端冲突给出可恢复反馈（[ADESK-US-209](../stories/application/ADESK-US-209-github-opfs-workbench.md)）。
-
-- [ ] 让终端、GitHub Desktop 和跨源 Aiao Code 打开同一仓库（[ADESK-US-211](../stories/application/ADESK-US-211-git-terminal-workspace.md)）。
+- [x] 让终端、GitHub Desktop 和跨源 Aiao Code 打开同一仓库（[ADESK-US-211](../stories/application/ADESK-US-211-git-terminal-workspace.md)）。
 
 ## 故事
 
 > 本清单只列范围，不带状态。状态见 `status-overview.md`，真相源是各 story 的 YAML `status`。
 
 - [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](../stories/application/ADESK-US-209-github-opfs-workbench.md) (High)
-
 - [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](../stories/application/ADESK-US-211-git-terminal-workspace.md) (High)
 
 ## 非目标

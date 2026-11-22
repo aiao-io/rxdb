@@ -1,5 +1,9 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-23 终端、GitHub Desktop 与 Aiao Code 共用仓库（ADESK-US-211）
+
+在 `c106a8c93` 加本次工作区改动的正式构建上，桌面 Chromium 验证了终端建仓、两类目录拖入、GitHub API 远端读回、跨源编辑和冲突草稿。远端使用受控 API 夹具。验收范围为本地正式产物。[逐项结果、环境与复验命令](evidence/2026-11-23/git-workspace.md)
+
 ## 2026-11-22 桌面冷启动与首次使用时加载（ADESK-US-130）
 
 在 `da37458be` 基线上构建了对照产物与包含本次改动的工作区产物。两份构建均使用 `pnpm nx run aiao-desktop-web:build --configuration=production`。静态脚本闭包与 CSS 从 1,422,344 B 降至 1,274,337 B，逐文件 gzip（level 9）从 440,729 B 降至 398,798 B。现有 initial 告警线为 1.30 MB。 限速 Chromium 的冷启动中位数从 14.837 s 降至 13.379 s，缩短 1.458 s（9.8%）。产物标识、逐文件字节与 SHA-256 见[构建与冷启动比较](evidence/2026-11-22/startup-comparison.json)。

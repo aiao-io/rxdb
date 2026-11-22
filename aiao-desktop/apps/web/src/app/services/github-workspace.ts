@@ -68,6 +68,23 @@ function recordFor(projectId: string, rootPath: DiskPath, branch: string): Githu
   };
 }
 
+function forBranch(record: GithubRepositoryRecord, branch: string): GithubRepositoryRecord {
+  if (record.branch === branch) return record;
+  const branches = new Map(record.branchBases?.map(base => [base.branch, base]));
+  const base = branches.get(branch);
+  branches.delete(branch);
+  if (record.remoteHead && record.remoteTree)
+    branches.set(record.branch, { branch: record.branch, head: record.remoteHead, tree: record.remoteTree });
+  return {
+    ...record,
+    branch,
+    remoteHead: base?.head ?? null,
+    remoteTree: base?.tree ?? null,
+    remoteEntries: [],
+    branchBases: [...branches.values()]
+  };
+}
+
 /** 所有入口共用仓库锁和 Worker。卷内工作文件的读、Git 操作与增量发布持有同一把桌面磁盘锁。 */
 @Service({ autoProvided: false })
 export class GithubWorkspace {
@@ -152,7 +169,7 @@ export class GithubWorkspace {
   }
 
   localCommand(id: string, cwd: string, args: readonly string[]) {
-    return this.use(id, 'write', () => this.git.localCommand(id,cwd,args));
+    return this.use(id, 'write', () => this.git.localCommand(id, cwd, args));
   }
 
   diffText(id: string, staged: boolean) {
@@ -245,6 +262,7 @@ export class GithubWorkspace {
       const next = {
         ...record,
         fetched: undefined,
+        branchBases: [],
         owner: address?.owner ?? null,
         repo: address?.repo ?? null,
         private: false,
@@ -286,12 +304,12 @@ export class GithubWorkspace {
       if (!record.owner || !record.repo) throw new Error('No GitHub remote is configured');
       const branch = (await this.git.status(id)).branch;
       const remote = await this.connection.remote.open(record.owner, record.repo, branch);
-      const base =
-        branch === record.branch ?
-          record
-        : { ...record, branch, remoteHead: null, remoteTree: null, remoteEntries: [] };
+      const base = forBranch(record, branch);
       const current = await this.withWorktree(id, 'read', () => this.git.snapshot(id));
-      if (base.remoteHead === remote.record.remoteHead) return current;
+      if (base.remoteHead === remote.record.remoteHead) {
+        if (base !== record) await this.records.put({ ...base, updatedAt: Date.now() });
+        return current;
+      }
       const merged = await this.connection.remote.pull(base, current.files, true, remote);
       const delta = worktreeDelta(current.files, merged.files);
       const snapshot = await this.withWorktree(id, 'write', async () => {
@@ -304,7 +322,7 @@ export class GithubWorkspace {
         }
         return saved;
       });
-      await this.records.put({ ...record, ...remote.record, projectId: id, name: record.name });
+      await this.records.put({ ...base, ...remote.record, projectId: id, name: record.name });
       return snapshot;
     });
   }
@@ -314,13 +332,12 @@ export class GithubWorkspace {
       const record = await this.registered(id);
       const snapshot = await this.withWorktree(id, 'read', async () => {
         const status = await this.git.status(id);
-        if (record.remoteHead && status.branch !== record.branch) throw new Error('请先拉取当前分支以建立远端基线');
         return { ...(await this.git.committed(id)), branch: status.branch };
       });
-      const result = await this.connection.remote.push({ ...record, branch: snapshot.branch }, snapshot.files, message);
+      const base = forBranch(record, snapshot.branch);
+      const result = await this.connection.remote.push(base, snapshot.files, message, record.remoteHead);
       const next = {
-        ...record,
-        branch: snapshot.branch,
+        ...base,
         remoteHead: result.head,
         remoteTree: result.tree,
         remoteEntries: [],

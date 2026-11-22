@@ -58,6 +58,7 @@ export interface GitHubApi {
   createBlob(owner: string, repo: string, bytes: Uint8Array): Promise<string>;
   createTree(owner: string, repo: string, baseTree: string | null, items: readonly GitHubTreeItem[]): Promise<string>;
   createCommit(owner: string, repo: string, message: string, tree: string, parents: readonly string[]): Promise<string>;
+  createRef(owner: string, repo: string, branch: string, sha: string): Promise<void>;
   updateRef(owner: string, repo: string, ref: string, sha: string, force?: boolean): Promise<void>;
   createRepository(name: string, isPrivate: boolean): Promise<GitHubRepoSummary>;
   getZipball(owner: string, repo: string, ref: string, maxBytes?: number): Promise<Uint8Array>;
@@ -526,12 +527,13 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         await requestJson(`${repoPath(owner, repo)}/git/trees`, {
           method: 'POST',
           body: JSON.stringify({
-            base_tree: baseTree,
+            ...(baseTree ? { base_tree: baseTree } : {}),
             tree: items.map(item => {
               if (item.sha === null) return { path: item.path, sha: null };
               return {
                 path: item.path,
                 mode: item.mode ?? '100644',
+                type: 'blob',
                 ...(item.content !== undefined ? { content: item.content } : { sha: item.sha })
               };
             })
@@ -559,6 +561,13 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       const sha = json['sha'];
       if (typeof sha !== 'string' || !sha) throw new GitHubApiError('invalid_response', '提交响应缺少 sha');
       return sha;
+    },
+
+    async createRef(owner, repo, branch, sha) {
+      await requestJson(`${repoPath(owner, repo)}/git/refs`, {
+        method: 'POST',
+        body: JSON.stringify({ ref: `refs/heads/${branch}`, sha })
+      });
     },
 
     async updateRef(owner: string, repo: string, ref: string, sha: string, force = false): Promise<void> {

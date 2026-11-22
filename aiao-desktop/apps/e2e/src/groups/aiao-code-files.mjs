@@ -350,6 +350,15 @@ export const aiaoCodeFiles = {
         return code;
       }
       const editor = await sharedEditor(page, sharedWindow);
+      const rejected = await editor.evaluate(async () => {
+        const { backend, state } = window.workbench.session;
+        const denials = await Promise.allSettled([
+          backend.save(state.projectId, { '../outside.txt': 'outside' }, state.revision),
+          backend.save(state.projectId, { '.git/config': 'invalid' }, state.revision)
+        ]);
+        return denials.map(result => (result.status === 'rejected' ? result.reason.code : 'accepted'));
+      });
+      expect(rejected).toEqual(['INVALID_ARGUMENT', 'INVALID_ARGUMENT']);
       const other = await session.openDesktopPage({ waitForFinder: false });
       await other.helpers.restored();
       await other.helpers.launch('GitHub Desktop');

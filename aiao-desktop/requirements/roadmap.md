@@ -87,4 +87,4 @@ A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 
 
 ## Git 工作区增量（2026-11-22）
 
-[ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md) 在 US-209 之上增加终端 Git、按目录打开与拖放、远端配置，以及跨源编辑器保存回原仓库。按本地仓库、远端操作、跨源编辑三段验收。
+[ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md) 在 US-209 之上增加终端 Git、按目录打开与拖放、远端配置，以及跨源编辑器保存回原仓库。验收先核对本地历史和暂存区，再验证远端分支读回，最后验证跨源窗口保存与重开。[2026-11-23 验收记录](evidence/2026-11-23/git-workspace.md)

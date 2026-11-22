@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[47/53 已交付]；1 条进行中、1 条待评审、4 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[48/53 已交付]。1 条待评审、4 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -9,7 +9,7 @@ Aiao Desktop 当前是在浏览器里运行的 macOS 风格桌面，把本地文
 - **主要用户**：在浏览器里用文件、终端和 Aiao Code 做轻量开发与记录的个人用户，使用桌面尺寸的 Chromium。
 - **核心任务**（评审与验收以这三条端到端流程为准）：
   1. 创建文件，在 Finder、TextEdit 与终端之间处理，保存、关闭、再次打开后内容不变。
-  2. 在 Aiao Code 里新建项目、修改并运行；说得清项目数据（在 Aiao Code 自己的来源里）与桌面虚拟磁盘里的数据是两回事。
+  2. 独立启动 Aiao Code 后新建、修改并运行自己的项目。从桌面仓库打开 Aiao Code 时，保存回同一桌面仓库。
   3. 从启动台或聚焦搜索找到应用，完成一次操作，关闭后再次进入仍能继续工作。
 - **当前交付不支持**：账号与跨设备同步、远程机器连接与远程应用仿真、远程 Finder、远程网络出口、移动端的专门设计（窄屏只承诺最低限度的可用，见 [ADESK-US-005](stories/platform/ADESK-US-005-cross-browser-smoke.md)）以及浏览器之外的原生应用能力；除上面的任务外，其余内置应用只有演示内容，不承诺完整的业务功能。Tauri 原生安装版已单列为 [ADESK-EPIC-005](epics/ADESK-EPIC-005.md)，远程应用仿真与调度已单列为 [ADESK-EPIC-006](epics/ADESK-EPIC-006.md)，两者仍处于 Backlog，不改变当前浏览器版和 PWA 的交付边界。
 - **扩大使用范围的条件**：见[路线图](roadmap.md#扩大使用范围的条件)。三条任务现在各自闭环到哪一步，看下面的「当前范围」和[能力矩阵](capability-matrix.md)。
@@ -41,7 +41,7 @@ Aiao Desktop 当前是在浏览器里运行的 macOS 风格桌面，把本地文
 - **集成应用**：独立部署的 B/S 应用经仓库里的 `@aiao/orbit` 隔离在窗口里，应用统一登记；第一个是 Aiao Code（vscode.aiao.io），支持应用自绘标题栏的透明窗口，见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)（US-201～204）。
 - **浏览器会话恢复**：浏览器关闭后恢复最近活跃工作区，保留窗口几何、层叠、最小化、Zoom 和应用开窗参数；多标签页竞争、损坏快照和失败窗口都有恢复边界（[ADESK-US-128](stories/desktop/ADESK-US-128-browser-session-restore.md)）。
 - **GitHub 开发工作台**：GitHub 作为预装内置应用提供独立 OPFS Git 工作区，支持本地 Git 闭环、OAuth / PAT、公开和私有仓库、拉取、推送及远端冲突处理（[ADESK-EPIC-004](epics/ADESK-EPIC-004.md)、[ADESK-US-209](stories/application/ADESK-US-209-github-opfs-workbench.md)）。
-- **仓库跨应用编辑**：终端建仓、目录拖入、远端配置和跨源编辑器保存正在实施。见 [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md)。
+- **仓库跨应用编辑**：在终端建仓后，从 Finder 拖入 GitHub Desktop 或用 `open -a "GitHub Desktop" .` 打开。可配置 `origin`、同步 GitHub 分支，或用 Open in Aiao Code 编辑同一仓库。见 [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md)。
 - **PWA**：本地正式构建支持安装为独立窗口、缓存完成后的离线重开、内置应用与 SQLite 数据、用户刷新后切换已缓存新版；终端大资源按需缓存，远程内容仍需联网。本次没有生产发布（[ADESK-US-009](stories/platform/ADESK-US-009-pwa.md)、[验收证据](evidence/2026-11-16/pwa.md)）。
 - **发布**：Cloudflare Pages 上的静态站点，一键发布并线上对账（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)、[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 
@@ -123,7 +123,7 @@ Aiao Desktop 当前是在浏览器里运行的 macOS 风格桌面，把本地文
 | 虚拟文件系统       | Finder 浏览的磁盘：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体在 OPFS（[D-08](decisions.md#d-08文件体由-storage-插件放在-opfs)）                                                                                                                                                                                        |
 | 冒烟               | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败                                                                                                                                                                                                                                                       |
 
-当前实施 [US-208 Aiao Code 文件复制与嵌入边界](stories/application/ADESK-US-208-aiao-code-file-copy.md)，复用现有文件授权，不扩展共享目录或自动同步。
+Aiao Code 的文件面板支持显式复制。通过 GitHub Desktop 打开的仓库另有窗口绑定的读写授权。[文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md) · [仓库读写](stories/application/ADESK-US-211-git-terminal-workspace.md)
 
 [US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)已完成本地自动验收；文件夹重命名、删除和云端同步仍未接入。
 
