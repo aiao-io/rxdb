@@ -496,15 +496,20 @@ export class GitWorkbenchRuntime {
         const base = previousByPath.get(path);
         const modified = currentByPath.get(path);
         if (base && modified && sameFileBytes(base, modified)) return [];
-        const change = base === undefined ? 'added' : modified === undefined ? 'deleted' : 'modified';
-        return [{
-          projectId,
-          oid: resolvedOid,
-          path,
-          status: change,
-          base: gitFileVersion(base),
-          modified: gitFileVersion(modified)
-        }];
+        const change =
+          base === undefined ? 'added'
+          : modified === undefined ? 'deleted'
+          : 'modified';
+        return [
+          {
+            projectId,
+            oid: resolvedOid,
+            path,
+            status: change,
+            base: gitFileVersion(base),
+            modified: gitFileVersion(modified)
+          }
+        ];
       });
     });
   }

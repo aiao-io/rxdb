@@ -37,7 +37,6 @@ import {
   type GithubTab
 } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { WindowManager } from '../../services/window-manager';
 import { encodeGitArchive, type GitArchive } from '../../services/git/git-archive.js';
 import {
   GithubGitBackend,
@@ -60,6 +59,7 @@ import { createGitHubApi, GitHubApi } from '../../services/github/github-api';
 import { createGitHubAuth, GitHubAuth } from '../../services/github/github-auth';
 import { createIndexedDbSessionStore, createMemorySessionStore } from '../../services/github/github-session-store';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
+import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
 
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
@@ -160,17 +160,12 @@ function diffLinesOf(value: GithubDiffValue | null): readonly GithubDiffLine[] {
     trace.push(new Map(frontier));
     const next = new Map<number, number>();
     for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
-      const down = diagonal === -distance || (
-        diagonal !== distance &&
-        (frontier.get(diagonal - 1) ?? -1) < (frontier.get(diagonal + 1) ?? -1)
-      );
+      const down =
+        diagonal === -distance ||
+        (diagonal !== distance && (frontier.get(diagonal - 1) ?? -1) < (frontier.get(diagonal + 1) ?? -1));
       let oldIndex = down ? (frontier.get(diagonal + 1) ?? 0) : (frontier.get(diagonal - 1) ?? 0) + 1;
       let newIndex = oldIndex - diagonal;
-      while (
-        oldIndex < oldLines.length &&
-        newIndex < newLines.length &&
-        oldLines[oldIndex] === newLines[newIndex]
-      ) {
+      while (oldIndex < oldLines.length && newIndex < newLines.length && oldLines[oldIndex] === newLines[newIndex]) {
         oldIndex++;
         newIndex++;
       }
@@ -198,10 +193,9 @@ function buildDiffLines(
   for (let distance = finalDistance; distance > 0; distance--) {
     const diagonal = oldIndex - newIndex;
     const previous = trace[distance - 1];
-    const down = diagonal === -distance || (
-      diagonal !== distance &&
-      (previous.get(diagonal - 1) ?? -1) < (previous.get(diagonal + 1) ?? -1)
-    );
+    const down =
+      diagonal === -distance ||
+      (diagonal !== distance && (previous.get(diagonal - 1) ?? -1) < (previous.get(diagonal + 1) ?? -1));
     const previousDiagonal = down ? diagonal + 1 : diagonal - 1;
     const previousOldIndex = previous.get(previousDiagonal) ?? 0;
     const previousNewIndex = previousOldIndex - previousDiagonal;
@@ -1326,11 +1320,19 @@ export class GithubApp {
   }
 
   protected commitChangeLabel(change: GitCommitFileChange): string {
-    return change.status === 'added' ? 'A' : change.status === 'deleted' ? 'D' : 'M';
+    return (
+      change.status === 'added' ? 'A'
+      : change.status === 'deleted' ? 'D'
+      : 'M'
+    );
   }
 
   protected commitChangeDescription(change: GitCommitFileChange): string {
-    return change.status === 'added' ? 'Added' : change.status === 'deleted' ? 'Deleted' : 'Modified';
+    return (
+      change.status === 'added' ? 'Added'
+      : change.status === 'deleted' ? 'Deleted'
+      : 'Modified'
+    );
   }
 
   protected shortOid(oid: string): string {

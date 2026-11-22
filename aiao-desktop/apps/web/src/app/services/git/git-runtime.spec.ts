@@ -192,7 +192,9 @@ function createRuntimeFixture() {
     } else if (command === 'cat-file') {
       const commit = commits.find(entry => entry.oid === parameters.at(-1));
       if (!commit || parameters[0] !== '-p') return 1;
-      print(`tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}\nauthor fixture\ncommitter fixture\n\n${commit.message}`);
+      print(
+        `tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}\nauthor fixture\ncommitter fixture\n\n${commit.message}`
+      );
     } else if (command === 'checkout-index') {
       for (const [path, data] of Object.entries(index)) {
         fs.ensure(parent(`${root}/${path}`));

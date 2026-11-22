@@ -24,7 +24,7 @@
         type="button"
       >
         <span class="gh-system-icon gh-toolbar-system-icon gh-repository-icon">
-          <svg viewBox="0 0 16 16" aria-hidden="true">
+          <svg aria-hidden="true" viewBox="0 0 16 16">
             <path d="M3 2.5h8.5A1.5 1.5 0 0 1 13 4v9.5H4.5A1.5 1.5 0 0 1 3 12V2.5Z"></path>
             <path d="M5.5 2.5V13.5"></path>
             <path d="M5.5 11.5H13"></path>
@@ -327,7 +327,9 @@
             />
           </label>
           <div class="gd-menu-header">Main Worktree</div>
-          @if (!worktreeFilter().trim() || currentWorktree().toLowerCase().includes(worktreeFilter().trim().toLowerCase())) {
+          @if (
+            !worktreeFilter().trim() || currentWorktree().toLowerCase().includes(worktreeFilter().trim().toLowerCase())
+          ) {
             <button class="gd-menu-row gh-worktree-row" aria-current="true" role="menuitem" type="button">
               <svg [lucideIcon]="Folder" size="16"></svg>
               <span class="min-w-0 flex-1 truncate">{{ currentWorktree() }}</span>
@@ -594,11 +596,11 @@
                   @if (entry) {
                     <input
                       class="gh-file-checkbox"
+                      [attr.aria-label]="isStaged(entry) ? 'Unstage file' : 'Stage file'"
                       [checked]="isStaged(entry)"
                       [disabled]="busy()"
-                      [attr.aria-label]="isStaged(entry) ? 'Unstage file' : 'Stage file'"
-                      (click)="$event.stopPropagation()"
                       (change)="toggleStage(entry)"
+                      (click)="$event.stopPropagation()"
                       type="checkbox"
                     />
                   } @else {
@@ -632,11 +634,7 @@
           <section class="gd-commit-header gh-commit-box" aria-label="Commit changes">
             <div class="gh-commit-fields">
               <div class="gh-commit-summary">
-                <img
-                  class="gh-commit-avatar"
-                  [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'"
-                  alt=""
-                />
+                <img class="gh-commit-avatar" [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'" alt="" />
                 <input
                   #commitMessageInput
                   [disabled]="busy()"
@@ -664,8 +662,8 @@
                   </button>
                   <button
                     class="gd-btn-ghost gh-copilot-button"
-                    disabled
                     aria-label="Generate commit message with Copilot"
+                    disabled
                     title="Generate commit message with Copilot"
                     type="button"
                   >
@@ -769,7 +767,7 @@
                       to do next.
                     </p>
                   </div>
-                  <img class="gh-paper-stack" src="github/paper-stack.svg" alt="" />
+                  <img class="gh-paper-stack" alt="" src="github/paper-stack.svg" />
                 </header>
                 <div class="gh-suggested-actions">
                   <article class="gh-suggested-action">
@@ -780,7 +778,12 @@
                         <button class="gh-inline-link" type="button">Settings</button>
                       </p>
                     </div>
-                    <button class="gd-btn-secondary" [disabled]="busy()" (click)="openRepositoryInEditor()" type="button">
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="openRepositoryInEditor()"
+                      type="button"
+                    >
                       Open in Visual Studio Code
                     </button>
                   </article>
@@ -792,7 +795,12 @@
                         <kbd>⌘ ⇧ F</kbd>
                       </p>
                     </div>
-                    <button class="gd-btn-secondary" [disabled]="busy()" (click)="showRepositoryInFinder()" type="button">
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="showRepositoryInFinder()"
+                      type="button"
+                    >
                       Show in Finder
                     </button>
                   </article>
@@ -935,11 +943,7 @@
                     <span class="gh-eyebrow">Commit</span>
                     <h2>{{ commit.message }}</h2>
                     <div class="gh-commit-meta">
-                      <img
-                        class="gh-history-avatar"
-                        [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'"
-                        alt=""
-                      />
+                      <img class="gh-history-avatar" [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'" alt="" />
                       <strong>You</strong>
                       <span>· local commit</span>
                       <span class="gh-commit-stats">
@@ -989,8 +993,8 @@
                     @for (change of historyChanges(); track change.path) {
                       <button
                         class="gh-history-file-row"
-                        [class.gh-history-file-row-selected]="selectedHistoryPath() === change.path"
                         [attr.data-history-file-path]="change.path"
+                        [class.gh-history-file-row-selected]="selectedHistoryPath() === change.path"
                         (click)="selectHistoryFile(change)"
                         type="button"
                       >
@@ -1019,16 +1023,16 @@
                       <div class="gh-history-diff-actions">
                         <button
                           class="gd-btn-ghost"
+                          [attr.aria-expanded]="historyDiffSettingsOpen()"
                           (click)="toggleHistoryDiffSettings()"
                           aria-label="Diff Settings"
-                          [attr.aria-expanded]="historyDiffSettingsOpen()"
                           title="Diff Settings"
                           type="button"
                         >
                           <svg [lucideIcon]="Settings2" size="14"></svg>
                         </button>
                         @if (historyDiffSettingsOpen()) {
-                          <div class="gh-diff-settings" role="dialog" aria-label="Diff Settings">
+                          <div class="gh-diff-settings" aria-label="Diff Settings" role="dialog">
                             <label>
                               <input checked disabled type="checkbox" />
                               <span>Show side-by-side diff</span>
@@ -1063,7 +1067,11 @@
                             >
                               <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
                               <span class="gh-diff-sign">
-                                {{ line.same ? ' ' : line.oldText === null ? ' ' : '−' }}
+                                {{
+                                  line.same ? ' '
+                                  : line.oldText === null ? ' '
+                                  : '−'
+                                }}
                               </span>
                               <code>{{ line.oldText ?? '' }}</code>
                             </div>
@@ -1073,7 +1081,11 @@
                             >
                               <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
                               <span class="gh-diff-sign">
-                                {{ line.same ? ' ' : line.newText === null ? ' ' : '+' }}
+                                {{
+                                  line.same ? ' '
+                                  : line.newText === null ? ' '
+                                  : '+'
+                                }}
                               </span>
                               <code>{{ line.newText ?? '' }}</code>
                             </div>
