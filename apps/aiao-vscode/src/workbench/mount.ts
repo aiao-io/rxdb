@@ -2812,7 +2812,9 @@ export function mountWorkbench(
     const preferences = recoveredPreferences ?? durablePreferences;
     preferencesRestored = true;
     const scoped = options.desktopProject;
-    projects = (scoped ? [scoped, ...listed.filter(item => item.id !== scoped.id)] : listed).toSorted((left, right) => right.updatedAt - left.updatedAt);
+    projects = (scoped ? [scoped, ...listed.filter(item => item.id !== scoped.id)] : listed).toSorted(
+      (left, right) => right.updatedAt - left.updatedAt
+    );
     if (preferences) {
       applyIndentUnit(preferences.indentUnit, false);
       alwaysShowScmActions = preferences.alwaysShowScmActions;

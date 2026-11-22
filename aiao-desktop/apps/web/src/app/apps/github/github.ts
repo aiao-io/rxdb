@@ -4,8 +4,8 @@ import {
   ChangeDetectorRef,
   Component,
   computed,
-  effect,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   NgZone,
@@ -31,17 +31,17 @@ import {
   LucideUsersRound as UsersRound
 } from '@lucide/angular';
 
+import { finderPathOf, fromVmPath, HOME, toVmPath, type DiskPath } from '../../disk/disk-path';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import {
   DesktopMenus,
   type GithubExternalTarget,
   type GithubRepositoryMenu,
   type GithubTab
 } from '../../services/desktop-menus';
-import { HOME, finderPathOf, fromVmPath, toVmPath, type DiskPath } from '../../disk/disk-path';
 import { DesktopWindow } from '../../services/desktop-window';
 import { archiveOfDirectory, archiveOfUploadedDirectory, type SourceDirectory } from '../../services/git/git-directory';
 import {
-
   type GitBranch,
   type GitCommit,
   type GitCommitFileChange,
@@ -51,13 +51,7 @@ import {
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
-import {
-
-
-  parseGithubRemote,
-  type GithubRepositoryRecord
-} from '../../services/github-repository';
-import { DesktopAppServices } from '../../services/desktop-app-services';
+import { parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
 import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
 import { WindowManager } from '../../services/window-manager';
@@ -432,7 +426,6 @@ export class GithubApp {
     this.destroyRef.onDestroy(() => {
       this.unsubscribeAuth();
       removeEventListener('storage', this.storageListener);
-
     });
     void this.restoreLastRepository().catch(error => this.fail(error));
   }
@@ -509,13 +502,21 @@ export class GithubApp {
   }
 
   protected droppedDiskFolder(event: Event): void {
-    if (event instanceof CustomEvent && Array.isArray(event.detail) && event.detail.every(part => typeof part === 'string')) void this.openDiskDirectory(event.detail);
+    if (
+      event instanceof CustomEvent &&
+      Array.isArray(event.detail) &&
+      event.detail.every(part => typeof part === 'string')
+    )
+      void this.openDiskDirectory(event.detail);
   }
 
   protected async openDiskDirectory(path: DiskPath): Promise<void> {
     if (!this.ensureEditorSaved()) return;
-    try { await this.openStored(await this.backend.openDirectory(path)); }
-    catch (error) { this.fail(error); }
+    try {
+      await this.openStored(await this.backend.openDirectory(path));
+    } catch (error) {
+      this.fail(error);
+    }
   }
 
   protected openLocalPath(value: string): void {
@@ -533,7 +534,13 @@ export class GithubApp {
     if (!this.ensureEditorSaved() || !event.dataTransfer) return;
     // 浏览器只允许在 drop 回调首次 await 之前取得句柄。
     const items = Array.from(event.dataTransfer.items).filter(item => item.kind === 'file');
-    const handles = items.map(item => (item as DataTransferItem & { getAsFileSystemHandle?(): Promise<SourceDirectory | {kind: 'file'; name: string} | null> }).getAsFileSystemHandle?.());
+    const handles = items.map(item =>
+      (
+        item as DataTransferItem & {
+          getAsFileSystemHandle?(): Promise<SourceDirectory | { kind: 'file'; name: string } | null>;
+        }
+      ).getAsFileSystemHandle?.()
+    );
     await this.run(async () => {
       const added: string[] = [];
       const errors: string[] = [];
@@ -542,10 +549,12 @@ export class GithubApp {
         try {
           if (item.status === 'rejected') throw item.reason;
           if (handle?.kind !== 'directory') throw new Error('请选择 Git 仓库文件夹，也可以使用 Add Local Repository');
-          const {name, archive} = await archiveOfDirectory(handle);
+          const { name, archive } = await archiveOfDirectory(handle);
           await this.importArchive(name, archive, 'Added');
           added.push(toVmPath(this.activeRecord()!.rootPath!));
-        } catch (error) { errors.push(`${handle?.name ?? 'Folder'} · ${error instanceof Error ? error.message : String(error)}`); }
+        } catch (error) {
+          errors.push(`${handle?.name ?? 'Folder'} · ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
       if (added.length) this.notice.set(`Added ${added.join(', ')}`);
       if (errors.length) throw new Error(errors.join(' · '));
@@ -1201,7 +1210,7 @@ export class GithubApp {
         throw new Error('请先保存并提交本地改动，再推送到 GitHub');
       const next = await this.backend.push(record.projectId, this.commitValue() || 'Update from Aiao Desktop');
       this.activeRecord.set(next);
-      this.notice.set(`Pushed ${next.remoteHead.slice(0,8)}`);
+      this.notice.set(`Pushed ${next.remoteHead.slice(0, 8)}`);
     });
   }
 
@@ -1400,8 +1409,9 @@ export class GithubApp {
     const request = ++this.historyLoadRequest;
     try {
       const changes = await this.backend.commitChanges(record.projectId, oid);
-      if (request === this.historyLoadRequest && record.projectId === this.activeRecord()?.projectId) this.historyChanges.set(changes);
-    } catch(error) {
+      if (request === this.historyLoadRequest && record.projectId === this.activeRecord()?.projectId)
+        this.historyChanges.set(changes);
+    } catch (error) {
       if (request === this.historyLoadRequest) this.fail(error);
     }
   }
@@ -1509,10 +1519,14 @@ export class GithubApp {
     const record = this.activeRecord();
     if (!record) return;
     const { snapshot, status, branches, history } = await this.backend.inspect(record.projectId);
-    if (record.projectId !== this.activeRecord()?.projectId || (external && (this.busy() || this.editorDirty()))) return;
+    if (record.projectId !== this.activeRecord()?.projectId || (external && (this.busy() || this.editorDirty())))
+      return;
     if (external) {
       this.activeRecord.set(this.store.find(record.projectId) ?? record);
-      if (snapshot.revision !== this.currentRevision) { this.applySnapshot(snapshot.files); this.diff.set(null); }
+      if (snapshot.revision !== this.currentRevision) {
+        this.applySnapshot(snapshot.files);
+        this.diff.set(null);
+      }
     }
     this.status.set(status);
     this.branches.set(branches);
@@ -1608,6 +1622,4 @@ export class GithubApp {
     this.fail(new Error('请先保存当前文件再切换仓库'));
     return false;
   }
-
-
 }

@@ -1,6 +1,6 @@
-import { originUrl, withOrigin } from './git-origin.js';
 import { assertGitFileLimits, decodeGitArchive, encodeGitArchive, type GitArchive } from './git-archive.js';
 import { gitFileVersion } from './git-diff.js';
+import { originUrl, withOrigin } from './git-origin.js';
 import {
   assertGitPath,
   assertNoPathCollisions,
@@ -61,6 +61,40 @@ interface ProjectContext {
   readonly directory: FileSystemDirectoryHandle;
   revision: number;
 }
+
+export interface GitTerminalTree {
+  readonly files: readonly GitFile[];
+  readonly directories: readonly string[];
+}
+
+export interface GitTerminalCommand extends GitTerminalTree {
+  /** 终端实际显示的工作区绝对路径。 */
+  readonly worktree: string;
+  readonly args: readonly string[];
+  /** 相对工作区根目录的当前目录，空字符串表示根目录。 */
+  readonly cwd: string;
+}
+
+export interface GitTerminalResult extends GitTerminalTree {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** 随桌面分发的 wasm-git 包版本。 */
+export const GIT_TERMINAL_VERSION = 'git version 0.0.17 (wasm-git)';
+
+export const isGitVersionRequest = (args: readonly string[]): boolean =>
+  args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === 'version');
+
+const INIT_VALUE_OPTIONS = new Set([
+  '-b',
+  '--initial-branch',
+  '--template',
+  '--separate-git-dir',
+  '--object-format',
+  '--ref-format'
+]);
 
 function sameFileBytes(previous: Uint8Array<ArrayBuffer> | undefined, next: Uint8Array<ArrayBuffer>): boolean {
   if (!previous || previous.length !== next.length) return false;
@@ -123,6 +157,41 @@ export class GitWorkbenchRuntime {
     return runtime;
   }
 
+  async runTerminal(command: GitTerminalCommand): Promise<GitTerminalResult> {
+    if (isGitVersionRequest(command.args))
+      return {
+        files: command.files,
+        directories: command.directories,
+        exitCode: 0,
+        stdout: GIT_TERMINAL_VERSION,
+        stderr: ''
+      };
+    return this.enqueue(() => this.runInCommandDirectory(command));
+  }
+
+  async localCommand(projectId: string, cwd: string, args: readonly string[]) {
+    if (cwd) assertGitPath(cwd);
+    return this.lock(projectId, true, async context => {
+      const before = this.collect(context.root, true);
+      const result = await this.runInCommandDirectory({ ...before, cwd, args, worktree: context.root });
+      const output = { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
+      if (result.exitCode) return output;
+      const old = new Map(before.files.map(file => [file.path, file.bytes]));
+      const changes = result.files.filter(file => {
+        const bytes = old.get(file.path);
+        old.delete(file.path);
+        return !sameFileBytes(bytes, file.bytes);
+      });
+      const paths = [...old.keys(), ...changes.map(file => file.path)];
+      if (!paths.length) return output;
+      const tree = decodeGitArchive(encodeGitArchive(result));
+      return this.mutate(context, async () => {
+        await this.restoreArchive(context, tree);
+        return () => output;
+      }, paths.some(path => !path.startsWith('.git/')));
+    });
+  }
+
   async initialize(projectId: string, files: readonly GitFile[]): Promise<GitSnapshot> {
     this.validateFiles(files);
     return this.lock(projectId, false, async context => {
@@ -161,9 +230,9 @@ export class GitWorkbenchRuntime {
 
   async committed(projectId: string): Promise<GitSnapshot> {
     return this.lock(projectId, true, async context => {
-      const {head} = await this.statusContext(context);
+      const { head } = await this.statusContext(context);
       if (!head) throw new GitWorkbenchError('git_failed', '请先创建本地提交');
-      return { projectId, revision: context.revision, files: await this.readCommitFiles(context,head) };
+      return { projectId, revision: context.revision, files: await this.readCommitFiles(context, head) };
     });
   }
 
@@ -574,15 +643,23 @@ export class GitWorkbenchRuntime {
   }
 
   async origin(projectId: string): Promise<string | null> {
-    return this.lock(projectId, true, context => originUrl(new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`))));
+    return this.lock(projectId, true, context =>
+      originUrl(new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`)))
+    );
   }
 
   async setOrigin(projectId: string, url: string | null): Promise<void> {
-    return this.lock(projectId, true, context => this.mutate(context, async () => {
-      const config = new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`));
-      await this.git.module.opfsWriteFile(`${context.root}/.git/config`, withOrigin(config, url));
-      return () => undefined;
-    }, false));
+    return this.lock(projectId, true, context =>
+      this.mutate(
+        context,
+        async () => {
+          const config = new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`));
+          await this.git.module.opfsWriteFile(`${context.root}/.git/config`, withOrigin(config, url));
+          return () => undefined;
+        },
+        false
+      )
+    );
   }
 
   async exportArchive(projectId: string): Promise<Uint8Array<ArrayBuffer>> {
@@ -791,12 +868,68 @@ export class GitWorkbenchRuntime {
 
   private async run(args: string[]): Promise<string> {
     const command = args[0];
+    const result = await this.runRaw(args);
+    if (result.exitCode !== 0)
+      throw new GitWorkbenchError('git_failed', `git ${command} failed (${result.exitCode}): ${result.stderr}`);
+    return result.stdout;
+  }
+
+  private async runInCommandDirectory(command: GitTerminalCommand): Promise<GitTerminalResult> {
+      const root = `/tmp/aiao-terminal-${this.#scratch++}`;
+      try {
+        this.ensureMemoryDirectory(`${root}/.placeholder`);
+        for (const directory of command.directories) this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
+        for (const file of command.files) {
+          this.ensureMemoryDirectory(`${root}/${file.path}`);
+          this.fs.writeFile(`${root}/${file.path}`, file.bytes);
+        }
+        const cwd = command.cwd ? `${root}/${command.cwd}` : root;
+        this.fs.chdir(cwd);
+        const result = await this.runRaw(this.normalizeTerminalArgs(command.args, cwd));
+        if (command.args[0] === 'init')
+          result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
+        // lg2 在首次提交前会把 HEAD 指向的待创建分支报到 stderr，即使 status 成功。
+        if (command.args[0] === 'status' && result.exitCode === 0 && result.stderr) {
+          const head = command.files.find(file => file.path === '.git/HEAD');
+          const ref = /^ref: (refs\/heads\/.+)$/.exec(new TextDecoder().decode(head?.bytes).trim())?.[1];
+          if (ref && result.stderr === `error: reference '${ref}' not found`) result.stderr = '';
+        }
+        return { ...result, ...this.collectTerminalTree(root) };
+      } finally {
+        this.clearMemory(root);
+      }
+  }
+
+  private normalizeTerminalArgs(args: readonly string[], root: string): string[] {
+    if (args[0] !== 'init') return [...args];
+    let expectsValue = false;
+    for (let index = 1; index < args.length; index++) {
+      const arg = args[index];
+      if (expectsValue) {
+        expectsValue = false;
+        continue;
+      }
+      if (arg === '--') return index + 1 < args.length ? [...args] : [...args, root];
+      if (INIT_VALUE_OPTIONS.has(arg)) {
+        expectsValue = true;
+        continue;
+      }
+      if ([...INIT_VALUE_OPTIONS].some(option => arg.startsWith(`${option}=`))) continue;
+      if (!arg.startsWith('-')) return [...args];
+    }
+    return [...args, root];
+  }
+
+  private async runRaw(args: readonly string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     this.#stdout = [];
     this.#stderr = [];
-    const exitCode = await this.git.run(args);
-    if (exitCode !== 0)
-      throw new GitWorkbenchError('git_failed', `git ${command} failed (${exitCode}): ${this.#stderr.join('\n')}`);
-    return this.#stdout.join('\n');
+    try {
+      const exitCode = await this.git.run([...args]);
+      return { exitCode, stdout: this.#stdout.join('\n'), stderr: this.#stderr.join('\n') };
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      return { exitCode: 1, stdout: this.#stdout.join('\n'), stderr: this.#stderr.concat(message).join('\n') };
+    }
   }
 
   private async write(root: string, file: GitFile): Promise<void> {
@@ -954,6 +1087,37 @@ export class GitWorkbenchRuntime {
     for (const file of archive.files) await this.write(context.root, file);
     await this.git.module.opfsLoadTree(context.root);
     this.fs.chdir(context.root);
+  }
+
+  private collectTerminalTree(root: string): GitTerminalTree {
+    const files: GitFile[] = [];
+    const directories: string[] = [];
+    const pending = [''];
+    while (pending.length) {
+      const parent = pending.pop() as string;
+      const absolute = parent ? `${root}/${parent}` : root;
+      for (const name of this.fs.readdir(absolute).filter(entry => entry !== '.' && entry !== '..')) {
+        const path = parent ? `${parent}/${name}` : name;
+        const absolutePath = `${root}/${path}`;
+        const mode = this.fs.lstat(absolutePath).mode;
+        if (this.fs.isDir(mode)) {
+          directories.push(path);
+          pending.push(path);
+        } else if (this.fs.isFile(mode)) {
+          files.push({ path, bytes: new Uint8Array(this.fs.readFile(absolutePath)) });
+        }
+      }
+    }
+    return {
+      files: files.sort((left, right) => left.path.localeCompare(right.path, 'en')),
+      directories: directories.sort()
+    };
+  }
+
+  private enqueue<T>(action: () => Promise<T>): Promise<T> {
+    const run = this.#queue.catch(() => undefined).then(action);
+    this.#queue = run;
+    return run;
   }
 
   private ensureMemoryDirectory(path: string): void {

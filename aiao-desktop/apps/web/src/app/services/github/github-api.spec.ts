@@ -47,15 +47,18 @@ describe('GitHub API client', () => {
   });
 
   it('creates a root commit with the contents API and detects a racing initial push', async () => {
-    const commit = {sha: 'head', tree: {sha: 'tree'}, parents: []};
-    fetchMock.mockResolvedValueOnce(jsonResponse({commit}, {status: 201}));
-    const initial = () => api.createInitialFile('octo', 'repo', 'main', 'src/a b.bin', new Uint8Array([0,255]), 'first');
-    await expect(initial()).resolves.toEqual({head: 'head', tree: 'tree'});
+    const commit = { sha: 'head', tree: { sha: 'tree' }, parents: [] };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ commit }, { status: 201 }));
+    const initial = () =>
+      api.createInitialFile('octo', 'repo', 'main', 'src/a b.bin', new Uint8Array([0, 255]), 'first');
+    await expect(initial()).resolves.toEqual({ head: 'head', tree: 'tree' });
     const { url, init } = calledUrl();
     expect(url).toBe('https://api.github.com/repos/octo/repo/contents/src/a%20b.bin');
-    expect(JSON.parse(String(init.body))).toEqual({branch: 'main', content: 'AP8=', message: 'first'});
-    fetchMock.mockResolvedValueOnce(jsonResponse({commit: {...commit, parents: [{sha:'race'}]}}, {status:201}));
-    await expect(initial()).rejects.toMatchObject({code:'conflict'});
+    expect(JSON.parse(String(init.body))).toEqual({ branch: 'main', content: 'AP8=', message: 'first' });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ commit: { ...commit, parents: [{ sha: 'race' }] } }, { status: 201 })
+    );
+    await expect(initial()).rejects.toMatchObject({ code: 'conflict' });
   });
 
   it('parses the authenticated user', async () => {

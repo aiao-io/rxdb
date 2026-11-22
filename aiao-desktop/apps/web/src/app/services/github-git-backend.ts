@@ -289,6 +289,14 @@ export class GithubGitBackend {
     }).then(snapshot);
   }
 
+  localCommand(projectId: string, cwd: string, args: readonly string[]) {
+    return this.call('localCommand', {projectId,path:cwd,paths:args}).then(value => {
+      const item = recordOf(value,'localCommand');
+      if (typeof item['stdout'] !== 'string' || typeof item['stderr'] !== 'string') return invalidPayload('localCommand');
+      return {exitCode: integerOf(item['exitCode'],'exitCode'), stdout: item['stdout'], stderr: item['stderr']};
+    });
+  }
+
   committed(projectId: string): Promise<GitSnapshot> {
     return this.call('committed', { projectId }).then(snapshot);
   }
@@ -314,7 +322,9 @@ export class GithubGitBackend {
   }
 
   diffText(projectId: string, staged: boolean): Promise<string> {
-    return this.call('diffText', {projectId, kind: staged ? 'staged' : 'working'}).then(value => typeof value === 'string' ? value : invalidPayload('diffText'));
+    return this.call('diffText', { projectId, kind: staged ? 'staged' : 'working' }).then(value =>
+      typeof value === 'string' ? value : invalidPayload('diffText')
+    );
   }
 
   stage(projectId: string, paths: readonly string[]): Promise<GitStatus> {

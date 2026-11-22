@@ -23,8 +23,8 @@ import { EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
 import { RUNTIME_HOSTS, runtimeHostsFor } from '../runtime-hosts/hosts.js';
-import { desktopWorkspaceBackend } from '../workbench/desktop-workspace.js';
 import { createDesktopFiles } from '../workbench/desktop-files.js';
+import { desktopWorkspaceBackend } from '../workbench/desktop-workspace.js';
 import { mountSwitchableEditor } from '../workbench/editor-switcher.js';
 import type { WorkbenchEditorMount } from '../workbench/editor.js';
 import { createGitBackend } from '../workbench/git-backend.js';
@@ -279,7 +279,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const appWindow = this.orbit && getCurrentWindow(this.orbit);
     const desktop = this.orbit && getDesktop(this.orbit);
     const projectId = this.orbit?.context.props[DESKTOP_WORKSPACE_PROJECT_ID_PROP];
-    const shared = typeof projectId === 'string' && desktop?.capabilities.includes('workspace') ? { id: projectId, backend: desktopWorkspaceBackend(desktop.workspace) } : undefined;
+    const shared =
+      typeof projectId === 'string' && desktop?.capabilities.includes('workspace') ?
+        { id: projectId, backend: desktopWorkspaceBackend(desktop.workspace) }
+      : undefined;
     const hostWindow = appWindow?.state.frame === 'transparent' ? appWindow : undefined;
     this.workbench = mountWorkbench(
       this.host.nativeElement,
@@ -287,7 +290,21 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
         ...(hostWindow ? { hostWindow } : {}),
         ...(desktop ? { desktopFiles: createDesktopFiles(desktop) } : {}),
-        ...(shared ? { initialProjectId: shared.id, desktopProject: { id: shared.id, name: typeof this.orbit?.context.props['workspaceName'] === 'string' ? this.orbit.context.props['workspaceName'] : shared.id, template: 'vanilla', entry: '', updatedAt: Date.now() } } : {}),
+        ...(shared ?
+          {
+            initialProjectId: shared.id,
+            desktopProject: {
+              id: shared.id,
+              name:
+                typeof this.orbit?.context.props['workspaceName'] === 'string' ?
+                  this.orbit.context.props['workspaceName']
+                : shared.id,
+              template: 'vanilla',
+              entry: '',
+              updatedAt: Date.now()
+            }
+          }
+        : {}),
         embedded: !!this.orbit,
         runtimeHosts: runtimeHostsFor(RUNTIME_HOSTS, location.origin),
         backend: createRouterBackend({

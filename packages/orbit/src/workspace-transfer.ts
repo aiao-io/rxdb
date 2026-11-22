@@ -51,7 +51,10 @@ export function workspaceReceiver(execute: (value: unknown) => Promise<unknown>)
     const part = output.slice(cursor, cursor + PART);
     cursor += part.length;
     const last = cursor === output.length;
-    if (last) { active = ''; output = ''; }
+    if (last) {
+      active = '';
+      output = '';
+    }
     return { part, last };
   };
   return async frame => {
@@ -64,7 +67,11 @@ export function workspaceReceiver(execute: (value: unknown) => Promise<unknown>)
     }
     if (typeof part !== 'string' || !part.length || part.length > PART || typeof last !== 'boolean')
       throw new Error('工作区请求分片无效');
-    if (offset === 0) { active = id; input = ''; output = ''; }
+    if (offset === 0) {
+      active = id;
+      input = '';
+      output = '';
+    }
     if (id !== active || offset !== input.length || input.length + part.length > MAX || output)
       throw new Error('工作区请求位置无效');
     input += part;

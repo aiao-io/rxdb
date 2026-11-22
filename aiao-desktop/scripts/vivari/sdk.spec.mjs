@@ -47,6 +47,12 @@ test('Ruff 使用宿主 ESM 加载器，修补后的两个 worker URL 都区分�
   assert.match(kernel, /process-worker-CEpIMzRj\.js\?aiao-runtime=4/);
 });
 
+test('交互 shell 使用通用启动提示，不暴露 Vivari 品牌', async () => {
+  const kernel = await readFile(join(root, 'dist/assets/kernel-worker-B2lyfcKA.js'), 'utf8');
+  assert.equal(kernel.includes('Local shell — type commands, Enter to run.'), true);
+  assert.equal(kernel.includes('Vivari shell — type commands, Enter to run.'), false);
+});
+
 test('pip 的 wheel 加载失败必须返回失败，不能打印安装成功或保存空包存储', async () => {
   const worker = await readFile(join(root, 'dist/assets/process-worker-CEpIMzRj.js'), 'utf8');
   const start = worker.indexOf('async function pipInstall(indexUrl, names) {');

@@ -14,7 +14,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
 import { OPEN_OSC } from '../../vm/coreutils';
-import { SHELL_ENV, SHELL_HOME, VirtualMachine } from '../../vm/virtual-machine';
+import { SHELL_HOME, VirtualMachine } from '../../vm/virtual-machine';
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -52,14 +52,13 @@ export class TerminalTab implements OnDestroy {
   readonly active = input(false);
 
   constructor() {
+    this.terminal.parser.registerOscHandler(OPEN_OSC, async data => {
+      await this.vm.open(data);
+      return true;
+    });
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.onData(data => this.queueInput(data));
     this.terminal.onResize(size => this.process?.resize({ cols: size.cols, rows: size.rows }));
-    /* `open` 命令把要打开的路径写成 OSC 序列，这里截下来交给桌面，不显示在终端里。 */
-    this.terminal.parser.registerOscHandler(OPEN_OSC, data => {
-      void this.vm.open(data);
-      return true;
-    });
     afterNextRender(() => {
       this.terminal.open(this.panel().nativeElement);
       void this.start();
@@ -92,7 +91,7 @@ export class TerminalTab implements OnDestroy {
   }
 
   private async start(): Promise<void> {
-    this.terminal.writeln('\x1b[2mStarting local shell with Vivari…\x1b[0m');
+    this.terminal.writeln('\x1b[2mStarting local shell…\x1b[0m');
     this.acquired = true;
     try {
       const runtime = await this.vm.acquire();
@@ -100,7 +99,7 @@ export class TerminalTab implements OnDestroy {
       this.fit();
       const process = await runtime.spawn('sh', [], {
         cwd: SHELL_HOME,
-        env: { ...SHELL_ENV },
+        env: this.vm.shellEnv,
         terminal: { cols: Math.max(2, this.terminal.cols), rows: Math.max(2, this.terminal.rows) }
       });
       if (this.disposed) {
@@ -110,7 +109,7 @@ export class TerminalTab implements OnDestroy {
       this.attach(process);
     } catch (error) {
       if (!this.disposed)
-        this.terminal.writeln(`\r\n\x1b[31mVivari failed to start the local shell: ${describe(error)}\x1b[0m`);
+        this.terminal.writeln(`\r\n\x1b[31mFailed to start the local shell: ${describe(error)}\x1b[0m`);
     }
   }
 

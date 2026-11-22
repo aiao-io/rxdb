@@ -11,7 +11,9 @@ interface SourceFile {
 export interface SourceDirectory {
   readonly kind: 'directory';
   readonly name: string;
-  values(): AsyncIterable<SourceDirectory | { readonly kind: 'file'; readonly name: string; getFile(): Promise<SourceFile> }>;
+  values(): AsyncIterable<
+    SourceDirectory | { readonly kind: 'file'; readonly name: string; getFile(): Promise<SourceFile> }
+  >;
 }
 
 class DirectoryArchive {
@@ -28,14 +30,19 @@ class DirectoryArchive {
   async file(path: string, file: SourceFile) {
     assertGitPath(path, true);
     this.total += file.size;
-    if (file.size > GIT_WORKBENCH_LIMITS.fileBytes || this.files.length >= GIT_WORKBENCH_LIMITS.files || this.total > GIT_WORKBENCH_LIMITS.totalBytes)
+    if (
+      file.size > GIT_WORKBENCH_LIMITS.fileBytes ||
+      this.files.length >= GIT_WORKBENCH_LIMITS.files ||
+      this.total > GIT_WORKBENCH_LIMITS.totalBytes
+    )
       throw new GitWorkbenchError('resource_limit', `仓库文件超过导入上限：${path}`);
-    this.files.push({path, bytes: new Uint8Array(await file.arrayBuffer())});
+    this.files.push({ path, bytes: new Uint8Array(await file.arrayBuffer()) });
   }
 
   finish(name: string) {
-    if (!this.files.some(file => file.path === '.git/HEAD')) throw new Error('目录尚未初始化或未包含 .git/HEAD。请选择完整的 Git 仓库');
-    return { name, archive: encodeGitArchive({files: this.files, directories: [...this.directories]}) };
+    if (!this.files.some(file => file.path === '.git/HEAD'))
+      throw new Error('目录尚未初始化或未包含 .git/HEAD。请选择完整的 Git 仓库');
+    return { name, archive: encodeGitArchive({ files: this.files, directories: [...this.directories] }) };
   }
 }
 
@@ -63,17 +70,29 @@ export async function archiveOfUploadedDirectory(files: readonly File[]) {
     const [name, ...parts] = file.webkitRelativePath.split('/');
     if (name !== root || !parts.length) throw new Error('请选择一个 Git 仓库文件夹');
     for (let count = 1; count < parts.length; count++) archive.directory(parts.slice(0, count).join('/'));
-    await archive.file(parts.join('/'),file);
+    await archive.file(parts.join('/'), file);
   }
   return archive.finish(root);
 }
 
 export function diskDirectory(store: DiskStore, path: DiskPath): SourceDirectory {
-  return { kind: 'directory', name: path.at(-1)!, async *values() {
-    for (const entry of await store.list(path)) {
-      const child = [...path, entry.name];
-      if (entry.kind === 'directory') yield diskDirectory(store,child);
-      else yield {kind: 'file', name: entry.name, getFile: async () => ({size: (await store.info(child)).size, arrayBuffer: async () => new Uint8Array(await store.read(child)).buffer})};
+  return {
+    kind: 'directory',
+    name: path.at(-1)!,
+    async *values() {
+      for (const entry of await store.list(path)) {
+        const child = [...path, entry.name];
+        if (entry.kind === 'directory') yield diskDirectory(store, child);
+        else
+          yield {
+            kind: 'file',
+            name: entry.name,
+            getFile: async () => ({
+              size: (await store.info(child)).size,
+              arrayBuffer: async () => new Uint8Array(await store.read(child)).buffer
+            })
+          };
+      }
     }
-  } };
+  };
 }

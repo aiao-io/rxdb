@@ -3,32 +3,69 @@ import { decodeBase64, encodeBase64, type DesktopWorkspaceRequest } from '@aiao/
 import { DestroyRef, Service, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import { HOME, isRequiredDiskPath, isWithin, samePath, toVmPath, type DiskPath } from '../disk/disk-path';
+import { runWorkspaceGit, type GithubTerminalRequest } from '../vm/workspace-git';
 import { DesktopAppServices } from './desktop-app-services';
 import { FileSystem } from './file-system';
 import { GitWorkbenchError } from './git/git-protocol';
 import { GithubConnection } from './github-connection';
 import { GithubGitBackend, type GitFile, type GitSnapshot } from './github-git-backend';
-import { GithubRepositoryStore, type GithubRepositoryRecord, parseGithubRemote, projectIdForPath } from './github-repository';
+import {
+  GithubRepositoryStore,
+  parseGithubRemote,
+  projectIdForPath,
+  type GithubRepositoryRecord
+} from './github-repository';
 import { bindVolumeRepository, gitfile } from './github-volume-binding';
 import { volumeJournal } from './github-volume-journal';
-import { hashBytes, projectionHashes, publishWorkingFiles, recoverWorkingFiles, worktreeDelta, worktreeFiles } from './github-worktree';
-import { runWorkspaceGit, type GithubTerminalRequest } from '../vm/workspace-git';
+import {
+  hashBytes,
+  projectionHashes,
+  publishWorkingFiles,
+  recoverWorkingFiles,
+  worktreeDelta,
+  worktreeFiles
+} from './github-worktree';
 
 function wire(value: unknown): OrbitValue {
   if (value instanceof Uint8Array) return encodeBase64(value);
-  if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number')
+    return value;
   if (Array.isArray(value)) return value.map(wire);
-  if (typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, wire(item)]));
+  if (typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, wire(item)]));
   throw new Error('Invalid workspace result');
 }
 
 function requireRoot(root: DiskPath): void {
-  if (!isWithin(root, HOME) || isRequiredDiskPath(root) || root.some(part => !part || ['.', '..', '.git'].includes(part) || part.includes('/') || part.includes('\\') || Array.from(part).some(ch => ch.charCodeAt(0) < 32)))
+  if (
+    !isWithin(root, HOME) ||
+    isRequiredDiskPath(root) ||
+    root.some(
+      part =>
+        !part ||
+        ['.', '..', '.git'].includes(part) ||
+        part.includes('/') ||
+        part.includes('\\') ||
+        Array.from(part).some(ch => ch.charCodeAt(0) < 32)
+    )
+  )
     throw new GitWorkbenchError('invalid_path', '请选择 Macintosh HD 主目录内的项目文件夹');
 }
 
 function recordFor(projectId: string, rootPath: DiskPath, branch: string): GithubRepositoryRecord {
-  return {projectId, rootPath, name: rootPath.at(-1)!, owner: null, repo: null, private: false, branch, remoteHead: null, remoteTree: null, remoteEntries: [], updatedAt: Date.now()};
+  return {
+    projectId,
+    rootPath,
+    name: rootPath.at(-1)!,
+    owner: null,
+    repo: null,
+    private: false,
+    branch,
+    remoteHead: null,
+    remoteTree: null,
+    remoteEntries: [],
+    updatedAt: Date.now()
+  };
 }
 
 /** 所有入口共用仓库锁和 Worker。卷内工作文件的读、Git 操作与增量发布持有同一把桌面磁盘锁。 */
@@ -36,16 +73,28 @@ function recordFor(projectId: string, rootPath: DiskPath, branch: string): Githu
 export class GithubWorkspace {
   private readonly files = inject(FileSystem);
   private worker?: GithubGitBackend;
-  private get git() { return this.worker ??= new GithubGitBackend(); }
+  private get git() {
+    return (this.worker ??= new GithubGitBackend());
+  }
   readonly records = inject(DesktopAppServices).get(GithubRepositoryStore);
   readonly connection = inject(DesktopAppServices).get(GithubConnection);
   readonly changes = new Subject<string>();
-  constructor() { inject(DestroyRef).onDestroy(() => { this.worker?.dispose(); this.changes.complete(); }); }
-  restart(): void { this.worker?.restart(); }
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.worker?.dispose();
+      this.changes.complete();
+    });
+  }
+  restart(): void {
+    this.worker?.restart();
+  }
 
   async repositoryAt(root: DiskPath) {
     await this.records.ready();
-    return this.records.records().filter(item => item.rootPath && isWithin(root, item.rootPath)).sort((a,b) => b.rootPath!.length - a.rootPath!.length)[0];
+    return this.records
+      .records()
+      .filter(item => item.rootPath && isWithin(root, item.rootPath))
+      .sort((a, b) => b.rootPath!.length - a.rootPath!.length)[0];
   }
 
   async openDirectory(root: DiskPath, initialize = false): Promise<GithubRepositoryRecord> {
@@ -55,8 +104,15 @@ export class GithubWorkspace {
       await this.records.ready();
       const record = this.records.find(projectId);
       if (record && !samePath(root, record.rootPath ?? [])) throw new Error('仓库标识已被其他目录使用');
-      if (record) { await this.withWorktree(projectId, 'read', () => this.git.open(projectId)); return record; }
-      const result = await this.files.run(store => bindVolumeRepository(store, root, projectId, this.git, {initialize}, snapshot => this.registerDirectory(root,snapshot)));
+      if (record) {
+        await this.withWorktree(projectId, 'read', () => this.git.open(projectId));
+        return record;
+      }
+      const result = await this.files.run(store =>
+        bindVolumeRepository(store, root, projectId, this.git, { initialize }, snapshot =>
+          this.registerDirectory(root, snapshot)
+        )
+      );
       this.files.changes.next([root]);
       this.changes.next(projectId);
       return result.record;
@@ -73,67 +129,136 @@ export class GithubWorkspace {
 
   inspect(id: string) {
     return this.use(id, 'read', async () => {
-      const [snapshot, status, branches, history] = await Promise.all([this.git.snapshot(id), this.git.status(id), this.git.branches(id), this.git.history(id)]);
+      const [snapshot, status, branches, history] = await Promise.all([
+        this.git.snapshot(id),
+        this.git.status(id),
+        this.git.branches(id),
+        this.git.history(id)
+      ]);
       return { snapshot, status, branches, history };
     });
   }
 
-  open(id: string) { return this.use(id, 'read', () => this.git.open(id)); }
+  open(id: string) {
+    return this.use(id, 'read', () => this.git.open(id));
+  }
 
-  snapshot(id: string) { return this.use(id, 'read', () => this.git.snapshot(id)); }
+  snapshot(id: string) {
+    return this.use(id, 'read', () => this.git.snapshot(id));
+  }
 
-  status(id: string) { return this.use(id, 'read', () => this.git.status(id)); }
+  status(id: string) {
+    return this.use(id, 'read', () => this.git.status(id));
+  }
 
-  diffText(id: string, staged: boolean) { return this.use(id, 'read', () => this.git.diffText(id,staged)); }
+  localCommand(id: string, cwd: string, args: readonly string[]) {
+    return this.use(id, 'write', () => this.git.localCommand(id,cwd,args));
+  }
 
-  readDiff(id: string, path: string, kind: 'working' | 'staged') { return this.use(id, 'read', () => this.git.readDiff(id, path, kind)); }
+  diffText(id: string, staged: boolean) {
+    return this.use(id, 'read', () => this.git.diffText(id, staged));
+  }
 
-  branches(id: string) { return this.use(id, 'read', () => this.git.branches(id)); }
+  readDiff(id: string, path: string, kind: 'working' | 'staged') {
+    return this.use(id, 'read', () => this.git.readDiff(id, path, kind));
+  }
 
-  history(id: string) { return this.use(id, 'read', () => this.git.history(id)); }
+  branches(id: string) {
+    return this.use(id, 'read', () => this.git.branches(id));
+  }
 
-  commitChanges(id: string, oid: string) { return this.use(id, 'read', () => this.git.commitChanges(id, oid)); }
+  history(id: string) {
+    return this.use(id, 'read', () => this.git.history(id));
+  }
 
-  exportArchive(id: string) { return this.use(id, 'read', () => this.git.exportArchive(id)); }
+  commitChanges(id: string, oid: string) {
+    return this.use(id, 'read', () => this.git.commitChanges(id, oid));
+  }
 
-  stage(id: string, paths: readonly string[]) { return this.use(id, 'index', () => this.git.stage(id, paths)); }
+  exportArchive(id: string) {
+    return this.use(id, 'read', () => this.git.exportArchive(id));
+  }
 
-  unstage(id: string, paths: readonly string[]) { return this.use(id, 'index', () => this.git.unstage(id, paths)); }
+  stage(id: string, paths: readonly string[]) {
+    return this.use(id, 'index', () => this.git.stage(id, paths));
+  }
 
-  commit(id: string, message: string) { return this.use(id, 'index', () => this.git.commit(id, message)); }
+  unstage(id: string, paths: readonly string[]) {
+    return this.use(id, 'index', () => this.git.unstage(id, paths));
+  }
 
-  createBranch(id: string, name: string) { return this.use(id, 'index', () => this.git.createBranch(id, name)); }
+  commit(id: string, message: string) {
+    return this.use(id, 'index', () => this.git.commit(id, message));
+  }
 
-  deleteBranch(id: string, name: string) { return this.use(id, 'index', () => this.git.deleteBranch(id, name)); }
+  createBranch(id: string, name: string) {
+    return this.use(id, 'index', () => this.git.createBranch(id, name));
+  }
 
-  checkout(id: string, name: string, force = false) { return this.use(id, 'write', () => this.git.checkout(id, name, force)); }
+  deleteBranch(id: string, name: string) {
+    return this.use(id, 'index', () => this.git.deleteBranch(id, name));
+  }
 
-  save(id: string, files: readonly GitFile[], expectedRevision: number, removedPaths: readonly string[] = []) { return this.use(id, 'write', () => this.git.save(id, files, expectedRevision, removedPaths)); }
+  checkout(id: string, name: string, force = false) {
+    return this.use(id, 'write', () => this.git.checkout(id, name, force));
+  }
 
-  discardWorking(id: string, path: string) { return this.use(id, 'write', () => this.git.discardWorking(id, path)); }
+  save(id: string, files: readonly GitFile[], expectedRevision: number, removedPaths: readonly string[] = []) {
+    return this.use(id, 'write', () => this.git.save(id, files, expectedRevision, removedPaths));
+  }
 
-  remove(id: string, path: string) { return this.use(id, 'write', () => this.git.remove(id, path)); }
+  discardWorking(id: string, path: string) {
+    return this.use(id, 'write', () => this.git.discardWorking(id, path));
+  }
 
-  rename(id: string, path: string, destination: string) { return this.use(id, 'write', () => this.git.rename(id, path, destination)); }
+  remove(id: string, path: string) {
+    return this.use(id, 'write', () => this.git.remove(id, path));
+  }
 
-  move(id: string, path: string, destination: string) { return this.use(id, 'write', () => this.git.move(id, path, destination)); }
+  rename(id: string, path: string, destination: string) {
+    return this.use(id, 'write', () => this.git.rename(id, path, destination));
+  }
 
-  restore(id: string, oid: string) { return this.use(id, 'write', () => this.git.restore(id, oid)); }
+  move(id: string, path: string, destination: string) {
+    return this.use(id, 'write', () => this.git.move(id, path, destination));
+  }
 
-  create(id: string, files: readonly GitFile[]) { return this.lock(id, () => this.git.create(id, files)); }
-  importArchive(id: string, bytes: Uint8Array) { return this.lock(id, () => this.git.importArchive(id, bytes)); }
+  restore(id: string, oid: string) {
+    return this.use(id, 'write', () => this.git.restore(id, oid));
+  }
+
+  create(id: string, files: readonly GitFile[]) {
+    return this.lock(id, () => this.git.create(id, files));
+  }
+  importArchive(id: string, bytes: Uint8Array) {
+    return this.lock(id, () => this.git.importArchive(id, bytes));
+  }
   async configureRemote(id: string, url: string | null) {
     return this.lock(id, async () => {
       const record = await this.registered(id);
-      if (url && record.owner) throw new Error('remote origin already exists');
-      if (url === null && !record.owner) throw new Error('No such remote: origin');
-      const address = url === null ? null : parseGithubRemote(url);
-      if (url !== null && !address) throw new Error('请输入 GitHub HTTPS 仓库地址');
       const origin = await this.git.origin(id);
+      if (url && origin) throw new Error('remote origin already exists');
+      if (url === null && !origin && !record.owner) throw new Error('No such remote: origin');
+      const address = url === null ? null : parseGithubRemote(url);
+      if (url !== null && (!address || address.branch)) throw new Error('请输入 GitHub HTTPS 仓库地址');
       await this.git.setOrigin(id, address ? `https://github.com/${address.owner}/${address.repo}.git` : null);
-      const next = { ...record, fetched: undefined, owner: address?.owner ?? null, repo: address?.repo ?? null, private: false, remoteHead: null, remoteTree: null, remoteEntries: [], updatedAt: Date.now() };
-      try { await this.records.put(next); }
-      catch (cause) { await this.git.setOrigin(id, origin); throw cause; }
+      const next = {
+        ...record,
+        fetched: undefined,
+        owner: address?.owner ?? null,
+        repo: address?.repo ?? null,
+        private: false,
+        remoteHead: null,
+        remoteTree: null,
+        remoteEntries: [],
+        updatedAt: Date.now()
+      };
+      try {
+        await this.records.put(next);
+      } catch (cause) {
+        await this.git.setOrigin(id, origin);
+        throw cause;
+      }
       this.changes.next(id);
       return next;
     });
@@ -145,7 +270,11 @@ export class GithubWorkspace {
       if (!record.owner || !record.repo) throw new Error('No GitHub remote is configured');
       const { branch } = await this.git.status(id);
       const remote = await this.connection.remote.open(record.owner, record.repo, branch);
-      await this.records.put({ ...record, fetched: { branch, head: remote.record.remoteHead! }, updatedAt: Date.now() });
+      await this.records.put({
+        ...record,
+        fetched: { branch, head: remote.record.remoteHead! },
+        updatedAt: Date.now()
+      });
       this.changes.next(id);
       return remote;
     });
@@ -157,7 +286,10 @@ export class GithubWorkspace {
       if (!record.owner || !record.repo) throw new Error('No GitHub remote is configured');
       const branch = (await this.git.status(id)).branch;
       const remote = await this.connection.remote.open(record.owner, record.repo, branch);
-      const base = branch === record.branch ? record : { ...record, branch, remoteHead: null, remoteTree: null, remoteEntries: [] };
+      const base =
+        branch === record.branch ?
+          record
+        : { ...record, branch, remoteHead: null, remoteTree: null, remoteEntries: [] };
       const current = await this.withWorktree(id, 'read', () => this.git.snapshot(id));
       if (base.remoteHead === remote.record.remoteHead) return current;
       const merged = await this.connection.remote.pull(base, current.files, true, remote);
@@ -186,7 +318,14 @@ export class GithubWorkspace {
         return { ...(await this.git.committed(id)), branch: status.branch };
       });
       const result = await this.connection.remote.push({ ...record, branch: snapshot.branch }, snapshot.files, message);
-      const next = { ...record, branch: snapshot.branch, remoteHead: result.head, remoteTree: result.tree, remoteEntries: [], updatedAt: Date.now() };
+      const next = {
+        ...record,
+        branch: snapshot.branch,
+        remoteHead: result.head,
+        remoteTree: result.tree,
+        remoteEntries: [],
+        updatedAt: Date.now()
+      };
       await this.records.put(next);
       this.changes.next(id);
       return next;
@@ -197,7 +336,9 @@ export class GithubWorkspace {
     await this.git.setOrigin(record.projectId, `https://github.com/${record.owner}/${record.repo}.git`);
   }
 
-  runTerminal(request: GithubTerminalRequest) { return runWorkspaceGit(this, request); }
+  runTerminal(request: GithubTerminalRequest) {
+    return runWorkspaceGit(this, request);
+  }
 
   async call(request: DesktopWorkspaceRequest): Promise<OrbitValue> {
     const id = request.projectId;
@@ -209,7 +350,11 @@ export class GithubWorkspace {
     const id = snapshot.projectId;
     const url = await this.git.origin(id);
     const address = url ? parseGithubRemote(url) : null;
-    const record = {...recordFor(id,root,(await this.git.status(id)).branch), owner: address?.owner ?? null, repo: address?.repo ?? null};
+    const record = {
+      ...recordFor(id, root, (await this.git.status(id)).branch),
+      owner: address?.owner ?? null,
+      repo: address?.repo ?? null
+    };
     await this.records.put(record);
     return { record, snapshot };
   }
@@ -220,7 +365,11 @@ export class GithubWorkspace {
     return this.lock(id, async () => {
       await this.records.ready();
       if (this.records.find(id)) throw new Error(`目标目录已存在：${toVmPath(root)}`);
-      const result = await this.files.run(store => bindVolumeRepository(store, root, id, this.git, {copy: {source, create: () => create(id)}}, snapshot => this.registerDirectory(root,snapshot)));
+      const result = await this.files.run(store =>
+        bindVolumeRepository(store, root, id, this.git, { copy: { source, create: () => create(id) } }, snapshot =>
+          this.registerDirectory(root, snapshot)
+        )
+      );
       this.files.changes.next([root]);
       this.changes.next(id);
       return result;
@@ -236,34 +385,38 @@ export class GithubWorkspace {
   }
 
   private async withWorktree<T>(id: string, mode: 'read' | 'index' | 'write', task: () => Promise<T>): Promise<T> {
-      await this.records.ready();
-      const root = this.records.find(id)?.rootPath;
-      let paths: DiskPath[] = [];
-      const result = root ? await this.files.run(async store => {
-        const linked = new TextDecoder().decode(await store.read([...root, '.git']));
-        if (linked !== gitfile(id)) throw new Error('卷内目录已移动或已指向另一个仓库');
-        let disk = await worktreeFiles(store, root);
-        const current = await this.git.snapshot(id);
-        const journal = await volumeJournal(id);
-        const interrupted = await journal.read();
-        if (interrupted) {
-          paths = await recoverWorkingFiles(store,root,interrupted,disk,current.files);
+    await this.records.ready();
+    const root = this.records.find(id)?.rootPath;
+    let paths: DiskPath[] = [];
+    const result =
+      root ?
+        await this.files.run(async store => {
+          const linked = new TextDecoder().decode(await store.read([...root, '.git']));
+          if (linked !== gitfile(id)) throw new Error('卷内目录已移动或已指向另一个仓库');
+          let disk = await worktreeFiles(store, root);
+          const current = await this.git.snapshot(id);
+          const journal = await volumeJournal(id);
+          const interrupted = await journal.read();
+          if (interrupted) {
+            paths = await recoverWorkingFiles(store, root, interrupted, disk, current.files);
+            await journal.clear();
+            disk = await worktreeFiles(store, root);
+          }
+          const diff = worktreeDelta(current.files, disk);
+          if (diff.changed.length || diff.removed.length)
+            await this.git.save(id, diff.changed, current.revision, diff.removed);
+          if (mode !== 'write') return task();
+          await journal.write(await projectionHashes(disk));
+          const value = await task();
+          const next = worktreeDelta(disk, (await this.git.snapshot(id)).files);
+          paths.push(...(await publishWorkingFiles(store, root, next)));
           await journal.clear();
-          disk = await worktreeFiles(store, root);
-        }
-        const diff = worktreeDelta(current.files, disk);
-        if (diff.changed.length || diff.removed.length) await this.git.save(id, diff.changed, current.revision, diff.removed);
-        if (mode !== 'write') return task();
-        await journal.write(await projectionHashes(disk));
-        const value = await task();
-        const next = worktreeDelta(disk, (await this.git.snapshot(id)).files);
-        paths.push(...await publishWorkingFiles(store, root, next));
-        await journal.clear();
-        return value;
-      }) : await task();
-      if (paths.length) this.files.changes.next(paths);
-      if (mode !== 'read') this.changes.next(id);
-      return result;
+          return value;
+        })
+      : await task();
+    if (paths.length) this.files.changes.next(paths);
+    if (mode !== 'read') this.changes.next(id);
+    return result;
   }
 
   private async registered(id: string) {
@@ -274,20 +427,39 @@ export class GithubWorkspace {
   }
   private async editorCommand(id: string, request: DesktopWorkspaceRequest): Promise<unknown> {
     switch (request.operation) {
-      case 'open': return this.open(id);
-      case 'save': return this.save(id, request.files.map(file => ({ path: file.path, bytes: decodeBase64(file.base64) })), request.expectedRevision, request.removedPaths);
-      case 'remove': return this.remove(id, request.path);
-      case 'rename': return this.rename(id, request.path, request.destination);
-      case 'move': return this.move(id, request.path, request.destination);
-      case 'status': return this.status(id);
-      case 'stage': return this.stage(id, request.paths);
-      case 'unstage': return this.unstage(id, request.paths);
-      case 'readDiff': return this.readDiff(id, request.path, request.kind);
-      case 'discardWorking': return this.discardWorking(id, request.path);
-      case 'commit': return this.commit(id, request.message);
-      case 'pull': return this.pull(id);
-      case 'history': return this.history(id);
-      case 'restore': return this.restore(id, request.oid);
+      case 'open':
+        return this.open(id);
+      case 'save':
+        return this.save(
+          id,
+          request.files.map(file => ({ path: file.path, bytes: decodeBase64(file.base64) })),
+          request.expectedRevision,
+          request.removedPaths
+        );
+      case 'remove':
+        return this.remove(id, request.path);
+      case 'rename':
+        return this.rename(id, request.path, request.destination);
+      case 'move':
+        return this.move(id, request.path, request.destination);
+      case 'status':
+        return this.status(id);
+      case 'stage':
+        return this.stage(id, request.paths);
+      case 'unstage':
+        return this.unstage(id, request.paths);
+      case 'readDiff':
+        return this.readDiff(id, request.path, request.kind);
+      case 'discardWorking':
+        return this.discardWorking(id, request.path);
+      case 'commit':
+        return this.commit(id, request.message);
+      case 'pull':
+        return this.pull(id);
+      case 'history':
+        return this.history(id);
+      case 'restore':
+        return this.restore(id, request.oid);
     }
   }
 }

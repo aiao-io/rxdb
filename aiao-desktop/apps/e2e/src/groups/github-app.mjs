@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { installGitHubOAuth } from '../fixtures/github-oauth.mjs';
+import { traced } from '../harness/host-calls.mjs';
 
 const OAUTH_ORIGIN = 'https://vscode.aiao.io';
 const TOKEN = 'test-oauth-token';
@@ -115,44 +116,89 @@ async function discardChangedFile(view, path) {
 }
 
 async function droppedRepository(session, view) {
-  const temporary = await mkdtemp(join(tmpdir(),'aiao-github-drop-'));
-  const folder = join(temporary,'drop-fixture');
-  const plain = join(temporary,'plain-folder');
+  const temporary = await mkdtemp(join(tmpdir(), 'aiao-github-drop-'));
+  const folder = join(temporary, 'drop-fixture');
+  const plain = join(temporary, 'plain-folder');
   const client = await session.page.context().newCDPSession(session.page);
   try {
     await mkdir(folder);
     await mkdir(plain);
-    const git = (...args) => execFileSync('git',['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false','-C',folder,...args],{encoding:'utf8',env: {...process.env, GIT_CONFIG_GLOBAL:'/dev/null', GIT_CONFIG_NOSYSTEM:'1'}}).trim();
-    git('init','-q','--template=','-b','main');
-    await writeFile(join(folder,'tracked.txt'),'committed\n');
-    git('add','tracked.txt');
-    git('commit','-qm','original commit');
-    git('checkout','-qb','topic');
-    git('remote','add','origin','https://github.com/octo/drop-fixture.git');
-    await writeFile(join(folder,'tracked.txt'),'staged\n');
-    git('add','tracked.txt');
-    await writeFile(join(folder,'tracked.txt'),'working\n');
-    const head = git('rev-parse','HEAD');
+    const git = (...args) =>
+      execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=Fixture',
+          '-c',
+          'user.email=fixture@example.invalid',
+          '-c',
+          'commit.gpgsign=false',
+          '-C',
+          folder,
+          ...args
+        ],
+        { encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }
+      ).trim();
+    git('init', '-q', '--template=', '-b', 'main');
+    await writeFile(join(folder, 'tracked.txt'), 'committed\n');
+    git('add', 'tracked.txt');
+    git('commit', '-qm', 'original commit');
+    git('checkout', '-qb', 'topic');
+    git('remote', 'add', 'origin', 'https://github.com/octo/drop-fixture.git');
+    await writeFile(join(folder, 'tracked.txt'), 'staged\n');
+    git('add', 'tracked.txt');
+    await writeFile(join(folder, 'tracked.txt'), 'working\n');
+    const head = git('rev-parse', 'HEAD');
     const bounds = await view.locator('[data-github-app]').boundingBox();
     const drop = async files => {
-      const event = {x:bounds.x + bounds.width / 2,y: bounds.y + bounds.height / 2, data:{items:[], files,dragOperationsMask:1}};
-      for (const type of ['dragEnter','dragOver','drop']) await client.send('Input.dispatchDragEvent',{...event,type});
+      const event = {
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+        data: { items: [], files, dragOperationsMask: 1 }
+      };
+      for (const type of ['dragEnter', 'dragOver', 'drop'])
+        await client.send('Input.dispatchDragEvent', { ...event, type });
     };
-    await drop([plain,folder]);
+    await drop([plain, folder]);
     await expect(view.locator('[data-github-notice]')).toContainText('/Documents/GitHub/drop-fixture');
     await expect(view.locator('[data-github-error]')).toContainText('plain-folder');
     await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
     await drop([folder]);
     await expect(view.locator('[data-github-error]')).toContainText('目标目录已存在');
     await session.helpers.openTerminal();
-    const shell = session.helpers.runInShell;
-    expect(await shell('cd ~/Documents/GitHub/drop-fixture && git rev-parse HEAD',new RegExp(head))).toBe(true);
-    expect(await shell('git status --short',/MM tracked\.txt/)).toBe(true);
-    expect(await shell('git diff --cached',/\+staged/)).toBe(true);
-    expect(await shell('git diff',/\+working/)).toBe(true);
-    expect(await shell('cat tracked.txt',/working/)).toBe(true);
-    expect(await shell('git remote -v',/octo\/drop-fixture\.git \(push\)/)).toBe(true);
-  } finally { await client.detach(); await rm(temporary,{recursive:true,force:true}); }
+    let sequence = 0;
+    const outputOf = async command => {
+      const token = `D${++sequence}`;
+      const finished = await session.helpers.runInShell(`echo ${token}'BEGIN'; ${command}; echo ${token}'END'`, new RegExp(`${token}END.*\\$\\s*$`));
+      const rows = (await session.helpers.xtermText()).replaceAll('\u00a0',' ');
+      if (!finished) throw new Error(`Terminal did not finish ${command}\n${rows}`);
+      return rows.split(`${token}BEGIN`).at(-1).split(`${token}END`)[0].trim();
+    };
+    expect(await outputOf('cd ~/Documents/GitHub/drop-fixture && git rev-parse HEAD')).toBe(head);
+    expect(await outputOf('git status --short')).toBe('MM tracked.txt');
+    expect(await outputOf('git diff --cached')).toContain('+staged');
+    expect(await outputOf('git diff')).toContain('+working');
+    expect(await outputOf('cat tracked.txt')).toBe('working');
+    expect(await outputOf('git remote -v')).toContain('https://github.com/octo/drop-fixture.git');
+    await outputOf('git remote remove origin');
+    expect(await outputOf('git remote -v')).toBe('');
+    await session.helpers.runInShell('open -R ~/Documents/GitHub/drop-fixture');
+    const finder = session.helpers.win('finder').last();
+    const source = finder.locator('[data-name="drop-fixture"]').last();
+    await expect(source).toBeVisible();
+    const layout = await session.page.addStyleTag({content: `.win[data-app="github"] {left: 5px!important; top: 45px!important; width: 48vw!important;} .win[data-app="finder"] {left: 50vw!important; top: 45px!important; width: 47vw!important;} .win[data-app="terminal"]{visibility:hidden}`});
+    try {
+      const target = view.locator('[data-github-app]');
+      await source.dragTo(target,{targetPosition:{x:80,y:150}});
+      await expect(view.locator('[data-github-notice]')).toHaveText('Opened drop-fixture');
+      await openRepositoryMenu(view);
+      await expect(view.locator('[data-project-id]').filter({hasText:'drop-fixture'})).toHaveCount(1);
+      await expect(view.getByRole('button',{name:'Add origin',exact:true})).toBeEnabled();
+    } finally { await layout.evaluate(element => element.remove()); }
+  } finally {
+    await client.detach();
+    await rm(temporary, { recursive: true, force: true });
+  }
 }
 
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
@@ -200,7 +246,7 @@ export const githubApp = {
   async run(session) {
     const { page, context } = session;
     const { win, closeAll, launch, spotlight, appears } = session.helpers;
-    const result = {};
+    const result = traced('github-app');
     let exchangeFailure = false;
     let apiOffline = false;
     let remoteConflict = false;
@@ -521,6 +567,9 @@ export const githubApp = {
     await expect(restoredGithub.locator('[data-project-id^="local-"]')).toHaveCount(2);
     result.archiveRoundTrip = (await restoredGithub.locator('[data-project-id^="local-"]').count()) >= 2;
 
+    await restoredGithub.locator('[data-github-repository-menu]').click();
+    await droppedRepository(session, restoredGithub);
+    result.droppedRepository = true;
     await closeAll();
     await launch('GitHub Desktop');
     const remoteGithub = win('github');
@@ -535,12 +584,11 @@ export const githubApp = {
     await openRepositoryMenu(remoteGithub);
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
-    await remoteGithub
-      .locator('[data-github-repository-name]')
-      .filter({ hasText: `${PUBLIC_OWNER}/${PUBLIC_REPO}` })
-      .waitFor();
+    await expect(remoteGithub.locator('[data-github-repository-name]')).toHaveText(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
+    await expect(remoteGithub.getByRole('button', { name: 'Open in Aiao Code', exact: true })).toBeEnabled();
     await showRepositoryFiles(remoteGithub);
-    result.publicRepositoryOpens = (await remoteGithub.locator('[data-file-path="src/main.ts"]').count()) === 1;
+    await expect(remoteGithub.locator('[data-file-path="src/main.ts"]')).toHaveCount(1);
+    result.publicRepositoryOpens = true;
 
     const publicFixture = repositories.get(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     const pulledMain = bytes('export const value = 2;\n');
@@ -577,9 +625,10 @@ export const githubApp = {
 
     await openRepositoryMenu(remoteGithub);
     const startOAuth = async () => {
-      const popupPromise = context.waitForEvent('page');
-      await remoteGithub.locator('[data-github-oauth-login]').click();
-      const popup = await popupPromise;
+      const button = remoteGithub.locator('[data-github-oauth-login]');
+      await expect(button).toBeEnabled();
+      await button.focus();
+      const [popup] = await Promise.all([context.waitForEvent('page'), button.press('Enter')]);
       await popup.getByRole('link', { name: 'Deny' }).waitFor();
       return popup;
     };
@@ -694,8 +743,6 @@ export const githubApp = {
     await commitButton.press('Enter');
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Committed' }).waitFor();
     result.keyboardPath = true;
-    await droppedRepository(session,remoteGithub);
-    result.droppedRepository = true;
     result.workerFailureCoveredByUnitTests = true;
 
     await closeAll();

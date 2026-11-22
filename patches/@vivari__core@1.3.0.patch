@@ -1,5 +1,5 @@
 diff --git a/dist/assets/kernel-worker-B2lyfcKA.js b/dist/assets/kernel-worker-B2lyfcKA.js
-index 7046122bcbd194c06ca195073d50081f0735149c..3c2d5f5f36668bc011eefb45a7d2f2c34c155cfa 100644
+index 7046122bcbd194c06ca195073d50081f0735149c..3eae0a23bdc7dce7cf9fc99a8ff209d5ce4493f2 100644
 --- a/dist/assets/kernel-worker-B2lyfcKA.js
 +++ b/dist/assets/kernel-worker-B2lyfcKA.js
 @@ -2847,12 +2847,13 @@ async function main() {
@@ -27,6 +27,12 @@ index 7046122bcbd194c06ca195073d50081f0735149c..3c2d5f5f36668bc011eefb45a7d2f2c3
    await mod.default({ module_or_path: bytes });
    return { mod: mod, workspace: new mod.Workspace(settings) };
  }
+@@ -4967,4 +4967,4 @@
+   process.stdin.setRawMode && process.stdin.setRawMode(true);
+   process.stdin.resume();
+-  process.stdout.write('Vivari shell — type commands, Enter to run.\\n');
++  process.stdout.write('Local shell — type commands, Enter to run.\\n');
+   prompt();
 @@ -9414,7 +9415,7 @@ async function boot() {
  	const spawnWorker = (info) => {
  		const worker = new Worker(new URL(

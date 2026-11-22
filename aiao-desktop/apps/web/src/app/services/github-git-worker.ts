@@ -102,7 +102,9 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return payload.removedPaths === undefined ?
           git.save(projectId, files(payload.files), payload.expectedRevision)
         : git.save(projectId, files(payload.files), payload.expectedRevision, payload.removedPaths);
-    case 'committed': return git.committed(projectId);
+    case 'localCommand': return git.localCommand(projectId, payload.path ?? '', payload.paths ?? []);
+    case 'committed':
+      return git.committed(projectId);
     case 'snapshot':
       return git.snapshot(projectId);
     case 'remove':
@@ -135,13 +137,17 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.checkout(projectId, payload.branch ?? '', payload.force ?? false);
     case 'history':
       return git.history(projectId);
-    case 'diffText': return git.diffText(projectId,payload.kind === 'staged');
+    case 'diffText':
+      return git.diffText(projectId, payload.kind === 'staged');
     case 'commitChanges':
       return git.commitChanges(projectId, payload.oid ?? '');
     case 'restore':
       return git.restore(projectId, payload.oid ?? '');
-    case 'origin': return git.origin(projectId);
-    case 'setOrigin': await git.setOrigin(projectId, payload.url ?? null); return null;
+    case 'origin':
+      return git.origin(projectId);
+    case 'setOrigin':
+      await git.setOrigin(projectId, payload.url ?? null);
+      return null;
     case 'export':
       return git.exportArchive(projectId);
     case 'import':

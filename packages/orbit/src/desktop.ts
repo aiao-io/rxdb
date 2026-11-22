@@ -1,4 +1,3 @@
-import { workspaceReceiver, workspaceSender } from './workspace-transfer.js';
 import { registerService, reportSafely } from './callbacks.js';
 import { OrbitError } from './errors.js';
 import { copyValue, isRecord, MAX_BYTES } from './payload.js';
@@ -15,6 +14,7 @@ import {
   trackDragRegions
 } from './window-codec.js';
 import type { OrbitDragRegion, OrbitWindowFrame, OrbitWindowPlatform } from './window.js';
+import { workspaceReceiver, workspaceSender } from './workspace-transfer.js';
 
 /*
  * 桌面能力协议（ADESK-US-206「能力契约」）：应用经 Orbit 请求宿主的 window / menu / app / appearance，
@@ -371,8 +371,20 @@ export interface DesktopSavedFile {
 
 /** 宿主侧 Git 工作区请求。工作区只暴露受控 RPC，不暴露 OPFS 句柄或宿主内部服务。 */
 export const DESKTOP_WORKSPACE_OPERATIONS = [
-  'open', 'save', 'remove', 'rename', 'move', 'status', 'stage', 'unstage', 'readDiff',
-  'discardWorking', 'commit', 'pull', 'history', 'restore'
+  'open',
+  'save',
+  'remove',
+  'rename',
+  'move',
+  'status',
+  'stage',
+  'unstage',
+  'readDiff',
+  'discardWorking',
+  'commit',
+  'pull',
+  'history',
+  'restore'
 ] as const;
 
 export type DesktopWorkspaceOperation = (typeof DESKTOP_WORKSPACE_OPERATIONS)[number];
@@ -386,7 +398,12 @@ export interface DesktopWorkspaceFile {
 /** 工作区请求只能指向宿主为当前窗口选定的项目。保存采用乐观版本检查。 */
 export type DesktopWorkspaceRequest = { readonly projectId: string } & (
   | { readonly operation: 'open' | 'status' | 'history' | 'pull' }
-  | { readonly operation: 'save'; readonly files: readonly DesktopWorkspaceFile[]; readonly expectedRevision: number; readonly removedPaths?: readonly string[] }
+  | {
+      readonly operation: 'save';
+      readonly files: readonly DesktopWorkspaceFile[];
+      readonly expectedRevision: number;
+      readonly removedPaths?: readonly string[];
+    }
   | { readonly operation: 'remove' | 'discardWorking'; readonly path: string }
   | { readonly operation: 'rename' | 'move'; readonly path: string; readonly destination: string }
   | { readonly operation: 'stage' | 'unstage'; readonly paths: readonly string[] }
@@ -944,7 +961,10 @@ const WORKSPACE_FILE_BYTES = 2 * 1024 * 1024;
 
 function workspacePath(value: unknown): string {
   const path = readText(value, 240, 'path');
-  if (path.includes('\\') || path.split('/').some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git'))
+  if (
+    path.includes('\\') ||
+    path.split('/').some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')
+  )
     throw bad('工作区路径必须位于当前仓库的工作目录内');
   return path;
 }
@@ -956,9 +976,14 @@ function workspacePaths(value: unknown): string[] {
 
 function workspaceFile(value: unknown): DesktopWorkspaceFile {
   if (!isRecord(value)) throw bad('无效的工作区文件');
-  onlyKeys(value, ['path','base64'], '工作区文件');
+  onlyKeys(value, ['path', 'base64'], '工作区文件');
   const base64 = value['base64'];
-  if (typeof base64 !== 'string' || base64.length > encodedLength(WORKSPACE_FILE_BYTES) || base64.length % 4 !== 0 || !BASE64.test(base64))
+  if (
+    typeof base64 !== 'string' ||
+    base64.length > encodedLength(WORKSPACE_FILE_BYTES) ||
+    base64.length % 4 !== 0 ||
+    !BASE64.test(base64)
+  )
     throw bad('工作区文件的大小或编码无效');
   return { path: workspacePath(value['path']), base64 };
 }
@@ -969,21 +994,59 @@ function readWorkspaceRequest(value: unknown): DesktopWorkspaceRequest {
   const projectId = readText(value['projectId'], 64, 'projectId');
   const keys = (...extra: string[]) => onlyKeys(value, ['operation', 'projectId', ...extra], '工作区请求');
   switch (operation) {
-    case 'open': case 'status': case 'pull': case 'history': keys(); return { projectId, operation };
-    case 'remove': case 'discardWorking': keys('path'); return { projectId, operation, path: workspacePath(value['path']) };
-    case 'move': case 'rename': keys('path','destination'); return { projectId, operation, path: workspacePath(value['path']), destination: workspacePath(value['destination']) };
-    case 'stage': case 'unstage': keys('paths'); return { projectId, operation, paths: workspacePaths(value['paths']) };
-    case 'readDiff': keys('path','kind'); return { projectId, operation, path: workspacePath(value['path']), kind: oneOf(value['kind'], ['working','staged'] as const, '差异类型') };
-    case 'commit': keys('message'); return { projectId, operation, message: readBody(value['message'], 4096) };
-    case 'restore': keys('oid'); return { projectId, operation, oid: readText(value['oid'], 64, 'oid') };
+    case 'open':
+    case 'status':
+    case 'pull':
+    case 'history':
+      keys();
+      return { projectId, operation };
+    case 'remove':
+    case 'discardWorking':
+      keys('path');
+      return { projectId, operation, path: workspacePath(value['path']) };
+    case 'move':
+    case 'rename':
+      keys('path', 'destination');
+      return {
+        projectId,
+        operation,
+        path: workspacePath(value['path']),
+        destination: workspacePath(value['destination'])
+      };
+    case 'stage':
+    case 'unstage':
+      keys('paths');
+      return { projectId, operation, paths: workspacePaths(value['paths']) };
+    case 'readDiff':
+      keys('path', 'kind');
+      return {
+        projectId,
+        operation,
+        path: workspacePath(value['path']),
+        kind: oneOf(value['kind'], ['working', 'staged'] as const, '差异类型')
+      };
+    case 'commit':
+      keys('message');
+      return { projectId, operation, message: readBody(value['message'], 4096) };
+    case 'restore':
+      keys('oid');
+      return { projectId, operation, oid: readText(value['oid'], 64, 'oid') };
     case 'save': {
-      keys('files','expectedRevision','removedPaths');
+      keys('files', 'expectedRevision', 'removedPaths');
       const revision = value['expectedRevision'];
-      if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 1) throw bad('保存必须带工作区版本');
+      if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 1)
+        throw bad('保存必须带工作区版本');
       if (!Array.isArray(value['files']) || value['files'].length > 2000) throw bad('无效的工作区文件列表');
       const files = value['files'].map(workspaceFile);
-      if (files.reduce((bytes, file) => bytes + file.base64.length * 0.75, 0) > 20 * 1024 * 1024 + 2 * files.length) throw bad('保存内容超过工作区上限');
-      return { projectId, operation, files, expectedRevision: revision, ...(value['removedPaths'] === undefined ? {} : { removedPaths: workspacePaths(value['removedPaths']) }) };
+      if (files.reduce((bytes, file) => bytes + file.base64.length * 0.75, 0) > 20 * 1024 * 1024 + 2 * files.length)
+        throw bad('保存内容超过工作区上限');
+      return {
+        projectId,
+        operation,
+        files,
+        expectedRevision: revision,
+        ...(value['removedPaths'] === undefined ? {} : { removedPaths: workspacePaths(value['removedPaths']) })
+      };
     }
   }
 }
@@ -1496,7 +1559,8 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
       if (frame.instanceId !== instance.snapshot.instanceId) throw closed();
       const spec = METHODS[method];
       if (!granted.has(spec.capability)) throw denied(spec.capability);
-      if (method === 'workspace.call') return wire({ ok: true, value: await receiveWorkspace(frame.args as OrbitValue) });
+      if (method === 'workspace.call')
+        return wire({ ok: true, value: await receiveWorkspace(frame.args as OrbitValue) });
       const args = parseDesktopArguments(method, frame.args);
       const signal = AbortSignal.any([rpc, lifetime.signal]);
       if (spec.interactive?.(args)) return begin(method, spec, args, frame.requestId, signal);
@@ -1557,7 +1621,9 @@ function translate(error: unknown, method: DesktopMethod): unknown {
 async function requestDesktop(client: OrbitClient, method: DesktopMethod, payload: OrbitObject): Promise<OrbitValue> {
   let reply: OrbitValue;
   try {
-    reply = await client.request(`${WIRE_PREFIX}${method}`, payload, { timeout: method === 'workspace.call' ? 65000 : DESKTOP_LIMITS.callTimeoutMs });
+    reply = await client.request(`${WIRE_PREFIX}${method}`, payload, {
+      timeout: method === 'workspace.call' ? 65000 : DESKTOP_LIMITS.callTimeoutMs
+    });
   } catch (error) {
     throw translate(error, method);
   }
@@ -1648,7 +1714,9 @@ export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
       pending?.forget();
     }
   };
-  const workspaceCall = workspaceSender(args => requestDesktop(client, 'workspace.call', { instanceId: client.context.instanceId, args }));
+  const workspaceCall = workspaceSender(args =>
+    requestDesktop(client, 'workspace.call', { instanceId: client.context.instanceId, args })
+  );
   const done = async (action: Promise<null>): Promise<void> => {
     await action;
   };

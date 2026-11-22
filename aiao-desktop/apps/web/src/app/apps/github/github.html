@@ -3,9 +3,9 @@
   [class.has-repository]="activeRecord()"
   [style.--gh-repository-width]="asideWidth() + 'px'"
   [style.--gh-worktree-width]="worktreeWidth() + 'px'"
+  (aiaoRepositoryDrop)="droppedDiskFolder($event)"
   (dragover)="foldersOver($event)"
   (drop)="dropFolders($event)"
-  (aiaoRepositoryDrop)="droppedDiskFolder($event)"
   data-github-app
 >
   <h1 class="sr-only">GitHub Desktop</h1>
@@ -151,7 +151,7 @@
                   data-github-remote-branch
                 >
                   @for (branch of remoteBranches(); track branch.name) {
-                    <option [value]="branch.name">{{ branch.name }}</option>
+                    <option [value]="branch.name" [selected]="currentBranch() === branch.name">{{ branch.name }}</option>
                   }
                 </select>
               }
@@ -193,12 +193,35 @@
               >
                 Add Local Repository
               </button>
-              <label>Macintosh HD folder <input #volumePath placeholder="~/Documents/project" (keydown.enter)="openLocalPath(volumePath.value)" /></label>
-              <button type="button" tabindex="0" (click)="openLocalPath(volumePath.value)">Open folder on Macintosh HD</button>
+              <label>
+                Macintosh HD folder
+                <input
+                  #volumePath
+                  (keydown.enter)="openLocalPath(volumePath.value)"
+                  placeholder="~/Documents/project"
+                />
+              </label>
+              <button (click)="openLocalPath(volumePath.value)" tabindex="0" type="button">
+                Open folder on Macintosh HD
+              </button>
               <small>System folders are imported into ~/Documents/GitHub.</small>
               @if (activeRecord(); as current) {
-                <label>Remote origin <input #originUrl [value]="current.owner ? 'https://github.com/' + current.owner + '/' + current.repo + '.git' : ''" placeholder="https://github.com/owner/repo.git" /></label>
-                <button type="button" tabindex="0" [disabled]="busy()" (click)="configureOrigin(current.owner ? null : originUrl.value)">{{ current.owner ? 'Remove origin' : 'Add origin' }}</button>
+                <label>
+                  Remote origin
+                  <input
+                    #originUrl
+                    [value]="current.owner ? 'https://github.com/' + current.owner + '/' + current.repo + '.git' : ''"
+                    placeholder="https://github.com/owner/repo.git"
+                  />
+                </label>
+                <button
+                  [disabled]="busy()"
+                  (click)="configureOrigin(current.owner ? null : originUrl.value)"
+                  tabindex="0"
+                  type="button"
+                >
+                  {{ current.owner ? 'Remove origin' : 'Add origin' }}
+                </button>
               }
               <input
                 class="sr-only"
@@ -392,7 +415,7 @@
         tabindex="-1"
       >
         @for (branch of branches(); track branch.name) {
-          <option [value]="branch.name">{{ branch.name }}</option>
+          <option [value]="branch.name" [selected]="currentBranch() === branch.name">{{ branch.name }}</option>
         }
       </select>
 

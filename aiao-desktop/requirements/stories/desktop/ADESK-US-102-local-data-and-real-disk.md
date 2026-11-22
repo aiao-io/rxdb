@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-12
-updated: 2026-11-15
+updated: 2026-11-22
 tags: [desktop, rxdb, sqlite, opfs, terminal, e2e]
 dependsOn: [ADESK-US-101]
 capabilities: []
@@ -67,8 +67,11 @@ capabilities: []
 | 20  | 外网阻断                               | 执行 pytest、Black、mypy 与 Ruff                                 | 真实测试通过，版本可查询，Ruff 检查与格式化可执行                                                              | ✅   |
 | 21  | 外网阻断                               | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun           | 编译结果、编译器版本与 Bun 表达式输出正确                                                                      | ✅   |
 | 22  | 外网阻断                               | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询              | SQLite WASM 真正执行 SQL，数据与预期一致                                                                       | ✅   |
+| 23  | 终端在桌面目录建好项目                 | 执行 `init`、`add`、`commit`、`status`、`log`，再重开终端        | 暂存状态、提交哈希、退出码、管道与重定向正确；双标签暂存均保留                                                 | ✅   |
 
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。
+
+Git 验收对应 `disk-terminal` 组的 `diskState.gitCommandsWork`、`diskState.gitShellSemantics`、`diskState.gitTabsShareIndex` 和 `diskState.gitHistorySurvivesReopen`。终端复用桌面内置的 wasm-git，在支持 WebAssembly JSPI 的浏览器上操作本地仓库。
 
 包管理器补验（2026-11-15）：#15 对应新增 `terminal-packages` 检查组的 `terminalPackages.vendorAssets`、`npm`、`npx`、`pnpm`、`yarn`、`corepack`，#16 对应 `installsDependency` 与 `runsDependency`。打包与下载校验由 `aiao-desktop:runtime-test:coverage` 验证，产物漏发与损坏由 `aiao-desktop:deploy-test` 验证；结果见[本轮证据](../../evidence/2026-11-15/README.md)。
 

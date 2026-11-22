@@ -1,21 +1,28 @@
 import { Injector, Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription } from 'rxjs';
-import { ApplicationRegistry } from '../services/application-registry';
-
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
 import { ApplicationCatalog } from '../services/application-catalog';
+import { ApplicationRegistry } from '../services/application-registry';
+import { DesktopAppServices } from '../services/desktop-app-services';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
-import { cpProgram, gitProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
-import { DesktopAppServices } from '../services/desktop-app-services';
-import { gitMailbox } from './git-mailbox';
+import {
+  cpProgram,
+  gitProgram,
+  mvProgram,
+  openProgram,
+  parseOpenRequest,
+  programSource,
+  touchProgram
+} from './coreutils';
 import { DiskVmSync } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
+import { TerminalGit } from './terminal-git';
 import { vivariFs } from './vm-fs';
 
 /** 终端输出停下这么久之后扫描一次：命令跑完总会重画提示符，所以几乎所有改动都能马上同步。 */
@@ -37,10 +44,9 @@ const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: open
 
 interface Machine {
   readonly vivari: Vivari;
+  readonly git: TerminalGit;
   readonly sync: DiskVmSync;
   readonly subscription: Subscription;
-  readonly mailbox: Awaited<ReturnType<typeof gitMailbox>>;
-  readonly gitTicker: ReturnType<typeof setInterval>;
   readonly ticker: ReturnType<typeof setInterval>;
 }
 
@@ -67,6 +73,7 @@ export class VirtualMachine {
   private users = 0;
   private stopping: Promise<void> = Promise.resolve();
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
+  readonly shellEnv = { ...SHELL_ENV, AIAO_GIT_CHANNEL: `aiao-git-${crypto.randomUUID()}` };
 
   /** 取得（必要时启动）虚拟机；每次成功或失败的 `acquire` 都要配一次 `release`。 */
   async acquire(): Promise<Vivari> {
@@ -161,43 +168,43 @@ export class VirtualMachine {
           this.catalog.violation(change === 'remove' ? { kind: 'remove', path } : { kind: 'write', path }),
         onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`)
       });
-      const mailbox = await gitMailbox(vivari.fs, async request => {
-        await sync.pull();
-        const result = await (await this.workspace()).runTerminal(request);
-        await sync.push([]);
-        return result;
-      });
-      await this.install(vivari, mailbox.directory);
+      await this.install(vivari);
       const subscription = this.fs.changes.subscribe(paths =>
         sync.push(paths).catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`))
       );
       await sync.attach();
+      const git = new TerminalGit(this.shellEnv.AIAO_GIT_CHANNEL, vivariFs(vivari), () => sync.pull(), async (request, root) => {
+        await sync.pull();
+        const workspace = await this.workspace();
+        if (root) await workspace.openDirectory(fromVmPath(root));
+        const result = await workspace.runTerminal(request);
+        await sync.push([]);
+        return {exitCode: result.code, stdout: result.stdout.trimEnd(), stderr: result.stderr.trimEnd()};
+      });
       const ticker = setInterval(() => void this.pull(), POLL_INTERVAL);
-      const gitTicker = setInterval(() => void mailbox.scan().catch((error: unknown) => this.toast.show(describeDiskError(error))), 250);
-      return { vivari, sync, subscription, ticker, mailbox, gitTicker };
+      return { vivari, git, sync, subscription, ticker };
     } catch (error) {
       vivari.teardown();
       throw error;
     }
   }
 
-  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open。 */
-  private async install(vivari: Vivari, gitDirectory: string): Promise<void> {
+  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open / git。 */
+  private async install(vivari: Vivari): Promise<void> {
     const apps = Object.values(this.apps()).flatMap(app =>
       app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]
     );
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));
     for (const [name, program] of Object.entries(PROGRAMS))
-      await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps, gitDirectory));
+      await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps));
   }
 
   private async shutdown(pending: Promise<Machine>): Promise<void> {
     const machine = await pending.catch(() => null);
     if (!machine) return;
     clearInterval(machine.ticker);
-    clearInterval(machine.gitTicker);
-    await machine.mailbox.dispose();
     machine.subscription.unsubscribe();
+    await machine.git.close();
     await machine.sync
       .pull()
       .catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`));
