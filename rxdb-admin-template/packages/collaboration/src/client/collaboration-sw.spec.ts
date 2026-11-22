@@ -35,11 +35,12 @@ function request(url: string, { method = 'GET', mode = 'no-cors' } = {}) {
 }
 
 /** 构造发给 Service Worker 的 cache-shell 消息；返回需要等待的 waitUntil 任务与应答端口。 */
-function cacheShell(source: unknown, urls: unknown = [`${origin}/assets/app.js`]) {
+function cacheShell(source: unknown, urls: unknown = [`${origin}/assets/app.js`], messageOrigin = origin) {
   const port = { postMessage: vi.fn() };
   const tasks: Promise<unknown>[] = [];
   const event = {
     data: { type: 'cache-shell', urls },
+    origin: messageOrigin,
     source,
     ports: [port],
     waitUntil: (task: Promise<unknown>) => tasks.push(task)

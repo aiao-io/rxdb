@@ -27,14 +27,23 @@
  *    不得超出源故事 AC 最大编号；显式标为候选 / 移出的 AC 必须登记 `candidate_acs`。
  * 8. README「大故事」清单与「正文含交付阶段」的 story 集合一致；
  *    capability-matrix / versioning-policy 手写的包计数等于 packages/ 与 api-baseline/ 的实际值。
+ * 9. 生成段落没有过期：`status-overview.md` 的进行中 / 待评审 / 阻塞三节与按 Epic 索引、
+ *    `requirements/README.md` 的 Epic 清单，必须等于现在重新生成一遍的结果；
+ * 10. AC 表的状态格都以 ✅ / ⚠️ / ⬜ 开头；全部需求根（根目录与各应用、各产品的 `requirements/`）下的
+ *     表格行都长在表格里（行前多一个空行就会掉出表格，渲染成一串竖线）；
+ * 11. 全部需求根下，故事验收证据区里的日期与裸测试计数只减不增：存量按故事编号记在
+ *     `requirements-evidence-baseline.json`，新故事必须为零；带 frontmatter 的故事必须有 `id` 且编号不重复。
  *
- * `--update` 只重写机器能唯一确定的数字：汇总表、两个标题里的条数、README 的 N/M。
- * 状态符号、epic `status`、死链**不自动改**——那些是判断，不是派生。
+ * 第 9 条只生成根 `requirements/` 的视图；应用与产品目录的派生视图仍是手写的，由它们各自的门禁核对。
+ *
+ * `--update` 重写机器能唯一确定的内容：数字（汇总表、标题里的条数、README 的 N/M）、第 9 条的生成段落，
+ * 并把第 11 条的基线收紧到现状（只降不升）。epic `status`、死链、表格与证据区的新增**不自动改**——那些是判断，
+ * 不是派生。`--rebaseline-evidence` 按现状重建基线，是唯一能上调基线的入口。
  *
  * @example
  * ```bash
  * pnpm audit:requirements            # --check，CI 每个 PR 跑
- * pnpm audit:requirements:update     # 改完 story status 后同步数字
+ * pnpm audit:requirements:update     # 改完 story 后同步数字与生成段落
  * ```
  */
 
@@ -247,6 +256,266 @@ export function updateStatusOverview(text, counts) {
   return next;
 }
 
+/**
+ * `status-overview.md` 里整段由故事 YAML 生成的三节：标题里的名字、对应状态、没有故事时的整段文字。
+ *
+ * @remarks
+ * 这三节与按 Epic 索引都写成列表而不是表格：prettier 按 string-width 对齐表格列，脚本重排整张表会让
+ * `format:check` 变红（见 {@link updateStatusOverview}），列表没有这个问题。
+ */
+const STATUS_SECTIONS = [
+  ['进行中', 'In Progress', '当前没有进行中的故事。'],
+  ['待评审', 'In Review', '当前没有待评审的故事。'],
+  ['阻塞', 'Blocked', '当前没有 YAML 显式标为 Blocked 的故事；不等于其他故事没有前置。']
+];
+
+/** 索引里的故事行；生成时整批替换，小节里其余的行是手写说明。 */
+const STORY_INDEX_LINE = /^\s*- (?:✅|🚧|👀|⬜|🚫) \[US-\d+\b/;
+
+const storyNumber = id => Number(/(\d+)$/.exec(id)?.[1] ?? 0);
+const byStoryNumber = (a, b) => storyNumber(a.id) - storyNumber(b.id);
+/** story 相对 `requirements/` 的链接：派生视图都放在那一层。 */
+const storyLink = story =>
+  `[${story.id} ${story.fm.title}](${story.rel
+    .split(path.sep)
+    .join('/')
+    .replace(/^requirements\//, '')})`;
+
+const epicKey = epic => path.basename(epic.file, '.md');
+const epicNumber = epic => Number(/^epic-(\d+)/.exec(epicKey(epic))?.[1] ?? 0);
+const byEpicOrder = (a, b) => epicNumber(a) - epicNumber(b) || epicKey(a).localeCompare(epicKey(b));
+/** 没有一级标题的 epic 先用文件名占位，同时由 {@link checkGeneratedViews} 报出，不会悄悄过去。 */
+const epicTitle = epic => epic.title ?? epicKey(epic);
+
+/** 把升序编号压成 `#2～#4、#6`：三个及以上连续才写成区间。 */
+function acRanges(ids) {
+  const parts = [];
+  for (let i = 0; i < ids.length;) {
+    let j = i;
+    while (j + 1 < ids.length && ids[j + 1] === ids[j] + 1) j++;
+    if (j - i >= 2) parts.push(`#${ids[i]}～#${ids[j]}`);
+    else for (let k = i; k <= j; k++) parts.push(`#${ids[k]}`);
+    i = j + 1;
+  }
+  return parts.join('、');
+}
+
+/**
+ * 验收标准一节里 AC 表的编号行。AC 表按表头认：末列是「状态」的才是。
+ *
+ * @remarks
+ * 同一节里还会有按 AC 编号排的证据表、归属表（末列是「证据」「测试」「谁最终关闭」……），它们的行不是 AC。
+ * 按表头认而不是按「状态格里有没有状态符号」认，状态格空着或写了别的字的 AC 才不会被当成证据行漏掉。
+ *
+ * @param {string} text story 全文
+ * @returns {Array<{id: number, status: string, symbol: string | undefined}>} `symbol` 是状态格开头的 ✅ / ⚠️ / ⬜，认不出时为 undefined
+ */
+function acTableRows(text) {
+  const body = text.split(/^## 验收标准\s*$/m)[1]?.split(/^##\s/m)[0] ?? '';
+  const rows = [];
+  let inTable = false;
+  let isAcTable = false;
+  for (const raw of body.split('\n')) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) {
+      inTable = false;
+      continue;
+    }
+    const cells = line
+      .replace(/^\||\|$/g, '')
+      .split('|')
+      .map(cell => cell.trim());
+    if (!inTable) {
+      inTable = true;
+      isAcTable = cells.at(-1) === '状态';
+      continue;
+    }
+    if (isAcTable && /^\d+$/.test(cells[0]))
+      rows.push({ id: Number(cells[0]), status: cells.at(-1), symbol: /^(✅|⚠️|⬜)/u.exec(cells.at(-1))?.[1] });
+  }
+  return rows;
+}
+
+/**
+ * AC 表的状态格必须以 ✅ / ⚠️ / ⬜ 开头。空着或写了别的字，这条 AC 就既不算通过也不算未通过，
+ * 会从「还差什么」里消失。
+ *
+ * @param {Array<{rel: string, text: string}>} stories
+ * @returns {string[]}
+ */
+export function checkAcStatusCells(stories) {
+  const offenders = [];
+  for (const { rel, text } of stories) {
+    for (const { id, status, symbol } of acTableRows(text)) {
+      if (symbol === undefined)
+        offenders.push(`${rel}: AC#${id} 的状态格必须以 ✅ / ⚠️ / ⬜ 开头（现为「${status}」）`);
+    }
+  }
+  return offenders;
+}
+
+/**
+ * 一句话说明这条故事还差哪些当前承诺的 AC，派生视图里「进行中 / 待评审」各行用它。
+ *
+ * 登记在 `candidate_acs` 里的候选 AC 不参与；状态格认不出来的 AC 按未通过算（同时由 {@link checkAcStatusCells} 报出）。
+ *
+ * @param {{fm: Record<string, string>, text: string}} story
+ * @returns {string}
+ */
+export function openAcSummary({ fm, text }) {
+  const rows = acTableRows(text);
+  if (rows.length === 0) return 'AC 不是数字编号，见故事';
+  const candidates = candidateAcIds({ rel: '', fm, text }, []);
+  const current = rows.filter(row => !candidates.has(row.id));
+  if (current.length === 0) return '只有候选 AC，没有当前承诺的 AC';
+  const open = current.filter(row => row.symbol !== '✅').map(row => row.id);
+  if (open.length === 0) return 'AC 已全部通过';
+  return `未通过 AC${acRanges(open.sort((a, b) => a - b))}（${open.length}/${current.length}）`;
+}
+
+/** 把 `## 标题` 到下一个二级标题之间的正文整段换掉；找不到标题时原样返回，缺标题由检查报出。 */
+function replaceSectionBody(text, heading, body) {
+  const match = heading.exec(text);
+  if (!match) return text;
+  const start = match.index + match[0].length;
+  const next = /^## /m.exec(text.slice(start));
+  const rest = next ? text.slice(start + next.index) : '';
+  return `${text.slice(0, start)}\n\n${body}\n${rest ? `\n${rest}` : ''}`;
+}
+
+/** 拆出「按 Epic 索引」一节：前言、已知史诗各自的手写说明、指向不存在史诗的小节原文。 */
+function parseEpicIndex(body, epics) {
+  const known = new Set(epics.map(epicKey));
+  const parts = body.split(/^(?=### )/m);
+  const prose = new Map();
+  const unknown = [];
+  for (const part of parts.slice(1)) {
+    const lines = part.split('\n');
+    const key = /^### \[[^\]]*\]\(epics\/([^)]+)\.md\)[ \t]*$/.exec(lines[0])?.[1];
+    if (key === undefined || !known.has(key)) {
+      unknown.push({ key: key ?? lines[0], text: part.trim() });
+      continue;
+    }
+    prose.set(
+      key,
+      lines
+        .slice(1)
+        .filter(line => !STORY_INDEX_LINE.test(line))
+        .join('\n')
+        .trim()
+    );
+  }
+  return { preamble: parts[0].trim(), prose, unknown };
+}
+
+function renderEpicIndex(text, stories, epics) {
+  const heading = /^## 按 Epic 索引[ \t]*$/m.exec(text);
+  if (!heading) return text;
+  const start = heading.index + heading[0].length;
+  const next = /^## /m.exec(text.slice(start));
+  const body = next ? text.slice(start, start + next.index) : text.slice(start);
+  const { preamble, prose, unknown } = parseEpicIndex(body, epics);
+  const blocks = preamble ? [preamble] : [];
+  for (const epic of [...epics].sort(byEpicOrder)) {
+    const block = [`### [${epicTitle(epic)}](epics/${epicKey(epic)}.md)`];
+    if (prose.get(epicKey(epic))) block.push(prose.get(epicKey(epic)));
+    const owned = stories.filter(story => story.fm.epic === epic.id).sort(byStoryNumber);
+    if (owned.length)
+      block.push(owned.map(story => `- ${STATUS_EMOJI[story.fm.status]} ${storyLink(story)}`).join('\n'));
+    blocks.push(block.join('\n\n'));
+  }
+  // 指向不存在史诗的小节不删：标题下可能有手写说明，改好链接之后再生成。
+  blocks.push(...unknown.map(section => section.text));
+  return replaceSectionBody(text, /^## 按 Epic 索引[ \t]*$/m, blocks.join('\n\n'));
+}
+
+/**
+ * 重新生成 `status-overview.md` 里能由故事 YAML 唯一确定的全部内容：汇总表数字、进行中 / 待评审 / 阻塞三节、
+ * 按 Epic 索引的小节标题与故事列表。索引各小节标题下的说明文字、其余章节都是手写的，原样保留。
+ *
+ * @remarks
+ * 手写这些段落时，每加一条故事要同步改四五处，漏一处门禁才报；两条分支各加一行又必然冲突。
+ * 生成之后冲突的解法只剩一种：任取一侧，再跑一次 `--update`。
+ *
+ * @param {string} text status-overview.md 全文
+ * @param {Awaited<ReturnType<typeof collectStories>>} stories
+ * @param {Awaited<ReturnType<typeof collectEpics>>} epics
+ * @returns {string}
+ */
+export function renderStatusOverview(text, stories, epics) {
+  const counts = countStatuses(stories);
+  let next = updateStatusOverview(text, counts);
+  for (const [name, status, empty] of STATUS_SECTIONS) {
+    const rows = stories.filter(story => story.fm.status === status).sort(byStoryNumber);
+    const body = rows
+      .map(story => (status === 'Blocked' ? `- ${storyLink(story)}` : `- ${storyLink(story)}：${openAcSummary(story)}`))
+      .join('\n');
+    next = next.replace(new RegExp(`^## ${name}（\\d+ 条）`, 'm'), `## ${name}（${rows.length} 条）`);
+    next = replaceSectionBody(next, new RegExp(`^## ${name}（\\d+ 条）[ \\t]*$`, 'm'), body || empty);
+  }
+  return renderEpicIndex(next, stories, epics);
+}
+
+const README_EPIC_LIST = /^Epic：[ \t]*\n\n(?:- .*\n)*/m;
+
+/**
+ * 重新生成 `requirements/README.md`「快速导航」里的 Epic 清单：一行一个 epic 文件，名字取它的一级标题。
+ *
+ * @param {string} text requirements/README.md 全文
+ * @param {Awaited<ReturnType<typeof collectEpics>>} epics
+ * @returns {string} 找不到「Epic：」时原样返回，由 {@link checkGeneratedViews} 报出
+ */
+export function renderEpicList(text, epics) {
+  const list = [...epics]
+    .sort(byEpicOrder)
+    .map(
+      epic =>
+        `- [${/^epic-\d+/.exec(epicKey(epic))?.[0] ?? epicKey(epic)} ${epicTitle(epic)}](epics/${epicKey(epic)}.md)`
+    )
+    .join('\n');
+  return text.replace(README_EPIC_LIST, () => `Epic：\n\n${list}\n`);
+}
+
+/**
+ * 生成段落必须等于「现在重新生成一遍」的结果，否则就是过期了。
+ *
+ * @param {{overview: string, readme: string}} views status-overview.md 与 requirements/README.md 全文
+ * @param {Awaited<ReturnType<typeof collectStories>>} stories
+ * @param {Awaited<ReturnType<typeof collectEpics>>} epics
+ * @returns {string[]}
+ */
+export function checkGeneratedViews({ overview, readme }, stories, epics) {
+  const offenders = [];
+  for (const epic of epics) {
+    if (epic.title === undefined) offenders.push(`${epic.rel}: 缺一级标题，派生视图用它作史诗名`);
+  }
+  for (const [name] of STATUS_SECTIONS) {
+    if (!new RegExp(`^## ${name}（\\d+ 条）[ \\t]*$`, 'm').test(overview))
+      offenders.push(`status-overview.md: 缺「## ${name}（N 条）」一节`);
+  }
+  const index = /^## 按 Epic 索引[ \t]*$/m.exec(overview);
+  if (!index) offenders.push('status-overview.md: 缺「## 按 Epic 索引」一节');
+  else {
+    const body = overview.slice(index.index + index[0].length).split(/^## /m)[0];
+    for (const { key } of parseEpicIndex(body, epics).unknown)
+      offenders.push(
+        `status-overview.md: 索引小节指向不存在的 ${key}（先把小节标题的链接改到现有的 epic 文件，再跑 pnpm audit:requirements:update）`
+      );
+  }
+  const expected = renderStatusOverview(overview, stories, epics);
+  if (expected !== overview) {
+    const want = expected.split('\n');
+    const line = overview.split('\n').findIndex((have, i) => have !== want[i]);
+    offenders.push(
+      `status-overview.md: 生成段落与故事 YAML 不一致（第 ${line + 1} 行起），跑 pnpm audit:requirements:update`
+    );
+  }
+  if (!README_EPIC_LIST.test(readme)) offenders.push('requirements/README.md: 找不到「Epic：」清单');
+  else if (renderEpicList(readme, epics) !== readme)
+    offenders.push('requirements/README.md: Epic 清单与 epics/ 目录不一致，跑 pnpm audit:requirements:update');
+  return offenders;
+}
+
 const README_DELIVERED = /\[(\d+)\/(\d+) 已交付\]/;
 
 /**
@@ -385,6 +654,8 @@ export async function collectEpics(root) {
       file,
       rel: path.relative(root, file),
       id: fm.id ?? path.basename(file, '.md'),
+      // 派生视图里的史诗名取正文一级标题；缺了由 checkGeneratedViews 报出。
+      title: /^# +(.+?)[ \t]*$/m.exec(text.replace(/^---\r?\n[\s\S]*?\r?\n---/, ''))?.[1],
       fm,
       storyIds,
       listedStoryIds
@@ -1036,11 +1307,250 @@ export async function scanNarrative(root) {
   return report;
 }
 
+const TABLE_ROW = /^\s*\|/;
+const TABLE_DELIMITER = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/;
+
 /**
- * @param {{root: string, update?: boolean}} options
+ * 表格行必须长在表格里：一组连续的 `|` 行，第二行得是分隔行。
+ *
+ * @remarks
+ * 往表格末尾补一行时前面多留一个空行，那一行就掉出了表格，渲染成一串带竖线的文字。
+ * 按行匹配的检查（全景表的行内状态、「每条未关闭故事都排过期」）照样认得它，所以这类错一直是绿的。
+ *
+ * @param {string} text 文档全文
+ * @param {string} rel 报错用的路径
+ * @returns {string[]}
+ */
+export function checkTables(text, rel) {
+  const offenders = [];
+  const lines = maskCode(text).split('\n');
+  for (const [i, line] of lines.entries()) {
+    if (!TABLE_ROW.test(line) || (i > 0 && TABLE_ROW.test(lines[i - 1]))) continue;
+    if (!TABLE_DELIMITER.test(lines[i + 1] ?? ''))
+      offenders.push(
+        `${rel}:${i + 1}: 表格行不在表格里（前面没有表头与分隔行，多半是行前多了一个空行），渲染出来是一串竖线`
+      );
+  }
+  return offenders;
+}
+
+/** 证据区存量基线相对仓库根的位置。 */
+export const EVIDENCE_BASELINE = 'scripts/audit/requirements-evidence-baseline.json';
+
+/** 验收证据区的标题：`## 验收标准` 整节（AC 表与紧随的证据说明），以及单列的证据 / 入口 / 记录小节。 */
+const EVIDENCE_HEADING = /^(#{2,3})\s+(?:验收标准|验收证据|验收入口|验证记录|验收记录)/;
+const EVIDENCE_DATE = /(?<!\d)20\d{2}-\d{2}-\d{2}(?!\d)/g;
+/**
+ * 裸测试计数：`62 例通过`、`139/139`、`7 passed`。它们写下当天就开始过期，
+ * 该写的是测试文件与复验命令（CONVENTIONS「结论必须写出复验方式」）。
+ */
+const EVIDENCE_COUNTS = [
+  /\d+\s*(?:例|条|个用例|条用例|个测试)(?:全部|均|都|全)?(?:通过|全绿|全过|转绿)/g,
+  /(?<![\d/.])(\d+)\s*\/\s*\1(?![\d/.])/g,
+  /\d+\s*(?:(?:tests?|cases?|specs?)\s+)?pass(?:ed|ing)\b/gi
+];
+
+/**
+ * 数一条故事的验收证据区里有多少处日期、多少处裸测试计数。
+ *
+ * @remarks
+ * 范围故意收得很窄，换来可以直接阻断而不误报：
+ *
+ * - 只看证据区，区外的正文（立项背景、技术笔记）不管；
+ * - 行内代码与代码块不算——领域数据里的日期（生效日、`as_of_date`）写成行内代码即可；
+ * - 表格行里的日期不算：AC 的前置条件与预期结果常带领域日期，BOM 的十几条故事都是这样。
+ *
+ * @param {string} text story 全文
+ * @returns {{date: number, count: number}}
+ */
+export function evidenceHits(text) {
+  let date = 0;
+  let count = 0;
+  let level = 0; // 所在证据区最外层标题的级别；0 表示不在证据区
+  for (const line of maskCode(text).split('\n')) {
+    const heading = /^(#{1,6})\s/.exec(line);
+    if (heading) {
+      const zone = EVIDENCE_HEADING.exec(line);
+      if (zone) level = level && level < zone[1].length ? level : zone[1].length;
+      else if (level && heading[1].length <= level) level = 0;
+      continue;
+    }
+    if (!level) continue;
+    if (!TABLE_ROW.test(line)) date += line.match(EVIDENCE_DATE)?.length ?? 0;
+    for (const pattern of EVIDENCE_COUNTS) count += line.match(pattern)?.length ?? 0;
+  }
+  return { date, count };
+}
+
+const SKIPPED_DIRECTORIES = new Set(['node_modules', 'dist', 'tmp', 'coverage']);
+
+/**
+ * 仓库里全部需求根目录：根 `requirements/`，以及各应用、各产品自己的 `requirements/`（带 `stories/` 才算）。
+ *
+ * @param {string} root 仓库根
+ * @returns {Promise<string[]>} 相对仓库根的路径，已排序
+ */
+export async function collectRequirementRoots(root) {
+  const found = [];
+  const probe = async (dir, depth) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || SKIPPED_DIRECTORIES.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.name !== 'requirements') {
+        // 应用在 `apps/<app>/`，产品在仓库根下一层，再深就不是需求根了。
+        if (depth < 2) await probe(full, depth + 1);
+        continue;
+      }
+      const hasStories = await stat(path.join(full, 'stories')).then(
+        info => info.isDirectory(),
+        () => false
+      );
+      if (hasStories) found.push(path.relative(root, full).split(path.sep).join('/'));
+    }
+  };
+  await probe(root, 0);
+  return found.sort();
+}
+
+/**
+ * 扫描全部需求根下的故事，返回证据区有命中的那些，以及归属认不出来的文件。
+ *
+ * @remarks
+ * `stories/` 下带 frontmatter 的文件都是故事（证据留档等辅助文件没有 frontmatter，不受约束）。基线按故事编号登记，
+ * 所以编号必须认得出、且在全部需求根里唯一：有 frontmatter 却没有 `id`、或编号与别的故事重复，都作为问题返回，
+ * 不能当成「没有命中」悄悄跳过。缺 `status` 不影响归属，照样按编号扫。
+ *
+ * @param {string} root 仓库根
+ * @returns {Promise<{hits: Map<string, {date: number, count: number, rel: string}>, offenders: string[]}>}
+ *   `hits` 以故事编号为键：编号不随文件搬迁变化
+ */
+export async function scanEvidence(root) {
+  const hits = new Map();
+  const offenders = [];
+  const seen = new Map();
+  for (const requirements of await collectRequirementRoots(root)) {
+    for (const file of await collectMarkdown(path.join(root, requirements, 'stories'))) {
+      if (file.endsWith('.template.md')) continue;
+      const text = await readFile(file, 'utf8');
+      const fm = parseFrontmatter(text);
+      if (fm === null) continue;
+      const rel = path.relative(root, file).split(path.sep).join('/');
+      if (!fm.id) {
+        offenders.push(`${rel}: 有 frontmatter 却没有 id，验收证据区无法按故事编号登记`);
+        continue;
+      }
+      if (seen.has(fm.id)) {
+        offenders.push(
+          `${rel}: 故事编号 ${fm.id} 重复（另一处是 ${seen.get(fm.id)}），证据区基线按编号登记，分不清两条故事`
+        );
+        continue;
+      }
+      seen.set(fm.id, rel);
+      const found = evidenceHits(text);
+      if (found.date || found.count) hits.set(fm.id, { ...found, rel });
+    }
+  }
+  return { hits, offenders };
+}
+
+const EVIDENCE_KINDS = [
+  ['date', '日期', '带日期的运行记录放 `<故事编号>-evidence.md` 或 PR 描述；领域数据里的日期写成行内代码'],
+  ['count', '裸测试计数', '写测试文件与复验命令，不写条数']
+];
+
+/**
+ * 证据区的存量只减不增：现状必须正好等于基线。
+ *
+ * - 多了：新增被拒。不在基线里的故事基线按零算，所以新故事一处都不能有；
+ * - 少了：要求跑 `--update` 把基线收紧，清掉的部分才不会被悄悄写回来。
+ *
+ * @param {Awaited<ReturnType<typeof scanEvidence>>['hits']} scan
+ * @param {Record<string, {date: number, count: number}>} baseline
+ * @returns {string[]}
+ */
+export function checkEvidenceBaseline(scan, baseline) {
+  const offenders = [];
+  for (const id of [...new Set([...scan.keys(), ...Object.keys(baseline)])].sort()) {
+    const now = scan.get(id) ?? { date: 0, count: 0 };
+    const base = baseline[id] ?? { date: 0, count: 0 };
+    for (const [kind, label, advice] of EVIDENCE_KINDS) {
+      if (now[kind] > base[kind])
+        offenders.push(`${now.rel}: 验收证据区的${label}从 ${base[kind]} 处增到 ${now[kind]} 处。${advice}`);
+    }
+    if (now.date < base.date || now.count < base.count)
+      offenders.push(`${EVIDENCE_BASELINE}: ${id} 的基线高于现状，跑 pnpm audit:requirements:update 收紧`);
+  }
+  return offenders;
+}
+
+/**
+ * `--update` 用的基线回写：只收紧，清零即删条目；从不替新故事登记，也从不上调。
+ *
+ * @param {Awaited<ReturnType<typeof scanEvidence>>['hits']} scan
+ * @param {Record<string, {date: number, count: number}>} baseline
+ * @returns {Record<string, {count: number, date: number}>}
+ */
+export function ratchetEvidenceBaseline(scan, baseline) {
+  const next = {};
+  for (const id of Object.keys(baseline).sort()) {
+    const now = scan.get(id) ?? { date: 0, count: 0 };
+    const count = Math.min(now.count, baseline[id].count);
+    const date = Math.min(now.date, baseline[id].date);
+    if (count || date) next[id] = { count, date };
+  }
+  return next;
+}
+
+/**
+ * 这次运行之后基线应该是什么：重建取现状，回写只收紧，其余不动。
+ *
+ * 有故事的归属认不出来时一律不动——编号丢了的故事扫不到，回写会把它的存量登记当成「已清零」抹掉，
+ * 等它改回来，原有的存量就成了「新增」。
+ *
+ * @param {Awaited<ReturnType<typeof scanEvidence>>} scan
+ * @param {Record<string, {date: number, count: number}>} baseline
+ * @param {{update: boolean, rebaselineEvidence: boolean}} mode
+ */
+function nextEvidenceBaseline(scan, baseline, { update, rebaselineEvidence }) {
+  if (scan.offenders.length) return baseline;
+  if (rebaselineEvidence)
+    return Object.fromEntries([...scan.hits].map(([id, { date, count }]) => [id, { count, date }]));
+  if (update) return ratchetEvidenceBaseline(scan.hits, baseline);
+  return baseline;
+}
+
+/** 读基线文件；文件不存在表示没有登记过任何存量。 */
+async function readEvidenceBaseline(file) {
+  let raw;
+  try {
+    raw = await readFile(file, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw error;
+  }
+  const baseline = JSON.parse(raw);
+  for (const [id, entry] of Object.entries(baseline)) {
+    if (!Number.isInteger(entry?.date) || !Number.isInteger(entry?.count) || entry.date < 0 || entry.count < 0)
+      throw new Error(`${EVIDENCE_BASELINE}: ${id} 的条目必须是 { "count": 非负整数, "date": 非负整数 }`);
+  }
+  return baseline;
+}
+
+/** 键按编号字符串排序、每条故事占一行，diff 里一眼能看出哪条变了；写法与 prettier 的 JSON 格式一致。 */
+function serializeEvidenceBaseline(baseline) {
+  const rows = Object.entries(baseline)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([id, { count, date }]) => `  ${JSON.stringify(id)}: { "count": ${count}, "date": ${date} }`);
+  return rows.length ? `{\n${rows.join(',\n')}\n}\n` : '{}\n';
+}
+
+/**
+ * @param {{root: string, update?: boolean, rebaselineEvidence?: boolean}} options
+ *   `rebaselineEvidence` 按现状重建证据区基线，是唯一能上调基线的入口——只在引入门禁、或批量导入存量故事时用，
+ *   用了要在 PR 里说明。
  * @returns {Promise<{offenders: string[], warnings: {narrative: string[], evidence: string[]}, counts: Record<string, number>}>}
  */
-export async function run({ root, update = false }) {
+export async function run({ root, update = false, rebaselineEvidence = false }) {
   const stories = await collectStories(root);
   const epics = await collectEpics(root);
   const counts = countStatuses(stories);
@@ -1048,11 +1558,26 @@ export async function run({ root, update = false }) {
   const readmePath = path.join(root, 'README.md');
   const requirementsReadmePath = path.join(root, 'requirements', 'README.md');
   const roadmapPath = path.join(root, 'requirements', 'roadmap.md');
+  const baselinePath = path.join(root, EVIDENCE_BASELINE);
+
+  const evidenceScan = await scanEvidence(root);
+  let evidenceBaseline = await readEvidenceBaseline(baselinePath);
 
   if (update) {
-    await writeFile(overviewPath, updateStatusOverview(await readFile(overviewPath, 'utf8'), counts));
+    await writeFile(overviewPath, renderStatusOverview(await readFile(overviewPath, 'utf8'), stories, epics));
     await writeFile(readmePath, updateReadme(await readFile(readmePath, 'utf8'), counts));
     await writeFile(roadmapPath, updateRoadmap(await readFile(roadmapPath, 'utf8'), counts));
+    await writeFile(requirementsReadmePath, renderEpicList(await readFile(requirementsReadmePath, 'utf8'), epics));
+  }
+  const evidenceNext = nextEvidenceBaseline(evidenceScan, evidenceBaseline, { update, rebaselineEvidence });
+  if (serializeEvidenceBaseline(evidenceNext) !== serializeEvidenceBaseline(evidenceBaseline))
+    await writeFile(baselinePath, serializeEvidenceBaseline(evidenceNext));
+  evidenceBaseline = evidenceNext;
+
+  const tableOffenders = [];
+  for (const requirements of await collectRequirementRoots(root)) {
+    for (const file of await collectMarkdown(path.join(root, requirements)))
+      tableOffenders.push(...checkTables(await readFile(file, 'utf8'), path.relative(root, file)));
   }
 
   const evidence = await checkAnchorEvidence(root);
@@ -1063,9 +1588,18 @@ export async function run({ root, update = false }) {
     ...checkBigStoryList(await readFile(requirementsReadmePath, 'utf8'), stories),
     ...(await checkPackageCounts(root)),
     ...checkStatusOverview(await readFile(overviewPath, 'utf8'), stories),
+    ...checkGeneratedViews(
+      { overview: await readFile(overviewPath, 'utf8'), readme: await readFile(requirementsReadmePath, 'utf8') },
+      stories,
+      epics
+    ),
     ...checkReadme(await readFile(readmePath, 'utf8'), counts),
     ...checkRoadmap(await readFile(roadmapPath, 'utf8'), stories),
     ...checkEpics(epics, stories),
+    ...checkAcStatusCells(stories),
+    ...tableOffenders,
+    ...evidenceScan.offenders,
+    ...checkEvidenceBaseline(evidenceScan.hits, evidenceBaseline),
     ...(await checkLinks(root)),
     ...evidence.offenders
   ];
@@ -1082,7 +1616,8 @@ export async function run({ root, update = false }) {
 
 const main = async () => {
   const update = process.argv.includes('--update');
-  const { offenders, warnings, counts } = await run({ root: process.cwd(), update });
+  const rebaselineEvidence = process.argv.includes('--rebaseline-evidence');
+  const { offenders, warnings, counts } = await run({ root: process.cwd(), update, rebaselineEvidence });
   const summary = `${counts.Done} Done / ${counts['In Progress']} In Progress / ${counts['In Review']} In Review / ${counts.Backlog} Backlog / ${counts.Blocked} Blocked，合计 ${counts.total}`;
 
   if (warnings.narrative.length) {
@@ -1096,10 +1631,15 @@ const main = async () => {
   if (offenders.length) {
     console.error(`❌ requirements 派生视图与 YAML 不一致（${offenders.length} 处）：`);
     for (const o of offenders) console.error(`   ${o}`);
-    console.error('\n数字类漂移跑 `pnpm audit:requirements:update`；状态符号 / epic status / 死链需手改。');
+    console.error(
+      '\n数字、生成段落与基线收紧跑 `pnpm audit:requirements:update`；epic status、死链、表格与证据区的新增需手改。'
+    );
     process.exit(1);
   }
-  process.stdout.write(`✅ Requirements consistency passed（${summary}）${update ? '，派生数字已回写' : ''}.\n`);
+  const written = [update && '派生段落已回写', rebaselineEvidence && '证据区基线已按现状重建'].filter(Boolean);
+  process.stdout.write(
+    `✅ Requirements consistency passed（${summary}）${written.map(note => `，${note}`).join('')}.\n`
+  );
 };
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -86,7 +86,9 @@ export async function readManifest(releases, id) {
 /** 发布记录：每次发布、失败与回滚追加一行 JSON（不含任何密钥）。 */
 export async function appendRecord(file, record) {
   await mkdir(path.dirname(file), { recursive: true });
-  await appendFile(file, `${JSON.stringify(record)}\n`);
+  // 发布记录只写入本机私有状态目录，内容用于后续回滚与离线取证。
+  // codeql[js/http-to-file-access]
+  await appendFile(file, `${JSON.stringify(record)}\n`, { mode: 0o600 });
 }
 /** 读全部发布记录（按写入顺序）。 */
 export async function readRecords(file) {

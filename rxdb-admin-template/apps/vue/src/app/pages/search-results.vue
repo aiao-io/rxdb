@@ -61,8 +61,10 @@ function resultLabel(entity: string, field: string): string {
         class="bg-base-200 rounded-box flex flex-col gap-1 p-3"
         data-testid="search-result"
       >
-        <span class="text-sm font-medium">{{ resultLabel(result.entity, result.matchedField) }}</span
-        ><span class="text-base-content/70 text-sm">{{ result.snippet }}</span>
+        <span class="text-sm font-medium">{{ resultLabel(result.entity, result.matchedField) }}</span><span
+          class="text-base-content/70 text-sm"
+          >{{ result.snippet }}</span
+        >
       </div>
     </div>
     <button

@@ -158,7 +158,9 @@ async function main() {
   }
   await mkdir(path.join(stateRoot, 'acceptance'), { recursive: true });
   const file = path.join(stateRoot, 'acceptance', `monitor-${result.at.replace(/[-:.]/g, '').slice(0, 15)}.json`);
-  await writeFile(file, `${JSON.stringify(result, null, 2)}\n`);
+  // 验收报告只写入本机私有状态目录，内容用于离线取证。
+  // codeql[js/http-to-file-access]
+  await writeFile(file, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 });
   for (const [name, passed] of Object.entries(result.checks)) console.info(`${passed ? '✅' : '❌'} ${name}`);
   console.info(`结果：${path.relative(process.cwd(), file)}`);
   if (!Object.values(result.checks).every(Boolean)) process.exitCode = 1;

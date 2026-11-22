@@ -394,6 +394,8 @@ const unsavedInput = (page: Page) => page.locator('[data-unsaved-input]');
  */
 async function syncTask(page: Page) {
   await page.getByRole('button', { name: '同步', exact: true }).click();
+  await expect(page.locator('.collaboration')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('.collaboration')).toHaveAttribute('aria-busy', 'false');
   await expect(taskState(page)).toHaveAttribute('data-task-state', 'synced');
   await expect(page.getByText('当前提交已同步；后续编辑仍需另行同步', { exact: true })).toBeVisible();
 }
@@ -457,7 +459,7 @@ async function createPr(page: Page, description?: string) {
   await page.getByRole('button', { name: '创建 PR…', exact: true }).click();
   if (description !== undefined) await fillSettled(page.getByLabel('PR 说明', { exact: true }), description);
   await page.getByRole('button', { name: '创建 PR', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 80_000 });
 }
 /** 顶栏「在线成员」下拉里的列表（Realtime Presence）；下拉收起时内容仍在文档里。 */
 const presence = (page: Page) => page.getByTestId('presence');

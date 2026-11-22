@@ -76,8 +76,7 @@ export class SearchResults {
   imports: [SearchResults],
   template: ` @if (failed()) {
       <div class="page-host items-center justify-center gap-2 p-8" data-testid="search-load-failed" role="alert">
-        <span class="text-error font-semibold">{{ t('app.loadFailed') }}</span
-        ><span>{{ failureMessage() }}</span>
+        <span class="text-error font-semibold">{{ t('app.loadFailed') }}</span><span>{{ failureMessage() }}</span>
       </div>
     } @else if (ready()) {
       <app-search-results />

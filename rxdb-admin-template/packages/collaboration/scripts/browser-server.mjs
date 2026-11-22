@@ -32,6 +32,24 @@ import { fixtureService } from './e2e-fixtures.mjs';
  */
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
+function localSupabaseUrl(raw) {
+  const url = new URL(raw);
+  const port = Number(url.port);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== 'localhost' ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535
+  )
+    throw new Error(`Supabase CI URL 必须是 localhost 的 HTTP 地址，实际为 ${raw}`);
+  return url.origin;
+}
 const compose = await readFile(path.join(root, 'docker/docker-compose.ci.yml'), 'utf8');
 const key = name => {
   const value = compose
@@ -41,7 +59,9 @@ const key = name => {
   if (!value) throw new Error(`Missing fixture ${name}`);
   return value;
 };
-const supabaseUrl = (await exec('bash', [path.join(root, 'docker/supabase-ci-url.sh')])).stdout.trim();
+const supabaseUrl = localSupabaseUrl(
+  (await exec('bash', [path.join(root, 'docker/supabase-ci-url.sh')])).stdout.trim()
+);
 const supabaseKey = key('SUPABASE_ANON_KEY');
 const auth = createClient(supabaseUrl, key('SUPABASE_SERVICE_KEY'), {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -99,7 +119,9 @@ function accessToken(account) {
 async function waitForProjections() {
   const deadline = Date.now() + 30000;
   for (;;) {
-    const response = await fetch(`${supabaseUrl}/rest/v1/admin_workspaces?select=team_id&limit=1`, {
+    // CI 状态文件只提供本机动态端口，已限制为 localhost 的 HTTP URL。
+    // codeql[js/file-access-to-http]
+    const response = await fetch(new URL('/rest/v1/admin_workspaces?select=team_id&limit=1', supabaseUrl), {
       headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
     });
     const body = await response.json();

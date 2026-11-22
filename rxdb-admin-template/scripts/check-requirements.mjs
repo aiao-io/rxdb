@@ -319,18 +319,14 @@ async function checkProductBoundary(productRoot, workspaceRoot, errors) {
     const memberRoot = path.join(productRoot, 'apps', member);
     const relative = path.relative(workspaceRoot, memberRoot);
     const projectFile = path.join(memberRoot, 'project.json');
-    const projectExists = await access(projectFile).then(
-      () => true,
-      error => {
-        if (error.code === 'ENOENT') return false;
-        throw error;
-      }
-    );
-    if (!projectExists) {
+    let project;
+    try {
+      project = JSON.parse(await readFile(projectFile, 'utf8'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
       errors.push(`${relative}/project.json: 缺少产品成员，应用与 E2E 必须位于产品根 apps/ 下`);
       continue;
     }
-    const project = JSON.parse(await readFile(projectFile, 'utf8'));
     const expectedName = `rxdb-admin-template-${member}`;
     if (project.name !== expectedName) errors.push(`${relative}/project.json: Nx 项目名必须保留为 ${expectedName}`);
     const duplicate = await access(path.join(memberRoot, 'requirements')).then(

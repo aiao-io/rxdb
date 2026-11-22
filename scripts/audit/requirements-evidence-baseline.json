@@ -1,0 +1,19 @@
+{
+  "ADMIN-US-201": { "count": 0, "date": 1 },
+  "ADMIN-US-202": { "count": 0, "date": 1 },
+  "ADMIN-US-203": { "count": 0, "date": 1 },
+  "ADMIN-US-205": { "count": 0, "date": 1 },
+  "ADMIN-US-215": { "count": 0, "date": 1 },
+  "ADMIN-US-217": { "count": 3, "date": 3 },
+  "ADMIN-US-218": { "count": 1, "date": 15 },
+  "ADMIN-US-219": { "count": 0, "date": 1 },
+  "ADMIN-US-220": { "count": 1, "date": 4 },
+  "ADMIN-US-221": { "count": 3, "date": 4 },
+  "US-025": { "count": 2, "date": 0 },
+  "US-026": { "count": 3, "date": 0 },
+  "US-028": { "count": 1, "date": 0 },
+  "US-211": { "count": 2, "date": 0 },
+  "US-217": { "count": 1, "date": 0 },
+  "US-506": { "count": 1, "date": 0 },
+  "US-909": { "count": 4, "date": 0 }
+}

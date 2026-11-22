@@ -253,7 +253,8 @@ try {
   }
   await writeFile(
     output,
-    JSON.stringify({ measuredAt: new Date().toISOString(), mode, layout, appRoots, results }, null, 2)
+    JSON.stringify({ measuredAt: new Date().toISOString(), mode, layout, appRoots, results }, null, 2),
+    { mode: 0o600 }
   );
 } finally {
   await browser.close();

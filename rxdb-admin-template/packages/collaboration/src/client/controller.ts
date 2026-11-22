@@ -61,6 +61,8 @@ const detailKinds: readonly SignalKind[] = ['members', 'policy', 'schema', 'shar
 /** 只在上下文内生效、不入队列的命令：标记已读与订阅通知。 */
 const lightweight = ['read_notice', 'subscribe'];
 const realtimeUnavailable = '实时连接暂不可用，可刷新团队状态';
+const teamReadRetryPolicy = { attempts: 4, baseDelayMs: 500, maxDelayMs: 10_000 };
+type TeamWindows = { prs: number; tasks: number; notices: number };
 /** 一组在线会话的比较键：与顺序无关，会话、成员或查看位置任一变化都会改变它。 */
 const presenceKey = (sessions: readonly Presence[]) =>
   sessions
@@ -95,6 +97,15 @@ export class CollaborationController extends EventTarget {
   private source?: ReadSource;
   private authGeneration = 0;
   private mutations?: { epoch: number; settled: Promise<void> };
+  /** 同一上下文与读取窗口只保留一个团队页请求，避免命令刷新与实时通知重复并发读取。 */
+  private teamLoad?: {
+    epoch: number;
+    workspace: WorkspaceEntry;
+    taskId: string | undefined;
+    windows: TeamWindows;
+    force: boolean;
+    promise: Promise<WorkspaceSummary>;
+  };
   /** 正在跟随的全局身份变化（{@link CollaborationController.adoptIdentity}）：重连、登录之后等它落定。 */
   private identity: Promise<void> = Promise.resolve();
   /** 会话是本控制器自己建的（没有传入全局会话）：释放控制器时一并释放。 */
@@ -291,7 +302,7 @@ export class CollaborationController extends EventTarget {
     this.signals = [];
     this.windows = { prs: teamWindowSize, tasks: teamWindowSize, notices: teamWindowSize };
     this.closeTask();
-    const data = await this.current(this.loadTeam(workspace), epoch);
+    const data = await this.current(this.loadTeamRequest(workspace, epoch), epoch);
     if (epoch !== this.generation) return;
     this.workspace = workspace;
     this.resetContents();
@@ -316,7 +327,7 @@ export class CollaborationController extends EventTarget {
    * 整页重读团队页：较旧的结果被丢弃，已加载的 PR 详情标为过期（显示中的那个随即重读）；
    * 已打开任务的编辑权限被撤销时抛出 forbidden。
    */
-  async refresh(): Promise<void> {
+  async refresh(force = false): Promise<void> {
     if (!navigator.onLine) {
       this.online = false;
       this.changed();
@@ -325,7 +336,7 @@ export class CollaborationController extends EventTarget {
     if (!this.workspace) return;
     const workspace = this.workspace;
     const epoch = this.generation;
-    const data = await this.current(this.loadTeam(workspace), epoch);
+    const data = await this.current(this.loadTeamRequest(workspace, epoch, force), epoch);
     if (epoch !== this.generation || workspace !== this.workspace) return;
     if (this.snapshot && data.revision < this.snapshot.revision) return;
     this.details.invalidate();
@@ -767,10 +778,58 @@ export class CollaborationController extends EventTarget {
     if (this.timeline.prepend(cursor, page.events)) this.changed();
   }
   /** 读取团队页：窗口之外还要带上打开着的任务，免得编辑权限校验看不到它。 */
-  private async loadTeam(workspace: WorkspaceEntry): Promise<WorkspaceSummary> {
+  private loadTeamRequest(
+    workspace: WorkspaceEntry,
+    epoch = this.generation,
+    force = false
+  ): Promise<WorkspaceSummary> {
+    const taskId = this.task?.context.taskId;
+    const windows = { ...this.windows };
+    const current = this.teamLoad;
+    if (
+      current?.epoch === epoch &&
+      current.workspace === workspace &&
+      current.taskId === taskId &&
+      current.windows.prs === windows.prs &&
+      current.windows.tasks === windows.tasks &&
+      current.windows.notices === windows.notices &&
+      (!force || current.force)
+    )
+      return current.promise;
+    const promise = this.loadTeam(workspace, windows, taskId);
+    const request = { epoch, workspace, taskId, windows, force, promise };
+    this.teamLoad = request;
+    void promise.then(
+      () => {
+        if (this.teamLoad === request) this.teamLoad = undefined;
+      },
+      () => {
+        if (this.teamLoad === request) this.teamLoad = undefined;
+      }
+    );
+    return promise;
+  }
+  private async loadTeam(
+    workspace: WorkspaceEntry,
+    windows = this.windows,
+    taskId = this.task?.context.taskId
+  ): Promise<WorkspaceSummary> {
     demand(this.user, 'locked', '先登录并选择团队');
-    const taskIds = this.task ? [this.task.context.taskId] : [];
-    return this.compose(await this.reader.team(workspace, this.user.id, { ...this.windows, taskIds }));
+    const taskIds = taskId ? [taskId] : [];
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return this.compose(await this.reader.team(workspace, this.user.id, { ...windows, taskIds }));
+      } catch (error) {
+        if (
+          !(error instanceof CollaborationError) ||
+          error.code !== 'unavailable' ||
+          attempt >= teamReadRetryPolicy.attempts
+        )
+          throw error;
+        const delay = Math.min(teamReadRetryPolicy.baseDelayMs * 2 ** (attempt - 1), teamReadRetryPolicy.maxDelayMs);
+        await new Promise<void>(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
   /** 团队页的读取结果转成界面用的视图；在线状态由频道另行提供。 */
   private compose(team: TeamPage): WorkspaceSummary {
@@ -871,7 +930,7 @@ export class CollaborationController extends EventTarget {
     const teamChanged = teamKinds.some(kind => kinds.has(kind));
     const [team, version, notices] = await this.current(
       Promise.all([
-        teamChanged ? this.loadTeam(workspace) : undefined,
+        teamChanged ? this.loadTeamRequest(workspace, epoch) : undefined,
         teamChanged ? undefined : this.reader.version(workspace),
         !teamChanged && noticed ? this.reader.notices(workspace, this.windows.notices) : undefined
       ]),
@@ -1101,7 +1160,7 @@ export class CollaborationController extends EventTarget {
         acknowledged = true;
       }
       demand(epoch === this.generation, 'cancelled', '上下文已切换');
-      if (request.type !== 'accept_invite') await this.current(this.refresh(), epoch);
+      if (request.type !== 'accept_invite') await this.current(this.refresh(true), epoch);
       if (request.type === 'fork') await this.current(this.archiveFork(request), epoch);
       if (durable) sessionStorage.removeItem(key);
       return result;

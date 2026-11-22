@@ -140,7 +140,9 @@ async function up(studio) {
   }
   const ownerId = await waitFor('Auth 可用', () => ensureOwner(secrets), { timeoutMs: 60_000, intervalMs: 1000 });
   const stack = { ownerEmail, ownerId, updatedAt: new Date().toISOString() };
-  await writeFile(stackFile, `${JSON.stringify(stack, null, 2)}\n`);
+  // 验收状态只写入本机私有目录，ownerId 已由 Auth API 返回并用于后续本地初始化。
+  // codeql[js/http-to-file-access]
+  await writeFile(stackFile, `${JSON.stringify(stack, null, 2)}\n`, { mode: 0o600 });
   console.info(
     [
       '本地预演栈已就绪（ADMIN-US-217）：',

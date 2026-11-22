@@ -21,7 +21,8 @@ const fromOwnOrigin = source => {
   }
 };
 self.addEventListener('message', event => {
-  if (event.data?.type !== 'cache-shell' || !fromOwnOrigin(event.source)) return;
+  if (event.origin !== self.location.origin || event.data?.type !== 'cache-shell' || !fromOwnOrigin(event.source))
+    return;
   const urls =
     Array.isArray(event.data.urls) ?
       event.data.urls
