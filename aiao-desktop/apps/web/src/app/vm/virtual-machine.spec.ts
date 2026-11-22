@@ -10,13 +10,19 @@ import { ApplicationCatalog } from '../services/application-catalog';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem } from '../services/file-system';
+import {
+  GIT_TERMINAL_VERSION,
+  GitWorkbenchRuntime,
+  type GitTerminalCommand,
+  type GitTerminalResult
+} from '../services/git/git-runtime';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { configureServices } from '../testing/angular';
 import { testApps } from '../testing/desktop-apps';
 import { FakeVm } from '../testing/fake-vm';
 import { createWindowManagerStub } from '../testing/stubs';
-import { OPEN_OSC } from './coreutils';
+import { GIT_OSC, OPEN_OSC } from './coreutils';
 import { SHELL_ENV, SHELL_HOME, VirtualMachine } from './virtual-machine';
 
 const mocks = vi.hoisted(() => ({ boot: vi.fn(), vm: { current: undefined as unknown } }));
@@ -105,7 +111,7 @@ describe('VirtualMachine 开机与关机', () => {
     });
   });
 
-  it('第一次 acquire 开机：给 shell 打补丁、装上 touch/mv/cp/open，并把磁盘复制进虚拟机', async () => {
+  it('第一次 acquire 开机：给 shell 打补丁、装上 touch/mv/cp/open/git，并把磁盘复制进虚拟机', async () => {
     const { machine, vm, vivari } = await setup();
     expect(await machine.acquire()).toBe(vivari);
     expect(mocks.boot).toHaveBeenCalledExactlyOnceWith({ serviceWorkerUrl: false });
@@ -114,12 +120,14 @@ describe('VirtualMachine 开机与关机', () => {
     expect(written.get('/bin/sh.js')).toBe('patched:SHELL-SOURCE');
     expect([...written.keys()].sort()).toEqual([
       '/bin/cp.js',
+      '/bin/git.js',
       '/bin/mv.js',
       '/bin/open.js',
       '/bin/sh.js',
       '/bin/touch.js'
     ]);
     expect(written.get('/bin/open.js')).toContain(`openOsc: ${OPEN_OSC}`);
+    expect(written.get('/bin/git.js')).toContain(`gitOsc: ${GIT_OSC}`);
     expect(written.get('/bin/open.js')).toContain('{"id":"finder","bundleId":"io.test.finder","name":"Finder"}');
     expect(written.get('/bin/open.js')).not.toContain('Launchpad');
     expect(decode(await vm.read(toVmPath(NOTE)))).toBe('hello');
@@ -330,6 +338,53 @@ describe('VirtualMachine 预装应用保护', () => {
     machine.noteActivity();
     await vi.advanceTimersByTimeAsync(300);
     expect(toast.show).not.toHaveBeenCalled();
+  });
+});
+
+describe('VirtualMachine 终端里的 git', () => {
+  it('版本查询直接返回兼容输出', async () => {
+    const { machine } = await setup();
+    await expect(
+      machine.runGit(encodeURIComponent(JSON.stringify({ args: ['--version'], cwd: SHELL_HOME })))
+    ).resolves.toBe(`${GIT_TERMINAL_VERSION}\n`);
+  });
+
+  it('把当前仓库交给 Git runtime，并把顶层文件改动同步回磁盘', async () => {
+    const { machine, vm, store } = await setup();
+    await machine.acquire();
+    const root = `${SHELL_HOME}/Desktop/git-project`;
+    await vm.mkdir(`${root}/.git`);
+    await vm.write(`${root}/.git/HEAD`, text('ref: refs/heads/main\n'));
+    await vm.write(`${root}/README.md`, text('before'));
+
+    let received: GitTerminalCommand | undefined;
+    const runTerminal = vi.fn(async (command: GitTerminalCommand): Promise<GitTerminalResult> => {
+      received = command;
+      return {
+        exitCode: 0,
+        stdout: 'git ok',
+        stderr: '',
+        directories: command.directories,
+        files: command.files.map(file =>
+          file.path === 'README.md' ? { ...file, bytes: text('after') as Uint8Array<ArrayBuffer> } : file
+        )
+      };
+    });
+    vi.stubGlobal('location', { origin: 'https://desktop.example' });
+    const create = vi
+      .spyOn(GitWorkbenchRuntime, 'create')
+      .mockResolvedValue({ runTerminal } as unknown as GitWorkbenchRuntime);
+    try {
+      await expect(machine.runGit(encodeURIComponent(JSON.stringify({ args: ['status'], cwd: root })))).resolves.toBe(
+        'git ok\n'
+      );
+      expect(received).toMatchObject({ args: ['status'], cwd: '' });
+      expect(runTerminal).toHaveBeenCalledOnce();
+      expect(decode(await store.read(['Users', 'prasenjit', 'Desktop', 'git-project', 'README.md']))).toBe('after');
+    } finally {
+      create.mockRestore();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

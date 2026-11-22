@@ -12,7 +12,7 @@ import { type VivariProcess } from '@vivari/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
-import { OPEN_OSC } from '../../vm/coreutils';
+import { GIT_OSC, OPEN_OSC } from '../../vm/coreutils';
 import { SHELL_ENV, SHELL_HOME, VirtualMachine } from '../../vm/virtual-machine';
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -47,6 +47,7 @@ export class TerminalTab implements OnDestroy {
   private inputQueue = Promise.resolve();
   private disposed = false;
   private acquired = false;
+  private outputBuffer = '';
 
   readonly active = input(false);
 
@@ -54,11 +55,6 @@ export class TerminalTab implements OnDestroy {
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.onData(data => this.queueInput(data));
     this.terminal.onResize(size => this.process?.resize({ cols: size.cols, rows: size.rows }));
-    /* `open` 命令把要打开的路径写成 OSC 序列，这里截下来交给桌面，不显示在终端里。 */
-    this.terminal.parser.registerOscHandler(OPEN_OSC, data => {
-      void this.vm.open(data);
-      return true;
-    });
     afterNextRender(() => {
       this.terminal.open(this.panel().nativeElement);
       void this.start();
@@ -133,11 +129,41 @@ export class TerminalTab implements OnDestroy {
     try {
       for await (const chunk of process.output) {
         if (this.disposed) return;
-        this.terminal.write(chunk);
+        await this.writeOutput(chunk);
         this.vm.noteActivity();
+      }
+      if (this.outputBuffer) {
+        this.terminal.write(this.outputBuffer);
+        this.outputBuffer = '';
       }
     } catch (error) {
       if (!this.disposed) this.terminal.writeln(`\r\n\x1b[31mterminal output failed: ${describe(error)}\x1b[0m`);
+    }
+  }
+
+  private async writeOutput(data: string): Promise<void> {
+    this.outputBuffer += data;
+    while (this.outputBuffer) {
+      const start = this.outputBuffer.indexOf('\x1b]');
+      if (start < 0) {
+        this.terminal.write(this.outputBuffer);
+        this.outputBuffer = '';
+        return;
+      }
+      if (start > 0) {
+        this.terminal.write(this.outputBuffer.slice(0, start));
+        this.outputBuffer = this.outputBuffer.slice(start);
+      }
+      const end = this.outputBuffer.indexOf('\x07', 2);
+      if (end < 0) return;
+      const sequence = this.outputBuffer.slice(0, end + 1);
+      this.outputBuffer = this.outputBuffer.slice(end + 1);
+      const separator = sequence.indexOf(';', 2);
+      const code = separator < 0 ? '' : sequence.slice(2, separator);
+      const payload = separator < 0 ? '' : sequence.slice(separator + 1, -1);
+      if (code === String(OPEN_OSC)) await this.vm.open(payload);
+      else if (code === String(GIT_OSC)) this.terminal.write(await this.vm.runGit(payload));
+      else this.terminal.write(sequence);
     }
   }
 

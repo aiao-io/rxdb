@@ -1,7 +1,7 @@
 /** 终端（D-09）与磁盘（ADESK-US-102）：Vivari 终端、磁盘落在 SQLite 与 OPFS、终端与桌面看到同一块磁盘。 */
 export const diskTerminal = {
   name: 'disk-terminal',
-  description: '终端与磁盘：Vivari shell、SQLite/OPFS 存储、终端与 Finder/TextEdit/预览读写同一块磁盘',
+  description: '终端与磁盘：Vivari shell、Git、SQLite/OPFS 存储、终端与 Finder/TextEdit/预览读写同一块磁盘',
   keys: [
     'terminalState.crossOriginIsolated',
     'terminalState.xterm',
@@ -15,6 +15,7 @@ export const diskTerminal = {
     'diskState.shellListsDesktop',
     'diskState.shellWritesDisk',
     'diskState.shellCommandsWork',
+    'diskState.gitCommandsWork',
     'diskState.openCommandOpensTextEdit',
     'diskState.finderFolderOnDesktop',
     'diskState.shellSeesFinderChange',
@@ -82,6 +83,17 @@ export const diskTerminal = {
         () => true,
         () => false
       );
+    const gitVersion = await runInShell('git --version', /git version \d+/);
+    await runInShell('mkdir -p ~/Desktop/git-smoke');
+    await runInShell('cd ~/Desktop/git-smoke && echo hello > README.md', /git-smoke\$\s*$/);
+    const gitInit = await runInShell('git init', /Initialized empty Git repository/);
+    const gitUntracked = await runInShell('git status --short', /\?\? README\.md/);
+    await runInShell('git add README.md', /git-smoke\$\s*$/);
+    const gitCommit = await runInShell('git commit -m initial', /initial/);
+    const gitHistory = await runInShell('git log --oneline', /initial/);
+    const gitClean = await runInShell('git status --short', /git-smoke\$\s*$/);
+    diskState.gitCommandsWork = [gitVersion, gitInit, gitUntracked, gitCommit, gitHistory, gitClean].every(Boolean);
+
     await runInShell('open ~/Desktop/terminal-note.txt');
     diskState.openCommandOpensTextEdit = await page
       .waitForFunction(

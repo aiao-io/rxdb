@@ -2,6 +2,14 @@ import { Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription } from 'rxjs';
 import { ApplicationRegistry } from '../services/application-registry';
+import { assertGitFileLimits } from '../services/git/git-archive';
+import type { GitFile } from '../services/git/git-protocol';
+import {
+  GIT_TERMINAL_VERSION,
+  GitWorkbenchRuntime,
+  isGitVersionRequest,
+  type GitTerminalTree
+} from '../services/git/git-runtime';
 
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
@@ -11,10 +19,19 @@ import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
-import { cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
+import {
+  cpProgram,
+  gitProgram,
+  mvProgram,
+  openProgram,
+  parseGitRequest,
+  parseOpenRequest,
+  programSource,
+  touchProgram
+} from './coreutils';
 import { DiskVmSync } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
-import { vivariFs } from './vm-fs';
+import { vivariFs, type VmFs } from './vm-fs';
 
 /** 终端输出停下这么久之后扫描一次：命令跑完总会重画提示符，所以几乎所有改动都能马上同步。 */
 const SETTLE_DELAY = 300;
@@ -31,13 +48,55 @@ export const SHELL_ENV: Readonly<Record<string, string>> = {
   COLORTERM: 'truecolor'
 };
 
-const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram } as const;
+const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram, git: gitProgram } as const;
 
 interface Machine {
   readonly vivari: Vivari;
   readonly sync: DiskVmSync;
   readonly subscription: Subscription;
   readonly ticker: ReturnType<typeof setInterval>;
+}
+
+interface GitWorkspace {
+  readonly root: string;
+  readonly cwd: string;
+  readonly tree: GitTerminalTree;
+}
+
+const sameBytes = (left: Uint8Array | undefined, right: Uint8Array): boolean => {
+  if (!left || left.length !== right.length) return false;
+  return left.every((byte, index) => byte === right[index]);
+};
+
+const parentVmPath = (path: string): string => {
+  const slash = path.lastIndexOf('/');
+  return slash <= 0 ? '/' : path.slice(0, slash);
+};
+
+const relativeVmPath = (root: string, path: string): string => path.slice(root === '/' ? 1 : root.length + 1);
+
+async function collectVmTree(fs: VmFs, root: string): Promise<GitTerminalTree> {
+  const files: GitFile[] = [];
+  const directories: string[] = [];
+  const pending = [{ absolute: root, relative: '' }];
+  while (pending.length) {
+    const current = pending.pop() as { absolute: string; relative: string };
+    for (const entry of await fs.list(current.absolute)) {
+      const relative = current.relative ? `${current.relative}/${entry.name}` : entry.name;
+      const absolute = `${current.absolute}/${entry.name}`;
+      if (entry.kind === 'directory') {
+        directories.push(relative);
+        pending.push({ absolute, relative });
+      } else if (entry.kind === 'file') {
+        files.push({ path: relative, bytes: new Uint8Array(await fs.read(absolute)) as Uint8Array<ArrayBuffer> });
+      }
+    }
+  }
+  assertGitFileLimits(files);
+  return {
+    files: files.sort((left, right) => left.path.localeCompare(right.path, 'en')),
+    directories: directories.sort()
+  };
 }
 
 /**
@@ -62,6 +121,7 @@ export class VirtualMachine {
   private users = 0;
   private stopping: Promise<void> = Promise.resolve();
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
+  private gitRuntime: Promise<GitWorkbenchRuntime> | null = null;
 
   /** 取得（必要时启动）虚拟机；每次成功或失败的 `acquire` 都要配一次 `release`。 */
   async acquire(): Promise<Vivari> {
@@ -103,6 +163,33 @@ export class VirtualMachine {
     for (const vmPath of request.paths) await this.openPath(vmPath, request.app, request.reveal);
   }
 
+  async runGit(data: string): Promise<string> {
+    const request = parseGitRequest(data);
+    if (!request) return '';
+    if (isGitVersionRequest(request.args)) return `${GIT_TERMINAL_VERSION}\n`;
+    const machine = await this.machine?.catch(() => null);
+    if (!machine) return 'git: terminal is unavailable\n';
+    try {
+      const runtime = await this.getGitRuntime();
+      const workspace = await this.gitWorkspace(vivariFs(machine.vivari), request.cwd, request.args);
+      const result = await runtime.runTerminal({
+        args: request.args,
+        cwd: workspace.cwd,
+        files: workspace.tree.files,
+        directories: workspace.tree.directories
+      });
+      await this.applyGitTree(vivariFs(machine.vivari), workspace.root, workspace.tree, result);
+      await machine.sync.pull();
+      return [result.stdout, result.stderr]
+        .filter(Boolean)
+        .map(value => (value.endsWith('\n') ? value : `${value}\n`))
+        .join('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `git: ${message}\n`;
+    }
+  }
+
   private async openPath(vmPath: string, app: string | null, reveal: boolean): Promise<void> {
     const path = fromVmPath(vmPath);
     if (!DISK_ROOTS.includes(path[0])) {
@@ -123,6 +210,54 @@ export class VirtualMachine {
     const node: FsNode = { name, path, kind: 'file', icon, k: label, hidden: name.startsWith('.') };
     if (app) this.opener.openApp(app, node);
     else this.opener.open(node);
+  }
+
+  private async getGitRuntime(): Promise<GitWorkbenchRuntime> {
+    this.gitRuntime ??= GitWorkbenchRuntime.create(new URL('/github-git/', globalThis.location.origin).href).catch(
+      error => {
+        this.gitRuntime = null;
+        throw error;
+      }
+    );
+    return this.gitRuntime;
+  }
+
+  private async gitWorkspace(fs: VmFs, cwd: string, args: readonly string[]): Promise<GitWorkspace> {
+    const versionOnly = isGitVersionRequest(args);
+    const clone = args.includes('clone');
+    const root = versionOnly || clone ? cwd : ((await this.findGitRoot(fs, cwd)) ?? cwd);
+    const tree = versionOnly ? { files: [], directories: [] } : await collectVmTree(fs, root);
+    return { root, cwd: root === cwd ? '' : relativeVmPath(root, cwd), tree };
+  }
+
+  private async findGitRoot(fs: VmFs, cwd: string): Promise<string | null> {
+    for (let candidate = cwd; ; candidate = parentVmPath(candidate)) {
+      if (await fs.stat(`${candidate}/.git`)) return candidate;
+      if (candidate === '/') return null;
+    }
+  }
+
+  private async applyGitTree(fs: VmFs, root: string, before: GitTerminalTree, after: GitTerminalTree): Promise<void> {
+    const beforeFiles = new Map(before.files.map(file => [file.path, file.bytes]));
+    const afterFiles = new Map(after.files.map(file => [file.path, file.bytes]));
+    for (const path of [...beforeFiles.keys()].filter(path => !afterFiles.has(path)))
+      await fs.remove(`${root}/${path}`);
+    const beforeDirectories = new Set(before.directories);
+    const afterDirectories = new Set(after.directories);
+    for (const path of [...beforeDirectories]
+      .filter(path => !afterDirectories.has(path))
+      .sort((left, right) => right.length - left.length))
+      await fs.remove(`${root}/${path}`);
+    for (const path of [...afterDirectories]
+      .filter(path => !beforeDirectories.has(path))
+      .sort((left, right) => left.length - right.length))
+      await fs.mkdir(`${root}/${path}`);
+    for (const [path, bytes] of afterFiles) {
+      if (sameBytes(beforeFiles.get(path), bytes)) continue;
+      const parent = parentVmPath(path);
+      await fs.mkdir(parent === '/' ? root : `${root}/${parent}`);
+      await fs.write(`${root}/${path}`, bytes);
+    }
   }
 
   private async pull(): Promise<void> {
@@ -158,7 +293,7 @@ export class VirtualMachine {
     }
   }
 
-  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open。 */
+  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open / git。 */
   private async install(vivari: Vivari): Promise<void> {
     const apps = Object.values(this.apps()).flatMap(app =>
       app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]

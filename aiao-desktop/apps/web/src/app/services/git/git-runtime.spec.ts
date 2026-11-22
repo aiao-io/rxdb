@@ -92,6 +92,7 @@ function createRuntimeFixture() {
   let faultPath = '';
   let commandFailure = '';
   let journalFailure = '';
+  const commands: string[][] = [];
   const writes = new Map<string, number>();
   const failJournalAt = (phase: string, name: string): void => {
     if (name !== 'recovery.bin' || journalFailure !== phase) return;
@@ -133,13 +134,14 @@ function createRuntimeFixture() {
   };
 
   const run = async (args: string[]): Promise<number> => {
+    commands.push([...args]);
     const [command, ...parameters] = args;
     if (command === commandFailure) {
       commandFailure = '';
       printErr('injected command failure');
       return 1;
     }
-    const root = command === 'init' ? parameters[0] : fs.cwd;
+    const root = command === 'init' ? (parameters[0] ?? fs.cwd) : fs.cwd;
     const git = `${root}/.git`;
     const indexPath = `${git}/index`;
     const commitsPath = `${git}/fixture-commits.json`;
@@ -324,6 +326,7 @@ function createRuntimeFixture() {
     fs,
     disk,
     writes,
+    commands,
     failWrite: (path: string) => {
       faultPath = path;
     },
@@ -357,6 +360,29 @@ describe('Git workspace operation contract', () => {
   it('requires explicit browser capabilities', async () => {
     vi.stubGlobal('isSecureContext', false);
     await expect(GitWorkbenchRuntime.create(loader)).rejects.toMatchObject({ code: 'unsupported_environment' });
+  });
+
+  it('兼容版本查询，并为无目录的 init 补上临时工作区', async () => {
+    const version = await runtime.runTerminal({ args: ['--version'], cwd: '', files: [], directories: [] });
+    expect(version).toMatchObject({ exitCode: 0, stdout: 'git version 1.3.1-wasm-git' });
+
+    const initialized = await runtime.runTerminal({ args: ['init', '-q'], cwd: '', files: [], directories: [] });
+    expect(initialized.exitCode).toBe(0);
+    expect(fixture.commands.at(-1)).toEqual(['init', '-q', expect.stringMatching(/^\/tmp\/aiao-terminal-\d+$/)]);
+  });
+
+  it('runs terminal commands against an in-memory tree and returns Git mutations', async () => {
+    const initial = { files: [file('README.md', 'hello')], directories: [] };
+    const initialized = await runtime.runTerminal({ args: ['init'], cwd: '', ...initial });
+    expect(initialized.exitCode).toBe(0);
+    expect(initialized.files.some(entry => entry.path === '.git/HEAD')).toBe(true);
+    expect(initialized.directories).toContain('.git/objects/pack');
+
+    const staged = await runtime.runTerminal({ args: ['add', 'README.md'], cwd: '', ...initialized });
+    expect(staged.exitCode).toBe(0);
+    const committed = await runtime.runTerminal({ args: ['commit', '-m', 'initial'], cwd: '', ...staged });
+    expect(committed.exitCode).toBe(0);
+    expect(committed.files.some(entry => entry.path === '.git/refs/heads/main')).toBe(true);
   });
 
   it('creates isolated files and returns detached snapshots, revisions and binary bytes', async () => {

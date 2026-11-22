@@ -5,14 +5,17 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  GIT_OSC,
   KitApp,
   OPEN_OSC,
   Program,
   ProgramProcess,
   cpProgram,
   explain,
+  gitProgram,
   mvProgram,
   openProgram,
+  parseGitRequest,
   parseOpenRequest,
   programSource,
   touchProgram
@@ -73,7 +76,7 @@ const fromSource: Runner = (program, args, cwd, apps = APPS) =>
 /** 直接调用程序函数：执行的是模块里的真身，覆盖率能算到 coreutils.ts 上。 */
 const direct: Runner = (program, args, cwd, apps = APPS) =>
   execute(args, cwd, process => {
-    program(nodeRequire, process, { explain, openOsc: OPEN_OSC, apps });
+    program(nodeRequire, process, { explain, openOsc: OPEN_OSC, gitOsc: GIT_OSC, apps });
   });
 
 const workspace = (): string => mkdtempSync(join(tmpdir(), 'aiao-bin-'));
@@ -155,6 +158,24 @@ describe.each<[string, Runner]>([
         code: 1,
         err: 'cp: a.txt and a.txt are identical (not copied).\n'
       });
+    });
+  });
+
+  describe('git', () => {
+    it('把参数和当前目录编码成桌面层请求', () => {
+      const result = run(gitProgram, ['status', '--short'], '/Users/prasenjit/Projects/demo');
+      expect(result.code).toBe(0);
+      const match = new RegExp(`^\\x1b\\]${GIT_OSC};([^\\x07]*)\\x07$`).exec(result.out);
+      expect(match && parseGitRequest(match[1])).toEqual({
+        args: ['status', '--short'],
+        cwd: '/Users/prasenjit/Projects/demo'
+      });
+    });
+
+    it('拒绝损坏或非绝对路径请求', () => {
+      expect(parseGitRequest('not-json')).toBeNull();
+      expect(parseGitRequest(encodeURIComponent(JSON.stringify({ args: ['status'], cwd: 'relative' })))).toBeNull();
+      expect(parseGitRequest(encodeURIComponent(JSON.stringify({ args: ['status', 1], cwd: '/tmp' })))).toBeNull();
     });
   });
 

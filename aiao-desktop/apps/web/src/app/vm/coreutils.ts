@@ -6,6 +6,8 @@
 
 /** `open` 把请求写成这个编号的 OSC 转义序列，终端标签截下它交给桌面打开。 */
 export const OPEN_OSC = 7337;
+/** `git` 把命令请求交给桌面层执行的 OSC 编号。 */
+export const GIT_OSC = 7338;
 
 /** 程序在虚拟机里用到的 `fs` 子集。 */
 export interface ProgramFs {
@@ -46,12 +48,18 @@ export interface KitApp {
 export interface ProgramKit {
   explain(error: unknown): string;
   readonly openOsc: number;
+  readonly gitOsc: number;
   readonly apps: readonly KitApp[];
 }
 
 export type Program = (require: (id: string) => unknown, process: ProgramProcess, kit: ProgramKit) => void;
 
 /** `open` 交给桌面的请求：用哪个应用的 id（`null` 表示按文件类型）、是否在 Finder 里显示、绝对路径。 */
+export interface GitRequest {
+  readonly args: readonly string[];
+  readonly cwd: string;
+}
+
 export interface OpenRequest {
   readonly app: string | null;
   readonly reveal: boolean;
@@ -184,6 +192,13 @@ export const cpProgram: Program = (require, process, kit) => {
   process.exit(status);
 };
 
+/** `git` 的实际执行在桌面层完成，避免在 Vivari 里再打包一份 Git WASM。 */
+export const gitProgram: Program = (_require, process, kit) => {
+  const request: GitRequest = { args: process.argv.slice(2), cwd: process.cwd() };
+  process.stdout.write(`\x1b]${kit.gitOsc};${encodeURIComponent(JSON.stringify(request))}\x07`);
+  process.exit(0);
+};
+
 export const openProgram: Program = (require, process, kit) => {
   const fs = require('fs') as ProgramFs;
   const path = require('path') as ProgramPath;
@@ -228,7 +243,22 @@ export const openProgram: Program = (require, process, kit) => {
 
 /** 拼出虚拟机里 `/bin/<name>.js` 的源码。 */
 export const programSource = (program: Program, apps: readonly KitApp[]): string =>
-  `(${program.toString()})(require, process, { explain: ${explain.toString()}, openOsc: ${OPEN_OSC}, apps: ${JSON.stringify(apps)} });\n`;
+  `(${program.toString()})(require, process, { explain: ${explain.toString()}, openOsc: ${OPEN_OSC}, gitOsc: ${GIT_OSC}, apps: ${JSON.stringify(apps)} });\n`;
+
+/** 解析终端截下的 `git` 请求；不合规的内容返回 `null`。 */
+export function parseGitRequest(data: string): GitRequest | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(decodeURIComponent(data));
+  } catch {
+    return null;
+  }
+  const request = value as Partial<Record<keyof GitRequest, unknown>> | null;
+  if (typeof request !== 'object' || request === null) return null;
+  if (!Array.isArray(request.args) || !request.args.every(arg => typeof arg === 'string')) return null;
+  if (typeof request.cwd !== 'string' || !request.cwd.startsWith('/')) return null;
+  return { args: request.args, cwd: request.cwd };
+}
 
 /** 解析终端截下的 `open` 请求；不合规的内容返回 `null`。 */
 export function parseOpenRequest(data: string): OpenRequest | null {

@@ -24,6 +24,7 @@
     "diskState.shellListsDesktop",
     "diskState.shellWritesDisk",
     "diskState.shellCommandsWork",
+    "diskState.gitCommandsWork",
     "diskState.openCommandOpensTextEdit",
     "diskState.finderFolderOnDesktop",
     "diskState.shellSeesFinderChange",

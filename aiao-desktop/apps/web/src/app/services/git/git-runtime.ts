@@ -60,6 +60,37 @@ interface ProjectContext {
   revision: number;
 }
 
+export interface GitTerminalTree {
+  readonly files: readonly GitFile[];
+  readonly directories: readonly string[];
+}
+
+export interface GitTerminalCommand extends GitTerminalTree {
+  readonly args: readonly string[];
+  /** 相对工作区根目录的当前目录，空字符串表示根目录。 */
+  readonly cwd: string;
+}
+
+export interface GitTerminalResult extends GitTerminalTree {
+  readonly exitCode: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export const GIT_TERMINAL_VERSION = 'git version 1.3.1-wasm-git';
+
+export const isGitVersionRequest = (args: readonly string[]): boolean =>
+  args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === 'version');
+
+const INIT_VALUE_OPTIONS = new Set([
+  '-b',
+  '--initial-branch',
+  '--template',
+  '--separate-git-dir',
+  '--object-format',
+  '--ref-format'
+]);
+
 function sameFileBytes(previous: Uint8Array<ArrayBuffer> | undefined, next: Uint8Array<ArrayBuffer>): boolean {
   if (!previous || previous.length !== next.length) return false;
   for (let index = 0; index < next.length; index++) if (previous[index] !== next[index]) return false;
@@ -119,6 +150,29 @@ export class GitWorkbenchRuntime {
       }
     });
     return runtime;
+  }
+
+  async runTerminal(command: GitTerminalCommand): Promise<GitTerminalResult> {
+    return this.enqueue(async () => {
+      const root = `/tmp/aiao-terminal-${this.#scratch++}`;
+      this.ensureMemoryDirectory(`${root}/.placeholder`);
+      for (const directory of [...command.directories].sort((left, right) => left.length - right.length))
+        this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
+      for (const file of command.files) {
+        this.ensureMemoryDirectory(`${root}/${file.path}`);
+        this.fs.writeFile(`${root}/${file.path}`, file.bytes);
+      }
+      try {
+        this.fs.chdir(command.cwd ? `${root}/${command.cwd}` : root);
+        const result =
+          isGitVersionRequest(command.args) ?
+            { exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' }
+          : await this.runRaw(this.normalizeTerminalArgs(command.args, root));
+        return { ...result, ...this.collectTerminalTree(root) };
+      } finally {
+        this.clearMemory(root);
+      }
+    });
   }
 
   async initialize(projectId: string, files: readonly GitFile[]): Promise<GitSnapshot> {
@@ -722,12 +776,42 @@ export class GitWorkbenchRuntime {
 
   private async run(args: string[]): Promise<string> {
     const command = args[0];
+    const result = await this.runRaw(args);
+    if (result.exitCode !== 0)
+      throw new GitWorkbenchError('git_failed', `git ${command} failed (${result.exitCode}): ${result.stderr}`);
+    return result.stdout;
+  }
+
+  private normalizeTerminalArgs(args: readonly string[], root: string): string[] {
+    if (args[0] !== 'init') return [...args];
+    let expectsValue = false;
+    for (let index = 1; index < args.length; index++) {
+      const arg = args[index];
+      if (expectsValue) {
+        expectsValue = false;
+        continue;
+      }
+      if (arg === '--') return index + 1 < args.length ? [...args] : [...args, root];
+      if (INIT_VALUE_OPTIONS.has(arg)) {
+        expectsValue = true;
+        continue;
+      }
+      if ([...INIT_VALUE_OPTIONS].some(option => arg.startsWith(`${option}=`))) continue;
+      if (!arg.startsWith('-')) return [...args];
+    }
+    return [...args, root];
+  }
+
+  private async runRaw(args: readonly string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     this.#stdout = [];
     this.#stderr = [];
-    const exitCode = await this.git.run(args);
-    if (exitCode !== 0)
-      throw new GitWorkbenchError('git_failed', `git ${command} failed (${exitCode}): ${this.#stderr.join('\n')}`);
-    return this.#stdout.join('\n');
+    try {
+      const exitCode = await this.git.run([...args]);
+      return { exitCode, stdout: this.#stdout.join('\n'), stderr: this.#stderr.join('\n') };
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      return { exitCode: 1, stdout: this.#stdout.join('\n'), stderr: this.#stderr.concat(message).join('\n') };
+    }
   }
 
   private async write(root: string, file: GitFile): Promise<void> {
@@ -885,6 +969,37 @@ export class GitWorkbenchRuntime {
     for (const file of archive.files) await this.write(context.root, file);
     await this.git.module.opfsLoadTree(context.root);
     this.fs.chdir(context.root);
+  }
+
+  private collectTerminalTree(root: string): GitTerminalTree {
+    const files: GitFile[] = [];
+    const directories: string[] = [];
+    const pending = [''];
+    while (pending.length) {
+      const parent = pending.pop() as string;
+      const absolute = parent ? `${root}/${parent}` : root;
+      for (const name of this.fs.readdir(absolute).filter(entry => entry !== '.' && entry !== '..')) {
+        const path = parent ? `${parent}/${name}` : name;
+        const absolutePath = `${root}/${path}`;
+        const mode = this.fs.lstat(absolutePath).mode;
+        if (this.fs.isDir(mode)) {
+          directories.push(path);
+          pending.push(path);
+        } else if (this.fs.isFile(mode)) {
+          files.push({ path, bytes: new Uint8Array(this.fs.readFile(absolutePath)) });
+        }
+      }
+    }
+    return {
+      files: files.sort((left, right) => left.path.localeCompare(right.path, 'en')),
+      directories: directories.sort()
+    };
+  }
+
+  private enqueue<T>(action: () => Promise<T>): Promise<T> {
+    const run = this.#queue.catch(() => undefined).then(action);
+    this.#queue = run;
+    return run;
   }
 
   private ensureMemoryDirectory(path: string): void {
