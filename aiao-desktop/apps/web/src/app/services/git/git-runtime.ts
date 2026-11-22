@@ -67,6 +67,8 @@ export interface GitTerminalTree {
 }
 
 export interface GitTerminalCommand extends GitTerminalTree {
+  /** 终端实际显示的工作区绝对路径。 */
+  readonly worktree: string;
   readonly args: readonly string[];
   /** 相对工作区根目录的当前目录，空字符串表示根目录。 */
   readonly cwd: string;
@@ -78,7 +80,7 @@ export interface GitTerminalResult extends GitTerminalTree {
   readonly stderr: string;
 }
 
-export const GIT_TERMINAL_VERSION = 'git version 1.3.1-wasm-git';
+export const GIT_TERMINAL_VERSION = 'git version 0.0.17 (wasm-git)';
 
 export const isGitVersionRequest = (args: readonly string[]): boolean =>
   args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === 'version');
@@ -154,21 +156,25 @@ export class GitWorkbenchRuntime {
   }
 
   async runTerminal(command: GitTerminalCommand): Promise<GitTerminalResult> {
+    if (isGitVersionRequest(command.args)) return { files: command.files, directories: command.directories, exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' };
     return this.enqueue(async () => {
       const root = `/tmp/aiao-terminal-${this.#scratch++}`;
-      this.ensureMemoryDirectory(`${root}/.placeholder`);
-      for (const directory of [...command.directories].sort((left, right) => left.length - right.length))
-        this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
-      for (const file of command.files) {
-        this.ensureMemoryDirectory(`${root}/${file.path}`);
-        this.fs.writeFile(`${root}/${file.path}`, file.bytes);
-      }
       try {
-        this.fs.chdir(command.cwd ? `${root}/${command.cwd}` : root);
-        const result =
-          isGitVersionRequest(command.args) ?
-            { exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' }
-          : await this.runRaw(this.normalizeTerminalArgs(command.args, root));
+        this.ensureMemoryDirectory(`${root}/.placeholder`);
+        for (const directory of command.directories) this.ensureMemoryDirectory(`${root}/${directory}/.placeholder`);
+        for (const file of command.files) {
+          this.ensureMemoryDirectory(`${root}/${file.path}`);
+          this.fs.writeFile(`${root}/${file.path}`, file.bytes);
+        }
+        const cwd = command.cwd ? `${root}/${command.cwd}` : root;
+        this.fs.chdir(cwd);
+        const result = await this.runRaw(this.normalizeTerminalArgs(command.args, cwd));
+        if (command.args[0] === 'init') result.stdout = result.stdout.replace(`${root}/`, () => `${command.worktree.replace(/\/$/, '')}/`);
+        if (command.args[0] === 'status' && result.exitCode === 0 && result.stderr) {
+          const head = command.files.find(file => file.path === '.git/HEAD');
+          const ref = /^ref: (refs\/heads\/.+)$/.exec(new TextDecoder().decode(head?.bytes).trim())?.[1];
+          if (ref && result.stderr === `error: reference '${ref}' not found`) result.stderr = '';
+        }
         return { ...result, ...this.collectTerminalTree(root) };
       } finally {
         this.clearMemory(root);

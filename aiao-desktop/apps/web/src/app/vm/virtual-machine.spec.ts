@@ -22,7 +22,7 @@ import { configureServices } from '../testing/angular';
 import { testApps } from '../testing/desktop-apps';
 import { FakeVm } from '../testing/fake-vm';
 import { createWindowManagerStub } from '../testing/stubs';
-import { GIT_OSC, OPEN_OSC } from './coreutils';
+import { OPEN_OSC, type GitResponse } from './coreutils';
 import { SHELL_ENV, SHELL_HOME, VirtualMachine } from './virtual-machine';
 
 const mocks = vi.hoisted(() => ({ boot: vi.fn(), vm: { current: undefined as unknown } }));
@@ -91,12 +91,18 @@ const settle = async (): Promise<void> => {
   await vi.advanceTimersByTimeAsync(0);
 };
 
+const channels: BroadcastChannel[] = [];
 beforeEach(() => {
+  const NativeChannel = BroadcastChannel;
+  vi.stubGlobal('BroadcastChannel', class extends NativeChannel {
+    constructor(name: string) { super(name); channels.push(this); }
+  });
   vi.useFakeTimers();
   mocks.boot.mockReset();
 });
 
 afterEach(() => {
+  for (const channel of channels.splice(0)) channel.close();
   vi.useRealTimers();
 });
 
@@ -127,7 +133,7 @@ describe('VirtualMachine 开机与关机', () => {
       '/bin/touch.js'
     ]);
     expect(written.get('/bin/open.js')).toContain(`openOsc: ${OPEN_OSC}`);
-    expect(written.get('/bin/git.js')).toContain(`gitOsc: ${GIT_OSC}`);
+    expect(written.get('/bin/git.js')).toContain('AIAO_GIT_CHANNEL');
     expect(written.get('/bin/open.js')).toContain('{"id":"finder","bundleId":"io.test.finder","name":"Finder"}');
     expect(written.get('/bin/open.js')).not.toContain('Launchpad');
     expect(decode(await vm.read(toVmPath(NOTE)))).toBe('hello');
@@ -342,49 +348,72 @@ describe('VirtualMachine 预装应用保护', () => {
 });
 
 describe('VirtualMachine 终端里的 git', () => {
-  it('版本查询直接返回兼容输出', async () => {
-    const { machine } = await setup();
-    await expect(
-      machine.runGit(encodeURIComponent(JSON.stringify({ args: ['--version'], cwd: SHELL_HOME })))
-    ).resolves.toBe(`${GIT_TERMINAL_VERSION}\n`);
+  async function terminal() {
+    const context = await setup();
+    await context.machine.acquire();
+    const channel = new BroadcastChannel(context.machine.shellEnv.AIAO_GIT_CHANNEL);
+    let pid = 0;
+    const git = (args: string[], cwd = SHELL_HOME): Promise<GitResponse> => {
+      const id = ++pid;
+      return new Promise(resolve => {
+        const receive = ({ data }: MessageEvent<GitResponse & { pid: number }>) => {
+          if (data.pid !== id) return;
+          channel.removeEventListener('message', receive);
+          resolve(data);
+        };
+        channel.addEventListener('message', receive);
+        channel.postMessage({ pid: id, args, cwd });
+      });
+    };
+    return { ...context, channel, git };
+  }
+
+  it('忽略损坏的请求，随后仍能回复版本查询', async () => {
+    const { channel, git } = await terminal();
+    channel.postMessage(null);
+    channel.postMessage({ pid: 0, args: [0], cwd: '/tmp' });
+    await expect(git(['--version'])).resolves.toMatchObject({ exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' });
   });
 
-  it('把当前仓库交给 Git runtime，并把顶层文件改动同步回磁盘', async () => {
-    const { machine, vm, store } = await setup();
-    await machine.acquire();
+  it('两个标签的请求依次读取、写回同一个仓库，保留各自的输出和退出码', async () => {
+    const { git, vm, store } = await terminal();
     const root = `${SHELL_HOME}/Desktop/git-project`;
     await vm.mkdir(`${root}/.git`);
-    await vm.write(`${root}/.git/HEAD`, text('ref: refs/heads/main\n'));
-    await vm.write(`${root}/README.md`, text('before'));
-
-    let received: GitTerminalCommand | undefined;
+    await vm.write(`${root}/gone/file`, text('remove'));
+    await vm.write(`${root}/nested/README.md`, text('before'));
     const runTerminal = vi.fn(async (command: GitTerminalCommand): Promise<GitTerminalResult> => {
-      received = command;
+      if (command.args[0] === 'status') return { ...command, exitCode: 7, stdout: 'second', stderr: 'warning' };
       return {
-        exitCode: 0,
-        stdout: 'git ok',
-        stderr: '',
-        directories: command.directories,
-        files: command.files.map(file =>
-          file.path === 'README.md' ? { ...file, bytes: text('after') as Uint8Array<ArrayBuffer> } : file
-        )
+        files: [{ path: 'nested/README.md', bytes: new TextEncoder().encode('after') }],
+        directories: ['.git', 'nested', 'new/empty', 'new'], exitCode: 0, stdout: 'first', stderr: ''
       };
     });
     vi.stubGlobal('location', { origin: 'https://desktop.example' });
-    const create = vi
-      .spyOn(GitWorkbenchRuntime, 'create')
-      .mockResolvedValue({ runTerminal } as unknown as GitWorkbenchRuntime);
+    const create = vi.spyOn(GitWorkbenchRuntime, 'create').mockResolvedValue({ runTerminal } as unknown as GitWorkbenchRuntime);
     try {
-      await expect(machine.runGit(encodeURIComponent(JSON.stringify({ args: ['status'], cwd: root })))).resolves.toBe(
-        'git ok\n'
-      );
-      expect(received).toMatchObject({ args: ['status'], cwd: '' });
-      expect(runTerminal).toHaveBeenCalledOnce();
-      expect(decode(await store.read(['Users', 'prasenjit', 'Desktop', 'git-project', 'README.md']))).toBe('after');
-    } finally {
-      create.mockRestore();
-      vi.unstubAllGlobals();
-    }
+      const responses = await Promise.all([git(['checkout', 'branch'], root), git(['status'], `${root}/nested`)]);
+      expect(responses).toEqual([
+        { pid: 1, exitCode: 0, stdout: 'first', stderr: '' },
+        { pid: 2, exitCode: 7, stdout: 'second', stderr: 'warning' }
+      ]);
+      const second = runTerminal.mock.calls[1][0];
+      expect(second.cwd).toBe('nested');
+      expect(second.files.map(file => [file.path, decode(file.bytes)])).toEqual([['nested/README.md', 'after']]);
+      expect(second.directories).toContain('new/empty');
+      expect(decode(await store.read([...DESKTOP, 'git-project', 'nested', 'README.md']))).toBe('after');
+      expect(await store.kindOf([...DESKTOP, 'git-project', 'new', 'empty'])).toBe('directory');
+    } finally { create.mockRestore(); }
+  });
+
+  it('加载失败交给发起命令的进程，下次调用可以重试', async () => {
+    const { git } = await terminal();
+    vi.stubGlobal('location', { origin: 'https://desktop.example' });
+    const create = vi.spyOn(GitWorkbenchRuntime, 'create').mockRejectedValue(new Error('WASM unavailable'));
+    try {
+      await expect(git(['status'])).resolves.toMatchObject({ exitCode: 1, stderr: 'git: WASM unavailable' });
+      await expect(git(['status'])).resolves.toMatchObject({ exitCode: 1 });
+      expect(create).toHaveBeenCalledTimes(2);
+    } finally { create.mockRestore(); }
   });
 });
 

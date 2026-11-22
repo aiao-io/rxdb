@@ -2,10 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync,
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
-  GIT_OSC,
   KitApp,
   OPEN_OSC,
   Program,
@@ -15,7 +14,6 @@ import {
   gitProgram,
   mvProgram,
   openProgram,
-  parseGitRequest,
   parseOpenRequest,
   programSource,
   touchProgram
@@ -49,6 +47,8 @@ function execute(args: readonly string[], cwd: string, body: (process: ProgramPr
   const err: string[] = [];
   let code = 0;
   const process: ProgramProcess = {
+    stdin: { ref: vi.fn(), unref: vi.fn() },
+    pid: 42,
     argv: ['node', '/bin/x.js', ...args],
     env: { HOME: cwd },
     cwd: () => cwd,
@@ -76,7 +76,7 @@ const fromSource: Runner = (program, args, cwd, apps = APPS) =>
 /** 直接调用程序函数：执行的是模块里的真身，覆盖率能算到 coreutils.ts 上。 */
 const direct: Runner = (program, args, cwd, apps = APPS) =>
   execute(args, cwd, process => {
-    program(nodeRequire, process, { explain, openOsc: OPEN_OSC, gitOsc: GIT_OSC, apps });
+    program(nodeRequire, process, { explain, openOsc: OPEN_OSC, apps });
   });
 
 const workspace = (): string => mkdtempSync(join(tmpdir(), 'aiao-bin-'));
@@ -158,24 +158,6 @@ describe.each<[string, Runner]>([
         code: 1,
         err: 'cp: a.txt and a.txt are identical (not copied).\n'
       });
-    });
-  });
-
-  describe('git', () => {
-    it('把参数和当前目录编码成桌面层请求', () => {
-      const result = run(gitProgram, ['status', '--short'], '/Users/prasenjit/Projects/demo');
-      expect(result.code).toBe(0);
-      const match = new RegExp(`^\\x1b\\]${GIT_OSC};([^\\x07]*)\\x07$`).exec(result.out);
-      expect(match && parseGitRequest(match[1])).toEqual({
-        args: ['status', '--short'],
-        cwd: '/Users/prasenjit/Projects/demo'
-      });
-    });
-
-    it('拒绝损坏或非绝对路径请求', () => {
-      expect(parseGitRequest('not-json')).toBeNull();
-      expect(parseGitRequest(encodeURIComponent(JSON.stringify({ args: ['status'], cwd: 'relative' })))).toBeNull();
-      expect(parseGitRequest(encodeURIComponent(JSON.stringify({ args: ['status', 1], cwd: '/tmp' })))).toBeNull();
     });
   });
 
@@ -289,5 +271,33 @@ describe('programSource', () => {
     expect(source).toContain(`apps: ${JSON.stringify(apps)}`);
     expect(source).toContain('function explain');
     expect(source.endsWith(');\n')).toBe(true);
+  });
+});
+
+
+describe.each(['安装后的源码', '函数'])('git（%s）', mode => {
+  it('请求不进入输出流，子进程只接收自己的输出与退出码', async () => {
+    const channel = new BroadcastChannel(crypto.randomUUID());
+    const process: ProgramProcess = {
+      stdin: { ref: vi.fn(), unref: vi.fn() },
+    pid: 42, argv: ['node', '/bin/git.js', 'log', '--oneline'], env: { AIAO_GIT_CHANNEL: channel.name },
+      cwd: () => '/repo', stdout: { write: vi.fn() }, stderr: { write: vi.fn() },
+      exit: (code): never => { throw new Error(`提前退出 ${code}`); }
+    };
+    try {
+      const received = new Promise(resolve => { channel.onmessage = event => resolve(event.data); });
+      if (mode === '函数') gitProgram(nodeRequire, process, { explain, openOsc: OPEN_OSC, apps: APPS });
+      else new Function('require', 'process', programSource(gitProgram, APPS))(nodeRequire, process);
+      await expect(received).resolves.toEqual({ pid: 42, cwd: '/repo', args: ['log', '--oneline'] });
+      expect(process.stdout.write).not.toHaveBeenCalled();
+      expect(process.exitCode).toBeUndefined();
+      expect(process.stdin.ref).toHaveBeenCalledOnce();
+      channel.postMessage({ pid: 7, exitCode: 0, stdout: 'another tab', stderr: '' });
+      channel.postMessage({ pid: 42, exitCode: 7, stdout: 'some output', stderr: 'warning' });
+      await vi.waitFor(() => expect(process.exitCode).toBe(7));
+      expect(process.stdout.write).toHaveBeenCalledExactlyOnceWith('some output\n');
+      expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith('warning\n');
+      expect(process.stdin.unref).toHaveBeenCalledOnce();
+    } finally { channel.close(); }
   });
 });

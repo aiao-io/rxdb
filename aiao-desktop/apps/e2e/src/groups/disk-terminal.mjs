@@ -16,6 +16,8 @@ export const diskTerminal = {
     'diskState.shellWritesDisk',
     'diskState.shellCommandsWork',
     'diskState.gitCommandsWork',
+    'diskState.gitShellSemantics',
+    'diskState.gitHistorySurvivesReopen',
     'diskState.openCommandOpensTextEdit',
     'diskState.finderFolderOnDesktop',
     'diskState.shellSeesFinderChange',
@@ -83,16 +85,40 @@ export const diskTerminal = {
         () => true,
         () => false
       );
-    const gitVersion = await runInShell('git --version', /git version \d+/);
-    await runInShell('mkdir -p ~/Desktop/git-smoke');
-    await runInShell('cd ~/Desktop/git-smoke && echo hello > README.md', /git-smoke\$\s*$/);
-    const gitInit = await runInShell('git init', /Initialized empty Git repository/);
-    const gitUntracked = await runInShell('git status --short', /\?\? README\.md/);
-    await runInShell('git add README.md', /git-smoke\$\s*$/);
-    const gitCommit = await runInShell('git commit -m initial', /initial/);
-    const gitHistory = await runInShell('git log --oneline', /initial/);
-    const gitClean = await runInShell('git status --short', /git-smoke\$\s*$/);
-    diskState.gitCommandsWork = [gitVersion, gitInit, gitUntracked, gitCommit, gitHistory, gitClean].every(Boolean);
+    let sequence = 0;
+    const outputOf = async command => {
+      const id = ++sequence;
+      const begin = `G${id}BEGIN`;
+      const end = `G${id}END`;
+      const finished = await runInShell(`echo G'${id}BEGIN'; ${command}; echo G'${id}END'`, new RegExp(`${end}.*\\$\\s*$`));
+      const screen = (await xtermText()).replaceAll('\u00a0', ' ');
+      if (!finished || !screen.includes(begin)) throw new Error(`Terminal did not finish ${command}\n${screen}`);
+      return screen.split(begin).at(-1).split(end)[0].trim();
+    };
+    const version = await outputOf('git --version');
+    await outputOf('mkdir -p ~/Desktop/git-smoke && cd ~/Desktop/git-smoke && echo hello > README.md');
+    const init = await outputOf('git init </dev/null');
+    const untracked = await outputOf('git status --short');
+    const staged = await outputOf('git add README.md && git status --short');
+    await outputOf('git commit -m initial');
+    const history = await outputOf('git log --oneline');
+    const clean = await outputOf('git status --short');
+    diskState.gitCommandsWork =
+      /^git version /.test(version) && init.endsWith('/Users/prasenjit/Desktop/git-smoke/') &&
+      /^\?\? README\.md$/.test(untracked) && /^A\s+README\.md$/.test(staged) &&
+      /^[a-f0-9]{7,40}\s+initial$/.test(history) && clean === '';
+    const redirected = await outputOf('git log --oneline > /tmp/git-log');
+    const saved = await outputOf('cat /tmp/git-log');
+    const piped = await outputOf(`git log --oneline | node -e "process.stdin.on('data', d => console.log(d.toString().slice(0,7)))"`);
+    const failed = await outputOf('git checkout missing-branch 2>/tmp/git-error && echo unexpected');
+    const error = await outputOf('cat /tmp/git-error');
+    diskState.gitShellSemantics = redirected === '' && saved === history && piped === history.slice(0,7) && failed === '' && error.includes('missing-branch');
+    await closeAll();
+    await openTerminal();
+    const reopened = await outputOf('cd ~/Desktop/git-smoke && git log --oneline');
+    diskState.gitHistorySurvivesReopen = /^[a-f0-9]{7,40}\s+initial$/.test(history) && reopened === history;
+    if (!diskState.gitCommandsWork || !diskState.gitShellSemantics || !diskState.gitHistorySurvivesReopen)
+      console.error({ version, init, untracked, staged, history, clean, redirected, saved, piped, failed, error, reopened });
 
     await runInShell('open ~/Desktop/terminal-note.txt');
     diskState.openCommandOpensTextEdit = await page
