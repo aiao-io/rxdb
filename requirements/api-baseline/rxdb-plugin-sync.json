@@ -10,6 +10,10 @@
         "kind": "type"
       },
       {
+        "name": "canonicalize",
+        "kind": "value"
+      },
+      {
         "name": "CheckRepositoryUpdatesResult",
         "kind": "type"
       },
@@ -30,12 +34,24 @@
         "kind": "type"
       },
       {
+        "name": "filterFingerprint",
+        "kind": "value"
+      },
+      {
         "name": "flushQueryCacheOutbox",
         "kind": "value"
       },
       {
         "name": "GetAllRepositorySyncStatusFilter",
         "kind": "type"
+      },
+      {
+        "name": "identityFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "IdentityMismatchError",
+        "kind": "both"
       },
       {
         "name": "pendingQueryCacheWriteIds",
@@ -75,6 +91,34 @@
       },
       {
         "name": "RxDBPluginSyncOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBSyncBucketProgress",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBSyncBucketRow",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBSyncIdentityBinding",
+        "kind": "both"
+      },
+      {
+        "name": "scopedDatabaseName",
+        "kind": "value"
+      },
+      {
+        "name": "ScopedSyncAdapter",
+        "kind": "type"
+      },
+      {
+        "name": "ScopedSyncIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "ScopedSyncIdentitySource",
         "kind": "type"
       },
       {

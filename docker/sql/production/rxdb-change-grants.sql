@@ -1,17 +1,17 @@
 -- ============================================
--- RxDB 生产权限：日志同步协议只对已登录身份开放（US-218 阶段 C、US-225）
+-- RxDB 生产权限：日志同步协议按身份与分区开放（US-218 阶段 C、US-225、US-033）
 -- ============================================
 -- 用途:
 --   1. 撤销客户端角色（anon / authenticated）对变更日志表与远端身份表的直接写权限，日志只能经
 --      rxdb_mutations → rxdb_insert_changes 与同步触发器（均为 SECURITY DEFINER）写入。
---   2. anon 退出日志同步协议：读不到日志与分支，不能调用拉取、推送、分支登记与存在性探针；
+--   2. anon 只能读取分区日志中 caller buckets 默认公开的 public 区，不能调用拉取、推送、分支登记与存在性探针；
 --      只保留连接时调用的 rxdb_server_version / rxdb_backend_id / rxdb_check_rls。anon 仍可按业务表
 --      自己的 GRANT 与 RLS 直接读写。推送对「被 RLS 拒绝」与「已不存在」分别报错，本身就是存在性信号，
---      所以推送与探针一并收回。
+--      所以推送与探针一并收回。authenticated 可读取自己被授权的分区以及未分区旧日志。
 --   3. 分支表与分支所有者表只经 SECURITY DEFINER 函数写入（rxdb_enable_sync_for_branch / rxdb_claim_branch）。
---   4. 实时变更通知（私有频道 rxdb:changes）只对 authenticated 开放接收，客户端不能往里发消息。
--- 适用边界: 日志对全部 authenticated 可读，只适用于所有登录者可见范围一致的数据。开放注册或开启匿名登录
---       （Supabase 匿名用户的角色也是 authenticated）的部署，等于把日志开放给任何访客。已登录用户之间的隔离
+--   4. 实时变更通知：未分区旧日志使用私有频道 rxdb:changes，分区日志使用带 bucket 的私有频道；旧日志只对 authenticated 开放，分区频道按 rxdb_caller_buckets() 开放接收，客户端不能往里发消息。
+-- 适用边界: 带 rxdb_bucket 的日志按 rxdb_caller_buckets() 做 RLS，未分区旧日志仍对 authenticated 可读。
+--       anon 默认只能读取 public 区。应用通过 SECURITY DEFINER 的 rxdb_caller_buckets() 扩展租户授权，
 --       见 requirements/epics/epic-015-identity-scoped-sync.md。
 -- 依赖: 必须在 docker/sql/01～04 全部执行之后执行；Supabase 的默认权限会在建表、建函数时授给 anon，
 --       01～04 里重建过的函数（DROP 后 CREATE）要再执行一次本脚本才会收回。
@@ -23,7 +23,7 @@
 --       对 rxdb_change 的直写与清理经 service_role 身份。
 -- ============================================
 
--- 1. 变更日志：只有 authenticated 可读（rxdb_pull_changes 是 SECURITY INVOKER，以调用方身份读）
+-- 1. 变更日志：按 caller buckets 做分区 RLS（rxdb_pull_changes 是 SECURITY INVOKER，以调用方身份读）
 REVOKE ALL ON public.rxdb_change FROM PUBLIC, anon;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.rxdb_change FROM authenticated;
 GRANT SELECT ON public.rxdb_change TO authenticated;
@@ -34,6 +34,35 @@ REVOKE USAGE, UPDATE ON SEQUENCE public.rxdb_change_id_seq FROM authenticated;
 -- 读经 rxdb_backend_id()，轮换只经 TRUNCATE rxdb_change 的触发器（均为 SECURITY DEFINER）。
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_backend FROM anon, authenticated;
 GRANT SELECT ON public.rxdb_backend TO anon, authenticated;
+
+-- 分区日志对 anon 只开放其 caller buckets（默认只有 public），authenticated 还可读旧的未分区日志。
+ALTER TABLE public.rxdb_change ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.rxdb_change TO anon;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_policies
+    WHERE schemaname = 'public' AND tablename = 'rxdb_change' AND policyname = 'rxdb_change_read_by_bucket'
+  ) THEN
+    ALTER POLICY rxdb_change_read_by_bucket ON public.rxdb_change
+      TO anon, authenticated
+      USING (
+        (auth.role() = 'authenticated' AND bucket IS NULL)
+        OR (bucket IS NOT NULL AND bucket = ANY(public.rxdb_caller_buckets()))
+      );
+  ELSE
+    CREATE POLICY rxdb_change_read_by_bucket ON public.rxdb_change
+      FOR SELECT
+      TO anon, authenticated
+      USING (
+        (auth.role() = 'authenticated' AND bucket IS NULL)
+        OR (bucket IS NOT NULL AND bucket = ANY(public.rxdb_caller_buckets()))
+      );
+  END IF;
+END $$;
+
+-- 实体注册表只经快照 RPC 读取，避免把部署元数据当作业务表暴露。
+REVOKE ALL ON public.rxdb_sync_entity FROM PUBLIC, anon, authenticated;
 
 -- 2. 分支：authenticated 可读；登记与改写只经 rxdb_enable_sync_for_branch（校验所有者）
 REVOKE ALL ON public.rxdb_branch FROM PUBLIC, anon;
@@ -52,6 +81,11 @@ DECLARE
 BEGIN
   FOREACH v_function IN ARRAY ARRAY[
     'public.rxdb_pull_changes(integer, integer, text, text, text, jsonb)',
+    'public.rxdb_caller_buckets()',
+    'public.rxdb_entity_sync_info(text, text)',
+    'public.rxdb_bucket_snapshot_point(text, text, text)',
+    'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)',
+    'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)',
     'public.rxdb_jsonb_matches_rule(jsonb, jsonb)',
     'public.rxdb_jsonb_matches_filter(jsonb, jsonb)',
     'public.rxdb_enable_sync_for_branch(jsonb)',
@@ -75,6 +109,16 @@ BEGIN
   END LOOP;
 END $$;
 
+-- 分区只读协议同时服务 anon 的公开区与 authenticated 的授权区。
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer) TO anon, authenticated;
+-- 快照 RPC 在调用者权限下执行，需允许它使用纯 JSON filter helper；helper 不访问业务表。
+GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO anon, authenticated;
+
 -- 部署时调用的建表辅助函数不对 anon 开放
 REVOKE ALL ON FUNCTION public.rxdb_enable_sync_for_table(text, text, text) FROM PUBLIC, anon;
 
@@ -84,21 +128,35 @@ REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authent
 
 -- 4. 实时变更通知：Realtime 在加入私有频道时以登录用户身份试读 realtime.messages，有 SELECT 策略才放行。
 -- 只建 SELECT 策略、不建 INSERT 策略：广播只由日志插入触发器经 realtime.send 写入，客户端发不了伪造通知。
+-- 未分区旧日志继续使用统一频道；分区日志使用带 bucket 的频道，策略只放行 caller buckets 对应的频道。
 -- 不用 DROP POLICY 重建：在 Supabase 上对 auth / realtime 表做 DROP 类 DDL 可能和 GoTrue 迁移互锁
 -- （见 01-rxdb-system-tables.sql 的触发器一节），已存在时改用 ALTER POLICY 刷新条件
 DO $$
+DECLARE
+  v_policy text := $policy$
+    extension = 'broadcast'
+    AND (
+      topic = 'rxdb:changes'
+      OR (
+        topic LIKE 'rxdb:changes:bucket:%'
+        AND pg_catalog.substr(topic, pg_catalog.char_length('rxdb:changes:bucket:') + 1)
+          = ANY(public.rxdb_caller_buckets())
+      )
+    )
+  $policy$;
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_catalog.pg_policies
     WHERE schemaname = 'realtime' AND tablename = 'messages' AND policyname = 'rxdb_changes_receive'
   ) THEN
-    ALTER POLICY rxdb_changes_receive ON realtime.messages
-      TO authenticated
-      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+    EXECUTE pg_catalog.format(
+      'ALTER POLICY rxdb_changes_receive ON realtime.messages TO authenticated USING (%s)',
+      v_policy
+    );
   ELSE
-    CREATE POLICY rxdb_changes_receive ON realtime.messages
-      FOR SELECT
-      TO authenticated
-      USING (topic = 'rxdb:changes' AND extension = 'broadcast');
+    EXECUTE pg_catalog.format(
+      'CREATE POLICY rxdb_changes_receive ON realtime.messages FOR SELECT TO authenticated USING (%s)',
+      v_policy
+    );
   END IF;
 END $$;

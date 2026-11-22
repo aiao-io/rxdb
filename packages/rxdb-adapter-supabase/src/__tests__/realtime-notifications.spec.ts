@@ -2,7 +2,8 @@
  * 实时变更通知（US-225 AC#10～#12），连本地真实 Supabase（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 缺一即跳过）。
  *
  * 日志落库后，参考 SQL 的 `rxdb_change_broadcast` 触发器经 `realtime.send` 把元数据广播到私有频道
- * `rxdb:changes`；频道的接收权由生产权限脚本里 `realtime.messages` 的策略决定，只对 authenticated 开放。
+ * 未分区旧日志广播到 `rxdb:changes`，分区日志广播到 `rxdb:changes:bucket:<bucket>`；频道的接收权由生产权限脚本里
+ * `realtime.messages` 的策略决定，只对 authenticated 开放，分区频道还要匹配 caller buckets。
  * 这里走真实 websocket 验证三件事：已登录的订阅者收到的通知不带行内容；anon 订阅被拒；
  * 适配器订阅之后，另一台设备推送当前分支的变更，本端可拉取计数增加，拉取后数据一致。
  */
@@ -96,6 +97,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('实时变更通知（US-225）'
     const notice = member.notices.find(candidate => candidate['entityId'] === id);
     expect(Object.keys(notice ?? {}).sort()).toEqual([
       'branchId',
+      'bucket',
       'clientId',
       'createdAt',
       'entity',

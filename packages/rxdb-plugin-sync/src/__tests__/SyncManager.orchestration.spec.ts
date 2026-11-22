@@ -39,6 +39,7 @@ const doubles = vi.hoisted(() => ({
     syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>()
   },
   remoteBackend: {
+    bindScopedIdentity: vi.fn<(manager: unknown) => Promise<void>>(),
     bind: vi.fn<(manager: unknown) => Promise<string>>(),
     rebind: vi.fn<(manager: unknown) => Promise<unknown>>()
   }
@@ -63,6 +64,7 @@ vi.mock('../push.js', () => ({ push: doubles.delegates.push }));
 vi.mock('../sync-branches.js', () => ({ syncBranches: doubles.delegates.syncBranches }));
 vi.mock('../sync-repository.js', () => ({ syncRepository: doubles.delegates.syncRepository }));
 vi.mock('../remote-backend.js', () => ({
+  bindScopedIdentity: doubles.remoteBackend.bindScopedIdentity,
   bindRemoteBackend: doubles.remoteBackend.bind,
   rebindRemoteBackend: doubles.remoteBackend.rebind
 }));

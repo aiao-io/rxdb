@@ -25,6 +25,27 @@ CREATE SCHEMA rxdb_sql_regression;
 CREATE SCHEMA rxdb_sql_function_shadow;
 CREATE SCHEMA rxdb_sql_catalog_shadow;
 
+CREATE TABLE rxdb_sql_regression.identity_scoped_rows (
+  id text PRIMARY KEY,
+  visibility text NOT NULL,
+  owner_id uuid,
+  value text NOT NULL,
+  rxdb_bucket text GENERATED ALWAYS AS (
+    CASE WHEN visibility = 'public' THEN 'public' ELSE 'user:' || owner_id::text END
+  ) STORED
+);
+SELECT public.rxdb_enable_sync_for_table('identity_scoped_rows', 'rxdb_sql_regression', 'IdentityScopedRow');
+ALTER TABLE rxdb_sql_regression.identity_scoped_rows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY identity_scoped_rows_select ON rxdb_sql_regression.identity_scoped_rows
+  FOR SELECT USING (visibility = 'public' OR owner_id = auth.uid());
+GRANT SELECT ON rxdb_sql_regression.identity_scoped_rows TO anon, authenticated;
+INSERT INTO rxdb_sql_regression.identity_scoped_rows (id, visibility, owner_id, value)
+VALUES
+  ('bucket-public', 'public', NULL, 'public-value'),
+  ('bucket-a', 'private', '00000000-0000-4000-8000-0000000000a1', 'a-value'),
+  ('bucket-b', 'private', '00000000-0000-4000-8000-0000000000b2', 'b-value'),
+  ('bucket-moved', 'public', NULL, 'moved-value');
+
 CREATE TABLE rxdb_sql_regression.text_ids (
   id text PRIMARY KEY,
   value text NOT NULL
@@ -542,9 +563,26 @@ BEGIN
 END;
 $$;
 
+CREATE FUNCTION rxdb_sql_regression.bucket_set_visibility(
+  p_id text,
+  p_visibility text,
+  p_owner_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  UPDATE rxdb_sql_regression.identity_scoped_rows
+  SET visibility = p_visibility, owner_id = p_owner_id
+  WHERE id = p_id;
+END;
+$$;
+
 -- 以属主身份清理 rxdb_change（零散收尾项第 13 条）：
 -- 开发/CI 默认已收紧日志表写权限（docker/sql/production/rxdb-change-grants.sql），
--- anon / authenticated 对 rxdb_change 只剩 SELECT。回归用例的准备步骤（按 clientId
+-- anon / authenticated 对 rxdb_change 只剩 SELECT，anon 由 RLS 只看到 public 区。回归用例的准备步骤（按 clientId
 -- 清场）改走本 SECURITY DEFINER helper；「客户端直插被拒」的断言（production-change-grants
 -- 用例里的 42501）保留，那正是被测行为。
 CREATE FUNCTION rxdb_sql_regression.clear_change_log(p_client_ids text[] DEFAULT NULL)
@@ -3475,7 +3513,7 @@ DECLARE
   denied text[] := '{}';
 BEGIN
   BEGIN
-    PERFORM 1 FROM public.rxdb_change LIMIT 1;
+    PERFORM 1 FROM public.rxdb_change WHERE bucket IS NULL LIMIT 1;
   EXCEPTION
     WHEN insufficient_privilege THEN denied := denied || 'select rxdb_change'::text;
   END;
@@ -3521,7 +3559,7 @@ BEGIN
 
   PERFORM rxdb_sql_regression.assert_true(
     denied = ARRAY[
-      'select rxdb_change', 'select rxdb_branch', 'rxdb_pull_changes', 'rxdb_mutations main',
+      'select rxdb_branch', 'rxdb_pull_changes', 'rxdb_mutations main',
       'rxdb_mutations branch', 'rxdb_existing_ids', 'rxdb_enable_sync_for_branch'
     ],
     pg_catalog.format('anon-sync-protocol: every sync protocol entry must be denied to anon, denied: %s', denied)
@@ -3721,7 +3759,34 @@ BEGIN
 END;
 $$;
 
--- US-225 AC#9、#10：实时通知只带元数据，按 200 条聚合（以 authenticated 身份推送）
+-- 让快照水位测试制造「目标 bucket 先写、其它 bucket 后写」的交错日志。
+CREATE FUNCTION rxdb_sql_regression.seed_bucket_snapshot_interleaving()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, bucket, "entityId", type, "branchId", "clientId")
+  VALUES
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000a1', 'snapshot-target', 'INSERT', 'main', 'sql-snapshot-target'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000b2', 'snapshot-interleaving', 'INSERT', 'main', 'sql-snapshot-other');
+$$;
+
+-- 让实时通知测试在同一条 INSERT 中覆盖公开区、用户 A 和用户 B。
+CREATE FUNCTION rxdb_sql_regression.seed_realtime_bucket_notifications()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, bucket, "entityId", type, "branchId", "clientId")
+  VALUES
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'public', 'realtime-bucket-public', 'INSERT', 'main', 'sql-realtime-public'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000a1', 'realtime-bucket-user-a', 'INSERT', 'main', 'sql-realtime-user-a'),
+    ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000b2', 'realtime-bucket-user-b', 'INSERT', 'main', 'sql-realtime-user-b');
+$$;
+
+-- US-225 AC#9、#10：实时通知只带元数据，按每个 bucket 每 200 条聚合（以 authenticated 身份推送）
 CREATE FUNCTION rxdb_sql_regression.test_realtime_notifications()
 RETURNS void
 LANGUAGE plpgsql
@@ -3762,7 +3827,7 @@ BEGIN
       AND (
         SELECT pg_catalog.array_agg(key ORDER BY key)
         FROM pg_catalog.jsonb_object_keys(payload->'changes'->0) AS key
-      ) = ARRAY['branchId', 'clientId', 'createdAt', 'entity', 'entityId', 'namespace', 'type']
+      ) = ARRAY['branchId', 'bucket', 'clientId', 'createdAt', 'entity', 'entityId', 'namespace', 'type']
       AND payload->'changes'->0->>'type' = 'INSERT'
       AND payload->'changes'->0->>'branchId' = 'main'
       AND payload->'changes'->0->>'clientId' = 'sql-push-integrity-client',
@@ -3789,6 +3854,147 @@ BEGIN
     batch_sizes = ARRAY[200, 200, 50],
     pg_catalog.format('realtime-notifications: 450 changes must be batched as 200 + 200 + 50, got %s', batch_sizes)
   );
+
+  PERFORM rxdb_sql_regression.seed_realtime_bucket_notifications();
+  PERFORM rxdb_sql_regression.assert_true(
+    (
+      SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+      WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+        AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-public"}]'::jsonb
+    ) = 1
+      AND (
+        SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+        WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+          AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-user-a"}]'::jsonb
+      ) = 1
+      AND (
+        SELECT pg_catalog.count(*) FROM realtime.messages AS messages
+        WHERE messages.topic LIKE 'rxdb:changes%' AND messages.extension = 'broadcast'
+          AND messages.payload->'changes' @> '[{"entityId":"realtime-bucket-user-b"}]'::jsonb
+      ) = 0,
+    'realtime-notifications: an authenticated user must only see public and caller bucket notifications'
+  );
+END;
+$$;
+
+-- US-033：按身份读取分区、快照后增量与行换区的安全边界
+CREATE FUNCTION rxdb_sql_regression.test_bucketed_read_sync()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a constant uuid := '00000000-0000-4000-8000-0000000000a1';
+  user_b constant uuid := '00000000-0000-4000-8000-0000000000b2';
+  v_info jsonb;
+  v_snapshot jsonb;
+  v_point integer;
+  v_count integer;
+BEGIN
+  SELECT public.rxdb_entity_sync_info('rxdb_sql_regression', 'IdentityScopedRow') INTO v_info;
+  PERFORM rxdb_sql_regression.assert_true(
+    (v_info->>'bucketed')::boolean AND v_info->>'tableName' = 'identity_scoped_rows',
+    'bucketed-read-sync: entity registry must expose the generated bucket column'
+  );
+
+  PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_caller_buckets() = ARRAY['public']::text[],
+    'bucketed-read-sync: anon must only receive the public bucket'
+  );
+  SELECT public.rxdb_pull_bucket_snapshot(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'public', NULL, 0, 100
+  ) INTO v_snapshot;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_snapshot @> '[{"id":"bucket-public"},{"id":"bucket-moved"}]'::jsonb
+      AND NOT v_snapshot @> '[{"id":"bucket-a"}]'::jsonb,
+    'bucketed-read-sync: anon snapshot must contain public rows only'
+  );
+  SELECT count(*) INTO v_count
+  FROM public.rxdb_pull_bucket_changes(0, 100, 'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text);
+  PERFORM rxdb_sql_regression.assert_true(
+    v_count = 0,
+    'bucketed-read-sync: anon must not read a private bucket log'
+  );
+
+  PERFORM pg_catalog.set_config(
+    'request.jwt.claims',
+    pg_catalog.format('{"sub":"%s","role":"authenticated"}', user_a),
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_caller_buckets() = ARRAY['public', 'user:' || user_a::text]::text[],
+    'bucketed-read-sync: user A must receive public and own buckets'
+  );
+  SELECT public.rxdb_pull_bucket_snapshot(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text, NULL, 0, 100
+  ) INTO v_snapshot;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_snapshot @> '[{"id":"bucket-a"}]'::jsonb
+      AND NOT v_snapshot @> '[{"id":"bucket-b"}]'::jsonb,
+    'bucketed-read-sync: user A snapshot must exclude user B'
+  );
+  PERFORM rxdb_sql_regression.seed_bucket_snapshot_interleaving();
+  SELECT public.rxdb_bucket_snapshot_point(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text
+  ) INTO v_point;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_point = (
+      SELECT pg_catalog.max(id)::integer
+      FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression'
+        AND entity = 'IdentityScopedRow'
+        AND bucket = 'user:' || user_a::text
+    ),
+    pg_catalog.format('bucketed-read-sync: snapshot point must be scoped to the requested bucket: %s', v_point)
+  );
+
+  SELECT public.rxdb_bucket_snapshot_point(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'public'
+  ) INTO v_point;
+
+  PERFORM rxdb_sql_regression.bucket_set_visibility('bucket-moved', 'private', user_b);
+
+  SELECT count(*) INTO v_count
+  FROM public.rxdb_pull_bucket_changes(
+    v_point, 100, 'rxdb_sql_regression', 'IdentityScopedRow', 'public'
+  ) AS change
+  WHERE change."entityId" = 'bucket-moved'
+    AND change.type = 'DELETE'
+    AND change.patch IS NULL
+    AND change."beforeData" IS NULL
+    AND change."afterData" IS NULL;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_count = 1,
+    'bucketed-read-sync: leaving public must emit a content-free removal'
+  );
+
+  PERFORM pg_catalog.set_config(
+    'request.jwt.claims',
+    pg_catalog.format('{"sub":"%s","role":"authenticated"}', user_b),
+    true
+  );
+  SELECT count(*) INTO v_count
+  FROM public.rxdb_pull_bucket_changes(
+    v_point, 100, 'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_b::text
+  ) AS change
+  WHERE change."entityId" = 'bucket-moved'
+    AND change.type = 'INSERT'
+    AND change."afterData"->>'id' = 'bucket-moved';
+  PERFORM rxdb_sql_regression.assert_true(
+    v_count = 1,
+    'bucketed-read-sync: entering a private bucket must emit the full row'
+  );
+  SELECT public.rxdb_pull_bucket_snapshot(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_b::text,
+    '{"combinator":"and","rules":[{"field":"id","operator":"=","value":"bucket-moved"}]}'::jsonb,
+    0, 100
+  ) INTO v_snapshot;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_snapshot @> '[{"id":"bucket-moved"}]'::jsonb
+      AND NOT v_snapshot @> '[{"id":"bucket-b"}]'::jsonb,
+    'bucketed-read-sync: filters must run inside the authorized bucket'
+  );
 END;
 $$;
 
@@ -3814,7 +4020,7 @@ BEGIN
     'production-grants-idempotent: the broadcast trigger must exist exactly once'
   );
   PERFORM rxdb_sql_regression.assert_true(
-    NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT')
+    pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT')
       AND pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change', 'SELECT')
       AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch', 'INSERT')
       AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch_owner', 'SELECT'),
@@ -4043,15 +4249,17 @@ BEGIN
     'sync-access-upgrade: the upgrade must take rxdb_change out of the supabase_realtime publication'
   );
   PERFORM rxdb_sql_regression.assert_true(
-    NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT, REFERENCES, TRIGGER')
+    pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'SELECT')
+      AND NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change', 'REFERENCES, TRIGGER')
       AND NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_branch', 'SELECT, INSERT, UPDATE, DELETE')
       AND NOT pg_catalog.has_sequence_privilege('anon', 'public.rxdb_change_id_seq', 'SELECT, USAGE, UPDATE')
+      AND pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change', 'SELECT')
       AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change', 'REFERENCES, TRIGGER')
       AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_branch', 'INSERT, UPDATE, DELETE'),
-    'sync-access-upgrade: privileges left on the log and branch tables by the old base SQL must be revoked'
+    'sync-access-upgrade: only partition-log SELECT may remain on rxdb_change; old write privileges must be revoked'
   );
 
-  -- 非触发器的 rxdb_ 函数里，anon（含 PUBLIC）只能执行连接时调用的三个；rxdb_test_ 是 03 的测试夹具
+  -- 非触发器的 rxdb_ 函数里，anon 只能执行连接函数和分区只读 RPC；rxdb_test_ 是 03 的测试夹具
   SELECT pg_catalog.array_agg(p.oid::regprocedure::text ORDER BY p.oid::regprocedure::text)
   INTO v_open_to_anon
   FROM pg_catalog.pg_proc AS p
@@ -4062,12 +4270,19 @@ BEGIN
     AND p.oid NOT IN (
       'public.rxdb_server_version()'::regprocedure,
       'public.rxdb_backend_id()'::regprocedure,
-      'public.rxdb_check_rls(jsonb)'::regprocedure
+      'public.rxdb_check_rls(jsonb)'::regprocedure,
+      'public.rxdb_caller_buckets()'::regprocedure,
+      'public.rxdb_entity_sync_info(text, text)'::regprocedure,
+      'public.rxdb_bucket_snapshot_point(text, text, text)'::regprocedure,
+      'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)'::regprocedure,
+      'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)'::regprocedure,
+      'public.rxdb_jsonb_matches_rule(jsonb, jsonb)'::regprocedure,
+      'public.rxdb_jsonb_matches_filter(jsonb, jsonb)'::regprocedure
     )
     AND pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE');
   PERFORM rxdb_sql_regression.assert_true(
     v_open_to_anon IS NULL,
-    pg_catalog.format('sync-access-upgrade: only the connect functions may stay executable by anon, open: %s', v_open_to_anon)
+    pg_catalog.format('sync-access-upgrade: only connect functions and bucketed read RPCs may stay executable by anon, open: %s', v_open_to_anon)
   );
 
   PERFORM rxdb_sql_regression.test_production_grants_idempotent();
@@ -4215,6 +4430,8 @@ RESET ROLE;
 
 SELECT pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
 SET LOCAL ROLE anon;
+SELECT rxdb_sql_regression.test_bucketed_read_sync()
+WHERE :'test_case' IN ('all', 'bucketed-read-sync');
 SELECT rxdb_sql_regression.test_anon_sync_protocol()
 WHERE :'test_case' IN ('all', 'anon-sync-protocol');
 SELECT rxdb_sql_regression.assert_true(

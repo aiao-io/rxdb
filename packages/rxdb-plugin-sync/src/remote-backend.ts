@@ -17,18 +17,16 @@
  * 前后两次都是同一个身份，夹在中间的那次往返才算这个远端上的进度，游标与水位才往前推。
  *
  * 不自动改绑：远端地址配错到另一个项目时，自动改绑会把别人的数据拉进来、把本地待推变更推过去。
- *
- * 声明了 `RxDBOptions.identity` 的实例，在比对远端身份**之前**还要先核对调用者（US-035）：远端会话换了主人，
- * 此刻拉回的数据与待推的变更都不属于这个库的身份，连 `backendId()` 都不能发。它与远端身份共用这批入口，
- * 所以每个入口一进门、拉回的每一轮落库之前、推送回执落库之前，都自然带上这一道。
  */
 import {
-  type IRepository,
-  type RxDBAdapterRemoteBase,
   RxDBError,
   RxDBIdentityMismatchError,
-  RxDBSync
+  RxDBSync,
+  type IRepository,
+  type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
+import { RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
+import { IdentityMismatchError, identityFingerprint, type ScopedSyncIdentity } from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -74,6 +72,64 @@ interface RemoteBackendCheck {
 }
 
 const ALL_RECORDS = { where: { combinator: 'and' as const, rules: [] } };
+
+type ScopedIdentityRemoteAdapter = RxDBAdapterRemoteBase & {
+  syncIdentity(): Promise<ScopedSyncIdentity>;
+};
+
+const isScopedIdentityRemoteAdapter = (adapter: RxDBAdapterRemoteBase): adapter is ScopedIdentityRemoteAdapter =>
+  typeof (adapter as unknown as { syncIdentity?: unknown }).syncIdentity === 'function';
+
+const IDENTITY_BINDING_ID = 'singleton';
+const IDENTITY_BINDING = {
+  where: { combinator: 'and' as const, rules: [{ field: 'id', operator: '=', value: IDENTITY_BINDING_ID }] }
+};
+
+/** 在读取远端 backend id 之前绑定并核对本地数据库身份。 */
+export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  if (!isScopedIdentityRemoteAdapter(remoteAdapter)) return;
+
+  const identity = await remoteAdapter.syncIdentity();
+  const fingerprint = identityFingerprint(identity);
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
+  const repository = localAdapter.getRepository(RxDBSyncIdentityBinding);
+  const existing = (await repository.find(IDENTITY_BINDING))[0];
+
+  if (existing) {
+    if (existing.identityFingerprint !== fingerprint) {
+      const error = new IdentityMismatchError(
+        existing.identityKind,
+        identity.kind,
+        existing.identityFingerprint,
+        fingerprint
+      );
+      sm.rxdb.syncState.reportError(error);
+      throw error;
+    }
+    return;
+  }
+
+  await localAdapter.transaction(async executor => {
+    const txRepository = executor.getRepository(RxDBSyncIdentityBinding);
+    const current = (await txRepository.find(IDENTITY_BINDING))[0];
+    if (current) {
+      if (current.identityFingerprint !== fingerprint) {
+        throw new IdentityMismatchError(current.identityKind, identity.kind, current.identityFingerprint, fingerprint);
+      }
+      return;
+    }
+
+    const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
+      id: IDENTITY_BINDING_ID,
+      identityKind: identity.kind,
+      identityFingerprint: fingerprint,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    await txRepository.create(binding);
+  });
+}
 
 /**
  * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛

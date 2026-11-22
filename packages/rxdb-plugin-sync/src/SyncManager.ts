@@ -25,7 +25,12 @@ import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult }
 import { pull } from './pull.js';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
 import { push } from './push.js';
-import { bindRemoteBackend, rebindRemoteBackend, type RebindRemoteBackendResult } from './remote-backend.js';
+import {
+  bindRemoteBackend,
+  bindScopedIdentity,
+  rebindRemoteBackend,
+  type RebindRemoteBackendResult
+} from './remote-backend.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
 import {
@@ -692,6 +697,7 @@ export class SyncManager {
    */
   async verifyRemoteBackend(): Promise<void> {
     if (!this.rxdb.config.sync?.remote?.adapter) return;
+    await bindScopedIdentity(this);
     this.#remote_backend_id = await bindRemoteBackend(this);
   }
 

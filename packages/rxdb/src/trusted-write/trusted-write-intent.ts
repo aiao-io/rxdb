@@ -1,5 +1,5 @@
 /**
- * @fileoverview 受信写意图与 12 行调用点登记表（epic-006「受信调用点登记表」）。
+ * @fileoverview 受信写意图与 14 行调用点登记表（epic-006「受信调用点登记表」）。
  *
  * @remarks
  * 意图是「我知道我在重写业务投影，并且我会自己维护工作树」
@@ -129,7 +129,7 @@ export interface TrustedCallsite {
 }
 
 /**
- * 与真实代码核对过的 12 行受信调用点（整表核对日期 2026-09-16）
+ * 与真实代码核对过的 14 行受信调用点（整表核对日期 2026-09-16）
  *
  * @remarks
  * 顺序与 epic-006「受信调用点登记表」的表格逐行一致，便于漂移扫描双向比对。
@@ -153,6 +153,9 @@ export interface TrustedCallsite {
  * 2026-10-05 新增 #12（US-218 阶段 B）：推送回执里被远端拒绝的实体，要在同一个事务里把本地业务行
  * 对齐到远端现状（远端有行就覆盖，远端无行就删除），走的是 `executor.mergeChanges(…, true)`。
  * 同样只核对了新增的这一行，表头日期照旧。
+ *
+ * 2026-11-21 新增 #13 / #14：分桶拉取的实体应用与过期分桶清理都在 `bucketed-pull.ts` 内直接调用
+ * `executor.mergeChanges(…, true)`，分别登记实际发起写入的 `applyScopedBatch` 与 `removeBucketScope`。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -250,6 +253,22 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
     verifiedAtLine: 1392
+  },
+  {
+    file: 'bucketed-pull.ts',
+    symbol: 'applyScopedBatch',
+    writePrimitive: 'executor.mergeChanges',
+    intent: TrustedWriteIntent.remote_sync,
+    entrance: 'remote_entity_apply',
+    verifiedAtLine: 534
+  },
+  {
+    file: 'bucketed-pull.ts',
+    symbol: 'removeBucketScope',
+    writePrimitive: 'executor.mergeChanges',
+    intent: TrustedWriteIntent.remote_sync,
+    entrance: 'remote_entity_apply',
+    verifiedAtLine: 640
   }
 ];
 
