@@ -76,7 +76,7 @@ async function showRepositoryFiles(view) {
     await button.click();
     await view.locator('[data-file-path]').first().waitFor();
     const windowLayer = view.locator('xpath=..');
-    const externalWindow = windowLayer.locator('.win[data-app=\"vscode\"]:not(.closing)').last();
+    const externalWindow = windowLayer.locator('.win[data-app="vscode"]:not(.closing)').last();
     const closeButton = externalWindow.locator('.tl .c');
     if ((await closeButton.count()) > 0) await closeButton.click();
   }

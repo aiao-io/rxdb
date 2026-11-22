@@ -377,16 +377,34 @@ describe('Git workspace operation contract', () => {
   });
 
   it('兼容版本查询，并为无目录的 init 补上临时工作区', async () => {
-    const version = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['--version'], cwd: '', files: [], directories: [] });
+    const version = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['--version'],
+      cwd: '',
+      files: [],
+      directories: []
+    });
     expect(version).toMatchObject({ exitCode: 0, stdout: 'git version 0.0.17 (wasm-git)' });
 
-    const initialized = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['init', '-q'], cwd: '', files: [], directories: [] });
+    const initialized = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['init', '-q'],
+      cwd: '',
+      files: [],
+      directories: []
+    });
     expect(initialized.exitCode).toBe(0);
     expect(fixture.commands.at(-1)).toEqual(['init', '-q', expect.stringMatching(/^\/tmp\/aiao-terminal-\d+$/)]);
   });
 
   it('子目录里执行无目录参数的 init 以当前目录为目标', async () => {
-    const result = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['init'], cwd: 'nested', files: [], directories: ['nested'] });
+    const result = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['init'],
+      cwd: 'nested',
+      files: [],
+      directories: ['nested']
+    });
     expect(result.exitCode).toBe(0);
     expect(result.files.map(entry => entry.path)).toContain('nested/.git/HEAD');
     expect(result.stdout).toBe('Initialized empty Git repository in /Users/test/repo/nested/');
@@ -394,19 +412,44 @@ describe('Git workspace operation contract', () => {
 
   it('runs terminal commands against an in-memory tree and returns Git mutations', async () => {
     const initial = { files: [file('README.md', 'hello')], directories: [] };
-    const initialized = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['init'], cwd: '', ...initial });
+    const initialized = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['init'],
+      cwd: '',
+      ...initial
+    });
     expect(initialized.exitCode).toBe(0);
     expect(initialized.files.some(entry => entry.path === '.git/HEAD')).toBe(true);
     expect(initialized.directories).toContain('.git/objects/pack');
 
-    const status = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['status', '--short'], cwd: '', ...initialized });
+    const status = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['status', '--short'],
+      cwd: '',
+      ...initialized
+    });
     expect(status).toMatchObject({ exitCode: 0, stdout: '?? README.md', stderr: '' });
     fixture.failCommand('status');
-    const failed = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['status'], cwd: '', ...initialized });
+    const failed = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['status'],
+      cwd: '',
+      ...initialized
+    });
     expect(failed).toMatchObject({ exitCode: 1, stderr: 'injected command failure' });
-    const staged = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['add', 'README.md'], cwd: '', ...initialized });
+    const staged = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['add', 'README.md'],
+      cwd: '',
+      ...initialized
+    });
     expect(staged.exitCode).toBe(0);
-    const committed = await runtime.runTerminal({ worktree: '/Users/test/repo', args: ['commit', '-m', 'initial'], cwd: '', ...staged });
+    const committed = await runtime.runTerminal({
+      worktree: '/Users/test/repo',
+      args: ['commit', '-m', 'initial'],
+      cwd: '',
+      ...staged
+    });
     expect(committed.exitCode).toBe(0);
     expect(committed.files.some(entry => entry.path === '.git/refs/heads/main')).toBe(true);
   });

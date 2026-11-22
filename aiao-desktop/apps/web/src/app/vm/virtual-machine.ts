@@ -1,11 +1,11 @@
 import { Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription } from 'rxjs';
-import { ApplicationRegistry } from '../services/application-registry';
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
 import { ApplicationCatalog } from '../services/application-catalog';
+import { ApplicationRegistry } from '../services/application-registry';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';

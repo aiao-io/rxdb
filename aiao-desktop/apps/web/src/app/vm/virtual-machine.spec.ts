@@ -94,9 +94,15 @@ const settle = async (): Promise<void> => {
 const channels: BroadcastChannel[] = [];
 beforeEach(() => {
   const NativeChannel = BroadcastChannel;
-  vi.stubGlobal('BroadcastChannel', class extends NativeChannel {
-    constructor(name: string) { super(name); channels.push(this); }
-  });
+  vi.stubGlobal(
+    'BroadcastChannel',
+    class extends NativeChannel {
+      constructor(name: string) {
+        super(name);
+        channels.push(this);
+      }
+    }
+  );
   vi.useFakeTimers();
   mocks.boot.mockReset();
 });
@@ -376,20 +382,32 @@ describe('VirtualMachine 终端里的 git', () => {
   });
 
   it('两个标签的请求依次读取、写回同一个仓库，保留各自的输出和退出码', async () => {
-    const { git, vm, store } = await terminal();
+    const { channel, git, vm, store } = await terminal();
+    const observer = new BroadcastChannel(channel.name);
+    const overlapping = new Promise<void>(resolve => {
+      observer.onmessage = ({ data }) => {
+        if (data.args?.[0] === 'status') resolve();
+      };
+    });
     const root = `${SHELL_HOME}/Desktop/git-project`;
     await vm.mkdir(`${root}/.git`);
     await vm.write(`${root}/gone/file`, text('remove'));
     await vm.write(`${root}/nested/README.md`, text('before'));
     const runTerminal = vi.fn(async (command: GitTerminalCommand): Promise<GitTerminalResult> => {
       if (command.args[0] === 'status') return { ...command, exitCode: 7, stdout: 'second', stderr: 'warning' };
+      await overlapping;
       return {
         files: [{ path: 'nested/README.md', bytes: new TextEncoder().encode('after') }],
-        directories: ['.git', 'nested', 'new/empty', 'new'], exitCode: 0, stdout: 'first', stderr: ''
+        directories: ['.git', 'nested', 'new/empty', 'new'],
+        exitCode: 0,
+        stdout: 'first',
+        stderr: ''
       };
     });
     vi.stubGlobal('location', { origin: 'https://desktop.example' });
-    const create = vi.spyOn(GitWorkbenchRuntime, 'create').mockResolvedValue({ runTerminal } as unknown as GitWorkbenchRuntime);
+    const create = vi
+      .spyOn(GitWorkbenchRuntime, 'create')
+      .mockResolvedValue({ runTerminal } as unknown as GitWorkbenchRuntime);
     try {
       const responses = await Promise.all([git(['checkout', 'branch'], root), git(['status'], `${root}/nested`)]);
       expect(responses).toEqual([
@@ -402,7 +420,9 @@ describe('VirtualMachine 终端里的 git', () => {
       expect(second.directories).toContain('new/empty');
       expect(decode(await store.read([...DESKTOP, 'git-project', 'nested', 'README.md']))).toBe('after');
       expect(await store.kindOf([...DESKTOP, 'git-project', 'new', 'empty'])).toBe('directory');
-    } finally { create.mockRestore(); }
+    } finally {
+      create.mockRestore();
+    }
   });
 
   it('加载失败交给发起命令的进程，下次调用可以重试', async () => {
@@ -413,7 +433,9 @@ describe('VirtualMachine 终端里的 git', () => {
       await expect(git(['status'])).resolves.toMatchObject({ exitCode: 1, stderr: 'git: WASM unavailable' });
       await expect(git(['status'])).resolves.toMatchObject({ exitCode: 1 });
       expect(create).toHaveBeenCalledTimes(2);
-    } finally { create.mockRestore(); }
+    } finally {
+      create.mockRestore();
+    }
   });
 });
 

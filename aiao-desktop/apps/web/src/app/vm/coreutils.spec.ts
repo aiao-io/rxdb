@@ -274,18 +274,25 @@ describe('programSource', () => {
   });
 });
 
-
 describe.each(['安装后的源码', '函数'])('git（%s）', mode => {
   it('请求不进入输出流，子进程只接收自己的输出与退出码', async () => {
     const channel = new BroadcastChannel(crypto.randomUUID());
     const process: ProgramProcess = {
       stdin: { ref: vi.fn(), unref: vi.fn() },
-    pid: 42, argv: ['node', '/bin/git.js', 'log', '--oneline'], env: { AIAO_GIT_CHANNEL: channel.name },
-      cwd: () => '/repo', stdout: { write: vi.fn() }, stderr: { write: vi.fn() },
-      exit: (code): never => { throw new Error(`提前退出 ${code}`); }
+      pid: 42,
+      argv: ['node', '/bin/git.js', 'log', '--oneline'],
+      env: { AIAO_GIT_CHANNEL: channel.name },
+      cwd: () => '/repo',
+      stdout: { write: vi.fn() },
+      stderr: { write: vi.fn() },
+      exit: (code): never => {
+        throw new Error(`提前退出 ${code}`);
+      }
     };
     try {
-      const received = new Promise(resolve => { channel.onmessage = event => resolve(event.data); });
+      const received = new Promise(resolve => {
+        channel.onmessage = event => resolve(event.data);
+      });
       if (mode === '函数') gitProgram(nodeRequire, process, { explain, openOsc: OPEN_OSC, apps: APPS });
       else new Function('require', 'process', programSource(gitProgram, APPS))(nodeRequire, process);
       await expect(received).resolves.toEqual({ pid: 42, cwd: '/repo', args: ['log', '--oneline'] });
@@ -298,6 +305,8 @@ describe.each(['安装后的源码', '函数'])('git（%s）', mode => {
       expect(process.stdout.write).toHaveBeenCalledExactlyOnceWith('some output\n');
       expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith('warning\n');
       expect(process.stdin.unref).toHaveBeenCalledOnce();
-    } finally { channel.close(); }
+    } finally {
+      channel.close();
+    }
   });
 });

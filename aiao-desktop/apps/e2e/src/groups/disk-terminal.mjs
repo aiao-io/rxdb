@@ -17,6 +17,7 @@ export const diskTerminal = {
     'diskState.shellCommandsWork',
     'diskState.gitCommandsWork',
     'diskState.gitShellSemantics',
+    'diskState.gitTabsShareIndex',
     'diskState.gitHistorySurvivesReopen',
     'diskState.openCommandOpensTextEdit',
     'diskState.finderFolderOnDesktop',
@@ -90,7 +91,10 @@ export const diskTerminal = {
       const id = ++sequence;
       const begin = `G${id}BEGIN`;
       const end = `G${id}END`;
-      const finished = await runInShell(`echo G'${id}BEGIN'; ${command}; echo G'${id}END'`, new RegExp(`${end}.*\\$\\s*$`));
+      const finished = await runInShell(
+        `echo G'${id}BEGIN'; ${command}; echo G'${id}END'`,
+        new RegExp(`${end}.*\\$\\s*$`)
+      );
       const screen = (await xtermText()).replaceAll('\u00a0', ' ');
       if (!finished || !screen.includes(begin)) throw new Error(`Terminal did not finish ${command}\n${screen}`);
       return screen.split(begin).at(-1).split(end)[0].trim();
@@ -104,21 +108,93 @@ export const diskTerminal = {
     const history = await outputOf('git log --oneline');
     const clean = await outputOf('git status --short');
     diskState.gitCommandsWork =
-      /^git version /.test(version) && init.endsWith('/Users/prasenjit/Desktop/git-smoke/') &&
-      /^\?\? README\.md$/.test(untracked) && /^A\s+README\.md$/.test(staged) &&
-      /^[a-f0-9]{7,40}\s+initial$/.test(history) && clean === '';
+      /^git version /.test(version) &&
+      init.endsWith('/Users/prasenjit/Desktop/git-smoke/') &&
+      /^\?\? README\.md$/.test(untracked) &&
+      /^A\s+README\.md$/.test(staged) &&
+      /^[a-f0-9]{7,40}\s+initial$/.test(history) &&
+      clean === '';
     const redirected = await outputOf('git log --oneline > /tmp/git-log');
     const saved = await outputOf('cat /tmp/git-log');
-    const piped = await outputOf(`git log --oneline | node -e "process.stdin.on('data', d => console.log(d.toString().slice(0,7)))"`);
+    const piped = await outputOf(
+      `git log --oneline | node -e "process.stdin.on('data', d => console.log(d.toString().slice(0,7)))"`
+    );
     const failed = await outputOf('git checkout missing-branch 2>/tmp/git-error && echo unexpected');
     const error = await outputOf('cat /tmp/git-error');
-    diskState.gitShellSemantics = redirected === '' && saved === history && piped === history.slice(0,7) && failed === '' && error.includes('missing-branch');
+    diskState.gitShellSemantics =
+      redirected === '' &&
+      saved === history &&
+      piped === history.slice(0, 7) &&
+      failed === '' &&
+      error.includes('missing-branch');
+    await outputOf('touch left.txt right.txt');
+    const terminal = win('terminal');
+    const tabs = terminal.locator('.tm-tab:not(.tm-new-tab)');
+    const panels = terminal.locator('.xterm-panel');
+    const selectTab = async index => {
+      await tabs.nth(index).locator('.tm-tab-title').click();
+      await panels.nth(index).waitFor({ state: 'visible' });
+      await panels.nth(index).locator('.xterm-helper-textarea').focus();
+      await page.waitForFunction(i => {
+        const panel = document.querySelectorAll('.win[data-app="terminal"] .xterm-panel')[i];
+        return !panel.hidden && panel.contains(document.activeElement);
+      }, index);
+    };
+    const runInTab = async (index, command) => {
+      await selectTab(index);
+      await page.keyboard.insertText(command);
+      await page.keyboard.press('Enter');
+    };
+    const waitForTabText = async (index, expected) => {
+      const rows = panels.nth(index).locator('.xterm-rows');
+      try {
+        await rows.filter({ hasText: expected }).waitFor({ state: 'attached', timeout: 15_000 });
+      } catch (cause) {
+        throw new Error(
+          `Terminal tab ${index + 1} did not show ${expected}\n${(await panels.locator('.xterm-rows').allTextContents()).join('\n---\n')}`,
+          { cause }
+        );
+      }
+    };
+    await terminal.getByTitle('New Tab').click();
+    await waitForTabText(1, /~\$/);
+    await runInTab(1, "cd ~/Desktop/git-smoke && git add right.txt && echo ADDED_'RIGHT'");
+    await runInTab(0, "git add left.txt && echo ADDED_'LEFT'");
+    await waitForTabText(0, 'ADDED_LEFT');
+    await selectTab(1);
+    await waitForTabText(1, 'ADDED_RIGHT');
+    await tabs.nth(1).locator('.x').click();
+    await panels.first().waitFor({ state: 'visible' });
+    const sharedIndex = await outputOf('git status --short');
+    diskState.gitTabsShareIndex = /^A\s+left\.txt\s*A\s+right\.txt$/.test(sharedIndex);
+    const nested = await outputOf('mkdir nested && cd nested && git init');
+    diskState.gitCommandsWork &&= nested.endsWith('/Users/prasenjit/Desktop/git-smoke/nested/');
     await closeAll();
     await openTerminal();
     const reopened = await outputOf('cd ~/Desktop/git-smoke && git log --oneline');
     diskState.gitHistorySurvivesReopen = /^[a-f0-9]{7,40}\s+initial$/.test(history) && reopened === history;
-    if (!diskState.gitCommandsWork || !diskState.gitShellSemantics || !diskState.gitHistorySurvivesReopen)
-      console.error({ version, init, untracked, staged, history, clean, redirected, saved, piped, failed, error, reopened });
+    if (
+      !diskState.gitCommandsWork ||
+      !diskState.gitShellSemantics ||
+      !diskState.gitTabsShareIndex ||
+      !diskState.gitHistorySurvivesReopen
+    )
+      console.error({
+        version,
+        init,
+        untracked,
+        staged,
+        history,
+        clean,
+        redirected,
+        saved,
+        piped,
+        failed,
+        error,
+        sharedIndex,
+        nested,
+        reopened
+      });
 
     await runInShell('open ~/Desktop/terminal-note.txt');
     diskState.openCommandOpensTextEdit = await page
