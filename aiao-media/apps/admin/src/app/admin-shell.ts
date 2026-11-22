@@ -23,6 +23,7 @@ export const ADMIN_MENU: readonly MenuNode<AdminIcon>[] = [
   { id: 'users', label: '用户', icon: Users, route: '/users' },
   { id: 'templates', label: '模板', icon: FileText, route: '/templates' },
   { id: 'policies', label: '供应商策略', icon: Settings, route: '/policies' },
+  { id: 'platforms', label: '媒体平台', icon: Settings, route: '/platforms' },
   { id: 'tasks', label: '任务与用量', icon: ClipboardList, route: '/tasks' },
   { id: 'audit', label: '操作审计', icon: History, route: '/audit' }
 ];

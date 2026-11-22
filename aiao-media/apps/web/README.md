@@ -35,13 +35,13 @@ pnpm install --frozen-lockfile
 pnpm nx run aiao-media:serve
 ```
 
-打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会在创作页直接请你填写。也可以在设置页的「供应商」分区覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
+打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。图片、ASR、TTS、音乐和视频能力由服务端 Admin「媒体平台」页面配置，用户端只读取公开目录，不再填写供应商地址或 API Key。
 
 - 前端是 Angular 开发服务器，改源码自动刷新。首次运行会先构建依赖包和 wasm 资源，之后命中缓存。
 - 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker，代理全部 `/api/**`，包括 `/api/models`、`/api/installation`、`/api/templates` 和任务接口；未配置的产品服务返回 JSON 错误，不会落到前端 HTML。此入口不启动 Supabase；需要本地账号、后台和完整平台服务时，使用 `pnpm nx run aiao-media:dev`。
 - 数据保存在浏览器的 OPFS / IndexedDB，不需要数据库或 `.env`。
 - 开发构建自动接入 RxDB DevTools 浏览器扩展，检查当前工作区的媒体数据库；切换工作区时连接随之切换。生产和桌面构建使用空实现，产物不包含 `@aiao/rxdb-devtools`。
-- 未配置 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 时不显示注册/登录入口。如果 `aiao-media/apps/web/.env` 里填过这两项，入口会出现；要纯本机模式就清空它们。
+- 未配置 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 时不显示注册/登录入口。完整本地环境由 `pnpm nx dev aiao-media` 自动注入公开 Supabase 配置。
 
 ### 无 Supabase：生产形态预览
 
@@ -52,17 +52,15 @@ pnpm nx run aiao-media:preview          # Wrangler 本地运行，不需要登�
 
 打开 `http://localhost:4398`。`preview` 不会自己构建，改了前端要重新执行 `offline-assets` 再重启。用来验证完整 Worker（Durable Object 与 R2 由 Wrangler 本地模拟）、Service Worker 离线、CSP 和 `/api/provider-probe`。
 
-Wrangler 会自动读取被 Git 忽略的 `../../deploy/cloudflare/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](../../deploy/cloudflare/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase 配置运行，要纯本机预览先把它移走。已有平台模型或支付配置不会重新开放已停用的接口。
+Wrangler 会自动读取被 Git 忽略的 `../../deploy/cloudflare/.dev.vars`（Worker 私有 Supabase 配置，模板见 [.dev.vars.example](../../deploy/cloudflare/.dev.vars.example)）。平台模型和媒体能力不在该文件中维护，统一由 Admin「媒体平台」页面保存到服务端。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表）。
 
 ### 供应商与生成
 
-当前适配器支持单张 PNG/JPEG 原图，按实际字节识别格式并原样保存、下载。Images API 使用 `n=1`、`quality=low`、`output_format=png`；MiniMax 官方前缀使用 `image-01`、`response_format=url`，关闭提示词优化。三个请求尺寸为 1024×1024、1536×1024、1024×1536；供应商必须支持对应参数。真实供应商验收可使用忽略的本地 `.env`，字段见 [`.env.example`](.env.example)；本次验收额度不限，Key 不进入发布产物。
+当前适配器支持单张 PNG/JPEG 原图，按实际字节识别格式并原样保存、下载。Images API 使用 `n=1`、`quality=low`、`output_format=png`；MiniMax 官方前缀使用 `image-01`、`response_format=url`，关闭提示词优化。可用尺寸和参数由 Admin「媒体平台」目录声明，用户端只提交公开模型 ID 和已声明选项。
 
 模型 ID 使用 1–128 位英数字、点、下划线、冒号或短横线。支持读取 `b64_json` 或允许跨域读取的 HTTPS 图片 URL，不代表兼容所有图片 API。
 
-- **浏览器直连，自建配置默认**：Key 和提示词直接发给供应商，本站不接收。供应商 API 和结果图片均须支持 CORS。
-- **本站代理，明确选择或预设声明**：每次生成是本站 Worker 上的一个任务（`/api/relay/tasks`），仅允许运营配置的供应商前缀。Key 只在接单时用于向供应商发出这一次请求，不写入任何存储；生成中可以刷新或关闭页面，回来后会接着取回结果，不会重复生成。供应商返回的结果用只保存在本机的任务令牌加密后暂存在私有 R2，本站读不出内容；取回保存后立即删除，无人取回的 24 小时后删除，R2 生命周期规则 1 天兜底，最长约 48 小时。开发服务器（`aiao-media:serve`）在同一进程内以本机随机端口运行同一份 Worker 的代理与任务接口（仅监听 127.0.0.1，允许列表取自 `../api/wrangler.json`，DO/R2 为进程内替身）；生产形态预览使用 `aiao-media:preview`。已安装的旧版页面继续使用无状态的 `/api/relay`。
-- 默认 Key 只保留在当前页面内存。勾选“在此设备记住 Key”后，写入本机专门的凭据记录；配置、任务记录和备份不包含凭据，代理任务令牌也单独存放，不进任务记录、备份或同步。
+- **本站代理**：每次生成是本站 Worker 上的一个任务（`/api/relay/tasks`），只使用 Admin 已发布的供应商配置。Key 只在服务端接单时读取，不写入浏览器、任务记录、备份或同步数据；生成中可以刷新或关闭页面，回来后会接着取回结果，不会重复生成。供应商返回的结果用只保存在本机的任务令牌加密后暂存在私有 R2，本站读不出内容；取回保存后立即删除，无人取回的 24 小时后删除，R2 生命周期规则 1 天兜底，最长约 48 小时。
 - 请求发送前先写本机任务记录。直连请求在超时、CORS、断网或刷新后结果不确定时不自动重发、不自动切换代理；代理任务在刷新后继续，只有本站确认上游结果不确定时才进入核对。用户核对供应商记录后才能解除锁定。
 
 首次联网完成离线资源安装后，四个页面及本机草稿、配置、作品可离线打开。模型生成始终需要联网，自有供应商调用费用按该供应商的规则承担。
@@ -158,7 +156,7 @@ pnpm nx run aiao-media:supabase-down
 
 ### 配置统一平台 Supabase
 
-- 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。Worker secrets 必须指向同一项目，见[平台服务配置](../../deploy/supabase/platform-services.md)。
+- 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`。Worker secrets 必须指向同一项目，见[平台服务配置](../../deploy/supabase/platform-services.md)。
 - 部署方一次初始化云项目：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。数据库与私有 `aiao-media-images` Storage bucket 均按账号和工作区执行访问控制。
 - 用户只注册、登录平台账号并确认同步范围，无需 Supabase 管理账号、项目配置或数据库操作。另一台设备使用同一平台账号，即可同步草稿、作品信息并取回已上传的原图。
 

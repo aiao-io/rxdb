@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -7,10 +6,6 @@ import { RelayTask } from '../src/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
 // 开发替身运行相同平台接口，任务只接收账号会话，模型凭据留在服务端环境。
-// The allow-list committed for deployment, which `wrangler dev` starts from as well.
-const deployedAllowList = () =>
-  JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
-
 function toRequest(incoming, signal) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(incoming.headers))
@@ -34,12 +29,12 @@ async function send(response, outgoing) {
 
 /**
  * Starts the relay on a free loopback port and resolves once it is listening.
- * `allowedProviders` replaces the deployment allow-list, which tests use to stay offline.
+ * `allowedProviders` supplies an offline fixture allow-list for tests.
  */
 export async function startDevRelay({ allowedProviders, environment = process.env } = {}) {
   const env = {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => name.startsWith('MEDIA_'))),
-    ALLOWED_PROVIDER_BASE_URLS: allowedProviders ? JSON.stringify(allowedProviders) : deployedAllowList(),
+    ...(allowedProviders ? { ALLOWED_PROVIDER_BASE_URLS: JSON.stringify(allowedProviders) } : {}),
     RELAY_RESULTS: r2Bucket()
   };
   env.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, env));

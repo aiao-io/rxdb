@@ -1,8 +1,5 @@
 MEDIA_SUPABASE_URL=https://your-project.supabase.co
 MEDIA_SUPABASE_ANON_KEY=sb_publishable_replace_me
 MEDIA_SUPABASE_SERVICE_ROLE_KEY=replace_in_worker_secrets
-MEDIA_PLATFORM_MODELS=[]
-# 平台模型与允许列表必须同时配置；凭据只在受保护环境中提供。
-# MEDIA_PLATFORM_MODELS=[{"id":"standard","name":"平台生图","baseUrl":"https://images.example.test/v1","model":"private-image-model","secret":"MEDIA_IMAGE_KEY","credits":3}]
-# ALLOWED_PROVIDER_BASE_URLS=["https://images.example.test/v1"]
-# MEDIA_IMAGE_KEY=replace_in_worker_secrets
+# 图片模型、ASR、TTS、音乐和视频能力由 Admin「媒体平台」页面配置。
+# 本文件只提供 Worker 连接 Supabase 所需的基础凭据。

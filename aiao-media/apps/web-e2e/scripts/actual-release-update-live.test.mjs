@@ -70,12 +70,12 @@ test('正式控制器固定origin、不同审核摘要和当前版本，不接�
     main: '/reviewed/app/apps/api/src/local-first-worker.ts',
     observability: { enabled: false },
     assets: { binding: 'ASSETS', directory: '/reviewed/b' },
-    vars: { ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]' }
+    vars: { MEDIA_ALLOW_DESKTOP_ORIGIN: 'true' }
   };
   const prepared = baselineDeployConfig(source, builds.a, '/reviewed/app');
   assert.equal(prepared.config.assets.directory, builds.a.root);
   assert.equal(prepared.config.main, source.main);
-  assert.equal(prepared.allowlistCount, 1);
+  assert.equal(prepared.platformConfiguration, 'admin');
   assert.throws(() => baselineDeployConfig({ ...source, env: { production: {} } }, builds.a, '/reviewed/app'));
   assert.throws(() =>
     baselineDeployConfig({ ...source, secrets_file: '/private/secret.env' }, builds.a, '/reviewed/app')

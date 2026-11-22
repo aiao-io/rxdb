@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { ImageSyncSelection } from '../local-data/image-sync-selection';
 import type { LocalWorkSummary } from '../local-data/index';
 import { LocalImageMvp } from './local-image-mvp';
+import { MediaGeneration } from './media-generation/media-generation';
 import { PromptInput } from './prompts/prompt-input';
 import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
@@ -118,6 +119,30 @@ function downloadRig(
   };
   return { ...r, card, retrieve, download };
 }
+
+describe('多媒体侧边栏导航', () => {
+  it.each([
+    ['tts', '/tts', 'text-to-speech'],
+    ['asr', '/asr', 'speech-to-text'],
+    ['music', '/music', 'text-to-music'],
+    ['video', '/video', 'text-to-video']
+  ] as const)('%s 页面显示独立媒体入口', async (view, path, operation) => {
+    vi.spyOn(MediaGeneration.prototype, 'loadCapabilities').mockResolvedValue();
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const r = rig();
+
+    r.component.navigate(view);
+    r.text();
+    await r.fixture.whenStable();
+    r.text();
+
+    expect(location.pathname).toBe(path);
+    expect(r.element.querySelector(`.app-sidebar a[href="${path}"].active`)).not.toBeNull();
+    expect(r.element.querySelector('app-media-generation')).not.toBeNull();
+    expect(r.component.mediaOperation()).toBe(operation);
+    r.session.close();
+  });
+});
 
 describe('远端预览可见性重建', () => {
   it('删除状态变化后保留当前卡片操作按钮的键盘焦点', () => {

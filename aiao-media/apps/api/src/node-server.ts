@@ -30,8 +30,7 @@ export async function startNodeServer(environment: NodeJS.ProcessEnv = process.e
     MEDIA_SUPABASE_SERVICE_ROLE_KEY: environment['MEDIA_SUPABASE_SERVICE_ROLE_KEY'],
     MEDIA_INSTALLATION_BOOTSTRAP_SECRET: environment['MEDIA_INSTALLATION_BOOTSTRAP_SECRET'],
     MEDIA_PUBLIC_SUPABASE_URL: origin,
-    MEDIA_ALLOW_DESKTOP_ORIGIN: 'true',
-    ALLOWED_PROVIDER_BASE_URLS: environment['ALLOWED_PROVIDER_BASE_URLS']
+    MEDIA_ALLOW_DESKTOP_ORIGIN: 'true'
   };
   const setup = new Installation({ storage: { sql } }, env);
   env.MEDIA_INSTALLATION = {

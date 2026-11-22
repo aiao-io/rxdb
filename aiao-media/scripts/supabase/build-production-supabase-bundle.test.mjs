@@ -66,7 +66,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 26);
+    assert.equal(first.sources.length, 27);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -849,7 +849,7 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
   const directory = await mkdtemp(join(tmpdir(), 'aiao-config-projection-'));
   try {
     await apply(db, (await buildProductionBundle(join(directory, 'bootstrap.sql'))).sql);
-    assert.equal(await schemaComment(db), 'aiao-media schema 23');
+    assert.equal(await schemaComment(db), 'aiao-media schema 24');
     const owner = await seedAdmin(db);
     const stranger = await seedAdmin(db, { admin: false });
     const entity = crypto.randomUUID();

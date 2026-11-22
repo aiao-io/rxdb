@@ -4,6 +4,7 @@ import {
   type MediaCapabilityCatalog,
   type MediaCapabilityOperation
 } from '@aiao-media/api-contracts';
+import { platformConfigurationEnvironment, readPlatformConfiguration } from './platform-config.ts';
 import { reject } from './product-http.ts';
 import { base, providerAllowlist } from './relay-input.ts';
 import type { WorkerEnv } from './worker-env.ts';
@@ -15,6 +16,7 @@ export type PrivateMediaCapability = MediaCapability & {
   secret: string;
   path?: string;
 };
+type ConfiguredMediaCapability = PrivateMediaCapability & { credential: string };
 interface MediaCapabilityConfig {
   revision: number;
   capabilities: PrivateMediaCapability[];
@@ -114,6 +116,11 @@ export function mediaCapabilityCatalog(env: WorkerEnv): MediaCapabilityCatalog {
   });
 }
 
+export async function configuredMediaCapabilityCatalog(env: WorkerEnv): Promise<MediaCapabilityCatalog> {
+  const document = await readPlatformConfiguration(env);
+  return mediaCapabilityCatalog(platformConfigurationEnvironment(env, document));
+}
+
 /** 只返回服务端内部使用的能力配置，调用方不得把私有字段写入响应或任务快照。 */
 export function mediaCapability(env: WorkerEnv, selection: MediaCapabilitySelection): PrivateMediaCapability {
   const config = parseConfig(env);
@@ -126,4 +133,14 @@ export function mediaCapability(env: WorkerEnv, selection: MediaCapabilitySelect
   );
   if (!value) reject(400, '媒体能力不存在或已停用。');
   return value;
+}
+
+export async function configuredMediaCapability(
+  env: WorkerEnv,
+  selection: MediaCapabilitySelection
+): Promise<ConfiguredMediaCapability> {
+  const document = await readPlatformConfiguration(env);
+  const runtime = platformConfigurationEnvironment(env, document);
+  const capability = mediaCapability(runtime, selection);
+  return { ...capability, credential: runtime[capability.secret] as string };
 }

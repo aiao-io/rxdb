@@ -1,3 +1,4 @@
+import { manageAdminPlatformConfiguration } from './admin-platform-config.ts';
 import { manageCredits } from './credits-api.ts';
 import { manageContent } from './product-content.ts';
 import type { BackendClient } from './product-http.ts';
@@ -210,6 +211,7 @@ export async function handleAdmin(request: Request, env: WorkerEnv) {
     const url = new URL(request.url),
       path = url.pathname.replace(/^\/api\/admin\//, '');
     if (path.startsWith('content/')) return manageContent(request, client, actorId, path);
+    if (path === 'platform-config') return manageAdminPlatformConfiguration(request, client, actorId);
     if (path === 'content' && request.method === 'GET')
       return {
         drafts: await client.call(

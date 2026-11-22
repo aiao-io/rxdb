@@ -12,7 +12,7 @@ function rig(context, upstream = async () => Response.json({ data: [{ b64_json: 
   const fixture = platformFixture(),
     calls = [];
   context.mock.method(globalThis, 'fetch', fixture.backendFetch);
-  const env = { ...fixture.env, RELAY_RESULTS: r2Bucket(), ASSETS: { fetch: () => new Response('assets') } };
+  const env = Object.assign(fixture.env, { RELAY_RESULTS: r2Bucket(), ASSETS: { fetch: () => new Response('assets') } });
   env.RELAY_TASKS = durableObjectNamespace(
     ctx =>
       new RelayTask(ctx, env, async (url, init) => {
@@ -286,7 +286,7 @@ test('到期释放失败时不删持久任务和结果，恢复账本后再完�
   assert.equal(t.ledger.reserved, 0);
   assert.equal(t.env.RELAY_RESULTS.objects.size, 0);
 });
-test('模型配置、允许列表或平台凭据无效时明确停用，不泄露配置细节', async context => {
+test('后台模型配置或平台凭据无效时明确停用，不泄露配置细节', async context => {
   const t = rig(context),
     model = JSON.parse(t.env.MEDIA_PLATFORM_MODELS)[0];
   for (const models of [
@@ -311,10 +311,8 @@ test('模型配置、允许列表或平台凭据无效时明确停用，不泄�
     assert.ok(!(await response.text()).includes('fixture-model-private'));
   }
   t.env.MEDIA_PLATFORM_MODELS = JSON.stringify([model]);
-  t.env.ALLOWED_PROVIDER_BASE_URLS = '[]';
-  assert.equal((await t.create()).status, 503);
   t.env.ALLOWED_PROVIDER_BASE_URLS = '{';
-  assert.equal((await t.create()).status, 503);
+  assert.equal((await worker.fetch(new Request(`${origin}/api/models`), t.env)).status, 200);
   assert.equal(t.calls.length, 0);
 });
 test('模型目录遵守后台停用策略，三画幅与协议由服务端固定', async context => {
@@ -322,7 +320,6 @@ test('模型目录遵守后台停用策略，三画幅与协议由服务端固�
     model = JSON.parse(t.env.MEDIA_PLATFORM_MODELS)[0];
   const minimax = { ...model, baseUrl: 'https://api.minimax.cn/v1', model: 'image-01' };
   t.env.MEDIA_PLATFORM_MODELS = JSON.stringify([minimax]);
-  t.env.ALLOWED_PROVIDER_BASE_URLS = JSON.stringify([minimax.baseUrl]);
   let enabled = false;
   context.mock.method(globalThis, 'fetch', (input, init) => {
     if (String(input).includes('/media_public_content'))

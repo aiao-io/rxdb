@@ -13,14 +13,11 @@
 
 ## 平台模型与任务配置
 
-- `MEDIA_PLATFORM_MODELS` 是服务端 JSON 数组，每项含 `id/name/baseUrl/model/secret/credits/protocol`。OpenAI Images 用 `sizes/aspectRatios/qualities/complexities/counts` 配置；Gemini Interactions 用 `imageOptions`、`thinkingLevels/counts` 配置。`imageOptions.outputSize` 必须位于本机交付上限内。`supportsImageEditing` 默认关闭。公开 `/api/models` 只返回平台标识及已校验能力，不返回上游型号、地址或凭据。
-- 每个 `secret` 引用独立的受保护服务端凭据；`ALLOWED_PROVIDER_BASE_URLS` 是规范化 API 前缀的 JSON 数组。每个模型的前缀必须在其中；凭据或允许列表无效时明确返回不可用，不接受用户传入的供应商地址或 Key。发布内容中的既有模型/画幅启停策略继续约束接单。
+- 平台模型、ASR、TTS、音乐和视频能力由 Admin「媒体平台」页面保存到 `media_platform_configuration`。管理员提交完整目录和 API Key 后，服务端校验协议、供应商地址、上游模型及能力边界，再递增配置修订号。
+- `media_platform_configuration` 仅授予服务端 `service_role` 读取权限；普通管理员只能通过受保护 RPC 保存配置并读取去除私密字段的摘要。API Key、供应商地址、上游型号和请求路径不会进入 RxDB 同步表、浏览器产物或公开 `/api/models`、`/api/media/capabilities` 响应。
+- 图片模型的 `sizes/aspectRatios/qualities/complexities/counts`、Gemini 的 `imageOptions/thinkingLevels`，以及 ASR、TTS、音乐、视频的输入输出限制都由后台目录声明。未配置或停用能力时，接口明确返回不可用。
 - Cloudflare 配置 `RELAY_TASKS` Durable Object 与私有 `RELAY_RESULTS` R2 bucket。不开公开访问，配置 1 天生命周期规则；应用 24 小时清理前先确认账本终态，账本故障保留任务与密文并重试释放。国内 Node 使用持久 SQLite 与加密文件目录，启动时恢复 alarm。
 - 浏览器接单带平台会话、公开模型 ID、提示词、单张模型参数、可选的短暂参考图片和设备任务令牌；后续查询、结果、确认与删除只用设备令牌。数量拆成独立单图任务顺序接单和结算。结果以 AES-GCM 密文暂存，成功保存本机后删除；保存失败保留原结果供续接。正式部署步骤见 [Cloudflare 发布](../cloudflare/local-first-pages.md#正式发布)与[国内部署](../../requirements/plans/dual-region-deployment.md)。
-- 历史 `MEDIA_PLATFORM`、`MEDIA_RESULTS`、免费日额度、预算和 Stripe 配置不参与当前积分任务。保留历史类、迁移与数据不代表重新开放支付或旧任务 API。
-
-示例配置在 [Cloudflare 私有变量模板](../cloudflare/.dev.vars.example)。模型凭据、service role 和会话不写入 Git、Wrangler vars、网页、桌面包或验收记录；本机私有文件不自动上传为生产 secrets。
-
 ## 账号与跨设备同步
 
 首次启用同步仍需确认本机数据范围，原图上传另行确认。草稿、作品信息与旧版公开配置继续兼容；账号会话、设备任务令牌、本机路径和文件句柄不进入同步或备份。

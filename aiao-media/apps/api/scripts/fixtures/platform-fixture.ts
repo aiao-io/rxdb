@@ -30,6 +30,32 @@ export function platformFixture() {
       return request.headers.get('authorization') === 'Bearer fixture-session' ?
           Response.json({ id: fixtureOwner })
         : Response.json({}, { status: 401 });
+    if (path === '/rest/v1/media_platform_configuration') {
+      const configured = (raw: string | undefined, key: string): unknown[] => {
+        let value: unknown;
+        try {
+          value = JSON.parse(raw ?? '[]');
+        } catch {
+          value = [];
+        }
+        if (!Array.isArray(value)) {
+          const row = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+          value = row[key];
+        }
+        return Array.isArray(value) ? value.map(entry => {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+          const row = entry as Record<string, unknown>;
+          return typeof row['secret'] === 'string' ? { ...row, apiKey: env[row['secret']] } : row;
+        }) : [];
+      };
+      return Response.json([
+        {
+          revision: 1,
+          models: configured(env.MEDIA_PLATFORM_MODELS, 'models'),
+          capabilities: configured(env.MEDIA_PLATFORM_CAPABILITIES, 'capabilities')
+        }
+      ]);
+    }
     if (path === '/rest/v1/media_public_content') return Response.json([]);
     if (path === '/rest/v1/media_accounts') return Response.json([{ disabled: ledger.disabled }]);
     if (!path.startsWith('/rest/v1/rpc/media_')) throw new Error('Unexpected fixture backend endpoint');

@@ -19,7 +19,7 @@ import {
   type TranscriptResult,
   type VideoResultManifest
 } from '@aiao-media/api-contracts';
-import { mediaCapability, type PrivateMediaCapability } from './media-capabilities.ts';
+import { configuredMediaCapability, type PrivateMediaCapability } from './media-capabilities.ts';
 import { readMediaInput } from './media-input-api.ts';
 import { bounded, reject } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';
@@ -83,8 +83,8 @@ const resultPath: Record<GenerationJobRequest['operation'], string> = {
   'text-to-image': '/images/generations',
   'reference-image': '/images/generations'
 };
-function capabilityFor(env: WorkerEnv, request: GenerationJobRequest): PrivateMediaCapability {
-  return mediaCapability(env, {
+async function capabilityFor(env: WorkerEnv, request: GenerationJobRequest): Promise<PrivateMediaCapability> {
+  return configuredMediaCapability(env, {
     providerInstanceId: request.providerInstanceId,
     providerRevision: request.providerRevision,
     modelId: request.modelId,
@@ -201,7 +201,7 @@ function upstreamBody(request: GenerationJobRequest, capability: PrivateMediaCap
 export async function mediaProviderInput(request: Request, env: WorkerEnv, ownerId: string): Promise<MediaDispatch> {
   const value = validateGenerationJobRequest(await request.json());
   if (value.kind === 'image') reject(400, '图片任务必须使用图片模型接口。');
-  const capability = capabilityFor(env, value);
+  const capability = await capabilityFor(env, value);
   validateSelection(value, capability);
   if (value.operation === 'speech-to-text') await readMediaInput(env, (value as AsrJobRequest).input, ownerId);
   const url = `${capability.baseUrl}${capability.path ?? resultPath[value.operation]}`;
@@ -219,7 +219,7 @@ export async function mediaProviderInput(request: Request, env: WorkerEnv, owner
     url,
     body: upstreamBody(value, capability),
     protocol: capability.protocol,
-    authorization: `Bearer ${env[capability.secret] as string}`,
+    authorization: `Bearer ${capability.credential}`,
     cost: capability.credits,
     resultKind,
     maxResultBytes,

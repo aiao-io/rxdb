@@ -284,6 +284,27 @@ export class ProductClient {
       if (allowed !== true) throw new ProductRequestError(403, this.errorMessage(403));
       return { actorId: access.userId };
     }
+    if (route === 'platform-config' && method === 'GET') {
+      return this.remote(access, '/rpc/media_admin_platform_configuration_self_read', {});
+    }
+    if (route === 'platform-config' && method === 'PUT') {
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+        throw new ProductRequestError(400, '平台配置请求无效。');
+      const value = payload as Record<string, unknown>;
+      if (
+        !Number.isSafeInteger(value['revision']) ||
+        typeof value['requestId'] !== 'string' ||
+        !Array.isArray(value['models']) ||
+        !Array.isArray(value['capabilities'])
+      )
+        throw new ProductRequestError(400, '平台配置版本无效。');
+      return this.remote(access, '/rpc/media_admin_platform_configuration_self_write', {
+        p_revision: value['revision'],
+        p_request_id: value['requestId'],
+        p_models: value['models'],
+        p_capabilities: value['capabilities']
+      });
+    }
     if (route === 'content' && method === 'GET') {
       const [drafts, published] = await Promise.all([
         this.remote(

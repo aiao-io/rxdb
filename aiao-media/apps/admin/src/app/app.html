@@ -16,7 +16,7 @@
     <ng-container *rxdbAdminPage>
       @if (accountPage()) {
         <app-admin-account [client]="client" [state]="account" [user]="signedIn.user" />
-      } @else if (routeTab() !== 'templates' && routeTab() !== 'policies') {
+      } @else if (routeTab() !== 'templates' && routeTab() !== 'policies' && routeTab() !== 'platforms') {
         <app-admin-console
           [client]="client"
           [identity]="signedIn.user.id"
@@ -25,7 +25,7 @@
           status="signed-in"
         />
       }
-      @defer (when routeTab() === 'templates' || routeTab() === 'policies') {
+      @defer (when routeTab() === 'templates' || routeTab() === 'policies' || routeTab() === 'platforms') {
         @if (!accountPage() && routeTab() === 'templates') {
           <app-admin-config-model
             [client]="client"
@@ -40,9 +40,11 @@
             [name]="'MediaProviderPolicy'"
             title="供应商策略"
           />
+        } @else if (!accountPage() && routeTab() === 'platforms') {
+          <app-admin-platform-config [client]="client" />
         }
       } @placeholder {
-        @if (routeTab() === 'templates' || routeTab() === 'policies') {
+        @if (routeTab() === 'templates' || routeTab() === 'policies' || routeTab() === 'platforms') {
           <p role="status">正在加载配置编辑器…</p>
         }
       }

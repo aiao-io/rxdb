@@ -37,15 +37,17 @@ function deferred() {
 function setup(context, upstream = () => Response.json(result)) {
   const calls = [];
   const fixture = platformFixture();
-  context.mock.method(globalThis, 'fetch', fixture.backendFetch);
-  const env = {
-    ...fixture.env,
+  Object.assign(fixture.env, {
     MEDIA_PLATFORM_MODELS: JSON.stringify([
       fixtureModel,
       imageEditModel,
       { ...fixtureModel, id: 'minimax', baseUrl: minimax, model: 'image-01' }
     ]),
-    ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([provider, minimax]),
+    ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([provider, minimax])
+  });
+  context.mock.method(globalThis, 'fetch', fixture.backendFetch);
+  const env = {
+    ...fixture.env,
     ASSETS: { fetch: () => new Response('static application') },
     RELAY_RESULTS: r2Bucket()
   };
@@ -98,10 +100,10 @@ function mediaSetup(
   const calls = [];
   const fixture = platformFixture();
   const media = fixtureMediaEnvironment();
+  Object.assign(fixture.env, media);
   context.mock.method(globalThis, 'fetch', fixture.backendFetch);
   const env = {
     ...fixture.env,
-    ...media,
     ASSETS: { fetch: () => new Response('static application') },
     RELAY_RESULTS: r2Bucket()
   };

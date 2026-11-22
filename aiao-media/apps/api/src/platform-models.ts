@@ -9,6 +9,7 @@ import {
 import { officialImagePresets } from './image-presets.ts';
 import { runtimePolicy } from './product-content.ts';
 import { body, fields, reject } from './product-http.ts';
+import { platformConfigurationEnvironment, readPlatformConfiguration } from './platform-config.ts';
 import { base, providerAllowlist } from './relay-input.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
@@ -25,6 +26,9 @@ export interface PlatformImageModel extends PlatformModel {
   baseUrl: string;
   model: string;
   secret: string;
+}
+interface ConfiguredPlatformImageModel extends PlatformImageModel {
+  credential: string;
 }
 const privateKeys = [
   'id',
@@ -48,7 +52,7 @@ const privateKeys = [
 ];
 
 /** 校验服务端模型和部署允许列表，凭据缺失时明确停用。 */
-export function platformModels(env: WorkerEnv): PlatformImageModel[] {
+function parsePlatformModels(env: WorkerEnv): PlatformImageModel[] {
   let values: unknown;
   try {
     values = JSON.parse(env.MEDIA_PLATFORM_MODELS ?? '[]');
@@ -141,9 +145,19 @@ export function platformModels(env: WorkerEnv): PlatformImageModel[] {
   });
 }
 
+export function platformModels(env: WorkerEnv): PlatformImageModel[] {
+  return parsePlatformModels(env);
+}
+
+export async function configuredPlatformModels(env: WorkerEnv): Promise<ConfiguredPlatformImageModel[]> {
+  const document = await readPlatformConfiguration(env);
+  const runtime = platformConfigurationEnvironment(env, document);
+  return parsePlatformModels(runtime).map(model => ({ ...model, credential: runtime[model.secret] as string }));
+}
+
 /** 目录不包含供应商地址、上游模型或凭据名称。 */
 export async function platformCatalog(env: WorkerEnv) {
-  const models = platformModels(env),
+  const models = await configuredPlatformModels(env),
     policy = await runtimePolicy(env);
   const enabled = models.flatMap(model => {
     if (!policy) return [model];
@@ -234,7 +248,7 @@ export async function platformImageInput(request: Request, env: WorkerEnv) {
     input.n !== 1
   )
     reject(400, '图片生成参数无效。');
-  const model = platformModels(env).find(value => value.id === input.model);
+  const model = (await configuredPlatformModels(env)).find(value => value.id === input.model);
   if (!model) reject(400, '平台模型不存在。');
   const aspectRatio =
     input.aspectRatio === undefined && typeof input.size === 'string' ? ratioForSize(input.size) : input.aspectRatio;
@@ -318,7 +332,7 @@ export async function platformImageInput(request: Request, env: WorkerEnv) {
     body: upstreamBody,
     protocol: model.protocol,
     authHeader: prepared.authHeader,
-    authorization: model.protocol === 'gemini' ? (env[model.secret] as string) : `Bearer ${env[model.secret]}`,
+    authorization: model.protocol === 'gemini' ? model.credential : `Bearer ${model.credential}`,
     cost: model.credits
   };
 }

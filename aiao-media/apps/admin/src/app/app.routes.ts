@@ -9,6 +9,7 @@ export const appRoutes: Routes = [
   { path: 'users', component: AdminRoutePlaceholder },
   { path: 'templates', component: AdminRoutePlaceholder },
   { path: 'policies', component: AdminRoutePlaceholder },
+  { path: 'platforms', component: AdminRoutePlaceholder },
   { path: 'tasks', component: AdminRoutePlaceholder },
   { path: 'audit', component: AdminRoutePlaceholder },
   { path: 'account', component: AdminRoutePlaceholder },

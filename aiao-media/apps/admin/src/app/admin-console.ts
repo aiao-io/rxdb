@@ -41,7 +41,7 @@ interface AuditEntry {
   target_id: string;
   created_at: string;
 }
-export type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
+export type AdminTab = 'users' | 'templates' | 'policies' | 'platforms' | 'tasks' | 'audit';
 
 @Component({
   selector: 'app-admin-console',

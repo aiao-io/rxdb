@@ -91,6 +91,7 @@ import { imageMvpCatalog } from './image-mvp-catalog';
 import { transitionImage } from './image-view-transition';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
 import { ProviderFailure, publicProvider, type LocalProvider } from './local-provider';
+import { MediaGeneration, type MediaOperation } from './media-generation/media-generation';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
@@ -129,7 +130,8 @@ import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
-type View = 'discover' | 'studio' | 'library' | 'providers';
+type MediaView = 'tts' | 'asr' | 'music' | 'video';
+type View = 'discover' | 'studio' | 'library' | 'providers' | MediaView;
 type SettingsTab = 'providers' | 'sync' | 'data' | 'display';
 type Work = LibraryWork;
 type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
@@ -144,18 +146,49 @@ type TaskState = {
 };
 type ImageLocalTask = GenerationJobSummary & TaskState;
 type LocalTask = MediaGenerationJobSummary & TaskState;
+const mediaPages: Record<MediaView, { operation: MediaOperation; title: string; intro: string }> = {
+  tts: {
+    operation: 'text-to-speech',
+    title: 'TTS 配音',
+    intro: '把文字变成可播放、可下载的语音。'
+  },
+  asr: {
+    operation: 'speech-to-text',
+    title: 'ASR 转写',
+    intro: '上传 WAV 音频，生成可复制、可下载的文字。'
+  },
+  music: {
+    operation: 'text-to-music',
+    title: '生成音乐',
+    intro: '用文字描述曲风、情绪和场景，生成可交付的音频。'
+  },
+  video: {
+    operation: 'text-to-video',
+    title: '生成视频',
+    intro: '用文字描述主体、动作和镜头，生成可播放的视频。'
+  }
+};
+const isMediaView = (view: View): view is MediaView => view in mediaPages;
 const paths: Record<View, string> = {
   discover: '/',
   studio: '/images',
   library: '/library',
-  providers: '/providers'
+  providers: '/providers',
+  tts: '/tts',
+  asr: '/asr',
+  music: '/music',
+  video: '/video'
 };
 const routeViews: Record<string, View> = {
   '/': 'discover',
   '/create': 'studio',
   '/images': 'studio',
   '/library': 'library',
-  '/providers': 'providers'
+  '/providers': 'providers',
+  '/tts': 'tts',
+  '/asr': 'asr',
+  '/music': 'music',
+  '/video': 'video'
 } satisfies Record<string, View>;
 const routeView = (path: string): View => routeViews[path] ?? 'discover';
 // Settings sections are in-page tabs; the hash only deep-links a tab and never adds a route.
@@ -224,7 +257,8 @@ const mediaWorkKey = (work: LocalMediaWorkSummary): string => `${work.kind}:${wo
     WorkVisibleDirective,
     ElementWidthDirective,
     SyncTargetSettings,
-    CreditsPanel
+    CreditsPanel,
+    MediaGeneration
   ],
   templateUrl: './local-image-mvp.html',
   host: {
@@ -334,6 +368,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly remoteLibraryPage = computed(() => remoteImagePage(this.remoteOnlyWorks(), this.remotePage()));
   readonly availableProfiles = signal<WorkspaceProfile[]>([]);
   readonly currentProfileId = signal('');
+  readonly mediaStore = signal<LocalMediaStore | null>(null);
   readonly syncInitialized = signal(false);
   readonly syncReady = signal(false);
   readonly syncLabel = computed(
@@ -354,11 +389,25 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   });
   readonly nativeMode = nativeBackend;
   readonly view = signal<View>('discover');
+  readonly mediaPageVisible = computed(() => isMediaView(this.view()));
+  readonly mediaOperation = computed<MediaOperation>(() => {
+    const view = this.view();
+    return isMediaView(view) ? mediaPages[view].operation : 'text-to-speech';
+  });
+  readonly mediaPageTitle = computed(() => {
+    const view = this.view();
+    return isMediaView(view) ? mediaPages[view].title : '';
+  });
+  readonly mediaPageIntro = computed(() => {
+    const view = this.view();
+    return isMediaView(view) ? mediaPages[view].intro : '';
+  });
   readonly headerTitle = computed(() => {
     const view = this.view();
     if (view === 'discover') return '发现灵感';
     if (view === 'studio') return '图片创作';
     if (view === 'library') return '我的图片';
+    if (isMediaView(view)) return mediaPages[view].title;
     return '设置';
   });
   readonly templates = signal(imageMvpCatalog);
@@ -726,6 +775,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.revokeResult();
     this.releaseMediaPreviews();
     void this.store?.close();
+    this.mediaStore.set(null);
   }
   @HostListener('window:popstate') onPopState() {
     const next = routeView(location.pathname);
@@ -2844,6 +2894,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.mediaLibraryReady.set(false);
     this.mediaLibraryError.set('');
     this.store = store;
+    this.mediaStore.set(store);
     store.activateDevTools();
     this.profileId = profile.id;
     this.currentProfileId.set(profile.id);

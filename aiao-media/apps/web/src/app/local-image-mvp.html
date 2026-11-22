@@ -33,6 +33,53 @@
       </svg>
       发现灵感
     </a>
+    <span class="nav-section">多媒体创作</span>
+    <a
+      [attr.aria-current]="view() === 'tts' ? 'page' : null"
+      [class.active]="view() === 'tts'"
+      (click)="navigate('tts', $event)"
+      href="/tts"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="M3 10h2l1.5-4 3 8 1.5-4H17" />
+      </svg>
+      TTS 配音
+    </a>
+    <a
+      [attr.aria-current]="view() === 'asr' ? 'page' : null"
+      [class.active]="view() === 'asr'"
+      (click)="navigate('asr', $event)"
+      href="/asr"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <rect height="8" rx="3" width="6" x="7" y="3" />
+        <path d="M4 9a6 6 0 0 0 12 0M10 15v3M7 18h6" />
+      </svg>
+      ASR 转写
+    </a>
+    <a
+      [attr.aria-current]="view() === 'music' ? 'page' : null"
+      [class.active]="view() === 'music'"
+      (click)="navigate('music', $event)"
+      href="/music"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="M8 15V4l8-2v11M8 15a3 3 0 1 1-3-3M16 13a3 3 0 1 1-3-3" />
+      </svg>
+      生成音乐
+    </a>
+    <a
+      [attr.aria-current]="view() === 'video' ? 'page' : null"
+      [class.active]="view() === 'video'"
+      (click)="navigate('video', $event)"
+      href="/video"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <rect height="12" rx="2" width="14" x="3" y="4" />
+        <path d="m9 8 4 2-4 2Z" />
+      </svg>
+      生成视频
+    </a>
     <span class="nav-section">我的空间</span>
     <a
       [attr.aria-current]="view() === 'library' ? 'page' : null"
@@ -587,6 +634,27 @@
     <div class="privacy-line">
       <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
     </div>
+  }
+  @if (mediaPageVisible()) {
+    <section class="page-heading">
+      <div>
+        <h1>{{ mediaPageTitle() }}</h1>
+        <p>{{ mediaPageIntro() }}</p>
+      </div>
+    </section>
+    @defer (when mediaPageVisible()) {
+      <app-media-generation
+        [authReady]="authStatus() === 'signed-in' && targetKind() === 'platform'"
+        [client]="adminApi"
+        [credits]="creditAccount()"
+        [initialOperation]="mediaOperation()"
+        [showOperationTabs]="false"
+        [store]="mediaStore()"
+        [workspaceKey]="currentProfileId()"
+      />
+    } @placeholder {
+      <p class="notice" role="status">正在准备媒体工作台…</p>
+    }
   }
   @if (view() === 'library') {
     <section class="page-heading">

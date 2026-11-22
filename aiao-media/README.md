@@ -45,23 +45,11 @@ pnpm nx run aiao-media:supabase-down
 
 仅开发前端可继续使用 `pnpm nx serve aiao-media`，不需要 Docker。多检出目录的数据库卷与端口隔离、账号验收和生产形态预览见 [Web 开发说明](apps/web/README.md)。
 
-平台生图经真实平台账号、平台模型和积分账本完成，服务端不接受浏览器提交的供应商地址或 Key。
+平台生图、ASR、TTS、音乐和视频生成经真实平台账号、平台模型和积分账本完成，服务端不接受浏览器提交的供应商地址或 Key。
 
-模型由部署环境 `MEDIA_PLATFORM_MODELS` 定义。除 `id/name/baseUrl/model/secret/credits` 外，每项须声明协议 `openai` 或 `gemini` 和模型能力：OpenAI Images 模型使用 `sizes/aspectRatios/qualities/complexities/counts`；Gemini Interactions 模型使用 `imageOptions`（宽高比、分辨率及交付尺寸组合）、`thinkingLevels/counts`。`supportsImageEditing` 只有在该型号确实支持单参考图编辑时才设为 `true`。目录不会根据型号名称猜测能力。
+平台能力统一在 `http://localhost:4302/platforms` 的 Admin「媒体平台」页面配置。管理员提交图片模型和媒体能力 JSON 时填写供应商 HTTPS 地址、上游模型、协议、能力参数与 API Key；服务端只向用户端返回去除私密字段后的目录，API Key、供应商地址和上游型号不会进入浏览器同步数据或公开接口。未配置或停用能力时，相关接口明确返回不可用。
 
-OpenAI Images 模型可按型号配置例如 `sizes: ["1024x1024", "1536x1024"]`、`qualities: ["low", "high"]`、`complexities: ["low", "medium", "high"]` 与 `counts: [1, 2, 3]`。Gemini 的 `imageOptions` 每项包含 `aspectRatio`、`resolution` 与 `outputSize`；后者声明该组合的输出尺寸，并须在当前本机交付尺寸上限内。界面只展示声明过的组合和数量，API 对请求重新校验。
-
-`baseUrl` 必须同时列入 `ALLOWED_PROVIDER_BASE_URLS`；`secret` 指向只存在于 Worker secret 或 Node 服务端环境中的凭据。平台标识和上游型号分开，例如以下是需由部署者替换的配置形状：
-
-```dotenv
-MEDIA_PLATFORM_MODELS='[{"id":"gpt-flare","name":"GPT Image 2.6 Flare","baseUrl":"https://api.openai.com/v1","model":"gpt-image-2.6-flare","secret":"MEDIA_IMAGE_KEY","credits":3,"preset":"official"},{"id":"nano-banana","name":"Nano Banana 2.1","baseUrl":"https://generativelanguage.googleapis.com/v1beta","model":"gemini-nano-banana-2.1","secret":"MEDIA_GEMINI_KEY","credits":4,"preset":"official"}]'
-ALLOWED_PROVIDER_BASE_URLS='["https://api.openai.com/v1","https://generativelanguage.googleapis.com/v1beta"]'
-```
-
-`preset: "official"` 按**精确上游型号**载入已核对的能力，无需逐项填写。可分别启用 GPT Image 2.6 / 2.5 的 `flare`、`sunburst`，以及 `gemini-nano-banana-2.1`、`gemini-3.1-flash-image`、`gemini-3.1-flash-lite-image`、`gemini-3-pro-image`、`gemini-2.5-flash-image`。每个型号需要独立的公开 `id`、名称和单张积分；没有配置的型号不自动上架。对照来源：[OpenAI 图片模型](https://developers.openai.com/api/docs/guides/image-generation)、[Gemini 图片模型](https://ai.google.dev/gemini-api/docs/image-generation)。
-
-开发环境从 `apps/api/.dev.vars` 或进程环境读取模型和引用的凭据，仅写入权限 `0600` 的 `.wrangler/local-dev/.dev.vars`；不覆盖源配置，不复制无关密钥。Cloudflare 用 secret 绑定凭据；Node 通过服务端环境传入。模型、凭据或任务绑定缺失时明确返回 `503`，不调用上游。公开 `/api/models` 仅返回平台标识、展示名、积分及已配置能力；后台已发布的停用、型号和画幅策略仍限制接单。
-
+`apps/api/.dev.vars` 只由开发脚本自动生成 Supabase Worker 基础凭据，不再作为图片、ASR、TTS、音乐或视频配置入口。首次启动后登录 Admin，在「媒体平台」中保存配置。图片模型的 `sizes/aspectRatios/qualities/complexities/counts`、Gemini 的 `imageOptions/thinkingLevels`，以及 ASR、TTS、音乐、视频的输入输出限制都在该页面维护。
 现有 Supabase 项目先执行后台提供的 `/admin/upgrade-credits.sql`，包含 `012` 积分账本与 `013` 放弃封存迁移，在同一事务内升级；新项目初始化 SQL 包已同时包含两者。后台发放积分后，接单预占额度；上游失败或结果待核对释放预占。本机取得密文、解密并验证图片后通过 `/confirm` 幂等扣减；图片验证失败通过 `/discard` 释放预占。扣费应答丢失可用原任务令牌重试确认，不重复扣款。
 
 服务端只加密暂存原始响应，不解析图片；Cloudflare 写入私有 R2，Node 写入私有数据目录。任务存储保存账号标识、额度、请求指纹、令牌摘要与状态。结清后删除结果；未取回结果在 24 小时后清理，清理前先确认积分已扣或已释放，账本故障时保留任务并重试。R2 的一天生命周期规则、真实客户端断开后的续接和 24 小时期满回收已在正式 Cloudflare 环境验收，记录见 [Cloudflare 实测](requirements/plans/relay-cloudflare-verification-20261115.md)；本地替身结果不能替代这些正式证据。

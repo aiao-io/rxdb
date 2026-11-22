@@ -37,7 +37,7 @@ pnpm nx run aiao-media:serve
 pnpm nx run aiao-media:offline-assets
 ```
 
-- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的平台任务接口，允许列表取自 `../../apps/api/wrangler.json`，DO 与 R2 为 `apps/api/scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
+- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的平台任务接口，平台目录从后台配置读取，DO 与 R2 为 `apps/api/scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
 - `aiao-media:build`：生产 CSR 编译到 `aiao-media/apps/web/dist/browser`。
 - `aiao-media:offline-assets`：先 build，再写带摘要的离线壳和 Service Worker。
 - `aiao-media:preview`：4398，使用 Wrangler 本地运行生产形态。
@@ -45,11 +45,11 @@ pnpm nx run aiao-media:offline-assets
 - `aiao-media:deploy-check`：以上检查完成后执行 Wrangler dry-run，不发布。
 - `aiao-media:deploy`：以上检查完成后执行真实发布。
 
-构建只读取公开账号配置，不读取服务端管理 Key 或模型凭据。部署脚本只从进程环境或本机 `.env` 读取允许的 API 前缀；模型与账本凭据通过独立的 secrets 配置接入。Wrangler 已固定为开发依赖，运行统一经 Nx 封装。
+构建只读取公开账号配置，不读取服务端管理 Key 或模型凭据。模型、媒体能力和供应商凭据统一由 Admin「媒体平台」页面保存到服务端。Wrangler 已固定为开发依赖，运行统一经 Nx 封装。
 
 ## 平台模型与凭据
 
-按[平台服务配置](../supabase/platform-services.md#平台模型与任务配置)设置服务端模型、凭据和精确 API 允许列表。部署脚本的 `AIAO_RELAY_PROVIDER_BASE_URLS` 是逗号分隔的 HTTPS API 前缀；生成后的 `ALLOWED_PROVIDER_BASE_URLS` 必须覆盖所启用的平台模型。这个允许列表不携带凭据，也不允许用户扩展目标。
+按[平台服务配置](../supabase/platform-services.md#平台模型与任务配置)在 Admin「媒体平台」页面保存服务端模型、媒体能力和供应商凭据。服务端从已保存目录生成出站地址边界，用户提交内容不能扩展目标。
 
 接单只接收公开模型 ID、提示词、单张尺寸和设备令牌，使用平台会话验证账号与余额。DO 保存令牌摘要、请求指纹、账号与积分状态，同一标识不重复调用上游；原始 JSON 有界读取后用令牌派生密钥加密写入 `RELAY_RESULTS`。浏览器解密并校验 PNG/JPEG 后确认扣费，保存到本机后删除服务端结果；保存失败保留密文供刷新恢复。错误令牌与不存在均为 404。24 小时清理与 R2 生命周期分别验收。
 

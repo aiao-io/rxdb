@@ -1,17 +1,8 @@
 # 国内平台生图配置
 
-新部署由 `aiao-media:prepare-self-hosted` 在 Git 忽略的 `aiao-media/tmp/self-hosted` 生成部署文件。脚本只在 `platform.env` 不存在时创建停用模型的空配置，保留已有配置并将权限设为 `0600`。部署凭据和持久化目录继续由主 Compose 配置提供。
+新部署由 `aiao-media:prepare-self-hosted` 在 Git 忽略的 `aiao-media/tmp/self-hosted` 生成部署文件。部署凭据和持久化目录由主 Compose 配置提供，媒体平台目录由后台保存。
 
-平台模型单独配置在部署目录的 `platform.env`：
-
-```dotenv
-ALLOWED_PROVIDER_BASE_URLS='["https://images.example.test/v1"]'
-MEDIA_PLATFORM_MODELS='[{"id":"platform-image","name":"平台图片","baseUrl":"https://images.example.test/v1","model":"image-model","secret":"MEDIA_IMAGE_API_KEY","credits":1,"protocol":"openai","sizes":["1024x1024"],"aspectRatios":["1:1"],"qualities":["low","high"],"counts":[1,2],"supportsImageEditing":false}]'
-MEDIA_IMAGE_API_KEY='replace-on-host'
-```
-
-`baseUrl` 必须是部署允许列表里的 HTTPS API 前缀，`secret` 指向同一文件中的凭据变量，`credits` 是每个成功结清任务消费的正整数积分。`protocol` 为 `openai` 时可配置 `sizes/aspectRatios/qualities/complexities/counts`；Gemini Interactions 使用 `imageOptions` 声明有效的宽高比、分辨率与交付尺寸组合，并可按型号配置 `thinkingLevels`。`supportsImageEditing` 默认关闭；开启后创作页显示单张 PNG/JPEG 参考图入口。公开模型目录只返回平台标识、名称、积分和经过校验的能力。模型、允许列表或凭据缺失时，接口明确返回未启用，不改用旧生成入口。
-
+平台模型、ASR、TTS、音乐和视频能力统一在 Admin「媒体平台」页面配置。登录部署后的 `/admin/`，打开侧边栏的「媒体平台」，提交完整的图片模型和媒体能力目录。供应商 HTTPS 地址、上游模型和 API Key 保存在服务端私有配置表，不写入部署文件或本地 `.dev.vars`。
 Compose 只把这个文件传给 API。主配置显式设置的账号服务凭据、数据目录、公开来源和初始化密钥不会被平台文件覆盖。修改后仅重建 API；保留数据库、Storage、relay 和证书卷。不要将含真实环境变量的 Compose 解析结果写入公共日志。
 
 已有站点升级前，保存当前配置和产物，备份数据库及原图，再核对数据库 marker。`10 → 11 → 13 → 16` 三段增量 SQL 的顺序与保护见[正式验收清单](../../requirements/plans/release-completion-tasks.md#现有生产库的升级顺序)。已有数据的数据库不运行新项目初始化包。

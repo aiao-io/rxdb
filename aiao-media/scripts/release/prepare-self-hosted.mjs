@@ -69,16 +69,6 @@ if (additions.length) {
 }
 if (env.MEDIA_API_UID !== apiUid || env.MEDIA_API_GID !== apiGid)
   throw new Error('Run prepare-self-hosted on the host that will run Docker.');
-const platformFile = resolve(directory, 'platform.env');
-try {
-  await writeFile(platformFile, 'ALLOWED_PROVIDER_BASE_URLS=[]\nMEDIA_PLATFORM_MODELS=[]\n', {
-    flag: 'wx',
-    mode: 0o600
-  });
-} catch (error) {
-  if (error.code !== 'EEXIST') throw error;
-}
-await chmod(platformFile, 0o600);
 const kong = storageKongConfiguration(await readFile(resolve(root, 'infra/supabase/kong.template.yml'), 'utf8'), [
   origin.origin,
   'tauri://localhost'

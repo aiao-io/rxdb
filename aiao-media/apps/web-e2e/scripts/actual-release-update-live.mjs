@@ -56,22 +56,13 @@ export function baselineDeployConfig(source, buildA, applicationRoot = applicati
     'CURRENT_WORKER_CONFIG_REQUIRED'
   );
   requireCheck(
-    Object.keys(source.vars ?? {}).length === 1 && typeof source.vars.ALLOWED_PROVIDER_BASE_URLS === 'string',
-    'CURRENT_ALLOWLIST_REQUIRED'
+    Object.keys(source.vars ?? {}).length === 1 && source.vars.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true',
+    'CURRENT_WORKER_VARS_REQUIRED'
   );
-  const prefixes = JSON.parse(source.vars.ALLOWED_PROVIDER_BASE_URLS);
-  requireCheck(Array.isArray(prefixes), 'CURRENT_ALLOWLIST_REQUIRED');
-  for (const prefix of prefixes) {
-    const url = new URL(prefix);
-    requireCheck(
-      url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash,
-      'CURRENT_ALLOWLIST_REQUIRED'
-    );
-  }
   requireCheck(!source.build && !source.secrets_file && !source.env, 'UNEXPECTED_DEPLOY_CONFIG');
   return {
     config: { ...source, assets: { ...source.assets, directory: buildA.root } },
-    allowlistCount: prefixes.length
+    platformConfiguration: 'admin'
   };
 }
 
@@ -267,7 +258,7 @@ async function main() {
       const output = await liveCommand(['deploy', '--message', 'Aiao Media reviewed static compatibility baseline']);
       const version = /Current Version ID:\s*([a-f0-9-]{36})/i.exec(output)?.[1];
       requireCheck(uuid(version), 'BASELINE_RECEIPT_MISSING');
-      console.log(JSON.stringify({ phase: 'baseline-deployed', version, allowlistCount: prepared.allowlistCount }));
+      console.log(JSON.stringify({ phase: 'baseline-deployed', version, platformConfiguration: prepared.platformConfiguration }));
       return version;
     },
     rollback: version =>

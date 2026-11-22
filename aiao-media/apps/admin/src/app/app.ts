@@ -12,6 +12,7 @@ import { AdminAccountMenu } from './admin-account-menu';
 import { AdminAccountState } from './admin-account-state';
 import { AdminSupabaseAuth, type AdminSession } from './admin-auth';
 import { AdminConfigModelComponent } from './admin-config-model';
+import { AdminPlatformConfigComponent } from './admin-platform-config';
 import { AdminConsole } from './admin-console';
 import { AdminConfigDatabaseHost } from './admin-rxdb';
 import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
@@ -57,6 +58,7 @@ function readStoredSession(): AdminSession | null {
     AdminAccountMenu,
     AdminConsole,
     AdminConfigModelComponent,
+    AdminPlatformConfigComponent,
     AdminLayoutComponent,
     AdminPageDirective,
     FormsModule,

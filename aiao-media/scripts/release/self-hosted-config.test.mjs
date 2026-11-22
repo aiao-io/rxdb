@@ -25,7 +25,7 @@ const fixtures = {
   MEDIA_INSTALLATION_BOOTSTRAP_SECRET: 'fixture-bootstrap-secret'
 };
 
-async function configuration(platform) {
+async function configuration() {
   const directory = await mkdtemp(join(tmpdir(), 'aiao-self-hosted-config-'));
   try {
     await copyFile(source, join(directory, 'compose.yaml'));
@@ -35,7 +35,6 @@ async function configuration(platform) {
         .map(([key, value]) => `${key}=${value}`)
         .join('\n')
     );
-    if (platform !== undefined) await writeFile(join(directory, 'platform.env'), platform, { mode: 0o600 });
     const { stdout } = await run('docker', [
       'compose',
       '--env-file',
@@ -52,37 +51,11 @@ async function configuration(platform) {
   }
 }
 
-test('国内配置未提供平台文件时仍可解析，模型保持未启用', async () => {
+test('国内部署不注入本地平台配置，模型由后台目录决定', async () => {
   const config = await configuration();
   assert.equal(config.services.api.environment.MEDIA_PLATFORM_MODELS, undefined);
   assert.equal(config.services.api.environment.MEDIA_IMAGE_API_KEY, undefined);
   assert.equal(config.services.api.environment.MEDIA_DATA_DIRECTORY, '/data');
-});
-
-test('平台模型、允许列表与引用的凭据只传给 API，字面美元符号不展开', async () => {
-  const models = JSON.stringify([
-    {
-      id: 'image',
-      model: 'image-model',
-      baseUrl: 'https://images.example.test/v1',
-      secret: 'MEDIA_IMAGE_API_KEY',
-      credits: 1
-    }
-  ]);
-  const allowed = JSON.stringify(['https://images.example.test/v1']);
-  const key = 'fixture-$SHOULD_STAY_LITERAL';
-  const config = await configuration(
-    `MEDIA_PLATFORM_MODELS='${models}'\nALLOWED_PROVIDER_BASE_URLS='${allowed}'\nMEDIA_IMAGE_API_KEY='${key}'\n`
-  );
-  const api = config.services.api.environment;
-  assert.equal(api.MEDIA_PLATFORM_MODELS, models);
-  assert.equal(api.ALLOWED_PROVIDER_BASE_URLS, allowed);
-  assert.equal(api.MEDIA_IMAGE_API_KEY, 'fixture-$$SHOULD_STAY_LITERAL');
-  for (const [name, service] of Object.entries(config.services)) {
-    if (name === 'api') continue;
-    assert.equal(service.environment?.MEDIA_IMAGE_API_KEY, undefined);
-    assert.equal(service.environment?.MEDIA_PLATFORM_MODELS, undefined);
-  }
 });
 
 test('平台配置不能覆盖账号服务凭据、数据目录和公开来源', async () => {
