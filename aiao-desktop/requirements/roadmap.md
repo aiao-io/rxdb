@@ -21,6 +21,16 @@
 
 [ADESK-US-009 PWA 安装与离线桌面](stories/platform/ADESK-US-009-pwa.md)：生产构建接入安装清单与 Service Worker，验收桌面预缓存、离线重开、本地数据和版本切换。范围限定为本地桌面与已缓存资源；远程集成应用、外网内容和未下载的终端资源不属于完整离线承诺，生产发布单独安排。
 
+## 原生桌面版立项（2026-11-22）
+
+新增 [ADESK-EPIC-005 原生桌面版与本地运行时](epics/ADESK-EPIC-005.md)，首版目标是 macOS 与 Windows 的 Tauri 安装版。范围按安装启动、工作区迁移、升级卸载三个故事拆开，先完成用户可见边界和真实设备验收口径，再决定实现排期。
+
+- [ADESK-US-010 Tauri 安装版与首次启动](stories/platform/ADESK-US-010-tauri-install-and-launch.md) 负责安装包、独立启动、离线核心外壳和最小权限。
+- [ADESK-US-011 Tauri 本地工作区与显式迁移](stories/platform/ADESK-US-011-tauri-local-workspace-migration.md) 负责应用数据目录、备份迁移、原子恢复和浏览器工作区隔离。
+- [ADESK-US-012 Tauri 升级、卸载与故障恢复](stories/platform/ADESK-US-012-tauri-update-and-uninstall.md) 负责手动升级、迁移失败、卸载保留和重装恢复。
+
+浏览器版与 PWA 继续按现有故事验收。Tauri 真实设备安装、数据目录和生命周期证据不能由浏览器冒烟替代。
+
 ## 浏览器会话连续性（2026-11-21）
 
 [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md) 已完成。持久浏览器上下文已验证最近活跃标签页、恢复权竞争、持久快照、显式关闭窗口、损坏快照和单窗口失败恢复。
@@ -29,9 +39,15 @@
 
 [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)已完成本地正式构建验收。文件和文件夹支持拖动移动、Option/Alt 拖动复制、剪切粘贴、多选、列表和分栏虚拟滚动、列宽调整；Finder Share 复用本地 Mail 草稿能力，真实远程邮件收发仍未接入。
 
+应用按需运行（US-206）之后，验证桌面冷启动、浮层首次打开与同页重开。见[ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)。
+
 ## GitHub 开发工作台（2026-11-21）
 
 [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md) 已完成范围评审和阶段 A～C 验收。实现包括 GitHub Desktop 形态入口、独立 OPFS Git 工作区、Git Worker、OAuth / PAT、GitHub API 远端操作、冲突处理和正式 Chromium 冒烟。本故事不与 Finder 虚拟磁盘自动同步，也不承诺跨设备恢复。证据见 [US-209-evidence.md](stories/application/ADESK-US-209-evidence.md)。
+
+## 远程应用仿真与调度
+
+[ADESK-US-210 远程应用仿真与调度](stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md) 已进入 Backlog，归入 [ADESK-EPIC-006](epics/ADESK-EPIC-006.md)。范围先覆盖远程目标和会话、操作与结果回传、Claude 工具、远程 Finder、远程网络应用、任务调度、断线恢复和权限审计。该故事是产品未来扩大使用范围的立项入口，当前浏览器版和 PWA 不提供远程执行能力。
 
 ## 扩大使用范围的条件
 
@@ -68,3 +84,7 @@ A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 
 [US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)已完成自动验收：本地字体族支持名称搜索、空结果和清空恢复，筛选后的字体标题与示例文字保持一致；系统字体安装、删除和冲突管理仍未接入。
 
 [US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成自动验收：本地设置分区支持名称搜索、空结果、清空恢复和面板联动；各面板完整系统 API、远程账号、权限中心和跨设备同步仍未接入。A06 剩余项见[逐应用台账](plans/2026-11-17-builtin-workflows.md)。
+
+## Git 工作区增量（2026-11-22）
+
+[ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md) 在 US-209 之上增加终端 Git、按目录打开与拖放、远端配置，以及跨源编辑器保存回原仓库。按本地仓库、远端操作、跨源编辑三段验收。

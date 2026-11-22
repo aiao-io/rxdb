@@ -226,7 +226,8 @@ describe('能力契约的协议常量', () => {
       'clipboard:read',
       'clipboard:write',
       'filesystem:read',
-      'filesystem:write'
+      'filesystem:write',
+      'workspace'
     ]);
   });
 
@@ -628,7 +629,8 @@ describe('serveDesktop 与 getDesktop：统一信封', () => {
         'desktop.clipboard.readText',
         'desktop.clipboard.writeText',
         'desktop.filesystem.open',
-        'desktop.filesystem.save'
+        'desktop.filesystem.save',
+        'desktop.workspace.call'
       ].sort()
     );
   });

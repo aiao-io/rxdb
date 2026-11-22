@@ -95,6 +95,7 @@ export interface BrowserWorkbenchOptions {
   /** 可注入正式扩展宿主加载器，默认运行独立同源页面。 */
   readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
+  readonly desktopProject?: WorkbenchProjectInfo;
   readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
   readonly catalog?: WorkbenchCatalog;
@@ -1085,8 +1086,10 @@ export function mountWorkbench(
     projects = [opened, ...projects.filter(item => item.id !== id)];
     renderProjects();
     focusEditor(session.state.activePath);
-    if (!next.remote) void savePreview.runSaved().catch(report);
-    await catalog.put(opened).catch(report);
+    if (options.desktopProject?.id !== id) {
+      if (!next.remote) void savePreview.runSaved().catch(report);
+      await catalog.put(opened).catch(report);
+    }
     void refreshGit().catch(report);
     log('output', `已打开 ${next.name}`);
   }
@@ -2808,7 +2811,8 @@ export function mountWorkbench(
     if (disposed) return;
     const preferences = recoveredPreferences ?? durablePreferences;
     preferencesRestored = true;
-    projects = listed.toSorted((left, right) => right.updatedAt - left.updatedAt);
+    const scoped = options.desktopProject;
+    projects = (scoped ? [scoped, ...listed.filter(item => item.id !== scoped.id)] : listed).toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (preferences) {
       applyIndentUnit(preferences.indentUnit, false);
       alwaysShowScmActions = preferences.alwaysShowScmActions;

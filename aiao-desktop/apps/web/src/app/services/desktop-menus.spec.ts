@@ -90,6 +90,7 @@ const githubTarget = (
     openRepositoryMenu: vi.fn((kind: GithubRepositoryMenu): void => {
       void kind;
     }),
+    openInEditor: vi.fn(),
     openLocalRepository: vi.fn((): void => undefined),
     openBranchMenu: vi.fn((): void => undefined),
     focusChangesFilter: vi.fn((): void => undefined),
@@ -133,10 +134,13 @@ describe('DesktopMenus 苹果菜单', () => {
     });
   });
 
-  it('强制退出打开面板，居中显示在视口中央', () => {
+  it('强制退出按需加载面板，居中显示在视口中央', async () => {
     const { menus, popover } = setup();
     click(menus.apple(), 'force');
-    expect(popover.openComponent).toHaveBeenCalledExactlyOnceWith(ForceQuitPanel, { x: 360, y: 160, origin: 'center' });
+    const [component, options] = popover.openComponent.mock.calls[0] ?? [];
+    expect(component).toEqual({ load: expect.any(Function) });
+    await expect(component.load()).resolves.toBe(ForceQuitPanel);
+    expect(options).toEqual({ x: 360, y: 160, origin: 'center' });
   });
 
   it('「最近项目」只是占位，点它什么也不发生', () => {

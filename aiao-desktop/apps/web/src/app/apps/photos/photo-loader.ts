@@ -9,6 +9,7 @@ import {
   input,
   signal
 } from '@angular/core';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 
 /** 同时在下载的图片上限。 */
 const MAX_ACTIVE = 5;
@@ -106,7 +107,7 @@ export class PhotoLoadQueue {
   }
 })
 export class PhotoSrc implements QueuedImage {
-  private readonly queue = inject(PhotoLoadQueue);
+  private readonly queue = inject(DesktopAppServices).get(PhotoLoadQueue);
   private readonly first = inject(new HostAttributeToken('data-first'), { optional: true }) !== null;
   private retry: ReturnType<typeof setTimeout> | undefined;
   private loading = false;

@@ -26,6 +26,9 @@
       "path": "../../../packages/rxdb/tsconfig.lib.json"
     },
     {
+      "path": "../../../packages/orbit/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
     }
   ]

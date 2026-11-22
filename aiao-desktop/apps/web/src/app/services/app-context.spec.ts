@@ -55,11 +55,12 @@ interface Setup {
   readonly capabilities?: readonly DesktopCapability[];
   readonly frame?: 'standard' | 'transparent';
   readonly withChrome?: boolean;
+  readonly projectId?: string;
 }
 
-function setup({ capabilities = ALL, frame = 'transparent', withChrome = true }: Setup = {}) {
+function setup({ capabilities = ALL, frame = 'transparent', withChrome = true, projectId }: Setup = {}) {
   const registry = apps(frame);
-  const win = new DesktopWindow('w1', registry.notes, {}, { left: 0, top: 0, width: 600, height: 400 });
+  const win = new DesktopWindow('w1', registry.notes, {projectId}, { left: 0, top: 0, width: 600, height: 400 });
   win.attempt = 1;
   win.state.set('ready');
   const { windows, focused } = fakeWindows();
@@ -74,9 +75,10 @@ function setup({ capabilities = ALL, frame = 'transparent', withChrome = true }:
   };
   const notices: DesktopNotice[] = [];
   const services = fakeHostServices();
+  const workspace = {call: vi.fn(async () => 'allowed')};
   const context = new DesktopAppContext({
     win,
-    capabilities,
+    capabilities, workspace,
     apps: registry,
     windows,
     system,
@@ -90,7 +92,7 @@ function setup({ capabilities = ALL, frame = 'transparent', withChrome = true }:
     refocus: services.refocus,
     newHandle: services.newHandle
   });
-  return { context, win, windows, focused, chrome, decorations, system, theme, notices, registry, services };
+  return { context, win, windows, focused, chrome, decorations, system, theme, notices, registry, services, workspace };
 }
 
 const rejection = async (promise: unknown) => {
@@ -198,13 +200,25 @@ describe('DesktopAppContext：默认拒绝', () => {
           return opening;
         },
         'filesystem.save': () =>
-          context.filesystem.save({ handle: 'nope', suggestedName: 'a', bytes: new Uint8Array(1) })
+          context.filesystem.save({ handle: 'nope', suggestedName: 'a', bytes: new Uint8Array(1) }),
+        'workspace.call': () => context.workspace.call({ operation: 'status', projectId: 'project' })
       };
       for (const [method, probe] of Object.entries(probes) as [DesktopMethod, () => unknown][]) {
         const allowed = DESKTOP_METHOD_CAPABILITIES[method] === capability;
         expect((await codeOf(probe)) === 'CAPABILITY_DENIED', `${capability} → ${method}`).toBe(!allowed);
       }
     }
+  });
+
+  it('文件请求只送达已授权、仍打开并绑定该仓库的宿主实例', async () => {
+    const { context, workspace } = setup({capabilities: ['workspace'], projectId: 'mine'});
+    const open = (projectId: string) => context.workspace.call({operation:'open', projectId});
+    await expect(open('mine')).resolves.toBe('allowed');
+    expect(await codeOf(() => open('other'))).toBe('INVALID_ARGUMENT');
+    expect(await codeOf(() => context.workspace.call({operation:'remove', projectId:'mine',path:'../other/README.md'}))).toBe('INVALID_ARGUMENT');
+    context.dispose();
+    expect(await codeOf(() => open('mine'))).toBe('WINDOW_CLOSED');
+    expect(workspace.call).toHaveBeenCalledTimes(1);
   });
 
   it('订阅推送同样受清单约束：用对应读取方法的能力检查，拒绝时窗口里也有可见原因', () => {

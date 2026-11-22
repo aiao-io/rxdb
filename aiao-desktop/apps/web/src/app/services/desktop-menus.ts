@@ -1,7 +1,6 @@
 import { Service, inject } from '@angular/core';
 import { ApplicationRegistry } from './application-registry';
 
-import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
 import { DesktopAppId } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
 import { HOME_PATH, PLACES } from './file-system';
@@ -46,6 +45,7 @@ export interface GithubCommands {
   isBusy(): boolean;
   openRepositoryMenu(kind: GithubRepositoryMenu): void;
   openLocalRepository(): void;
+  openInEditor(): void;
   openBranchMenu(): void;
   focusChangesFilter(): void;
   setTab(tab: GithubTab): void;
@@ -298,6 +298,7 @@ export class DesktopMenus {
           { id: 'toolbar', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
         ],
         Repository: [
+          { id: 'open-in-editor', label: 'Open in Aiao Code', disabled: disabled(), run: () => target.openInEditor() },
           {
             id: 'push',
             label: 'Push',
@@ -425,6 +426,9 @@ export class DesktopMenus {
   }
 
   private forceQuitPanel(): void {
-    this.popover.openComponent(ForceQuitPanel, { x: innerWidth / 2 - 140, y: innerHeight / 2 - 140, origin: 'center' });
+    this.popover.openComponent(
+      { load: () => import('../components/menubar/force-quit-panel').then(module => module.ForceQuitPanel) },
+      { x: innerWidth / 2 - 140, y: innerHeight / 2 - 140, origin: 'center' }
+    );
   }
 }

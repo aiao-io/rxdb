@@ -1,3 +1,4 @@
+import { originUrl, withOrigin } from './git-origin.js';
 import { assertGitFileLimits, decodeGitArchive, encodeGitArchive, type GitArchive } from './git-archive.js';
 import { gitFileVersion } from './git-diff.js';
 import {
@@ -158,6 +159,14 @@ export class GitWorkbenchRuntime {
     return this.lock(projectId, true, context => this.snapshotContext(context));
   }
 
+  async committed(projectId: string): Promise<GitSnapshot> {
+    return this.lock(projectId, true, async context => {
+      const {head} = await this.statusContext(context);
+      if (!head) throw new GitWorkbenchError('git_failed', '请先创建本地提交');
+      return { projectId, revision: context.revision, files: await this.readCommitFiles(context,head) };
+    });
+  }
+
   async save(
     projectId: string,
     files: readonly GitFile[],
@@ -241,6 +250,10 @@ export class GitWorkbenchRuntime {
 
   async status(projectId: string): Promise<GitStatus> {
     return this.lock(projectId, true, context => this.statusContext(context));
+  }
+
+  async diffText(projectId: string, staged: boolean): Promise<string> {
+    return this.lock(projectId, true, () => this.run(staged ? ['diff', '--cached'] : ['diff']));
   }
 
   async stage(projectId: string, paths: readonly string[]): Promise<GitStatus> {
@@ -558,6 +571,18 @@ export class GitWorkbenchRuntime {
         return () => this.snapshotContext(context);
       });
     });
+  }
+
+  async origin(projectId: string): Promise<string | null> {
+    return this.lock(projectId, true, context => originUrl(new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`))));
+  }
+
+  async setOrigin(projectId: string, url: string | null): Promise<void> {
+    return this.lock(projectId, true, context => this.mutate(context, async () => {
+      const config = new TextDecoder().decode(this.fs.readFile(`${context.root}/.git/config`));
+      await this.git.module.opfsWriteFile(`${context.root}/.git/config`, withOrigin(config, url));
+      return () => undefined;
+    }, false));
   }
 
   async exportArchive(projectId: string): Promise<Uint8Array<ArrayBuffer>> {

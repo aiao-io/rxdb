@@ -21,7 +21,7 @@ import { DockLayoutStore } from '../services/dock-layout';
 import { DockSlotItem, dockSlots, slotIndexAt, temporaryApps } from '../services/dock-layout-model';
 import { DockRect, DockState, DockView } from '../services/dock-state';
 import { FileSystem, describeDiskError } from '../services/file-system';
-import { barIndex } from '../services/focus-order';
+import { isMenuKey, barIndex } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
@@ -29,7 +29,6 @@ import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { DAYS3, clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
-import { isMenuKey } from '../shared/menu-list';
 
 /** 屏幕上的一格：应用图标（固定项或临时项），或分隔线（`app` 为 `null`）。 */
 interface DockSlot {

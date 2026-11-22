@@ -187,6 +187,8 @@ export interface DesktopOpenOptions {
   readonly node?: FsNode;
   readonly select?: string;
   readonly url?: string;
+  /** Git 工作区的稳定 projectId，内置应用与 Aiao Code 共用。 */
+  readonly projectId?: string;
 }
 
 /**
@@ -207,6 +209,7 @@ export interface RestoreOptions {
   readonly url?: string;
   readonly file?: string;
   readonly nodePath?: readonly string[];
+  readonly projectId?: string;
 }
 
 /** 应用登记表由桌面页提供，避免服务与应用组件之间的循环引用。 */
@@ -312,7 +315,8 @@ const CAPABILITY_NAMES: Readonly<Record<DesktopCapability, true>> = {
   'clipboard:read': true,
   'clipboard:write': true,
   'filesystem:read': true,
-  'filesystem:write': true
+  'filesystem:write': true,
+  workspace: true
 };
 
 /** 清单里可声明的全部能力名。 */

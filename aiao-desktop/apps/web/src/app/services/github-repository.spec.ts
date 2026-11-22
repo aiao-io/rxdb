@@ -36,6 +36,7 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
     getBlobContents: vi.fn(),
     listCommits: vi.fn(),
     getCommit: vi.fn(),
+    createInitialFile: vi.fn(),
     createBlob: vi.fn(),
     createTree: vi.fn(),
     createCommit: vi.fn(),
@@ -202,6 +203,30 @@ describe('GitHub repository parsing and remote workflow', () => {
     expect(api.createCommit).toHaveBeenCalledWith('octo', 'repo', 'update', 'tree-2', ['head-1']);
     expect(api.updateRef).toHaveBeenCalledWith('octo', 'repo', 'heads/main', 'head-2');
     expect(result).toEqual({ head: 'head-2', tree: 'tree-2' });
+  });
+
+  const fresh = () => record({ remoteHead: null, remoteTree: null, remoteEntries: [] });
+
+  it('publishes the first committed file to an empty default branch, then advances it without force', async () => {
+    api.getRepository.mockResolvedValue({ defaultBranch: 'main' });
+    api.listBranches.mockResolvedValue([]);
+    api.createInitialFile.mockResolvedValue({ head: 'first', tree: 'first-tree' });
+    api.getBranchSha.mockResolvedValue('first');
+    api.createTree.mockResolvedValue('full-tree');
+    api.createCommit.mockResolvedValue('full-head');
+    const files = [file('a', [0, 255]), file('b', 'text')];
+    await expect(remote.push(fresh(), files, 'initial')).resolves.toEqual({ head: 'full-head', tree: 'full-tree' });
+    expect(api.createInitialFile).toHaveBeenCalledWith('octo', 'repo', 'main', 'a', files[0].bytes, 'initial');
+    expect(api.createTree).toHaveBeenCalledWith('octo', 'repo', 'first-tree', [{ path: 'b', mode: '100644', content: 'text' }]);
+    expect(api.updateRef).toHaveBeenCalledWith('octo', 'repo', 'heads/main', 'full-head');
+  });
+
+  it('requires integration before the first push to an existing remote even after fetch', async () => {
+    api.getRepository.mockResolvedValue({ defaultBranch: 'main' });
+    api.listBranches.mockResolvedValue([{ name: 'main', sha: 'upstream' }]);
+    await expect(remote.push({ ...fresh(), fetched: {branch: 'main', head: 'upstream'} }, [file('mine', '1')], 'first')).rejects.toThrow('先拉取');
+    expect(api.createInitialFile).not.toHaveBeenCalled();
+    expect(api.updateRef).not.toHaveBeenCalled();
   });
 
   it('rejects a changed remote head before creating a remote commit', async () => {

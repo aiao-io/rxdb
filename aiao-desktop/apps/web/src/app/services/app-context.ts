@@ -14,6 +14,8 @@ import type {
   DesktopOpenOptions,
   DesktopOpenedFile,
   DesktopSaveRequest,
+  DesktopWorkspaceHost,
+  DesktopWorkspaceRequest,
   DesktopSavedFile,
   DesktopWindowState
 } from '@aiao/orbit/desktop';
@@ -25,6 +27,7 @@ import {
   parseDesktopArguments
 } from '@aiao/orbit/desktop';
 import type { OrbitDragRegion } from '@aiao/orbit/window';
+import type { OrbitValue } from '@aiao/orbit';
 import { Injector, Service, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ApplicationRegistry } from './application-registry';
 
@@ -38,6 +41,7 @@ import { DesktopAppId, DesktopAppRegistry } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { FilePanelRequest, FilePanelResult, FilePanelTicket, FilePanels } from './file-panels';
 import { FileSystem } from './file-system';
+import { DesktopAppServices } from './desktop-app-services';
 import { MenuEntry, MenuSection, section } from './menu';
 import { SystemState } from './system-state';
 import { ThemeService } from './theme';
@@ -149,6 +153,8 @@ export interface AppContextOptions {
   readonly refocus?: () => void;
   /** 生成新的文件凭证；默认是随机 UUID，单测里换成可预期的序列。 */
   readonly newHandle?: () => string;
+  /** 受 projectId 限制的共享 Git 工作区。 */
+  readonly workspace?: DesktopWorkspaceHost;
 }
 
 const PLATFORM = 'macos';
@@ -268,6 +274,11 @@ export class DesktopAppContext implements DesktopHost {
   readonly clipboard: DesktopHost['clipboard'] = {
     readText: () => this.callAsync('clipboard.readText', null, () => this.readClipboard()),
     writeText: text => this.callAsync('clipboard.writeText', text, value => this.writeClipboard(value))
+  };
+
+  /** Git 工作区能力：只允许当前窗口绑定的 projectId。 */
+  readonly workspace: DesktopWorkspaceHost = {
+    call: request => this.callAsync('workspace.call', request, value => this.callWorkspace(value))
   };
 
   /** filesystem 能力：只作用于用户在桌面面板里选定的那一个文件。 */
@@ -531,7 +542,15 @@ export class DesktopAppContext implements DesktopHost {
     return parseDesktopArguments('clipboard.writeText', text);
   }
 
-  /** 宿主不替用户在没有手势时写剪贴板：请求必须落在宿主页面的用户手势有效期内。 */
+  private callWorkspace(request: DesktopWorkspaceRequest): Promise<OrbitValue> {
+    const projectId = this.options.win.options.projectId;
+    if (!projectId || projectId !== request.projectId)
+      throw new DesktopError('INVALID_ARGUMENT', '工作区请求必须使用当前窗口绑定的 projectId');
+    if (!this.options.workspace) throw new DesktopError('CAPABILITY_DENIED', '桌面没有提供 Git 工作区');
+    return Promise.resolve(this.options.workspace.call(request));
+  }
+
+  /** 剪贴板写入需要宿主页面中的有效用户手势。 */
   private async writeClipboard(text: string): Promise<void> {
     if (!this.options.clipboard.userActive())
       throw new DesktopError('BROWSER_PERMISSION_DENIED', '写剪贴板要由用户手势触发，这次请求不在用户手势的有效期内');
@@ -734,7 +753,8 @@ export class DesktopAppContexts {
       clipboard: this.clipboard,
       panels: this.panels,
       files: this.files,
-      refocus: options.refocus
+      refocus: options.refocus,
+      workspace: { call: async request => this.injector.get(DesktopAppServices).get((await import('./github-workspace')).GithubWorkspace).call(request) }
     });
     const refs = [
       effect(

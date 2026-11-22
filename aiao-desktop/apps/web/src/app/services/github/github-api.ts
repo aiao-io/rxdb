@@ -47,6 +47,7 @@ export interface GitHubApi {
     page?: number
   ): Promise<readonly GitHubCommitSummary[]>;
   getCommit(owner: string, repo: string, ref: string): Promise<GitHubCommitInfo>;
+  createInitialFile(owner: string, repo: string, branch: string, path: string, bytes: Uint8Array, message: string): Promise<{ head: string; tree: string }>;
   createBlob(owner: string, repo: string, bytes: Uint8Array): Promise<string>;
   createTree(owner: string, repo: string, baseTree: string | null, items: readonly GitHubTreeItem[]): Promise<string>;
   createCommit(owner: string, repo: string, message: string, tree: string, parents: readonly string[]): Promise<string>;
@@ -476,6 +477,18 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
         parents: parents.map(parent => requiredString(asRecord(parent)['sha'], 'commit.parent.sha')),
         message: requiredString(commit['message'], 'commit.message')
       };
+    },
+
+    async createInitialFile(owner, repo, branch, path, bytes, message) {
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+      const result = asRecord(await requestJson(`${repoPath(owner, repo)}/contents/${encodedPath}`, {
+        method: 'PUT', body: JSON.stringify({branch, message, content: toBase64(bytes)})
+      }));
+      const commit = asRecord(result['commit']);
+      const parents = commit['parents'];
+      if (!Array.isArray(parents)) throw new GitHubApiError('invalid_response', '提交响应缺少 parents');
+      if (parents.length) throw new GitHubApiError('conflict', '远端已经有提交，请先拉取');
+      return { head: requiredString(commit['sha'], 'commit.sha'), tree: requiredString(asRecord(commit['tree'])['sha'], 'tree.sha') };
     },
 
     async createBlob(owner: string, repo: string, bytes: Uint8Array): Promise<string> {

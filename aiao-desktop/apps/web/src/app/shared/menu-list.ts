@@ -19,10 +19,6 @@ const toRow = (entry: MenuEntry): MenuRow => {
   return { type: 'item', command: entry, aria: menuItemAria(entry) };
 };
 
-/** 键盘上弹出上下文菜单的按键：Menu 键，或 Shift+F10。浏览器不一定自己派发 `contextmenu`，所以由元素自己处理。 */
-export const isMenuKey = (event: KeyboardEvent): boolean =>
-  event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
-
 /**
  * 方向键、Home、End 在 `count` 个可用项里要去的下标；不是导航键时为 `null`。
  * 焦点不在任何项上（`at` 为 -1）时，向下去第一项，向上去最后一项。

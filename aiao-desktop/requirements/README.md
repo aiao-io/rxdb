@@ -1,26 +1,30 @@
 # Aiao Desktop 产品需求
 
-当前交付：[46/47 已交付]；0 条进行中、1 条待评审、0 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[47/53 已交付]；1 条进行中、1 条待评审、4 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
-Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空间、终端、内置应用和经 Orbit 接入的独立 Web 应用（现为 Aiao Code）放在同一个窗口环境里。
+Aiao Desktop 当前是在浏览器里运行的 macOS 风格桌面，把本地文件空间、终端、内置应用和经 Orbit 接入的独立 Web 应用（现为 Aiao Code）放在同一个窗口环境里。产品方向继续扩展为远程应用的本地控制面与仿真显示面，让远程机器执行真实应用、文件和网络操作，再把状态与结果返回本地窗口。
 
 - **主要用户**：在浏览器里用文件、终端和 Aiao Code 做轻量开发与记录的个人用户，使用桌面尺寸的 Chromium。
 - **核心任务**（评审与验收以这三条端到端流程为准）：
   1. 创建文件，在 Finder、TextEdit 与终端之间处理，保存、关闭、再次打开后内容不变。
   2. 在 Aiao Code 里新建项目、修改并运行；说得清项目数据（在 Aiao Code 自己的来源里）与桌面虚拟磁盘里的数据是两回事。
   3. 从启动台或聚焦搜索找到应用，完成一次操作，关闭后再次进入仍能继续工作。
-- **明确不支持**：账号与跨设备同步、移动端的专门设计（窄屏只承诺最低限度的可用，见 [ADESK-US-005](stories/platform/ADESK-US-005-cross-browser-smoke.md)）、浏览器之外的原生应用能力；除上面的任务外，其余内置应用只有演示内容，不承诺完整的业务功能。
+- **当前交付不支持**：账号与跨设备同步、远程机器连接与远程应用仿真、远程 Finder、远程网络出口、移动端的专门设计（窄屏只承诺最低限度的可用，见 [ADESK-US-005](stories/platform/ADESK-US-005-cross-browser-smoke.md)）以及浏览器之外的原生应用能力；除上面的任务外，其余内置应用只有演示内容，不承诺完整的业务功能。Tauri 原生安装版已单列为 [ADESK-EPIC-005](epics/ADESK-EPIC-005.md)，远程应用仿真与调度已单列为 [ADESK-EPIC-006](epics/ADESK-EPIC-006.md)，两者仍处于 Backlog，不改变当前浏览器版和 PWA 的交付边界。
 - **扩大使用范围的条件**：见[路线图](roadmap.md#扩大使用范围的条件)。三条任务现在各自闭环到哪一步，看下面的「当前范围」和[能力矩阵](capability-matrix.md)。
 
 「像真正的系统」「完整的桌面」描述的是设计方向，不是完成条件；完成条件是上面的任务、各故事的验收标准，以及能力矩阵里写明的边界。
 
 ## 当前范围
 
+[ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)已通过生产构建验收。默认桌面只加载当前所需内容，首次打开的应用与面板在同页重开时复用脚本。
+
 2026-11-21 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md) 已完成。持久浏览器上下文已验证最近活跃工作区、标签页竞争、显式关闭窗口、损坏快照和单窗口失败恢复。
 
 2026-11-20 新增并完成 [US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)，覆盖拖动移动/复制、剪切粘贴、列表与分栏虚拟滚动、列宽调整及 Finder Share 本地草稿。
+
+远程应用仿真与调度目前处于 Backlog，见 [ADESK-US-210](stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md)。未来用户可以在本地桌面操作授权的远程 Claude 工具、读取远程 Finder，并使用远程机器的网络环境；本地保存远程会话投影和操作记录，远程应用数据仍由远程机器负责。
 
 2026-11-17 按用户“完成所有不需要人工干预的任务”的授权启动[自动完成计划](plans/2026-11-17-autonomous-completion.md)，首先实施 [US-109 文档保存与内容保护](stories/desktop/ADESK-US-109-document-workflow.md)。A01～A03 已完成，见 [US-110 文件管理](stories/desktop/ADESK-US-110-file-management.md)与 [US-111 完整备份恢复](stories/desktop/ADESK-US-111-backup-and-storage-health.md)。已完成 [US-207 批准应用目录](stories/application/ADESK-US-207-approved-app-catalog.md)。已完成本地正式构建验收的 [US-112 运行状态](stories/desktop/ADESK-US-112-runtime-activity.md)与 [US-113 离线资源和真实网络状态](stories/desktop/ADESK-US-113-offline-resources.md)。[US-208 Aiao Code 显式文件复制](stories/application/ADESK-US-208-aiao-code-file-copy.md)已完成本地自动验收，A01～A05 完成。A06 的 [US-114 实际复制与打印](stories/desktop/ADESK-US-114-content-actions.md)、[US-115 提醒草稿保护](stories/desktop/ADESK-US-115-reminder-drafts.md)、[US-116 备忘录编辑保护](stories/desktop/ADESK-US-116-note-drafts.md)、[US-117 本地会话草稿保护](stories/desktop/ADESK-US-117-local-messages.md)、[US-118 本地邮件草稿](stories/desktop/ADESK-US-118-local-mail-drafts.md)、[US-119 日历事件草稿](stories/desktop/ADESK-US-119-calendar-drafts.md)、[US-120 联系人搜索与本地编辑](stories/desktop/ADESK-US-120-contacts-workflow.md)、[US-121 备忘录置顶](stories/desktop/ADESK-US-121-notes-pin.md)、[US-122 提醒事项筛选](stories/desktop/ADESK-US-122-reminder-filters.md)和 [US-123 备忘录新建文件夹](stories/desktop/ADESK-US-123-notes-folders.md)、[US-124 Freeform 笔迹保存与失败保护](stories/desktop/ADESK-US-124-freeform-workflow.md)和 [US-125 Stocks 本地搜索与演示数据声明](stories/desktop/ADESK-US-125-stocks-search-and-demo-data.md)和 [US-126 Font Book 字体族搜索](stories/desktop/ADESK-US-126-fontbook-search.md)和 [US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)已完成本地自动验收；媒体、书架等应用的主要流程、A07～A09 和人工验收仍按计划继续。
 
@@ -37,6 +41,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 - **集成应用**：独立部署的 B/S 应用经仓库里的 `@aiao/orbit` 隔离在窗口里，应用统一登记；第一个是 Aiao Code（vscode.aiao.io），支持应用自绘标题栏的透明窗口，见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)（US-201～204）。
 - **浏览器会话恢复**：浏览器关闭后恢复最近活跃工作区，保留窗口几何、层叠、最小化、Zoom 和应用开窗参数；多标签页竞争、损坏快照和失败窗口都有恢复边界（[ADESK-US-128](stories/desktop/ADESK-US-128-browser-session-restore.md)）。
 - **GitHub 开发工作台**：GitHub 作为预装内置应用提供独立 OPFS Git 工作区，支持本地 Git 闭环、OAuth / PAT、公开和私有仓库、拉取、推送及远端冲突处理（[ADESK-EPIC-004](epics/ADESK-EPIC-004.md)、[ADESK-US-209](stories/application/ADESK-US-209-github-opfs-workbench.md)）。
+- **仓库跨应用编辑**：终端建仓、目录拖入、远端配置和跨源编辑器保存正在实施。见 [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md)。
 - **PWA**：本地正式构建支持安装为独立窗口、缓存完成后的离线重开、内置应用与 SQLite 数据、用户刷新后切换已缓存新版；终端大资源按需缓存，远程内容仍需联网。本次没有生产发布（[ADESK-US-009](stories/platform/ADESK-US-009-pwa.md)、[验收证据](evidence/2026-11-16/pwa.md)）。
 - **发布**：Cloudflare Pages 上的静态站点，一键发布并线上对账（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)、[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 
@@ -87,6 +92,8 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 | [epics/ADESK-EPIC-002.md](epics/ADESK-EPIC-002.md)                               | macOS 风格桌面             |
 | [epics/ADESK-EPIC-003.md](epics/ADESK-EPIC-003.md)                               | 应用体系与集成应用         |
 | [epics/ADESK-EPIC-004.md](epics/ADESK-EPIC-004.md)                               | GitHub 开发工作台          |
+| [epics/ADESK-EPIC-005.md](epics/ADESK-EPIC-005.md)                               | 原生桌面版与本地运行时     |
+| [epics/ADESK-EPIC-006.md](epics/ADESK-EPIC-006.md)                               | 远程应用仿真与调度         |
 | [stories/story.template.md](stories/story.template.md)                           | 新故事模板                 |
 | [plans/README.md](plans/README.md)                                               | 调研、实施计划与验收记录   |
 | [plans/application-management-design.md](plans/application-management-design.md) | Applications 管理设计拆解  |
@@ -95,7 +102,7 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 平台与应用
 
-根 [requirements](../../requirements/README.md) 管可复用的平台能力，本目录管 Aiao Desktop 的产品需求与集成，管理规则沿用 [app-template](../../requirements/app-template/README.md) 与[应用级需求与项目治理办法](../../requirements/application-governance.md)。产品依赖的平台包（`@aiao/rxdb` 及其适配器与插件、`@aiao/orbit`）目前没有对应的 `rxdb:US-XXX` 平台故事可引用，所以各故事的 `capabilities` 为空；Orbit 的使用与兼容约定见 [D-11](decisions.md#d-11集成应用经-orbit-隔离运行)。以后有平台故事时用 `capabilities: [rxdb:US-XXX]` 引用，不复制平台故事，也不继承它的完成状态。
+根 [requirements](../../requirements/README.md) 管可复用的平台能力，本目录管 Aiao Desktop 的产品需求与集成，管理规则沿用 [app-template](../../requirements/app-template/README.md) 与[应用级需求与项目治理办法](../../requirements/application-governance.md)。产品依赖的平台包（`@aiao/rxdb` 及其适配器与插件、`@aiao/orbit`）按应用故事的 `capabilities` 显式引用；Tauri 本地工作区使用 `rxdb:US-210`。Orbit 的使用与兼容约定见 [D-11](decisions.md#d-11集成应用经-orbit-隔离运行)。应用故事只引用平台故事，不复制平台故事，也不继承它的完成状态。
 
 产品结构与命令见[产品 README](../README.md)，目录边界与依赖方向见 [AGENTS.md](../AGENTS.md)。结构门禁只证明文档一致，不能代替浏览器里的验收。
 

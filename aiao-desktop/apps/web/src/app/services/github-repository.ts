@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Preferences } from '../data/preferences';
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths';
 import { GIT_WORKBENCH_LIMITS } from './git/git-protocol';
+import type { DiskPath } from '../disk/disk-path';
 import type { GitFile } from './github-git-backend';
 import type { GitHubApi, GitHubTreeItem } from './github/github-api';
 import { GitHubApiError } from './github/github-api';
@@ -20,8 +21,11 @@ export interface GithubRepositoryRecord {
   readonly private: boolean;
   readonly remoteHead: string | null;
   readonly remoteTree: string | null;
+  readonly fetched?: { readonly branch: string; readonly head: string };
   readonly remoteEntries: readonly GitHubTreeEntry[];
   readonly updatedAt: number;
+  /** 终端和 Finder 目录对应的卷内路径，外部导入的仓库没有这个路径。 */
+  readonly rootPath?: DiskPath;
 }
 
 export interface GithubRemoteOpen {
@@ -56,7 +60,10 @@ function isRecord(value: unknown): value is GithubRepositoryRecord {
     (item['remoteTree'] === null || isString(item['remoteTree'])) &&
     Array.isArray(item['remoteEntries']) &&
     item['remoteEntries'].every(isTreeEntry) &&
-    Number.isSafeInteger(item['updatedAt'])
+    Number.isSafeInteger(item['updatedAt']) &&
+    (item['fetched'] === undefined || (typeof item['fetched'] === 'object' && item['fetched'] !== null && 'branch' in item['fetched'] && isString(item['fetched'].branch) && 'head' in item['fetched'] && isString(item['fetched'].head))) &&
+    (item['rootPath'] === undefined ||
+      (Array.isArray(item['rootPath']) && item['rootPath'].every(value => typeof value === 'string' && value.length > 0)))
   );
 }
 
@@ -119,6 +126,28 @@ export function parseGithubRemote(value: string): GithubRemoteAddress | null {
   } catch {
     return null;
   }
+}
+
+
+function pathHash(path: readonly string[]): string {
+  let hash = 2166136261;
+  for (const character of path.join('\u0000')) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+/** 卷内目录的稳定项目标识，保证终端、GitHub Desktop 和 Aiao Code 打开同一个目录时复用仓库。 */
+export function projectIdForPath(path: DiskPath): string {
+  const slug = path
+    .join('-')
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  const suffix = pathHash(path);
+  return `local-${(slug || 'repository').slice(0, 50)}-${suffix}`.slice(0, 64);
 }
 
 function projectIdFor(owner: string, repo: string, branch: string): string {
@@ -346,32 +375,45 @@ export class GithubRemoteRepository {
 
   async push(record: GithubRepositoryRecord, files: readonly GitFile[], message: string): Promise<GithubPushResult> {
     validateLocalFiles(files);
-    if (!record.owner || !record.repo || !record.remoteHead || !record.remoteTree)
-      throw new Error('该仓库没有可以推送的 GitHub 远端分支');
+    const {owner, repo, branch} = record;
+    if (!owner || !repo) throw new Error('请先配置 GitHub 远端 origin');
+    const summary = message.trim() || 'Update from Aiao Desktop';
     try {
-      const currentHead = await this.api.getBranchSha(record.owner, record.repo, record.branch);
+      if (!record.remoteHead || !record.remoteTree) return await this.firstPush(owner,repo,branch,files,summary);
+      const currentHead = await this.api.getBranchSha(owner, repo, branch);
       if (currentHead !== record.remoteHead) throw new Error('远端分支已变化，请先拉取远端更改');
       const baseEntries = await this.entriesForTree(record);
       validateRemoteEntries(baseEntries);
-      const items = await Promise.all(files.map(file => toTreeItem(file, this.api, record.owner!, record.repo!)));
+      const items = await Promise.all(files.map(file => toTreeItem(file, this.api, owner, repo)));
       const localPaths = new Set(files.map(file => file.path));
       const deleted = baseEntries
         .filter(entry => !localPaths.has(entry.path))
         .map(entry => ({ path: entry.path, sha: null }) satisfies GitHubTreeItem);
-      const tree = await this.api.createTree(record.owner, record.repo, record.remoteTree, [...items, ...deleted]);
-      const head = await this.api.createCommit(
-        record.owner,
-        record.repo,
-        message.trim() || 'Update from Aiao Desktop',
-        tree,
-        [record.remoteHead]
-      );
-      await this.api.updateRef(record.owner, record.repo, `heads/${record.branch}`, head);
-      return { head, tree };
+      return await this.advanceBranch(owner,repo,branch,{head: record.remoteHead, tree: record.remoteTree},[...items,...deleted], summary);
     } catch (cause) {
-      if (cause instanceof Error && cause.message === '远端分支已变化，请先拉取远端更改') throw cause;
       throw remoteFailure(cause, `${record.owner}/${record.repo}@${record.branch}`);
     }
+  }
+
+  private async firstPush(owner: string, repo: string, branch: string, files: readonly GitFile[], message: string): Promise<GithubPushResult> {
+    const repository = await this.api.getRepository(owner,repo);
+    const branches = await this.api.listBranches(owner,repo);
+    if (branches.length) throw new Error('远端已有提交，请先拉取远端更改');
+    if (repository.defaultBranch !== branch) throw new Error(`空仓库的首次推送请使用默认分支 ${repository.defaultBranch}`);
+    const [first,...rest] = files;
+    if (!first) throw new Error('首次推送需要一个已提交的文件');
+    const initial = await this.api.createInitialFile(owner,repo,branch, first.path, first.bytes, message);
+    if (!rest.length) return initial;
+    if (await this.api.getBranchSha(owner,repo,branch) !== initial.head) throw new Error('远端分支已变化，请先拉取远端更改');
+    const items = await Promise.all(rest.map(file => toTreeItem(file,this.api,owner,repo)));
+    return this.advanceBranch(owner,repo,branch,initial,items,message);
+  }
+
+  private async advanceBranch(owner: string, repo: string, branch: string, base: GithubPushResult, items: readonly GitHubTreeItem[], message: string): Promise<GithubPushResult> {
+    const tree = await this.api.createTree(owner,repo,base.tree,items);
+    const head = await this.api.createCommit(owner,repo,message,tree,[base.head]);
+    await this.api.updateRef(owner,repo,`heads/${branch}`,head);
+    return {head,tree};
   }
 
   private async readFiles(

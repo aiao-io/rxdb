@@ -4,6 +4,7 @@ import { GitWorkbenchError } from './git-protocol.js';
 export interface RouterBackendOptions {
   readonly local: WorkbenchBackend;
   readonly github: WorkbenchBackend;
+  readonly desktop?: { readonly id: string; readonly backend: WorkbenchBackend };
 }
 
 /**
@@ -12,7 +13,7 @@ export interface RouterBackendOptions {
  */
 export function createRouterBackend(options: RouterBackendOptions): WorkbenchBackend {
   const backend = (projectId: string): WorkbenchBackend =>
-    projectId.startsWith('github:') ? options.github : options.local;
+    options.desktop?.id === projectId ? options.desktop.backend : projectId.startsWith('github:') ? options.github : options.local;
 
   return {
     open: (projectId: string): Promise<WorkbenchSnapshot> => backend(projectId).open(projectId),

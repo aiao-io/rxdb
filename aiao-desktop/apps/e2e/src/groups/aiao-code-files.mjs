@@ -15,17 +15,19 @@ const codeRoot = resolve(import.meta.dirname, '../../../../../apps/aiao-vscode/d
 const outputRoot = resolve(import.meta.dirname, '../../test-output');
 const binary = Buffer.from([0, 255, 128, 1, 42]);
 
-async function diskBytes(session, name) {
+async function diskBytes(session, name, digest = false) {
   const row = await diskRow(session, name);
   if (!row?.blob) throw new Error(`Missing copied file: ${name}`);
-  return session.page.evaluate(async path => {
+  return session.page.evaluate(async ({path,digest}) => {
     const root = await navigator.storage.getDirectory();
     const selected = JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? 'null');
     const files = await root.getDirectoryHandle(`aiao-desktop-files${selected?.active ? `-${selected.active}` : ''}`);
     const blobs = await files.getDirectoryHandle('blobs');
     const file = await (await blobs.getFileHandle(path.replace(/^blobs\//, ''))).getFile();
-    return [...new Uint8Array(await file.arrayBuffer())];
-  }, row.blob);
+    const buffer = await file.arrayBuffer();
+    if (digest) return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',buffer)),value => value.toString(16).padStart(2,'0')).join('');
+    return [...new Uint8Array(buffer)];
+  }, {path:row.blob,digest});
 }
 
 export const aiaoCodeFiles = {
@@ -41,6 +43,7 @@ export const aiaoCodeFiles = {
     'aiaoCodeFiles.embeddedLoginBoundary',
     'aiaoCodeFiles.standaloneFlowsPreserved',
     'aiaoCodeFiles.closeCancelsPanel',
+    'aiaoCodeFiles.terminalRepositoryRoundTrip',
     'aiaoCodeFiles.deniedCapabilitiesVisible'
   ],
   async run(session) {
@@ -314,6 +317,68 @@ export const aiaoCodeFiles = {
       await expect(panel.panel).toHaveCount(0);
       expect(await diskCount(session, 'workspace-copy.zip')).toBe(1);
       result.closeCancelsPanel = true;
+      await helpers.closeAll();
+      await helpers.openTerminal();
+      const shell = helpers.runInShell;
+      expect(await shell('mkdir -p ~/Desktop/bridge && cd ~/Desktop/bridge && git init', /Initialized empty Git repository/)).toBe(true);
+      expect(await shell('echo shell-original > note.txt && git add . && git commit -m first', /\[main [a-f0-9]{7}\] first/)).toBe(true);
+      expect(await shell('git branch topic && git checkout topic', /Switched to branch 'topic'/)).toBe(true);
+      await shell('open -a "GitHub Desktop" .');
+      const github = helpers.win('github');
+      await expect(github.locator('[data-github-repository-name]')).toHaveText('bridge');
+      await github.locator('[data-github-repository-menu]').click();
+      await github.getByLabel('Remote origin').fill('https://github.com/octo/bridge.git');
+      await github.getByRole('button', {name:'Add origin',exact:true}).click();
+      await expect(github.getByRole('button', {name:'Remove origin'})).toBeEnabled();
+      await github.locator('[data-github-repository-menu]').click();
+      await github.getByRole('button', {name:'Open in Aiao Code',exact:true}).click();
+      const sharedWindow = helpers.win('vscode');
+      async function sharedEditor(target, win) {
+        await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({timeout:90000});
+        const code = target.frames().find(candidate => URL.parse(candidate.url())?.origin === APP_ORIGIN);
+        await code.waitForFunction(() => window.workbench?.session.state.files['note.txt'] !== undefined);
+        return code;
+      }
+      const editor = await sharedEditor(page,sharedWindow);
+      const other = await session.openDesktopPage({waitForFinder: false});
+      await other.helpers.restored();
+      await other.helpers.launch('GitHub Desktop');
+      const otherGithub = other.helpers.win('github').last();
+      await expect(otherGithub.locator('[data-github-repository-name]')).toHaveText('bridge');
+      await otherGithub.getByRole('button',{name:'Open in Aiao Code',exact:true}).click();
+      const second = await sharedEditor(other.page,other.helpers.win('vscode').last());
+      expect(await second.evaluate(() => window.workbench.session.state.files['note.txt'])).toBe('shell-original\n');
+      await editor.evaluate(async () => {
+        const session = window.workbench.session;
+        session.edit('note.txt', 'edited-in-aiao-code');
+        await session.save();
+        const { projectId, revision } = session.state;
+        const saved = await session.backend.save(projectId, {'large.bin': new Uint8Array(1100000).fill(255)}, revision);
+        if (saved.files['large.bin'].length !== 1100000) throw new Error('Incomplete workspace transfer');
+      });
+      await second.evaluate(async () => {
+        const session = window.workbench.session;
+        session.edit('note.txt','my pending draft');
+        try {await session.save();} catch(error) {
+          if (!/revision/i.test(error.message) || session.state.files['note.txt'] !== 'my pending draft' || !session.state.dirty) throw error;
+          session.discard();
+          return;
+        }
+        throw new Error('An outdated window overwrote the saved version');
+      });
+      await other.page.close();
+      await editor.locator('[data-window-action="close"]').dispatchEvent('click');
+      await expect(sharedWindow).toHaveCount(0);
+      await expect(github.locator('[data-file-path="note.txt"]')).toBeVisible();
+      expect(await shell('cat note.txt', /edited-in-aiao-code/)).toBe(true);
+      expect(await shell('git remote -v', /octo\/bridge\.git \(push\)/)).toBe(true);
+      expect(await diskBytes(session,'large.bin',true)).toBe(createHash('sha256').update(Buffer.alloc(1100000,255)).digest('hex'));
+      await shell('open -a "Aiao Code" .');
+      const reopened = await sharedEditor(page,sharedWindow);
+      expect(await reopened.evaluate(() => window.workbench.session.state.files['note.txt'])).toBe('edited-in-aiao-code');
+      await reopened.locator('[data-window-action="close"]').dispatchEvent('click');
+      await expect(sharedWindow).toHaveCount(0);
+      result.terminalRepositoryRoundTrip = true;
       await helpers.closeAll();
       await grantCapabilities(session, ['window', 'clipboard:read', 'clipboard:write']);
       await session.reloadDesktop(page, { finder: false });

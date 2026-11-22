@@ -152,7 +152,11 @@ export class Spotlight {
   protected readonly activeId = computed(() => (this.hasResults() ? `spot-opt-${this.selected()}` : null));
 
   constructor() {
-    afterNextRender(() => setTimeout(() => this.queryInput().nativeElement.focus(), 30));
+    afterNextRender(() =>
+      setTimeout(() => {
+        if (this.overlays.spotlight() === 'open') this.queryInput().nativeElement.focus();
+      }, 30)
+    );
     afterRenderEffect(() => {
       this.selected();
       this.resultsBox().nativeElement.querySelector('.r.on')?.scrollIntoView({ block: 'nearest' });

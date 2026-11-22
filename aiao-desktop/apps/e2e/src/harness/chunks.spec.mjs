@@ -13,7 +13,8 @@ import {
   scriptNameOf,
   scriptsDeclaring,
   seedScripts,
-  staticImports
+  staticImports,
+  terminalRuntimeScripts
 } from './chunks.mjs';
 
 test('只认静态 import，动态 import 不算', () => {
@@ -66,6 +67,20 @@ test('从产物里读出每个脚本声明的组件选择器和数据域种子',
     const seeds = seedScripts(root);
     assert.deepEqual(scriptsDeclaring(seeds, 'notes'), ['chunk-C.js']);
     assert.equal(seeds.has('chunk-D.js'), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('终端运行时按 SDK 错误名称定位，普通 UI 的文字不算运行时', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'terminal-chunks-spec-'));
+  try {
+    await writeFile(
+      join(root, 'runtime.js'),
+      'class E extends Error { constructor() { super();this.name=`VivariError` } }'
+    );
+    await writeFile(join(root, 'ui.js'), 'const label="VivariError";');
+    assert.deepEqual(terminalRuntimeScripts(root), ['runtime.js']);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

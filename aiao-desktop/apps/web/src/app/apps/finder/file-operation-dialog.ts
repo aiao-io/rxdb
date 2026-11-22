@@ -2,13 +2,10 @@ import { Component, computed, inject, input, linkedSignal, output, signal } from
 
 import { DESKTOP, DiskPath, HOME, TRASH, isWithin } from '../../disk/disk-path';
 import { FileOpener } from '../../services/file-opener';
-import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
+import { FileSystem, describeDiskError } from '../../services/file-system';
 import { FocusTrap } from '../../shared/focus-trap';
 
-export interface FileOperationRequest {
-  readonly kind: 'rename' | 'restore' | 'open-with';
-  readonly node: FsNode;
-}
+import type { FileOperationRequest } from './finder-model';
 
 @Component({
   selector: 'app-file-operation-dialog',

@@ -289,6 +289,10 @@ export class GithubGitBackend {
     }).then(snapshot);
   }
 
+  committed(projectId: string): Promise<GitSnapshot> {
+    return this.call('committed', { projectId }).then(snapshot);
+  }
+
   snapshot(projectId: string): Promise<GitSnapshot> {
     return this.call('snapshot', { projectId }).then(snapshot);
   }
@@ -307,6 +311,10 @@ export class GithubGitBackend {
 
   status(projectId: string): Promise<GitStatus> {
     return this.call('status', { projectId }).then(status);
+  }
+
+  diffText(projectId: string, staged: boolean): Promise<string> {
+    return this.call('diffText', {projectId, kind: staged ? 'staged' : 'working'}).then(value => typeof value === 'string' ? value : invalidPayload('diffText'));
   }
 
   stage(projectId: string, paths: readonly string[]): Promise<GitStatus> {
@@ -355,6 +363,14 @@ export class GithubGitBackend {
 
   restore(projectId: string, oid: string): Promise<GitSnapshot> {
     return this.call('restore', { projectId, oid }).then(snapshot);
+  }
+
+  origin(projectId: string): Promise<string | null> {
+    return this.call('origin', { projectId }).then(value => nullableStringOf(value, 'origin'));
+  }
+
+  async setOrigin(projectId: string, url: string | null): Promise<void> {
+    await this.call('setOrigin', { projectId, ...(url ? { url } : {}) });
   }
 
   exportArchive(projectId: string): Promise<Uint8Array> {

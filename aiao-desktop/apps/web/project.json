@@ -44,7 +44,7 @@
         "browser": "aiao-desktop/apps/web/src/main.ts",
         "inlineStyleLanguage": "scss",
         "outputPath": "dist/aiao-desktop/apps/web",
-        "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"],
+        "styles": ["aiao-desktop/apps/web/src/styles.scss"],
         "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json",
         "define": {
           "import.meta.env.DEV": "false"

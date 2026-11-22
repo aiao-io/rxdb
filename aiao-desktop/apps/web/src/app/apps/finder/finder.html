@@ -576,10 +576,14 @@
 </div>
 <input #importInput (change)="importSelection(importInput)" hidden multiple type="file" />
 
-@if (fileOperation(); as operation) {
-  <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation($event)" />
+@defer (when fileOperation()) {
+  @if (fileOperation(); as operation) {
+    <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation($event)" />
+  }
 }
 
-@if (emptyTrashPrompt()) {
-  <app-empty-trash-dialog (finished)="finishEmptyTrash($event)" />
+@defer (when emptyTrashPrompt()) {
+  @if (emptyTrashPrompt()) {
+    <app-empty-trash-dialog (finished)="finishEmptyTrash($event)" />
+  }
 }

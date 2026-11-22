@@ -5,10 +5,12 @@ import { parseArgs } from 'node:util';
 
 import { outputRoot } from './desktop-server.mjs';
 import { initialFootprint } from './harness/chunks.mjs';
+import { compareStartup } from './harness/startup-timing.mjs';
 
 const { values } = parseArgs({
   options: {
     'baseline-dist': { type: 'string' },
+    'measure-startup': { type: 'boolean' },
     'baseline-sha': { type: 'string' },
     'current-sha': { type: 'string' },
     dist: { type: 'string' },
@@ -19,8 +21,10 @@ const { values } = parseArgs({
 for (const name of ['baseline-dist', 'baseline-sha', 'current-sha']) {
   if (!values[name]) throw new Error(`缺少 --${name}`);
 }
-const baseline = initialFootprint(resolve(values['baseline-dist']));
-const current = initialFootprint(values.dist ? resolve(values.dist) : outputRoot);
+const baselineRoot = resolve(values['baseline-dist']);
+const currentRoot = values.dist ? resolve(values.dist) : outputRoot;
+const baseline = initialFootprint(baselineRoot);
+const current = initialFootprint(currentRoot);
 const report = {
   format: 'aiao-desktop.compare-initial',
   version: 1,
@@ -36,6 +40,7 @@ const report = {
   },
   change: { rawBytes: current.rawBytes - baseline.rawBytes, gzipBytes: current.gzipBytes - baseline.gzipBytes }
 };
+if (values['measure-startup']) report.startup = await compareStartup(baselineRoot, currentRoot);
 const json = `${JSON.stringify(report, null, 2)}\n`;
 if (values.output) writeFileSync(resolve(values.output), json);
 console.log(json);

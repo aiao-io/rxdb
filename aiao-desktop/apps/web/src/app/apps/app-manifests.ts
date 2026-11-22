@@ -74,7 +74,7 @@ export const DESKTOP_APP_MANIFESTS = {
     minW: 720,
     minH: 440,
     /* 文件读写只经过桌面面板授权，用于 US-208 显式复制；不开放目录或后台同步。 */
-    capabilities: ['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write'],
+    capabilities: ['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write', 'workspace'],
     web: {
       url: 'https://vscode.aiao.io/',
       version: 'online',

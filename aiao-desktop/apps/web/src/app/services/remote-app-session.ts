@@ -1,7 +1,7 @@
 import type { OrbitBinding, OrbitInstance, OrbitRuntime } from '@aiao/orbit';
 import { OrbitError, createOrbitBinding } from '@aiao/orbit';
 import type { DesktopCapability, DesktopWindowState } from '@aiao/orbit/desktop';
-import { desktopProps, serveDesktop } from '@aiao/orbit/desktop';
+import { DESKTOP_WORKSPACE_PROJECT_ID_PROP, desktopProps, serveDesktop } from '@aiao/orbit/desktop';
 import type { OrbitDragRegion, OrbitWindowHost, OrbitWindowState } from '@aiao/orbit/window';
 import { serveWindow, windowProps } from '@aiao/orbit/window';
 import { Signal, computed, signal } from '@angular/core';
@@ -145,6 +145,7 @@ export class RemoteAppSession {
       props: {
         ...this.windowProps(context, capabilities),
         ...desktopProps(capabilities),
+        ...(capabilities.includes('workspace') && win.options?.projectId ? { [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: win.options.projectId } : {}),
         ...(githubOAuth ? { 'aiao-code.github-oauth-origin': location.origin } : {})
       }
     });

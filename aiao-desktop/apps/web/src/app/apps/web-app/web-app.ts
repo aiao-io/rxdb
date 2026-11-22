@@ -13,6 +13,7 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { DesktopAppContexts } from '../../services/app-context';
 import { ApplicationRuntime } from '../../services/application-runtime';
 import { ApplicationTransitions, AppWindowLease } from '../../services/application-transitions';
@@ -75,7 +76,7 @@ export class WebAppWindow {
 
   constructor() {
     this.lease = this.app.installScope === 'approved-catalog' ? inject(ApplicationTransitions).track(this.win) : null;
-    const connection = inject(OrbitHost).connect(this.app);
+    const connection = inject(DesktopAppServices).get(OrbitHost).connect(this.app);
     const runtime = inject(ApplicationRuntime);
     const session = new RemoteAppSession({
       win: this.win,

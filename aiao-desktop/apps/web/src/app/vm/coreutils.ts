@@ -46,6 +46,7 @@ export interface KitApp {
 export interface ProgramKit {
   explain(error: unknown): string;
   readonly openOsc: number;
+  readonly gitDirectory?: string;
   readonly apps: readonly KitApp[];
 }
 
@@ -226,9 +227,31 @@ export const openProgram: Program = (require, process, kit) => {
   process.exit(0);
 };
 
+export const gitProgram: Program = (require, process, kit) => {
+  const fs = require('fs') as ProgramFs & { unlinkSync(path: string): void; readFileSync(path: string, encoding: string): string };
+  const file = `${kit.gitDirectory}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}.in`;
+  const result = `${file}.out`;
+  fs.writeFileSync(`${file}.tmp`, JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }));
+  fs.renameSync(`${file}.tmp`, file);
+  const deadline = Date.now() + 120000;
+  const timer = setInterval(() => {
+    if (!fs.existsSync(result) && Date.now() < deadline) return;
+    clearInterval(timer);
+    if (!fs.existsSync(result)) {
+      process.stderr.write('git: command timed out; check repository status before retrying\n');
+      process.exit(1);
+    }
+    const reply = JSON.parse(fs.readFileSync(result, 'utf8')) as { code: number; stdout: string; stderr: string };
+    fs.unlinkSync(result);
+    if (reply.stdout) process.stdout.write(reply.stdout);
+    if (reply.stderr) process.stderr.write(reply.stderr);
+    process.exit(reply.code);
+  }, 60);
+};
+
 /** 拼出虚拟机里 `/bin/<name>.js` 的源码。 */
-export const programSource = (program: Program, apps: readonly KitApp[]): string =>
-  `(${program.toString()})(require, process, { explain: ${explain.toString()}, openOsc: ${OPEN_OSC}, apps: ${JSON.stringify(apps)} });\n`;
+export const programSource = (program: Program, apps: readonly KitApp[], gitDirectory?: string): string =>
+  `(${program.toString()})(require, process, { explain: ${explain.toString()}, openOsc: ${OPEN_OSC}, gitDirectory: ${JSON.stringify(gitDirectory)}, apps: ${JSON.stringify(apps)} });\n`;
 
 /** 解析终端截下的 `open` 请求；不合规的内容返回 `null`。 */
 export function parseOpenRequest(data: string): OpenRequest | null {

@@ -9,11 +9,11 @@ import { MenuEntry } from '../../services/menu';
 import { Overlays } from '../../services/overlays';
 import { PopoverService } from '../../services/popover';
 import { clamp } from '../../shared/format';
+import { isMenuKey } from '../../services/focus-order';
 import { Icon } from '../../shared/icon';
-import { isMenuKey } from '../../shared/menu-list';
 
 /** 7 × 4，与真实启动台在这个高度下的网格一致。 */
-export const LAUNCHPAD_PER_PAGE = 28;
+const LAUNCHPAD_PER_PAGE = 28;
 
 /**
  * 启动台：分页网格、搜索、方向键与横向滚轮翻页。

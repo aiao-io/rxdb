@@ -2,6 +2,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  ViewEncapsulation,
   afterNextRender,
   computed,
   inject,
@@ -20,6 +21,8 @@ import { TerminalTab } from './terminal-tab';
 @Component({
   selector: 'app-terminal',
   imports: [TrafficLights, TerminalTab],
+  styleUrl: './terminal.scss',
+  encapsulation: ViewEncapsulation.None,
   host: { style: 'display: contents' },
   template: `
     <div class="tb dark" data-drag>

@@ -3,16 +3,12 @@ import { Component, DestroyRef, ViewEncapsulation, afterNextRender, inject } fro
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { FinderSidebarOrder } from '../apps/finder/finder-sidebar-order';
 import { MailComposer } from '../apps/mail/mail-composer';
-import { NowPlaying } from '../apps/music/now-playing';
-import { PhotoLibrary } from '../apps/photos/photo-library';
-import { PhotoLoadQueue } from '../apps/photos/photo-loader';
 import { desktopAppRegistry } from '../apps/registry';
 import { SafariBrowsers } from '../apps/safari/safari-browsers';
 import { DesktopShell } from '../components/desktop-shell';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
-import { AppNotifications } from '../services/app-notifications';
 import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRegistry } from '../services/application-registry';
 import { ApplicationRuntime } from '../services/application-runtime';
@@ -22,6 +18,8 @@ import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
+import { AppNotifications } from '../services/app-notifications';
+import { DesktopAppServices } from '../services/desktop-app-services';
 import { DesktopBackup } from '../services/desktop-backup';
 import { DesktopItems } from '../services/desktop-items';
 import { DesktopMenus } from '../services/desktop-menus';
@@ -32,11 +30,9 @@ import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
-import { GithubRepositoryStore } from '../services/github-repository';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
 import { isMenuCommand } from '../services/menu';
-import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { RuntimeActivity } from '../services/runtime-activity';
@@ -49,7 +45,6 @@ import { WallpaperService } from '../services/wallpaper';
 import { WeatherStore } from '../services/weather-store';
 import { WindowLayoutStore } from '../services/window-layout';
 import { WindowManager } from '../services/window-manager';
-import { VirtualMachine } from '../vm/virtual-machine';
 
 /** 输入框、可编辑区与终端保留浏览器自己的右键菜单。 */
 const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
@@ -64,6 +59,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
   providers: [
     { provide: DESKTOP_APPS, useFactory: desktopAppRegistry },
     DesktopData,
+    DesktopAppServices,
+    AppNotifications,
     DesktopBackup,
     Preferences,
     BrowserSessionRestore,
@@ -94,20 +91,13 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     FinderClipboard,
     FileOpener,
     FilePanels,
-    GithubRepositoryStore,
     FinderSidebarOrder,
-    AppNotifications,
     DesktopItems,
     CalendarStore,
     WeatherStore,
     DesktopMenus,
     SafariBrowsers,
-    MailComposer,
-    NowPlaying,
-    PhotoLibrary,
-    PhotoLoadQueue,
-    VirtualMachine,
-    OrbitHost
+    MailComposer
   ],
   host: {
     '[style.display]': '"block"',

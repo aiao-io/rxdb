@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-21 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前46条Done、0条In Progress、1条In Review、0条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-22 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前47条Done、1条In Progress、1条In Review、4条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
@@ -8,20 +8,20 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 46   |
-| 🚧 In Progress | 0    |
+| ✅ Done        | 47   |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 0    |
+| 📝 Backlog     | 4    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 47   |
+| **合计**       | 53   |
 
 ## 自动完成计划
 
 A01～A05 已完成并归档，包括 US-112、US-113 与 US-208；A06 已完成 US-114～US-127 的本地自动验收，剩余应用主要流程和 A07～A09 继续推进，见[计划](plans/2026-11-17-autonomous-completion.md)。
 
-## 进行中（0 条）
+## 进行中（1 条）
 
-当前没有进行中的故事。
+- [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md)
 
 US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、US-124 Freeform、US-125 Stocks、US-126 Font Book 和 US-127 Settings 已完成，A06 台账仍保留媒体、书架、其他搜索筛选和主要操作等未核查应用流程。
 
@@ -29,9 +29,12 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 
 - [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)：VoiceOver V01～V14 实际播报验收按用户要求延期，AC#6 保持未验收。
 
-## 待开发（0 条）
+## 待开发（4 条）
 
-当前没有待开发故事。
+- [ADESK-US-010 Tauri 安装版与首次启动](stories/platform/ADESK-US-010-tauri-install-and-launch.md)：先建立 macOS / Windows 的独立安装和启动入口。
+- [ADESK-US-011 Tauri 本地工作区与显式迁移](stories/platform/ADESK-US-011-tauri-local-workspace-migration.md)：在安装版中保存本地工作区，并通过显式备份迁移已有成果。
+- [ADESK-US-012 Tauri 升级、卸载与故障恢复](stories/platform/ADESK-US-012-tauri-update-and-uninstall.md)：定义升级失败、卸载保留和重新安装恢复路径。
+- [ADESK-US-210 远程应用仿真与调度](stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md)：在本地桌面操作授权的远程 Claude 工具、Finder 和网络应用，接收远程结果并维护任务调度与权限边界。
 
 ## 按 Epic 索引
 
@@ -88,6 +91,7 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 - ✅ [ADESK-US-127 Settings 分区搜索](stories/desktop/ADESK-US-127-settings-search.md)
 - ✅ [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)
 - ✅ [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)
+- ✅ [ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 
@@ -105,3 +109,15 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 ### ADESK-EPIC-004 GitHub 开发工作台
 
 - ✅ [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md)
+
+- 🚧 [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md)
+
+### ADESK-EPIC-005 原生桌面版与本地运行时
+
+- ⬜ [ADESK-US-010 Tauri 安装版与首次启动](stories/platform/ADESK-US-010-tauri-install-and-launch.md)
+- ⬜ [ADESK-US-011 Tauri 本地工作区与显式迁移](stories/platform/ADESK-US-011-tauri-local-workspace-migration.md)
+- ⬜ [ADESK-US-012 Tauri 升级、卸载与故障恢复](stories/platform/ADESK-US-012-tauri-update-and-uninstall.md)
+
+### ADESK-EPIC-006 远程应用仿真与调度
+
+- ⬜ [ADESK-US-210 远程应用仿真与调度](stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md)

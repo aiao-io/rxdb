@@ -85,6 +85,11 @@ export const componentScripts = distRoot => declarations(distRoot, COMPONENT_SEL
  */
 export const seedScripts = distRoot => declarations(distRoot, SEED_DOMAIN);
 
+/** Vivari SDK 在所有构建中保留公开的错误名称。 */
+export const terminalRuntimeScripts = distRoot => [
+  ...declarations(distRoot, /\bthis\.name\s*=\s*[`"](VivariError)[`"]/g).keys()
+];
+
 /** 通过产物保留的模块导出名定位磁盘图片种子编码器与它的静态依赖。 */
 export function diskImageSeedScripts(distRoot) {
   const encoders = declarations(distRoot, /\bexport\s*\{[^{}]*\bas\s+(photoEncoder)\b[^{}]*\}/g);

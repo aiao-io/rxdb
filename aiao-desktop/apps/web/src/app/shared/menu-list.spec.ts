@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { isMenuKey, nextIndex } from './menu-list';
+import { isMenuKey } from '../services/focus-order';
+import { nextIndex } from './menu-list';
 
 const key = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;
 

@@ -8,6 +8,7 @@ import {
   input,
   viewChild
 } from '@angular/core';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { type VivariProcess } from '@vivari/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
@@ -24,7 +25,7 @@ const describe = (error: unknown): string => (error instanceof Error ? error.mes
   template: `<div class="xterm-panel" #panel [hidden]="!active()"></div>`
 })
 export class TerminalTab implements OnDestroy {
-  private readonly vm = inject(VirtualMachine);
+  private readonly vm = inject(DesktopAppServices).get(VirtualMachine);
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
 
   private readonly terminal = new Terminal({

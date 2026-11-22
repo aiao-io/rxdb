@@ -15,7 +15,8 @@ const capabilityNames: Readonly<Record<DesktopCapability, string>> = {
   'clipboard:read': 'Read clipboard after approval',
   'clipboard:write': 'Write to clipboard',
   'filesystem:read': 'Read files you select',
-  'filesystem:write': 'Write files you select'
+  'filesystem:write': 'Write files you select',
+  workspace: 'Read and update Git workspaces'
 };
 
 @Component({

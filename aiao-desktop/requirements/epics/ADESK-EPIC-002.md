@@ -34,6 +34,7 @@ owner: jimmy
 - [x] Settings 分区搜索、空结果、清空恢复和面板联动完成本地正式构建自动验收（[ADESK-US-127](../stories/desktop/ADESK-US-127-settings-search.md)）。
 - [x] Finder 文件/文件夹拖动操作、虚拟列表、分栏列宽调整和 Finder Share 本地草稿完成本地正式构建自动验收（[ADESK-US-129](../stories/desktop/ADESK-US-129-finder-parity-and-mail.md)）。
 - [ ] 浏览器关闭后再次进入时恢复最近活跃工作区的窗口应用，并处理标签页竞争与失败恢复（[ADESK-US-128](../stories/desktop/ADESK-US-128-browser-session-restore.md)）。
+- [x] 桌面启动与首次交互按实际需要加载（[ADESK-US-130](../stories/desktop/ADESK-US-130-desktop-on-demand.md)）。
 
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
 
@@ -80,6 +81,7 @@ owner: jimmy
 - [ADESK-US-127 Settings 分区搜索](../stories/desktop/ADESK-US-127-settings-search.md) (Medium)
 - [ADESK-US-128 浏览器关闭后恢复工作区](../stories/desktop/ADESK-US-128-browser-session-restore.md) (High)
 - [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](../stories/desktop/ADESK-US-129-finder-parity-and-mail.md) (High)
+- [ADESK-US-130 桌面冷启动与首次使用时加载](../stories/desktop/ADESK-US-130-desktop-on-demand.md) (High)
 
 ## 非目标
 

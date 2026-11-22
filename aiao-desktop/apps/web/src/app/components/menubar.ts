@@ -1,4 +1,4 @@
-import { Component, ElementRef, Type, ViewEncapsulation, computed, inject, signal, viewChildren } from '@angular/core';
+import { Component, ElementRef, ViewEncapsulation, computed, inject, signal, viewChildren } from '@angular/core';
 
 import { StatusKey, StatusSnapshot, statusLabel } from '../services/aria';
 import { Clock } from '../services/clock';
@@ -6,14 +6,12 @@ import { DesktopMenus } from '../services/desktop-menus';
 import { barIndex, isKeyboardClick } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { Overlays } from '../services/overlays';
-import { PopoverCloseReason, PopoverService } from '../services/popover';
+import { PopoverCloseReason, PopoverComponent, PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
 import { WindowManager } from '../services/window-manager';
 import { DAYS3, MONS3, NBSP, time12 } from '../shared/format';
 import { Icon } from '../shared/icon';
 import { BatteryIcon } from '../shared/status-glyphs';
-import { ControlCentre } from './menubar/control-centre';
-import { BatteryPanel, BluetoothPanel, SoundPanel, WifiPanel } from './menubar/status-panels';
 
 /** 鼠标按下之后这段时间（毫秒）内到达的同一个标题的 `click` 是同一次按下的尾声（读屏的「按下」会连发 mousedown 与 click）。 */
 const PRESS_ECHO_MS = 600;
@@ -21,12 +19,12 @@ const PRESS_ECHO_MS = 600;
 /** 状态图标在屏幕上从左到右的顺序。 */
 const STATUS_ORDER: readonly StatusKey[] = ['bt', 'vol', 'batt', 'wifi', 'spot', 'cc', 'clock'];
 
-const PANELS: Readonly<Partial<Record<StatusKey, Type<unknown>>>> = {
-  wifi: WifiPanel,
-  bt: BluetoothPanel,
-  batt: BatteryPanel,
-  vol: SoundPanel,
-  cc: ControlCentre
+const PANELS: Readonly<Partial<Record<StatusKey, PopoverComponent>>> = {
+  wifi: { load: () => import('./menubar/wifi-panel').then(module => module.WifiPanel) },
+  bt: { load: () => import('./menubar/bluetooth-panel').then(module => module.BluetoothPanel) },
+  batt: { load: () => import('./menubar/battery-panel').then(module => module.BatteryPanel) },
+  vol: { load: () => import('./menubar/sound-panel').then(module => module.SoundPanel) },
+  cc: { load: () => import('./menubar/control-centre').then(module => module.ControlCentre) }
 };
 
 /**

@@ -68,3 +68,7 @@ export function sliderValue(key: string, value: number): number | null {
   if (!Object.hasOwn(moves, key)) return null;
   return Math.min(1, Math.max(0, Math.round((value + moves[key]) * 100) / 100));
 }
+
+/** 键盘上弹出上下文菜单的按键：Menu 键，或 Shift+F10。浏览器不一定自己派发 `contextmenu`，所以由元素自己处理。 */
+export const isMenuKey = (event: KeyboardEvent): boolean =>
+  event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);

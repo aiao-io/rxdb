@@ -1,6 +1,6 @@
 import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import { CodeEditor } from '@aiao/code-editor-angular';
-import { getDesktop } from '@aiao/orbit/desktop';
+import { DESKTOP_WORKSPACE_PROJECT_ID_PROP, getDesktop } from '@aiao/orbit/desktop';
 import { getCurrentWindow } from '@aiao/orbit/window';
 import { RxDB } from '@aiao/rxdb';
 import { isPlatformBrowser } from '@angular/common';
@@ -23,6 +23,7 @@ import { EditorSelection, Transaction } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
 import { RUNTIME_HOSTS, runtimeHostsFor } from '../runtime-hosts/hosts.js';
+import { desktopWorkspaceBackend } from '../workbench/desktop-workspace.js';
 import { createDesktopFiles } from '../workbench/desktop-files.js';
 import { mountSwitchableEditor } from '../workbench/editor-switcher.js';
 import type { WorkbenchEditorMount } from '../workbench/editor.js';
@@ -277,6 +278,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     /* Aiao Desktop 批准了透明窗口（US-411）：标题栏自绘红黄绿按钮，桌面不再画自己的标题栏。 */
     const appWindow = this.orbit && getCurrentWindow(this.orbit);
     const desktop = this.orbit && getDesktop(this.orbit);
+    const projectId = this.orbit?.context.props[DESKTOP_WORKSPACE_PROJECT_ID_PROP];
+    const shared = typeof projectId === 'string' && desktop?.capabilities.includes('workspace') ? { id: projectId, backend: desktopWorkspaceBackend(desktop.workspace) } : undefined;
     const hostWindow = appWindow?.state.frame === 'transparent' ? appWindow : undefined;
     this.workbench = mountWorkbench(
       this.host.nativeElement,
@@ -284,9 +287,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
         ...(hostWindow ? { hostWindow } : {}),
         ...(desktop ? { desktopFiles: createDesktopFiles(desktop) } : {}),
+        ...(shared ? { initialProjectId: shared.id, desktopProject: { id: shared.id, name: typeof this.orbit?.context.props['workspaceName'] === 'string' ? this.orbit.context.props['workspaceName'] : shared.id, template: 'vanilla', entry: '', updatedAt: Date.now() } } : {}),
         embedded: !!this.orbit,
         runtimeHosts: runtimeHostsFor(RUNTIME_HOSTS, location.origin),
         backend: createRouterBackend({
+          desktop: shared,
           local: createGitBackend('/browser-workbench-assets/'),
           github: github.createBackend()
         }),

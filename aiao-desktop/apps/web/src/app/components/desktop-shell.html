@@ -5,9 +5,23 @@
   <app-dock [attr.inert]="behind() ? '' : null"></app-dock>
   <app-desktop-surface [attr.inert]="behind() ? '' : null"></app-desktop-surface>
   <app-overlay-layer [attr.inert]="behind() ? '' : null"></app-overlay-layer>
-  <app-lock-screen></app-lock-screen>
-  <app-boot-screen></app-boot-screen>
-  <app-data-problem></app-data-problem>
+  @defer (when session.locked()) {
+    <app-lock-screen></app-lock-screen>
+  } @placeholder {
+    @if (session.locked()) {
+      <div class="session-cover" aria-hidden="true"></div>
+    }
+  }
+  @defer (when session.boot() !== null) {
+    <app-boot-screen></app-boot-screen>
+  } @placeholder {
+    @if (session.boot() !== null) {
+      <div class="session-cover" aria-hidden="true"></div>
+    }
+  }
+  @defer (when problem() !== null) {
+    <app-data-problem></app-data-problem>
+  }
   @if (replaced()) {
     <aside
       data-data-replaced

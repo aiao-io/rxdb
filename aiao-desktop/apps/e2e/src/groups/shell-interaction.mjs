@@ -68,6 +68,7 @@ export const shellInteraction = {
     'shellInteraction.controlCentre.darkModeApplies',
     'shellInteraction.controlCentre.wifiToggleReflected',
     'shellInteraction.controlCentre.settingsSurviveReload',
+    'shellInteraction.controlCentre.brightnessBeforeFirstPanel',
     'shellInteraction.account.settingsName',
     'shellInteraction.account.settingsAvatar',
     'shellInteraction.dragResizeZoom.titleBarMoves',
@@ -218,6 +219,7 @@ export const shellInteraction = {
     await page.waitForTimeout(200);
     controlCentre.wifiToggleReflected = (await wifiIconOn()) !== wifiBefore;
     await panel.locator('[data-t="wifi"]').click();
+    await panel.getByRole('slider', { name: 'Display' }).press('Home');
     await panel.locator('[data-t="dark"]').click();
     controlCentre.darkModeApplies = await page
       .waitForFunction(() => document.documentElement.dataset['theme'] === 'dark', undefined, { timeout: 3_000 })
@@ -233,6 +235,10 @@ export const shellInteraction = {
         () => true,
         () => false
       );
+
+    controlCentre.brightnessBeforeFirstPanel = await page.evaluate(
+      () => Number(document.querySelector('#dimmer')?.style.opacity) === 0.585
+    );
 
     await appleItem('System Settings…');
     const accountRow = win('settings').locator('.st-row').first();

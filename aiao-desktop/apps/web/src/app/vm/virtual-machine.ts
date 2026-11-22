@@ -1,4 +1,4 @@
-import { Service, inject } from '@angular/core';
+import { Injector, Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription } from 'rxjs';
 import { ApplicationRegistry } from '../services/application-registry';
@@ -11,7 +11,9 @@ import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
-import { cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
+import { cpProgram, gitProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
+import { DesktopAppServices } from '../services/desktop-app-services';
+import { gitMailbox } from './git-mailbox';
 import { DiskVmSync } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
 import { vivariFs } from './vm-fs';
@@ -31,12 +33,14 @@ export const SHELL_ENV: Readonly<Record<string, string>> = {
   COLORTERM: 'truecolor'
 };
 
-const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram } as const;
+const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram, git: gitProgram } as const;
 
 interface Machine {
   readonly vivari: Vivari;
   readonly sync: DiskVmSync;
   readonly subscription: Subscription;
+  readonly mailbox: Awaited<ReturnType<typeof gitMailbox>>;
+  readonly gitTicker: ReturnType<typeof setInterval>;
   readonly ticker: ReturnType<typeof setInterval>;
 }
 
@@ -52,6 +56,7 @@ interface Machine {
  */
 @Service({ autoProvided: false })
 export class VirtualMachine {
+  private readonly injector = inject(Injector);
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
@@ -116,6 +121,13 @@ export class VirtualMachine {
     const kind = await this.fs.run(store => store.kindOf(path));
     const name = path.at(-1) ?? '';
     if (kind === 'directory' && !name.toLowerCase().endsWith('.app')) {
+      if (app === 'github' || app === 'vscode') {
+        try {
+          const record = await (await this.workspace()).openDirectory(path);
+          this.wm.open(app, { projectId: record.projectId });
+        } catch (error) { this.toast.show(describeDiskError(error)); }
+        return;
+      }
       this.wm.open('finder', { path: finderPathOf(path) });
       return;
     }
@@ -123,6 +135,10 @@ export class VirtualMachine {
     const node: FsNode = { name, path, kind: 'file', icon, k: label, hidden: name.startsWith('.') };
     if (app) this.opener.openApp(app, node);
     else this.opener.open(node);
+  }
+
+  private async workspace() {
+    return this.injector.get(DesktopAppServices).get((await import('../services/github-workspace')).GithubWorkspace);
   }
 
   private async pull(): Promise<void> {
@@ -138,7 +154,6 @@ export class VirtualMachine {
     if (this.fs.state() !== 'ready') throw new Error(`Macintosh HD is unavailable: ${this.fs.error()}`);
     const vivari = await Vivari.boot({ serviceWorkerUrl: false });
     try {
-      await this.install(vivari);
       const sync = new DiskVmSync({ run: task => this.fs.run(task) }, vivariFs(vivari), {
         roots: DISK_ROOTS,
         ignore: name => name === 'node_modules',
@@ -146,12 +161,20 @@ export class VirtualMachine {
           this.catalog.violation(change === 'remove' ? { kind: 'remove', path } : { kind: 'write', path }),
         onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`)
       });
+      const mailbox = await gitMailbox(vivari.fs, async request => {
+        await sync.pull();
+        const result = await (await this.workspace()).runTerminal(request);
+        await sync.push([]);
+        return result;
+      });
+      await this.install(vivari, mailbox.directory);
       const subscription = this.fs.changes.subscribe(paths =>
         sync.push(paths).catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`))
       );
       await sync.attach();
       const ticker = setInterval(() => void this.pull(), POLL_INTERVAL);
-      return { vivari, sync, subscription, ticker };
+      const gitTicker = setInterval(() => void mailbox.scan().catch((error: unknown) => this.toast.show(describeDiskError(error))), 250);
+      return { vivari, sync, subscription, ticker, mailbox, gitTicker };
     } catch (error) {
       vivari.teardown();
       throw error;
@@ -159,19 +182,21 @@ export class VirtualMachine {
   }
 
   /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open。 */
-  private async install(vivari: Vivari): Promise<void> {
+  private async install(vivari: Vivari, gitDirectory: string): Promise<void> {
     const apps = Object.values(this.apps()).flatMap(app =>
       app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]
     );
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));
     for (const [name, program] of Object.entries(PROGRAMS))
-      await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps));
+      await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps, gitDirectory));
   }
 
   private async shutdown(pending: Promise<Machine>): Promise<void> {
     const machine = await pending.catch(() => null);
     if (!machine) return;
     clearInterval(machine.ticker);
+    clearInterval(machine.gitTicker);
+    await machine.mailbox.dispose();
     machine.subscription.unsubscribe();
     await machine.sync
       .pull()

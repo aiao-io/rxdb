@@ -9,6 +9,7 @@ import {
   viewChild
 } from '@angular/core';
 
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -95,7 +96,7 @@ const bucketOf = (key: string, items: readonly PhotoAsset[], group: PhotoGroup):
 })
 export class PhotosApp {
   private readonly win = inject(DesktopWindow);
-  private readonly library = inject(PhotoLibrary);
+  private readonly library = inject(DesktopAppServices).get(PhotoLibrary);
   private readonly toast = inject(Toast);
   private readonly popover = inject(PopoverService);
   private readonly wm = inject(WindowManager);

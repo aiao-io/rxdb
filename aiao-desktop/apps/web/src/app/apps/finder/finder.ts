@@ -49,7 +49,7 @@ import { DockState } from '../../services/dock-state';
 import { FileImport } from '../../services/file-import';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
-import { isKeyboardClick } from '../../services/focus-order';
+import { isMenuKey, isKeyboardClick } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
@@ -58,15 +58,15 @@ import { FileDrop } from '../../shared/file-drop';
 import { FileThumbnail } from '../../shared/file-thumbnail';
 import { clamp, finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
-import { isMenuKey } from '../../shared/menu-list';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { USER_PROFILE } from '../../shared/user-profile';
 import { MailComposer } from '../mail/mail-composer';
-import { FileOperationDialog, FileOperationRequest } from './file-operation-dialog';
+import { FileOperationDialog } from './file-operation-dialog';
 import { FinderClipboard } from './finder-clipboard';
 import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
 import {
   FAVOURITES_GROUP,
+  type FileOperationRequest,
   FinderSidebarGroup,
   FinderSort,
   TAG_PLACES,
@@ -835,6 +835,12 @@ export class FinderApp implements FinderCommands {
     this.dropHandled = false;
     if (!source?.path || dropHandled) return;
     const { x, y } = event.dropPoint;
+    const hit = document.elementsFromPoint(x, y).find(element => element.closest('.win'));
+    const github = hit?.closest('.win[data-app="github"]')?.querySelector('[data-github-app]');
+    if (github && source.kind === 'folder') {
+      github.dispatchEvent(new CustomEvent('aiaoRepositoryDrop', { detail: source.path }));
+      return;
+    }
     if (this.dock.isTrashAt(x, y)) {
       this.trashNodes(this.dragNodes(source));
       return;

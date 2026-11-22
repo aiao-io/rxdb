@@ -4,14 +4,8 @@ import { AppNotification, AppNotifications } from '../../services/app-notificati
 import { Overlays } from '../../services/overlays';
 import { time12Plain } from '../../shared/format';
 import { Icon } from '../../shared/icon';
-import {
-  BatterySquareWidget,
-  CalendarWidget,
-  ClockSquareWidget,
-  RemindersWidget,
-  StocksWidget,
-  WeatherWidget
-} from '../widgets/widgets';
+import { BatterySquareWidget, ClockSquareWidget, RemindersWidget } from '../widgets/notification-widgets';
+import { CalendarWidget, StocksWidget, WeatherWidget } from '../widgets/widgets';
 
 const NOTIFICATIONS = [
   ['app-messages', 'Kate', 'bringing coffee AND a blanket, i know how you drive', '4:28 PM'],
@@ -110,6 +104,7 @@ export class NotificationCentre {
     /* 首帧停在屏幕外：五个小组件的布局和模糊预热先付掉，下一帧再滑入才不掉帧。 */
     afterNextRender(() =>
       requestAnimationFrame(() => {
+        if (this.overlays.notifications() !== 'open') return;
         this.panel().nativeElement.style.transform = '';
         this.slide('in');
       })

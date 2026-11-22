@@ -4,6 +4,7 @@ import {
   ChangeDetectorRef,
   Component,
   computed,
+  effect,
   DestroyRef,
   ElementRef,
   inject,
@@ -36,10 +37,11 @@ import {
   type GithubRepositoryMenu,
   type GithubTab
 } from '../../services/desktop-menus';
+import { HOME, finderPathOf, fromVmPath, toVmPath, type DiskPath } from '../../disk/disk-path';
 import { DesktopWindow } from '../../services/desktop-window';
-import { encodeGitArchive, type GitArchive } from '../../services/git/git-archive.js';
+import { archiveOfDirectory, archiveOfUploadedDirectory, type SourceDirectory } from '../../services/git/git-directory';
 import {
-  GithubGitBackend,
+
   type GitBranch,
   type GitCommit,
   type GitCommitFileChange,
@@ -50,14 +52,13 @@ import {
   type GitStatusEntry
 } from '../../services/github-git-backend';
 import {
-  GithubRemoteRepository,
-  GithubRepositoryStore,
+
+
   parseGithubRemote,
   type GithubRepositoryRecord
 } from '../../services/github-repository';
-import { createGitHubApi, GitHubApi } from '../../services/github/github-api';
-import { createGitHubAuth, GitHubAuth } from '../../services/github/github-auth';
-import { createIndexedDbSessionStore, createMemorySessionStore } from '../../services/github/github-session-store';
+import { DesktopAppServices } from '../../services/desktop-app-services';
+import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
 import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
@@ -79,19 +80,7 @@ interface GithubDiffValue {
   readonly modified: GitFileVersion;
 }
 
-interface DirectoryFileHandle {
-  readonly kind: 'file';
-  readonly name: string;
-  getFile(): Promise<File>;
-}
-
-interface DirectoryHandle {
-  readonly kind: 'directory';
-  readonly name: string;
-  values(): AsyncIterable<DirectoryFileHandle | DirectoryHandle>;
-}
-
-type DirectoryPicker = () => Promise<DirectoryHandle>;
+type DirectoryPicker = () => Promise<SourceDirectory>;
 
 interface DirectoryPickerWindow extends Window {
   readonly showDirectoryPicker?: DirectoryPicker;
@@ -131,15 +120,6 @@ function errorCodeOf(error: unknown): string | null {
   if (typeof error !== 'object' || error === null || !('code' in error)) return null;
   const code = (error as { readonly code?: unknown }).code;
   return typeof code === 'string' ? code : null;
-}
-
-function projectIdForLocal(name: string): string {
-  const slug = name
-    .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase();
-  return `local-${(slug || 'repository').slice(0, 48)}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 function linesOf(text: string | null): readonly string[] {
@@ -264,27 +244,14 @@ export class GithubApp {
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
-  private readonly store = inject(GithubRepositoryStore);
+
   private readonly destroyRef = inject(DestroyRef);
-  private readonly backend = new GithubGitBackend();
-  private readonly githubOAuthOrigin = 'https://vscode.aiao.io';
-  private readonly exchangeUrl = new URL('/api/github-token', this.githubOAuthOrigin).href;
-  private readonly auth: GitHubAuth = createGitHubAuth({
-    clientId: () => this.loadClientId(),
-    exchangeUrl: this.exchangeUrl,
-    redirectUri: new URL('/redirect', this.githubOAuthOrigin).href,
-    origin: this.githubOAuthOrigin,
-    desktopOrigin: location.origin,
-    callbackPath: '/github-callback',
-    sessionStore:
-      typeof indexedDB === 'undefined' ? createMemorySessionStore() : (
-        createIndexedDbSessionStore('aiao-desktop-github-auth')
-      )
-  });
-  private readonly api: GitHubApi = createGitHubApi({
-    getToken: async () => (await this.auth.getSession())?.token ?? null
-  });
-  private readonly remote = new GithubRemoteRepository(this.api);
+  private readonly backend = inject(DesktopAppServices).get(GithubWorkspace);
+  private readonly store = this.backend.records;
+  private readonly connection = this.backend.connection;
+  private readonly auth = this.connection.auth;
+  private readonly api = this.connection.api;
+  private readonly remote = this.connection.remote;
   private readonly unsubscribeAuth: () => void;
   private currentRevision = 0;
   private historyLoadRequest = 0;
@@ -427,6 +394,14 @@ export class GithubApp {
 
   constructor() {
     this.win.setMenus(computed(() => this.menuSections()));
+    const changes = this.backend.changes.subscribe(id => {
+      if (this.activeRecord()?.projectId === id) this.reloadExternal();
+    });
+    this.destroyRef.onDestroy(() => changes.unsubscribe());
+    effect(() => {
+      const front = this.wm.focused() === this.win;
+      if (front) untracked(() => this.reloadExternal());
+    });
     afterRenderEffect(() => {
       const repositoryFocus = this.repositoryMenuFocus();
       const branchFocus = this.branchMenuFocus();
@@ -457,9 +432,9 @@ export class GithubApp {
     this.destroyRef.onDestroy(() => {
       this.unsubscribeAuth();
       removeEventListener('storage', this.storageListener);
-      this.backend.dispose();
+
     });
-    void this.restoreLastRepository();
+    void this.restoreLastRepository().catch(error => this.fail(error));
   }
 
   protected setValue(
@@ -494,7 +469,7 @@ export class GithubApp {
   }
 
   protected openLocalRepository(): void {
-    this.openLocalRepositoryPicker();
+    this.openRepositoryMenu('local');
   }
 
   protected openRepositoryInEditor(): void {
@@ -502,13 +477,14 @@ export class GithubApp {
     this.showCleanFiles.set(true);
     const path = this.selectedPath() ?? this.files()[0]?.path ?? null;
     if (path) this.openFile(path);
-    this.wm.open('vscode');
+    this.wm.open('vscode', { projectId: this.activeRecord()!.projectId });
     this.notice.set('Opened Aiao Code');
   }
 
   protected showRepositoryInFinder(): void {
     if (!this.activeRecord()) return;
-    this.wm.open('finder');
+    const root = this.activeRecord()?.rootPath;
+    this.wm.open('finder', root ? { path: finderPathOf(root), force: true } : {});
     this.notice.set('Opened Finder');
   }
 
@@ -519,6 +495,61 @@ export class GithubApp {
         event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
       : null;
     input?.click();
+  }
+
+  protected async configureOrigin(url: string | null): Promise<void> {
+    const record = this.activeRecord();
+    if (!record) return;
+    await this.run(async () => {
+      const next = await this.backend.configureRemote(record.projectId, url);
+      this.activeRecord.set(next);
+      this.repoValue.set(next.owner ? `${next.owner}/${next.repo}` : '');
+      this.notice.set(url ? 'Added remote origin' : 'Removed remote origin');
+    });
+  }
+
+  protected droppedDiskFolder(event: Event): void {
+    if (event instanceof CustomEvent && Array.isArray(event.detail) && event.detail.every(part => typeof part === 'string')) void this.openDiskDirectory(event.detail);
+  }
+
+  protected async openDiskDirectory(path: DiskPath): Promise<void> {
+    if (!this.ensureEditorSaved()) return;
+    try { await this.openStored(await this.backend.openDirectory(path)); }
+    catch (error) { this.fail(error); }
+  }
+
+  protected openLocalPath(value: string): void {
+    const path = value.startsWith('~/') ? [...HOME, ...fromVmPath(value.slice(2))] : fromVmPath(value);
+    void this.openDiskDirectory(path);
+  }
+
+  protected foldersOver(event: DragEvent): void {
+    if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
+  }
+
+  protected async dropFolders(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.ensureEditorSaved() || !event.dataTransfer) return;
+    // 浏览器只允许在 drop 回调首次 await 之前取得句柄。
+    const items = Array.from(event.dataTransfer.items).filter(item => item.kind === 'file');
+    const handles = items.map(item => (item as DataTransferItem & { getAsFileSystemHandle?(): Promise<SourceDirectory | {kind: 'file'; name: string} | null> }).getAsFileSystemHandle?.());
+    await this.run(async () => {
+      const added: string[] = [];
+      const errors: string[] = [];
+      for (const item of await Promise.allSettled(handles)) {
+        const handle = item.status === 'fulfilled' ? item.value : null;
+        try {
+          if (item.status === 'rejected') throw item.reason;
+          if (handle?.kind !== 'directory') throw new Error('请选择 Git 仓库文件夹，也可以使用 Add Local Repository');
+          const {name, archive} = await archiveOfDirectory(handle);
+          await this.importArchive(name, archive, 'Added');
+          added.push(toVmPath(this.activeRecord()!.rootPath!));
+        } catch (error) { errors.push(`${handle?.name ?? 'Folder'} · ${error instanceof Error ? error.message : String(error)}`); }
+      }
+      if (added.length) this.notice.set(`Added ${added.join(', ')}`);
+      if (errors.length) throw new Error(errors.join(' · '));
+    });
   }
 
   protected openLocalRepositoryPicker(): void {
@@ -537,8 +568,7 @@ export class GithubApp {
     const files = [...element.files];
     element.value = '';
     await this.run(async () => {
-      const archive = await this.archiveOfUploadedDirectory(files);
-      if (!archive) throw new Error('请选择包含 .git 目录的 Git 仓库');
+      const archive = await archiveOfUploadedDirectory(files);
       await this.importArchive(archive.name, archive.archive, 'Added');
     });
   }
@@ -699,12 +729,9 @@ export class GithubApp {
         this.notice.set('Refreshed local status');
         return;
       }
-      const remote = await this.remote.open(record.owner, record.repo, record.branch);
-      const next = { ...record, ...remote.record, updatedAt: Date.now() };
-      await this.store.put(next);
-      this.activeRecord.set(next);
+      const remote = await this.backend.fetch(record.projectId);
       this.lastFetchedAt.set(Date.now());
-      this.notice.set(next.remoteHead === record.remoteHead ? 'Already up to date' : 'Fetched origin');
+      this.notice.set(remote.record.remoteHead === record.remoteHead ? 'Already up to date' : 'Fetched origin');
     });
   }
 
@@ -864,25 +891,13 @@ export class GithubApp {
   protected async createRepository(): Promise<void> {
     if (!this.ensureEditorSaved()) return;
     const name = this.newRepoValue().trim() || 'Untitled Repository';
-    const projectId = projectIdForLocal(name);
     await this.run(async () => {
-      const initial: GitFile = { path: 'README.md', bytes: bytesOf(`# ${name}\n`) };
-      const snapshot = await this.backend.create(projectId, [initial]);
-      await this.backend.stage(projectId, [initial.path]);
+      const root = [...HOME, 'Documents', 'GitHub', name];
+      const record = await this.backend.createDirectory(root, [{ path: 'README.md', bytes: bytesOf(`# ${name}\n`) }]);
+      const projectId = record.projectId;
+      await this.backend.stage(projectId, ['README.md']);
       await this.backend.commit(projectId, `Create ${name}`);
-      const record: GithubRepositoryRecord = {
-        projectId,
-        name,
-        owner: null,
-        repo: null,
-        branch: 'main',
-        private: false,
-        remoteHead: null,
-        remoteTree: null,
-        remoteEntries: [],
-        updatedAt: Date.now()
-      };
-      await this.store.put(record);
+      const snapshot = await this.backend.open(projectId);
       this.activeRecord.set(record);
       this.showCleanFiles.set(false);
       this.newRepoValue.set('');
@@ -933,6 +948,7 @@ export class GithubApp {
         await this.backend.createBranch(remote.record.projectId, remote.record.branch);
         await this.backend.checkout(remote.record.projectId, remote.record.branch);
       }
+      await this.backend.setClonedOrigin(remote.record);
       await this.store.put(remote.record);
       this.activeRecord.set(remote.record);
       this.showCleanFiles.set(false);
@@ -1139,7 +1155,7 @@ export class GithubApp {
     await this.run(async () => {
       await this.backend.checkout(record.projectId, branch, force);
       const snapshot = await this.backend.snapshot(record.projectId);
-      const next = { ...record, branch, updatedAt: Date.now() };
+      const next = { ...record, updatedAt: Date.now() };
       await this.store.put(next);
       this.activeRecord.set(next);
       this.applySnapshot(snapshot.files);
@@ -1168,16 +1184,12 @@ export class GithubApp {
     const record = this.activeRecord();
     if (!record?.owner || !record.repo) return;
     await this.run(async () => {
-      const localStatus = this.status();
-      const current = await this.backend.snapshot(record.projectId);
-      const localDirty = Boolean(localStatus?.entries.length) || this.editorDirty();
-      const localFiles = this.editorDirty() ? this.files() : current.files;
-      const remote = await this.remote.pull(record, localFiles, localDirty);
-      if (remote.record.remoteHead === record.remoteHead) {
-        this.notice.set('Already up to date');
-        return;
-      }
-      await this.replaceFromRemote(record, remote, !localDirty);
+      if (!this.ensureEditorSaved()) return;
+      const snapshot = await this.backend.pull(record.projectId);
+      this.activeRecord.set(this.store.find(record.projectId)!);
+      this.applySnapshot(snapshot.files);
+      await this.refresh();
+      this.notice.set(`Pulled ${record.name}`);
     });
   }
 
@@ -1187,21 +1199,9 @@ export class GithubApp {
     await this.run(async () => {
       if (this.status()?.entries.length || this.editorDirty())
         throw new Error('请先保存并提交本地改动，再推送到 GitHub');
-      const snapshot = await this.backend.snapshot(record.projectId);
-      const result = await this.remote.push(record, snapshot.files, this.commitValue() || 'Update from Aiao Desktop');
-      const entries = (await this.api.getTreeFiles(record.owner!, record.repo!, result.tree)).filter(
-        entry => entry.mode !== '160000'
-      );
-      const next = {
-        ...record,
-        remoteHead: result.head,
-        remoteTree: result.tree,
-        remoteEntries: entries,
-        updatedAt: Date.now()
-      };
-      await this.store.put(next);
+      const next = await this.backend.push(record.projectId, this.commitValue() || 'Update from Aiao Desktop');
       this.activeRecord.set(next);
-      this.notice.set(`Pushed ${result.head.slice(0, 8)}`);
+      this.notice.set(`Pushed ${next.remoteHead.slice(0,8)}`);
     });
   }
 
@@ -1398,11 +1398,12 @@ export class GithubApp {
     const record = this.activeRecord();
     if (!record) return;
     const request = ++this.historyLoadRequest;
-    await this.run(async () => {
+    try {
       const changes = await this.backend.commitChanges(record.projectId, oid);
-      if (request !== this.historyLoadRequest) return;
-      this.historyChanges.set(changes);
-    });
+      if (request === this.historyLoadRequest && record.projectId === this.activeRecord()?.projectId) this.historyChanges.set(changes);
+    } catch(error) {
+      if (request === this.historyLoadRequest) this.fail(error);
+    }
   }
 
   protected selectHistoryFile(change: GitCommitFileChange): void {
@@ -1412,7 +1413,7 @@ export class GithubApp {
   }
 
   private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
-    let directory: DirectoryHandle;
+    let directory: SourceDirectory;
     try {
       directory = await picker();
     } catch (error) {
@@ -1422,59 +1423,9 @@ export class GithubApp {
     }
     if (!this.ensureEditorSaved()) return;
     await this.run(async () => {
-      const archive = await this.archiveOfDirectory(directory);
+      const archive = await archiveOfDirectory(directory);
       await this.importArchive(archive.name, archive.archive, 'Added');
     });
-  }
-
-  private async archiveOfDirectory(
-    directory: DirectoryHandle
-  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> }> {
-    const files: GitArchive['files'][number][] = [];
-    const directories = new Set<string>();
-    const visit = async (current: DirectoryHandle, prefix: string): Promise<void> => {
-      for await (const entry of current.values()) {
-        const path = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.kind === 'directory') {
-          directories.add(path);
-          await visit(entry, path);
-          continue;
-        }
-        files.push({
-          path,
-          bytes: new Uint8Array(
-            (await entry.getFile().then(file => file.arrayBuffer())) as ArrayBuffer
-          ) as Uint8Array<ArrayBuffer>
-        });
-      }
-    };
-    await visit(directory, '');
-    return { name: directory.name, archive: encodeGitArchive({ files, directories: [...directories] }) };
-  }
-
-  private async archiveOfUploadedDirectory(
-    files: readonly File[]
-  ): Promise<{ readonly name: string; readonly archive: Uint8Array<ArrayBuffer> } | null> {
-    const entries = files
-      .map(file => {
-        const parts = (file.webkitRelativePath ?? '').split('/').filter(Boolean);
-        return { file, parts };
-      })
-      .filter(entry => entry.parts.length > 1);
-    const root = entries[0]?.parts[0];
-    if (!root || entries.some(entry => entry.parts[0] !== root)) return null;
-    const collected = await Promise.all(
-      entries.map(async ({ file, parts }) => ({
-        path: parts.slice(1).join('/'),
-        bytes: new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>
-      }))
-    );
-    const directories = new Set<string>();
-    for (const file of collected) {
-      const parts = file.path.split('/');
-      for (let index = 1; index < parts.length; index += 1) directories.add(parts.slice(0, index).join('/'));
-    }
-    return { name: root, archive: encodeGitArchive({ files: collected, directories: [...directories] }) };
   }
 
   private async importArchive(
@@ -1482,27 +1433,12 @@ export class GithubApp {
     bytes: Uint8Array<ArrayBuffer>,
     noticeVerb: 'Added' | 'Imported'
   ): Promise<void> {
-    const projectId = projectIdForLocal(name);
-    const snapshot = await this.backend.importArchive(projectId, bytes);
-    const importedStatus = await this.backend.status(projectId);
-    const record: GithubRepositoryRecord = {
-      projectId,
-      name,
-      owner: null,
-      repo: null,
-      branch: importedStatus.branch,
-      private: false,
-      remoteHead: null,
-      remoteTree: null,
-      remoteEntries: [],
-      updatedAt: Date.now()
-    };
-    await this.store.put(record);
+    const { record, snapshot } = await this.backend.importDirectory(name, bytes);
     this.activeRecord.set(record);
     this.showCleanFiles.set(false);
     this.applySnapshot(snapshot.files);
     await this.refresh();
-    this.notice.set(`${noticeVerb} ${name}`);
+    this.notice.set(`${noticeVerb} ${name} · ${toVmPath(record.rootPath!)}`);
     this.repositoryMenuOpen.set(false);
   }
 
@@ -1515,6 +1451,7 @@ export class GithubApp {
       isBusy: () => this.busy(),
       openRepositoryMenu: kind => this.openRepositoryMenu(kind),
       openLocalRepository: () => this.openLocalRepository(),
+      openInEditor: () => this.openRepositoryInEditor(),
       openBranchMenu: () => this.openBranchMenu(),
       focusChangesFilter: () => this.focusChangesFilter(),
       setTab: tab => this.setTab(tab),
@@ -1552,7 +1489,7 @@ export class GithubApp {
 
   private async restoreLastRepository(): Promise<void> {
     await this.store.ready();
-    const record = this.records()[0];
+    const record = this.win.options.projectId ? this.store.find(this.win.options.projectId) : this.records()[0];
     if (!record) return;
     const pending = Promise.resolve().then(() => this.openStored(record, false));
     this.restorePromise = pending;
@@ -1563,14 +1500,20 @@ export class GithubApp {
     }
   }
 
-  private async refresh(): Promise<void> {
+  private reloadExternal(): void {
+    if (this.busy() || this.editorDirty() || !this.activeRecord()) return;
+    void this.refresh(true).catch(error => this.fail(error));
+  }
+
+  private async refresh(external = false): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
-    const [status, branches, history] = await Promise.all([
-      this.backend.status(record.projectId),
-      this.backend.branches(record.projectId),
-      this.backend.history(record.projectId)
-    ]);
+    const { snapshot, status, branches, history } = await this.backend.inspect(record.projectId);
+    if (record.projectId !== this.activeRecord()?.projectId || (external && (this.busy() || this.editorDirty()))) return;
+    if (external) {
+      this.activeRecord.set(this.store.find(record.projectId) ?? record);
+      if (snapshot.revision !== this.currentRevision) { this.applySnapshot(snapshot.files); this.diff.set(null); }
+    }
     this.status.set(status);
     this.branches.set(branches);
     this.history.set(history);
@@ -1583,7 +1526,8 @@ export class GithubApp {
       this.historyDiff.set(null);
       this.selectedHistoryPath.set(null);
     }
-    this.currentRevision = (await this.backend.snapshot(record.projectId)).revision;
+    this.currentRevision = snapshot.revision;
+    this.win.restoreOptions.set({ projectId: record.projectId });
     this.win.title.set(`GitHub Desktop · ${record.name}`);
   }
 
@@ -1665,11 +1609,5 @@ export class GithubApp {
     return false;
   }
 
-  private async loadClientId(): Promise<string> {
-    const response = await fetch(this.exchangeUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-    if (!response.ok) throw new Error(`GitHub 登录配置不可用（HTTP ${response.status}）`);
-    const value = (await response.json()) as { readonly clientId?: unknown };
-    if (typeof value.clientId !== 'string' || !value.clientId.trim()) throw new Error('GitHub 登录配置缺少 clientId');
-    return value.clientId.trim();
-  }
+
 }

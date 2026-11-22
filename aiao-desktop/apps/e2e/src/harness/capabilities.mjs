@@ -1,13 +1,14 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Aiao Code 当前正式清单：窗口、剪贴板和显式文件复制。测试可在独立上下文中收窄或扩展授权。 */
+/** Aiao Code 当前正式清单：窗口、剪贴板、显式文件复制和窗口绑定的工作区。测试可在独立上下文中收窄或扩展授权。 */
 export const AIAO_CODE_CAPABILITIES = Object.freeze([
   'window',
   'clipboard:read',
   'clipboard:write',
   'filesystem:read',
-  'filesystem:write'
+  'filesystem:write',
+  'workspace'
 ]);
 
 /** 产物里清单的 `capabilities` 数组字面量；压缩后引号可能是反引号、双引号或单引号。 */

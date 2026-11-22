@@ -12,8 +12,8 @@ import { WindowManager } from '../services/window-manager';
 import { FileDrop } from '../shared/file-drop';
 import { FileThumbnail } from '../shared/file-thumbnail';
 import { clamp } from '../shared/format';
+import { isMenuKey } from '../services/focus-order';
 import { Icon } from '../shared/icon';
-import { isMenuKey } from '../shared/menu-list';
 import { CalendarWidget, StocksWidget, WeatherWidget } from './widgets/widgets';
 
 const GRID = { w: 92, h: 98, padTop: 8, padRight: 12 } as const;

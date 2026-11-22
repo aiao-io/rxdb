@@ -4,7 +4,8 @@ import {
   lazyScripts,
   scriptNameOf,
   scriptsDeclaring,
-  seedScripts
+  seedScripts,
+  terminalRuntimeScripts
 } from '../harness/chunks.mjs';
 import { surgery, tableCounts } from '../harness/database.mjs';
 import { passes } from '../harness/helpers.mjs';
@@ -15,6 +16,8 @@ const SHELL_MARKERS = ['seed:disk', ...SHELL_DOMAINS.map(domain => `seed:${domai
 
 /** 随桌面发布、按需加载的应用的根组件选择器（Finder 属于壳层，在首屏包里）。每个应用独立成一个 chunk。 */
 const APP_SELECTORS = [
+  'app-app-store',
+  'app-github',
   'app-notes',
   'app-calculator',
   'app-calendar',
@@ -46,6 +49,27 @@ const APP_SELECTORS = [
 ];
 /** 通知中心 / 桌面小组件对应的四个应用：它们的数据域归壳层读，应用本身没打开过就不该下载它们的组件。 */
 const WIDGET_APPS = ['app-calendar', 'app-weather', 'app-stocks', 'app-reminders'];
+const PANELS = {
+  wifi: 'app-wifi-panel',
+  bt: 'app-bluetooth-panel',
+  batt: 'app-battery-panel',
+  vol: 'app-sound-panel',
+  cc: 'app-control-centre'
+};
+const OPTIONAL_COMPONENTS = [
+  'app-launchpad',
+  'app-spotlight',
+  'app-notification-centre',
+  ...Object.values(PANELS),
+  'app-mail-compose',
+  'app-empty-trash-dialog',
+  'app-file-operation-dialog',
+  'app-force-quit-panel',
+  'app-boot-screen',
+  'app-lock-screen',
+  'app-data-problem',
+  'app-file-panel'
+];
 
 const REMOTE_ENTRY = 'https://vscode.aiao.io/';
 
@@ -74,6 +98,15 @@ export const lazyLoading = {
     'lazyLoading.startupLoadsOnlyShellScripts',
     'lazyLoading.diskImagesLoadOnlyWhenSeeded',
     'lazyLoading.startupSkipsAppEntries',
+    'lazyLoading.menuLoadsNoPanels',
+    'lazyLoading.terminalRuntimeOnDemand',
+    'lazyLoading.dismissedPanelStaysClosed',
+    'lazyLoading.failedPanelReleasesDesktop',
+    'lazyLoading.launchpadOnDemand',
+    'lazyLoading.spotlightOnDemand',
+    'lazyLoading.statusPanelsOnDemand',
+    'lazyLoading.reopensWithoutRequests',
+    'lazyLoading.notificationCentreOnDemand',
     'lazyLoading.startupWritesNoAppSeeds',
     'lazyLoading.oneAppLoadsOnlyItsChunk',
     'lazyLoading.oneAppWritesNoSeeds',
@@ -98,12 +131,19 @@ export const lazyLoading = {
     const seedChunkOf = domain => scriptsDeclaring(seeds, domain);
     const diskImageChunks = [...diskImageSeedScripts(distRoot)].filter(name => lazy.has(name));
     const shellSeedChunks = new Set([...SHELL_DOMAINS.flatMap(seedChunkOf), ...diskImageChunks]);
+    const terminalRuntime = terminalRuntimeScripts(distRoot);
+    const notificationWidgets = [
+      'app-reminders-widget',
+      'app-clock-square-widget',
+      'app-battery-square-widget'
+    ].flatMap(chunkOf);
     const appSeedChunks = [...seeds]
       .filter(([, domains]) => domains.some(domain => !SHELL_DOMAINS.includes(domain)))
       .map(([name]) => name);
     /** 只打开 `selector` 这个应用（它的数据域是 `domain`）时不该下载的脚本：别的应用的组件与别的应用独有的种子。 */
     const forbiddenFor = (selector, domain) => [
       ...APP_SELECTORS.filter(other => other !== selector).flatMap(chunkOf),
+      ...(selector === 'app-terminal' ? [] : terminalRuntime),
       ...appSeedChunks.filter(name => !domain || !seedChunkOf(domain).includes(name))
     ];
 
@@ -132,23 +172,30 @@ export const lazyLoading = {
       APP_SELECTORS.every(selector => chunkOf(selector).length === 1 && lazy.has(chunkOf(selector)[0])) &&
       new Set(APP_SELECTORS.flatMap(chunkOf)).size === APP_SELECTORS.length;
 
-    /* AC#4：全新的库（没有保存的窗口布局），启动桌面、打开 Launchpad 与 Spotlight（不输入）。 */
+    const before = mark => requests.slice(0, mark).map(url => scriptNameOf(url, origin));
+    const onlyOpened = (mark, selector) => {
+      const scripts = scriptsSince(mark);
+      const [chunk] = chunkOf(selector);
+      const forbidden = [
+        ...forbiddenFor(null),
+        ...OPTIONAL_COMPONENTS.filter(other => other !== selector).flatMap(chunkOf)
+      ];
+      return (
+        !before(mark).includes(chunk) && scripts.includes(chunk) && !scripts.some(name => forbidden.includes(name))
+      );
+    };
+
     let mark = requests.length;
     await session.openDesktop();
-    await page.locator('#dock .di[data-app="launchpad"]').click();
-    await page.waitForSelector('#lpad:not(.out) [data-lq]');
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(700);
-    await page.keyboard.press('Meta+Space');
-    await page.waitForFunction(() => document.activeElement?.matches('#spot [data-sq]'));
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
-    /* 壳层读的数据域会在启动后很快种好；等它们种完再看请求，免得漏掉迟到的下载。 */
     await eventually(async () => (await markerKeys()).includes('seed:weather'));
-    await page.waitForTimeout(500);
     const startup = scriptsSince(mark);
     lazyLoading.startupLoadsOnlyShellScripts =
-      startup.length > 0 && startup.filter(name => lazy.has(name)).every(name => shellSeedChunks.has(name));
+      startup.length > 0 &&
+      OPTIONAL_COMPONENTS.every(selector => chunkOf(selector).length === 1 && lazy.has(chunkOf(selector)[0])) &&
+      !startup.some(name =>
+        [...OPTIONAL_COMPONENTS.flatMap(chunkOf), ...notificationWidgets, ...forbiddenFor(null)].includes(name)
+      ) &&
+      startup.filter(name => lazy.has(name)).every(name => shellSeedChunks.has(name));
     lazyLoading.startupSkipsAppEntries =
       requests.slice(mark).some(url => url.startsWith(`${origin}/`)) &&
       entriesSince(mark, isRemoteEntry) === 0 &&
@@ -156,6 +203,47 @@ export const lazyLoading = {
     const startupMarkers = await markerKeys();
     lazyLoading.startupWritesNoAppSeeds =
       startupMarkers.includes('seed:disk') && startupMarkers.every(key => SHELL_MARKERS.includes(key));
+
+    mark = requests.length;
+    await page.locator('#menubar .mb-item.apple').dispatchEvent('mousedown');
+    await page.locator('#layer-menu .pop').waitFor();
+    lazyLoading.menuLoadsNoPanels = !scriptsSince(mark).some(name =>
+      [...OPTIONAL_COMPONENTS.flatMap(chunkOf), ...forbiddenFor(null)].includes(name)
+    );
+    await page.keyboard.press('Escape');
+    await page.locator('#layer-menu .pop').waitFor({ state: 'detached' });
+
+    mark = requests.length;
+    await page.locator('#dock .di[data-app="launchpad"]').click();
+    await page.waitForFunction(() => document.activeElement?.matches('#lpad [data-lq]'));
+    lazyLoading.launchpadOnDemand = onlyOpened(mark, 'app-launchpad');
+    await page.keyboard.press('Escape');
+    await page.locator('app-launchpad').waitFor({ state: 'detached' });
+
+    mark = requests.length;
+    await page.keyboard.press('Meta+Space');
+    await page.waitForFunction(() => document.activeElement?.matches('#spot [data-sq]'));
+    lazyLoading.spotlightOnDemand = onlyOpened(mark, 'app-spotlight');
+    await page.keyboard.press('Escape');
+    await page.locator('app-spotlight').waitFor({ state: 'detached' });
+
+    const openPanel = async (key, selector) => {
+      const button = page.locator(`#menubar [data-st="${key}"]`);
+      await button.press('Enter');
+      await page.waitForFunction(selector => document.activeElement?.closest(selector), selector);
+      await page.keyboard.press('Escape');
+      await page.locator(selector).waitFor({ state: 'detached' });
+      return button.evaluate(node => node === document.activeElement);
+    };
+    const panelsOnDemand = [];
+    for (const [key, selector] of Object.entries(PANELS)) {
+      mark = requests.length;
+      const refocused = await openPanel(key, selector);
+      panelsOnDemand.push(onlyOpened(mark, selector) && refocused);
+    }
+    lazyLoading.statusPanelsOnDemand = panelsOnDemand.every(Boolean);
+    mark = requests.length;
+    lazyLoading.reopensWithoutRequests = (await openPanel('wifi', PANELS.wifi)) && scriptsSince(mark).length === 0;
 
     /* AC#5：只打开应用 A（Calculator），只加载它自己的 chunk，别的应用的组件与独有的种子都不下载。 */
     mark = requests.length;
@@ -253,6 +341,10 @@ export const lazyLoading = {
       (await showsSeededWidgets()) &&
       (await databaseHoldsSeeds()) &&
       (await markerKeys()).includes('seed:reminders');
+    lazyLoading.notificationCentreOnDemand =
+      onlyOpened(mark, 'app-notification-centre') &&
+      notificationWidgets.length === 3 &&
+      notificationWidgets.every(name => !before(mark).includes(name) && scriptsSince(mark).includes(name));
     const widgetScripts = scriptsSince(mark);
     await page.locator('#menubar #mb-clock').dispatchEvent('mousedown');
     await page.waitForTimeout(500);
@@ -316,6 +408,47 @@ export const lazyLoading = {
       }
     );
     lazyLoading.bundledHtmlFreshOnReopen = removed && entriesSince(0, isGameEntry) === 2;
+
+    await closeAll();
+    mark = requests.length;
+    await launch('Terminal');
+    await win('terminal').locator('.xterm-helper-textarea').waitFor();
+    lazyLoading.terminalRuntimeOnDemand =
+      terminalRuntime.length > 0 &&
+      terminalRuntime.every(name => !before(mark).includes(name) && scriptsSince(mark).includes(name));
+
+    await closeAll();
+    const forceQuit = page.locator('app-force-quit-panel');
+    const openForceQuit = async () => {
+      await page.locator('#menubar .mb-item.apple').dispatchEvent('mousedown');
+      await page.getByRole('menuitem', { name: /Force Quit/ }).click();
+    };
+    const panelUrl = `${origin}/${chunkOf('app-force-quit-panel')[0]}`;
+    const resume = Promise.withResolvers();
+    await page.route(
+      panelUrl,
+      async route => {
+        await resume.promise;
+        await route.continue();
+      },
+      { times: 1 }
+    );
+    await Promise.all([page.waitForRequest(panelUrl), openForceQuit()]);
+    await page.keyboard.press('Escape');
+    await page.locator('#menu-shield.on').waitFor({ state: 'detached' });
+    const loaded = page.waitForEvent('requestfinished', request => request.url() === panelUrl);
+    resume.resolve();
+    await loaded;
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    lazyLoading.dismissedPanelStaysClosed =
+      (await forceQuit.count()) === 0 && (await page.locator('#menu-shield.on').count()) === 0;
+
+    await session.reloadDesktop();
+    await page.route(panelUrl, route => route.abort(), { times: 1 });
+    await openForceQuit();
+    await page.getByRole('status').filter({ hasText: 'Could not load this panel' }).waitFor();
+    lazyLoading.failedPanelReleasesDesktop =
+      (await forceQuit.count()) === 0 && (await page.locator('#menu-shield.on').count()) === 0;
 
     return { lazyLoading };
   }

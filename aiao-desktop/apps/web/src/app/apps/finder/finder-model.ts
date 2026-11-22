@@ -3,6 +3,11 @@ import { FsNode, visibleChildren } from '../../disk/disk-tree';
 import { FileSystem } from '../../services/file-system';
 import { USER_PROFILE } from '../../shared/user-profile';
 
+export interface FileOperationRequest {
+  readonly kind: 'rename' | 'restore' | 'open-with';
+  readonly node: FsNode;
+}
+
 export type FinderSort = 'name' | 'date' | 'size' | 'kind';
 
 /** 侧栏分组；图标以 `dot#` 开头的是标签色点。 */

@@ -2,12 +2,18 @@ import { Service, Type, WritableSignal, computed, signal } from '@angular/core';
 
 import { MenuEntry } from './menu';
 
+export interface PopoverComponentLoader {
+  readonly load: () => Promise<Type<unknown>>;
+}
+
+export type PopoverComponent = Type<unknown> | PopoverComponentLoader;
+
 /** 弹出层内容：标准菜单，或任意面板组件（组件宿主元素即弹出层根节点）。 */
 export type PopoverContent =
   | { readonly kind: 'menu'; readonly items: readonly MenuEntry[]; readonly cls: string }
   | {
       readonly kind: 'component';
-      readonly component: Type<unknown>;
+      readonly component: PopoverComponent;
       readonly inputs: Readonly<Record<string, unknown>>;
     };
 
@@ -100,7 +106,7 @@ export class PopoverService {
   }
 
   openComponent(
-    component: Type<unknown>,
+    component: PopoverComponent,
     options: PopoverOptions,
     inputs: Readonly<Record<string, unknown>> = {}
   ): void {

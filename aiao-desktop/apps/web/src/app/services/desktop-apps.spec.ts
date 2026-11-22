@@ -251,20 +251,22 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
       ...(capabilities === undefined ? { capabilities: undefined } : { capabilities })
     });
 
-  it('Aiao Code 只授予窗口、剪贴板与 US-208 显式文件复制能力', () => {
+  it('Aiao Code 获得窗口、剪贴板、文件复制与仓库工作区能力', () => {
     expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual([
       'window',
       'clipboard:read',
       'clipboard:write',
       'filesystem:read',
-      'filesystem:write'
+      'filesystem:write',
+      'workspace'
     ]);
     expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual([
       'window',
       'clipboard:read',
       'clipboard:write',
       'filesystem:read',
-      'filesystem:write'
+      'filesystem:write',
+      'workspace'
     ]);
   });
 
@@ -278,7 +280,7 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
     expect(grantedCapabilities(web('plain', []) as unknown as DesktopAppManifest)).toEqual([]);
     const everything = Object.values(DESKTOP_APP_MANIFESTS).flatMap(app => grantedCapabilities(app));
     expect(new Set(everything)).toEqual(
-      new Set(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write'])
+      new Set(['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write', 'workspace'])
     );
   });
 
@@ -304,7 +306,7 @@ describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
     );
     expect(problems).toEqual([
       'shape.capabilities：必须是数组',
-      'unknown.capabilities：teleport 不在允许清单（window、menu、app、appearance、appearance:write、notification、clipboard:read、clipboard:write、filesystem:read、filesystem:write）',
+      'unknown.capabilities：teleport 不在允许清单（window、menu、app、appearance、appearance:write、notification、clipboard:read、clipboard:write、filesystem:read、filesystem:write、workspace）',
       'twice.capabilities：window 重复',
       'writer.capabilities：appearance:write 必须同时声明 appearance（写入是在读取之上另外授予的）',
       'sys.capabilities：系统入口不开窗口，不能声明能力'

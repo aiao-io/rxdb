@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { combineLatest, map } from 'rxjs';
 
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
@@ -58,7 +59,7 @@ type MusicBody = 'search' | 'songs' | 'artists' | 'albums';
 })
 export class MusicApp {
   private readonly win = inject(DesktopWindow);
-  private readonly nowPlaying = inject(NowPlaying);
+  private readonly nowPlaying = inject(DesktopAppServices).get(NowPlaying);
   private readonly synth = new Synth();
   /** 专辑与歌曲一起读：两边都到齐才发出，曲库里不会出现指向未读到专辑的歌。 */
   private readonly library = liveQuery(

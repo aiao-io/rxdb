@@ -12,6 +12,7 @@ interface WorkerRequest {
   action: string;
   payload: {
     projectId: string;
+    url?: string;
     files?: SerializedFile[];
     paths?: string[];
     path?: string;
@@ -64,6 +65,7 @@ function isPayload(value: unknown): value is WorkerRequest['payload'] {
   if (value['destination'] !== undefined && typeof value['destination'] !== 'string') return false;
   if (value['removedPaths'] !== undefined && !isStringArray(value['removedPaths'])) return false;
   if (value['kind'] !== undefined && value['kind'] !== 'working' && value['kind'] !== 'staged') return false;
+  if (value['url'] !== undefined && typeof value['url'] !== 'string') return false;
   if (value['branch'] !== undefined && typeof value['branch'] !== 'string') return false;
   return value['force'] === undefined || typeof value['force'] === 'boolean';
 }
@@ -100,6 +102,7 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return payload.removedPaths === undefined ?
           git.save(projectId, files(payload.files), payload.expectedRevision)
         : git.save(projectId, files(payload.files), payload.expectedRevision, payload.removedPaths);
+    case 'committed': return git.committed(projectId);
     case 'snapshot':
       return git.snapshot(projectId);
     case 'remove':
@@ -132,10 +135,13 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.checkout(projectId, payload.branch ?? '', payload.force ?? false);
     case 'history':
       return git.history(projectId);
+    case 'diffText': return git.diffText(projectId,payload.kind === 'staged');
     case 'commitChanges':
       return git.commitChanges(projectId, payload.oid ?? '');
     case 'restore':
       return git.restore(projectId, payload.oid ?? '');
+    case 'origin': return git.origin(projectId);
+    case 'setOrigin': await git.setOrigin(projectId, payload.url ?? null); return null;
     case 'export':
       return git.exportArchive(projectId);
     case 'import':

@@ -1,7 +1,8 @@
-import { Component, ComponentRef, OnInit, ViewContainerRef, effect, inject, input } from '@angular/core';
+import { Component, ComponentRef, DestroyRef, OnInit, Type, ViewContainerRef, effect, inject, input } from '@angular/core';
 
 import { tabTarget } from '../../services/focus-order';
-import { PopoverEntry } from '../../services/popover';
+import { PopoverContent, PopoverEntry, PopoverOptions, PopoverService } from '../../services/popover';
+import { Toast } from '../../services/toast';
 import { tabbablesIn } from '../../shared/focus-trap';
 import { clamp } from '../../shared/format';
 import { MenuList } from '../../shared/menu-list';
@@ -21,6 +22,9 @@ import { MenuList } from '../../shared/menu-list';
 })
 export class PopoverEntryView implements OnInit {
   private readonly container = inject(ViewContainerRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly popover = inject(PopoverService);
+  private readonly toast = inject(Toast);
 
   private node: HTMLElement | null = null;
   readonly entry = input.required<PopoverEntry>();
@@ -33,20 +37,41 @@ export class PopoverEntryView implements OnInit {
 
   ngOnInit(): void {
     const { content, options } = this.entry();
-    const ref: ComponentRef<unknown> =
-      content.kind === 'menu' ?
-        this.container.createComponent(MenuList)
-      : this.container.createComponent(content.component);
+    if (content.kind === 'menu') {
+      this.render(MenuList, content, options);
+      return;
+    }
+    if (typeof content.component === 'object') {
+      void content.component.load().then(
+        component => this.render(component, content, options),
+        () => {
+          if (!this.active()) return;
+          this.popover.close(true);
+          this.toast.show('Could not load this panel. Reload the desktop to try again.');
+        }
+      );
+      return;
+    }
+    this.render(content.component, content, options);
+  }
+
+  private active(): boolean {
+    return !this.destroyRef.destroyed && this.popover.active() === this.entry();
+  }
+
+  private render(component: Type<unknown>, content: PopoverContent, options: PopoverOptions): void {
+    if (!this.active()) return;
+    const ref: ComponentRef<unknown> = this.container.createComponent(component);
     const inputs =
       content.kind === 'menu' ? { items: content.items, cls: content.cls, label: options.label ?? '' } : content.inputs;
     Object.entries(inputs).forEach(([name, value]) => ref.setInput(name, value));
 
     const node = ref.location.nativeElement as HTMLElement;
     this.node = node;
-    if (this.entry().leaving()) this.markLeaving();
     if (content.kind === 'component') node.addEventListener('keydown', event => this.trap(event, node));
     node.style.visibility = 'hidden';
     requestAnimationFrame(() => {
+      if (!this.active()) return;
       const rect = node.getBoundingClientRect();
       const left = clamp(options.right ? options.x - rect.width : options.x, 6, innerWidth - rect.width - 6);
       node.style.left = `${left}px`;

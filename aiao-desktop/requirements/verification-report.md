@@ -1,5 +1,15 @@
 # Aiao Desktop 验收台账
 
+## 2026-11-22 桌面冷启动与首次使用时加载（ADESK-US-130）
+
+在 `da37458be` 基线上构建了对照产物与包含本次改动的工作区产物。两份构建均使用 `pnpm nx run aiao-desktop-web:build --configuration=production`。静态脚本闭包与 CSS 从 1,422,344 B 降至 1,274,337 B，逐文件 gzip（level 9）从 440,729 B 降至 398,798 B。现有 initial 告警线为 1.30 MB。 限速 Chromium 的冷启动中位数从 14.837 s 降至 13.379 s，缩短 1.458 s（9.8%）。产物标识、逐文件字节与 SHA-256 见[构建与冷启动比较](evidence/2026-11-22/startup-comparison.json)。
+
+- 无头 Chromium 159.0.8154.6，Darwin 24.6.0 x64，Intel Core i9-9900K，Node 26.13.0。网络检查从空库进入 `?boot=0` 开始，拦截外网，独立查看首次打开与重复打开的请求。生产构建通过了应用、浮层、通知小组件、窗口关闭期间返回的请求和加载失败检查。[懒加载报告](evidence/2026-11-22/lazy-loading.json)
+- 开机与锁屏、保存亮度后的首屏、状态面板键盘焦点和真实 Service Worker 的离线重开均有浏览器检查。[外壳报告](evidence/2026-11-22/shell-interaction.json)、[PWA 报告](evidence/2026-11-22/pwa.json)
+- 浏览器检查使用 `pnpm nx run aiao-desktop-e2e:e2e --args='--group=lazy-loading --parallel=1'`。将组名换为 `shell-interaction`、`pwa` 可复验外壳与离线路径。
+- 同一产物在 `disk-terminal` 与 `local-mail` 组通过。`file-management` 首轮等待导入文件超时，独立复跑通过。Web 和 E2E 的 lint、Web 类型检查及产品需求门禁均通过。Web 串行单测通过 1,903 项，全项目逐文件覆盖率门禁在并行开发的 Git 工作区、Git 邮箱等模块报告缺口。 SQLite 适配器串行运行时有 5 项 OPFS 恢复中断测试超时，独立复跑同一文件通过 59 项，跳过 13 项。
+- 对照命令为 `pnpm nx run aiao-desktop-e2e:compare-initial --args='--baseline-dist=<基线 browser 目录> --baseline-sha=da37458be --current-sha=<被测产物标识> --measure-startup'`。耗时取两个版本交替先后的五次新上下文采样中位数，起点为导航开始，终点为跳过开机后首次显示 Finder 内容和 Dock 图标。使用本地静态服务，CDP 模拟 30 ms 网络延迟与上下行 10 Mbps，关闭 GPU、HTTP 缓存和 Service Worker。体积按文件直接计算。
+
 ## 2026-11-21：浏览器会话恢复与 GitHub 工作台收尾
 
 本次收尾完成 ADESK-US-128 和 ADESK-US-209。故事 YAML 现为 46 条 `Done`、1 条 `In Review`、0 条 `In Progress`、0 条 `Backlog`。唯一保留的人工验收是 ADESK-US-108 的 VoiceOver 播报，按用户要求延期。

@@ -56,6 +56,7 @@ export class DesktopShell {
   private readonly windows = inject(WindowManager);
   private readonly document = inject(DOCUMENT);
   protected readonly replaced = toSignal(this.data.locationGuard.replaced$, { initialValue: false });
+  protected readonly problem = this.data.problem;
   protected readonly toast = inject(Toast);
   protected readonly session = inject(Session);
   /** 锁屏、开机画面、睡眠或本地数据问题的阻断界面盖住了桌面。 */

@@ -6,6 +6,12 @@
 
 先用门禁与冒烟守住产品结构和既有桌面行为（[ADESK-EPIC-001](epics/ADESK-EPIC-001.md)、[ADESK-EPIC-002](epics/ADESK-EPIC-002.md)），再按具体场景扩展。
 
+## 已立项的新方向
+
+[Tauri 原生桌面版与本地运行时](epics/ADESK-EPIC-005.md) 已从候选方向进入 Backlog。首版故事覆盖安装启动、工作区迁移、升级卸载和故障恢复，目标平台先定为 macOS 与 Windows。它不会改变当前浏览器版和 PWA 的交付边界，也不承诺浏览器与安装版实时同步。
+
+[远程应用仿真与调度](epics/ADESK-EPIC-006.md) 已从候选方向进入 Backlog，具体范围由 [ADESK-US-210](stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md) 定义。它把 local-first 桌面扩展为本地控制面和仿真显示面，后续可在本地操作授权的远程 Claude 工具、读取远程 Finder、使用远程机器的网络出口，并接收远程执行结果。真实远程机器、协议、权限、断线恢复和调度器完成范围评审前，不进入当前交付承诺。
+
 ## 候选方向
 
 以下方向仍需要具体使用场景、能力缺口和独立验收范围后再立故事，不随当前故事自动承诺：

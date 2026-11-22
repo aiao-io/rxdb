@@ -130,7 +130,8 @@ export class WindowManager {
       this.toast.show(`Unknown app: ${appId}`);
       return null;
     }
-    const existing = options.force || app.single === false ? undefined : this.byApp(appId).at(-1);
+    const candidates = this.byApp(appId);
+    const existing = options.force ? undefined : options.projectId ? candidates.find(win => (win.restoreOptions()?.projectId ?? win.options.projectId) === options.projectId) : app.single === false ? undefined : candidates.at(-1);
     if (existing) {
       if (existing.minimized()) this.unminimize(existing.id);
       else this.focus(existing.id);

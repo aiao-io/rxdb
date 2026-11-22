@@ -45,6 +45,7 @@ async function setup() {
   const log: string[] = [];
   const vivari = {
     fs: {
+      mkdir: vi.fn(async () => undefined), rm: vi.fn(async () => undefined), readdir: vi.fn(async () => []),
       readFile: vi.fn(async () => 'SHELL-SOURCE'),
       writeFile: vi.fn<(path: string, data: string) => Promise<void>>(async () => undefined)
     },
@@ -114,6 +115,7 @@ describe('VirtualMachine 开机与关机', () => {
     expect(written.get('/bin/sh.js')).toBe('patched:SHELL-SOURCE');
     expect([...written.keys()].sort()).toEqual([
       '/bin/cp.js',
+      '/bin/git.js',
       '/bin/mv.js',
       '/bin/open.js',
       '/bin/sh.js',
