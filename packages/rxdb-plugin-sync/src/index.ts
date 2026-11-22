@@ -67,7 +67,9 @@ export {
   canonicalize,
   filterFingerprint,
   identityFingerprint,
+  scopedIdentityKind,
   scopedDatabaseName,
+  type ScopedIdentityKind,
   type ScopedSyncAdapter,
   type ScopedSyncIdentity,
   type ScopedSyncIdentitySource

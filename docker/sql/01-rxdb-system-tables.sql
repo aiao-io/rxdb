@@ -51,7 +51,19 @@ SET
     WHEN type = 'DELETE' THEN COALESCE(patch, "inversePatch") IS NOT NULL
     ELSE false
   END
-WHERE NOT "snapshotComplete";
+WHERE NOT "snapshotComplete"
+  AND "bucket" IS NULL;
+
+-- 分区日志只保存授权元数据。旧库里已经存在的分区正文不能继续留在日志表中，
+-- 否则业务表权限收紧后仍能从日志历史读到敏感列。
+UPDATE public.rxdb_change
+SET
+  patch = NULL,
+  "inversePatch" = NULL,
+  "beforeData" = NULL,
+  "afterData" = NULL,
+  "snapshotComplete" = false
+WHERE "bucket" IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_entity ON public.rxdb_change(entity);
 CREATE INDEX IF NOT EXISTS idx_rxdb_change_entity_id ON public.rxdb_change("entityId");

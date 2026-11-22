@@ -354,6 +354,7 @@ DECLARE
   v_exists boolean;
   v_rls_enabled boolean;
   v_rls_forced boolean;
+  v_relation_kind text;
   result jsonb := '[]'::jsonb;
 BEGIN
   FOR item IN SELECT * FROM pg_catalog.jsonb_array_elements(p_tables)
@@ -372,25 +373,33 @@ BEGIN
     SELECT
       TRUE,
       c.relrowsecurity,
-      c.relforcerowsecurity
-    INTO v_exists, v_rls_enabled, v_rls_forced
+      c.relforcerowsecurity,
+      CASE c.relkind
+        WHEN 'r' THEN 'table'
+        WHEN 'p' THEN 'partitioned_table'
+        WHEN 'v' THEN 'view'
+        ELSE c.relkind::text
+      END
+    INTO v_exists, v_rls_enabled, v_rls_forced, v_relation_kind
     FROM pg_catalog.pg_class AS c
     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
     WHERE n.nspname = v_schema
       AND c.relname = v_table
-      AND c.relkind IN ('r', 'p');
+      AND c.relkind IN ('r', 'p', 'v');
 
     result := result || pg_catalog.jsonb_build_object(
       'schema', v_schema,
       'table', v_table,
       'exists', COALESCE(v_exists, false),
       'rlsEnabled', COALESCE(v_rls_enabled, false),
-      'rlsForced', COALESCE(v_rls_forced, false)
+      'rlsForced', COALESCE(v_rls_forced, false),
+      'relationKind', v_relation_kind
     );
 
     v_exists := NULL;
     v_rls_enabled := NULL;
     v_rls_forced := NULL;
+    v_relation_kind := NULL;
   END LOOP;
 
   RETURN result;
@@ -757,6 +766,12 @@ DECLARE
   max_change_id bigint := NULL;
   mapped_max_change_id bigint := NULL;
   change_id_mapping jsonb := '[]'::jsonb;
+  normalized_changes jsonb := '[]'::jsonb;
+  v_change jsonb;
+  v_table_name text;
+  v_bucket_column text;
+  v_bucket text;
+  v_entity_id text;
   v_branch_id text;
 BEGIN
   IF pg_catalog.current_setting('rxdb.insert_changes', true) IS DISTINCT FROM 'on' THEN
@@ -778,28 +793,79 @@ BEGIN
     PERFORM public.rxdb_claim_branch(v_branch_id);
   END LOOP;
 
+  -- 分区日志的 bucket 必须来自实际业务行或服务端固化的前后快照，不能信任客户端自行
+  -- 填入的元数据。主分支的业务写已经在调用方事务中完成，SECURITY DEFINER 可以读取
+  -- 最终行；删除则使用调用方在同一事务里捕获的 beforeData。
+  FOR v_change IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
+  LOOP
+    SELECT "tableName", "bucketColumn"
+    INTO v_table_name, v_bucket_column
+    FROM public.rxdb_sync_entity
+    WHERE namespace = v_change->>'namespace'
+      AND entity = v_change->>'entity';
+
+    IF v_bucket_column IS NOT NULL THEN
+      v_entity_id := v_change->>'entityId';
+      v_bucket := NULL;
+
+      IF v_change->>'type' <> 'DELETE' THEN
+        EXECUTE pg_catalog.format(
+          'SELECT %I::text FROM %I.%I WHERE id::text = $1 LIMIT 1',
+          v_bucket_column,
+          COALESCE(v_change->>'schema', 'public'),
+          v_table_name
+        ) INTO v_bucket USING v_entity_id;
+      END IF;
+
+      v_bucket := COALESCE(
+        NULLIF(v_bucket, ''),
+        NULLIF(v_change->'afterData'->>v_bucket_column, ''),
+        NULLIF(v_change->'beforeData'->>v_bucket_column, ''),
+        NULLIF(v_change->>'bucket', '')
+      );
+      IF v_bucket IS NULL THEN
+        RAISE EXCEPTION 'rxdb: bucketed change %.%/% has no bucket',
+          v_change->>'namespace', v_change->>'entity', v_entity_id
+          USING ERRCODE = 'not_null_violation';
+      END IF;
+      v_change := pg_catalog.jsonb_set(v_change, ARRAY['bucket'], pg_catalog.to_jsonb(v_bucket), true);
+    END IF;
+
+    normalized_changes := normalized_changes || pg_catalog.jsonb_build_array(v_change);
+  END LOOP;
+
   WITH inserted AS (
     INSERT INTO public.rxdb_change (
-      namespace, entity, "entityId", type, patch, "inversePatch",
+      namespace, entity, bucket, "entityId", type, patch, "inversePatch",
       "branchId", "clientId", "localId", "createdAt", "updatedAt",
       "beforeData", "afterData", "snapshotComplete"
     )
     SELECT
       c->>'namespace',
       c->>'entity',
+      c->>'bucket',
       c->>'entityId',
       c->>'type',
-      c->'patch',
-      c->'inversePatch',
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'patch' END,
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'inversePatch' END,
       COALESCE(c->>'branchId', 'main'),
       c->>'clientId',
       (c->>'localId')::integer,
       COALESCE((c->>'createdAt')::timestamptz, pg_catalog.now()),
       COALESCE((c->>'updatedAt')::timestamptz, pg_catalog.now()),
-      c->'beforeData',
-      c->'afterData',
-      COALESCE((c->>'snapshotComplete')::boolean, false)
-    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'beforeData' END,
+      CASE WHEN metadata.bucketed THEN NULL ELSE c->'afterData' END,
+      CASE WHEN metadata.bucketed THEN false ELSE COALESCE((c->>'snapshotComplete')::boolean, false) END
+    FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS changes(c, ordinality)
+    CROSS JOIN LATERAL (
+      SELECT EXISTS (
+        SELECT 1
+        FROM public.rxdb_sync_entity AS entity
+        WHERE entity.namespace = c->>'namespace'
+          AND entity.entity = c->>'entity'
+          AND entity."bucketColumn" IS NOT NULL
+      ) AS bucketed
+    ) AS metadata
     ORDER BY ordinality
     ON CONFLICT ("clientId", "localId")
       WHERE "clientId" IS NOT NULL AND "localId" IS NOT NULL
@@ -815,7 +881,7 @@ BEGIN
       c->>'clientId' AS client_id,
       (c->>'localId')::integer AS local_id,
       pg_catalog.min(ordinality) AS ordinality
-    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS changes(c, ordinality)
+    FROM pg_catalog.jsonb_array_elements(normalized_changes) WITH ORDINALITY AS changes(c, ordinality)
     WHERE c->>'clientId' IS NOT NULL AND c->>'localId' IS NOT NULL
     GROUP BY c->>'clientId', (c->>'localId')::integer
   )

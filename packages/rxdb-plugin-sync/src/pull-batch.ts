@@ -22,6 +22,7 @@ import {
   LWWConflictResolver,
   type PullBatchRequest,
   type PullResult,
+  type RxDBAdapterRemoteBase,
   type RemoteChange,
   RxDBChange,
   RxDBError,
@@ -173,6 +174,10 @@ async function pullBatchOnce(
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const allRepos: RepoSyncInfo[] = [];
 
+  const bucketedAdapter = remoteAdapter as RxDBAdapterRemoteBase & {
+    getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
+  };
+
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.entitySync);
@@ -193,6 +198,11 @@ async function pullBatchOnce(
       },
       () => instantiateSyncRecord(sm)
     );
+
+    if (typeof bucketedAdapter.getEntitySyncInfo === 'function') {
+      const syncInfo = await bucketedAdapter.getEntitySyncInfo(metadata.namespace, metadata.name);
+      if (syncInfo.bucketed) continue;
+    }
 
     // 批量是枚举路径 —— 被关掉的仓库跳过而不是让整批失败
     if (!isRepositorySyncEnabled(repoSync)) continue;

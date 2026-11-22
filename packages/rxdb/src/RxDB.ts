@@ -83,6 +83,7 @@ import {
   assertIdentityBinding,
   assertRxDBIdentity,
   getRxDBIdentityKey,
+  identityClaimName,
   identityWatermarkName,
   RxDBIdentityMismatchError,
   type CallerIdentityReporter
@@ -1253,7 +1254,7 @@ export class RxDB {
             // 首轮引导即完成：指纹随建表同批写入，第二次连接直接走指纹跳过。
             this.#bootstrapFingerprintRow(bootstrapFingerprint),
             // 新库在建库时就记下身份：与表同批原子提交，不存在「库建好了、还没绑定」的窗口
-            ...(identityKey === undefined ? [] : [this.#identityBindingRow(identityKey)])
+            ...(identityKey === undefined ? [] : [this.#identityBindingClaimRow(), this.#identityBindingRow(identityKey)])
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
@@ -2331,6 +2332,14 @@ export class RxDB {
     return record;
   }
 
+  /** 首次绑定的固定竞争行；不同身份必须在同一唯一键上竞争。 */
+  #identityBindingClaimRow(): RxDBMigration {
+    const record = this.entityManager.instantiate(RxDBMigration);
+    record.name = identityClaimName();
+    record.executedAt = new Date();
+    return record;
+  }
+
   /**
    * 把身份绑定写进既有库的 `rxdb_migration`。
    *
@@ -2343,22 +2352,26 @@ export class RxDB {
    * 同一身份并发写下同一行时唯一索引挡下后者，行里的值正是它要写的，当作已写入。
    */
   async #recordIdentityBinding(adapter: RxDBAdapterLocalBase, identityKey: string): Promise<void> {
-    await adapter.bootstrapTransaction(async executor => {
-      const repository = executor.getRepository(RxDBMigration);
-      const records = await repository.find({ where: { combinator: 'and', rules: [] } });
-      if (
-        assertIdentityBinding(
-          records.map(record => record.name),
-          identityKey
-        )
-      )
-        return;
+    for (;;) {
       try {
-        await repository.create(this.#identityBindingRow(identityKey));
+        await adapter.bootstrapTransaction(async executor => {
+          const repository = executor.getRepository(RxDBMigration);
+          const records = await repository.find({ where: { combinator: 'and', rules: [] } });
+          if (
+            assertIdentityBinding(
+              records.map(record => record.name),
+              identityKey
+            )
+          )
+            return;
+          await repository.create(this.#identityBindingClaimRow());
+          await repository.create(this.#identityBindingRow(identityKey));
+        }, false);
+        return;
       } catch (error) {
         if (!isUniqueConstraintViolation(error)) throw error;
       }
-    }, false);
+    }
   }
 
   /**

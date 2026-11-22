@@ -202,6 +202,7 @@ export interface SupabaseRlsCheckResult {
   table: string;
   exists: boolean;
   rlsEnabled: boolean;
+  relationKind?: 'table' | 'partitioned_table' | 'view' | string;
 }
 
 export type RetryableWriteResponse = {

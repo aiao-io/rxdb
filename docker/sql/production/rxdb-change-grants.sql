@@ -88,6 +88,9 @@ BEGIN
     'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)',
     'public.rxdb_jsonb_matches_rule(jsonb, jsonb)',
     'public.rxdb_jsonb_matches_filter(jsonb, jsonb)',
+    'public.rxdb_selectable_columns(text, text)',
+    'public.rxdb_assert_snapshot_filter_columns(jsonb, text[])',
+    'public.rxdb_selectable_row_expression(text[])',
     'public.rxdb_enable_sync_for_branch(jsonb)',
     'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)',
     'public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb)',
@@ -118,6 +121,9 @@ GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jso
 -- 快照 RPC 在调用者权限下执行，需允许它使用纯 JSON filter helper；helper 不访问业务表。
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_selectable_columns(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_assert_snapshot_filter_columns(jsonb, text[]) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_selectable_row_expression(text[]) TO anon, authenticated;
 
 -- 部署时调用的建表辅助函数不对 anon 开放
 REVOKE ALL ON FUNCTION public.rxdb_enable_sync_for_table(text, text, text) FROM PUBLIC, anon;
@@ -125,6 +131,7 @@ REVOKE ALL ON FUNCTION public.rxdb_enable_sync_for_table(text, text, text) FROM 
 -- 只由 SECURITY DEFINER 函数与触发器内部调用，不授给任何客户端角色
 REVOKE ALL ON FUNCTION public.rxdb_claim_branch(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_strip_bucket_change_payload() FROM PUBLIC, anon, authenticated;
 
 -- 4. 实时变更通知：Realtime 在加入私有频道时以登录用户身份试读 realtime.messages，有 SELECT 策略才放行。
 -- 只建 SELECT 策略、不建 INSERT 策略：广播只由日志插入触发器经 realtime.send 写入，客户端发不了伪造通知。

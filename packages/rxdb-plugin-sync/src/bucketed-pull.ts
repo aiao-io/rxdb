@@ -1,15 +1,11 @@
 import {
   compactChanges,
-  declareTrustedWrite,
   getRxDBChangeKey,
-  getRxDBEntityIdentityKey,
   isEntityMatchWhere,
   LWWConflictResolver,
-  parseRxDBEntityIdentityKey,
   RxDBChange,
   RxDBError,
   RxDBSync,
-  TrustedWriteIntent,
   type EntityType,
   type IRepository,
   type PullRepositoryOptions,
@@ -18,7 +14,6 @@ import {
   type RuleGroup,
   type RxDBAdapterLocalBase,
   type RxDBAdapterRemoteBase,
-  type RxDBEntityId
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
 import {
@@ -30,8 +25,19 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
+import {
+  entityIdentityKey,
+  findBucketRows,
+  findRowsWithoutMappings,
+  localIdCandidates,
+  localIdCandidatesFromStoredIdentity,
+  removeBucketScope,
+  scopedEntityKey,
+  type BucketScope
+} from './bucketed-scope-cleanup.js';
 import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
+import { RemoteBackendMismatchError } from './remote-backend.js';
 
 type BucketedRemoteAdapter = RxDBAdapterRemoteBase & ScopedSyncAdapter;
 
@@ -40,14 +46,6 @@ interface ScopedChange extends RemoteChange {
   afterData?: Record<string, unknown> | null;
   snapshotComplete?: boolean;
   bucket?: string | null;
-}
-
-interface BucketScope {
-  namespace: string;
-  entity: string;
-  branchId: string;
-  bucket: string;
-  filterFingerprint: string;
 }
 
 interface BucketPullResult {
@@ -115,6 +113,7 @@ async function pullBucketedRepository(
   options: PullRepositoryOptions,
   filter: RuleGroup | undefined
 ): Promise<PullRepositoryResult> {
+  await sm.verifyRemoteBackend();
   const branchId = branchIds[0];
   const fingerprint = filterFingerprint(filter);
   const buckets = [...new Set(await remoteAdapter.getCallerBuckets())].sort();
@@ -169,6 +168,7 @@ async function pullBucketedRepository(
       hasMore ||= result.hasMore;
       completedBuckets.add(bucket);
     } catch (error) {
+      hasMore = true;
       failures.push({
         repository: { namespace, entity },
         error: error instanceof Error ? error : new Error(String(error))
@@ -191,18 +191,10 @@ async function pullBucketedRepository(
     }
   }
 
-  const cursors = await findRepositoryProgress(
-    localAdapter.getRepository(RxDBSyncBucketProgress),
-    namespace,
-    entity,
-    branchId
-  );
-  const latestCursor = cursors.reduce((latest, progress) => Math.max(latest, progress.cursor), 0);
   const now = new Date();
   await localAdapter.transaction(async executor => {
     const repository = executor.getRepository(RxDBSync);
     await repository.update(repoSync, {
-      lastPullRemoteChangeId: latestCursor,
       lastPulledAt: now,
       updatedAt: now
     });
@@ -245,8 +237,16 @@ async function pullBucketScope(
   let historyInvalidated = false;
   let hasMore: boolean;
 
+  if (progress && progress.remoteBackendId !== sm.remoteBackendId) {
+    await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+    progress = undefined;
+    persistedProgress = true;
+  }
+
   if (!progress) {
+    await sm.verifyRemoteBackend();
     const snapshotPoint = await remoteAdapter.getBucketSnapshotPoint(scope.namespace, scope.entity, scope.bucket);
+    await sm.verifyRemoteBackend();
     progress = await localAdapter.transaction(async executor => {
       const repository = executor.getRepository(RxDBSyncBucketProgress);
       const current = await findProgress(repository, scope);
@@ -275,70 +275,89 @@ async function pullBucketScope(
   }
 
   while (!progress.snapshotComplete) {
-    const rows = await remoteAdapter.pullBucketSnapshot(
-      scope.namespace,
-      scope.entity,
-      scope.bucket,
-      filter,
-      progress.snapshotOffset,
-      options.limit ?? 1000
-    );
-    pulled += rows.length;
-    const snapshotComplete = rows.length < (options.limit ?? 1000);
-    const result = await applyScopedSnapshot(
-      sm,
-      localAdapter,
-      EntityType,
-      repoSync,
-      scope,
-      progress,
-      rows,
-      snapshotComplete,
-      filter,
-      conflictResolver
-    );
-    applied += result.applied;
-    conflictsResolved += result.conflictsResolved;
-    historyInvalidated ||= result.applied > 0;
-    persistedProgress = true;
-    progress = result.progress;
-    if (!snapshotComplete) continue;
+    try {
+      await sm.verifyRemoteBackend();
+      const rows = await remoteAdapter.pullBucketSnapshot(
+        scope.namespace,
+        scope.entity,
+        scope.bucket,
+        filter,
+        progress.snapshotOffset,
+        options.limit ?? 1000
+      );
+      await sm.verifyRemoteBackend();
+      pulled += rows.length;
+      const snapshotComplete = rows.length < (options.limit ?? 1000);
+      const result = await applyScopedSnapshot(
+        sm,
+        localAdapter,
+        EntityType,
+        repoSync,
+        scope,
+        progress,
+        rows,
+        snapshotComplete,
+        filter,
+        conflictResolver
+      );
+      await sm.verifyRemoteBackend();
+      applied += result.applied;
+      conflictsResolved += result.conflictsResolved;
+      historyInvalidated ||= result.applied > 0;
+      persistedProgress = true;
+      progress = result.progress;
+      if (!snapshotComplete) continue;
+    } catch (error) {
+      if (error instanceof RemoteBackendMismatchError) {
+        await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+      }
+      throw error;
+    }
   }
 
   let cursor = progress.cursor;
-  do {
-    const changes = await pullScopedAncestorChanges(
-      remoteAdapter,
-      cursor,
-      options.limit ?? 1000,
-      scope,
-      branchIds,
-      filter
-    );
-    pulled += changes.length;
-    hasMore = changes.length >= (options.limit ?? 1000);
-    if (changes.length === 0) break;
+  try {
+    do {
+      await sm.verifyRemoteBackend();
+      const changes = await pullScopedAncestorChanges(
+        remoteAdapter,
+        cursor,
+        options.limit ?? 1000,
+        scope,
+        branchIds,
+        filter
+      );
+      pulled += changes.length;
+      hasMore = changes.length >= (options.limit ?? 1000);
+      if (changes.length === 0) break;
 
-    await sm.verifyRemoteBackend();
-    const result = await applyScopedChanges(
-      sm,
-      localAdapter,
-      EntityType,
-      repoSync,
-      scope,
-      progress,
-      changes,
-      filter,
-      conflictResolver
-    );
-    applied += result.applied;
-    compacted += result.compacted;
-    conflictsResolved += result.conflictsResolved;
-    historyInvalidated ||= result.applied > 0;
-    persistedProgress = true;
-    progress = result.progress;
-    cursor = progress.cursor;
-  } while (hasMore && options.fetchAll);
+      await sm.verifyRemoteBackend();
+      const result = await applyScopedChanges(
+        sm,
+        localAdapter,
+        EntityType,
+        repoSync,
+        scope,
+        progress,
+        changes,
+        filter,
+        conflictResolver
+      );
+      applied += result.applied;
+      compacted += result.compacted;
+      conflictsResolved += result.conflictsResolved;
+      historyInvalidated ||= result.applied > 0;
+      persistedProgress = true;
+      progress = result.progress;
+      await sm.verifyRemoteBackend();
+      cursor = progress.cursor;
+    } while (hasMore && options.fetchAll);
+  } catch (error) {
+    if (error instanceof RemoteBackendMismatchError) {
+      await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+    }
+    throw error;
+  }
 
   return { pulled, compacted, applied, conflictsResolved, persistedProgress, historyInvalidated, hasMore };
 }
@@ -608,109 +627,6 @@ function latestChangesByEntityId(changes: RemoteChange[]): Map<string, RemoteCha
   return result;
 }
 
-async function removeBucketScope(
-  localAdapter: RxDBAdapterLocalBase,
-  EntityType: EntityType,
-  repoSync: RxDBSync,
-  scope: BucketScope,
-  progress: RxDBSyncBucketProgress
-): Promise<boolean> {
-  return localAdapter.transaction(async executor => {
-    const rowRepository = executor.getRepository(RxDBSyncBucketRow);
-    const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
-    const changeRepository = executor.getRepository(RxDBChange);
-    const entityRepository = executor.getRepository(EntityType);
-    const rows = await findBucketRows(rowRepository, scope);
-    const entityIds = new Set(rows.map(row => row.entityId));
-    for (const row of rows) await rowRepository.remove(row);
-    const cleanupIds = await findRowsWithoutMappings(
-      rowRepository,
-      entityRepository,
-      changeRepository,
-      scope,
-      entityIds,
-      repoSync.lastPushedChangeId
-    );
-    const actions = createEmptyActions();
-    for (const entityId of cleanupIds) {
-      const key = scopedEntityKey(scope, entityId);
-      actions.deletes.set(key, { patch: null, inversePatch: null });
-    }
-    if (actions.deletes.size > 0) {
-      declareTrustedWrite(executor, {
-        file: 'bucketed-pull.ts',
-        symbol: 'removeBucketScope',
-        intent: TrustedWriteIntent.remote_sync
-      });
-      await executor.mergeChanges(actions, undefined, true);
-    }
-    await progressRepository.remove(progress);
-    return rows.length > 0 || actions.deletes.size > 0 || progress.id.length > 0;
-  });
-}
-
-async function findRowsWithoutMappings(
-  rowRepository: IRepository<typeof RxDBSyncBucketRow>,
-  entityRepository: IRepository<EntityType>,
-  changeRepository: IRepository<typeof RxDBChange>,
-  scope: BucketScope,
-  entityIds: Iterable<string>,
-  lastPushedChangeId: number | null
-): Promise<string[]> {
-  const result: string[] = [];
-  const ids = [...new Set(entityIds)];
-  if (ids.length === 0) return result;
-  const pending = await queryPendingLocalChanges(
-    changeRepository,
-    scope.namespace,
-    scope.entity,
-    scope.branchId,
-    lastPushedChangeId,
-    ids.flatMap(localIdCandidatesFromStoredIdentity)
-  );
-  for (const entityId of ids) {
-    const remaining = await findRowsByEntityId(rowRepository, scope, entityId);
-    if (remaining.length > 0 || pending.has(scopedEntityKey(scope, entityId))) continue;
-    const localEntity = await findLocalEntity(entityRepository, entityId);
-    if (localEntity) result.push(entityId);
-  }
-  return result;
-}
-
-async function findLocalEntity(
-  repository: IRepository<EntityType>,
-  entityIdentity: string
-): Promise<InstanceType<EntityType> | null> {
-  for (const candidate of localIdCandidatesFromStoredIdentity(entityIdentity)) {
-    const rows = await repository.find({
-      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: candidate }] }
-    } as never);
-    if (rows[0]) return rows[0];
-  }
-  return null;
-}
-
-function localIdCandidates(entityId: RxDBEntityId): RxDBEntityId[] {
-  const result: RxDBEntityId[] = [entityId];
-  if (typeof entityId === 'string' && /^-?(?:0|[1-9]\d*)$/.test(entityId)) {
-    const number = Number(entityId);
-    if (Number.isSafeInteger(number)) result.push(number);
-  }
-  return result;
-}
-
-function localIdCandidatesFromStoredIdentity(entityIdentity: string): RxDBEntityId[] {
-  const parsed = entityIdentity.startsWith('rxid1:') ? parseRxDBEntityIdentityKey(entityIdentity) : entityIdentity;
-  return localIdCandidates(parsed);
-}
-
-function entityIdentityKey(entityId: RxDBEntityId): string {
-  return getRxDBEntityIdentityKey(entityId);
-}
-
-function scopedEntityKey(scope: BucketScope, entityIdentity: string): string {
-  return `${scope.namespace}:${scope.entity}:${entityIdentity}`;
-}
 
 async function findProgress(
   repository: IRepository<typeof RxDBSyncBucketProgress>,
@@ -742,42 +658,6 @@ async function findRepositoryProgress(
   } as never);
 }
 
-async function findBucketRows(
-  repository: IRepository<typeof RxDBSyncBucketRow>,
-  scope: BucketScope
-): Promise<RxDBSyncBucketRow[]> {
-  return repository.find({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'namespace', operator: '=', value: scope.namespace },
-        { field: 'entity', operator: '=', value: scope.entity },
-        { field: 'branchId', operator: '=', value: scope.branchId },
-        { field: 'bucket', operator: '=', value: scope.bucket },
-        { field: 'filterFingerprint', operator: '=', value: scope.filterFingerprint }
-      ]
-    },
-    orderBy: [{ field: 'entityId', sort: 'asc' }]
-  } as never);
-}
-
-async function findRowsByEntityId(
-  repository: IRepository<typeof RxDBSyncBucketRow>,
-  scope: BucketScope,
-  entityId: string
-): Promise<RxDBSyncBucketRow[]> {
-  return repository.find({
-    where: {
-      combinator: 'and',
-      rules: [
-        { field: 'namespace', operator: '=', value: scope.namespace },
-        { field: 'entity', operator: '=', value: scope.entity },
-        { field: 'branchId', operator: '=', value: scope.branchId },
-        { field: 'entityId', operator: '=', value: entityId }
-      ]
-    }
-  } as never);
-}
 
 async function findBucketRow(
   repository: IRepository<typeof RxDBSyncBucketRow>,

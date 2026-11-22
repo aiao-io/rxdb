@@ -9,6 +9,7 @@ import {
   PullResult,
   RxDBError,
   RxDBPartialSyncError,
+  type RxDBAdapterRemoteBase,
   SyncBeginEvent,
   SyncCompleteEvent,
   SyncErrorEvent
@@ -52,6 +53,7 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
         fetchAll: options?.fetchAll,
         conflictResolver: options?.conflictResolver
       });
+      await pullBucketedRepositories(sm, options, pullResult);
       // pullBatch 对 syncType === 'filter' 的仓库直接 continue（过滤条件是逐仓库的，
       // 拼不进一次批量请求）。不补这一趟，pull() 就会对 filter 仓库一条不拉却报告
       // `hasMore:false, failures:[]` —— isCompletePull 判真、pullableCount 归零，
@@ -70,6 +72,47 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
     // 触发同步错误事件
     rxdb.dispatchEvent(new SyncErrorEvent('pull', error as Error));
     throw error;
+  }
+}
+
+async function pullBucketedRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
+  const rxdb = sm.rxdb;
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  const candidate = remoteAdapter as RxDBAdapterRemoteBase & {
+    getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
+  };
+  if (typeof candidate.getEntitySyncInfo !== 'function') return;
+
+  for (const EntityType of rxdb.config.entities) {
+    const metadata = getEntityMetadata(EntityType);
+    const syncType = getSyncType(metadata, rxdb.entitySync);
+    if (syncType === 'filter' || !getSyncCapability(syncType).pull) continue;
+
+    const syncInfo = await candidate.getEntitySyncInfo(metadata.namespace, metadata.name);
+    if (!syncInfo.bucketed) continue;
+
+    const repoSync = await findCurrentSyncRecord(rxdb, metadata.namespace, metadata.name);
+    if (!isRepositorySyncEnabled(repoSync)) continue;
+
+    try {
+      const result = await pullRepository(sm, metadata.namespace, metadata.name, {
+        limit: options?.limit,
+        fetchAll: options?.fetchAll,
+        conflictResolver: options?.conflictResolver,
+        includeRelated: false
+      });
+      accumulatePullProgress(aggregated, result);
+      aggregated.failures.push(...result.failures);
+    } catch (error) {
+      const normalized = error instanceof Error ? error : new Error(String(error));
+      if (normalized instanceof RxDBPartialSyncError) {
+        accumulatePullProgress(aggregated, normalized.result as PullRepositoryResult);
+      }
+      aggregated.failures.push({
+        repository: { namespace: metadata.namespace, entity: metadata.name },
+        error: normalized instanceof RxDBPartialSyncError ? normalized.cause : normalized
+      });
+    }
   }
 }
 

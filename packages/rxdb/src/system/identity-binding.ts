@@ -58,6 +58,9 @@ export const RXDB_ANONYMOUS_SUBJECT = 'anon' as const;
  */
 export const RXDB_IDENTITY_WATERMARK_PREFIX = '__rxdb_identity__:' as const;
 
+/** 首次绑定的固定竞争行；不同身份必须竞争同一个唯一键。 */
+export const RXDB_IDENTITY_CLAIM_NAME = '__rxdb_identity_claim__' as const;
+
 /** 身份键的编码版本：改了编码就换版本，旧键不会与新键撞上 */
 const IDENTITY_KEY_VERSION = 1;
 
@@ -184,6 +187,9 @@ export class RxDBIdentityMismatchError extends RxDBError {
  */
 export const identityWatermarkName = (key: string): string => `${RXDB_IDENTITY_WATERMARK_PREFIX}${key}`;
 
+/** 首次绑定的固定竞争行名。 */
+export const identityClaimName = (): string => RXDB_IDENTITY_CLAIM_NAME;
+
 /**
  * 核对库里的身份绑定
  *
@@ -205,12 +211,15 @@ export function assertIdentityBinding(migrationNames: readonly string[], clientK
     .map(name => name.slice(RXDB_IDENTITY_WATERMARK_PREFIX.length));
   const foreign = bound.filter(key => key !== clientKey);
   if (foreign.length > 0) throw new RxDBIdentityMismatchError('database', clientKey, foreign);
+  if (migrationNames.includes(RXDB_IDENTITY_CLAIM_NAME) && bound.length === 0) {
+    throw new RxDBError('The local database identity claim is incomplete; refusing to bind an unknown identity.');
+  }
   return bound.length > 0;
 }
 
 /** 能报告「当前调用者是谁」的远端：对应 `RxDBAdapterRemoteBase.callerIdentity()` */
 export interface CallerIdentityReporter {
-  callerIdentity?: () => Promise<string>;
+  callerIdentity?: () => Promise<RxDBIdentity>;
 }
 
 /**
@@ -239,12 +248,10 @@ export async function assertCallerIdentity(
     );
   }
   const reported = await remote.callerIdentity();
-  if (typeof reported !== 'string' || reported.length === 0) {
-    throw new RxDBError('The remote adapter reported an empty caller identity; refusing to exchange data.');
-  }
-  if (reported === identity.subject) return;
+  assertRxDBIdentity(reported);
+  if (reported.scope === identity.scope && reported.subject === identity.subject) return;
   throw new RxDBIdentityMismatchError('remote', getRxDBIdentityKey(identity), [
-    getRxDBIdentityKey({ scope: identity.scope, subject: reported })
+    getRxDBIdentityKey(reported)
   ]);
 }
 

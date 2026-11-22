@@ -9,6 +9,7 @@
 import { getEntityMetadata, needsPull, type RepositoryIdentifier, type RxDB, RxDBSync } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { assertRemoteBackend } from './remote-backend.js';
+import { RxDBSyncBucketProgress } from './scoped-sync.entity.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
 export type { RepositoryIdentifier };
@@ -120,6 +121,52 @@ export async function checkRepositoryUpdates(
   }
   // 游标属于另一个远端时，拿它去数只会数出一个看似可信的 0。状态查询只读，只比对、不绑定。
   await assertRemoteBackend(sm);
+
+  const scopedRemote = remoteAdapter as typeof remoteAdapter & {
+    getCallerBuckets?: () => Promise<string[]>;
+    getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
+    getBucketSnapshotPoint?: (namespace: string, entity: string, bucket: string) => Promise<number>;
+  };
+  if (
+    typeof scopedRemote.getCallerBuckets === 'function' &&
+    typeof scopedRemote.getEntitySyncInfo === 'function' &&
+    typeof scopedRemote.getBucketSnapshotPoint === 'function' &&
+    (await scopedRemote.getEntitySyncInfo(namespace, entity)).bucketed
+  ) {
+    const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
+    const progresses = await progressRepository.find({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'namespace', operator: '=', value: namespace },
+          { field: 'entity', operator: '=', value: entity },
+          { field: 'branchId', operator: '=', value: branchId }
+        ]
+      }
+    } as never);
+    const buckets = [...new Set(await scopedRemote.getCallerBuckets())];
+    let pendingCount = 0;
+    let latestChangeId = 0;
+    let localCursor: number | null = null;
+
+    for (const bucket of buckets) {
+      const progress = progresses.find(item => item.bucket === bucket);
+      const remotePoint = await scopedRemote.getBucketSnapshotPoint(namespace, entity, bucket);
+      latestChangeId = Math.max(latestChangeId, remotePoint);
+      if (progress) localCursor = Math.max(localCursor ?? 0, progress.cursor);
+      if (!progress || !progress.snapshotComplete || remotePoint > progress.cursor) {
+        pendingCount += progress?.snapshotComplete ? Math.max(1, remotePoint - progress.cursor) : 1;
+      }
+    }
+
+    return {
+      repository,
+      remoteLatestChangeId: latestChangeId,
+      localLastPullRemoteChangeId: localCursor,
+      pendingCount,
+      hasUpdates: pendingCount > 0
+    };
+  }
 
   const sinceId = localLastPullRemoteChangeId ?? 0;
   // 计数范围必须和 pull 的拉取范围一致，否则这个函数就是在回答另一个问题：

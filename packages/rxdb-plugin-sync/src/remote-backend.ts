@@ -22,11 +22,18 @@ import {
   RxDBError,
   RxDBIdentityMismatchError,
   RxDBSync,
+  type EntityType,
   type IRepository,
   type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
-import { RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
-import { IdentityMismatchError, identityFingerprint, type ScopedSyncIdentity } from './scoped-sync.js';
+import { removeBucketScopeInTransaction, type BucketScope } from './bucketed-scope-cleanup.js';
+import { RxDBSyncBucketProgress, RxDBSyncIdentityBinding } from './scoped-sync.entity.js';
+import {
+  IdentityMismatchError,
+  identityFingerprint,
+  scopedIdentityKind,
+  type ScopedSyncIdentity
+} from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -100,7 +107,7 @@ export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
     if (existing.identityFingerprint !== fingerprint) {
       const error = new IdentityMismatchError(
         existing.identityKind,
-        identity.kind,
+        scopedIdentityKind(identity),
         existing.identityFingerprint,
         fingerprint
       );
@@ -115,14 +122,19 @@ export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
     const current = (await txRepository.find(IDENTITY_BINDING))[0];
     if (current) {
       if (current.identityFingerprint !== fingerprint) {
-        throw new IdentityMismatchError(current.identityKind, identity.kind, current.identityFingerprint, fingerprint);
+        throw new IdentityMismatchError(
+          current.identityKind,
+          scopedIdentityKind(identity),
+          current.identityFingerprint,
+          fingerprint
+        );
       }
       return;
     }
 
     const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
       id: IDENTITY_BINDING_ID,
-      identityKind: identity.kind,
+      identityKind: scopedIdentityKind(identity),
       identityFingerprint: fingerprint,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -237,8 +249,7 @@ export async function bindRemoteBackend(sm: SyncManager): Promise<string> {
  * @returns 改绑结果
  *
  * @remarks
- * 一个事务里改完：改到一半失败时整体回滚，重调即可。只动拉取游标；推送水位不动，
- * 已推到旧远端的本地变更不会重推。
+ * 一个事务里改完：改到一半失败时整体回滚，重调即可。推送水位不动，已推到旧远端的本地变更不会重推。
  *
  * @internal
  */
@@ -250,10 +261,45 @@ export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemote
   const result = await localAdapter.transaction(async executor => {
     const repository = executor.getRepository(RxDBSync);
     const records = (await repository.find(ALL_RECORDS)).filter(record => record.remoteBackendId !== backendId);
-    const previousBackendIds = foreignBackendIds(records, backendId);
+    const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
+    const progresses = (await progressRepository.find(ALL_RECORDS)).filter(
+      progress => progress.remoteBackendId !== backendId
+    );
+    const previousBackendIds = [
+      ...new Set([
+        ...foreignBackendIds(records, backendId),
+        ...progresses.flatMap(progress =>
+          progress.remoteBackendId && progress.remoteBackendId !== backendId ? [progress.remoteBackendId] : []
+        )
+      ])
+    ];
     const updatedAt = new Date();
     for (const record of records) {
       await repository.update(record, { remoteBackendId: backendId, lastPullRemoteChangeId: null, updatedAt });
+    }
+    for (const progress of progresses) {
+      const EntityType = sm.rxdb.schemaManager.getEntityType(progress.entity, progress.namespace);
+      const repoSync =
+        records.find(
+          record =>
+            record.namespace === progress.namespace &&
+            record.entity === progress.entity &&
+            record.branchId === progress.branchId
+        ) ??
+        Object.assign(sm.rxdb.entityManager.instantiate(RxDBSync), {
+          namespace: progress.namespace,
+          entity: progress.entity,
+          branchId: progress.branchId,
+          lastPushedChangeId: null
+        });
+      const scope: BucketScope = {
+        namespace: progress.namespace,
+        entity: progress.entity,
+        branchId: progress.branchId,
+        bucket: progress.bucket,
+        filterFingerprint: progress.filterFingerprint
+      };
+      await removeBucketScopeInTransaction(executor, EntityType, repoSync, scope, progress);
     }
     return { backendId, previousBackendIds, rebound: records.length };
   });

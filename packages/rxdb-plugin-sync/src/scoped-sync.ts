@@ -1,8 +1,13 @@
-import { RxDBError, type RuleGroup } from '@aiao/rxdb';
-export interface ScopedSyncIdentity {
-  readonly kind: 'anon' | 'user';
-  readonly userId?: string;
-}
+import {
+  getRxDBIdentityDatabaseName,
+  getRxDBIdentityKey,
+  RXDB_ANONYMOUS_SUBJECT,
+  RxDBError,
+  type RuleGroup,
+  type RxDBIdentity
+} from '@aiao/rxdb';
+
+export type ScopedSyncIdentity = RxDBIdentity;
 
 export interface ScopedSyncIdentitySource {
   syncIdentity(): Promise<ScopedSyncIdentity>;
@@ -39,10 +44,16 @@ export interface ScopedSyncAdapter {
   ): Promise<import('@aiao/rxdb').RemoteChange[]>;
 }
 
+export type ScopedIdentityKind = 'anon' | 'user';
+
+export function scopedIdentityKind(identity: ScopedSyncIdentity): ScopedIdentityKind {
+  return identity.subject === RXDB_ANONYMOUS_SUBJECT ? 'anon' : 'user';
+}
+
 export class IdentityMismatchError extends RxDBError {
   constructor(
-    readonly boundIdentityKind: ScopedSyncIdentity['kind'],
-    readonly currentIdentityKind: ScopedSyncIdentity['kind'],
+    readonly boundIdentityKind: ScopedIdentityKind,
+    readonly currentIdentityKind: ScopedIdentityKind,
     readonly boundFingerprint: string,
     readonly currentFingerprint: string
   ) {
@@ -57,14 +68,11 @@ export class IdentityMismatchError extends RxDBError {
 }
 
 export function identityFingerprint(identity: ScopedSyncIdentity): string {
-  const value = identity.kind === 'user' ? `${identity.kind}:${identity.userId ?? ''}` : identity.kind;
-  return `v1-${fnv1a64(value)}`;
+  return getRxDBIdentityKey(identity);
 }
 
 export function scopedDatabaseName(baseName: string, identity: ScopedSyncIdentity): string {
-  const normalized = baseName.trim();
-  if (normalized.length === 0) throw new RxDBError('A non-empty base database name is required.');
-  return `${normalized}--${identity.kind}-${identityFingerprint(identity)}`;
+  return getRxDBIdentityDatabaseName(baseName.trim(), identity);
 }
 
 export function filterFingerprint(filter: RuleGroup | undefined): string {

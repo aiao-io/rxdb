@@ -236,6 +236,7 @@ export class Repository<T extends EntityType, RT extends IRepository<T> = IRepos
     this.#destroyed = true;
     if (this.#isQueryCache) {
       this.rxdb.removeEventListener(REMOTE_ENTITY_INVALIDATED_EVENT, this.#onRemoteEntityInvalidated);
+      this.#queryCachePrimary?.invalidateInflight();
       // 从未订阅过 `primary$` 的仓储没有会话，也就没有计时器要撤
       this.#queryCacheSession?.clear();
     }

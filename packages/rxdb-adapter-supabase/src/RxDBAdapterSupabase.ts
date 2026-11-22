@@ -10,6 +10,7 @@
 
 import type {
   EntityType,
+  getRxDBIdentityKey,
   IRepository,
   IRxDBAdapter,
   IRxDBChange,
@@ -23,6 +24,7 @@ import type {
   RuleGroup,
   RxDB,
   RxDBMutationsMap,
+  RXDB_ANONYMOUS_SUBJECT,
   SwitchVersionActions
 } from '@aiao/rxdb';
 import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
@@ -89,6 +91,7 @@ import {
 } from './supabase.rls.js';
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
+import type { RxDBIdentity } from '@aiao/rxdb';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
@@ -116,8 +119,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   #reconnectAttempt = 0;
   #realtimeState: RealtimeState = 'idle';
   #realtimeQueue: Promise<void> = Promise.resolve();
+  #realtimeGeneration = 0;
+  #realtimeIdentityKey: string | null = null;
+  #authStateSubscription: { unsubscribe: () => void } | null = null;
   #rlsCheckDone = false;
   #databaseVersion: string | null = null;
+  #supabaseScope: string | null = null;
   readonly name = ADAPTER_NAME;
 
   get client(): SupabaseClient {
@@ -132,6 +139,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     if (options.client) {
       this.#client = options.client;
+      this.#supabaseScope = resolveSupabaseScope(options.supabaseUrl, options.client);
+      this.#installAuthStateListener();
       return;
     }
 
@@ -142,6 +151,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     this.#client = createClient(supabaseUrl, supabaseKey);
+    this.#supabaseScope = normalizeSupabaseScope(supabaseUrl);
+    this.#installAuthStateListener();
   }
 
   // ============================================
@@ -153,6 +164,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     await this.#verifyRlsConfiguration();
     await this.#enqueueRealtime(async () => {
       this.#clearReconnectTimer();
+      this.#installAuthStateListener();
       if (this.#channels.length > 0) return;
 
       this.#realtimeState = 'connecting';
@@ -168,13 +180,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       this.#realtimeState = 'closed';
       this.#clearReconnectTimer();
       this.#reconnectAttempt = 0;
-      if (this.#channels.length === 0) return;
-
-      const channels = this.#channels;
-      this.#channels = [];
-      for (const channel of channels) {
-        await this.#client.removeChannel(channel);
-      }
+      this.#realtimeGeneration += 1;
+      this.#authStateSubscription?.unsubscribe();
+      this.#authStateSubscription = null;
+      await this.#removeRealtimeChannels();
     });
   }
 
@@ -212,7 +221,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   /**
    * 当前调用者的身份（US-035）
    *
-   * @returns 已登录用户为会话令牌的 `sub`；没登录（匿名访问）为 `RXDB_ANONYMOUS_SUBJECT`
+   * @returns 当前 Supabase project scope 与会话令牌的 subject
    * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
    *
    * @remarks
@@ -221,9 +230,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
    * 只读本地已有的会话状态，不发网络请求。
    */
-  override async callerIdentity(): Promise<string> {
+  override async callerIdentity(): Promise<RxDBIdentity> {
     await this.#client.realtime.setAuth();
-    return identityOfAccessToken(this.#client.realtime.accessTokenValue);
+    return this.#identityFromSubject(identityOfAccessToken(this.#client.realtime.accessTokenValue));
   }
 
   // ============================================
@@ -530,16 +539,29 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 
   async syncIdentity(): Promise<SupabaseScopedSyncIdentity> {
+    const scope = this.#requireSupabaseScope();
     const configuredAccessToken = await readConfiguredAccessToken(this.#client);
-    if (configuredAccessToken !== undefined) return identityFromAccessToken(configuredAccessToken);
+    if (configuredAccessToken !== undefined) return identityFromAccessToken(configuredAccessToken, scope);
 
     const auth = this.#client.auth;
-    if (!auth || typeof auth.getSession !== 'function') return { kind: 'anon' };
+    if (!auth || typeof auth.getSession !== 'function') {
+      return { scope, subject: RXDB_ANONYMOUS_SUBJECT };
+    }
     const { data, error } = await auth.getSession();
     if (error) throw new SupabaseDataError(`Failed to resolve Supabase session: ${error.message}`);
     const user = data.session?.user;
-    if (!user?.id || user.is_anonymous === true) return { kind: 'anon' };
-    return { kind: 'user', userId: user.id };
+    return { scope, subject: user?.id ?? RXDB_ANONYMOUS_SUBJECT };
+  }
+
+  #requireSupabaseScope(): string {
+    if (this.#supabaseScope) return this.#supabaseScope;
+    throw new SupabaseConfigError(
+      'The supplied Supabase client does not expose its project URL. Pass supabaseUrl when configuring the adapter.'
+    );
+  }
+
+  #identityFromSubject(subject: string): RxDBIdentity {
+    return { scope: this.#requireSupabaseScope(), subject };
   }
 
   /**
@@ -1045,7 +1067,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
     const missingOrDisabled = tables.filter(table => {
       const result = resultOf(table);
-      return result?.exists !== true || result.rlsEnabled !== true;
+      return result?.exists !== true || (result.rlsEnabled !== true && result.relationKind !== 'view');
     });
     if (missingOrDisabled.length > 0) {
       handleRlsCheckFailure(
@@ -1074,7 +1096,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    */
   async #createRealtimeChannels(): Promise<RealtimeChannel[] | null> {
     await this.#client.realtime.setAuth();
-    if (!canReceiveChangeNotifications(this.#client.realtime.accessTokenValue)) {
+    const accessToken = this.#client.realtime.accessTokenValue;
+    this.#realtimeIdentityKey = this.#identityKeyForToken(accessToken);
+    if (!canReceiveChangeNotifications(accessToken)) {
       console.warn(
         '[RxDB Supabase] Change notifications need a signed-in session; skipping the realtime subscription. ' +
           "Call rxdb.connect('supabase') again after sign-in to receive them."
@@ -1090,14 +1114,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定。
     }
 
+    const generation = this.#realtimeGeneration;
     return [...new Set(topics)].map(topic => {
       const channel = this.#client
         .channel(topic, { config: { private: true } })
-        .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => handleSupabaseChanges(this, message['payload']));
+        .on('broadcast', { event: RXDB_CHANGES_EVENT }, message => {
+          if (generation !== this.#realtimeGeneration || !this.#channels.includes(channel)) return;
+          handleSupabaseChanges(this, message['payload']);
+        });
 
       channel.subscribe((status, err) => {
         void this.#enqueueRealtime(async () => {
-          if (!this.#channels.includes(channel) || this.#realtimeState === 'closed') return;
+          if (
+            generation !== this.#realtimeGeneration ||
+            !this.#channels.includes(channel) ||
+            this.#realtimeState === 'closed'
+          )
+            return;
 
           if (status === 'SUBSCRIBED') {
             this.#realtimeState = 'connected';
@@ -1156,16 +1189,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     this.#realtimeState = 'reconnecting';
-    const channels = this.#channels;
-    this.#channels = [];
-    for (const channel of channels) {
-      try {
-        await this.#client.removeChannel(channel);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
-      }
-    }
+    this.#realtimeGeneration += 1;
+    await this.#removeRealtimeChannels();
 
     this.#realtimeState = 'connecting';
     this.#channels = (await this.#createRealtimeChannels()) ?? [];
@@ -1193,6 +1218,66 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     const result = this.#realtimeQueue.then(operation);
     this.#realtimeQueue = result.catch(() => undefined);
     return result;
+  }
+
+  #installAuthStateListener(): void {
+    if (this.#authStateSubscription) return;
+    let auth: SupabaseClient['auth'];
+    try {
+      auth = this.#client.auth;
+    } catch {
+      return;
+    }
+    if (!auth || typeof auth.onAuthStateChange !== 'function') return;
+
+    try {
+      const { data } = auth.onAuthStateChange((_event, session) => {
+        const changed = this.#updateRealtimeIdentity(session?.access_token ?? null);
+        if (!changed) return;
+        void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
+          console.error('[RxDB Supabase] Realtime identity rotation failed:', error);
+        });
+      });
+      this.#authStateSubscription = data.subscription;
+    } catch {
+      this.#authStateSubscription = null;
+    }
+  }
+
+  #updateRealtimeIdentity(accessToken: string | null): boolean {
+    const next = this.#identityKeyForToken(accessToken);
+    if (next === this.#realtimeIdentityKey) return false;
+    this.#realtimeIdentityKey = next;
+    this.#realtimeGeneration += 1;
+    return true;
+  }
+
+  #identityKeyForToken(accessToken: string | null): string {
+    const scope = this.#supabaseScope ?? '';
+    return getRxDBIdentityKey({ scope, subject: identityOfAccessToken(accessToken) });
+  }
+
+  async #rotateRealtimeChannels(): Promise<void> {
+    this.#clearReconnectTimer();
+    await this.#removeRealtimeChannels();
+    if (this.#realtimeState === 'closed') return;
+    this.#reconnectAttempt = 0;
+    this.#realtimeState = 'connecting';
+    this.#channels = (await this.#createRealtimeChannels()) ?? [];
+    if (this.#channels.length === 0) this.#realtimeState = 'idle';
+  }
+
+  async #removeRealtimeChannels(): Promise<void> {
+    const channels = this.#channels;
+    this.#channels = [];
+    for (const channel of channels) {
+      try {
+        await this.#client.removeChannel(channel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[RxDB Supabase] Failed to remove realtime channel: ${message}.`);
+      }
+    }
   }
 
   #clearReconnectTimer(): void {
@@ -1263,9 +1348,23 @@ async function readConfiguredAccessToken(client: SupabaseClient): Promise<string
   return (await accessToken()) ?? null;
 }
 
-function identityFromAccessToken(accessToken: string | null): SupabaseScopedSyncIdentity {
+function identityFromAccessToken(accessToken: string | null, scope: string): SupabaseScopedSyncIdentity {
   const userId = accessToken ? readJwtSubject(accessToken) : null;
-  return userId ? { kind: 'user', userId } : { kind: 'anon' };
+  return { scope, subject: userId ?? RXDB_ANONYMOUS_SUBJECT };
+}
+
+function resolveSupabaseScope(configuredUrl: string | undefined, client: SupabaseClient): string | null {
+  if (configuredUrl?.trim()) return normalizeSupabaseScope(configuredUrl);
+  const runtimeUrl = (client as unknown as { supabaseUrl?: unknown }).supabaseUrl;
+  return typeof runtimeUrl === 'string' && runtimeUrl.trim() ? normalizeSupabaseScope(runtimeUrl) : null;
+}
+
+function normalizeSupabaseScope(value: string): string {
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    throw new SupabaseConfigError(`Invalid Supabase project URL: ${value}`);
+  }
 }
 
 function readJwtSubject(accessToken: string): string | null {

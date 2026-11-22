@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
 
 ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
 
+-- 升级后的分区协议只使用日志元数据，历史正文与 NULL bucket 都必须清掉。
+-- 分区实体下一次同步会从业务表重新建立快照。
+DELETE FROM public.rxdb_change AS change
+USING public.rxdb_sync_entity AS entity
+WHERE change.namespace = entity.namespace
+  AND change.entity = entity.entity
+  AND entity."bucketColumn" IS NOT NULL;
+
 DO $$
 BEGIN
   IF EXISTS (

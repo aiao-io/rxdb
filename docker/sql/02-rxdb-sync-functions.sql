@@ -42,11 +42,26 @@ DECLARE
     v_branch_id text := 'main'; -- 默认为 main 分支
     v_old_bucket text;
     v_new_bucket text;
+    v_is_bucketed boolean;
     v_captured_deletes jsonb;
     v_capture_key text;
 BEGIN
+    SELECT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_attribute
+        WHERE attrelid = TG_RELID
+          AND attname = 'rxdb_bucket'
+          AND attnum > 0
+          AND NOT attisdropped
+    ) INTO v_is_bucketed;
+
     v_old_bucket := CASE WHEN TG_OP <> 'INSERT' THEN NULLIF((pg_catalog.to_jsonb(OLD)->>'rxdb_bucket'), '') END;
     v_new_bucket := CASE WHEN TG_OP <> 'DELETE' THEN NULLIF((pg_catalog.to_jsonb(NEW)->>'rxdb_bucket'), '') END;
+
+    IF v_is_bucketed AND (TG_OP <> 'INSERT' AND v_old_bucket IS NULL OR TG_OP <> 'DELETE' AND v_new_bucket IS NULL) THEN
+        RAISE EXCEPTION 'rxdb: bucketed entity %.% requires a non-null rxdb_bucket', v_namespace, v_entity
+            USING ERRCODE = 'not_null_violation';
+    END IF;
 
     IF pg_catalog.current_setting('rxdb.sync_enabled', true) = 'false' THEN
         IF TG_OP != 'DELETE' THEN
@@ -85,8 +100,13 @@ BEGIN
             namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
             "beforeData", "afterData", "snapshotComplete"
         ) VALUES (
-            v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', v_patch, NULL, v_branch_id,
-            NULL, pg_catalog.to_jsonb(NEW), true
+            v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT',
+            CASE WHEN v_is_bucketed THEN NULL ELSE v_patch END,
+            NULL,
+            v_branch_id,
+            NULL,
+            CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(NEW) END,
+            NOT v_is_bucketed
         );
         RETURN NEW;
 
@@ -105,8 +125,8 @@ BEGIN
                 namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
                 "beforeData", "afterData", "snapshotComplete"
             ) VALUES (
-                v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', pg_catalog.to_jsonb(NEW), NULL, v_branch_id,
-                NULL, pg_catalog.to_jsonb(NEW), true
+                v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', NULL, NULL, v_branch_id,
+                NULL, NULL, false
             );
             RETURN NEW;
         END IF;
@@ -133,8 +153,13 @@ BEGIN
                 namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
                 "beforeData", "afterData", "snapshotComplete"
             ) VALUES (
-                v_namespace, v_entity, v_new_bucket, v_entity_id, 'UPDATE', v_patch, v_inverse_patch, v_branch_id,
-                pg_catalog.to_jsonb(OLD), pg_catalog.to_jsonb(NEW), true
+                v_namespace, v_entity, v_new_bucket, v_entity_id, 'UPDATE',
+                CASE WHEN v_is_bucketed THEN NULL ELSE v_patch END,
+                CASE WHEN v_is_bucketed THEN NULL ELSE v_inverse_patch END,
+                v_branch_id,
+                CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(OLD) END,
+                CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(NEW) END,
+                NOT v_is_bucketed
             );
         END IF;
         RETURN NEW;
@@ -147,8 +172,13 @@ BEGIN
             namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
             "beforeData", "afterData", "snapshotComplete"
         ) VALUES (
-            v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE', v_patch, NULL, v_branch_id,
-            pg_catalog.to_jsonb(OLD), NULL, true
+            v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE',
+            CASE WHEN v_is_bucketed THEN NULL ELSE v_patch END,
+            NULL,
+            v_branch_id,
+            CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(OLD) END,
+            NULL,
+            NOT v_is_bucketed
         );
         RETURN OLD;
     END IF;
@@ -156,6 +186,28 @@ BEGIN
     RETURN NULL;
 END;
 $$;
+
+-- 即使日志经 SECURITY DEFINER 推送入口或受信任的维护脚本写入，bucket 行也不能重新带正文。
+CREATE OR REPLACE FUNCTION public.rxdb_strip_bucket_change_payload()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+    IF NEW.bucket IS NOT NULL THEN
+        NEW.patch := NULL;
+        NEW."inversePatch" := NULL;
+        NEW."beforeData" := NULL;
+        NEW."afterData" := NULL;
+        NEW."snapshotComplete" := false;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER rxdb_change_strip_bucket_payload
+BEFORE INSERT OR UPDATE ON public.rxdb_change
+FOR EACH ROW EXECUTE FUNCTION public.rxdb_strip_bucket_change_payload();
 
 -- ============================================
 -- 日志 id 顺序 = 提交顺序（RV-01a1c49dee517814adf2e68788ad084e）
@@ -337,16 +389,115 @@ CREATE OR REPLACE FUNCTION public.rxdb_bucket_snapshot_point(
     p_bucket text
 )
 RETURNS integer
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
-    SELECT COALESCE(MAX(id), 0)::integer
-    FROM public.rxdb_change
-    WHERE namespace = p_namespace
-      AND entity = p_entity
-      AND bucket = p_bucket
+BEGIN
+    IF p_bucket IS NULL OR NOT (p_bucket = ANY(public.rxdb_caller_buckets())) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = 'rxdb: bucket is not authorized for the current caller';
+    END IF;
+
+    RETURN (
+        SELECT COALESCE(MAX(id), 0)::integer
+        FROM public.rxdb_change
+        WHERE namespace = p_namespace
+          AND entity = p_entity
+          AND bucket = p_bucket
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_selectable_columns(
+    p_namespace text,
+    p_table text
+)
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT COALESCE(
+        pg_catalog.array_agg(attribute.attname ORDER BY attribute.attnum),
+        '{}'::text[]
+    )
+    FROM pg_catalog.pg_attribute AS attribute
+    JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+    WHERE namespace.nspname = p_namespace
+      AND relation.relname = p_table
+      AND relation.relkind IN ('r', 'p', 'v')
+      AND attribute.attnum > 0
+      AND NOT attribute.attisdropped
+      AND pg_catalog.has_column_privilege(
+          pg_catalog.current_user,
+          relation.oid,
+          attribute.attnum,
+          'SELECT'
+      )
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_assert_snapshot_filter_columns(
+    p_filter jsonb,
+    p_columns text[]
+)
+RETURNS void
+LANGUAGE plpgsql
+IMMUTABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    node jsonb;
+    field text;
+BEGIN
+    IF p_filter IS NULL THEN
+        RETURN;
+    END IF;
+
+    FOR node IN SELECT value FROM pg_catalog.jsonb_array_elements(COALESCE(p_filter->'rules', '[]'::jsonb))
+    LOOP
+        IF node ? 'rules' THEN
+            PERFORM public.rxdb_assert_snapshot_filter_columns(node, p_columns);
+            CONTINUE;
+        END IF;
+
+        field := node->>'field';
+        IF field IS NULL OR NOT (field = ANY(p_columns)) THEN
+            RAISE EXCEPTION USING
+                ERRCODE = 'insufficient_privilege',
+                MESSAGE = pg_catalog.format('rxdb: snapshot filter field %s is not readable by the current caller', field);
+        END IF;
+    END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_selectable_row_expression(
+    p_columns text[]
+)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT CASE
+        WHEN pg_catalog.cardinality(p_columns) = 0 THEN NULL
+        ELSE pg_catalog.format(
+            'pg_catalog.jsonb_build_object(%s)',
+            pg_catalog.array_to_string(
+                ARRAY(
+                    SELECT pg_catalog.format('%L, table_data.%I', column_name, column_name)
+                    FROM pg_catalog.unnest(p_columns) AS columns(column_name)
+                ),
+                ', '
+            )
+        )
+    END
 $$;
 
 -- ============================================
@@ -384,6 +535,25 @@ BEGIN
     v_actual := p_document->v_field;
     v_actual_text := v_actual#>>'{}';
     v_expected_text := v_expected#>>'{}';
+
+    IF v_operator IN ('in', 'notIn')
+       AND pg_catalog.jsonb_typeof(v_expected) = 'array'
+       AND pg_catalog.jsonb_array_length(v_expected) = 0 THEN
+        RETURN v_operator = 'notIn';
+    END IF;
+
+    IF v_actual IS NULL OR v_actual = 'null'::jsonb THEN
+        IF v_operator = '=' THEN
+            RETURN v_expected IS NULL OR v_expected = 'null'::jsonb;
+        END IF;
+        IF v_operator IN ('null', 'isNull') THEN
+            RETURN true;
+        END IF;
+        IF v_operator IN ('notNull', 'isNotNull') THEN
+            RETURN false;
+        END IF;
+        RETURN false;
+    END IF;
 
     CASE v_operator
         WHEN '=' THEN
@@ -536,6 +706,7 @@ AS $$
     WHERE change.id > p_since_id
       AND change.namespace = p_namespace
       AND change.entity = p_entity
+      AND change.bucket IS NULL
       AND (p_branch_id IS NULL OR change."branchId" = p_branch_id)
       AND (
         p_filter IS NULL
@@ -551,6 +722,9 @@ $$;
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_changes(integer, integer, text, text, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_selectable_columns(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_assert_snapshot_filter_columns(jsonb, text[]) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_selectable_row_expression(text[]) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_changes(
     p_since_id integer,
@@ -562,27 +736,94 @@ CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_changes(
     p_filter jsonb DEFAULT NULL
 )
 RETURNS SETOF public.rxdb_change
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY INVOKER
 SET search_path = pg_catalog, pg_temp
 AS $$
-    SELECT change.*
-    FROM public.rxdb_change AS change
-    WHERE change.id > p_since_id
-      AND change.namespace = p_namespace
-      AND change.entity = p_entity
-      AND change.bucket = p_bucket
-      AND (p_branch_id IS NULL OR change."branchId" = p_branch_id)
-      AND (
-        p_filter IS NULL
-        OR change.type = 'DELETE' AND change."beforeData" IS NULL AND change."afterData" IS NULL
-        OR NOT change."snapshotComplete"
-        OR public.rxdb_jsonb_matches_filter(change."beforeData", p_filter)
-        OR public.rxdb_jsonb_matches_filter(change."afterData", p_filter)
-      )
-    ORDER BY change.id ASC
-    LIMIT GREATEST(p_limit, 0)
+DECLARE
+    v_table_name text;
+    v_bucket_column text;
+    v_columns text[];
+    v_row_expression text;
+BEGIN
+    IF p_bucket IS NULL OR NOT (p_bucket = ANY(public.rxdb_caller_buckets())) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = 'rxdb: bucket is not authorized for the current caller';
+    END IF;
+
+    SELECT info->>'tableName',
+           CASE WHEN (info->>'bucketed')::boolean THEN 'rxdb_bucket' ELSE NULL END
+    INTO v_table_name, v_bucket_column
+    FROM (SELECT public.rxdb_entity_sync_info(p_namespace, p_entity) AS info) AS entity_info;
+
+    IF v_table_name IS NULL OR v_bucket_column IS NULL THEN
+        RAISE EXCEPTION 'Entity %.% is not bucketed', p_namespace, p_entity;
+    END IF;
+
+    v_columns := public.rxdb_selectable_columns(p_namespace, v_table_name);
+    IF NOT ('id' = ANY(v_columns)) OR NOT (v_bucket_column = ANY(v_columns)) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = 'rxdb: id and bucket columns must be readable for bucket sync';
+    END IF;
+    PERFORM public.rxdb_assert_snapshot_filter_columns(p_filter, v_columns);
+    v_row_expression := public.rxdb_selectable_row_expression(v_columns);
+
+    RETURN QUERY EXECUTE pg_catalog.format($query$
+        WITH scoped_changes AS (
+            SELECT
+                change.*,
+                current_row.row_json,
+                CASE
+                    WHEN change.type = 'DELETE' OR current_row.row_json IS NULL THEN 'DELETE'
+                    WHEN $7 IS NOT NULL
+                         AND NOT public.rxdb_jsonb_matches_filter(current_row.row_json, $7)
+                        THEN 'DELETE'
+                    ELSE change.type
+                END AS effective_type
+            FROM public.rxdb_change AS change
+            LEFT JOIN LATERAL (
+                SELECT %1$s AS row_json
+                FROM %2$I.%3$I AS table_data
+                WHERE table_data.%4$I::text = change."entityId"
+                  AND table_data.%4$I::text = $5
+                LIMIT 1
+            ) AS current_row ON true
+            WHERE change.id > $1
+              AND change.namespace = $3
+              AND change.entity = $4
+              AND change.bucket = $5
+              AND ($6 IS NULL OR change."branchId" = $6)
+        )
+        SELECT
+            id,
+            namespace,
+            entity,
+            bucket,
+            "entityId",
+            "branchId",
+            effective_type::varchar,
+            CASE WHEN effective_type = 'DELETE' THEN NULL ELSE row_json END,
+            NULL::jsonb,
+            NULL::jsonb,
+            CASE WHEN effective_type = 'DELETE' THEN NULL ELSE row_json END,
+            true,
+            "transactionId",
+            "localId",
+            "clientId",
+            "createdAt",
+            "updatedAt"
+        FROM scoped_changes
+        WHERE $7 IS NULL
+           OR effective_type = 'DELETE'
+           OR public.rxdb_jsonb_matches_filter(row_json, $7)
+        ORDER BY id ASC
+        LIMIT GREATEST($2, 0)
+    $query$, v_row_expression, p_namespace, v_table_name, v_bucket_column)
+    USING p_since_id, p_limit, p_namespace, p_entity, p_bucket, p_branch_id, p_filter;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_snapshot(
@@ -602,8 +843,16 @@ AS $$
 DECLARE
     v_table_name text;
     v_bucket_column text;
+    v_columns text[];
+    v_row_expression text;
     v_rows jsonb;
 BEGIN
+    IF p_bucket IS NULL OR NOT (p_bucket = ANY(public.rxdb_caller_buckets())) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = 'rxdb: bucket is not authorized for the current caller';
+    END IF;
+
     SELECT info->>'tableName',
            CASE WHEN (info->>'bucketed')::boolean THEN 'rxdb_bucket' ELSE NULL END
     INTO v_table_name, v_bucket_column
@@ -613,18 +862,27 @@ BEGIN
         RAISE EXCEPTION 'Entity %.% is not bucketed', p_namespace, p_entity;
     END IF;
 
+    v_columns := public.rxdb_selectable_columns(p_namespace, v_table_name);
+    IF NOT ('id' = ANY(v_columns)) OR NOT (v_bucket_column = ANY(v_columns)) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = 'rxdb: id and bucket columns must be readable for bucket sync';
+    END IF;
+    PERFORM public.rxdb_assert_snapshot_filter_columns(p_filter, v_columns);
+    v_row_expression := public.rxdb_selectable_row_expression(v_columns);
+
     EXECUTE pg_catalog.format(
-        'SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(row_data) ORDER BY row_data.id), ''[]''::jsonb)
+        'SELECT COALESCE(pg_catalog.jsonb_agg(row_data.row_json ORDER BY row_data.row_id), ''[]''::jsonb)
          FROM (
-             SELECT table_data.*
+             SELECT table_data.id AS row_id, %s AS row_json
              FROM %I.%I AS table_data
              WHERE table_data.%I::text = $1
-               AND ($2 IS NULL OR public.rxdb_jsonb_matches_filter(pg_catalog.to_jsonb(table_data), $2))
+               AND ($2 IS NULL OR public.rxdb_jsonb_matches_filter(%s, $2))
              ORDER BY table_data.id
              OFFSET GREATEST($3, 0)
              LIMIT GREATEST($4, 0)
          ) AS row_data',
-        p_namespace, v_table_name, v_bucket_column
+        v_row_expression, p_namespace, v_table_name, v_bucket_column, v_row_expression
     ) INTO v_rows USING p_bucket, p_filter, p_offset, p_limit;
 
     RETURN v_rows;
@@ -652,12 +910,28 @@ AS $$
 DECLARE
     v_entity_name text;
     v_has_updated_at boolean;
+    v_has_bucket_column boolean;
+    v_was_bucketed boolean;
 BEGIN
     IF p_entity_name IS NULL THEN
         v_entity_name := p_table_name;
     ELSE
         v_entity_name := p_entity_name;
     END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = p_namespace
+          AND table_name = p_table_name
+          AND column_name = 'rxdb_bucket'
+    ) INTO v_has_bucket_column;
+
+    SELECT COALESCE("bucketColumn" IS NOT NULL, false)
+    INTO v_was_bucketed
+    FROM public.rxdb_sync_entity
+    WHERE namespace = p_namespace AND entity = v_entity_name;
+    v_was_bucketed := COALESCE(v_was_bucketed, false);
 
     -- 1. 检查是否存在 updatedAt 字段
     SELECT EXISTS (
@@ -673,16 +947,30 @@ BEGIN
         p_namespace,
         v_entity_name,
         p_table_name,
-        CASE WHEN EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = p_namespace AND table_name = p_table_name AND column_name = 'rxdb_bucket'
-        ) THEN 'rxdb_bucket' ELSE NULL END,
+        CASE WHEN v_has_bucket_column THEN 'rxdb_bucket' ELSE NULL END,
         pg_catalog.now()
     )
     ON CONFLICT (namespace, entity) DO UPDATE SET
         "tableName" = EXCLUDED."tableName",
         "bucketColumn" = EXCLUDED."bucketColumn",
         "updatedAt" = EXCLUDED."updatedAt";
+
+    IF v_has_bucket_column THEN
+        IF NOT v_was_bucketed THEN
+            DELETE FROM public.rxdb_change
+            WHERE namespace = p_namespace AND entity = v_entity_name;
+        ELSE
+            DELETE FROM public.rxdb_change
+            WHERE namespace = p_namespace AND entity = v_entity_name AND bucket IS NULL;
+            UPDATE public.rxdb_change
+            SET patch = NULL,
+                "inversePatch" = NULL,
+                "beforeData" = NULL,
+                "afterData" = NULL,
+                "snapshotComplete" = false
+            WHERE namespace = p_namespace AND entity = v_entity_name;
+        END IF;
+    END IF;
 
     -- 2. 如果存在 updatedAt，创建自动更新触发器 (BEFORE UPDATE)
     --

@@ -32,6 +32,7 @@ const USER_A = '00000000-0000-4000-8000-0000000000a1';
 const USER_B = '00000000-0000-4000-8000-0000000000b2';
 
 const identityOf = (subject: string, scope = SCOPE): RxDBIdentity => ({ scope, subject });
+const remoteIdentity = (subject: string, scope = SCOPE): RxDBIdentity => identityOf(subject, scope);
 
 describe('身份键', () => {
   it('同一组输入得到同一个键，是 64 位小写十六进制', () => {
@@ -159,25 +160,25 @@ describe('库内绑定的核对', () => {
 
 describe('与远端交换数据前的核对', () => {
   it('没有声明身份：不问远端', async () => {
-    const callerIdentity = vi.fn(async () => USER_B);
+    const callerIdentity = vi.fn(async () => remoteIdentity(USER_B));
     await expect(assertCallerIdentity(undefined, { callerIdentity })).resolves.toBeUndefined();
     expect(callerIdentity).not.toHaveBeenCalled();
   });
 
   it('远端报告的就是声明的身份：放行', async () => {
     await expect(
-      assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => USER_A })
+      assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => remoteIdentity(USER_A) })
     ).resolves.toBeUndefined();
   });
 
   it('未登录声明为 anon，远端报告 anon：放行', async () => {
     await expect(
-      assertCallerIdentity(identityOf(RXDB_ANONYMOUS_SUBJECT), { callerIdentity: async () => RXDB_ANONYMOUS_SUBJECT })
+      assertCallerIdentity(identityOf(RXDB_ANONYMOUS_SUBJECT), { callerIdentity: async () => remoteIdentity(RXDB_ANONYMOUS_SUBJECT) })
     ).resolves.toBeUndefined();
   });
 
   it('远端会话实际是别的身份：抛身份不匹配，带上两边的键', async () => {
-    const error = await assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => USER_B }).catch(
+    const error = await assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => remoteIdentity(USER_B) }).catch(
       (rejection: unknown) => rejection
     );
     expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
@@ -192,13 +193,13 @@ describe('与远端交换数据前的核对', () => {
 
   it('登录用户的库遇到未登录的会话：同样拒绝', async () => {
     await expect(
-      assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => RXDB_ANONYMOUS_SUBJECT })
+      assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => remoteIdentity(RXDB_ANONYMOUS_SUBJECT) })
     ).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
   });
 
   it('每次都问，不缓存：同一个适配器前后两次答案不同，两次各自判定', async () => {
     const answers = [USER_A, USER_B];
-    const remote = { callerIdentity: async () => answers.shift() as string };
+    const remote = { callerIdentity: async () => remoteIdentity(answers.shift() as string) };
     await expect(assertCallerIdentity(identityOf(USER_A), remote)).resolves.toBeUndefined();
     await expect(assertCallerIdentity(identityOf(USER_A), remote)).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
   });
@@ -211,7 +212,7 @@ describe('与远端交换数据前的核对', () => {
   });
 
   it('远端报告了空身份：拒绝，不当作 anon', async () => {
-    await expect(assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => '' })).rejects.toBeInstanceOf(
+    await expect(assertCallerIdentity(identityOf(USER_A), { callerIdentity: async () => ({ scope: '', subject: '' }) })).rejects.toBeInstanceOf(
       RxDBError
     );
   });
@@ -235,7 +236,7 @@ describe('QueryCache 的远端守卫', () => {
     const remote = createRemote();
     const guarded = createIdentityGuardedQueryCacheRemote(identityOf(USER_A), {
       ...remote,
-      callerIdentity: async () => USER_A
+      callerIdentity: async () => remoteIdentity(USER_A)
     } as never);
 
     await expect(firstValueFrom(guarded.fetchMetadata('Todo', { combinator: 'and', rules: [] }))).resolves.toHaveLength(
@@ -253,7 +254,7 @@ describe('QueryCache 的远端守卫', () => {
     const remote = createRemote();
     const guarded = createIdentityGuardedQueryCacheRemote(identityOf(USER_A), {
       ...remote,
-      callerIdentity: async () => USER_B
+      callerIdentity: async () => remoteIdentity(USER_B)
     } as never);
 
     await expect(
@@ -270,7 +271,7 @@ describe('QueryCache 的远端守卫', () => {
 
   it('订阅之前不核对也不发请求；每次订阅各核对一次', async () => {
     const remote = createRemote();
-    const callerIdentity = vi.fn(async () => USER_A);
+    const callerIdentity = vi.fn(async () => remoteIdentity(USER_A));
     const guarded = createIdentityGuardedQueryCacheRemote(identityOf(USER_A), { ...remote, callerIdentity } as never);
 
     const request$ = guarded.findByIds('Todo', ['1']);
@@ -288,7 +289,7 @@ describe('QueryCache 的远端守卫', () => {
     const readOnly = { fetchMetadata, findByIds };
     const guarded = createIdentityGuardedQueryCacheRemote(identityOf(USER_A), {
       ...readOnly,
-      callerIdentity: async () => USER_A
+      callerIdentity: async () => remoteIdentity(USER_A)
     } as never);
     expect(guarded.create).toBeUndefined();
     expect(guarded.update).toBeUndefined();
@@ -300,7 +301,7 @@ describe('QueryCache 的远端守卫', () => {
     const remote = { ...createRemote(), findByIds: vi.fn(() => throwError(() => boom)) };
     const guarded = createIdentityGuardedQueryCacheRemote(identityOf(USER_A), {
       ...remote,
-      callerIdentity: async () => USER_A
+      callerIdentity: async () => remoteIdentity(USER_A)
     } as never);
     await expect(firstValueFrom(guarded.findByIds('Todo', ['1']))).rejects.toBe(boom);
   });

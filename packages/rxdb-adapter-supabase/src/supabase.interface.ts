@@ -2,7 +2,7 @@
  * @fileoverview Supabase Adapter 核心类型定义
  */
 
-import type { IRxDBAdapterOptions } from '@aiao/rxdb';
+import type { IRxDBAdapterOptions, RxDBIdentity } from '@aiao/rxdb';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface SupabaseRlsCheckTable {
@@ -20,10 +20,7 @@ export interface SupabaseEntitySyncInfo {
   bucketed: boolean;
 }
 
-export interface SupabaseScopedSyncIdentity {
-  readonly kind: 'anon' | 'user';
-  readonly userId?: string;
-}
+export type SupabaseScopedSyncIdentity = RxDBIdentity;
 
 export interface SupabaseRlsCheckOptions {
   /** 自检使用的 RPC 名称 */
