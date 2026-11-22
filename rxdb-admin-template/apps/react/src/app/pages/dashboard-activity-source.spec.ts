@@ -76,6 +76,9 @@ describe('Dashboard 持久化活动', () => {
       'assets',
       'AssetCategory',
       'Asset',
+      'AssetEvent',
+      'AssetCategory',
+      'Asset',
       'AssetEvent'
     ]);
     expect(scene.fullQuery).not.toHaveBeenCalled();

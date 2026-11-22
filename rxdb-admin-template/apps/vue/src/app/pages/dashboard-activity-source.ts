@@ -52,6 +52,7 @@ async function readDashboardActivities(
   const result = await adapter.rawQuery(dashboardActivitySql(table), [
     branchId,
     'assets',
+    ...DASHBOARD_METRICS.map(metric => metric.entityName),
     ...DASHBOARD_METRICS.map(metric => metric.entityName)
   ]);
   return decodeDashboardActivities(result);

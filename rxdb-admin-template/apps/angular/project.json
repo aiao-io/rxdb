@@ -171,7 +171,7 @@
         }
       ],
       "options": {
-        "command": "node rxdb-admin-template/apps/angular/prepare-html.ts"
+        "command": "node --experimental-strip-types rxdb-admin-template/apps/angular/prepare-html.ts"
       }
     },
     "typecheck": {

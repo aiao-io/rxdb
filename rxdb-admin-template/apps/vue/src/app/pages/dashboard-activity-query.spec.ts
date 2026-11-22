@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import { dashboardActivitySql, decodeDashboardActivities } from './dashboard-activity-query';
@@ -38,11 +39,20 @@ function query(changes: readonly Change[], branchId = 'branch-a') {
     );
   }
   const statement = db.prepare(dashboardActivitySql('changes'));
-  const columns = statement.columns().map(column => column.name);
+  const columns = ['changeId', 'namespace', 'entity', 'type', 'count', 'createdAt', 'reverted', 'redoInvalidated', 'ids'];
   return decodeDashboardActivities({
     columns,
     rows: statement
-      .all(branchId, 'assets', 'AssetCategory', 'Asset', 'AssetEvent')
+      .all(
+        branchId,
+        'assets',
+        'AssetCategory',
+        'Asset',
+        'AssetEvent',
+        'AssetCategory',
+        'Asset',
+        'AssetEvent'
+      )
       .map(row => columns.map(column => row[column])),
     rowsAffected: 0
   });

@@ -47,7 +47,7 @@ export function createWorkbenchDatabase(config: AppConfig = appConfig): RxDB {
         // unsupported_combination）；以及 FTS5 全文搜索（sqlite-wasm 构建自带 FTS5，
         // wa-sqlite 的固定 wasm 未开 SQLITE_ENABLE_FTS5）。
         vfs: 'idb',
-        wasmUrl: new URL('sqlite-wasm/wa-sqlite-async.wasm', document.baseURI).href
+        wasmUrl: new URL('sqlite-wasm/wa-sqlite-async.wasm', globalThis.document?.baseURI ?? 'http://localhost/').href
       };
       return new RxDBAdapterSqlite(db, options);
     });

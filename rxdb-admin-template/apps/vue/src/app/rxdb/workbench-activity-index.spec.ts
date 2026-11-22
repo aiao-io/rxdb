@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { LocalRxDBAdapter } from '@aiao/rxdb';
 import { DatabaseSync } from 'node:sqlite';
 import { expect, it, vi } from 'vitest';

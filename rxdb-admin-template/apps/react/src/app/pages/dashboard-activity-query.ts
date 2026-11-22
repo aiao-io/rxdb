@@ -9,12 +9,12 @@ import {
 /** 先按 ID 连续性划分事务，再对完整操作单元排序；不读取业务 patch。 */
 export function dashboardActivitySql(tableName: string): string {
   const table = `"${tableName.replaceAll('"', '""')}"`;
-  const entityParameters = DASHBOARD_METRICS.map((_, index) => `?${index + 3}`).join(', ');
+  const entityParameters = DASHBOARD_METRICS.map(() => '?').join(', ');
   return `WITH ordered AS (
     SELECT id, createdAt, transactionId,
       LAG(transactionId) OVER (ORDER BY id DESC) AS previousTransaction
     FROM ${table}
-    WHERE branchId = ?1 AND namespace = ?2 AND entity IN (${entityParameters})
+    WHERE branchId = ? AND namespace = ? AND entity IN (${entityParameters})
   ), boundaries AS (
     SELECT id AS changeId, createdAt, LEAD(id) OVER (ORDER BY id DESC) AS lowerId
     FROM ordered
