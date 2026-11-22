@@ -24,7 +24,10 @@ import {
   LucideDynamicIcon,
   LucideMoreVertical as MoreVertical,
   LucideSearch as Search,
-  LucideTrash2 as Trash2
+  LucideSettings2 as Settings2,
+  LucideTrash2 as Trash2,
+  LucideUserPlus as UserPlus,
+  LucideUsersRound as UsersRound
 } from '@lucide/angular';
 
 import {
@@ -243,7 +246,7 @@ export class GithubApp {
   protected readonly changeKindOpen = signal(false);
   protected readonly contextMenu = signal<GithubContextMenu | null>(null);
   protected readonly changeKinds: readonly GithubChangeKind[] = ['all', 'added', 'modified', 'deleted'];
-  protected readonly asideWidth = signal(320);
+  protected readonly asideWidth = signal(380);
   protected readonly worktreeWidth = signal(190);
   protected readonly branchWidth = signal(250);
   protected readonly showCleanFiles = signal(false);
@@ -305,7 +308,10 @@ export class GithubApp {
   protected readonly GitBranch = BranchIcon;
   protected readonly MoreVertical = MoreVertical;
   protected readonly Search = Search;
+  protected readonly Settings2 = Settings2;
   protected readonly Trash2 = Trash2;
+  protected readonly UserPlus = UserPlus;
+  protected readonly UsersRound = UsersRound;
 
   constructor() {
     this.win.setMenus(computed(() => this.menuSections()));

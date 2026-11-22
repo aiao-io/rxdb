@@ -72,7 +72,10 @@ async function showRepositoryFiles(view) {
     name: 'Open in Visual Studio Code',
     exact: true
   });
-  if ((await button.count()) > 0) await button.click();
+  if ((await button.count()) > 0) {
+    await button.click();
+    await view.locator('[data-file-path]').first().waitFor();
+  }
 }
 
 /** GitHub 应用正式构建冒烟，网络请求全部由受控 fixture 提供。 */
@@ -346,7 +349,7 @@ export const githubApp = {
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
       (await githubWindow.locator('.gh-empty').count()) === 0;
     await expect(githubWindow.locator('.gh-sidebar')).toBeVisible();
-    await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /320px/);
+    await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /380px/);
 
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
     const viewMenu = page.getByRole('menu', { name: 'View', exact: true });

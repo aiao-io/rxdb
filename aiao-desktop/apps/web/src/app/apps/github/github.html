@@ -15,8 +15,12 @@
         data-github-repository-menu
         type="button"
       >
-        <span class="gh-system-icon gh-toolbar-system-icon">
-          <img alt="" data-github-system-icon src="icons/desktop/app-github.png" />
+        <span class="gh-system-icon gh-toolbar-system-icon gh-repository-icon">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 2.5h8.5A1.5 1.5 0 0 1 13 4v9.5H4.5A1.5 1.5 0 0 1 3 12V2.5Z"></path>
+            <path d="M5.5 2.5V13.5"></path>
+            <path d="M5.5 11.5H13"></path>
+          </svg>
         </span>
         <span class="gh-toolbar-copy">
           <small>Current Repository</small>
@@ -460,11 +464,11 @@
                   [attr.aria-expanded]="changeKindOpen()"
                   (click)="toggleChangeKind()"
                   aria-haspopup="dialog"
-                  aria-label="Change type filter"
+                  aria-label="Filter Options"
                   type="button"
                 >
                   <svg [lucideIcon]="Filter" size="13"></svg>
-                  <span>Filter Options</span>
+                  <span class="sr-only">Filter Options</span>
                   @if (changeKind() !== 'all') {
                     <span class="gh-filter-active-dot" aria-label="Filter active"></span>
                   }
@@ -596,7 +600,11 @@
           <section class="gd-commit-header gh-commit-box" aria-label="Commit changes">
             <div class="gh-commit-fields">
               <div class="gh-commit-summary">
-                <span class="gh-commit-avatar" aria-hidden="true">J</span>
+                <img
+                  class="gh-commit-avatar"
+                  [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'"
+                  alt=""
+                />
                 <input
                   #commitMessageInput
                   [disabled]="busy()"
@@ -609,58 +617,59 @@
                   type="text"
                 />
               </div>
-              <textarea
-                [disabled]="busy()"
-                [value]="commitDescription()"
-                (input)="setValue('commitDescription', $event)"
-                aria-label="Commit description"
-                placeholder="Description"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="gh-commit-tools">
-              <button
-                class="gd-btn-ghost"
-                [disabled]="busy() || !changedEntries().length"
-                (click)="stageAll()"
-                aria-label="Stage all changes"
-                title="Stage all changes"
-                type="button"
-              >
-                ＋
-              </button>
-              <button class="gd-btn-ghost" aria-label="Add co-authors" title="Add co-authors" type="button">
-                <span aria-hidden="true">♧</span>
-              </button>
-              <span class="gh-new-badge">New</span>
-              <button
-                class="gd-btn-ghost"
-                aria-label="Configure commit options"
-                title="Configure commit options"
-                type="button"
-              >
-                ⚙
-              </button>
-              @if (record.owner) {
-                <button
-                  class="gd-btn-ghost gh-sync-action"
+              <div class="gh-commit-description">
+                <textarea
                   [disabled]="busy()"
-                  (click)="pull()"
-                  data-github-pull
-                  type="button"
-                >
-                  Pull
-                </button>
-                <button
-                  class="gd-btn-ghost gh-sync-action"
-                  [disabled]="busy() || hasChanges()"
-                  (click)="push()"
-                  data-github-push
-                  type="button"
-                >
-                  Push
-                </button>
-              }
+                  [value]="commitDescription()"
+                  (input)="setValue('commitDescription', $event)"
+                  aria-label="Commit description"
+                  placeholder="Description"
+                  rows="3"
+                ></textarea>
+                <div class="gh-commit-tools">
+                  <button class="gd-btn-ghost" aria-label="Add co-authors" title="Add co-authors" type="button">
+                    <svg [lucideIcon]="UserPlus" size="16"></svg>
+                  </button>
+                  <button
+                    class="gd-btn-ghost gh-copilot-button"
+                    disabled
+                    aria-label="Generate commit message with Copilot"
+                    title="Generate commit message with Copilot"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="UsersRound" size="16"></svg>
+                    <span class="gh-new-badge">New</span>
+                  </button>
+                  <button
+                    class="gd-btn-ghost"
+                    aria-label="Configure commit options"
+                    title="Configure commit options"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="Settings2" size="16"></svg>
+                  </button>
+                  @if (record.owner) {
+                    <button
+                      class="gd-btn-ghost gh-sync-action"
+                      [disabled]="busy()"
+                      (click)="pull()"
+                      data-github-pull
+                      type="button"
+                    >
+                      Pull
+                    </button>
+                    <button
+                      class="gd-btn-ghost gh-sync-action"
+                      [disabled]="busy() || hasChanges()"
+                      (click)="push()"
+                      data-github-push
+                      type="button"
+                    >
+                      Push
+                    </button>
+                  }
+                </div>
+              </div>
             </div>
             <button
               class="gd-btn-primary gh-commit-button"
@@ -726,11 +735,7 @@
                       to do next.
                     </p>
                   </div>
-                  <div class="gh-paper-stack" aria-hidden="true">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
+                  <img class="gh-paper-stack" src="github/paper-stack.svg" alt="" />
                 </header>
                 <div class="gh-suggested-actions">
                   <article class="gh-suggested-action">
@@ -741,7 +746,7 @@
                         <button class="gh-inline-link" type="button">Settings</button>
                       </p>
                     </div>
-                    <button class="gd-btn-secondary" (click)="viewRepositoryFiles()" type="button">
+                    <button class="gd-btn-secondary" [disabled]="busy()" (click)="viewRepositoryFiles()" type="button">
                       Open in Visual Studio Code
                     </button>
                   </article>
@@ -753,7 +758,7 @@
                         <kbd>⌘ ⇧ F</kbd>
                       </p>
                     </div>
-                    <button class="gd-btn-secondary" (click)="viewRepositoryFiles()" type="button">
+                    <button class="gd-btn-secondary" [disabled]="busy()" (click)="viewRepositoryFiles()" type="button">
                       Show in Finder
                     </button>
                   </article>
@@ -765,7 +770,12 @@
                         <kbd>⌘ ⇧ G</kbd>
                       </p>
                     </div>
-                    <button class="gd-btn-secondary" (click)="openExternal('repository')" type="button">
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="openExternal('repository')"
+                      type="button"
+                    >
                       View on GitHub
                     </button>
                   </article>
