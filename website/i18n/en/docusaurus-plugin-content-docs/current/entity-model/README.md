@@ -17,4 +17,4 @@ Headless consumers can use the framework-independent state and actions and rende
 
 The metadata is the boundary shared by the three framework packages. Field types, relationships, display names, validation, and formatting stay consistent while the presentation layer remains native to each framework.
 
-Continue with [the core entity model guide](./core.md), [framework bindings](./angular.md), or the [headless API](./headless.md).
+Continue with [the core entity model guide](/entity-model/core.md), [framework bindings](/entity-model/angular.md), or the [headless API](/entity-model/headless.md).

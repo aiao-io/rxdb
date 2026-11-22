@@ -21,7 +21,7 @@ pnpm nx serve dev-rxdb-react
 pnpm nx serve dev-rxdb-vue
 ```
 
-See [capabilities and examples](./capabilities.md) for the complete local entry points.
+See [capabilities and examples](/getting-started/capabilities.md) for the complete local entry points.
 
 ## Install the core packages
 
@@ -42,7 +42,7 @@ npm install @aiao/rxdb-vue
 npm install @aiao/rxdb-angular
 ```
 
-The full WASM and Vite setup is documented in [installation and initialization](./install.md).
+The full WASM and Vite setup is documented in [installation and initialization](/getting-started/install.md).
 
 ## Define an entity
 
@@ -87,7 +87,7 @@ rxdb.adapter(
 await rxdb.connect('wa-sqlite');
 ```
 
-The example uses the supported `IDBBatchAtomicVFS` with IndexedDB persistence. Follow [installation and initialization](./install.md) to place the matching WASM file.
+The example uses the supported `IDBBatchAtomicVFS` with IndexedDB persistence. Follow [installation and initialization](/getting-started/install.md) to place the matching WASM file.
 
 ## Read and write data
 
@@ -114,4 +114,4 @@ await todo.save();
 await todo.remove();
 ```
 
-`Todo.find()` returns a reactive `Observable`. See [reactive queries](../model-query/query-realtime.md) for the subscription model.
+`Todo.find()` returns a reactive `Observable`. See [reactive queries](/model-query/query-realtime.md) for the subscription model.

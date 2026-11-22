@@ -45,4 +45,4 @@ const todos = useFind(() =>
 </template>
 ```
 
-See the [Vue API reference](../api/rxdb-vue/README.md) and the runnable Vue example for lifecycle and query details.
+See the [Vue API reference](/api/rxdb-vue/README.md) and the runnable Vue example for lifecycle and query details.

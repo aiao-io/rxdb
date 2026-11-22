@@ -41,4 +41,4 @@ export class TodoListComponent {
 }
 ```
 
-See the [Angular API reference](../api/rxdb-angular/README.md) for providers, query helpers, and lifecycle behavior.
+See the [Angular API reference](/api/rxdb-angular/README.md) for providers, query helpers, and lifecycle behavior.

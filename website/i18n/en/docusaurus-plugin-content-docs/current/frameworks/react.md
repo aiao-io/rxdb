@@ -41,4 +41,4 @@ export function TodoList() {
 }
 ```
 
-See the [React API reference](../api/rxdb-react/README.md) and the runnable React example for the complete Hook set.
+See the [React API reference](/api/rxdb-react/README.md) and the runnable React example for the complete Hook set.

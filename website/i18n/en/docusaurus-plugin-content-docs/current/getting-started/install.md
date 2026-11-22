@@ -1,6 +1,6 @@
 # Installation and initialization
 
-This page lists the core dependencies and the browser setup for the supported SQLite and PGlite adapters. Read [Getting Started](./README.md) first if you have not chosen an application path yet.
+This page lists the core dependencies and the browser setup for the supported SQLite and PGlite adapters. Read [Getting Started](/getting-started/README.md) first if you have not chosen an application path yet.
 
 ## Core dependencies
 
@@ -42,4 +42,4 @@ Install only the binding used by the application. The core entity, query, and wr
 
 ## Version requirements
 
-The repository currently targets Node.js 26+, pnpm 10+, TypeScript 6, Angular 22, React 19, Vue 3.5, and RxJS 7.8. Check the [compatibility matrix](../compatibility.md) before selecting a package version.
+The repository currently targets Node.js 26+, pnpm 10+, TypeScript 6, Angular 22, React 19, Vue 3.5, and RxJS 7.8. Check the [compatibility matrix](/compatibility.md) before selecting a package version.

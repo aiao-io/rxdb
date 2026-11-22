@@ -10,4 +10,4 @@ Adapters connect the framework-independent RxDB model to a local or remote execu
 | Electron / Tauri | Desktop host storage |
 | Mini-program adapters | Experimental platform-specific runtimes |
 
-Start with [installation and initialization](../getting-started/install.md), then read the adapter-specific guide before selecting a production VFS or worker topology.
+Start with [installation and initialization](/getting-started/install.md), then read the adapter-specific guide before selecting a production VFS or worker topology.
