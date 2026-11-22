@@ -132,6 +132,8 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.checkout(projectId, payload.branch ?? '', payload.force ?? false);
     case 'history':
       return git.history(projectId);
+    case 'commitChanges':
+      return git.commitChanges(projectId, payload.oid ?? '');
     case 'restore':
       return git.restore(projectId, payload.oid ?? '');
     case 'export':

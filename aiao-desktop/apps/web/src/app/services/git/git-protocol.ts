@@ -51,6 +51,15 @@ export interface GitFileDiff {
   readonly modified: GitFileVersion;
 }
 
+export interface GitCommitFileChange {
+  readonly projectId: string;
+  readonly oid: string;
+  readonly path: string;
+  readonly status: 'added' | 'modified' | 'deleted';
+  readonly base: GitFileVersion;
+  readonly modified: GitFileVersion;
+}
+
 export type GitErrorCode =
   | 'unsupported_environment'
   | 'unsupported_operation'

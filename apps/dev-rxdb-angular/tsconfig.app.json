@@ -23,9 +23,6 @@
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
     {
-      "path": "../../packages/orbit/tsconfig.lib.json"
-    },
-    {
       "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
