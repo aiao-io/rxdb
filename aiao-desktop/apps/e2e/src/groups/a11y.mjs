@@ -725,6 +725,7 @@ export const a11y = {
         await reset();
         const opened = await openFromDock('GitHub Desktop', 'github');
         const githubWindow = win('github').last();
+        await githubWindow.locator('[data-github-app]').waitFor({ timeout: 15_000 });
         github.menubar = problems(
           opened ? [] : ['无法从 Dock 通过键盘打开 GitHub Desktop'],
           (await menubarFirstApp()) === 'GitHub Desktop' ?
