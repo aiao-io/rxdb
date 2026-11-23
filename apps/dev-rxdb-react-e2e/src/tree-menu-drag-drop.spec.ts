@@ -20,7 +20,7 @@ async function dragAndDrop(page: Page, sourceText: string, targetText: string) {
 
 test.describe('Tree Menu Drag and Drop', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
   });
 
   test('should display drag handle on hover', async ({ page }) => {

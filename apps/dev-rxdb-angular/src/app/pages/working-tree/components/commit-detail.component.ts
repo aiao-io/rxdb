@@ -1,6 +1,7 @@
 import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import {
   LucideChevronDown as ChevronDown,
   LucideChevronUp as ChevronUp,
@@ -39,7 +40,7 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
   selector: 'app-working-tree-commit-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, LucideDynamicIcon, WorkingTreeDiffViewerComponent],
+  imports: [CommonModule, I18nPipe, LucideDynamicIcon, WorkingTreeDiffViewerComponent],
   styles: [
     `
       /* 宿主是右栏 main 的 flex 子项：与 diff-viewer 同一组规则 */
@@ -110,7 +111,11 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
               >
                 {{ gdAvatarInitial(commit.authorId ?? '?') }}
               </span>
-              <span>{{ commit.authorId ?? '无作者' }}</span>
+              @if (commit.authorId) {
+                <span>{{ commit.authorId }}</span>
+              } @else {
+                <span>{{ 'page.workingTree.noAuthor' | i18n }}</span>
+              }
               <span class="gd-commit-time">committed on {{ commit.createdAt.toLocaleString() }}</span>
               <span class="min-w-0 truncate font-mono text-[11px]" [title]="commit.commitId">
                 {{ commit.commitId.slice(0, 8) }}

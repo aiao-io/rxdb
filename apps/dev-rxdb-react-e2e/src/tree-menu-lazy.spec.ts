@@ -4,11 +4,11 @@ import { addRootMenu, expectMenuParent, getMenuRow, openPage, readCount } from '
 
 test.describe('Lazy Loading Tree Menu', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
   });
 
   test('should display lazy loading menu page', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'Tree Menu - Lazy Load' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Lazy Load|树菜单 - 懒加载/ })).toBeVisible();
   });
 
   test('should have add menu input', async ({ page }) => {

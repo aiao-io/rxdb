@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { Article, Comment } from '@aiao/rxdb-test/entities';
 import type { SearchDemoCollection } from '../types';
+
+const { t } = useI18n();
 
 defineProps<{
   collapsed: boolean;
@@ -48,9 +51,10 @@ const emit = defineEmits<{
         >
           <path d="m9 18 6-6-6-6" />
         </svg>
-        数据记录
+        {{ t('page.search.records') }}
         <span class="text-base-content/60 text-xs font-normal">
-          文章 {{ articleRecords.length }} · 评论 {{ commentRecords.length }}
+          {{ t('page.search.articleTotal', { count: articleRecords.length }) }} ·
+          {{ t('page.search.commentTotal', { count: commentRecords.length }) }}
         </span>
       </span>
     </button>
@@ -75,13 +79,16 @@ const emit = defineEmits<{
             role="tab"
             type="button"
           >
-            {{ tab === 'article' ? '文章' : '评论' }}
-            ({{ tab === 'article' ? articleRecords.length : commentRecords.length }})
+            {{
+              tab === 'article'
+                ? t('page.search.articleCount', { count: articleRecords.length })
+                : t('page.search.commentCount', { count: commentRecords.length })
+            }}
           </button>
         </div>
         <button
           class="btn btn-sm btn-primary gap-1 self-start sm:self-center"
-          :aria-label="`新建${activeTab === 'article' ? '文章' : '评论'}`"
+          :aria-label="activeTab === 'article' ? t('page.search.createArticle') : t('page.search.createComment')"
           :data-testid="activeTab === 'article' ? 'search-create-article' : 'search-create-comment'"
           :disabled="mutationBusy"
           @click="emit('open-create', activeTab)"
@@ -101,7 +108,7 @@ const emit = defineEmits<{
             <path d="M5 12h14" />
             <path d="M12 5v14" />
           </svg>
-          新建{{ activeTab === 'article' ? '文章' : '评论' }}
+          {{ activeTab === 'article' ? t('page.search.createArticle') : t('page.search.createComment') }}
         </button>
       </div>
 
@@ -110,7 +117,7 @@ const emit = defineEmits<{
           class="text-base-content/60 mt-3 text-sm italic"
           v-if="articleRecords.length === 0"
         >
-          暂无文章
+          {{ t('page.search.noArticles') }}
         </p>
         <ul
           class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto"
@@ -137,7 +144,9 @@ const emit = defineEmits<{
                   >{{ tag }}</span
                 >
               </div>
-              <p class="text-base-content/80 mt-2 text-xs">{{ article.authorId }} · {{ article.viewCount }} 次浏览</p>
+              <p class="text-base-content/80 mt-2 text-xs">
+                {{ article.authorId }} · {{ t('page.search.views', { count: article.viewCount }) }}
+              </p>
             </div>
             <button
               class="btn btn-xs btn-ghost text-error"
@@ -146,7 +155,7 @@ const emit = defineEmits<{
               @click="emit('remove-article', String(article.id))"
               type="button"
             >
-              删除
+              {{ t('common.delete') }}
             </button>
           </li>
         </ul>
@@ -156,7 +165,7 @@ const emit = defineEmits<{
           class="text-base-content/60 mt-3 text-sm italic"
           v-if="commentRecords.length === 0"
         >
-          暂无评论
+          {{ t('page.search.noComments') }}
         </p>
         <ul
           class="divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto"
@@ -171,7 +180,9 @@ const emit = defineEmits<{
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium">{{ comment.authorName }}</span>
-                <span class="text-base-content/80 text-xs">文章 {{ comment.articleId }}</span>
+                <span class="text-base-content/80 text-xs">
+                  {{ t('page.search.articleReference', { id: comment.articleId }) }}
+                </span>
                 <span class="text-base-content/80 text-xs">#{{ comment.id }}</span>
               </div>
               <p class="text-base-content/80 mt-1 text-sm">{{ comment.content }}</p>
@@ -183,7 +194,7 @@ const emit = defineEmits<{
               @click="emit('remove-comment', String(comment.id))"
               type="button"
             >
-              删除
+              {{ t('common.delete') }}
             </button>
           </li>
         </ul>

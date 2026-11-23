@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { SearchResult, SearchState } from '@aiao/rxdb-plugin-search';
 import clsx from 'clsx';
 import { collectionBadgeClass, localizeCollection, localizeField } from '../types';
@@ -29,6 +30,7 @@ export function SearchResultsList({
   onUpdateResult,
   onRemoveResult
 }: SearchResultsListProps): React.JSX.Element {
+  const { t } = useI18n();
   return (
     <section className='flex flex-col gap-2' aria-live='polite' data-testid='search-results'>
       <div
@@ -54,7 +56,7 @@ export function SearchResultsList({
 
       {displayState === 'empty' && query.trim() && (
         <p className='text-sm italic' data-testid='search-empty'>
-          未找到 "{query}" 相关结果
+          {t('page.search.empty', { query })}
         </p>
       )}
 
@@ -72,16 +74,19 @@ export function SearchResultsList({
               <div className='min-w-0 flex-1'>
                 <div className='flex flex-wrap items-center gap-1.5 text-xs'>
                   <span className={`badge badge-sm ${collectionBadgeClass(r.collection)}`}>
-                    {localizeCollection(r.collection)}
+                    {localizeCollection(t, r.collection)}
                   </span>
                   <span className='text-base-content/80 font-mono'>#{r.id}</span>
                   <span className='text-base-content/30'>·</span>
                   <span className='text-base-content/60'>
-                    匹配：<span className='text-base-content/90 font-medium'>{localizeField(r.matchedField)}</span>
+                    {t('page.search.matchedField')}
+                    <span className='text-base-content/90 font-medium'>{localizeField(t, r.matchedField)}</span>
                   </span>
                   <span className='text-base-content/30'>·</span>
                   {/* FTS5 bm25() 返回负值，越负越相关；取反后展示为正数，数值越大相关度越高 */}
-                  <span className='badge badge-outline badge-sm font-mono'>相关度 {(-r.rank).toFixed(4)}</span>
+                  <span className='badge badge-outline badge-sm font-mono'>
+                    {t('page.search.relevance', { value: (-r.rank).toFixed(4) })}
+                  </span>
                 </div>
                 <p className='mt-1.5 text-sm leading-relaxed break-words'>{r.snippet}</p>
               </div>
@@ -92,8 +97,8 @@ export function SearchResultsList({
                     className='btn btn-xs btn-ghost'
                     disabled={mutationBusy}
                     onClick={() => void onUpdateResult(r)}
-                    aria-label='更新'
-                    title='更新'
+                    aria-label={t('common.update')}
+                    title={t('common.update')}
                     data-testid={`search-result-update-${r.collection}`}
                   >
                     <svg
@@ -118,8 +123,8 @@ export function SearchResultsList({
                     className='btn btn-xs btn-ghost text-error'
                     disabled={mutationBusy}
                     onClick={() => void onRemoveResult(r)}
-                    aria-label='删除'
-                    title='删除'
+                    aria-label={t('common.delete')}
+                    title={t('common.delete')}
                     data-testid={`search-result-delete-${r.collection}`}
                   >
                     <svg
@@ -147,13 +152,13 @@ export function SearchResultsList({
 
       {hasMore && (
         <button type='button' className='btn btn-sm' onClick={() => void onLoadMore()} data-testid='search-load-more'>
-          加载更多
+          {t('page.search.loadMore')}
         </button>
       )}
 
       {displayState === 'error' && (
         <button type='button' className='btn btn-sm btn-warning' onClick={onRetry} data-testid='search-retry'>
-          重试
+          {t('page.search.retry')}
         </button>
       )}
     </section>

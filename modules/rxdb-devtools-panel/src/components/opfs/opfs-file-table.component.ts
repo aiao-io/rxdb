@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import {
   LucideDownload as Download,
   LucideFile as FileIcon,
@@ -7,6 +7,7 @@ import {
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { formatFileDate, formatFileSize } from '../../pages/opfs-page.utils';
+import { PanelI18nService } from '../../services/panel-i18n.service';
 import type { OPFSFile } from '../../types/devtools.types';
 
 @Component({
@@ -18,10 +19,10 @@ import type { OPFSFile } from '../../types/devtools.types';
       <table class="table-sm table-pin-rows table">
         <thead>
           <tr class="bg-base-200">
-            <th class="w-1/2">名称</th>
-            <th>大小</th>
-            <th>修改时间</th>
-            <th class="text-right">操作</th>
+            <th class="w-1/2">{{ t('common.name') }}</th>
+            <th>{{ t('common.size') }}</th>
+            <th>{{ t('opfs.modifiedAt') }}</th>
+            <th class="text-right">{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -43,11 +44,11 @@ import type { OPFSFile } from '../../types/devtools.types';
               <td class="text-right">
                 <div class="flex items-center justify-end gap-1">
                   @if (file.type === 'file') {
-                    <button class="btn btn-ghost btn-xs" (click)="downloadRequested.emit(file)" title="下载">
+                    <button class="btn btn-ghost btn-xs" (click)="downloadRequested.emit(file)" [title]="t('common.download')">
                       <svg [lucideIcon]="Download" aria-hidden="true" size="14"></svg>
                     </button>
                   }
-                  <button class="btn btn-ghost btn-xs text-error" (click)="deleteRequested.emit(file)" title="删除">
+                  <button class="btn btn-ghost btn-xs text-error" (click)="deleteRequested.emit(file)" [title]="t('common.delete')">
                     <svg [lucideIcon]="Trash2" aria-hidden="true" size="14"></svg>
                   </button>
                 </div>
@@ -60,6 +61,7 @@ import type { OPFSFile } from '../../types/devtools.types';
   `
 })
 export class OpfsFileTableComponent {
+  protected readonly t = inject(PanelI18nService).t;
   readonly files = input.required<readonly OPFSFile[]>();
   readonly navigate = output<string>();
   readonly downloadRequested = output<OPFSFile>();

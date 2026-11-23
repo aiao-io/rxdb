@@ -32,13 +32,13 @@ test.describe('Search Parity', () => {
 
     await expect(resultsRegion).toHaveAttribute('aria-live', 'polite');
     await expect(resultsCount).toHaveAttribute('role', 'status');
-    await expect(resultsCount).toContainText('Enter a query');
+    await expect(resultsCount).toContainText('输入关键词开始搜索');
     await expect(state).toHaveText('idle');
     await expect(input).toHaveAttribute('aria-busy', 'false');
 
     await input.fill('fts5');
     await expect(state).toHaveText('success', { timeout: 15000 });
-    await expect(resultsCount).toContainText('results');
+    await expect(resultsCount).toContainText('条结果');
 
     const expected = await callSearchApi(page, 'runSearch', 'fts5', 20);
     const actual = await readUiResults(page);
@@ -50,7 +50,7 @@ test.describe('Search Parity', () => {
     await input.press('Escape');
     await expect(input).toHaveValue('');
     await expect(state).toHaveText('idle');
-    await expect(resultsCount).toContainText('Enter a query');
+    await expect(resultsCount).toContainText('输入关键词开始搜索');
 
     await input.fill('fts5');
     await expect(state).toHaveText('success', { timeout: 15000 });
@@ -58,15 +58,15 @@ test.describe('Search Parity', () => {
     await page.getByTestId('search-simulate-error').focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('error');
-    await expect(resultsCount).toContainText('Search failed');
+    await expect(resultsCount).toContainText('搜索失败');
 
     await page.getByTestId('search-retry').focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('success', { timeout: 15000 });
-    await expect(resultsCount).toContainText('results');
+    await expect(resultsCount).toContainText('条结果');
 
     await input.fill('definitely-not-in-corpus');
     await expect(state).toHaveText('empty', { timeout: 15000 });
-    await expect(resultsCount).toContainText('0 results');
+    await expect(resultsCount).toContainText('无结果');
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useI18nOptional } from '@aiao/rxdb-i18n-vue';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { EntityStaticType, reorderTargetForMove, type HistoryItem, type UUID } from '@aiao/rxdb';
 import { Task } from '@aiao/rxdb-test/entities';
 import { injectRxDB, useFindAll } from '@aiao/rxdb-vue';
@@ -16,7 +16,7 @@ import { useShowHistory } from '../app/composables/useShowHistory';
 const ITEM_SIZE = 48;
 
 const rxdb = injectRxDB()!;
-const i18n = useI18nOptional();
+const { t } = useI18n();
 const mainContainerRef = ref<HTMLDivElement | null>(null);
 const fullHeaderRef = ref<HTMLDivElement | null>(null);
 const todoListRef = ref<HTMLDivElement | null>(null);
@@ -361,7 +361,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
         <div class="mx-auto flex max-w-4xl items-center justify-between">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-semibold">Todos</h2>
-            <div class="badge badge-primary badge-sm">{{ activeTodoCount }} 待办</div>
+            <div class="badge badge-primary badge-sm">{{ t('page.todo.activeCount', { count: activeTodoCount }) }}</div>
           </div>
           <div
             class="tabs tabs-boxed tabs-xs"
@@ -372,21 +372,21 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               @click="stickyTabClick('all')"
               type="button"
             >
-              全部
+              {{ t('page.todo.tab.all') }}
             </button>
             <button
               :class="['tab', { 'tab-active': currentTab === 'active' }]"
               @click="stickyTabClick('active')"
               type="button"
             >
-              进行中
+              {{ t('page.todo.tab.active') }}
             </button>
             <button
               :class="['tab', { 'tab-active': currentTab === 'completed' }]"
               @click="stickyTabClick('completed')"
               type="button"
             >
-              已完成
+              {{ t('page.todo.tab.completed') }}
             </button>
           </div>
         </div>
@@ -405,14 +405,14 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               <div
                 class="badge badge-primary"
                 data-testid="todo-count"
-                >{{ activeTodoCount }} 待办</div
+                >{{ t('page.todo.activeCount', { count: activeTodoCount }) }}</div
               >
 
               <!-- Batch Add Dropdown -->
               <details class="dropdown dropdown-end">
                 <summary
                   class="btn btn-circle btn-sm"
-                  aria-label="批量添加"
+                  :aria-label="t('page.todo.batchAdd')"
                   data-testid="todo-batch-add"
                 >
                   <Plus :size="16" />
@@ -431,7 +431,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                         class="loading loading-spinner loading-xs"
                         v-if="addingCount === 1"
                       />
-                      添加 1 条
+                      {{ t('page.todo.addCount', { count: 1 }) }}
                     </button>
                   </li>
                   <li>
@@ -447,7 +447,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                         class="loading loading-spinner loading-xs"
                         v-if="addingCount === 10"
                       />
-                      添加 10 条
+                      {{ t('page.todo.addCount', { count: 10 }) }}
                     </button>
                   </li>
                   <li>
@@ -463,7 +463,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                         class="loading loading-spinner loading-xs"
                         v-if="addingCount === 100"
                       />
-                      添加 100 条
+                      {{ t('page.todo.addCount', { count: 100 }) }}
                     </button>
                   </li>
                   <li>
@@ -479,7 +479,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                         class="loading loading-spinner loading-xs"
                         v-if="addingCount === 1000"
                       />
-                      添加 1000 条
+                      {{ t('page.todo.addCount', { count: 1000 }) }}
                     </button>
                   </li>
                   <li>
@@ -495,7 +495,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                         class="loading loading-spinner loading-xs"
                         v-if="addingCount === 10000"
                       />
-                      添加 10000 条
+                      {{ t('page.todo.addCount', { count: 10000 }) }}
                     </button>
                   </li>
                 </ul>
@@ -541,7 +541,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               <button
                 :class="['btn btn-sm', { 'btn-primary': showHistory }]"
                 @click="toggleHistory"
-                :aria-label="i18n?.t('history.open') ?? '历史记录'"
+                :aria-label="t('history.open')"
                 data-testid="todo-history"
               >
                 <History :size="16" />
@@ -561,7 +561,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                 data-testid="todo-tab-all"
                 role="tab"
               >
-                全部
+                {{ t('page.todo.tab.all') }}
               </button>
               <button
                 :class="['tab', { 'tab-active': currentTab === 'active' }]"
@@ -569,7 +569,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                 data-testid="todo-tab-active"
                 role="tab"
               >
-                进行中
+                {{ t('page.todo.tab.active') }}
               </button>
               <button
                 :class="['tab', { 'tab-active': currentTab === 'completed' }]"
@@ -577,7 +577,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                 data-testid="todo-tab-completed"
                 role="tab"
               >
-                已完成
+                {{ t('page.todo.tab.completed') }}
               </button>
             </div>
 
@@ -586,24 +586,24 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                 class="btn btn-sm"
                 :disabled="disabledToggleAllBtn"
                 @click="toggleAllTodos"
-                aria-label="全选/取消全选"
+                :aria-label="t('page.todo.toggleAll')"
                 data-testid="todo-toggle-all"
               >
-                全选
+                {{ t('page.todo.toggleAll') }}
               </button>
               <button
                 class="btn btn-sm"
                 :disabled="disabledClearCompletedBtn"
                 @click="clearCompleted"
-                aria-label="清除已完成"
+                :aria-label="t('page.todo.clearCompleted')"
                 data-testid="todo-clear-completed"
               >
-                清除已完成
+                {{ t('page.todo.clearCompleted') }}
               </button>
               <button
                 class="btn btn-sm"
                 @click="toggleCompletedSort"
-                aria-label="排序"
+                :aria-label="t('page.todo.sort')"
                 data-testid="todo-sort"
               >
                 <ArrowUp
@@ -614,7 +614,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   v-else
                   :size="16"
                 />
-                排序
+                {{ t('page.todo.sort') }}
               </button>
             </div>
           </div>
@@ -625,20 +625,20 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               class="input input-bordered input-sm flex-1"
               v-model="inputValue"
               @keyup.enter="addTodo"
-              aria-label="添加新任务"
+              :aria-label="t('page.todo.addPlaceholder')"
               data-testid="todo-title-input"
-              placeholder="添加新任务..."
+              :placeholder="t('page.todo.addPlaceholder')"
               type="text"
             />
             <button
               class="btn btn-primary btn-sm"
               :disabled="!inputValue"
               @click="addTodo"
-              aria-label="添加"
+              :aria-label="t('page.todo.add')"
               data-testid="todo-add"
             >
               <Plus :size="16" />
-              添加
+              {{ t('page.todo.add') }}
             </button>
           </div>
         </div>
@@ -650,7 +650,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
         data-testid="todo-reorder-error"
         role="alert"
       >
-        <span>排序保存失败：{{ reorderError }}</span>
+        <span>{{ t('page.todo.reorderFailed', { reason: reorderError }) }}</span>
       </div>
 
       <!-- US-218 AC#16：最近一轮被远端拒绝的推送 -->
@@ -672,8 +672,8 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
         >
           <div class="hero-content text-center">
             <div>
-              <p class="text-base-content/60">暂无任务</p>
-              <p class="text-base-content/40 text-sm">添加一个新任务开始吧</p>
+              <p class="text-base-content/60">{{ t('page.todo.empty') }}</p>
+              <p class="text-base-content/40 text-sm">{{ t('page.todo.emptyHint') }}</p>
             </div>
           </div>
         </div>
@@ -721,7 +721,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                     "
                     @keyup.escape="cancelEditing(todo)"
                     data-testid="todo-edit-input"
-                    placeholder="任务名称..."
+                    :placeholder="t('page.todo.editPlaceholder')"
                     type="text"
                   />
                   <button
@@ -733,10 +733,10 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                       }
                     "
                     @mousedown.prevent
-                    aria-label="保存"
+                    :aria-label="t('page.todo.save')"
                     data-testid="todo-save"
                   >
-                    保存
+                    {{ t('page.todo.save') }}
                   </button>
                 </template>
                 <template v-else>
@@ -745,7 +745,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                     v-if="currentTab !== 'all'"
                     :disabled="!canDrag"
                     @pointerdown="e => startDrag(e, virtualItem.index)"
-                    aria-label="拖动排序"
+                    :aria-label="t('page.todo.dragSort')"
                     data-testid="todo-drag-handle"
                     type="button"
                   >
@@ -777,7 +777,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                     <button
                       class="btn btn-ghost btn-xs"
                       @click="e => startEditing(e, todo)"
-                      aria-label="编辑"
+                      :aria-label="t('page.todo.edit')"
                       data-testid="todo-edit"
                     >
                       <Pen :size="14" />
@@ -785,7 +785,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                     <button
                       class="btn btn-ghost btn-xs text-error"
                       @click="e => removeTodo(e, todo)"
-                      aria-label="删除"
+                      :aria-label="t('common.delete')"
                       data-testid="todo-delete"
                     >
                       <X :size="14" />

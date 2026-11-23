@@ -27,7 +27,7 @@ export function readCount(text: string | null, what: string): number {
   return Number(matched);
 }
 
-export async function openPage(page: Page, path: string, title: string): Promise<void> {
+export async function openPage(page: Page, path: string, title: string | RegExp): Promise<void> {
   await page.goto(path);
   await page.waitForLoadState('domcontentloaded');
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();

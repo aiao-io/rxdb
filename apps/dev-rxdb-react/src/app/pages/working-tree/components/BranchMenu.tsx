@@ -1,4 +1,5 @@
 import { RxDBBranch } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import clsx from 'clsx';
 import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -80,6 +81,7 @@ export function WorkingTreeBranchMenu({
 }: WorkingTreeBranchMenuProps): React.JSX.Element {
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
   const [filter, setFilter] = useState('');
+  const { t } = useI18n();
   const popupRef = useRef<HTMLDivElement>(null);
 
   // 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
@@ -267,9 +269,9 @@ export function WorkingTreeBranchMenu({
                     <button
                       className='gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex'
                       onClick={event => onMenuRequest(touchMenuRequest(event, branch))}
-                      aria-label='更多操作'
+                      aria-label={t('common.moreActions')}
                       data-testid='wt-branch-more'
-                      title='更多操作（触屏）'
+                      title={t('page.workingTree.moreActionsTouch')}
                       type='button'
                     >
                       <MoreVertical size={14} />

@@ -9,6 +9,8 @@ import { GENERATOR_DEMOS } from './generator-state';
  */
 
 vi.mock('../hooks/useTheme', () => ({ useTheme: () => ({ currentThemeLightDark: 'light' }) }));
+// 本 spec 只关心产物与下载闸门，不关心文案；恒等 t 免去挂载时的 I18n provider。
+vi.mock('@aiao/rxdb-i18n-react', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 
 // CodeMirror 在 happy-dom 里只渲染可视区的行，读不全产物：换成直接显示 value 的桩
 vi.mock('@aiao/code-editor-react', () => ({

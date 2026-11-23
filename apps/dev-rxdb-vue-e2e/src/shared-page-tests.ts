@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { addRootFolder, addRootMenu, editFileRow, editMenuRow, getMenuDeleteButton } from './e2e-utils.js';
 
 interface SharedPageOptions {
-  title: string;
+  title: string | RegExp;
   entityName: string;
 }
 

@@ -1,0 +1,260 @@
+import type { MessageCatalog } from '@aiao/rxdb-i18n';
+
+/** 面板文案命名空间：与仓库其它目录隔离，键对齐由 audit-i18n 静态校验。 */
+const PANEL_NAMESPACE = 'panel';
+
+/** 面板简体中文文案目录。 */
+export const panelZhMessages = {
+  'common.refresh': '刷新',
+  'common.cancel': '取消',
+  'common.create': '创建',
+  'common.delete': '删除',
+  'common.download': '下载',
+  'common.open': '打开',
+  'common.close': '关闭',
+  'common.retry': '重试',
+  'common.connected': '已连接',
+  'common.disconnected': '未连接',
+  'common.name': '名称',
+  'common.size': '大小',
+  'common.type': '类型',
+  'common.actions': '操作',
+  'common.view': '查看',
+  'common.records': '{count, number} 条',
+
+  'branch.createTitle': '创建分支',
+  'branch.createLabel': '创建新分支',
+  'branch.namePlaceholder': '输入分支名称',
+
+  'guard.allowAccess': '允许访问当前站点',
+  'guard.unsupportedTitle': '当前页面不支持扩展注入',
+  'guard.unsupportedBody':
+    '扩展只能注入 {schemes} 协议的页面，当前页面用的是别的协议。浏览器内部页与自定义 scheme 的应用入口都不在这个集合里 —— 这是 Chromium 对扩展 match pattern 的限制，面板侧绕不开。',
+
+  'i18n.title': '国际化 / I18n',
+  'i18n.currentLocale': '当前语言',
+  'i18n.availableLocales': '可用语言',
+  'i18n.catalogSources': '目录与来源（{count, number}）',
+  'i18n.localeColumn': '语言',
+  'i18n.namespaceColumn': '命名空间',
+  'i18n.sourceColumn': '来源',
+  'i18n.statusColumn': '状态',
+  'i18n.messageColumn': '文案',
+  'i18n.active': '生效',
+  'i18n.overridden': '已覆盖',
+  'i18n.missingKeys': '缺失 Key（{count, number}）',
+  'i18n.clearDiagnostics': '清空诊断',
+  'i18n.noMissing': '暂无缺失文案诊断',
+  'i18n.firstObserved': '首次观察',
+  'i18n.loading': '读取国际化状态…',
+  'i18n.unavailable': '被检查的页面未提供国际化检视。',
+
+  'db.entities': '实体',
+  'db.clickRefresh': '点击刷新',
+  'db.selectEntity': '选择一个实体查看数据',
+
+  'events.count': '{count, number} 事件',
+  'events.clearTitle': '清空事件列表',
+  'events.clear': '清空',
+
+  'settings.theme': '主题设置',
+  'settings.current': '当前：{value}',
+  'settings.about': '关于',
+  'settings.exportTitle': '导出数据库',
+  'settings.exportDisabled':
+    '导出已停用：面板不再把整个 OPFS 目录打包下载。该操作会绕过应用自己的加密与访问控制，把原始 SQLite / WAL 字节交到调试通道上。请改用应用侧的备份能力。',
+  'settings.clearTitle': '清理数据库',
+  'settings.clearDescription':
+    '清理所有本地存储数据，包括 RxDB、OPFS、IndexedDB 和 localStorage。清理完成后页面会自动刷新。',
+  'settings.clearing': '清理中...',
+  'settings.clearAll': '清理所有数据',
+  'settings.clearConfirm': '确定要清理所有本地数据吗？此操作不可撤销。',
+  'settings.clearFailed': '清理失败',
+
+  'storage.sourceTooltip': '数据来源：RxDB StorageFileMeta 实体',
+  'storage.pluginMissingTitle': '当前页面未安装 @aiao/rxdb-plugin-storage',
+  'storage.pluginMissingBody':
+    '被检查页面的 RxDB 没有注册 storage:StorageFileMeta 实体，因此这里没有文件可列。',
+  'storage.empty': '无存储文件',
+  'storage.path': '路径',
+  'storage.version': '版本',
+  'storage.createdAt': '创建时间',
+  'storage.updatedAt': '更新时间',
+  'storage.details': '详情',
+  'storage.invalidData': 'StorageFileMeta 返回了无效或重复的实体数据',
+
+  'opfs.refreshNeeded': '需要刷新页面:',
+  'opfs.reloadPage': '刷新页面',
+  'opfs.empty': '此目录为空',
+  'opfs.dropUpload': '拖放文件到此处上传',
+  'opfs.runtimeTooltip': '文件来源所在的运行时',
+  'opfs.count': '{count, number} 项 ({directories, number} 个文件夹, {files, number} 个文件)',
+  'opfs.rootTitle': '根目录',
+  'opfs.listView': '列表视图',
+  'opfs.gridView': '平铺视图',
+  'opfs.uploadFile': '上传文件',
+  'opfs.newFolder': '新建文件夹',
+  'opfs.folderNamePlaceholder': '文件夹名称',
+  'opfs.confirmDeleteTitle': '确认删除',
+  'opfs.deleteFileConfirm': '确定要删除文件「{name}」吗？',
+  'opfs.deleteFolderConfirm': '确定要删除文件夹「{name}」吗？',
+  'opfs.deleteFolderWarning': '此操作将删除文件夹及其所有内容',
+  'opfs.modifiedAt': '修改时间',
+
+  'opfs.refreshHint': '请刷新被检查的页面以加载 OPFS 管理功能',
+  'opfs.loadError': 'OPFS 错误: {message}',
+  'opfs.downloadFailed': '下载失败: {message}',
+  'opfs.downloadSuccess': '文件下载成功',
+  'opfs.deleteFailed': '删除失败: {message}',
+  'opfs.deleteSuccess': '删除成功',
+  'opfs.uploadFailed': '上传失败: {message}',
+  'opfs.uploadUnconfirmed': '上传未确认: {name}',
+  'opfs.uploadSuccess': '上传成功: {name}',
+  'opfs.createFailed': '创建失败: {message}',
+  'opfs.createSuccess': '创建成功: {name}',
+  'opfs.error.invalidPath': '路径非法',
+  'opfs.error.resourceNotFound': '目标不存在',
+  'opfs.error.resourceConflict': '同名条目已存在',
+  'opfs.error.permissionDenied': '没有访问该路径的权限',
+  'opfs.error.storageQuotaExceeded': '存储配额不足',
+  'opfs.error.transferSizeExceeded': '超过协商的单次传输上限',
+  'opfs.error.providerUnsupported': '被检查的页面不提供文件能力',
+  'opfs.error.requestLimitExceeded': '同时进行的请求过多，请稍后重试',
+
+  'entity.recordDetail': '记录详情',
+  'entity.closeDetail': '关闭记录详情',
+  'entity.records': '实体记录'
+} as const;
+
+/** 面板文案键。 */
+export type PanelMessageKey = keyof typeof panelZhMessages;
+
+/** 面板英文文案目录；键集合必须与简体中文目录一致。 */
+export const panelEnMessages = {
+  'common.refresh': 'Refresh',
+  'common.cancel': 'Cancel',
+  'common.create': 'Create',
+  'common.delete': 'Delete',
+  'common.download': 'Download',
+  'common.open': 'Open',
+  'common.close': 'Close',
+  'common.retry': 'Retry',
+  'common.connected': 'Connected',
+  'common.disconnected': 'Disconnected',
+  'common.name': 'Name',
+  'common.size': 'Size',
+  'common.type': 'Type',
+  'common.actions': 'Actions',
+  'common.view': 'View',
+  'common.records': '{count, plural, one {# record} other {# records}}',
+
+  'branch.createTitle': 'Create branch',
+  'branch.createLabel': 'Create new branch',
+  'branch.namePlaceholder': 'Enter branch name',
+
+  'guard.allowAccess': 'Allow access to this site',
+  'guard.unsupportedTitle': 'This page does not support extension injection',
+  'guard.unsupportedBody':
+    'The extension can only inject into pages using the {schemes} protocols; the current page uses a different one. Browser-internal pages and custom-scheme app entry points are not in this set — a Chromium match-pattern restriction that the panel cannot work around.',
+
+  'i18n.title': 'Internationalization / I18n',
+  'i18n.currentLocale': 'Current locale',
+  'i18n.availableLocales': 'Available locales',
+  'i18n.catalogSources': 'Catalogs and sources ({count, number})',
+  'i18n.localeColumn': 'Locale',
+  'i18n.namespaceColumn': 'Namespace',
+  'i18n.sourceColumn': 'Source',
+  'i18n.statusColumn': 'Status',
+  'i18n.messageColumn': 'Message',
+  'i18n.active': 'Active',
+  'i18n.overridden': 'Overridden',
+  'i18n.missingKeys': 'Missing keys ({count, number})',
+  'i18n.clearDiagnostics': 'Clear diagnostics',
+  'i18n.noMissing': 'No missing-message diagnostics',
+  'i18n.firstObserved': 'First observed',
+  'i18n.loading': 'Reading i18n state…',
+  'i18n.unavailable': 'The inspected page does not expose i18n inspection.',
+
+  'db.entities': 'Entities',
+  'db.clickRefresh': 'Click to refresh',
+  'db.selectEntity': 'Select an entity to view its data',
+
+  'events.count': '{count, plural, one {# event} other {# events}}',
+  'events.clearTitle': 'Clear event list',
+  'events.clear': 'Clear',
+
+  'settings.theme': 'Theme',
+  'settings.current': 'Current: {value}',
+  'settings.about': 'About',
+  'settings.exportTitle': 'Export database',
+  'settings.exportDisabled':
+    'Export is disabled: the panel no longer downloads the whole OPFS directory as a package. That operation would bypass the app’s own encryption and access control and put raw SQLite / WAL bytes on the debug channel. Use the app-side backup capability instead.',
+  'settings.clearTitle': 'Clear database',
+  'settings.clearDescription':
+    'Clears all local storage data, including RxDB, OPFS, IndexedDB and localStorage. The page reloads automatically when finished.',
+  'settings.clearing': 'Clearing…',
+  'settings.clearAll': 'Clear all data',
+  'settings.clearConfirm': 'Clear all local data? This cannot be undone.',
+  'settings.clearFailed': 'Clear failed',
+
+  'storage.sourceTooltip': 'Data source: RxDB StorageFileMeta entity',
+  'storage.pluginMissingTitle': 'The inspected page does not have @aiao/rxdb-plugin-storage installed',
+  'storage.pluginMissingBody':
+    'The inspected page’s RxDB does not register the storage:StorageFileMeta entity, so there are no files to list here.',
+  'storage.empty': 'No storage files',
+  'storage.path': 'Path',
+  'storage.version': 'Version',
+  'storage.createdAt': 'Created at',
+  'storage.updatedAt': 'Updated at',
+  'storage.details': 'Details',
+  'storage.invalidData': 'StorageFileMeta returned invalid or duplicate entity data',
+
+  'opfs.refreshNeeded': 'Page reload required:',
+  'opfs.reloadPage': 'Reload page',
+  'opfs.empty': 'This directory is empty',
+  'opfs.dropUpload': 'Drop files here to upload',
+  'opfs.runtimeTooltip': 'Runtime the files come from',
+  'opfs.count':
+    '{count, plural, one {# item} other {# items}} ({directories, plural, one {# folder} other {# folders}}, {files, plural, one {# file} other {# files}})',
+  'opfs.rootTitle': 'Root directory',
+  'opfs.listView': 'List view',
+  'opfs.gridView': 'Grid view',
+  'opfs.uploadFile': 'Upload files',
+  'opfs.newFolder': 'New folder',
+  'opfs.folderNamePlaceholder': 'Folder name',
+  'opfs.confirmDeleteTitle': 'Confirm deletion',
+  'opfs.deleteFileConfirm': 'Delete the file “{name}”?',
+  'opfs.deleteFolderConfirm': 'Delete the folder “{name}”?',
+  'opfs.deleteFolderWarning': 'This deletes the folder and all its contents',
+  'opfs.modifiedAt': 'Modified',
+
+  'opfs.refreshHint': 'Reload the inspected page to load OPFS management',
+  'opfs.loadError': 'OPFS error: {message}',
+  'opfs.downloadFailed': 'Download failed: {message}',
+  'opfs.downloadSuccess': 'File downloaded',
+  'opfs.deleteFailed': 'Delete failed: {message}',
+  'opfs.deleteSuccess': 'Deleted',
+  'opfs.uploadFailed': 'Upload failed: {message}',
+  'opfs.uploadUnconfirmed': 'Upload unconfirmed: {name}',
+  'opfs.uploadSuccess': 'Uploaded: {name}',
+  'opfs.createFailed': 'Create failed: {message}',
+  'opfs.createSuccess': 'Created: {name}',
+  'opfs.error.invalidPath': 'Invalid path',
+  'opfs.error.resourceNotFound': 'Target not found',
+  'opfs.error.resourceConflict': 'An entry with the same name already exists',
+  'opfs.error.permissionDenied': 'No permission to access this path',
+  'opfs.error.storageQuotaExceeded': 'Storage quota exceeded',
+  'opfs.error.transferSizeExceeded': 'Exceeds the negotiated single-transfer limit',
+  'opfs.error.providerUnsupported': 'The inspected page does not provide file capabilities',
+  'opfs.error.requestLimitExceeded': 'Too many requests in flight, retry later',
+
+  'entity.recordDetail': 'Record details',
+  'entity.closeDetail': 'Close record details',
+  'entity.records': 'Entity records'
+} satisfies Record<PanelMessageKey, string>;
+
+/** 面板随包目录；静态运行时据此解析当前语言文案。 */
+export const panelCatalogs: readonly MessageCatalog[] = [
+  { locale: 'zh-Hans', namespace: PANEL_NAMESPACE, messages: panelZhMessages },
+  { locale: 'en', namespace: PANEL_NAMESPACE, messages: panelEnMessages }
+];

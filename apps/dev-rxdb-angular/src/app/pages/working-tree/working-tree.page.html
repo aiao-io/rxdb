@@ -4,7 +4,7 @@
   @let enabledState = tree.isEnabledState();
 
   <!-- GitHub Desktop 没有页面标题栏：标题只留给读屏，视觉上第一行就是工具栏 -->
-  <h1 class="sr-only">工作树与提交历史</h1>
+  <h1 class="sr-only">{{ 'page.workingTree.title' | i18n }}</h1>
 
   @if (enabledState.phase === 'success' && enabledState.value) {
     <!-- ═══════════════════ 工具栏：仓库选择器 · 分支选择器 · 获取 origin · 上次获取 ═══════════════════ -->
@@ -100,7 +100,7 @@
         [style.width.px]="$fetchSectionWidth()"
         (click)="runFetch()"
         data-testid="wt-refresh-status"
-        title="Fetch origin（重读本地状态与提交历史）"
+        [title]="'page.workingTree.fetchTitle' | i18n"
         type="button"
       >
         <svg [class.animate-spin]="$fetching()" [lucideIcon]="RefreshCw" size="18"></svg>
@@ -255,28 +255,30 @@
       <span data-testid="wt-status-phase">{{ status.phase }}</span>
       @if (status.phase === 'success' || status.phase === 'empty') {
         <span class="min-w-0 truncate">
-          · 分支
+          {{ 'page.workingTree.statusBranchLabel' | i18n }}
           <span class="font-medium" data-testid="wt-status-branch">{{ status.value.branchId }}</span>
-          · 未提交
+          {{ 'page.workingTree.statusUncommittedLabel' | i18n }}
           <span data-testid="wt-status-entry-count">{{ status.value.entryCount }}</span>
-          条 ·
-          <span data-testid="wt-status-clean">{{ status.value.clean ? '干净' : '有未提交改动' }}</span>
-          · 远端同步来源
+          {{ 'page.workingTree.statusEntryCountSuffix' | i18n }}
+          <span data-testid="wt-status-clean">{{
+            status.value.clean ? ('page.workingTree.statusClean' | i18n) : ('page.workingTree.statusDirty' | i18n)
+          }}</span>
+          {{ 'page.workingTree.statusRemoteSyncLabel' | i18n }}
           <span data-testid="wt-status-remote-sync">{{ status.value.byOrigin.remote_sync }}</span>
-          条
+          {{ 'page.workingTree.statusCountSuffix' | i18n }}
         </span>
         @if (status.value.restoring) {
           <span class="rounded-full border border-amber-400 px-1.5 text-amber-700" data-testid="wt-status-restore">
-            恢复中
+            {{ 'page.workingTree.statusRestoring' | i18n }}
           </span>
         }
         @if (status.value.conflicted) {
           <span class="rounded-full border border-red-400 px-1.5 text-red-700" data-testid="wt-status-restore">
-            会话分叉
+            {{ 'page.workingTree.statusConflicted' | i18n }}
           </span>
         }
       } @else if (status.phase === 'error') {
-        <span>· 尚未初始化，先点「初始化仓库」</span>
+        <span>{{ 'page.workingTree.statusNotInitialized' | i18n }}</span>
       }
     </div>
     <div class="flex shrink-0 items-center gap-3">
@@ -288,19 +290,19 @@
         role="status"
       >
         @if (enabledState.phase === 'success') {
-          {{ enabledState.value ? '已启用' : '未启用' }}
+          {{ enabledState.value ? ('page.workingTree.enabled' | i18n) : ('page.workingTree.notEnabled' | i18n) }}
         } @else {
           {{ enabledState.phase }}
         }
       </span>
       <span data-testid="wt-first-visible">
-        首次可见状态耗时：
+        {{ 'page.workingTree.firstVisibleLabel' | i18n }}
         <span data-testid="wt-first-visible-ms">{{ $firstVisibleMs() }}</span>
         ms
       </span>
       @if (!(enabledState.phase === 'success' && enabledState.value)) {
         <button class="gd-btn-ghost" (click)="refreshStatus()" data-testid="wt-refresh-status" type="button">
-          刷新状态
+          {{ 'page.workingTree.refreshStatus' | i18n }}
         </button>
       }
     </div>
@@ -389,7 +391,7 @@
           {{ request.kind === 'discard' ? 'Discard changes' : 'Delete branch' }}
         </h2>
         <p class="mb-4 text-sm" [style.color]="'var(--gd-muted)'">
-          {{ request.kind === 'discard' ? request.message : '确定要删除分支 "' + request.branchId + '" 吗？' }}
+          {{ request.kind === 'discard' ? request.message : ('page.workingTree.confirmDeleteBranch' | i18n: { branchId: request.branchId }) }}
         </p>
         <div class="flex justify-end gap-2">
           <button class="gd-btn-secondary" (click)="cancelConfirm()" data-testid="wt-confirm-cancel" type="button">

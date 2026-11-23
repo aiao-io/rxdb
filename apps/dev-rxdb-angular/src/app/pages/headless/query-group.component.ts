@@ -5,6 +5,7 @@ import {
   type QueryBuilderRuleGroup
 } from '@aiao/rxdb-model/headless';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { operatorsFor } from './article-model';
 import { QueryRuleComponent } from './query-rule.component';
 
@@ -12,18 +13,29 @@ import { QueryRuleComponent } from './query-rule.component';
 @Component({
   selector: 'app-hl-query-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QueryRuleComponent],
+  imports: [QueryRuleComponent, I18nPipe],
   template: `
-    <div class="hl-group" [attr.aria-label]="isRoot() ? '筛选条件' : '子分组'" data-testid="qb-group" role="group">
+    <div
+      class="hl-group"
+      [attr.aria-label]="isRoot() ? ('page.headless.filterRoot' | i18n) : ('page.headless.filterGroup' | i18n)"
+      data-testid="qb-group"
+      role="group"
+    >
       <div class="hl-group-head">
-        <select (change)="changeCombinator($event)" aria-label="组合方式">
-          <option [selected]="group().combinator === 'and'" value="and">全部满足 (AND)</option>
-          <option [selected]="group().combinator === 'or'" value="or">任一满足 (OR)</option>
+        <select (change)="changeCombinator($event)" [attr.aria-label]="'page.headless.combinator' | i18n">
+          <option [selected]="group().combinator === 'and'" value="and">{{ 'page.headless.combinatorAnd' | i18n }}</option>
+          <option [selected]="group().combinator === 'or'" value="or">{{ 'page.headless.combinatorOr' | i18n }}</option>
         </select>
-        <button (click)="addRule()" type="button">添加规则</button>
-        <button (click)="controller().addGroup(group().id)" type="button">添加分组</button>
+        <button (click)="addRule()" type="button">{{ 'page.headless.addRule' | i18n }}</button>
+        <button (click)="controller().addGroup(group().id)" type="button">{{ 'page.headless.addGroup' | i18n }}</button>
         @if (!isRoot()) {
-          <button (click)="controller().remove(group().id)" aria-label="删除分组" type="button">删除分组</button>
+          <button
+            (click)="controller().remove(group().id)"
+            [attr.aria-label]="'page.headless.deleteGroup' | i18n"
+            type="button"
+          >
+            {{ 'page.headless.deleteGroup' | i18n }}
+          </button>
         }
       </div>
       <ul class="hl-group-body">

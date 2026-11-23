@@ -38,7 +38,7 @@ test.describe('Search Refresh', () => {
     const query = `refresh-vue-${Date.now().toString(36)}`;
     await input.fill(query);
     await expect(state).toHaveText('empty', { timeout: 15000 });
-    await expect(resultsCount).toContainText('0 results');
+    await expect(resultsCount).toContainText('无结果');
 
     const created = await callSearchApi(page, 'createArticle', {
       title: `${query} title`,
@@ -66,7 +66,7 @@ test.describe('Search Refresh', () => {
     await callSearchApi(page, 'removeArticle', created.id);
     await expect(createdResult).toHaveCount(0, { timeout: 15000 });
     await expect(state).toHaveText('empty', { timeout: 15000 });
-    await expect(resultsCount).toContainText('0 results');
+    await expect(resultsCount).toContainText('无结果');
     await expect(input).toHaveValue(query);
 
     await input.press('Escape');
@@ -77,11 +77,11 @@ test.describe('Search Refresh', () => {
     await page.getByTestId('search-simulate-error').focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('error');
-    await expect(resultsCount).toContainText('Search failed');
+    await expect(resultsCount).toContainText('搜索失败');
 
     await page.getByTestId('search-retry').focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('success', { timeout: 15000 });
-    await expect(resultsCount).toContainText('results');
+    await expect(resultsCount).toContainText('条结果');
   });
 });

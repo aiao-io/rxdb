@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { EntityType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { SearchResult } from '@aiao/rxdb-plugin-search';
 import { useSearch } from '@aiao/rxdb-plugin-search-vue';
 import { SEARCH_PARITY_ARTICLES, SEARCH_PARITY_COMMENTS, withSeedLock } from '@aiao/rxdb-test';
@@ -55,6 +56,7 @@ function buildMutationToken(prefix: string, query: string): string {
  * (`@aiao/rxdb-test` `SEARCH_PARITY_*`)。
  */
 const rxdb = injectRxDB()!;
+const { t } = useI18n();
 
 // ----- Scope -----
 const scopeMode = ref<SearchDemoMode>('global');
@@ -63,17 +65,16 @@ const activeCollections = computed<readonly SearchDemoCollection[] | undefined>(
   if (scopeMode.value === 'global') return undefined;
   return SEARCH_DEMO_COLLECTIONS.filter(c => customScope.value[c]);
 });
+function collectionLabel(collection: SearchDemoCollection): string {
+  if (collection === 'article') return t('page.search.collectionArticle');
+  if (collection === 'comment') return t('page.search.collectionComment');
+  return 'Todo';
+}
 const scopeSummary = computed(() => {
   const cols = activeCollections.value;
-  if (cols === undefined) return '全部可搜索集合';
-  if (cols.length === 0) return '未选择集合';
-  return cols
-    .map(c =>
-      c === 'article' ? '文章'
-      : c === 'comment' ? '评论'
-      : 'Todo'
-    )
-    .join(' + ');
+  if (cols === undefined) return t('page.search.scopeSummaryAll');
+  if (cols.length === 0) return t('page.search.scopeSummaryNone');
+  return cols.map(collectionLabel).join(' + ');
 });
 
 // ----- Search（由 @aiao/rxdb-plugin-search-vue 提供） -----
@@ -103,6 +104,12 @@ const commentRecords = ref<Comment[]>([]);
 const mutationBusy = ref(false);
 const mutationMessage = ref<string | null>(null);
 const seedCount = ref<{ article: number; comment: number } | null>(null);
+const seedLabel = computed(() => {
+  const counts = seedCount.value;
+  if (!counts) return t('common.loading');
+  const label = t('page.search.articleTotal', { count: counts.article });
+  return counts.comment ? `${label} · ${t('page.search.commentTotal', { count: counts.comment })}` : label;
+});
 const seeding = ref(false);
 const recordsCollapsed = ref(false);
 const activeRecordTab = ref<SearchDemoCollection>('article');
@@ -126,11 +133,11 @@ const simulatedError = ref<string | null>(null);
 const displayState = computed(() => (simulatedError.value ? 'error' : searchState.value));
 const displayError = computed(() => simulatedError.value ?? searchError.value?.message ?? null);
 const resultAnnouncement = computed(() => {
-  if (displayState.value === 'loading') return 'Searching…';
-  if (displayState.value === 'success') return `${results.value.length} results`;
-  if (displayState.value === 'empty') return '0 results';
-  if (displayState.value === 'error') return 'Search failed';
-  return 'Enter a query';
+  if (displayState.value === 'loading') return t('page.search.loading');
+  if (displayState.value === 'success') return t('page.search.stateSuccess', { count: results.value.length });
+  if (displayState.value === 'empty') return t('page.search.stateEmpty');
+  if (displayState.value === 'error') return t('page.search.stateError');
+  return t('page.search.stateIdle');
 });
 
 // ----- Helpers -----
@@ -251,7 +258,7 @@ function clearSearch() {
 }
 function simulateError() {
   if (!query.value.trim()) return;
-  simulatedError.value = '模拟的搜索错误';
+  simulatedError.value = t('page.search.simulatedErrorMessage');
 }
 function retrySearch() {
   simulatedError.value = null;
@@ -271,7 +278,7 @@ async function createArticle(input: {
     const article = new Article({ ...input, tags: [...input.tags] });
     await rxdb.entityManager.getRepository(Article).create(article);
     await refreshCounts();
-    mutationMessage.value = `已创建文章 ${article.id}`;
+    mutationMessage.value = t('page.search.createdArticle', { id: article.id });
   });
 }
 
@@ -280,7 +287,7 @@ async function createComment(input: { articleId: string; content: string; author
     const comment = new Comment(input);
     await rxdb.entityManager.getRepository(Comment).create(comment);
     await refreshCounts();
-    mutationMessage.value = `已创建评论 ${comment.id}`;
+    mutationMessage.value = t('page.search.createdComment', { id: comment.id });
   });
 }
 
@@ -289,7 +296,7 @@ async function updateArticle(id: string, token: string) {
     const all = await listEntities(Article);
     const article = all.find(a => String(a.id) === id);
     if (!article) {
-      mutationMessage.value = `未找到文章: ${id}`;
+      mutationMessage.value = t('page.search.notFoundArticle', { id });
       return;
     }
     article.title = `${article.title} [updated]`;
@@ -298,7 +305,7 @@ async function updateArticle(id: string, token: string) {
     article.viewCount += 1;
     await article.save();
     await refreshCounts();
-    mutationMessage.value = `已更新文章 ${id}`;
+    mutationMessage.value = t('page.search.updatedArticle', { id });
   });
 }
 
@@ -307,14 +314,14 @@ async function updateComment(id: string, token: string) {
     const all = await listEntities(Comment);
     const comment = all.find(c => String(c.id) === id);
     if (!comment) {
-      mutationMessage.value = `未找到评论: ${id}`;
+      mutationMessage.value = t('page.search.notFoundComment', { id });
       return;
     }
     comment.content = `${comment.content} Updated with token ${token}.`;
     comment.authorName = `${comment.authorName}-updated`;
     await comment.save();
     await refreshCounts();
-    mutationMessage.value = `已更新评论 ${id}`;
+    mutationMessage.value = t('page.search.updatedComment', { id });
   });
 }
 
@@ -323,12 +330,12 @@ async function removeArticle(id: string) {
     const all = await listEntities(Article);
     const article = all.find(a => String(a.id) === id);
     if (!article) {
-      mutationMessage.value = `未找到文章: ${id}`;
+      mutationMessage.value = t('page.search.notFoundArticle', { id });
       return;
     }
     await article.remove();
     await refreshCounts();
-    mutationMessage.value = `已删除文章 ${id}`;
+    mutationMessage.value = t('page.search.removedArticle', { id });
   });
 }
 
@@ -337,12 +344,12 @@ async function removeComment(id: string) {
     const all = await listEntities(Comment);
     const comment = all.find(c => String(c.id) === id);
     if (!comment) {
-      mutationMessage.value = `未找到评论: ${id}`;
+      mutationMessage.value = t('page.search.notFoundComment', { id });
       return;
     }
     await comment.remove();
     await refreshCounts();
-    mutationMessage.value = `已删除评论 ${id}`;
+    mutationMessage.value = t('page.search.removedComment', { id });
   });
 }
 
@@ -407,8 +414,8 @@ async function removeResultRecord(r: SearchResult) {
     data-testid="search-page"
   >
     <header class="flex items-baseline gap-3">
-      <h1 class="text-xl font-semibold">全局搜索</h1>
-      <p class="text-base-content/80 text-sm">Seeded articles and comments from the current RxDB only.</p>
+      <h1 class="text-xl font-semibold">{{ t('page.search.title') }}</h1>
+      <p class="text-base-content/80 text-sm">{{ t('page.search.subtitle') }}</p>
     </header>
 
     <!-- Search input -->
@@ -449,7 +456,7 @@ async function removeResultRecord(r: SearchResult) {
         @keydown.esc.prevent="clearSearch"
         aria-label="Global search"
         data-testid="search-input"
-        placeholder="搜索…（⌘K 或 /）"
+        :placeholder="t('page.search.placeholder')"
         ref="searchInputRef"
         role="searchbox"
         type="search"
@@ -459,9 +466,9 @@ async function removeResultRecord(r: SearchResult) {
           class="btn btn-ghost btn-xs btn-circle"
           v-if="query.trim() || simulatedError"
           @click="clearSearch"
-          aria-label="清空"
+          :aria-label="t('page.search.clear')"
           data-testid="search-clear"
-          title="清空 (Esc)"
+          :title="t('page.search.clearHint')"
           type="button"
         >
           <svg
@@ -483,9 +490,9 @@ async function removeResultRecord(r: SearchResult) {
           class="btn btn-ghost btn-xs btn-circle text-warning"
           :disabled="!query.trim()"
           @click="simulateError"
-          aria-label="模拟错误"
+          :aria-label="t('page.search.simulateError')"
           data-testid="search-simulate-error"
-          title="模拟错误"
+          :title="t('page.search.simulateError')"
           type="button"
         >
           <svg
@@ -514,14 +521,14 @@ async function removeResultRecord(r: SearchResult) {
       data-testid="search-scope-panel"
     >
       <div class="flex flex-wrap items-center gap-2">
-        <span class="text-sm font-medium">范围</span>
+        <span class="text-sm font-medium">{{ t('page.search.scope') }}</span>
         <button
           :class="`btn btn-xs ${scopeMode === 'global' ? 'btn-primary' : 'btn-outline'}`"
           @click="setScopeMode('global')"
           data-testid="search-scope-mode-global"
           type="button"
         >
-          全部
+          {{ t('page.search.all') }}
         </button>
         <button
           :class="`btn btn-xs ${scopeMode === 'custom' ? 'btn-primary' : 'btn-outline'}`"
@@ -529,7 +536,7 @@ async function removeResultRecord(r: SearchResult) {
           data-testid="search-scope-mode-custom"
           type="button"
         >
-          自定义
+          {{ t('page.search.custom') }}
         </button>
         <template v-if="scopeMode === 'custom'">
           <label
@@ -544,13 +551,7 @@ async function removeResultRecord(r: SearchResult) {
               @change="toggleCollection(col, ($event.target as HTMLInputElement).checked)"
               type="checkbox"
             />
-            <span class="label-text text-xs">
-              {{
-                col === 'article' ? '文章'
-                : col === 'comment' ? '评论'
-                : 'Todo'
-              }}
-            </span>
+            <span class="label-text text-xs">{{ collectionLabel(col) }}</span>
           </label>
         </template>
         <span
@@ -588,11 +589,7 @@ async function removeResultRecord(r: SearchResult) {
         class="text-base-content/60"
         data-testid="search-seed-count"
       >
-        数据：
-        <template v-if="seedCount">
-          文章 {{ seedCount.article }}<template v-if="seedCount.comment"> · 评论 {{ seedCount.comment }}</template>
-        </template>
-        <template v-else>加载中…</template>
+        {{ t('page.search.data', { value: seedLabel }) }}
       </span>
       <button
         class="btn btn-sm btn-ghost"
@@ -601,7 +598,7 @@ async function removeResultRecord(r: SearchResult) {
         data-testid="search-reseed"
         type="button"
       >
-        {{ seeding ? '写入中…' : '重新写入' }}
+        {{ seeding ? t('page.search.seeding') : t('page.search.reseed') }}
       </button>
     </div>
 

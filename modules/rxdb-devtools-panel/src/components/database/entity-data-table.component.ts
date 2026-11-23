@@ -6,8 +6,9 @@ import {
   type PropertyColumnConfig
 } from '@aiao/rxdb-model';
 import { EntityTableComponent } from '@aiao/rxdb-model-angular';
-import { Component, computed, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import type { ColumnDefine, ListTableConstructorOptions } from '@visactor/vtable/es/ts-types/index.js';
+import { PanelI18nService } from '../../services/panel-i18n.service';
 import { DevToolsValueComponent, toDevToolsDisplayRows, type DevToolsDisplayRow } from '../devtools-value.component';
 
 /** 只读实体数据表格的行值。 */
@@ -73,10 +74,18 @@ export function buildEntityDataAccessibilityRows(records: readonly EntityDataRec
   return records.flatMap(record => toDevToolsDisplayRows(record));
 }
 
+/** 操作列的可本地化标签。 */
+export interface EntityActionLabels {
+  readonly actions: string;
+  readonly delete: string;
+  readonly view: string;
+}
+
 /** 构建只读模型列；列工具仍负责日期、枚举、数组和 JSON 的具体展示。 */
 export function buildEntityDataColumns(
   model: DevToolsEntityModel | null,
-  records: readonly EntityDataRecord[]
+  records: readonly EntityDataRecord[],
+  labels: EntityActionLabels
 ): ColumnDefine[] {
   const fields = resolveEntityFields(model, records);
   const columns = fields.map(field => {
@@ -92,7 +101,7 @@ export function buildEntityDataColumns(
     };
     return buildPropertyColumn(config);
   });
-  return [...columns, actionsColumn('操作', '删除', () => false, '查看')];
+  return [...columns, actionsColumn(labels.actions, labels.delete, () => false, labels.view)];
 }
 
 /**
@@ -115,7 +124,7 @@ export function buildEntityDataColumns(
         (iconClicked)="onIconClicked($event)"
       />
 
-      <div class="sr-only" aria-label="实体记录">
+      <div class="sr-only" [attr.aria-label]="t('entity.records')">
         @for (row of accessibilityRows(); track $index) {
           <div>{{ row.key }} {{ row.kind }} {{ row.value }}</div>
         }
@@ -130,9 +139,9 @@ export function buildEntityDataColumns(
             role="dialog"
           >
             <header class="border-base-300 flex items-center justify-between border-b px-4 py-3">
-              <h2 class="text-sm font-semibold" id="entity-record-detail-title">记录详情</h2>
-              <button class="btn btn-ghost btn-sm" (click)="closeDetail()" aria-label="关闭记录详情" type="button">
-                关闭
+              <h2 class="text-sm font-semibold" id="entity-record-detail-title">{{ t('entity.recordDetail') }}</h2>
+              <button class="btn btn-ghost btn-sm" (click)="closeDetail()" [attr.aria-label]="t('entity.closeDetail')" type="button">
+                {{ t('common.close') }}
               </button>
             </header>
             <div class="min-h-0 flex-1 overflow-auto p-3">
@@ -153,6 +162,7 @@ export function buildEntityDataColumns(
   ]
 })
 export class EntityDataTableComponent {
+  protected readonly t = inject(PanelI18nService).t;
   readonly data = input<readonly unknown[]>([]);
   readonly model = input<DevToolsEntityModel | null>(null);
   readonly loading = input(false);
@@ -162,7 +172,13 @@ export class EntityDataTableComponent {
       .filter(isRecord)
       .map(record => ({ ...record }))
   );
-  readonly columns = computed(() => buildEntityDataColumns(this.model(), this.records()));
+  readonly columns = computed(() =>
+    buildEntityDataColumns(this.model(), this.records(), {
+      actions: this.t('common.actions'),
+      delete: this.t('common.delete'),
+      view: this.t('common.view')
+    })
+  );
   readonly accessibilityRows = computed(() => buildEntityDataAccessibilityRows(this.records()));
   readonly selectedRecord = signal<EntityDataRecord | null>(null);
   readonly tableOptions = ENTITY_DATA_TABLE_OPTIONS;

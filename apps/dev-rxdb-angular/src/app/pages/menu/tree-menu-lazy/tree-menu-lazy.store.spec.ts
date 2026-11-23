@@ -119,7 +119,7 @@ describe('TreeMenuLazyStore', () => {
     store.setSearchKeyword('不存在');
     expect(store.treeNodes()).toEqual([]);
     expect(store.searchWarning()).toEqual({
-      message: '搜索仅限于已加载的节点。展开更多节点以搜索其子节点。',
+      messageKey: 'page.tree.searchScopeHint',
       loadedCount: 2,
       expandedCount: 0,
       rootCount: 2

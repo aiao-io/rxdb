@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import type { RuleGroup } from '@aiao/rxdb';
-import { useI18nRuntime } from '@aiao/rxdb-i18n-vue';
+import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-vue';
 import { useQueryBuilder } from '@aiao/rxdb-model-vue/headless';
 import { computed } from 'vue';
 import { queryFields } from './article-model';
 import QueryGroup from './QueryGroup.vue';
 
 const emit = defineEmits<{ apply: [query: RuleGroup] }>();
+
+const { t } = useI18n();
 
 /** 筛选面板：自有的分组 / 规则行 / 控件，状态与动作来自 `useQueryBuilder`；文案用应用的 i18n 运行时。 */
 const { controller, snapshot } = useQueryBuilder({ fields: queryFields, i18n: useI18nRuntime() });
@@ -24,7 +26,7 @@ const clear = (): void => {
     aria-labelledby="hl-query-title"
     data-testid="headless-query"
   >
-    <h2 id="hl-query-title">筛选</h2>
+    <h2 id="hl-query-title">{{ t('page.headless.queryTitle') }}</h2>
     <QueryGroup
       :group="snapshot.state.rootGroup"
       :controller="controller"
@@ -49,17 +51,17 @@ const clear = (): void => {
         :disabled="!snapshot.valid"
         @click="emit('apply', controller.toRxDBQuery())"
       >
-        应用筛选
+        {{ t('page.headless.applyFilter') }}
       </button>
       <button
         type="button"
         @click="clear"
-        >清空筛选</button
+        >{{ t('page.headless.clearFilter') }}</button
       >
     </div>
     <pre
       class="hl-output"
-      aria-label="查询输出"
+      :aria-label="t('page.headless.queryOutput')"
       data-testid="qb-query"
       >{{ JSON.stringify(snapshot.query) }}</pre>
   </section>

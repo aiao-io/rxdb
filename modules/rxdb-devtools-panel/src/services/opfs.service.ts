@@ -1,6 +1,8 @@
 import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
 import { inject, Injectable, signal } from '@angular/core';
+import type { PanelMessageKey } from '../i18n/messages';
 import { ToastService } from '../components/toast.component';
+import { PanelI18nService } from './panel-i18n.service';
 import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry, type DevToolsFileResult } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
 
@@ -20,21 +22,17 @@ const REFRESH_HINT_CODES: ReadonlySet<string> = new Set([
   'provider_unavailable'
 ]);
 
-/** 错误码 → 面板文案；缺席的码只展示码本身，不编一句话。 */
-const ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  invalid_path: '路径非法',
-  resource_not_found: '目标不存在',
-  resource_conflict: '同名条目已存在',
-  permission_denied: '没有访问该路径的权限',
-  storage_quota_exceeded: '存储配额不足',
-  transfer_size_exceeded: '超过协商的单次传输上限',
-  provider_unsupported: '被检查的页面不提供文件能力',
-  request_limit_exceeded: '同时进行的请求过多，请稍后重试'
+/** 错误码 → 面板文案键；缺席的码只展示码本身，不编一句话。 */
+const ERROR_MESSAGE_KEYS: Readonly<Record<string, PanelMessageKey>> = {
+  invalid_path: 'opfs.error.invalidPath',
+  resource_not_found: 'opfs.error.resourceNotFound',
+  resource_conflict: 'opfs.error.resourceConflict',
+  permission_denied: 'opfs.error.permissionDenied',
+  storage_quota_exceeded: 'opfs.error.storageQuotaExceeded',
+  transfer_size_exceeded: 'opfs.error.transferSizeExceeded',
+  provider_unsupported: 'opfs.error.providerUnsupported',
+  request_limit_exceeded: 'opfs.error.requestLimitExceeded'
 };
-
-function describe(error: DevToolsErrorPayload): string {
-  return ERROR_MESSAGES[error.code] ?? error.code;
-}
 
 function kindOf(error: DevToolsErrorPayload): OpfsErrorKind {
   return REFRESH_HINT_CODES.has(error.code) ? 'content-script-unavailable' : 'unknown';
@@ -68,6 +66,13 @@ function toFile(entry: DevToolsFileEntry, parent: string): OPFSFile {
 export class OpfsService {
   private readonly toastService = inject(ToastService);
   private readonly fileChannel = inject(DEVTOOLS_FILE_CHANNEL);
+  private readonly t = inject(PanelI18nService).t;
+
+  /** 把带码错误转成面板文案；缺席的码只展示码本身。 */
+  private describe(error: DevToolsErrorPayload): string {
+    const key = ERROR_MESSAGE_KEYS[error.code];
+    return key ? this.t(key) : error.code;
+  }
 
   /** 当前路径 */
   readonly currentPath = signal('/');
@@ -134,8 +139,8 @@ export class OpfsService {
     if (result.outcome === 'failed') {
       this.files.set([]);
       this.fail(result.error, kind =>
-        kind === 'content-script-unavailable' ? '请刷新被检查的页面以加载 OPFS 管理功能' : (
-          `OPFS 错误: ${describe(result.error)}`
+        kind === 'content-script-unavailable' ? this.t('opfs.refreshHint') : (
+          this.t('opfs.loadError', { message: this.describe(result.error) })
         )
       );
     } else {
@@ -158,10 +163,10 @@ export class OpfsService {
   async download(file: OPFSFile): Promise<void> {
     const result = await this.fileChannel.download(file.path);
     if (result.outcome === 'failed') {
-      this.toastService.error(`下载失败: ${describe(result.error)}`);
+      this.toastService.error(this.t('opfs.downloadFailed', { message: this.describe(result.error) }));
       return;
     }
-    this.toastService.success('文件下载成功');
+    this.toastService.success(this.t('opfs.downloadSuccess'));
   }
 
   /**
@@ -170,10 +175,10 @@ export class OpfsService {
   async delete(file: OPFSFile): Promise<void> {
     const result = await this.fileChannel.remove(file.path);
     if (result.outcome === 'failed') {
-      this.toastService.error(`删除失败: ${describe(result.error)}`);
+      this.toastService.error(this.t('opfs.deleteFailed', { message: this.describe(result.error) }));
       return;
     }
-    this.toastService.success('删除成功');
+    this.toastService.success(this.t('opfs.deleteSuccess'));
     await this.refresh();
   }
 
@@ -189,7 +194,7 @@ export class OpfsService {
     const target = this.currentPath();
     const sent = await this.fileChannel.upload(target, file);
     if (sent.outcome === 'failed') {
-      this.toastService.error(`上传失败: ${describe(sent.error)}`);
+      this.toastService.error(this.t('opfs.uploadFailed', { message: this.describe(sent.error) }));
       return false;
     }
 
@@ -200,10 +205,10 @@ export class OpfsService {
     const confirmed =
       listed.outcome === 'ok' && listed.value.some(entry => entry.kind === 'file' && entry.name === file.name);
     if (!confirmed) {
-      this.toastService.error(`上传未确认: ${file.name}`);
+      this.toastService.error(this.t('opfs.uploadUnconfirmed', { name: file.name }));
       return false;
     }
-    this.toastService.success(`上传成功: ${file.name}`);
+    this.toastService.success(this.t('opfs.uploadSuccess', { name: file.name }));
     return true;
   }
 
@@ -214,10 +219,10 @@ export class OpfsService {
     const parent = this.currentPath();
     const result = await this.fileChannel.createDirectory(parent === '/' ? `/${name}` : `${parent}/${name}`);
     if (result.outcome === 'failed') {
-      this.toastService.error(`创建失败: ${describe(result.error)}`);
+      this.toastService.error(this.t('opfs.createFailed', { message: this.describe(result.error) }));
       return false;
     }
-    this.toastService.success(`创建成功: ${name}`);
+    this.toastService.success(this.t('opfs.createSuccess', { name }));
     await this.refresh();
     return true;
   }
@@ -227,6 +232,6 @@ export class OpfsService {
     const kind = kindOf(error);
     this.errorKind.set(kind);
     this.error.set(message(kind));
-    this.toastService.error(this.error() ?? 'OPFS 错误');
+    this.toastService.error(this.error() ?? this.describe(error));
   }
 }

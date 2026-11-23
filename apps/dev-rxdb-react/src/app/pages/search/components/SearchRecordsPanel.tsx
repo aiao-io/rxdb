@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { Article, Comment } from '@aiao/rxdb-test/entities';
 import clsx from 'clsx';
 import type { SearchDemoCollection } from '../types';
@@ -29,6 +30,7 @@ export function SearchRecordsPanel({
   onRemoveArticle,
   onRemoveComment
 }: SearchRecordsPanelProps): React.JSX.Element {
+  const { t } = useI18n();
   return (
     <section className='card bg-base-200/60' data-testid='search-records-panel'>
       <button
@@ -53,9 +55,10 @@ export function SearchRecordsPanel({
           >
             <path d='m9 18 6-6-6-6' />
           </svg>
-          数据记录
+          {t('page.search.records')}
           <span className='text-base-content/60 text-xs font-normal'>
-            文章 {articleRecords.length} · 评论 {commentRecords.length}
+            {t('page.search.articleTotal', { count: articleRecords.length })} ·{' '}
+            {t('page.search.commentTotal', { count: commentRecords.length })}
           </span>
         </span>
       </button>
@@ -74,8 +77,9 @@ export function SearchRecordsPanel({
                   onClick={() => onActiveTabChange(tab)}
                   data-testid={`search-tab-${tab}`}
                 >
-                  {tab === 'article' ? '文章' : '评论'} (
-                  {tab === 'article' ? articleRecords.length : commentRecords.length})
+                  {tab === 'article' ?
+                    t('page.search.articleCount', { count: articleRecords.length })
+                  : t('page.search.commentCount', { count: commentRecords.length })}
                 </button>
               ))}
             </div>
@@ -84,7 +88,7 @@ export function SearchRecordsPanel({
               className='btn btn-sm btn-primary gap-1 self-start sm:self-center'
               disabled={mutationBusy}
               onClick={() => onOpenCreate(activeTab)}
-              aria-label={`新建${activeTab === 'article' ? '文章' : '评论'}`}
+              aria-label={activeTab === 'article' ? t('page.search.createArticle') : t('page.search.createComment')}
               data-testid={activeTab === 'article' ? 'search-create-article' : 'search-create-comment'}
             >
               <svg
@@ -101,13 +105,13 @@ export function SearchRecordsPanel({
                 <path d='M5 12h14' />
                 <path d='M12 5v14' />
               </svg>
-              新建{activeTab === 'article' ? '文章' : '评论'}
+              {activeTab === 'article' ? t('page.search.createArticle') : t('page.search.createComment')}
             </button>
           </div>
 
           {activeTab === 'article' ?
             articleRecords.length === 0 ?
-              <p className='text-base-content/60 mt-3 text-sm italic'>暂无文章</p>
+              <p className='text-base-content/60 mt-3 text-sm italic'>{t('page.search.noArticles')}</p>
             : <ul className='divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto'>
                 {articleRecords.map(article => (
                   <li
@@ -130,7 +134,7 @@ export function SearchRecordsPanel({
                         ))}
                       </div>
                       <p className='text-base-content/80 mt-2 text-xs'>
-                        {article.authorId} · {article.viewCount} 次浏览
+                        {article.authorId} · {t('page.search.views', { count: article.viewCount })}
                       </p>
                     </div>
                     <button
@@ -140,14 +144,14 @@ export function SearchRecordsPanel({
                       onClick={() => onRemoveArticle(String(article.id))}
                       data-testid={`search-delete-article-${article.id}`}
                     >
-                      删除
+                      {t('common.delete')}
                     </button>
                   </li>
                 ))}
               </ul>
 
           : commentRecords.length === 0 ?
-            <p className='text-base-content/60 mt-3 text-sm italic'>暂无评论</p>
+            <p className='text-base-content/60 mt-3 text-sm italic'>{t('page.search.noComments')}</p>
           : <ul className='divide-base-300 rounded-box bg-base-100 mt-3 max-h-96 divide-y overflow-y-auto'>
               {commentRecords.map(comment => (
                 <li
@@ -158,7 +162,9 @@ export function SearchRecordsPanel({
                   <div className='min-w-0 flex-1'>
                     <div className='flex flex-wrap items-center gap-2'>
                       <span className='font-medium'>{comment.authorName}</span>
-                      <span className='text-base-content/80 text-xs'>文章 {comment.articleId}</span>
+                      <span className='text-base-content/80 text-xs'>
+                        {t('page.search.articleReference', { id: comment.articleId })}
+                      </span>
                       <span className='text-base-content/80 text-xs'>#{comment.id}</span>
                     </div>
                     <p className='text-base-content/80 mt-1 text-sm'>{comment.content}</p>
@@ -170,7 +176,7 @@ export function SearchRecordsPanel({
                     onClick={() => onRemoveComment(String(comment.id))}
                     data-testid={`search-delete-comment-${comment.id}`}
                   >
-                    删除
+                    {t('common.delete')}
                   </button>
                 </li>
               ))}

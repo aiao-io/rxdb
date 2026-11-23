@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
 import { DatabaseStateService } from '../services/database-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 // P2-16：不再自带一份拷贝，统一用 opfs-page.utils 里的唯一实现
 import { formatFileSize } from './opfs-page.utils';
 
@@ -68,11 +69,11 @@ function formatDate(timestamp?: number | string | Date): string {
             </svg>
             <span class="text-sm font-medium">Storage</span>
             @if (rows().length > 0) {
-              <span class="badge badge-xs">{{ rows().length }} 条</span>
+              <span class="badge badge-xs">{{ t('common.records', { count: rows().length }) }}</span>
             }
             <span
               class="tooltip tooltip-bottom cursor-help text-xs opacity-40"
-              data-tip="数据来源：RxDB StorageFileMeta 实体"
+              [attr.data-tip]="t('storage.sourceTooltip')"
               >ⓘ</span
             >
           </div>
@@ -134,10 +135,8 @@ function formatDate(timestamp?: number | string | Date): string {
             </div>
           } @else if (pluginMissing()) {
             <div class="bg-warning/10 border-warning/20 text-warning-content m-3 rounded border p-3 text-xs">
-              <div class="font-semibold">当前页面未安装 &#64;aiao/rxdb-plugin-storage</div>
-              <div class="mt-1 opacity-80">
-                被检查页面的 RxDB 没有注册 storage:StorageFileMeta 实体，因此这里没有文件可列。
-              </div>
+              <div class="font-semibold">{{ t('storage.pluginMissingTitle') }}</div>
+              <div class="mt-1 opacity-80">{{ t('storage.pluginMissingBody') }}</div>
             </div>
           } @else if (error()) {
             <div class="text-error p-3 text-sm">{{ error() }}</div>
@@ -161,7 +160,7 @@ function formatDate(timestamp?: number | string | Date): string {
                   <line x1="6" x2="6.01" y1="6" y2="6" />
                   <line x1="6" x2="6.01" y1="18" y2="18" />
                 </svg>
-                无存储文件
+                {{ t('storage.empty') }}
               </div>
             </div>
           } @else {
@@ -169,13 +168,13 @@ function formatDate(timestamp?: number | string | Date): string {
               <table class="table-xs table-pin-rows table">
                 <thead>
                   <tr>
-                    <th>名称</th>
-                    <th>大小</th>
-                    <th>类型</th>
-                    <th>路径</th>
-                    <th>版本</th>
-                    <th>创建时间</th>
-                    <th>更新时间</th>
+                    <th>{{ t('common.name') }}</th>
+                    <th>{{ t('common.size') }}</th>
+                    <th>{{ t('common.type') }}</th>
+                    <th>{{ t('storage.path') }}</th>
+                    <th>{{ t('storage.version') }}</th>
+                    <th>{{ t('storage.createdAt') }}</th>
+                    <th>{{ t('storage.updatedAt') }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,7 +209,7 @@ function formatDate(timestamp?: number | string | Date): string {
         @if (selectedRow(); as row) {
           <div class="border-base-300 bg-base-200 border-t">
             <div class="flex items-center justify-between px-3 py-1.5">
-              <span class="text-xs font-semibold">详情</span>
+              <span class="text-xs font-semibold">{{ t('storage.details') }}</span>
               <button class="btn btn-ghost btn-xs btn-circle" (click)="selectedId.set(null)">✕</button>
             </div>
             <div class="max-h-32 overflow-auto px-3 pb-2">
@@ -232,6 +231,7 @@ function formatDate(timestamp?: number | string | Date): string {
 })
 export class StoragePage implements OnInit {
   private readonly databaseState = inject(DatabaseStateService);
+  protected readonly t = inject(PanelI18nService).t;
 
   readonly fmtSize = formatFileSize;
   readonly fmtDate = formatDate;
@@ -250,7 +250,7 @@ export class StoragePage implements OnInit {
     const rows: StorageRow[] = [];
     for (const value of data.data) {
       if (!isStorageRow(value) || ids.has(value.id)) {
-        return { rows: [], error: 'StorageFileMeta 返回了无效或重复的实体数据' };
+        return { rows: [], error: this.t('storage.invalidData') };
       }
       ids.add(value.id);
       rows.push(value);

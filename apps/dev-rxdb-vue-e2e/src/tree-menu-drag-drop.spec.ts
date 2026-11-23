@@ -22,7 +22,7 @@ async function releaseDrag(page: Page): Promise<void> {
 
 test.describe('Tree Menu Drag and Drop', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
   });
 
   test('exposes a stable drag handle', async ({ page }) => {

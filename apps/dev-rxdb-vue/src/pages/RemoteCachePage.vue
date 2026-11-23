@@ -5,6 +5,7 @@ import {
   StorageMimeTypeMissingError,
   StorageOfflineError
 } from '@aiao/rxdb-plugin-storage';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { formatFileSize } from '@aiao/utils';
 import { Cloud, CloudDownload, Download, FileText, RefreshCw, Trash2, Wifi, WifiOff } from '@lucide/vue';
@@ -50,6 +51,7 @@ const PRESETS: RemoteResource[] = [
 const REMOTE_DIR = '/remote';
 
 const rxdb = useRxDB();
+const { t } = useI18n();
 
 const customUrl = ref('https://picsum.photos/id/1025/300/200');
 const customPath = ref('remote/picsum-1025.jpg');
@@ -178,9 +180,9 @@ onUnmounted(() => {
       <div class="flex items-center gap-2">
         <Cloud :size="20" />
         <div>
-          <h2 class="text-base font-bold">Remote Cache</h2>
+          <h2 class="text-base font-bold">{{ t('page.remoteCache.title') }}</h2>
           <p class="text-base-content/60 text-xs">
-            OPFS-first 缓存示例：首次联网下载 → 落盘 OPFS + StorageFileMeta → 后续命中本地不联网
+            {{ t('page.remoteCache.description') }}
           </p>
         </div>
       </div>
@@ -190,14 +192,14 @@ onUnmounted(() => {
             class="text-success"
             :size="16"
           />
-          <span class="text-success text-xs font-semibold">Online</span>
+          <span class="text-success text-xs font-semibold">{{ t('page.remoteCache.online') }}</span>
         </template>
         <template v-else>
           <WifiOff
             class="text-error"
             :size="16"
           />
-          <span class="text-error text-xs font-semibold">Offline</span>
+          <span class="text-error text-xs font-semibold">{{ t('page.remoteCache.offline') }}</span>
         </template>
       </div>
     </div>
@@ -206,8 +208,8 @@ onUnmounted(() => {
       <div class="mx-auto flex max-w-5xl flex-col gap-6">
         <section class="card bg-base-100 border-base-300 border">
           <div class="card-body p-4">
-            <h3 class="text-sm font-bold">预设资源</h3>
-            <p class="text-base-content/60 text-xs">点击按钮触发 `rxdb.storage.fetch(opfsPath, { url })`。</p>
+            <h3 class="text-sm font-bold">{{ t('page.remoteCache.presets') }}</h3>
+            <p class="text-base-content/60 text-xs">{{ t('page.remoteCache.presetsDescription') }}</p>
 
             <div class="mt-3 grid gap-2 sm:grid-cols-3">
               <button
@@ -238,12 +240,12 @@ onUnmounted(() => {
 
         <section class="card bg-base-100 border-base-300 border">
           <div class="card-body p-4">
-            <h3 class="text-sm font-bold">自定义 URL</h3>
-            <p class="text-base-content/60 text-xs">输入任意 CORS 友好的 URL 和 OPFS 路径。</p>
+            <h3 class="text-sm font-bold">{{ t('page.remoteCache.customUrl') }}</h3>
+            <p class="text-base-content/60 text-xs">{{ t('page.remoteCache.customDescription') }}</p>
 
             <div class="mt-3 grid gap-2 sm:grid-cols-2">
               <label class="form-control">
-                <span class="label-text text-xs">URL</span>
+                <span class="label-text text-xs">{{ t('page.remoteCache.url') }}</span>
                 <input
                   class="input input-bordered input-sm"
                   v-model="customUrl"
@@ -252,7 +254,7 @@ onUnmounted(() => {
                 />
               </label>
               <label class="form-control">
-                <span class="label-text text-xs">OPFS Path</span>
+                <span class="label-text text-xs">{{ t('page.remoteCache.opfsPath') }}</span>
                 <input
                   class="input input-bordered input-sm"
                   v-model="customPath"
@@ -267,7 +269,7 @@ onUnmounted(() => {
                 @click="fetchCustom"
               >
                 <CloudDownload :size="14" />
-                Fetch
+                {{ t('page.remoteCache.fetch') }}
               </button>
             </div>
           </div>
@@ -280,7 +282,7 @@ onUnmounted(() => {
                 class="text-sm font-bold"
                 data-testid="remote-cache-count"
               >
-                已缓存（{{ cached.length }}）
+                {{ t('page.remoteCache.cached', { count: cached.length }) }}
               </h3>
               <button
                 class="btn btn-xs btn-ghost gap-1"
@@ -288,7 +290,7 @@ onUnmounted(() => {
                 @click="clearAll"
               >
                 <Trash2 :size="12" />
-                Clear all
+                {{ t('page.remoteCache.clearAll') }}
               </button>
             </div>
 
@@ -297,7 +299,7 @@ onUnmounted(() => {
               v-if="cached.length === 0"
               data-testid="remote-cache-empty"
             >
-              还没有缓存内容。点击上方预设或自定义按钮开始。
+              {{ t('page.remoteCache.empty') }}
             </p>
             <div
               class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3"
@@ -368,14 +370,14 @@ onUnmounted(() => {
                       :href="item.objectUrl"
                     >
                       <Download :size="12" />
-                      Download
+                      {{ t('common.download') }}
                     </a>
                     <button
                       class="btn btn-xs btn-error flex-1 gap-1"
                       @click="deleteCached(item)"
                     >
                       <Trash2 :size="12" />
-                      Delete
+                      {{ t('common.delete') }}
                     </button>
                   </div>
                 </div>
@@ -386,13 +388,13 @@ onUnmounted(() => {
 
         <section class="card bg-base-100 border-base-300 border">
           <div class="card-body p-4">
-            <h3 class="text-sm font-bold">事件日志</h3>
+            <h3 class="text-sm font-bold">{{ t('page.remoteCache.logs') }}</h3>
             <p
               class="text-base-content/50 mt-2 text-xs"
               v-if="logs.length === 0"
               data-testid="remote-cache-log-empty"
             >
-              日志为空。
+              {{ t('page.remoteCache.emptyLogs') }}
             </p>
             <ul
               class="mt-2 space-y-1 font-mono text-[11px]"

@@ -1,10 +1,13 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { gdRelativeTime } from '../utils/gd';
 import { isImeComposing } from '../utils/ime';
 import { fitToolbarPopup } from '../utils/toolbar-popup';
+
+const { t } = useI18n();
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
@@ -270,9 +273,9 @@ function onRowClick(branch: RxDBBranch): void {
               <button
                 class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
                 @click="onTouchMenu($event, branch)"
-                aria-label="更多操作"
+                :aria-label="t('common.moreActions')"
                 data-testid="wt-branch-more"
-                title="更多操作（触屏）"
+                :title="t('page.workingTree.moreActionsTouch')"
                 type="button"
               >
                 <MoreVertical :size="14" />

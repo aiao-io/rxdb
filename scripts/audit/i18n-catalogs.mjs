@@ -14,6 +14,13 @@ const checks = [
     ]
   },
   {
+    name: 'devtools-panel',
+    entries: [
+      ['modules/rxdb-devtools-panel/src/i18n/messages.ts', 'panelZhMessages'],
+      ['modules/rxdb-devtools-panel/src/i18n/messages.ts', 'panelEnMessages']
+    ]
+  },
+  {
     name: 'rxdb-model',
     entries: [
       ['packages/rxdb-model/src/messages.ts', 'modelZhHansMessages'],
@@ -28,10 +35,87 @@ const checks = [
     ]
   },
   {
+    name: 'demo/common',
+    entries: [
+      ['modules/demo-i18n/common.ts', 'commonZhMessages'],
+      ['modules/demo-i18n/common.ts', 'commonEnMessages']
+    ]
+  },
+  {
+    name: 'demo/search',
+    entries: [
+      ['modules/demo-i18n/search.ts', 'searchZhMessages'],
+      ['modules/demo-i18n/search.ts', 'searchEnMessages']
+    ]
+  },
+  {
+    name: 'demo/working-tree',
+    entries: [
+      ['modules/demo-i18n/working-tree.ts', 'workingTreeZhMessages'],
+      ['modules/demo-i18n/working-tree.ts', 'workingTreeEnMessages']
+    ]
+  },
+  {
+    name: 'demo/tree-menu',
+    entries: [
+      ['modules/demo-i18n/tree-menu.ts', 'treeMenuZhMessages'],
+      ['modules/demo-i18n/tree-menu.ts', 'treeMenuEnMessages']
+    ]
+  },
+  {
+    name: 'demo/file-manager',
+    entries: [
+      ['modules/demo-i18n/file-manager.ts', 'fileManagerZhMessages'],
+      ['modules/demo-i18n/file-manager.ts', 'fileManagerEnMessages']
+    ]
+  },
+  {
+    name: 'demo/entities',
+    entries: [
+      ['modules/demo-i18n/entities.ts', 'entitiesZhMessages'],
+      ['modules/demo-i18n/entities.ts', 'entitiesEnMessages']
+    ]
+  },
+  {
+    name: 'demo/headless',
+    entries: [
+      ['modules/demo-i18n/headless.ts', 'headlessZhMessages'],
+      ['modules/demo-i18n/headless.ts', 'headlessEnMessages']
+    ]
+  },
+  {
     name: 'demo/files',
     entries: [
       ['modules/demo-i18n/files.ts', 'fileZhMessages'],
       ['modules/demo-i18n/files.ts', 'fileEnMessages']
+    ]
+  },
+  {
+    name: 'demo/encrypted',
+    entries: [
+      ['modules/demo-i18n/encrypted.ts', 'encryptedZhMessages'],
+      ['modules/demo-i18n/encrypted.ts', 'encryptedEnMessages']
+    ]
+  },
+  {
+    name: 'demo/remote-cache',
+    entries: [
+      ['modules/demo-i18n/remote-cache.ts', 'remoteCacheZhMessages'],
+      ['modules/demo-i18n/remote-cache.ts', 'remoteCacheEnMessages']
+    ]
+  },
+  {
+    name: 'demo/todo',
+    entries: [
+      ['modules/demo-i18n/todo.ts', 'todoZhMessages'],
+      ['modules/demo-i18n/todo.ts', 'todoEnMessages']
+    ]
+  },
+  {
+    name: 'demo/generator',
+    entries: [
+      ['modules/demo-i18n/generator.ts', 'generatorZhMessages'],
+      ['modules/demo-i18n/generator.ts', 'generatorEnMessages']
     ]
   },
   {

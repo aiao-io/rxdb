@@ -12,6 +12,7 @@ import type {
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';
@@ -100,6 +101,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 检出位：挂着哪一套（`mounted`）决定当前分支，下拉与对话框经它开、挂、删（US-314 C2） */
   const worktrees = useWorktrees();
   const rxdb = useRxDB();
+  const { t } = useI18n();
   const branchesResource = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
     orderBy: [{ field: 'createdAt', sort: 'asc' }]
@@ -1176,7 +1178,7 @@ export default function WorkingTreePage(): React.JSX.Element {
   return (
     <div className='page-host gd-workspace flex h-full flex-col overflow-hidden' data-testid='working-tree-page'>
       {/* GitHub Desktop 没有页面标题栏：标题只留给读屏，视觉上第一行就是工具栏 */}
-      <h1 className='sr-only'>工作树与提交历史</h1>
+      <h1 className='sr-only'>{t('page.workingTree.title')}</h1>
 
       {enabled ?
         <>
@@ -1287,7 +1289,7 @@ export default function WorkingTreePage(): React.JSX.Element {
               style={{ width: fetchSectionWidth }}
               onClick={() => void runFetch()}
               data-testid='wt-refresh-status'
-              title='Fetch origin（重读本地状态与提交历史）'
+              title={t('page.workingTree.fetchTitle')}
               type='button'
             >
               <RefreshCw className={fetching ? 'animate-spin' : undefined} size={18} />
@@ -1453,24 +1455,26 @@ export default function WorkingTreePage(): React.JSX.Element {
           {status.phase === 'success' || status.phase === 'empty' ?
             <>
               <span className='min-w-0 truncate'>
-                {' · 分支'}
+                {t('page.workingTree.statusBranchLabel')}
                 <span className='font-medium' data-testid='wt-status-branch'>
                   {status.value.branchId}
                 </span>
-                {' · 未提交'}
+                {t('page.workingTree.statusUncommittedLabel')}
                 <span data-testid='wt-status-entry-count'>{status.value.entryCount}</span>
-                {'条 · '}
-                <span data-testid='wt-status-clean'>{status.value.clean ? '干净' : '有未提交改动'}</span>
-                {' · 远端同步来源'}
+                {t('page.workingTree.statusEntryCountSuffix')}
+                <span data-testid='wt-status-clean'>
+                  {status.value.clean ? t('page.workingTree.statusClean') : t('page.workingTree.statusDirty')}
+                </span>
+                {t('page.workingTree.statusRemoteSyncLabel')}
                 <span data-testid='wt-status-remote-sync'>{status.value.byOrigin.remote_sync}</span>
-                {'条'}
+                {t('page.workingTree.statusCountSuffix')}
               </span>
               {status.value.restoring && (
                 <span
                   className='rounded-full border border-amber-400 px-1.5 text-amber-700'
                   data-testid='wt-status-restore'
                 >
-                  恢复中
+                  {t('page.workingTree.statusRestoring')}
                 </span>
               )}
               {status.value.conflicted && (
@@ -1478,12 +1482,12 @@ export default function WorkingTreePage(): React.JSX.Element {
                   className='rounded-full border border-red-400 px-1.5 text-red-700'
                   data-testid='wt-status-restore'
                 >
-                  会话分叉
+                  {t('page.workingTree.statusConflicted')}
                 </span>
               )}
             </>
           : status.phase === 'error' ?
-            <span>· 尚未初始化，先点「初始化仓库」</span>
+            <span>{t('page.workingTree.statusNotInitialized')}</span>
           : null}
         </div>
         <div className='flex shrink-0 items-center gap-3'>
@@ -1494,12 +1498,12 @@ export default function WorkingTreePage(): React.JSX.Element {
           >
             {enabledState.phase === 'success' ?
               enabledState.value ?
-                '已启用'
-              : '未启用'
+                t('page.workingTree.enabled')
+              : t('page.workingTree.notEnabled')
             : enabledState.phase}
           </span>
           <span data-testid='wt-first-visible'>
-            首次可见状态耗时：
+            {t('page.workingTree.firstVisibleLabel')}
             <span data-testid='wt-first-visible-ms'>{firstVisibleMs}</span>
             ms
           </span>
@@ -1510,7 +1514,7 @@ export default function WorkingTreePage(): React.JSX.Element {
               data-testid='wt-refresh-status'
               type='button'
             >
-              刷新状态
+              {t('page.workingTree.refreshStatus')}
             </button>
           )}
         </div>
@@ -1607,7 +1611,9 @@ export default function WorkingTreePage(): React.JSX.Element {
             {confirm.kind === 'discard' ? 'Discard changes' : 'Delete branch'}
           </h2>
           <p className='mb-4 text-sm' style={{ color: 'var(--gd-muted)' }}>
-            {confirm.kind === 'discard' ? confirm.message : `确定要删除分支 "${confirm.branchId}" 吗？`}
+            {confirm.kind === 'discard' ?
+              confirm.message
+            : t('page.workingTree.confirmDeleteBranch', { branchId: confirm.branchId })}
           </p>
           <div className='flex justify-end gap-2'>
             <button

@@ -486,7 +486,8 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 - 官网 `/` 为中文，`/en/` 为英文。中英文首页、安装页和各自的搜索索引纳入 Pages 发布检查。
 - 公共包的英文说明写入 Markdown，源码注释遵循 `AGENTS.md`。
-- Admin、演示实体页、AG Grid、Workspace、Storage、OPFS 和 History 已完成三框架英文浏览器验收。DevTools 面板使用浏览器语言格式化文件日期，面板文案和其余演示页的专属操作文案仍待补齐。
+- Admin、演示实体页、AG Grid、Workspace、Storage、OPFS 和 History 已完成三框架英文浏览器验收。DevTools 面板已引入 `panel` 文案目录（105 键，随浏览器语言解析），覆盖头部、连接守卫、分支选择器、Events、Database、Settings、Storage、OPFS、I18n 检视页与实体表格操作列；`audit-i18n` 已纳入 `devtools-panel` 键对齐检查，面板 215 项单测、lint 与 typecheck 通过。三端加密演示页（Encrypted，21 键）、远程缓存演示页（RemoteCache，16 键）与生成器演示页（Generator，1 键）文案已迁入共享 `modules/demo-i18n/` 目录并接入 Angular/React/Vue；Todo 演示页（18 键）接入 React/Vue（Angular 无此页）。上述四组页面三端 typecheck 与 lint 零警告，受影响项目单测全部通过（面板 215、Angular 396、React 336、Vue 540）。
+- 其余演示页（Search、WorkingTree、树菜单/文件管理器、实体浏览器、Headless、Board 等）的专属操作文案仍待按同样模式补齐。
 - 核心 README 已记录 12 个错误码。涉及既有异常消息的改动按错误类型单独评审。
 - 本地和 CI 都通过 `pnpm nx run @aiao/source:audit-i18n` 检查文案键。
 

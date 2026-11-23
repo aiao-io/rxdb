@@ -82,12 +82,7 @@ export function FileManagerSimplePage() {
     manual: store.sortMode === SortMode.Manual
   });
 
-  const batchAddOptions = [
-    { count: 100, label: '100 条' },
-    { count: 1000, label: '1000 条' },
-    { count: 5000, label: '5000 条' },
-    { count: 10000, label: '10000 条' }
-  ];
+  const batchAddOptions = [{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }];
 
   // 删除所有文件
   const handleDeleteAll = useCallback(async () => {
@@ -177,19 +172,19 @@ export function FileManagerSimplePage() {
             {/* Title Bar */}
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-3'>
-                <h1 className='text-2xl font-bold'>File Manager - Simple</h1>
+                <h1 className='text-2xl font-bold'>{t('page.file.simple')}</h1>
                 {store.searchKeyword ?
                   <div className='badge badge-warning badge-sm' data-testid='file-count'>
-                    搜索: {store.matchedFileIds.size} 项
+                    {t('page.file.searchCount', { count: store.matchedFileIds.size })}
                   </div>
                 : <div className='badge badge-primary' data-testid='file-count'>
-                    {files.length} 项
+                    {t('page.tree.itemCount', { count: files.length })}
                   </div>
                 }
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='file-batch-add'>
+                  <summary className='btn btn-circle btn-sm' aria-label={t('common.batchAdd')} data-testid='file-batch-add'>
                     <Plus size={16} />
                   </summary>
                   <ul tabIndex={0} className='dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow'>
@@ -206,7 +201,7 @@ export function FileManagerSimplePage() {
                           {loadingActions.has('add_many') && (
                             <span className='loading loading-spinner loading-xs'></span>
                           )}
-                          添加 {option.label}
+                          {t('page.file.batchAddCount', { count: option.count })}
                         </button>
                       </li>
                     ))}
@@ -221,7 +216,7 @@ export function FileManagerSimplePage() {
                     className='btn btn-sm join-item'
                     disabled={undoCount === 0}
                     onClick={() => history.undo()}
-                    aria-label='撤销'
+                    aria-label={t('common.undo')}
                     data-testid='file-undo'
                   >
                     <Undo2 size={16} />
@@ -235,7 +230,7 @@ export function FileManagerSimplePage() {
                     className='btn btn-sm join-item'
                     disabled={redoCount === 0}
                     onClick={() => history.redo()}
-                    aria-label='重做'
+                    aria-label={t('common.redo')}
                     data-testid='file-redo'
                   >
                     <Redo2 size={16} />
@@ -263,12 +258,12 @@ export function FileManagerSimplePage() {
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='flex items-center gap-2'>
                 <div className='bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm'>
-                  <span className='text-xs opacity-70'>已展开</span>
+                  <span className='text-xs opacity-70'>{t('page.tree.expanded')}</span>
                   <span className='font-mono text-lg font-bold'>{store.expandedCount}</span>
                 </div>
                 <button
                   className='btn btn-sm btn-ghost btn-square'
-                  title={store.isAllExpanded ? '折叠全部' : '展开全部'}
+                  title={store.isAllExpanded ? t('common.collapseAll') : t('common.expandAll')}
                   onClick={() => (store.isAllExpanded ? store.collapseAll() : store.expandAll())}
                 >
                   {store.isAllExpanded ?
@@ -282,7 +277,7 @@ export function FileManagerSimplePage() {
                   {isDeleting ?
                     <span className='loading loading-spinner loading-xs'></span>
                   : <Trash2 size={16} />}
-                  删除所有数据
+                  {t('common.deleteAll')}
                 </button>
               </div>
             </div>
@@ -296,7 +291,7 @@ export function FileManagerSimplePage() {
                   data-testid='file-search-input'
                   value={store.searchKeyword}
                   onChange={e => store.setSearchKeyword(e.target.value)}
-                  placeholder='搜索文件或文件夹...'
+                  placeholder={t('page.file.searchPlaceholder')}
                   type='text'
                 />
               </div>
@@ -308,21 +303,21 @@ export function FileManagerSimplePage() {
                 value={store.sortMode}
                 onChange={e => store.changeSortMode(e.target.value as SortMode)}
               >
-                <option value='manual'>自由排序</option>
-                <option value='name-asc'>名称 A→Z</option>
-                <option value='name-desc'>名称 Z→A</option>
-                <option value='type-asc'>文件夹优先</option>
-                <option value='type-desc'>文件优先</option>
-                <option value='ext-asc'>扩展名 A→Z</option>
-                <option value='ext-desc'>扩展名 Z→A</option>
-                <option value='size-asc'>大小 小→大</option>
-                <option value='size-desc'>大小 大→小</option>
+                <option value='manual'>{t('page.tree.sortFree')}</option>
+                <option value='name-asc'>{t('page.tree.nameAsc')}</option>
+                <option value='name-desc'>{t('page.tree.nameDesc')}</option>
+                <option value='type-asc'>{t('page.tree.folderFirst')}</option>
+                <option value='type-desc'>{t('page.tree.fileFirst')}</option>
+                <option value='ext-asc'>{t('page.tree.extensionAsc')}</option>
+                <option value='ext-desc'>{t('page.tree.extensionDesc')}</option>
+                <option value='size-asc'>{t('page.tree.sizeAsc')}</option>
+                <option value='size-desc'>{t('page.tree.sizeDesc')}</option>
               </select>
 
               {store.searchKeyword && (
                 <button className='btn btn-ghost btn-sm' onClick={store.clearSearch} type='button'>
                   <X size={16} />
-                  清除
+                  {t('common.clear')}
                 </button>
               )}
             </div>
@@ -334,12 +329,12 @@ export function FileManagerSimplePage() {
                 <div className='bg-info/10 flex items-center gap-2 rounded px-3 py-1 text-sm'>
                   <Folder size={14} className='text-info' />
                   <span className='flex-1'>
-                    将添加到: <span className='font-semibold'>{store.getSelectedFolderName()}</span>
+                    {t('page.file.addTo')} <span className='font-semibold'>{store.getSelectedFolderName()}</span>
                   </span>
                   <button
                     className='btn btn-ghost btn-xs'
                     onClick={() => store.cancelSelectFolder()}
-                    aria-label='取消选择'
+                    aria-label={t('page.file.cancelSelect')}
                   >
                     <X size={14} />
                   </button>
@@ -369,13 +364,13 @@ export function FileManagerSimplePage() {
                   type='button'
                   className={`btn btn-sm ${store.isAddingFile ? 'btn-info' : 'btn-warning'}`}
                   onClick={() => store.toggleAddingMode()}
-                  aria-label='切换模式'
+                  aria-label={t('common.switchMode')}
                   data-testid='file-mode-toggle'
                 >
                   {store.isAddingFile ?
                     <File size={16} />
                   : <Folder size={16} />}
-                  {store.isAddingFile ? '文件' : '文件夹'}
+                  {store.isAddingFile ? t('page.file.file') : t('page.file.folder')}
                 </button>
 
                 {/* 扩展名选择器 (仅文件模式) */}
@@ -388,7 +383,7 @@ export function FileManagerSimplePage() {
                   >
                     {extensionOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {opt.labelKey ? t(opt.labelKey) : opt.label}
                       </option>
                     ))}
                   </select>
@@ -399,11 +394,9 @@ export function FileManagerSimplePage() {
                   data-testid='file-name-input'
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder={
-                    store.isAddingFile ?
-                      `添加文件${store.selectedFolderId ? '' : ' (根目录)'}...`
-                    : `添加文件夹${store.selectedFolderId ? '' : ' (根目录)'}...`
-                  }
+                  placeholder={t(store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder', {
+                    suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
+                  })}
                   type='text'
                 />
 
@@ -414,7 +407,7 @@ export function FileManagerSimplePage() {
                   type='submit'
                 >
                   <Plus size={16} />
-                  添加
+                  {t('common.add')}
                 </button>
               </form>
             </div>
@@ -426,9 +419,9 @@ export function FileManagerSimplePage() {
           <div className='alert alert-warning mx-auto max-w-4xl'>
             <TriangleAlert size={20} />
             <div className='flex-1'>
-              <div className='font-semibold'>路径冲突警告</div>
+              <div className='font-semibold'>{t('page.tree.pathConflict')}</div>
               <div className='text-sm'>
-                已存在同名文件：
+                {t('page.file.pathConflictBody')}
                 <strong>{store.pathConflict.conflictPath}</strong>
               </div>
             </div>
@@ -454,7 +447,7 @@ export function FileManagerSimplePage() {
             {store.treeNodes.length === 0 ?
               <div className='hero min-h-40'>
                 <div className='hero-content text-center'>
-                  <h1 className='text-sm font-bold'>暂无文件数据</h1>
+                  <h1 className='text-sm font-bold'>{t('page.tree.emptyFile')}</h1>
                 </div>
               </div>
             : <div className='space-y-0.5'>
@@ -576,7 +569,7 @@ export function FileManagerSimplePage() {
 
                         data-testid='file-drag-handle'
 
-                        title='拖拽排序'
+                        title={t('common.dragSort')}
 
                         onMouseDown={e => e.stopPropagation()}
 
@@ -729,9 +722,9 @@ export function FileManagerSimplePage() {
                           <button
                             className='btn btn-ghost btn-xs'
                             onClick={() => store.selectFolder(file.id)}
-                            aria-label='添加子项'
+                            aria-label={t('common.addChild')}
                             data-testid='file-select-parent'
-                            title='选择为父文件夹'
+                            title={t('page.file.selectParentFolder')}
                           >
                             <Plus size={14} />
                           </button>
@@ -739,7 +732,7 @@ export function FileManagerSimplePage() {
                         <button
                           className='btn btn-ghost btn-xs text-primary'
                           onClick={() => handleStartEdit(file)}
-                          aria-label='编辑'
+                          aria-label={t('common.edit')}
                           data-testid='file-edit'
                         >
                           <Pen size={14} />
@@ -747,7 +740,7 @@ export function FileManagerSimplePage() {
                         <button
                           className='btn btn-ghost btn-xs text-error'
                           onClick={() => store.showDeleteDialog(file)}
-                          aria-label='删除'
+                          aria-label={t('common.delete')}
                           data-testid='file-delete'
                         >
                           <Trash2 size={14} />
@@ -766,15 +759,13 @@ export function FileManagerSimplePage() {
       {store.fileToDelete && (
         <dialog className='modal modal-open'>
           <div className='modal-box'>
-            <h3 className='text-lg font-bold'>确认删除</h3>
+            <h3 className='text-lg font-bold'>{t('page.tree.confirmDelete')}</h3>
 
             <div className='py-4'>
               <p className='mb-3'>
-                确定要删除
-                <span className='text-primary font-semibold'>
-                  "{formatFileName(store.fileToDelete.name, store.fileToDelete.extension)}"
-                </span>
-                吗？
+                {t('page.file.deleteOne', {
+                  name: `"${formatFileName(store.fileToDelete.name, store.fileToDelete.extension)}"`
+                })}
               </p>
 
               {store.deleteImpact.childrenCount > 0 && (
@@ -793,11 +784,11 @@ export function FileManagerSimplePage() {
                     />
                   </svg>
                   <div className='flex flex-col gap-1 text-sm'>
-                    <p className='font-medium'>此操作将级联删除：</p>
+                    <p className='font-medium'>{t('page.tree.cascadeDelete')}</p>
                     <ul className='ml-4 list-disc'>
-                      <li>{store.deleteImpact.childrenCount} 个直接子项</li>
+                      <li>{t('page.file.directChildrenCount', { count: store.deleteImpact.childrenCount })}</li>
                       {store.deleteImpact.descendantsCount > store.deleteImpact.childrenCount && (
-                        <li>共 {store.deleteImpact.descendantsCount} 个所有后代节点</li>
+                        <li>{t('page.file.descendantsCount', { count: store.deleteImpact.descendantsCount })}</li>
                       )}
                     </ul>
                   </div>
@@ -807,11 +798,11 @@ export function FileManagerSimplePage() {
 
             <div className='modal-action'>
               <button className='btn btn-ghost' onClick={store.cancelDelete} type='button'>
-                取消
+                {t('common.cancel')}
               </button>
               <button className='btn btn-error' onClick={store.executeCascadeDelete} type='button'>
                 <Trash2 size={16} />
-                {store.deleteImpact.childrenCount > 0 ? '级联删除' : '确认删除'}
+                {store.deleteImpact.childrenCount > 0 ? t('page.tree.deleteCascade') : t('page.tree.confirmDelete')}
               </button>
             </div>
           </div>
@@ -821,8 +812,8 @@ export function FileManagerSimplePage() {
             onKeyDown={e => e.key === 'Escape' && store.cancelDelete()}
             method='dialog'
           >
-            <button aria-label='关闭对话框' type='button'>
-              close
+            <button aria-label={t('common.close')} type='button'>
+              {t('common.close')}
             </button>
           </form>
         </dialog>
