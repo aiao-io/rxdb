@@ -148,6 +148,6 @@ describe('SettingsPage', () => {
     });
     page.handleClearDatabase();
     await vi.waitFor(() => expect(page.clearLoading()).toBe(false));
-    expect(page.error()).toBe('清理失败');
+    expect(page.error()).toBe('Clear failed');
   });
 });

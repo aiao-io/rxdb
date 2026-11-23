@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { LucideDynamicIcon, LucideTrash2 as Trash2, LucideTriangleAlert as TriangleAlert } from '@lucide/angular';
 import { isBackdropInteraction } from '../../pages/opfs-page.utils';
+import { PanelI18nService } from '../../services/panel-i18n.service';
 import type { OPFSFile } from '../../types/devtools.types';
 
 @Component({
@@ -16,19 +17,19 @@ import type { OPFSFile } from '../../types/devtools.types';
         tabindex="-1"
       >
         <div class="modal-box">
-          <h3 class="mb-4 text-base font-bold">新建文件夹</h3>
+          <h3 class="mb-4 text-base font-bold">{{ t('opfs.newFolder') }}</h3>
           <input
             class="input input-bordered w-full"
             [value]="newFolderName()"
             (input)="onFolderNameInput($event)"
             (keydown.enter)="createFolder.emit()"
-            placeholder="文件夹名称"
+            [placeholder]="t('opfs.folderNamePlaceholder')"
             type="text"
           />
           <div class="modal-action">
-            <button class="btn btn-sm" (click)="closeNewFolder.emit()">取消</button>
+            <button class="btn btn-sm" (click)="closeNewFolder.emit()">{{ t('common.cancel') }}</button>
             <button class="btn btn-sm btn-primary" [disabled]="!newFolderName().trim()" (click)="createFolder.emit()">
-              创建
+              {{ t('common.create') }}
             </button>
           </div>
         </div>
@@ -44,22 +45,24 @@ import type { OPFSFile } from '../../types/devtools.types';
         <div class="modal-box">
           <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
             <svg class="text-error" [lucideIcon]="Trash2" aria-hidden="true" size="18"></svg>
-            确认删除
+            {{ t('opfs.confirmDeleteTitle') }}
           </h3>
           <p class="mb-4">
-            确定要删除
-            <span class="font-semibold">{{ deleteFile()?.type === 'file' ? '文件' : '文件夹' }}</span>
-            <span class="text-error font-semibold">{{ deleteFile()?.name }}</span> 吗？
+            @if (deleteFile()?.type === 'file') {
+              {{ t('opfs.deleteFileConfirm', { name: deleteFile()?.name }) }}
+            } @else {
+              {{ t('opfs.deleteFolderConfirm', { name: deleteFile()?.name }) }}
+            }
           </p>
           @if (deleteFile()?.type === 'directory') {
             <p class="text-warning mb-4 flex items-center gap-1 text-sm">
               <svg [lucideIcon]="TriangleAlert" aria-hidden="true" size="16"></svg>
-              此操作将删除文件夹及其所有内容
+              {{ t('opfs.deleteFolderWarning') }}
             </p>
           }
           <div class="modal-action">
-            <button class="btn btn-sm" (click)="closeDelete.emit()">取消</button>
-            <button class="btn btn-sm btn-error" (click)="confirmDelete.emit()">删除</button>
+            <button class="btn btn-sm" (click)="closeDelete.emit()">{{ t('common.cancel') }}</button>
+            <button class="btn btn-sm btn-error" (click)="confirmDelete.emit()">{{ t('common.delete') }}</button>
           </div>
         </div>
       </div>
@@ -67,6 +70,7 @@ import type { OPFSFile } from '../../types/devtools.types';
   `
 })
 export class OpfsDialogsComponent {
+  protected readonly t = inject(PanelI18nService).t;
   readonly showNewFolder = input.required<boolean>();
   readonly newFolderName = input.required<string>();
   readonly deleteFile = input.required<OPFSFile | null>();

@@ -14,6 +14,13 @@ const checks = [
     ]
   },
   {
+    name: 'devtools-panel',
+    entries: [
+      ['modules/rxdb-devtools-panel/src/i18n/messages.ts', 'panelZhMessages'],
+      ['modules/rxdb-devtools-panel/src/i18n/messages.ts', 'panelEnMessages']
+    ]
+  },
+  {
     name: 'rxdb-model',
     entries: [
       ['packages/rxdb-model/src/messages.ts', 'modelZhHansMessages'],

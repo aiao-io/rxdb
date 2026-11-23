@@ -8,6 +8,7 @@ import {
   type ClearDatabaseResult
 } from '../scripts';
 import { DatabaseStateService } from '../services/database-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 import { ThemeService } from '../services/theme.service';
 import { DEVTOOLS_HOST_ACCESS, DEVTOOLS_PANEL_VERSION } from '../transport';
 import type { Theme } from '../types/devtools.types';
@@ -26,7 +27,7 @@ import type { Theme } from '../types/devtools.types';
         <!-- 主题设置 -->
         <div class="card bg-base-200">
           <div class="card-body">
-            <h3 class="card-title text-sm">主题设置</h3>
+            <h3 class="card-title text-sm">{{ t('settings.theme') }}</h3>
             <div class="mt-2 flex gap-2">
               @for (option of themeOptions; track option.value) {
                 <button
@@ -41,14 +42,14 @@ import type { Theme } from '../types/devtools.types';
                 </button>
               }
             </div>
-            <span class="mt-1 text-xs opacity-70"> 当前：{{ resolvedTheme() }} </span>
+            <span class="mt-1 text-xs opacity-70"> {{ t('settings.current', { value: resolvedTheme() }) }} </span>
           </div>
         </div>
 
         <!-- 关于 -->
         <div class="card bg-base-200">
           <div class="card-body">
-            <h3 class="card-title text-sm">关于</h3>
+            <h3 class="card-title text-sm">{{ t('settings.about') }}</h3>
             <p class="text-xs opacity-70">RxDB DevTools v{{ version }} (Angular)</p>
           </div>
         </div>
@@ -56,13 +57,10 @@ import type { Theme } from '../types/devtools.types';
         <!-- 数据库导出（已停用） -->
         <div class="card bg-base-200">
           <div class="card-body">
-            <h3 class="card-title text-sm">导出数据库</h3>
-            <p class="text-xs opacity-70">
-              导出已停用：面板不再把整个 OPFS 目录打包下载。该操作会绕过应用自己的加密与访问控制， 把原始 SQLite / WAL
-              字节交到调试通道上。请改用应用侧的备份能力。
-            </p>
+            <h3 class="card-title text-sm">{{ t('settings.exportTitle') }}</h3>
+            <p class="text-xs opacity-70">{{ t('settings.exportDisabled') }}</p>
             <div class="card-actions mt-4">
-              <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">导出数据库</button>
+              <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">{{ t('settings.exportTitle') }}</button>
             </div>
             @if (exportRefusal()) {
               <span class="mt-1 text-xs opacity-70">{{ exportRefusal() }}</span>
@@ -73,18 +71,16 @@ import type { Theme } from '../types/devtools.types';
         <!-- 数据库清理 -->
         <div class="card bg-base-200">
           <div class="card-body">
-            <h3 class="card-title text-sm">清理数据库</h3>
-            <p class="text-xs opacity-70">
-              清理所有本地存储数据，包括 RxDB、OPFS、IndexedDB 和 localStorage。清理完成后页面会自动刷新。
-            </p>
+            <h3 class="card-title text-sm">{{ t('settings.clearTitle') }}</h3>
+            <p class="text-xs opacity-70">{{ t('settings.clearDescription') }}</p>
 
             <div class="card-actions mt-4">
               <button class="btn btn-error btn-sm" [disabled]="clearLoading()" (click)="handleClearDatabase()">
                 @if (clearLoading()) {
                   <span class="loading loading-spinner loading-xs"></span>
-                  清理中...
+                  {{ t('settings.clearing') }}
                 } @else {
-                  清理所有数据
+                  {{ t('settings.clearAll') }}
                 }
               </button>
             </div>
@@ -111,6 +107,8 @@ import type { Theme } from '../types/devtools.types';
   ]
 })
 export class SettingsPage {
+  protected readonly t = inject(PanelI18nService).t;
+
   /**
    * 扩展版本号。
    *
@@ -174,7 +172,7 @@ export class SettingsPage {
   }
 
   handleClearDatabase(): void {
-    if (!confirm('确定要清理所有本地数据吗？此操作不可撤销。')) {
+    if (!confirm(this.t('settings.clearConfirm'))) {
       return;
     }
 
@@ -209,7 +207,7 @@ export class SettingsPage {
         }
       })
       .catch(err => {
-        this.error.set(err instanceof Error ? err.message : '清理失败');
+        this.error.set(err instanceof Error ? err.message : this.t('settings.clearFailed'));
       })
       .finally(() => {
         this.clearLoading.set(false);

@@ -64,7 +64,7 @@ describe('panel assembly on a fake host', () => {
 
     expect(shell.querySelector('app-header')).not.toBeNull();
     expect(shell.querySelector('app-toast')).not.toBeNull();
-    expect(shell.textContent).toContain('未连接');
+    expect(shell.textContent).toContain('Disconnected');
     expect(shell.querySelectorAll('[role="tab"]')).toHaveLength(ROUTES.length);
   });
 
@@ -73,7 +73,7 @@ describe('panel assembly on a fake host', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('已连接');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Connected');
     expect(host.transport.sent.map(message => message.type)).toEqual(['GET_BRANCHES', 'INSPECT_DB']);
   });
 
@@ -98,7 +98,7 @@ describe('panel assembly on a fake host', () => {
     fixture.detectChanges();
 
     const page = (fixture.nativeElement as HTMLElement).querySelector('app-events-page');
-    expect(page?.textContent).toContain('允许访问当前站点');
+    expect(page?.textContent).toContain('Allow access to this site');
     expect(page?.textContent).toContain('未授予当前站点访问权限');
   });
 

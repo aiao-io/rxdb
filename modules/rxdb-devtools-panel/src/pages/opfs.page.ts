@@ -14,6 +14,7 @@ import { OpfsFileTableComponent } from '../components/opfs/opfs-file-table.compo
 import { OpfsToolbarComponent } from '../components/opfs/opfs-toolbar.component';
 import { DevToolsEndpointService } from '../services/devtools-endpoint.service';
 import { OpfsService } from '../services/opfs.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 import { DEVTOOLS_HOST_ACCESS } from '../transport';
 import type { OPFSFile } from '../types/devtools.types';
 import { createPathSegments, summarizeFiles } from './opfs-page.utils';
@@ -39,11 +40,11 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
             class="bg-warning/10 border-warning/20 text-warning-content flex items-center gap-2 border-b px-3 py-2 text-xs"
           >
             <svg [lucideIcon]="TriangleAlert" aria-hidden="true" size="14"></svg>
-            <span class="font-semibold">需要刷新页面:</span>
+            <span class="font-semibold">{{ t('opfs.refreshNeeded') }}</span>
             <span>{{ error() }}</span>
             <button class="btn btn-xs btn-warning ml-auto gap-1" (click)="reloadInspectedPage()">
               <svg [lucideIcon]="RefreshCw" aria-hidden="true" size="13"></svg>
-              刷新页面
+              {{ t('opfs.reloadPage') }}
             </button>
           </div>
         }
@@ -61,14 +62,14 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
         <div class="flex items-center gap-2">
           <app-opfs-breadcrumb class="flex-1" [segments]="pathSegments()" (navigate)="navigateTo($event)" />
           @if (filesRuntime(); as runtime) {
-            <span class="badge badge-ghost badge-xs mr-2 font-mono" title="文件来源所在的运行时">{{ runtime }}</span>
+            <span class="badge badge-ghost badge-xs mr-2 font-mono" [title]="t('opfs.runtimeTooltip')">{{ runtime }}</span>
           }
         </div>
 
         @if (error() && errorKind() !== 'content-script-unavailable') {
           <div class="alert alert-error m-2">
             <span>{{ error() }}</span>
-            <button class="btn btn-sm btn-ghost" (click)="refresh()">重试</button>
+            <button class="btn btn-sm btn-ghost" (click)="refresh()">{{ t('common.retry') }}</button>
           </div>
         }
 
@@ -84,7 +85,7 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
               <span class="loading loading-spinner loading-lg"></span>
             </div>
           } @else if (files().length === 0 && !error()) {
-            <div class="flex h-full items-center justify-center text-sm opacity-50">此目录为空</div>
+            <div class="flex h-full items-center justify-center text-sm opacity-50">{{ t('opfs.empty') }}</div>
           } @else if (viewMode() === 'list') {
             <app-opfs-file-table
               [files]="files()"
@@ -109,7 +110,7 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
             >
               <div class="bg-base-100 flex flex-col items-center gap-2 rounded-lg p-8 shadow-lg">
                 <svg class="text-primary" [lucideIcon]="Upload" aria-hidden="true" size="40"></svg>
-                <span class="font-semibold">拖放文件到此处上传</span>
+                <span class="font-semibold">{{ t('opfs.dropUpload') }}</span>
               </div>
             </div>
           }
@@ -117,7 +118,13 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
 
         <div class="text-base-content/60 border-base-300 flex items-center gap-4 border-t px-3 py-1 text-xs">
           <span
-            >{{ files().length }} 项 ({{ fileCounts().directories }} 个文件夹, {{ fileCounts().files }} 个文件)</span
+            >{{
+              t('opfs.count', {
+                count: files().length,
+                directories: fileCounts().directories,
+                files: fileCounts().files
+              })
+            }}</span
           >
         </div>
       </div>
@@ -156,6 +163,7 @@ export class OpfsPage implements OnInit {
   private readonly opfsService = inject(OpfsService);
   private readonly hostAccess = inject(DEVTOOLS_HOST_ACCESS);
   private readonly endpoint = inject(DevToolsEndpointService);
+  protected readonly t = inject(PanelI18nService).t;
 
   /**
    * `files` provider 自报的运行时（`browser` / `electron` / `tauri`），未协商出来时为 `null`。
