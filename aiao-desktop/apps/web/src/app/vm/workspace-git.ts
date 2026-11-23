@@ -141,7 +141,8 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
       return `Switched to branch '${name}'`;
     }
     case 'log':
-      if (argv.length === 1 && first === '--oneline') return (await workspace.history(id)).map(commit => `${commit.oid.slice(0, 7)} ${commit.message}`).join('\n');
+      if (argv.length === 1 && first === '--oneline')
+        return (await workspace.history(id)).map(commit => `${commit.oid.slice(0, 7)} ${commit.message}`).join('\n');
       return workspace.localCommand(id, cwd.slice(record.rootPath.length).join('/'), [command, ...argv]);
     case 'rev-parse':
       if (first === 'HEAD') {
@@ -174,9 +175,10 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
     }
     case 'config':
       usage(argsForConfig(argv), 'config [--get] user.name|user.email [value]');
-      return workspace.localCommand(id,'',[command,...argv]);
+      return workspace.localCommand(id, '', [command, ...argv]);
     default:
-      if (command.startsWith('-') || ['clone','init'].includes(command)) throw new Error(`unsupported command: ${command}`);
+      if (command.startsWith('-') || ['clone', 'init'].includes(command))
+        throw new Error(`unsupported command: ${command}`);
       return workspace.localCommand(id, cwd.slice(record.rootPath.length).join('/'), [command, ...argv]);
   }
 }
@@ -184,7 +186,7 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
 function argsForConfig(args: readonly string[]): boolean {
   const [key, value, ...rest] = args[0] === '--get' ? args.slice(1) : args;
   if (rest.length || !key) return false;
-  return value === undefined ? !key.startsWith('-') : ['user.name','user.email'].includes(key);
+  return value === undefined ? !key.startsWith('-') : ['user.name', 'user.email'].includes(key);
 }
 
 export async function runWorkspaceGit(
@@ -193,7 +195,7 @@ export async function runWorkspaceGit(
 ): Promise<GithubTerminalResult> {
   try {
     const value = await execute(workspace, request);
-    if (typeof value !== 'string') return {code:value.exitCode,stdout:value.stdout,stderr:value.stderr};
+    if (typeof value !== 'string') return { code: value.exitCode, stdout: value.stdout, stderr: value.stderr };
     return { code: 0, stdout: value ? `${value.trimEnd()}\n` : '', stderr: '' };
   } catch (error) {
     return { code: 1, stdout: '', stderr: `git: ${error instanceof Error ? error.message : String(error)}\n` };

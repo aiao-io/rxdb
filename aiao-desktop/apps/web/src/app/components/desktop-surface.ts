@@ -5,6 +5,7 @@ import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { DESKTOP, DiskPath, samePath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
+import { isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { Toast } from '../services/toast';
@@ -12,7 +13,6 @@ import { WindowManager } from '../services/window-manager';
 import { FileDrop } from '../shared/file-drop';
 import { FileThumbnail } from '../shared/file-thumbnail';
 import { clamp } from '../shared/format';
-import { isMenuKey } from '../services/focus-order';
 import { Icon } from '../shared/icon';
 import { CalendarWidget, StocksWidget, WeatherWidget } from './widgets/widgets';
 

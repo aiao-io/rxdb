@@ -1,6 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
-import { DesktopAppServices } from '../../services/desktop-app-services';
 import { combineLatest, map } from 'rxjs';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';

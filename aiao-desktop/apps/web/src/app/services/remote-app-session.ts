@@ -145,7 +145,9 @@ export class RemoteAppSession {
       props: {
         ...this.windowProps(context, capabilities),
         ...desktopProps(capabilities),
-        ...(capabilities.includes('workspace') && win.options?.projectId ? { [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: win.options.projectId } : {}),
+        ...(capabilities.includes('workspace') && win.options?.projectId ?
+          { [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: win.options.projectId }
+        : {}),
         ...(githubOAuth ? { 'aiao-code.github-oauth-origin': location.origin } : {})
       }
     });

@@ -21,7 +21,7 @@ import { DockLayoutStore } from '../services/dock-layout';
 import { DockSlotItem, dockSlots, slotIndexAt, temporaryApps } from '../services/dock-layout-model';
 import { DockRect, DockState, DockView } from '../services/dock-state';
 import { FileSystem, describeDiskError } from '../services/file-system';
-import { isMenuKey, barIndex } from '../services/focus-order';
+import { barIndex, isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';

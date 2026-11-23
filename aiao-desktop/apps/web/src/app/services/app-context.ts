@@ -1,3 +1,4 @@
+import type { OrbitValue } from '@aiao/orbit';
 import type {
   DesktopAppearance,
   DesktopAppearancePatch,
@@ -14,10 +15,10 @@ import type {
   DesktopOpenOptions,
   DesktopOpenedFile,
   DesktopSaveRequest,
-  DesktopWorkspaceHost,
-  DesktopWorkspaceRequest,
   DesktopSavedFile,
-  DesktopWindowState
+  DesktopWindowState,
+  DesktopWorkspaceHost,
+  DesktopWorkspaceRequest
 } from '@aiao/orbit/desktop';
 import {
   DESKTOP_ERROR_PRESENTATION,
@@ -27,7 +28,6 @@ import {
   parseDesktopArguments
 } from '@aiao/orbit/desktop';
 import type { OrbitDragRegion } from '@aiao/orbit/window';
-import type { OrbitValue } from '@aiao/orbit';
 import { Injector, Service, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ApplicationRegistry } from './application-registry';
 
@@ -37,11 +37,11 @@ import { AppContextFiles, FileStamp, appFilesOver, parseVersion, versionOf } fro
 import { AppNotifications, NotificationContent, NotificationPost, NotificationSource } from './app-notifications';
 import { AppCapabilityRestriction, appCapabilitySupport } from './browser-app-support';
 import { AppContextClipboard, browserClipboard } from './browser-clipboard';
+import { DesktopAppServices } from './desktop-app-services';
 import { DesktopAppId, DesktopAppRegistry } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { FilePanelRequest, FilePanelResult, FilePanelTicket, FilePanels } from './file-panels';
 import { FileSystem } from './file-system';
-import { DesktopAppServices } from './desktop-app-services';
 import { MenuEntry, MenuSection, section } from './menu';
 import { SystemState } from './system-state';
 import { ThemeService } from './theme';
@@ -754,7 +754,13 @@ export class DesktopAppContexts {
       panels: this.panels,
       files: this.files,
       refocus: options.refocus,
-      workspace: { call: async request => this.injector.get(DesktopAppServices).get((await import('./github-workspace')).GithubWorkspace).call(request) }
+      workspace: {
+        call: async request =>
+          this.injector
+            .get(DesktopAppServices)
+            .get((await import('./github-workspace')).GithubWorkspace)
+            .call(request)
+      }
     });
     const refs = [
       effect(

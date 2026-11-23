@@ -49,7 +49,7 @@ import { DockState } from '../../services/dock-state';
 import { FileImport } from '../../services/file-import';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
-import { isMenuKey, isKeyboardClick } from '../../services/focus-order';
+import { isKeyboardClick, isMenuKey } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';

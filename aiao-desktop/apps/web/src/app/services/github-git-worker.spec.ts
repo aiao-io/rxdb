@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({
   initialize: vi.fn(),
-  committed:vi.fn(),localCommand:vi.fn(),diffText:vi.fn(),commitChanges:vi.fn(),origin:vi.fn(),setOrigin:vi.fn(),
+  committed: vi.fn(),
+  localCommand: vi.fn(),
+  diffText: vi.fn(),
+  commitChanges: vi.fn(),
+  origin: vi.fn(),
+  setOrigin: vi.fn(),
   open: vi.fn(),
   save: vi.fn(),
   snapshot: vi.fn(),
@@ -85,7 +90,11 @@ describe('GitHub Git Worker protocol', () => {
     'stage',
     'unstage',
     'readDiff',
-    'committed','localCommand','diffText','commitChanges','origin',
+    'committed',
+    'localCommand',
+    'diffText',
+    'commitChanges',
+    'origin',
     'discardWorking',
     'commit',
     'branches',
@@ -128,10 +137,14 @@ describe('GitHub Git Worker protocol', () => {
     );
   });
 
-  it('添加和移除远端时总是返回有效的协议结果',async () => {
-    request({id:23,action:'setOrigin',payload:{projectId:'project',url:'https://github.com/octo/repo.git'}});
-    await vi.waitFor(()=>expect(scope.postMessage).toHaveBeenCalledWith({id:23,result:null}));
-    expect(fixture.setOrigin).toHaveBeenCalledWith('project','https://github.com/octo/repo.git');
+  it('添加和移除远端时总是返回有效的协议结果', async () => {
+    request({
+      id: 23,
+      action: 'setOrigin',
+      payload: { projectId: 'project', url: 'https://github.com/octo/repo.git' }
+    });
+    await vi.waitFor(() => expect(scope.postMessage).toHaveBeenCalledWith({ id: 23, result: null }));
+    expect(fixture.setOrigin).toHaveBeenCalledWith('project', 'https://github.com/octo/repo.git');
   });
 
   it('passes removed paths through the atomic save action', async () => {

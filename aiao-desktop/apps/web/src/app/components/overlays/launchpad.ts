@@ -5,11 +5,11 @@ import { AppLauncher } from '../../services/app-launcher';
 import { DesktopAppId } from '../../services/desktop-apps';
 import { DockDragController } from '../../services/dock-drag';
 import { DockLayoutStore } from '../../services/dock-layout';
+import { isMenuKey } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { Overlays } from '../../services/overlays';
 import { PopoverService } from '../../services/popover';
 import { clamp } from '../../shared/format';
-import { isMenuKey } from '../../services/focus-order';
 import { Icon } from '../../shared/icon';
 
 /** 7 × 4，与真实启动台在这个高度下的网格一致。 */

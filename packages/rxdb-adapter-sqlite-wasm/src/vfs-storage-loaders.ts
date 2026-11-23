@@ -20,7 +20,12 @@
  * @module vfs-storage-loaders
  */
 
-import { isOpfsAccessHandleBusy, openOpfsWithRetry, releaseOpfsCoopSyncHandles, RxDBAdapterSqliteError } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  isOpfsAccessHandleBusy,
+  openOpfsWithRetry,
+  releaseOpfsCoopSyncHandles,
+  RxDBAdapterSqliteError
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { initSQLiteCore, useMemoryStorage, type InitSQLiteOptions, type SQLiteDBCore } from '@subframe7536/sqlite-wasm';
 import { useFsHandleStorage } from '@subframe7536/sqlite-wasm/fs-handle';
 import { useIdbStorage } from '@subframe7536/sqlite-wasm/idb';

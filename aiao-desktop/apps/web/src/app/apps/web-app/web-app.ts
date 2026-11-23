@@ -13,10 +13,10 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 
-import { DesktopAppServices } from '../../services/desktop-app-services';
 import { DesktopAppContexts } from '../../services/app-context';
 import { ApplicationRuntime } from '../../services/application-runtime';
 import { ApplicationTransitions, AppWindowLease } from '../../services/application-transitions';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { WebAppManifest } from '../../services/desktop-apps';
 import { AppInstanceState, DesktopWindow } from '../../services/desktop-window';
 import { OrbitHost } from '../../services/orbit-host';

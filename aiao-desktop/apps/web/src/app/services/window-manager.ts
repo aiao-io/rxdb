@@ -131,7 +131,12 @@ export class WindowManager {
       return null;
     }
     const candidates = this.byApp(appId);
-    const existing = options.force ? undefined : options.projectId ? candidates.find(win => (win.restoreOptions()?.projectId ?? win.options.projectId) === options.projectId) : app.single === false ? undefined : candidates.at(-1);
+    const existing =
+      options.force ? undefined
+      : options.projectId ?
+        candidates.find(win => (win.restoreOptions()?.projectId ?? win.options.projectId) === options.projectId)
+      : app.single === false ? undefined
+      : candidates.at(-1);
     if (existing) {
       if (existing.minimized()) this.unminimize(existing.id);
       else this.focus(existing.id);

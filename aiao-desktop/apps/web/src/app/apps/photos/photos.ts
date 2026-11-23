@@ -9,8 +9,8 @@ import {
   viewChild
 } from '@angular/core';
 
-import { DesktopAppServices } from '../../services/desktop-app-services';
 import { ContentActions } from '../../services/content-actions';
+import { DesktopAppServices } from '../../services/desktop-app-services';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
