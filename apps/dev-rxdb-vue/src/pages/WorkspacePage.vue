@@ -5,6 +5,12 @@ import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { useCount, useFind, useRxDB } from '@aiao/rxdb-vue';
 import { firstValueFrom } from 'rxjs';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  formatWorkspaceDate,
+  workspaceError,
+  workspaceNoticeText,
+  type WorkspaceNotice
+} from '@modules/demo-i18n/workspace';
 
 /**
  * Todo 主表每页条数。此前页面订阅的是 `findAll`（整表、不带 limit），
@@ -17,13 +23,6 @@ const TODO_PAGE_SIZE = 20;
  * 「页面显示多少」和「一次删多少」是两回事，删除不该被前者限制。
  */
 const TODO_DELETE_BATCH_SIZE = 200;
-
-type NoticeTone = 'info' | 'success' | 'warning' | 'error';
-
-type Notice = {
-  tone: NoticeTone;
-  text: string;
-};
 
 type WorkspaceEntry = {
   cacheId: string;
@@ -48,15 +47,18 @@ type WorkspaceRxDB = RxDB & {
   workspace: WorkspaceApi;
 };
 
-function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN'): string {
-  if (!value) return '-';
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(locale);
+const { locale, t, formatNumber } = useI18n();
+
+function titleOf(entry: WorkspaceEntry): string {
+  const title = entry.data['title'];
+  return typeof title === 'string' && title.trim().length > 0 ? title : t('page.workspace.untitled');
 }
 
-const { locale } = useI18n();
+function completedText(entry: WorkspaceEntry): string {
+  return entry.data['completed'] === true ? t('page.workspace.statusCompleted') : t('page.workspace.statusOpen');
+}
 
-function alertClass(tone: NoticeTone): string {
+function alertClass(tone: WorkspaceNotice['tone']): string {
   switch (tone) {
     case 'success':
       return 'alert alert-success alert-soft';
@@ -67,15 +69,6 @@ function alertClass(tone: NoticeTone): string {
     default:
       return 'alert alert-info alert-soft';
   }
-}
-
-function titleOf(entry: WorkspaceEntry): string {
-  const title = entry.data['title'];
-  return typeof title === 'string' && title.trim().length > 0 ? title : 'Untitled Todo';
-}
-
-function completedText(entry: WorkspaceEntry): string {
-  return entry.data['completed'] === true ? 'completed' : 'open';
 }
 
 function createdAtOf(entry: WorkspaceEntry): Date | string | null {
@@ -122,10 +115,16 @@ function nextTodoPage() {
 const workspaceEntries = ref<WorkspaceEntry[]>([]);
 const recoveredIds = ref<Set<string>>(new Set());
 const activeDraftId = ref<string | null>(null);
-const draftTitle = ref('整理需求清单');
+const draftTitleInput = ref<string | null>(null);
+const draftTitle = computed({
+  get: () => draftTitleInput.value ?? t('page.workspace.defaultTitle'),
+  set: value => {
+    draftTitleInput.value = value;
+  }
+});
 const draftCompleted = ref(false);
 const busy = ref(false);
-const notice = ref<Notice | null>(null);
+const notice = ref<WorkspaceNotice | null>(null);
 
 const activeDraftEntry = computed(() => {
   if (!activeDraftId.value) return null;
@@ -163,10 +162,7 @@ async function restoreWorkspaceEntries() {
     recoveredIds.value = new Set(restoredEntries.map(entry => entry.id));
     refreshWorkspace(activeDraftId.value ?? restoredEntries[0]?.id ?? null);
   } catch (error) {
-    notice.value = {
-      text: error instanceof Error ? `读取 workspace 草稿失败: ${error.message}` : '读取 workspace 草稿失败',
-      tone: 'error'
-    };
+    notice.value = workspaceError('page.workspace.errorLoad', error);
   }
 }
 
@@ -192,12 +188,9 @@ async function createDraft() {
     draftTitle.value = '';
     draftCompleted.value = false;
     await syncWorkspace(todo.id);
-    notice.value = { text: `已创建未保存草稿：${todo.title}`, tone: 'success' };
+    notice.value = { key: 'page.workspace.noticeCreated', params: { title: todo.title }, tone: 'success' };
   } catch (error) {
-    notice.value = {
-      text: error instanceof Error ? `创建草稿失败: ${error.message}` : '创建草稿失败',
-      tone: 'error'
-    };
+    notice.value = workspaceError('page.workspace.errorCreate', error);
   } finally {
     busy.value = false;
   }
@@ -206,7 +199,7 @@ async function createDraft() {
 async function saveDraft(entry: WorkspaceEntry) {
   const todo = resolveDraft(entry);
   if (!todo) {
-    notice.value = { text: '未找到可恢复的 Todo 草稿', tone: 'error' };
+    notice.value = { key: 'page.workspace.errorNoDraft', tone: 'error' };
     return;
   }
 
@@ -214,12 +207,9 @@ async function saveDraft(entry: WorkspaceEntry) {
   try {
     await todo.save();
     await syncWorkspace(activeDraftId.value);
-    notice.value = { text: `已保存 Todo：${todo.title}`, tone: 'success' };
+    notice.value = { key: 'page.workspace.noticeSaved', params: { title: todo.title }, tone: 'success' };
   } catch (error) {
-    notice.value = {
-      text: error instanceof Error ? `保存草稿失败: ${error.message}` : '保存草稿失败',
-      tone: 'error'
-    };
+    notice.value = workspaceError('page.workspace.errorSave', error);
   } finally {
     busy.value = false;
   }
@@ -231,7 +221,8 @@ async function discardDraft(entry: WorkspaceEntry) {
     const discarded = rxdb.workspace.discard(entry.cacheId);
     await syncWorkspace(activeDraftId.value === entry.id ? null : activeDraftId.value);
     notice.value = {
-      text: discarded ? `已丢弃草稿：${titleOf(entry)}` : '草稿已经不存在',
+      key: discarded ? 'page.workspace.noticeDiscarded' : 'page.workspace.errorMissingDraft',
+      params: { title: titleOf(entry) },
       tone: discarded ? 'warning' : 'info'
     };
   } finally {
@@ -251,7 +242,7 @@ async function deleteAllTodos() {
     );
     if (batch.length === 0) return;
     // 游标没推进说明这一批根本没删掉，继续循环就是死循环，宁可把失败抛给调用方。
-    if (batch[0].id === lastBatchHeadId) throw new Error('批量删除没有推进：仍有 Todo 未被删除');
+    if (batch[0].id === lastBatchHeadId) throw new Error(t('page.workspace.deleteStalled'));
     lastBatchHeadId = batch[0].id;
     await rxdb.entityManager.removeMany(batch);
   }
@@ -264,12 +255,9 @@ async function clearSavedTodos() {
   try {
     await deleteAllTodos();
     requestedTodoPage.value = 0;
-    notice.value = { text: '已清空 Todo 主表', tone: 'warning' };
+    notice.value = { key: 'page.workspace.noticeCleared', tone: 'warning' };
   } catch (error) {
-    notice.value = {
-      text: error instanceof Error ? `清空 Todo 主表失败: ${error.message}` : '清空 Todo 主表失败',
-      tone: 'error'
-    };
+    notice.value = workspaceError('page.workspace.errorClear', error);
   } finally {
     busy.value = false;
   }
@@ -287,12 +275,9 @@ async function resetDemo() {
     requestedTodoPage.value = 0;
 
     recoveredIds.value = new Set();
-    notice.value = { text: '已重置 workspace 草稿和 Todo 主表', tone: 'warning' };
+    notice.value = { key: 'page.workspace.noticeReset', tone: 'warning' };
   } catch (error) {
-    notice.value = {
-      text: error instanceof Error ? `重置演示数据失败: ${error.message}` : '重置演示数据失败',
-      tone: 'error'
-    };
+    notice.value = workspaceError('page.workspace.errorReset', error);
   } finally {
     busy.value = false;
   }
@@ -323,10 +308,12 @@ onBeforeUnmount(() => {
     <!-- 顶部 toolbar -->
     <div class="border-base-300 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
       <div class="flex flex-wrap items-center gap-2">
-        <h1 class="text-lg font-semibold">Workspace 草稿恢复</h1>
-        <span class="badge badge-ghost badge-sm">{{ workspaceEntries.length }} 草稿</span>
+        <h1 class="text-lg font-semibold">{{ t('page.workspace.title') }}</h1>
+        <span class="badge badge-ghost badge-sm">{{
+          t('page.workspace.drafts', { count: workspaceEntries.length })
+        }}</span>
         <span class="text-base-content/55 hidden text-xs lg:inline">
-          new Todo() 先入 workspace 缓存，刷新后从 IndexedDB 恢复
+          {{ t('page.workspace.cacheHint') }}
         </span>
       </div>
       <div class="flex items-center gap-2">
@@ -336,7 +323,7 @@ onBeforeUnmount(() => {
           @click="refreshWorkspace()"
           type="button"
         >
-          刷新
+          {{ t('common.refresh') }}
         </button>
         <button
           class="btn btn-ghost btn-sm"
@@ -344,7 +331,7 @@ onBeforeUnmount(() => {
           @click="reloadPage"
           type="button"
         >
-          刷新页面验证恢复
+          {{ t('page.workspace.reloadVerify') }}
         </button>
         <button
           class="btn btn-ghost btn-sm text-error"
@@ -352,7 +339,7 @@ onBeforeUnmount(() => {
           @click="resetDemo"
           type="button"
         >
-          重置
+          {{ t('common.reset') }}
         </button>
       </div>
     </div>
@@ -364,25 +351,25 @@ onBeforeUnmount(() => {
         :class="[alertClass(notice.tone), 'mb-4']"
         role="alert"
       >
-        <span class="text-sm">{{ notice.text }}</span>
+        <span class="text-sm">{{ workspaceNoticeText(notice, t) }}</span>
       </div>
 
       <!-- 紧凑统计行 -->
       <div class="stats stats-vertical bg-base-100 border-base-300 md:stats-horizontal mb-4 w-full border shadow-sm">
         <div class="stat py-3">
-          <div class="stat-title text-xs">Workspace 草稿</div>
-          <div class="stat-value text-primary text-2xl">{{ workspaceEntries.length }}</div>
-          <div class="stat-desc">还没保存到主表的草稿</div>
+          <div class="stat-title text-xs">{{ t('page.workspace.draftStat') }}</div>
+          <div class="stat-value text-primary text-2xl">{{ formatNumber(workspaceEntries.length) }}</div>
+          <div class="stat-desc">{{ t('page.workspace.draftStatDescription') }}</div>
         </div>
         <div class="stat py-3">
-          <div class="stat-title text-xs">Todo 主表</div>
-          <div class="stat-value text-2xl">{{ savedTodoTotal }}</div>
-          <div class="stat-desc">已写入数据库的全部记录</div>
+          <div class="stat-title text-xs">{{ t('page.workspace.todoStat') }}</div>
+          <div class="stat-value text-2xl">{{ formatNumber(savedTodoTotal) }}</div>
+          <div class="stat-desc">{{ t('page.workspace.todoStatDescription') }}</div>
         </div>
         <div class="stat py-3">
-          <div class="stat-title text-xs">当前活动草稿</div>
-          <div class="stat-value text-secondary text-2xl">{{ activeDraftEntry ? 1 : 0 }}</div>
-          <div class="stat-desc">恢复面板聚焦的草稿</div>
+          <div class="stat-title text-xs">{{ t('page.workspace.activeDraftStat') }}</div>
+          <div class="stat-value text-secondary text-2xl">{{ formatNumber(activeDraftEntry ? 1 : 0) }}</div>
+          <div class="stat-desc">{{ t('page.workspace.activeDraftStatDescription') }}</div>
         </div>
       </div>
 
@@ -392,11 +379,11 @@ onBeforeUnmount(() => {
           <section class="card border-base-300 bg-base-100 border shadow-sm">
             <div class="card-body gap-3 p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <h2 class="text-base font-semibold">创建未保存草稿</h2>
-                <span class="badge badge-outline badge-sm">Workspace only</span>
+                <h2 class="text-base font-semibold">{{ t('page.workspace.createDraft') }}</h2>
+                <span class="badge badge-outline badge-sm">{{ t('page.workspace.workspaceOnly') }}</span>
               </div>
               <p class="text-base-content/65 text-xs">
-                只创建草稿对象，不直接写入 Todo 主表。草稿先落 workspace，刷新后还能继续处理。
+                {{ t('page.workspace.createDescription') }}
               </p>
 
               <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
@@ -404,13 +391,13 @@ onBeforeUnmount(() => {
                   <input
                     class="input input-sm w-full"
                     v-model="draftTitle"
-                    placeholder="例如：整理需求清单"
+                    :placeholder="t('page.workspace.titlePlaceholder')"
                     type="text"
                   />
-                  <span>草稿标题</span>
+                  <span>{{ t('page.workspace.draftTitle') }}</span>
                 </label>
                 <label class="label rounded-box border-base-300 cursor-pointer gap-2 border px-3 py-2">
-                  <span class="label-text text-xs">已完成</span>
+                  <span class="label-text text-xs">{{ t('page.workspace.completed') }}</span>
                   <input
                     class="checkbox checkbox-sm checkbox-primary"
                     v-model="draftCompleted"
@@ -423,7 +410,7 @@ onBeforeUnmount(() => {
                   @click="createDraft"
                   type="button"
                 >
-                  创建草稿
+                  {{ t('page.workspace.createButton') }}
                 </button>
               </div>
             </div>
@@ -433,15 +420,17 @@ onBeforeUnmount(() => {
           <section class="card border-base-300 bg-base-100 border shadow-sm">
             <div class="card-body gap-3 p-4">
               <div class="flex items-center justify-between">
-                <h2 class="text-base font-semibold">草稿列表</h2>
-                <span class="badge badge-ghost badge-sm">{{ workspaceEntries.length }} drafts</span>
+                <h2 class="text-base font-semibold">{{ t('page.workspace.draftList') }}</h2>
+                <span class="badge badge-ghost badge-sm">{{
+                  t('page.workspace.drafts', { count: workspaceEntries.length })
+                }}</span>
               </div>
 
               <div
                 class="border-base-300 text-base-content/55 rounded-box border border-dashed p-6 text-center text-sm"
                 v-if="workspaceEntries.length === 0"
               >
-                当前没有未保存草稿。先创建一个，再刷新页面验证恢复链路。
+                {{ t('page.workspace.emptyDrafts') }}
               </div>
               <div
                 class="space-y-2"
@@ -461,7 +450,7 @@ onBeforeUnmount(() => {
                       <span
                         class="badge badge-secondary badge-soft badge-xs"
                         v-if="recoveredIds.has(entry.id)"
-                        >已恢复</span
+                        >{{ t('page.workspace.recovered') }}</span
                       >
                     </div>
                     <div class="flex flex-wrap gap-1.5">
@@ -470,7 +459,7 @@ onBeforeUnmount(() => {
                         @click="activeDraftId = entry.id"
                         type="button"
                       >
-                        查看
+                        {{ t('page.workspace.view') }}
                       </button>
                       <button
                         class="btn btn-xs btn-primary"
@@ -478,7 +467,7 @@ onBeforeUnmount(() => {
                         @click="saveDraft(entry)"
                         type="button"
                       >
-                        保存
+                        {{ t('common.save') }}
                       </button>
                       <button
                         class="btn btn-xs btn-ghost text-error"
@@ -486,13 +475,15 @@ onBeforeUnmount(() => {
                         @click="discardDraft(entry)"
                         type="button"
                       >
-                        丢弃
+                        {{ t('common.discard') }}
                       </button>
                     </div>
                   </div>
                   <div class="text-base-content/55 grid gap-1 font-mono text-xs sm:grid-cols-3">
-                    <span class="truncate">完成: {{ completedText(entry) }}</span>
-                    <span class="truncate">{{ formatDateTime(createdAtOf(entry), locale) }}</span>
+                    <span class="truncate">{{
+                      t('page.workspace.completedValue', { value: completedText(entry) })
+                    }}</span>
+                    <span class="truncate">{{ formatWorkspaceDate(createdAtOf(entry), locale) }}</span>
                     <span class="truncate">{{ entry.cacheId }}</span>
                   </div>
                 </article>
@@ -505,9 +496,9 @@ onBeforeUnmount(() => {
             <div class="card-body gap-3 p-4">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 class="text-base font-semibold">Todo 主表</h2>
+                  <h2 class="text-base font-semibold">{{ t('page.workspace.todoTable') }}</h2>
                   <p class="text-base-content/55 text-xs">
-                    草稿保存后落到这里，最新在前。只查询当前这一页（每页 {{ TODO_PAGE_SIZE }} 条）
+                    {{ t('page.workspace.todoDescription', { size: TODO_PAGE_SIZE }) }}
                   </p>
                 </div>
                 <button
@@ -516,7 +507,7 @@ onBeforeUnmount(() => {
                   @click="clearSavedTodos"
                   type="button"
                 >
-                  清空主表
+                  {{ t('page.workspace.clearTable') }}
                 </button>
               </div>
 
@@ -524,10 +515,10 @@ onBeforeUnmount(() => {
                 <table class="table-zebra table-sm table">
                   <thead>
                     <tr>
-                      <th>Title</th>
-                      <th>Status</th>
-                      <th>ID</th>
-                      <th>Updated At</th>
+                      <th>{{ t('page.workspace.titleColumn') }}</th>
+                      <th>{{ t('page.workspace.statusColumn') }}</th>
+                      <th>{{ t('page.workspace.idColumn') }}</th>
+                      <th>{{ t('page.workspace.updatedAtColumn') }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -536,7 +527,7 @@ onBeforeUnmount(() => {
                         class="text-base-content/55 text-center text-sm"
                         colspan="4"
                       >
-                        主表还没有记录。保存一条草稿看它落库。
+                        {{ t('page.workspace.emptyTodos') }}
                       </td>
                     </tr>
                     <tr
@@ -546,10 +537,12 @@ onBeforeUnmount(() => {
                     >
                       <td class="font-medium">{{ todo.title }}</td>
                       <td>
-                        <span class="badge badge-outline badge-sm">{{ todo.completed ? 'completed' : 'open' }}</span>
+                        <span class="badge badge-outline badge-sm">{{
+                          t(todo.completed ? 'page.workspace.statusCompleted' : 'page.workspace.statusOpen')
+                        }}</span>
                       </td>
                       <td class="font-mono text-xs">{{ todo.id.slice(0, 8) }}</td>
-                      <td class="text-xs">{{ formatDateTime(todo.updatedAt, locale) }}</td>
+                      <td class="text-xs">{{ formatWorkspaceDate(todo.updatedAt, locale) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -557,7 +550,13 @@ onBeforeUnmount(() => {
 
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <span class="text-base-content/55 text-xs">
-                  共 {{ savedTodoTotal }} 条 · 第 {{ todoPage + 1 }} / {{ todoPageCount }} 页
+                  {{
+                    t('page.workspace.pagination', {
+                      count: savedTodoTotal,
+                      current: todoPage + 1,
+                      total: todoPageCount
+                    })
+                  }}
                 </span>
                 <div class="join">
                   <button
@@ -566,7 +565,7 @@ onBeforeUnmount(() => {
                     @click="previousTodoPage"
                     type="button"
                   >
-                    上一页
+                    {{ t('common.previous') }}
                   </button>
                   <button
                     class="btn btn-sm join-item"
@@ -574,7 +573,7 @@ onBeforeUnmount(() => {
                     @click="nextTodoPage"
                     type="button"
                   >
-                    下一页
+                    {{ t('common.next') }}
                   </button>
                 </div>
               </div>
@@ -586,7 +585,7 @@ onBeforeUnmount(() => {
         <aside class="flex flex-col gap-4">
           <section class="card border-base-300 bg-base-100 border shadow-sm">
             <div class="card-body gap-3 p-4">
-              <h2 class="text-base font-semibold">恢复面板</h2>
+              <h2 class="text-base font-semibold">{{ t('page.workspace.recoveryPanel') }}</h2>
               <div
                 class="space-y-3"
                 v-if="activeDraftEntry"
@@ -596,21 +595,21 @@ onBeforeUnmount(() => {
                   <span
                     class="badge badge-secondary badge-soft badge-sm"
                     v-if="recoveredIds.has(activeDraftEntry.id)"
-                    >刷新后恢复</span
+                    >{{ t('page.workspace.recoveredAfterRefresh') }}</span
                   >
                 </div>
                 <div class="space-y-1.5 text-sm">
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-base-content/55">草稿 ID</span>
+                    <span class="text-base-content/55">{{ t('page.workspace.draftId') }}</span>
                     <span class="font-mono text-xs">{{ activeDraftEntry.id }}</span>
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-base-content/55">完成状态</span>
+                    <span class="text-base-content/55">{{ t('page.workspace.completedStatus') }}</span>
                     <span>{{ completedText(activeDraftEntry) }}</span>
                   </div>
                   <div class="flex items-center justify-between gap-3">
-                    <span class="text-base-content/55">创建时间</span>
-                    <span>{{ formatDateTime(createdAtOf(activeDraftEntry), locale) }}</span>
+                    <span class="text-base-content/55">{{ t('page.workspace.createdAt') }}</span>
+                    <span>{{ formatWorkspaceDate(createdAtOf(activeDraftEntry), locale) }}</span>
                   </div>
                 </div>
                 <div class="flex gap-2">
@@ -620,7 +619,7 @@ onBeforeUnmount(() => {
                     @click="saveDraft(activeDraftEntry)"
                     type="button"
                   >
-                    保存
+                    {{ t('common.save') }}
                   </button>
                   <button
                     class="btn btn-ghost btn-sm text-error"
@@ -628,7 +627,7 @@ onBeforeUnmount(() => {
                     @click="discardDraft(activeDraftEntry)"
                     type="button"
                   >
-                    丢弃
+                    {{ t('common.discard') }}
                   </button>
                 </div>
               </div>
@@ -636,7 +635,7 @@ onBeforeUnmount(() => {
                 class="border-base-300 text-base-content/55 rounded-box border border-dashed p-4 text-sm"
                 v-else
               >
-                还没有选中的草稿。先创建一个，或从左侧列表点"查看"。
+                {{ t('page.workspace.emptySelection') }}
               </div>
             </div>
           </section>

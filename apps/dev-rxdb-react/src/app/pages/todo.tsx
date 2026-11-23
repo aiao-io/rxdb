@@ -1,4 +1,5 @@
 import { EntityStaticType, reorderTargetForMove, type UUID } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { Task } from '@aiao/rxdb-test/entities';
 import { FixedRowDrag, type FixedRowDragState, type FixedRowDrop } from '@aiao/utils';
@@ -21,6 +22,7 @@ const requiredElement = (element: HTMLElement | null, name: string): HTMLElement
 
 export function TodoPage(): React.JSX.Element {
   const rxdb = useRxDB();
+  const { t } = useI18n();
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const fullHeaderRef = useRef<HTMLDivElement>(null);
   const todoListRef = useRef<HTMLDivElement>(null);
@@ -523,7 +525,7 @@ export function TodoPage(): React.JSX.Element {
                   className={clsx('btn btn-sm', { 'btn-primary': showHistory })}
                   data-testid='todo-history'
                   onClick={toggleHistory}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                 >
                   <History size={16} />
                 </button>

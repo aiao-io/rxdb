@@ -19,6 +19,7 @@ GitHub 的英文 README 和贡献指南直接进入官网 `/en/`。官网根路�
 | 在英文浏览器打开 Admin | Angular、React、Vue 共用一套 Chromium 用例。在干净的 `en-US` 环境中检查英文首页、`html[lang]`、标题和 meta description。切换到中文后刷新，再从偏好抽屉清除语言并刷新，两次都检查文案和 metadata。 |
 | 打开开发演示的实体页 | 三端 Chromium 都验证了英文新增按钮、规范语言 `en`，以及日期 `October 28, 2026` 和数字 `12,345.67`。 |
 | 在 AG Grid 中切换语言 | 三端 Chromium 在实体页写入同一个固定时间的 Todo，进入 AG Grid 后核对英文时间列标题、单元格日期以及 `Yes` / `No` 筛选值。原页切换至中文后再核对中文标题、日期和“是／否”。 |
+| 在 Workspace 中恢复和保存草稿 | 三端 Chromium 从英文浏览器创建草稿，核对通知、单数计数和日期，刷新后恢复；切到中文并保存，再切回英文，验证已显示的通知与主表状态更新，草稿标题保持不变。原有中文路由冒烟用例也通过。 |
 | 从文档复制代码 | 自动检查仓库首页、英文 Getting Started、模型定义、查询、响应式查询、写入、Vite 配置、插件编写、i18n 指南、三端框架指南和首批 12 个公共包 README 中的 TypeScript 示例。Vue 另有测试会实际编译并挂载 `useEntityChange` 的 README 示例。 |
 | 从未翻译页面跳到英文指南 | 文档链接以内容目录为根并保留 `.md`。英文单语言构建开启 Markdown、页面和锚点三种断链检查，已核对插件目录正文到编写插件、桌面迁移正文到兼容矩阵的生成链接。 |
 | 根据核心报错定位问题 | `packages/rxdb/README.md` 列出 12 个具体错误码、诊断字段及处理方法，含原有小写事务错误码。 |
@@ -37,13 +38,20 @@ GitHub 英文 README 直达的安装、兼容矩阵和迁移入口均有英文�
 
 三端 Admin、实体页和 AG Grid 的 9 项 Chromium 场景全部通过。三端 Admin 布局测试显式从中文开始，再验证品牌标题切到英文。Angular、React 和 Vue 的 Admin 单测分别通过 132、120 和 144 项。加入 AG Grid 后，全量检查覆盖 100 个项目。看板种子用例把两个 PGlite 连接移到每项测试的准备阶段，仍在测试体内写入种子并比较快照。看板 Node 套件通过 167 项，浏览器通过 6 项，合并后的行覆盖率为 97.90%。SQLite 加载器单独通过 13 项检查，完整 `rxdb-adapter-sqlite:test` 按默认配置通过 842 项，跳过 13 项。
 
-最新一次全量验收中，Angular 开发演示的 232 项 E2E 全部通过，含此前超时的 History 建分支。Vue 开发演示通过 210 项，三个 Admin 模板各通过 92 项。React 开发演示在本机 8 个 worker 下通过 221 项、6 项超时，同一批失败用例按原超时用单 worker 复跑，6 项全部通过。
+加入 Workspace 前，`pnpm test-all --nxBail=false` 检查了 100 个受影响项目。Angular 开发演示通过 232 项 E2E，含此前超时的 History 建分支；Vue 通过 210 项，三个 Admin 模板各通过 92 项。全量运行只剩两个失败目标：`dev-rxdb-react-e2e:e2e` 在本机默认 8 个 worker 下有 6 项超时；`rxdb-adapter-supabase:test-env` 因 PostgreSQL 容器不健康而退出，依赖它的 `rxdb-adapter-supabase:test` 未运行。
+
+React 的 6 个失败用例按原超时用单 worker 复跑全部通过，随后整套以 2 个 worker 通过 227 项，未更改默认并发或超时。Supabase 的数据库后来报告已接受连接，但 Docker API 和容器健康探针仍有间歇性超时。全量门禁不能据此记为通过。
+
+本轮单独复跑 `rxdb-adapter-supabase:test-env` 成功，数据库初始化和 Kong 健康检查均通过。随后适配器套件通过 38 项重试测试，但 3 项真实 REST 写入用例各在 10 秒超时；直接查询 `todos` 也在约 11 秒后返回 HTTP 500 和 `PGRST002`。已停止本次套件，余下用例未验证。当前阻塞在 PostgREST 加载数据库 schema cache，底层原因尚未确认；没有改适配器、Docker 配置或测试超时。
+
+Workspace 改动通过三端类型检查、8 个相关项目及仓库脚本的零警告 lint，以及 6 项 Chromium 测试。文案审计检查 12 组中英文目录，其中 Workspace 的 60 个键全部匹配。
 
 可重复执行的验收命令如下。
 
 ```bash
 pnpm nx run-many -t e2e -p rxdb-admin-template-angular-e2e,rxdb-admin-template-react-e2e,rxdb-admin-template-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
 pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
+pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='Workspace 草稿恢复|/workspace 能打开' --workers=1
 pnpm nx run @aiao/source:test-scripts
 pnpm nx run @aiao/source:audit-i18n
 pnpm audit:api-surface
@@ -468,7 +476,7 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 - 官网 `/` 为中文，`/en/` 为英文。中英文首页、安装页和各自的搜索索引纳入 Pages 发布检查。
 - 公共包的英文说明写入 Markdown，源码注释遵循 `AGENTS.md`。
-- Admin、演示实体页和 AG Grid 的时间列及布尔筛选已完成三框架英文浏览器验收。后续页面包括 workspace、storage、OPFS 和 history。
+- Admin、演示实体页、AG Grid 和 Workspace 已完成三框架英文浏览器验收。Workspace 共用 60 个中英文文案键；后续页面包括 storage、OPFS 和 history。
 - 核心 README 已记录 12 个错误码。涉及既有异常消息的改动按错误类型单独评审。
 - 本地和 CI 都通过 `pnpm nx run @aiao/source:audit-i18n` 检查文案键。
 

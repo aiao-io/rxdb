@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -31,6 +32,7 @@ import { generateBatchMenus } from '../../utils/menu-utils';
 export function TreeMenuVirtualPage() {
   const rxdb = useRxDB();
   const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -235,7 +237,7 @@ export function TreeMenuVirtualPage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='menu-history'
                 >
                   <History size={16} />

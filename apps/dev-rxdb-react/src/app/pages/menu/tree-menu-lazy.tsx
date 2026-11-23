@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -31,6 +32,7 @@ import { mergeById } from '../../utils/tree-scope';
 export function TreeMenuLazyPage() {
   const rxdb = useRxDB();
   const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -240,7 +242,7 @@ export function TreeMenuLazyPage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='menu-history'
                 >
                   <History size={16} />

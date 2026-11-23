@@ -1,19 +1,13 @@
+import { formatFileDate, formatFileSize } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件列表组件
  */
 
-import { Download, Eye, Pen, Trash2 } from 'lucide-react';
 import { useI18n } from '@aiao/rxdb-i18n-react';
+import { Download, Eye, Pen, Trash2 } from 'lucide-react';
 import { useCallback } from 'react';
 import { useResettableTimeout } from '../../../hooks/useResettableTimeout';
-import {
-  canPreviewFile,
-  formatDate,
-  formatFileSize,
-  getFileIcon,
-  getFileIconColor,
-  OPFSFileEntry
-} from '../utils/opfs-utils';
+import { canPreviewFile, getFileIcon, getFileIconColor, OPFSFileEntry } from '../utils/opfs-utils';
 
 interface Props {
   entries: OPFSFileEntry[];
@@ -39,7 +33,7 @@ export function OpfsFileList({
   onContextMenu,
   onEntryClick
 }: Props) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const { schedule: scheduleEntryClick, cancel: cancelEntryClick } = useResettableTimeout();
 
   const handleEntryClick = useCallback(
@@ -70,10 +64,10 @@ export function OpfsFileList({
     <table className='table-zebra table select-none'>
       <thead>
         <tr>
-          <th>名称</th>
-          <th className='w-32'>大小</th>
-          <th className='hidden w-40 md:table-cell'>修改时间</th>
-          <th className='w-24'>操作</th>
+          <th>{t('file.name')}</th>
+          <th className='w-32'>{t('file.size')}</th>
+          <th className='hidden w-40 md:table-cell'>{t('file.modified')}</th>
+          <th className='w-24'>{t('file.actions')}</th>
         </tr>
       </thead>
       <tbody>
@@ -110,10 +104,10 @@ export function OpfsFileList({
                 }
               </td>
               <td className='text-base-content/60 text-sm'>
-                {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
+                {entry.kind === 'file' ? formatFileSize(entry.size || 0, locale) : '-'}
               </td>
               <td className='text-base-content/60 hidden text-sm md:table-cell'>
-                {formatDate(entry.lastModified, locale)}
+                {formatFileDate(entry.lastModified, locale)}
               </td>
               <td>
                 <div className='flex items-center gap-1'>
@@ -124,7 +118,7 @@ export function OpfsFileList({
                         e.stopPropagation();
                         onPreview(entry);
                       }}
-                      title='预览'
+                      title={t('file.preview')}
                     >
                       <Eye size={14} />
                     </button>
@@ -136,7 +130,7 @@ export function OpfsFileList({
                         e.stopPropagation();
                         onDownload(entry);
                       }}
-                      title='下载'
+                      title={t('file.download')}
                     >
                       <Download size={14} />
                     </button>
@@ -148,7 +142,7 @@ export function OpfsFileList({
                       event.stopPropagation();
                       onRename(entry);
                     }}
-                    title='重命名'
+                    title={t('file.rename')}
                   >
                     <Pen size={14} />
                   </button>
@@ -158,7 +152,7 @@ export function OpfsFileList({
                       e.stopPropagation();
                       onDelete(entry);
                     }}
-                    title='删除'
+                    title={t('file.delete')}
                   >
                     <Trash2 size={14} />
                   </button>

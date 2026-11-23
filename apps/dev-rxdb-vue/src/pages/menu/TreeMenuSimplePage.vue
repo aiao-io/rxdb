@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { useObservable } from '@vueuse/rxjs';
@@ -26,6 +27,7 @@ import { useTreeMenuStore } from '../../app/composables/useTreeMenuStore';
 import { useShowHistory } from '../../app/composables/useShowHistory';
 
 const rxdb = useRxDB();
+const { t } = useI18n();
 const { showHistory } = useShowHistory();
 const newTitle = ref('');
 const loadingActions = ref<Set<string>>(new Set());
@@ -262,7 +264,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 class="btn btn-sm"
                 :class="{ 'btn-primary': showHistory }"
                 @click="showHistory = !showHistory"
-                aria-label="历史记录"
+                :aria-label="t('history.open')"
               >
                 <History :size="16" />
               </button>

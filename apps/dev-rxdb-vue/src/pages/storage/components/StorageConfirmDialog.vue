@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { AlertTriangle } from '@lucide/vue';
+
+const { t } = useI18n();
 
 defineProps<{ show: boolean; message: string }>();
 const emit = defineEmits<{ (e: 'respond', confirmed: boolean): void }>();
@@ -23,7 +26,7 @@ const T = STORAGE_TESTID;
           class="text-warning"
           :size="18"
         />
-        Confirm Action
+        {{ t('file.confirmAction') }}
       </h3>
       <p class="mb-4">{{ message }}</p>
       <div class="modal-action">
@@ -32,14 +35,14 @@ const T = STORAGE_TESTID;
           :data-testid="T.CONFIRM_NO"
           @click="emit('respond', false)"
         >
-          Cancel
+          {{ t('file.cancel') }}
         </button>
         <button
           class="btn btn-sm btn-error"
           :data-testid="T.CONFIRM_YES"
           @click="emit('respond', true)"
         >
-          Confirm
+          {{ t('file.confirm') }}
         </button>
       </div>
     </div>

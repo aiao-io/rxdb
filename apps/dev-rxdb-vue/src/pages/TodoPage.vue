@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18nOptional } from '@aiao/rxdb-i18n-vue';
 import { EntityStaticType, reorderTargetForMove, type HistoryItem, type UUID } from '@aiao/rxdb';
 import { Task } from '@aiao/rxdb-test/entities';
 import { injectRxDB, useFindAll } from '@aiao/rxdb-vue';
@@ -15,6 +16,7 @@ import { useShowHistory } from '../app/composables/useShowHistory';
 const ITEM_SIZE = 48;
 
 const rxdb = injectRxDB()!;
+const i18n = useI18nOptional();
 const mainContainerRef = ref<HTMLDivElement | null>(null);
 const fullHeaderRef = ref<HTMLDivElement | null>(null);
 const todoListRef = ref<HTMLDivElement | null>(null);
@@ -539,7 +541,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               <button
                 :class="['btn btn-sm', { 'btn-primary': showHistory }]"
                 @click="toggleHistory"
-                aria-label="历史记录"
+                :aria-label="i18n?.t('history.open') ?? '历史记录'"
                 data-testid="todo-history"
               >
                 <History :size="16" />

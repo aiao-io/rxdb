@@ -183,15 +183,3 @@ export function getFileIconColor(entry: StorageBrowserItem): string {
 
   return 'text-base-content/60';
 }
-
-export function formatDate(timestamp?: number, locale = 'zh-CN'): string {
-  if (!timestamp) return '-';
-
-  return new Date(timestamp).toLocaleString(locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}

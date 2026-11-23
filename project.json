@@ -130,11 +130,12 @@
       }
     },
     "audit-i18n": {
-      "// cache": "检查 Admin、Model、Application 的中英文文案键集合，输入是源文案文件。",
+      "// cache": "检查 Admin、Model、Application 和演示应用的中英文文案键集合。",
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
         "{workspaceRoot}/scripts/audit/i18n-catalogs.mjs",
+        "{workspaceRoot}/modules/demo-i18n/*.ts",
         "{workspaceRoot}/packages/rxdb-admin/src/i18n/**/*",
         "{workspaceRoot}/packages/rxdb-model/src/messages.ts",
         "{workspaceRoot}/apps/rxdb-admin-template-*/src/app/i18n/**/*"

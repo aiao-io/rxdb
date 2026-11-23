@@ -2,6 +2,9 @@ import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
+import { fileCatalogs } from '@modules/demo-i18n/files';
+import { historyCatalogs } from '@modules/demo-i18n/history';
+import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
 
 export const demoMessages: readonly MessageCatalog[] = [
   {
@@ -29,7 +32,15 @@ export function createDemoI18n(rxdb: RxDB): I18n {
   const i18n = new I18n({
     rxdb,
     deviceLocale: resolveUiLocale(globalThis.navigator?.language),
-    catalogs: [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }, ...demoMessages]
+    catalogs: [
+      ...modelMessages,
+      { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages },
+      { locale: 'zh-Hans', namespace: 'app', messages: workspaceZhMessages },
+      { locale: 'en', namespace: 'app', messages: workspaceEnMessages },
+      ...fileCatalogs,
+      ...historyCatalogs,
+      ...demoMessages
+    ]
   });
   getDevToolsConnector().init(rxdb, getEntityMetadata, { i18n, mutationPolicy: 'allow' });
   return i18n;

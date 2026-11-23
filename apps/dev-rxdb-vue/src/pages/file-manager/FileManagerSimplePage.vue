@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { useObservable } from '@vueuse/rxjs';
@@ -36,6 +37,7 @@ import { getFileIcon } from '../../app/utils/file-icons';
 import { useShowHistory } from '../../app/composables/useShowHistory';
 
 const rxdb = useRxDB();
+const { t } = useI18n();
 const { showHistory } = useShowHistory();
 const newName = ref('');
 const newExtension = ref('txt');
@@ -322,7 +324,7 @@ const getIconComponent = (iconName: string) => {
                 class="btn btn-sm"
                 :class="{ 'btn-primary': showHistory }"
                 @click="showHistory = !showHistory"
-                aria-label="历史记录"
+                :aria-label="t('history.open')"
                 data-testid="file-history"
               >
                 <History :size="16" />

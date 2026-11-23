@@ -20,6 +20,27 @@ const checks = [
       ['packages/rxdb-model/src/messages.ts', 'modelEnMessages']
     ]
   },
+  {
+    name: 'demo/workspace',
+    entries: [
+      ['modules/demo-i18n/workspace.ts', 'workspaceZhMessages'],
+      ['modules/demo-i18n/workspace.ts', 'workspaceEnMessages']
+    ]
+  },
+  {
+    name: 'demo/files',
+    entries: [
+      ['modules/demo-i18n/files.ts', 'fileZhMessages'],
+      ['modules/demo-i18n/files.ts', 'fileEnMessages']
+    ]
+  },
+  {
+    name: 'demo/history',
+    entries: [
+      ['modules/demo-i18n/history.ts', 'historyZhMessages'],
+      ['modules/demo-i18n/history.ts', 'historyEnMessages']
+    ]
+  },
   ...['angular', 'react', 'vue'].flatMap(framework => [
     {
       name: `admin-template-${framework}/application`,

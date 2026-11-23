@@ -1,18 +1,12 @@
 <script lang="ts" setup>
+import { formatFileSize, formatFileDate } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件列表组件
  */
 import { Download, Eye, Pen, Trash2 } from '@lucide/vue';
 import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { ref } from 'vue';
-import {
-  canPreviewFile,
-  formatDate,
-  formatFileSize,
-  getFileIcon,
-  getFileIconColor,
-  type OPFSFileEntry
-} from '../utils/opfs-utils';
+import { canPreviewFile, getFileIcon, getFileIconColor, type OPFSFileEntry } from '../utils/opfs-utils';
 
 defineProps<{
   entries: OPFSFileEntry[];
@@ -31,7 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const clickTimeout = ref<number | null>(null);
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 
 function handleEntryClick(entry: OPFSFileEntry, event: MouseEvent) {
   if (clickTimeout.value) clearTimeout(clickTimeout.value);
@@ -60,10 +54,10 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
   <table class="table-zebra table select-none">
     <thead>
       <tr>
-        <th>名称</th>
-        <th class="w-32">大小</th>
-        <th class="hidden w-40 md:table-cell">修改时间</th>
-        <th class="w-24">操作</th>
+        <th>{{ t('file.name') }}</th>
+        <th class="w-32">{{ t('file.size') }}</th>
+        <th class="hidden w-40 md:table-cell">{{ t('file.modified') }}</th>
+        <th class="w-24">{{ t('file.actions') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -103,10 +97,10 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           </div>
         </td>
         <td class="text-base-content/60 text-sm">
-          {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
+          {{ entry.kind === 'file' ? formatFileSize(entry.size || 0, locale) : '-' }}
         </td>
         <td class="text-base-content/60 hidden text-sm md:table-cell">
-          {{ formatDate(entry.lastModified, locale) }}
+          {{ formatFileDate(entry.lastModified, locale) }}
         </td>
         <td>
           <div class="flex items-center gap-1">
@@ -114,7 +108,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
               class="btn btn-ghost btn-xs"
               v-if="entry.kind === 'file' && canPreviewFile(entry)"
               @click.stop="emit('preview', entry)"
-              title="预览"
+              :title="t('file.preview')"
             >
               <Eye :size="14" />
             </button>
@@ -122,7 +116,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
               class="btn btn-ghost btn-xs"
               v-if="entry.kind === 'file'"
               @click.stop="emit('download', entry)"
-              title="下载"
+              :title="t('file.download')"
             >
               <Download :size="14" />
             </button>
@@ -130,14 +124,14 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
               class="btn btn-ghost btn-xs"
               data-testid="opfs-rename-btn"
               @click.stop="emit('rename', entry)"
-              title="重命名"
+              :title="t('file.rename')"
             >
               <Pen :size="14" />
             </button>
             <button
               class="btn btn-ghost btn-xs text-error"
               @click.stop="emit('delete', entry)"
-              title="删除"
+              :title="t('file.delete')"
             >
               <Trash2 :size="14" />
             </button>

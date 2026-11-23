@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { Edit3, Eye, FolderOpen, Trash2 } from 'lucide-react';
 import { useGlobalDismiss } from '../../../hooks/useGlobalDismiss';
 import type { OPFSFileEntry } from '../utils/opfs-utils';
@@ -29,6 +30,7 @@ export interface OpfsContextMenuProps {
  *   （daisyUI 的 `menu` 也是给 `<ul>` 用的。）
  */
 export function OpfsContextMenu({ entry, x, y, onAction, onClose }: OpfsContextMenuProps) {
+  const { t } = useI18n();
   useGlobalDismiss(true, onClose);
 
   return (
@@ -48,11 +50,11 @@ export function OpfsContextMenu({ entry, x, y, onAction, onClose }: OpfsContextM
           {entry.kind === 'file' ?
             <>
               <Eye size={14} />
-              <span>查看</span>
+              <span>{t('file.view')}</span>
             </>
           : <>
               <FolderOpen size={14} />
-              <span>打开</span>
+              <span>{t('file.open')}</span>
             </>
           }
         </button>
@@ -60,7 +62,7 @@ export function OpfsContextMenu({ entry, x, y, onAction, onClose }: OpfsContextM
       <li>
         <button className='w-full gap-2 px-2 py-1.5 text-left' type='button' onClick={() => onAction('rename')}>
           <Edit3 size={14} />
-          <span>重命名</span>
+          <span>{t('file.rename')}</span>
         </button>
       </li>
       <li>
@@ -70,7 +72,7 @@ export function OpfsContextMenu({ entry, x, y, onAction, onClose }: OpfsContextM
           onClick={() => onAction('delete')}
         >
           <Trash2 size={14} />
-          <span>删除</span>
+          <span>{t('file.delete')}</span>
         </button>
       </li>
     </ul>

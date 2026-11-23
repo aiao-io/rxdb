@@ -17,6 +17,7 @@ import { CodeEditor } from '@aiao/code-editor-angular';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { OpfsService } from '../services/opfs.service';
 import { resolveOpfsStringPreviewType } from '../utils/opfs-preview-type';
 import { getCodeLanguage, getFileType, isTextFile, OPFSFileEntry } from '../utils/opfs-utils';
@@ -24,7 +25,7 @@ import { getCodeLanguage, getFileType, isTextFile, OPFSFileEntry } from '../util
 @Component({
   selector: 'app-opfs-file-preview',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon, CodeEditor],
+  imports: [I18nPipe, CommonModule, LucideDynamicIcon, CodeEditor],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (entry()) {
@@ -39,7 +40,12 @@ import { getCodeLanguage, getFileType, isTextFile, OPFSFileEntry } from '../util
         <div class="modal-box flex h-[80vh] max-w-4xl flex-col">
           <div class="mb-4 flex items-center justify-between">
             <h3 class="text-lg font-bold">{{ entry()!.name }}</h3>
-            <button class="btn btn-sm btn-circle btn-ghost" (click)="handleClose()" type="button">
+            <button
+              class="btn btn-sm btn-circle btn-ghost"
+              [attr.aria-label]="'file.closePreview' | i18n"
+              (click)="handleClose()"
+              type="button"
+            >
               <svg [lucideIcon]="XIcon" size="16"></svg>
             </button>
           </div>
@@ -56,11 +62,15 @@ import { getCodeLanguage, getFileType, isTextFile, OPFSFileEntry } from '../util
                 </div>
               } @else if (fileType() === 'audio' && content()) {
                 <div class="flex items-center justify-center p-4">
-                  <audio class="w-full max-w-xl" [src]="content()!" controls>您的浏览器不支持音频播放</audio>
+                  <audio class="w-full max-w-xl" [src]="content()!" controls>
+                    {{ 'file.audioUnsupported' | i18n }}
+                  </audio>
                 </div>
               } @else if (fileType() === 'video' && content()) {
                 <div class="flex h-full items-center justify-center p-4">
-                  <video class="max-h-full max-w-full" [src]="content()!" controls>您的浏览器不支持视频播放</video>
+                  <video class="max-h-full max-w-full" [src]="content()!" controls>
+                    {{ 'file.videoUnsupported' | i18n }}
+                  </video>
                 </div>
               } @else if (fileType() === 'code' && textContent()) {
                 <div class="h-full overflow-auto">
@@ -76,12 +86,12 @@ import { getCodeLanguage, getFileType, isTextFile, OPFSFileEntry } from '../util
               } @else if (fileType() === 'text' && textContent()) {
                 <pre class="bg-base-200 overflow-auto rounded p-4 text-xs">{{ textContent() }}</pre>
               } @else {
-                <div class="text-base-content/40 py-8 text-center">无法预览此文件</div>
+                <div class="text-base-content/40 py-8 text-center">{{ 'file.previewUnsupported' | i18n }}</div>
               }
             }
           </div>
           <div class="modal-action">
-            <button class="btn btn-sm" (click)="handleClose()" type="button">关闭</button>
+            <button class="btn btn-sm" (click)="handleClose()" type="button">{{ 'file.close' | i18n }}</button>
           </div>
         </div>
       </div>

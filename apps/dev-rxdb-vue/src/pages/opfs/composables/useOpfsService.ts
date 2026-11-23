@@ -1,16 +1,17 @@
+import { fileError, fileMessage, type FileMessage } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件管理服务 Composable
  */
 
 import { renameOpfsEntry } from '@aiao/utils';
 import { ref } from 'vue';
-import { formatErrorMessage, useToast } from '../../../app/composables/useToast';
+import { useToast } from '../../../app/composables/useToast';
 import { FILE_EXTENSIONS, OPFSFileEntry, PREVIEW_SIZE_LIMIT } from '../utils/opfs-utils';
 
 const entries = ref<OPFSFileEntry[]>([]);
 const currentPath = ref('/');
 const loading = ref(false);
-const error = ref<string | null>(null);
+const error = ref<FileMessage | null>(null);
 
 let rootHandle: FileSystemDirectoryHandle | null = null;
 let currentHandle: FileSystemDirectoryHandle | null = null;
@@ -79,7 +80,7 @@ async function readDirectory(path: string) {
     currentHandle = dirHandle;
   } catch (err) {
     if (version === lifecycleVersion) {
-      error.value = `读取目录失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.readFailed', err);
     }
   } finally {
     if (version === lifecycleVersion) loading.value = false;
@@ -101,7 +102,7 @@ export function useOpfsService() {
     const version = lifecycleVersion;
     try {
       if (!('storage' in navigator) || !('getDirectory' in navigator.storage)) {
-        error.value = '浏览器不支持 OPFS';
+        error.value = fileMessage('file.opfsUnsupported');
         return;
       }
       const root = await navigator.storage.getDirectory();
@@ -111,7 +112,7 @@ export function useOpfsService() {
       currentPath.value = '/';
       await readDirectory(initialPath);
     } catch (err) {
-      error.value = `获取根目录失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.rootFailed', err);
     }
   }
 
@@ -132,7 +133,7 @@ export function useOpfsService() {
       await readDirectory(path);
       return true;
     } catch (err) {
-      error.value = `上传失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.uploadFailed', err);
       return false;
     }
   }
@@ -169,7 +170,7 @@ export function useOpfsService() {
       await writable.close();
       return true;
     } catch (err) {
-      useToast().error(formatErrorMessage(`上传文件失败: ${relativePath}`, err));
+      useToast().error(fileError('file.uploadFailed', err));
       return false;
     }
   }
@@ -204,7 +205,7 @@ export function useOpfsService() {
         return true;
       }
     } catch (err) {
-      error.value = `下载失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.downloadFailed', err);
       return false;
     }
   }
@@ -220,7 +221,7 @@ export function useOpfsService() {
       await readDirectory(currentPath.value);
       return true;
     } catch (err) {
-      error.value = `删除失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.deleteFailed', err);
       return false;
     }
   }
@@ -234,7 +235,7 @@ export function useOpfsService() {
       await readDirectory(path);
       return true;
     } catch (err) {
-      error.value = `创建目录失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.createFailed', err);
       return false;
     }
   }
@@ -253,7 +254,7 @@ export function useOpfsService() {
       await readDirectory(currentPath.value);
       return true;
     } catch (err) {
-      error.value = `重命名失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.renameFailed', err);
       return false;
     }
   }
@@ -294,7 +295,7 @@ export function useOpfsService() {
       const text = await file.text();
       return { data: text, type: 'text/plain' };
     } catch (err) {
-      error.value = `预览失败: ${err instanceof Error ? err.message : String(err)}`;
+      error.value = fileError('file.previewFailed', err);
       return null;
     }
   }

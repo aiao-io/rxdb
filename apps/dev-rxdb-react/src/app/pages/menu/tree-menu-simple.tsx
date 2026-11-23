@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import {
@@ -35,6 +36,7 @@ const keepLoadingVisible = () => new Promise<void>(resolve => setTimeout(resolve
 export function TreeMenuSimplePage() {
   const rxdb = useRxDB();
   const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuSimple), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -239,7 +241,7 @@ export function TreeMenuSimplePage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='menu-history'
                 >
                   <History size={16} />

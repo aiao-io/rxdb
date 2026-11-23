@@ -1,5 +1,5 @@
 import { provideRxDB } from '@aiao/rxdb-angular';
-import { I18N, provideI18n } from '@aiao/rxdb-i18n-angular';
+import { I18N, provideI18n, useI18n } from '@aiao/rxdb-i18n-angular';
 import { APP_BASE_HREF, PlatformLocation, registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import {
@@ -20,6 +20,8 @@ import {
   withViewTransitions
 } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
+import { HISTORY_SIDEBAR_PRESENTATION, type HistorySidebarPresentation } from '@modules/angular';
+import { describeHistory, historyTimeOptions } from '@modules/demo-i18n/history';
 import { provideLoadingBarInterceptor } from '@ngx-loading-bar/http-client';
 import { provideLoadingBarRouter } from '@ngx-loading-bar/router';
 import { appRoutes } from './app.routes';
@@ -68,6 +70,17 @@ export const appConfig: ApplicationConfig = {
     ),
     provideRxDB(setup_rxdb),
     provideI18n(() => createDemoI18n(setup_rxdb())),
+    {
+      provide: HISTORY_SIDEBAR_PRESENTATION,
+      useFactory: (): HistorySidebarPresentation => {
+        const { t, formatDate } = useI18n();
+        return {
+          label: t,
+          formatTime: date => formatDate(date, historyTimeOptions),
+          description: item => describeHistory(item, t)
+        };
+      }
+    },
     provideAppInitializer(() =>
       inject(I18N)
         .init()

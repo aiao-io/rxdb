@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "out-tsc",
+    "emitDeclarationOnly": true
+  },
+  "include": ["*.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    }
+  ]
+}

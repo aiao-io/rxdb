@@ -1,39 +1,41 @@
 <div class="flex h-full flex-col" [attr.data-testid]="TESTID.PAGE">
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-bold">{{ 'page.storage.title' | i18n }}</span>
+      <span class="text-sm font-bold">{{ 'file.storageTitle' | i18n }}</span>
       <div class="flex items-center gap-1.5">
         <div
           class="h-2 w-2 rounded-full"
           [class.bg-error]="!opfsAvailable()"
           [class.bg-success]="opfsAvailable()"
         ></div>
-        <span class="text-base-content/60 text-xs">{{ opfsAvailable() ? 'Connected' : 'Disconnected' }}</span>
+        <span class="text-base-content/60 text-xs">
+          {{ (opfsAvailable() ? 'file.connected' : 'file.disconnected') | i18n }}
+        </span>
       </div>
     </div>
     <div class="tabs tabs-boxed tabs-xs" role="tablist">
       <button class="tab gap-1" [class.tab-active]="viewMode() === 'list'" (click)="viewMode.set('list')" role="tab">
         <svg [lucideIcon]="List" size="12"></svg>
-        List
+        {{ 'file.list' | i18n }}
       </button>
       <button class="tab gap-1" [class.tab-active]="viewMode() === 'grid'" (click)="viewMode.set('grid')" role="tab">
         <svg [lucideIcon]="Grid3x3" size="12"></svg>
-        Grid
+        {{ 'file.grid' | i18n }}
       </button>
     </div>
   </div>
 
   <div class="border-base-300 flex flex-wrap items-center gap-2 border-b p-2">
-    <button class="btn btn-xs btn-ghost" [attr.title]="'page.storage.title' | i18n" (click)="navigateTo('/')">
+    <button class="btn btn-xs btn-ghost" [attr.title]="'file.storageTitle' | i18n" (click)="navigateTo('/')">
       <svg [lucideIcon]="Home" size="16"></svg>
     </button>
-    <button class="btn btn-xs btn-ghost" [attr.title]="'common.refresh' | i18n" (click)="refresh()">
+    <button class="btn btn-xs btn-ghost" [attr.title]="'file.refresh' | i18n" (click)="refresh()">
       <svg [class.animate-spin]="loading()" [lucideIcon]="RefreshCw" size="16"></svg>
     </button>
     <div class="divider divider-horizontal m-0"></div>
     <button class="btn btn-xs btn-primary" [attr.data-testid]="TESTID.UPLOAD_BTN" (click)="fileInputRef?.click()">
       <svg [lucideIcon]="Upload" size="16"></svg>
-      {{ LABELS.UPLOAD }}
+      {{ 'file.upload' | i18n }}
     </button>
     <button
       class="btn btn-xs btn-primary"
@@ -41,7 +43,7 @@
       (click)="folderInputRef?.click()"
     >
       <svg [lucideIcon]="Folder" size="16"></svg>
-      Upload Folder
+      {{ 'file.uploadFolder' | i18n }}
     </button>
     <button
       class="btn btn-xs btn-secondary"
@@ -49,17 +51,17 @@
       (click)="showNewFolder.set(true)"
     >
       <svg [lucideIcon]="FolderPlus" size="16"></svg>
-      New Folder
+      {{ 'file.newFolder' | i18n }}
     </button>
     @if (selectedPaths().size > 0) {
       <div class="divider divider-horizontal m-0"></div>
       <span class="text-base-content/60 text-xs">
-        {{ 'page.storage.selected' | i18n: { count: selectedPaths().size } }}
+        {{ 'file.selected' | i18n: { count: selectedPaths().size } }}
       </span>
       <button
         class="btn btn-xs btn-ghost"
         [attr.data-testid]="TESTID.CLEAR_SELECTION_BTN"
-        [attr.title]="'common.clear' | i18n"
+        [attr.title]="'file.clearSelection' | i18n"
         (click)="clearSelection()"
       >
         <svg [lucideIcon]="X" size="14"></svg>
@@ -67,33 +69,33 @@
       <button
         class="btn btn-xs btn-info"
         [attr.data-testid]="TESTID.BATCH_DOWNLOAD_BTN"
-        [attr.title]="'common.download' | i18n"
+        [attr.title]="'file.download' | i18n"
         (click)="handleBatchDownload()"
       >
         <svg [lucideIcon]="Download" size="16"></svg>
-        Download
+        {{ 'file.download' | i18n }}
       </button>
       <button
         class="btn btn-xs btn-error"
         [attr.data-testid]="TESTID.BATCH_DELETE_BTN"
-        [attr.title]="'common.delete' | i18n"
+        [attr.title]="'file.delete' | i18n"
         (click)="handleBatchDelete()"
       >
         <svg [lucideIcon]="Trash2" size="16"></svg>
-        Delete
+        {{ 'file.delete' | i18n }}
       </button>
     }
     @if (currentPath() === '/' && allFiles().length > 0) {
       <div class="divider divider-horizontal m-0"></div>
       <button class="btn btn-xs btn-error btn-outline" [attr.data-testid]="TESTID.CLEAR_BTN" (click)="onClearAll()">
         <svg [lucideIcon]="Trash2" size="16"></svg>
-        {{ LABELS.CLEAR_ALL }}
+        {{ 'file.clearAll' | i18n }}
       </button>
     }
   </div>
 
   <div class="border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap">
-    <button class="hover:underline" (click)="navigateTo('/')">{{ 'page.storage.title' | i18n }}</button>
+    <button class="hover:underline" (click)="navigateTo('/')">{{ 'file.storageTitle' | i18n }}</button>
     @for (segment of pathSegments; track segment.path) {
       <div class="flex items-center gap-1">
         <svg class="text-base-content/40" [lucideIcon]="ChevronRight" size="14"></svg>
@@ -118,7 +120,7 @@
         <div class="text-center">
           <svg class="text-base-content/30 mx-auto mb-4" [lucideIcon]="Database" size="48"></svg>
           <p class="text-base-content/60 text-sm">
-            {{ currentPath() === '/' ? LABELS.NO_FILES : 'This folder is empty' }}
+            {{ (currentPath() === '/' ? 'file.emptyStorage' : 'file.emptyFolder') | i18n }}
           </p>
         </div>
       </div>
@@ -166,14 +168,14 @@
       >
         <div class="bg-base-100 rounded-lg p-8 shadow-lg">
           <svg class="text-primary mx-auto mb-2" [lucideIcon]="Upload" size="48"></svg>
-          <p class="text-primary text-lg font-semibold">{{ 'page.opfs.drop' | i18n }}</p>
+          <p class="text-primary text-lg font-semibold">{{ 'file.drop' | i18n }}</p>
         </div>
       </div>
     }
   </div>
 
   <div class="border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs">
-    <span>{{ 'page.storage.stats' | i18n: { count: entries().length, folders: dirCount, files: fileCount } }}</span>
+    <span>{{ 'file.stats' | i18n: { count: entries().length, folders: dirCount, files: fileCount } }}</span>
   </div>
 
   <app-storage-file-preview [entry]="previewEntry()" (closed)="previewEntry.set(null)"></app-storage-file-preview>
@@ -194,24 +196,24 @@
         (keydown.enter)="$event.stopPropagation()"
         tabindex="-1"
       >
-        <h3 class="mb-4 text-base font-bold">{{ 'page.opfs.newFolder' | i18n }}</h3>
+        <h3 class="mb-4 text-base font-bold">{{ 'file.newFolder' | i18n }}</h3>
         <input
           class="input input-bordered w-full"
           [attr.data-testid]="TESTID.NEW_FOLDER_INPUT"
-          [placeholder]="'page.opfs.newFolder' | i18n"
+          [placeholder]="'file.folderName' | i18n"
           [value]="newFolderName()"
           (input)="onNewFolderNameInput($event)"
           (keydown.enter)="handleCreateFolder()"
           type="text"
         />
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="showNewFolder.set(false)">{{ 'common.cancel' | i18n }}</button>
+          <button class="btn btn-sm" (click)="showNewFolder.set(false)">{{ 'file.cancel' | i18n }}</button>
           <button
             class="btn btn-sm btn-primary"
             [attr.data-testid]="TESTID.NEW_FOLDER_CONFIRM"
             (click)="handleCreateFolder()"
           >
-            Create
+            {{ 'file.create' | i18n }}
           </button>
         </div>
       </div>
@@ -230,27 +232,23 @@
       <div class="modal-box">
         <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
           <svg class="text-warning" [lucideIcon]="AlertTriangle" size="18"></svg>
-          File Already Exists
+          {{ 'file.fileExists' | i18n }}
         </h3>
-        <p class="mb-4">
-          File
-          <span class="font-semibold">{{ overwriteConfirm().file!.name }}</span>
-          already exists. Overwrite it?
-        </p>
+        <p class="mb-4">{{ 'file.overwriteQuestion' | i18n: { name: overwriteConfirm().file!.name } }}</p>
         <div class="bg-base-200 mb-4 space-y-2 rounded-lg p-3">
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">{{ 'page.storage.existingFile' | i18n }}</span>
+            <span class="text-base-content/60">{{ 'file.existingFile' | i18n }}</span>
             <span class="font-mono">{{ formatFileSize(overwriteConfirm().existingEntry!.size || 0) }}</span>
           </div>
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">{{ 'page.storage.newFile' | i18n }}</span>
+            <span class="text-base-content/60">{{ 'file.newFile' | i18n }}</span>
             <span class="font-mono">{{ formatFileSize(overwriteConfirm().file!.size) }}</span>
           </div>
         </div>
         <div class="modal-action">
-          <button class="btn btn-sm" (click)="handleOverwriteResponse(false)">{{ 'common.cancel' | i18n }}</button>
+          <button class="btn btn-sm" (click)="handleOverwriteResponse(false)">{{ 'file.cancel' | i18n }}</button>
           <button class="btn btn-sm btn-warning" (click)="handleOverwriteResponse(true)">
-            {{ 'page.opfs.overwrite' | i18n }}
+            {{ 'file.overwrite' | i18n }}
           </button>
         </div>
       </div>
@@ -276,10 +274,10 @@
         >
           @if (contextMenu().entry!.kind === 'file') {
             <svg [lucideIcon]="Eye" size="14"></svg>
-            <span>{{ 'common.view' | i18n }}</span>
+            <span>{{ 'file.view' | i18n }}</span>
           } @else {
             <svg [lucideIcon]="FolderOpen" size="14"></svg>
-            <span>{{ 'common.open' | i18n }}</span>
+            <span>{{ 'file.open' | i18n }}</span>
           }
         </button>
       </li>
@@ -291,7 +289,7 @@
           type="button"
         >
           <svg [lucideIcon]="Download" size="14"></svg>
-          <span>{{ contextMenu().entry!.kind === 'file' ? 'Download' : 'Download ZIP' }}</span>
+          <span>{{ (contextMenu().entry!.kind === 'file' ? 'file.download' : 'file.downloadZip') | i18n }}</span>
         </button>
       </li>
       <li>
@@ -302,7 +300,7 @@
           type="button"
         >
           <svg [lucideIcon]="Edit3" size="14"></svg>
-          <span>{{ 'common.rename' | i18n }}</span>
+          <span>{{ 'file.rename' | i18n }}</span>
         </button>
       </li>
       <li>
@@ -313,7 +311,7 @@
           type="button"
         >
           <svg [lucideIcon]="Trash2" size="14"></svg>
-          <span>{{ 'common.delete' | i18n }}</span>
+          <span>{{ 'file.delete' | i18n }}</span>
         </button>
       </li>
     </div>
@@ -338,38 +336,31 @@
       >
         <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
           <svg class="text-error" [lucideIcon]="Trash2" size="18"></svg>
-          Confirm Delete
+          {{ 'file.confirmDelete' | i18n }}
         </h3>
         @if (deleteTarget.type === 'batch') {
-          <p class="mb-4">
-            Are you sure you want to delete
-            <span class="text-error font-semibold">{{ deleteTarget.count }} items</span>
-            ?
-          </p>
+          <p class="mb-4">{{ 'file.deleteMany' | i18n: { count: deleteTarget.count } }}</p>
         } @else {
           <p class="mb-4">
-            Are you sure you want to delete
-            <span class="font-semibold">{{ deleteTarget.entry.kind === 'file' ? 'file' : 'folder' }}</span>
-            <span class="text-error font-semibold">{{ deleteTarget.entry.name }}</span>
-            ?
+            {{ 'file.deleteOne' | i18n: { kind: deleteTarget.entry.kind, name: deleteTarget.entry.name } }}
           </p>
           @if (deleteTarget.entry.kind === 'directory') {
             <p class="text-warning mb-4 flex items-center gap-1 text-sm">
               <svg [lucideIcon]="AlertTriangle" size="16"></svg>
-              This will delete the folder and all of its contents.
+              {{ 'file.deleteContents' | i18n }}
             </p>
           }
         }
         <div class="modal-action">
           <button class="btn btn-sm" [attr.data-testid]="TESTID.CONFIRM_NO" (click)="handleDeleteResponse(false)">
-            Cancel
+            {{ 'file.cancel' | i18n }}
           </button>
           <button
             class="btn btn-sm btn-error"
             [attr.data-testid]="TESTID.CONFIRM_YES"
             (click)="handleDeleteResponse(true)"
           >
-            Delete
+            {{ 'file.delete' | i18n }}
           </button>
         </div>
       </div>
@@ -393,13 +384,12 @@
         tabindex="-1"
       >
         <h3 class="mb-4 text-base font-bold">
-          {{ 'common.rename' | i18n
-          }}{{ renameDialog().entry!.kind === 'file' ? ('common.file' | i18n) : ('common.folder' | i18n) }}
+          {{ 'file.renameEntry' | i18n: { kind: renameDialog().entry!.kind } }}
         </h3>
         <input
           class="input input-bordered w-full"
           [attr.data-testid]="TESTID.RENAME_INPUT"
-          [placeholder]="renameDialog().entry!.kind === 'file' ? 'File name' : 'Folder name'"
+          [placeholder]="(renameDialog().entry!.kind === 'file' ? 'file.fileName' : 'file.folderName') | i18n"
           [value]="renameDialog().newName"
           (input)="onRenameInput($event)"
           (keydown.enter)="handleRename()"
@@ -407,10 +397,10 @@
         />
         <div class="modal-action">
           <button class="btn btn-sm" (click)="renameDialog.set({ show: false, entry: null, newName: '' })">
-            Cancel
+            {{ 'file.cancel' | i18n }}
           </button>
           <button class="btn btn-sm btn-primary" [attr.data-testid]="TESTID.RENAME_CONFIRM" (click)="handleRename()">
-            Confirm
+            {{ 'file.confirm' | i18n }}
           </button>
         </div>
       </div>
@@ -430,15 +420,15 @@
       <div class="modal-box">
         <h3 class="mb-4 flex items-center gap-2 text-base font-bold">
           <svg class="text-warning" [lucideIcon]="AlertTriangle" size="18"></svg>
-          Confirm Action
+          {{ 'file.confirmAction' | i18n }}
         </h3>
-        <p class="mb-4">{{ confirmDialog().message }}</p>
+        <p class="mb-4">{{ messageText(confirmDialog().message) }}</p>
         <div class="modal-action">
           <button class="btn btn-sm" [attr.data-testid]="TESTID.CONFIRM_NO" (click)="resolveConfirm(false)">
-            Cancel
+            {{ 'file.cancel' | i18n }}
           </button>
           <button class="btn btn-sm btn-error" [attr.data-testid]="TESTID.CONFIRM_YES" (click)="resolveConfirm(true)">
-            Confirm
+            {{ 'file.confirm' | i18n }}
           </button>
         </div>
       </div>
@@ -458,7 +448,7 @@
         [class.alert-info]="toast().type === 'info'"
         [class.alert-success]="toast().type === 'success'"
       >
-        <span>{{ toast().message }}</span>
+        <span>{{ messageText(toast().message) }}</span>
         <button class="btn btn-sm btn-ghost" (click)="closeToast()">
           <svg [lucideIcon]="X" size="14"></svg>
         </button>

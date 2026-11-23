@@ -1,5 +1,6 @@
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
 import { useI18n } from '@aiao/rxdb-i18n-react';
+import { STORAGE_TESTID } from '@aiao/utils';
+import { formatFileDate, formatFileSize } from '@modules/demo-i18n/files';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
@@ -17,18 +18,6 @@ interface Props {
   onEntryClick: (entry: StorageBrowserItem, event: React.MouseEvent) => void;
 }
 
-function formatDate(timestamp?: number, locale = 'zh-CN'): string {
-  if (!timestamp) return '-';
-
-  return new Date(timestamp).toLocaleString(locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
-
 export function StorageFileList({
   entries,
   selectedPaths,
@@ -40,7 +29,7 @@ export function StorageFileList({
   onContextMenu,
   onEntryClick
 }: Props) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const clickTimeoutRef = useRef<number | null>(null);
   const T = STORAGE_TESTID;
 
@@ -84,10 +73,10 @@ export function StorageFileList({
     <table className='table-zebra table select-none' data-testid={T.FILE_LIST}>
       <thead>
         <tr>
-          <th>Name</th>
-          <th className='w-32'>Size</th>
-          <th className='hidden w-40 md:table-cell'>Modified</th>
-          <th className='w-24'>Actions</th>
+          <th>{t('file.name')}</th>
+          <th className='w-32'>{t('file.size')}</th>
+          <th className='hidden w-40 md:table-cell'>{t('file.modified')}</th>
+          <th className='w-24'>{t('file.actions')}</th>
         </tr>
       </thead>
       <tbody>
@@ -131,10 +120,10 @@ export function StorageFileList({
                 className='text-base-content/60 text-sm'
                 data-testid={entry.kind === 'file' ? T.FILE_SIZE : undefined}
               >
-                {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
+                {entry.kind === 'file' ? formatFileSize(entry.size || 0, locale) : '-'}
               </td>
               <td className='text-base-content/60 hidden text-sm md:table-cell'>
-                {formatDate(entry.lastModified, locale)}
+                {formatFileDate(entry.lastModified, locale)}
               </td>
               <td>
                 <div className='flex items-center gap-1'>
@@ -146,7 +135,7 @@ export function StorageFileList({
                           event.stopPropagation();
                           onNavigate(entry);
                         }}
-                        title='Open'
+                        title={t('file.open')}
                       >
                         <FolderOpen size={14} />
                       </button>
@@ -156,7 +145,7 @@ export function StorageFileList({
                           event.stopPropagation();
                           onDownload(entry);
                         }}
-                        title='Download ZIP'
+                        title={t('file.downloadZip')}
                       >
                         <Download size={14} />
                       </button>
@@ -170,7 +159,7 @@ export function StorageFileList({
                             event.stopPropagation();
                             onPreview(entry);
                           }}
-                          title='Preview'
+                          title={t('file.preview')}
                         >
                           <Eye size={14} />
                         </button>
@@ -182,7 +171,7 @@ export function StorageFileList({
                           event.stopPropagation();
                           onDownload(entry);
                         }}
-                        title='Download'
+                        title={t('file.download')}
                       >
                         <Download size={14} />
                       </button>
@@ -195,7 +184,7 @@ export function StorageFileList({
                       event.stopPropagation();
                       onRename(entry);
                     }}
-                    title='Rename'
+                    title={t('file.rename')}
                   >
                     <Pen size={14} />
                   </button>
@@ -206,7 +195,7 @@ export function StorageFileList({
                       event.stopPropagation();
                       onDelete(entry);
                     }}
-                    title='Delete'
+                    title={t('file.delete')}
                   >
                     <Trash2 size={14} />
                   </button>

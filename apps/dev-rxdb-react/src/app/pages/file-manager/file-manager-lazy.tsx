@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -47,6 +48,7 @@ const isFolderNode = (node: SortableFileLarge): boolean => node.type === 'folder
 export function FileManagerLazyPage() {
   const rxdb = useRxDB();
   const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileLarge), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -261,7 +263,7 @@ export function FileManagerLazyPage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='file-history'
                 >
                   <History size={16} />

@@ -30,6 +30,7 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
             <h3 class="text-lg font-bold">{{ entry()!.name }}</h3>
             <button
               class="btn btn-sm btn-circle btn-ghost"
+              [attr.aria-label]="'file.closePreview' | i18n"
               [attr.data-testid]="TESTID.PREVIEW_CLOSE"
               (click)="handleClose()"
               type="button"
@@ -53,13 +54,13 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
               } @else if (fileType() === 'audio' && content()) {
                 <div class="flex items-center justify-center p-4">
                   <audio class="w-full max-w-xl" [src]="content()!" controls>
-                    {{ 'page.storage.audioUnsupported' | i18n }}
+                    {{ 'file.audioUnsupported' | i18n }}
                   </audio>
                 </div>
               } @else if (fileType() === 'video' && content()) {
                 <div class="flex h-full items-center justify-center p-4">
                   <video class="max-h-full max-w-full" [src]="content()!" controls>
-                    {{ 'page.storage.videoUnsupported' | i18n }}
+                    {{ 'file.videoUnsupported' | i18n }}
                   </video>
                 </div>
               } @else if (fileType() === 'code' && textContent()) {
@@ -76,13 +77,13 @@ const TEXT_PREVIEW_LIMIT_BYTES = 5 * 1024 * 1024;
               } @else if (fileType() === 'text' && textContent()) {
                 <pre class="bg-base-200 overflow-auto rounded p-4 text-xs">{{ textContent() }}</pre>
               } @else {
-                <div class="text-base-content/40 py-8 text-center">{{ 'page.storage.previewUnsupported' | i18n }}</div>
+                <div class="text-base-content/40 py-8 text-center">{{ 'file.previewUnsupported' | i18n }}</div>
               }
             }
           </div>
 
           <div class="modal-action">
-            <button class="btn btn-sm" (click)="handleClose()" type="button">{{ 'common.close' | i18n }}</button>
+            <button class="btn btn-sm" (click)="handleClose()" type="button">{{ 'file.close' | i18n }}</button>
           </div>
         </div>
       </div>

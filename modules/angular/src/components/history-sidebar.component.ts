@@ -1,12 +1,42 @@
 import type { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { formatDate } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, InjectionToken, input, output } from '@angular/core';
 import { LucideDynamicIcon, LucideX } from '@lucide/angular';
+
+const historyLabels = {
+  'history.open': '历史记录',
+  'history.title': '操作历史',
+  'history.close': '关闭历史',
+  'history.empty': '暂无操作历史',
+  'history.database': '数据库',
+  'history.repository': '仓库',
+  'history.entity': '实体',
+  'history.undone': '已撤销',
+  'history.invalidated': '已失效'
+} as const;
+
+export interface HistorySidebarPresentation {
+  label(key: keyof typeof historyLabels): string;
+  formatTime(date: Date): string;
+  description(item: HistoryItem): string;
+}
+
+export const HISTORY_SIDEBAR_PRESENTATION = new InjectionToken<HistorySidebarPresentation>(
+  'History sidebar presentation',
+  {
+    providedIn: 'root',
+    factory: () => ({
+      label: key => historyLabels[key],
+      formatTime: date => formatDate(date, 'y-MM-dd HH:mm:ss.SSS', 'en-US'),
+      description: item => item.description
+    })
+  }
+);
 
 @Component({
   selector: 'ao-history-sidebar',
-  imports: [DatePipe, LucideDynamicIcon, ScrollingModule],
+  imports: [LucideDynamicIcon, ScrollingModule],
   standalone: true,
   template: `
     @let show = this.show();
@@ -25,21 +55,26 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
       [class.max-md:right-0]="borderSide() === 'right'"
       [class.w-0]="!show"
       [class.w-48]="show"
+      data-testid="history-sidebar"
     >
       <div class="flex h-full min-w-48 flex-col">
         <div class="border-base-300 border-b px-4 py-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <h2 class="text-sm font-semibold">操作历史</h2>
+              <h2 class="text-sm font-semibold">{{ presentation.label('history.title') }}</h2>
               @if (scope === 'database') {
-                <span class="badge badge-xs badge-primary">数据库</span>
+                <span class="badge badge-xs badge-primary">{{ presentation.label('history.database') }}</span>
               } @else if (scope === 'repository') {
-                <span class="badge badge-xs badge-secondary">仓库</span>
+                <span class="badge badge-xs badge-secondary">{{ presentation.label('history.repository') }}</span>
               } @else if (scope === 'entity') {
-                <span class="badge badge-xs badge-accent">实体</span>
+                <span class="badge badge-xs badge-accent">{{ presentation.label('history.entity') }}</span>
               }
             </div>
-            <button class="btn btn-circle btn-ghost btn-xs" (click)="closeClick.emit()" aria-label="关闭历史">
+            <button
+              class="btn btn-circle btn-ghost btn-xs"
+              [attr.aria-label]="presentation.label('history.close')"
+              (click)="closeClick.emit()"
+            >
               <svg [lucideIcon]="closeIcon" size="14"></svg>
             </button>
           </div>
@@ -62,12 +97,15 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
                     [class.opacity-40]="item.reverted"
                   ></div>
                   <div [class.opacity-50]="item.reverted">
-                    <time class="text-base-content/50 mb-1 block text-[10px]">
-                      {{ item.createdAt | date: 'y-MM-dd HH:mm:ss.SSS' }}
+                    <time
+                      class="text-base-content/50 mb-1 block text-[10px]"
+                      [attr.datetime]="item.createdAt.toISOString()"
+                    >
+                      {{ presentation.formatTime(item.createdAt) }}
                     </time>
                     <p class="text-base-content mb-1.5 truncate text-xs" [class.line-through]="item.redoInvalidated">
                       <span>#{{ item.changeId }}</span>
-                      {{ item.description }}
+                      {{ presentation.description(item) }}
                     </p>
                     <div class="flex flex-wrap gap-1">
                       @switch (scope) {
@@ -77,10 +115,14 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
                         }
                       }
                       @if (item.reverted && !item.redoInvalidated) {
-                        <span class="badge badge-xs badge-soft badge-warning">已撤销</span>
+                        <span class="badge badge-xs badge-soft badge-warning">{{
+                          presentation.label('history.undone')
+                        }}</span>
                       }
                       @if (item.redoInvalidated) {
-                        <span class="badge badge-xs badge-soft badge-error">已失效</span>
+                        <span class="badge badge-xs badge-soft badge-error">{{
+                          presentation.label('history.invalidated')
+                        }}</span>
                       }
                     </div>
                   </div>
@@ -88,7 +130,9 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
               </ol>
             </cdk-virtual-scroll-viewport>
           } @else {
-            <div class="text-base-content/40 flex min-h-40 items-center justify-center text-xs">暂无操作历史</div>
+            <div class="text-base-content/40 flex min-h-40 items-center justify-center text-xs">
+              {{ presentation.label('history.empty') }}
+            </div>
           }
         </div>
       </div>
@@ -97,6 +141,7 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HistorySidebarComponent {
+  readonly presentation = inject(HISTORY_SIDEBAR_PRESENTATION);
   readonly closeIcon = LucideX;
   readonly show = input.required<boolean>();
   readonly histories = input.required<HistoryItem[]>();

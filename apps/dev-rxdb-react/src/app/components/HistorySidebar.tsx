@@ -1,5 +1,6 @@
 import { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
 import { useI18n } from '@aiao/rxdb-i18n-react';
+import { describeHistory, historyTimeOptions } from '@modules/demo-i18n/history';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { X } from 'lucide-react';
 import { useRef } from 'react';
@@ -13,7 +14,7 @@ interface HistorySidebarProps {
 }
 
 export function HistorySidebar({ show, histories, scopeType, borderSide = 'left', onClose }: HistorySidebarProps) {
-  const { locale } = useI18n();
+  const { t, formatDate } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -31,11 +32,11 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
   const getScopeLabel = () => {
     switch (scopeType) {
       case 'database':
-        return <span className='badge badge-xs badge-primary'>数据库</span>;
+        return <span className='badge badge-xs badge-primary'>{t('history.database')}</span>;
       case 'repository':
-        return <span className='badge badge-xs badge-secondary'>仓库</span>;
+        return <span className='badge badge-xs badge-secondary'>{t('history.repository')}</span>;
       case 'entity':
-        return <span className='badge badge-xs badge-accent'>实体</span>;
+        return <span className='badge badge-xs badge-accent'>{t('history.entity')}</span>;
       default:
         return null;
     }
@@ -74,10 +75,10 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
           <div className='border-base-300 border-b px-4 py-2'>
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-2'>
-                <h2 className='text-sm font-semibold'>操作历史</h2>
+                <h2 className='text-sm font-semibold'>{t('history.title')}</h2>
                 {getScopeLabel()}
               </div>
-              <button className='btn btn-circle btn-ghost btn-xs' onClick={onClose} aria-label='关闭历史'>
+              <button className='btn btn-circle btn-ghost btn-xs' onClick={onClose} aria-label={t('history.close')}>
                 <X size={14} />
               </button>
             </div>
@@ -92,7 +93,7 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
               >
                 {histories.length === 0 ?
                   <li className='text-base-content/40 flex min-h-40 items-center justify-center text-xs'>
-                    暂无操作历史
+                    {t('history.empty')}
                   </li>
                 : virtualizer.getVirtualItems().map(virtualItem => {
                     const item = histories[virtualItem.index];
@@ -117,22 +118,17 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
                         {/* 内容 */}
                         <div className={item.reverted ? 'opacity-50' : ''}>
                           {/* 时间 */}
-                          <time className='text-base-content/50 mb-1 block text-[10px]'>
-                            {new Date(item.createdAt).toLocaleString(locale, {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit'
-                            })}
-                            .{String(new Date(item.createdAt).getMilliseconds()).padStart(3, '0')}
+                          <time
+                            className='text-base-content/50 mb-1 block text-[10px]'
+                            dateTime={item.createdAt.toISOString()}
+                          >
+                            {formatDate(item.createdAt, historyTimeOptions)}
                           </time>
                           {/* 简介 */}
                           <p
                             className={`text-base-content mb-1.5 text-xs ${item.redoInvalidated ? 'line-through' : ''}`}
                           >
-                            <span>#{item.changeId}</span> {item.description}
+                            <span>#{item.changeId}</span> {describeHistory(item, t)}
                           </p>
 
                           {/* 徽章 */}
@@ -144,10 +140,10 @@ export function HistorySidebar({ show, histories, scopeType, borderSide = 'left'
                               </>
                             )}
                             {item.reverted && !item.redoInvalidated && (
-                              <span className='badge badge-xs badge-soft badge-warning'>已撤销</span>
+                              <span className='badge badge-xs badge-soft badge-warning'>{t('history.undone')}</span>
                             )}
                             {item.redoInvalidated && (
-                              <span className='badge badge-xs badge-soft badge-error'>已失效</span>
+                              <span className='badge badge-xs badge-soft badge-error'>{t('history.invalidated')}</span>
                             )}
                           </div>
                         </div>

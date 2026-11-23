@@ -1,16 +1,17 @@
+import type { FileDeleteTarget, FileMessage } from '@modules/demo-i18n/files';
 import type { StorageBrowserItem } from './utils/storage-utils';
 
 export type ViewMode = 'list' | 'grid';
 
 export interface ConfirmDialog {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   resolve?: (value: boolean) => void;
 }
 
 export interface DeleteConfirm {
   show: boolean;
-  entry: StorageBrowserItem | null;
+  target: FileDeleteTarget<StorageBrowserItem> | null;
   resolve?: (value: boolean) => void;
 }
 
@@ -36,7 +37,7 @@ export interface ContextMenuState {
 
 export interface ToastState {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   type: 'error' | 'success' | 'info';
 }
 
