@@ -2,7 +2,7 @@ import type { OrbitValue } from '@aiao/orbit';
 import { decodeBase64, encodeBase64, type DesktopWorkspaceRequest } from '@aiao/orbit/desktop';
 import { DestroyRef, Service, inject } from '@angular/core';
 import { Subject } from 'rxjs';
-import { HOME, isRequiredDiskPath, isWithin, samePath, toVmPath, type DiskPath } from '../disk/disk-path';
+import { HOME, isRequiredDiskPath, isWithin, parentOf, samePath, toVmPath, type DiskPath } from '../disk/disk-path';
 import { runWorkspaceGit, type GithubTerminalRequest } from '../vm/workspace-git';
 import { DesktopAppServices } from './desktop-app-services';
 import { FileSystem } from './file-system';
@@ -52,7 +52,11 @@ function requireRoot(root: DiskPath): void {
     throw new GitWorkbenchError('invalid_path', '请选择 Macintosh HD 主目录内的项目文件夹');
 }
 
-function recordFor(projectId: string, rootPath: DiskPath, branch: string): GithubRepositoryRecord {
+function recordFor(
+  projectId: string,
+  rootPath: DiskPath,
+  branch: string
+): GithubRepositoryRecord & { rootPath: DiskPath } {
   return {
     projectId,
     rootPath,
@@ -114,7 +118,21 @@ export class GithubWorkspace {
       .sort((a, b) => b.rootPath!.length - a.rootPath!.length)[0];
   }
 
-  async openDirectory(root: DiskPath, initialize = false): Promise<GithubRepositoryRecord> {
+  async localDirectoryRoot(path: DiskPath): Promise<DiskPath> {
+    requireRoot(path);
+    return this.files.run(async store => {
+      if ((await store.kindOf(path)) !== 'directory') throw new Error(`找不到项目文件夹：${toVmPath(path)}`);
+      for (let root = path; root.length > HOME.length; root = parentOf(root)) {
+        if (await store.kindOf([...root, '.git'])) return root;
+      }
+      return path;
+    });
+  }
+
+  async openDirectory(
+    root: DiskPath,
+    { initialize = false, requireExisting = false }: { initialize?: boolean; requireExisting?: boolean } = {}
+  ): Promise<GithubRepositoryRecord> {
     requireRoot(root);
     await this.records.ready();
     const projectId =
@@ -127,11 +145,13 @@ export class GithubWorkspace {
         await this.withWorktree(projectId, 'read', () => this.git.open(projectId));
         return record;
       }
-      const result = await this.files.run(store =>
-        bindVolumeRepository(store, root, projectId, this.git, { initialize }, snapshot =>
+      const result = await this.files.run(async store => {
+        if (requireExisting && (await store.kindOf(root)) !== 'directory')
+          throw new Error(`找不到项目文件夹：${toVmPath(root)}`);
+        return bindVolumeRepository(store, root, projectId, this.git, { initialize }, snapshot =>
           this.registerDirectory(root, snapshot)
-        )
-      );
+        );
+      });
       this.files.notifyChanges([root]);
       this.changes.next(projectId);
       return result.record;

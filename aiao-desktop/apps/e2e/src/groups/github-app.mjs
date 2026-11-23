@@ -116,7 +116,7 @@ async function openRepositoryMenu(view, panel = 'list') {
   const dialog = view.locator('[data-github-repository-dialog]');
   const labels = { clone: 'Clone a Repository', new: 'Create a New Repository', local: 'Add Local Repository' };
   if (panel !== 'list' && (await dialog.getByRole('heading', { name: labels[panel], exact: true }).count())) return;
-  if (await dialog.count()) await view.getByRole('button', { name: 'Close repository dialog' }).click();
+  if (await dialog.count()) await dialog.getByRole('button', { name: /^(Close repository dialog|Cancel)$/ }).click();
   if (!(await popup.count())) await view.locator('[data-github-repository-menu]').click();
   await expect(popup).toBeVisible();
   if (panel === 'list') return;
@@ -282,6 +282,7 @@ async function droppedRepository(session, view) {
     const previous = await current.textContent();
     await drop([folder]);
     await expect(path).toHaveValue('drop-fixture');
+    await expect(dialog).toContainText('~/Documents/GitHub/drop-fixture');
     await expect(path).toBeFocused();
     await expect(current).toHaveText(previous);
     await session.page.keyboard.press('Shift+Tab');
@@ -317,8 +318,9 @@ async function droppedRepository(session, view) {
     expect(await outputOf('git remote -v')).toContain('https://github.com/octo/drop-fixture.git');
     await outputOf('git remote remove origin');
     expect(await outputOf('git remote -v')).toBe('');
+    expect(await outputOf('mkdir -p ../finder-candidate && echo keep > ../finder-candidate/note.txt')).toBe('');
     expect(await outputOf('open -R .')).toBe('');
-    const finder = session.helpers.win('finder').and(session.page.getByRole('dialog', { name: 'GitHub', exact: true }));
+    const finder = session.helpers.win('finder').and(session.page.locator('[aria-label="GitHub"]'));
     const source = finder.locator('[data-name="drop-fixture"]');
     await expect(source, 'open -R . should select the repository in Finder').toHaveAttribute('aria-selected', 'true');
     const layout = await session.page.addStyleTag({
@@ -334,15 +336,12 @@ async function droppedRepository(session, view) {
       await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
       await openRepositoryMenu(view, 'local');
       await expect(view.getByRole('button', { name: 'Add origin', exact: true })).toBeEnabled();
-      const volumePath = view.getByRole('textbox', { name: 'Macintosh HD folder' });
-      await volumePath.fill('~/Documents/GitHub/drop-fixture');
-      await volumePath.press('Enter');
+      await path.fill('~/Documents/GitHub/drop-fixture');
+      await path.press('Enter');
       await expect(view.locator('[data-github-repository-dialog]')).toHaveCount(0);
       await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
 
-      expect(await outputOf('mkdir -p ../finder-candidate && echo keep > ../finder-candidate/note.txt && open -R ../finder-candidate')).toBe('');
       const candidate = finder.locator('[data-name="finder-candidate"]');
-      await expect(candidate).toHaveAttribute('aria-selected', 'true');
       await drag(candidate);
       await expect(path).toHaveValue(/\/Documents\/GitHub\/finder-candidate$/);
       await cancel.click();
@@ -354,10 +353,11 @@ async function droppedRepository(session, view) {
       await dialog.getByRole('button', { name: 'Create Repository Here', exact: true }).click();
       await expect(dialog).toHaveCount(0);
       await expect(current).toHaveText('finder-candidate');
-      expect(await outputOf('cd ../finder-candidate && git status --short && cat note.txt')).toBe('?? note.txt\nkeep');
     } finally {
       await layout.evaluate(element => element.remove());
     }
+    expect(await outputOf('cd ../finder-candidate && git status --short')).toBe('?? note.txt');
+    expect(await outputOf('cat note.txt')).toBe('keep');
   } finally {
     await client.detach();
     await rm(temporary, { recursive: true, force: true });
@@ -755,8 +755,10 @@ export const githubApp = {
       .getByRole('menu', { name: 'File', exact: true })
       .getByRole('menuitem', { name: 'Add Local Repository…', exact: true })
       .press('Enter');
-    const addLocal = githubWindow.getByRole('button', { name: 'Add local repository', exact: true });
-    await expect(addLocal).toBeFocused();
+    const localDialog = githubWindow.getByRole('dialog', { name: 'Add Local Repository', exact: true });
+    const localPath = localDialog.getByRole('textbox', { name: 'Local Path', exact: true });
+    const choose = localDialog.getByRole('button', { name: 'Choose…', exact: true });
+    await expect(localPath).toBeFocused();
     await page.evaluate(() => {
       const original = window.showDirectoryPicker;
       window.showDirectoryPicker = async () => {
@@ -764,7 +766,9 @@ export const githubApp = {
         throw new DOMException('Selection cancelled', 'AbortError');
       };
     });
-    await addLocal.press('Enter');
+    await localPath.press('Tab');
+    await expect(choose).toBeFocused();
+    await choose.press('Enter');
     await expect(githubWindow.locator('[data-github-error]')).toHaveCount(0);
     result.menuActions = true;
 

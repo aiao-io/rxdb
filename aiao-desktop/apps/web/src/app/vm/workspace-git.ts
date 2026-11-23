@@ -61,7 +61,7 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
     usage(argv.length < 2 && !argv[0]?.startsWith('-'), 'init [directory]');
     const root = resolveVmPath(cwd, argv[0] ?? '.');
     const existing = await workspace.repositoryAt(root);
-    await workspace.openDirectory(root, true);
+    await workspace.openDirectory(root, { initialize: true });
     return `${existing?.rootPath?.length === root.length ? 'Reinitialized existing' : 'Initialized empty'} Git repository in ${toVmPath(root)}/`;
   }
   const record = await workspace.repositoryAt(cwd);

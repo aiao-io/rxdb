@@ -39,7 +39,7 @@ import {
   LucideUsersRound as UsersRound
 } from '@lucide/angular';
 
-import { finderPathOf, fromVmPath, HOME, isWithin, toVmPath, type DiskPath } from '../../disk/disk-path';
+import { finderPathOf, HOME, isWithin, resolveVmPath, samePath, toVmPath } from '../../disk/disk-path';
 import { DesktopAppServices } from '../../services/desktop-app-services';
 import {
   DesktopMenus,
@@ -66,6 +66,7 @@ import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { WindowManager } from '../../services/window-manager';
+import { FocusTrap } from '../../shared/focus-trap';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { historyDiffRows, type GithubDiffLine } from './history-diff';
 
@@ -90,6 +91,24 @@ type DirectoryPicker = () => Promise<SourceDirectory>;
 
 interface DirectoryPickerWindow extends Window {
   readonly showDirectoryPicker?: DirectoryPicker;
+}
+
+type DroppedFileHandle = SourceDirectory | { readonly kind: 'file'; readonly name: string };
+
+interface SystemRepositoryFolder {
+  readonly name: string;
+  archive(): Promise<{ name: string; archive: Uint8Array<ArrayBuffer> }>;
+}
+
+function droppedDirectory(result: PromiseSettledResult<DroppedFileHandle | null | undefined>): SourceDirectory {
+  if (result.status === 'rejected') throw result.reason;
+  if (result.value === undefined) throw new Error('此浏览器不支持拖入系统目录。请使用 Add Local Repository 选择目录');
+  if (result.value?.kind !== 'directory') throw new Error('请选择 Git 仓库文件夹');
+  return result.value;
+}
+
+function systemFolderOf(directory: SourceDirectory): SystemRepositoryFolder {
+  return { name: directory.name, archive: () => archiveOfDirectory(directory) };
 }
 
 type GithubContextMenuTarget =
@@ -260,7 +279,7 @@ function diffHunksOf(lines: readonly GithubDiffLine[]): readonly GithubDiffHunk[
 
 @Component({
   selector: 'app-github',
-  imports: [TrafficLights, LucideDynamicIcon],
+  imports: [FocusTrap, TrafficLights, LucideDynamicIcon],
   templateUrl: './github.html',
   encapsulation: ViewEncapsulation.None,
   host: {
@@ -298,7 +317,6 @@ export class GithubApp {
   private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
   private readonly repositoryFilterInput = viewChild<ElementRef<HTMLElement>>('repositoryFilterInput');
   private readonly newRepositoryInput = viewChild<ElementRef<HTMLElement>>('newRepositoryInput');
-  private readonly localRepositoryButton = viewChild<ElementRef<HTMLElement>>('localRepositoryButton');
   private readonly localRepositoryInput = viewChild<ElementRef<HTMLInputElement>>('localRepositoryInput');
   private readonly worktreeInput = viewChild<ElementRef<HTMLInputElement>>('worktreeFilterInput');
   private readonly branchInput = viewChild<ElementRef<HTMLElement>>('branchFilterInput');
@@ -359,6 +377,17 @@ export class GithubApp {
   protected readonly patValue = signal('');
   protected readonly repositoryMenuOpen = signal(false);
   protected readonly repositoryPanel = signal<GithubRepositoryMenu>('list');
+  protected readonly localRepositoryOpen = computed(
+    () => this.repositoryMenuOpen() && this.repositoryPanel() === 'local'
+  );
+  protected readonly localRepositoryTitleId = `github-local-title-${this.win.id}`;
+  protected readonly localRepositoryPathId = `github-local-path-${this.win.id}`;
+  protected readonly localRepositoryErrorId = `github-local-error-${this.win.id}`;
+  protected readonly localRepositoryPath = signal('');
+  protected readonly localSystemFolder = signal<SystemRepositoryFolder | null>(null);
+  protected readonly canInitializeLocalRepository = computed(
+    () => !this.localSystemFolder() && this.errorCode() === 'project_missing'
+  );
   protected readonly addRepositoryMenuOpen = signal(false);
   protected readonly repositoryFilter = signal('');
   protected readonly filteredRepositories = computed(() => {
@@ -500,7 +529,6 @@ export class GithubApp {
         if (repositoryFocus === 'list') focusTarget = this.repositoryFilterInput();
         if (repositoryFocus === 'clone') focusTarget = this.repositoryInput();
         if (repositoryFocus === 'new') focusTarget = this.newRepositoryInput();
-        if (repositoryFocus === 'local') focusTarget = this.localRepositoryButton();
         if (focusTarget) focusTarget.nativeElement.focus();
         untracked(() => this.repositoryMenuFocus.set(null));
       }
@@ -593,15 +621,6 @@ export class GithubApp {
     this.notice.set('Opened Finder');
   }
 
-  protected openImportPicker(event: Event): void {
-    event.preventDefault();
-    const input =
-      event.currentTarget instanceof HTMLElement ?
-        event.currentTarget.querySelector<HTMLInputElement>('input[type=file]')
-      : null;
-    input?.click();
-  }
-
   protected async configureOrigin(url: string | null): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
@@ -613,62 +632,109 @@ export class GithubApp {
     });
   }
 
-  protected droppedDiskFolder(event: Event): void {
-    if (
-      event instanceof CustomEvent &&
-      Array.isArray(event.detail) &&
-      event.detail.every(part => typeof part === 'string')
-    )
-      void this.openDiskDirectory(event.detail);
-  }
-
-  protected async openDiskDirectory(path: DiskPath): Promise<void> {
+  protected async droppedDiskFolder(event: Event): Promise<void> {
+    if (!(event instanceof CustomEvent) || !this.canDropRepository()) return;
+    const path: unknown = event.detail;
+    if (!Array.isArray(path) || !path.every(part => typeof part === 'string')) return;
+    this.focusDropTarget();
     if (!this.ensureEditorSaved()) return;
-    try {
-      await this.openStored(await this.backend.openDirectory(path));
-    } catch (error) {
-      this.fail(error);
-    }
+    await this.run(async () => {
+      const root = await this.backend.localDirectoryRoot(path);
+      const existing = await this.backend.repositoryAt(root);
+      if (this.destroyRef.destroyed) return;
+      if (existing?.rootPath && samePath(root, existing.rootPath)) {
+        await this.loadStoredRepository(existing);
+        this.closeRepositoryMenu();
+        return;
+      }
+      this.openRepositoryMenu('local');
+      this.localRepositoryPath.set(toVmPath(root));
+    });
   }
 
-  protected openLocalPath(value: string): void {
-    const path = value.startsWith('~/') ? [...HOME, ...fromVmPath(value.slice(2))] : fromVmPath(value);
-    void this.openDiskDirectory(path);
+  protected setLocalRepositoryPath(value: string): void {
+    this.localRepositoryPath.set(value);
+    this.fail(null);
+  }
+
+  protected clearLocalSystemFolder(): void {
+    this.localSystemFolder.set(null);
+    this.fail(null);
+  }
+
+  protected async addLocalRepository(event?: Event, initialize = false): Promise<void> {
+    event?.preventDefault();
+    const system = this.localSystemFolder();
+    const value = this.localRepositoryPath();
+    if ((!system && !value.trim()) || this.busy() || !this.ensureEditorSaved()) return;
+    await this.run(async () => {
+      if (system) {
+        await this.importSystemFolder(system);
+      } else {
+        const path = value.startsWith('~/') ? resolveVmPath(HOME, value.slice(2)) : resolveVmPath([], value);
+        const root = await this.backend.localDirectoryRoot(path);
+        await this.loadStoredRepository(await this.backend.openDirectory(root, { initialize, requireExisting: true }));
+      }
+      this.closeRepositoryMenu();
+    });
+  }
+
+  protected cancelLocalRepository(event?: Event): void {
+    event?.stopPropagation();
+    if (this.busy()) return;
+    this.fail(null);
+    this.closeRepositoryMenu();
   }
 
   protected foldersOver(event: DragEvent): void {
-    if (event.dataTransfer?.types.includes('Files')) event.preventDefault();
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = this.canDropRepository() ? 'copy' : 'none';
   }
 
   protected async dropFolders(event: DragEvent): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    if (!this.ensureEditorSaved() || !event.dataTransfer) return;
+    if (!this.canDropRepository() || !event.dataTransfer) return;
     // 浏览器只允许在 drop 回调首次 await 之前取得句柄。
     const items = Array.from(event.dataTransfer.items).filter(item => item.kind === 'file');
     const handles = items.map(item =>
       (
         item as DataTransferItem & {
-          getAsFileSystemHandle?(): Promise<SourceDirectory | { kind: 'file'; name: string } | null>;
+          getAsFileSystemHandle?(): Promise<DroppedFileHandle | null>;
         }
       ).getAsFileSystemHandle?.()
     );
+    if (!handles.length) return;
+    const results = await Promise.allSettled(handles);
+    if (!this.canDropRepository()) return;
+    this.focusDropTarget();
+    if (!this.ensureEditorSaved()) return;
+    if (results.length === 1) {
+      try {
+        const directory = droppedDirectory(results[0]);
+        this.openRepositoryMenu('local');
+        this.selectSystemFolder(systemFolderOf(directory));
+      } catch (error) {
+        this.fail(error);
+      }
+      return;
+    }
     await this.run(async () => {
       const added: string[] = [];
       const errors: string[] = [];
-      for (const item of await Promise.allSettled(handles)) {
-        const handle = item.status === 'fulfilled' ? item.value : null;
+      for (const result of results) {
         try {
-          if (item.status === 'rejected') throw item.reason;
-          if (handle?.kind !== 'directory') throw new Error('请选择 Git 仓库文件夹，也可以使用 Add Local Repository');
-          const { name, archive } = await archiveOfDirectory(handle);
-          await this.importArchive(name, archive, 'Added');
-          added.push(toVmPath(this.activeRecord()!.rootPath!));
+          added.push(await this.importSystemFolder(systemFolderOf(droppedDirectory(result))));
         } catch (error) {
-          errors.push(`${handle?.name ?? 'Folder'} · ${error instanceof Error ? error.message : String(error)}`);
+          const name = result.status === 'fulfilled' ? result.value?.name : null;
+          errors.push(`${name ?? 'Folder'} · ${messageOf(error)}`);
         }
       }
-      if (added.length) this.notice.set(`Added ${added.join(', ')}`);
+      if (added.length) {
+        this.closeRepositoryMenu();
+        this.notice.set(`Added ${added.join(', ')}`);
+      }
       if (errors.length) throw new Error(errors.join(' · '));
     });
   }
@@ -682,16 +748,14 @@ export class GithubApp {
     this.localRepositoryInput()?.nativeElement.click();
   }
 
-  protected async importLocalDirectory(event: Event): Promise<void> {
-    if (!this.ensureEditorSaved()) return;
+  protected selectLocalDirectory(event: Event): void {
     const element = event.target;
     if (!(element instanceof HTMLInputElement) || !element.files?.length) return;
     const files = [...element.files];
     element.value = '';
-    await this.run(async () => {
-      const archive = await archiveOfUploadedDirectory(files);
-      await this.importArchive(archive.name, archive.archive, 'Added');
-    });
+    const name = files[0]?.webkitRelativePath.split('/')[0];
+    if (!name) return this.fail(new Error('请选择一个 Git 仓库文件夹'));
+    this.selectSystemFolder({ name, archive: () => archiveOfUploadedDirectory(files) });
   }
 
   protected toggleRepositoryMenu(): void {
@@ -703,6 +767,11 @@ export class GithubApp {
   }
 
   protected openRepositoryMenu(kind: GithubRepositoryMenu): void {
+    this.localSystemFolder.set(null);
+    if (kind === 'local') {
+      this.localRepositoryPath.set('');
+      this.fail(null);
+    }
     this.worktreeMenuOpen.set(false);
     this.branchMenuOpen.set(false);
     this.closeContextMenu();
@@ -715,6 +784,7 @@ export class GithubApp {
 
   protected closeRepositoryMenu(): void {
     this.repositoryMenuOpen.set(false);
+    this.localSystemFolder.set(null);
   }
 
   protected toggleWorktreeMenu(): void {
@@ -722,7 +792,7 @@ export class GithubApp {
       this.closeWorktreeMenu();
       return;
     }
-    this.repositoryMenuOpen.set(false);
+    this.closeRepositoryMenu();
     this.branchMenuOpen.set(false);
     this.closeContextMenu();
     this.worktreeFilter.set('');
@@ -742,7 +812,7 @@ export class GithubApp {
   }
 
   protected openBranchMenu(): void {
-    this.repositoryMenuOpen.set(false);
+    this.closeRepositoryMenu();
     this.worktreeMenuOpen.set(false);
     this.closeContextMenu();
     this.branchMenuFocus.set(true);
@@ -1023,15 +1093,8 @@ export class GithubApp {
   protected async openStored(record: GithubRepositoryRecord, closeMenu = true): Promise<void> {
     if (!this.ensureEditorSaved()) return;
     await this.run(async () => {
-      const snapshot = await this.backend.open(record.projectId);
-      this.activeRecord.set(record);
-      this.showCleanFiles.set(false);
-      this.repoValue.set(record.owner && record.repo ? `${record.owner}/${record.repo}` : '');
-      this.branchValue.set(record.owner ? record.branch : '');
-      this.applySnapshot(snapshot.files);
-      await this.refresh();
-      this.notice.set(`Opened ${record.name}`);
-      if (closeMenu) this.repositoryMenuOpen.set(false);
+      await this.loadStoredRepository(record);
+      if (closeMenu) this.closeRepositoryMenu();
     });
   }
 
@@ -1117,6 +1180,7 @@ export class GithubApp {
       const name = file.name.replace(/\.(zip|tar)$/i, '') || 'Imported Repository';
       const bytes = new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>;
       await this.importArchive(name, bytes, 'Imported');
+      this.closeRepositoryMenu();
     });
   }
 
@@ -1625,34 +1689,59 @@ export class GithubApp {
     void this.selectCommit(commit?.oid ?? null);
   }
 
+  private canDropRepository(): boolean {
+    const hasDialog = this.repositoryMenuOpen() && this.repositoryPanel() !== 'list';
+    return !hasDialog && !this.busy() && !this.destroyRef.destroyed;
+  }
+
+  private focusDropTarget(): void {
+    if (this.wm.focused() !== this.win) this.wm.focus(this.win.id);
+  }
+
+  private selectSystemFolder(folder: SystemRepositoryFolder): void {
+    this.localSystemFolder.set(folder);
+    this.fail(null);
+  }
+
   private async pickLocalDirectory(picker: DirectoryPicker): Promise<void> {
-    let directory: SourceDirectory;
     try {
-      directory = await picker();
+      const directory = await picker.call(window);
+      if (this.localRepositoryOpen() && !this.destroyRef.destroyed) this.selectSystemFolder(systemFolderOf(directory));
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       this.fail(error);
-      return;
     }
-    if (!this.ensureEditorSaved()) return;
-    await this.run(async () => {
-      const archive = await archiveOfDirectory(directory);
-      await this.importArchive(archive.name, archive.archive, 'Added');
-    });
+  }
+
+  private async importSystemFolder(folder: SystemRepositoryFolder): Promise<string> {
+    const { name, archive } = await folder.archive();
+    return this.importArchive(name, archive, 'Added');
+  }
+
+  private async loadStoredRepository(record: GithubRepositoryRecord): Promise<void> {
+    const snapshot = await this.backend.open(record.projectId);
+    this.activeRecord.set(record);
+    this.showCleanFiles.set(false);
+    this.repoValue.set(record.owner && record.repo ? `${record.owner}/${record.repo}` : '');
+    this.branchValue.set(record.owner ? record.branch : '');
+    this.applySnapshot(snapshot.files);
+    await this.refresh();
+    this.notice.set(`Opened ${record.name}`);
   }
 
   private async importArchive(
     name: string,
     bytes: Uint8Array<ArrayBuffer>,
     noticeVerb: 'Added' | 'Imported'
-  ): Promise<void> {
+  ): Promise<string> {
     const { record, snapshot } = await this.backend.importDirectory(name, bytes);
     this.activeRecord.set(record);
     this.showCleanFiles.set(false);
     this.applySnapshot(snapshot.files);
     await this.refresh();
-    this.notice.set(`${noticeVerb} ${name} · ${toVmPath(record.rootPath!)}`);
-    this.repositoryMenuOpen.set(false);
+    const path = toVmPath(record.rootPath);
+    this.notice.set(`${noticeVerb} ${name} · ${path}`);
+    return path;
   }
 
   private menuSections() {

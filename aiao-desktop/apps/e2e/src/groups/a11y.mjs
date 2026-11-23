@@ -87,6 +87,7 @@ const KEYS = [
   'a11y.github.branchMenu',
   'a11y.github.disabledMenuItems',
   'a11y.github.fileMenuAction',
+  'a11y.github.addLocalRepositoryDialog',
   'a11y.windows.dialogsNamedByTitle',
   'a11y.windows.backgroundHidden',
   'a11y.windows.menubarShowsFrontApp',
@@ -789,6 +790,33 @@ export const a11y = {
           ) ?
             []
           : ['File > New Repository 没有通过键盘打开并聚焦输入框'];
+
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'File'));
+        await press('Enter');
+        await page.getByRole('menuitem', { name: 'Add Local Repository…', exact: true }).waitFor({ timeout: 5_000 });
+        await press('a');
+        await focusReaches(page, info => is(info, 'popover', 'Add Local Repository…'));
+        await press('Enter');
+        const localDialog = githubWindow.getByRole('dialog', { name: 'Add Local Repository', exact: true });
+        const localPath = localDialog.getByRole('textbox', { name: 'Local Path', exact: true });
+        await localPath.waitFor({ timeout: 5_000 });
+        const pathFocused = await localPath.evaluate(node => node === document.activeElement);
+        const modal = (await localDialog.getAttribute('aria-modal')) === 'true';
+        await press('Shift+Tab');
+        const wraps = await localDialog.evaluate(node => node.contains(document.activeElement));
+        await press('Tab');
+        const returnsToPath = await localPath.evaluate(node => node === document.activeElement);
+        const axe = await new AxeBuilder({ page }).include('.gh-local-repository-dialog').analyze();
+        await press('Escape');
+        const closed = await disappears(localDialog, 5_000);
+        const focusReturned = await focusReaches(page, info => is(info, 'menubar', 'File') || info.app === 'github');
+        github.addLocalRepositoryDialog = problems(
+          modal && pathFocused ? [] : ['Add Local Repository 没有声明模态对话框或聚焦 Local Path'],
+          wraps && returnsToPath ? [] : ['Tab 没有在 Add Local Repository 中循环'],
+          closed && focusReturned ? [] : ['Esc 没有关闭 Add Local Repository 并还回焦点'],
+          axe.violations.map(item => `Add Local Repository: ${item.id}`)
+        );
       });
 
       /* 完整的纯键盘流程：关掉 Finder 窗口 → Dock 图标 Enter 重新打开 → 「前往」菜单选 Documents → ⌘W 关窗口。全程不碰鼠标。 */
@@ -1230,7 +1258,8 @@ export const a11y = {
         await press('ArrowUp');
         return focusReaches(
           page,
-          info => info.region === 'popover' && info.role === 'menuitemcheckbox' && info.name.startsWith('Show Hidden Files')
+          info =>
+            info.region === 'popover' && info.role === 'menuitemcheckbox' && info.name.startsWith('Show Hidden Files')
         );
       };
       const focused = await openView();

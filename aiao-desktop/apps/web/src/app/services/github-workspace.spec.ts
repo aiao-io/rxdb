@@ -98,11 +98,31 @@ describe('桌面共享 Git 仓库', () => {
     rows.set('nested', nested);
     expect(await workspace.repositoryAt([...nested.rootPath, 'src'])).toBe(nested);
     expect(await workspace.openDirectory(root)).toBe(initial);
-    await expect(workspace.openDirectory(HOME, true)).rejects.toThrow('请选择');
+    await expect(workspace.openDirectory(HOME, { initialize: true })).rejects.toThrow('请选择');
     await expect(workspace.createDirectory(root, [])).rejects.toThrow('已存在');
     await expect(workspace.importDirectory('..', new Uint8Array())).rejects.toThrow('请选择');
     rows.set(id, { ...initial, rootPath: ['other'] });
     await expect(workspace.openDirectory(root)).rejects.toThrow('其他目录');
+  });
+
+  it('只读识别卷内子目录最近的仓库根，不为已移走的目录初始化仓库', async () => {
+    const nested = [...root, 'nested'];
+    const child = [...nested, 'src'];
+    const plain = [...HOME, 'Desktop', 'plain'];
+    await disk.mkdir(child);
+    await disk.mkdir(plain);
+    expect(await workspace.localDirectoryRoot(child)).toEqual(root);
+    await disk.mkdir([...nested, '.git']);
+    expect(await workspace.localDirectoryRoot(child)).toEqual(nested);
+    expect(await workspace.localDirectoryRoot(plain)).toEqual(plain);
+    expect(await disk.kindOf([...plain, '.git'])).toBeNull();
+    await disk.remove(plain);
+    await expect(workspace.localDirectoryRoot(plain)).rejects.toThrow('找不到项目文件夹');
+    await expect(workspace.openDirectory(plain, { initialize: true, requireExisting: true })).rejects.toThrow(
+      '找不到项目文件夹'
+    );
+    expect(git.create).not.toHaveBeenCalled();
+    expect(store.put).not.toHaveBeenCalled();
   });
 
   it('编辑器调用绑定的仓库并编码文件字节，打开、索引与写入使用同一工作树', async () => {

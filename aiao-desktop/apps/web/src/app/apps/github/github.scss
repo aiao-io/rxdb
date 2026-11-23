@@ -632,7 +632,7 @@
   flex-wrap: wrap;
 }
 
-.gh-menu-form-row > input,
+:is(.gh-menu-form-row, .gh-local-path-row) > input,
 .gh-menu-form-row > select,
 .gh-menu-section > input {
   min-width: 0;
@@ -707,6 +707,86 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+.gh-local-repository-layer {
+  position: absolute;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.gh-local-repository-dialog {
+  width: min(500px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  border: 1px solid var(--gd-border);
+  border-radius: 8px;
+  background: var(--gd-panel);
+  box-shadow: var(--gd-shadow);
+}
+
+.gh-local-repository-dialog .gh-menu-section {
+  padding: 12px 16px;
+}
+
+.gh-local-path-row,
+.gh-local-footer,
+.gh-local-archive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-local-repository-dialog button {
+  min-height: 26px;
+}
+
+.gh-local-repository-dialog .gd-btn-secondary {
+  background: var(--gd-files-bg);
+}
+
+.gh-local-repository-dialog .gd-btn-secondary:hover {
+  background: var(--gd-hover);
+}
+
+:root[data-theme='dark'] .gh-local-repository-dialog .gd-btn-primary:not(:disabled) {
+  --gd-accent: #1f6feb;
+  --gd-accent-hover: #1158c7;
+}
+
+.gh-local-path-row input {
+  flex-basis: 140px;
+}
+
+.gh-local-footer {
+  justify-content: flex-end;
+  padding: 8px 16px 12px;
+}
+
+.gh-local-options {
+  border-top: 1px solid var(--gd-border);
+}
+
+.gh-local-path-action {
+  justify-self: start;
+}
+
+.gh-local-import-destination,
+.gh-local-repository-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gh-local-import-destination {
+  color: var(--gd-muted);
+}
+
+.gh-local-repository-error {
+  color: var(--gd-del-fg);
 }
 
 .gh-foldout-filter {
@@ -818,18 +898,9 @@
 }
 
 .gh-menu-actions > button,
-.gh-menu-actions > .gh-file-button,
 .gh-menu-form-row > button {
   min-width: 0;
   flex: 1 1 120px;
-}
-
-.gh-file-button {
-  cursor: pointer;
-}
-
-.gh-file-button input {
-  display: none;
 }
 
 .gh-workspace {

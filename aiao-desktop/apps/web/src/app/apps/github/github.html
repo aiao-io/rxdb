@@ -10,17 +10,23 @@
 >
   <h1 class="sr-only">GitHub Desktop</h1>
 
-  <div class="gh-titlebar" data-drag>
+  <div class="gh-titlebar" [inert]="localRepositoryOpen()" data-drag>
     <div class="gh-titlebar-controls">
       <app-traffic-lights />
     </div>
   </div>
 
-  <div class="gd-toolbar gh-toolbar" aria-label="GitHub Desktop toolbar" data-drag role="toolbar">
+  <div
+    class="gd-toolbar gh-toolbar"
+    [inert]="localRepositoryOpen()"
+    aria-label="GitHub Desktop toolbar"
+    data-drag
+    role="toolbar"
+  >
     <div class="gd-toolbar-section gh-repository-section" [style.width.px]="asideWidth()">
       <button
         class="gd-toolbar-select gh-repository-trigger"
-        [attr.aria-expanded]="repositoryMenuOpen()"
+        [attr.aria-expanded]="repositoryMenuOpen() && !localRepositoryOpen()"
         (click)="toggleRepositoryMenu()"
         aria-haspopup="menu"
         data-github-repository-menu
@@ -34,7 +40,7 @@
         <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
       </button>
 
-      @if (repositoryMenuOpen()) {
+      @if (repositoryMenuOpen() && !localRepositoryOpen()) {
         <div
           class="gh-menu-overlay"
           (click)="closeRepositoryMenu()"
@@ -119,11 +125,7 @@
           >
             <header class="gh-repository-dialog-header">
               <h2 id="gh-repository-dialog-title">
-                {{
-                  repositoryPanel() === 'new' ? 'Create a New Repository'
-                  : repositoryPanel() === 'local' ? 'Add Local Repository'
-                  : 'Clone a Repository'
-                }}
+                {{ repositoryPanel() === 'new' ? 'Create a New Repository' : 'Clone a Repository' }}
               </h2>
               <button
                 class="gd-btn-ghost"
@@ -259,7 +261,7 @@
                   </button>
                 }
               </section>
-            } @else if (repositoryPanel() === 'new') {
+            } @else {
               <section class="gh-menu-section">
                 <div class="gh-menu-form-row">
                   <input
@@ -275,88 +277,6 @@
                   <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">
                     Create
                   </button>
-                </div>
-              </section>
-            } @else {
-              <section class="gh-menu-section" aria-label="Local repository actions">
-                <div class="gh-menu-actions">
-                  <button
-                    class="gd-btn-secondary"
-                    #localRepositoryButton
-                    [disabled]="busy()"
-                    (click)="openLocalRepositoryPicker()"
-                    aria-label="Add local repository"
-                    data-github-add-local
-                    type="button"
-                  >
-                    Add Local Repository
-                  </button>
-                  <label>
-                    Macintosh HD folder
-                    <input
-                      #volumePath
-                      (keydown.enter)="openLocalPath(volumePath.value)"
-                      placeholder="~/Documents/project"
-                    />
-                  </label>
-                  <button (click)="openLocalPath(volumePath.value)" tabindex="0" type="button">
-                    Open folder on Macintosh HD
-                  </button>
-                  <small>System folders are imported into ~/Documents/GitHub.</small>
-                  @if (activeRecord(); as current) {
-                    <label>
-                      Remote origin
-                      <input
-                        #originUrl
-                        [value]="
-                          current.owner ? 'https://github.com/' + current.owner + '/' + current.repo + '.git' : ''
-                        "
-                        placeholder="https://github.com/owner/repo.git"
-                      />
-                    </label>
-                    <button
-                      [disabled]="busy()"
-                      (click)="configureOrigin(current.owner ? null : originUrl.value)"
-                      tabindex="0"
-                      type="button"
-                    >
-                      {{ current.owner ? 'Remove origin' : 'Add origin' }}
-                    </button>
-                  }
-                  <input
-                    class="sr-only"
-                    #localRepositoryInput
-                    [disabled]="busy()"
-                    (change)="importLocalDirectory($event)"
-                    aria-label="Choose local Git repository directory"
-                    data-github-add-local-input
-                    directory
-                    tabindex="-1"
-                    type="file"
-                    webkitdirectory
-                  />
-                  <label
-                    class="gd-btn-secondary gh-file-button"
-                    #importRepositoryButton
-                    [class.disabled]="busy()"
-                    (keydown.enter)="openImportPicker($event)"
-                    (keydown.space)="openImportPicker($event)"
-                    aria-label="Import repository archive"
-                    role="button"
-                    tabindex="0"
-                  >
-                    Import archive
-                    <input
-                      [disabled]="busy()"
-                      (change)="importRepository($event)"
-                      aria-label="Import repository archive"
-                      data-github-import
-                      type="file"
-                    />
-                  </label>
-                  @if (activeRecord()) {
-                    <button (click)="exportRepository()" data-github-export type="button">Export repository</button>
-                  }
                 </div>
               </section>
             }
@@ -578,7 +498,12 @@
   </div>
 
   @if (activeRecord(); as record) {
-    <div class="gh-workspace" [style.--gh-aside-width]="asideWidth() + 'px'" aria-label="Repository workspace">
+    <div
+      class="gh-workspace"
+      [inert]="localRepositoryOpen()"
+      [style.--gh-aside-width]="asideWidth() + 'px'"
+      aria-label="Repository workspace"
+    >
       <aside class="gd-sidebar gh-sidebar" aria-label="Repository changes and history">
         <div class="gd-tabs gh-tabs" aria-label="Repository views" role="tablist">
           <button
@@ -1297,7 +1222,7 @@
       </main>
     </div>
   } @else {
-    <div class="gh-empty" data-github-empty>
+    <div class="gh-empty" [inert]="localRepositoryOpen()" data-github-empty>
       <div class="gh-mark"><img alt="" data-github-system-icon src="icons/desktop/app-github.png" /></div>
       <h2>GitHub workbench</h2>
       <p>Create a local OPFS repository or open a GitHub repository to start working.</p>
@@ -1369,7 +1294,7 @@
     </div>
   }
 
-  @if (canDiscardBranch()) {
+  @if (!localRepositoryOpen() && canDiscardBranch()) {
     <div class="gh-conflict" role="alert">
       <span>Uncommitted changes prevent switching branches.</span>
       <button class="gd-btn-secondary" (click)="checkout(pendingBranch() ?? currentBranch(), true)" type="button">
@@ -1377,10 +1302,174 @@
       </button>
     </div>
   }
-  @if (error(); as failure) {
+  @if (!localRepositoryOpen() && error(); as failure) {
     <div class="gh-error" data-github-error role="alert">{{ failure }}</div>
   }
   @if (notice(); as message) {
     <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
+  }
+  @if (localRepositoryOpen()) {
+    <div class="gh-local-repository-layer" data-nodrag>
+      <section
+        class="gh-local-repository-dialog"
+        [attr.aria-labelledby]="localRepositoryTitleId"
+        (keydown.escape)="cancelLocalRepository($event)"
+        appFocusTrap
+        aria-modal="true"
+        data-github-repository-dialog
+        role="dialog"
+      >
+        <header class="gh-repository-dialog-header">
+          <h2 [id]="localRepositoryTitleId">Add Local Repository</h2>
+        </header>
+        <form (submit)="addLocalRepository($event)">
+          <div class="gh-menu-section">
+            <label [for]="localRepositoryPathId">Local Path</label>
+            <div class="gh-local-path-row">
+              <input
+                #localPath
+                [attr.aria-describedby]="error() ? localRepositoryErrorId : null"
+                [attr.aria-invalid]="error() ? 'true' : null"
+                [id]="localRepositoryPathId"
+                [readOnly]="localSystemFolder() !== null || busy()"
+                [value]="localSystemFolder()?.name ?? localRepositoryPath()"
+                (input)="setLocalRepositoryPath(localPath.value)"
+                data-autofocus
+                placeholder="~/Documents/project"
+                type="text"
+              />
+              <button
+                class="gd-btn-secondary"
+                [disabled]="busy()"
+                (click)="openLocalRepositoryPicker()"
+                data-github-add-local
+                tabindex="0"
+                type="button"
+              >
+                Choose…
+              </button>
+              <input
+                #localRepositoryInput
+                [disabled]="busy()"
+                (change)="selectLocalDirectory($event)"
+                aria-label="Choose local Git repository directory"
+                data-github-add-local-input
+                hidden
+                type="file"
+                webkitdirectory
+              />
+            </div>
+            @if (localSystemFolder(); as folder) {
+              <p class="gh-local-import-destination">
+                Import to
+                <code>~/Documents/GitHub/{{ folder.name }}</code>
+              </p>
+              <button
+                class="gd-btn-ghost gh-local-path-action"
+                [disabled]="busy()"
+                (click)="clearLocalSystemFolder(); localPath.focus()"
+                tabindex="0"
+                type="button"
+              >
+                Use Macintosh HD folder
+              </button>
+            }
+            @if (error(); as failure) {
+              <p class="gh-local-repository-error" [id]="localRepositoryErrorId" data-github-error role="alert">
+                {{ failure }}
+              </p>
+              @if (canInitializeLocalRepository()) {
+                <button
+                  class="gd-btn-secondary gh-local-path-action"
+                  [disabled]="busy()"
+                  (click)="addLocalRepository(undefined, true)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Create Repository Here
+                </button>
+              }
+            }
+          </div>
+          <footer class="gh-local-footer">
+            <button
+              class="gd-btn-secondary"
+              [disabled]="busy()"
+              (click)="cancelLocalRepository()"
+              tabindex="0"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              class="gd-btn-primary"
+              [disabled]="busy() || (!localSystemFolder() && !localRepositoryPath().trim())"
+              tabindex="0"
+              type="submit"
+            >
+              {{ busy() ? 'Adding…' : 'Add Repository' }}
+            </button>
+          </footer>
+        </form>
+
+        @if (!localSystemFolder()) {
+          <section class="gh-menu-section gh-local-options" aria-label="Local repository actions">
+            @if (activeRecord(); as current) {
+              <label [for]="localRepositoryPathId + '-origin'">Remote origin</label>
+              <div class="gh-local-path-row">
+                <input
+                  #originUrl
+                  [id]="localRepositoryPathId + '-origin'"
+                  [value]="current.owner ? 'https://github.com/' + current.owner + '/' + current.repo + '.git' : ''"
+                  placeholder="https://github.com/owner/repo.git"
+                  type="text"
+                />
+                <button
+                  class="gd-btn-secondary"
+                  [disabled]="busy()"
+                  (click)="configureOrigin(current.owner ? null : originUrl.value)"
+                  tabindex="0"
+                  type="button"
+                >
+                  {{ current.owner ? 'Remove origin' : 'Add origin' }}
+                </button>
+              </div>
+            }
+            <div class="gh-local-archive-actions">
+              <button
+                class="gd-btn-secondary"
+                [disabled]="busy()"
+                (click)="archiveInput.click()"
+                tabindex="0"
+                type="button"
+              >
+                Import archive
+              </button>
+              <input
+                #archiveInput
+                [disabled]="busy()"
+                (change)="importRepository($event)"
+                aria-label="Import repository archive"
+                data-github-import
+                hidden
+                type="file"
+              />
+              @if (activeRecord()) {
+                <button
+                  class="gd-btn-secondary"
+                  [disabled]="busy()"
+                  (click)="exportRepository()"
+                  data-github-export
+                  tabindex="0"
+                  type="button"
+                >
+                  Export repository
+                </button>
+              }
+            </div>
+          </section>
+        }
+      </section>
+    </div>
   }
 </div>

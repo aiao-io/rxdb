@@ -23,6 +23,8 @@ capabilities: []
 
 `code .` 面向桌面用户主目录内的文件夹。Git 根复用原仓库；普通目录和 Git 子目录按指定路径原位编辑，不自动初始化仓库。`open -a "Aiao Code" .` 也绑定指定目录。打开失败时不会换成最近项目。
 
+向 Aiao 内置 GitHub Desktop 窗口拖入单个未登记目录时，打开 **Add Local Repository** 并预填路径或系统目录名。取消不导入、不登记；已登记的卷内仓库（包括其子目录）直接切换到已有仓库。普通卷内目录须显式选择 **Create Repository Here** 才原位初始化。系统目录确认后导入卷内，不改本机原目录；一次拖入多个系统目录仍逐一导入并报告结果。该入口不调用系统安装的 GitHub Desktop 应用。
+
 ## 交付阶段
 
 | 阶段 | 交付物                       | 验收    |
@@ -67,6 +69,8 @@ capabilities: []
 另用同一份临时仓库对照官方 GitHub Desktop 3.6.11，补验三个全高下拉、History 详情，以及终端修改、暂存、提交、切分支后的界面更新。[界面对照、联动与复验命令](../../evidence/2026-11-23/github-desktop-parity.md)
 
 2026-11-23 补验 `code .`：`pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files` 使用两个应用的本地正式构建，保留不同来源。在已有最近项目的情况下，从终端打开带空格的普通目录，在实际编辑器中编辑并保存；磁盘、`cat` 与重开读到同一内容，没有生成 `.git`。另从 Git 根打开，在保存后核对 `git diff` 和 GitHub Desktop 的改动列表。[冒烟检查 `terminalFolderRoundTrip` / `terminalRepositoryRoundTrip`](../../../apps/e2e/src/groups/aiao-code-files.mjs)。未做线上部署。
+
+拖放确认补验：参照 [GitHub Desktop 3.6.11 的拖放处理](https://github.com/desktop/desktop/blob/release-3.6.11/app/src/ui/app.tsx#L1240)。[`github.droppedRepository`](../../../apps/e2e/src/groups/github-app.mjs) 覆盖确认前不切换、取消、同名拒绝、混合批量导入、Finder 去重及原位建仓后终端读回文件；[`a11y.github.addLocalRepositoryDialog`](../../../apps/e2e/src/groups/a11y.mjs) 覆盖对话框名称和键盘焦点。复验：`pnpm nx run aiao-desktop-e2e:e2e --group=github-app,a11y`。
 
 ## References
 
