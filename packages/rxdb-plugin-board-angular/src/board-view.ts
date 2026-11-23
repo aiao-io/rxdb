@@ -55,7 +55,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 
-import { t as boardT } from './board-i18n.js';
+import { boardT } from './board-i18n.js';
 import { useBoard, type UseBoardReturn } from './use-board.js';
 
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */

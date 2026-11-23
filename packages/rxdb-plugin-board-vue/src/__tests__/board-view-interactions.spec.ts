@@ -1,7 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import {
-  BOARD_I18N_NAMESPACE,
   Board,
+  BOARD_I18N_NAMESPACE,
   BOARD_LABEL_COLORS,
   BoardLabel,
   Column,

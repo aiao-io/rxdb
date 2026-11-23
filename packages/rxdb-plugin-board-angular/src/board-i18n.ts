@@ -10,7 +10,7 @@ import { BOARD_I18N_NAMESPACE, createBoardI18n, type BoardMessageKey } from '@ai
 export const boardI18n = createBoardI18n();
 
 /**
- * 绑定 board 命名空间的翻译函数：组件与模板直接用 `t('key')` / `t('key', { title })`。
+ * 绑定 board 命名空间的翻译函数：组件与模板直接用 `boardT('key')` / `boardT('key', { title })`。
  *
  * @remarks
  * `createBoardI18n` 建的运行时默认命名空间是 app，直接 `boardI18n.t('key')` 会渲染键本身；
@@ -19,5 +19,5 @@ export const boardI18n = createBoardI18n();
  * @param params - ICU 参数（如 `{ title }`、`{ count }`）。
  * @returns 当前语言下的纯文本文案。
  */
-export const t = (key: BoardMessageKey, params?: Record<string, unknown>): string =>
+export const boardT = (key: BoardMessageKey, params?: Record<string, unknown>): string =>
   boardI18n.t(key, params ?? {}, BOARD_I18N_NAMESPACE);

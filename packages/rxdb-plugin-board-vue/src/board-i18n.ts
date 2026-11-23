@@ -12,6 +12,5 @@ import { BOARD_I18N_NAMESPACE, createBoardI18n } from '@aiao/rxdb-plugin-board';
 const i18n = createBoardI18n();
 
 export const boardI18n = {
-  t: (key: string, params: Record<string, unknown> = {}): string =>
-    i18n.t(key, params, BOARD_I18N_NAMESPACE)
+  t: (key: string, params: Record<string, unknown> = {}): string => i18n.t(key, params, BOARD_I18N_NAMESPACE)
 };

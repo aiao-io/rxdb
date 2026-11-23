@@ -16,7 +16,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 
-import { t as boardT } from './board-i18n.js';
+import { boardT } from './board-i18n.js';
 import { BoardViewComponent } from './board-view.js';
 
 let shellCounter = 0;

@@ -1,8 +1,8 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import {
-  BOARD_I18N_NAMESPACE,
   Board,
+  BOARD_I18N_NAMESPACE,
   BoardLabel,
   Column,
   createBoardI18n,

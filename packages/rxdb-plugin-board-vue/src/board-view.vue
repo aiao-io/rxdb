@@ -2180,7 +2180,11 @@ onBeforeUnmount(() => {
             class="rxb-column-empty"
             data-testid="column-empty"
           >
-            {{ filterActive && tasksOf(column).length > 0 ? t('view.column.empty.filtered') : t('view.column.empty.plain') }}
+            {{
+              filterActive && tasksOf(column).length > 0 ?
+                t('view.column.empty.filtered')
+              : t('view.column.empty.plain')
+            }}
           </p>
           <div
             v-if="addTaskColumnId === column.id"
@@ -2765,7 +2769,9 @@ onBeforeUnmount(() => {
         </template>
       </template>
       <template v-else>
-        <p class="rxb-picker-title">{{ popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn') }}</p>
+        <p class="rxb-picker-title">{{
+          popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn')
+        }}</p>
         <div class="rxb-picker-filter">
           <input
             class="rxb-input"
@@ -2781,7 +2787,9 @@ onBeforeUnmount(() => {
         <!-- listbox 只容 option：空态段落放在 listbox 之外 -->
         <div
           v-if="pickerOptions.length > 0"
-          :aria-label="popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn')"
+          :aria-label="
+            popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn')
+          "
           :aria-multiselectable="popover.kind === 'detail-label-picker'"
           role="listbox"
         >
