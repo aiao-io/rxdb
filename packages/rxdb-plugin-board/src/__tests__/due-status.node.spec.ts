@@ -1,4 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+
+// 测试环境没有宿主语言控制：固定 zh 的截止日文案桩，断言与三端 zh 渲染一致。
+vi.mock('../i18n/board-i18n.js', () => ({
+  boardI18n: {},
+  boardT: (key: string, params?: Record<string, unknown>) => {
+    if (key === 'view.due.overdue') return `已逾期 ${params?.date ?? ''}`;
+    if (key === 'view.due.today') return `今天到期 ${params?.date ?? ''}`;
+    return key;
+  }
+}));
 
 import { dueStatus, dueStatusText, localDateKey, msUntilNextLocalMidnight } from '../due-status.js';
 

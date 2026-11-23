@@ -2,6 +2,40 @@ import type { RxDB } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+
+// 测试环境没有宿主语言控制：固定 zh 的外壳确认框与错误文案桩，断言与 zh 渲染一致。
+vi.mock('../i18n/board-i18n.js', () => {
+  const zh: Record<string, string> = {
+    'shell.confirm.resetTitle': '重置为演示数据',
+    'shell.confirm.resetMessage': '将在新库上装载演示数据，成功后打开演示看板；当前看板留在原库。',
+    'shell.confirm.resetLabel': '重置',
+    'shell.confirm.restoreTitle': '从备份恢复',
+    'shell.confirm.restoreMessage': '恢复成功后将打开备份中的看板，当前看板原样保留。',
+    'shell.confirm.restoreLabel': '恢复',
+    'shell.error.busy': '另一页面正在准备或恢复看板，请稍后重试',
+    'shell.error.noOpenBoard': '当前没有打开的看板',
+    'shell.error.noSeed': '宿主没有提供演示数据',
+    'shell.error.seedOnlyNew': '演示数据只能装进新库',
+    'shell.error.readBackFailed': '恢复读回失败：{message}',
+    'shell.error.cleanupFailed': '恢复目标清理失败：{message}，可重新打开页面重试清理',
+    'shell.error.targetGone': '恢复目标存储已不存在',
+    'shell.error.newBoardCleanupFailed': '新看板清理失败：{message}',
+    'shell.error.adapterUnsupported': '适配器 {adapter} 不支持备份与恢复（需要 backup / restore / dropStorage）',
+    'shell.error.disconnectFailed': '看板连接释放失败',
+    'shell.error.restoreDisconnectFailed': '恢复目标断开失败'
+  };
+  const fill = (template: string, params?: Record<string, unknown>): string =>
+    Object.entries(params ?? {}).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, String(value)), template);
+  return {
+    boardI18n: {},
+    boardT: (key: string, params?: Record<string, unknown>) => {
+      if (key === 'shell.error.prefixed') return `${params?.prefix ?? ''}：${params?.message ?? ''}`;
+      const template = zh[key];
+      return template === undefined ? key : fill(template, params);
+    }
+  };
+});
+
 import {
   BoardShellController,
   browserBoardShellRuntime,
