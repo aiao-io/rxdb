@@ -771,6 +771,12 @@ DECLARE
   v_table_name text;
   v_bucket_column text;
   v_bucket text;
+  v_row_bucket text;
+  v_old_bucket text;
+  v_move_key text;
+  v_moved jsonb := '{}'::jsonb;
+  v_id_type text;
+  v_is_main boolean;
   v_entity_id text;
   v_branch_id text;
 BEGIN
@@ -796,9 +802,14 @@ BEGIN
   -- 分区日志的 bucket 只认服务端状态，载荷里的 bucket 字段一律不认，未分区实体的日志也不带 bucket。
   -- main 的业务写已经在调用方事务中完成，SECURITY DEFINER 读得到最终行；行已不在时用 rxdb_mutations
   -- 固化的前后快照（前快照是业务写之前读的行，显式删除的换成了触发器捕获的实际 OLD）。
-  -- 非 main 推送不做业务写、不经过业务表的 RLS，快照可能来自客户端补的 inversePatch，或是 main 上同 id
-  -- 那一行的分区：bucket 还必须是调用者自己可读的分区，否则谁都能往别人的分区频道发通知、抬别人的水位。
+  -- 非 main 推送不做业务写、不经过业务表的 RLS：不以 definer 回读业务行（否则调用者看不见的行在不在、
+  -- 在谁的区，会从报错里漏出来），只用 rxdb_mutations 以调用者身份读到的前快照或客户端补的 inversePatch，
+  -- bucket 还必须是调用者自己可读的分区，否则谁都能往别人的分区频道发通知、抬别人的水位。
+  -- entityId 必须能转成业务表 id 列的类型：按区拉取按这个类型找当前行。main 的业务写已经按它转过，
+  -- 这里统一校验一次，转不了就整批拒绝（22P02）。
   -- 业务表按 namespace 定位：登记时 namespace 就是 schema（rxdb_enable_sync_for_table），载荷的 schema 字段已被 rxdb_mutations 去掉。
+  -- 换区与触发器同口径：main 的业务写把行从 A 区挪到 B 区时，A 区先记一条不带内容的移除、本条记成 B 区的写入，
+  -- 否则只能读 A 区的客户端永远不知道这一行已经离开。换区前的区取前快照；同一实体同批多次写入只补一条移除。
   FOR v_change IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
   LOOP
     SELECT "tableName", "bucketColumn"
@@ -810,19 +821,29 @@ BEGIN
     v_change := v_change - 'bucket';
     IF v_bucket_column IS NOT NULL THEN
       v_entity_id := v_change->>'entityId';
-      v_bucket := NULL;
+      v_row_bucket := NULL;
+      v_is_main := COALESCE(v_change->>'branchId', 'main') = 'main';
+      SELECT pg_catalog.format_type(attribute.atttypid, attribute.atttypmod)
+      INTO v_id_type
+      FROM pg_catalog.pg_attribute AS attribute
+      WHERE attribute.attrelid = pg_catalog.format('%I.%I', v_change->>'namespace', v_table_name)::regclass
+        AND attribute.attname = 'id'
+        AND NOT attribute.attisdropped;
 
-      IF v_change->>'type' <> 'DELETE' THEN
+      IF v_is_main AND v_change->>'type' <> 'DELETE' THEN
         EXECUTE pg_catalog.format(
-          'SELECT %I::text FROM %I.%I WHERE id::text = $1 LIMIT 1',
+          'SELECT NULLIF(%I::text, '''') FROM %I.%I WHERE id = $1::%s LIMIT 1',
           v_bucket_column,
           v_change->>'namespace',
-          v_table_name
-        ) INTO v_bucket USING v_entity_id;
+          v_table_name,
+          v_id_type
+        ) INTO v_row_bucket USING v_entity_id;
+      ELSE
+        EXECUTE pg_catalog.format('SELECT CAST($1 AS %s)', v_id_type) USING v_entity_id;
       END IF;
 
       v_bucket := COALESCE(
-        NULLIF(v_bucket, ''),
+        v_row_bucket,
         NULLIF(v_change->'afterData'->>v_bucket_column, ''),
         NULLIF(v_change->'beforeData'->>v_bucket_column, '')
       );
@@ -831,12 +852,29 @@ BEGIN
           v_change->>'namespace', v_change->>'entity', v_entity_id
           USING ERRCODE = 'not_null_violation';
       END IF;
-      IF COALESCE(v_change->>'branchId', 'main') <> 'main' AND NOT (v_bucket = ANY(public.rxdb_caller_buckets())) THEN
+      IF NOT v_is_main AND NOT (v_bucket = ANY(public.rxdb_caller_buckets())) THEN
         RAISE EXCEPTION USING
           ERRCODE = 'insufficient_privilege',
           MESSAGE = 'rxdb: bucket is not authorized for the current caller';
       END IF;
       v_change := pg_catalog.jsonb_set(v_change, ARRAY['bucket'], pg_catalog.to_jsonb(v_bucket), true);
+
+      v_old_bucket := NULLIF(v_change->'beforeData'->>v_bucket_column, '');
+      v_move_key := pg_catalog.jsonb_build_array(
+        v_change->>'namespace', v_change->>'entity', v_entity_id, v_old_bucket
+      )::text;
+      IF v_is_main AND v_row_bucket IS NOT NULL AND v_old_bucket IS NOT NULL AND v_old_bucket <> v_row_bucket THEN
+        normalized_changes := normalized_changes || CASE
+          WHEN v_moved ? v_move_key THEN '[]'::jsonb
+          ELSE pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+            'namespace', v_change->>'namespace', 'entity', v_change->>'entity', 'entityId', v_entity_id,
+            'type', 'DELETE', 'branchId', 'main', 'bucket', v_old_bucket,
+            'createdAt', v_change->'createdAt', 'updatedAt', v_change->'updatedAt'
+          ))
+        END;
+        v_moved := v_moved || pg_catalog.jsonb_build_object(v_move_key, true);
+        v_change := pg_catalog.jsonb_set(v_change, ARRAY['type'], '"INSERT"'::jsonb);
+      END IF;
     END IF;
 
     normalized_changes := normalized_changes || pg_catalog.jsonb_build_array(v_change);

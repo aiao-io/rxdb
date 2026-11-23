@@ -24,6 +24,7 @@ import {
   getRxDBIdentityKey,
   identityWatermarkName,
   RXDB_ANONYMOUS_SUBJECT,
+  RXDB_IDENTITY_CLAIM_NAME,
   RXDB_IDENTITY_WATERMARK_PREFIX,
   RxDBIdentityMismatchError,
   type RxDBIdentity
@@ -62,6 +63,11 @@ class MemoryLocalAdapter implements IRxDBAdapter {
   probeFinds = 0;
   /** `create()` 追加进迁移表的行名（不含 `createTables` 随建表写下的） */
   readonly appended: string[] = [];
+  /**
+   * 写某个迁移行之前调用：模拟另一个标签页在本实例读完之后抢先提交了别的行。
+   * 迁移表的行名有唯一索引，重名的写入按 `23505` 失败，与真实适配器一致。
+   */
+  beforeCreate: ((name: string) => void) | undefined;
 
   constructor(initialNames: readonly string[] = []) {
     if (initialNames.length > 0) {
@@ -147,6 +153,12 @@ class MemoryLocalAdapter implements IRxDBAdapter {
         count: async () => this.names.length,
         create: async entity => {
           const name = (entity as unknown as RxDBMigration).name;
+          this.beforeCreate?.(name);
+          if (this.names.includes(name)) {
+            throw Object.assign(new Error(`UNIQUE constraint failed: rxdb_migration.name (${name})`), {
+              code: '23505'
+            });
+          }
           this.appended.push(name);
           this.names.push(name);
           return entity;
@@ -316,6 +328,47 @@ describe('本功能之前建的库：没有绑定', () => {
     await expect(open(adapter, identityOf(USER_B)).connect(adapter.name)).rejects.toBeInstanceOf(
       RxDBIdentityMismatchError
     );
+    expect(identityRows(adapter.names)).toEqual([nameOf(USER_A)]);
+  });
+});
+
+describe('两个身份同时第一次打开本功能之前建的库', () => {
+  // 另一个标签页以 A 的身份打开同一个库，在本实例（B）读完「还没绑定」之后、写下绑定之前抢先提交。
+  // 两边竞争同一个固定名的竞争行：B 的写入撞唯一键，重读之后看到 A 的绑定，拒绝连接
+  it('后到的一方撞上竞争行的唯一键：重读后拒绝连接，库里只留先到的那一个身份', async () => {
+    const adapter = new MemoryLocalAdapter(['0001-init']);
+    let raced = false;
+    adapter.beforeCreate = name => {
+      if (raced || name !== RXDB_IDENTITY_CLAIM_NAME) return;
+      raced = true;
+      adapter.names.push(RXDB_IDENTITY_CLAIM_NAME, nameOf(USER_A));
+    };
+
+    await expect(open(adapter, identityOf(USER_B)).connect(adapter.name)).rejects.toBeInstanceOf(
+      RxDBIdentityMismatchError
+    );
+
+    expect(raced).toBe(true);
+    expect(identityRows(adapter.names)).toEqual([nameOf(USER_A)]);
+    // B 自己一条身份行、一条竞争行都没写下
+    expect(
+      adapter.appended.filter(name => name === RXDB_IDENTITY_CLAIM_NAME || identityRows([name]).length > 0)
+    ).toEqual([]);
+    await expect(open(adapter, identityOf(USER_A)).connect(adapter.name)).resolves.toBe(adapter);
+  });
+
+  it('同一个身份的两个标签页同时绑定：后到的一方撞唯一键后重读，看到的正是自己的绑定，照常连接', async () => {
+    const adapter = new MemoryLocalAdapter(['0001-init']);
+    let raced = false;
+    adapter.beforeCreate = name => {
+      if (raced || name !== RXDB_IDENTITY_CLAIM_NAME) return;
+      raced = true;
+      adapter.names.push(RXDB_IDENTITY_CLAIM_NAME, nameOf(USER_A));
+    };
+
+    await expect(open(adapter, identityOf(USER_A)).connect(adapter.name)).resolves.toBe(adapter);
+
+    expect(raced).toBe(true);
     expect(identityRows(adapter.names)).toEqual([nameOf(USER_A)]);
   });
 });

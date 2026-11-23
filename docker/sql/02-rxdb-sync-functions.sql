@@ -496,17 +496,28 @@ IMMUTABLE
 SECURITY INVOKER
 SET search_path = pg_catalog, pg_temp
 AS $$
+    -- jsonb_build_object 每列占两个参数，PostgreSQL 一次函数调用最多 100 个参数：
+    -- 每 50 列一组各建一个对象，再用 || 合成一个，可读列再多也不会超限
     SELECT CASE
         WHEN pg_catalog.cardinality(p_columns) = 0 THEN NULL
-        ELSE pg_catalog.format(
-            'pg_catalog.jsonb_build_object(%s)',
-            pg_catalog.array_to_string(
-                ARRAY(
-                    SELECT pg_catalog.format('%L, table_data.%I', column_name, column_name)
-                    FROM pg_catalog.unnest(p_columns) AS columns(column_name)
-                ),
-                ', '
-            )
+        ELSE pg_catalog.array_to_string(
+            ARRAY(
+                SELECT pg_catalog.format(
+                    'pg_catalog.jsonb_build_object(%s)',
+                    pg_catalog.array_to_string(
+                        ARRAY(
+                            SELECT pg_catalog.format('%L, table_data.%I', column_name, column_name)
+                            FROM pg_catalog.unnest(p_columns[chunk * 50 + 1:(chunk + 1) * 50])
+                                WITH ORDINALITY AS columns(column_name, position)
+                            ORDER BY position
+                        ),
+                        ', '
+                    )
+                )
+                FROM pg_catalog.generate_series(0, (pg_catalog.cardinality(p_columns) - 1) / 50) AS chunks(chunk)
+                ORDER BY chunk
+            ),
+            ' || '
         )
     END
 $$;
@@ -682,10 +693,12 @@ BEGIN
 
     FOR v_node IN SELECT value FROM pg_catalog.jsonb_array_elements(p_filter->'rules')
     LOOP
-        v_matches := CASE
+        -- 规则值是 JSON null 时比较得 NULL：按不匹配算，与核心的 isEntityMatchWhere 一致。
+        -- 不收成 false 的话，NOT NULL 仍是 NULL，and 组合会把它当成匹配
+        v_matches := COALESCE(CASE
             WHEN v_node ? 'rules' THEN public.rxdb_jsonb_matches_filter(p_document, v_node)
             ELSE public.rxdb_jsonb_matches_rule(p_document, v_node)
-        END;
+        END, false);
         IF v_combinator = 'and' AND NOT v_matches THEN
             RETURN false;
         END IF;
@@ -757,6 +770,7 @@ DECLARE
     v_bucket_column text;
     v_columns text[];
     v_row_expression text;
+    v_id_type text;
 BEGIN
     IF p_bucket IS NULL OR NOT (p_bucket = ANY(public.rxdb_caller_buckets())) THEN
         RAISE EXCEPTION USING
@@ -782,6 +796,16 @@ BEGIN
     PERFORM public.rxdb_assert_snapshot_filter_columns(p_filter, v_columns);
     v_row_expression := public.rxdb_selectable_row_expression(v_columns);
 
+    -- 当前行按 id 列自己的类型找：id::text 比文本用不上主键索引，每条日志都要扫一遍业务表；
+    -- 文本还认不出同一个 id 的不同写法（大写的 uuid），会把还在的行当成已删除。
+    -- 分区日志的 entityId 都能转成这个类型：触发器写的是规范值，推送在写日志之前就按这个类型校验过
+    SELECT pg_catalog.format_type(attribute.atttypid, attribute.atttypmod)
+    INTO v_id_type
+    FROM pg_catalog.pg_attribute AS attribute
+    WHERE attribute.attrelid = pg_catalog.format('%I.%I', p_namespace, v_table_name)::regclass
+      AND attribute.attname = 'id'
+      AND NOT attribute.attisdropped;
+
     -- 复合类型按列位置匹配、不看列名：rxdb_change 的物理列序因部署而异（从旧版升级的库里 bucket
     -- 由 ADD COLUMN 追加在表尾）。所以不手写输出列，取整行再按列名覆盖要改的字段。
     RETURN QUERY EXECUTE pg_catalog.format($query$
@@ -801,7 +825,7 @@ BEGIN
             LEFT JOIN LATERAL (
                 SELECT %1$s AS row_json
                 FROM %2$I.%3$I AS table_data
-                WHERE table_data.id::text = change."entityId"
+                WHERE table_data.id = change."entityId"::%5$s
                   AND table_data.%4$I::text = $5
                 LIMIT 1
             ) AS current_row ON true
@@ -829,7 +853,7 @@ BEGIN
            OR public.rxdb_jsonb_matches_filter(scoped_changes.row_json, $7)
         ORDER BY scoped_changes.id ASC
         LIMIT GREATEST($2, 0)
-    $query$, v_row_expression, p_namespace, v_table_name, v_bucket_column)
+    $query$, v_row_expression, p_namespace, v_table_name, v_bucket_column, v_id_type)
     USING p_since_id, p_limit, p_namespace, p_entity, p_bucket, p_branch_id, p_filter;
 END;
 $$;

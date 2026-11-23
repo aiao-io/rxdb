@@ -1189,6 +1189,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       );
       return null;
     }
+    if (realtimeSubjectOf(accessToken) === undefined) {
+      console.warn(
+        '[RxDB Supabase] Cannot tell who the session token belongs to (a signed-in role without "sub"); ' +
+          'skipping the realtime subscription.'
+      );
+      return null;
+    }
 
     const topics = [RXDB_CHANGES_TOPIC];
     try {
@@ -1356,9 +1363,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     });
   }
 
+  /**
+   * 令牌对应的 Realtime 身份键。读不出是谁的令牌（声称已登录却没有 `sub`）记为 `null`，订阅时据此跳过；
+   * 不在 auth 事件回调里抛错，否则频道停在旧身份上、再也不轮换。同步照旧由 `callerIdentity()` 对它报错。
+   */
   #identityKeyForToken(accessToken: string | null): string {
     const scope = this.#supabaseScope ?? '';
-    return JSON.stringify([scope, identityOfAccessToken(accessToken)]);
+    return JSON.stringify([scope, realtimeSubjectOf(accessToken) ?? null]);
   }
 
   async #rotateRealtimeChannels(): Promise<void> {
@@ -1442,10 +1453,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 }
 
+/** 令牌代表的调用者；声称已登录却没有 `sub`、读不出是谁时为 `undefined`（不猜） */
+function realtimeSubjectOf(accessToken: string | null): string | undefined {
+  try {
+    return identityOfAccessToken(accessToken);
+  } catch (error) {
+    if (error instanceof SupabaseConfigError) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * 身份的 scope：请求实际发往的项目。客户端自己报得出 URL 就以它为准；报不出时用配置的 `supabaseUrl`。
+ * 两个都有却指向不同项目时拒绝，不猜：按配置的算，身份就会落在请求根本没去的那个项目上。
+ */
 function resolveSupabaseScope(configuredUrl: string | undefined, client: SupabaseClient): string | null {
-  if (configuredUrl?.trim()) return normalizeSupabaseScope(configuredUrl);
   const runtimeUrl = (client as unknown as { supabaseUrl?: unknown }).supabaseUrl;
-  return typeof runtimeUrl === 'string' && runtimeUrl.trim() ? normalizeSupabaseScope(runtimeUrl) : null;
+  const runtime = typeof runtimeUrl === 'string' && runtimeUrl.trim() ? normalizeSupabaseScope(runtimeUrl) : null;
+  const configured = configuredUrl?.trim() ? normalizeSupabaseScope(configuredUrl) : null;
+  if (runtime !== null && configured !== null && runtime !== configured) {
+    throw new SupabaseConfigError(
+      `supabaseUrl (${configured}) does not match the project URL of the supplied client (${runtime}).`
+    );
+  }
+  return runtime ?? configured;
 }
 
 function normalizeSupabaseScope(value: string): string {

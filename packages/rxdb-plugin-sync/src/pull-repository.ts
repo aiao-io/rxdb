@@ -8,6 +8,7 @@
 import {
   compactChanges,
   declareTrustedWrite,
+  type EntityMetadata,
   type EntityType,
   getEntityMetadata,
   getOrCreateSyncRecord,
@@ -25,6 +26,7 @@ import {
   type RepositorySyncType,
   resolvePullIneligibility,
   type RuleGroup,
+  type RxDB,
   RxDBChange,
   RxDBDependencyFailedError,
   RxDBError,
@@ -204,33 +206,8 @@ async function _pullRepositoryImpl(
     throw new RxDBError(`Cannot pull repository ${namespace}:${entity}: ${ineligible}.`);
   }
 
-  // 对于 Filter 同步类型，从配置中提取 filter 函数并执行
-  let effectiveFilter = opts.filter;
-  if (syncType === 'filter' && !effectiveFilter) {
-    // 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter
-    const syncConfig = getSyncConfig(metadata, sm.rxdb.entitySync) as {
-      type: string;
-      remote?: { filter?: () => RuleGroup };
-    };
-    if (syncConfig?.remote?.filter) {
-      // T022: filter 函数执行错误处理
-      try {
-        effectiveFilter = syncConfig.remote.filter();
-      } catch (error) {
-        throw new RxDBError(
-          `Filter function failed for ${namespace}:${entity}: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-
-      // T023: RuleGroup 验证逻辑
-      if (effectiveFilter && !isValidRuleGroup(effectiveFilter)) {
-        throw new RxDBError(
-          `Invalid RuleGroup returned by filter function for ${namespace}:${entity}: ` +
-            `RuleGroup must have 'combinator' ('and' | 'or') and 'rules' array properties.`
-        );
-      }
-    }
-  }
+  // 对于 Filter 同步类型，调用方没给 filter 时从配置中提取 filter 函数并执行
+  const effectiveFilter = opts.filter ?? resolveConfiguredFilter(sm.rxdb, metadata, syncType);
 
   // 创建带有 filter 的选项
   const optsWithFilter = { ...opts, filter: effectiveFilter };
@@ -426,6 +403,52 @@ async function pullCascadeNode(
       failures: [{ repository: repo, error: cause }]
     };
   }
+}
+
+/**
+ * 实体配置的同步规则：`SyncType.Filter` 的 `remote.filter()` 的结果，其他同步类型没有规则
+ *
+ * @param rxdb - RxDB 实例
+ * @param metadata - 实体元数据
+ * @param syncType - 实体生效的同步类型
+ * @returns 同步规则；不是 filter 同步或没配 filter 函数时为 `undefined`
+ * @throws {@link RxDBError} filter 函数抛错，或返回的不是合法的 RuleGroup
+ *
+ * @remarks
+ * 取生效配置而不是装饰器原值：实例覆盖可能换掉了 filter。`pull()` 与按区状态查询都用它，
+ * 两处才会落在同一个规则指纹的分区进度上。
+ *
+ * @internal
+ */
+export function resolveConfiguredFilter(
+  rxdb: RxDB,
+  metadata: EntityMetadata,
+  syncType: RepositorySyncType
+): RuleGroup | undefined {
+  if (syncType !== 'filter') return undefined;
+  const syncConfig = getSyncConfig(metadata, rxdb.entitySync) as {
+    type: string;
+    remote?: { filter?: () => RuleGroup };
+  };
+  const filterFn = syncConfig?.remote?.filter;
+  if (!filterFn) return undefined;
+
+  const repoKey = `${metadata.namespace}:${metadata.name}`;
+  let filter: RuleGroup;
+  try {
+    filter = filterFn();
+  } catch (error) {
+    throw new RxDBError(
+      `Filter function failed for ${repoKey}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  if (filter && !isValidRuleGroup(filter)) {
+    throw new RxDBError(
+      `Invalid RuleGroup returned by filter function for ${repoKey}: ` +
+        `RuleGroup must have 'combinator' ('and' | 'or') and 'rules' array properties.`
+    );
+  }
+  return filter;
 }
 
 /**

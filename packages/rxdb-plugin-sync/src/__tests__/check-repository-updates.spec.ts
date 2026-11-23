@@ -3,6 +3,7 @@ import {
   type EntityMetadata,
   type EntityType,
   type IRepository,
+  type RuleGroup,
   type RxDB,
   RxDBBranch,
   RxDBSync,
@@ -12,6 +13,8 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { checkRepositoryUpdates } from '../check-repository-updates.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
+import { RxDBSyncBucketProgress } from '../scoped-sync.entity.js';
+import { filterFingerprint } from '../scoped-sync.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
@@ -374,6 +377,105 @@ describe('checkRepositoryUpdates', () => {
 
       expect(harness.syncUpdate).not.toHaveBeenCalled();
       expect(harness.getChangeCount).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('checkRepositoryUpdates：按区同步的实体', () => {
+  const ACTIVE: RuleGroup = { combinator: 'and', rules: [{ field: 'active', operator: '=', value: true }] };
+  const BucketedEntity = createEntityType('CheckBucketed', {
+    type: SyncType.Filter,
+    local: LOCAL_ADAPTER,
+    remote: { ...REMOTE_ADAPTER, filter: () => ACTIVE }
+  } as SyncOptions);
+
+  const progress = (fingerprint: string, cursor: number, bucket = 'public'): RxDBSyncBucketProgress =>
+    Object.assign(Object.create(RxDBSyncBucketProgress.prototype) as RxDBSyncBucketProgress, {
+      namespace: 'public',
+      entity: 'CheckBucketed',
+      branchId: 'main',
+      bucket,
+      filterFingerprint: fingerprint,
+      cursor,
+      snapshotComplete: true
+    });
+
+  const createBucketedHarness = (
+    progresses: RxDBSyncBucketProgress[],
+    snapshotPoint: number,
+    pointsByBucket: Readonly<Record<string, number>> = { public: snapshotPoint }
+  ) => {
+    const repositories = new Map<unknown, unknown>([
+      [RxDBSync, { find: vi.fn(async () => []) }],
+      [RxDBSyncBucketProgress, { find: vi.fn(async () => progresses) }]
+    ]);
+    const localAdapter = { getRepository: vi.fn((EntityClass: unknown) => repositories.get(EntityClass)) };
+    const remoteAdapter = {
+      backendId: vi.fn(async () => 'backend-a'),
+      getChangeCount: vi.fn(),
+      getCallerBuckets: vi.fn(async () => Object.keys(pointsByBucket)),
+      getEntitySyncInfo: vi.fn(async () => ({ bucketed: true })),
+      getBucketSnapshotPoint: vi.fn(
+        async (_namespace: string, _entity: string, bucket: string) => pointsByBucket[bucket]
+      )
+    };
+    const syncManager = {
+      getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+      getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
+      getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter }))
+    };
+    const rxdb = {
+      entitySync: createEntitySyncResolver(FULL_SYNC),
+      config: { entities: [BucketedEntity], sync: FULL_SYNC },
+      syncState: { reportError: vi.fn() },
+      ...noIdentityDeclared,
+      syncManager
+    } as unknown as RxDB;
+    Object.assign(syncManager, { rxdb });
+    return { rxdb, remoteAdapter };
+  };
+
+  it('同步规则改过、旧指纹的进度还没清：只按 pull() 会用的那份规则的进度算', async () => {
+    const current = filterFingerprint(ACTIVE);
+    // 旧规则（不带 filter）那份进度停在 3，当前规则的进度已追到水位 10
+    const harness = createBucketedHarness([progress('all', 3), progress(current, 10)], 10);
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
+      repository: { namespace: 'public', entity: 'CheckBucketed' },
+      remoteLatestChangeId: 10,
+      localLastPullRemoteChangeId: 10,
+      pendingCount: 0,
+      hasUpdates: false
+    });
+    expect(harness.remoteAdapter.getBucketSnapshotPoint).toHaveBeenCalledWith('public', 'CheckBucketed', 'public', [
+      'main'
+    ]);
+    expect(harness.remoteAdapter.getChangeCount).not.toHaveBeenCalled();
+  });
+
+  it('一个区拉失败、停在旧游标：别的区游标再大，也照样报有更新', async () => {
+    const current = filterFingerprint(ACTIVE);
+    const harness = createBucketedHarness([progress(current, 10, 'public'), progress(current, 3, 'tenant:1')], 10, {
+      public: 10,
+      'tenant:1': 8
+    });
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
+      repository: { namespace: 'public', entity: 'CheckBucketed' },
+      remoteLatestChangeId: 10,
+      localLastPullRemoteChangeId: 10,
+      pendingCount: 5,
+      hasUpdates: true
+    });
+  });
+
+  it('当前规则还没有进度：下一次拉取要先补快照，算有更新', async () => {
+    const harness = createBucketedHarness([progress('all', 10)], 10);
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toMatchObject({
+      localLastPullRemoteChangeId: null,
+      pendingCount: 1,
+      hasUpdates: true
     });
   });
 });

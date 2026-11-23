@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { createHash } from 'node:crypto';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -20,8 +21,78 @@ function rowsOf(ops: MutationTableOps[] | undefined): Record<string, unknown>[] 
   return (ops ?? []).flatMap(op => op.data ?? []);
 }
 
+/** 打开 Todo 页，等到能拉取：匿名会话已经建好，本地库已经按会话身份打开 */
+async function openTodoPage(target: Page): Promise<void> {
+  await target.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+  await expect(target.getByRole('button', { name: 'Pull' })).toBeEnabled({ timeout: 60_000 });
+}
+
+/**
+ * 这个浏览器上下文按会话身份应当打开的库名（US-035）
+ *
+ * @remarks
+ * 在测试进程里独立算一遍：会话里的用户 id + 项目 URL 的 origin，取 SHA-256 的前 16 位，
+ * 与 `getRxDBIdentityDatabaseName('dev-rxdb-supabase', identity)` 同一口径。
+ */
+async function expectedDatabaseName(target: Page): Promise<string> {
+  const userId = await target.evaluate(() => {
+    const key = Object.keys(localStorage).find(name => /^sb-.+-auth-token$/.test(name));
+    const stored = key === undefined ? null : localStorage.getItem(key);
+    if (stored === null) return null;
+    return (JSON.parse(stored) as { user?: { id?: string } }).user?.id ?? null;
+  });
+  expect(userId).toBeTruthy();
+  const projectUrl = process.env['VITE_SUPABASE_URL'];
+  if (!projectUrl) throw new Error('VITE_SUPABASE_URL is required to compute the expected database name');
+  const scope = new URL(projectUrl).origin;
+  const key = createHash('sha256')
+    .update(JSON.stringify(['rxdb-identity', 1, scope, userId]))
+    .digest('hex');
+  return `dev-rxdb-supabase-${key.slice(0, 16)}`;
+}
+
+/** 这个浏览器上下文的本地存储里出现过的名字：OPFS 的全部条目与 IndexedDB 的库名 */
+function storedNames(target: Page): Promise<string[]> {
+  return target.evaluate(async () => {
+    type Entry = { kind: 'file' | 'directory' };
+    type Directory = Entry & { entries(): AsyncIterable<[string, Entry]> };
+    const names: string[] = [];
+    const walk = async (directory: Directory, prefix: string): Promise<void> => {
+      for await (const [name, handle] of directory.entries()) {
+        names.push(`${prefix}${name}`);
+        if (handle.kind === 'directory') await walk(handle as Directory, `${prefix}${name}/`);
+      }
+    };
+    await walk((await navigator.storage.getDirectory()) as unknown as Directory, '');
+    const databases = await indexedDB.databases();
+    return [...names, ...databases.map(database => database.name ?? '')];
+  });
+}
+
 if (isRemoteE2E) {
   test.describe('Supabase remote sync', () => {
+    // US-035 AC#10：两个浏览器上下文各自匿名登录，各自打开按自己会话身份算出的库
+    test('opens a separate local database per anonymous session in each browser context', async ({ browser, page }) => {
+      await openTodoPage(page);
+      const secondContext = await browser.newContext();
+      try {
+        const secondPage = await secondContext.newPage();
+        await openTodoPage(secondPage);
+
+        const first = await expectedDatabaseName(page);
+        const second = await expectedDatabaseName(secondPage);
+        expect(first).not.toBe(second);
+
+        const firstStored = await storedNames(page);
+        const secondStored = await storedNames(secondPage);
+        expect(firstStored.some(name => name.includes(first))).toBe(true);
+        expect(secondStored.some(name => name.includes(second))).toBe(true);
+        expect(firstStored.some(name => name.includes(second))).toBe(false);
+      } finally {
+        await secondContext.close();
+      }
+    });
+
     test('pushes a Todo through Supabase and pulls it into another browser context', async ({ browser, page }) => {
       const mutationRequests: string[] = [];
       page.on('request', request => {

@@ -267,7 +267,7 @@ rxdb.adapter('supabase', db => {
 ```
 
 :::tip 客户端优先
-传入 `client` 时，`supabaseUrl` 和 `supabaseKey` 会被忽略。推荐在已有 Supabase 客户端的项目中使用此方式，避免创建多个实例。
+传入 `client` 时以它为准，`supabaseKey` 不再使用。`supabaseUrl` 可以不给；给了就要与客户端指向同一个项目（按 URL 的 origin 比较），否则构造适配器时抛 `SupabaseConfigError`：调用者身份的 `scope` 取客户端的项目 URL，两边对不上时适配器不猜是哪个项目。推荐在已有 Supabase 客户端的项目中使用此方式，避免创建多个实例。
 :::
 
 :::caution 日志同步按身份与分区授权
@@ -286,7 +286,7 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
   /** Supabase API Key（通常使用 anon key） */
   supabaseKey?: string;
 
-  /** 已有的 Supabase 客户端实例（优先级高于 URL + Key） */
+  /** 已有的 Supabase 客户端实例（优先级高于 URL + Key；同时给了 supabaseUrl 时须指向同一个项目） */
   client?: SupabaseClient;
 
   /**
@@ -320,6 +320,7 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 - 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，同一 bucket 每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`、`bucket`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
 - 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行。旧日志频道只对 `authenticated` 开放，分区频道还要匹配 `rxdb_caller_buckets()`，任何频道都不开放客户端发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
 - 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条提示、不发起订阅，也就不会反复重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
+- 认不出调用者时也不订阅：令牌声称是已登录角色（如 `authenticated`）却没有 `sub`，多见于自行签发的令牌。适配器不知道该按谁的分区订阅，打一条警告后跳过；`callerIdentity()` 对这样的令牌同样拒绝回答，声明了 `identity` 的实例因此不会与远端交换数据。
 - 换了账号按新身份重建频道：用会话登录的客户端听 auth 事件；用 `accessToken` 回调的客户端没有 auth 事件，适配器在下一次同步问调用者身份、或再调 `rxdb.connect('supabase')` 时发现令牌换了主人，随即重建。
 - 库里没有 `realtime.send`（没有 Realtime 服务的部署）时通知触发器什么都不发，推送与业务写照常提交。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
@@ -604,6 +605,13 @@ INSERT INTO public.rxdb_branch_owner ("branchId", "ownerId")
 VALUES ('feature-checkout', '00000000-0000-0000-0000-000000000000')  -- 换成该分支用户的 auth.users.id
 ON CONFLICT ("branchId") DO NOTHING;
 ```
+
+分区实体的非 main 推送还要过两道检查，都在写日志之前、整批回滚：
+
+- 变更的 `entityId` 要能转成业务表 `id` 列的类型（例如 `uuid` 表收到 `not-a-uuid`），否则得到 `22P02`。
+- 变更要能定出分区：分区取 `rxdb_mutations` 记下的写后、写前快照里的 `rxdb_bucket`（快照由调用者读得到的当前行或客户端补的 `inversePatch`，加上本次的修改得出），定不出得到 `23502`；定出的分区不在 `rxdb_caller_buckets()` 里得到 `42501`。非 main 推送不以管理员权限去读业务表的行，免得这一步成了探测别人的行是否存在的通道。
+
+main 推送的分区取写完之后业务表那一行的 `rxdb_bucket`。这次写让行换了区时，旧区记一条不带内容的移除，新区记一条写入，与直接写业务表时触发器记下的一致；同一批里同一行只记一次移除。
 
 分支列表仍对全部登录者可读，分区日志按 caller buckets 过滤（见上面的适用边界）；多人共享同一分支的写入授权尚未提供。
 

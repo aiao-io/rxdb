@@ -138,6 +138,28 @@ describe('scoped sync identity helpers', () => {
     expect(() => scopedDatabaseName('   ', anon())).toThrow('non-empty base database name');
   });
 
+  it('插件的身份指纹与核心的身份键同一编码：核心报身份不匹配时给出的键，就是插件算出的指纹', async () => {
+    const rxdb = new RxDB({
+      dbName: `fingerprint-${crypto.randomUUID().slice(0, 8)}`,
+      entities: [],
+      sync: { type: SyncType.None },
+      identity: user('user-a')
+    });
+
+    const error = await rxdb
+      .assertCallerIdentity({ callerIdentity: async () => user('user-b') })
+      .catch((rejection: unknown) => rejection);
+
+    expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
+    expect(error).toMatchObject({
+      clientKey: identityFingerprint(user('user-a')),
+      foundKeys: [identityFingerprint(user('user-b'))]
+    });
+    expect(scopedDatabaseName('notes', user('user-a'))).toBe(
+      `notes-${identityFingerprint(user('user-a')).slice(0, 16)}`
+    );
+  });
+
   it('为条件范围生成顺序稳定且可区分的指纹', () => {
     const first = { combinator: 'and' as const, rules: [{ field: 'tenantId', operator: '=', value: 'tenant-1' }] };
     const same = { combinator: 'and' as const, rules: [{ value: 'tenant-1', operator: '=', field: 'tenantId' }] };

@@ -14,6 +14,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pullBucketedRepositoryIfSupported } from '../bucketed-pull.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from '../scoped-sync.entity.js';
 import type { SyncManager } from '../SyncManager.js';
 
@@ -575,5 +576,28 @@ describe('bucketed pull', () => {
     ]);
     expect(harness.entities).toEqual([]);
     expect(harness.mappings).toEqual([]);
+  });
+  it('快照翻到第二页时远端换了身份：这一页不落库，已落库的页连同进度一起清掉，分区记为失败', async () => {
+    const harness = createHarness({
+      buckets: ['public'],
+      snapshotRows: { public: [row('a'), row('b'), row('c')] },
+      changes: {},
+      snapshotPoint: 1
+    });
+    const mismatch = new RemoteBackendMismatchError('backend-rebuilt', ['backend-test']);
+    // 入口、快照点之后、第一页之后各核对一次，第二页之后对不上
+    vi.mocked(harness.sm.verifyRemoteBackend)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(mismatch);
+
+    const result = await pull(harness, undefined, 1);
+
+    expect(result?.failures.map(failure => failure.error)).toEqual([mismatch]);
+    expect(harness.adapter.pullBucketSnapshot).toHaveBeenCalledTimes(2);
+    expect(harness.entities).toEqual([]);
+    expect(harness.mappings).toEqual([]);
+    expect(harness.progress).toEqual([]);
   });
 });

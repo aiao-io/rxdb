@@ -10,7 +10,7 @@
  */
 
 import { RxDB, RxDBBranch, RxDBChange, RxDBError, RxDBPartialSyncError, WorktreeTableSet } from '@aiao/rxdb';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
 
@@ -228,6 +228,28 @@ describe('SyncManager 对协作模块的编排契约', () => {
     expect(removeUpdate).toHaveBeenCalledOnce();
     expect(unsubscribeResume).toHaveBeenCalledOnce();
     expect(unsubscribeStatus).toHaveBeenCalledOnce();
+  });
+
+  // 断连或销毁实例时插件拆掉管理器。之后还在等适配器的在途操作（响应晚到的拉取）不能悬着：
+  // 这个管理器不会再有属于它的连接
+  it('destroy 之后，还在等适配器的在途操作与之后的调用都以 RxDBError 结束', async () => {
+    const harness = createHarness();
+    Object.assign(harness.rxdb, { localAdapter$: NEVER, remoteAdapter$: NEVER });
+
+    const waitingLocal = harness.manager.getLocalRepositories();
+    const waitingRemote = harness.manager.getRemoteRepositories();
+    harness.manager.destroy();
+
+    await expect(waitingLocal).rejects.toBeInstanceOf(RxDBError);
+    await expect(waitingRemote).rejects.toBeInstanceOf(RxDBError);
+    await expect(harness.manager.getRemoteRepositories()).rejects.toBeInstanceOf(RxDBError);
+  });
+
+  it('适配器在本纪元内就绪：照常交出系统表仓库', async () => {
+    const harness = createHarness();
+
+    await expect(harness.manager.getLocalRepositories()).resolves.toMatchObject({ adapter: harness.localAdapter });
+    await expect(harness.manager.getRemoteRepositories()).resolves.toMatchObject({ adapter: harness.remoteAdapter });
   });
 
   // 在飞登记处的主人在历史侧（push 与 undo 唯一的会合点），本管理器只是把桥上那一个转出去。

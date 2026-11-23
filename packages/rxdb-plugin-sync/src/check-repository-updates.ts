@@ -6,11 +6,12 @@
  * User Story 2: 按需同步
  */
 
-import { getEntityMetadata, needsPull, type RepositoryIdentifier, type RxDB, RxDBSync } from '@aiao/rxdb';
+import { getEntityMetadata, getSyncType, needsPull, type RepositoryIdentifier, type RxDB, RxDBSync } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
+import { resolveConfiguredFilter } from './pull-repository.js';
 import { assertRemoteBackend } from './remote-backend.js';
 import { RxDBSyncBucketProgress } from './scoped-sync.entity.js';
-import type { ScopedSyncAdapter } from './scoped-sync.js';
+import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
 export type { RepositoryIdentifier };
@@ -144,12 +145,16 @@ export async function checkRepositoryUpdates(
     const buckets = [...new Set(await scopedRemote.getCallerBuckets())];
     // 水位与拉取同口径：拉取只拉当前分支及其祖先，别的分支写进同一个 bucket 不算待拉
     const ancestorBranchIds = await getAncestorBranchIds(sm, branchId);
+    // 进度按同步规则指纹分开记：规则改过、旧指纹的进度还没清（某个区拉失败时会留下）时，只看 pull() 会用的那一份
+    const fingerprint = filterFingerprint(
+      resolveConfiguredFilter(rxdb, metadata, getSyncType(metadata, rxdb.entitySync))
+    );
     let pendingCount = 0;
     let latestChangeId = 0;
     let localCursor: number | null = null;
 
     for (const bucket of buckets) {
-      const progress = progresses.find(item => item.bucket === bucket);
+      const progress = progresses.find(item => item.bucket === bucket && item.filterFingerprint === fingerprint);
       const remotePoint = await scopedRemote.getBucketSnapshotPoint(namespace, entity, bucket, ancestorBranchIds);
       latestChangeId = Math.max(latestChangeId, remotePoint);
       if (progress) localCursor = Math.max(localCursor ?? 0, progress.cursor);

@@ -238,8 +238,10 @@ async function pullBucketScope(
     progress = undefined;
   }
 
+  // 远端身份的核对与通用拉取同一口径：入口核对一次（pullBucketedRepository），之后每次远端往返之后、
+  // 落库之前再核对一次。前后两次都是同一个远端，夹在中间的那次往返才算数；上一次往返之后的核对
+  // 就是下一次往返之前的核对，落库只动本地，不必在它前后再问一遍
   if (!progress) {
-    await sm.verifyRemoteBackend();
     const snapshotPoint = await remoteAdapter.getBucketSnapshotPoint(
       scope.namespace,
       scope.entity,
@@ -275,7 +277,6 @@ async function pullBucketScope(
 
   while (!progress.snapshotComplete) {
     try {
-      await sm.verifyRemoteBackend();
       const rows = await remoteAdapter.pullBucketSnapshot(
         scope.namespace,
         scope.entity,
@@ -299,7 +300,6 @@ async function pullBucketScope(
         filter,
         conflictResolver
       );
-      await sm.verifyRemoteBackend();
       applied += result.applied;
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
@@ -316,7 +316,6 @@ async function pullBucketScope(
   let cursor = progress.cursor;
   try {
     do {
-      await sm.verifyRemoteBackend();
       const changes = await pullScopedAncestorChanges(
         remoteAdapter,
         cursor,
@@ -346,7 +345,6 @@ async function pullBucketScope(
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
       progress = result.progress;
-      await sm.verifyRemoteBackend();
       cursor = progress.cursor;
     } while (hasMore && options.fetchAll);
   } catch (error) {

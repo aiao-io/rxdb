@@ -14,7 +14,7 @@ import {
   SyncResult
 } from '@aiao/rxdb';
 import type { PushInFlightRegistry, SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
-import { Subscription } from 'rxjs';
+import { ReplaySubject, Subscription } from 'rxjs';
 import { bulkSync, type BulkSyncOptions, type BulkSyncResult } from './bulk-sync.js';
 import { checkRepositoryUpdates, type CheckRepositoryUpdatesResult } from './check-repository-updates.js';
 import { cleanupExpired, type CleanupExpiredOptions, type CleanupExpiredResult } from './cleanup-expired.js';
@@ -69,6 +69,8 @@ export class SyncManager {
   #subscriptions: Subscription[] = [];
   #branch_switch_generation = 0;
   #remote_backend_id: string | null = null;
+  /** 本纪元结束的信号，见 {@link SyncManager.destroy}；重放，结束之后才开始等的调用同样立刻收到 */
+  readonly #ended$ = new ReplaySubject<void>(1);
 
   /**
    * 「哪些变更此刻正在飞往远端」的登记处。
@@ -137,7 +139,13 @@ export class SyncManager {
     }
   }
 
-  /** 拆掉 {@link init} 装上的全部监听与订阅 */
+  /**
+   * 拆掉 {@link init} 装上的全部监听与订阅，并结束本纪元
+   *
+   * @remarks
+   * 断连或销毁实例时由插件调用。之后还在等适配器的在途操作（例如响应晚到的拉取）以 RxDBError 结束：
+   * 本实例不会再有属于它的连接，一直等只会让调用方的 Promise 永远悬着。
+   */
   destroy() {
     for (const remove of this.#event_removers) {
       remove();
@@ -147,16 +155,18 @@ export class SyncManager {
       sub.unsubscribe();
     }
     this.#subscriptions.length = 0;
+    this.#ended$.next();
+    this.#ended$.complete();
   }
 
-  /** 取本地适配器上的系统表仓库 */
+  /** 取本地适配器上的系统表仓库；本纪元结束之后抛 RxDBError */
   async getLocalRepositories() {
-    return getLocalSystemRepositories(this.rxdb);
+    return getLocalSystemRepositories(this.rxdb, this.#ended$);
   }
 
-  /** 取远端适配器上的系统表仓库 */
+  /** 取远端适配器上的系统表仓库；本纪元结束之后抛 RxDBError */
   async getRemoteRepositories() {
-    return getRemoteSystemRepositories(this.rxdb);
+    return getRemoteSystemRepositories(this.rxdb, this.#ended$);
   }
 
   /**

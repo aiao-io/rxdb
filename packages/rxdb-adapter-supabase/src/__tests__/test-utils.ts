@@ -27,13 +27,13 @@ const base64Url = (bytes: Uint8Array): string =>
 
 const encodeJson = (value: object): string => base64Url(new TextEncoder().encode(JSON.stringify(value)));
 
-async function signAccessToken(userId: string): Promise<string> {
+async function signAccessToken(userId: string, lifetimeSeconds = 24 * 60 * 60): Promise<string> {
   const secret = import.meta.env['VITE_SUPABASE_JWT_SECRET'] || '';
   if (!secret) {
     throw new Error('VITE_SUPABASE_JWT_SECRET 缺失，无法签发测试用的 authenticated 令牌');
   }
   const now = Math.floor(Date.now() / 1000);
-  const claims = { sub: userId, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 24 * 60 * 60 };
+  const claims = { sub: userId, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + lifetimeSeconds };
   const unsigned = `${encodeJson({ alg: 'HS256', typ: 'JWT' })}.${encodeJson(claims)}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
@@ -58,6 +58,16 @@ export function signTestAccessToken(userId: string = TEST_USER_ID): Promise<stri
     accessTokens.set(userId, token);
   }
   return token;
+}
+
+/**
+ * 同一个用户刷新之后的令牌：`sub` 不变，签名与过期时间都和 {@link signTestAccessToken} 签的那一张不同。
+ *
+ * @param userId - 令牌的 `sub`
+ * @returns 每次调用都新签一张，不缓存
+ */
+export function signRefreshedTestAccessToken(userId: string = TEST_USER_ID): Promise<string> {
+  return signAccessToken(userId, 12 * 60 * 60);
 }
 
 /**

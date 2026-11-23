@@ -69,6 +69,7 @@ CASES=(
   production-change-grants
   bucketed-read-sync
   bucketed-push
+  bucketed-guards
   anon-sync-protocol
   branch-ownership
   realtime-notifications

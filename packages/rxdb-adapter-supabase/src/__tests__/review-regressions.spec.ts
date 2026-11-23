@@ -1465,6 +1465,69 @@ describe('supabase review regressions', () => {
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it('auth 事件带来读不出是谁的令牌：不在回调里抛错，退订旧身份的频道，下一次合法令牌照常重建', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const tokenB = testJwt({ role: 'authenticated', sub: 'user-b' });
+    // 声称已登录却没有 sub：手工注入的会话可能是这个形状
+    const unidentified = testJwt({ role: 'authenticated' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const topics: string[] = [];
+    const channel = vi.fn((topic: string) => {
+      topics.push(topic);
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public', realtime.accessTokenValue === tokenA ? 'user:user-a' : 'user:user-b']
+        : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+
+    try {
+      await adapter.connect();
+      expect(channel).toHaveBeenCalledTimes(3);
+
+      realtime.accessTokenValue = unidentified;
+      expect(() => authCallbacks[0]('TOKEN_REFRESHED', { access_token: unidentified })).not.toThrow();
+      await vi.waitFor(() => expect(removeChannel).toHaveBeenCalledTimes(3));
+      await vi.waitFor(() =>
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('Cannot tell who the session token belongs to'))
+      );
+      expect(channel).toHaveBeenCalledTimes(3);
+
+      realtime.accessTokenValue = tokenB;
+      authCallbacks[0]('SIGNED_IN', { access_token: tokenB });
+      await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+      expect(topics.slice(3)).toEqual([
+        RXDB_CHANGES_TOPIC,
+        `${RXDB_CHANGES_TOPIC}:bucket:public`,
+        `${RXDB_CHANGES_TOPIC}:bucket:user:user-b`
+      ]);
+    } finally {
+      await adapter.disconnect();
+      warn.mockRestore();
+    }
+  });
+
   it('accessToken 模式没有 auth 事件：读到换了主人的令牌时重建 bucket 频道', async () => {
     const tokenFor = (user: string) => testJwt({ role: 'authenticated', sub: user });
     const userOf = (token: string | null) => (token === tokenFor('user-a') ? 'user-a' : 'user-b');

@@ -104,6 +104,29 @@ describe('callerIdentity', () => {
  * 同步插件按 `syncIdentity()` 绑定本地库，核心按 `callerIdentity()` 核对远端会话。
  * 两处编码不同，同一个令牌就有两个身份：service_role 同步下来的库会被绑成 anon，之后任何匿名访客都能通过守卫。
  */
+describe('身份的 scope', () => {
+  it('客户端报得出项目 URL：以它为准，按 origin 归一', async () => {
+    const realtime = { setAuth: vi.fn(async () => undefined), accessTokenValue: testJwt({ role: 'anon' }) };
+    const client = { realtime, supabaseUrl: 'https://project-a.supabase.co/' };
+    const adapter = new RxDBAdapterSupabase({} as RxDB, { client: client as never });
+
+    await expect(adapter.callerIdentity()).resolves.toEqual({ scope: SCOPE, subject: RXDB_ANONYMOUS_SUBJECT });
+  });
+
+  it('配置的 supabaseUrl 与客户端的项目不一致：构造时拒绝，不猜是哪个项目', () => {
+    const realtime = { setAuth: vi.fn(async () => undefined), accessTokenValue: null };
+    const client = { realtime, supabaseUrl: 'https://project-b.supabase.co' };
+
+    expect(() => new RxDBAdapterSupabase({} as RxDB, { client: client as never, supabaseUrl: SCOPE })).toThrow(
+      SupabaseConfigError
+    );
+    expect(
+      () =>
+        new RxDBAdapterSupabase({} as RxDB, { client: client as never, supabaseUrl: 'https://project-b.supabase.co/' })
+    ).not.toThrow();
+  });
+});
+
 describe('syncIdentity', () => {
   it('与 callerIdentity 同一编码：service_role 令牌不会被记成 anon', async () => {
     const { adapter } = createAdapter(testJwt({ role: 'service_role' }));
