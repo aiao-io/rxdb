@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DesktopData } from '../data/desktop-data';
+import { Preferences } from '../data/preferences';
 import type { ProtectedOperation } from '../disk/application-projection';
 import { DESKTOP, DiskPath, HOME, finderPathOf, toVmPath } from '../disk/disk-path';
 import { DiskStore } from '../disk/disk-store';
@@ -11,6 +13,7 @@ import { DesktopAppServices } from '../services/desktop-app-services';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, type DiskChange } from '../services/file-system';
+import { FinderPreferences } from '../services/finder-preferences';
 import {
   GIT_TERMINAL_VERSION,
   GitWorkbenchRuntime,
@@ -21,9 +24,11 @@ import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { configureServices } from '../testing/angular';
 import { testApps } from '../testing/desktop-apps';
+import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { FakeVm } from '../testing/fake-vm';
 import { createWindowManagerStub } from '../testing/stubs';
-import { OPEN_OSC, type GitResponse } from './coreutils';
+import { OPEN_OSC } from './coreutils';
+import type { TerminalCommandResponse } from './terminal-command';
 import { SHELL_ENV, SHELL_HOME, VirtualMachine } from './virtual-machine';
 import type { GithubTerminalRequest, GithubTerminalResult } from './workspace-git';
 
@@ -87,6 +92,9 @@ async function setup() {
   const catalog = { violation: vi.fn<(operation: ProtectedOperation) => string | null>(() => null) };
   configureServices([
     VirtualMachine,
+    FinderPreferences,
+    Preferences,
+    { provide: DesktopData, useValue: new FakeDesktopData() },
     { provide: FileSystem, useValue: disk },
     { provide: DesktopAppServices, useValue: { get: () => workspace } },
     { provide: FileOpener, useValue: opener },
@@ -97,6 +105,7 @@ async function setup() {
   ]);
   return {
     machine: TestBed.inject(VirtualMachine),
+    finderPreferences: TestBed.inject(FinderPreferences),
     store,
     vm,
     vivari,
@@ -148,7 +157,7 @@ describe('VirtualMachine 开机与关机', () => {
     });
   });
 
-  it('第一次 acquire 开机：给 shell 打补丁、装上 touch/mv/cp/open/git，并把磁盘复制进虚拟机', async () => {
+  it('第一次 acquire 开机：给 shell 打补丁、装上补充命令，并把磁盘复制进虚拟机', async () => {
     const { machine, vm, vivari } = await setup();
     expect(await machine.acquire()).toBe(vivari);
     expect(mocks.boot).toHaveBeenCalledExactlyOnceWith({ serviceWorkerUrl: false });
@@ -157,6 +166,7 @@ describe('VirtualMachine 开机与关机', () => {
     expect(written.get('/bin/sh.js')).toBe('patched:SHELL-SOURCE');
     expect([...written.keys()].sort()).toEqual([
       '/bin/cp.js',
+      '/bin/defaults.js',
       '/bin/git.js',
       '/bin/mv.js',
       '/bin/open.js',
@@ -164,7 +174,8 @@ describe('VirtualMachine 开机与关机', () => {
       '/bin/touch.js'
     ]);
     expect(written.get('/bin/open.js')).toContain(`openOsc: ${OPEN_OSC}`);
-    expect(written.get('/bin/git.js')).toContain('AIAO_GIT_CHANNEL');
+    expect(written.get('/bin/git.js')).toContain('(process, "git")');
+    expect(written.get('/bin/defaults.js')).toContain('(process, "defaults")');
     expect(written.get('/bin/open.js')).toContain('{"id":"finder","bundleId":"io.test.finder","name":"Finder"}');
     expect(written.get('/bin/open.js')).not.toContain('Launchpad');
     expect(decode(await vm.read(toVmPath(NOTE)))).toBe('hello');
@@ -393,24 +404,71 @@ describe('VirtualMachine 预装应用保护', () => {
   });
 });
 
+function terminalChannel(name: string) {
+  const channel = new BroadcastChannel(name);
+  let pid = 0;
+  const run = (args: readonly string[], cwd = SHELL_HOME): Promise<TerminalCommandResponse> => {
+    const id = ++pid;
+    return new Promise(resolve => {
+      const receive = ({ data }: MessageEvent<TerminalCommandResponse & { pid: number }>) => {
+        if (data.pid !== id) return;
+        channel.removeEventListener('message', receive);
+        resolve(data);
+      };
+      channel.addEventListener('message', receive);
+      channel.postMessage({ pid: id, args, cwd });
+    });
+  };
+  return { channel, run };
+}
+
+describe('VirtualMachine 终端里的 defaults', () => {
+  const operands = ['write', 'com.apple.finder', 'AppleShowAllFiles'];
+
+  it('命令与 Finder 使用同一项布尔偏好，写完才报告成功', async () => {
+    const { machine, finderPreferences } = await setup();
+    await machine.acquire();
+    const { run } = terminalChannel(machine.shellEnv.AIAO_DEFAULTS_CHANNEL);
+
+    expect(finderPreferences.showHiddenFiles()).toBe(false);
+    await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({ exitCode: 0, stderr: '' });
+    expect(finderPreferences.showHiddenFiles()).toBe(true);
+
+    await expect(run([...operands, '-bool', 'false'])).resolves.toMatchObject({ exitCode: 0, stderr: '' });
+    expect(finderPreferences.showHiddenFiles()).toBe(false);
+    await expect(run([...operands, '-boolean', 'YES'])).resolves.toMatchObject({ exitCode: 0 });
+    expect(finderPreferences.showHiddenFiles()).toBe(true);
+    await expect(run([...operands, '-boolean', 'NO'])).resolves.toMatchObject({ exitCode: 0 });
+    expect(finderPreferences.showHiddenFiles()).toBe(false);
+  });
+
+  it('拒绝其他偏好和非法布尔值，写入失败后仍可重试', async () => {
+    const { machine, finderPreferences } = await setup();
+    await machine.acquire();
+    const { run } = terminalChannel(machine.shellEnv.AIAO_DEFAULTS_CHANNEL);
+    const write = vi.spyOn(finderPreferences, 'setShowHiddenFiles').mockRejectedValueOnce(new Error('disk full'));
+
+    for (const args of [
+      [...operands, '-bool', 'maybe'],
+      [...operands, '-string', 'true'],
+      ['write', 'other.domain', 'AppleShowAllFiles', '-bool', 'true'],
+      ['write', 'com.apple.finder', 'OtherKey', '-bool', 'true']
+    ])
+      await expect(run(args)).resolves.toMatchObject({ exitCode: 64, stderr: expect.stringContaining('usage:') });
+    expect(write).not.toHaveBeenCalled();
+
+    await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({ exitCode: 1, stderr: 'defaults: disk full' });
+    expect(finderPreferences.showHiddenFiles()).toBe(false);
+    await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({ exitCode: 0 });
+    expect(finderPreferences.showHiddenFiles()).toBe(true);
+  });
+});
+
 describe('VirtualMachine 终端里的 git', () => {
   async function terminal() {
     const context = await setup();
     await context.machine.acquire();
-    const channel = new BroadcastChannel(context.machine.shellEnv.AIAO_GIT_CHANNEL);
-    let pid = 0;
-    const git = (args: string[], cwd = SHELL_HOME): Promise<GitResponse> => {
-      const id = ++pid;
-      return new Promise(resolve => {
-        const receive = ({ data }: MessageEvent<GitResponse & { pid: number }>) => {
-          if (data.pid !== id) return;
-          channel.removeEventListener('message', receive);
-          resolve(data);
-        };
-        channel.addEventListener('message', receive);
-        channel.postMessage({ pid: id, args, cwd });
-      });
-    };
+    const { channel, run: git } = terminalChannel(context.machine.shellEnv.AIAO_GIT_CHANNEL);
     return { ...context, channel, git };
   }
 

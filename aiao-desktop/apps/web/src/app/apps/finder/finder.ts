@@ -52,7 +52,7 @@ import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../
 import { isKeyboardClick, isMenuKey } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
-import { SystemState } from '../../services/system-state';
+import { FinderPreferences } from '../../services/finder-preferences';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { FileDrop } from '../../shared/file-drop';
@@ -121,7 +121,7 @@ const MIN_CONTENT_WIDTH = 400;
 export class FinderApp implements FinderCommands {
   private readonly win = inject(DesktopWindow);
   private readonly fs = inject(FileSystem);
-  private readonly showHidden = inject(SystemState).finderShowsHiddenFiles;
+  private readonly showHidden = inject(FinderPreferences).showHiddenFiles;
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly dockDrag = inject(DockDragController);

@@ -11,13 +11,13 @@ import {
   ProgramProcess,
   cpProgram,
   explain,
-  gitProgram,
   mvProgram,
   openProgram,
   parseOpenRequest,
   programSource,
   touchProgram
 } from './coreutils';
+import { runTerminalCommand, terminalCommandSource } from './terminal-command';
 
 const nodeRequire = createRequire(import.meta.url);
 /** 桌面安装命令时传进去的应用名单：稳定的 id、包标识与显示名。 */
@@ -274,14 +274,15 @@ describe('programSource', () => {
   });
 });
 
-describe.each(['安装后的源码', '函数'])('git（%s）', mode => {
-  it('请求不进入输出流，子进程只接收自己的输出与退出码', async () => {
+describe.each(['git', 'defaults'])('%s 的桌面通道', command => {
+  it.each(['安装后的源码', '函数'])('请求不进入输出流，子进程只接收自己的输出与退出码（%s）', async mode => {
     const channel = new BroadcastChannel(crypto.randomUUID());
+    const args = command === 'git' ? ['log', '--oneline'] : ['write', 'com.apple.finder', 'AppleShowAllFiles', '-bool', 'true'];
     const process: ProgramProcess = {
       stdin: { ref: vi.fn(), unref: vi.fn() },
       pid: 42,
-      argv: ['node', '/bin/git.js', 'log', '--oneline'],
-      env: { AIAO_GIT_CHANNEL: channel.name },
+      argv: ['node', `/bin/${command}.js`, ...args],
+      env: { [`AIAO_${command.toUpperCase()}_CHANNEL`]: channel.name },
       cwd: () => '/repo',
       stdout: { write: vi.fn() },
       stderr: { write: vi.fn() },
@@ -293,9 +294,9 @@ describe.each(['安装后的源码', '函数'])('git（%s）', mode => {
       const received = new Promise(resolve => {
         channel.onmessage = event => resolve(event.data);
       });
-      if (mode === '函数') gitProgram(nodeRequire, process, { explain, openOsc: OPEN_OSC, apps: APPS });
-      else new Function('require', 'process', programSource(gitProgram, APPS))(nodeRequire, process);
-      await expect(received).resolves.toEqual({ pid: 42, cwd: '/repo', args: ['log', '--oneline'] });
+      if (mode === '函数') runTerminalCommand(process, command);
+      else new Function('process', terminalCommandSource(command))(process);
+      await expect(received).resolves.toEqual({ pid: 42, cwd: '/repo', args });
       expect(process.stdout.write).not.toHaveBeenCalled();
       expect(process.exitCode).toBeUndefined();
       expect(process.stdin.ref).toHaveBeenCalledOnce();

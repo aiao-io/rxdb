@@ -4,6 +4,7 @@ import { ApplicationRegistry } from './application-registry';
 import { DesktopAppId } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
 import { HOME_PATH, PLACES } from './file-system';
+import { FinderPreferences } from './finder-preferences';
 import { MenuEntry, MenuSection, section } from './menu';
 import { PopoverService } from './popover';
 import { Session } from './session';
@@ -69,6 +70,7 @@ export class DesktopMenus {
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
   private readonly system = inject(SystemState);
+  private readonly finderPreferences = inject(FinderPreferences);
   private readonly popover = inject(PopoverService);
   private readonly desktopItems = inject(DesktopItems);
 
@@ -181,8 +183,10 @@ export class DesktopMenus {
           label: 'Show Hidden Files',
           key: '⌃⇧.',
           alternateKey: '⇧⌘.',
-          checked: this.system.finderShowsHiddenFiles(),
-          run: () => this.system.finderShowsHiddenFiles.update(shown => !shown)
+          checked: this.finderPreferences.showHiddenFiles(),
+          run: () => {
+            void this.finderPreferences.toggleShowHiddenFiles().catch((error: unknown) => this.toast.show(String(error)));
+          }
         }
       ]),
       section('Go', [

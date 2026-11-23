@@ -9,20 +9,15 @@ import { ApplicationRegistry } from '../services/application-registry';
 import { DesktopAppServices } from '../services/desktop-app-services';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
+import { FinderPreferences } from '../services/finder-preferences';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { USER_PROFILE } from '../shared/user-profile';
-import {
-  cpProgram,
-  gitProgram,
-  mvProgram,
-  openProgram,
-  parseOpenRequest,
-  programSource,
-  touchProgram
-} from './coreutils';
+import { cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
 import { DiskVmSync } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
+import { TerminalCommandChannel, terminalCommandSource } from './terminal-command';
+import { writeFinderDefaults } from './terminal-defaults';
 import { TerminalGit } from './terminal-git';
 import { vivariFs } from './vm-fs';
 
@@ -41,11 +36,12 @@ export const SHELL_ENV: Readonly<Record<string, string>> = {
   COLORTERM: 'truecolor'
 };
 
-const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram, git: gitProgram } as const;
+const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram } as const;
 
 interface Machine {
   readonly vivari: Vivari;
   readonly git: TerminalGit;
+  readonly defaults: TerminalCommandChannel;
   readonly sync: DiskVmSync;
   readonly subscription: Subscription;
   readonly ticker: ReturnType<typeof setInterval>;
@@ -65,6 +61,7 @@ interface Machine {
 export class VirtualMachine {
   private readonly injector = inject(Injector);
   private readonly fs = inject(FileSystem);
+  private readonly finderPreferences = inject(FinderPreferences);
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly wm = inject(WindowManager);
@@ -74,7 +71,11 @@ export class VirtualMachine {
   private users = 0;
   private stopping: Promise<void> = Promise.resolve();
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
-  readonly shellEnv = { ...SHELL_ENV, AIAO_GIT_CHANNEL: `aiao-git-${crypto.randomUUID()}` };
+  readonly shellEnv = {
+    ...SHELL_ENV,
+    AIAO_GIT_CHANNEL: `aiao-git-${crypto.randomUUID()}`,
+    AIAO_DEFAULTS_CHANNEL: `aiao-defaults-${crypto.randomUUID()}`
+  };
 
   /** 取得（必要时启动）虚拟机；每次成功或失败的 `acquire` 都要配一次 `release`。 */
   async acquire(): Promise<Vivari> {
@@ -194,15 +195,18 @@ export class VirtualMachine {
           return { exitCode: result.code, stdout: result.stdout.trimEnd(), stderr: result.stderr.trimEnd() };
         }
       );
+      const defaults = new TerminalCommandChannel(this.shellEnv.AIAO_DEFAULTS_CHANNEL, ({ args }) =>
+        writeFinderDefaults(args, shown => this.finderPreferences.setShowHiddenFiles(shown))
+      );
       const ticker = setInterval(() => void this.pull(), POLL_INTERVAL);
-      return { vivari, git, sync, subscription, ticker };
+      return { vivari, git, defaults, sync, subscription, ticker };
     } catch (error) {
       vivari.teardown();
       throw error;
     }
   }
 
-  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open / git。 */
+  /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上补充命令。 */
   private async install(vivari: Vivari): Promise<void> {
     const apps = Object.values(this.apps()).flatMap(app =>
       app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]
@@ -210,6 +214,8 @@ export class VirtualMachine {
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));
     for (const [name, program] of Object.entries(PROGRAMS))
       await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps));
+    for (const name of ['git', 'defaults'])
+      await vivari.fs.writeFile(`/bin/${name}.js`, terminalCommandSource(name));
   }
 
   private async shutdown(pending: Promise<Machine>): Promise<void> {
@@ -217,7 +223,7 @@ export class VirtualMachine {
     if (!machine) return;
     clearInterval(machine.ticker);
     machine.subscription.unsubscribe();
-    await machine.git.close();
+    await Promise.all([machine.git.close(), machine.defaults.close()]);
     await machine.sync
       .pull()
       .catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`));

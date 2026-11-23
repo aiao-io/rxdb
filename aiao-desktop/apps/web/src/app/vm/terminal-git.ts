@@ -8,7 +8,7 @@ import {
   type GitTerminalTree
 } from '../services/git/git-runtime';
 
-import type { GitRequest, GitResponse } from './coreutils';
+import { TerminalCommandChannel, type TerminalCommandRequest, type TerminalCommandResponse } from './terminal-command';
 import type { VmEntryKind, VmFs } from './vm-fs';
 import { resolveTerminalRequest } from './workspace-git';
 
@@ -51,47 +51,25 @@ async function collectVmTree(fs: VmFs, root: string): Promise<GitTerminalTree> {
   };
 }
 
-function isGitRequest(value: unknown): value is GitRequest {
-  const request = value as Partial<GitRequest> | null;
-  return (
-    !!request &&
-    Number.isSafeInteger(request.pid) &&
-    typeof request.cwd === 'string' &&
-    request.cwd.startsWith('/') &&
-    Array.isArray(request.args) &&
-    request.args.every(arg => typeof arg === 'string')
-  );
-}
-
-/** 同一台虚拟机上的 Git 命令依次读取、修改、写回仓库，写回后才唤醒发起命令的子进程。 */
+/** 在桌面层执行 Git 命令并写回虚拟机，避免在 Vivari 里再打包一份 Git WASM。 */
 export class TerminalGit {
-  private readonly channel: BroadcastChannel;
-  private pending = Promise.resolve();
+  private readonly channel: TerminalCommandChannel;
   private gitRuntime: Promise<GitWorkbenchRuntime> | null = null;
 
   constructor(
     name: string,
     private readonly fs: VmFs,
     private readonly sync: () => Promise<boolean>,
-    private readonly shared: (request: GitRequest, root?: string) => Promise<GitResponse>
+    private readonly shared: (request: TerminalCommandRequest, root?: string) => Promise<TerminalCommandResponse>
   ) {
-    this.channel = new BroadcastChannel(name);
-    this.channel.onmessage = ({ data }: MessageEvent<unknown>) => {
-      if (!isGitRequest(data)) return;
-      this.pending = this.pending.then(async () => {
-        const response = await this.execute(data);
-        this.channel.postMessage({ pid: data.pid, ...response });
-      });
-    };
+    this.channel = new TerminalCommandChannel(name, request => this.execute(request));
   }
 
-  async close(): Promise<void> {
-    this.channel.onmessage = null;
-    await this.pending;
-    this.channel.close();
+  close(): Promise<void> {
+    return this.channel.close();
   }
 
-  private async execute(request: GitRequest): Promise<GitResponse> {
+  private async execute(request: TerminalCommandRequest): Promise<TerminalCommandResponse> {
     try {
       const { cwd, args } = resolveTerminalRequest(request);
       if (isGitVersionRequest(args)) return { exitCode: 0, stdout: GIT_TERMINAL_VERSION, stderr: '' };

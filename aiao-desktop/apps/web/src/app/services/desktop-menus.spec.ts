@@ -2,9 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
+import { DesktopData } from '../data/desktop-data';
+import { Preferences } from '../data/preferences';
 import { configureServices } from '../testing/angular';
 import { stubViewport } from '../testing/browser';
 import { testApps } from '../testing/desktop-apps';
+import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { createWindowManagerStub } from '../testing/stubs';
 import { DESKTOP_APPS } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
@@ -17,6 +20,7 @@ import {
   type GithubTab
 } from './desktop-menus';
 import { HOME_PATH, PLACES } from './file-system';
+import { FinderPreferences } from './finder-preferences';
 import { MenuEntry, MenuSection, isMenuCommand } from './menu';
 import { PopoverService } from './popover';
 import { Session } from './session';
@@ -34,6 +38,9 @@ function setup() {
   configureServices([
     DesktopMenus,
     SystemState,
+    FinderPreferences,
+    Preferences,
+    { provide: DesktopData, useValue: new FakeDesktopData() },
     { provide: DESKTOP_APPS, useValue: testApps() },
     { provide: WindowManager, useValue: wm },
     { provide: Toast, useValue: toast },
@@ -261,7 +268,7 @@ describe('DesktopMenus Finder 菜单', () => {
     expect(target.togglePathBar).toHaveBeenCalledTimes(1);
   });
 
-  it('View：隐藏文件开关由所有 Finder 窗口共用，默认关闭', () => {
+  it('View：隐藏文件开关由所有 Finder 窗口共用，默认关闭', async () => {
     const { menus } = setup();
     const firstView = sectionOf(menus.finder(finderTarget()), 'View');
     const hiddenFiles = (entries: readonly MenuEntry[]) =>
@@ -274,11 +281,12 @@ describe('DesktopMenus Finder 菜单', () => {
     });
 
     click(firstView, 'hidden-files');
+    await vi.waitFor(() => expect(TestBed.inject(FinderPreferences).showHiddenFiles()).toBe(true));
     const otherView = sectionOf(menus.finder(finderTarget()), 'View');
     expect(hiddenFiles(otherView)?.checked).toBe(true);
 
     click(otherView, 'hidden-files');
-    expect(hiddenFiles(sectionOf(menus.finderFallback(), 'View'))?.checked).toBe(false);
+    await vi.waitFor(() => expect(hiddenFiles(sectionOf(menus.finderFallback(), 'View'))?.checked).toBe(false));
   });
 
   it('Go：前往最近使用、文稿、桌面、下载与应用程序', () => {

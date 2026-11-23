@@ -1,5 +1,5 @@
 /**
- * 补给终端的命令：Vivari 自带的 coreutils 只有 echo / cat / ls / mkdir / rm 等，没有 touch、mv、cp、open、git。
+ * 补给终端的命令：Vivari 自带的 coreutils 只有 echo / cat / ls / mkdir / rm 等，没有 touch、mv、cp、open。
  * 每个命令写成自包含的函数（不引用模块里的任何东西），安装时用 `programSource` 拼成 `/bin/<name>.js`，
  * 在虚拟机里由 Node 以 CommonJS 执行；单测里用同样的源码在宿主 Node 上跑。
  */
@@ -53,18 +53,6 @@ export interface ProgramKit {
 }
 
 export type Program = (require: (id: string) => unknown, process: ProgramProcess, kit: ProgramKit) => void;
-
-export interface GitRequest {
-  readonly pid: number;
-  readonly args: readonly string[];
-  readonly cwd: string;
-}
-
-export interface GitResponse {
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
 
 /** `open` 交给桌面的请求包含应用 id、是否在 Finder 里显示，以及绝对路径。 */
 export interface OpenRequest {
@@ -197,27 +185,6 @@ export const cpProgram: Program = (require, process, kit) => {
     }
   }
   process.exit(status);
-};
-
-/** `git` 的实际执行在桌面层完成，避免在 Vivari 里再打包一份 Git WASM。 */
-export const gitProgram: Program = (_require, process) => {
-  const name = process.env['AIAO_GIT_CHANNEL'];
-  if (!name) {
-    process.stderr.write('git: desktop connection unavailable\n');
-    return process.exit(1);
-  }
-  const channel = new BroadcastChannel(name);
-  // BroadcastChannel 不计入 Vivari 的进程句柄。引用 stdin 保持进程存活，不读取管道里的数据。
-  process.stdin.ref();
-  channel.onmessage = ({ data }: MessageEvent<GitResponse & { pid: number }>) => {
-    if (data.pid !== process.pid || typeof data.exitCode !== 'number') return;
-    channel.close();
-    if (data.stdout) process.stdout.write(`${data.stdout}\n`);
-    if (data.stderr) process.stderr.write(`${data.stderr}\n`);
-    process.exitCode = data.exitCode;
-    process.stdin.unref();
-  };
-  channel.postMessage({ pid: process.pid, args: process.argv.slice(2), cwd: process.cwd() } satisfies GitRequest);
 };
 
 export const openProgram: Program = (require, process, kit) => {

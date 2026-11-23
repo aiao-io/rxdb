@@ -20,6 +20,7 @@ export const diskTerminal = {
     'diskState.gitTabsShareIndex',
     'diskState.gitHistorySurvivesReopen',
     'diskState.finderHiddenGitDirectory',
+    'diskState.finderHiddenFilesDefaults',
     'diskState.openCommandOpensTextEdit',
     'diskState.finderFolderOnDesktop',
     'diskState.shellSeesFinderChange',
@@ -28,7 +29,7 @@ export const diskTerminal = {
   ],
   async run(session) {
     const { page } = session;
-    const { win, closeAll, appears, xtermText, runInShell, desktopIcon, openTerminal } = session.helpers;
+    const { win, closeAll, appears, disappears, xtermText, runInShell, desktopIcon, openTerminal } = session.helpers;
     await session.openDesktop();
 
     await closeAll();
@@ -274,6 +275,31 @@ export const diskTerminal = {
         () => true,
         () => false
       );
+
+    /* 内置终端写入 Finder 偏好：已打开的窗口立即更新，桌面刷新后仍有效。 */
+    const openGitProject = async () => {
+      await finder.locator('[data-place="Desktop"]').click();
+      await finder.locator('[data-name="git-smoke"]').dblclick();
+      await finder.locator('[data-name="README.md"]').waitFor();
+    };
+    const writeHiddenFiles = shown =>
+      outputOf(`defaults write com.apple.finder AppleShowAllFiles -bool ${shown} && echo DEFAULTS_${shown ? 'TRUE' : 'FALSE'}`);
+    await closeAll();
+    await page.locator('#dock .di[data-app="finder"]').click();
+    await openGitProject();
+    await openTerminal();
+    const enabled = await writeHiddenFiles(true);
+    await gitEntry.waitFor({ timeout: 5_000 });
+    await session.reloadDesktop();
+    await openGitProject();
+    const persisted = await appears(gitEntry, 5_000);
+    await openTerminal();
+    const disabled = await writeHiddenFiles(false);
+    const hidden = await disappears(gitEntry, 5_000);
+    diskState.finderHiddenFilesDefaults =
+      enabled === 'DEFAULTS_TRUE' && disabled === 'DEFAULTS_FALSE' && persisted && hidden;
+    if (!diskState.finderHiddenFilesDefaults)
+      console.error({ enabled, disabled, persisted, hidden, terminal: await xtermText() });
 
     return { terminalState, diskState };
   }

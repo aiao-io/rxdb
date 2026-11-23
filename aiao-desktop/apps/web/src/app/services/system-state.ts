@@ -26,7 +26,6 @@ export class SystemState {
   readonly highlight = signal<HighlightKey>('accent');
   readonly sidebarIcons = signal<SidebarIconSize>('medium');
   readonly scrollbars = signal<ScrollbarPolicy>('auto');
-  readonly finderShowsHiddenFiles = signal(false);
 
   readonly volume = signal(0.65);
   readonly muted = signal(false);
