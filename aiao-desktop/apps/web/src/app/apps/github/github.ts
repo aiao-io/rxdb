@@ -1609,7 +1609,6 @@ export class GithubApp {
         popup.opener = null;
         const pending = await this.auth.beginOAuth(signal);
         signal.throwIfAborted();
-        if (popup.closed) throw new Error('GitHub 授权窗口已关闭');
         const code = await waitForOAuthCode(popup, pending, signal);
         await this.auth.completeOAuth(code, pending.verifier, pending.state, signal);
       } catch (error) {

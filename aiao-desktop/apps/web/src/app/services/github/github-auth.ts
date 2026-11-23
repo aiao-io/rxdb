@@ -185,6 +185,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
 
     async beginOAuth(signal?: AbortSignal): Promise<GitHubOAuthRequest> {
       const clientId = typeof options.clientId === 'function' ? await options.clientId(signal) : options.clientId;
+      signal?.throwIfAborted();
       if (!clientId.trim()) throw new GitWorkbenchError('auth_required', 'GitHub OAuth client ID 未配置');
       const now = Date.now();
       for (const [state, pending] of pendingOAuth)

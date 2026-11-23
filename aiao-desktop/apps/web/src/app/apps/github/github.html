@@ -1076,8 +1076,8 @@
                   </button>
                   @if (historyStats().additions || historyStats().deletions) {
                     <span class="gh-commit-stats">
-                      <span>+{{ historyStats().additions }}</span>
-                      <span>−{{ historyStats().deletions }}</span>
+                      <span>+{{ numberText(historyStats().additions) }}</span>
+                      <span>−{{ numberText(historyStats().deletions) }}</span>
                     </span>
                   }
                 </div>

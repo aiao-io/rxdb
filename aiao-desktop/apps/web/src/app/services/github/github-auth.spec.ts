@@ -87,6 +87,26 @@ describe('GitHub authentication', () => {
     expect(request.verifier).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('passes OAuth cancellation into asynchronous client configuration loading', async () => {
+    let received: AbortSignal | undefined;
+    const pendingAuth = createGitHubAuth({
+      ...CONFIG,
+      clientId: signal => {
+        received = signal;
+        return new Promise<string>((_, reject) => {
+          signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+        });
+      },
+      sessionStore: store,
+      fetchFn: fetchMock
+    });
+    const controller = new AbortController();
+    const pending = pendingAuth.beginOAuth(controller.signal);
+    controller.abort(new DOMException('Sign-in cancelled', 'AbortError'));
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(received).toBe(controller.signal);
+  });
+
   it('builds a bridge callback state for the desktop origin', async () => {
     const bridgeAuth = createGitHubAuth({
       ...CONFIG,
