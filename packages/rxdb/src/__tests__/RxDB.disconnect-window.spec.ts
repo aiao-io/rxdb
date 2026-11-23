@@ -215,3 +215,104 @@ describe('被 disconnectAll() 接管的旧 disconnect() 不清理新连接', () 
     expect(created.local[1].disconnect).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * 重叠的拆卸只跑一轮（RV-01a2019db2e8711aa667e2b7b3bbc926）：全局停机、legacy 插件的 `destroy()`
+ * 与同一个实例的 `adapter.disconnect()` 各只发生一次，后到的调用方共用先到那一次的结果。
+ */
+describe('重叠的拆卸不重复销毁插件、不重复关同一个实例', () => {
+  /** 未迁移到 `lifecycle: 'scoped'` 的插件：宿主在释放作用域之后再调一次它的 `destroy()` */
+  const useLegacyPlugin = (database: RxDB, destroy: () => Promise<void> | void) =>
+    database.use(() => ({ name: 'legacyTeardownProbe', install: () => undefined, destroy }));
+
+  /** 第一次关连接卡在闸门上，再关一次就抛：不支持重入的实现，重复关闭会原样传到调用方 */
+  const holdSingleDisconnect = (adapter: MockLocalAdapter): Gate => {
+    const closing = gate();
+    adapter.disconnect
+      .mockImplementationOnce(() => closing.promise)
+      .mockRejectedValue(new Error('adapter is already closing'));
+    return closing;
+  };
+
+  it('并发的两次 disconnectAll() 共用一轮停机：插件只销毁一次，实例只关一次', async () => {
+    const { database, created } = createDatabase(['local']);
+    const destroy = vi.fn();
+    useLegacyPlugin(database, destroy);
+    await database.connect('local');
+    const closing = holdSingleDisconnect(created.local[0]);
+
+    const first = database.disconnectAll();
+    const second = database.disconnectAll();
+    await vi.waitFor(() => expect(created.local[0].disconnect).toHaveBeenCalledTimes(1));
+    closing.open();
+    await Promise.all([first, second]);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(created.local[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(database.initialized).toBe(false);
+  });
+
+  it('单点 disconnect() 卡在关连接上时 disconnectAll() 等同一次关闭，不再关第二次', async () => {
+    const { database, created } = createDatabase(['local']);
+    await database.connect('local');
+    const closing = holdSingleDisconnect(created.local[0]);
+
+    const single = database.disconnect('local');
+    await vi.waitFor(() => expect(created.local[0].disconnect).toHaveBeenCalledTimes(1));
+    const all = database.disconnectAll();
+    const probe = watch(all);
+    await tick();
+    await tick();
+    expect(probe.settled()).toBe(false);
+
+    closing.open();
+    await Promise.all([single, all]);
+    expect(created.local[0].disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('单点 disconnect() 卡在插件销毁上时 disconnectAll() 共用这一轮停机：插件只销毁一次，实例只关一次', async () => {
+    const { database, created } = createDatabase(['local']);
+    const destroying = gate();
+    const destroy = vi.fn(() => destroying.promise);
+    useLegacyPlugin(database, destroy);
+    await database.connect('local');
+
+    const single = database.disconnect('local');
+    await vi.waitFor(() => expect(destroy).toHaveBeenCalledTimes(1));
+    const all = database.disconnectAll();
+    await tick();
+    await tick();
+    destroying.open();
+    await Promise.all([single, all]);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(created.local[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(database.initialized).toBe(false);
+  });
+
+  it('共用的那次关闭失败时，两边拿到同一个错误，缓存照样清掉、可以重连', async () => {
+    const { database, created } = createDatabase(['local']);
+    await database.connect('local');
+    const failure = new Error('close boom');
+    const closing = gate();
+    created.local[0].disconnect.mockImplementation(async () => {
+      await closing.promise;
+      throw failure;
+    });
+
+    const single = database.disconnect('local');
+    await vi.waitFor(() => expect(created.local[0].disconnect).toHaveBeenCalledTimes(1));
+    const all = database.disconnectAll();
+    const probe = watch(all);
+    await tick();
+    await tick();
+    expect(probe.settled()).toBe(false);
+    closing.open();
+
+    await expect(single).rejects.toBe(failure);
+    await expect(all).rejects.toBe(failure);
+    expect(created.local[0].disconnect).toHaveBeenCalledTimes(1);
+    const fresh = await database.connect('local');
+    expect(fresh).toBe(created.local[1]);
+  });
+});
