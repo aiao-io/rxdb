@@ -745,7 +745,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     try {
       const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
       if (!result) return;
-      const label = mode === 'dueDate' ? this.t('view.columnMenu.sortDue') : this.t('view.columnMenu.sortTitle');
+      // 排序提示的 {field} 是裸字段名（提示模板自带「按」），复用详情字段的同义词键
+      const label = mode === 'dueDate' ? this.t('view.detail.due') : this.t('view.detail.title');
       this.showToast(
         result.written ?
           this.t('view.toast.sortedBy', { field: label, column: this.columnTitleOf(columnId) })
