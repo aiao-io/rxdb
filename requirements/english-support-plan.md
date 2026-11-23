@@ -20,6 +20,8 @@ GitHub 的英文 README 和贡献指南直接进入官网 `/en/`。官网根路�
 | 打开开发演示的实体页 | 三端 Chromium 都验证了英文新增按钮、规范语言 `en`，以及日期 `October 28, 2026` 和数字 `12,345.67`。 |
 | 在 AG Grid 中切换语言 | 三端 Chromium 在实体页写入同一个固定时间的 Todo，进入 AG Grid 后核对英文时间列标题、单元格日期以及 `Yes` / `No` 筛选值。原页切换至中文后再核对中文标题、日期和“是／否”。 |
 | 在 Workspace 中恢复和保存草稿 | 三端 Chromium 从英文浏览器创建草稿，核对通知、单数计数和日期，刷新后恢复；切到中文并保存，再切回英文，验证已显示的通知与主表状态更新，草稿标题保持不变。原有中文路由冒烟用例也通过。 |
+| 在 Storage 和 OPFS 中管理文件 | 三端 Chromium 验证英文上传、预览、日期和上传反馈，在页面上切换中文后核对格式与文案。OPFS 还校验文件名排序和已打开的删除确认框。原有上传、删除、重命名和覆盖取消流程按各端既有用例验证。 |
+| 查看 Todo、文件管理和树菜单的操作历史 | 三端 Chromium 验证历史操作、时间、撤销状态和关闭按钮随语言更新，`time[datetime]` 保留原值。文件管理和树菜单的简单、懒加载和虚拟滚动入口都验证了中英文按钮及侧栏开合。 |
 | 从文档复制代码 | 自动检查仓库首页、英文 Getting Started、模型定义、查询、响应式查询、写入、Vite 配置、插件编写、i18n 指南、三端框架指南和首批 12 个公共包 README 中的 TypeScript 示例。Vue 另有测试会实际编译并挂载 `useEntityChange` 的 README 示例。 |
 | 从未翻译页面跳到英文指南 | 文档链接以内容目录为根并保留 `.md`。英文单语言构建开启 Markdown、页面和锚点三种断链检查，已核对插件目录正文到编写插件、桌面迁移正文到兼容矩阵的生成链接。 |
 | 根据核心报错定位问题 | `packages/rxdb/README.md` 列出 12 个具体错误码、诊断字段及处理方法，含原有小写事务错误码。 |
@@ -46,12 +48,16 @@ React 的 6 个失败用例按原超时用单 worker 复跑全部通过，随后
 
 Workspace 改动通过三端类型检查、8 个相关项目及仓库脚本的零警告 lint，以及 6 项 Chromium 测试。文案审计检查 12 组中英文目录，其中 Workspace 的 60 个键全部匹配。
 
+Storage、OPFS 和 History 共用文件与历史文案目录。文件列表在展示层按当前语言排序，文件操作以原始路径为准。文案审计通过 14 组目录，包括文件的 88 个键和历史的 16 个键。Angular、React 和 Vue 分别验证 13、13 和 14 项 Chromium 用例，包含 History 入口的单独复跑。Storage 和 OPFS 单测分别通过 106、21 和 8 项。三个演示应用和对应 E2E 项目的类型检查通过。
+
 可重复执行的验收命令如下。
 
 ```bash
 pnpm nx run-many -t e2e -p rxdb-admin-template-angular-e2e,rxdb-admin-template-react-e2e,rxdb-admin-template-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
 pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
 pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='Workspace 草稿恢复|/workspace 能打开' --workers=1
+pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='英文浏览器|Storage Page|OPFS Page|/workspace 能打开' --workers=1
+VITEST_MAX_WORKERS=1 pnpm nx run-many -t test -p dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue --parallel=1 --run -- storage opfs
 pnpm nx run @aiao/source:test-scripts
 pnpm nx run @aiao/source:audit-i18n
 pnpm audit:api-surface
@@ -476,7 +482,7 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 - 官网 `/` 为中文，`/en/` 为英文。中英文首页、安装页和各自的搜索索引纳入 Pages 发布检查。
 - 公共包的英文说明写入 Markdown，源码注释遵循 `AGENTS.md`。
-- Admin、演示实体页、AG Grid 和 Workspace 已完成三框架英文浏览器验收。Workspace 共用 60 个中英文文案键；后续页面包括 storage、OPFS 和 history。
+- Admin、演示实体页、AG Grid、Workspace、Storage、OPFS 和 History 已完成三框架英文浏览器验收。DevTools 面板使用浏览器语言格式化文件日期，面板文案和其余演示页的专属操作文案仍待补齐。
 - 核心 README 已记录 12 个错误码。涉及既有异常消息的改动按错误类型单独评审。
 - 本地和 CI 都通过 `pnpm nx run @aiao/source:audit-i18n` 检查文案键。
 

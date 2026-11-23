@@ -45,7 +45,9 @@ export default [
             // 当源码拉进 e2e 程序（TS6059 / TS6307）。依赖边 Nx 照样从这条 import 推得出来
             '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/entity-model-parity\\.mjs$',
             '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$',
-            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/ag-grid-locale\\.mjs$'
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/ag-grid-locale\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/file-history-locale\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/workspace-locale\\.mjs$'
           ],
           depConstraints: [
             {

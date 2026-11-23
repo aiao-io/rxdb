@@ -140,7 +140,7 @@ export async function checkHistoryEntrypointsLocale(page) {
   for (const path of paths) {
     await page.goto(path);
     const historyButton = page.getByRole('button', { name: 'History', exact: true });
-    await expect(historyButton).toBeVisible();
+    await expect(historyButton, path).toBeVisible();
     await expect(sidebar.getByRole('heading', { name: 'Activity history' })).toBeVisible();
     await sidebar.getByRole('button', { name: 'Close history', exact: true }).click();
     await expect.poll(sidebarWidth).toBe(0);
@@ -151,5 +151,6 @@ export async function checkHistoryEntrypointsLocale(page) {
     await sidebar.getByRole('button', { name: '关闭历史', exact: true }).click();
     await expect.poll(sidebarWidth).toBe(0);
     await language.selectOption('en');
+    await expect(historyButton, path).toBeVisible();
   }
 }
