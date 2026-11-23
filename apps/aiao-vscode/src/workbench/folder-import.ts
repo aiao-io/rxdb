@@ -55,28 +55,34 @@ export function inferFolderTemplate(files: Readonly<Record<string, string | Uint
   return { template: 'vanilla', entry, configUsable: false };
 }
 
-/** 递归读取目录为工作台文件快照；文本按 UTF-8 解码，二进制按字节保留，`.git` 与 `node_modules` 跳过。 */
+/**
+ * 递归读取目录为工作台文件快照；文本按 UTF-8 解码，二进制按字节保留，`.git` 与 `node_modules` 跳过。
+ * 先列出全部路径，过与选择文件同一套的路径校验（规范 Git 路径、大小写冲突），通过后才读文件内容。
+ */
 export async function readFolderProject(handle: FileSystemDirectoryHandle): Promise<ImportedFolderProject> {
-  const files = Object.create(null) as Record<string, string | Uint8Array>;
-  let count = 0;
-  let totalBytes = 0;
+  const entries: { readonly path: string; readonly file: FileSystemFileHandle }[] = [];
   const walk = async (directory: FileSystemDirectoryHandle, prefix: string): Promise<void> => {
     for await (const [name, entry] of directory.entries()) {
       if (entry.kind === 'directory') {
-        if (SKIPPED_DIRECTORIES.has(name)) continue;
-        await walk(entry, `${prefix}${name}/`);
+        if (!SKIPPED_DIRECTORIES.has(name)) await walk(entry, `${prefix}${name}/`);
         continue;
       }
-      count++;
-      if (count > MAX_FILES) throw new Error(`文件夹文件数超过 ${MAX_FILES} 上限`);
-      const file = await entry.getFile();
-      totalBytes += file.size;
-      if (totalBytes > MAX_TOTAL_BYTES) throw new Error('文件夹内容超过 24 MiB 上限');
+      if (entries.length === MAX_FILES) throw new Error(`文件夹文件数超过 ${MAX_FILES} 上限`);
       const path = `${prefix}${name}`;
-      files[path] = decodeFileBytes(path, new Uint8Array(await file.arrayBuffer()));
+      assertGitPath(path);
+      entries.push({ path, file: entry });
     }
   };
   await walk(handle, '');
+  assertNoPathCollisions(entries.map(entry => entry.path));
+  const files = Object.create(null) as Record<string, string | Uint8Array>;
+  let totalBytes = 0;
+  for (const { path, file } of entries) {
+    const content = await file.getFile();
+    totalBytes += content.size;
+    if (totalBytes > MAX_TOTAL_BYTES) throw new Error('文件夹内容超过 24 MiB 上限');
+    files[path] = decodeFileBytes(path, new Uint8Array(await content.arrayBuffer()));
+  }
   return completeFolder(files);
 }
 

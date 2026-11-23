@@ -13,7 +13,7 @@ export const outputRoot = resolve(
 );
 
 /**
- * 只监听 127.0.0.1 的静态服务器托管桌面的正式构建，带跨源隔离所需的两个响应头（D-05）。
+ * 只监听 127.0.0.1 的静态服务器托管桌面的正式构建，带桌面的整套托管响应头（跨源隔离 D-05、防嵌入 D-16）。
  * 返回它的来源与关闭函数。
  */
 export function startDesktopServer({ root = outputRoot, port = 0 } = {}) {

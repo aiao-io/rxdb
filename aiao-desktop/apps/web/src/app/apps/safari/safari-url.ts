@@ -33,6 +33,17 @@ export const faviconOf = (host: string): string => `https://icons.duckduckgo.com
 /** 补全协议，用于抓取与内嵌。 */
 export const resolveUrl = (url: string): string => (/^https?:\/\//.test(url) ? url : `https://${url}`);
 
+/**
+ * 地址是否与 `origin` 同源，`url` 要已补全协议（见 `resolveUrl`）。内嵌框带 `allow-scripts allow-same-origin`：
+ * 跨源网站只是保留它们自己的来源；与桌面同源的页面却能访问父页面的存储与 DOM，还能摘掉框上的 sandbox，所以不能内嵌。
+ * 来源按 URL 标准规整（主机名大小写、默认端口、用户名密码都不影响）；解析不了的地址浏览器也加载不了，不算同源；
+ * 从磁盘打开的桌面来源是 `"null"`（不透明来源），不与任何地址匹配。
+ */
+export function isSameOrigin(url: string, origin: string): boolean {
+  if (origin === 'null' || !URL.canParse(url)) return false;
+  return new URL(url).origin === origin;
+}
+
 /** 补全协议，用于分享与「在新窗口打开」。 */
 export const externalUrl = (url: string): string => (/^https?:/.test(url) ? url : `https://${url}`);
 

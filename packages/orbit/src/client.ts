@@ -195,13 +195,18 @@ function readRefusal(data: Record<string, unknown>, channel: string): OrbitProto
 
 const connections = new WeakMap<Window, Promise<OrbitClient>>();
 
-/** 每个应用文档共用一次握手。连接参数由首次调用指定；普通网页返回 undefined。 */
+/**
+ * 每个应用文档共用一次握手。连接参数（超时、取消信号、错误回调、宿主来源准入）由首次调用指定；普通网页返回 undefined。
+ *
+ * 握手只认父窗口（`event.source`）、令牌与 `acceptHostOrigin`。令牌取自应用自己的地址参数，嵌入方自己就能指定，不是秘密：
+ * 只接受特定桌面嵌入的应用必须设置 `acceptHostOrigin`，否则任何站点嵌入本应用都能完成握手、扮演宿主。
+ */
 export async function connectOrbitClient(options: OrbitClientOptions = {}): Promise<OrbitClient | undefined> {
   if (typeof window === 'undefined' || window.parent === window) return undefined;
   const view = window;
   const existing = connections.get(view);
   if (existing) {
-    if (options.signal || options.timeout !== undefined || options.onError)
+    if (options.signal || options.timeout !== undefined || options.onError || options.acceptHostOrigin)
       throw new OrbitError('INVALID_STATE', '已有连接，不能重新指定连接参数');
     return existing;
   }
@@ -240,7 +245,16 @@ async function handshake(url: URL, channel: string, options: OrbitClientOptions)
       reject(new OrbitError('TIMEOUT', '连接桌面宿主超时'));
     }, timeout);
     const init = (event: MessageEvent<unknown>) => {
-      if (event.source !== window.parent || !isRecord(event.data)) return;
+      /* 只处理发给这次握手的消息：宿主页面的其他消息不会触发来源判定。 */
+      if (event.source !== window.parent || !isRecord(event.data) || event.data['channel'] !== channel) return;
+      try {
+        if (options.acceptHostOrigin && !options.acceptHostOrigin(event.origin)) return;
+      } catch (error) {
+        event.ports[0]?.close();
+        cleanup();
+        reject(error);
+        return;
+      }
       const refusal = readRefusal(event.data, channel);
       if (refusal) {
         cleanup();
@@ -259,7 +273,8 @@ async function handshake(url: URL, channel: string, options: OrbitClientOptions)
         if (!context) return;
         url.searchParams.delete(CHANNEL_PARAM);
         window.history.replaceState(window.history.state, '', url.href);
-        const client = new Client(context, event.ports[0]!, options);
+        /* 宿主来源只取浏览器给出的 event.origin：context 里宿主自报的任何来源都不算。 */
+        const client = new Client(Object.freeze({ ...context, hostOrigin: event.origin }), event.ports[0]!, options);
         cleanup();
         resolve(client);
       } catch (error) {

@@ -64,14 +64,24 @@ export function diskPathOf(finderPath: readonly string[]): DiskPath | null {
   return null;
 }
 
-/** 同名时在扩展名前追加序号：`untitled folder 2`、`a 2.md`。 */
+/**
+ * 同级重名的比较口径：大小写不敏感、保留大小写（像 macOS）。与数据库的唯一索引 `desktop_file_parent_name`
+ * （`normalized: true`，每列按 `lower(...)` 比较）以及树形界面的 `a.toLowerCase() === b.toLowerCase()` 同口径，
+ * 所以凡是判断「同级会不会重名」的地方都用它；按路径查找则仍然精确，两个在库里合法区分的名字不能被混成一个。
+ */
+export const foldName = (name: string): string => name.toLowerCase();
+
+/** 两个名字放在同一个文件夹里算不算重名：只在大小写上不同也算。 */
+export const sameName = (a: string, b: string): boolean => foldName(a) === foldName(b);
+
+/** 同名时在扩展名前追加序号：`untitled folder 2`、`a 2.md`；只差大小写的也算同名（`Report.txt` 与 `report.txt`）。 */
 export function uniqueName(existing: readonly string[], name: string): string {
-  const taken = new Set(existing);
-  if (!taken.has(name)) return name;
+  const taken = new Set(existing.map(foldName));
+  if (!taken.has(foldName(name))) return name;
   const dot = name.lastIndexOf('.');
   const [stem, extension] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
   let index = 2;
-  while (taken.has(`${stem} ${index}${extension}`)) index++;
+  while (taken.has(foldName(`${stem} ${index}${extension}`))) index++;
   return `${stem} ${index}${extension}`;
 }
 

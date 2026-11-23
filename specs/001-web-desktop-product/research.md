@@ -1,5 +1,7 @@
 # 实施研究与决策
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 日期：2026-11-07。结论来自仓内当前实现、需求和已安装依赖源码。
 
 | 决策                                           | 原因                                                     | 评估的替代方案                                                     |

@@ -304,6 +304,45 @@ describe('原生 iframe 运行内核', () => {
     await expect(app.request('anything')).rejects.toMatchObject({ code: 'DESTROYED' });
   });
 
+  it('应用拿到的宿主来源是浏览器给出的 event.origin，同源与跨源应用都一样', async () => {
+    const { runtime, container, options } = setup();
+    const same = runtime.createApp(options);
+    await same.mount(container);
+    expect((await inspect(same))['hostOrigin']).toBe(location.origin);
+    const cross = new URL('/test-app/app.html', inject('fixtureOrigin'));
+    const open = createOrbit({ allowedOrigins: [cross.origin] });
+    resources.push(() => open.dispose());
+    const other = open.createApp({ ...options, instanceId: crypto.randomUUID(), url: cross.href });
+    await other.mount(container);
+    expect((await inspect(other))['hostOrigin']).toBe(location.origin);
+  });
+
+  it('应用设置了宿主来源准入：来源对才能握手；来源不对的宿主发来的 init 被应用忽略，应用不会就绪', async () => {
+    const trusted = setup('trusted&trust=' + encodeURIComponent(location.origin));
+    const app = trusted.runtime.createApp(trusted.options);
+    await app.mount(trusted.container);
+    expect((await inspect(app))['hostOrigin']).toBe(location.origin);
+
+    const evil = setup('trusted&wait=300&trust=' + encodeURIComponent('https://evil.example'));
+    const notices: unknown[] = [];
+    const listen = (event: MessageEvent<unknown>) => {
+      const data = event.data as { fixture?: string } | null;
+      if (event.origin === new URL(evil.options.url).origin && data?.fixture === 'untrusted-host') notices.push(data);
+    };
+    window.addEventListener('message', listen);
+    resources.push(() => window.removeEventListener('message', listen));
+    const refused = evil.runtime.createApp({ ...evil.options, timeout: 30_000 });
+    const pending = refused.mount(evil.container);
+    void pending.catch(() => undefined);
+    await vi.waitFor(() => expect(notices).toEqual([{ fixture: 'untrusted-host', code: 'TIMEOUT' }]), {
+      timeout: 5000
+    });
+    /* 宿主这一侧已按协议发出 init，但应用没有接受：没有 ready，实例仍在启动中。 */
+    expect(refused.snapshot.state).toBe('loading');
+    refused.destroy();
+    await expect(pending).rejects.toMatchObject({ code: 'DESTROYED' });
+  });
+
   it('反复装载销毁 30 轮不遗留实例和 iframe；binding 支持 StrictMode 重挂', async () => {
     const { runtime, container, options } = setup();
     const binding = createOrbitBinding(runtime, options);

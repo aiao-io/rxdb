@@ -76,7 +76,10 @@ function randomBytes(length: number): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(length));
 }
 
-/** 用 AES-GCM 密封会话；密钥只存在内存，落盘的是随机密钥字节 + 密文。 */
+/**
+ * 用 AES-GCM 密封会话。随机密钥的原始字节与密文存在同一个 IndexedDB（`KEY_STORE` 的 `aes` 记录），
+ * 只防静态翻查存储文件时直接读到明文；同源脚本能同时读到密钥与密文，安全边界仍是同源隔离。
+ */
 async function seal<T>(keyBytes: Uint8Array<ArrayBuffer>, value: T): Promise<string> {
   const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   const iv = randomBytes(12);

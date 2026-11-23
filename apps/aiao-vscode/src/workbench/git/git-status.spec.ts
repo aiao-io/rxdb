@@ -9,6 +9,12 @@ describe('Git status rename records', () => {
     ]);
   });
 
+  it('reads an ordinary staged rename in lg2 format, which separates the two paths with a single space', () => {
+    expect(parseGitStatus('R  old.txt new.txt', ['new.txt'])).toEqual([
+      { index: 'R', worktree: ' ', path: 'new.txt', originalPath: 'old.txt' }
+    ]);
+  });
+
   it('gets the complete staged rename target from authoritative index filenames', () => {
     expect(parseGitStatus('RM old.ts new name -> final.ts', ['new name -> final.ts'])).toEqual([
       { index: 'R', worktree: 'M', path: 'new name -> final.ts', originalPath: 'old.ts' }

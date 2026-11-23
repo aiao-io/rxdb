@@ -30,7 +30,7 @@ import type { WorkbenchEditorMount } from '../workbench/editor.js';
 import { createGitBackend } from '../workbench/git-backend.js';
 import { createRouterBackend } from '../workbench/git/git-router-backend.js';
 import { desktopGitHubOAuth } from '../workbench/git/github/github-desktop-oauth.js';
-import { completeOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
+import { settleOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
 import type { GitHubService } from '../workbench/git/github/github-service.js';
 import { createGitHubService } from '../workbench/git/github/github-service.js';
 import { loadMonacoEditor } from '../workbench/monaco-loader.js';
@@ -260,12 +260,9 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const github = createGitHubService();
     if (location.pathname === '/github-callback') {
       const params = new URLSearchParams(location.search);
-      const code = params.get('code');
-      const state = params.get('state');
       void (async () => {
         try {
-          if (!code || !state) throw new Error('OAuth 回调缺少 code 或 state');
-          await completeOAuthCallback(github.auth, code, state);
+          await settleOAuthCallback(github.auth, params);
           history.replaceState({}, '', '/');
           window.close();
         } catch (error) {

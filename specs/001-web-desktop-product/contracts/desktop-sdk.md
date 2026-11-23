@@ -1,5 +1,7 @@
 # Desktop SDK v1
 
+> 本契约属于已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除）。下文写作「已实现」的入口都只存在于那个已删除的实现里，不能据此推断任何能力在现行代码中可用。现行的桌面能力协议是 `@aiao/orbit/desktop`，见 [Orbit 说明](../../../packages/orbit/README.md) 与 [Aiao Desktop 需求](../../../aiao-desktop/requirements/README.md)。
+
 传输为 Orbit 专属 MessagePort RPC，JSON 值，超时/取消/销毁行为继承内核。身份从宿主持有的实例闭包注入；载荷 appId、instanceId 不可覆盖调用者身份。响应错误包含稳定 code 和可读 message，不包含文件正文和凭据。
 
 | 请求                                                                            | 输入                                                                  | 结果与约束                                                |

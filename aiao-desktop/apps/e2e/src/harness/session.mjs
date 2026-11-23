@@ -1,17 +1,10 @@
 import { createPersistentProfile } from '../fixtures/persistent-profile.mjs';
 import { installArtifactOrigin } from './artifact-origin.mjs';
+import { collectPageErrors } from './console-failures.mjs';
 import { createHelpers } from './helpers.mjs';
 import { STANDIN_ORIGIN, installAiaoCodeStandin, installGameStandin } from './standin.mjs';
 
 export const VIEWPORT = { width: 1440, height: 900 };
-
-/**
- * 外网被拦截时资源加载失败是预期内的，不算页面错误。各引擎的措辞不同：
- * Chromium `Failed to load resource` / `ERR_FAILED`，Firefox `Cross-Origin Request Blocked` / `NetworkError` / `NS_BINDING_ABORTED`，
- * WebKit `Fetch API cannot load … due to access control checks` / `Load failed`。
- */
-const IGNORED_CONSOLE =
-  /Failed to load resource|ERR_FAILED|Cross-Origin Request Blocked|NetworkError when attempting to fetch resource|NS_BINDING_ABORTED|due to access control checks|Load failed/;
 
 /**
  * 引擎的临时（非持久）浏览器上下文有没有 OPFS。WebKit 的临时上下文等同于 Safari 的隐私浏览：
@@ -28,7 +21,9 @@ const EPHEMERAL_CONTEXT_HAS_OPFS = Object.freeze({ chromium: true, firefox: true
  * 一个检查组的运行环境：独立的浏览器上下文（独立的 OPFS、localStorage、IndexedDB）、一个页面、
  * 该页面上收集的页面错误，以及按需安装的替身应用。检查组之间不共享任何状态（ADESK-US-008）。
  *
- * 外网请求一律拦掉（桌面的来源之外全部 abort），结果稳定；任何页面错误都判检查组失败。
+ * 外网请求一律拦掉（桌面的来源之外全部 abort），结果稳定；任何页面错误都判检查组失败。外网被拦截产生的资源加载失败
+ * 是预期内的，只有确认是外部来源的才忽略，桌面自己来源的加载失败照常算页面错误（见 `console-failures.mjs`）；
+ * 测试主动让某个同源资源失败时，先用 `expectLoadFailure(地址)` 登记。
  *
  * @param {object} options
  * @param {import('playwright').Browser} options.browser
@@ -67,16 +62,10 @@ export async function createSession({
   const aiaoCode = standins.includes('aiao-code') ? await installAiaoCodeStandin(context) : null;
   const game = standins.includes('game') ? await installGameStandin(context, origin) : null;
   const errors = [];
-  /** 页面错误一律记进本检查组的 errors；主动拦截外网产生的网络控制台信息按相同规则处理。 */
-  const observePage = opened => {
-    opened.on('pageerror', error => errors.push(error.message));
-    opened.on('console', message => {
-      if (message.type() !== 'error' || IGNORED_CONSOLE.test(message.text())) return;
-      const { url, lineNumber } = message.location();
-      errors.push(url ? `${message.text()}（${url.replace(origin, '')}:${lineNumber}）` : message.text());
-    });
-    return opened;
-  };
+  /** 测试主动让它加载失败的同源资源（完整地址）：这些地址上的「资源加载失败」控制台信息不算页面错误。 */
+  const expectedLoadFailures = [];
+  /** 页面错误一律记进本检查组的 errors；主动拦截外网产生的网络控制台信息只忽略确认是外部来源的。 */
+  const observePage = opened => collectPageErrors(opened, { errors, origin, engine, expected: expectedLoadFailures });
   const openPage = async () => observePage(await context.newPage());
   const page = await openPage();
   const helpers = createHelpers(page);
@@ -95,6 +84,13 @@ export async function createSession({
     helpers,
     openPage,
     observePage,
+    /**
+     * 登记一个测试主动让它加载失败的同源资源（abort 或 404 的完整地址，与 `route` 的地址一致）。
+     * 只放过这一个地址：桌面其他同源资源的加载失败仍然是页面错误。
+     */
+    expectLoadFailure(url) {
+      expectedLoadFailures.push(url);
+    },
     /**
      * 新开一个页面并打开桌面（跳过开机动画）。多页或重开桌面的检查组用它；返回页面与绑定到该页面的常用操作。
      * `waitForFinder: false` 时只等页面加载，用于桌面起不来（例如本地数据有问题）的情形。

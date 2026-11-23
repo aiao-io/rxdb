@@ -22,6 +22,7 @@ import { parseArgs } from 'node:util';
 import { outputRoot, startDesktopServer } from './desktop-server.mjs';
 import { launchEngine } from './fixtures/engines.mjs';
 import { launchNativeChrome } from './fixtures/native-chrome.mjs';
+import { isExpectedLoadFailure } from './harness/console-failures.mjs';
 import { checkGameLifecycle } from './harness/game-lifecycle.mjs';
 
 const { values } = parseArgs({
@@ -54,9 +55,11 @@ await context.route(
 const page = native ? context.pages()[0] : await context.newPage();
 if (native) await page.setViewportSize({ width: 1440, height: 900 });
 const logs = [];
+/* 外网全部被拦截，只忽略能确认是外部来源的加载失败；桌面自己来源的资源加载失败照样记（D-04，与冒烟同一套判定）。 */
 page.on('console', message => {
-  if (['error', 'warning'].includes(message.type()) && !/Failed to load resource/.test(message.text()))
-    logs.push(`[${message.type()}] ${message.text().slice(0, 2_000)}`);
+  if (!['error', 'warning'].includes(message.type())) return;
+  const failure = { text: message.text(), url: message.location().url, origin: desktop.origin, engine: 'chromium' };
+  if (!isExpectedLoadFailure(failure)) logs.push(`[${message.type()}] ${message.text().slice(0, 2_000)}`);
 });
 page.on('pageerror', error => logs.push(`[pageerror] ${error.message}`));
 

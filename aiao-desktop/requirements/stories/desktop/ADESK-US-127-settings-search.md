@@ -50,6 +50,8 @@ capabilities: []
 
 本故事只关闭 Settings 本地分区搜索和选择联动；各面板内部完整系统 API、远程账号、权限中心和跨设备同步仍未接入。
 
+2026-11-24 分支评审修复：Sound 面板的 Mute 开关原来只改外观，现在与蓝牙、Dock 放大等开关一样双向绑定系统状态（静音状态本来就持久化，并被菜单栏与音乐合成器读取）。同一检查组新增 `settingsWorkflow.muteSwitchMutesSystem`：打开静音后菜单栏音量按钮的无障碍名称为 `Sound, muted`，再点一次恢复音量百分比。
+
 ## 技术笔记
 
 `filterSettingsGroups` 在保留分组顺序的同时过滤分区；`SettingsApp` 用信号绑定搜索框，模板只渲染可见分组，选择结果继续由现有 `findSection` 和面板切换逻辑处理。

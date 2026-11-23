@@ -20,6 +20,12 @@ export interface DiskAccess {
 /** 终端对磁盘的一种改动：删除，或写入（新建、改过的文件）。 */
 export type PulledChange = 'remove' | 'write';
 
+/** 终端里的一处改动没能写回磁盘：卷内路径与失败的原因。 */
+export interface PullFailure {
+  readonly path: DiskPath;
+  readonly error: unknown;
+}
+
 export interface SyncOptions {
   /** 卷的顶层目录，在虚拟机里挂在根目录下。 */
   readonly roots: readonly string[];
@@ -35,6 +41,12 @@ export interface SyncOptions {
   readonly veto?: (path: DiskPath, change: PulledChange) => string | null;
   /** 有改动被撤销时通知用户，参数是各条拒绝原因（已去重）。 */
   readonly onVetoed?: (reasons: readonly string[]) => void;
+  /**
+   * 终端里的改动没能写回磁盘（配额耗尽、同级只差大小写的重名……）时通知用户；同一次扫描里的失败合成一次，参数至少有一项。
+   * 失败的改动不重试：扫描基线照常推进，同一个文件的同一份内容只失败、通知这一次，要等它在终端里再次变化才会重新写回；
+   * 同一次扫描里的其它改动照常落盘。
+   */
+  readonly onFailed: (failures: readonly PullFailure[]) => void;
 }
 
 const DIRECTORY: VmStat = { kind: 'directory', size: 0, mtimeMs: 0 };
@@ -84,6 +96,10 @@ async function readTree(store: DiskStore, dir: DiskPath, ignore: (name: string) 
  * 终端里的改动靠扫描发现（Vivari 的 fs 事件不报虚拟机里进程自己的写入），写回磁盘；
  * 桌面这边的改动按路径推进去，并刷新扫描基线，所以不会被当成终端的改动再写回来。
  * 两个方向都以「当时的状态」为准，所有操作串行执行。
+ *
+ * 写回按项进行：一项写不进磁盘（配额耗尽、同级只差大小写的重名——终端的文件系统区分大小写，磁盘不区分）只算这一项失败，
+ * 经 {@link SyncOptions.onFailed} 通知一次，基线照常推进，所以同一份内容不会每轮扫描重试、重复提示；
+ * 其它改动照常落盘，虚拟机里失败的文件原样留着，等它再次变化才会重新写回。
  */
 export class DiskVmSync {
   private snapshot: VmSnapshot = new Map();
@@ -104,7 +120,7 @@ export class DiskVmSync {
     });
   }
 
-  /** 把终端自上次以来的改动写回磁盘；有改动时返回 `true`。 */
+  /** 把终端自上次以来的改动写回磁盘；有改动时返回 `true`（其中写不进去的项不抛错，经 `onFailed` 通知）。 */
   pull(): Promise<boolean> {
     return this.serial(() => this.pullChanges());
   }
@@ -136,6 +152,7 @@ export class DiskVmSync {
       return false;
     }
     const vetoed = new Map<string, string>();
+    const failed = new Map<string, unknown>();
     const permitted = (paths: readonly string[], change: PulledChange): string[] =>
       paths.filter(path => {
         const reason = this.options.veto?.(fromVmPath(path), change) ?? null;
@@ -144,51 +161,64 @@ export class DiskVmSync {
       });
     const removed = permitted(diff.removed, 'remove');
     const files = permitted(diff.files, 'write');
-    const contents = await this.readFiles(files);
-    await this.writeChanges(removed, diff.folders, contents);
+    const contents = await this.readFiles(files, failed);
+    await this.writeChanges(removed, diff.folders, contents, failed);
+    /* 失败的改动也算看过了：基线推进到这次扫描，下一轮只有终端里再次变化的文件才会再写回。 */
     this.snapshot = current;
+    if (failed.size) this.options.onFailed([...failed].map(([path, error]) => ({ path: fromVmPath(path), error })));
     for (const path of vetoed.keys()) await this.pushPath(fromVmPath(path));
     if (vetoed.size) this.options.onVetoed?.([...new Set(vetoed.values())]);
     return true;
   }
 
+  /** 逐项写回：一项失败记进 `failed` 就继续下一项，不挡住同一批里的其它改动。 */
   private async writeChanges(
     removed: readonly string[],
     folders: readonly string[],
-    contents: ReadonlyMap<string, Uint8Array>
+    contents: ReadonlyMap<string, Uint8Array>,
+    failed: Map<string, unknown>
   ): Promise<void> {
     const applied = new Set<string>();
+    const attempt = async (path: string, write: () => Promise<void>): Promise<void> => {
+      try {
+        await write();
+        applied.add(path);
+      } catch (error) {
+        failed.set(path, error);
+      }
+    };
     try {
       await this.disk.run(async store => {
-        for (const path of removed) {
-          await store.remove(fromVmPath(path));
-          applied.add(path);
-        }
-        for (const path of folders) {
-          await store.mkdir(fromVmPath(path));
-          applied.add(path);
-        }
-        for (const [path, data] of contents) {
-          await store.write(fromVmPath(path), data);
-          applied.add(path);
-        }
+        for (const path of removed) await attempt(path, () => store.remove(fromVmPath(path)));
+        for (const path of folders) await attempt(path, () => store.mkdir(fromVmPath(path)));
+        for (const [path, data] of contents) await attempt(path, () => store.write(fromVmPath(path), data));
       });
     } finally {
       if (applied.size) this.options.onPulled?.([...applied].map(fromVmPath));
     }
   }
 
-  /** 扫描之后才消失的文件跳过，下一轮扫描会把它当作删除。 */
-  private async readFiles(paths: readonly string[]): Promise<Map<string, Uint8Array>> {
+  /** 扫描之后才消失的文件跳过，下一轮扫描会把它当作删除；读不出来的记进 `failed`，不连累别的文件。 */
+  private async readFiles(paths: readonly string[], failed: Map<string, unknown>): Promise<Map<string, Uint8Array>> {
     const contents = new Map<string, Uint8Array>();
     for (const path of paths) {
-      const data = await this.vm.read(path).catch(async (error: unknown) => {
-        if ((await this.vm.stat(path)) === null) return null;
-        throw error;
-      });
-      if (data) contents.set(path, data);
+      try {
+        const data = await this.readFile(path);
+        if (data) contents.set(path, data);
+      } catch (error) {
+        failed.set(path, error);
+      }
     }
     return contents;
+  }
+
+  private async readFile(path: string): Promise<Uint8Array | null> {
+    try {
+      return await this.vm.read(path);
+    } catch (error) {
+      if ((await this.vm.stat(path)) === null) return null;
+      throw error;
+    }
   }
 
   private async pushPath(path: DiskPath): Promise<void> {

@@ -54,7 +54,7 @@ export async function listDistFiles(distDir) {
   );
 }
 
-/** `_headers` 里每个必需的响应头必须在全站规则 `/*` 里恰好出现一次，取值精确匹配。 */
+/** `_headers` 里每个必需的响应头（跨源隔离、防嵌入）必须在全站规则 `/*` 里恰好出现一次，取值精确匹配。 */
 function headerProblems(rules, requiredHeaders) {
   const problems = [];
   const named = (headers, name) => headers.filter(header => header.name.toLowerCase() === name.toLowerCase());
@@ -66,7 +66,9 @@ function headerProblems(rules, requiredHeaders) {
         `响应头 ${name} 在 _headers 里出现 ${everywhere.length} 次：Pages 会把同名响应头拼成 "a, b" 的无效值，只能在 /* 写一次`
       );
     } else if (sitewide.length === 0) {
-      problems.push(`_headers 的 /* 规则里缺少 ${name}: ${expected}（终端依赖跨源隔离，D-05）`);
+      problems.push(
+        `_headers 的 /* 规则里缺少 ${name}: ${expected}（托管必需的响应头：跨源隔离见 D-05，防嵌入见 D-16）`
+      );
     } else if (sitewide[0].value !== expected) {
       problems.push(`_headers 里 ${name} 是 ${sitewide[0].value}，应为 ${expected}`);
     }
@@ -92,7 +94,7 @@ async function vendorProblems(distDir, names) {
 }
 
 /**
- * 检查要上传的产物：入口页、跨源隔离响应头与固定版本的终端工具与运行时资源齐全。
+ * 检查要上传的产物：入口页、托管响应头（跨源隔离与防嵌入）与固定版本的终端工具与运行时资源齐全。
  *
  * @param options.distDir web 的构建产物目录
  * @param options.requiredHeaders 必需的响应头与取值
@@ -116,7 +118,9 @@ export async function checkDist({ distDir, requiredHeaders, runtimeAssets }) {
     const rules = parseHeadersFile(await readFile(path.join(distDir, '_headers'), 'utf8'));
     problems.push(...headerProblems(rules, requiredHeaders));
   } else {
-    problems.push('产物里没有 _headers：它来自 apps/web/public/_headers，缺了它线上没有跨源隔离，终端无法启动');
+    problems.push(
+      '产物里没有 _headers：它来自 apps/web/public/_headers，缺了它线上没有跨源隔离（终端无法启动）与防嵌入响应头'
+    );
   }
   problems.push(...(await vendorProblems(distDir, names)));
   problems.push(...(await runtimeProblems(path.join(distDir, 'vendor'), runtimeAssets)));

@@ -16,7 +16,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-04：外网内容可缺失
 
-照片、地图瓦片与地名搜索、天气、Safari 的原站网页、网站图标、视频嵌入与维基百科内容、网页字体，都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
+照片、地图瓦片与地名搜索、天气、Safari 的原站网页、网站图标、视频嵌入与维基百科内容、网页字体，都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过**外部来源**的资源加载失败的控制台信息：来源按消息的 `location` 或文字里的地址判定，桌面自己来源的加载失败（图标、字体、wasm、chunk 的 404）照常算页面错误；测试主动让某个同源资源失败时要先登记它的地址。Firefox 与 WebKit 里少数完全无法归属来源的消息（应用自己捕获后打印的 `NetworkError…`、`Load failed`）在 D-19 之下只是可选诊断，保留忽略；Chromium 里这类文字一律算错误。外网内容本身的显示效果不在当前验收范围内。
 
 这些请求会让第三方看到用户的 IP；Safari 直接向目标网站请求网页，地名搜索会把搜索词发给对应的第三方。每个外网主机的用途、会发送的数据和触发方式（打开应用就请求，还是用户操作后才请求）登记在代码里的清单 [external-content.ts](../apps/web/src/app/shared/external-content.ts)，主机以它为准，这里不再另列一份。「关于本机」里的 External Content 页由它渲染，web 单测会对账源码里出现的每个外网主机，新增主机必须先登记（[ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)）。清单里还登记了集成应用 Aiao Code 的线上页面（[D-10](#d-10应用分三类登记在同一张表里)），它加载失败时由自己的窗口显示原因与重试。
 
@@ -24,7 +24,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-05：终端依赖跨源隔离
 
-终端用 `@vivari/core` 在页面里运行 Node、npm 与 Python，要求页面处于 `crossOriginIsolated`：托管 web 产物的服务必须返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`。开发服务器的 development 配置、`serve-static` 与冒烟里的静态服务器都带这两个响应头；production 配置的开发服务器不带。Vivari 的 worker 与运行时资源由构建从 `node_modules/@vivari/core/dist/assets` 复制到产物的 `assets/`。 npm/npx、pnpm、Yarn 与 Corepack 的延迟加载还依赖同源 `/vendor/*-pack.bin`；`aiao-desktop-web:prepare-vendor` 按 [固定清单](../scripts/vivari/tools.json)校验源发布包的 SHA-512 并生成资源，是构建与开发的前置任务。发布前校验资源版本与完整性，不能把 SPA 回退的 HTML 当作工具资源。 Python / pip、Ruff 与 `node:sqlite` / `bun:sqlite` 的资源按[运行时清单](../scripts/vivari/runtimes.json)同源托管，输出逐文件校验 SHA-256；TypeScript 7 使用固定 tsgo-wasm 发布包，按上游规则提取 Go 引擎。Python 锁文件保留完整 Pyodide 索引，常用库与传递依赖同源提供，其余索引包需要网络。所有资源按首次命令或 import 加载。Web 服务的预览路由尚未接入，资源齐全不等于全部 SDK 界面能力可用。
+终端用 `@vivari/core` 在页面里运行 Node、npm 与 Python，要求页面处于 `crossOriginIsolated`：托管 web 产物的服务必须返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`。开发服务器的 development 配置、`serve-static` 与冒烟里的静态服务器都带这两个响应头；production 配置的开发服务器不带。Vivari 的 worker 与运行时资源由构建从 `node_modules/@vivari/core/dist/assets` 复制到产物的 `assets/`。 npm/npx、pnpm、Yarn 与 Corepack 的延迟加载还依赖同源 `/vendor/*-pack.bin`；`aiao-desktop-web:prepare-vendor` 按 [固定清单](../scripts/vivari/tools.json)校验源发布包的 SHA-512 并生成资源，是构建与开发的前置任务。发布前校验资源版本与完整性，不能把 SPA 回退的 HTML 当作工具资源。 Python / pip、Ruff 与 `node:sqlite` / `bun:sqlite` 的资源按[运行时清单](../scripts/vivari/runtimes.json)同源托管，输出逐文件校验 SHA-256；TypeScript 7 使用固定 tsgo-wasm 发布包，按上游规则提取 Go 引擎。Python 锁文件保留完整 Pyodide 索引，常用库与传递依赖同源提供，其余索引包需要网络。所有资源按首次命令或 import 加载。Web 服务的预览路由尚未接入，资源齐全不等于全部 SDK 界面能力可用。同一份托管响应头还包含防嵌入的 `X-Frame-Options: SAMEORIGIN`（[D-16](#d-16发布到-cloudflare-pages一键发布命令)）：`serve-static`、冒烟里托管桌面的服务器与生产的 `_headers` 一致；开发服务器只带跨源隔离，因为 IDE 内置预览要用 iframe 打开 localhost；托管集成应用的夹具服务器也只带跨源隔离，因为桌面要嵌入它们。
 
 ## D-06：本地开发用固定端口与开发导航
 
@@ -81,7 +81,7 @@ Orbit 是两个产品共用的包：Aiao Desktop 与 Web Desktop 各自接线、
 桌面为了终端处于跨源隔离（D-05），带 COEP 的页面只能嵌入明确允许被跨源嵌入的文档。一个 B/S 应用要接入桌面，必须满足：
 
 1. 入口是 HTTPS 地址，文档响应带 `Cross-Origin-Embedder-Policy: require-corp`（或 `credentialless`）与 `Cross-Origin-Resource-Policy: cross-origin`。缺了 CORP，浏览器直接拦下 iframe（`ERR_BLOCKED_BY_RESPONSE`）。
-2. 接入 `@aiao/orbit/client`：在路由与业务初始化之前调用 `connectOrbitClient()`；真实渲染完成后调用 `ready()`；启动失败调用 `fail(原因)`。独立打开（不在桌面里）时 `connectOrbitClient()` 返回空，应用照常启动。
+2. 接入 `@aiao/orbit/client`：在路由与业务初始化之前调用 `connectOrbitClient()`；真实渲染完成后调用 `ready()`；启动失败调用 `fail(原因)`。独立打开（不在桌面里）时 `connectOrbitClient()` 返回空，应用照常启动。握手令牌由嵌入方随地址传入，不是秘密；只接受特定桌面的应用在连接时传 `acceptHostOrigin`，信任宿主时以浏览器给出的 `orbit.context.hostOrigin` 为准，不信宿主自报的属性（2026-11-24 分支评审补充）。
 3. 不做整页导航（Orbit 视为失败）；不依赖弹窗与模态框；不依赖 `showOpenFilePicker()`、`showDirectoryPicker()` 这类文件句柄 API——它们在跨源 iframe 里被浏览器拒绝并抛 `SecurityError`（Aiao Code 的 `showDirectoryPicker` 已实测）；数据留在应用自己的来源里。
 
 普通 `<input type="file">` 不在第 3 条的限制里：HTML 标准给 `showPicker()` 保留了对 file / color 类型的跨源例外。它在 Orbit 的 sandbox 与桌面界面里能否使用没有验收，应用要依赖它之前先在桌面里实测；桌面不替应用代办浏览器的文件选择。
@@ -128,20 +128,21 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 用户于 2026-11-13 要求把 Aiao Desktop 发布到 Cloudflare，并建立一键发布命令（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)）。这是产品第一次对外托管，边界随之改变：
 
 - 托管：Cloudflare Pages 项目 `aiao-desktop`（经典 Pages，与 `aiao-vscode` 同一做法），生产分支 `main`，生产地址 `https://aiao-desktop.pages.dev`。产物是纯静态文件，没有 Functions，不带任何密钥（[D-03](#d-03只有前端不带任何密钥)）；发布凭据只在发布者本机（wrangler 的 OAuth 登录），不进仓库、不进构建产物，也不进 CI。
-- 随构建发布的两个托管配置放在 `apps/web/public/`：`_headers` 对全站返回 COOP 与 COEP（[D-05](#d-05终端依赖跨源隔离)）；`_redirects` 把 `/saltline.html` 200 改写成原样返回——Pages 默认把 `.html` 308 到无扩展名地址，而浏览器会长期缓存这条 308，游戏的 iframe 又直接加载 `saltline.html`（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。
+- 随构建发布的两个托管配置放在 `apps/web/public/`：`_headers` 对全站返回 COOP 与 COEP（[D-05](#d-05终端依赖跨源隔离)），以及 `X-Frame-Options: SAMEORIGIN`——任何其他站点都不能把整个桌面嵌进 iframe（否则「抹掉磁盘」「登录 GitHub」这类敏感操作可被点击劫持），同源嵌入的几猫3A大作不受影响。整站的 `Content-Security-Policy` 这次没有做：Pages 会把同名响应头拼起来，oauth 返回页自带的 CSP 会变成两条策略的拼接值，线上对账按响应头逐字比对也会失败；`saltline.html` 是内联脚本的单文件游戏、Vivari 需要 wasm，整站 `script-src` 的改动面与回归风险另行评估。`_redirects` 把 `/saltline.html` 200 改写成原样返回——Pages 默认把 `.html` 308 到无扩展名地址，而浏览器会长期缓存这条 308，游戏的 iframe 又直接加载 `saltline.html`（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。
 - 一键命令是 `pnpm nx run aiao-desktop:deploy`：Nx 先完成正式构建与密钥扫描，`scripts/deploy/deploy.mjs` 再检查产物、首次发布时新建项目、上传，最后把线上文件与本地产物逐个对账。`--dry-run` 只检查不发布，`--preview` 发布到 Preview 分支而不动生产。
 
 几个有意的选择：
 
 1. **分支显式传 `--branch main`**：wrangler 省略它时取当前 Git 分支，只会更新 Preview，在功能分支上发布时尤其容易误以为发到了线上。
 2. **wrangler 固定版本（4.158.0），经 `pnpm dlx` 取用，不进依赖**：发布工具只在发布者本机用，不让依赖图和锁文件跟着它变。新建项目的 `--force`、子进程的 DNS 顺序这类踩坑细节见 [ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md) 的技术笔记。
-3. **线上核对逐文件比字节**：Pages 对不存在的路径回 `index.html` 且状态码 200，只看状态码会假绿。本次部署独有的地址逐文件核对，并要求每个响应都带 COOP 与 COEP；生产地址与自定义域名只核对入口页（入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 反复下载。
+3. **线上核对逐文件比字节**：Pages 对不存在的路径回 `index.html` 且状态码 200，只看状态码会假绿。本次部署独有的地址逐文件核对，要求每个响应都带 COOP、COEP 与 X-Frame-Options，并且立即一致；生产地址与自定义域名只核对入口页（入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 反复下载。这些别名在发布后的传播窗口里可能还回上一版部署（200，但内容或响应头不是本次的），所以不一致时有界地等：每 5 秒重试一次，最多 2 分钟，超时才失败，信息带已等待的时间；404、重定向与网络错误是确定的结果，不等。
 4. **先等地址连得上**：新建项目的 `*.<项目>.pages.dev` 证书要几分钟才签发，这段时间部署地址与分支别名都是 TLS 握手失败（首次发布实测），生产地址 `<项目>.pages.dev` 不受影响。命令会提示并等待，超时才算失败。
-5. **不重复跑冒烟**：发布前的完整门禁是 `aiao-desktop:verify`（与 CI 同款），发布命令只守住托管相关的失败（响应头、文件内容、域名）。发布后的浏览器级验收是 `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>`：线上桌面加线上 Aiao Code 的真实组合。
+5. **不重复跑冒烟**：发布前的完整门禁是 `aiao-desktop:verify`（与 CI 同款），发布命令只守住托管相关的失败（响应头、文件内容、域名）。发布后的浏览器级验收是 `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>`：线上桌面加线上 Aiao Code 的真实组合；应用有页面错误或控制台错误即判失败。
+6. **wrangler 子进程有时限**：查询与新建项目 5 分钟（首次含 `pnpm dlx` 下载），上传 10 分钟，超时终止整个进程组（`pnpm dlx` 之下还有 node 与 wrangler，只结束最外层会留下继续上传的孤儿）并失败；上传超时的信息提醒到 Pages 面板核对是否已产生部署。时限、传播等待与自定义域名都登记在 `scripts/deploy/config.mjs`。
 
 回滚：命令在发布前读出当前的生产部署并在结尾打印，在 Pages 面板的部署页回滚到它。回滚只换静态产物，浏览器里已升级的数据不会跟着回滚：回滚目标早于具备降级保护的构建时，旧构建会直接打开新结构的库，所以数据升级过之后，回滚目标要先对照 [ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md) 的「回滚目标」表。
 
-Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domains 里绑定；绑定后下一次发布自动把它加入核对（与生产地址一样只核对入口页）。建议绑定 aiao.io 下的域名（如 `desktop.aiao.io`）：与 `vscode.aiao.io` 同站，桌面里的 Aiao Code 不再按顶层站点分区存储（见[后续方向](future-requirements.md)）。换域名也换了桌面自己的 Origin：桌面的本地库、文件体与设置按来源隔离，不会自动出现在新地址，旧地址上的数据留在旧地址；在有导出 / 导入路径之前，旧地址不下线也不重定向到新地址（[ADESK-US-004](stories/platform/ADESK-US-004-custom-domain.md)）。
+Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domains 里绑定；绑定后下一次发布自动把它加入核对（与生产地址一样只核对入口页）；发布时的域名是从 Pages 项目动态读取的，而只读的 `inspect-live` 读 `scripts/deploy/config.mjs` 的 `customDomains`，绑了新域名要同步登记。建议绑定 aiao.io 下的域名（如 `desktop.aiao.io`）：与 `vscode.aiao.io` 同站，桌面里的 Aiao Code 不再按顶层站点分区存储（见[后续方向](future-requirements.md)）。换域名也换了桌面自己的 Origin：桌面的本地库、文件体与设置按来源隔离，不会自动出现在新地址，旧地址上的数据留在旧地址；在有导出 / 导入路径之前，旧地址不下线也不重定向到新地址（[ADESK-US-004](stories/platform/ADESK-US-004-custom-domain.md)）。
 
 ## D-17：应用清单是唯一真相源，Applications 是系统投影
 

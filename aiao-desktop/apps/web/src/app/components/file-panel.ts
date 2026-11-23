@@ -28,6 +28,7 @@ import {
   panelEntries,
   pathLabel,
   saveConflict,
+  saveName,
   startFolder
 } from './file-panel-model';
 
@@ -44,7 +45,8 @@ type Phase = 'browse' | 'replace';
  * 关闭时焦点还给打开它之前的元素）；
  * 文件列表是一个 `listbox`（一个 Tab 停靠点，条目用 `aria-activedescendant` 指出当前项，所以条目本身不是 Tab 停靠点），
  * 上下方向键与 Home / End 选条目，Enter 进入文件夹或确认文件，右方向键进入文件夹，左方向键与 Backspace 回到上一级；
- * 保存时名字输入框里 Enter 就是保存；目标已存在时出现覆盖确认，默认焦点在「Cancel」；
+ * 保存时名字输入框里 Enter 就是保存；目标已存在时出现覆盖确认，默认焦点在「Cancel」（只差大小写的名字也算已存在，
+ * 确认覆盖后写到那个已有的节点上，名字用它现在的写法）；
  * Esc 取消（覆盖确认里的 Esc 先退回保存面板）。关闭后把焦点还给发起它的窗口（远程应用交回它的文档）。
  *
  * 超过大小上限的文件禁用选择并写明原因；`accept` 只做显示过滤。
@@ -94,6 +96,8 @@ export class FilePanel {
   protected readonly name = linkedSignal(() => this.request().suggestedName);
   protected readonly phase = signal<Phase>('browse');
   protected readonly conflict = computed(() => saveConflict(this.folder(), this.name()));
+  /** 保存真正写到的名字：覆盖已有文件时是它现在的名字（用户输入的大小写可以不同）。 */
+  protected readonly target = computed(() => saveName(this.conflict(), this.name()));
   /** 保存时挡住「Save」的原因（给用户看的一句话）；可以保存为 `null`。 */
   protected readonly problem = computed(() => (this.isSave() ? this.saveProblem() : null));
   protected readonly canConfirm = computed(() => {
@@ -170,7 +174,7 @@ export class FilePanel {
       afterNextRender(() => this.cancelButton()?.nativeElement.focus(), { injector: this.injector });
       return;
     }
-    panel.submit({ kind: 'save', dir: this.dir(), name: this.name(), replace });
+    panel.submit({ kind: 'save', dir: this.dir(), name: this.target(), replace });
   }
 
   /** 「Cancel」与 Esc：覆盖确认里先退回保存面板，否则取消整个面板。 */
@@ -255,9 +259,9 @@ export class FilePanel {
     if (isLocked(this.dir())) return 'You don’t have permission to save in this location.';
     const invalid = fileNameProblem(name, this.request().nameLength);
     if (invalid) return invalid;
-    const { kind } = this.conflict();
-    if (kind === 'folder') return `A folder named “${name}” already exists in this location.`;
-    if (kind === 'package') return `“${name}” is an application and can’t be replaced.`;
+    const conflict = this.conflict();
+    if (conflict.kind === 'folder') return `A folder named “${conflict.name}” already exists in this location.`;
+    if (conflict.kind === 'package') return `“${conflict.name}” is an application and can’t be replaced.`;
     return null;
   }
 

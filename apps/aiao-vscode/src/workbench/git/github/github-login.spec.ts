@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GitHubAuth, GitHubSession } from './github-auth.js';
 import type { GitHubDesktopOAuth } from './github-desktop-oauth.js';
 import { requestGitHubLogin } from './github-login.js';
-import { oauthDoneKey } from './github-oauth-bridge.js';
+import { oauthDoneKey, oauthFailedKey } from './github-oauth-bridge.js';
 
 const SESSION: GitHubSession = { token: 'ghp_abc', login: 'octo', avatarUrl: null, provider: 'pat' };
 const DESKTOP = 'https://desktop.aiao.io';
@@ -184,6 +184,28 @@ describe('requestGitHubLogin', () => {
     await flush();
     expect(auth.refresh).toHaveBeenCalledOnce();
     expect(dialog().querySelector('.wb-github-account-name')?.textContent).toBe('octo');
+  });
+
+  it.each([
+    ['access_denied', '已取消 GitHub 授权'],
+    ['oauth_failed', 'GitHub 授权失败，请重试']
+  ])('stops waiting when the popup reports %s and offers the login choices again', async (failure, message) => {
+    const openAuthorize = vi.fn();
+    auth.beginOAuth.mockResolvedValue({
+      authorizeUrl: 'https://github.com/login/oauth/authorize',
+      state: 'https://ide.example/github-callback?nonce=x',
+      verifier: 'v'
+    });
+    void requestGitHubLogin(host, { auth, openAuthorize });
+    await flush();
+    [...dialog().querySelectorAll('button')].find(button => button.textContent === '使用 GitHub 账号登录')!.click();
+    await vi.waitFor(() => expect(dialog().querySelector('.wb-github-waiting')).not.toBeNull());
+
+    window.dispatchEvent(new StorageEvent('storage', { key: oauthFailedKey(), newValue: `${Date.now()}:${failure}` }));
+    await flush();
+    expect(dialog().querySelector('.wb-github-waiting')).toBeNull();
+    expect(dialog().querySelector('.wb-github-error')?.textContent).toBe(message);
+    expect(dialog().querySelector('input[type=password]')).not.toBeNull();
   });
 
   it('does not open an OAuth popup when sealed storage fails', async () => {

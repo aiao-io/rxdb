@@ -12,6 +12,7 @@ const decode = (value: Uint8Array): string => new TextDecoder().decode(value);
 const access = (store: DiskStore) => ({ run: <T>(task: (s: DiskStore) => Promise<T>) => task(store) });
 
 async function setup(options: Partial<SyncOptions> = {}) {
+  const onFailed = vi.fn<SyncOptions['onFailed']>();
   const store = new MemoryDiskStore();
   await store.write(['Users', 'me', 'Desktop', 'note.txt'], text('hello'));
   await store.mkdir(['Users', 'me', 'Documents']);
@@ -22,10 +23,11 @@ async function setup(options: Partial<SyncOptions> = {}) {
   const sync = new DiskVmSync(access(store), vm, {
     roots: ['Applications', 'Users'],
     ignore: name => name === 'node_modules',
+    onFailed,
     ...options
   });
   await sync.attach();
-  return { store, vm, sync };
+  return { store, vm, sync, onFailed };
 }
 
 describe('diffSnapshots', () => {
@@ -92,16 +94,19 @@ describe('DiskVmSync', () => {
     ]);
   });
 
-  it('一批回写中途失败时，仅通知已落盘的路径', async () => {
+  it('一批回写里有一处失败时，其它改动照常落盘，只通知已落盘的路径，失败的另行通知', async () => {
     const onPulled = vi.fn();
-    const { store, vm, sync } = await setup({ onPulled });
+    const { store, vm, sync, onFailed } = await setup({ onPulled });
     await vm.remove('/Users/me/Documents');
     await vm.write('/Users/me/Desktop/new.txt', text('from shell'));
     vi.spyOn(store, 'write').mockRejectedValueOnce(new Error('disk write failed'));
 
-    await expect(sync.pull()).rejects.toThrow('disk write failed');
+    expect(await sync.pull()).toBe(true);
     expect(await store.kindOf(['Users', 'me', 'Desktop', 'new.txt'])).toBeNull();
     expect(onPulled).toHaveBeenCalledExactlyOnceWith([['Users', 'me', 'Documents']]);
+    expect(onFailed).toHaveBeenCalledExactlyOnceWith([
+      { path: ['Users', 'me', 'Desktop', 'new.txt'], error: new Error('disk write failed') }
+    ]);
   });
 
   it('node_modules 与卷以外的路径不同步', async () => {
@@ -136,6 +141,139 @@ describe('DiskVmSync', () => {
     const { vm, sync } = await setup();
     await sync.push([['Library', 'Caches']]);
     expect(vm.dirs.has('/Library')).toBe(false);
+  });
+});
+
+describe('DiskVmSync 写回失败（配额耗尽、同级重名……）不无限重试', () => {
+  const DESKTOP_DIR = ['Users', 'me', 'Desktop'];
+  const BIG = [...DESKTOP_DIR, 'big.bin'];
+
+  /** 让磁盘对指定文件名的写入失败；其余写入照常。 */
+  function failWritesTo(store: MemoryDiskStore, name: string, message = 'quota exceeded') {
+    const write = store.write.bind(store);
+    return vi.spyOn(store, 'write').mockImplementation(async (path, data) => {
+      if (path.at(-1) === name) throw new Error(message);
+      return write(path, data);
+    });
+  }
+
+  it('失败的文件只通知一次，之后的扫描不再重试同一份内容；同一次扫描里的其它改动照常落盘', async () => {
+    const onPulled = vi.fn();
+    const { store, vm, sync, onFailed } = await setup({ onPulled });
+    const write = failWritesTo(store, 'big.bin');
+    await vm.write('/Users/me/Desktop/big.bin', text('too big'));
+    await vm.write('/Users/me/Desktop/fine.txt', text('fine'));
+
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).toHaveBeenCalledExactlyOnceWith([{ path: BIG, error: new Error('quota exceeded') }]);
+    expect(decode(await store.read([...DESKTOP_DIR, 'fine.txt']))).toBe('fine');
+    expect(onPulled).toHaveBeenCalledExactlyOnceWith([[...DESKTOP_DIR, 'fine.txt']]);
+
+    write.mockClear();
+    expect(await sync.pull()).toBe(false);
+    expect(await sync.pull()).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(await store.kindOf(BIG)).toBeNull();
+    expect(decode(await vm.read('/Users/me/Desktop/big.bin'))).toBe('too big');
+  });
+
+  it('文件的内容再次变化才会再试：还失败就再通知一次（针对这份新内容），成功就落盘，之后不再通知', async () => {
+    const { store, vm, sync, onFailed } = await setup();
+    const write = failWritesTo(store, 'big.bin');
+    await vm.write('/Users/me/Desktop/big.bin', text('v1'));
+    await sync.pull();
+    expect(onFailed).toHaveBeenCalledTimes(1);
+
+    await vm.write('/Users/me/Desktop/big.bin', text('v2'));
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(await sync.pull()).toBe(false);
+
+    write.mockRestore();
+    await vm.write('/Users/me/Desktop/big.bin', text('v3'));
+    expect(await sync.pull()).toBe(true);
+    expect(decode(await store.read(BIG))).toBe('v3');
+    expect(onFailed).toHaveBeenCalledTimes(2);
+  });
+
+  it('同一次扫描里的多处失败合成一次通知；删除与建目录的失败同样被隔离，不挡住后面的改动', async () => {
+    const onPulled = vi.fn();
+    const { store, vm, sync, onFailed } = await setup({ onPulled });
+    const remove = store.remove.bind(store);
+    vi.spyOn(store, 'remove').mockImplementation(async path => {
+      if (path.at(-1) === 'Documents') throw new Error('cannot remove');
+      return remove(path);
+    });
+    const mkdir = store.mkdir.bind(store);
+    vi.spyOn(store, 'mkdir').mockImplementation(async path => {
+      if (path.at(-1) === 'Projects') throw new Error('cannot create');
+      return mkdir(path);
+    });
+    await vm.remove('/Users/me/Documents');
+    await vm.mkdir('/Users/me/Projects');
+    await vm.write('/Users/me/Desktop/fine.txt', text('fine'));
+
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).toHaveBeenCalledExactlyOnceWith([
+      { path: ['Users', 'me', 'Documents'], error: new Error('cannot remove') },
+      { path: ['Users', 'me', 'Projects'], error: new Error('cannot create') }
+    ]);
+    expect(decode(await store.read([...DESKTOP_DIR, 'fine.txt']))).toBe('fine');
+    expect(onPulled).toHaveBeenCalledExactlyOnceWith([[...DESKTOP_DIR, 'fine.txt']]);
+    expect(await sync.pull()).toBe(false);
+    expect(onFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it('读不出虚拟机里的某个文件时，同样只失败这一个文件，不重试', async () => {
+    const { store, vm, sync, onFailed } = await setup();
+    const read = vm.read.bind(vm);
+    const spy = vi
+      .spyOn(vm, 'read')
+      .mockImplementation(path =>
+        path.endsWith('locked.txt') ? Promise.reject(new Error('read failed')) : read(path)
+      );
+    await vm.write('/Users/me/Desktop/locked.txt', text('x'));
+    await vm.write('/Users/me/Desktop/fine.txt', text('fine'));
+
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).toHaveBeenCalledExactlyOnceWith([
+      { path: [...DESKTOP_DIR, 'locked.txt'], error: new Error('read failed') }
+    ]);
+    expect(decode(await store.read([...DESKTOP_DIR, 'fine.txt']))).toBe('fine');
+    spy.mockClear();
+    expect(await sync.pull()).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('没有失败时不通知；扫描虚拟机本身失败仍然是 pull 的拒绝（不走 onFailed），下一次照常重来', async () => {
+    const { vm, sync, onFailed } = await setup();
+    await vm.write('/Users/me/Desktop/fine.txt', text('fine'));
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).not.toHaveBeenCalled();
+
+    vi.spyOn(vm, 'stat').mockRejectedValueOnce(new Error('scan failed'));
+    await expect(sync.pull()).rejects.toThrow('scan failed');
+    await vm.write('/Users/me/Desktop/later.txt', text('later'));
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it('只差大小写的同级重名：终端（区分大小写）里新建的文件写不回磁盘，通知一次，磁盘上已有的文件原样', async () => {
+    const { store, vm, sync, onFailed } = await setup();
+    await store.write([...DESKTOP_DIR, 'Report.txt'], text('original'));
+    await sync.attach();
+    await vm.write('/Users/me/Desktop/report.txt', text('from the shell'));
+
+    expect(await sync.pull()).toBe(true);
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    const [[failures]] = onFailed.mock.calls;
+    expect(failures).toMatchObject([{ path: [...DESKTOP_DIR, 'report.txt'], error: { code: 'EEXIST' } }]);
+    expect(await sync.pull()).toBe(false);
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(decode(await store.read([...DESKTOP_DIR, 'Report.txt']))).toBe('original');
+    expect(await store.kindOf([...DESKTOP_DIR, 'report.txt'])).toBeNull();
   });
 });
 

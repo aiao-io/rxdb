@@ -1,4 +1,4 @@
-// 发布后的线上对账：把线上返回的每个文件与本地构建产物逐字节比较，并确认每个响应都带跨源隔离响应头。
+// 发布后的线上对账：把线上返回的每个文件与本地构建产物逐字节比较，并确认每个响应都带托管必需的响应头（跨源隔离与防嵌入）。
 // Pages 对不存在的路径会回 index.html 且状态码 200，所以只看状态码会假绿，必须比内容。
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -94,12 +94,26 @@ function mismatch({ response, body }, local, requiredHeaders) {
   return undefined;
 }
 
+/**
+ * 核对一个文件。别名与自定义域名在发布后的传播窗口里可能还回上一版部署：200，响应头或内容却不是本次的。
+ * 给了 `propagation` 时，这种「200 但不一致」在时限内反复请求直到一致；网络错误、4xx、重定向是确定的结果，不等。
+ */
 async function verifyFile(file, options) {
+  const { propagation } = options;
   const url = new URL(publicPath(file.path), options.baseUrl).href;
-  const fetched = await fetchWithRetry(url, options);
-  if (fetched.error) return `请求失败：${describeError(fetched.error)}`;
   const local = await readFile(path.join(options.distDir, file.path));
-  return mismatch(fetched, local, options.requiredHeaders);
+  for (let attempt = 0; ; attempt += 1) {
+    const fetched = await fetchWithRetry(url, options);
+    if (fetched.error) return `请求失败：${describeError(fetched.error)}`;
+    const reason = mismatch(fetched, local, options.requiredHeaders);
+    if (reason === undefined || !propagation || fetched.response.status !== 200) return reason;
+    if (attempt === 0) options.onWait?.({ path: file.path, reason });
+    if (Date.now() + propagation.intervalMs > propagation.deadline) {
+      const waited = Math.round((Date.now() - propagation.startedAt) / 1000);
+      return `${reason}；已等待 ${waited} 秒仍未指向本次部署（别名或自定义域名的传播还没完成）`;
+    }
+    await pause(propagation.intervalMs);
+  }
 }
 
 /** 最多 `limit` 个任务并行，逐个取队列里的下一项。 */
@@ -117,12 +131,16 @@ async function forEachLimited(items, limit, task) {
  * @param options.distDir 本地构建产物目录
  * @param options.files 要核对的文件（`listDistFiles` 的元素）；`_headers`、`_redirects` 不是站点内容，自动跳过
  * @param options.baseUrl 线上站点的来源，如 `https://aiao-desktop.pages.dev`
- * @param options.requiredHeaders 每个响应都必须带的响应头与取值
+ * @param options.requiredHeaders 每个响应都必须带的响应头与取值（`deployConfig.requiredHeaders`）
  * @param options.fetchImpl 测试用的 fetch 替身
  * @param options.retries 网络错误与 5xx 的重试次数
  * @param options.retryDelayMs 重试间隔的基数（第 n 次重试等 n 倍）
  * @param options.concurrency 并行请求数
  * @param options.timeoutMs 单次请求（含读完响应体）的时限
+ * @param options.propagation 别名与自定义域名用：`{ timeoutMs, intervalMs }`。线上返回的响应头或内容不是本次部署时（200，
+ *   多半是传播窗口里还指向上一版），每隔 `intervalMs` 重试，最多等 `timeoutMs`（所有文件共用这一份时限），超时才失败。
+ *   本次部署独有的地址不传，要求立即一致
+ * @param options.onWait 第一次发现某个文件不是本次部署时回调一次，参数 `{ path, reason }`，供调用方告诉用户在等什么
  * @returns 核对的文件数与失败清单（按路径排序）
  */
 export async function checkLive({
@@ -134,11 +152,24 @@ export async function checkLive({
   retries = 3,
   retryDelayMs = 1000,
   concurrency = 6,
-  timeoutMs = 120_000
+  timeoutMs = 120_000,
+  propagation,
+  onWait
 }) {
   const targets = files.filter(file => !SERVER_ONLY.has(file.path));
   const failures = [];
-  const options = { distDir, baseUrl, requiredHeaders, fetchImpl, retries, retryDelayMs, timeoutMs };
+  const startedAt = Date.now();
+  const options = {
+    distDir,
+    baseUrl,
+    requiredHeaders,
+    fetchImpl,
+    retries,
+    retryDelayMs,
+    timeoutMs,
+    onWait,
+    propagation: propagation && { ...propagation, startedAt, deadline: startedAt + propagation.timeoutMs }
+  };
   await forEachLimited(targets, concurrency, async file => {
     const reason = await verifyFile(file, options);
     if (reason) failures.push({ path: file.path, reason });

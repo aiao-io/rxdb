@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { inspectEntrypoints } from './inspect-live.mjs';
+import { deployConfig } from './config.mjs';
+import { inspectEntrypoints, inspectTargets } from './inspect-live.mjs';
 
 const targets = ['https://old.example', 'https://new.example'];
 const requiredHeaders = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' };
@@ -37,4 +38,16 @@ test('重定向不跟随，响应头缺失和网络错误均保留具体地址',
     assert.equal(report.entries[0].url, targets[0]);
     assert.ok(report.entries[0].problems.length > 0);
   }
+});
+
+test('核对的入口来自发布配置：项目的 pages.dev 地址加已登记的自定义域名，不在脚本里写死', () => {
+  assert.deepEqual(inspectTargets({ projectName: 'demo', customDomains: ['desktop.example.com', 'app.example.com'] }), [
+    'https://demo.pages.dev/',
+    'https://desktop.example.com/',
+    'https://app.example.com/'
+  ]);
+  assert.deepEqual(inspectTargets(deployConfig), [
+    `https://${deployConfig.projectName}.pages.dev/`,
+    ...deployConfig.customDomains.map(domain => `https://${domain}/`)
+  ]);
 });

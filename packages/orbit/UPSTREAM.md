@@ -27,4 +27,4 @@
 
 原生 iframe 会裁剪应用浮层；应用不能直接把菜单、拖拽或焦点逃逸到其他桌面窗口。完整导航会关闭当前连接并使实例失败，宿主应创建新实例；SPA 的 history/hash 导航保留当前文档。保持既有文档站路径和主题协议，删除消费方不再需要的 CSS selector 改写接线，保留 `modules/orbit` 的旧工具及其测试。
 
-本包只接纳运营者批准的协作应用。同源 iframe 与 `allow-same-origin` 不能阻止恶意应用访问 parent 或同源存储；sandbox 不是产品权限系统，原生 localStorage/IndexedDB 不按 instanceId 自动分区，也不保证 CPU 死循环、浏览器崩溃或失去调度时的回收。应用服务授权、托管存储、桌面窗口系统和离线资源管理另行实现。
+本包只接纳运营者批准的协作应用。同源 iframe 与 `allow-same-origin` 不能阻止恶意应用访问 parent 或同源存储，同源入口等于受信代码，隔离不受信的应用必须用不同来源；握手令牌取自应用自己的地址，嵌入方自己就能指定，不是秘密，只接受特定桌面嵌入的应用必须设置宿主来源准入（`acceptHostOrigin`，应用读到的 `context.hostOrigin` 取自浏览器的 `event.origin`，不是宿主自报）；sandbox 不是产品权限系统，原生 localStorage/IndexedDB 不按 instanceId 自动分区，也不保证 CPU 死循环、浏览器崩溃或失去调度时的回收。应用服务授权、托管存储、桌面窗口系统和离线资源管理另行实现。

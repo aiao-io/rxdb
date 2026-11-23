@@ -1,4 +1,4 @@
-import { isGitHubOAuthDesktopOrigin } from '../../src/workbench/git/github/github-desktop-oauth.ts';
+import { isTrustedDesktopOrigin } from '../../src/workbench/git/github/github-desktop-oauth.ts';
 
 /** Pages Function 的最小上下文类型；无需引入 @cloudflare/workers-types。 */
 interface PagesContext {
@@ -9,6 +9,7 @@ interface PagesContext {
 /**
  * GET /redirect：GitHub OAuth 回跳落点。
  * 校验 state 指向本站回调；桌面请求只允许转到已批准来源的固定回跳页。
+ * 授权结果是 code 或 error 之一：error 只透传 `access_denied`（用户取消），其余一律记为 `oauth_failed`。
  */
 export async function onRequestGet({ request }: PagesContext): Promise<Response> {
   const url = new URL(request.url);
@@ -48,11 +49,13 @@ export async function onRequestGet({ request }: PagesContext): Promise<Response>
   }
   const desktop = target.searchParams.get('desktop');
   if (desktop !== null) return returnToDesktop(desktop, target, state, code, error);
-  if (!code || target.searchParams.toString().length > 2048) {
-    return new Response('No code query parameter provided', { status: 400 });
+  if (target.searchParams.toString().length > 2048) {
+    return new Response('Invalid state redirect target', { status: 400 });
   }
+  // 授权被取消或失败也回到回调页：弹窗由回调页关闭，等待中的工作台收到结果，而不是停在一张裸 400 页上
   target.searchParams.set('state', state);
-  target.searchParams.set('code', code);
+  if (code) target.searchParams.set('code', code);
+  else target.searchParams.set('error', error === 'access_denied' ? error : 'oauth_failed');
   return Response.redirect(target.toString(), 302);
 }
 
@@ -65,7 +68,7 @@ function returnToDesktop(
 ): Response {
   const names = [...target.searchParams.keys()].sort();
   if (
-    !isGitHubOAuthDesktopOrigin(desktop) ||
+    !isTrustedDesktopOrigin(desktop) ||
     target.searchParams.getAll('desktop').length !== 1 ||
     target.searchParams.getAll('nonce').length !== 1 ||
     names.join(',') !== 'desktop,nonce' ||

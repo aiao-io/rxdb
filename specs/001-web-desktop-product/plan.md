@@ -1,5 +1,7 @@
 # Implementation Plan: 双交互模式 Web 桌面产品
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 **Branch**: `012-web-desktop-product` | **Date**: 2026-11-07 | **Spec**: [spec.md](spec.md)
 
 ## Summary

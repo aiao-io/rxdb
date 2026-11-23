@@ -18,6 +18,7 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { sanitizeNoteBody } from './note-body';
 import {
   NoteDocument,
   NoteSaveError,
@@ -29,7 +30,9 @@ import {
 import { NoteFolderEditor } from './note-folder-editor';
 import {
   ALL_NOTES,
+  CHECKLIST_ITEM,
   NOTES_FOLDER,
+  TABLE_HTML,
   TRASH_FOLDER,
   folderCount,
   inFolder,
@@ -337,7 +340,7 @@ export class NotesApp {
       this.editor.discard(notes[0] ?? null);
       this.loaded = notes[0]?.id ?? null;
       this.selected.set(this.loaded);
-      this.doc().nativeElement.innerHTML = notes[0]?.body ?? '';
+      this.doc().nativeElement.innerHTML = sanitizeNoteBody(notes[0]?.body ?? '');
     }, false);
   }
 
@@ -385,17 +388,14 @@ export class NotesApp {
   protected checklist(): void {
     if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     this.doc().nativeElement.focus();
-    const tick = '<div class="todo"><i contenteditable="false"></i><span>&nbsp;</span></div>';
-    document.execCommand('insertHTML', false, tick);
+    document.execCommand('insertHTML', false, CHECKLIST_ITEM);
     this.saveSoon();
   }
 
   protected table(): void {
     if (this.busy() || this.win.closePending() || !this.editor.value()) return;
     this.doc().nativeElement.focus();
-    const row = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
-    const table = `<table><tr><th>&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr>${row}${row}</table><p>&nbsp;</p>`;
-    document.execCommand('insertHTML', false, table);
+    document.execCommand('insertHTML', false, TABLE_HTML);
     this.saveSoon();
   }
 
@@ -469,7 +469,7 @@ export class NotesApp {
     if (!this.editor.open(note ?? null)) return;
     this.loaded = id;
     const doc = this.doc().nativeElement;
-    doc.innerHTML = note?.body ?? '';
+    doc.innerHTML = sanitizeNoteBody(note?.body ?? '');
     if (created !== null && id === created) this.focusTitle();
   }
 

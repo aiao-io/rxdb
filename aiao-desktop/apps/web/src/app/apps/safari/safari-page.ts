@@ -22,6 +22,7 @@ export type SafariPage =
   | { readonly type: 'start' }
   | { readonly type: 'local'; readonly site: string }
   | { readonly type: 'frame'; readonly url: string; readonly src: SafeResourceUrl }
+  | { readonly type: 'same-origin'; readonly url: string }
   | { readonly type: 'player'; readonly src: SafeResourceUrl }
   | { readonly type: 'embed-blocked'; readonly id: string }
   | { readonly type: 'loading' }

@@ -91,7 +91,7 @@
     }
     @if (phase() === 'replace') {
       <div class="fp-replace" aria-label="Replace existing file" data-fp-replace role="alertdialog">
-        <b>A file named “{{ name() }}” already exists in this location.</b>
+        <b>A file named “{{ target() }}” already exists in this location.</b>
         <span>Do you want to replace it? Its current contents will be overwritten.</span>
       </div>
     }

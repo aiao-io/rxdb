@@ -1,7 +1,7 @@
 import { GitHubApiError } from './github-api.js';
 import type { GitHubAuth, GitHubOAuthRequest, GitHubSession } from './github-auth.js';
 import type { GitHubDesktopOAuth } from './github-desktop-oauth.js';
-import { oauthDoneKey, savePendingOAuth } from './github-oauth-bridge.js';
+import { oauthDoneKey, oauthFailedKey, readOAuthFailure, savePendingOAuth } from './github-oauth-bridge.js';
 import { ensureGithubStyle } from './github-style.js';
 
 export interface GitHubLoginRequest {
@@ -249,6 +249,11 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
     };
     const onStorage = (event: StorageEvent): void => {
       if (event.key === oauthDoneKey()) checkOAuthResult();
+      const failure = event.key === oauthFailedKey() ? readOAuthFailure(event.newValue) : null;
+      if (!failure || settled) return;
+      stopWatching();
+      renderLoggedOut();
+      error(failure === 'access_denied' ? '已取消 GitHub 授权' : 'GitHub 授权失败，请重试');
     };
     const startWatching = (): void => {
       window.addEventListener('storage', onStorage);

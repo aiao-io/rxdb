@@ -27,6 +27,9 @@ export const fileManagement = {
     'fileManagement.dropsOnDesktopFolder',
     'fileManagement.dropsOnFolder',
     'fileManagement.dropsOnSidebar',
+    'fileManagement.importCaseVariantGetsNewName',
+    'fileManagement.renameRejectsCaseVariantOfSibling',
+    'fileManagement.caseOnlyRenameKeepsContent',
     'fileManagement.dropsOnVisibleColumn',
     'fileManagement.rejectsReadOnlyDrops',
     'fileManagement.importPreservesBytes',
@@ -335,6 +338,27 @@ export const fileManagement = {
     await place('Downloads');
     await expect(item('from-sidebar.txt')).toBeVisible();
     result.dropsOnSidebar = (await diskText(session, 'from-sidebar.txt')) === text;
+
+    /* 同级只差大小写的名字算同名，与库里归一化的唯一索引同口径（像 macOS）：拖入追加序号，改名被拒，原文件不动。 */
+    await finder()
+      .locator('[data-body]')
+      .drop({ files: payload('FROM-SIDEBAR.txt', Buffer.from('cased')) });
+    await expect(item('FROM-SIDEBAR 2.txt')).toBeVisible();
+    result.importCaseVariantGetsNewName =
+      (await item('FROM-SIDEBAR.txt').count()) === 0 &&
+      (await diskText(session, 'from-sidebar.txt')) === text &&
+      (await diskText(session, 'FROM-SIDEBAR 2.txt')) === 'cased';
+    await menu('FROM-SIDEBAR 2.txt', 'Rename…', true);
+    await dialog().getByRole('textbox', { name: 'New name' }).fill('From-Sidebar.TXT');
+    await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
+    await expect(dialog().getByRole('alert')).toContainText('already exists');
+    await dialog().getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog()).toHaveCount(0);
+    result.renameRejectsCaseVariantOfSibling =
+      (await item('FROM-SIDEBAR 2.txt').count()) === 1 && (await diskText(session, 'from-sidebar.txt')) === text;
+    await rename('FROM-SIDEBAR 2.txt', 'from-sidebar 2.txt');
+    result.caseOnlyRenameKeepsContent =
+      (await item('FROM-SIDEBAR 2.txt').count()) === 0 && (await diskText(session, 'from-sidebar 2.txt')) === 'cased';
 
     await place('Macintosh HD');
     await item('System').drop({ files: payload('rejected.txt', Buffer.from(text)) });

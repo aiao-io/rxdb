@@ -6,7 +6,8 @@ import type {
   DesktopInteraction,
   DesktopMenu,
   DesktopOpenedFile,
-  DesktopWindowState
+  DesktopWindowState,
+  DesktopWorkspaceRequest
 } from '../desktop.js';
 import { DESKTOP_LIMITS, DesktopError, desktopProps, serveDesktop } from '../desktop.js';
 import type { OrbitInstance, OrbitValue } from '../index.js';
@@ -76,6 +77,12 @@ function recordingHost() {
       save: request => {
         calls.push(['filesystem.save', request]);
         return { name: 'notes.md', version: '1731000000500:5', handle: 'handle-1' };
+      }
+    },
+    workspace: {
+      call: request => {
+        calls.push(['workspace.call', request]);
+        return { projectId: request.projectId, revision: 1 };
       }
     }
   };
@@ -293,5 +300,64 @@ describe('桌面能力协议（真实 iframe 与端口）', () => {
       }
     );
     expect(calls).toEqual([]);
+  });
+});
+
+describe('Git 工作区（真实 iframe 与端口）', () => {
+  const status: DesktopWorkspaceRequest = { projectId: 'p1', operation: 'status' };
+  /** 超过一片的保存请求与响应：请求 40 万个 base64 字符，宿主按 5 片收齐。 */
+  const bigSave: DesktopWorkspaceRequest = {
+    projectId: 'p1',
+    operation: 'save',
+    expectedRevision: 1,
+    files: [{ path: 'big.bin', base64: 'QUJD'.repeat(100_000) }]
+  };
+
+  it('小请求与超过一片的请求、响应经真实端口往返，宿主拿到完整请求，只执行一次', async () => {
+    const { ask, host, calls } = await mount(['workspace']);
+    expect(await ask('workspace.call', status as unknown as OrbitValue)).toEqual({
+      ok: true,
+      value: { projectId: 'p1', revision: 1 }
+    });
+    const large = '回包 💾 '.repeat(60_000);
+    vi.spyOn(host.workspace!, 'call').mockResolvedValueOnce(large);
+    expect(await ask('workspace.call', bigSave as unknown as OrbitValue, 30_000)).toEqual({ ok: true, value: large });
+    expect(vi.mocked(host.workspace!.call).mock.calls).toEqual([[bigSave, expect.anything()]]);
+    expect(calls).toEqual([['workspace.call', status]]);
+  });
+
+  it('应用里两处各自 getDesktop 再并发调用工作区：共用一个发送队列，都成功，宿主串行执行', async () => {
+    const { instance, host } = await mount(['workspace']);
+    const order: string[] = [];
+    vi.spyOn(host.workspace!, 'call').mockImplementation(async request => {
+      order.push(`${request.operation}:开始`);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      order.push(`${request.operation}:结束`);
+      return request.operation;
+    });
+    const results = await instance.request(
+      'workspace-parallel',
+      { first: bigSave, second: status } as unknown as OrbitValue,
+      { timeout: 30_000 }
+    );
+    expect(results).toEqual([
+      { ok: true, value: 'save' },
+      { ok: true, value: 'status' }
+    ]);
+    expect(order).toEqual(['save:开始', 'save:结束', 'status:开始', 'status:结束']);
+  });
+
+  it('宿主操作挂起时服务解绑：应用的调用立即结束（有副作用的操作结果未知），端口保持可用', async () => {
+    const { ask, host, server } = await mount(['workspace']);
+    const started = Promise.withResolvers<void>();
+    vi.spyOn(host.workspace!, 'call').mockImplementationOnce(() => {
+      started.resolve();
+      return new Promise<never>(() => undefined);
+    });
+    const result = ask('workspace.call', { projectId: 'p1', operation: 'commit', message: '提交' }, 30_000);
+    await started.promise;
+    server.dispose();
+    expect(await result).toMatchObject({ ok: false, code: 'RESULT_UNKNOWN' });
+    expect(await ask('capabilities')).toMatchObject({ ok: true });
   });
 });

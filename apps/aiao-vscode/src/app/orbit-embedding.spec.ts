@@ -1,4 +1,4 @@
-import type { OrbitClient } from '@aiao/orbit/client';
+import type { OrbitClient, OrbitClientOptions } from '@aiao/orbit/client';
 import type { Provider } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ORBIT_CLIENT, bootstrapWithOrbit } from './orbit-embedding';
@@ -26,6 +26,20 @@ describe('作为集成应用嵌入 Aiao Desktop（US-410）', () => {
     await bootstrapWithOrbit(bootstrap, connect);
     expect(order).toEqual(['connect', 'bootstrap']);
     expect(bootstrap.mock.calls[0][0]).toEqual([{ provide: ORBIT_CLIENT, useValue: client }]);
+  });
+
+  it('只接受受信桌面来源的宿主：握手时设置来源准入，任意站点嵌入后冒充桌面也完不成握手', async () => {
+    const connect = vi.fn<(options: OrbitClientOptions) => Promise<undefined>>(async () => undefined);
+    await bootstrapWithOrbit(
+      vi.fn<Bootstrap>(async () => undefined),
+      connect
+    );
+    const accept = connect.mock.calls[0]?.[0]?.acceptHostOrigin;
+    expect(accept).toBeTypeOf('function');
+    for (const origin of ['https://desktop.aiao.io', 'https://aiao-desktop.pages.dev', 'http://localhost:4200'])
+      expect(accept!(origin), origin).toBe(true);
+    for (const origin of ['https://evil.example', 'null', 'https://desktop.aiao.io.evil.example', ''])
+      expect(accept!(origin), origin).toBe(false);
   });
 
   it('握手失败时不启动，把错误交给调用方', async () => {

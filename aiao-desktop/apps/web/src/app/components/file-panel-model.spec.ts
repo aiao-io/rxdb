@@ -12,6 +12,7 @@ import {
   panelEntries,
   pathLabel,
   saveConflict,
+  saveName,
   startFolder
 } from './file-panel-model';
 
@@ -132,21 +133,45 @@ describe('saveConflict：保存的目标与现有条目', () => {
     fileNode('other.pdf')
   ]);
 
-  it('新名字没有冲突；同名文件要请用户确认覆盖；同名文件夹与程序包不能覆盖', () => {
+  it('新名字没有冲突；同名文件要请用户确认覆盖；同名文件夹与程序包不能覆盖；冲突带着已有节点的名字', () => {
     expect(saveConflict(folder, 'new.md')).toEqual({ kind: 'none' });
-    expect(saveConflict(folder, 'a.md')).toEqual({ kind: 'file' });
-    expect(saveConflict(folder, 'Sub')).toEqual({ kind: 'folder' });
-    expect(saveConflict(folder, 'Mail.app')).toEqual({ kind: 'package' });
+    expect(saveConflict(folder, 'a.md')).toEqual({ kind: 'file', name: 'a.md' });
+    expect(saveConflict(folder, 'Sub')).toEqual({ kind: 'folder', name: 'Sub' });
+    expect(saveConflict(folder, 'Mail.app')).toEqual({ kind: 'package', name: 'Mail.app' });
   });
 
   it('看文件夹里的全部条目：隐藏文件、被 accept 过滤掉的文件也算冲突，不会在看不见的地方静默覆盖', () => {
-    expect(saveConflict(folder, '.secret')).toEqual({ kind: 'file' });
-    expect(saveConflict(folder, 'other.pdf')).toEqual({ kind: 'file' });
-    expect(saveConflict(folder, 'A.md')).toEqual({ kind: 'none' });
+    expect(saveConflict(folder, '.secret')).toEqual({ kind: 'file', name: '.secret' });
+    expect(saveConflict(folder, 'other.pdf')).toEqual({ kind: 'file', name: 'other.pdf' });
+  });
+
+  it('只差大小写也算冲突（与库的唯一索引同口径）：带回已有节点的名字，覆盖要写给它', () => {
+    expect(saveConflict(folder, 'A.MD')).toEqual({ kind: 'file', name: 'a.md' });
+    expect(saveConflict(folder, 'sub')).toEqual({ kind: 'folder', name: 'Sub' });
+    expect(saveConflict(folder, 'mail.APP')).toEqual({ kind: 'package', name: 'Mail.app' });
+    expect(saveConflict(folder, '.SECRET')).toEqual({ kind: 'file', name: '.secret' });
+    expect(saveConflict(folder, 'a.mdx')).toEqual({ kind: 'none' });
+  });
+
+  it('库里并存着只差大小写的两个名字时，精确同名的优先', () => {
+    const both = folderNode('Docs', [fileNode('É.txt'), fileNode('é.txt')]);
+    expect(saveConflict(both, 'é.txt')).toEqual({ kind: 'file', name: 'é.txt' });
+    expect(saveConflict(both, 'É.txt')).toEqual({ kind: 'file', name: 'É.txt' });
   });
 
   it('文件夹已经不在了：没有冲突（之后的写入会因为目标文件夹不在而不写）', () => {
     expect(saveConflict(null, 'a.md')).toEqual({ kind: 'none' });
+  });
+});
+
+describe('saveName：保存时真正写到哪个名字', () => {
+  const folder = folderNode('Docs', [fileNode('Report.txt'), folderNode('Sub', [], ['Users', 'Docs', 'Sub'])]);
+
+  it('覆盖已有文件时用它现在的名字（用户输入的大小写可以不同），否则就是输入的名字', () => {
+    expect(saveName(saveConflict(folder, 'report.txt'), 'report.txt')).toBe('Report.txt');
+    expect(saveName(saveConflict(folder, 'Report.txt'), 'Report.txt')).toBe('Report.txt');
+    expect(saveName(saveConflict(folder, 'new.txt'), 'new.txt')).toBe('new.txt');
+    expect(saveName(saveConflict(folder, 'sub'), 'sub')).toBe('sub');
   });
 });
 

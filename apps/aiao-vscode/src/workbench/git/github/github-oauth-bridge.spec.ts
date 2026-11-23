@@ -6,7 +6,10 @@ import {
   completeOAuthCallback,
   loadPendingOAuth,
   oauthDoneKey,
-  savePendingOAuth
+  oauthFailedKey,
+  readOAuthFailure,
+  savePendingOAuth,
+  settleOAuthCallback
 } from './github-oauth-bridge.js';
 
 const storage = vi.hoisted(() => {
@@ -93,6 +96,47 @@ describe('GitHub OAuth bridge', () => {
     expect(await loadPendingOAuth()).toBeNull();
 
     await expect(completeOAuthCallback(auth, 'code-1', PENDING.state)).rejects.toMatchObject({ code: 'auth_invalid' });
+  });
+
+  it('settles a callback with a code by exchanging it, and rejects callbacks without exactly one result', async () => {
+    const auth = fakeAuth();
+    await savePendingOAuth(PENDING);
+    await settleOAuthCallback(auth, new URLSearchParams({ code: 'code-1', state: PENDING.state }));
+    expect(auth.completeOAuth).toHaveBeenCalledWith('code-1', 'verifier-1');
+
+    const malformed: Record<string, string>[] = [
+      { state: PENDING.state },
+      { code: 'c', error: 'access_denied', state: PENDING.state },
+      {}
+    ];
+    for (const params of malformed)
+      await expect(settleOAuthCallback(auth, new URLSearchParams(params))).rejects.toMatchObject({
+        code: 'auth_invalid'
+      });
+  });
+
+  it('settles a cancelled authorization by voiding the pending request and telling the waiting tab', async () => {
+    const auth = fakeAuth();
+    await savePendingOAuth(PENDING);
+    await settleOAuthCallback(auth, new URLSearchParams({ error: 'access_denied', state: PENDING.state }));
+    expect(auth.completeOAuth).not.toHaveBeenCalled();
+    expect(await loadPendingOAuth()).toBeNull();
+    expect(readOAuthFailure(localStorage.getItem(oauthFailedKey()))).toBe('access_denied');
+    expect(localStorage.getItem(oauthDoneKey())).toBeNull();
+  });
+
+  it('rejects a failure callback whose state does not match, without telling any tab', async () => {
+    const auth = fakeAuth();
+    await savePendingOAuth(PENDING);
+    await expect(
+      settleOAuthCallback(
+        auth,
+        new URLSearchParams({ error: 'access_denied', state: 'https://ide.example/github-callback?nonce=other' })
+      )
+    ).rejects.toMatchObject({ code: 'auth_invalid' });
+    expect(await loadPendingOAuth()).toBeNull();
+    expect(localStorage.getItem(oauthFailedKey())).toBeNull();
+    expect(readOAuthFailure(null)).toBeNull();
   });
 
   it('clears the pending request when the exchange fails', async () => {

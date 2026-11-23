@@ -150,6 +150,83 @@ test('4xx 不重试', async t => {
   assert.equal(calls.filter(call => call.pathname === '/main.js').length, 1);
 });
 
+/** 别名在传播窗口里还指向上一版部署：200、响应头齐全，入口页内容却不是本次的。 */
+const STALE_INDEX = { body: '<app-root>previous deployment</app-root>' };
+const FRESH_INDEX = { body: SITE['index.html'] };
+const PROPAGATION = { timeoutMs: 2000, intervalMs: 1 };
+
+test('本次部署独有的地址要求立即一致：内容不一致不等待，只请求一次就失败', async t => {
+  const distDir = await fixture(t, SITE);
+  const { result, calls } = await run(distDir, { ...GOOD, '/': [STALE_INDEX, FRESH_INDEX] });
+  assert.equal(result.failures.length, 1);
+  assert.match(result.failures[0].reason, /内容与构建产物不一致/);
+  assert.equal(calls.filter(call => call.pathname === '/').length, 1);
+});
+
+test('别名在传播窗口内先返回旧部署：轮询到指向本次部署就通过，只提示一次', async t => {
+  const distDir = await fixture(t, SITE);
+  const waits = [];
+  const { result, calls } = await run(
+    distDir,
+    { ...GOOD, '/': [STALE_INDEX, STALE_INDEX, FRESH_INDEX] },
+    { propagation: PROPAGATION, onWait: info => waits.push(info) }
+  );
+  assert.deepEqual(result, { checked: 3, failures: [] });
+  assert.equal(calls.filter(call => call.pathname === '/').length, 3);
+  assert.equal(waits.length, 1);
+  assert.equal(waits[0].path, 'index.html');
+  assert.match(waits[0].reason, /内容与构建产物不一致/);
+});
+
+test('旧部署还缺新增的响应头，同样算传播没完成：等到带齐为止', async t => {
+  const distDir = await fixture(t, SITE);
+  const withoutHeaders = { ...FRESH_INDEX, headers: { 'cross-origin-opener-policy': 'same-origin' } };
+  const { result, calls } = await run(
+    distDir,
+    { ...GOOD, '/': [withoutHeaders, FRESH_INDEX] },
+    { propagation: PROPAGATION }
+  );
+  assert.deepEqual(result.failures, []);
+  assert.equal(calls.filter(call => call.pathname === '/').length, 2);
+});
+
+test('等到时限仍是旧部署：才算失败，失败信息带原因与已等待的时间', async t => {
+  const distDir = await fixture(t, SITE);
+  const { result, calls } = await run(
+    distDir,
+    { ...GOOD, '/': STALE_INDEX },
+    { propagation: { timeoutMs: 120, intervalMs: 20 } }
+  );
+  assert.equal(result.failures.length, 1);
+  assert.equal(result.failures[0].path, 'index.html');
+  assert.match(result.failures[0].reason, /内容与构建产物不一致.*已等待 \d+ 秒仍未指向本次部署/);
+  const attempts = calls.filter(call => call.pathname === '/').length;
+  assert.ok(attempts >= 2 && attempts <= 8, `轮询次数应受时限约束：${attempts}`);
+});
+
+test('传播等待只针对「200 但不一致」：404 与重定向是确定的结果，立即失败', async t => {
+  const distDir = await fixture(t, SITE);
+  for (const missing of [
+    { status: 404, body: 'nope' },
+    { status: 308, body: '', headers: { ...ISOLATED, location: '/x' } }
+  ]) {
+    const { result, calls } = await run(distDir, { ...GOOD, '/': missing }, { propagation: PROPAGATION });
+    assert.equal(result.failures.length, 1);
+    assert.equal(calls.filter(call => call.pathname === '/').length, 1);
+  }
+});
+
+test('传播等待不吞网络错误：用尽重试后直接报请求失败，不再轮询', async t => {
+  const distDir = await fixture(t, SITE);
+  const { result, calls } = await run(
+    distDir,
+    { ...GOOD, '/': new TypeError('fetch failed') },
+    { propagation: PROPAGATION, retries: 1 }
+  );
+  assert.match(result.failures[0].reason, /请求失败.*fetch failed/);
+  assert.equal(calls.filter(call => call.pathname === '/').length, 2);
+});
+
 test('waitUntilReachable：只要有 HTTP 应答（哪怕 404）就算连得上，不多请求', async () => {
   const calls = [];
   const fetchImpl = async url => {

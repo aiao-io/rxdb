@@ -1,5 +1,7 @@
 # 数据模型
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 - DesktopProfile: mode=`macos|windows`，theme=`light|dark|system`，scale=100–200%，reducedMotion、pinned appId 有序去重、shortcuts、guided、doNotDisturb；显式偏好优先于系统推断。
 - Workspace: 稳定 id、非空 name、排序；至少一个，删除必须选择迁移目标。
 - AppDefinition: 稳定 appId、name、version、受控 origin/entry、protocol=1、可选 suspension=1、instances=`single|multiple`、required/optional capabilities、minWidth/minHeight、fileTypes、resources（URL + SHA-256）；身份来源不可覆盖。

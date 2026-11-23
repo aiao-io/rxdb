@@ -38,7 +38,7 @@ pnpm nx dev aiao-desktop
 - 交互终端默认使用 Nx TUI，可切换查看各服务日志；`pnpm nx dev aiao-desktop --tui=false` 输出普通日志。
 - Ctrl-C 停止全部服务。
 
-开发服务器与正式构建预览都返回跨源隔离所需的响应头，终端才能启动 Vivari；开发服务器的 production 配置不带这两个头。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
+开发服务器与正式构建预览都返回跨源隔离所需的 COOP / COEP（终端才能启动 Vivari）；正式构建预览还返回与生产一致的防嵌入 `X-Frame-Options: SAMEORIGIN`，开发服务器不带它（IDE 内置预览用 iframe 打开 localhost）；开发服务器的 production 配置两者都不带。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
 
 终端资源随构建发布：构建和启动开发服务器会先运行 `aiao-desktop-web:prepare-vendor`，准备 npm/npx、pnpm、Yarn、Corepack、TypeScript 7、Python 3.14 / pip、Ruff 与 SQLite。Python 常用库与传递依赖同源托管，首次命令或 import 时加载，不进入桌面首屏。首次准备需要 npm registry、Pyodide CDN、PyPI 文件服务网络和宿主 `tar`；后续校验并复用 `node_modules/.cache/aiao-desktop/vivari/vendor`。版本、资源格式与兼容边界见[终端资源说明](scripts/vivari/README.md)。Yarn 的 `--version` 存在 Vivari 上游退出日志问题，版本查询可用 `yarn versions --json`。
 
@@ -56,18 +56,18 @@ pnpm nx run aiao-desktop:verify
 
 已立项需求的验收结果见[状态总览](requirements/status-overview.md)和[原始证据](requirements/evidence/2026-11-14/README.md)。本轮按用户要求[只验收桌面 Chrome](requirements/decisions.md#d-19只验收桌面-chrome)；默认自动回归使用 Chromium，真实 Chrome 的高依赖能力记录单独归档。当前源码已包含应用目录与Dock管理、运行时懒加载、跨标签页同步、升级保护和布局恢复；真实物理键盘、VoiceOver、历史基线流程及正式发布仍按故事保留。Safari、Firefox与WebKit的已有结果保留为历史或可选诊断。
 
-本机专项验收入口：
+本机专项验收入口，都按需在本机跑，不进 CI：
 
 ```bash
-pnpm nx run aiao-desktop-e2e:e2e-firefox
-pnpm nx run aiao-desktop-e2e:e2e-webkit
+pnpm nx run aiao-desktop-e2e:e2e-firefox      # 可选诊断（D-19），不是支持承诺
+pnpm nx run aiao-desktop-e2e:e2e-webkit       # 可选诊断（D-19），不是支持承诺
 pnpm nx run aiao-desktop-e2e:verify-saltline
 pnpm nx run aiao-desktop-e2e:verify-keyboard
 pnpm nx run aiao-desktop-e2e:verify-domains
 pnpm nx run aiao-desktop:inspect-live
 ```
 
-键盘脚本需要操作者用手按键；读屏按[VoiceOver清单](apps/e2e/VOICEOVER.md)保留真实播报。`inspect-live`只读核对线上入口，不能代替`deploy`的本次发布对账。
+Firefox / WebKit 两条是[D-19](requirements/decisions.md#d-19只验收桌面-chrome)之下保留的可选诊断：本轮只验收桌面 Chrome，所以它们和下面的验收脚本一样不进 CI，结果不改变支持范围；其中少数无法确定来源的控制台信息（应用自己捕获后打印的 `NetworkError…`、`Load failed`）仍按外网被拦截的噪音忽略，默认的 Chromium 冒烟则一律按来源判定。键盘脚本需要操作者用手按键；读屏按[VoiceOver清单](apps/e2e/VOICEOVER.md)保留真实播报。`inspect-live`只读核对线上入口（项目的 pages.dev 地址加 [config.mjs](scripts/deploy/config.mjs) 登记的自定义域名），不能代替`deploy`的本次发布对账。
 
 ## PWA 安装与离线使用
 
@@ -102,6 +102,8 @@ pnpm nx run aiao-desktop-web:serve-static
    orbit?.ready(); // 启动失败时改为 orbit?.fail(原因)
    ```
 
+   握手令牌取自应用自己的地址参数，嵌入方自己就能指定，不是秘密：任何站点都能嵌入应用并扮演桌面。只接受特定桌面的应用在连接时传 `acceptHostOrigin`（按浏览器给出的来源判定，可以放行本机任意端口），不被接受的来源发来的握手一律忽略、最终超时失败；要信任宿主时以 `orbit.context.hostOrigin`（来自浏览器，不是宿主自报）为准。Aiao Code 两者都用：只接受登记的桌面来源，并据此决定是否让桌面代办 GitHub 授权。
+
 3. **能力边界**：不做整页导航（Orbit 视为失败，要用 history 路由）；不依赖弹窗、`alert` / `confirm`（sandbox 不放行），也不依赖 `showOpenFilePicker()`、`showDirectoryPicker()` 这类文件句柄 API（跨源 iframe 里浏览器拒绝，抛 `SecurityError`）；数据留在应用自己的来源里。普通 `<input type="file">` 不在这条限制里，但它在 Orbit 的 sandbox 与桌面界面里能否使用没有验收，先在桌面里实测再依赖。
 
 自带标题栏的应用可以用**透明窗口**（[D-14](requirements/decisions.md#d-14透明窗口与窗口接口参考-tauri)，参考 Tauri）：登记表写 `frame: 'transparent'`，应用自己画标题栏与红黄绿，用 `@aiao/orbit/window` 调用桌面的窗口操作：
@@ -132,7 +134,7 @@ orbit?.ready();
 
 ## 托管要求
 
-产物是纯静态文件。托管方必须对所有响应返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`，否则终端无法启动（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。壁纸、地图、天气等外网内容拿不到时应用照常可用（[D-04](requirements/decisions.md#d-04外网内容可缺失)）。线上部署在 Cloudflare Pages，见下一节。
+产物是纯静态文件。托管方必须对所有响应返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`，否则终端无法启动（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）；还要返回 `X-Frame-Options: SAMEORIGIN`，其他站点不能把桌面嵌进 iframe（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。壁纸、地图、天气等外网内容拿不到时应用照常可用（[D-04](requirements/decisions.md#d-04外网内容可缺失)）。线上部署在 Cloudflare Pages，见下一节。
 
 ## 发布
 
@@ -149,12 +151,12 @@ pnpm nx run aiao-desktop:deploy --preview   # 发布到 Preview 分支（https:/
 命令按顺序做这些事，任何一步失败就停下并以非零退出：
 
 1. Nx 先完成 web 的正式构建与 `audit-secrets`。
-2. 检查产物：有 `index.html` 与 `_headers`，`_headers` 的 `/*` 规则里 COOP / COEP 各恰好一次。
+2. 检查产物：有 `index.html` 与 `_headers`，`_headers` 的 `/*` 规则里 COOP / COEP / X-Frame-Options 各恰好一次。
 3. 项目不存在则新建；读出当前的生产部署，作为回滚点。
-4. `wrangler pages deploy` 上传。分支显式给 `main`，在功能分支上执行也不会误发到 Preview。
-5. 线上对账：部署地址的每个文件与本地产物逐字节一致且都带 COOP / COEP；生产地址与已绑定的自定义域名核对入口页。新项目的子域名证书要几分钟才签发，命令会等它就绪。
+4. `wrangler pages deploy` 上传。分支显式给 `main`，在功能分支上执行也不会误发到 Preview。wrangler 子进程有时限（查询 5 分钟，含首次下载；上传 10 分钟），网络停滞时终止整个进程组并失败，信息提醒到 Pages 面板核对是否已产生部署。
+5. 线上对账：部署地址的每个文件与本地产物逐字节一致且都带上述响应头，要求立即一致；生产地址与已绑定的自定义域名核对入口页，它们在传播窗口里可能还回上一版部署，内容或响应头不一致时每 5 秒重试一次、最多等 2 分钟，超时才失败（信息带已等待的时间）。新项目的子域名证书要几分钟才签发，命令会等它就绪。
 
-`_headers`（全站 COOP / COEP）与 `_redirects`（`/saltline.html` 200 改写）放在 [apps/web/public](apps/web/public)，随构建发布。改了响应头要同步 [config.mjs](scripts/deploy/config.mjs) 的 `requiredHeaders`，`deploy-test` 会校验两者一致。
+`_headers`（全站 COOP / COEP / X-Frame-Options）与 `_redirects`（`/saltline.html` 200 改写）放在 [apps/web/public](apps/web/public)，随构建发布。改了响应头要同步 [config.mjs](scripts/deploy/config.mjs) 的 `requiredHeaders`、[serve-static](apps/web/tools/serve-static.mjs) 与冒烟的桌面静态服务器；web 的 `serve` 开发配置只同步跨源隔离那两项。`deploy-test` 会校验它们一致。全站规则里不放 `Content-Security-Policy`：Pages 会把同名响应头拼起来，oauth 返回页自带的 CSP 会变成两条策略的拼接值。时限、传播等待与自定义域名都登记在 `config.mjs`。
 
 发布后的浏览器级验收，用真实的桌面加真实的 Aiao Code（要外网）：
 
@@ -163,7 +165,7 @@ pnpm nx run aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop
 ```
 
 - **回滚**：在 Cloudflare 面板 Workers & Pages → aiao-desktop → Deployments 里选命令结尾打印的回滚点，Rollback to this deployment。回滚只换静态产物，不回滚浏览器里已升级的数据：数据升级过之后，先对照 [ADESK-US-106](requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md) 的「回滚目标」表，早于降级保护的部署不能再作为回滚目标（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
-- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页。`desktop.aiao.io` 已绑定；2026-11-14在真实Chrome配置中核对了同站项目与已有GitHub登录状态，记录见验收台账。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
+- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页（`inspect-live` 的只读核对读 [config.mjs](scripts/deploy/config.mjs) 的 `customDomains`，绑了新域名要同步登记）。`desktop.aiao.io` 已绑定；2026-11-14在真实Chrome配置中核对了同站项目与已有GitHub登录状态，记录见验收台账。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
 - **发布前**：命令不重跑浏览器冒烟，完整门禁用 `pnpm nx run aiao-desktop:verify`。
 
 本次生产部署 `b093f8b2` 已上传并完成线上复验，入口为 `desktop.aiao.io` 与 `aiao-desktop.pages.dev`；原始发布下载超时及后续95文件完整核对见[发布收尾记录](requirements/evidence/2026-11-14/release-closeout.json)。当前20/22个已立项故事Done，剩余物理键盘与VoiceOver实际验收。

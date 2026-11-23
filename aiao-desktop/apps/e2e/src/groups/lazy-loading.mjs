@@ -444,6 +444,7 @@ export const lazyLoading = {
       (await forceQuit.count()) === 0 && (await page.locator('#menu-shield.on').count()) === 0;
 
     await session.reloadDesktop();
+    session.expectLoadFailure(panelUrl);
     await page.route(panelUrl, route => route.abort(), { times: 1 });
     await openForceQuit();
     await page.getByRole('status').filter({ hasText: 'Could not load this panel' }).waitFor();

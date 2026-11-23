@@ -54,6 +54,24 @@ await check('redirect: 缺少参数返回 400', async () => {
   assert.equal((await get('/redirect?state=x')).status, 400);
 });
 
+await check('redirect: 浏览器授权被取消或失败时把结果带回同源回调，不落裸 400', async () => {
+  const state = `${ORIGIN}/github-callback?nonce=1234`;
+  for (const [error, expected] of [
+    ['access_denied', 'access_denied'],
+    ['server_error', 'oauth_failed']
+  ]) {
+    const response = await get('/redirect?' + new URLSearchParams({ state, error }));
+    assert.equal(response.status, 302);
+    const location = new URL(response.headers.get('location'));
+    assert.equal(location.origin, ORIGIN);
+    assert.equal(location.pathname, '/github-callback');
+    assert.equal(location.searchParams.get('nonce'), '1234');
+    assert.equal(location.searchParams.get('state'), state);
+    assert.equal(location.searchParams.get('error'), expected);
+    assert.equal(location.searchParams.get('code'), null);
+  }
+});
+
 await check('redirect: 拒绝跨源与非法 state（开放重定向防护）', async () => {
   assert.equal((await get('/redirect?code=abc&state=https%3A%2F%2Fevil.example%2Fx')).status, 400);
   assert.equal((await get('/redirect?code=abc&state=' + encodeURIComponent(`${ORIGIN}/elsewhere`))).status, 400);

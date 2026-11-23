@@ -38,6 +38,11 @@ export default defineConfig({
         'src/app/apps/textedit/text-document.ts',
         'src/app/apps/reminders/reminder-drafts.ts',
         'src/app/apps/notes/note-document.ts',
+        'src/app/apps/notes/note-body.ts',
+        'src/app/apps/safari/safari-lead.ts',
+        'src/app/apps/github/github-archive.ts',
+        'src/app/apps/github/github-diff.ts',
+        'src/app/shared/html-sanitizer.ts',
         'src/app/apps/messages/message-drafts.ts',
         'src/app/apps/mail/mail-draft.ts'
       ],

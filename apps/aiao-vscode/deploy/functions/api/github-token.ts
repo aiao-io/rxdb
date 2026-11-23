@@ -1,4 +1,4 @@
-import { isGitHubOAuthDesktopOrigin } from '../../../src/workbench/git/github/github-desktop-oauth.ts';
+import { isTrustedDesktopOrigin } from '../../../src/workbench/git/github/github-desktop-oauth.ts';
 
 /** Pages Function 的最小上下文类型；无需引入 @cloudflare/workers-types。 */
 interface PagesContext {
@@ -47,7 +47,7 @@ function corsHeaders(request: Request): Headers | Response {
   if (origin === null) return headers;
 
   const requestOrigin = new URL(request.url).origin;
-  if (origin !== requestOrigin && !isGitHubOAuthDesktopOrigin(origin)) {
+  if (origin !== requestOrigin && !isTrustedDesktopOrigin(origin)) {
     return new Response('Origin not allowed', { status: 403, headers });
   }
   headers.set('Access-Control-Allow-Origin', origin);

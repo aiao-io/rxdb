@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DiskPath } from '../disk/disk-path';
 import { DiskStore } from '../disk/disk-store';
@@ -182,6 +182,19 @@ describe('create：保存面板选定的位置', () => {
     await store.mkdir([...FOLDER, 'dir']);
     expect(await files.create([...FOLDER, 'dir'], bytes('x'), true)).toEqual({ kind: 'exists' });
     expect(await store.kindOf([...FOLDER, 'dir'])).toBe('directory');
+  });
+
+  it('目标和同级已有名字只差大小写（库的唯一索引不区分大小写）：当作 exists，不写、不触发 beforeWrite，已有文件原样', async () => {
+    const { files, store, notified } = await setup();
+    const beforeWrite = vi.fn();
+    const variant: DiskPath = [...FOLDER, 'NOTE.MD'];
+
+    expect(await files.create(variant, bytes('x'), false, beforeWrite)).toEqual({ kind: 'exists' });
+    expect(await files.create(variant, bytes('x'), true, beforeWrite)).toEqual({ kind: 'exists' });
+    expect(beforeWrite).not.toHaveBeenCalled();
+    expect(text(await store.read(NOTE))).toBe('hello');
+    expect(await store.list(FOLDER)).toEqual([{ name: 'note.md', kind: 'file' }]);
+    expect(notified).toEqual([]);
   });
 
   it('选定的文件夹在确认之后被删掉：不补建父目录，missing-folder，磁盘上什么也没多出来', async () => {

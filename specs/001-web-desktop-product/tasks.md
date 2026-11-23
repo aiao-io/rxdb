@@ -1,5 +1,7 @@
 # Tasks: 双交互模式 Web 桌面产品
 
+> 本清单记录已退役的 Web Desktop 项目：文中的 `apps/web-desktop/` 路径已随项目删除，勾选只是当时的历史状态，无法在现行代码中核对。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 日期：2026-11-07。覆盖全部当前故事；逐 AC 证据由验收台账维护。勾选只代表任务定义满足；实机或发布证据缺失不得用自动化结果替代。遵循红→绿→重构。
 
 ## Phase 1: Setup

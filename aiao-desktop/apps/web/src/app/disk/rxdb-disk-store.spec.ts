@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { FakeDesktopData } from '../testing/fake-desktop-data';
+import { FakeDesktopData, enforceDesktopFileIndex } from '../testing/fake-desktop-data';
 import { DesktopFile } from './desktop-file.entity';
 import { DiskError } from './disk-store';
 import { BLOB_DIR, RxdbDiskStore } from './rxdb-disk-store';
@@ -422,6 +422,155 @@ describe('RxdbDiskStore 内存索引', () => {
     store.invalidate();
     expect(await names(store, [])).toEqual(['a.txt', 'outside']);
     expect(files.find).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('RxdbDiskStore 大小写变体（库的唯一索引不区分大小写）', () => {
+  /** 与生产一致：替身表装上 `desktop_file_parent_name`，撞了名就抛 SQLite 的约束错误。 */
+  function setupIndexed() {
+    const context = setup();
+    enforceDesktopFileIndex(context.files);
+    return context;
+  }
+
+  const taken = (existing: string) => ({
+    code: 'EEXIST',
+    message: expect.stringContaining(`“${existing}”`)
+  });
+
+  it('新建一个只在大小写上和同级已有名字不同的文件：抛 EEXIST 并说清是哪个名字，不上传文件体、不建行，已有文件原样', async () => {
+    const { store, files, storage } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+    const uploads = storage.upload.mock.calls.length;
+    const rows = files.rows.length;
+
+    const failure = await store.write(['Docs', 'report.txt'], text('new')).then(
+      () => null,
+      (error: unknown) => error
+    );
+    expect(failure).toBeInstanceOf(DiskError);
+    expect(failure).toMatchObject(taken('Report.txt'));
+    expect(String(failure)).not.toContain('UNIQUE');
+    expect(storage.upload.mock.calls.length).toBe(uploads);
+    expect(files.rows).toHaveLength(rows);
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('original');
+    expect(await names(store, ['Docs'])).toEqual(['Report.txt']);
+  });
+
+  it('同名（大小写一致）的文件照常覆盖', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('v1'));
+    await store.write(['Docs', 'Report.txt'], text('v2'));
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('v2');
+  });
+
+  it('路径查找保持精确：换一种大小写就是另一条路径，读、列、覆盖都当作不存在', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+
+    expect(await store.kindOf(['Docs', 'report.txt'])).toBeNull();
+    expect(await store.kindOf(['docs'])).toBeNull();
+    await expect(store.read(['Docs', 'report.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.info(['Docs', 'report.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.replace(['Docs', 'report.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.list(['docs'])).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('original');
+  });
+
+  it('mkdir 与逐级补建目录：同级有只差大小写的目录或文件就抛 EEXIST，什么也不建', async () => {
+    const { store, files } = setupIndexed();
+    await store.write(['Docs', 'a.txt'], text('a'));
+    await store.write(['Notes'], text('a file'));
+    const rows = files.rows.length;
+
+    await expect(store.mkdir(['docs'])).rejects.toMatchObject(taken('Docs'));
+    await expect(store.mkdir(['notes'])).rejects.toMatchObject(taken('Notes'));
+    await expect(store.write(['docs', 'b.txt'], text('b'))).rejects.toMatchObject(taken('Docs'));
+    await expect(store.write(['DOCS', 'Sub', 'x.txt'], text('b'))).rejects.toMatchObject(taken('Docs'));
+    await expect(store.move(['Notes'], ['docs', 'Notes'])).rejects.toMatchObject(taken('Docs'));
+    expect(files.rows).toHaveLength(rows);
+    expect(await names(store, [])).toEqual(['Docs', 'Notes']);
+    await store.mkdir(['Docs']);
+    expect(files.rows).toHaveLength(rows);
+  });
+
+  it('移动或改名成只差大小写的另一个节点的名字：EEXIST，源节点不动；换到别的目录同理', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('report'));
+    await store.write(['Docs', 'notes.txt'], text('notes'));
+    await store.write(['Other', 'x.txt'], text('x'));
+
+    await expect(store.move(['Docs', 'notes.txt'], ['Docs', 'REPORT.TXT'])).rejects.toMatchObject(taken('Report.txt'));
+    await expect(store.move(['Other', 'x.txt'], ['Docs', 'report.txt'])).rejects.toMatchObject(taken('Report.txt'));
+    expect(await names(store, ['Docs'])).toEqual(['Report.txt', 'notes.txt']);
+    expect(await names(store, ['Other'])).toEqual(['x.txt']);
+    expect(decode(await store.read(['Docs', 'notes.txt']))).toBe('notes');
+  });
+
+  it('纯大小写改名（同一个节点）可以：行 id、内容与修改时间不变，不撞自己的索引；目录的子项跟着走', async () => {
+    const { store, files } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('report'));
+    const id = files.rows.find(row => row.name === 'Report.txt')?.id;
+    const modified = (await store.info(['Docs', 'Report.txt'])).modified;
+
+    await store.move(['Docs', 'Report.txt'], ['Docs', 'report.txt']);
+    expect(await names(store, ['Docs'])).toEqual(['report.txt']);
+    expect(await store.kindOf(['Docs', 'Report.txt'])).toBeNull();
+    expect(await store.info(['Docs', 'report.txt'])).toEqual({ size: 6, modified });
+    expect(files.rows.filter(row => row.name === 'report.txt').map(row => row.id)).toEqual([id]);
+
+    await store.move(['Docs'], ['docs']);
+    expect(await names(store, [])).toEqual(['docs']);
+    expect(decode(await store.read(['docs', 'report.txt']))).toBe('report');
+    await expect(store.write(['docs', 'REPORT.txt'], text('x'))).rejects.toMatchObject(taken('report.txt'));
+    expect(await names(store, ['docs'])).toEqual(['report.txt']);
+  });
+
+  it('别的标签页新建的变体：refresh 之后同样被拦下，而不是等撞上库的唯一索引', async () => {
+    const { store, otherTab, files, foreignCommit } = setupIndexed();
+    await store.mkdir(['Docs']);
+    await store.refresh();
+    await store.list([]);
+    await otherTab().write(['Docs', 'Report.txt'], text('from the other tab'));
+    foreignCommit();
+
+    await store.refresh();
+    const rows = files.rows.length;
+    await expect(store.write(['Docs', 'report.txt'], text('mine'))).rejects.toMatchObject(taken('Report.txt'));
+    expect(files.rows).toHaveLength(rows);
+  });
+
+  it('库里本来就并存的、折叠规则不同的名字（É 与 é）互不混淆：各自可读、可覆盖', async () => {
+    const { store, files } = setupIndexed();
+    const seed = (name: string) => ({
+      name,
+      type: 'file' as const,
+      parentId: null,
+      size: 1,
+      mimeType: null,
+      contentId: null,
+      modifiedAt: new Date(1)
+    });
+    files.seed([seed('É.txt'), seed('é.txt')]);
+
+    expect(await names(store, [])).toHaveLength(2);
+    await store.write(['é.txt'], text('lower'));
+    await store.write(['É.txt'], text('upper'));
+    expect(decode(await store.read(['é.txt']))).toBe('lower');
+    expect(decode(await store.read(['É.txt']))).toBe('upper');
+  });
+
+  it('撞了名的操作失败之后存储照常使用：索引没有被弄脏', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+    await expect(store.write(['Docs', 'report.txt'], text('new'))).rejects.toMatchObject({ code: 'EEXIST' });
+    await expect(store.move(['Docs', 'Report.txt'], ['Docs', 'Report.txt'])).rejects.toMatchObject({ code: 'EEXIST' });
+
+    await store.write(['Docs', 'other.txt'], text('o'));
+    await store.move(['Docs', 'other.txt'], ['Docs', 'renamed.txt']);
+    await store.remove(['Docs', 'Report.txt']);
+    await store.write(['Docs', 'report.txt'], text('now free'));
+    expect(await names(store, ['Docs'])).toEqual(['renamed.txt', 'report.txt']);
   });
 });
 

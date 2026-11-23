@@ -181,6 +181,7 @@ export const approvedCatalog = {
       await showStore();
       result.confirmationAndEntrypoints = true;
 
+      session.expectLoadFailure(`${session.origin}/approved-apps.json`);
       await context.route(`${session.origin}/approved-apps.json`, route => route.abort('internetdisconnected'), {
         times: 1
       });

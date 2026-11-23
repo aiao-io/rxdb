@@ -29,10 +29,10 @@ apps/web ──> 第三方库（@angular/*、rxjs、comlink、@xterm/*、@vivari
 - 目前没有产品私有包。出现跨应用共用的代码时，建 `packages/<name>`（`@aiao-desktop/<name>`，`private: true`），同时把 `aiao-desktop/packages/*` 加进 `pnpm-workspace.yaml`、在 `tsconfig.base.json` 加 paths，并按治理办法给 `layer:domain` 补依赖约束。
 - 集成应用（[D-10](requirements/decisions.md#d-10应用分三类登记在同一张表里)～[D-13](requirements/decisions.md#d-13aiao-code-用线上发布版本)）只经 Orbit 协议与桌面往来，web 不 import 集成应用的源码；入口登记在 `src/app/apps/registry.ts`，Orbit 的允许来源从登记表推导，不另写。冒烟不访问外网，集成应用用替身页面验证；真实的线上验收是单独的脚本，不进 CI。
 - 产品只有前端，不带任何密钥（[D-03](requirements/decisions.md#d-03只有前端不带任何密钥)）。`aiao-desktop:audit-secrets` 扫描 web 的构建产物，CI 的 extras job 会跑它。
-- 终端依赖跨源隔离：托管 web 产物时必须返回 COOP `same-origin` 与 COEP `require-corp`（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。
+- 终端依赖跨源隔离：托管 web 产物时必须返回 COOP `same-origin` 与 COEP `require-corp`（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）；同时返回 `X-Frame-Options: SAMEORIGIN`，禁止其他站点把桌面嵌进 iframe（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。集成应用的夹具服务器只带跨源隔离，不带防嵌入：桌面要嵌入它们。
 - 本地开发的端口固定，统一登记在 [scripts/dev/services.mjs](scripts/dev/services.mjs)（[D-06](requirements/decisions.md#d-06本地开发用固定端口与开发导航)）。改端口时同步改 web 的 `serve`、`serve-static` 与产品根的 `dev`、`dev-dashboard`，`dev-test` 会校验它们一致。web 的 `serve` 先跑产品根的 `dev-ports`，这是唯一一条从子项目指向产品根的任务依赖，只用于开发时的端口检查。
 - 开发导航（`scripts/dev/dashboard.mjs`）只在本地开发时运行、只监听 `127.0.0.1`，不进入 web 的构建产物，页面里不放任何密钥。
-- 发布（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）：`scripts/deploy/` 只读 web 的构建产物，经 wrangler 发布到 Cloudflare Pages 项目 `aiao-desktop`；凭据只在发布者本机（wrangler 登录），不进仓库与产物。托管配置 `_headers`、`_redirects` 放在 `apps/web/public/` 随构建发布，响应头要与 `scripts/deploy/config.mjs` 的 `requiredHeaders` 一致（`deploy-test` 校验）。新增要被 iframe 直接加载的 `.html` 时，在 `_redirects` 补一条 200 改写，否则 Pages 会把它 308 到无扩展名地址。
+- 发布（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）：`scripts/deploy/` 只读 web 的构建产物，经 wrangler 发布到 Cloudflare Pages 项目 `aiao-desktop`；凭据只在发布者本机（wrangler 登录），不进仓库与产物。托管配置 `_headers`、`_redirects` 放在 `apps/web/public/` 随构建发布，响应头要与 `scripts/deploy/config.mjs` 的 `requiredHeaders` 一致（`deploy-test` 校验）：`_headers` 的 `/*`、`serve-static` 与冒烟的桌面静态服务器（`desktopHeaders`）三处同步改，web 的 `serve` 开发配置只带跨源隔离那两项（IDE 内置预览用 iframe 打开它）。全站规则里不放别的规则也会写的响应头（如 `Content-Security-Policy`）：Pages 会把同名响应头拼起来。发布脚本里的域名、时限与别名传播等待都登记在 `config.mjs`。新增要被 iframe 直接加载的 `.html` 时，在 `_redirects` 补一条 200 改写，否则 Pages 会把它 308 到无扩展名地址。
 
 ## 前端约定（可访问性）
 
@@ -53,7 +53,7 @@ apps/web ──> 第三方库（@angular/*、rxjs、comlink、@xterm/*、@vivari
 
 ## 常用命令
 
-在仓库根执行，先切 Node 26：
+在仓库根执行，先切 Node 26。CI 跑的是各项目的 `lint`、`test`、`build` 与默认的 Chromium 冒烟 `e2e`；Firefox / WebKit 冒烟，以及各个 `verify-*`、`compare-initial`、`benchmark-smoke`、`inspect-live`，都是按需在本机跑的诊断或验收脚本，不进 CI（浏览器范围的决定见 [D-19](requirements/decisions.md#d-19只验收桌面-chrome)）：
 
 ```bash
 pnpm nx dev aiao-desktop                    # 本地开发：开发服务器 http://localhost:4410 + 开发导航 http://127.0.0.1:4412/
@@ -61,9 +61,10 @@ pnpm nx run aiao-desktop:verify             # 全部门禁：需求、门禁与�
 pnpm nx serve aiao-desktop-web              # 只起开发服务器 http://localhost:4410（带跨源隔离响应头）
 pnpm nx run aiao-desktop-web:serve-static   # 正式构建后在 http://127.0.0.1:4411 预览
 pnpm nx run aiao-desktop-e2e:e2e            # 正式构建上的 Chromium 冒烟（按检查组拆分，只跑一组：`node src/smoke.mjs --group=<组名>`，列出组名：`--list`）
-pnpm nx run aiao-desktop-e2e:e2e-firefox    # Firefox / WebKit 上的冒烟；确实不能通过的项登记在 apps/e2e/src/baseline/limitations-<引擎>.json（写明档位与原因，通过了的限制算过期）
-pnpm nx run aiao-desktop-e2e:e2e-webkit
+pnpm nx run aiao-desktop-e2e:e2e-firefox    # Firefox / WebKit 上的冒烟：D-19 之下保留的可选诊断，不进 CI、不是支持承诺；确实不能通过的项登记在 apps/e2e/src/baseline/limitations-<引擎>.json（写明档位与原因，通过了的限制算过期）
+pnpm nx run aiao-desktop-e2e:e2e-webkit     # 同上
 pnpm nx run aiao-desktop-e2e:verify-saltline   # 本机 Chrome（有 GPU）里的游戏实测，不进 CI
 pnpm nx run aiao-desktop-e2e:verify-keyboard   # 本机真实键盘实测（要有人按键），不进 CI
+pnpm nx run aiao-desktop-e2e:verify-aiao-code  # 线上验收（要外网，--desktop-url 验已发布的桌面），不进 CI；应用有控制台错误即判失败
 pnpm nx run aiao-desktop:deploy             # 一键发布到 Cloudflare Pages（--dry-run 只检查，--preview 发到 Preview 分支）
 ```

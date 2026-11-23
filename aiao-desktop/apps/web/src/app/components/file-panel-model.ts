@@ -1,5 +1,5 @@
 import { extensionOf, formatSize, isPackageName, mimeTypeOf } from '../disk/disk-kinds';
-import { DiskPath, HOME, VOLUME_NAME, displayDiskPath } from '../disk/disk-path';
+import { DiskPath, HOME, VOLUME_NAME, displayDiskPath, sameName } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
 import type { FilePanelMode } from '../services/file-panels';
 
@@ -80,20 +80,35 @@ export function fileNameProblem(name: string, limit: number): string | null {
   return null;
 }
 
-/** 保存时目标名字与文件夹里现有条目的关系。 */
+/**
+ * 保存时目标名字与文件夹里现有条目的关系；已有的条目带着它现在的名字（只差大小写的也算同名，与库的唯一索引同口径，
+ * 所以这个名字可能和用户输入的大小写不同）。
+ */
 export type SaveConflict =
-  { readonly kind: 'none' } | { readonly kind: 'file' } | { readonly kind: 'folder' } | { readonly kind: 'package' };
+  | { readonly kind: 'none' }
+  | { readonly kind: 'file'; readonly name: string }
+  | { readonly kind: 'folder'; readonly name: string }
+  | { readonly kind: 'package'; readonly name: string };
 
 /**
- * 目标名字在这个文件夹里是新的，还是已经有文件（要请用户确认覆盖）、同名文件夹或程序包（不能覆盖）。
+ * 目标名字在这个文件夹里是新的，还是已经有文件（要请用户确认覆盖）、同名文件夹或程序包（不能覆盖）；
+ * 只在大小写上不同的名字也算已有（库的唯一索引不区分大小写，照输入的名字新建会撞上它）。精确同名的优先。
  * 看文件夹里的全部条目（含隐藏文件、含被 `accept` 过滤掉的文件）：显示过滤不能让用户在看不见的地方静默覆盖。
  */
 export function saveConflict(folder: FsNode | null, name: string): SaveConflict {
-  const existing = folder?.children?.find(node => node.name === name);
+  const children = folder?.children ?? [];
+  const existing = children.find(node => node.name === name) ?? children.find(node => sameName(node.name, name));
   if (!existing) return { kind: 'none' };
-  if (existing.kind === 'folder') return { kind: 'folder' };
-  return isPackageName(existing.name) ? { kind: 'package' } : { kind: 'file' };
+  if (existing.kind === 'folder') return { kind: 'folder', name: existing.name };
+  return { kind: isPackageName(existing.name) ? 'package' : 'file', name: existing.name };
 }
+
+/**
+ * 保存要写到的名字：覆盖已有文件时用它现在的名字（按用户输入的大小写写会撞上同名，覆盖要落在那个节点上），
+ * 否则就是输入的名字。
+ */
+export const saveName = (conflict: SaveConflict, typed: string): string =>
+  conflict.kind === 'file' ? conflict.name : typed;
 
 /** 路径的显示文字，例如 `Macintosh HD › Users › Steve Jobs`。 */
 export const pathLabel = (path: DiskPath): string => [VOLUME_NAME, ...displayDiskPath(path)].join(' › ');

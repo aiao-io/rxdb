@@ -75,4 +75,80 @@ describe('MemoryDiskStore', () => {
     await store.write(['b.txt'], text('b'));
     await expect(store.move(['a.txt'], ['b.txt'])).rejects.toMatchObject({ code: 'EEXIST' });
   });
+
+  describe('大小写变体（与生产的唯一索引同口径）', () => {
+    const taken = (existing: string) => ({ code: 'EEXIST', message: expect.stringContaining(`“${existing}”`) });
+
+    it('新建一个只在大小写上和同级已有名字不同的文件：抛 EEXIST 并说清是哪个名字，已有文件原样', async () => {
+      const store = new MemoryDiskStore();
+      await store.write(['Docs', 'Report.txt'], text('original'));
+
+      const failure = await store.write(['Docs', 'report.txt'], text('new')).then(
+        () => null,
+        (error: unknown) => error
+      );
+      expect(failure).toBeInstanceOf(DiskError);
+      expect(failure).toMatchObject(taken('Report.txt'));
+      expect(await store.list(['Docs'])).toEqual([{ name: 'Report.txt', kind: 'file' }]);
+      expect(new TextDecoder().decode(await store.read(['Docs', 'Report.txt']))).toBe('original');
+
+      await store.write(['Docs', 'Report.txt'], text('v2'));
+      expect(new TextDecoder().decode(await store.read(['Docs', 'Report.txt']))).toBe('v2');
+    });
+
+    it('路径查找保持精确：换一种大小写就是另一条路径', async () => {
+      const store = new MemoryDiskStore();
+      await store.write(['Docs', 'Report.txt'], text('original'));
+      expect(await store.kindOf(['Docs', 'report.txt'])).toBeNull();
+      expect(await store.kindOf(['docs'])).toBeNull();
+      await expect(store.read(['Docs', 'report.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(store.replace(['Docs', 'report.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('mkdir 与逐级补建目录：同级有只差大小写的目录或文件就抛 EEXIST，什么也不建', async () => {
+      const store = new MemoryDiskStore();
+      await store.write(['Docs', 'a.txt'], text('a'));
+      await store.write(['Notes'], text('a file'));
+
+      await expect(store.mkdir(['docs'])).rejects.toMatchObject(taken('Docs'));
+      await expect(store.mkdir(['notes'])).rejects.toMatchObject(taken('Notes'));
+      await expect(store.write(['DOCS', 'b.txt'], text('b'))).rejects.toMatchObject(taken('Docs'));
+      await expect(store.move(['Notes'], ['docs', 'Notes'])).rejects.toMatchObject(taken('Docs'));
+      expect(await store.list([])).toEqual([
+        { name: 'Docs', kind: 'directory' },
+        { name: 'Notes', kind: 'file' }
+      ]);
+      await store.mkdir(['Docs']);
+      expect(await store.list(['Docs'])).toEqual([{ name: 'a.txt', kind: 'file' }]);
+    });
+
+    it('move 的目标和同级另一个节点只差大小写：EEXIST，源不动；换到别的目录同理', async () => {
+      const store = new MemoryDiskStore();
+      await store.write(['Docs', 'Report.txt'], text('report'));
+      await store.write(['Docs', 'notes.txt'], text('notes'));
+      await store.write(['Other', 'x.txt'], text('x'));
+
+      await expect(store.move(['Docs', 'notes.txt'], ['Docs', 'REPORT.TXT'])).rejects.toMatchObject(
+        taken('Report.txt')
+      );
+      await expect(store.move(['Other', 'x.txt'], ['Docs', 'report.txt'])).rejects.toMatchObject(taken('Report.txt'));
+      expect((await store.list(['Docs'])).map(entry => entry.name)).toEqual(['notes.txt', 'Report.txt']);
+      expect((await store.list(['Other'])).map(entry => entry.name)).toEqual(['x.txt']);
+    });
+
+    it('纯大小写改名（同一个节点）可以：内容与修改时间不变；目录的子项跟着走', async () => {
+      let now = 10;
+      const store = new MemoryDiskStore(() => now);
+      await store.write(['Docs', 'Report.txt'], text('report'));
+      now = 99;
+
+      await store.move(['Docs', 'Report.txt'], ['Docs', 'report.txt']);
+      expect(await store.list(['Docs'])).toEqual([{ name: 'report.txt', kind: 'file' }]);
+      expect(await store.info(['Docs', 'report.txt'])).toEqual({ size: 6, modified: 10 });
+
+      await store.move(['Docs'], ['docs']);
+      expect(await store.list([])).toEqual([{ name: 'docs', kind: 'directory' }]);
+      expect(new TextDecoder().decode(await store.read(['docs', 'report.txt']))).toBe('report');
+    });
+  });
 });

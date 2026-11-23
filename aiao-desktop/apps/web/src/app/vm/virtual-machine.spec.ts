@@ -409,6 +409,116 @@ describe('VirtualMachine 预装应用保护', () => {
   });
 });
 
+describe('VirtualMachine 写回磁盘失败（同级重名、配额耗尽……）', () => {
+  /** 让磁盘对指定文件名的写入失败；其余写入照常。 */
+  function failWritesTo(store: MemoryDiskStore, names: readonly string[], message = 'QuotaExceededError') {
+    const write = store.write.bind(store);
+    return vi.spyOn(store, 'write').mockImplementation(async (path, data) => {
+      if (names.includes(path.at(-1) ?? '')) throw new Error(message);
+      return write(path, data);
+    });
+  }
+
+  it('终端里新建一个只和已有文件差大小写的文件：提示一次清楚的「已存在」，之后每 3 秒的轮询不再重试、不再弹', async () => {
+    const { machine, vm, store, toast } = await setup();
+    await store.write([...DESKTOP, 'Report.txt'], text('original'));
+    await machine.acquire();
+    await vm.write(toVmPath([...DESKTOP, 'report.txt']), text('hi'));
+
+    machine.noteActivity();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith(
+      'Terminal sync failed for “report.txt”: Another item named “Report.txt” already exists in this folder (names are not case-sensitive).'
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(toast.show).toHaveBeenCalledTimes(1);
+    expect(decode(await store.read([...DESKTOP, 'Report.txt']))).toBe('original');
+    expect(await store.kindOf([...DESKTOP, 'report.txt'])).toBeNull();
+  });
+
+  it('别的写入错误（例如配额耗尽）也一样：提示一次，带原因，不再重试；别的文件照常同步', async () => {
+    const { machine, vm, store, toast } = await setup();
+    await machine.acquire();
+    const write = failWritesTo(store, ['big.bin']);
+    await vm.write(toVmPath([...DESKTOP, 'big.bin']), text('x'));
+    await vm.write(toVmPath([...DESKTOP, 'fine.txt']), text('fine'));
+
+    machine.noteActivity();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Terminal sync failed for “big.bin”: QuotaExceededError');
+    expect(decode(await store.read([...DESKTOP, 'fine.txt']))).toBe('fine');
+
+    write.mockClear();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(write).not.toHaveBeenCalled();
+    expect(toast.show).toHaveBeenCalledTimes(1);
+  });
+
+  it('同一次扫描里有多个文件失败：只弹一条，点出第一个文件和还有几个', async () => {
+    const { machine, vm, store, toast } = await setup();
+    await machine.acquire();
+    failWritesTo(store, ['a.bin', 'b.bin', 'c.bin']);
+    for (const name of ['a.bin', 'b.bin', 'c.bin']) await vm.write(toVmPath([...DESKTOP, name]), text(name));
+
+    machine.noteActivity();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith(
+      'Terminal sync failed for “a.bin” and 2 more: QuotaExceededError'
+    );
+  });
+
+  it('文件内容再次变化才会再试：还失败就再提示一次，磁盘有空间了就落盘', async () => {
+    const { machine, vm, store, toast } = await setup();
+    await machine.acquire();
+    const write = failWritesTo(store, ['big.bin']);
+    await vm.write(toVmPath([...DESKTOP, 'big.bin']), text('v1'));
+    machine.noteActivity();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(toast.show).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(toast.show).toHaveBeenCalledTimes(1);
+
+    await vm.write(toVmPath([...DESKTOP, 'big.bin']), text('v2'));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(toast.show).toHaveBeenCalledTimes(2);
+
+    write.mockRestore();
+    await vm.write(toVmPath([...DESKTOP, 'big.bin']), text('v3'));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(decode(await store.read([...DESKTOP, 'big.bin']))).toBe('v3');
+    expect(toast.show).toHaveBeenCalledTimes(2);
+  });
+
+  it('失败的文件不挡住终端里要先同步的命令（code .）：命令照常成功，失败只提示一次', async () => {
+    const { machine, vm, store, wm, toast } = await setup();
+    wm.open.mockReturnValue({});
+    await machine.acquire();
+    failWritesTo(store, ['big.bin']);
+    const root = [...DESKTOP, 'repo'];
+    await vm.mkdir(toVmPath(root));
+    await vm.write(toVmPath([...root, '.git']), text('git metadata'));
+    await vm.write(toVmPath([...root, 'big.bin']), text('x'));
+    await vm.write(toVmPath([...root, 'from-shell.txt']), text('unsynced'));
+
+    const { run } = terminalChannel(machine.shellEnv.AIAO_CODE_CHANNEL);
+    await expect(run(['.'], toVmPath(root))).resolves.toMatchObject({ exitCode: 0, stderr: '' });
+    expect(await store.read([...root, 'from-shell.txt'])).toEqual(text('unsynced'));
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Terminal sync failed for “big.bin”: QuotaExceededError');
+  });
+
+  it('关闭最后一个终端时的写回失败也只提示一次，机器照样拆掉', async () => {
+    const { machine, vm, store, vivari, toast } = await setup();
+    await machine.acquire();
+    failWritesTo(store, ['big.bin']);
+    await vm.write(toVmPath([...DESKTOP, 'big.bin']), text('x'));
+
+    machine.release();
+    await settle();
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Terminal sync failed for “big.bin”: QuotaExceededError');
+    expect(vivari.teardown).toHaveBeenCalledTimes(1);
+  });
+});
+
 function terminalChannel(name: string) {
   const channel = new BroadcastChannel(name);
   let pid = 0;

@@ -362,6 +362,22 @@ describe('AppComponent workbench mount', () => {
     fixture.destroy();
   });
 
+  it('closes the OAuth callback window after the user cancels the authorization', async () => {
+    vi.stubGlobal('opener', null);
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
+    const state = 'https://ide.example/github-callback?nonce=abcd1234abcd1234';
+    await savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
+    history.pushState({}, '', `/github-callback?error=access_denied&state=${encodeURIComponent(state)}`);
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(mocks.completeOAuth).not.toHaveBeenCalled();
+    expect(location.pathname).toBe('/');
+    expect(fixture.componentInstance.error()).toBeFalsy();
+    fixture.destroy();
+  });
+
   it('keeps the OAuth callback window open when the token exchange fails', async () => {
     vi.stubGlobal('opener', null);
     const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);

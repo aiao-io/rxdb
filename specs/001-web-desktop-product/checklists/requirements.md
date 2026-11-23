@@ -1,5 +1,7 @@
 # Specification Quality Checklist: 双交互模式 Web 桌面
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../../aiao-desktop/requirements/README.md)。
+
 **Purpose**: 检查规格与用户故事是否完整、可评审、可进入实施计划。
 
 **Created**: 2026-11-07

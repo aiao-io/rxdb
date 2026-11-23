@@ -16,7 +16,12 @@ import { infoPlist, parseInfoPlist } from '../disk/formats/plist';
 import { RxdbDiskStore } from '../disk/rxdb-disk-store';
 import { configureServices } from '../testing/angular';
 import { stubLocks } from '../testing/browser';
-import { FakeDesktopData, restoreEntityStubs, stubFindAll } from '../testing/fake-desktop-data';
+import {
+  FakeDesktopData,
+  enforceDesktopFileIndex,
+  restoreEntityStubs,
+  stubFindAll
+} from '../testing/fake-desktop-data';
 import { FakeChannelHub, FakeLifecycle } from '../testing/fake-tab-sync';
 import { ApplicationCatalog } from './application-catalog';
 import { DESKTOP_APPS, applicationManifests } from './desktop-apps';
@@ -38,6 +43,8 @@ interface Options {
 function setup({ data = new FakeDesktopData(), readyError, recents }: Options = {}) {
   const locks = stubLocks();
   const files = data.table<DesktopFile>(DesktopFile);
+  /* 和生产一样带着 desktop_file_parent_name：同级重名（含只差大小写的）会撞上唯一索引，磁盘层必须在这之前拦下。 */
+  enforceDesktopFileIndex(files);
   stubFindAll(DesktopFile, files.rows$);
   if (readyError) data.ready = Promise.reject(readyError);
   const stored = new Map<string, unknown>(recents === undefined ? [] : [[RECENTS_KEY, recents]]);
@@ -474,7 +481,10 @@ describe('FileSystem 废纸篓', () => {
       contentId: row?.contentId,
       originalPath: null
     });
-    expect(changes.slice(-2)).toEqual([[original, trashed], [trashed, original]]);
+    expect(changes.slice(-2)).toEqual([
+      [original, trashed],
+      [trashed, original]
+    ]);
     expect(fs.canUndoTrash()).toBe(false);
   });
 
@@ -967,6 +977,80 @@ describe('Finder 文件管理入口', () => {
     await expect(fs.rename(['Applications', 'Safari.app'], 'Renamed.app')).rejects.toMatchObject({ code: 'EACCES' });
     await fs.moveToTrash(restored);
     await expect(fs.restore([...TRASH, 'renamed.txt'], ['System'])).rejects.toMatchObject({ code: 'EACCES' });
+  });
+});
+
+describe('FileSystem 只差大小写的名字（库的唯一索引不区分大小写）', () => {
+  const encode = (value: string): Uint8Array => new TextEncoder().encode(value);
+  const taken = (existing: string) => ({ code: 'EEXIST', message: expect.stringContaining(`“${existing}”`) });
+
+  it('导入、新建文件夹、移进废纸篓、复制与移动：和已有名字只差大小写就追加序号，不再撞上唯一索引', async () => {
+    const { fs } = await mounted();
+    await fs.writeText([...DESKTOP, 'Report.txt'], 'original');
+    const imported = await fs.importFiles(DESKTOP, [
+      { name: 'report.txt', data: encode('dropped') },
+      { name: 'REPORT.TXT', data: encode('dropped too') }
+    ]);
+    expect(imported.map(path => path.at(-1))).toEqual(['report 2.txt', 'REPORT 3.TXT']);
+    expect(await fs.readText([...DESKTOP, 'Report.txt'])).toBe('original');
+    expect(await fs.readText(imported[1])).toBe('dropped too');
+
+    await fs.run(store => store.mkdir([...DESKTOP, 'Untitled Folder']));
+    expect(await fs.newFolder(DESKTOP)).toBe('untitled folder 2');
+
+    await fs.writeText([...DESKTOP, 'a.txt'], 'desktop');
+    await fs.writeText([...HOME, 'Documents', 'A.txt'], 'documents');
+    await fs.moveToTrash([...DESKTOP, 'a.txt']);
+    await fs.moveToTrash([...HOME, 'Documents', 'A.txt']);
+    await flush();
+    expect(await fs.readText([...TRASH, 'a.txt'])).toBe('desktop');
+    expect(await fs.readText([...TRASH, 'A 2.txt'])).toBe('documents');
+
+    await fs.writeText([...DESKTOP, 'doc.txt'], 'desktop doc');
+    await fs.writeText([...HOME, 'Documents', 'Doc.TXT'], 'documents doc');
+    expect(await fs.copyTo([...HOME, 'Documents', 'Doc.TXT'], DESKTOP)).toEqual([...DESKTOP, 'Doc 2.TXT']);
+    expect(await fs.moveTo([...HOME, 'Documents', 'Doc.TXT'], DESKTOP)).toEqual([...DESKTOP, 'Doc 3.TXT']);
+    expect(await fs.readText([...DESKTOP, 'doc.txt'])).toBe('desktop doc');
+  });
+
+  it('改名：改成同级另一个节点只差大小写的名字抛 EEXIST 并说清占用的是谁；纯大小写改名可以，广播实际路径', async () => {
+    const { fs, changes } = await mounted();
+    await fs.writeText([...DESKTOP, 'Report.txt'], 'report');
+    await fs.writeText([...DESKTOP, 'notes.txt'], 'notes');
+
+    await expect(fs.rename([...DESKTOP, 'notes.txt'], 'REPORT.txt')).rejects.toMatchObject(taken('Report.txt'));
+    expect(await fs.readText([...DESKTOP, 'notes.txt'])).toBe('notes');
+
+    const renamed = await fs.rename([...DESKTOP, 'Report.txt'], 'report.txt');
+    expect(renamed).toEqual([...DESKTOP, 'report.txt']);
+    expect(changes.at(-1)).toEqual([[...DESKTOP, 'Report.txt'], renamed]);
+    expect(await fs.readText(renamed)).toBe('report');
+    await flush();
+    expect(folderNames(fs, DESKTOP)).toContain('report.txt');
+    expect(folderNames(fs, DESKTOP)).not.toContain('Report.txt');
+  });
+
+  it('显式新建（writeText）与终端回写（run）撞上只差大小写的名字：EEXIST，不覆盖也不新建，不通知', async () => {
+    const { fs, changes } = await mounted();
+    await fs.writeText([...DESKTOP, 'Report.txt'], 'original');
+    const notified = changes.length;
+
+    await expect(fs.writeText([...DESKTOP, 'report.txt'], 'new')).rejects.toMatchObject(taken('Report.txt'));
+    await expect(fs.run(store => store.write([...DESKTOP, 'REPORT.TXT'], encode('new')))).rejects.toMatchObject(
+      taken('Report.txt')
+    );
+    await expect(fs.run(store => store.mkdir([...DESKTOP, 'report.txt']))).rejects.toMatchObject(taken('Report.txt'));
+    await flush();
+    expect(changes).toHaveLength(notified);
+    expect(await fs.readText([...DESKTOP, 'Report.txt'])).toBe('original');
+    expect(folderNames(fs, DESKTOP).filter(name => name.toLowerCase() === 'report.txt')).toEqual(['Report.txt']);
+  });
+
+  it('保存已打开的文件只认精确的路径：换一种大小写就是另一个文件，不覆盖它', async () => {
+    const { fs } = await mounted();
+    await fs.writeText([...DESKTOP, 'Report.txt'], 'original');
+    await expect(fs.saveText([...DESKTOP, 'report.txt'], 'late')).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await fs.readText([...DESKTOP, 'Report.txt'])).toBe('original');
   });
 });
 

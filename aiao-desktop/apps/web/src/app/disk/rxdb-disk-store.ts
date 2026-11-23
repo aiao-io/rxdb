@@ -3,8 +3,8 @@ import type { RxdbFileStorage } from '@aiao/rxdb-plugin-storage';
 
 import { DesktopFile } from './desktop-file.entity';
 import { mimeTypeOf } from './disk-kinds';
-import { DiskPath, isWithin, movedOrigin, parentOf } from './disk-path';
-import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore } from './disk-store';
+import { DiskPath, foldName, isWithin, movedOrigin, parentOf } from './disk-path';
+import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore, nameTaken } from './disk-store';
 
 /** storage 插件里存放文件体的目录：文件体按随机名平铺，改名与移动只改目录树，不动 OPFS。 */
 export const BLOB_DIR = 'blobs';
@@ -28,10 +28,14 @@ export interface RxdbDiskDependencies {
   dataVersion(): Promise<number>;
 }
 
-/** 目录树的内存索引：按 id，以及按「父 id → 名字」。卷根的父 id 为 `null`。 */
+/** 目录树的内存索引：按 id，以及按「父 id → 折叠后的名字 → 原样的名字」。卷根的父 id 为 `null`。 */
 class FileIndex {
   private readonly byId = new Map<FileId, DesktopFile>();
-  private readonly byParent = new Map<ParentId, Map<string, DesktopFile>>();
+  /**
+   * 同级先按 {@link foldName} 归拢、再按原样的名字：路径查找走原样的名字（精确），重名判断走折叠后的名字，与库的唯一索引同口径。
+   * 一个折叠名下通常只有一行；库里本来就并存的名字（折叠规则比库宽，例如 `É` 与 `é`）才会有多行，它们互不混淆。
+   */
+  private readonly byParent = new Map<ParentId, Map<string, Map<string, DesktopFile>>>();
 
   constructor(rows: readonly DesktopFile[]) {
     for (const row of rows) this.add(row);
@@ -39,22 +43,32 @@ class FileIndex {
 
   add(row: DesktopFile): void {
     this.byId.set(row.id, row);
-    const siblings = this.byParent.get(row.parentId ?? null) ?? new Map<string, DesktopFile>();
-    siblings.set(row.name, row);
-    this.byParent.set(row.parentId ?? null, siblings);
+    const parentId = row.parentId ?? null;
+    const siblings = this.byParent.get(parentId) ?? new Map<string, Map<string, DesktopFile>>();
+    const sameFold = siblings.get(foldName(row.name)) ?? new Map<string, DesktopFile>();
+    sameFold.set(row.name, row);
+    siblings.set(foldName(row.name), sameFold);
+    this.byParent.set(parentId, siblings);
   }
 
   drop(id: FileId, parentId: ParentId, name: string): void {
     this.byId.delete(id);
-    this.byParent.get(parentId)?.delete(name);
+    this.byParent.get(parentId)?.get(foldName(name))?.delete(name);
   }
 
+  /** 按原样的名字精确查找。 */
   child(parentId: ParentId, name: string): DesktopFile | undefined {
-    return this.byParent.get(parentId)?.get(name);
+    return this.byParent.get(parentId)?.get(foldName(name))?.get(name);
+  }
+
+  /** 同级里和 `name` 只差大小写的另一行；`except` 是正在改名的那一行，它自己不算。没有为 `undefined`。 */
+  variant(parentId: ParentId, name: string, except?: FileId): DesktopFile | undefined {
+    const sameFold = this.byParent.get(parentId)?.get(foldName(name));
+    return [...(sameFold?.values() ?? [])].find(row => row.name !== name && row.id !== except);
   }
 
   children(parentId: ParentId): DesktopFile[] {
-    return [...(this.byParent.get(parentId)?.values() ?? [])];
+    return [...(this.byParent.get(parentId)?.values() ?? [])].flatMap(sameFold => [...sameFold.values()]);
   }
 
   /** 深度优先、子项在前：删除时先删叶子。 */
@@ -71,6 +85,9 @@ const leaf = (path: DiskPath): string => {
 
 /**
  * Macintosh HD 的存储后端：目录树与元数据是 `DesktopFile` 行，文件体交给 storage 插件（OPFS）。
+ *
+ * 路径查找是精确的；创建与改名按库的唯一索引（`desktop_file_parent_name`，不区分大小写）判重：同级已有只差大小写的另一个名字，
+ * 就在写库之前抛 `EEXIST`（{@link nameTaken}），所以唯一索引的约束错误不会冒到界面；把节点改成只差大小写的自己的名字是允许的。
  *
  * 内存索引对本标签页的写入是写穿的；别的标签页也写同一个库（ADESK-US-105），所以调用方要在跨标签页的独占锁里、
  * 每次操作之前先 {@link refresh}：库被别的标签页改过就丢掉索引、重读。不这样做，索引里没有别的标签页新建的文件，
@@ -152,6 +169,7 @@ export class RxdbDiskStore implements DiskStore {
     const name = leaf(file);
     const existing = index.child(parentId, name);
     if (existing?.type === 'folder') throw new DiskError('EISDIR', file);
+    if (!existing) this.requireFreeName(index, parentId, file);
     await this.putContent(index, { name, parentId, existing }, data);
   }
 
@@ -187,6 +205,7 @@ export class RxdbDiskStore implements DiskStore {
     if (await this.find(to)) throw new DiskError('EEXIST', to);
     if (isWithin(to, from)) throw new DiskError('EACCES', to, `“${leaf(from)}” can’t be moved into itself.`);
     const parentId = await this.ensureDirectory(parentOf(to));
+    this.requireFreeName(index, parentId, to, row);
     const previous = { parentId: row.parentId ?? null, name: row.name };
     const moved = await (
       await this.deps.repository()
@@ -224,6 +243,15 @@ export class RxdbDiskStore implements DiskStore {
       throw error;
     }
     if (previousContent) await this.releaseContent(previousContent);
+  }
+
+  /**
+   * 要在 `parentId` 下新建（或改成）`path` 的名字：同级已有只差大小写的另一个名字就抛 `EEXIST`，免得撞上库的唯一索引。
+   * `self` 是正在改名的那一行，纯大小写改名不和它自己冲突。
+   */
+  private requireFreeName(index: FileIndex, parentId: ParentId, path: DiskPath, self?: DesktopFile): void {
+    const variant = index.variant(parentId, leaf(path), self?.id);
+    if (variant) throw nameTaken(path, variant.name);
   }
 
   private async releaseContent(id: string): Promise<void> {
@@ -274,6 +302,7 @@ export class RxdbDiskStore implements DiskStore {
     for (const [depth, name] of dir.entries()) {
       const existing: DesktopFile | undefined = index.child(parentId, name);
       if (existing && existing.type !== 'folder') throw new DiskError('ENOTDIR', dir.slice(0, depth + 1));
+      if (!existing) this.requireFreeName(index, parentId, dir.slice(0, depth + 1));
       parentId = existing ? existing.id : await this.createFolder(index, parentId, name);
     }
     return parentId;

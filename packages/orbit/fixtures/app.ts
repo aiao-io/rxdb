@@ -17,8 +17,27 @@ if (mode === 'future') {
   });
   parent.postMessage({ protocol: 'aiao.orbit:2', type: 'hello', channel }, '*');
 }
+/**
+ * 只接受指定来源嵌入的应用：`?mode=trusted&trust=<来源>&wait=<握手超时毫秒>`，对应真实应用里的 `acceptHostOrigin`。
+ * 握手失败时把错误码转告父页面，测试据此确认「应用没有与来源不对的宿主握手」。
+ */
+async function connectTrusted() {
+  const query = new URL(location.href).searchParams;
+  const trust = query.get('trust');
+  try {
+    return await connectOrbitClient({
+      timeout: Number(query.get('wait') ?? 15_000),
+      acceptHostOrigin: origin => origin === trust
+    });
+  } catch (error) {
+    parent.postMessage({ fixture: 'untrusted-host', code: (error as { code?: string }).code }, '*');
+    return undefined;
+  }
+}
 const [client, second] = await Promise.all([
-  mode === 'future' ? undefined : connectOrbitClient(),
+  mode === 'future' ? undefined
+  : mode === 'trusted' ? connectTrusted()
+  : connectOrbitClient(),
   mode === 'parallel' ? connectOrbitClient() : undefined
 ]);
 if (client) {
@@ -29,6 +48,7 @@ if (client) {
   client.bus.$on('host-event', (...args) => events.push(args));
   client.onRequest('inspect', () => ({
     id,
+    hostOrigin: client.context.hostOrigin,
     events: JSON.stringify(events),
     props: { ...client.context.props },
     visible: client.context.visible,
@@ -129,7 +149,7 @@ if (client) {
       return { ok: true, value: await client.request(method, body) };
     }
     const area = action.split('.')[0] as
-      'window' | 'menu' | 'app' | 'appearance' | 'notification' | 'clipboard' | 'filesystem';
+      'window' | 'menu' | 'app' | 'appearance' | 'notification' | 'clipboard' | 'filesystem' | 'workspace';
     const calls = desktop[area] as unknown as Record<string, (value?: unknown) => Promise<unknown>>;
     try {
       /* 字节数组不是 JSON：测试页面用数字数组表示，这里转成真正的 Uint8Array 再调，结果里的字节数组再转回数字数组。 */
@@ -145,6 +165,17 @@ if (client) {
       if (error instanceof DesktopError) return { ok: false, code: error.code, message: error.message };
       throw error;
     }
+  });
+  /** 同一连接上两处各自 `getDesktop` 得到工作区，再并发调用：它们必须共用一个发送队列。 */
+  client.onRequest('workspace-parallel', async (payload): Promise<OrbitValue> => {
+    const { first, second } = payload as { first: OrbitValue; second: OrbitValue };
+    const call = (request: OrbitValue) => getDesktop(client)!.workspace.call(request as never);
+    const results = await Promise.allSettled([call(first), call(second)]);
+    return results.map((result): OrbitValue =>
+      result.status === 'fulfilled' ?
+        { ok: true, value: result.value }
+      : { ok: false, code: result.reason instanceof DesktopError ? result.reason.code : 'ERROR' }
+    );
   });
   client.onPropsChange(() => client.bus.$emit('props-changed'));
   client.onVisibilityChange(visible => client.bus.$emit('visible', visible));

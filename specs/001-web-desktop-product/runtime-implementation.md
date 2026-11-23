@@ -1,5 +1,7 @@
 # Orbit：第一轮实现记录
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 日期：2026-11-07。范围来自用户追加要求：“先参考 wujie 代码，做一个自己的 wujie 并优化”。本轮实现运行基础，不把桌面外壳、文件系统和离线版本管理计为已交付。
 
 ## 设计与位置

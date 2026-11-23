@@ -1,4 +1,4 @@
-import type { DiskPath } from '../disk/disk-path';
+import { type DiskPath, parentOf, sameName } from '../disk/disk-path';
 import { DiskError, DiskFileInfo, DiskStore, isMissing } from '../disk/disk-store';
 import type { FileSystem } from './file-system';
 
@@ -31,7 +31,10 @@ export type FileSnapshot =
 export type FileReplaced =
   { readonly kind: 'ok'; readonly stamp: FileStamp } | { readonly kind: 'missing' } | { readonly kind: 'changed' };
 
-/** 另存的结果：目标位置已经有别的东西（没确认覆盖的文件、同名文件夹），或目标文件夹已经不在了，都不写盘。 */
+/**
+ * 另存的结果：目标位置已经有别的东西（没确认覆盖的文件、同名文件夹、只差大小写的同级名字），或目标文件夹已经不在了，都不写盘。
+ * 只差大小写的名字算占着位置：库的唯一索引不区分大小写，保存面板确认覆盖时交来的是那个已有节点的名字。
+ */
 export type FileCreated =
   | { readonly kind: 'ok'; readonly stamp: FileStamp }
   | { readonly kind: 'exists' }
@@ -64,6 +67,12 @@ const stampOf = (info: DiskFileInfo): FileStamp => ({ modified: info.modified, s
 
 /** 文件不在了：被删除、改名，或同名位置现在是个文件夹。 */
 const isGone = (error: unknown): boolean => isMissing(error) || (error instanceof DiskError && error.code === 'EISDIR');
+
+/** 同级有只在大小写上不同的名字：调用时精确的路径不存在，这个位置却已经被它占了。 */
+async function takenByVariant(store: DiskStore, path: DiskPath): Promise<boolean> {
+  const name = path.at(-1) ?? '';
+  return (await store.list(parentOf(path))).some(entry => sameName(entry.name, name));
+}
 
 async function infoOrNull(store: DiskStore, path: DiskPath): Promise<DiskFileInfo | null> {
   try {
@@ -105,6 +114,7 @@ export function appFilesOver(disk: Pick<FileSystem, 'run' | 'notifyChanges'>): A
         if ((await store.kindOf(path.slice(0, -1))) !== 'directory') return { kind: 'missing-folder' };
         const kind = await store.kindOf(path);
         if (kind === 'directory' || (kind === 'file' && !overwrite)) return { kind: 'exists' };
+        if (kind === null && (await takenByVariant(store, path))) return { kind: 'exists' };
         beforeWrite?.();
         if (kind === 'file') await store.replace(path, bytes);
         else await store.write(path, bytes);

@@ -277,7 +277,8 @@ describe('programSource', () => {
 describe.each(['git', 'defaults'])('%s 的桌面通道', command => {
   it.each(['安装后的源码', '函数'])('请求不进入输出流，子进程只接收自己的输出与退出码（%s）', async mode => {
     const channel = new BroadcastChannel(crypto.randomUUID());
-    const args = command === 'git' ? ['log', '--oneline'] : ['write', 'com.apple.finder', 'AppleShowAllFiles', '-bool', 'true'];
+    const args =
+      command === 'git' ? ['log', '--oneline'] : ['write', 'com.apple.finder', 'AppleShowAllFiles', '-bool', 'true'];
     const process: ProgramProcess = {
       stdin: { ref: vi.fn(), unref: vi.fn() },
       pid: 42,

@@ -1,3 +1,5 @@
+import { cleanLead } from './safari-lead';
+
 const WIKI_API = 'https://en.wikipedia.org/w/api.php';
 const WIKI_REST = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 const WIKI_NOT_FOUND = 'https://mediawiki.org/wiki/HyperSwitch/errors/not_found';
@@ -34,39 +36,6 @@ interface WikiParse {
 
 interface WikiSearch {
   readonly query?: { readonly search?: readonly WikiHit[] };
-}
-
-/** 摘掉事件处理属性：清理后的 HTML 会绕过 Angular 的消毒器，不能再带脚本入口。 */
-function stripHandlers(box: Element): void {
-  box.querySelectorAll('*').forEach(node => {
-    node
-      .getAttributeNames()
-      .filter(name => name.startsWith('on'))
-      .forEach(name => node.removeAttribute(name));
-  });
-}
-
-/**
- * 只取导语里的正文：去掉表格、脚注等噪音，站内链接改成 `data-goto` 在本浏览器里导航，
- * 协议相对的图片地址钉成 https。用 DOMParser 解析，图片和脚本在清理完之前都不会动。
- */
-function cleanLead(html: string): string {
-  const box = new DOMParser().parseFromString(html, 'text/html').body;
-  box
-    .querySelectorAll('style,script,.mw-editsection,.reference,sup.reference,.hatnote,.navbox,table,figure,.thumb')
-    .forEach(node => node.remove());
-  box.querySelectorAll('a[href^="/wiki/"]').forEach(link => {
-    link.setAttribute('data-goto', `en.wikipedia.org${link.getAttribute('href')}`);
-    link.removeAttribute('href');
-  });
-  box.querySelectorAll('a[href]').forEach(link => link.removeAttribute('href'));
-  box.querySelectorAll('img').forEach(image => {
-    const src = image.getAttribute('src') ?? '';
-    if (src.startsWith('//')) image.setAttribute('src', `https:${src}`);
-    image.removeAttribute('srcset');
-  });
-  stripHandlers(box);
-  return box.innerHTML;
 }
 
 /** 取一个维基条目；条目不存在或摘要接口失败时抛错。 */

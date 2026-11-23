@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 
 import { deployConfig } from './config.mjs';
 
-/** 只读核对线上入口，不跟随重定向；内容摘要和响应头均保留供复核。 */
+/** 只读核对线上入口，不跟随重定向；内容摘要和响应头均保留供复核。入口都要返回 200、带齐 `requiredHeaders`，且内容彼此一致。 */
 export async function inspectEntrypoints({ targets, requiredHeaders, fetchImpl = fetch }) {
   const entries = await Promise.all(
     targets.map(async url => {
@@ -45,11 +45,16 @@ export async function inspectEntrypoints({ targets, requiredHeaders, fetchImpl =
   return { entries, sameEntrypoint, passed: sameEntrypoint && entries.every(entry => entry.problems.length === 0) };
 }
 
+/** 要核对的线上入口：项目的 pages.dev 生产地址，加 `config.mjs` 登记的自定义域名。 */
+export function inspectTargets({ projectName, customDomains }) {
+  return [`https://${projectName}.pages.dev/`, ...customDomains.map(domain => `https://${domain}/`)];
+}
+
 async function main() {
   const { values } = parseArgs({ options: { output: { type: 'string' } }, strict: true });
   setDefaultResultOrder('ipv6first');
   const result = await inspectEntrypoints({
-    targets: [`https://${deployConfig.projectName}.pages.dev/`, 'https://desktop.aiao.io/'],
+    targets: inspectTargets(deployConfig),
     requiredHeaders: deployConfig.requiredHeaders
   });
   const report = {

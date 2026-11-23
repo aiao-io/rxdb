@@ -1,5 +1,7 @@
 # 构建与验收
 
+> 本文记录已退役的 Web Desktop 项目（`apps/web-desktop` 已随项目删除），仅作历史参考。当前产品的需求与验收见 [Aiao Desktop 需求](../../aiao-desktop/requirements/README.md)。
+
 前置：当前锁文件 Node 26+、pnpm 12、依赖已安装；支持 IndexedDB、Web Locks、BroadcastChannel、MessageChannel 与 customElements 的桌面安全上下文。
 
 ```bash

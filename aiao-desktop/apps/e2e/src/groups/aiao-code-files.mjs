@@ -374,15 +374,18 @@ export const aiaoCodeFiles = {
       await shell('open -a "GitHub Desktop" .');
       const github = helpers.win('github');
       await expect(github.locator('[data-github-repository-name]')).toHaveText('bridge');
-      await github.locator('[data-github-repository-menu]').click();
-      const repositories = github.locator('[data-github-repository-menu-popup]');
-      await repositories.getByRole('button', { name: 'Add', exact: true }).click();
-      await repositories.getByRole('menuitem', { name: 'Add Existing Repository…', exact: true }).click();
-      const repositoryDialog = github.locator('[data-github-repository-dialog]');
-      await repositoryDialog.getByLabel('Remote origin').fill('https://github.com/octo/bridge.git');
-      await repositoryDialog.getByRole('button', { name: 'Add origin', exact: true }).click();
-      await expect(repositoryDialog.getByRole('button', { name: 'Remove origin', exact: true })).toBeEnabled();
-      await repositoryDialog.getByRole('button', { name: 'Close repository dialog' }).click();
+      /* 与 GitHub Desktop 一致，origin 在菜单栏 Repository → Repository Settings… 里设置（github-app 组的同一流程）。
+         菜单按打开那一刻的状态渲染：先等仓库刷新完（同步按钮可用），否则菜单项一直是禁用的。 */
+      await expect(github.locator('[data-github-sync-action]')).toBeEnabled();
+      await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Repository Settings…', exact: true }).click();
+      const repositorySettings = github.getByRole('dialog', { name: 'Repository Settings', exact: true });
+      const originInput = repositorySettings.getByRole('textbox', { name: 'Primary Remote Repository (origin) URL' });
+      await expect(originInput).toBeFocused();
+      await originInput.fill('https://github.com/octo/bridge.git');
+      await originInput.press('Enter');
+      await expect(repositorySettings).toHaveCount(0);
+      await expect(github.locator('[data-github-sync-action]')).toContainText('Fetch origin');
       async function openInAiaoCode(target, win) {
         await expect(win.locator('[data-github-sync-action]')).toBeEnabled();
         await target.getByRole('menuitem', { name: 'Repository', exact: true }).click();

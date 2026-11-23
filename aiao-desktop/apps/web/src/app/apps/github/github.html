@@ -1557,6 +1557,7 @@
                 #archiveInput
                 [disabled]="busy()"
                 (change)="importRepository($event)"
+                accept=".zip,application/zip"
                 aria-label="Import repository archive"
                 data-github-import
                 hidden

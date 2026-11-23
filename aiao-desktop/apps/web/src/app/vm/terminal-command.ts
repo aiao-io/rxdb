@@ -30,7 +30,11 @@ export function runTerminalCommand(process: ProgramProcess, command: string): vo
     process.exitCode = data.exitCode;
     process.stdin.unref();
   };
-  channel.postMessage({ pid: process.pid, args: process.argv.slice(2), cwd: process.cwd() } satisfies TerminalCommandRequest);
+  channel.postMessage({
+    pid: process.pid,
+    args: process.argv.slice(2),
+    cwd: process.cwd()
+  } satisfies TerminalCommandRequest);
 }
 
 export const terminalCommandSource = (command: string): string =>

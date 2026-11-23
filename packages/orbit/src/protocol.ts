@@ -101,7 +101,11 @@ export function readMessage(data: unknown): Message | undefined {
   }
 }
 
-export function readContext(data: unknown): OrbitClientContext | undefined {
+/** 宿主在 init 消息里报告的上下文：不含 `hostOrigin`——那一项只能来自握手事件本身，不信宿主自报。 */
+export type HostReportedContext = Omit<OrbitClientContext, 'hostOrigin'>;
+
+/** 读取宿主报告的上下文；宿主在其中夹带的 `hostOrigin` 等多余字段一律丢弃。 */
+export function readContext(data: unknown): HostReportedContext | undefined {
   if (!isRecord(data) || !validName(data['appId']) || !validName(data['instanceId']) || !validName(data['version']))
     return undefined;
   if (typeof data['url'] !== 'string' || typeof data['visible'] !== 'boolean' || !isRecord(data['props']))

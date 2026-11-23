@@ -16,7 +16,7 @@ tags: [aiao-vscode, orbit, micro-frontend, deploy]
 
 ## 范围
 
-- 握手：`main.ts` 在启动 Angular 之前调用 `@aiao/orbit/client` 的 `connectOrbitClient()`。被桌面嵌入时 SDK 移除地址里的 `__aiao_orbit` 参数后再启动；直接访问或被普通 iframe 嵌入时立即返回空，启动流程与原来完全一样。
+- 握手：`main.ts` 在启动 Angular 之前调用 `@aiao/orbit/client` 的 `connectOrbitClient()`。被桌面嵌入时 SDK 移除地址里的 `__aiao_orbit` 参数后再启动；直接访问或被普通 iframe 嵌入时立即返回空，启动流程与原来完全一样。握手只接受受信桌面来源的宿主（`isTrustedDesktopOrigin`：`desktop.aiao.io`、`aiao-desktop.pages.dev`、`preview.aiao-desktop.pages.dev` 与本机任意端口的 `localhost` / `127.0.0.1`）：握手令牌取自本应用的地址，任何站点嵌入本应用都能自选令牌，只有来源准入能挡住冒充桌面的宿主；来源不受信的宿主发来的握手被忽略，按握手超时失败。桌面代办 GitHub 授权同样只认握手时浏览器给出的宿主来源，不信宿主自报的属性。
 - 就绪：工作台挂载到页面后（与 `ready` 信号同一时刻）调用 `client.ready()`；启动失败（工作台显示错误）时调用 `client.fail(原因)`，桌面立刻显示原因，不必等超时。
 - 托管响应头：`public/_headers` 给全部路径加 `Cross-Origin-Resource-Policy: cross-origin`。宿主页带 COEP 时，没有它的文档会被浏览器拦下（2026-11-13 实测线上 `ERR_BLOCKED_BY_RESPONSE`）。不加 `frame-ancestors`，嵌入范围与现在一致。
 - 发布：发布流程（[deploy/README](../../deploy/README.md)）发布后加一步桌面线上验收 `aiao-desktop-e2e:verify-aiao-code`。

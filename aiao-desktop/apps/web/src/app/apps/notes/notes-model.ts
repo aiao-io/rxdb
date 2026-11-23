@@ -84,3 +84,11 @@ export function newNoteBody(date: Date): string {
   const stamp = `${date.getDate()} ${MONS[date.getMonth()]} ${date.getFullYear()} at ${time12Plain(date)}`;
   return `<h1>New Note</h1><div class="date">${stamp}</div><p><br></p>`;
 }
+
+/** 工具栏 Checklist 插入的一行待办：圆圈不可编辑，点击由编辑区上的事件委托处理。 */
+export const CHECKLIST_ITEM = '<div class="todo"><i contenteditable="false"></i><span>&nbsp;</span></div>';
+
+const TABLE_ROW = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+
+/** 工具栏 Table 插入的 3 × 3 表格（首行是表头），后面跟一个空段落放光标。 */
+export const TABLE_HTML = `<table><tr><th>&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr>${TABLE_ROW}${TABLE_ROW}</table><p>&nbsp;</p>`;

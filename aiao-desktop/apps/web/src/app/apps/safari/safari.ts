@@ -33,6 +33,7 @@ import {
   favColor,
   faviconOf,
   hostOf,
+  isSameOrigin,
   kindOf,
   localKey,
   resolveUrl,
@@ -413,8 +414,10 @@ export class SafariApp {
     this.show(token, { type: 'player', src: this.sanitizer.bypassSecurityTrustResourceUrl(src) });
   }
 
+  /** 与桌面同源的地址不内嵌：框带 `allow-same-origin` 与 `allow-scripts`，同源页面能摘掉自己的 sandbox，直接访问桌面。 */
   private frame(url: string): SafariPage {
     const address = resolveUrl(url);
+    if (isSameOrigin(address, location.origin)) return { type: 'same-origin', url: address };
     return { type: 'frame', url: address, src: this.sanitizer.bypassSecurityTrustResourceUrl(address) };
   }
 
@@ -445,8 +448,10 @@ export class SafariApp {
       this.show(token, { type: 'wiki-error' });
       return;
     }
-    /* 信任边界：导语是 MediaWiki 渲染后经 cleanLead 清理的片段，站内链接已改成 data-goto，
-       Angular 的消毒器会把 data-* 删掉，所以这里显式放行。 */
+    /* 信任边界：导语来自任何人都能编辑的维基页面，MediaWiki 的消毒器历史上出过绕过，所以不信它。
+       cleanLead 按元素与属性白名单重建这段 HTML（没有脚本、框架、表单、事件属性与外来命名空间，
+       站内链接改成只能指向维基条目的 data-goto）；Angular 的消毒器会把 data-* 删掉，
+       所以这里只放行已经按白名单重建过的结果。 */
     const lead = article.lead ? this.sanitizer.bypassSecurityTrustHtml(article.lead) : null;
     this.show(token, { type: 'wiki', ...article, lead });
   }

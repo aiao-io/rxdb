@@ -9,6 +9,7 @@ import {
   parseDeployments,
   parseProjects,
   runDeploy,
+  wranglerCommand,
   wranglerEnv
 } from './deploy.mjs';
 
@@ -16,8 +17,12 @@ const CONFIG = {
   projectName: 'aiao-desktop',
   productionBranch: 'main',
   previewBranch: 'preview',
+  wranglerVersion: '4.158.0',
+  workDir: '/repo/aiao-desktop',
   distDir: '/repo/dist/aiao-desktop/apps/web/browser',
-  requiredHeaders: { 'Cross-Origin-Opener-Policy': 'same-origin' }
+  requiredHeaders: { 'Cross-Origin-Opener-Policy': 'same-origin' },
+  wranglerTimeoutMs: { query: 300_000, upload: 600_000 },
+  propagation: { timeoutMs: 120_000, intervalMs: 5000 }
 };
 const FILES = [
   { path: 'index.html', size: 10 },
@@ -47,10 +52,12 @@ function fakeDeps({
   deployments = [],
   problems = [],
   failures = [],
+  failingHosts = ['desktop.aiao.io'],
   unreachable = [],
+  stale = [],
   environment
 } = {}) {
-  const calls = { wrangler: [], deploy: [], reachable: [], live: [], log: [] };
+  const calls = { wrangler: [], deploy: [], reachable: [], live: [], propagation: {}, log: [] };
   const deps = {
     config: CONFIG,
     checkDist: async () => ({ files: FILES, problems }),
@@ -71,9 +78,11 @@ function fakeDeps({
       onWait('ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE');
       throw new Error(`${baseUrl} 在 180 秒内一直连不上：ERR_SSL_TLS_ALERT_HANDSHAKE_FAILURE`);
     },
-    checkLive: async ({ baseUrl, files }) => {
+    checkLive: async ({ baseUrl, files, propagation, onWait }) => {
       calls.live.push({ baseUrl, files: files.map(file => file.path) });
-      return { checked: files.length, failures: new URL(baseUrl).hostname === 'desktop.aiao.io' ? failures : [] };
+      calls.propagation[baseUrl] = propagation;
+      if (stale.includes(baseUrl)) onWait({ path: 'index.html', reason: '内容与构建产物不一致（线上还是上一版）' });
+      return { checked: files.length, failures: failingHosts.includes(new URL(baseUrl).hostname) ? failures : [] };
     },
     git: () => ({ hash: 'f00dbab', dirty: true }),
     log: message => calls.log.push(message)
@@ -131,6 +140,53 @@ test('parseDeployOutput 取 pages-deploy-detailed 记录；没有这条记录就
   });
   assert.throws(() => parseDeployOutput('{"type":"wrangler-session","version":1}\n'), /pages-deploy-detailed/);
   assert.throws(() => parseDeployOutput(''), /pages-deploy-detailed/);
+});
+
+test('parseDeployOutput 遇到非 JSON 行：报出行号与内容摘要，并提醒上传可能已经完成', () => {
+  const noisy = `${DEPLOY_OUTPUT}\n⚠ wrangler 升级提示：not json at all`;
+  assert.throws(
+    () => parseDeployOutput(noisy),
+    error => {
+      assert.ok(!(error instanceof SyntaxError), '不是裸 SyntaxError');
+      assert.match(error.message, /第 4 行不是 JSON.*wrangler 升级提示/);
+      assert.match(error.message, /上传可能已经完成.*Pages 面板/s);
+      assert.ok(error.cause instanceof SyntaxError, '保留原始解析错误作为 cause');
+      return true;
+    }
+  );
+  // 空行不算行号以外的东西：行号是文件里的物理行号
+  assert.throws(() => parseDeployOutput('{"type":"wrangler-session"}\n\nnot json'), /第 3 行/);
+  // 内容摘要有长度上限，不把一整个日志塞进错误信息
+  assert.throws(
+    () => parseDeployOutput('x'.repeat(500)),
+    error => error.message.length < 400
+  );
+  // 合法 JSON 但不是对象（null、数字）也不能让后面的 record.type 抛 TypeError
+  for (const line of ['null', '42', '"text"']) assert.throws(() => parseDeployOutput(line), /第 1 行不是 JSON 对象/);
+});
+
+test('wranglerCommand：经 pnpm dlx 跑固定版本；上传用长时限并提醒核对部署，查询用短时限', () => {
+  const query = wranglerCommand(CONFIG, ['pages', 'project', 'list', '--json'], { capture: true });
+  assert.equal(query.command, 'pnpm');
+  assert.deepEqual(query.args, ['--reporter=silent', 'dlx', 'wrangler@4.158.0', 'pages', 'project', 'list', '--json']);
+  assert.equal(query.options.cwd, CONFIG.workDir);
+  assert.equal(query.options.capture, true);
+  assert.equal(query.options.label, 'wrangler pages project list');
+  assert.equal(query.options.timeoutMs, CONFIG.wranglerTimeoutMs.query);
+  assert.match(query.options.failureHint, /pnpm dlx wrangler@4\.158\.0 login/);
+  assert.match(query.options.timeoutHint, /网络/);
+
+  const upload = wranglerCommand(CONFIG, deployArgs({ ...CONFIG, branch: 'main', dirty: false }), {
+    upload: true,
+    env: { WRANGLER_OUTPUT_FILE_PATH: '/tmp/out.ndjson' }
+  });
+  assert.equal(upload.options.capture, false);
+  assert.match(upload.options.label, /^wrangler pages deploy /);
+  assert.equal(upload.options.timeoutMs, CONFIG.wranglerTimeoutMs.upload);
+  assert.ok(upload.options.timeoutMs > query.options.timeoutMs);
+  assert.equal(upload.options.env.WRANGLER_OUTPUT_FILE_PATH, '/tmp/out.ndjson');
+  assert.match(upload.options.env.NODE_OPTIONS, /--dns-result-order=ipv6first/);
+  assert.match(upload.options.timeoutHint, /上传可能已经.*Pages 面板.*Deployments/s);
 });
 
 test('parseProjects 与 parseDeployments 校验 wrangler 的 JSON 形状', () => {
@@ -248,6 +304,55 @@ test('线上对账失败：整体失败，列出失败原因，并给出回滚�
   const log = calls.log.join('\n');
   assert.match(log, /index\.html.*内容与构建产物不一致/);
   assert.match(log, /回滚.*11111111-aaaa/s);
+});
+
+test('别名与自定义域名带传播等待，本次部署独有的部署地址要求立即一致', async () => {
+  const { deps, calls } = fakeDeps({
+    projects: [project('aiao-desktop', 'aiao-desktop.pages.dev, desktop.aiao.io')],
+    deployments: [deployment('11111111-aaaa')]
+  });
+  await runDeploy({ dryRun: false, preview: false }, deps);
+  assert.deepEqual(calls.propagation, {
+    'https://abc12345.aiao-desktop.pages.dev': undefined,
+    'https://aiao-desktop.pages.dev': CONFIG.propagation,
+    'https://desktop.aiao.io': CONFIG.propagation
+  });
+  const preview = fakeDeps({ projects: [project('aiao-desktop', 'aiao-desktop.pages.dev')] });
+  await runDeploy({ dryRun: false, preview: true }, preview.deps);
+  assert.deepEqual(preview.calls.propagation['https://preview.aiao-desktop.pages.dev'], CONFIG.propagation);
+});
+
+test('别名还在传播时告诉用户在等什么与最多等多久；等到一致，发布仍算成功', async () => {
+  const { deps, calls } = fakeDeps({
+    projects: [project('aiao-desktop', 'aiao-desktop.pages.dev')],
+    stale: ['https://aiao-desktop.pages.dev']
+  });
+  const result = await runDeploy({ dryRun: false, preview: false }, deps);
+  assert.equal(result.ok, true);
+  assert.match(
+    calls.log.join('\n'),
+    /… https:\/\/aiao-desktop\.pages\.dev 还不是本次部署（内容与构建产物不一致.*）.*最多等 120 秒/
+  );
+});
+
+test('只有别名或自定义域名没通过时，总结提示多半是传播还没完成：先复核再决定是否回滚', async () => {
+  const failures = [{ path: 'index.html', reason: '内容与构建产物不一致；已等待 120 秒仍未指向本次部署' }];
+  const alias = fakeDeps({
+    projects: [project('aiao-desktop', 'aiao-desktop.pages.dev, desktop.aiao.io')],
+    deployments: [deployment('11111111-aaaa')],
+    failures
+  });
+  assert.equal((await runDeploy({ dryRun: false, preview: false }, alias.deps)).ok, false);
+  assert.match(alias.calls.log.join('\n'), /部署地址已逐文件核对通过.*传播.*inspect-live.*再回滚/s);
+
+  const deployed = fakeDeps({
+    projects: [project('aiao-desktop', 'aiao-desktop.pages.dev')],
+    deployments: [deployment('11111111-aaaa')],
+    failures,
+    failingHosts: ['abc12345.aiao-desktop.pages.dev']
+  });
+  assert.equal((await runDeploy({ dryRun: false, preview: false }, deployed.deps)).ok, false);
+  assert.doesNotMatch(deployed.calls.log.join('\n'), /部署地址已逐文件核对通过/);
 });
 
 test('核对每个地址前先等它连得上：新项目的子域名证书要几分钟才签发', async () => {

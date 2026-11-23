@@ -24,7 +24,7 @@ import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { USER_PROFILE } from '../shared/user-profile';
 import { cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
-import { DiskVmSync } from './disk-vm-sync';
+import { DiskVmSync, type PullFailure } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
 import {
   TerminalCommandChannel,
@@ -52,6 +52,12 @@ export const SHELL_ENV: Readonly<Record<string, string>> = {
 };
 
 const PROGRAMS = { touch: touchProgram, mv: mvProgram, cp: cpProgram, open: openProgram } as const;
+
+/** 一次扫描里写回磁盘失败的改动合成一条提示：点出第一个文件和还有几个，原因取第一个的。 */
+function describeSyncFailures([first, ...others]: readonly PullFailure[]): string {
+  const more = others.length ? ` and ${others.length} more` : '';
+  return `Terminal sync failed for “${first.path.at(-1)}”${more}: ${describeDiskError(first.error)}`;
+}
 
 interface Machine {
   readonly vivari: Vivari;
@@ -224,7 +230,8 @@ export class VirtualMachine {
         onPulled: paths => this.fs.notifyChanges(paths, 'terminal'),
         veto: (path, change) =>
           this.catalog.violation(change === 'remove' ? { kind: 'remove', path } : { kind: 'write', path }),
-        onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`)
+        onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`),
+        onFailed: failures => this.toast.show(describeSyncFailures(failures))
       });
       await this.install(vivari);
       const subscription = this.fs.changes

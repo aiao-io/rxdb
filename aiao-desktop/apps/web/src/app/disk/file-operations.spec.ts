@@ -189,3 +189,51 @@ describe('Finder 文件操作', () => {
     await expect(duplicateEntry(store, [...DESKTOP, 'missing'])).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
+
+describe('Finder 文件操作：只差大小写的名字算同名（与库的唯一索引同口径）', () => {
+  it('导入：和已有文件只差大小写的追加序号，不覆盖；同一批里只差大小写的各取不同名字，保留各自的大小写', async () => {
+    const store = await setup();
+    const imported = await importFiles(store, DESKTOP, [
+      { name: 'NOTE.TXT', data: bytes('upper') },
+      { name: 'Report.txt', data: bytes('one') },
+      { name: 'report.txt', data: bytes('two') }
+    ]);
+    expect(imported.map(path => path.at(-1))).toEqual(['NOTE 2.TXT', 'Report.txt', 'report 2.txt']);
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(imported[0])).toEqual(bytes('upper'));
+    expect(await store.read(imported[2])).toEqual(bytes('two'));
+  });
+
+  it('复制、移动到目录、副本与恢复：目标位置有只差大小写的名字就追加序号', async () => {
+    const store = await setup();
+    const target = [...DESKTOP, 'target'];
+    await store.write([...target, 'Note.TXT'], bytes('in target'));
+
+    expect(await copyEntryTo(store, note, target)).toEqual([...target, 'note 2.txt']);
+    expect(await moveEntryTo(store, note, target)).toEqual([...target, 'note 3.txt']);
+
+    await store.write([...DESKTOP, 'Photo copy.PNG'], bytes('x'));
+    await store.write([...DESKTOP, 'photo.png'], bytes('y'));
+    expect(await duplicateEntry(store, [...DESKTOP, 'photo.png'])).toEqual([...DESKTOP, 'photo copy 2.png']);
+
+    await store.write([...DESKTOP, 'Back.txt'], bytes('present'));
+    await store.write([...TRASH, 'back.txt'], bytes('trashed'));
+    const restored = await restoreEntry(store, [...TRASH, 'back.txt'], DESKTOP);
+    expect(restored).toEqual([...DESKTOP, 'back 2.txt']);
+    expect(await store.read([...DESKTOP, 'Back.txt'])).toEqual(bytes('present'));
+  });
+
+  it('改名：改成同级另一个节点只差大小写的名字抛 EEXIST，两个文件都不动；纯大小写改名可以', async () => {
+    const store = await setup();
+    const report = [...DESKTOP, 'Report.txt'];
+    await store.write(report, bytes('report'));
+
+    await expect(renameEntry(store, note, 'REPORT.txt')).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(report)).toEqual(bytes('report'));
+
+    await expect(renameEntry(store, report, 'report.txt')).resolves.toEqual([...DESKTOP, 'report.txt']);
+    expect(await store.kindOf(report)).toBeNull();
+    expect(await store.read([...DESKTOP, 'report.txt'])).toEqual(bytes('report'));
+  });
+});

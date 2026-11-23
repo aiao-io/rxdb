@@ -43,6 +43,7 @@ const compare = (a: unknown, b: unknown): number =>
 export class FakeRepository<T extends object = Row> {
   private readonly state = new BehaviorSubject<readonly T[]>([]);
   private seq = 0;
+  private unique: { readonly name: string; readonly key: (row: T) => string } | null = null;
 
   readonly rows$: Observable<readonly T[]> = this.state.asObservable();
   readonly find = vi.fn(async (options: FakeFindOptions = {}): Promise<T[]> => {
@@ -64,8 +65,17 @@ export class FakeRepository<T extends object = Row> {
     this.state.next([...this.state.value, ...rows.map(row => this.withId(row))]);
   }
 
+  /**
+   * 装上唯一索引的替身：`key` 取出一行参与比较的值，写入会让两行的值相同时抛出 SQLite 的约束错误
+   * （`UNIQUE constraint failed: index '<name>'`）；更新一行时不和它自己比。用来证明磁盘层在撞上索引之前就拦下了重名。
+   */
+  enforceUnique(name: string, key: (row: T) => string): void {
+    this.unique = { name, key };
+  }
+
   async create(entity: T): Promise<T> {
     const row = this.withId(entity);
+    this.assertUnique(row);
     this.state.next([...this.state.value, row]);
     return row;
   }
@@ -73,6 +83,7 @@ export class FakeRepository<T extends object = Row> {
   /** 与 RxDB 一致：就地改实体并返回同一个实例（调用方拿旧实例读字段会读到新值）。 */
   async update(entity: T, patch: Partial<T>): Promise<T> {
     const id = (entity as Row)['id'];
+    this.assertUnique({ ...entity, ...patch });
     Object.assign(entity, patch);
     this.state.next(this.state.value.map(item => ((item as Row)['id'] === id ? entity : item)));
     return entity;
@@ -92,6 +103,31 @@ export class FakeRepository<T extends object = Row> {
     const row = entity as Row;
     return { ...row, id: row['id'] ?? `row-${++this.seq}` } as unknown as T;
   }
+
+  private assertUnique(row: T): void {
+    if (!this.unique) return;
+    const { name, key } = this.unique;
+    const id = (row as Row)['id'];
+    const value = key(row);
+    if (this.state.value.some(other => (other as Row)['id'] !== id && key(other) === value))
+      throw new Error(`UNIQUE constraint failed: index '${name}'`);
+  }
+}
+
+/** SQLite 内置的 `lower()` 只折叠 ASCII 字母（没有 ICU）；唯一索引的比较值按它算。 */
+const sqliteLower = (value: string): string => value.replace(/[A-Z]/g, letter => letter.toLowerCase());
+
+/**
+ * 给 DesktopFile 的替身表装上 `desktop_file_parent_name` 的替身：同一个父目录下名字重名就抛约束错误。
+ * 与真实的索引一样 `normalized`：每列按 `lower(COALESCE(CAST(列 AS TEXT), ''))` 比较，所以只在大小写上不同的名字也算重名。
+ */
+export function enforceDesktopFileIndex<T extends { readonly name: string; readonly parentId?: unknown }>(
+  table: FakeRepository<T>
+): void {
+  table.enforceUnique(
+    'desktop_file_parent_name',
+    row => `${sqliteLower(String(row.parentId ?? ''))}\u0000${sqliteLower(row.name)}`
+  );
 }
 
 /** storage 插件的替身：文件体放在内存里，按目录统计便于断言。 */

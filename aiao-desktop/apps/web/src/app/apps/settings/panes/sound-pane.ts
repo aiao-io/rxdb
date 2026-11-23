@@ -5,7 +5,7 @@ import { Icon } from '../../../shared/icon';
 import { Slider } from '../../../shared/slider';
 import { ToggleSwitch } from '../toggle-switch';
 
-/** 声音：输出音量写回系统（与菜单栏、音乐共用），其余只是摆设。 */
+/** 声音：输出音量与静音写回系统（与菜单栏、音乐共用），其余只是摆设。 */
 @Component({
   selector: 'app-sound-pane',
   imports: [Icon, Slider, ToggleSwitch],
@@ -29,7 +29,7 @@ import { ToggleSwitch } from '../toggle-switch';
       </div>
       <div class="st-item">
         <div class="lb">Mute</div>
-        <div class="rt"><div [appSwitch]="system.muted()" data-k="mute"></div></div>
+        <div class="rt"><div [(appSwitch)]="system.muted" data-k="mute"></div></div>
       </div>
       <div class="st-item">
         <div class="lb">Show Sound in menu bar</div>

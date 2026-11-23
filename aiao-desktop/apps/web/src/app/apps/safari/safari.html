@@ -188,6 +188,20 @@
               ></iframe>
             </div>
           }
+          @case ('same-origin') {
+            <div class="sf-blocked" data-same-origin>
+              <div class="ico"><svg appIcon="g-globe"></svg></div>
+              <h3>Can't open {{ hostOf(page.url) }} here</h3>
+              <p>
+                That address is this desktop itself. A page from it could reach the desktop's data and lift the limits
+                Safari puts on web pages, so Safari won't load it in a tab.
+              </p>
+              <div style="display: flex; gap: 9px; margin-top: 6px">
+                <button class="btn pri" [attr.data-openext]="page.url" tabindex="0">Open in Browser</button>
+                <button class="btn" data-goto="" tabindex="0">Start Page</button>
+              </div>
+            </div>
+          }
           @case ('player') {
             <iframe
               class="sf-frame"

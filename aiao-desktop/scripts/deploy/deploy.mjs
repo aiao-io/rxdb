@@ -1,7 +1,7 @@
 // 一键发布 Aiao Desktop 到 Cloudflare Pages（D-16）：
 //   pnpm nx run aiao-desktop:deploy [--dry-run] [--preview]
 // Nx 先完成正式构建与密钥扫描；本脚本再检查产物、必要时新建 Pages 项目、上传，并把线上文件与本地产物逐个对账。
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { deployConfig } from './config.mjs';
 import { checkDist } from './dist-check.mjs';
 import { checkLive, waitUntilReachable } from './live-check.mjs';
+import { runProcess } from './run-process.mjs';
 
 const USAGE = 'pnpm nx run aiao-desktop:deploy [--dry-run] [--preview]';
 
@@ -90,16 +91,34 @@ export function parseDeployments(text) {
   });
 }
 
+/** 解析结构化输出的一行；发生在上传成功之后，报错要让操作者明白不是「发布失败」，而是读不懂输出。 */
+function parseOutputLine(line, number) {
+  const invalid = cause =>
+    new Error(
+      `wrangler 的结构化输出第 ${number} 行不是 JSON${cause ? '' : ' 对象'}：${line.slice(0, 120)}。` +
+        '上传可能已经完成，先到 Pages 面板核对是否已有新部署，再决定要不要重新发布；若是 wrangler 升级后输出格式变了，核对 wrangler 版本',
+      { cause }
+    );
+  let record;
+  try {
+    record = JSON.parse(line);
+  } catch (cause) {
+    throw invalid(cause);
+  }
+  if (record === null || typeof record !== 'object') throw invalid();
+  return record;
+}
+
 /**
  * 从 `WRANGLER_OUTPUT_FILE_PATH` 的结构化输出里取本次部署的地址与编号。
  *
- * @throws 没有 `pages-deploy-detailed` 记录——不去解析人读的日志，升级 wrangler 后格式变了要明确报出
+ * @throws 有读不懂的行（带行号与内容摘要，提醒上传可能已经完成），或没有 `pages-deploy-detailed` 记录——
+ *   不去解析人读的日志，升级 wrangler 后格式变了要明确报出
  */
 export function parseDeployOutput(text) {
   const records = text
     .split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line));
+    .flatMap((line, index) => (line.trim() === '' ? [] : [parseOutputLine(line, index + 1)]));
   const detail = records.find(record => record.type === 'pages-deploy-detailed');
   if (!detail || !isText(detail.url) || !isText(detail.deployment_id)) {
     throw new Error(
@@ -113,8 +132,9 @@ export function parseDeployOutput(text) {
 const projectDomain = deploymentUrl => new URL(deploymentUrl).hostname.split('.').slice(1).join('.');
 
 /**
- * 发布后要核对哪些地址。部署地址是本次上传独有的，逐文件对账；别名与自定义域名只核对入口页
- * （入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 下载好几遍。
+ * 发布后要核对哪些地址。部署地址（`full: true`）是本次上传独有的，逐文件对账、要求立即一致；别名与自定义域名（`full: false`）
+ * 只核对入口页（入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 下载好几遍；
+ * 它们在发布后的传播窗口里可能还回上一版部署，所以内容不一致时要有界地等一等（`propagation`），见 `verifyTargets`。
  *
  * @param options.deploymentUrl wrangler 给出的本次部署地址 `https://<编号>.<项目>.pages.dev`
  * @param options.customDomains 项目绑定的自定义域名（只对生产分支有意义）
@@ -144,6 +164,14 @@ async function reachable(target, deps) {
   }
 }
 
+/** 别名与自定义域名还在回上一版部署：告诉用户在等什么、最多等多久（本次部署独有的地址没有这一步）。 */
+function propagationNotice(target, deps) {
+  const seconds = Math.round(deps.config.propagation.timeoutMs / 1000);
+  return ({ reason }) => {
+    deps.log(`… ${target.url} 还不是本次部署（${reason}）。别名与自定义域名要等边缘节点传播，最多等 ${seconds} 秒`);
+  };
+}
+
 async function verifyTargets(targets, files, deps) {
   const failures = [];
   const entry = files.filter(file => file.path === 'index.html');
@@ -152,9 +180,15 @@ async function verifyTargets(targets, files, deps) {
     const result =
       unreachable ?
         { checked: 0, failures: [unreachable] }
-      : await deps.checkLive({ baseUrl: target.url, files: target.full ? files : entry });
+      : await deps.checkLive({
+          baseUrl: target.url,
+          files: target.full ? files : entry,
+          // 本次部署独有的地址要求立即一致；别名与自定义域名在传播窗口里可能还回旧部署，内容不一致时有界地等
+          propagation: target.full ? undefined : deps.config.propagation,
+          onWait: propagationNotice(target, deps)
+        });
     if (result.failures.length === 0) {
-      deps.log(`✅ 线上对账 ${target.label} ${target.url}：${result.checked} 个文件与构建产物一致，均带跨源隔离响应头`);
+      deps.log(`✅ 线上对账 ${target.label} ${target.url}：${result.checked} 个文件与构建产物一致，均带托管响应头`);
       continue;
     }
     deps.log(`❌ 线上对账 ${target.label} ${target.url}：`);
@@ -171,6 +205,11 @@ function summarize({ deps, deployed, branch, previous, source, failures }) {
   log(`   部署：${deployed.url}（${deployed.deploymentId}）`);
   if (branch === config.productionBranch) log(`   生产：https://${projectDomain(deployed.url)}`);
   log(`   源提交：${source.hash}${source.dirty ? '（含未提交改动）' : ''}`);
+  if (failures.length > 0 && failures.every(failure => failure.url !== deployed.url)) {
+    log(
+      '   部署地址已逐文件核对通过，没通过的只有别名或自定义域名：多半是边缘节点的传播还没完成。稍等片刻再运行 pnpm nx run aiao-desktop:inspect-live 复核，确认线上确实不对再回滚'
+    );
+  }
   if (previous) {
     log(
       `   回滚点：${previous.id}（源 ${previous.source || '未知'}）——Pages 面板 → ${config.projectName} → Deployments → 该部署 → Rollback to this deployment`
@@ -222,7 +261,7 @@ export async function runDeploy(options, deps) {
     return { ok: false };
   }
   const total = files.reduce((sum, file) => sum + file.size, 0);
-  log(`✅ 产物检查：${files.length} 个文件，${formatBytes(total)}，跨源隔离响应头齐全`);
+  log(`✅ 产物检查：${files.length} 个文件，${formatBytes(total)}，托管响应头（跨源隔离、防嵌入）齐全`);
 
   const source = deps.git();
   const args = deployArgs({ ...config, branch, dirty: source.dirty });
@@ -260,24 +299,37 @@ export async function runDeploy(options, deps) {
   };
 }
 
-/** 经 `pnpm dlx` 跑固定版本的 wrangler；`capture` 时返回 stdout（stderr 仍原样显示），否则整个输出原样显示。 */
-function runWrangler(config, args, { capture, env = {} }) {
-  return new Promise((resolve, reject) => {
+const QUERY_TIMEOUT_HINT = '；多半是网络停滞，检查网络后重新执行发布';
+const uploadTimeoutHint = projectName =>
+  `；上传可能已经部分或全部完成：先到 Pages 面板 → ${projectName} → Deployments 核对有没有新部署，确认后再决定要不要重新发布`;
+
+/**
+ * 经 `pnpm dlx` 跑固定版本的 wrangler 的命令行与 {@link runProcess} 选项（时限、失败提示）。
+ *
+ * @param options.capture 返回 stdout（查询）；否则整个输出原样显示（上传）
+ * @param options.upload 上传整个产物目录，用长时限并在超时时提醒核对是否已经产生部署；其余是几秒的查询
+ * @param options.env 追加的环境变量
+ */
+export function wranglerCommand(config, args, { capture = false, upload = false, env = {} } = {}) {
+  return {
+    command: 'pnpm',
     // silent 只去掉 pnpm 自己的「Done in」行；dlx 解析失败等错误仍会显示
-    const child = spawn('pnpm', ['--reporter=silent', 'dlx', `wrangler@${config.wranglerVersion}`, ...args], {
+    args: ['--reporter=silent', 'dlx', `wrangler@${config.wranglerVersion}`, ...args],
+    options: {
       cwd: config.workDir,
       env: { ...wranglerEnv(process.env), ...env },
-      stdio: ['ignore', capture ? 'pipe' : 'inherit', 'inherit']
-    });
-    let stdout = '';
-    child.stdout?.on('data', chunk => (stdout += chunk));
-    child.once('error', reject);
-    child.once('close', code => {
-      if (code === 0) return resolve(stdout);
-      const login = `；若提示未登录，先执行 pnpm dlx wrangler@${config.wranglerVersion} login`;
-      reject(new Error(`wrangler ${args.slice(0, 3).join(' ')} 失败（退出码 ${code}）${login}`));
-    });
-  });
+      capture,
+      label: `wrangler ${args.slice(0, 3).join(' ')}`,
+      timeoutMs: upload ? config.wranglerTimeoutMs.upload : config.wranglerTimeoutMs.query,
+      failureHint: `；若提示未登录，先执行 pnpm dlx wrangler@${config.wranglerVersion} login`,
+      timeoutHint: upload ? uploadTimeoutHint(config.projectName) : QUERY_TIMEOUT_HINT
+    }
+  };
+}
+
+function runWrangler(config, args, options) {
+  const { command, args: commandArgs, options: processOptions } = wranglerCommand(config, args, options);
+  return runProcess(command, commandArgs, processOptions);
 }
 
 /** 上传，并通过 `WRANGLER_OUTPUT_FILE_PATH` 取回结构化的部署记录。 */
@@ -285,7 +337,7 @@ async function wranglerDeploy(config, args) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'aiao-desktop-deploy-'));
   try {
     const outputFile = path.join(directory, 'wrangler-output.ndjson');
-    await runWrangler(config, args, { capture: false, env: { WRANGLER_OUTPUT_FILE_PATH: outputFile } });
+    await runWrangler(config, args, { upload: true, env: { WRANGLER_OUTPUT_FILE_PATH: outputFile } });
     return await readFile(outputFile, 'utf8');
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -304,8 +356,15 @@ function createDeps(config) {
     wrangler: args => runWrangler(config, args, { capture: true }),
     wranglerDeploy: args => wranglerDeploy(config, args),
     waitReachable: options => waitUntilReachable(options),
-    checkLive: ({ baseUrl, files }) =>
-      checkLive({ distDir: config.distDir, files, baseUrl, requiredHeaders: config.requiredHeaders }),
+    checkLive: ({ baseUrl, files, propagation, onWait }) =>
+      checkLive({
+        distDir: config.distDir,
+        files,
+        baseUrl,
+        requiredHeaders: config.requiredHeaders,
+        propagation,
+        onWait
+      }),
     git: () => readGitState(config),
     log: message => console.log(message)
   };

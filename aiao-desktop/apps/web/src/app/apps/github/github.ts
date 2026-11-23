@@ -62,7 +62,6 @@ import {
   type GitCommitFileChange,
   type GitFile,
   type GitFileDiff,
-  type GitFileVersion,
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
@@ -79,8 +78,10 @@ import {
   APPEARANCE_KEY, DEFAULT_APPEARANCE, formatGithubDate, formatGithubNumber, formatGithubTime,
   isGithubAppearance, type GithubAppearance
 } from './github-appearance';
+import { IMPORT_ARCHIVE_ERROR, importedRepositoryName } from './github-archive';
+import { diffHunksOf, diffLinesOf } from './github-diff';
 import { GithubSettings } from './github-settings';
-import { historyDiffRows, type GithubDiffLine } from './history-diff';
+import { historyDiffRows } from './history-diff';
 import { syncActionOf, type GithubSyncAction } from './sync-action';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
@@ -117,16 +118,6 @@ const syncIcons = {
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 type GithubChangeKind = 'all' | 'added' | 'modified' | 'deleted';
-
-interface GithubDiffValue {
-  readonly base: GitFileVersion;
-  readonly modified: GitFileVersion;
-}
-
-interface GithubDiffHunk {
-  readonly label: string;
-  readonly lines: readonly GithubDiffLine[];
-}
 
 type DirectoryPicker = () => Promise<SourceDirectory>;
 
@@ -201,141 +192,6 @@ function errorCodeOf(error: unknown): string | null {
   if (typeof error !== 'object' || error === null || !('code' in error)) return null;
   const code = (error as { readonly code?: unknown }).code;
   return typeof code === 'string' ? code : null;
-}
-
-function linesOf(text: string | null): readonly string[] {
-  if (!text) return [];
-  const lines = text.split('\n');
-  return lines.length > 1 && lines.at(-1) === '' ? lines.slice(0, -1) : lines;
-}
-
-function diffLinesOf(value: GithubDiffValue | null, ignoreWhitespace = false): readonly GithubDiffLine[] {
-  if (!value || value.base.binary || value.modified.binary) return [];
-  const oldLines = linesOf(value.base.text);
-  const newLines = linesOf(value.modified.text);
-  const compare = (text: string) => text.replace(/\s+/g, '');
-  const oldContent = ignoreWhitespace ? oldLines.map(compare) : oldLines;
-  const newContent = ignoreWhitespace ? newLines.map(compare) : newLines;
-  const max = oldLines.length + newLines.length;
-  const trace: Map<number, number>[] = [];
-  let frontier = new Map<number, number>([[0, 0]]);
-
-  for (let distance = 0; distance <= max; distance++) {
-    trace.push(frontier);
-    const next = new Map<number, number>();
-    for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
-      const down =
-        diagonal === -distance ||
-        (diagonal !== distance && (frontier.get(diagonal - 1) ?? -1) < (frontier.get(diagonal + 1) ?? -1));
-      let oldIndex = down ? (frontier.get(diagonal + 1) ?? 0) : (frontier.get(diagonal - 1) ?? 0) + 1;
-      let newIndex = oldIndex - diagonal;
-      while (
-        oldIndex < oldLines.length &&
-        newIndex < newLines.length &&
-        oldContent[oldIndex] === newContent[newIndex]
-      ) {
-        oldIndex++;
-        newIndex++;
-      }
-      next.set(diagonal, oldIndex);
-      if (oldIndex >= oldLines.length && newIndex >= newLines.length) {
-        return buildDiffLines(oldLines, newLines, trace, distance);
-      }
-    }
-    frontier = next;
-  }
-
-  return [];
-}
-
-function buildDiffLines(
-  oldLines: readonly string[],
-  newLines: readonly string[],
-  trace: readonly Map<number, number>[],
-  finalDistance: number
-): readonly GithubDiffLine[] {
-  let oldIndex = oldLines.length;
-  let newIndex = newLines.length;
-  const result: GithubDiffLine[] = [];
-
-  for (let distance = finalDistance; distance > 0; distance--) {
-    const diagonal = oldIndex - newIndex;
-    const previous = trace[distance];
-    const down =
-      diagonal === -distance ||
-      (diagonal !== distance && (previous.get(diagonal - 1) ?? -1) < (previous.get(diagonal + 1) ?? -1));
-    const previousDiagonal = down ? diagonal + 1 : diagonal - 1;
-    const previousOldIndex = previous.get(previousDiagonal) ?? 0;
-    const previousNewIndex = previousOldIndex - previousDiagonal;
-
-    while (oldIndex > previousOldIndex && newIndex > previousNewIndex) {
-      result.push({
-        oldNumber: oldIndex,
-        newNumber: newIndex,
-        oldText: oldLines[oldIndex - 1],
-        newText: newLines[newIndex - 1],
-        same: true
-      });
-      oldIndex--;
-      newIndex--;
-    }
-
-    if (oldIndex === previousOldIndex) {
-      result.push({
-        oldNumber: null,
-        newNumber: newIndex,
-        oldText: null,
-        newText: newLines[newIndex - 1],
-        same: false
-      });
-      newIndex--;
-    } else {
-      result.push({
-        oldNumber: oldIndex,
-        newNumber: null,
-        oldText: oldLines[oldIndex - 1],
-        newText: null,
-        same: false
-      });
-      oldIndex--;
-    }
-  }
-
-  while (oldIndex > 0 && newIndex > 0) {
-    result.push({
-      oldNumber: oldIndex,
-      newNumber: newIndex,
-      oldText: oldLines[oldIndex - 1],
-      newText: newLines[newIndex - 1],
-      same: true
-    });
-    oldIndex--;
-    newIndex--;
-  }
-
-  return result.reverse();
-}
-
-function diffRange(lines: readonly GithubDiffLine[], side: 'oldNumber' | 'newNumber'): string {
-  const numbers = lines.flatMap(line => (line[side] === null ? [] : [line[side]]));
-  const start = numbers[0] ?? 0;
-  return numbers.length === 1 ? `${start}` : `${start},${numbers.length}`;
-}
-
-function diffHunksOf(lines: readonly GithubDiffLine[]): readonly GithubDiffHunk[] {
-  const ranges: { start: number; end: number }[] = [];
-  for (const [index, line] of lines.entries()) {
-    if (line.same) continue;
-    const start = Math.max(0, index - 3);
-    const end = Math.min(lines.length, index + 4);
-    const previous = ranges.at(-1);
-    if (previous && start <= previous.end) previous.end = end;
-    else ranges.push({ start, end });
-  }
-  return ranges.map(({ start, end }) => {
-    const context = lines.slice(start, end);
-    return { lines: context, label: `@@ -${diffRange(context, 'oldNumber')} +${diffRange(context, 'newNumber')} @@` };
-  });
 }
 
 @Component({
@@ -1343,8 +1199,12 @@ export class GithubApp {
     if (!(element instanceof HTMLInputElement) || !element.files?.length) return;
     const file = element.files[0];
     element.value = '';
+    const name = importedRepositoryName(file.name);
+    if (name === null) {
+      this.fail(new Error(IMPORT_ARCHIVE_ERROR));
+      return;
+    }
     await this.run(async () => {
-      const name = file.name.replace(/\.(zip|tar)$/i, '') || 'Imported Repository';
       const bytes = new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>;
       await this.importArchive(name, bytes, 'Imported');
       this.closeRepositoryMenu();

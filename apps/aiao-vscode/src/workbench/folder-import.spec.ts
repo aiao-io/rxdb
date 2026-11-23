@@ -107,6 +107,32 @@ describe('打开本地文件夹', () => {
     );
   });
 
+  it('路径不规范或大小写冲突时在读取任何文件内容之前拒绝，与选择文件的路径同一套校验', async () => {
+    let reads = 0;
+    const counted = (name: string): FileSystemFileHandle =>
+      ({
+        kind: 'file',
+        name,
+        getFile: async () => {
+          reads++;
+          return new File(['x'], name);
+        }
+      }) as unknown as FileSystemFileHandle;
+
+    await expect(
+      readFolderProject(fakeDirectory('weird', { 'a.ts': counted('a.ts'), '-rf.txt': counted('-rf.txt') }))
+    ).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(
+      readFolderProject(
+        fakeDirectory('cased', {
+          docs: fakeDirectory('docs', { 'README.md': counted('README.md') }),
+          Docs: fakeDirectory('Docs', { 'notes.md': counted('notes.md') })
+        })
+      )
+    ).rejects.toMatchObject({ code: 'path_collision' });
+    expect(reads).toBe(0);
+  });
+
   it('超过文件数或总大小上限时报错', async () => {
     const tooMany: Record<string, FileSystemFileHandle> = {};
     for (let index = 0; index < 2001; index++) tooMany[`f${index}.ts`] = fakeFile(`f${index}.ts`, '');

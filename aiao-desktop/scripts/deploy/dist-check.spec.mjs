@@ -124,6 +124,19 @@ test('缺少跨源隔离响应头，或取值不对，指出是哪一个', async
   assert.match(second.problems[0], /Cross-Origin-Embedder-Policy.*require-corp/);
 });
 
+test('防嵌入响应头缺失或取值不对同样阻止发布，提示不再只说跨源隔离', async t => {
+  const required = { ...REQUIRED, 'X-Frame-Options': 'SAMEORIGIN' };
+  const missing = await fixture(t, { 'index.html': 'x', _headers: GOOD_HEADERS });
+  const wrongValue = await fixture(t, { 'index.html': 'x', _headers: `${GOOD_HEADERS}  X-Frame-Options: ALLOWALL\n` });
+  const first = await checkDist({ distDir: missing, requiredHeaders: required });
+  const second = await checkDist({ distDir: wrongValue, requiredHeaders: required });
+  assert.equal(first.problems.length, 1);
+  assert.match(first.problems[0], /缺少 X-Frame-Options: SAMEORIGIN/);
+  assert.doesNotMatch(first.problems[0], /终端依赖跨源隔离/);
+  assert.equal(second.problems.length, 1);
+  assert.match(second.problems[0], /X-Frame-Options 是 ALLOWALL，应为 SAMEORIGIN/);
+});
+
 test('同一个响应头写了多次会被 Pages 拼成无效值，要报', async t => {
   const distDir = await fixture(t, {
     'index.html': 'x',

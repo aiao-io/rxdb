@@ -3,6 +3,10 @@
  * 对真实的 https://vscode.aiao.io/ 验证就绪、跨源隔离、新建项目与终端、最小化还原与关闭重开；以及透明窗口
  * （ADESK-US-204）：桌面收起自己的标题栏，Aiao Code 自绘红黄绿与可拖动的标题栏。要外网，不进 CI。
  *
+ * 通过的条件（`harness/aiao-code-report.mjs`）：9 项检查全真，应用没有页面错误，也没有控制台错误。桌面自己来源的控制台错误
+ * （含资源加载失败）记进 `desktopErrors`，由检查项 `noDesktopErrors` 判定；其余来源的记进 `appConsoleErrors`，非空即失败。
+ * 脚本连的是真实网络：非桌面来源的资源因网络波动加载失败也会让验收失败，看报告里的来源地址，确认是网络问题后重跑。
+ *
  *   --desktop-url=<地址>  不起本地服务器，直接验收已发布的桌面（例如 https://aiao-desktop.pages.dev），
  *                         即桌面与 Aiao Code 都是线上版本的真实组合；发布后用它做浏览器级验收。
  *   --vscode-dist=<目录>  vscode.aiao.io 的请求改由本地构建产物应答（Aiao Code 发布前验证），响应头照
@@ -20,6 +24,7 @@ import { chromium } from 'playwright';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { startDesktopServer } from './desktop-server.mjs';
+import { failureReasons, isPassed, recordConsoleError } from './harness/aiao-code-report.mjs';
 
 const VSCODE = 'https://vscode.aiao.io';
 const expect = playwrightExpect.configure({ timeout: 30_000 });
@@ -107,9 +112,7 @@ page.on('pageerror', error => {
 });
 page.on('console', message => {
   if (message.type() !== 'error') return;
-  const fromDesktop = message.location().url && new URL(message.location().url).origin === desktop.origin;
-  if (fromDesktop && !/Failed to load resource/.test(message.text())) report.desktopErrors.push(message.text());
-  else report.appConsoleErrors.push(message.text().slice(0, 300));
+  recordConsoleError(report, { text: message.text(), url: message.location().url }, desktop.origin);
 });
 
 const vscodeWin = page.locator('.win[data-app="vscode"]:not(.closing)');
@@ -247,12 +250,11 @@ try {
   desktop.close();
 }
 
-const passed =
-  !report.error &&
-  report.appPageErrors.length === 0 &&
-  Object.values(report.checks).length === 9 &&
-  Object.values(report.checks).every(Boolean);
+const passed = isPassed(report);
 report.status = passed ? 'passed' : 'failed';
 if (argument('output')) writeFileSync(resolve(argument('output')), `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
-if (!passed) process.exitCode = 1;
+if (!passed) {
+  for (const reason of failureReasons(report)) console.error(`❌ ${reason}`);
+  process.exitCode = 1;
+}

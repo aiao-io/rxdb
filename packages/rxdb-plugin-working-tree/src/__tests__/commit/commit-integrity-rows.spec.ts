@@ -40,19 +40,21 @@ describe('完整性校验的持久化内容读取', () => {
         operation: 'update',
         patch,
         inversePatch,
-        origin: 'local'
+        origin: 'local',
+        unreadable: false
       }
     ]);
     expect(query.mock.calls[0][0]).toContain(`FROM ${probe.executor.tableRef(CommitChangeSet)}`);
     expect(query.mock.calls[0][0]).toContain("IN ('commit''quoted')");
   });
 
-  it('JSON 内容损坏时拒绝校验，不补空内容', async () => {
+  it.each([8, 9])('第 %i 列的 JSON 文本损坏时标记为读不回来，不抛裸 SyntaxError', async column => {
     const { probe } = createWorkingTreeScene();
     const row = storedRow(true);
-    row[8] = '{';
+    row[column] = '{';
     vi.spyOn(probe.executor, 'query').mockResolvedValue({ rowsAffected: 0, columns: [], rows: [row] });
 
-    await expect(readCommitIntegrityRows(probe.executor, ['commit-1'])).rejects.toBeInstanceOf(SyntaxError);
+    const [read] = await readCommitIntegrityRows(probe.executor, ['commit-1']);
+    expect(read).toMatchObject({ commitId: "commit'quoted", unreadable: true });
   });
 });

@@ -1,5 +1,5 @@
-import { DiskPath, isWithin, movedOrigin, parentOf } from './disk-path';
-import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore } from './disk-store';
+import { DiskPath, isWithin, movedOrigin, parentOf, sameName } from './disk-path';
+import { DiskEntry, DiskEntryKind, DiskError, DiskFileInfo, DiskStore, nameTaken } from './disk-store';
 import { DiskMarker, DiskVolume } from './disk-volume';
 
 interface MemoryFile {
@@ -19,7 +19,10 @@ type MemoryNode = MemoryFile | MemoryDirectory;
 
 const directory = (): MemoryDirectory => ({ kind: 'directory', children: new Map() });
 
-/** 内存里的磁盘，单测用；行为与 OPFS 实现一致（列目录按名字排序，便于断言）。 */
+/**
+ * 内存里的磁盘，单测用；行为与生产的 `RxdbDiskStore` 一致：路径查找精确，创建与改名按库的唯一索引判重
+ * （同级只差大小写的名字抛 `EEXIST`）。列目录按名字排序，便于断言。
+ */
 export class MemoryDiskStore implements DiskStore {
   private readonly root = directory();
 
@@ -51,12 +54,15 @@ export class MemoryDiskStore implements DiskStore {
 
   async write(file: DiskPath, data: Uint8Array): Promise<void> {
     const parent = this.directoryAt(parentOf(file), true);
-    if (parent.children.get(this.nameOf(file))?.kind === 'directory') throw new DiskError('EISDIR', file);
-    parent.children.set(this.nameOf(file), {
+    const name = this.nameOf(file);
+    const existing = parent.children.get(name);
+    if (existing?.kind === 'directory') throw new DiskError('EISDIR', file);
+    if (!existing) this.requireFreeName(parent, name, file);
+    parent.children.set(name, {
       kind: 'file',
       data: data.slice(),
       modified: this.clock(),
-      originalPath: parent.children.get(this.nameOf(file))?.originalPath
+      originalPath: existing?.originalPath
     });
   }
 
@@ -87,10 +93,17 @@ export class MemoryDiskStore implements DiskStore {
     if (!node) throw new DiskError('ENOENT', from);
     const target = this.directoryAt(parentOf(to), true);
     if (target.children.has(this.nameOf(to))) throw new DiskError('EEXIST', to);
+    this.requireFreeName(target, this.nameOf(to), to, node);
     if (isWithin(to, from)) throw new DiskError('EACCES', to);
     const originalPath = movedOrigin(from, to, node.originalPath) ?? undefined;
     target.children.set(this.nameOf(to), { ...node, originalPath });
     (this.find(parentOf(from)) as MemoryDirectory).children.delete(this.nameOf(from));
+  }
+
+  /** 同级已有只在大小写上不同的另一个名字就抛 `EEXIST`；`self` 是正在改名的节点，它自己的旧名字不算。 */
+  private requireFreeName(dir: MemoryDirectory, name: string, path: DiskPath, self?: MemoryNode): void {
+    for (const [other, node] of dir.children)
+      if (other !== name && node !== self && sameName(other, name)) throw nameTaken(path, other);
   }
 
   private nameOf(path: DiskPath): string {
@@ -112,7 +125,9 @@ export class MemoryDiskStore implements DiskStore {
   private directoryAt(path: DiskPath, create = false): MemoryDirectory {
     let node: MemoryDirectory = this.root;
     for (const [depth, name] of path.entries()) {
-      const next = node.children.get(name) ?? (create ? directory() : undefined);
+      const existing = node.children.get(name);
+      if (!existing && create) this.requireFreeName(node, name, path.slice(0, depth + 1));
+      const next = existing ?? (create ? directory() : undefined);
       if (!next) throw new DiskError('ENOENT', path.slice(0, depth + 1));
       if (next.kind !== 'directory') throw new DiskError('ENOTDIR', path.slice(0, depth + 1));
       node.children.set(name, next);

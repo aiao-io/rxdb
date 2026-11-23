@@ -1,6 +1,9 @@
 import { GitWorkbenchError, type GitStatusEntry } from './git-protocol.js';
 
-/** 用 index 的完整文件名唯一定位重命名目标，歧义时拒绝猜测。 */
+/**
+ * 解析 wasm-git（libgit2 的 lg2 示例程序）的 `status --short`，用 index 的完整文件名唯一定位重命名目标，歧义时拒绝猜测。
+ * lg2 的重命名行是 `R  <旧路径> <新路径>`：两段之间只有一个空格，没有原生 git 的 ` -> `。
+ */
 export function parseGitStatus(raw: string, indexPaths: readonly string[] = []): readonly GitStatusEntry[] {
   const entries = raw
     .split('\n')

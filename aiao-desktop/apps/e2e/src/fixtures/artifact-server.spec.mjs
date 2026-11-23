@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { startArtifactServer } from './artifact-server.mjs';
+import { isolationHeaders, startArtifactServer } from './artifact-server.mjs';
 
 async function site(body) {
   const root = await mkdtemp(join(tmpdir(), 'artifact-server-spec-'));
@@ -23,12 +23,38 @@ test('托管产物并带跨源隔离响应头；不存在的路径是 404，目�
     assert.equal(await index.text(), 'A');
     assert.equal(index.headers.get('cross-origin-opener-policy'), 'same-origin');
     assert.equal(index.headers.get('cross-origin-embedder-policy'), 'require-corp');
+    assert.equal(index.headers.get('x-frame-options'), 'SAMEORIGIN');
     assert.match(index.headers.get('content-type') ?? '', /text\/html/);
     assert.match((await fetch(`${server.origin}/data.json`)).headers.get('content-type') ?? '', /application\/json/);
     assert.match((await fetch(`${server.origin}/pyodide.mjs`)).headers.get('content-type') ?? '', /text\/javascript/);
     assert.equal((await fetch(`${server.origin}/missing.js`)).status, 404);
     const escape = await fetch(`${server.origin}/%2e%2e/%2e%2e/etc/hosts`);
     assert.equal(escape.status, 404);
+  } finally {
+    server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('畸形地址（/%zz）回 400，服务器不退出', async () => {
+  const root = await site('A');
+  const server = await startArtifactServer({ root });
+  try {
+    assert.equal((await fetch(`${server.origin}/%zz`)).status, 400);
+    assert.equal(await (await fetch(`${server.origin}/`)).text(), 'A');
+  } finally {
+    server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('显式给出响应头时原样使用：集成应用的服务器只带跨源隔离，不带防嵌入（桌面要嵌入它）', async () => {
+  const root = await site('A');
+  const server = await startArtifactServer({ root, headers: { ...isolationHeaders } });
+  try {
+    const index = await fetch(`${server.origin}/`);
+    assert.equal(index.headers.get('cross-origin-opener-policy'), 'same-origin');
+    assert.equal(index.headers.get('x-frame-options'), null);
   } finally {
     server.close();
     await rm(root, { recursive: true, force: true });

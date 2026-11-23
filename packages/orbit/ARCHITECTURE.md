@@ -18,6 +18,8 @@ Orbit 是独立维护的 Web 应用运行内核。本文记录当前实现、刻
 
 ## 安全边界
 
-本包只接纳运营者批准的协作应用。同源 iframe 与 `allow-same-origin` 不能阻止恶意应用访问 parent 或同源存储；sandbox 不是产品权限系统，原生 localStorage/IndexedDB 不按 instanceId 自动分区，也不保证 CPU 死循环、浏览器崩溃或失去调度时的回收。
+本包只接纳运营者批准的协作应用。同源 iframe 与 `allow-same-origin` 不能阻止恶意应用访问 parent 或同源存储，同源入口等于受信代码，隔离不受信的应用必须用不同来源；sandbox 不是产品权限系统，原生 localStorage/IndexedDB 不按 instanceId 自动分区，也不保证 CPU 死循环、浏览器崩溃或失去调度时的回收。
 
 应用服务授权、托管存储、桌面窗口系统和离线资源管理另行实现。跨源入口必须逐个声明允许来源；浏览器 CSP 与 iframe 策略仍然生效。
+
+握手的另一半同样要设防：握手令牌取自应用自己的地址参数，嵌入方自己就能指定，不是秘密，所以子应用默认只校验「消息来自父窗口、带对令牌」，并不认证父窗口是谁。只接受特定桌面嵌入的应用必须设置 `connectOrbitClient` 的 `acceptHostOrigin`（与宿主侧的 `allowedOrigins` 对称），并且只信握手结果里的 `context.hostOrigin`——它取自握手消息的 `event.origin`，由浏览器给出，宿主自报的来源不算。

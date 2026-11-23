@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DiskError, isMissing } from './disk-store';
+import { DiskError, isMissing, nameTaken } from './disk-store';
 
 describe('DiskError', () => {
   it('错误码沿用 POSIX 写法，默认说明是「错误码: 虚拟机路径」', () => {
@@ -29,5 +29,17 @@ describe('isMissing', () => {
     expect(isMissing(Object.assign(new Error('x'), { code: 'ENOENT' }))).toBe(false);
     expect(isMissing('ENOENT')).toBe(false);
     expect(isMissing(undefined)).toBe(false);
+  });
+});
+
+describe('nameTaken', () => {
+  it('是 EEXIST 的 DiskError：路径是想创建的那条，说明里点出已经占着名字的那一个', () => {
+    const error = nameTaken(['Users', 'me', 'report.txt'], 'Report.txt');
+    expect(error).toBeInstanceOf(DiskError);
+    expect(error).toMatchObject({
+      code: 'EEXIST',
+      path: ['Users', 'me', 'report.txt'],
+      message: 'Another item named “Report.txt” already exists in this folder (names are not case-sensitive).'
+    });
   });
 });
