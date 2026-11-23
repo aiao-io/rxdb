@@ -64,8 +64,10 @@ import {
 import { parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
 import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
+import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { historyDiffRows, type GithubDiffLine } from './history-diff';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' });
@@ -73,14 +75,6 @@ const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyl
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 type GithubChangeKind = 'all' | 'added' | 'modified' | 'deleted';
-
-interface GithubDiffLine {
-  readonly oldNumber: number | null;
-  readonly newNumber: number | null;
-  readonly oldText: string | null;
-  readonly newText: string | null;
-  readonly same: boolean;
-}
 
 interface GithubDiffValue {
   readonly base: GitFileVersion;
@@ -98,15 +92,10 @@ interface DirectoryPickerWindow extends Window {
   readonly showDirectoryPicker?: DirectoryPicker;
 }
 
-type GithubContextMenu =
-  | { readonly kind: 'file'; readonly path: string; readonly x: number; readonly y: number }
-  | { readonly kind: 'branch'; readonly name: string; readonly x: number; readonly y: number }
-  | { readonly kind: 'commit'; readonly oid: string; readonly x: number; readonly y: number };
-
 type GithubContextMenuTarget =
-  | { readonly kind: 'file'; readonly path: string }
-  | { readonly kind: 'branch'; readonly name: string }
-  | { readonly kind: 'commit'; readonly oid: string };
+  { readonly kind: 'file'; readonly path: string } | { readonly kind: 'branch'; readonly name: string };
+
+type GithubContextMenu = GithubContextMenuTarget & { readonly x: number; readonly y: number };
 
 const ASIDE_WIDTH_MIN = 240;
 const ASIDE_WIDTH_MAX = 560;
@@ -304,6 +293,7 @@ export class GithubApp {
   private historyProjectId: string | null = null;
   private restorePromise: Promise<void> | null = null;
   private readonly storageListener: (event: StorageEvent) => void;
+  private readonly popover = inject(PopoverService);
   private readonly commitMessageInput = viewChild<ElementRef<HTMLInputElement>>('commitMessageInput');
   private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
   private readonly repositoryFilterInput = viewChild<ElementRef<HTMLElement>>('repositoryFilterInput');
@@ -318,6 +308,9 @@ export class GithubApp {
   private readonly changesFilterFocus = signal(false);
 
   private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
+  private readonly historyLineHunks = computed(() =>
+    diffHunksOf(diffLinesOf(this.historyDiff(), this.ignoreHistoryWhitespace()))
+  );
 
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
@@ -441,9 +434,13 @@ export class GithubApp {
     return this.branches().filter(branch => branch.name.toLowerCase().includes(needle));
   });
   protected readonly diffHunks = computed(() => diffHunksOf(diffLinesOf(this.diff())));
-  protected readonly historyDiffHunks = computed(() =>
-    diffHunksOf(diffLinesOf(this.historyDiff(), this.ignoreHistoryWhitespace()))
-  );
+  protected readonly historyDiffHunks = computed(() => {
+    const split = this.sideBySideHistory();
+    return this.historyLineHunks().map(hunk => ({
+      label: hunk.label,
+      lines: historyDiffRows(hunk.lines, split)
+    }));
+  });
   protected readonly historyStats = computed(() => {
     let additions = 0;
     let deletions = 0;
@@ -799,6 +796,29 @@ export class GithubApp {
     this.contextMenu.set(null);
   }
 
+  protected openCommitMenu(event: Event, oid: string): void {
+    const anchor = event.currentTarget;
+    if (!(anchor instanceof HTMLElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = anchor.getBoundingClientRect();
+    this.popover.openMenu(
+      [
+        { id: 'copy-sha', label: 'Copy SHA', run: () => this.copyValue(oid) },
+        { id: 'restore-commit', label: 'Restore this commit', disabled: this.busy(), run: () => this.restore(oid) }
+      ],
+      {
+        x: event instanceof MouseEvent ? event.clientX : rect.left + rect.width / 2,
+        y: event instanceof MouseEvent ? event.clientY : rect.bottom,
+        label: 'Commit actions',
+        focus: true,
+        onClose: reason => {
+          if (RETURNS_FOCUS.has(reason) && anchor.isConnected) anchor.focus();
+        }
+      }
+    );
+  }
+
   protected async copyValue(value: string): Promise<void> {
     this.closeContextMenu();
     try {
@@ -817,11 +837,6 @@ export class GithubApp {
       this.branches.set(await this.backend.deleteBranch(record.projectId, branch));
       this.notice.set(`Deleted branch ${branch}`);
     });
-  }
-
-  protected async restoreFromContext(oid: string): Promise<void> {
-    this.closeContextMenu();
-    await this.restore(oid);
   }
 
   protected contextSelectFile(path: string): void {

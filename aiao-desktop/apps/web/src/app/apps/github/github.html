@@ -851,16 +851,15 @@
             }
             <div class="gh-history-list" aria-label="Commits">
               @for (commit of visibleHistory(); track commit.oid) {
-                <article
-                  class="gh-commit-row"
-                  [class.gh-commit-row-selected]="selectedCommit()?.oid === commit.oid"
-                  (contextmenu)="openContextMenu($event, { kind: 'commit', oid: commit.oid })"
-                >
+                <article class="gh-commit-row" [class.gh-commit-row-selected]="selectedCommit()?.oid === commit.oid">
                   <button
                     class="gh-history-select"
                     [attr.aria-current]="selectedCommit()?.oid === commit.oid"
                     (click)="selectCommit(commit.oid)"
-                    (keydown.shift.f10)="openContextMenu($event, { kind: 'commit', oid: commit.oid })"
+                    (contextmenu)="openCommitMenu($event, commit.oid)"
+                    (keydown.shift.f10)="openCommitMenu($event, commit.oid)"
+                    aria-haspopup="menu"
+                    tabindex="0"
                     type="button"
                   >
                     <strong>{{ commit.message || 'Empty commit message' }}</strong>
@@ -1223,7 +1222,15 @@
                                 >
                                   <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
                                   <span class="gh-diff-sign">{{ !line.same && line.oldText !== null ? '−' : '' }}</span>
-                                  <code>{{ line.oldText ?? '' }}</code>
+                                  @if (line.oldHighlight; as mark) {
+                                    <code>
+                                      {{ mark.prefix }}
+                                      <mark>{{ mark.change }}</mark>
+                                      {{ mark.suffix }}
+                                    </code>
+                                  } @else {
+                                    <code>{{ line.oldText ?? '' }}</code>
+                                  }
                                 </div>
                                 <div
                                   class="gh-diff-side"
@@ -1231,7 +1238,15 @@
                                 >
                                   <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
                                   <span class="gh-diff-sign">{{ !line.same && line.newText !== null ? '+' : '' }}</span>
-                                  <code>{{ line.newText ?? '' }}</code>
+                                  @if (line.newHighlight; as mark) {
+                                    <code>
+                                      {{ mark.prefix }}
+                                      <mark>{{ mark.change }}</mark>
+                                      {{ mark.suffix }}
+                                    </code>
+                                  } @else {
+                                    <code>{{ line.newText ?? '' }}</code>
+                                  }
                                 </div>
                               </div>
                             } @else {
@@ -1250,7 +1265,15 @@
                                     : '+'
                                   }}
                                 </span>
-                                <code>{{ line.newText ?? line.oldText }}</code>
+                                @if (line.newHighlight ?? line.oldHighlight; as mark) {
+                                  <code>
+                                    {{ mark.prefix }}
+                                    <mark>{{ mark.change }}</mark>
+                                    {{ mark.suffix }}
+                                  </code>
+                                } @else {
+                                  <code>{{ line.newText ?? line.oldText }}</code>
+                                }
                               </div>
                             }
                           }
@@ -1328,7 +1351,7 @@
           <svg [lucideIcon]="Copy" size="14"></svg>
           Copy path
         </button>
-      } @else if (menu.kind === 'branch') {
+      } @else {
         <button class="gd-menu-row" (click)="copyValue(menu.name)" type="button">
           <svg [lucideIcon]="Copy" size="14"></svg>
           Copy branch name
@@ -1341,14 +1364,6 @@
         >
           <svg [lucideIcon]="Trash2" size="14"></svg>
           Delete branch
-        </button>
-      } @else {
-        <button class="gd-menu-row" (click)="copyValue(menu.oid)" type="button">
-          <svg [lucideIcon]="Copy" size="14"></svg>
-          Copy SHA
-        </button>
-        <button class="gd-menu-row" [disabled]="busy()" (click)="restoreFromContext(menu.oid)" type="button">
-          Restore this commit
         </button>
       }
     </div>

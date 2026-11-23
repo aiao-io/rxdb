@@ -289,18 +289,9 @@ async function droppedRepository(session, view) {
     await outputOf('git remote remove origin');
     expect(await outputOf('git remote -v')).toBe('');
     expect(await outputOf('open -R .')).toBe('');
-    const finder = session.helpers.win('finder').filter({ has: session.page.locator('[data-name="drop-fixture"]') });
-    const source = finder.locator('[data-name="drop-fixture"]').last();
-    try {
-      await expect(source).toBeVisible();
-    } catch (error) {
-      const titles = await session.page
-        .locator('.win:not(.closing)')
-        .evaluateAll(windows =>
-          windows.map(window => [window.getAttribute('data-app'), window.getAttribute('aria-label')])
-        );
-      throw new Error(`open -R . did not reveal the repository in Finder: ${JSON.stringify(titles)}`, { cause: error });
-    }
+    const finder = session.helpers.win('finder').and(session.page.getByRole('dialog', { name: 'GitHub', exact: true }));
+    const source = finder.locator('[data-name="drop-fixture"]');
+    await expect(source, 'open -R . should select the repository in Finder').toHaveAttribute('aria-selected', 'true');
     const layout = await session.page.addStyleTag({
       content: `.win[data-app="github"] {left: 5px!important; top: 45px!important; width: 48vw!important;} .win[data-app="finder"] {left: 50vw!important; top: 45px!important; width: 47vw!important;} .win[data-app="terminal"]{visibility:hidden}`
     });
@@ -769,7 +760,7 @@ export const githubApp = {
     result.unstageAndDiscard = (await changedFileCheckbox(githubWindow, 'README.md').count()) === 0;
     await showRepositoryFiles(githubWindow);
 
-    await githubWindow.locator('[data-github-editor]').fill('# committed\\n');
+    await githubWindow.locator('[data-github-editor]').fill('# committed\n');
     await githubWindow.locator('[data-github-save]').click();
     await githubWindow.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
     await stageChangedFile(githubWindow, 'README.md');
@@ -791,11 +782,14 @@ export const githubApp = {
     await expect(githubWindow.locator('[data-github-commit-sha]')).toHaveText(/^[a-f0-9]{7}$/);
     await expect(githubWindow.locator('.gh-detail-header')).toContainText('Browser Workbench');
     await expect(githubWindow.locator('.gh-commit-body')).toHaveText('First release notes');
-    await expect(githubWindow.locator('[data-history-unified]').first()).toBeVisible();
+    const unified = githubWindow.locator('[data-history-unified]');
+    await expect(unified.locator('mark')).toHaveText(['Local Fixture', 'committed']);
     const settings = githubWindow.getByRole('button', { name: 'Diff Settings' });
     await settings.click();
     await githubWindow.getByRole('button', { name: 'Split Diff', exact: true }).click();
-    await expect(githubWindow.locator('[data-history-split]').first()).toBeVisible();
+    const paired = githubWindow.locator('[data-history-split]').filter({ hasText: '# Local Fixture' });
+    await expect(paired.locator('code')).toHaveText(['# Local Fixture', '# committed']);
+    await expect(paired.locator('mark')).toHaveText(['Local Fixture', 'committed']);
     await settings.click();
     await githubWindow.getByRole('button', { name: 'Unified Diff', exact: true }).click();
     result.diffModes = true;
@@ -803,12 +797,24 @@ export const githubApp = {
       (await githubWindow.locator('.gh-history-detail').count()) === 1 &&
       (await githubWindow.locator('[data-github-history-diff]').count()) === 1;
     await expect(historyRows.first().locator('.gh-context-trigger')).toHaveCount(0);
-    await historyRows.first().click({ button: 'right' });
-    await githubWindow.locator('.gh-context-menu').waitFor();
-    result.historyContextMenu =
-      (await githubWindow.getByRole('button', { name: 'Copy SHA', exact: true }).count()) === 1;
-    await githubWindow.getByRole('button', { name: 'Copy SHA', exact: true }).click();
-    await githubWindow.locator('.gh-context-menu').waitFor({ state: 'detached' });
+    const commitRow = historyRows.first().locator('.gh-history-select');
+    const commitMenu = page.getByRole('menu', { name: 'Commit actions', exact: true });
+    const copyCommit = commitMenu.getByRole('menuitem', { name: 'Copy SHA', exact: true });
+    await commitRow.click({ button: 'right' });
+    await expect(copyCommit).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(commitMenu).toHaveCount(0);
+    await expect(commitRow).toBeFocused();
+    await commitRow.press('Shift+F10');
+    await expect(copyCommit).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(commitMenu.getByRole('menuitem', { name: 'Restore this commit', exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(copyCommit).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(commitMenu).toHaveCount(0);
+    await expect(commitRow).toBeFocused();
+    result.historyContextMenu = true;
     await githubWindow.locator('[data-github-tab="changes"]').click();
 
     await githubWindow.locator('[data-github-branch-menu]').click();

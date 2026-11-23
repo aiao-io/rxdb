@@ -20,6 +20,8 @@
   --gd-hunk-gutter: #dbedff;
   --gd-add-gutter: #ccffd8;
   --gd-del-gutter: #ffdce0;
+  --gd-add-inner: #acf2bd;
+  --gd-del-inner: #fdb8c0;
   --gd-warn-bg: #fff8c5;
   --gd-warn-fg: #9a6700;
   --gd-shadow: 0 10px 28px rgba(27, 31, 36, 0.22);
@@ -86,6 +88,8 @@
   --gd-hunk-gutter: #293a50;
   --gd-add-gutter: #1b3929;
   --gd-del-gutter: #492329;
+  --gd-add-inner: #225c32;
+  --gd-del-inner: #6e292e;
   --gd-warn-bg: rgba(187, 128, 9, 0.15);
   --gd-warn-fg: #d29922;
   --gd-shadow: 0 12px 30px rgba(1, 4, 9, 0.6);
@@ -2016,6 +2020,18 @@
 
 .gh-history-diff .gh-diff-side-delete .gh-diff-number {
   background: var(--gd-del-gutter);
+}
+
+.gh-history-diff mark {
+  color: inherit;
+}
+
+.gh-history-diff .gh-diff-side-add mark {
+  background: var(--gd-add-inner);
+}
+
+.gh-history-diff .gh-diff-side-delete mark {
+  background: var(--gd-del-inner);
 }
 
 .gh-diff-settings label {

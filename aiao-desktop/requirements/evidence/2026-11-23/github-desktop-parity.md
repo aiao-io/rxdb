@@ -9,7 +9,9 @@
 | History            | 左侧提交行没有省略号，右键或 Shift+F10 打开菜单。右侧显示提交正文、作者、SHA、文件清单和 Diff。夹具中默认选中 `README.md`，统一 Diff 先删除 `Version 0.9` 再新增 `Version 1.0`，区块标题包含 Git 的上下文行。              |
 | 双向联动           | 仓库菜单在同一仓库的卷内路径打开终端。终端修改、暂存、提交和切分支后更新当前 GitHub Desktop 窗口；从界面切分支后终端 `git status` 读取到同一分支。终端写入同一文件时，过期的窗口草稿不会在刷新时丢失，也不会覆盖终端版本。 |
 
-仍有差异：浏览器窗口控件和终端不是系统原生控件与 Shell；本地工作树列表不管理 linked worktree；分支与提交菜单没有官方的完整操作集；Diff 不提供官方编辑器的语法高亮和行内词级高亮。
+History 的右键与 Shift+F10 复用桌面菜单：焦点进入菜单，方向键移动，Esc 关闭并把焦点还给提交行。用 `github.historyContextMenu` 冒烟覆盖。`github.diffModes` 验证统一视图先删后增、分栏视图配对删增行；等量替换会突出行内变化，如 `0.9` 和 `1.0`。
+
+仍有差异：浏览器窗口控件和终端不是系统原生控件与 Shell；本地工作树列表不管理 linked worktree；本地仓库仍显示 `Refresh status`，而不是 `Publish repository`；分支、PR 与提交菜单没有官方的完整操作集；Diff 不提供官方编辑器的语言语法高亮。
 
 ```sh
 pnpm nx run aiao-desktop-e2e:e2e --group=github-app,disk-terminal --report=/tmp/aiao-github-desktop-parity.json
