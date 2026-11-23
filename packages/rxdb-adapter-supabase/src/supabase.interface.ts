@@ -13,13 +13,26 @@ export interface SupabaseRlsCheckTable {
   table: string;
 }
 
+/**
+ * 实体在远端的同步登记（`rxdb_entity_sync_info()` 的结果，US-033）
+ */
 export interface SupabaseEntitySyncInfo {
+  /** 实体命名空间，即业务表所在 schema */
   namespace: string;
+
+  /** 实体名 */
   entity: string;
+
+  /** 业务表名；实体没经 `rxdb_enable_sync_for_table` 登记过时为 `null` */
   tableName: string | null;
+
+  /** 业务表有 `rxdb_bucket` 列、按授权分区同步时为 `true` */
   bucketed: boolean;
 }
 
+/**
+ * 同步插件绑定本地库时用的调用者身份，与 `RxDBAdapterSupabase.callerIdentity()` 同一编码（US-033）
+ */
 export type SupabaseScopedSyncIdentity = RxDBIdentity;
 
 export interface SupabaseRlsCheckOptions {

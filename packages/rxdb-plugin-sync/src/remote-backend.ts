@@ -91,57 +91,6 @@ const IDENTITY_BINDING = {
   where: { combinator: 'and' as const, rules: [{ field: 'id', operator: '=', value: IDENTITY_BINDING_ID }] }
 };
 
-/** 在读取远端 backend id 之前绑定并核对本地数据库身份。 */
-export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
-  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
-  if (!isScopedIdentityRemoteAdapter(remoteAdapter)) return;
-
-  const identity = await remoteAdapter.syncIdentity();
-  const fingerprint = identityFingerprint(identity);
-  const { adapter: localAdapter } = await sm.getLocalRepositories();
-  const repository = localAdapter.getRepository(RxDBSyncIdentityBinding);
-  const existing = (await repository.find(IDENTITY_BINDING))[0];
-
-  if (existing) {
-    if (existing.identityFingerprint !== fingerprint) {
-      const error = new IdentityMismatchError(
-        existing.identityKind,
-        scopedIdentityKind(identity),
-        existing.identityFingerprint,
-        fingerprint
-      );
-      sm.rxdb.syncState.reportError(error);
-      throw error;
-    }
-    return;
-  }
-
-  await localAdapter.transaction(async executor => {
-    const txRepository = executor.getRepository(RxDBSyncIdentityBinding);
-    const current = (await txRepository.find(IDENTITY_BINDING))[0];
-    if (current) {
-      if (current.identityFingerprint !== fingerprint) {
-        throw new IdentityMismatchError(
-          current.identityKind,
-          scopedIdentityKind(identity),
-          current.identityFingerprint,
-          fingerprint
-        );
-      }
-      return;
-    }
-
-    const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
-      id: IDENTITY_BINDING_ID,
-      identityKind: scopedIdentityKind(identity),
-      identityFingerprint: fingerprint,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-    await txRepository.create(binding);
-  });
-}
-
 /**
  * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛
  *
@@ -157,6 +106,59 @@ const assertRemoteIdentity = async (sm: SyncManager, remote: RxDBAdapterRemoteBa
     throw error;
   }
 };
+
+/** 本地库已经绑定了身份：与当前会话对不上时先写进 `SyncState.lastError` 再抛 */
+const assertBoundIdentity = (
+  sm: SyncManager,
+  binding: RxDBSyncIdentityBinding,
+  identity: ScopedSyncIdentity,
+  fingerprint: string
+): void => {
+  if (binding.identityFingerprint === fingerprint) return;
+  const error = new IdentityMismatchError(
+    binding.identityKind,
+    scopedIdentityKind(identity),
+    binding.identityFingerprint,
+    fingerprint
+  );
+  sm.rxdb.syncState.reportError(error);
+  throw error;
+};
+
+/**
+ * 在读取远端 backend id 之前绑定并核对本地数据库身份
+ *
+ * @remarks
+ * 声明了 `RxDBOptions.identity` 时先核对会话就是声明的身份，通过之后才写绑定：登错号的会话不能先把
+ * 自己的指纹写进本地库——没有改绑，写错一次，换回正确的会话也再同步不了。
+ */
+export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  if (!isScopedIdentityRemoteAdapter(remoteAdapter)) return;
+  await assertRemoteIdentity(sm, remoteAdapter);
+
+  const identity = await remoteAdapter.syncIdentity();
+  const fingerprint = identityFingerprint(identity);
+  const { adapter: localAdapter } = await sm.getLocalRepositories();
+  const repository = localAdapter.getRepository(RxDBSyncIdentityBinding);
+  const existing = (await repository.find(IDENTITY_BINDING))[0];
+  if (existing) return assertBoundIdentity(sm, existing, identity, fingerprint);
+
+  await localAdapter.transaction(async executor => {
+    const txRepository = executor.getRepository(RxDBSyncIdentityBinding);
+    const current = (await txRepository.find(IDENTITY_BINDING))[0];
+    if (current) return assertBoundIdentity(sm, current, identity, fingerprint);
+
+    const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
+      id: IDENTITY_BINDING_ID,
+      identityKind: scopedIdentityKind(identity),
+      identityFingerprint: fingerprint,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    await txRepository.create(binding);
+  });
+}
 
 /** 读远端身份与本地全部同步记录 */
 const readRemoteBackend = async (sm: SyncManager): Promise<RemoteBackendCheck> => {

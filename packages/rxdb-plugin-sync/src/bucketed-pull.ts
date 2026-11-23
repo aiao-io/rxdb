@@ -38,6 +38,7 @@ import {
 import { RemoteBackendMismatchError } from './remote-backend.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
 import { filterFingerprint, type ScopedSyncAdapter } from './scoped-sync.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 
 type BucketedRemoteAdapter = RxDBAdapterRemoteBase & ScopedSyncAdapter;
@@ -54,7 +55,6 @@ interface BucketPullResult {
   compacted: number;
   applied: number;
   conflictsResolved: number;
-  persistedProgress: boolean;
   historyInvalidated: boolean;
   hasMore: boolean;
 }
@@ -121,7 +121,6 @@ async function pullBucketedRepository(
   const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
   const existingProgress = await findRepositoryProgress(progressRepository, namespace, entity, branchId);
 
-  let persistedProgress = false;
   let pulled = 0;
   let compacted = 0;
   let applied = 0;
@@ -134,14 +133,13 @@ async function pullBucketedRepository(
 
   for (const progress of existingProgress) {
     if (!buckets.includes(progress.bucket)) {
-      const cleanup = await removeBucketScope(
+      await removeBucketScope(
         localAdapter,
         EntityType,
         repoSync,
         { namespace, entity, branchId, bucket: progress.bucket, filterFingerprint: progress.filterFingerprint },
         progress
       );
-      persistedProgress ||= cleanup;
     }
   }
 
@@ -164,7 +162,6 @@ async function pullBucketedRepository(
       compacted += result.compacted;
       applied += result.applied;
       conflictsResolved += result.conflictsResolved;
-      persistedProgress ||= result.persistedProgress;
       historyInvalidated ||= result.historyInvalidated;
       hasMore ||= result.hasMore;
       completedBuckets.add(bucket);
@@ -181,17 +178,17 @@ async function pullBucketedRepository(
     for (const progress of existingProgress) {
       if (progress.bucket === '' || progress.filterFingerprint === fingerprint) continue;
       if (!buckets.includes(progress.bucket)) continue;
-      const cleanup = await removeBucketScope(
+      await removeBucketScope(
         localAdapter,
         EntityType,
         repoSync,
         { namespace, entity, branchId, bucket: progress.bucket, filterFingerprint: progress.filterFingerprint },
         progress
       );
-      persistedProgress ||= cleanup;
     }
   }
 
+  // 每次都记下拉取时间，进度总有落库
   const now = new Date();
   await localAdapter.transaction(async executor => {
     const repository = executor.getRepository(RxDBSync);
@@ -200,7 +197,6 @@ async function pullBucketedRepository(
       updatedAt: now
     });
   });
-  persistedProgress = true;
 
   return {
     repository: { namespace, entity },
@@ -210,7 +206,7 @@ async function pullBucketedRepository(
     hasMore,
     conflictsResolved,
     conflictsDeferred: 0,
-    persistedProgress,
+    persistedProgress: true,
     historyInvalidated,
     failures
   };
@@ -230,7 +226,6 @@ async function pullBucketScope(
 ): Promise<BucketPullResult> {
   const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
   let progress = await findProgress(progressRepository, scope);
-  let persistedProgress = false;
   let pulled = 0;
   let compacted = 0;
   let applied = 0;
@@ -241,12 +236,16 @@ async function pullBucketScope(
   if (progress && progress.remoteBackendId !== sm.remoteBackendId) {
     await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
     progress = undefined;
-    persistedProgress = true;
   }
 
   if (!progress) {
     await sm.verifyRemoteBackend();
-    const snapshotPoint = await remoteAdapter.getBucketSnapshotPoint(scope.namespace, scope.entity, scope.bucket);
+    const snapshotPoint = await remoteAdapter.getBucketSnapshotPoint(
+      scope.namespace,
+      scope.entity,
+      scope.bucket,
+      branchIds
+    );
     await sm.verifyRemoteBackend();
     progress = await localAdapter.transaction(async executor => {
       const repository = executor.getRepository(RxDBSyncBucketProgress);
@@ -260,7 +259,7 @@ async function pullBucketScope(
         bucket: scope.bucket,
         filterFingerprint: scope.filterFingerprint,
         snapshotPoint,
-        snapshotOffset: 0,
+        snapshotAfterId: null,
         cursor: 0,
         snapshotComplete: false,
         snapshotRunId: `${progressId(scope)}:${snapshotPoint}`,
@@ -272,7 +271,6 @@ async function pullBucketScope(
       await repository.create(created);
       return created;
     });
-    persistedProgress = true;
   }
 
   while (!progress.snapshotComplete) {
@@ -283,7 +281,7 @@ async function pullBucketScope(
         scope.entity,
         scope.bucket,
         filter,
-        progress.snapshotOffset,
+        progress.snapshotAfterId,
         options.limit ?? 1000
       );
       await sm.verifyRemoteBackend();
@@ -305,7 +303,6 @@ async function pullBucketScope(
       applied += result.applied;
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
-      persistedProgress = true;
       progress = result.progress;
       if (!snapshotComplete) continue;
     } catch (error) {
@@ -348,7 +345,6 @@ async function pullBucketScope(
       compacted += result.compacted;
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
-      persistedProgress = true;
       progress = result.progress;
       await sm.verifyRemoteBackend();
       cursor = progress.cursor;
@@ -360,7 +356,7 @@ async function pullBucketScope(
     throw error;
   }
 
-  return { pulled, compacted, applied, conflictsResolved, persistedProgress, historyInvalidated, hasMore };
+  return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore };
 }
 
 async function pullScopedAncestorChanges(
@@ -395,6 +391,7 @@ async function applyScopedSnapshot(
   conflictResolver: NonNullable<PullRepositoryOptions['conflictResolver']>
 ): Promise<{ progress: RxDBSyncBucketProgress; applied: number; conflictsResolved: number }> {
   const changes = rows.map(row => snapshotRowToChange(scope, row, progress.snapshotPoint));
+  const lastRow = changes.at(-1);
   return applyScopedBatch(
     sm,
     localAdapter,
@@ -406,7 +403,7 @@ async function applyScopedSnapshot(
     filter,
     {
       snapshotComplete,
-      snapshotOffset: progress.snapshotOffset + rows.length,
+      snapshotAfterId: lastRow ? String(lastRow.entityId) : progress.snapshotAfterId,
       cleanupStaleSnapshotRows: snapshotComplete,
       isSnapshot: true
     },
@@ -441,7 +438,7 @@ async function applyScopedChanges(
     filter,
     {
       snapshotComplete: true,
-      snapshotOffset: progress.snapshotOffset,
+      snapshotAfterId: progress.snapshotAfterId,
       isSnapshot: false
     },
     conflictResolver
@@ -459,7 +456,7 @@ async function applyScopedBatch(
   filter: RuleGroup | undefined,
   state: {
     snapshotComplete: boolean;
-    snapshotOffset: number;
+    snapshotAfterId: string | null;
     cleanupStaleSnapshotRows?: boolean;
     isSnapshot: boolean;
   },
@@ -467,6 +464,8 @@ async function applyScopedBatch(
 ) {
   const normalizedChanges = normalizeScopedChanges(changes, filter);
   return localAdapter.transaction(async executor => {
+    // 拉取期间实例可能换挂到了可写检出位：本事务落在那套表上就一行都不写，游标也不动（US-314 B1.4）
+    assertSyncOnMainCheckout(executor.tableSet, 'pullRepository');
     const changeRepository = executor.getRepository(RxDBChange);
     const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
     const rowRepository = executor.getRepository(RxDBSyncBucketRow);
@@ -483,8 +482,11 @@ async function applyScopedBatch(
     const safeChanges = normalizedChanges.filter(
       change => change.type !== 'DELETE' || !pending.has(getRxDBChangeKey(change))
     );
-    const actions = compactChanges(safeChanges, createEmptyActions());
-    const actionEntries = createConflictActionEntries(safeChanges, actions);
+    // 一个分区的 DELETE 只说明行离开了这个分区：只删映射，本地行删不删由下面的
+    // findRowsWithoutMappings 按全部分区的映射与待推变更决定。直接删会把刚换进另一个已授权分区的行一起删掉
+    const upserts = safeChanges.filter(change => change.type !== 'DELETE');
+    const actions = compactChanges(upserts, createEmptyActions());
+    const actionEntries = createConflictActionEntries(upserts, actions);
     const resolved = await resolveConflictsAndBuildActions(actionEntries, pending, {
       changeRepo: changeRepository,
       conflictResolver:
@@ -573,7 +575,7 @@ async function applyScopedBatch(
       : progress.cursor;
     const nextProgress = await progressRepository.update(progress, {
       cursor: Math.max(progress.cursor, nextCursor),
-      snapshotOffset: state.snapshotOffset,
+      snapshotAfterId: state.snapshotAfterId,
       snapshotComplete: progress.snapshotComplete || state.snapshotComplete,
       lastPulledAt: new Date(),
       updatedAt: new Date()

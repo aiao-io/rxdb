@@ -16,6 +16,16 @@ interface KeyValueStorage {
 export interface SupabaseRuntimeConfig {
   readonly url: string;
   readonly key: string;
+  /** 身份声明用的后端标识：项目 URL 的 origin，与适配器 `callerIdentity()` 报告的同口径（US-035） */
+  readonly scope: string;
+}
+
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    throw new Error(`VITE_SUPABASE_URL must be an absolute URL: ${url}`);
+  }
 }
 
 function normalize(value: string | undefined): string | undefined {
@@ -41,8 +51,8 @@ function isPublicSupabaseKey(key: string): boolean {
  * 读取并校验 Supabase 连接参数。
  *
  * @param env - 构建期注入的环境变量
- * @returns 校验通过的 url / key
- * @throws {@link Error} 缺少任一变量，或 key 不是公开的 anon / publishable key 时
+ * @returns 校验通过的 url / key，以及身份声明用的 scope
+ * @throws {@link Error} 缺少任一变量、url 不是绝对地址，或 key 不是公开的 anon / publishable key 时
  *
  * @remarks
  * 这里**只挡运行时**。key 在构建期就已经被 Vite 内联进产物，
@@ -60,7 +70,7 @@ export function readSupabaseConfig(env: RuntimeEnv): SupabaseRuntimeConfig {
   if (!isPublicSupabaseKey(key)) {
     throw new Error('VITE_SUPABASE_KEY must be a public anon or publishable key');
   }
-  return { url, key };
+  return { url, key, scope: originOf(url) };
 }
 
 /**

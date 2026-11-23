@@ -248,7 +248,8 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_serialize_append();
 --
 -- 语句级触发、每个 bucket 每 200 条聚合成一条：realtime.send 每次调用都开一个子事务（内部 BEGIN … EXCEPTION），
 -- 按行发送时一次推送上千条变更，子事务数超过 64 会让快照子事务溢出、拖慢所有并发查询。
--- realtime.send 吞掉自己的错误（只发 WARNING），通知发不出去不会让推送失败；
+-- 通知只是拉取提示，发不出去不能让推送或业务写失败：realtime.send 吞掉自己的错误（只发 WARNING）；
+-- 库里没有 realtime.send（没有 Realtime 服务的部署，或 Realtime 还没建好它）时不发，否则每次写日志都会整体回滚。
 -- 它在推送事务内写 realtime.messages，事务回滚就不会发出。
 -- SECURITY DEFINER：realtime schema 的使用权只属于 Supabase 内置角色，不能转授给自定义角色。
 CREATE OR REPLACE FUNCTION public.rxdb_change_broadcast()
@@ -261,6 +262,10 @@ DECLARE
     v_batch jsonb;
     v_topic text;
 BEGIN
+    IF pg_catalog.to_regprocedure('realtime.send(jsonb, text, text, boolean)') IS NULL THEN
+        RETURN NULL;
+    END IF;
+
     FOR v_batch, v_topic IN
         SELECT pg_catalog.jsonb_agg(
             pg_catalog.jsonb_build_object(
@@ -383,10 +388,15 @@ AS $$
     )
 $$;
 
+-- 水位只算调用方会拉的分支（p_branch_ids，通常是当前分支及其祖先）。拉取按分支过滤，
+-- 别的分支写进同一个 bucket 的日志永远拉不下来；算进水位，客户端的游标就永远追不上，状态一直是「有更新」。
+DROP FUNCTION IF EXISTS public.rxdb_bucket_snapshot_point(text, text, text);
+
 CREATE OR REPLACE FUNCTION public.rxdb_bucket_snapshot_point(
     p_namespace text,
     p_entity text,
-    p_bucket text
+    p_bucket text,
+    p_branch_ids text[] DEFAULT NULL
 )
 RETURNS integer
 LANGUAGE plpgsql
@@ -407,6 +417,7 @@ BEGIN
         WHERE namespace = p_namespace
           AND entity = p_entity
           AND bucket = p_bucket
+          AND (p_branch_ids IS NULL OR "branchId" = ANY(p_branch_ids))
     );
 END;
 $$;
@@ -771,10 +782,13 @@ BEGIN
     PERFORM public.rxdb_assert_snapshot_filter_columns(p_filter, v_columns);
     v_row_expression := public.rxdb_selectable_row_expression(v_columns);
 
+    -- 复合类型按列位置匹配、不看列名：rxdb_change 的物理列序因部署而异（从旧版升级的库里 bucket
+    -- 由 ADD COLUMN 追加在表尾）。所以不手写输出列，取整行再按列名覆盖要改的字段。
     RETURN QUERY EXECUTE pg_catalog.format($query$
         WITH scoped_changes AS (
             SELECT
-                change.*,
+                change AS change_row,
+                change.id,
                 current_row.row_json,
                 CASE
                     WHEN change.type = 'DELETE' OR current_row.row_json IS NULL THEN 'DELETE'
@@ -797,41 +811,40 @@ BEGIN
               AND change.bucket = $5
               AND ($6 IS NULL OR change."branchId" = $6)
         )
-        SELECT
-            id,
-            namespace,
-            entity,
-            bucket,
-            "entityId",
-            "branchId",
-            effective_type::varchar,
-            CASE WHEN effective_type = 'DELETE' THEN NULL ELSE row_json END,
-            NULL::jsonb,
-            NULL::jsonb,
-            CASE WHEN effective_type = 'DELETE' THEN NULL ELSE row_json END,
-            true,
-            "transactionId",
-            "localId",
-            "clientId",
-            "createdAt",
-            "updatedAt"
+        SELECT scoped_row.*
         FROM scoped_changes
+        CROSS JOIN LATERAL pg_catalog.jsonb_populate_record(
+            scoped_changes.change_row,
+            pg_catalog.jsonb_build_object(
+                'type', scoped_changes.effective_type,
+                'patch', CASE WHEN scoped_changes.effective_type = 'DELETE' THEN NULL ELSE scoped_changes.row_json END,
+                'inversePatch', NULL,
+                'beforeData', NULL,
+                'afterData', CASE WHEN scoped_changes.effective_type = 'DELETE' THEN NULL ELSE scoped_changes.row_json END,
+                'snapshotComplete', true
+            )
+        ) AS scoped_row
         WHERE $7 IS NULL
-           OR effective_type = 'DELETE'
-           OR public.rxdb_jsonb_matches_filter(row_json, $7)
-        ORDER BY id ASC
+           OR scoped_changes.effective_type = 'DELETE'
+           OR public.rxdb_jsonb_matches_filter(scoped_changes.row_json, $7)
+        ORDER BY scoped_changes.id ASC
         LIMIT GREATEST($2, 0)
     $query$, v_row_expression, p_namespace, v_table_name, v_bucket_column)
     USING p_since_id, p_limit, p_namespace, p_entity, p_bucket, p_branch_id, p_filter;
 END;
 $$;
 
+-- 快照按 id 做 keyset 分页：每页一个语句快照，页与页之间别人删掉一行，OFFSET 会把后面的行整体左移，
+-- 恰好跨在页边界上的幸存行就被跳过。它的日志早于快照点，之后的增量永远不会补它。
+-- 「id 大于上一页最后一行」不受删除位移影响；页间插入的行日志晚于快照点，由增量补上。
+DROP FUNCTION IF EXISTS public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer);
+
 CREATE OR REPLACE FUNCTION public.rxdb_pull_bucket_snapshot(
     p_namespace text,
     p_entity text,
     p_bucket text,
     p_filter jsonb DEFAULT NULL,
-    p_offset integer DEFAULT 0,
+    p_after_id text DEFAULT NULL,
     p_limit integer DEFAULT 1000
 )
 RETURNS jsonb
@@ -845,6 +858,7 @@ DECLARE
     v_bucket_column text;
     v_columns text[];
     v_row_expression text;
+    v_id_type text;
     v_rows jsonb;
 BEGIN
     IF p_bucket IS NULL OR NOT (p_bucket = ANY(public.rxdb_caller_buckets())) THEN
@@ -871,19 +885,27 @@ BEGIN
     PERFORM public.rxdb_assert_snapshot_filter_columns(p_filter, v_columns);
     v_row_expression := public.rxdb_selectable_row_expression(v_columns);
 
+    -- 游标按 id 列自己的类型比较，与 ORDER BY 同一个序（整数 id 按文本比较时 '10' < '9'）
+    SELECT pg_catalog.format_type(attribute.atttypid, attribute.atttypmod)
+    INTO v_id_type
+    FROM pg_catalog.pg_attribute AS attribute
+    WHERE attribute.attrelid = pg_catalog.format('%I.%I', p_namespace, v_table_name)::regclass
+      AND attribute.attname = 'id'
+      AND NOT attribute.attisdropped;
+
     EXECUTE pg_catalog.format(
         'SELECT COALESCE(pg_catalog.jsonb_agg(row_data.row_json ORDER BY row_data.row_id), ''[]''::jsonb)
          FROM (
-             SELECT table_data.id AS row_id, %s AS row_json
-             FROM %I.%I AS table_data
-             WHERE table_data.%I::text = $1
-               AND ($2 IS NULL OR public.rxdb_jsonb_matches_filter(%s, $2))
+             SELECT table_data.id AS row_id, %1$s AS row_json
+             FROM %2$I.%3$I AS table_data
+             WHERE table_data.%4$I::text = $1
+               AND ($3 IS NULL OR table_data.id > $3::%5$s)
+               AND ($2 IS NULL OR public.rxdb_jsonb_matches_filter(%1$s, $2))
              ORDER BY table_data.id
-             OFFSET GREATEST($3, 0)
              LIMIT GREATEST($4, 0)
          ) AS row_data',
-        v_row_expression, p_namespace, v_table_name, v_bucket_column, v_row_expression
-    ) INTO v_rows USING p_bucket, p_filter, p_offset, p_limit;
+        v_row_expression, p_namespace, v_table_name, v_bucket_column, v_id_type
+    ) INTO v_rows USING p_bucket, p_filter, p_after_id, p_limit;
 
     RETURN v_rows;
 END;
@@ -891,9 +913,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer) TO anon, authenticated;
 
 -- ============================================
 -- 启用 RxDB 同步的辅助函数

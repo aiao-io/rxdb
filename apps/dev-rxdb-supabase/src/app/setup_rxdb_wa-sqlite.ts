@@ -38,7 +38,7 @@ export async function prepareSupabaseSession(): Promise<void> {
   const { createClient } = await import('@supabase/supabase-js');
   const client = createClient(config.url, config.key);
   const subject = await ensureSupabaseSession(client.auth);
-  prepared = { client, identity: { scope: config.url, subject } };
+  prepared = { client, identity: { scope: config.scope, subject } };
 }
 
 export default () => {

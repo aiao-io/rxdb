@@ -68,6 +68,7 @@ CASES=(
   backend-identity
   production-change-grants
   bucketed-read-sync
+  bucketed-push
   anon-sync-protocol
   branch-ownership
   realtime-notifications

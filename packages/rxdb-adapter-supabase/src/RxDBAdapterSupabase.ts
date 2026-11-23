@@ -26,13 +26,7 @@ import type {
   RxDBMutationsMap,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import {
-  getEntityMetadata,
-  getSyncConfig,
-  RXDB_ANONYMOUS_SUBJECT,
-  RxDBAdapterRemoteBase,
-  tryGetEntityStatus
-} from '@aiao/rxdb';
+import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
 import {
   createClient,
   RealtimeChannel,
@@ -179,7 +173,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     await this.#enqueueRealtime(async () => {
       this.#clearReconnectTimer();
       this.#installAuthStateListener();
-      if (this.#channels.length > 0) return;
+      if (this.#channels.length > 0) {
+        // 已在订阅：令牌换了主人（应用切换账号后再调 connect()）就按新身份重建
+        await this.#client.realtime.setAuth();
+        this.#followRealtimeIdentity(this.#client.realtime.accessTokenValue);
+        return;
+      }
 
       this.#realtimeState = 'connecting';
       this.#channels = (await this.#createRealtimeChannels()) ?? [];
@@ -243,10 +242,16 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 会话可能在两次请求之间换了主人。不读 `client.auth`：客户端配了 `accessToken` 选项时，
    * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
    * 只读本地已有的会话状态，不发网络请求。
+   *
+   * 令牌换了主人而 Realtime 还按旧身份订阅着时，顺带重建频道：`accessToken` 模式没有 auth 事件可听，
+   * 私有频道又是在加入时按身份授权的。
    */
   override async callerIdentity(): Promise<RxDBIdentity> {
     await this.#client.realtime.setAuth();
-    return this.#identityFromSubject(identityOfAccessToken(this.#client.realtime.accessTokenValue));
+    const accessToken = this.#client.realtime.accessTokenValue;
+    const identity = this.#identityFromSubject(identityOfAccessToken(accessToken));
+    this.#followRealtimeIdentity(accessToken);
+    return identity;
   }
 
   // ============================================
@@ -382,6 +387,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @remarks
    * 使用 id 而非 createdAt 作为游标，避免同毫秒内多条记录导致的重复问题
    *
+   * 只拉未分区日志（`bucket IS NULL`）。分区日志只带元数据，正文要按调用者身份从业务表派生，经
+   * {@link RxDBAdapterSupabase.pullBucketChanges} 拉取。
+   *
    * 当提供 filter 参数时，调用 `rxdb_pull_changes` RPC 在变更日志的快照上求值，不 JOIN 当前业务表：
    * `beforeData` 或 `afterData` 任一命中即返回整条变更，`snapshotComplete = false` 的历史变更不经过滤直接返回。
    * 因此 filter 只用于少拉数据，不是行级隔离边界。
@@ -428,6 +436,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       .from('rxdb_change')
       .select('*')
       .gt('id', sinceId)
+      .is('bucket', null)
       .order('id', { ascending: true })
       .limit(limit);
 
@@ -454,6 +463,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       .slice(0, limit);
   }
 
+  /**
+   * 当前调用者可读的分区（US-033）
+   *
+   * @returns `rxdb_caller_buckets()` 的结果：anon 默认 `['public']`，登录用户默认再加 `user:<id>`，应用可扩展租户区
+   * @throws {SupabaseDataError} 远端返回的不是非空字符串数组
+   */
   async getCallerBuckets(): Promise<string[]> {
     const { data, error, status } = await this.#client.rpc('rxdb_caller_buckets');
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve caller buckets');
@@ -463,6 +478,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return data;
   }
 
+  /**
+   * 实体在远端的登记信息（US-033）
+   *
+   * @param namespace - 实体命名空间（即业务表所在 schema）
+   * @param entity - 实体名
+   * @returns 业务表名与是否按 `rxdb_bucket` 分区；没登记过的实体 `bucketed` 为 `false`
+   * @throws {SupabaseDataError} 远端返回的形状不对
+   */
   async getEntitySyncInfo(namespace: string, entity: string): Promise<SupabaseEntitySyncInfo> {
     const { data, error, status } = await this.#client.rpc('rxdb_entity_sync_info', {
       p_namespace: namespace,
@@ -482,11 +505,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return data as SupabaseEntitySyncInfo;
   }
 
-  async getBucketSnapshotPoint(namespace: string, entity: string, bucket: string): Promise<number> {
+  /**
+   * 分区日志的水位：某个 bucket 在给定分支上的最大日志 id（US-033）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param branchIds - 只算这些分支（通常是当前分支及其祖先）；不传时算全部分支
+   * @returns 最大日志 id，没有日志时为 0
+   * @throws {SupabaseDataError} 分区不属于调用者（`42501`）或返回值不是非负整数
+   *
+   * @remarks
+   * 拉取只拉给定分支的日志，水位必须同口径：把别的分支算进来，游标就永远追不上它。
+   */
+  async getBucketSnapshotPoint(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    branchIds?: readonly string[]
+  ): Promise<number> {
     const { data, error, status } = await this.#client.rpc('rxdb_bucket_snapshot_point', {
       p_namespace: namespace,
       p_entity: entity,
-      p_bucket: bucket
+      p_bucket: bucket,
+      p_branch_ids: branchIds ?? null
     });
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read bucket snapshot point');
     const point = typeof data === 'number' ? data : Number(data);
@@ -496,12 +538,27 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return point;
   }
 
+  /**
+   * 按分区从业务表读一页快照（US-033）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param filter - 实体同步规则，只能在分区内缩小范围
+   * @param afterId - 上一页最后一行的 id（`String(row.id)`）；第一页传 `null`
+   * @param limit - 每页行数
+   * @returns 按 id 升序、以调用者身份在业务表 RLS 下读到的行
+   * @throws {SupabaseDataError} 分区不属于调用者、实体未分区或返回值不是对象数组
+   *
+   * @remarks
+   * 按 id 接着上一页读（keyset），不用 OFFSET：翻页之间有人删行时，OFFSET 会把边界上的幸存行挤掉。
+   */
   async pullBucketSnapshot(
     namespace: string,
     entity: string,
     bucket: string,
     filter: RuleGroup<unknown> | undefined,
-    offset: number,
+    afterId: string | null,
     limit: number
   ): Promise<Record<string, unknown>[]> {
     if (limit <= 0) return [];
@@ -511,7 +568,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       p_entity: entity,
       p_bucket: bucket,
       p_filter: filter ?? null,
-      p_offset: offset,
+      p_after_id: afterId,
       p_limit: limit
     });
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket snapshot');
@@ -521,6 +578,19 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return data as Record<string, unknown>[];
   }
 
+  /**
+   * 拉某个分区在游标之后的增量日志（US-033）
+   *
+   * @param sinceId - 游标：只返回 id 大于它的日志
+   * @param limit - 最多返回条数
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param filter - 实体同步规则；不再匹配的行以 DELETE 返回
+   * @param branchId - 只拉这个分支；不传时不按分支过滤
+   * @returns 按 id 升序的日志；正文按调用者身份从业务表当前行重新派生，行已不在或不可见时为 DELETE
+   * @throws {SupabaseDataError} 分区不属于调用者、实体未分区或返回值不是数组
+   */
   async pullBucketChanges(
     sinceId: number,
     limit: number,
@@ -552,19 +622,17 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     })) as RemoteChange[];
   }
 
+  /**
+   * 同步插件绑定本地库时用的调用者身份（US-033）
+   *
+   * @returns 与 {@link RxDBAdapterSupabase.callerIdentity} 相同
+   * @throws {SupabaseConfigError} 令牌声称是已登录角色却没有 `sub`
+   *
+   * @remarks
+   * 一个令牌只有一个身份：本地库按它绑定、远端会话按它核对，两处同一编码，`service_role` 不会被记成 anon。
+   */
   async syncIdentity(): Promise<SupabaseScopedSyncIdentity> {
-    const scope = this.#requireSupabaseScope();
-    const configuredAccessToken = await readConfiguredAccessToken(this.#client);
-    if (configuredAccessToken !== undefined) return identityFromAccessToken(configuredAccessToken, scope);
-
-    const auth = this.#client.auth;
-    if (!auth || typeof auth.getSession !== 'function') {
-      return { scope, subject: RXDB_ANONYMOUS_SUBJECT };
-    }
-    const { data, error } = await auth.getSession();
-    if (error) throw new SupabaseDataError(`Failed to resolve Supabase session: ${error.message}`);
-    const user = data.session?.user;
-    return { scope, subject: user?.id ?? RXDB_ANONYMOUS_SUBJECT };
+    return this.callerIdentity();
   }
 
   /**
@@ -572,6 +640,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    *
    * 此方法只查询远程有多少新变更，不返回实际数据。
    * 用于实现 checkRepositoryUpdates() 功能，节省带宽。
+   * 只数未分区日志，与 {@link RxDBAdapterSupabase.pullChanges} 同口径；分区日志的水位见 {@link RxDBAdapterSupabase.getBucketSnapshotPoint}。
    *
    * @param sinceId - 起始 changeId（不包含该 ID）
    * @param repositoryFilter - 可选的实体过滤列表
@@ -593,7 +662,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     latestChangeId: number;
   }> {
     const scopes = this.#resolveRepositoryScopes(repositoryFilter);
-    let query = this.#client.from('rxdb_change').select('id', { count: 'exact' }).gt('id', sinceId);
+    let query = this.#client.from('rxdb_change').select('id', { count: 'exact' }).gt('id', sinceId).is('bucket', null);
 
     if (scopes?.length === 1) {
       query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
@@ -719,6 +788,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       .from('rxdb_change')
       .select('*')
       .or(orConditions)
+      .is('bucket', null)
       .order('id', { ascending: true })
       .limit(limit);
 
@@ -1124,8 +1194,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     try {
       const buckets = await this.getCallerBuckets();
       topics.push(...buckets.map(rxdbChangesTopicForBucket));
-    } catch {
-      // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定。
+    } catch (error) {
+      // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定；收不到分区通知要让人看得见
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[RxDB Supabase] Failed to resolve caller buckets; bucket change notifications stay off until the next realtime reconnect: ${message}.`
+      );
     }
 
     const generation = this.#realtimeGeneration;
@@ -1272,6 +1346,16 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return true;
   }
 
+  /**
+   * 订阅中的频道属于别的身份时按新令牌重建。没有订阅时不动：未登录或已断开，由下一次 `connect()` 按当时的令牌建。
+   */
+  #followRealtimeIdentity(accessToken: string | null): void {
+    if (this.#channels.length === 0 || !this.#updateRealtimeIdentity(accessToken)) return;
+    void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
+      console.error('[RxDB Supabase] Realtime identity rotation failed:', error);
+    });
+  }
+
   #identityKeyForToken(accessToken: string | null): string {
     const scope = this.#supabaseScope ?? '';
     return JSON.stringify([scope, identityOfAccessToken(accessToken)]);
@@ -1358,21 +1442,6 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 }
 
-type SupabaseClientRuntime = SupabaseClient & {
-  accessToken?: () => Promise<string | null>;
-};
-
-async function readConfiguredAccessToken(client: SupabaseClient): Promise<string | null | undefined> {
-  const accessToken = (client as unknown as SupabaseClientRuntime).accessToken;
-  if (typeof accessToken !== 'function') return undefined;
-  return (await accessToken()) ?? null;
-}
-
-function identityFromAccessToken(accessToken: string | null, scope: string): SupabaseScopedSyncIdentity {
-  const userId = accessToken ? readJwtSubject(accessToken) : null;
-  return { scope, subject: userId ?? RXDB_ANONYMOUS_SUBJECT };
-}
-
 function resolveSupabaseScope(configuredUrl: string | undefined, client: SupabaseClient): string | null {
   if (configuredUrl?.trim()) return normalizeSupabaseScope(configuredUrl);
   const runtimeUrl = (client as unknown as { supabaseUrl?: unknown }).supabaseUrl;
@@ -1384,23 +1453,5 @@ function normalizeSupabaseScope(value: string): string {
     return new URL(value.trim()).origin;
   } catch {
     throw new SupabaseConfigError(`Invalid Supabase project URL: ${value}`);
-  }
-}
-
-function readJwtSubject(accessToken: string): string | null {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return null;
-
-  try {
-    const normalized = payload.replaceAll('-', '+').replaceAll('_', '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-    const binary = atob(padded);
-    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-    const claims: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (!claims || typeof claims !== 'object' || !('sub' in claims)) return null;
-    const subject = claims.sub;
-    return typeof subject === 'string' && subject.length > 0 ? subject : null;
-  } catch {
-    return null;
   }
 }

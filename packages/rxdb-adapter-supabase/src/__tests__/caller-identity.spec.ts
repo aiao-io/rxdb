@@ -99,3 +99,29 @@ describe('callerIdentity', () => {
     expect(realtime.setAuth).toHaveBeenCalledTimes(2);
   });
 });
+
+/**
+ * 同步插件按 `syncIdentity()` 绑定本地库，核心按 `callerIdentity()` 核对远端会话。
+ * 两处编码不同，同一个令牌就有两个身份：service_role 同步下来的库会被绑成 anon，之后任何匿名访客都能通过守卫。
+ */
+describe('syncIdentity', () => {
+  it('与 callerIdentity 同一编码：service_role 令牌不会被记成 anon', async () => {
+    const { adapter } = createAdapter(testJwt({ role: 'service_role' }));
+
+    await expect(adapter.syncIdentity()).resolves.toEqual({ scope: SCOPE, subject: 'service_role' });
+  });
+
+  it('与 callerIdentity 同一编码：已登录用户是令牌里的 sub，未登录是 anon', async () => {
+    const { adapter, realtime } = createAdapter(testJwt({ role: 'authenticated', sub: USER_A }));
+    await expect(adapter.syncIdentity()).resolves.toEqual(await adapter.callerIdentity());
+
+    realtime.accessTokenValue = testJwt({ role: 'anon' });
+    await expect(adapter.syncIdentity()).resolves.toEqual({ scope: SCOPE, subject: RXDB_ANONYMOUS_SUBJECT });
+  });
+
+  it('与 callerIdentity 同一编码：声称已登录却没有 sub 时拒绝回答，不退回 anon', async () => {
+    const { adapter } = createAdapter(testJwt({ role: 'authenticated' }));
+
+    await expect(adapter.syncIdentity()).rejects.toBeInstanceOf(SupabaseConfigError);
+  });
+});

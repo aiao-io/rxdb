@@ -13,6 +13,7 @@ import {
 } from '@aiao/rxdb';
 import { createEmptyActions, queryPendingLocalChanges } from './pull-conflict-utils.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from './scoped-sync.entity.js';
+import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 
 export interface BucketScope {
   namespace: string;
@@ -28,19 +29,22 @@ export async function removeBucketScope(
   repoSync: RxDBSync,
   scope: BucketScope,
   progress: RxDBSyncBucketProgress
-): Promise<boolean> {
-  return localAdapter.transaction(executor =>
+): Promise<void> {
+  await localAdapter.transaction(executor =>
     removeBucketScopeInTransaction(executor, EntityType, repoSync, scope, progress)
   );
 }
 
+/** 删掉一个分区作用域：映射行、只由它同步来且没有待推变更的本地行，以及它的进度行 */
 export async function removeBucketScopeInTransaction(
   executor: TransactionExecutor,
   EntityType: EntityType | undefined,
   repoSync: RxDBSync,
   scope: BucketScope,
   progress: RxDBSyncBucketProgress
-): Promise<boolean> {
+): Promise<void> {
+  // 要删业务行：同步跑到一半换挂到可写检出位时，本事务落在那套表上就一行都不动（US-314 B1.4）
+  assertSyncOnMainCheckout(executor.tableSet, 'removeBucketScope');
   const rowRepository = executor.getRepository(RxDBSyncBucketRow);
   const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
   const changeRepository = executor.getRepository(RxDBChange);
@@ -74,7 +78,6 @@ export async function removeBucketScopeInTransaction(
     await executor.mergeChanges(actions, undefined, true);
   }
   await progressRepository.remove(progress);
-  return rows.length > 0 || actions.deletes.size > 0 || progress.id.length > 0;
 }
 
 export async function findRowsWithoutMappings(

@@ -1,4 +1,11 @@
-import { RxDBChange, RxDBError, RxDBSync, type RxDBAdapterRemoteBase, type SwitchVersionActions } from '@aiao/rxdb';
+import {
+  RxDBChange,
+  RxDBError,
+  RxDBSync,
+  WorktreeTableSet,
+  type RxDBAdapterRemoteBase,
+  type SwitchVersionActions
+} from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
   assertRemoteBackendIs,
@@ -179,6 +186,7 @@ describe('远端身份', () => {
         [entityType, entityRepository]
       ]);
       const executor = {
+        tableSet: WorktreeTableSet.MAIN,
         getRepository: vi.fn((type: unknown) => repositories.get(type)),
         mergeChanges
       };

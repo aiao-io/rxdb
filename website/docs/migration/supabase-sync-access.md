@@ -54,7 +54,7 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
   -f docker/sql/production/rxdb-change-grants.sql
 ```
 
-- 增量脚本补上分区同步所需的 `rxdb_change.bucket`、游标索引、`rxdb_sync_entity` 与分支所有者表 `rxdb_branch_owner`，并把 `rxdb_change` 移出 `supabase_realtime` 发布；
+- 增量脚本补上分区同步所需的 `rxdb_change.bucket`、游标索引、`rxdb_sync_entity` 与分支所有者表 `rxdb_branch_owner`，并把 `rxdb_change` 移出 `supabase_realtime` 发布。它不清理日志：升级时还没有实体登记为分区实体，已有日志都是未分区旧日志；
 - 02 加分支认领函数 `rxdb_claim_branch` 与通知触发器 `rxdb_change_broadcast`，分支登记开始校验所有者；
 - 04 让推送在写非 main 日志前校验分支所有者；
 - 生产权限脚本收回 anon 的协议入口与客户端对分支表的直写，并在 `realtime.messages` 上建接收策略。它必须最后执行。
@@ -94,6 +94,15 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 ### 4. 升级客户端
 
-新客户端按未分区日志或已授权 bucket 订阅对应的私有频道；没登录（令牌是 anon key）时不订阅，登录后再调一次 `rxdb.connect('supabase')` 开启。旧客户端在 SQL 升级后收不到实时通知（日志表已不在发布里），拉取与推送不受影响，可以按自己的节奏升级。
+新客户端按未分区日志或已授权 bucket 订阅对应的私有频道；没登录（令牌是 anon key）时不订阅，登录后再调一次 `rxdb.connect('supabase')` 开启。旧客户端在 SQL 升级后收不到实时通知（日志表已不在发布里）；只要还没有实体改成分区实体（见下一节），拉取与推送不受影响，可以按自己的节奏升级。
+
+新客户端要用新版 SQL 的按区函数，必须在第 2 步之后升级：先升级客户端，拉取会报 `Could not find the function public.rxdb_entity_sync_info`。
 
 自定义代码若读过 Remote 事件的 `data` 字段，改成按 `id` 自己拉取：通知不再带行内容。
+
+## 把实体改成分区实体
+
+按[声明业务表分区](../adapters/supabase.md#声明业务表分区)给业务表加 `rxdb_bucket` 生成列，再调 `rxdb_enable_sync_for_table` 登记。在此之前：
+
+- **先把所有客户端升级到新版本。** 分区日志只带元数据，RLS 按 caller buckets 放行。旧客户端的通用拉取直接读日志表，会拉到不带正文的分区日志；检查更新数到的条数也拉不完，一直显示有更新。新客户端对分区实体改走按区快照与增量，通用拉取与计数只看未分区日志。
+- **登记会删掉这个实体全部的未分区历史日志。** 这些旧日志带完整正文，登记之前仍按旧口径对 authenticated 可读；登记之后客户端从业务表按调用者身份重建快照，正文只由业务表的 RLS 裁决。

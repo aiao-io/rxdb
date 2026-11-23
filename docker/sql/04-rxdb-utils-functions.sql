@@ -793,9 +793,12 @@ BEGIN
     PERFORM public.rxdb_claim_branch(v_branch_id);
   END LOOP;
 
-  -- 分区日志的 bucket 必须来自实际业务行或服务端固化的前后快照，不能信任客户端自行
-  -- 填入的元数据。主分支的业务写已经在调用方事务中完成，SECURITY DEFINER 可以读取
-  -- 最终行；删除则使用调用方在同一事务里捕获的 beforeData。
+  -- 分区日志的 bucket 只认服务端状态，载荷里的 bucket 字段一律不认，未分区实体的日志也不带 bucket。
+  -- main 的业务写已经在调用方事务中完成，SECURITY DEFINER 读得到最终行；行已不在时用 rxdb_mutations
+  -- 固化的前后快照（前快照是业务写之前读的行，显式删除的换成了触发器捕获的实际 OLD）。
+  -- 非 main 推送不做业务写、不经过业务表的 RLS，快照可能来自客户端补的 inversePatch，或是 main 上同 id
+  -- 那一行的分区：bucket 还必须是调用者自己可读的分区，否则谁都能往别人的分区频道发通知、抬别人的水位。
+  -- 业务表按 namespace 定位：登记时 namespace 就是 schema（rxdb_enable_sync_for_table），载荷的 schema 字段已被 rxdb_mutations 去掉。
   FOR v_change IN SELECT value FROM pg_catalog.jsonb_array_elements(p_changes)
   LOOP
     SELECT "tableName", "bucketColumn"
@@ -804,6 +807,7 @@ BEGIN
     WHERE namespace = v_change->>'namespace'
       AND entity = v_change->>'entity';
 
+    v_change := v_change - 'bucket';
     IF v_bucket_column IS NOT NULL THEN
       v_entity_id := v_change->>'entityId';
       v_bucket := NULL;
@@ -812,7 +816,7 @@ BEGIN
         EXECUTE pg_catalog.format(
           'SELECT %I::text FROM %I.%I WHERE id::text = $1 LIMIT 1',
           v_bucket_column,
-          COALESCE(v_change->>'schema', 'public'),
+          v_change->>'namespace',
           v_table_name
         ) INTO v_bucket USING v_entity_id;
       END IF;
@@ -820,13 +824,17 @@ BEGIN
       v_bucket := COALESCE(
         NULLIF(v_bucket, ''),
         NULLIF(v_change->'afterData'->>v_bucket_column, ''),
-        NULLIF(v_change->'beforeData'->>v_bucket_column, ''),
-        NULLIF(v_change->>'bucket', '')
+        NULLIF(v_change->'beforeData'->>v_bucket_column, '')
       );
       IF v_bucket IS NULL THEN
         RAISE EXCEPTION 'rxdb: bucketed change %.%/% has no bucket',
           v_change->>'namespace', v_change->>'entity', v_entity_id
           USING ERRCODE = 'not_null_violation';
+      END IF;
+      IF COALESCE(v_change->>'branchId', 'main') <> 'main' AND NOT (v_bucket = ANY(public.rxdb_caller_buckets())) THEN
+        RAISE EXCEPTION USING
+          ERRCODE = 'insufficient_privilege',
+          MESSAGE = 'rxdb: bucket is not authorized for the current caller';
       END IF;
       v_change := pg_catalog.jsonb_set(v_change, ARRAY['bucket'], pg_catalog.to_jsonb(v_bucket), true);
     END IF;

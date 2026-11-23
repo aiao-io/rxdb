@@ -23,7 +23,6 @@ import {
   type PullBatchRequest,
   type PullResult,
   type RemoteChange,
-  type RxDBAdapterRemoteBase,
   RxDBChange,
   RxDBError,
   type RxDBEvent,
@@ -74,9 +73,18 @@ const MAX_FETCH_ALL_ROUNDS = 1000;
  */
 export async function pullBatch(
   sm: SyncManager,
-  options?: { limit?: number; fetchAll?: boolean; conflictResolver?: ConflictResolver }
+  options?: {
+    limit?: number;
+    fetchAll?: boolean;
+    conflictResolver?: ConflictResolver;
+    /** 远端登记为分区的仓库（`namespace:entity`），批量跳过，由调用方逐个按区拉取 */
+    bucketedRepositories?: ReadonlySet<string>;
+  }
 ): Promise<PullResult> {
-  if (options?.fetchAll !== true) return await pullBatchOnce(sm, options?.limit, options?.conflictResolver);
+  const bucketedRepositories = options?.bucketedRepositories ?? new Set<string>();
+  if (options?.fetchAll !== true) {
+    return await pullBatchOnce(sm, options?.limit, options?.conflictResolver, bucketedRepositories);
+  }
 
   const total: PullResult = {
     pulled: 0,
@@ -105,7 +113,7 @@ export async function pullBatch(
   for (let round = 0; round < MAX_FETCH_ALL_ROUNDS; round++) {
     let result: PullResult;
     try {
-      result = await pullBatchOnce(sm, options.limit, options.conflictResolver);
+      result = await pullBatchOnce(sm, options.limit, options.conflictResolver, bucketedRepositories);
     } catch (error) {
       // 前几轮已经落库且水位线已推进，裸抛原始错误会让调用方以为什么都没发生。
       // 把已完成部分的统计连同原始错误一起交出去；本轮内部的部分进度由
@@ -151,8 +159,9 @@ function toPartialSyncError(error: unknown, accumulated: PullResult): unknown {
  */
 async function pullBatchOnce(
   sm: SyncManager,
-  limitOption?: number,
-  conflictResolverOption?: ConflictResolver
+  limitOption: number | undefined,
+  conflictResolverOption: ConflictResolver | undefined,
+  bucketedRepositories: ReadonlySet<string>
 ): Promise<PullResult> {
   const rxdb = sm.rxdb;
   const limit = limitOption ?? 1000;
@@ -173,10 +182,6 @@ async function pullBatchOnce(
   // 1. 收集所有可同步实体的水位线
   const repoSyncRepo = localAdapter.getRepository(RxDBSync);
   const allRepos: RepoSyncInfo[] = [];
-
-  const bucketedAdapter = remoteAdapter as unknown as RxDBAdapterRemoteBase & {
-    getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
-  };
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
@@ -199,10 +204,7 @@ async function pullBatchOnce(
       () => instantiateSyncRecord(sm)
     );
 
-    if (typeof bucketedAdapter.getEntitySyncInfo === 'function') {
-      const syncInfo = await bucketedAdapter.getEntitySyncInfo(metadata.namespace, metadata.name);
-      if (syncInfo.bucketed) continue;
-    }
+    if (bucketedRepositories.has(`${metadata.namespace}:${metadata.name}`)) continue;
 
     // 批量是枚举路径 —— 被关掉的仓库跳过而不是让整批失败
     if (!isRepositorySyncEnabled(repoSync)) continue;

@@ -194,7 +194,8 @@ import { scopedDatabaseName } from '@aiao/rxdb-plugin-sync';
 
 const supabaseUrl = 'https://your-project.supabase.co';
 const identity: RxDBIdentity = {
-  scope: supabaseUrl,
+  // 与适配器 callerIdentity() 报告的同口径：项目 URL 的 origin，不带尾斜杠和路径
+  scope: new URL(supabaseUrl).origin,
   subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT
 };
 
@@ -210,21 +211,23 @@ const rxdb = new RxDB({
 });
 ```
 
-同步第一次访问远端时还会在本地绑定身份。已绑定 A 的数据库被 B 或 anon 继续使用，会抛 `IdentityMismatchError`，不会发起远端请求，也不会修改本地行。应用应关闭当前实例，按当前 Supabase 会话重新计算数据库名，再打开对应身份的库。A 刷新 token 只要 `sub` 不变，就继续使用 A 的库。
+同步第一次访问远端时还会在本地绑定身份。已绑定 A 的数据库被 B 或 anon 继续使用，会抛身份不匹配，不会发起远端请求，也不会修改本地行。应用应关闭当前实例，按当前 Supabase 会话重新计算数据库名，再打开对应身份的库。A 刷新 token 只要 `sub` 不变，就继续使用 A 的库。
+
+声明了 `identity` 时，会话先与声明的身份核对，对不上抛核心的 `RxDBIdentityMismatchError`，本地绑定不会被写错；没有声明时按第一次同步的会话绑定，之后对不上抛同步插件的 `IdentityMismatchError`。后者是前者的子类，按 `RxDBIdentityMismatchError` catch 能接住两种情况：
 
 ```ts
-import { IdentityMismatchError } from '@aiao/rxdb-plugin-sync';
+import { RxDBIdentityMismatchError } from '@aiao/rxdb';
 
 try {
   await rxdb.syncManager.sync();
 } catch (error) {
-  if (!(error instanceof IdentityMismatchError)) throw error;
+  if (!(error instanceof RxDBIdentityMismatchError)) throw error;
   await rxdb.disconnectAll();
   // 重新用当前 session 的 identity 创建 scopedDatabaseName() 对应的实例
 }
 ```
 
-身份绑定同样适用于使用 `accessToken` 回调创建的 Supabase 客户端。适配器读取 JWT 的 `sub`，不会调用该客户端不支持的 `auth.getSession()`。
+身份绑定同样适用于使用 `accessToken` 回调创建的 Supabase 客户端：绑定与核对都按随请求发出的那个令牌，不会调用该客户端不支持的 `auth.getSession()`。一个令牌只有一个身份，`service_role` 令牌的身份是 `service_role`，不会被当成 anon。
 
 ## 基础使用
 
@@ -317,6 +320,8 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 - 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，同一 bucket 每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`、`bucket`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
 - 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行。旧日志频道只对 `authenticated` 开放，分区频道还要匹配 `rxdb_caller_buckets()`，任何频道都不开放客户端发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
 - 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条提示、不发起订阅，也就不会反复重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
+- 换了账号按新身份重建频道：用会话登录的客户端听 auth 事件；用 `accessToken` 回调的客户端没有 auth 事件，适配器在下一次同步问调用者身份、或再调 `rxdb.connect('supabase')` 时发现令牌换了主人，随即重建。
+- 库里没有 `realtime.send`（没有 Realtime 服务的部署）时通知触发器什么都不发，推送与业务写照常提交。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
 
@@ -604,7 +609,7 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 #### 从旧版本升级
 
-在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知，但拉取与推送不受影响。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
+在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知；把实体改成分区实体之前，拉取与推送不受影响（之后旧客户端会拉到不带正文的分区日志，先升级全部客户端）。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
 
 收紧后，日志只剩两条写入路径：
 
@@ -670,6 +675,8 @@ ERROR: function rxdb_mutations does not exist
 新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：按[迁移说明](../migration/supabase-update-push.md)在同一事务中更新新版 02 与 04，再重试。
 
 同步入口报 `Could not find the function public.rxdb_backend_id`：库里还没有远端身份，按[远端身份迁移说明](../migration/supabase-remote-backend.md)建表并重跑 02。
+
+拉取或检查更新报 `Could not find the function public.rxdb_entity_sync_info`（或 `rxdb_caller_buckets`、`rxdb_bucket_snapshot_point`）：客户端已经升级、服务端还是旧版 SQL。新客户端按区同步要用这些函数，先按[日志同步迁移说明](../migration/supabase-sync-access.md)更新服务端 SQL，再升级客户端。
 
 ### 同步报 RemoteBackendMismatchError
 

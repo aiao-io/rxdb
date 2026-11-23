@@ -40,13 +40,10 @@ CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
 
 ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
 
--- 升级后的分区协议只使用日志元数据，历史正文与 NULL bucket 都必须清掉。
--- 分区实体下一次同步会从业务表重新建立快照。
-DELETE FROM public.rxdb_change AS change
-USING public.rxdb_sync_entity AS entity
-WHERE change.namespace = entity.namespace
-  AND change.entity = entity.entity
-  AND entity."bucketColumn" IS NOT NULL;
+-- 这里不清理日志：升级时没有任何实体登记为分区实体，已有日志全是未分区旧日志，仍按旧口径对 authenticated 可读。
+-- 实体改成分区实体（业务表加 rxdb_bucket 后调 rxdb_enable_sync_for_table）时，由登记函数删掉它全部的
+-- 未分区历史日志，客户端之后从业务表重建快照。在这里按登记表删会在重跑本脚本时删掉分区实体的日志，
+-- 让还没拉到最新变更的客户端永久错过它们。
 
 DO $$
 BEGIN

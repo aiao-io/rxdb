@@ -2356,24 +2356,22 @@ export class RxDB {
   async #recordIdentityBinding(adapter: RxDBAdapterLocalBase, identityKey: string): Promise<void> {
     for (;;) {
       try {
-        await adapter.bootstrapTransaction(async executor => {
-          const repository = executor.getRepository(RxDBMigration);
-          const records = await repository.find({ where: { combinator: 'and', rules: [] } });
-          if (
-            assertIdentityBinding(
-              records.map(record => record.name),
-              identityKey
-            )
-          )
-            return;
-          await repository.create(this.#identityBindingClaimRow());
-          await repository.create(this.#identityBindingRow(identityKey));
-        }, false);
+        await adapter.bootstrapTransaction(executor => this.#writeIdentityBinding(executor, identityKey), false);
         return;
       } catch (error) {
         if (!isUniqueConstraintViolation(error)) throw error;
       }
     }
+  }
+
+  /** {@link RxDB.#recordIdentityBinding} 的事务体：库已绑定本身份就不写，否则写下竞争行与绑定行。 */
+  async #writeIdentityBinding(executor: TransactionExecutor, identityKey: string): Promise<void> {
+    const repository = executor.getRepository(RxDBMigration);
+    const records = await repository.find({ where: { combinator: 'and', rules: [] } });
+    const names = records.map(record => record.name);
+    if (assertIdentityBinding(names, identityKey)) return;
+    await repository.create(this.#identityBindingClaimRow());
+    await repository.create(this.#identityBindingRow(identityKey));
   }
 
   /**

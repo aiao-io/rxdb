@@ -378,6 +378,8 @@ describe('supabase review regressions', () => {
     for (const calls of [pullQuery.calls, countQuery.calls]) {
       expect(calls).toContainEqual({ method: 'eq', args: ['namespace', 'shop'] });
       expect(calls).toContainEqual({ method: 'eq', args: ['entity', 'ScopedRecord'] });
+      // 与 rxdb_pull_changes 同口径：分区日志只经按区 RPC 拉取，旧式拉取与计数都只看未分区日志
+      expect(calls).toContainEqual({ method: 'is', args: ['bucket', null] });
     }
   });
 
@@ -762,6 +764,7 @@ describe('supabase review regressions', () => {
       method: 'or',
       args: ['and(namespace.eq.shop,entity.eq.ScopedRecord,id.gt.7),and(namespace.eq.public,entity.eq.Todo,id.gt.11)']
     });
+    expect(query.calls).toContainEqual({ method: 'is', args: ['bucket', null] });
   });
 
   it('uses an explicit namespace for the single-request batch fast path', async () => {
@@ -1057,12 +1060,14 @@ describe('supabase review regressions', () => {
   it('getChangeCount uses a single query for count and latest id', async () => {
     const builder = {
       gt: vi.fn(),
+      is: vi.fn(),
       in: vi.fn(),
       eq: vi.fn(),
       order: vi.fn(),
       limit: vi.fn()
     };
     builder.gt.mockReturnValue(builder);
+    builder.is.mockReturnValue(builder);
     builder.in.mockReturnValue(builder);
     builder.eq.mockReturnValue(builder);
     builder.order.mockReturnValue(builder);
@@ -1077,6 +1082,7 @@ describe('supabase review regressions', () => {
     expect(result).toEqual({ count: 3, latestChangeId: 42 });
     expect(from).toHaveBeenCalledTimes(1);
     expect(select).toHaveBeenCalledTimes(1);
+    expect(builder.is).toHaveBeenCalledWith('bucket', null);
   });
 
   it('between rejects arrays that do not contain exactly two values', () => {
@@ -1169,8 +1175,12 @@ describe('supabase review regressions', () => {
     const subscribe = vi.fn(() => undefined);
     const on = vi.fn(() => ({ subscribe }));
     const channel = vi.fn(() => ({ on }));
-    const rpc = vi.fn(async () => ({
-      data: [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: false }],
+    // 订阅通知时还会问 caller buckets：桩按 RPC 名给出各自真实的形状
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public']
+        : [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: false }],
       error: null
     }));
     const adapter = createAdapter({ rpc, channel }, { rlsCheck: { tables: [{ table: 'todo' }] } });
@@ -1204,8 +1214,12 @@ describe('supabase review regressions', () => {
     const subscribe = vi.fn(() => undefined);
     const on = vi.fn(() => ({ subscribe }));
     const channel = vi.fn(() => ({ on }));
-    const rpc = vi.fn(async () => ({
-      data: [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: true }],
+    // 订阅通知时还会问 caller buckets：桩按 RPC 名给出各自真实的形状
+    const rpc = vi.fn(async (name: string) => ({
+      data:
+        name === 'rxdb_caller_buckets' ?
+          ['public']
+        : [{ schema: 'public', table: 'todo', exists: true, rlsEnabled: true, rlsForced: true }],
       error: null
     }));
     const adapter = createAdapter({ rpc, channel }, { rlsCheck: { tables: [{ table: 'todo' }] } });
@@ -1449,6 +1463,60 @@ describe('supabase review regressions', () => {
 
     await adapter.disconnect();
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('accessToken 模式没有 auth 事件：读到换了主人的令牌时重建 bucket 频道', async () => {
+    const tokenFor = (user: string) => testJwt({ role: 'authenticated', sub: user });
+    const userOf = (token: string | null) => (token === tokenFor('user-a') ? 'user-a' : 'user-b');
+    // 不给 auth：配了 accessToken 的客户端访问 auth 就抛，适配器装不上 auth 监听
+    const realtime = createRealtimeAuth(tokenFor('user-a'));
+    const topics: string[] = [];
+    const channel = vi.fn((topic: string) => {
+      topics.push(topic);
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const removeChannel = vi.fn(async () => undefined);
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'rxdb_caller_buckets' ? ['public', `user:${userOf(realtime.accessTokenValue)}`] : null,
+      error: null,
+      status: 200
+    }));
+    const adapter = createAdapter({ realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+    const bucketTopics = (user: string) => [
+      RXDB_CHANGES_TOPIC,
+      `${RXDB_CHANGES_TOPIC}:bucket:public`,
+      `${RXDB_CHANGES_TOPIC}:bucket:user:${user}`
+    ];
+
+    await adapter.connect();
+    expect(topics).toEqual(bucketTopics('user-a'));
+
+    // 同步每次与远端交换数据前都问 callerIdentity：此刻的令牌换了主人，频道跟着换
+    realtime.accessTokenValue = tokenFor('user-b');
+    await expect(adapter.callerIdentity()).resolves.toMatchObject({ subject: 'user-b' });
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(6));
+    expect(removeChannel).toHaveBeenCalledTimes(3);
+    expect(topics.slice(3)).toEqual(bucketTopics('user-b'));
+
+    // 同一个身份再问、再 connect：不重建
+    await adapter.callerIdentity();
+    await adapter.connect();
+    expect(channel).toHaveBeenCalledTimes(6);
+
+    // 应用切回原账号后再调 connect()：按新身份重建
+    realtime.accessTokenValue = tokenFor('user-a');
+    await adapter.connect();
+    await vi.waitFor(() => expect(channel).toHaveBeenCalledTimes(9));
+    expect(topics.slice(6)).toEqual(bucketTopics('user-a'));
+
+    await adapter.disconnect();
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {

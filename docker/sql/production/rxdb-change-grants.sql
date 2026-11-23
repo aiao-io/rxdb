@@ -83,9 +83,9 @@ BEGIN
     'public.rxdb_pull_changes(integer, integer, text, text, text, jsonb)',
     'public.rxdb_caller_buckets()',
     'public.rxdb_entity_sync_info(text, text)',
-    'public.rxdb_bucket_snapshot_point(text, text, text)',
+    'public.rxdb_bucket_snapshot_point(text, text, text, text[])',
     'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)',
-    'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)',
+    'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer)',
     'public.rxdb_jsonb_matches_rule(jsonb, jsonb)',
     'public.rxdb_jsonb_matches_filter(jsonb, jsonb)',
     'public.rxdb_selectable_columns(text, text)',
@@ -115,9 +115,9 @@ END $$;
 -- 分区只读协议同时服务 anon 的公开区与 authenticated 的授权区。
 GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer) TO anon, authenticated;
 -- 快照 RPC 在调用者权限下执行，需允许它使用纯 JSON filter helper；helper 不访问业务表。
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_rule(jsonb, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_jsonb_matches_filter(jsonb, jsonb) TO anon, authenticated;

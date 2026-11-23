@@ -63,7 +63,9 @@ interface BucketHarness {
   mappings: RxDBSyncBucketRow[];
   entities: Record<string, unknown>[];
   changes: RxDBChange[];
-  localAdapter: unknown;
+  localAdapter: {
+    executor: { tableSet: WorktreeTableSet };
+  };
 }
 
 const identityKey = (value: unknown): string => String(value);
@@ -109,6 +111,17 @@ const createChange = (
     createdAt: new Date(`2026-01-01T00:00:${String(id).padStart(2, '0')}.000Z`),
     updatedAt: new Date(`2026-01-01T00:00:${String(id).padStart(2, '0')}.000Z`)
   }) as RemoteChange;
+
+/** 与参考 SQL 的 rxdb_pull_bucket_snapshot 同语义：按 id 升序，从上一页最后一个 id 之后接着取 */
+const snapshotPage = (
+  rows: Record<string, unknown>[],
+  afterId: string | null,
+  limit: number
+): Record<string, unknown>[] =>
+  [...rows]
+    .sort((left, right) => String(left['id']).localeCompare(String(right['id'])))
+    .filter(item => afterId === null || String(item['id']) > afterId)
+    .slice(0, limit);
 
 const createHarness = (options: HarnessOptions): BucketHarness => {
   const repoSync = createSyncRecord();
@@ -195,15 +208,11 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
     for (const [key] of actions.deletes) apply(key, null, 'delete');
   });
 
+  const executor = { tableSet: WorktreeTableSet.MAIN, getRepository, mergeChanges };
   const localAdapter = {
     getRepository,
-    transaction: vi.fn(async (callback: (executor: unknown) => Promise<unknown>) =>
-      callback({
-        tableSet: WorktreeTableSet.MAIN,
-        getRepository,
-        mergeChanges
-      })
-    )
+    executor,
+    transaction: vi.fn(async (callback: (executor: unknown) => Promise<unknown>) => callback(executor))
   };
 
   const adapter = {
@@ -221,12 +230,12 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
         _entity: string,
         bucket: string,
         filter: RuleGroup | undefined,
-        offset: number,
+        afterId: string | null,
         limit: number
       ) => {
         const rows = options.snapshotRows[bucket] ?? [];
         const filtered = filter ? rows.filter(row => matchesFilter(row, filter)) : rows;
-        return filtered.slice(offset, offset + limit);
+        return snapshotPage(filtered, afterId, limit);
       }
     ),
     pullBucketChanges: vi.fn(
@@ -299,11 +308,11 @@ describe('bucketed pull', () => {
     const result = await pull(harness, undefined, 1);
 
     expect(result).toMatchObject({ pulled: 3, applied: 3, hasMore: false });
-    expect(harness.adapter.pullBucketSnapshot.mock.calls.map(call => call[4])).toEqual([0, 1, 2]);
+    expect(harness.adapter.pullBucketSnapshot.mock.calls.map(call => call[4])).toEqual([null, 'one', 'two']);
     expect(harness.adapter.pullBucketChanges.mock.calls.map(call => call[0])).toEqual([2, 3]);
     expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
     expect(harness.entities.find(item => item['id'] === 'one')?.['value']).toBe('updated');
-    expect(harness.progress[0]).toMatchObject({ snapshotComplete: true, snapshotOffset: 2, cursor: 3 });
+    expect(harness.progress[0]).toMatchObject({ snapshotComplete: true, snapshotAfterId: 'two', cursor: 3 });
   });
 
   it('加入新分区并清理退出分区的本地行', async () => {
@@ -323,14 +332,14 @@ describe('bucketed pull', () => {
         _entity: string,
         bucket: string,
         _filter: RuleGroup | undefined,
-        offset: number,
+        afterId: string | null,
         limit: number
       ) => {
         const rows: Record<string, Record<string, unknown>[]> = {
           public: [row('public')],
           'tenant:2': [row('tenant-2')]
         };
-        return (rows[bucket] ?? []).slice(offset, offset + limit);
+        return snapshotPage(rows[bucket] ?? [], afterId, limit);
       }
     );
     await pull(harness);
@@ -444,9 +453,9 @@ describe('bucketed pull', () => {
     });
     const healthyRows = [row('healthy')];
     harness.adapter.pullBucketSnapshot.mockImplementation(
-      async (_namespace, _entity, bucket, _filter, offset, limit) => {
+      async (_namespace, _entity, bucket, _filter, afterId, limit) => {
         if (bucket === 'broken') throw new Error('broken bucket');
-        return healthyRows.slice(offset, offset + limit);
+        return snapshotPage(healthyRows, afterId, limit);
       }
     );
 
@@ -454,11 +463,117 @@ describe('bucketed pull', () => {
     expect(failed?.failures).toHaveLength(1);
     expect(harness.entities).toEqual([row('healthy')]);
 
-    harness.adapter.pullBucketSnapshot.mockImplementation(async (_namespace, _entity, bucket, _filter, offset, limit) =>
-      (bucket === 'broken' ? [row('broken')] : [row('healthy')]).slice(offset, offset + limit)
+    harness.adapter.pullBucketSnapshot.mockImplementation(
+      async (_namespace, _entity, bucket, _filter, afterId, limit) =>
+        snapshotPage(bucket === 'broken' ? [row('broken')] : [row('healthy')], afterId, limit)
     );
     const recovered = await pull(harness);
     expect(recovered?.failures).toHaveLength(0);
     expect(harness.entities.map(item => item['id']).sort()).toEqual(['broken', 'healthy']);
+  });
+  it('快照翻页之间远端删掉已读的行：下一页从上一页最后一个 id 接着读，幸存行一行不少', async () => {
+    const remoteRows = [row('a'), row('b'), row('c')];
+    const harness = createHarness({ buckets: ['public'], snapshotRows: {}, changes: {}, snapshotPoint: 1 });
+    harness.adapter.pullBucketSnapshot.mockImplementation(
+      async (_namespace, _entity, _bucket, _filter, afterId: string | null, limit: number) => {
+        const page = snapshotPage(remoteRows, afterId, limit);
+        // 第一页读完之后，另一台设备删掉了已经读过的 a
+        if (afterId === null) remoteRows.splice(0, 1);
+        return page;
+      }
+    );
+
+    await pull(harness, undefined, 1);
+
+    expect(harness.adapter.pullBucketSnapshot.mock.calls.map(call => call[4])).toEqual([null, 'a', 'b', 'c']);
+    expect(harness.entities.map(item => item['id']).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  it('快照点与拉取同口径：只算当前分支及其祖先', async () => {
+    const harness = createHarness({
+      buckets: ['public'],
+      snapshotRows: { public: [row('one')] },
+      changes: {},
+      snapshotPoint: 1
+    });
+
+    await pull(harness);
+
+    expect(harness.adapter.getBucketSnapshotPoint).toHaveBeenCalledWith('public', 'BucketPullItem', 'public', ['main']);
+  });
+
+  it('退出分区时保留还没推送的离线编辑', async () => {
+    const harness = createHarness({
+      buckets: ['public', 'tenant:1'],
+      snapshotRows: { public: [row('public')], 'tenant:1': [row('tenant-1')] },
+      changes: {},
+      snapshotPoint: 1
+    });
+    await pull(harness);
+    harness.changes.push(
+      Object.assign(Object.create(RxDBChange.prototype) as RxDBChange, {
+        id: 1,
+        namespace: 'public',
+        entity: 'BucketPullItem',
+        entityId: 'tenant-1',
+        branchId: 'main',
+        type: 'UPDATE',
+        patch: { value: 'offline' },
+        inversePatch: { value: 'value-tenant-1' },
+        remoteId: null,
+        rejectedAt: null,
+        revertChangeId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+    );
+
+    harness.adapter.getCallerBuckets.mockResolvedValue(['public']);
+    await pull(harness);
+
+    expect(harness.entities.map(item => item['id']).sort()).toEqual(['public', 'tenant-1']);
+    expect(harness.progress.map(item => item.bucket)).toEqual(['public']);
+  });
+
+  it('行换进先处理的已授权分区：后处理的旧分区的 DELETE 不删本地行', async () => {
+    const harness = createHarness({
+      buckets: ['public', 'tenant:1'],
+      snapshotRows: { public: [], 'tenant:1': [row('moved')] },
+      changes: {},
+      snapshotPoint: 1
+    });
+    await pull(harness);
+
+    harness.adapter.pullBucketChanges.mockImplementation(
+      async (sinceId: number, limit: number, _namespace: string, _entity: string, bucket: string) => {
+        const movedDelete = createChange(2, 'moved', 'DELETE', null, null, null, 'tenant:1');
+        const movedInsert = createChange(3, 'moved', 'INSERT', row('moved'), null, row('moved'), 'public');
+        return (bucket === 'tenant:1' ? [movedDelete] : [movedInsert])
+          .filter(change => change.id > sinceId)
+          .slice(0, limit);
+      }
+    );
+    await pull(harness);
+
+    expect(harness.entities).toEqual([row('moved')]);
+    expect(harness.mappings.map(item => item.bucket)).toEqual(['public']);
+  });
+
+  it('拉取途中换挂到可写检出位：落库事务一行都不写，分区记为失败', async () => {
+    const harness = createHarness({
+      buckets: ['public'],
+      snapshotRows: { public: [row('one')] },
+      changes: {},
+      snapshotPoint: 1
+    });
+    harness.localAdapter.executor.tableSet = WorktreeTableSet.of('wt_a1', []);
+
+    const result = await pull(harness);
+
+    expect(result?.failures.map(failure => failure.error.message)).toEqual([
+      expect.stringContaining('同步只在主检出位上跑')
+    ]);
+    expect(harness.entities).toEqual([]);
+    expect(harness.mappings).toEqual([]);
   });
 });

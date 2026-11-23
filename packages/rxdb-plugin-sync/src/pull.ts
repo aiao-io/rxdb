@@ -11,12 +11,12 @@ import {
   RxDBPartialSyncError,
   SyncBeginEvent,
   SyncCompleteEvent,
-  SyncErrorEvent,
-  type RxDBAdapterRemoteBase
+  SyncErrorEvent
 } from '@aiao/rxdb';
 import { BulkSyncOptions } from './bulk-sync.js';
 import { pullBatch } from './pull-batch.js';
 import { pullRepository } from './pull-repository.js';
+import type { ScopedSyncAdapter } from './scoped-sync.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -47,13 +47,15 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
     let pullResult: PullResult;
 
     if (!options?.repositoryFilter?.length) {
-      // 无过滤时使用批量拉取（单次 HTTP 请求）
+      // 无过滤时使用批量拉取（单次 HTTP 请求）；远端登记为分区的仓库每次 pull 只问一次，批量跳过、随后逐个按区拉
+      const bucketedRepositories = await findBucketedRepositories(sm);
       pullResult = await pullBatch(sm, {
         limit: options?.limit,
         fetchAll: options?.fetchAll,
-        conflictResolver: options?.conflictResolver
+        conflictResolver: options?.conflictResolver,
+        bucketedRepositories
       });
-      await pullBucketedRepositories(sm, options, pullResult);
+      await pullBucketedRepositories(sm, options, pullResult, bucketedRepositories);
       // pullBatch 对 syncType === 'filter' 的仓库直接 continue（过滤条件是逐仓库的，
       // 拼不进一次批量请求）。不补这一趟，pull() 就会对 filter 仓库一条不拉却报告
       // `hasMore:false, failures:[]` —— isCompletePull 判真、pullableCount 归零，
@@ -75,24 +77,46 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
   }
 }
 
-async function pullBucketedRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
-  const rxdb = sm.rxdb;
-  const entities = rxdb.config.entities;
-  if (entities.length === 0) return;
+/**
+ * 远端登记为分区的仓库（`namespace:entity`），只看批量拉取会覆盖的仓库（能 pull、不是 filter）
+ *
+ * @remarks
+ * 并发问一次：批量拉取的每一轮与随后的按区拉取都用这一份，不再逐轮、逐实体串行打同一个 RPC。
+ * 远端适配器不支持按区同步时为空集。
+ */
+async function findBucketedRepositories(sm: SyncManager): Promise<ReadonlySet<string>> {
+  const candidates = sm.rxdb.config.entities
+    .map(EntityType => getEntityMetadata(EntityType))
+    .filter(metadata => {
+      const syncType = getSyncType(metadata, sm.rxdb.entitySync);
+      return syncType !== 'filter' && getSyncCapability(syncType).pull;
+    });
+  if (candidates.length === 0) return new Set();
 
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
-  const candidate = remoteAdapter as unknown as RxDBAdapterRemoteBase & {
-    getEntitySyncInfo?: (namespace: string, entity: string) => Promise<{ bucketed: boolean }>;
-  };
-  if (typeof candidate.getEntitySyncInfo !== 'function') return;
+  const scopedAdapter = remoteAdapter as unknown as Partial<ScopedSyncAdapter>;
+  const getEntitySyncInfo = scopedAdapter.getEntitySyncInfo;
+  if (typeof getEntitySyncInfo !== 'function') return new Set();
 
-  for (const EntityType of entities) {
+  const infos = await Promise.all(
+    candidates.map(metadata => getEntitySyncInfo.call(scopedAdapter, metadata.namespace, metadata.name))
+  );
+  return new Set(
+    candidates.filter((_, index) => infos[index].bucketed).map(metadata => `${metadata.namespace}:${metadata.name}`)
+  );
+}
+
+async function pullBucketedRepositories(
+  sm: SyncManager,
+  options: PullOptions | undefined,
+  aggregated: PullResult,
+  bucketedRepositories: ReadonlySet<string>
+) {
+  const rxdb = sm.rxdb;
+
+  for (const EntityType of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityType);
-    const syncType = getSyncType(metadata, rxdb.entitySync);
-    if (syncType === 'filter' || !getSyncCapability(syncType).pull) continue;
-
-    const syncInfo = await candidate.getEntitySyncInfo(metadata.namespace, metadata.name);
-    if (!syncInfo.bucketed) continue;
+    if (!bucketedRepositories.has(`${metadata.namespace}:${metadata.name}`)) continue;
 
     const repoSync = await findCurrentSyncRecord(rxdb, metadata.namespace, metadata.name);
     if (!isRepositorySyncEnabled(repoSync)) continue;

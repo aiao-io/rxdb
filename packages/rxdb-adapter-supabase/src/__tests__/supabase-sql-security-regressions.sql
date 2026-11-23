@@ -46,6 +46,20 @@ VALUES
   ('bucket-b', 'private', '00000000-0000-4000-8000-0000000000b2', 'b-value'),
   ('bucket-moved', 'public', NULL, 'moved-value');
 
+-- 分区实体的推送（bucketed-push）：表不在 public schema，只有所有者能读写自己的行
+CREATE TABLE rxdb_sql_regression.bucket_push_rows (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL,
+  value text NOT NULL,
+  rxdb_bucket text GENERATED ALWAYS AS ('user:' || owner_id::text) STORED
+);
+SELECT public.rxdb_enable_sync_for_table('bucket_push_rows', 'rxdb_sql_regression', 'BucketPushRow');
+ALTER TABLE rxdb_sql_regression.bucket_push_rows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY bucket_push_rows_owner ON rxdb_sql_regression.bucket_push_rows
+  FOR ALL TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+INSERT INTO rxdb_sql_regression.bucket_push_rows (id, owner_id, value)
+VALUES ('push-a', '00000000-0000-4000-8000-0000000000a1', 'a-value');
+
 CREATE TABLE rxdb_sql_regression.text_ids (
   id text PRIMARY KEY,
   value text NOT NULL
@@ -3772,6 +3786,60 @@ AS $$
     ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000b2', 'snapshot-interleaving', 'INSERT', 'main', 'sql-snapshot-other');
 $$;
 
+-- 快照分页（bucketed-read-sync）：公开区里按 id 排好的三行，供翻页之间删行
+CREATE FUNCTION rxdb_sql_regression.seed_bucket_keyset_rows()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO rxdb_sql_regression.identity_scoped_rows (id, visibility, owner_id, value)
+  VALUES ('keyset-1', 'public', NULL, 'k1'), ('keyset-2', 'public', NULL, 'k2'), ('keyset-3', 'public', NULL, 'k3');
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.delete_bucket_row(p_id text)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  DELETE FROM rxdb_sql_regression.identity_scoped_rows WHERE id = p_id;
+$$;
+
+-- 水位按分支（bucketed-read-sync）：用户 A 的分区里一条非 main 分支的日志，id 比 main 上的都大
+CREATE FUNCTION rxdb_sql_regression.seed_bucket_other_branch_change()
+RETURNS integer
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO public.rxdb_change (namespace, entity, bucket, "entityId", type, "branchId", "clientId")
+  VALUES ('rxdb_sql_regression', 'IdentityScopedRow', 'user:00000000-0000-4000-8000-0000000000a1',
+          'snapshot-other-branch', 'INSERT', 'sql-snapshot-other-branch', 'sql-snapshot-other-branch')
+  RETURNING id;
+$$;
+
+-- 推送写下的日志落在哪个 bucket（bucketed-push）：以属主身份读，不受日志表 RLS 影响
+CREATE FUNCTION rxdb_sql_regression.logged_bucket(p_client_id text, p_local_id integer)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT bucket FROM public.rxdb_change WHERE "clientId" = p_client_id AND "localId" = p_local_id;
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.logged_change_count(p_client_id text)
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.count(*)::integer FROM public.rxdb_change WHERE "clientId" = p_client_id;
+$$;
+
 -- 让实时通知测试在同一条 INSERT 中覆盖公开区、用户 A 和用户 B。
 CREATE FUNCTION rxdb_sql_regression.seed_realtime_bucket_notifications()
 RETURNS void
@@ -3890,6 +3958,7 @@ DECLARE
   v_snapshot jsonb;
   v_point integer;
   v_count integer;
+  v_other_branch_change integer;
   v_rejected boolean;
 BEGIN
   SELECT public.rxdb_entity_sync_info('rxdb_sql_regression', 'IdentityScopedRow') INTO v_info;
@@ -3904,7 +3973,7 @@ BEGIN
     'bucketed-read-sync: anon must only receive the public bucket'
   );
   SELECT public.rxdb_pull_bucket_snapshot(
-    'rxdb_sql_regression', 'IdentityScopedRow', 'public', NULL, 0, 100
+    'rxdb_sql_regression', 'IdentityScopedRow', 'public', NULL, NULL, 100
   ) INTO v_snapshot;
   PERFORM rxdb_sql_regression.assert_true(
     v_snapshot @> '[{"id":"bucket-public"},{"id":"bucket-moved"}]'::jsonb
@@ -3939,7 +4008,7 @@ BEGIN
     'bucketed-read-sync: user A must receive public and own buckets'
   );
   SELECT public.rxdb_pull_bucket_snapshot(
-    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text, NULL, 0, 100
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text, NULL, NULL, 100
   ) INTO v_snapshot;
   PERFORM rxdb_sql_regression.assert_true(
     v_snapshot @> '[{"id":"bucket-a"}]'::jsonb
@@ -4000,12 +4069,142 @@ BEGIN
   SELECT public.rxdb_pull_bucket_snapshot(
     'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_b::text,
     '{"combinator":"and","rules":[{"field":"id","operator":"=","value":"bucket-moved"}]}'::jsonb,
-    0, 100
+    NULL, 100
   ) INTO v_snapshot;
   PERFORM rxdb_sql_regression.assert_true(
     v_snapshot @> '[{"id":"bucket-moved"}]'::jsonb
       AND NOT v_snapshot @> '[{"id":"bucket-b"}]'::jsonb,
     'bucketed-read-sync: filters must run inside the authorized bucket'
+  );
+
+  -- 快照翻页之间删掉已读过的一行：下一页从上一页最后一个 id 之后接着读，幸存行不能被挤掉
+  PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+  PERFORM rxdb_sql_regression.seed_bucket_keyset_rows();
+  SELECT public.rxdb_pull_bucket_snapshot(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'public',
+    '{"combinator":"and","rules":[{"field":"id","operator":"startsWith","value":"keyset-"}]}'::jsonb, NULL, 1
+  ) INTO v_snapshot;
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(v_snapshot) = 1 AND v_snapshot @> '[{"id":"keyset-1"}]'::jsonb,
+    pg_catalog.format('bucketed-read-sync: the first snapshot page must hold the lowest id: %s', v_snapshot)
+  );
+  PERFORM rxdb_sql_regression.delete_bucket_row('keyset-1');
+  SELECT public.rxdb_pull_bucket_snapshot(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'public',
+    '{"combinator":"and","rules":[{"field":"id","operator":"startsWith","value":"keyset-"}]}'::jsonb, 'keyset-1', 1
+  ) INTO v_snapshot;
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.jsonb_array_length(v_snapshot) = 1 AND v_snapshot @> '[{"id":"keyset-2"}]'::jsonb,
+    pg_catalog.format('bucketed-read-sync: a deletion between pages must not skip the next survivor: %s', v_snapshot)
+  );
+
+  -- 水位只算调用方会拉的分支：别的分支写进同一个 bucket，不能让 main 的客户端永远「有更新」
+  PERFORM pg_catalog.set_config(
+    'request.jwt.claims',
+    pg_catalog.format('{"sub":"%s","role":"authenticated"}', user_a),
+    true
+  );
+  v_other_branch_change := rxdb_sql_regression.seed_bucket_other_branch_change();
+  SELECT public.rxdb_bucket_snapshot_point(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text, ARRAY['main']
+  ) INTO v_point;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_point < v_other_branch_change,
+    pg_catalog.format(
+      'bucketed-read-sync: a change on another branch must not raise the main watermark: %s >= %s',
+      v_point, v_other_branch_change
+    )
+  );
+  SELECT public.rxdb_bucket_snapshot_point(
+    'rxdb_sql_regression', 'IdentityScopedRow', 'user:' || user_a::text
+  ) INTO v_point;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_point = v_other_branch_change,
+    pg_catalog.format(
+      'bucketed-read-sync: without branches the watermark covers every branch: %s <> %s',
+      v_point, v_other_branch_change
+    )
+  );
+END;
+$$;
+
+-- US-033：推送写分区日志时 bucket 只认服务端状态（bucketed-push）
+CREATE FUNCTION rxdb_sql_regression.test_bucketed_push()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a_bucket constant text := 'user:00000000-0000-4000-8000-0000000000a1';
+  user_b_bucket constant text := 'user:00000000-0000-4000-8000-0000000000b2';
+  v_rejected boolean := false;
+BEGIN
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-bucketed-push']);
+
+  -- 分区表不在 public schema：按 namespace 找到业务表回读 bucket；载荷里的 bucket 字段不认
+  PERFORM public.rxdb_mutations(
+    p_updates => '[{"schema":"rxdb_sql_regression","table":"bucket_push_rows","data":[{"id":"push-a","value":"changed"}]}]'::jsonb,
+    p_changes => pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'namespace', 'rxdb_sql_regression', 'entity', 'BucketPushRow',
+      'schema', 'rxdb_sql_regression', 'table', 'bucket_push_rows',
+      'entityId', 'push-a', 'type', 'UPDATE',
+      'patch', '{"value":"changed"}'::jsonb, 'inversePatch', '{"value":"a-value"}'::jsonb,
+      'bucket', user_b_bucket, 'branchId', 'main', 'clientId', 'sql-bucketed-push', 'localId', 810001
+    )),
+    p_skip_sync => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.logged_bucket('sql-bucketed-push', 810001) IS NOT DISTINCT FROM user_a_bucket,
+    pg_catalog.format(
+      'bucketed-push: a main push must log the bucket of the written row, got %s',
+      rxdb_sql_regression.logged_bucket('sql-bucketed-push', 810001)
+    )
+  );
+
+  -- 非 main 推送不经业务表 RLS：快照里的 bucket 不是调用者可读的分区就整批拒绝
+  BEGIN
+    PERFORM public.rxdb_mutations(
+      p_changes => pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+        'namespace', 'rxdb_sql_regression', 'entity', 'BucketPushRow',
+        'schema', 'rxdb_sql_regression', 'table', 'bucket_push_rows',
+        'entityId', 'push-forged', 'type', 'DELETE',
+        'inversePatch', pg_catalog.jsonb_build_object('id', 'push-forged', 'rxdb_bucket', user_b_bucket),
+        'branchId', 'sql-bucketed-push-branch', 'clientId', 'sql-bucketed-push', 'localId', 810002
+      )),
+      p_skip_sync => true
+    );
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      v_rejected := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_rejected AND rxdb_sql_regression.logged_bucket('sql-bucketed-push', 810002) IS NULL,
+    'bucketed-push: a non-main change must not be logged into a bucket the caller cannot read'
+  );
+
+  -- 调用者可读的分区照常写入；未分区实体的日志不带载荷里的 bucket
+  PERFORM public.rxdb_mutations(
+    p_changes => pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'namespace', 'rxdb_sql_regression', 'entity', 'BucketPushRow',
+        'schema', 'rxdb_sql_regression', 'table', 'bucket_push_rows',
+        'entityId', 'push-a', 'type', 'UPDATE', 'patch', '{"value":"on-branch"}'::jsonb,
+        'branchId', 'sql-bucketed-push-branch', 'clientId', 'sql-bucketed-push', 'localId', 810003
+      ),
+      pg_catalog.jsonb_build_object(
+        'namespace', 'rxdb_sql_regression', 'entity', 'PushOpen',
+        'schema', 'rxdb_sql_regression', 'table', 'push_open_ids',
+        'entityId', 'push-unbucketed', 'type', 'INSERT', 'patch', '{"id":"push-unbucketed","value":"x"}'::jsonb,
+        'bucket', user_b_bucket, 'branchId', 'sql-bucketed-push-branch', 'clientId', 'sql-bucketed-push', 'localId', 810004
+      )
+    ),
+    p_skip_sync => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.logged_bucket('sql-bucketed-push', 810003) IS NOT DISTINCT FROM user_a_bucket
+      AND rxdb_sql_regression.logged_change_count('sql-bucketed-push') = 3
+      AND rxdb_sql_regression.logged_bucket('sql-bucketed-push', 810004) IS NULL,
+    'bucketed-push: readable buckets must be logged and unbucketed entities must not carry a payload bucket'
   );
 END;
 $$;
@@ -4184,8 +4383,8 @@ END;
 $$;
 
 -- US-225 AC#18：生产库从旧版本升级（迁移指南第 2 步）。以属主身份把 RxDB 对象退回升级前的样子：
--- 没有所有者表、日志表在 Realtime 发布里、01 的整库授权留下的日志与分支表权限、协议函数对 PUBLIC 与 anon 开放。
--- 再在 public 下建一张预先收紧权限的业务表：只给 authenticated 两列的读权限，成本列谁都读不到
+-- 没有所有者表、日志表没有 bucket 列、日志表在 Realtime 发布里、01 的整库授权留下的日志与分支表权限、
+-- 协议函数对 PUBLIC 与 anon 开放。再在 public 下建一张预先收紧权限的业务表：只给 authenticated 两列的读权限，成本列谁都读不到
 CREATE FUNCTION rxdb_sql_regression.prepare_sync_access_upgrade()
 RETURNS void
 LANGUAGE plpgsql
@@ -4195,6 +4394,9 @@ DECLARE
   v_function regprocedure;
 BEGIN
   DROP TABLE public.rxdb_branch_owner;
+  -- 增量脚本 ADD COLUMN 把 bucket 加在表尾，升级库的物理列序与全新安装不同（复合类型按列位置匹配）。
+  -- 连带删掉的按区索引与 RLS 策略由增量脚本与生产权限脚本重建
+  ALTER TABLE public.rxdb_change DROP COLUMN bucket CASCADE;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.rxdb_change;
   -- 旧版生产权限脚本只收回日志表的写权限
   GRANT ALL ON public.rxdb_change, public.rxdb_branch TO anon, authenticated;
@@ -4236,6 +4438,9 @@ DECLARE
   v_before jsonb := pg_catalog.current_setting('rxdb_sql_regression.upgrade_probe_privileges')::jsonb;
   v_after jsonb := rxdb_sql_regression.upgrade_probe_privileges();
   v_open_to_anon text[];
+  v_since integer;
+  v_count integer;
+  v_change_id integer;
 BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     v_after = v_before,
@@ -4285,9 +4490,9 @@ BEGIN
       'public.rxdb_check_rls(jsonb)'::regprocedure,
       'public.rxdb_caller_buckets()'::regprocedure,
       'public.rxdb_entity_sync_info(text, text)'::regprocedure,
-      'public.rxdb_bucket_snapshot_point(text, text, text)'::regprocedure,
+      'public.rxdb_bucket_snapshot_point(text, text, text, text[])'::regprocedure,
       'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)'::regprocedure,
-      'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, integer, integer)'::regprocedure,
+      'public.rxdb_pull_bucket_snapshot(text, text, text, jsonb, text, integer)'::regprocedure,
       'public.rxdb_jsonb_matches_rule(jsonb, jsonb)'::regprocedure,
       'public.rxdb_jsonb_matches_filter(jsonb, jsonb)'::regprocedure,
       'public.rxdb_selectable_columns(text, text)'::regprocedure,
@@ -4301,6 +4506,48 @@ BEGIN
   );
 
   PERFORM rxdb_sql_regression.test_production_grants_idempotent();
+
+  -- 升级库的 bucket 在日志表末尾：按区拉取仍要按列名给出每个字段
+  PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+  SELECT COALESCE(pg_catalog.max(id), 0)::integer INTO v_since FROM public.rxdb_change;
+  UPDATE rxdb_sql_regression.identity_scoped_rows SET value = 'upgraded-value' WHERE id = 'bucket-public';
+  SELECT pg_catalog.count(*)::integer, pg_catalog.max(change.id)::integer
+  INTO v_count, v_change_id
+  FROM public.rxdb_pull_bucket_changes(
+    v_since, 10, 'rxdb_sql_regression', 'IdentityScopedRow', 'public'
+  ) AS change
+  WHERE change."entityId" = 'bucket-public'
+    AND change.bucket = 'public'
+    AND change.type = 'UPDATE'
+    AND change."branchId" = 'main'
+    AND change."afterData"->>'value' = 'upgraded-value'
+    AND change.patch = change."afterData"
+    AND change."inversePatch" IS NULL
+    AND change."beforeData" IS NULL
+    AND change."snapshotComplete";
+  PERFORM rxdb_sql_regression.assert_true(
+    v_count = 1,
+    'sync-access-upgrade: bucket pulls must return named fields on an upgraded change log'
+  );
+  PERFORM pg_catalog.set_config('rxdb_sql_regression.upgrade_bucket_change_id', v_change_id::text, true);
+END;
+$$;
+
+-- 增量升级可以重复执行：重跑整批之后，分区实体的日志一条都不能少
+CREATE FUNCTION rxdb_sql_regression.test_sync_access_upgrade_rerun()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (
+      SELECT 1 FROM public.rxdb_change
+      WHERE id = pg_catalog.current_setting('rxdb_sql_regression.upgrade_bucket_change_id')::integer
+        AND bucket = 'public'
+    ),
+    'sync-access-upgrade: re-running the upgrade must keep the change log of bucketed entities'
+  );
 END;
 $$;
 
@@ -4391,6 +4638,8 @@ SELECT rxdb_sql_regression.test_cascade_numeric_keys()
 WHERE :'test_case' IN ('all', 'cascade-numeric-keys');
 SELECT rxdb_sql_regression.test_cascade_partition_keys()
 WHERE :'test_case' IN ('all', 'cascade-partition-keys');
+SELECT rxdb_sql_regression.test_bucketed_push()
+WHERE :'test_case' IN ('all', 'bucketed-push');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()
@@ -4405,8 +4654,8 @@ WHERE :'test_case' IN ('all', 'backend-identity');
 -- US-218 阶段 C、US-225：以属主身份执行生产权限脚本（随外层 ROLLBACK 撤销），再分别以 authenticated、anon 验证。
 -- 必须放在最后：本栈初始化时加载的可能是旧版脚本，前面的用例不依赖它收回了哪些权限。
 SELECT :'test_case' IN (
-  'all', 'production-change-grants', 'anon-sync-protocol', 'branch-ownership', 'realtime-notifications',
-  'production-grants-idempotent'
+  'all', 'production-change-grants', 'bucketed-read-sync', 'anon-sync-protocol', 'branch-ownership',
+  'realtime-notifications', 'production-grants-idempotent'
 ) AS run_production_change_grants \gset
 \if :run_production_change_grants
 \i :production_grants_file
@@ -4472,6 +4721,12 @@ SELECT rxdb_sql_regression.prepare_sync_access_upgrade();
 \i :utils_functions_file
 \i :production_grants_file
 SELECT rxdb_sql_regression.test_sync_access_upgrade();
+-- 迁移指南写明整批可以重复执行：原样再跑一遍
+\i :sync_access_upgrade_file
+\i :sync_functions_file
+\i :utils_functions_file
+\i :production_grants_file
+SELECT rxdb_sql_regression.test_sync_access_upgrade_rerun();
 \endif
 
 ROLLBACK;
