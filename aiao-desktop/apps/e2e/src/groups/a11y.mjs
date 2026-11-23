@@ -767,13 +767,14 @@ export const a11y = {
         await expect(appSettings.getByRole('tab', { name: 'Accounts' })).toBeFocused();
         await press('ArrowDown');
         await expect(appSettings.getByRole('tab', { name: 'Appearance' })).toBeFocused();
+        await expect(appSettings.getByRole('tabpanel', { name: 'Appearance' })).toBeVisible();
         const settingsTree = await snapshot('[data-github-app-settings]');
         await press('Escape');
         await expect(appSettings).toHaveCount(0);
-        const settingsFocusReturned = await focusReaches(page, info => is(info, 'menubar', 'GitHub Desktop') || info?.app === 'github');
+        const appSettingsFocusReturned = await focusReaches(page, info => is(info, 'menubar', 'GitHub Desktop') || info?.app === 'github');
         github.applicationSettingsDialog = problems(
           ...missingInOrder(settingsTree, ['dialog "Settings"', 'tab "Accounts"', 'tab "Appearance"', 'tabpanel "Appearance"', 'group "Theme"']),
-          settingsFocusReturned ? [] : ['Esc 关闭设置后没有恢复焦点']
+          appSettingsFocusReturned ? [] : ['Esc 关闭设置后没有恢复焦点']
         );
 
         await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();

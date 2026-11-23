@@ -35,7 +35,7 @@ async function verifyAppearance(page, view) {
   const app = view.locator('[data-github-app]');
   const systemTheme = await page.locator('html').getAttribute('data-theme');
   const chosenTheme = systemTheme === 'dark' ? 'light' : 'dark';
-  let settings = await openAppSettings(page, view);
+  const settings = await openAppSettings(page, view);
   await expect(settings.getByRole('button', { name: 'Sign Into GitHub.com' })).toBeFocused();
   await settings.getByRole('tab', { name: 'Appearance' }).click();
   await settings.getByRole('radio', { name: chosenTheme, exact: true }).check();
@@ -532,10 +532,11 @@ async function terminalRoundTrip(session) {
     await expect(github.locator('.gh-commit-row').first()).toContainText('Terminal commit');
 
     const outputOf = terminalOutput(session);
-    expect(await outputOf('echo before-draft > note.txt')).toBe('');
+    expect(await outputOf('echo before-draft > note.txt && git status --short')).toMatch(/M\s+note\.txt/);
     await activateGithub();
     await github.getByRole('tab', { name: 'Changes' }).click();
-    await github.locator('[data-file-path="note.txt"]').click({ button: 'right' });
+    await expect(changedFileCheckbox(github, 'note.txt')).toBeVisible();
+    await changedFileRow(github, 'note.txt').locator('[data-file-path]').click({ button: 'right' });
     await github.getByRole('button', { name: 'Open note.txt', exact: true }).click();
     const editor = github.locator('[data-github-editor]');
     await expect(editor).toHaveValue('before-draft\n');
@@ -550,6 +551,7 @@ async function terminalRoundTrip(session) {
     await github.locator('[data-github-save]').click();
     await expect(github.locator('[data-github-error]')).toContainText(/Expected revision \d+, current revision is \d+/);
     await expect(editor).toHaveValue('not yet saved\n');
+    await win('terminal').locator('.tb').click({ position: { x: 150, y: 10 } });
     expect(await outputOf('cat note.txt')).toBe('terminal-write');
   } finally {
     await layout.evaluate(element => element.remove());

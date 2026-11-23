@@ -856,6 +856,13 @@
   font-weight: 600;
 }
 
+.gh-preferences-panel fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .gh-preferences-panel h3:not(:first-child) {
   margin-top: 16px;
 }
