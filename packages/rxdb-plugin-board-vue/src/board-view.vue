@@ -2497,8 +2497,7 @@ onBeforeUnmount(() => {
             class="rxb-i rxb-i-download"
             aria-hidden="true"
           ></span>
-          <!-- TODO(i18n)：目录缺「导出备份」键，目录 agent 补齐 view.boardMenu.exportBackup 后换成 t() -->
-          导出备份
+          {{ t('view.boardMenu.exportBackup') }}
         </button>
         <button
           class="rxb-menu-item"
@@ -2528,8 +2527,7 @@ onBeforeUnmount(() => {
             class="rxb-i rxb-i-trash"
             aria-hidden="true"
           ></span>
-          <!-- TODO(i18n)：目录缺「删除看板」键，目录 agent 补齐 view.boardMenu.deleteBoard 后换成 t() -->
-          删除看板
+          {{ t('view.boardMenu.deleteBoard') }}
         </button>
       </template>
       <template v-else-if="popover.kind === 'column-menu'">

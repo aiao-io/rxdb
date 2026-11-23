@@ -28,6 +28,13 @@ const checks = [
     ]
   },
   {
+    name: 'rxdb-plugin-board',
+    entries: [
+      ['packages/rxdb-plugin-board/src/i18n/messages.ts', 'boardZhMessages'],
+      ['packages/rxdb-plugin-board/src/i18n/messages.ts', 'boardEnMessages']
+    ]
+  },
+  {
     name: 'demo/workspace',
     entries: [
       ['modules/demo-i18n/workspace.ts', 'workspaceZhMessages'],

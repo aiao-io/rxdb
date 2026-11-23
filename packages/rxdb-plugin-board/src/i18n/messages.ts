@@ -73,6 +73,8 @@ export const boardZhMessages = {
   'view.header.searchTitle': '搜索任务（⌘K）',
   'view.header.labels': '标签',
   'view.header.boardMenu': '看板操作',
+  'view.boardMenu.exportBackup': '导出备份',
+  'view.boardMenu.deleteBoard': '删除看板',
 
   // —— 撤销 / 重做（页头按钮、操作提示与详情状态共用） ——
   'view.undo.label': '撤销',
@@ -320,6 +322,8 @@ export const boardEnMessages = {
   'view.header.searchTitle': 'Search tasks (⌘K)',
   'view.header.labels': 'Labels',
   'view.header.boardMenu': 'Board actions',
+  'view.boardMenu.exportBackup': 'Export backup',
+  'view.boardMenu.deleteBoard': 'Delete board',
 
   'view.undo.label': 'Undo',
   'view.undo.title': 'Undo (⌘Z)',

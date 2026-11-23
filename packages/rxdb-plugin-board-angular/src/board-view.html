@@ -694,8 +694,7 @@
               role="menuitem"
             >
               <span class="rxb-i rxb-i-download" aria-hidden="true"></span>
-              <!-- TODO(i18n)：目录缺 view.boardMenu.exportBackup，目录 agent 补键后替换 -->
-              导出备份
+              {{ t('view.boardMenu.exportBackup') }}
             </button>
             <button class="rxb-menu-item" (click)="openShortcuts()" data-testid="shortcuts-open" role="menuitem">
               <span class="rxb-i rxb-i-keyboard" aria-hidden="true"></span>
@@ -711,8 +710,7 @@
               role="menuitem"
             >
               <span class="rxb-i rxb-i-trash" aria-hidden="true"></span>
-              <!-- TODO(i18n)：目录缺 view.boardMenu.deleteBoard，目录 agent 补键后替换 -->
-              删除看板
+              {{ t('view.boardMenu.deleteBoard') }}
             </button>
           }
           @case ('column-menu') {

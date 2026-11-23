@@ -22,7 +22,7 @@ function BoardMenu({ vm }: PartProps): ReactNode {
         role='menuitem'
       >
         <span className='rxb-i rxb-i-download' aria-hidden='true' />
-        {boardT('common.save')}
+        {boardT('view.boardMenu.exportBackup')}
       </button>
       <button className='rxb-menu-item' onClick={dialog.openShortcuts} data-testid='shortcuts-open' role='menuitem'>
         <span className='rxb-i rxb-i-keyboard' aria-hidden='true' />
@@ -38,7 +38,7 @@ function BoardMenu({ vm }: PartProps): ReactNode {
         role='menuitem'
       >
         <span className='rxb-i rxb-i-trash' aria-hidden='true' />
-        {boardT('common.delete')}
+        {boardT('view.boardMenu.deleteBoard')}
       </button>
     </>
   );
