@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect as playwrightExpect } from 'playwright/test';
@@ -232,6 +232,7 @@ async function droppedRepository(session, view) {
   const temporary = await mkdtemp(join(tmpdir(), 'aiao-github-drop-'));
   const folder = join(temporary, 'drop-fixture');
   const plain = join(temporary, 'plain-folder');
+  const bulk = join(temporary, 'bulk-fixture');
   const client = await session.page.context().newCDPSession(session.page);
   try {
     await mkdir(folder);
@@ -262,6 +263,7 @@ async function droppedRepository(session, view) {
     git('add', 'tracked.txt');
     await writeFile(join(folder, 'tracked.txt'), 'working\n');
     const head = git('rev-parse', 'HEAD');
+    await cp(folder, bulk, { recursive: true });
     const bounds = await view.locator('[data-github-app]').boundingBox();
     const drop = async files => {
       const event = {
@@ -272,12 +274,39 @@ async function droppedRepository(session, view) {
       for (const type of ['dragEnter', 'dragOver', 'drop'])
         await client.send('Input.dispatchDragEvent', { ...event, type });
     };
-    await drop([plain, folder]);
-    await expect(view.locator('[data-github-notice]')).toContainText('/Documents/GitHub/drop-fixture');
-    await expect(view.locator('[data-github-error]')).toContainText('plain-folder');
-    await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
+    const dialog = view.getByRole('dialog', { name: 'Add Local Repository', exact: true });
+    const path = dialog.getByRole('textbox', { name: 'Local Path', exact: true });
+    const add = dialog.getByRole('button', { name: 'Add Repository', exact: true });
+    const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
+    const current = view.locator('[data-github-repository-name]');
+    const previous = await current.textContent();
     await drop([folder]);
-    await expect(view.locator('[data-github-error]')).toContainText('目标目录已存在');
+    await expect(path).toHaveValue('drop-fixture');
+    await expect(path).toBeFocused();
+    await expect(current).toHaveText(previous);
+    await session.page.keyboard.press('Shift+Tab');
+    await expect(add).toBeFocused();
+    await session.page.keyboard.press('Tab');
+    await expect(path).toBeFocused();
+    await drop([bulk]);
+    await expect(path).toHaveValue('drop-fixture');
+    await session.page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(current).toHaveText(previous);
+
+    await drop([folder]);
+    await add.click();
+    await expect(dialog).toHaveCount(0);
+    await expect(view.locator('[data-github-notice]')).toContainText('/Documents/GitHub/drop-fixture');
+    await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
+    await drop([plain, bulk]);
+    await expect(view.locator('[data-github-notice]')).toContainText('/Documents/GitHub/bulk-fixture');
+    await expect(view.locator('[data-github-error]')).toContainText('plain-folder');
+    await expect(dialog).toHaveCount(0);
+    await drop([folder]);
+    await add.click();
+    await expect(dialog.getByRole('alert')).toContainText('目标目录已存在');
+    await cancel.click();
     await session.helpers.openTerminal();
     const outputOf = terminalOutput(session);
     expect(await outputOf('cd ~/Documents/GitHub/drop-fixture && git rev-parse HEAD')).toBe(head);
@@ -297,8 +326,10 @@ async function droppedRepository(session, view) {
     });
     try {
       const target = view.locator('[data-github-app]');
-      await source.dragTo(target, { targetPosition: { x: 80, y: 150 } });
+      const drag = folder => folder.dragTo(target, { targetPosition: { x: 80, y: 150 } });
+      await drag(source);
       await expect(view.locator('[data-github-notice]')).toHaveText('Opened drop-fixture');
+      await expect(dialog).toHaveCount(0);
       await openRepositoryMenu(view);
       await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
       await openRepositoryMenu(view, 'local');
@@ -308,6 +339,22 @@ async function droppedRepository(session, view) {
       await volumePath.press('Enter');
       await expect(view.locator('[data-github-repository-dialog]')).toHaveCount(0);
       await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
+
+      expect(await outputOf('mkdir -p ../finder-candidate && echo keep > ../finder-candidate/note.txt && open -R ../finder-candidate')).toBe('');
+      const candidate = finder.locator('[data-name="finder-candidate"]');
+      await expect(candidate).toHaveAttribute('aria-selected', 'true');
+      await drag(candidate);
+      await expect(path).toHaveValue(/\/Documents\/GitHub\/finder-candidate$/);
+      await cancel.click();
+      await expect(dialog).toHaveCount(0);
+      await expect(current).toHaveText('drop-fixture');
+      await drag(candidate);
+      await add.click();
+      await expect(dialog.getByRole('alert')).toContainText('目录尚未初始化');
+      await dialog.getByRole('button', { name: 'Create Repository Here', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(current).toHaveText('finder-candidate');
+      expect(await outputOf('cd ../finder-candidate && git status --short && cat note.txt')).toBe('?? note.txt\nkeep');
     } finally {
       await layout.evaluate(element => element.remove());
     }
