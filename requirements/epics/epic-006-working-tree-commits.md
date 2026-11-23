@@ -376,7 +376,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | 5   | `merge-branch.ts`           | `merge_branch`（逐条分支）       | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
 | 6   | `merge-branch.ts`           | `merge_branch`（压缩分支）       | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
 | 7   | `pull-batch.ts`             | `pullBatchOnce`                  | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 627  | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 683  | `remote_sync` | **必须产生**   |
 | 9   | `cleanup-expired.ts`        | `cleanupExpired`                 | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
 | 10  | `materialize-branch.ts`     | `switchWithMaterialization`      | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
 | 11  | `materialize-branch.ts`     | `applyMaterializedActions`       | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |

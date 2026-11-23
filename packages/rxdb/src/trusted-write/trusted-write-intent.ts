@@ -156,6 +156,10 @@ export interface TrustedCallsite {
  *
  * 2026-11-21 新增 #13 / #14：分桶拉取的实体应用与过期分桶清理分别在 `bucketed-pull.ts` 与
  * `bucketed-scope-cleanup.ts` 内调用 `executor.mergeChanges(…, true)`，登记实际发起写入的函数。
+ *
+ * 2026-11-24 只刷新了 #8：`pullSingleRepository` 开头加了分桶拉取的短路（分桶仓库改走 #13），
+ * 同文件又抽出了 `resolveConfiguredFilter`，声明累计下移 56 行、超出容差。调用点本身没变——
+ * 仍是同一个函数里的 `executor.mergeChanges(…, true)`。只核对了这一行，表头日期照旧。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -220,7 +224,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 627
+    verifiedAtLine: 683
   },
   {
     file: 'cleanup-expired.ts',
