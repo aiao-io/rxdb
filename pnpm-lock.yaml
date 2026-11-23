@@ -637,8 +637,8 @@ importers:
         specifier: ^1.14.0
         version: 1.14.0
       electron:
-        specifier: ^44.10.2
-        version: 44.10.2(supports-color@8.1.1)
+        specifier: ^45.4.1
+        version: 45.4.1(supports-color@8.1.1)
       electron-builder:
         specifier: ^26.18.0
         version: 26.18.0(electron-builder-squirrel-windows@26.18.0)(supports-color@8.1.1)
@@ -796,8 +796,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/rxdb-test
       electron:
-        specifier: 44.10.2
-        version: 44.10.2(supports-color@8.1.1)
+        specifier: 45.4.1
+        version: 45.4.1(supports-color@8.1.1)
 
   apps/dev-rxdb-electron-e2e: {}
 
@@ -9429,7 +9429,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: ^3.5.43
+      vue: '*'
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -13098,8 +13098,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@44.10.2:
-    resolution: {integrity: sha512-Bz+GV+9Xj++3RW95NYfzp5Wgivf61BgWTPBxYTOUETytVB1uLUAOdSM39Dn/V3PGYeGTE6LYeCTR5SCiu3BR2A==}
+  electron@45.4.1:
+    resolution: {integrity: sha512-DjsJ/eQhovkjf1vYFFyh5GB8NMx+L5bdYaonvGOlWselg3DQ0fwIF0N/+2hrPsoS4whmmNswh21ym/8dgt1y5Q==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -16043,7 +16043,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: ^0.35.5
+      sharp: '*'
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0
@@ -32679,7 +32679,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@44.10.2(supports-color@8.1.1):
+  electron@45.4.1(supports-color@8.1.1):
     dependencies:
       '@electron-internal/extract-zip': 1.0.8
       '@electron/get': 5.1.0(supports-color@8.1.1)
