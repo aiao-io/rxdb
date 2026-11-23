@@ -22,6 +22,19 @@ const selectValues: { readonly [K in SelectKey]: readonly GithubAppearance[K][] 
   host: { style: 'display: contents' }
 })
 export class GithubSettings {
+  protected readonly tab = signal<SettingsTab>('accounts');
+  protected readonly tokenForm = signal(false);
+  protected readonly UserRound = LucideUserRound;
+  protected readonly tabs = [
+    { id: 'accounts', label: 'Accounts', icon: LucideHome },
+    { id: 'appearance', label: 'Appearance', icon: LucidePaintbrush }
+  ] as const;
+  protected readonly themes = THEMES;
+  protected readonly tabSizes = TAB_SIZES;
+  protected readonly dateFormats = DATE_FORMATS.map(value => ({ value, label: `${formatGithubDate(preview, value)} (${value})` }));
+  protected readonly timeFormats = TIME_FORMATS.map(value => ({ value, label: `${formatGithubTime(preview, value)} (${value})` }));
+  protected readonly numberFormats = NUMBER_FORMATS.map(value => ({ value, label: formatGithubNumber(1234567.89, value) }));
+
   readonly idPrefix = input.required<string>();
   readonly appearance = model.required<GithubAppearance>();
   readonly account = input.required<GitHubSession | null>();
@@ -35,21 +48,8 @@ export class GithubSettings {
   readonly signInWithToken = output<string>();
   readonly signOut = output<void>();
   readonly cancelSignIn = output<void>();
-  readonly cancel = output<void>();
+  readonly dismissed = output<void>();
   readonly save = output<void>();
-
-  protected readonly tab = signal<SettingsTab>('accounts');
-  protected readonly tokenForm = signal(false);
-  protected readonly UserRound = LucideUserRound;
-  protected readonly tabs = [
-    { id: 'accounts', label: 'Accounts', icon: LucideHome },
-    { id: 'appearance', label: 'Appearance', icon: LucidePaintbrush }
-  ] as const;
-  protected readonly themes = THEMES;
-  protected readonly tabSizes = TAB_SIZES;
-  protected readonly dateFormats = DATE_FORMATS.map(value => ({ value, label: `${formatGithubDate(preview, value)} (${value})` }));
-  protected readonly timeFormats = TIME_FORMATS.map(value => ({ value, label: `${formatGithubTime(preview, value)} (${value})` }));
-  protected readonly numberFormats = NUMBER_FORMATS.map(value => ({ value, label: formatGithubNumber(1234567.89, value) }));
 
   protected navigateTabs(event: KeyboardEvent, list: HTMLElement): void {
     const key = event.key;
@@ -85,6 +85,6 @@ export class GithubSettings {
     if (event.defaultPrevented) return;
     event.preventDefault();
     event.stopPropagation();
-    if (!this.saving()) this.cancel.emit();
+    if (!this.saving()) this.dismissed.emit();
   }
 }

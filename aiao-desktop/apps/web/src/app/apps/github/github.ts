@@ -352,6 +352,7 @@ export class GithubApp {
   private readonly wm = inject(WindowManager);
   private readonly menus = inject(DesktopMenus);
   private readonly preferences = inject(Preferences);
+  private readonly savedAppearance = computed(() => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE);
   private readonly system = inject(SystemState);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
@@ -430,7 +431,6 @@ export class GithubApp {
   protected readonly authBusy = signal(false);
   protected readonly authError = signal<string | null>(null);
   protected readonly oauthAttempt = signal<AbortController | null>(null);
-  private readonly savedAppearance = computed(() => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE);
   protected readonly settingsDraft = signal<GithubAppearance | null>(null);
   protected readonly settingsSaving = signal(false);
   protected readonly settingsError = signal<string | null>(null);
@@ -1610,7 +1610,7 @@ export class GithubApp {
         const code = await waitForOAuthCode(popup, pending, signal);
         await this.auth.completeOAuth(code, pending.verifier, pending.state, signal);
       } catch (error) {
-        if (timeout.aborted && !attempt.signal.aborted) throw new Error('GitHub 授权超时，请重试');
+        if (timeout.aborted && !attempt.signal.aborted) throw new Error('GitHub 授权超时，请重试', { cause: error });
         if (!attempt.signal.aborted) throw error;
         throw attempt.signal.reason;
       } finally {
@@ -1626,21 +1626,6 @@ export class GithubApp {
 
   protected logout(): void {
     if (!this.authBusy()) void this.changeAccount(() => this.auth.logout(), 'Signed out of GitHub');
-  }
-
-  private async changeAccount(action: () => Promise<void>, notice: string): Promise<void> {
-    this.authBusy.set(true);
-    this.authError.set(null);
-    this.fail(null);
-    try {
-      await action();
-      localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
-      this.notice.set(notice);
-    } catch (error) {
-      this.authError.set(messageOf(error));
-    } finally {
-      this.authBusy.set(false);
-    }
   }
 
   protected fileText(file: GitFile): string | null {
@@ -1693,12 +1678,6 @@ export class GithubApp {
 
   protected numberText(value: number): string {
     return formatGithubNumber(value, this.savedAppearance().numberFormat);
-  }
-
-  private absoluteCommitTime(timestamp: number): string {
-    const date = new Date(timestamp);
-    const { dateFormat, timeFormat } = this.savedAppearance();
-    return `${formatGithubDate(date, dateFormat)}, ${formatGithubTime(date, timeFormat)}`;
   }
 
   protected setHistoryDiffLayout(split: boolean): void {
@@ -1788,6 +1767,48 @@ export class GithubApp {
     this.historyDiff.set(change);
   }
 
+  protected cancelSettings(): void {
+    this.cancelOAuth();
+    this.settingsDraft.set(null);
+  }
+
+  protected async saveSettings(): Promise<void> {
+    const draft = this.settingsDraft();
+    if (!draft || this.settingsSaving()) return;
+    this.settingsSaving.set(true);
+    this.settingsError.set(null);
+    try {
+      if (draft !== this.savedAppearance()) await this.preferences.set(APPEARANCE_KEY, draft);
+      if (!draft.alwaysShowWorktree) this.closeWorktreeMenu();
+      this.cancelSettings();
+    } catch (error) {
+      this.settingsError.set(messageOf(error));
+    } finally {
+      this.settingsSaving.set(false);
+    }
+  }
+
+  private async changeAccount(action: () => Promise<void>, notice: string): Promise<void> {
+    this.authBusy.set(true);
+    this.authError.set(null);
+    this.fail(null);
+    try {
+      await action();
+      localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
+      this.notice.set(notice);
+    } catch (error) {
+      this.authError.set(messageOf(error));
+    } finally {
+      this.authBusy.set(false);
+    }
+  }
+
+  private absoluteCommitTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    const { dateFormat, timeFormat } = this.savedAppearance();
+    return `${formatGithubDate(date, dateFormat)}, ${formatGithubTime(date, timeFormat)}`;
+  }
+
   private resetComparison(branch: string | null): void {
     this.comparisonRequest++;
     this.comparisonKey = null;
@@ -1848,27 +1869,6 @@ export class GithubApp {
     this.authError.set(null);
     this.settingsError.set(null);
     this.settingsDraft.set(this.savedAppearance());
-  }
-
-  protected cancelSettings(): void {
-    this.cancelOAuth();
-    this.settingsDraft.set(null);
-  }
-
-  protected async saveSettings(): Promise<void> {
-    const draft = this.settingsDraft();
-    if (!draft || this.settingsSaving()) return;
-    this.settingsSaving.set(true);
-    this.settingsError.set(null);
-    try {
-      if (draft !== this.savedAppearance()) await this.preferences.set(APPEARANCE_KEY, draft);
-      if (!draft.alwaysShowWorktree) this.closeWorktreeMenu();
-      this.cancelSettings();
-    } catch (error) {
-      this.settingsError.set(messageOf(error));
-    } finally {
-      this.settingsSaving.set(false);
-    }
   }
 
   private async openRepositorySettings(): Promise<void> {
