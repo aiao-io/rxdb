@@ -487,7 +487,8 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 - 官网 `/` 为中文，`/en/` 为英文。中英文首页、安装页和各自的搜索索引纳入 Pages 发布检查。
 - 公共包的英文说明写入 Markdown，源码注释遵循 `AGENTS.md`。
 - Admin、演示实体页、AG Grid、Workspace、Storage、OPFS 和 History 已完成三框架英文浏览器验收。DevTools 面板已引入 `panel` 文案目录（105 键，随浏览器语言解析），覆盖头部、连接守卫、分支选择器、Events、Database、Settings、Storage、OPFS、I18n 检视页与实体表格操作列；`audit-i18n` 已纳入 `devtools-panel` 键对齐检查，面板 215 项单测、lint 与 typecheck 通过。三端加密演示页（Encrypted，21 键）、远程缓存演示页（RemoteCache，16 键）与生成器演示页（Generator，1 键）文案已迁入共享 `modules/demo-i18n/` 目录并接入 Angular/React/Vue；Todo 演示页（18 键）接入 React/Vue（Angular 无此页）。上述四组页面三端 typecheck 与 lint 零警告，受影响项目单测全部通过（面板 215、Angular 396、React 336、Vue 540）。
-- 其余演示页（Search、WorkingTree、树菜单/文件管理器、实体浏览器、Headless、Board 等）的专属操作文案仍待按同样模式补齐。
+- 其余演示页（Search 59 键、WorkingTree 19 键、树菜单 39 键、文件管理器 40 键、实体浏览器 2 键、Headless 46 键、共用 common 38 键）已全部迁入共享 `modules/demo-i18n/` 目录并接入 Angular/React/Vue，Angular 应用内联目录中与共享目录重叠的 117 个键已移除改由共享目录提供。树页面写入失败文案（`<操作>失败：<消息>`）在 `formatTreeWriteError` 中改为按当前语言解析操作名，三端同键同格式；React 共享组件 `PathConflictWarning`、Vue 扩展名选项与懒加载页残留的 `(Visible)` 字面量同步迁移；Search 页 React/Vue 的硬编码英文播报文案改为与 Angular 同键，对应 e2e 断言同步更新为中文。`audit-i18n` 新增 demo/common、search、working-tree、tree-menu、file-manager、entities、headless 七组键对齐检查（全部 PASS）。受影响项目单测全部通过（面板 215、Angular 541、React 397、Vue 337），三端 typecheck 与 lint 零警告，`test-scripts` 通过。
+- 看板 UI 文案位于 `packages/rxdb-plugin-board-{angular,react,vue}`（BoardShell/BoardView 组件），属 packages/* 三端对称切片（含 API 基线/覆盖率门禁），尚未迁移；三个演示 app 的 board 页面本身只有注释中文。React/Vue Search 输入框 aria-label 仍为英文 `Global search`（e2e 以该名定位，待 e2e 更新后可本地化）。
 - 核心 README 已记录 12 个错误码。涉及既有异常消息的改动按错误类型单独评审。
 - 本地和 CI 都通过 `pnpm nx run @aiao/source:audit-i18n` 检查文案键。
 

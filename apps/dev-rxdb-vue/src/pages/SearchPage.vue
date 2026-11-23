@@ -454,7 +454,7 @@ async function removeResultRecord(r: SearchResult) {
         :value="query"
         @input="onInput(($event.target as HTMLInputElement).value)"
         @keydown.esc.prevent="clearSearch"
-        aria-label="Global search"
+        :aria-label="t('page.search.inputLabel')"
         data-testid="search-input"
         :placeholder="t('page.search.placeholder')"
         ref="searchInputRef"

@@ -49,7 +49,7 @@ export default defineConfig(() => ({
       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
       checks: { pluginTimings: false },
       // 不打进库里的外部依赖。
-      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-search', '@aiao/utils', 'rxjs'],
+      external: [/^@aiao\/rxdb-i18n/, '@aiao/rxdb', '@aiao/rxdb-plugin-search', '@aiao/utils', 'rxjs'],
       input: {
         index: 'src/index.ts',
         testing: 'src/testing/index.ts'

@@ -9,7 +9,7 @@ test.describe('Search Page', () => {
   });
 
   test('supports a11y announcements and keyboard search flow', async ({ page }) => {
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const clearButton = page.getByTestId('search-clear');
     const resultsCount = page.getByTestId('search-results-count');
     const state = page.getByTestId('search-state');

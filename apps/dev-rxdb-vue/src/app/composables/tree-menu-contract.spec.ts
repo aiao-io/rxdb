@@ -4,16 +4,28 @@ import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 
-// 页面 composable 现在经 useI18n 取文案；桩一个真实 zh 运行时，避免每个用例都 provideI18n。
-vi.mock('@aiao/rxdb-i18n-vue', async () => {
-  const { I18n } = await import('@aiao/rxdb-i18n');
-  const { treeMenuCatalogs } = await import('@modules/demo-i18n/tree-menu');
-  const runtime = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
-  return {
-    useI18n: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } }),
-    useI18nOptional: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } })
+const zhT = vi.hoisted(() => {
+  const names: Record<string, string> = {
+    'page.tree.writeOp.create': '新建',
+    'page.tree.writeOp.rename': '重命名',
+    'page.tree.writeOp.batchAdd': '批量添加',
+    'page.tree.writeOp.delete': '删除',
+    'page.tree.writeOp.deleteAll': '删除全部',
+    'page.tree.writeOp.cascadeDelete': '级联删除',
+    'page.tree.writeOp.deletePromote': '删除并提升子节点',
+    'page.tree.writeOp.drag': '拖放'
+  };
+  return (key: string, params?: Record<string, unknown>): string => {
+    if (key === 'page.tree.writeFailed') return `${params?.operation ?? ''}失败：${params?.message ?? ''}`;
+    return names[key] ?? key;
   };
 });
+
+vi.mock('@aiao/rxdb-i18n-vue', () => ({
+  useI18n: () => ({ t: zhT, locale: { value: 'zh-Hans' } }),
+  useI18nOptional: () => ({ t: zhT, locale: { value: 'zh-Hans' } })
+}));
+
 import { createApp, ref } from 'vue';
 import { buildTreeMenuNodes } from '../utils/tree-menu';
 import { useDragDrop } from './useDragDrop';

@@ -147,6 +147,7 @@ describe('tree demo page construction contracts', () => {
       providers: [
         { provide: RxDB, useValue: rxdb },
         { provide: PLATFORM_ID, useValue: 'browser' },
+        provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs })),
         MenuSearchService,
         MenuDragDropService,
         { provide: TreeMenuLazyStore, useValue: lazyStore },

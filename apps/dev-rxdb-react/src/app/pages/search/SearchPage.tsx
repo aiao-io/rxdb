@@ -486,7 +486,7 @@ export default function SearchPage(): React.JSX.Element {
           role='searchbox'
           className='input input-bordered w-full pr-24 pl-9 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none'
           placeholder={t('page.search.placeholder')}
-          aria-label='Global search'
+          aria-label={t('page.search.inputLabel')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Escape' && clearSearch()}

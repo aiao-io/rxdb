@@ -25,7 +25,7 @@ test.describe('Search Parity', () => {
   });
 
   test('keeps UI state semantics and first-page ordering aligned with runtime search', async ({ page }) => {
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const state = page.getByTestId('search-state');
     const resultsCount = page.getByTestId('search-results-count');
     const resultsRegion = page.getByTestId('search-results');

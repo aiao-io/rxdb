@@ -2,7 +2,27 @@ import type { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge, SortableFileNode } from '@aiao/rxdb-test/entities';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createApp, ref } from 'vue';
+
+const zhT = vi.hoisted(() => {
+  const names: Record<string, string> = {
+    'page.tree.writeOp.create': '新建',
+    'page.tree.writeOp.rename': '重命名',
+    'page.tree.writeOp.batchAdd': '批量添加',
+    'page.tree.writeOp.delete': '删除',
+    'page.tree.writeOp.deleteAll': '删除全部',
+    'page.tree.writeOp.cascadeDelete': '级联删除',
+    'page.tree.writeOp.deletePromote': '删除并提升子节点',
+    'page.tree.writeOp.drag': '拖放'
+  };
+  return (key: string, params?: Record<string, unknown>): string => {
+    if (key === 'page.tree.writeFailed') return `${params?.operation ?? ''}失败：${params?.message ?? ''}`;
+    return names[key] ?? key;
+  };
+});
+vi.mock('@aiao/rxdb-i18n-vue', () => ({
+  useI18n: () => ({ t: zhT, locale: { value: 'zh-Hans' } }),
+  useI18nOptional: () => ({ t: zhT, locale: { value: 'zh-Hans' } })
+}));import { createApp, ref } from 'vue';
 import { generateBatchFiles } from '../utils/file-utils';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 import { useFileManagerStore } from './useFileManagerStore';
@@ -16,16 +36,6 @@ vi.mock('@aiao/rxdb-test/entities', async importOriginal => {
   return { ...actual };
 });
 
-// store 经 useI18n 取写入失败文案；桩一个真实 zh 运行时，避免每个用例都 provideI18n。
-vi.mock('@aiao/rxdb-i18n-vue', async () => {
-  const { I18n } = await import('@aiao/rxdb-i18n');
-  const { treeMenuCatalogs } = await import('@modules/demo-i18n/tree-menu');
-  const runtime = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
-  return {
-    useI18n: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } }),
-    useI18nOptional: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } })
-  };
-});
 
 interface FileSeed {
   name: string;

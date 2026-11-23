@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { callSearchApi, gotoSearchPage } from './search-test-api.js';
 
 async function warmSearch(page: Page, query: string) {
-  const input = page.getByRole('searchbox', { name: 'Global search' });
+  const input = page.getByTestId('search-input');
   const state = page.getByTestId('search-state');
 
   await input.press('Escape');
@@ -23,7 +23,7 @@ test.describe('Search Refresh', () => {
   // Functional gate only. First-render timing budget lives in benchmarks/* —
   // hardcoding p90 < 1000ms here is a known flaky source under parallel nxBail runs.
   test('reacts to insert/update/delete and keeps query', async ({ page }) => {
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const state = page.getByTestId('search-state');
     const resultsCount = page.getByTestId('search-results-count');
     const resultsRegion = page.getByTestId('search-results');

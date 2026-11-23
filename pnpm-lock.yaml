@@ -2448,6 +2448,9 @@ importers:
 
   packages/rxdb-plugin-board:
     dependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../rxdb-i18n
       '@aiao/rxdb-plugin-search':
         specifier: workspace:^
         version: link:../rxdb-plugin-search
