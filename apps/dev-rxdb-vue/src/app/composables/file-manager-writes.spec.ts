@@ -15,6 +15,18 @@ import type { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+
+
+// 页面 composable 现在经 useI18n 取文案；桩一个真实 zh 运行时，避免每个用例都 provideI18n。
+vi.mock('@aiao/rxdb-i18n-vue', async () => {
+  const { I18n } = await import('@aiao/rxdb-i18n');
+  const { treeMenuCatalogs } = await import('@modules/demo-i18n/tree-menu');
+  const runtime = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
+  return {
+    useI18n: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } }),
+    useI18nOptional: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } })
+  };
+});
 import { createApp, ref } from 'vue';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 import { useFileManagerStore } from './useFileManagerStore';

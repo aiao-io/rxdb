@@ -1,7 +1,10 @@
 import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileDragDropService } from '../services/file-drag-drop.service';
@@ -676,7 +679,8 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
       TestBed.configureTestingModule({
         providers: [
           { provide: PLATFORM_ID, useValue: 'browser' },
-          { provide: RxDB, useValue: {} }
+          { provide: RxDB, useValue: {} },
+          provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs }))
         ]
       });
       class Host extends TreeFileDragDropBase<typeof SortableFileNode> {

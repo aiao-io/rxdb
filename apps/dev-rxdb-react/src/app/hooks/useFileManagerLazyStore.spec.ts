@@ -3,6 +3,15 @@ import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// 页面 hook 现在经 useI18n 取文案；桩一个真实 zh 运行时，避免每个用例都包 I18nProvider。
+vi.mock('@aiao/rxdb-i18n-react', async () => {
+  const { I18n } = await import('@aiao/rxdb-i18n');
+  const { treeMenuCatalogs } = await import('@modules/demo-i18n/tree-menu');
+  const runtime = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
+  return { useI18n: () => ({ t: runtime.t }) };
+});
+
 import { SortMode } from '../utils/file-sorters';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 

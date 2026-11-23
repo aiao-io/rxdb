@@ -1,6 +1,18 @@
 import { SortOrderError, type ReorderTarget, type RxDBEntityId } from '@aiao/rxdb';
 import type { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+
+// 页面 composable 现在经 useI18n 取文案；桩一个真实 zh 运行时，避免每个用例都 provideI18n。
+vi.mock('@aiao/rxdb-i18n-vue', async () => {
+  const { I18n } = await import('@aiao/rxdb-i18n');
+  const { treeMenuCatalogs } = await import('@modules/demo-i18n/tree-menu');
+  const runtime = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
+  return {
+    useI18n: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } }),
+    useI18nOptional: () => ({ t: runtime.t, locale: { value: 'zh-Hans' } })
+  };
+});
 import { shallowRef } from 'vue';
 import { SortMode } from '../utils/file-sorters';
 import { useDragDrop, type DragDropOptions } from './useDragDrop.js';

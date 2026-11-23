@@ -3,7 +3,7 @@ import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { describe, expect, it } from 'vitest';
 import { formatTreeWriteError, type TreeWriteOperation } from './tree-write-error';
 
-const i18n = new I18n({ defaultLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
+const i18n = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs });
 
 describe('formatTreeWriteError', () => {
   it('Error 取 message，拼成「<操作>失败：<消息>」', () => {

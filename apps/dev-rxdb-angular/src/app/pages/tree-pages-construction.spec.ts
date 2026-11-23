@@ -1,6 +1,9 @@
 import { RxDB } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
 import { SortableFileNode, SortableMenuLarge, SortableMenuSimple } from '@aiao/rxdb-test/entities';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { PLATFORM_ID, signal } from '@angular/core';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -30,6 +33,7 @@ const makeRxdb = () => ({
 const configure = (rxdb: ReturnType<typeof makeRxdb>) => {
   TestBed.configureTestingModule({
     providers: [
+      provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs })),
       { provide: RxDB, useValue: rxdb },
       { provide: PLATFORM_ID, useValue: 'browser' },
       MenuSearchService,
