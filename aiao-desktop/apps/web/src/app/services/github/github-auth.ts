@@ -9,7 +9,7 @@ const DEFAULT_SCOPES = ['repo', 'workflow', 'user:email', 'read:user'] as const;
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 
 export interface GitHubAuthOptions {
-  readonly clientId: string | (() => Promise<string>);
+  readonly clientId: string | ((signal?: AbortSignal) => Promise<string>);
   /** 同源 Pages Function：POST 交换 code，POST /delete 撤销 token。 */
   readonly exchangeUrl: string;
   /** GitHub OAuth App 注册的回调地址（部署域 /redirect）。 */
@@ -39,7 +39,7 @@ export interface GitHubOAuthRequest {
 export interface GitHubAuth {
   getSession(): Promise<GitHubSession | null>;
   loginWithPat(token: string): Promise<GitHubSession>;
-  beginOAuth(): Promise<GitHubOAuthRequest>;
+  beginOAuth(signal?: AbortSignal): Promise<GitHubOAuthRequest>;
   completeOAuth(code: string, verifier: string, state: string, signal?: AbortSignal): Promise<GitHubSession>;
   /** 丢弃内存会话缓存并从持久化存储重载；用于其他标签页完成登录后的同步。 */
   refresh(): Promise<GitHubSession | null>;
@@ -142,7 +142,8 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
   }
 
   function toSession(stored: GitHubStoredSession): GitHubSession {
-    return { token: stored.token, login: stored.login, avatarUrl: stored.avatarUrl, provider: stored.provider };
+    const { token, login, avatarUrl, provider, name } = stored;
+    return { token, login, avatarUrl, provider, ...(typeof name === 'string' ? { name } : {}) };
   }
 
   async function setSession(next: GitHubSession | null): Promise<void> {
@@ -177,13 +178,13 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
 
     async loginWithPat(token: string): Promise<GitHubSession> {
       const user = await fetchUser(token);
-      const next: GitHubSession = { token, login: user.login, avatarUrl: user.avatarUrl, provider: 'pat' };
+      const next: GitHubSession = { token, ...user, provider: 'pat' };
       await setSession(next);
       return next;
     },
 
-    async beginOAuth(): Promise<GitHubOAuthRequest> {
-      const clientId = typeof options.clientId === 'function' ? await options.clientId() : options.clientId;
+    async beginOAuth(signal?: AbortSignal): Promise<GitHubOAuthRequest> {
+      const clientId = typeof options.clientId === 'function' ? await options.clientId(signal) : options.clientId;
       if (!clientId.trim()) throw new GitWorkbenchError('auth_required', 'GitHub OAuth client ID 未配置');
       const now = Date.now();
       for (const [state, pending] of pendingOAuth)
@@ -191,6 +192,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       const verifier = randomHex(32);
       const nonce = randomHex(16);
       const challenge = await pkceChallenge(verifier);
+      signal?.throwIfAborted();
       const state =
         options.desktopOrigin ?
           callbackState(options.origin, options.callbackPath ?? '/github-callback', options.desktopOrigin, nonce)
@@ -260,7 +262,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       signal?.throwIfAborted();
       const user = await fetchUser(token, signal);
       signal?.throwIfAborted();
-      const next: GitHubSession = { token, login: user.login, avatarUrl: user.avatarUrl, provider: 'oauth' };
+      const next: GitHubSession = { token, ...user, provider: 'oauth' };
       await setSession(next);
       return next;
     },
@@ -269,7 +271,9 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       api.clearCache();
       session = null;
       restoring = null;
-      return restoreSession();
+      const current = await restoreSession();
+      for (const listener of listeners) listener(current);
+      return current;
     },
 
     async logout(): Promise<void> {

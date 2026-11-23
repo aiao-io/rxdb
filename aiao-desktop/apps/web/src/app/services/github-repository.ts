@@ -17,6 +17,12 @@ export interface GithubBranchBase {
   readonly branch: string;
   readonly head: string;
   readonly tree: string;
+  readonly localHead?: string | null;
+}
+
+export interface GithubFetchedBranch {
+  readonly branch: string;
+  readonly head: string | null;
 }
 
 export interface GithubRepositoryRecord {
@@ -26,9 +32,12 @@ export interface GithubRepositoryRecord {
   readonly repo: string | null;
   readonly branch: string;
   readonly private: boolean;
+  /** 与远端快照同步的本地提交。旧记录未记录此值；null 表示没有对应提交。 */
+  readonly localHead?: string | null;
   readonly remoteHead: string | null;
   readonly remoteTree: string | null;
-  readonly fetched?: { readonly branch: string; readonly head: string };
+  readonly fetched?: GithubFetchedBranch | readonly GithubFetchedBranch[];
+  readonly lastFetchedAt?: number;
   readonly remoteEntries: readonly GitHubTreeEntry[];
   /** 同一 origin 下其余已整合分支的远端基线。 */
   readonly branchBases?: readonly GithubBranchBase[];
@@ -48,6 +57,7 @@ export interface GithubPushResult {
 }
 
 const isString = (value: unknown): value is string => typeof value === 'string';
+const isOptionalHead = (value: unknown): boolean => value === undefined || value === null || isString(value);
 
 function isTreeEntry(value: unknown): value is GitHubTreeEntry {
   if (typeof value !== 'object' || value === null) return false;
@@ -58,7 +68,15 @@ function isTreeEntry(value: unknown): value is GitHubTreeEntry {
 function isBranchBase(value: unknown): value is GithubBranchBase {
   if (typeof value !== 'object' || value === null) return false;
   const item = value as Record<string, unknown>;
-  return isString(item['branch']) && isString(item['head']) && isString(item['tree']);
+  return (
+    isString(item['branch']) && isString(item['head']) && isString(item['tree']) && isOptionalHead(item['localHead'])
+  );
+}
+
+function isFetchedBranch(value: unknown): value is GithubFetchedBranch {
+  if (typeof value !== 'object' || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return isString(item['branch']) && (item['head'] === null || isString(item['head']));
 }
 
 function isRecord(value: unknown): value is GithubRepositoryRecord {
@@ -71,6 +89,7 @@ function isRecord(value: unknown): value is GithubRepositoryRecord {
     (item['repo'] === null || isString(item['repo'])) &&
     isString(item['branch']) &&
     typeof item['private'] === 'boolean' &&
+    isOptionalHead(item['localHead']) &&
     (item['remoteHead'] === null || isString(item['remoteHead'])) &&
     (item['remoteTree'] === null || isString(item['remoteTree'])) &&
     Array.isArray(item['remoteEntries']) &&
@@ -78,17 +97,26 @@ function isRecord(value: unknown): value is GithubRepositoryRecord {
     (item['branchBases'] === undefined ||
       (Array.isArray(item['branchBases']) && item['branchBases'].every(isBranchBase))) &&
     Number.isSafeInteger(item['updatedAt']) &&
+    (item['lastFetchedAt'] === undefined || Number.isSafeInteger(item['lastFetchedAt'])) &&
     (item['fetched'] === undefined ||
-      (typeof item['fetched'] === 'object' &&
-        item['fetched'] !== null &&
-        'branch' in item['fetched'] &&
-        isString(item['fetched'].branch) &&
-        'head' in item['fetched'] &&
-        isString(item['fetched'].head))) &&
+      isFetchedBranch(item['fetched']) ||
+      (Array.isArray(item['fetched']) && item['fetched'].every(isFetchedBranch))) &&
     (item['rootPath'] === undefined ||
       (Array.isArray(item['rootPath']) &&
         item['rootPath'].every(value => typeof value === 'string' && value.length > 0)))
   );
+}
+
+export function branchBaseOf(record: GithubRepositoryRecord, branch: string): GithubBranchBase | undefined {
+  if (record.branch !== branch) return record.branchBases?.find(base => base.branch === branch);
+  if (!record.remoteHead || !record.remoteTree) return;
+  return { branch, head: record.remoteHead, tree: record.remoteTree, localHead: record.localHead };
+}
+
+export function fetchedBranchesOf(record: GithubRepositoryRecord): readonly GithubFetchedBranch[] {
+  const fetched = record.fetched;
+  if (!fetched) return [];
+  return 'branch' in fetched ? [fetched] : fetched;
 }
 
 function recordsOf(value: unknown): value is readonly GithubRepositoryRecord[] {
@@ -348,6 +376,17 @@ export class GithubRepositoryStore {
 /** 本地 Git 与 GitHub API 之间的仓库操作，远端变更先校验 head 再写入。 */
 export class GithubRemoteRepository {
   constructor(private readonly api: GitHubApi) {}
+
+  async fetchHead(owner: string, repo: string, branch: string): Promise<string | null> {
+    try {
+      return await this.api.getBranchSha(owner, repo, branch).catch(async (cause: unknown) => {
+        if (!(cause instanceof GitHubApiError) || cause.code !== 'not_found') throw cause;
+        return (await this.api.listBranches(owner, repo)).find(item => item.name === branch)?.sha ?? null;
+      });
+    } catch (cause) {
+      throw remoteFailure(cause, `${owner}/${repo}@${branch}`);
+    }
+  }
 
   async open(owner: string, repo: string, branch?: string): Promise<GithubRemoteOpen> {
     try {

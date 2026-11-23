@@ -46,6 +46,7 @@ export interface GithubCommands {
   isBusy(): boolean;
   openRepositoryMenu(kind: GithubRepositoryMenu): void;
   openLocalRepository(): void;
+  openSettings(): void;
   openRepositorySettings(): void;
   openInEditor(): void;
   openInTerminal(): void;
@@ -116,11 +117,11 @@ export class DesktopMenus {
   }
 
   /** GitHub Desktop 的应用菜单，应用专属命令不混入 Apple 系统菜单。 */
-  githubApplication(): MenuEntry[] {
+  githubApplication(openSettings?: () => void): MenuEntry[] {
     return [
       { id: 'a', label: 'About GitHub Desktop', run: () => this.wm.open('about') },
       '-',
-      { id: 'p', label: 'Settings…', key: '⌘,', run: () => this.wm.open('settings') },
+      { id: 'p', label: 'Settings…', key: '⌘,', disabled: !openSettings, run: openSettings },
       { id: 'cli', label: 'Install Command Line Tool', disabled: true },
       { id: 'services', label: 'Services', key: '▸', disabled: true },
       '-',
@@ -244,6 +245,7 @@ export class DesktopMenus {
     return this.standard(
       'github',
       {
+        'GitHub Desktop': this.githubApplication(() => target.openSettings()),
         File: [
           {
             id: 'new-repository',
@@ -416,7 +418,7 @@ export class DesktopMenus {
           { id: 'keyboard-shortcuts', label: 'Show Keyboard Shortcuts', run: external('shortcuts') }
         ]
       },
-      ['File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']
+      ['GitHub Desktop', 'File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']
     );
   }
 

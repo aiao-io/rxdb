@@ -4,7 +4,7 @@ import { StatusKey, StatusSnapshot, statusLabel } from '../services/aria';
 import { Clock } from '../services/clock';
 import { DesktopMenus } from '../services/desktop-menus';
 import { barIndex, isKeyboardClick } from '../services/focus-order';
-import { MenuEntry } from '../services/menu';
+import { MenuEntry, section } from '../services/menu';
 import { Overlays } from '../services/overlays';
 import { PopoverCloseReason, PopoverComponent, PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
@@ -51,10 +51,14 @@ export class Menubar {
   private readonly menus = inject(DesktopMenus);
   private readonly popover = inject(PopoverService);
   private readonly clock = inject(Clock);
-  private readonly owner = computed(() => {
+  private readonly sections = computed(() => {
     const win = this.wm.menubarOwner();
-    if (!win) return { appId: null, name: 'Finder', sections: this.menus.finderFallback() };
-    return { appId: win.appId, name: win.app.name, sections: win.menus()?.() ?? this.menus.standard(win.appId) };
+    if (!win) return [section('Finder', this.menus.about('Finder')), ...this.menus.finderFallback()];
+    const name = win.app.name;
+    const sections = win.menus()?.() ?? this.menus.standard(win.appId);
+    if (sections[0]?.label === name) return sections;
+    const application = win.appId === 'github' ? this.menus.githubApplication() : this.menus.about(name);
+    return [section(name, application), ...sections];
   });
   private readonly menuItems = viewChildren<ElementRef<HTMLElement>>('menuItem');
   private readonly statusItems = viewChildren<ElementRef<HTMLElement>>('statusItem');
@@ -68,10 +72,7 @@ export class Menubar {
   protected readonly openMenu = signal<string | null>(null);
   protected readonly openStatus = signal<StatusKey | null>(null);
 
-  protected readonly titles = computed(() => [
-    this.owner().name,
-    ...this.owner().sections.map(section => section.label)
-  ]);
+  protected readonly titles = computed(() => this.sections().map(menu => menu.label));
 
   /** 菜单的键：Apple 菜单是 `apple`，其余是标题的下标；顺序即屏幕上从左到右。 */
   protected readonly menuKeys = computed(() => ['apple', ...this.titles().map((_, index) => String(index))]);
@@ -254,10 +255,7 @@ export class Menubar {
 
   private items(key: string): readonly MenuEntry[] {
     if (key === 'apple') return this.menus.apple();
-    const index = Number(key);
-    const owner = this.owner();
-    if (index === 0) return owner.appId === 'github' ? this.menus.githubApplication() : this.menus.about(owner.name);
-    return owner.sections[index - 1]?.items ?? [];
+    return this.sections()[Number(key)]?.items ?? [];
   }
 
   /**

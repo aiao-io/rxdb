@@ -2,6 +2,7 @@
 export interface GitHubStoredSession {
   readonly token: string;
   readonly login: string;
+  readonly name?: string;
   readonly avatarUrl: string | null;
   readonly provider: 'pat' | 'oauth';
   readonly createdAt: number;

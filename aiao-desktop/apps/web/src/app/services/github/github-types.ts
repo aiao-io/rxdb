@@ -2,12 +2,14 @@
 export interface GitHubSession {
   readonly token: string;
   readonly login: string;
+  readonly name?: string;
   readonly avatarUrl: string | null;
   readonly provider: 'pat' | 'oauth';
 }
 
 export interface GitHubUser {
   readonly login: string;
+  readonly name?: string;
   readonly avatarUrl: string | null;
 }
 

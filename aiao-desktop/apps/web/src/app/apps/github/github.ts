@@ -15,6 +15,8 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 import {
+  LucideArrowDown as ArrowDown,
+  LucideArrowUp as ArrowUp,
   LucideGitBranch as BranchIcon,
   LucideCheck as Check,
   LucideChevronDown as ChevronDown,
@@ -36,11 +38,13 @@ import {
   LucideSquareMinus as SquareMinus,
   LucideSquarePlus as SquarePlus,
   LucideTrash2 as Trash2,
+  LucideUpload as Upload,
   LucideUserPlus as UserPlus,
   LucideUsersRound as UsersRound
 } from '@lucide/angular';
 
 import { finderPathOf, HOME, isWithin, resolveVmPath, samePath, toVmPath } from '../../disk/disk-path';
+import { Preferences } from '../../data/preferences';
 import { DesktopAppServices } from '../../services/desktop-app-services';
 import {
   DesktopMenus,
@@ -64,15 +68,51 @@ import {
 } from '../../services/github-git-backend';
 import { parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
 import { GithubWorkspace } from '../../services/github-workspace';
+import type { GitHubOAuthRequest } from '../../services/github/github-auth';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
+import { SystemState } from '../../services/system-state';
 import { WindowManager } from '../../services/window-manager';
 import { FocusTrap } from '../../shared/focus-trap';
 import { TrafficLights } from '../../shared/traffic-lights';
+import {
+  APPEARANCE_KEY, DEFAULT_APPEARANCE, formatGithubDate, formatGithubNumber, formatGithubTime,
+  isGithubAppearance, type GithubAppearance
+} from './github-appearance';
+import { GithubSettings } from './github-settings';
 import { historyDiffRows, type GithubDiffLine } from './history-diff';
+import { syncActionOf, type GithubSyncAction } from './sync-action';
 
 const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' });
+const syncTimeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+
+type GithubSyncOperation = Exclude<GithubSyncAction, 'detached'>;
+
+const syncLabels = {
+  refresh: 'Refresh status',
+  fetch: 'Fetch origin',
+  pull: 'Pull origin',
+  push: 'Push origin',
+  publish: 'Publish branch',
+  detached: 'Detached HEAD'
+} as const;
+
+const syncProgress = {
+  refresh: 'Refreshing status…',
+  fetch: 'Fetching origin…',
+  pull: 'Pulling origin…',
+  push: 'Pushing origin…',
+  publish: 'Publishing branch…'
+} as const;
+
+const syncIcons = {
+  refresh: RefreshCw,
+  fetch: RefreshCw,
+  pull: ArrowDown,
+  push: ArrowUp,
+  publish: Upload,
+  detached: BranchIcon
+};
 
 const fatalDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
@@ -135,6 +175,26 @@ function textOf(bytes: Uint8Array): string | null {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function waitForOAuthCode(popup: Window, request: GitHubOAuthRequest, signal: AbortSignal): Promise<string> {
+  const channel = new BroadcastChannel(`aiao-code.github-oauth:${request.state}`);
+  const lifetime = new AbortController();
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { signal: lifetime.signal });
+      channel.onmessage = ({ data }: MessageEvent<unknown>) => {
+        if (!data || typeof data !== 'object') return;
+        if ('code' in data && typeof data.code === 'string' && data.code) resolve(data.code);
+        else if ('error' in data) reject(new Error(data.error === 'access_denied' ? '已取消 GitHub 授权' : 'GitHub 授权失败'));
+      };
+      // COOP 会断开跨域窗口引用；导航后不能用 popup.closed 判断用户是否关闭了窗口。
+      popup.location.replace(request.authorizeUrl);
+    });
+  } finally {
+    lifetime.abort();
+    channel.close();
+  }
 }
 
 function errorCodeOf(error: unknown): string | null {
@@ -280,7 +340,7 @@ function diffHunksOf(lines: readonly GithubDiffLine[]): readonly GithubDiffHunk[
 
 @Component({
   selector: 'app-github',
-  imports: [FocusTrap, TrafficLights, LucideDynamicIcon],
+  imports: [FocusTrap, GithubSettings, TrafficLights, LucideDynamicIcon],
   templateUrl: './github.html',
   encapsulation: ViewEncapsulation.None,
   host: {
@@ -291,6 +351,8 @@ export class GithubApp {
   private readonly win = inject(DesktopWindow);
   private readonly wm = inject(WindowManager);
   private readonly menus = inject(DesktopMenus);
+  private readonly preferences = inject(Preferences);
+  private readonly system = inject(SystemState);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
@@ -325,6 +387,7 @@ export class GithubApp {
   private readonly repositoryMenuFocus = signal<GithubRepositoryMenu | null>(null);
   private readonly branchMenuFocus = signal(false);
   private readonly changesFilterFocus = signal(false);
+  private readonly lastLocalRefresh = signal<{ readonly projectId: string; readonly at: number } | null>(null);
 
   private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
   private readonly historyLineHunks = computed(() =>
@@ -362,7 +425,22 @@ export class GithubApp {
   protected readonly editorValue = signal('');
   protected readonly tab = signal<GithubTab>('changes');
   protected readonly busy = signal(false);
+  protected readonly syncing = signal<GithubSyncOperation | null>(null);
+  protected readonly syncMenuOpen = signal(false);
   protected readonly authBusy = signal(false);
+  protected readonly authError = signal<string | null>(null);
+  protected readonly oauthAttempt = signal<AbortController | null>(null);
+  private readonly savedAppearance = computed(() => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE);
+  protected readonly settingsDraft = signal<GithubAppearance | null>(null);
+  protected readonly settingsSaving = signal(false);
+  protected readonly settingsError = signal<string | null>(null);
+  protected readonly settingsId = `github-app-settings-${this.win.id}`;
+  protected readonly appTheme = computed(() => {
+    const theme = (this.settingsDraft() ?? this.savedAppearance()).theme;
+    return theme === 'system' ? this.system.theme() : theme;
+  });
+  protected readonly diffTabSize = computed(() => (this.settingsDraft() ?? this.savedAppearance()).tabSize);
+  protected readonly showWorktree = computed(() => this.activeRecord() !== null && this.savedAppearance().alwaysShowWorktree);
   protected readonly error = signal<string | null>(null);
   protected readonly errorCode = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
@@ -385,7 +463,7 @@ export class GithubApp {
     null
   );
   protected readonly remoteDraft = signal<string | null>('');
-  protected readonly repositoryModalOpen = computed(() => this.localRepositoryOpen() || !!this.repositorySettings());
+  protected readonly repositoryModalOpen = computed(() => !!this.settingsDraft() || this.localRepositoryOpen() || !!this.repositorySettings());
   protected readonly repositorySettingsTitleId = `github-settings-title-${this.win.id}`;
   protected readonly remoteUrlId = `github-settings-remote-${this.win.id}`;
   protected readonly remoteErrorId = `github-settings-error-${this.win.id}`;
@@ -424,7 +502,6 @@ export class GithubApp {
   protected readonly worktreeWidth = signal(230);
   protected readonly branchWidth = signal(230);
   protected readonly showCleanFiles = signal(false);
-  protected readonly lastFetchedAt = signal<number | null>(null);
   protected readonly selectedCommitOid = signal<string | null>(null);
 
   protected readonly selectedFile = computed(() => {
@@ -441,11 +518,26 @@ export class GithubApp {
   protected readonly currentWorktree = computed(() => this.activeRecord()?.name ?? 'No repository');
   protected readonly cleanRepository = computed(() => !this.hasChanges() && !this.showCleanFiles());
   protected readonly canDiscardBranch = computed(() => this.errorCode() === 'dirty_workspace');
-  protected readonly lastFetchedLabel = computed(() => {
-    const timestamp = this.lastFetchedAt();
-    return timestamp === null ? 'Never' : (
-        new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(timestamp)
-      );
+  protected readonly syncAction = computed(() => syncActionOf(this.activeRecord(), this.status()));
+  protected readonly syncHasOptions = computed(() => ['pull', 'push', 'publish'].includes(this.syncAction()));
+  protected readonly syncTitle = computed(() => {
+    const operation = this.syncing();
+    return operation ? syncProgress[operation] : syncLabels[this.syncAction()];
+  });
+  protected readonly syncIcon = computed(() => (this.syncing() ? RefreshCw : syncIcons[this.syncAction()]));
+  protected readonly syncSubtitle = computed(() => {
+    if (this.syncing()) return 'Hang on…';
+    if (this.syncAction() === 'detached') return 'Switch to a branch to sync';
+    const record = this.activeRecord();
+    if (!record) return 'No repository';
+    if (record.owner && record.repo) {
+      const time = record.lastFetchedAt;
+      return time === undefined ? 'Never fetched' : `Last fetched ${syncTimeFormat.format(time)}`;
+    }
+    const local = this.lastLocalRefresh();
+    return local?.projectId === record.projectId ?
+        `Last refreshed ${syncTimeFormat.format(local.at)}`
+      : 'Local repository';
   });
   protected readonly selectedCommit = computed<GitCommit | null>(() => {
     const selected = this.selectedCommitOid();
@@ -503,7 +595,6 @@ export class GithubApp {
   protected readonly GitCommitHorizontal = GitCommitHorizontal;
   protected readonly Monitor = Monitor;
   protected readonly MoreVertical = MoreVertical;
-  protected readonly RefreshCw = RefreshCw;
   protected readonly Search = Search;
   protected readonly Server = Server;
   protected readonly Settings = Settings;
@@ -525,6 +616,11 @@ export class GithubApp {
     this.destroyRef.onDestroy(() => {
       changes.unsubscribe();
       diskChanges.unsubscribe();
+      if (this.syncMenuOpen()) this.popover.close(true);
+    });
+    effect(() => {
+      if (this.syncMenuOpen() && (this.busy() || !this.syncHasOptions() || this.repositoryModalOpen()))
+        this.popover.close(true);
     });
     effect(() => {
       const front = this.wm.focused() === this.win;
@@ -562,6 +658,7 @@ export class GithubApp {
     this.destroyRef.onDestroy(() => {
       this.unsubscribeAuth();
       removeEventListener('storage', this.storageListener);
+      this.cancelOAuth();
     });
     void this.restoreLastRepository().catch(error => this.fail(error));
   }
@@ -629,21 +726,6 @@ export class GithubApp {
     this.wm.open('finder', root ? { path: finderPathOf(root), force: true } : {});
   }
 
-  private async openRepositorySettings(): Promise<void> {
-    const record = this.activeRecord();
-    if (!record || this.busy() || this.repositoryModalOpen()) return;
-    this.closeRepositoryMenu();
-    this.closeWorktreeMenu();
-    this.branchMenuOpen.set(false);
-    this.closeContextMenu();
-    await this.run(async () => {
-      const origin = await this.backend.origin(record.projectId);
-      if (this.destroyRef.destroyed) return;
-      this.remoteDraft.set(origin ?? '');
-      this.repositorySettings.set({ projectId: record.projectId, origin });
-    });
-  }
-
   protected setRemoteDraft(url: string | null): void {
     this.remoteDraft.set(url);
     this.fail(null);
@@ -671,7 +753,7 @@ export class GithubApp {
         if (current?.owner !== next.owner || current?.repo !== next.repo) {
           this.branchValue.set(next.owner ? this.currentBranch() : '');
           this.remoteBranches.set([]);
-          this.lastFetchedAt.set(null);
+          this.lastLocalRefresh.set(null);
         }
       }
       this.repositorySettings.set(null);
@@ -813,6 +895,7 @@ export class GithubApp {
   }
 
   protected openRepositoryMenu(kind: GithubRepositoryMenu): void {
+    if (this.settingsDraft()) return;
     this.localSystemFolder.set(null);
     if (kind === 'local') {
       this.localRepositoryPath.set('');
@@ -834,6 +917,7 @@ export class GithubApp {
   }
 
   protected toggleWorktreeMenu(): void {
+    if (!this.showWorktree()) return;
     if (this.worktreeMenuOpen()) {
       this.closeWorktreeMenu();
       return;
@@ -982,20 +1066,59 @@ export class GithubApp {
     await this.discard(path);
   }
 
+  protected runSyncAction(): void {
+    const action = this.syncAction();
+    if (action === 'pull') void this.pull();
+    else if (action === 'push' || action === 'publish') void this.push(action === 'publish');
+    else if (action !== 'detached') void this.fetchOrigin();
+  }
+
+  protected openSyncMenu(event: Event): void {
+    const anchor = event.currentTarget;
+    if (!(anchor instanceof HTMLElement) || !this.syncHasOptions() || this.busy()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.syncMenuOpen()) {
+      this.popover.close(true);
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    this.popover.openMenu([{ id: 'fetch-origin', label: 'Fetch origin', run: () => void this.fetchOrigin() }], {
+      x: rect.right,
+      y: rect.bottom,
+      right: true,
+      focus: true,
+      label: 'Sync options',
+      onClose: reason => {
+        this.syncMenuOpen.set(false);
+        if (RETURNS_FOCUS.has(reason) && anchor.isConnected) anchor.focus();
+      }
+    });
+    this.syncMenuOpen.set(true);
+  }
+
   protected async fetchOrigin(): Promise<void> {
     const record = this.activeRecord();
     if (!record) return;
-    await this.run(async () => {
-      if (!record.owner || !record.repo) {
-        await this.refresh();
-        this.lastFetchedAt.set(Date.now());
-        this.notice.set('Refreshed local status');
-        return;
-      }
-      const remote = await this.backend.fetch(record.projectId);
-      this.lastFetchedAt.set(Date.now());
-      this.notice.set(remote.record.remoteHead === record.remoteHead ? 'Already up to date' : 'Fetched origin');
-    });
+    const isRemote = Boolean(record.owner && record.repo);
+    await this.run(
+      async () => {
+        if (!isRemote) {
+          await this.refresh();
+          this.lastLocalRefresh.set({ projectId: record.projectId, at: Date.now() });
+          this.notice.set('Refreshed local status');
+          return;
+        }
+        const { branch, head, changed } = await this.backend.fetch(record.projectId);
+        this.activeRecord.set(this.store.find(record.projectId) ?? record);
+        this.notice.set(
+          head === null ? `No remote branch ${branch}`
+          : changed ? 'Fetched origin'
+          : 'Already up to date'
+        );
+      },
+      isRemote ? 'fetch' : 'refresh'
+    );
   }
 
   protected startAsideResize(event: PointerEvent): void {
@@ -1175,22 +1298,14 @@ export class GithubApp {
       const remote = await this.remote.open(address.owner, address.repo, this.branchValue().trim() || address.branch);
       const existing = this.store.find(remote.record.projectId);
       if (existing) {
-        const current = await this.backend.open(existing.projectId);
         const currentStatus = await this.backend.status(existing.projectId);
-        if (existing.remoteHead === remote.record.remoteHead) {
-          this.activeRecord.set(existing);
-          this.showCleanFiles.set(false);
-          this.repoValue.set(`${remote.record.owner}/${remote.record.repo}`);
-          this.branchValue.set(remote.record.branch);
-          this.applySnapshot(current.files);
-          await this.refresh();
-          this.repositoryMenuOpen.set(false);
-          return;
-        }
-        const localDirty = Boolean(currentStatus.entries.length) || this.editorDirty();
-        const localFiles = this.editorDirty() ? this.files() : current.files;
-        const pulled = await this.remote.pull(existing, localFiles, localDirty, remote);
-        await this.replaceFromRemote(existing, pulled, !localDirty);
+        if (
+          currentStatus.branch === remote.record.branch &&
+          existing.owner === remote.record.owner &&
+          existing.repo === remote.record.repo
+        )
+          await this.backend.pull(existing.projectId, remote);
+        await this.loadStoredRepository(this.store.find(existing.projectId) ?? existing);
         return;
       }
       const snapshot = await this.backend.create(remote.record.projectId, remote.files);
@@ -1198,14 +1313,18 @@ export class GithubApp {
         remote.record.projectId,
         remote.files.map(file => file.path)
       );
-      await this.backend.commit(remote.record.projectId, `Import ${remote.record.name}@${remote.record.branch}`);
+      const localHead = await this.backend.commit(
+        remote.record.projectId,
+        `Import ${remote.record.name}@${remote.record.branch}`
+      );
       if (remote.record.branch !== 'main') {
         await this.backend.createBranch(remote.record.projectId, remote.record.branch);
         await this.backend.checkout(remote.record.projectId, remote.record.branch);
       }
       await this.backend.setClonedOrigin(remote.record);
-      await this.store.put(remote.record);
-      this.activeRecord.set(remote.record);
+      const record = { ...remote.record, localHead, lastFetchedAt: remote.record.updatedAt };
+      await this.store.put(record);
+      this.activeRecord.set(record);
       this.showCleanFiles.set(false);
       this.repoValue.set(`${remote.record.owner}/${remote.record.repo}`);
       this.branchValue.set(remote.record.branch);
@@ -1446,105 +1565,79 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       await this.refresh();
       this.notice.set(`Pulled ${record.name}`);
-    });
+    }, 'pull');
   }
 
-  protected async push(): Promise<void> {
+  protected async push(publish = false): Promise<void> {
     const record = this.activeRecord();
     if (!record?.owner || !record.repo) return;
-    await this.run(async () => {
-      if (this.status()?.entries.length || this.editorDirty())
-        throw new Error('请先保存并提交本地改动，再推送到 GitHub');
-      const next = await this.backend.push(record.projectId, this.commitValue() || 'Update from Aiao Desktop');
-      this.activeRecord.set(next);
-      this.notice.set(`Pushed ${next.remoteHead.slice(0, 8)}`);
-    });
+    await this.run(
+      async () => {
+        if (this.status()?.entries.length || this.editorDirty())
+          throw new Error('请先保存并提交本地改动，再推送到 GitHub');
+        const next = await this.backend.push(record.projectId, this.commitValue() || 'Update from Aiao Desktop');
+        this.activeRecord.set(next);
+        this.notice.set(publish ? `Published branch ${next.branch}` : `Pushed ${next.remoteHead.slice(0, 8)}`);
+      },
+      publish ? 'publish' : 'push'
+    );
   }
 
-  protected async loginWithPat(): Promise<void> {
-    const token = this.patValue().trim();
-    if (!token) return;
-    this.authBusy.set(true);
-    this.fail(null);
-    try {
+  protected loginWithPat(value = this.patValue()): void {
+    const token = value.trim();
+    if (!token || this.authBusy()) return;
+    this.patValue.set('');
+    void this.changeAccount(async () => {
       await this.auth.loginWithPat(token);
-      this.patValue.set('');
-      localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
-      this.notice.set('Signed in to GitHub');
-    } catch (error) {
-      this.fail(error);
-    } finally {
-      this.authBusy.set(false);
-    }
+    }, 'Signed in to GitHub');
   }
 
-  protected async loginWithOAuth(): Promise<void> {
-    this.authBusy.set(true);
-    this.fail(null);
-    let popup: Window | null = null;
-    try {
+  protected loginWithOAuth(): void {
+    if (this.authBusy()) return;
+    const attempt = new AbortController();
+    this.oauthAttempt.set(attempt);
+    const timeout = AbortSignal.timeout(120_000);
+    const signal = AbortSignal.any([attempt.signal, timeout]);
+    void this.changeAccount(async () => {
       // 先同步打开占位窗口，避免异步获取 OAuth 配置后失去用户手势。
-      const oauthPopup = window.open('about:blank', 'aiao-github-oauth', 'popup,width=600,height=750');
-      if (!oauthPopup) throw new Error('浏览器未能打开 GitHub 授权页，请允许弹窗后重试');
-      popup = oauthPopup;
-      oauthPopup.opener = null;
-
-      const pending = await this.auth.beginOAuth();
-      const channel = new BroadcastChannel(`aiao-code.github-oauth:${pending.state}`);
+      const popup = window.open('about:blank', '_blank', 'popup,width=600,height=750');
       try {
-        const code = await new Promise<string>((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error('GitHub 授权超时，请重试')), 120_000);
-          const closedTimer = setInterval(() => {
-            if (oauthPopup.closed) {
-              finish();
-              reject(new Error('GitHub 授权窗口已关闭'));
-            }
-          }, 500);
-          const finish = (): void => {
-            clearTimeout(timer);
-            clearInterval(closedTimer);
-          };
-          channel.onmessage = (event: MessageEvent<unknown>) => {
-            const data = event.data;
-            if (typeof data !== 'object' || data === null) return;
-            const result = data as { readonly code?: unknown; readonly error?: unknown };
-            if (typeof result.code === 'string' && result.code) {
-              finish();
-              resolve(result.code);
-            } else if (typeof result.error === 'string') {
-              finish();
-              reject(new Error(result.error === 'access_denied' ? '已取消 GitHub 授权' : 'GitHub 授权失败'));
-            }
-          };
-          try {
-            oauthPopup.location.replace(pending.authorizeUrl);
-          } catch (error) {
-            finish();
-            reject(error);
-          }
-        });
-        await this.auth.completeOAuth(code, pending.verifier, pending.state);
+        if (!popup) throw new Error('浏览器未能打开 GitHub 授权页，请允许弹窗后重试');
+        popup.opener = null;
+        const pending = await this.auth.beginOAuth(signal);
+        signal.throwIfAborted();
+        if (popup.closed) throw new Error('GitHub 授权窗口已关闭');
+        const code = await waitForOAuthCode(popup, pending, signal);
+        await this.auth.completeOAuth(code, pending.verifier, pending.state, signal);
+      } catch (error) {
+        if (timeout.aborted && !attempt.signal.aborted) throw new Error('GitHub 授权超时，请重试');
+        if (!attempt.signal.aborted) throw error;
+        throw attempt.signal.reason;
       } finally {
-        channel.close();
+        if (popup && !popup.closed) popup.close();
+        this.oauthAttempt.set(null);
       }
-      localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
-      this.notice.set('Signed in to GitHub');
-    } catch (error) {
-      this.fail(error);
-    } finally {
-      if (popup && !popup.closed) popup.close();
-      this.authBusy.set(false);
-    }
+    }, 'Signed in to GitHub');
   }
 
-  protected async logout(): Promise<void> {
+  protected cancelOAuth(): void {
+    this.oauthAttempt()?.abort(new Error('已取消 GitHub 授权'));
+  }
+
+  protected logout(): void {
+    if (!this.authBusy()) void this.changeAccount(() => this.auth.logout(), 'Signed out of GitHub');
+  }
+
+  private async changeAccount(action: () => Promise<void>, notice: string): Promise<void> {
     this.authBusy.set(true);
+    this.authError.set(null);
+    this.fail(null);
     try {
-      await this.auth.logout();
+      await action();
       localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
-      this.notice.set('Signed out of GitHub');
+      this.notice.set(notice);
     } catch (error) {
-      this.fail(error);
+      this.authError.set(messageOf(error));
     } finally {
       this.authBusy.set(false);
     }
@@ -1589,12 +1682,23 @@ export class GithubApp {
 
   protected commitTime(timestamp: number | null): string {
     if (timestamp === null) return '';
+    if (this.savedAppearance().absoluteDates) return this.absoluteCommitTime(timestamp);
     const minutes = Math.trunc((timestamp - Date.now()) / 60_000);
     if (minutes === 0) return 'just now';
     if (Math.abs(minutes) < 60) return relativeTime.format(minutes, 'minute');
     if (Math.abs(minutes) < 1440) return relativeTime.format(Math.trunc(minutes / 60), 'hour');
     if (Math.abs(minutes) < 43200) return relativeTime.format(Math.trunc(minutes / 1440), 'day');
-    return dateFormat.format(timestamp);
+    return this.absoluteCommitTime(timestamp);
+  }
+
+  protected numberText(value: number): string {
+    return formatGithubNumber(value, this.savedAppearance().numberFormat);
+  }
+
+  private absoluteCommitTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    const { dateFormat, timeFormat } = this.savedAppearance();
+    return `${formatGithubDate(date, dateFormat)}, ${formatGithubTime(date, timeFormat)}`;
   }
 
   protected setHistoryDiffLayout(split: boolean): void {
@@ -1734,8 +1838,56 @@ export class GithubApp {
     void this.selectCommit(commit?.oid ?? null);
   }
 
+  private openSettings(): void {
+    if (this.repositoryModalOpen()) return;
+    this.closeRepositoryMenu();
+    this.closeWorktreeMenu();
+    this.branchMenuOpen.set(false);
+    this.closeContextMenu();
+    this.closeHistoryDiffSettings();
+    this.authError.set(null);
+    this.settingsError.set(null);
+    this.settingsDraft.set(this.savedAppearance());
+  }
+
+  protected cancelSettings(): void {
+    this.cancelOAuth();
+    this.settingsDraft.set(null);
+  }
+
+  protected async saveSettings(): Promise<void> {
+    const draft = this.settingsDraft();
+    if (!draft || this.settingsSaving()) return;
+    this.settingsSaving.set(true);
+    this.settingsError.set(null);
+    try {
+      if (draft !== this.savedAppearance()) await this.preferences.set(APPEARANCE_KEY, draft);
+      if (!draft.alwaysShowWorktree) this.closeWorktreeMenu();
+      this.cancelSettings();
+    } catch (error) {
+      this.settingsError.set(messageOf(error));
+    } finally {
+      this.settingsSaving.set(false);
+    }
+  }
+
+  private async openRepositorySettings(): Promise<void> {
+    const record = this.activeRecord();
+    if (!record || this.busy() || this.repositoryModalOpen()) return;
+    this.closeRepositoryMenu();
+    this.closeWorktreeMenu();
+    this.branchMenuOpen.set(false);
+    this.closeContextMenu();
+    await this.run(async () => {
+      const origin = await this.backend.origin(record.projectId);
+      if (this.destroyRef.destroyed) return;
+      this.remoteDraft.set(origin ?? '');
+      this.repositorySettings.set({ projectId: record.projectId, origin });
+    });
+  }
+
   private canDropRepository(): boolean {
-    const hasDialog = this.repositorySettings() || (this.repositoryMenuOpen() && this.repositoryPanel() !== 'list');
+    const hasDialog = this.repositoryModalOpen() || (this.repositoryMenuOpen() && this.repositoryPanel() !== 'list');
     return !hasDialog && !this.busy() && !this.destroyRef.destroyed;
   }
 
@@ -1794,7 +1946,8 @@ export class GithubApp {
       hasRepository: () => this.activeRecord() !== null,
       hasRemote: () => Boolean(this.activeRecord()?.owner && this.activeRecord()?.repo),
       hasChanges: () => this.hasChanges(),
-      isBusy: () => this.busy() || this.repositorySettings() !== null,
+      isBusy: () => this.busy() || this.repositorySettings() !== null || !!this.settingsDraft(),
+      openSettings: () => this.openSettings(),
       openRepositoryMenu: kind => this.openRepositoryMenu(kind),
       openLocalRepository: () => this.openLocalRepository(),
       openRepositorySettings: () => void this.openRepositorySettings(),
@@ -1913,46 +2066,18 @@ export class GithubApp {
     this.win.hasUnsavedChanges.set(false);
   }
 
-  private async replaceFromRemote(
-    record: GithubRepositoryRecord,
-    remote: { readonly record: GithubRepositoryRecord; readonly files: readonly GitFile[] },
-    cleanBaseline: boolean
-  ): Promise<void> {
-    const current = await this.backend.snapshot(record.projectId);
-    const remotePaths = new Set(remote.files.map(file => file.path));
-    const removedPaths = current.files.filter(file => !remotePaths.has(file.path)).map(file => file.path);
-    const snapshot = await this.backend.save(record.projectId, remote.files, current.revision, removedPaths);
-    if (cleanBaseline) {
-      const changed = await this.backend.status(record.projectId);
-      if (changed.entries.length) {
-        await this.backend.stage(
-          record.projectId,
-          changed.entries.map(entry => entry.path)
-        );
-        await this.backend.commit(record.projectId, `Pull ${remote.record.name}@${remote.record.branch}`);
-      }
-    }
-    await this.store.put(remote.record);
-    this.activeRecord.set(remote.record);
-    this.showCleanFiles.set(false);
-    this.repoValue.set(remote.record.owner && remote.record.repo ? `${remote.record.owner}/${remote.record.repo}` : '');
-    this.branchValue.set(remote.record.owner ? remote.record.branch : '');
-    this.applySnapshot(snapshot.files);
-    await this.refresh();
-    this.notice.set(`Pulled ${remote.record.name}`);
-  }
-
-  private async run(task: () => Promise<void>): Promise<void> {
+  private async run(task: () => Promise<void>, operation: GithubSyncOperation | null = null): Promise<void> {
     if (this.busy()) {
       const restore = this.restorePromise;
       if (restore) {
         await restore;
-        return this.run(task);
+        return this.run(task, operation);
       }
       return;
     }
     this.operation++;
     this.busy.set(true);
+    this.syncing.set(operation);
     this.fail(null);
     try {
       await task();
@@ -1961,6 +2086,7 @@ export class GithubApp {
       if (errorCodeOf(error) === 'storage_failed') this.backend.restart();
     } finally {
       this.zone.run(() => {
+        this.syncing.set(null);
         this.busy.set(false);
         void this.flushExternalRefresh();
         if (!this.destroyRef.destroyed) {

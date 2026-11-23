@@ -155,7 +155,7 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
       );
       if (command === 'fetch') {
         const remote = await workspace.fetch(id);
-        return `From ${remote.record.name}\n${remote.record.remoteHead}`;
+        return `From ${remote.name}\n${remote.head ?? `No remote branch ${remote.branch}`}`;
       }
       if (command === 'pull') {
         await workspace.pull(id);

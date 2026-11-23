@@ -100,6 +100,7 @@ const githubTarget = (
     openInEditor: vi.fn(),
     openInTerminal: vi.fn(),
     openLocalRepository: vi.fn((): void => undefined),
+    openSettings: vi.fn(),
     openRepositorySettings: vi.fn(),
     openBranchMenu: vi.fn((): void => undefined),
     focusChangesFilter: vi.fn((): void => undefined),
@@ -182,7 +183,8 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
 
   it('GitHub Desktop 应用菜单包含应用命令，未提供平台能力的项目明确置灰', () => {
     const { menus, wm } = setup();
-    const about = menus.githubApplication();
+    const target = githubTarget();
+    const about = sectionOf(menus.github(target), 'GitHub Desktop');
     expect(about.filter(isMenuCommand).map(item => item.label)).toEqual([
       'About GitHub Desktop',
       'Settings…',
@@ -205,7 +207,8 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
     click(about, 'o');
     click(about, 's');
     click(about, 'q');
-    expect(wm.open.mock.calls).toEqual([['about'], ['settings']]);
+    expect(target.openSettings).toHaveBeenCalledOnce();
+    expect(wm.open.mock.calls).toEqual([['about']]);
     expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
     expect(wm.hideOthers).toHaveBeenCalledTimes(1);
     expect(wm.showAll).toHaveBeenCalledTimes(1);
@@ -354,6 +357,7 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
   it('按 macOS 应用菜单顺序提供 File、Edit、View、Repository、Branch、Window、Help', () => {
     const { menus } = setup();
     expect(menus.github(githubTarget()).map(item => item.label)).toEqual([
+      'GitHub Desktop',
       'File',
       'Edit',
       'View',

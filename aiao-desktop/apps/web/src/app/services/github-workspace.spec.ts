@@ -53,7 +53,7 @@ const initial: GithubRepositoryRecord = {
 describe('桌面共享 Git 仓库', () => {
   const disk = new MemoryDiskStore();
   const changes = new Subject<unknown>();
-  const remote = { open: vi.fn(), pull: vi.fn(), push: vi.fn() };
+  const remote = { fetchHead: vi.fn(), open: vi.fn(), pull: vi.fn(), push: vi.fn() };
   const rows = new Map<string, GithubRepositoryRecord>();
   const store = {
     ready: async () => undefined,
@@ -187,8 +187,13 @@ describe('桌面共享 Git 仓库', () => {
       record: { ...configured, remoteHead: 'r1', remoteTree: 'tree' },
       files: [githubFile('b', 'remote')]
     });
+    remote.fetchHead.mockResolvedValue('r1');
     await workspace.fetch(id);
-    expect(rows.get(id)).toMatchObject({ fetched: { branch: 'main', head: 'r1' }, remoteHead: null });
+    expect(rows.get(id)).toMatchObject({
+      fetched: [{ branch: 'main', head: 'r1' }],
+      lastFetchedAt: expect.any(Number),
+      remoteHead: null
+    });
     remote.pull.mockResolvedValue(await remote.open());
     git.save.mockResolvedValue(snapshot);
     await workspace.call({ projectId: id, operation: 'pull' });
@@ -199,9 +204,9 @@ describe('桌面共享 Git 仓库', () => {
       expect.anything()
     );
     expect(rows.get(id)?.remoteHead).toBe('r1');
+    git.committed.mockResolvedValue(snapshot);
     await workspace.pull(id);
     expect(remote.pull).toHaveBeenCalledTimes(1);
-    git.committed.mockResolvedValue(snapshot);
     remote.push.mockResolvedValue({ head: 'r2', tree: 't2' });
     await workspace.push(id, 'publish');
     expect(rows.get(id)?.remoteHead).toBe('r2');
@@ -215,6 +220,74 @@ describe('桌面共享 Git 仓库', () => {
     );
     await workspace.configureRemote(id, null);
     expect(rows.get(id)?.owner).toBeNull();
+  });
+
+  it('Fetch 只更新当前分支的观察值，不改工作区或覆盖其他分支的观察值', async () => {
+    rows.set(id, {
+      ...initial,
+      owner: 'octo',
+      repo: 'repo',
+      remoteHead: 'main-1',
+      remoteTree: 'main-tree',
+      localHead: 'abc',
+      fetched: { branch: 'main', head: 'main-1' }
+    });
+    remote.fetchHead.mockResolvedValueOnce('main-2').mockResolvedValueOnce(null);
+    expect(await workspace.fetch(id)).toMatchObject({ head: 'main-2', changed: true });
+    expect(rows.get(id)).toMatchObject({ remoteHead: 'main-1', localHead: 'abc' });
+    git.status.mockResolvedValue({ branch: 'topic', head: 'topic-1', raw: '', entries: [] });
+    expect(await workspace.fetch(id)).toMatchObject({ branch: 'topic', head: null });
+    expect(rows.get(id)).toMatchObject({
+      fetched: [
+        { branch: 'main', head: 'main-2' },
+        { branch: 'topic', head: null }
+      ],
+      branchBases: [{ branch: 'main', head: 'main-1', tree: 'main-tree', localHead: 'abc' }]
+    });
+    expect(remote.open).not.toHaveBeenCalled();
+    expect(git.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['original', 'abc'],
+    ['local commit', null]
+  ])('为旧仓库用提交快照确定同步基线，不读取未提交文件 (%s)', async (text, localHead) => {
+    const old = { ...initial, owner: 'octo', repo: 'repo', remoteHead: 'r1', remoteTree: 't1' };
+    rows.set(id, old);
+    remote.fetchHead.mockResolvedValue('r1');
+    remote.open.mockResolvedValue({ record: old, files: snapshot.files });
+    git.committed.mockResolvedValue({ ...snapshot, files: [githubFile('a', text)] });
+    await workspace.fetch(id);
+    expect(rows.get(id)).toMatchObject({ localHead });
+    await workspace.fetch(id);
+    expect(remote.open).toHaveBeenCalledTimes(1);
+    expect(git.committed).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['remote', 'pull-commit'],
+    ['remote and local', 'abc']
+  ])('Pull 只在本地提交内容与远端一致时标记为已同步 (%s)', async (text, localHead) => {
+    const old = { ...initial, owner: 'octo', repo: 'repo', remoteHead: 'r1', remoteTree: 't1', localHead: 'abc' };
+    rows.set(id, old);
+    const remoteRecord = { ...old, remoteHead: 'r2', remoteTree: 't2' };
+    const merged = { ...snapshot, files: [githubFile('a', text)] };
+    remote.open.mockResolvedValue({ record: remoteRecord, files: [githubFile('a', 'remote')] });
+    remote.pull.mockResolvedValue({ record: remoteRecord, files: merged.files });
+    git.save.mockResolvedValue(merged);
+    git.commit.mockResolvedValue('pull-commit');
+    await workspace.pull(id);
+    expect(rows.get(id)).toMatchObject({ remoteHead: 'r2', localHead, fetched: [{ branch: 'main', head: 'r2' }] });
+
+    git.status.mockResolvedValue({ head: 'pull-commit', branch: 'main', raw: '', entries: [] });
+    git.committed.mockResolvedValue(merged);
+    remote.push.mockResolvedValue({ head: 'r3', tree: 't3' });
+    await workspace.push(id, 'sync');
+    expect(rows.get(id)).toMatchObject({
+      remoteHead: 'r3',
+      localHead: 'pull-commit',
+      fetched: [{ branch: 'main', head: 'r3' }]
+    });
   });
 
   it('读取实际 origin，拒绝过期草稿，不改动相同地址或在配置写入失败时留下新远端', async () => {

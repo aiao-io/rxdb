@@ -1,6 +1,6 @@
 import type { OrbitValue } from '@aiao/orbit';
 import { decodeBase64, encodeBase64, type DesktopWorkspaceRequest } from '@aiao/orbit/desktop';
-import { DestroyRef, Service, inject } from '@angular/core';
+import { DestroyRef, inject, Service } from '@angular/core';
 import { Subject } from 'rxjs';
 import { HOME, isRequiredDiskPath, isWithin, parentOf, samePath, toVmPath, type DiskPath } from '../disk/disk-path';
 import { runWorkspaceGit, type GithubTerminalRequest } from '../vm/workspace-git';
@@ -10,9 +10,12 @@ import { GitWorkbenchError } from './git/git-protocol';
 import { GithubConnection } from './github-connection';
 import { GithubGitBackend, type GitFile, type GitSnapshot } from './github-git-backend';
 import {
+  branchBaseOf,
+  fetchedBranchesOf,
   GithubRepositoryStore,
   parseGithubRemote,
   projectIdForPath,
+  type GithubRemoteOpen,
   type GithubRepositoryRecord
 } from './github-repository';
 import { bindVolumeRepository, gitfile } from './github-volume-binding';
@@ -77,16 +80,27 @@ function forBranch(record: GithubRepositoryRecord, branch: string): GithubReposi
   const branches = new Map(record.branchBases?.map(base => [base.branch, base]));
   const base = branches.get(branch);
   branches.delete(branch);
-  if (record.remoteHead && record.remoteTree)
-    branches.set(record.branch, { branch: record.branch, head: record.remoteHead, tree: record.remoteTree });
+  const previous = branchBaseOf(record, record.branch);
+  if (previous) branches.set(previous.branch, previous);
   return {
     ...record,
     branch,
+    localHead: base?.localHead,
     remoteHead: base?.head ?? null,
     remoteTree: base?.tree ?? null,
     remoteEntries: [],
     branchBases: [...branches.values()]
   };
+}
+
+function withFetchedHead(record: GithubRepositoryRecord, head: string | null) {
+  const { branch } = record;
+  return [...fetchedBranchesOf(record).filter(item => item.branch !== branch), { branch, head }];
+}
+
+function sameFiles(left: readonly GitFile[], right: readonly GitFile[]): boolean {
+  const { changed, removed } = worktreeDelta(left, right);
+  return changed.length === 0 && removed.length === 0;
 }
 
 /** 所有入口共用仓库锁和 Worker。卷内工作文件的读、Git 操作与增量发布持有同一把桌面磁盘锁。 */
@@ -315,6 +329,8 @@ export class GithubWorkspace {
       const next = {
         ...record,
         fetched: undefined,
+        lastFetchedAt: undefined,
+        localHead: undefined,
         branchBases: [],
         owner: address?.owner ?? null,
         repo: address?.repo ?? null,
@@ -339,44 +355,66 @@ export class GithubWorkspace {
   async fetch(id: string) {
     return this.lock(id, async () => {
       const record = await this.registered(id);
-      if (!record.owner || !record.repo) throw new Error('No GitHub remote is configured');
-      const { branch } = await this.git.status(id);
-      const remote = await this.connection.remote.open(record.owner, record.repo, branch);
+      const { owner, repo } = record;
+      if (!owner || !repo) throw new Error('No GitHub remote is configured');
+      const status = await this.git.status(id);
+      const { branch } = status;
+      const base = forBranch(record, branch);
+      let head = await this.connection.remote.fetchHead(owner, repo, branch);
+      let localHead = base.localHead;
+      if (localHead === undefined && status.head && head && head === base.remoteHead) {
+        const remote = await this.connection.remote.open(owner, repo, branch);
+        head = remote.record.remoteHead;
+        if (head === base.remoteHead) localHead = await this.matchLocalHead(id, status.head, remote.files);
+      }
+      const now = Date.now();
       await this.records.put({
-        ...record,
-        fetched: { branch, head: remote.record.remoteHead! },
-        updatedAt: Date.now()
+        ...base,
+        localHead,
+        fetched: withFetchedHead(base, head),
+        lastFetchedAt: now,
+        updatedAt: now
       });
       this.changes.next(id);
-      return remote;
+      return { name: `${owner}/${repo}`, branch, head, changed: head !== base.remoteHead };
     });
   }
 
-  async pull(id: string): Promise<GitSnapshot> {
+  async pull(id: string, knownRemote?: GithubRemoteOpen): Promise<GitSnapshot> {
     return this.lock(id, async () => {
       const record = await this.registered(id);
-      if (!record.owner || !record.repo) throw new Error('No GitHub remote is configured');
-      const branch = (await this.git.status(id)).branch;
-      const remote = await this.connection.remote.open(record.owner, record.repo, branch);
+      const { owner, repo } = record;
+      if (!owner || !repo) throw new Error('No GitHub remote is configured');
+      const status = await this.git.status(id);
+      const { branch } = status;
+      if (
+        knownRemote &&
+        (knownRemote.record.owner !== owner || knownRemote.record.repo !== repo || knownRemote.record.branch !== branch)
+      )
+        throw new Error('当前分支或远端已变化，请重试');
+      const remote = knownRemote ?? (await this.connection.remote.open(owner, repo, branch));
       const base = forBranch(record, branch);
       const current = await this.withWorktree(id, 'read', () => this.git.snapshot(id));
-      if (base.remoteHead === remote.record.remoteHead) {
-        if (base !== record) await this.records.put({ ...base, updatedAt: Date.now() });
-        return current;
+      const head = remote.record.remoteHead;
+      let localHead = base.localHead;
+      let snapshot = current;
+      if (head !== base.remoteHead) {
+        ({ snapshot, localHead } = await this.mergePull(id, base, current, remote));
+      } else if (localHead === undefined && status.head) {
+        localHead = await this.matchLocalHead(id, status.head, remote.files);
       }
-      const merged = await this.connection.remote.pull(base, current.files, true, remote);
-      const delta = worktreeDelta(current.files, merged.files);
-      const snapshot = await this.withWorktree(id, 'write', async () => {
-        const status = await this.git.status(id);
-        const saved = await this.git.save(id, delta.changed, current.revision, delta.removed);
-        const paths = [...delta.removed, ...delta.changed.map(file => file.path)];
-        if (!status.entries.length && paths.length) {
-          await this.git.stage(id, paths);
-          await this.git.commit(id, `Pull ${remote.record.name}@${branch}`);
-        }
-        return saved;
+      const now = Date.now();
+      await this.records.put({
+        ...base,
+        ...remote.record,
+        projectId: id,
+        name: record.name,
+        localHead,
+        fetched: withFetchedHead(base, head),
+        lastFetchedAt: now,
+        updatedAt: now
       });
-      await this.records.put({ ...base, ...remote.record, projectId: id, name: record.name });
+      this.changes.next(id);
       return snapshot;
     });
   }
@@ -386,15 +424,25 @@ export class GithubWorkspace {
       const record = await this.registered(id);
       const snapshot = await this.withWorktree(id, 'read', async () => {
         const status = await this.git.status(id);
-        return { ...(await this.git.committed(id)), branch: status.branch };
+        return { ...(await this.git.committed(id)), branch: status.branch, head: status.head };
       });
       const base = forBranch(record, snapshot.branch);
-      const result = await this.connection.remote.push(base, snapshot.files, message, record.remoteHead);
+      const observed = fetchedBranchesOf(base).find(item => item.branch === base.branch);
+      const target =
+        observed?.head === null ? { ...base, remoteHead: null, remoteTree: null, remoteEntries: [] } : base;
+      const result = await this.connection.remote.push(
+        target,
+        snapshot.files,
+        message,
+        base.remoteHead ?? record.remoteHead
+      );
       const next = {
         ...base,
+        localHead: snapshot.head,
         remoteHead: result.head,
         remoteTree: result.tree,
         remoteEntries: [],
+        fetched: withFetchedHead(base, result.head),
         updatedAt: Date.now()
       };
       await this.records.put(next);
@@ -417,6 +465,29 @@ export class GithubWorkspace {
     const result = await this.editorCommand(id, request);
     return wire(result);
   }
+
+  private async matchLocalHead(id: string, head: string, remoteFiles: readonly GitFile[]): Promise<string | null> {
+    return sameFiles((await this.git.committed(id)).files, remoteFiles) ? head : null;
+  }
+
+  private async mergePull(id: string, base: GithubRepositoryRecord, current: GitSnapshot, remote: GithubRemoteOpen) {
+    const merged = await this.connection.remote.pull(base, current.files, true, remote);
+    const { changed, removed } = worktreeDelta(current.files, merged.files);
+    const paths = [...removed, ...changed.map(file => file.path)];
+    return this.withWorktree(id, 'write', async () => {
+      const status = await this.git.status(id);
+      const snapshot = await this.git.save(id, changed, current.revision, removed);
+      if (status.entries.length) return { snapshot, localHead: base.localHead };
+      let head = status.head;
+      if (paths.length) {
+        await this.git.stage(id, paths);
+        head = await this.git.commit(id, `Pull ${remote.record.name}@${base.branch}`);
+      }
+      const localHead = sameFiles(merged.files, remote.files) ? head : (base.localHead ?? null);
+      return { snapshot, localHead };
+    });
+  }
+
   private async registerDirectory(root: DiskPath, snapshot: GitSnapshot) {
     const id = snapshot.projectId;
     const url = await this.git.origin(id);

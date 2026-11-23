@@ -87,8 +87,10 @@ describe('桌面终端 Git', () => {
     expect((await run('remote')).stdout).toBe('');
     await run('remote', 'add', 'origin', 'https://github.com/octo/demo.git');
     expect(workspace.configureRemote).toHaveBeenLastCalledWith('id', 'https://github.com/octo/demo.git');
-    workspace.fetch.mockResolvedValue({ record: { name: 'demo', remoteHead: 'abc' } });
+    workspace.fetch.mockResolvedValue({ name: 'demo', branch: 'main', head: 'abc' });
     expect((await run('fetch', 'origin')).stdout).toContain('abc');
+    workspace.fetch.mockResolvedValue({ name: 'demo', branch: 'main', head: null });
+    expect((await run('fetch', 'origin')).stdout).toContain('No remote branch main');
     await run('pull', 'origin', 'main');
     await run('push', 'origin');
     expect(workspace.push).toHaveBeenCalledWith('id', 'first');

@@ -89,6 +89,7 @@ const KEYS = [
   'a11y.github.fileMenuAction',
   'a11y.github.addLocalRepositoryDialog',
   'a11y.github.repositorySettingsDialog',
+  'a11y.github.syncOptions',
   'a11y.windows.dialogsNamedByTitle',
   'a11y.windows.backgroundHidden',
   'a11y.windows.menubarShowsFrontApp',
@@ -859,6 +860,49 @@ export const a11y = {
           settingsClosed && settingsFocusReturned ? [] : ['Esc 没有关闭 Repository Settings 并还回焦点'],
           settingsAxe.violations.map(item => `Repository Settings: ${item.id}`)
         );
+
+        const branchApi = 'https://api.github.com/repos/octo/keyboard-repo/branches/main';
+        await page.route(branchApi, route => {
+          const headers = {
+            'Access-Control-Allow-Origin': session.origin,
+            'Access-Control-Allow-Headers': 'accept, x-github-api-version',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS'
+          };
+          if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+          return route.fulfill({ headers, json: { commit: { sha: 'a'.repeat(40) } } });
+        });
+        try {
+          await focusDocumentStart(page);
+          await tabTo(info => is(info, 'menubar', 'Repository'));
+          await press('ArrowUp');
+          await focusReaches(page, info => is(info, 'popover', 'Repository Settings…'));
+          await press('Enter');
+          await url.fill('https://github.com/octo/keyboard-repo.git');
+          await press('Enter');
+          await disappears(settings, 5_000);
+
+          await focusDocumentStart(page);
+          await tabTo(info => is(info, 'window', 'Fetch origin'));
+          await press('Enter');
+          const pull = githubWindow.getByRole('button', { name: 'Pull origin', exact: true });
+          await pull.waitFor({ timeout: 5_000 });
+          await focusDocumentStart(page);
+          const reachedOptions = await tabTo(info => is(info, 'window', 'Sync options'));
+          const options = githubWindow.getByRole('button', { name: 'Sync options', exact: true });
+          await press('ArrowDown');
+          const syncMenu = page.getByRole('menu', { name: 'Sync options', exact: true });
+          const inMenu = await focusReaches(page, info => is(info, 'popover', 'Fetch origin'));
+          const expanded = (await options.getAttribute('aria-expanded')) === 'true';
+          await press('Escape');
+          const collapsed = await disappears(syncMenu, 5_000);
+          const returned = await focusReaches(page, info => is(info, 'window', 'Sync options'));
+          github.syncOptions = problems(
+            reachedOptions && expanded && inMenu ? [] : ['键盘无法打开同步菜单或聚焦 Fetch origin'],
+            collapsed && returned ? [] : ['Esc 没有关闭同步菜单并还回焦点']
+          );
+        } finally {
+          await page.unroute(branchApi);
+        }
       });
 
       /* 完整的纯键盘流程：关掉 Finder 窗口 → Dock 图标 Enter 重新打开 → 「前往」菜单选 Documents → ⌘W 关窗口。全程不碰鼠标。 */

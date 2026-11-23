@@ -22,6 +22,48 @@ const PRIVATE_TREE = 'd'.repeat(40);
 const bytes = value => Buffer.from(value);
 const expect = playwrightExpect.configure({ timeout: 20_000 });
 
+async function openAppSettings(page, view) {
+  await page.getByRole('menuitem', { name: 'GitHub Desktop', exact: true }).click();
+  await page.getByRole('menu', { name: 'GitHub Desktop', exact: true })
+    .getByRole('menuitem', { name: 'Settings…', exact: true }).click();
+  const settings = view.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(settings).toBeVisible();
+  return settings;
+}
+
+async function verifyAppearance(page, view) {
+  const app = view.locator('[data-github-app]');
+  const systemTheme = await page.locator('html').getAttribute('data-theme');
+  const chosenTheme = systemTheme === 'dark' ? 'light' : 'dark';
+  let settings = await openAppSettings(page, view);
+  await expect(settings.getByRole('button', { name: 'Sign Into GitHub.com' })).toBeFocused();
+  await settings.getByRole('tab', { name: 'Appearance' }).click();
+  await settings.getByRole('radio', { name: chosenTheme, exact: true }).check();
+  await settings.getByRole('combobox', { name: 'Diff Tab Size' }).selectOption('8');
+  await expect(app).toHaveAttribute('data-github-theme', chosenTheme);
+  await expect(app).toHaveCSS('--gh-diff-tab-size', '8');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', systemTheme);
+  await settings.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(app).toHaveAttribute('data-github-theme', systemTheme);
+  await expect(app).toHaveCSS('--gh-diff-tab-size', '4');
+
+  await page.keyboard.press('Meta+,');
+  await expect(settings).toBeVisible();
+  await settings.getByRole('tab', { name: 'Appearance' }).click();
+  await settings.getByRole('radio', { name: chosenTheme, exact: true }).check();
+  await settings.getByRole('combobox', { name: 'Diff Tab Size' }).selectOption('8');
+  await settings.getByRole('combobox', { name: 'Date Format' }).selectOption('yyyy-MM-dd');
+  await settings.getByRole('combobox', { name: 'Time Format' }).selectOption('HH:mm:ss');
+  await settings.getByRole('combobox', { name: 'Number Format' }).selectOption('.|,');
+  await settings.getByRole('checkbox', { name: 'Prefer absolute dates over relative' }).check();
+  await settings.getByRole('checkbox', { name: 'Always show worktree list' }).check();
+  await settings.getByRole('button', { name: 'Save' }).click();
+  await expect(settings).toHaveCount(0);
+  await expect(app).toHaveAttribute('data-github-theme', chosenTheme);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', systemTheme);
+  await expect(page.locator('[data-app="settings"].win')).toHaveCount(0);
+}
+
 function repositoryFixture({ privateRepository, head, tree }) {
   const files = new Map([
     ['README.md', bytes(`# ${privateRepository ? 'Private' : 'Public'} fixture\\n`)],
@@ -142,7 +184,7 @@ async function verifyToolbar(view) {
   expect(boxes[0].x).toBeLessThan(boxes[1].x);
   expect(boxes[1].x).toBeLessThan(boxes[2].x);
   expect(boxes[0].y).toBe(boxes[2].y);
-  const refresh = view.locator('[data-github-fetch-origin]');
+  const refresh = view.locator('[data-github-sync-action]');
   const [icon, label] = await Promise.all([
     refresh.locator('svg').boundingBox(),
     refresh.locator('small').boundingBox()
@@ -256,7 +298,7 @@ async function verifyRepositorySettings(session, view) {
   await input.fill(first);
   await input.press('Enter');
   await expect(dialog).toHaveCount(0);
-  await expect(view.locator('[data-github-fetch-origin]')).toContainText('Fetch origin');
+  await expect(view.locator('[data-github-sync-action]')).toContainText('Fetch origin');
 
   await open();
   await expect(input).toHaveValue(first);
@@ -272,7 +314,7 @@ async function verifyRepositorySettings(session, view) {
   await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
   const terminal = session.helpers.win('terminal').last();
   const output = terminalOutput(session);
-  expect(await output('git config --get remote.origin.url')).toBe(second);
+  expect(await output('git config remote.origin.url')).toBe(second);
   expect(await output('git remote -v')).toContain(second);
   await terminal.locator('.tl .c').click();
 
@@ -282,7 +324,7 @@ async function verifyRepositorySettings(session, view) {
   await expect(input).toHaveValue('');
   await save.click();
   await expect(dialog).toHaveCount(0);
-  await expect(view.locator('[data-github-fetch-origin]')).toContainText('Refresh status');
+  await expect(view.locator('[data-github-sync-action]')).toContainText('Refresh status');
   await open();
   await expect(input).toHaveValue('');
   await input.press('Escape');
@@ -393,7 +435,7 @@ async function droppedRepository(session, view) {
       const drag = folder => folder.dragTo(target, { targetPosition: { x: 80, y: 150 } });
       await drag(source);
       await expect(current).toHaveText('drop-fixture');
-      await expect(view.locator('[data-github-fetch-origin]')).toBeEnabled();
+      await expect(view.locator('[data-github-sync-action]')).toBeEnabled();
       await expect(openedNotice(view)).toHaveCount(0);
       await expect(dialog).toHaveCount(0);
       await openRepositoryMenu(view);
@@ -440,7 +482,7 @@ async function terminalRoundTrip(session) {
   expect(await runInShell(setup, /\[main [0-9a-f]+\] initial/)).toBe(true);
   const github = win('github');
   await expect(github.locator('[data-github-repository-name]')).toHaveText('Git Demo');
-  await expect(github.locator('[data-github-fetch-origin]')).toBeEnabled();
+  await expect(github.locator('[data-github-sync-action]')).toBeEnabled();
   await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
   await expect(win('terminal')).toHaveCount(2);
@@ -501,7 +543,7 @@ async function terminalRoundTrip(session) {
     expect(await runInShell('echo terminal-write > note.txt && git status --short', /M\s+note\.txt/)).toBe(true);
     await expect(changedFileCheckbox(github, 'note.txt')).toBeVisible();
     await activateGithub();
-    const refresh = github.locator('[data-github-fetch-origin]');
+    const refresh = github.locator('[data-github-sync-action]');
     await refresh.click();
     await expect(refresh).toBeEnabled();
     await expect(editor).toHaveValue('not yet saved\n');
@@ -524,6 +566,8 @@ export const githubApp = {
     'github.spotlightOpens',
     'github.applicationMenu',
     'github.applicationAppMenu',
+    'github.applicationSettingsAppearance',
+    'github.applicationSettingsAccounts',
     'github.repositoryMenu',
     'github.branchMenu',
     'github.menuActions',
@@ -544,12 +588,13 @@ export const githubApp = {
     'github.archiveRoundTrip',
     'github.droppedRepository',
     'github.publicRepositoryOpens',
+    'github.syncToolbar',
     'github.remotePullClean',
     'github.repositorySearch',
     'github.remoteBranchSelection',
     'github.privateRepositoryRequiresAuth',
     'github.oauthCancel',
-    'github.oauthPopupClose',
+    'github.oauthCancelFromSettings',
     'github.oauthSuccess',
     'github.oauthExchangeFailure',
     'github.patInvalid',
@@ -605,7 +650,7 @@ export const githubApp = {
           await fulfillJson(route, session.origin, { message: 'Bad credentials' }, 401);
           return;
         }
-        await fulfillJson(route, session.origin, { login: 'desktop-octo', avatar_url: null });
+        await fulfillJson(route, session.origin, { login: 'desktop-octo', name: 'Desktop Octo', avatar_url: null });
         return;
       }
       if (url.pathname === '/search/repositories' && method === 'GET') {
@@ -799,6 +844,7 @@ export const githubApp = {
       (await applicationMenu.getByRole('menuitem', { name: 'Services', exact: true }).getAttribute('aria-disabled')) ===
         'true';
     await page.keyboard.press('Escape');
+    await verifyAppearance(page, githubWindow);
 
     await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
     const repositoryMenu = page.getByRole('menu', { name: 'Repository', exact: true });
@@ -963,6 +1009,15 @@ export const githubApp = {
     await launch('GitHub Desktop');
     const restoredGithub = win('github');
     await restoredGithub.waitFor();
+    const restoredSettings = await openAppSettings(page, restoredGithub);
+    await restoredSettings.getByRole('tab', { name: 'Appearance' }).click();
+    for (const [name, value] of [
+      ['Diff Tab Size', '8'], ['Date Format', 'yyyy-MM-dd'], ['Time Format', 'HH:mm:ss'], ['Number Format', '.|,']
+    ]) await expect(restoredSettings.getByRole('combobox', { name })).toHaveValue(value);
+    await expect(restoredSettings.getByRole('checkbox', { name: 'Always show worktree list' })).toBeChecked();
+    await expect(restoredSettings.getByRole('checkbox', { name: 'Prefer absolute dates over relative' })).toBeChecked();
+    await restoredSettings.getByRole('button', { name: 'Cancel' }).click();
+    result.applicationSettingsAppearance = true;
     await openRepositoryMenu(restoredGithub);
     result.repositorySurvivesReload = await appears(restoredGithub.locator('[data-project-id^="local-"]'));
 
@@ -1004,7 +1059,24 @@ export const githubApp = {
     await expect(remoteGithub.locator('[data-file-path="src/main.ts"]')).toHaveCount(1);
     result.publicRepositoryOpens = true;
 
+    const sync = remoteGithub.locator('[data-github-sync-action]');
+    const syncOptions = remoteGithub.locator('[data-github-sync-options]');
+    const expectSync = async (action, label, hasOptions = false) => {
+      await expect(sync).toHaveAttribute('data-github-sync-action', action);
+      await expect(sync).toHaveAccessibleName(label);
+      await expect(sync).toBeEnabled();
+      await expect(syncOptions).toHaveCount(hasOptions ? 1 : 0);
+    };
+    const fetchOption = page
+      .getByRole('menu', { name: 'Sync options' })
+      .getByRole('menuitem', { name: 'Fetch origin' });
+    await expectSync('fetch', 'Fetch origin');
     const publicFixture = repositories.get(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
+    const originalMain = publicFixture.blobs.get('blob-main').toString('utf8');
+    const pulledFile = remoteGithub.locator('[data-file-path="src/main.ts"]');
+    await pulledFile.click();
+    await expect(remoteGithub.locator('[data-github-editor]')).toHaveValue(originalMain);
+
     const pulledMain = bytes('export const value = 2;\n');
     publicFixture.blobs.set('blob-main-pulled', pulledMain);
     publicFixture.entries.splice(
@@ -1016,14 +1088,26 @@ export const githubApp = {
     );
     publicFixture.head = 'f'.repeat(40);
     publicFixture.tree = 'pull-tree';
-    await remoteGithub.locator('[data-github-pull]').click();
+    await sync.click();
+    await expectSync('pull', 'Pull origin', true);
+    await expect(remoteGithub.locator('[data-github-editor]')).toHaveValue(originalMain);
+    await syncOptions.press('ArrowDown');
+    await expect(syncOptions).toHaveAttribute('aria-expanded', 'true');
+    await expect(fetchOption).toBeFocused();
+    await fetchOption.press('Escape');
+    await expect(syncOptions).toBeFocused();
+    await expect(syncOptions).toHaveAttribute('aria-expanded', 'false');
+    await syncOptions.click();
+    await fetchOption.click();
+    await expectSync('pull', 'Pull origin', true);
+    await sync.click();
     await remoteGithub
       .locator('[data-github-notice]')
       .filter({ hasText: `Pulled ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
       .waitFor();
+    await expectSync('fetch', 'Fetch origin');
     await showRepositoryFiles(remoteGithub);
     await expect(remoteGithub.locator('[data-github-push]')).toBeEnabled();
-    const pulledFile = remoteGithub.locator('[data-file-path="src/main.ts"]');
     await pulledFile.click();
     await expect(pulledFile).toHaveClass(/selected/);
     const pulledValue = await remoteGithub.locator('[data-github-editor]').inputValue();
@@ -1036,9 +1120,9 @@ export const githubApp = {
     result.privateRepositoryRequiresAuth =
       (await remoteGithub.locator('[data-github-error]').textContent())?.includes('仓库不存在') === true;
 
-    await openRepositoryMenu(remoteGithub, 'clone');
+    const accountSettings = await openAppSettings(page, remoteGithub);
     const startOAuth = async () => {
-      const button = remoteGithub.locator('[data-github-oauth-login]');
+      const button = accountSettings.getByRole('button', { name: 'Sign Into GitHub.com' });
       await expect(button).toBeEnabled();
       await button.focus();
       const [popup] = await Promise.all([context.waitForEvent('page'), button.press('Enter')]);
@@ -1047,23 +1131,38 @@ export const githubApp = {
     };
     const cancelled = await startOAuth();
     await cancelled.getByRole('link', { name: 'Deny' }).click();
-    await remoteGithub.locator('[data-github-error]').filter({ hasText: '已取消 GitHub 授权' }).waitFor();
-    result.oauthCancel = (await remoteGithub.locator('[data-github-account]').count()) === 0;
+    await expect(accountSettings.getByRole('alert')).toContainText('已取消 GitHub 授权');
+    result.oauthCancel = (await accountSettings.locator('[data-github-account]').count()) === 0;
 
     const closed = await startOAuth();
     await closed.close();
-    await remoteGithub.locator('[data-github-error]').filter({ hasText: '窗口已关闭' }).waitFor();
-    result.oauthPopupClose = true;
+    await accountSettings.getByRole('button', { name: 'Cancel Sign In' }).click();
+    await expect(accountSettings.getByRole('button', { name: 'Sign Into GitHub.com' })).toBeEnabled();
+    result.oauthCancelFromSettings = true;
 
-    const successPopupPromise = context.waitForEvent('page');
-    await remoteGithub.locator('[data-github-oauth-login]').click();
-    const successPopup = await successPopupPromise;
+    const successPopup = await startOAuth();
     await successPopup.getByRole('link', { name: 'Authorize' }).click();
+    await expect(accountSettings.locator('[data-github-account]')).toHaveText('@desktop-octo');
+    await expect(accountSettings.getByText('Desktop Octo', { exact: true })).toBeVisible();
+    await accountSettings.getByRole('button', { name: 'Save' }).click();
+    await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-account]').waitFor();
     result.oauthSuccess =
       (await remoteGithub.locator('[data-github-account]').textContent())?.trim() === 'desktop-octo';
 
-    await remoteGithub.getByRole('button', { name: 'Sign out' }).click();
+    await openAppSettings(page, remoteGithub);
+    await accountSettings.getByRole('button', { name: 'Sign Out' }).click();
+    await expect(accountSettings.getByRole('button', { name: 'Sign Into GitHub.com' })).toBeEnabled();
+    await accountSettings.getByRole('button', { name: 'Use a Token' }).click();
+    const settingsToken = accountSettings.getByLabel('Personal access token');
+    await settingsToken.fill(PAT_TOKEN);
+    await settingsToken.press('Enter');
+    await expect(accountSettings.locator('[data-github-account]')).toHaveText('@desktop-octo');
+    await accountSettings.getByRole('button', { name: 'Sign Out' }).click();
+    await expect(accountSettings.locator('[data-github-account]')).toHaveCount(0);
+    await accountSettings.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await openRepositoryMenu(remoteGithub, 'clone');
+    result.applicationSettingsAccounts = true;
     await remoteGithub.locator('[data-github-oauth-login]').waitFor();
     exchangeFailure = true;
     const failedExchangePromise = context.waitForEvent('page');
@@ -1093,11 +1192,14 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-editor]').fill('# remote change\n');
     await remoteGithub.locator('[data-github-save]').click();
     await remoteGithub.getByRole('status').filter({ hasText: 'Saved to OPFS' }).waitFor();
+    await expectSync('fetch', 'Fetch origin');
     await stageChangedFile(remoteGithub, 'README.md');
     await remoteGithub.locator('[data-github-commit-message]').fill('Remote fixture change');
     await remoteGithub.locator('[data-github-commit]').click();
-    await remoteGithub.locator('[data-github-push]').click();
+    await expectSync('push', 'Push origin', true);
+    await sync.click();
     await remoteGithub.locator('[data-github-notice]').filter({ hasText: 'Pushed' }).waitFor();
+    await expectSync('fetch', 'Fetch origin');
     const pushed = await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     expect(Buffer.from(pushed['README.md'], 'base64').toString('utf8')).toBe('# remote change\n');
     expect(Buffer.from(pushed['asset.bin'], 'base64')).toEqual(Buffer.from([0, 255, 1, 2]));
@@ -1107,6 +1209,27 @@ export const githubApp = {
     await remoteGithub.locator('[data-github-error]').filter({ hasText: '远端分支已变化' }).waitFor();
     result.remoteConflict = true;
     remoteConflict = false;
+
+    await remoteGithub.locator('[data-github-branch-menu]').click();
+    await remoteGithub.getByRole('button', { name: 'New Branch', exact: true }).click();
+    await remoteGithub.locator('[data-github-new-branch]').fill('toolbar-topic');
+    await remoteGithub.locator('[data-github-create-branch]').click();
+    await expect(remoteGithub.locator('[data-github-notice]')).toHaveText('Created branch toolbar-topic');
+    const branchSelect = remoteGithub.locator('[data-github-branch-select]');
+    await branchSelect.selectOption('toolbar-topic');
+    await expectSync('publish', 'Publish branch', true);
+    await syncOptions.click();
+    await fetchOption.click();
+    await expect(remoteGithub.locator('[data-github-notice]')).toHaveText('No remote branch toolbar-topic');
+    await expectSync('publish', 'Publish branch', true);
+    await sync.click();
+    await expect(remoteGithub.locator('[data-github-notice]')).toHaveText('Published branch toolbar-topic');
+    await expectSync('fetch', 'Fetch origin');
+    expect(await readRemoteFiles(session.page, `${PUBLIC_OWNER}/${PUBLIC_REPO}`, 'toolbar-topic')).toEqual(pushed);
+    await branchSelect.selectOption(MAIN_BRANCH);
+    await expect(remoteGithub.locator('[data-github-notice]')).toHaveText(`Switched to ${MAIN_BRANCH}`);
+    await expectSync('fetch', 'Fetch origin');
+    result.syncToolbar = true;
 
     apiOffline = true;
     await openRepositoryMenu(remoteGithub, 'clone');

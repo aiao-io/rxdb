@@ -384,7 +384,7 @@ export const aiaoCodeFiles = {
       await expect(repositoryDialog.getByRole('button', { name: 'Remove origin', exact: true })).toBeEnabled();
       await repositoryDialog.getByRole('button', { name: 'Close repository dialog' }).click();
       async function openInAiaoCode(target, win) {
-        await expect(win.locator('[data-github-fetch-origin]')).toBeEnabled();
+        await expect(win.locator('[data-github-sync-action]')).toBeEnabled();
         await target.getByRole('menuitem', { name: 'Repository', exact: true }).click();
         await target.getByRole('menuitem', { name: 'Open in Aiao Code', exact: true }).click();
       }

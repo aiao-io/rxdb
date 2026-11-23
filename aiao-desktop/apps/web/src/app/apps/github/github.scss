@@ -66,7 +66,7 @@
   border: 0;
 }
 
-:root[data-theme='dark'] .gh-app {
+.gh-app[data-github-theme='dark'] {
   --gd-bg: #1b1f24;
   --gd-panel: #22272e;
   --gd-fg: #e6edf3;
@@ -308,6 +308,10 @@
   max-width: 340px;
 }
 
+.gh-toolbar [hidden] {
+  display: none;
+}
+
 .gh-worktree-trigger {
   gap: 9px;
   padding-inline: 11px;
@@ -398,15 +402,39 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-.gh-fetch-button {
-  width: auto;
+.gh-sync-section {
+  display: flex;
   min-width: 180px;
   flex: 1 1 auto;
+}
+
+.gh-sync-button {
+  min-width: 0;
   gap: 8px;
 }
 
-.gh-fetch-button .gh-fetch-icon {
-  order: -1;
+.gh-sync-icon {
+  flex: none;
+}
+
+.gh-sync-options {
+  width: 32px;
+  flex: none;
+  justify-content: center;
+  padding: 0;
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gh-sync-spinning {
+    animation: gh-sync-spin 1.2s linear infinite;
+  }
+}
+
+@keyframes gh-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .gh-auth {
@@ -786,10 +814,214 @@
   min-width: 80px;
 }
 
-:root[data-theme='dark'] .gh-settings-section,
-:root[data-theme='dark'] .gh-settings-dialog .gd-btn-primary:not(:disabled) {
+.gh-app[data-github-theme='dark'] .gh-settings-section,
+.gh-app[data-github-theme='dark'] .gh-settings-dialog .gd-btn-primary:not(:disabled) {
   --gd-accent: #1f6feb;
   --gd-accent-hover: #1158c7;
+}
+
+.gh-app-settings {
+  container-type: inline-size;
+}
+
+.gh-app-settings .gh-settings-body {
+  grid-template-columns: minmax(105px, 25%) minmax(0, 1fr);
+  min-height: 365px;
+}
+
+.gh-preferences-tab {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.gh-preferences-tab:hover {
+  background: var(--gd-hover);
+}
+
+.gh-preferences-tab[aria-selected='true'] {
+  background: #1f6feb;
+  color: white;
+}
+
+.gh-preferences-panel h3,
+.gh-preferences-panel legend {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gh-preferences-panel h3:not(:first-child) {
+  margin-top: 16px;
+}
+
+.gh-preferences-panel p {
+  margin: 0 0 8px;
+}
+
+.gh-preferences-panel input:not([type='radio'], [type='checkbox']),
+.gh-preferences-panel select {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--gd-input-border);
+  border-radius: 4px;
+  background: var(--gd-input-bg);
+}
+
+.gh-preferences-account,
+.gh-preferences-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-preferences-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--gd-border);
+  border-radius: 50%;
+  background: var(--gd-hover);
+}
+
+.gh-preferences-avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.gh-preferences-identity {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gh-preferences-identity span,
+.gh-preferences-status {
+  color: var(--gd-muted);
+}
+
+.gh-preferences-panel :is(.gh-preferences-error, .gh-preferences-status),
+.gh-preferences-token {
+  margin-top: 8px;
+}
+
+.gh-preferences-token {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+}
+
+.gh-preferences-token label {
+  grid-column: 1 / -1;
+}
+
+.gh-preferences-error {
+  color: var(--gd-del-fg);
+}
+
+.gh-preferences-save-error {
+  margin: 0;
+  padding: 0 16px 8px;
+}
+
+.gh-preferences-themes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-preferences-theme {
+  overflow: hidden;
+  border: 1px solid var(--gd-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.gh-preferences-theme-selected {
+  border-color: var(--gd-accent);
+}
+
+.gh-preferences-swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  border-bottom: 1px solid var(--gd-border);
+  background: center / 100% 100% url('/github/theme-light.svg');
+}
+
+.gh-preferences-swatch[data-preview='dark'],
+.gh-preferences-swatch[data-preview='system']::after {
+  background-image: url('/github/theme-dark.svg');
+}
+
+.gh-preferences-swatch[data-preview='system']::after {
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  clip-path: inset(0 0 0 50%);
+  content: '';
+}
+
+.gh-preferences-theme-caption,
+.gh-preferences-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-preferences-theme-caption {
+  padding: 4px 6px;
+  text-transform: capitalize;
+}
+
+.gh-preferences-panel input:is([type='checkbox'], [type='radio']) {
+  appearance: auto;
+  accent-color: var(--gd-accent);
+}
+
+.gh-preferences-formats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-preferences-formats label,
+.gh-preferences-size {
+  display: grid;
+  gap: 4px;
+}
+
+.gh-preferences-size {
+  width: min(100%, 135px);
+}
+
+.gh-preferences-check {
+  margin-top: 8px;
+}
+
+@container (max-width: 435px) {
+  .gh-app-settings .gh-settings-body {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .gh-app-settings .gh-settings-sidebar {
+    display: flex;
+    border-right: 0;
+    border-bottom: 1px solid var(--gd-border);
+  }
 }
 
 .gh-local-repository-dialog .gh-menu-section {
@@ -816,7 +1048,7 @@
   background: var(--gd-hover);
 }
 
-:root[data-theme='dark'] .gh-local-repository-dialog .gd-btn-primary:not(:disabled) {
+.gh-app[data-github-theme='dark'] .gh-local-repository-dialog .gd-btn-primary:not(:disabled) {
   --gd-accent: #1f6feb;
   --gd-accent-hover: #1158c7;
 }
@@ -1538,6 +1770,7 @@
   padding: 3px 8px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  tab-size: var(--gh-diff-tab-size, 4);
 }
 
 .gh-diff-number,
@@ -2294,7 +2527,7 @@
     display: none;
   }
 
-  .gh-fetch-button {
+  .gh-sync-section {
     min-width: 118px;
   }
 }
@@ -2322,7 +2555,7 @@
     max-width: none;
   }
 
-  .gh-fetch-button {
+  .gh-sync-section {
     width: 50%;
     flex: 0 0 50%;
   }

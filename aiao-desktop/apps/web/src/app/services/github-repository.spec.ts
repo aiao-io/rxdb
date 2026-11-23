@@ -77,6 +77,26 @@ describe('GitHub repository parsing and remote workflow', () => {
     remote = new GithubRemoteRepository(api as unknown as GitHubApi);
   });
 
+  it('Fetch 只读分支 ref，分支不存在时区分可访问仓库与无权访问', async () => {
+    api.getBranchSha.mockResolvedValueOnce('latest');
+    await expect(remote.fetchHead('octo', 'repo', 'main')).resolves.toBe('latest');
+    expect(api.getCommit).not.toHaveBeenCalled();
+    expect(api.listBranches).not.toHaveBeenCalled();
+
+    const missing = new GitHubApiError('not_found', 'Not found');
+    api.getBranchSha.mockRejectedValue(missing);
+    api.listBranches.mockResolvedValueOnce([{ name: 'main', sha: 'latest' }]);
+    await expect(remote.fetchHead('octo', 'repo', 'topic')).resolves.toBeNull();
+    api.listBranches.mockResolvedValueOnce([{ name: 'topic', sha: 'newly-created' }]);
+    await expect(remote.fetchHead('octo', 'repo', 'topic')).resolves.toBe('newly-created');
+    api.listBranches.mockRejectedValueOnce(missing);
+    await expect(remote.fetchHead('octo', 'repo', 'topic')).rejects.toThrow('仓库不存在或无权访问');
+
+    api.getBranchSha.mockRejectedValueOnce(new GitHubApiError('network_failed', 'offline'));
+    await expect(remote.fetchHead('octo', 'repo', 'topic')).rejects.toThrow('无法连接 GitHub API');
+    expect(api.listBranches).toHaveBeenCalledTimes(3);
+  });
+
   it.each([
     ['octo/repo', { owner: 'octo', repo: 'repo' }],
     ['https://github.com/octo/repo.git', { owner: 'octo', repo: 'repo' }],

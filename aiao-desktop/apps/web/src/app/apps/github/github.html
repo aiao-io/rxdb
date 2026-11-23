@@ -1,8 +1,10 @@
 <div
   class="gd-workspace gh-app"
   [class.has-repository]="activeRecord()"
+  [attr.data-github-theme]="appTheme()"
+  [style.--gh-diff-tab-size]="diffTabSize()"
   [style.--gh-repository-width]="asideWidth() + 'px'"
-  [style.--gh-worktree-width]="worktreeWidth() + 'px'"
+  [style.--gh-worktree-width]="(showWorktree() ? worktreeWidth() : 0) + 'px'"
   (aiaoRepositoryDrop)="droppedDiskFolder($event)"
   (dragover)="foldersOver($event)"
   (drop)="dropFolders($event)"
@@ -259,6 +261,14 @@
                   >
                     Continue with GitHub
                   </button>
+                  @if (oauthAttempt()) {
+                    <button class="gd-btn-secondary" (click)="cancelOAuth()" tabindex="0" type="button">
+                      Cancel Sign In
+                    </button>
+                  }
+                }
+                @if (authError(); as failure) {
+                  <p class="gh-preferences-error" data-github-error role="alert">{{ failure }}</p>
                 }
               </section>
             } @else {
@@ -294,7 +304,7 @@
       type="button"
     ></button>
 
-    <div class="gd-toolbar-section gh-worktree-section" [style.width.px]="worktreeWidth()">
+    <div class="gd-toolbar-section gh-worktree-section" [hidden]="!showWorktree()" [style.width.px]="worktreeWidth()">
       <button
         class="gd-toolbar-select gh-worktree-trigger"
         [attr.aria-expanded]="worktreeMenuOpen()"
@@ -360,6 +370,7 @@
 
     <button
       class="gd-toolbar-handle gh-toolbar-handle"
+      [hidden]="!showWorktree()"
       (pointerdown)="startToolbarResize($event, 'worktree')"
       aria-label="Resize worktree toolbar"
       data-github-toolbar-resizer="worktree"
@@ -482,19 +493,43 @@
       type="button"
     ></button>
 
-    <button
-      class="gd-toolbar-refresh gd-toolbar-section gh-fetch-button"
-      [disabled]="busy() || !activeRecord()"
-      (click)="fetchOrigin()"
-      data-github-fetch-origin
-      type="button"
-    >
-      <svg class="gh-fetch-icon" [lucideIcon]="RefreshCw" aria-hidden="true" size="16"></svg>
-      <span class="gh-toolbar-copy">
-        <small>{{ activeRecord()?.owner ? 'Fetch origin' : 'Refresh status' }}</small>
-        <strong>{{ lastFetchedLabel() }}</strong>
-      </span>
-    </button>
+    <div class="gh-toolbar-section gh-sync-section">
+      <button
+        class="gd-toolbar-refresh gh-sync-button"
+        [attr.aria-label]="syncTitle()"
+        [attr.data-github-sync-action]="syncAction()"
+        [disabled]="busy() || !activeRecord() || !status() || syncAction() === 'detached'"
+        (click)="runSyncAction()"
+        type="button"
+      >
+        <svg
+          class="gh-sync-icon"
+          [class.gh-sync-spinning]="syncing() !== null"
+          [lucideIcon]="syncIcon()"
+          aria-hidden="true"
+          size="16"
+        ></svg>
+        <span class="gh-toolbar-copy">
+          <small>{{ syncTitle() }}</small>
+          <strong>{{ syncSubtitle() }}</strong>
+        </span>
+      </button>
+      @if (syncHasOptions()) {
+        <button
+          class="gd-toolbar-select gh-sync-options"
+          [attr.aria-expanded]="syncMenuOpen()"
+          [disabled]="busy()"
+          (click)="openSyncMenu($event)"
+          (keydown.arrowdown)="openSyncMenu($event)"
+          aria-haspopup="menu"
+          aria-label="Sync options"
+          data-github-sync-options
+          type="button"
+        >
+          <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+        </button>
+      }
+    </div>
   </div>
 
   @if (activeRecord(); as record) {
@@ -597,7 +632,7 @@
             <div class="gh-list-header">
               <label class="gh-check-all">
                 <input [checked]="true" disabled type="checkbox" />
-                <span>{{ filteredEntries().length }} changed files</span>
+                <span>{{ numberText(filteredEntries().length) }} changed files</span>
               </label>
             </div>
             <div class="gh-file-list" aria-label="Working files">
@@ -762,7 +797,7 @@
                   type="button"
                 >
                   Ahead
-                  <span>{{ result.ahead }}</span>
+                  <span>{{ numberText(result.ahead) }}</span>
                 </button>
                 <button
                   [attr.aria-pressed]="compareDirection() === 'behind'"
@@ -770,7 +805,7 @@
                   type="button"
                 >
                   Behind
-                  <span>{{ result.behind }}</span>
+                  <span>{{ numberText(result.behind) }}</span>
                 </button>
               </div>
             }
@@ -909,8 +944,8 @@
                   </div>
                   @if (currentDiff.base.binary || currentDiff.modified.binary) {
                     <div class="gh-binary">
-                      Binary file · byte counts {{ currentDiff.base.byteLength }} →
-                      {{ currentDiff.modified.byteLength }}
+                      Binary file · byte counts {{ numberText(currentDiff.base.byteLength) }} →
+                      {{ numberText(currentDiff.modified.byteLength) }}
                     </div>
                   } @else {
                     <div class="gh-diff-lines" aria-label="File diff">
@@ -963,7 +998,7 @@
                   <div class="gh-editor-head">
                     <div>
                       <strong>{{ file.path }}</strong>
-                      <span>{{ file.bytes.length }} bytes</span>
+                      <span>{{ numberText(file.bytes.length) }} bytes</span>
                     </div>
                     <div class="gh-editor-actions">
                       <button
@@ -1050,7 +1085,7 @@
               <div class="gh-history-content">
                 <section class="gh-history-files" aria-label="Commit files">
                   <div class="gh-history-files-header">
-                    {{ historyChanges().length }} changed {{ historyChanges().length === 1 ? 'file' : 'files' }}
+                    {{ numberText(historyChanges().length) }} changed {{ historyChanges().length === 1 ? 'file' : 'files' }}
                   </div>
                   <div class="gh-history-file-list">
                     @for (change of historyChanges(); track change.path) {
@@ -1131,8 +1166,8 @@
                     </div>
                     @if (currentHistoryDiff.base.binary || currentHistoryDiff.modified.binary) {
                       <div class="gh-binary">
-                        Binary file · byte counts {{ currentHistoryDiff.base.byteLength }} →
-                        {{ currentHistoryDiff.modified.byteLength }}
+                        Binary file · byte counts {{ numberText(currentHistoryDiff.base.byteLength) }} →
+                        {{ numberText(currentHistoryDiff.modified.byteLength) }}
                       </div>
                     } @else {
                       <div class="gh-diff-lines" aria-label="Commit file diff">
@@ -1307,6 +1342,25 @@
   }
   @if (notice(); as message) {
     <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
+  }
+  @if (settingsDraft(); as draft) {
+    <app-github-settings
+      [account]="session()"
+      [appearance]="draft"
+      [authBusy]="authBusy()"
+      [authError]="authError()"
+      [idPrefix]="settingsId"
+      [oauthPending]="oauthAttempt() !== null"
+      [saveError]="settingsError()"
+      [saving]="settingsSaving()"
+      (appearanceChange)="settingsDraft.set($event)"
+      (cancel)="cancelSettings()"
+      (cancelSignIn)="cancelOAuth()"
+      (save)="saveSettings()"
+      (signIn)="loginWithOAuth()"
+      (signInWithToken)="loginWithPat($event)"
+      (signOut)="logout()"
+    />
   }
   @if (repositorySettings(); as settings) {
     <div class="gh-modal-layer" data-nodrag>
