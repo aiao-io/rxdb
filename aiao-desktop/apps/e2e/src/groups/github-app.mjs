@@ -167,6 +167,10 @@ async function verifyToolbar(view) {
   }
 }
 
+function openedNotice(view) {
+  return view.locator('[data-github-notice]').filter({ hasText: /^Opened / });
+}
+
 async function showRepositoryFiles(view) {
   const button = view.getByRole('button', {
     name: 'Open in Aiao Code',
@@ -175,6 +179,7 @@ async function showRepositoryFiles(view) {
   if ((await button.count()) > 0) {
     await button.click();
     await view.locator('[data-file-path]').first().waitFor();
+    await expect(openedNotice(view)).toHaveCount(0);
     const windowLayer = view.locator('xpath=..');
     const externalWindow = windowLayer.locator('.win[data-app="vscode"]:not(.closing)').last();
     const closeButton = externalWindow.locator('.tl .c');
@@ -330,7 +335,9 @@ async function droppedRepository(session, view) {
       const target = view.locator('[data-github-app]');
       const drag = folder => folder.dragTo(target, { targetPosition: { x: 80, y: 150 } });
       await drag(source);
-      await expect(view.locator('[data-github-notice]')).toHaveText('Opened drop-fixture');
+      await expect(current).toHaveText('drop-fixture');
+      await expect(view.locator('[data-github-fetch-origin]')).toBeEnabled();
+      await expect(openedNotice(view)).toHaveCount(0);
       await expect(dialog).toHaveCount(0);
       await openRepositoryMenu(view);
       await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
@@ -340,6 +347,7 @@ async function droppedRepository(session, view) {
       await path.press('Enter');
       await expect(view.locator('[data-github-repository-dialog]')).toHaveCount(0);
       await expect(view.locator('[data-github-branch-select]')).toHaveValue('topic');
+      await expect(openedNotice(view)).toHaveCount(0);
 
       const candidate = finder.locator('[data-name="finder-candidate"]');
       await drag(candidate);
@@ -779,6 +787,10 @@ export const githubApp = {
     await expect(githubWindow.locator('[data-github-repository-dialog]')).toHaveCount(0);
     await verifyToolbar(githubWindow);
     result.toolbarLayout = true;
+    await githubWindow.getByRole('button', { name: 'Show in Finder', exact: true }).click();
+    await expect(finder.locator('[data-name="README.md"]')).toBeVisible();
+    await expect(openedNotice(githubWindow)).toHaveCount(0);
+    await finder.locator('.tl .c').click();
     await showRepositoryFiles(githubWindow);
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
@@ -1014,10 +1026,8 @@ export const githubApp = {
     await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
-    await remoteGithub
-      .locator('[data-github-notice]')
-      .filter({ hasText: `Opened ${PUBLIC_OWNER}/${PUBLIC_REPO}` })
-      .waitFor();
+    await expect(remoteGithub.locator('[data-github-fetch-origin]')).toBeEnabled();
+    await expect(openedNotice(remoteGithub)).toHaveCount(0);
     await showRepositoryFiles(remoteGithub);
     await remoteGithub.locator('[data-file-path="README.md"]').click();
     await remoteGithub.locator('[data-github-editor]').fill('# remote change\n');
