@@ -199,6 +199,17 @@ describe('开窗参数的可序列化部分', () => {
     expect(restoreOptionsOf({})).toEqual({});
   });
 
+  it('Aiao Code 布局保留项目标识和目录绑定，不会恢复成未指定项目的窗口', () => {
+    const options = {
+      projectId: 'folder-example',
+      workspacePath: ['Users', 'stevejobs', 'Desktop', 'example'],
+      workspaceName: 'example'
+    };
+    const snapshot = stored(record({ appId: 'vscode', name: 'Aiao Code', options: restoreOptionsOf(options) }));
+    const [saved] = parseLayout(JSON.parse(JSON.stringify(snapshot)), DESKTOP_APP_MANIFESTS).windows;
+    expect(resolveOpenOptions(saved.options, () => null)).toEqual(options);
+  });
+
   it('恢复开窗参数：没有节点路径时原样；有就按路径取回节点，文件已经不在了返回 null', () => {
     const options: RestoreOptions = { file: 'a.txt', nodePath: ['Users', 'a.txt'] };
     const found = node(['Users', 'a.txt']);

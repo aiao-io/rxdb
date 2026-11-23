@@ -130,6 +130,11 @@ export class RemoteAppSession {
     this.current = context;
     const capabilities = context.capabilities;
     this.restrictions.set(context.restrictions);
+    const { projectId, workspaceName, workspacePath } = win.options;
+    if (projectId && !capabilities.includes('workspace')) {
+      this.fail(instanceId, new OrbitError('APP_ERROR', '此窗口没有打开指定工作区的权限。'));
+      return;
+    }
     const githubOAuth = supportsGitHubOAuth(app);
     // 联网时只绕过工作台入口的 Service Worker 缓存，避免旧外壳在 iframe 内尝试授权。
     const onlineEntry = githubOAuth && navigator.onLine ? new URL(app.web.url) : undefined;
@@ -145,8 +150,12 @@ export class RemoteAppSession {
       props: {
         ...this.windowProps(context, capabilities),
         ...desktopProps(capabilities),
-        ...(capabilities.includes('workspace') && win.options?.projectId ?
-          { [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: win.options.projectId }
+        ...(projectId ?
+          {
+            [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: projectId,
+            ...(workspaceName ? { workspaceName } : {}),
+            ...(workspacePath ? { workspaceKind: 'folder' } : {})
+          }
         : {}),
         ...(githubOAuth ? { 'aiao-code.github-oauth-origin': location.origin } : {})
       }
@@ -167,6 +176,10 @@ export class RemoteAppSession {
       return;
     }
     if (this.stale(instanceId)) return;
+    if (projectId && !context.hasOpenedWorkspace()) {
+      this.fail(instanceId, new OrbitError('APP_ERROR', '未打开终端指定的工作区。请更新 Aiao Code 后重试。'));
+      return;
+    }
     binding.instance?.subscribe(snapshot => {
       if (snapshot.state === 'failed') this.fail(instanceId, new OrbitError('NAVIGATION', snapshot.url));
     });

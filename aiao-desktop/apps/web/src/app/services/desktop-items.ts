@@ -4,7 +4,7 @@ import { filter } from 'rxjs';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { Preferences } from '../data/preferences';
-import { DESKTOP, DiskPath, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
+import { DESKTOP, DiskPath, TRASH, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
 import { FileOpener } from './file-opener';
 import { FileSystem, describeDiskError } from './file-system';
@@ -81,6 +81,7 @@ export class DesktopItems {
   private readonly clipboard = inject(FinderClipboard);
   private readonly errors = inject(ErrorHandler);
   private readonly entries = computed(() => visibleChildren(this.fs.nodeAt(DESKTOP)));
+  private readonly trashIds = computed(() => new Set(this.fs.nodeAt(TRASH)?.children?.map(entry => entry.id)));
   private readonly cells = linkedSignal<readonly FsNode[], ReadonlyMap<string, DesktopCell>>({
     source: this.entries,
     computation: (entries, previous) =>
@@ -112,6 +113,7 @@ export class DesktopItems {
 
   /** 新建的文件夹被选中，由桌面组件读取后高亮。 */
   readonly created = signal<string | null>(null);
+  readonly canUndoTrash = this.fs.canUndoTrash;
 
   constructor() {
     this.preferences.ready.then(
@@ -168,20 +170,32 @@ export class DesktopItems {
     );
   }
 
-  /** 把图标对应的条目移进废纸篓；Macintosh HD 不能移走。失败时提示原因并返回 `false`。 */
-  async remove(id: string): Promise<boolean> {
-    const node = this.items().find(item => item.id === id)?.node;
-    if (id === DRIVE_ID || !node?.path) {
+  /** 一次把选中的图标移进废纸篓；Macintosh HD 不能移走。 */
+  async remove(ids: readonly string[]): Promise<boolean> {
+    const selected = new Set(ids);
+    const paths = this.items().flatMap(item =>
+      selected.has(item.id) && item.node?.path?.length ? [item.node.path] : []
+    );
+    if (!paths.length) {
       this.toast.show('“Macintosh HD” can’t be moved to the Trash.');
       return false;
     }
     try {
-      await this.fs.moveToTrash(node.path);
+      await this.fs.moveToTrashBatch(paths);
       return true;
     } catch (error) {
       this.toast.show(describeDiskError(error));
       return false;
     }
+  }
+
+  isTrashed(item: DesktopItem): boolean {
+    const id = item.node?.id;
+    return id !== undefined && this.trashIds().has(id);
+  }
+
+  undoTrash(): void {
+    void this.fs.undoTrash().catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 
   /** 用偏好里存着的位置覆盖当前的位置（启动时，以及别的标签页拖动图标之后）。 */

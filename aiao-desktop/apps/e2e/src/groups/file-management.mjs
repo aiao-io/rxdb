@@ -15,6 +15,8 @@ export const fileManagement = {
   keys: [
     'fileManagement.dropsOnDesktop',
     'fileManagement.desktopMoveToTrash',
+    'fileManagement.desktopTrashAnimatesOnce',
+    'fileManagement.desktopUndoMoveToTrash',
     'fileManagement.desktopFileDragToTrash',
     'fileManagement.desktopFolderDrag',
     'fileManagement.desktopFileDragToFinderFolder',
@@ -117,12 +119,41 @@ export const fileManagement = {
     };
     const trashDockIcon = page.locator('#dock .di[data-app="trash"]');
     await desktop.drop({ files: payload('from-desktop.txt', Buffer.from(text)) }, { timeout: 5_000 });
-    await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toBeVisible();
+    const desktopFile = desktop.locator('[data-id="file:from-desktop.txt"]');
+    await expect(desktopFile).toBeVisible();
     result.dropsOnDesktop = (await diskText(session, 'from-desktop.txt')) === text;
-    await desktop.locator('[data-id="file:from-desktop.txt"]').click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Move to Trash', exact: true }).click();
-    await expect(desktop.locator('[data-id="file:from-desktop.txt"]')).toHaveCount(0);
+    const trashDesktopFile = async () => {
+      await desktopFile.click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Move to Trash', exact: true }).click();
+      await expect(desktopFile).toHaveCount(0);
+    };
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const exitTrace = await desktopFile.evaluateHandle(icon => {
+      const fades = new Set();
+      let minOpacity = 1;
+      let flashed = false;
+      const sample = () => {
+        if (!icon.isConnected) return;
+        const opacity = Number(getComputedStyle(icon).opacity);
+        flashed ||= opacity > minOpacity + 0.01;
+        minOpacity = Math.min(minOpacity, opacity);
+        for (const animation of icon.getAnimations()) {
+          if (animation.effect?.getKeyframes().some(frame => frame.opacity !== undefined)) fades.add(animation);
+        }
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+      return () => ({ fades: fades.size, flashed });
+    });
+    await trashDesktopFile();
     result.desktopMoveToTrash = true;
+    const { fades, flashed } = await exitTrace.evaluate(read => read());
+    result.desktopTrashAnimatesOnce = fades === 1 && !flashed;
+    await exitTrace.dispose();
+    await page.keyboard.press('Meta+z');
+    await expect(desktopFile).toBeVisible();
+    result.desktopUndoMoveToTrash = (await diskText(session, 'from-desktop.txt')) === text;
+    await trashDesktopFile();
     await desktop.drop({ files: payload('drag-trash.txt', Buffer.from(text)) });
     await expect(desktop.locator('[data-id="file:drag-trash.txt"]')).toBeVisible();
     await desktop.drop(

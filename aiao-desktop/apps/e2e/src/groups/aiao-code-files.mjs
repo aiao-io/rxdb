@@ -38,7 +38,7 @@ async function diskBytes(session, name, digest = false) {
 
 export const aiaoCodeFiles = {
   name: 'aiao-code-files',
-  description: '桌面与 Aiao Code 真实构建：目录输入、显式文件/项目复制、取消、权限和嵌入登录边界',
+  description: '桌面与 Aiao Code 真实构建：code . 原位编辑、文件/项目复制、权限和嵌入登录边界',
   keys: [
     'aiaoCodeFiles.realBuildAndIsolation',
     'aiaoCodeFiles.folderCopy',
@@ -49,6 +49,7 @@ export const aiaoCodeFiles = {
     'aiaoCodeFiles.embeddedLoginBoundary',
     'aiaoCodeFiles.standaloneFlowsPreserved',
     'aiaoCodeFiles.closeCancelsPanel',
+    'aiaoCodeFiles.terminalFolderRoundTrip',
     'aiaoCodeFiles.terminalRepositoryRoundTrip',
     'aiaoCodeFiles.deniedCapabilitiesVisible'
   ],
@@ -326,6 +327,43 @@ export const aiaoCodeFiles = {
       await helpers.closeAll();
       await helpers.openTerminal();
       const shell = helpers.runInShell;
+      const sharedWindow = helpers.win('vscode');
+      async function sharedEditor(win, name, file) {
+        await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({ timeout: 90_000 });
+        const code = await (await win.locator('iframe').elementHandle()).contentFrame();
+        if (!code) throw new Error('Actual Aiao Code frame missing');
+        await code.waitForFunction(() => window.ready && window.workbench);
+        await code.evaluate(() => window.workbench.ready);
+        await expect(code.locator('[data-slot="workspace-label"]')).toHaveText(name);
+        expect(await code.evaluate(path => Object.hasOwn(window.workbench.session.state.files, path), file)).toBe(true);
+        return code;
+      }
+      await shell(
+        'mkdir -p "$HOME/Desktop/plain folder" && cd "$HOME/Desktop/plain folder" && echo before > plain.txt && code .'
+      );
+      const plain = await sharedEditor(sharedWindow, 'plain folder', 'plain.txt');
+      expect(await plain.evaluate(() => window.workbench.session.state.projectId)).not.toBe(originalId);
+      expect(await plain.evaluate(() => Object.keys(window.workbench.session.state.files))).toEqual(['plain.txt']);
+      await plain.locator('[data-tree-path="plain.txt"]').dblclick();
+      await plain.getByRole('textbox', { name: '项目源码' }).fill('saved-in-place');
+      await plain.locator('[data-action="title-menu"]').click();
+      await expect(plain.locator('[data-menu-id="open-recent"]')).toBeDisabled();
+      await plain.locator('[data-menu-id="save"]').click();
+      await expect.poll(() => diskText(session, 'plain.txt')).toBe('saved-in-place');
+      expect(await shell('cat plain.txt', /saved-in-place/)).toBe(true);
+      expect(await diskCount(session, '.git')).toBe(0);
+      await plain.locator('[data-window-action="close"]').dispatchEvent('click');
+      await expect(sharedWindow).toHaveCount(0);
+      expect(await shell('code plain.txt', /Not a directory:/)).toBe(true);
+      await expect(sharedWindow).toHaveCount(0);
+      await shell('code .');
+      const plainReopened = await sharedEditor(sharedWindow, 'plain folder', 'plain.txt');
+      expect(await plainReopened.evaluate(() => window.workbench.session.getSavedSnapshot().files['plain.txt'])).toBe(
+        'saved-in-place'
+      );
+      await plainReopened.locator('[data-window-action="close"]').dispatchEvent('click');
+      await expect(sharedWindow).toHaveCount(0);
+      result.terminalFolderRoundTrip = true;
       expect(
         await shell('mkdir -p ~/Desktop/bridge && cd ~/Desktop/bridge && git init', /Initialized empty Git repository/)
       ).toBe(true);
@@ -350,15 +388,10 @@ export const aiaoCodeFiles = {
         await target.getByRole('menuitem', { name: 'Repository', exact: true }).click();
         await target.getByRole('menuitem', { name: 'Open in Aiao Code', exact: true }).click();
       }
-      await openInAiaoCode(page, github);
-      const sharedWindow = helpers.win('vscode');
-      async function sharedEditor(target, win) {
-        await expect(win.locator('[data-webapp-state="ready"]')).toBeVisible({ timeout: 90000 });
-        const code = target.frames().find(candidate => URL.parse(candidate.url())?.origin === APP_ORIGIN);
-        await code.waitForFunction(() => window.workbench?.session.state.files['note.txt'] !== undefined);
-        return code;
-      }
-      const editor = await sharedEditor(page, sharedWindow);
+      await shell('code .');
+      const editor = await sharedEditor(sharedWindow, 'bridge', 'note.txt');
+      const repositoryId = await editor.evaluate(() => window.workbench.session.state.projectId);
+      expect(repositoryId).not.toBe(originalId);
       const rejected = await editor.evaluate(async () => {
         const { backend, state } = window.workbench.session;
         const denials = await Promise.allSettled([
@@ -374,7 +407,8 @@ export const aiaoCodeFiles = {
       const otherGithub = other.helpers.win('github').last();
       await expect(otherGithub.locator('[data-github-repository-name]')).toHaveText('bridge');
       await openInAiaoCode(other.page, otherGithub);
-      const second = await sharedEditor(other.page, other.helpers.win('vscode').last());
+      const second = await sharedEditor(other.helpers.win('vscode').last(), 'bridge', 'note.txt');
+      expect(await second.evaluate(() => window.workbench.session.state.projectId)).toBe(repositoryId);
       expect(await second.evaluate(() => window.workbench.session.state.files['note.txt'])).toBe('shell-original\n');
       await editor.evaluate(async () => {
         const session = window.workbench.session;
@@ -410,13 +444,14 @@ export const aiaoCodeFiles = {
       await expect(sharedWindow).toHaveCount(0);
       await expect(github.locator('[data-file-path="note.txt"]')).toBeVisible();
       expect(await shell('cat note.txt', /edited-in-aiao-code/)).toBe(true);
+      expect(await shell('git diff', /\+edited-in-aiao-code/)).toBe(true);
       expect(await shell('git remote -v', /octo\/bridge\.git \(push\)/)).toBe(true);
       expect(await diskBytes(session, 'large.bin', true)).toBe(
         createHash('sha256').update(Buffer.alloc(1100000, 255)).digest('hex')
       );
-      await shell('open -a "Aiao Code" .');
-      const reopened = await sharedEditor(page, sharedWindow);
-      expect(await reopened.evaluate(() => window.workbench.session.state.files['note.txt'])).toBe(
+      await shell('code .');
+      const reopened = await sharedEditor(sharedWindow, 'bridge', 'note.txt');
+      expect(await reopened.evaluate(() => window.workbench.session.getSavedSnapshot().files['note.txt'])).toBe(
         'edited-in-aiao-code'
       );
       await reopened.locator('[data-window-action="close"]').dispatchEvent('click');

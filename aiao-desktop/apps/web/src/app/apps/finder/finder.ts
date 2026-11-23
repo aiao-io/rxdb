@@ -1002,11 +1002,8 @@ export class FinderApp implements FinderCommands {
   private trashNodes(nodes: readonly FsNode[]): void {
     if (this.isTrash() || !nodes.length) return;
     this.setSelection([]);
-    void nodes
-      .reduce(
-        (task, node) => task.then(() => (node.path ? this.fs.moveToTrash(node.path) : undefined)),
-        Promise.resolve()
-      )
+    void this.fs
+      .moveToTrashBatch(nodes.flatMap(node => (node.path ? [node.path] : [])))
       .catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 

@@ -4,6 +4,8 @@ import { DiskStore } from './disk-store';
 
 /** 磁盘上的一个条目，Finder、桌面与聚焦搜索都读它。整棵树不可变，磁盘一变就重新组装。 */
 export interface FsNode {
+  /** 真实磁盘条目的行 ID；卷根与 Finder 虚拟条目没有此值。 */
+  readonly id?: string;
   readonly name: string;
   /** 卷内路径；Finder 自己生成的虚拟条目（iCloud Drive、网络）为 `null`。 */
   readonly path: DiskPath | null;
@@ -89,6 +91,7 @@ class TreeBuilder {
     const date = newest([row.modified, ...children.map(child => child.date)]) ?? this.emptyDate;
     if (isPackageName(row.name)) return this.package(row, path, children, date);
     return {
+      id: row.id,
       name: row.name,
       path,
       kind: 'folder',
@@ -103,6 +106,7 @@ class TreeBuilder {
   private file(row: FileRow, path: DiskPath): FsNode {
     const { kind, icon } = fileKind(row.name);
     return {
+      id: row.id,
       name: row.name,
       path,
       kind: 'file',
@@ -124,6 +128,7 @@ class TreeBuilder {
       .reduce((sum, node) => sum + (node.bytes ?? 0), 0);
     const { kind, icon } = fileKind(row.name);
     return {
+      id: row.id,
       name: row.name,
       path,
       kind: 'file',

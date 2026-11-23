@@ -30,6 +30,7 @@ capabilities: []
 - 桌面和 Finder 显示进入视野的真实图片缩略图。缩略图按内容 ID 缓存在 OPFS 的 `Library/Caches/Thumbnails`，双击用预览打开原图。
 - 明确选择已支持文件的内置应用打开；不伪装任意应用都支持文件传入。
 - 废纸篓使用 `~/.Trash` 作为统一中转，支持从桌面和 Finder 移入、Dock 满空状态、Finder Empty Trash 确认清倒、Put Back 和指定目录恢复；旧条目、失效原目录、重名时不覆盖。
+- 桌面移入废纸篓时图标只淡出一次。桌面和 Finder 支持在当前标签页按 ⌘Z 或 Ctrl+Z 撤销最近一次移入（多选按批还原），复用 RxDB 行标识和废纸篓保存的原路径。清倒后不能撤销，刷新后仍可用 Put Back。
 - 目录、文件体、多个标签页与终端的既有同步；系统拥有的路径仍受保护。
 - 新增界面的键盘路径、焦点、错误提示；schema 升级与旧数据保留。
 
@@ -64,6 +65,7 @@ capabilities: []
 - AC1–4：`fileManagement.renameValidatesAndPreservesContent`、`duplicateIsIndependent`、`folderCopyKeepsNestedAndEmptyEntries`、`columnActionsUseExactPath`、`galleryActionsAndDuplicateShortcut`、`importPreservesBytes`、`importKeepsExistingNames`、`readFailureKeepsBatchAndExistingData`、`openWithOpensSelectedFile`；写入失败和 256 MiB 边界由操作单测覆盖。
 - AC5–6：`trashOriginSurvivesReloadAndRename`、`restoreKeepsCollidingFile`、`missingOriginRequiresExplicitFolder`、`legacyTrashCanChooseFolder`；RxdbDiskStore 单测验证同一行提交和失败不更新原位置。
 - AC13–14：2026-11-20 的 `file-management` 检查组验证 `trashShortcutMovesItem` 和 `emptyTrashRequiresConfirmation`；`applications-protection` 验证预装应用拒绝移入和清倒后的保护状态。
+- AC13 的桌面回归：`fileManagement.desktopTrashAnimatesOnce` 检查单次淡出且不闪回，`fileManagement.desktopUndoMoveToTrash` 检查 ⌘Z 还原图标及原始内容；`file-system.spec.ts` 覆盖快速撤销、批量、重名和废纸篓条目的身份校验。
 - AC7：真实 `2026111301` 产物升级到 `2026111701`，upgrade-previous 六项通过；upgrade-legacy 与 upgrade-protection 继续通过。
 - AC8：`renameCancellationAndKeyboardFocus`、`a11y.fileOperations.*` 全绿，新增对话框 axe 无违规。自动化不能替代物理设备与读屏人工证据。
 

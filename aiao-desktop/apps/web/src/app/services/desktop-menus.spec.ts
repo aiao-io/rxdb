@@ -34,7 +34,7 @@ function setup() {
   const toast = { show: vi.fn() };
   const session = { sleepNow: vi.fn(), restart: vi.fn(), shutDown: vi.fn(), lock: vi.fn() };
   const popover = { openComponent: vi.fn() };
-  const desktopItems = { newFolder: vi.fn() };
+  const desktopItems = { newFolder: vi.fn(), canUndoTrash: vi.fn(() => false), undoTrash: vi.fn() };
   configureServices([
     DesktopMenus,
     SystemState,
@@ -248,10 +248,18 @@ describe('DesktopMenus Finder 菜单', () => {
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('Get Info');
   });
 
-  it('Edit：撤销与重做不可用', () => {
-    const { menus } = setup();
+  it('Edit：有移入废纸篓记录才启用撤销，重做仍不可用', () => {
+    const { menus, desktopItems } = setup();
     const edit = sectionOf(menus.finder(finderTarget()), 'Edit').filter(isMenuCommand);
     expect(edit.filter(item => item.disabled).map(item => item.label)).toEqual(['Undo', 'Redo']);
+    desktopItems.canUndoTrash.mockReturnValue(true);
+    const undoEdit = sectionOf(menus.finderFallback(), 'Edit');
+    expect(undoEdit.filter(isMenuCommand).find(item => item.id === 'u')).toMatchObject({
+      label: 'Undo Move to Trash',
+      disabled: false
+    });
+    click(undoEdit, 'u');
+    expect(desktopItems.undoTrash).toHaveBeenCalledOnce();
   });
 
   it('View：切换四种视图，显示或隐藏侧栏与路径栏', () => {

@@ -454,6 +454,72 @@ describe('FileSystem 废纸篓', () => {
     expect(await fs.readText([...TRASH, 'a 2.txt'])).toBe('two');
   });
 
+  it('撤销排在刚发起的删除之后，恢复同一 RxDB 行和文件体，并通知终端', async () => {
+    const { fs, files, changes } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    const trashed = [...TRASH, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    const row = files.rows.find(file => file.name === 'undo.txt');
+
+    const move = fs.moveToTrash(original);
+    expect(fs.canUndoTrash()).toBe(true);
+    const undo = fs.undoTrash();
+    await Promise.all([move, undo]);
+    await flush();
+
+    expect(await fs.readText(original)).toBe('keep');
+    expect(fs.nodeAt(trashed)).toBeNull();
+    expect(files.rows.find(file => file.name === 'undo.txt')).toMatchObject({
+      id: row?.id,
+      contentId: row?.contentId,
+      originalPath: null
+    });
+    expect(changes.slice(-2)).toEqual([[original, trashed], [trashed, original]]);
+    expect(fs.canUndoTrash()).toBe(false);
+  });
+
+  it('一次撤销还原整批，较早的删除留给下一次撤销，重名不覆盖', async () => {
+    const { fs } = await mounted();
+    const older = [...DESKTOP, 'older.txt'];
+    const first = [...DESKTOP, 'undo.txt'];
+    const child = [...DESKTOP, 'undo-folder', 'child.txt'];
+    await fs.writeText(older, 'older');
+    await fs.writeText(first, 'original');
+    await fs.writeText(child, 'child');
+    await fs.moveToTrash(older);
+    await fs.moveToTrashBatch([first, child.slice(0, -1)]);
+    await fs.writeText(first, 'replacement');
+
+    await fs.undoTrash();
+    expect(await fs.readText(first)).toBe('replacement');
+    expect(await fs.readText([...DESKTOP, 'undo 2.txt'])).toBe('original');
+    expect(await fs.readText(child)).toBe('child');
+    expect(await fs.readText([...TRASH, 'older.txt'])).toBe('older');
+    await fs.undoTrash();
+    expect(await fs.readText(older)).toBe('older');
+  });
+
+  it('跟随废纸篓中的改名，但不把后来占用同一路径的条目当作原文件', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    const trashed = [...TRASH, 'undo.txt'];
+    await fs.writeText(original, 'original');
+    await fs.moveToTrash(original);
+    await fs.rename(trashed, 'renamed.txt');
+    await fs.undoTrash();
+    expect(await fs.readText(original)).toBe('original');
+
+    await fs.moveToTrash(original);
+    await fs.run(async store => {
+      await store.remove(trashed);
+      await store.write(original, new TextEncoder().encode('replacement'));
+      await store.move(original, trashed);
+    });
+    await fs.undoTrash();
+    expect(await fs.readText(trashed)).toBe('replacement');
+    await expect(fs.readText(original)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
   it('macOS 必需的条目不能移走：卷根、顶层目录、System、主目录及其标准文件夹', async () => {
     const { fs, changes } = await mounted();
     const required: [DiskPath, string][] = [

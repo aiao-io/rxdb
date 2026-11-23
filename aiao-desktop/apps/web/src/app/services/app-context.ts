@@ -211,6 +211,7 @@ export class DesktopAppContext implements DesktopHost {
   private readonly teardown: (() => void)[] = [];
   private readonly handles = new Map<string, FileGrant>();
   private bound = true;
+  private openedWorkspace = false;
   private menusRegistered = false;
   private lastWindow = '';
   private lastAppearance = '';
@@ -276,9 +277,14 @@ export class DesktopAppContext implements DesktopHost {
     writeText: text => this.callAsync('clipboard.writeText', text, value => this.writeClipboard(value))
   };
 
-  /** Git 工作区能力：只允许当前窗口绑定的 projectId。 */
+  /** 工作区能力：只允许当前窗口绑定的 projectId。 */
   readonly workspace: DesktopWorkspaceHost = {
-    call: request => this.callAsync('workspace.call', request, value => this.callWorkspace(value))
+    call: request =>
+      this.callAsync('workspace.call', request, async value => {
+        const result = await this.callWorkspace(value);
+        if (value.operation === 'open') this.openedWorkspace = true;
+        return result;
+      })
   };
 
   /** filesystem 能力：只作用于用户在桌面面板里选定的那一个文件。 */
@@ -318,6 +324,11 @@ export class DesktopAppContext implements DesktopHost {
     /* 推送的是变化，不是初始值：订阅者靠 getState / get 读初始状态。 */
     this.lastWindow = JSON.stringify(this.windowState());
     this.lastAppearance = JSON.stringify(this.appearanceState());
+  }
+
+  /** 当前实例是否真正读取了指定的工作区，而不是启动到最近项目。 */
+  hasOpenedWorkspace(): boolean {
+    return this.openedWorkspace;
   }
 
   /** 把当前窗口状态推给订阅者；状态没变不推。由绑定它的 effect 调用。 */
@@ -755,11 +766,7 @@ export class DesktopAppContexts {
       files: this.files,
       refocus: options.refocus,
       workspace: {
-        call: async request =>
-          this.injector
-            .get(DesktopAppServices)
-            .get((await import('./github-workspace')).GithubWorkspace)
-            .call(request)
+        call: request => this.callWorkspace(win, request)
       }
     });
     const refs = [
@@ -782,5 +789,13 @@ export class DesktopAppContexts {
       for (const ref of refs) ref.destroy();
     });
     return context;
+  }
+
+  private async callWorkspace(win: DesktopWindow, request: DesktopWorkspaceRequest): Promise<OrbitValue> {
+    const services = this.injector.get(DesktopAppServices);
+    const path = win.options.workspacePath;
+    if (path)
+      return services.get((await import('./desktop-folder-workspace')).DesktopFolderWorkspace).call(path, request);
+    return services.get((await import('./github-workspace')).GithubWorkspace).call(request);
   }
 }

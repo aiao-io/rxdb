@@ -68,6 +68,14 @@ export interface DiskChange {
   readonly source: 'desktop' | 'terminal';
 }
 
+interface TrashMove {
+  readonly id: DesktopFile['id'];
+  readonly original: DiskPath;
+  readonly target: DiskPath;
+}
+
+const TRASH_UNDO_LIMIT = 50;
+
 /** Finder 侧栏与「前往」菜单的快捷位置；`null` 表示虚拟视图。 */
 export const PLACES: Readonly<Record<string, readonly string[] | null>> = {
   AirDrop: null,
@@ -157,12 +165,15 @@ export class FileSystem {
   private applicationSignature = '';
   private readonly mounted: Promise<void>;
   private readonly diskChanges = new Subject<DiskChange>();
+  private readonly trashUndo = signal<readonly (readonly TrashMove[])[]>([]);
+  private readonly pendingTrashMoves = signal(0);
 
   readonly root = this.rootState.asReadonly();
   readonly state = this.stateValue.asReadonly();
   readonly error = this.errorValue.asReadonly();
   /** 废纸篓里有东西时 Dock 显示满的图标。 */
   readonly trashFull = computed(() => (findNode(this.rootState(), TRASH)?.children?.length ?? 0) > 0);
+  readonly canUndoTrash = computed(() => this.pendingTrashMoves() > 0 || this.trashUndo().length > 0);
   /** 本标签页磁盘改动的路径与来源；终端只同步来自桌面的改动。 */
   readonly changes = this.diskChanges.asObservable();
 
@@ -243,42 +254,59 @@ export class FileSystem {
     return name;
   }
 
-  /** 移进 `~/.Trash`，重名时追加序号。 */
   async moveToTrash(path: DiskPath): Promise<void> {
-    const name = path.at(-1) ?? VOLUME_NAME;
-    if (isRequiredDiskPath(path))
-      throw new DiskError(
-        'EACCES',
-        path,
-        `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`
-      );
-    if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
-    const violation = this.catalog.violation({ kind: 'move', from: path, to: [...TRASH, name] });
-    if (violation)
-      throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
-    const target = await this.exclusive(async store => {
-      await store.mkdir(TRASH);
-      const to = [
-        ...TRASH,
-        uniqueName(
-          (await store.list(TRASH)).map(entry => entry.name),
-          name
-        )
-      ];
-      try {
-        await store.move(path, to);
-      } catch (error) {
-        if (error instanceof DiskError && error.code === 'ENOENT' && samePath(error.path, path))
-          throw new DiskError(
-            'ENOENT',
-            path,
-            `The item “${name}” can’t be moved to the Trash because it no longer exists.`
-          );
-        throw error;
-      }
-      return to;
-    });
-    this.notifyChanges([path, target]);
+    await this.moveToTrashBatch([path]);
+  }
+
+  /** 一次操作移进 `~/.Trash` 的条目作为一批撤销；只记录实际移走的文件。 */
+  async moveToTrashBatch(paths: readonly DiskPath[]): Promise<void> {
+    if (!paths.length) return;
+    const moved: TrashMove[] = [];
+    this.pendingTrashMoves.update(count => count + 1);
+    try {
+      await this.exclusive(async store => {
+        try {
+          for (const path of paths) moved.push(await this.trashEntry(store, path));
+        } finally {
+          if (moved.length) this.trashUndo.update(history => [...history.slice(1 - TRASH_UNDO_LIMIT), moved]);
+        }
+      });
+    } finally {
+      this.pendingTrashMoves.update(count => count - 1);
+      if (moved.length) this.notifyChanges(moved.flatMap(({ original, target }) => [original, target]));
+    }
+  }
+
+  /** 在同一把磁盘锁内核对 RxDB 行 ID，再沿用 Put Back 恢复，避免碰到同名的另一条记录。 */
+  async undoTrash(): Promise<void> {
+    const changed: DiskPath[] = [];
+    try {
+      await this.exclusive(async store => {
+        const history = this.trashUndo();
+        const batch = history.at(-1);
+        if (!batch) return;
+        const raw = this.mountedRawStore();
+        const entries = (await raw.kindOf(TRASH)) === 'directory' ? await raw.list(TRASH) : [];
+        const byId = new Map(entries.map(entry => [entry.id, entry]));
+        const remaining = [...batch];
+        try {
+          for (const move of batch.toReversed()) {
+            const entry = byId.get(move.id);
+            if (entry?.originalPath && samePath(entry.originalPath, move.original)) {
+              this.requireWritable(parentOf(entry.originalPath));
+              const from = [...TRASH, entry.name];
+              changed.push(from, await restoreEntry(store, from));
+            }
+            remaining.pop();
+          }
+        } finally {
+          const older = history.slice(0, -1);
+          this.trashUndo.set(remaining.length ? [...older, remaining] : older);
+        }
+      });
+    } finally {
+      if (changed.length) this.notifyChanges(changed);
+    }
   }
 
   /** Finder 改名：系统目录与预装应用的保护同样适用。 */
@@ -335,6 +363,7 @@ export class FileSystem {
     const removed = await this.exclusive(async store => {
       const entries = (await store.kindOf(TRASH)) === 'directory' ? await store.list(TRASH) : [];
       for (const entry of entries) await store.remove([...TRASH, entry.name]);
+      this.trashUndo.set([]);
       return entries.map(entry => [...TRASH, entry.name]);
     });
     this.notifyChanges(removed);
@@ -411,6 +440,7 @@ export class FileSystem {
   async erase(): Promise<void> {
     await this.exclusive(async () => {
       this.marker = await eraseVolume(this.mountedVolume(), this.seeder(), Date.now);
+      this.trashUndo.set([]);
       /* 抹掉后由应用清单重新生成 /Applications 里的预装包（D-17）。 */
       await this.catalog.reconcile(this.mountedRawStore());
     });
@@ -425,6 +455,28 @@ export class FileSystem {
   /** 给终端的虚拟机同步用：在同一条串行队列里直接读写存储后端。 */
   run<T>(task: (store: DiskStore) => Promise<T>): Promise<T> {
     return this.exclusive(task);
+  }
+
+  private async trashEntry(store: DiskStore, path: DiskPath): Promise<TrashMove> {
+    const name = path.at(-1) ?? VOLUME_NAME;
+    if (isRequiredDiskPath(path))
+      throw new DiskError(
+        'EACCES',
+        path,
+        `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`
+      );
+    if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
+    const violation = this.catalog.violation({ kind: 'move', from: path, to: [...TRASH, name] });
+    if (violation)
+      throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
+    const id = await this.mountedRawStore().idAt(path);
+    if (!id)
+      throw new DiskError('ENOENT', path, `The item “${name}” can’t be moved to the Trash because it no longer exists.`);
+    await store.mkdir(TRASH);
+    const names = (await store.list(TRASH)).map(entry => entry.name);
+    const target = [...TRASH, uniqueName(names, name)];
+    await store.move(path, target);
+    return { id, original: [...path], target };
   }
 
   private requireWritable(dir: DiskPath): void {

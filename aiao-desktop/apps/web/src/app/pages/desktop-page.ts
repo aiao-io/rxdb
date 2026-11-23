@@ -124,6 +124,8 @@ export class DesktopPage {
   private readonly wallpaper = inject(WallpaperService);
   private readonly backup = inject(DesktopBackup);
   private readonly toast = inject(Toast);
+  private readonly desktopItems = inject(DesktopItems);
+  private readonly session = inject(Session);
 
   protected readonly wm = inject(WindowManager);
   protected readonly layout = inject(WindowLayoutStore);
@@ -207,11 +209,27 @@ export class DesktopPage {
       return;
     }
     const front = this.wm.front();
+    if (this.undoTrashShortcut(event, front?.appId)) return;
     if (front && this.runMenuShortcut(event, front)) return;
     if (key === 'n' && front) {
       event.preventDefault();
       this.wm.open(front.appId, { force: true });
     }
+  }
+
+  private undoTrashShortcut(event: KeyboardEvent, frontApp: string | undefined): boolean {
+    if (event.key.toLowerCase() !== 'z' || event.shiftKey || event.altKey || event.metaKey === event.ctrlKey)
+      return false;
+    const onDesktop = event.target instanceof Element && event.target.closest('#desktop');
+    if (!onDesktop && frontApp && frontApp !== 'finder') return false;
+    if (event.defaultPrevented || this.session.locked() || this.session.boot() || this.session.sleep() !== 'awake')
+      return true;
+    if (this.popover.isOpen() || this.overlays.spotlight() !== 'closed' || this.overlays.launchpad() !== 'closed')
+      return true;
+    if (!this.desktopItems.canUndoTrash()) return true;
+    event.preventDefault();
+    if (!event.repeat) this.desktopItems.undoTrash();
+    return true;
   }
 
   private runMenuShortcut(event: KeyboardEvent, front: ReturnType<WindowManager['front']>): boolean {

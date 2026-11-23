@@ -1,3 +1,4 @@
+<!-- 删除图标后，临时接住焦点，让桌面收到撤销快捷键。 -->
 <div
   id="desktop"
   #surface
@@ -6,6 +7,7 @@
   (pointerdown)="pressSurface($event)"
   aria-label="Desktop"
   role="group"
+  tabindex="-1"
 >
   <div id="dwidgets">
     <app-calendar-widget />
@@ -13,9 +15,8 @@
     <app-stocks-widget />
   </div>
   <div id="marquee" #marquee aria-hidden="true"></div>
-  @for (item of desktop.items(); track item.id) {
+  @for (item of desktop.items(); track item.node?.id ?? item.id) {
     @let at = position(item);
-    @let leaving = trashing().has(item.id);
     @let moving = movingToDirectory().has(item.id);
     <div
       class="dicon"
@@ -27,10 +28,8 @@
       [class.sel]="selected().has(item.id)"
       [class.settle]="settling() === item.id"
       [style.left.px]="at.left"
-      [style.opacity]="leaving ? '0' : null"
       [style.top.px]="at.top"
-      [style.transform]="leaving ? 'scale(.4)' : null"
-      [style.transition]="leaving ? 'transform .22s var(--e-io),opacity .22s ease' : null"
+      (animate.leave)="leaveIcon($event, item)"
       (contextmenu)="iconMenu($event, item)"
       (dblclick)="item.open()"
       (focus)="focusItem(item.id)"

@@ -83,6 +83,10 @@ async function setup() {
   const opener = { open: vi.fn(), openApp: vi.fn(() => true) };
   const toast = { show: vi.fn() };
   const workspace = {
+    openDirectory: vi.fn<(path: DiskPath) => Promise<{ projectId: string; name: string }>>(async () => ({
+      projectId: 'existing-repository',
+      name: 'repo'
+    })),
     runTerminal: vi.fn<(request: GithubTerminalRequest) => Promise<GithubTerminalResult>>(async () => ({
       code: 0,
       stdout: 'workspace status\n',
@@ -165,6 +169,7 @@ describe('VirtualMachine 开机与关机', () => {
     const written = new Map(vivari.fs.writeFile.mock.calls.map(([path, data]) => [path, data]));
     expect(written.get('/bin/sh.js')).toBe('patched:SHELL-SOURCE');
     expect([...written.keys()].sort()).toEqual([
+      '/bin/code.js',
       '/bin/cp.js',
       '/bin/defaults.js',
       '/bin/git.js',
@@ -422,6 +427,70 @@ function terminalChannel(name: string) {
   return { channel, run };
 }
 
+describe('VirtualMachine 终端里的 code', () => {
+  it('先同步终端文件，再打开当前 Git 目录，不启动未绑定的编辑器', async () => {
+    const { machine, vm, store, wm, opener, workspace } = await setup();
+    wm.open.mockReturnValue({});
+    await machine.acquire();
+    const { run } = terminalChannel(machine.shellEnv.AIAO_CODE_CHANNEL);
+    const root = [...DESKTOP, 'repo'];
+    await vm.mkdir(toVmPath(root));
+    await vm.write(toVmPath([...root, '.git']), text('git metadata'));
+    await vm.write(toVmPath([...root, 'from-shell.txt']), text('unsynced'));
+
+    await expect(run(['.'], toVmPath(root))).resolves.toMatchObject({ exitCode: 0, stdout: '', stderr: '' });
+    expect(await store.read([...root, 'from-shell.txt'])).toEqual(text('unsynced'));
+    expect(workspace.openDirectory).toHaveBeenCalledExactlyOnceWith(root);
+    expect(wm.open).toHaveBeenCalledExactlyOnceWith('vscode', {
+      projectId: 'existing-repository',
+      workspaceName: 'repo'
+    });
+    expect(opener.openApp).not.toHaveBeenCalled();
+  });
+
+  it('普通目录原地打开，不构造 Git 仓库；不接受文件、缺失目录或 VM 临时路径', async () => {
+    const { machine, store, wm, workspace } = await setup();
+    const root = [...DESKTOP, 'plain folder'];
+    await store.mkdir(root);
+    wm.open.mockReturnValue({});
+    await machine.acquire();
+    const { run } = terminalChannel(machine.shellEnv.AIAO_CODE_CHANNEL);
+    await expect(run(['Desktop/plain folder'])).resolves.toMatchObject({ exitCode: 0 });
+    expect(wm.open).toHaveBeenCalledExactlyOnceWith(
+      'vscode',
+      expect.objectContaining({
+        projectId: expect.stringMatching(/^folder-/),
+        workspacePath: root,
+        workspaceName: 'plain folder'
+      })
+    );
+    expect(await store.kindOf([...root, '.git'])).toBeNull();
+    expect(workspace.openDirectory).not.toHaveBeenCalled();
+    for (const path of ['Desktop/note.txt', 'Desktop/missing', '/tmp'])
+      await expect(run([path])).resolves.toMatchObject({ exitCode: 1, stderr: expect.stringContaining('code:') });
+    await expect(run(['--wait'])).resolves.toMatchObject({ exitCode: 64, stderr: expect.stringContaining('usage:') });
+    expect(wm.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('Git 子目录只打开所选目录，open -a 指定目录也不会落回最近项目', async () => {
+    const { machine, store, wm, opener, workspace } = await setup();
+    const root = [...DESKTOP, 'repo'];
+    const nested = [...root, 'src'];
+    await store.write([...root, '.git'], text('git metadata'));
+    await store.mkdir(nested);
+    wm.open.mockReturnValue({});
+    await machine.open(request('vscode', false, [toVmPath(nested)]));
+    expect(wm.open).toHaveBeenCalledWith(
+      'vscode',
+      expect.objectContaining({ workspacePath: nested, workspaceName: 'src' })
+    );
+    await machine.open(request('vscode', false, [toVmPath([...DESKTOP, 'not-here'])]));
+    expect(wm.open).toHaveBeenCalledTimes(1);
+    expect(opener.openApp).not.toHaveBeenCalled();
+    expect(workspace.openDirectory).not.toHaveBeenCalled();
+  });
+});
+
 describe('VirtualMachine 终端里的 defaults', () => {
   const operands = ['write', 'com.apple.finder', 'AppleShowAllFiles'];
 
@@ -457,7 +526,10 @@ describe('VirtualMachine 终端里的 defaults', () => {
       await expect(run(args)).resolves.toMatchObject({ exitCode: 64, stderr: expect.stringContaining('usage:') });
     expect(write).not.toHaveBeenCalled();
 
-    await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({ exitCode: 1, stderr: 'defaults: disk full' });
+    await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({
+      exitCode: 1,
+      stderr: 'defaults: disk full'
+    });
     expect(finderPreferences.showHiddenFiles()).toBe(false);
     await expect(run([...operands, '-bool', 'true'])).resolves.toMatchObject({ exitCode: 0 });
     expect(finderPreferences.showHiddenFiles()).toBe(true);

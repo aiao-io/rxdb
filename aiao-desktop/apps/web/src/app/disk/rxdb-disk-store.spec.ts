@@ -55,7 +55,7 @@ describe('RxdbDiskStore 写入与读取', () => {
     await store.write(['Users', 'me', 'note.txt'], text('hello'));
 
     expect(await names(store, [])).toEqual(['Users']);
-    expect(await store.list(['Users', 'me'])).toEqual([{ name: 'note.txt', kind: 'file' }]);
+    expect(await store.list(['Users', 'me'])).toMatchObject([{ name: 'note.txt', kind: 'file' }]);
     expect(decode(await store.read(['Users', 'me', 'note.txt']))).toBe('hello');
     expect(await store.info(['Users', 'me', 'note.txt'])).toEqual({ size: 5, modified: 1002 });
 

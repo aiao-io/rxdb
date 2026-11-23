@@ -21,6 +21,16 @@ export const toVmPath = (path: DiskPath): string => `/${path.join('/')}`;
 
 export const fromVmPath = (vmPath: string): DiskPath => vmPath.split('/').filter(Boolean);
 
+/** 以虚拟机的当前目录解析 POSIX 路径。 */
+export function resolveVmPath(base: DiskPath, path: string): DiskPath {
+  const result = path.startsWith('/') ? [] : [...base];
+  for (const part of path.split('/')) {
+    if (part === '..') result.pop();
+    else if (part && part !== '.') result.push(part);
+  }
+  return result;
+}
+
 export const parentOf = (path: DiskPath): DiskPath => path.slice(0, -1);
 
 export const isWithin = (path: DiskPath, dir: DiskPath): boolean =>

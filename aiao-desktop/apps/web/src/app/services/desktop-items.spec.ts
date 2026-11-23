@@ -32,7 +32,9 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
     nodeAt: (path: DiskPath) => (path.join('/') === DESKTOP.join('/') ? desktop() : null),
     root: () => root,
     newFolder: vi.fn(async () => 'untitled folder'),
-    moveToTrash: vi.fn(async () => undefined),
+    moveToTrashBatch: vi.fn(async () => undefined),
+    canUndoTrash: signal(false),
+    undoTrash: vi.fn(async () => undefined),
     copyTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!]),
     moveTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!])
   };
@@ -254,31 +256,42 @@ describe('DesktopItems 新建文件夹与移到废纸篓', () => {
     expect(items.created()).toBeNull();
   });
 
-  it('remove 把条目移进废纸篓', async () => {
-    const { items, fs } = setup({ entries: [fileNode('a.txt')] });
-    await expect(items.remove('file:a.txt')).resolves.toBe(true);
-    expect(fs.moveToTrash).toHaveBeenCalledExactlyOnceWith([...DESKTOP, 'a.txt']);
+  it('remove 把选中的文件作为一批移进废纸篓，跳过 Macintosh HD', async () => {
+    const { items, fs } = setup({ entries: [fileNode('a.txt'), fileNode('b.txt')] });
+    await expect(items.remove(['file:a.txt', 'hd', 'file:b.txt'])).resolves.toBe(true);
+    expect(fs.moveToTrashBatch).toHaveBeenCalledExactlyOnceWith([
+      [...DESKTOP, 'a.txt'],
+      [...DESKTOP, 'b.txt']
+    ]);
   });
 
   it('Macintosh HD 不能移进废纸篓', async () => {
     const { items, fs, toast } = setup();
-    await expect(items.remove('hd')).resolves.toBe(false);
-    expect(fs.moveToTrash).not.toHaveBeenCalled();
+    await expect(items.remove(['hd'])).resolves.toBe(false);
+    expect(fs.moveToTrashBatch).not.toHaveBeenCalled();
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('“Macintosh HD” can’t be moved to the Trash.');
   });
 
   it('不存在的图标、没有磁盘路径的条目同样提示并返回 false', async () => {
     const { items, fs, toast } = setup({ entries: [fileNode('virtual.txt', null)] });
-    await expect(items.remove('file:ghost')).resolves.toBe(false);
-    await expect(items.remove('file:virtual.txt')).resolves.toBe(false);
-    expect(fs.moveToTrash).not.toHaveBeenCalled();
+    await expect(items.remove(['file:ghost'])).resolves.toBe(false);
+    await expect(items.remove(['file:virtual.txt'])).resolves.toBe(false);
+    expect(fs.moveToTrashBatch).not.toHaveBeenCalled();
     expect(toast.show).toHaveBeenCalledTimes(2);
   });
 
   it('移进废纸篓失败时提示磁盘给出的原因，返回 false', async () => {
     const { items, fs, toast } = setup({ entries: [fileNode('a.txt')] });
-    fs.moveToTrash.mockRejectedValueOnce(new DiskError('EACCES', DESKTOP, 'required by macOS'));
-    await expect(items.remove('file:a.txt')).resolves.toBe(false);
+    fs.moveToTrashBatch.mockRejectedValueOnce(new DiskError('EACCES', DESKTOP, 'required by macOS'));
+    await expect(items.remove(['file:a.txt'])).resolves.toBe(false);
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('required by macOS');
+  });
+
+  it('撤销失败时提示原因', async () => {
+    const { items, fs, toast } = setup();
+    fs.undoTrash.mockRejectedValueOnce(new Error('Choose Restore to Folder.'));
+    items.undoTrash();
+    await settled();
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Choose Restore to Folder.');
   });
 });

@@ -155,7 +155,13 @@ export class DesktopMenus {
         { id: 'tr', label: 'Move to Trash', key: '⌘⌫', run: () => target.trashSelected() }
       ]),
       section('Edit', [
-        { id: 'u', label: 'Undo', key: '⌘Z', disabled: true },
+        {
+          id: 'u',
+          label: this.desktopItems.canUndoTrash() ? 'Undo Move to Trash' : 'Undo',
+          key: '⌘Z',
+          disabled: !this.desktopItems.canUndoTrash(),
+          run: () => this.desktopItems.undoTrash()
+        },
         { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: true },
         '-',
         { id: 'x', label: 'Cut', key: '⌘X', run: () => target.cutSelected() },

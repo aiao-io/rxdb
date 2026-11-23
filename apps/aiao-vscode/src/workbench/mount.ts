@@ -96,6 +96,8 @@ export interface BrowserWorkbenchOptions {
   readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
   readonly desktopProject?: WorkbenchProjectInfo;
+  /** 直接编辑桌面目录时，Git 命令在桌面终端运行。 */
+  readonly desktopFolder?: boolean;
   readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
   readonly catalog?: WorkbenchCatalog;
@@ -977,7 +979,7 @@ export function mountWorkbench(
       .catch(report);
   }
   async function refreshGit(): Promise<void> {
-    if (!project || disposed) return;
+    if (!project || disposed || (options.desktopFolder && project.id === options.desktopProject?.id)) return;
     const id = project.id;
     const request = ++gitRefresh;
     const [status, commits] = await Promise.all([backend.status(id), backend.history(id)]);
@@ -1183,6 +1185,7 @@ export function mountWorkbench(
 
   /** 打开本地文件夹：目录选择器读取后登记为受控模板项目并打开，取消选择静默。 */
   async function openFolder(): Promise<void> {
+    requireIndependentProject();
     if (options.embedded) {
       const imported = await requestFolderProject(root, lifetime.signal);
       if (imported && !disposed) await registerFolderProject(imported.name, imported);
@@ -1221,6 +1224,7 @@ export function mountWorkbench(
 
   /** 从 GitHub 搜索 / 粘贴 URL 打开仓库：登记远程目录条目后走与本地项目相同的打开流程。 */
   async function openGitHubRepository(): Promise<void> {
+    requireIndependentProject();
     if (!options.githubApi) throw new Error('GitHub 能力未启用');
     const target = await requestGitHubRepository(root, options.githubApi, {
       onLogin: options.githubAuth ? () => void openGitHubLogin() : undefined
@@ -2135,10 +2139,14 @@ export function mountWorkbench(
   }
   function projectSwitchBusy(ownOperations = 0): boolean {
     return (
+      !!options.desktopProject ||
       initializing ||
       scmBusy ||
       ((session.state.busy || pendingOperations > ownOperations) && previewPhase !== 'compiling')
     );
+  }
+  function requireIndependentProject(): void {
+    if (options.desktopProject) throw new Error('此窗口绑定到桌面工作区，请从桌面另开一个项目窗口');
   }
   function setPressed(button: HTMLElement, pressed: boolean): void {
     button.setAttribute('aria-pressed', String(pressed));
@@ -2154,6 +2162,8 @@ export function mountWorkbench(
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-action="git"], [data-action="commit"]'))
+      button.hidden = options.desktopFolder === true;
     const toolsVisible = docking.isToolsVisible();
     for (const button of root.querySelectorAll<HTMLElement>('.wb-title-actions [data-action="panel"]'))
       setPressed(button, toolsVisible);
@@ -2183,6 +2193,7 @@ export function mountWorkbench(
       initializing || (busy && previewPhase !== 'compiling');
   }
   async function newProject(): Promise<void> {
+    requireIndependentProject();
     const request = await requestWorkbenchProject(root);
     if (!request) return;
     const template = templates[request.template];
@@ -2254,12 +2265,14 @@ export function mountWorkbench(
   async function saveCurrent(): Promise<void> {
     const path = activeResource();
     if (!path) return;
+    if (options.desktopFolder) return session.save([path]);
     ensureSavePreview();
     await savePreview.save([path]);
     await refreshGit();
   }
   async function saveAll(): Promise<void> {
     projectId();
+    if (options.desktopFolder) return session.save();
     ensureSavePreview();
     await savePreview.save();
     await refreshGit();
@@ -2288,6 +2301,7 @@ export function mountWorkbench(
     log('output', '已导出源码、暂存区与 Git 历史');
   }
   async function importArchive(name: string, bytes: Uint8Array): Promise<void> {
+    requireIndependentProject();
     if (disposed) return;
     if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
     const info: WorkbenchProjectInfo = {
@@ -2303,6 +2317,7 @@ export function mountWorkbench(
     await openProject(info.id);
   }
   function importProject(): void {
+    requireIndependentProject();
     if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
     const input = document.createElement('input');
     input.type = 'file';
@@ -2370,7 +2385,7 @@ export function mountWorkbench(
         label: files.canRead ? '从桌面复制项目归档…' : '从桌面复制项目（未授予读取权限）',
         id: 'desktop-import-project',
         action: importDesktopProject,
-        disabled: busy || !files.canRead
+        disabled: busy || !!options.desktopProject || !files.canRead
       },
       {
         label: files.canWrite ? '复制项目到桌面（≤512 KiB）…' : '复制项目到桌面（未授予写入权限）',
@@ -2411,31 +2426,37 @@ export function mountWorkbench(
       const rectangle = element('[data-action="title-menu"]').getBoundingClientRect();
       // action() 在调用前已把本次菜单打开计为进行中操作；排除这一笔，只有另有操作在跑才算忙。
       const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 1;
+      const switchBusy = projectSwitchBusy(1);
       const editable = !!session.state.projectId && !busy;
       showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
-        { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
+        { label: '新建项目', id: 'new-project', action: newProject, disabled: switchBusy },
         {
           label: '打开最近项目…',
           id: 'open-recent',
           action: () => showRecentProjects(element('[data-action="title-menu"]')),
-          disabled: busy,
+          disabled: switchBusy,
           keybinding: 'Ctrl + R'
         },
         {
           label: '导入文件夹（副本）…',
           id: 'open-folder',
           action: openFolder,
-          disabled: busy || (!options.embedded && !('showDirectoryPicker' in window))
+          disabled: switchBusy || (!options.embedded && !('showDirectoryPicker' in window))
         },
         ...(options.githubApi ?
-          [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: busy }]
+          [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: switchBusy }]
         : []),
-        { label: '导入项目', id: 'import', action: importProject, disabled: busy },
+        { label: '导入项目', id: 'import', action: importProject, disabled: switchBusy },
         { label: '导出项目', id: 'export', action: exportProject, disabled: !editable },
         ...desktopFileMenus(busy),
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
-        { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable },
+        {
+          label: options.desktopFolder ? '保存全部' : '保存全部并预览',
+          id: 'save-all',
+          action: saveAll,
+          disabled: !editable
+        },
         {
           label: '打开终端',
           id: 'terminal',
@@ -2729,6 +2750,8 @@ export function mountWorkbench(
       const gitCommands = new Set(['commit', 'gitPush', 'gitPull', 'gitSync']);
       const invoke = (id: string, operation: () => Promise<unknown> | void) => () => {
         if (disposed || initializing) return;
+        if (options.desktopProject && id === 'newProject') return;
+        if (options.desktopFolder && (id === 'showScm' || gitCommands.has(id))) return;
         if (scmBusy && gitCommands.has(id)) return;
         if (
           pendingOperations > 0 &&
@@ -2806,15 +2829,16 @@ export function mountWorkbench(
   });
   const releaseState = session.subscribe(render);
   const ready = (async () => {
+    const scoped = options.desktopProject;
     const recoveredPreferences = recovery.getPreferences();
-    const [listed, durablePreferences] = await Promise.all([catalog.list(), catalog.getPreferences()]);
+    const [listed, durablePreferences] = await Promise.all([
+      scoped ? [scoped] : catalog.list(),
+      catalog.getPreferences()
+    ]);
     if (disposed) return;
     const preferences = recoveredPreferences ?? durablePreferences;
     preferencesRestored = true;
-    const scoped = options.desktopProject;
-    projects = (scoped ? [scoped, ...listed.filter(item => item.id !== scoped.id)] : listed).toSorted(
-      (left, right) => right.updatedAt - left.updatedAt
-    );
+    projects = listed.toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (preferences) {
       applyIndentUnit(preferences.indentUnit, false);
       alwaysShowScmActions = preferences.alwaysShowScmActions;
@@ -2826,6 +2850,10 @@ export function mountWorkbench(
     if (requestedRuntime !== null && !runtimeOverride)
       report(new Error(`地址参数里的运行方式无效：${requestedRuntime}`));
     renderProjects();
+    if (scoped) {
+      await openProject(scoped.id);
+      return;
+    }
     // 没有显式指定时恢复上次的会话：最近项目带会话状态（曾被打开过）就直接打开，
     // 全新目录或只有未打开过的新条目时停留在欢迎视图。
     const recent = projects[0];

@@ -1,7 +1,7 @@
 import '@angular/compiler';
 
 import { OrbitError, OrbitProtocolError } from '@aiao/orbit';
-import type { DesktopCapability } from '@aiao/orbit/desktop';
+import { DESKTOP_WORKSPACE_PROJECT_ID_PROP, type DesktopCapability } from '@aiao/orbit/desktop';
 import { WINDOW_PROP } from '@aiao/orbit/window';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +13,7 @@ import { fakeWindows } from '../testing/fake-windows';
 import { BindOptions, DesktopAppContext } from './app-context';
 import { ApplicationRuntime } from './application-runtime';
 import type { AppCapabilityRestriction } from './browser-app-support';
-import { WebAppManifest } from './desktop-apps';
+import { DesktopOpenOptions, WebAppManifest } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { RemoteAppSession } from './remote-app-session';
 import { SystemState } from './system-state';
@@ -29,6 +29,7 @@ interface Setup {
   readonly frame?: 'standard' | 'transparent';
   readonly effectiveCapabilities?: readonly DesktopCapability[];
   readonly restrictions?: readonly AppCapabilityRestriction[];
+  readonly openOptions?: DesktopOpenOptions;
 }
 
 function setup({
@@ -36,7 +37,8 @@ function setup({
   capabilities = CODE,
   frame = 'transparent',
   effectiveCapabilities,
-  restrictions
+  restrictions,
+  openOptions = {}
 }: Setup = {}) {
   const registry = {
     ...testApps({
@@ -55,7 +57,7 @@ function setup({
     }),
     vscode: DESKTOP_APP_MANIFESTS.vscode
   };
-  const win = new DesktopWindow('w1', registry[appId], {}, { left: 0, top: 0, width: 800, height: 600 });
+  const win = new DesktopWindow('w1', registry[appId], openOptions, { left: 0, top: 0, width: 800, height: 600 });
   win.attempt = 1;
   win.state.set('ready');
   win.content.set(StubApp);
@@ -72,6 +74,7 @@ function setup({
       return new DesktopAppContext({
         win: target,
         capabilities: effectiveCapabilities ?? (target.app as WebAppManifest).capabilities ?? [],
+        workspace: { call: async () => 'opened' },
         restrictions,
         apps: registry,
         windows,
@@ -108,6 +111,35 @@ afterEach(() => {
 });
 
 describe('RemoteAppSession：一次启动', () => {
+  it.each([true, false])('显式工作区只有读过绑定目录才就绪（opened=%s）', async opened => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal('location', { origin: 'https://desktop.aiao.io' });
+    const openOptions = { projectId: 'folder-id', workspaceName: 'test', workspacePath: ['Users', 'name', 'test'] };
+    const { session, win, orbit, container } = setup({ appId: 'vscode', openOptions });
+    const started = session.start(container);
+    expect(orbit.last.options.props).toMatchObject({
+      [DESKTOP_WORKSPACE_PROJECT_ID_PROP]: 'folder-id',
+      workspaceName: 'test',
+      workspaceKind: 'folder'
+    });
+    expect(orbit.last.options.props).not.toHaveProperty('workspacePath');
+    if (opened) await session.context!.workspace.call({ projectId: 'folder-id', operation: 'open' });
+    orbit.last.becomeReady();
+    await started;
+    expect(win.state()).toBe(opened ? 'ready' : 'failed');
+    if (!opened) expect(win.failure()).toContain('未打开终端指定的工作区');
+  });
+
+  it('显式工作区不允许在缺少工作区能力时退回最近项目', async () => {
+    const { session, win, orbit, container } = setup({
+      openOptions: { projectId: 'repo' },
+      effectiveCapabilities: ['window']
+    });
+    await session.start(container);
+    expect(win.state()).toBe('failed');
+    expect(orbit.created).toHaveLength(0);
+  });
+
   it.each([true, false])('预装 Aiao Code 仅在联网时绕过旧外壳缓存（online=%s）', online => {
     vi.stubGlobal('navigator', { onLine: online });
     vi.stubGlobal('location', { origin: 'https://desktop.aiao.io' });

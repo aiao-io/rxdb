@@ -2,7 +2,17 @@ import { Injector, Service, inject } from '@angular/core';
 import { Vivari } from '@vivari/core';
 import { Subscription, filter } from 'rxjs';
 import { fileKind } from '../disk/disk-kinds';
-import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
+import {
+  DISK_ROOTS,
+  HOME,
+  finderPathOf,
+  fromVmPath,
+  isRequiredDiskPath,
+  parentOf,
+  resolveVmPath,
+  toVmPath,
+  type DiskPath
+} from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
 import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRegistry } from '../services/application-registry';
@@ -16,7 +26,12 @@ import { USER_PROFILE } from '../shared/user-profile';
 import { cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
 import { DiskVmSync } from './disk-vm-sync';
 import { patchShell } from './shell-patch';
-import { TerminalCommandChannel, terminalCommandSource } from './terminal-command';
+import {
+  TerminalCommandChannel,
+  terminalCommandSource,
+  type TerminalCommandRequest,
+  type TerminalCommandResponse
+} from './terminal-command';
 import { writeFinderDefaults } from './terminal-defaults';
 import { TerminalGit } from './terminal-git';
 import { vivariFs } from './vm-fs';
@@ -42,6 +57,7 @@ interface Machine {
   readonly vivari: Vivari;
   readonly git: TerminalGit;
   readonly defaults: TerminalCommandChannel;
+  readonly code: TerminalCommandChannel;
   readonly sync: DiskVmSync;
   readonly subscription: Subscription;
   readonly ticker: ReturnType<typeof setInterval>;
@@ -74,7 +90,8 @@ export class VirtualMachine {
   readonly shellEnv = {
     ...SHELL_ENV,
     AIAO_GIT_CHANNEL: `aiao-git-${crypto.randomUUID()}`,
-    AIAO_DEFAULTS_CHANNEL: `aiao-defaults-${crypto.randomUUID()}`
+    AIAO_DEFAULTS_CHANNEL: `aiao-defaults-${crypto.randomUUID()}`,
+    AIAO_CODE_CHANNEL: `aiao-code-${crypto.randomUUID()}`
   };
 
   /** 取得（必要时启动）虚拟机；每次成功或失败的 `acquire` 都要配一次 `release`。 */
@@ -127,10 +144,18 @@ export class VirtualMachine {
       this.wm.open('finder', { path: finderPathOf(parentOf(path)), select: path.at(-1) });
       return;
     }
+    if (app === 'vscode') {
+      try {
+        await this.openCodeDirectory(path);
+      } catch (error) {
+        this.toast.show(describeDiskError(error));
+      }
+      return;
+    }
     const kind = await this.fs.run(store => store.kindOf(path));
     const name = path.at(-1) ?? '';
     if (kind === 'directory' && !name.toLowerCase().endsWith('.app')) {
-      if (app === 'github' || app === 'vscode') {
+      if (app === 'github') {
         try {
           const record = await (await this.workspace()).openDirectory(path);
           this.wm.open(app, { projectId: record.projectId });
@@ -146,6 +171,34 @@ export class VirtualMachine {
     const node: FsNode = { name, path, kind: 'file', icon, k: label, hidden: name.startsWith('.') };
     if (app) this.opener.openApp(app, node);
     else this.opener.open(node);
+  }
+
+  private async openCodeDirectory(path: DiskPath): Promise<void> {
+    const { folderProjectId } = await import('../services/desktop-folder-workspace');
+    const folderId = await folderProjectId(path);
+    const hasGit = await this.fs.run(async store => {
+      if ((await store.kindOf(path)) !== 'directory') throw new Error(`Not a directory: ${toVmPath(path)}`);
+      return !isRequiredDiskPath(path) && (await store.kindOf([...path, '.git'])) !== null;
+    });
+    const workspaceName = path.at(-1)!;
+    const options =
+      hasGit ?
+        { projectId: (await (await this.workspace()).openDirectory(path)).projectId, workspaceName }
+      : { projectId: folderId, workspacePath: path, workspaceName };
+    if (!this.wm.open('vscode', options)) throw new Error('Aiao Code is unavailable');
+  }
+
+  private async runCode({ args, cwd }: TerminalCommandRequest, sync: DiskVmSync): Promise<TerminalCommandResponse> {
+    const [directory] = args;
+    if (args.length !== 1 || !directory || directory.startsWith('-'))
+      return { exitCode: 64, stdout: '', stderr: 'usage: code <directory> (for example, code .)' };
+    try {
+      await sync.pull();
+      await this.openCodeDirectory(resolveVmPath(fromVmPath(cwd), directory));
+      return { exitCode: 0, stdout: '', stderr: '' };
+    } catch (error) {
+      return { exitCode: 1, stdout: '', stderr: `code: ${describeDiskError(error)}` };
+    }
   }
 
   private async workspace() {
@@ -198,8 +251,9 @@ export class VirtualMachine {
       const defaults = new TerminalCommandChannel(this.shellEnv.AIAO_DEFAULTS_CHANNEL, ({ args }) =>
         writeFinderDefaults(args, shown => this.finderPreferences.setShowHiddenFiles(shown))
       );
+      const code = new TerminalCommandChannel(this.shellEnv.AIAO_CODE_CHANNEL, request => this.runCode(request, sync));
       const ticker = setInterval(() => void this.pull(), POLL_INTERVAL);
-      return { vivari, git, defaults, sync, subscription, ticker };
+      return { vivari, git, defaults, code, sync, subscription, ticker };
     } catch (error) {
       vivari.teardown();
       throw error;
@@ -214,7 +268,7 @@ export class VirtualMachine {
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));
     for (const [name, program] of Object.entries(PROGRAMS))
       await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps));
-    for (const name of ['git', 'defaults'])
+    for (const name of ['git', 'defaults', 'code'])
       await vivari.fs.writeFile(`/bin/${name}.js`, terminalCommandSource(name));
   }
 
@@ -223,7 +277,7 @@ export class VirtualMachine {
     if (!machine) return;
     clearInterval(machine.ticker);
     machine.subscription.unsubscribe();
-    await Promise.all([machine.git.close(), machine.defaults.close()]);
+    await Promise.all([machine.git.close(), machine.defaults.close(), machine.code.close()]);
     await machine.sync
       .pull()
       .catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`));

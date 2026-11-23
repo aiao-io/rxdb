@@ -4,6 +4,10 @@
 
 这是一个产品根目录：两个 Nx 应用共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。
 
+## 从终端打开 Aiao Code
+
+在 Aiao Desktop 的终端进入用户主目录下的项目文件夹，运行 `code .`。打开的是当前目录，不是 Aiao Code 记住的项目。保存直接写回桌面原文件，不复制项目或自动执行 `git init`。在已有 Git 仓库里保存后，终端的 `git diff` 能读到改动。
+
 ## 结构
 
 | 目录                 | Nx 项目            | 运行时                        | 职责                                                                        |

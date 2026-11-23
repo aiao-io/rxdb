@@ -7,7 +7,7 @@ export async function worktreeFiles(store: DiskStore, root: DiskPath): Promise<G
   let total = 0;
   async function visit(directory: DiskPath): Promise<void> {
     for (const entry of await store.list(directory)) {
-      if (entry.name === '.git') continue;
+      if (entry.name.toLowerCase() === '.git') continue;
       const path = [...directory, entry.name];
       if (entry.kind === 'directory') {
         await visit(path);

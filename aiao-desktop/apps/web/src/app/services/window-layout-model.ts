@@ -134,7 +134,9 @@ const OPTION_FIELDS: Readonly<Record<keyof RestoreOptions, (value: unknown) => b
   url: isString,
   file: isString,
   nodePath: isStrings,
-  projectId: isString
+  projectId: isString,
+  workspacePath: isStrings,
+  workspaceName: isString
 };
 
 /** 布局行的偏好键。 */
@@ -170,7 +172,9 @@ export function restoreOptionsOf(options: DesktopOpenOptions): RestoreOptions {
     ...(options.url !== undefined && { url: options.url }),
     ...(file !== undefined && { file }),
     ...(nodePath !== undefined && { nodePath }),
-    ...(options.projectId !== undefined && { projectId: options.projectId })
+    ...(options.projectId !== undefined && { projectId: options.projectId }),
+    ...(options.workspacePath !== undefined && { workspacePath: options.workspacePath }),
+    ...(options.workspaceName !== undefined && { workspaceName: options.workspaceName })
   };
 }
 

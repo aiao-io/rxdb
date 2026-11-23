@@ -1,4 +1,4 @@
-import { fromVmPath, isWithin, toVmPath, type DiskPath } from '../disk/disk-path';
+import { fromVmPath, isWithin, resolveVmPath, toVmPath } from '../disk/disk-path';
 import type { GithubRepositoryRecord } from '../services/github-repository';
 import type { GithubWorkspace } from '../services/github-workspace';
 
@@ -10,15 +10,6 @@ export interface GithubTerminalResult {
   readonly code: number;
   readonly stdout: string;
   readonly stderr: string;
-}
-
-function resolve(base: DiskPath, arg: string): DiskPath {
-  const result = arg.startsWith('/') ? [] : [...base];
-  for (const part of arg.split('/')) {
-    if (part === '..') result.pop();
-    else if (part && part !== '.') result.push(part);
-  }
-  return result;
 }
 
 function usage(valid: unknown, syntax: string): asserts valid {
@@ -53,7 +44,7 @@ export function resolveTerminalRequest(request: GithubTerminalRequest): GithubTe
     argv.shift();
     const path = argv.shift();
     usage(path, '-C <directory> <command>');
-    cwd = resolve(cwd, path);
+    cwd = resolveVmPath(cwd, path);
   }
   return { cwd: toVmPath(cwd), args: argv };
 }
@@ -68,7 +59,7 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
     return 'usage: git [-C <directory>] <command>\nCommands: init, status, diff, add, commit, branch, switch, checkout, log, rev-parse, remote, fetch, pull, push';
   if (command === 'init') {
     usage(argv.length < 2 && !argv[0]?.startsWith('-'), 'init [directory]');
-    const root = resolve(cwd, argv[0] ?? '.');
+    const root = resolveVmPath(cwd, argv[0] ?? '.');
     const existing = await workspace.repositoryAt(root);
     await workspace.openDirectory(root, true);
     return `${existing?.rootPath?.length === root.length ? 'Reinitialized existing' : 'Initialized empty'} Git repository in ${toVmPath(root)}/`;
@@ -94,7 +85,7 @@ async function execute(workspace: GithubWorkspace, request: GithubTerminalReques
         'add <pathspec>...'
       );
       const all = argv.includes('-A') || argv.includes('--all');
-      const paths = argv.filter(arg => !arg.startsWith('-')).map(arg => resolve(cwd, arg));
+      const paths = argv.filter(arg => !arg.startsWith('-')).map(arg => resolveVmPath(cwd, arg));
       const entries = (await workspace.status(id)).entries;
       const staged = new Set<string>();
       for (const path of paths) {

@@ -293,6 +293,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         ...(shared ?
           {
             initialProjectId: shared.id,
+            desktopFolder: this.orbit?.context.props['workspaceKind'] === 'folder',
             desktopProject: {
               id: shared.id,
               name:
@@ -322,6 +323,12 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           return loadMonacoEditor();
         })
     );
+    if (shared) {
+      await this.workbench.ready;
+      if (this.destroyed) return;
+      const state = this.workbench.session.state;
+      if (state.projectId !== shared.id || state.error) throw new Error(state.error ?? '无法打开桌面指定的工作区');
+    }
     if (hostWindow) {
       this.stopDragRegions = hostWindow.trackDragRegions(this.host.nativeElement);
       await hostWindow.setDecorations(false);

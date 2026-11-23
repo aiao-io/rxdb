@@ -1,5 +1,15 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, DestroyRef, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
+import {
+  AnimationCallbackEvent,
+  Component,
+  DestroyRef,
+  ElementRef,
+  ViewEncapsulation,
+  effect,
+  inject,
+  signal,
+  viewChild
+} from '@angular/core';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { DESKTOP, DiskPath, samePath } from '../disk/disk-path';
@@ -62,7 +72,6 @@ export class DesktopSurface {
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly dragging = signal<{ readonly id: string; readonly at: Point } | null>(null);
   protected readonly settling = signal<string | null>(null);
-  protected readonly trashing = signal<ReadonlySet<string>>(new Set());
   protected readonly movingToDirectory = signal<ReadonlySet<string>>(new Set());
   protected readonly folderHover = signal<string | null>(null);
 
@@ -191,7 +200,7 @@ export class DesktopSurface {
   }
 
   protected iconMenu(event: MouseEvent, item: DesktopItem): void {
-    this.select(item.id);
+    if (!this.selected().has(item.id)) this.select(item.id);
     this.popover.contextMenu(event, this.iconItems(item), item.name);
   }
 
@@ -199,7 +208,7 @@ export class DesktopSurface {
   protected iconKey(event: KeyboardEvent, item: DesktopItem): void {
     if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete')) {
       event.preventDefault();
-      this.trash(item);
+      if (!event.repeat) this.trash(item);
       return;
     }
     if (!isMenuKey(event)) return;
@@ -228,6 +237,22 @@ export class DesktopSurface {
 
   protected focusItem(id: string): void {
     if (this.selected().size === 0) this.select(id);
+  }
+
+  /** 活查询确认是丢进废纸篓才退场；不再靠写盘 Promise 的时序清掉淡出样式。 */
+  protected leaveIcon(event: AnimationCallbackEvent, item: DesktopItem): void {
+    if (!this.desktop.isTrashed(item) || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      event.animationComplete();
+      return;
+    }
+    const icon = event.target as HTMLElement;
+    icon.inert = true;
+    const animation = icon.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.4' }], {
+      duration: 220,
+      easing: 'ease-in-out',
+      fill: 'forwards'
+    });
+    void animation.finished.then(event.animationComplete, event.animationComplete);
   }
 
   /** 空白处按下：取消选择并开始框选。 */
@@ -319,19 +344,18 @@ export class DesktopSurface {
     return node.kind === 'folder' ? `${node.name} — Folder` : `${node.name} — ${node.k}, ${node.size}`;
   }
 
-  /** 缩小淡出后真正移进废纸篓；移不走时图标恢复原样。 */
   private trash(item: DesktopItem): void {
-    this.trashItems([item.id]);
+    const selected = this.selected();
+    this.trashItems(selected.has(item.id) ? [...selected] : [item.id]);
   }
 
   private trashItems(ids: readonly string[]): void {
-    const unique = [...new Set(ids)];
-    this.trashing.update(current => new Set([...current, ...unique]));
-    setTimeout(() => {
-      void Promise.allSettled(unique.map(id => this.desktop.remove(id))).finally(() => {
-        this.trashing.update(current => new Set([...current].filter(id => !unique.includes(id))));
-      });
-    }, 230);
+    this.surface().nativeElement.focus();
+    void this.desktop.remove(ids).then(removed => {
+      if (!removed) return;
+      const removedIds = new Set(ids);
+      this.selected.update(selected => new Set([...selected].filter(id => !removedIds.has(id))));
+    });
   }
 
   private settle(id: string): void {

@@ -566,11 +566,12 @@ export class GithubApp {
   }
 
   protected openRepositoryInEditor(): void {
-    if (!this.activeRecord()) return;
+    const record = this.activeRecord();
+    if (!record) return;
     this.showCleanFiles.set(true);
     const path = this.selectedPath() ?? this.files()[0]?.path ?? null;
     if (path) this.openFile(path);
-    this.wm.open('vscode', { projectId: this.activeRecord()!.projectId });
+    this.wm.open('vscode', { projectId: record.projectId, workspaceName: record.name });
     this.notice.set('Opened Aiao Code');
   }
 

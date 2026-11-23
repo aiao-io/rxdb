@@ -113,14 +113,19 @@ export class RxdbDiskStore implements DiskStore {
     this.index = null;
   }
 
-  async list(dir: DiskPath): Promise<DiskEntry[]> {
+  async list(dir: DiskPath): Promise<(DiskEntry & { readonly id: FileId })[]> {
     const index = await this.loaded();
     const parentId = await this.directoryId(dir);
     return index.children(parentId).map(row => ({
+      id: row.id,
       name: row.name,
       kind: row.type === 'folder' ? 'directory' : 'file',
       ...(row.originalPath ? { originalPath: row.originalPath } : {})
     }));
+  }
+
+  async idAt(path: DiskPath): Promise<FileId | undefined> {
+    return (await this.find(path))?.id;
   }
 
   async kindOf(path: DiskPath): Promise<DiskEntryKind | null> {

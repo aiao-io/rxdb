@@ -190,8 +190,12 @@ export interface DesktopOpenOptions {
   readonly node?: FsNode;
   readonly select?: string;
   readonly url?: string;
-  /** Git 工作区的稳定 projectId，内置应用与 Aiao Code 共用。 */
+  /** 工作区的稳定 projectId；Git 仓库由内置应用与 Aiao Code 共用。 */
   readonly projectId?: string;
+  /** 直接编辑的卷内目录，只交给宿主，不传入远程应用。 */
+  readonly workspacePath?: DiskPath;
+  /** 窗口工作区的显示名。 */
+  readonly workspaceName?: string;
 }
 
 /**
@@ -204,6 +208,7 @@ export interface DesktopOpenOptions {
  * - 系统设置：`section`——打开时的分区；
  * - Safari：`url`——打开时带的网址；
  * - TextEdit、预览：`file`（文件名）与 `nodePath`（文件的卷内路径）；文件已不在磁盘上就不恢复这个窗口并提示；
+ * - GitHub Desktop、Aiao Code：`projectId`，Aiao Code 的直属目录另存 `workspacePath` 和 `workspaceName`；
  * - 其余应用没有开窗参数。
  */
 export interface RestoreOptions {
@@ -213,6 +218,8 @@ export interface RestoreOptions {
   readonly file?: string;
   readonly nodePath?: readonly string[];
   readonly projectId?: string;
+  readonly workspacePath?: DiskPath;
+  readonly workspaceName?: string;
 }
 
 /** 应用登记表由桌面页提供，避免服务与应用组件之间的循环引用。 */
