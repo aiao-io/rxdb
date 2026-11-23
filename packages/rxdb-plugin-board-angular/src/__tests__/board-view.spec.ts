@@ -9,6 +9,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardViewComponent } from '../board-view.js';
 
+// 文案适配器换成固定 zh-Hans 运行时：断言逐字中文（e2e 以 zh-CN 验收）
+vi.mock('../board-i18n.js', async () => {
+  const [{ I18n }, { BOARD_I18N_NAMESPACE, boardCatalogs }] = await Promise.all([
+    import('@aiao/rxdb-i18n'),
+    import('@aiao/rxdb-plugin-board')
+  ]);
+  const boardI18n = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: boardCatalogs });
+  return {
+    boardI18n,
+    t: (key: string, params?: Record<string, unknown>): string =>
+      boardI18n.t(key, params ?? {}, BOARD_I18N_NAMESPACE)
+  };
+});
+
 /**
  * BoardView 组件（看板 v2 的 Angular 半边）：真实 PGlite + 历史插件上的渲染与交互闭环。
  * 真实拖拽、axe 与跨页恢复在 demo e2e。

@@ -1,9 +1,25 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { Board, BoardLabel, Column, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import { BOARD_I18N_NAMESPACE, Board, BoardLabel, Column, createBoardI18n, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { act, createEvent, fireEvent, screen } from '@testing-library/react';
+
+/**
+ * zh-Hans 看板运行时与 `board-i18n` 模块的 mock 工厂：组件文案迁入目录后，
+ * 渲染用例经 `vi.mock('../board-i18n.js', async () => { const { boardI18nZhMock } = await import('./board-test-utils.js'); return boardI18nZhMock(); })`
+ * 注入中文运行时，断言保持 zh 逐字文案。
+ */
+export const boardI18nZhMock = (): {
+  readonly boardI18n: ReturnType<typeof createBoardI18n>;
+  readonly boardT: (key: string, params?: Record<string, unknown>) => string;
+} => {
+  const i18n = createBoardI18n('zh-Hans');
+  return {
+    boardI18n: i18n,
+    boardT: (key, params = {}) => i18n.t(key, params, BOARD_I18N_NAMESPACE)
+  };
+};
 
 /** 真实 PGlite 内存库 + 历史插件（可选搜索插件）。 */
 export const connectBoardDb = async (prefix: string, withSearch = false): Promise<RxDB> => {

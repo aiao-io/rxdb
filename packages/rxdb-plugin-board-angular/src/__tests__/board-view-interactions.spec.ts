@@ -18,6 +18,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardViewComponent } from '../board-view.js';
 import type { UseBoardActions, UseBoardReturn } from '../use-board.js';
 
+// 文案适配器换成固定 zh-Hans 运行时：方法返回值断言逐字中文
+vi.mock('../board-i18n.js', async () => {
+  const [{ I18n }, { BOARD_I18N_NAMESPACE, boardCatalogs }] = await Promise.all([
+    import('@aiao/rxdb-i18n'),
+    import('@aiao/rxdb-plugin-board')
+  ]);
+  const boardI18n = new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: boardCatalogs });
+  return {
+    boardI18n,
+    t: (key: string, params?: Record<string, unknown>): string =>
+      boardI18n.t(key, params ?? {}, BOARD_I18N_NAMESPACE)
+  };
+});
+
 let installed: UseBoardReturn;
 
 const id = (value: string) => value as UUID;

@@ -2,6 +2,7 @@ import type { UUID } from '@aiao/rxdb';
 import { nextLabelColor, placePopover } from '@aiao/rxdb-plugin-board';
 import { useRef, type KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import { anchorOf, type ModelGetter, type TriggerEvent } from './model.js';
 import { POPOVER_HEIGHT, POPOVER_WIDTH, type BoardPopoverKind, type PickerOption, type PopoverState } from './types.js';
 import type { BoardData } from './use-board-data.js';
@@ -151,10 +152,10 @@ export const usePopoverModel = (core: ViewCore, data: BoardData, model: ModelGet
     canCreateLabelFromPicker,
     isPopoverFor: (kind, targetId) => popover?.kind === kind && popover.targetId === targetId,
     popoverLabel: pop => {
-      if (pop.kind === 'board-menu') return '看板操作';
-      if (pop.kind === 'column-menu') return `列操作：${data.columnTitleOf(pop.targetId)}`;
-      if (pop.kind === 'task-menu') return `任务操作：${data.taskById(pop.targetId)?.title ?? ''}`;
-      return pop.kind === 'detail-label-picker' ? '选择标签' : '移到列';
+      if (pop.kind === 'board-menu') return boardT('view.header.boardMenu');
+      if (pop.kind === 'column-menu') return boardT('view.column.menu', { title: data.columnTitleOf(pop.targetId) });
+      if (pop.kind === 'task-menu') return boardT('view.task.menu', { title: data.taskById(pop.targetId)?.title ?? '' });
+      return pop.kind === 'detail-label-picker' ? boardT('view.picker.chooseLabels') : boardT('view.picker.moveToColumn');
     },
     closePopover,
     closeIfOpen: kind => {

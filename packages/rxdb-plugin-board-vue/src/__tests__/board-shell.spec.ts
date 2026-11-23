@@ -1,9 +1,11 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import {
+  BOARD_I18N_NAMESPACE,
   Board,
   BoardLabel,
   Column,
+  createBoardI18n,
   PENDING_SWITCH_KEY,
   RESTORING_MARKER_KEY,
   Task,
@@ -16,7 +18,17 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const { boardI18nMock } = vi.hoisted(() => ({
+  boardI18nMock: { t: (key: string): string => key }
+}));
+vi.mock('../board-i18n.js', () => ({ boardI18n: boardI18nMock }));
+
 import BoardShell from '../board-shell.vue';
+
+/** zh-Hans 看板文案运行时：组件经 mock 后的 board-i18n 模块取这里。 */
+const zhBoard = createBoardI18n('zh-CN');
+boardI18nMock.t = (key: string, params: Record<string, unknown> = {}): string =>
+  zhBoard.t(key, params, BOARD_I18N_NAMESPACE);
 
 /**
  * BoardShell 组件（Vue 外壳）：真实 PGlite 上的启动选择、演示数据、重置确认与失败提示，

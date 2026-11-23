@@ -2531,14 +2531,14 @@ onBeforeUnmount(() => {
       <template v-else-if="popover.kind === 'column-menu'">
         <template v-if="popoverColumn">
           <div
-            aria-label="列"
+            :aria-label="t('view.columnMenu.group')"
             role="group"
           >
             <p
               class="rxb-menu-heading"
               aria-hidden="true"
             >
-              列
+              {{ t('view.columnMenu.group') }}
             </p>
             <button
               class="rxb-menu-item"
@@ -2551,7 +2551,7 @@ onBeforeUnmount(() => {
                 class="rxb-i rxb-i-pencil"
                 aria-hidden="true"
               ></span>
-              改名
+              {{ t('view.columnMenu.rename') }}
             </button>
             <button
               class="rxb-menu-item rxb-menu-item-danger"
@@ -2564,7 +2564,7 @@ onBeforeUnmount(() => {
                 class="rxb-i rxb-i-trash"
                 aria-hidden="true"
               ></span>
-              删除列
+              {{ t('view.columnMenu.delete') }}
             </button>
           </div>
           <div
@@ -2572,14 +2572,14 @@ onBeforeUnmount(() => {
             role="separator"
           ></div>
           <div
-            aria-label="本列排序"
+            :aria-label="t('view.columnMenu.sortGroupLabel')"
             role="group"
           >
             <p
               class="rxb-menu-heading"
               aria-hidden="true"
             >
-              本列排序（一次性）
+              {{ t('view.columnMenu.sortGroup') }}
             </p>
             <button
               class="rxb-menu-item"
@@ -2592,7 +2592,7 @@ onBeforeUnmount(() => {
                 class="rxb-i rxb-i-calendar"
                 aria-hidden="true"
               ></span>
-              按截止日
+              {{ t('view.columnMenu.sortDue') }}
             </button>
             <button
               class="rxb-menu-item"
@@ -2605,7 +2605,7 @@ onBeforeUnmount(() => {
                 class="rxb-i rxb-i-sort"
                 aria-hidden="true"
               ></span>
-              按标题
+              {{ t('view.columnMenu.sortTitle') }}
             </button>
           </div>
           <div
@@ -2613,14 +2613,14 @@ onBeforeUnmount(() => {
             role="separator"
           ></div>
           <div
-            aria-label="位置"
+            :aria-label="t('view.columnMenu.position')"
             role="group"
           >
             <p
               class="rxb-menu-heading"
               aria-hidden="true"
             >
-              位置
+              {{ t('view.columnMenu.position') }}
             </p>
             <button
               class="rxb-menu-item"
@@ -2634,11 +2634,11 @@ onBeforeUnmount(() => {
                 aria-hidden="true"
               ></span>
               <span class="rxb-menu-item-label">
-                左移
+                {{ t('view.columnMenu.moveLeft') }}
                 <span
                   v-if="isFirstColumn(popoverColumn)"
                   class="rxb-menu-item-hint"
-                  >已是最左列</span
+                  >{{ t('view.columnMenu.leftmost') }}</span
                 >
               </span>
             </button>
@@ -2654,11 +2654,11 @@ onBeforeUnmount(() => {
                 aria-hidden="true"
               ></span>
               <span class="rxb-menu-item-label">
-                右移
+                {{ t('view.columnMenu.moveRight') }}
                 <span
                   v-if="isLastColumn(popoverColumn)"
                   class="rxb-menu-item-hint"
-                  >已是最右列</span
+                  >{{ t('view.columnMenu.rightmost') }}</span
                 >
               </span>
             </button>
@@ -2677,7 +2677,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-open"
               aria-hidden="true"
             ></span>
-            打开详情
+            {{ t('view.taskMenu.open') }}
             <kbd class="rxb-kbd">↵</kbd>
           </button>
           <button
@@ -2691,7 +2691,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-pencil"
               aria-hidden="true"
             ></span>
-            编辑标题
+            {{ t('view.taskMenu.editTitle') }}
             <kbd class="rxb-kbd">F2</kbd>
           </button>
           <div
@@ -2710,7 +2710,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-arrow-right"
               aria-hidden="true"
             ></span>
-            移到列…
+            {{ t('view.taskMenu.moveToColumn') }}
             <span
               class="rxb-i rxb-i-chevron-right"
               aria-hidden="true"
@@ -2727,7 +2727,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-arrow-up"
               aria-hidden="true"
             ></span>
-            上移
+            {{ t('view.taskMenu.moveUp') }}
             <kbd class="rxb-kbd">⌥↑</kbd>
           </button>
           <button
@@ -2741,7 +2741,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-arrow-down"
               aria-hidden="true"
             ></span>
-            下移
+            {{ t('view.taskMenu.moveDown') }}
             <kbd class="rxb-kbd">⌥↓</kbd>
           </button>
           <div
@@ -2759,21 +2759,21 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-trash"
               aria-hidden="true"
             ></span>
-            删除任务
+            {{ t('common.deleteTask') }}
             <kbd class="rxb-kbd">Del</kbd>
           </button>
         </template>
       </template>
       <template v-else>
-        <p class="rxb-picker-title">{{ popover.kind === 'detail-label-picker' ? '选择标签' : '移到列' }}</p>
+        <p class="rxb-picker-title">{{ popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn') }}</p>
         <div class="rxb-picker-filter">
           <input
             class="rxb-input"
             :value="pickerQuery"
-            aria-label="过滤选项"
+            :aria-label="t('view.picker.filter')"
             data-autofocus
             data-testid="picker-filter"
-            placeholder="过滤选项"
+            :placeholder="t('view.picker.filter')"
             @input="onPickerInput(inputValue($event))"
             @keydown="onPickerKeydown"
           />
@@ -2781,7 +2781,7 @@ onBeforeUnmount(() => {
         <!-- listbox 只容 option：空态段落放在 listbox 之外 -->
         <div
           v-if="pickerOptions.length > 0"
-          :aria-label="popover.kind === 'detail-label-picker' ? '选择标签' : '移到列'"
+          :aria-label="popover.kind === 'detail-label-picker' ? t('view.picker.chooseLabels') : t('view.picker.moveToColumn')"
           :aria-multiselectable="popover.kind === 'detail-label-picker'"
           role="listbox"
         >
@@ -2815,7 +2815,7 @@ onBeforeUnmount(() => {
           v-else
           class="rxb-picker-empty"
         >
-          没有匹配的选项
+          {{ t('view.picker.empty') }}
         </p>
         <template v-if="canCreateLabelFromPicker">
           <div
@@ -2831,7 +2831,7 @@ onBeforeUnmount(() => {
               class="rxb-i rxb-i-plus"
               aria-hidden="true"
             ></span>
-            创建标签「{{ pickerQuery.trim() }}」
+            {{ t('view.picker.createLabel', { name: pickerQuery.trim() }) }}
           </button>
         </template>
       </template>
@@ -2857,35 +2857,39 @@ onBeforeUnmount(() => {
             :id="dialogTitleId"
             class="rxb-dialog-title"
           >
-            确认删除
+            {{ t('common.confirmDelete') }}
           </h2>
         </div>
         <div class="rxb-dialog-body">
           <template v-if="dialog.plan.kind === 'task'">
-            <p>删除任务「{{ dialog.plan.taskTitle }}」？</p>
+            <p>{{ t('view.dialog.confirmTaskDelete', { title: dialog.plan.taskTitle }) }}</p>
             <div class="rxb-impact">
-              <span>将同时移除 {{ dialog.plan.taskLabelIds.length }} 条标签关联。</span>
+              <span>{{ t('view.dialog.confirmTaskImpact', { count: dialog.plan.taskLabelIds.length }) }}</span>
             </div>
           </template>
           <template v-else-if="dialog.plan.kind === 'column'">
-            <p>删除列「{{ dialog.plan.columnTitle }}」？</p>
+            <p>{{ t('view.dialog.confirmColumnDelete', { title: dialog.plan.columnTitle }) }}</p>
             <div class="rxb-impact">
-              <span>其中 {{ dialog.plan.taskIds.length }} 个任务会一并删除；</span>
-              <span>{{ dialog.plan.taskLabelIds.length }} 条任务标签关联随之移除，板级标签定义保留。</span>
+              <span>{{ t('view.dialog.confirmColumnImpact1', { count: dialog.plan.taskIds.length }) }}</span>
+              <span>{{ t('view.dialog.confirmColumnImpact2', { count: dialog.plan.taskLabelIds.length }) }}</span>
             </div>
           </template>
           <template v-else>
-            <p>删除看板「{{ dialog.plan.boardTitle }}」？</p>
+            <p>{{ t('view.dialog.confirmBoardDelete', { title: dialog.plan.boardTitle }) }}</p>
             <div class="rxb-impact">
               <span>
-                {{ dialog.plan.columnIds.length }} 列、{{ dialog.plan.taskIds.length }} 个任务、{{
-                  dialog.plan.boardLabelIds.length
+                {{
+                  t('view.dialog.confirmBoardImpact', {
+                    columns: dialog.plan.columnIds.length,
+                    tasks: dialog.plan.taskIds.length,
+                    labels: dialog.plan.boardLabelIds.length,
+                    taskLabels: dialog.plan.taskLabelIds.length
+                  })
                 }}
-                个标签定义、{{ dialog.plan.taskLabelIds.length }} 条任务标签关联会一并删除。
               </span>
             </div>
           </template>
-          <p class="rxb-hint">删除后可用「撤销」恢复（仅限本次会话）。</p>
+          <p class="rxb-hint">{{ t('view.dialog.deleteUndoHint') }}</p>
         </div>
         <div class="rxb-dialog-footer">
           <button
@@ -2894,14 +2898,14 @@ onBeforeUnmount(() => {
             data-testid="confirm-delete-no"
             @click="closeDialog()"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             class="rxb-btn rxb-btn-danger"
             data-testid="confirm-delete-yes"
             @click="executeConfirmedDelete"
           >
-            确认删除
+            {{ t('common.confirmDelete') }}
           </button>
         </div>
       </div>
@@ -2918,15 +2922,15 @@ onBeforeUnmount(() => {
             :id="dialogTitleId"
             class="rxb-dialog-title"
           >
-            删除标签
+            {{ t('view.dialog.deleteLabelTitle') }}
           </h2>
         </div>
         <div class="rxb-dialog-body">
-          <p>删除标签「{{ dialog.plan.labelName }}」？</p>
+          <p>{{ t('view.dialog.confirmLabelDelete', { name: dialog.plan.labelName }) }}</p>
           <div class="rxb-impact">
-            <span>将从 {{ dialog.plan.taskLabelIds.length }} 个任务上移除这个标签。</span>
+            <span>{{ t('view.dialog.labelImpact', { count: dialog.plan.taskLabelIds.length }) }}</span>
           </div>
-          <p class="rxb-hint">删除后可用「撤销」恢复（仅限本次会话）。</p>
+          <p class="rxb-hint">{{ t('view.dialog.deleteUndoHint') }}</p>
         </div>
         <div class="rxb-dialog-footer">
           <button
@@ -2935,14 +2939,14 @@ onBeforeUnmount(() => {
             data-testid="confirm-delete-no"
             @click="closeDialog()"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             class="rxb-btn rxb-btn-danger"
             data-testid="confirm-delete-yes"
             @click="executeConfirmedDelete"
           >
-            确认删除
+            {{ t('common.confirmDelete') }}
           </button>
         </div>
       </div>
@@ -2959,11 +2963,11 @@ onBeforeUnmount(() => {
             :id="dialogTitleId"
             class="rxb-dialog-title"
           >
-            新建看板
+            {{ t('common.newBoard') }}
           </h2>
           <button
             class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-            aria-label="关闭"
+            :aria-label="t('common.close')"
             data-testid="dialog-close"
             @click="closeDialog()"
           >
@@ -2975,13 +2979,13 @@ onBeforeUnmount(() => {
         </div>
         <div class="rxb-dialog-body">
           <label class="rxb-form-field">
-            看板名称
+            {{ t('view.dialog.boardName') }}
             <input
               class="rxb-input"
               :value="boardComposerTitle"
               data-autofocus
               data-testid="board-composer-input"
-              placeholder="如：2026 Q4 发布计划"
+              :placeholder="t('view.dialog.boardNamePlaceholder')"
               @input="boardComposerTitle = inputValue($event)"
               @keydown.enter="submitBoardComposer"
             />
@@ -2992,7 +2996,7 @@ onBeforeUnmount(() => {
             class="rxb-btn"
             @click="closeDialog()"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             class="rxb-btn rxb-btn-primary"
@@ -3000,7 +3004,7 @@ onBeforeUnmount(() => {
             data-testid="board-composer-submit"
             @click="submitBoardComposer"
           >
-            创建
+            {{ t('view.dialog.create') }}
           </button>
         </div>
       </div>
@@ -3018,14 +3022,14 @@ onBeforeUnmount(() => {
             class="rxb-dialog-title"
           >
             {{
-              labelEditor === null ? '标签'
-              : labelEditor.labelId === null ? '新建标签'
-              : '编辑标签'
+              labelEditor === null ? t('view.dialog.labelsTitle')
+              : labelEditor.labelId === null ? t('view.dialog.newLabelTitle')
+              : t('view.dialog.editLabelTitle')
             }}
           </h2>
           <button
             class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-            aria-label="关闭"
+            :aria-label="t('common.close')"
             data-testid="dialog-close"
             @click="closeDialog()"
           >
@@ -3047,11 +3051,11 @@ onBeforeUnmount(() => {
                   backgroundColor: previewColor(labelEditor.color),
                   color: labelTextColor(previewColor(labelEditor.color))
                 }"
-                >{{ labelEditor.name.trim() || '标签预览' }}</span
+                >{{ labelEditor.name.trim() || t('view.dialog.labelPreview') }}</span
               >
             </div>
             <label class="rxb-form-field">
-              名称
+              {{ t('view.dialog.name') }}
               <input
                 class="rxb-input"
                 :value="labelEditor.name"
@@ -3063,10 +3067,10 @@ onBeforeUnmount(() => {
             </label>
             <div
               class="rxb-form-field"
-              aria-label="颜色"
+              :aria-label="t('view.dialog.color')"
               role="group"
             >
-              颜色
+              {{ t('view.dialog.color') }}
               <div class="rxb-swatches">
                 <button
                   v-for="option in labelColors"
@@ -3087,11 +3091,11 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div class="rxb-color-row">
-                <span class="rxb-hint">自定义</span>
+                <span class="rxb-hint">{{ t('view.dialog.customColor') }}</span>
                 <input
                   class="rxb-input"
                   :value="labelEditor.color"
-                  aria-label="自定义颜色（#rrggbb）"
+                  :aria-label="t('view.dialog.customColorLabel')"
                   data-testid="label-color-input"
                   maxlength="7"
                   @input="updateLabelEditor({ color: inputValue($event) })"
@@ -3105,7 +3109,7 @@ onBeforeUnmount(() => {
               data-testid="label-editor-cancel"
               @click="cancelLabelEditor"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
               class="rxb-btn rxb-btn-primary"
@@ -3113,7 +3117,7 @@ onBeforeUnmount(() => {
               data-testid="label-editor-save"
               @click="saveLabelEditor"
             >
-              保存
+              {{ t('common.save') }}
             </button>
           </div>
         </template>
@@ -3123,7 +3127,7 @@ onBeforeUnmount(() => {
               v-if="labels.length === 0"
               class="rxb-hint"
             >
-              当前看板还没有标签。
+              {{ t('view.dialog.noLabels') }}
             </p>
             <ul class="rxb-label-list">
               <li
@@ -3140,21 +3144,21 @@ onBeforeUnmount(() => {
                 >
                 <button
                   class="rxb-btn rxb-btn-sm"
-                  :aria-label="`编辑标签 ${label.name}`"
+                  :aria-label="t('view.dialog.editLabel', { name: label.name })"
                   :disabled="writeLocked"
                   data-testid="label-edit"
                   @click="startEditLabel(label)"
                 >
-                  编辑
+                  {{ t('common.edit') }}
                 </button>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-danger"
-                  :aria-label="`删除标签 ${label.name}`"
+                  :aria-label="t('view.dialog.deleteLabel', { name: label.name })"
                   :disabled="writeLocked"
                   data-testid="label-delete"
                   @click="deleteLabel(label)"
                 >
-                  删除
+                  {{ t('common.delete') }}
                 </button>
               </li>
             </ul>
@@ -3171,7 +3175,7 @@ onBeforeUnmount(() => {
                 class="rxb-i rxb-i-plus"
                 aria-hidden="true"
               ></span>
-              新建标签
+              {{ t('view.dialog.newLabelTitle') }}
             </button>
           </div>
         </template>
@@ -3189,11 +3193,11 @@ onBeforeUnmount(() => {
             :id="dialogTitleId"
             class="rxb-dialog-title"
           >
-            搜索当前板任务
+            {{ t('view.search.title') }}
           </h2>
           <button
             class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-            aria-label="关闭"
+            :aria-label="t('common.close')"
             data-testid="dialog-close"
             @click="closeDialog()"
           >
@@ -3208,10 +3212,10 @@ onBeforeUnmount(() => {
             class="rxb-input"
             :disabled="!board.searchSource"
             :placeholder="
-              board.searchSource ? '全文搜索标题与描述' : searchUnavailableText(board.searchUnavailableReason)
+              board.searchSource ? t('view.search.placeholder') : searchUnavailableText(board.searchUnavailableReason)
             "
             :value="searchQuery"
-            aria-label="搜索当前板任务"
+            :aria-label="t('view.search.title')"
             data-autofocus
             data-testid="board-search-input"
             @input="onSearchInput(inputValue($event))"
@@ -3233,7 +3237,7 @@ onBeforeUnmount(() => {
               class="rxb-hint"
               data-testid="board-search-loading"
             >
-              搜索中…
+              {{ t('view.search.loading') }}
             </p>
             <p
               v-else-if="searchState === 'error'"
@@ -3247,7 +3251,7 @@ onBeforeUnmount(() => {
               class="rxb-hint"
               data-testid="board-search-empty"
             >
-              无匹配
+              {{ t('view.search.empty') }}
             </p>
             <template v-else>
               <button
@@ -3267,7 +3271,7 @@ onBeforeUnmount(() => {
                 data-testid="board-search-more"
                 @click="onSearchMore"
               >
-                加载更多
+                {{ t('view.search.more') }}
               </button>
             </template>
           </div>
@@ -3286,11 +3290,11 @@ onBeforeUnmount(() => {
             :id="dialogTitleId"
             class="rxb-dialog-title"
           >
-            键盘快捷键
+            {{ t('common.keyboardShortcuts') }}
           </h2>
           <button
             class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-            aria-label="关闭"
+            :aria-label="t('common.close')"
             data-autofocus
             data-testid="dialog-close"
             @click="closeDialog()"
@@ -3345,11 +3349,11 @@ onBeforeUnmount(() => {
         data-testid="board-toast-undo"
         @click="undoFromToast"
       >
-        撤销
+        {{ t('view.undo.label') }}
       </button>
       <button
         class="rxb-btn rxb-btn-sm rxb-btn-icon"
-        aria-label="关闭提示"
+        :aria-label="t('view.banner.closeNotice')"
         data-testid="board-toast-close"
         @click="toast = null"
       >
