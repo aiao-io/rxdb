@@ -791,6 +791,7 @@ export const githubApp = {
     await expect(finder.locator('[data-name="README.md"]')).toBeVisible();
     await expect(openedNotice(githubWindow)).toHaveCount(0);
     await finder.locator('.tl .c').click();
+    await expect(githubWindow.getByRole('button', { name: 'Open in Aiao Code', exact: true })).toBeEnabled();
     await showRepositoryFiles(githubWindow);
     result.localRepositoryCreated =
       (await githubWindow.locator('[data-file-path="README.md"]').count()) === 1 &&
@@ -1026,7 +1027,7 @@ export const githubApp = {
     await openRepositoryMenu(remoteGithub, 'clone');
     await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
     await remoteGithub.locator('[data-github-open-remote]').click();
-    await expect(remoteGithub.locator('[data-github-fetch-origin]')).toBeEnabled();
+    await expect(remoteGithub.getByRole('button', { name: 'Open in Aiao Code', exact: true })).toBeEnabled();
     await expect(openedNotice(remoteGithub)).toHaveCount(0);
     await showRepositoryFiles(remoteGithub);
     await remoteGithub.locator('[data-file-path="README.md"]').click();

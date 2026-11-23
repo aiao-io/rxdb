@@ -600,7 +600,6 @@ export class GithubApp {
     const path = this.selectedPath() ?? this.files()[0]?.path ?? null;
     if (path) this.openFile(path);
     this.wm.open('vscode', { projectId: record.projectId, workspaceName: record.name });
-    this.notice.set('Opened Aiao Code');
   }
 
   protected async openRepositoryInTerminal(): Promise<void> {
@@ -618,7 +617,6 @@ export class GithubApp {
     if (!this.activeRecord()) return;
     const root = this.activeRecord()?.rootPath;
     this.wm.open('finder', root ? { path: finderPathOf(root), force: true } : {});
-    this.notice.set('Opened Finder');
   }
 
   protected async configureOrigin(url: string | null): Promise<void> {
@@ -1138,7 +1136,6 @@ export class GithubApp {
           this.branchValue.set(remote.record.branch);
           this.applySnapshot(current.files);
           await this.refresh();
-          this.notice.set(`Opened ${remote.record.name}`);
           this.repositoryMenuOpen.set(false);
           return;
         }
@@ -1726,7 +1723,6 @@ export class GithubApp {
     this.branchValue.set(record.owner ? record.branch : '');
     this.applySnapshot(snapshot.files);
     await this.refresh();
-    this.notice.set(`Opened ${record.name}`);
   }
 
   private async importArchive(
