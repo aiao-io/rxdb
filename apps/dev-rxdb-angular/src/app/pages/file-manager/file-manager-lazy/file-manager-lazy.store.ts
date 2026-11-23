@@ -1,5 +1,5 @@
-import { RxDB } from '@aiao/rxdb';
 import type { HistoryScopeAPI } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { computed, inject, Injectable, InjectionToken, OnDestroy, signal } from '@angular/core';

@@ -235,10 +235,12 @@ export default function EncryptedPage(): React.JSX.Element {
                   <tr>
                     <th>{t('page.encrypted.name')}</th>
                     <th>
-                      {t('page.encrypted.card')} <span className='badge badge-warning badge-xs ml-1'>{t('page.encrypted.encryptedBadge')}</span>
+                      {t('page.encrypted.card')}{' '}
+                      <span className='badge badge-warning badge-xs ml-1'>{t('page.encrypted.encryptedBadge')}</span>
                     </th>
                     <th>
-                      {t('page.encrypted.apiKey')} <span className='badge badge-warning badge-xs ml-1'>{t('page.encrypted.encryptedBadge')}</span>
+                      {t('page.encrypted.apiKey')}{' '}
+                      <span className='badge badge-warning badge-xs ml-1'>{t('page.encrypted.encryptedBadge')}</span>
                     </th>
                     <th></th>
                   </tr>

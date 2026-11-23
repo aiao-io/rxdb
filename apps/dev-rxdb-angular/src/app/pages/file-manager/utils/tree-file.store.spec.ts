@@ -1,8 +1,8 @@
 import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
-import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { TestBed } from '@angular/core/testing';
 import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { of } from 'rxjs';

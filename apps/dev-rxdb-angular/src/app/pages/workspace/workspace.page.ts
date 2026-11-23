@@ -5,13 +5,13 @@ import { type WorkspaceCacheEntry } from '@aiao/rxdb-plugin-workspace';
 import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { firstValueFrom } from 'rxjs';
 import {
   formatWorkspaceDate,
   workspaceError,
   workspaceNoticeText,
   type WorkspaceNotice
 } from '@modules/demo-i18n/workspace';
+import { firstValueFrom } from 'rxjs';
 import { I18nPipe } from '../../pipes/i18n.pipe';
 
 /**

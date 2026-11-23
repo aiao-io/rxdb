@@ -186,7 +186,12 @@ export function SearchCreateModal({
           </button>
         </div>
       </div>
-      <button type='button' className='modal-backdrop' onClick={() => onOpenChange(false)} aria-label={t('common.close')} />
+      <button
+        type='button'
+        className='modal-backdrop'
+        onClick={() => onOpenChange(false)}
+        aria-label={t('common.close')}
+      />
     </div>
   );
 }

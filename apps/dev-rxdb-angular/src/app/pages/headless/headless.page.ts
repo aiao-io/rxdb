@@ -50,7 +50,11 @@ import { QueryPanelComponent } from './query-panel.component';
             {{ 'page.headless.newArticle' | i18n }}
           </button>
           <span data-testid="dialog-result" role="status">
-            {{ dialog.snapshot().result === undefined ? '' : ('page.headless.dialogResult' | i18n: { result: dialog.snapshot().result }) }}
+            {{
+              dialog.snapshot().result === undefined ?
+                ''
+              : ('page.headless.dialogResult' | i18n: { result: dialog.snapshot().result })
+            }}
           </span>
         </div>
         <app-hl-article-list

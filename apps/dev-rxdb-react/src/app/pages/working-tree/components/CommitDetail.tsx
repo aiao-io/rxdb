@@ -1,5 +1,5 @@
-import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { useI18n } from '@aiao/rxdb-i18n-react';
+import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { ChevronDown, ChevronUp, Copy, GitCommitHorizontal } from 'lucide-react';
 import { createElement, useEffect, useRef, useState } from 'react';
 import { startDragResize } from '../utils/drag';

@@ -194,7 +194,11 @@ export function FileManagerLazyPage() {
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label={t('common.batchAdd')} data-testid='file-batch-add'>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    aria-label={t('common.batchAdd')}
+                    data-testid='file-batch-add'
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
@@ -402,9 +406,12 @@ export function FileManagerLazyPage() {
                   data-testid='file-name-input'
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder={t(store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder', {
-                    suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
-                  })}
+                  placeholder={t(
+                    store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder',
+                    {
+                      suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
+                    }
+                  )}
                   type='text'
                 />
 

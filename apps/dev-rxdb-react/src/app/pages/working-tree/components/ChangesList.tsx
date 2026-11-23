@@ -1,5 +1,5 @@
-import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { useI18n } from '@aiao/rxdb-i18n-react';
+import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { Check, ChevronDown, FileDiff, ListFilter, MoreVertical, Search } from 'lucide-react';
 import { createElement, useEffect, useRef, useState } from 'react';
 import { diffEntryKey, formatPatchSummary } from '../utils/diff-format';

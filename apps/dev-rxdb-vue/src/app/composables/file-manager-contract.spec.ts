@@ -2,6 +2,10 @@ import type { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge, SortableFileNode } from '@aiao/rxdb-test/entities';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createApp, ref } from 'vue';
+import { generateBatchFiles } from '../utils/file-utils';
+import { useFileManagerLazyStore } from './useFileManagerLazyStore';
+import { useFileManagerStore } from './useFileManagerStore';
 
 const zhT = vi.hoisted(() => {
   const names: Record<string, string> = {
@@ -22,11 +26,7 @@ const zhT = vi.hoisted(() => {
 vi.mock('@aiao/rxdb-i18n-vue', () => ({
   useI18n: () => ({ t: zhT, locale: { value: 'zh-Hans' } }),
   useI18nOptional: () => ({ t: zhT, locale: { value: 'zh-Hans' } })
-}));import { createApp, ref } from 'vue';
-import { generateBatchFiles } from '../utils/file-utils';
-import { useFileManagerLazyStore } from './useFileManagerLazyStore';
-import { useFileManagerStore } from './useFileManagerStore';
-
+}));
 const queries = vi.hoisted(() => ({ findAll: vi.fn() }));
 
 // 实体类的静态 findAll 由运行时注入，这里挂上替身以便断言 store 发出的查询
@@ -35,7 +35,6 @@ vi.mock('@aiao/rxdb-test/entities', async importOriginal => {
   Object.assign(actual.SortableFileLarge, { findAll: queries.findAll });
   return { ...actual };
 });
-
 
 interface FileSeed {
   name: string;

@@ -6,15 +6,15 @@ import { commonCatalogs } from '@modules/demo-i18n/common';
 import { encryptedCatalogs } from '@modules/demo-i18n/encrypted';
 import { entitiesCatalogs } from '@modules/demo-i18n/entities';
 import { fileManagerCatalogs } from '@modules/demo-i18n/file-manager';
-import { headlessCatalogs } from '@modules/demo-i18n/headless';
-import { searchCatalogs } from '@modules/demo-i18n/search';
-import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
-import { workingTreeCatalogs } from '@modules/demo-i18n/working-tree';
 import { fileCatalogs } from '@modules/demo-i18n/files';
 import { generatorCatalogs } from '@modules/demo-i18n/generator';
+import { headlessCatalogs } from '@modules/demo-i18n/headless';
 import { historyCatalogs } from '@modules/demo-i18n/history';
 import { remoteCacheCatalogs } from '@modules/demo-i18n/remote-cache';
+import { searchCatalogs } from '@modules/demo-i18n/search';
 import { todoCatalogs } from '@modules/demo-i18n/todo';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
+import { workingTreeCatalogs } from '@modules/demo-i18n/working-tree';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
 
 export const demoMessages: readonly MessageCatalog[] = [

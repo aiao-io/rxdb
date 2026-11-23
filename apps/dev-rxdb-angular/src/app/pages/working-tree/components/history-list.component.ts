@@ -1,8 +1,8 @@
 import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { LucideHistory as History, LucideDynamicIcon, LucideMoreVertical as MoreVertical } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../working-tree.gd';
 import type { WorkingTreeContextMenuRequest } from './changes-list.component';
 
@@ -102,10 +102,10 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
                   <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
                   <button
                     class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
-                    (click)="openRowMenu($event, entry)"
                     [attr.aria-label]="'common.moreActions' | i18n"
-                    data-testid="wt-commit-more"
                     [title]="'page.workingTree.moreActionsTouch' | i18n"
+                    (click)="openRowMenu($event, entry)"
+                    data-testid="wt-commit-more"
                     type="button"
                   >
                     <svg [lucideIcon]="MoreVertical" size="14"></svg>

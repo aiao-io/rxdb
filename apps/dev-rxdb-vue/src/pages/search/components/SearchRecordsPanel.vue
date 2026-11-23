@@ -80,9 +80,9 @@ const emit = defineEmits<{
             type="button"
           >
             {{
-              tab === 'article'
-                ? t('page.search.articleCount', { count: articleRecords.length })
-                : t('page.search.commentCount', { count: commentRecords.length })
+              tab === 'article' ?
+                t('page.search.articleCount', { count: articleRecords.length })
+              : t('page.search.commentCount', { count: commentRecords.length })
             }}
           </button>
         </div>

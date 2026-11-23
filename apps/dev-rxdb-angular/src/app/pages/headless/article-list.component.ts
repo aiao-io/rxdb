@@ -29,10 +29,16 @@ const COLUMNS = [
           {{ 'page.headless.deleteSelected' | i18n: { count: snapshot().selectedIds.length } }}
         </button>
       </div>
-      <table class="hl-table" [attr.aria-busy]="snapshot().loading" [attr.aria-label]="'page.headless.articleTable' | i18n">
+      <table
+        class="hl-table"
+        [attr.aria-busy]="snapshot().loading"
+        [attr.aria-label]="'page.headless.articleTable' | i18n"
+      >
         <thead>
           <tr>
-            <th scope="col"><span class="hl-sr">{{ 'page.headless.selectColumn' | i18n }}</span></th>
+            <th scope="col">
+              <span class="hl-sr">{{ 'page.headless.selectColumn' | i18n }}</span>
+            </th>
             @for (column of columns; track column.field) {
               <th [attr.aria-sort]="sortOf(column.field)" scope="col">
                 <button (click)="toggleSort(column.field)" type="button">{{ column.label | i18n }}</button>
@@ -91,7 +97,8 @@ const COLUMNS = [
         </button>
         <span data-testid="list-page-info" role="status">
           {{
-            'page.headless.pageInfo' | i18n: { page: snapshot().page + 1, pages: pages() ?? '?', total: snapshot().total ?? '?' }
+            'page.headless.pageInfo'
+              | i18n: { page: snapshot().page + 1, pages: pages() ?? '?', total: snapshot().total ?? '?' }
           }}{{ snapshot().loading ? ('page.headless.loadingSuffix' | i18n) : '' }}
         </span>
         <button

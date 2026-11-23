@@ -1,10 +1,10 @@
 import { RxDB } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
-import { SortableFileLarge } from '@aiao/rxdb-test/entities';
-import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
-import { PLATFORM_ID, signal } from '@angular/core';
 import { provideI18n } from '@aiao/rxdb-i18n-angular';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
+import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import FileManagerLazyPage from './file-manager-lazy/file-manager-lazy.page';
 import { FILE_HISTORY, TreeFileLazyStore } from './file-manager-lazy/file-manager-lazy.store';

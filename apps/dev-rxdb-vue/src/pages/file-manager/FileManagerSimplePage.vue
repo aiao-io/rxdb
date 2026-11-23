@@ -775,7 +775,9 @@ const getIconComponent = (iconName: string) => {
             type="button"
           >
             <Trash2 :size="16" />
-            {{ store.deleteImpact.value.childrenCount > 0 ? t('page.tree.deleteCascade') : t('page.tree.confirmDelete') }}
+            {{
+              store.deleteImpact.value.childrenCount > 0 ? t('page.tree.deleteCascade') : t('page.tree.confirmDelete')
+            }}
           </button>
         </div>
       </div>

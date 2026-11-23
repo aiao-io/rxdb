@@ -8,9 +8,7 @@ test.describe('Virtual Tree Menu', () => {
   });
 
   test('should display virtual menu page', async ({ page }) => {
-    await expect(
-      page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual|树菜单 - 虚拟滚动/u })
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual|树菜单 - 虚拟滚动/u })).toBeVisible();
   });
 
   test('should have add menu input and toolbar', async ({ page }) => {

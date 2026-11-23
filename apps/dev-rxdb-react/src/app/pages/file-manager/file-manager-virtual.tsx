@@ -187,7 +187,11 @@ export function FileManagerVirtualPage() {
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label={t('common.batchAdd')} data-testid='file-batch-add'>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    aria-label={t('common.batchAdd')}
+                    data-testid='file-batch-add'
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
@@ -416,9 +420,12 @@ export function FileManagerVirtualPage() {
                   data-testid='file-name-input'
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder={t(store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder', {
-                    suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
-                  })}
+                  placeholder={t(
+                    store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder',
+                    {
+                      suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
+                    }
+                  )}
                   type='text'
                 />
 
@@ -801,9 +808,7 @@ export function FileManagerVirtualPage() {
               {t('page.tree.confirmDelete')}
             </h3>
             <div className='py-4'>
-              <p className='mb-2'>
-                {t('page.file.deleteOne', { name: store.fileToDelete.name })}
-              </p>
+              <p className='mb-2'>{t('page.file.deleteOne', { name: store.fileToDelete.name })}</p>
               {store.deleteImpact && (
                 <div className='bg-warning/10 rounded p-3'>
                   <p className='mb-1 text-sm font-semibold'>{t('page.file.impactScope')}</p>

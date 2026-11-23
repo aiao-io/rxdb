@@ -1,6 +1,6 @@
-name: "🐛 Bug report"
-description: "Report a reproducible defect so we can investigate it"
-title: "[Bug]: "
+name: '🐛 Bug report'
+description: 'Report a reproducible defect so we can investigate it'
+title: '[Bug]: '
 labels: ['bug', 'triage']
 body:
   - type: markdown
@@ -13,7 +13,7 @@ body:
     id: package
     attributes:
       label: Affected package
-      description: "For example, `@aiao/rxdb`, `@aiao/rxdb-adapter-pglite`, or `@aiao/rxdb-react`."
+      description: 'For example, `@aiao/rxdb`, `@aiao/rxdb-adapter-pglite`, or `@aiao/rxdb-react`.'
       placeholder: '@aiao/rxdb'
     validations:
       required: true

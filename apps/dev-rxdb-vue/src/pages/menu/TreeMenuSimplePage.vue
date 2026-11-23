@@ -197,12 +197,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 </summary>
                 <ul class="dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow">
                   <li
-                    v-for="{ count } in [
-                      { count: 100 },
-                      { count: 1000 },
-                      { count: 5000 },
-                      { count: 10000 }
-                    ]"
+                    v-for="{ count } in [{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }]"
                     :key="count"
                   >
                     <button
@@ -342,7 +337,9 @@ const handlePointerCancel = (e: PointerEvent) => {
                 id="menu-title-input"
                 v-model="newTitle"
                 :placeholder="
-                  store.selectedParentId.value ? t('page.tree.childTitlePlaceholder') : t('page.tree.rootTitlePlaceholder')
+                  store.selectedParentId.value ?
+                    t('page.tree.childTitlePlaceholder')
+                  : t('page.tree.rootTitlePlaceholder')
                 "
                 data-testid="menu-title-input"
                 type="text"

@@ -31,7 +31,9 @@
                 {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
               </div>
             } @else {
-              <div class="badge badge-primary" data-testid="file-count">{{ 'page.tree.itemCount' | i18n: { count: fileCount } }}</div>
+              <div class="badge badge-primary" data-testid="file-count">
+                {{ 'page.tree.itemCount' | i18n: { count: fileCount } }}
+              </div>
             }
 
             <!-- 批量添加 -->

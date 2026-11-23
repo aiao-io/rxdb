@@ -173,16 +173,15 @@ export function TreeMenuLazyPage() {
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label={t('common.batchAdd')} data-testid='menu-batch-add'>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    aria-label={t('common.batchAdd')}
+                    data-testid='menu-batch-add'
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
-                    {[
-                      { count: 100 },
-                      { count: 1000 },
-                      { count: 5000 },
-                      { count: 10000 }
-                    ].map(({ count }) => {
+                    {[{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }].map(({ count }) => {
                       const actionKey = `add-${count}`;
                       const isLoading = loadingActions.has(actionKey);
                       return (

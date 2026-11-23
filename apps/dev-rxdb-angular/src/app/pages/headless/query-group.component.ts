@@ -22,16 +22,18 @@ import { QueryRuleComponent } from './query-rule.component';
       role="group"
     >
       <div class="hl-group-head">
-        <select (change)="changeCombinator($event)" [attr.aria-label]="'page.headless.combinator' | i18n">
-          <option [selected]="group().combinator === 'and'" value="and">{{ 'page.headless.combinatorAnd' | i18n }}</option>
+        <select [attr.aria-label]="'page.headless.combinator' | i18n" (change)="changeCombinator($event)">
+          <option [selected]="group().combinator === 'and'" value="and">
+            {{ 'page.headless.combinatorAnd' | i18n }}
+          </option>
           <option [selected]="group().combinator === 'or'" value="or">{{ 'page.headless.combinatorOr' | i18n }}</option>
         </select>
         <button (click)="addRule()" type="button">{{ 'page.headless.addRule' | i18n }}</button>
         <button (click)="controller().addGroup(group().id)" type="button">{{ 'page.headless.addGroup' | i18n }}</button>
         @if (!isRoot()) {
           <button
-            (click)="controller().remove(group().id)"
             [attr.aria-label]="'page.headless.deleteGroup' | i18n"
+            (click)="controller().remove(group().id)"
             type="button"
           >
             {{ 'page.headless.deleteGroup' | i18n }}

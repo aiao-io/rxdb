@@ -277,8 +277,14 @@ async function handleRemoveUser(user: EncryptedUser) {
           <thead>
             <tr>
               <th>{{ t('page.encrypted.name') }}</th>
-              <th>{{ t('page.encrypted.card') }} <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th>
-              <th>{{ t('page.encrypted.apiKey') }} <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th>
+              <th
+                >{{ t('page.encrypted.card') }}
+                <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th
+              >
+              <th
+                >{{ t('page.encrypted.apiKey') }}
+                <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th
+              >
               <th></th>
             </tr>
           </thead>

@@ -17,13 +17,13 @@ import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from
   imports: [I18nPipe],
   template: `
     <div class="hl-rule" data-testid="qb-rule">
-      <select (change)="changeField($event)" [attr.aria-label]="'page.headless.field' | i18n">
+      <select [attr.aria-label]="'page.headless.field' | i18n" (change)="changeField($event)">
         <option [selected]="rule().field === ''" value="">{{ 'page.headless.selectField' | i18n }}</option>
         @for (item of fields(); track item.name) {
           <option [selected]="rule().field === item.name" [value]="item.name">{{ item.displayName }}</option>
         }
       </select>
-      <select (change)="changeOperator($event)" [attr.aria-label]="'page.headless.operator' | i18n">
+      <select [attr.aria-label]="'page.headless.operator' | i18n" (change)="changeOperator($event)">
         @for (operator of operators(); track operator.key) {
           <option [selected]="rule().operator === operator.key" [value]="operator.key">
             {{ operatorText(operator) }}
@@ -31,7 +31,7 @@ import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from
         }
       </select>
       @if (inputType() === 'enum') {
-        <select (change)="changeEnumValue($event)" [attr.aria-label]="'page.headless.value' | i18n">
+        <select [attr.aria-label]="'page.headless.value' | i18n" (change)="changeEnumValue($event)">
           <option [selected]="valueText() === ''" value="">{{ 'page.headless.pleaseSelect' | i18n }}</option>
           @for (option of field()?.enum ?? []; track option) {
             <option [selected]="valueText() === '' + option" [value]="'' + option">{{ '' + option }}</option>
@@ -39,15 +39,15 @@ import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from
         </select>
       } @else if (inputType() !== 'none') {
         <input
+          [attr.aria-label]="'page.headless.value' | i18n"
           [attr.inputmode]="inputType() === 'number' ? 'numeric' : null"
           [value]="valueText()"
           (input)="changeValue($event)"
-          [attr.aria-label]="'page.headless.value' | i18n"
         />
       }
       <button
-        (click)="controller().remove(rule().id)"
         [attr.aria-label]="'page.headless.deleteRule' | i18n"
+        (click)="controller().remove(rule().id)"
         type="button"
       >
         {{ 'common.delete' | i18n }}

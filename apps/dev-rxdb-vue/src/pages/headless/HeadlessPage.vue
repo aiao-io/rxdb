@@ -82,7 +82,9 @@ const close = (result: DetailResult): void => {
             role="status"
             data-testid="dialog-result"
           >
-            {{ dialogState.result === undefined ? '' : t('page.headless.dialogResult', { result: dialogState.result }) }}
+            {{
+              dialogState.result === undefined ? '' : t('page.headless.dialogResult', { result: dialogState.result })
+            }}
           </span>
         </div>
         <ArticleList

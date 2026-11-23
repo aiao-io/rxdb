@@ -380,7 +380,9 @@ export function TodoPage(): React.JSX.Element {
             <div className='mx-auto flex max-w-4xl items-center justify-between'>
               <div className='flex items-center gap-3'>
                 <h2 className='text-lg font-semibold'>Todos</h2>
-                <div className='badge badge-primary badge-sm'>{t('page.todo.activeCount', { count: activeTodoCount })}</div>
+                <div className='badge badge-primary badge-sm'>
+                  {t('page.todo.activeCount', { count: activeTodoCount })}
+                </div>
               </div>
               <div className='tabs tabs-boxed tabs-xs' role='tablist'>
                 <button
@@ -422,7 +424,11 @@ export function TodoPage(): React.JSX.Element {
 
                 {/* Batch Add Dropdown */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' data-testid='todo-batch-add' aria-label={t('page.todo.batchAdd')}>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    data-testid='todo-batch-add'
+                    aria-label={t('page.todo.batchAdd')}
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow'>
@@ -580,7 +586,12 @@ export function TodoPage(): React.JSX.Element {
                 >
                   {t('page.todo.clearCompleted')}
                 </button>
-                <button className='btn btn-sm' data-testid='todo-sort' onClick={toggleCompletedSort} aria-label={t('page.todo.sort')}>
+                <button
+                  className='btn btn-sm'
+                  data-testid='todo-sort'
+                  onClick={toggleCompletedSort}
+                  aria-label={t('page.todo.sort')}
+                >
                   {completedSort === 'asc' ?
                     <ArrowUp size={16} />
                   : <ArrowDown size={16} />}

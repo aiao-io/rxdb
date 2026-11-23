@@ -25,7 +25,10 @@ export enum SortMode {
  * @param mode 排序模式
  * @returns 比较器函数；手动模式返回 `null`——显示顺序就是查询顺序（引擎的默认排序），调用方不得再排序
  */
-export function getSortComparator(mode: SortMode, locale = 'zh-CN'): ((a: SortableFile, b: SortableFile) => number) | null {
+export function getSortComparator(
+  mode: SortMode,
+  locale = 'zh-CN'
+): ((a: SortableFile, b: SortableFile) => number) | null {
   switch (mode) {
     case SortMode.Manual:
       return null;

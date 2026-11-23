@@ -1,4 +1,5 @@
 import { RxDBBranch, WorktreeTableSet, type MergeStrategy } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
@@ -12,7 +13,6 @@ import type {
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
-import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';

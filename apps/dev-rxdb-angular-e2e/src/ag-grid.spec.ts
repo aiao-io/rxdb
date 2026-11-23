@@ -1,6 +1,6 @@
-import { expect, test } from './fixtures.js';
 import { checkAgGridLocale } from '../../../modules/e2e-parity/ag-grid-locale.mjs';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 test.describe('AG Grid Page', () => {
   test.beforeEach(async ({ page }) => {

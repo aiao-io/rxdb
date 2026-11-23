@@ -55,7 +55,10 @@ export const SORT_MODE_LABELS: Record<SortMode, string> = {
  * @param mode 排序模式
  * @returns 比较器函数；`SortMode.Manual` 返回 `null`——手动顺序就是查询顺序，调用方不再排序
  */
-export function getSortComparator(mode: SortMode, locale = 'zh-CN'): ((a: SortableFileNode, b: SortableFileNode) => number) | null {
+export function getSortComparator(
+  mode: SortMode,
+  locale = 'zh-CN'
+): ((a: SortableFileNode, b: SortableFileNode) => number) | null {
   switch (mode) {
     case SortMode.Manual:
       // 手动顺序由引擎的默认排序给出，页面不再自己比较排序键

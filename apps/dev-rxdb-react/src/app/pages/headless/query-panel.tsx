@@ -62,7 +62,11 @@ function RuleRow({
 
   return (
     <div className='hl-rule' data-testid='qb-rule'>
-      <select aria-label={t('page.headless.field')} value={rule.field} onChange={event => changeField(event.target.value)}>
+      <select
+        aria-label={t('page.headless.field')}
+        value={rule.field}
+        onChange={event => changeField(event.target.value)}
+      >
         <option value=''>{t('page.headless.selectField')}</option>
         {fields.map(item => (
           <option key={item.name} value={item.name}>

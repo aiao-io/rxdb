@@ -1,10 +1,10 @@
 import { getEntityMutations, SortOrderError, type HistoryScopeAPI, type RxDB } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
 import { provideI18n } from '@aiao/rxdb-i18n-angular';
-import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MenuDragDropService } from '../services/menu-drag-drop.service';

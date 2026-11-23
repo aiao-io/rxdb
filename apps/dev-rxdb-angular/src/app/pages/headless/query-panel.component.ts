@@ -37,7 +37,9 @@ import { QueryGroupComponent } from './query-group.component';
         </button>
         <button (click)="clear()" type="button">{{ 'page.headless.clearFilter' | i18n }}</button>
       </div>
-      <pre class="hl-output" [attr.aria-label]="'page.headless.queryOutput' | i18n" data-testid="qb-query">{{ queryText() }}</pre>
+      <pre class="hl-output" [attr.aria-label]="'page.headless.queryOutput' | i18n" data-testid="qb-query">{{
+        queryText()
+      }}</pre>
     </section>
   `
 })

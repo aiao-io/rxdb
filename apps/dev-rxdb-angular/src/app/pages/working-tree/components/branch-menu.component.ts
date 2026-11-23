@@ -14,7 +14,6 @@ import {
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { I18nPipe } from '../../../pipes/i18n.pipe';
 import {
   LucideCheck as Check,
   LucideChevronDown as ChevronDown,
@@ -26,6 +25,7 @@ import {
   LucidePlus as Plus,
   LucideSearch as Search
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { gdRelativeTime } from '../working-tree.gd';
 import { isImeComposing } from '../working-tree.ime';
 import { fitToolbarPopup } from '../working-tree.popup';
@@ -186,10 +186,10 @@ import { fitToolbarPopup } from '../working-tree.popup';
                     <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
                     <button
                       class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
-                      (click)="openRowMenu($event, branch)"
                       [attr.aria-label]="'common.moreActions' | i18n"
-                      data-testid="wt-branch-more"
                       [title]="'page.workingTree.moreActionsTouch' | i18n"
+                      (click)="openRowMenu($event, branch)"
+                      data-testid="wt-branch-more"
                       type="button"
                     >
                       <svg [lucideIcon]="MoreVertical" size="14"></svg>

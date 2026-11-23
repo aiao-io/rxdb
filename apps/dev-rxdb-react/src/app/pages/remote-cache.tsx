@@ -1,10 +1,10 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import {
   StorageFetchError,
   StorageFileMeta,
   StorageMimeTypeMissingError,
   StorageOfflineError
 } from '@aiao/rxdb-plugin-storage';
-import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { formatFileSize } from '@aiao/utils';
 import { Cloud, CloudDownload, File, RefreshCw, Trash2, Wifi, WifiOff } from 'lucide-react';

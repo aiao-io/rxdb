@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.js';
+import type { Page } from '@playwright/test';
 import {
   checkHistoryEntrypointsLocale,
   checkHistoryLocale,
@@ -6,8 +6,8 @@ import {
   checkStorageLocale
 } from '../../../modules/e2e-parity/file-history-locale.mjs';
 import { checkWorkspaceLocale } from '../../../modules/e2e-parity/workspace-locale.mjs';
-import type { Page } from '@playwright/test';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 const DB_NAME_KEY = '__aiao_e2e_db_name__';
 

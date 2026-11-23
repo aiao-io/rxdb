@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
+import { useFindAll } from '@aiao/rxdb-angular';
 import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
-import { useFindAll } from '@aiao/rxdb-angular';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, CommonModule } from '@angular/common';

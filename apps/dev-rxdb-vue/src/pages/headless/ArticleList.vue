@@ -71,7 +71,9 @@ const swallow = (): undefined => undefined;
     >
       <thead>
         <tr>
-          <th scope="col"><span class="hl-sr">{{ t('page.headless.selectColumn') }}</span></th>
+          <th scope="col"
+            ><span class="hl-sr">{{ t('page.headless.selectColumn') }}</span></th
+          >
           <th
             v-for="column in COLUMNS"
             :key="column.field"
@@ -152,9 +154,8 @@ const swallow = (): undefined => undefined;
         role="status"
         data-testid="list-page-info"
       >
-        {{ t('page.headless.pageInfo', { page: snapshot.page + 1, pages: pages ?? '?', total: snapshot.total ?? '?' }) }}{{
-          snapshot.loading ? t('page.headless.loadingSuffix') : ''
-        }}
+        {{ t('page.headless.pageInfo', { page: snapshot.page + 1, pages: pages ?? '?', total: snapshot.total ?? '?' })
+        }}{{ snapshot.loading ? t('page.headless.loadingSuffix') : '' }}
       </span>
       <button
         type="button"

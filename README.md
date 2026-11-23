@@ -24,11 +24,11 @@ Chinese readers can use the [简体中文 README](README.zh-CN.md).
 
 ## Demo
 
-| Framework | URL |
-| --- | --- |
-| Angular | [rxdb.aiao.io/demo/angular](https://rxdb.aiao.io/demo/angular) |
-| React | [rxdb.aiao.io/demo/react](https://rxdb.aiao.io/demo/react) |
-| Vue | [rxdb.aiao.io/demo/vue](https://rxdb.aiao.io/demo/vue) |
+| Framework | URL                                                            |
+| --------- | -------------------------------------------------------------- |
+| Angular   | [rxdb.aiao.io/demo/angular](https://rxdb.aiao.io/demo/angular) |
+| React     | [rxdb.aiao.io/demo/react](https://rxdb.aiao.io/demo/react)     |
+| Vue       | [rxdb.aiao.io/demo/vue](https://rxdb.aiao.io/demo/vue)         |
 
 ## What problem does RxDB solve?
 
@@ -38,28 +38,28 @@ RxDB brings these concerns together around one model declaration. The same entit
 
 ## Core capabilities
 
-| Capability | Description |
-| --- | --- |
-| Reactive | Data changes update the UI without a second hand-written state synchronization layer. |
-| Local-first | Run a database in the browser and keep the application usable during weak or absent connectivity. |
-| Type-safe | Derive type-safe queries, mutations, and client APIs from model definitions. |
-| Data-driven | Model trees, graphs, and other structured data with generated CRUD capabilities. |
-| Cross-framework | Use consistent concepts across Angular, React, and Vue. |
-| Collaborative | Evolve toward versioned data, synchronization, and multi-user workflows. |
+| Capability      | Description                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| Reactive        | Data changes update the UI without a second hand-written state synchronization layer.             |
+| Local-first     | Run a database in the browser and keep the application usable during weak or absent connectivity. |
+| Type-safe       | Derive type-safe queries, mutations, and client APIs from model definitions.                      |
+| Data-driven     | Model trees, graphs, and other structured data with generated CRUD capabilities.                  |
+| Cross-framework | Use consistent concepts across Angular, React, and Vue.                                           |
+| Collaborative   | Evolve toward versioned data, synchronization, and multi-user workflows.                          |
 
 Related projects include [Jazz](https://jazz.tools/), [LiveStore](https://github.com/livestorejs/livestore), and [PowerSync](https://github.com/powersync-ja/powersync-js).
 
 ## Technology
 
-| Layer | Technology |
-| --- | --- |
-| Language | TypeScript 6.0+ with strict checking and ESM |
-| Build | Nx and pnpm, pinned in [package.json](package.json) |
-| Frameworks | Angular 22+, React 19+, and Vue 3.5+ |
-| Reactive runtime | RxJS 7.8+ |
-| Storage | wa-sqlite, sqlite-wasm, PGlite, Supabase, HTTP, and sqliteai |
-| Testing | Vitest for unit and integration tests, Playwright for E2E and accessibility tests |
-| Hosts | Browser, Node.js 26+, Electron, and Tauri |
+| Layer            | Technology                                                                        |
+| ---------------- | --------------------------------------------------------------------------------- |
+| Language         | TypeScript 6.0+ with strict checking and ESM                                      |
+| Build            | Nx and pnpm, pinned in [package.json](package.json)                               |
+| Frameworks       | Angular 22+, React 19+, and Vue 3.5+                                              |
+| Reactive runtime | RxJS 7.8+                                                                         |
+| Storage          | wa-sqlite, sqlite-wasm, PGlite, Supabase, HTTP, and sqliteai                      |
+| Testing          | Vitest for unit and integration tests, Playwright for E2E and accessibility tests |
+| Hosts            | Browser, Node.js 26+, Electron, and Tauri                                         |
 
 > [!NOTE]
 > The API is still evolving. Pin versions before production use and follow the [migration guide](https://rxdb.aiao.io/en/docs/migration/). The status overview tracks progress ([96/139 delivered](requirements/status-overview.md)).
@@ -143,18 +143,18 @@ The [contribution guide](CONTRIBUTING.md) explains TDD, framework symmetry, Nx t
 
 ## Repository layout
 
-| Path | Purpose |
-| --- | --- |
-| `packages/rxdb` | Core entities, repositories, queries, storage contracts, and synchronization primitives |
-| `packages/rxdb-model` | Model metadata, generated labels, and model-driven UI contracts |
-| `packages/rxdb-{angular,react,vue}` | Framework bindings |
-| `packages/rxdb-adapter-*` | Storage and synchronization adapters |
-| `packages/rxdb-plugin-*` | Optional plugins for search, history, tree, board, sync, and other capabilities |
-| `packages/rxdb-admin*` | Framework-agnostic Admin shell and framework bindings |
-| `packages/rxdb-i18n*` | Runtime internationalization and framework bindings |
-| `apps/dev-rxdb-*` | Framework and host demonstrations |
-| `website` | Docusaurus documentation site |
-| `requirements` | Stories, epics, plans, acceptance records, and delivery governance |
+| Path                                | Purpose                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `packages/rxdb`                     | Core entities, repositories, queries, storage contracts, and synchronization primitives |
+| `packages/rxdb-model`               | Model metadata, generated labels, and model-driven UI contracts                         |
+| `packages/rxdb-{angular,react,vue}` | Framework bindings                                                                      |
+| `packages/rxdb-adapter-*`           | Storage and synchronization adapters                                                    |
+| `packages/rxdb-plugin-*`            | Optional plugins for search, history, tree, board, sync, and other capabilities         |
+| `packages/rxdb-admin*`              | Framework-agnostic Admin shell and framework bindings                                   |
+| `packages/rxdb-i18n*`               | Runtime internationalization and framework bindings                                     |
+| `apps/dev-rxdb-*`                   | Framework and host demonstrations                                                       |
+| `website`                           | Docusaurus documentation site                                                           |
+| `requirements`                      | Stories, epics, plans, acceptance records, and delivery governance                      |
 
 ## Project status and roadmap
 

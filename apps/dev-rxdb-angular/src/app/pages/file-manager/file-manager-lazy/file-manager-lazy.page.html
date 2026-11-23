@@ -42,7 +42,9 @@
                 {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
               </div>
             } @else {
-              <div class="badge badge-primary" data-testid="file-count-sticky">{{ 'page.tree.itemCount' | i18n: { count: fileCount } }}</div>
+              <div class="badge badge-primary" data-testid="file-count-sticky">
+                {{ 'page.tree.itemCount' | i18n: { count: fileCount } }}
+              </div>
             }
 
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
@@ -124,7 +126,9 @@
                 {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
               </div>
             } @else {
-              <div class="badge badge-primary" data-testid="file-count">{{ 'page.tree.itemCount' | i18n: { count: fileCount } }}</div>
+              <div class="badge badge-primary" data-testid="file-count">
+                {{ 'page.tree.itemCount' | i18n: { count: fileCount } }}
+              </div>
             }
 
             <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->

@@ -1,4 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   useSearch,
   type SearchOptions,
@@ -19,7 +20,6 @@ import {
   untracked,
   viewChild
 } from '@angular/core';
-import { useI18n } from '@aiao/rxdb-i18n-angular';
 
 import { I18nPipe } from '../../pipes/i18n.pipe';
 import { SearchRecordsService } from './search-records.service';

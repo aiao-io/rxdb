@@ -1,15 +1,7 @@
 import { getEntityStatus, RxDB } from '@aiao/rxdb';
-import { Todo } from '@aiao/rxdb-test/entities';
 import { useI18n } from '@aiao/rxdb-i18n-angular';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  inject,
-  signal,
-  viewChild
-} from '@angular/core';
+import { Todo } from '@aiao/rxdb-test/entities';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ThemeService } from '@modules/angular';
 import { AgGridAngular } from 'ag-grid-angular';

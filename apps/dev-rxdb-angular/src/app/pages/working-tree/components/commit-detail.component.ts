@@ -1,7 +1,6 @@
 import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
-import { I18nPipe } from '../../../pipes/i18n.pipe';
 import {
   LucideChevronDown as ChevronDown,
   LucideChevronUp as ChevronUp,
@@ -9,6 +8,7 @@ import {
   LucideGitCommitHorizontal as GitCommitHorizontal,
   LucideDynamicIcon
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { startDragResize } from '../working-tree.drag';
 import {
   gdAvatarColor,

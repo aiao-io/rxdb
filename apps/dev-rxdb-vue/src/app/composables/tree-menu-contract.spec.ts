@@ -3,7 +3,6 @@ import { SortableMenuLarge, SortableMenuSimple } from '@aiao/rxdb-test/entities'
 import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-
 const zhT = vi.hoisted(() => {
   const names: Record<string, string> = {
     'page.tree.writeOp.create': '新建',

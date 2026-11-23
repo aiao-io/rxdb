@@ -98,9 +98,9 @@
       <button
         class="gd-toolbar-refresh gd-toolbar-section"
         [style.width.px]="$fetchSectionWidth()"
+        [title]="'page.workingTree.fetchTitle' | i18n"
         (click)="runFetch()"
         data-testid="wt-refresh-status"
-        [title]="'page.workingTree.fetchTitle' | i18n"
         type="button"
       >
         <svg [class.animate-spin]="$fetching()" [lucideIcon]="RefreshCw" size="18"></svg>
@@ -260,9 +260,9 @@
           {{ 'page.workingTree.statusUncommittedLabel' | i18n }}
           <span data-testid="wt-status-entry-count">{{ status.value.entryCount }}</span>
           {{ 'page.workingTree.statusEntryCountSuffix' | i18n }}
-          <span data-testid="wt-status-clean">{{
-            status.value.clean ? ('page.workingTree.statusClean' | i18n) : ('page.workingTree.statusDirty' | i18n)
-          }}</span>
+          <span data-testid="wt-status-clean">
+            {{ status.value.clean ? ('page.workingTree.statusClean' | i18n) : ('page.workingTree.statusDirty' | i18n) }}
+          </span>
           {{ 'page.workingTree.statusRemoteSyncLabel' | i18n }}
           <span data-testid="wt-status-remote-sync">{{ status.value.byOrigin.remote_sync }}</span>
           {{ 'page.workingTree.statusCountSuffix' | i18n }}
@@ -391,7 +391,11 @@
           {{ request.kind === 'discard' ? 'Discard changes' : 'Delete branch' }}
         </h2>
         <p class="mb-4 text-sm" [style.color]="'var(--gd-muted)'">
-          {{ request.kind === 'discard' ? request.message : ('page.workingTree.confirmDeleteBranch' | i18n: { branchId: request.branchId }) }}
+          {{
+            request.kind === 'discard' ?
+              request.message
+            : ('page.workingTree.confirmDeleteBranch' | i18n: { branchId: request.branchId })
+          }}
         </p>
         <div class="flex justify-end gap-2">
           <button class="gd-btn-secondary" (click)="cancelConfirm()" data-testid="wt-confirm-cancel" type="button">

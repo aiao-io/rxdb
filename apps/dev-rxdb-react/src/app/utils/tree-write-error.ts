@@ -7,14 +7,14 @@ export type TreeWriteOperation =
 
 /** 操作名 → 共享目录文案键；用户可见文案全部走目录。 */
 const OPERATION_KEYS: Readonly<Record<TreeWriteOperation, string>> = {
-  '新建': 'page.tree.writeOp.create',
-  '重命名': 'page.tree.writeOp.rename',
-  '批量添加': 'page.tree.writeOp.batchAdd',
-  '删除': 'page.tree.writeOp.delete',
-  '删除全部': 'page.tree.writeOp.deleteAll',
-  '级联删除': 'page.tree.writeOp.cascadeDelete',
-  '删除并提升子节点': 'page.tree.writeOp.deletePromote',
-  '拖放': 'page.tree.writeOp.drag'
+  新建: 'page.tree.writeOp.create',
+  重命名: 'page.tree.writeOp.rename',
+  批量添加: 'page.tree.writeOp.batchAdd',
+  删除: 'page.tree.writeOp.delete',
+  删除全部: 'page.tree.writeOp.deleteAll',
+  级联删除: 'page.tree.writeOp.cascadeDelete',
+  删除并提升子节点: 'page.tree.writeOp.deletePromote',
+  拖放: 'page.tree.writeOp.drag'
 };
 
 /**

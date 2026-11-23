@@ -6,14 +6,14 @@ import { commonEnMessages, commonZhMessages } from '@modules/demo-i18n/common';
 import { encryptedEnMessages, encryptedZhMessages } from '@modules/demo-i18n/encrypted';
 import { entitiesEnMessages, entitiesZhMessages } from '@modules/demo-i18n/entities';
 import { fileManagerEnMessages, fileManagerZhMessages } from '@modules/demo-i18n/file-manager';
+import { fileEnMessages, fileZhMessages } from '@modules/demo-i18n/files';
+import { generatorEnMessages, generatorZhMessages } from '@modules/demo-i18n/generator';
 import { headlessEnMessages, headlessZhMessages } from '@modules/demo-i18n/headless';
+import { historyEnMessages, historyZhMessages } from '@modules/demo-i18n/history';
+import { remoteCacheEnMessages, remoteCacheZhMessages } from '@modules/demo-i18n/remote-cache';
 import { searchEnMessages, searchZhMessages } from '@modules/demo-i18n/search';
 import { treeMenuEnMessages, treeMenuZhMessages } from '@modules/demo-i18n/tree-menu';
 import { workingTreeEnMessages, workingTreeZhMessages } from '@modules/demo-i18n/working-tree';
-import { fileEnMessages, fileZhMessages } from '@modules/demo-i18n/files';
-import { generatorEnMessages, generatorZhMessages } from '@modules/demo-i18n/generator';
-import { historyEnMessages, historyZhMessages } from '@modules/demo-i18n/history';
-import { remoteCacheEnMessages, remoteCacheZhMessages } from '@modules/demo-i18n/remote-cache';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
 
 const zhMessages: Readonly<Record<string, string>> = {
