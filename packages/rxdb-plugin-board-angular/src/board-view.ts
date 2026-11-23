@@ -3,7 +3,6 @@ import {
   BOARD_LABEL_COLORS,
   dropIndicatorAnchor,
   dueStatus,
-  dueStatusText,
   focusModalTab,
   isBoardFilterEmpty,
   isHexColor,
@@ -24,6 +23,7 @@ import {
   toggleBoardFilterValue,
   type BoardGridDirection,
   type BoardLabel,
+  type BoardMessageKey,
   type BoardMoveDirection,
   type BoardSearchUnavailableReason,
   type BoardSearchUpstream,
@@ -55,6 +55,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 
+import { t as boardT } from './board-i18n.js';
 import { useBoard, type UseBoardReturn } from './use-board.js';
 
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
@@ -131,37 +132,41 @@ const MOVE_KEYS: Readonly<Record<string, BoardMoveDirection>> = {
   ArrowRight: 'right'
 };
 
+/** 快捷键一览：文案只存目录键，模板经 `t()` 取当前语言。 */
 const SHORTCUT_GROUPS = [
   {
-    title: '导航',
+    titleKey: 'view.shortcuts.group.navigation',
     items: [
-      { label: '在卡片间移动', keys: ['↑', '↓', '←', '→'] },
-      { label: '本列第一张 / 最后一张', keys: ['Home', 'End'] },
-      { label: '聚焦筛选', keys: ['/'] },
-      { label: '搜索任务', keys: ['⌘/Ctrl', 'K'] },
-      { label: '显示快捷键', keys: ['?'] }
+      { labelKey: 'view.shortcuts.item.moveBetweenCards', keys: ['↑', '↓', '←', '→'] },
+      { labelKey: 'view.shortcuts.item.firstLastCard', keys: ['Home', 'End'] },
+      { labelKey: 'view.shortcuts.item.focusFilter', keys: ['/'] },
+      { labelKey: 'view.shortcuts.item.searchTasks', keys: ['⌘/Ctrl', 'K'] },
+      { labelKey: 'view.shortcuts.item.showShortcuts', keys: ['?'] }
     ]
   },
   {
-    title: '卡片',
+    titleKey: 'view.shortcuts.group.cards',
     items: [
-      { label: '打开详情', keys: ['Enter'] },
-      { label: '编辑标题', keys: ['F2'] },
-      { label: '上移 / 下移', keys: ['⌥', '↑', '↓'] },
-      { label: '移到相邻列', keys: ['⌥', '←', '→'] },
-      { label: '删除', keys: ['Del'] },
-      { label: '更多操作', keys: ['⇧', 'F10'] }
+      { labelKey: 'view.shortcuts.item.openDetail', keys: ['Enter'] },
+      { labelKey: 'view.shortcuts.item.editTitle', keys: ['F2'] },
+      { labelKey: 'view.shortcuts.item.moveUpDown', keys: ['⌥', '↑', '↓'] },
+      { labelKey: 'view.shortcuts.item.moveAdjacent', keys: ['⌥', '←', '→'] },
+      { labelKey: 'view.shortcuts.item.delete', keys: ['Del'] },
+      { labelKey: 'view.shortcuts.item.moreActions', keys: ['⇧', 'F10'] }
     ]
   },
   {
-    title: '编辑',
+    titleKey: 'view.shortcuts.group.editing',
     items: [
-      { label: '撤销', keys: ['⌘/Ctrl', 'Z'] },
-      { label: '重做', keys: ['⇧', '⌘/Ctrl', 'Z'] },
-      { label: '关闭菜单 / 对话框 / 详情', keys: ['Esc'] }
+      { labelKey: 'view.shortcuts.item.undo', keys: ['⌘/Ctrl', 'Z'] },
+      { labelKey: 'view.shortcuts.item.redo', keys: ['⇧', '⌘/Ctrl', 'Z'] },
+      { labelKey: 'view.shortcuts.item.closeEsc', keys: ['Esc'] }
     ]
   }
-] as const;
+] as const satisfies readonly {
+  readonly titleKey: BoardMessageKey;
+  readonly items: readonly { readonly labelKey: BoardMessageKey; readonly keys: readonly string[] }[];
+}[];
 
 const isEditable = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
@@ -226,6 +231,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected readonly detailDueId = `rxb-${this.uid}-due`;
   protected readonly labelColors = BOARD_LABEL_COLORS;
   protected readonly shortcutGroups = SHORTCUT_GROUPS;
+
+  /** 看板文案翻译（board 命名空间；测试 vi.mock `./board-i18n.js` 注入固定语言运行时）。 */
+  protected readonly t = boardT;
 
   // ---------- 拖拽 ----------
   protected readonly dragging = signal<{ readonly kind: 'task' | 'column'; readonly id: string } | null>(null);
@@ -464,7 +472,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected countLabel(column: Column): string {
     const visible = this.visibleTasksOf(column).length;
-    return this.filterActive() ? `筛选后 ${visible} / 共 ${this.tasksOf(column).length} 个任务` : `${visible} 个任务`;
+    return this.filterActive() ?
+      this.t('view.column.countFiltered', { visible, total: this.tasksOf(column).length })
+    : this.t('view.column.count', { count: visible });
   }
 
   protected overdueCount(column: Column): number {
@@ -476,7 +486,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected dueText(dueDate: string): string {
-    return dueStatusText(dueDate, this.today());
+    const status = dueStatus(dueDate, this.today());
+    if (status === 'overdue') return this.t('view.due.overdue', { date: dueDate });
+    if (status === 'today') return this.t('view.due.today', { date: dueDate });
+    return dueDate;
   }
 
   protected columnById(columnId: UUID | null): Column | undefined {
@@ -513,10 +526,10 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   protected popoverLabel(pop: PopoverState): string {
-    if (pop.kind === 'board-menu') return '看板操作';
-    if (pop.kind === 'column-menu') return `列操作：${this.columnTitleOf(pop.targetId)}`;
-    if (pop.kind === 'task-menu') return `任务操作：${this.taskById(pop.targetId)?.title ?? ''}`;
-    return pop.kind === 'detail-label-picker' ? '选择标签' : '移到列';
+    if (pop.kind === 'board-menu') return this.t('view.header.boardMenu');
+    if (pop.kind === 'column-menu') return this.t('view.column.menu', { title: this.columnTitleOf(pop.targetId) });
+    if (pop.kind === 'task-menu') return this.t('view.task.menu', { title: this.taskById(pop.targetId)?.title ?? '' });
+    return pop.kind === 'detail-label-picker' ? this.t('view.picker.chooseLabels') : this.t('view.picker.moveToColumn');
   }
 
   protected sameColor(a: string, b: string): boolean {
@@ -617,12 +630,12 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.closePopover();
     const callback = this.exportBackup();
     if (!callback) {
-      this.showNotice('备份导出由宿主接线（US-537）');
+      this.showNotice(this.t('view.toast.backupHosted'));
       return;
     }
     await this.guard(async () => {
       await callback();
-      this.showToast('备份已生成', false);
+      this.showToast(this.t('view.toast.backupGenerated'), false);
     });
   }
 
@@ -732,9 +745,11 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     try {
       const result = await this.guard(() => this.boardRef.actions.sortColumn(columnId, mode));
       if (!result) return;
-      const label = mode === 'dueDate' ? '截止日' : '标题';
+      const label = mode === 'dueDate' ? this.t('view.columnMenu.sortDue') : this.t('view.columnMenu.sortTitle');
       this.showToast(
-        result.written ? `已按${label}排序「${this.columnTitleOf(columnId)}」` : '已按目标顺序排列，无变化',
+        result.written ?
+          this.t('view.toast.sortedBy', { field: label, column: this.columnTitleOf(columnId) })
+        : this.t('view.toast.sortedNoChange'),
         result.written
       );
     } finally {
@@ -1028,7 +1043,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
         await this.boardRef.actions.executeLabelDelete(current.plan);
         return true;
       });
-      if (deleted) this.showToast(`已删除标签「${current.plan.labelName}」`, true);
+      if (deleted) this.showToast(this.t('view.toast.deletedLabel', { name: current.plan.labelName }), true);
       return;
     }
     if (current?.kind !== 'confirm-delete') return;
@@ -1255,9 +1270,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
 
   protected searchUnavailableText(reason: BoardSearchUnavailableReason | null): string {
     return (
-      reason === 'plugin_not_installed' ? '搜索插件未安装'
-      : reason === 'adapter_unsupported' ? '当前适配器不支持搜索'
-      : reason === 'query_failed' ? '搜索查询失败'
+      reason === 'plugin_not_installed' ? this.t('view.search.unavailablePlugin')
+      : reason === 'adapter_unsupported' ? this.t('view.search.unavailableAdapter')
+      : reason === 'query_failed' ? this.t('view.search.queryFailed')
       : ''
     );
   }
@@ -1387,9 +1402,9 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   private deletedMessage(plan: DeletePlan): string {
-    if (plan.kind === 'task') return `已删除任务「${plan.taskTitle}」`;
-    if (plan.kind === 'column') return `已删除列「${plan.columnTitle}」`;
-    return `已删除看板「${plan.boardTitle}」`;
+    if (plan.kind === 'task') return this.t('view.toast.deletedTask', { title: plan.taskTitle });
+    if (plan.kind === 'column') return this.t('view.toast.deletedColumn', { title: plan.columnTitle });
+    return this.t('view.toast.deletedBoard', { title: plan.boardTitle });
   }
 
   /** 新建或保存标签；编辑时只写改动的名称 / 颜色（标签已被删由领域入口报 label_not_found）。 */
@@ -1419,7 +1434,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   }
 
   private async saveDetailFields(session: DetailSession, patch: TaskFieldPatch): Promise<void> {
-    if (session === this.detailSession) this.detailStatus.set('保存中…');
+    if (session === this.detailSession) this.detailStatus.set(this.t('view.detail.statusSaving'));
     const result = await this.guard(() => session.actions.saveTaskFields(session.taskId, session.base, patch));
     if (result === undefined) {
       if (session === this.detailSession) this.detailStatus.set(null);
@@ -1435,7 +1450,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
     this.detailBase.set(fresh);
     if (patch.title !== undefined) this.detailTitle.set(fresh.title);
     if (patch.description !== undefined) this.detailDescription.set(fresh.description ?? '');
-    this.detailStatus.set(result.kind === 'saved' ? '已保存' : null);
+    this.detailStatus.set(result.kind === 'saved' ? this.t('view.detail.statusSaved') : null);
   }
 
   /** 撤销 / 重做后重读详情：侧栏不显示旧值、下次编辑不被误判冲突；任务已不存在则关闭侧栏。 */
@@ -1645,7 +1660,7 @@ export class BoardViewComponent implements OnInit, OnDestroy {
       if (this.detailSession !== null) this.detailSession.base = fresh;
       this.detailBase.set(fresh);
     }
-    this.showToast(`已移动到「${this.columnTitleOf(target.columnId)}」`, true);
+    this.showToast(this.t('view.toast.movedToColumn', { column: this.columnTitleOf(target.columnId) }), true);
     return true;
   }
 

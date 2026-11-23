@@ -15,7 +15,7 @@
           <select
             class="rxb-select"
             (change)="onBoardSelectionChange($event)"
-            aria-label="选择看板"
+            [attr.aria-label]="t('view.header.selectBoard')"
             data-testid="board-selector"
           >
             <!-- 逐项绑 selected：新板的选项晚于当前板 id 渲染时，select 的 value 绑定会失配 -->
@@ -30,7 +30,7 @@
             data-testid="create-board"
           >
             <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
-            新建看板
+            {{ t('common.newBoard') }}
           </button>
         </div>
         @if (b.currentBoard(); as current) {
@@ -43,14 +43,14 @@
                 (input)="boardTitleDraft.set(inputValue($event))"
                 (keydown.enter)="commitBoardTitle()"
                 (keydown.escape)="cancelBoardTitle($event)"
-                aria-label="看板标题"
+                [attr.aria-label]="t('view.header.boardTitle')"
                 data-autofocus
                 data-testid="board-title-editor"
               />
             } @else {
               <button
                 class="rxb-title-button"
-                [attr.aria-label]="'改板标题：' + current.title"
+                [attr.aria-label]="t('view.header.renameBoard', { title: current.title })"
                 [disabled]="writeLocked()"
                 (click)="startBoardTitle()"
                 data-testid="rename-board"
@@ -67,7 +67,7 @@
                 (blur)="commitBoardDescription()"
                 (input)="boardDescriptionDraft.set(inputValue($event))"
                 (keydown)="onBoardDescriptionKeydown($event)"
-                aria-label="看板描述"
+                [attr.aria-label]="t('view.header.boardDescription')"
                 data-autofocus
                 data-testid="board-description-editor"
                 rows="2"
@@ -78,12 +78,12 @@
                 [disabled]="writeLocked()"
                 (click)="startBoardDescription()"
                 data-testid="board-description"
-                title="编辑看板描述"
+                [title]="t('view.header.editDescription')"
               >
                 @if (current.description) {
                   {{ current.description }}
                 } @else {
-                  <span class="rxb-placeholder">添加描述</span>
+                  <span class="rxb-placeholder">{{ t('view.header.addDescription') }}</span>
                 }
               </button>
             }
@@ -92,16 +92,18 @@
       </div>
       <div class="rxb-header-actions">
         @if (b.restoring()) {
-          <span class="rxb-badge rxb-badge-attention" aria-live="polite" data-testid="restoring-badge">恢复中</span>
+          <span class="rxb-badge rxb-badge-attention" aria-live="polite" data-testid="restoring-badge">{{
+            t('view.header.restoring')
+          }}</span>
         }
         <div class="rxb-btn-group">
           <button
             class="rxb-btn rxb-btn-icon"
             [disabled]="writeLocked() || b.undoCount() === 0"
             (click)="undo()"
-            aria-label="撤销"
+            [attr.aria-label]="t('view.undo.label')"
             data-testid="undo"
-            title="撤销（⌘Z）"
+            [title]="t('view.undo.title')"
           >
             <span class="rxb-i rxb-i-undo" aria-hidden="true"></span>
           </button>
@@ -109,29 +111,34 @@
             class="rxb-btn rxb-btn-icon"
             [disabled]="writeLocked() || b.redoCount() === 0"
             (click)="redo()"
-            aria-label="重做"
+            [attr.aria-label]="t('view.redo.label')"
             data-testid="redo"
-            title="重做（⇧⌘Z）"
+            [title]="t('view.redo.title')"
           >
             <span class="rxb-i rxb-i-redo" aria-hidden="true"></span>
           </button>
         </div>
         @if (b.searchSource || b.searchUnavailableReason) {
-          <button class="rxb-btn" (click)="openSearch($event)" data-testid="search-open" title="搜索任务（⌘K）">
+          <button
+            class="rxb-btn"
+            (click)="openSearch($event)"
+            data-testid="search-open"
+            [title]="t('view.header.searchTitle')"
+          >
             <span class="rxb-i rxb-i-search" aria-hidden="true"></span>
-            搜索
+            {{ t('view.header.search') }}
           </button>
         }
         <button class="rxb-btn" [disabled]="!b.currentBoard()" (click)="openLabels($event)" data-testid="labels-open">
           <span class="rxb-i rxb-i-tag" aria-hidden="true"></span>
-          标签
+          {{ t('view.header.labels') }}
         </button>
         <button
           class="rxb-btn rxb-btn-icon"
           [attr.aria-expanded]="popover()?.kind === 'board-menu'"
           (click)="openBoardMenu($event)"
           aria-haspopup="menu"
-          aria-label="看板操作"
+          [attr.aria-label]="t('view.header.boardMenu')"
           data-testid="board-menu-trigger"
         >
           <span class="rxb-i rxb-i-kebab" aria-hidden="true"></span>
@@ -156,20 +163,20 @@
             (input)="onFilterInput(inputValue($event))"
             (keydown)="onFilterKeydown($event)"
             aria-autocomplete="list"
-            aria-label="筛选任务"
+            [attr.aria-label]="t('view.toolbar.filter')"
             autocomplete="off"
             data-testid="board-filter-input"
-            placeholder="按关键词或字段筛选，如 label:核心 due:overdue"
+            [placeholder]="t('view.toolbar.filterPlaceholder')"
             role="combobox"
           />
           @if (filterActive()) {
             <span class="rxb-filter-count" aria-live="polite" data-testid="board-filter-count">
-              {{ visibleCount() }} 项
+              {{ t('view.toolbar.count', { count: visibleCount() }) }}
             </span>
             <button
               class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
               (click)="clearFilter()"
-              aria-label="清除筛选"
+              [attr.aria-label]="t('view.toolbar.clearFilter')"
               data-testid="board-filter-clear"
             >
               <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -182,7 +189,7 @@
               [style.left.px]="0"
               [style.position]="'absolute'"
               [style.top]="'calc(100% + 4px)'"
-              aria-label="筛选补全"
+              [attr.aria-label]="t('view.toolbar.suggestions')"
               data-testid="board-filter-suggestions"
               role="listbox"
             >
@@ -211,16 +218,18 @@
     }
 
     @if (b.loading()) {
-      <p class="rxb-banner" data-testid="board-loading" role="status"><span>正在读取看板数据…</span></p>
+      <p class="rxb-banner" data-testid="board-loading" role="status"><span>{{ t('view.banner.loading') }}</span></p>
     } @else if (b.readError(); as message) {
       <p class="rxb-banner rxb-banner-danger" data-testid="board-read-error" role="alert">
-        <span>读取看板数据失败：{{ message }}</span>
-        <button class="rxb-btn rxb-btn-sm" (click)="b.retryReads()" data-testid="board-read-retry">重试</button>
+        <span>{{ t('view.banner.readError', { message }) }}</span>
+        <button class="rxb-btn rxb-btn-sm" (click)="b.retryReads()" data-testid="board-read-retry">{{
+          t('view.banner.retry')
+        }}</button>
       </p>
     }
     @if (b.restoring()) {
       <p class="rxb-banner rxb-banner-attention" data-testid="restoring-note">
-        <span>恢复进行中：浏览可用，写入口已暂停。</span>
+        <span>{{ t('view.banner.restoring') }}</span>
       </p>
     }
     @if (notice(); as message) {
@@ -231,7 +240,7 @@
           class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
           (click)="notice.set(null)"
           (mousedown)="$event.preventDefault()"
-          aria-label="关闭提示"
+          [attr.aria-label]="t('view.banner.closeNotice')"
           data-testid="board-notice-close"
         >
           <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -245,7 +254,7 @@
         @for (column of b.columns(); track column.id; let columnIndex = $index) {
           <section
             class="rxb-column"
-            [attr.aria-label]="'列：' + column.title"
+            [attr.aria-label]="t('view.column.ariaLabel', { title: column.title })"
             [attr.data-column-id]="column.id"
             [class.is-drop-end]="isDropEnd(column)"
             [class.is-drop-target]="isDropColumn(column)"
@@ -271,7 +280,7 @@
                   (input)="columnTitleDraft.set(inputValue($event))"
                   (keydown.enter)="commitColumnTitle()"
                   (keydown.escape)="cancelColumnTitle($event)"
-                  aria-label="列标题"
+                  [attr.aria-label]="t('view.column.titleEditor')"
                   data-autofocus
                   data-testid="column-title-editor"
                 />
@@ -281,14 +290,16 @@
                   {{ visibleTasksOf(column).length }}
                 </span>
                 @if (overdueCount(column); as overdue) {
-                  <span class="rxb-column-overdue" data-testid="column-overdue">逾期 {{ overdue }}</span>
+                  <span class="rxb-column-overdue" data-testid="column-overdue">{{
+                    t('view.column.overdue', { count: overdue })
+                  }}</span>
                 }
               }
               <div class="rxb-column-actions">
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
                   [attr.aria-expanded]="isPopoverFor('column-menu', column.id)"
-                  [attr.aria-label]="'列操作：' + column.title"
+                  [attr.aria-label]="t('view.column.menu', { title: column.title })"
                   (click)="openColumnMenu($event, column)"
                   aria-haspopup="menu"
                   data-testid="column-menu-trigger"
@@ -297,7 +308,7 @@
                 </button>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-                  [attr.aria-label]="'添加任务到 ' + column.title"
+                  [attr.aria-label]="t('view.column.addTask', { title: column.title })"
                   [disabled]="writeLocked()"
                   (click)="openAddTask(column.id)"
                   data-testid="column-add-task"
@@ -311,7 +322,7 @@
               @for (task of visibleTasksOf(column); track task.id) {
                 <article
                   class="rxb-card"
-                  [attr.aria-label]="'任务：' + task.title"
+                  [attr.aria-label]="t('view.task.ariaLabel', { title: task.title })"
                   [attr.data-task-id]="task.id"
                   [attr.draggable]="!writeLocked() && editingTaskId() !== task.id"
                   [attr.tabindex]="rovingTaskId() === task.id ? 0 : -1"
@@ -333,7 +344,7 @@
                         (input)="taskTitleDraft.set(inputValue($event))"
                         (keydown.enter)="commitTaskTitle(task)"
                         (keydown.escape)="cancelTaskTitle($event)"
-                        aria-label="任务标题"
+                        [attr.aria-label]="t('view.task.titleEditor')"
                         data-autofocus
                         data-testid="task-title-editor"
                       />
@@ -341,18 +352,18 @@
                         <button
                           class="rxb-btn rxb-btn-sm"
                           (click)="cancelTaskTitle()"
-                          aria-label="取消"
+                          [attr.aria-label]="t('common.cancel')"
                           data-testid="task-title-cancel"
                         >
-                          取消
+                          {{ t('common.cancel') }}
                         </button>
                         <button
                           class="rxb-btn rxb-btn-sm rxb-btn-primary"
                           (click)="commitTaskTitle(task)"
-                          aria-label="保存标题"
+                          [attr.aria-label]="t('view.task.saveTitle')"
                           data-testid="task-title-save"
                         >
-                          保存
+                          {{ t('common.save') }}
                         </button>
                       </div>
                     </div>
@@ -369,7 +380,7 @@
                       <button
                         class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible rxb-card-menu"
                         [attr.aria-expanded]="isPopoverFor('task-menu', task.id)"
-                        [attr.aria-label]="'任务操作：' + task.title"
+                        [attr.aria-label]="t('view.task.menu', { title: task.title })"
                         (click)="openTaskMenu($event, task)"
                         aria-haspopup="menu"
                         data-testid="task-menu-trigger"
@@ -391,7 +402,7 @@
                             (click)="toggleLabelFilter(label.name)"
                             data-testid="card-label"
                             tabindex="-1"
-                            title="按此标签筛选"
+                            [title]="t('view.task.filterByLabel')"
                           >
                             {{ label.name }}
                           </button>
@@ -413,7 +424,9 @@
                 </article>
               } @empty {
                 <p class="rxb-column-empty" data-testid="column-empty">
-                  {{ filterActive() && tasksOf(column).length > 0 ? '没有匹配筛选的任务' : '暂无任务' }}
+                  {{
+                    filterActive() && tasksOf(column).length > 0 ? t('view.column.empty.filtered') : t('view.column.empty.plain')
+                  }}
                 </p>
               }
               @if (addTaskColumnId() === column.id) {
@@ -425,20 +438,20 @@
                     (input)="addTaskTitle.set(inputValue($event))"
                     (keydown.enter)="commitAddTask()"
                     (keydown.escape)="cancelAddTask($event)"
-                    aria-label="新任务标题"
+                    [attr.aria-label]="t('view.task.newTitle')"
                     data-autofocus
                     data-testid="add-task-input"
-                    placeholder="输入标题后回车创建"
+                    [placeholder]="t('view.task.createPlaceholder')"
                   />
                   <div class="rxb-composer-actions">
                     <button
                       class="rxb-btn rxb-btn-sm"
                       [disabled]="creatingTask()"
                       (click)="cancelAddTask()"
-                      aria-label="取消"
+                      [attr.aria-label]="t('common.cancel')"
                       data-testid="add-task-cancel"
                     >
-                      取消
+                      {{ t('common.cancel') }}
                     </button>
                     <button
                       class="rxb-btn rxb-btn-sm rxb-btn-primary"
@@ -446,7 +459,7 @@
                       (click)="commitAddTask()"
                       data-testid="add-task-submit"
                     >
-                      添加
+                      {{ t('view.task.add') }}
                     </button>
                   </div>
                 </div>
@@ -458,7 +471,7 @@
                   data-testid="add-task"
                 >
                   <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
-                  添加任务
+                  {{ t('view.task.addTask') }}
                 </button>
               }
             </div>
@@ -473,14 +486,14 @@
                 (input)="addColumnTitle.set(inputValue($event))"
                 (keydown.enter)="commitAddColumn()"
                 (keydown.escape)="cancelAddColumn($event)"
-                aria-label="新列标题"
+                [attr.aria-label]="t('view.column.newTitle')"
                 data-autofocus
                 data-testid="column-composer-input"
-                placeholder="列名，如 In review"
+                [placeholder]="t('view.column.namePlaceholder')"
               />
               <div class="rxb-composer-actions">
                 <button class="rxb-btn rxb-btn-sm" (click)="cancelAddColumn()" data-testid="column-composer-cancel">
-                  取消
+                  {{ t('common.cancel') }}
                 </button>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-primary"
@@ -488,29 +501,29 @@
                   (click)="commitAddColumn()"
                   data-testid="column-composer-submit"
                 >
-                  添加列
+                  {{ t('view.column.add') }}
                 </button>
               </div>
             </div>
           } @else {
             <button class="rxb-btn" [disabled]="writeLocked()" (click)="openAddColumn()" data-testid="create-column">
               <span class="rxb-i rxb-i-plus" aria-hidden="true"></span>
-              添加列
+              {{ t('view.column.add') }}
             </button>
           }
         </div>
       </div>
     } @else if (!b.loading() && b.readError() === null) {
       <div class="rxb-empty" data-testid="empty-board">
-        <p class="rxb-empty-title">{{ b.boards().length === 0 ? '还没有看板' : '请选择看板' }}</p>
-        <p>看板把任务按列组织；数据只保存在本地浏览器，可随时导出备份。</p>
+        <p class="rxb-empty-title">{{ b.boards().length === 0 ? t('view.empty.noBoards') : t('view.empty.selectBoard') }}</p>
+        <p>{{ t('view.empty.description') }}</p>
         <button
           class="rxb-btn rxb-btn-primary"
           [disabled]="writeLocked()"
           (click)="openBoardComposer($event)"
           data-testid="create-board-empty"
         >
-          新建看板
+          {{ t('common.newBoard') }}
         </button>
       </div>
     }
@@ -519,7 +532,7 @@
     @if (detailTaskId(); as taskId) {
       <section
         class="rxb-panel"
-        [attr.aria-label]="'任务详情：' + detailTitle()"
+        [attr.aria-label]="t('view.detail.ariaLabel', { title: detailTitle() })"
         data-testid="detail-panel"
         role="dialog"
       >
@@ -529,14 +542,14 @@
             @if (detailStatus(); as status) {
               ·
               <span class="rxb-panel-status" aria-live="polite" data-testid="detail-status">{{ status }}</span>
-              @if (status === '已保存') {
+              @if (status === t('view.detail.statusSaved')) {
                 <button
                   class="rxb-link-button"
                   [disabled]="writeLocked() || b.undoCount() === 0"
                   (click)="undo()"
                   data-testid="detail-undo"
                 >
-                  撤销
+                  {{ t('view.undo.label') }}
                 </button>
               }
             }
@@ -544,7 +557,7 @@
           <button
             class="rxb-btn rxb-btn-icon rxb-btn-invisible"
             (click)="closeDetail()"
-            aria-label="关闭详情"
+            [attr.aria-label]="t('view.detail.close')"
             data-testid="detail-close"
           >
             <span class="rxb-i rxb-i-close" aria-hidden="true"></span>

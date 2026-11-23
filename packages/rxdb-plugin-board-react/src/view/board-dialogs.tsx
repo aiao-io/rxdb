@@ -7,6 +7,7 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import type { ReactNode } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { BoardViewModel } from './model.js';
 import { SHORTCUT_GROUPS, type DialogState, type LabelEditorState } from './types.js';
 
@@ -35,7 +36,7 @@ function DialogHeader({
         <button
           className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible'
           onClick={() => vm.dialog.closeDialog()}
-          aria-label='关闭'
+          aria-label={boardT('common.close')}
           data-autofocus={autofocusClose || undefined}
           data-testid='dialog-close'
         >
@@ -51,9 +52,9 @@ function DeleteImpact({ plan }: { readonly plan: DeletePlan }): ReactNode {
   if (plan.kind === 'task') {
     return (
       <>
-        <p>删除任务「{plan.taskTitle}」？</p>
+        <p>{boardT('view.dialog.confirmTaskDelete', { title: plan.taskTitle })}</p>
         <div className='rxb-impact'>
-          <span>将同时移除 {plan.taskLabelIds.length} 条标签关联。</span>
+          <span>{boardT('view.dialog.confirmTaskImpact', { count: plan.taskLabelIds.length })}</span>
         </div>
       </>
     );
@@ -61,21 +62,25 @@ function DeleteImpact({ plan }: { readonly plan: DeletePlan }): ReactNode {
   if (plan.kind === 'column') {
     return (
       <>
-        <p>删除列「{plan.columnTitle}」？</p>
+        <p>{boardT('view.dialog.confirmColumnDelete', { title: plan.columnTitle })}</p>
         <div className='rxb-impact'>
-          <span>其中 {plan.taskIds.length} 个任务会一并删除；</span>
-          <span>{plan.taskLabelIds.length} 条任务标签关联随之移除，板级标签定义保留。</span>
+          <span>{boardT('view.dialog.confirmColumnImpact1', { count: plan.taskIds.length })}</span>
+          <span>{boardT('view.dialog.confirmColumnImpact2', { count: plan.taskLabelIds.length })}</span>
         </div>
       </>
     );
   }
   return (
     <>
-      <p>删除看板「{plan.boardTitle}」？</p>
+      <p>{boardT('view.dialog.confirmBoardDelete', { title: plan.boardTitle })}</p>
       <div className='rxb-impact'>
         <span>
-          {plan.columnIds.length} 列、{plan.taskIds.length} 个任务、{plan.boardLabelIds.length} 个标签定义、
-          {plan.taskLabelIds.length} 条任务标签关联会一并删除。
+          {boardT('view.dialog.confirmBoardImpact', {
+            columns: plan.columnIds.length,
+            tasks: plan.taskIds.length,
+            labels: plan.boardLabelIds.length,
+            taskLabels: plan.taskLabelIds.length
+          })}
         </span>
       </div>
     </>
@@ -99,7 +104,7 @@ function ConfirmDialog({
       <DialogHeader vm={vm} title={title} closable={false} />
       <div className='rxb-dialog-body'>
         {children}
-        <p className='rxb-hint'>删除后可用「撤销」恢复（仅限本次会话）。</p>
+        <p className='rxb-hint'>{boardT('view.dialog.deleteUndoHint')}</p>
       </div>
       <div className='rxb-dialog-footer'>
         <button
@@ -108,14 +113,14 @@ function ConfirmDialog({
           data-autofocus
           data-testid='confirm-delete-no'
         >
-          取消
+          {boardT('common.cancel')}
         </button>
         <button
           className='rxb-btn rxb-btn-danger'
           onClick={() => void vm.dialog.executeConfirmedDelete()}
           data-testid='confirm-delete-yes'
         >
-          确认删除
+          {boardT('common.confirmDelete')}
         </button>
       </div>
     </div>
@@ -125,9 +130,9 @@ function ConfirmDialog({
 function LabelDeleteImpact({ plan }: { readonly plan: LabelDeletePlan }): ReactNode {
   return (
     <>
-      <p>删除标签「{plan.labelName}」？</p>
+      <p>{boardT('view.dialog.confirmLabelDelete', { name: plan.labelName })}</p>
       <div className='rxb-impact'>
-        <span>将从 {plan.taskLabelIds.length} 个任务上移除这个标签。</span>
+        <span>{boardT('view.dialog.labelImpact', { count: plan.taskLabelIds.length })}</span>
       </div>
     </>
   );
@@ -144,10 +149,10 @@ function BoardComposer({ vm }: PartProps): ReactNode {
       data-testid='board-composer'
       role='dialog'
     >
-      <DialogHeader vm={vm} title='新建看板' />
+      <DialogHeader vm={vm} title={boardT('common.newBoard')} />
       <div className='rxb-dialog-body'>
         <label className='rxb-form-field'>
-          看板名称
+          {boardT('view.dialog.boardName')}
           <input
             className='rxb-input'
             value={dialog.boardComposerTitle}
@@ -157,13 +162,13 @@ function BoardComposer({ vm }: PartProps): ReactNode {
             }}
             data-autofocus
             data-testid='board-composer-input'
-            placeholder='如：2026 Q4 发布计划'
+            placeholder={boardT('view.dialog.boardNamePlaceholder')}
           />
         </label>
       </div>
       <div className='rxb-dialog-footer'>
         <button className='rxb-btn' onClick={() => dialog.closeDialog()}>
-          取消
+          {boardT('common.cancel')}
         </button>
         <button
           className='rxb-btn rxb-btn-primary'
@@ -171,7 +176,7 @@ function BoardComposer({ vm }: PartProps): ReactNode {
           onClick={() => void dialog.submitBoardComposer()}
           data-testid='board-composer-submit'
         >
-          创建
+          {boardT('view.dialog.create')}
         </button>
       </div>
     </div>
@@ -187,11 +192,11 @@ function LabelEditor({ vm, editor }: PartProps & { readonly editor: LabelEditorS
       <div className='rxb-dialog-body' data-testid='label-editor'>
         <div className='rxb-label-preview'>
           <span className='rxb-label' style={{ backgroundColor: preview, color: labelTextColor(preview) }}>
-            {editor.name.trim() || '标签预览'}
+            {editor.name.trim() || boardT('view.dialog.labelPreview')}
           </span>
         </div>
         <label className='rxb-form-field'>
-          名称
+          {boardT('view.dialog.name')}
           <input
             className='rxb-input'
             value={editor.name}
@@ -203,8 +208,8 @@ function LabelEditor({ vm, editor }: PartProps & { readonly editor: LabelEditorS
             data-testid='label-name-input'
           />
         </label>
-        <div className='rxb-form-field' role='group' aria-label='颜色'>
-          颜色
+        <div className='rxb-form-field' role='group' aria-label={boardT('view.dialog.color')}>
+          {boardT('view.dialog.color')}
           <div className='rxb-swatches'>
             {BOARD_LABEL_COLORS.map(option => (
               <button
@@ -227,12 +232,12 @@ function LabelEditor({ vm, editor }: PartProps & { readonly editor: LabelEditorS
             ))}
           </div>
           <div className='rxb-color-row'>
-            <span className='rxb-hint'>自定义</span>
+            <span className='rxb-hint'>{boardT('view.dialog.customColor')}</span>
             <input
               className='rxb-input'
               value={editor.color}
               onChange={event => dialog.updateLabelEditor({ color: event.target.value })}
-              aria-label='自定义颜色（#rrggbb）'
+              aria-label={boardT('view.dialog.customColorLabel')}
               data-testid='label-color-input'
               maxLength={7}
             />
@@ -241,7 +246,7 @@ function LabelEditor({ vm, editor }: PartProps & { readonly editor: LabelEditorS
       </div>
       <div className='rxb-dialog-footer'>
         <button className='rxb-btn' onClick={dialog.cancelLabelEditor} data-testid='label-editor-cancel'>
-          取消
+          {boardT('common.cancel')}
         </button>
         <button
           className='rxb-btn rxb-btn-primary'
@@ -249,7 +254,7 @@ function LabelEditor({ vm, editor }: PartProps & { readonly editor: LabelEditorS
           onClick={() => void dialog.saveLabelEditor()}
           data-testid='label-editor-save'
         >
-          保存
+          {boardT('common.save')}
         </button>
       </div>
     </>
@@ -264,7 +269,7 @@ function LabelList({ vm }: PartProps): ReactNode {
     <>
       <div className='rxb-dialog-body'>
         {labels.length === 0 ?
-          <p className='rxb-hint'>当前看板还没有标签。</p>
+          <p className='rxb-hint'>{boardT('view.dialog.noLabels')}</p>
         : null}
         <ul className='rxb-label-list'>
           {labels.map(label => (
@@ -278,21 +283,21 @@ function LabelList({ vm }: PartProps): ReactNode {
               </span>
               <button
                 className='rxb-btn rxb-btn-sm'
-                aria-label={`编辑标签 ${label.name}`}
+                aria-label={boardT('view.dialog.editLabel', { name: label.name })}
                 disabled={core.writeLocked}
                 onClick={() => dialog.startEditLabel(label)}
                 data-testid='label-edit'
               >
-                编辑
+                {boardT('common.edit')}
               </button>
               <button
                 className='rxb-btn rxb-btn-sm rxb-btn-danger'
-                aria-label={`删除标签 ${label.name}`}
+                aria-label={boardT('view.dialog.deleteLabel', { name: label.name })}
                 disabled={core.writeLocked}
                 onClick={() => void dialog.deleteLabel(label)}
                 data-testid='label-delete'
               >
-                删除
+                {boardT('common.delete')}
               </button>
             </li>
           ))}
@@ -307,7 +312,7 @@ function LabelList({ vm }: PartProps): ReactNode {
           data-testid='create-label'
         >
           <span className='rxb-i rxb-i-plus' aria-hidden='true' />
-          新建标签
+          {boardT('view.dialog.newLabelTitle')}
         </button>
       </div>
     </>
@@ -318,9 +323,9 @@ function LabelList({ vm }: PartProps): ReactNode {
 function LabelManager({ vm }: PartProps): ReactNode {
   const editor = vm.dialog.labelEditor;
   const title =
-    editor === null ? '标签'
-    : editor.labelId === null ? '新建标签'
-    : '编辑标签';
+    editor === null ? boardT('view.dialog.labelsTitle')
+    : editor.labelId === null ? boardT('view.dialog.newLabelTitle')
+    : boardT('view.dialog.editLabelTitle');
   return (
     <div
       className='rxb-dialog'
@@ -343,7 +348,7 @@ function SearchResults({ vm }: PartProps): ReactNode {
   if (search.searchState === 'loading') {
     return (
       <p className='rxb-hint' data-testid='board-search-loading'>
-        搜索中…
+        {boardT('view.search.loading')}
       </p>
     );
   }
@@ -357,7 +362,7 @@ function SearchResults({ vm }: PartProps): ReactNode {
   if (search.searchState === 'empty') {
     return (
       <p className='rxb-hint' data-testid='board-search-empty'>
-        无匹配
+        {boardT('view.search.empty')}
       </p>
     );
   }
@@ -377,7 +382,7 @@ function SearchResults({ vm }: PartProps): ReactNode {
       ))}
       {search.searchHasMore ?
         <button className='rxb-btn rxb-btn-sm' onClick={search.onSearchMore} data-testid='board-search-more'>
-          加载更多
+          {boardT('view.search.more')}
         </button>
       : null}
     </>
@@ -397,15 +402,15 @@ function SearchDialog({ vm }: PartProps): ReactNode {
       data-testid='board-search'
       role='dialog'
     >
-      <DialogHeader vm={vm} title='搜索当前板任务' />
+      <DialogHeader vm={vm} title={boardT('view.search.title')} />
       <div className='rxb-dialog-body'>
         <input
           className='rxb-input'
           disabled={!board.searchSource}
-          placeholder={board.searchSource ? '全文搜索标题与描述' : unavailable}
+          placeholder={board.searchSource ? boardT('view.search.placeholder') : unavailable}
           value={search.searchQuery}
           onChange={event => search.onSearchInput(event.target.value)}
-          aria-label='搜索当前板任务'
+          aria-label={boardT('view.search.title')}
           data-autofocus
           data-testid='board-search-input'
         />
@@ -434,15 +439,15 @@ function ShortcutsDialog({ vm }: PartProps): ReactNode {
       data-testid='shortcuts-dialog'
       role='dialog'
     >
-      <DialogHeader vm={vm} title='键盘快捷键' autofocusClose />
+      <DialogHeader vm={vm} title={boardT('common.keyboardShortcuts')} autofocusClose />
       <div className='rxb-dialog-body'>
         <div className='rxb-shortcuts'>
           {SHORTCUT_GROUPS.map(group => (
             <section key={group.title} className='rxb-shortcut-group'>
-              <h3 className='rxb-panel-section-title'>{group.title}</h3>
+              <h3 className='rxb-panel-section-title'>{boardT(group.title)}</h3>
               {group.items.map(item => (
                 <div key={item.label} className='rxb-shortcut'>
-                  <span>{item.label}</span>
+                  <span>{boardT(item.label)}</span>
                   <span>
                     {item.keys.map(key => (
                       <kbd key={key} className='rxb-kbd'>
@@ -465,13 +470,13 @@ function DialogContent({ vm, current }: PartProps & { readonly current: DialogSt
   switch (current.kind) {
     case 'confirm-delete':
       return (
-        <ConfirmDialog vm={vm} title='确认删除'>
+        <ConfirmDialog vm={vm} title={boardT('common.confirmDelete')}>
           <DeleteImpact plan={current.plan} />
         </ConfirmDialog>
       );
     case 'confirm-label-delete':
       return (
-        <ConfirmDialog vm={vm} title='删除标签'>
+        <ConfirmDialog vm={vm} title={boardT('view.dialog.deleteLabelTitle')}>
           <LabelDeleteImpact plan={current.plan} />
         </ConfirmDialog>
       );

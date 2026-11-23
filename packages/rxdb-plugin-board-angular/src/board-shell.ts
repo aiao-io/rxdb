@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 
+import { t as boardT } from './board-i18n.js';
 import { BoardViewComponent } from './board-view.js';
 
 let shellCounter = 0;
@@ -49,6 +50,9 @@ export class BoardShellComponent implements OnInit, OnDestroy {
 
   protected readonly state = signal<BoardShellState | null>(null);
   protected readonly confirmTitleId = `rxb-shell-${++shellCounter}-confirm-title`;
+
+  /** 看板文案翻译（board 命名空间；测试 vi.mock `./board-i18n.js` 注入固定语言运行时）。 */
+  protected readonly t = boardT;
 
   /** 宿主配置：实例工厂、本地适配器名、可选的演示数据（初始化时读取一次）。 */
   readonly options = input.required<BoardShellOptions>();

@@ -1,6 +1,7 @@
 import type { Board } from '@aiao/rxdb-plugin-board';
 import type { ReactNode } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { BoardViewModel } from './model.js';
 
 interface PartProps {
@@ -20,13 +21,13 @@ function BoardTitle({ vm, current }: PartProps & { readonly current: Board }): R
             onBlur={() => void header.commitBoardTitle()}
             onChange={event => header.setBoardTitleDraft(event.target.value)}
             onKeyDown={header.onBoardTitleKeydown}
-            aria-label='看板标题'
+            aria-label={boardT('view.header.boardTitle')}
             data-autofocus
             data-testid='board-title-editor'
           />
         : <button
             className='rxb-title-button'
-            aria-label={`改板标题：${current.title}`}
+            aria-label={boardT('view.header.renameBoard', { title: current.title })}
             disabled={core.writeLocked}
             onClick={header.startBoardTitle}
             data-testid='rename-board'
@@ -43,7 +44,7 @@ function BoardTitle({ vm, current }: PartProps & { readonly current: Board }): R
             onBlur={() => void header.commitBoardDescription()}
             onChange={event => header.setBoardDescriptionDraft(event.target.value)}
             onKeyDown={header.onBoardDescriptionKeydown}
-            aria-label='看板描述'
+            aria-label={boardT('view.header.boardDescription')}
             data-autofocus
             data-testid='board-description-editor'
             rows={2}
@@ -53,9 +54,9 @@ function BoardTitle({ vm, current }: PartProps & { readonly current: Board }): R
             disabled={core.writeLocked}
             onClick={header.startBoardDescription}
             data-testid='board-description'
-            title='编辑看板描述'
+            title={boardT('view.header.editDescription')}
           >
-            {current.description ? current.description : <span className='rxb-placeholder'>添加描述</span>}
+            {current.description ? current.description : <span className='rxb-placeholder'>{boardT('view.header.addDescription')}</span>}
           </button>
         }
       </div>
@@ -71,7 +72,7 @@ function HeaderActions({ vm }: PartProps): ReactNode {
     <div className='rxb-header-actions'>
       {board.restoring ?
         <span className='rxb-badge rxb-badge-attention' aria-live='polite' data-testid='restoring-badge'>
-          恢复中
+          {boardT('view.header.restoring')}
         </span>
       : null}
       <div className='rxb-btn-group'>
@@ -79,9 +80,9 @@ function HeaderActions({ vm }: PartProps): ReactNode {
           className='rxb-btn rxb-btn-icon'
           disabled={writeLocked || board.undoCount === 0}
           onClick={() => void header.undo()}
-          aria-label='撤销'
+          aria-label={boardT('view.undo.label')}
           data-testid='undo'
-          title='撤销（⌘Z）'
+          title={boardT('view.undo.title')}
         >
           <span className='rxb-i rxb-i-undo' aria-hidden='true' />
         </button>
@@ -89,29 +90,29 @@ function HeaderActions({ vm }: PartProps): ReactNode {
           className='rxb-btn rxb-btn-icon'
           disabled={writeLocked || board.redoCount === 0}
           onClick={() => void header.redo()}
-          aria-label='重做'
+          aria-label={boardT('view.redo.label')}
           data-testid='redo'
-          title='重做（⇧⌘Z）'
+          title={boardT('view.redo.title')}
         >
           <span className='rxb-i rxb-i-redo' aria-hidden='true' />
         </button>
       </div>
       {board.searchSource || board.searchUnavailableReason ?
-        <button className='rxb-btn' onClick={dialog.openSearch} data-testid='search-open' title='搜索任务（⌘K）'>
+        <button className='rxb-btn' onClick={dialog.openSearch} data-testid='search-open' title={boardT('view.header.searchTitle')}>
           <span className='rxb-i rxb-i-search' aria-hidden='true' />
-          搜索
+          {boardT('view.header.search')}
         </button>
       : null}
       <button className='rxb-btn' disabled={!board.currentBoard} onClick={dialog.openLabels} data-testid='labels-open'>
         <span className='rxb-i rxb-i-tag' aria-hidden='true' />
-        标签
+        {boardT('view.header.labels')}
       </button>
       <button
         className='rxb-btn rxb-btn-icon'
         aria-expanded={popover.popover?.kind === 'board-menu'}
         onClick={header.openBoardMenu}
         aria-haspopup='menu'
-        aria-label='看板操作'
+        aria-label={boardT('view.header.boardMenu')}
         data-testid='board-menu-trigger'
       >
         <span className='rxb-i rxb-i-kebab' aria-hidden='true' />
@@ -133,7 +134,7 @@ export function BoardHeader({ vm }: PartProps): ReactNode {
             className='rxb-select'
             value={board.currentBoardId ?? ''}
             onChange={header.onBoardSelectionChange}
-            aria-label='选择看板'
+            aria-label={boardT('view.header.selectBoard')}
             data-testid='board-selector'
           >
             {board.boards.map(item => (
@@ -149,7 +150,7 @@ export function BoardHeader({ vm }: PartProps): ReactNode {
             data-testid='create-board'
           >
             <span className='rxb-i rxb-i-plus' aria-hidden='true' />
-            新建看板
+            {boardT('common.newBoard')}
           </button>
         </div>
         {board.currentBoard ?
@@ -180,21 +181,21 @@ export function BoardToolbar({ vm }: PartProps): ReactNode {
           onChange={event => data.onFilterInput(event.target.value)}
           onKeyDown={data.onFilterKeydown}
           aria-autocomplete='list'
-          aria-label='筛选任务'
+          aria-label={boardT('view.toolbar.filter')}
           autoComplete='off'
           data-testid='board-filter-input'
-          placeholder='按关键词或字段筛选，如 label:核心 due:overdue'
+          placeholder={boardT('view.toolbar.filterPlaceholder')}
           role='combobox'
         />
         {data.filterActive ?
           <>
             <span className='rxb-filter-count' aria-live='polite' data-testid='board-filter-count'>
-              {data.visibleCount} 项
+              {boardT('view.toolbar.count', { count: data.visibleCount })}
             </span>
             <button
               className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible'
               onClick={data.clearFilter}
-              aria-label='清除筛选'
+              aria-label={boardT('view.toolbar.clearFilter')}
               data-testid='board-filter-clear'
             >
               <span className='rxb-i rxb-i-close' aria-hidden='true' />
@@ -206,7 +207,7 @@ export function BoardToolbar({ vm }: PartProps): ReactNode {
             className='rxb-popover'
             id={listId}
             style={{ left: 0, position: 'absolute', top: 'calc(100% + 4px)' }}
-            aria-label='筛选补全'
+            aria-label={boardT('view.toolbar.suggestions')}
             data-testid='board-filter-suggestions'
             role='listbox'
           >
