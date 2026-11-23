@@ -44,11 +44,11 @@ export const applicationsUpgrade = {
     /* 每条命令等上一条落盘（桌面上出现文件的图标）再敲下一条：`node` 还在跑的时候敲进终端的字符会丢，
      * 桌面启动得越快（磁盘已经挂好）终端就越早可用，丢得越稳定。 */
     await helpers.runInShell(
-      `node -e "require('fs').writeFileSync('/Users/prasenjit/Desktop/legacy-mail.plist', '${legacyPlist('Mail', 'io.aiao.desktop.mail')}')"`
+      `node -e "require('fs').writeFileSync('/Users/stevejobs/Desktop/legacy-mail.plist', '${legacyPlist('Mail', 'io.aiao.desktop.mail')}')"`
     );
     await helpers.appears(helpers.desktopIcon('legacy-mail.plist'), 15_000);
     await helpers.runInShell(
-      `node -e "require('fs').writeFileSync('/Users/prasenjit/Desktop/legacy-maps.plist', '${legacyPlist('Maps', 'io.aiao.desktop.maps')}')"`
+      `node -e "require('fs').writeFileSync('/Users/stevejobs/Desktop/legacy-maps.plist', '${legacyPlist('Maps', 'io.aiao.desktop.maps')}')"`
     );
     await helpers.appears(helpers.desktopIcon('legacy-maps.plist'), 15_000);
     /* 用户自己放进包里的文件：包里除了系统写的文件还有用户的东西（不在保护范围内，可以直接写）。 */

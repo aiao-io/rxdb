@@ -19,6 +19,7 @@ export const diskTerminal = {
     'diskState.gitShellSemantics',
     'diskState.gitTabsShareIndex',
     'diskState.gitHistorySurvivesReopen',
+    'diskState.finderHiddenGitDirectory',
     'diskState.openCommandOpensTextEdit',
     'diskState.finderFolderOnDesktop',
     'diskState.shellSeesFinderChange',
@@ -68,7 +69,7 @@ export const diskTerminal = {
           )
         )
       ).every(Boolean),
-      shellStartsAtHome: await runInShell('pwd', /\/Users\/prasenjit/),
+      shellStartsAtHome: await runInShell('pwd', /\/Users\/stevejobs/),
       shellReadsFile: await runInShell('cat Desktop/prasenx.txt', /Scratchpad\. Everything on this Mac/),
       shellListsDesktop: await runInShell('ls ~/Desktop', /Interface Guidelines\.pdf/)
     };
@@ -99,6 +100,8 @@ export const diskTerminal = {
       if (!finished || !screen.includes(begin)) throw new Error(`Terminal did not finish ${command}\n${screen}`);
       return screen.split(begin).at(-1).split(end)[0].trim();
     };
+    diskState.shellStartsAtHome &&=
+      (await outputOf('echo "$HOME $USER $LOGNAME"')) === '/Users/stevejobs stevejobs stevejobs';
     const version = await outputOf('git --version');
     await outputOf('mkdir -p ~/Desktop/git-smoke && cd ~/Desktop/git-smoke && echo hello > README.md');
     const init = await outputOf('git init </dev/null');
@@ -109,7 +112,7 @@ export const diskTerminal = {
     const clean = await outputOf('git status --short');
     diskState.gitCommandsWork =
       /^git version /.test(version) &&
-      init.endsWith('/Users/prasenjit/Desktop/git-smoke/') &&
+      init === 'Initialized empty Git repository in /Users/stevejobs/Desktop/git-smoke/' &&
       /^\?\? README\.md$/.test(untracked) &&
       /^A\s+README\.md$/.test(staged) &&
       /^[a-f0-9]{7,40}\s+initial$/.test(history) &&
@@ -168,7 +171,7 @@ export const diskTerminal = {
     const sharedIndex = await outputOf('git status --short');
     diskState.gitTabsShareIndex = /^A\s+left\.txt\s*A\s+right\.txt$/.test(sharedIndex);
     const nested = await outputOf('mkdir nested && cd nested && git init');
-    diskState.gitCommandsWork &&= nested.endsWith('/Users/prasenjit/Desktop/git-smoke/nested/');
+    diskState.gitCommandsWork &&= nested.endsWith('/Users/stevejobs/Desktop/git-smoke/nested/');
     await closeAll();
     await openTerminal();
     const reopened = await outputOf('cd ~/Desktop/git-smoke && git log --oneline');
@@ -196,6 +199,8 @@ export const diskTerminal = {
         reopened
       });
 
+    /* 普通 git init 使用 .git 指针文件；另建隐藏目录验证分栏展开。 */
+    await outputOf('mkdir -p ~/Desktop/git-on-disk/.git && touch ~/Desktop/git-on-disk/.git/HEAD');
     await runInShell('open ~/Desktop/terminal-note.txt');
     diskState.openCommandOpensTextEdit = await page
       .waitForFunction(
@@ -213,8 +218,33 @@ export const diskTerminal = {
 
     /* 桌面这边的改动推进终端：Finder 在桌面目录新建文件夹，终端里马上 ls 得到。 */
     await page.locator('#dock .di[data-app="finder"]').click();
-    await win('finder').last().locator('[data-place="Desktop"]').click();
-    await win('finder').last().locator('[data-more]').click();
+    const finder = win('finder').last();
+    await finder.locator('[data-place="Desktop"]').click();
+    await finder.locator('[data-name="git-smoke"]').dblclick();
+    await finder.locator('[data-name="README.md"]').waitFor();
+    const gitEntry = finder.locator('[role="option"][data-name=".git"]');
+    const hiddenByDefault = (await gitEntry.count()) === 0;
+    await page.keyboard.press('Meta+Shift+Period');
+    await gitEntry.waitFor({ timeout: 5_000 });
+    for (const view of ['list', 'gallery', 'column']) {
+      await finder.locator(`[data-view="${view}"]`).click();
+      await gitEntry.waitFor({ timeout: 5_000 });
+    }
+    await finder.locator('[data-view="icon"]').click();
+    await finder.locator('[data-place="Desktop"]').click();
+    await finder.locator('[data-name="git-on-disk"]').dblclick();
+    await finder.locator('[data-view="column"]').click();
+    await gitEntry.click({ timeout: 5_000 });
+    const head = finder.locator('[role="option"][data-name="HEAD"]');
+    await head.waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Meta+Shift+Period');
+    await gitEntry.waitFor({ state: 'detached', timeout: 5_000 });
+    await head.waitFor({ state: 'detached', timeout: 5_000 });
+    diskState.finderHiddenGitDirectory = hiddenByDefault;
+
+    await finder.locator('[data-view="icon"]').click();
+    await finder.locator('[data-place="Desktop"]').click();
+    await finder.locator('[data-more]').click();
     await page.locator('#layer-menu .pop .mi', { hasText: 'New Folder' }).click();
     diskState.finderFolderOnDesktop = await appears(desktopIcon('untitled folder'));
     diskState.shellSeesFinderChange = await runInShell('ls ~/Desktop', /untitled folder/);

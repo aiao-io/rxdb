@@ -256,7 +256,7 @@ export const localMail = {
     await expect(field('Subject')).toHaveValue('Share Screenshot 2026-07-27 at 4.34.11 PM.png');
     const finderBody = await field('Message').inputValue();
     expect(finderBody).toContain('Screenshot 2026-07-27 at 4.34.11 PM.png');
-    expect(finderBody).toContain('/Users/prasenjit/Desktop/');
+    expect(finderBody).toContain('/Users/stevejobs/Desktop/');
     await panel().getByRole('button', { name: 'Discard Changes', exact: true }).click();
     result.sharedContentDrafts = true;
     result.finderShareCreatesDraft = true;

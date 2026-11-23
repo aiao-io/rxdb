@@ -25,14 +25,14 @@ describe('buildTree', () => {
     const root = buildTree(
       [
         row('u', null, 'Users', true, 1_000),
-        row('p', 'u', 'prasenjit', true, 1_000),
+        row('p', 'u', 'stevejobs', true, 1_000),
         row('n', 'p', 'a.txt', false, 3_000, 12)
       ],
       new Date(0)
     );
-    expect(nodeAt(root, ['Users', 'prasenjit', 'a.txt'])).toMatchObject({
+    expect(nodeAt(root, ['Users', 'stevejobs', 'a.txt'])).toMatchObject({
       kind: 'file',
-      path: ['Users', 'prasenjit', 'a.txt'],
+      path: ['Users', 'stevejobs', 'a.txt'],
       bytes: 12,
       size: '12 bytes',
       date: new Date(3_000)
@@ -43,7 +43,7 @@ describe('buildTree', () => {
     const root = buildTree(
       [
         row('u', null, 'Users', true, 1_000),
-        row('p', 'u', 'prasenjit', true, 5_000),
+        row('p', 'u', 'stevejobs', true, 5_000),
         row('e', 'u', 'Empty', true, 2_000)
       ],
       new Date(0)
@@ -64,14 +64,14 @@ const EMPTY_DATE = new Date(2026, 10, 1, 9, 0);
 async function sampleStore(): Promise<MemoryDiskStore> {
   let now = Date.UTC(2026, 6, 1);
   const store = new MemoryDiskStore(() => now);
-  await store.write(['Users', 'prasenjit', 'Desktop', 'b.txt'], bytes(2_100));
+  await store.write(['Users', 'stevejobs', 'Desktop', 'b.txt'], bytes(2_100));
   now = Date.UTC(2026, 6, 27);
-  await store.write(['Users', 'prasenjit', 'Desktop', 'A.png'], bytes(3_800_000));
+  await store.write(['Users', 'stevejobs', 'Desktop', 'A.png'], bytes(3_800_000));
   await store.write(['Applications', 'Notes.app', 'Contents', 'Info.plist'], bytes(600));
   await store.write(['Applications', 'Notes.app', 'Contents', 'PkgInfo'], bytes(8));
   await store.mkdir(['Library', 'Caches']);
   await store.write([...TRASH, 'old-draft.md'], bytes(10));
-  await store.write(['Users', 'prasenjit', '.zshrc'], bytes(4));
+  await store.write(['Users', 'stevejobs', '.zshrc'], bytes(4));
   return store;
 }
 
@@ -84,11 +84,11 @@ describe('scanDisk', () => {
 
   it('文件带真实大小、种类、图标与修改时间', async () => {
     const root = await scanDisk(await sampleStore(), EMPTY_DATE);
-    const desktop = nodeAt(root, ['Users', 'prasenjit', 'Desktop']);
+    const desktop = nodeAt(root, ['Users', 'stevejobs', 'Desktop']);
     expect(desktop?.children?.map(child => child.name)).toEqual(['A.png', 'b.txt']);
-    expect(nodeAt(root, ['Users', 'prasenjit', 'Desktop', 'A.png'])).toMatchObject({
+    expect(nodeAt(root, ['Users', 'stevejobs', 'Desktop', 'A.png'])).toMatchObject({
       kind: 'file',
-      path: ['Users', 'prasenjit', 'Desktop', 'A.png'],
+      path: ['Users', 'stevejobs', 'Desktop', 'A.png'],
       icon: 'f-img',
       k: 'PNG image',
       bytes: 3_800_000,
@@ -100,7 +100,7 @@ describe('scanDisk', () => {
 
   it('文件夹的日期取最新的子项，空文件夹用给定日期', async () => {
     const root = await scanDisk(await sampleStore(), EMPTY_DATE);
-    expect(nodeAt(root, ['Users', 'prasenjit', 'Desktop'])?.date).toEqual(new Date(Date.UTC(2026, 6, 27)));
+    expect(nodeAt(root, ['Users', 'stevejobs', 'Desktop'])?.date).toEqual(new Date(Date.UTC(2026, 6, 27)));
     expect(nodeAt(root, ['Library', 'Caches'])?.date).toEqual(EMPTY_DATE);
   });
 
@@ -114,7 +114,7 @@ describe('scanDisk', () => {
 
   it('隐藏项保留在树里，但不出现在可见子项与搜索结果中', async () => {
     const root = await scanDisk(await sampleStore(), EMPTY_DATE);
-    const home = nodeAt(root, ['Users', 'prasenjit']);
+    const home = nodeAt(root, ['Users', 'stevejobs']);
     expect(home?.children?.map(child => child.name)).toEqual(['.Trash', '.zshrc', 'Desktop']);
     expect(visibleChildren(home).map(child => child.name)).toEqual(['Desktop']);
     expect(nodeAt(root, TRASH)).toMatchObject({ icon: 'app-trash', hidden: true });

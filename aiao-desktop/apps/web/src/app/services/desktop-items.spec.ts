@@ -213,7 +213,7 @@ describe('DesktopItems 文件传输', () => {
 
   it('把 Finder 剪贴板的复制和剪切内容粘贴到桌面', async () => {
     const { items, clipboard, fs } = setup();
-    const source: DiskPath = ['Users', 'prasenjit', 'Documents', 'a.txt'];
+    const source: DiskPath = ['Users', 'stevejobs', 'Documents', 'a.txt'];
 
     clipboard.set('copy', [{ path: source, name: 'a.txt' }]);
     items.paste();

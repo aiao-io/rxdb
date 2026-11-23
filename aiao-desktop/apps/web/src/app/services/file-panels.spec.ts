@@ -32,8 +32,8 @@ describe('FilePanels', () => {
   it('用户选定：结果交回给请求方，面板收起', async () => {
     const panels = setup();
     const ticket = panels.show(request());
-    panels.current()!.submit({ kind: 'open', path: ['Users', 'prasenjit', 'a.md'] });
-    expect(await ticket.result).toEqual({ kind: 'open', path: ['Users', 'prasenjit', 'a.md'] });
+    panels.current()!.submit({ kind: 'open', path: ['Users', 'stevejobs', 'a.md'] });
+    expect(await ticket.result).toEqual({ kind: 'open', path: ['Users', 'stevejobs', 'a.md'] });
     expect(panels.current()).toBeNull();
   });
 

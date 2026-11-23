@@ -261,6 +261,21 @@ describe('DesktopMenus Finder 菜单', () => {
     expect(target.togglePathBar).toHaveBeenCalledTimes(1);
   });
 
+  it('View：隐藏文件开关由所有 Finder 窗口共用，默认关闭', () => {
+    const { menus } = setup();
+    const firstView = sectionOf(menus.finder(finderTarget()), 'View');
+    const hiddenFiles = (entries: readonly MenuEntry[]) =>
+      entries.filter(isMenuCommand).find(item => item.id === 'hidden-files');
+    expect(hiddenFiles(firstView)).toMatchObject({ label: 'Show Hidden Files', key: '⇧⌘.', checked: false });
+
+    click(firstView, 'hidden-files');
+    const otherView = sectionOf(menus.finder(finderTarget()), 'View');
+    expect(hiddenFiles(otherView)?.checked).toBe(true);
+
+    click(otherView, 'hidden-files');
+    expect(hiddenFiles(sectionOf(menus.finderFallback(), 'View'))?.checked).toBe(false);
+  });
+
   it('Go：前往最近使用、文稿、桌面、下载与应用程序', () => {
     const { menus } = setup();
     const target = finderTarget();

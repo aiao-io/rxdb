@@ -458,7 +458,7 @@ describe('RemoteAppSession：关闭（AC#14）', () => {
 
 describe('RemoteAppSession：文件与剪贴板能力经 Orbit（AC#11、#12、#16、#17）', () => {
   const FILES = ['window', 'filesystem:read', 'filesystem:write', 'clipboard:read', 'clipboard:write'] as const;
-  const DOC = ['Users', 'prasenjit', 'Documents', 'note.md'];
+  const DOC = ['Users', 'stevejobs', 'Documents', 'note.md'];
   /** 线上请求：带请求 ID 的需要用户操作的请求，应答「已受理」，最终结果经完成事件送达。 */
   const settled = (orbit: FakeOrbitRuntime) =>
     orbit.last.emitted.filter(([event]) => event === 'desktop.request.settled').map(([, payload]) => payload);

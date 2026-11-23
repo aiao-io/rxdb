@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-12
-updated: 2026-11-22
+updated: 2026-11-23
 tags: [desktop, rxdb, sqlite, opfs, terminal, e2e]
 dependsOn: [ADESK-US-101]
 capabilities: []
@@ -49,7 +49,7 @@ capabilities: []
 | 2   | 桌面已打开                             | 看桌面图标                                                       | 除 Macintosh HD 外的图标就是 `~/Desktop` 里的条目                                                              | ✅   |
 | 3   | 桌面已打开                             | 双击桌面上的 `prasenx.txt`                                       | TextEdit 显示文件的真实内容                                                                                    | ✅   |
 | 4   | 桌面已打开                             | 双击桌面上的截图                                                 | 预览显示文件本身（1440 宽的 PNG）                                                                              | ✅   |
-| 5   | 打开终端                               | 依次执行 `pwd`、`cat Desktop/prasenx.txt`、`ls ~/Desktop`        | 从 `/Users/prasenjit` 开始，读到与 Finder 相同的文件与内容                                                     | ✅   |
+| 5   | 打开终端                               | 依次执行 `pwd`、`cat Desktop/prasenx.txt`、`ls ~/Desktop`        | 从 `/Users/stevejobs` 开始，读到与 Finder 相同的文件与内容                                                     | ✅   |
 | 6   | 终端已打开                             | `echo … > ~/Desktop/terminal-note.txt`                           | 桌面上出现 `terminal-note.txt`                                                                                 | ✅   |
 | 7   | 终端已打开                             | 用 `touch`、`mv`、`cp` 在 `~/Desktop` 里建、改名、复制文件       | 改名后的文件与副本出现在桌面上，改名前的文件不在                                                               | ✅   |
 | 8   | 终端已打开                             | `open ~/Desktop/terminal-note.txt`                               | TextEdit 打开并显示终端写进去的内容                                                                            | ✅   |
@@ -68,20 +68,24 @@ capabilities: []
 | 21  | 外网阻断                               | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun           | 编译结果、编译器版本与 Bun 表达式输出正确                                                                      | ✅   |
 | 22  | 外网阻断                               | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询              | SQLite WASM 真正执行 SQL，数据与预期一致                                                                       | ✅   |
 | 23  | 终端在桌面目录建好项目                 | 执行 `init`、`add`、`commit`、`status`、`log`，再重开终端        | 暂存状态、提交哈希、退出码、管道与重定向正确；双标签暂存均保留                                                 | ✅   |
+| 24  | 终端已初始化 Git 仓库，Finder 打开项目 | 按 `⌘⇧.`，或在 View 菜单切换 Show Hidden Files                   | `.git` 默认隐藏；显示后四种视图均能看到，是目录时可在分栏展开；再次切换后隐藏                                   | ✅   |
 
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。
 
-Git 验收对应 `disk-terminal` 组的 `diskState.gitCommandsWork`、`diskState.gitShellSemantics`、`diskState.gitTabsShareIndex` 和 `diskState.gitHistorySurvivesReopen`。终端复用桌面内置的 wasm-git，在支持 WebAssembly JSPI 的浏览器上操作本地仓库。
+Git 验收对应 `disk-terminal` 组的 `diskState.gitCommandsWork`、`diskState.gitShellSemantics`、`diskState.gitTabsShareIndex` 和 `diskState.gitHistorySurvivesReopen`。`git init` 回显 `/Users/stevejobs` 下的真实仓库路径；`diskState.shellStartsAtHome` 同时核对 `$HOME`、`$USER` 与 `$LOGNAME`。终端复用桌面内置的 wasm-git，在支持 WebAssembly JSPI 的浏览器上操作本地仓库。
 
 包管理器补验（2026-11-15）：#15 对应新增 `terminal-packages` 检查组的 `terminalPackages.vendorAssets`、`npm`、`npx`、`pnpm`、`yarn`、`corepack`，#16 对应 `installsDependency` 与 `runsDependency`。打包与下载校验由 `aiao-desktop:runtime-test:coverage` 验证，产物漏发与损坏由 `aiao-desktop:deploy-test` 验证；结果见[本轮证据](../../evidence/2026-11-15/README.md)。
 
 运行时补验：#17～#22 对应 `terminal-runtimes` 检查组。Python REPL 在同一项目目录恢复 pip 包、按需加载 NumPy，并在退出后回写文件；`pythonInput` 检查终端逐键输入能被 `input()` 完整读取。Bun 另覆盖 TS 文件与参数、`Bun.file` / `Bun.write` 共享桌面文件、package.json 的 pre / post 脚本、退出码和 REPL；`terminal-packages` 的 `bunx`、`bunInstallsDependency` 与 `bunRunsDependency` 覆盖包执行入口及固定 registry 的真实安装与执行。完整资源清单与兼容边界见[终端资源说明](../../../scripts/vivari/README.md)。首次资源接入的浏览器报告与脚本门禁结果登记在[2026-11-15 证据](../../evidence/2026-11-15/README.md)，Bun 与 Python 的终端交互补验见[2026-11-16 证据](../../evidence/2026-11-16/README.md)。
+
+#24 由 `disk-terminal` 组的 `diskState.finderHiddenGitDirectory` 和 `a11y` 组的 `a11y.finder.hiddenFilesMenu` 验收。
 
 ## 技术笔记
 
 - 写操作经 [file-system.ts](../../../apps/web/src/app/services/file-system.ts) 的串行队列进入 [rxdb-disk-store.ts](../../../apps/web/src/app/disk/rxdb-disk-store.ts)：先写文件体、再写行，行写失败就删掉刚写的文件体。界面读的那棵树由 `DesktopFile` 的活查询组装，谁改了文件行，Finder、桌面与 Dock 都跟着变。
 - 种子内容在 [disk-seed.ts](../../../apps/web/src/app/disk/disk-seed.ts) 与 [seed-text.ts](../../../apps/web/src/app/disk/seed-text.ts)；图片由 [photo-encoder.ts](../../../apps/web/src/app/services/photo-encoder.ts) 把 Finder 缩略图用的同一套插画渲染成 PNG / JPEG。
 - 终端：[virtual-machine.ts](../../../apps/web/src/app/vm/virtual-machine.ts) 管理共用的虚拟机，[disk-vm-sync.ts](../../../apps/web/src/app/vm/disk-vm-sync.ts) 负责双向同步，[shell-patch.ts](../../../apps/web/src/app/vm/shell-patch.ts) 与 [coreutils.ts](../../../apps/web/src/app/vm/coreutils.ts) 是 shell 补丁与补充命令。
+- 桌面账号的显示名与短用户名定义在 [user-profile.ts](../../../apps/web/src/app/shared/user-profile.ts)。短用户名决定磁盘主目录与终端环境；旧库改名由 `upgrade-legacy` 组的 `upgradeLegacy.legacyHomeRenamed` 验收，复制文件或清空浏览器存储不是升级步骤。
 - 内置应用的数据：每个应用一份 `<app>.entities.ts` 与 `<app>.seed.ts`，登记在 [entities.ts](../../../apps/web/src/app/data/entities.ts) 与 [seeds.ts](../../../apps/web/src/app/data/seeds.ts)；备忘录、提醒事项、日历、通讯录、邮件、信息、照片、音乐、语音备忘录、股票、天气（城市）、时钟（世界时钟）、无边记（笔迹）、Safari（书签、阅读列表、历史）、地图（收藏地点）、FaceTime（通话记录）、书架与字体册，各是一个数据域。选中项、搜索词、播放进度与外网拉来的行情、天气、网页仍是运行时状态；活动监视器的进程表是模拟读数，没有进库。
 - 随之改变的行为：所有窗口共用库里的数据（原先每个窗口各持一份）；记录 id 从数字变成 UUID（`data-id`、`data-ri`、`data-ev` 等属性值随之变化，选择器不变）；邮件按邮箱过滤（发出的邮件进「已发送」）；备忘录输入后 0.42 秒自动保存；写入是异步的，新建的记录等活查询带回后才出现。
 - 数据底座：[desktop-database.ts](../../../apps/web/src/app/data/desktop-database.ts)、[desktop-data.ts](../../../apps/web/src/app/data/desktop-data.ts)（连库、初始数据）、[preferences.ts](../../../apps/web/src/app/data/preferences.ts)（系统偏好键值）、[live-query.ts](../../../apps/web/src/app/data/live-query.ts)。

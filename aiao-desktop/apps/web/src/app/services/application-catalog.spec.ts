@@ -13,7 +13,7 @@ import { DESKTOP_APPS, DesktopAppManifests } from './desktop-apps';
 const text = (value: string): Uint8Array => new TextEncoder().encode(value);
 
 const SAFARI: DiskPath = ['Applications', 'Safari.app'];
-const COPY: DiskPath = ['Users', 'prasenjit', 'Desktop', 'Safari.app'];
+const COPY: DiskPath = ['Users', 'stevejobs', 'Desktop', 'Safari.app'];
 
 function setup(manifests: DesktopAppManifests = DESKTOP_APP_MANIFESTS) {
   configureServices([ApplicationCatalog, { provide: DESKTOP_APPS, useValue: manifests }]);
@@ -176,7 +176,7 @@ describe('ApplicationCatalog.resolve：打开一个 .app 包', () => {
 
   it('按标识而不是文件名：改了名的副本照样打开它的本尊，不会打开同名的别的应用', async () => {
     const { catalog } = await reconciled();
-    const path: DiskPath = ['Users', 'prasenjit', 'Desktop', 'Notes.app'];
+    const path: DiskPath = ['Users', 'stevejobs', 'Desktop', 'Notes.app'];
     const result = await catalog.resolve({ name: 'Notes.app', path }, async () => copyPlist('mail', 'Notes'));
     expect(result).toEqual({ kind: 'app', id: 'mail' });
   });

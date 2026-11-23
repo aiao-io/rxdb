@@ -168,7 +168,7 @@ export const terminalRuntimes = {
     checks.tsgo = await run('tsgo --version', /Version 7\./);
     checks.bun = await run('bun -e "console.log(\'BUN_OK\', 6 * 7)"', /BUN_OK 42/);
     await run(
-      'echo \'const answer: number = 42; const file = "/Users/prasenjit/Desktop/bun-note.txt"; await Bun.write(file, "AIAO_BUN_DISK_OK"); console.log("BUN_SCRIPT_OK", answer, await Bun.file(file).text(), process.argv.slice(2).join(","));\' > /tmp/runtime-bun.ts',
+      'echo \'const answer: number = 42; const file = "/Users/stevejobs/Desktop/bun-note.txt"; await Bun.write(file, "AIAO_BUN_DISK_OK"); console.log("BUN_SCRIPT_OK", answer, await Bun.file(file).text(), process.argv.slice(2).join(","));\' > /tmp/runtime-bun.ts',
       /[\s\S]*/
     );
     checks.bunScript = await run('bun /tmp/runtime-bun.ts direct', /BUN_SCRIPT_OK 42 AIAO_BUN_DISK_OK direct/);

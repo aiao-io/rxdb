@@ -1,4 +1,6 @@
-import type { RawQueryResult } from '@aiao/rxdb';
+import type { RawQueryResult, TransactionExecutor } from '@aiao/rxdb';
+
+import { migrateDesktopHome } from './desktop-home-migration';
 
 /**
  * 桌面本地库的 schema 版本（ADESK-US-106）。
@@ -21,7 +23,7 @@ import type { RawQueryResult } from '@aiao/rxdb';
  * 构建产物里最大的十位版本字面量是当前版本，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
  * **改这个常量是一次单向操作**：升过的库，没有降级保护的旧构建会直接打开，所以每次升版本都进发布说明。
  */
-export const DESKTOP_SCHEMA_VERSION = 2026112101;
+export const DESKTOP_SCHEMA_VERSION = 2026112301;
 
 /** 版本记录在系统偏好表里的键。 */
 export const SCHEMA_RECORD_KEY = 'schema:desktop';
@@ -54,7 +56,7 @@ export interface SchemaStep {
   /** 做了什么、为什么（进发布说明）。 */
   readonly summary: string;
   /**
-   * 既有实体的字段变了时写迁移；在升级事务里执行，与写入版本记录同一个事务（全有或全无）。
+   * 既有实体的字段或数据约定变了时写迁移；与写入版本记录同一个事务（全有或全无）。
    * 只增不改（新实体、新数据域）的版本不写它，建表与种子由 RxDB 连接与按域种子补齐。
    */
   readonly migrate?: (executor: SchemaExecutor) => Promise<void>;
@@ -64,6 +66,8 @@ export interface SchemaStep {
 export interface SchemaExecutor {
   /** 在升级事务里执行一条 SQL。 */
   execute(sql: string, bindings?: readonly (string | number | null)[]): Promise<unknown>;
+  /** 在同一事务中迁移既有实体数据。 */
+  getRepository: TransactionExecutor['getRepository'];
 }
 
 /** 升级清单：按版本升序，每次升 schema 版本追加一行，不改已发布的行。 */
@@ -109,6 +113,11 @@ export const SCHEMA_STEPS: readonly SchemaStep[] = [
   {
     version: 2026112101,
     summary: '天气默认城市改为北京；旧库首次读取天气时只迁移仍是初始 Cupertino 的城市。'
+  },
+  {
+    version: 2026112301,
+    summary: '桌面短用户名统一为 stevejobs；旧库原地迁移主目录及其系统路径引用，保留文件体与仓库记录。',
+    migrate: migrateDesktopHome
   }
 ];
 
@@ -176,7 +185,7 @@ export function stepsBetween(
   return steps.filter(step => step.version > from && step.version <= to).sort((a, b) => a.version - b.version);
 }
 
-/** 升级时对库的两种写入：迁移用的 SQL，以及最后写下新的版本记录。 */
+/** 在同一个事务中完成迁移，再写下新的版本记录。 */
 export interface SchemaUpgradeTarget extends SchemaExecutor {
   /** 写入（新建或覆盖）版本记录。 */
   writeRecord(record: SchemaRecord): Promise<void>;

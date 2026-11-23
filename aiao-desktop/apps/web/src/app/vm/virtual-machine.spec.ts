@@ -139,11 +139,11 @@ afterEach(() => {
 
 describe('VirtualMachine 开机与关机', () => {
   it('终端里的用户与主目录和 Finder 的 Macintosh HD 是同一块磁盘', () => {
-    expect(SHELL_HOME).toBe('/Users/prasenjit');
+    expect(SHELL_HOME).toBe('/Users/stevejobs');
     expect(SHELL_ENV).toMatchObject({
       HOME: SHELL_HOME,
-      USER: 'prasenjit',
-      LOGNAME: 'prasenjit',
+      USER: 'stevejobs',
+      LOGNAME: 'stevejobs',
       TERM: 'xterm-256color'
     });
   });

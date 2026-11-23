@@ -328,7 +328,7 @@ describe('reconcileApplications：应用下线', () => {
   it('复制到别处（比如桌面）的包不动', async () => {
     const store = new MemoryDiskStore();
     await reconcileApplications(store, DESKTOP_APP_MANIFESTS);
-    const copy: DiskPath = ['Users', 'prasenjit', 'Desktop', 'Stocks.app', 'Contents', 'Info.plist'];
+    const copy: DiskPath = ['Users', 'stevejobs', 'Desktop', 'Stocks.app', 'Contents', 'Info.plist'];
     const original = decode(await store.read(infoPath('Stocks.app')));
     await store.write(copy, text(original));
 
@@ -459,7 +459,7 @@ describe('受保护路径与保护判断', () => {
   it('删除或移动预装包本身、包里系统写入的 Contents、Info.plist、PkgInfo 都拒绝，说明 Finder 风格', () => {
     for (const path of [safari, bundle('Safari.app', 'Contents'), infoPath('Safari.app'), pkgInfoPath('Safari.app')]) {
       expect(protectionViolation(owned, { kind: 'remove', path })).toBe(refused(path, 'removed'));
-      expect(protectionViolation(owned, { kind: 'move', from: path, to: ['Users', 'prasenjit', 'x'] })).toBe(
+      expect(protectionViolation(owned, { kind: 'move', from: path, to: ['Users', 'stevejobs', 'x'] })).toBe(
         refused(path, 'moved')
       );
     }
@@ -496,7 +496,7 @@ describe('受保护路径与保护判断', () => {
   });
 
   it('移动的目标是受保护路径、或包含受保护路径的祖先时拒绝，说明「不能被替换」', () => {
-    const source: DiskPath = ['Users', 'prasenjit', 'Desktop', 'Safari.app'];
+    const source: DiskPath = ['Users', 'stevejobs', 'Desktop', 'Safari.app'];
     expect(protectionViolation(owned, { kind: 'move', from: source, to: safari })).toBe(
       '“Safari.app” can’t be replaced because it’s part of a preinstalled application.'
     );
@@ -511,14 +511,14 @@ describe('受保护路径与保护判断', () => {
   it('不受保护的：同名的非包条目、复制到别处的包、无关目录，以及没有预装包时的一切', () => {
     for (const path of [
       bundle('Mail.app'),
-      ['Users', 'prasenjit', 'Desktop', 'Safari.app'],
+      ['Users', 'stevejobs', 'Desktop', 'Safari.app'],
       ['Users'],
       ['Applications', 'Notes.app', 'readme.md']
     ]) {
       expect(protectionViolation(owned, { kind: 'remove', path })).toBeNull();
       expect(protectionViolation(owned, { kind: 'write', path })).toBeNull();
       expect(
-        protectionViolation(owned, { kind: 'move', from: path, to: ['Users', 'prasenjit', 'Documents', 'x'] })
+        protectionViolation(owned, { kind: 'move', from: path, to: ['Users', 'stevejobs', 'Documents', 'x'] })
       ).toBeNull();
     }
     const nothing = new Map<string, string>();

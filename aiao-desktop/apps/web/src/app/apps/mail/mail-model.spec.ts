@@ -31,30 +31,30 @@ describe('mailsIn', () => {
 
 describe('partyOf', () => {
   it('收到的邮件显示发件人', () => {
-    expect(partyOf({ mailbox: 'Inbox', sender: 'Figma', recipient: 'Prasenjit' })).toBe('Figma');
+    expect(partyOf({ mailbox: 'Inbox', sender: 'Figma', recipient: 'Steve Jobs' })).toBe('Figma');
   });
 
   it('发出的邮件显示收件人', () => {
-    expect(partyOf({ mailbox: SENT_MAILBOX, sender: 'Prasenjit', recipient: 'anna@example.com' })).toBe(
+    expect(partyOf({ mailbox: SENT_MAILBOX, sender: 'Steve Jobs', recipient: 'anna@example.com' })).toBe(
       'anna@example.com'
     );
   });
 
   it('发出的邮件没填收件人时写明', () => {
-    expect(partyOf({ mailbox: SENT_MAILBOX, sender: 'Prasenjit', recipient: '' })).toBe('No Recipient');
+    expect(partyOf({ mailbox: SENT_MAILBOX, sender: 'Steve Jobs', recipient: '' })).toBe('No Recipient');
   });
 });
 
 describe('counterpartOf', () => {
   it('收到的邮件回复给发件人，发出的邮件回复给收件人', () => {
-    expect(counterpartOf({ mailbox: 'Inbox', sender: 'Figma', recipient: 'Prasenjit' })).toBe('Figma');
-    expect(counterpartOf({ mailbox: SENT_MAILBOX, sender: 'Prasenjit', recipient: 'anna@example.com' })).toBe(
+    expect(counterpartOf({ mailbox: 'Inbox', sender: 'Figma', recipient: 'Steve Jobs' })).toBe('Figma');
+    expect(counterpartOf({ mailbox: SENT_MAILBOX, sender: 'Steve Jobs', recipient: 'anna@example.com' })).toBe(
       'anna@example.com'
     );
   });
 
   it('发出的邮件没填收件人时保持为空，不写占位文字', () => {
-    expect(counterpartOf({ mailbox: SENT_MAILBOX, sender: 'Prasenjit', recipient: '' })).toBe('');
+    expect(counterpartOf({ mailbox: SENT_MAILBOX, sender: 'Steve Jobs', recipient: '' })).toBe('');
   });
 });
 

@@ -19,7 +19,7 @@ async function setup(initial: [string, string][] = [['Safari.app', 'safari']]) {
   await inner.write(INFO, text('<plist/>'));
   await inner.write(PKG_INFO, text('APPL????'));
   await inner.write(MINE, text('user data'));
-  await inner.write(['Users', 'prasenjit', 'Desktop', 'note.txt'], text('note'));
+  await inner.write(['Users', 'stevejobs', 'Desktop', 'note.txt'], text('note'));
   let owned: ReadonlyMap<string, string> = new Map(initial);
   const store = new ProtectedDiskStore(inner, () => owned);
   return { store, inner, own: (next: [string, string][]) => (owned = new Map(next)) };
@@ -82,9 +82,9 @@ describe('ProtectedDiskStore 写', () => {
   it('用户放进包里的文件、以及别处的文件都可以写', async () => {
     const { store, inner } = await setup();
     await store.write(MINE, text('edited'));
-    await store.write(['Users', 'prasenjit', 'Documents', 'new.txt'], text('new'));
+    await store.write(['Users', 'stevejobs', 'Documents', 'new.txt'], text('new'));
     expect(decode(await inner.read(MINE))).toBe('edited');
-    expect(decode(await inner.read(['Users', 'prasenjit', 'Documents', 'new.txt']))).toBe('new');
+    expect(decode(await inner.read(['Users', 'stevejobs', 'Documents', 'new.txt']))).toBe('new');
   });
 });
 
@@ -136,13 +136,13 @@ describe('ProtectedDiskStore 移动与改名', () => {
 
   it('移动 /Applications 或卷根被拒绝', async () => {
     const { store } = await setup();
-    await rejection(store.move(['Applications'], ['Users', 'prasenjit', 'Applications']));
+    await rejection(store.move(['Applications'], ['Users', 'stevejobs', 'Applications']));
     await rejection(store.move([], ['Elsewhere']));
   });
 
   it('把别的东西移到受保护路径上（覆盖）、或移到包含预装包的祖先上被拒绝', async () => {
     const { store, inner } = await setup();
-    const note: DiskPath = ['Users', 'prasenjit', 'Desktop', 'note.txt'];
+    const note: DiskPath = ['Users', 'stevejobs', 'Desktop', 'note.txt'];
     const error = await rejection(store.move(note, INFO));
     expect(error.message).toBe('“Info.plist” can’t be replaced because it’s part of a preinstalled application.');
     await rejection(store.move(note, ['Applications']));
@@ -155,9 +155,9 @@ describe('ProtectedDiskStore 移动与改名', () => {
     await store.move(MINE, [...SAFARI, 'Contents', 'Resources', 'renamed.txt']);
     await store.move(
       [...SAFARI, 'Contents', 'Resources', 'renamed.txt'],
-      ['Users', 'prasenjit', 'Desktop', 'rescued.txt']
+      ['Users', 'stevejobs', 'Desktop', 'rescued.txt']
     );
-    expect(decode(await inner.read(['Users', 'prasenjit', 'Desktop', 'rescued.txt']))).toBe('user data');
+    expect(decode(await inner.read(['Users', 'stevejobs', 'Desktop', 'rescued.txt']))).toBe('user data');
   });
 });
 

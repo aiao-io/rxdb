@@ -11,6 +11,7 @@ import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
+import { USER_PROFILE } from '../shared/user-profile';
 import {
   cpProgram,
   gitProgram,
@@ -34,8 +35,8 @@ const POLL_INTERVAL = 3_000;
 export const SHELL_HOME = toVmPath(HOME);
 export const SHELL_ENV: Readonly<Record<string, string>> = {
   HOME: SHELL_HOME,
-  USER: HOME[HOME.length - 1],
-  LOGNAME: HOME[HOME.length - 1],
+  USER: USER_PROFILE.shortName,
+  LOGNAME: USER_PROFILE.shortName,
   TERM: 'xterm-256color',
   COLORTERM: 'truecolor'
 };

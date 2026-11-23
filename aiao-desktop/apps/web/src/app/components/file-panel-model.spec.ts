@@ -154,7 +154,7 @@ describe('位置', () => {
   const tree = folderNode('Macintosh HD', [
     folderNode(
       'Users',
-      [folderNode('prasenjit', [folderNode('Documents', [], [...HOME, 'Documents'])], [...HOME])],
+      [folderNode('stevejobs', [folderNode('Documents', [], [...HOME, 'Documents'])], [...HOME])],
       ['Users']
     )
   ]);
@@ -168,7 +168,7 @@ describe('位置', () => {
     expect(pathLabel([])).toBe('Macintosh HD');
     expect(pathLabel(HOME)).toBe('Macintosh HD › Users › Steve Jobs');
     expect(pathLabel([...HOME, 'Desktop'])).toBe('Macintosh HD › Users › Steve Jobs › Desktop');
-    expect(pathLabel(['Documents', 'prasenjit'])).toBe('Macintosh HD › Documents › prasenjit');
+    expect(pathLabel(['Documents', 'stevejobs'])).toBe('Macintosh HD › Documents › stevejobs');
   });
 
   it('最近的还在的文件夹：用户所在的文件夹被删掉就退到上级，一直退到卷根；文件不算文件夹', () => {

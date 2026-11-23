@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FreeformStroke } from '../apps/freeform/freeform.entities';
+import { MailMessage } from '../apps/mail/mail.entities';
 import { Note } from '../apps/notes/notes.entities';
 import { WeatherCity } from '../apps/weather/weather.entities';
 import { DesktopFile } from '../disk/desktop-file.entity';
@@ -236,6 +237,87 @@ describe('DesktopData 升级', () => {
 
     expect(rowsOf(db).filter(row => row.key === SCHEMA_RECORD_KEY)).toHaveLength(1);
     expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION });
+  });
+
+  it('把旧主目录及其系统路径引用就地升级，不改文件体、仓库 ID 或用户文本', async () => {
+    const legacy = ['Users', 'prasenjit'];
+    const home = ['Users', 'stevejobs'];
+    const from = [...legacy, 'Desktop', 'repo'];
+    const to = [...home, 'Desktop', 'repo'];
+    const other = ['Users', 'prasenjit-backup'];
+    const layout = (path: string[]) => ({
+      version: 1,
+      windows: [{ options: { path: ['Macintosh HD', ...path], nodePath: [...path, 'readme.md'] } }]
+    });
+    const { data, db } = setup({
+      probe: { ...PROBES.legacy, recordValue: record(2026112101) },
+      existing: [
+        { key: 'finder:recents', value: [from, other] },
+        { key: 'disk:pending-batch', value: { version: 1, targets: [from] } },
+        { key: 'github:repositories', value: [{ projectId: 'old-repo', rootPath: from, owner: 'prasenjit' }] },
+        { key: 'windows:layout:tab', value: layout(from) },
+        { key: 'windows:resume', value: layout(from) },
+        { key: 'windows:layout:other', value: layout(other) },
+        { key: 'user-content', value: legacy }
+      ]
+    });
+    const files = db.table(DesktopFile);
+    files.seed([
+      { id: 'users', name: 'Users', type: 'folder', parentId: null },
+      { id: 'home', name: 'prasenjit', type: 'folder', parentId: 'users' },
+      { id: 'other', name: 'prasenjit', type: 'folder', parentId: 'home' },
+      { id: 'file', name: 'readme.md', parentId: 'home', contentId: 'same-blob', originalPath: from },
+      { id: 'shared', name: 'shared.md', originalPath: other }
+    ]);
+    const mail = db.table(MailMessage);
+    mail.seed([
+      { mailbox: 'Inbox', recipient: 'Prasenjit', body: 'Prasenjit wrote this' },
+      { mailbox: 'Sent', recipient: 'Prasenjit', body: 'Keep this recipient' }
+    ]);
+
+    await settled(data);
+
+    expect(data.state()).toBe('ready');
+    expect(files.rows).toEqual([
+      expect.objectContaining({ id: 'users', name: 'Users' }),
+      expect.objectContaining({ id: 'home', name: 'stevejobs', parentId: 'users' }),
+      expect.objectContaining({ id: 'other', name: 'prasenjit', parentId: 'home' }),
+      expect.objectContaining({ id: 'file', parentId: 'home', contentId: 'same-blob', originalPath: to }),
+      expect.objectContaining({ id: 'shared', originalPath: other })
+    ]);
+    expect(valueOf(db, 'finder:recents')).toEqual([to, other]);
+    expect(valueOf(db, 'disk:pending-batch')).toEqual({ version: 1, targets: [to] });
+    expect(valueOf(db, 'github:repositories')).toEqual([{ projectId: 'old-repo', rootPath: to, owner: 'prasenjit' }]);
+    expect(valueOf(db, 'windows:layout:tab')).toEqual(layout(to));
+    expect(valueOf(db, 'windows:resume')).toEqual(layout(to));
+    expect(valueOf(db, 'windows:layout:other')).toEqual(layout(other));
+    expect(valueOf(db, 'user-content')).toEqual(legacy);
+    expect(mail.rows).toEqual([
+      expect.objectContaining({ recipient: 'Steve Jobs', body: 'Prasenjit wrote this' }),
+      expect.objectContaining({ recipient: 'Prasenjit', body: 'Keep this recipient' })
+    ]);
+    expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION });
+  });
+
+  it('新主目录的名字已被占用时停在原版本，不覆盖任何目录', async () => {
+    const previous = record(2026112101);
+    const { data, db } = setup({
+      probe: { ...PROBES.legacy, recordValue: previous },
+      existing: [{ key: SCHEMA_RECORD_KEY, value: previous }]
+    });
+    const files = db.table(DesktopFile);
+    const rows = [
+      { id: 'users', name: 'Users', type: 'folder', parentId: null },
+      { id: 'home', name: 'prasenjit', type: 'folder', parentId: 'users' },
+      { id: 'another-folder', name: 'SteveJobs', type: 'folder', parentId: 'users' }
+    ];
+    files.seed(rows);
+
+    await settled(data);
+
+    expect(data.problem()).toMatchObject({ kind: 'unavailable', message: expect.stringContaining('/Users/stevejobs') });
+    expect(valueOf(db, SCHEMA_RECORD_KEY)).toEqual(previous);
+    expect(files.rows).toEqual(rows);
   });
 
   it('迁移步骤经升级事务的 executor 执行 SQL，写版本记录在迁移之后，全在升级的那一个事务里', async () => {
@@ -739,7 +821,7 @@ describe('DesktopData 多标签页（ADESK-US-105）', () => {
     expect(data.tabs).toBeInstanceOf(TabSync);
   });
 
-  it('整个启动（连接、探测、建表、升级）在启动锁里：两个标签页同时打开桌面只有一个在建表与升级', async () => {
+  it('启动持有启动锁，改动旧库时再持有磁盘锁，避免与正在存盘的旧标签页交错', async () => {
     const lock = trackLocks();
     const { data, order, adapter } = setup({ probe: PROBES.fresh });
     const held: Record<string, number> = {};
@@ -755,8 +837,8 @@ describe('DesktopData 多标签页（ADESK-US-105）', () => {
     }) as never;
     await settled(data);
 
-    expect(lock.requests[0]).toBe('aiao-desktop-start');
-    expect(held).toEqual({ connect: 1, upgrade: 1 });
+    expect(lock.requests).toEqual(['aiao-desktop-start', 'aiao-desktop-disk']);
+    expect(held).toEqual({ connect: 1, upgrade: 2 });
     expect(order.slice(0, 4)).toEqual(['adapter.connect', 'probe', 'rxdb.connect', 'storage.init']);
     expect(lock.held).toBe(0);
   });

@@ -33,13 +33,13 @@ describe('Preferences 读取', () => {
     const { preferences } = setup({
       rows: [
         { key: 'volume', value: 7 },
-        { key: 'name', value: 'prasenjit' },
+        { key: 'name', value: 'stevejobs' },
         { key: 'seed:notes', value: { version: 1 } }
       ]
     });
     await preferences.ready;
     expect(preferences.get('volume', isNumber)).toBe(7);
-    expect(preferences.get('name', isString)).toBe('prasenjit');
+    expect(preferences.get('name', isString)).toBe('stevejobs');
     expect(preferences.get('seed:notes', (value): value is object => typeof value === 'object')).toEqual({
       version: 1
     });

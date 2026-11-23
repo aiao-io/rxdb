@@ -5,9 +5,8 @@ export type DiskPath = readonly string[];
 
 /** 启动盘的名字，也是 Finder 路径的第一段。 */
 export const VOLUME_NAME = 'Macintosh HD';
-export const USER_NAME = 'prasenjit';
 
-export const HOME: DiskPath = ['Users', USER_NAME];
+export const HOME: DiskPath = ['Users', USER_PROFILE.shortName];
 export const DESKTOP: DiskPath = [...HOME, 'Desktop'];
 /** 和 macOS 一样，废纸篓是主目录里的隐藏文件夹。 */
 export const TRASH: DiskPath = [...HOME, '.Trash'];

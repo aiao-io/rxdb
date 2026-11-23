@@ -12,35 +12,35 @@ const fakeImage = (image: SeedImage): Promise<Uint8Array> =>
 /** 改写前虚拟文件系统里的全部条目：名字与层级都要原样保留。 */
 const LEGACY_FILES = [
   'Library/Fonts/SFPro.ttf',
-  'Users/prasenjit/Desktop/Projects/desktop-web/index.html',
-  'Users/prasenjit/Desktop/Projects/desktop-web/README.md',
-  'Users/prasenjit/Desktop/Projects/desktop-web/screenshot.png',
-  'Users/prasenjit/Desktop/Projects/cleantype/main.swift',
-  'Users/prasenjit/Desktop/Projects/cleantype/Package.swift',
-  'Users/prasenjit/Desktop/Projects/aurora-synth/synth.ts',
-  'Users/prasenjit/Desktop/Projects/aurora-synth/index.html',
-  'Users/prasenjit/Desktop/Projects/todo.md',
-  'Users/prasenjit/Desktop/prasenx.txt',
-  'Users/prasenjit/Desktop/Screenshot 2026-07-27 at 4.34.11 PM.png',
-  'Users/prasenjit/Desktop/Interface Guidelines.pdf',
-  'Users/prasenjit/Documents/Specs/materials.pdf',
-  'Users/prasenjit/Documents/Specs/motion-audit.pdf',
-  'Users/prasenjit/Documents/Writing/on-restraint.md',
-  'Users/prasenjit/Documents/Writing/shadow-notes.md',
-  'Users/prasenjit/Documents/design-review.key',
-  'Users/prasenjit/Documents/roadmap-2026.numbers',
-  'Users/prasenjit/Downloads/Xcode_26.xip',
-  'Users/prasenjit/Downloads/sf-symbols-7.dmg',
-  'Users/prasenjit/Downloads/wallpaper-tahoe-6k.heic',
-  'Users/prasenjit/Downloads/render-final.mp4',
-  'Users/prasenjit/Movies/interaction-study.mp4',
-  'Users/prasenjit/Movies/capture-timelapse.mov',
-  'Users/prasenjit/Music/aurora-synth-demo.wav',
-  'Users/prasenjit/Music/lofi-loop.mp3',
-  'Users/prasenjit/Pictures/lake-braies.jpg',
-  'Users/prasenjit/Pictures/dolomites-dawn.jpg',
-  'Users/prasenjit/Pictures/night-sky.jpg',
-  'Users/prasenjit/.Trash/old-draft.md'
+  'Users/stevejobs/Desktop/Projects/desktop-web/index.html',
+  'Users/stevejobs/Desktop/Projects/desktop-web/README.md',
+  'Users/stevejobs/Desktop/Projects/desktop-web/screenshot.png',
+  'Users/stevejobs/Desktop/Projects/cleantype/main.swift',
+  'Users/stevejobs/Desktop/Projects/cleantype/Package.swift',
+  'Users/stevejobs/Desktop/Projects/aurora-synth/synth.ts',
+  'Users/stevejobs/Desktop/Projects/aurora-synth/index.html',
+  'Users/stevejobs/Desktop/Projects/todo.md',
+  'Users/stevejobs/Desktop/prasenx.txt',
+  'Users/stevejobs/Desktop/Screenshot 2026-07-27 at 4.34.11 PM.png',
+  'Users/stevejobs/Desktop/Interface Guidelines.pdf',
+  'Users/stevejobs/Documents/Specs/materials.pdf',
+  'Users/stevejobs/Documents/Specs/motion-audit.pdf',
+  'Users/stevejobs/Documents/Writing/on-restraint.md',
+  'Users/stevejobs/Documents/Writing/shadow-notes.md',
+  'Users/stevejobs/Documents/design-review.key',
+  'Users/stevejobs/Documents/roadmap-2026.numbers',
+  'Users/stevejobs/Downloads/Xcode_26.xip',
+  'Users/stevejobs/Downloads/sf-symbols-7.dmg',
+  'Users/stevejobs/Downloads/wallpaper-tahoe-6k.heic',
+  'Users/stevejobs/Downloads/render-final.mp4',
+  'Users/stevejobs/Movies/interaction-study.mp4',
+  'Users/stevejobs/Movies/capture-timelapse.mov',
+  'Users/stevejobs/Music/aurora-synth-demo.wav',
+  'Users/stevejobs/Music/lofi-loop.mp3',
+  'Users/stevejobs/Pictures/lake-braies.jpg',
+  'Users/stevejobs/Pictures/dolomites-dawn.jpg',
+  'Users/stevejobs/Pictures/night-sky.jpg',
+  'Users/stevejobs/.Trash/old-draft.md'
 ];
 
 const LEGACY_FOLDERS = [
@@ -49,7 +49,7 @@ const LEGACY_FOLDERS = [
   'Library/Preferences',
   'System/Library',
   'System/Volumes',
-  'Users/prasenjit/Public/Drop Box',
+  'Users/stevejobs/Public/Drop Box',
   'Users/Shared'
 ];
 
@@ -124,7 +124,7 @@ describe('writeSeed', () => {
     const store = await seededStore();
     expect(await store.kindOf(['Applications'])).toBe('directory');
     expect(await store.list(['Applications'])).toEqual([]);
-    expect(await store.kindOf(['Users', 'prasenjit', 'Public', 'Drop Box'])).toBe('directory');
+    expect(await store.kindOf(['Users', 'stevejobs', 'Public', 'Drop Box'])).toBe('directory');
     expect(await store.list(['Library', 'Caches'])).toEqual([]);
   });
 });

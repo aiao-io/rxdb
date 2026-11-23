@@ -383,7 +383,7 @@ describe('WindowLayoutStore 恢复', () => {
     const own = layoutOf(
       rec('finder', {
         box: { left: 120, top: 90, width: 700, height: 450 },
-        options: { path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'] }
+        options: { path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'] }
       }),
       rec('notes', { minimized: true, box: { left: 300, top: 200, width: 500, height: 380 } }),
       rec('calculator', { zoomed: true })
@@ -393,7 +393,7 @@ describe('WindowLayoutStore 恢复', () => {
     const finder = ctx.win('finder');
     expect(finder.box()).toEqual({ left: 120, top: 90, width: 700, height: 450 });
     expect(finder.initialBox).toEqual({ left: 120, top: 90, width: 700, height: 450 });
-    expect(finder.options).toEqual({ path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'] });
+    expect(finder.options).toEqual({ path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'] });
     const notes = ctx.win('notes');
     expect(notes.minimized()).toBe(true);
     expect(notes.box()).toEqual({ left: 300, top: 200, width: 500, height: 380 });
@@ -681,10 +681,10 @@ describe('WindowLayoutStore 写回', () => {
     await vi.advanceTimersByTimeAsync(400);
     expect(ctx.saved()?.windows[0]?.options).toEqual({ path: ['Macintosh HD'] });
 
-    finder?.restoreOptions.set({ path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'] });
+    finder?.restoreOptions.set({ path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'] });
     await tick();
     await vi.advanceTimersByTimeAsync(400);
-    expect(ctx.saved()?.windows[0]?.options).toEqual({ path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'] });
+    expect(ctx.saved()?.windows[0]?.options).toEqual({ path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'] });
   });
 
   it('内容没变的信号更新不触发写入', async () => {

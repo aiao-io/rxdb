@@ -174,7 +174,15 @@ export class DesktopMenus {
           key: '⌥⌘S',
           run: () => target.toggleSidebar()
         },
-        { id: 'pb', label: 'Hide Path Bar', key: '⌥⌘P', run: () => target.togglePathBar() }
+        { id: 'pb', label: 'Hide Path Bar', key: '⌥⌘P', run: () => target.togglePathBar() },
+        '-',
+        {
+          id: 'hidden-files',
+          label: 'Show Hidden Files',
+          key: '⇧⌘.',
+          checked: this.system.finderShowsHiddenFiles(),
+          run: () => this.system.finderShowsHiddenFiles.update(shown => !shown)
+        }
       ]),
       section('Go', [
         { id: 'g1', label: 'Recents', key: '⇧⌘F', run: () => target.goto('Recents') },

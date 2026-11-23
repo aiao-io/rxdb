@@ -692,7 +692,7 @@ export const fileManagement = {
     await menu('child.txt', 'Restore to Folder…');
     await dialog()
       .getByRole('combobox', { name: 'Destination folder' })
-      .selectOption(JSON.stringify(['Users', 'prasenjit', 'Desktop']));
+      .selectOption(JSON.stringify(['Users', 'stevejobs', 'Desktop']));
     await dialog().getByRole('button', { name: 'Restore', exact: true }).click();
     await expect(dialog()).toHaveCount(0);
     result.missingOriginRequiresExplicitFolder = (await diskText(session, 'child.txt')) === text;

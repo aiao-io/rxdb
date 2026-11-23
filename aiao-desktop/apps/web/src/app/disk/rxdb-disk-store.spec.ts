@@ -448,8 +448,8 @@ describe('文件版本单调递增', () => {
 });
 
 describe('废纸篓原位置持久化', () => {
-  const origin = ['Users', 'prasenjit', 'Desktop', 'folder'];
-  const trash = ['Users', 'prasenjit', '.Trash'];
+  const origin = ['Users', 'stevejobs', 'Desktop', 'folder'];
+  const trash = ['Users', 'stevejobs', '.Trash'];
 
   it('移动和原位置在同一行更新；刷新存储实例仍能读到，改名保留，移出清除', async () => {
     const { store, otherTab } = setup();

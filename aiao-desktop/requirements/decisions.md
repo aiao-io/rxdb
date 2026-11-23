@@ -46,7 +46,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-09：终端按需复制磁盘
 
-终端打开时才把磁盘复制进 Vivari（Vivari 自己的文件系统镜像也在 OPFS）。所有终端窗口与终端标签共用一台虚拟机（每个浏览器标签页各有自己的一台，见 [ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md)），最后一个终端标签关掉时先把改动写回库，再拆掉虚拟机。磁盘挂在虚拟机的根目录下，主目录是 `/Users/prasenjit`，与 Vivari 自己的 `/bin`、`/tmp` 等并列。
+终端打开时才把磁盘复制进 Vivari（Vivari 自己的文件系统镜像也在 OPFS）。所有终端窗口与终端标签共用一台虚拟机（每个浏览器标签页各有自己的一台，见 [ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md)），最后一个终端标签关掉时先把改动写回库，再拆掉虚拟机。磁盘挂在虚拟机的根目录下，主目录是 `/Users/stevejobs`，与 Vivari 自己的 `/bin`、`/tmp` 等并列。
 
 Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所以终端这边的改动靠扫描发现：终端输出停下 0.3 秒后扫描一次，另外每 3 秒扫描一次，发现的改动写回库。桌面这边的改动按路径推进虚拟机，并刷新扫描基线，不会被当成终端的改动再写回来。`node_modules` 不同步，与 Vivari 自己的持久化规则一致（用户于 2026-11-12 拍板）。
 

@@ -214,8 +214,11 @@ export class DesktopPage {
 
   private runMenuShortcut(event: KeyboardEvent, front: ReturnType<WindowManager['front']>): boolean {
     if (!front) return false;
+    // Shift 会把句点的 event.key 变成 >，但菜单快捷键仍写成句点。
+    const shiftedPeriod = event.shiftKey && event.code === 'Period';
     const key =
-      event.key === ' ' ? 'Space'
+      shiftedPeriod ? '.'
+      : event.key === ' ' ? 'Space'
       : event.key.length === 1 ? event.key.toUpperCase()
       : event.key;
     const shortcut = [
@@ -233,7 +236,7 @@ export class DesktopPage {
       .find(item => isMenuCommand(item) && !item.disabled && item.run && ariaShortcut(item.key ?? '') === shortcut);
     if (!command || !isMenuCommand(command) || !command.run) return false;
     event.preventDefault();
-    command.run();
+    if (!shiftedPeriod || !event.repeat) command.run();
     return true;
   }
 

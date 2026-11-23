@@ -52,6 +52,7 @@ import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../
 import { isKeyboardClick, isMenuKey } from '../../services/focus-order';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
+import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { FileDrop } from '../../shared/file-drop';
@@ -120,6 +121,7 @@ const MIN_CONTENT_WIDTH = 400;
 export class FinderApp implements FinderCommands {
   private readonly win = inject(DesktopWindow);
   private readonly fs = inject(FileSystem);
+  private readonly showHidden = inject(SystemState).finderShowsHiddenFiles;
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly dockDrag = inject(DockDragController);
@@ -187,7 +189,9 @@ export class FinderApp implements FinderCommands {
   protected readonly sort = signal<FinderSort>('name');
   protected readonly finderDate = finderDate;
 
-  protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
+  protected readonly items = computed(() =>
+    folderContents(this.fs, this.path(), this.query(), this.sort(), this.showHidden())
+  );
   protected readonly selectedItems = computed(() => {
     if (this.view() === 'column') {
       const index = this.selectedColumnIndex();
@@ -224,7 +228,9 @@ export class FinderApp implements FinderCommands {
     const items = this.items();
     return items.find(item => item.name === this.selected()) ?? items[0];
   });
-  protected readonly columns = computed(() => columnChain(this.fs, this.path(), this.items(), this.columnSelection()));
+  protected readonly columns = computed(() =>
+    columnChain(this.fs, this.path(), this.items(), this.columnSelection(), this.showHidden())
+  );
   /** 内容区的 Tab 停靠点：选中的条目，没有就是第一项（roving tabindex：整个内容区只占一个 Tab 位置）。 */
   protected readonly tabStop = computed(() => {
     const items = this.items();
@@ -268,7 +274,7 @@ export class FinderApp implements FinderCommands {
     if (this.view() === 'column') return null;
     const selected = this.selected();
     const item = this.items().find(item => item.name === selected);
-    return item ? this.displayName(item) : selected;
+    return item ? this.displayName(item) : null;
   });
   /** 分栏视图的 Tab 停靠点：最深一栏里选中的条目；还没选就是最左边那栏的第一项。 */
   protected readonly columnStop = computed(() => {

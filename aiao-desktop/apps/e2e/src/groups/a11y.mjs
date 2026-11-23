@@ -100,6 +100,7 @@ const KEYS = [
   'a11y.finder.listboxRoles',
   'a11y.finder.sidebarSplitter',
   'a11y.finder.sidebarKeyboard',
+  'a11y.finder.hiddenFilesMenu',
   'a11y.finder.arrowKeysMoveSelection',
   'a11y.finder.enterOpensFolderKeepsFocus',
   'a11y.finder.backspaceGoesUp',
@@ -1219,6 +1220,31 @@ export const a11y = {
         removeShortcut?.split(' ').includes('Alt+Backspace') ? [] : ['AirDrop 没有为读屏标出移除快捷键'],
         removed ? sameList(await sidebarOrder(), before.slice(1)) : ['Alt+Backspace 没有移除 AirDrop'],
         (await active())?.name === 'Recents' ? [] : ['移除 AirDrop 后焦点没有移到 Recents']
+      );
+
+      const toggle = page.getByRole('menuitemcheckbox', { name: 'Show Hidden Files' });
+      const trash = finderWin.getByRole('option', { name: '.Trash, Folder', exact: true });
+      const openView = async () => {
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'View'));
+        await press('ArrowUp');
+        return focusReaches(
+          page,
+          info => info.region === 'popover' && info.role === 'menuitemcheckbox' && info.name.startsWith('Show Hidden Files')
+        );
+      };
+      const focused = await openView();
+      const unchecked = await toggle.getAttribute('aria-checked', { timeout: 3_000 });
+      const shortcut = await toggle.getAttribute('aria-keyshortcuts');
+      await press('Enter');
+      const shown = await appears(trash, 3_000);
+      await openView();
+      const checked = await toggle.getAttribute('aria-checked');
+      await press('Enter');
+      finder.hiddenFilesMenu = problems(
+        focused && shortcut === 'Shift+Meta+.' ? [] : ['隐藏文件开关需要可键盘聚焦，并为读屏声明快捷键'],
+        unchecked === 'false' && checked === 'true' ? [] : ['隐藏文件开关未报告勾选状态'],
+        shown && (await disappears(trash, 3_000)) ? [] : ['用 Enter 应能显示与再次隐藏 .Trash']
       );
     });
 

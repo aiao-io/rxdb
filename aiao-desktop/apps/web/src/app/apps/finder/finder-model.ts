@@ -97,15 +97,24 @@ export const sortNodes = (list: FsNode[], sort: FinderSort): FsNode[] =>
     return SORTS[sort](a, b);
   });
 
+const finderChildren = (node: FsNode | null, showHidden: boolean): readonly FsNode[] =>
+  showHidden ? (node?.children ?? []) : visibleChildren(node);
+
 /** 当前路径下要显示的条目：虚拟位置、磁盘目录，或搜索结果。 */
-export function folderContents(fs: FileSystem, path: readonly string[], query: string, sort: FinderSort): FsNode[] {
+export function folderContents(
+  fs: FileSystem,
+  path: readonly string[],
+  query: string,
+  sort: FinderSort,
+  showHidden: boolean
+): FsNode[] {
   const place = path[0];
   if (place === 'Recents') return fs.recents();
   if (place === 'AirDrop') return [];
   if (place === 'iCloud Drive') return [...ICLOUD];
   if (place === 'Network') return [virtualFolder('prasen-nas', 'f-hd')];
   const node = fs.get(path);
-  const list = query ? fs.deepSearch(node, query).slice(0, 200) : [...visibleChildren(node)];
+  const list = query ? fs.deepSearch(node, query).slice(0, 200) : [...finderChildren(node, showHidden)];
   return sortNodes(list, sort);
 }
 
@@ -121,15 +130,16 @@ export function columnChain(
   fs: FileSystem,
   path: readonly string[],
   first: readonly FsNode[],
-  selection: readonly string[]
+  selection: readonly string[],
+  showHidden: boolean
 ): { readonly chain: readonly FinderColumn[]; readonly selection: readonly string[] } {
   const root = fs.get(path) ?? fs.root();
   const chain: FinderColumn[] = [{ node: root, items: first, file: false }];
   let current = root;
   for (let i = 0; i < selection.length; i++) {
-    const next = visibleChildren(current).find(child => child.name === selection[i]);
+    const next = finderChildren(current, showHidden).find(child => child.name === selection[i]);
     if (!next) return { chain, selection: selection.slice(0, i) };
-    const items = next.children ? [...visibleChildren(next)].sort(columnOrder) : null;
+    const items = next.children ? [...finderChildren(next, showHidden)].sort(columnOrder) : null;
     chain.push({ node: next, items, file: next.kind === 'file' });
     current = next;
     if (next.kind === 'file') return { chain, selection: selection.slice(0, i + 1) };

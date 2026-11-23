@@ -7,8 +7,8 @@ import { AppContextFiles, FileStamp, appFilesOver, parseVersion, versionOf } fro
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
-const NOTE: DiskPath = ['Users', 'prasenjit', 'Documents', 'note.md'];
-const FOLDER: DiskPath = ['Users', 'prasenjit', 'Documents'];
+const NOTE: DiskPath = ['Users', 'stevejobs', 'Documents', 'note.md'];
+const FOLDER: DiskPath = ['Users', 'stevejobs', 'Documents'];
 
 /** 内存磁盘加可控的时钟；`run` 像真实的磁盘服务一样把存储交给任务，改动通知另外记下。 */
 async function setup() {

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AppContextFiles, FileSnapshot } from '../../services/app-files';
 import { SaveLocation, TextDocument } from './text-document';
 
-const PATH = ['Users', 'prasenjit', 'Documents', 'note.txt'];
-const COPY = ['Users', 'prasenjit', 'Documents', 'copy.txt'];
+const PATH = ['Users', 'stevejobs', 'Documents', 'note.txt'];
+const COPY = ['Users', 'stevejobs', 'Documents', 'copy.txt'];
 const stamp = { modified: 100, size: 3 };
 const snapshot: FileSnapshot = { kind: 'ok', stamp, bytes: new TextEncoder().encode('old') };
 

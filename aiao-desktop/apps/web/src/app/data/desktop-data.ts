@@ -228,7 +228,10 @@ export class DesktopData {
     if (problem) throw new DesktopDataProblemError(problem);
     await this.rxdb.connect(DESKTOP_ADAPTER);
     await this.rxdb.storage.init();
-    await this.upgrade(plan);
+    if (plan.kind === 'fresh' || plan.kind === 'upgrade') {
+      const from = plan.kind === 'upgrade' ? plan.from : 0;
+      await this.tabs.exclusive(() => this.upgrade(from), DISK_LOCK);
+    }
     schemaGuardOf(this.rxdb).enable(inspector);
     return this.rxdb;
   }
@@ -238,14 +241,13 @@ export class DesktopData {
    * 库要么还是升级前的状态（版本记录没变，下次重来），要么已是升级后的完整状态。
    * 新增的表由 `RxDB.connect()` 补建，种子按域另有标记，所以重复执行不会重复写。
    */
-  private async upgrade(plan: SchemaPlan): Promise<void> {
-    if (plan.kind !== 'fresh' && plan.kind !== 'upgrade') return;
-    const from = plan.kind === 'upgrade' ? plan.from : 0;
+  private async upgrade(from: number): Promise<void> {
     const adapter = await this.rxdb.connect(DESKTOP_ADAPTER);
     await adapter.transaction(async executor => {
       const repository = executor.getRepository(SystemPreference);
       await runUpgrade(from, {
         execute: (sql, bindings) => executor.query(sql, bindings),
+        getRepository: entity => executor.getRepository(entity),
         writeRecord: async record => {
           const existing = (await repository.find({ where: keyIs(SCHEMA_RECORD_KEY), limit: 1 }))[0];
           if (existing) await repository.update(existing, { value: record });

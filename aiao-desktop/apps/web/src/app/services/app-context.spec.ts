@@ -913,7 +913,7 @@ describe('DesktopAppContext：clipboard', () => {
 describe('DesktopAppContext：filesystem', () => {
   const READ: readonly DesktopCapability[] = ['filesystem:read'];
   const BOTH: readonly DesktopCapability[] = ['filesystem:read', 'filesystem:write'];
-  const DOC = ['Users', 'prasenjit', 'Documents', 'note.md'];
+  const DOC = ['Users', 'stevejobs', 'Documents', 'note.md'];
   const bytes = (text: string) => new TextEncoder().encode(text);
 
   /** 等面板弹出来（请求经几个微任务才走到 `panels.show`）。 */
@@ -1251,18 +1251,18 @@ describe('DesktopAppContext：filesystem', () => {
       const panel = await shown(services);
       expect(panel.request).toMatchObject({ mode: 'save', suggestedName: 'draft.txt', accept: [] });
       expect(services.files.create).not.toHaveBeenCalled();
-      panel.submit({ kind: 'save', dir: ['Users', 'prasenjit', 'Desktop'], name: 'final.txt', replace: true });
+      panel.submit({ kind: 'save', dir: ['Users', 'stevejobs', 'Desktop'], name: 'final.txt', replace: true });
       const saved = await saving;
       expect(saved).toEqual({ name: 'final.txt', version: '3000:7', handle: 'h1' });
       expect(services.files.create).toHaveBeenCalledExactlyOnceWith(
-        ['Users', 'prasenjit', 'Desktop', 'final.txt'],
+        ['Users', 'stevejobs', 'Desktop', 'final.txt'],
         bytes('payload'),
         true,
         expect.any(Function)
       );
       await context.filesystem.save({ handle: saved.handle, suggestedName: 'x', bytes: bytes('again') });
       expect(services.files.replace).toHaveBeenCalledExactlyOnceWith(
-        ['Users', 'prasenjit', 'Desktop', 'final.txt'],
+        ['Users', 'stevejobs', 'Desktop', 'final.txt'],
         bytes('again'),
         undefined,
         expect.any(Function)

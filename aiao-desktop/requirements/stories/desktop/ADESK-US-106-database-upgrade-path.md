@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-23
 tags: [desktop, sqlite, upgrade, persistence]
 dependsOn: [ADESK-US-102, ADESK-US-008]
 capabilities: []
@@ -97,3 +97,7 @@ capabilities: []
 ## 2026-11-17 升级起点补充
 
 `2026111301` → `2026111701`：增加废纸篓原位置字段，现有文件、应用数据、偏好和正文保留。真实旧产物来自 `2a3e46183` 加 ADESK-US-109 工作区，保存路径与 index 摘要见[旧构建标识](../../evidence/2026-11-17/finder-previous-artifact.json)；同源切换六项验证、降级保护与四轮启动中断证据见[本轮台账](../../evidence/2026-11-17/README.md#a02-finder-文件管理adesk-us-110)。本次尚未发布。
+
+## 2026-11-23 主目录改名
+
+`2026112101`（`d5d9347cc`）→ `2026112301`：同一事务内把虚拟主目录原地改名为 `/Users/stevejobs`，更新最近使用、窗口布局、废纸篓原路径、未完成文件操作和 Git 工作区路径。文件内容及仓库历史保持不变。目标名已被占用时升级失败，旧库不变。`upgrade-legacy` 的 `upgradeLegacy.legacyHomeRenamed` 覆盖旧目录行改名、文件 ID 保留与终端读取正文。

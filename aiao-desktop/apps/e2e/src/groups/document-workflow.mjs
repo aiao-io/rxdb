@@ -73,7 +73,7 @@ export const documentWorkflow = {
           const layout = rows[0] ? JSON.parse(rows[0][0]) : null;
           return layout?.windows.find(item => item.appId === 'textedit')?.options.nodePath;
         })
-        .toEqual(['Users', 'prasenjit', 'Desktop', 'document-workflow.txt']);
+        .toEqual(['Users', 'stevejobs', 'Desktop', 'document-workflow.txt']);
     });
     await page.reload({ waitUntil: 'load' });
     await expect(editor()).toBeVisible();

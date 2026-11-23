@@ -2098,6 +2098,10 @@ svg {
   position: relative;
   background: var(--win);
 }
+.finder-hidden .art,
+.finder-hidden > .shot {
+  opacity: 0.55;
+}
 .finder-marquee {
   display: none;
   position: absolute;

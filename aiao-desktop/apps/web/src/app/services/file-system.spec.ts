@@ -460,7 +460,7 @@ describe('FileSystem 废纸篓', () => {
       [[], 'Macintosh HD'],
       [['Users'], 'Users'],
       [['System', 'Library'], 'Library'],
-      [HOME, 'prasenjit'],
+      [HOME, 'stevejobs'],
       [[...HOME, 'Documents'], 'Documents'],
       [[...HOME, '.Trash'], '.Trash']
     ];

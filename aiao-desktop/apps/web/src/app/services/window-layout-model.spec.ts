@@ -171,20 +171,20 @@ describe('浏览器会话快照与标签页租约', () => {
 describe('开窗参数的可序列化部分', () => {
   it('Finder：只记路径；选中项、force、尺寸是一次性的或属于应用内部状态，不记', () => {
     const options: DesktopOpenOptions = {
-      path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'],
+      path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'],
       select: 'a.txt',
       force: true,
       w: 500,
       h: 300
     };
-    expect(restoreOptionsOf(options)).toEqual({ path: ['Macintosh HD', 'Users', 'prasenjit', 'Documents'] });
+    expect(restoreOptionsOf(options)).toEqual({ path: ['Macintosh HD', 'Users', 'stevejobs', 'Documents'] });
   });
 
   it('TextEdit / 预览：文件名与卷内路径（节点对象不能序列化，恢复时按路径重新取）', () => {
-    const n = node(['Users', 'prasenjit', 'Desktop', 'a.txt']);
+    const n = node(['Users', 'stevejobs', 'Desktop', 'a.txt']);
     expect(restoreOptionsOf({ file: 'a.txt', node: n })).toEqual({
       file: 'a.txt',
-      nodePath: ['Users', 'prasenjit', 'Desktop', 'a.txt']
+      nodePath: ['Users', 'stevejobs', 'Desktop', 'a.txt']
     });
   });
 

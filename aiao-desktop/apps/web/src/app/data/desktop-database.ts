@@ -4,7 +4,7 @@ import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { checkOPFSAvailable } from '@aiao/utils';
 
-import { USER_NAME } from '../disk/disk-path';
+import { USER_PROFILE } from '../shared/user-profile';
 import { DataSelectionStorage, DesktopDataLocation } from './desktop-data-location';
 import { DesktopLocationGuard } from './desktop-location-guard';
 import { DESKTOP_ENTITIES } from './entities';
@@ -103,7 +103,7 @@ export function createDesktopDatabase(baseHref: string, options: DesktopDatabase
   const location = new DesktopLocationGuard(options.selectionStorage, options.location);
   const rxdb = new RxDB({
     dbName: location.location.databaseName,
-    context: { userId: USER_NAME },
+    context: { userId: USER_PROFILE.shortName },
     entities: [...DESKTOP_ENTITIES],
     sync: { local: { adapter: DESKTOP_ADAPTER }, type: SyncType.None }
   });

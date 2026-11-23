@@ -137,6 +137,7 @@ describe('runUpgrade：迁移在前，版本记录最后写', () => {
   const calls: string[] = [];
   const target = () => ({
     execute: vi.fn(async (sql: string) => void calls.push(`sql:${sql}`)),
+    getRepository: vi.fn(),
     writeRecord: vi.fn(
       async (written: SchemaRecord) => void calls.push(`record:${written.version}@${written.upgradedAt}`)
     )
@@ -196,12 +197,13 @@ describe('提醒标旗字段迁移', () => {
       .fn()
       .mockResolvedValueOnce({ columns: ['cid', 'name'], rows: [[0, 'id']] })
       .mockResolvedValue({ rows: [], columns: [] });
-    await migrate?.({ execute });
+    const target = { execute, getRepository: vi.fn() };
+    await migrate?.(target);
     expect(execute).toHaveBeenCalledWith(
       'ALTER TABLE "desktop$reminder" ADD COLUMN "flagged" INTEGER NOT NULL DEFAULT 0'
     );
     execute.mockReset().mockResolvedValue({ columns: ['cid', 'name'], rows: [[0, 'flagged']] });
-    await migrate?.({ execute });
+    await migrate?.(target);
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });
@@ -214,10 +216,11 @@ describe('废纸篓原位置字段迁移', () => {
       .fn()
       .mockResolvedValueOnce({ columns: ['cid', 'name'], rows: [[0, 'id']] })
       .mockResolvedValue({ rows: [], columns: [] });
-    await migrate?.({ execute });
+    const target = { execute, getRepository: vi.fn() };
+    await migrate?.(target);
     expect(execute).toHaveBeenCalledWith('ALTER TABLE "desktop$desktop_file" ADD COLUMN "original_path" TEXT');
     execute.mockReset().mockResolvedValue({ columns: ['cid', 'name'], rows: [[0, 'original_path']] });
-    await migrate?.({ execute });
+    await migrate?.(target);
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });

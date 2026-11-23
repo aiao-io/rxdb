@@ -9,6 +9,16 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const withoutClock = markers => Object.fromEntries(Object.entries(markers).filter(([key]) => key !== 'seed:clock'));
 const pause = milliseconds => new Promise(done => setTimeout(done, milliseconds));
 
+async function homeId(db, name) {
+  const rows = await db.shell.rows(
+    `SELECT home.id FROM "desktop$desktop_file" home
+      JOIN "desktop$desktop_file" users ON users.id = home."parentId"
+      WHERE users."parentId" IS NULL AND users.name = 'Users' AND home.name = ?`,
+    [name]
+  );
+  return rows[0]?.[0];
+}
+
 /**
  * 数据域在第一次被读取时才补种子（ADESK-US-206，D-18）：打开时钟应用读它，等四座城市出现，种子才算写完。
  * 升级只补建表，不再在启动时给每个新数据域写种子。
@@ -32,6 +42,7 @@ export const upgradeLegacy = {
   keys: [
     'upgradeLegacy.freshDatabaseGetsRecord',
     'upgradeLegacy.legacyKeepsData',
+    'upgradeLegacy.legacyHomeRenamed',
     'upgradeLegacy.legacyGetsVersionRecord',
     'upgradeLegacy.fileOriginColumnMigrated',
     'upgradeLegacy.seedsNotRewritten',
@@ -55,24 +66,36 @@ export const upgradeLegacy = {
     const fresh = await surgery(session, async db => ({
       record: await db.record(),
       markers: await db.markers(),
-      noteRows: await db.count('desktop$note')
+      noteRows: await db.count('desktop$note'),
+      homeId: await homeId(db, 'stevejobs')
     }));
     result.freshDatabaseGetsRecord = fresh.record?.version === current;
 
     /* 1) 此前发布的构建建的库（没有版本记录）：当前构建打开，数据都在，记录补上，种子标记原样。 */
     await surgery(session, async db => {
       await db.deleteRecord();
+      await db.shell.execute('UPDATE "desktop$desktop_file" SET name = ? WHERE id = ?', ['prasenjit', fresh.homeId]);
     });
     desktop = await session.openDesktopPage();
     const keptLegacy = await readUserData(desktop.page, desktop.helpers);
+    await desktop.helpers.openTerminal();
+    const bodyKept = await desktop.helpers.runInShell(
+      'cat ~/Desktop/prasenx.txt',
+      /Scratchpad\. Everything on this Mac/
+    );
+    await desktop.helpers.closeAll();
     await desktop.page.close();
     const afterLegacy = await surgery(session, async db => ({
       record: await db.record(),
       markers: await db.markers(),
-      columns: await db.shell.rows('PRAGMA table_info("desktop$desktop_file")')
+      columns: await db.shell.rows('PRAGMA table_info("desktop$desktop_file")'),
+      homeId: await homeId(db, 'stevejobs'),
+      oldHomeId: await homeId(db, 'prasenjit')
     }));
     result.fileOriginColumnMigrated = afterLegacy.columns.some(row => row[1] === 'original_path');
     result.legacyKeepsData = userDataIntact(keptLegacy);
+    result.legacyHomeRenamed =
+      !!fresh.homeId && afterLegacy.homeId === fresh.homeId && !afterLegacy.oldHomeId && bodyKept;
     result.legacyGetsVersionRecord = afterLegacy.record?.version === current;
     result.seedsNotRewritten = sameJson(afterLegacy.markers, fresh.markers);
 
