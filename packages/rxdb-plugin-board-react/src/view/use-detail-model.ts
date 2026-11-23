@@ -2,6 +2,7 @@ import type { UUID } from '@aiao/rxdb';
 import type { BoardLabel, TaskDraftSnapshot, TaskFieldPatch } from '@aiao/rxdb-plugin-board';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import { anchorOf, type ModelGetter, type TriggerEvent } from './model.js';
 import { isModifier } from './types.js';
 import { useStateRef, type LatestRef } from './use-state-ref.js';
@@ -98,7 +99,7 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
   };
 
   const saveFields = async (session: DetailSession, patch: TaskFieldPatch): Promise<void> => {
-    if (session === sessionRef.current) setDetailStatus('保存中…');
+    if (session === sessionRef.current) setDetailStatus(boardT('view.detail.statusSaving'));
     const result = await core.guard(() => session.actions.saveTaskFields(session.taskId, session.base, patch));
     if (result === undefined) {
       if (session === sessionRef.current) setDetailStatus(null);
@@ -115,7 +116,7 @@ export const useDetailModel = (core: ViewCore, model: ModelGetter): DetailModel 
     if (patch.title !== undefined) setDetailTitle(fresh.title);
     if (patch.description !== undefined) setDetailDescription(fresh.description ?? '');
     if (patch.dueDate !== undefined) setDetailDue(fresh.dueDate ?? '');
-    setDetailStatus(result.kind === 'saved' ? '已保存' : null);
+    setDetailStatus(result.kind === 'saved' ? boardT('view.detail.statusSaved') : null);
   };
 
   const closeDetail = (): void => {
