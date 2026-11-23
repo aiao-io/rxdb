@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { EntityType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { SearchResult } from '@aiao/rxdb-plugin-search';
 import { useSearch } from '@aiao/rxdb-plugin-search-vue';
 import { SEARCH_PARITY_ARTICLES, SEARCH_PARITY_COMMENTS, withSeedLock } from '@aiao/rxdb-test';
@@ -55,6 +56,7 @@ function buildMutationToken(prefix: string, query: string): string {
  * (`@aiao/rxdb-test` `SEARCH_PARITY_*`)。
  */
 const rxdb = injectRxDB()!;
+const { t } = useI18n();
 
 // ----- Scope -----
 const scopeMode = ref<SearchDemoMode>('global');
@@ -63,17 +65,16 @@ const activeCollections = computed<readonly SearchDemoCollection[] | undefined>(
   if (scopeMode.value === 'global') return undefined;
   return SEARCH_DEMO_COLLECTIONS.filter(c => customScope.value[c]);
 });
+function collectionLabel(collection: SearchDemoCollection): string {
+  if (collection === 'article') return t('page.search.collectionArticle');
+  if (collection === 'comment') return t('page.search.collectionComment');
+  return 'Todo';
+}
 const scopeSummary = computed(() => {
   const cols = activeCollections.value;
-  if (cols === undefined) return '全部可搜索集合';
-  if (cols.length === 0) return '未选择集合';
-  return cols
-    .map(c =>
-      c === 'article' ? '文章'
-      : c === 'comment' ? '评论'
-      : 'Todo'
-    )
-    .join(' + ');
+  if (cols === undefined) return t('page.search.scopeSummaryAll');
+  if (cols.length === 0) return t('page.search.scopeSummaryNone');
+  return cols.map(collectionLabel).join(' + ');
 });
 
 // ----- Search（由 @aiao/rxdb-plugin-search-vue 提供） -----
@@ -103,6 +104,12 @@ const commentRecords = ref<Comment[]>([]);
 const mutationBusy = ref(false);
 const mutationMessage = ref<string | null>(null);
 const seedCount = ref<{ article: number; comment: number } | null>(null);
+const seedLabel = computed(() => {
+  const counts = seedCount.value;
+  if (!counts) return t('common.loading');
+  const label = t('page.search.articleTotal', { count: counts.article });
+  return counts.comment ? `${label} · ${t('page.search.commentTotal', { count: counts.comment })}` : label;
+});
 const seeding = ref(false);
 const recordsCollapsed = ref(false);
 const activeRecordTab = ref<SearchDemoCollection>('article');
@@ -251,7 +258,7 @@ function clearSearch() {
 }
 function simulateError() {
   if (!query.value.trim()) return;
-  simulatedError.value = '模拟的搜索错误';
+  simulatedError.value = t('page.search.simulatedErrorMessage');
 }
 function retrySearch() {
   simulatedError.value = null;

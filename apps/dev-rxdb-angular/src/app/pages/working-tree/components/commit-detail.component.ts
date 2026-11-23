@@ -111,7 +111,11 @@ const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
               >
                 {{ gdAvatarInitial(commit.authorId ?? '?') }}
               </span>
-              <span>{{ commit.authorId ?? ('page.workingTree.noAuthor' | i18n) }}</span>
+              @if (commit.authorId) {
+                <span>{{ commit.authorId }}</span>
+              } @else {
+                <span>{{ 'page.workingTree.noAuthor' | i18n }}</span>
+              }
               <span class="gd-commit-time">committed on {{ commit.createdAt.toLocaleString() }}</span>
               <span class="min-w-0 truncate font-mono text-[11px]" [title]="commit.commitId">
                 {{ commit.commitId.slice(0, 8) }}

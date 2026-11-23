@@ -1,4 +1,5 @@
 import type { EntityType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { SearchResult } from '@aiao/rxdb-plugin-search';
 import { useSearch } from '@aiao/rxdb-plugin-search-react';
 import { useRxDB } from '@aiao/rxdb-react';
@@ -50,6 +51,7 @@ function buildMutationToken(prefix: string, query: string): string {
  */
 export default function SearchPage(): React.JSX.Element {
   const rxdb = useRxDB();
+  const { t } = useI18n();
 
   // ----- Scope -----
   const [scopeMode, setScopeModeState] = useState<SearchDemoMode>('global');
@@ -62,17 +64,19 @@ export default function SearchPage(): React.JSX.Element {
     if (scopeMode === 'global') return undefined;
     return SEARCH_DEMO_COLLECTIONS.filter(c => customScope[c]);
   }, [scopeMode, customScope]);
+  const collectionLabel = useCallback(
+    (collection: SearchDemoCollection): string => {
+      if (collection === 'article') return t('page.search.collectionArticle');
+      if (collection === 'comment') return t('page.search.collectionComment');
+      return 'Todo';
+    },
+    [t]
+  );
   const scopeSummary = useMemo(() => {
-    if (activeCollections === undefined) return '全部可搜索集合';
-    if (activeCollections.length === 0) return '未选择集合';
-    return activeCollections
-      .map(c =>
-        c === 'article' ? '文章'
-        : c === 'comment' ? '评论'
-        : 'Todo'
-      )
-      .join(' + ');
-  }, [activeCollections]);
+    if (activeCollections === undefined) return t('page.search.scopeSummaryAll');
+    if (activeCollections.length === 0) return t('page.search.scopeSummaryNone');
+    return activeCollections.map(collectionLabel).join(' + ');
+  }, [activeCollections, collectionLabel]);
 
   // ----- Search（由 @aiao/rxdb-plugin-search-react 提供） -----
   // scope 变化时重建 handle、并保留用户当前 query，是绑定包的契约（SRCHR-001 收口后落地），
@@ -133,6 +137,12 @@ export default function SearchPage(): React.JSX.Element {
     if (displayState === 'error') return 'Search failed';
     return 'Enter a query';
   }, [displayState, results.length]);
+
+  const seedLabel = useMemo(() => {
+    if (!seedCount) return t('common.loading');
+    const label = t('page.search.articleTotal', { count: seedCount.article });
+    return seedCount.comment ? `${label} · ${t('page.search.commentTotal', { count: seedCount.comment })}` : label;
+  }, [seedCount, t]);
 
   // ----- Helpers -----
   const listEntities = useCallback(
@@ -220,8 +230,8 @@ export default function SearchPage(): React.JSX.Element {
 
   const simulateError = useCallback(() => {
     if (!queryRef.current.trim()) return;
-    setSimulatedError('模拟的搜索错误');
-  }, []);
+    setSimulatedError(t('page.search.simulatedErrorMessage'));
+  }, [t]);
 
   const retrySearch = useCallback(() => {
     setSimulatedError(null);
@@ -274,10 +284,10 @@ export default function SearchPage(): React.JSX.Element {
         const article = new Article({ ...input, tags: [...input.tags] });
         await rxdb.entityManager.getRepository(Article).create(article);
         await refreshCounts();
-        setMutationMessage(`已创建文章 ${article.id}`);
+        setMutationMessage(t('page.search.createdArticle', { id: article.id }));
       });
     },
-    [runMutation, rxdb, refreshCounts]
+    [runMutation, rxdb, refreshCounts, t]
   );
 
   const createComment = useCallback(
@@ -286,10 +296,10 @@ export default function SearchPage(): React.JSX.Element {
         const comment = new Comment(input);
         await rxdb.entityManager.getRepository(Comment).create(comment);
         await refreshCounts();
-        setMutationMessage(`已创建评论 ${comment.id}`);
+        setMutationMessage(t('page.search.createdComment', { id: comment.id }));
       });
     },
-    [runMutation, rxdb, refreshCounts]
+    [runMutation, rxdb, refreshCounts, t]
   );
 
   const updateArticle = useCallback(
@@ -298,7 +308,7 @@ export default function SearchPage(): React.JSX.Element {
         const all = await listEntities(Article);
         const article = all.find(a => String(a.id) === id);
         if (!article) {
-          setMutationMessage(`未找到文章: ${id}`);
+          setMutationMessage(t('page.search.notFoundArticle', { id }));
           return;
         }
         article.title = `${article.title} [updated]`;
@@ -307,10 +317,10 @@ export default function SearchPage(): React.JSX.Element {
         article.viewCount += 1;
         await article.save();
         await refreshCounts();
-        setMutationMessage(`已更新文章 ${id}`);
+        setMutationMessage(t('page.search.updatedArticle', { id }));
       });
     },
-    [runMutation, listEntities, refreshCounts]
+    [runMutation, listEntities, refreshCounts, t]
   );
 
   const updateComment = useCallback(
@@ -319,17 +329,17 @@ export default function SearchPage(): React.JSX.Element {
         const all = await listEntities(Comment);
         const comment = all.find(c => String(c.id) === id);
         if (!comment) {
-          setMutationMessage(`未找到评论: ${id}`);
+          setMutationMessage(t('page.search.notFoundComment', { id }));
           return;
         }
         comment.content = `${comment.content} Updated with token ${token}.`;
         comment.authorName = `${comment.authorName}-updated`;
         await comment.save();
         await refreshCounts();
-        setMutationMessage(`已更新评论 ${id}`);
+        setMutationMessage(t('page.search.updatedComment', { id }));
       });
     },
-    [runMutation, listEntities, refreshCounts]
+    [runMutation, listEntities, refreshCounts, t]
   );
 
   const removeArticle = useCallback(
@@ -338,15 +348,15 @@ export default function SearchPage(): React.JSX.Element {
         const all = await listEntities(Article);
         const article = all.find(a => String(a.id) === id);
         if (!article) {
-          setMutationMessage(`未找到文章: ${id}`);
+          setMutationMessage(t('page.search.notFoundArticle', { id }));
           return;
         }
         await article.remove();
         await refreshCounts();
-        setMutationMessage(`已删除文章 ${id}`);
+        setMutationMessage(t('page.search.removedArticle', { id }));
       });
     },
-    [runMutation, listEntities, refreshCounts]
+    [runMutation, listEntities, refreshCounts, t]
   );
 
   const removeComment = useCallback(
@@ -355,15 +365,15 @@ export default function SearchPage(): React.JSX.Element {
         const all = await listEntities(Comment);
         const comment = all.find(c => String(c.id) === id);
         if (!comment) {
-          setMutationMessage(`未找到评论: ${id}`);
+          setMutationMessage(t('page.search.notFoundComment', { id }));
           return;
         }
         await comment.remove();
         await refreshCounts();
-        setMutationMessage(`已删除评论 ${id}`);
+        setMutationMessage(t('page.search.removedComment', { id }));
       });
     },
-    [runMutation, listEntities, refreshCounts]
+    [runMutation, listEntities, refreshCounts, t]
   );
 
   // ----- Create modal handlers -----
@@ -442,8 +452,8 @@ export default function SearchPage(): React.JSX.Element {
   return (
     <main className='mx-auto flex w-full max-w-4xl flex-col gap-3 p-4' data-testid='search-page'>
       <header className='flex items-baseline gap-3'>
-        <h1 className='text-xl font-semibold'>全局搜索</h1>
-        <p className='text-base-content/80 text-sm'>Seeded articles and comments from the current RxDB only.</p>
+        <h1 className='text-xl font-semibold'>{t('page.search.title')}</h1>
+        <p className='text-base-content/80 text-sm'>{t('page.search.subtitle')}</p>
       </header>
 
       {/* Search input */}
@@ -475,7 +485,7 @@ export default function SearchPage(): React.JSX.Element {
           type='search'
           role='searchbox'
           className='input input-bordered w-full pr-24 pl-9 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none'
-          placeholder='搜索…（⌘K 或 /）'
+          placeholder={t('page.search.placeholder')}
           aria-label='Global search'
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -489,9 +499,9 @@ export default function SearchPage(): React.JSX.Element {
               type='button'
               className='btn btn-ghost btn-xs btn-circle'
               onClick={clearSearch}
-              aria-label='清空'
+              aria-label={t('page.search.clear')}
               data-testid='search-clear'
-              title='清空 (Esc)'
+              title={t('page.search.clearHint')}
             >
               <svg
                 fill='none'
@@ -514,9 +524,9 @@ export default function SearchPage(): React.JSX.Element {
             className='btn btn-ghost btn-xs btn-circle text-warning'
             disabled={!query.trim()}
             onClick={simulateError}
-            aria-label='模拟错误'
+            aria-label={t('page.search.simulateError')}
             data-testid='search-simulate-error'
-            title='模拟错误'
+            title={t('page.search.simulateError')}
           >
             <svg
               fill='none'
@@ -541,14 +551,14 @@ export default function SearchPage(): React.JSX.Element {
       {/* Scope panel */}
       <section className='card bg-base-200/60 p-3' data-testid='search-scope-panel'>
         <div className='flex flex-wrap items-center gap-2'>
-          <span className='text-sm font-medium'>范围</span>
+          <span className='text-sm font-medium'>{t('page.search.scope')}</span>
           <button
             type='button'
             className={`btn btn-xs ${scopeMode === 'global' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setScopeMode('global')}
             data-testid='search-scope-mode-global'
           >
-            全部
+            {t('page.search.all')}
           </button>
           <button
             type='button'
@@ -556,7 +566,7 @@ export default function SearchPage(): React.JSX.Element {
             onClick={() => setScopeMode('custom')}
             data-testid='search-scope-mode-custom'
           >
-            自定义
+            {t('page.search.custom')}
           </button>
           {scopeMode === 'custom' && (
             <>
@@ -569,13 +579,7 @@ export default function SearchPage(): React.JSX.Element {
                     onChange={e => toggleCollection(col, e.target.checked)}
                     data-testid={`search-scope-${col}`}
                   />
-                  <span className='label-text text-xs'>
-                    {col === 'article' ?
-                      '文章'
-                    : col === 'comment' ?
-                      '评论'
-                    : 'Todo'}
-                  </span>
+                  <span className='label-text text-xs'>{collectionLabel(col)}</span>
                 </label>
               ))}
             </>
@@ -606,10 +610,7 @@ export default function SearchPage(): React.JSX.Element {
       {/* Seed info */}
       <div className='flex items-center gap-3 text-xs'>
         <span className='text-base-content/60' data-testid='search-seed-count'>
-          数据：
-          {seedCount ?
-            `文章 ${seedCount.article}${seedCount.comment ? ` · 评论 ${seedCount.comment}` : ''}`
-          : '加载中…'}
+          {t('page.search.data', { value: seedLabel })}
         </span>
         <button
           type='button'
@@ -618,7 +619,7 @@ export default function SearchPage(): React.JSX.Element {
           disabled={seeding}
           data-testid='search-reseed'
         >
-          {seeding ? '写入中…' : '重新写入'}
+          {seeding ? t('page.search.seeding') : t('page.search.reseed')}
         </button>
       </div>
 
