@@ -5,8 +5,14 @@ Automatically commit changes after a Spec Kit command completes.
 Python port of ``auto-commit.sh`` / ``auto-commit.ps1``.
 Checks per-command config keys in git-config.yml before committing.
 
-Usage: auto_commit.py <event_name>
+Usage: auto_commit.py <event_name> [generated_message]
+       auto_commit.py <event_name> --message-file <path>
   e.g.: auto_commit.py after_specify
+  e.g.: auto_commit.py after_specify --message-file /tmp/commit-msg.txt  (commit_style: conventional)
+
+--message-file is the preferred way to supply an agent-generated commit
+message: it is read from a file, so its content (quotes, ``$(...)``,
+backticks) never passes through a shell command line.
 """
 
 from __future__ import annotations
@@ -44,6 +50,59 @@ def _strip_quotes(value: str) -> str:
     value = value.strip()
     value = re.sub(r"^[\"']", "", value)
     return re.sub(r"[\"']*$", "", value)
+
+
+class _ArgumentError(Exception):
+    """Invalid command-line arguments, reported as ``[specify] Error: ...``."""
+
+
+def _generated_message(args: list[str]) -> str:
+    """Return the agent-generated message from ``--message-file <path>`` or a raw argument.
+
+    Mirrors the bash twin's argument loop: a later argument overrides an
+    earlier one. The message file is a transport-only artifact, so it is
+    deleted as soon as it is read; left in the worktree it would count as an
+    untracked change and be swept into the commit by ``git add .``.
+    """
+    message = ""
+    pending = list(args)
+    while pending:
+        arg = pending.pop(0)
+        if arg != "--message-file":
+            message = arg
+            continue
+        path = pending.pop(0) if pending else ""
+        if not path:
+            raise _ArgumentError("--message-file requires a path argument")
+        message_file = Path(path)
+        if not message_file.is_file():
+            raise _ArgumentError(f"message file '{path}' not found")
+        message = message_file.read_text(encoding="utf-8").rstrip("\r\n")
+        message_file.unlink(missing_ok=True)
+    return message
+
+
+def _parse_commit_style(config_file: Path) -> str:
+    """Read the top-level ``commit_style`` key: ``fixed`` (default) or ``conventional``.
+
+    Mirrors the bash/PowerShell twins: the first ``commit_style:`` line wins,
+    a trailing ``# comment`` and surrounding quotes are stripped, the value is
+    case-insensitive, and an unknown value warns and falls back to ``fixed``.
+    """
+    try:
+        content = config_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return "fixed"
+    match = re.search(r"^commit_style:(.*)$", content, re.MULTILINE)
+    style = _strip_quotes(re.sub(r"\s+#.*$", "", match.group(1))).lower() if match else ""
+    if style in ("", "fixed", "conventional"):
+        return style or "fixed"
+    print(
+        f"[specify] Warning: unknown commit_style '{style}' in git-config.yml "
+        "(expected 'fixed' or 'conventional'); defaulting to 'fixed'",
+        file=sys.stderr,
+    )
+    return "fixed"
 
 
 def _parse_auto_commit_config(
@@ -117,7 +176,15 @@ def _parse_auto_commit_config(
 def main(argv: list[str]) -> int:
     event_name = argv[0] if argv else ""
     if not event_name:
-        print(f"Usage: {Path(sys.argv[0]).name} <event_name>", file=sys.stderr)
+        print(
+            f"Usage: {Path(sys.argv[0]).name} <event_name> [generated_message | --message-file <path>]",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        generated_message = _generated_message(argv[1:])
+    except _ArgumentError as error:
+        print(f"[specify] Error: {error}", file=sys.stderr)
         return 1
 
     script_dir = Path(__file__).resolve().parent
@@ -145,6 +212,7 @@ def main(argv: list[str]) -> int:
         # No config file — auto-commit disabled by default
         return 0
 
+    commit_style = _parse_commit_style(config_file)
     enabled, commit_msg = _parse_auto_commit_config(config_file, event_name)
     if not enabled:
         return 0
@@ -167,6 +235,19 @@ def main(argv: list[str]) -> int:
     if _quiet("diff", "--quiet", "HEAD") and _quiet("diff", "--cached", "--quiet") and not untracked:
         print(f"[specify] No changes to commit after {event_name}", file=sys.stderr)
         return 0
+
+    # In conventional mode, the commit message must be supplied by the agent
+    # (--message-file or a raw argument); never fall back to the fixed message.
+    if commit_style == "conventional":
+        if not generated_message:
+            print(
+                "[specify] Error: commit_style is 'conventional' but no generated commit "
+                "message was supplied; aborting auto-commit (pass --message-file <path>, "
+                "or a raw message as arg 2, or set commit_style: fixed)",
+                file=sys.stderr,
+            )
+            return 1
+        commit_msg = generated_message
 
     # Derive a human-readable command name from the event
     # e.g., after_specify -> specify, before_plan -> plan
