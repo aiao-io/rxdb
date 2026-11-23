@@ -62,7 +62,9 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
         <div class="flex items-center gap-2">
           <app-opfs-breadcrumb class="flex-1" [segments]="pathSegments()" (navigate)="navigateTo($event)" />
           @if (filesRuntime(); as runtime) {
-            <span class="badge badge-ghost badge-xs mr-2 font-mono" [title]="t('opfs.runtimeTooltip')">{{ runtime }}</span>
+            <span class="badge badge-ghost badge-xs mr-2 font-mono" [title]="t('opfs.runtimeTooltip')">{{
+              runtime
+            }}</span>
           }
         </div>
 
@@ -117,15 +119,13 @@ import { createPathSegments, summarizeFiles } from './opfs-page.utils';
         </div>
 
         <div class="text-base-content/60 border-base-300 flex items-center gap-4 border-t px-3 py-1 text-xs">
-          <span
-            >{{
-              t('opfs.count', {
-                count: files().length,
-                directories: fileCounts().directories,
-                files: fileCounts().files
-              })
-            }}</span
-          >
+          <span>{{
+            t('opfs.count', {
+              count: files().length,
+              directories: fileCounts().directories,
+              files: fileCounts().files
+            })
+          }}</span>
         </div>
       </div>
 

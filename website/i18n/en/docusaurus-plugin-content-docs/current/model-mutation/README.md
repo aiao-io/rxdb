@@ -17,12 +17,12 @@ await todo.remove();
 
 `getEntityStatus(todo).local` tells you whether the entity has a stored local row. `modified` tells you whether it has edits awaiting a save. Use `reset()` to discard pending edits on an instance.
 
-| Operation | Public entry point |
-| --- | --- |
-| Insert or update an entity | `entity.save()` |
-| Delete an entity | `entity.remove()` |
-| Save several entities together | `rxdb.entityManager.saveMany(entities)` |
-| Remove several entities together | `rxdb.entityManager.removeMany(entities)` |
-| Reorder an entity configured with `manualOrder` | `repository.reorder(id, target)` |
+| Operation                                       | Public entry point                        |
+| ----------------------------------------------- | ----------------------------------------- |
+| Insert or update an entity                      | `entity.save()`                           |
+| Delete an entity                                | `entity.remove()`                         |
+| Save several entities together                  | `rxdb.entityManager.saveMany(entities)`   |
+| Remove several entities together                | `rxdb.entityManager.removeMany(entities)` |
+| Reorder an entity configured with `manualOrder` | `repository.reorder(id, target)`          |
 
 The entity manager delegates persistence to the repository and adapter. Committed changes update the observables that drive the UI. See [Reactive queries](/model-query/query-realtime.md).

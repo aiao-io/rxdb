@@ -1,11 +1,15 @@
 {
-  "title": {
-    "message": "RxDB",
-    "description": "The title in the navbar"
+  "item.label.博客": {
+    "message": "Blog",
+    "description": "Navbar item with label 博客"
   },
-  "logo.alt": {
-    "message": "RxDB Logo",
-    "description": "The alt text of navbar logo"
+  "item.label.基准测试": {
+    "message": "Benchmarks",
+    "description": "Navbar item with label 基准测试"
+  },
+  "item.label.对比": {
+    "message": "Compare",
+    "description": "Navbar item with label 对比"
   },
   "item.label.文档": {
     "message": "Docs",
@@ -15,20 +19,16 @@
     "message": "Architecture",
     "description": "Navbar item with label 架构"
   },
-  "item.label.对比": {
-    "message": "Compare",
-    "description": "Navbar item with label 对比"
-  },
   "item.label.演示": {
     "message": "Demos",
     "description": "Navbar item with label 演示"
   },
-  "item.label.基准测试": {
-    "message": "Benchmarks",
-    "description": "Navbar item with label 基准测试"
+  "logo.alt": {
+    "message": "RxDB Logo",
+    "description": "The alt text of navbar logo"
   },
-  "item.label.博客": {
-    "message": "Blog",
-    "description": "Navbar item with label 博客"
+  "title": {
+    "message": "RxDB",
+    "description": "The title in the navbar"
   }
 }

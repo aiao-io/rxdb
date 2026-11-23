@@ -14,7 +14,9 @@ import { PanelI18nService } from '../services/panel-i18n.service';
       <section class="flex h-full flex-col gap-3 overflow-auto p-3" data-testid="i18n-panel">
         <header class="flex items-center justify-between">
           <h2 class="text-sm font-semibold">{{ t('i18n.title') }}</h2>
-          <button class="btn btn-ghost btn-xs" [disabled]="state.loading()" (click)="state.refresh()">{{ t('common.refresh') }}</button>
+          <button class="btn btn-ghost btn-xs" [disabled]="state.loading()" (click)="state.refresh()">
+            {{ t('common.refresh') }}
+          </button>
         </header>
         @if (state.error()) {
           <div class="alert alert-error text-xs" role="alert">{{ state.error() }}</div>
@@ -22,7 +24,8 @@ import { PanelI18nService } from '../services/panel-i18n.service';
         @if (state.snapshot(); as snapshot) {
           <div class="flex gap-3 text-xs">
             <span
-              >{{ t('i18n.currentLocale') }} <strong data-testid="i18n-current-locale">{{ snapshot.locale }}</strong></span
+              >{{ t('i18n.currentLocale') }}
+              <strong data-testid="i18n-current-locale">{{ snapshot.locale }}</strong></span
             ><span>{{ t('i18n.availableLocales') }} {{ snapshot.availableLocales.join(' / ') }}</span>
           </div>
           <h3 class="text-xs font-semibold">{{ t('i18n.catalogSources', { count: snapshot.messages.length }) }}</h3>
@@ -53,7 +56,9 @@ import { PanelI18nService } from '../services/panel-i18n.service';
             </table>
           </div>
           <div class="flex items-center justify-between">
-            <h3 class="text-xs font-semibold">{{ t('i18n.missingKeys', { count: snapshot.missingMessages.length }) }}</h3>
+            <h3 class="text-xs font-semibold">
+              {{ t('i18n.missingKeys', { count: snapshot.missingMessages.length }) }}
+            </h3>
             @if (snapshot.canClearMissing) {
               <button
                 class="btn btn-outline btn-xs"

@@ -4,12 +4,12 @@
 
 ## Package structure
 
-| Package | Role |
-| --- | --- |
-| `@aiao/rxdb-model` | Framework-independent value, form, detail, table, and query helpers |
-| `@aiao/rxdb-model-angular` | Angular components and Signals integration |
-| `@aiao/rxdb-model-react` | React components and Hooks integration |
-| `@aiao/rxdb-model-vue` | Vue 3 components and Composables integration |
+| Package                    | Role                                                                |
+| -------------------------- | ------------------------------------------------------------------- |
+| `@aiao/rxdb-model`         | Framework-independent value, form, detail, table, and query helpers |
+| `@aiao/rxdb-model-angular` | Angular components and Signals integration                          |
+| `@aiao/rxdb-model-react`   | React components and Hooks integration                              |
+| `@aiao/rxdb-model-vue`     | Vue 3 components and Composables integration                        |
 
 Headless consumers can use the framework-independent state and actions and render their own UI.
 

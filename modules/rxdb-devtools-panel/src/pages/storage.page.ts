@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { resolveUiLocale } from '@aiao/rxdb-i18n';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
 import { DatabaseStateService } from '../services/database-state.service';
 import { PanelI18nService } from '../services/panel-i18n.service';

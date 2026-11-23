@@ -60,7 +60,9 @@ import type { Theme } from '../types/devtools.types';
             <h3 class="card-title text-sm">{{ t('settings.exportTitle') }}</h3>
             <p class="text-xs opacity-70">{{ t('settings.exportDisabled') }}</p>
             <div class="card-actions mt-4">
-              <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">{{ t('settings.exportTitle') }}</button>
+              <button class="btn btn-primary btn-sm" [disabled]="databaseExportDisabled">
+                {{ t('settings.exportTitle') }}
+              </button>
             </div>
             @if (exportRefusal()) {
               <span class="mt-1 text-xs opacity-70">{{ exportRefusal() }}</span>

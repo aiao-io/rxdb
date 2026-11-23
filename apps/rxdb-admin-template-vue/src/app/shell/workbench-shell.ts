@@ -64,7 +64,7 @@ export function createWorkbenchShell(
   environment: Pick<AdminShellOptions<AdminIcon>, 'storage' | 'host'> = {}
 ): AdminShell<AdminIcon> {
   const deviceLocale = resolveUiLocale(
-    environment.host ? environment.host.window?.navigator?.language ?? 'zh-Hans' : globalThis.navigator?.language
+    environment.host ? (environment.host.window?.navigator?.language ?? 'zh-Hans') : globalThis.navigator?.language
   );
   const i18n = createWorkbenchI18n(config, deviceLocale);
   const shell = createAdminShell<AdminIcon>({

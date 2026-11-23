@@ -27,8 +27,8 @@ import { PanelI18nService } from '../services/panel-i18n.service';
           <button
             class="btn btn-xs btn-ghost btn-circle"
             [disabled]="switching()"
-            (click)="toggleBranchPopover()"
             [title]="t('branch.createTitle')"
+            (click)="toggleBranchPopover()"
           >
             <svg [lucideIcon]="Plus" aria-hidden="true" size="14"></svg>
           </button>
@@ -39,15 +39,17 @@ import { PanelI18nService } from '../services/panel-i18n.service';
                 <input
                   class="input input-sm input-bordered w-48"
                   id="new-branch-name"
+                  [placeholder]="t('branch.namePlaceholder')"
                   [value]="newBranchName()"
                   (input)="onBranchNameInput($event)"
                   (keydown.enter)="createBranch()"
                   (keydown.escape)="showBranchPopover.set(false)"
-                  [placeholder]="t('branch.namePlaceholder')"
                   type="text"
                 />
                 <div class="flex justify-end gap-2">
-                  <button class="btn btn-ghost btn-sm" (click)="showBranchPopover.set(false)">{{ t('common.cancel') }}</button>
+                  <button class="btn btn-ghost btn-sm" (click)="showBranchPopover.set(false)">
+                    {{ t('common.cancel') }}
+                  </button>
                   <button class="btn btn-primary btn-sm" [disabled]="!newBranchName().trim()" (click)="createBranch()">
                     {{ t('common.create') }}
                   </button>

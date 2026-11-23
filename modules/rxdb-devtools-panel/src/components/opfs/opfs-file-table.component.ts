@@ -44,11 +44,19 @@ import type { OPFSFile } from '../../types/devtools.types';
               <td class="text-right">
                 <div class="flex items-center justify-end gap-1">
                   @if (file.type === 'file') {
-                    <button class="btn btn-ghost btn-xs" (click)="downloadRequested.emit(file)" [title]="t('common.download')">
+                    <button
+                      class="btn btn-ghost btn-xs"
+                      [title]="t('common.download')"
+                      (click)="downloadRequested.emit(file)"
+                    >
                       <svg [lucideIcon]="Download" aria-hidden="true" size="14"></svg>
                     </button>
                   }
-                  <button class="btn btn-ghost btn-xs text-error" (click)="deleteRequested.emit(file)" [title]="t('common.delete')">
+                  <button
+                    class="btn btn-ghost btn-xs text-error"
+                    [title]="t('common.delete')"
+                    (click)="deleteRequested.emit(file)"
+                  >
                     <svg [lucideIcon]="Trash2" aria-hidden="true" size="14"></svg>
                   </button>
                 </div>

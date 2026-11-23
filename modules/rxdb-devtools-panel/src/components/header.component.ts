@@ -15,7 +15,9 @@ import { HeaderNavComponent } from './header-nav.component';
         <span class="hidden text-sm font-bold md:inline">DevTools</span>
         <div class="flex items-center gap-1.5">
           <div class="h-2 w-2 rounded-full" [ngClass]="connected() ? 'bg-success' : 'bg-error'"></div>
-          <span class="text-base-content/60 text-xs">{{ connected() ? t('common.connected') : t('common.disconnected') }}</span>
+          <span class="text-base-content/60 text-xs">{{
+            connected() ? t('common.connected') : t('common.disconnected')
+          }}</span>
         </div>
         @if (connected()) {
           <app-branch-selector />

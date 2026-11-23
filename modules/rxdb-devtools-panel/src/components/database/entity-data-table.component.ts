@@ -140,7 +140,12 @@ export function buildEntityDataColumns(
           >
             <header class="border-base-300 flex items-center justify-between border-b px-4 py-3">
               <h2 class="text-sm font-semibold" id="entity-record-detail-title">{{ t('entity.recordDetail') }}</h2>
-              <button class="btn btn-ghost btn-sm" (click)="closeDetail()" [attr.aria-label]="t('entity.closeDetail')" type="button">
+              <button
+                class="btn btn-ghost btn-sm"
+                [attr.aria-label]="t('entity.closeDetail')"
+                (click)="closeDetail()"
+                type="button"
+              >
                 {{ t('common.close') }}
               </button>
             </header>

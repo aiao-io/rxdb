@@ -14,11 +14,17 @@ export async function checkAgGridLocale(page) {
   const grid = page.getByTestId('ag-grid');
   const row = grid.getByRole('row').filter({ hasText: title });
   const completed = grid.locator('[role="columnheader"][col-id="completed"]');
-  for (const [locale, yes, no] of [['en', 'Yes', 'No'], ['zh-Hans', '是', '否']]) {
+  for (const [locale, yes, no] of [
+    ['en', 'Yes', 'No'],
+    ['zh-Hans', '是', '否']
+  ]) {
     await expect(page.getByTestId('i18n-locale')).toHaveValue(locale);
-    await expect(grid.getByRole('columnheader', { name: locale === 'en' ? 'Created at' : '创建时间', exact: true })).toBeVisible();
-    const date = await page.evaluate(({ locale, createdAt }) =>
-      new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(createdAt)),
+    await expect(
+      grid.getByRole('columnheader', { name: locale === 'en' ? 'Created at' : '创建时间', exact: true })
+    ).toBeVisible();
+    const date = await page.evaluate(
+      ({ locale, createdAt }) =>
+        new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(createdAt)),
       { locale, createdAt }
     );
     await expect(row.locator('[col-id="createdAt"]')).toHaveText(date);

@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
 import { I18n, resolveUiLocale } from '@aiao/rxdb-i18n';
+import { Injectable } from '@angular/core';
 import { panelCatalogs, type PanelMessageKey } from '../i18n/messages';
 
 /**

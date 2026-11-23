@@ -293,14 +293,16 @@ export const boardEnMessages = {
     'Demo data will be loaded into a new database and the demo board opened; the current board stays in its database.',
   'shell.confirm.resetLabel': 'Reset',
   'shell.confirm.restoreTitle': 'Restore from backup',
-  'shell.confirm.restoreMessage': 'The board in the backup will be opened after restoring; the current board stays untouched.',
+  'shell.confirm.restoreMessage':
+    'The board in the backup will be opened after restoring; the current board stays untouched.',
   'shell.confirm.restoreLabel': 'Restore',
   'shell.error.busy': 'Another page is preparing or restoring the board; please retry later',
   'shell.error.readBackFailed': 'Restore read-back failed: {message}',
   'shell.error.cleanupFailed': 'Failed to clean up the restore target: {message}; reload the page to retry cleanup',
   'shell.error.targetGone': 'The restore target storage no longer exists',
   'shell.error.newBoardCleanupFailed': 'Failed to clean up the new board: {message}',
-  'shell.error.adapterUnsupported': 'Adapter {adapter} does not support backup and restore (backup / restore / dropStorage required)',
+  'shell.error.adapterUnsupported':
+    'Adapter {adapter} does not support backup and restore (backup / restore / dropStorage required)',
   'shell.error.disconnectFailed': 'Failed to release the board connection',
   'shell.error.restoreDisconnectFailed': 'Failed to disconnect the restore target',
   'shell.error.noOpenBoard': 'No board is currently open',
@@ -403,7 +405,8 @@ export const boardEnMessages = {
   'view.dialog.confirmTaskImpact': 'This also removes {count} task-label links.',
   'view.dialog.confirmColumnDelete': 'Delete column “{title}”?',
   'view.dialog.confirmColumnImpact1': 'The {count} tasks inside will be deleted too;',
-  'view.dialog.confirmColumnImpact2': '{count} task-label links are removed with them; board-level label definitions are kept.',
+  'view.dialog.confirmColumnImpact2':
+    '{count} task-label links are removed with them; board-level label definitions are kept.',
   'view.dialog.confirmBoardDelete': 'Delete board “{title}”?',
   'view.dialog.confirmBoardImpact':
     '{columns} columns, {tasks} tasks, {labels} label definitions and {taskLabels} task-label links will be deleted.',
@@ -477,7 +480,8 @@ export const boardEnMessages = {
 
   'view.empty.noBoards': 'No boards yet',
   'view.empty.selectBoard': 'Choose a board',
-  'view.empty.description': 'A board organizes tasks into columns; data stays in your local browser and can be exported as a backup anytime.'
+  'view.empty.description':
+    'A board organizes tasks into columns; data stays in your local browser and can be exported as a backup anytime.'
 } satisfies Record<BoardMessageKey, string>;
 
 /** 看板随包文案目录（简体中文、英文）；应用自带 `I18n` 运行时时把它加入 `catalogs`。 */

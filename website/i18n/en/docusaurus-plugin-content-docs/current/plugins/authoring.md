@@ -35,12 +35,12 @@ Each call to `install` receives a fresh `LifecycleScope`. Acquire each listener,
 
 ## Declare dependencies
 
-| The plugin needs | What to declare | When `install` runs |
-| --- | --- | --- |
-| Only the event listener above | Omit `inject` | During initialization, or when registered on an initialized database |
-| An initialized local adapter | `inject: ['adapter:local']` | After the local adapter finishes its schema and index setup |
-| An initialized remote adapter | `inject: ['adapter:remote']` | After the remote adapter is ready |
-| Another plugin named `search` | `inject: ['plugin:search']` | After that plugin finishes installation |
+| The plugin needs              | What to declare              | When `install` runs                                                  |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------------- |
+| Only the event listener above | Omit `inject`                | During initialization, or when registered on an initialized database |
+| An initialized local adapter  | `inject: ['adapter:local']`  | After the local adapter finishes its schema and index setup          |
+| An initialized remote adapter | `inject: ['adapter:remote']` | After the remote adapter is ready                                    |
+| Another plugin named `search` | `inject: ['plugin:search']`  | After that plugin finishes installation                              |
 
 An unmet dependency keeps the plugin pending. `connect()` can finish while that plugin is still waiting. Declare dependencies through `inject`. Calling `connect()` from inside `install()` can make the connection wait on its own completion.
 

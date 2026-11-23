@@ -59,7 +59,7 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
   const homeUrl = options.homeUrl ?? '/';
   const i18n =
     options.i18n ??
-    createAdminI18n(undefined, options.host ? options.host.window?.navigator?.language ?? 'zh-Hans' : undefined);
+    createAdminI18n(undefined, options.host ? (options.host.window?.navigator?.language ?? 'zh-Hans') : undefined);
   const brandTitle = (): string =>
     options.brand?.titleKey ? i18n.t(options.brand.titleKey) : (options.brand?.title ?? 'Admin');
   const t = (key: string, params?: Record<string, unknown>): string => translateAdmin(i18n, key, params);

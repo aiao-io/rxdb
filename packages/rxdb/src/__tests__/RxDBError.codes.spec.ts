@@ -26,14 +26,18 @@ const cases = [
     new RxDBLocalAdapterCapabilityError('sqlite', ['migrateSystemSchema']),
     'RXDB_LOCAL_ADAPTER_CAPABILITY_MISSING'
   ],
-  ['RxDBMissingPluginError', new RxDBMissingPluginError('Todo', 'querycache', '@aiao/plugin', 'rxdb.use()'), 'RXDB_PLUGIN_MISSING'],
   [
-    'RxDBReadOnlyError',
-    new RxDBReadOnlyError('create', 'Todo'),
-    'RXDB_READ_ONLY'
+    'RxDBMissingPluginError',
+    new RxDBMissingPluginError('Todo', 'querycache', '@aiao/plugin', 'rxdb.use()'),
+    'RXDB_PLUGIN_MISSING'
   ],
+  ['RxDBReadOnlyError', new RxDBReadOnlyError('create', 'Todo'), 'RXDB_READ_ONLY'],
   ['NetworkOfflineError', new NetworkOfflineError(new Error('offline')), 'RXDB_NETWORK_OFFLINE'],
-  ['RxDBPluginDependencyCycleError', new RxDBPluginDependencyCycleError(['a', 'b', 'a']), 'RXDB_PLUGIN_DEPENDENCY_CYCLE'],
+  [
+    'RxDBPluginDependencyCycleError',
+    new RxDBPluginDependencyCycleError(['a', 'b', 'a']),
+    'RXDB_PLUGIN_DEPENDENCY_CYCLE'
+  ],
   [
     'RxDBCheckViolationError',
     new RxDBCheckViolationError('Todo', 'ck_todo', [], new Error('constraint')),

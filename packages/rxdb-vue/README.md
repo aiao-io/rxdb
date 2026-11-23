@@ -11,7 +11,7 @@ pnpm add @aiao/rxdb @aiao/rxdb-vue rxjs vue
 ## Provide a database
 
 ```vue
-<script setup lang="ts">
+<script lang="ts" setup>
 import { provideRxDB } from '@aiao/rxdb-vue';
 import { database } from './database';
 

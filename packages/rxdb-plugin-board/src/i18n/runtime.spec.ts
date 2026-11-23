@@ -43,9 +43,7 @@ describe('createBoardI18n', () => {
   it('未知宿主语言回退 zh-Hans，省略参数时跟随宿主语言', () => {
     expect(createBoardI18n('fr-FR').locale).toBe('zh-Hans');
     // 省略 deviceLocale 时读取 globalThis.navigator.language（Node 26 带 navigator 全局）
-    expect(createBoardI18n(undefined).locale).toBe(
-      resolveUiLocale(globalThis.navigator?.language)
-    );
+    expect(createBoardI18n(undefined).locale).toBe(resolveUiLocale(globalThis.navigator?.language));
   });
 
   it('缺失键返回键本身', () => {
@@ -95,9 +93,7 @@ describe('中文值与 e2e 断言逐字一致', () => {
     expect(zh('view.dialog.confirmTaskDelete', { title: '写发布说明' })).toBe('删除任务「写发布说明」？');
     expect(zh('view.dialog.confirmTaskImpact', { count: 2 })).toBe('将同时移除 2 条标签关联。');
     expect(zh('view.dialog.confirmColumnImpact1', { count: 4 })).toContain('4 个任务');
-    expect(
-      zh('view.dialog.confirmBoardImpact', { columns: 3, tasks: 4, labels: 5, taskLabels: 6 })
-    ).toContain('3 列');
+    expect(zh('view.dialog.confirmBoardImpact', { columns: 3, tasks: 4, labels: 5, taskLabels: 6 })).toContain('3 列');
     expect(zh('view.dialog.confirmBoardImpact', { columns: 3, tasks: 4, labels: 5, taskLabels: 6 })).toContain(
       '4 个任务'
     );

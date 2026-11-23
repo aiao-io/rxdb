@@ -1,10 +1,10 @@
 # 英文环境支持计划
 
-| 项目 | 内容 |
-| --- | --- |
-| 状态 | In Progress |
-| 创建日期 | 2026-11-22 |
-| 目标 | 降低英文开源作者从发现项目到提交贡献的门槛 |
+| 项目     | 内容                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| 状态     | In Progress                                                           |
+| 创建日期 | 2026-11-22                                                            |
+| 目标     | 降低英文开源作者从发现项目到提交贡献的门槛                            |
 | 影响范围 | 仓库入口、官网、公共 API 文档、i18n runtime、Admin 模板、开发演示应用 |
 | 主要约束 | Angular、React、Vue 三端行为和 API 保持对称；既有中文语言选择继续有效 |
 
@@ -12,19 +12,19 @@
 
 GitHub 的英文 README 和贡献指南直接进入官网 `/en/`。官网根路径继续提供中文文档，两个入口都可以通过导航切换到另一种语言。
 
-| 读者操作 | 已验证的范围 |
-| --- | --- |
-| 从 GitHub 提问 | Issue 选择页直接提供英文和中文文档链接，英文提问表单进入 `/en/`。仓库脚本检查三个链接的目标。 |
-| 按英文文档接入第一个插件 | Chromium 从 Vite 示例加载配套 WASM，在 IndexedDB 中新增、查询、更新和删除 Todo，控制台收到一次插件通知。PGlite 内存库在断开重连前后各保存一个 Todo，每次都只收到一次通知。脚本测试逐字节比对安装页复制的 WASM 和适配器实际依赖。 |
-| 在英文浏览器打开 Admin | Angular、React、Vue 共用一套 Chromium 用例。在干净的 `en-US` 环境中检查英文首页、`html[lang]`、标题和 meta description。切换到中文后刷新，再从偏好抽屉清除语言并刷新，两次都检查文案和 metadata。 |
-| 打开开发演示的实体页 | 三端 Chromium 都验证了英文新增按钮、规范语言 `en`，以及日期 `October 28, 2026` 和数字 `12,345.67`。 |
-| 在 AG Grid 中切换语言 | 三端 Chromium 在实体页写入同一个固定时间的 Todo，进入 AG Grid 后核对英文时间列标题、单元格日期以及 `Yes` / `No` 筛选值。原页切换至中文后再核对中文标题、日期和“是／否”。 |
-| 在 Workspace 中恢复和保存草稿 | 三端 Chromium 从英文浏览器创建草稿，核对通知、单数计数和日期，刷新后恢复；切到中文并保存，再切回英文，验证已显示的通知与主表状态更新，草稿标题保持不变。原有中文路由冒烟用例也通过。 |
-| 在 Storage 和 OPFS 中管理文件 | 三端 Chromium 验证英文上传、预览、日期和上传反馈，在页面上切换中文后核对格式与文案。OPFS 还校验文件名排序和已打开的删除确认框。原有上传、删除、重命名和覆盖取消流程按各端既有用例验证。 |
-| 查看 Todo、文件管理和树菜单的操作历史 | 三端 Chromium 验证历史操作、时间、撤销状态和关闭按钮随语言更新，`time[datetime]` 保留原值。文件管理和树菜单的简单、懒加载和虚拟滚动入口都验证了中英文按钮及侧栏开合。 |
-| 从文档复制代码 | 自动检查仓库首页、英文 Getting Started、模型定义、查询、响应式查询、写入、Vite 配置、插件编写、i18n 指南、三端框架指南和首批 12 个公共包 README 中的 TypeScript 示例。Vue 另有测试会实际编译并挂载 `useEntityChange` 的 README 示例。 |
-| 从未翻译页面跳到英文指南 | 文档链接以内容目录为根并保留 `.md`。英文单语言构建开启 Markdown、页面和锚点三种断链检查，已核对插件目录正文到编写插件、桌面迁移正文到兼容矩阵的生成链接。 |
-| 根据核心报错定位问题 | `packages/rxdb/README.md` 列出 12 个具体错误码、诊断字段及处理方法，含原有小写事务错误码。 |
+| 读者操作                              | 已验证的范围                                                                                                                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 从 GitHub 提问                        | Issue 选择页直接提供英文和中文文档链接，英文提问表单进入 `/en/`。仓库脚本检查三个链接的目标。                                                                                                                                         |
+| 按英文文档接入第一个插件              | Chromium 从 Vite 示例加载配套 WASM，在 IndexedDB 中新增、查询、更新和删除 Todo，控制台收到一次插件通知。PGlite 内存库在断开重连前后各保存一个 Todo，每次都只收到一次通知。脚本测试逐字节比对安装页复制的 WASM 和适配器实际依赖。      |
+| 在英文浏览器打开 Admin                | Angular、React、Vue 共用一套 Chromium 用例。在干净的 `en-US` 环境中检查英文首页、`html[lang]`、标题和 meta description。切换到中文后刷新，再从偏好抽屉清除语言并刷新，两次都检查文案和 metadata。                                     |
+| 打开开发演示的实体页                  | 三端 Chromium 都验证了英文新增按钮、规范语言 `en`，以及日期 `October 28, 2026` 和数字 `12,345.67`。                                                                                                                                   |
+| 在 AG Grid 中切换语言                 | 三端 Chromium 在实体页写入同一个固定时间的 Todo，进入 AG Grid 后核对英文时间列标题、单元格日期以及 `Yes` / `No` 筛选值。原页切换至中文后再核对中文标题、日期和“是／否”。                                                              |
+| 在 Workspace 中恢复和保存草稿         | 三端 Chromium 从英文浏览器创建草稿，核对通知、单数计数和日期，刷新后恢复；切到中文并保存，再切回英文，验证已显示的通知与主表状态更新，草稿标题保持不变。原有中文路由冒烟用例也通过。                                                  |
+| 在 Storage 和 OPFS 中管理文件         | 三端 Chromium 验证英文上传、预览、日期和上传反馈，在页面上切换中文后核对格式与文案。OPFS 还校验文件名排序和已打开的删除确认框。原有上传、删除、重命名和覆盖取消流程按各端既有用例验证。                                               |
+| 查看 Todo、文件管理和树菜单的操作历史 | 三端 Chromium 验证历史操作、时间、撤销状态和关闭按钮随语言更新，`time[datetime]` 保留原值。文件管理和树菜单的简单、懒加载和虚拟滚动入口都验证了中英文按钮及侧栏开合。                                                                 |
+| 从文档复制代码                        | 自动检查仓库首页、英文 Getting Started、模型定义、查询、响应式查询、写入、Vite 配置、插件编写、i18n 指南、三端框架指南和首批 12 个公共包 README 中的 TypeScript 示例。Vue 另有测试会实际编译并挂载 `useEntityChange` 的 README 示例。 |
+| 从未翻译页面跳到英文指南              | 文档链接以内容目录为根并保留 `.md`。英文单语言构建开启 Markdown、页面和锚点三种断链检查，已核对插件目录正文到编写插件、桌面迁移正文到兼容矩阵的生成链接。                                                                             |
+| 根据核心报错定位问题                  | `packages/rxdb/README.md` 列出 12 个具体错误码、诊断字段及处理方法，含原有小写事务错误码。                                                                                                                                            |
 
 2026-11-23 已复核 63 个公开包的 101 个 API 入口。`resolveUiLocale` 与 `UiLocale` 已登记在 i18n 基线中。仓库脚本 622 项通过，官网测试 93 项通过，11 组中英文文案键一致。官网和仓库脚本均通过 lint，文档代码检查和需求一致性检查通过。
 
@@ -101,23 +101,23 @@ pnpm test-all
 
 ### 2.2 P0 缺口
 
-| 缺口 | 当前证据 | 影响 |
-| --- | --- | --- |
-| Admin 模板默认语言固定中文 | `apps/rxdb-admin-template-{react,angular,vue}/src/app/i18n/workbench-i18n.ts` 中 `defaultLocale`、`deviceLocale` 和 `locale` 均固定为 `zh-Hans` | 英文浏览器首次打开仍可能看到中文 |
-| 工作台跟随系统时固定回退中文 | `apps/rxdb-admin-template-{react,angular,vue}/src/app/shell/workbench-shell.ts` | 系统语言无法影响工作台 |
-| Admin 公共 runtime 固定中文 | `packages/rxdb-admin/src/i18n/index.ts` 的 `createAdminI18n()` 固定使用 `zh-Hans` | 下游应用复用 Admin 包时无法自然跟随英文环境 |
-| GitHub 公共入口主要使用中文 | `README.md`、`CONTRIBUTING.md`、`.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE.md` | 英文作者在进入项目和贡献前遇到语言门槛 |
-| 官网只配置 `zh-Hans` | `website/docusaurus.config.ts` 的 `i18n.locales` 只有 `zh-Hans` | 英文作者无法获得完整的官方文档入口 |
+| 缺口                         | 当前证据                                                                                                                                        | 影响                                        |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Admin 模板默认语言固定中文   | `apps/rxdb-admin-template-{react,angular,vue}/src/app/i18n/workbench-i18n.ts` 中 `defaultLocale`、`deviceLocale` 和 `locale` 均固定为 `zh-Hans` | 英文浏览器首次打开仍可能看到中文            |
+| 工作台跟随系统时固定回退中文 | `apps/rxdb-admin-template-{react,angular,vue}/src/app/shell/workbench-shell.ts`                                                                 | 系统语言无法影响工作台                      |
+| Admin 公共 runtime 固定中文  | `packages/rxdb-admin/src/i18n/index.ts` 的 `createAdminI18n()` 固定使用 `zh-Hans`                                                               | 下游应用复用 Admin 包时无法自然跟随英文环境 |
+| GitHub 公共入口主要使用中文  | `README.md`、`CONTRIBUTING.md`、`.github/ISSUE_TEMPLATE/`、`.github/PULL_REQUEST_TEMPLATE.md`                                                   | 英文作者在进入项目和贡献前遇到语言门槛      |
+| 官网只配置 `zh-Hans`         | `website/docusaurus.config.ts` 的 `i18n.locales` 只有 `zh-Hans`                                                                                 | 英文作者无法获得完整的官方文档入口          |
 
 ### 2.3 P1 缺口
 
-| 缺口 | 重点范围 | 影响 |
-| --- | --- | --- |
-| 日期时间格式固定 `zh-CN` | `packages/utils/src/file/index.ts`、`apps/dev-rxdb-{react,vue,angular}`、`modules/rxdb-devtools-panel` | 英文文案与中文日期混排 |
-| 数字、排序和组件 locale 仍有中文固定值 | 开发演示中的 file sorter、AG Grid 和相关页面 | 英文环境下排序和格式化不一致 |
-| 公共 TSDoc 大量中文 | `packages/*` 公共导出和 API 注释 | 自动生成的 API 文档无法服务英文作者 |
-| 核心错误信息大量中文 | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/entity/entity-value.utils.ts`、`packages/rxdb/src/repository/QueryManager.ts` 及部分适配器 | 英文作者排查问题时缺少稳定英文诊断信息 |
-| 文案目录完整性依赖人工检查 | Admin、Model、Application 多套目录 | 新增 key 可能只补中文或只补英文 |
+| 缺口                                   | 重点范围                                                                                                                                   | 影响                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| 日期时间格式固定 `zh-CN`               | `packages/utils/src/file/index.ts`、`apps/dev-rxdb-{react,vue,angular}`、`modules/rxdb-devtools-panel`                                     | 英文文案与中文日期混排                 |
+| 数字、排序和组件 locale 仍有中文固定值 | 开发演示中的 file sorter、AG Grid 和相关页面                                                                                               | 英文环境下排序和格式化不一致           |
+| 公共 TSDoc 大量中文                    | `packages/*` 公共导出和 API 注释                                                                                                           | 自动生成的 API 文档无法服务英文作者    |
+| 核心错误信息大量中文                   | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/entity/entity-value.utils.ts`、`packages/rxdb/src/repository/QueryManager.ts` 及部分适配器 | 英文作者排查问题时缺少稳定英文诊断信息 |
+| 文案目录完整性依赖人工检查             | Admin、Model、Application 多套目录                                                                                                         | 新增 key 可能只补中文或只补英文        |
 
 ## 3. 语言策略
 
@@ -125,11 +125,11 @@ pnpm test-all
 
 第一阶段固定支持两个 UI locale。
 
-| 规范值 | 输入示例 | 处理方式 |
-| --- | --- | --- |
-| `en` | `en`、`en-US`、`en-GB` | 归一到英文目录 `en` |
+| 规范值    | 输入示例                    | 处理方式                     |
+| --------- | --------------------------- | ---------------------------- |
+| `en`      | `en`、`en-US`、`en-GB`      | 归一到英文目录 `en`          |
 | `zh-Hans` | `zh`、`zh-CN`、`zh-Hans-CN` | 归一到简体中文目录 `zh-Hans` |
-| 其他值 | `fr`、空值、无法解析的值 | 回退到 `zh-Hans` |
+| 其他值    | `fr`、空值、无法解析的值    | 回退到 `zh-Hans`             |
 
 语言解析顺序固定为以下优先级：
 
@@ -387,14 +387,14 @@ Issue 和 PR 模板改为英文，表单字段保持现有信息密度。模板�
 
 Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步交付。单端完成不能关闭对应任务。
 
-| 能力 | Angular | React | Vue |
-| --- | --- | --- | --- |
-| 默认 locale 解析 | 模板 runtime、shell、测试 | 模板 runtime、shell、测试 | 模板 runtime、shell、测试 |
-| 显式语言选择 | 选择、持久化、清除 | 选择、持久化、清除 | 选择、持久化、清除 |
-| 页面元数据 | title、description、`html[lang]` | title、description、`html[lang]` | title、description、`html[lang]` |
-| Admin 文案 | 应用、模型、备份 | 应用、模型、备份 | 应用、模型、备份 |
-| 日期和数字 | 页面、文件、OPFS | 页面、文件、OPFS | 页面、文件、OPFS |
-| 测试 | unit、browser 或 E2E | unit、browser 或 E2E | unit、browser 或 E2E |
+| 能力             | Angular                          | React                            | Vue                              |
+| ---------------- | -------------------------------- | -------------------------------- | -------------------------------- |
+| 默认 locale 解析 | 模板 runtime、shell、测试        | 模板 runtime、shell、测试        | 模板 runtime、shell、测试        |
+| 显式语言选择     | 选择、持久化、清除               | 选择、持久化、清除               | 选择、持久化、清除               |
+| 页面元数据       | title、description、`html[lang]` | title、description、`html[lang]` | title、description、`html[lang]` |
+| Admin 文案       | 应用、模型、备份                 | 应用、模型、备份                 | 应用、模型、备份                 |
+| 日期和数字       | 页面、文件、OPFS                 | 页面、文件、OPFS                 | 页面、文件、OPFS                 |
+| 测试             | unit、browser 或 E2E             | unit、browser 或 E2E             | unit、browser 或 E2E             |
 
 共享逻辑放入框架无关包。框架层只负责生命周期、信号或响应式订阅、DOM 元数据和框架需要的 locale 注册。
 
@@ -406,21 +406,21 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 ### 6.2 必测场景
 
-| 编号 | 验收场景 |
-| --- | --- |
-| EN-AC-01 | 英文浏览器首次打开 Admin React、Angular、Vue 模板显示英文 |
-| EN-AC-02 | 中文浏览器首次打开三个模板显示简体中文 |
-| EN-AC-03 | 已保存语言优先于浏览器语言 |
-| EN-AC-04 | 清除已保存语言后恢复跟随浏览器语言 |
+| 编号     | 验收场景                                                      |
+| -------- | ------------------------------------------------------------- |
+| EN-AC-01 | 英文浏览器首次打开 Admin React、Angular、Vue 模板显示英文     |
+| EN-AC-02 | 中文浏览器首次打开三个模板显示简体中文                        |
+| EN-AC-03 | 已保存语言优先于浏览器语言                                    |
+| EN-AC-04 | 清除已保存语言后恢复跟随浏览器语言                            |
 | EN-AC-05 | 三端 `html[lang]`、页面标题和 meta description 与当前语言一致 |
-| EN-AC-06 | 日期、数字、相对时间和用户界面排序使用当前语言 |
-| EN-AC-07 | Admin、Model、Application 文案目录 key 集合对齐 |
-| EN-AC-08 | 缺失 key 不直接泄漏到用户界面，且检查能定位缺失目录 |
-| EN-AC-09 | 英文 README 可完成安装、运行、测试和提交 Issue |
-| EN-AC-10 | 英文官网核心路径无断链，构建和搜索索引通过 |
-| EN-AC-11 | 首批包有英文 API 指南，示例可验证，API baseline 通过 |
-| EN-AC-12 | 核心错误具备稳定 code，应用层不依赖 message 全文匹配 |
-| EN-AC-13 | 英文和中文用户已有显式语言偏好在升级后保持原值 |
+| EN-AC-06 | 日期、数字、相对时间和用户界面排序使用当前语言                |
+| EN-AC-07 | Admin、Model、Application 文案目录 key 集合对齐               |
+| EN-AC-08 | 缺失 key 不直接泄漏到用户界面，且检查能定位缺失目录           |
+| EN-AC-09 | 英文 README 可完成安装、运行、测试和提交 Issue                |
+| EN-AC-10 | 英文官网核心路径无断链，构建和搜索索引通过                    |
+| EN-AC-11 | 首批包有英文 API 指南，示例可验证，API baseline 通过          |
+| EN-AC-12 | 核心错误具备稳定 code，应用层不依赖 message 全文匹配          |
+| EN-AC-13 | 英文和中文用户已有显式语言偏好在升级后保持原值                |
 
 ### 6.3 Nx 验证入口
 
@@ -447,28 +447,28 @@ Admin 模板、开发演示和公共绑定包均按 Angular、React、Vue 同步
 
 ### 7.1 建议的变更切片
 
-| 切片 | 内容 | 评审重点 |
-| --- | --- | --- |
-| A | 语言合同、检查脚本、规范更新 | locale 解析和规则边界 |
-| B | Admin runtime 与三端模板 | 三框架对称、偏好兼容、真实浏览器行为 |
-| C | GitHub 英文入口 | 命令可执行、链接有效、中文镜像同步 |
-| D | 开发演示格式化 | 用户界面格式与协议格式边界 |
-| E | 官网英文 locale | 文档层级、链接、URL 兼容、搜索索引 |
-| F | 公共包 README、API 指南和错误码 | API 稳定性、英文诊断、公共文档质量 |
+| 切片 | 内容                            | 评审重点                             |
+| ---- | ------------------------------- | ------------------------------------ |
+| A    | 语言合同、检查脚本、规范更新    | locale 解析和规则边界                |
+| B    | Admin runtime 与三端模板        | 三框架对称、偏好兼容、真实浏览器行为 |
+| C    | GitHub 英文入口                 | 命令可执行、链接有效、中文镜像同步   |
+| D    | 开发演示格式化                  | 用户界面格式与协议格式边界           |
+| E    | 官网英文 locale                 | 文档层级、链接、URL 兼容、搜索索引   |
+| F    | 公共包 README、API 指南和错误码 | API 稳定性、英文诊断、公共文档质量   |
 
 涉及 `packages/*` 公共包和三端应用的切片需要在同一变更范围内统一评审和验证。每个切片合入前都应通过对应 target，最终由 affected 和完整门禁收口。
 
 ## 8. 风险与处理
 
-| 风险 | 处理方式 |
-| --- | --- |
+| 风险                                                        | 处理方式                                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | locale 探测在 SSR、Node、Electron 或 Tauri 中缺少浏览器 API | 复用框架无关的显式输入，运行时探测由宿主适配层提供，增加各宿主冒烟测试 |
-| 英文目录漏 key | 在测试和 CI 中比较目录 key 集合，禁止只依赖人工检查 |
-| Angular locale data 未加载 | 把英文和中文格式化场景加入 Angular 实际运行测试 |
-| 官网默认语言变化导致旧中文链接失效 | 先盘点现有 URL，再保留中文 locale 路径或增加兼容跳转 |
-| `localeCompare` 改动影响稳定排序 | 先区分协议排序和用户界面排序，只迁移有明确用户语言语义的场景 |
-| 错误 message 变化影响下游断言 | 先增加稳定 `code`，保留错误类型和语义，分组迁移 message 并补迁移说明 |
-| 翻译扩大范围造成长期维护负担 | 先完成英文作者最短路径，再按包和文档层级逐步扩展 |
+| 英文目录漏 key                                              | 在测试和 CI 中比较目录 key 集合，禁止只依赖人工检查                    |
+| Angular locale data 未加载                                  | 把英文和中文格式化场景加入 Angular 实际运行测试                        |
+| 官网默认语言变化导致旧中文链接失效                          | 先盘点现有 URL，再保留中文 locale 路径或增加兼容跳转                   |
+| `localeCompare` 改动影响稳定排序                            | 先区分协议排序和用户界面排序，只迁移有明确用户语言语义的场景           |
+| 错误 message 变化影响下游断言                               | 先增加稳定 `code`，保留错误类型和语义，分组迁移 message 并补迁移说明   |
+| 翻译扩大范围造成长期维护负担                                | 先完成英文作者最短路径，再按包和文档层级逐步扩展                       |
 
 ## 9. 范围外事项
 

@@ -106,7 +106,9 @@ describe('release-board-dataset 确定性种子（US-540 AC#1）', () => {
     await expect(seedReleaseBoardDataset(first)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
     expect(await readFirst(first.entityManager.getRepository(Board).find({ where: matchAll() }))).toHaveLength(2);
 
-    await second.entityManager.getRepository(Board).create(second.entityManager.instantiate(Board, { title: '用户的板' }));
+    await second.entityManager
+      .getRepository(Board)
+      .create(second.entityManager.instantiate(Board, { title: '用户的板' }));
     await expect(seedReleaseBoardDataset(second)).rejects.toMatchObject({ code: 'seed_target_not_empty' });
     const boards = await readFirst(second.entityManager.getRepository(Board).find({ where: matchAll() }));
     expect(boards.map(board => board.title)).toEqual(['用户的板']);

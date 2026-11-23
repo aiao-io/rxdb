@@ -8,8 +8,8 @@ import {
   type PreferenceExtension,
   type StorageLike
 } from '@aiao/rxdb-admin';
-import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import type { AdminIcon } from '@aiao/rxdb-admin-angular';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { appConfig, type AppConfig } from '../app-config';
 import { createWorkbenchI18n } from '../i18n/workbench-i18n';
 
@@ -64,7 +64,7 @@ export function createWorkbenchShell(
   environment: Pick<AdminShellOptions<AdminIcon>, 'storage' | 'host'> = {}
 ): AdminShell<AdminIcon> {
   const deviceLocale = resolveUiLocale(
-    environment.host ? environment.host.window?.navigator?.language ?? 'zh-Hans' : globalThis.navigator?.language
+    environment.host ? (environment.host.window?.navigator?.language ?? 'zh-Hans') : globalThis.navigator?.language
   );
   const i18n = createWorkbenchI18n(config, deviceLocale);
   const shell = createAdminShell<AdminIcon>({

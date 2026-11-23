@@ -2,8 +2,8 @@
 
 核心包负责模型、查询与写入，历史、同步、搜索和领域能力通过独立包接入。需要 `rxdb.use()` 的插件应在首次数据库初始化或连接之前安装；具体实体、适配器与插件依赖以各自指南为准。
 
-| 能力     | 指南                                                 | 作用                                            |
-| :------- | :--------------------------------------------------- | :---------------------------------------------- |
+| 能力     | 指南                                                        | 作用                                            |
+| :------- | :---------------------------------------------------------- | :---------------------------------------------- |
 | 历史     | [history](/plugins/rxdb-plugin-history/README.md)           | 操作历史与分支能力                              |
 | 同步     | [sync](/plugins/rxdb-plugin-sync/README.md)                 | 远端 push / pull 与同步编排                     |
 | 查询缓存 | [querycache](/plugins/rxdb-plugin-querycache/README.md)     | 远端查询的本地缓存与离线读取                    |
@@ -12,7 +12,7 @@
 | 回放     | [replay](/plugins/rxdb-plugin-replay/README.md)             | 历史会话与回放状态                              |
 | 树       | [tree](/plugins/rxdb-plugin-tree/README.md)                 | 树结构与三框架绑定                              |
 | 图       | [graph](/plugins/rxdb-plugin-graph/README.md)               | 图实体与关系查询                                |
-| 工作空间 | [workspace](/plugins/rxdb-plugin-workspace/README.md)       | 新建实体草稿的本地持久化与恢复                              |
+| 工作空间 | [workspace](/plugins/rxdb-plugin-workspace/README.md)       | 新建实体草稿的本地持久化与恢复                  |
 | 文件存储 | [storage](/plugins/rxdb-plugin-storage/README.md)           | 文件元数据与存储接入                            |
 | 单人看板 | [board](/plugins/rxdb-plugin-board/README.md)               | 看板领域服务、三框架视图与备份外壳；尚未发布    |
 | 文件直传 | [p2p](/plugins/rxdb-plugin-p2p/README.md)                   | 已认证的设备会话与分块文件传输；尚未发布        |

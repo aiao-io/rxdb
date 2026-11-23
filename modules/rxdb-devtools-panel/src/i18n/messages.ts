@@ -73,8 +73,7 @@ export const panelZhMessages = {
 
   'storage.sourceTooltip': '数据来源：RxDB StorageFileMeta 实体',
   'storage.pluginMissingTitle': '当前页面未安装 @aiao/rxdb-plugin-storage',
-  'storage.pluginMissingBody':
-    '被检查页面的 RxDB 没有注册 storage:StorageFileMeta 实体，因此这里没有文件可列。',
+  'storage.pluginMissingBody': '被检查页面的 RxDB 没有注册 storage:StorageFileMeta 实体，因此这里没有文件可列。',
   'storage.empty': '无存储文件',
   'storage.path': '路径',
   'storage.version': '版本',

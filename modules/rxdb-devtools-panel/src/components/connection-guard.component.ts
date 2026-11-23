@@ -13,7 +13,9 @@ import { DEVTOOLS_HOST_ACCESS } from '../transport';
   template: `
     @if (accessState() === 'required') {
       <div class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <button class="btn btn-primary btn-sm" (click)="requestAccess()" type="button">{{ t('guard.allowAccess') }}</button>
+        <button class="btn btn-primary btn-sm" (click)="requestAccess()" type="button">
+          {{ t('guard.allowAccess') }}
+        </button>
         @if (accessError()) {
           <p class="text-error text-sm">{{ accessError() }}</p>
         }

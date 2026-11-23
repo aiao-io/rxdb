@@ -36,7 +36,13 @@ export function TodoList() {
     orderBy: [{ field: 'createdAt', sort: 'desc' }]
   });
 
-  return <ul>{todos.value.map(todo => <li key={todo.id}>{todo.title}</li>)}</ul>;
+  return (
+    <ul>
+      {todos.value.map(todo => (
+        <li key={todo.id}>{todo.title}</li>
+      ))}
+    </ul>
+  );
 }
 ```
 

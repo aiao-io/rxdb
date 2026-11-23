@@ -20,10 +20,10 @@ import type { OPFSFile } from '../../types/devtools.types';
           <h3 class="mb-4 text-base font-bold">{{ t('opfs.newFolder') }}</h3>
           <input
             class="input input-bordered w-full"
+            [placeholder]="t('opfs.folderNamePlaceholder')"
             [value]="newFolderName()"
             (input)="onFolderNameInput($event)"
             (keydown.enter)="createFolder.emit()"
-            [placeholder]="t('opfs.folderNamePlaceholder')"
             type="text"
           />
           <div class="modal-action">

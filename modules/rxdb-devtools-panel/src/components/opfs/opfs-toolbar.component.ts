@@ -17,10 +17,10 @@ import { PanelI18nService } from '../../services/panel-i18n.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="border-base-300 flex items-center gap-2 border-b p-2">
-      <button class="btn btn-xs btn-ghost" (click)="navigateRoot.emit()" [title]="t('opfs.rootTitle')">
+      <button class="btn btn-xs btn-ghost" [title]="t('opfs.rootTitle')" (click)="navigateRoot.emit()">
         <svg [lucideIcon]="House" aria-hidden="true" size="16"></svg>
       </button>
-      <button class="btn btn-xs btn-ghost" (click)="refreshRequested.emit()" [title]="t('common.refresh')">
+      <button class="btn btn-xs btn-ghost" [title]="t('common.refresh')" (click)="refreshRequested.emit()">
         <svg [class.animate-spin]="loading()" [lucideIcon]="RefreshCw" aria-hidden="true" size="16"></svg>
       </button>
       <div class="divider divider-horizontal m-0"></div>
@@ -28,16 +28,16 @@ import { PanelI18nService } from '../../services/panel-i18n.service';
         <button
           class="join-item btn btn-xs"
           [ngClass]="{ 'btn-active': viewMode() === 'list', 'btn-ghost': viewMode() !== 'list' }"
-          (click)="viewModeChange.emit('list')"
           [title]="t('opfs.listView')"
+          (click)="viewModeChange.emit('list')"
         >
           <svg [lucideIcon]="List" aria-hidden="true" size="16"></svg>
         </button>
         <button
           class="join-item btn btn-xs"
           [ngClass]="{ 'btn-active': viewMode() === 'grid', 'btn-ghost': viewMode() !== 'grid' }"
-          (click)="viewModeChange.emit('grid')"
           [title]="t('opfs.gridView')"
+          (click)="viewModeChange.emit('grid')"
         >
           <svg [lucideIcon]="Grid2x2" aria-hidden="true" size="16"></svg>
         </button>

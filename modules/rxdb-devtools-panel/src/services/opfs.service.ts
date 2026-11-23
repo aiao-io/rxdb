@@ -1,10 +1,10 @@
 import type { DevToolsErrorPayload } from '@aiao/rxdb-devtools';
 import { inject, Injectable, signal } from '@angular/core';
-import type { PanelMessageKey } from '../i18n/messages';
 import { ToastService } from '../components/toast.component';
-import { PanelI18nService } from './panel-i18n.service';
+import type { PanelMessageKey } from '../i18n/messages';
 import { DEVTOOLS_FILE_CHANNEL, type DevToolsFileEntry, type DevToolsFileResult } from '../transport';
 import type { OpfsErrorKind, OPFSFile } from '../types/devtools.types';
+import { PanelI18nService } from './panel-i18n.service';
 
 /**
  * 会让面板提示「刷新被检查的页面」的错误码。
@@ -139,9 +139,9 @@ export class OpfsService {
     if (result.outcome === 'failed') {
       this.files.set([]);
       this.fail(result.error, kind =>
-        kind === 'content-script-unavailable' ? this.t('opfs.refreshHint') : (
-          this.t('opfs.loadError', { message: this.describe(result.error) })
-        )
+        kind === 'content-script-unavailable' ?
+          this.t('opfs.refreshHint')
+        : this.t('opfs.loadError', { message: this.describe(result.error) })
       );
     } else {
       this.files.set(result.value.map(entry => toFile(entry, path)).sort(compareEntries));

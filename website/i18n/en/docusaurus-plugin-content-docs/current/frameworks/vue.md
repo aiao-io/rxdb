@@ -13,7 +13,7 @@ npm install @aiao/rxdb @aiao/rxdb-vue
 Call `provideRxDB` from a component setup function that is an ancestor of the consuming components.
 
 ```vue
-<script setup lang="ts">
+<script lang="ts" setup>
 import { provideRxDB } from '@aiao/rxdb-vue';
 
 provideRxDB(rxdb);
@@ -27,7 +27,7 @@ provideRxDB(rxdb);
 ## Subscribe to a query
 
 ```vue
-<script setup lang="ts">
+<script lang="ts" setup>
 import { useFind } from '@aiao/rxdb-vue';
 
 const todos = useFind(Todo, {

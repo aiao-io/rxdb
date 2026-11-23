@@ -17,7 +17,7 @@ provideI18n(runtime);
 Read it in a descendant component.
 
 ```vue
-<script setup lang="ts">
+<script lang="ts" setup>
 import { useI18n } from '@aiao/rxdb-i18n-vue';
 
 const { t, locale, setLocale } = useI18n();

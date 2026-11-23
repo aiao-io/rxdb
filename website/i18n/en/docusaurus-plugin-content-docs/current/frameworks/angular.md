@@ -30,7 +30,9 @@ import { Component } from '@angular/core';
 import { useFindAll } from '@aiao/rxdb-angular';
 
 @Component({
-  template: `@for (todo of todos.value(); track todo.id) { <p>{{ todo.title }}</p> }`
+  template: `@for (todo of todos.value(); track todo.id) {
+    <p>{{ todo.title }}</p>
+  }`
 })
 export class TodoListComponent {
   readonly todos = useFindAll(Todo, {

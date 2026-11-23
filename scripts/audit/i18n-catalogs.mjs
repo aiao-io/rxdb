@@ -152,16 +152,27 @@ const checks = [
 
 function unwrap(expression) {
   let current = expression;
-  while (current && (Node.isAsExpression(current) || Node.isSatisfiesExpression(current) || Node.isTypeAssertion(current) || Node.isParenthesizedExpression(current))) {
+  while (
+    current &&
+    (Node.isAsExpression(current) ||
+      Node.isSatisfiesExpression(current) ||
+      Node.isTypeAssertion(current) ||
+      Node.isParenthesizedExpression(current))
+  ) {
     current = current.getExpression();
   }
   return current;
 }
 
 function propertyKey(property) {
-  if (Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property) || Node.isMethodDeclaration(property)) {
+  if (
+    Node.isPropertyAssignment(property) ||
+    Node.isShorthandPropertyAssignment(property) ||
+    Node.isMethodDeclaration(property)
+  ) {
     const name = property.getNameNode();
-    if (Node.isIdentifier(name) || Node.isStringLiteral(name) || Node.isNumericLiteral(name)) return name.getText().replace(/^['"]|['"]$/g, '');
+    if (Node.isIdentifier(name) || Node.isStringLiteral(name) || Node.isNumericLiteral(name))
+      return name.getText().replace(/^['"]|['"]$/g, '');
   }
   return undefined;
 }
@@ -220,10 +231,14 @@ for (const check of checks) {
   const status = missing.length === 0 && extra.length === 0 ? 'PASS' : 'FAIL';
   console.log(`${status} ${check.name}: ${left.keys.size} / ${right.keys.size} keys`);
   if (missing.length > 0) {
-    errors.push(`${check.name}: ${relative(path.join(ROOT, left.file))} 缺少 ${right.exportName} 中的键：${formatKeys(missing)}`);
+    errors.push(
+      `${check.name}: ${relative(path.join(ROOT, left.file))} 缺少 ${right.exportName} 中的键：${formatKeys(missing)}`
+    );
   }
   if (extra.length > 0) {
-    errors.push(`${check.name}: ${relative(path.join(ROOT, right.file))} 多出 ${right.exportName} 中的键：${formatKeys(extra)}`);
+    errors.push(
+      `${check.name}: ${relative(path.join(ROOT, right.file))} 多出 ${right.exportName} 中的键：${formatKeys(extra)}`
+    );
   }
 }
 

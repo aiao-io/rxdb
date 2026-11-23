@@ -1,63 +1,27 @@
 {
-  "sidebar.tutorialSidebar.category.开始使用": {
-    "message": "Getting Started"
-  },
-  "sidebar.tutorialSidebar.category.模型定义": {
-    "message": "Model Definition"
-  },
-  "sidebar.tutorialSidebar.category.模型查询": {
-    "message": "Queries"
-  },
-  "sidebar.tutorialSidebar.category.基础查询": {
-    "message": "Basic Queries"
-  },
-  "sidebar.tutorialSidebar.category.树形结构查询": {
-    "message": "Tree Queries"
-  },
-  "sidebar.tutorialSidebar.category.图结构查询": {
-    "message": "Graph Queries"
-  },
-  "sidebar.tutorialSidebar.category.模型修改": {
-    "message": "Mutations"
-  },
-  "sidebar.tutorialSidebar.category.frameworks": {
-    "message": "Framework Integration"
-  },
-  "sidebar.tutorialSidebar.category.entity-model": {
-    "message": "Entity Model"
+  "sidebar.tutorialSidebar.category.adapters": {
+    "message": "Database Adapters"
   },
   "sidebar.tutorialSidebar.category.admin-shell": {
     "message": "Admin Shell"
   },
-  "sidebar.tutorialSidebar.category.adapters": {
-    "message": "Database Adapters"
-  },
-  "sidebar.tutorialSidebar.category.数据协作": {
-    "message": "Collaboration"
-  },
-  "sidebar.tutorialSidebar.category.plugins": {
-    "message": "Plugins"
-  },
-  "sidebar.tutorialSidebar.category.迁移指南": {
-    "message": "Migration Guides"
-  },
   "sidebar.tutorialSidebar.category.api": {
     "message": "API Reference"
-  },
-  "sidebar.tutorialSidebar.category.核心模块": {
-    "message": "Core"
   },
   "sidebar.tutorialSidebar.category.api-adapters": {
     "message": "Adapters"
   },
-  "sidebar.tutorialSidebar.category.api-frameworks": {
-    "message": "Framework Bindings"
+  "sidebar.tutorialSidebar.category.api-admin-shell": {
+    "message": "Admin Shell"
+  },
+  "sidebar.tutorialSidebar.category.api-code-editor": {
+    "message": "Code Editor"
   },
   "sidebar.tutorialSidebar.category.api-entity-model": {
     "message": "Entity Model"
   },
-  "sidebar.tutorialSidebar.category.api-admin-shell": {
-    "message": "Admin Shell"
+  "sidebar.tutorialSidebar.category.api-frameworks": {
+    "message": "Framework Bindings"
   },
   "sidebar.tutorialSidebar.category.api-i18n": {
     "message": "Internationalization"
@@ -65,34 +29,70 @@
   "sidebar.tutorialSidebar.category.api-plugins": {
     "message": "Plugins"
   },
-  "sidebar.tutorialSidebar.category.api-code-editor": {
-    "message": "Code Editor"
-  },
   "sidebar.tutorialSidebar.category.api-tools": {
     "message": "Utilities and Developer Tools"
   },
-  "sidebar.tutorialSidebar.doc.编写插件": {
-    "message": "Plugin Authoring"
+  "sidebar.tutorialSidebar.category.entity-model": {
+    "message": "Entity Model"
   },
-  "sidebar.tutorialSidebar.doc.任务看板": {
-    "message": "Task Board"
+  "sidebar.tutorialSidebar.category.frameworks": {
+    "message": "Framework Integration"
   },
-  "sidebar.tutorialSidebar.doc.P2P 会话与文件共享": {
-    "message": "P2P Sessions and File Sharing"
+  "sidebar.tutorialSidebar.category.plugins": {
+    "message": "Plugins"
   },
-  "sidebar.tutorialSidebar.doc.客户端生成": {
-    "message": "Client Generation"
+  "sidebar.tutorialSidebar.category.图结构查询": {
+    "message": "Graph Queries"
   },
-  "sidebar.tutorialSidebar.doc.代码编辑器组件": {
-    "message": "Code Editor Components"
+  "sidebar.tutorialSidebar.category.基础查询": {
+    "message": "Basic Queries"
+  },
+  "sidebar.tutorialSidebar.category.开始使用": {
+    "message": "Getting Started"
+  },
+  "sidebar.tutorialSidebar.category.数据协作": {
+    "message": "Collaboration"
+  },
+  "sidebar.tutorialSidebar.category.树形结构查询": {
+    "message": "Tree Queries"
+  },
+  "sidebar.tutorialSidebar.category.核心模块": {
+    "message": "Core"
+  },
+  "sidebar.tutorialSidebar.category.模型修改": {
+    "message": "Mutations"
+  },
+  "sidebar.tutorialSidebar.category.模型定义": {
+    "message": "Model Definition"
+  },
+  "sidebar.tutorialSidebar.category.模型查询": {
+    "message": "Queries"
+  },
+  "sidebar.tutorialSidebar.category.迁移指南": {
+    "message": "Migration Guides"
   },
   "sidebar.tutorialSidebar.doc.DevTools 调试工具": {
     "message": "DevTools"
   },
-  "sidebar.tutorialSidebar.doc.版本兼容矩阵": {
-    "message": "Compatibility Matrix"
+  "sidebar.tutorialSidebar.doc.P2P 会话与文件共享": {
+    "message": "P2P Sessions and File Sharing"
+  },
+  "sidebar.tutorialSidebar.doc.代码编辑器组件": {
+    "message": "Code Editor Components"
+  },
+  "sidebar.tutorialSidebar.doc.任务看板": {
+    "message": "Task Board"
+  },
+  "sidebar.tutorialSidebar.doc.客户端生成": {
+    "message": "Client Generation"
   },
   "sidebar.tutorialSidebar.doc.版本与 API 稳定性策略": {
     "message": "Versioning and API Stability"
+  },
+  "sidebar.tutorialSidebar.doc.版本兼容矩阵": {
+    "message": "Compatibility Matrix"
+  },
+  "sidebar.tutorialSidebar.doc.编写插件": {
+    "message": "Plugin Authoring"
   }
 }

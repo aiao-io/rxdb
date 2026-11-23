@@ -22,8 +22,8 @@ import { PanelI18nService } from '../services/panel-i18n.service';
           <button
             class="btn btn-ghost btn-xs gap-1"
             [disabled]="eventIndexes().length === 0"
-            (click)="clearEvents()"
             [title]="t('events.clearTitle')"
+            (click)="clearEvents()"
           >
             <svg
               fill="none"

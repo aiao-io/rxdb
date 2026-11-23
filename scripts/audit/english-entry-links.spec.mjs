@@ -28,6 +28,9 @@ test('英文 README 直达的官网文档都有英文源文件', () => {
     assert.match(route, /^\/en\/docs\//);
     const slug = route.slice('/en/docs/'.length).replace(/\/$/, '');
     const candidates = slug ? [`${slug}.md`, `${slug}/README.md`] : ['README.md'];
-    assert.ok(candidates.some(file => existsSync(new URL(file, sources))), `缺少 ${route} 的英文正文`);
+    assert.ok(
+      candidates.some(file => existsSync(new URL(file, sources))),
+      `缺少 ${route} 的英文正文`
+    );
   }
 });
