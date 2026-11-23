@@ -22,6 +22,9 @@
     },
     {
       "path": "../rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-i18n/tsconfig.lib.json"
     }
   ]
 }
