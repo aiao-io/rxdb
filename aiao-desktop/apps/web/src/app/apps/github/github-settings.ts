@@ -81,7 +81,7 @@ export class GithubSettings {
     token.value = '';
   }
 
-  protected dismiss(event: KeyboardEvent): void {
+  protected dismiss(event: Event): void {
     if (event.defaultPrevented) return;
     event.preventDefault();
     event.stopPropagation();

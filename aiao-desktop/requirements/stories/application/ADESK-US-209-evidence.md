@@ -41,7 +41,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:e2e \
 - OAuth 取消、授权窗口关闭、成功授权和交换失败
 - PAT 无效与成功路径
 - 远端拉取、推送、分支冲突和网络失败
-- `github.syncToolbar`：第三个工具栏按钮在 Fetch、Pull、Push 与 Publish branch 之间切换；Fetch 不改工作区，推送或拉取完成后重新计算状态。`a11y.github.syncOptions` 验证下拉菜单的键盘打开、选项焦点与 Esc 还焦。
+- 2026-11-23 补充：`github.syncToolbar` 覆盖第三个工具栏按钮在 Fetch、Pull、Push 与 Publish branch 之间切换，以及 Fetch 不改工作区、推送或拉取后重新计算状态。`a11y.github.syncOptions` 覆盖下拉菜单的键盘打开、选项焦点与 Esc 还焦。
 - 键盘操作和 Worker 失败单元测试覆盖
 
 ## 证据边界

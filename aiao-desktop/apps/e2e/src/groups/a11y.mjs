@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { expect } from 'playwright/test';
 
 import { checkResourceAccessibility } from './offline-resources.mjs';
 import { checkActivityAccessibility } from './runtime-activity.mjs';
@@ -83,6 +84,7 @@ const KEYS = [
   'a11y.menus.keyboardOnlyFlow.changesDirectory',
   'a11y.menus.keyboardOnlyFlow.closesWindow',
   'a11y.github.menubar',
+  'a11y.github.applicationSettingsDialog',
   'a11y.github.repositoryMenu',
   'a11y.github.branchMenu',
   'a11y.github.disabledMenuItems',
@@ -750,6 +752,30 @@ export const a11y = {
           ]).map(fragment => `GitHub Desktop 菜单栏缺少或顺序不对：${fragment}`)
         );
 
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'GitHub Desktop'));
+        await press('Enter');
+        const appMenu = page.getByRole('menu', { name: 'GitHub Desktop', exact: true });
+        await appMenu.waitFor({ timeout: 5_000 });
+        await press('s');
+        await focusReaches(page, info => info?.region === 'popover' && info.name.startsWith('Settings'));
+        await press('Enter');
+        const appSettings = githubWindow.getByRole('dialog', { name: 'Settings', exact: true });
+        const signIn = appSettings.getByRole('button', { name: 'Sign Into GitHub.com' });
+        await expect(signIn).toBeFocused();
+        await press('Shift+Tab');
+        await expect(appSettings.getByRole('tab', { name: 'Accounts' })).toBeFocused();
+        await press('ArrowDown');
+        await expect(appSettings.getByRole('tab', { name: 'Appearance' })).toBeFocused();
+        const settingsTree = await snapshot('[data-github-app-settings]');
+        await press('Escape');
+        await expect(appSettings).toHaveCount(0);
+        const settingsFocusReturned = await focusReaches(page, info => is(info, 'menubar', 'GitHub Desktop') || info?.app === 'github');
+        github.applicationSettingsDialog = problems(
+          ...missingInOrder(settingsTree, ['dialog "Settings"', 'tab "Accounts"', 'tab "Appearance"', 'tabpanel "Appearance"', 'group "Theme"']),
+          settingsFocusReturned ? [] : ['Esc 关闭设置后没有恢复焦点']
+        );
+
         await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
         const repositoryMenu = page.getByRole('menu', { name: 'Repository', exact: true });
         await repositoryMenu.waitFor({ timeout: 5_000 });
@@ -850,14 +876,14 @@ export const a11y = {
         const settingsAxe = await new AxeBuilder({ page }).include('.gh-settings-dialog').analyze();
         await press('Escape');
         const settingsClosed = await disappears(settings, 5_000);
-        const settingsFocusReturned = await focusReaches(
+        const repositorySettingsFocusReturned = await focusReaches(
           page,
           info => is(info, 'menubar', 'Repository') || info.app === 'github'
         );
         github.repositorySettingsDialog = problems(
           settingsModal && settingsFocused ? [] : ['Repository Settings 未声明模态或未聚焦远端 URL'],
           cancelFocused && urlRefocused ? [] : ['Tab 没有在 Repository Settings 中循环'],
-          settingsClosed && settingsFocusReturned ? [] : ['Esc 没有关闭 Repository Settings 并还回焦点'],
+          settingsClosed && repositorySettingsFocusReturned ? [] : ['Esc 没有关闭 Repository Settings 并还回焦点'],
           settingsAxe.violations.map(item => `Repository Settings: ${item.id}`)
         );
 

@@ -66,7 +66,7 @@ import {
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
-import { parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
+import { branchBaseOf, parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
 import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubOAuthRequest } from '../../services/github/github-auth';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
@@ -1303,8 +1303,11 @@ export class GithubApp {
           currentStatus.branch === remote.record.branch &&
           existing.owner === remote.record.owner &&
           existing.repo === remote.record.repo
-        )
+        ) {
           await this.backend.pull(existing.projectId, remote);
+          if (branchBaseOf(existing, currentStatus.branch)?.head !== remote.record.remoteHead)
+            this.notice.set(`Pulled ${existing.name}`);
+        }
         await this.loadStoredRepository(this.store.find(existing.projectId) ?? existing);
         return;
       }
@@ -1530,7 +1533,7 @@ export class GithubApp {
     await this.run(async () => {
       await this.backend.checkout(record.projectId, branch, force);
       const snapshot = await this.backend.snapshot(record.projectId);
-      const next = { ...record, updatedAt: Date.now() };
+      const next = { ...(this.store.find(record.projectId) ?? record), updatedAt: Date.now() };
       await this.store.put(next);
       this.activeRecord.set(next);
       this.applySnapshot(snapshot.files);
