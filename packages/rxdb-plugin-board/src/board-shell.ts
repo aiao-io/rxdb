@@ -8,6 +8,7 @@
 
 import type { IRxDBAdapter, RxDB } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, type Observable } from 'rxjs';
+import { boardT } from './i18n/board-i18n.js';
 
 import {
   ACTIVE_DB_KEY,
@@ -143,7 +144,7 @@ export const browserBoardShellRuntime = (): BoardShellRuntime => ({
   },
   withLock: (operation, wait) =>
     navigator.locks.request(BOARD_RESTORE_LOCK, { ifAvailable: !wait }, lock => {
-      if (lock === null) throw new Error('另一页面正在准备或恢复看板，请稍后重试');
+      if (lock === null) throw new Error(boardT('shell.error.busy'));
       return operation();
     }),
   listDatabases: async () =>
@@ -247,9 +248,9 @@ export class BoardShellController {
   /** 工具菜单「重置为演示数据」：确认后在新库名上装载种子并切过去，当前看板留在原库。 */
   async resetDemo(): Promise<void> {
     const confirmed = await this.#ask({
-      title: '重置为演示数据',
-      message: '将在新库上装载演示数据，成功后打开演示看板；当前看板留在原库。',
-      confirmLabel: '重置'
+      title: boardT('shell.confirm.resetTitle'),
+      message: boardT('shell.confirm.resetMessage'),
+      confirmLabel: boardT('shell.confirm.resetLabel')
     });
     if (confirmed) await this.#prepareBoard(true);
   }
@@ -263,9 +264,9 @@ export class BoardShellController {
     if (
       this.#activeDbName !== null &&
       !(await this.#ask({
-        title: '从备份恢复',
-        message: '恢复成功后将打开备份中的看板，当前看板原样保留。',
-        confirmLabel: '恢复'
+        title: boardT('shell.confirm.restoreTitle'),
+        message: boardT('shell.confirm.restoreMessage'),
+        confirmLabel: boardT('shell.confirm.restoreLabel')
       }))
     ) {
       return;
@@ -296,7 +297,7 @@ export class BoardShellController {
    */
   async downloadBackup(): Promise<void> {
     const db = this.state.rxdb;
-    if (db === null) throw new Error('当前没有打开的看板');
+    if (db === null) throw new Error(boardT('shell.error.noOpenBoard'));
     const adapter = await this.#backupAdapter(db);
     const chunks: Uint8Array[] = [];
     await adapter.backup(
@@ -357,7 +358,7 @@ export class BoardShellController {
       if (seed) await this.#seed(db);
       this.#write(ACTIVE_DB_KEY, dbName);
     } catch (cause) {
-      const disconnectFailure = await this.#disconnectFailure(db, '看板连接释放失败');
+      const disconnectFailure = await this.#disconnectFailure(db, boardT('shell.error.disconnectFailed'));
       const cleanupFailure = cause instanceof ExistingBoardDatabaseError ? null : await this.#dropNewDatabase(dbName);
       this.#showFailure([failureMessage(cause), disconnectFailure, cleanupFailure].filter(Boolean).join('；'));
       return;
@@ -368,9 +369,9 @@ export class BoardShellController {
 
   async #seed(db: RxDB): Promise<void> {
     const seed = this.#options.seed;
-    if (seed === undefined) throw new Error('宿主没有提供演示数据');
+    if (seed === undefined) throw new Error(boardT('shell.error.noSeed'));
     const boards = await firstValueFrom(db.entityManager.getRepository(Board).count({ where: matchAll() }));
-    if (boards > 0) throw new ExistingBoardDatabaseError('演示数据只能装进新库');
+    if (boards > 0) throw new ExistingBoardDatabaseError(boardT('shell.error.seedOnlyNew'));
     await seed(db);
   }
 
@@ -396,7 +397,7 @@ export class BoardShellController {
     this.#activeDbName = dbName;
     this.#patch({ rxdb: db, phase: 'board' });
     if (previous !== null) {
-      const disconnectFailure = await this.#disconnectFailure(previous, '看板连接释放失败');
+      const disconnectFailure = await this.#disconnectFailure(previous, boardT('shell.error.disconnectFailed'));
       if (disconnectFailure !== null) this.#patch({ error: disconnectFailure });
     }
     this.#options.onRxdbActivated?.(db);
@@ -452,13 +453,13 @@ export class BoardShellController {
       this.#transition({ kind: 'readback_succeeded' });
     } catch (cause) {
       this.#transition({ kind: 'readback_failed', reason: failureMessage(cause) });
-      const disconnectFailure = await this.#disconnectFailure(db, '恢复目标断开失败');
+      const disconnectFailure = await this.#disconnectFailure(db, boardT('shell.error.restoreDisconnectFailed'));
       const cleanupFailure = await this.#cleanupInterruptedRestore();
       // 清理失败时保留待切换记录：下次打开页面再读回一次、失败再清理一次。不会在本页循环——
       // 本次照样回到原看板（或启动页）并报出原因，重试只随页面重开发生
       if (cleanupFailure === null) this.#clear(PENDING_SWITCH_KEY);
       this.#patch({
-        error: [`恢复读回失败：${failureMessage(cause)}`, disconnectFailure, cleanupFailure].filter(Boolean).join('；')
+        error: [boardT('shell.error.readBackFailed', { message: failureMessage(cause) }), disconnectFailure, cleanupFailure].filter(Boolean).join('；')
       });
       const active = this.#read(ACTIVE_DB_KEY);
       if (active !== null) await this.#openBoard(active);
@@ -477,7 +478,7 @@ export class BoardShellController {
       this.#clear(RESTORE_TARGET_KEY);
       return null;
     } catch (cause) {
-      return `恢复目标清理失败：${failureMessage(cause)}，可重新打开页面重试清理`;
+      return boardT('shell.error.cleanupFailed', { message: failureMessage(cause) });
     } finally {
       this.#clear(RESTORING_MARKER_KEY);
     }
@@ -492,7 +493,7 @@ export class BoardShellController {
 
   /** 读回前确认目标存储存在：连接一个不存在的库名会静默建出空库，把丢失的恢复库当成空看板打开。 */
   async #assertDatabaseExists(dbName: string): Promise<void> {
-    if (!(await this.#runtime.listDatabases()).includes(dbName)) throw new Error('恢复目标存储已不存在');
+    if (!(await this.#runtime.listDatabases()).includes(dbName)) throw new Error(boardT('shell.error.targetGone'));
   }
 
   // ---------- 工具 ----------
@@ -509,14 +510,14 @@ export class BoardShellController {
       await adapter.dropStorage();
       return null;
     } catch (cause) {
-      return `新看板清理失败：${failureMessage(cause)}`;
+      return boardT('shell.error.newBoardCleanupFailed', { message: failureMessage(cause) });
     }
   }
 
   async #backupAdapter(db: RxDB): Promise<BoardBackupAdapter> {
     const adapter: IRxDBAdapter & Partial<BoardBackupAdapter> = await db.getAdapter(this.#options.adapterName);
     if (!isBackupAdapter(adapter)) {
-      throw new Error(`适配器 ${this.#options.adapterName} 不支持备份与恢复（需要 backup / restore / dropStorage）`);
+      throw new Error(boardT('shell.error.adapterUnsupported', { adapter: this.#options.adapterName }));
     }
     return adapter;
   }
@@ -526,7 +527,7 @@ export class BoardShellController {
       await db.disconnectAll();
       return null;
     } catch (cause) {
-      return `${prefix}：${failureMessage(cause)}`;
+      return boardT('shell.error.prefixed', { prefix, message: failureMessage(cause) });
     }
   }
 
