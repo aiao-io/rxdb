@@ -56,12 +56,12 @@
   "license": "MIT",
   "sideEffects": false,
   "devDependencies": {
-    "@angular/core": "^22.2.4",
+    "@angular/core": "^22.3.0",
     "react": "^19.3.1",
     "vue": "^3.5.45"
   },
   "peerDependencies": {
-    "@angular/core": "^22.2.4",
+    "@angular/core": "^22.3.0",
     "react": "^19.3.1",
     "vue": "^3.5.45"
   },
