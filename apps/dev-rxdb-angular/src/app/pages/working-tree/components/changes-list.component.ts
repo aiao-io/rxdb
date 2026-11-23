@@ -1,5 +1,6 @@
 import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { CommonModule } from '@angular/common';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -59,7 +60,7 @@ const KINDS = [
   selector: 'app-working-tree-changes-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, I18nPipe, LucideDynamicIcon],
   styles: [
     `
       /* 宿主是 aside 的 flex 子项：默认 display:inline 会让根 div 的 flex-1/min-h-0
@@ -181,9 +182,9 @@ const KINDS = [
                   <button
                     class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
                     (click)="openRowMenu($event, entry)"
-                    aria-label="更多操作"
+                    [attr.aria-label]="'common.moreActions' | i18n"
                     data-testid="wt-diff-more"
-                    title="更多操作（触屏）"
+                    [title]="'page.workingTree.moreActionsTouch' | i18n"
                     type="button"
                   >
                     <svg [lucideIcon]="MoreVertical" size="14"></svg>
