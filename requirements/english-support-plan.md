@@ -48,7 +48,11 @@ React 的 6 个失败用例按原超时用单 worker 复跑全部通过，随后
 
 Workspace 改动通过三端类型检查、8 个相关项目及仓库脚本的零警告 lint，以及 6 项 Chromium 测试。文案审计检查 12 组中英文目录，其中 Workspace 的 60 个键全部匹配。
 
-Storage、OPFS 和 History 共用文件与历史文案目录。文件列表在展示层按当前语言排序，文件操作以原始路径为准。文案审计通过 14 组目录，包括文件的 88 个键和历史的 16 个键。Angular、React 和 Vue 分别验证 13、13 和 14 项 Chromium 用例，包含 History 入口的单独复跑。Storage 和 OPFS 单测分别通过 106、21 和 8 项。三个演示应用和对应 E2E 项目的类型检查通过。
+Storage、OPFS 和 History 共用文件与历史文案目录。文件列表在展示层按当前语言排序，文件操作以原始路径为准。文案审计通过 14 组目录，包括文件的 88 个键和历史的 16 个键。Angular、React 和 Vue 分别验证 14、14 和 15 项 Chromium 用例，包含 History 入口和移动端重命名的单独复跑。Storage 和 OPFS 单测分别通过 106、21 和 8 项。三个演示应用和对应 E2E 项目的类型检查通过，11 个相关项目的 lint 零警告。
+
+本轮 `pnpm test-all` 以 `main` 为基线检查 107 个受影响项目，用时 17 分 40 秒。`dev-rxdb-angular-e2e:e2e` 通过 231 项，移动端重命名测试因仍查找旧按钮文案而失败，同一序列的 5 项未执行。三端都已更新断言并通过重命名复跑。Angular 移动端整组 10 项复跑通过，覆盖之前未执行的 5 项。
+
+全量门禁待通过。独立复跑 `rxdb-adapter-supabase:test-env` 时，PostgreSQL 容器未通过健康检查，Realtime 未能启动。Docker API 健康探测也超时。修正移动端断言后的全量结果仍待验证。
 
 可重复执行的验收命令如下。
 
@@ -56,7 +60,7 @@ Storage、OPFS 和 History 共用文件与历史文案目录。文件列表在�
 pnpm nx run-many -t e2e -p rxdb-admin-template-angular-e2e,rxdb-admin-template-react-e2e,rxdb-admin-template-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
 pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 -- --grep=英文浏览器 --workers=1
 pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='Workspace 草稿恢复|/workspace 能打开' --workers=1
-pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='英文浏览器|Storage Page|OPFS Page|/workspace 能打开' --workers=1
+pnpm nx run-many -t e2e -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e --parallel=1 --grep='英文浏览器|Storage Page|OPFS Page|/workspace 能打开|storage 行内重命名' --workers=1
 VITEST_MAX_WORKERS=1 pnpm nx run-many -t test -p dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue --parallel=1 --run -- storage opfs
 pnpm nx run @aiao/source:test-scripts
 pnpm nx run @aiao/source:audit-i18n
