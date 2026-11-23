@@ -452,19 +452,24 @@ update_existing_agent_file() {
     local file_ended=false
     
     while IFS= read -r line || [[ -n "$line" ]]; do
+        # Any level-2 heading closes the current section. The heading itself
+        # falls through to the handlers below, because it may open the next
+        # section ("## Recent Changes" right after "## Active Technologies",
+        # or the other way round).
+        if [[ "$line" =~ ^##[[:space:]] ]]; then
+            # Add new tech entries before closing the section
+            if [[ $in_tech_section == true ]] && [[ $tech_entries_added == false ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
+                printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
+                tech_entries_added=true
+            fi
+            in_tech_section=false
+            in_changes_section=false
+        fi
+
         # Handle Active Technologies section
         if [[ "$line" == "## Active Technologies" ]]; then
             echo "$line" >> "$temp_file"
             in_tech_section=true
-            continue
-        elif [[ $in_tech_section == true ]] && [[ "$line" =~ ^##[[:space:]] ]]; then
-            # Add new tech entries before closing the section
-            if [[ $tech_entries_added == false ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
-                printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
-                tech_entries_added=true
-            fi
-            echo "$line" >> "$temp_file"
-            in_tech_section=false
             continue
         elif [[ $in_tech_section == true ]] && [[ -z "$line" ]]; then
             # Add new tech entries before empty line in tech section
@@ -485,10 +490,6 @@ update_existing_agent_file() {
             fi
             in_changes_section=true
             changes_entries_added=true
-            continue
-        elif [[ $in_changes_section == true ]] && [[ "$line" =~ ^##[[:space:]] ]]; then
-            echo "$line" >> "$temp_file"
-            in_changes_section=false
             continue
         elif [[ $in_changes_section == true ]] && [[ "$line" == "- "* ]]; then
             # Keep only first 2 existing changes

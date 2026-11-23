@@ -69,6 +69,17 @@ describe('RxDB.initialized', () => {
     expect(() => db.init()).toThrow('schema boom');
     expect(db.initialized).toBe(false);
   });
+
+  // 配置校验同样不能留下「已初始化」：否则第二次 init() 命中幂等早退，静默交出一个没装插件、
+  // 没绑实体的空壳（RV-01a2019db2be7bd490322f8c0126f27f）。`sync` 在类型上必填，故显式绕过。
+  it('库级 sync 缺席被拒之后为 false，再次 init() 照样拒绝', () => {
+    const db = trackRxDB(
+      new RxDB({ dbName: 'rxdb-plugin-entities-missing-sync', entities: [], sync: undefined as never })
+    );
+    expect(() => db.init()).toThrow(/配置缺少库级 sync/);
+    expect(db.initialized).toBe(false);
+    expect(() => db.init()).toThrow(/配置缺少库级 sync/);
+  });
 });
 
 describe('EntityManager.destroy() 按 init() 时的绑定解绑', () => {

@@ -128,6 +128,17 @@ export class RxDB {
   #shutting_down = false;
 
   /**
+   * 正在进行的那一轮 {@link RxDB.#shutdown}，拆完即清。
+   *
+   * @remarks
+   * 停机有两个入口：单点 `disconnect()` 断掉最后一个已连接适配器，以及 `disconnectAll()`。两者会重叠——
+   * 单点停机卡在插件销毁上时进来一个 `disconnectAll()`，或两次 `disconnectAll()` 并发。各跑一轮的话，
+   * legacy 插件的 `destroy()` 会被调两次（作用域只摘得掉一次，`everInstalled` 要到收尾才复位）；
+   * 先跑完的那一轮复位之后实例已经可以重连，迟到的那一轮醒来接着拆的就是新纪元。后到的一律共用这一轮。
+   */
+  #shutdown_running: Promise<void> | undefined;
+
+  /**
    * 终态标记：{@link RxDB.destroy} 置位，**不复位**。
    *
    * @remarks
@@ -309,9 +320,13 @@ export class RxDB {
    * - 同一份实例的并发 `disconnect()` 共用一次拆卸，不把同一个连接关两次。
    *
    * `disconnectAll()` 覆盖它开始时缓存着的每个名字：卡在插件释放上的单点 `disconnect()` 由它接管，
-   * 拆完即摘，重连不必等那条可能永远等不到的旧释放。
+   * 拆完即摘，重连不必等那条可能永远等不到的旧释放。两边重叠的那部分——停机本身与关同一个实例——
+   * 不另跑一遍，共用进行中的那一次（见 {@link RxDB.#shutdown_running}、{@link RxDB.#close_adapter}）。
    */
   #teardown_map = new Map<string, { readonly adapter: Promise<IRxDBAdapter>; readonly done: Promise<void> }>();
+
+  /** 适配器实例 → 正在进行的 `adapter.disconnect()`，关完即清（见 {@link RxDB.#close_adapter}）。 */
+  #closing_adapters = new WeakMap<IRxDBAdapter, Promise<void>>();
 
   /**
    * 适配器名 → 连接纪元。
@@ -736,20 +751,22 @@ export class RxDB {
       throw new Error('[RxDB] init() rejected: instance is destroyed');
     }
     if (this.#rxdb_initialized) return;
-    this.#rxdb_initialized = true;
-    if (!this.#context.clientId) {
-      this.#context.clientId = uuid();
-    }
-    // 初始化本地和远程适配器名称
-    //
     // `sync` 在 RxDBOptions 上是必填，且 `rxdb.private.ts` 的 isLocalAdapter 直接
     // 解引用 `options.sync.local`。从前这里写 `|| {}`，同一个字段两套契约：JS 调用方
     // 或反序列化出来的旧配置漏了 sync 时，这里静默当成空对象放行，随后要么在
     // isLocalAdapter 里炸一个看不懂的 TypeError，要么造出一个没有任何适配器的空实例。
     // 在入口点破，错误信息指向真正该改的地方。
+    //
+    // 校验排在置位之前：它在下面回滚用的 try 之外，置位之后再抛，标志就停在 true，
+    // 再次 init() 命中上一行的早退，交出的是一个没装插件、没绑实体的空壳。
     if (!this.#config.sync) {
       throw new Error('[RxDB] init() 失败：配置缺少库级 sync，无法确定 local / remote 适配器');
     }
+    this.#rxdb_initialized = true;
+    if (!this.#context.clientId) {
+      this.#context.clientId = uuid();
+    }
+    // 初始化本地和远程适配器名称
     const { local, remote } = this.#config.sync;
     if (local) this.#local_adapter_sub.next(local.adapter);
     if (remote) this.#remote_adapter_sub.next(remote.adapter);
@@ -1468,6 +1485,9 @@ export class RxDB {
    *
    * @remarks
    * 拆卸期间对同名适配器的 `connect()` 等这次拆卸结束再重新引导（见 {@link RxDB.connect}）。
+   *
+   * 与进行中的单点 `disconnect()` 或另一次 `disconnectAll()` 重叠时，全局停机（含插件销毁）与同一个
+   * 实例的 `adapter.disconnect()` 都只发生一次，后到的调用方等那一次结束，拿到同一个结果。
    */
   disconnectAll(): Promise<void> {
     const adapterNames = [...new Set([...this.#adapter_map.keys(), ...this.#connect_promise_map.keys()])];
@@ -1743,7 +1763,7 @@ export class RxDB {
     // 释放等待期间被 disconnectAll() 接管：这一份已经由它断开并清理
     if (this.#adapter_map.get(adapterName) !== cached) return;
     try {
-      await adapter.disconnect();
+      await this.#close_adapter(adapter);
     } finally {
       // 无论 adapter.disconnect() 成功与否都要清掉缓存条目——否则失败时死实例会一直
       // 留在 #adapter_map 里，重试 getAdapter() 复用同一个已失败的实例而不是走工厂
@@ -1761,6 +1781,27 @@ export class RxDB {
     // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
     this.#retract_adapter_name(adapterName);
     if (isLocalAdapter(adapterName, this.#config)) this.#reset_worktree_table_set();
+  }
+
+  /**
+   * 关一个适配器实例；它正在关时共用那一次，不对同一个实例调第二次 `disconnect()`。
+   *
+   * @param adapter - 要关的实例
+   * @returns 这次关闭；同步抛错也转成 reject，`disconnectAll()` 的其余实例照关
+   *
+   * @remarks
+   * 单点 `disconnect()` 卡在关连接上时进来的 `disconnectAll()`，拆的是同一个实例。
+   * `IRxDBAdapter.disconnect()` 只承诺未连接时调用是空操作，没承诺能与进行中的那一次重入，
+   * 两边各关一次，不支持重入的实现会把重复关闭的错误抛给后到的那一方。
+   */
+  #close_adapter(adapter: IRxDBAdapter): Promise<void> {
+    let closing = this.#closing_adapters.get(adapter);
+    if (closing) return closing;
+    closing = (async () => adapter.disconnect())().finally(() => {
+      this.#closing_adapters.delete(adapter);
+    });
+    this.#closing_adapters.set(adapter, closing);
+    return closing;
   }
 
   /** {@link RxDB.disconnectAll} 的拆卸本体。 */
@@ -1784,12 +1825,10 @@ export class RxDB {
       firstError ??= error;
     }
     try {
-      const results = await Promise.allSettled(adapters.map(adapter => adapter.disconnect()));
+      const results = await Promise.allSettled(adapters.map(adapter => this.#close_adapter(adapter)));
       for (const result of results) {
         if (result.status === 'rejected') firstError ??= result.reason;
       }
-    } catch (error) {
-      firstError ??= error;
     } finally {
       // 同 disconnect：部分适配器 disconnect 失败也不能让全部缓存条目悬空。
       this.#adapter_map.clear();
@@ -1915,8 +1954,18 @@ export class RxDB {
    * 重连拿到的是一个插件已销毁、网关已 dispose 的空壳。三处状态必须一起复位 ——
    * 初始化标志、网关引用、事务游标（断连时可能正卡在一个永远等不到 COMMIT 的事务里，
    * 不复位则重连后每个实体事件都会被塞进 `#need_dispatch_events` 永不派发）。
+   *
+   * 正在停机时再进来的调用共用进行中的那一轮，成败一致（理由见 {@link RxDB.#shutdown_running}）。
    */
-  async #shutdown(): Promise<void> {
+  #shutdown(): Promise<void> {
+    this.#shutdown_running ??= this.#run_shutdown().finally(() => {
+      this.#shutdown_running = undefined;
+    });
+    return this.#shutdown_running;
+  }
+
+  /** {@link RxDB.#shutdown} 的一轮拆卸本体。 */
+  async #run_shutdown(): Promise<void> {
     // 与 disconnectAll 同口径，且必须在这里再做一次：#shutdown() 也可能从 disconnect()
     // 单点进来（断的是最后一个已连接适配器），那条路径只作废了自己那一个适配器，
     // 其余仍在引导中的 connect() 会在拆卸完成后醒来，把刚清空的已连接集合重新填上。
