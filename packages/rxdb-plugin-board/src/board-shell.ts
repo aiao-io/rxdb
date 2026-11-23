@@ -459,7 +459,13 @@ export class BoardShellController {
       // 本次照样回到原看板（或启动页）并报出原因，重试只随页面重开发生
       if (cleanupFailure === null) this.#clear(PENDING_SWITCH_KEY);
       this.#patch({
-        error: [boardT('shell.error.readBackFailed', { message: failureMessage(cause) }), disconnectFailure, cleanupFailure].filter(Boolean).join('；')
+        error: [
+          boardT('shell.error.readBackFailed', { message: failureMessage(cause) }),
+          disconnectFailure,
+          cleanupFailure
+        ]
+          .filter(Boolean)
+          .join('；')
       });
       const active = this.#read(ACTIVE_DB_KEY);
       if (active !== null) await this.#openBoard(active);

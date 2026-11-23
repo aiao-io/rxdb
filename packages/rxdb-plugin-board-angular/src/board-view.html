@@ -14,8 +14,8 @@
         <div class="rxb-board-switch">
           <select
             class="rxb-select"
-            (change)="onBoardSelectionChange($event)"
             [attr.aria-label]="t('view.header.selectBoard')"
+            (change)="onBoardSelectionChange($event)"
             data-testid="board-selector"
           >
             <!-- 逐项绑 selected：新板的选项晚于当前板 id 渲染时，select 的 value 绑定会失配 -->
@@ -38,12 +38,12 @@
             @if (editingBoardTitle()) {
               <input
                 class="rxb-input"
+                [attr.aria-label]="t('view.header.boardTitle')"
                 [value]="boardTitleDraft()"
                 (blur)="commitBoardTitle()"
                 (input)="boardTitleDraft.set(inputValue($event))"
                 (keydown.enter)="commitBoardTitle()"
                 (keydown.escape)="cancelBoardTitle($event)"
-                [attr.aria-label]="t('view.header.boardTitle')"
                 data-autofocus
                 data-testid="board-title-editor"
               />
@@ -63,11 +63,11 @@
             @if (editingBoardDescription()) {
               <textarea
                 class="rxb-textarea"
+                [attr.aria-label]="t('view.header.boardDescription')"
                 [value]="boardDescriptionDraft()"
                 (blur)="commitBoardDescription()"
                 (input)="boardDescriptionDraft.set(inputValue($event))"
                 (keydown)="onBoardDescriptionKeydown($event)"
-                [attr.aria-label]="t('view.header.boardDescription')"
                 data-autofocus
                 data-testid="board-description-editor"
                 rows="2"
@@ -76,9 +76,9 @@
               <button
                 class="rxb-title-button"
                 [disabled]="writeLocked()"
+                [title]="t('view.header.editDescription')"
                 (click)="startBoardDescription()"
                 data-testid="board-description"
-                [title]="t('view.header.editDescription')"
               >
                 @if (current.description) {
                   {{ current.description }}
@@ -92,28 +92,28 @@
       </div>
       <div class="rxb-header-actions">
         @if (b.restoring()) {
-          <span class="rxb-badge rxb-badge-attention" aria-live="polite" data-testid="restoring-badge">{{
-            t('view.header.restoring')
-          }}</span>
+          <span class="rxb-badge rxb-badge-attention" aria-live="polite" data-testid="restoring-badge">
+            {{ t('view.header.restoring') }}
+          </span>
         }
         <div class="rxb-btn-group">
           <button
             class="rxb-btn rxb-btn-icon"
-            [disabled]="writeLocked() || b.undoCount() === 0"
-            (click)="undo()"
             [attr.aria-label]="t('view.undo.label')"
-            data-testid="undo"
+            [disabled]="writeLocked() || b.undoCount() === 0"
             [title]="t('view.undo.title')"
+            (click)="undo()"
+            data-testid="undo"
           >
             <span class="rxb-i rxb-i-undo" aria-hidden="true"></span>
           </button>
           <button
             class="rxb-btn rxb-btn-icon"
-            [disabled]="writeLocked() || b.redoCount() === 0"
-            (click)="redo()"
             [attr.aria-label]="t('view.redo.label')"
-            data-testid="redo"
+            [disabled]="writeLocked() || b.redoCount() === 0"
             [title]="t('view.redo.title')"
+            (click)="redo()"
+            data-testid="redo"
           >
             <span class="rxb-i rxb-i-redo" aria-hidden="true"></span>
           </button>
@@ -121,9 +121,9 @@
         @if (b.searchSource || b.searchUnavailableReason) {
           <button
             class="rxb-btn"
+            [title]="t('view.header.searchTitle')"
             (click)="openSearch($event)"
             data-testid="search-open"
-            [title]="t('view.header.searchTitle')"
           >
             <span class="rxb-i rxb-i-search" aria-hidden="true"></span>
             {{ t('view.header.search') }}
@@ -136,9 +136,9 @@
         <button
           class="rxb-btn rxb-btn-icon"
           [attr.aria-expanded]="popover()?.kind === 'board-menu'"
+          [attr.aria-label]="t('view.header.boardMenu')"
           (click)="openBoardMenu($event)"
           aria-haspopup="menu"
-          [attr.aria-label]="t('view.header.boardMenu')"
           data-testid="board-menu-trigger"
         >
           <span class="rxb-i rxb-i-kebab" aria-hidden="true"></span>
@@ -157,16 +157,16 @@
             [attr.aria-activedescendant]="activeSuggestionId()"
             [attr.aria-controls]="suggestionListId"
             [attr.aria-expanded]="suggestionsOpen()"
+            [attr.aria-label]="t('view.toolbar.filter')"
+            [placeholder]="t('view.toolbar.filterPlaceholder')"
             [value]="filterQuery()"
             (blur)="filterFocused.set(false)"
             (focus)="filterFocused.set(true)"
             (input)="onFilterInput(inputValue($event))"
             (keydown)="onFilterKeydown($event)"
             aria-autocomplete="list"
-            [attr.aria-label]="t('view.toolbar.filter')"
             autocomplete="off"
             data-testid="board-filter-input"
-            [placeholder]="t('view.toolbar.filterPlaceholder')"
             role="combobox"
           />
           @if (filterActive()) {
@@ -175,8 +175,8 @@
             </span>
             <button
               class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-              (click)="clearFilter()"
               [attr.aria-label]="t('view.toolbar.clearFilter')"
+              (click)="clearFilter()"
               data-testid="board-filter-clear"
             >
               <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -185,11 +185,11 @@
           @if (suggestionsOpen()) {
             <ul
               class="rxb-popover"
+              [attr.aria-label]="t('view.toolbar.suggestions')"
               [id]="suggestionListId"
               [style.left.px]="0"
               [style.position]="'absolute'"
               [style.top]="'calc(100% + 4px)'"
-              [attr.aria-label]="t('view.toolbar.suggestions')"
               data-testid="board-filter-suggestions"
               role="listbox"
             >
@@ -218,13 +218,15 @@
     }
 
     @if (b.loading()) {
-      <p class="rxb-banner" data-testid="board-loading" role="status"><span>{{ t('view.banner.loading') }}</span></p>
+      <p class="rxb-banner" data-testid="board-loading" role="status">
+        <span>{{ t('view.banner.loading') }}</span>
+      </p>
     } @else if (b.readError(); as message) {
       <p class="rxb-banner rxb-banner-danger" data-testid="board-read-error" role="alert">
         <span>{{ t('view.banner.readError', { message }) }}</span>
-        <button class="rxb-btn rxb-btn-sm" (click)="b.retryReads()" data-testid="board-read-retry">{{
-          t('view.banner.retry')
-        }}</button>
+        <button class="rxb-btn rxb-btn-sm" (click)="b.retryReads()" data-testid="board-read-retry">
+          {{ t('view.banner.retry') }}
+        </button>
       </p>
     }
     @if (b.restoring()) {
@@ -238,9 +240,9 @@
         <!-- 关提示不抢焦点：正在编辑的字段失焦会把刚被拒的草稿再提交一次 -->
         <button
           class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
+          [attr.aria-label]="t('view.banner.closeNotice')"
           (click)="notice.set(null)"
           (mousedown)="$event.preventDefault()"
-          [attr.aria-label]="t('view.banner.closeNotice')"
           data-testid="board-notice-close"
         >
           <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -275,12 +277,12 @@
               @if (editingColumnId() === column.id) {
                 <input
                   class="rxb-input"
+                  [attr.aria-label]="t('view.column.titleEditor')"
                   [value]="columnTitleDraft()"
                   (blur)="commitColumnTitle()"
                   (input)="columnTitleDraft.set(inputValue($event))"
                   (keydown.enter)="commitColumnTitle()"
                   (keydown.escape)="cancelColumnTitle($event)"
-                  [attr.aria-label]="t('view.column.titleEditor')"
                   data-autofocus
                   data-testid="column-title-editor"
                 />
@@ -290,9 +292,9 @@
                   {{ visibleTasksOf(column).length }}
                 </span>
                 @if (overdueCount(column); as overdue) {
-                  <span class="rxb-column-overdue" data-testid="column-overdue">{{
-                    t('view.column.overdue', { count: overdue })
-                  }}</span>
+                  <span class="rxb-column-overdue" data-testid="column-overdue">
+                    {{ t('view.column.overdue', { count: overdue }) }}
+                  </span>
                 }
               }
               <div class="rxb-column-actions">
@@ -340,27 +342,27 @@
                     <div class="rxb-card-editor">
                       <input
                         class="rxb-input"
+                        [attr.aria-label]="t('view.task.titleEditor')"
                         [value]="taskTitleDraft()"
                         (input)="taskTitleDraft.set(inputValue($event))"
                         (keydown.enter)="commitTaskTitle(task)"
                         (keydown.escape)="cancelTaskTitle($event)"
-                        [attr.aria-label]="t('view.task.titleEditor')"
                         data-autofocus
                         data-testid="task-title-editor"
                       />
                       <div class="rxb-composer-actions">
                         <button
                           class="rxb-btn rxb-btn-sm"
-                          (click)="cancelTaskTitle()"
                           [attr.aria-label]="t('common.cancel')"
+                          (click)="cancelTaskTitle()"
                           data-testid="task-title-cancel"
                         >
                           {{ t('common.cancel') }}
                         </button>
                         <button
                           class="rxb-btn rxb-btn-sm rxb-btn-primary"
-                          (click)="commitTaskTitle(task)"
                           [attr.aria-label]="t('view.task.saveTitle')"
+                          (click)="commitTaskTitle(task)"
                           data-testid="task-title-save"
                         >
                           {{ t('common.save') }}
@@ -399,10 +401,10 @@
                             [class.is-active]="isLabelFiltered(label.name)"
                             [style.background-color]="label.color"
                             [style.color]="labelTextColor(label.color)"
+                            [title]="t('view.task.filterByLabel')"
                             (click)="toggleLabelFilter(label.name)"
                             data-testid="card-label"
                             tabindex="-1"
-                            [title]="t('view.task.filterByLabel')"
                           >
                             {{ label.name }}
                           </button>
@@ -425,7 +427,9 @@
               } @empty {
                 <p class="rxb-column-empty" data-testid="column-empty">
                   {{
-                    filterActive() && tasksOf(column).length > 0 ? t('view.column.empty.filtered') : t('view.column.empty.plain')
+                    filterActive() && tasksOf(column).length > 0 ?
+                      t('view.column.empty.filtered')
+                    : t('view.column.empty.plain')
                   }}
                 </p>
               }
@@ -433,22 +437,22 @@
                 <div class="rxb-composer" data-testid="add-task-form">
                   <input
                     class="rxb-input"
+                    [attr.aria-label]="t('view.task.newTitle')"
                     [disabled]="creatingTask()"
+                    [placeholder]="t('view.task.createPlaceholder')"
                     [value]="addTaskTitle()"
                     (input)="addTaskTitle.set(inputValue($event))"
                     (keydown.enter)="commitAddTask()"
                     (keydown.escape)="cancelAddTask($event)"
-                    [attr.aria-label]="t('view.task.newTitle')"
                     data-autofocus
                     data-testid="add-task-input"
-                    [placeholder]="t('view.task.createPlaceholder')"
                   />
                   <div class="rxb-composer-actions">
                     <button
                       class="rxb-btn rxb-btn-sm"
+                      [attr.aria-label]="t('common.cancel')"
                       [disabled]="creatingTask()"
                       (click)="cancelAddTask()"
-                      [attr.aria-label]="t('common.cancel')"
                       data-testid="add-task-cancel"
                     >
                       {{ t('common.cancel') }}
@@ -482,14 +486,14 @@
             <div class="rxb-composer">
               <input
                 class="rxb-input"
+                [attr.aria-label]="t('view.column.newTitle')"
+                [placeholder]="t('view.column.namePlaceholder')"
                 [value]="addColumnTitle()"
                 (input)="addColumnTitle.set(inputValue($event))"
                 (keydown.enter)="commitAddColumn()"
                 (keydown.escape)="cancelAddColumn($event)"
-                [attr.aria-label]="t('view.column.newTitle')"
                 data-autofocus
                 data-testid="column-composer-input"
-                [placeholder]="t('view.column.namePlaceholder')"
               />
               <div class="rxb-composer-actions">
                 <button class="rxb-btn rxb-btn-sm" (click)="cancelAddColumn()" data-testid="column-composer-cancel">
@@ -515,7 +519,9 @@
       </div>
     } @else if (!b.loading() && b.readError() === null) {
       <div class="rxb-empty" data-testid="empty-board">
-        <p class="rxb-empty-title">{{ b.boards().length === 0 ? t('view.empty.noBoards') : t('view.empty.selectBoard') }}</p>
+        <p class="rxb-empty-title">
+          {{ b.boards().length === 0 ? t('view.empty.noBoards') : t('view.empty.selectBoard') }}
+        </p>
         <p>{{ t('view.empty.description') }}</p>
         <button
           class="rxb-btn rxb-btn-primary"
@@ -556,8 +562,8 @@
           </span>
           <button
             class="rxb-btn rxb-btn-icon rxb-btn-invisible"
-            (click)="closeDetail()"
             [attr.aria-label]="t('view.detail.close')"
+            (click)="closeDetail()"
             data-testid="detail-close"
           >
             <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -566,29 +572,31 @@
         <div class="rxb-panel-title">
           <input
             class="rxb-input"
+            [attr.aria-label]="t('view.detail.title')"
             [disabled]="writeLocked()"
             [value]="detailTitle()"
             (blur)="commitDetailTitle()"
             (input)="detailTitle.set(inputValue($event))"
             (keydown.enter)="commitDetailTitle()"
             (keydown.escape)="revertDetailTitle($event)"
-            [attr.aria-label]="t('view.detail.title')"
             data-testid="detail-title"
           />
         </div>
         <div class="rxb-panel-body">
           <section class="rxb-panel-main">
-            <label class="rxb-panel-section-title" [for]="detailDescriptionId">{{ t('view.detail.description') }}</label>
+            <label class="rxb-panel-section-title" [for]="detailDescriptionId">
+              {{ t('view.detail.description') }}
+            </label>
             <textarea
               class="rxb-textarea"
               [disabled]="writeLocked()"
               [id]="detailDescriptionId"
+              [placeholder]="t('view.detail.descriptionPlaceholder')"
               [value]="detailDescription()"
               (blur)="commitDetailDescription()"
               (input)="detailDescription.set(inputValue($event))"
               (keydown)="onDetailDescriptionKeydown($event)"
               data-testid="detail-description"
-              [placeholder]="t('view.detail.descriptionPlaceholder')"
             ></textarea>
             <p class="rxb-hint">{{ t('view.detail.saveHint') }}</p>
           </section>
@@ -646,9 +654,9 @@
                 @if (detailBase()?.dueDate) {
                   <button
                     class="rxb-btn rxb-btn-icon rxb-btn-invisible"
+                    [attr.aria-label]="t('view.detail.clearDue')"
                     [disabled]="writeLocked()"
                     (click)="commitDetailDue('')"
-                    [attr.aria-label]="t('view.detail.clearDue')"
                     data-testid="detail-due-clear"
                   >
                     <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -872,13 +880,13 @@
             <div class="rxb-picker-filter">
               <input
                 class="rxb-input"
+                [attr.aria-label]="t('view.picker.filter')"
+                [placeholder]="t('view.picker.filter')"
                 [value]="pickerQuery()"
                 (input)="onPickerInput(inputValue($event))"
                 (keydown)="onPickerKeydown($event)"
-                [attr.aria-label]="t('view.picker.filter')"
                 data-autofocus
                 data-testid="picker-filter"
-                [placeholder]="t('view.picker.filter')"
               />
             </div>
             <!-- listbox 只容 option：空态段落放在 listbox 之外 -->
@@ -953,22 +961,24 @@
                     <p>{{ t('view.dialog.confirmColumnDelete', { title: current.plan.columnTitle }) }}</p>
                     <div class="rxb-impact">
                       <span>{{ t('view.dialog.confirmColumnImpact1', { count: current.plan.taskIds.length }) }}</span>
-                      <span>{{
-                        t('view.dialog.confirmColumnImpact2', { count: current.plan.taskLabelIds.length })
-                      }}</span>
+                      <span>
+                        {{ t('view.dialog.confirmColumnImpact2', { count: current.plan.taskLabelIds.length }) }}
+                      </span>
                     </div>
                   }
                   @case ('board') {
                     <p>{{ t('view.dialog.confirmBoardDelete', { title: current.plan.boardTitle }) }}</p>
                     <div class="rxb-impact">
-                      <span>{{
-                        t('view.dialog.confirmBoardImpact', {
-                          columns: current.plan.columnIds.length,
-                          tasks: current.plan.taskIds.length,
-                          labels: current.plan.boardLabelIds.length,
-                          taskLabels: current.plan.taskLabelIds.length
-                        })
-                      }}</span>
+                      <span>
+                        {{
+                          t('view.dialog.confirmBoardImpact', {
+                            columns: current.plan.columnIds.length,
+                            tasks: current.plan.taskIds.length,
+                            labels: current.plan.boardLabelIds.length,
+                            taskLabels: current.plan.taskLabelIds.length
+                          })
+                        }}
+                      </span>
                     </div>
                   }
                 }
@@ -1032,8 +1042,8 @@
                 <h2 class="rxb-dialog-title" [id]="dialogTitleId">{{ t('common.newBoard') }}</h2>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-                  (click)="closeDialog()"
                   [attr.aria-label]="t('common.close')"
+                  (click)="closeDialog()"
                   data-testid="dialog-close"
                 >
                   <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -1044,12 +1054,12 @@
                   {{ t('view.dialog.boardName') }}
                   <input
                     class="rxb-input"
+                    [placeholder]="t('view.dialog.boardNamePlaceholder')"
                     [value]="boardComposerTitle()"
                     (input)="boardComposerTitle.set(inputValue($event))"
                     (keydown.enter)="submitBoardComposer()"
                     data-autofocus
                     data-testid="board-composer-input"
-                    [placeholder]="t('view.dialog.boardNamePlaceholder')"
                   />
                 </label>
               </div>
@@ -1084,8 +1094,8 @@
                 </h2>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-                  (click)="closeDialog()"
                   [attr.aria-label]="t('common.close')"
+                  (click)="closeDialog()"
                   data-testid="dialog-close"
                 >
                   <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -1139,9 +1149,9 @@
                       <span class="rxb-hint">{{ t('view.dialog.customColor') }}</span>
                       <input
                         class="rxb-input"
+                        [attr.aria-label]="t('view.dialog.customColorLabel')"
                         [value]="editor.color"
                         (input)="updateLabelEditor({ color: inputValue($event) })"
-                        [attr.aria-label]="t('view.dialog.customColorLabel')"
                         data-testid="label-color-input"
                         maxlength="7"
                       />
@@ -1149,9 +1159,9 @@
                   </div>
                 </div>
                 <div class="rxb-dialog-footer">
-                  <button class="rxb-btn" (click)="cancelLabelEditor()" data-testid="label-editor-cancel">{{
-                    t('common.cancel')
-                  }}</button>
+                  <button class="rxb-btn" (click)="cancelLabelEditor()" data-testid="label-editor-cancel">
+                    {{ t('common.cancel') }}
+                  </button>
                   <button
                     class="rxb-btn rxb-btn-primary"
                     [disabled]="editor.name.trim() === '' || !isValidColor(editor.color)"
@@ -1226,8 +1236,8 @@
                 <h2 class="rxb-dialog-title" [id]="dialogTitleId">{{ t('view.search.title') }}</h2>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-                  (click)="closeDialog()"
                   [attr.aria-label]="t('common.close')"
+                  (click)="closeDialog()"
                   data-testid="dialog-close"
                 >
                   <span class="rxb-i rxb-i-close" aria-hidden="true"></span>
@@ -1236,13 +1246,13 @@
               <div class="rxb-dialog-body">
                 <input
                   class="rxb-input"
+                  [attr.aria-label]="t('view.search.title')"
                   [disabled]="!b.searchSource"
                   [placeholder]="
                     b.searchSource ? t('view.search.placeholder') : searchUnavailableText(b.searchUnavailableReason)
                   "
                   [value]="searchQuery()"
                   (input)="onSearchInput(inputValue($event))"
-                  [attr.aria-label]="t('view.search.title')"
                   data-autofocus
                   data-testid="board-search-input"
                 />
@@ -1299,8 +1309,8 @@
                 <h2 class="rxb-dialog-title" [id]="dialogTitleId">{{ t('common.keyboardShortcuts') }}</h2>
                 <button
                   class="rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible"
-                  (click)="closeDialog()"
                   [attr.aria-label]="t('common.close')"
+                  (click)="closeDialog()"
                   data-autofocus
                   data-testid="dialog-close"
                 >
@@ -1347,8 +1357,8 @@
         }
         <button
           class="rxb-btn rxb-btn-sm rxb-btn-icon"
-          (click)="toast.set(null)"
           [attr.aria-label]="t('view.banner.closeNotice')"
+          (click)="toast.set(null)"
           data-testid="board-toast-close"
         >
           <span class="rxb-i rxb-i-close" aria-hidden="true"></span>

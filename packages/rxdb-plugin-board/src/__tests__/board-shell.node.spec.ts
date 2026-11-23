@@ -2,7 +2,6 @@ import type { RxDB } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-
 // 测试环境没有宿主语言控制：固定 zh 的外壳确认框与错误文案桩，断言与 zh 渲染一致。
 vi.mock('../i18n/board-i18n.js', () => {
   const zh: Record<string, string> = {

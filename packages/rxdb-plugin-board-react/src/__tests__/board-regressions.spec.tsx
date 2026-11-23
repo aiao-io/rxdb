@@ -7,12 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardView } from '../board-view.js';
 import { LAST_BOARD_KEY, useBoard, type UseBoardReturn } from '../use-board.js';
-
-// 视图文案已迁入 board 目录：注入 zh-Hans 运行时，断言保持 zh 逐字文案
-vi.mock('../board-i18n.js', async () => {
-  const { boardI18nZhMock } = await import('./board-test-utils.js');
-  return boardI18nZhMock();
-});
 import {
   allByTestId,
   byTestId,
@@ -28,6 +22,12 @@ import {
   typeInto,
   within
 } from './board-test-utils.js';
+
+// 视图文案已迁入 board 目录：注入 zh-Hans 运行时，断言保持 zh 逐字文案
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-test-utils.js');
+  return boardI18nZhMock();
+});
 
 const SEED_LAYOUT = '5,4,3,0';
 const layoutOf = (board: UseBoardReturn): string =>

@@ -25,9 +25,9 @@
               </button>
               <input
                 #startupFile
+                [attr.aria-label]="t('shell.startup.fileLabel')"
                 (change)="onRestoreFile($event)"
                 accept=".rxdb"
-                [attr.aria-label]="t('shell.startup.fileLabel')"
                 data-testid="restore-file"
                 hidden
                 type="file"
@@ -62,9 +62,9 @@
             </button>
             <input
               #menuFile
+              [attr.aria-label]="t('shell.bar.fileLabel')"
               (change)="onRestoreFile($event)"
               accept=".rxdb"
-              [attr.aria-label]="t('shell.bar.fileLabel')"
               data-testid="restore-file-menu"
               hidden
               type="file"

@@ -154,8 +154,11 @@ export const usePopoverModel = (core: ViewCore, data: BoardData, model: ModelGet
     popoverLabel: pop => {
       if (pop.kind === 'board-menu') return boardT('view.header.boardMenu');
       if (pop.kind === 'column-menu') return boardT('view.column.menu', { title: data.columnTitleOf(pop.targetId) });
-      if (pop.kind === 'task-menu') return boardT('view.task.menu', { title: data.taskById(pop.targetId)?.title ?? '' });
-      return pop.kind === 'detail-label-picker' ? boardT('view.picker.chooseLabels') : boardT('view.picker.moveToColumn');
+      if (pop.kind === 'task-menu')
+        return boardT('view.task.menu', { title: data.taskById(pop.targetId)?.title ?? '' });
+      return pop.kind === 'detail-label-picker' ?
+          boardT('view.picker.chooseLabels')
+        : boardT('view.picker.moveToColumn');
     },
     closePopover,
     closeIfOpen: kind => {

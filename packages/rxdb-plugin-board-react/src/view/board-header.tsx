@@ -56,7 +56,9 @@ function BoardTitle({ vm, current }: PartProps & { readonly current: Board }): R
             data-testid='board-description'
             title={boardT('view.header.editDescription')}
           >
-            {current.description ? current.description : <span className='rxb-placeholder'>{boardT('view.header.addDescription')}</span>}
+            {current.description ?
+              current.description
+            : <span className='rxb-placeholder'>{boardT('view.header.addDescription')}</span>}
           </button>
         }
       </div>
@@ -98,7 +100,12 @@ function HeaderActions({ vm }: PartProps): ReactNode {
         </button>
       </div>
       {board.searchSource || board.searchUnavailableReason ?
-        <button className='rxb-btn' onClick={dialog.openSearch} data-testid='search-open' title={boardT('view.header.searchTitle')}>
+        <button
+          className='rxb-btn'
+          onClick={dialog.openSearch}
+          data-testid='search-open'
+          title={boardT('view.header.searchTitle')}
+        >
           <span className='rxb-i rxb-i-search' aria-hidden='true' />
           {boardT('view.header.search')}
         </button>

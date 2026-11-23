@@ -1,6 +1,14 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { BOARD_I18N_NAMESPACE, Board, BoardLabel, Column, createBoardI18n, Task, TaskLabel } from '@aiao/rxdb-plugin-board';
+import {
+  Board,
+  BOARD_I18N_NAMESPACE,
+  BoardLabel,
+  Column,
+  createBoardI18n,
+  Task,
+  TaskLabel
+} from '@aiao/rxdb-plugin-board';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { act, createEvent, fireEvent, screen } from '@testing-library/react';

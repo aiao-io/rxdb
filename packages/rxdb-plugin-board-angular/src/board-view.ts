@@ -473,8 +473,8 @@ export class BoardViewComponent implements OnInit, OnDestroy {
   protected countLabel(column: Column): string {
     const visible = this.visibleTasksOf(column).length;
     return this.filterActive() ?
-      this.t('view.column.countFiltered', { visible, total: this.tasksOf(column).length })
-    : this.t('view.column.count', { count: visible });
+        this.t('view.column.countFiltered', { visible, total: this.tasksOf(column).length })
+      : this.t('view.column.count', { count: visible });
   }
 
   protected overdueCount(column: Column): number {
