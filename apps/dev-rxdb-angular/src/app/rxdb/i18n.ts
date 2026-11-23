@@ -2,8 +2,11 @@ import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
+import { encryptedEnMessages, encryptedZhMessages } from '@modules/demo-i18n/encrypted';
 import { fileEnMessages, fileZhMessages } from '@modules/demo-i18n/files';
+import { generatorEnMessages, generatorZhMessages } from '@modules/demo-i18n/generator';
 import { historyEnMessages, historyZhMessages } from '@modules/demo-i18n/history';
+import { remoteCacheEnMessages, remoteCacheZhMessages } from '@modules/demo-i18n/remote-cache';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
 
 const zhMessages: Readonly<Record<string, string>> = {
@@ -118,27 +121,13 @@ const zhMessages: Readonly<Record<string, string>> = {
   'page.search.retry': '重试',
   'page.entity.types': '实体类型',
   'page.entity.total': '共 {count} 个实体',
-  'page.encrypted.title': '本地字段加密演示',
-  'page.encrypted.locked': '已锁定',
-  'page.encrypted.unlocked': '已解锁',
-  'page.encrypted.firstUse':
-    '首次使用：请设置一个密码短语，系统将用它加密您的数据。请牢记此密码短语，后续解锁需要输入相同的密码短语。',
-  'page.encrypted.unlockHint': '输入密码短语以解密加密字段。密码短语不会离开您的设备。',
-  'page.encrypted.passphrasePlaceholder': '输入密码短语…',
-  'page.encrypted.unlock': '解锁',
-  'page.encrypted.refresh': '刷新',
-  'page.encrypted.lock': '锁定',
-  'page.encrypted.card': '信用卡号',
-  'page.encrypted.apiKey': 'API 密钥',
-  'page.encrypted.saveUser': '保存用户',
-
   'page.failureArchive.title': '导入失败现场归档',
-  'page.remoteCache.title': '远程缓存',
-  'page.remoteCache.online': '在线',
-  'page.remoteCache.offline': '离线',
   'page.replay.title': '会话录制回放',
+  ...encryptedZhMessages,
   ...fileZhMessages,
+  ...generatorZhMessages,
   ...historyZhMessages,
+  ...remoteCacheZhMessages,
   ...workspaceZhMessages,
   'page.workingTree.title': '工作树与提交历史',
   'page.opfs.title': 'OPFS 文件管理',
@@ -215,20 +204,6 @@ const zhMessages: Readonly<Record<string, string>> = {
   'common.folderName': '文件夹名称',
   'page.tree.searchPlaceholder': '搜索菜单…',
   'page.file.searchPlaceholder': '搜索文件或文件夹…',
-  'page.remoteCache.description':
-    'OPFS-first 缓存示例：首次联网下载 → 落盘 OPFS + StorageFileMeta → 后续命中本地不联网',
-  'page.remoteCache.presets': '预设资源',
-  'page.remoteCache.presetsDescription': '点击按钮触发 `rxdb.storage.fetch(opfsPath, options)`。',
-  'page.remoteCache.customUrl': '自定义 URL',
-  'page.remoteCache.customDescription': '输入任意 CORS 友好的 URL 和 OPFS 路径。',
-  'page.remoteCache.url': 'URL',
-  'page.remoteCache.opfsPath': 'OPFS 路径',
-  'page.remoteCache.fetch': '获取',
-  'page.remoteCache.cached': '已缓存（{count}）',
-  'page.remoteCache.clearAll': '清空全部',
-  'page.remoteCache.empty': '还没有缓存内容。点击上方预设或自定义按钮开始。',
-  'page.remoteCache.logs': '事件日志',
-  'page.remoteCache.emptyLogs': '日志为空。',
   'page.replay.description':
     '打开后每次加载页面都会装上录制插件，事件写进独立的录制库，不进应用库。输入框默认遮蔽，带 data-rxdb-replay-block 的区块只录占位。回放时点 commit 标记可把工作树恢复到那一刻。',
   'page.replay.toggle': '录制开关（切换后重新加载页面）',
@@ -293,7 +268,6 @@ const zhMessages: Readonly<Record<string, string>> = {
   'page.file.searchCount': '搜索：{count} 项',
   'page.file.loadedCount': '已加载：{count} 个节点',
   'page.file.descendantsCount': '共 {count} 个所有后代节点',
-  'page.generator.download': '生成并下载',
   'error.databaseOpen': '数据库打不开：{message}',
   'banner.importedDatabase': '正在查看导入的失败现场库',
   'banner.backToDefault': '回到默认库',
@@ -423,27 +397,13 @@ const enMessages: Readonly<Record<string, string>> = {
   'page.search.retry': 'Retry',
   'page.entity.types': 'Entity types',
   'page.entity.total': '{count, plural, one {# entity} other {# entities}}',
-  'page.encrypted.title': 'Local field encryption demo',
-  'page.encrypted.locked': 'Locked',
-  'page.encrypted.unlocked': 'Unlocked',
-  'page.encrypted.firstUse':
-    'First use: set a passphrase to encrypt your data. Remember it because the same passphrase is required to unlock the database later.',
-  'page.encrypted.unlockHint': 'Enter the passphrase to decrypt encrypted fields. It never leaves your device.',
-  'page.encrypted.passphrasePlaceholder': 'Enter passphrase…',
-  'page.encrypted.unlock': 'Unlock',
-  'page.encrypted.refresh': 'Refresh',
-  'page.encrypted.lock': 'Lock',
-  'page.encrypted.card': 'Card number',
-  'page.encrypted.apiKey': 'API key',
-  'page.encrypted.saveUser': 'Save user',
-
   'page.failureArchive.title': 'Import failure archive',
-  'page.remoteCache.title': 'Remote Cache',
-  'page.remoteCache.online': 'Online',
-  'page.remoteCache.offline': 'Offline',
   'page.replay.title': 'Session replay',
+  ...encryptedEnMessages,
   ...fileEnMessages,
+  ...generatorEnMessages,
   ...historyEnMessages,
+  ...remoteCacheEnMessages,
   ...workspaceEnMessages,
   'page.workingTree.title': 'Working tree and commit history',
   'page.opfs.title': 'OPFS file manager',
@@ -520,20 +480,6 @@ const enMessages: Readonly<Record<string, string>> = {
   'common.folderName': 'Folder name',
   'page.tree.searchPlaceholder': 'Search menus…',
   'page.file.searchPlaceholder': 'Search files or folders…',
-  'page.remoteCache.description':
-    'OPFS-first cache demo: download online once → persist to OPFS + StorageFileMeta → serve locally afterward',
-  'page.remoteCache.presets': 'Preset resources',
-  'page.remoteCache.presetsDescription': 'Click a button to call `rxdb.storage.fetch(opfsPath, options)`.',
-  'page.remoteCache.customUrl': 'Custom URL',
-  'page.remoteCache.customDescription': 'Enter any CORS-friendly URL and an OPFS path.',
-  'page.remoteCache.url': 'URL',
-  'page.remoteCache.opfsPath': 'OPFS path',
-  'page.remoteCache.fetch': 'Fetch',
-  'page.remoteCache.cached': 'Cached ({count})',
-  'page.remoteCache.clearAll': 'Clear all',
-  'page.remoteCache.empty': 'No cached content yet. Start with a preset or custom resource above.',
-  'page.remoteCache.logs': 'Event log',
-  'page.remoteCache.emptyLogs': 'The log is empty.',
   'page.replay.description':
     'Each page load installs the recording plugin and writes events to a separate recording database. Inputs are masked by default, and data-rxdb-replay-block sections record only placeholders. Commit markers can restore the working tree to that point during replay.',
   'page.replay.toggle': 'Recording toggle (reload after changing)',
@@ -598,7 +544,6 @@ const enMessages: Readonly<Record<string, string>> = {
   'page.file.searchCount': 'Search: {count} items',
   'page.file.loadedCount': 'Loaded: {count} nodes',
   'page.file.descendantsCount': '{count} descendant nodes in total',
-  'page.generator.download': 'Generate and download',
   'error.databaseOpen': 'Unable to open database: {message}',
   'banner.importedDatabase': 'Viewing an imported failure archive',
   'banner.backToDefault': 'Back to default database',

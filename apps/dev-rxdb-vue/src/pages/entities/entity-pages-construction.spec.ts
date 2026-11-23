@@ -35,6 +35,9 @@ vi.mock('@aiao/rxdb-vue', () => ({
   })
 }));
 
+// 本 spec 只关心壳页的目录分组与重定向契约，不关心文案；恒等 t 避免挂载需要 I18n provider。
+vi.mock('@aiao/rxdb-i18n-vue', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+
 vi.mock('vue-router', async () => {
   const { defineComponent } = await import('vue');
   return {
@@ -104,7 +107,7 @@ describe('entity demo page construction contracts', () => {
     expect(wrapper.text()).toContain('Todo');
     expect(wrapper.text()).toContain('ShellOther');
     expect(wrapper.text()).toContain('other');
-    expect(wrapper.text()).toContain('共 2 个实体');
+    expect(wrapper.text()).toContain('page.entity.total');
     // 空路由参数 → 命名路由导航到首个实体
     expect(push).toHaveBeenCalledWith({ name: 'entity-list', params: { namespace: 'other', name: 'ShellOther' } });
   });

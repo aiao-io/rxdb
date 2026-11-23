@@ -1,4 +1,5 @@
 import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { Check, ChevronDown, FileDiff, ListFilter, MoreVertical, Search } from 'lucide-react';
 import { createElement, useEffect, useRef, useState } from 'react';
 import { diffEntryKey, formatPatchSummary } from '../utils/diff-format';
@@ -69,6 +70,7 @@ export function WorkingTreeChangesList({
   onSelectEntry
 }: WorkingTreeChangesListProps): React.JSX.Element {
   const [filter, setFilter] = useState('');
+  const { t } = useI18n();
   const [operation, setOperation] = useState<'all' | WorkingTreeDiffEntry['operation']>('all');
   const [kindOpen, setKindOpen] = useState(false);
   const kindContainerRef = useRef<HTMLDivElement>(null);
@@ -229,9 +231,9 @@ export function WorkingTreeChangesList({
                   <button
                     className='gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex'
                     onClick={event => onMenuRequest(touchMenuRequest(event, entry))}
-                    aria-label='更多操作'
+                    aria-label={t('common.moreActions')}
                     data-testid='wt-diff-more'
-                    title='更多操作（触屏）'
+                    title={t('page.workingTree.moreActionsTouch')}
                     type='button'
                   >
                     <MoreVertical size={14} />

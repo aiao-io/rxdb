@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { ArticleCreateDraft, CommentCreateDraft, SearchDemoCollection } from '../types';
 
 interface SearchCreateModalProps {
@@ -25,6 +26,7 @@ export function SearchCreateModal({
   onCommentDraftChange,
   onSubmit
 }: SearchCreateModalProps): React.JSX.Element | null {
+  const { t } = useI18n();
   if (!open) return null;
 
   return (
@@ -40,13 +42,13 @@ export function SearchCreateModal({
       <div className='modal-box max-w-2xl' aria-labelledby='search-create-title' aria-modal='true' role='dialog'>
         <div className='flex items-start justify-between gap-3'>
           <h2 className='text-lg font-semibold' id='search-create-title'>
-            新建{type === 'article' ? '文章' : '评论'}
+            {type === 'article' ? t('page.search.createArticle') : t('page.search.createComment')}
           </h2>
           <button
             type='button'
             className='btn btn-ghost btn-sm btn-circle'
             onClick={() => onOpenChange(false)}
-            aria-label='关闭'
+            aria-label={t('common.close')}
           >
             <svg
               fill='none'

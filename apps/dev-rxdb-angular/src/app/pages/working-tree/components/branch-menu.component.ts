@@ -14,6 +14,7 @@ import {
   viewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import {
   LucideCheck as Check,
   LucideChevronDown as ChevronDown,
@@ -59,7 +60,7 @@ import { fitToolbarPopup } from '../working-tree.popup';
   selector: 'app-working-tree-branch-menu',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon],
+  imports: [CommonModule, FormsModule, I18nPipe, LucideDynamicIcon],
   template: `
     <div class="flex h-full items-stretch">
       <div class="relative flex-1">
@@ -186,9 +187,9 @@ import { fitToolbarPopup } from '../working-tree.popup';
                     <button
                       class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
                       (click)="openRowMenu($event, branch)"
-                      aria-label="更多操作"
+                      [attr.aria-label]="'common.moreActions' | i18n"
                       data-testid="wt-branch-more"
-                      title="更多操作（触屏）"
+                      [title]="'page.workingTree.moreActionsTouch' | i18n"
                       type="button"
                     >
                       <svg [lucideIcon]="MoreVertical" size="14"></svg>

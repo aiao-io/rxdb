@@ -380,7 +380,7 @@ export function TodoPage(): React.JSX.Element {
             <div className='mx-auto flex max-w-4xl items-center justify-between'>
               <div className='flex items-center gap-3'>
                 <h2 className='text-lg font-semibold'>Todos</h2>
-                <div className='badge badge-primary badge-sm'>{activeTodoCount} 待办</div>
+                <div className='badge badge-primary badge-sm'>{t('page.todo.activeCount', { count: activeTodoCount })}</div>
               </div>
               <div className='tabs tabs-boxed tabs-xs' role='tablist'>
                 <button
@@ -388,21 +388,21 @@ export function TodoPage(): React.JSX.Element {
                   onClick={() => stickyTabClick('all')}
                   type='button'
                 >
-                  全部
+                  {t('page.todo.tab.all')}
                 </button>
                 <button
                   className={clsx('tab', { 'tab-active': currentTab === 'active' })}
                   onClick={() => stickyTabClick('active')}
                   type='button'
                 >
-                  进行中
+                  {t('page.todo.tab.active')}
                 </button>
                 <button
                   className={clsx('tab', { 'tab-active': currentTab === 'completed' })}
                   onClick={() => stickyTabClick('completed')}
                   type='button'
                 >
-                  已完成
+                  {t('page.todo.tab.completed')}
                 </button>
               </div>
             </div>
@@ -417,12 +417,12 @@ export function TodoPage(): React.JSX.Element {
               <div className='flex items-center gap-3'>
                 <h1 className='text-2xl font-bold'>Todos</h1>
                 <div className='badge badge-primary' data-testid='todo-count'>
-                  {activeTodoCount} 待办
+                  {t('page.todo.activeCount', { count: activeTodoCount })}
                 </div>
 
                 {/* Batch Add Dropdown */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' data-testid='todo-batch-add' aria-label='批量添加'>
+                  <summary className='btn btn-circle btn-sm' data-testid='todo-batch-add' aria-label={t('page.todo.batchAdd')}>
                     <Plus size={16} />
                   </summary>
                   <ul className='menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow'>
@@ -436,7 +436,7 @@ export function TodoPage(): React.JSX.Element {
                         }}
                       >
                         {addingCount === 1 && <span className='loading loading-spinner loading-xs'></span>}
-                        添加 1 条
+                        {t('page.todo.addCount', { count: 1 })}
                       </button>
                     </li>
                     <li>
@@ -449,7 +449,7 @@ export function TodoPage(): React.JSX.Element {
                         }}
                       >
                         {addingCount === 10 && <span className='loading loading-spinner loading-xs'></span>}
-                        添加 10 条
+                        {t('page.todo.addCount', { count: 10 })}
                       </button>
                     </li>
                     <li>
@@ -462,7 +462,7 @@ export function TodoPage(): React.JSX.Element {
                         }}
                       >
                         {addingCount === 100 && <span className='loading loading-spinner loading-xs'></span>}
-                        添加 100 条
+                        {t('page.todo.addCount', { count: 100 })}
                       </button>
                     </li>
                     <li>
@@ -475,7 +475,7 @@ export function TodoPage(): React.JSX.Element {
                         }}
                       >
                         {addingCount === 1000 && <span className='loading loading-spinner loading-xs'></span>}
-                        添加 1000 条
+                        {t('page.todo.addCount', { count: 1000 })}
                       </button>
                     </li>
                     <li>
@@ -488,7 +488,7 @@ export function TodoPage(): React.JSX.Element {
                         }}
                       >
                         {addingCount === 10000 && <span className='loading loading-spinner loading-xs'></span>}
-                        添加 10000 条
+                        {t('page.todo.addCount', { count: 10000 })}
                       </button>
                     </li>
                   </ul>
@@ -541,7 +541,7 @@ export function TodoPage(): React.JSX.Element {
                   onClick={() => setCurrentTab('all')}
                   role='tab'
                 >
-                  全部
+                  {t('page.todo.tab.all')}
                 </button>
                 <button
                   className={clsx('tab', { 'tab-active': currentTab === 'active' })}
@@ -549,7 +549,7 @@ export function TodoPage(): React.JSX.Element {
                   onClick={() => setCurrentTab('active')}
                   role='tab'
                 >
-                  进行中
+                  {t('page.todo.tab.active')}
                 </button>
                 <button
                   className={clsx('tab', { 'tab-active': currentTab === 'completed' })}
@@ -557,7 +557,7 @@ export function TodoPage(): React.JSX.Element {
                   onClick={() => setCurrentTab('completed')}
                   role='tab'
                 >
-                  已完成
+                  {t('page.todo.tab.completed')}
                 </button>
               </div>
 
@@ -567,24 +567,24 @@ export function TodoPage(): React.JSX.Element {
                   data-testid='todo-toggle-all'
                   disabled={disabledToggleAllBtn}
                   onClick={toggleAllTodos}
-                  aria-label='全选/取消全选当前列表'
+                  aria-label={t('page.todo.toggleAll')}
                 >
-                  全选当前列表
+                  {t('page.todo.toggleAll')}
                 </button>
                 <button
                   className='btn btn-sm'
                   data-testid='todo-clear-completed'
                   disabled={disabledClearCompletedBtn}
                   onClick={clearCompleted}
-                  aria-label='清除当前列表中的已完成项'
+                  aria-label={t('page.todo.clearCompleted')}
                 >
-                  清除当前已完成
+                  {t('page.todo.clearCompleted')}
                 </button>
-                <button className='btn btn-sm' data-testid='todo-sort' onClick={toggleCompletedSort} aria-label='排序'>
+                <button className='btn btn-sm' data-testid='todo-sort' onClick={toggleCompletedSort} aria-label={t('page.todo.sort')}>
                   {completedSort === 'asc' ?
                     <ArrowUp size={16} />
                   : <ArrowDown size={16} />}
-                  排序
+                  {t('page.todo.sort')}
                 </button>
               </div>
             </div>
@@ -597,8 +597,8 @@ export function TodoPage(): React.JSX.Element {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyUp={e => e.key === 'Enter' && addTodo(e)}
-                aria-label='添加新任务'
-                placeholder='添加新任务...'
+                aria-label={t('page.todo.addPlaceholder')}
+                placeholder={t('page.todo.addPlaceholder')}
                 type='text'
               />
               <button
@@ -606,10 +606,10 @@ export function TodoPage(): React.JSX.Element {
                 data-testid='todo-add'
                 disabled={!inputValue}
                 onClick={addTodo}
-                aria-label='添加'
+                aria-label={t('page.todo.add')}
               >
                 <Plus size={16} />
-                添加
+                {t('page.todo.add')}
               </button>
             </div>
           </div>
@@ -617,7 +617,7 @@ export function TodoPage(): React.JSX.Element {
 
         {reorderError && (
           <div className='alert alert-error mx-auto my-2 max-w-4xl' data-testid='todo-reorder-error' role='alert'>
-            <span>排序保存失败：{reorderError}</span>
+            <span>{t('page.todo.reorderFailed', { reason: reorderError })}</span>
           </div>
         )}
 
@@ -636,8 +636,8 @@ export function TodoPage(): React.JSX.Element {
             <div className='hero min-h-60'>
               <div className='hero-content text-center'>
                 <div>
-                  <p className='text-base-content/60'>暂无任务</p>
-                  <p className='text-base-content/40 text-sm'>添加一个新任务开始吧</p>
+                  <p className='text-base-content/60'>{t('page.todo.empty')}</p>
+                  <p className='text-base-content/40 text-sm'>{t('page.todo.emptyHint')}</p>
                 </div>
               </div>
             </div>
@@ -699,7 +699,7 @@ export function TodoPage(): React.JSX.Element {
                                   cancelEditing(todo);
                                 }
                               }}
-                              placeholder='任务名称...'
+                              placeholder={t('page.todo.editPlaceholder')}
                               type='text'
                             />
                             <button
@@ -709,10 +709,10 @@ export function TodoPage(): React.JSX.Element {
                                 const input = editInputRefs.current.get(todo.id);
                                 if (input) saveTodo(e, input, todo);
                               }}
-                              aria-label='保存'
+                              aria-label={t('page.todo.save')}
                               data-testid='todo-save'
                             >
-                              保存
+                              {t('page.todo.save')}
                             </button>
                           </>
                         : <>
@@ -722,7 +722,7 @@ export function TodoPage(): React.JSX.Element {
                                 data-testid='todo-drag-handle'
                                 disabled={!canDrag}
                                 onPointerDown={e => canDrag && rowDrag.start(e.nativeEvent, virtualItem.index)}
-                                aria-label='拖动排序'
+                                aria-label={t('page.todo.dragSort')}
                                 type='button'
                               >
                                 <GripVertical size={14} />
@@ -750,7 +750,7 @@ export function TodoPage(): React.JSX.Element {
                                 className='btn btn-ghost btn-xs'
                                 data-testid='todo-edit'
                                 onClick={e => startEditing(e, todo)}
-                                aria-label='编辑'
+                                aria-label={t('page.todo.edit')}
                               >
                                 <Pen size={14} />
                               </button>
@@ -758,7 +758,7 @@ export function TodoPage(): React.JSX.Element {
                                 className='btn btn-ghost btn-xs text-error'
                                 data-testid='todo-delete'
                                 onClick={e => removeTodo(e, todo)}
-                                aria-label='删除'
+                                aria-label={t('common.delete')}
                               >
                                 <X size={14} />
                               </button>

@@ -6,6 +6,7 @@ import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ThemeService } from '@modules/angular';
 import { AngularSplitModule } from 'angular-split';
 import { zipSync, type Zippable } from 'fflate';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { generateSourceState, GENERATOR_DEMOS } from './generator-state';
 
 function downloadFile(filename: string, blob: Blob) {
@@ -24,7 +25,7 @@ function downloadFile(filename: string, blob: Blob) {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './generator.page.html',
   host: { class: 'page-host bg-base-100' },
-  imports: [CodeEditor, ReactiveFormsModule, FormsModule, AngularSplitModule]
+  imports: [CodeEditor, ReactiveFormsModule, FormsModule, AngularSplitModule, I18nPipe]
 })
 export default class GeneratorPage {
   #themeService = inject(ThemeService);

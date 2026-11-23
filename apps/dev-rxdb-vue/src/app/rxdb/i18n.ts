@@ -2,8 +2,12 @@ import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
+import { encryptedCatalogs } from '@modules/demo-i18n/encrypted';
 import { fileCatalogs } from '@modules/demo-i18n/files';
+import { generatorCatalogs } from '@modules/demo-i18n/generator';
 import { historyCatalogs } from '@modules/demo-i18n/history';
+import { remoteCacheCatalogs } from '@modules/demo-i18n/remote-cache';
+import { todoCatalogs } from '@modules/demo-i18n/todo';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
 
 export const demoMessages: readonly MessageCatalog[] = [
@@ -37,8 +41,12 @@ export function createDemoI18n(rxdb: RxDB): I18n {
       { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages },
       { locale: 'zh-Hans', namespace: 'app', messages: workspaceZhMessages },
       { locale: 'en', namespace: 'app', messages: workspaceEnMessages },
+      ...encryptedCatalogs,
       ...fileCatalogs,
+      ...generatorCatalogs,
       ...historyCatalogs,
+      ...remoteCacheCatalogs,
+      ...todoCatalogs,
       ...demoMessages
     ]
   });

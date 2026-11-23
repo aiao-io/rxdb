@@ -1,4 +1,5 @@
 import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { ChevronDown, ChevronUp, Copy, GitCommitHorizontal } from 'lucide-react';
 import { createElement, useEffect, useRef, useState } from 'react';
 import { startDragResize } from '../utils/drag';
@@ -36,6 +37,7 @@ interface WorkingTreeCommitDetailProps {
 export function WorkingTreeCommitDetail({ changesState, commit }: WorkingTreeCommitDetailProps): React.JSX.Element {
   /** SHA 的复制反馈；2s 后复位。 */
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
   /** 左栏里选中的变更单元键。 */
   const [selectedUnitKey, setSelectedUnitKey] = useState<string | null>(null);
   /** 内容区折叠（GitHub Desktop 的 diff 折叠 chevron）。 */
@@ -167,7 +169,7 @@ export function WorkingTreeCommitDetail({ changesState, commit }: WorkingTreeCom
               >
                 {gdAvatarInitial(commit.authorId ?? '?')}
               </span>
-              <span>{commit.authorId ?? '无作者'}</span>
+              <span>{commit.authorId ?? t('page.workingTree.noAuthor')}</span>
               <span className='gd-commit-time'>committed on {commit.createdAt.toLocaleString()}</span>
               <span className='min-w-0 truncate font-mono text-[11px]' title={commit.commitId}>
                 {commit.commitId.slice(0, 8)}

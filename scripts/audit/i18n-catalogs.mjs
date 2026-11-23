@@ -42,6 +42,34 @@ const checks = [
     ]
   },
   {
+    name: 'demo/encrypted',
+    entries: [
+      ['modules/demo-i18n/encrypted.ts', 'encryptedZhMessages'],
+      ['modules/demo-i18n/encrypted.ts', 'encryptedEnMessages']
+    ]
+  },
+  {
+    name: 'demo/remote-cache',
+    entries: [
+      ['modules/demo-i18n/remote-cache.ts', 'remoteCacheZhMessages'],
+      ['modules/demo-i18n/remote-cache.ts', 'remoteCacheEnMessages']
+    ]
+  },
+  {
+    name: 'demo/todo',
+    entries: [
+      ['modules/demo-i18n/todo.ts', 'todoZhMessages'],
+      ['modules/demo-i18n/todo.ts', 'todoEnMessages']
+    ]
+  },
+  {
+    name: 'demo/generator',
+    entries: [
+      ['modules/demo-i18n/generator.ts', 'generatorZhMessages'],
+      ['modules/demo-i18n/generator.ts', 'generatorEnMessages']
+    ]
+  },
+  {
     name: 'demo/history',
     entries: [
       ['modules/demo-i18n/history.ts', 'historyZhMessages'],
