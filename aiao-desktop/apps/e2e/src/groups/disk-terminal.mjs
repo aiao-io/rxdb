@@ -224,7 +224,7 @@ export const diskTerminal = {
     await finder.locator('[data-name="README.md"]').waitFor();
     const gitEntry = finder.locator('[role="option"][data-name=".git"]');
     const hiddenByDefault = (await gitEntry.count()) === 0;
-    await page.keyboard.press('Meta+Shift+Period');
+    await page.keyboard.press('Control+Shift+Period');
     await gitEntry.waitFor({ timeout: 5_000 });
     for (const view of ['list', 'gallery', 'column']) {
       await finder.locator(`[data-view="${view}"]`).click();

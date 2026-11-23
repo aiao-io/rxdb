@@ -14,7 +14,7 @@ import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRegistry } from '../services/application-registry';
 import { ApplicationRuntime } from '../services/application-runtime';
 import { ApplicationTransitions } from '../services/application-transitions';
-import { ariaShortcut } from '../services/aria';
+import { menuShortcuts } from '../services/aria';
 import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
@@ -233,7 +233,7 @@ export class DesktopPage {
     const command = front
       .menus()?.()
       .flatMap(section => section.items)
-      .find(item => isMenuCommand(item) && !item.disabled && item.run && ariaShortcut(item.key ?? '') === shortcut);
+      .find(item => isMenuCommand(item) && !item.disabled && item.run && menuShortcuts(item).includes(shortcut));
     if (!command || !isMenuCommand(command) || !command.run) return false;
     event.preventDefault();
     if (!shiftedPeriod || !event.repeat) command.run();

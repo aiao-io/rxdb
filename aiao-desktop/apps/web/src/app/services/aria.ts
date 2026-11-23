@@ -35,6 +35,11 @@ export function ariaShortcut(glyphs: string): string | null {
   return key === null ? null : [...parts, key].join('+');
 }
 
+/** 菜单命令实际接受的组合；提示文字不是快捷键。 */
+export function menuShortcuts(command: MenuCommand): readonly string[] {
+  return [command.key ?? '', command.alternateKey ?? ''].map(ariaShortcut).filter(key => key !== null);
+}
+
 /** 一个菜单命令在无障碍树里的角色与状态。 */
 export interface MenuItemAria {
   /** 声明了 `checked` 的命令是带勾选状态的 `menuitemcheckbox`，其余是 `menuitem`。 */
@@ -50,7 +55,7 @@ export function menuItemAria(command: MenuCommand): MenuItemAria {
   return {
     role: command.checked === undefined ? 'menuitem' : 'menuitemcheckbox',
     checked: command.checked ?? null,
-    shortcut: command.key ? ariaShortcut(command.key) : null
+    shortcut: menuShortcuts(command).join(' ') || null
   };
 }
 

@@ -1242,7 +1242,9 @@ export const a11y = {
       const checked = await toggle.getAttribute('aria-checked');
       await press('Enter');
       finder.hiddenFilesMenu = problems(
-        focused && shortcut === 'Shift+Meta+.' ? [] : ['隐藏文件开关需要可键盘聚焦，并为读屏声明快捷键'],
+        focused && shortcut === 'Control+Shift+. Shift+Meta+.' ?
+          []
+        : ['隐藏文件开关需要可键盘聚焦，并为读屏声明主快捷键与备用快捷键'],
         unchecked === 'false' && checked === 'true' ? [] : ['隐藏文件开关未报告勾选状态'],
         shown && (await disappears(trash, 3_000)) ? [] : ['用 Enter 应能显示与再次隐藏 .Trash']
       );

@@ -266,7 +266,12 @@ describe('DesktopMenus Finder 菜单', () => {
     const firstView = sectionOf(menus.finder(finderTarget()), 'View');
     const hiddenFiles = (entries: readonly MenuEntry[]) =>
       entries.filter(isMenuCommand).find(item => item.id === 'hidden-files');
-    expect(hiddenFiles(firstView)).toMatchObject({ label: 'Show Hidden Files', key: '⇧⌘.', checked: false });
+    expect(hiddenFiles(firstView)).toMatchObject({
+      label: 'Show Hidden Files',
+      key: '⌃⇧.',
+      alternateKey: '⇧⌘.',
+      checked: false
+    });
 
     click(firstView, 'hidden-files');
     const otherView = sectionOf(menus.finder(finderTarget()), 'View');

@@ -68,7 +68,7 @@ capabilities: []
 | 21  | 外网阻断                               | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun           | 编译结果、编译器版本与 Bun 表达式输出正确                                                                      | ✅   |
 | 22  | 外网阻断                               | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询              | SQLite WASM 真正执行 SQL，数据与预期一致                                                                       | ✅   |
 | 23  | 终端在桌面目录建好项目                 | 执行 `init`、`add`、`commit`、`status`、`log`，再重开终端        | 暂存状态、提交哈希、退出码、管道与重定向正确；双标签暂存均保留                                                 | ✅   |
-| 24  | 终端已初始化 Git 仓库，Finder 打开项目 | 按 `⌘⇧.`，或在 View 菜单切换 Show Hidden Files                   | `.git` 默认隐藏；显示后四种视图均能看到，是目录时可在分栏展开；再次切换后隐藏                                   | ✅   |
+| 24  | 终端已初始化 Git 仓库，Finder 打开项目 | 按 `⌃⇧.` 或在 View 菜单切换 Show Hidden Files                    | `.git` 默认隐藏；显示后四种视图均能看到，是目录时可在分栏展开；再次切换后隐藏                                   | ✅   |
 
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。
 
@@ -78,7 +78,7 @@ Git 验收对应 `disk-terminal` 组的 `diskState.gitCommandsWork`、`diskState
 
 运行时补验：#17～#22 对应 `terminal-runtimes` 检查组。Python REPL 在同一项目目录恢复 pip 包、按需加载 NumPy，并在退出后回写文件；`pythonInput` 检查终端逐键输入能被 `input()` 完整读取。Bun 另覆盖 TS 文件与参数、`Bun.file` / `Bun.write` 共享桌面文件、package.json 的 pre / post 脚本、退出码和 REPL；`terminal-packages` 的 `bunx`、`bunInstallsDependency` 与 `bunRunsDependency` 覆盖包执行入口及固定 registry 的真实安装与执行。完整资源清单与兼容边界见[终端资源说明](../../../scripts/vivari/README.md)。首次资源接入的浏览器报告与脚本门禁结果登记在[2026-11-15 证据](../../evidence/2026-11-15/README.md)，Bun 与 Python 的终端交互补验见[2026-11-16 证据](../../evidence/2026-11-16/README.md)。
 
-#24 由 `disk-terminal` 组的 `diskState.finderHiddenGitDirectory` 和 `a11y` 组的 `a11y.finder.hiddenFilesMenu` 验收。
+#24 由 `disk-terminal` 组的 `diskState.finderHiddenGitDirectory` 和 `a11y` 组的 `a11y.finder.hiddenFilesMenu` 验收。`⌘⇧.` 在按键能传到页面时仍可用；菜单提示的是 `⌃⇧.`。
 
 ## 技术笔记
 

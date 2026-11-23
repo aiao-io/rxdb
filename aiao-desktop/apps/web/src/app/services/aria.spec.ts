@@ -63,6 +63,12 @@ describe('menuItemAria 菜单项的角色与状态', () => {
     expect(menuItemAria({ id: 'b', label: 'Hide Toolbar', checked: false }).checked).toBe(false);
   });
 
+  it('读屏能读到菜单项的主快捷键与备用快捷键', () => {
+    expect(
+      menuItemAria({ id: 'hidden-files', label: 'Show Hidden Files', key: '⌃⇧.', alternateKey: '⇧⌘.' }).shortcut
+    ).toBe('Control+Shift+. Shift+Meta+.');
+  });
+
   it('没有快捷键的命令 shortcut 为 null；有「▸」之类的提示也不当作快捷键', () => {
     expect(menuItemAria({ id: 'a', label: 'Open With', key: '▸' }).shortcut).toBeNull();
     expect(menuItemAria({ id: 'b', label: 'Sleep' }).shortcut).toBeNull();

@@ -3,6 +3,8 @@ export interface MenuCommand {
   readonly id: string;
   readonly label: string;
   readonly key?: string;
+  /** 同一命令接受的备用组合；菜单只显示主快捷键。 */
+  readonly alternateKey?: string;
   readonly icon?: string;
   readonly disabled?: boolean;
   readonly checked?: boolean;

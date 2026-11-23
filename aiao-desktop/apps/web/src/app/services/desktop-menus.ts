@@ -179,7 +179,8 @@ export class DesktopMenus {
         {
           id: 'hidden-files',
           label: 'Show Hidden Files',
-          key: '⇧⌘.',
+          key: '⌃⇧.',
+          alternateKey: '⇧⌘.',
           checked: this.system.finderShowsHiddenFiles(),
           run: () => this.system.finderShowsHiddenFiles.update(shown => !shown)
         }
