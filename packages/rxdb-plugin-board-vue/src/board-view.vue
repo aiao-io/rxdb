@@ -2493,6 +2493,7 @@ onBeforeUnmount(() => {
             class="rxb-i rxb-i-download"
             aria-hidden="true"
           ></span>
+          <!-- TODO(i18n)：目录缺「导出备份」键，目录 agent 补齐 view.boardMenu.exportBackup 后换成 t() -->
           导出备份
         </button>
         <button
@@ -2505,7 +2506,7 @@ onBeforeUnmount(() => {
             class="rxb-i rxb-i-keyboard"
             aria-hidden="true"
           ></span>
-          键盘快捷键
+          {{ t('common.keyboardShortcuts') }}
           <kbd class="rxb-kbd">?</kbd>
         </button>
         <div
@@ -2523,6 +2524,7 @@ onBeforeUnmount(() => {
             class="rxb-i rxb-i-trash"
             aria-hidden="true"
           ></span>
+          <!-- TODO(i18n)：目录缺「删除看板」键，目录 agent 补齐 view.boardMenu.deleteBoard 后换成 t() -->
           删除看板
         </button>
       </template>
